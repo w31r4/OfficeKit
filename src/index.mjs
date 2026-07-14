@@ -2025,7 +2025,7 @@ const PRESENTATION_HELP_SCHEMAS = {
     name: { type: "string", description: "Native Slide Master name." },
     background: { type: "string|object", description: "Solid RGB/scheme background or native background reference with index." },
     theme: { type: "object", description: "Optional partial theme override inherited from presentation.theme and exported through the master's own Theme relationship." },
-    placeholders: { type: "object[]", description: "Typed placeholder defaults with unique type/idx, position, text, required flag, text style, and paragraphStyles; picture bullets own master-part image relationships." },
+    placeholders: { type: "object[]", description: "Typed placeholder defaults with unique type/unsigned idx (including native default 0), position, text, required flag, text style, paragraphStyles, and textBodyProperties; picture bullets and links own master-part relationships." },
     textParagraphStyles: { type: "object", description: "title/body/other level maps (0-8) using the structured paragraph style fields, including embedded or external bulletImage values." },
   }, "master", "PresentationSlideMaster", "Mutable first Slide Master facade."),
   "presentation.masters.add": helpSchema({
@@ -2033,7 +2033,7 @@ const PRESENTATION_HELP_SCHEMAS = {
     name: { type: "string", description: "Native Slide Master name." },
     background: { type: "string|object", description: "Solid RGB/scheme background or native background reference with index." },
     theme: { type: "object", description: "Optional partial theme override inherited from presentation.theme and exported through the master's own Theme relationship." },
-    placeholders: { type: "object[]", description: "Typed placeholder defaults with unique type/idx, position, text, required flag, text style, and paragraphStyles; picture bullets own master-part image relationships." },
+    placeholders: { type: "object[]", description: "Typed placeholder defaults with unique type/unsigned idx (including native default 0), position, text, required flag, text style, paragraphStyles, and textBodyProperties; picture bullets and links own master-part relationships." },
     textParagraphStyles: { type: "object", description: "title/body/other level maps (0-8) using the structured paragraph style fields, including embedded or external bulletImage values." },
   }, "master", "PresentationSlideMaster", "Appended Slide Master facade."),
   "presentation.masters.getItem": helpSchema({
@@ -2047,7 +2047,7 @@ const PRESENTATION_HELP_SCHEMAS = {
     type: { type: "string", description: "Layout type." },
     masterId: { type: "string", description: "Master identity." },
     background: { type: "string|object", description: "Optional layout background overriding the linked master background." },
-    placeholders: { type: "object[]", description: "Placeholder type/idx/name/frame/text/required/style/paragraphStyles definitions merged over matching master defaults; picture bullets own layout-part image relationships." },
+    placeholders: { type: "object[]", description: "Placeholder type/unsigned idx/name/frame/text/required/style/paragraphStyles/textBodyProperties definitions merged over matching master defaults; picture bullets and links own layout-part relationships." },
   }, "layout", "SlideLayoutTemplate", "Appended reusable layout facade."),
   "slide.applyLayout": helpSchema({
     layout: { type: "string|SlideLayoutTemplate", required: true, description: "Layout name/ID or layout facade." },
@@ -9032,7 +9032,7 @@ function pptxTextShapeXml(index, name, geometry, position, text = "", placeholde
   });
   const listStyle = presentationListStyleXml(options.paragraphStyles || options.inheritedParagraphStyles || {}, { pictureBulletRelationshipId: (bulletImage) => pictureBulletRelIds.get(bulletImage.dataUrl || bulletImage.uri) });
   const bodyProperties = presentationTextBodyPropertiesXml(options.bodyProperties, { defaults: options.bodyProperties === undefined });
-  const ph = placeholder ? `<p:ph type="${attrEscape(placeholder.type || "body")}" idx="${Number(placeholder.idx || 1)}"/>` : "";
+  const ph = placeholder ? `<p:ph type="${attrEscape(placeholder.type || "body")}" idx="${Number(placeholder.idx ?? 1)}"/>` : "";
   const shapeProperties = transform ? `<p:spPr>${transform}<a:prstGeom prst="${attrEscape(geometry === "textbox" ? "rect" : geometry)}"><a:avLst/></a:prstGeom>${pptxDrawingFillXml(options.fill)}${pptxDrawingLineXml(options.line)}</p:spPr>` : "<p:spPr/>";
   return `<p:sp><p:nvSpPr>${pptxNonVisualPropertiesXml(index, name, "", options)}<p:cNvSpPr/><p:nvPr>${ph}</p:nvPr></p:nvSpPr>${shapeProperties}<p:txBody>${bodyProperties}${listStyle}${paragraphs || "<a:p/>"}</p:txBody></p:sp>`;
 }
