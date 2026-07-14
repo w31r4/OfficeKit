@@ -278,6 +278,50 @@ public sealed class DocxCodecTests
         Assert.Equal("invalid_document_hyperlink", Assert.Single(unsafeResponse.Diagnostics).Code);
     }
 
+    [Fact]
+    public void SourceHyperlinkEditRetainsSharedRelationshipForOtherOwners()
+    {
+        var request = HyperlinkExportRequest();
+        request.Artifact.Document.Blocks.Insert(1, new DocumentBlock
+        {
+            Id = "document/shared-link",
+            StyleId = "Normal",
+            Hyperlink = new DocumentHyperlink
+            {
+                Text = "Shared original target",
+                ExternalUri = "https://example.test/original",
+            },
+        });
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var imported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        var originalRelationshipId = imported.Artifact.Document.Blocks[0].Hyperlink.RelationshipId;
+        Assert.Equal(originalRelationshipId, imported.Artifact.Document.Blocks[1].Hyperlink.RelationshipId);
+        imported.Artifact.Document.Blocks[0].Hyperlink.ExternalUri = "https://example.test/first-only";
+        var exported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.True(exported.Ok, Diagnostics(exported));
+        using var stream = new MemoryStream(exported.File.ToByteArray());
+        using var document = WordprocessingDocument.Open(stream, false);
+        var mainPart = document.MainDocumentPart!;
+        var hyperlinks = mainPart.Document!.Descendants<W.Hyperlink>().ToArray();
+        Assert.Equal(2, mainPart.HyperlinkRelationships.Count());
+        Assert.Equal(originalRelationshipId, hyperlinks[1].Id?.Value);
+        Assert.Equal("https://example.test/original", mainPart.HyperlinkRelationships.Single(item => item.Id == originalRelationshipId).Uri.OriginalString);
+        Assert.Equal("https://example.test/first-only", mainPart.HyperlinkRelationships.Single(item => item.Id == hyperlinks[0].Id).Uri.OriginalString);
+    }
+
     private static CodecResponse Invoke(CodecRequest request) =>
         CodecResponse.Parser.ParseFrom(CodecProtocol.Invoke(request.ToByteArray()));
 
