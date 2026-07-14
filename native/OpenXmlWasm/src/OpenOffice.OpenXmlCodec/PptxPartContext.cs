@@ -5,27 +5,50 @@ using A = DocumentFormat.OpenXml.Drawing;
 
 namespace OpenOffice.OpenXmlCodec;
 
-// Owns relationships whose source is one slide. Asset identity belongs to the
-// shared catalog; relationship IDs remain local to this owner part.
-internal sealed class PptxSlideContext
+// Owns relationships whose source is one PresentationML part. Asset identity
+// belongs to the shared catalog; relationship IDs remain local to the slide,
+// master, or layout owner part.
+internal sealed class PptxPartContext
 {
     private const string ImageRelationshipType = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
     private readonly HashSet<string> _addedRelationshipIds = new(StringComparer.Ordinal);
     private readonly HashSet<string> _addedPartPaths = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Func<PartTypeInfo, ImagePart> _addImagePart;
 
-    internal PptxSlideContext(
-        SlidePart owner,
+    internal PptxPartContext(
+        OpenXmlPart owner,
         IReadOnlyDictionary<string, string> slideIdByPartPath,
         IReadOnlyDictionary<string, SlidePart>? slidePartById = null,
-        PptxAssetCatalog? assets = null)
+        PptxAssetCatalog? assets = null) : this(
+            owner,
+            owner switch
+            {
+                SlidePart slide => type => slide.AddImagePart(type),
+                SlideMasterPart master => type => master.AddImagePart(type),
+                SlideLayoutPart layout => type => layout.AddImagePart(type),
+                _ => throw new ArgumentException($"Unsupported PresentationML relationship owner {owner.GetType().Name}.", nameof(owner)),
+            },
+            slideIdByPartPath,
+            slidePartById,
+            assets)
+    {
+    }
+
+    private PptxPartContext(
+        OpenXmlPart owner,
+        Func<PartTypeInfo, ImagePart> addImagePart,
+        IReadOnlyDictionary<string, string> slideIdByPartPath,
+        IReadOnlyDictionary<string, SlidePart>? slidePartById,
+        PptxAssetCatalog? assets)
     {
         Owner = owner;
+        _addImagePart = addImagePart;
         SlideIdByPartPath = slideIdByPartPath;
         SlidePartById = slidePartById ?? new Dictionary<string, SlidePart>(StringComparer.Ordinal);
         Assets = assets;
     }
 
-    internal SlidePart Owner { get; }
+    internal OpenXmlPart Owner { get; }
     internal IReadOnlyDictionary<string, string> SlideIdByPartPath { get; }
     internal IReadOnlyDictionary<string, SlidePart> SlidePartById { get; }
     internal PptxAssetCatalog? Assets { get; }
@@ -124,7 +147,7 @@ internal sealed class PptxSlideContext
     {
         if (Assets is null) throw InvalidPicture("Presentation picture authoring requires an asset catalog.");
         var asset = Assets.Get(assetId);
-        var existingOwnerPart = Owner.ImageParts.FirstOrDefault(part => PartMatches(part, asset));
+        var existingOwnerPart = Owner.Parts.Select(pair => pair.OpenXmlPart).OfType<ImagePart>().FirstOrDefault(part => PartMatches(part, asset));
         if (existingOwnerPart is not null)
         {
             Assets.RegisterPart(assetId, existingOwnerPart);
@@ -135,7 +158,7 @@ internal sealed class PptxSlideContext
             Owner.AddPart(shared);
             return Track(Owner.GetIdOfPart(shared));
         }
-        var part = Owner.AddImagePart(PptxAssetCatalog.ImagePartTypeFor(asset.ContentType));
+        var part = _addImagePart(PptxAssetCatalog.ImagePartTypeFor(asset.ContentType));
         using (var source = new MemoryStream(asset.Data.ToByteArray(), writable: false)) part.FeedData(source);
         Assets.RegisterPart(assetId, part);
         _addedPartPaths.Add(part.Uri.OriginalString.TrimStart('/'));
