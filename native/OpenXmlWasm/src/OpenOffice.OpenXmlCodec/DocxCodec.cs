@@ -149,6 +149,12 @@ internal static class DocxCodec
                         "document_source_semantics_mismatch",
                         $"Document block {ordinal} source semantics do not match its binding.",
                         "word/document.xml");
+                if (block.ContentCase == DocumentBlock.ContentOneofCase.Hyperlink &&
+                    !block.Hyperlink.RelationshipId.Equals(original.Hyperlink.RelationshipId, StringComparison.Ordinal))
+                    throw new CodecException(
+                        "document_source_binding_mismatch",
+                        $"Document hyperlink block {ordinal} relationship locator does not match its source element.",
+                        "word/document.xml");
 
                 if (SemanticHash(block).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
                 if (!binding.Editable || block.ContentCase != original.ContentCase || block.ContentCase == DocumentBlock.ContentOneofCase.Opaque)

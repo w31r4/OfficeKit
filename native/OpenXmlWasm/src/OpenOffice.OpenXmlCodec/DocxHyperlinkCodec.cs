@@ -54,8 +54,7 @@ internal static class DocxHyperlinkCodec
         var source = paragraph.Elements<W.Hyperlink>().SingleOrDefault();
         if (source is null || !IsEditable(source) || !TryRead(source, context, out var current))
             throw Unsupported("Source-preserving DOCX export cannot edit this hyperlink paragraph topology.");
-        if (!string.IsNullOrWhiteSpace(requested.RelationshipId) &&
-            !requested.RelationshipId.Equals(original.RelationshipId, StringComparison.Ordinal))
+        if (!requested.RelationshipId.Equals(original.RelationshipId, StringComparison.Ordinal))
             throw Unsupported("DOCX hyperlink relationship IDs are source locators and cannot be edited directly.");
 
         ApplyTarget(source, requested, context);

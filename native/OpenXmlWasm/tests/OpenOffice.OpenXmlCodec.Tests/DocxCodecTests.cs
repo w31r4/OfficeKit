@@ -271,6 +271,24 @@ public sealed class DocxCodecTests
         Assert.False(rejected.Ok);
         Assert.Equal("unsupported_document_edit", Assert.Single(rejected.Diagnostics).Code);
 
+        var locatorImport = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        locatorImport.Artifact.Document.Blocks[0].Hyperlink.RelationshipId = string.Empty;
+        var locatorRejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = locatorImport.Artifact,
+        });
+        Assert.False(locatorRejected.Ok);
+        Assert.Equal("document_source_binding_mismatch", Assert.Single(locatorRejected.Diagnostics).Code);
+
         var unsafeRequest = HyperlinkExportRequest();
         unsafeRequest.Artifact.Document.Blocks[0].Hyperlink.ExternalUri = "javascript:alert(1)";
         var unsafeResponse = Invoke(unsafeRequest);

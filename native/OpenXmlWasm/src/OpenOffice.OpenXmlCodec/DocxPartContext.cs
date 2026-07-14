@@ -49,7 +49,10 @@ internal sealed class DocxPartContext
     internal void RemoveIfUnreferenced(string relationshipId)
     {
         if (string.IsNullOrWhiteSpace(relationshipId)) return;
-        if (Owner.Document?.Descendants<W.Hyperlink>().Any(item => item.Id?.Value == relationshipId) == true) return;
+        if (Owner.Document?.Descendants().Any(element => element.GetAttributes().Any(attribute =>
+                attribute.LocalName == "id" &&
+                attribute.Value == relationshipId &&
+                attribute.NamespaceUri.EndsWith("/relationships", StringComparison.Ordinal))) == true) return;
         if (Owner.HyperlinkRelationships.All(item => item.Id != relationshipId)) return;
         Owner.DeleteReferenceRelationship(relationshipId);
         _mutatedRelationshipIds.Add(relationshipId);

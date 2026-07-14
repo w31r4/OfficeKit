@@ -298,7 +298,7 @@ function sameDocumentHyperlink(block, source) {
   if (block.kind !== "hyperlink" || block.text !== source.text) return false;
   if (block.styleId !== (source.styleId || "Normal")) return false;
   if ((block.relationshipId || "") !== (source.relationshipId || "")) return false;
-  if ((block.tooltip || undefined) !== source.tooltip) return false;
+  if ((block.tooltip ?? undefined) !== source.tooltip) return false;
   if (block.history !== (source.history ?? true)) return false;
   if (source.target.case === "externalUri") return !block.anchor && block.url === source.target.value;
   if (source.target.case === "internalAnchor") return block.anchor === source.target.value && !block.url;
