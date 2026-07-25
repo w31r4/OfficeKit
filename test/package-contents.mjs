@@ -67,7 +67,7 @@ const maxPackedBytes = 9_840_000;
 // protobuf, audited WASM,
 // public Help, and native guidance;
 // retain measured headroom instead of hiding that product surface.
-const maxUnpackedBytes = 25_180_000;
+const maxUnpackedBytes = 25_200_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -214,6 +214,8 @@ for (const required of [
   "skills/presentations/README.md",
   "skills/presentations/skills/presentations/SKILL.md",
   "skills/presentations/skills/presentations/agents/openai.yaml",
+  "skills/presentations/skills/presentations/style_guidelines.md",
+  "skills/presentations/skills/presentations/routing/google_slides.md",
   "skills/presentations/skills/presentations/artifact_tool/API_QUICK_START.md",
   "skills/presentations/skills/presentations/examples/openchestnut-chart-families-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-legacy-comment-add-workflow.mjs",
