@@ -218,6 +218,7 @@ for (const required of [
   "skills/presentations/skills/presentations/artifact_tool/API_QUICK_START.md",
   "skills/presentations/skills/presentations/examples/openchestnut-chart-families-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-legacy-comment-add-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/openchestnut-legacy-comment-edit-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-speaker-notes-add-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-title-notes-edit-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-rich-speaker-notes-edit-workflow.mjs",

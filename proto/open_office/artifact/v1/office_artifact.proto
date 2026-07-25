@@ -1527,6 +1527,13 @@ message PresentationSlideSourceBinding {
   // Export re-proves the whole presentation graph before creating the shared
   // author catalog and any slide-local comments parts.
   bool legacy_comments_addable = 9;
+  // True only when this SlidePart already owns one closed legacy comments
+  // leaf and the presentation has one relationship-free legacy author
+  // catalog. The bounded edit profile may change existing comment text only;
+  // author, timestamp, position, package-local author/index identity, order,
+  // count, relationships, and every other comment-family graph detail remain
+  // source-bound.
+  bool legacy_comments_editable = 16;
   // True when this concrete SlidePart owns any legacy or Office 2021 comment
   // part, including an unsupported/opaque graph.
   bool comment_part_present = 10;

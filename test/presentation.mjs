@@ -2962,9 +2962,10 @@ assert.deepEqual(legacyAdditionImported.slides.getItem(0).comments.capability, {
   sourceBound: true,
   format: "legacy",
   partPresent: false,
+  editable: false,
   addable: true,
 });
-assert.match(legacyAdditionImported.inspect({ kind: "slide" }).ndjson, /"commentsCapability":\{"sourceBound":true,"format":"legacy","partPresent":false,"addable":true\}/);
+assert.match(legacyAdditionImported.inspect({ kind: "slide" }).ndjson, /"commentsCapability":\{"sourceBound":true,"format":"legacy","partPresent":false,"editable":false,"addable":true\}/);
 legacyAdditionImported.slides.getItem(0).comments.addThread(undefined, "Confirm the imported evidence.", {
   author: "Review Owner",
   created: "2026-07-20T03:04:05Z",
@@ -2990,12 +2991,14 @@ assert.deepEqual(legacyAdditionRoundTrip.slides.getItem(0).comments.capability, 
   sourceBound: true,
   format: "legacy",
   partPresent: true,
+  editable: true,
   addable: false,
 });
 assert.deepEqual(legacyAdditionRoundTrip.slides.getItem(1).comments.capability, {
   sourceBound: true,
   format: "legacy",
   partPresent: false,
+  editable: false,
   addable: false,
 });
 
@@ -3018,6 +3021,7 @@ assert.deepEqual(legacyCommentImported.slides.getItem(0).comments.capability, {
   sourceBound: true,
   format: "legacy",
   partPresent: true,
+  editable: true,
   addable: false,
 });
 const importedLegacyThread = legacyCommentImported.slides.getItem(0).comments.items[0];
@@ -3072,6 +3076,89 @@ const legacyCommentRoundTripZip = await JSZip.loadAsync(new Uint8Array(await leg
 assert.equal(
   await legacyCommentRoundTripZip.file("ppt/comments/comment1.xml").async("text"),
   await legacyCommentZip.file("ppt/comments/comment1.xml").async("text"),
+);
+
+// A recognized imported legacy leaf exposes exactly one safe mutation: the
+// root text. Its author catalog, native comment identity, coordinate, SlidePart
+// XML, and relationship graph must remain byte-stable.
+importedLegacyThread.comments[0].text = "Confirm the source and attach the delivery evidence.";
+const legacyCommentTextEdit = await PresentationFile.exportPptx(legacyCommentImported);
+const legacyCommentTextEditZip = await JSZip.loadAsync(new Uint8Array(await legacyCommentTextEdit.arrayBuffer()));
+assert.notEqual(
+  await legacyCommentTextEditZip.file("ppt/comments/comment1.xml").async("text"),
+  await legacyCommentZip.file("ppt/comments/comment1.xml").async("text"),
+);
+for (const path of ["ppt/commentAuthors.xml", "ppt/slides/slide1.xml", "ppt/slides/_rels/slide1.xml.rels", "[Content_Types].xml"]) {
+  assert.deepEqual(
+    await legacyCommentTextEditZip.file(path).async("uint8array"),
+    await legacyCommentZip.file(path).async("uint8array"),
+    `legacy comment text edit must leave ${path} byte-identical`,
+  );
+}
+const legacyCommentTextEditRoundTrip = await PresentationFile.importPptx(legacyCommentTextEdit);
+const editedLegacyThread = legacyCommentTextEditRoundTrip.slides.getItem(0).comments.items[0];
+assert.equal(editedLegacyThread.comments[0].text, "Confirm the source and attach the delivery evidence.");
+assert.equal(editedLegacyThread.comments[0].author, "Review Owner");
+assert.equal(editedLegacyThread.created, importedLegacyThread.created);
+assert.deepEqual(editedLegacyThread.position, { x: 360, y: 240, unit: "px" });
+assert.deepEqual(legacyCommentTextEditRoundTrip.slides.getItem(0).comments.capability, {
+  sourceBound: true,
+  format: "legacy",
+  partPresent: true,
+  editable: true,
+  addable: false,
+});
+
+// The JavaScript boundary must preserve every non-target comment in the same
+// native comments leaf; the C# profile then applies only the requested text
+// payload while retaining both package-local indexes.
+const multiLegacyCommentDeck = Presentation.create({ slideSize: { width: 1280, height: 720 } });
+const multiLegacyCommentSlide = multiLegacyCommentDeck.slides.add({ name: "Multiple legacy comments" });
+multiLegacyCommentSlide.comments.addThread(undefined, "Keep this first review note unchanged.", {
+  author: "Review Owner",
+  created: "2026-07-18T03:05:00Z",
+  position: { x: 240, y: 160 },
+});
+multiLegacyCommentSlide.comments.addThread(undefined, "Replace only this second review note.", {
+  author: "Review Owner",
+  created: "2026-07-18T03:06:00Z",
+  position: { x: 480, y: 320 },
+});
+const multiLegacyCommentSource = await PresentationFile.exportPptx(multiLegacyCommentDeck);
+const multiLegacyCommentImported = await PresentationFile.importPptx(multiLegacyCommentSource);
+assert.equal(multiLegacyCommentImported.slides.getItem(0).comments.capability.editable, true);
+multiLegacyCommentImported.slides.getItem(0).comments.items[1].comments[0].text = "The second review note has the approved wording.";
+const multiLegacyCommentEdited = await PresentationFile.exportPptx(multiLegacyCommentImported);
+const multiLegacyCommentRoundTrip = await PresentationFile.importPptx(multiLegacyCommentEdited);
+assert.deepEqual(
+  multiLegacyCommentRoundTrip.slides.getItem(0).comments.items.map((thread) => ({
+    text: thread.comments[0].text,
+    position: thread.position,
+    nativeIndex: thread.nativeAnchor.nativeIndex,
+  })),
+  [
+    { text: "Keep this first review note unchanged.", position: { x: 240, y: 160, unit: "px" }, nativeIndex: 1 },
+    { text: "The second review note has the approved wording.", position: { x: 480, y: 320, unit: "px" }, nativeIndex: 2 },
+  ],
+);
+
+const legacyCommentPositionMutation = await PresentationFile.importPptx(legacyCommentExport);
+legacyCommentPositionMutation.slides.getItem(0).comments.items[0].position.x += 1;
+await assert.rejects(
+  () => PresentationFile.exportPptx(legacyCommentPositionMutation),
+  (error) => error?.code === "unsupported_presentation_edit",
+);
+const legacyCommentAuthorMutation = await PresentationFile.importPptx(legacyCommentExport);
+legacyCommentAuthorMutation.slides.getItem(0).comments.items[0].comments[0].author = "Different reviewer";
+await assert.rejects(
+  () => PresentationFile.exportPptx(legacyCommentAuthorMutation),
+  (error) => error?.code === "unsupported_presentation_edit",
+);
+const legacyCommentNativeIdentityMutation = await PresentationFile.importPptx(legacyCommentExport);
+legacyCommentNativeIdentityMutation.slides.getItem(0).comments.items[0].nativeAnchor.nativeIndex += 1;
+await assert.rejects(
+  () => PresentationFile.exportPptx(legacyCommentNativeIdentityMutation),
+  (error) => error?.code === "unsupported_presentation_edit",
 );
 importedLegacyThread.addReply("Replies are not part of the legacy profile.");
 await assert.rejects(

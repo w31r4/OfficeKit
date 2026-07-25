@@ -223,7 +223,8 @@ tree; accepted connectors add no relationship, and their pending clone targets
 resolve to fresh clone-local elements. Accepted groups add no relationship
 themselves, and every nested picture must consume one exact verified image
 relationship. It preserves the origin part and requires export plus reimport before the clone, its notes, or its comments may be edited;
-imported legacy comments remain source-bound read-only after that boundary.
+after that boundary an individually re-proven closed legacy comments leaf may
+use only the separate text-only edit profile below.
 Each accepted chart frame must consume one unique internal relationship to a
 numbered `ChartPart`; the ChartPart may not own a child, external, hyperlink, or
 data relationship. Export byte-copies it into a distinct clone-local ChartPart
@@ -402,7 +403,10 @@ bounded legacy slide-level comments with `undefined` targets, one author and
 text item per annotation, and explicit coordinates. A completely comment-free
 imported presentation may advertise `slide.comments.capability.addable`; that
 permits creation of a canonical shared author catalog and closed slide-local
-comment leaves. Existing legacy graphs remain unchanged-only. Modern threads,
+comment leaves. A closed existing legacy leaf may instead advertise
+`slide.comments.capability.editable`; that permits only one existing root text
+replacement while author, timestamp, coordinate, native author/index identity,
+order, count, relationships, and thread topology remain fixed. Modern threads,
 replies, reactions, resolved state, and element/text anchors must stay in their
 native family or fail closed; never flatten them into a legacy comment.
 
@@ -643,7 +647,7 @@ node examples/openchestnut-legacy-comment-add-workflow.mjs \
 ```
 
 The workflow requires exactly one named source-bound target whose capability is
-`{ format: "legacy", partPresent: false, addable: true }`. It protects the
+`{ format: "legacy", partPresent: false, editable: false, addable: true }`. It protects the
 source, adds one slide-level annotation, exports through OpenChestnut, and then
 independently proves that only a canonical `CommentAuthorsPart`, one numbered
 closed `SlideCommentsPart`, their two collision-free relationships, content
@@ -657,9 +661,40 @@ rendering.
 The capability is defensive preflight evidence only. OpenChestnut re-proves the
 complete source package and rejects a forged flag, an existing author catalog,
 any legacy or modern comments part on any slide, mixed/connected comment graphs,
-or a second add after reimport. Existing imported legacy comments remain
-read-only; this vertical slice is canonical creation from a comment-free source,
-not topology editing. See `artifact_tool/api/references/comments.md`.
+or a second add after reimport. Existing imported legacy comments do not become
+general thread models; a separately re-proven closed leaf may use only the
+text-edit workflow below. This vertical slice is canonical creation from a
+comment-free source, not topology editing. See
+`artifact_tool/api/references/comments.md`.
+
+### Bounded Imported Legacy Review-Comment Text Edit
+
+For one existing canonical legacy review annotation, first inspect the target
+slide and require `comments.capability` to report
+`{ sourceBound: true, format: "legacy", partPresent: true, editable: true,
+addable: false }`. Select the exact stable comment ID and declare the expected
+old text; never locate the target with a broad text replacement or patch
+`comments/comment*.xml` directly:
+
+```bash
+node examples/openchestnut-legacy-comment-edit-workflow.mjs \
+  input-with-review.pptx output/review-text-updated.pptx output/review-text-updated.audit.json \
+  "Unique target slide name" "presentation/slide/1/legacy-comment/1" \
+  "Confirm the imported evidence before delivery." \
+  "Confirm the imported evidence and record the delivery owner."
+```
+
+The workflow protects the input, demands a canonical closed legacy author and
+comments graph, and allows only the selected root text to differ. It independently
+requires the author catalog, SlidePart XML, all relationships, content types,
+comment identity/index/time/coordinate, thread count/order, and every other OPC
+part to stay byte-identical. Reimport checks the complete comment snapshot,
+model SVG must remain identical, and the audit must report exactly one changed
+existing `ppt/comments/commentN.xml`. Rich/connected or mixed-family comments,
+replies, author/time/position/native-anchor edits, stale expected text, ambiguous
+slide/ID selection, forged capability data, and any broader package change fail
+closed with no output promotion. Run LibreOffice/Poppler source-vs-output QA
+when available; review annotations must not change visible slideshow pages.
 
 ### Bounded Imported Title And Speaker-Notes Edit
 
@@ -723,7 +758,8 @@ broad imported-slide graph clone and broad graph delete semantics, so it
 deliberately fails closed in the canonical codec. The isolated layout-only
 `slide.delete()` and unchanged shape/inline-table/image/recursive-group clone profiles with closed notes and
 legacy comments are not substitutes: the latter creates an independent part but
-cannot be edited before an export/reimport boundary, and it cannot carry
+cannot be edited before an export/reimport boundary, and afterward may use only
+the separate canonical root-text comment profile; it cannot carry
 arbitrary template graph edges. Do not rebuild or share slide parts to emulate
 a clone.
 Until the broader milestone exists, use this mode only for source inventory,

@@ -1080,8 +1080,9 @@ root/reply text editing, resolve/reopen state, second import, package inspection
 model rendering, source immutability, atomic output, and a byte-bound audit. C#
 tests independently exercise native author/comment parts, Office 2021 Open XML
 SDK validation, unchanged-part preservation, identity and anchor mutation
-rejection, out-of-bounds ranges, and connected-graph preservation. Legacy PPTX
-annotations remain a separate unchanged-only import profile.
+rejection, out-of-bounds ranges, and connected-graph preservation. At that
+milestone, legacy PPTX annotations remained a separate unchanged-only import
+profile; the later canonical legacy-root-text transaction is the sole exception.
 
 The complete local gate passed `npm test` including the canonical 20-template
 LibreOffice/Poppler corpus and Playwright, `npm run docs:api`, `npm run
@@ -3157,7 +3158,8 @@ addition for the opaque graph guard. Open XML SDK validation, postwrite
 author/index-catalog validation, and a second semantic import are mandatory.
 An existing catalog, any legacy or modern comments part, connected/mixed
 comment graph, capability tampering, or a second add after reimport remains
-fail-closed; existing imported legacy comments are still unchanged-only.
+fail-closed; this add-only milestone left existing imported legacy comments
+unchanged-only.
 
 The Presentation Skill ships
 `openchestnut-legacy-comment-add-workflow.mjs`. It requires one uniquely named
@@ -3572,6 +3574,42 @@ and explicitly configured pikepdf, pyHanko, veraPDF, and OCRmyPDF provider
 environments were not enabled in this local shell; their offline,
 contract/adversarial, release-input, and package gates passed. No npm publish,
 tag, or release operation was attempted.
+
+### PPTX canonical legacy review-comment text edit
+
+On 2026-07-25, OpenChestnut added a deliberately narrow source-preserving edit
+for an existing legacy PresentationML review comment. Import reports
+`slide.comments.capability.editable` only for a recognized closed
+`SlideCommentsPart` backed by one relationship-free `CommentAuthorsPart` and a
+fully re-proven fixed comment topology. The public model may then change an
+existing root `p:cm/p:text` value; author, timestamp, coordinate, native
+author/index identity, order, count, thread topology, relationships, and every
+other package part remain source-bound.
+
+The C# codec proves the source binding again before it mutates the comments
+leaf, changes only the requested text node, tracks that existing comment-part
+hash, and reimports its output before publication. The JavaScript boundary also
+compares the complete imported thread snapshot, so changing a public author,
+position, native identity, reply, or count cannot be smuggled through a forged
+wire claim. Comment-free decks retain their separate add-only profile; mixed,
+connected, rich, ambiguous, or otherwise irregular legacy/modern graphs remain
+opaque and fail closed.
+
+The native Presentation Skill now ships
+`openchestnut-legacy-comment-edit-workflow.mjs`. It protects the input, requires
+one uniquely named slide plus stable comment ID and exact old text, publishes
+without overwrite, and independently requires exactly one existing
+`ppt/comments/commentN.xml` to differ. It reimports the complete comment
+snapshot, proves visual-slide model stability, runs verify, and writes a
+source/output-bound audit. LibreOffice/Poppler review remains mandatory when
+available because annotations must not alter visible slideshow pages.
+
+The complete local candidate passed `npm test`, `npm run docs:api`,
+`npm run proto:check`, `npm run test:pack`, deterministic OpenChestnut WASM
+verification, the OpenChestnut Release test suite, and OfficeBridge `5/5`.
+The clean-install tarball contains the new Presentation workflow and the
+source-built 38-file runtime; no npm publish, tag, or release operation was
+attempted.
 
 ## Publishing
 

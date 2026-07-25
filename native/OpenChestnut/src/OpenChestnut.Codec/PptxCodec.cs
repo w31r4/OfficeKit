@@ -277,6 +277,7 @@ internal static class PptxCodec
                     BackgroundEditable = PptxBackgroundCodec.Supports(slideCommon),
                     SpeakerNotesAddable = PptxSpeakerNotesCodec.CanAddSourceBound(presentationPart, slidePart),
                     LegacyCommentsAddable = PptxLegacyCommentsCodec.CanAddSourceBound(presentationPart, slidePart),
+                    LegacyCommentsEditable = PptxLegacyCommentsCodec.CanEditSourceBound(presentationPart, slidePart, slideIndex),
                     CommentPartPresent = PptxLegacyCommentsCodec.CommentPartPresent(slidePart),
                     CommentFamily = PptxLegacyCommentsCodec.CommentFamily(presentationPart),
                     TransitionSemanticSha256 = PptxTransitionCodec.SemanticHash(slideTransition),
@@ -647,6 +648,7 @@ internal static class PptxCodec
                     !binding.SlideXmlSha256.Equals(HashElement(slideRoot), StringComparison.OrdinalIgnoreCase) ||
                     binding.SpeakerNotesAddable != PptxSpeakerNotesCodec.CanAddSourceBound(presentationPart, slidePart) ||
                     binding.LegacyCommentsAddable != PptxLegacyCommentsCodec.CanAddSourceBound(presentationPart, slidePart) ||
+                    binding.LegacyCommentsEditable != PptxLegacyCommentsCodec.CanEditSourceBound(presentationPart, slidePart, targetSlide.Source.Index) ||
                     binding.CommentPartPresent != PptxLegacyCommentsCodec.CommentPartPresent(slidePart) ||
                     !binding.CommentFamily.Equals(PptxLegacyCommentsCodec.CommentFamily(presentationPart), StringComparison.Ordinal) ||
                     binding.TransitionEditable != PptxTransitionCodec.Supports(slideRoot) ||
@@ -890,6 +892,17 @@ internal static class PptxCodec
                     replacedOpaquePartHashes.Add(modernCommentsChange.PartPath, modernCommentsChange.Sha256);
                 }
                 TrackContextChanges(slidePart, slideContext, changedParts, addedRelationshipIds, addedPartPaths);
+            }
+            if (PptxLegacyCommentsCodec.ApplySourceBoundEdits(
+                    presentationPart,
+                    slideParts,
+                    retainedTargets.Select(target => target.Target).ToArray()) is { } legacyCommentsEdit)
+            {
+                changedParts.UnionWith(legacyCommentsEdit.ChangedPartPaths);
+                addedPartPaths.UnionWith(legacyCommentsEdit.AddedPartPaths);
+                addedRelationshipIds.UnionWith(legacyCommentsEdit.AddedRelationshipKeys);
+                foreach (var (partPath, sha256) in legacyCommentsEdit.ReplacedPartHashes)
+                    replacedOpaquePartHashes.Add(partPath, sha256);
             }
             if (PptxLegacyCommentsCodec.ApplySourceBoundAdditions(
                     presentationPart,

@@ -1861,6 +1861,58 @@ function presentationLegacyComments(slide, slideIndex) {
   });
 }
 
+// Imported legacy comments do not become a general-purpose thread editor.
+// The model snapshot catches every public-field mutation while the wire
+// comparison proves that the package-local author/index/position identity is
+// still the one OpenChestnut imported. The one deliberately mutable leaf is
+// the root comment text.
+function sourceBoundLegacyCommentTextOnlyEdit(bindingState, slide, slideIndex) {
+  if (!bindingState?.wire?.source?.legacyCommentsEditable ||
+      !Array.isArray(bindingState.wire.legacyComments) ||
+      bindingState.wire.legacyComments.length === 0) return false;
+  let original;
+  try {
+    original = JSON.parse(bindingState.commentSnapshot);
+  } catch {
+    return false;
+  }
+  const current = slide.comments.items.map((thread) => thread.toJSON());
+  if (!Array.isArray(original) || original.length !== current.length || !original.length) return false;
+  const modelIsTextOnly = original.every((sourceThread, index) => {
+    const requestedThread = current[index];
+    if (!Array.isArray(sourceThread?.comments) || sourceThread.comments.length !== 1 ||
+        !Array.isArray(requestedThread?.comments) || requestedThread.comments.length !== 1) return false;
+    const sourceText = sourceThread.comments[0]?.text;
+    const requestedText = requestedThread.comments[0]?.text;
+    if (typeof sourceText !== "string" || typeof requestedText !== "string") return false;
+    const sourceWithoutText = structuredClone(sourceThread);
+    const requestedWithoutText = structuredClone(requestedThread);
+    delete sourceWithoutText.comments[0].text;
+    delete requestedWithoutText.comments[0].text;
+    return JSON.stringify(sourceWithoutText) === JSON.stringify(requestedWithoutText);
+  });
+  if (!modelIsTextOnly) return false;
+  try {
+    const requested = presentationLegacyComments(
+      slide,
+      Number(bindingState.wire.source?.slideIndex ?? slideIndex),
+    );
+    return requested.length === bindingState.wire.legacyComments.length &&
+      requested.every((comment, index) => {
+        const source = bindingState.wire.legacyComments[index];
+        return source.id === comment.id &&
+          source.author === comment.author &&
+          source.createdAt === comment.createdAt &&
+          Number(source.positionXEmu || 0) === Number(comment.positionXEmu || 0) &&
+          Number(source.positionYEmu || 0) === Number(comment.positionYEmu || 0) &&
+          Number(source.nativeAuthorId || 0) === Number(comment.nativeAuthorId || 0) &&
+          Number(source.nativeIndex || 0) === Number(comment.nativeIndex || 0);
+      });
+  } catch {
+    return false;
+  }
+}
+
 const PRESENTATION_MODERN_COMMENT_STATUSES = new Set(["active", "resolved", "closed"]);
 const PRESENTATION_MODERN_COMMENT_GUID = /^\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\}$/;
 
@@ -2257,11 +2309,14 @@ export function presentationEnvelope(presentation, protocolVersion) {
         !bindingState.wire.modernComments?.length &&
         slide.comments.items.length > 0 &&
         bindingState.wire.source?.legacyCommentsAddable === true;
-      if (commentsChanged && !addingLegacyComments && (!bindingState.wire.modernComments?.length || cloneState)) {
-        throw new OpenChestnutCodecError(`Imported presentation slide ${slideIndex + 1} comments are source-bound outside the bounded modern text/status edit profile.`, [], { code: "unsupported_presentation_edit" });
+      const editingLegacyComments = !cloneState &&
+        presentation.commentFormat === "legacy" &&
+        sourceBoundLegacyCommentTextOnlyEdit(bindingState, slide, slideIndex);
+      if (commentsChanged && presentation.commentFormat === "legacy" && !addingLegacyComments && !editingLegacyComments) {
+        throw new OpenChestnutCodecError(`Source-preserving PPTX export can change only existing legacy comment text on slide ${slideIndex + 1}; author, timestamp, coordinate, package-local identity, order, and thread topology are source-bound.`, [], { code: "unsupported_presentation_edit" });
       }
-      if (commentsChanged && presentation.commentFormat === "legacy" && !addingLegacyComments) {
-        throw new OpenChestnutCodecError(`Source-preserving PPTX export cannot add legacy comments to slide ${slideIndex + 1} because its presentation comment graph is not safely extensible.`, [], { code: "unsupported_presentation_edit" });
+      if (commentsChanged && presentation.commentFormat === "modern" && (!bindingState.wire.modernComments?.length || cloneState)) {
+        throw new OpenChestnutCodecError(`Imported presentation slide ${slideIndex + 1} comments are source-bound outside the bounded modern text/status edit profile.`, [], { code: "unsupported_presentation_edit" });
       }
       const current = directSlideElements(slide);
       const entries = cloneState?.entries || bindingState.entries;
@@ -3158,6 +3213,11 @@ export async function presentationFromEnvelope(envelope) {
         sourceBound: true,
         format: sourceSlide.source?.commentFamily || "legacy",
         partPresent: Boolean(sourceSlide.source?.commentPartPresent),
+        editable: Boolean(
+          sourceSlide.legacyComments?.length &&
+          !sourceSlide.modernComments?.length &&
+          sourceSlide.source?.legacyCommentsEditable
+        ),
         addable: Boolean(
           !sourceSlide.legacyComments?.length &&
           !sourceSlide.modernComments?.length &&

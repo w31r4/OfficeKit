@@ -172,8 +172,9 @@ or any other package relationship. Accepted groups add no relationship themselve
 semantically unchanged and cannot replace or delete its origin until that
 export has completed and the resulting PPTX has been imported again; afterward
 the slide and any chart advertising an edit capability may use their supported
-fixed-topology paths, while imported legacy comments remain source-bound
-read-only.
+fixed-topology paths. A separately re-proven closed imported legacy comments
+leaf may then use only the root-text edit profile; all author/time/coordinate,
+native identity, relationship, and topology details remain source-bound.
 
 Source-free slides, already-cloned slides, rich or connected comments,
 formula/external-data/embedded-workbook/connected/orphan charts,
