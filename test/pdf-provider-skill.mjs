@@ -328,6 +328,11 @@ assert.match(encryptionTaskText, /permission editor/i);
 const providerMatrixText = await fs.readFile(path.join(skillRoot, "references", "PROVIDER_MATRIX.md"), "utf8");
 assert.match(providerMatrixText, /does \*\*not\*\* duplicate.*versions.*hashes.*URLs/is);
 assert.doesNotMatch(providerMatrixText, /1\.28\.0|1\.27\.2|10\.10\.x|17\.8\.x/i);
+const formsAnnotationsText = await fs.readFile(path.join(skillRoot, "tasks", "forms_annotations.md"), "utf8");
+assert.match(formsAnnotationsText, /whole-document static-delivery operation/is);
+assert.match(formsAnnotationsText, /removes every `\/Widget`[\s\S]*root `\/AcroForm` tree/is);
+assert.match(formsAnnotationsText, /formValidation\.mode === "static"[\s\S]*allWidgetsRemoved === true[\s\S]*fieldTreeRemoved === true/is);
+assert.match(formsAnnotationsText, /never calls `reattach_fields\(\)` automatically/i);
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
 assert.match(pdfPluginReadme, /open-office-artifact-tool\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
@@ -1055,6 +1060,7 @@ try {
       "c.drawString(72,720,'Approval')",
       "form=c.acroForm",
       "form.textfield(name='sender.city',tooltip='City',x=72,y=670,width=180,height=24,value='')",
+      "form.textfield(name='prior.reference',tooltip='Existing reference',x=72,y=640,width=180,height=24,value='Preserve this value')",
       "form.radio(name='company_type',value='LLC',selected=False,x=72,y=620,buttonStyle='circle')",
       "form.radio(name='company_type',value='Corporation',selected=False,x=140,y=620,buttonStyle='circle')",
       "form.checkbox(name='terms_ack',checked=False,x=72,y=570,buttonStyle='check')",
@@ -1098,6 +1104,67 @@ try {
     assert.equal(formEvidence.widgets.every((widget) => widget.appearance), true);
     assert.deepEqual(formEvidence.widgets.filter((widget) => widget.name === "company_type").map((widget) => widget.state), ["/LLC", "/Off"]);
     assert.deepEqual(formEvidence.widgets.filter((widget) => widget.name === "terms_ack").map((widget) => widget.state), ["/Yes"]);
+
+    const flattenIncrementalOutput = path.join(tempRoot, "form-flatten-incremental.pdf");
+    const flattenIncremental = run(integrationPython, [
+      path.join(scriptsRoot, "pypdf_edit.py"), "fill-form", formSource, flattenIncrementalOutput,
+      "--strategy", "incremental", "--flatten", "--field", "sender.city=Shanghai",
+    ], { status: 2 });
+    assert.match(flattenIncremental.stderr, /flatten requires rewrite/);
+    await assert.rejects(fs.access(flattenIncrementalOutput));
+
+    const formFlattened = path.join(tempRoot, "form-flattened.pdf");
+    const formFlattenMutation = parseResult(run(integrationPython, [
+      path.join(scriptsRoot, "pypdf_edit.py"), "fill-form", formSource, formFlattened,
+      "--strategy", "rewrite", "--flatten", "--field", "sender.city=Shanghai",
+      "--field", "company_type=LLC", "--field", "terms_ack=Yes",
+    ], { status: 0 }));
+    assert.equal(formFlattenMutation.operation.flatten, true);
+    assert.equal(formFlattenMutation.formValidation.mode, "static");
+    assert.equal(formFlattenMutation.formValidation.source.acroFormPresent, true);
+    assert.equal(formFlattenMutation.formValidation.source.widgetCount, 5);
+    assert.deepEqual(formFlattenMutation.operation.staticPaintedFields, ["company_type", "prior.reference", "sender.city", "terms_ack"]);
+    assert.deepEqual(formFlattenMutation.formValidation.output, {
+      acroFormPresent: false,
+      fieldCount: 0,
+      fieldTreeRoots: 0,
+      widgetCount: 0,
+    });
+    assert.equal(formFlattenMutation.formValidation.allWidgetsRemoved, true);
+    assert.equal(formFlattenMutation.formValidation.fieldTreeRemoved, true);
+    const flattenedFormEvidence = parseResult(run(integrationPython, ["-c", [
+      "import json, pypdf, sys",
+      "reader = pypdf.PdfReader(sys.argv[1], strict=True)",
+      "root = reader.trailer['/Root']",
+      "widgets = []",
+      "for page in reader.pages:",
+      "    for reference in page.get('/Annots', []) or []:",
+      "        annotation = reference.get_object()",
+      "        if str(annotation.get('/Subtype', '')) == '/Widget': widgets.append(annotation)",
+      "print(json.dumps({",
+      "  'acroFormPresent': '/AcroForm' in root,",
+      "  'fields': sorted((reader.get_fields() or {}).keys()),",
+      "  'widgets': len(widgets),",
+      "  'text': reader.pages[0].extract_text() or '',",
+      "}))",
+    ].join("\n"), formFlattened], { status: 0 }));
+    assert.equal(flattenedFormEvidence.acroFormPresent, false);
+    assert.deepEqual(flattenedFormEvidence.fields, []);
+    assert.equal(flattenedFormEvidence.widgets, 0);
+    assert.match(flattenedFormEvidence.text, /Shanghai/);
+    assert.match(flattenedFormEvidence.text, /Preserve this value/);
+    const flattenedFormInspection = parseResult(run(integrationPython, [
+      path.join(scriptsRoot, "pypdf_edit.py"), "inspect", formFlattened,
+    ], { status: 0 }));
+    assert.equal(flattenedFormInspection.summary.acroFormPresent, false);
+    assert.equal(flattenedFormInspection.summary.fieldTreeRoots, 0);
+    assert.equal(flattenedFormInspection.summary.widgets, 0);
+    assert.deepEqual(flattenedFormInspection.formStructure, {
+      acroFormPresent: false,
+      fieldCount: 0,
+      fieldTreeRoots: 0,
+      widgetCount: 0,
+    });
 
     const invalidRadioOutput = path.join(tempRoot, "form-invalid-radio.pdf");
     const invalidRadio = run(integrationPython, [path.join(scriptsRoot, "pypdf_edit.py"), "fill-form", formSource, invalidRadioOutput, "--strategy", "incremental", "--field", "company_type=Partnership"], { status: 2 });

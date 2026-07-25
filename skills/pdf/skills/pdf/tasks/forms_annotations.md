@@ -151,7 +151,19 @@ python3 scripts/pypdf_edit.py fill-form input.pdf tmp/pdfs/filled.pdf \
 
 The script sets `auto_regenerate=False` so the output carries explicit field state rather than asking the viewer to regenerate it. Use `--flatten` only with `rewrite`, after confirming that interactivity should be removed.
 
-The adapter resolves each field type before mutation. Text and choice values remain strings; radio buttons and checkboxes are matched against their real `/AP /N` appearance-state names and written as PDF Names. Unknown button states, read-only fields, signature fields, push buttons, unsupported field types, missing appearances, or a post-write `/V`/`/AS` mismatch fail closed and remove the transactional output. This prevents a radio value from looking filled in field metadata while every widget still renders `/Off`.
+`--flatten` is a whole-document static-delivery operation, not a visual hint.
+It paints both selected values and every unchanged canonical field value before
+it removes every `/Widget` annotation and the root `/AcroForm` tree. The
+adapter rejects orphan/unmodeled Widgets, fields without a page Widget, and
+unsupported field types instead of silently dropping their contents. It then
+reopens the output and requires
+`formValidation.mode === "static"`, `allWidgetsRemoved === true`, and
+`fieldTreeRemoved === true`. It retains non-Widget annotations. A viewer PNG or
+the pypdf `flatten=True` flag alone is not evidence that an interactive form
+was removed. Keep a separate interactive copy when the recipient might need to
+edit the form later.
+
+The adapter resolves each field type before mutation. Text and choice values remain strings; radio buttons and checkboxes are matched against their real `/AP /N` appearance-state names and written as PDF Names. Unknown button states, read-only fields, signature fields, push buttons, unsupported field types, missing appearances, or a post-write `/V`/`/AS` mismatch fail closed and remove the transactional output. This prevents a radio value from looking filled in field metadata while every widget still renders `/Off`. The adapter never calls `reattach_fields()` automatically: an orphan/ambiguous widget is not enough authority to manufacture or duplicate a canonical field tree.
 
 ## Add annotation with pypdf
 
