@@ -139,6 +139,7 @@ def inspect_reader(reader, source: Path, version: str) -> dict[str, Any]:
             except Exception as exc:
                 annotations.append({"page": page_number, "error": str(exc)})
     fields = reader.get_fields() or {}
+    form_structure = acroform_structure_evidence(reader, fields)
     try:
         document_attachment_names = [str(attachment.name) for attachment in reader.attachment_list]
     except Exception:
@@ -156,6 +157,8 @@ def inspect_reader(reader, source: Path, version: str) -> dict[str, Any]:
             "encrypted": bool(reader.is_encrypted),
             "fields": len(fields),
             "widgets": widgets,
+            "acroFormPresent": form_structure["acroFormPresent"],
+            "fieldTreeRoots": form_structure["fieldTreeRoots"],
             "annotations": len(annotations),
             "attachments": len(attachment_names),
             "documentAttachments": len(document_attachment_names),
@@ -163,6 +166,7 @@ def inspect_reader(reader, source: Path, version: str) -> dict[str, Any]:
         },
         "metadata": metadata,
         "fields": {str(name): plain(field) for name, field in fields.items()},
+        "formStructure": form_structure,
         "annotations": annotations,
         "attachments": attachment_names,
         "signaturePolicy": signature_policy(reader),
@@ -200,6 +204,25 @@ def resolve(value: Any) -> Any:
         return value.get_object()
     except Exception:
         return value
+
+
+def acroform_structure_evidence(reader: Any, known_fields: dict[str, Any] | None = None) -> dict[str, Any]:
+    root = resolve(reader.trailer.get("/Root"))
+    acroform = resolve(root.get("/AcroForm")) if isinstance(root, dict) else None
+    field_roots = list(acroform.get("/Fields", []) or []) if isinstance(acroform, dict) else []
+    widgets = 0
+    for page in reader.pages:
+        for reference in page.get("/Annots", []) or []:
+            annotation = resolve(reference)
+            if isinstance(annotation, dict) and str(annotation.get("/Subtype", "")) == "/Widget":
+                widgets += 1
+    fields = known_fields if known_fields is not None else (reader.get_fields() or {})
+    return {
+        "acroFormPresent": isinstance(acroform, dict),
+        "fieldCount": len(fields),
+        "fieldTreeRoots": len(field_roots),
+        "widgetCount": widgets,
+    }
 
 
 def pdf_name_text(value: Any) -> str | None:
@@ -518,6 +541,64 @@ def prepare_field_values(reader, requested: dict[str, str], NameObject) -> tuple
     return prepared, evidence
 
 
+def static_field_value(reader, name: str, field: Any, NameObject) -> Any:
+    """Return a value pypdf can paint without changing an untouched field."""
+    field_type = str(field.get("/FT", ""))
+    current = resolve(field.get("/V"))
+    if field_type == "/Btn":
+        target = str(current if current is not None else "/Off")
+        if not target.startswith("/"):
+            target = f"/{target}"
+        available = sorted(button_appearance_states(field, reader, name))
+        if target not in available:
+            choices = ", ".join(state.lstrip("/") for state in available) or "<none>"
+            raise ProviderError(
+                f"cannot statically preserve button field {name!r}: value {target!r} has no appearance state; "
+                f"available: {choices}"
+            )
+        return NameObject(target)
+    if field_type == "/Ch":
+        if isinstance(current, (list, tuple)):
+            return [str(resolve(value)) for value in current]
+        return "" if current is None else str(current)
+    if field_type == "/Tx":
+        return "" if current is None else str(current)
+    raise ProviderError(
+        f"cannot statically flatten unsupported field {name!r} of type {field_type or '<missing>'}"
+    )
+
+
+def prepare_static_field_values(reader, requested: dict[str, str], NameObject) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Prepare a complete field map so removing Widgets cannot drop old values."""
+    requested_values, evidence = prepare_field_values(reader, requested, NameObject)
+    known_fields = reader.get_fields() or {}
+    field_names = set(known_fields)
+    unknown_widgets: list[str] = []
+    for page in reader.pages:
+        for reference in page.get("/Annots", []) or []:
+            widget = resolve(reference)
+            if not isinstance(widget, dict) or str(widget.get("/Subtype", "")) != "/Widget":
+                continue
+            name = qualified_widget_name(widget)
+            if not name or name not in field_names:
+                unknown_widgets.append(name or "<unnamed>")
+    if unknown_widgets:
+        raise ProviderError(
+            "cannot statically flatten orphan or unmodeled Widget annotation(s): "
+            + ", ".join(sorted(set(unknown_widgets)))
+        )
+
+    values: dict[str, Any] = {}
+    for name, field in known_fields.items():
+        if not field_widgets(reader, name):
+            raise ProviderError(
+                f"cannot statically flatten field {name!r}: it has no page Widget to paint"
+            )
+        values[name] = static_field_value(reader, name, field, NameObject)
+    values.update(requested_values)
+    return values, evidence
+
+
 def validate_filled_fields(reader, expected: dict[str, Any], evidence: dict[str, Any]) -> None:
     fields = reader.get_fields() or {}
     for name, expected_value in expected.items():
@@ -554,6 +635,24 @@ def validate_filled_fields(reader, expected: dict[str, Any], evidence: dict[str,
                 )
         elif actual_value != str(expected_value):
             raise ProviderError(f"form field {name!r} value is {actual_value!r}, expected {str(expected_value)!r}")
+
+
+def validate_flattened_form(reader) -> dict[str, Any]:
+    structure = acroform_structure_evidence(reader)
+    retained = []
+    if structure["acroFormPresent"]:
+        retained.append("/AcroForm")
+    if structure["fieldTreeRoots"]:
+        retained.append(f"{structure['fieldTreeRoots']} field-tree root(s)")
+    if structure["fieldCount"]:
+        retained.append(f"{structure['fieldCount']} field(s)")
+    if structure["widgetCount"]:
+        retained.append(f"{structure['widgetCount']} widget annotation(s)")
+    if retained:
+        raise ProviderError(
+            "flattened form still exposes interactive structure: " + ", ".join(retained)
+        )
+    return structure
 
 
 def parse_rect(value: str) -> tuple[float, float, float, float]:
@@ -1068,21 +1167,34 @@ def write_mutation(args: argparse.Namespace, reader, PdfWriter, Text, NameObject
 
     writer = PdfWriter(reader, incremental=True) if args.strategy == "incremental" else PdfWriter(clone_from=reader)
     operation: dict[str, Any]
+    source_form_structure = acroform_structure_evidence(reader)
     if args.command == "fill-form":
         fields = parse_field(args.field)
-        prepared_fields, field_evidence = prepare_field_values(reader, fields, NameObject)
+        prepared_fields, field_evidence = (
+            prepare_static_field_values(reader, fields, NameObject)
+            if args.flatten
+            else prepare_field_values(reader, fields, NameObject)
+        )
         writer.update_page_form_field_values(
             None,
             prepared_fields,
             auto_regenerate=False,
             flatten=args.flatten,
         )
+        if args.flatten:
+            # pypdf's flatten option paints the appearances but keeps Widget
+            # annotations and the AcroForm tree. A static delivery must remove
+            # both representations, while retaining non-Widget annotations.
+            writer.remove_annotations(subtypes="/Widget")
+            writer.root_object.pop(NameObject("/AcroForm"), None)
         operation = {
             "type": "fill-form",
             "fields": sorted(fields),
             "fieldEvidence": field_evidence,
             "flatten": bool(args.flatten),
         }
+        if args.flatten:
+            operation["staticPaintedFields"] = sorted(prepared_fields)
     else:
         if args.page < 1 or args.page > len(writer.pages):
             raise ProviderError(f"--page must be between 1 and {len(writer.pages)}")
@@ -1103,7 +1215,10 @@ def write_mutation(args: argparse.Namespace, reader, PdfWriter, Text, NameObject
             raise ProviderError("incremental output does not preserve the exact original byte prefix")
         result_reader = type(reader)(str(temporary_name), strict=False)
         if args.command == "fill-form":
-            validate_filled_fields(result_reader, prepared_fields, field_evidence)
+            if args.flatten:
+                validate_flattened_form(result_reader)
+            else:
+                validate_filled_fields(result_reader, prepared_fields, field_evidence)
         temporary_name.replace(output)
         temporary_name = None
     finally:
@@ -1111,6 +1226,13 @@ def write_mutation(args: argparse.Namespace, reader, PdfWriter, Text, NameObject
             temporary_name.unlink(missing_ok=True)
 
     result_reader = type(reader)(str(output), strict=False)
+    output_form_structure = None
+    if args.command == "fill-form":
+        output_form_structure = (
+            validate_flattened_form(result_reader)
+            if args.flatten
+            else acroform_structure_evidence(result_reader)
+        )
     result = {
         "provider": "pypdf",
         "providerVersion": version,
@@ -1123,6 +1245,14 @@ def write_mutation(args: argparse.Namespace, reader, PdfWriter, Text, NameObject
         "signaturePolicyAfter": signature_policy(result_reader),
         "operation": operation,
     }
+    if output_form_structure is not None:
+        result["formValidation"] = {
+            "mode": "static" if args.flatten else "interactive",
+            "source": source_form_structure,
+            "output": output_form_structure,
+            "allWidgetsRemoved": args.flatten and output_form_structure["widgetCount"] == 0,
+            "fieldTreeRemoved": args.flatten and not output_form_structure["acroFormPresent"],
+        }
     return result
 
 

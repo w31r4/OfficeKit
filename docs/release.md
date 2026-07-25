@@ -75,6 +75,18 @@ artifact model, codec, or runtime:
 OfficeKit is npm-distributed; the 20 retained templates remain repository-only
 and do not increase the runtime tarball with Office or preview binaries.
 
+## 0.3.0 Verified static AcroForm delivery
+
+The pypdf `fill-form --flatten` path no longer treats a painted form appearance
+as proof that the output is static. It is rewrite-only; it paints the selected
+values and every unchanged canonical field value before removing every Widget
+annotation and the root `/AcroForm` tree. It reopens the exact output and
+rejects it if any field tree or Widget remains. Orphan/unmodeled Widgets,
+field-only layouts, and unsupported field types fail closed rather than losing
+content. The structured `formValidation` record distinguishes this static
+delivery from the existing interactive/incremental fill route. The adapter
+does not auto-reattach orphan widgets, and non-Widget annotations remain.
+
 ## 0.3.0 Template Creator Office-package admission
 
 Template Creator now treats the Office reference as an input to the canonical

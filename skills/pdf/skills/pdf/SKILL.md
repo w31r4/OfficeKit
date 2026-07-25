@@ -125,7 +125,7 @@ source of pack versions, hashes, sizes, and installation facts.
 | New layout-oriented PDF | ReportLab | [create](tasks/create.md) |
 | Imported-PDF inspect/render/bounded edit | MuPDF.js / `scripts/mupdf.mjs` | [read](tasks/read_review.md), [edit](tasks/edit_existing.md) |
 | Text/table geometry evidence | pdfplumber | [read](tasks/read_review.md) |
-| Attachments, complex forms, merge/reorder/stamp | pypdf | [forms](tasks/forms_annotations.md), [transform](tasks/transform.md) |
+| Attachments, complex forms, verified static-form delivery, merge/reorder/stamp | pypdf | [forms](tasks/forms_annotations.md), [transform](tasks/transform.md) |
 | Strict scrub, residue/OCR redaction, advanced bounded edit | PyMuPDF | [redact](tasks/redact.md) |
 | Repair or linearize | `scripts/qpdf_provider.py` | [repair](tasks/repair_linearize.md) |
 | Create an AES-256 encrypted delivery copy | `scripts/qpdf_provider.py` | [encryption](tasks/encryption.md) |
