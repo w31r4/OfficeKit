@@ -383,6 +383,23 @@ try {
   assert.match(await bibliographyZip.file("word/document.xml").async("text"), /w:instr=" CITATION AgentSource "/);
   assert.match(await bibliographyZip.file("word/document.xml").async("text"), /w:instr="BIBLIOGRAPHY"/);
 
+  const multiParagraphNotes = await runFixture("open-chestnut-multi-paragraph-notes", {
+    nativeRender: nativeStatus.available ? "required" : "auto",
+  });
+  const multiParagraphNotesDocument = await DocumentFile.importDocx(await FileBlob.load(multiParagraphNotes.docxPath));
+  assert.deepEqual(multiParagraphNotesDocument.notes.map((note) => [note.kind, note.paragraphs]), [
+    ["footnote", ["The integration test passed against the bundled codec.", "Native page render evidence was reviewed before delivery."]],
+    ["endnote", ["OpenChestnut preserves the source-bound anchor and note identity.", "Exactly two physical plain-text paragraphs remain editable."]],
+  ]);
+  assert.equal(multiParagraphNotes.qa.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
+  const multiParagraphNotesZip = await JSZip.loadAsync(await fs.readFile(multiParagraphNotes.docxPath));
+  const footnoteXml = await multiParagraphNotesZip.file("word/footnotes.xml").async("text");
+  const endnoteXml = await multiParagraphNotesZip.file("word/endnotes.xml").async("text");
+  assert.match(footnoteXml, /The integration test passed against the bundled codec\./);
+  assert.match(footnoteXml, /Native page render evidence was reviewed before delivery\./);
+  assert.match(endnoteXml, /OpenChestnut preserves the source-bound anchor and note identity\./);
+  assert.match(endnoteXml, /Exactly two physical plain-text paragraphs remain editable\./);
+
   const toc = await runFixture("open-chestnut-toc", {
     nativeRender: nativeStatus.available ? "required" : "auto",
   });

@@ -315,8 +315,12 @@ try {
     ["REVIEW_DATE", "Review date", "date", "2026-07-21"],
   ]);
   assert.deepEqual(documentRoundTrip.notes.map((note) => [note.kind, note.text]), [
-    ["footnote", "The final gate includes native rendering, package validation, and semantic re-import."],
+    ["footnote", "The final gate includes native rendering, package validation, and semantic re-import.\nThe delivery audit records the fixed physical paragraph count."],
     ["endnote", "Evidence snapshot dated 2026-07-17; retained with the release record."],
+  ]);
+  assert.deepEqual(documentRoundTrip.notes[0]?.paragraphs, [
+    "The final gate includes native rendering, package validation, and semantic re-import.",
+    "The delivery audit records the fixed physical paragraph count.",
   ]);
   assert.equal(documentRoundTrip.blocks.some(
     (block) => block.kind === "hyperlink" && block.anchor === "DecisionSection",

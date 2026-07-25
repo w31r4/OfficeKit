@@ -1,0 +1,70 @@
+{
+  "name": "open-chestnut-multi-paragraph-notes",
+  "outputName": "open-chestnut-multi-paragraph-notes.docx",
+  "blocks": [
+    {
+      "kind": "paragraph",
+      "name": "evidence-footnote-target",
+      "styleId": "Normal",
+      "text": "The deployment decision has two bounded footnote paragraphs."
+    },
+    {
+      "kind": "paragraph",
+      "name": "evidence-endnote-target",
+      "styleId": "Normal",
+      "text": "The architecture decision has two bounded endnote paragraphs."
+    }
+  ],
+  "notes": [
+    {
+      "kind": "footnote",
+      "targetName": "evidence-footnote-target",
+      "name": "deployment-evidence",
+      "paragraphs": [
+        "The integration test passed against the bundled codec.",
+        "A native page render remains required before delivery."
+      ]
+    },
+    {
+      "kind": "endnote",
+      "targetName": "evidence-endnote-target",
+      "name": "architecture-evidence",
+      "paragraphs": [
+        "OpenChestnut preserves the source-bound anchor and note identity.",
+        "Only fixed-count plain-text paragraphs are editable."
+      ]
+    }
+  ],
+  "edits": [
+    {
+      "kind": "note",
+      "noteKind": "footnote",
+      "matchText": "The integration test passed against the bundled codec.\nA native page render remains required before delivery.",
+      "expectParagraphCount": 2,
+      "paragraphs": [
+        "The integration test passed against the bundled codec.",
+        "Native page render evidence was reviewed before delivery."
+      ]
+    },
+    {
+      "kind": "note",
+      "noteKind": "endnote",
+      "matchText": "OpenChestnut preserves the source-bound anchor and note identity.\nOnly fixed-count plain-text paragraphs are editable.",
+      "expectParagraphCount": 2,
+      "paragraphs": [
+        "OpenChestnut preserves the source-bound anchor and note identity.",
+        "Exactly two physical plain-text paragraphs remain editable."
+      ]
+    }
+  ],
+  "expectInspect": [
+    { "kind": "footnote", "pattern": "native page render remains required" },
+    { "kind": "endnote", "pattern": "fixed-count plain-text paragraphs" }
+  ],
+  "qa": {
+    "previewFormat": "svg",
+    "nativeRender": "auto",
+    "inspectKind": "document,paragraph,note,layout",
+    "maxChars": 12000
+  }
+}

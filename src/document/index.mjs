@@ -535,6 +535,19 @@ class DocumentBookmark {
   toProto() { return { kind: "bookmark", id: this.id, name: this.name, targetId: this.targetId, endTargetId: this.endTargetId, target: this.target, endTarget: this.endTarget, nativeId: this.nativeId }; }
 }
 
+function documentNoteParagraphState(text, config = {}) {
+  if (!Object.hasOwn(config, "paragraphs")) {
+    return { paragraphs: [String(text ?? config.text ?? "")], explicit: false };
+  }
+  if (!Array.isArray(config.paragraphs)) throw new TypeError("Document note paragraphs must be an array of plain-text strings.");
+  const paragraphs = config.paragraphs.map((paragraph) => String(paragraph ?? ""));
+  const suppliedText = text ?? config.text;
+  if (suppliedText != null && String(suppliedText) !== paragraphs.join("\n")) {
+    throw new TypeError("Document note text must equal the LF-joined paragraphs when paragraphs are supplied.");
+  }
+  return { paragraphs, explicit: true };
+}
+
 class DocumentNote {
   constructor(document, kind, target, text, config = {}) {
     this.document = document;
@@ -543,12 +556,26 @@ class DocumentNote {
     this.id = config.id || aid(this.kind === "endnote" ? "den" : "dfn");
     this.name = config.name || "";
     this.targetId = String(typeof target === "string" ? target : target?.id || config.targetId || "");
-    this.text = String(text ?? config.text ?? "");
+    const paragraphState = documentNoteParagraphState(text, config);
+    this._paragraphs = paragraphState.paragraphs;
+    this._paragraphsExplicit = paragraphState.explicit;
     this.nativeId = config.nativeId === undefined ? undefined : Number(config.nativeId);
   }
 
-  inspectRecord(index) { return { kind: this.kind, id: this.id, index, name: this.name || undefined, targetId: this.targetId, nativeId: this.nativeId, text: this.text, textChars: this.text.length }; }
-  toProto() { return { kind: this.kind, id: this.id, name: this.name, targetId: this.targetId, nativeId: this.nativeId, text: this.text }; }
+  get paragraphs() { return [...this._paragraphs]; }
+  set paragraphs(value) {
+    if (!Array.isArray(value)) throw new TypeError("Document note paragraphs must be an array of plain-text strings.");
+    this._paragraphs = value.map((paragraph) => String(paragraph ?? ""));
+    this._paragraphsExplicit = true;
+  }
+  get text() { return this._paragraphs.join("\n"); }
+  set text(value) {
+    this._paragraphs = [String(value ?? "")];
+    this._paragraphsExplicit = false;
+  }
+
+  inspectRecord(index) { return { kind: this.kind, id: this.id, index, name: this.name || undefined, targetId: this.targetId, nativeId: this.nativeId, paragraphs: this.paragraphs, paragraphCount: this._paragraphs.length, text: this.text, textChars: this.text.length }; }
+  toProto() { return { kind: this.kind, id: this.id, name: this.name, targetId: this.targetId, nativeId: this.nativeId, text: this.text, paragraphs: this._paragraphsExplicit ? this.paragraphs : undefined }; }
 }
 
 class DocumentFieldBlock {
@@ -1815,6 +1842,14 @@ export class DocumentModel {
       if (noteTargets.has(note.targetId)) issues.push(verificationIssue("document", "duplicateNoteTarget", `${note.kind} ${note.id} shares target ${note.targetId}; the bounded profile permits one note per block.`, { id: note.id, kind: note.kind, targetId: note.targetId }));
       noteTargets.add(note.targetId);
       if (!String(note.text || "").length || String(note.text).length > 1_000_000 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(String(note.text))) issues.push(verificationIssue("document", "invalidNoteText", `${note.kind} ${note.id} text must contain 1 through 1,000,000 XML-safe characters.`, { id: note.id, kind: note.kind, textChars: String(note.text || "").length }));
+      if (!note._paragraphsExplicit && /[\r\n]/.test(String(note.text))) issues.push(verificationIssue("document", "invalidNoteLegacyLineBreak", `${note.kind} ${note.id} must use paragraphs for a multi-paragraph body.`, { id: note.id, kind: note.kind }));
+      if (note._paragraphsExplicit) {
+        const paragraphs = note.paragraphs;
+        if (paragraphs.length < 1 || paragraphs.length > 16) issues.push(verificationIssue("document", "invalidNoteParagraphCount", `${note.kind} ${note.id} must contain 1 through 16 canonical note paragraphs.`, { id: note.id, kind: note.kind, paragraphCount: paragraphs.length }));
+        for (const [paragraphIndex, paragraph] of paragraphs.entries()) {
+          if (!paragraph.length || paragraph.length > 1_000_000 || /[\r\n\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(paragraph)) issues.push(verificationIssue("document", "invalidNoteParagraph", `${note.kind} ${note.id} paragraph ${paragraphIndex + 1} must contain 1 through 1,000,000 XML-safe characters without a line break.`, { id: note.id, kind: note.kind, paragraph: paragraphIndex, textChars: paragraph.length }));
+        }
+      }
       if (note.nativeId !== undefined) {
         const key = `${note.kind}:${note.nativeId}`;
         if (!Number.isInteger(note.nativeId) || note.nativeId < 1 || note.nativeId > 2_147_483_647) issues.push(verificationIssue("document", "invalidNoteNativeId", `${note.kind} ${note.id} native ID must be a positive 32-bit integer.`, { id: note.id, kind: note.kind, nativeId: note.nativeId }));

@@ -9,8 +9,10 @@ using W = DocumentFormat.OpenXml.Wordprocessing;
 namespace OpenChestnut.Codec;
 
 // Owns one plain-text footnote/endnote referenced at the end of one paragraph
-// or numbered paragraph. Multi-paragraph bodies, reused references, custom
-// note graphs, and anchor movement remain opaque/source-bound.
+// or numbered paragraph. A canonical body has 1 through 16 physical
+// paragraphs: the first has the note marker plus one text run and every later
+// paragraph has exactly one text run. Reused references, rich note graphs,
+// and anchor movement remain opaque/source-bound.
 internal static class DocxNoteCodec
 {
     private sealed record CanonicalNote(
@@ -70,7 +72,7 @@ internal static class DocxNoteCodec
             if (body.ChildElements[blockIndexes[note.TargetBlockId]] is not W.Paragraph paragraph)
                 throw Invalid($"Document {KindName(note.Kind)} {note.Id} target must serialize as a paragraph.");
             paragraph.Append(ReferenceRun(note.Kind, nativeId));
-            AppendNote(context.Owner, note.Kind, nativeId, note.Text);
+            AppendNote(context.Owner, note.Kind, nativeId, Paragraphs(note));
         }
         context.Owner.FootnotesPart?.Footnotes?.Save();
         context.Owner.EndnotesPart?.Endnotes?.Save();
@@ -101,17 +103,20 @@ internal static class DocxNoteCodec
                 !note.TargetBlockId.Equals(original.TargetBlockId, StringComparison.Ordinal) ||
                 !note.NativeId.Equals(original.NativeId, StringComparison.Ordinal))
                 throw Unsupported(note, actual.PartPath, "identity, kind, target, and native ID are source-bound");
-            if (note.Text.Equals(original.Text, StringComparison.Ordinal)) continue;
+            var requestedParagraphs = Paragraphs(note);
+            var originalParagraphs = Paragraphs(original);
+            if (requestedParagraphs.SequenceEqual(originalParagraphs, StringComparer.Ordinal)) continue;
+            if (requestedParagraphs.Length != originalParagraphs.Length)
+                throw Unsupported(note, actual.PartPath, "paragraph count and body topology are source-bound");
             if (!binding.Editable)
                 throw Unsupported(note, actual.PartPath, "body topology is preserved but not editable");
-            ValidateText(note);
             var residual = ResidualHash(actual.Element, note.Kind);
             if (!residual.Equals(binding.ResidualSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException(
                     "document_note_source_residual_mismatch",
                     $"Imported document {KindName(note.Kind)} {note.Id} body formatting no longer matches its source binding.",
                     actual.PartPath);
-            SetText(actual.Element, note.Kind, note.Text);
+            SetParagraphs(actual.Element, note.Kind, requestedParagraphs);
             if (!ResidualHash(actual.Element, note.Kind).Equals(binding.ResidualSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException(
                     "document_note_residual_not_preserved",
@@ -149,7 +154,7 @@ internal static class DocxNoteCodec
                 throw Invalid($"Document {KindName(note.Kind)} {note.Id} target must be a paragraph or list item.");
             if (!targets.Add(note.TargetBlockId))
                 throw Invalid($"Document note target {note.TargetBlockId} already has a bounded note.");
-            ValidateText(note);
+            Paragraphs(note);
             if (note.NativeId.Length > 0 &&
                 (!int.TryParse(note.NativeId, out var nativeId) || nativeId < 1))
                 throw Invalid($"Document {KindName(note.Kind)} {note.Id} native ID must be a positive 32-bit integer when present.");
@@ -199,15 +204,16 @@ internal static class DocxNoteCodec
                 : context.Owner.EndnotesPart!.Endnotes?.Elements<W.Endnote>()
                     .Where(item => item.Id?.Value == numericId)
                     .Cast<OpenXmlCompositeElement>().ToArray() ?? [];
-            if (matches.Length != 1 || !TryReadText(matches[0], kind, out var text)) continue;
+            if (matches.Length != 1 || !TryReadParagraphs(matches[0], kind, out var paragraphs)) continue;
             var note = new DocumentNote
             {
                 Id = $"document/note/{++noteOrdinal}",
                 Kind = kind,
                 TargetBlockId = block.Id,
-                Text = text,
+                Text = string.Join("\n", paragraphs),
                 NativeId = nativeId,
             };
+            note.Paragraphs.Add(paragraphs);
             yield return new CanonicalNote(note, matches[0], anchorRun, part, relationshipId, partPath, checked((uint)bodyIndex));
         }
     }
@@ -263,19 +269,23 @@ internal static class DocxNoteCodec
         ? new W.Run(new W.FootnoteReference { Id = nativeId })
         : new W.Run(new W.EndnoteReference { Id = nativeId });
 
-    private static void AppendNote(MainDocumentPart owner, DocumentNoteKind kind, int nativeId, string text)
+    private static void AppendNote(MainDocumentPart owner, DocumentNoteKind kind, int nativeId, IReadOnlyList<string> paragraphs)
     {
         if (kind == DocumentNoteKind.Footnote)
         {
             var part = owner.FootnotesPart ?? owner.AddNewPart<FootnotesPart>();
             part.Footnotes ??= FootnoteRoot();
-            part.Footnotes.Append(new W.Footnote(NoteParagraph(kind, text)) { Id = nativeId });
+            var note = new W.Footnote { Id = nativeId };
+            AppendNoteParagraphs(note, kind, paragraphs);
+            part.Footnotes.Append(note);
         }
         else
         {
             var part = owner.EndnotesPart ?? owner.AddNewPart<EndnotesPart>();
             part.Endnotes ??= EndnoteRoot();
-            part.Endnotes.Append(new W.Endnote(NoteParagraph(kind, text)) { Id = nativeId });
+            var note = new W.Endnote { Id = nativeId };
+            AppendNoteParagraphs(note, kind, paragraphs);
+            part.Endnotes.Append(note);
         }
     }
 
@@ -303,11 +313,20 @@ internal static class DocxNoteCodec
             Type = W.FootnoteEndnoteValues.ContinuationSeparator,
         });
 
-    private static W.Paragraph NoteParagraph(DocumentNoteKind kind, string text) => new(
+    private static void AppendNoteParagraphs(OpenXmlCompositeElement note, DocumentNoteKind kind, IReadOnlyList<string> paragraphs)
+    {
+        note.Append(FirstNoteParagraph(kind, paragraphs[0]));
+        for (var index = 1; index < paragraphs.Count; index++) note.Append(ContinuationNoteParagraph(paragraphs[index]));
+    }
+
+    private static W.Paragraph FirstNoteParagraph(DocumentNoteKind kind, string text) => new(
         new W.Run(kind == DocumentNoteKind.Footnote
             ? new W.FootnoteReferenceMark()
             : new W.EndnoteReferenceMark()),
         new W.Run(new W.Text($" {text}") { Space = SpaceProcessingModeValues.Preserve }));
+
+    private static W.Paragraph ContinuationNoteParagraph(string text) => new(
+        new W.Run(new W.Text(text) { Space = SpaceProcessingModeValues.Preserve }));
 
     private static bool IsCanonicalAnchor(W.Run run, DocumentNoteKind kind) =>
         run.ChildElements.All(child => child is W.RunProperties ||
@@ -325,43 +344,76 @@ internal static class DocxNoteCodec
             child is W.Run run && run.ChildElements.All(item => item is W.RunProperties or W.CommentReference));
     }
 
-    private static bool TryReadText(OpenXmlCompositeElement element, DocumentNoteKind kind, out string text)
+    private static bool TryReadParagraphs(
+        OpenXmlCompositeElement element,
+        DocumentNoteKind kind,
+        out string[] values,
+        bool allowEmpty = false)
     {
-        text = string.Empty;
+        values = [];
         if (element.ChildElements.Any(child => child is not W.Paragraph)) return false;
         var paragraphs = element.Elements<W.Paragraph>().ToArray();
-        if (paragraphs.Length != 1) return false;
-        var paragraph = paragraphs[0];
-        if (paragraph.ChildElements.Any(child => child is not W.ParagraphProperties and not W.Run)) return false;
-        var runs = paragraph.Elements<W.Run>().ToArray();
-        if (runs.Length != 2) return false;
-        var marker = runs[0];
-        if (marker.ChildElements.Any(child => child is not W.RunProperties &&
-                (kind == DocumentNoteKind.Footnote ? child is not W.FootnoteReferenceMark : child is not W.EndnoteReferenceMark))) return false;
-        if (kind == DocumentNoteKind.Footnote && marker.Elements<W.FootnoteReferenceMark>().Count() != 1) return false;
-        if (kind == DocumentNoteKind.Endnote && marker.Elements<W.EndnoteReferenceMark>().Count() != 1) return false;
-        var content = runs[1];
-        if (content.ChildElements.Any(child => child is not W.RunProperties and not W.Text)) return false;
-        var values = content.Elements<W.Text>().ToArray();
-        if (values.Length != 1) return false;
-        var value = values[0].Text ?? string.Empty;
-        text = value.StartsWith(' ') ? value[1..] : value;
-        return text.Length > 0;
+        if (paragraphs.Length is < 1 or > 16) return false;
+        var result = new string[paragraphs.Length];
+        for (var index = 0; index < paragraphs.Length; index++)
+        {
+            var paragraph = paragraphs[index];
+            if (paragraph.ChildElements.Any(child => child is not W.ParagraphProperties and not W.Run)) return false;
+            var runs = paragraph.Elements<W.Run>().ToArray();
+            string value;
+            if (index == 0)
+            {
+                if (runs.Length != 2) return false;
+                var marker = runs[0];
+                if (marker.ChildElements.Any(child => child is not W.RunProperties &&
+                        (kind == DocumentNoteKind.Footnote ? child is not W.FootnoteReferenceMark : child is not W.EndnoteReferenceMark))) return false;
+                if (kind == DocumentNoteKind.Footnote && marker.Elements<W.FootnoteReferenceMark>().Count() != 1) return false;
+                if (kind == DocumentNoteKind.Endnote && marker.Elements<W.EndnoteReferenceMark>().Count() != 1) return false;
+                if (!TryReadContentText(runs[1], out value)) return false;
+                value = value.StartsWith(' ') ? value[1..] : value;
+            }
+            else
+            {
+                if (runs.Length != 1 || !TryReadContentText(runs[0], out value)) return false;
+            }
+            if (value.IndexOfAny(['\r', '\n']) >= 0) return false;
+            if (!allowEmpty && value.Length == 0) return false;
+            result[index] = value;
+        }
+        values = result;
+        return true;
     }
 
-    private static void SetText(OpenXmlCompositeElement element, DocumentNoteKind kind, string value)
+    private static bool TryReadContentText(W.Run run, out string value)
     {
-        if (!TryReadText(element, kind, out _))
+        value = string.Empty;
+        if (run.ChildElements.Any(child => child is not W.RunProperties and not W.Text)) return false;
+        var texts = run.Elements<W.Text>().ToArray();
+        if (texts.Length != 1) return false;
+        value = texts[0].Text ?? string.Empty;
+        return true;
+    }
+
+    private static void SetParagraphs(OpenXmlCompositeElement element, DocumentNoteKind kind, IReadOnlyList<string> values)
+    {
+        if (!TryReadParagraphs(element, kind, out var original, allowEmpty: true) || original.Length != values.Count)
             throw new CodecException("unsupported_document_note_edit", "Document note body is outside the bounded plain-text topology.");
-        var text = element.Elements<W.Paragraph>().Single().Elements<W.Run>().ElementAt(1).Elements<W.Text>().Single();
-        text.Text = $" {value}";
-        text.Space = SpaceProcessingModeValues.Preserve;
+        var paragraphs = element.Elements<W.Paragraph>().ToArray();
+        for (var index = 0; index < paragraphs.Length; index++)
+        {
+            var run = paragraphs[index].Elements<W.Run>().ElementAt(index == 0 ? 1 : 0);
+            var text = run.Elements<W.Text>().Single();
+            var prefix = index == 0 && (text.Text ?? string.Empty).StartsWith(' ') ? " " : string.Empty;
+            text.Text = $"{prefix}{values[index]}";
+        }
     }
 
     private static string ResidualHash(OpenXmlCompositeElement element, DocumentNoteKind kind)
     {
         var clone = (OpenXmlCompositeElement)element.CloneNode(true);
-        SetText(clone, kind, string.Empty);
+        if (!TryReadParagraphs(clone, kind, out var paragraphs, allowEmpty: true))
+            throw new CodecException("unsupported_document_note_edit", "Document note body is outside the bounded plain-text topology.");
+        SetParagraphs(clone, kind, paragraphs.Select(_ => string.Empty).ToArray());
         return HashElement(clone);
     }
 
@@ -374,9 +426,34 @@ internal static class DocxNoteCodec
         return Hash(semantic.ToByteArray());
     }
 
-    private static void ValidateText(DocumentNote note)
+    private static string[] Paragraphs(DocumentNote note)
     {
-        if (note.Text.Length is < 1 or > 1_000_000 || note.Text.Any(character =>
+        var paragraphs = note.Paragraphs.Count == 0 ? [note.Text] : note.Paragraphs.ToArray();
+        var text = string.Join("\n", paragraphs);
+        if (note.Paragraphs.Count > 0 && !note.Text.Equals(text, StringComparison.Ordinal))
+            throw Invalid($"Document {KindName(note.Kind)} {note.Id} text must equal its LF-joined paragraphs.");
+        ValidateText(note, text);
+        if (note.Paragraphs.Count == 0)
+        {
+            if (text.IndexOfAny(['\r', '\n']) >= 0)
+                throw Invalid($"Document {KindName(note.Kind)} {note.Id} must use paragraphs for a multi-paragraph body.");
+            return paragraphs;
+        }
+        if (paragraphs.Length is < 1 or > 16)
+            throw Invalid($"Document {KindName(note.Kind)} {note.Id} must contain 1 through 16 canonical note paragraphs.");
+        for (var index = 0; index < paragraphs.Length; index++)
+        {
+            var paragraph = paragraphs[index];
+            if (paragraph.Length is < 1 or > 1_000_000 || paragraph.Any(character =>
+                    character < ' ' && character is not '\t' || character == '\u007f'))
+                throw Invalid($"Document {KindName(note.Kind)} {note.Id} paragraph {index + 1} must contain 1 through 1,000,000 XML-safe characters without a line break.");
+        }
+        return paragraphs;
+    }
+
+    private static void ValidateText(DocumentNote note, string text)
+    {
+        if (text.Length is < 1 or > 1_000_000 || text.Any(character =>
                 character < ' ' && character is not '\t' and not '\n' and not '\r' || character == '\u007f'))
             throw Invalid($"Document {KindName(note.Kind)} {note.Id} text must contain 1 through 1,000,000 XML-safe characters.");
     }

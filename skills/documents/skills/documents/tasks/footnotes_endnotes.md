@@ -8,9 +8,12 @@ footnote with footer text or a superscript character.
 
 ## Ordinary bounded workflow: public API
 
-Use `DocumentModel` and bundled OpenChestnut when each note has one plain-text
-body and is anchored at the end of one paragraph or list item. The bounded
-profile permits at most one note per target block.
+Use `DocumentModel` and bundled OpenChestnut when each note has 1 through 16
+physical plain-text paragraphs and is anchored at the end of one paragraph or
+list item. The bounded profile permits at most one note per target block. The
+first paragraph owns the native marker; later paragraphs each own one ordinary
+text run. Use `text` for the backward-compatible one-paragraph shorthand, or
+use `paragraphs` for an explicit multi-paragraph body.
 
 ```js
 import { DocumentFile, DocumentModel } from "open-office-artifact-tool";
@@ -19,22 +22,33 @@ const document = DocumentModel.create({ name: "Research note", blocks: [] });
 const claim = document.addParagraph("The pilot met its release threshold.");
 const provenance = document.addParagraph("The evidence snapshot is archived.");
 
-document.addFootnote(claim, "Pilot report, section 4.2.");
+document.addFootnote(claim, undefined, {
+  paragraphs: [
+    "Pilot report, section 4.2.",
+    "The independent review is retained with the release audit.",
+  ],
+});
 document.addEndnote(provenance, "Evidence snapshot dated 2026-07-17.");
 
 const first = await DocumentFile.exportDocx(document);
 const imported = await DocumentFile.importDocx(first);
-imported.notes.find((note) => note.kind === "footnote").text =
-  "Pilot report, section 4.2, independently reviewed.";
+imported.notes.find((note) => note.kind === "footnote").paragraphs = [
+  "Pilot report, section 4.2, independently reviewed.",
+  "The independent review is retained with the release audit.",
+];
 const output = await DocumentFile.exportDocx(imported);
 await output.save("notes.docx");
 ```
 
 After import, resolve note objects again from `document.notes`, `inspect()`, or
-`resolve(note.id)`. A recognized note body may change text, but its kind,
-target, native ID, reference position, and topology are source-bound. The
-target paragraph/list item itself is read-only because moving or rebuilding its
-reference run would change the native note graph.
+`resolve(note.id)`. `note.paragraphs` is the physical body shape and
+`note.text` is its LF-joined display projection. A recognized note may replace
+the plain text in its existing paragraphs, but its count, kind, target, native
+ID, reference position, formatting, and topology are source-bound. Assigning
+`note.text` to an imported multi-paragraph note collapses it to one paragraph
+and is rejected on export; assign the complete fixed-count `note.paragraphs`
+array instead. The target paragraph/list item itself is read-only because
+moving or rebuilding its reference run would change the native note graph.
 
 ## Native package contract
 
@@ -46,7 +60,9 @@ Footnotes and endnotes live in separate package parts:
 The body points to them with `w:footnoteReference` or `w:endnoteReference`.
 Source-free note parts include the required separator (`w:id=-1`) and
 continuation-separator (`w:id=0`) entries. OpenChestnut allocates positive
-native IDs independently for footnotes and endnotes.
+native IDs independently for footnotes and endnotes. A canonical body contains
+1 through 16 direct `w:p` elements: the first has the appropriate marker plus
+one `w:t` run; every continuation paragraph has exactly one `w:t` run.
 
 ## Inspect and audit
 
@@ -85,10 +101,11 @@ python scripts/insert_note.py input.docx --kind endnote  --marker "[[EN]]" --tex
 3. Run `footnotes_report.py`, inspect the package, render every page, and keep
 an audit record of the explicit low-level operation.
 
-Multi-paragraph/rich note bodies, reused references, multiple notes on one
-target, custom separator/numbering/restart graphs, anchor movement, or other
-irregular topologies remain opaque/source-bound through the public codec. If
-the narrow helper cannot prove a safe transformation, fail closed.
+Bodies with more than 16 paragraphs, rich/multi-run paragraphs, reused
+references, multiple notes on one target, custom separator/numbering/restart
+graphs, anchor movement, or other irregular topologies remain opaque/source-bound
+through the public codec. If the narrow helper cannot prove a safe
+transformation, fail closed.
 
 ## Render and verification gate
 
@@ -98,7 +115,8 @@ python render_docx.py notes.docx --output_dir rendered_notes
 
 Verify all of the following:
 
-- semantic re-import contains the expected note kind, target, and body text;
+- semantic re-import contains the expected note kind, target, body text, and
+  exact paragraph array;
 - `document.xml` contains the expected reference IDs and the matching note
   part contains each positive ID exactly once;
 - separators `-1` and `0` exist for a source-free note part;
