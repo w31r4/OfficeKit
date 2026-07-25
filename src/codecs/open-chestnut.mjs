@@ -1771,8 +1771,13 @@ const DOCUMENT_BIBLIOGRAPHY_FIELD_KEYS = [
   "broadcaster", "broadcastTitle", "station", "theater", "productionCompany", "distributor", "recordingNumber", "albumTitle", "thesisType", "version", "referenceOrder",
 ];
 const DOCUMENT_CITATION_TAG = /^[A-Za-z0-9_.:-]{1,255}$/;
-const DOCUMENT_FIELD_COMMANDS = new Set(["PAGE", "NUMPAGES", "SECTION", "SECTIONPAGES", "DATE", "TIME", "CREATEDATE", "SAVEDATE", "PRINTDATE", "AUTHOR", "TITLE", "SUBJECT", "COMMENTS", "FILENAME", "FILESIZE", "NUMWORDS", "NUMCHARS"]);
+const DOCUMENT_HEADER_FOOTER_FIELD_COMMANDS = new Set(["PAGE", "NUMPAGES", "SECTION", "SECTIONPAGES", "DATE", "TIME", "CREATEDATE", "SAVEDATE", "PRINTDATE", "AUTHOR", "TITLE", "SUBJECT", "COMMENTS", "FILENAME", "FILESIZE", "NUMWORDS", "NUMCHARS"]);
+const DOCUMENT_FIELD_COMMANDS = new Set([...DOCUMENT_HEADER_FOOTER_FIELD_COMMANDS, "BIBLIOGRAPHY"]);
 const DOCUMENT_INLINE_FIELD_INSTRUCTION = /^(?:SEQ [A-Za-z][A-Za-z0-9_]{0,39} \\[*] ARABIC|(?:REF|PAGEREF) [A-Za-z][A-Za-z0-9_]{0,39} \\h)$/;
+
+function isCanonicalBibliographyFieldInstruction(value) {
+  return /^\s*BIBLIOGRAPHY\s*$/i.test(String(value ?? ""));
+}
 
 function documentRgb(value, label) {
   if (value == null || value === "") return undefined;
@@ -2645,6 +2650,13 @@ function documentField(block, original) {
   if (complex && !/^TOC \\o "[1-9]-[1-9]"(?: \\h)?(?: \\z)?(?: \\u)?$/.test(instruction)) {
     throw new OpenChestnutCodecError(`Document field ${block.id} complex TOC instruction is outside the canonical bounded profile.`, [], { code: "invalid_document_field" });
   }
+  if (!complex && command === "BIBLIOGRAPHY" && !isCanonicalBibliographyFieldInstruction(instruction)) {
+    throw new OpenChestnutCodecError(`Document field ${block.id} BIBLIOGRAPHY instruction must not contain switches or arguments.`, [], { code: "invalid_document_field" });
+  }
+  const originalInstruction = original?.content?.case === "field" ? original.content.value?.instruction : undefined;
+  if (isCanonicalBibliographyFieldInstruction(originalInstruction) && instruction !== originalInstruction) {
+    throw new OpenChestnutCodecError(`Imported document BIBLIOGRAPHY field ${block.id} may update only its cached display text.`, [], { code: "unsupported_document_edit" });
+  }
   if (display.length > 1_000_000) throw new OpenChestnutCodecError(`Document field ${block.id} display text exceeds 1,000,000 characters.`, [], { code: "invalid_document_field" });
   return { instruction, display, complex };
 }
@@ -3065,7 +3077,7 @@ function wireDocumentHeaderFooterSegments(segments, label) {
     const instruction = String(field.instruction ?? "").trim();
     const command = instruction.split(/\s+/, 1)[0]?.toUpperCase();
     const fieldDisplay = String(field.display ?? "");
-    if (!instruction || instruction.length > 8192 || /[\u0000-\u001f\u007f]/.test(instruction) || !DOCUMENT_FIELD_COMMANDS.has(command) || fieldDisplay.length > 1_000_000 || !isXmlSafeText(fieldDisplay)) {
+    if (!instruction || instruction.length > 8192 || /[\u0000-\u001f\u007f]/.test(instruction) || !DOCUMENT_HEADER_FOOTER_FIELD_COMMANDS.has(command) || fieldDisplay.length > 1_000_000 || !isXmlSafeText(fieldDisplay)) {
       throw new OpenChestnutCodecError(`Document ${label} structured field segment ${index + 1} is outside the bounded simple-field profile.`, [], { code: "invalid_document_header_footer" });
     }
     fieldCount += 1;
@@ -3101,7 +3113,7 @@ function wireHeaderFooter(block, slot) {
   if (segments.length && snapshot.text !== segments.map((segment) => segment.content.case === "text" ? segment.content.value : segment.content.value.display).join("")) {
     throw new OpenChestnutCodecError(`Document ${block.kind} ${block.id} structured segment display must exactly match text.`, [], { code: "invalid_document_header_footer" });
   }
-  if (instruction && !DOCUMENT_FIELD_COMMANDS.has(instruction.trim().split(/\s+/)[0].toUpperCase())) throw new OpenChestnutCodecError(`Document ${block.kind} ${block.id} uses unsupported field ${instruction}.`, [], { code: "invalid_document_field" });
+  if (instruction && !DOCUMENT_HEADER_FOOTER_FIELD_COMMANDS.has(instruction.trim().split(/\s+/)[0].toUpperCase())) throw new OpenChestnutCodecError(`Document ${block.kind} ${block.id} uses unsupported field ${instruction}.`, [], { code: "invalid_document_field" });
   if (slot) {
     const source = slot.publicSnapshot;
     if (snapshot.id !== source.id || snapshot.name !== source.name || snapshot.styleId !== source.styleId ||

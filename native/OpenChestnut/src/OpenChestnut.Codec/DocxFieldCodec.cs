@@ -32,6 +32,7 @@ internal static class DocxFieldCodec
         "FILESIZE",
         "NUMWORDS",
         "NUMCHARS",
+        "BIBLIOGRAPHY",
     };
 
     private static readonly Regex CanonicalToc = new(
@@ -86,6 +87,9 @@ internal static class DocxFieldCodec
         var source = paragraph.Elements<W.SimpleField>().SingleOrDefault();
         if (source is null || !IsEditableSimple(source) || !IsEditableSimpleInstruction(source.Instruction?.Value ?? string.Empty))
             throw Unsupported("Source-preserving DOCX export cannot edit this simple field instruction or result topology.");
+        if (IsCanonicalBibliographyInstruction(source.Instruction?.Value ?? string.Empty) &&
+            !string.Equals(source.Instruction?.Value, requested.Instruction, StringComparison.Ordinal))
+            throw Unsupported("Source-preserving DOCX export may update a canonical BIBLIOGRAPHY field's cached result but cannot change its instruction.");
         source.Instruction = requested.Instruction;
         SetText(source.Descendants<W.Text>().Single(), requested.Display);
     }
@@ -195,7 +199,9 @@ internal static class DocxFieldCodec
         try
         {
             ValidateInstruction(value);
-            return EditableCommands.Contains(Command(value));
+            return Command(value) == "BIBLIOGRAPHY"
+                ? IsCanonicalBibliographyInstruction(value)
+                : EditableCommands.Contains(Command(value));
         }
         catch (CodecException)
         {
@@ -221,6 +227,17 @@ internal static class DocxFieldCodec
         var match = CanonicalToc.Match(value);
         return match.Success && int.Parse(match.Groups[1].Value) <= int.Parse(match.Groups[2].Value);
     }
+
+    internal static bool IsBibliographyOutput(DocumentField? field) =>
+        field is not null && !field.Complex && IsCanonicalBibliographyInstruction(field.Instruction);
+
+    internal static bool IsAllowedHeaderFooterField(DocumentField? field) =>
+        field is not null && !field.Complex &&
+        IsEditableSimpleInstruction(field.Instruction) &&
+        !IsBibliographyOutput(field);
+
+    private static bool IsCanonicalBibliographyInstruction(string value) =>
+        value.Trim().Equals("BIBLIOGRAPHY", StringComparison.OrdinalIgnoreCase);
 
     private static string Command(string value)
     {

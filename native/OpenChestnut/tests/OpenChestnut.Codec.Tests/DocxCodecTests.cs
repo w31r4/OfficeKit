@@ -4408,6 +4408,101 @@ public sealed class DocxCodecTests
     }
 
     [Fact]
+    public void BibliographyOutputFieldAuthorsImportsEditsAndFailsClosedForInstructionChanges()
+    {
+        var authored = Invoke(BibliographyExportRequest(includeOutputField: true));
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = WordprocessingDocument.Open(stream, false))
+        {
+            var mainPart = package.MainDocumentPart!;
+            var output = Assert.Single(mainPart.Document!.Descendants<W.SimpleField>(),
+                field => (field.Instruction?.Value ?? string.Empty).Trim().Equals("BIBLIOGRAPHY", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal("BIBLIOGRAPHY", output.Instruction?.Value);
+            Assert.Equal("Refresh bibliography in Word", output.InnerText);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var imported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var outputField = Assert.Single(imported.Artifact.Document.Blocks,
+            block => block.ContentCase == DocumentBlock.ContentOneofCase.Field);
+        Assert.True(outputField.Source.Editable);
+        Assert.Equal("BIBLIOGRAPHY", outputField.Field.Instruction.Trim());
+        Assert.Equal("Refresh bibliography in Word", outputField.Field.Display);
+
+        outputField.Field.Display = "Refresh bibliography before delivery";
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var roundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = edited.File,
+        });
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        var roundTripOutput = Assert.Single(roundTrip.Artifact.Document.Blocks,
+            block => block.ContentCase == DocumentBlock.ContentOneofCase.Field);
+        Assert.Equal("BIBLIOGRAPHY", roundTripOutput.Field.Instruction.Trim());
+        Assert.Equal("Refresh bibliography before delivery", roundTripOutput.Field.Display);
+
+        roundTripOutput.Field.Instruction = "PAGE";
+        var instructionChanged = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = roundTrip.Artifact,
+        });
+        Assert.False(instructionChanged.Ok);
+        Assert.Equal("unsupported_document_edit", Assert.Single(instructionChanged.Diagnostics).Code);
+
+        roundTripOutput.Field.Instruction = " bibliography ";
+        var spellingChanged = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = roundTrip.Artifact,
+        });
+        Assert.False(spellingChanged.Ok);
+        Assert.Equal("unsupported_document_edit", Assert.Single(spellingChanged.Diagnostics).Code);
+
+        var withSwitch = BibliographyExportRequest(includeOutputField: true);
+        var outputWithSwitch = Assert.Single(withSwitch.Artifact.Document.Blocks,
+            block => block.ContentCase == DocumentBlock.ContentOneofCase.Field);
+        outputWithSwitch.Field.Instruction = "BIBLIOGRAPHY \\* MERGEFORMAT";
+        var switchRejected = Invoke(withSwitch);
+        Assert.False(switchRejected.Ok);
+        Assert.Equal("invalid_document_field", Assert.Single(switchRejected.Diagnostics).Code);
+
+        var withoutCatalog = BibliographyExportRequest(includeOutputField: true);
+        var citationIndex = withoutCatalog.Artifact.Document.Blocks
+            .Select((block, index) => (block, index))
+            .Single(item => item.block.ContentCase == DocumentBlock.ContentOneofCase.Citation)
+            .index;
+        withoutCatalog.Artifact.Document.Blocks.RemoveAt(citationIndex);
+        withoutCatalog.Artifact.Document.Bookmarks.Clear();
+        withoutCatalog.Artifact.Document.Bibliography = null;
+        var catalogRejected = Invoke(withoutCatalog);
+        Assert.False(catalogRejected.Ok);
+        Assert.Equal("invalid_document_bibliography", Assert.Single(catalogRejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void SourcePreservingExportEditsBoundedSimpleFieldAndKeepsFormatting()
     {
         var authored = Invoke(FieldExportRequest());
@@ -6538,6 +6633,24 @@ public sealed class DocxCodecTests
         var invalidXmlResult = Invoke(invalidXml);
         Assert.False(invalidXmlResult.Ok);
         Assert.Equal("invalid_document_header_footer", Assert.Single(invalidXmlResult.Diagnostics).Code);
+
+        var bibliographyFooter = ExportRequest(includeSecondParagraph: true);
+        var bibliographySegmentFooter = new DocumentHeaderFooter
+        {
+            Id = "document/footer/bibliography-segment",
+            Text = "Bibliography: Ready",
+            Reference = DocumentHeaderFooterReference.Default,
+            SectionIndex = 0,
+        };
+        bibliographySegmentFooter.Segments.Add(new DocumentHeaderFooterSegment { Text = "Bibliography: " });
+        bibliographySegmentFooter.Segments.Add(new DocumentHeaderFooterSegment
+        {
+            Field = new DocumentField { Instruction = "BIBLIOGRAPHY", Display = "Ready" },
+        });
+        bibliographyFooter.Artifact.Document.Footers.Add(bibliographySegmentFooter);
+        var bibliographyFooterResult = Invoke(bibliographyFooter);
+        Assert.False(bibliographyFooterResult.Ok);
+        Assert.Equal("invalid_document_header_footer", Assert.Single(bibliographyFooterResult.Diagnostics).Code);
     }
 
     [Fact]
@@ -7113,7 +7226,7 @@ public sealed class DocxCodecTests
         return stream.ToArray();
     }
 
-    private static CodecRequest BibliographyExportRequest()
+    private static CodecRequest BibliographyExportRequest(bool includeOutputField = false)
     {
         var document = new DocumentArtifact
         {
@@ -7145,6 +7258,19 @@ public sealed class DocxCodecTests
             Citation = new DocumentCitation { Tag = source.Tag, Display = "(Lovelace, 1843)" },
         };
         document.Blocks.Add(citation);
+        if (includeOutputField)
+        {
+            document.Blocks.Add(new DocumentBlock
+            {
+                Id = "document/bibliography-output",
+                StyleId = "Normal",
+                Field = new DocumentField
+                {
+                    Instruction = "BIBLIOGRAPHY",
+                    Display = "Refresh bibliography in Word",
+                },
+            });
+        }
         document.Bookmarks.Add(new DocumentBookmark
         {
             Id = "document/citation/bookmark",
