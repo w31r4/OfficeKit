@@ -1524,6 +1524,10 @@ const bibliographyDocument = DocumentModel.create({
   bibliography: { selectedStyle: "\\APASixthEditionOfficeOnline.xsl", styleName: "APA" },
   blocks: [],
 });
+assert.throws(
+  () => DocumentModel.create({ blocks: [] }).addBibliography(),
+  /requires at least one bibliography source/i,
+);
 bibliographyDocument.addBibliographySource({
   id: "bibliography/AgentSource",
   tag: "AgentSource",
@@ -1534,6 +1538,14 @@ bibliographyDocument.addBibliographySource({
   authors: [{ first: "Ada", last: "Lovelace" }],
 });
 bibliographyDocument.addCitation("(Lovelace, 1843)", { tag: "AgentSource" }, { id: "citation/agent-source" });
+const bibliographyOutput = bibliographyDocument.addBibliography({
+  id: "bibliography/output",
+  display: "Refresh bibliography in Word",
+});
+assert.equal(bibliographyOutput.instruction, "BIBLIOGRAPHY");
+assert.equal(bibliographyOutput.complex, false);
+assert.equal(bibliographyDocument.settings.updateFields, true);
+assert.throws(() => bibliographyDocument.addBibliography(), /already contains a canonical BIBLIOGRAPHY/i);
 const bibliographyDocx = await DocumentFile.exportDocx(bibliographyDocument);
 const importedBibliography = await DocumentFile.importDocx(bibliographyDocx);
 assert.equal(importedBibliography.bibliography.styleName, "APA");
@@ -1542,14 +1554,44 @@ assert.equal(importedBibliography.bibliographySources[0].title, "Sketch of the A
 assert.deepEqual(importedBibliography.bibliographySources[0].authors, [{ first: "Ada", middle: "", last: "Lovelace" }]);
 assert.equal(importedBibliography.blocks[0].kind, "citation");
 assert.equal(importedBibliography.blocks[0].metadata.tag, "AgentSource");
+const importedBibliographyOutput = importedBibliography.blocks.find((block) => block.kind === "field");
+assert.equal(importedBibliographyOutput?.instruction, "BIBLIOGRAPHY");
+assert.equal(importedBibliographyOutput?.display, "Refresh bibliography in Word");
 assert.equal(importedBibliography.bookmarks[0].targetId, importedBibliography.blocks[0].id);
 importedBibliography.bibliographySources[0].title = "Notes on the Analytical Engine";
 importedBibliography.bibliographySources[0].authors[0].first = "Augusta Ada";
 importedBibliography.blocks[0].text = "(Lovelace, 1843, revised)";
+importedBibliographyOutput.display = "Refresh bibliography before delivery";
 const roundTripBibliography = await DocumentFile.importDocx(await DocumentFile.exportDocx(importedBibliography));
 assert.equal(roundTripBibliography.bibliographySources[0].title, "Notes on the Analytical Engine");
 assert.equal(roundTripBibliography.bibliographySources[0].authors[0].first, "Augusta Ada");
 assert.equal(roundTripBibliography.blocks[0].text, "(Lovelace, 1843, revised)");
+assert.equal(roundTripBibliography.blocks.find((block) => block.kind === "field")?.display, "Refresh bibliography before delivery");
+
+roundTripBibliography.blocks.find((block) => block.kind === "field").instruction = "PAGE";
+await assert.rejects(
+  () => DocumentFile.exportDocx(roundTripBibliography),
+  (error) => error?.code === "unsupported_document_edit" && /BIBLIOGRAPHY field/i.test(error.message),
+);
+roundTripBibliography.blocks.find((block) => block.kind === "field").instruction = " bibliography ";
+await assert.rejects(
+  () => DocumentFile.exportDocx(roundTripBibliography),
+  (error) => error?.code === "unsupported_document_edit" && /BIBLIOGRAPHY field/i.test(error.message),
+);
+roundTripBibliography.blocks.find((block) => block.kind === "field").instruction = "BIBLIOGRAPHY";
+
+const bibliographyWithSwitch = DocumentModel.create({ blocks: [] });
+bibliographyWithSwitch.addBibliographySource({
+  tag: "SwitchSource",
+  sourceType: "Book",
+  title: "Switch guard",
+  guid: "{3A58DDF2-37A7-4D10-ACF4-25D7474DB805}",
+});
+bibliographyWithSwitch.addField("BIBLIOGRAPHY \\* MERGEFORMAT", "Unsafe");
+await assert.rejects(
+  () => DocumentFile.exportDocx(bibliographyWithSwitch),
+  (error) => error?.code === "invalid_document_field" && /must not contain switches/i.test(error.message),
+);
 
 roundTripBibliography.bibliographySources[0].tag = "RenamedSource";
 roundTripBibliography.blocks[0].metadata.tag = "RenamedSource";

@@ -46,6 +46,39 @@ managed PDF-provider download tests and separately configured specialist Python
 providers remained opt-in environment lanes, rather than being represented as
 local release evidence.
 
+## 0.3.0 DOCX canonical bibliography-output field
+
+`document.addBibliography(...)` now authors one source-free, whole-paragraph,
+switch-free `w:fldSimple` whose instruction is exactly `BIBLIOGRAPHY`. It
+requires at least one modeled `b:Source`, permits at most one such output
+placeholder, and enables the existing `updateFields`-on-open hint unless the
+caller explicitly disables it. The visible result is deliberately a cached
+placeholder: a compatible Word host, not JavaScript or OpenChestnut, is
+responsible for calculating the formatted bibliography before delivery.
+
+On import, the codec recognizes only its bounded single-simple-field topology.
+It permits a source-bound caller to change that field's cached display text;
+the raw instruction string, field placement, source catalog/order/tags, and
+citation tags remain fixed. Switches or arguments, multiple source-free output
+fields, an empty source catalog, refreshed/multi-paragraph result graphs, and
+any attempt to alter an imported output instruction fail closed or remain
+opaque-preserved. Header/footer simple-field sequences intentionally exclude
+`BIBLIOGRAPHY`.
+
+### Bibliography-output integration evidence
+
+On 2026-07-25, the local candidate passed `npm test`, `npm run docs:api`,
+`npm run proto:check`, the deterministic OpenChestnut build gate, clean-install
+`test:pack`, OpenChestnut `373/373`, and OfficeBridge `5/5`. The two
+source-built WASM bundles were reproducible across 39 audited files; the
+bundled runtime contains 38 files at 15,145,664 bytes. The clean tarball has
+513 files, 9,390,124 compressed bytes, and 25,195,372 unpacked bytes.
+
+The pre-commit `release:check` completed every code, package, documentation,
+JavaScript, and .NET gate. Its only expected blockers were the dirty candidate
+worktree and unavailable npm authentication; no npm publish, tag, or GitHub
+release was attempted.
+
 ## 0.3.0 OfficeKit and template routing
 
 0.3.0 adds one project-native top-level OfficeKit Skill without adding another

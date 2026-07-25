@@ -24,6 +24,12 @@
       "styleId": "Normal",
       "text": "(Lovelace, 1843)",
       "metadata": { "tag": "AgentSource" }
+    },
+    {
+      "kind": "bibliography",
+      "id": "bibliography/output",
+      "styleId": "Normal",
+      "display": "Refresh bibliography in Word"
     }
   ],
   "edits": [
@@ -37,16 +43,22 @@
       "kind": "citation",
       "matchTag": "AgentSource",
       "text": "(Lovelace, 1843, revised)"
+    },
+    {
+      "kind": "field",
+      "matchInstruction": "BIBLIOGRAPHY",
+      "display": "Refresh bibliography before delivery"
     }
   ],
   "expectInspect": [
     { "kind": "bibliographySource", "pattern": "AgentSource" },
-    { "kind": "citation", "pattern": "Lovelace, 1843" }
+    { "kind": "citation", "pattern": "Lovelace, 1843" },
+    { "kind": "field", "pattern": "BIBLIOGRAPHY" }
   ],
   "qa": {
     "previewFormat": "svg",
     "nativeRender": "auto",
-    "inspectKind": "document,paragraph,citation,bibliographySource,bookmark,layout",
+    "inspectKind": "document,paragraph,field,citation,bibliographySource,bookmark,layout",
     "maxChars": 12000
   }
 }

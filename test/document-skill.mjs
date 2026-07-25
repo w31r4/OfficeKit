@@ -373,11 +373,15 @@ try {
     ["AgentSource", "Notes on the Analytical Engine", "Augusta Ada"],
   ]);
   assert.equal(bibliographyDocument.blocks.find((block) => block.kind === "citation")?.text, "(Lovelace, 1843, revised)");
+  assert.equal(bibliographyDocument.settings.updateFields, true);
+  assert.equal(bibliographyDocument.blocks.find((block) => block.kind === "field")?.instruction, "BIBLIOGRAPHY");
+  assert.equal(bibliographyDocument.blocks.find((block) => block.kind === "field")?.display, "Refresh bibliography before delivery");
   const bibliographyZip = await JSZip.loadAsync(await fs.readFile(bibliography.docxPath));
   const bibliographyParts = Object.keys(bibliographyZip.files).filter((name) => /^customXml\/item\d*\.xml$/.test(name));
   assert.equal(bibliographyParts.length, 1);
   assert.match(await bibliographyZip.file(bibliographyParts[0]).async("text"), /<Sources\b[^>]*xmlns="http:\/\/schemas\.openxmlformats\.org\/officeDocument\/2006\/bibliography"/);
   assert.match(await bibliographyZip.file("word/document.xml").async("text"), /w:instr=" CITATION AgentSource "/);
+  assert.match(await bibliographyZip.file("word/document.xml").async("text"), /w:instr="BIBLIOGRAPHY"/);
 
   const toc = await runFixture("open-chestnut-toc", {
     nativeRender: nativeStatus.available ? "required" : "auto",
@@ -984,6 +988,7 @@ try {
   assert.match(skillText, /lineNumbering: \{ countBy: 5, start: 0, distance: 360, restart: "newPage" \}/);
   assert.match(skillText, /paragraphFormat: \{ suppressLineNumbers: true \}/);
   assert.match(skillText, /document\.addBibliographySource/);
+  assert.match(skillText, /document\.addBibliography/);
   assert.match(skillText, /document\.addCitation/);
   assert.match(skillText, /document\.addTableOfContents/);
   assert.match(skillText, /paragraph\.addField/);

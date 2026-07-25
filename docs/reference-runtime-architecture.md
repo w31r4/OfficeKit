@@ -5,7 +5,9 @@
 OpenChestnut is the only XLSX, DOCX, and PPTX codec. It is implemented in C# with the Open XML SDK and compiled into the bundled .NET WebAssembly runtime. PDF remains an independent implementation.
 
 Version 0.3 retains the single-codec boundary: no Office codec registry,
-selector, compatibility shim, or fallback path.
+selector, alternate runtime shim, or fallback path. Deprecated import-name
+bridges remain compatibility surface only and never participate in codec
+selection.
 
 ```mermaid
 flowchart LR

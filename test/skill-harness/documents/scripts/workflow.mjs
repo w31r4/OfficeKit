@@ -70,6 +70,7 @@ function addFixtureBlock(document, block = {}) {
     case "hyperlink": return document.addHyperlink(block.text || "", block.url, config);
     case "field": return document.addField(block.instruction, block.display, config);
     case "toc": return document.addTableOfContents(config);
+    case "bibliography": return document.addBibliography(config);
     case "citation": return document.addCitation(block.text || "", block.metadata || {}, config);
     case "image": return document.addImage(config);
     case "section": return document.addSection(config);

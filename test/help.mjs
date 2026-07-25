@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 382);
+assert.equal(HELP_CATALOG.length, 383);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -171,6 +171,7 @@ assert.ok(HELP_CATALOG.some((item) => item.name === "slide.setLayout"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "slide.placeholders.getItem"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "document.addHyperlink"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "document.addBibliographySource"));
+assert.ok(HELP_CATALOG.some((item) => item.name === "document.addBibliography"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "document.addTableOfContents"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "paragraph.addField"));
 assert.match(HELP_CATALOG.find((item) => item.name === "paragraph.replaceText")?.summary || "", /textPatchable.*unique ordinary w:r\/w:t.*adjacent non-empty direct runs.*byte-identical w:rPr.*fail closed/i);
@@ -192,6 +193,8 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.addFootnote")?.
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addEndnote")?.summary || "", /native plain-text endnote.*text edits only/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addBookmark")?.schema?.parameters?.name?.description || "", /ASCII letter.*40 characters/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addBibliographySource")?.summary || "", /native b:Sources authoring.*source order.*tags.*source-bound/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "document.addBibliography")?.summary || "", /switch-free BIBLIOGRAPHY.*at least one modeled bibliography source.*cached-display edits only/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "document.addBibliography")?.schema?.parameters?.updateFields?.description || "", /defaults to true/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addCitation")?.summary || "", /w:fldSimple CITATION.*display-text edits.*topology remain fixed/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addChange")?.summary || "", /native w:ins\/w:del.*fixed-topology/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "document.replyToComment")?.summary || "", /source-free direct reply.*commentsExtended.*nested replies.*imported topology.*fail closed/i);
@@ -420,7 +423,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.resolve")?.
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.ensure")?.schema?.returns?.result?.description || "", /pinned catalog assets.*safe extraction.*never downloads credentials or falls back/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.probe")?.schema?.returns?.state?.description || "", /no network request.*cache write.*MuPDF import.*provider fallback/i);
 const documentCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "document");
-assert.equal(documentCatalog.length, 66);
+assert.equal(documentCatalog.length, 67);
 assert.ok(documentCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.type, "object");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.description || "", /suppressLineNumbers.*true.*excludes.*display and calculation.*false.*override.*inherited style.*omission inherits.*source-owned.*fails closed/i);

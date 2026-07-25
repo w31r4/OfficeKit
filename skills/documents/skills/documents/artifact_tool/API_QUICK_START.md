@@ -616,23 +616,33 @@ document.addBibliographySource({
   authors: [{ first: "Ada", last: "Lovelace" }],
 });
 document.addCitation("(Lovelace, 1843)", { tag: "AgentSource" });
+document.addBibliography({
+  display: "Refresh bibliography in Word before delivery",
+});
 
 const imported = await DocumentFile.importDocx(await DocumentFile.exportDocx(document));
 imported.bibliographySources[0].title = "Notes on the Analytical Engine";
 imported.blocks.find((block) => block.kind === "citation").text = "(Lovelace, 1843, revised)";
+imported.blocks.find((block) => block.kind === "field" && block.instruction === "BIBLIOGRAPHY").display =
+  "Refresh bibliography before delivery";
 ```
 
-OpenChestnut authors one `b:Sources` Custom XML part and canonical
-`w:fldSimple` `CITATION <tag>` blocks. Source-free catalogs may contain one or
-more supported source types, scalar fields, ordinary personal authors, or one
-corporate author. Recognized imports permit settings, source-type, author, and
-scalar-field edits plus citation display-text edits. Imported source count,
-order, IDs, tags, and citation tags remain source-bound.
+OpenChestnut authors one `b:Sources` Custom XML part, canonical
+`w:fldSimple` `CITATION <tag>` blocks, and at most one whole-paragraph,
+switch-free `w:fldSimple` `BIBLIOGRAPHY` placeholder. `addBibliography()`
+requires at least one modeled source, sets the `updateFields`-on-open hint by
+default, and only supplies cached fallback text. A compatible Word host must
+calculate the formatted bibliography; JavaScript never pretends to reproduce
+that layout. Recognized imports permit settings, source-type, author, and
+scalar-field edits plus citation and canonical bibliography-placeholder cached
+display-text edits. Imported source count, order, IDs, tags, citation tags, and
+the `BIBLIOGRAPHY` instruction remain source-bound.
 
 Contributor roles other than ordinary Author, complex field switches, multiple
-or irregular bibliography parts, nested/mixed result runs, and bibliography
-output fields remain opaque/read-only. Never rebuild those graphs to claim a
-lossless edit; report the boundary or use an explicit narrow package workflow.
+or irregular bibliography parts, refreshed/multi-paragraph bibliography
+results, nested/mixed result runs, and noncanonical bibliography output fields
+remain opaque/read-only. Never rebuild those graphs to claim a lossless edit;
+report the boundary or use an explicit narrow package workflow.
 
 ## Native table of contents field
 

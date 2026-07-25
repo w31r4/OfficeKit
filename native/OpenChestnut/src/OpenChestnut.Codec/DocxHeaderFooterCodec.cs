@@ -153,7 +153,7 @@ internal static class DocxHeaderFooterCodec
             if (item.Segments.Count > 0)
                 ValidateSegments(item, kind);
             else if (!string.IsNullOrWhiteSpace(item.FieldInstruction))
-                DocxFieldCodec.Validate(new DocumentField { Instruction = item.FieldInstruction, Display = item.Text });
+                ValidateHeaderFooterField(new DocumentField { Instruction = item.FieldInstruction, Display = item.Text }, kind, item.Id);
             if (item.Source is { } source &&
                 (string.IsNullOrWhiteSpace(source.RelationshipId) ||
                  string.IsNullOrWhiteSpace(source.PartPath) ||
@@ -548,7 +548,12 @@ internal static class DocxHeaderFooterCodec
             if (field.Elements<W.Run>().Count() != 1 || field.Descendants<W.RunProperties>().Any()) return false;
             fieldInstruction = field.Instruction?.Value?.Trim() ?? string.Empty;
             text = string.Concat(field.Descendants<W.Text>().Select(item => item.Text));
-            try { DocxFieldCodec.Validate(new DocumentField { Instruction = fieldInstruction, Display = text }); }
+            try
+            {
+                var parsedField = new DocumentField { Instruction = fieldInstruction, Display = text };
+                DocxFieldCodec.Validate(parsedField);
+                if (!DocxFieldCodec.IsAllowedHeaderFooterField(parsedField)) return false;
+            }
             catch (CodecException) { return false; }
             return true;
         }
@@ -605,7 +610,7 @@ internal static class DocxHeaderFooterCodec
                 case DocumentHeaderFooterSegment.ContentOneofCase.Field:
                     if (segment.Field is null || segment.Field.Complex)
                         throw new CodecException("invalid_document_header_footer", $"Document {kind} {item.Id} structured fields must use one bounded simple-field profile.");
-                    DocxFieldCodec.Validate(segment.Field);
+                    ValidateHeaderFooterField(segment.Field, kind, item.Id);
                     if (!IsXmlSafe(segment.Field.Display))
                         throw new CodecException("invalid_document_header_footer", $"Document {kind} {item.Id} has an invalid structured field display.");
                     text.Append(segment.Field.Display);
@@ -636,6 +641,13 @@ internal static class DocxHeaderFooterCodec
         {
             return false;
         }
+    }
+
+    private static void ValidateHeaderFooterField(DocumentField field, string kind, string id)
+    {
+        DocxFieldCodec.Validate(field);
+        if (!DocxFieldCodec.IsAllowedHeaderFooterField(field))
+            throw new CodecException("invalid_document_header_footer", $"Document {kind} {id} field {field.Instruction} is outside the bounded page-furniture profile.");
     }
 
     private static bool TryReadSegments(
@@ -687,7 +699,7 @@ internal static class DocxHeaderFooterCodec
         try
         {
             DocxFieldCodec.Validate(parsed);
-            return true;
+            return DocxFieldCodec.IsAllowedHeaderFooterField(parsed);
         }
         catch (CodecException)
         {

@@ -1155,6 +1155,12 @@ async function renderDocumentFromDocx(document, options = {}) {
 const DOCUMENT_MATERIALIZE_SEQ = /^SEQ ([A-Za-z][A-Za-z0-9_]{0,39}) \\[*] ARABIC$/;
 const DOCUMENT_MATERIALIZE_REF = /^REF ([A-Za-z][A-Za-z0-9_]{0,39}) \\h$/;
 const DOCUMENT_MATERIALIZE_PAGEREF = /^PAGEREF ([A-Za-z][A-Za-z0-9_]{0,39}) \\h$/;
+const DOCUMENT_BIBLIOGRAPHY_OUTPUT_INSTRUCTION = /^\s*BIBLIOGRAPHY\s*$/i;
+
+function isCanonicalBibliographyOutputField(block) {
+  return block?.kind === "field" && !block.complex &&
+    DOCUMENT_BIBLIOGRAPHY_OUTPUT_INSTRUCTION.test(String(block.instruction || ""));
+}
 
 function materializeDocumentFields(document, options = {}) {
   const requestedTypes = options.types == null
@@ -1287,6 +1293,7 @@ export class DocumentModel {
       else if (block.kind === "listItem") this.addListItem(block.text ?? "", block);
       else if (block.kind === "hyperlink") this.addHyperlink(block.text ?? "", block.url, block);
       else if (block.kind === "field") this.addField(block.instruction, block.display, block);
+      else if (block.kind === "bibliography") this.addBibliography(block);
       else if (block.kind === "citation") this.addCitation(block.text ?? "", block.metadata || {}, block);
       else if (block.kind === "image") this.addImage(block);
       else if (block.kind === "section") this.addSection(block);
@@ -1469,6 +1476,21 @@ export class DocumentModel {
       `TOC ${switches.join(" ")}`,
       config.display ?? "(Table of contents will populate after fields are updated)",
       { ...config, complex: true },
+    );
+    if (config.updateFields !== false) this.settings = normalizeDocxSettings({ ...this.settings, updateFields: true });
+    return block;
+  }
+  addBibliography(config = {}) {
+    if (!this.bibliographySources.length) {
+      throw new TypeError("Document BIBLIOGRAPHY output requires at least one bibliography source; call addBibliographySource() first.");
+    }
+    if (this.blocks.some(isCanonicalBibliographyOutputField)) {
+      throw new Error("Document already contains a canonical BIBLIOGRAPHY output field.");
+    }
+    const block = this.addField(
+      "BIBLIOGRAPHY",
+      config.display ?? "(Bibliography will populate after fields are updated)",
+      { ...config, complex: false },
     );
     if (config.updateFields !== false) this.settings = normalizeDocxSettings({ ...this.settings, updateFields: true });
     return block;

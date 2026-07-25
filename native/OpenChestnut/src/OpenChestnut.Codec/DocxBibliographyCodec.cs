@@ -164,11 +164,22 @@ internal static class DocxBibliographyCodec
     {
         var bibliography = document.Bibliography;
         var citations = document.Blocks.Where(block => block.ContentCase == DocumentBlock.ContentOneofCase.Citation).ToArray();
+        var authoredOutputFields = document.Blocks
+            .Where(block => block.ContentCase == DocumentBlock.ContentOneofCase.Field &&
+                            block.Source is null &&
+                            DocxFieldCodec.IsBibliographyOutput(block.Field))
+            .ToArray();
         if (bibliography is null)
         {
             if (citations.Length > 0) throw Invalid("Document citations require a bibliography source catalog.");
+            if (authoredOutputFields.Length > 0)
+                throw Invalid("A source-free BIBLIOGRAPHY output field requires a bibliography source catalog.");
             return;
         }
+        if (authoredOutputFields.Length > 1)
+            throw Invalid("The bounded source-free profile permits exactly one BIBLIOGRAPHY output field.");
+        if (authoredOutputFields.Length > 0 && bibliography.Sources.Count == 0)
+            throw Invalid("A source-free BIBLIOGRAPHY output field requires at least one bibliography source.");
         String255(bibliography.SelectedStyle, "bibliography selected style");
         String255(bibliography.StyleName, "bibliography style name");
         String255(bibliography.Uri, "bibliography URI");

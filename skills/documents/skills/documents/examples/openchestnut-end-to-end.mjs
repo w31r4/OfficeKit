@@ -271,6 +271,11 @@ export function buildDocument(spec = DEFAULT_BRIEF) {
     id: "citation/project-evidence",
     styleId: "Normal",
   });
+  document.addBibliography({
+    id: "bibliography/project-evidence-output",
+    styleId: "Normal",
+    display: "Refresh bibliography in Word before delivery",
+  });
 
   document.addComment(recommendation, "Confirm the recommendation wording before publication.", {
     author: "Release reviewer",
@@ -378,6 +383,7 @@ export async function createDocument(outputPath, spec = DEFAULT_BRIEF) {
   imported.notes[1].text = "Evidence snapshot dated 2026-07-17; retained with the release record.";
   imported.bibliographySources[0].title = `${spec.sourceLabel} — verified`;
   imported.blocks.find((block) => block.kind === "citation").text = `(${spec.owner}, 2026, verified)`;
+  imported.blocks.find((block) => block.kind === "field" && block.instruction === "BIBLIOGRAPHY").display = "Refresh bibliography before delivery";
 
   const finalDocx = await DocumentFile.exportDocx(imported);
   const finalDocument = await DocumentFile.importDocx(finalDocx);
@@ -388,6 +394,8 @@ export async function createDocument(outputPath, spec = DEFAULT_BRIEF) {
   assert.equal(finalDocument.bookmarks.some((bookmark) => bookmark.name === "DecisionSection"), true);
   assert.equal(finalDocument.bibliographySources[0]?.title, `${spec.sourceLabel} — verified`);
   assert.equal(finalDocument.blocks.find((block) => block.kind === "citation")?.text, `(${spec.owner}, 2026, verified)`);
+  assert.equal(finalDocument.settings.updateFields, true);
+  assert.equal(finalDocument.blocks.find((block) => block.kind === "field" && block.instruction === "BIBLIOGRAPHY")?.display, "Refresh bibliography before delivery");
   assert.deepEqual(finalDocument.footers[0]?.segments, [
     { text: "Page " },
     { field: { instruction: "PAGE", display: "1" } },
@@ -421,10 +429,10 @@ export async function createDocument(outputPath, spec = DEFAULT_BRIEF) {
   );
 
   const inspection = finalDocument.inspect({
-    kind: "document,paragraph,listItem,table,comment,bookmark,note,contentControl,header,footer,hyperlink,citation,bibliographySource,change,layout",
+    kind: "document,paragraph,listItem,table,comment,bookmark,note,contentControl,header,footer,hyperlink,field,citation,bibliographySource,change,layout",
     maxChars: 64_000,
   });
-  for (const expected of [spec.title, "Verified", "Recommendation wording verified", "application-compatibility", "semantic re-import", "Evidence snapshot", "DecisionSection", "ProjectEvidence", "2026, verified", "OWNER", "FINAL_APPROVAL", "checkbox", "REVIEW_PRIORITY", "dropdown", "REVIEW_ROUTE", "comboBox", "Security hotline", "REVIEW_DATE", "dateValue", "2026-07-21", "LAUNCH READINESS"]) {
+  for (const expected of [spec.title, "Verified", "Recommendation wording verified", "application-compatibility", "semantic re-import", "Evidence snapshot", "DecisionSection", "ProjectEvidence", "BIBLIOGRAPHY", "Refresh bibliography before delivery", "2026, verified", "OWNER", "FINAL_APPROVAL", "checkbox", "REVIEW_PRIORITY", "dropdown", "REVIEW_ROUTE", "comboBox", "Security hotline", "REVIEW_DATE", "dateValue", "2026-07-21", "LAUNCH READINESS"]) {
     assert.match(inspection.ndjson, new RegExp(expected));
   }
 
