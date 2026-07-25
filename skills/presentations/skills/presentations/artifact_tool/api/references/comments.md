@@ -26,7 +26,7 @@ For an imported presentation, inspect the collection before mutation:
 
 ```js
 const capability = slide.comments.capability;
-// { sourceBound, format, partPresent, addable }
+// { sourceBound, format, partPresent, editable, addable }
 ```
 
 `addable` is true only when the complete source presentation has no legacy
@@ -38,6 +38,14 @@ author catalog and one closed slide-local comments Part for each requested
 original slide. Relationship IDs are allocated against internal, external,
 hyperlink, and data relationships, so an unrelated `rIdComments1` or
 `rIdCommentAuthors1` cannot collide.
+
+`editable` is independent of `addable`. It is true only when an imported slide
+already owns one closed canonical `SlideCommentsPart`, the presentation owns one
+relationship-free legacy author catalog, and OpenChestnut can re-prove every
+comment's author, timestamp, coordinate, native author/index pair, order, and
+count. That capability permits only the existing root text to change. It never
+permits adding/removing a thread, replies, author/time/coordinate edits, or
+native-anchor edits.
 
 Use the audited single-comment workflow for the common Agent review task:
 
@@ -65,11 +73,36 @@ emits a source/output-bound audit. Final LibreOffice/Poppler pages must remain
 pixel-identical because review annotations are not slideshow content.
 
 After export and reimport, `partPresent` becomes true and `addable` becomes
-false for every slide. Recognized imported legacy comments are inspectable but
-unchanged-only; adding a second comment, editing text/author/time/coordinate, or
-forging the capability fails closed. The bounded `slide.duplicate()` workflow
-may byte-copy one closed legacy comments leaf and share its verified immutable
-author catalog; that is preservation, not in-place editing.
+false for every slide. A recognized closed legacy leaf may then advertise
+`editable: true`; use a stable comment ID plus the expected old text and leave
+every other field untouched:
+
+```js
+import { editPptxLegacyReviewComment } from "../../../examples/openchestnut-legacy-comment-edit-workflow.mjs";
+
+await editPptxLegacyReviewComment({
+  inputPath: "input-with-review.pptx",
+  outputPath: "output/review-text-updated.pptx",
+  auditPath: "output/review-text-updated.audit.json",
+  slideName: "Imported review target",
+  commentId: "presentation/slide/1/legacy-comment/1",
+  expectedText: "Confirm the imported evidence before delivery.",
+  replacementText: "Confirm the imported evidence and record the delivery owner.",
+});
+```
+
+The transaction protects the source bytes, publishes without overwrite, and
+requires exactly one changed OPC part: the existing
+`ppt/comments/commentN.xml`. It reimports the complete comment-thread snapshot,
+verifies the requested text, checks model-render identity, and records the
+author catalog, SlidePart, relationship, native identity, and package scope in
+its audit. A second comment, any author/time/coordinate/native-identity/order
+change, rich or connected comments, mixed families, or forged capability fails
+closed. The bounded `slide.duplicate()` workflow may byte-copy one closed legacy
+comments leaf and share its verified immutable author catalog; that is
+preservation. Pending clones remain untouched until export/reimport, after which
+the resulting individual canonical leaf may separately advertise this same
+text-only capability.
 
 ## Office 2021 modern threads
 
@@ -175,8 +208,8 @@ anchors, multiple comment parts for one slide, mixed legacy/modern parts, or
 comment/author parts with child, external, hyperlink, or data relationships are
 not flattened. They remain opaque/source-bound; a modeled replacement or edit
 is rejected. Existing legacy catalogs are intentionally not extended in this
-slice, even when they look simple: author/index state remains package-local and
-unchanged-only until a separately modeled edit contract exists.
+slice, even when they look simple. Outside the separately modeled closed
+root-text profile, author/index state remains package-local and unchanged-only.
 
 Run the shipped end-to-end example for a source-free root/reply thread followed
 by an imported fixed-topology text/status edit, second import, package inspect,

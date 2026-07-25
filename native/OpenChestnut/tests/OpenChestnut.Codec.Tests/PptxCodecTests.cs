@@ -379,7 +379,7 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
-    public void LegacyCommentsAuthorImportAndRemainSourceBound()
+    public void LegacyCommentsAuthorImportSupportsTextOnlySourceBoundEdits()
     {
         var request = ExportRequest();
         request.Artifact.Presentation.Slides[0].LegacyComments.Add(new PresentationLegacyComment
@@ -414,6 +414,7 @@ public sealed class PptxCodecTests
         Assert.True(imported.Ok, Diagnostics(imported));
         var importedSlide = Assert.Single(imported.Artifact.Presentation.Slides);
         Assert.False(importedSlide.Source.LegacyCommentsAddable);
+        Assert.True(importedSlide.Source.LegacyCommentsEditable);
         Assert.True(importedSlide.Source.CommentPartPresent);
         Assert.Equal("legacy", importedSlide.Source.CommentFamily);
         var importedComment = Assert.Single(importedSlide.LegacyComments);
@@ -435,7 +436,39 @@ public sealed class PptxCodecTests
             ZipBytes(unchanged.File.ToByteArray(), "ppt/commentAuthors.xml"));
 
         importedComment.Text = "Changed after import.";
-        var rejected = Export(imported.Artifact);
+        var edited = Export(imported.Artifact);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.NotEqual(
+            ZipBytes(authored.File.ToByteArray(), "ppt/comments/comment1.xml"),
+            ZipBytes(edited.File.ToByteArray(), "ppt/comments/comment1.xml"));
+        Assert.Equal(
+            ZipBytes(authored.File.ToByteArray(), "ppt/commentAuthors.xml"),
+            ZipBytes(edited.File.ToByteArray(), "ppt/commentAuthors.xml"));
+        Assert.Equal(
+            ZipBytes(authored.File.ToByteArray(), "ppt/slides/slide1.xml"),
+            ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        var editedRoundTrip = Import(edited.File.ToByteArray());
+        Assert.True(editedRoundTrip.Ok, Diagnostics(editedRoundTrip));
+        var editedComment = Assert.Single(Assert.Single(editedRoundTrip.Artifact.Presentation.Slides).LegacyComments);
+        Assert.Equal("Changed after import.", editedComment.Text);
+        Assert.Equal("Review Owner", editedComment.Author);
+        Assert.Equal("2026-07-18T02:55:00.0000000Z", editedComment.CreatedAt);
+        Assert.Equal(1_234_500L, editedComment.PositionXEmu);
+        Assert.Equal(2_345_600L, editedComment.PositionYEmu);
+        Assert.Equal(0U, editedComment.NativeAuthorId);
+        Assert.Equal(1U, editedComment.NativeIndex);
+
+        var positionMutation = Import(authored.File.ToByteArray());
+        Assert.True(positionMutation.Ok, Diagnostics(positionMutation));
+        Assert.Single(positionMutation.Artifact.Presentation.Slides).LegacyComments[0].PositionXEmu++;
+        var rejected = Export(positionMutation.Artifact);
+        Assert.False(rejected.Ok);
+        Assert.Equal("unsupported_presentation_comment_edit", Assert.Single(rejected.Diagnostics).Code);
+
+        var authorMutation = Import(authored.File.ToByteArray());
+        Assert.True(authorMutation.Ok, Diagnostics(authorMutation));
+        Assert.Single(authorMutation.Artifact.Presentation.Slides).LegacyComments[0].Author = "Different reviewer";
+        rejected = Export(authorMutation.Artifact);
         Assert.False(rejected.Ok);
         Assert.Equal("unsupported_presentation_comment_edit", Assert.Single(rejected.Diagnostics).Code);
 
@@ -450,6 +483,53 @@ public sealed class PptxCodecTests
         rejected = Invoke(invalid);
         Assert.False(rejected.Ok);
         Assert.Equal("invalid_presentation_legacy_comment", Assert.Single(rejected.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void LegacyCommentsSourceBoundEditRetainsOtherCanonicalText()
+    {
+        var request = ExportRequest();
+        request.Artifact.Presentation.Slides[0].LegacyComments.Add(new PresentationLegacyComment
+        {
+            Id = "presentation/slide/1/legacy-comment/1",
+            Author = "Review Owner",
+            Text = "Keep this first review note unchanged.",
+            CreatedAt = "2026-07-18T03:05:00Z",
+            PositionXEmu = 1_000_000,
+            PositionYEmu = 2_000_000,
+        });
+        request.Artifact.Presentation.Slides[0].LegacyComments.Add(new PresentationLegacyComment
+        {
+            Id = "presentation/slide/1/legacy-comment/2",
+            Author = "Review Owner",
+            Text = "Replace only this second review note.",
+            CreatedAt = "2026-07-18T03:06:00Z",
+            PositionXEmu = 3_000_000,
+            PositionYEmu = 4_000_000,
+        });
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = authored.File.ToByteArray();
+
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedSlide = Assert.Single(imported.Artifact.Presentation.Slides);
+        Assert.True(importedSlide.Source.LegacyCommentsEditable);
+        importedSlide.LegacyComments[1].Text = "The second review note has the approved wording.";
+
+        var edited = Export(imported.Artifact);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var editedBytes = edited.File.ToByteArray();
+        Assert.Equal(ZipBytes(sourceBytes, "ppt/commentAuthors.xml"), ZipBytes(editedBytes, "ppt/commentAuthors.xml"));
+        Assert.NotEqual(ZipBytes(sourceBytes, "ppt/comments/comment1.xml"), ZipBytes(editedBytes, "ppt/comments/comment1.xml"));
+
+        var roundTrip = Import(editedBytes);
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        var comments = Assert.Single(roundTrip.Artifact.Presentation.Slides).LegacyComments;
+        Assert.Equal("Keep this first review note unchanged.", comments[0].Text);
+        Assert.Equal("The second review note has the approved wording.", comments[1].Text);
+        Assert.Equal((1_000_000L, 2_000_000L, 0U, 1U), (comments[0].PositionXEmu, comments[0].PositionYEmu, comments[0].NativeAuthorId, comments[0].NativeIndex));
+        Assert.Equal((3_000_000L, 4_000_000L, 0U, 2U), (comments[1].PositionXEmu, comments[1].PositionYEmu, comments[1].NativeAuthorId, comments[1].NativeIndex));
     }
 
     [Fact]

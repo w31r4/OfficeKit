@@ -777,14 +777,14 @@ a review annotation:
 
 ```ts
 const capability = slide.comments.capability;
-// { sourceBound, format, partPresent, addable }
+// { sourceBound, format, partPresent, editable, addable }
 ```
 
 Only a presentation with no legacy or Office 2021 comment graph anywhere can
 advertise `{ sourceBound: true, format: "legacy", partPresent: false,
-addable: true }`. Export re-proves the source package; changing JS data cannot
-grant authority. Use the shipped source-protecting transaction for the common
-single-comment review workflow:
+editable: false, addable: true }`. Export re-proves the source package; changing
+JS data cannot grant authority. Use the shipped source-protecting transaction
+for the common single-comment review workflow:
 
 ```ts
 import { addPptxLegacyReviewComment } from "../examples/openchestnut-legacy-comment-add-workflow.mjs";
@@ -809,15 +809,36 @@ audits the exact OPC additions, writes an immutable-source/no-overwrite report,
 and fails before publication for an existing/mixed/connected comment graph or a
 second add after reimport.
 
-Recognized imported legacy comments are visible for inspection but must remain
-unchanged. An unchanged canonical
-legacy comments leaf may travel with `slide.duplicate()` through one
-export/reimport boundary: its
-clone-local `SlideCommentsPart` is byte-copied while the verified immutable
-presentation-wide author catalog is shared. This is not an in-place comment
-edit; both pending clone comments and reimported legacy comments remain
-source-bound read-only. See `api/references/comments.md` for the complete
-boundary.
+An existing closed legacy leaf can instead advertise
+`{ sourceBound: true, format: "legacy", partPresent: true, editable: true,
+addable: false }`. That authorizes only one existing root text replacement: its
+author, timestamp, coordinate, package-local author/index identity, order,
+count, relationships, and family remain source-bound. Use the corresponding
+audited transaction, never a direct XML patch:
+
+```ts
+import { editPptxLegacyReviewComment } from "../examples/openchestnut-legacy-comment-edit-workflow.mjs";
+
+await editPptxLegacyReviewComment({
+  inputPath: "input-with-review.pptx",
+  outputPath: "output/review-text-updated.pptx",
+  auditPath: "output/review-text-updated.audit.json",
+  slideName: "Imported review target",
+  commentId: "presentation/slide/1/legacy-comment/1",
+  expectedText: "Confirm the imported evidence before delivery.",
+  replacementText: "Confirm the imported evidence and record the delivery owner.",
+});
+```
+
+The transaction requires exactly one changed existing `SlideCommentsPart`,
+reimports full fixed-topology evidence, and preserves the shared author catalog,
+SlidePart XML, and relationships byte-for-byte. An unchanged canonical legacy
+comments leaf may travel with `slide.duplicate()` through one export/reimport
+boundary: its clone-local `SlideCommentsPart` is byte-copied while the verified
+immutable presentation-wide author catalog is shared. Pending clone comments
+remain source-bound until that boundary; after reimport a separately canonical
+leaf may advertise the same text-only capability. See
+`api/references/comments.md` for the complete boundary.
 
 ## Bounded Office 2021 Comment Threads
 

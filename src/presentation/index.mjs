@@ -873,6 +873,7 @@ class SlideCommentCollection {
           sourceBound: false,
           format: this.slide.presentation.commentFormat,
           partPresent: this.items.length > 0,
+          editable: false,
           addable: this.slide.presentation.commentFormat === "legacy",
         };
   }

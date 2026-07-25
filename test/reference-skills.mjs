@@ -204,6 +204,8 @@ assert.match(presentationSkillText, /openchestnut-chart-families-workflow\.mjs/)
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-chart-families-workflow.mjs")));
 assert.match(presentationSkillText, /openchestnut-title-notes-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-title-notes-edit-workflow.mjs")));
+assert.match(presentationSkillText, /openchestnut-legacy-comment-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-legacy-comment-edit-workflow.mjs")));
 assert.match(presentationSkillText, /openchestnut-slide-name-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-slide-name-edit-workflow.mjs")));
 

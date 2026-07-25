@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using DocumentFormat.OpenXml.Packaging;
 using Google.Protobuf;
 using OpenOffice.Artifact.Wire.V1;
@@ -59,6 +60,30 @@ internal static class PptxLegacyCommentsCodec
 
         return presentationPart.SlideParts.All(candidate =>
             candidate.Parts.All(pair => pair.OpenXmlPart is not SlideCommentsPart and not PowerPointCommentPart));
+    }
+
+    // Existing legacy comments are editable only inside a much narrower
+    // profile than source-bound addition. The shared author catalog and the
+    // concrete slide leaf must each be unique and relationship-free, while
+    // the decoded comment records prove the author/index/position/topology
+    // contract. The only mutable payload is p:cm/p:text.
+    internal static bool CanEditSourceBound(PresentationPart presentationPart, SlidePart slidePart, int slideIndex)
+    {
+        var profile = Profile(presentationPart, slidePart, slideIndex);
+        if (!profile.Supported || profile.Comments.Count == 0 ||
+            !CommentFamily(presentationPart).Equals("legacy", StringComparison.Ordinal))
+            return false;
+
+        var authorParts = presentationPart.Parts
+            .Where(pair => pair.OpenXmlPart is CommentAuthorsPart)
+            .Select(pair => (CommentAuthorsPart)pair.OpenXmlPart)
+            .ToArray();
+        var commentParts = slidePart.Parts
+            .Where(pair => pair.OpenXmlPart is SlideCommentsPart)
+            .Select(pair => (SlideCommentsPart)pair.OpenXmlPart)
+            .ToArray();
+        return authorParts.Length == 1 && commentParts.Length == 1 &&
+               !HasRelationships(authorParts[0]) && !HasRelationships(commentParts[0]);
     }
 
     internal static bool CommentPartPresent(SlidePart slidePart) =>
@@ -137,6 +162,10 @@ internal static class PptxLegacyCommentsCodec
                 continue;
             }
             if (Equivalent(profile.Comments, target)) continue;
+            if (profile.Comments.Count > 0 &&
+                CanEditSourceBound(presentationPart, slideParts[slideIndex], sourceIndex) &&
+                EquivalentFixedTopology(profile.Comments, target))
+                continue;
             if (profile.Comments.Count == 0 && target.Count > 0 && CanAddSourceBound(presentationPart, slideParts[slideIndex]))
             {
                 foreach (var comment in target)
@@ -152,9 +181,71 @@ internal static class PptxLegacyCommentsCodec
             }
             throw new CodecException(
                 "unsupported_presentation_comment_edit",
-                $"Presentation slide {slideIndex + 1} legacy comments are imported read-only; edit the source package with a specialized workflow or retain them unchanged.",
+                $"Presentation slide {slideIndex + 1} legacy comments are outside the bounded source-edit profile; retain them unchanged or use a specialized workflow.",
                 PartPath(slideParts[slideIndex]));
         }
+    }
+
+    internal static PptxLegacyCommentsChange? ApplySourceBoundEdits(
+        PresentationPart presentationPart,
+        IReadOnlyList<SlidePart> slideParts,
+        IReadOnlyList<PresentationSlide> slides)
+    {
+        if (slideParts.Count != slides.Count)
+            throw new CodecException("presentation_comment_topology_changed", "Presentation slide topology changed before legacy comments could be edited.");
+
+        var changedPartPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var replacedPartHashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        for (var slideIndex = 0; slideIndex < slideParts.Count; slideIndex++)
+        {
+            var requested = slides[slideIndex];
+            var sourceIndex = requested.Source?.SlideIndex is { } boundIndex
+                ? checked((int)boundIndex)
+                : slideIndex;
+            var profile = Profile(presentationPart, slideParts[slideIndex], sourceIndex);
+            if (!profile.Supported || Equivalent(profile.Comments, requested.LegacyComments) || profile.Comments.Count == 0)
+                continue;
+            if (!CanEditSourceBound(presentationPart, slideParts[slideIndex], sourceIndex) ||
+                !EquivalentFixedTopology(profile.Comments, requested.LegacyComments))
+                throw new CodecException(
+                    "unsupported_presentation_comment_edit",
+                    $"Presentation slide {slideIndex + 1} legacy comments may change text only when their author/index/position/topology source profile remains fixed.",
+                    PartPath(slideParts[slideIndex]));
+
+            var commentsPart = slideParts[slideIndex].Parts
+                .Where(pair => pair.OpenXmlPart is SlideCommentsPart)
+                .Select(pair => (SlideCommentsPart)pair.OpenXmlPart)
+                .Single();
+            var commentList = commentsPart.CommentList ??
+                throw new CodecException("presentation_comment_topology_changed", $"Presentation slide {slideIndex + 1} legacy comments lost their comment-list root before edit.", PartPath(commentsPart));
+            var commentElements = commentList.Elements<P.Comment>().ToArray();
+            if (commentElements.Length != requested.LegacyComments.Count)
+                throw new CodecException("presentation_comment_topology_changed", $"Presentation slide {slideIndex + 1} legacy comment count changed before edit.", PartPath(commentsPart));
+
+            var changed = false;
+            for (var commentIndex = 0; commentIndex < commentElements.Length; commentIndex++)
+            {
+                var text = commentElements[commentIndex].Text ??
+                    throw new CodecException("presentation_comment_topology_changed", $"Presentation slide {slideIndex + 1} legacy comment {commentIndex + 1} lost its plain-text node before edit.", PartPath(commentsPart));
+                var requestedText = requested.LegacyComments[commentIndex].Text;
+                if (string.Equals(text.Text, requestedText, StringComparison.Ordinal)) continue;
+                text.Text = requestedText;
+                changed = true;
+            }
+            if (!changed) continue;
+            commentList.Save();
+            var partPath = PartPath(commentsPart);
+            changedPartPaths.Add(partPath);
+            replacedPartHashes.Add(partPath, HashPart(commentsPart));
+        }
+
+        return changedPartPaths.Count == 0
+            ? null
+            : new PptxLegacyCommentsChange(
+                changedPartPaths.ToArray(),
+                [],
+                [],
+                replacedPartHashes);
     }
 
     internal static PptxLegacyCommentsChange? ApplySourceBoundAdditions(
@@ -255,8 +346,16 @@ internal static class PptxLegacyCommentsCodec
 
         if (source.Comments.Count > 0)
         {
-            if (!Equivalent(source.Comments, requested.LegacyComments) || !Equivalent(output.Comments, requested.LegacyComments))
-                throw Postwrite(slideIndex, "an existing legacy comment changed", PartPath(outputSlidePart));
+            var editable = CanEditSourceBound(sourcePresentationPart, sourceSlidePart, sourceIndex);
+            if ((editable &&
+                 (!EquivalentFixedTopology(source.Comments, requested.LegacyComments) ||
+                  !EquivalentFixedTopology(source.Comments, output.Comments) ||
+                  !Equivalent(output.Comments, requested.LegacyComments))) ||
+                (!editable && !Equivalent(source.Comments, requested.LegacyComments)) ||
+                (!editable && !Equivalent(output.Comments, requested.LegacyComments)))
+                throw Postwrite(slideIndex, editable
+                    ? "an existing legacy comment changed outside its text-only source-bound profile"
+                    : "an existing legacy comment changed", PartPath(outputSlidePart));
             return;
         }
 
@@ -340,6 +439,16 @@ internal static class PptxLegacyCommentsCodec
             pair.First.Id == pair.Second.Id &&
             pair.First.Author == pair.Second.Author &&
             pair.First.Text == pair.Second.Text &&
+            pair.First.CreatedAt == pair.Second.CreatedAt &&
+            pair.First.PositionXEmu == pair.Second.PositionXEmu &&
+            pair.First.PositionYEmu == pair.Second.PositionYEmu &&
+            pair.First.NativeAuthorId == pair.Second.NativeAuthorId &&
+            pair.First.NativeIndex == pair.Second.NativeIndex);
+
+    private static bool EquivalentFixedTopology(IReadOnlyList<PresentationLegacyComment> actual, IReadOnlyList<PresentationLegacyComment> requested) =>
+        actual.Count == requested.Count && actual.Zip(requested).All(pair =>
+            pair.First.Id == pair.Second.Id &&
+            pair.First.Author == pair.Second.Author &&
             pair.First.CreatedAt == pair.Second.CreatedAt &&
             pair.First.PositionXEmu == pair.Second.PositionXEmu &&
             pair.First.PositionYEmu == pair.Second.PositionYEmu &&
@@ -496,6 +605,11 @@ internal static class PptxLegacyCommentsCodec
     }
 
     private static string PartPath(OpenXmlPart part) => part.Uri.OriginalString.TrimStart('/');
+    private static string HashPart(OpenXmlPart part)
+    {
+        using var stream = part.GetStream(FileMode.Open, FileAccess.Read);
+        return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+    }
     private static bool HasRelationships(OpenXmlPart part) =>
         part.Parts.Any() || part.ExternalRelationships.Any() || part.HyperlinkRelationships.Any() || part.DataPartReferenceRelationships.Any();
     private static string RelationshipKey(OpenXmlPart source, string relationshipId) => $"{PartPath(source)}\0{relationshipId}";

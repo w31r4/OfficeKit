@@ -135,7 +135,9 @@ its own source-bound slide with independent ChartParts, OLE workbook packages,
 SmartArt parts, InkML parts, and MP4 parts. The media poster remains shared;
 native pixel equality validates that poster, not playback. A chart that advertises
 the ordinary fixed-topology edit capability can use that path without affecting
-the origin, with legacy comments still read-only. Imported add,
+the origin. A separately re-proven closed legacy comments leaf may change only
+existing root text after import; author/time/coordinate/native identity/order
+and topology remain fixed. Imported add,
 repeat/mutated clone, immediate clone edit, rich/connected comments, and every
 unsupported-connector/formula-or-external-data-or-embedded-workbook-or-connected-or-orphan-chart/OLE/noncanonical-or-connected-SmartArt/noncanonical-or-connected-InkML/noncanonical-or-connected-media/shape-level-or-unmodeled-hyperlink/malformed-or-dangling-custom-show/section/extension, external-or-irregular-image,
 or otherwise connected clone/delete graph fails closed.

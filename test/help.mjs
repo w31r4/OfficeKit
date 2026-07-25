@@ -150,8 +150,8 @@ assert.match(HELP_CATALOG.find((item) => item.name === "presentation.slides.add"
 assert.ok(HELP_CATALOG.some((item) => item.name === "slide.setBackground"));
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.clearBackground")?.schema?.returns?.slide?.description || "", /no direct background.*Layout\/Master/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "slide.comments.addThread"));
-assert.match(HELP_CATALOG.find((item) => item.name === "slide.comments.capability")?.schema?.returns?.capability?.description || "", /sourceBound.*format.*partPresent.*addable.*no legacy or Office 2021 comment graph.*preflight evidence.*not mutable write authority.*re-proves/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "slide.comments.addThread")?.summary || "", /bounded legacy PPTX annotation.*comment-free imported presentation.*comments\.capability\.addable.*source-bound and read-only/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.comments.capability")?.schema?.returns?.capability?.description || "", /sourceBound.*format.*partPresent.*editable.*addable.*no legacy or Office 2021 comment graph.*root text.*author.*timestamp.*coordinate.*not mutable write authority.*re-proves/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.comments.addThread")?.summary || "", /bounded legacy PPTX annotation.*comment-free imported presentation.*comments\.capability\.addable.*comments\.capability\.editable.*root-text replacement/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.comments.addThread")?.schema?.parameters?.target?.description || "", /Legacy mode requires undefined.*Modern mode accepts.*textMatch.*Nested group-child.*unsupported/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.comments.addThread")?.schema?.parameters?.position?.description || "", /Explicit slide coordinate/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slideCommentThread.addReply")?.summary || "", /source-free Office 2021 modern.*Imported reply topology is fixed.*fails closed/i);
