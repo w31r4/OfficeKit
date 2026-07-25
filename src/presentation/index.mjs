@@ -323,30 +323,120 @@ function normalizePresentationSlideGuides(value = []) {
   }));
 }
 
+const EMPTY_PRESENTATION_SLIDE_GUIDES = Object.freeze([]);
+
+function normalizePresentationViewSourceBinding(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  return Object.freeze({
+    partPath: String(value.partPath || ""),
+    relationshipId: String(value.relationshipId || ""),
+    viewXmlSha256: String(value.viewXmlSha256 || ""),
+    semanticSha256: String(value.semanticSha256 || ""),
+    residualSha256: String(value.residualSha256 || ""),
+    editable: value.editable === true,
+  });
+}
+
+function clonePresentationViewSourceBinding(value) {
+  return value ? { ...value } : undefined;
+}
+
+function normalizePresentationViewGridSpacing(value, field) {
+  const spacing = Number(value);
+  if (!Number.isSafeInteger(spacing) || spacing <= 0 || spacing > 2_147_483_647) {
+    throw new RangeError(`Presentation ${field} must be a positive signed 32-bit EMU integer.`);
+  }
+  return spacing;
+}
+
 class PresentationView {
   #presentation;
   #gridlinesVisible = false;
   #guidesVisible = false;
+  #sourceBinding;
 
   constructor(presentation) { this.#presentation = presentation; }
   get gridlinesVisible() { return this.#gridlinesVisible; }
   get guidesVisible() { return this.#guidesVisible; }
   get gridSpacingCxEmu() { return this.#presentation._viewProperties?.gridSpacingCxEmu; }
   get gridSpacingCyEmu() { return this.#presentation._viewProperties?.gridSpacingCyEmu; }
+  get slideViewSnapToGrid() { return this.#presentation._viewProperties?.slideViewSnapToGrid; }
+  get slideViewSnapToObjects() { return this.#presentation._viewProperties?.slideViewSnapToObjects; }
+  get slideGuides() { return this.#presentation._viewProperties?.slideGuides || EMPTY_PRESENTATION_SLIDE_GUIDES; }
+  get capability() {
+    const properties = this.#presentation._viewProperties || {};
+    return {
+      sourceBound: Boolean(this.#sourceBinding),
+      partPresent: Boolean(this.#sourceBinding),
+      editable: this.#sourceBinding?.editable === true,
+      gridSpacingCxEmuPresent: Object.hasOwn(properties, "gridSpacingCxEmu"),
+      gridSpacingCyEmuPresent: Object.hasOwn(properties, "gridSpacingCyEmu"),
+      slideViewSnapToGridPresent: Object.hasOwn(properties, "slideViewSnapToGrid"),
+      slideViewSnapToObjectsPresent: Object.hasOwn(properties, "slideViewSnapToObjects"),
+      guideCount: properties.slideGuides?.length || 0,
+    };
+  }
   showGridlines() { this.#gridlinesVisible = true; }
   hideGridlines() { this.#gridlinesVisible = false; }
   toggleGridlines() { this.#gridlinesVisible = !this.#gridlinesVisible; return this.#gridlinesVisible; }
   showGuides() { this.#guidesVisible = true; this.#hideGuidesOnExport(); }
   hideGuides() { this.#guidesVisible = false; this.#hideGuidesOnExport(); }
   toggleGuides() { this.#guidesVisible = !this.#guidesVisible; this.#hideGuidesOnExport(); return this.#guidesVisible; }
+  setSourceProperties(patch) {
+    if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+      throw new TypeError("Presentation view source properties must be an object.");
+    }
+    const supported = new Set(["gridSpacingCxEmu", "gridSpacingCyEmu", "slideViewSnapToGrid", "slideViewSnapToObjects", "slideGuides"]);
+    const unsupported = Object.keys(patch).filter((key) => !supported.has(key));
+    if (unsupported.length) throw new TypeError(`Presentation view source properties have unsupported fields: ${unsupported.join(", ")}.`);
+    if (!Object.keys(patch).length) throw new TypeError("Presentation view source properties must include at least one editable field.");
+    const capability = this.capability;
+    if (!capability.sourceBound || !this.#presentation._viewProperties) {
+      throw new Error("Presentation view properties can be changed only on an imported PPTX view-properties part.");
+    }
+    if (!capability.editable) {
+      throw new Error("Presentation view properties are source-bound and do not match the fixed-topology editable profile.");
+    }
+    const current = this.#presentation._viewProperties;
+    const next = { ...current, slideGuides: current.slideGuides || EMPTY_PRESENTATION_SLIDE_GUIDES };
+    for (const field of ["gridSpacingCxEmu", "gridSpacingCyEmu"]) {
+      if (!Object.hasOwn(patch, field)) continue;
+      if (!Object.hasOwn(current, field)) throw new Error(`Imported presentation view does not contain ${field}; this method cannot add it.`);
+      next[field] = normalizePresentationViewGridSpacing(patch[field], field);
+    }
+    for (const field of ["slideViewSnapToGrid", "slideViewSnapToObjects"]) {
+      if (!Object.hasOwn(patch, field)) continue;
+      if (!Object.hasOwn(current, field)) throw new Error(`Imported presentation view does not contain ${field}; this method cannot add it.`);
+      if (typeof patch[field] !== "boolean") throw new TypeError(`Presentation ${field} must be a boolean.`);
+      next[field] = patch[field];
+    }
+    if (Object.hasOwn(patch, "slideGuides")) {
+      const guides = normalizePresentationSlideGuides(patch.slideGuides);
+      if (guides.length !== current.slideGuides.length || guides.some((guide, index) => guide.orientation !== current.slideGuides[index].orientation)) {
+        throw new Error("Imported presentation view guide count, order, and orientation are source-bound.");
+      }
+      next.slideGuides = guides;
+    }
+    this.#presentation._viewProperties = {
+      ...next,
+      // The local editor visibility switches are intentionally not a file edit.
+      slideViewShowGuides: false,
+      slideGuides: next.slideGuides,
+    };
+    return this;
+  }
   toProto() {
     const source = this.#presentation._viewProperties;
     if (!source) return undefined;
-    return { ...source, slideGuides: source.slideGuides?.map((guide) => ({ ...guide })) || [] };
+    const { source: _source, ...properties } = source;
+    return { ...properties, slideGuides: source.slideGuides?.map((guide) => ({ ...guide })) || [] };
   }
+  _sourceBindingForExport() { return clonePresentationViewSourceBinding(this.#sourceBinding); }
   _setImportedProperties(properties) {
+    this.#sourceBinding = normalizePresentationViewSourceBinding(properties?.source);
+    const { source: _source, ...viewProperties } = properties || {};
     this.#presentation._viewProperties = properties ? {
-      ...properties,
+      ...viewProperties,
       slideViewShowGuides: false,
       slideGuides: normalizePresentationSlideGuides(properties.slideGuides),
     } : undefined;

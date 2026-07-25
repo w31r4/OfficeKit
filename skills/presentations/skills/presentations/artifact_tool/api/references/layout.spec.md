@@ -102,8 +102,11 @@ their semantic properties, placeholder topology, and layout binding cannot be
 rewritten through this API.
 
 Imported layouts also expose read-only `slideGuides` definitions. Use
-`presentation.view` only for local guide/grid visibility; it does not mutate
-the source-bound `viewProps.xml` guide graph.
+`presentation.view` for local guide/grid visibility, or—only after
+`presentation.view.capability.editable` preflight—for the separate fixed-
+topology imported `viewProps.xml` profile that can move existing guides. Layout
+guide projections themselves remain read-only; the operation never rewrites a
+Master/Layout graph.
 
 Multiple masters, master-specific themes, chart/table/media/object
 placeholders, arbitrary inherited placeholder geometry, custom-template graph

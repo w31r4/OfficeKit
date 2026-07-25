@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 383);
+assert.equal(HELP_CATALOG.length, 385);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -104,8 +104,11 @@ assert.match(HELP_CATALOG.find((item) => item.name === "sheet.images.add")?.sche
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.schema?.parameters?.fit?.description || "", /contain.*cover.*stretch.*srcRect.*no fit keyword/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.schema?.parameters?.crop?.description || "", /-1\.\.1.*Positive.*negative.*Manual crop/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.master")?.schema?.parameters?.placeholders?.description || "", /Source-free direct-frame.*title\/body.*imported placeholders.*read-only/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view")?.summary || "", /local editor gridline\/guide visibility.*grid spacing.*read-only slide guides.*source\/hash-bound/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view")?.schema?.returns?.view?.description || "", /show\/hide\/toggle.*gridSpacingCxEmu.*hidden guide visibility.*slideGuides/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view")?.summary || "", /local editor gridline\/guide visibility.*grid spacing.*fixed-topology.*viewProps\.xml/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view")?.schema?.returns?.view?.description || "", /show\/hide\/toggle.*capability-aware.*field presence.*guide count\/order\/orientation/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view.capability")?.schema?.returns?.capability?.description || "", /sourceBound.*partPresent.*editable.*preflight.*residual XML/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view.setSourceProperties")?.schema?.parameters?.slideGuides?.description || "", /Count, order, and horizontal\/vertical orientation.*only positions/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view.setSourceProperties")?.schema?.returns?.view?.description || "", /showGuides.*creates no view-properties part.*re-proves/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.master")?.schema?.parameters?.slideGuides?.description || "", /Read-only imported PowerPoint guide definitions/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.moveTo")?.schema?.parameters?.index?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.moveTo")?.schema?.returns?.slide?.description || "", /p:sldIdLst.*retained source SlideParts.*broad graph clones.*fail closed/i);
@@ -486,7 +489,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.setDateContentC
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.schema?.parameters?.dryRun?.type, "boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.summary || "", /SEQ counters.*REF cached results.*PAGEREF.*pagination host/i);
 const presentationCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
-assert.equal(presentationCatalog.length, 73);
+assert.equal(presentationCatalog.length, 75);
 assert.ok(presentationCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slides.insert")?.schema?.parameters?.after?.type, "Slide|number|null");

@@ -67,6 +67,18 @@ function modelPresentationSlideGuides(viewProperties) {
   }));
 }
 
+function modelPresentationViewSourceBinding(binding) {
+  if (!binding) return undefined;
+  return {
+    partPath: binding.partPath,
+    relationshipId: binding.relationshipId,
+    viewXmlSha256: binding.viewXmlSha256,
+    semanticSha256: binding.semanticSha256,
+    residualSha256: binding.residualSha256,
+    editable: binding.editable === true,
+  };
+}
+
 function modelPresentationView(viewProperties) {
   if (!viewProperties) return undefined;
   return {
@@ -76,6 +88,44 @@ function modelPresentationView(viewProperties) {
     ...(viewProperties.slideViewSnapToObjects === undefined ? {} : { slideViewSnapToObjects: viewProperties.slideViewSnapToObjects }),
     slideViewShowGuides: false,
     slideGuides: modelPresentationSlideGuides(viewProperties),
+    ...(viewProperties.source ? { source: modelPresentationViewSourceBinding(viewProperties.source) } : {}),
+  };
+}
+
+function samePresentationViewSourceBinding(left, right) {
+  if (!left || !right) return false;
+  return String(left.partPath || "").toLowerCase() === String(right.partPath || "").toLowerCase() &&
+    String(left.relationshipId || "") === String(right.relationshipId || "") &&
+    String(left.viewXmlSha256 || "").toLowerCase() === String(right.viewXmlSha256 || "").toLowerCase() &&
+    String(left.semanticSha256 || "").toLowerCase() === String(right.semanticSha256 || "").toLowerCase() &&
+    String(left.residualSha256 || "").toLowerCase() === String(right.residualSha256 || "").toLowerCase() &&
+    left.editable === right.editable;
+}
+
+function presentationViewPropertiesForEnvelope(presentation, state) {
+  const source = state?.viewProperties;
+  if (!source) return undefined;
+  const model = presentation.view.toProto();
+  const binding = presentation.view._sourceBindingForExport();
+  if (!model || !binding || !samePresentationViewSourceBinding(binding, source.source)) {
+    throw new OpenChestnutCodecError("Presentation view properties no longer match their imported source binding.", [], { code: "presentation_view_source_binding_mismatch" });
+  }
+  const optionalFields = ["gridSpacingCxEmu", "gridSpacingCyEmu", "slideViewSnapToGrid", "slideViewSnapToObjects"];
+  if (optionalFields.some((field) => Object.hasOwn(model, field) !== (source[field] !== undefined)) ||
+      model.slideGuides.length !== (source.slideGuides || []).length ||
+      model.slideGuides.some((guide, index) => guide.orientation !== modelPresentationSlideGuides(source)[index]?.orientation)) {
+    throw new OpenChestnutCodecError("Presentation view properties must retain their imported grid/snap field presence and guide topology.", [], { code: "presentation_view_topology_changed" });
+  }
+  return {
+    ...(Object.hasOwn(model, "gridSpacingCxEmu") ? { gridSpacingCxEmu: BigInt(model.gridSpacingCxEmu) } : {}),
+    ...(Object.hasOwn(model, "gridSpacingCyEmu") ? { gridSpacingCyEmu: BigInt(model.gridSpacingCyEmu) } : {}),
+    ...(Object.hasOwn(model, "slideViewSnapToGrid") ? { slideViewSnapToGrid: model.slideViewSnapToGrid } : {}),
+    ...(Object.hasOwn(model, "slideViewSnapToObjects") ? { slideViewSnapToObjects: model.slideViewSnapToObjects } : {}),
+    slideGuides: model.slideGuides.map((guide) => ({
+      orientation: guide.orientation === "vertical" ? PresentationSlideGuide_Orientation.VERTICAL : PresentationSlideGuide_Orientation.HORIZONTAL,
+      position: guide.position,
+    })),
+    source: { ...source.source },
   };
 }
 
@@ -2291,6 +2341,7 @@ export function presentationEnvelope(presentation, protocolVersion) {
 
   const customShows = presentationCustomShows(presentation, state);
   const sections = presentationSections(presentation, state);
+  const viewProperties = presentationViewPropertiesForEnvelope(presentation, state);
   const customShowLinks = presentationCustomShowLinkContext(customShows, state);
   const assetCatalog = createPresentationAssetCatalog();
   const masters = presentationMasters(presentation, state, assetCatalog, customShowLinks);
@@ -2408,7 +2459,7 @@ export function presentationEnvelope(presentation, protocolVersion) {
         ...(state?.customShowsOpaque ? { customShowsOpaque: true } : {}),
         sections,
         ...(state?.sectionsOpaque ? { sectionsOpaque: true } : {}),
-        ...(state?.viewProperties ? { viewProperties: state.viewProperties } : {}),
+        ...(viewProperties ? { viewProperties } : {}),
       },
     },
   };

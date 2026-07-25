@@ -270,7 +270,8 @@ const typefaces = presentation.fontFamilies;
 ## Presentation View
 
 Use `presentation.view` to control gridlines and imported PowerPoint guides in
-an editor preview.
+an editor preview. Its visibility switches are deliberately local state, not a
+file-edit API.
 
 ```ts
 presentation.view.showGridlines();
@@ -280,6 +281,9 @@ const gridlinesVisible = presentation.view.gridlinesVisible;
 const guidesVisible = presentation.view.guidesVisible;
 const horizontalGridSpacingEmu = presentation.view.gridSpacingCxEmu;
 const verticalGridSpacingEmu = presentation.view.gridSpacingCyEmu;
+const snapToGrid = presentation.view.slideViewSnapToGrid;
+const snapToObjects = presentation.view.slideViewSnapToObjects;
+const guides = presentation.view.slideGuides;
 
 presentation.view.hideGridlines();
 presentation.view.hideGuides();
@@ -288,9 +292,48 @@ const nextGridlineState = presentation.view.toggleGridlines();
 const nextGuideState = presentation.view.toggleGuides();
 ```
 
-Visibility is local editor state. `toProto()` serializes guide visibility as
-hidden, while imported grid spacing, snap settings, and guide definitions stay
-read-only and source-bound in canonical PPTX export.
+For a real imported `ppt/viewProps.xml`, inspect the explicit capability before
+requesting a file edit:
+
+```ts
+const capability = presentation.view.capability;
+// { sourceBound, partPresent, editable,
+//   gridSpacingCxEmuPresent, gridSpacingCyEmuPresent,
+//   slideViewSnapToGridPresent, slideViewSnapToObjectsPresent, guideCount }
+
+if (!capability.editable) {
+  throw new Error("This imported view-properties graph is preservation-only.");
+}
+
+presentation.view.setSourceProperties({
+  gridSpacingCxEmu: 72_000,
+  gridSpacingCyEmu: 91_440,
+  slideViewSnapToGrid: true,
+  slideViewSnapToObjects: false,
+  slideGuides: [
+    { orientation: "horizontal", position: 2_160 },
+    { orientation: "vertical", position: 2_880 },
+  ],
+});
+```
+
+This is an intentionally narrow imported-PPTX edit profile, not generic view
+authoring. It is available only when the source has one relationship-free
+`p:viewPr` topology with an existing `p:slideViewPr/p:cSldViewPr`, at most one
+fully specified `p:gridSpacing`, and an optional direct ordered list of simple
+horizontal/vertical guides. The patch may change only values of attributes that
+already exist and the positions of existing guides. It cannot create a
+`viewProps.xml` part, add/remove/reorient guides, add snap/grid attributes,
+change relationships/extensions, or reconstruct an advanced view graph.
+
+`showGridlines()`, `showGuides()`, and their hide/toggle variants remain local
+editor state. They never write `p:cSldViewPr/@showGuides`; an existing value is
+preserved. During export OpenChestnut independently re-proves the source part,
+source binding, field presence, guide topology, and a hash of every
+non-editable XML leaf. The only permitted package-byte change is
+`ppt/viewProps.xml`; slides remain visually unchanged. `toProto()` keeps local
+guide visibility hidden and does not expose mutable source hashes as an edit
+mechanism.
 
 ## Export And Serialized Data
 

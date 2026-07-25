@@ -148,7 +148,7 @@ tags default `width` to `"fill"` when you omit it.
 - Export previews with `presentation.export({ slide, format, scale })`.
 - Export deck montages with `presentation.export({ format: "webp", montage: true, scale: 1 })`.
 - Export layout JSON with `slide.export({ format: "layout" })`.
-- Control local editor gridlines and inspect imported PowerPoint guides with `presentation.view`.
+- Control local editor gridlines and inspect imported PowerPoint guides with `presentation.view`; use `presentation.view.capability` and the fixed-topology `presentation.view.setSourceProperties(...)` only for a proven imported `viewProps.xml` profile.
 - Audit explicitly used typefaces with the fresh sorted `presentation.fontFamilies` array.
 - Search API help with `presentation.help(query, { search, include, maxChars })`.
 - Run high-level edits with `presentation.scripts.run(kind, options)`; see [`references/presentation.spec.md`](./references/presentation.spec.md) for the script surface.

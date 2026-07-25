@@ -686,6 +686,98 @@ try {
   assert.equal(slideNameCli.status, 0, `slide-name CLI failed\n${slideNameCli.stdout}\n${slideNameCli.stderr}`);
   assert.equal(JSON.parse(slideNameCli.stdout).sourcePart, "ppt/slides/slide1.xml");
 
+  const viewPropertiesDir = path.join(root, "view-properties-workflow");
+  const viewPropertiesInput = path.join(viewPropertiesDir, "view-properties-source.pptx");
+  const viewPropertiesOutput = path.join(viewPropertiesDir, "view-properties-updated.pptx");
+  const viewPropertiesAudit = path.join(viewPropertiesDir, "audit.json");
+  const viewPropertiesDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+  viewPropertiesDeck.slides.add({ name: "View properties target" }).shapes.add({
+    name: "view-properties-title",
+    text: "This slide must remain visually unchanged",
+    // Leave enough height for the intentional two-line fixture title so the
+    // workflow's visual verification exercises the view-properties change,
+    // rather than accepting a pre-existing text-overflow warning.
+    position: { left: 48, top: 72, width: 520, height: 80 },
+  });
+  const viewPropertiesBase = await PresentationFile.exportPptx(viewPropertiesDeck);
+  const viewPropertiesBaseZip = await JSZip.loadAsync(viewPropertiesBase.bytes);
+  const viewPropertiesRelationships = await viewPropertiesBaseZip.file("ppt/_rels/presentation.xml.rels").async("text");
+  const viewPropertiesXml = '<p:viewPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" lastView="sldView"><p:slideViewPr><p:cSldViewPr snapToGrid="1" snapToObjects="0" showGuides="1"><p:cViewPr varScale="1"><p:scale><a:sx n="1" d="1"/><a:sy n="1" d="1"/></p:scale><p:origin x="0" y="0"/></p:cViewPr><p:guideLst><p:guide orient="horz" pos="2160"/><p:guide orient="vert" pos="2880"/></p:guideLst></p:cSldViewPr></p:slideViewPr><p:gridSpacing cx="72008" cy="91440"/></p:viewPr>';
+  const viewPropertiesSource = await PresentationFile.patchPptx(viewPropertiesBase, [
+    {
+      path: "ppt/_rels/presentation.xml.rels",
+      xml: viewPropertiesRelationships.replace("</Relationships>", '<Relationship Id="rIdViewProperties" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/viewProps" Target="viewProps.xml"/></Relationships>'),
+    },
+    {
+      path: "ppt/viewProps.xml",
+      xml: viewPropertiesXml,
+      contentType: "application/vnd.openxmlformats-officedocument.presentationml.viewProps+xml",
+    },
+  ]);
+  await fs.mkdir(viewPropertiesDir, { recursive: true });
+  await viewPropertiesSource.save(viewPropertiesInput);
+  const viewPropertiesSourceBytes = await fs.readFile(viewPropertiesInput);
+  const { editPptxViewProperties } = await import(
+    "../skills/presentations/skills/presentations/examples/openchestnut-view-properties-edit-workflow.mjs"
+  );
+  const viewPropertiesResult = await editPptxViewProperties({
+    inputPath: viewPropertiesInput,
+    outputPath: viewPropertiesOutput,
+    auditPath: viewPropertiesAudit,
+    patch: {
+      gridSpacingCxEmu: 72_009,
+      gridSpacingCyEmu: 91_441,
+      slideViewSnapToGrid: false,
+      slideViewSnapToObjects: true,
+      slideGuides: [
+        { orientation: "horizontal", position: 2_161 },
+        { orientation: "vertical", position: 2_881 },
+      ],
+    },
+  });
+  assert.equal(viewPropertiesResult.audit.operation.type, "source-bound-view-properties-edit");
+  assert.equal(viewPropertiesResult.audit.validation.package.onlyViewPropertiesPartChanged, true);
+  assert.equal(viewPropertiesResult.audit.validation.package.guideVisibilityPreserved, true);
+  assert.equal(viewPropertiesResult.audit.validation.reimport.fixedTopologyEditable, true);
+  assert.equal(viewPropertiesResult.audit.validation.modelRender.byteIdentical, true);
+  assert.deepEqual(await fs.readFile(viewPropertiesInput), viewPropertiesSourceBytes);
+  const viewPropertiesRoundTrip = await PresentationFile.importPptx(new FileBlob(await fs.readFile(viewPropertiesOutput), {
+    type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    name: "view-properties-updated.pptx",
+  }));
+  assert.equal(viewPropertiesRoundTrip.view.gridSpacingCxEmu, 72_009);
+  assert.equal(viewPropertiesRoundTrip.view.gridSpacingCyEmu, 91_441);
+  assert.equal(viewPropertiesRoundTrip.view.slideViewSnapToGrid, false);
+  assert.equal(viewPropertiesRoundTrip.view.slideViewSnapToObjects, true);
+  assert.deepEqual(viewPropertiesRoundTrip.view.slideGuides, [
+    { orientation: "horizontal", position: 2_161 },
+    { orientation: "vertical", position: 2_881 },
+  ]);
+  const viewPropertiesRejectedOutput = path.join(viewPropertiesDir, "view-properties-should-not-exist.pptx");
+  const viewPropertiesRejectedAudit = path.join(viewPropertiesDir, "rejected-audit.json");
+  await assert.rejects(
+    () => editPptxViewProperties({
+      inputPath: viewPropertiesInput,
+      outputPath: viewPropertiesRejectedOutput,
+      auditPath: viewPropertiesRejectedAudit,
+      patch: { slideGuides: [{ orientation: "horizontal", position: 2161 }] },
+    }),
+    /guide count, order, and orientation are source-bound/,
+  );
+  assert.equal(await fs.access(viewPropertiesRejectedOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(viewPropertiesRejectedAudit).then(() => true, () => false), false);
+  const viewPropertiesCliOutput = path.join(viewPropertiesDir, "view-properties-cli.pptx");
+  const viewPropertiesCliAudit = path.join(viewPropertiesDir, "cli-audit.json");
+  const viewPropertiesCli = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/examples/openchestnut-view-properties-edit-workflow.mjs",
+    viewPropertiesInput,
+    viewPropertiesCliOutput,
+    viewPropertiesCliAudit,
+    JSON.stringify({ gridSpacingCxEmu: 72_010 }),
+  ], { encoding: "utf8" });
+  assert.equal(viewPropertiesCli.status, 0, `view-properties CLI failed\n${viewPropertiesCli.stdout}\n${viewPropertiesCli.stderr}`);
+  assert.equal(JSON.parse(viewPropertiesCli.stdout).targetPart, "ppt/viewProps.xml");
+
   const customShowDir = path.join(root, "custom-show-workflow");
   const customShowInput = path.join(customShowDir, "custom-show-source.pptx");
   const customShowOutput = path.join(customShowDir, "custom-show-updated.pptx");

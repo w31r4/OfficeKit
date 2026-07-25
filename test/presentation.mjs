@@ -1995,7 +1995,8 @@ assert.match(comboChartXml, /<c:barChart>[\s\S]*?<c:axId val="1"\s*\/><c:axId va
 assert.match(comboChartXml, /<c:lineChart>[\s\S]*?<c:axId val="1"\s*\/><c:axId val="2"\s*\/><\/c:lineChart>/);
 
 // Reference 2.8.24 exposes imported PowerPoint grid spacing, snap settings,
-// and guides through presentation.view plus read-only master/layout projections.
+// and guides through presentation.view. The project retains those local
+// projections while adding only the separately re-proven fixed-topology edit.
 const viewPropertiesXml = '<p:viewPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" lastView="sldView"><p:slideViewPr><p:cSldViewPr snapToGrid="1" snapToObjects="0" showGuides="1"><p:cViewPr varScale="1"><p:scale><a:sx n="1" d="1"/><a:sy n="1" d="1"/></p:scale><p:origin x="0" y="0"/></p:cViewPr><p:guideLst><p:guide orient="horz" pos="2160"/><p:guide orient="vert" pos="2880"/></p:guideLst></p:cSldViewPr></p:slideViewPr><p:gridSpacing cx="72008" cy="91440"/></p:viewPr>';
 const presentationRelationships = await firstZip.file("ppt/_rels/presentation.xml.rels").async("text");
 const viewSource = await PresentationFile.patchPptx(firstExport, [
@@ -2014,6 +2015,16 @@ assert.equal(importedViewPresentation.view.gridSpacingCxEmu, 72_008);
 assert.equal(importedViewPresentation.view.gridSpacingCyEmu, 91_440);
 assert.equal(importedViewPresentation.view.gridlinesVisible, false);
 assert.equal(importedViewPresentation.view.guidesVisible, false);
+assert.deepEqual(importedViewPresentation.view.capability, {
+  sourceBound: true,
+  partPresent: true,
+  editable: true,
+  gridSpacingCxEmuPresent: true,
+  gridSpacingCyEmuPresent: true,
+  slideViewSnapToGridPresent: true,
+  slideViewSnapToObjectsPresent: true,
+  guideCount: 2,
+});
 assert.deepEqual(importedViewPresentation.view.toProto(), {
   gridSpacingCxEmu: 72_008,
   gridSpacingCyEmu: 91_440,
@@ -2037,11 +2048,61 @@ const viewRoundTripZip = await JSZip.loadAsync(viewRoundTripFile.bytes);
 assert.equal(await viewRoundTripZip.file("ppt/viewProps.xml").async("text"), viewPropertiesXml);
 const viewRoundTrip = await PresentationFile.importPptx(viewRoundTripFile);
 assert.deepEqual(viewRoundTrip.view.toProto().slideGuides, importedViewPresentation.view.toProto().slideGuides);
-const viewState = viewRoundTrip[Symbol.for("open-office-artifact-tool.open-chestnut-presentation-state")];
-viewState.viewProperties.gridSpacingCxEmu = 72_009n;
+assert.throws(
+  () => viewRoundTrip.view.setSourceProperties({ slideViewShowGuides: true }),
+  /unsupported fields/,
+);
+assert.throws(
+  () => viewRoundTrip.view.setSourceProperties({
+    slideGuides: [
+      { orientation: "vertical", position: 2161 },
+      { orientation: "horizontal", position: 2881 },
+    ],
+  }),
+  /guide count, order, and orientation are source-bound/,
+);
+viewRoundTrip.view.setSourceProperties({
+  gridSpacingCxEmu: 72_009,
+  gridSpacingCyEmu: 91_441,
+  slideViewSnapToGrid: false,
+  slideViewSnapToObjects: true,
+  slideGuides: [
+    { orientation: "horizontal", position: 2161 },
+    { orientation: "vertical", position: 2881 },
+  ],
+});
+const viewEditedFile = await PresentationFile.exportPptx(viewRoundTrip);
+const viewEditedZip = await JSZip.loadAsync(viewEditedFile.bytes);
+assert.deepEqual(Object.keys(viewEditedZip.files).sort(), Object.keys(viewRoundTripZip.files).sort());
+for (const partPath of Object.keys(viewRoundTripZip.files).filter((name) => !viewRoundTripZip.files[name].dir && name !== "ppt/viewProps.xml")) {
+  assert.deepEqual(
+    await viewEditedZip.file(partPath).async("uint8array"),
+    await viewRoundTripZip.file(partPath).async("uint8array"),
+    `only ppt/viewProps.xml may change (${partPath})`,
+  );
+}
+const editedViewXml = await viewEditedZip.file("ppt/viewProps.xml").async("text");
+assert.match(editedViewXml, /cx="72009"/);
+assert.match(editedViewXml, /cy="91441"/);
+assert.match(editedViewXml, /snapToGrid="0"/);
+assert.match(editedViewXml, /snapToObjects="1"/);
+assert.match(editedViewXml, /showGuides="1"/);
+assert.match(editedViewXml, /orient="horz" pos="2161"/);
+assert.match(editedViewXml, /orient="vert" pos="2881"/);
+const editedViewRoundTrip = await PresentationFile.importPptx(viewEditedFile);
+assert.equal(editedViewRoundTrip.view.gridSpacingCxEmu, 72_009);
+assert.equal(editedViewRoundTrip.view.gridSpacingCyEmu, 91_441);
+assert.equal(editedViewRoundTrip.view.slideViewSnapToGrid, false);
+assert.equal(editedViewRoundTrip.view.slideViewSnapToObjects, true);
+assert.deepEqual(editedViewRoundTrip.view.slideGuides, [
+  { orientation: "horizontal", position: 2161 },
+  { orientation: "vertical", position: 2881 },
+]);
+const tamperedViewState = editedViewRoundTrip[Symbol.for("open-office-artifact-tool.open-chestnut-presentation-state")];
+tamperedViewState.viewProperties.source.residualSha256 = "0".repeat(64);
 await assert.rejects(
-  () => PresentationFile.exportPptx(viewRoundTrip),
-  (error) => error?.code === "unsupported_presentation_view_edit",
+  () => PresentationFile.exportPptx(editedViewRoundTrip),
+  (error) => error?.code === "presentation_view_source_binding_mismatch",
 );
 
 // Eligible imported top-level OLE objects expose one deliberately narrow edit:

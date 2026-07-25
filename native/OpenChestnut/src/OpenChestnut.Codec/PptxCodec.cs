@@ -453,7 +453,11 @@ internal static class PptxCodec
                     $"Source-preserving PPTX export requires the original {layoutGraph.Length}-layout topology; the artifact contains {envelope.Presentation.Layouts.Count} layouts.",
                     "ppt/presentation.xml");
             var layoutIdByPartPath = layoutGraph.ToDictionary(item => PartPath(item.Layout.Part), item => item.Layout.Id, StringComparer.OrdinalIgnoreCase);
-            PptxViewPropertiesCodec.AssertSource(presentationPart, envelope.Presentation.ViewProperties);
+            if (PptxViewPropertiesCodec.ApplySourceBound(presentationPart, envelope.Presentation.ViewProperties) is { } viewPropertiesChange)
+            {
+                changedParts.Add(viewPropertiesChange.PartPath);
+                replacedOpaquePartHashes.Add(viewPropertiesChange.PartPath, viewPropertiesChange.Sha256);
+            }
             PptxLegacyCommentsCodec.AssertSourceUnchanged(presentationPart, slideParts, retainedTargets.Select(target => target.Target).ToArray());
             CloneRequestedSourceSlides(
                 presentationPart,
