@@ -1,6 +1,6 @@
 ---
 name: Presentations
-description: Create or edit PowerPoint or Google Slides decks
+description: Read, create, or edit PowerPoint or Google Slides decks. Use for presentation, slide deck, PowerPoint, PPT, PPTX, or Google Slides requests.
 ---
 
 # Slides Skill
@@ -9,7 +9,7 @@ Use this skill as reference material when creating or editing presentation slide
 
 ## Important Instructions
 
-- [HARD REQUIREMENT] Content quality and storytelling: before planning the deck, read and follow [Content Quality and Narrative Rules](references/content-rules.md). Ensure the deck covers everything the user requested and forms a coherent, audience-appropriate narrative rather than a collection of disconnected facts.
+- [HARD REQUIREMENT] Content quality and storytelling: before planning the deck, read and follow [Content Quality and Narrative Rules](references/content-rules.md) and [Presentation Style Guidelines](style_guidelines.md). Ensure the deck covers everything the user requested and forms a coherent, audience-appropriate narrative rather than a collection of disconnected facts.
 - [HARD REQUIREMENT] Audience-facing copy: visible slide content must be written for the intended audience, not for the person or model producing the deck. Do not expose planning notes, timing scaffolds, talk tracks, content-selection commentary, or other internal process language unless the user explicitly requests it.
 
 - Info density: avoid cramming low-value details onto a single slide. Prefer lower-density slides with high-value content.
@@ -33,6 +33,8 @@ Contents of the `slides/` skill folder:
 
 - `container_tools/`: Standalone python scripts for slides and relevant asset manipulation.
 - `references/`: Additional workflow references for specialized presentation tasks.
+- `style_guidelines.md`: Narrative, copy, layout, typography, and visual-consistency defaults.
+- `routing/`: Native Google Slides routing guidance.
 - `template_following_scripts/`: Helper scripts for exact source-deck/template following.
 - `artifact_tool/`: API documentation and coding examples for the artifact tool library.
 - `builtin_templates_support/`: Checked-in guidance, manifests, prompts, and reusable scripts for built-in templates. Each template owns its `ARTIFACT.md`; shared runners live once under `builtin_templates_support/scripts/`.
@@ -142,11 +144,7 @@ over Grid Layout.
 
 ## Google Slides-Targeted Output
 
-For a net-new native Google Slides request, create and verify a local `.pptx`
-with this skill first. The native Google Slides deliverable must then be
-produced by the Google Drive plugin's presentation import action,
-`mcp__codex_apps__google_drive_import_presentation`, with
-`upload_mode: "native_google_slides"`.
+For a net-new native Google Slides request, first read `routing/google_slides.md`, then create and verify a local `.pptx` with this skill. Produce the native Google Slides deliverable with the Google Drive plugin's current native-presentation import action and documented native Google Slides upload mode.
 
 Do not use Computer Use, Browser Use, blank-Google-Slides creation plus Google
 Slides write APIs, or another direct-to-Slides construction path for net-new

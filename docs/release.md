@@ -37,9 +37,11 @@ On 2026-07-25, the complete local release gate passed: `npm test`, generated
 API documentation, deterministic OpenChestnut reconstruction, production
 clean-install `test:pack`, OfficeBridge `5/5`, and OpenChestnut `372/372`.
 The two source-built WASM bundles were reproducible across 39 audited files;
-the bundled runtime contains 38 files at 15,144,128 bytes. The candidate
-tarball contains 511 files, 9,384,422 compressed bytes, and 25,164,847
-unpacked bytes; the enforced unpacked ceiling is 25,180,000 bytes. Live
+the bundled runtime contains 38 files at 15,144,128 bytes. The current
+reference-sync tarball contains 513 files, 9,389,173 compressed bytes, and
+25,186,956 unpacked bytes. The enforced unpacked ceiling is 25,200,000 bytes;
+the small increase accommodates the two native Presentation reference-guidance
+files synchronized from `office-artifact-tool` 2.8.31. Live
 managed PDF-provider download tests and separately configured specialist Python
 providers remained opt-in environment lanes, rather than being represented as
 local release evidence.

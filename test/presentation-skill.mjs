@@ -1646,6 +1646,8 @@ try {
     assert.doesNotMatch(source, /\b(?:codec|initialCodec|roundtripCodec)\b/i, file + " must not expose an Office path selector");
   }
   const skillText = await fs.readFile("skills/presentations/skills/presentations/SKILL.md", "utf8");
+  const styleGuidelinesText = await fs.readFile("skills/presentations/skills/presentations/style_guidelines.md", "utf8");
+  const googleSlidesRoutingText = await fs.readFile("skills/presentations/skills/presentations/routing/google_slides.md", "utf8");
   const quickStartText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/API_QUICK_START.md", "utf8");
   const starterRoot = path.join(root, "starter-fail-closed");
   const starterMap = path.join(starterRoot, "template-frame-map.json");
@@ -1709,6 +1711,14 @@ try {
   assert.match(skillText, /NotesSlide.*NotesMaster.*byte-for-byte.*back-reference.*clone/is);
   assert.match(skillText, /SlideCommentsPart.*CommentAuthorsPart.*byte-for-byte/is);
   assert.match(skillText, /artifact_tool\/api\/references\/comments\.md/);
+  assert.match(skillText, /Presentation Style Guidelines/);
+  assert.match(skillText, /routing\/google_slides\.md/);
+  assert.match(styleGuidelinesText, /By the end, \*\*\[audience\]\*\* should \*\*\[outcome\]\*\*/);
+  assert.match(styleGuidelinesText, /Never invent people, quotes, facts, data, or outcomes/);
+  assert.match(styleGuidelinesText, /50 pt for deck titles/);
+  assert.match(googleSlidesRoutingText, /Existing Native Google Slides Decks/);
+  assert.match(googleSlidesRoutingText, /current native-presentation import action/);
+  assert.match(googleSlidesRoutingText, /Google Slides link as the primary deliverable/);
   const speakerNotesReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/speaker-notes.spec.md", "utf8");
   assert.match(speakerNotesReferenceText, /sourceBound.*partPresent.*editable.*addable/is);
   assert.match(speakerNotesReferenceText, /relationship-free.*paragraph\/run/is);
