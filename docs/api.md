@@ -14,10 +14,10 @@ Generated from `HELP_CATALOG` in `src/help/index.mjs`.
 | `document.addCitation` | api | Add a whole-paragraph bibliography-backed citation exported as a native w:fldSimple CITATION field plus a bounded bookmark. Recognized imports allow display-text edits while source tags and topology remain fixed. |
 | `document.addComment` | api | Attach a whole-paragraph Word comment. Classic roots remain minimal; bounded modern roots may carry resolved, durable/UTC, and provider-person metadata through OpenChestnut. |
 | `document.addDeletion` | api | Append one bounded whole-paragraph tracked deletion using native w:del/w:delText markup. For one exact in-paragraph replacement in existing source bytes, use DocumentFile.addTrackedReplacement; mixed, moved, nested, and property-level revisions remain outside the bounded profile. |
-| `document.addEndnote` | api | Append one native plain-text endnote at the end of one paragraph or list item. Recognized imported canonical endnotes permit body-text edits only; anchor, kind, native ID, and note topology remain source-bound. |
+| `document.addEndnote` | api | Append one native plain-text endnote with 1 through 16 canonical physical paragraphs at the end of one paragraph or list item. Recognized imported canonical endnotes permit fixed-count body-text edits only; anchor, kind, native ID, and note topology remain source-bound. |
 | `document.addField` | api | Append a bounded w:fldSimple block for PAGE, NUMPAGES, SECTION, date/time, and selected document-property commands. External-content and arbitrary reference commands fail closed. |
 | `document.addFooter` | api | Add a default, first-page, or even-page DOCX footer, optionally section-scoped. Source-free input may be plain text, one legacy simple field, or a 2-through-32 ordered literal/simple-field segment sequence in one native paragraph. Imported multi-segment page furniture is inspectable and exactly preserved on no-op export but remains source-bound/read-only. |
-| `document.addFootnote` | api | Append one native plain-text footnote at the end of one paragraph or list item. Recognized imported canonical footnotes permit body-text edits only; anchor, kind, native ID, and note topology remain source-bound. |
+| `document.addFootnote` | api | Append one native plain-text footnote with 1 through 16 canonical physical paragraphs at the end of one paragraph or list item. Recognized imported canonical footnotes permit fixed-count body-text edits only; anchor, kind, native ID, and note topology remain source-bound. |
 | `document.addHeader` | api | Add a default, first-page, or even-page DOCX header, optionally section-scoped. Source-free input may be plain text, one legacy simple field, or a 2-through-32 ordered literal/simple-field segment sequence in one native paragraph. Imported multi-segment page furniture is inspectable and exactly preserved on no-op export but remains source-bound/read-only. |
 | `document.addHyperlink` | api | Append a native w:hyperlink backed by an external relationship or internal bookmark anchor; native import restores URL/anchor, relationship identity, tooltip, and history state. |
 | `document.addImage` | api | Append an inspectable embedded PNG/JPEG image. Images are inline by default; an explicit bounded placement authors a native foreground wp:anchor with square or top-and-bottom wrapping. |
@@ -56,7 +56,7 @@ Generated from `HELP_CATALOG` in `src/help/index.mjs`.
 | `DocumentFile.inspectDocx` | api | Inspect bounded DOCX parts, content types, the required main-document/root officeDocument relationship, and namespace-aware source XML r:id/r:embed/r:link references under decompression budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `DocumentFile.patchDocx` | api | Apply DOCX part patches with path traversal validation for settings, classic-comment anchors, commentsExtended/commentsIds/commentsExtensible/people parts, and numbering assignments; atomically reject dangling packages and invalid comment graphs. |
 | `documentHeaderFooter.setSegments` | api | Atomically replace one source-free header/footer's ordered literal/simple-field sequence. The derived visible text must remain the concatenated segment displays; imported page furniture cannot use this mutation profile. |
-| `DocumentModel.create` | api | Create a document with paragraph/character styles, formatted paragraphs/runs, canonical inline and one-paragraph table-cell plain-text, checkbox, drop-down, combo-box, and ISO/Gregorian date content controls, one-paragraph block plain-text controls, canonical inline SEQ/REF/PAGEREF fields, sections, headers/footers, canonical VML text watermarks, lists, TableGrid fixed-geometry tables, links, bounded whole-block bookmarks, plain-text footnotes/endnotes, canonical bibliography-backed citations plus one source-free switch-free BIBLIOGRAPHY output placeholder, simple fields, a canonical complex TOC placeholder, bounded whole-paragraph tracked insertions/deletions, classic comments, bounded modern root/direct-reply threads, and PNG/JPEG images. Nested/irregular modern threads, rich comment bodies, multi-paragraph/rich/inline-within-cell/nested/data-bound/locked/placeholder table-cell SDTs, other nested/data-bound/locked/placeholder SDTs, irregular lists, localized dates, custom checkbox symbols, image/DrawingML/irregular VML watermarks, other complex field graphs, arbitrary table-style graphs, complex bookmark/note/revision graphs, and advanced settings remain unsupported or source-bound. |
+| `DocumentModel.create` | api | Create a document with paragraph/character styles, formatted paragraphs/runs, canonical inline and one-paragraph table-cell plain-text, checkbox, drop-down, combo-box, and ISO/Gregorian date content controls, one-paragraph block plain-text controls, canonical inline SEQ/REF/PAGEREF fields, sections, headers/footers, canonical VML text watermarks, lists, TableGrid fixed-geometry tables, links, bounded whole-block bookmarks, 1-through-16-paragraph plain-text footnotes/endnotes, canonical bibliography-backed citations plus one source-free switch-free BIBLIOGRAPHY output placeholder, simple fields, a canonical complex TOC placeholder, bounded whole-paragraph tracked insertions/deletions, classic comments, bounded modern root/direct-reply threads, and PNG/JPEG images. Nested/irregular modern threads, rich comment bodies, multi-paragraph/rich/inline-within-cell/nested/data-bound/locked/placeholder table-cell SDTs, other nested/data-bound/locked/placeholder SDTs, irregular lists, localized dates, custom checkbox symbols, image/DrawingML/irregular VML watermarks, other complex field graphs, arbitrary table-style graphs, complex bookmark/note/revision graphs, and advanced settings remain unsupported or source-bound. |
 | `documentTableCell.addCheckboxContentControl` | api | Wrap one source-free rectangular table cell in a canonical Word 2010+ checkbox w:sdt. OpenChestnut owns the visible glyph and symbols; recognized imports permit checked/tag/alias edits while identity, type, placement, symbols, and topology remain fixed. |
 | `documentTableCell.addComboBoxContentControl` | api | Wrap one source-free rectangular table cell in a canonical standard combo-box w:sdt with ordered choices and a declared-or-custom typed value. Recognized imports permit value/tag/alias edits while the choice table and topology remain fixed. |
 | `documentTableCell.addDateContentControl` | api | Wrap one source-free rectangular table cell in the canonical ISO/Gregorian date w:sdt profile. Recognized imports permit dateValue/tag/alias edits while native date metadata, placement, and topology remain fixed. |
@@ -216,18 +216,19 @@ Append one bounded whole-paragraph tracked deletion using native w:del/w:delText
 
 #### `document.addEndnote`
 
-Append one native plain-text endnote at the end of one paragraph or list item. Recognized imported canonical endnotes permit body-text edits only; anchor, kind, native ID, and note topology remain source-bound.
+Append one native plain-text endnote with 1 through 16 canonical physical paragraphs at the end of one paragraph or list item. Recognized imported canonical endnotes permit fixed-count body-text edits only; anchor, kind, native ID, and note topology remain source-bound.
 
 **Schema parameters:**
 
 - `target` (string|DocumentParagraphBlock|DocumentListItemBlock) required — Paragraph or list-item ID/facade whose final run receives the native endnote reference.
-- `text` (string) required — Plain-text endnote body, 1 through 1,000,000 XML-safe characters.
+- `text` (string) — One physical plain-text endnote paragraph, 1 through 1,000,000 XML-safe characters. Required unless paragraphs is supplied; it must equal the LF-joined paragraphs when both are supplied.
+- `paragraphs` (string[]) — Optional 1 through 16 physical plain-text endnote paragraphs. Every item must be non-empty, XML-safe, and contain no CR/LF; imported notes keep this count source-bound.
 - `name` (string) — Optional inspectable note name.
 - `nativeId` (number) — Optional positive 32-bit native endnote ID for source-free authoring; imported identity is source-bound.
 
 **Schema returns:**
 
-- `endnote` (DocumentNote) — Native bounded endnote. Canonical imports allow text-only edits with fixed topology.
+- `endnote` (DocumentNote) — Native bounded endnote. Canonical imports expose paragraphs plus LF-joined text and allow fixed-count plain-text edits only.
 
 #### `document.addField`
 
@@ -263,18 +264,19 @@ Add a default, first-page, or even-page DOCX footer, optionally section-scoped. 
 
 #### `document.addFootnote`
 
-Append one native plain-text footnote at the end of one paragraph or list item. Recognized imported canonical footnotes permit body-text edits only; anchor, kind, native ID, and note topology remain source-bound.
+Append one native plain-text footnote with 1 through 16 canonical physical paragraphs at the end of one paragraph or list item. Recognized imported canonical footnotes permit fixed-count body-text edits only; anchor, kind, native ID, and note topology remain source-bound.
 
 **Schema parameters:**
 
 - `target` (string|DocumentParagraphBlock|DocumentListItemBlock) required — Paragraph or list-item ID/facade whose final run receives the native footnote reference.
-- `text` (string) required — Plain-text footnote body, 1 through 1,000,000 XML-safe characters.
+- `text` (string) — One physical plain-text footnote paragraph, 1 through 1,000,000 XML-safe characters. Required unless paragraphs is supplied; it must equal the LF-joined paragraphs when both are supplied.
+- `paragraphs` (string[]) — Optional 1 through 16 physical plain-text footnote paragraphs. Every item must be non-empty, XML-safe, and contain no CR/LF; imported notes keep this count source-bound.
 - `name` (string) — Optional inspectable note name.
 - `nativeId` (number) — Optional positive 32-bit native footnote ID for source-free authoring; imported identity is source-bound.
 
 **Schema returns:**
 
-- `footnote` (DocumentNote) — Native bounded footnote. Canonical imports allow text-only edits with fixed topology.
+- `footnote` (DocumentNote) — Native bounded footnote. Canonical imports expose paragraphs plus LF-joined text and allow fixed-count plain-text edits only.
 
 #### `document.addHeader`
 
@@ -870,7 +872,7 @@ Atomically replace one source-free header/footer's ordered literal/simple-field 
 
 #### `DocumentModel.create`
 
-Create a document with paragraph/character styles, formatted paragraphs/runs, canonical inline and one-paragraph table-cell plain-text, checkbox, drop-down, combo-box, and ISO/Gregorian date content controls, one-paragraph block plain-text controls, canonical inline SEQ/REF/PAGEREF fields, sections, headers/footers, canonical VML text watermarks, lists, TableGrid fixed-geometry tables, links, bounded whole-block bookmarks, plain-text footnotes/endnotes, canonical bibliography-backed citations plus one source-free switch-free BIBLIOGRAPHY output placeholder, simple fields, a canonical complex TOC placeholder, bounded whole-paragraph tracked insertions/deletions, classic comments, bounded modern root/direct-reply threads, and PNG/JPEG images. Nested/irregular modern threads, rich comment bodies, multi-paragraph/rich/inline-within-cell/nested/data-bound/locked/placeholder table-cell SDTs, other nested/data-bound/locked/placeholder SDTs, irregular lists, localized dates, custom checkbox symbols, image/DrawingML/irregular VML watermarks, other complex field graphs, arbitrary table-style graphs, complex bookmark/note/revision graphs, and advanced settings remain unsupported or source-bound.
+Create a document with paragraph/character styles, formatted paragraphs/runs, canonical inline and one-paragraph table-cell plain-text, checkbox, drop-down, combo-box, and ISO/Gregorian date content controls, one-paragraph block plain-text controls, canonical inline SEQ/REF/PAGEREF fields, sections, headers/footers, canonical VML text watermarks, lists, TableGrid fixed-geometry tables, links, bounded whole-block bookmarks, 1-through-16-paragraph plain-text footnotes/endnotes, canonical bibliography-backed citations plus one source-free switch-free BIBLIOGRAPHY output placeholder, simple fields, a canonical complex TOC placeholder, bounded whole-paragraph tracked insertions/deletions, classic comments, bounded modern root/direct-reply threads, and PNG/JPEG images. Nested/irregular modern threads, rich comment bodies, multi-paragraph/rich/inline-within-cell/nested/data-bound/locked/placeholder table-cell SDTs, other nested/data-bound/locked/placeholder SDTs, irregular lists, localized dates, custom checkbox symbols, image/DrawingML/irregular VML watermarks, other complex field graphs, arbitrary table-style graphs, complex bookmark/note/revision graphs, and advanced settings remain unsupported or source-bound.
 
 **Schema parameters:**
 

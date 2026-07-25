@@ -4095,6 +4095,7 @@ public sealed class DocxCodecTests
             {
                 Assert.Equal(DocumentNoteKind.Footnote, note.Kind);
                 Assert.Equal("Source-free footnote", note.Text);
+                Assert.Equal(["Source-free footnote"], note.Paragraphs);
                 Assert.Equal("1", note.NativeId);
                 Assert.True(note.Source.Editable);
                 Assert.Equal("word/footnotes.xml", note.Source.PartPath);
@@ -4106,6 +4107,7 @@ public sealed class DocxCodecTests
             {
                 Assert.Equal(DocumentNoteKind.Endnote, note.Kind);
                 Assert.Equal("Source-free endnote", note.Text);
+                Assert.Equal(["Source-free endnote"], note.Paragraphs);
                 Assert.Equal("1", note.NativeId);
                 Assert.True(note.Source.Editable);
                 Assert.Equal("word/endnotes.xml", note.Source.PartPath);
@@ -4123,7 +4125,9 @@ public sealed class DocxCodecTests
         Assert.Equal(authored.File.ToByteArray(), unchanged.File.ToByteArray());
 
         var editedArtifact = imported.Artifact.Clone();
+        editedArtifact.Document.Notes[0].Paragraphs[0] = "Edited footnote";
         editedArtifact.Document.Notes[0].Text = "Edited footnote";
+        editedArtifact.Document.Notes[1].Paragraphs[0] = "Edited endnote";
         editedArtifact.Document.Notes[1].Text = "Edited endnote";
         var edited = Invoke(new CodecRequest
         {
@@ -4169,11 +4173,86 @@ public sealed class DocxCodecTests
     }
 
     [Fact]
+    public void MultiParagraphPlainTextNotesAuthorImportEditAndRejectTopologyChanges()
+    {
+        var authored = Invoke(NoteExportRequest(multiParagraph: true));
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = WordprocessingDocument.Open(stream, false))
+        {
+            var owner = package.MainDocumentPart!;
+            var footnote = owner.FootnotesPart!.Footnotes!.Elements<W.Footnote>().Single(note => note.Id?.Value == 1);
+            var endnote = owner.EndnotesPart!.Endnotes!.Elements<W.Endnote>().Single(note => note.Id?.Value == 1);
+            Assert.Equal(["Source-free footnote", "Second source-free footnote paragraph"], footnote.Elements<W.Paragraph>().Select(paragraph => paragraph.InnerText.Trim()));
+            Assert.Equal(["Source-free endnote", "Second source-free endnote paragraph"], endnote.Elements<W.Paragraph>().Select(paragraph => paragraph.InnerText.Trim()));
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var imported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        Assert.True(imported.Ok, Diagnostics(imported));
+        Assert.Equal(
+            ["Source-free footnote\nSecond source-free footnote paragraph", "Source-free endnote\nSecond source-free endnote paragraph"],
+            imported.Artifact.Document.Notes.Select(note => note.Text));
+        Assert.Equal(["Source-free footnote", "Second source-free footnote paragraph"], imported.Artifact.Document.Notes[0].Paragraphs);
+        Assert.Equal(["Source-free endnote", "Second source-free endnote paragraph"], imported.Artifact.Document.Notes[1].Paragraphs);
+
+        var unchanged = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact.Clone(),
+        });
+        Assert.True(unchanged.Ok, Diagnostics(unchanged));
+        Assert.Equal(authored.File.ToByteArray(), unchanged.File.ToByteArray());
+
+        var editedArtifact = imported.Artifact.Clone();
+        editedArtifact.Document.Notes[0].Paragraphs[1] = "Edited footnote continuation";
+        editedArtifact.Document.Notes[0].Text = string.Join("\n", editedArtifact.Document.Notes[0].Paragraphs);
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = editedArtifact,
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var reimported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = edited.File,
+        });
+        Assert.True(reimported.Ok, Diagnostics(reimported));
+        Assert.Equal(["Source-free footnote", "Edited footnote continuation"], reimported.Artifact.Document.Notes[0].Paragraphs);
+
+        var changedTopology = imported.Artifact.Clone();
+        changedTopology.Document.Notes[0].Paragraphs.Add("A third physical paragraph");
+        changedTopology.Document.Notes[0].Text = string.Join("\n", changedTopology.Document.Notes[0].Paragraphs);
+        var rejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = changedTopology,
+        });
+        Assert.False(rejected.Ok);
+        Assert.Equal("unsupported_document_note_edit", Assert.Single(rejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void RichFootnoteBodyRemainsOpaqueAndBytePreserved()
     {
         var authored = Invoke(NoteExportRequest());
         Assert.True(authored.Ok, Diagnostics(authored));
-        var richSource = AddSecondFootnoteParagraph(authored.File.ToByteArray());
+        var richSource = AddRichFootnoteParagraph(authored.File.ToByteArray());
         var imported = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -7703,7 +7782,7 @@ public sealed class DocxCodecTests
         };
     }
 
-    private static CodecRequest NoteExportRequest()
+    private static CodecRequest NoteExportRequest(bool multiParagraph = false)
     {
         var document = new DocumentArtifact { Id = "document/notes", Name = "Note fixture" };
         foreach (var (id, text) in new[]
@@ -7721,20 +7800,30 @@ public sealed class DocxCodecTests
             block.Paragraph.Runs.Add(new DocumentRun { Text = text });
             document.Blocks.Add(block);
         }
-        document.Notes.Add(new DocumentNote
+        var footnoteParagraphs = multiParagraph
+            ? new[] { "Source-free footnote", "Second source-free footnote paragraph" }
+            : new[] { "Source-free footnote" };
+        var footnote = new DocumentNote
         {
             Id = "document/note/footnote",
             Kind = DocumentNoteKind.Footnote,
             TargetBlockId = document.Blocks[0].Id,
-            Text = "Source-free footnote",
-        });
-        document.Notes.Add(new DocumentNote
+            Text = string.Join("\n", footnoteParagraphs),
+        };
+        if (multiParagraph) footnote.Paragraphs.Add(footnoteParagraphs);
+        document.Notes.Add(footnote);
+        var endnoteParagraphs = multiParagraph
+            ? new[] { "Source-free endnote", "Second source-free endnote paragraph" }
+            : new[] { "Source-free endnote" };
+        var endnote = new DocumentNote
         {
             Id = "document/note/endnote",
             Kind = DocumentNoteKind.Endnote,
             TargetBlockId = document.Blocks[1].Id,
-            Text = "Source-free endnote",
-        });
+            Text = string.Join("\n", endnoteParagraphs),
+        };
+        if (multiParagraph) endnote.Paragraphs.Add(endnoteParagraphs);
+        document.Notes.Add(endnote);
         return new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -7749,7 +7838,7 @@ public sealed class DocxCodecTests
         };
     }
 
-    private static byte[] AddSecondFootnoteParagraph(byte[] bytes)
+    private static byte[] AddRichFootnoteParagraph(byte[] bytes)
     {
         using var stream = new MemoryStream();
         stream.Write(bytes);
@@ -7758,7 +7847,9 @@ public sealed class DocxCodecTests
         {
             var footnote = document.MainDocumentPart!.FootnotesPart!.Footnotes!
                 .Elements<W.Footnote>().Single(note => note.Id?.Value == 1);
-            footnote.Append(new W.Paragraph(new W.Run(new W.Text("Second rich paragraph"))));
+            footnote.Append(new W.Paragraph(
+                new W.Run(new W.Text("Second rich paragraph")),
+                new W.Run(new W.Text(" with an unsupported second run"))));
             document.MainDocumentPart.FootnotesPart.Footnotes.Save();
         }
         return stream.ToArray();

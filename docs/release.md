@@ -79,6 +79,38 @@ JavaScript, and .NET gate. Its only expected blockers were the dirty candidate
 worktree and unavailable npm authentication; no npm publish, tag, or GitHub
 release was attempted.
 
+## 0.3.0 DOCX canonical multi-paragraph notes
+
+`document.addFootnote(...)` and `document.addEndnote(...)` now accept a
+canonical `paragraphs` array with 1 through 16 physical plain-text paragraphs;
+the legacy one-string `text` input remains the one-paragraph shorthand. The
+wire stores both the exact array and its LF-joined `text` projection. The first
+native note paragraph owns the marker and one text run; every continuation has
+one text run. On import, callers can replace text only through the same fixed
+paragraph count. Anchor, kind, native ID, formatting, source part, and topology
+remain source-bound.
+
+The profile was exercised through source-free export, package validation,
+canonical import, byte-exact no-op source export, fixed-count edit, second
+import, an explicit rejected count change, the packaged Documents example, and
+the multi-paragraph Skill fixture. Bodies beyond 16 paragraphs, rich/multi-run
+paragraphs, reused references, custom note graphs, and anchor movement remain
+opaque-preserved or fail closed; no generic Word note-body reconstruction was
+introduced.
+
+### Canonical note integration evidence
+
+On 2026-07-25, the complete local gate passed: `npm test`, `npm run docs:api`,
+`npm run proto:check`, clean-install `npm run test:pack`, deterministic
+`npm run verify:open-chestnut-build`, OpenChestnut `374/374`, and OfficeBridge
+`5/5`. The two source-built WASM bundles reproduced across 39 audited files;
+the bundled runtime has 38 files at 15,148,224 bytes. The npm candidate has
+513 files, 9,391,934 compressed bytes, and 25,207,264 unpacked bytes. Its
+reviewed 25,250,000-byte ceiling adds 50KB for this public wire/adapter/WASM
+slice while retaining a hard package-growth gate. Live managed provider
+downloads and separately configured specialist Python providers remain opt-in
+environment lanes; no npm publish or tag operation was attempted.
+
 ## 0.3.0 OfficeKit and template routing
 
 0.3.0 adds one project-native top-level OfficeKit Skill without adding another

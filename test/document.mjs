@@ -216,7 +216,10 @@ const insertion = document.addInsertion("Added wording", { name: "tracked-insert
 const deletion = document.addDeletion("Removed wording", { name: "tracked-deletion", styleId: "Normal", author: "Reviewer", date: "2026-07-17T08:05:00Z" });
 const footnoteTarget = document.addParagraph("Paragraph with a source-free footnote.", { name: "footnote-target", styleId: "Normal" });
 const endnoteTarget = document.addParagraph("Paragraph with a source-free endnote.", { name: "endnote-target", styleId: "Normal" });
-const footnote = document.addFootnote(footnoteTarget, "Source-free footnote", { name: "footnote-evidence" });
+const footnote = document.addFootnote(footnoteTarget, undefined, {
+  name: "footnote-evidence",
+  paragraphs: ["Source-free footnote", "Second source-free footnote paragraph"],
+});
 const endnote = document.addEndnote(endnoteTarget, "Source-free endnote", { name: "endnote-evidence" });
 const pngImage = document.addImage({
   name: "png-mark",
@@ -330,6 +333,8 @@ assert.equal(document.resolve(insertion.id).changeType, "insert");
 assert.equal(document.resolve(deletion.id).changeType, "delete");
 assert.equal(document.resolve(footnote.id).targetId, footnoteTarget.id);
 assert.equal(document.resolve(endnote.id).targetId, endnoteTarget.id);
+assert.deepEqual(footnote.paragraphs, ["Source-free footnote", "Second source-free footnote paragraph"]);
+assert.equal(footnote.text, "Source-free footnote\nSecond source-free footnote paragraph");
 assert.equal(document.resolve(secondSectionBookmark.id).targetId, secondSection.id);
 assert.equal(internalLink.anchor, "SecondSection");
 assert.equal(document.resolve(firstFooter.id).referenceType, "first");
@@ -797,10 +802,18 @@ assert.equal(imported.bookmarks[0].name, "SecondSection");
 assert.equal(imported.bookmarks[0].targetId, imported.blocks.find((block) => block.text === "Second-section evidence.")?.id);
 assert.equal(imported.blocks.find((block) => block.kind === "hyperlink" && block.anchor === "SecondSection")?.text, "Jump to second-section evidence");
 assert.deepEqual(imported.notes.map((note) => [note.kind, note.text, note.nativeId]), [
-  ["footnote", "Source-free footnote", 1],
+  ["footnote", "Source-free footnote\nSecond source-free footnote paragraph", 1],
   ["endnote", "Source-free endnote", 1],
 ]);
+assert.deepEqual(imported.notes[0].paragraphs, ["Source-free footnote", "Second source-free footnote paragraph"]);
 assert.equal(imported.notes.every((note) => imported.resolve(note.id) === note), true);
+
+const resegmentedNotes = await DocumentFile.importDocx(firstDocx);
+resegmentedNotes.notes[0].paragraphs = ["Source-free footnote", "Second source-free footnote paragraph", "An unsupported third paragraph"];
+await assert.rejects(
+  () => DocumentFile.exportDocx(resegmentedNotes),
+  /paragraph count is source-bound/,
+);
 
 importedFormatted.text = "Bold and edited";
 importedFormatted.runs[0].text = "Bold ";
@@ -830,7 +843,7 @@ importedSection.margins.left = 1200;
 imported.comments[0].author = "Lead reviewer";
 imported.comments[0].initials = "LR";
 imported.comments[0].text = "Release evidence approved.";
-imported.notes[0].text = "Edited footnote";
+imported.notes[0].paragraphs = ["Edited footnote", "Edited footnote continuation"];
 imported.notes[1].text = "Edited endnote";
 assert.deepEqual(imported.fillContentControls({ CUSTOMER_NAME: "Grace Hopper" }), { updated: 1, matchedTags: ["CUSTOMER_NAME"], missingTags: [] });
 
@@ -857,9 +870,10 @@ assert.equal(roundTrip.comments[0].text, "Release evidence approved.");
 assert.equal(roundTrip.bookmarks[0].name, "SecondSection");
 assert.equal(roundTrip.blocks.some((block) => block.kind === "hyperlink" && block.anchor === "SecondSection"), true);
 assert.deepEqual(roundTrip.notes.map((note) => [note.kind, note.text]), [
-  ["footnote", "Edited footnote"],
+  ["footnote", "Edited footnote\nEdited footnote continuation"],
   ["endnote", "Edited endnote"],
 ]);
+assert.deepEqual(roundTrip.notes[0].paragraphs, ["Edited footnote", "Edited footnote continuation"]);
 assert.equal(roundTrip.contentControls[0].text, "Grace Hopper");
 assert.equal(roundTrip.resolve(roundTrip.contentControls[0].targetId)?.text, "Customer: Grace Hopper.");
 assert.equal(roundTrip.verify({ visualQa: true }).ok, true);
@@ -2435,6 +2449,15 @@ invalidNoteTarget.addFootnote(invalidNoteTarget.blocks[0], "Invalid target");
 await assert.rejects(
   () => DocumentFile.exportDocx(invalidNoteTarget),
   (error) => error?.code === "invalid_document_note" && /paragraph or list item/i.test(error.message),
+);
+
+const legacyMultilineNote = DocumentModel.create({ name: "Legacy multiline note", blocks: [] });
+const legacyMultilineTarget = legacyMultilineNote.addParagraph("A bounded note target.");
+legacyMultilineNote.addFootnote(legacyMultilineTarget, "First legacy line\nSecond legacy line");
+assert.equal(legacyMultilineNote.verify().issues.some((issue) => issue.type === "invalidNoteLegacyLineBreak"), true);
+await assert.rejects(
+  () => DocumentFile.exportDocx(legacyMultilineNote),
+  (error) => error?.code === "invalid_document_note" && /must use paragraphs/i.test(error.message),
 );
 
 const importedWithoutSourceSnapshot = await DocumentFile.importDocx(firstDocx);

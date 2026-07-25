@@ -2831,6 +2831,7 @@ function documentNoteSnapshot(note) {
     id: note.id,
     kind: note.kind,
     targetId: note.targetId,
+    paragraphs: note.paragraphs,
     text: note.text,
     nativeId: note.nativeId,
   };
@@ -2851,19 +2852,22 @@ function publicDocumentNoteKind(value) {
 function documentNote(note, slot, document) {
   const kind = String(note.kind || "");
   const targetId = String(note.targetId || "");
-  const text = String(note.text ?? "");
+  const body = documentNoteBody(note);
+  const { paragraphs, text } = body;
   const nativeId = note.nativeId === undefined ? "" : String(note.nativeId);
   if (slot) {
     const original = slot.publicSnapshot;
     if (note.id !== original.id || kind !== original.kind || targetId !== original.targetId || note.nativeId !== original.nativeId) {
       throw new OpenChestnutCodecError(`Imported document ${kind || "note"} ${note.id} identity, kind, target, and native ID are source-bound.`, [], { code: "unsupported_document_note_edit" });
     }
-    if (text === original.text) return slot.wire;
+    if (JSON.stringify(paragraphs) === JSON.stringify(original.paragraphs)) return slot.wire;
+    if (paragraphs.length !== original.paragraphs.length) {
+      throw new OpenChestnutCodecError(`Imported document ${kind} ${note.id} paragraph count is source-bound.`, [], { code: "unsupported_document_note_edit" });
+    }
     if (slot.wire.source?.editable !== true) {
       throw new OpenChestnutCodecError(`Imported document ${kind} ${note.id} body topology is preserved but not editable.`, [], { code: "unsupported_document_note_edit" });
     }
-    validateDocumentNoteText(note, text);
-    return { ...slot.wire, text };
+    return { ...slot.wire, text, paragraphs };
   }
   if (!new Set(["footnote", "endnote"]).has(kind)) {
     throw new OpenChestnutCodecError(`Document note ${note.id} kind must be footnote or endnote.`, [], { code: "invalid_document_note" });
@@ -2872,7 +2876,6 @@ function documentNote(note, slot, document) {
   if (!target || !new Set(["paragraph", "listItem"]).has(target.kind)) {
     throw new OpenChestnutCodecError(`Document ${kind} ${note.id} target must be a paragraph or list item.`, [], { code: "invalid_document_note" });
   }
-  validateDocumentNoteText(note, text);
   if (nativeId && (!/^\d+$/.test(nativeId) || Number(nativeId) < 1 || Number(nativeId) > 2_147_483_647)) {
     throw new OpenChestnutCodecError(`Document ${kind} ${note.id} nativeId must be a positive 32-bit integer when present.`, [], { code: "invalid_document_note" });
   }
@@ -2882,12 +2885,35 @@ function documentNote(note, slot, document) {
     targetBlockId: targetId,
     text,
     nativeId,
+    paragraphs: body.explicit ? paragraphs : undefined,
   };
 }
 
-function validateDocumentNoteText(note, text) {
+function documentNoteBody(note) {
+  const paragraphs = Array.isArray(note.paragraphs)
+    ? note.paragraphs.map((paragraph) => String(paragraph ?? ""))
+    : [String(note.text ?? "")];
+  const text = paragraphs.join("\n");
+  const explicit = note._paragraphsExplicit === true;
+  validateDocumentNoteText(note, text, paragraphs, explicit);
+  return { paragraphs, text, explicit };
+}
+
+function validateDocumentNoteText(note, text, paragraphs = [text], explicit = false) {
   if (!text.length || text.length > 1_000_000 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(text)) {
     throw new OpenChestnutCodecError(`Document ${note.kind || "note"} ${note.id} text must contain 1 through 1,000,000 XML-safe characters.`, [], { code: "invalid_document_note" });
+  }
+  if (!explicit) {
+    if (/[\r\n]/.test(text)) throw new OpenChestnutCodecError(`Document ${note.kind || "note"} ${note.id} must use paragraphs for a multi-paragraph body.`, [], { code: "invalid_document_note" });
+    return;
+  }
+  if (paragraphs.length < 1 || paragraphs.length > 16) {
+    throw new OpenChestnutCodecError(`Document ${note.kind || "note"} ${note.id} must contain 1 through 16 canonical note paragraphs.`, [], { code: "invalid_document_note" });
+  }
+  for (const [index, paragraph] of paragraphs.entries()) {
+    if (!paragraph.length || paragraph.length > 1_000_000 || /[\r\n\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(paragraph)) {
+      throw new OpenChestnutCodecError(`Document ${note.kind || "note"} ${note.id} paragraph ${index + 1} must contain 1 through 1,000,000 XML-safe characters without a line break.`, [], { code: "invalid_document_note" });
+    }
   }
 }
 
@@ -4310,6 +4336,7 @@ function documentFromEnvelope(envelope) {
     kind: publicDocumentNoteKind(note.kind),
     targetId: note.targetBlockId,
     text: note.text,
+    paragraphs: note.paragraphs?.length ? [...note.paragraphs] : [note.text],
     nativeId: note.nativeId === "" ? undefined : Number(note.nativeId),
   }));
   const document = DocumentModel.create({

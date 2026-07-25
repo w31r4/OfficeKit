@@ -2385,6 +2385,10 @@ message DocumentNote {
   string text = 4;
   string native_id = 5;
   DocumentNoteSourceBinding source = 6;
+  // Canonical physical note paragraphs. When present, text is their LF-joined
+  // display projection. An absent field preserves the protocol-2 one-string
+  // authoring shape for older callers.
+  repeated string paragraphs = 7;
 }
 
 message DocumentNoteSourceBinding {

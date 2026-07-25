@@ -193,8 +193,12 @@ export function buildDocument(spec = DEFAULT_BRIEF) {
     name: "footnote-target",
     styleId: "Normal",
   });
-  document.addFootnote(footnoteTarget, "The final gate includes native rendering and package validation.", {
+  document.addFootnote(footnoteTarget, undefined, {
     name: "release-gate-footnote",
+    paragraphs: [
+      "The final gate includes native rendering and package validation.",
+      "Semantic re-import is recorded with the delivery audit.",
+    ],
   });
   const endnoteTarget = document.addParagraph("The evidence snapshot is retained with the release record.", {
     name: "endnote-target",
@@ -350,8 +354,12 @@ export async function createDocument(outputPath, spec = DEFAULT_BRIEF) {
     true,
   );
   assert.deepEqual(imported.notes.map((note) => [note.kind, note.text]), [
-    ["footnote", "The final gate includes native rendering and package validation."],
+    ["footnote", "The final gate includes native rendering and package validation.\nSemantic re-import is recorded with the delivery audit."],
     ["endnote", "Evidence snapshot dated 2026-07-17."],
+  ]);
+  assert.deepEqual(imported.notes[0].paragraphs, [
+    "The final gate includes native rendering and package validation.",
+    "Semantic re-import is recorded with the delivery audit.",
   ]);
   const recommendation = imported.blocks.find(
     (block) => block.kind === "paragraph" && block.text.startsWith("Recommendation:"),
@@ -379,7 +387,10 @@ export async function createDocument(outputPath, spec = DEFAULT_BRIEF) {
   trackedInsertion.text = "Final application-compatibility review is required before rollout.";
   trackedInsertion.author = "Lead reviewer";
   trackedInsertion.date = "2026-07-16T09:00:00Z";
-  imported.notes[0].text = "The final gate includes native rendering, package validation, and semantic re-import.";
+  imported.notes[0].paragraphs = [
+    "The final gate includes native rendering, package validation, and semantic re-import.",
+    "The delivery audit records the fixed physical paragraph count.",
+  ];
   imported.notes[1].text = "Evidence snapshot dated 2026-07-17; retained with the release record.";
   imported.bibliographySources[0].title = `${spec.sourceLabel} — verified`;
   imported.blocks.find((block) => block.kind === "citation").text = `(${spec.owner}, 2026, verified)`;
@@ -415,8 +426,12 @@ export async function createDocument(outputPath, spec = DEFAULT_BRIEF) {
     true,
   );
   assert.deepEqual(finalDocument.notes.map((note) => [note.kind, note.text]), [
-    ["footnote", "The final gate includes native rendering, package validation, and semantic re-import."],
+    ["footnote", "The final gate includes native rendering, package validation, and semantic re-import.\nThe delivery audit records the fixed physical paragraph count."],
     ["endnote", "Evidence snapshot dated 2026-07-17; retained with the release record."],
+  ]);
+  assert.deepEqual(finalDocument.notes[0].paragraphs, [
+    "The final gate includes native rendering, package validation, and semantic re-import.",
+    "The delivery audit records the fixed physical paragraph count.",
   ]);
   assert.deepEqual(
     finalDocument.blocks.filter((block) => block.kind === "change").map(

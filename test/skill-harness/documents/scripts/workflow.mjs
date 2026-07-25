@@ -109,6 +109,14 @@ export function createDocumentFromFixture(fixture = {}) {
     assert.ok(target, `Missing document fixture comment target ${comment.targetName || comment.targetId}`);
     document.addComment(target, comment.text || "", comment);
   }
+  for (const note of fixture.notes || []) {
+    const target = byName.get(note.targetName) || note.targetId;
+    assert.ok(target, `Missing document fixture note target ${note.targetName || note.targetId}`);
+    const kind = String(note.kind || note.noteKind || "footnote").toLowerCase();
+    if (kind === "footnote") document.addFootnote(target, note.text, note);
+    else if (kind === "endnote") document.addEndnote(target, note.text, note);
+    else throw new Error(`Unsupported document fixture note kind ${note.kind || note.noteKind}.`);
+  }
   for (const expected of fixture.expectInspect || []) {
     assert.match(document.inspect({ kind: expected.kind || "document,paragraph,listItem,table,comment,header,footer,watermark,hyperlink,field,citation,bibliographySource,image,section,style", maxChars: 20_000 }).ndjson, new RegExp(expected.pattern));
   }
@@ -431,6 +439,16 @@ export async function runDocumentFixture(fixturePath, options = {}) {
         if (Object.prototype.hasOwnProperty.call(edit, "author")) comment.author = String(edit.author);
         if (Object.prototype.hasOwnProperty.call(edit, "initials")) comment.initials = edit.initials == null ? undefined : String(edit.initials);
         if (Object.prototype.hasOwnProperty.call(edit, "date")) comment.date = edit.date == null ? undefined : String(edit.date);
+        continue;
+      }
+      if (edit.kind === "note") {
+        const note = imported.notes.find((item) =>
+          (!edit.noteKind || item.kind === edit.noteKind) &&
+          (!edit.matchText || item.text === edit.matchText));
+        assert.ok(note, `Missing source-bound ${edit.noteKind || "document"} note fixture target ${edit.matchText || "(unspecified)"}.`);
+        if (Object.prototype.hasOwnProperty.call(edit, "expectParagraphCount")) assert.equal(note.paragraphs.length, edit.expectParagraphCount);
+        if (Object.prototype.hasOwnProperty.call(edit, "paragraphs")) note.paragraphs = structuredClone(edit.paragraphs);
+        else if (Object.prototype.hasOwnProperty.call(edit, "text")) note.text = String(edit.text);
         continue;
       }
       throw new Error(`Unsupported document fixture edit kind ${edit.kind}.`);
