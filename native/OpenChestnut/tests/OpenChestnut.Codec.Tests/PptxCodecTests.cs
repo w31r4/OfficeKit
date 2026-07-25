@@ -840,6 +840,8 @@ public sealed class PptxCodecTests
         Assert.False(string.IsNullOrWhiteSpace(view.Source.RelationshipId));
         Assert.Equal(64, view.Source.ViewXmlSha256.Length);
         Assert.Equal(64, view.Source.SemanticSha256.Length);
+        Assert.Equal(64, view.Source.ResidualSha256.Length);
+        Assert.True(view.Source.Editable);
 
         var unchanged = Export(imported.Artifact);
         Assert.True(unchanged.Ok, Diagnostics(unchanged));
@@ -848,10 +850,54 @@ public sealed class PptxCodecTests
         using (var package = PresentationDocument.Open(stream, false))
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
 
-        imported.Artifact.Presentation.ViewProperties.GridSpacingCxEmu = 72_009;
-        var rejected = Export(imported.Artifact);
+        view.GridSpacingCxEmu = 72_009;
+        view.GridSpacingCyEmu = 91_441;
+        view.SlideViewSnapToGrid = false;
+        view.SlideViewSnapToObjects = true;
+        view.SlideGuides[0].Position = 2_161;
+        view.SlideGuides[1].Position = 2_881;
+        var edited = Export(imported.Artifact);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var editedBytes = edited.File.ToByteArray();
+        Assert.Equal(ZipPartPaths(sourceBytes), ZipPartPaths(editedBytes));
+        foreach (var path in ZipPartPaths(sourceBytes).Where(path => !path.Equals("ppt/viewProps.xml", StringComparison.OrdinalIgnoreCase)))
+            Assert.Equal(ZipBytes(sourceBytes, path), ZipBytes(editedBytes, path));
+        var editedViewXml = Encoding.UTF8.GetString(ZipBytes(editedBytes, "ppt/viewProps.xml"));
+        Assert.Contains("cx=\"72009\"", editedViewXml);
+        Assert.Contains("cy=\"91441\"", editedViewXml);
+        Assert.Contains("snapToGrid=\"0\"", editedViewXml);
+        Assert.Contains("snapToObjects=\"1\"", editedViewXml);
+        Assert.Contains("showGuides=\"1\"", editedViewXml);
+        Assert.Contains("orient=\"horz\" pos=\"2161\"", editedViewXml);
+        Assert.Contains("orient=\"vert\" pos=\"2881\"", editedViewXml);
+
+        var reimported = Import(editedBytes);
+        Assert.True(reimported.Ok, Diagnostics(reimported));
+        var reimportedView = reimported.Artifact.Presentation.ViewProperties;
+        Assert.Equal(72_009, reimportedView.GridSpacingCxEmu);
+        Assert.Equal(91_441, reimportedView.GridSpacingCyEmu);
+        Assert.False(reimportedView.SlideViewSnapToGrid);
+        Assert.True(reimportedView.SlideViewSnapToObjects);
+        Assert.Equal(2_161, reimportedView.SlideGuides[0].Position);
+        Assert.Equal(2_881, reimportedView.SlideGuides[1].Position);
+
+        var guideTopologyChanged = Import(sourceBytes);
+        Assert.True(guideTopologyChanged.Ok, Diagnostics(guideTopologyChanged));
+        guideTopologyChanged.Artifact.Presentation.ViewProperties.SlideGuides.Add(new PresentationSlideGuide
+        {
+            Orientation = PresentationSlideGuide.Types.Orientation.Horizontal,
+            Position = 9_999,
+        });
+        var rejected = Export(guideTopologyChanged.Artifact);
         Assert.False(rejected.Ok);
-        Assert.Equal("unsupported_presentation_view_edit", Assert.Single(rejected.Diagnostics).Code);
+        Assert.Equal("presentation_view_topology_changed", Assert.Single(rejected.Diagnostics).Code);
+
+        var sourceBindingChanged = Import(sourceBytes);
+        Assert.True(sourceBindingChanged.Ok, Diagnostics(sourceBindingChanged));
+        sourceBindingChanged.Artifact.Presentation.ViewProperties.Source.ResidualSha256 = new string('0', 64);
+        rejected = Export(sourceBindingChanged.Artifact);
+        Assert.False(rejected.Ok);
+        Assert.Equal("presentation_view_source_binding_mismatch", Assert.Single(rejected.Diagnostics).Code);
 
         var sourceFree = ExportRequest();
         sourceFree.Artifact.Presentation.ViewProperties = new PresentationViewProperties

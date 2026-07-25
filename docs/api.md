@@ -1716,7 +1716,9 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `presentation.theme` | api | Inspect the model theme and theme inheritance. Custom source-free themes are not authored by OpenChestnut 0.2, and imported themes are source-bound and read-only. |
 | `presentation.validateLayout` | api | Detect layout QA issues across slides, including off-canvas elements, geometry overlaps, and basic text overflow. |
 | `presentation.verify` | api | Return QA issues for layout validation, missing master/layout references, placeholder fidelity, chart/data consistency, table shape, image data, and dangling comments. |
-| `presentation.view` | api | Control local editor gridline/guide visibility and inspect imported PowerPoint grid spacing, snap settings, and read-only slide guides. Visibility is local model state; imported viewProps.xml metadata remains source/hash-bound and unchanged by canonical export. |
+| `presentation.view` | api | Control local editor gridline/guide visibility and inspect imported PowerPoint grid spacing, snap settings, and guides. Visibility is local model state; a separately capability-gated fixed-topology source-bound edit profile may change only already-present grid/snap values and guide positions in viewProps.xml. |
+| `presentation.view.capability` | api | Return defensive sourceBound, partPresent, editable, existing-field, and guide-count evidence for the imported PPTX view-properties part. It is preflight evidence only; export re-proves hashes, topology, and the non-editable XML residual. |
+| `presentation.view.setSourceProperties` | api | Change already-present imported grid spacing, snap flags, and existing guide positions only when view.capability.editable is true. It cannot create viewProps.xml, add/remove/reorient guides, write showGuides, or reconstruct extensions/relationships; unsupported profiles fail closed. |
 | `PresentationFile.exportPptx` | api | Serialize PPTX through the single bundled OpenChestnut codec. Only limits is accepted; legacy codec and lossy-fallback options fail explicitly. |
 | `PresentationFile.importPptx` | api | Import PPTX through the single bundled OpenChestnut codec with source-bound opaque preservation, speaker-notes edit/add capability evidence, bounded text-only edits for recognized local SlidePart placeholders and canonical SmartArt plain document nodes, eligible OLE XLSX payload access/replacement plus uniquely bound DOCX Office-package access/replacement, and fail-closed unsupported edits. |
 | `PresentationFile.inspectPptx` | api | Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics under decompression budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
@@ -2298,11 +2300,35 @@ Return QA issues for layout validation, missing master/layout references, placeh
 
 #### `presentation.view`
 
-Control local editor gridline/guide visibility and inspect imported PowerPoint grid spacing, snap settings, and read-only slide guides. Visibility is local model state; imported viewProps.xml metadata remains source/hash-bound and unchanged by canonical export.
+Control local editor gridline/guide visibility and inspect imported PowerPoint grid spacing, snap settings, and guides. Visibility is local model state; a separately capability-gated fixed-topology source-bound edit profile may change only already-present grid/snap values and guide positions in viewProps.xml.
 
 **Schema returns:**
 
-- `view` (PresentationView) — Local gridlinesVisible/guidesVisible state with show/hide/toggle methods, optional imported gridSpacingCxEmu/gridSpacingCyEmu, and serialized hidden guide visibility. Imported slide-guide definitions are exposed read-only through master/layout slideGuides and remain source-bound in PPTX output.
+- `view` (PresentationView) — Local gridlinesVisible/guidesVisible state with show/hide/toggle methods, imported grid/snap/guide getters, and capability-aware source-bound editing. Local visibility is never persisted. Imported viewProps.xml may change only through setSourceProperties when capability.editable is true; that narrow profile retains field presence, guide count/order/orientation, relationships, extensions, and every non-editable XML residual.
+
+#### `presentation.view.capability`
+
+Return defensive sourceBound, partPresent, editable, existing-field, and guide-count evidence for the imported PPTX view-properties part. It is preflight evidence only; export re-proves hashes, topology, and the non-editable XML residual.
+
+**Schema returns:**
+
+- `capability` (object) — Defensive { sourceBound, partPresent, editable, gridSpacingCxEmuPresent, gridSpacingCyEmuPresent, slideViewSnapToGridPresent, slideViewSnapToObjectsPresent, guideCount } evidence. editable is true only for a relationship-free imported fixed-topology p:viewPr profile. It is preflight evidence, not mutable authority; export independently re-proves the source part, binding hashes, topology, and residual XML.
+
+#### `presentation.view.setSourceProperties`
+
+Change already-present imported grid spacing, snap flags, and existing guide positions only when view.capability.editable is true. It cannot create viewProps.xml, add/remove/reorient guides, write showGuides, or reconstruct extensions/relationships; unsupported profiles fail closed.
+
+**Schema parameters:**
+
+- `gridSpacingCxEmu` (number) — Optional positive signed 32-bit EMU value. The imported p:gridSpacing/@cx attribute must already be present.
+- `gridSpacingCyEmu` (number) — Optional positive signed 32-bit EMU value. The imported p:gridSpacing/@cy attribute must already be present.
+- `slideViewSnapToGrid` (boolean) — Optional replacement for an already-present p:cSldViewPr/@snapToGrid attribute.
+- `slideViewSnapToObjects` (boolean) — Optional replacement for an already-present p:cSldViewPr/@snapToObjects attribute.
+- `slideGuides` ({ orientation: 'horizontal'|'vertical', position: integer }[]) — Optional complete existing guide-position list. Count, order, and horizontal/vertical orientation must exactly match the imported list; only positions may change.
+
+**Schema returns:**
+
+- `view` (PresentationView) — Returns the same view after a local requested source-bound patch. The method requires at least one field and view.capability.editable. It never writes local gridline/guide visibility or source p:cSldViewPr/@showGuides, creates no view-properties part, and rejects topology/relationship/extension changes; OpenChestnut re-proves those constraints at export.
 
 #### `PresentationFile.exportPptx`
 

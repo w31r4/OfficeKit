@@ -3611,6 +3611,45 @@ The clean-install tarball contains the new Presentation workflow and the
 source-built 38-file runtime; no npm publish, tag, or release operation was
 attempted.
 
+### PPTX source-bound view-properties edit
+
+On 2026-07-25, OpenChestnut added a deliberately narrow source-bound edit for
+an existing `ppt/viewProps.xml` part. `presentation.view.capability` reports
+whether the import has the recognized relationship-free, extension-free,
+fixed-topology profile. Only an already-present grid spacing, already-present
+`snapToGrid` / `snapToObjects` attributes, and the positions of the existing
+horizontal or vertical guides may be changed through
+`presentation.view.setSourceProperties(...)`.
+
+The wire binding records the part, relation identity, full source hash,
+semantic hash, and a residual hash with the permitted leaves removed. Before it
+writes, the C# codec re-proves the source graph, attribute presence, guide
+count/order/orientation, and residual content; afterwards it reimports the
+output and verifies that exactly `ppt/viewProps.xml` changed. A local
+`showGuides` choice stays local editor state and is never silently turned into a
+file mutation. Source-free decks cannot create a view-properties part, and
+relationships, extensions, view modes, guide topology, or unknown XML remain
+opaque-preserved or fail closed.
+
+The shipped Presentation workflow protects the source path, requires a
+capability preflight and non-empty typed patch, publishes through a temporary
+file, audits package scope and provenance, reimports the result, confirms
+model-render stability, and runs verification before emitting its audit. Its
+negative fixtures prove that topology and stale-binding changes are rejected
+without an output artifact.
+
+The complete local gate passed `npm test`, `npm run docs:api`, deterministic
+`npm run verify:open-chestnut-build`, clean-install `npm run test:pack`,
+OpenChestnut `375/375`, and OfficeBridge `5/5`. Two source-built WASM bundles
+matched across 39 audited files; the shipped runtime has 38 files and
+15,160,000 bytes. The npm candidate contains 515 files, 9,412,948 compressed
+bytes, and 25,274,243 unpacked bytes. The total-unpacked gate moved narrowly
+from 25,250,000 to 25,300,000 bytes for this wire/adapter/WASM/workflow slice,
+retaining 25,757 bytes of headroom. Reference Skill sync also passed against
+`office-artifact-tool` `0f501d1`. Managed provider live-download lanes and
+separately configured specialist Python-provider repeats remained opt-in
+environment tests; no npm publish, tag, or release operation was attempted.
+
 ## Publishing
 
 Before publishing:

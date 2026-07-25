@@ -1385,6 +1385,13 @@ message PresentationViewPropertiesSourceBinding {
   string relationship_id = 2;
   string view_xml_sha256 = 3;
   string semantic_sha256 = 4;
+  // Hash of the native view-properties graph after the fixed-topology editable
+  // leaves (grid spacing values, snap attributes, and guide positions) have
+  // been removed. It proves that every other node/attribute remains intact.
+  string residual_sha256 = 5;
+  // True only for the deliberately narrow imported profile. This is preflight
+  // evidence; the codec independently re-proves the package before writing.
+  bool editable = 6;
 }
 
 message PresentationSlide {

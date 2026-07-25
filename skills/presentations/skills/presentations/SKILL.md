@@ -446,6 +446,28 @@ writes a source/output-bound audit. Duplicate/missing names, fallback-only
 native names, unexpected package changes, pending clones, and any other
 ambiguous edit fail closed. This is not a generic template metadata editor.
 
+### Bounded Imported View-Properties Edit
+
+Do not patch `ppt/viewProps.xml` or use local guide visibility as a substitute
+for a file edit. For an imported deck whose `presentation.view.capability`
+reports `editable: true`, use the shipped transaction:
+
+```bash
+node examples/openchestnut-view-properties-edit-workflow.mjs \
+  input.pptx output.pptx audit.json \
+  '{"gridSpacingCxEmu":72000,"gridSpacingCyEmu":91440,"slideViewSnapToGrid":true,"slideViewSnapToObjects":false,"slideGuides":[{"orientation":"horizontal","position":2160},{"orientation":"vertical","position":2880}]}'
+```
+
+It keeps the original bytes immutable, requires an existing relationship-free
+fixed-topology view-properties part, changes only existing grid/snap values and
+guide positions, permits only `ppt/viewProps.xml` to differ, reimports and
+verifies the requested semantics, proves all slide renders remain unchanged,
+and writes a source/output-bound audit. It never creates view properties,
+changes guide count/order/orientation, writes `showGuides`, or reconstructs an
+extension/relationship graph. A missing/irregular/extended profile fails
+closed. Read `artifact_tool/api/references/presentation.spec.md` before using
+this path.
+
 ### Native Custom Shows
 
 For source-free decks, create all slides and then use

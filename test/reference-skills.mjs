@@ -191,6 +191,9 @@ assert.match(presentationApiDocs, /references\/charts\.spec\.md/);
 assert.match(presentationApiDocs, /sections\.spec\.md/);
 assert.match(presentationSpec, /showGridlines\(\).*showGuides\(\)/s);
 assert.match(presentationSpec, /gridSpacingCxEmu.*gridSpacingCyEmu/s);
+assert.match(presentationSpec, /presentation\.view\.capability.*editable/s);
+assert.match(presentationSpec, /setSourceProperties\(/);
+assert.match(presentationSpec, /guide count\/order\/orientation|add\/remove\/reorient guides/i);
 assert.match(presentationSpec, /presentation\.sections\.add/);
 assert.match(presentationSectionsSpec, /p14:sectionLst/);
 assert.match(presentationSectionsSpec, /partition every deck slide exactly once/i);
@@ -208,6 +211,8 @@ assert.match(presentationSkillText, /openchestnut-legacy-comment-edit-workflow\.
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-legacy-comment-edit-workflow.mjs")));
 assert.match(presentationSkillText, /openchestnut-slide-name-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-slide-name-edit-workflow.mjs")));
+assert.match(presentationSkillText, /openchestnut-view-properties-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-view-properties-edit-workflow.mjs")));
 
 const documentsSkillRoot = path.join(skillsRoot, "documents", "skills", "documents");
 const documentsManifest = (await fs.readFile(path.join(documentsSkillRoot, "manifest.txt"), "utf8"))
