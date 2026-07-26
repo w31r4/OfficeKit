@@ -778,6 +778,139 @@ try {
   assert.equal(viewPropertiesCli.status, 0, `view-properties CLI failed\n${viewPropertiesCli.stdout}\n${viewPropertiesCli.stderr}`);
   assert.equal(JSON.parse(viewPropertiesCli.stdout).targetPart, "ppt/viewProps.xml");
 
+  const transitionEditDir = path.join(root, "transition-edit-workflow");
+  const transitionEditInput = path.join(transitionEditDir, "transition-source.pptx");
+  const transitionEditOutput = path.join(transitionEditDir, "transition-updated.pptx");
+  const transitionEditAudit = path.join(transitionEditDir, "audit.json");
+  const transitionEditDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+  const transitionEditTarget = transitionEditDeck.slides.add({ name: "Transition review target" });
+  transitionEditTarget.shapes.add({
+    name: "transition-review-title",
+    position: { left: 48, top: 72, width: 520, height: 72 },
+    text: "Visible slide content must remain stable",
+  });
+  transitionEditTarget.setTransition({ effect: "fade", speed: "medium", advanceOnClick: true, advanceAfterMs: 1_200 });
+  const transitionEditUntouched = transitionEditDeck.slides.add({ name: "Transition appendix" });
+  transitionEditUntouched.shapes.add({
+    name: "transition-appendix-title",
+    position: { left: 48, top: 72, width: 520, height: 72 },
+    text: "Appendix slide remains byte-stable",
+  });
+  transitionEditUntouched.setTransition({ effect: "push", direction: "left", speed: "fast", advanceOnClick: false });
+  await fs.mkdir(transitionEditDir, { recursive: true });
+  await (await PresentationFile.exportPptx(transitionEditDeck)).save(transitionEditInput);
+  const transitionEditSource = await fs.readFile(transitionEditInput);
+  const { editPptxTransition } = await import(
+    "../skills/presentations/skills/presentations/examples/openchestnut-transition-edit-workflow.mjs"
+  );
+  const transitionEditResult = await editPptxTransition({
+    inputPath: transitionEditInput,
+    outputPath: transitionEditOutput,
+    auditPath: transitionEditAudit,
+    slideName: "Transition review target",
+    expectedTransition: { effect: "fade", speed: "medium", advanceOnClick: true, advanceAfterMs: 1_200 },
+    replacementTransition: { effect: "push", direction: "down", speed: "slow", advanceOnClick: false },
+  });
+  assert.equal(transitionEditResult.audit.operation.type, "source-bound-transition-edit");
+  assert.equal(transitionEditResult.audit.operation.partPath, "ppt/slides/slide1.xml");
+  assert.equal(transitionEditResult.audit.validation.package.onlyTargetSlidePartChanged, true);
+  assert.equal(transitionEditResult.audit.validation.package.nonTargetPartsByteIdentical, true);
+  assert.equal(transitionEditResult.audit.validation.reimport.replacementSemanticsRetained, true);
+  assert.equal(transitionEditResult.audit.validation.nonTransitionSemantics.stable, true);
+  assert.equal(transitionEditResult.audit.validation.modelRender.byteIdentical, true);
+  assert.deepEqual(await fs.readFile(transitionEditInput), transitionEditSource);
+  const transitionEditOutputZip = await JSZip.loadAsync(await fs.readFile(transitionEditOutput));
+  const transitionEditSourceZip = await JSZip.loadAsync(transitionEditSource);
+  assert.notDeepEqual(
+    await transitionEditOutputZip.file("ppt/slides/slide1.xml").async("uint8array"),
+    await transitionEditSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
+  );
+  assert.deepEqual(
+    await transitionEditOutputZip.file("ppt/slides/slide2.xml").async("uint8array"),
+    await transitionEditSourceZip.file("ppt/slides/slide2.xml").async("uint8array"),
+  );
+  const transitionEditRoundTrip = await PresentationFile.importPptx(new FileBlob(await fs.readFile(transitionEditOutput), {
+    type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    name: "transition-updated.pptx",
+  }));
+  assert.deepEqual(transitionEditRoundTrip.slides.getItem(0).transition.toJSON(), {
+    effect: "push",
+    direction: "down",
+    speed: "slow",
+    advanceOnClick: false,
+  });
+  assert.deepEqual(transitionEditRoundTrip.slides.getItem(1).transition.toJSON(), {
+    effect: "push",
+    direction: "left",
+    speed: "fast",
+    advanceOnClick: false,
+  });
+  assert.deepEqual(transitionEditRoundTrip.slides.getItem(0).transition.capability, {
+    sourceBound: true,
+    partPresent: true,
+    editable: true,
+    addable: false,
+  });
+  const transitionEditBaselineDir = path.join(transitionEditDir, "baselines");
+  await verifyPresentationFile(transitionEditInput, {
+    outputDir: path.join(transitionEditDir, "source-qa"),
+    nativeRender,
+    baselineDir: transitionEditBaselineDir,
+    writeBaseline: true,
+  });
+  const transitionEditReview = await verifyPresentationFile(transitionEditOutput, {
+    outputDir: path.join(transitionEditDir, "output-qa"),
+    nativeRender,
+    baselineDir: transitionEditBaselineDir,
+  });
+  assert.ok(transitionEditReview.modelRender.slides.every((slide) => slide.pixelDiff?.changed === false));
+  if (nativeStatus.available) assert.ok(transitionEditReview.nativeRender.pages.every((page) => page.pixelDiff?.changed === false));
+  const transitionEditRejectedOutput = path.join(transitionEditDir, "transition-should-not-exist.pptx");
+  const transitionEditRejectedAudit = path.join(transitionEditDir, "rejected-audit.json");
+  await assert.rejects(
+    () => editPptxTransition({
+      inputPath: transitionEditInput,
+      outputPath: transitionEditRejectedOutput,
+      auditPath: transitionEditRejectedAudit,
+      slideName: "Transition review target",
+      expectedTransition: { effect: "fade", speed: "medium", advanceOnClick: true, advanceAfterMs: 1_201 },
+      replacementTransition: { effect: "push", direction: "down", speed: "slow", advanceOnClick: false },
+    }),
+    /does not match expectedTransition/i,
+  );
+  assert.equal(await fs.access(transitionEditRejectedOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(transitionEditRejectedAudit).then(() => true, () => false), false);
+  const transitionEditCollisionOutput = path.join(transitionEditDir, "transition-existing-output.pptx");
+  const transitionEditCollisionAudit = path.join(transitionEditDir, "collision-audit.json");
+  const collisionSentinel = Buffer.from("preserve-existing-output");
+  await fs.writeFile(transitionEditCollisionOutput, collisionSentinel);
+  await assert.rejects(
+    () => editPptxTransition({
+      inputPath: transitionEditInput,
+      outputPath: transitionEditCollisionOutput,
+      auditPath: transitionEditCollisionAudit,
+      slideName: "Transition review target",
+      expectedTransition: { effect: "fade", speed: "medium", advanceOnClick: true, advanceAfterMs: 1_200 },
+      replacementTransition: { effect: "push", direction: "down", speed: "slow", advanceOnClick: false },
+    }),
+    /outputPath already exists; refusing to overwrite/i,
+  );
+  assert.deepEqual(await fs.readFile(transitionEditCollisionOutput), collisionSentinel);
+  assert.equal(await fs.access(transitionEditCollisionAudit).then(() => true, () => false), false);
+  const transitionEditCliOutput = path.join(transitionEditDir, "transition-cli.pptx");
+  const transitionEditCliAudit = path.join(transitionEditDir, "cli-audit.json");
+  const transitionEditCli = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/examples/openchestnut-transition-edit-workflow.mjs",
+    transitionEditInput,
+    transitionEditCliOutput,
+    transitionEditCliAudit,
+    "Transition review target",
+    JSON.stringify({ effect: "fade", speed: "medium", advanceOnClick: true, advanceAfterMs: 1_200 }),
+    JSON.stringify({ effect: "push", direction: "right", speed: "fast", advanceOnClick: true, advanceAfterMs: 2_000 }),
+  ], { encoding: "utf8" });
+  assert.equal(transitionEditCli.status, 0, `transition-edit CLI failed\n${transitionEditCli.stdout}\n${transitionEditCli.stderr}`);
+  assert.equal(JSON.parse(transitionEditCli.stdout).targetPart, "ppt/slides/slide1.xml");
+
   const customShowDir = path.join(root, "custom-show-workflow");
   const customShowInput = path.join(customShowDir, "custom-show-source.pptx");
   const customShowOutput = path.join(customShowDir, "custom-show-updated.pptx");
@@ -1841,6 +1974,7 @@ try {
   assert.match(skillText, /openchestnut-title-notes-edit-workflow\.mjs/);
   assert.match(skillText, /openchestnut-modern-comment-workflow\.mjs/);
   assert.match(skillText, /openchestnut-slide-name-edit-workflow\.mjs/);
+  assert.match(skillText, /openchestnut-transition-edit-workflow\.mjs/);
   assert.match(skillText, /openchestnut-slide-duplicate-workflow\.mjs/);
   assert.match(skillText, /--allow-closed-leaves/);
   assert.match(quickStartText, /PresentationFile\.exportPptx/);
@@ -1852,6 +1986,7 @@ try {
   assert.match(quickStartText, /editPptxLegacyReviewComment/);
   assert.match(quickStartText, /comments\.capability.*sourceBound.*format.*partPresent.*editable.*addable.*no legacy or Office 2021 comment graph.*re-proves/is);
   assert.match(quickStartText, /editPptxSlideName/);
+  assert.match(quickStartText, /openchestnut-transition-edit-workflow\.mjs/);
   assert.match(quickStartText, /duplicatePptxSlide/);
   assert.match(quickStartText, /allowClosedLeaves:\s*true/);
   assert.match(quickStartText, /commentFormat:\s*"modern"/);
@@ -1921,6 +2056,8 @@ try {
   assert.match(transitionReferenceText, /with no transition is addable only when.*capability\.addable.*`p:cSld`.*`p:clrMapOvr`.*`p:transition`, `p:timing`, or extension leaf/is);
   assert.match(transitionReferenceText, /`p:timing`.*`p14:dur`.*sound.*extension.*opaque.*byte-for-byte/is);
   assert.match(transitionReferenceText, /static PNG\/PDF render cannot prove slideshow playback/is);
+  assert.match(transitionReferenceText, /openchestnut-transition-edit-workflow\.mjs.*unique imported slide name.*expected source state.*replacement state/is);
+  assert.match(transitionReferenceText, /non-target parts.*Exactly the selected SlidePart must differ/is);
   const customShowReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/custom-shows.spec.md", "utf8");
   assert.match(customShowReferenceText, /bounded slide clone profile.*relationship-free action.*creates no hyperlink\/slide relationship.*clone is not implicitly added/is);
   const imageReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/images.spec.md", "utf8");
