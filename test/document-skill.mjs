@@ -605,6 +605,214 @@ try {
     /must be distinct/,
   );
 
+  const marginWorkflowSourceDocument = DocumentModel.create({ name: "Source-bound section margin edit", blocks: [] });
+  marginWorkflowSourceDocument.addParagraph("Prelude for the canonical section-margin transaction.");
+  marginWorkflowSourceDocument.addSection({
+    breakType: "nextPage",
+    margins: { top: 1440, right: 1440, bottom: 1440, left: 1440, gutter: 0 },
+    pageNumbering: { start: 1, format: "lowerRoman" },
+  });
+  marginWorkflowSourceDocument.addParagraph("Only this section's left page margin may change.");
+  marginWorkflowSourceDocument.addSection({
+    breakType: "nextPage",
+    margins: { top: 720, right: 1440, bottom: 1440, left: 1440, gutter: 0 },
+    pageNumbering: { start: 1, format: "decimal" },
+  });
+  marginWorkflowSourceDocument.addParagraph("The sibling section is a raw-XML canary.");
+  for (let sectionIndex = 0; sectionIndex < 3; sectionIndex += 1) {
+    marginWorkflowSourceDocument.addFooter("1", {
+      id: `footer/margin-canary-${sectionIndex}`,
+      sectionIndex,
+      referenceType: "default",
+      fieldInstruction: "PAGE",
+    });
+  }
+  const marginWorkflowSourcePath = path.join(outputDir, "source-bound-section-margins-source.docx");
+  await (await DocumentFile.exportDocx(marginWorkflowSourceDocument)).save(marginWorkflowSourcePath);
+  const marginWorkflowSourceBytes = await fs.readFile(marginWorkflowSourcePath);
+  const marginWorkflowImported = await DocumentFile.importDocx(await FileBlob.load(marginWorkflowSourcePath));
+  assert.deepEqual(marginWorkflowImported.blocks[1]?.margins, { top: 1440, right: 1440, bottom: 1440, left: 1440, gutter: 0 });
+  assert.deepEqual(marginWorkflowImported.blocks[3]?.margins, { top: 720, right: 1440, bottom: 1440, left: 1440, gutter: 0 });
+  assert.deepEqual(marginWorkflowImported.blocks[1]?.pageNumbering, { start: 1, format: "lowerRoman" });
+  assert.deepEqual(marginWorkflowImported.blocks[3]?.pageNumbering, { start: 1, format: "decimal" });
+  const { editImportedSectionPageNumbering } = await import(
+    "../skills/documents/skills/documents/examples/officekit-section-page-numbering-edit-workflow.mjs"
+  );
+  const pageNumberingRegressionOutputPath = path.join(outputDir, "source-bound-section-page-numbering-regression.docx");
+  const pageNumberingRegressionAuditPath = path.join(outputDir, "source-bound-section-page-numbering-regression-audit.json");
+  const pageNumberingRegression = await editImportedSectionPageNumbering({
+    inputPath: marginWorkflowSourcePath,
+    outputPath: pageNumberingRegressionOutputPath,
+    auditPath: pageNumberingRegressionAuditPath,
+    sectionBlockIndex: 1,
+    expectedPageNumbering: { start: 1, format: "lowerRoman" },
+    replacementPageNumbering: { start: 1, format: "upperRoman" },
+  });
+  assert.deepEqual(pageNumberingRegression.audit.validation.changedParts, ["word/document.xml"]);
+  assert.deepEqual(await fs.readFile(marginWorkflowSourcePath), marginWorkflowSourceBytes);
+  const pageNumberingRegressionDocument = await DocumentFile.importDocx(await FileBlob.load(pageNumberingRegressionOutputPath));
+  assert.deepEqual(pageNumberingRegressionDocument.blocks[1]?.pageNumbering, { start: 1, format: "upperRoman" });
+  assert.deepEqual(pageNumberingRegressionDocument.blocks[3]?.pageNumbering, { start: 1, format: "decimal" });
+  const {
+    editImportedSectionMargins,
+    parseSectionMarginEditCli,
+    sectionMarginCliOutput,
+  } = await import(
+    "../skills/documents/skills/documents/examples/officekit-section-margin-edit-workflow.mjs"
+  );
+  const sourceMargins = { top: 1440, right: 1440, bottom: 1440, left: 1440, gutter: 0 };
+  const replacementMargins = { top: 1440, right: 1440, bottom: 1440, left: 1728, gutter: 0 };
+  const marginWorkflowOutputPath = path.join(outputDir, "source-bound-section-margins-edited.docx");
+  const marginWorkflowAuditPath = path.join(outputDir, "source-bound-section-margins-edited-audit.json");
+  const marginWorkflow = await editImportedSectionMargins({
+    inputPath: marginWorkflowSourcePath,
+    outputPath: marginWorkflowOutputPath,
+    auditPath: marginWorkflowAuditPath,
+    sectionBlockIndex: 1,
+    expectedMargins: sourceMargins,
+    replacementMargins,
+  });
+  assert.equal(marginWorkflow.audit.provider.actual, "office-kit");
+  assert.equal(marginWorkflow.audit.provider.silentFallback, false);
+  assert.deepEqual(marginWorkflow.audit.savePolicy, { strategy: "rewrite", noReplace: true });
+  assert.equal(marginWorkflow.audit.operation.type, "source-bound-section-margin-edit");
+  assert.deepEqual(marginWorkflow.audit.operation.target, {
+    id: marginWorkflowImported.blocks[1].id,
+    blockIndex: 1,
+    sectionOrdinal: 0,
+  });
+  assert.deepEqual(marginWorkflow.audit.operation.sourceMargins, sourceMargins);
+  assert.deepEqual(marginWorkflow.audit.operation.replacementMargins, replacementMargins);
+  assert.deepEqual(marginWorkflow.audit.validation.changedParts, ["word/document.xml"]);
+  assert.equal(marginWorkflow.audit.validation.marginsXmlResidual.ok, true);
+  assert.equal(marginWorkflow.audit.validation.marginsXmlResidual.headerTwips, 720);
+  assert.equal(marginWorkflow.audit.validation.marginsXmlResidual.footerTwips, 720);
+  assert.equal(marginWorkflow.audit.validation.reimport.editable, true);
+  assert.deepEqual(marginWorkflow.audit.validation.reimport.margins, replacementMargins);
+  assert.equal(marginWorkflow.audit.validation.nativeRenderRequired, true);
+  assert.deepEqual(sectionMarginCliOutput(marginWorkflow).changedParts, ["word/document.xml"]);
+  assert.deepEqual(await fs.readFile(marginWorkflowSourcePath), marginWorkflowSourceBytes);
+
+  const marginWorkflowOutputBytes = await fs.readFile(marginWorkflowOutputPath);
+  const [marginWorkflowSourceZip, marginWorkflowOutputZip] = await Promise.all([
+    JSZip.loadAsync(marginWorkflowSourceBytes),
+    JSZip.loadAsync(marginWorkflowOutputBytes),
+  ]);
+  const marginWorkflowParts = Object.keys(marginWorkflowSourceZip.files).filter((partPath) => !marginWorkflowSourceZip.files[partPath].dir).sort();
+  assert.deepEqual(
+    Object.keys(marginWorkflowOutputZip.files).filter((partPath) => !marginWorkflowOutputZip.files[partPath].dir).sort(),
+    marginWorkflowParts,
+  );
+  for (const partPath of marginWorkflowParts) {
+    if (partPath === "word/document.xml") continue;
+    assert.deepEqual(
+      Buffer.from(await marginWorkflowOutputZip.file(partPath).async("uint8array")),
+      Buffer.from(await marginWorkflowSourceZip.file(partPath).async("uint8array")),
+      `Only word/document.xml may change; ${partPath} drifted.`,
+    );
+  }
+  const [marginSourceXml, marginOutputXml] = await Promise.all([
+    marginWorkflowSourceZip.file("word/document.xml").async("text"),
+    marginWorkflowOutputZip.file("word/document.xml").async("text"),
+  ]);
+  const pageMarginTags = (xml) => [...xml.matchAll(/<w:pgMar\b[^>]*\/>/g)].map((match) => match[0]);
+  const pageMarginAttributes = (tag) => Object.fromEntries(
+    [...tag.matchAll(/w:([\w-]+)="([^"]*)"/g)].map((match) => [match[1], Number(match[2])]),
+  );
+  const sourcePageMargins = pageMarginTags(marginSourceXml);
+  const outputPageMargins = pageMarginTags(marginOutputXml);
+  assert.equal(sourcePageMargins.length, 3);
+  assert.equal(outputPageMargins.length, sourcePageMargins.length);
+  assert.deepEqual(pageMarginAttributes(sourcePageMargins[0]), {
+    top: 1440, right: 1440, bottom: 1440, left: 1440, header: 720, footer: 720, gutter: 0,
+  });
+  assert.deepEqual(pageMarginAttributes(outputPageMargins[0]), {
+    top: 1440, right: 1440, bottom: 1440, left: 1728, header: 720, footer: 720, gutter: 0,
+  });
+  assert.deepEqual(outputPageMargins.slice(1), sourcePageMargins.slice(1));
+  const marginWorkflowOutputDocument = await DocumentFile.importDocx(await FileBlob.load(marginWorkflowOutputPath));
+  assert.deepEqual(marginWorkflowOutputDocument.blocks[1]?.margins, replacementMargins);
+  assert.deepEqual(marginWorkflowOutputDocument.blocks[3]?.margins, { top: 720, right: 1440, bottom: 1440, left: 1440, gutter: 0 });
+  const marginWorkflowRender = await verifyDocumentFile(marginWorkflowOutputPath, {
+    outputDir: path.join(outputDir, "source-bound-section-margins-render"),
+    previewFormat: "png",
+    nativeRender: nativeStatus.available ? "required" : "auto",
+  });
+  assert.equal(marginWorkflowRender.summary.verifyOk, true);
+  assert.equal(marginWorkflowRender.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
+
+  const marginCliOutputPath = path.join(outputDir, "source-bound-section-margins-cli.docx");
+  const marginCliAuditPath = path.join(outputDir, "source-bound-section-margins-cli-audit.json");
+  const marginCliReplacement = { top: 1440, right: 1440, bottom: 1440, left: 1584, gutter: 0 };
+  assert.deepEqual(parseSectionMarginEditCli([
+    marginWorkflowSourcePath,
+    marginCliOutputPath,
+    marginCliAuditPath,
+    "1",
+    JSON.stringify(sourceMargins),
+    JSON.stringify(marginCliReplacement),
+  ]), {
+    inputPath: marginWorkflowSourcePath,
+    outputPath: marginCliOutputPath,
+    auditPath: marginCliAuditPath,
+    sectionBlockIndex: 1,
+    expectedMargins: sourceMargins,
+    replacementMargins: marginCliReplacement,
+  });
+  const marginCliProcess = spawnSync(process.execPath, [
+    path.join(repoRoot, "skills", "documents", "skills", "documents", "examples", "officekit-section-margin-edit-workflow.mjs"),
+    marginWorkflowSourcePath,
+    marginCliOutputPath,
+    marginCliAuditPath,
+    "1",
+    JSON.stringify(sourceMargins),
+    JSON.stringify(marginCliReplacement),
+  ], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(marginCliProcess.status, 0, marginCliProcess.stderr);
+  assert.deepEqual(JSON.parse(marginCliProcess.stdout), {
+    outputPath: marginCliOutputPath,
+    auditPath: marginCliAuditPath,
+    outputSha256: createHash("sha256").update(await fs.readFile(marginCliOutputPath)).digest("hex"),
+    changedParts: ["word/document.xml"],
+  });
+  const marginCliDocument = await DocumentFile.importDocx(await FileBlob.load(marginCliOutputPath));
+  assert.deepEqual(marginCliDocument.blocks[1]?.margins, marginCliReplacement);
+
+  await assert.rejects(
+    () => editImportedSectionMargins({
+      inputPath: marginWorkflowSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-margins-mismatched.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-margins-mismatched-audit.json"),
+      sectionBlockIndex: 1,
+      expectedMargins: { ...sourceMargins, left: 999 },
+      replacementMargins,
+    }),
+    /margins do not match the expected source value/,
+  );
+  await assert.rejects(
+    () => editImportedSectionMargins({
+      inputPath: marginWorkflowSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-margins-invalid.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-margins-invalid-audit.json"),
+      sectionBlockIndex: 1,
+      expectedMargins: sourceMargins,
+      replacementMargins: { top: 1440, right: 1440, bottom: 1440, left: 1728 },
+    }),
+    /replacementMargins\.gutter is required/,
+  );
+  await assert.rejects(
+    () => editImportedSectionMargins({
+      inputPath: marginWorkflowSourcePath,
+      outputPath: marginWorkflowOutputPath,
+      auditPath: path.join(outputDir, "source-bound-section-margins-overwrite-audit.json"),
+      sectionBlockIndex: 1,
+      expectedMargins: sourceMargins,
+      replacementMargins,
+    }),
+    /outputPath already exists; refusing to overwrite it/,
+  );
+  assert.deepEqual(await fs.readFile(marginWorkflowSourcePath), marginWorkflowSourceBytes);
+
   const toc = await runFixture("office-kit-toc", {
     nativeRender: nativeStatus.available ? "required" : "auto",
   });
@@ -1218,6 +1426,7 @@ try {
   assert.match(skillText, /officekit-classic-comment-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-header-text-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-footer-text-edit-workflow\.mjs/);
+  assert.match(skillText, /officekit-section-margin-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-note-text-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-modern-comment-thread-workflow\.mjs/);
   assert.match(skillText, /officekit-watermark-workflow\.mjs/);
@@ -1235,8 +1444,10 @@ try {
   assert.match(manifestText, /^examples\/officekit-page-furniture-text-edit\.mjs$/m);
   assert.match(manifestText, /^examples\/officekit-header-text-edit-workflow\.mjs$/m);
   assert.match(manifestText, /^examples\/officekit-footer-text-edit-workflow\.mjs$/m);
+  assert.match(manifestText, /^examples\/officekit-section-margin-edit-workflow\.mjs$/m);
   assert.match(manifestText, /^examples\/officekit-note-text-edit-workflow\.mjs$/m);
   assert.match(manifestText, /^artifact_tool\/_source_bound_docx\.mjs$/m);
+  assert.match(manifestText, /^artifact_tool\/_source_bound_sections\.mjs$/m);
   assert.match(manifestText, /^examples\/officekit-modern-comment-thread-workflow\.mjs$/m);
   assert.match(manifestText, /^examples\/officekit-watermark-workflow\.mjs$/m);
   assert.match(manifestText, /^tasks\/headers_footers\.md$/m);

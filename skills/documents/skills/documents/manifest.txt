@@ -35,6 +35,7 @@ references/design_presets.md
 references/header_templates.md
 artifact_tool/API_QUICK_START.md
 artifact_tool/_source_bound_docx.mjs
+artifact_tool/_source_bound_sections.mjs
 examples/officekit-end-to-end.mjs
 examples/officekit-source-text-patch-workflow.mjs
 examples/officekit-watermark-workflow.mjs
@@ -43,6 +44,7 @@ examples/officekit-page-furniture-text-edit.mjs
 examples/officekit-header-text-edit-workflow.mjs
 examples/officekit-footer-text-edit-workflow.mjs
 examples/officekit-section-page-numbering-edit-workflow.mjs
+examples/officekit-section-margin-edit-workflow.mjs
 examples/officekit-note-text-edit-workflow.mjs
 examples/officekit-modern-comment-thread-workflow.mjs
 examples/officekit-tracked-replacement-workflow.mjs

@@ -66,6 +66,18 @@ import, edit, second import, Open XML SDK validation, and native render QA when
 LibreOffice/Poppler are available. Rich/multi-run bodies and bodies beyond the
 16-paragraph profile remain opaque/source-bound.
 
+### Documents canonical section-margin transaction
+
+The Documents Skill also publishes
+`officekit-section-margin-edit-workflow.mjs` for one imported editable
+canonical section. It binds the inspected block index and all five source twip
+values, writes only the selected `w:pgMar` body margins, preserves raw
+`w:header`/`w:footer` distance canaries, permits only `word/document.xml`, and
+then proves the normalized residual plus full section projection on second
+import. The input and audit/output paths are distinct and protected from
+overwrite. This is a fixed-source page-geometry correction; irregular or
+unrecognized section markup remains source-bound.
+
 ### Presentation embedded DOCX OLE evidence
 
 `officekit-ole-office-package-workflow.mjs` is the only generic embedded
