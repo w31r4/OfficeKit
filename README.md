@@ -1,67 +1,125 @@
 # OfficeKit
 
-## 让 Agent 交得出 Word、Excel、PPT 和 PDF
+## 把一句需求变成可以交付的 Office 文件
 
 **简体中文** | [English](README.en.md)
 
-写一段内容很容易。把它做成明天要开会、发给客户、留作正式记录，下一次还能继续修改的文件，要求高得多。
+给 Agent 数据、现有文件和一句需求，拿回能打开、能继续编辑、能交付的
+Word、Excel、PowerPoint 或 PDF。
 
-OfficeKit 给 Agent 一套处理 Word、Excel、PowerPoint 和 PDF 的 Skills 与 JavaScript API：创建新文件，读取已有文件，做受支持的局部修改，再把结果重新打开、渲染并检查。无法可靠保留的复杂内容不会被悄悄改坏；有风险的修改会明确停下来说明原因。
+```text
+→ 一个入口，自动选择 Word、Excel、PPT 或 PDF 工作流
+→ 有合适模板就复用，没有就从零开始
+→ 修改已有文件时保留未触及的复杂内容
+→ 交付前重新打开、渲染并检查
+```
 
-## 直接说出你要交付的东西
+## 看它怎么工作
 
-把下面这类任务交给装有 OfficeKit 的 Agent：
+```text
+你：
+使用 OfficeKit。用 sales.xlsx 做一份给管理层看的 Q2 经营复盘 PPT，
+必须包含收入、毛利、区域差异、主要风险和三项决策；模板由你判断。
 
-> “把这几份 CSV 做成下周经营会用的 Excel 模型；关键指标保留公式，图表可以直接放进汇报。”
+OfficeKit：
+读取数据 → 确定 PPT 工作流 → 选择模板或不用模板
+→ 生成文件 → 重新打开 → 渲染检查 → 返回 q2-review.pptx
+```
 
-> “沿用公司的 PPT 模板做一套 QBR。替换数据和图片，检查每一页有没有溢出或错位。”
+也可以直接提出单一格式任务：
 
-> “更新这份 Word 里的日期、负责人和条款，页眉、目录、引用和现有批注不能乱。”
+```text
+使用 OfficeKit，把这些 CSV 做成带公式、图表和异常标记的 Excel 经营看板。
+使用 OfficeKit，沿用 template.pptx 和 data.xlsx 完成一份客户汇报。
+使用 OfficeKit，更新 contract.docx 的日期和条款，保留目录、批注和页眉。
+使用 OfficeKit，检查 report.pdf 的表单、签名和可访问性并输出审计结果。
+```
 
-> “把这批扫描 PDF 变成可搜索文件，标出敏感信息、做脱敏，并给我一份可核查的结果。”
+## Quick Start
 
-OfficeKit 既能从零开始生成，也能在原文件上工作。它适合报告、财务模型、客户方案、培训材料、合同草稿、批量模板和 PDF 处理任务。
-
-## 两步装进项目
-
-在 Agent 要工作的 Node.js 项目里执行：
+需要 Node.js 22 或更新版本。在 Agent 工作的项目中执行：
 
 ```sh
 npm install github:w31r4/open-office-artifact-tool
+npx skills add w31r4/open-office-artifact-tool --skill '*' --yes
+```
+
+第一条命令安装文件运行库，第二条命令安装 OfficeKit、四个文件类型 Skill、
+Excel Live Control、Template Creator 和开源模板。无需 clone 仓库，也不要求
+本机安装 Microsoft Office、.NET SDK 或 Python。
+
+只安装核心 Skills：
+
+```sh
 npx skills add w31r4/open-office-artifact-tool \
   --skill officekit documents spreadsheets excel-live-control presentations pdf template-creator \
   --yes
 ```
 
-第一行安装运行库，第二行安装 OfficeKit 总入口和核心 Skills。首次接入无需 clone 仓库，也不需要安装 Office、.NET 或 Python。当前正式 npm 包尚未发布，因此先使用 GitHub 安装源；发布后可换成 `npm install open-office-artifact-tool`。
-
-希望把 20 个开源模板也作为可直接点名的 Skills 暴露出来时：
+当前正式 npm 包尚未发布，因此使用 GitHub 安装源。发布后第一条命令可改为：
 
 ```sh
-npx skills add w31r4/open-office-artifact-tool --skill '*' --yes
+npm install open-office-artifact-tool
 ```
 
-默认核心安装不会把 20 份模板描述同时塞给 Agent。只有“目标明确、模板未指定”时，OfficeKit 才会用本地 BM25F 检索紧凑 metadata；脚本返回候选和命中理由，最终由 Agent 选择、询问或决定不用模板。只有最后的少量候选才会加载预览和具体说明。
+## 一个总入口，也保留直接入口
 
-推荐 Node.js 22 或更新版本。Office 运行时已随包提供；PDF 的 MuPDF.js 只会在第一次 PDF 操作时加载。
+普通任务直接使用 OfficeKit。它会检查输入、确定输出格式、判断是否需要模板，
+再把文件交给对应 Skill 完成。
 
-## Skills 让 Agent 知道怎么做
-
-Skills 不是一份功能清单。它们告诉 Agent 先看什么、改完如何检查、什么情况必须停下：
-
-| Skill | 适合的任务 |
+| 入口 | 适合的任务 |
 | --- | --- |
-| [OfficeKit](skills/officekit/skills/officekit/SKILL.md) | 模糊、跨格式或多交付物任务；拆分流程、选择领域 Skill，并判断是否需要模板。 |
-| [Documents](skills/documents/skills/documents/SKILL.md) | Word 报告、函件、合同草稿、带表格和图片的正式文档。 |
-| [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | Excel 模型、数据整理、公式、图表、验证和可视化。 |
-| [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | 操作已经在 Excel 中打开的工作簿；不会偷偷改走离线文件编辑。 |
-| [Presentations](skills/presentations/skills/presentations/SKILL.md) | PowerPoint 汇报、模板套用、图表、图片、备注和版式检查。 |
-| [PDF](skills/pdf/skills/pdf/SKILL.md) | PDF 读取、创建、表单、批注、页面处理、渲染和专项处理。 |
-| [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | 从自己的 DOCX、XLSX、PPTX 参考文件制作可复用模板。 |
+| [OfficeKit](skills/officekit/skills/officekit/SKILL.md) | 不想先研究工具，或需要跨格式、多交付物和模板判断。 |
+| [Documents](skills/documents/skills/documents/SKILL.md) | 已确定要创建或修改 Word。 |
+| [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | 已确定要处理 Excel、CSV、公式、模型或图表。 |
+| [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | 操作已经在 Excel 中打开的工作簿。 |
+| [Presentations](skills/presentations/skills/presentations/SKILL.md) | 已确定要创建或修改 PowerPoint。 |
+| [PDF](skills/pdf/skills/pdf/SKILL.md) | 已确定要读取、创建、检查或处理 PDF。 |
+| [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | 把自己的 DOCX、XLSX 或 PPTX 保存为可复用模板。 |
 
-Skills 和应用代码使用同一个包。Agent 可以按 Skill 完成任务，应用也可以直接调用 API，把文件能力接进自己的产品或自动化任务。
+入口不同，底层文件能力和检查规则相同。直接使用领域 Skill 只会跳过格式路由，
+不会绕过源文件保护、渲染或验证。
 
-## 从代码调用
+## 能做什么
+
+| 文件 | 常见任务 |
+| --- | --- |
+| Word / DOCX | 报告、函件、合同草稿、样式、分节、页眉页脚、表格、图片、字段、批注和有界局部修改。 |
+| Excel / XLSX | 数据整理、公式、样式、表格、验证、条件格式、图表、sparklines、有界 PivotTable 和财务模型。 |
+| PowerPoint / PPTX | 演示文稿、模板套用、富文本、图片裁剪、表格、图表、连接线、备注、批注和 Master/Layout 保真。 |
+| PDF | 创建、提取文本/表格/图片/链接、表单、批注、页面操作、渲染、rewrite 脱敏和有界签名。 |
+
+完整边界见 [coverage](docs/coverage.md)。
+
+## 模板是加速器，不是前提
+
+[Office Template Library](skills/default-template-library/README.md) 提供 20 套
+MIT 授权模板。OfficeKit 只在目标明确、模板未指定时检索紧凑 metadata；
+Agent 查看少量候选后选择一个、询问用户或明确不用模板。
+
+用户上传的 DOCX、XLSX 或 PPTX 可以只用于当前任务，不会自动注册或覆盖。
+只有明确要求以后复用时，才交给 Template Creator 保存。
+
+## 文件交付前会再检查一遍
+
+```text
+读取原件 → 创建或修改 → 导出 → 重新打开 → 渲染页面 → 检查结果
+```
+
+- DOCX、XLSX 和 PPTX 统一通过 OpenChestnut C#/.NET WASM 读写；包内没有第二套
+  JavaScript Office writer 或静默 fallback。
+- 无法安全修改的 Office 内容会原样保留或明确拒绝修改，不会为了“看起来成功”
+  而破坏原文件。
+- PDF 默认通过 MuPDF.js 读取、编辑、检查和渲染。qpdf、OCR、严格清理、
+  pyHanko 签名和 veraPDF 等重型能力由项目显式授权后按需启用，不会静默下载。
+
+PDF provider 的策略和限制见
+[Provider Setup](skills/pdf/skills/pdf/tasks/provider_setup.md)。
+
+## JavaScript API
+
+Skills 和应用代码使用同一个包。Agent 可以按 Skill 完成任务，应用也可以直接调用
+API：
 
 ```js
 import { SpreadsheetFile, Workbook } from "open-office-artifact-tool";
@@ -77,75 +135,22 @@ const file = await SpreadsheetFile.exportXlsx(workbook, { recalculate: true });
 await file.save("summary.xlsx");
 ```
 
-可直接运行的例子：
+可运行示例：
 
 - [创建 DOCX 报告](examples/create-docx-report.mjs)
 - [创建 XLSX 仪表盘](examples/create-xlsx-dashboard.mjs)
 - [使用 Compose 创建 PPTX](examples/create-pptx-compose.mjs)
 - [解析与渲染 PDF](examples/parse-render-pdf.mjs)
 
-### 迁移旧 codec 导入
+旧的 `codecs/openxml-wasm` 导入在 0.x 中仍是 OpenChestnut 的弃用别名；
+新代码应使用 `codecs/open-chestnut`。详见 [release notes](docs/release.md)。
 
-旧的 `open-office-artifact-tool/codecs/openxml-wasm`（包括 `/wire`）在 0.x 仍可导入，但已弃用。它只是 `codecs/open-chestnut` 的同一模块别名：不会启用另一套 codec、fallback 或运行时，也不会在 import 时输出警告。请迁移到 `open-office-artifact-tool/codecs/open-chestnut`；最早只会在带有明确迁移说明的 1.0.0 中移除。
-
-## 交付前，文件会被再看一遍
-
-OfficeKit 的常用路径很简单：
-
-```text
-读取原件 → 创建或修改 → 导出 → 重新打开 → 渲染页面 → 检查结果
-```
-
-- DOCX、XLSX 和 PPTX 统一走 OpenChestnut C#/.NET WASM。没有第二套 JS Office writer 在背后兜底，也不需要本机 .NET。
-- 对无法安全建模的 Office 内容，系统会尽量保留原文件中相应部分；请求会破坏它时，修改会失败，而不是输出一个看起来正常、实际已变形的文件。
-- PDF 由 MuPDF.js 处理默认读写、检查和渲染。修复、OCR、严格清理、签名、PDF/A 或 PDF/UA 等专项能力需要明确选择对应 provider。
-
-| 文件 | 常见交付内容 |
-| --- | --- |
-| DOCX | 样式、段落、分节、页眉页脚、表格、图片、字段、评论，以及对现有文档的局部编辑。 |
-| XLSX | 单元格、公式、样式、合并、尺寸、冻结、表格、图片、数据验证、条件格式、图表、sparklines 和有界 PivotTable。 |
-| PPTX | 形状、富文本、图片与可逆裁剪、表格、连接线、图表、备注、评论和 Master/Layout 保真。 |
-| PDF | 创建、提取文本/表格/图片/链接、表单和批注、页面操作、rewrite 脱敏，以及有界签名。 |
-
-完整支持边界见 [coverage](docs/coverage.md)。
-
-## PDF 的重型能力，按项目授权启用
-
-MuPDF 是正常依赖。qpdf、Python、OCR、veraPDF/JRE 等不会塞进 npm 包，也不会由安装脚本或全局包管理器悄悄下载。
-
-Agent 先根据任务和文件检查结果选择 provider；项目默认不允许下载。只有在 `.open-office-artifact-tool/pdf-providers.json` 中明确把策略设为 `managed`，并且平台、哈希、体积、许可证和 OCR 语言都符合约束时，才可以安装受管能力包。已有运行时也可以明确选择 `system-only`。
-
-```js
-import { PdfFile } from "open-office-artifact-tool";
-import { PdfProviders } from "open-office-artifact-tool/pdf/providers";
-
-const inspection = await PdfFile.inspectPdf("input.pdf");
-const resolution = await PdfProviders.resolve({
-  task: "repair",
-  provider: "qpdf",
-  inspection,
-});
-
-console.log(resolution.status); // ready | installable | blocked
-```
-
-[PDF Provider Setup](skills/pdf/skills/pdf/tasks/provider_setup.md) 说明了策略、安装和各项能力的限制。
-
-## 模板：从已有好文件开始
-
-[Office Template Library](skills/default-template-library/README.md) 提供 20 套 MIT 授权的 Office 模板。每套模板都带用途、避用场景、受众、内容形态、视觉特征和已验证编辑边界。OfficeKit 可以选择一个模板、询问用户，也可以明确选择不用模板；“不用模板”不是失败。
-
-模板文件留在仓库中，不进入 npm runtime 包；Agent 基于选定模板生成新的输出，再用同一套 API 检查、编辑和渲染，参考文件不会被当作输出覆盖。
-
-用户上传的 DOCX、XLSX 或 PPTX 可以只在当前任务中作为模板使用，不需要注册，也不会自动进入模板库。只有明确要求以后复用时，才用 [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) 把它变成自己的本地模板。
-
-## 给使用者和贡献者
+## 文档与开发
 
 - [API 参考](docs/api.md)
 - [参考 Skill 兼容性](docs/reference-skills.md)
 - [全部能力边界](docs/coverage.md)
-
-开发时运行：
+- [发布状态](docs/release.md)
 
 ```sh
 npm test
@@ -154,8 +159,11 @@ npm run docs:api
 npm run release:check
 ```
 
-> `OfficeKit` 是产品名；当前包名仍为 `open-office-artifact-tool`。版本 `0.3.0` 为 release candidate，尚未正式发布到 npm。
+`OfficeKit` 是产品名；当前包名仍为 `open-office-artifact-tool`。版本 `0.3.0`
+是 release candidate，尚未正式发布到 npm。
 
 ## 许可证
 
-[GNU AGPL v3 或更高版本](LICENSE)。网络部署、修改和分发必须遵守 AGPL 的对应义务。第三方运行时、MuPDF 和专项 provider 的许可证与来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 及相关 runtime notices。
+[GNU AGPL v3 或更高版本](LICENSE)。网络部署、修改和分发必须遵守 AGPL
+的对应义务。第三方运行时、MuPDF 和专项 provider 的许可证与来源见
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
