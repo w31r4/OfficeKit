@@ -50,6 +50,7 @@ examples/officekit-section-line-numbering-edit-workflow.mjs
 examples/officekit-section-columns-edit-workflow.mjs
 examples/officekit-section-break-edit-workflow.mjs
 examples/officekit-table-column-widths-edit-workflow.mjs
+examples/officekit-table-formatting-edit-workflow.mjs
 examples/officekit-note-text-edit-workflow.mjs
 examples/officekit-modern-comment-thread-workflow.mjs
 examples/officekit-tracked-replacement-workflow.mjs

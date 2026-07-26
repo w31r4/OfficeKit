@@ -60,6 +60,36 @@ closed. This is a width redistribution operation, not automatic table design:
 inspect Word or LibreOffice plus Poppler output for wrapping, clipping, and
 page-flow changes before delivery.
 
+## Edit one imported direct table-formatting profile without rebuilding it
+
+For a request such as “make this table's header softer, use a thinner blue
+grid, and add a little cell padding,” keep the imported table's geometry fixed.
+Inspect its document block index and record the entire current direct profile;
+do not submit a partial style patch or a visual guess.
+
+```bash
+node examples/officekit-table-formatting-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 \
+  '{"indentDxa":120,"cellMarginsDxa":{"top":80,"bottom":80,"start":120,"end":120},"borderColor":"445566","borderSize":8,"headerFill":"E2E8F0"}' \
+  '{"indentDxa":240,"cellMarginsDxa":{"top":100,"bottom":120,"start":160,"end":180},"borderColor":"224466","borderSize":12,"headerFill":"DDEBF7"}'
+```
+
+The workflow accepts one imported, flat, rectangular, unmerged fixed-layout
+table only when OfficeKit recognized the complete direct profile. It changes
+exactly `w:tblInd`, all six uniform `w:tblBorders` leaves, four
+`w:tblCellMar` leaves, and each first-row cell's canonical `w:shd` fill. Table
+width, grid and physical-cell widths, text, style, rows, cells, merge state,
+and all non-document parts remain bound. It protects the source, refuses
+output/audit overwrites, reimports, verifies the raw residual, and writes a
+byte-bound audit.
+
+Do not use it for a custom table-style graph, mixed border treatment,
+conditional/header-row styling, merged or nested tables, content-control cells,
+or auto-fit/reflow. Those cases remain source-bound or require an explicit
+package/design workflow. Review a native Word or LibreOffice plus Poppler
+render before delivery: the transaction preserves geometry, but it does not
+calculate host wrapping or pagination.
+
 ## Render → PNG review checklist (tables)
 - Table fits within margins (no clipped columns)
 - Header row is visually distinct

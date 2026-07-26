@@ -281,6 +281,42 @@ try {
       JSON.stringify(tableColumnWidthsRoundTrip.blocks[1]?.columnWidthsDxa) !== JSON.stringify([3000, 3600, 2700])
     ) process.exit(70);
 
+    const tableFormattingWorkflowPath = path.join(
+      packageRoot,
+      "skills", "documents", "skills", "documents", "examples", "officekit-table-formatting-edit-workflow.mjs",
+    );
+    if (!fs.existsSync(tableFormattingWorkflowPath)) process.exit(71);
+    const tableFormattingOutput = path.join(process.cwd(), "packed-table-formatting-output.docx");
+    const tableFormattingAudit = path.join(process.cwd(), "packed-table-formatting-audit.json");
+    const { editImportedTableFormatting } = await import(pathToFileURL(tableFormattingWorkflowPath).href);
+    const tableFormattingResult = await editImportedTableFormatting({
+      inputPath: tableColumnWidthsInput,
+      outputPath: tableFormattingOutput,
+      auditPath: tableFormattingAudit,
+      tableBlockIndex: 1,
+      expectedFormatting: {
+        indentDxa: 120,
+        cellMarginsDxa: { top: 80, bottom: 80, start: 120, end: 120 },
+        borderColor: "445566",
+        borderSize: 8,
+        headerFill: "E2E8F0",
+      },
+      replacementFormatting: {
+        indentDxa: 240,
+        cellMarginsDxa: { top: 100, bottom: 120, start: 160, end: 180 },
+        borderColor: "224466",
+        borderSize: 12,
+        headerFill: "DDEBF7",
+      },
+    });
+    const tableFormattingRoundTrip = await DocumentFile.importDocx(await FileBlob.load(tableFormattingOutput));
+    if (
+      tableFormattingResult.audit.provider.actual !== "office-kit" ||
+      JSON.stringify(tableFormattingResult.audit.validation.changedParts) !== JSON.stringify(["word/document.xml"]) ||
+      tableFormattingRoundTrip.blocks[1]?.indentDxa !== 240 ||
+      tableFormattingRoundTrip.blocks[1]?.headerFill !== "DDEBF7"
+    ) process.exit(72);
+
     const presentation = Presentation.create();
     presentation.slides.add({ name: "Packaged" }).shapes.add({
       name: "Title", geometry: "roundRect", text: "clean install PPTX",
