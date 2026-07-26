@@ -272,6 +272,27 @@ and writes a no-overwrite audit. It does not add/remove a columns element or
 calculate the visible column flow. Review affected pages in Word or LibreOffice
 plus Poppler before delivery.
 
+### Change one imported section's break type safely
+
+For one exact section-boundary behavior correction, first inspect the imported
+section and record its **block index** plus the complete current `breakType`.
+The supported values are `nextPage`, `continuous`, `evenPage`, and `oddPage`.
+
+```bash
+node examples/officekit-section-break-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 nextPage continuous
+```
+
+The workflow requires one editable, resolvable section and exactly one raw
+canonical `w:type w:val="..."/>` leaf. Unknown/duplicate/non-Word attributes,
+missing or stale leaves, unsupported values, and noncanonical section graphs
+fail closed. Only `word/document.xml` may change; the workflow masks only that
+leaf for a namespace-tolerant residual comparison, reimports the full section
+projection, verifies and model-renders, and writes a no-overwrite audit. It
+does not add/remove/move a section boundary or calculate the resulting page
+breaks. Review every affected page in Word or LibreOffice plus Poppler before
+delivery, especially for even/odd-page behavior.
+
 ## Render review
 
 - Only the intended pages change orientation.
