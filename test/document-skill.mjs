@@ -1179,6 +1179,229 @@ try {
   );
   assert.deepEqual(await fs.readFile(lineNumberingSourcePath), lineNumberingSourceBytes);
 
+  const {
+    editImportedSectionColumns,
+    parseSectionColumnsEditCli,
+    sectionColumnsCliOutput,
+  } = await import(
+    "../skills/documents/skills/documents/examples/officekit-section-columns-edit-workflow.mjs"
+  );
+  const columnsSourceDocument = DocumentModel.create({ name: "Source-bound section columns edit", blocks: [] });
+  columnsSourceDocument.addParagraph("Prelude for the canonical section columns transaction.");
+  columnsSourceDocument.addSection({
+    breakType: "nextPage",
+    columns: { count: 2, spacing: 720, separator: true },
+  });
+  columnsSourceDocument.addParagraph("Only this section's equal-width column profile may change.");
+  columnsSourceDocument.addSection({
+    breakType: "nextPage",
+    columns: { definitions: [{ width: 3000, spacing: 720 }, { width: 5640, spacing: 0 }], separator: true },
+  });
+  columnsSourceDocument.addParagraph("The custom-width sibling section is a raw-XML canary.");
+  const columnsSourcePath = path.join(outputDir, "source-bound-section-columns-source.docx");
+  await (await DocumentFile.exportDocx(columnsSourceDocument)).save(columnsSourcePath);
+  const columnsSourceBytes = await fs.readFile(columnsSourcePath);
+  const columnsImported = await DocumentFile.importDocx(await FileBlob.load(columnsSourcePath));
+  const sourceColumns = { count: 2, spacing: 720, separator: true };
+  const replacementColumns = { count: 3, spacing: 360, separator: false };
+  const siblingCustomColumns = { definitions: [{ width: 3000, spacing: 720 }, { width: 5640, spacing: 0 }], separator: true };
+  assert.deepEqual(columnsImported.blocks[1]?.columns, sourceColumns);
+  assert.deepEqual(columnsImported.blocks[3]?.columns, siblingCustomColumns);
+
+  const columnsWorkflowOutputPath = path.join(outputDir, "source-bound-section-columns-edited.docx");
+  const columnsWorkflowAuditPath = path.join(outputDir, "source-bound-section-columns-edited-audit.json");
+  const columnsWorkflow = await editImportedSectionColumns({
+    inputPath: columnsSourcePath,
+    outputPath: columnsWorkflowOutputPath,
+    auditPath: columnsWorkflowAuditPath,
+    sectionBlockIndex: 1,
+    expectedColumns: sourceColumns,
+    replacementColumns,
+  });
+  assert.equal(columnsWorkflow.audit.provider.actual, "office-kit");
+  assert.equal(columnsWorkflow.audit.provider.silentFallback, false);
+  assert.deepEqual(columnsWorkflow.audit.savePolicy, { strategy: "rewrite", noReplace: true });
+  assert.equal(columnsWorkflow.audit.operation.type, "source-bound-section-columns-edit");
+  assert.deepEqual(columnsWorkflow.audit.operation.target, {
+    id: columnsImported.blocks[1].id,
+    blockIndex: 1,
+    sectionOrdinal: 0,
+  });
+  assert.deepEqual(columnsWorkflow.audit.operation.sourceColumns, sourceColumns);
+  assert.deepEqual(columnsWorkflow.audit.operation.replacementColumns, replacementColumns);
+  assert.deepEqual(columnsWorkflow.audit.validation.changedParts, ["word/document.xml"]);
+  assert.equal(columnsWorkflow.audit.validation.columnsXmlResidual.ok, true);
+  assert.deepEqual(columnsWorkflow.audit.validation.reimport.columns, replacementColumns);
+  assert.equal(columnsWorkflow.audit.validation.reimport.editable, true);
+  assert.equal(columnsWorkflow.audit.validation.nativeRenderRequired, true);
+  assert.deepEqual(sectionColumnsCliOutput(columnsWorkflow).changedParts, ["word/document.xml"]);
+  assert.deepEqual(await fs.readFile(columnsSourcePath), columnsSourceBytes);
+
+  const columnsWorkflowOutputBytes = await fs.readFile(columnsWorkflowOutputPath);
+  const [columnsSourceZip, columnsOutputZip] = await Promise.all([
+    JSZip.loadAsync(columnsSourceBytes),
+    JSZip.loadAsync(columnsWorkflowOutputBytes),
+  ]);
+  const columnsParts = Object.keys(columnsSourceZip.files).filter((partPath) => !columnsSourceZip.files[partPath].dir).sort();
+  assert.deepEqual(
+    Object.keys(columnsOutputZip.files).filter((partPath) => !columnsOutputZip.files[partPath].dir).sort(),
+    columnsParts,
+  );
+  for (const partPath of columnsParts) {
+    if (partPath === "word/document.xml") continue;
+    assert.deepEqual(
+      Buffer.from(await columnsOutputZip.file(partPath).async("uint8array")),
+      Buffer.from(await columnsSourceZip.file(partPath).async("uint8array")),
+      `Only word/document.xml may change; ${partPath} drifted.`,
+    );
+  }
+  const [columnsSourceXml, columnsOutputXml] = await Promise.all([
+    columnsSourceZip.file("word/document.xml").async("text"),
+    columnsOutputZip.file("word/document.xml").async("text"),
+  ]);
+  const columnsMarkup = (xml) => [...xml.matchAll(/<w:cols\b[^>]*?\/>|<w:cols\b[^>]*>[\s\S]*?<\/w:cols>/g)].map((match) => match[0]);
+  const sourceColumnsMarkup = columnsMarkup(columnsSourceXml);
+  const outputColumnsMarkup = columnsMarkup(columnsOutputXml);
+  assert.equal(sourceColumnsMarkup.length, 2);
+  assert.equal(outputColumnsMarkup.length, sourceColumnsMarkup.length);
+  assert.match(sourceColumnsMarkup[0], /w:equalWidth="(?:true|1)"/);
+  assert.match(sourceColumnsMarkup[0], /w:num="2"/);
+  assert.match(outputColumnsMarkup[0], /w:equalWidth="(?:true|1)"/);
+  assert.match(outputColumnsMarkup[0], /w:num="3"/);
+  assert.match(outputColumnsMarkup[0], /w:space="360"/);
+  assert.match(outputColumnsMarkup[0], /w:sep="(?:false|0)"/);
+  assert.equal(outputColumnsMarkup[1], sourceColumnsMarkup[1]);
+  const columnsWorkflowOutputDocument = await DocumentFile.importDocx(await FileBlob.load(columnsWorkflowOutputPath));
+  assert.deepEqual(columnsWorkflowOutputDocument.blocks[1]?.columns, replacementColumns);
+  assert.deepEqual(columnsWorkflowOutputDocument.blocks[3]?.columns, siblingCustomColumns);
+  const columnsWorkflowRender = await verifyDocumentFile(columnsWorkflowOutputPath, {
+    outputDir: path.join(outputDir, "source-bound-section-columns-render"),
+    previewFormat: "png",
+    nativeRender: nativeStatus.available ? "required" : "auto",
+  });
+  assert.equal(columnsWorkflowRender.summary.verifyOk, true);
+  assert.equal(columnsWorkflowRender.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
+
+  const columnsCliOutputPath = path.join(outputDir, "source-bound-section-columns-cli.docx");
+  const columnsCliAuditPath = path.join(outputDir, "source-bound-section-columns-cli-audit.json");
+  const columnsCliReplacement = { count: 2, spacing: 480, separator: false };
+  assert.deepEqual(parseSectionColumnsEditCli([
+    columnsSourcePath,
+    columnsCliOutputPath,
+    columnsCliAuditPath,
+    "1",
+    JSON.stringify(sourceColumns),
+    JSON.stringify(columnsCliReplacement),
+  ]), {
+    inputPath: columnsSourcePath,
+    outputPath: columnsCliOutputPath,
+    auditPath: columnsCliAuditPath,
+    sectionBlockIndex: 1,
+    expectedColumns: sourceColumns,
+    replacementColumns: columnsCliReplacement,
+  });
+  const columnsCliProcess = spawnSync(process.execPath, [
+    path.join(repoRoot, "skills", "documents", "skills", "documents", "examples", "officekit-section-columns-edit-workflow.mjs"),
+    columnsSourcePath,
+    columnsCliOutputPath,
+    columnsCliAuditPath,
+    "1",
+    JSON.stringify(sourceColumns),
+    JSON.stringify(columnsCliReplacement),
+  ], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(columnsCliProcess.status, 0, columnsCliProcess.stderr);
+  assert.deepEqual(JSON.parse(columnsCliProcess.stdout), {
+    outputPath: columnsCliOutputPath,
+    auditPath: columnsCliAuditPath,
+    outputSha256: createHash("sha256").update(await fs.readFile(columnsCliOutputPath)).digest("hex"),
+    changedParts: ["word/document.xml"],
+  });
+  assert.deepEqual((await DocumentFile.importDocx(await FileBlob.load(columnsCliOutputPath))).blocks[1]?.columns, columnsCliReplacement);
+
+  const customColumnsSourceDocument = DocumentModel.create({ name: "Source-bound custom-width section columns edit", blocks: [] });
+  customColumnsSourceDocument.addParagraph("Prelude for custom-width section columns.");
+  customColumnsSourceDocument.addSection({
+    breakType: "nextPage",
+    columns: siblingCustomColumns,
+  });
+  customColumnsSourceDocument.addParagraph("Only this section's explicit column definitions may change.");
+  const customColumnsSourcePath = path.join(outputDir, "source-bound-section-columns-custom-source.docx");
+  await (await DocumentFile.exportDocx(customColumnsSourceDocument)).save(customColumnsSourcePath);
+  const customColumnsOutputPath = path.join(outputDir, "source-bound-section-columns-custom-edited.docx");
+  const customColumnsAuditPath = path.join(outputDir, "source-bound-section-columns-custom-edited-audit.json");
+  const replacementCustomColumns = { definitions: [{ width: 3200, spacing: 360 }, { width: 5680, spacing: 0 }], separator: false };
+  const customColumnsWorkflow = await editImportedSectionColumns({
+    inputPath: customColumnsSourcePath,
+    outputPath: customColumnsOutputPath,
+    auditPath: customColumnsAuditPath,
+    sectionBlockIndex: 1,
+    expectedColumns: siblingCustomColumns,
+    replacementColumns: replacementCustomColumns,
+  });
+  assert.deepEqual(customColumnsWorkflow.audit.validation.changedParts, ["word/document.xml"]);
+  assert.deepEqual((await DocumentFile.importDocx(await FileBlob.load(customColumnsOutputPath))).blocks[1]?.columns, replacementCustomColumns);
+
+  await assert.rejects(
+    () => editImportedSectionColumns({
+      inputPath: columnsSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-columns-mismatched.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-columns-mismatched-audit.json"),
+      sectionBlockIndex: 1,
+      expectedColumns: { ...sourceColumns, count: 4 },
+      replacementColumns,
+    }),
+    /columns do not match the expected source value/,
+  );
+  await assert.rejects(
+    () => editImportedSectionColumns({
+      inputPath: columnsSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-columns-invalid.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-columns-invalid-audit.json"),
+      sectionBlockIndex: 1,
+      expectedColumns: sourceColumns,
+      replacementColumns: { count: 3, spacing: 360 },
+    }),
+    /replacementColumns\.separator is required/,
+  );
+  await assert.rejects(
+    () => editImportedSectionColumns({
+      inputPath: columnsSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-columns-shape-change.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-columns-shape-change-audit.json"),
+      sectionBlockIndex: 1,
+      expectedColumns: sourceColumns,
+      replacementColumns: { definitions: siblingCustomColumns.definitions, separator: false },
+    }),
+    /must retain the source equal-width or custom-width profile/,
+  );
+  await assert.rejects(
+    () => editImportedSectionColumns({
+      inputPath: columnsSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-columns-noop.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-columns-noop-audit.json"),
+      sectionBlockIndex: 1,
+      expectedColumns: sourceColumns,
+      replacementColumns: sourceColumns,
+    }),
+    /replacementColumns must differ from expectedColumns/,
+  );
+  const nonCanonicalColumnsSourcePath = path.join(outputDir, "source-bound-section-columns-noncanonical-source.docx");
+  const nonCanonicalColumnsZip = await JSZip.loadAsync(columnsSourceBytes);
+  nonCanonicalColumnsZip.file("word/document.xml", columnsSourceXml.replace(/w:num="2"/, 'w:num="02"'));
+  await fs.writeFile(nonCanonicalColumnsSourcePath, await nonCanonicalColumnsZip.generateAsync({ type: "nodebuffer" }), { flag: "wx" });
+  await assert.rejects(
+    () => editImportedSectionColumns({
+      inputPath: nonCanonicalColumnsSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-columns-noncanonical.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-columns-noncanonical-audit.json"),
+      sectionBlockIndex: 1,
+      expectedColumns: sourceColumns,
+      replacementColumns,
+    }),
+    /canonical unsigned integer/,
+  );
+  assert.deepEqual(await fs.readFile(columnsSourcePath), columnsSourceBytes);
+
   await assert.rejects(
     () => editImportedSectionMargins({
       inputPath: marginWorkflowSourcePath,
