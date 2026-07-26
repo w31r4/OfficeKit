@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -399,6 +400,210 @@ try {
   assert.match(footnoteXml, /Native page render evidence was reviewed before delivery\./);
   assert.match(endnoteXml, /OfficeKit preserves the source-bound anchor and note identity\./);
   assert.match(endnoteXml, /Exactly two physical plain-text paragraphs remain editable\./);
+
+  const noteWorkflowSourceDocument = DocumentModel.create({ name: "Source-bound note text edit", blocks: [] });
+  const noteWorkflowFootnoteTarget = noteWorkflowSourceDocument.addParagraph("The release decision has a source-bound footnote.");
+  const noteWorkflowEndnoteTarget = noteWorkflowSourceDocument.addParagraph("The architecture decision has a source-bound endnote.");
+  noteWorkflowSourceDocument.addParagraph("This ordinary body paragraph must remain unchanged.");
+  noteWorkflowSourceDocument.addFootnote(noteWorkflowFootnoteTarget, undefined, {
+    paragraphs: ["Pilot report, section 4.2.", "The independent review & release audit are retained."],
+  });
+  noteWorkflowSourceDocument.addEndnote(noteWorkflowEndnoteTarget, "Architecture decision record 11.");
+  const noteWorkflowSourcePath = path.join(outputDir, "source-bound-notes-source.docx");
+  await (await DocumentFile.exportDocx(noteWorkflowSourceDocument)).save(noteWorkflowSourcePath);
+  const noteWorkflowSourceBytes = await fs.readFile(noteWorkflowSourcePath);
+  const noteWorkflowImported = await DocumentFile.importDocx(await FileBlob.load(noteWorkflowSourcePath));
+  const noteWorkflowFootnote = noteWorkflowImported.notes.find((note) => note.kind === "footnote");
+  const noteWorkflowEndnote = noteWorkflowImported.notes.find((note) => note.kind === "endnote");
+  assert.ok(noteWorkflowFootnote && noteWorkflowEndnote);
+  assert.deepEqual(noteWorkflowFootnote.paragraphs, ["Pilot report, section 4.2.", "The independent review & release audit are retained."]);
+  const {
+    editImportedNoteParagraphText,
+    noteTextCliOutput,
+    parseNoteTextEditCli,
+  } = await import(
+    "../skills/documents/skills/documents/examples/officekit-note-text-edit-workflow.mjs"
+  );
+  const footnoteTarget = {
+    kind: "footnote",
+    noteId: noteWorkflowFootnote.id,
+    nativeId: noteWorkflowFootnote.nativeId,
+    targetId: noteWorkflowFootnote.targetId,
+    paragraphIndex: 0,
+    expectedText: "Pilot report, section 4.2.",
+  };
+  const noteWorkflowOutputPath = path.join(outputDir, "source-bound-footnote-edited.docx");
+  const noteWorkflowAuditPath = path.join(outputDir, "source-bound-footnote-edited-audit.json");
+  const noteWorkflow = await editImportedNoteParagraphText({
+    inputPath: noteWorkflowSourcePath,
+    outputPath: noteWorkflowOutputPath,
+    auditPath: noteWorkflowAuditPath,
+    target: footnoteTarget,
+    replacementText: "Pilot report, section 4.2, independently reviewed.",
+  });
+  assert.equal(noteWorkflow.audit.provider.actual, "office-kit");
+  assert.equal(noteWorkflow.audit.provider.silentFallback, false);
+  assert.deepEqual(noteWorkflow.audit.savePolicy, { strategy: "rewrite", noReplace: true });
+  assert.deepEqual(noteWorkflow.audit.validation.changedParts, ["word/footnotes.xml"]);
+  assert.equal(noteWorkflow.audit.validation.noteXmlResidual.ok, true);
+  assert.equal(noteWorkflow.audit.validation.noteXmlResidual.partPath, "word/footnotes.xml");
+  assert.equal(noteWorkflow.audit.validation.reimport.noteId, noteWorkflowFootnote.id);
+  assert.equal(noteWorkflow.audit.validation.reimport.nativeId, noteWorkflowFootnote.nativeId);
+  assert.equal(noteWorkflow.audit.validation.nativeRenderRequired, true);
+  assert.deepEqual(noteTextCliOutput(noteWorkflow).changedParts, ["word/footnotes.xml"]);
+  assert.deepEqual(await fs.readFile(noteWorkflowSourcePath), noteWorkflowSourceBytes);
+  const noteWorkflowOutputBytes = await fs.readFile(noteWorkflowOutputPath);
+  const [noteWorkflowSourceZip, noteWorkflowOutputZip] = await Promise.all([
+    JSZip.loadAsync(noteWorkflowSourceBytes),
+    JSZip.loadAsync(noteWorkflowOutputBytes),
+  ]);
+  const noteWorkflowPartPaths = Object.keys(noteWorkflowSourceZip.files).filter((partPath) => !noteWorkflowSourceZip.files[partPath].dir).sort();
+  assert.deepEqual(
+    Object.keys(noteWorkflowOutputZip.files).filter((partPath) => !noteWorkflowOutputZip.files[partPath].dir).sort(),
+    noteWorkflowPartPaths,
+  );
+  for (const partPath of noteWorkflowPartPaths) {
+    if (partPath === "word/footnotes.xml") continue;
+    assert.deepEqual(
+      Buffer.from(await noteWorkflowOutputZip.file(partPath).async("uint8array")),
+      Buffer.from(await noteWorkflowSourceZip.file(partPath).async("uint8array")),
+      `Only word/footnotes.xml may change; ${partPath} drifted.`,
+    );
+  }
+  const noteWorkflowFootnoteXml = await noteWorkflowOutputZip.file("word/footnotes.xml").async("text");
+  assert.match(noteWorkflowFootnoteXml, /<w:footnote w:id="1"><w:p><w:r><w:footnoteRef\s*\/><\/w:r><w:r><w:t xml:space="preserve"> Pilot report, section 4\.2, independently reviewed\.<\/w:t>/);
+  assert.match(noteWorkflowFootnoteXml, /The independent review &amp; release audit are retained\./);
+  const noteWorkflowOutput = await DocumentFile.importDocx(await FileBlob.load(noteWorkflowOutputPath));
+  assert.deepEqual(noteWorkflowOutput.notes.map((note) => [note.kind, note.nativeId, note.targetId, note.paragraphs]), [
+    ["footnote", noteWorkflowFootnote.nativeId, noteWorkflowFootnote.targetId, ["Pilot report, section 4.2, independently reviewed.", "The independent review & release audit are retained."]],
+    ["endnote", noteWorkflowEndnote.nativeId, noteWorkflowEndnote.targetId, ["Architecture decision record 11."]],
+  ]);
+  assert.equal(noteWorkflowOutput.blocks[2].text, "This ordinary body paragraph must remain unchanged.");
+  const noteWorkflowRender = await verifyDocumentFile(noteWorkflowOutputPath, {
+    outputDir: path.join(outputDir, "source-bound-footnote-render"),
+    previewFormat: "png",
+    nativeRender: nativeStatus.available ? "required" : "auto",
+  });
+  assert.equal(noteWorkflowRender.summary.verifyOk, true);
+  assert.equal(noteWorkflowRender.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
+
+  const endnoteSourceBytes = await fs.readFile(noteWorkflowOutputPath);
+  const endnoteInput = await DocumentFile.importDocx(await FileBlob.load(noteWorkflowOutputPath));
+  const endnoteTarget = endnoteInput.notes.find((note) => note.kind === "endnote");
+  const noteWorkflowEndnoteOutputPath = path.join(outputDir, "source-bound-endnote-edited.docx");
+  const noteWorkflowEndnoteAuditPath = path.join(outputDir, "source-bound-endnote-edited-audit.json");
+  const endnoteWorkflow = await editImportedNoteParagraphText({
+    inputPath: noteWorkflowOutputPath,
+    outputPath: noteWorkflowEndnoteOutputPath,
+    auditPath: noteWorkflowEndnoteAuditPath,
+    target: {
+      kind: "endnote",
+      noteId: endnoteTarget.id,
+      nativeId: endnoteTarget.nativeId,
+      targetId: endnoteTarget.targetId,
+      paragraphIndex: 0,
+      expectedText: "Architecture decision record 11.",
+    },
+    replacementText: "Architecture decision record 11, approved for release.",
+  });
+  assert.deepEqual(endnoteWorkflow.audit.validation.changedParts, ["word/endnotes.xml"]);
+  assert.deepEqual(await fs.readFile(noteWorkflowOutputPath), endnoteSourceBytes);
+  const [endnoteSourceZip, endnoteOutputZip] = await Promise.all([
+    JSZip.loadAsync(endnoteSourceBytes),
+    JSZip.loadAsync(await fs.readFile(noteWorkflowEndnoteOutputPath)),
+  ]);
+  for (const partPath of Object.keys(endnoteSourceZip.files).filter((name) => !endnoteSourceZip.files[name].dir)) {
+    if (partPath === "word/endnotes.xml") continue;
+    assert.deepEqual(
+      Buffer.from(await endnoteOutputZip.file(partPath).async("uint8array")),
+      Buffer.from(await endnoteSourceZip.file(partPath).async("uint8array")),
+      `Only word/endnotes.xml may change; ${partPath} drifted.`,
+    );
+  }
+
+  const noteCliInput = await DocumentFile.importDocx(await FileBlob.load(noteWorkflowOutputPath));
+  const noteCliFootnote = noteCliInput.notes.find((note) => note.kind === "footnote");
+  const noteCliOutputPath = path.join(outputDir, "source-bound-note-cli.docx");
+  const noteCliAuditPath = path.join(outputDir, "source-bound-note-cli-audit.json");
+  const noteCliTarget = {
+    kind: "footnote",
+    noteId: noteCliFootnote.id,
+    nativeId: noteCliFootnote.nativeId,
+    targetId: noteCliFootnote.targetId,
+    paragraphIndex: 1,
+    expectedText: "The independent review & release audit are retained.",
+  };
+  assert.deepEqual(parseNoteTextEditCli([
+    noteWorkflowOutputPath,
+    noteCliOutputPath,
+    noteCliAuditPath,
+    JSON.stringify(noteCliTarget),
+    "The independent review & approval audit are retained.",
+  ]), {
+    inputPath: noteWorkflowOutputPath,
+    outputPath: noteCliOutputPath,
+    auditPath: noteCliAuditPath,
+    target: noteCliTarget,
+    replacementText: "The independent review & approval audit are retained.",
+  });
+  const noteCliProcess = spawnSync(process.execPath, [
+    path.join(repoRoot, "skills", "documents", "skills", "documents", "examples", "officekit-note-text-edit-workflow.mjs"),
+    noteWorkflowOutputPath,
+    noteCliOutputPath,
+    noteCliAuditPath,
+    JSON.stringify(noteCliTarget),
+    "The independent review & approval audit are retained.",
+  ], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(noteCliProcess.status, 0, noteCliProcess.stderr);
+  assert.deepEqual(JSON.parse(noteCliProcess.stdout), {
+    outputPath: noteCliOutputPath,
+    auditPath: noteCliAuditPath,
+    outputSha256: createHash("sha256").update(await fs.readFile(noteCliOutputPath)).digest("hex"),
+    changedParts: ["word/footnotes.xml"],
+  });
+  const noteCliDocument = await DocumentFile.importDocx(await FileBlob.load(noteCliOutputPath));
+  assert.equal(noteCliDocument.notes.find((note) => note.kind === "footnote").paragraphs[1], "The independent review & approval audit are retained.");
+
+  await assert.rejects(
+    () => editImportedNoteParagraphText({
+      inputPath: noteWorkflowSourcePath,
+      outputPath: path.join(outputDir, "source-bound-note-mismatched.docx"),
+      auditPath: path.join(outputDir, "source-bound-note-mismatched-audit.json"),
+      target: { ...footnoteTarget, expectedText: "Wrong source precondition." },
+      replacementText: "Never publish this value.",
+    }),
+    /does not match the expected source text/,
+  );
+  await assert.rejects(
+    () => editImportedNoteParagraphText({
+      inputPath: noteWorkflowSourcePath,
+      outputPath: path.join(outputDir, "source-bound-note-wrong-native-id.docx"),
+      auditPath: path.join(outputDir, "source-bound-note-wrong-native-id-audit.json"),
+      target: { ...footnoteTarget, nativeId: footnoteTarget.nativeId + 1 },
+      replacementText: "Never publish this value.",
+    }),
+    /Expected exactly one footnote matching the inspected note ID, native ID, and target ID; found 0/,
+  );
+  await assert.rejects(
+    () => editImportedNoteParagraphText({
+      inputPath: noteWorkflowSourcePath,
+      outputPath: path.join(outputDir, "source-bound-note-line-break.docx"),
+      auditPath: path.join(outputDir, "source-bound-note-line-break-audit.json"),
+      target: footnoteTarget,
+      replacementText: "This must\nfail closed.",
+    }),
+    /one XML-safe physical paragraph without line breaks/,
+  );
+  await assert.rejects(
+    () => editImportedNoteParagraphText({
+      inputPath: noteWorkflowSourcePath,
+      outputPath: noteWorkflowSourcePath,
+      auditPath: path.join(outputDir, "source-bound-note-overwrite-audit.json"),
+      target: footnoteTarget,
+      replacementText: "Never overwrite the source.",
+    }),
+    /must be distinct/,
+  );
 
   const toc = await runFixture("office-kit-toc", {
     nativeRender: nativeStatus.available ? "required" : "auto",
@@ -1013,6 +1218,7 @@ try {
   assert.match(skillText, /officekit-classic-comment-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-header-text-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-footer-text-edit-workflow\.mjs/);
+  assert.match(skillText, /officekit-note-text-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-modern-comment-thread-workflow\.mjs/);
   assert.match(skillText, /officekit-watermark-workflow\.mjs/);
   assert.match(skillText, /tasks\/headers_footers\.md/);
@@ -1029,6 +1235,8 @@ try {
   assert.match(manifestText, /^examples\/officekit-page-furniture-text-edit\.mjs$/m);
   assert.match(manifestText, /^examples\/officekit-header-text-edit-workflow\.mjs$/m);
   assert.match(manifestText, /^examples\/officekit-footer-text-edit-workflow\.mjs$/m);
+  assert.match(manifestText, /^examples\/officekit-note-text-edit-workflow\.mjs$/m);
+  assert.match(manifestText, /^artifact_tool\/_source_bound_docx\.mjs$/m);
   assert.match(manifestText, /^examples\/officekit-modern-comment-thread-workflow\.mjs$/m);
   assert.match(manifestText, /^examples\/officekit-watermark-workflow\.mjs$/m);
   assert.match(manifestText, /^tasks\/headers_footers\.md$/m);
@@ -1050,6 +1258,10 @@ try {
   assert.match(headersFootersGuide, /officekit-footer-text-edit-workflow\.mjs/);
   assert.match(headersFootersGuide, /two entry points are intentionally separate/i);
   assert.match(headersFootersGuide, /fail closed/);
+  const notesGuide = await fs.readFile(path.join(repoRoot, "skills", "documents", "skills", "documents", "tasks", "footnotes_endnotes.md"), "utf8");
+  assert.match(notesGuide, /officekit-note-text-edit-workflow\.mjs/);
+  assert.match(notesGuide, /word\/footnotes\.xml.*word\/endnotes\.xml/is);
+  assert.match(notesGuide, /fail(?:s)? closed/i);
   const controlsGuide = await fs.readFile(path.join(repoRoot, "skills", "documents", "skills", "documents", "tasks", "forms_content_controls.md"), "utf8");
   assert.match(controlsGuide, /paragraph\.addTextContentControl/);
   assert.match(controlsGuide, /document\.addBlockTextContentControl/);

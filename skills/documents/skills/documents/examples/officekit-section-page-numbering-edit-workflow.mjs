@@ -1,28 +1,21 @@
-import crypto from "node:crypto";
 import fs from "node:fs/promises";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import JSZip from "jszip";
 import { DocumentFile, FileBlob } from "office-kit";
+import {
+  DOCX_MIME,
+  assertAbsent,
+  canonicalizeXmlForResidual,
+  changedParts,
+  packageVersion,
+  publishNoReplace,
+  readPackagePartText,
+  requiredText,
+  sha256,
+} from "../artifact_tool/_source_bound_docx.mjs";
 
-const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PAGE_NUMBER_FORMATS = new Set(["decimal", "upperRoman", "lowerRoman", "upperLetter", "lowerLetter"]);
-const MOVABLE_NAMESPACE_DECLARATIONS = new Map([
-  ["xmlns:w", "http://schemas.openxmlformats.org/wordprocessingml/2006/main"],
-  ["xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"],
-]);
-const require = createRequire(import.meta.url);
-
-function sha256(bytes) {
-  return crypto.createHash("sha256").update(bytes).digest("hex");
-}
-
-function requiredText(value, label) {
-  if (typeof value !== "string" || !value.trim()) throw new TypeError(`${label} must be a non-empty string.`);
-  return value;
-}
 
 function boundedIndex(value, label) {
   const index = Number(value);
@@ -57,51 +50,6 @@ function equalJson(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-async function packageVersion() {
-  const entry = require.resolve("office-kit");
-  const packagePath = path.join(path.dirname(path.dirname(entry)), "package.json");
-  return JSON.parse(await fs.readFile(packagePath, "utf8")).version;
-}
-
-async function assertAbsent(filePath, label) {
-  try {
-    await fs.lstat(filePath);
-    throw new Error(`${label} already exists; refusing to overwrite it.`);
-  } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
-  }
-}
-
-async function publishNoReplace(temporaryPath, finalPath) {
-  await fs.link(temporaryPath, finalPath);
-  await fs.rm(temporaryPath, { force: true });
-}
-
-async function packageParts(bytes) {
-  const zip = await JSZip.loadAsync(bytes);
-  const parts = new Map();
-  for (const [name, entry] of Object.entries(zip.files)) {
-    if (entry.dir) continue;
-    parts.set(name, Buffer.from(await entry.async("uint8array")));
-  }
-  return parts;
-}
-
-async function changedParts(source, output) {
-  const [before, after] = await Promise.all([packageParts(source), packageParts(output)]);
-  if (before.size !== after.size || [...before.keys()].some((name) => !after.has(name))) {
-    throw new Error("Source-bound section page-numbering edit changed the DOCX package part inventory.");
-  }
-  return [...before.keys()].filter((name) => !before.get(name).equals(after.get(name))).sort();
-}
-
-async function documentXml(bytes) {
-  const zip = await JSZip.loadAsync(bytes);
-  const entry = zip.file("word/document.xml");
-  if (!entry) throw new Error("DOCX package has no word/document.xml part.");
-  return entry.async("text");
-}
-
 function xmlAttributes(opening = "") {
   const result = {};
   for (const match of String(opening).matchAll(/([:\w.-]+)="([^"]*)"/g)) {
@@ -116,38 +64,6 @@ function sectionProperties(xml) {
     xml: match[0],
     offset: match.index,
   }));
-}
-
-// Open XML SDK may move a relationship namespace declaration from an individual
-// element to the document root while changing an otherwise unrelated semantic
-// leaf. Compare a strict tag/attribute canonical form so that namespace scope
-// and attribute ordering do not masquerade as a document edit, while every
-// non-namespace name, attribute value, text node, and element order stays bound.
-function canonicalizeXmlForResidual(xml, label) {
-  return String(xml).replace(/<[^>]+>/g, (tag) => {
-    if (/^<\?/.test(tag) || /^<!/.test(tag) || /^<\//.test(tag)) return tag;
-    const match = /^<([\w:.-]+)([\s\S]*?)(\/?)>$/.exec(tag);
-    if (!match) throw new Error(`${label} contains unsupported XML markup during residual comparison.`);
-    const [, name, sourceAttributes, slash] = match;
-    let rest = sourceAttributes.trim();
-    const attributes = [];
-    while (rest) {
-      const attribute = /^([:\w.-]+)="([^"]*)"\s*/.exec(rest);
-      if (!attribute) throw new Error(`${label} contains unsupported XML attributes during residual comparison.`);
-      const [, attributeName, value] = attribute;
-      if (MOVABLE_NAMESPACE_DECLARATIONS.has(attributeName)) {
-        if (MOVABLE_NAMESPACE_DECLARATIONS.get(attributeName) !== value) {
-          throw new Error(`${label} changes the ${attributeName} namespace binding.`);
-        }
-      } else {
-        attributes.push([attributeName, value]);
-      }
-      rest = rest.slice(attribute[0].length);
-    }
-    attributes.sort(([left], [right]) => left.localeCompare(right));
-    const suffix = attributes.length ? ` ${attributes.map(([attributeName, value]) => `${attributeName}="${value}"`).join(" ")}` : "";
-    return `<${name}${suffix}${slash}>`;
-  });
 }
 
 function canonicalPageNumberingLeaf(sectionXml, label) {
@@ -266,7 +182,7 @@ export async function editImportedSectionPageNumbering({
   const sourceHash = sha256(source);
   const document = await DocumentFile.importDocx(new FileBlob(source, { type: DOCX_MIME, name: path.basename(sourcePath) }));
   const selected = selectSection(document, { sectionBlockIndex, expectedPageNumbering: expected });
-  const sourceXml = await documentXml(source);
+  const sourceXml = await readPackagePartText(source, "word/document.xml", "Source DOCX package");
   const sourceResidual = normalizeTargetPageNumberingXml(sourceXml, selected.sectionOrdinal, "source target section");
   if (!equalJson(sourceResidual.value, expected)) {
     throw new Error("The raw source w:pgNumType does not match the inspected section pageNumbering.");
@@ -282,12 +198,12 @@ export async function editImportedSectionPageNumbering({
     await fs.writeFile(temporaryPath, Buffer.from(await exported.arrayBuffer()), { flag: "wx" });
     const output = await fs.readFile(temporaryPath);
     if (sha256(await fs.readFile(sourcePath)) !== sourceHash) throw new Error("Source DOCX changed during the transaction; refusing publication.");
-    const changed = await changedParts(source, output);
+    const changed = await changedParts(source, output, "Source-bound section page-numbering edit");
     if (!equalJson(changed, ["word/document.xml"])) {
       throw new Error(`Source-bound section page-numbering edit changed an unexpected package scope: ${changed.join(", ") || "none"}.`);
     }
 
-    const outputXml = await documentXml(output);
+    const outputXml = await readPackagePartText(output, "word/document.xml", "Output DOCX package");
     const outputResidual = normalizeTargetPageNumberingXml(outputXml, selected.sectionOrdinal, "output target section");
     if (!equalJson(outputResidual.value, replacement)) {
       throw new Error("Exported target w:pgNumType does not match the requested page-numbering replacement.");

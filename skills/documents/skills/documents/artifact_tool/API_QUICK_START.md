@@ -712,6 +712,24 @@ const output = await DocumentFile.exportDocx(document);
 await output.save("edited.docx");
 ```
 
+For exactly one physical paragraph in an existing canonical footnote/endnote,
+use the shipped no-overwrite workflow instead of a general package rewrite. Its
+target binds the inspected semantic note ID, native ID, anchor target, paragraph
+index, and exact source text:
+
+```bash
+node examples/officekit-note-text-edit-workflow.mjs \
+  input.docx output.docx audit.json \
+  '{"kind":"footnote","noteId":"document/note/1","nativeId":1,"targetId":"document/block/1","paragraphIndex":0,"expectedText":"Pilot report, section 4.2."}' \
+  'Pilot report, section 4.2, independently reviewed.'
+```
+
+It accepts only a trimmed, non-empty, single-line replacement. It permits only
+the corresponding `word/footnotes.xml` or `word/endnotes.xml` part to change,
+binds the raw residual outside the one requested text leaf, reimports, verifies,
+model-renders, and emits a byte-bound audit. It does not move a reference,
+change count/native IDs/anchors/formatting/topology, or edit rich note bodies.
+
 Enable native future-change tracking independently from authored redlines:
 
 ```js

@@ -42,6 +42,39 @@ remain explicit environment lanes and were skipped by design; their catalog,
 policy, package-build, integrity, and offline tests ran. No npm publication,
 tag, or GitHub release was attempted.
 
+## 0.3.0 DOCX source-bound note-paragraph transaction
+
+The Documents Skill now ships
+`officekit-note-text-edit-workflow.mjs` for one exact physical paragraph in an
+imported canonical footnote or endnote. The task binds the note kind, semantic
+note ID, positive native ID, source anchor ID, physical paragraph index, and
+the exact current text before it accepts a replacement. It protects the source
+file, rejects output/audit collisions and unsupported whitespace/XML text, and
+publishes the DOCX and byte-bound audit without overwrite.
+
+The transaction changes only the matching `word/footnotes.xml` or
+`word/endnotes.xml` part. It proves the untouched raw XML residual, reimports
+the complete note body and metadata, runs semantic/model-render verification,
+and records the OfficeKit Codec provider version and package scope. It does not
+generalize into arbitrary DOCX XML patching: rich note bodies, anchor/topology
+changes, paragraph count changes, and unbound/stale targets remain rejected.
+
+### Note-paragraph transaction integration evidence
+
+On 2026-07-26, the local candidate passed `npm test`, `npm run docs:api`,
+clean-install `npm run test:pack`, `npm run proto:check`, deterministic
+`npm run verify:office-kit-build`, OfficeBridge `5/5`, OfficeKit Codec
+`375/375`, and the offline release-metadata check. Two source-built WASM
+bundles reproduced across 39 audited files; the manifest-bound runtime has 38
+files at 15,157,916 bytes. The candidate tarball has 519 files, 9,428,866
+compressed bytes, and 25,377,311 unpacked bytes, leaving 22,689 bytes below
+the narrowly raised 25,400,000-byte unpacked-size gate.
+
+Managed PDF live-download and separately configured specialist Python-provider
+repeats remained explicit environment lanes and were skipped by design. npm
+authentication is still unavailable, so no npm publication, tag, or GitHub
+release was attempted.
+
 ## 0.3.0 PPTX source-bound section-boundary transaction
 
 The Presentations Skill now separately ships

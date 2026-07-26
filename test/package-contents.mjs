@@ -73,7 +73,7 @@ const maxPackedBytes = 9_840_000;
 // replacement, plus the canonical DOCX 1-through-16-paragraph note body, add
 // protobuf, audited WASM, public Help, and native guidance;
 // retain measured headroom instead of hiding that product surface.
-const maxUnpackedBytes = 25_375_000;
+const maxUnpackedBytes = 25_400_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -181,12 +181,14 @@ for (const required of [
   "skills/documents/skills/documents/agents/openai.yaml",
   "skills/documents/skills/documents/LICENSE.txt",
   "skills/documents/skills/documents/artifact_tool/API_QUICK_START.md",
+  "skills/documents/skills/documents/artifact_tool/_source_bound_docx.mjs",
   "skills/documents/skills/documents/examples/officekit-end-to-end.mjs",
   "skills/documents/skills/documents/examples/officekit-classic-comment-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-page-furniture-text-edit.mjs",
   "skills/documents/skills/documents/examples/officekit-header-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-section-page-numbering-edit-workflow.mjs",
+  "skills/documents/skills/documents/examples/officekit-note-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/end_to_end_smoke_test.md",
   "skills/documents/skills/documents/render_docx.py",
   "skills/documents/skills/documents/scripts/docx_ooxml_patch.py",

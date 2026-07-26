@@ -83,6 +83,42 @@ including irregular graphs that remain opaque to the public model:
 python scripts/footnotes_report.py input.docx
 ```
 
+## Change one imported physical paragraph safely
+
+For one recognized imported note, prefer the shipped public-model transaction
+instead of an XML patch. It is intentionally narrow: it changes one existing
+physical paragraph only, with a complete inspected locator and exact old text.
+The input, output, and audit paths must be distinct.
+
+1. Import and inspect the input. Record the selected note's `id`, `kind`,
+   positive `nativeId`, `targetId`, `paragraphs`, and the zero-based physical
+   paragraph index.
+2. Run the no-overwrite workflow. The target JSON binds all source facts; use a
+   trimmed, non-empty, single-line replacement. Edit a second physical
+   paragraph through its own index rather than adding a line break.
+
+```bash
+node examples/officekit-note-text-edit-workflow.mjs \
+  input.docx output.docx audit.json \
+  '{"kind":"footnote","noteId":"document/note/1","nativeId":1,"targetId":"document/block/1","paragraphIndex":0,"expectedText":"Pilot report, section 4.2."}' \
+  'Pilot report, section 4.2, independently reviewed.'
+```
+
+The transaction imports through `DocumentFile`, changes only the selected
+`note.paragraphs[index]`, then proves that only `word/footnotes.xml` or
+`word/endnotes.xml` changed. It checks the complete native note body before
+and after export, masks only the selected canonical `w:t` payload for its raw
+OPC residual, reimports, verifies the complete note/body projection, model
+renders, and writes source/output hashes plus its no-fallback provenance to
+the audit. It fails closed for missing/mismatched IDs or text, a changed count,
+rich/multi-run paragraph, unsupported note attributes, output collision, or
+any package drift.
+
+This does not move a reference, create/delete a note, alter the marker,
+formatting, anchor, native ID, paragraph count, or note topology. Render all
+affected pages after the transaction; note wrapping and Word-specific layout
+remain host-renderer concerns.
+
 ## Explicit advanced package workflow
 
 Use `insert_note.py` only when the requested operation is deliberately
