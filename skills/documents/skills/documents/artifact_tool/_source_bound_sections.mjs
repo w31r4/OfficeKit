@@ -42,10 +42,30 @@ export function selectCanonicalSection(document, sectionBlockIndex, label = "sel
   return { block, blockIndex, sectionOrdinal, snapshot: sectionSnapshot(block, blockIndex, sectionOrdinal) };
 }
 
-export function xmlAttributes(opening = "") {
+// This is deliberately not a general XML attribute parser. Source-bound
+// section workflows only accept canonical WordprocessingML attributes on their
+// own leaf, so another namespace (or a local-name collision) must fail before
+// a masked residual could hide it.
+export function wordAttributes(opening = "", label = "WordprocessingML leaf") {
+  const tag = String(opening);
+  const openingMatch = /^<w:[\w.-]+\b([\s\S]*?)\/>$/.exec(tag);
+  if (!openingMatch) throw new Error(`${label} is not a canonical self-closing WordprocessingML leaf.`);
   const result = {};
-  for (const match of String(opening).matchAll(/([:\w.-]+)="([^"]*)"/g)) {
-    result[match[1].split(":").at(-1)] = match[2];
+  let remaining = openingMatch[1].trim();
+  while (remaining) {
+    const match = /^([:\w.-]+)="([^"]*)"\s*/.exec(remaining);
+    if (!match) throw new Error(`${label} has unsupported XML attribute syntax.`);
+    const [, qualifiedName, value] = match;
+    const separator = qualifiedName.indexOf(":");
+    if (separator <= 0 || qualifiedName.slice(0, separator) !== "w") {
+      throw new Error(`${label} has a noncanonical attribute namespace: ${qualifiedName}.`);
+    }
+    const localName = qualifiedName.slice(separator + 1);
+    if (!localName || Object.hasOwn(result, localName)) {
+      throw new Error(`${label} has a duplicate or invalid w: attribute: ${qualifiedName}.`);
+    }
+    result[localName] = value;
+    remaining = remaining.slice(match[0].length);
   }
   return result;
 }

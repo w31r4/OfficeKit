@@ -778,6 +778,202 @@ try {
   const marginCliDocument = await DocumentFile.importDocx(await FileBlob.load(marginCliOutputPath));
   assert.deepEqual(marginCliDocument.blocks[1]?.margins, marginCliReplacement);
 
+  const {
+    editImportedSectionPageGeometry,
+    parseSectionPageGeometryEditCli,
+    sectionPageGeometryCliOutput,
+  } = await import(
+    "../skills/documents/skills/documents/examples/officekit-section-page-geometry-edit-workflow.mjs"
+  );
+  const { wordAttributes } = await import(
+    "../skills/documents/skills/documents/artifact_tool/_source_bound_sections.mjs"
+  );
+  const sourcePageGeometry = {
+    orientation: "portrait",
+    pageSize: { widthTwips: 12240, heightTwips: 15840 },
+  };
+  const replacementPageGeometry = {
+    orientation: "landscape",
+    pageSize: { widthTwips: 15840, heightTwips: 12240 },
+  };
+  const pageGeometryWorkflowOutputPath = path.join(outputDir, "source-bound-section-page-geometry-edited.docx");
+  const pageGeometryWorkflowAuditPath = path.join(outputDir, "source-bound-section-page-geometry-edited-audit.json");
+  const pageGeometryWorkflow = await editImportedSectionPageGeometry({
+    inputPath: marginWorkflowSourcePath,
+    outputPath: pageGeometryWorkflowOutputPath,
+    auditPath: pageGeometryWorkflowAuditPath,
+    sectionBlockIndex: 1,
+    expectedPageGeometry: sourcePageGeometry,
+    replacementPageGeometry,
+  });
+  assert.equal(pageGeometryWorkflow.audit.provider.actual, "office-kit");
+  assert.equal(pageGeometryWorkflow.audit.provider.silentFallback, false);
+  assert.deepEqual(pageGeometryWorkflow.audit.savePolicy, { strategy: "rewrite", noReplace: true });
+  assert.equal(pageGeometryWorkflow.audit.operation.type, "source-bound-section-page-geometry-edit");
+  assert.deepEqual(pageGeometryWorkflow.audit.operation.target, {
+    id: marginWorkflowImported.blocks[1].id,
+    blockIndex: 1,
+    sectionOrdinal: 0,
+  });
+  assert.deepEqual(pageGeometryWorkflow.audit.operation.sourcePageGeometry, sourcePageGeometry);
+  assert.deepEqual(pageGeometryWorkflow.audit.operation.replacementPageGeometry, replacementPageGeometry);
+  assert.deepEqual(pageGeometryWorkflow.audit.validation.changedParts, ["word/document.xml"]);
+  assert.equal(pageGeometryWorkflow.audit.validation.pageSizeXmlResidual.ok, true);
+  assert.deepEqual(pageGeometryWorkflow.audit.validation.reimport.pageGeometry, replacementPageGeometry);
+  assert.equal(pageGeometryWorkflow.audit.validation.reimport.editable, true);
+  assert.equal(pageGeometryWorkflow.audit.validation.nativeRenderRequired, true);
+  assert.deepEqual(sectionPageGeometryCliOutput(pageGeometryWorkflow).changedParts, ["word/document.xml"]);
+  assert.deepEqual(await fs.readFile(marginWorkflowSourcePath), marginWorkflowSourceBytes);
+
+  const pageGeometryWorkflowOutputBytes = await fs.readFile(pageGeometryWorkflowOutputPath);
+  const [pageGeometrySourceZip, pageGeometryOutputZip] = await Promise.all([
+    JSZip.loadAsync(marginWorkflowSourceBytes),
+    JSZip.loadAsync(pageGeometryWorkflowOutputBytes),
+  ]);
+  assert.deepEqual(
+    Object.keys(pageGeometryOutputZip.files).filter((partPath) => !pageGeometryOutputZip.files[partPath].dir).sort(),
+    marginWorkflowParts,
+  );
+  for (const partPath of marginWorkflowParts) {
+    if (partPath === "word/document.xml") continue;
+    assert.deepEqual(
+      Buffer.from(await pageGeometryOutputZip.file(partPath).async("uint8array")),
+      Buffer.from(await pageGeometrySourceZip.file(partPath).async("uint8array")),
+      `Only word/document.xml may change; ${partPath} drifted.`,
+    );
+  }
+  const [pageGeometrySourceXml, pageGeometryOutputXml] = await Promise.all([
+    pageGeometrySourceZip.file("word/document.xml").async("text"),
+    pageGeometryOutputZip.file("word/document.xml").async("text"),
+  ]);
+  const pageSizeTags = (xml) => [...xml.matchAll(/<w:pgSz\b[^>]*\/>/g)].map((match) => match[0]);
+  const pageSizeAttributes = (tag) => Object.fromEntries(
+    [...tag.matchAll(/w:([\w-]+)="([^"]*)"/g)].map((match) => [match[1], match[1] === "orient" ? match[2] : Number(match[2])]),
+  );
+  const sourcePageSizes = pageSizeTags(pageGeometrySourceXml);
+  const outputPageSizes = pageSizeTags(pageGeometryOutputXml);
+  assert.equal(sourcePageSizes.length, 3);
+  assert.equal(outputPageSizes.length, sourcePageSizes.length);
+  assert.deepEqual(pageSizeAttributes(sourcePageSizes[0]), { w: 12240, h: 15840, orient: "portrait" });
+  assert.deepEqual(pageSizeAttributes(outputPageSizes[0]), { w: 15840, h: 12240, orient: "landscape" });
+  assert.deepEqual(outputPageSizes.slice(1), sourcePageSizes.slice(1));
+  const pageGeometryWorkflowOutputDocument = await DocumentFile.importDocx(await FileBlob.load(pageGeometryWorkflowOutputPath));
+  assert.equal(pageGeometryWorkflowOutputDocument.blocks[1]?.orientation, "landscape");
+  assert.deepEqual(pageGeometryWorkflowOutputDocument.blocks[1]?.pageSize, replacementPageGeometry.pageSize);
+  assert.equal(pageGeometryWorkflowOutputDocument.blocks[3]?.orientation, "portrait");
+  assert.deepEqual(pageGeometryWorkflowOutputDocument.blocks[3]?.pageSize, sourcePageGeometry.pageSize);
+  const pageGeometryWorkflowRender = await verifyDocumentFile(pageGeometryWorkflowOutputPath, {
+    outputDir: path.join(outputDir, "source-bound-section-page-geometry-render"),
+    previewFormat: "png",
+    nativeRender: nativeStatus.available ? "required" : "auto",
+  });
+  assert.equal(pageGeometryWorkflowRender.summary.verifyOk, true);
+  assert.equal(pageGeometryWorkflowRender.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
+
+  const pageGeometryCliOutputPath = path.join(outputDir, "source-bound-section-page-geometry-cli.docx");
+  const pageGeometryCliAuditPath = path.join(outputDir, "source-bound-section-page-geometry-cli-audit.json");
+  const pageGeometryCliReplacement = {
+    orientation: "landscape",
+    pageSize: { widthTwips: 15120, heightTwips: 12240 },
+  };
+  assert.deepEqual(parseSectionPageGeometryEditCli([
+    marginWorkflowSourcePath,
+    pageGeometryCliOutputPath,
+    pageGeometryCliAuditPath,
+    "1",
+    JSON.stringify(sourcePageGeometry),
+    JSON.stringify(pageGeometryCliReplacement),
+  ]), {
+    inputPath: marginWorkflowSourcePath,
+    outputPath: pageGeometryCliOutputPath,
+    auditPath: pageGeometryCliAuditPath,
+    sectionBlockIndex: 1,
+    expectedPageGeometry: sourcePageGeometry,
+    replacementPageGeometry: pageGeometryCliReplacement,
+  });
+  const pageGeometryCliProcess = spawnSync(process.execPath, [
+    path.join(repoRoot, "skills", "documents", "skills", "documents", "examples", "officekit-section-page-geometry-edit-workflow.mjs"),
+    marginWorkflowSourcePath,
+    pageGeometryCliOutputPath,
+    pageGeometryCliAuditPath,
+    "1",
+    JSON.stringify(sourcePageGeometry),
+    JSON.stringify(pageGeometryCliReplacement),
+  ], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(pageGeometryCliProcess.status, 0, pageGeometryCliProcess.stderr);
+  assert.deepEqual(JSON.parse(pageGeometryCliProcess.stdout), {
+    outputPath: pageGeometryCliOutputPath,
+    auditPath: pageGeometryCliAuditPath,
+    outputSha256: createHash("sha256").update(await fs.readFile(pageGeometryCliOutputPath)).digest("hex"),
+    changedParts: ["word/document.xml"],
+  });
+  const pageGeometryCliDocument = await DocumentFile.importDocx(await FileBlob.load(pageGeometryCliOutputPath));
+  assert.equal(pageGeometryCliDocument.blocks[1]?.orientation, "landscape");
+  assert.deepEqual(pageGeometryCliDocument.blocks[1]?.pageSize, pageGeometryCliReplacement.pageSize);
+
+  assert.throws(
+    () => wordAttributes('<w:pgSz w:w="12240" x:w="1" w:h="15840" w:orient="portrait"/>', "adversarial w:pgSz"),
+    /noncanonical attribute namespace: x:w/,
+  );
+  assert.throws(
+    () => wordAttributes('<w:pgSz w:w="12240" w:w="1" w:h="15840" w:orient="portrait"/>', "adversarial w:pgSz"),
+    /duplicate or invalid w: attribute: w:w/,
+  );
+  assert.throws(
+    () => wordAttributes("<w:pgSz w:w='12240' w:h=\"15840\" w:orient=\"portrait\"/>", "adversarial w:pgSz"),
+    /unsupported XML attribute syntax/,
+  );
+  await assert.rejects(
+    () => editImportedSectionPageGeometry({
+      inputPath: marginWorkflowSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-page-geometry-mismatched.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-page-geometry-mismatched-audit.json"),
+      sectionBlockIndex: 1,
+      expectedPageGeometry: { ...sourcePageGeometry, pageSize: { ...sourcePageGeometry.pageSize, widthTwips: 999 } },
+      replacementPageGeometry,
+    }),
+    /page geometry does not match the expected source value/,
+  );
+  await assert.rejects(
+    () => editImportedSectionPageGeometry({
+      inputPath: marginWorkflowSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-page-geometry-invalid.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-page-geometry-invalid-audit.json"),
+      sectionBlockIndex: 1,
+      expectedPageGeometry: sourcePageGeometry,
+      replacementPageGeometry: { orientation: "landscape", pageSize: { widthTwips: 15840 } },
+    }),
+    /replacementPageGeometry\.pageSize\.heightTwips is required/,
+  );
+  await assert.rejects(
+    () => editImportedSectionPageGeometry({
+      inputPath: marginWorkflowSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-page-geometry-noop.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-page-geometry-noop-audit.json"),
+      sectionBlockIndex: 1,
+      expectedPageGeometry: sourcePageGeometry,
+      replacementPageGeometry: sourcePageGeometry,
+    }),
+    /replacementPageGeometry must differ from expectedPageGeometry/,
+  );
+  const irregularPageGeometrySourcePath = path.join(outputDir, "source-bound-section-page-geometry-irregular-source.docx");
+  const irregularPageGeometryZip = await JSZip.loadAsync(marginWorkflowSourceBytes);
+  const irregularPageGeometryXml = await irregularPageGeometryZip.file("word/document.xml").async("text");
+  irregularPageGeometryZip.file("word/document.xml", irregularPageGeometryXml.replace(/<w:pgSz\b[^>]*\/>/, (tag) => tag.replace(/\/>$/, " w:code=\"1\"/>")));
+  await fs.writeFile(irregularPageGeometrySourcePath, await irregularPageGeometryZip.generateAsync({ type: "nodebuffer" }), { flag: "wx" });
+  await assert.rejects(
+    () => editImportedSectionPageGeometry({
+      inputPath: irregularPageGeometrySourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-page-geometry-irregular.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-page-geometry-irregular-audit.json"),
+      sectionBlockIndex: 1,
+      expectedPageGeometry: sourcePageGeometry,
+      replacementPageGeometry,
+    }),
+    /unsupported w:pgSz attributes: code/,
+  );
+  assert.deepEqual(await fs.readFile(marginWorkflowSourcePath), marginWorkflowSourceBytes);
+
   await assert.rejects(
     () => editImportedSectionMargins({
       inputPath: marginWorkflowSourcePath,

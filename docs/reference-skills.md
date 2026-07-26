@@ -136,6 +136,8 @@ without a hidden placeholder convention. A recognized imported multi-segment
 paragraph reports the same sequence but is intentionally not editable; exact
 no-op export preserves it rather than rebuilding its field graph.
 
+| Document source-bound page geometry | done | `officekit-section-page-geometry-edit-workflow.mjs` edits one imported canonical Word section only when its block index and complete `{ orientation, pageSize }` source value match. It treats `w:pgSz` as an atomic leaf, permits only `word/document.xml`, checks the raw residual/package scope, reimports the full section projection, verifies/model-renders, protects the source, and writes a no-overwrite audit. It does not rescale surrounding content; paper-code, extension, duplicate/non-Word, stale, partial, or noncanonical geometry fails closed before publication. |
+
 ## Compatibility discipline
 
 Plugin packaging and workflow compatibility are separate gates. A plugin is not marked fully compatible merely because its manifest validates or its files appear in the tarball.
