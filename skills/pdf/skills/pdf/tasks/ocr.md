@@ -20,16 +20,16 @@ route installs qpdf, OCR core, and only the explicitly requested `eng` and/or
 different language, brew, apt, global pip, or a guessed download URL.
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pdf_provider.py check --provider ocrmypdf --require
 "$PYTHON_BIN" scripts/ocrmypdf_provider.py probe
 ```
 
 For an explicitly selected system runtime, set its exact executable with
-`OPEN_OFFICE_PDF_OCRMYPDF`, `OPEN_OFFICE_PDF_TESSERACT`,
-`OPEN_OFFICE_PDF_QPDF`, `OPEN_OFFICE_PDF_PDFTOTEXT`, or
-`OPEN_OFFICE_PDF_GS`. For a ready managed route, pass the resolver-returned
-`runtime.managed.environment` unchanged; its `OPEN_OFFICE_PDF_TESSDATA_DIRS`
+`OFFICE_KIT_PDF_OCRMYPDF`, `OFFICE_KIT_PDF_TESSERACT`,
+`OFFICE_KIT_PDF_QPDF`, `OFFICE_KIT_PDF_PDFTOTEXT`, or
+`OFFICE_KIT_PDF_GS`. For a ready managed route, pass the resolver-returned
+`runtime.managed.environment` unchanged; its `OFFICE_KIT_PDF_TESSDATA_DIRS`
 value is copied into a private temporary Tesseract directory rather than used
 in place. The probe reports the resolved versions and installed Tesseract
 languages. It never installs a provider or silently selects a substitute.
@@ -45,7 +45,7 @@ records that assertion but does not claim to enforce a sandbox itself.
 Inspect first, retain the source SHA-256, then create a distinct absent output:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/qpdf_provider.py inspect scanned.pdf \
   > tmp/pdfs/scanned-structure.json
 "$PYTHON_BIN" scripts/pdf_provider.py plan \

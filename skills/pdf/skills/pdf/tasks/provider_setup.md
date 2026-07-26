@@ -6,7 +6,7 @@
 enough; its WASM starts only for a MuPDF-backed operation:
 
 ```bash
-npm install open-office-artifact-tool
+npm install office-kit
 node scripts/mupdf.mjs probe
 node scripts/mupdf.mjs inspect input.pdf
 ```
@@ -21,8 +21,8 @@ symlink aliases), and atomic output publication.
 Use the public subpath rather than guessing a local install command:
 
 ```js
-import { PdfFile } from "open-office-artifact-tool";
-import { PdfProviders } from "open-office-artifact-tool/pdf/providers";
+import { PdfFile } from "office-kit";
+import { PdfProviders } from "office-kit/pdf/providers";
 
 const inspection = await PdfFile.inspectPdf("input.pdf");
 
@@ -48,7 +48,7 @@ download or mutate anything.
 ## Project policy
 
 The conventional policy file is
-`.open-office-artifact-tool/pdf-providers.json`. Its missing default is:
+`.office-kit/pdf-providers.json`. Its missing default is:
 
 ```json
 { "installPolicy": "disabled" }
@@ -79,7 +79,7 @@ appear in both policy and the immutable language-pack catalogue.
 The cache is always private to the project:
 
 ```text
-.open-office-artifact-tool/providers/<pack>/<version>/<platform>/
+.office-kit/providers/<pack>/<version>/<platform>/
 ```
 
 The installer accepts only declared, hash-pinned, versioned HTTPS release
@@ -94,7 +94,7 @@ After `ensure` returns `ready`, use only the exact paths in
 `result.runtime.managed`: pass its `pythonPath`, `commandPaths`, and
 `environment` to the selected adapter. Do not reconstruct a cache path or mix
 it with a system runtime. For managed OCR, `environment` includes
-`OPEN_OFFICE_PDF_TESSDATA_DIRS`, a platform path-list of the selected verified
+`OFFICE_KIT_PDF_TESSDATA_DIRS`, a platform path-list of the selected verified
 language-pack directories. `ocrmypdf_provider.py` copies regular, unlinked
 `.traineddata` files into a per-operation private directory and sets its own
 `TESSDATA_PREFIX`; never point `TESSDATA_PREFIX` directly at the project cache.
@@ -133,16 +133,16 @@ documented runtime path, for example:
 ```
 
 ```bash
-export OPEN_OFFICE_PDF_QPDF="/controlled/runtime/bin/qpdf"
+export OFFICE_KIT_PDF_QPDF="/controlled/runtime/bin/qpdf"
 python3 scripts/pdf_provider.py check --provider qpdf --require
 python3 scripts/qpdf_provider.py probe
 ```
 
 Use the analogous selected runtime variables only for the provider actually
-chosen by the resolver: `OPEN_OFFICE_PDF_PROVIDER_PYTHON`,
-`OPEN_OFFICE_PDF_VERAPDF`, `OPEN_OFFICE_PDF_OCRMYPDF`,
-`OPEN_OFFICE_PDF_GS`, or the Poppler paths.
-For Python, point `OPEN_OFFICE_PDF_PROVIDER_PYTHON` to the virtual-environment
+chosen by the resolver: `OFFICE_KIT_PDF_PROVIDER_PYTHON`,
+`OFFICE_KIT_PDF_VERAPDF`, `OFFICE_KIT_PDF_OCRMYPDF`,
+`OFFICE_KIT_PDF_GS`, or the Poppler paths.
+For Python, point `OFFICE_KIT_PDF_PROVIDER_PYTHON` to the virtual-environment
 executable itself (`bin/python` or `Scripts/python.exe`), not its resolved base
 interpreter. Every shipped Python entry point re-executes through that exact
 link so `pyvenv.cfg` and installed modules remain authoritative. A missing or

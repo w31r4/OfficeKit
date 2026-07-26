@@ -13,12 +13,12 @@ function combinedOutput(result) {
   return String(result.stdout || "") + String(result.stderr || "");
 }
 
-if (process.env.OPEN_OFFICE_PDF_LIVE_PACK_TEST !== "1") {
-  console.log("veraPDF managed release smoke skipped (set OPEN_OFFICE_PDF_LIVE_PACK_TEST=1)");
+if (process.env.OFFICE_KIT_PDF_LIVE_PACK_TEST !== "1") {
+  console.log("veraPDF managed release smoke skipped (set OFFICE_KIT_PDF_LIVE_PACK_TEST=1)");
 } else {
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-verapdf-managed-release-"));
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-verapdf-managed-release-"));
   try {
-    const policyDirectory = path.join(temporary, ".open-office-artifact-tool");
+    const policyDirectory = path.join(temporary, ".office-kit");
     const policyPath = path.join(policyDirectory, "pdf-providers.json");
     const home = path.join(temporary, "home");
     await Promise.all([fs.mkdir(policyDirectory), fs.mkdir(home)]);

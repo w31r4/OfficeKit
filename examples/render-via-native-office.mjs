@@ -1,10 +1,10 @@
 import os from "node:os";
 import path from "node:path";
 
-import { DocumentFile, DocumentModel } from "open-office-artifact-tool";
-import { nativeOfficeStatus, renderFileWithNativeOffice } from "open-office-artifact-tool/native/office-bridge";
+import { DocumentFile, DocumentModel } from "office-kit";
+import { nativeOfficeStatus, renderFileWithNativeOffice } from "office-kit/native/office-bridge";
 
-const outputDir = process.env.OUTPUT_DIR || path.join(os.tmpdir(), "open-office-artifact-examples");
+const outputDir = process.env.OUTPUT_DIR || path.join(os.tmpdir(), "office-kit-artifact-examples");
 
 const status = await nativeOfficeStatus({ timeoutMs: 10_000 });
 if (!status.available) {

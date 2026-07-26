@@ -12,7 +12,7 @@ const skillRoot = path.join(repoRoot, "skills", "pdf", "skills", "pdf");
 const provider = path.join(skillRoot, "scripts", "pikepdf_provider.py");
 const providerRegistry = path.join(skillRoot, "scripts", "pdf_provider.py");
 const qpdfProvider = path.join(skillRoot, "scripts", "qpdf_provider.py");
-const configuredPython = process.env.OPEN_OFFICE_PDF_PIKEPDF_TEST_PYTHON || "python3";
+const configuredPython = process.env.OFFICE_KIT_PDF_PIKEPDF_TEST_PYTHON || "python3";
 
 function run(executable, args, options = {}) {
   const result = spawnSync(executable, args, {
@@ -157,12 +157,12 @@ const moduleProbe = run(configuredPython, [
   "from importlib.metadata import version; import pikepdf, pikepdf.sanitize; assert version('pikepdf') == '10.10.0'",
 ]);
 if (moduleProbe.status !== 0) {
-  console.log("pikepdf provider smoke skipped (set OPEN_OFFICE_PDF_PIKEPDF_TEST_PYTHON to a pikepdf 10.10.0 environment)");
+  console.log("pikepdf provider smoke skipped (set OFFICE_KIT_PDF_PIKEPDF_TEST_PYTHON to a pikepdf 10.10.0 environment)");
   process.exit(0);
 }
 
 const providerEnv = {
-  OPEN_OFFICE_PDF_PROVIDER_PYTHON: configuredPython,
+  OFFICE_KIT_PDF_PROVIDER_PYTHON: configuredPython,
   PYTHONNOUSERSITE: "1",
 };
 const probe = jsonResult(run(configuredPython, [provider, "probe"], { env: providerEnv, status: 0 }));
@@ -187,7 +187,7 @@ assert.equal(registryProbe.providers[0].integration, "shipped-thin-script-extern
 assert.equal(registryProbe.providers[0].evidence.minimumVersion, "10.10.0");
 assert.equal(registryProbe.providers[0].evidence.maximumVersionExclusive, "10.11.0");
 
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-pikepdf-provider-"));
+const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-pikepdf-provider-"));
 try {
   const source = path.join(tempRoot, "active-source.pdf");
   const sourceBytes = buildActiveContentFixture();
@@ -202,7 +202,7 @@ try {
     sourceHash,
     "--trusted-input",
   ], { env: providerEnv, status: 0 }));
-  assert.equal(inspect.schema, "open-office-artifact-tool.pikepdf-inspect.v1");
+  assert.equal(inspect.schema, "office-kit.pikepdf-inspect.v1");
   assert.equal(inspect.source.sha256, sourceHash);
   assert.equal(inspect.sourceProtected, true);
   assert.equal(inspect.sourceSnapshot.readOnly, true);
@@ -293,7 +293,7 @@ try {
     "--trusted-input",
     "--invalidate-signatures",
   ], { env: providerEnv, status: 0 }));
-  assert.equal(activeResult.schema, "open-office-artifact-tool.pikepdf-structure-clean.v1");
+  assert.equal(activeResult.schema, "office-kit.pikepdf-structure-clean.v1");
   assert.equal(activeResult.profile, "active-content");
   assert.equal(activeResult.savePolicy, "rewrite");
   assert.equal(activeResult.providerIsCompleteSanitizer, false);
@@ -515,7 +515,7 @@ try {
 
   if (available("qpdf")) {
     const qpdfInspect = jsonResult(run("python3", [qpdfProvider, "inspect", allOutput], {
-      env: { OPEN_OFFICE_PDF_QPDF: "" },
+      env: { OFFICE_KIT_PDF_QPDF: "" },
       status: 0,
     }));
     assert.equal(qpdfInspect.check.status, "clean");

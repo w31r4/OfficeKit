@@ -2,7 +2,7 @@
 
 Documents is the file-type wrapper plugin for document artifact workflows.
 
-This installable Skill bundle is distributed with `open-office-artifact-tool`.
+This installable Skill bundle is distributed with `office-kit`.
 
 ## Included Skills
 
@@ -18,4 +18,4 @@ The plugin tree is versioned directly under `skills/documents` in the public rep
 
 ## Compatibility status
 
-The native plugin package, public `DocumentModel`/OpenChestnut ordinary create-import-edit-export workflow, and render/QA materials are ready. Python and direct OOXML helpers remain packaged only for explicit advanced package patches and specialized QA; unsupported model edits fail closed rather than switching authoring engines.
+The native plugin package, public `DocumentModel`/OfficeKit ordinary create-import-edit-export workflow, and render/QA materials are ready. Python and direct OOXML helpers remain packaged only for explicit advanced package patches and specialized QA; unsupported model edits fail closed rather than switching authoring engines.

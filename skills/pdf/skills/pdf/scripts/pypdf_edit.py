@@ -18,8 +18,8 @@ from typing import Any
 import unicodedata
 
 
-MERGE_STAMP_SCHEMA = "open-office-artifact-tool.pdf-merge-stamp.v1"
-MERGE_STAMP_RESULT_SCHEMA = "open-office-artifact-tool.pdf-merge-stamp-result.v1"
+MERGE_STAMP_SCHEMA = "office-kit.pdf-merge-stamp.v1"
+MERGE_STAMP_RESULT_SCHEMA = "office-kit.pdf-merge-stamp-result.v1"
 
 
 class ProviderError(RuntimeError):
@@ -412,7 +412,7 @@ def extract_attachments(args: argparse.Namespace, reader, version: str) -> dict[
         if source_after != source_before:
             raise ProviderError("source PDF changed during read-only attachment extraction")
         result = {
-            "schema": "open-office-artifact-tool.pdf-attachments.v1",
+            "schema": "office-kit.pdf-attachments.v1",
             "provider": "pypdf",
             "providerVersion": version,
             "strategy": "read-only",

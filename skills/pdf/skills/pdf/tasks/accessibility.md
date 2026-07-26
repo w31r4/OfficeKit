@@ -17,7 +17,7 @@ Bind the final bytes and choose one supported built-in profile explicitly; see
 reason to install a global tool:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 SOURCE_SHA256="$(shasum -a 256 output.pdf | awk '{print $1}')"
 "$PYTHON_BIN" scripts/pdf_provider.py check --provider verapdf --require
 "$PYTHON_BIN" scripts/verapdf_provider.py probe

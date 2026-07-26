@@ -1,5 +1,5 @@
 {
-  "schema": "open-office-artifact-tool.pdf-provider-catalog.v1",
+  "schema": "office-kit.pdf-provider-catalog.v1",
   "schemaVersion": 1,
   "releasePolicy": {
     "managedArtifacts": "versioned-signed-platform-release-assets",
@@ -18,7 +18,7 @@
       "artifacts": [],
       "requiresPackIds": [],
       "entrypoints": [],
-      "dependencyClosure": ["open-office-artifact-tool"],
+      "dependencyClosure": ["office-kit"],
       "estimatedDownloadBytes": 0,
       "estimatedUnpackedBytes": 0,
       "license": { "expression": "AGPL-3.0-or-later", "requiresAcknowledgement": false }
@@ -46,7 +46,7 @@
           "platform": "darwin-arm64",
           "asset": "python-foundation-3.13.14-oat.1-darwin-arm64.tar.gz",
           "version": "3.13.14-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-python-foundation-3.13.14-oat.1/python-foundation-3.13.14-oat.1-darwin-arm64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-python-foundation-3.13.14-oat.1/python-foundation-3.13.14-oat.1-darwin-arm64.tar.gz",
           "sha256": "c45523fbcbe87363f6955698b68dd8f9c701eda85bc15c11e192de40bf43aec6",
           "downloadBytes": 44377484,
           "unpackedBytes": 106398446,
@@ -56,7 +56,7 @@
           "platform": "linux-x64",
           "asset": "python-foundation-3.13.14-oat.1-linux-x64.tar.gz",
           "version": "3.13.14-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-python-foundation-3.13.14-oat.1/python-foundation-3.13.14-oat.1-linux-x64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-python-foundation-3.13.14-oat.1/python-foundation-3.13.14-oat.1-linux-x64.tar.gz",
           "sha256": "11ccf3748f6d09ec068525d321020551a5eb30675dccfde35900f65121103cf3",
           "downloadBytes": 67327027,
           "unpackedBytes": 179446477,
@@ -71,19 +71,19 @@
       "releaseEvidence": {
         "sbom": {
           "asset": "python-foundation-3.13.14-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-python-foundation-3.13.14-oat.1/python-foundation-3.13.14-oat.1.sbom.cdx.json",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-python-foundation-3.13.14-oat.1/python-foundation-3.13.14-oat.1.sbom.cdx.json",
           "sha256": "1f9e377fedc0a7d7e28519be64853c675a7717722caed2b190be2b1be86fce31"
         },
         "thirdPartyNotices": {
           "asset": "python-foundation-3.13.14-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-python-foundation-3.13.14-oat.1/python-foundation-3.13.14-oat.1.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-python-foundation-3.13.14-oat.1/python-foundation-3.13.14-oat.1.THIRD_PARTY_NOTICES.md",
           "sha256": "a895a09ac14debca3e365e85cdd697523fdc4761dae31bfc30826271d62c938d"
         },
         "provenance": {
           "provider": "github-actions-artifact-attestation",
-          "repository": "w31r4/open-office-artifact-tool",
+          "repository": "w31r4/office-kit",
           "workflow": ".github/workflows/pdf-python-capability-packs.yml",
-          "verificationCommand": "gh attestation verify <asset> --repo w31r4/open-office-artifact-tool"
+          "verificationCommand": "gh attestation verify <asset> --repo w31r4/office-kit"
         },
         "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
       },
@@ -99,7 +99,7 @@
           "platform": "darwin-arm64",
           "asset": "python-specialists-3.13.14-oat.1-darwin-arm64.tar.gz",
           "version": "3.13.14-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-python-specialists-3.13.14-oat.1/python-specialists-3.13.14-oat.1-darwin-arm64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-python-specialists-3.13.14-oat.1/python-specialists-3.13.14-oat.1-darwin-arm64.tar.gz",
           "sha256": "afc248981d3c3060991fb6dca795defcd32dfdd21162fc211d46b67ac9109333",
           "downloadBytes": 71471223,
           "unpackedBytes": 181342971,
@@ -109,7 +109,7 @@
           "platform": "linux-x64",
           "asset": "python-specialists-3.13.14-oat.1-linux-x64.tar.gz",
           "version": "3.13.14-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-python-specialists-3.13.14-oat.1/python-specialists-3.13.14-oat.1-linux-x64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-python-specialists-3.13.14-oat.1/python-specialists-3.13.14-oat.1-linux-x64.tar.gz",
           "sha256": "e97e0dd058c85c0304de505ef1ae6ae6916c3d49a4477a91b81dfe8a117b95cc",
           "downloadBytes": 90635639,
           "unpackedBytes": 247049796,
@@ -124,19 +124,19 @@
       "releaseEvidence": {
         "sbom": {
           "asset": "python-specialists-3.13.14-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-python-specialists-3.13.14-oat.1/python-specialists-3.13.14-oat.1.sbom.cdx.json",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-python-specialists-3.13.14-oat.1/python-specialists-3.13.14-oat.1.sbom.cdx.json",
           "sha256": "d9aee32d671bc9011180d3e6dcaff8ebfe8ffda54d2cb8035969f09475f3f337"
         },
         "thirdPartyNotices": {
           "asset": "python-specialists-3.13.14-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-python-specialists-3.13.14-oat.1/python-specialists-3.13.14-oat.1.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-python-specialists-3.13.14-oat.1/python-specialists-3.13.14-oat.1.THIRD_PARTY_NOTICES.md",
           "sha256": "2e1cd7005751617ccfcc639e0f5c527e3bbcd5db8ad6b67fc03daa380bfb284f"
         },
         "provenance": {
           "provider": "github-actions-artifact-attestation",
-          "repository": "w31r4/open-office-artifact-tool",
+          "repository": "w31r4/office-kit",
           "workflow": ".github/workflows/pdf-python-capability-packs.yml",
-          "verificationCommand": "gh attestation verify <asset> --repo w31r4/open-office-artifact-tool"
+          "verificationCommand": "gh attestation verify <asset> --repo w31r4/office-kit"
         },
         "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
       },
@@ -169,7 +169,7 @@
           "platform": "darwin-arm64",
           "asset": "qpdf-12.3.2-oat.1-darwin-arm64.tar.gz",
           "version": "12.3.2-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-qpdf-12.3.2-oat.1/qpdf-12.3.2-oat.1-darwin-arm64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-qpdf-12.3.2-oat.1/qpdf-12.3.2-oat.1-darwin-arm64.tar.gz",
           "sha256": "33ea84e818dd1c20029e3b62c3345e7bc2d0c0f5e82ce2fdf5b1dba9ef127131",
           "downloadBytes": 1215894,
           "unpackedBytes": 3920089,
@@ -179,7 +179,7 @@
           "platform": "linux-x64",
           "asset": "qpdf-12.3.2-oat.1-linux-x64.tar.gz",
           "version": "12.3.2-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-qpdf-12.3.2-oat.1/qpdf-12.3.2-oat.1-linux-x64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-qpdf-12.3.2-oat.1/qpdf-12.3.2-oat.1-linux-x64.tar.gz",
           "sha256": "f16d595d44d42d913bc1b0fed27ba892c5cc5ae9e90f7db15ffd35b7af2dc02b",
           "downloadBytes": 1545519,
           "unpackedBytes": 4522998,
@@ -194,19 +194,19 @@
       "releaseEvidence": {
         "sbom": {
           "asset": "qpdf-12.3.2-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-qpdf-12.3.2-oat.1/qpdf-12.3.2-oat.1.sbom.cdx.json",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-qpdf-12.3.2-oat.1/qpdf-12.3.2-oat.1.sbom.cdx.json",
           "sha256": "f5b718ed0fdb12361fe186f52b15e3c5f8e7550ddb4bfe80bd6f4c0c10419ff1"
         },
         "thirdPartyNotices": {
           "asset": "qpdf-12.3.2-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-qpdf-12.3.2-oat.1/qpdf-12.3.2-oat.1.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-qpdf-12.3.2-oat.1/qpdf-12.3.2-oat.1.THIRD_PARTY_NOTICES.md",
           "sha256": "3de0f185f6e303c06408bf18d41ed076fea791e27640f8acf4464b29555c435a"
         },
         "provenance": {
           "provider": "github-actions-artifact-attestation",
-          "repository": "w31r4/open-office-artifact-tool",
+          "repository": "w31r4/office-kit",
           "workflow": ".github/workflows/pdf-capability-packs.yml",
-          "verificationCommand": "gh attestation verify <asset> --repo w31r4/open-office-artifact-tool"
+          "verificationCommand": "gh attestation verify <asset> --repo w31r4/office-kit"
         },
         "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
       },
@@ -222,7 +222,7 @@
           "platform": "darwin-arm64",
           "asset": "ocr-core-17.8.1-oat.1-darwin-arm64.tar.gz",
           "version": "17.8.1-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-ocr-core-17.8.1-oat.1/ocr-core-17.8.1-oat.1-darwin-arm64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-ocr-core-17.8.1-oat.1/ocr-core-17.8.1-oat.1-darwin-arm64.tar.gz",
           "sha256": "02a9eb183321717842a2ec886fbd78b3bf17399d2fabcda88b3ab09b2818c69b",
           "downloadBytes": 208127744,
           "unpackedBytes": 628438042,
@@ -232,7 +232,7 @@
           "platform": "linux-x64",
           "asset": "ocr-core-17.8.1-oat.1-linux-x64.tar.gz",
           "version": "17.8.1-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-ocr-core-17.8.1-oat.1/ocr-core-17.8.1-oat.1-linux-x64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-ocr-core-17.8.1-oat.1/ocr-core-17.8.1-oat.1-linux-x64.tar.gz",
           "sha256": "dc26faefa6a9d05c83c289cfe4f28dfc4b566cdaeca776da017cbb52958f8a92",
           "downloadBytes": 154770547,
           "unpackedBytes": 420653539,
@@ -253,19 +253,19 @@
       "releaseEvidence": {
         "sbom": {
           "asset": "ocr-core-17.8.1-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-ocr-core-17.8.1-oat.1/ocr-core-17.8.1-oat.1.sbom.cdx.json",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-ocr-core-17.8.1-oat.1/ocr-core-17.8.1-oat.1.sbom.cdx.json",
           "sha256": "304f38f561ca2856d13287a3819cab1d764e714ed172c5c55eb419e025a6781e"
         },
         "thirdPartyNotices": {
           "asset": "ocr-core-17.8.1-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-ocr-core-17.8.1-oat.1/ocr-core-17.8.1-oat.1.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-ocr-core-17.8.1-oat.1/ocr-core-17.8.1-oat.1.THIRD_PARTY_NOTICES.md",
           "sha256": "bcaa162f3ef1e6a9294bcbfea5290aec91468592107c6f47a1ae4020bf72e975"
         },
         "provenance": {
           "provider": "github-actions-artifact-attestation",
-          "repository": "w31r4/open-office-artifact-tool",
+          "repository": "w31r4/office-kit",
           "workflow": ".github/workflows/pdf-ocr-capability-packs.yml",
-          "verificationCommand": "gh attestation verify <asset> --repo w31r4/open-office-artifact-tool"
+          "verificationCommand": "gh attestation verify <asset> --repo w31r4/office-kit"
         },
         "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
       },
@@ -281,7 +281,7 @@
           "platform": "darwin-arm64",
           "asset": "ocr-language-eng-4.1.0-oat.1-darwin-arm64.tar.gz",
           "version": "4.1.0-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.1/ocr-language-eng-4.1.0-oat.1-darwin-arm64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.1/ocr-language-eng-4.1.0-oat.1-darwin-arm64.tar.gz",
           "sha256": "5b848be97910c205099ecda298895ef1e9b3a26a39e80db2f788d4753562a41f",
           "downloadBytes": 1981766,
           "unpackedBytes": 4126093,
@@ -291,7 +291,7 @@
           "platform": "linux-x64",
           "asset": "ocr-language-eng-4.1.0-oat.1-linux-x64.tar.gz",
           "version": "4.1.0-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.1/ocr-language-eng-4.1.0-oat.1-linux-x64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.1/ocr-language-eng-4.1.0-oat.1-linux-x64.tar.gz",
           "sha256": "0b7e44640e12b6c0f83995931e0887b3ebafbebfd073a9b81e91e2a8e1b5630b",
           "downloadBytes": 1981763,
           "unpackedBytes": 4126090,
@@ -306,19 +306,19 @@
       "releaseEvidence": {
         "sbom": {
           "asset": "ocr-language-eng-4.1.0-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.1/ocr-language-eng-4.1.0-oat.1.sbom.cdx.json",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.1/ocr-language-eng-4.1.0-oat.1.sbom.cdx.json",
           "sha256": "07d70afe0df5854d78dca59e95ef5301d529c414d79eacce7e34680c6cb778f7"
         },
         "thirdPartyNotices": {
           "asset": "ocr-language-eng-4.1.0-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.1/ocr-language-eng-4.1.0-oat.1.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.1/ocr-language-eng-4.1.0-oat.1.THIRD_PARTY_NOTICES.md",
           "sha256": "f084cd6e2ce92791faed4c1e60384cb7c16a53707a214a5ac1894ca17ce5dfde"
         },
         "provenance": {
           "provider": "github-actions-artifact-attestation",
-          "repository": "w31r4/open-office-artifact-tool",
+          "repository": "w31r4/office-kit",
           "workflow": ".github/workflows/pdf-ocr-capability-packs.yml",
-          "verificationCommand": "gh attestation verify <asset> --repo w31r4/open-office-artifact-tool"
+          "verificationCommand": "gh attestation verify <asset> --repo w31r4/office-kit"
         },
         "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
       },
@@ -334,7 +334,7 @@
           "platform": "darwin-arm64",
           "asset": "ocr-language-chi-sim-4.1.0-oat.1-darwin-arm64.tar.gz",
           "version": "4.1.0-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.1/ocr-language-chi-sim-4.1.0-oat.1-darwin-arm64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.1/ocr-language-chi-sim-4.1.0-oat.1-darwin-arm64.tar.gz",
           "sha256": "e202fec7e2fdc58cadaeea1652b71323c5a2eeb606aba4f0dd736b13a943fb78",
           "downloadBytes": 1733864,
           "unpackedBytes": 2482185,
@@ -344,7 +344,7 @@
           "platform": "linux-x64",
           "asset": "ocr-language-chi-sim-4.1.0-oat.1-linux-x64.tar.gz",
           "version": "4.1.0-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.1/ocr-language-chi-sim-4.1.0-oat.1-linux-x64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.1/ocr-language-chi-sim-4.1.0-oat.1-linux-x64.tar.gz",
           "sha256": "f429ca34cdc6c25632d7c45434201b4e67aaa663d344655db4afb44e22bf6745",
           "downloadBytes": 1733869,
           "unpackedBytes": 2482182,
@@ -359,19 +359,19 @@
       "releaseEvidence": {
         "sbom": {
           "asset": "ocr-language-chi-sim-4.1.0-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.1/ocr-language-chi-sim-4.1.0-oat.1.sbom.cdx.json",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.1/ocr-language-chi-sim-4.1.0-oat.1.sbom.cdx.json",
           "sha256": "28849809618daf160126b56da73b8193681319cd5a6230a673d4ddf3bf2685de"
         },
         "thirdPartyNotices": {
           "asset": "ocr-language-chi-sim-4.1.0-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.1/ocr-language-chi-sim-4.1.0-oat.1.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.1/ocr-language-chi-sim-4.1.0-oat.1.THIRD_PARTY_NOTICES.md",
           "sha256": "cef8e10c7ad7a1ebfb754dc5983bc71bf95df24222d0476d866df5ac965c49fb"
         },
         "provenance": {
           "provider": "github-actions-artifact-attestation",
-          "repository": "w31r4/open-office-artifact-tool",
+          "repository": "w31r4/office-kit",
           "workflow": ".github/workflows/pdf-ocr-capability-packs.yml",
-          "verificationCommand": "gh attestation verify <asset> --repo w31r4/open-office-artifact-tool"
+          "verificationCommand": "gh attestation verify <asset> --repo w31r4/office-kit"
         },
         "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
       },
@@ -387,7 +387,7 @@
           "platform": "darwin-arm64",
           "asset": "verapdf-1.30.2-oat.1-darwin-arm64.tar.gz",
           "version": "1.30.2-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-verapdf-1.30.2-oat.1/verapdf-1.30.2-oat.1-darwin-arm64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-verapdf-1.30.2-oat.1/verapdf-1.30.2-oat.1-darwin-arm64.tar.gz",
           "sha256": "e75bb934df36b06b53402230ece1e7b3e185265a336d85380019a03f4e253592",
           "downloadBytes": 63616368,
           "unpackedBytes": 173332643,
@@ -397,7 +397,7 @@
           "platform": "linux-x64",
           "asset": "verapdf-1.30.2-oat.1-linux-x64.tar.gz",
           "version": "1.30.2-oat.1",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-verapdf-1.30.2-oat.1/verapdf-1.30.2-oat.1-linux-x64.tar.gz",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-verapdf-1.30.2-oat.1/verapdf-1.30.2-oat.1-linux-x64.tar.gz",
           "sha256": "d23b14c123f3912c6b23a94a4a5a8ae00132c1bb81baeead19ae41e20c4c1d1c",
           "downloadBytes": 67801238,
           "unpackedBytes": 181794036,
@@ -415,19 +415,19 @@
       "releaseEvidence": {
         "sbom": {
           "asset": "verapdf-1.30.2-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-verapdf-1.30.2-oat.1/verapdf-1.30.2-oat.1.sbom.cdx.json",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-verapdf-1.30.2-oat.1/verapdf-1.30.2-oat.1.sbom.cdx.json",
           "sha256": "77f32ff3ec4fdd6da4b25af6a2073dbd4278cde4a00bdbcf107f83eb539ba159"
         },
         "thirdPartyNotices": {
           "asset": "verapdf-1.30.2-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/open-office-artifact-tool/releases/download/pdf-provider-verapdf-1.30.2-oat.1/verapdf-1.30.2-oat.1.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/office-kit/releases/download/pdf-provider-verapdf-1.30.2-oat.1/verapdf-1.30.2-oat.1.THIRD_PARTY_NOTICES.md",
           "sha256": "3ef7dad12680bed92d5e6bba68034d876f4fc8d0eaa2794b4871b95bc3e5c406"
         },
         "provenance": {
           "provider": "github-actions-artifact-attestation",
-          "repository": "w31r4/open-office-artifact-tool",
+          "repository": "w31r4/office-kit",
           "workflow": ".github/workflows/pdf-verapdf-capability-pack.yml",
-          "verificationCommand": "gh attestation verify <asset> --repo w31r4/open-office-artifact-tool"
+          "verificationCommand": "gh attestation verify <asset> --repo w31r4/office-kit"
         },
         "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
       },
@@ -462,7 +462,7 @@
       "role": "greenfield visual/layout-oriented generation",
       "integration": "shipped-thin-script",
       "taskIds": ["create-layout"],
-      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OPEN_OFFICE_PDF_PROVIDER_PYTHON": "bin/python3" } },
+      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
       "license": { "expression": "BSD-3-Clause", "requiresAcknowledgement": false },
       "matrixBoundary": "New documents only; it does not inherit PdfArtifact tagged/reading-order semantics."
     },
@@ -473,7 +473,7 @@
       "role": "read-only text, word-geometry, table, line, and rectangle extraction",
       "integration": "shipped-thin-script",
       "taskIds": ["extract"],
-      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OPEN_OFFICE_PDF_PROVIDER_PYTHON": "bin/python3" } },
+      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
       "license": { "expression": "MIT", "requiresAcknowledgement": false },
       "matrixBoundary": "Extraction is evidence, not layout fidelity or an edit representation."
     },
@@ -484,7 +484,7 @@
       "role": "basic structure, attachment quarantine, complete-source merge/reorder/selective stamp, forms, annotations",
       "integration": "shipped-thin-script",
       "taskIds": ["extract", "extract-attachments", "inspect", "fill-form", "annotate", "merge-stamp"],
-      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OPEN_OFFICE_PDF_PROVIDER_PYTHON": "bin/python3" } },
+      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
       "license": { "expression": "BSD-3-Clause", "requiresAcknowledgement": false },
       "matrixBoundary": "Inspect signatures and DocMDP before mutation; an incremental byte layout is not signature authorization."
     },
@@ -497,7 +497,7 @@
       "role": "advanced imported-PDF editing, image-backed OCR redaction, and sanitize",
       "integration": "shipped-thin-script-external-python",
       "taskIds": ["extract", "inspect", "edit-content", "fill-form", "annotate", "redact", "sanitize"],
-      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OPEN_OFFICE_PDF_PROVIDER_PYTHON": "bin/python3" } },
+      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
       "license": { "id": "agpl-or-commercial", "expression": "AGPL-3.0-or-later OR commercial", "requiresAcknowledgement": true, "acceptedValues": ["agpl", "commercial"] },
       "matrixBoundary": "Explicit advanced provider only. Sanitization is full-rewrite and residue-scanned; PyMuPDF is not the digital-signature authority."
     },
@@ -510,7 +510,7 @@
       "taskIds": ["render"],
       "managedRuntime": {
         "commandPaths": { "pdfinfo": "bin/pdfinfo", "pdftoppm": "bin/pdftoppm", "pdftotext": "bin/pdftotext" },
-        "environment": { "OPEN_OFFICE_PDF_PDFINFO": "bin/pdfinfo", "OPEN_OFFICE_PDF_PDFTOPPM": "bin/pdftoppm", "OPEN_OFFICE_PDF_PDFTOTEXT": "bin/pdftotext" }
+        "environment": { "OFFICE_KIT_PDF_PDFINFO": "bin/pdfinfo", "OFFICE_KIT_PDF_PDFTOPPM": "bin/pdftoppm", "OFFICE_KIT_PDF_PDFTOTEXT": "bin/pdftotext" }
       },
       "license": { "expression": "GPL-2.0-or-later", "requiresAcknowledgement": false },
       "matrixBoundary": "Independent renderer/file evidence only; it is not an editor or conformance validator."
@@ -519,14 +519,14 @@
       "kind": "command",
       "packId": "qpdf",
       "commands": ["qpdf"],
-      "environment": "OPEN_OFFICE_PDF_QPDF",
+      "environment": "OFFICE_KIT_PDF_QPDF",
       "minimumMajor": 11,
       "taskMinimumVersions": { "encrypt": "11.7.0" },
       "requireVersionOutput": true,
       "role": "bounded structure inspection, recovery rewrite, linearization, and source-to-AES-256 encryption",
       "integration": "shipped-thin-script-external-cli",
       "taskIds": ["inspect", "repair", "linearize", "encrypt"],
-      "managedRuntime": { "commandPaths": { "qpdf": "bin/qpdf" }, "environment": { "OPEN_OFFICE_PDF_QPDF": "bin/qpdf" } },
+      "managedRuntime": { "commandPaths": { "qpdf": "bin/qpdf" }, "environment": { "OFFICE_KIT_PDF_QPDF": "bin/qpdf" } },
       "license": { "expression": "Apache-2.0", "requiresAcknowledgement": false },
       "matrixBoundary": "Not a renderer, text extractor, strict conformance checker, sanitizer, encrypted-input opener/decrypter, permission editor, or signature validator. The one bounded encryption route creates a distinct AES-256 copy from an unencrypted source with caller-owned password files."
     },
@@ -539,7 +539,7 @@
       "role": "source-bound active and auxiliary PDF structure cleanup",
       "integration": "shipped-thin-script-external-python",
       "taskIds": ["inspect", "structure-clean"],
-      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OPEN_OFFICE_PDF_PROVIDER_PYTHON": "bin/python3" } },
+      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
       "license": { "expression": "MPL-2.0", "requiresAcknowledgement": false },
       "matrixBoundary": "A curated fixed-profile rewrite, not redaction, metadata/form/XFA cleanup, strict sanitize, rendering, or malware isolation."
     },
@@ -557,7 +557,7 @@
       "role": "source-bound local-PKCS#12 signing plus read-only signature validation",
       "integration": "shipped-thin-script-external-python",
       "taskIds": ["sign", "verify-signature"],
-      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OPEN_OFFICE_PDF_PROVIDER_PYTHON": "bin/python3" } },
+      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
       "license": { "expression": "MIT", "requiresAcknowledgement": false },
       "matrixBoundary": "The runtime can be selected, but certificates, private keys, HSMs, and remote-signing credentials are always caller-provided and never acquired automatically."
     },
@@ -565,7 +565,7 @@
       "kind": "command",
       "packId": "verapdf",
       "commands": ["verapdf"],
-      "environment": "OPEN_OFFICE_PDF_VERAPDF",
+      "environment": "OFFICE_KIT_PDF_VERAPDF",
       "minimumVersion": "1.30.0",
       "maximumVersionExclusive": "1.31.0",
       "requireVersionOutput": true,
@@ -573,7 +573,7 @@
       "role": "source-bound PDF/A and PDF/UA machine-rule validation",
       "integration": "shipped-thin-script-external-cli",
       "taskIds": ["validate-conformance"],
-      "managedRuntime": { "commandPaths": { "verapdf": "bin/verapdf" }, "environment": { "OPEN_OFFICE_PDF_VERAPDF": "bin/verapdf" } },
+      "managedRuntime": { "commandPaths": { "verapdf": "bin/verapdf" }, "environment": { "OFFICE_KIT_PDF_VERAPDF": "bin/verapdf" } },
       "license": { "expression": "MPL-2.0", "requiresAcknowledgement": false },
       "matrixBoundary": "One explicit built-in profile only; a green machine report is not universal accessibility certification or repair."
     },
@@ -581,7 +581,7 @@
       "kind": "command",
       "packId": "ocr-core",
       "commands": ["ocrmypdf"],
-      "environment": "OPEN_OFFICE_PDF_OCRMYPDF",
+      "environment": "OFFICE_KIT_PDF_OCRMYPDF",
       "minimumVersion": "17.8.0",
       "maximumVersionExclusive": "17.9.0",
       "requireVersionOutput": true,
@@ -598,13 +598,13 @@
           "pdftotext": "bin/pdftotext"
         },
         "environment": {
-          "OPEN_OFFICE_PDF_OCRMYPDF": "bin/ocrmypdf",
-          "OPEN_OFFICE_PDF_TESSERACT": "bin/tesseract",
-          "OPEN_OFFICE_PDF_GS": "bin/gs",
-          "OPEN_OFFICE_PDF_QPDF": { "packId": "qpdf", "path": "bin/qpdf" },
-          "OPEN_OFFICE_PDF_PDFTOTEXT": "bin/pdftotext"
+          "OFFICE_KIT_PDF_OCRMYPDF": "bin/ocrmypdf",
+          "OFFICE_KIT_PDF_TESSERACT": "bin/tesseract",
+          "OFFICE_KIT_PDF_GS": "bin/gs",
+          "OFFICE_KIT_PDF_QPDF": { "packId": "qpdf", "path": "bin/qpdf" },
+          "OFFICE_KIT_PDF_PDFTOTEXT": "bin/pdftotext"
         },
-        "languageDirectoryEnvironment": "OPEN_OFFICE_PDF_TESSDATA_DIRS"
+        "languageDirectoryEnvironment": "OFFICE_KIT_PDF_TESSDATA_DIRS"
       },
       "license": { "expression": "MPL-2.0", "requiresAcknowledgement": false },
       "matrixBoundary": "OCR is a source-bound rewrite with isolated native sidecars and explicit language packs; it is not proof of text correctness or PDF/UA repair."

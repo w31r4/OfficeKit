@@ -120,7 +120,7 @@ export async function renderFileWithNativeOffice(input, options = {}) {
   const outputType = options.outputType || outputTypeFor(options.format, "application/pdf");
   const format = options.format || extensionFor(outputType, "pdf");
   const tempRoot = options.tempRoot || os.tmpdir();
-  const tempDir = await fs.mkdtemp(path.join(tempRoot, "open-office-bridge-"));
+  const tempDir = await fs.mkdtemp(path.join(tempRoot, "office-kit-bridge-"));
   const inputPath = options.inputPath || path.join(tempDir, `input.${extensionFor(inputType, "bin")}`);
   const outputPath = options.outputPath || path.join(tempDir, `output.${extensionFor(outputType || format, format || "bin")}`);
 

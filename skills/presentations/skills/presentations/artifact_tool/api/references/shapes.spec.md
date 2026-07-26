@@ -48,7 +48,7 @@ imported shape unless the task requires a new object.
 
 `shape.useBackgroundFill` is `true` or `false` only when imported native
 PresentationML carried `p:sp/@useBgFill`; otherwise it is `undefined`. The
-property is read-only. It affects preview paint, while OpenChestnut preserves
+property is read-only. It affects preview paint, while OfficeKit preserves
 the native attribute unchanged and rejects source-free authoring or mutation.
 
 ```ts

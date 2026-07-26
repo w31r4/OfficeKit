@@ -1,6 +1,6 @@
 # Custom Shows
 
-Custom shows are ordered, named subsets of a deck. OpenChestnut writes them as
+Custom shows are ordered, named subsets of a deck. OfficeKit writes them as
 native `p:custShowLst` data in `ppt/presentation.xml`; they are not preview-only
 metadata and do not create a second copy of any SlidePart.
 
@@ -48,7 +48,7 @@ its ordered slide membership.
 A canonical text run may select exactly one existing custom show by exact
 name. `returnToSlide` is optional and presence-aware; `true` writes
 `&return=true`, `false` writes `&return=false`, and omission writes neither.
-OpenChestnut emits a relationship-free DrawingML click action:
+OfficeKit emits a relationship-free DrawingML click action:
 
 ```xml
 <a:hlinkClick r:id="" action="ppaction://customshow?id=7&amp;return=true"/>
@@ -73,7 +73,7 @@ custom-show identity references.
 ## Imported Canonical Shows
 
 A canonical imported list exposes semantic shows with hash-bound source
-evidence. OpenChestnut permits two edits in place:
+evidence. OfficeKit permits two edits in place:
 
 - change an existing show's `name` without colliding with another name;
 - call `setSlides(...)` with an ordered list of retained slides from the same
@@ -89,7 +89,7 @@ presentation relationships rather than display indexes.
 
 If a list contains extensions, unknown attributes/children, an unresolved
 relationship, duplicate names/native IDs, an empty show, or another graph
-outside this profile, OpenChestnut exposes no incomplete semantic facade. It
+outside this profile, OfficeKit exposes no incomplete semantic facade. It
 marks the list opaque, preserves its exact source XML, and rejects attempts to
 replace it.
 
@@ -99,7 +99,7 @@ Use the shipped workflow when one exact imported show must be renamed and its
 ordered slide route changed:
 
 ```ts
-import { editPptxCustomShow } from "../../../examples/openchestnut-custom-show-workflow.mjs";
+import { editPptxCustomShow } from "../../../examples/officekit-custom-show-workflow.mjs";
 
 await editPptxCustomShow({
   inputPath: "input.pptx",

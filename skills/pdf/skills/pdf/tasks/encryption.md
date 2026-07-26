@@ -19,8 +19,8 @@ The public capability resolver does not accept password values. It records only
 that the caller has declared the required secret channel:
 
 ```js
-import { PdfFile } from "open-office-artifact-tool";
-import { PdfProviders } from "open-office-artifact-tool/pdf/providers";
+import { PdfFile } from "office-kit";
+import { PdfProviders } from "office-kit/pdf/providers";
 
 const inspection = await PdfFile.inspectPdf("input.pdf");
 const resolution = await PdfProviders.resolve({
@@ -44,7 +44,7 @@ Then obtain a fresh qpdf report. Copy only its SHA-256 value, never its source
 path into an output name:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/qpdf_provider.py inspect input.pdf \
   > tmp/pdfs/qpdf-inspect.json
 ```

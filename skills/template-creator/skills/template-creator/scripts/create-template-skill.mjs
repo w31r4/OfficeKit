@@ -12,7 +12,7 @@ import {
   DocumentFile,
   PresentationFile,
   SpreadsheetFile,
-} from "open-office-artifact-tool";
+} from "office-kit";
 
 const TEMPLATE_PREFIX = "artifact-template-";
 const WRITE_LOCK_NAME = ".artifact-template-write-lock";
@@ -66,15 +66,15 @@ const artifactKinds = new Map([
 
 async function createTemplateSkill(
   rawRequest,
-  officeArtifactHome = getDefaultOfficeArtifactHome(),
+  officeKitHome = getDefaultOfficeKitHome(),
 ) {
   const request = await validateRequest(rawRequest);
   const artifact = artifactKinds.get(
     path.extname(request.referencePath).toLowerCase(),
   );
-  const skillsRoot = path.join(officeArtifactHome, "skills");
+  const skillsRoot = path.join(officeKitHome, "skills");
   const releaseLock = await acquireWriteLock(
-    path.join(officeArtifactHome, WRITE_LOCK_NAME),
+    path.join(officeKitHome, WRITE_LOCK_NAME),
   );
   try {
     await recoverInterruptedTemplateReplacements(skillsRoot);
@@ -226,12 +226,12 @@ async function assertValidOfficeReference(referencePath, artifact) {
   );
 }
 
-function getDefaultOfficeArtifactHome() {
+function getDefaultOfficeKitHome() {
   const homeDir = path.resolve(
     process.env.HOME ?? process.env.USERPROFILE ?? os.homedir(),
   );
   return path.resolve(
-    process.env.OFFICE_ARTIFACT_HOME ?? path.join(homeDir, ".office-artifact-tool"),
+    process.env.OFFICE_KIT_HOME ?? path.join(homeDir, ".office-kit"),
   );
 }
 

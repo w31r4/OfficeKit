@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-examples-"));
+const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-examples-"));
 const examples = [
   "create-docx-report.mjs",
   "create-xlsx-dashboard.mjs",

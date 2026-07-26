@@ -159,7 +159,7 @@ net-new Google Slides deliverables.
 
 ## Implementation
 
-You MUST use `open-office-artifact-tool` from JavaScript ES modules to implement the slide deck.
+You MUST use `office-kit` from JavaScript ES modules to implement the slide deck.
 
 Read the local docs before coding:
 
@@ -167,10 +167,10 @@ Read the local docs before coding:
 - `artifact_tool/api/API_DOCS.md`
 
 For native charts, read `artifact_tool/api/references/charts.spec.md` before
-authoring or editing. Canonical OpenChestnut output covers literal bar, line,
+authoring or editing. Canonical OfficeKit output covers literal bar, line,
 pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D
 bubble, and the documented clustered bar+line combo. Use
-`examples/openchestnut-chart-families-workflow.mjs` as the Agent-facing
+`examples/officekit-chart-families-workflow.mjs` as the Agent-facing
 create/import/edit/reimport/render/audit pattern. Inspect an imported ChartPart
 before mutation, keep its supported topology fixed, render the final slide, and
 let formula-backed, external-workbook, connected, or advanced chart graphs fail
@@ -179,14 +179,14 @@ closed instead of rebuilding them from visible caches.
 For slide backgrounds, use the typed `slide.setBackground(...)` and
 `slide.clearBackground()` primitives documented in
 `artifact_tool/api/references/slide.spec.md`. Direct solid/style-reference
-backgrounds cross the canonical OpenChestnut PPTX path. Never flatten an
+backgrounds cross the canonical OfficeKit PPTX path. Never flatten an
 inherited Layout/Master background or silently replace an advanced imported
 background graph; preserve it unchanged or let the export fail closed.
 
 For compound objects that must retain one ownership tree and local coordinate
 space, use native `slide.groups.add(...)` and read
 `artifact_tool/api/references/grouping.spec.md`. Canonical recursive groups
-cross the OpenChestnut PPTX path; imported topology is fixed, and complex group
+cross the OfficeKit PPTX path; imported topology is fixed, and complex group
 shells remain one opaque read-only object rather than being flattened.
 
 For imported deck order, `slide.moveTo(existingZeroBasedIndex)` changes only
@@ -298,7 +298,7 @@ For the bare agent-facing clone profile, use the shipped transaction rather
 than copying ZIP parts or rebuilding the slide:
 
 ```sh
-node "$SKILL_DIR/examples/openchestnut-slide-duplicate-workflow.mjs" \
+node "$SKILL_DIR/examples/officekit-slide-duplicate-workflow.mjs" \
   input/source.pptx output/source-with-copy.pptx output/clone-audit.json \
   "Unique source slide name"
 ```
@@ -343,7 +343,7 @@ already-closed relationship leaves, opt in explicitly rather than relying on a
 fallback or ZIP manipulation:
 
 ```sh
-node "$SKILL_DIR/examples/openchestnut-slide-duplicate-workflow.mjs" \
+node "$SKILL_DIR/examples/officekit-slide-duplicate-workflow.mjs" \
   input/source.pptx output/source-with-copy.pptx output/clone-audit.json \
   "Unique source slide name" --allow-closed-leaves
 ```
@@ -365,7 +365,7 @@ transaction below, which changes only the bound DiagramDataPart and writes a
 no-overwrite audit:
 
 ```sh
-node "$SKILL_DIR/examples/openchestnut-smartart-text-edit-workflow.mjs" \
+node "$SKILL_DIR/examples/officekit-smartart-text-edit-workflow.mjs" \
   input/source.pptx output/edited.pptx output/edited.audit.json \
   "Closed SmartArt" "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}" "Before" "After"
 ```
@@ -379,7 +379,7 @@ Read `artifact_tool/api/references/smartart-clone.spec.md` before using either
 the clone or text-edit profile.
 
 For an original imported slide, `slide.name = "Decision review"` is a narrow
-in-place metadata edit: OpenChestnut changes only that SlidePart's
+in-place metadata edit: OfficeKit changes only that SlidePart's
 `p:cSld/@name`, preserves its relationship graph and all other parts, and
 requires reimport for a fresh binding. It is not available for a pending clone,
 which must remain an exact source copy until its export/reimport boundary.
@@ -411,7 +411,7 @@ replies, reactions, resolved state, and element/text anchors must stay in their
 native family or fail closed; never flatten them into a legacy comment.
 
 Before running any generated presentation module, initialize its workspace so
-Node.js can resolve the bundled `open-office-artifact-tool` package:
+Node.js can resolve the bundled `office-kit` package:
 
 ```bash
 node "$SKILL_DIR/container_tools/setup_artifact_tool_workspace.mjs" \
@@ -428,10 +428,10 @@ You MUST NOT use `python-pptx` or the old Python `artifact_tool` API.
 ### Bounded Imported Slide Name Edit
 
 For one uniquely named original imported slide, use the shipped public
-OpenChestnut workflow rather than patching `ppt/slides/slide*.xml` directly:
+OfficeKit workflow rather than patching `ppt/slides/slide*.xml` directly:
 
 ```bash
-node examples/openchestnut-slide-name-edit-workflow.mjs \
+node examples/officekit-slide-name-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Go-no-go decision" "Go decision: controlled rollout"
 ```
@@ -453,7 +453,7 @@ for a file edit. For an imported deck whose `presentation.view.capability`
 reports `editable: true`, use the shipped transaction:
 
 ```bash
-node examples/openchestnut-view-properties-edit-workflow.mjs \
+node examples/officekit-view-properties-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   '{"gridSpacingCxEmu":72000,"gridSpacingCyEmu":91440,"slideViewSnapToGrid":true,"slideViewSnapToObjects":false,"slideGuides":[{"orientation":"horizontal","position":2160},{"orientation":"vertical","position":2880}]}'
 ```
@@ -477,7 +477,7 @@ existing show's name and ordered retained-slide membership are editable; show
 count/order, facade identity, and native ID remain fixed. Read
 `artifact_tool/api/references/custom-shows.spec.md` before changing one.
 Canonical text runs may target an existing show by exact name and may set
-`returnToSlide: true|false`. OpenChestnut binds that run to the show's stable
+`returnToSlide: true|false`. OfficeKit binds that run to the show's stable
 facade/native identity, so renaming the show keeps the native action and
 SlidePart bytes unchanged while the next import exposes the new public name.
 
@@ -485,7 +485,7 @@ For one exact imported show, use the shipped transaction instead of patching
 `ppt/presentation.xml`:
 
 ```bash
-node examples/openchestnut-custom-show-workflow.mjs \
+node examples/officekit-custom-show-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Board route" "Executive route" "Appendix,Overview,Appendix"
 ```
@@ -538,7 +538,7 @@ For one exact source-bound section-name correction, use the shipped transaction
 rather than patching `ppt/presentation.xml`:
 
 ```bash
-node examples/openchestnut-section-rename-workflow.mjs \
+node examples/officekit-section-rename-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Context" "Background"
 ```
@@ -558,7 +558,7 @@ For an imported boundary move, do not call `setSlides(...)` on one section and
 infer the neighbor. Use the separate complete-partition transaction instead:
 
 ```bash
-node examples/openchestnut-section-boundary-edit-workflow.mjs \
+node examples/officekit-section-boundary-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   @expected-sections.json \
   @replacement-sections.json
@@ -608,7 +608,7 @@ For one existing editable source-bound transition, use the shipped transaction
 rather than a raw SlidePart patch:
 
 ```bash
-node examples/openchestnut-transition-edit-workflow.mjs \
+node examples/officekit-transition-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Decision slide" \
   '{"effect":"fade","speed":"medium","advanceOnClick":true,"advanceAfterMs":1200}' \
@@ -668,7 +668,7 @@ paragraph/run location, then requires reimported paragraph/run topology and
 every non-target run to remain exact:
 
 ```bash
-node examples/openchestnut-rich-speaker-notes-edit-workflow.mjs \
+node examples/officekit-rich-speaker-notes-edit-workflow.mjs \
   input.pptx output/edited.pptx output/audit.json
 ```
 
@@ -695,7 +695,7 @@ speaker notes only when `slide.speakerNotes.capability.addable` is true. Inspect
 transaction over direct OOXML relationship edits:
 
 ```bash
-node examples/openchestnut-speaker-notes-add-workflow.mjs \
+node examples/officekit-speaker-notes-add-workflow.mjs \
   input.pptx output/with-notes.pptx output/with-notes.audit.json \
   "Unique target slide name" "Lead with the evidence.\nClose with the decision."
 ```
@@ -704,7 +704,7 @@ The workflow requires exactly one named imported slide with a notes-absent,
 explicitly addable capability. It protects the source bytes, writes to a
 temporary path, reimports, checks exact notes plus stable visible slide
 semantics/order/name, compares model SVG, and audits the OPC graph. An existing
-single NotesMaster is reused byte-for-byte; otherwise OpenChestnut creates one
+single NotesMaster is reused byte-for-byte; otherwise OfficeKit creates one
 canonical NotesMaster sharing the first ordered SlideMaster's existing
 ThemePart. The new NotesSlide must have exactly one NotesMaster relationship and
 one back-reference to its owning SlidePart. Export independently re-proves the
@@ -723,7 +723,7 @@ the shipped transaction over editing `.rels`, `commentAuthors.xml`, or
 `comments/comment*.xml` yourself:
 
 ```bash
-node examples/openchestnut-legacy-comment-add-workflow.mjs \
+node examples/officekit-legacy-comment-add-workflow.mjs \
   input.pptx output/with-review.pptx output/with-review.audit.json \
   "Unique target slide name" "Confirm the imported evidence." \
   "Review Owner" "2026-07-20T03:04:05Z" 360 240
@@ -731,7 +731,7 @@ node examples/openchestnut-legacy-comment-add-workflow.mjs \
 
 The workflow requires exactly one named source-bound target whose capability is
 `{ format: "legacy", partPresent: false, editable: false, addable: true }`. It protects the
-source, adds one slide-level annotation, exports through OpenChestnut, and then
+source, adds one slide-level annotation, exports through OfficeKit, and then
 independently proves that only a canonical `CommentAuthorsPart`, one numbered
 closed `SlideCommentsPart`, their two collision-free relationships, content
 types, and corresponding relationship Parts changed. Slide XML, slide order,
@@ -741,7 +741,7 @@ output publication. Native LibreOffice/Poppler source-vs-output pages must be
 pixel-identical because legacy review comments are nonvisual in slideshow
 rendering.
 
-The capability is defensive preflight evidence only. OpenChestnut re-proves the
+The capability is defensive preflight evidence only. OfficeKit re-proves the
 complete source package and rejects a forged flag, an existing author catalog,
 any legacy or modern comments part on any slide, mixed/connected comment graphs,
 or a second add after reimport. Existing imported legacy comments do not become
@@ -760,7 +760,7 @@ old text; never locate the target with a broad text replacement or patch
 `comments/comment*.xml` directly:
 
 ```bash
-node examples/openchestnut-legacy-comment-edit-workflow.mjs \
+node examples/officekit-legacy-comment-edit-workflow.mjs \
   input-with-review.pptx output/review-text-updated.pptx output/review-text-updated.audit.json \
   "Unique target slide name" "presentation/slide/1/legacy-comment/1" \
   "Confirm the imported evidence before delivery." \
@@ -782,7 +782,7 @@ when available; review annotations must not change visible slideshow pages.
 ### Bounded Imported Title And Speaker-Notes Edit
 
 For one known slide with one known text shape and a canonical plain-text Notes
-part, prefer the shipped public-API/OpenChestnut workflow over an ad-hoc package
+part, prefer the shipped public-API/OfficeKit workflow over an ad-hoc package
 patch. The title may be an ordinary editable shape or a concrete imported
 SlidePart placeholder with a recognized local text body. The latter grants only
 fixed-topology character replacement: native placeholder identity, geometry,
@@ -792,7 +792,7 @@ exports to a distinct path, reimports, verifies the retained slide/title/notes
 identities, produces a model SVG check, and writes a byte-bound audit.
 
 ```bash
-node examples/openchestnut-title-notes-edit-workflow.mjs \
+node examples/officekit-title-notes-edit-workflow.mjs \
   input.pptx output.pptx audit.json
 ```
 
@@ -817,7 +817,7 @@ shipped workflow for a complete root/direct-reply create → import → fixed-
 topology text/status edit → second import → inspect/render/audit loop:
 
 ```bash
-node examples/openchestnut-modern-comment-workflow.mjs \
+node examples/officekit-modern-comment-workflow.mjs \
   output/decision-review.pptx output/modern-comments-audit.json
 ```
 
@@ -890,7 +890,7 @@ node "$SKILL_DIR/template_following_scripts/prepare_template_starter_deck.mjs" \
 ```
 
 When a future broad graph-clone milestone enables `template-starter.pptx`,
-import it with `open-office-artifact-tool` and edit only inherited slides/objects
+import it with `office-kit` and edit only inherited slides/objects
 unless the validated frame map explicitly allows an insertion. Today, if a
 source slide cannot support requested content without broad clone/delete or a
 parallel rebuild, report the blocker and the closest viable source-slide

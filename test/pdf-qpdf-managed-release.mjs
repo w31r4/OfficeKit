@@ -10,12 +10,12 @@ import { plainPdfBytes } from "./fixtures/plain-pdf.mjs";
 
 const execFile = promisify(execFileCallback);
 
-if (process.env.OPEN_OFFICE_PDF_LIVE_PACK_TEST !== "1") {
-  console.log("qpdf managed release smoke skipped (set OPEN_OFFICE_PDF_LIVE_PACK_TEST=1)");
+if (process.env.OFFICE_KIT_PDF_LIVE_PACK_TEST !== "1") {
+  console.log("qpdf managed release smoke skipped (set OFFICE_KIT_PDF_LIVE_PACK_TEST=1)");
 } else {
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-qpdf-managed-release-"));
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-qpdf-managed-release-"));
   try {
-    const policyDirectory = path.join(temporary, ".open-office-artifact-tool");
+    const policyDirectory = path.join(temporary, ".office-kit");
     const policyPath = path.join(policyDirectory, "pdf-providers.json");
     await fs.mkdir(policyDirectory);
     await fs.writeFile(policyPath, JSON.stringify({

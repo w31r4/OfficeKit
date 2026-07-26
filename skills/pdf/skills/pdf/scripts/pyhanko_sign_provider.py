@@ -25,8 +25,8 @@ from typing import Any
 from pyhanko_provider import provider_versions, sha256
 
 
-SCHEMA_INSPECT = "open-office-artifact-tool.pyhanko-signing-inspect.v1"
-SCHEMA_SIGN = "open-office-artifact-tool.pyhanko-sign.v1"
+SCHEMA_INSPECT = "office-kit.pyhanko-signing-inspect.v1"
+SCHEMA_SIGN = "office-kit.pyhanko-sign.v1"
 DEFAULT_MAX_INPUT_BYTES = 512 * 1024 * 1024
 DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 1024
 DEFAULT_MAX_CREDENTIAL_BYTES = 16 * 1024 * 1024
@@ -662,7 +662,7 @@ def run_validator(
         failures = report.get("policyGates", {}).get("failures", []) if isinstance(report, dict) else []
         detail = failures[0] if failures else report.get("error", "validation failed") if isinstance(report, dict) else "validation failed"
         raise ProviderError(f"post-signature validation failed: {bounded_text(detail)}")
-    if report.get("schema") != "open-office-artifact-tool.pyhanko-verify.v1":
+    if report.get("schema") != "office-kit.pyhanko-verify.v1":
         raise ProviderError("post-signature validator returned an unsupported report schema")
     return report
 
@@ -704,7 +704,7 @@ def inspect(args: argparse.Namespace) -> dict[str, Any]:
     if sha256(source) != expected:
         raise ProviderError(f"source SHA-256 mismatch: expected {expected}, received {sha256(source)}")
     versions = require_signing_runtime()
-    with tempfile.TemporaryDirectory(prefix="open-office-pyhanko-sign-inspect-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="office-kit-pyhanko-sign-inspect-") as temporary:
         snapshot = Path(temporary) / "source.pdf"
         snapshot_file(source, snapshot, expected)
         config = common_config(args, snapshot, "inspect")
@@ -793,7 +793,7 @@ def sign(args: argparse.Namespace) -> dict[str, Any]:
     preflight_validator_report: dict[str, Any] | None = None
     worker: dict[str, Any] = {}
     try:
-        with tempfile.TemporaryDirectory(prefix=".open-office-pyhanko-sign-", dir=destination.parent) as temporary:
+        with tempfile.TemporaryDirectory(prefix=".office-kit-pyhanko-sign-", dir=destination.parent) as temporary:
             root = Path(temporary)
             root.chmod(0o700)
             source_snapshot = root / "source.pdf"

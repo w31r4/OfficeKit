@@ -6,7 +6,7 @@ import {
   Presentation,
   verifyArtifact,
   Workbook,
-} from "open-office-artifact-tool";
+} from "office-kit";
 
 const workbook = Workbook.create();
 const sheet = workbook.worksheets.add("Sheet1");

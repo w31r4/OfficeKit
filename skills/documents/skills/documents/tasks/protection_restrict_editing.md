@@ -17,7 +17,7 @@ This is useful for review copies and templates that should not be casually chang
 Create or import the document, set protection as document state, export, then reimport and verify:
 
 ```js
-import { DocumentFile, DocumentModel, FileBlob } from "open-office-artifact-tool";
+import { DocumentFile, DocumentModel, FileBlob } from "office-kit";
 
 const document = DocumentModel.create({
   name: "Review copy",
@@ -56,7 +56,7 @@ document.setSettings({ documentProtection: "off" });
 
 ## Imported-document safety boundary
 
-OpenChestnut recognizes only the canonical passwordless element with `edit`, `enforcement`, and `formatting`. Password hashes/verifiers, cryptographic attributes, extension markup, IRM, and permission exceptions remain source-owned:
+OfficeKit recognizes only the canonical passwordless element with `edit`, `enforcement`, and `formatting`. Password hashes/verifiers, cryptographic attributes, extension markup, IRM, and permission exceptions remain source-owned:
 
 - importing and exporting without changing protection preserves their package part;
 - attempting to replace them through `document.setSettings(...)` must **fail closed**;
@@ -97,4 +97,4 @@ python render_docx.py protected.docx --output_dir out_protected
 - `enforcement: false` records the mode without asking conforming hosts to enforce it.
 - Some viewers ignore protection entirely.
 - Password-protected and policy-managed documents are intentionally outside this bounded public model.
-- Some source files do not have `word/settings.xml`; OpenChestnut creates a valid settings part when authoring a supported mode.
+- Some source files do not have `word/settings.xml`; OfficeKit creates a valid settings part when authoring a supported mode.

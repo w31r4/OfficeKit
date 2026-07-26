@@ -7,10 +7,10 @@ import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
 const script = path.join(root, "skills", "pdf", "skills", "pdf", "scripts", "pypdf_edit.py");
-const python = process.env.OPEN_OFFICE_PDF_PROVIDER_PYTHON;
+const python = process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON;
 
 if (!python) {
-  console.log("pypdf static-form smoke skipped (set OPEN_OFFICE_PDF_PROVIDER_PYTHON)");
+  console.log("pypdf static-form smoke skipped (set OFFICE_KIT_PDF_PROVIDER_PYTHON)");
   process.exit(0);
 }
 
@@ -18,7 +18,7 @@ function run(args, { status = 0 } = {}) {
   const result = spawnSync(python, args, {
     cwd: root,
     encoding: "utf8",
-    env: { ...process.env, OPEN_OFFICE_PDF_PROVIDER_PYTHON: python },
+    env: { ...process.env, OFFICE_KIT_PDF_PROVIDER_PYTHON: python },
     maxBuffer: 4 * 1024 * 1024,
   });
   if (result.error) throw result.error;
@@ -38,7 +38,7 @@ function sha256(bytes) {
   return crypto.createHash("sha256").update(bytes).digest("hex");
 }
 
-const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-pypdf-flatten-"));
+const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-pypdf-flatten-"));
 try {
   const source = path.join(temporary, "interactive-source.pdf");
   const flattened = path.join(temporary, "static-output.pdf");

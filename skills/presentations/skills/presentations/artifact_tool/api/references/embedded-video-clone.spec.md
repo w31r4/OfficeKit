@@ -1,6 +1,6 @@
 # Source-bound embedded-MP4 media clone
 
-OpenChestnut imports a PowerPoint video picture as an opaque `nativeObject`
+OfficeKit imports a PowerPoint video picture as an opaque `nativeObject`
 with `nativeKind === "media"`. The bounded profile below preserves one embedded
 MP4 while cloning its slide. It is not video authoring, playback automation,
 timing/trim editing, or a general audio/video graph copier.
@@ -52,7 +52,7 @@ relationship ID. After second import, source and clone expose different MP4
 paths with equal hashes and the same poster path.
 
 For an Agent-facing transaction, use
-`examples/openchestnut-slide-duplicate-workflow.mjs`. Its independent preflight
+`examples/officekit-slide-duplicate-workflow.mjs`. Its independent preflight
 runs before semantic import. The audit records `operation.mediaParts`, exact
 video/media/poster IDs, source and clone paths/digests, the allowed package
 delta, `validation.package.mediaParts`, and

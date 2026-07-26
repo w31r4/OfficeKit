@@ -14,7 +14,7 @@ import {
   PresentationFile,
   SpreadsheetFile,
   Workbook,
-} from "open-office-artifact-tool";
+} from "office-kit";
 
 const packageRoot = path.resolve(import.meta.dirname, "..");
 const creatorPath = path.join(
@@ -33,7 +33,7 @@ try {
 }
 
 const tempRoot = await fs.mkdtemp(
-  path.join(os.tmpdir(), "office-artifact-tool-template-creator-"),
+  path.join(os.tmpdir(), "office-kit-template-creator-"),
 );
 const home = path.join(tempRoot, "neutral-home");
 const fixturesDirectory = path.join(tempRoot, "fixtures");
@@ -41,7 +41,7 @@ const fixturesDirectory = path.join(tempRoot, "fixtures");
 function runCreator(args) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [creatorPath, ...args], {
-      env: { ...process.env, OFFICE_ARTIFACT_HOME: home },
+      env: { ...process.env, OFFICE_KIT_HOME: home },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -110,7 +110,7 @@ async function assertGeneratedTemplate(
 ) {
   const skillsRoot = path.join(home, "skills");
   if (path.dirname(result.skillPath) !== skillsRoot) {
-    throw new Error(`Template was not written below OFFICE_ARTIFACT_HOME: ${result.skillPath}`);
+    throw new Error(`Template was not written below OFFICE_KIT_HOME: ${result.skillPath}`);
   }
   if (result.kind !== kind || !result.skillName.startsWith("artifact-template-")) {
     throw new Error(`Unexpected template result: ${JSON.stringify(result)}`);

@@ -1,6 +1,6 @@
 # Source-bound InkML content-part clone
 
-OpenChestnut imports a PresentationML `p:contentPart` as an opaque
+OfficeKit imports a PresentationML `p:contentPart` as an opaque
 `nativeObject` with `nativeKind === "contentPart"`. The bounded profile below
 preserves one standard InkML payload while cloning its slide. It does not expose
 ink authoring, stroke editing, or arbitrary Custom XML mutation.
@@ -43,7 +43,7 @@ content type exactly match the source. After second import, the source and clone
 objects have disjoint part paths and equal payload hashes.
 
 For an Agent-facing transaction, use
-`examples/openchestnut-slide-duplicate-workflow.mjs`. Its audit records
+`examples/officekit-slide-duplicate-workflow.mjs`. Its audit records
 `operation.inkContentParts`, the exact allowed package delta, each source/clone
 part path and digest, `validation.package.inkContentParts`, second-import
 binding independence, model-render equivalence, and native source/clone pixel

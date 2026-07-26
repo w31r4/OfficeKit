@@ -2,7 +2,7 @@
 
 ## Decision
 
-OpenChestnut is the only XLSX, DOCX, and PPTX codec. It is implemented in C# with the Open XML SDK and compiled into the bundled .NET WebAssembly runtime. PDF remains an independent implementation.
+OfficeKit is the only XLSX, DOCX, and PPTX codec. It is implemented in C# with the Open XML SDK and compiled into the bundled .NET WebAssembly runtime. PDF remains an independent implementation.
 
 Version 0.3 retains the single-codec boundary: no Office codec registry,
 selector, alternate runtime shim, or fallback path. Deprecated import-name
@@ -12,7 +12,7 @@ selection.
 ```mermaid
 flowchart LR
   A["JavaScript artifact model"] --> B["Office facade"]
-  B --> C["OpenChestnut wire adapter"]
+  B --> C["OfficeKit wire adapter"]
   C --> D["C# WASM codec"]
   D --> E["XLSX / DOCX / PPTX package"]
   E --> D
@@ -41,16 +41,16 @@ JavaScript owns:
 - formula calculation and other model-side computation;
 - presentation Compose/JSX;
 - validation, normalization, inspect, resolve, layout, render orchestration, and QA;
-- the OpenChestnut wire adapter and generated protocol binding;
+- the OfficeKit wire adapter and generated protocol binding;
 - explicit, low-level OOXML package inspect/patch helpers;
 - JSZip where package inspection/patching needs it;
 - the independent PDF pipeline and optional adapters.
 
 JavaScript does not serialize or parse DOCX, XLSX, or PPTX for the normal file facades.
 
-### OpenChestnut C# WASM
+### OfficeKit C# WASM
 
-OpenChestnut owns:
+OfficeKit owns:
 
 - OPC package validation and safe path/relationship/content-type handling;
 - DOCX, XLSX, and PPTX semantic import/export;
@@ -62,11 +62,11 @@ The implementation uses the Open XML SDK because its strongly typed package and 
 
 ### PDF
 
-PDF never enters the Office codec request, has no Office protobuf payload, and does not load the C# runtime. The project does not create `OpenChestnut.Pdf` or maintain a general C# PDF parser/writer.
+PDF never enters the Office codec request, has no Office protobuf payload, and does not load the C# runtime. The project does not create `OfficeKit.Pdf` or maintain a general C# PDF parser/writer.
 
 The JavaScript `PdfArtifact`/`PdfFile` domain owns greenfield semantic/tagged authoring, trusted-model roundtrip, reading order, accessibility metadata, inspect/verify, and modeled render QA. The required `mupdf@1.28.0` dependency is loaded only when a PDF operation needs it; arbitrary PDFs use MuPDF.js by default for native parsing, structured-text/image/link evidence, inspection, raster rendering, and bounded direct-original edits. PDF.js remains an optional reconstructed read/inspect adapter, never an edit representation.
 
-The native PDF Skill calls the same `PdfFile` MuPDF.js primitives through a thin JavaScript CLI. `open-office-artifact-tool/pdf/providers` is a separate, lightweight control plane: it imports a versioned catalog and project policy but does not load MuPDF, download, or write a cache. It resolves exactly one selected task/provider to `ready`, `installable`, or `blocked`; a missing `.open-office-artifact-tool/pdf-providers.json` means download-disabled. Under explicit managed policy it may install only catalog-declared, versioned, hash-pinned release assets into a project-private cache using locks, bounded temporary downloads, safe extraction, receipts, and atomic publication. A `system-only` deployment remains possible, but neither route silently changes to the other. At the 0.3.0 boundary, qpdf `12.3.2-oat.1`, `python-foundation` `3.13.14-oat.1`, `python-specialists` `3.13.14-oat.1`, veraPDF/JRE `1.30.2-oat.1`, OCR core `17.8.1-oat.1`, and `eng`/`chi_sim` language packs `4.1.0-oat.1` are published and attested for `darwin-arm64` and `linux-x64`. The foundation contains isolated CPython, ReportLab, pdfplumber, pypdf, and Pillow. Specialists contain PyMuPDF, pikepdf, pyHanko, and certificate validation, depend on qpdf, and require an AGPL-or-commercial acknowledgement. The veraPDF pack brings a managed JRE, so probe/validation has no global Java dependency. OCR installs its qpdf/core/language closure only after policy authorization; the core contains isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`, and language packs are selected explicitly. Only Poppler QA remains intentionally unpublished and therefore blocks rather than substituting an unverified download.
+The native PDF Skill calls the same `PdfFile` MuPDF.js primitives through a thin JavaScript CLI. `office-kit/pdf/providers` is a separate, lightweight control plane: it imports a versioned catalog and project policy but does not load MuPDF, download, or write a cache. It resolves exactly one selected task/provider to `ready`, `installable`, or `blocked`; a missing `.office-kit/pdf-providers.json` means download-disabled. Under explicit managed policy it may install only catalog-declared, versioned, hash-pinned release assets into a project-private cache using locks, bounded temporary downloads, safe extraction, receipts, and atomic publication. A `system-only` deployment remains possible, but neither route silently changes to the other. At the 0.3.0 boundary, qpdf `12.3.2-oat.1`, `python-foundation` `3.13.14-oat.1`, `python-specialists` `3.13.14-oat.1`, veraPDF/JRE `1.30.2-oat.1`, OCR core `17.8.1-oat.1`, and `eng`/`chi_sim` language packs `4.1.0-oat.1` are published and attested for `darwin-arm64` and `linux-x64`. The foundation contains isolated CPython, ReportLab, pdfplumber, pypdf, and Pillow. Specialists contain PyMuPDF, pikepdf, pyHanko, and certificate validation, depend on qpdf, and require an AGPL-or-commercial acknowledgement. The veraPDF pack brings a managed JRE, so probe/validation has no global Java dependency. OCR installs its qpdf/core/language closure only after policy authorization; the core contains isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`, and language packs are selected explicitly. Only Poppler QA remains intentionally unpublished and therefore blocks rather than substituting an unverified download.
 
 Python and system adapters remain the explicit routes for strict scrub/residue, typed pypdf workflows, qpdf repair/linearization, pikepdf fixed-profile structure cleanup, veraPDF conformance, and OCRmyPDF searchable-layer generation. Two pyHanko boundaries are shipped over one selected runtime: `pyhanko_sign_provider.py` inventories a private exact-source snapshot and adds one local-PKCS#12 approval or first-document certification signature under explicit field, count, credential, DocMDP, byte/time/output, trust/isolation, exact-prefix, and no-replace constraints; `pyhanko_provider.py` independently validates immutable final bytes under caller-supplied roots and reports integrity, trust, revision coverage, difference level, timestamps, DocMDP, FieldMDP, and policy gates. The runtime can be managed, but P12/private keys, HSM/remote-signing credentials, TSA/LTV access, and trust roots are never installable. Passphrases enter only on stdin, signing never establishes certificate trust, and complete PAdES conformance remains external. Poppler remains independent final render QA.
 
@@ -107,23 +107,25 @@ The six Office methods are:
 - `PresentationFile.importPptx(input, { limits? })`
 - `PresentationFile.exportPptx(presentation, { limits? })`
 
-Each method dynamically imports `codecs/open-chestnut`, then invokes the corresponding typed helper. This avoids the model/adapter static-import cycle while keeping one runtime identity.
+Each method dynamically imports the OfficeKit codec leaf, then invokes the corresponding typed helper. This avoids the model/adapter static-import cycle while keeping one runtime identity.
 
 Passing `codec`, `allowLossy`, `preferNative`, `relativeDateAsOf`, or any other unknown option throws before codec execution. A missing or invalid WASM runtime also throws; no alternate implementation is tried.
 
-`codecs/open-chestnut` remains a public advanced boundary, and `codecs/open-chestnut/wire` exposes generated messages. The deprecated `codecs/openxml-wasm` and `codecs/openxml-wasm/wire` subpaths are name-only strict-identity bridges to those same modules: they have no implementation, runtime, selector, fallback, or import-time warning of their own. They remain available throughout the 0.x line and cannot be removed before a documented 1.0.0 migration.
+`office-kit/codec` is the sole public advanced codec boundary, and
+`office-kit/codec/wire` exposes generated messages. The unreleased project does
+not carry legacy codec subpaths or name-only compatibility bridges.
 
 ## Wire protocol 2
 
-The namespace remains `open_office.artifact.v1`. Protocol version 2 is intentionally breaking.
+The namespace remains `office_kit.artifact.v1`. Protocol version 2 is intentionally breaking.
 
 - `CodecRequest.allow_lossy` was removed.
 - Its field name and number are reserved and cannot be reused.
 - The request contains exactly one supported artifact payload for its declared operation.
-- Office export responses report `metadata.codec: "open-chestnut"` at the JavaScript boundary.
+- Office export responses report `metadata.codec: "office-kit"` at the JavaScript boundary.
 - XLSX adds basic validation, conditional-format, and one-level threaded-comment records.
-- XLSX worksheet protection uses one explicit enabled/removal record, an enum of agent-facing allowed operations, and a hash-bound source locator. OpenChestnut contains SpreadsheetML's inverted operation locks and schema defaults. Only active passwordless profiles are semantic; password/hash/extension or disabled/partial profiles remain source-owned and fail closed on replacement.
-- DOCX adds style/default formatting, paragraph/run formatting, bounded block/inline plain-text content-control identity with explicit placement, section/header/footer, field, image, and passwordless document-protection records. An image may carry an independently versioned floating-placement record for bounded absolute margin/page/column or margin/page/paragraph positioning, square/top-and-bottom wrapping, wrap side, and text distances; absence means inline flow. OpenChestnut owns the fixed safe anchor profile, while JavaScript owns the smaller public object. Imported inline/floating topology is immutable, and unrecognized anchors stay in the source-bound OPC graph. Password verifier/cryptographic variants likewise remain source-bound and cannot be replaced through the semantic wire.
+- XLSX worksheet protection uses one explicit enabled/removal record, an enum of agent-facing allowed operations, and a hash-bound source locator. OfficeKit contains SpreadsheetML's inverted operation locks and schema defaults. Only active passwordless profiles are semantic; password/hash/extension or disabled/partial profiles remain source-owned and fail closed on replacement.
+- DOCX adds style/default formatting, paragraph/run formatting, bounded block/inline plain-text content-control identity with explicit placement, section/header/footer, field, image, and passwordless document-protection records. An image may carry an independently versioned floating-placement record for bounded absolute margin/page/column or margin/page/paragraph positioning, square/top-and-bottom wrapping, wrap side, and text distances; absence means inline flow. OfficeKit owns the fixed safe anchor profile, while JavaScript owns the smaller public object. Imported inline/floating topology is immutable, and unrecognized anchors stay in the source-bound OPC graph. Password verifier/cryptographic variants likewise remain source-bound and cannot be replaced through the semantic wire.
 - `DocumentNote.paragraphs` is additive field 7: it carries a canonical 1-through-16 physical plain-text note body, while `text` is its LF-joined display projection. An absent `paragraphs` field retains the protocol-2 one-string authoring shape. A recognized imported note binds its exact paragraph count, native ID, anchor, and formatting/source evidence; only same-count text replacement crosses the semantic wire.
 - DOCX picture bullets add one independent semantic marker record to numbering-level data: an embedded asset ID or external HTTP(S) URI, bounded EMU geometry, and alternative text. Package relationship IDs, part paths, and native `numPicBulletId` values never cross the public wire. The C# codec owns the canonical VML relationship graph, shared-resource allocation, recognized import profile, and instance-local source-edit override; the JavaScript adapter owns data-URL validation, content-addressed asset IDs, public point units, and complete same-level coherence checks.
 - PPTX adds connector, chart, and basic shadow records.
@@ -132,7 +134,7 @@ New fields are added only when the existing public artifact model and wire canno
 
 ## Opaque preservation and fail-closed edits
 
-On import, OpenChestnut can attach:
+On import, OfficeKit can attach:
 
 - a bounded source package snapshot;
 - normalized part paths and resolved content types;
@@ -155,7 +157,7 @@ The adapter initializes one retry-safe cached WASM runtime. It checks the bundle
 
 The source repository contains:
 
-- `native/OpenChestnut` C# projects and tests;
+- `native/OfficeKit` C# projects and tests;
 - the public proto and generation config;
 - runtime build/reproducibility scripts;
 - JavaScript adapters, models, Skills, and tests.
@@ -164,12 +166,12 @@ The npm package contains:
 
 - public JavaScript APIs and adapters;
 - the proto and generated JavaScript wire binding;
-- `runtime/open-chestnut` WASM/runtime assets;
+- `runtime/office-kit` WASM/runtime assets;
 - integrity manifest, SBOM, and license notices;
 - the optional `native/OfficeBridge/src` project, without its repository-only solution or tests;
 - six npm-distributed native plugin bundles containing seven Skills: the four file-type workflows, the separate `excel-live-control` route, the project-native `officekit` coordinator, and the local-only `template-creator` utility. The source repository additionally contains a seventh, MIT-licensed, repository-only `default-template-library` bundle with twenty retained DOCX/PPTX/XLSX template Skills; it is deliberately excluded from consumer npm tarballs.
 
-It excludes OpenChestnut C# source, every C# test and solution, all C# build output, repository-only scripts/tests, and removed legacy codec modules. Normal package use therefore works without a local .NET SDK; only consumers who explicitly build the optional OfficeBridge helper need one.
+It excludes OfficeKit C# source, every C# test and solution, all C# build output, repository-only scripts/tests, and removed legacy codec modules. Normal package use therefore works without a local .NET SDK; only consumers who explicitly build the optional OfficeBridge helper need one.
 
 ## JavaScript source-module discipline
 
@@ -184,7 +186,7 @@ shared binary / FileBlob / inspection / image / render primitives
   -> root compatibility barrel
 ```
 
-New leaf modules must not import the root entry. The root re-exports the original binding instead of wrapping or copying classes and functions, so `instanceof` and strict identity checks remain stable. Renderer, native-bridge, JSX, and the Document-side OpenChestnut adapter now import their leaf dependencies directly. The remaining OpenChestnut adapters still temporarily import root model bindings; that dependency will be removed only after the corresponding Spreadsheet and Presentation models move as atomic clusters. Office facade methods retain dynamic OpenChestnut imports to avoid eager model/adapter cycles.
+New leaf modules must not import the root entry. The root re-exports the original binding instead of wrapping or copying classes and functions, so `instanceof` and strict identity checks remain stable. Renderer, native-bridge, JSX, and the Document-side OfficeKit adapter now import their leaf dependencies directly. The remaining OfficeKit adapters still temporarily import root model bindings; that dependency will be removed only after the corresponding Spreadsheet and Presentation models move as atomic clusters. Office facade methods retain dynamic OfficeKit imports to avoid eager model/adapter cycles.
 
 The first extraction phase moved Help, presentation Compose, binary conversion, `FileBlob`, inspection, and text-range primitives out of the root. The shared text-range primitive is consumed by both Presentation and Document resolve/inspect paths instead of being hidden inside either domain. The PDF phase then moved the complete PDF model, writer/parser facade, SVG preview, and tagged-file serializer as one domain cluster; the root re-exports the exact `PdfArtifact` and `PdfFile` bindings. Cross-format IDs still come from one shared allocator, while image, PNG, XML, and render-output primitives are dependency leaves used by multiple domains.
 

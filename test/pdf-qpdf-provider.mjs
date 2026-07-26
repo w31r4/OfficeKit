@@ -102,7 +102,7 @@ assert.match(skillText, /qpdf_provider\.py/);
 assert.match(skillText, /source SHA-256.*repair.*linearize/is);
 assert.match(skillText, /AES-256.*password files/is);
 
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-qpdf-provider-"));
+const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-qpdf-provider-"));
 try {
   const dummyInput = path.join(tempRoot, "dummy.pdf");
   const dummyBytes = Buffer.from("%PDF-1.7\nfake provider fixture\n%%EOF\n", "ascii");
@@ -149,7 +149,7 @@ try {
   ].join("\n"), "utf8");
   await fs.chmod(fakeQpdf, 0o755);
   const fakeArgvLog = path.join(tempRoot, "fake-qpdf-argv.jsonl");
-  const fakeEnv = { OPEN_OFFICE_PDF_QPDF: fakeQpdf, FAKE_QPDF_ARGV_LOG: fakeArgvLog };
+  const fakeEnv = { OFFICE_KIT_PDF_QPDF: fakeQpdf, FAKE_QPDF_ARGV_LOG: fakeArgvLog };
 
   const fakeProbe = jsonResult(run(python, [qpdfProvider, "probe"], { env: fakeEnv, status: 0 }));
   assert.equal(fakeProbe.provider, "qpdf");
@@ -167,7 +167,7 @@ try {
   });
   assert.match(oldAdapter.stderr, /qpdf 11 or newer/);
   const fakeInspect = jsonResult(run(python, [qpdfProvider, "inspect", dummyInput], { env: fakeEnv, status: 0 }));
-  assert.equal(fakeInspect.schema, "open-office-artifact-tool.qpdf-inspect.v1");
+  assert.equal(fakeInspect.schema, "office-kit.qpdf-inspect.v1");
   assert.equal(fakeInspect.structure.pageCount, 1);
   assert.equal(fakeInspect.structure.annotationCount, 0);
   assert.equal(fakeInspect.structure.tagged, false);
@@ -197,7 +197,7 @@ try {
     "--user-password-file", fakeUserPassword,
     "--owner-password-file", fakeOwnerPassword,
   ], { env: fakeEnv, status: 0 }));
-  assert.equal(fakeEncrypt.schema, "open-office-artifact-tool.qpdf-encrypt.v1");
+  assert.equal(fakeEncrypt.schema, "office-kit.qpdf-encrypt.v1");
   assert.equal(fakeEncrypt.operation, "qpdf-encrypt-aes-256");
   assert.equal(fakeEncrypt.encryption.algorithm, "AES-256");
   assert.equal(fakeEncrypt.encryption.keyBits, 256);
@@ -374,7 +374,7 @@ try {
   assert.match(symlinkRefused.stderr, /symbolic link.*will not be followed/);
   await assert.rejects(fs.access(danglingTarget));
   const missingProvider = run(python, [qpdfProvider, "probe"], {
-    env: { OPEN_OFFICE_PDF_QPDF: path.join(tempRoot, "missing-qpdf") },
+    env: { OFFICE_KIT_PDF_QPDF: path.join(tempRoot, "missing-qpdf") },
     status: 2,
   });
   assert.equal(jsonResult(missingProvider, "stderr").silentFallback, false);
@@ -386,7 +386,7 @@ try {
     const source = path.join(tempRoot, "source.pdf");
     const sourceBytes = Buffer.from(exported.bytes);
     await fs.writeFile(source, sourceBytes);
-    const realInspect = jsonResult(run(python, [qpdfProvider, "inspect", source], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 0 }));
+    const realInspect = jsonResult(run(python, [qpdfProvider, "inspect", source], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 0 }));
     assert.equal(realInspect.check.status, "clean");
     assert.equal(realInspect.structure.pageCount, 1);
     assert.equal(realInspect.structure.annotationCount, 1);
@@ -404,8 +404,8 @@ try {
       "--expected-sha256", realInspect.source.sha256,
       "--user-password-file", realUserPassword,
       "--owner-password-file", realOwnerPassword,
-    ], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 0 }));
-    assert.equal(encryptedCopyResult.schema, "open-office-artifact-tool.qpdf-encrypt.v1");
+    ], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 0 }));
+    assert.equal(encryptedCopyResult.schema, "office-kit.qpdf-encrypt.v1");
     assert.equal(encryptedCopyResult.checkAfter.status, "clean");
     assert.equal(encryptedCopyResult.structureAfter.encrypted, true);
     assert.equal(encryptedCopyResult.structureAfter.encryption.bits, 256);
@@ -418,7 +418,7 @@ try {
     assert.doesNotMatch(JSON.stringify(encryptedCopyResult), /qpdf user password 2026|qpdf owner password 2026/);
     assert.deepEqual(await fs.readFile(source), sourceBytes, "AES-256 encryption must preserve source bytes");
     const encryptedInspectWithoutPassword = run(python, [qpdfProvider, "inspect", encryptedCopy], {
-      env: { OPEN_OFFICE_PDF_QPDF: "" },
+      env: { OFFICE_KIT_PDF_QPDF: "" },
       status: 2,
     });
     assert.match(encryptedInspectWithoutPassword.stderr, /could not process the PDF/);
@@ -428,7 +428,7 @@ try {
     const repairedResult = jsonResult(run(python, [
       qpdfProvider, "rewrite", source, repaired,
       "--mode", "repair", "--expected-sha256", realInspect.source.sha256,
-    ], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 0 }));
+    ], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 0 }));
     assert.equal(repairedResult.checkAfter.status, "clean");
     assert.equal(repairedResult.structureAfter.pageCount, 1);
     assert.deepEqual(await fs.readFile(source), sourceBytes, "qpdf rewrite must not mutate source bytes");
@@ -438,7 +438,7 @@ try {
     const linearizedResult = jsonResult(run(python, [
       qpdfProvider, "rewrite", source, linearized,
       "--mode", "linearize", "--expected-sha256", realInspect.source.sha256,
-    ], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 0 }));
+    ], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 0 }));
     assert.equal(linearizedResult.structureAfter.linearized, true);
     assert.equal(linearizedResult.structureAfter.pageCount, 1);
 
@@ -446,14 +446,14 @@ try {
     const brokenBytes = Buffer.from(sourceBytes.toString("latin1").replace(/startxref\n\d+\n%%EOF\s*$/, "startxref\n0\n%%EOF\n"), "latin1");
     assert.notDeepEqual(brokenBytes, sourceBytes);
     await fs.writeFile(broken, brokenBytes);
-    const brokenInspect = jsonResult(run(python, [qpdfProvider, "inspect", broken], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 0 }));
+    const brokenInspect = jsonResult(run(python, [qpdfProvider, "inspect", broken], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 0 }));
     assert.equal(brokenInspect.check.status, "warnings");
     assert.ok(brokenInspect.check.lines.some((line) => /reconstruct cross-reference/i.test(line)));
     const recovered = path.join(tempRoot, "recovered.pdf");
     const recoveredResult = jsonResult(run(python, [
       qpdfProvider, "rewrite", broken, recovered,
       "--mode", "repair", "--expected-sha256", brokenInspect.source.sha256,
-    ], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 0 }));
+    ], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 0 }));
     assert.equal(recoveredResult.checkBefore.status, "warnings");
     assert.equal(recoveredResult.checkAfter.status, "clean");
     assert.equal(recoveredResult.structureAfter.pageCount, 1);
@@ -461,13 +461,13 @@ try {
     const attachmentSource = path.join(tempRoot, "attachment.pdf");
     const attachmentBytes = buildAttachmentFixture();
     await fs.writeFile(attachmentSource, attachmentBytes);
-    const attachmentInspect = jsonResult(run(python, [qpdfProvider, "inspect", attachmentSource], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 0 }));
+    const attachmentInspect = jsonResult(run(python, [qpdfProvider, "inspect", attachmentSource], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 0 }));
     assert.equal(attachmentInspect.structure.attachmentCount, 1);
     const attachmentOutput = path.join(tempRoot, "attachment-rewritten.pdf");
     const attachmentRewrite = jsonResult(run(python, [
       qpdfProvider, "rewrite", attachmentSource, attachmentOutput,
       "--mode", "repair", "--expected-sha256", attachmentInspect.source.sha256,
-    ], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 0 }));
+    ], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 0 }));
     assert.equal(attachmentRewrite.structureBefore.attachmentCount, 1);
     assert.equal(attachmentRewrite.structureAfter.attachmentCount, 1);
     assert.deepEqual(await fs.readFile(attachmentSource), attachmentBytes);
@@ -475,7 +475,7 @@ try {
     const signed = path.join(tempRoot, "signed.pdf");
     const signedBytes = buildSignedFixture();
     await fs.writeFile(signed, signedBytes);
-    const signedInspect = jsonResult(run(python, [qpdfProvider, "inspect", signed], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 0 }));
+    const signedInspect = jsonResult(run(python, [qpdfProvider, "inspect", signed], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 0 }));
     assert.equal(signedInspect.signaturePolicy.hasSignatureFields, true);
     assert.equal(signedInspect.signaturePolicy.hasByteRange, true);
     assert.equal(signedInspect.signaturePolicy.hasDocMDP, true);
@@ -483,7 +483,7 @@ try {
     const refused = run(python, [
       qpdfProvider, "rewrite", signed, signedRefused,
       "--mode", "repair", "--expected-sha256", signedInspect.source.sha256,
-    ], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 2 });
+    ], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 2 });
     assert.match(refused.stderr, /invalidate-signatures.*pyHanko\/DocMDP/);
     await assert.rejects(fs.access(signedRefused));
     const invalidated = path.join(tempRoot, "signed-invalidated.pdf");
@@ -491,7 +491,7 @@ try {
       qpdfProvider, "rewrite", signed, invalidated,
       "--mode", "repair", "--expected-sha256", signedInspect.source.sha256,
       "--invalidate-signatures",
-    ], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 0 }));
+    ], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 0 }));
     assert.equal(invalidatedResult.signatureInvalidated, true);
     assert.equal(invalidatedResult.signaturePolicyAfter.hasSignatureEvidence, true);
     assert.equal(invalidatedResult.signaturePolicyAfter.trust, "unknown");
@@ -503,7 +503,7 @@ try {
       "--expected-sha256", signedInspect.source.sha256,
       "--user-password-file", realUserPassword,
       "--owner-password-file", realOwnerPassword,
-    ], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 2 });
+    ], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 2 });
     assert.match(signedEncryptRefused.stderr, /invalidate-signatures.*pyHanko\/DocMDP/);
     await assert.rejects(fs.access(signedEncrypted));
     const signedEncryptedResult = jsonResult(run(python, [
@@ -512,7 +512,7 @@ try {
       "--user-password-file", realUserPassword,
       "--owner-password-file", realOwnerPassword,
       "--invalidate-signatures",
-    ], { env: { OPEN_OFFICE_PDF_QPDF: "" }, status: 0 }));
+    ], { env: { OFFICE_KIT_PDF_QPDF: "" }, status: 0 }));
     assert.equal(signedEncryptedResult.signatureInvalidated, true);
     assert.equal(signedEncryptedResult.structureAfter.encrypted, true);
     assert.deepEqual(await fs.readFile(signed), signedBytes);

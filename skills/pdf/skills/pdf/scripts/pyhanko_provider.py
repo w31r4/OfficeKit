@@ -20,7 +20,7 @@ import threading
 from typing import Any
 
 
-SCHEMA = "open-office-artifact-tool.pyhanko-verify.v1"
+SCHEMA = "office-kit.pyhanko-verify.v1"
 SUPPORTED_PYHANKO_MIN = (0, 35, 0)
 SUPPORTED_PYHANKO_MAX_EXCLUSIVE = (0, 36, 0)
 SUPPORTED_CERTVALIDATOR_MIN = (0, 31, 0)
@@ -488,7 +488,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
     if args.require_all_trusted and args.trust_policy != "explicit-roots":
         raise ProviderError("--require-all-trusted requires --trust-policy explicit-roots")
 
-    with tempfile.TemporaryDirectory(prefix="open-office-pyhanko-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="office-kit-pyhanko-") as temporary:
         temporary_root = Path(temporary)
         snapshot = temporary_root / "source.pdf"
         shutil.copyfile(source, snapshot)

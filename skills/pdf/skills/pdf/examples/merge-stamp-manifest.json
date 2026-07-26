@@ -1,5 +1,5 @@
 {
-  "schema": "open-office-artifact-tool.pdf-merge-stamp.v1",
+  "schema": "office-kit.pdf-merge-stamp.v1",
   "sources": [
     { "id": "cover", "path": "../../inputs/cover.pdf" },
     { "id": "report", "path": "../../inputs/report.pdf" },

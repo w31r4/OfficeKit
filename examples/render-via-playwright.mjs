@@ -1,10 +1,10 @@
 import os from "node:os";
 import path from "node:path";
 
-import { DocumentModel, renderArtifact } from "open-office-artifact-tool";
-import { createPlaywrightRenderer } from "open-office-artifact-tool/renderers/playwright";
+import { DocumentModel, renderArtifact } from "office-kit";
+import { createPlaywrightRenderer } from "office-kit/renderers/playwright";
 
-const outputDir = process.env.OUTPUT_DIR || path.join(os.tmpdir(), "open-office-artifact-examples");
+const outputDir = process.env.OUTPUT_DIR || path.join(os.tmpdir(), "office-kit-artifact-examples");
 const document = DocumentModel.create({ paragraphs: ["Rendered through Playwright", "Install playwright + chromium to produce PNG/WebP/PDF previews."] });
 const renderer = createPlaywrightRenderer({ viewport: { width: 900, height: 1200 }, deviceScaleFactor: 1 });
 

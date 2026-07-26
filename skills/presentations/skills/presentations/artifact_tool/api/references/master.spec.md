@@ -1,6 +1,6 @@
 # Masters
 
-The source-free OpenChestnut PPTX codec creates exactly one canonical Slide
+The source-free OfficeKit PPTX codec creates exactly one canonical Slide
 Master. It owns a direct background, bounded master text styles, and optional
 direct-frame text placeholders. Layouts link to that master through `masterId`;
 slides then bind a layout and materialize its placeholders.

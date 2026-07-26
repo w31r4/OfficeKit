@@ -9,7 +9,7 @@ import {
   setOfficeFontDesignMetrics,
   skiaPaintBaselineCompensationPx,
   Workbook,
-} from "open-office-artifact-tool";
+} from "office-kit";
 
 const metric = (family, weight, ascent, extra = {}) => ({
   family,

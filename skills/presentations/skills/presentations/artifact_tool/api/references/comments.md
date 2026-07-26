@@ -1,6 +1,6 @@
 # Comments
 
-OpenChestnut exposes two native PPTX comment wire families. Select one for the
+OfficeKit exposes two native PPTX comment wire families. Select one for the
 whole presentation with `Presentation.create({ commentFormat })`; never mix
 them in one artifact.
 
@@ -32,7 +32,7 @@ const capability = slide.comments.capability;
 `addable` is true only when the complete source presentation has no legacy
 `CommentAuthorsPart`/`SlideCommentsPart` and no Office 2021 author/comment Part.
 It is a defensive preflight snapshot, not authorization stored in mutable JS.
-OpenChestnut re-proves the source bytes on export. The first bounded
+OfficeKit re-proves the source bytes on export. The first bounded
 source-bound authoring transaction may create one canonical shared legacy
 author catalog and one closed slide-local comments Part for each requested
 original slide. Relationship IDs are allocated against internal, external,
@@ -41,7 +41,7 @@ hyperlink, and data relationships, so an unrelated `rIdComments1` or
 
 `editable` is independent of `addable`. It is true only when an imported slide
 already owns one closed canonical `SlideCommentsPart`, the presentation owns one
-relationship-free legacy author catalog, and OpenChestnut can re-prove every
+relationship-free legacy author catalog, and OfficeKit can re-prove every
 comment's author, timestamp, coordinate, native author/index pair, order, and
 count. That capability permits only the existing root text to change. It never
 permits adding/removing a thread, replies, author/time/coordinate edits, or
@@ -50,7 +50,7 @@ native-anchor edits.
 Use the audited single-comment workflow for the common Agent review task:
 
 ```js
-import { addPptxLegacyReviewComment } from "../../../examples/openchestnut-legacy-comment-add-workflow.mjs";
+import { addPptxLegacyReviewComment } from "../../../examples/officekit-legacy-comment-add-workflow.mjs";
 
 await addPptxLegacyReviewComment({
   inputPath: "input.pptx",
@@ -78,7 +78,7 @@ false for every slide. A recognized closed legacy leaf may then advertise
 every other field untouched:
 
 ```js
-import { editPptxLegacyReviewComment } from "../../../examples/openchestnut-legacy-comment-edit-workflow.mjs";
+import { editPptxLegacyReviewComment } from "../../../examples/officekit-legacy-comment-edit-workflow.mjs";
 
 await editPptxLegacyReviewComment({
   inputPath: "input-with-review.pptx",
@@ -216,6 +216,6 @@ by an imported fixed-topology text/status edit, second import, package inspect,
 model render, and byte-bound audit:
 
 ```bash
-node examples/openchestnut-modern-comment-workflow.mjs \
+node examples/officekit-modern-comment-workflow.mjs \
   output/decision-review.pptx output/modern-comments-audit.json
 ```

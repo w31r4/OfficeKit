@@ -6,14 +6,14 @@ Given a DOCX with tracked changes, produce a distinct accepted or rejected copy,
 
 ## Preferred bounded workflow
 
-For direct whole-paragraph `w:ins` / `w:del` revisions containing one recognized run, use the shipped OpenChestnut workflow:
+For direct whole-paragraph `w:ins` / `w:del` revisions containing one recognized run, use the shipped OfficeKit workflow:
 
 ```bash
-node examples/openchestnut-revision-finalization-workflow.mjs \
+node examples/officekit-revision-finalization-workflow.mjs \
   input.docx accepted.docx accepted.audit.json accept
 
 # Or reject the revisions and preserve an existing trackRevisions setting:
-node examples/openchestnut-revision-finalization-workflow.mjs \
+node examples/officekit-revision-finalization-workflow.mjs \
   input.docx rejected.docx rejected.audit.json reject --keep-tracking
 ```
 
@@ -22,14 +22,14 @@ The workflow:
 1. reads the original bytes and computes SHA-256;
 2. imports and inspects the modeled revisions;
 3. calls `DocumentFile.finalizeRevisions` with that expected source hash;
-4. accepts or rejects through OpenChestnut without reconstructing the DOCX in JavaScript;
+4. accepts or rejects through OfficeKit without reconstructing the DOCX in JavaScript;
 5. admits changes only to `word/document.xml` and, when the existing tracking flag changes, `word/settings.xml`;
 6. re-imports the output, requires zero remaining revisions, verifies the expected paragraph projection, and checks the tracking state;
 7. leaves the source immutable, refuses to overwrite output/audit paths, and writes a byte-bound audit.
 
 `--keep-tracking` preserves an existing `<w:trackRevisions/>`; it does not enable tracking when the source did not have it. Without the flag, finalization removes the setting so later manual edits are not automatically tracked.
 
-`DocumentFile.finalizeRevisions` also accepts the exact adjacent `w:del` + `w:ins` pair produced by `DocumentFile.addTrackedReplacement` and `examples/openchestnut-tracked-replacement-workflow.mjs`, whether it is in a direct body paragraph or one bounded direct table-cell paragraph. The deletion may contain multiple adjacent source-fragment runs only when every fragment and the single insertion have identical `w:rPr`. The whole-block workflow above performs a richer model projection and therefore expects modeled `kind: "change"` blocks. For an inline pair, hash the tracked output, call the same API directly, retain both `metadata.trackedReplacement` and `metadata.revisionFinalization`, reimport the accepted or rejected paragraph/cell text, inspect the package for zero remaining revision elements, and native-render every page.
+`DocumentFile.finalizeRevisions` also accepts the exact adjacent `w:del` + `w:ins` pair produced by `DocumentFile.addTrackedReplacement` and `examples/officekit-tracked-replacement-workflow.mjs`, whether it is in a direct body paragraph or one bounded direct table-cell paragraph. The deletion may contain multiple adjacent source-fragment runs only when every fragment and the single insertion have identical `w:rPr`. The whole-block workflow above performs a richer model projection and therefore expects modeled `kind: "change"` blocks. For an inline pair, hash the tracked output, call the same API directly, retain both `metadata.trackedReplacement` and `metadata.revisionFinalization`, reimport the accepted or rejected paragraph/cell text, inspect the package for zero remaining revision elements, and native-render every page.
 
 ## Capability boundary
 

@@ -26,7 +26,7 @@ A comment requires three cooperating pieces:
 
 ## Bounded modern threads
 
-OpenChestnut's public modern profile keeps the classic root anchor above and
+OfficeKit's public modern profile keeps the classic root anchor above and
 adds a paragraph identity to every comment body. It then connects only direct
 replies through these support parts:
 

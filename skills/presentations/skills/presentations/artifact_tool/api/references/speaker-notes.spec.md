@@ -19,7 +19,7 @@ notes.textFrame.setText("The same plain-text contract through textFrame");
 ```
 
 `slide.addNotes(text)`, `notes.setText(text)`, and
-`notes.textFrame.setText(text)` replace the full notes text. OpenChestnut creates
+`notes.textFrame.setText(text)` replace the full notes text. OfficeKit creates
 the canonical Notes Master/Notes Slide graph when authoring a new deck.
 
 ## Rich Paragraph And Run Notes
@@ -61,7 +61,7 @@ title, use the shipped source-bound transaction rather than editing package XML
 or replacing the entire notes string:
 
 ```js
-import { editPptxRichSpeakerNotes } from "../../../examples/openchestnut-rich-speaker-notes-edit-workflow.mjs";
+import { editPptxRichSpeakerNotes } from "../../../examples/officekit-rich-speaker-notes-edit-workflow.mjs";
 
 await editPptxRichSpeakerNotes({
   inputPath: "input.pptx",
@@ -111,7 +111,7 @@ console.log(notes.text, notes.capability);
 - `partPresent`: the source SlidePart already has a NotesSlide.
 - `editable`: that existing NotesSlide has either the legacy text-only profile
   or the bounded relationship-free paragraph/run profile.
-- `addable`: the source has no NotesSlide, but OpenChestnut has re-proved that
+- `addable`: the source has no NotesSlide, but OfficeKit has re-proved that
   the presentation can safely reuse or create the canonical NotesMaster graph.
 
 The capability is preflight evidence for an Agent, not authority granted by a
@@ -124,7 +124,7 @@ budgets before writing anything.
 Use the shipped transaction rather than patching relationships by hand:
 
 ```js
-import { addPptxSpeakerNotes } from "../../../examples/openchestnut-speaker-notes-add-workflow.mjs";
+import { addPptxSpeakerNotes } from "../../../examples/officekit-speaker-notes-add-workflow.mjs";
 
 await addPptxSpeakerNotes({
   inputPath: "input.pptx",
@@ -140,7 +140,7 @@ The workflow requires exactly one named imported slide with
 It keeps the input immutable, writes through a temporary output, reimports,
 checks exact text and unchanged visible slide semantics, renders model SVG,
 and audits the OPC graph. If the presentation already has one existing reusable
-NotesMaster, it is reused byte-for-byte. Otherwise OpenChestnut creates one
+NotesMaster, it is reused byte-for-byte. Otherwise OfficeKit creates one
 canonical NotesMaster that shares the first ordered SlideMaster's existing
 ThemePart. The new NotesSlide has exactly one NotesMaster relationship and one
 back-reference to its owning SlidePart. There is no silent reconstruction or

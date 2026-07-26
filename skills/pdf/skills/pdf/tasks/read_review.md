@@ -29,7 +29,7 @@ Extraction is not layout fidelity. Compare extracted text/table candidates again
 For qpdf structural evidence:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/qpdf_provider.py probe
 "$PYTHON_BIN" scripts/qpdf_provider.py inspect input.pdf \
   > tmp/pdfs/qpdf-inspect.json
@@ -46,7 +46,7 @@ only after reviewing encryption and signature constraints.
 Never write an embedded filename directly to disk. A FileSpec may contain `../`, absolute paths, platform separators, control characters, reserved device names, or duplicate names. Inventory and extract through the shipped read-only primitive:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pypdf_edit.py inspect input.pdf \
   --output tmp/pdfs/pypdf-inspect.json
 "$PYTHON_BIN" scripts/pdf_provider.py check --provider pypdf --require

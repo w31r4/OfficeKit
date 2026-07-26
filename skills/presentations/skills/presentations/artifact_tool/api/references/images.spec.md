@@ -267,6 +267,6 @@ const importedImage = presentation.resolve("im/c3d4e5f6");
 importedImage.fit = "stretch";
 importedImage.crop = { left: -0.08, top: 0, right: -0.08, bottom: 0 };
 
-// Remove a:srcRect on the next canonical OpenChestnut export.
+// Remove a:srcRect on the next canonical OfficeKit export.
 importedImage.crop = undefined;
 ```

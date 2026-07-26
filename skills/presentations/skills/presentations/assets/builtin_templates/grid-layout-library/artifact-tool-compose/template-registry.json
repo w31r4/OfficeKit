@@ -1,5 +1,5 @@
 {
-  "schema": "open-office-artifact-tool.template-registry/v1",
+  "schema": "office-kit.template-registry/v1",
   "templateSlug": "grid-layout-library",
   "sourcePath": null,
   "slideSize": {

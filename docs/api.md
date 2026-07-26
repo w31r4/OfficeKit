@@ -8,11 +8,11 @@ Generated from `HELP_CATALOG` in `src/help/index.mjs`.
 | --- | --- | --- |
 | `document.addBibliography` | api | Append one canonical switch-free BIBLIOGRAPHY output placeholder, requiring at least one modeled bibliography source and enabling updateFields-on-open by default. A compatible Word host formats entries; imported fields permit cached-display edits only. |
 | `document.addBibliographySource` | api | Add a canonical Word bibliography source for inspect, resolve, and native b:Sources authoring. Recognized imports allow bounded source content edits while source order, IDs, and tags remain source-bound. |
-| `document.addBlockTextContentControl` | api | Append one canonical block-level Word plain-text content control around exactly one modeled paragraph and one ordinary run. The handle reports placement=block; OpenChestnut preserves the w:sdt wrapper and binds native identity/topology after import. |
+| `document.addBlockTextContentControl` | api | Append one canonical block-level Word plain-text content control around exactly one modeled paragraph and one ordinary run. The handle reports placement=block; OfficeKit preserves the w:sdt wrapper and binds native identity/topology after import. |
 | `document.addBookmark` | api | Wrap exactly one paragraph-like block in a native Word bookmark for inspect, resolve, and internal hyperlinks. Recognized imported whole-block bookmarks are exposed with source identity but remain fixed-topology/read-only; cross-block, nested, crossing, table-cell, and otherwise complex ranges stay opaque-preserved and fail closed on mutation. |
-| `document.addChange` | api | Append one bounded whole-paragraph tracked insertion or deletion. OpenChestnut authors native w:ins/w:del markup and permits fixed-topology imported text/author/date edits; mixed or nested revision graphs remain source-bound. |
+| `document.addChange` | api | Append one bounded whole-paragraph tracked insertion or deletion. OfficeKit authors native w:ins/w:del markup and permits fixed-topology imported text/author/date edits; mixed or nested revision graphs remain source-bound. |
 | `document.addCitation` | api | Add a whole-paragraph bibliography-backed citation exported as a native w:fldSimple CITATION field plus a bounded bookmark. Recognized imports allow display-text edits while source tags and topology remain fixed. |
-| `document.addComment` | api | Attach a whole-paragraph Word comment. Classic roots remain minimal; bounded modern roots may carry resolved, durable/UTC, and provider-person metadata through OpenChestnut. |
+| `document.addComment` | api | Attach a whole-paragraph Word comment. Classic roots remain minimal; bounded modern roots may carry resolved, durable/UTC, and provider-person metadata through OfficeKit. |
 | `document.addDeletion` | api | Append one bounded whole-paragraph tracked deletion using native w:del/w:delText markup. For one exact in-paragraph replacement in existing source bytes, use DocumentFile.addTrackedReplacement; mixed, moved, nested, and property-level revisions remain outside the bounded profile. |
 | `document.addEndnote` | api | Append one native plain-text endnote with 1 through 16 canonical physical paragraphs at the end of one paragraph or list item. Recognized imported canonical endnotes permit fixed-count body-text edits only; anchor, kind, native ID, and note topology remain source-bound. |
 | `document.addField` | api | Append a bounded w:fldSimple block for PAGE, NUMPAGES, SECTION, date/time, and selected document-property commands. External-content and arbitrary reference commands fail closed. |
@@ -36,43 +36,43 @@ Generated from `HELP_CATALOG` in `src/help/index.mjs`.
 | `document.layoutJson` | api | Return page-aware layout JSON with block bounding boxes, section/page ordinals, effective inherited header/footer selections, styles, and target/search slicing. |
 | `document.materializeFields` | api | Transactionally compute canonical inline SEQ counters and REF cached results from native bookmark targets, with dry-run evidence and strict missing-target failure. PAGEREF remains skipped because trustworthy page numbers require a real pagination host. |
 | `document.render` | api | Render an SVG preview by default, return layout JSON with { format: 'layout' }, or use { source: 'docx', renderer } to feed native DOCX into LibreOffice/native Office render adapters for PDF/PNG outputs. |
-| `document.replyToComment` | api | Add one source-free direct reply to a root comment. OpenChestnut authors the bounded commentsExtended graph; nested replies and imported topology changes fail closed. |
+| `document.replyToComment` | api | Add one source-free direct reply to a root comment. OfficeKit authors the bounded commentsExtended graph; nested replies and imported topology changes fail closed. |
 | `document.resolve` | api | Resolve stable document, block, table-cell, content-control, bookmark, footnote/endnote, bibliography source ID/tag, header/footer, watermark, comment, style, and advertised text-range IDs. |
 | `document.setCheckboxContentControls` | api | Transactionally set every recognized canonical checkbox control matching an object or Map of tag-to-boolean entries. Other control types do not silently coerce. |
 | `document.setComboBoxContentControls` | api | Transactionally set every recognized canonical combo-box control from a tag-to-value string mapping. Values may select a declared choice or provide bounded custom text; unknown tags and invalid values fail before mutation. |
 | `document.setDateContentControls` | api | Transactionally set every recognized canonical date control from a tag-to-YYYY-MM-DD mapping. Invalid Gregorian dates, unknown tags, and other control types fail before mutation. |
 | `document.setDropdownContentControls` | api | Transactionally set every recognized canonical drop-down control from a tag-to-choice-value string mapping. Unknown tags or values outside the declared choice table fail before mutation. |
 | `document.setSectionSettings` | api | Set per-section Word behavior such as different-first-page header/footer activation without changing preserved header/footer references. |
-| `document.setSettings` | api | Set model settings. evenAndOddHeaders, mirrorMargins, gutterAtTop, trackRevisions, the updateFields refresh hint, and bounded passwordless documentProtection are inside the OpenChestnut 0.3 DOCX boundary. Irregular page-margin mode markup and password/cryptographic protection variants stay source-owned and fail closed on replacement. |
+| `document.setSettings` | api | Set model settings. evenAndOddHeaders, mirrorMargins, gutterAtTop, trackRevisions, the updateFields refresh hint, and bounded passwordless documentProtection are inside the OfficeKit 0.3 DOCX boundary. Irregular page-margin mode markup and password/cryptographic protection variants stay source-owned and fail closed on replacement. |
 | `document.styles.effective` | api | Resolve a named document style through basedOn inheritance so inspect/layout/render/DOCX export share the same effective style metadata. |
 | `document.textRange` | api | Inspect or resolve stable textRange anchors such as blockId/text and tableId/cell/row/column/text. Assignment is limited to fully editable text; replace() also supports explicitly advertised source-bound literal patches. |
 | `document.verify` | api | Return QA issues for invalid/duplicate content-control IDs and native IDs, malformed tags/aliases, invalid block-control profiles, fake lists, invalid links/citations/bibliography sources, malformed tracked changes, duplicate/dangling/reversed bookmark ranges, invalid footnotes/endnotes, unknown styles, malformed tables, bad images/sections, invalid watermark IDs/scopes/text, dangling comments, visual overflow, and prose-like table cells. |
 | `documentComment.reopen` | api | Clear the resolved state of a bounded modern comment without changing its root/reply topology or durable identity. |
 | `documentComment.resolve` | api | Set resolved=true for a bounded modern comment. Imported edits re-prove source hashes and commentsExtended topology while keeping thread identity fixed. |
 | `DocumentFile.addTrackedReplacement` | api | Add one exact replacement inside a direct body paragraph or bounded table-cell paragraph to hash-bound DOCX source bytes as adjacent native w:del/w:ins runs. A structured paragraph/tableCell selector, full expected text, and one unique literal contained in either one ordinary run or adjacent run fragments with identical w:rPr preserve source formatting; mixed formatting and broader topologies fail closed with exact changed-part audit. |
-| `DocumentFile.exportDocx` | api | Export DocumentModel to DOCX through the single bundled OpenChestnut codec. Only limits is accepted; legacy codec and lossy-fallback options fail explicitly. |
+| `DocumentFile.exportDocx` | api | Export DocumentModel to DOCX through the single bundled OfficeKit codec. Only limits is accepted; legacy codec and lossy-fallback options fail explicitly. |
 | `DocumentFile.finalizeRevisions` | api | Accept or reject bounded direct whole-paragraph one-run revisions and exact adjacent in-paragraph w:del + w:ins pairs from source bytes, including same-format fragmented deletions in direct body paragraphs or bounded table-cell paragraphs. Mandatory SHA-256 binding, decompression budgets, exact changed-part audit, and fail-closed graph checks prevent silent model reconstruction or broad package mutation. |
-| `DocumentFile.importDocx` | api | Import relationship-driven core DOCX semantics through the single bundled OpenChestnut codec. An imported header/footer advertises editable only for one direct unformatted text paragraph in a uniquely used source part; recognized ordered literal/simple-field page furniture is exposed as segments but remains source-bound/read-only and no-op preserved. PAGE/simple fields, rich, shared, inherited, and irregular page furniture stay read-only. Recognized inline controls, fields, revisions, notes, citations, simple tables, and exclusive canonical VML text-watermark paragraphs are fixed-topology editable; a canonical BIBLIOGRAPHY output field permits only its cached display text to change. Otherwise read-only paragraphs and complex table cells separately advertise textPatchable when at least one direct ordinary native text node can participate in a bounded literal patch. A unique literal may span adjacent same-format runs without rebuilding the surrounding graph. |
+| `DocumentFile.importDocx` | api | Import relationship-driven core DOCX semantics through the single bundled OfficeKit codec. An imported header/footer advertises editable only for one direct unformatted text paragraph in a uniquely used source part; recognized ordered literal/simple-field page furniture is exposed as segments but remains source-bound/read-only and no-op preserved. PAGE/simple fields, rich, shared, inherited, and irregular page furniture stay read-only. Recognized inline controls, fields, revisions, notes, citations, simple tables, and exclusive canonical VML text-watermark paragraphs are fixed-topology editable; a canonical BIBLIOGRAPHY output field permits only its cached display text to change. Otherwise read-only paragraphs and complex table cells separately advertise textPatchable when at least one direct ordinary native text node can participate in a bounded literal patch. A unique literal may span adjacent same-format runs without rebuilding the surrounding graph. |
 | `DocumentFile.inspectDocx` | api | Inspect bounded DOCX parts, content types, the required main-document/root officeDocument relationship, and namespace-aware source XML r:id/r:embed/r:link references under decompression budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `DocumentFile.patchDocx` | api | Apply DOCX part patches with path traversal validation for settings, classic-comment anchors, commentsExtended/commentsIds/commentsExtensible/people parts, and numbering assignments; atomically reject dangling packages and invalid comment graphs. |
 | `documentHeaderFooter.setSegments` | api | Atomically replace one source-free header/footer's ordered literal/simple-field sequence. The derived visible text must remain the concatenated segment displays; imported page furniture cannot use this mutation profile. |
 | `DocumentModel.create` | api | Create a document with paragraph/character styles, formatted paragraphs/runs, canonical inline and one-paragraph table-cell plain-text, checkbox, drop-down, combo-box, and ISO/Gregorian date content controls, one-paragraph block plain-text controls, canonical inline SEQ/REF/PAGEREF fields, sections, headers/footers, canonical VML text watermarks, lists, TableGrid fixed-geometry tables, links, bounded whole-block bookmarks, 1-through-16-paragraph plain-text footnotes/endnotes, canonical bibliography-backed citations plus one source-free switch-free BIBLIOGRAPHY output placeholder, simple fields, a canonical complex TOC placeholder, bounded whole-paragraph tracked insertions/deletions, classic comments, bounded modern root/direct-reply threads, and PNG/JPEG images. Nested/irregular modern threads, rich comment bodies, multi-paragraph/rich/inline-within-cell/nested/data-bound/locked/placeholder table-cell SDTs, other nested/data-bound/locked/placeholder SDTs, irregular lists, localized dates, custom checkbox symbols, image/DrawingML/irregular VML watermarks, other complex field graphs, arbitrary table-style graphs, complex bookmark/note/revision graphs, and advanced settings remain unsupported or source-bound. |
-| `documentTableCell.addCheckboxContentControl` | api | Wrap one source-free rectangular table cell in a canonical Word 2010+ checkbox w:sdt. OpenChestnut owns the visible glyph and symbols; recognized imports permit checked/tag/alias edits while identity, type, placement, symbols, and topology remain fixed. |
+| `documentTableCell.addCheckboxContentControl` | api | Wrap one source-free rectangular table cell in a canonical Word 2010+ checkbox w:sdt. OfficeKit owns the visible glyph and symbols; recognized imports permit checked/tag/alias edits while identity, type, placement, symbols, and topology remain fixed. |
 | `documentTableCell.addComboBoxContentControl` | api | Wrap one source-free rectangular table cell in a canonical standard combo-box w:sdt with ordered choices and a declared-or-custom typed value. Recognized imports permit value/tag/alias edits while the choice table and topology remain fixed. |
 | `documentTableCell.addDateContentControl` | api | Wrap one source-free rectangular table cell in the canonical ISO/Gregorian date w:sdt profile. Recognized imports permit dateValue/tag/alias edits while native date metadata, placement, and topology remain fixed. |
 | `documentTableCell.addDropdownContentControl` | api | Wrap one source-free rectangular table cell in a canonical standard drop-down w:sdt with ordered choices and a typed selectedValue. Recognized imports permit selectedValue/tag/alias edits while the choice table and topology remain fixed. |
 | `documentTableCell.addTextContentControl` | api | Wrap one source-free rectangular table cell's existing text in a canonical cell-level plain-text w:sdt. The handle reports placement=tableCell plus row/column; recognized imported controls permit fixed-topology text/tag/alias edits, while adding or removing imported control topology fails closed. |
 | `documentTableCell.replaceText` | api | Apply a literal source-bound text patch to one table cell that advertises textPatchable. The search must resolve exactly once inside one ordinary native w:t node or adjacent non-empty direct runs with byte-identical w:rPr. Whole-cell replacement, mixed formatting, empty-run gaps, paragraph boundaries, fields, controls, revisions, and ambiguous matches fail closed. |
 | `documentWatermark.remove` | api | Remove one modeled or recognized source-bound canonical watermark as a complete header paragraph. The source-bound operation re-proves exact element and header residual hashes and never heuristically deletes arbitrary header graphics. |
-| `exportDocxWithOpenChestnut` | api | Export bounded DocumentModel paragraphs/runs, fields, tables, bookmarks, notes, citations plus one canonical bibliography-output placeholder, tracked changes, comments, images, canonical text watermarks, sections, numbering, settings, and source-free ordered header/footer literal/simple-field sequences; recognized imports permit exact-profile semantic edits plus hash-bound literal patches to one unique ordinary paragraph or table-cell span inside one direct w:r/w:t or adjacent same-format runs while preserving all surrounding native markup. |
-| `importDocxWithOpenChestnut` | api | Import DOCX bytes through OpenChestnut with source-bound blocks, recognized exclusive canonical VML text-watermark paragraphs, source-bound header/footer editable evidence, and read-only ordered header/footer literal/simple-field sequences. A header/footer edit is limited to one direct unformatted text paragraph in one uniquely used source part; fields, rich/shared/inherited page furniture, scope changes, and multiple edits to one part fail closed. Literal body/table patch capability never implies whole-paragraph/cell editability; only adjacent non-empty direct runs with byte-identical w:rPr may form one patch span, while mixed-format, gapped, cross-paragraph, ambiguous, field/control/revision text remains fail-closed. |
-| `paragraph.addCheckboxContentControl` | api | Append one canonical Word 2010+ checkbox content control with typed checked state; OpenChestnut owns its visible glyph and w14 symbol declarations. |
-| `paragraph.addComboBoxContentControl` | api | Append one canonical inline Word combo-box content control with ordered displayText/value choices and a typed value that may be a declared choice or bounded custom text. OpenChestnut derives the visible projection. |
-| `paragraph.addDateContentControl` | api | Append one canonical inline Word date picker from a real Gregorian YYYY-MM-DD value. OpenChestnut owns the fixed ISO display, UTC-midnight fullDate, language, mapping, and calendar projection. |
-| `paragraph.addDropdownContentControl` | api | Append one canonical inline Word drop-down content control with an ordered displayText/value choice table and typed selectedValue. OpenChestnut derives visible text from the selected choice. |
-| `paragraph.addField` | api | Append a logical inline SEQ, REF, or PAGEREF field run. A SEQ run may add a bookmark around only its cached result for real caption-number targets. OpenChestnut authors/imports the canonical native graph; imported field position, instruction, and bookmark identity remain source-bound while cached display text is editable. |
-| `paragraph.addTextContentControl` | api | Append one inline plain-text Word content-control run with agent ID, tag, alias, text, and optional run formatting. OpenChestnut assigns native w:id identity and authors canonical w:sdt markup. |
-| `paragraph.replaceText` | api | Replace literal paragraph text without flattening formatting boundaries. Fully editable one-run paragraphs update their existing run; imported source-bound paragraphs advertise textPatchable when OpenChestnut can replace one unique ordinary w:r/w:t node or adjacent non-empty direct runs with byte-identical w:rPr while preserving all native topology and surrounding markup. Mixed formatting, empty-run gaps, paragraph boundaries, fields, controls, revisions, and duplicate matches fail closed. |
+| `exportDocxWithOfficeKit` | api | Export bounded DocumentModel paragraphs/runs, fields, tables, bookmarks, notes, citations plus one canonical bibliography-output placeholder, tracked changes, comments, images, canonical text watermarks, sections, numbering, settings, and source-free ordered header/footer literal/simple-field sequences; recognized imports permit exact-profile semantic edits plus hash-bound literal patches to one unique ordinary paragraph or table-cell span inside one direct w:r/w:t or adjacent same-format runs while preserving all surrounding native markup. |
+| `importDocxWithOfficeKit` | api | Import DOCX bytes through OfficeKit with source-bound blocks, recognized exclusive canonical VML text-watermark paragraphs, source-bound header/footer editable evidence, and read-only ordered header/footer literal/simple-field sequences. A header/footer edit is limited to one direct unformatted text paragraph in one uniquely used source part; fields, rich/shared/inherited page furniture, scope changes, and multiple edits to one part fail closed. Literal body/table patch capability never implies whole-paragraph/cell editability; only adjacent non-empty direct runs with byte-identical w:rPr may form one patch span, while mixed-format, gapped, cross-paragraph, ambiguous, field/control/revision text remains fail-closed. |
+| `paragraph.addCheckboxContentControl` | api | Append one canonical Word 2010+ checkbox content control with typed checked state; OfficeKit owns its visible glyph and w14 symbol declarations. |
+| `paragraph.addComboBoxContentControl` | api | Append one canonical inline Word combo-box content control with ordered displayText/value choices and a typed value that may be a declared choice or bounded custom text. OfficeKit derives the visible projection. |
+| `paragraph.addDateContentControl` | api | Append one canonical inline Word date picker from a real Gregorian YYYY-MM-DD value. OfficeKit owns the fixed ISO display, UTC-midnight fullDate, language, mapping, and calendar projection. |
+| `paragraph.addDropdownContentControl` | api | Append one canonical inline Word drop-down content control with an ordered displayText/value choice table and typed selectedValue. OfficeKit derives visible text from the selected choice. |
+| `paragraph.addField` | api | Append a logical inline SEQ, REF, or PAGEREF field run. A SEQ run may add a bookmark around only its cached result for real caption-number targets. OfficeKit authors/imports the canonical native graph; imported field position, instruction, and bookmark identity remain source-bound while cached display text is editable. |
+| `paragraph.addTextContentControl` | api | Append one inline plain-text Word content-control run with agent ID, tag, alias, text, and optional run formatting. OfficeKit assigns native w:id identity and authors canonical w:sdt markup. |
+| `paragraph.replaceText` | api | Replace literal paragraph text without flattening formatting boundaries. Fully editable one-run paragraphs update their existing run; imported source-bound paragraphs advertise textPatchable when OfficeKit can replace one unique ordinary w:r/w:t node or adjacent non-empty direct runs with byte-identical w:rPr while preserving all native topology and surrounding markup. Mixed formatting, empty-run gaps, paragraph boundaries, fields, controls, revisions, and duplicate matches fail closed. |
 
 ### document details
 
@@ -114,7 +114,7 @@ Add a canonical Word bibliography source for inspect, resolve, and native b:Sour
 
 #### `document.addBlockTextContentControl`
 
-Append one canonical block-level Word plain-text content control around exactly one modeled paragraph and one ordinary run. The handle reports placement=block; OpenChestnut preserves the w:sdt wrapper and binds native identity/topology after import.
+Append one canonical block-level Word plain-text content control around exactly one modeled paragraph and one ordinary run. The handle reports placement=block; OfficeKit preserves the w:sdt wrapper and binds native identity/topology after import.
 
 **Schema parameters:**
 
@@ -148,7 +148,7 @@ Wrap exactly one paragraph-like block in a native Word bookmark for inspect, res
 
 #### `document.addChange`
 
-Append one bounded whole-paragraph tracked insertion or deletion. OpenChestnut authors native w:ins/w:del markup and permits fixed-topology imported text/author/date edits; mixed or nested revision graphs remain source-bound.
+Append one bounded whole-paragraph tracked insertion or deletion. OfficeKit authors native w:ins/w:del markup and permits fixed-topology imported text/author/date edits; mixed or nested revision graphs remain source-bound.
 
 **Schema parameters:**
 
@@ -178,7 +178,7 @@ Add a whole-paragraph bibliography-backed citation exported as a native w:fldSim
 
 #### `document.addComment`
 
-Attach a whole-paragraph Word comment. Classic roots remain minimal; bounded modern roots may carry resolved, durable/UTC, and provider-person metadata through OpenChestnut.
+Attach a whole-paragraph Word comment. Classic roots remain minimal; bounded modern roots may carry resolved, durable/UTC, and provider-person metadata through OfficeKit.
 
 **Schema parameters:**
 
@@ -411,7 +411,7 @@ Append a Word-style table with physical cell values, optional logical merge geom
 
 - `values` (unknown[][]) required — Table cell value matrix.
 - `gridColumns` (number) — Logical Word table-grid width. Required for explicit authored geometry; otherwise derived from values.
-- `cells` (object[]) — One record per physical value cell with zero-based row/column, gridColumn, columnSpan, rowSpan, verticalMerge none/restart/continue, and editability evidence. OpenChestnut can author complete, contiguous, conforming geometry and keeps imported geometry source-bound.
+- `cells` (object[]) — One record per physical value cell with zero-based row/column, gridColumn, columnSpan, rowSpan, verticalMerge none/restart/continue, and editability evidence. OfficeKit can author complete, contiguous, conforming geometry and keeps imported geometry source-bound.
 - `name` (string) — Inspectable table name.
 - `styleId` (string) — Table style ID.
 - `widthDxa` (number) — Table width in twentieths of a point.
@@ -590,7 +590,7 @@ Render an SVG preview by default, return layout JSON with { format: 'layout' }, 
 
 #### `document.replyToComment`
 
-Add one source-free direct reply to a root comment. OpenChestnut authors the bounded commentsExtended graph; nested replies and imported topology changes fail closed.
+Add one source-free direct reply to a root comment. OfficeKit authors the bounded commentsExtended graph; nested replies and imported topology changes fail closed.
 
 **Schema parameters:**
 
@@ -687,7 +687,7 @@ Set per-section Word behavior such as different-first-page header/footer activat
 
 #### `document.setSettings`
 
-Set model settings. evenAndOddHeaders, mirrorMargins, gutterAtTop, trackRevisions, the updateFields refresh hint, and bounded passwordless documentProtection are inside the OpenChestnut 0.3 DOCX boundary. Irregular page-margin mode markup and password/cryptographic protection variants stay source-owned and fail closed on replacement.
+Set model settings. evenAndOddHeaders, mirrorMargins, gutterAtTop, trackRevisions, the updateFields refresh hint, and bounded passwordless documentProtection are inside the OfficeKit 0.3 DOCX boundary. Irregular page-margin mode markup and password/cryptographic protection variants stay source-owned and fail closed on replacement.
 
 **Schema parameters:**
 
@@ -756,7 +756,7 @@ Add one exact replacement inside a direct body paragraph or bounded table-cell p
 
 **Schema parameters:**
 
-- `docx` (FileBlob|Uint8Array|ArrayBuffer) required — Original DOCX bytes. OpenChestnut edits this package directly and never rebuilds it from the imported JavaScript model.
+- `docx` (FileBlob|Uint8Array|ArrayBuffer) required — Original DOCX bytes. OfficeKit edits this package directly and never rebuilds it from the imported JavaScript model.
 - `target` (object) — Preferred structured selector: { kind: 'paragraph', blockIndex } or { kind: 'tableCell', blockIndex, row, column }. Table row/column are zero-based physical indexes from the exact imported table block.
 - `targetBlockIndex` (number) — Compatibility selector for a direct body paragraph. Omit when target is supplied; the two forms are mutually exclusive.
 - `expectedText` (string) required — Exact full text of the target paragraph or single-paragraph table cell; stale text fails closed before mutation.
@@ -764,7 +764,7 @@ Add one exact replacement inside a direct body paragraph or bounded table-cell p
 - `replacement` (string) required — Non-empty replacement text written in a native adjacent w:ins run with the source run formatting.
 - `author` (string) required — Revision author, 1 through 255 characters without control characters.
 - `date` (string) — Optional ISO 8601 revision timestamp.
-- `expectedSourceSha256` (string) required — Lowercase 64-hex SHA-256 of the exact input bytes; JavaScript and OpenChestnut both verify it.
+- `expectedSourceSha256` (string) required — Lowercase 64-hex SHA-256 of the exact input bytes; JavaScript and OfficeKit both verify it.
 - `limits` (object) — Optional maxInputBytes, maxUncompressedBytes, maxParts, maxCells, and maxCompressionRatio codec budgets.
 
 **Schema returns:**
@@ -773,7 +773,7 @@ Add one exact replacement inside a direct body paragraph or bounded table-cell p
 
 #### `DocumentFile.exportDocx`
 
-Export DocumentModel to DOCX through the single bundled OpenChestnut codec. Only limits is accepted; legacy codec and lossy-fallback options fail explicitly.
+Export DocumentModel to DOCX through the single bundled OfficeKit codec. Only limits is accepted; legacy codec and lossy-fallback options fail explicitly.
 
 **Schema parameters:**
 
@@ -792,7 +792,7 @@ Accept or reject bounded direct whole-paragraph one-run revisions and exact adja
 
 - `docx` (FileBlob|Uint8Array|ArrayBuffer) required — Original DOCX bytes. The native codec operates directly on this package rather than rebuilding it from a JavaScript model.
 - `mode` (string) required — accept or reject.
-- `expectedSourceSha256` (string) required — Lowercase 64-hex SHA-256 of the exact input bytes; JavaScript and OpenChestnut both verify it.
+- `expectedSourceSha256` (string) required — Lowercase 64-hex SHA-256 of the exact input bytes; JavaScript and OfficeKit both verify it.
 - `keepTracking` (boolean) — Preserve an existing trackRevisions setting after finalization. Defaults to false and never enables a setting that was absent.
 - `limits` (object) — Optional maxInputBytes, maxUncompressedBytes, maxParts, maxCells, and maxCompressionRatio codec budgets.
 
@@ -802,7 +802,7 @@ Accept or reject bounded direct whole-paragraph one-run revisions and exact adja
 
 #### `DocumentFile.importDocx`
 
-Import relationship-driven core DOCX semantics through the single bundled OpenChestnut codec. An imported header/footer advertises editable only for one direct unformatted text paragraph in a uniquely used source part; recognized ordered literal/simple-field page furniture is exposed as segments but remains source-bound/read-only and no-op preserved. PAGE/simple fields, rich, shared, inherited, and irregular page furniture stay read-only. Recognized inline controls, fields, revisions, notes, citations, simple tables, and exclusive canonical VML text-watermark paragraphs are fixed-topology editable; a canonical BIBLIOGRAPHY output field permits only its cached display text to change. Otherwise read-only paragraphs and complex table cells separately advertise textPatchable when at least one direct ordinary native text node can participate in a bounded literal patch. A unique literal may span adjacent same-format runs without rebuilding the surrounding graph.
+Import relationship-driven core DOCX semantics through the single bundled OfficeKit codec. An imported header/footer advertises editable only for one direct unformatted text paragraph in a uniquely used source part; recognized ordered literal/simple-field page furniture is exposed as segments but remains source-bound/read-only and no-op preserved. PAGE/simple fields, rich, shared, inherited, and irregular page furniture stay read-only. Recognized inline controls, fields, revisions, notes, citations, simple tables, and exclusive canonical VML text-watermark paragraphs are fixed-topology editable; a canonical BIBLIOGRAPHY output field permits only its cached display text to change. Otherwise read-only paragraphs and complex table cells separately advertise textPatchable when at least one direct ordinary native text node can participate in a bounded literal patch. A unique literal may span adjacent same-format runs without rebuilding the surrounding graph.
 
 **Schema parameters:**
 
@@ -882,7 +882,7 @@ Create a document with paragraph/character styles, formatted paragraphs/runs, ca
 - `defaultRunStyle` (object) — Document-wide run properties serialized as w:docDefaults/w:rPrDefault and applied before named styles.
 - `styles` (object) — Named paragraph/character styles plus imported table/numbering style records with optional basedOn inheritance and numberingId/numberingLevel linkage. Source-free table blocks may select TableGrid; arbitrary custom table-style graphs are not materialized.
 - `paragraphs` (string[]) — Convenience paragraph list; the first paragraph uses Title style.
-- `blocks` (object[]) — Ordered paragraph/list/table/link/field/citation/image/section/change block models. Paragraph runs may carry canonical inline SEQ/REF/PAGEREF fields; bibliography-backed citations and one-paragraph complex TOC placeholders also cross OpenChestnut. Other field graphs remain source-bound.
+- `blocks` (object[]) — Ordered paragraph/list/table/link/field/citation/image/section/change block models. Paragraph runs may carry canonical inline SEQ/REF/PAGEREF fields; bibliography-backed citations and one-paragraph complex TOC placeholders also cross OfficeKit. Other field graphs remain source-bound.
 - `bookmarks` (object[]) — Whole-block bookmark ranges. Source-free authoring requires one unique valid Word name around exactly one paragraph-like block; imported bookmarks are fixed-topology/read-only.
 - `notes` (object[]) — Plain-text footnote/endnote records. The bounded profile permits one note at the end of each paragraph or list item; imported note text may change, but kind, anchor, native ID, and topology are source-bound.
 - `bibliography` (object) — Canonical Word bibliography SelectedStyle, StyleName, and URI metadata authored in one b:Sources Custom XML part.
@@ -890,7 +890,7 @@ Create a document with paragraph/character styles, formatted paragraphs/runs, ca
 - `headers` (object[]) — Header block models. Imported items expose sourceBound/editable; only a uniquely used one-run direct text paragraph is text-editable, and at most one edit may target each source Header part.
 - `footers` (object[]) — Footer block models. Imported items expose sourceBound/editable; only a uniquely used one-run direct text paragraph is text-editable, and at most one edit may target each source Footer part.
 - `sectionSettings` (object[]) — Per-section settings with zero-based sectionIndex and differentFirstPage activation state.
-- `comments` (object[]) — Classic whole-paragraph comments. Parent/reply, resolved, durable-ID, UTC/person, and modern extension metadata are outside the OpenChestnut 0.2 boundary.
+- `comments` (object[]) — Classic whole-paragraph comments. Parent/reply, resolved, durable-ID, UTC/person, and modern extension metadata are outside the OfficeKit 0.2 boundary.
 - `settings` (object) — evenAndOddHeaders, mirrorMargins, gutterAtTop, trackRevisions, the updateFields-on-open refresh hint, and bounded passwordless documentProtection are authorable. mirrorMargins toggles facing-page inside/outside margins; gutterAtTop chooses whether each section's gutter is added at the top edge or binding side. Irregular page-margin mode markup stays source-owned and makes section geometry read-only. Password/cryptographic protection variants cannot be replaced through the semantic model.
 
 **Schema returns:**
@@ -899,7 +899,7 @@ Create a document with paragraph/character styles, formatted paragraphs/runs, ca
 
 #### `documentTableCell.addCheckboxContentControl`
 
-Wrap one source-free rectangular table cell in a canonical Word 2010+ checkbox w:sdt. OpenChestnut owns the visible glyph and symbols; recognized imports permit checked/tag/alias edits while identity, type, placement, symbols, and topology remain fixed.
+Wrap one source-free rectangular table cell in a canonical Word 2010+ checkbox w:sdt. OfficeKit owns the visible glyph and symbols; recognized imports permit checked/tag/alias edits while identity, type, placement, symbols, and topology remain fixed.
 
 **Schema parameters:**
 
@@ -994,22 +994,22 @@ Remove one modeled or recognized source-bound canonical watermark as a complete 
 
 - `watermark` (undefined) — Removes the complete recognized watermark paragraph after source/residual revalidation on export.
 
-#### `exportDocxWithOpenChestnut`
+#### `exportDocxWithOfficeKit`
 
 Export bounded DocumentModel paragraphs/runs, fields, tables, bookmarks, notes, citations plus one canonical bibliography-output placeholder, tracked changes, comments, images, canonical text watermarks, sections, numbering, settings, and source-free ordered header/footer literal/simple-field sequences; recognized imports permit exact-profile semantic edits plus hash-bound literal patches to one unique ordinary paragraph or table-cell span inside one direct w:r/w:t or adjacent same-format runs while preserving all surrounding native markup.
 
 **Schema parameters:**
 
-- `document` (DocumentModel) required — Document facade within the OpenChestnut paragraph/run/style, inline SEQ/REF/PAGEREF field, source-free switch-free BIBLIOGRAPHY output placeholder, section, header/footer, canonical text-watermark, image, list, hyperlink, whole-block bookmark, plain-text footnote/endnote, simple-field, comment, and fixed-table boundary. Advanced imported content remains source-bound; unsupported edits fail closed.
+- `document` (DocumentModel) required — Document facade within the OfficeKit paragraph/run/style, inline SEQ/REF/PAGEREF field, source-free switch-free BIBLIOGRAPHY output placeholder, section, header/footer, canonical text-watermark, image, list, hyperlink, whole-block bookmark, plain-text footnote/endnote, simple-field, comment, and fixed-table boundary. Advanced imported content remains source-bound; unsupported edits fail closed.
 - `limits` (object) — Optional maxInputBytes, maxUncompressedBytes, maxParts, maxCells, and maxCompressionRatio codec budgets.
 
 **Schema returns:**
 
 - `blob` (FileBlob) — DOCX bytes produced by the bundled Open XML SDK WebAssembly codec, with codec diagnostics in metadata.
 
-#### `importDocxWithOpenChestnut`
+#### `importDocxWithOfficeKit`
 
-Import DOCX bytes through OpenChestnut with source-bound blocks, recognized exclusive canonical VML text-watermark paragraphs, source-bound header/footer editable evidence, and read-only ordered header/footer literal/simple-field sequences. A header/footer edit is limited to one direct unformatted text paragraph in one uniquely used source part; fields, rich/shared/inherited page furniture, scope changes, and multiple edits to one part fail closed. Literal body/table patch capability never implies whole-paragraph/cell editability; only adjacent non-empty direct runs with byte-identical w:rPr may form one patch span, while mixed-format, gapped, cross-paragraph, ambiguous, field/control/revision text remains fail-closed.
+Import DOCX bytes through OfficeKit with source-bound blocks, recognized exclusive canonical VML text-watermark paragraphs, source-bound header/footer editable evidence, and read-only ordered header/footer literal/simple-field sequences. A header/footer edit is limited to one direct unformatted text paragraph in one uniquely used source part; fields, rich/shared/inherited page furniture, scope changes, and multiple edits to one part fail closed. Literal body/table patch capability never implies whole-paragraph/cell editability; only adjacent non-empty direct runs with byte-identical w:rPr may form one patch span, while mixed-format, gapped, cross-paragraph, ambiguous, field/control/revision text remains fail-closed.
 
 **Schema parameters:**
 
@@ -1022,7 +1022,7 @@ Import DOCX bytes through OpenChestnut with source-bound blocks, recognized excl
 
 #### `paragraph.addCheckboxContentControl`
 
-Append one canonical Word 2010+ checkbox content control with typed checked state; OpenChestnut owns its visible glyph and w14 symbol declarations.
+Append one canonical Word 2010+ checkbox content control with typed checked state; OfficeKit owns its visible glyph and w14 symbol declarations.
 
 **Schema parameters:**
 
@@ -1038,7 +1038,7 @@ Append one canonical Word 2010+ checkbox content control with typed checked stat
 
 #### `paragraph.addComboBoxContentControl`
 
-Append one canonical inline Word combo-box content control with ordered displayText/value choices and a typed value that may be a declared choice or bounded custom text. OpenChestnut derives the visible projection.
+Append one canonical inline Word combo-box content control with ordered displayText/value choices and a typed value that may be a declared choice or bounded custom text. OfficeKit derives the visible projection.
 
 **Schema parameters:**
 
@@ -1055,7 +1055,7 @@ Append one canonical inline Word combo-box content control with ordered displayT
 
 #### `paragraph.addDateContentControl`
 
-Append one canonical inline Word date picker from a real Gregorian YYYY-MM-DD value. OpenChestnut owns the fixed ISO display, UTC-midnight fullDate, language, mapping, and calendar projection.
+Append one canonical inline Word date picker from a real Gregorian YYYY-MM-DD value. OfficeKit owns the fixed ISO display, UTC-midnight fullDate, language, mapping, and calendar projection.
 
 **Schema parameters:**
 
@@ -1071,7 +1071,7 @@ Append one canonical inline Word date picker from a real Gregorian YYYY-MM-DD va
 
 #### `paragraph.addDropdownContentControl`
 
-Append one canonical inline Word drop-down content control with an ordered displayText/value choice table and typed selectedValue. OpenChestnut derives visible text from the selected choice.
+Append one canonical inline Word drop-down content control with an ordered displayText/value choice table and typed selectedValue. OfficeKit derives visible text from the selected choice.
 
 **Schema parameters:**
 
@@ -1088,7 +1088,7 @@ Append one canonical inline Word drop-down content control with an ordered displ
 
 #### `paragraph.addField`
 
-Append a logical inline SEQ, REF, or PAGEREF field run. A SEQ run may add a bookmark around only its cached result for real caption-number targets. OpenChestnut authors/imports the canonical native graph; imported field position, instruction, and bookmark identity remain source-bound while cached display text is editable.
+Append a logical inline SEQ, REF, or PAGEREF field run. A SEQ run may add a bookmark around only its cached result for real caption-number targets. OfficeKit authors/imports the canonical native graph; imported field position, instruction, and bookmark identity remain source-bound while cached display text is editable.
 
 **Schema parameters:**
 
@@ -1104,7 +1104,7 @@ Append a logical inline SEQ, REF, or PAGEREF field run. A SEQ run may add a book
 
 #### `paragraph.addTextContentControl`
 
-Append one inline plain-text Word content-control run with agent ID, tag, alias, text, and optional run formatting. OpenChestnut assigns native w:id identity and authors canonical w:sdt markup.
+Append one inline plain-text Word content-control run with agent ID, tag, alias, text, and optional run formatting. OfficeKit assigns native w:id identity and authors canonical w:sdt markup.
 
 **Schema parameters:**
 
@@ -1120,7 +1120,7 @@ Append one inline plain-text Word content-control run with agent ID, tag, alias,
 
 #### `paragraph.replaceText`
 
-Replace literal paragraph text without flattening formatting boundaries. Fully editable one-run paragraphs update their existing run; imported source-bound paragraphs advertise textPatchable when OpenChestnut can replace one unique ordinary w:r/w:t node or adjacent non-empty direct runs with byte-identical w:rPr while preserving all native topology and surrounding markup. Mixed formatting, empty-run gaps, paragraph boundaries, fields, controls, revisions, and duplicate matches fail closed.
+Replace literal paragraph text without flattening formatting boundaries. Fully editable one-run paragraphs update their existing run; imported source-bound paragraphs advertise textPatchable when OfficeKit can replace one unique ordinary w:r/w:t node or adjacent non-empty direct runs with byte-identical w:rPr while preserving all native topology and surrounding markup. Mixed formatting, empty-run gaps, paragraph boundaries, fields, controls, revisions, and duplicate matches fail closed.
 
 **Schema parameters:**
 
@@ -1618,7 +1618,7 @@ Install only a previously installable, policy- and catalog-bound capability reso
 
 **Examples:**
 
-- const installed = await PdfProviders.ensure({ resolution, policyPath: '.open-office-artifact-tool/pdf-providers.json' })
+- const installed = await PdfProviders.ensure({ resolution, policyPath: '.office-kit/pdf-providers.json' })
 
 **Schema parameters:**
 
@@ -1635,7 +1635,7 @@ Probe exactly one selected PDF provider under the requested policy without downl
 
 **Examples:**
 
-- const state = await PdfProviders.probe({ provider: 'qpdf', task: 'repair', policyPath: '.open-office-artifact-tool/pdf-providers.json' })
+- const state = await PdfProviders.probe({ provider: 'qpdf', task: 'repair', policyPath: '.office-kit/pdf-providers.json' })
 
 **Schema parameters:**
 
@@ -1654,7 +1654,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 
 **Examples:**
 
-- const resolution = await PdfProviders.resolve({ task: 'repair', provider: 'qpdf', savePolicy: 'rewrite', mutationAuthorized: true, invalidateSignaturesAuthorized: true, policyPath: '.open-office-artifact-tool/pdf-providers.json' })
+- const resolution = await PdfProviders.resolve({ task: 'repair', provider: 'qpdf', savePolicy: 'rewrite', mutationAuthorized: true, invalidateSignaturesAuthorized: true, policyPath: '.office-kit/pdf-providers.json' })
 
 **Schema parameters:**
 
@@ -1662,7 +1662,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 - `provider` (string) — Optional provider ID. A task default is a declared preference only; the resolver never substitutes a different provider when it is unavailable.
 - `inspection` (object) — Exact-source inspection/preflight evidence. Required for every existing-PDF task except inspect; it must carry a 64-hex sourceSha256 at inspection.summary.sourceSha256 or sourceSha256. A failed MuPDF parse may use a bounded preflight hash record only to route explicit repair.
 - `savePolicy` (string) required — One strategy allowed by the selected task, such as read-only, rewrite, incremental, or sanitize.
-- `policyPath` (string) — Explicit project policy file. The conventional path is .open-office-artifact-tool/pdf-providers.json; a missing conventional file means disabled, never implicit authorization.
+- `policyPath` (string) — Explicit project policy file. The conventional path is .office-kit/pdf-providers.json; a missing conventional file means disabled, never implicit authorization.
 - `languages` (string[]) — Explicit OCR languages. eng and chi_sim are policy defaults; every language must be policy-authorized and catalogued.
 - `mutationAuthorized` (boolean) — Required true for a task that mutates source PDF bytes.
 - `invalidateSignaturesAuthorized` (boolean) — Required true for a task whose operation can invalidate signatures.
@@ -1679,17 +1679,17 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `compose.column` | api | Create a vertical compose container. Use width/height fill, hug, or fixed pixels; gap and padding are in pixels. |
 | `compose.paragraph` | api | Create an editable text block with name, className/style text tokens, and stable inspect output. |
 | `compose.text` | api | Create the same editable paragraph node through the reference-template-compatible children-first text(children, props) helper. |
-| `exportPptxWithOpenChestnut` | api | Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse shapes, rich text and lists, basic fills/lines/shadows, straight/elbow connectors and arrows, embedded pictures with native crop/contain/cover semantics, fixed-grid plain-text tables, recursive native p:grpSp trees, relationship-free rich speaker notes, legacy annotations, Office 2021 modern root/direct-reply threads, source-free bar/line/pie charts, the bounded literal clustered bar+line combo profile with either shared primary axes or a canonical secondary line pair, validated payload-only replacement for eligible imported OLE XLSX workbooks plus the uniquely bound DOCX Office-package profile, and bounded source-bound text updates for canonical SmartArt document nodes. Recognized imported modern threads allow only existing text/status edits; their identity, author/date metadata, anchor/range, position, topology, relationships, and source hashes remain fixed. Inherited or complex graphs remain preserved and fail closed on unsupported mutation. |
-| `importPptxWithOpenChestnut` | api | Import PPTX bytes with editable bounded direct slide backgrounds, shapes, rich text, recognized owner-local SlidePart placeholder text, rectangular pictures and native source rectangles, tables, connectors, recursive canonical p:grpSp groups, bar/line/pie charts, the canonical literal clustered bar+line combo profile with either shared primary axes or a secondary line pair, legacy text-only speaker notes plus fixed-topology relationship-free rich notes and a re-proven addable capability for eligible notes-absent slides, unchanged-only legacy comments, fixed-topology modern comment text/status edits, defensive payload access for eligible OLE XLSX workbooks plus one uniquely bound DOCX Office-package profile, and a source-bound SmartArt plain-node text capability only for the canonical closed four-part one-paragraph/one-run DiagramDataPart profile. Reactions/task fields, nested replies/anchors, connected comment parts, inherited Master/Layout graphs, complex backgrounds/blips/groups, field/link/picture-bullet/layout-bearing notes, irregular combos, ambiguous OLE graphs, rich/multi-run/connected SmartArt, and other unsupported content remain source-bound and read-only. |
+| `exportPptxWithOfficeKit` | api | Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse shapes, rich text and lists, basic fills/lines/shadows, straight/elbow connectors and arrows, embedded pictures with native crop/contain/cover semantics, fixed-grid plain-text tables, recursive native p:grpSp trees, relationship-free rich speaker notes, legacy annotations, Office 2021 modern root/direct-reply threads, source-free bar/line/pie charts, the bounded literal clustered bar+line combo profile with either shared primary axes or a canonical secondary line pair, validated payload-only replacement for eligible imported OLE XLSX workbooks plus the uniquely bound DOCX Office-package profile, and bounded source-bound text updates for canonical SmartArt document nodes. Recognized imported modern threads allow only existing text/status edits; their identity, author/date metadata, anchor/range, position, topology, relationships, and source hashes remain fixed. Inherited or complex graphs remain preserved and fail closed on unsupported mutation. |
+| `importPptxWithOfficeKit` | api | Import PPTX bytes with editable bounded direct slide backgrounds, shapes, rich text, recognized owner-local SlidePart placeholder text, rectangular pictures and native source rectangles, tables, connectors, recursive canonical p:grpSp groups, bar/line/pie charts, the canonical literal clustered bar+line combo profile with either shared primary axes or a secondary line pair, legacy text-only speaker notes plus fixed-topology relationship-free rich notes and a re-proven addable capability for eligible notes-absent slides, unchanged-only legacy comments, fixed-topology modern comment text/status edits, defensive payload access for eligible OLE XLSX workbooks plus one uniquely bound DOCX Office-package profile, and a source-bound SmartArt plain-node text capability only for the canonical closed four-part one-paragraph/one-run DiagramDataPart profile. Reactions/task fields, nested replies/anchors, connected comment parts, inherited Master/Layout graphs, complex backgrounds/blips/groups, field/link/picture-bullet/layout-bearing notes, irregular combos, ambiguous OLE graphs, rich/multi-run/connected SmartArt, and other unsupported content remain source-bound and read-only. |
 | `nativeObject.getEmbeddedOfficePackage` | api | Read a defensive FileBlob copy from an eligible source-bound top-level OLE package. It is compatible with the legacy XLSX workbook profile and currently adds one uniquely bound DOCX profile; it never exposes arbitrary OLE or native-part mutation. |
 | `nativeObject.getEmbeddedWorkbook` | api | Read a defensive FileBlob copy of the XLSX payload from an eligible source-bound top-level OLE object without exposing arbitrary native-part mutation. |
 | `nativeObject.replaceEmbeddedOfficePackage` | api | Replace only a source-bound Office package on an eligible imported top-level OLE object. The current generic profile validates DOCX bytes and exact content type while preserving the OLE shell, relationships, preview, and all other native parts; malformed, shared, ambiguous, or unsupported package graphs fail closed. |
-| `nativeObject.replaceEmbeddedWorkbook` | api | Replace only the XLSX payload of an eligible imported top-level OLE object. OpenChestnut validates the new workbook and immutable source binding, preserves the OLE shell, relationships, preview, and all other native parts, and fails closed for malformed or ambiguous graphs. |
+| `nativeObject.replaceEmbeddedWorkbook` | api | Replace only the XLSX payload of an eligible imported top-level OLE object. OfficeKit validates the new workbook and immutable source binding, preserves the OLE shell, relationships, preview, and all other native parts, and fails closed for malformed or ambiguous graphs. |
 | `nativeObject.setDiagramNodeText` | api | Replace text in one existing source-bound SmartArt document node only when its top-level four-part graph and DiagramDataPart prove the canonical one-paragraph/one-run plain-text profile. Node IDs, graph topology, layout/style/colors, geometry, and every non-data part remain fixed; unsupported diagrams reject without fallback. |
-| `nativeObject.setName` | api | Native OLE, SmartArt/diagram, contentPart, and media objects imported through OpenChestnut are source-bound and read-only for names; setName rejects instead of mutating the preserved package graph. A separate bounded SmartArt plain-node text capability is exposed only as nativeObject.setDiagramNodeText. |
-| `nativeObject.setPosition` | api | Native OLE, SmartArt/diagram, contentPart, and media objects imported through OpenChestnut are source-bound and read-only; setPosition rejects instead of rewriting their geometry or payload graph. |
-| `Presentation.create` | api | Create a deck model whose canonical OpenChestnut export supports ordinary slides, bounded direct fade/push transitions, direct solid/style-reference slide backgrounds, shapes, rich text, tables, images, connectors, recursive native p:grpSp groups, plain-text speaker notes, native custom shows with canonical run links, literal bar/line/pie/standard-area/fixed-doughnut/marker-scatter/2D-bubble charts, and a bounded literal clustered bar+line combo profile. Combo bars stay on the primary pair; all lines share either that pair or the canonical secondary top/right pair. Formula/external chart data, custom themes, Master/Layout authoring, comments, custom-show topology mutation, advanced plot geometry, mixed line groups, secondary bars, irregular combo graphs, and other package-level features remain outside the source-free PPTX boundary. |
-| `presentation.customShows.add` | api | Define an ordered native p:custShowLst playback route for source-free OpenChestnut export. Text runs may target a show by exact name with optional returnToSlide. Canonical imported shows may change only their name and ordered retained-slide membership; fixed native identity keeps existing run links bound across a rename, while irregular graphs stay opaque. |
+| `nativeObject.setName` | api | Native OLE, SmartArt/diagram, contentPart, and media objects imported through OfficeKit are source-bound and read-only for names; setName rejects instead of mutating the preserved package graph. A separate bounded SmartArt plain-node text capability is exposed only as nativeObject.setDiagramNodeText. |
+| `nativeObject.setPosition` | api | Native OLE, SmartArt/diagram, contentPart, and media objects imported through OfficeKit are source-bound and read-only; setPosition rejects instead of rewriting their geometry or payload graph. |
+| `Presentation.create` | api | Create a deck model whose canonical OfficeKit export supports ordinary slides, bounded direct fade/push transitions, direct solid/style-reference slide backgrounds, shapes, rich text, tables, images, connectors, recursive native p:grpSp groups, plain-text speaker notes, native custom shows with canonical run links, literal bar/line/pie/standard-area/fixed-doughnut/marker-scatter/2D-bubble charts, and a bounded literal clustered bar+line combo profile. Combo bars stay on the primary pair; all lines share either that pair or the canonical secondary top/right pair. Formula/external chart data, custom themes, Master/Layout authoring, comments, custom-show topology mutation, advanced plot geometry, mixed line groups, secondary bars, irregular combo graphs, and other package-level features remain outside the source-free PPTX boundary. |
+| `presentation.customShows.add` | api | Define an ordered native p:custShowLst playback route for source-free OfficeKit export. Text runs may target a show by exact name with optional returnToSlide. Canonical imported shows may change only their name and ordered retained-slide membership; fixed native identity keeps existing run links bound across a rename, while irregular graphs stay opaque. |
 | `presentation.customShows.getItem` | api | Resolve a source-free or canonical imported custom show by zero-based index, stable facade ID, or exact name. |
 | `presentation.export` | api | Export a slide SVG preview, deck SVG montage via { format: 'montage' }, or target/search-sliced layout JSON. |
 | `presentation.fontFamilies` | api | Return a fresh sorted, case-insensitively deduplicated list of explicitly used presentation text and bullet font families. |
@@ -1707,25 +1707,25 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `presentation.masters.add` | api | Append a model-level Slide Master. Source-free PPTX authoring requires exactly one master, so use Presentation.create({ master }) or presentation.master for the canonical profile; multiple masters and imported-master edits fail closed. |
 | `presentation.masters.getItem` | api | Resolve a model-level or imported Slide Master by stable ID or name. |
 | `presentation.resolve` | api | Map stable inspect anchor IDs back to facade objects, including custom shows, PowerPoint sections, and slide transitions; imported advanced package objects may be read-only. |
-| `presentation.sections.add` | api | Define a native PowerPoint p14:sectionLst entry for source-free OpenChestnut export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque. |
+| `presentation.sections.add` | api | Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque. |
 | `presentation.sections.getItem` | api | Resolve a source-free or canonical imported PowerPoint section by zero-based index, stable facade ID, or exact name. |
 | `presentation.slides.add` | api | Append an editable core slide with an optional bounded source-free layout, direct fade/push transition, solid/style-reference background, and plain-text speaker notes. A supplied layout is resolved and materialized transactionally; effective imported Layout/Master inheritance is never flattened. |
 | `presentation.slides.insert` | api | Insert a source-free slide after an existing Slide or 0-based index, or at the beginning with after: null. It uses the same transactional layout materialization, bounded direct fade/push transition, and notes/background profile as slides.add; imported additions fail closed, while slide.duplicate and slide.delete each have their own narrow source-preserving OPC profiles. |
-| `presentation.slideSize` | api | Read or set the deck canvas in pixels. On a trusted imported PPTX, a changed size is a deliberately canvas-only source-bound operation: OpenChestnut updates only ppt/presentation.xml p:sldSz, clears an old preset type, and leaves slide, layout, master, chart, and shape coordinates unchanged. It never silently rescales or reflows content; callers must make any layout edits explicitly. |
+| `presentation.slideSize` | api | Read or set the deck canvas in pixels. On a trusted imported PPTX, a changed size is a deliberately canvas-only source-bound operation: OfficeKit updates only ppt/presentation.xml p:sldSz, clears an old preset type, and leaves slide, layout, master, chart, and shape coordinates unchanged. It never silently rescales or reflows content; callers must make any layout edits explicitly. |
 | `presentation.textRange` | api | Inspect or resolve stable textRange anchors such as shapeId/text for editable slide text frames. |
-| `presentation.theme` | api | Inspect the model theme and theme inheritance. Custom source-free themes are not authored by OpenChestnut 0.2, and imported themes are source-bound and read-only. |
+| `presentation.theme` | api | Inspect the model theme and theme inheritance. Custom source-free themes are not authored by OfficeKit 0.2, and imported themes are source-bound and read-only. |
 | `presentation.validateLayout` | api | Detect layout QA issues across slides, including off-canvas elements, geometry overlaps, and basic text overflow. |
 | `presentation.verify` | api | Return QA issues for layout validation, missing master/layout references, placeholder fidelity, chart/data consistency, table shape, image data, and dangling comments. |
 | `presentation.view` | api | Control local editor gridline/guide visibility and inspect imported PowerPoint grid spacing, snap settings, and guides. Visibility is local model state; a separately capability-gated fixed-topology source-bound edit profile may change only already-present grid/snap values and guide positions in viewProps.xml. |
 | `presentation.view.capability` | api | Return defensive sourceBound, partPresent, editable, existing-field, and guide-count evidence for the imported PPTX view-properties part. It is preflight evidence only; export re-proves hashes, topology, and the non-editable XML residual. |
 | `presentation.view.setSourceProperties` | api | Change already-present imported grid spacing, snap flags, and existing guide positions only when view.capability.editable is true. It cannot create viewProps.xml, add/remove/reorient guides, write showGuides, or reconstruct extensions/relationships; unsupported profiles fail closed. |
-| `PresentationFile.exportPptx` | api | Serialize PPTX through the single bundled OpenChestnut codec. Only limits is accepted; legacy codec and lossy-fallback options fail explicitly. |
-| `PresentationFile.importPptx` | api | Import PPTX through the single bundled OpenChestnut codec with source-bound opaque preservation, speaker-notes edit/add capability evidence, bounded text-only edits for recognized local SlidePart placeholders and canonical SmartArt plain document nodes, eligible OLE XLSX payload access/replacement plus uniquely bound DOCX Office-package access/replacement, and fail-closed unsupported edits. |
+| `PresentationFile.exportPptx` | api | Serialize PPTX through the single bundled OfficeKit codec. Only limits is accepted; legacy codec and lossy-fallback options fail explicitly. |
+| `PresentationFile.importPptx` | api | Import PPTX through the single bundled OfficeKit codec with source-bound opaque preservation, speaker-notes edit/add capability evidence, bounded text-only edits for recognized local SlidePart placeholders and canonical SmartArt plain document nodes, eligible OLE XLSX payload access/replacement plus uniquely bound DOCX Office-package access/replacement, and fail-closed unsupported edits. |
 | `PresentationFile.inspectPptx` | api | Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics under decompression budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `PresentationFile.patchPptx` | api | Apply path-validated PPTX part patches, including safe slide/master/layout ID lists and slide image/chart DrawingML mutations, and atomically reject dangling package references or invalid notes/comments semantics. |
 | `shape.text.set` | api | Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export. |
 | `shape.useBackgroundFill` | api | Read the presence-aware imported PresentationML p:sp useBgFill flag. It affects preview paint but remains source-bound and read-only; source-free authoring or wire mutation fails closed. |
-| `slide.addNotes` | api | Set speaker notes as text or relationship-free paragraph/run data for inspect, preview, and canonical PPTX output. OpenChestnut authors source-free notes, preserves the legacy text-only edit path, and edits a fixed imported rich paragraph/run topology; fields, hyperlinks, picture bullets, notes-body list styles/layout, and unsafe NotesMaster graphs remain source-bound and fail closed. |
+| `slide.addNotes` | api | Set speaker notes as text or relationship-free paragraph/run data for inspect, preview, and canonical PPTX output. OfficeKit authors source-free notes, preserves the legacy text-only edit path, and edits a fixed imported rich paragraph/run topology; fields, hyperlinks, picture bullets, notes-body list styles/layout, and unsafe NotesMaster graphs remain source-bound and fail closed. |
 | `slide.applyLayout` | api | Bind a slide to a bounded source-free layout and materialize its effective direct-frame placeholder shapes. Applying the same layout is idempotent; switching a materialized layout fails closed. The resulting p:ph identities and direct frames export natively; imported Layout relationships remain preservation-only. |
 | `slide.autoLayout` | api | Place existing shapes inside a frame using horizontal or vertical flow, gap, padding, and alignment options. |
 | `slide.charts.add` | api | Add a source-free literal bar, line, pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D bubble, or clustered bar+line combo chart. Category families use shared literal categories; scatter and bubble use aligned per-series numeric X/Y values, with positive area-based bubble sizes. Supported variants retain title, legend, bounded axes, basic series styling, chart-level data labels, layout JSON, SVG preview, and native ChartPart output across import/edit/re-export. Formula/external data, advanced family geometry, topology changes, and unsupported styling fail closed rather than being flattened. |
@@ -1738,15 +1738,15 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.delete` | api | Remove this slide. Source-free decks may remove any non-final slide. An imported PPTX performs a real OPC deletion only for an isolated slide with exactly its layout relationship and no inbound/package-identity references; media, notes, comments, charts, OLE, hyperlinks, custom shows, sections, extensions, and all clone requests fail closed. |
 | `slide.duplicate` | api | Clone one original imported PPTX slide only when its unchanged graph contains canonical shapes, canonical inline fixed-grid tables with bounded rectangular merges, recognized closed literal-data charts, eligible top-level embedded-XLSX OLE frames, canonical top-level four-part SmartArt frames, canonical top-level closed InkML content parts, canonical top-level embedded-MP4 media pictures, embedded rectangular images, bounded canonical straight/elbow connectors, and recursively canonical groups containing only the non-native-graph leaf kinds, exactly one layout relationship, picture-bound image relationships, canonical run-level external/internal/relative-action links plus relationship-free custom-show links bound to an existing stable native show ID, and optional closed NotesSlide-to-NotesMaster/back-to-slide plus bounded legacy-comments leaves. Relationship-backed links keep exact IDs and targets; custom-show actions add no relationship and the clone is never inserted into show membership. Every accepted chart frame uniquely consumes one internal relationship to a numbered ChartPart whose child, external, hyperlink, and data relationship sets are empty. Every accepted OLE frame uniquely consumes one internal package relationship to a closed, uniquely inbound XLSX EmbeddedPackagePart and one internal preview ImagePart relationship. Every accepted SmartArt frame owns exactly one internal dm/lo/qs/cs relationship set to closed relationship-free diagram data, layout, quick-style, and colors parts. Every accepted media picture owns one canonical video/media relationship pair to a uniquely inbound, non-empty, relationship-free video/mp4 part plus one poster ImagePart. Every present connector endpoint must resolve to an element in the same copied SlidePart tree. Accepted tables are inline-only and cannot add a fill, link, or another package edge; accepted groups and connectors add no relationship themselves, and every nested picture must consume one exact verified ImagePart relationship. The pending clone resolves connector targets to fresh clone-local elements, while export privately preserves the source-bound endpoint identities. Export creates a distinct SlidePart and presentation relationship, allocates distinct byte-identical ChartPart, EmbeddedPackagePart, four typed diagram parts, and SDK MediaDataPart payloads for the accepted closed leaves, shares the verified layout, immutable ordinary/OLE-preview/media-poster ImageParts, NotesMaster, and presentation-wide CommentAuthorsPart, copies accepted NotesSlide and SlideComments XML byte-for-byte, and repoints only the notes back-reference at the clone while retaining the origin. The clone must remain untouched until export and reimport; its ChartParts, OLE workbook packages, SmartArt parts, InkML parts, and MP4 parts are then independent. Supported chart or OLE-workbook edits on the clone cannot affect the origin; a separately recognized canonical plain-node SmartArt diagram exposes only source-bound node-text replacement, while other SmartArt, InkML, and media remain source-bound/read-only after reimport. Malformed, shared, external, non-XLSX, nested, relationship-bearing, or replacement-pending OLE graphs, nested/noncanonical/connected SmartArt, InkML, or media graphs, malformed/relationship-bearing/dangling custom-show actions, unsupported connector forms or targets, formula/external-data/embedded-workbook/connected/orphan chart graphs, shape-level/hover/unknown/orphan hyperlinks, external or irregular images, and other complex graphs fail closed. |
 | `slide.groups.add` | api | Author recursive native DrawingML p:grpSp trees with outer off/ext and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, extensions, or unsupported descendants remain opaque and read-only. |
-| `slide.images.add` | api | Add an inspectable image facade with alt text, embedded data, contain/cover/stretch fitting, explicit crop, frame, direct rotation/flips, layout JSON, crop-aware SVG preview, and PPTX output. OpenChestnut maps the bounded rectangular profile to native DrawingML a:srcRect. |
-| `slide.moveTo` | api | Move this slide to an existing 0-based deck index. On an imported PPTX, OpenChestnut rewrites only the retained source SlidePart order in the presentation slide-ID list; unrelated topology changes and broad graph clones remain fail-closed. |
+| `slide.images.add` | api | Add an inspectable image facade with alt text, embedded data, contain/cover/stretch fitting, explicit crop, frame, direct rotation/flips, layout JSON, crop-aware SVG preview, and PPTX output. OfficeKit maps the bounded rectangular profile to native DrawingML a:srcRect. |
+| `slide.moveTo` | api | Move this slide to an existing 0-based deck index. On an imported PPTX, OfficeKit rewrites only the retained source SlidePart order in the presentation slide-ID list; unrelated topology changes and broad graph clones remain fail-closed. |
 | `slide.placeholders.getItem` | api | Resolve a slide placeholder shape by stable ID, name, placeholder type, or numeric index. Imported placeholder.textEditable reports a verified local SlidePart text capability; identity, geometry, formatting, layout binding, and inherited Master/Layout graphs remain source-bound. |
 | `slide.setBackground` | api | Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited. |
 | `slide.setLayout` | api | Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export. |
 | `slide.setTransition` | api | Set a direct p:transition to bounded fade or directional push behavior with slow/medium/fast speed plus click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, extension, opaque-effect, and every other source graph fail closed. |
 | `slide.shapes.add` | api | Add a shape/textbox with preset or bounded literal custom geometry, position, optional center-based rotation/flips, fill, line, text, and DrawingML text-body layout. |
 | `slide.speakerNotes.capability` | api | Return defensive sourceBound, partPresent, editable, and addable evidence. addable identifies an imported notes-absent slide whose source NotesMaster/SlideMaster Theme graph can safely receive a canonical NotesSlide. Export independently re-proves the package graph, so mutating model or wire data cannot grant authority. |
-| `slide.tables.add` | api | Add an inspectable table facade with rows, columns, values, cells, rectangular merges, layout JSON, SVG preview, and canonical OpenChestnut plain-text PPTX output. |
+| `slide.tables.add` | api | Add an inspectable table facade with rows, columns, values, cells, rectangular merges, layout JSON, SVG preview, and canonical OfficeKit plain-text PPTX output. |
 | `slideCommentThread.addReply` | api | Append a direct reply to a source-free Office 2021 modern comment thread. Imported reply topology is fixed: existing reply text/status may change, but adding or removing replies fails closed. |
 | `slideCommentThread.reopen` | api | Set the modern root comment status back to active while preserving fixed imported identity, anchor, position, and reply topology. |
 | `slideCommentThread.resolve` | api | Set the modern root comment status to resolved. Imported export re-proves author/date/anchor/position/topology and source-part hashes before changing only status. |
@@ -1798,7 +1798,7 @@ Create the same editable paragraph node through the reference-template-compatibl
 
 - `node` (object) — Reference-template-compatible alias that returns the same paragraph compose node.
 
-#### `exportPptxWithOpenChestnut`
+#### `exportPptxWithOfficeKit`
 
 Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse shapes, rich text and lists, basic fills/lines/shadows, straight/elbow connectors and arrows, embedded pictures with native crop/contain/cover semantics, fixed-grid plain-text tables, recursive native p:grpSp trees, relationship-free rich speaker notes, legacy annotations, Office 2021 modern root/direct-reply threads, source-free bar/line/pie charts, the bounded literal clustered bar+line combo profile with either shared primary axes or a canonical secondary line pair, validated payload-only replacement for eligible imported OLE XLSX workbooks plus the uniquely bound DOCX Office-package profile, and bounded source-bound text updates for canonical SmartArt document nodes. Recognized imported modern threads allow only existing text/status edits; their identity, author/date metadata, anchor/range, position, topology, relationships, and source hashes remain fixed. Inherited or complex graphs remain preserved and fail closed on unsupported mutation.
 
@@ -1811,7 +1811,7 @@ Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse sha
 
 - `blob` (FileBlob) — PPTX bytes produced by the bundled Open XML SDK WebAssembly codec, including bounded embedded-picture, fixed-grid plain-text-table, and recursive native-group profiles, with codec diagnostics in metadata.
 
-#### `importPptxWithOpenChestnut`
+#### `importPptxWithOfficeKit`
 
 Import PPTX bytes with editable bounded direct slide backgrounds, shapes, rich text, recognized owner-local SlidePart placeholder text, rectangular pictures and native source rectangles, tables, connectors, recursive canonical p:grpSp groups, bar/line/pie charts, the canonical literal clustered bar+line combo profile with either shared primary axes or a secondary line pair, legacy text-only speaker notes plus fixed-topology relationship-free rich notes and a re-proven addable capability for eligible notes-absent slides, unchanged-only legacy comments, fixed-topology modern comment text/status edits, defensive payload access for eligible OLE XLSX workbooks plus one uniquely bound DOCX Office-package profile, and a source-bound SmartArt plain-node text capability only for the canonical closed four-part one-paragraph/one-run DiagramDataPart profile. Reactions/task fields, nested replies/anchors, connected comment parts, inherited Master/Layout graphs, complex backgrounds/blips/groups, field/link/picture-bullet/layout-bearing notes, irregular combos, ambiguous OLE graphs, rich/multi-run/connected SmartArt, and other unsupported content remain source-bound and read-only.
 
@@ -1854,7 +1854,7 @@ Replace only a source-bound Office package on an eligible imported top-level OLE
 
 #### `nativeObject.replaceEmbeddedWorkbook`
 
-Replace only the XLSX payload of an eligible imported top-level OLE object. OpenChestnut validates the new workbook and immutable source binding, preserves the OLE shell, relationships, preview, and all other native parts, and fails closed for malformed or ambiguous graphs.
+Replace only the XLSX payload of an eligible imported top-level OLE object. OfficeKit validates the new workbook and immutable source binding, preserves the OLE shell, relationships, preview, and all other native parts, and fails closed for malformed or ambiguous graphs.
 
 **Schema parameters:**
 
@@ -1879,7 +1879,7 @@ Replace text in one existing source-bound SmartArt document node only when its t
 
 #### `nativeObject.setName`
 
-Native OLE, SmartArt/diagram, contentPart, and media objects imported through OpenChestnut are source-bound and read-only for names; setName rejects instead of mutating the preserved package graph. A separate bounded SmartArt plain-node text capability is exposed only as nativeObject.setDiagramNodeText.
+Native OLE, SmartArt/diagram, contentPart, and media objects imported through OfficeKit are source-bound and read-only for names; setName rejects instead of mutating the preserved package graph. A separate bounded SmartArt plain-node text capability is exposed only as nativeObject.setDiagramNodeText.
 
 **Schema parameters:**
 
@@ -1891,7 +1891,7 @@ Native OLE, SmartArt/diagram, contentPart, and media objects imported through Op
 
 #### `nativeObject.setPosition`
 
-Native OLE, SmartArt/diagram, contentPart, and media objects imported through OpenChestnut are source-bound and read-only; setPosition rejects instead of rewriting their geometry or payload graph.
+Native OLE, SmartArt/diagram, contentPart, and media objects imported through OfficeKit are source-bound and read-only; setPosition rejects instead of rewriting their geometry or payload graph.
 
 **Schema parameters:**
 
@@ -1903,12 +1903,12 @@ Native OLE, SmartArt/diagram, contentPart, and media objects imported through Op
 
 #### `Presentation.create`
 
-Create a deck model whose canonical OpenChestnut export supports ordinary slides, bounded direct fade/push transitions, direct solid/style-reference slide backgrounds, shapes, rich text, tables, images, connectors, recursive native p:grpSp groups, plain-text speaker notes, native custom shows with canonical run links, literal bar/line/pie/standard-area/fixed-doughnut/marker-scatter/2D-bubble charts, and a bounded literal clustered bar+line combo profile. Combo bars stay on the primary pair; all lines share either that pair or the canonical secondary top/right pair. Formula/external chart data, custom themes, Master/Layout authoring, comments, custom-show topology mutation, advanced plot geometry, mixed line groups, secondary bars, irregular combo graphs, and other package-level features remain outside the source-free PPTX boundary.
+Create a deck model whose canonical OfficeKit export supports ordinary slides, bounded direct fade/push transitions, direct solid/style-reference slide backgrounds, shapes, rich text, tables, images, connectors, recursive native p:grpSp groups, plain-text speaker notes, native custom shows with canonical run links, literal bar/line/pie/standard-area/fixed-doughnut/marker-scatter/2D-bubble charts, and a bounded literal clustered bar+line combo profile. Combo bars stay on the primary pair; all lines share either that pair or the canonical secondary top/right pair. Formula/external chart data, custom themes, Master/Layout authoring, comments, custom-show topology mutation, advanced plot geometry, mixed line groups, secondary bars, irregular combo graphs, and other package-level features remain outside the source-free PPTX boundary.
 
 **Schema parameters:**
 
 - `slideSize` (object) — Slide width and height in pixels; defaults to 1280x720. On a trusted imported PPTX, changing it updates only the source-bound p:sldSz canvas and never rescales existing coordinates.
-- `theme` (object) — Model theme metadata. OpenChestnut 0.2 source-free export requires the default theme; imported themes are read-only.
+- `theme` (object) — Model theme metadata. OfficeKit 0.2 source-free export requires the default theme; imported themes are read-only.
 - `master` (object) — The one canonical source-free Slide Master: name/background, bounded title/body/ctrTitle/subTitle direct-frame placeholders, and bounded textParagraphStyles. Theme overrides are unsupported.
 - `masters` (object[]) — Model-level Slide Master definitions. Source-free PPTX authoring accepts exactly one master; imported master graphs remain source-bound and read-only.
 - `layouts` (object[]) — Bounded source-free layouts linked to the canonical master. Each uses blank, title, titleOnly, or obj/titleAndContent plus direct-frame text placeholders; imported layouts remain source-bound and read-only.
@@ -1920,7 +1920,7 @@ Create a deck model whose canonical OpenChestnut export supports ordinary slides
 
 #### `presentation.customShows.add`
 
-Define an ordered native p:custShowLst playback route for source-free OpenChestnut export. Text runs may target a show by exact name with optional returnToSlide. Canonical imported shows may change only their name and ordered retained-slide membership; fixed native identity keeps existing run links bound across a rename, while irregular graphs stay opaque.
+Define an ordered native p:custShowLst playback route for source-free OfficeKit export. Text runs may target a show by exact name with optional returnToSlide. Canonical imported shows may change only their name and ordered retained-slide membership; fixed native identity keeps existing run links bound across a rename, while irregular graphs stay opaque.
 
 **Schema parameters:**
 
@@ -2172,7 +2172,7 @@ Map stable inspect anchor IDs back to facade objects, including custom shows, Po
 
 #### `presentation.sections.add`
 
-Define a native PowerPoint p14:sectionLst entry for source-free OpenChestnut export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque.
+Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque.
 
 **Schema parameters:**
 
@@ -2231,7 +2231,7 @@ Insert a source-free slide after an existing Slide or 0-based index, or at the b
 
 #### `presentation.slideSize`
 
-Read or set the deck canvas in pixels. On a trusted imported PPTX, a changed size is a deliberately canvas-only source-bound operation: OpenChestnut updates only ppt/presentation.xml p:sldSz, clears an old preset type, and leaves slide, layout, master, chart, and shape coordinates unchanged. It never silently rescales or reflows content; callers must make any layout edits explicitly.
+Read or set the deck canvas in pixels. On a trusted imported PPTX, a changed size is a deliberately canvas-only source-bound operation: OfficeKit updates only ppt/presentation.xml p:sldSz, clears an old preset type, and leaves slide, layout, master, chart, and shape coordinates unchanged. It never silently rescales or reflows content; callers must make any layout edits explicitly.
 
 **Schema parameters:**
 
@@ -2256,7 +2256,7 @@ Inspect or resolve stable textRange anchors such as shapeId/text for editable sl
 
 #### `presentation.theme`
 
-Inspect the model theme and theme inheritance. Custom source-free themes are not authored by OpenChestnut 0.2, and imported themes are source-bound and read-only.
+Inspect the model theme and theme inheritance. Custom source-free themes are not authored by OfficeKit 0.2, and imported themes are source-bound and read-only.
 
 **Schema parameters:**
 
@@ -2328,11 +2328,11 @@ Change already-present imported grid spacing, snap flags, and existing guide pos
 
 **Schema returns:**
 
-- `view` (PresentationView) — Returns the same view after a local requested source-bound patch. The method requires at least one field and view.capability.editable. It never writes local gridline/guide visibility or source p:cSldViewPr/@showGuides, creates no view-properties part, and rejects topology/relationship/extension changes; OpenChestnut re-proves those constraints at export.
+- `view` (PresentationView) — Returns the same view after a local requested source-bound patch. The method requires at least one field and view.capability.editable. It never writes local gridline/guide visibility or source p:cSldViewPr/@showGuides, creates no view-properties part, and rejects topology/relationship/extension changes; OfficeKit re-proves those constraints at export.
 
 #### `PresentationFile.exportPptx`
 
-Serialize PPTX through the single bundled OpenChestnut codec. Only limits is accepted; legacy codec and lossy-fallback options fail explicitly.
+Serialize PPTX through the single bundled OfficeKit codec. Only limits is accepted; legacy codec and lossy-fallback options fail explicitly.
 
 **Schema parameters:**
 
@@ -2345,7 +2345,7 @@ Serialize PPTX through the single bundled OpenChestnut codec. Only limits is acc
 
 #### `PresentationFile.importPptx`
 
-Import PPTX through the single bundled OpenChestnut codec with source-bound opaque preservation, speaker-notes edit/add capability evidence, bounded text-only edits for recognized local SlidePart placeholders and canonical SmartArt plain document nodes, eligible OLE XLSX payload access/replacement plus uniquely bound DOCX Office-package access/replacement, and fail-closed unsupported edits.
+Import PPTX through the single bundled OfficeKit codec with source-bound opaque preservation, speaker-notes edit/add capability evidence, bounded text-only edits for recognized local SlidePart placeholders and canonical SmartArt plain document nodes, eligible OLE XLSX payload access/replacement plus uniquely bound DOCX Office-package access/replacement, and fail-closed unsupported edits.
 
 **Schema parameters:**
 
@@ -2407,7 +2407,7 @@ Set plain or structured text with ordered text, field, and line-break inlines; b
 
 **Schema parameters:**
 
-- `text` (string|string[]|object|object[]) required — Plain text, paragraph strings, inline arrays, or paragraph objects. Canonical OpenChestnut export supports ordered text, fields, styled line breaks, bounded run/paragraph formatting, character and picture bullets, auto-numbering, levels, indents, spacing, tab stops, and one absolute uri, target slideId, relative action (nextSlide, previousSlide, firstSlide, lastSlide, endShow), or existing customShow name per link. customShow may include returnToSlide and survives the bounded slide clone as the same relationship-free stable-identity action without adding the clone to show membership; missing, opaque, malformed, relationship-bearing, or dangling targets fail closed.
+- `text` (string|string[]|object|object[]) required — Plain text, paragraph strings, inline arrays, or paragraph objects. Canonical OfficeKit export supports ordered text, fields, styled line breaks, bounded run/paragraph formatting, character and picture bullets, auto-numbering, levels, indents, spacing, tab stops, and one absolute uri, target slideId, relative action (nextSlide, previousSlide, firstSlide, lastSlide, endShow), or existing customShow name per link. customShow may include returnToSlide and survives the bounded slide clone as the same relationship-free stable-identity action without adding the clone to show membership; missing, opaque, malformed, relationship-bearing, or dangling targets fail closed.
 
 **Schema returns:**
 
@@ -2423,7 +2423,7 @@ Read the presence-aware imported PresentationML p:sp useBgFill flag. It affects 
 
 #### `slide.addNotes`
 
-Set speaker notes as text or relationship-free paragraph/run data for inspect, preview, and canonical PPTX output. OpenChestnut authors source-free notes, preserves the legacy text-only edit path, and edits a fixed imported rich paragraph/run topology; fields, hyperlinks, picture bullets, notes-body list styles/layout, and unsafe NotesMaster graphs remain source-bound and fail closed.
+Set speaker notes as text or relationship-free paragraph/run data for inspect, preview, and canonical PPTX output. OfficeKit authors source-free notes, preserves the legacy text-only edit path, and edits a fixed imported rich paragraph/run topology; fields, hyperlinks, picture bullets, notes-body list styles/layout, and unsafe NotesMaster graphs remain source-bound and fail closed.
 
 **Schema parameters:**
 
@@ -2470,19 +2470,19 @@ Add a source-free literal bar, line, pie, standard area, fixed 50%-hole doughnut
 
 **Schema parameters:**
 
-- `chartType` (string) — bar, line, pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D bubble, or combo for canonical OpenChestnut export. combo is the literal clustered bar+line profile described by series; unsupported or advanced family variants fail closed.
+- `chartType` (string) — bar, line, pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D bubble, or combo for canonical OfficeKit export. combo is the literal clustered bar+line profile described by series; unsupported or advanced family variants fail closed.
 - `title` (string) — Chart title.
 - `categories` (string[]) — Shared literal labels required by bar, line, pie, area, doughnut, and combo. Scatter and bubble reject shared categories and use per-series xValues.
 - `series` (object[]) required — One or more named series. Category charts require one finite value per category. Scatter and bubble require aligned finite xValues and Y values; bubble additionally requires aligned positive bubbleSizes. Markers are limited to line and scatter, and marker-only scatter rejects a series line in favor of marker.line. For combo, every series declares chartType bar or line; there must be at least one primary bar and one line. Bars cannot be secondary. Lines are either all primary or all axisGroup: secondary; mixed primary/secondary line plots fail closed. Formula sources, point overrides, per-series labels, smooth, trendlines, error bars, and per-series chart types outside combo fail closed.
-- `externalData` (object|FileBlob|ArrayBuffer|Uint8Array|string) — Model-only external/embedded workbook metadata. OpenChestnut 0.2 source-free charts require literal categories and values and reject externalData.
+- `externalData` (object|FileBlob|ArrayBuffer|Uint8Array|string) — Model-only external/embedded workbook metadata. OfficeKit 0.2 source-free charts require literal categories and values and reject externalData.
 - `position` (object) — Pixel left/top/width/height frame.
 - `axes` (object) — Basic axis titles, number formats, intervals, bounds, and major units. Category families use a category/value pair; scatter and bubble use two numeric value axes; pie and doughnut reject axes. A combo with all lines axisGroup: secondary may also set axes.secondary.category and axes.secondary.value, written at top/right. Secondary axes are invalid for primary-line combos, mixed line groups, or secondary bars.
 - `legend` (object) — Legend options.
 - `dataLabels` (boolean|object) — Chart-level showValue/showCategoryName/showSeriesName, circular-only showPercent for pie/doughnut, and a supported bounded position. Per-series overrides are unsupported.
-- `styleId` (number) — Model-only chart style metadata; it is not part of the bounded OpenChestnut chart wire.
+- `styleId` (number) — Model-only chart style metadata; it is not part of the bounded OfficeKit chart wire.
 - `styleIndex` (number) — Model-only alias for styleId.
-- `varyColors` (boolean) — Model-only varied-color preference outside the bounded OpenChestnut chart wire.
-- `barOptions` (object) — Model-only advanced bar layout options outside the bounded OpenChestnut chart wire.
+- `varyColors` (boolean) — Model-only varied-color preference outside the bounded OfficeKit chart wire.
+- `barOptions` (object) — Model-only advanced bar layout options outside the bounded OfficeKit chart wire.
 - `lineOptions` (object) — Model-only advanced line grouping/smoothing options; direct per-series marker formatting remains supported.
 
 **Schema returns:**
@@ -2522,7 +2522,7 @@ Create either a bounded legacy PPTX annotation or an Office 2021 modern thread. 
 
 **Schema returns:**
 
-- `thread` (SlideCommentThread) — Create a bounded legacy annotation or Office 2021 modern root. A comment-free imported presentation may create canonical legacy parts only after comments.capability.addable preflight; OpenChestnut re-proves the whole source graph, allocates collision-free relationships, and never mixes comment families. Recognized legacy imports remain unchanged-only. Recognized modern imports expose root/direct replies and allow only text/status edits; author/person/date identity, position, target moniker, reply topology, part paths, relationships, and source hashes remain fixed.
+- `thread` (SlideCommentThread) — Create a bounded legacy annotation or Office 2021 modern root. A comment-free imported presentation may create canonical legacy parts only after comments.capability.addable preflight; OfficeKit re-proves the whole source graph, allocates collision-free relationships, and never mixes comment families. Recognized legacy imports remain unchanged-only. Recognized modern imports expose root/direct replies and allow only text/status edits; author/person/date identity, position, target moniker, reply topology, part paths, relationships, and source hashes remain fixed.
 
 #### `slide.comments.capability`
 
@@ -2530,7 +2530,7 @@ Inspect defensive source-bound comment-family evidence before authoring or editi
 
 **Schema returns:**
 
-- `capability` (object) — Defensive { sourceBound, format, partPresent, editable, addable } evidence. For imported files, addable is true only when the complete presentation has no legacy or Office 2021 comment graph and OpenChestnut can create one canonical legacy CommentAuthorsPart plus slide-local SlideCommentsPart leaves. editable is true only for an existing closed legacy leaf with one relationship-free author catalog and a re-proven fixed comment topology; then only the existing root text may change. Author, timestamp, coordinate, package-local author/index identity, order, count, relationships, and family remain fixed. This is preflight evidence, not mutable write authority; export re-proves the source bytes and fails closed on existing irregular, mixed, connected, or tampered graphs.
+- `capability` (object) — Defensive { sourceBound, format, partPresent, editable, addable } evidence. For imported files, addable is true only when the complete presentation has no legacy or Office 2021 comment graph and OfficeKit can create one canonical legacy CommentAuthorsPart plus slide-local SlideCommentsPart leaves. editable is true only for an existing closed legacy leaf with one relationship-free author catalog and a re-proven fixed comment topology; then only the existing root text may change. Author, timestamp, coordinate, package-local author/index identity, order, count, relationships, and family remain fixed. This is preflight evidence, not mutable write authority; export re-proves the source bytes and fails closed on existing irregular, mixed, connected, or tampered graphs.
 
 #### `slide.compose`
 
@@ -2606,7 +2606,7 @@ Author recursive native DrawingML p:grpSp trees with outer off/ext and local chO
 
 #### `slide.images.add`
 
-Add an inspectable image facade with alt text, embedded data, contain/cover/stretch fitting, explicit crop, frame, direct rotation/flips, layout JSON, crop-aware SVG preview, and PPTX output. OpenChestnut maps the bounded rectangular profile to native DrawingML a:srcRect.
+Add an inspectable image facade with alt text, embedded data, contain/cover/stretch fitting, explicit crop, frame, direct rotation/flips, layout JSON, crop-aware SVG preview, and PPTX output. OfficeKit maps the bounded rectangular profile to native DrawingML a:srcRect.
 
 **Schema parameters:**
 
@@ -2614,18 +2614,18 @@ Add an inspectable image facade with alt text, embedded data, contain/cover/stre
 - `uri` (string) — External image URI metadata.
 - `prompt` (string) — Generation/source prompt metadata.
 - `alt` (string) — Alternative text.
-- `fit` (string) — contain, cover, or stretch. For embedded images, OpenChestnut computes a bounded native a:srcRect from intrinsic dimensions; imported native source rectangles normalize to fit stretch plus explicit crop because PPTX has no fit keyword.
+- `fit` (string) — contain, cover, or stretch. For embedded images, OfficeKit computes a bounded native a:srcRect from intrinsic dimensions; imported native source rectangles normalize to fit stretch plus explicit crop because PPTX has no fit keyword.
 - `crop` (object) — Optional normalized { left, top, right, bottom } source edges in -1..1 with opposing sums below 1. Positive values crop; negative values expand for contain/letterbox semantics. Manual crop is applied before contain/cover fitting.
 - `position` (object) — Pixel left/top/width/height frame.
-- `transform` (object) — Optional { rotationDegrees, flipHorizontal, flipVertical } center transform. OpenChestnut preserves explicit false and safely edits recognized top-level embedded pictures.
+- `transform` (object) — Optional { rotationDegrees, flipHorizontal, flipVertical } center transform. OfficeKit preserves explicit false and safely edits recognized top-level embedded pictures.
 
 **Schema returns:**
 
-- `image` (ImageElement) — Appended editable image facade. OpenChestnut authors/imports embedded PNG/JPEG/GIF/safe-SVG rectangular pictures and permits native source-rectangle add/edit/remove plus same-format byte, name/alt, frame, and direct-transform edits; effects, external sources, complex blips, and non-rectangular geometry remain opaque.
+- `image` (ImageElement) — Appended editable image facade. OfficeKit authors/imports embedded PNG/JPEG/GIF/safe-SVG rectangular pictures and permits native source-rectangle add/edit/remove plus same-format byte, name/alt, frame, and direct-transform edits; effects, external sources, complex blips, and non-rectangular geometry remain opaque.
 
 #### `slide.moveTo`
 
-Move this slide to an existing 0-based deck index. On an imported PPTX, OpenChestnut rewrites only the retained source SlidePart order in the presentation slide-ID list; unrelated topology changes and broad graph clones remain fail-closed.
+Move this slide to an existing 0-based deck index. On an imported PPTX, OfficeKit rewrites only the retained source SlidePart order in the presentation slide-ID list; unrelated topology changes and broad graph clones remain fail-closed.
 
 **Schema parameters:**
 
@@ -2693,7 +2693,7 @@ Add a shape/textbox with preset or bounded literal custom geometry, position, op
 - `geometry` (string) — rect, ellipse, roundRect, textbox, or custom. Custom requires customPaths.
 - `customPaths` (object[]) — For geometry custom, 1-64 literal DrawingML paths with positive integer width/height and bounded moveTo, lineTo, cubicBezTo, and close commands. Guides, handles, connection sites, arcs, quadratic curves, text rectangles, and path-specific paint overrides are not authored.
 - `position` (object) — Pixel left/top/width/height frame.
-- `transform` (object) — Optional { rotationDegrees, flipHorizontal, flipVertical } center transform. Rotation is bounded to -360 through 360 degrees and flip booleans retain explicit false. OpenChestnut authors/imports this direct DrawingML transform on supported shapes; complex or unknown native transform graphs remain read-only.
+- `transform` (object) — Optional { rotationDegrees, flipHorizontal, flipVertical } center transform. Rotation is bounded to -360 through 360 degrees and flip booleans retain explicit false. OfficeKit authors/imports this direct DrawingML transform on supported shapes; complex or unknown native transform graphs remain read-only.
 - `text` (string|string[]|object|object[]) — Plain text or structured paragraphs accepted by shape.text.set, including ordered text/field/line-break inlines, paragraph tab stops, styles, and relationship-backed hyperlinks.
 - `textBodyProperties` (object) — DrawingML text-frame layout: pixel insets; anchor/wrap/AutoFit; -360..360 degree rotation; horizontal/vertical/vertical270 text; horizontal/vertical overflow; 1-16 columns with pixel spacing and RTL flow; and upright text.
 - `fill` (string|object) — Shape fill.
@@ -2710,11 +2710,11 @@ Return defensive sourceBound, partPresent, editable, and addable evidence. addab
 
 **Schema returns:**
 
-- `capability` (object) — Defensive { sourceBound, partPresent, editable, addable } evidence. addable is true only for an imported notes-absent slide whose presentation graph is safely extensible. It is Agent preflight evidence, not mutable write authority; OpenChestnut independently re-proves the source package before export.
+- `capability` (object) — Defensive { sourceBound, partPresent, editable, addable } evidence. addable is true only for an imported notes-absent slide whose presentation graph is safely extensible. It is Agent preflight evidence, not mutable write authority; OfficeKit independently re-proves the source package before export.
 
 #### `slide.tables.add`
 
-Add an inspectable table facade with rows, columns, values, cells, rectangular merges, layout JSON, SVG preview, and canonical OpenChestnut plain-text PPTX output.
+Add an inspectable table facade with rows, columns, values, cells, rectangular merges, layout JSON, SVG preview, and canonical OfficeKit plain-text PPTX output.
 
 **Schema parameters:**
 
@@ -2722,11 +2722,11 @@ Add an inspectable table facade with rows, columns, values, cells, rectangular m
 - `name` (string) — Inspectable table name.
 - `position` (object) — Pixel left/top/width/height frame.
 - `style` (object) — Table/cell fill, margins, borders, and text style.
-- `styleOptions` (object) — Optional headerRow and bandedRows booleans plus model-rendering font options. OpenChestnut authors the two native flags, but keeps them immutable after source-bound import.
+- `styleOptions` (object) — Optional headerRow and bandedRows booleans plus model-rendering font options. OfficeKit authors the two native flags, but keeps them immutable after source-bound import.
 
 **Schema returns:**
 
-- `table` (TableElement) — Appended editable table facade. OpenChestnut accepts a non-empty rectangular 1-256-column by 1-2048-row plain-text grid with non-overlapping rectangular merges; recognized imports may change name, complete frame, and visible origin/unmerged cell text without changing merge topology or native style flags.
+- `table` (TableElement) — Appended editable table facade. OfficeKit accepts a non-empty rectangular 1-256-column by 1-2048-row plain-text grid with non-overlapping rectangular merges; recognized imports may change name, complete frame, and visible origin/unmerged cell text without changing merge topology or native style flags.
 
 #### `slideCommentThread.addReply`
 
@@ -2777,12 +2777,12 @@ Merge one inclusive rectangular table range, retain the upper-left value, clear 
 | Name | Kind | Summary |
 | --- | --- | --- |
 | `clearOfficeFontDesignMetrics` | api | Clear process-level and scoped Office font design metrics. |
-| `createCanvasRenderer` | api | Create an optional node-canvas renderer adapter from open-office-artifact-tool/renderers/canvas for SVG/PNG/JPEG/WebP FileBlob raster conversion to PNG or JPEG. |
-| `createLibreOfficeRenderer` | api | Create a LibreOffice CLI renderer adapter from open-office-artifact-tool/renderers/libreoffice for DOCX/XLSX/PPTX/HTML/PDF FileBlob conversion, typically to PDF. |
-| `createNativeOfficeRenderer` | api | Create a native Office renderer adapter from open-office-artifact-tool/native/office-bridge that calls a JSON stdin/stdout sidecar command with timeout, temp-file isolation, cleanup, and structured errors. |
-| `createPlaywrightRenderer` | api | Create an optional Playwright renderer adapter from open-office-artifact-tool/renderers/playwright for deterministic SVG/HTML to PNG, WebP, JPEG, or PDF conversion with network blocked by default. |
-| `createPopplerRenderer` | api | Create a Poppler CLI renderer adapter from open-office-artifact-tool/renderers/poppler for application/pdf FileBlob page rasterization to PNG, PPM, or TIFF. |
-| `createSharpRenderer` | api | Create an optional sharp renderer adapter from open-office-artifact-tool/renderers/sharp for SVG/PNG/JPEG/WebP FileBlob raster conversion to PNG, WebP, or JPEG. |
+| `createCanvasRenderer` | api | Create an optional node-canvas renderer adapter from office-kit/renderers/canvas for SVG/PNG/JPEG/WebP FileBlob raster conversion to PNG or JPEG. |
+| `createLibreOfficeRenderer` | api | Create a LibreOffice CLI renderer adapter from office-kit/renderers/libreoffice for DOCX/XLSX/PPTX/HTML/PDF FileBlob conversion, typically to PDF. |
+| `createNativeOfficeRenderer` | api | Create a native Office renderer adapter from office-kit/native/office-bridge that calls a JSON stdin/stdout sidecar command with timeout, temp-file isolation, cleanup, and structured errors. |
+| `createPlaywrightRenderer` | api | Create an optional Playwright renderer adapter from office-kit/renderers/playwright for deterministic SVG/HTML to PNG, WebP, JPEG, or PDF conversion with network blocked by default. |
+| `createPopplerRenderer` | api | Create a Poppler CLI renderer adapter from office-kit/renderers/poppler for application/pdf FileBlob page rasterization to PNG, PPM, or TIFF. |
+| `createSharpRenderer` | api | Create an optional sharp renderer adapter from office-kit/renderers/sharp for SVG/PNG/JPEG/WebP FileBlob raster conversion to PNG, WebP, or JPEG. |
 | `registerScopedOfficeFontDesignMetrics` | api | Register a last-in-first-resolved scoped font design-metric collection and return an idempotent disposer. |
 | `renderArtifact` | api | Render an artifact through its render/export method, attach normalized FileBlob metadata, and optionally pass SVG output through a caller-provided renderer adapter for PNG/WebP/JPEG/PDF output. |
 | `renderFileWithNativeOffice` | api | Render or convert a DOCX/XLSX/PPTX/PDF FileBlob through a configured native Office bridge command, returning a FileBlob for PDF/PNG/WebP or other requested output. |
@@ -2804,7 +2804,7 @@ Clear process-level and scoped Office font design metrics.
 
 #### `createCanvasRenderer`
 
-Create an optional node-canvas renderer adapter from open-office-artifact-tool/renderers/canvas for SVG/PNG/JPEG/WebP FileBlob raster conversion to PNG or JPEG.
+Create an optional node-canvas renderer adapter from office-kit/renderers/canvas for SVG/PNG/JPEG/WebP FileBlob raster conversion to PNG or JPEG.
 
 **Examples:**
 
@@ -2824,7 +2824,7 @@ Create an optional node-canvas renderer adapter from open-office-artifact-tool/r
 
 #### `createLibreOfficeRenderer`
 
-Create a LibreOffice CLI renderer adapter from open-office-artifact-tool/renderers/libreoffice for DOCX/XLSX/PPTX/HTML/PDF FileBlob conversion, typically to PDF.
+Create a LibreOffice CLI renderer adapter from office-kit/renderers/libreoffice for DOCX/XLSX/PPTX/HTML/PDF FileBlob conversion, typically to PDF.
 
 **Examples:**
 
@@ -2846,7 +2846,7 @@ Create a LibreOffice CLI renderer adapter from open-office-artifact-tool/rendere
 
 #### `createNativeOfficeRenderer`
 
-Create a native Office renderer adapter from open-office-artifact-tool/native/office-bridge that calls a JSON stdin/stdout sidecar command with timeout, temp-file isolation, cleanup, and structured errors.
+Create a native Office renderer adapter from office-kit/native/office-bridge that calls a JSON stdin/stdout sidecar command with timeout, temp-file isolation, cleanup, and structured errors.
 
 **Examples:**
 
@@ -2868,7 +2868,7 @@ Create a native Office renderer adapter from open-office-artifact-tool/native/of
 
 #### `createPlaywrightRenderer`
 
-Create an optional Playwright renderer adapter from open-office-artifact-tool/renderers/playwright for deterministic SVG/HTML to PNG, WebP, JPEG, or PDF conversion with network blocked by default.
+Create an optional Playwright renderer adapter from office-kit/renderers/playwright for deterministic SVG/HTML to PNG, WebP, JPEG, or PDF conversion with network blocked by default.
 
 **Examples:**
 
@@ -2901,7 +2901,7 @@ renderer adapter function for renderArtifact(...)
 
 #### `createPopplerRenderer`
 
-Create a Poppler CLI renderer adapter from open-office-artifact-tool/renderers/poppler for application/pdf FileBlob page rasterization to PNG, PPM, or TIFF.
+Create a Poppler CLI renderer adapter from office-kit/renderers/poppler for application/pdf FileBlob page rasterization to PNG, PPM, or TIFF.
 
 **Examples:**
 
@@ -2923,7 +2923,7 @@ Create a Poppler CLI renderer adapter from open-office-artifact-tool/renderers/p
 
 #### `createSharpRenderer`
 
-Create an optional sharp renderer adapter from open-office-artifact-tool/renderers/sharp for SVG/PNG/JPEG/WebP FileBlob raster conversion to PNG, WebP, or JPEG.
+Create an optional sharp renderer adapter from office-kit/renderers/sharp for SVG/PNG/JPEG/WebP FileBlob raster conversion to PNG, WebP, or JPEG.
 
 **Examples:**
 
@@ -3122,7 +3122,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 
 | Name | Kind | Summary |
 | --- | --- | --- |
-| `exportXlsxWithOpenChestnut` | api | Export the bounded Workbook model through the bundled C# Open XML SDK WebAssembly codec: cells, formulas, styles, merges, dimensions, freezes, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, bounded numeric-X/Y/positive-Size bubble charts, standard Office 2010 line/column/stacked sparklines, and canonical one-variable or two-variable What-If data tables. Imported QueryTables permit only source-bound one-way refresh hardening through table.setQueryRefreshPolicy; an imported connection may only change explicit refreshOnLoad=true to false through workbook.disableConnectionRefreshOnLoad; a uniquely owned imported Pivot cache may make that same one-way change through pivot.disableRefreshOnLoad; commands, fields, sorts, topology, dynamic-array topology, other Pivot configuration/data/output, and unsupported extension graphs are preservation-only or fail closed. |
+| `exportXlsxWithOfficeKit` | api | Export the bounded Workbook model through the bundled C# Open XML SDK WebAssembly codec: cells, formulas, styles, merges, dimensions, freezes, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, bounded numeric-X/Y/positive-Size bubble charts, standard Office 2010 line/column/stacked sparklines, and canonical one-variable or two-variable What-If data tables. Imported QueryTables permit only source-bound one-way refresh hardening through table.setQueryRefreshPolicy; an imported connection may only change explicit refreshOnLoad=true to false through workbook.disableConnectionRefreshOnLoad; a uniquely owned imported Pivot cache may make that same one-way change through pivot.disableRefreshOnLoad; commands, fields, sorts, topology, dynamic-array topology, other Pivot configuration/data/output, and unsupported extension graphs are preservation-only or fail closed. |
 | `fx.ABS` | formula | Return the absolute value of a number. |
 | `fx.AND` | formula | Return TRUE when all conditions are true. |
 | `fx.AVERAGE` | formula | Average numeric values across arguments and ranges in the clean-room formula engine. |
@@ -3236,13 +3236,13 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.XMATCH` | formula | Return a 1-based lookup position in one row or column vector of 1 through 10,000 cells, with exact, next-smaller, next-larger, wildcard, and forward or reverse linear search modes; two-dimensional, oversized, and binary-search inputs fail as #VALUE!. |
 | `fx.XNPV` | formula | Discount date-aligned finite cash flows by actual day offsets from the first date using a 365-day year. |
 | `fx.YEAR` | formula | Return the year component of a serial in the workbook's 1900 or 1904 date system. |
-| `importXlsxWithOpenChestnut` | api | Import XLSX bytes through OpenChestnut with editable core cells, formulas, styles, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, and bounded numeric-X/Y/positive-Size bubble charts. Imported data-table topology is source-bound and read-only. A recognized source-bound QueryTable can only disable automatic refresh through table.setQueryRefreshPolicy; a recognized connection can only disable an explicit on-load refresh through workbook.disableConnectionRefreshOnLoad; a recognized uniquely owned Pivot cache can only disable an explicit on-load refresh through pivot.disableRefreshOnLoad; commands, fields, sorts, topology, non-marker scatter styles, noncanonical bubble profiles, nested/branched replies, mentions, dynamic-array topology, other Pivot configuration/data/output, non-reversible sparkline graphs, and other advanced package content remain source-bound and read-only. |
-| `invokeOpenChestnut` | api | Advanced experimental byte-boundary API for invoking the public OpenChestnut codec protocol with generated wire-message objects. |
-| `openChestnutStatus` | api | Lazily initialize the bundled OpenChestnut WebAssembly runtime and report its protocol, assembly, and integrity manifest. |
+| `importXlsxWithOfficeKit` | api | Import XLSX bytes through OfficeKit with editable core cells, formulas, styles, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, and bounded numeric-X/Y/positive-Size bubble charts. Imported data-table topology is source-bound and read-only. A recognized source-bound QueryTable can only disable automatic refresh through table.setQueryRefreshPolicy; a recognized connection can only disable an explicit on-load refresh through workbook.disableConnectionRefreshOnLoad; a recognized uniquely owned Pivot cache can only disable an explicit on-load refresh through pivot.disableRefreshOnLoad; commands, fields, sorts, topology, non-marker scatter styles, noncanonical bubble profiles, nested/branched replies, mentions, dynamic-array topology, other Pivot configuration/data/output, non-reversible sparkline graphs, and other advanced package content remain source-bound and read-only. |
+| `invokeOfficeKit` | api | Advanced experimental byte-boundary API for invoking the public OfficeKit codec protocol with generated wire-message objects. |
+| `officeKitStatus` | api | Lazily initialize the bundled OfficeKit WebAssembly runtime and report its protocol, assembly, and integrity manifest. |
 | `pivot.disableRefreshOnLoad` | api | On one recognized imported PivotTable with a uniquely owned cache and explicit refreshOnLoad=true, set only that cache root switch to false while preserving the complete Pivot graph and every other cache attribute. |
 | `pivot.sourceCapabilities` | api | Inspect whether a PivotTable is source-bound and whether its uniquely owned imported cache can receive the one-way refreshOnLoad hardening operation. |
 | `range.clear` | api | Clear range contents, formats, or both without silently changing validations, dimensions, or other package graphs. |
-| `range.conditionalFormats.add` | api | Add a conditional formatting rule; cellIs/expression/containsText/colorScale plus standard dataBar/iconSet rules cross the public model and OpenChestnut, with computedStyle inspect records, layout JSON visuals, SVG preview, and native XLSX rendering. |
+| `range.conditionalFormats.add` | api | Add a conditional formatting rule; cellIs/expression/containsText/colorScale plus standard dataBar/iconSet rules cross the public model and OfficeKit, with computedStyle inspect records, layout JSON visuals, SVG preview, and native XLSX rendering. |
 | `range.copyFrom` | api | Copy values, formulas, or complete cells from an equally sized or evenly tiling source range with relative A1 translation. |
 | `range.copyTo` | api | Copy this range to an equally sized or evenly tiled destination range. |
 | `range.dataValidation` | api | Assign a list, whole, decimal, date, time, text-length, or custom-formula validation rule to a range, including bounded input prompts, error alerts, blank policy, and intuitive list-arrow visibility; use sheet.dataValidations.add({ range, rule }) for the collection form. |
@@ -3271,16 +3271,16 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `sheet.dataTables.add` | api | Create a canonical native Excel What-If data table from a rectangular formula/input grid and one row input, one column input, or both. Excel or another compatible host calculates the result values; the JavaScript evaluator does not simulate TABLE. |
 | `sheet.images.add` | api | Create an inspectable worksheet image from a data URL, URI, or prompt with one-cell, two-cell, or absolute pixel geometry plus optional percentage crop, bounded grayscale/luminance/opacity effects, rotation, and horizontal/vertical flips. |
 | `sheet.pivotTables.add` | api | Create a native bounded XLSX PivotTable with derived cached output, cache records, and exact axis-item filters, or use richer model-only grouping/calculation/date-filter semantics for inspect and preview. Recognized imports are hash-bound and read-only except the separately verified refresh-on-load hardening primitive. |
-| `sheet.sparklineGroups.add` | api | Create standard Office 2010 line/column/stacked sparkline groups for inspect, SVG preview, and OpenChestnut XLSX export. Source-free groups use reversible one-dimensional target/source mappings; recognized imported groups support fixed-topology semantic edits while unsupported native graphs remain source-bound. |
+| `sheet.sparklineGroups.add` | api | Create standard Office 2010 line/column/stacked sparkline groups for inspect, SVG preview, and OfficeKit XLSX export. Source-free groups use reversible one-dimensional target/source mappings; recognized imported groups support fixed-topology semantic edits while unsupported native graphs remain source-bound. |
 | `sheet.tables.add` | api | Create an ordinary worksheet table over an A1 range with headers, columns, totals metadata, style, and bounded filtering/sorting. QueryTable bindings cannot be authored; recognized imported bindings expose only table.setQueryRefreshPolicy for one-way automatic-refresh hardening, while all other QueryTable edits fail closed. |
 | `SpreadsheetFile.exportCsv` | api | Export one worksheet or range as UTF-8 CSV, using calculated values unless formula output is explicitly requested. |
 | `SpreadsheetFile.exportDelimited` | api | Serialize one workbook sheet/range as bounded CSV/TSV text with calculated-value defaults and RFC-style quoting. |
 | `SpreadsheetFile.exportTsv` | api | Export one worksheet or range as UTF-8 tab-separated text with RFC-style quoting where needed. |
-| `SpreadsheetFile.exportXlsx` | api | Serialize a Workbook facade through the single bundled OpenChestnut codec. |
+| `SpreadsheetFile.exportXlsx` | api | Serialize a Workbook facade through the single bundled OfficeKit codec. |
 | `SpreadsheetFile.importCsv` | api | Import UTF-8 CSV bytes into an editable Workbook through the bounded delimited parser. |
 | `SpreadsheetFile.importDelimited` | api | Parse bounded RFC-style CSV/TSV bytes into an editable Workbook, including quoted delimiters, escaped quotes, and embedded newlines. |
 | `SpreadsheetFile.importTsv` | api | Import UTF-8 tab-separated bytes into an editable Workbook through the bounded delimited parser. |
-| `SpreadsheetFile.importXlsx` | api | Load XLSX through the single bundled OpenChestnut codec into an editable Workbook facade. |
+| `SpreadsheetFile.importXlsx` | api | Load XLSX through the single bundled OfficeKit codec into an editable Workbook facade. |
 | `SpreadsheetFile.inspectDelimited` | api | Inspect bounded CSV/TSV bytes as file/row records with dimensions, delimiter, quoting, and formula-like cell evidence. |
 | `SpreadsheetFile.inspectXlsx` | api | Inspect bounded XLSX parts, content types, the required workbook/root officeDocument relationship, and namespace-aware source XML r:id/r:embed/r:link references under decompression budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `SpreadsheetFile.patchXlsx` | api | Apply path-validated XLSX part patches, build worksheet/table/drawing/image/chart/pivot source references, and atomically reject dangling content types or relationships. |
@@ -3328,7 +3328,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 
 ### workbook details
 
-#### `exportXlsxWithOpenChestnut`
+#### `exportXlsxWithOfficeKit`
 
 Export the bounded Workbook model through the bundled C# Open XML SDK WebAssembly codec: cells, formulas, styles, merges, dimensions, freezes, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, bounded numeric-X/Y/positive-Size bubble charts, standard Office 2010 line/column/stacked sparklines, and canonical one-variable or two-variable What-If data tables. Imported QueryTables permit only source-bound one-way refresh hardening through table.setQueryRefreshPolicy; an imported connection may only change explicit refreshOnLoad=true to false through workbook.disableConnectionRefreshOnLoad; a uniquely owned imported Pivot cache may make that same one-way change through pivot.disableRefreshOnLoad; commands, fields, sorts, topology, dynamic-array topology, other Pivot configuration/data/output, and unsupported extension graphs are preservation-only or fail closed.
 
@@ -5347,9 +5347,9 @@ Return the year component of a serial in the workbook's 1900 or 1904 date system
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
-#### `importXlsxWithOpenChestnut`
+#### `importXlsxWithOfficeKit`
 
-Import XLSX bytes through OpenChestnut with editable core cells, formulas, styles, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, and bounded numeric-X/Y/positive-Size bubble charts. Imported data-table topology is source-bound and read-only. A recognized source-bound QueryTable can only disable automatic refresh through table.setQueryRefreshPolicy; a recognized connection can only disable an explicit on-load refresh through workbook.disableConnectionRefreshOnLoad; a recognized uniquely owned Pivot cache can only disable an explicit on-load refresh through pivot.disableRefreshOnLoad; commands, fields, sorts, topology, non-marker scatter styles, noncanonical bubble profiles, nested/branched replies, mentions, dynamic-array topology, other Pivot configuration/data/output, non-reversible sparkline graphs, and other advanced package content remain source-bound and read-only.
+Import XLSX bytes through OfficeKit with editable core cells, formulas, styles, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, and bounded numeric-X/Y/positive-Size bubble charts. Imported data-table topology is source-bound and read-only. A recognized source-bound QueryTable can only disable automatic refresh through table.setQueryRefreshPolicy; a recognized connection can only disable an explicit on-load refresh through workbook.disableConnectionRefreshOnLoad; a recognized uniquely owned Pivot cache can only disable an explicit on-load refresh through pivot.disableRefreshOnLoad; commands, fields, sorts, topology, non-marker scatter styles, noncanonical bubble profiles, nested/branched replies, mentions, dynamic-array topology, other Pivot configuration/data/output, non-reversible sparkline graphs, and other advanced package content remain source-bound and read-only.
 
 **Schema parameters:**
 
@@ -5360,9 +5360,9 @@ Import XLSX bytes through OpenChestnut with editable core cells, formulas, style
 
 - `workbook` (Workbook) — Imported bounded workbook facade with editable core objects, canonical Office 2010 sparkline groups, and source/opaque package evidence. A recognized QueryTable permits only table.setQueryRefreshPolicy automatic-refresh hardening; a recognized connection permits only workbook.disableConnectionRefreshOnLoad from explicit true to false; a recognized uniquely owned Pivot cache permits only pivot.disableRefreshOnLoad from explicit true to false; commands, fields, sorts, QueryTable topology, dynamic-array topology, other Pivot configuration/data/output, non-reversible sparkline graphs, and unsupported package graphs are exposed only for inspection or preserved unchanged.
 
-#### `invokeOpenChestnut`
+#### `invokeOfficeKit`
 
-Advanced experimental byte-boundary API for invoking the public OpenChestnut codec protocol with generated wire-message objects.
+Advanced experimental byte-boundary API for invoking the public OfficeKit codec protocol with generated wire-message objects.
 
 **Schema parameters:**
 
@@ -5370,15 +5370,15 @@ Advanced experimental byte-boundary API for invoking the public OpenChestnut cod
 
 **Schema returns:**
 
-- `response` (object) — Decoded public CodecResponse wire message; structured codec failures throw OpenChestnutCodecError.
+- `response` (object) — Decoded public CodecResponse wire message; structured codec failures throw OfficeKitCodecError.
 
-#### `openChestnutStatus`
+#### `officeKitStatus`
 
-Lazily initialize the bundled OpenChestnut WebAssembly runtime and report its protocol, assembly, and integrity manifest.
+Lazily initialize the bundled OfficeKit WebAssembly runtime and report its protocol, assembly, and integrity manifest.
 
 **Schema returns:**
 
-- `status` (object) — Bundled OpenChestnut runtime status with protocolVersion, assemblyName, and integrity manifest.
+- `status` (object) — Bundled OfficeKit runtime status with protocolVersion, assemblyName, and integrity manifest.
 
 #### `pivot.disableRefreshOnLoad`
 
@@ -5410,7 +5410,7 @@ Clear range contents, formats, or both without silently changing validations, di
 
 #### `range.conditionalFormats.add`
 
-Add a conditional formatting rule; cellIs/expression/containsText/colorScale plus standard dataBar/iconSet rules cross the public model and OpenChestnut, with computedStyle inspect records, layout JSON visuals, SVG preview, and native XLSX rendering.
+Add a conditional formatting rule; cellIs/expression/containsText/colorScale plus standard dataBar/iconSet rules cross the public model and OfficeKit, with computedStyle inspect records, layout JSON visuals, SVG preview, and native XLSX rendering.
 
 **Examples:**
 
@@ -5725,14 +5725,14 @@ Create an inspectable worksheet chart from a range or config; setData(range) inf
 
 **Schema parameters:**
 
-- `chartType` (string) required — Canonical OpenChestnut XLSX chart type: bar, line, pie, area, doughnut, scatter, or bubble. Other model names fail closed on export.
+- `chartType` (string) required — Canonical OfficeKit XLSX chart type: bar, line, pie, area, doughnut, scatter, or bubble. Other model names fail closed on export.
 - `source` (Range|object) — Source range or explicit chart config.
 - `title` (string) — Chart title.
 - `titleTextStyle` (object) — Optional chart-title style with fontSize from 1 through 4000 points.
 - `lineOptions` (object) — Line-chart-only { grouping?, smooth?, varyColors? }. grouping is standard, stacked, or percentStacked; omission authors the standard default. smooth preserves explicit false as native c:smooth val=0. varyColors=true authors direct c:varyColors val=1; false or omission removes that optional node.
 - `dataLabels` (boolean|object) — Optional plot-level labels. A boolean controls showValue; an object accepts boolean showValue/showCategoryName, optional presence-aware showSeriesName, and position: bestFit, bottom, center, insideBase, insideEnd, left, outsideEnd, right, or top. Per-series/per-point labels, number formats, and label text styles remain outside this bounded profile.
 - `categories` (string[]) — Explicit shared categories for category charts. Scatter and bubble require this to stay empty and use per-series numeric xValues.
-- `series` (object[]) — Explicit series definitions with name, optional numeric values/formula, category-chart categoryFormula, scatter/bubble numeric xValues/xFormula, and bubble-only positive bubbleSizes/bubbleSizeFormula exactly aligned with X/Y point counts. Optional #RRGGBB solid fill and optional line { fill, style, width } are supported; line/scatter marker { symbol, size, fill, line } remains marker-only. When internal range formulas are present, inspect/render/OpenChestnut export resolve live category or numeric X/Y/Size caches from those cells. line.fill and marker.fill are #RRGGBB; both line objects use style solid, dashed, dotted, dash-dot, or dash-dot-dot and width 0 through 1584 points. Marker-only scatter rejects the series-level line/stroke aliases and uses marker.line only for marker borders. bubble3D, negative bubbles, custom scale, and non-area sizing are source-bound/read-only. marker.symbol is none, dot, circle, square, diamond, triangle, x, star, plus, or dash; marker.size is an integer from 2 through 72. stroke { color, style, weight } is a series-line compatibility alias and must not conflict with line.
+- `series` (object[]) — Explicit series definitions with name, optional numeric values/formula, category-chart categoryFormula, scatter/bubble numeric xValues/xFormula, and bubble-only positive bubbleSizes/bubbleSizeFormula exactly aligned with X/Y point counts. Optional #RRGGBB solid fill and optional line { fill, style, width } are supported; line/scatter marker { symbol, size, fill, line } remains marker-only. When internal range formulas are present, inspect/render/OfficeKit export resolve live category or numeric X/Y/Size caches from those cells. line.fill and marker.fill are #RRGGBB; both line objects use style solid, dashed, dotted, dash-dot, or dash-dot-dot and width 0 through 1584 points. Marker-only scatter rejects the series-level line/stroke aliases and uses marker.line only for marker borders. bubble3D, negative bubbles, custom scale, and non-area sizing are source-bound/read-only. marker.symbol is none, dot, circle, square, diamond, triangle, x, star, plus, or dash; marker.size is an integer from 2 through 72. stroke { color, style, weight } is a series-line compatibility alias and must not conflict with line.
 - `xAxis` (object) — Primary text category axis with title.text, textStyle.fontSize, numberFormatCode, and tickLabelInterval; scatter and bubble instead use a numeric value axis with min, max, and majorUnit. Pie and doughnut charts have no axes.
 - `yAxis` (object) — Primary numeric value axis with title.text, tick-label textStyle.fontSize, numberFormatCode, min, max, and majorUnit; tickLabelInterval is accepted as a compatibility alias for majorUnit. Pie and doughnut charts have no axes.
 - `position` (object) — Pixel chart frame.
@@ -5775,7 +5775,7 @@ Create an inspectable worksheet image from a data URL, URI, or prompt with one-c
 - `alt` (string) — Alternative text.
 - `anchor` (object) — One-cell { from, extent }, two-cell { type:'twoCell', from, to, editAs? }, or page-relative { type:'absolute', position:{leftPx,topPx}, extent } geometry. Cell markers use 0-based row/col plus optional rowOffsetPx/colOffsetPx; editAs is twoCell, oneCell, or absolute.
 - `crop` (object) — Optional { leftPercent, topPercent, rightPercent, bottomPercent } source rectangle. Each signed offset is -100 through 100; opposing sums must remain below 100. Positive values inset and negative values outset.
-- `effects` (object) — Optional { grayscale, brightnessPercent, contrastPercent, opacityPercent } profile. Brightness/contrast are -100 through 100; opacity is 0 through 100. OpenChestnut maps it to bounded DrawingML blip effects.
+- `effects` (object) — Optional { grayscale, brightnessPercent, contrastPercent, opacityPercent } profile. Brightness/contrast are -100 through 100; opacity is 0 through 100. OfficeKit maps it to bounded DrawingML blip effects.
 - `transform` (object) — Optional { rotationDegrees, flipHorizontal, flipVertical } picture transform. Rotation is -360 through 360 degrees at DrawingML 1/60000-degree precision; flip booleans preserve explicit false values.
 - `fit` (string) — contain or cover intent.
 
@@ -5792,8 +5792,8 @@ Create a native bounded XLSX PivotTable with derived cached output, cache record
 - `name` (string) — Stable pivot name.
 - `sourceRange` (string|Range) required — Source data range.
 - `targetRange` (string|Range) required — Destination anchor/range.
-- `rowFields` (string[]) — Ordered row field names. Native source-free OpenChestnut authoring accepts 1 through 8 fields in a tabular, no-automatic-subtotal profile.
-- `columnFields` (string[]) — Column field names. Native source-free OpenChestnut authoring currently accepts zero or one.
+- `rowFields` (string[]) — Ordered row field names. Native source-free OfficeKit authoring accepts 1 through 8 fields in a tabular, no-automatic-subtotal profile.
+- `columnFields` (string[]) — Column field names. Native source-free OfficeKit authoring currently accepts zero or one.
 - `valueFields` (object[]) — One through 32 value-field definitions. Each names a source field and sum/count/average/min/max aggregation; repeated source fields with different aggregations are allowed.
 - `rowGrandTotals` (boolean) — Add a native grand-total column and derived cached values when a column field is present.
 - `columnGrandTotals` (boolean) — Add a native grand-total row and derived cached values.
@@ -5808,7 +5808,7 @@ Create a native bounded XLSX PivotTable with derived cached output, cache record
 
 #### `sheet.sparklineGroups.add`
 
-Create standard Office 2010 line/column/stacked sparkline groups for inspect, SVG preview, and OpenChestnut XLSX export. Source-free groups use reversible one-dimensional target/source mappings; recognized imported groups support fixed-topology semantic edits while unsupported native graphs remain source-bound.
+Create standard Office 2010 line/column/stacked sparkline groups for inspect, SVG preview, and OfficeKit XLSX export. Source-free groups use reversible one-dimensional target/source mappings; recognized imported groups support fixed-topology semantic edits while unsupported native graphs remain source-bound.
 
 **Schema parameters:**
 
@@ -5832,7 +5832,7 @@ Create standard Office 2010 line/column/stacked sparkline groups for inspect, SV
 
 **Schema returns:**
 
-- `sparkline` (SparklineGroup) — Editable standard Office 2010 x14 sparkline group for inspect/layout/SVG preview and OpenChestnut XLSX I/O. Source-free groups use the documented reversible mapping; imported canonical groups are source-bound and permit property edits without topology changes. Unsupported native sparkline graphs remain opaque and unchanged.
+- `sparkline` (SparklineGroup) — Editable standard Office 2010 x14 sparkline group for inspect/layout/SVG preview and OfficeKit XLSX I/O. Source-free groups use the documented reversible mapping; imported canonical groups are source-bound and permit property edits without topology changes. Unsupported native sparkline graphs remain opaque and unchanged.
 
 #### `sheet.tables.add`
 
@@ -5917,7 +5917,7 @@ Export one worksheet or range as UTF-8 tab-separated text with RFC-style quoting
 
 #### `SpreadsheetFile.exportXlsx`
 
-Serialize a Workbook facade through the single bundled OpenChestnut codec.
+Serialize a Workbook facade through the single bundled OfficeKit codec.
 
 **Schema parameters:**
 
@@ -5983,7 +5983,7 @@ Import UTF-8 tab-separated bytes into an editable Workbook through the bounded d
 
 #### `SpreadsheetFile.importXlsx`
 
-Load XLSX through the single bundled OpenChestnut codec into an editable Workbook facade.
+Load XLSX through the single bundled OfficeKit codec into an editable Workbook facade.
 
 **Schema parameters:**
 
@@ -6081,7 +6081,7 @@ Append a direct reply to an Office threaded-comment root with independent author
 
 - `text` (string) required — Direct reply text.
 - `author` (string) — Reply author; defaults to comments.setSelf or the root author.
-- `id` (string) — Optional brace-delimited native comment GUID; otherwise OpenChestnut derives one deterministically.
+- `id` (string) — Optional brace-delimited native comment GUID; otherwise OfficeKit derives one deterministically.
 - `personId` (string) — Optional brace-delimited native person GUID.
 - `person` (object) — Optional displayName/userId/providerId identity record.
 - `date` (string) — Optional ISO-8601 reply timestamp.
@@ -6106,7 +6106,7 @@ Create one root Office threaded comment per thread with GUID/person metadata, da
 
 **Schema returns:**
 
-- `thread` (CommentThread) — Attached Office threaded-comment root. Direct replies added through addReply cross canonical OpenChestnut export/import; nested/branched replies and mentions fail closed.
+- `thread` (CommentThread) — Attached Office threaded-comment root. Direct replies added through addReply cross canonical OfficeKit export/import; nested/branched replies and mentions fail closed.
 
 #### `workbook.connections`
 
@@ -6629,7 +6629,7 @@ Author, inspect, edit, or remove one passwordless worksheet editing restriction 
 
 **Schema returns:**
 
-- `protection` (object|undefined) — Passwordless worksheet editing restriction. OpenChestnut contains SpreadsheetML's inverted lock flags and source binding; password/hash/extension profiles are preserved opaquely and semantic replacement fails closed. This is not encryption, authentication, or access control.
+- `protection` (object|undefined) — Passwordless worksheet editing restriction. OfficeKit contains SpreadsheetML's inverted lock flags and source binding; password/hash/extension profiles are preserved opaquely and semantic replacement fails closed. This is not encryption, authentication, or access control.
 
 #### `worksheet.sortState`
 

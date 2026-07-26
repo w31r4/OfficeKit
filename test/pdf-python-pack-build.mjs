@@ -19,7 +19,7 @@ function run(arguments_, { expect = 0 } = {}) {
   return result;
 }
 
-const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-python-pack-build-"));
+const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-python-pack-build-"));
 try {
   const bytes = await fs.readFile(inputPath);
   const source = JSON.parse(bytes);

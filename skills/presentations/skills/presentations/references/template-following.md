@@ -4,7 +4,7 @@ Use when the user provides an existing PPTX, asks to follow a presentation, or
 attaches a PPTX that is clearly or implicitly a template.
 
 > Current canonical codec boundary: the reference starter-deck route requires
-> imported-slide duplication and broad graph deletion. OpenChestnut supports
+> imported-slide duplication and broad graph deletion. OfficeKit supports
 > source-preserving reordering (`slide.moveTo`) plus a real but isolated
 > layout-only `slide.delete()` profile: no media, notes, comments, charts, OLE,
 > hyperlinks, inbound relationships, custom-show/section/extension, or other

@@ -31,7 +31,7 @@ slide.setBackground({ fill: "accent2", mode: "reference", index: 1002 });
 slide.clearBackground();
 ```
 
-The canonical OpenChestnut PPTX boundary owns only a direct `p:cSld/p:bg` with
+The canonical OfficeKit PPTX boundary owns only a direct `p:cSld/p:bg` with
 one six-digit RGB/theme color. `mode: "solid"` authors a direct solid fill;
 `mode: "reference"` authors a native background-style reference with an
 unsigned 32-bit `index`. Passing `background` to `presentation.slides.add(...)`
@@ -46,7 +46,7 @@ Recognized imported direct backgrounds are source/hash-bound and may be
 changed or removed. A slide with no direct background may gain one. Gradient,
 pattern, image, transform-bearing, effect-bearing, or otherwise irregular
 imported background graphs are opaque-preserved; leave them unchanged or
-OpenChestnut fails closed. Do not replace an advanced imported background with
+OfficeKit fails closed. Do not replace an advanced imported background with
 a simple solid and describe that as a faithful edit.
 
 ## Transition
@@ -107,7 +107,7 @@ be renamed before its export/reimport boundary.
 
 For a distinct-path, auditable transaction with package and model-render
 evidence, see
-[`openchestnut-slide-name-edit-workflow.mjs`](../../../examples/openchestnut-slide-name-edit-workflow.mjs).
+[`officekit-slide-name-edit-workflow.mjs`](../../../examples/officekit-slide-name-edit-workflow.mjs).
 
 `duplicate()` is not a visual-only copy and never creates a second
 `p:sldId` reference to one source part. It is available only on an **original

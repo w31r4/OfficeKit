@@ -10,8 +10,8 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-const RELEASE_SCHEMA = "open-office-artifact-tool.pdf-provider-release.v1";
-const PACK_SCHEMA = "open-office-artifact-tool.pdf-provider-pack.v1";
+const RELEASE_SCHEMA = "office-kit.pdf-provider-release.v1";
+const PACK_SCHEMA = "office-kit.pdf-provider-pack.v1";
 const SUPPORTED_PLATFORMS = new Set(["darwin-arm64", "linux-x64"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 
@@ -196,12 +196,12 @@ async function main() {
     metadata: {
       component: {
         type: "application",
-        name: `open-office-artifact-tool-pdf-provider-${options.pack}`,
+        name: `office-kit-pdf-provider-${options.pack}`,
         version: options.version,
         properties: [
-          { name: "open-office-artifact-tool:release-platforms", value: options.expectedPlatforms.join(",") },
-          { name: "open-office-artifact-tool:provenance-repository", value: options.repository },
-          { name: "open-office-artifact-tool:provenance-workflow", value: options.workflow },
+          { name: "office-kit:release-platforms", value: options.expectedPlatforms.join(",") },
+          { name: "office-kit:provenance-repository", value: options.repository },
+          { name: "office-kit:provenance-workflow", value: options.workflow },
         ],
       },
     },
@@ -209,7 +209,7 @@ async function main() {
       type: "application",
       name: options.pack,
       version: options.version,
-      properties: [{ name: "open-office-artifact-tool:platform", value: manifest.platform }],
+      properties: [{ name: "office-kit:platform", value: manifest.platform }],
       hashes: [{ alg: "SHA-256", content: manifest.artifact.sha256 }],
       externalReferences: [{ type: "distribution", url: releaseAssetUrl(options.releaseBaseUrl, manifest.artifact.asset) }],
     })),

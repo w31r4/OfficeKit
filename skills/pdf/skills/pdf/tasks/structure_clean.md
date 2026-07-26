@@ -21,7 +21,7 @@ owns policy and runtime preparation. The npm package never installs Python
 packages and has no lifecycle hook, global-pip path, or fallback.
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pdf_provider.py check --provider pikepdf --require
 "$PYTHON_BIN" scripts/pikepdf_provider.py probe
 ```

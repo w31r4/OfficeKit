@@ -1,9 +1,50 @@
 # Release
 
+## 0.3.0 OfficeKit identity consolidation
+
+The project is now named **OfficeKit** end to end. The npm package and GitHub
+repository are `office-kit`; JavaScript imports use `office-kit`; project state
+lives below `.office-kit`; public environment variables use the
+`OFFICE_KIT_*` prefix; protocol types use `office_kit.*`; and the C# assemblies
+use `OfficeKit.*`.
+
+The former standalone codec brand has been absorbed into **OfficeKit Codec**.
+Its C# solution, projects, namespaces, generated protobuf binding, JavaScript
+adapter, bundled WASM runtime, manifests, SBOM, examples, tests, and build
+commands all use the same identity. The only public low-level entry points are
+`office-kit/codec` and `office-kit/codec/wire`. The unreleased legacy package
+name, codec subpaths, selector surface, and compatibility modules are removed;
+there is no alias, second codec, or silent fallback.
+
+The native coordinator plugin and Skill are both named `office-kit`, so the
+single broad-workflow entry is `$office-kit`. File-specific routes remain
+Documents, Spreadsheets, Excel Live Control, Presentations, PDF, and Template
+Creator. Template discovery and creation share `OFFICE_KIT_HOME` with the
+default `~/.office-kit` root. The public reference submodule and retained MIT
+template provenance continue to identify their external
+`office-artifact-tool` source rather than rewriting third-party history.
+
+### Identity-consolidation integration evidence
+
+On 2026-07-26, the complete local candidate passed `npm test`, generated API
+documentation, the clean-install package workflow, OfficeBridge `5/5`, and
+OfficeKit Codec `375/375`. Two independent bundled-runtime builds reproduced
+the same 39 audited files; the manifest-bound runtime contains 38 files at
+15,157,916 bytes. The production package remains 516 files, approximately
+9.42 MB compressed and 25.34 MB unpacked, below the reviewed
+25,375,000-byte ceiling.
+
+The repository and packed tarball contain no former project or codec paths.
+Root import does not initialize the Office WASM or MuPDF runtime. Managed PDF
+live downloads and separately configured specialist Python-provider repeats
+remain explicit environment lanes and were skipped by design; their catalog,
+policy, package-build, integrity, and offline tests ran. No npm publication,
+tag, or GitHub release was attempted.
+
 ## 0.3.0 PPTX source-bound section-boundary transaction
 
 The Presentations Skill now separately ships
-`openchestnut-section-boundary-edit-workflow.mjs` for moving one or more
+`officekit-section-boundary-edit-workflow.mjs` for moving one or more
 boundaries in a canonical imported PowerPoint section list. A boundary edit is
 not a rename or a generic section editor: the task supplies the exact current
 complete partition and a complete replacement partition. The replacement keeps
@@ -24,8 +65,8 @@ stability only, not PowerPoint navigation-pane behavior.
 
 On 2026-07-26, the combined local candidate passed `npm test`, generated API
 documentation with a clean diff, `npm run proto:check`, deterministic
-`npm run verify:open-chestnut-build`, clean-install `npm run test:pack`,
-OfficeBridge `5/5`, OpenChestnut `375/375`, and the offline release metadata
+`npm run verify:office-kit-build`, clean-install `npm run test:pack`,
+OfficeBridge `5/5`, OfficeKit `375/375`, and the offline release metadata
 check. Two source-built WASM bundles reproduced the same 39 audited files; the
 manifest-bound runtime contains 38 files at 15,160,000 bytes. The production
 tarball contains 518 files, 9,422,043 compressed bytes, and 25,348,154
@@ -40,7 +81,7 @@ or GitHub release was attempted.
 ## 0.3.0 PPTX source-bound section-name transaction
 
 The Presentations Skill now ships
-`openchestnut-section-rename-workflow.mjs` for one exact label correction in a
+`officekit-section-rename-workflow.mjs` for one exact label correction in a
 canonical imported PowerPoint section list. It is not a general section editor:
 the task supplies an exact existing name and replacement name, and the workflow
 requires one matching source-bound section. It keeps the section count/order,
@@ -61,8 +102,8 @@ static/native page rendering exercised the PowerPoint navigation pane.
 
 On 2026-07-26, the combined local candidate passed `npm test`, generated API
 documentation, `npm run proto:check`, deterministic
-`npm run verify:open-chestnut-build`, clean-install `npm run test:pack`,
-OfficeBridge `5/5`, and OpenChestnut `375/375`. Two source-built WASM bundles
+`npm run verify:office-kit-build`, clean-install `npm run test:pack`,
+OfficeBridge `5/5`, and OfficeKit `375/375`. Two source-built WASM bundles
 reproduced the same 39 audited files; the manifest-bound runtime contains 38
 files at 15,160,000 bytes. The production tarball contains 517 files, 9,420,716
 compressed bytes, and 25,329,813 unpacked bytes (`SHA-1
@@ -105,7 +146,7 @@ call, network fetch, or parallel template codec was introduced.
 
 On 2026-07-26, the isolated candidate passed the complete `npm test` suite,
 generated API documentation, clean-install `test:pack`, protocol determinism,
-OfficeBridge `5/5`, OpenChestnut `375/375`, and the deterministic OpenChestnut
+OfficeBridge `5/5`, OfficeKit `375/375`, and the deterministic OfficeKit
 build gate. Two clean WASM builds reproduced the same 39 audited files; the
 manifest-bound runtime contains 38 files at 15,160,000 bytes. The production
 tarball contains 516 files, 9,418,804 compressed bytes, and 25,314,405 unpacked
@@ -113,20 +154,6 @@ bytes, below the 25,325,000-byte ceiling. The offline release metadata and
 license audit was publish-ready. Managed PDF live downloads and separately
 configured specialist Python providers remained explicit environment lanes;
 no network installation or npm publication was performed.
-
-## 0.3.0 OpenChestnut import compatibility
-
-0.3.0 restores the old `codecs/openxml-wasm` and `codecs/openxml-wasm/wire`
-subpaths as deprecated import compatibility bridges. This does **not** restore an
-old Office implementation: every canonical export is the exact OpenChestnut
-binding, historical `OpenXmlWasm` names are aliases for those bindings, and the
-wire bridge re-exports the same generated schema objects. There is no second
-runtime, codec selector, fallback path, or import-time warning.
-
-The aliases remain supported throughout the 0.x line. They cannot be removed
-before a documented 1.0.0 migration notice that includes the exact replacement
-imports. New code should import `codecs/open-chestnut` and
-`codecs/open-chestnut/wire` directly.
 
 ## 0.3.0 structured header/footer page furniture
 
@@ -137,7 +164,7 @@ two native `w:fldSimple` nodes in one `w:p`; it is not a hidden placeholder or
 a generic rich-text model. The JavaScript model derives the visible `text` from
 the segment displays and rejects a mixed legacy `fieldInstruction` profile.
 
-OpenChestnut carries the sequence through the versioned public protobuf wire,
+OfficeKit carries the sequence through the versioned public protobuf wire,
 authors it with the Open XML SDK, imports the exact recognized profile, and
 preserves it byte-for-byte on no-op source export. Imported multi-segment page
 furniture is explicitly source-bound/read-only: a consumer may inspect and
@@ -148,8 +175,8 @@ final document before delivery.
 ### Structured page-furniture integration evidence
 
 On 2026-07-25, the complete local release gate passed: `npm test`, generated
-API documentation, deterministic OpenChestnut reconstruction, production
-clean-install `test:pack`, OfficeBridge `5/5`, and OpenChestnut `372/372`.
+API documentation, deterministic OfficeKit reconstruction, production
+clean-install `test:pack`, OfficeBridge `5/5`, and OfficeKit `372/372`.
 The two source-built WASM bundles were reproducible across 39 audited files;
 the bundled runtime contains 38 files at 15,144,128 bytes. The current
 reference-sync tarball contains 513 files, 9,389,173 compressed bytes, and
@@ -167,7 +194,7 @@ switch-free `w:fldSimple` whose instruction is exactly `BIBLIOGRAPHY`. It
 requires at least one modeled `b:Source`, permits at most one such output
 placeholder, and enables the existing `updateFields`-on-open hint unless the
 caller explicitly disables it. The visible result is deliberately a cached
-placeholder: a compatible Word host, not JavaScript or OpenChestnut, is
+placeholder: a compatible Word host, not JavaScript or OfficeKit, is
 responsible for calculating the formatted bibliography before delivery.
 
 On import, the codec recognizes only its bounded single-simple-field topology.
@@ -182,8 +209,8 @@ opaque-preserved. Header/footer simple-field sequences intentionally exclude
 ### Bibliography-output integration evidence
 
 On 2026-07-25, the local candidate passed `npm test`, `npm run docs:api`,
-`npm run proto:check`, the deterministic OpenChestnut build gate, clean-install
-`test:pack`, OpenChestnut `373/373`, and OfficeBridge `5/5`. The two
+`npm run proto:check`, the deterministic OfficeKit build gate, clean-install
+`test:pack`, OfficeKit `373/373`, and OfficeBridge `5/5`. The two
 source-built WASM bundles were reproducible across 39 audited files; the
 bundled runtime contains 38 files at 15,145,664 bytes. The clean tarball has
 513 files, 9,390,124 compressed bytes, and 25,195,372 unpacked bytes.
@@ -216,7 +243,7 @@ introduced.
 
 On 2026-07-25, the complete local gate passed: `npm test`, `npm run docs:api`,
 `npm run proto:check`, clean-install `npm run test:pack`, deterministic
-`npm run verify:open-chestnut-build`, OpenChestnut `374/374`, and OfficeBridge
+`npm run verify:office-kit-build`, OfficeKit `374/374`, and OfficeBridge
 `5/5`. The two source-built WASM bundles reproduced across 39 audited files;
 the bundled runtime has 38 files at 15,148,224 bytes. The npm candidate has
 513 files, 9,391,934 compressed bytes, and 25,207,264 unpacked bytes. Its
@@ -294,7 +321,7 @@ the creator does not carry a second ZIP/OPC parser.
 
 On 2026-07-24, the integrated candidate passed the complete `npm test` chain,
 generated API documentation, `proto:check`, production `test:pack`, OfficeBridge
-`5/5`, OpenChestnut `370/370`, and the deterministic OpenChestnut build gate.
+`5/5`, OfficeKit `370/370`, and the deterministic OfficeKit build gate.
 Both clean WASM builds produced the same 39-file audit set; the bundled runtime
 contains 38 files and 15,123,648 bytes. The clean-install probe created a local
 XLSX template with the packaged Template Creator, discovered it through the
@@ -316,14 +343,14 @@ npm publish, tag, or GitHub release operation was attempted.
 0.3.0 adds a public, explicit PDF capability-pack control plane without adding
 a second PDF codec or putting large runtimes in the npm tarball:
 
-- `open-office-artifact-tool/pdf/providers` exposes
+- `office-kit/pdf/providers` exposes
   `PdfProviders.resolve`, `ensure`, and `probe`.
 - The canonical source is one versioned catalog under `src/pdf/providers/`:
   providers reference packs; versions, platforms, artefacts, hashes, sizes,
   licences, dependencies, runtime paths, and release evidence are not duplicated
   in the Skill matrix or Python adapter.
 - The default project policy is
-  `.open-office-artifact-tool/pdf-providers.json` with
+  `.office-kit/pdf-providers.json` with
   `installPolicy: "disabled"`. `managed` requires a whitelist, licence
   acknowledgement, exact byte budgets, and explicitly allowed OCR languages;
   `system-only` supports deployment-owned runtimes without download authority.
@@ -361,23 +388,23 @@ does not change.
 
 0.2.0 is a breaking convergence release:
 
-- OpenChestnut is the only DOCX/XLSX/PPTX codec.
-- PDF remains an independent fourth pipeline and never enters OpenChestnut. Required `mupdf@1.28.0` is the runtime-lazy default for arbitrary-file parse, native inspect/render, and bounded direct-original edits; specialist Python/system providers remain explicit task routes.
+- OfficeKit is the only DOCX/XLSX/PPTX codec.
+- PDF remains an independent fourth pipeline and never enters OfficeKit. Required `mupdf@1.28.0` is the runtime-lazy default for arbitrary-file parse, native inspect/render, and bounded direct-original edits; specialist Python/system providers remain explicit task routes.
 - The project is licensed under GNU AGPL-3.0-or-later. Normal npm installation resolves MuPDF.js as a direct dependency; there is no PDF postinstall hook or standalone dependency downloader.
 - Wire protocol is version 2.
 - `allow_lossy` is removed and reserved in the proto.
-- `OFFICE_CODEC_IDS` and `office-codec-policy.mjs` are removed. The former `codecs/openxml-wasm` removal is superseded in 0.3 by the deprecated name-only compatibility bridge described above.
+- `OFFICE_CODEC_IDS`, `office-codec-policy.mjs`, and the obsolete `openxml-wasm` subpaths are removed.
 - `codec`, `allowLossy`, `preferNative`, and `relativeDateAsOf` facade options are rejected.
 - Old JavaScript Office parsers/writers and dedicated dead helper modules are not packaged.
 - Imported advanced Office content is preserved only with validated source evidence; unsupported edits and opaque content without that evidence fail closed.
 
-There is no codec compatibility window or fallback mode. The 0.3 import bridge preserves only legacy module names and bindings; it does not restore an alternate codec.
+There is no codec compatibility window, legacy subpath, or fallback mode.
 
 ## Source and npm distributions
 
-The repository is the authoritative source distribution. It contains OpenChestnut C# source, locked dependencies, protocol definitions, build scripts, tests, Skills, and reproducibility gates.
+The repository is the authoritative source distribution. It contains OfficeKit C# source, locked dependencies, protocol definitions, build scripts, tests, Skills, and reproducibility gates.
 
-The npm tarball is the consumer distribution. It contains the JavaScript object models, OpenChestnut adapter, generated wire binding, public proto, bundled runtime, integrity manifest, SBOM, license notices, render/QA helpers, PDF pipeline, the optional buildable OfficeBridge source project, and six native plugin bundles containing seven Skills: the four file-type workflows, the separate `excel-live-control` route, the project-native OfficeKit coordinator, and the local-only Template Creator utility. It excludes OpenChestnut C# source, every C# test and solution, all build output, repository-only build scripts, the development-only `test/skill-harness` fixtures, and the MIT-licensed repository-only Default Template Library with its 20 retained Office/PNG assets. MuPDF.js is declared in the required npm dependency graph rather than copied into this project's own tarball, and its WASM runtime is initialized only by a PDF operation.
+The npm tarball is the consumer distribution. It contains the JavaScript object models, OfficeKit adapter, generated wire binding, public proto, bundled runtime, integrity manifest, SBOM, license notices, render/QA helpers, PDF pipeline, the optional buildable OfficeBridge source project, and six native plugin bundles containing seven Skills: the four file-type workflows, the separate `excel-live-control` route, the project-native OfficeKit coordinator, and the local-only Template Creator utility. It excludes OfficeKit C# source, every C# test and solution, all build output, repository-only build scripts, the development-only `test/skill-harness` fixtures, and the MIT-licensed repository-only Default Template Library with its 20 retained Office/PNG assets. MuPDF.js is declared in the required npm dependency graph rather than copied into this project's own tarball, and its WASM runtime is initialized only by a PDF operation.
 
 Installed consumers do not need `dotnet` on `PATH`.
 
@@ -388,11 +415,11 @@ Run from a clean source checkout with the documented Node and .NET SDK versions:
 ```sh
 npm ci
 npm run proto:generate
-npm run test:open-chestnut-dotnet
-npm run build:open-chestnut
+npm run test:office-kit-dotnet
+npm run build:office-kit
 npm test
 npm run test:pack
-npm run verify:open-chestnut-build
+npm run verify:office-kit-build
 npm run docs:api
 npm run release:check
 ```
@@ -413,8 +440,8 @@ The release candidate is acceptable only when all of the following are true:
   and reports its command/template context on failure; a native-host hang must
   fail the gate rather than leave hosted CI running indefinitely;
 - a production-only packed clean install completes all three Office roundtrips, PDF smoke, a real packaged Template Creator invocation, and a packaged OfficeKit query against a created local template while `dotnet` is absent from `PATH`, and proves that the repository-only Default Template Library is absent;
-- two clean OpenChestnut builds produce the same runtime file set and hashes;
-- package contents contain no legacy Office codec files, OpenChestnut C# source, incomplete OfficeBridge solution, C# build output, tests, or repository-only scripts;
+- two clean OfficeKit builds produce the same runtime file set and hashes;
+- package contents contain no legacy Office codec files, OfficeKit C# source, incomplete OfficeBridge solution, C# build output, tests, or repository-only scripts;
 - package metadata, version `0.3.0`, licenses, third-party notices, SBOM, and integrity manifest agree;
 - hosted Linux runs the same required non-optional gates.
 
@@ -435,11 +462,11 @@ The Office bridge does not participate in normal import/export and must never be
 
 ### XLSX passwordless worksheet protection
 
-On 2026-07-22, the Spreadsheet model, protocol-2 wire, OpenChestnut C# codec,
+On 2026-07-22, the Spreadsheet model, protocol-2 wire, OfficeKit C# codec,
 bundled WASM runtime, Help/API catalog, and runnable Spreadsheet Skill completed
 one bounded worksheet-protection vertical slice. `sheet.protection` exposes an
 active restriction plus an intuitive `allow` list for all 15 standard operation
-classes. OpenChestnut alone maps those permissions onto SpreadsheetML's inverse
+classes. OfficeKit alone maps those permissions onto SpreadsheetML's inverse
 lock attributes and omission defaults. Cell-level `locked`/`hidden` styles now
 have a modeled native sheet restriction that makes them effective in compatible
 hosts.
@@ -468,9 +495,9 @@ gate.
 The complete local `npm test` gate passed, including all 20 repository-only
 templates, every published Office/PDF Skill, LibreOffice, Poppler, MuPDF.js,
 qpdf, Playwright, reference-Skill sync, Agent evals, package metadata, Help,
-and the tightened npm payload budget. OpenChestnut passed `339/339`;
+and the tightened npm payload budget. OfficeKit passed `339/339`;
 OfficeBridge passed `5/5`. Generated API docs, the production clean-install
-package smoke, `test:pack`, and deterministic OpenChestnut build verification
+package smoke, `test:pack`, and deterministic OfficeKit build verification
 passed. Two clean builds reproduced the same 39-file audit set; the bundled
 runtime contains 38 files and 14,996,672 bytes. The final dry-run tarball
 contains 482 files, 9,214,111 compressed bytes, and 24,488,879 unpacked bytes
@@ -484,7 +511,7 @@ blocker, so no publish, tag, or release operation was attempted.
 ### XLSX data-validation admission UX
 
 On 2026-07-22, the Spreadsheet model, protocol-2 wire contract,
-OpenChestnut C# codec, bundled WASM runtime, Help/API catalog, and runnable
+OfficeKit C# codec, bundled WASM runtime, Help/API catalog, and runnable
 Spreadsheet Skill completed a typed admission-UX slice for native data
 validation. List, whole-number, decimal, date, time, text-length, and custom
 formula rules now carry an explicit blank policy, input prompt/title, error
@@ -520,9 +547,9 @@ XML and semantic assertions are the authoritative gates for that UI state.
 The complete local `npm test` gate passed, including all 20 repository-only
 templates, all published Office/PDF Skills, LibreOffice, Poppler, MuPDF.js,
 qpdf, Playwright, reference-Skill sync, Agent evals, package metadata, Help,
-and the tightened npm payload budget. OpenChestnut passed `337/337`;
+and the tightened npm payload budget. OfficeKit passed `337/337`;
 OfficeBridge passed `5/5`. Generated API docs, production clean-install,
-`test:pack`, and deterministic OpenChestnut build verification passed. Two
+`test:pack`, and deterministic OfficeKit build verification passed. Two
 builds reproduced the same 39-file audit set; the bundled runtime contains 38
 files and 14,978,240 bytes. The dry-run tarball contains 479 files, 9,198,266
 compressed bytes, and 24,447,872 unpacked bytes (SHA-1
@@ -537,7 +564,7 @@ blocker, so no publish, tag, or release operation was attempted.
 ### DOCX typed table-cell content controls
 
 On 2026-07-22, the public Documents model, protocol-2 wire contract,
-OpenChestnut C# codec, bundled WASM runtime, Help/API catalog, and runnable
+OfficeKit C# codec, bundled WASM runtime, Help/API catalog, and runnable
 Documents Skill extended canonical whole-table-cell content controls from plain
 text to all five existing typed profiles. A source-free rectangular physical
 cell now exposes `addTextContentControl()`, `addCheckboxContentControl()`,
@@ -571,9 +598,9 @@ text, and leap-day dates render without clipping, overlap, or page drift.
 The complete local `npm test` gate passed, including all 20 repository-only
 templates, all published Office/PDF Skills, LibreOffice, Poppler, MuPDF.js,
 qpdf, Playwright, reference-Skill sync, Agent evals, package metadata, Help, and
-the tightened npm payload budget. OpenChestnut passed `335/335`; OfficeBridge
+the tightened npm payload budget. OfficeKit passed `335/335`; OfficeBridge
 passed `5/5`. Protobuf lint/idempotent generation, generated API docs,
-production clean-install, `test:pack`, and deterministic OpenChestnut build
+production clean-install, `test:pack`, and deterministic OfficeKit build
 verification passed. Two builds reproduced the same 39-file audit set; the
 bundled runtime contains 38 files and 14,970,048 bytes. The dry-run tarball
 contains 477 files, 9,191,614 compressed bytes, and 24,419,321 unpacked bytes
@@ -588,14 +615,14 @@ blocker, so no publish, tag, or release operation was attempted.
 ### DOCX bounded floating images
 
 On 2026-07-22, the public Documents model, versioned protocol-2 wire,
-OpenChestnut C# codec, bundled WASM runtime, Help/API catalog, and native
+OfficeKit C# codec, bundled WASM runtime, Help/API catalog, and native
 Documents Skill added one deliberately bounded floating-picture profile.
 `document.addImage(...)` remains inline by default; an explicit `placement`
 authors a foreground, non-overlapping `wp:anchor` with absolute horizontal
 margin/page/column and vertical margin/page/paragraph offsets, square or
 top-and-bottom wrap, square-wrap side selection, and four text distances. The
 public model does not expose native stacking, locking, simple-position, or
-overlap controls; OpenChestnut owns those fixed safety choices.
+overlap controls; OfficeKit owns those fixed safety choices.
 
 Recognized imported anchors expose the same placement object and permit only
 fixed-topology placement edits. The codec re-proves the original element and
@@ -619,9 +646,9 @@ authoritative placement gate.
 The complete local `npm test` gate passed, including all 20 repository-only
 templates, all published Office/PDF Skills, LibreOffice, Poppler, MuPDF.js,
 qpdf, Playwright, reference-Skill sync, Agent evals, package metadata, and Help.
-OpenChestnut passed `323/323`; OfficeBridge passed `5/5`. Protobuf lint and
+OfficeKit passed `323/323`; OfficeBridge passed `5/5`. Protobuf lint and
 idempotent generation, generated API docs, the production clean-install/package
-test, and the offline release gate passed. Two clean OpenChestnut builds
+test, and the offline release gate passed. Two clean OfficeKit builds
 reproduced the same 39-file audit set; the bundled runtime contains 38 files and
 14,914,240 bytes. The dry-run tarball contains 475 files, 9,161,655 compressed
 bytes, and 24,289,853 unpacked bytes (SHA-1
@@ -634,7 +661,7 @@ blocker, so no publish, tag, or release operation was attempted.
 ### DOCX passwordless document protection
 
 On 2026-07-21, the existing `document.setSettings(...)` state surface, the
-versioned protobuf wire, OpenChestnut C# codec, bundled WASM runtime, public
+versioned protobuf wire, OfficeKit C# codec, bundled WASM runtime, public
 Help/API catalog, and Documents Skill added one bounded passwordless
 `w:documentProtection` profile. The public state accepts explicit `none`,
 `readOnly`, `comments`, `trackedChanges`, and `forms` modes plus boolean
@@ -642,7 +669,7 @@ Help/API catalog, and Documents Skill added one bounded passwordless
 formatting protection off. `false`, `null`, or `off` removes the native element,
 while explicit `none` remains a distinct round-trippable setting.
 
-OpenChestnut recognizes exactly one leaf `w:documentProtection` with the three
+OfficeKit recognizes exactly one leaf `w:documentProtection` with the three
 canonical WordprocessingML attributes. Source-free authoring, import, semantic
 mode/flag edits, removal, second import, and Office 2021 validation are covered.
 Password hashes/verifiers, cryptographic or extension attributes, duplicate
@@ -671,9 +698,9 @@ likewise reported zero different pixels.
 The complete local `npm test` gate passed, including the 20 repository-only
 templates, all published Office/PDF Skills, LibreOffice, Poppler, MuPDF.js,
 qpdf, Playwright, reference-Skill sync, Agent evals, package metadata, and Help.
-OpenChestnut passed `322/322`; OfficeBridge passed `5/5`; protobuf lint and
+OfficeKit passed `322/322`; OfficeBridge passed `5/5`; protobuf lint and
 idempotent generation passed against the staged generated binding. Two clean
-OpenChestnut builds reproduced the same 39-file audit set; the bundled runtime
+OfficeKit builds reproduced the same 39-file audit set; the bundled runtime
 contains 38 files and 14,890,176 bytes. Generated API docs and the production
 clean-install/package gate passed; the dry-run tarball contains 475 files,
 9,146,227 compressed bytes, and 24,240,784 unpacked bytes (SHA-1
@@ -685,7 +712,7 @@ blocker, so no publish, tag, or release operation was attempted.
 
 ### DOCX block plain-text content controls
 
-On 2026-07-21, the Documents model, versioned protobuf wire, OpenChestnut C#
+On 2026-07-21, the Documents model, versioned protobuf wire, OfficeKit C#
 codec, bundled WASM runtime, public Help/API surface, and runnable Documents
 Skill added one bounded body-level plain-text content-control profile.
 `document.addBlockTextContentControl(text, config)` authors a real `w:SdtBlock`
@@ -713,7 +740,7 @@ and inline text, checkbox, drop-down, combo-box, and date—and passes semantic,
 package, model-render, and native LibreOffice/Poppler QA.
 
 The complete local release gate passed on 2026-07-21: `npm test`, generated API
-docs, the production clean-install/package test, OpenChestnut `320/320`, and
+docs, the production clean-install/package test, OfficeKit `320/320`, and
 OfficeBridge `5/5`. Two deterministic source builds produced the same 39-file
 audit set; the bundled runtime contains 38 files at 14,882,496 bytes. The
 production dry-run tarball contains 475 files, is 9,139,748 bytes compressed,
@@ -728,7 +755,7 @@ external publication blocker.
 ### DOCX canonical date content controls
 
 On 2026-07-21, the Documents model, public Help/API catalog, versioned
-protobuf wire, OpenChestnut C# codec, bundled WASM runtime, and runnable
+protobuf wire, OfficeKit C# codec, bundled WASM runtime, and runnable
 Documents Skill added one bounded Word 2007+ date-picker SDT profile.
 `paragraph.addDateContentControl(...)` and
 `document.setDateContentControls(...)` accept only real proleptic Gregorian
@@ -737,7 +764,7 @@ localized strings, year zero, impossible month/day combinations, and invalid
 leap days fail before mutation. The handle exposes typed `dateValue`; visible
 run text is codec-owned and cannot be edited directly.
 
-OpenChestnut authors `w:date` with an exact UTC-midnight `w:fullDate`,
+OfficeKit authors `w:date` with an exact UTC-midnight `w:fullDate`,
 `yyyy-MM-dd` display mask, `en-US` language, `date` mapped-data storage, and
 Gregorian calendar, then requires exactly one modeled run and one text node.
 Canonical imports permit dateValue/tag/alias edits while native ID, control
@@ -751,14 +778,14 @@ byte-identical no-op export, leap-day edit plus second import, invalid-date and
 type-tamper refusal, and byte-preserving fallback for a noncanonical display
 mask. JS model/wire tests cover strict transactional rollback, cross-type
 refusal, inspect/resolve handles, native markup, source-bound topology, and two
-OpenChestnut round trips. The native content-control fixture and shipped
+OfficeKit round trips. The native content-control fixture and shipped
 end-to-end example now author and edit text, checkbox, drop-down, combo-box,
 and date controls together before semantic/package/native-render QA.
 
 The complete local release gate passed on 2026-07-21: `npm test`, generated
-API docs, the production clean-install/package test, OpenChestnut `319/319`,
+API docs, the production clean-install/package test, OfficeKit `319/319`,
 OfficeBridge `5/5`, and two deterministic source builds over 39 audited files.
-The bundled OpenChestnut runtime contains 38 files at 14,875,840 bytes. The
+The bundled OfficeKit runtime contains 38 files at 14,875,840 bytes. The
 production dry-run tarball contains 475 files, is 9,134,038 bytes compressed,
 and 24,205,758 bytes unpacked. LibreOffice/Poppler rendered and reviewed both
 pages of the final date-control example; Playwright/Chromium and the real qpdf
@@ -771,7 +798,7 @@ blocker.
 ### DOCX canonical combo-box content controls
 
 On 2026-07-21, the Documents model, public Help/API catalog, versioned
-protobuf wire, OpenChestnut C# codec, bundled WASM runtime, and runnable
+protobuf wire, OfficeKit C# codec, bundled WASM runtime, and runnable
 Documents Skill added a bounded Word 2007+ combo-box SDT profile. Source-free
 documents can call `paragraph.addComboBoxContentControl(...)` with 1–256
 ordered unique display/value pairs. A typed `value` may select a declared
@@ -782,7 +809,7 @@ XML-safe custom text, which becomes visible verbatim.
 unknown tag before mutating any control. `fillContentControls()`, checkbox, and
 drop-down setters never coerce a combo box. Imported canonical controls expose
 defensive choices and mutable `value`, tag, and alias; native ID, type, choice
-identity/order, and run topology remain source-bound. OpenChestnut authors and
+identity/order, and run topology remain source-bound. OfficeKit authors and
 imports canonical `w:comboBox`, `w:lastValue`, and `w:listItem` markup, returns
 unchanged source bytes for a no-op import/export, and fails closed on choice,
 type, or direct visible-text tampering. Irregular combo boxes remain opaque and
@@ -792,15 +819,15 @@ The C# codec test covers declared and custom values, Office 2021 validation,
 no-op byte identity, second import, declared-choice projection, choice
 topology tampering, and visible-text mismatch. JS model/codec tests cover
 defensive handles, strict transaction rollback, cross-type refusal, custom and
-declared values, source-bound topology, native markup, and two OpenChestnut
+declared values, source-bound topology, native markup, and two OfficeKit
 round trips. The native Documents fixture and shipped end-to-end example now
 exercise text, checkbox, drop-down, and combo-box controls together and enter
 the same semantic/package/render QA gates as the other document workflows.
 
 The complete local release gate passed on 2026-07-21: `npm test`, generated
-API docs, the production clean-install/package test, OpenChestnut `318/318`,
+API docs, the production clean-install/package test, OfficeKit `318/318`,
 OfficeBridge `5/5`, and two deterministic source builds over 39 audited files.
-The bundled OpenChestnut runtime contains 38 files at 14,868,160 bytes. The
+The bundled OfficeKit runtime contains 38 files at 14,868,160 bytes. The
 production dry-run tarball contains 475 files, is 9,126,868 bytes compressed,
 and 24,184,583 bytes unpacked. LibreOffice/Poppler rendered and reviewed both
 pages of the final example; Playwright/Chromium and the real qpdf adapter also
@@ -812,7 +839,7 @@ clean commit is unavailable npm authentication.
 
 ### DOCX canonical drop-down content controls
 
-On 2026-07-21, the Documents model, versioned protobuf wire, OpenChestnut C#
+On 2026-07-21, the Documents model, versioned protobuf wire, OfficeKit C#
 codec, bundled WASM runtime, Help/API catalog, and runnable Documents Skill
 added a bounded standard Word drop-down SDT profile. Source-free documents can
 author `paragraph.addDropdownContentControl(...)` with an ordered
@@ -843,7 +870,7 @@ clipping, overlap, or stray text.
 
 The complete local `npm test` suite passed, including Playwright,
 LibreOffice/Poppler, MuPDF.js, qpdf, all five plugin bundles, the 20-template
-corpus, and every Office/PDF regression. OpenChestnut passed `317/317` and
+corpus, and every Office/PDF regression. OfficeKit passed `317/317` and
 OfficeBridge passed `5/5`. Protocol generation and API documentation are
 regenerated; two source-built WASM runs produced the same 39 audited files.
 The bundled runtime contains 38 files and 14,866,624 bytes. The production
@@ -856,13 +883,13 @@ remain external/follow-up release steps.
 
 ### DOCX canonical checkbox content controls
 
-On 2026-07-21, the Documents model, versioned protobuf wire, OpenChestnut C#
+On 2026-07-21, the Documents model, versioned protobuf wire, OfficeKit C#
 codec, bundled WASM runtime, Help catalog, and runnable Documents Skill added a
 bounded Word 2010+ checkbox content-control profile. Source-free documents can
 author `paragraph.addCheckboxContentControl(...)`; imported canonical controls
 expose typed `controlType` and boolean `checked` state; and
 `document.setCheckboxContentControls(...)` applies strict transactional updates
-by tag. OpenChestnut owns the visible `☐`/`☒` glyph and canonical
+by tag. OfficeKit owns the visible `☐`/`☒` glyph and canonical
 `w14:checkbox` symbol declarations, so agents do not edit presentation text to
 change state.
 
@@ -886,7 +913,7 @@ footnotes, and page break showed no clipping, overlap, or stray glyphs.
 
 The complete local `npm test` suite passed, including Playwright,
 LibreOffice/Poppler, MuPDF.js, qpdf, all five plugin bundles, the 20-template
-corpus, and every Office/PDF regression. OpenChestnut passed `316/316` and
+corpus, and every Office/PDF regression. OfficeKit passed `316/316` and
 OfficeBridge passed `5/5`. Protocol generation/lint and API-document
 regeneration are byte-stable. Two source-built WASM runs produced the same 39
 audited files; the bundled runtime contains 38 files and 14,859,968 bytes. The
@@ -900,7 +927,7 @@ passed while those explicitly environment-gated executions were skipped.
 
 ### PPTX canonical area, doughnut, scatter, and bubble charts
 
-On 2026-07-20, the Presentation/OpenChestnut path added four literal native
+On 2026-07-20, the Presentation/OfficeKit path added four literal native
 ChartPart profiles alongside the existing bar, line, pie, and combo support:
 standard area, fixed 50%-hole doughnut, marker-only scatter, and bounded 2D
 bubble. Area and doughnut use literal category caches; pie/doughnut alone permit
@@ -913,13 +940,13 @@ The C# work also extracted `OpenXmlChartSpaceCodec` as the package-independent
 DrawingML ChartSpace reader/writer/patcher used by both XLSX and PPTX. The
 format adapters retain only their own OPC/source-binding and mutation policy.
 The Presentation JavaScript adapter similarly delegates chart validation and
-wire mapping to `open-chestnut-presentation-charts.mjs`, reducing the largest
+wire mapping to `office-kit-presentation-charts.mjs`, reducing the largest
 adapter without creating a root-entry back-edge.
 
 Formula references, external or embedded workbooks, stacked area, non-50%
 doughnut geometry, connected/smooth scatter, bubble 3D/negative/custom-scale
 semantics, unsupported markers, and plot/series/point topology changes fail
-closed. The shipped `openchestnut-chart-families-workflow.mjs` independently
+closed. The shipped `officekit-chart-families-workflow.mjs` independently
 inventories all four native chart XML parts, edits one semantic field in each,
 imports twice, runs inspect/verify, and writes a byte-bound audit plus a real
 Playwright PNG. A separate LibreOffice/Poppler render of the same one-slide
@@ -929,7 +956,7 @@ intended.
 
 The complete local `npm test` suite passed, including the packed Skill paths,
 Playwright, LibreOffice/Poppler, qpdf, package/release checks, the 20-template
-corpus, and every Office/PDF regression. OpenChestnut passed `299/299` and
+corpus, and every Office/PDF regression. OfficeKit passed `299/299` and
 OfficeBridge passed `5/5`. Protocol lint/generation and generated API docs are
 current. Two source-built WASM runs produced the same 39-file audited build;
 the bundled runtime contains 38 files and 14,747,328 bytes. The production
@@ -942,13 +969,13 @@ No npm publish or tag operation was attempted.
 
 ### PPTX canonical merged table cells
 
-On 2026-07-20, the Presentation/OpenChestnut path closed the reference
+On 2026-07-20, the Presentation/OfficeKit path closed the reference
 `table.merge(...)` primitive for bounded native PowerPoint tables. The public
 model now accepts multiple inclusive, non-overlapping rectangles, retains the
 upper-left value, clears and locks covered cells, exposes origin/span evidence
 through inspect/layout/cell facades, and draws the same geometry in SVG. The
 versioned wire carries logical merge ranges rather than private XML fragments;
-OpenChestnut maps them to canonical DrawingML `a:tc` `gridSpan`, `rowSpan`,
+OfficeKit maps them to canonical DrawingML `a:tc` `gridSpan`, `rowSpan`,
 `hMerge`, and `vMerge` attributes and reconstructs the logical ranges on import.
 
 The source-bound contract keeps imported row, column, and merge topology fixed
@@ -967,7 +994,7 @@ split merge borders.
 
 The complete local `npm test` suite passed, including Playwright, the packed
 Skill paths, LibreOffice/Poppler, qpdf, package/release smoke, and every Office
-and PDF regression. OpenChestnut passed `298/298`; OfficeBridge passed `5/5`;
+and PDF regression. OfficeKit passed `298/298`; OfficeBridge passed `5/5`;
 generated API docs and two deterministic source-built WASM runs passed across
 39 audited build files. The manifest-bound runtime contains 38 files and
 14,750,400 bytes. The production clean-install/dry-run tarball contains 468
@@ -980,7 +1007,7 @@ attempted.
 
 ### XLSX visual conditional formatting
 
-On 2026-07-20, the Spreadsheet/OpenChestnut path added standard gradient data
+On 2026-07-20, the Spreadsheet/OfficeKit path added standard gradient data
 bars and the 17 base SpreadsheetML icon sets as typed semantics rather than raw
 XML shortcuts. The public model, versioned protobuf wire, C# Open XML SDK
 codec, second import, computed-style inspection, layout JSON, and SVG preview
@@ -1006,7 +1033,7 @@ On 2026-07-19, a whole-repository reachability, package, generated-artifact,
 native-project, and duplicate-asset audit found no orphaned production module:
 all 95 `src` modules are reachable from the public package entries, all 98 C#
 files belong to their MSBuild projects, and the runtime manifest exactly covers
-the bundled OpenChestnut payload. The current tree therefore keeps the source,
+the bundled OfficeKit payload. The current tree therefore keeps the source,
 generated wire binding, bundled runtime, test harnesses, canonical templates,
 and self-contained Skill assets rather than deleting files merely because they
 look duplicated.
@@ -1026,7 +1053,7 @@ references a repository-only test project. It continues to publish the complete,
 optional `native/OfficeBridge/src` project. An isolated checkout containing only
 this convergence passed `npm test`, API-document regeneration with a clean diff,
 the clean-install package smoke, and the offline release check including
-OfficeBridge and OpenChestnut .NET tests. Its tarball contains 452 files, no
+OfficeBridge and OfficeKit .NET tests. Its tarball contains 452 files, no
 handoff/reference tree or incomplete solution, and 24,087,732 unpacked bytes.
 
 ### Reference Skill source synchronization
@@ -1047,14 +1074,14 @@ The audit exposed one real omission: the Documents
 gate failed with that exact missing path. The checklist is now retained
 byte-for-byte, declared by the native Skill manifest, shipped in the npm plugin,
 and documented as an optional route for the explicit Python render/package
-helpers. The public OpenChestnut create/import/edit/export workflow remains the
+helpers. The public OfficeKit create/import/edit/export workflow remains the
 default. The canonical 20-template Office/PNG assets continue to use their
 separate byte-identity and package-exclusion gate; no self-authored template
 generator or fallback was reintroduced.
 
 The complete local gate passed `npm test`, `npm run docs:api`,
 `npm run proto:check`, `npm run test:pack`, serial
-`npm run verify:open-chestnut-build`, OpenChestnut `283/283`, and OfficeBridge
+`npm run verify:office-kit-build`, OfficeKit `283/283`, and OfficeBridge
 `5/5`. The official Skill and plugin validators also accepted the Documents
 bundle. Two clean WASM builds reproduced all 39 audited package-layer files and
 the same manifest-bound 38-file, 14,635,200-byte runtime. The production
@@ -1062,13 +1089,13 @@ clean-install tarball contains 453 files at 9,538,062 compressed bytes and
 24,096,300 unpacked bytes; the repository-only sync snapshot/script and
 canonical template library remain excluded. The specialist Python PDF provider
 test remained contract-only because no explicit
-`OPEN_OFFICE_PDF_PROVIDER_PYTHON` was configured; core MuPDF.js,
+`OFFICE_KIT_PDF_PROVIDER_PYTHON` was configured; core MuPDF.js,
 Playwright/Chromium, LibreOffice/Poppler, canonical template rendering, and all
 other npm gates ran locally. No publish or tag operation was attempted.
 
 ### XLSX bounded multi-row PivotTables
 
-On 2026-07-19, the Spreadsheet facade, OpenChestnut codec, Help catalog, and
+On 2026-07-19, the Spreadsheet facade, OfficeKit codec, Help catalog, and
 runnable Spreadsheet Skill expanded native Pivot authoring from one row field
 to 1 through 8 ordered row fields. The bounded profile is deliberately tabular:
 every row field has a distinct cached-output column, automatic subtotals are
@@ -1091,7 +1118,7 @@ eight-column summary keeps the previously CI-proven 440-pixel print-width
 budget, with a smaller wrapped header, so both sheets remain one native page.
 Bundled LibreOfficeDev 26.8 rendered and resaved both sheets. An Ubuntu 24.04
 amd64 LibreOffice 24.2.7 resave normalized the native display range and omitted
-the optional axis caches, then OpenChestnut recovered `Region -> Channel`, Product,
+the optional axis caches, then OfficeKit recovered `Region -> Channel`, Product,
 the filter, and the `440 / 44` grand totals and preserved that host graph. An
 independently generated LibreOffice 24.2 DataPilot oracle confirmed the same
 ordered `rowFields`, `firstDataCol`, and optional-cache structure. Open XML SDK
@@ -1099,13 +1126,13 @@ Office 2021 validation passes the authored complete-tuple graph.
 
 The complete local gate passed `npm test`, `npm run docs:api`,
 `npm run proto:check`, `npm run test:pack`, serial
-`npm run verify:open-chestnut-build`, OpenChestnut `283/283`, and OfficeBridge
+`npm run verify:office-kit-build`, OfficeKit `283/283`, and OfficeBridge
 `5/5`. Two clean WASM builds reproduced all 39 audited package-layer files and
 the same manifest-bound 38-file, 14,635,200-byte runtime. The production
 clean-install tarball contains 452 files at 9,537,005 compressed bytes and
 24,094,042 unpacked bytes; the repository-only canonical template library
 remains excluded. The specialist Python PDF provider test remained
-contract-only because no explicit `OPEN_OFFICE_PDF_PROVIDER_PYTHON` was
+contract-only because no explicit `OFFICE_KIT_PDF_PROVIDER_PYTHON` was
 configured; core MuPDF.js, Playwright/Chromium, LibreOffice/Poppler, canonical
 template rendering, and all other npm gates ran locally. No publish or tag
 operation was attempted.
@@ -1113,11 +1140,11 @@ operation was attempted.
 ### XLSX exact native Pivot item filters
 
 On 2026-07-19, the Spreadsheet model, additive protocol-2 wire, generated
-binding, OpenChestnut C# codec, Help catalog, and runnable Spreadsheet Skill
+binding, OfficeKit C# codec, Help catalog, and runnable Spreadsheet Skill
 gained one bounded native manual-filter profile. A source-free PivotTable may
 place one exact `include` or `exclude` filter on each configured row/column
 field, with 1 through 1024 string, finite-number, boolean, or blank items.
-OpenChestnut validates every item against the typed cache, derives the output
+OfficeKit validates every item against the typed cache, derives the output
 rectangle from rows that survive all filters, writes standard
 `pivotField/items/item@h` visibility, and preserves the full source cache for
 refresh. Unknown/duplicate/over-budget items, a filter that removes every
@@ -1137,19 +1164,19 @@ authored graph.
 
 The complete local gate passed `npm test`, `npm run docs:api`,
 `npm run proto:check`, `npm run test:pack`, serial
-`npm run verify:open-chestnut-build`, OpenChestnut `282/282`, and OfficeBridge
+`npm run verify:office-kit-build`, OfficeKit `282/282`, and OfficeBridge
 `5/5`. Two clean WASM builds reproduced all 39 audited package-layer files and
 the same manifest-bound 38-file, 14,629,056-byte runtime. The production
 clean-install tarball contains 452 files at 9,535,218 compressed bytes and
 24,086,436 unpacked bytes. The specialist Python PDF provider test remained
-contract-only because no explicit `OPEN_OFFICE_PDF_PROVIDER_PYTHON` was
+contract-only because no explicit `OFFICE_KIT_PDF_PROVIDER_PYTHON` was
 configured; core MuPDF.js, Playwright/Chromium, LibreOffice/Poppler, canonical
 template rendering, and all other npm gates ran locally. No publish or tag
 operation was attempted.
 
 ### XLSX bounded multi-value PivotTables
 
-On 2026-07-19, the Spreadsheet model, protocol-2 wire, OpenChestnut C# codec,
+On 2026-07-19, the Spreadsheet model, protocol-2 wire, OfficeKit C# codec,
 Help catalog, generated API reference, and native Spreadsheet Skill expanded the
 bounded source-free PivotTable profile from exactly one value field to 1 through
 32 ordered value fields. Each value independently retains its source field,
@@ -1164,11 +1191,11 @@ closed rather than being flattened.
 The shipped workflow independently verifies a two-measure revenue/units matrix,
 exports and imports twice, and renders both source and Pivot sheets. A real
 LibreOffice XLSX resave retained both measures and aggregations, then reimported
-through OpenChestnut with correct totals. LibreOffice and Poppler produced a
+through OfficeKit with correct totals. LibreOffice and Poppler produced a
 clean two-page native review with no clipping on the macOS host and in a Debian
 12 amd64 container running LibreOffice 7.4.7. An Ubuntu 24.04 amd64
 LibreOffice 24.2.7 resave omitted optional `rowItems`/`colItems` caches while
-retaining the canonical `x=-2` and ordered data fields; OpenChestnut recognized
+retaining the canonical `x=-2` and ordered data fields; OfficeKit recognized
 that host-normalized graph and preserved its native parts unchanged. C# tests
 separately cover Office 2021 validation for multi-value tables with and without
 a column field, omitted axis-item caches, roundtrip identity, malformed-axis
@@ -1176,18 +1203,18 @@ preservation, and the 32-field budget.
 
 The complete local gate passed `npm test`, `npm run docs:api`, `npm run
 proto:check`, `npm run test:pack`, and serial `npm run
-verify:open-chestnut-build`; OpenChestnut passed `281/281` and OfficeBridge
+verify:office-kit-build`; OfficeKit passed `281/281` and OfficeBridge
 passed `5/5`. Two clean WASM builds produced the same 39 audited files and the
 same manifest-bound 38-file, 14,610,112-byte runtime. The clean-install tarball
 contains 452 files, is 9,524,121 bytes compressed and 24,058,724 bytes
 unpacked. The optional specialist Python PDF-provider gate remained
-contract-only because `OPEN_OFFICE_PDF_PROVIDER_PYTHON` was not explicitly
+contract-only because `OFFICE_KIT_PDF_PROVIDER_PYTHON` was not explicitly
 configured; the required MuPDF.js path and all other npm gates ran locally. No
 publish or tag operation was attempted.
 
 ### PPTX Office 2021 modern comment threads
 
-On 2026-07-19, the Presentation model, protocol-2 wire, OpenChestnut C# codec,
+On 2026-07-19, the Presentation model, protocol-2 wire, OfficeKit C# codec,
 Help catalog, generated API reference, and native Presentation Skill closed one
 bounded Office 2021 modern-comment slice. Source-free decks can author one root
 with direct replies, independent person and timestamp metadata, active/resolved/
@@ -1211,12 +1238,12 @@ profile; the later canonical legacy-root-text transaction is the sole exception.
 
 The complete local gate passed `npm test` including the canonical 20-template
 LibreOffice/Poppler corpus and Playwright, `npm run docs:api`, `npm run
-test:pack`, and serial `npm run verify:open-chestnut-build`; OpenChestnut passed
+test:pack`, and serial `npm run verify:office-kit-build`; OfficeKit passed
 `274/274` and OfficeBridge passed `5/5`. Two clean WASM builds produced the same
 39 audited files and the same manifest-bound 38-file, 14,552,252-byte runtime.
 The clean-install tarball contains 449 files, is 9,497,480 bytes compressed and
 23,966,478 bytes unpacked. The real optional Python PDF-provider gate remained
-contract-only because `OPEN_OFFICE_PDF_PROVIDER_PYTHON` was not explicitly
+contract-only because `OFFICE_KIT_PDF_PROVIDER_PYTHON` was not explicitly
 configured; the required MuPDF.js path and the remaining npm gates ran locally.
 The repository-only canonical Default Template Library remains byte-bound to
 reference commit `256cb31`, excluded from npm, and has no self-authored generator
@@ -1243,7 +1270,7 @@ individual asset against the pinned commit.
 
 The complete local gate passed `npm test` including Playwright and native
 template rendering, `npm run docs:api`, `npm run proto:check`, `npm run
-test:pack`, and serial `npm run verify:open-chestnut-build`; OpenChestnut passed
+test:pack`, and serial `npm run verify:office-kit-build`; OfficeKit passed
 `260/260` and OfficeBridge passed `5/5`. Two clean WASM builds retained the same
 39 audited files and manifest-bound 38-file, 14,428,348-byte runtime. The npm
 tarball still excludes the reference submodule and repository-only template
@@ -1252,7 +1279,7 @@ bytes unpacked. No publish or tag operation was attempted.
 
 ### PPTX bounded imported SlidePart placeholder-text edits
 
-On 2026-07-19, the Presentation model, protocol-2 wire, OpenChestnut C# codec,
+On 2026-07-19, the Presentation model, protocol-2 wire, OfficeKit C# codec,
 Help catalog, native Presentation Skill, and repository-only Default Template
 Library converged on one bounded edit for a concrete placeholder owned by an
 imported SlidePart. The source binding now reports `text_editable` separately
@@ -1275,7 +1302,7 @@ source clone remain fail-closed.
 
 The complete local gate passed `npm test` including Playwright and the native
 template render corpus, `npm run docs:api`, `npm run test:pack`, and serial
-`npm run verify:open-chestnut-build`; OpenChestnut passed `260/260` and
+`npm run verify:office-kit-build`; OfficeKit passed `260/260` and
 OfficeBridge passed `5/5`. Two clean WASM builds produced the same 39 audited
 files and the same manifest-bound 38-file, 14,428,348-byte runtime. The
 clean-install tarball contains 447 files, is 9,440,298 bytes compressed and
@@ -1286,7 +1313,7 @@ external npm-authentication blocker. No publish or tag operation was attempted.
 
 ### PPTX source-bound slide-name edits
 
-On 2026-07-18, the canonical OpenChestnut PPTX route gained one deliberately
+On 2026-07-18, the canonical OfficeKit PPTX route gained one deliberately
 small imported-deck metadata edit: an original, source-bound `slide.name`
 changes only that SlidePart's existing `p:cSld/@name` attribute. The source
 binding, layout binding, direct-background contract, notes/comments, and fixed
@@ -1303,7 +1330,7 @@ export/reimport boundary fails closed.
 
 The complete local gate passed `npm test` (including Playwright), `npm run
 docs:api`, `npm run proto:check`, `npm run test:pack`, and serial `npm run
-verify:open-chestnut-build`; OpenChestnut passed `211/211` and OfficeBridge
+verify:office-kit-build`; OfficeKit passed `211/211` and OfficeBridge
 `5/5`. Two clean WASM builds produced the same 39 audited files and the same
 manifest-bound 38-file, 14,417,084-byte runtime.
 
@@ -1336,14 +1363,14 @@ bytes remain unchanged.
 
 The complete local implementation gate passed `npm test` (including
 Playwright), `npm run docs:api`, `npm run proto:check`, `npm run test:pack`,
-and serial `npm run verify:open-chestnut-build`; OpenChestnut passed `211/211`
+and serial `npm run verify:office-kit-build`; OfficeKit passed `211/211`
 and OfficeBridge passed `5/5`. The reproducibility check kept the runtime at
 39 audited files and 38 bundled files / 14,417,084 bytes.
 
 ### PPTX auditable source-bound slide duplicate workflow
 
 On 2026-07-18, the Presentation Skill added
-`openchestnut-slide-duplicate-workflow.mjs` for the imported-slide clone
+`officekit-slide-duplicate-workflow.mjs` for the imported-slide clone
 profile. It is an Agent transaction, not a generic ZIP copier: its safe default
 selects one explicit unique source name, accepts the canonical inline leaf
 profile including same-tree straight/elbow connectors, and deliberately refuses
@@ -1370,7 +1397,7 @@ not make rich/modern comments or arbitrary graph cloning available.
 
 The complete local gate passed `npm test` (including Playwright), `npm run
 docs:api`, `npm run proto:check`, `npm run test:pack`, and serial `npm run
-verify:open-chestnut-build`; OpenChestnut passed `211/211` and OfficeBridge
+verify:office-kit-build`; OfficeKit passed `211/211` and OfficeBridge
 `5/5`. The packed clean-install probe executes the installed workflow with
 `dotnet` absent from `PATH`, including the explicit closed-leaf route. The
 reproducibility check retained 39 audited files and a 38-file,
@@ -1379,7 +1406,7 @@ reproducibility check retained 39 audited files and a 38-file,
 ### PPTX auditable imported slide-name workflow
 
 On 2026-07-18, the native Presentation plugin added
-`openchestnut-slide-name-edit-workflow.mjs` for the preceding bounded
+`officekit-slide-name-edit-workflow.mjs` for the preceding bounded
 source-bound name operation. It accepts an immutable input, distinct PPTX and
 audit outputs, one expected name, and one replacement name. It resolves the
 actual `presentation.xml` SlidePart relationship order, refuses duplicate,
@@ -1397,7 +1424,7 @@ proves a missing target creates neither output nor audit.
 
 The complete local gate passed `npm test` (including Playwright), `npm run
 docs:api`, `npm run proto:check`, `npm run test:pack`, serial `npm run
-verify:open-chestnut-build`, offline release metadata, OpenChestnut `211/211`,
+verify:office-kit-build`, offline release metadata, OfficeKit `211/211`,
 and OfficeBridge `5/5`. The packed clean install includes the workflow and the
 bundled runtime remains reproducible at 38 files / 14,417,084 bytes.
 
@@ -1471,7 +1498,7 @@ existing-PDF workflow all state the visible-only boundary.
 The complete local gate passed `npm test` (including Playwright), `npm run
 docs:api`, `npm run test:pack` (444 files; 9.4 MB packed, 23.6 MB unpacked),
 offline `npm run release:check -- --skip-network --allow-dirty`, OfficeBridge
-`5/5`, and OpenChestnut `210/210`.
+`5/5`, and OfficeKit `210/210`.
 
 ### PDF source-bound annotation deletion
 
@@ -1638,12 +1665,12 @@ The public Help catalog documents all four functions and regenerates the API
 reference. Spreadsheet smoke tests cover multi-criterion minimum/maximum,
 ignored nonnumeric matched cells, the no-match `0` result, mismatched-range
 rejection, short-circuit branch behavior, `SWITCH` default/no-match behavior,
-and canonical OpenChestnut XLSX export/import; Help tests pin the catalog and
+and canonical OfficeKit XLSX export/import; Help tests pin the catalog and
 workbook counts and the numeric formula schemas.
 
 ### XLSX bounded 2D bubble charts
 
-On 2026-07-18, the Spreadsheet public model, protocol-2 wire, OpenChestnut C#
+On 2026-07-18, the Spreadsheet public model, protocol-2 wire, OfficeKit C#
 codec, bundled WASM runtime, generated Help/API reference, clean-install pack
 probe, and native Spreadsheet Skill converged on real 2D bubble charts.
 `sheet.charts.add("bubble", range)` accepts exactly `X | Y | Size` and creates
@@ -1652,7 +1679,7 @@ use explicit `xValues/xFormula`, `values/formula`, and
 `bubbleSizes/bubbleSizeFormula` fields. The three vectors must have equal point
 counts, and sizes must be finite and positive.
 
-OpenChestnut authors native `c:bubbleChart`, `c:xVal`, `c:yVal`,
+OfficeKit authors native `c:bubbleChart`, `c:xVal`, `c:yVal`,
 `c:bubbleSize`, and two numeric value axes. It uses an explicit 2D,
 100%-scale, area-sizing profile. Imported `bubble3D`, negative-bubble,
 custom-scale, or non-area-size graphs are detected as source-bound/read-only;
@@ -1669,12 +1696,12 @@ exact preservation/rejection of a noncanonical `bubbleScale` profile.
 
 ### XLSX marker-only scatter charts
 
-On 2026-07-18, the Spreadsheet public model, protocol-2 wire, OpenChestnut C#
+On 2026-07-18, the Spreadsheet public model, protocol-2 wire, OfficeKit C#
 codec, bundled WASM runtime, generated Help/API reference, and native
 Spreadsheet plugin converged on real numeric-X/Y marker-only scatter charts.
 Range-backed creation treats the first numeric column as each series' X source
 and the remaining columns as Y series; explicit series carry `xValues/xFormula`
-and `values/formula`. OpenChestnut authors native `c:scatterChart`, `c:xVal`,
+and `values/formula`. OfficeKit authors native `c:scatterChart`, `c:xVal`,
 `c:yVal`, and two value axes instead of substituting a category line chart.
 
 Marker-only is a cross-host contract, not only a chart-style label. Every
@@ -1693,11 +1720,11 @@ page-count, and raster QA all passed. The package test also exercises scatter
 create/import from a production-only clean install with no `dotnet` on `PATH`.
 
 Final candidate `77706e52e72a22a6ff76bc11ca7dda29e9434b01` passed hosted
-[CI run 29600831755](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29600831755)
+[CI run 29600831755](https://github.com/w31r4/office-kit/actions/runs/29600831755)
 in 4m43s. The run passed deterministic protocol/runtime verification, installed
 Chromium/LibreOffice/Poppler, the complete `npm test`, regenerated API-doc diff,
-offline release check, clean-install pack gate, OfficeBridge, and OpenChestnut.
-Local evidence for the same candidate includes OpenChestnut `186/186`,
+offline release check, clean-install pack gate, OfficeBridge, and OfficeKit.
+Local evidence for the same candidate includes OfficeKit `186/186`,
 OfficeBridge `5/5`, a reproducible 39-file build audit, a 38-file bundled runtime
 of 14,329,020 bytes, and a 435-file npm tarball of 9,301,407 compressed bytes /
 23,199,173 unpacked bytes. Offline release metadata reports `publishReady: true`;
@@ -1705,7 +1732,7 @@ real npm authentication/publication remains an external release action.
 
 ### XLSX What-If data tables
 
-On 2026-07-18, the Spreadsheet public model, protocol-2 wire, OpenChestnut C#
+On 2026-07-18, the Spreadsheet public model, protocol-2 wire, OfficeKit C#
 codec, bundled WASM runtime, generated Help/API reference, and native
 Spreadsheet plugin converged on canonical Excel What-If data tables.
 `sheet.dataTables.add(range, { rowInput, columnInput })` authors row-oriented
@@ -1725,12 +1752,12 @@ JavaScript evaluator does not pretend to simulate `TABLE`.
 
 The complete candidate at commit
 `94f1d2234c93078b0782a52fd95c115be9df86f8` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29594786964](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29594786964)
+workflow in [GitHub Actions run 29594786964](https://github.com/w31r4/office-kit/actions/runs/29594786964)
 in 5m07s. The run covered deterministic protocol/runtime verification,
 Chromium/LibreOffice/Poppler setup, the full npm suite including the runnable
 What-If Skill workflow and fail-closed topology corpus, generated API-doc
 cleanliness, offline release metadata, clean-install packing, OfficeBridge
-`5/5`, and OpenChestnut `185/185`.
+`5/5`, and OfficeKit `185/185`.
 
 ### Neutral template library and Template Creator sync
 
@@ -1742,7 +1769,7 @@ package. The Presentation asset/support trees now use the neutral
 `grid-layout-library` identity throughout. Its model-facing registry, 26 exact
 plain-JavaScript Compose builders, 27 preview PNGs, content/design tokens, and
 reconstruction runner remain unflattened and pass a complete 26-slide
-OpenChestnut export. The submodule now pins that exact reachable revision; no
+OfficeKit export. The submodule now pins that exact reachable revision; no
 unreachable pointer is recorded.
 
 The new fifth plugin contains the sixth published Skill, Template Creator. It
@@ -1750,7 +1777,7 @@ creates numbered local `artifact-template-*` Skills from one DOCX/PPTX/XLSX
 reference and a structurally validated PNG, or updates exactly one named
 same-kind template. The retained Office reference and preview are byte-exact.
 The implementation performs no network fetch, writes only beneath
-`${OFFICE_ARTIFACT_HOME:-~/.office-artifact-tool}/skills`, enforces 512 MiB
+`${OFFICE_KIT_HOME:-~/.office-kit}/skills`, enforces 512 MiB
 reference and 64 MiB preview budgets, rejects symlink-bearing update trees,
 serializes writers, recovers interrupted replacements, preserves extra
 template-owned files, rolls back failed placement, and proves there is no
@@ -1760,7 +1787,7 @@ is retained alongside the native manifest.
 
 The complete local gate passed `npm test`, `npm run docs:api`,
 `npm run proto:check`, `npm run test:pack`, serial
-`npm run verify:open-chestnut-build`, OpenChestnut `185/185`, and OfficeBridge
+`npm run verify:office-kit-build`, OfficeKit `185/185`, and OfficeBridge
 `5/5`. Two clean WASM builds produced the same 39 audited files and the same
 manifest-bound 38-file, 14,324,412-byte runtime. The clean-install tarball
 contains 434 files, is 9,297,469 bytes compressed and 23,178,713 bytes
@@ -1769,11 +1796,11 @@ production-only installation, validates the generated spreadsheet-template
 sidecar, and proves the retained XLSX and PNG bytes exactly match its inputs.
 The final candidate at commit
 `4f3dbbb4f95081e1c86747e88c10b4b16722ad0d` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29596412072](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29596412072)
-in 4m40s, covering npm installation, deterministic OpenChestnut verification,
+workflow in [GitHub Actions run 29596412072](https://github.com/w31r4/office-kit/actions/runs/29596412072)
+in 4m40s, covering npm installation, deterministic OfficeKit verification,
 Chromium/native-tool setup, the complete npm/Skill/security suite, generated
 API-doc cleanliness, offline release metadata, clean-install packing,
-OfficeBridge `5/5`, and OpenChestnut `185/185`.
+OfficeBridge `5/5`, and OfficeKit `185/185`.
 
 ### Earlier clean-room default template library (superseded)
 
@@ -1786,7 +1813,7 @@ files nor source-derived package graphs, hashes, or Skill text.
 Instead, the sixth plugin contains a source-free 20-intent catalog. Three
 independently authored entries are currently ready: Strategy Memorandum DOCX,
 Project Kickoff PPTX, and Financial Budget XLSX. Their bundled generator
-creates new output only, uses OpenChestnut, verifies/export/imports/second
+creates new output only, uses OfficeKit, verifies/export/imports/second
 imports and model-renders each artifact, then emits a hash-bound audit with no
 source file. The direct test edits each result through its public model and,
 when LibreOffice and Poppler are available, performs PDF/page/raster QA. The
@@ -1821,7 +1848,7 @@ enter the npm tarball. See [template-library provenance](template-library-proven
 
 ### XLSX standard-area and fixed-doughnut chart families
 
-On 2026-07-17, the Spreadsheet public model, protocol-2 wire, OpenChestnut C#
+On 2026-07-17, the Spreadsheet public model, protocol-2 wire, OfficeKit C#
 codec, bundled WASM runtime, generated Help/API reference, and native
 Spreadsheet plugin converged on two additional canonical worksheet-chart
 families. Source-free and recognized imported standard-area charts now carry
@@ -1845,8 +1872,8 @@ inject line grouping markup.
 
 The complete local gate passed `npm test` including Playwright and all five
 published Skills, `npm run docs:api`, `npm run proto:check`,
-`npm run test:pack`, isolated `npm run verify:open-chestnut-build`,
-OpenChestnut `184/184`, and OfficeBridge `5/5`. Two isolated clean WASM builds
+`npm run test:pack`, isolated `npm run verify:office-kit-build`,
+OfficeKit `184/184`, and OfficeBridge `5/5`. Two isolated clean WASM builds
 produced the same 39 audited files and the same manifest-bound 38-file,
 14,318,780-byte runtime. The clean-install tarball contains 423 files, is
 9,276,398 bytes compressed and 23,122,542 bytes unpacked. No npm publish, tag,
@@ -1854,13 +1881,13 @@ or GitHub release operation was attempted.
 
 The completed candidate at commit
 `e61bb1ff143f27a9d4afc1ecdd6490634c3dfa4a` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29590185608](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29590185608)
+workflow in [GitHub Actions run 29590185608](https://github.com/w31r4/office-kit/actions/runs/29590185608)
 on 2026-07-17. The run completed with conclusion `success` in 4m31s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including five-family chart author/import/edit/preservation
 and native Spreadsheet Skill regressions, generated API-doc cleanliness,
 offline release metadata, the 423-file clean-install tarball, OfficeBridge
-`5/5`, and OpenChestnut `184/184`.
+`5/5`, and OfficeKit `184/184`.
 
 ### DOCX transactional SEQ/REF cached-result materialization
 
@@ -1879,15 +1906,15 @@ reported but never fabricated; explicitly requesting it fails closed because
 trustworthy page numbers require a real pagination host. Imported field
 positions, instructions, and bookmark identity remain source-bound. The
 shipped Documents fixture now materializes one caption SEQ and its REF through
-the public model before two OpenChestnut round trips, while retaining an
+the public model before two OfficeKit round trips, while retaining an
 explicit PAGEREF cache for native-host refresh. JavaScript regressions cover
 dry-run immutability, strict rollback, opt-in partial materialization,
 case-insensitive targets, multiple counters, and the PAGEREF boundary.
 
 The complete local gate passed `npm test` including Playwright and all five
 published Skills, `npm run docs:api`, `npm run proto:check`,
-`npm run test:pack`, isolated `npm run verify:open-chestnut-build`,
-OpenChestnut `183/183`, OfficeBridge `5/5`, and the Documents Skill validator.
+`npm run test:pack`, isolated `npm run verify:office-kit-build`,
+OfficeKit `183/183`, OfficeBridge `5/5`, and the Documents Skill validator.
 Two isolated clean WASM builds produced the same 39 audited files and the same
 manifest-bound 38-file, 14,317,244-byte runtime. The clean-install tarball
 contains 422 files, is 9,274,329 bytes compressed and 23,114,497 bytes
@@ -1895,20 +1922,20 @@ unpacked. No npm publish, tag, or GitHub release operation was attempted.
 
 The completed candidate at commit
 `fbe86f197850f2bc297c6a95c5b5d5d19e442ab2` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29588303966](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29588303966)
+workflow in [GitHub Actions run 29588303966](https://github.com/w31r4/office-kit/actions/runs/29588303966)
 on 2026-07-17. The run completed with conclusion `success` in 4m29s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including the native field-materialization workflow and
 transactional fail-closed regressions, generated API-doc cleanliness, offline
 release metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and
-OpenChestnut `183/183`.
+OfficeKit `183/183`.
 
 ### DOCX caption-number inline bookmark workflow
 
-On 2026-07-17, the public Documents run model, protocol-2 wire, OpenChestnut
+On 2026-07-17, the public Documents run model, protocol-2 wire, OfficeKit
 C# codec, bundled WASM runtime, Help catalog, and native Documents plugin
 closed the bounded caption-target gap. A source-free canonical `SEQ` run may
-now set `bookmarkName` through `paragraph.addField(...)`; OpenChestnut writes
+now set `bookmarkName` through `paragraph.addField(...)`; OfficeKit writes
 one paired `w:bookmarkStart`/`w:bookmarkEnd` around only that field's cached
 result run. Canonical `REF` and `PAGEREF` runs can therefore target the native
 caption number without an OOXML patch helper.
@@ -1924,7 +1951,7 @@ or package-helper workflow rather than a codec claim.
 
 The shipped Documents fixture authors `SEQ Figure \\* ARABIC` with `fig1`, then
 targets it with both `REF fig1 \\h` and `PAGEREF fig1 \\h`. It completes two
-OpenChestnut round trips, edits all three cached results, asserts that the
+OfficeKit round trips, edits all three cached results, asserts that the
 native bookmark encloses only the SEQ result run, and passes real
 LibreOffice/Poppler page QA. C# and JavaScript regressions cover semantic
 roundtrip, source-bound identity, invalid non-SEQ bookmark use, case-insensitive
@@ -1932,8 +1959,8 @@ duplicate names, and bounded-profile nesting rejection.
 
 The complete local gate passed `npm test` including Playwright and all five
 published Skills, `npm run docs:api`, `npm run proto:check`,
-`npm run test:pack`, isolated `npm run verify:open-chestnut-build`,
-OpenChestnut `183/183`, OfficeBridge `5/5`, and the Documents Skill validator.
+`npm run test:pack`, isolated `npm run verify:office-kit-build`,
+OfficeKit `183/183`, OfficeBridge `5/5`, and the Documents Skill validator.
 Two isolated clean WASM builds produced the same 39 audited files and the same
 manifest-bound 38-file, 14,317,244-byte runtime. The clean-install tarball
 contains 422 files, is 9,273,020 bytes compressed and 23,105,625 bytes
@@ -1941,22 +1968,22 @@ unpacked. No npm publish, tag, or GitHub release operation was attempted.
 
 The completed candidate at commit
 `206712aef6691490318e42bfa26553d27b4d1fc9` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29586820145](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29586820145)
+workflow in [GitHub Actions run 29586820145](https://github.com/w31r4/office-kit/actions/runs/29586820145)
 on 2026-07-17. The run completed with conclusion `success` in 4m36s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including the native caption/cross-reference workflow and
 fail-closed identity regressions, generated API-doc cleanliness, offline
 release metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and
-OpenChestnut `183/183`.
+OfficeKit `183/183`.
 
 ### DOCX canonical inline SEQ/REF/PAGEREF field runs
 
 On 2026-07-17, the Documents paragraph/run model, versioned protobuf wire,
-OpenChestnut C# codec, bundled WASM runtime, Help catalog, and native Documents
+OfficeKit C# codec, bundled WASM runtime, Help catalog, and native Documents
 plugin converged on one bounded inline-field profile. A paragraph can mix
 ordinary runs with logical `SEQ <label> \\* ARABIC`, `REF <bookmark> \\h`, and
 `PAGEREF <bookmark> \\h` fields through `paragraph.addField(...)`.
-OpenChestnut materializes each logical field as the canonical five-run native
+OfficeKit materializes each logical field as the canonical five-run native
 begin/instruction/separate/cached-result/end graph and imports that exact graph
 back into one `run.inlineField` object.
 
@@ -1972,8 +1999,8 @@ semantic inspection, cache edits, and real LibreOffice/Poppler page QA.
 
 The complete local gate passed `npm test` including Playwright and all five
 published Skills, `npm run docs:api`, `npm run proto:check`,
-`npm run test:pack`, isolated `npm run verify:open-chestnut-build`,
-OpenChestnut `183/183`, and OfficeBridge `5/5`. Two isolated clean WASM builds
+`npm run test:pack`, isolated `npm run verify:office-kit-build`,
+OfficeKit `183/183`, and OfficeBridge `5/5`. Two isolated clean WASM builds
 produced the same 39 audited files and the same manifest-bound 38-file,
 14,309,564-byte runtime. The clean-install tarball contains 422 files, is
 9,270,563 bytes compressed and 23,092,374 bytes unpacked. No npm publish, tag,
@@ -1981,18 +2008,18 @@ or GitHub release operation was attempted.
 
 The completed inline-field candidate at commit
 `05713031054388f92c0586e7f6547a407544c696` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29584754018](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29584754018)
+workflow in [GitHub Actions run 29584754018](https://github.com/w31r4/office-kit/actions/runs/29584754018)
 on 2026-07-17. The run completed with conclusion `success` in 4m58s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including the native inline-field Documents fixture and
 source-bound topology regression, generated API-doc cleanliness, offline
 release metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and
-OpenChestnut `183/183`.
+OfficeKit `183/183`.
 
 ### DOCX canonical complex TOC and field-refresh workflow
 
 On 2026-07-17, the Documents public model, versioned protobuf wire,
-OpenChestnut C# codec, bundled WASM runtime, Help catalog, and native Documents
+OfficeKit C# codec, bundled WASM runtime, Help catalog, and native Documents
 plugin converged on one bounded complex-field profile. Source-free documents may
 author a canonical one-paragraph TOC field with configurable ascending heading
 levels and the `\\h`, `\\z`, and `\\u` switches. The public
@@ -2012,8 +2039,8 @@ and fail-closed irregular-graph preservation.
 
 The complete local gate passed `npm test` including Playwright and all five
 published Skills, `npm run docs:api`, `npm run proto:check`,
-`npm run test:pack`, isolated `npm run verify:open-chestnut-build`,
-OpenChestnut `182/182`, and OfficeBridge `5/5`. Two isolated clean WASM builds
+`npm run test:pack`, isolated `npm run verify:office-kit-build`,
+OfficeKit `182/182`, and OfficeBridge `5/5`. Two isolated clean WASM builds
 produced the same 39 audited files and the same manifest-bound 38-file,
 14,303,420-byte runtime. The clean-install tarball contains 422 files, is
 9,268,734 bytes compressed and 23,076,840 bytes unpacked. No npm publish, tag,
@@ -2021,18 +2048,18 @@ or GitHub release operation was attempted.
 
 The completed TOC/field-refresh candidate at commit
 `f7c83de4fbb83ddade81542cb95df86d01be4939` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29582981065](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29582981065)
+workflow in [GitHub Actions run 29582981065](https://github.com/w31r4/office-kit/actions/runs/29582981065)
 on 2026-07-17. The run completed with conclusion `success` in 4m28s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including the native TOC Documents workflow and
 cross-paragraph fail-closed regression, generated API-doc cleanliness, offline
 release metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and
-OpenChestnut `182/182`.
+OfficeKit `182/182`.
 
 ### DOCX canonical bibliography and citation public workflow
 
 On 2026-07-17, the Documents public model, versioned protobuf wire,
-OpenChestnut C# codec, bundled WASM runtime, Help catalog, and native Documents
+OfficeKit C# codec, bundled WASM runtime, Help catalog, and native Documents
 plugin converged on one reversible bibliography/citation profile. Source-free
 documents may author one canonical bibliography Custom XML catalog plus
 whole-paragraph `w:fldSimple` `CITATION <tag>` fields. Ordinary Author name
@@ -2048,12 +2075,12 @@ The package inspector recognizes SDK-authored package-root bibliography
 relationship targets without weakening OPC path validation. The shipped
 Documents example and fixture author a source and citation, edit the imported
 title/author/display result, resolve the final semantic objects, assert native
-bibliography and field markup, verify the model, and complete two OpenChestnut
+bibliography and field markup, verify the model, and complete two OfficeKit
 round trips.
 
 The complete local gate passed `npm test` including Playwright and all five
 published Skills, `npm run docs:api`, `npm run proto:check`,
-`npm run test:pack`, serial `npm run verify:open-chestnut-build`, OpenChestnut
+`npm run test:pack`, serial `npm run verify:office-kit-build`, OfficeKit
 `180/180`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39
 audited files and the same manifest-bound 38-file, 14,297,788-byte runtime. The
 clean-install tarball contains 422 files, is 9,265,073 bytes compressed and
@@ -2062,13 +2089,13 @@ attempted.
 
 The completed public-workflow candidate at commit
 `cec9628f8429934e48820bdbae064d5a2ff32fd5` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29580505711](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29580505711)
+workflow in [GitHub Actions run 29580505711](https://github.com/w31r4/office-kit/actions/runs/29580505711)
 on 2026-07-17. The run completed with conclusion `success` in 4m11s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including the canonical bibliography/citation Documents
 workflow and fail-closed irregular-graph regressions, generated API-doc
 cleanliness, offline release metadata, the 422-file clean-install tarball,
-OfficeBridge `5/5`, and OpenChestnut `180/180`.
+OfficeBridge `5/5`, and OfficeKit `180/180`.
 
 ### DOCX inline plain-text content-control public workflow
 
@@ -2079,11 +2106,11 @@ surface now documents `paragraph.addTextContentControl(...)`,
 `document.fillContentControls(...)`; the coverage and architecture records no
 longer describe every content control as unsupported. The native Documents
 Skill routes source-free and recognized imported body-inline plain-text SDTs
-through the public JavaScript model and OpenChestnut, while retaining the
+through the public JavaScript model and OfficeKit, while retaining the
 Python package helper only for explicit existing-template wrapping,
 headers/footers, and controls outside the bounded model.
 
-The shipped `openchestnut-end-to-end.mjs` example now authors an `OWNER`
+The shipped `officekit-end-to-end.mjs` example now authors an `OWNER`
 control, exports canonical `w:sdt` markup, imports it, fills it by tag, exports
 again, and proves the final tag/alias/text through semantic import, inspect,
 native XML, and verification assertions. Unknown tags fail before mutation by
@@ -2096,7 +2123,7 @@ fail closed rather than being flattened.
 The complete local gate passed `npm test` including Playwright and all five
 published Skills, `npm run docs:api`, `npm run proto:check`,
 `npm run test:pack`, offline `npm run release:check -- --skip-network
---allow-dirty`, serial `npm run verify:open-chestnut-build`, OpenChestnut
+--allow-dirty`, serial `npm run verify:office-kit-build`, OfficeKit
 `179/179`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39
 audited files and the same manifest-bound 38-file, 14,250,684-byte runtime. The
 clean-install tarball contains 422 files, is 9,245,399 bytes compressed and
@@ -2105,33 +2132,33 @@ attempted.
 
 The completed public-workflow candidate at commit
 `6231544c88dd5eee461c2b3e4950425807c8add9` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29575996251](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29575996251)
+workflow in [GitHub Actions run 29575996251](https://github.com/w31r4/office-kit/actions/runs/29575996251)
 on 2026-07-17. The run completed with conclusion `success` in 4m30s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including the published Documents Skill example and native
 content-control assertions, generated API-doc cleanliness, offline release
 metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and
-OpenChestnut `179/179`.
+OfficeKit `179/179`.
 
 ### XLSX direct threaded-comment replies
 
-On 2026-07-17, the Spreadsheet public model, versioned protobuf wire, OpenChestnut C# codec, bundled WASM runtime, Help catalog, and native Spreadsheet Skill converged on the reference workflow's `thread.addReply()` primitive. One root may now carry multiple direct replies with independent native comment/person GUIDs, display/user/provider identity, ISO date, done state, semantic inspect evidence, and fixed-cell parent binding. Source-free replies author native Office 2019 `parentId`; canonical imports expose the replies for text/state edits and a second export/import; unchanged imported threaded-comment parts remain byte-preserved.
+On 2026-07-17, the Spreadsheet public model, versioned protobuf wire, OfficeKit C# codec, bundled WASM runtime, Help catalog, and native Spreadsheet Skill converged on the reference workflow's `thread.addReply()` primitive. One root may now carry multiple direct replies with independent native comment/person GUIDs, display/user/provider identity, ISO date, done state, semantic inspect evidence, and fixed-cell parent binding. Source-free replies author native Office 2019 `parentId`; canonical imports expose the replies for text/state edits and a second export/import; unchanged imported threaded-comment parts remain byte-preserved.
 
 The bounded topology is deliberately loss-aware: a reply may point only to its thread root and must target the same cell. Reply-of-reply or branched graphs, orphan/self/cross-cell parents, mentions, invalid GUID/person graphs, and other extensions remain opaque/source-bound; attempts to replace them fail closed. The shipped Spreadsheet fixture now exercises two authors, one direct reply, native XML evidence, semantic import, and the public Skill workflow instead of documenting a model-only method that the codec rejects.
 
-The complete local gate passed `npm test` including Playwright, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, serial `npm run verify:open-chestnut-build`, OpenChestnut `178/178`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,238,396-byte runtime. The clean-install tarball contains 422 files, is 9,234,762 bytes compressed and 22,965,796 bytes unpacked. No npm publish or tag operation was attempted.
+The complete local gate passed `npm test` including Playwright, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, serial `npm run verify:office-kit-build`, OfficeKit `178/178`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,238,396-byte runtime. The clean-install tarball contains 422 files, is 9,234,762 bytes compressed and 22,965,796 bytes unpacked. No npm publish or tag operation was attempted.
 
-The complete direct-reply candidate at commit `f69b5b50ffb6ace73d0e6de53db9c3bb30f7571b` passed the hosted Linux `ci` workflow in [GitHub Actions run 29573634244](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29573634244) on 2026-07-17. The run completed with conclusion `success` in 5m20s and covered deterministic protocol/runtime verification, Chromium/LibreOffice/Poppler tools, the full npm suite including the native direct-reply Skill fixture and topology gates, generated API-doc cleanliness, offline release metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `178/178`.
+The complete direct-reply candidate at commit `f69b5b50ffb6ace73d0e6de53db9c3bb30f7571b` passed the hosted Linux `ci` workflow in [GitHub Actions run 29573634244](https://github.com/w31r4/office-kit/actions/runs/29573634244) on 2026-07-17. The run completed with conclusion `success` in 5m20s and covered deterministic protocol/runtime verification, Chromium/LibreOffice/Poppler tools, the full npm suite including the native direct-reply Skill fixture and topology gates, generated API-doc cleanliness, offline release metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `178/178`.
 
 ### Reference 2.8.24 public API completion
 
 On 2026-07-17, a public-surface comparison between the previously pinned 2.8.22 package and the synchronized 2.8.24 reference found five additional named exports: `setOfficeFontDesignMetrics`, `registerScopedOfficeFontDesignMetrics`, `resolveOfficeFontDesignMetrics`, `clearOfficeFontDesignMetrics`, and `skiaPaintBaselineCompensationPx`. The clean-room implementation independently provides replacement and scoped metric registries, defensive normalized results, primary-family and exact-style selection, nearest numeric weight selection, idempotent scope disposal, invalid-record filtering, and deterministic finite baseline compensation. It also exposes fresh, sorted, case-insensitively deduplicated `fontFamilies` inventories on Document, Workbook, and Presentation models.
 
-The same observable audit found the read-only `Shape.useBackgroundFill` getter. OpenChestnut now imports presence-aware native `p:sp/@useBgFill`, projects it through protobuf and the JavaScript model, uses it for preview paint, and preserves an unchanged source-bound slide XML byte-for-byte. Source-free authoring and semantic mutation fail closed instead of manufacturing or flattening native state. The native Documents, Spreadsheets, and Presentations Skill guides document the new inventories and imported-shape boundary; generated API documentation contains all nine new Help records.
+The same observable audit found the read-only `Shape.useBackgroundFill` getter. OfficeKit now imports presence-aware native `p:sp/@useBgFill`, projects it through protobuf and the JavaScript model, uses it for preview paint, and preserves an unchanged source-bound slide XML byte-for-byte. Source-free authoring and semantic mutation fail closed instead of manufacturing or flattening native state. The native Documents, Spreadsheets, and Presentations Skill guides document the new inventories and imported-shape boundary; generated API documentation contains all nine new Help records.
 
-The complete local gate passed `npm test` including Playwright, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, serial `npm run verify:open-chestnut-build`, OpenChestnut `178/178`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,232,252-byte runtime. The clean-install tarball contains 422 files, is 9,229,500 bytes compressed and 22,954,466 bytes unpacked. `npm run release:check` passed every code, package, license, documentation, JavaScript, and .NET gate; before this evidence commit it reported only the intentionally dirty generated documentation plus the external npm-authentication blocker. No publish or tag operation was attempted.
+The complete local gate passed `npm test` including Playwright, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, serial `npm run verify:office-kit-build`, OfficeKit `178/178`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,232,252-byte runtime. The clean-install tarball contains 422 files, is 9,229,500 bytes compressed and 22,954,466 bytes unpacked. `npm run release:check` passed every code, package, license, documentation, JavaScript, and .NET gate; before this evidence commit it reported only the intentionally dirty generated documentation plus the external npm-authentication blocker. No publish or tag operation was attempted.
 
-The completed reference 2.8.24 API-sync candidate at commit `a81d71823a3366805d9cb3a44c322bced386f2c5` passed the hosted Linux `ci` workflow in [GitHub Actions run 29571987958](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29571987958) on 2026-07-17. The run completed with conclusion `success` in 4m07s and covered protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite, generated API-doc cleanliness, offline release metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `178/178`.
+The completed reference 2.8.24 API-sync candidate at commit `a81d71823a3366805d9cb3a44c322bced386f2c5` passed the hosted Linux `ci` workflow in [GitHub Actions run 29571987958](https://github.com/w31r4/office-kit/actions/runs/29571987958) on 2026-07-17. The run completed with conclusion `success` in 4m07s and covered protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite, generated API-doc cleanliness, offline release metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `178/178`.
 
 ### Reference 2.8.24 Skill and Presentation-view convergence
 
@@ -2139,35 +2166,35 @@ On 2026-07-17, the pinned `reference/office-artifact-tool` submodule advanced fr
 
 Imported guide definitions are returned as defensive copies by `presentation.view.toProto()` and exposed as frozen Master/Layout `slideGuides` projections. Unchanged source-bound export preserves the native view-properties part byte-for-byte; semantic mutation, source-binding mismatch, source-free wire authoring, invalid guide values, and more than 1,024 modeled guides fail closed. The combined release also completed the pending DOCX note edge corpus and public Documents workflow: rich multi-paragraph note bodies remain opaque/source-bound and byte-preserved when unchanged instead of being flattened into the bounded plain-text note model.
 
-The complete local gate passed `npm test`, `npm run docs:api`, clean-HEAD `npm run proto:check`, `npm run test:pack`, serial `npm run verify:open-chestnut-build`, OpenChestnut `177/177`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,230,716-byte runtime. The clean-install tarball contains 421 files, is 9,220,694 bytes compressed and 22,935,038 bytes unpacked. The generic Skill quick validator accepts Documents but rejects the reference package's intentionally preserved `name: Spreadsheets` and `name: Presentations` capitalization; the project-native four-plugin validator and complete reference workflow gate pass those published discovery contracts.
+The complete local gate passed `npm test`, `npm run docs:api`, clean-HEAD `npm run proto:check`, `npm run test:pack`, serial `npm run verify:office-kit-build`, OfficeKit `177/177`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,230,716-byte runtime. The clean-install tarball contains 421 files, is 9,220,694 bytes compressed and 22,935,038 bytes unpacked. The generic Skill quick validator accepts Documents but rejects the reference package's intentionally preserved `name: Spreadsheets` and `name: Presentations` capitalization; the project-native four-plugin validator and complete reference workflow gate pass those published discovery contracts.
 
 ### DOCX whole-block bookmark vertical slice
 
-On 2026-07-17, the Documents public model, versioned protobuf wire, OpenChestnut C# codec, bundled WASM runtime, Help catalog, and native Documents plugin converged on one reversible bookmark profile. A source-free bookmark may wrap exactly one paragraph-like block and supplies a native target for internal `w:hyperlink` anchors. Export writes paired `w:bookmarkStart`/`w:bookmarkEnd`; import exposes name, target, native identity, source position, and semantic binding. Recognized imported whole-block bookmarks remain fixed-topology and read-only, while cross-block, nested, crossing, table-cell, and otherwise irregular graphs stay opaque-preserved and fail closed on mutation.
+On 2026-07-17, the Documents public model, versioned protobuf wire, OfficeKit C# codec, bundled WASM runtime, Help catalog, and native Documents plugin converged on one reversible bookmark profile. A source-free bookmark may wrap exactly one paragraph-like block and supplies a native target for internal `w:hyperlink` anchors. Export writes paired `w:bookmarkStart`/`w:bookmarkEnd`; import exposes name, target, native identity, source position, and semantic binding. Recognized imported whole-block bookmarks remain fixed-topology and read-only, while cross-block, nested, crossing, table-cell, and otherwise irregular graphs stay opaque-preserved and fail closed on mutation.
 
-The shipped Documents example now authors a `DecisionSection` bookmark plus internal jump link, completes two OpenChestnut round trips, resolves the imported target, verifies the final model, and asserts the native bookmark and hyperlink markup in `word/document.xml`. The broader Documents smoke continues to require semantic verification and native LibreOffice/Poppler page rendering. C# and JavaScript regressions cover source-free authoring, internal-link planning before bookmark insertion, unchanged source-preserving export, imported rename rejection, topology-change rejection, and cross-block authoring rejection.
+The shipped Documents example now authors a `DecisionSection` bookmark plus internal jump link, completes two OfficeKit round trips, resolves the imported target, verifies the final model, and asserts the native bookmark and hyperlink markup in `word/document.xml`. The broader Documents smoke continues to require semantic verification and native LibreOffice/Poppler page rendering. C# and JavaScript regressions cover source-free authoring, internal-link planning before bookmark insertion, unchanged source-preserving export, imported rename rejection, topology-change rejection, and cross-block authoring rejection.
 
-The complete local gate passed `npm test`, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, serial `npm run verify:open-chestnut-build`, OpenChestnut `174/174`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,184,636-byte runtime. The clean-install tarball contains 421 files, is 9,202,409 bytes compressed and 22,856,201 bytes unpacked. The unpacked-size regression budget moved narrowly from 22,850,000 to 22,900,000 bytes to account for the measured codec/runtime addition while retaining less than 44 KiB of headroom.
+The complete local gate passed `npm test`, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, serial `npm run verify:office-kit-build`, OfficeKit `174/174`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,184,636-byte runtime. The clean-install tarball contains 421 files, is 9,202,409 bytes compressed and 22,856,201 bytes unpacked. The unpacked-size regression budget moved narrowly from 22,850,000 to 22,900,000 bytes to account for the measured codec/runtime addition while retaining less than 44 KiB of headroom.
 
 ### Composition root and Spreadsheet domain layering
 
-On 2026-07-17, the remaining stateful Spreadsheet domain moved from the public root entry into `src/spreadsheet/index.mjs`: workbook/worksheet/range ownership, tables/pivots/charts/images/sparklines, formulas and dependency graphs, conditional formatting, inspect/resolve/verify/help, layout/SVG rendering, delimited-file support, metadata restoration, and the `SpreadsheetFile` facade now share one cohesive owner. The root retains exact re-exports rather than wrappers; all four public Spreadsheet bindings are strict-identical between the root and leaf entry. The OpenChestnut Spreadsheet adapter imports the leaf directly, and a source-level regression prevents a back-edge to `src/index.mjs`.
+On 2026-07-17, the remaining stateful Spreadsheet domain moved from the public root entry into `src/spreadsheet/index.mjs`: workbook/worksheet/range ownership, tables/pivots/charts/images/sparklines, formulas and dependency graphs, conditional formatting, inspect/resolve/verify/help, layout/SVG rendering, delimited-file support, metadata restoration, and the `SpreadsheetFile` facade now share one cohesive owner. The root retains exact re-exports rather than wrappers; all four public Spreadsheet bindings are strict-identical between the root and leaf entry. The OfficeKit Spreadsheet adapter imports the leaf directly, and a source-level regression prevents a back-edge to `src/index.mjs`.
 
-This completed the public-entry decomposition: `src/index.mjs` is now a 42-line composition root, or 0.1% of the 28,109 JavaScript source lines, while preserving all 36 public exports and the cross-format verify/render/visual-QA/help surface. The complete local gate passed `npm test`, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, `npm run verify:open-chestnut-build`, OpenChestnut `173/173`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,166,204-byte runtime. The clean-install tarball contains 421 files, is 9,196,227 bytes compressed and 22,828,311 bytes unpacked.
+This completed the public-entry decomposition: `src/index.mjs` is now a 42-line composition root, or 0.1% of the 28,109 JavaScript source lines, while preserving all 36 public exports and the cross-format verify/render/visual-QA/help surface. The complete local gate passed `npm test`, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, `npm run verify:office-kit-build`, OfficeKit `173/173`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,166,204-byte runtime. The clean-install tarball contains 421 files, is 9,196,227 bytes compressed and 22,828,311 bytes unpacked.
 
 ### Presentation domain layering
 
-On 2026-07-17, the complete JavaScript Presentation domain moved from the public root entry into `src/presentation/index.mjs`: model collections, themes/masters/layouts/placeholders, shapes/connectors/groups/images/tables/charts/native objects, inspect/resolve/verify/help, layout/SVG rendering, and the `PresentationFile` facade now share one cohesive owner. The root retains exact re-exports rather than wrappers; all eight public Presentation bindings are strict-identical between the root and leaf entry. The OpenChestnut Presentation adapter imports the leaf directly, and a source-level regression prevents a back-edge to `src/index.mjs`.
+On 2026-07-17, the complete JavaScript Presentation domain moved from the public root entry into `src/presentation/index.mjs`: model collections, themes/masters/layouts/placeholders, shapes/connectors/groups/images/tables/charts/native objects, inspect/resolve/verify/help, layout/SVG rendering, and the `PresentationFile` facade now share one cohesive owner. The root retains exact re-exports rather than wrappers; all eight public Presentation bindings are strict-identical between the root and leaf entry. The OfficeKit Presentation adapter imports the leaf directly, and a source-level regression prevents a back-edge to `src/index.mjs`.
 
-The extraction reduced `src/index.mjs` from 5,694 to 4,305 lines, or 15.3% of the 28,107 JavaScript source lines, while preserving all 36 public root exports. The complete local gate passed `npm test`, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, `npm run verify:open-chestnut-build`, OpenChestnut `173/173`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,166,204-byte runtime. The clean-install tarball contains 420 files, is 9,196,256 bytes compressed and 22,828,153 bytes unpacked.
+The extraction reduced `src/index.mjs` from 5,694 to 4,305 lines, or 15.3% of the 28,107 JavaScript source lines, while preserving all 36 public root exports. The complete local gate passed `npm test`, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, `npm run verify:office-kit-build`, OfficeKit `173/173`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,166,204-byte runtime. The clean-install tarball contains 420 files, is 9,196,256 bytes compressed and 22,828,153 bytes unpacked.
 
 ### DOCX whole-paragraph tracked-change vertical slice
 
-On 2026-07-17, the Documents public model, versioned protobuf wire, OpenChestnut C# codec, bundled WASM runtime, Help catalog, and native plugin workflow converged on one bounded tracked-change profile. `document.addInsertion(...)` and `document.addDeletion(...)` author native whole-paragraph `w:ins`/`w:del` markup containing one text run; import exposes type, text, author, and optional timestamp; source-preserving export permits fixed-topology text/author/date edits while retaining native revision identity and unmodeled formatting. In-paragraph replacements, mixed or nested revisions, moves, property changes, and automatic future-change tracking remain explicit advanced workflows.
+On 2026-07-17, the Documents public model, versioned protobuf wire, OfficeKit C# codec, bundled WASM runtime, Help catalog, and native plugin workflow converged on one bounded tracked-change profile. `document.addInsertion(...)` and `document.addDeletion(...)` author native whole-paragraph `w:ins`/`w:del` markup containing one text run; import exposes type, text, author, and optional timestamp; source-preserving export permits fixed-topology text/author/date edits while retaining native revision identity and unmodeled formatting. In-paragraph replacements, mixed or nested revisions, moves, property changes, and automatic future-change tracking remain explicit advanced workflows.
 
 The edge-case corpus proves that a multi-run revision is still semantically visible but marked read-only, carries no editable-topology residual hash, round-trips with byte-identical source-package output when unchanged, and rejects semantic mutation with `unsupported_document_edit`. This closes the irregular-topology exception path without weakening fail-closed preservation.
 
-The complete local gate passed `npm test`, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, `npm run verify:open-chestnut-build`, OpenChestnut `173/173`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,166,204-byte runtime. The clean-install tarball contains 419 files, is 9,196,284 bytes compressed and 22,827,449 bytes unpacked. The shipped Documents example completed create, export, import, tracked-change edit, second export/import, semantic/XML assertions, and LibreOffice/Poppler rendering; both rendered pages were reviewed, with the insertion and deletion visibly represented and no clipping or overlap.
+The complete local gate passed `npm test`, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, `npm run verify:office-kit-build`, OfficeKit `173/173`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,166,204-byte runtime. The clean-install tarball contains 419 files, is 9,196,284 bytes compressed and 22,827,449 bytes unpacked. The shipped Documents example completed create, export, import, tracked-change edit, second export/import, semantic/XML assertions, and LibreOffice/Poppler rendering; both rendered pages were reviewed, with the insertion and deletion visibly represented and no clipping or overlap.
 
 ### AGPL and default MuPDF.js vertical slice
 
@@ -2175,23 +2202,23 @@ On 2026-07-17, the focused PDF vertical slice passed `node test/pdf.mjs`, `node 
 
 This focused record intentionally does not assign the combined worktree's final package file count, tarball size, complete Office/PPTX gate, or hosted CI result to the MuPDF-only change. Those integration measurements belong to the subsequent combined release-evidence update.
 
-On 2026-07-17, the native reference-plugin/OpenChestnut compatibility worktree passed the complete local gate on macOS arm64 with Node 26.5.0, npm 11.17.0, and .NET SDK 8.0.128:
+On 2026-07-17, the native reference-plugin/OfficeKit compatibility worktree passed the complete local gate on macOS arm64 with Node 26.5.0, npm 11.17.0, and .NET SDK 8.0.128:
 
-- `npm test` passed the OpenChestnut protocol/facade tests, explicit OOXML inspect/patch tests, four native plugin bundles/five published Skills, the Spreadsheet Range/R1C1/direct-series/standard-sparkline compatibility suites, the runnable Documents create/import/edit/export vertical slice, the 26-slide reference Presentation vertical slice plus recursive-group and embedded-XLSX/OLE fixtures, PDF greenfield and provider-contract suites, render/visual QA, Playwright, examples, release metadata, package contents, and Help catalog.
-- OpenChestnut passed `170/170` C# tests, including standard Office 2010 sparkline coverage, literal DrawingML custom-geometry coverage, direct PPTX slide-background author/import/hash-bound add-edit-remove/advanced-source fail-closed coverage, embedded-picture signed `a:srcRect` author/import/add-edit-remove/irregular-source fail-closed coverage, plain-text speaker-notes author/import/hash-bound edit/rich-source fail-closed coverage, recursive native `p:grpSp` author/import/fixed-topology mixed-descendant edit/complex-group opaque coverage, and source/hash/content-type/relationship-bound embedded XLSX payload replacement with Open XML SDK plus Office 2021 validation and unrelated-part preservation; the optional OfficeBridge passed `5/5` protocol tests.
+- `npm test` passed the OfficeKit protocol/facade tests, explicit OOXML inspect/patch tests, four native plugin bundles/five published Skills, the Spreadsheet Range/R1C1/direct-series/standard-sparkline compatibility suites, the runnable Documents create/import/edit/export vertical slice, the 26-slide reference Presentation vertical slice plus recursive-group and embedded-XLSX/OLE fixtures, PDF greenfield and provider-contract suites, render/visual QA, Playwright, examples, release metadata, package contents, and Help catalog.
+- OfficeKit passed `170/170` C# tests, including standard Office 2010 sparkline coverage, literal DrawingML custom-geometry coverage, direct PPTX slide-background author/import/hash-bound add-edit-remove/advanced-source fail-closed coverage, embedded-picture signed `a:srcRect` author/import/add-edit-remove/irregular-source fail-closed coverage, plain-text speaker-notes author/import/hash-bound edit/rich-source fail-closed coverage, recursive native `p:grpSp` author/import/fixed-topology mixed-descendant edit/complex-group opaque coverage, and source/hash/content-type/relationship-bound embedded XLSX payload replacement with Open XML SDK plus Office 2021 validation and unrelated-part preservation; the optional OfficeBridge passed `5/5` protocol tests.
 - Buf lint passed, protobuf generation was byte-idempotent, and `npm run docs:api` regenerated the public API reference.
 - `npm run test:pack` passed the no-local-dotnet clean-install probe for DOCX/XLSX/PPTX and the independent PDF path.
 - The final combined dry-run npm tarball contains 417 files, is 9,190,240 bytes compressed and 22,803,636 bytes unpacked. It includes the rich PDF Skill tasks/references/examples, required lazy MuPDF.js route, six-page tagged-accessibility report workflow, explicit Python-runtime selector, path-safe attachment quarantine, type-aware AcroForm and merge/reorder/selective-watermark adapters, active-content inert scanner, canonical audit validator/schema, typed Poppler source/output comparator, the dependency-leaf cross-format raster registration/diff/visual-QA engine, the shipped Spreadsheet Range and sparkline workflows, the PPTX direct-background, speaker-notes, signed image-crop, recursive native-group, and embedded-XLSX/OLE workflow references, and the dependency-leaf OOXML package, Range, chart-source, sparkline, and Presentation group/image-fit/crop/native-object modules while excluding Python bytecode/cache files, development harnesses, private reference material, Agent PromptBench oracles, and removed Office codec paths.
-- `npm run verify:open-chestnut-build` compared 39 audited files; both clean builds produced the same manifest-bound 38-file, 14,153,404-byte runtime payload. The build entry point clears the Release incremental graph before restore/publish so a preceding `dotnet test` cannot make the first WASM publish differ from the second.
+- `npm run verify:office-kit-build` compared 39 audited files; both clean builds produced the same manifest-bound 38-file, 14,153,404-byte runtime payload. The build entry point clears the Release incremental graph before restore/publish so a preceding `dotnet test` cannot make the first WASM publish differ from the second.
 - Render-backed gates ran with LibreOfficeDev 26.8.0.0.alpha0, Poppler 26.05.0, and the installed Playwright Chromium runtime.
 - The explicit real-provider gate ran with ReportLab 4.4.9, pdfplumber 0.11.9, pypdf 6.10.0, and separately installed PyMuPDF 1.27.2.3 under the approved AGPL route. It proved byte-identical incremental prefixes, non-prefix rewrites, pypdf text/radio/checkbox value and appearance handling, complete-source page selection/reorder/selective watermarking with preserved navigation, pypdf and PyMuPDF annotation operations, bounded text/image/page edits, full redaction/scrub, single-revision/no-residue output, and deliberate reflow rejection. The typed Poppler comparator maps each merged output page back to its immutable source, requires exact pixels on unstamped pages, requires bounded change on stamped pages, and reports blank-state and dark-ratio evidence. The scrub-only active-content fixture proves removal of root/additional JavaScript, Launch/SubmitForm actions, attachments, invisible text, comments, populated form values, personal metadata, and the null active-content dictionary names that PyMuPDF can leave after logical deletion; unfamiliar object serialization and invisible text overlapping visible text fail closed. In that earlier milestone an image-bearing strict residue scan failed closed because Tesseract was not installed, and qpdf, pyHanko, veraPDF, pikepdf, and OCRmyPDF were not executed; later sections record the separately shipped and tested qpdf, pikepdf, pyHanko, veraPDF, and OCRmyPDF adapters.
-- The shipped Documents example and an independent Skill forward test each completed two OpenChestnut round trips, semantic assertions, and a one-page LibreOffice render with every page inspected. The audit narrowed custom source-free table styles to `TableGrid` plus direct formatting, documented non-persistent model locators across imports, aligned header/footer distance to the codec's 720-twip default, and routed ordinary classic comments through `DocumentModel.addComment`.
-- The shipped Spreadsheet Range example completed R1C1/block-write/formula-evidence/navigation/format/chart/verify/render and two OpenChestnut round trips. A separate forward test authored and visually reviewed a three-sheet operating forecast with formula-driven financials, zero spreadsheet errors, PASS model checks, and a formula-bound line chart. Its findings led to automatic native formulas for `containsText`, text-preserving direct references, and live internal-range cache resolution for formula-only chart inspect/render/export; imported chart persistence snapshots remain deliberately separate and fail closed.
+- The shipped Documents example and an independent Skill forward test each completed two OfficeKit round trips, semantic assertions, and a one-page LibreOffice render with every page inspected. The audit narrowed custom source-free table styles to `TableGrid` plus direct formatting, documented non-persistent model locators across imports, aligned header/footer distance to the codec's 720-twip default, and routed ordinary classic comments through `DocumentModel.addComment`.
+- The shipped Spreadsheet Range example completed R1C1/block-write/formula-evidence/navigation/format/chart/verify/render and two OfficeKit round trips. A separate forward test authored and visually reviewed a three-sheet operating forecast with formula-driven financials, zero spreadsheet errors, PASS model checks, and a formula-bound line chart. Its findings led to automatic native formulas for `containsText`, text-preserving direct references, and live internal-range cache resolution for formula-only chart inspect/render/export; imported chart persistence snapshots remain deliberately separate and fail closed.
 - The shipped Spreadsheet sparkline example and development fixture authored standard Office 2010 `x14:sparklineGroups` line, column, and stacked profiles, exercised vertical row and horizontal column mappings, imported and edited recognized groups with fixed topology, preserved unsupported non-contiguous native groups unchanged, and rejected lossy topology changes. LibreOfficeDev opened the fixture and Poppler rendered all three types across two pages; the JavaScript SVG preview rendered each target cell independently.
 - The repository-only Agent PromptBench defines 32 black-box cases (20 PDF and 12 Office; 12 ready and 20 asset-required). The eight ready PDF routes include a source-bound native Text Highlight workflow: the Agent must use one unique MuPDF text selection with the exact inspected source hash/page snapshot, then pypdf independently verifies the saved Highlight's RGB/review metadata and text-bound quadrilaterals while Poppler/Pillow requires a target-text-contained diff and pixel-stable non-target pages. The grader rejects caller coordinates, direct native/object mutation, skipped re-inspection/render, stale page evidence, and unbound audit provenance. A clean candidate run at `535d875504f84ccd469cb05922ce94528cfd14d8` passed `100/100` with all hard gates plus 6 machine, 3 visual, 3 security, and 8 trace checks; it is one run, not the default three-repeat matrix or a reference-Skill comparison. The ready Office set includes two generated XLSX workflows: a direct-threaded-comment reply/resolve transaction and a formula-assumption transaction that changes only `Forecast!B9`, recalculates dependent cached values, protects `B10` plus the second-sheet baseline canary, permits only the target worksheet and workbook metadata parts to change, then checks native target-page change/baseline-page stability. It also includes the generated DOCX classic-comment and PPTX title/plain-text-notes workflows. Every ready Office route binds byte-bound audit/trace evidence, second import, and final LibreOffice/Poppler rendering. Existing clean XLSX comment (`d558a924ad63528f2b2dca5e1bbeb1fb0dc120a7`), DOCX (`b06f6ca067666b5774bb81fb23155f1cec50e694`), and PPTX (`450017eb8acb209f6ceb161d247f6c8059ab2571`) candidate trials each passed `100/100`; none is a repeat matrix or reference-Skill comparison. The clean formula-slice candidate at `3df67f5a083758eb1f6fc0c37cdc6c53f228e2eb` likewise passed `100/100` across 5 machine, 2 visual, 2 security, and 6 trace checks, binding tarball SHA-256 `720400c754d9cdbfaa949120c7939467702202d2cf507f7bef91d5068c1a7503`; it is one candidate trial, not a repeat matrix or reference-Skill comparison. A candidate/reference PDF preparation uses byte-identical package tarballs and prompts while varying only the copied Skill. Generic grading covers fail-closed branching, immutable file/directory inputs, read-only prompt/Skill/dependency trees, regular output types, and exact deliverables; the 20 corpus/PKI cases remain explicitly asset-required.
 - PromptBench now has 33 cases (20 PDF, 13 Office) and 13 deterministic ready slices. The newest Presentation case performs the non-visual source-bound `p:cSld/@name` rename in the canonical two-slide package: the independent grader proves the requested name and fixed ordering/semantics, allows only the target SlidePart to differ, requires every non-target part byte-identical, source-part/attribute audit binding, second import, and pixel-identical LibreOffice/Poppler pages. It explicitly permits Open XML SDK canonicalization of the changed target XML. One clean candidate run at `ffdaca79014afd82038dfcbf0002dcaacb51c54d` passed `100/100` with all hard gates plus 5 machine, 2 visual, 2 security, and 6 trace checks; its tarball/Skill/input/oracle fingerprints are recorded in [Agent black-box evaluations](agent-evals.md). It is one trial, not a repeat matrix or a reference-Skill comparison.
 - Current PromptBench inventory supersedes those historical counts: 35 cases (21 PDF, 14 Office), 14 deterministic ready cases, and 21 asset-required cases. The ready `pptx-closed-leaf-slide-clone` fixture now drives the shipped duplicate workflow with explicit `--allow-closed-leaves` over one closed literal-data ChartPart plus canonical NotesSlide and legacy SlideComments leaves. Its independent OPC oracle permits only the adjacent clone and exact cloned parts, requires a distinct byte-identical ChartPart with the same slide-local relationship ID/type and no child graph, checks retained-source byte hashes and shared NotesMaster/CommentAuthors catalogs, requires second import, and compares source/clone/appendix LibreOffice/Poppler pixels. One clean autonomous candidate Agent run at `0e8824cb3dac8332ff631b0cb75850ebe2a56f6b` passed every hard gate and scored `100/100` across 6 machine, 2 visual, 2 security, and 7 trace checks; its tarball/Skill/prompt/input/oracle fingerprints are recorded in [Agent black-box evaluations](agent-evals.md). This is one trial, not the default repeat or reference-Skill matrix. The added asset-required `pdf-encrypted-owner-policy-boundary` is deliberately fail-closed: user-password-only input must not trigger owner-password bypass, silent decryption, or a replacement unencrypted PDF.
-- The bounded contract-ID defect was closed through the official typed path: `replace_text` now preserves the source baseline/default style and accepts the observed `0.0000227pt` provider quantization difference inside a non-configurable tolerance capped at `0.0005pt`, while genuine overflow and rotated text remain fail-closed. The Skill now requires provider probe and route planning before mutation and ships the canonical `open-office-artifact-tool.pdf-audit.v1` schema plus a validator that recomputes source/output hashes. One fixed candidate trial and one same-prompt, same-tarball reference-Skill trial each scored 100/100 across machine, visual, security, and trace evidence. Repeat trials and the remaining case graders/corpus are still open.
+- The bounded contract-ID defect was closed through the official typed path: `replace_text` now preserves the source baseline/default style and accepts the observed `0.0000227pt` provider quantization difference inside a non-configurable tolerance capped at `0.0005pt`, while genuine overflow and rotated text remain fail-closed. The Skill now requires provider probe and route planning before mutation and ships the canonical `office-kit.pdf-audit.v1` schema plus a validator that recomputes source/output hashes. One fixed candidate trial and one same-prompt, same-tarball reference-Skill trial each scored 100/100 across machine, visual, security, and trace evidence. Repeat trials and the remaining case graders/corpus are still open.
 - The active-content public-sanitize fixed matrix passes candidate `3/3` and reference Skill `3/3`, all at 100/100 across machine, visual, security, and trace. The six runs bind clean commit `39fa301dcb1005f2848282e6e63da1e934104821`, byte-identical package SHA-256 `e78e18c0f8f1cffe301ae1f2ea17e882bc879b3044914033e24b0b11ac0e8b69`, identical prompt/input/oracle fingerprints, and fixed but distinct candidate/reference Skill fingerprints. Independent pypdf evidence proves root/additional JavaScript, Launch/SubmitForm, five attachments, invisible text, a comment, a populated widget, and personal metadata in each immutable source and zero active structure/canary residue in every output; Poppler changes stay inside the expected form/comment masks. Historical bypass and interpreter-drift runs remain defect evidence rather than passes. The evaluator ignores help-only invocations and permits independently scheduled probe/plan completion only when both precede the real typed edit; low-level bypass and post-mutation gates remain strict.
 - The AcroForm adapter now distinguishes text/choice strings from radio/checkbox PDF Name states and validates post-write field/widget appearances before transaction promotion. Its complete generated fixture contains five text widgets, two radio widgets, and one pre-checked checkbox. The clean fixed matrix binds commit `bffd35dbfdb94bb1183717703e7e55bfb83c3f3c`, package SHA-256 `7ab9e6a30035df5d0ef7ee9990f3a0445152877e58a7f0d065ede9ddc1db300b`, and identical prompt/input/oracle fingerprints. Candidate passes `3/3` at 100/100; reference passes `2/3` at 100/100. The remaining reference run earned 70 raw machine/visual points but correctly scored zero after manually writing incremental PDF objects, reporting a non-pypdf provider, omitting canonical audit provenance, and bypassing provider preflight, typed fill, and post-mutation audit gates. All semantically successful fixed runs preserve TIN/signature/unselected-radio/checkbox pixels and editability, preserve the exact source prefix with one appended revision, and render every page through Poppler.
 - The pypdf attachment-quarantine primitive covers document/page FileSpecs, duplicate and Unicode names, traversal-safe cross-platform naming, decoded-byte budgets, transactional extraction, raw identity/MIME/size/SHA evidence, and source/manifest provenance without opening payloads. Its fixed matrix binds clean commit `748fbb1d81ccfa14a594d6fed9bc6601866bfa95`, package SHA-256 `9cff93494c5b32e16394ce3b4fcffa1daf76ad6df57326dab0ced47d2a45b5bf`, and identical prompt/input/oracle fingerprints. Candidate passes `3/3` at 100/100; reference passes `2/3` at 100/100. The retained reference miss extracted the correct six payloads safely but used a custom Node parser and alternate manifest/audit contract, so missing pypdf/read-only/no-fallback preflight, typed extraction, canonical schema, and byte-binding evidence correctly forced the run to zero.
@@ -2203,82 +2230,82 @@ On 2026-07-17, the native reference-plugin/OpenChestnut compatibility worktree p
 
 The repository-structure convergence candidate at commit
 `b11a249b2bcd2397b5355c4986a2cd08f0aee39a` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29675702140](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29675702140)
+workflow in [GitHub Actions run 29675702140](https://github.com/w31r4/office-kit/actions/runs/29675702140)
 on 2026-07-19. The run covered npm installation, deterministic protocol and
-bundled OpenChestnut runtime verification, Chromium/LibreOffice/Poppler tool
+bundled OfficeKit runtime verification, Chromium/LibreOffice/Poppler tool
 checks, the complete npm suite, generated API-doc cleanliness, offline release
 metadata, the production clean-install tarball, and both OfficeBridge and
-OpenChestnut .NET suites.
+OfficeKit .NET suites.
 
 The bounded native XLSX PivotTable candidate at commit
 `4aac21752d502ed8b37c6574d205c8f06679d805` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29666171276](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29666171276)
+workflow in [GitHub Actions run 29666171276](https://github.com/w31r4/office-kit/actions/runs/29666171276)
 on 2026-07-19. The job completed with conclusion `success` in 10m07s and
-covered npm installation, deterministic protocol/OpenChestnut runtime
+covered npm installation, deterministic protocol/OfficeKit runtime
 verification, Chromium/LibreOffice/Poppler tool checks, the complete npm suite
 including the native two-page PivotTable Skill render, generated API-doc
 cleanliness, offline release metadata, the 452-file clean-install tarball,
-OfficeBridge `5/5`, and OpenChestnut `277/277`.
+OfficeBridge `5/5`, and OfficeKit `277/277`.
 
 The canonical Default Template Library reference-pin candidate at commit
 `2424ea03d28a7a5a9f2c51695a6113b6d219da78` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29656750965](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29656750965)
+workflow in [GitHub Actions run 29656750965](https://github.com/w31r4/office-kit/actions/runs/29656750965)
 on 2026-07-19. The run completed with conclusion `success` in 12m14s. It
 recursively checked out public `office-artifact-tool` commit `256cb31`, compared
 all 40 retained Office/PNG assets byte-for-byte, and then passed deterministic
 protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite and native template corpus, generated API-doc cleanliness,
 offline release metadata, the 447-file clean-install tarball, OfficeBridge
-`5/5`, and OpenChestnut `260/260`.
+`5/5`, and OfficeKit `260/260`.
 
 The bounded imported SlidePart placeholder-text candidate at commit
 `f37d8adbcd5d0637efcbf6fcf10ef9821bfb4216` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29655361922](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29655361922)
+workflow in [GitHub Actions run 29655361922](https://github.com/w31r4/office-kit/actions/runs/29655361922)
 on 2026-07-19. The run completed with conclusion `success` in 13m22s and
 covered npm installation, generated protocol plus deterministic bundled-runtime
 verification, Chromium/LibreOffice/Poppler tool checks, the complete npm suite
 including all seven retained PPTX placeholder edits and native renders,
 generated API-doc cleanliness, offline release metadata, the 447-file
-clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `260/260`.
+clean-install tarball, OfficeBridge `5/5`, and OfficeKit `260/260`.
 
-The reference 2.8.24 Skill sync, Presentation view-properties codec, and completed DOCX note workflow candidate at commit `5cf2eb629f4612314d34c73041a5f1296a9ff145` passed the hosted Linux `ci` workflow in [GitHub Actions run 29569265350](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29569265350) on 2026-07-17. The run completed with conclusion `success` in 4m15s and covered generated protocol plus deterministic bundled-runtime verification, Chromium/LibreOffice/Poppler tool checks, the complete npm suite including the native Spreadsheet path migration, Presentation `view/grid/guides` import/export/fail-closed regressions, Documents note workflow, generated API-doc cleanliness, offline release metadata, the 421-file clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `177/177`.
+The reference 2.8.24 Skill sync, Presentation view-properties codec, and completed DOCX note workflow candidate at commit `5cf2eb629f4612314d34c73041a5f1296a9ff145` passed the hosted Linux `ci` workflow in [GitHub Actions run 29569265350](https://github.com/w31r4/office-kit/actions/runs/29569265350) on 2026-07-17. The run completed with conclusion `success` in 4m15s and covered generated protocol plus deterministic bundled-runtime verification, Chromium/LibreOffice/Poppler tool checks, the complete npm suite including the native Spreadsheet path migration, Presentation `view/grid/guides` import/export/fail-closed regressions, Documents note workflow, generated API-doc cleanliness, offline release metadata, the 421-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `177/177`.
 
-The DOCX whole-block bookmark and Documents navigation candidate through commit `b161676d1e68df8acdc7bd3a4a3640fbcf267b3c` passed the hosted Linux `ci` workflow in [GitHub Actions run 29564975672](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29564975672) on 2026-07-17. The run completed with conclusion `success` in 5m09s and covered generated protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including the public bookmark/internal-link Skill workflow and fail-closed topology regressions, generated API-doc cleanliness, offline release metadata, the 421-file clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `174/174`.
+The DOCX whole-block bookmark and Documents navigation candidate through commit `b161676d1e68df8acdc7bd3a4a3640fbcf267b3c` passed the hosted Linux `ci` workflow in [GitHub Actions run 29564975672](https://github.com/w31r4/office-kit/actions/runs/29564975672) on 2026-07-17. The run completed with conclusion `success` in 5m09s and covered generated protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including the public bookmark/internal-link Skill workflow and fail-closed topology regressions, generated API-doc cleanliness, offline release metadata, the 421-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `174/174`.
 
-The composition-root and complete Spreadsheet-domain layering candidate at commit `f8a4241a40448cc21ad1dce449edb6747d491473` passed the hosted Linux `ci` workflow in [GitHub Actions run 29563335625](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29563335625) on 2026-07-17. The run completed with conclusion `success` in 4m26s and covered protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including root/leaf Spreadsheet binding identity and codec dependency-direction regressions, generated API-doc cleanliness, offline release metadata, the 421-file clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `173/173`.
+The composition-root and complete Spreadsheet-domain layering candidate at commit `f8a4241a40448cc21ad1dce449edb6747d491473` passed the hosted Linux `ci` workflow in [GitHub Actions run 29563335625](https://github.com/w31r4/office-kit/actions/runs/29563335625) on 2026-07-17. The run completed with conclusion `success` in 4m26s and covered protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including root/leaf Spreadsheet binding identity and codec dependency-direction regressions, generated API-doc cleanliness, offline release metadata, the 421-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `173/173`.
 
-The complete Presentation-domain layering candidate at commit `f8d50cad14ae74ee6cef7610ba58a52ea0438514` passed the hosted Linux `ci` workflow in [GitHub Actions run 29562292218](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29562292218) on 2026-07-17. The run completed with conclusion `success` in 4m18s and covered protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including root/leaf Presentation binding identity and codec dependency-direction regressions, generated API-doc cleanliness, offline release metadata, the 420-file clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `173/173`.
+The complete Presentation-domain layering candidate at commit `f8d50cad14ae74ee6cef7610ba58a52ea0438514` passed the hosted Linux `ci` workflow in [GitHub Actions run 29562292218](https://github.com/w31r4/office-kit/actions/runs/29562292218) on 2026-07-17. The run completed with conclusion `success` in 4m18s and covered protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including root/leaf Presentation binding identity and codec dependency-direction regressions, generated API-doc cleanliness, offline release metadata, the 420-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `173/173`.
 
-The DOCX whole-paragraph tracked-change and Documents Skill candidate through commit `98dbdd7e8a0814f79830efb5e8a7e2675dfcf520` passed the hosted Linux `ci` workflow in [GitHub Actions run 29561312029](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29561312029) on 2026-07-17. The run completed with conclusion `success` in 4m11s and covered generated protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including the public tracked-change Skill example and irregular-topology regression, generated API-doc cleanliness, offline release metadata, the 419-file clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `173/173`.
+The DOCX whole-paragraph tracked-change and Documents Skill candidate through commit `98dbdd7e8a0814f79830efb5e8a7e2675dfcf520` passed the hosted Linux `ci` workflow in [GitHub Actions run 29561312029](https://github.com/w31r4/office-kit/actions/runs/29561312029) on 2026-07-17. The run completed with conclusion `success` in 4m11s and covered generated protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including the public tracked-change Skill example and irregular-topology regression, generated API-doc cleanliness, offline release metadata, the 419-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `173/173`.
 
-The AGPL/MuPDF candidate at commit `40fcee0931c541c6f2cb1639ead0d10e2b76c7e6` passed the hosted Linux `ci` workflow in [GitHub Actions run 29558072285](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29558072285) on 2026-07-17. The run completed with conclusion `success` in 4m52s and covered npm install, protocol/runtime verification, Chromium/native-tool checks, the full npm suite, generated API-doc cleanliness, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `170/170`.
+The AGPL/MuPDF candidate at commit `40fcee0931c541c6f2cb1639ead0d10e2b76c7e6` passed the hosted Linux `ci` workflow in [GitHub Actions run 29558072285](https://github.com/w31r4/office-kit/actions/runs/29558072285) on 2026-07-17. The run completed with conclusion `success` in 4m52s and covered npm install, protocol/runtime verification, Chromium/native-tool checks, the full npm suite, generated API-doc cleanliness, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `170/170`.
 
-The embedded-XLSX/OLE and Presentation native-object layering candidate at commit `6119c54ae05d4b60fe562641e7aef10130581782` passed the hosted Linux `ci` workflow in [GitHub Actions run 29558401718](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29558401718) on 2026-07-17. The run completed with conclusion `success` in 4m22s and covered protocol/runtime verification, Chromium/native-tool checks, the full npm suite including payload-only OLE replacement and Presentation Skill regressions, generated API-doc cleanliness, offline release metadata, the 417-file clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `170/170`.
+The embedded-XLSX/OLE and Presentation native-object layering candidate at commit `6119c54ae05d4b60fe562641e7aef10130581782` passed the hosted Linux `ci` workflow in [GitHub Actions run 29558401718](https://github.com/w31r4/office-kit/actions/runs/29558401718) on 2026-07-17. The run completed with conclusion `success` in 4m22s and covered protocol/runtime verification, Chromium/native-tool checks, the full npm suite including payload-only OLE replacement and Presentation Skill regressions, generated API-doc cleanliness, offline release metadata, the 417-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `170/170`.
 
-The Document-domain and shared text-range layering candidate at commit `765040c5827ee73c3c4645824688470e281c8be5` passed the hosted Linux `ci` workflow in [GitHub Actions run 29559403816](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29559403816) on 2026-07-17. The run completed with conclusion `success` in 5m22s and covered protocol/runtime verification, Chromium/native-tool checks, the full npm suite including root/leaf binding identity and native Documents workflow regressions, generated API-doc cleanliness, offline release metadata, the 419-file clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `170/170`.
+The Document-domain and shared text-range layering candidate at commit `765040c5827ee73c3c4645824688470e281c8be5` passed the hosted Linux `ci` workflow in [GitHub Actions run 29559403816](https://github.com/w31r4/office-kit/actions/runs/29559403816) on 2026-07-17. The run completed with conclusion `success` in 5m22s and covered protocol/runtime verification, Chromium/native-tool checks, the full npm suite including root/leaf binding identity and native Documents workflow regressions, generated API-doc cleanliness, offline release metadata, the 419-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `170/170`.
 
-The type-aware AcroForm candidate at commit `bffd35dbfdb94bb1183717703e7e55bfb83c3f3c` passed the hosted Linux `ci` workflow in [GitHub Actions run 29515214432](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29515214432) on 2026-07-16. The run completed with conclusion `success` and covered the full npm suite including AcroForm provider and independent grader regressions, deterministic OpenChestnut verification, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `167/167`.
+The type-aware AcroForm candidate at commit `bffd35dbfdb94bb1183717703e7e55bfb83c3f3c` passed the hosted Linux `ci` workflow in [GitHub Actions run 29515214432](https://github.com/w31r4/office-kit/actions/runs/29515214432) on 2026-07-16. The run completed with conclusion `success` and covered the full npm suite including AcroForm provider and independent grader regressions, deterministic OfficeKit verification, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `167/167`.
 
-The active-content PDF sanitization candidate at commit `099bf1ce2f62ab992971e61b82641e6d6712a95d` passed the hosted Linux `ci` workflow in [GitHub Actions run 29501149008](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29501149008) on 2026-07-16. The run completed with conclusion `success` in 4m01s and covered deterministic OpenChestnut verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite including the typed sanitize provider and independent grader regressions, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `167/167`.
+The active-content PDF sanitization candidate at commit `099bf1ce2f62ab992971e61b82641e6d6712a95d` passed the hosted Linux `ci` workflow in [GitHub Actions run 29501149008](https://github.com/w31r4/office-kit/actions/runs/29501149008) on 2026-07-16. The run completed with conclusion `success` in 4m01s and covered deterministic OfficeKit verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite including the typed sanitize provider and independent grader regressions, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `167/167`.
 
-The Agent PromptBench scaffold at commit `70b2ddeea642de3729f8b7d7401bf10bace3be69` passed the hosted Linux `ci` workflow in [GitHub Actions run 29493964234](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29493964234) on 2026-07-16. The run completed with conclusion `success` and covered suite validation/tests inside the full npm gate, deterministic OpenChestnut verification, Chromium/LibreOffice/Poppler checks, API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `167/167`.
+The Agent PromptBench scaffold at commit `70b2ddeea642de3729f8b7d7401bf10bace3be69` passed the hosted Linux `ci` workflow in [GitHub Actions run 29493964234](https://github.com/w31r4/office-kit/actions/runs/29493964234) on 2026-07-16. The run completed with conclusion `success` and covered suite validation/tests inside the full npm gate, deterministic OfficeKit verification, Chromium/LibreOffice/Poppler checks, API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `167/167`.
 
-The OpenChestnut XLSX sparkline candidate at commit `e8aa3e14249de346207f16b8fa24d7cb00b1253f` passed the hosted Linux `ci` workflow in [GitHub Actions run 29492891825](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29492891825) on 2026-07-16. The run completed with conclusion `success` in 4m02s and covered deterministic protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OpenChestnut `167/167` including standard Office 2010 sparkline coverage.
+The OfficeKit XLSX sparkline candidate at commit `e8aa3e14249de346207f16b8fa24d7cb00b1253f` passed the hosted Linux `ci` workflow in [GitHub Actions run 29492891825](https://github.com/w31r4/office-kit/actions/runs/29492891825) on 2026-07-16. The run completed with conclusion `success` in 4m02s and covered deterministic protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `167/167` including standard Office 2010 sparkline coverage.
 
-The PDF provider-routing candidate at commit `b405ddd249c7c2f760c659c07e88495f3a3562f3` passed the hosted Linux `ci` workflow in [GitHub Actions run 29487829878](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29487829878) on 2026-07-16. The run completed with conclusion `success` in 3m59s and covered deterministic protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite including the provider contract tests, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge, and OpenChestnut 163-test execution. Optional Python providers remain an explicit local/environment gate rather than an undeclared hosted dependency.
+The PDF provider-routing candidate at commit `b405ddd249c7c2f760c659c07e88495f3a3562f3` passed the hosted Linux `ci` workflow in [GitHub Actions run 29487829878](https://github.com/w31r4/office-kit/actions/runs/29487829878) on 2026-07-16. The run completed with conclusion `success` in 3m59s and covered deterministic protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite including the provider contract tests, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge, and OfficeKit 163-test execution. Optional Python providers remain an explicit local/environment gate rather than an undeclared hosted dependency.
 
-The Documents native-workflow/OpenChestnut candidate through commit `e07e24382ff0259c7beefe27b0743d908a1f946f` passed the hosted Linux `ci` workflow in [GitHub Actions run 29483188346](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29483188346) on 2026-07-16. The run completed with conclusion `success` in 3m55s and covered protocol/runtime reproducibility, Chromium/native render tools, `npm test`, generated API-doc diff, offline release metadata, the registry-independent clean-install tarball, OfficeBridge, and OpenChestnut.
+The Documents native-workflow/OfficeKit candidate through commit `e07e24382ff0259c7beefe27b0743d908a1f946f` passed the hosted Linux `ci` workflow in [GitHub Actions run 29483188346](https://github.com/w31r4/office-kit/actions/runs/29483188346) on 2026-07-16. The run completed with conclusion `success` in 3m55s and covered protocol/runtime reproducibility, Chromium/native render tools, `npm test`, generated API-doc diff, offline release metadata, the registry-independent clean-install tarball, OfficeBridge, and OfficeKit.
 
-The bounded DOCX modern-comment candidate was locally closed on 2026-07-19. The public model/protobuf/OpenChestnut path now authors one root with direct replies through native `commentsExtended`, optional comments IDs/extensible/people parts, and supports source-bound imported text/resolved-state edits while refusing nested or irregular graphs. The shipped Documents workflow proves fixed identity/topology, second import, model/native rendering, source immutability, atomic output, and a byte-bound audit. `npm test`, generated API docs, deterministic OpenChestnut reconstruction, the production clean-install/package gate, OpenChestnut `271/271`, and OfficeBridge `5/5` passed. The audited package contains 448 files at 9,472,335 packed bytes and 23,866,257 unpacked bytes; its bundled OpenChestnut runtime contains 38 files at 14,489,788 bytes. The full PDF provider test remained contract-only because no explicit `OPEN_OFFICE_PDF_PROVIDER_PYTHON` was configured; core MuPDF.js, Playwright/Chromium, LibreOffice/Poppler, canonical template corpus, and all other npm gates ran locally.
+The bounded DOCX modern-comment candidate was locally closed on 2026-07-19. The public model/protobuf/OfficeKit path now authors one root with direct replies through native `commentsExtended`, optional comments IDs/extensible/people parts, and supports source-bound imported text/resolved-state edits while refusing nested or irregular graphs. The shipped Documents workflow proves fixed identity/topology, second import, model/native rendering, source immutability, atomic output, and a byte-bound audit. `npm test`, generated API docs, deterministic OfficeKit reconstruction, the production clean-install/package gate, OfficeKit `271/271`, and OfficeBridge `5/5` passed. The audited package contains 448 files at 9,472,335 packed bytes and 23,866,257 unpacked bytes; its bundled OfficeKit runtime contains 38 files at 14,489,788 bytes. The full PDF provider test remained contract-only because no explicit `OFFICE_KIT_PDF_PROVIDER_PYTHON` was configured; core MuPDF.js, Playwright/Chromium, LibreOffice/Poppler, canonical template corpus, and all other npm gates ran locally.
 
 ### Bounded native XLSX PivotTable vertical slice
 
 On 2026-07-19, the Spreadsheet public model, versioned protobuf wire,
-OpenChestnut C# codec, Help catalog, and native Spreadsheet Skill converged on
+OfficeKit C# codec, Help catalog, and native Spreadsheet Skill converged on
 one source-free PivotTable profile: exactly one row field, zero or one column
 field, one `sum`/`count`/`average`/`min`/`max` value field, optional row/column
 grand totals, explicit refresh/cache policy, derived worksheet cache cells, and
-optional native cache records. OpenChestnut owns the workbook, worksheet,
+optional native cache records. OfficeKit owns the workbook, worksheet,
 PivotTable, cache-definition, cache-record, content-type, and relationship graph.
 Recognized imports expose semantic inspect/resolve/preview but bind that graph,
 configuration, source values, and cached output as read-only; richer or
@@ -2287,7 +2314,7 @@ used.
 
 The complete local gate passed `npm test`, `npm run docs:api`, Buf lint plus a
 byte-idempotent generated binding, `npm run test:pack`, serial
-`npm run verify:open-chestnut-build`, OpenChestnut `277/277`, and OfficeBridge
+`npm run verify:office-kit-build`, OfficeKit `277/277`, and OfficeBridge
 `5/5`. The C# suite includes Office 2021 validation, saved and unsaved cache
 records, exact second-export Pivot/cache part preservation, semantic-edit and
 duplicate-name rejection, and unsupported-profile fail-closed coverage. The JS
@@ -2307,7 +2334,7 @@ and Pivot Summary sheets each fit on one page with visible labels, currency
 values, borders, and grand totals. That native gate caught and fixed an initial
 column-width unit error that had split the summary across four pages. The
 specialist Python PDF provider test remained contract-only because no explicit
-`OPEN_OFFICE_PDF_PROVIDER_PYTHON` was configured; core MuPDF.js, Playwright,
+`OFFICE_KIT_PDF_PROVIDER_PYTHON` was configured; core MuPDF.js, Playwright,
 canonical template rendering, and all other npm gates ran. `npm whoami` still
 returns `ENEEDAUTH`, so no publish or tag operation was attempted.
 
@@ -2337,8 +2364,8 @@ and linearized files to byte-identical PNGs.
 
 The complete local gate passed `npm test`, `npm run docs:api` with no generated
 diff, `npm run proto:check`, `npm run test:pack`,
-`npm run verify:open-chestnut-build`, `npm run release:check`, OfficeBridge
-`5/5`, and OpenChestnut `283/283`. Two deterministic WASM builds matched across
+`npm run verify:office-kit-build`, `npm run release:check`, OfficeBridge
+`5/5`, and OfficeKit `283/283`. Two deterministic WASM builds matched across
 39 files; the bundled runtime contains 38 files at 14,635,200 bytes. The
 production clean-install tarball contains 454 files, is 9,546,746 bytes
 compressed and 24,123,780 bytes unpacked. The full npm suite also used
@@ -2378,8 +2405,8 @@ required integrity gate. Hosted CI now creates the same isolated runtime and
 pins both versions before the full npm suite.
 
 The complete local gate passed `npm test`, `npm run docs:api`, `npm run
-proto:check`, `npm run test:pack`, OfficeBridge `5/5`, OpenChestnut `283/283`,
-and two deterministic OpenChestnut WASM builds across 39 audited files. The
+proto:check`, `npm run test:pack`, OfficeBridge `5/5`, OfficeKit `283/283`,
+and two deterministic OfficeKit WASM builds across 39 audited files. The
 bundled runtime remains 38 files at 14,635,200 bytes. The production
 clean-install tarball contains 455 files, is 9,556,405 bytes compressed and
 24,165,413 bytes unpacked. `npm whoami` remains unavailable, so no publish or
@@ -2455,8 +2482,8 @@ the source and OCR output to pixel-identical Poppler images at 96 DPI.
 
 The complete local gate passed `npm test` including Playwright and the real OCR
 fixture, `npm run docs:api` with no generated diff, `npm run proto:check`,
-`npm run test:pack`, serial `npm run verify:open-chestnut-build`, OfficeBridge
-`5/5`, and OpenChestnut `283/283`. Two clean WASM builds reproduced 39 audited
+`npm run test:pack`, serial `npm run verify:office-kit-build`, OfficeBridge
+`5/5`, and OfficeKit `283/283`. Two clean WASM builds reproduced 39 audited
 files and the same manifest-bound 38-file, 14,635,200-byte runtime. The
 production clean-install tarball contains 458 files, is 9,581,955 bytes
 compressed and 24,250,484 bytes unpacked on the local audit host. The same file
@@ -2466,7 +2493,7 @@ moved to 24,275,000 bytes, retaining less than 24 KiB of measured headroom.
 The standalone offline release metadata check passes; `npm whoami` still
 returns `ENEEDAUTH`, so no publish or tag operation was attempted. Hosted CI
 run 29683749916 passed the complete npm, generated-doc, release, package,
-OfficeBridge, and OpenChestnut gates for that candidate.
+OfficeBridge, and OfficeKit gates for that candidate.
 
 ### Bounded pikepdf active/auxiliary structure-clean provider
 
@@ -2509,7 +2536,7 @@ single-revision/non-prefix postconditions.
 The complete local gate passed `npm test` including Playwright and the real
 pikepdf fixture, `npm run docs:api` with no generated diff, `npm run
 proto:check`, `npm run test:pack`, serial `npm run
-verify:open-chestnut-build`, OfficeBridge `5/5`, and OpenChestnut `283/283`.
+verify:office-kit-build`, OfficeBridge `5/5`, and OfficeKit `283/283`.
 Two clean WASM builds reproduced 39 audited files and the same manifest-bound
 38-file, 14,635,200-byte runtime. The production clean-install tarball contains
 460 files, is 9,592,194 bytes compressed and 24,301,346 bytes unpacked on the
@@ -2556,8 +2583,8 @@ refusal, collision, symlink, output-budget, and encryption failures.
 The complete local gate passed `npm test` with real qpdf, pikepdf 10.10.0,
 pyHanko, veraPDF 1.30.2, OCRmyPDF 17.8.1/Tesseract/Poppler, LibreOffice, and
 Playwright; `npm run docs:api` remained clean; `npm run proto:check` and `npm
-run test:pack` passed; two deterministic OpenChestnut builds matched across 39
-files; OfficeBridge passed `5/5`; and OpenChestnut passed `283/283`. The bundled
+run test:pack` passed; two deterministic OfficeKit builds matched across 39
+files; OfficeBridge passed `5/5`; and OfficeKit passed `283/283`. The bundled
 runtime remains 38 files at 14,635,200 bytes. The production tarball contains
 461 files, is 9,605,861 bytes compressed and 24,354,884 bytes unpacked on the
 local audit host. The offline release metadata check passes; hosted results are
@@ -2569,7 +2596,7 @@ On 2026-07-19, the strict imported `slide.duplicate()` profile gained one
 additional closed relationship-graph slice for canonical run-level clicks. An
 eligible copied shape or recursively copied group may now retain absolute
 external URI clicks, internal slide jumps to retained source SlideParts, and
-the five modeled action-only navigation clicks. OpenChestnut copies the exact
+the five modeled action-only navigation clicks. OfficeKit copies the exact
 source relationship IDs, URI or SlidePart targets, externality, action markup,
 and semantic destinations into the independent clone; it does not retarget a
 source or self link to the new slide. The retained source slide XML and
@@ -2592,8 +2619,8 @@ The clean-install tarball test invokes the same packaged workflow.
 
 The complete local gate passed `npm test` including Playwright and the native
 Presentation render path, `npm run docs:api`, `npm run proto:check`, `npm run
-test:pack`, OfficeBridge `5/5`, and OpenChestnut `285/285`. Two deterministic
-OpenChestnut builds matched across 39 audited files and produced the same
+test:pack`, OfficeBridge `5/5`, and OfficeKit `285/285`. Two deterministic
+OfficeKit builds matched across 39 audited files and produced the same
 manifest-bound 38-file, 14,644,416-byte runtime. Environment-gated real pikepdf,
 pyHanko, veraPDF, and OCRmyPDF repeats were not enabled in this local pass;
 their contract and adversarial gates still ran. The production tarball contains
@@ -2606,7 +2633,7 @@ operation was attempted.
 ### Lossless public-Skill PNG package headroom
 
 On 2026-07-19, the production package recovered sustainable growth headroom
-without deleting OpenChestnut, any public Skill, or any user-facing asset, and
+without deleting OfficeKit, any public Skill, or any user-facing asset, and
 without widening the existing package ceilings. A pinned repository-only pako
 1.0.11 tool now parses every PNG under the four npm file-type plugins with
 strict signature, chunk-boundary, CRC, ordering, dimension, and inflated-stream
@@ -2629,13 +2656,13 @@ The PNG payload fell from 4,397,178 to 3,548,674 bytes, recovering exactly
 compatibility documentation, the complete local tarball contains the same 461
 files, is 8,959,764 bytes compressed and 23,525,110 bytes unpacked: a net
 847,473-byte unpacked reduction from the preceding candidate and about 835 KiB
-of explicit headroom under the unchanged ceiling. The bundled OpenChestnut
+of explicit headroom under the unchanged ceiling. The bundled OfficeKit
 runtime remains the same manifest-bound 38 files and 14,644,416 bytes.
 
 The complete local gate passed `npm test` including Playwright,
 LibreOffice/Poppler, qpdf, and the 20-template corpus; `npm run docs:api`, `npm
-run proto:check`, `npm run test:pack`, OfficeBridge `5/5`, OpenChestnut
-`285/285`, and two-build deterministic OpenChestnut verification also passed.
+run proto:check`, `npm run test:pack`, OfficeBridge `5/5`, OfficeKit
+`285/285`, and two-build deterministic OfficeKit verification also passed.
 Explicit real-provider environments for pikepdf, pyHanko, veraPDF, and
 OCRmyPDF were not configured in this pass, so their contract/adversarial gates
 ran while their environment-gated real-provider repeats remained skipped.
@@ -2652,7 +2679,7 @@ relationship and rejects formula or external-data bindings, embedded workbooks,
 duplicate use, orphan relationships, connected parts, and unrecognized chart
 markup. The pending clone remains immutable until its first export/reimport.
 
-OpenChestnut now allocates a distinct ChartPart under the clone's same
+OfficeKit now allocates a distinct ChartPart under the clone's same
 slide-local relationship ID and copies the complete chart payload byte-for-byte;
 it never shares mutable chart state with the origin. The retained source
 SlidePart and ChartPart remain byte-identical. After reimport, the two ChartParts
@@ -2673,8 +2700,8 @@ clean-install package test invokes the same packaged workflow.
 
 The complete local gate passed `npm test` including Playwright and the native
 Presentation render lane, `npm run docs:api`, `npm run proto:check`, `npm run
-test:pack`, OfficeBridge `5/5`, and OpenChestnut `287/287`. Two deterministic
-OpenChestnut builds reproduced 39 audited files and the same manifest-bound
+test:pack`, OfficeBridge `5/5`, and OfficeKit `287/287`. Two deterministic
+OfficeKit builds reproduced 39 audited files and the same manifest-bound
 38-file, 14,648,000-byte runtime. The production tarball contains 461 files, is
 8,963,831 bytes compressed and 23,541,378 bytes unpacked on the local audit
 host, leaving 838,622 bytes below the unchanged 24,380,000-byte unpacked
@@ -2687,7 +2714,7 @@ publish or tag operation was attempted.
 ### Native PPTX custom shows
 
 On 2026-07-19, the Presentation model, additive protocol-2 wire,
-OpenChestnut C# codec, Help catalog, and native Presentation Skill converged on
+OfficeKit C# codec, Help catalog, and native Presentation Skill converged on
 one bounded `p:custShowLst` profile. Source-free decks may author an ordered
 list of named native shows, each containing an ordered non-empty route through
 retained slides; repeated slide references are intentional and survive the
@@ -2703,7 +2730,7 @@ the retained presentation relationships rather than display indexes; slide
 clone/delete and custom-show topology mutation remain fail closed.
 
 Empty, extension-bearing, unknown-child, duplicate-name/native-ID, or
-unresolved-reference lists are treated as opaque. OpenChestnut preserves their
+unresolved-reference lists are treated as opaque. OfficeKit preserves their
 exact validated source XML without exposing an incomplete semantic facade and
 rejects attempted replacement. Run hyperlinks that target custom shows remain
 a separate unsupported action-graph slice rather than being inferred from the
@@ -2719,8 +2746,8 @@ tampering, fixed-topology rejection, and extension-bearing opaque preservation.
 
 The complete local gate passed `npm test` including Playwright,
 LibreOffice/Poppler, qpdf, and the 20-template corpus; `npm run docs:api`, `npm
-run proto:check`, `npm run test:pack`, OfficeBridge `5/5`, and OpenChestnut
-`289/289` also passed. Two deterministic OpenChestnut builds reproduced 39
+run proto:check`, `npm run test:pack`, OfficeBridge `5/5`, and OfficeKit
+`289/289` also passed. Two deterministic OfficeKit builds reproduced 39
 audited files and the same manifest-bound 38-file, 14,671,040-byte runtime. The
 production tarball contains 463 files, is 8,971,857 bytes compressed and
 23,589,246 bytes unpacked, leaving 790,754 bytes below the unchanged
@@ -2735,7 +2762,7 @@ was attempted.
 On 2026-07-20, the bounded native custom-show slice expanded from the show
 list itself to canonical run-level click actions. The additive protocol-2 wire
 binds a run to the stable custom-show facade ID and represents
-`returnToSlide` with presence-aware boolean semantics. OpenChestnut emits the
+`returnToSlide` with presence-aware boolean semantics. OfficeKit emits the
 relationship-free `ppaction://customshow?id=<native-id>` action, optionally
 followed by the canonical lowercase `&return=true|false`, on source-free slide,
 Master, and Layout text runs. A second import projects the current show name
@@ -2758,14 +2785,14 @@ nonvisual custom-show name annotation. The stronger package assertion keeps the
 referring SlidePart byte-identical, and the native lane continues to compare
 LibreOffice/Poppler pixels. JavaScript regressions cover source-free slide,
 Master, and Layout authoring, rename, explicit retarget, missing targets, clone
-rejection, and opaque preservation. OpenChestnut regressions additionally cover
+rejection, and opaque preservation. OfficeKit regressions additionally cover
 Office 2021 validation, relationship-bearing actions, malformed return values,
 and invalid non-custom-show return policies.
 
 The complete local gate passed `npm test` including Playwright,
 LibreOffice/Poppler, qpdf, and the 20-template corpus; `npm run docs:api`,
 protocol lint and idempotent generation, `npm run test:pack`, OfficeBridge
-`5/5`, and OpenChestnut `291/291` also passed. Two deterministic OpenChestnut
+`5/5`, and OfficeKit `291/291` also passed. Two deterministic OfficeKit
 builds reproduced 39 audited files and the same manifest-bound 38-file,
 14,674,624-byte runtime. The production tarball contains 463 files, is
 8,974,701 bytes compressed and 23,601,235 bytes unpacked, leaving 778,765 bytes
@@ -2804,8 +2831,8 @@ audit.
 
 The complete local gate passed `npm test` including Playwright,
 LibreOffice/Poppler, qpdf, and the 20-template corpus; `npm run docs:api`, `npm
-run proto:check`, `npm run test:pack`, OfficeBridge `5/5`, and OpenChestnut
-`291/291` also passed. Two deterministic OpenChestnut builds reproduced 39
+run proto:check`, `npm run test:pack`, OfficeBridge `5/5`, and OfficeKit
+`291/291` also passed. Two deterministic OfficeKit builds reproduced 39
 audited files and the same manifest-bound 38-file, 14,676,160-byte runtime. The
 production tarball contains 463 files, is 8,975,778 bytes compressed and
 23,607,273 bytes unpacked, leaving 772,727 bytes below the unchanged
@@ -2825,7 +2852,7 @@ semantically recognized by the existing embedded-workbook model. External,
 linked, shared, non-XLSX, nested, ambiguous, relationship-bearing, or
 replacement-pending OLE graphs fail before package mutation.
 
-OpenChestnut retains the source SlidePart and relationship part byte-for-byte,
+OfficeKit retains the source SlidePart and relationship part byte-for-byte,
 preserves the slide-local package relationship ID, copies the XLSX bytes into a
 distinct clone-owned package part, and shares only the proven immutable preview
 image. Post-write validation rejects package aliasing, byte drift, child graph
@@ -2844,8 +2871,8 @@ candidate repeat and reference-Skill comparison remain open evidence work.
 
 The complete local gate passed `npm test` including Playwright,
 LibreOffice/Poppler, qpdf, and the 20-template corpus; `npm run docs:api`, `npm
-run proto:check`, `npm run test:pack`, OfficeBridge `5/5`, and OpenChestnut
-`292/292` also passed. Two deterministic OpenChestnut builds reproduced 39
+run proto:check`, `npm run test:pack`, OfficeBridge `5/5`, and OfficeKit
+`292/292` also passed. Two deterministic OfficeKit builds reproduced 39
 audited files and the same manifest-bound 38-file, 14,688,960-byte runtime. The
 production tarball contains 463 files, is 8,989,422 bytes compressed and
 23,643,498 bytes unpacked, leaving 736,502 bytes below the unchanged
@@ -2869,7 +2896,7 @@ or data relationship. Nested, incomplete, mistyped, duplicated-binding,
 relationship-bearing, or otherwise connected diagram graphs fail closed before
 package mutation.
 
-OpenChestnut preflight accounts for every diagram relationship on the source
+OfficeKit preflight accounts for every diagram relationship on the source
 slide, retains the source SlidePart and its relationship part byte-for-byte,
 then creates four clone-owned Open XML SDK typed parts under the same
 slide-local relationship IDs. The SDK currently allocates those parts under
@@ -2893,8 +2920,8 @@ inputs. SmartArt is not yet a separate autonomous PromptBench case.
 
 The complete local gate passed `npm test` including Playwright,
 LibreOffice/Poppler, qpdf, and the 20-template corpus; `npm run docs:api`, `npm
-run proto:check`, `npm run test:pack`, OfficeBridge `5/5`, and OpenChestnut
-`293/293` also passed. Deterministic OpenChestnut verification reproduced 39
+run proto:check`, `npm run test:pack`, OfficeBridge `5/5`, and OfficeKit
+`293/293` also passed. Deterministic OfficeKit verification reproduced 39
 audited files and the same manifest-bound 38-file, 14,696,640-byte runtime. The
 production tarball contains 464 files, is 8,998,618 bytes compressed and
 23,671,680 bytes unpacked, leaving 708,320 bytes below the unchanged
@@ -2919,7 +2946,7 @@ attribute. That ID must uniquely consume an internal standard or strict OOXML
 wrong-root, malformed/multi-root, extension-bearing, external, or connected
 graphs fail before model or package mutation.
 
-OpenChestnut retains the origin SlidePart and relationship part byte-for-byte,
+OfficeKit retains the origin SlidePart and relationship part byte-for-byte,
 preserves the slide-local relationship ID, and uses the Open XML SDK
 `CustomXmlPartType.InkContent` API to allocate a distinct clone-owned
 `ppt/customXml/itemN.xml` part. The InkML bytes and content type are copied
@@ -2942,8 +2969,8 @@ pre-mutation failure.
 
 The complete local gate passed `npm test` including Playwright,
 LibreOffice/Poppler, qpdf, and the 20-template corpus; `npm run docs:api`, `npm
-run proto:check`, `npm run test:pack`, OfficeBridge `5/5`, and OpenChestnut
-`294/294` also passed. Two deterministic OpenChestnut builds reproduced 39
+run proto:check`, `npm run test:pack`, OfficeBridge `5/5`, and OfficeKit
+`294/294` also passed. Two deterministic OfficeKit builds reproduced 39
 audited files and the same manifest-bound 38-file, 14,702,784-byte runtime. The
 production tarball contains 465 files, is 9,005,273 bytes compressed and
 23,700,096 bytes unpacked, leaving 679,904 bytes below the unchanged
@@ -2965,7 +2992,7 @@ to the same uniquely owned, non-empty, relationship-free `video/mp4` data part;
 the poster must be an internal ImagePart. Linked, shared, nested, non-MP4,
 audio, multi-binding, extension-rich, or connected media graphs fail closed.
 
-OpenChestnut retains the origin SlidePart and relationship part byte-for-byte,
+OfficeKit retains the origin SlidePart and relationship part byte-for-byte,
 preserves both slide-local media relationship IDs, and uses the Microsoft Open
 XML SDK to allocate a distinct package-level `MediaDataPart`. It copies the MP4
 bytes exactly while sharing the immutable poster. The SDK may allocate the new
@@ -2987,7 +3014,7 @@ read-only after reimport.
 
 The local candidate passed the complete `npm test` suite, including Playwright,
 LibreOffice/Poppler, the real qpdf provider, all four packaged Office/PDF Skill
-smokes, and the 343-file reference-Skill sync gate. OpenChestnut passed
+smokes, and the 343-file reference-Skill sync gate. OfficeKit passed
 `295/295`; OfficeBridge passed `5/5`; `npm run proto:check`, deterministic API
 documentation generation, and the clean-install/package gate passed. Two clean
 source builds produced the same 39 audited build files and the same manifest-
@@ -3031,8 +3058,8 @@ PyMuPDF 1.27.2.3, ReportLab 4.4.9, pdfplumber 0.11.9, pypdf 6.10.0, and Pillow
 PDF provider smoke executes the real sanitize/OCR route instead of its
 contract-only branch. Local validation used those same Python package versions,
 Tesseract 5.5.2, and Poppler 26.05.0. Full `npm test`, generated API docs,
-`proto:check`, the clean-install/package gate, OfficeBridge `5/5`, OpenChestnut
-`295/295`, and two deterministic source builds passed. The OpenChestnut runtime
+`proto:check`, the clean-install/package gate, OfficeBridge `5/5`, OfficeKit
+`295/295`, and two deterministic source builds passed. The OfficeKit runtime
 remains 38 files and 14,721,216 bytes; the production tarball contains 467
 files, 9,020,751 compressed bytes, and 23,770,901 unpacked bytes. The complete
 offline release gate is publish-ready; `npm whoami` still returns `ENEEDAUTH`,
@@ -3067,22 +3094,22 @@ unchanged while the raster secret becomes an opaque redaction.
 
 The local candidate passed the complete `npm test` suite with the real
 PyMuPDF/Tesseract, qpdf, pyHanko, Playwright, LibreOffice, Poppler, and packaged
-Skill paths. OpenChestnut passed `295/295`; OfficeBridge passed `5/5`;
+Skill paths. OfficeKit passed `295/295`; OfficeBridge passed `5/5`;
 `npm run proto:check`, generated API-document cleanliness, two-source-build
-OpenChestnut reproducibility, `npm run test:pack`, and the complete offline
-release check passed. The manifest-bound OpenChestnut runtime remains 38 files
+OfficeKit reproducibility, `npm run test:pack`, and the complete offline
+release check passed. The manifest-bound OfficeKit runtime remains 38 files
 and 14,721,216 bytes; the npm dry-run contains 467 files, 9,021,747 compressed
 bytes, and 23,776,728 unpacked bytes. Real pikepdf, veraPDF, and OCRmyPDF repeats
 were not configured, so their contract/adversarial tests passed while those
 environment-gated provider executions were skipped. The implementation
 candidate at commit `276309a30fbdf6293d0aba6479b59c420a55d9ae` passed the
 hosted Linux `ci` workflow in [GitHub Actions run
-29714645455](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29714645455)
+29714645455](https://github.com/w31r4/office-kit/actions/runs/29714645455)
 on 2026-07-20. Its single job completed with conclusion `success` in 17m10s
 after exercising all isolated PDF providers, deterministic protocol/runtime
 verification, Chromium/LibreOffice/Poppler, the full npm suite, generated-doc
 cleanliness, release metadata, clean-install tarball, OfficeBridge, and
-OpenChestnut gates. `npm whoami` remains the external publish gate, and no
+OfficeKit gates. `npm whoami` remains the external publish gate, and no
 publish or tag/release operation has been attempted.
 
 ### PDF right-angle native review placements
@@ -3136,10 +3163,10 @@ the expected page-space corner without clipping.
 
 The local candidate passed the complete `npm test` suite with the real
 PyMuPDF/Tesseract, qpdf, pyHanko, Playwright, LibreOffice, Poppler, packaged
-Skill, PromptBench, and release/package paths. OpenChestnut passed `295/295`;
+Skill, PromptBench, and release/package paths. OfficeKit passed `295/295`;
 OfficeBridge passed `5/5`; `npm run proto:check`, deterministic API-document
-generation, two-source-build OpenChestnut reproducibility, `npm run test:pack`,
-and the complete offline release check passed. The manifest-bound OpenChestnut
+generation, two-source-build OfficeKit reproducibility, `npm run test:pack`,
+and the complete offline release check passed. The manifest-bound OfficeKit
 runtime remains 38 files and 14,721,216 bytes. The npm dry-run contains 467
 files, 9,023,833 compressed bytes, and 23,783,245 unpacked bytes. Real pikepdf,
 veraPDF, and OCRmyPDF repeats were not configured locally, so their
@@ -3149,12 +3176,12 @@ returns `ENEEDAUTH`, so no publish or tag/release operation was attempted.
 The implementation candidate at commit
 `c5bc645e995e349d79b575ce6d1a55502c936843` passed the hosted Linux `ci`
 workflow in [GitHub Actions run
-29717832003](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29717832003)
+29717832003](https://github.com/w31r4/office-kit/actions/runs/29717832003)
 on 2026-07-20. Its single job completed with conclusion `success` in 17m35s
 after exercising all isolated PDF providers, deterministic protocol/runtime
 verification, Chromium/LibreOffice/Poppler, the full npm suite, generated-doc
 cleanliness, release metadata, clean-install tarball, OfficeBridge, and
-OpenChestnut gates.
+OfficeKit gates.
 
 ### PDF source-bound ordinary-page duplication
 
@@ -3198,7 +3225,7 @@ orientation drift.
 
 The local candidate passed the complete `npm test` suite including Playwright,
 deterministic API-document generation, `npm run proto:check`, `npm run
-test:pack`, and the offline metadata/license release check. OpenChestnut passed
+test:pack`, and the offline metadata/license release check. OfficeKit passed
 `295/295`; OfficeBridge passed `5/5`; two source-built WASM runs matched across
 39 audited build files. The manifest-bound runtime remains 38 files and
 14,721,216 bytes. The npm dry-run contains 467 files, 9,030,226 compressed
@@ -3208,15 +3235,15 @@ shell, so their contract/adversarial tests passed while those environment-gated
 executions were skipped; real MuPDF.js, qpdf, Poppler, LibreOffice, and
 Playwright paths ran. Commit `de16bf13fd4ed82be1548d95a10a83a963116fb5`
 passed the hosted Linux `ci` workflow in [GitHub Actions run
-29721704703](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29721704703)
+29721704703](https://github.com/w31r4/office-kit/actions/runs/29721704703)
 on 2026-07-20. Its single job completed with conclusion `success` in 15m40s
 after running every isolated PDF provider, the complete npm suite, generated
-docs and release/package gates, OfficeBridge, and OpenChestnut. `npm whoami`
+docs and release/package gates, OfficeBridge, and OfficeKit. `npm whoami`
 returns `ENEEDAUTH`, so no publish or tag/release operation was attempted.
 
 ### PPTX imported notes-absent speaker-notes creation
 
-On 2026-07-20, OpenChestnut added a bounded source-preserving transaction for
+On 2026-07-20, OfficeKit added a bounded source-preserving transaction for
 plain-text speaker notes on an imported slide that originally has no
 `NotesSlide`. Import exposes defensive `{ sourceBound, partPresent, editable,
 addable }` evidence through `slide.speakerNotes.capability` and `inspect()`.
@@ -3226,7 +3253,7 @@ ordered SlideMaster theme before it writes anything. Changing the wire or model
 claim in either direction fails the source-binding check.
 
 When one reusable NotesMaster already exists, the new NotesSlide points to that
-same byte-identical part. When no NotesMaster exists, OpenChestnut creates one
+same byte-identical part. When no NotesMaster exists, OfficeKit creates one
 canonical master and shares the existing SlideMaster `ThemePart`. It allocates
 relationship IDs across internal, external, hyperlink, and data relationships;
 the new NotesSlide owns exactly one NotesMaster edge and one back-reference to
@@ -3237,7 +3264,7 @@ master graphs, missing themes, rich/irregular notes, arbitrary notes styling,
 and capability tampering remain fail-closed.
 
 The Presentation Skill ships
-`openchestnut-speaker-notes-add-workflow.mjs`. It requires one uniquely named
+`officekit-speaker-notes-add-workflow.mjs`. It requires one uniquely named
 eligible slide, protects the source hash, writes transactionally, audits the
 OPC graph, reimports, verifies exact notes and unchanged visible semantics, and
 compares the source/output model render. The runnable fixture also compares all
@@ -3248,7 +3275,7 @@ an output or audit.
 The local candidate passed the complete `npm test` suite, including the 20
 repository-only Office templates, Playwright, LibreOffice, Poppler, MuPDF.js,
 qpdf, all four published Skills, reference-Skill sync, and Agent eval gates.
-OpenChestnut passed `301/301`; OfficeBridge passed `5/5`; generated API docs,
+OfficeKit passed `301/301`; OfficeBridge passed `5/5`; generated API docs,
 protocol lint/generation, clean-install, and `npm run test:pack` passed. The
 manifest-bound runtime is 38 files and 14,756,544 bytes. The npm dry-run is 471
 files, 9,058,449 compressed bytes, and 23,917,958 unpacked bytes. Independent
@@ -3259,14 +3286,14 @@ remains unavailable, so no publish, tag, or release operation was attempted.
 
 Commit `72adb11522365a4199497d41c9bfe4ca2ff507a7` passed the hosted Linux `ci`
 workflow in [GitHub Actions run
-29739450691](https://github.com/w31r4/open-office-artifact-tool/actions/runs/29739450691)
+29739450691](https://github.com/w31r4/office-kit/actions/runs/29739450691)
 on 2026-07-20. The run completed every isolated PDF provider, the full npm
 suite, generated-doc and release/package checks, OfficeBridge, and
-OpenChestnut with conclusion `success`.
+OfficeKit with conclusion `success`.
 
 ### PPTX imported comment-free legacy review-comment creation
 
-On 2026-07-21, OpenChestnut added a bounded source-preserving legacy review
+On 2026-07-21, OfficeKit added a bounded source-preserving legacy review
 transaction for an imported presentation that has no legacy or Office 2021
 comment graph anywhere. Import exposes defensive `{ sourceBound, format,
 partPresent, addable }` evidence through `slide.comments.capability` and slide
@@ -3287,7 +3314,7 @@ fail-closed; this add-only milestone left existing imported legacy comments
 unchanged-only.
 
 The Presentation Skill ships
-`openchestnut-legacy-comment-add-workflow.mjs`. It requires one uniquely named
+`officekit-legacy-comment-add-workflow.mjs`. It requires one uniquely named
 eligible slide, protects the source hash, publishes without overwrite, permits
 exactly `ppt/commentAuthors.xml` plus one numbered comments XML part and their
 owner relationship changes, reimports exact author/text semantics, compares
@@ -3298,7 +3325,7 @@ because legacy annotations are nonvisual slideshow review metadata.
 The local candidate passed the complete `npm test` suite, including the 20
 repository-only Office templates, Playwright, LibreOffice, Poppler, MuPDF.js,
 qpdf, all published Skills, reference-Skill sync, and Agent eval gates.
-OpenChestnut passed `302/302`; OfficeBridge passed `5/5`; deterministic
+OfficeKit passed `302/302`; OfficeBridge passed `5/5`; deterministic
 source-built WASM verification passed over 39 audited build files. The bundled
 runtime remains 38 files and 14,772,928 bytes. The clean-install/package gate
 passed, and the npm dry-run contains 472 files, 9,069,108 compressed bytes, and
@@ -3311,7 +3338,7 @@ so no publish, tag, or release operation was attempted.
 
 ### DOCX source-bound revision finalization
 
-On 2026-07-21, OpenChestnut added native `trackRevisions` settings support and
+On 2026-07-21, OfficeKit added native `trackRevisions` settings support and
 a deliberately bounded file-level revision-finalization operation. The public
 `DocumentFile.finalizeRevisions` API receives the original DOCX bytes, requires
 their exact SHA-256, and asks the C# Open XML SDK codec to accept or reject only
@@ -3332,7 +3359,7 @@ returned. `keepTracking` only preserves an existing flag; it cannot silently
 enable one.
 
 The Documents Skill now ships
-`openchestnut-revision-finalization-workflow.mjs`: inspect revisions, bind the
+`officekit-revision-finalization-workflow.mjs`: inspect revisions, bind the
 source hash, invoke the typed primitive, re-import and require zero changes,
 verify the accepted/rejected semantic projection, protect the source, refuse
 output/audit overwrite, and write a byte-bound audit. The accompanying native
@@ -3344,7 +3371,7 @@ OOXML helper or a real Word review host; there is no silent fallback.
 The local candidate passed the complete `npm test` suite, including the 20
 repository-only Office templates, all four published Skills, LibreOffice,
 Poppler, MuPDF.js, qpdf, Playwright, reference-Skill sync, and Agent eval gates.
-OpenChestnut passed `306/306`; OfficeBridge passed `5/5`; deterministic
+OfficeKit passed `306/306`; OfficeBridge passed `5/5`; deterministic
 source-built WASM verification passed over 39 audited build files. The bundled
 runtime is 38 files and 14,798,528 bytes. Generated API docs and protocol
 generation passed, and the clean-install/package gate produced 473 files,
@@ -3361,7 +3388,7 @@ On 2026-07-21, the public Documents surface added
 `DocumentFile.addTrackedReplacement`. The operation receives the original DOCX
 bytes, requires their exact SHA-256, a zero-based semantic body-block index, the
 full expected paragraph snapshot, one non-empty search literal, replacement
-text, revision author, and optional timestamp. OpenChestnut edits the validated
+text, revision author, and optional timestamp. OfficeKit edits the validated
 package directly through the C# Open XML SDK codec; JavaScript does not rebuild
 the document model or select a fallback codec.
 
@@ -3388,7 +3415,7 @@ and explicit paragraph identities are now constrained to the Office 2021
 `00000001` through `7FFFFFFF` range, with native and model-level regressions.
 
 The Documents plugin ships
-`openchestnut-tracked-replacement-workflow.mjs`. It resolves an exact paragraph
+`officekit-tracked-replacement-workflow.mjs`. It resolves an exact paragraph
 or explicit block index, protects the source, invokes the typed primitive,
 checks the audit and one-part package scope, reimports the accepted-view
 projection, verifies and model-renders it, refuses overwrite, and emits a
@@ -3401,7 +3428,7 @@ intact.
 The local candidate passed the complete `npm test` suite, including all 20
 repository-only templates, all four published Office/PDF Skills, LibreOffice,
 Poppler, MuPDF.js, qpdf, Playwright, reference-Skill sync, and Agent eval gates.
-OpenChestnut passed `309/309`; OfficeBridge passed `5/5`; protocol lint and the
+OfficeKit passed `309/309`; OfficeBridge passed `5/5`; protocol lint and the
 deterministic source-built WASM gate passed over 39 audited build files. The
 bundled runtime is 38 files and 14,831,808 bytes. Generated API docs and the
 clean-install/package gate passed; the dry-run tarball contains 474 files,
@@ -3421,7 +3448,7 @@ structured target contract. New callers select either
 `{ kind: "tableCell", blockIndex, row, column }`; the existing
 `targetBlockIndex` remains a paragraph-only compatibility selector and is
 mutually exclusive with `target`. The protobuf wire uses an explicit oneof and
-the returned audit repeats the target that OpenChestnut re-proved. This is an
+the returned audit repeats the target that OfficeKit re-proved. This is an
 extension of one deep file transaction, not a second table-specific editing
 surface.
 
@@ -3429,7 +3456,7 @@ The table profile accepts only a direct body table with a valid bounded
 physical grid. The selected non-continuation physical cell must contain exactly
 one direct paragraph, whose children must be ordinary direct text runs with
 one `w:t` each. The exact full cell text and source SHA-256 are mandatory; the
-search literal must occur once in one native text node. OpenChestnut then
+search literal must occur once in one native text node. OfficeKit then
 clones the matched run formatting into an adjacent native `w:del` / `w:ins`
 pair, changes only `word/document.xml`, and returns target, package, paragraph,
 text, native-ID, and changed-part evidence. Out-of-range indexes—including the
@@ -3460,7 +3487,7 @@ paragraph stayed intact. Source and rejected page PNGs were byte-identical at
 The local candidate passed the complete `npm test` suite, including all 20
 repository-only templates, all four Office/PDF Skills, LibreOffice, Poppler,
 MuPDF.js, qpdf, Playwright, reference-Skill sync, and Agent eval gates.
-OpenChestnut passed `310/310`; OfficeBridge passed `5/5`; protobuf lint and
+OfficeKit passed `310/310`; OfficeBridge passed `5/5`; protobuf lint and
 idempotent generation passed; the deterministic source-built WASM gate matched
 39 audited build files. The bundled runtime is 38 files and 14,846,144 bytes.
 Generated API docs and the clean-install/package gate passed; the dry-run
@@ -3479,7 +3506,7 @@ On 2026-07-21, the source-bound tracked-replacement transaction stopped treating
 Word's ordinary run splitting as an automatic failure. A unique literal may now
 occupy one direct `w:r/w:t` or span adjacent non-empty ordinary runs when every
 run has byte-identical `w:rPr` markup. One internal target-span representation
-handles both cases: OpenChestnut retains each matched source fragment as its own
+handles both cases: OfficeKit retains each matched source fragment as its own
 `w:r/w:delText` inside one `w:del`, writes one adjacent single-run `w:ins` with
 the shared formatting, and leaves prefix/suffix text in cloned source runs.
 There is no second JavaScript editing path or lossy model reconstruction.
@@ -3513,7 +3540,7 @@ formatting intact; accept retained only `45 days`; reject restored only
 
 The complete `npm test` gate passed, including all 20 repository-only templates,
 all four Office/PDF Skills, LibreOffice, Poppler, MuPDF.js, qpdf, Playwright,
-reference-Skill sync, and Agent eval checks. OpenChestnut passed `311/311` and
+reference-Skill sync, and Agent eval checks. OfficeKit passed `311/311` and
 OfficeBridge passed `5/5`. Generated API docs passed, and deterministic
 source-built WASM verification matched 39 audited build files; the bundled
 runtime is 38 files and 14,850,752 bytes. The clean-install/package gate produced
@@ -3529,7 +3556,7 @@ On 2026-07-21, the ordinary imported-text patch path gained the same bounded
 run-fragment tolerance as tracked replacement. A unique literal in an otherwise
 read-only paragraph or complex table cell may occupy one direct ordinary
 `w:r/w:t` or adjacent non-empty direct runs whose exact `w:rPr` markup is
-byte-identical. OpenChestnut retains every native run and text node, writes the
+byte-identical. OfficeKit retains every native run and text node, writes the
 replacement into the first matched node, retains any suffix in the last, and
 empties only covered intermediate text payloads. The residual topology hash and
 postwrite visible-text proof remain mandatory.
@@ -3548,7 +3575,7 @@ gaps, cross-paragraph matches, and content-control isolation. The JavaScript
 test crosses the public bundled-WASM facade, proves that only
 `word/document.xml` changes, reimports both paragraph and table results, and
 rejects a mixed-format span. The shipped
-`openchestnut-source-text-patch-workflow.mjs` adds explicit paragraph/table-cell
+`officekit-source-text-patch-workflow.mjs` adds explicit paragraph/table-cell
 selection, immutable input, no-overwrite publication, source/output hashes,
 changed-part audit, second import, model verification, and the required native
 render-review handoff. Broader formatting changes, paragraph-spanning text,
@@ -3568,7 +3595,7 @@ remained byte-identical. Both transaction audits reported exactly
 
 The complete `npm test` gate passed, including all 20 repository-only templates,
 all four Office/PDF Skills, LibreOffice, Poppler, MuPDF.js, qpdf, Playwright,
-reference-Skill sync, and Agent eval checks. OpenChestnut passed `315/315` and
+reference-Skill sync, and Agent eval checks. OfficeKit passed `315/315` and
 OfficeBridge passed `5/5`; generated API docs and protocol lint/idempotent
 generation passed. Deterministic source-built WASM verification matched 39
 audited build files, and the bundled runtime is 38 files and 14,854,336 bytes.
@@ -3585,7 +3612,7 @@ operation was attempted.
 ### DOCX canonical text watermarks
 
 On 2026-07-22, Documents gained a typed `document.watermarks` collection plus
-`document.addWatermark(...)` and `watermark.remove()`. OpenChestnut now authors
+`document.addWatermark(...)` and `watermark.remove()`. OfficeKit now authors
 canonical VML text watermarks in explicitly referenced DOCX header parts and
 imports a deliberately bounded form: one exclusive canonical watermark
 paragraph in a header part referenced by exactly one section/header scope. The
@@ -3612,7 +3639,7 @@ unclipped body layout; the rendered PNG was 99,931 bytes with short SHA-256
 
 The complete `npm test` gate passed, including the bundled-WASM clean-install
 watermark path, the Documents Skill edit/remove workflows, LibreOffice,
-Poppler, MuPDF.js, qpdf, and Playwright. OpenChestnut passed `326/326` and
+Poppler, MuPDF.js, qpdf, and Playwright. OfficeKit passed `326/326` and
 OfficeBridge passed `5/5`; protocol lint/idempotent generation and generated API
 docs passed. Deterministic source-built WASM verification matched 39 audited
 build files, and the bundled runtime is 38 files and 14,947,008 bytes. The
@@ -3628,7 +3655,7 @@ disabled. No npm publish, tag, or release operation was attempted.
 ### DOCX canonical picture bullets
 
 On 2026-07-22, Documents gained a bounded native picture-bullet path across the
-public `DocumentModel`, versioned protobuf wire, OpenChestnut C# codec, bundled
+public `DocumentModel`, versioned protobuf wire, OfficeKit C# codec, bundled
 WASM runtime, Help catalog, and native Skill workflow. A source-free numbering
 level may use one embedded PNG/JPEG/GIF asset or an absolute HTTP(S) reference.
 The wire carries only semantic source, dimensions, and alternative text;
@@ -3654,7 +3681,7 @@ and an unaffected following decimal item.
 
 The complete `npm test` gate passed, including the bundled-WASM path, all 20
 repository-only templates, Documents/PDF Skills, MuPDF.js, qpdf, LibreOffice,
-Poppler, and Playwright. OpenChestnut passed `333/333` and OfficeBridge passed
+Poppler, and Playwright. OfficeKit passed `333/333` and OfficeBridge passed
 `5/5`; generated API docs, the clean-install package workflow, and deterministic
 source-built WASM verification passed. Two clean builds matched 39 audited files,
 and the manifest-bound runtime contains 38 files and 14,964,416 bytes. The npm
@@ -3670,13 +3697,13 @@ npm publish, tag, or release operation was attempted.
 
 On 2026-07-22, Documents completed the paragraph companion to bounded section
 line numbering. `paragraphFormat.suppressLineNumbers` is a presence-aware
-boolean across the public model, protobuf wire, OpenChestnut C# codec, bundled
+boolean across the public model, protobuf wire, OfficeKit C# codec, bundled
 WASM runtime, Help catalog, and native Documents Skill. It works on direct
 paragraph formatting and named paragraph styles: true excludes the paragraph's
 lines from both display and line-number calculation, false explicitly overrides
 inherited style suppression, and omission preserves inheritance.
 
-OpenChestnut writes the canonical `w:suppressLineNumbers` leaf in schema order,
+OfficeKit writes the canonical `w:suppressLineNumbers` leaf in schema order,
 imports true and explicit false without collapsing presence, preserves a source
 package byte-for-byte on no-op export, and supports fixed-topology source-bound
 edits. Duplicate leaves, child or extension content, and invalid lexical values
@@ -3687,7 +3714,7 @@ imports twice, inspects native markup, and enters LibreOffice/Poppler QA.
 
 The complete local `npm test` gate passed after retaining every existing Office,
 PDF, template, provider, Playwright, LibreOffice, Poppler, reference-Skill, and
-release check. OpenChestnut passed `346/346` and OfficeBridge passed `5/5`;
+release check. OfficeKit passed `346/346` and OfficeBridge passed `5/5`;
 generated API docs and deterministic source-built WASM verification passed, with
 39 matching build files and a 38-file, 15,055,040-byte bundled runtime. The
 clean-install/package gate produced 489 files, 9,277,622 compressed bytes, and
@@ -3702,7 +3729,7 @@ tag, or release operation was attempted.
 
 ### PPTX canonical legacy review-comment text edit
 
-On 2026-07-25, OpenChestnut added a deliberately narrow source-preserving edit
+On 2026-07-25, OfficeKit added a deliberately narrow source-preserving edit
 for an existing legacy PresentationML review comment. Import reports
 `slide.comments.capability.editable` only for a recognized closed
 `SlideCommentsPart` backed by one relationship-free `CommentAuthorsPart` and a
@@ -3721,7 +3748,7 @@ connected, rich, ambiguous, or otherwise irregular legacy/modern graphs remain
 opaque and fail closed.
 
 The native Presentation Skill now ships
-`openchestnut-legacy-comment-edit-workflow.mjs`. It protects the input, requires
+`officekit-legacy-comment-edit-workflow.mjs`. It protects the input, requires
 one uniquely named slide plus stable comment ID and exact old text, publishes
 without overwrite, and independently requires exactly one existing
 `ppt/comments/commentN.xml` to differ. It reimports the complete comment
@@ -3730,15 +3757,15 @@ source/output-bound audit. LibreOffice/Poppler review remains mandatory when
 available because annotations must not alter visible slideshow pages.
 
 The complete local candidate passed `npm test`, `npm run docs:api`,
-`npm run proto:check`, `npm run test:pack`, deterministic OpenChestnut WASM
-verification, the OpenChestnut Release test suite, and OfficeBridge `5/5`.
+`npm run proto:check`, `npm run test:pack`, deterministic OfficeKit WASM
+verification, the OfficeKit Release test suite, and OfficeBridge `5/5`.
 The clean-install tarball contains the new Presentation workflow and the
 source-built 38-file runtime; no npm publish, tag, or release operation was
 attempted.
 
 ### PPTX source-bound view-properties edit
 
-On 2026-07-25, OpenChestnut added a deliberately narrow source-bound edit for
+On 2026-07-25, OfficeKit added a deliberately narrow source-bound edit for
 an existing `ppt/viewProps.xml` part. `presentation.view.capability` reports
 whether the import has the recognized relationship-free, extension-free,
 fixed-topology profile. Only an already-present grid spacing, already-present
@@ -3764,8 +3791,8 @@ negative fixtures prove that topology and stale-binding changes are rejected
 without an output artifact.
 
 The complete local gate passed `npm test`, `npm run docs:api`, deterministic
-`npm run verify:open-chestnut-build`, clean-install `npm run test:pack`,
-OpenChestnut `375/375`, and OfficeBridge `5/5`. Two source-built WASM bundles
+`npm run verify:office-kit-build`, clean-install `npm run test:pack`,
+OfficeKit `375/375`, and OfficeBridge `5/5`. Two source-built WASM bundles
 matched across 39 audited files; the shipped runtime has 38 files and
 15,160,000 bytes. The npm candidate contains 515 files, 9,412,948 compressed
 bytes, and 25,274,243 unpacked bytes. The total-unpacked gate moved narrowly
@@ -3778,8 +3805,8 @@ environment tests; no npm publish, tag, or release operation was attempted.
 ### PPTX source-bound transition transaction
 
 On 2026-07-26, the Presentations Skill added
-`openchestnut-transition-edit-workflow.mjs` for the pre-existing bounded
-OpenChestnut direct-transition profile. It requires one unique imported slide
+`officekit-transition-edit-workflow.mjs` for the pre-existing bounded
+OfficeKit direct-transition profile. It requires one unique imported slide
 name plus complete expected and replacement fade/push state, admits only an
 existing `partPresent` and `editable` canonical transition, keeps the source
 immutable, and refuses addition, removal, timing, sound, extension, opaque, or
@@ -3789,8 +3816,8 @@ SlidePart to differ; it then reimports, compares non-transition semantics and
 static SVG renders, verifies the artifact, and emits source/output provenance.
 
 The local candidate passed `npm test`, `npm run docs:api`, `npm run proto:check`,
-deterministic `npm run verify:open-chestnut-build`, `npm run test:pack`,
-OfficeBridge `5/5`, and OpenChestnut `375/375`. The deterministic runtime has
+deterministic `npm run verify:office-kit-build`, `npm run test:pack`,
+OfficeBridge `5/5`, and OfficeKit `375/375`. The deterministic runtime has
 38 files and 15,160,000 bytes; the clean-install candidate has 516 files,
 9,416,504 compressed bytes, and 25,294,901 unpacked bytes, leaving 5,099 bytes
 under the existing 25,300,000-byte ceiling. No npm publish, tag, or release
@@ -3801,7 +3828,7 @@ operation was attempted.
 Before publishing:
 
 1. Verify `package.json` and `package-lock.json` both declare `0.3.0`.
-2. Rebuild and verify the OpenChestnut runtime from source.
+2. Rebuild and verify the OfficeKit runtime from source.
 3. Regenerate API documentation after the final public API change.
 4. Inspect `npm pack --dry-run --json` for the required runtime/proto/Skill files and forbidden legacy files.
 5. Run the tarball clean-install probe, not only source-tree tests.

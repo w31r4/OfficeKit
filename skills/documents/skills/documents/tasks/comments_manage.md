@@ -13,7 +13,7 @@ Common situations:
 ## Add an ordinary classic Word comment
 
 ```js
-import { DocumentFile, FileBlob } from "open-office-artifact-tool";
+import { DocumentFile, FileBlob } from "office-kit";
 
 const document = await DocumentFile.importDocx(await FileBlob.load("input.docx"));
 const target = document.blocks.find(
@@ -46,7 +46,7 @@ document.replyToComment(root, "Evidence confirmed.", {
 });
 ```
 
-OpenChestnut authors `commentsExtended.xml` and any required IDs, extensible,
+OfficeKit authors `commentsExtended.xml` and any required IDs, extensible,
 and people parts. Only direct replies are supported. A reply to a reply,
 cross-target parent, mention/rich body, or irregular imported graph fails closed.
 
@@ -61,7 +61,7 @@ Notes:
 
 ## Patch / resolve existing comments
 For one uniquely located imported classic comment, prefer the shipped
-`examples/openchestnut-classic-comment-edit-workflow.mjs`: it refuses ambiguous
+`examples/officekit-classic-comment-edit-workflow.mjs`: it refuses ambiguous
 anchors and modern/reply/resolved/presence metadata, changes only text, then
 re-imports, verifies, model-renders, atomically writes the DOCX, and records a
 source/output-hash-bound audit. For ordinary imported classic comment text,
@@ -69,7 +69,7 @@ edit `document.comments[index].text` only after the same uniqueness and
 source-bound identity checks.
 
 For one recognized modern root plus one direct reply, use
-`examples/openchestnut-modern-comment-thread-workflow.mjs`. It changes only the
+`examples/officekit-modern-comment-thread-workflow.mjs`. It changes only the
 two texts and root resolved state through `.resolve()`/`.reopen()`, then proves
 the same paragraph/durable/person identities and fixed topology after re-import.
 Adding/removing/reparenting an imported comment remains unsupported.

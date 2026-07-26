@@ -11,7 +11,7 @@ const result = spawnSync(process.execPath, ["scripts/release-check.mjs", "--json
 });
 assert.equal(result.status, 0, `release-check failed\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`);
 const report = JSON.parse(result.stdout);
-assert.equal(report.package.name, "open-office-artifact-tool");
+assert.equal(report.package.name, "office-kit");
 assert.equal(report.publishReady, true);
 assert.ok(report.checks.some((check) => check.name === "package metadata" && check.ok));
 assert.ok(report.checks.some((check) => check.name === "project license" && check.ok));
@@ -22,7 +22,7 @@ const releaseWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/r
 const ciWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8");
 const dotnetToolchain = JSON.parse(fs.readFileSync(path.join(repoRoot, "global.json"), "utf8"));
 assert.equal(dotnetToolchain.sdk.version, "8.0.128");
-assert.equal(dotnetToolchain.sdk.rollForward, "disable", "locked OpenChestnut restore must not select a newer SDK patch with different implicit build packages");
+assert.equal(dotnetToolchain.sdk.rollForward, "disable", "locked OfficeKit restore must not select a newer SDK patch with different implicit build packages");
 assert.match(releaseWorkflow, /workflow_dispatch/);
 assert.match(releaseWorkflow, /publish_npm/);
 assert.match(releaseWorkflow, /default: "false"/);
@@ -40,14 +40,14 @@ for (const workflow of [ciWorkflow, releaseWorkflow]) {
   assert.match(workflow, /dotnet test native\/OfficeBridge/);
 }
 
-const rejectedPolicyPath = path.join(os.tmpdir(), `open-office-license-policy-${process.pid}.json`);
+const rejectedPolicyPath = path.join(os.tmpdir(), `office-kit-license-policy-${process.pid}.json`);
 const normalPolicy = JSON.parse(fs.readFileSync(path.join(repoRoot, "scripts", "license-policy.json"), "utf8"));
 fs.writeFileSync(rejectedPolicyPath, JSON.stringify({ ...normalPolicy, allowedLockLicenses: normalPolicy.allowedLockLicenses.filter((license) => license !== "MIT") }));
 try {
   const rejected = spawnSync(process.execPath, ["scripts/release-check.mjs", "--json", "--skip-network", "--skip-commands", "--allow-dirty"], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: { ...process.env, OFFICE_ARTIFACT_LICENSE_POLICY: rejectedPolicyPath },
+    env: { ...process.env, OFFICE_KIT_LICENSE_POLICY: rejectedPolicyPath },
   });
   assert.equal(rejected.status, 1);
   const rejectedReport = JSON.parse(rejected.stdout);

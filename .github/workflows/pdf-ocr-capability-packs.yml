@@ -52,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -e '
-            .schema == "open-office-artifact-tool.pdf-provider-ocr-release-inputs.v1" and
+            .schema == "office-kit.pdf-provider-ocr-release-inputs.v1" and
             .schemaVersion == 1 and
             .ocrCore.packId == "ocr-core" and
             .ocrCore.version == "17.8.1-oat.1" and

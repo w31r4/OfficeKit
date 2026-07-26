@@ -2,7 +2,7 @@
 
 ## Agent contract
 
-Use the public OpenChestnut route only when the imported page-furniture record
+Use the public OfficeKit route only when the imported page-furniture record
 explicitly proves it is editable:
 
 ```text
@@ -58,7 +58,7 @@ ordinary editable header/footer text.
 ## Edit one imported text paragraph
 
 ```js
-import { DocumentFile, FileBlob } from "open-office-artifact-tool";
+import { DocumentFile, FileBlob } from "office-kit";
 
 const source = await FileBlob.load("input.docx");
 const document = await DocumentFile.importDocx(source);
@@ -99,16 +99,16 @@ For the ordinary imported **header** or **footer** profile, prefer the matching
 packaged transaction instead of reproducing its package proof by hand:
 
 ```bash
-node examples/openchestnut-header-text-edit-workflow.mjs \
+node examples/officekit-header-text-edit-workflow.mjs \
   input.docx reviewed.docx audit.json \
   "Northwind | Internal" "Northwind | Reviewed" 0 default
-node examples/openchestnut-footer-text-edit-workflow.mjs \
+node examples/officekit-footer-text-edit-workflow.mjs \
   input.docx reviewed.docx audit.json \
   "Northwind | Internal" "Northwind | Reviewed" 0 default
 ```
 
 Each requires distinct absent output/audit paths, checks exactly one selected
-item, exports through OpenChestnut, permits only its matching
+item, exports through OfficeKit, permits only its matching
 `word/headerN.xml` or `word/footerN.xml` part, normalizes the unique target
 `w:t` to prove the part residual, reimports, verifies, model-renders, and
 records a byte-bound audit. The two entry points are intentionally separate:

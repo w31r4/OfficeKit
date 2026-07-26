@@ -20,9 +20,9 @@ export const pptxGradedCaseIds = new Set([
 ]);
 
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
-const SHIPPED_RICH_NOTES_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/presentations|node_modules\/open-office-artifact-tool\/skills\/presentations\/skills\/presentations)\/examples\/openchestnut-rich-speaker-notes-edit-workflow\.mjs(?:$|[\s"'`])/i;
-const SHIPPED_SLIDE_NAME_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/presentations|node_modules\/open-office-artifact-tool\/skills\/presentations\/skills\/presentations)\/examples\/openchestnut-slide-name-edit-workflow\.mjs(?:$|[\s"'`])/i;
-const SHIPPED_SLIDE_DUPLICATE_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/presentations|node_modules\/open-office-artifact-tool\/skills\/presentations\/skills\/presentations)\/examples\/openchestnut-slide-duplicate-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_RICH_NOTES_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/presentations|node_modules\/office-kit\/skills\/presentations\/skills\/presentations)\/examples\/officekit-rich-speaker-notes-edit-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_SLIDE_NAME_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/presentations|node_modules\/office-kit\/skills\/presentations\/skills\/presentations)\/examples\/officekit-slide-name-edit-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_SLIDE_DUPLICATE_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/presentations|node_modules\/office-kit\/skills\/presentations\/skills\/presentations)\/examples\/officekit-slide-duplicate-workflow\.mjs(?:$|[\s"'`])/i;
 const CLONE_TOPOLOGY_PARTS = new Set([
   "[Content_Types].xml",
   "ppt/presentation.xml",
@@ -1002,7 +1002,7 @@ export function gradePptxClosedLeafCloneEvidence({ evidence, audit, commands }) 
       source: { expected: source.sha256, actual: auditHash(audit, "source") },
       output: { expected: output.sha256, actual: auditHash(audit, "output") },
     }),
-    check("pptx-clone-trace:open-chestnut-provider", "trace", /open[- ]?chestnut/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
+    check("pptx-clone-trace:office-kit-provider", "trace", /office[- ]?kit/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
       provider: auditProvider(audit),
       version: auditVersion(audit),
     }),
@@ -1196,7 +1196,7 @@ export function gradePptxRichNotesEvidence({ evidence, audit, commands }) {
       source: { expected: source.sha256, actual: auditHash(audit, "source") },
       output: { expected: output.sha256, actual: auditHash(audit, "output") },
     }),
-    check("pptx-rich-notes-trace:open-chestnut-provider", "trace", /open[- ]?chestnut/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
+    check("pptx-rich-notes-trace:office-kit-provider", "trace", /office[- ]?kit/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
       provider: auditProvider(audit),
       version: auditVersion(audit),
     }),
@@ -1314,7 +1314,7 @@ export function gradePptxSlideNameEvidence({ evidence, audit, commands }) {
       source: { expected: source.sha256, actual: auditHash(audit, "source") },
       output: { expected: output.sha256, actual: auditHash(audit, "output") },
     }),
-    check("pptx-name-trace:open-chestnut-provider", "trace", /open[- ]?chestnut/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
+    check("pptx-name-trace:office-kit-provider", "trace", /office[- ]?kit/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
       provider: auditProvider(audit),
       version: auditVersion(audit),
     }),

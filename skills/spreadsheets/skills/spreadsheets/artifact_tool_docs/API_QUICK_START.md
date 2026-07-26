@@ -6,7 +6,7 @@ Library version: 0.3.0+
 
 Import existing workbook only when needed:
 ```js
-import { FileBlob, SpreadsheetFile } from "open-office-artifact-tool";
+import { FileBlob, SpreadsheetFile } from "office-kit";
 
 const input = await FileBlob.load("path/to/input.xlsx");
 const workbook = await SpreadsheetFile.importXlsx(input);
@@ -15,7 +15,7 @@ const workbook = await SpreadsheetFile.importXlsx(input);
 Import CSV text directly when the source or intermediate data is CSV:
 ```js
 import fs from "node:fs/promises";
-import { Workbook } from "open-office-artifact-tool";
+import { Workbook } from "office-kit";
 
 const csvText = await fs.readFile("path/to/input.csv", "utf8");
 const workbook = await Workbook.fromCSV(csvText, { sheetName: "Sheet1" });
@@ -25,7 +25,7 @@ Prefer `Workbook.fromCSV(...)` over hand-parsing CSV rows; clean or analyze CSV 
 Create new workbook:
 ```js
 import fs from "node:fs/promises";
-import { SpreadsheetFile, Workbook } from "open-office-artifact-tool";
+import { SpreadsheetFile, Workbook } from "office-kit";
 
 const workbook = Workbook.create();
 const sheet = workbook.worksheets.add("Inputs");
@@ -169,7 +169,7 @@ range.values = [["Source note spanning the recommendation panel"]];
 ## Quick API Surface (High-Value + Common)
 
 ### Core workbook/file APIs
-- `import { FileBlob, SpreadsheetFile, Workbook } from "open-office-artifact-tool"`
+- `import { FileBlob, SpreadsheetFile, Workbook } from "office-kit"`
 - `const workbook = Workbook.create(); const sheet = workbook.worksheets.add("Sheet1")`
 - `const workbook = await SpreadsheetFile.importXlsx(arrayBufferOrFileBlob)`
 - `const xlsx = await SpreadsheetFile.exportXlsx(workbook); await xlsx.save("output.xlsx")`
@@ -268,7 +268,7 @@ sheet.protection = {
 `allow` accepts `selectLockedCells`, `selectUnlockedCells`, `formatCells`,
 `formatColumns`, `formatRows`, `insertColumns`, `insertRows`,
 `insertHyperlinks`, `deleteColumns`, `deleteRows`, `sort`, `autoFilter`,
-`pivotTables`, `editObjects`, and `editScenarios`. OpenChestnut owns the
+`pivotTables`, `editObjects`, and `editScenarios`. OfficeKit owns the
 inverse native lock flags and their defaults. Assign `null`, `false`, or
 `{ enabled: false }` to remove a recognized passwordless restriction.
 
@@ -276,7 +276,7 @@ This is an editing restriction, not encryption, authentication, or access
 control. Password/hash/cryptographic and extension-bearing protection profiles
 remain source-owned; an unrelated edit preserves them, while semantic
 replacement fails closed. Runnable example:
-`examples/openchestnut-worksheet-protection-workflow.mjs`.
+`examples/officekit-worksheet-protection-workflow.mjs`.
 
 ### Data Validation
 - `range.dataValidation = { rule: { type: "list", formula1: "Categories!$A$2:$A$4" } }`
@@ -286,12 +286,12 @@ replacement fails closed. Runnable example:
 - Admission UX is part of the typed rule: `allowBlank`, `showInputMessage`, `promptTitle` (32 characters), `prompt` (255), `showErrorMessage`, `errorTitle` (32), `error` (255), and `errorStyle: "stop" | "warning" | "information"`.
 - For list rules, `showDropdown: true` means the in-cell arrow is visible. The public property intentionally reverses SpreadsheetML's confusing native `showDropDown` flag, where native true hides the arrow.
 - Inline `values` require 1 through 256 non-empty, comma-free, control-safe items and a quoted native formula no longer than 255 characters. Use `formula1` for longer or cell-backed lists. Unsupported multi-area/extension validation graphs remain source-bound; do not replace them with a simplified rule.
-- Runnable full example: `examples/openchestnut-data-validation-workflow.mjs`.
+- Runnable full example: `examples/officekit-data-validation-workflow.mjs`.
 
 ### Conditional formatting
 - Use `range.conditionalFormats.add(ruleType, ConditionalFormatConfig);`.
 - Use `range.conditionalFormats.add(ruleType, {operator, formula, format});`. Choose ruleType, operator, color, and style strings from the inline types below.
-- For `containsText`, provide `text` and `format`; the Range API derives the relative SEARCH formula required by SpreadsheetML/OpenChestnut. Supplying an explicit formula remains supported.
+- For `containsText`, provide `text` and `format`; the Range API derives the relative SEARCH formula required by SpreadsheetML/OfficeKit. Supplying an explicit formula remains supported.
 ```
 type ConditionalFormatRuleType =
   | "cellIs" | "expression" | "containsText"
@@ -404,7 +404,7 @@ workbook.disableConnectionRefreshOnLoad(connection.connectionId);
 - It stops the connection's refresh-on-open request only. It does not execute a refresh and does not promise to prevent a manual, macro, PivotTable, or other host-triggered refresh.
 - Connection strings, commands, credentials, provider/path metadata, `background`, `keepAlive`, `interval`, `saveData`, children, extensions, identity, order, and unknown XML remain immutable. Export re-proves the full part/element source bindings and normalized residual, reparses output, and fails closed on any other change.
 
-`examples/openchestnut-connection-refresh-hardening-workflow.mjs` is the runnable no-overwrite transaction: it binds one numeric connection ID (and optionally its expected name), protects source bytes, reimports the result, confirms every public connection field except the one `true` → `false` change, renders all sheets, and emits a byte-bound rewrite audit. It is not a provider/credential editor or a general refresh-control workflow.
+`examples/officekit-connection-refresh-hardening-workflow.mjs` is the runnable no-overwrite transaction: it binds one numeric connection ID (and optionally its expected name), protects source bytes, reimports the result, confirms every public connection field except the one `true` → `false` change, renders all sheets, and emits a byte-bound rewrite audit. It is not a provider/credential editor or a general refresh-control workflow.
 
 ### What-If Data Tables
 
@@ -431,7 +431,7 @@ const definitions = sheet.dataTables.__getDefinitions();
 
 - `range` must be at least 2x2 and its upper-left cell must already contain a formula.
 - `rowInput` and `columnInput` are normalized same-sheet single-cell A1 addresses. Cross-sheet inputs, out-of-bounds cells, and overlapping result ranges fail closed.
-- OpenChestnut exports canonical native `<f t="dataTable">` markup. Result cells are calculated by Excel, LibreOffice, or another compatible host after opening/recalculation; do not hardcode guessed outputs.
+- OfficeKit exports canonical native `<f t="dataTable">` markup. Result cells are calculated by Excel, LibreOffice, or another compatible host after opening/recalculation; do not hardcode guessed outputs.
 - Canonical imported definitions are inspectable through `__getDefinitions()`, but their count, order, result range, inputs, and orientation are source-bound and read-only. Make ordinary cell edits around them, or rebuild a new workbook deliberately; there is no silent lossy fallback.
 
 ### Native PivotTables
@@ -462,8 +462,8 @@ const pivot = summary.pivotTables.add({
 - `targetRange` may be the top-left anchor or the exact cached-output rectangle. Empty target cells may be styled before export; an existing value or formula in the output rectangle is rejected as a collision.
 - Verify `pivot.computedValues()` against source totals, inspect `kind: "pivotTable"`, render the summary, then export and import again.
 - Recognized imported native PivotTables are inspectable but their config, source values, cached output, and package topology are read-only in this profile. The sole exception is `pivot.disableRefreshOnLoad()`: only when `pivot.sourceCapabilities.refreshOnLoadHardenable` is true may it turn an explicitly present, uniquely owned cache's `refreshOnLoad` from true to false. It re-proves cache residual/source bindings and does not run or otherwise block manual, macro, external-data, or host-triggered refreshes. Exact item filters on native axes are supported; grouping, calculated/date/condition filters, more than 8 row fields, multiple column fields, compact/subtotal-bearing multi-row graphs, more than 32 values, and source-bound additions fail closed rather than becoming a lossy worksheet reconstruction.
-- For an existing file, `examples/openchestnut-pivot-refresh-hardening-workflow.mjs input.xlsx output.xlsx audit.json "Sheet" "Pivot"` is the no-overwrite transaction: it requires one named eligible PivotTable, changes only its cache definition, byte-checks every other package part, reimports/renders, and emits source/output provenance. It does not refresh data or permit general Pivot edits.
-- Read `features/pivot-tables.md` and run `examples/openchestnut-pivot-table-workflow.mjs` for the complete Agent workflow.
+- For an existing file, `examples/officekit-pivot-refresh-hardening-workflow.mjs input.xlsx output.xlsx audit.json "Sheet" "Pivot"` is the no-overwrite transaction: it requires one named eligible PivotTable, changes only its cache definition, byte-checks every other package part, reimports/renders, and emits source/output provenance. It does not refresh data or permit general Pivot edits.
+- Read `features/pivot-tables.md` and run `examples/officekit-pivot-table-workflow.mjs` for the complete Agent workflow.
 
 ### Images
 - `sheet.images.add({dataUrl: "data:image/png;base64,...", anchor: {from: { row: 1, col: 2 }, extent: { widthPx: 160, heightPx: 120 }}})`
@@ -476,7 +476,7 @@ This is the API to create a threaded comment in Excel, which requires a user-vis
 - To reply to a threaded comment: `thread.addReply("This is a reply to the comment")`
 - To resolve/re-open a thread: `thread.resolve()`, `thread.reopen()`
 
-Canonical OpenChestnut XLSX supports one root plus multiple direct replies with
+Canonical OfficeKit XLSX supports one root plus multiple direct replies with
 independent author/person/date/done metadata. Do not set a reply's `parentId`
 to another reply: nested/branched graphs, mentions, orphan parents, and
 cross-cell parents are source-bound and fail closed instead of being flattened.
@@ -497,7 +497,7 @@ const output = await SpreadsheetFile.exportXlsx(workbook, { recalculate: false }
 const roundTrip = await SpreadsheetFile.importXlsx(output);
 ```
 
-`examples/openchestnut-threaded-comment-reply-workflow.mjs` turns that bounded
+`examples/officekit-threaded-comment-reply-workflow.mjs` turns that bounded
 sequence into a command-line workflow with source/output SHA-256 audit records,
 second-import checks, and a model render of every worksheet.
 
@@ -511,10 +511,10 @@ formula/value pair survived. A protected sheet or range should be snapshotted
 before the edit and compared after reimport; do not rebuild an imported workbook
 to make a local assumption edit appear successful.
 
-`examples/openchestnut-growth-assumption-edit-workflow.mjs` is the runnable
+`examples/officekit-growth-assumption-edit-workflow.mjs` is the runnable
 two-sheet profile: it changes only `Forecast!B9` from 8% to 10%, preserves
 `Forecast!B10`, formulas, sheet identity/order, and `Approved Baseline`, and
-writes a byte-bound OpenChestnut rewrite audit with second-import and all-sheet
+writes a byte-bound OfficeKit rewrite audit with second-import and all-sheet
 SVG evidence. Adapt it only after replacing its explicit preconditions and
 canaries with ones that match the requested workbook.
 
@@ -561,7 +561,7 @@ const scatter = sheet.charts.add("scatter", {
 });
 ```
 Marker-only scatter rejects the series-level `line`/`stroke` aliases. Use
-`series.marker.line` when a marker needs a styled border; OpenChestnut writes a
+`series.marker.line` when a marker needs a styled border; OfficeKit writes a
 native no-fill series outline so LibreOffice and Office do not connect points.
 - A bubble chart uses the same numeric X/Y topology plus one positive size vector
   per series. It does not use point markers or text categories:
@@ -581,10 +581,10 @@ const bubble = sheet.charts.add("bubble", {
 });
 ```
 `bubbleSizes` must be finite, positive, and have exactly the same point count
-as `xValues` and `values`; the bounded OpenChestnut profile uses two numeric
+as `xValues` and `values`; the bounded OfficeKit profile uses two numeric
 value axes and area-based sizing. `bubble3D`, negative bubbles, custom scale,
 and non-area sizing remain source-bound/read-only rather than being rewritten.
-- For internal A1 range formulas, inspect, SVG render, and OpenChestnut export resolve the current category/value caches from the referenced cells. This makes the formula-only series pattern above runnable; external-workbook references or invalid ranges are not silently substituted.
+- For internal A1 range formulas, inspect, SVG render, and OfficeKit export resolve the current category/value caches from the referenced cells. This makes the formula-only series pattern above runnable; external-workbook references or invalid ranges are not silently substituted.
 - After creating a chart with data, specify position, title, axis via the following:
 ```js
 chart.setPosition("J4", "Q20");
@@ -602,7 +602,7 @@ chart.yAxis.title.text = "Revenue and EBITDA";
 - If using compat positioning, always set position: `chart.setPosition("F2", "M20")`.
 - `sheet.charts.getItemOrNullObject("Chart 1")`, `sheet.charts.deleteAll()`
 - For month/date x-axes, prefer a chart helper range with text labels such as `Jan 2025` or `2025-01`. Do not rely on date axis number formats alone; rendered previews can show Excel serial numbers.
-- Canonical OpenChestnut XLSX types are `"bar" | "line" | "area" | "pie" | "doughnut" | "scatter" | "bubble"`. Area uses the standard grouping; doughnut uses a 50% hole; scatter uses marker-only `xVal/yVal` series, two numeric value axes, and an explicit native no-fill series outline; bubble uses `xVal/yVal/bubbleSize`, two numeric value axes, positive sizes, and canonical 2D/100%-scale/area sizing. Imported scatter line/smooth variants and imported noncanonical bubble profiles remain source-bound. Radar, stock, treemap, sunburst, histogram, box-whisker, waterfall, funnel, map, stacked-area variants, custom doughnut holes, and exploded points are not silently substituted: imported graphs remain source-bound, while unsupported source-free creation fails closed.
+- Canonical OfficeKit XLSX types are `"bar" | "line" | "area" | "pie" | "doughnut" | "scatter" | "bubble"`. Area uses the standard grouping; doughnut uses a 50% hole; scatter uses marker-only `xVal/yVal` series, two numeric value axes, and an explicit native no-fill series outline; bubble uses `xVal/yVal/bubbleSize`, two numeric value axes, positive sizes, and canonical 2D/100%-scale/area sizing. Imported scatter line/smooth variants and imported noncanonical bubble profiles remain source-bound. Radar, stock, treemap, sunburst, histogram, box-whisker, waterfall, funnel, map, stacked-area variants, custom doughnut holes, and exploded points are not silently substituted: imported graphs remain source-bound, while unsupported source-free creation fails closed.
 
 ### Sparklines
 ```
@@ -621,7 +621,7 @@ const group = sheet.sparklineGroups.add({
 });
 ```
 - Sparkline type is a string. Prefer `"span"`/`"connect"`, `"gap"`, or `"zero"` for empty-cell display; reference-compatible numeric values `1`, `2`, and `3` are also accepted. Prefer `"individual"`, `"group"`, or `"custom"` for axis modes; reference-compatible numeric values `0`, `1`, and `2` are also accepted.
-- OpenChestnut authors these as standard Office 2010 `x14:sparklineGroups`. A target must be one row or one column. Vertical targets map to source rows; horizontal targets map to source columns; a single target maps to one-dimensional source data. Imported canonical groups are editable with fixed count/order, while non-contiguous or otherwise unsupported native groups remain source-preserved and fail closed.
+- OfficeKit authors these as standard Office 2010 `x14:sparklineGroups`. A target must be one row or one column. Vertical targets map to source rows; horizontal targets map to source columns; a single target maps to one-dimensional source data. Imported canonical groups are editable with fixed count/order, while non-contiguous or otherwise unsupported native groups remain source-preserved and fail closed.
 - Sparkline Inline Type:
 ```
 type SparklineConfig = {
@@ -688,7 +688,7 @@ For tracing the full tree of how a formula is calculated, `workbook.trace("Sheet
 
 ```js
 import fs from "node:fs/promises";
-import { SpreadsheetFile, Workbook } from "open-office-artifact-tool";
+import { SpreadsheetFile, Workbook } from "office-kit";
 
 const outputDir = "output";
 await fs.mkdir(outputDir, { recursive: true });

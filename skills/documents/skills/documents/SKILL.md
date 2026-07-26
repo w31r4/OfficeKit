@@ -1,6 +1,6 @@
 ---
 name: documents
-description: Create, import, edit, redline, comment, and verify `.docx`, Word, and Google Docs-targeted artifacts with the public `open-office-artifact-tool` DocumentModel and bundled OpenChestnut codec. Use the packaged render workflow for page-level visual QA before delivery.
+description: Create, import, edit, redline, comment, and verify `.docx`, Word, and Google Docs-targeted artifacts with the public `office-kit` DocumentModel and bundled OfficeKit codec. Use the packaged render workflow for page-level visual QA before delivery.
 ---
 
 # Documents Skill (Read • Create • Edit • Redline • Comment)
@@ -12,7 +12,7 @@ them visually.
 ## Tools + Contract
 
 - Use host-provided workspace dependencies for DOCX artifact work: resolve them through the workspace dependency loader or runtime skill, then treat the returned Node/Python runtimes and package directory as authoritative. Do not use system `node`, system `python`, global npm packages, or repo-local installs.
-- For ordinary DOCX creation, import, semantic editing, inline and bounded foreground floating images, bounded whole-block bookmarks/internal links, 1-through-16-paragraph plain-text footnotes/endnotes, canonical bibliography-backed citations, canonical inline `SEQ`/`REF`/`PAGEREF` field runs plus bounded `SEQ`/`REF` cache materialization, bounded source-free header/footer literal/simple-field sequences, canonical native TOC placeholders with explicit field-refresh intent, and export, **MUST** use the public `open-office-artifact-tool` `DocumentModel`/`DocumentFile` surface and its bundled OpenChestnut codec. Read `artifact_tool/API_QUICK_START.md`, then use `tasks/create_edit.md` for the task workflow.
+- For ordinary DOCX creation, import, semantic editing, inline and bounded foreground floating images, bounded whole-block bookmarks/internal links, 1-through-16-paragraph plain-text footnotes/endnotes, canonical bibliography-backed citations, canonical inline `SEQ`/`REF`/`PAGEREF` field runs plus bounded `SEQ`/`REF` cache materialization, bounded source-free header/footer literal/simple-field sequences, canonical native TOC placeholders with explicit field-refresh intent, and export, **MUST** use the public `office-kit` `DocumentModel`/`DocumentFile` surface and its bundled OfficeKit codec. Read `artifact_tool/API_QUICK_START.md`, then use `tasks/create_edit.md` for the task workflow.
 - Python and direct OOXML helpers are reserved for explicit low-level package patches, specialized audits, and render/QA operations documented by this Skill. They are never an automatic authoring fallback. If an imported construct cannot be edited through the supported model, narrow the edit or report the fail-closed boundary.
 - Run any builder or helper file from a writable workspace or temp directory, not from the managed dependency directory itself.
 - Final user-facing responses should describe only the requested document result. Do not link QA intermediates unless the user explicitly asks for them.
@@ -21,7 +21,7 @@ them visually.
 
 For a net-new Google Docs request, create and visually verify a local `.docx` with this skill first. The native Google Docs deliverable must then be produced by the Google Drive plugin's document import action, `mcp__codex_apps__google_drive_import_document`, with `upload_mode: "native_google_docs"`.
 
-After OpenChestnut export and before rendering or importing any Google Docs-targeted DOCX, run the deterministic title sanitizer as an explicit compatibility patch:
+After OfficeKit export and before rendering or importing any Google Docs-targeted DOCX, run the deterministic title sanitizer as an explicit compatibility patch:
 
 ```bash
 python scripts/google_docs_title_sanitize.py input.docx --out sanitized.docx
@@ -200,19 +200,19 @@ When the user asks to edit an existing document, preserve the original and make 
 ## Quick start (common one-liners)
 
 ```bash
-# 0) Run the shipped public-API/OpenChestnut create-import-edit-export example
-node examples/openchestnut-end-to-end.mjs output.docx
+# 0) Run the shipped public-API/OfficeKit create-import-edit-export example
+node examples/officekit-end-to-end.mjs output.docx
 
 # 1) Apply one source-bound literal edit to block 0. This permits a match split
 # across adjacent native runs only when their formatting is byte-identical.
-node examples/openchestnut-source-text-patch-workflow.mjs \
+node examples/officekit-source-text-patch-workflow.mjs \
   input.docx edited.docx edited.audit.json paragraph 0 "Quarterly" "Annual"
 # For table cell row 1, column 2 in block 4:
-node examples/openchestnut-source-text-patch-workflow.mjs \
+node examples/officekit-source-text-patch-workflow.mjs \
   input.docx edited.docx edited.audit.json tableCell 4 "Pending" "Approved" 1 2
 
 # 2) Apply one bounded imported classic-comment text edit with full reimport/audit evidence
-node examples/openchestnut-classic-comment-edit-workflow.mjs input.docx reviewed.docx audit.json \
+node examples/officekit-classic-comment-edit-workflow.mjs input.docx reviewed.docx audit.json \
   "Decision: proceed with controlled rollout." \
   "Please confirm the final retention wording." \
   "Approved after legal review."
@@ -220,16 +220,16 @@ node examples/openchestnut-classic-comment-edit-workflow.mjs input.docx reviewed
 # 3) Edit one ordinary imported header paragraph. It rejects PAGE/simple fields,
 # shared/inherited parts, rich text, topology changes, and every second edit to
 # the same HeaderPart; only one word/headerN.xml part may change.
-node examples/openchestnut-header-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
+node examples/officekit-header-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
   "Northwind | Internal" "Northwind | Reviewed" 0 default
 
 # 4) Edit one ordinary imported footer paragraph. It uses the same narrow
 # source-bound transaction, but accepts only one word/footerN.xml part.
-node examples/openchestnut-footer-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
+node examples/officekit-footer-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
   "Northwind | Internal" "Northwind | Reviewed" 0 default
 
 # 5) Edit one bounded modern root + direct reply and mark the root resolved
-node examples/openchestnut-modern-comment-thread-workflow.mjs input.docx reviewed.docx audit.json \
+node examples/officekit-modern-comment-thread-workflow.mjs input.docx reviewed.docx audit.json \
   "Decision: proceed with controlled rollout." \
   "Please confirm the release evidence." "Release evidence approved." \
   "The evidence is attached." "Evidence retained with the approval." resolved
@@ -238,10 +238,10 @@ node examples/openchestnut-modern-comment-thread-workflow.mjs input.docx reviewe
 # request.json contains either paragraph-only targetBlockIndex or a structured
 # paragraph/tableCell target, plus expectedText, search, replacement, author,
 # and optional date.
-node examples/openchestnut-tracked-replacement-workflow.mjs \
+node examples/officekit-tracked-replacement-workflow.mjs \
   input.docx reviewed.docx reviewed.audit.json request.json
 
-# 7) Sanitize Google Docs-targeted title blocks after OpenChestnut export
+# 7) Sanitize Google Docs-targeted title blocks after OfficeKit export
 python scripts/google_docs_title_sanitize.py input.docx --out sanitized.docx
 python scripts/google_docs_title_sanitize.py sanitized.docx --check
 
@@ -251,10 +251,10 @@ python render_docx.py input.docx --output_dir out
 # 7) Remove reviewer comments (explicit package-level finalization)
 python scripts/comments_strip.py input.docx --out no_comments.docx
 
-# 8) Finalize bounded whole-paragraph revisions or a canonical tracked replacement through OpenChestnut
-node examples/openchestnut-revision-finalization-workflow.mjs input.docx accepted.docx audit.json accept
+# 8) Finalize bounded whole-paragraph revisions or a canonical tracked replacement through OfficeKit
+node examples/officekit-revision-finalization-workflow.mjs input.docx accepted.docx audit.json accept
 # Reject instead, while preserving an existing trackRevisions setting:
-node examples/openchestnut-revision-finalization-workflow.mjs input.docx rejected.docx audit.json reject --keep-tracking
+node examples/officekit-revision-finalization-workflow.mjs input.docx rejected.docx audit.json reject --keep-tracking
 
 # 9) Accessibility audit (+ optional explicit package fixes)
 python scripts/a11y_audit.py input.docx
@@ -277,7 +277,7 @@ Root:
 - render_docx.py: canonical DOCX→PNG renderer (container-safe LO profile + writable HOME + verbose logs)
 
 Artifact tool:
-- artifact_tool/API_QUICK_START.md: public `DocumentModel`/`DocumentFile` and OpenChestnut workflow
+- artifact_tool/API_QUICK_START.md: public `DocumentModel`/`DocumentFile` and OfficeKit workflow
 
 References:
 - references/design_presets.md: preset-first design tokens, archetype aliases, OOXML conversions, and preset audit checklist
@@ -354,14 +354,14 @@ Scripts:
 > `scripts/xlsx_to_docx_table.py` also marks header rows as repeating headers (`w:tblHeader`) to improve a11y and multi-page tables.
 
 Examples:
-- `examples/openchestnut-end-to-end.mjs` — runnable public-API create → export → import → typed text/checkbox/drop-down/combo-box/date-control edit → export → import vertical slice
-- `examples/openchestnut-source-text-patch-workflow.mjs` — source-bound paragraph/table-cell literal replacement with same-format run-fragment support, immutable input, exact changed-part audit, no-replace publication, second import, verification, and model render evidence
-- `examples/openchestnut-classic-comment-edit-workflow.mjs` — imported classic-comment text-only edit with a unique text anchor, fixed comment topology, second import, model render, byte-bound audit, and atomic output
-- `examples/openchestnut-header-text-edit-workflow.mjs` — one ordinary source-bound HeaderPart paragraph edit with immutable input, exact one-part and header-residual proof, no-replace publication, second import, verification, and byte-bound audit; PAGE/simple fields and all broader page furniture fail closed
-- `examples/openchestnut-footer-text-edit-workflow.mjs` — the symmetric ordinary source-bound FooterPart transaction with the same immutable input, exact one-part/footer-residual proof, no-replace publication, second import, verification, and byte-bound audit; it never treats PAGE/simple fields or rich/shared page furniture as text
-- `examples/openchestnut-modern-comment-thread-workflow.mjs` — imported bounded root/direct-reply text and resolved-state edit with fixed identities/topology, second import, model/native render, byte-bound audit, and atomic output
-- `examples/openchestnut-watermark-workflow.mjs` — unique recognized canonical VML text-watermark edit/removal with immutable input, exact one-header-part scope, second import, model render, and byte-bound audit
-- `examples/end_to_end_smoke_test.md` — optional reference-compatible checklist for the explicit Python render/package-patch helpers; keep the public OpenChestnut workflow above as the default
+- `examples/officekit-end-to-end.mjs` — runnable public-API create → export → import → typed text/checkbox/drop-down/combo-box/date-control edit → export → import vertical slice
+- `examples/officekit-source-text-patch-workflow.mjs` — source-bound paragraph/table-cell literal replacement with same-format run-fragment support, immutable input, exact changed-part audit, no-replace publication, second import, verification, and model render evidence
+- `examples/officekit-classic-comment-edit-workflow.mjs` — imported classic-comment text-only edit with a unique text anchor, fixed comment topology, second import, model render, byte-bound audit, and atomic output
+- `examples/officekit-header-text-edit-workflow.mjs` — one ordinary source-bound HeaderPart paragraph edit with immutable input, exact one-part and header-residual proof, no-replace publication, second import, verification, and byte-bound audit; PAGE/simple fields and all broader page furniture fail closed
+- `examples/officekit-footer-text-edit-workflow.mjs` — the symmetric ordinary source-bound FooterPart transaction with the same immutable input, exact one-part/footer-residual proof, no-replace publication, second import, verification, and byte-bound audit; it never treats PAGE/simple fields or rich/shared page furniture as text
+- `examples/officekit-modern-comment-thread-workflow.mjs` — imported bounded root/direct-reply text and resolved-state edit with fixed identities/topology, second import, model/native render, byte-bound audit, and atomic output
+- `examples/officekit-watermark-workflow.mjs` — unique recognized canonical VML text-watermark edit/removal with immutable input, exact one-header-part scope, second import, model render, and byte-bound audit
+- `examples/end_to_end_smoke_test.md` — optional reference-compatible checklist for the explicit Python render/package-patch helpers; keep the public OfficeKit workflow above as the default
 
 > Note: `manifest.txt` is **machine-readable** and is used by download tooling. It must contain only relative file paths (one per line).
 
@@ -392,9 +392,9 @@ This is a quick index so you can jump from a helper script to the right task gui
 - `insert_toc.py` → `tasks/toc_workflow.md`
 
 ### Review lifecycle (comments / tracked changes)
-- Public `document.addInsertion(...)` / `document.addDeletion(...)` authors standalone whole-paragraph revisions, while `DocumentFile.addTrackedReplacement(...)` plus `examples/openchestnut-tracked-replacement-workflow.mjs` adds one exact source-bound native in-paragraph deletion/insertion pair in either a direct body paragraph or one bounded direct table-cell paragraph. `document.setSettings({ trackRevisions: true })` independently enables future-change tracking. `DocumentFile.finalizeRevisions(...)` accepts/rejects both bounded profiles; the shipped revision-finalization workflow adds richer whole-block projection checks. `add_tracked_replacements.py` and `accept_tracked_changes.py` remain explicit helpers only for broader graphs → `ooxml/tracked_changes.md`, `tasks/clean_tracked_changes.md`
-- `examples/openchestnut-classic-comment-edit-workflow.mjs` is the preferred public route for one uniquely located imported classic comment when only its text may change
-- `examples/openchestnut-modern-comment-thread-workflow.mjs` handles one recognized root plus one direct reply: text and root resolved state may change, while imported identity, people/durable metadata, anchors, and topology stay source-bound; nested or irregular graphs fail closed
+- Public `document.addInsertion(...)` / `document.addDeletion(...)` authors standalone whole-paragraph revisions, while `DocumentFile.addTrackedReplacement(...)` plus `examples/officekit-tracked-replacement-workflow.mjs` adds one exact source-bound native in-paragraph deletion/insertion pair in either a direct body paragraph or one bounded direct table-cell paragraph. `document.setSettings({ trackRevisions: true })` independently enables future-change tracking. `DocumentFile.finalizeRevisions(...)` accepts/rejects both bounded profiles; the shipped revision-finalization workflow adds richer whole-block projection checks. `add_tracked_replacements.py` and `accept_tracked_changes.py` remain explicit helpers only for broader graphs → `ooxml/tracked_changes.md`, `tasks/clean_tracked_changes.md`
+- `examples/officekit-classic-comment-edit-workflow.mjs` is the preferred public route for one uniquely located imported classic comment when only its text may change
+- `examples/officekit-modern-comment-thread-workflow.mjs` handles one recognized root plus one direct reply: text and root resolved state may change, while imported identity, people/durable metadata, anchors, and topology stay source-bound; nested or irregular graphs fail closed
 - `comments_add.py`, `comments_extract.py`, `comments_apply_patch.py`, `comments_strip.py` → `tasks/comments_manage.md`
 
 ### Privacy / publishing
@@ -435,8 +435,8 @@ This is a quick index so you can jump from a helper script to the right task gui
 "80/20" here means: follow the simplest workflow that covers *most* DOCX tasks reliably.
 
 **Golden path (don’t mix-and-match unless debugging):**
-1. **Author or import/edit with `DocumentModel` and `DocumentFile`** from `open-office-artifact-tool`.
-2. **Export through OpenChestnut, re-import, and run semantic `verify()`/`inspect()` assertions** for the requested content.
+1. **Author or import/edit with `DocumentModel` and `DocumentFile`** from `office-kit`.
+2. **Export through OfficeKit, re-import, and run semantic `verify()`/`inspect()` assertions** for the requested content.
 3. **Render → inspect PNGs immediately** (DOCX → PNGs). Treat this as your feedback loop.
 4. **Fix and repeat** until the PNGs are visually perfect.
 5. **Only when explicitly required by an unsupported advanced package feature**: run the narrow OOXML patch documented for that feature. Never silently substitute Python authoring.
@@ -494,14 +494,14 @@ Then inspect the generated `page-<N>.png` files.
 - If you need **internal navigation links** (static TOC + Back-to-TOC + Top/Bottom): `tasks/navigation_internal_links.md`
 - If headings/numbering/TOC levels are messy: `tasks/headings_numbering.md`
 - If you have mixed portrait/landscape or margin weirdness: `tasks/sections_layout.md`
-- If you need to edit one ordinary imported header or footer paragraph: use the matching `examples/openchestnut-{header,footer}-text-edit-workflow.mjs`, then follow `tasks/headers_footers.md`; each proves exactly one target `word/headerN.xml` or `word/footerN.xml` part and its residual before no-replace publication. PAGE/simple fields, rich, shared, inherited, or irregular page furniture stays read-only
+- If you need to edit one ordinary imported header or footer paragraph: use the matching `examples/officekit-{header,footer}-text-edit-workflow.mjs`, then follow `tasks/headers_footers.md`; each proves exactly one target `word/headerN.xml` or `word/footerN.xml` part and its residual before no-replace publication. PAGE/simple fields, rich, shared, inherited, or irregular page furniture stays read-only
 - If you need a **floating or wrapped image**, or images shift/overlap across renderers: use the bounded `document.addImage({ ..., placement })` profile and follow `tasks/images_figures.md`; never infer support for an imported anchor from its visible appearance alone
 - If you need spreadsheet ↔ table round-tripping: `tasks/tables_spreadsheets.md`
-- If you need **tracked changes (redlines)**: use public `document.addInsertion(...)` / `document.addDeletion(...)` for whole blocks, or `examples/openchestnut-tracked-replacement-workflow.mjs` for one exact source-bound literal inside a direct body paragraph or bounded single-paragraph table cell; use `document.setSettings({ trackRevisions: true })` for future edits, then route broader graphs through `ooxml/tracked_changes.md`
+- If you need **tracked changes (redlines)**: use public `document.addInsertion(...)` / `document.addDeletion(...)` for whole blocks, or `examples/officekit-tracked-replacement-workflow.mjs` for one exact source-bound literal inside a direct body paragraph or bounded single-paragraph table cell; use `document.setSettings({ trackRevisions: true })` for future edits, then route broader graphs through `ooxml/tracked_changes.md`
 - If you need **comments**: `ooxml/comments.md`
 - If you need **hyperlinks/fields/page numbers/headers**: `ooxml/hyperlinks_and_fields.md`
 - If LibreOffice headless is failing: `troubleshooting/libreoffice_headless.md`
-- If you need a **clean copy** with tracked changes accepted or rejected: start with `examples/openchestnut-revision-finalization-workflow.mjs`, then follow `tasks/clean_tracked_changes.md` for capability boundaries and native render QA
+- If you need a **clean copy** with tracked changes accepted or rejected: start with `examples/officekit-revision-finalization-workflow.mjs`, then follow `tasks/clean_tracked_changes.md` for capability boundaries and native render QA
 - If you need to **diff two DOCXs** (render + per-page diff): `tasks/compare_diff.md`
 - If you need **templates / style packs (DOTX)**: `tasks/templates_style_packs.md`
 - If you need a **first-page header / cover / title block**: `references/header_templates.md`

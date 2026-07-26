@@ -5,7 +5,7 @@ summary object rather than only a formula-based report. Keep raw source rows in
 one rectangular range with one non-empty, unique header row; place the PivotTable
 on a separate summary sheet whenever practical.
 
-## Bounded OpenChestnut profile
+## Bounded OfficeKit profile
 
 The current source-free native profile supports:
 
@@ -22,7 +22,7 @@ The current source-free native profile supports:
 - `refreshOnLoad`, `saveData`, `enableRefresh`, `invalid`,
   `missingItemsLimit`, `refreshedBy`, and `refreshedDateIso` cache policy;
 - cached worksheet values plus native cache records when `saveData` is true;
-- inspect, resolve, SVG preview, OpenChestnut export/import, and a second
+- inspect, resolve, SVG preview, OfficeKit export/import, and a second
   byte-preserving export.
 
 ```js
@@ -57,7 +57,7 @@ formula in the projected output rectangle is a collision and export fails closed
 5. Export, import again, and confirm the native object and computed matrix.
 6. Preserve the original source bytes until final verification succeeds.
 
-Run `examples/openchestnut-pivot-table-workflow.mjs` for the complete author,
+Run `examples/officekit-pivot-table-workflow.mjs` for the complete author,
 inspect, render, export, second-import, and verification path.
 
 ## Imported refresh-on-load hardening
@@ -89,7 +89,7 @@ For an existing uploaded workbook, use the transactional public Skill example
 instead of treating its ZIP as a patch target:
 
 ```sh
-node examples/openchestnut-pivot-refresh-hardening-workflow.mjs \
+node examples/officekit-pivot-refresh-hardening-workflow.mjs \
   input.xlsx output.xlsx audit.json "Pivot Summary" "Revenue by region"
 ```
 
@@ -119,7 +119,7 @@ package.
 
 Excel-compatible hosts may omit the optional materialized `rowItems` and
 `colItems` axis caches when resaving a multi-row or multi-value PivotTable.
-OpenChestnut still recognizes that host-normalized graph when the ordered row
+OfficeKit still recognizes that host-normalized graph when the ordered row
 fields, canonical `x=-2` data-layout field when needed, ordered data fields,
 cache source, field indexes, and relationships all validate. A present but
 inconsistent item list, a compact/subtotal-bearing multi-row field, or a

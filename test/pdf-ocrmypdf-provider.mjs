@@ -60,8 +60,8 @@ async function writeControl(file, value = {}) {
     qpdfVersion: "12.3.2",
     popplerVersion: "26.05.0",
     languages: ["eng", "osd"],
-    sidecarText: "OPEN CHESTNUT OCR TEST\nInvoice 2026 Amount 12345\n",
-    extractedText: "OPEN CHESTNUT OCR TEST\nInvoice 2026 Amount 12345\n\f",
+    sidecarText: "OFFICE KIT OCR TEST\nInvoice 2026 Amount 12345\n",
+    extractedText: "OFFICE KIT OCR TEST\nInvoice 2026 Amount 12345\n\f",
     ...value,
   }), "utf8");
 }
@@ -78,7 +78,7 @@ assert.match(taskText, /--expected-sha256/);
 assert.match(taskText, /--input-trust/);
 assert.match(taskText, /Poppler/);
 
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-ocrmypdf-provider-"));
+const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-ocrmypdf-provider-"));
 try {
   const control = path.join(tempRoot, "control.json");
   const lastArgs = path.join(tempRoot, "last-ocr-args.json");
@@ -198,12 +198,12 @@ process.stdout.write(control.extractedText || "");
   await fs.writeFile(path.join(tessdataEng, "eng.traineddata"), "eng fixture", { mode: 0o400 });
   await fs.writeFile(path.join(tessdataChi, "chi_sim.traineddata"), "chi fixture", { mode: 0o400 });
   const fakeEnv = {
-    OPEN_OFFICE_PDF_OCRMYPDF: fakeOcr,
-    OPEN_OFFICE_PDF_TESSERACT: fakeTesseract,
-    OPEN_OFFICE_PDF_GS: fakeGhostscript,
-    OPEN_OFFICE_PDF_QPDF: fakeQpdf,
-    OPEN_OFFICE_PDF_PDFTOTEXT: fakePdftotext,
-    OPEN_OFFICE_PDF_TESSDATA_DIRS: [tessdataEng, tessdataChi].join(path.delimiter),
+    OFFICE_KIT_PDF_OCRMYPDF: fakeOcr,
+    OFFICE_KIT_PDF_TESSERACT: fakeTesseract,
+    OFFICE_KIT_PDF_GS: fakeGhostscript,
+    OFFICE_KIT_PDF_QPDF: fakeQpdf,
+    OFFICE_KIT_PDF_PDFTOTEXT: fakePdftotext,
+    OFFICE_KIT_PDF_TESSDATA_DIRS: [tessdataEng, tessdataChi].join(path.delimiter),
     EXPECT_MANAGED_TESSDATA: "1",
   };
   await writeControl(control);
@@ -245,9 +245,9 @@ process.stdout.write(control.extractedText || "");
     "--mode", "skip",
     "--language", "eng",
     "--input-trust", "trusted",
-    "--require-text", "open chestnut   ocr test",
+    "--require-text", "office kit   ocr test",
   ], { env: fakeEnv, status: 0 }));
-  assert.equal(success.schema, "open-office-artifact-tool.ocrmypdf-ocr.v1");
+  assert.equal(success.schema, "office-kit.ocrmypdf-ocr.v1");
   assert.equal(success.savePolicy, "rewrite");
   assert.equal(success.sourceProtected, true);
   assert.equal(success.sourcePrefixRetained, false);
@@ -293,7 +293,7 @@ process.stdout.write(control.extractedText || "");
   assert.match(jsonResult(oldTesseract, "stderr").error, /Tesseract >= 5\.0\.0/);
   await writeControl(control);
   const unavailableGhostscript = run(python, [provider, "probe"], {
-    env: { ...fakeEnv, OPEN_OFFICE_PDF_GS: path.join(tempRoot, "missing-gs") },
+    env: { ...fakeEnv, OFFICE_KIT_PDF_GS: path.join(tempRoot, "missing-gs") },
     status: 2,
   });
   assert.match(jsonResult(unavailableGhostscript, "stderr").error, /Ghostscript executable is unavailable/);
@@ -301,7 +301,7 @@ process.stdout.write(control.extractedText || "");
   await fs.mkdir(unsafeTessdata);
   await fs.symlink(path.join(tessdataEng, "eng.traineddata"), path.join(unsafeTessdata, "eng.traineddata"));
   const symlinkedTessdata = run(python, [provider, "probe"], {
-    env: { ...fakeEnv, OPEN_OFFICE_PDF_TESSDATA_DIRS: unsafeTessdata },
+    env: { ...fakeEnv, OFFICE_KIT_PDF_TESSDATA_DIRS: unsafeTessdata },
     status: 2,
   });
   assert.match(jsonResult(symlinkedTessdata, "stderr").error, /managed tessdata entry is unsafe|could not be opened safely/);
@@ -311,7 +311,7 @@ process.stdout.write(control.extractedText || "");
   await fs.writeFile(linkSource, "hard-link fixture");
   await fs.link(linkSource, path.join(linkedTessdata, "eng.traineddata"));
   const hardLinkedTessdata = run(python, [provider, "probe"], {
-    env: { ...fakeEnv, OPEN_OFFICE_PDF_TESSDATA_DIRS: linkedTessdata },
+    env: { ...fakeEnv, OFFICE_KIT_PDF_TESSDATA_DIRS: linkedTessdata },
     status: 2,
   });
   assert.match(jsonResult(hardLinkedTessdata, "stderr").error, /managed tessdata entry is unsafe/);
@@ -433,19 +433,19 @@ process.stdout.write(control.extractedText || "");
   assert.match(jsonResult(symlinkRejected, "stderr").error, /symbolic link.*will not be followed/);
   await assert.rejects(fs.access(symlinkTarget));
 
-  const realProvider = process.env.OPEN_OFFICE_PDF_OCRMYPDF_TEST;
+  const realProvider = process.env.OFFICE_KIT_PDF_OCRMYPDF_TEST;
   if (realProvider) {
-    const realPdftotext = process.env.OPEN_OFFICE_PDF_PDFTOTEXT_TEST || commandPath("pdftotext");
-    const pdftoppm = process.env.OPEN_OFFICE_PDF_PDFTOPPM_TEST || commandPath("pdftoppm");
-    const realGhostscript = process.env.OPEN_OFFICE_PDF_GS_TEST || commandPath("gs");
+    const realPdftotext = process.env.OFFICE_KIT_PDF_PDFTOTEXT_TEST || commandPath("pdftotext");
+    const pdftoppm = process.env.OFFICE_KIT_PDF_PDFTOPPM_TEST || commandPath("pdftoppm");
+    const realGhostscript = process.env.OFFICE_KIT_PDF_GS_TEST || commandPath("gs");
     assert.ok(realPdftotext, "real OCR test requires Poppler pdftotext");
     assert.ok(pdftoppm, "real OCR test requires Poppler pdftoppm");
     assert.ok(realGhostscript, "real OCR test requires Ghostscript gs");
     const realEnv = {
-      OPEN_OFFICE_PDF_OCRMYPDF: realProvider,
-      OPEN_OFFICE_PDF_PDFTOTEXT: realPdftotext,
-      OPEN_OFFICE_PDF_GS: realGhostscript,
-      ...(process.env.OPEN_OFFICE_PDF_TESSERACT_TEST ? { OPEN_OFFICE_PDF_TESSERACT: process.env.OPEN_OFFICE_PDF_TESSERACT_TEST } : {}),
+      OFFICE_KIT_PDF_OCRMYPDF: realProvider,
+      OFFICE_KIT_PDF_PDFTOTEXT: realPdftotext,
+      OFFICE_KIT_PDF_GS: realGhostscript,
+      ...(process.env.OFFICE_KIT_PDF_TESSERACT_TEST ? { OFFICE_KIT_PDF_TESSERACT: process.env.OFFICE_KIT_PDF_TESSERACT_TEST } : {}),
     };
     const realProbe = jsonResult(run(python, [provider, "probe"], { env: realEnv, status: 0 }));
     assert.equal(realProbe.providerVersion, "17.8.1");
@@ -454,7 +454,7 @@ process.stdout.write(control.extractedText || "");
     const svg = Buffer.from(
       '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600">' +
       '<rect width="1200" height="600" fill="white"/>' +
-      '<text x="80" y="250" font-family="Arial,sans-serif" font-size="72" font-weight="700">OPEN CHESTNUT OCR TEST</text>' +
+      '<text x="80" y="250" font-family="Arial,sans-serif" font-size="72" font-weight="700">OFFICE KIT OCR TEST</text>' +
       '<text x="80" y="360" font-family="Arial,sans-serif" font-size="56">Invoice 2026 Amount 12345</text>' +
       "</svg>",
     );
@@ -480,7 +480,7 @@ process.stdout.write(control.extractedText || "");
       "--mode", "skip",
       "--language", "eng",
       "--input-trust", "trusted",
-      "--require-text", "OPEN CHESTNUT OCR TEST",
+      "--require-text", "OFFICE KIT OCR TEST",
     ], { env: realEnv, status: 0 }));
     assert.equal(realReport.operation.scope, "complete-document");
     assert.equal(realReport.structureBefore.pageCount, 1);
@@ -488,10 +488,10 @@ process.stdout.write(control.extractedText || "");
     assert.equal(realReport.sourceProtected, true);
     assert.deepEqual(await fs.readFile(realSource), realSourceBytes);
     const finalText = run(realPdftotext, [realOutput, "-"], { status: 0 }).stdout;
-    assert.match(finalText, /OPEN CHESTNUT OCR TEST/);
+    assert.match(finalText, /OFFICE KIT OCR TEST/);
     assert.match(finalText, /Invoice 2026 Amount 12345/);
     const imported = await PdfFile.importPdf(await fs.readFile(realOutput), { preferParser: true });
-    assert.match(imported.extractText(), /OPEN CHESTNUT OCR TEST/);
+    assert.match(imported.extractText(), /OFFICE KIT OCR TEST/);
     const nativeInspect = await PdfFile.inspectPdf(await fs.readFile(realOutput));
     assert.equal(nativeInspect.summary.pages, 1);
     assert.equal(nativeInspect.summary.sourceSha256, realReport.output.sha256);
@@ -513,7 +513,7 @@ process.stdout.write(control.extractedText || "");
 }
 
 console.log(
-  process.env.OPEN_OFFICE_PDF_OCRMYPDF_TEST
+  process.env.OFFICE_KIT_PDF_OCRMYPDF_TEST
     ? "OCRmyPDF provider smoke ok"
-    : "OCRmyPDF provider smoke ok (real provider skipped: set OPEN_OFFICE_PDF_OCRMYPDF_TEST)",
+    : "OCRmyPDF provider smoke ok (real provider skipped: set OFFICE_KIT_PDF_OCRMYPDF_TEST)",
 );

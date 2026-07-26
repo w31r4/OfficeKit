@@ -17,7 +17,7 @@ import threading
 from typing import Any
 
 
-SCHEMA = "open-office-artifact-tool.verapdf-validation.v1"
+SCHEMA = "office-kit.verapdf-validation.v1"
 MINIMUM_VERSION = (1, 30, 0)
 MAXIMUM_VERSION_EXCLUSIVE = (1, 31, 0)
 HARD_MAX_INPUT_BYTES = 512 * 1024 * 1024
@@ -111,10 +111,10 @@ def input_path(value: str, max_input_bytes: int) -> Path:
 
 
 def executable_path() -> Path:
-    configured = os.environ.get("OPEN_OFFICE_PDF_VERAPDF", "").strip()
+    configured = os.environ.get("OFFICE_KIT_PDF_VERAPDF", "").strip()
     candidate = Path(configured).expanduser() if configured else Path(shutil.which("verapdf") or "")
     if not str(candidate) or not candidate.is_file() or not os.access(candidate, os.X_OK):
-        detail = f" configured by OPEN_OFFICE_PDF_VERAPDF={configured!r}" if configured else " on PATH"
+        detail = f" configured by OFFICE_KIT_PDF_VERAPDF={configured!r}" if configured else " on PATH"
         raise ProviderError(f"veraPDF executable is unavailable{detail}")
     return candidate.resolve()
 
@@ -463,7 +463,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
     executable = executable_path()
     version = provider_version(executable, min(timeout_seconds, 30))
 
-    with tempfile.TemporaryDirectory(prefix="open-office-verapdf-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="office-kit-verapdf-") as temporary:
         private_root = Path(temporary)
         os.chmod(private_root, 0o700)
         snapshot = private_root / "input.pdf"

@@ -1,7 +1,7 @@
 import { toUint8Array } from "./binary.mjs";
 import { FileBlob } from "./file-blob.mjs";
 
-export const LAYOUT_MIME = "application/vnd.open-office-artifact.layout+json";
+export const LAYOUT_MIME = "application/vnd.office-kit-artifact.layout+json";
 
 const RENDER_MIME_BY_FORMAT = {
   svg: "image/svg+xml",

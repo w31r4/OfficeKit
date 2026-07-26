@@ -1,0 +1,59 @@
+{
+  "name": "office-kit-numbering-edit",
+  "outputName": "office-kit-numbering-edit.docx",
+  "edits": [
+    {
+      "kind": "listItem",
+      "matchText": "First grouped item",
+      "text": "Edited first grouped item",
+      "numberFormat": "lowerRoman",
+      "start": 5,
+      "levelText": "%1.",
+      "listType": "number"
+    },
+    {
+      "kind": "listItem",
+      "matchText": "Second grouped item",
+      "numberFormat": "lowerRoman",
+      "start": 5,
+      "levelText": "%1.",
+      "listType": "number"
+    }
+  ],
+  "blocks": [
+    {
+      "kind": "paragraph",
+      "text": "OfficeKit bounded numbering-definition edit",
+      "styleId": "Title"
+    },
+    {
+      "kind": "listItem",
+      "text": "First grouped item",
+      "listType": "number",
+      "numberFormat": "upperLetter",
+      "start": 3,
+      "levelText": "%1)",
+      "numberingId": 88,
+      "abstractNumberingId": 9
+    },
+    {
+      "kind": "listItem",
+      "text": "Second grouped item",
+      "listType": "number",
+      "numberFormat": "upperLetter",
+      "start": 3,
+      "levelText": "%1)",
+      "numberingId": 88,
+      "abstractNumberingId": 9
+    }
+  ],
+  "expectInspect": [
+    { "kind": "listItem", "pattern": "First grouped item" },
+    { "kind": "listItem", "pattern": "upperLetter" }
+  ],
+  "qa": {
+    "previewFormat": "svg",
+    "nativeRender": "auto",
+    "inspectKind": "document,paragraph,listItem,layout"
+  }
+}

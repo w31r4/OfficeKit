@@ -19,9 +19,9 @@ import threading
 from typing import Any, Iterator, Sequence
 
 
-SCHEMA_INSPECT = "open-office-artifact-tool.qpdf-inspect.v1"
-SCHEMA_REWRITE = "open-office-artifact-tool.qpdf-rewrite.v1"
-SCHEMA_ENCRYPT = "open-office-artifact-tool.qpdf-encrypt.v1"
+SCHEMA_INSPECT = "office-kit.qpdf-inspect.v1"
+SCHEMA_REWRITE = "office-kit.qpdf-rewrite.v1"
+SCHEMA_ENCRYPT = "office-kit.qpdf-encrypt.v1"
 DEFAULT_MAX_INPUT_BYTES = 512 * 1024 * 1024
 DEFAULT_MAX_JSON_BYTES = 128 * 1024 * 1024
 DEFAULT_MAX_CHECK_BYTES = 2 * 1024 * 1024
@@ -47,10 +47,10 @@ def sha256(path: Path) -> str:
 
 
 def qpdf_path() -> Path:
-    configured = os.environ.get("OPEN_OFFICE_PDF_QPDF", "").strip()
+    configured = os.environ.get("OFFICE_KIT_PDF_QPDF", "").strip()
     resolved = Path(configured).expanduser() if configured else Path(shutil.which("qpdf") or "")
     if not str(resolved) or not resolved.is_file() or not os.access(resolved, os.X_OK):
-        detail = f" configured by OPEN_OFFICE_PDF_QPDF={configured!r}" if configured else " on PATH"
+        detail = f" configured by OFFICE_KIT_PDF_QPDF={configured!r}" if configured else " on PATH"
         raise ProviderError(f"qpdf executable is unavailable{detail}")
     return resolved.resolve()
 
@@ -445,7 +445,7 @@ def inspect_pdf(
 
     json_path: Path | None = None
     try:
-        with tempfile.NamedTemporaryFile(prefix="open-office-qpdf-", suffix=".json", delete=False) as stream:
+        with tempfile.NamedTemporaryFile(prefix="office-kit-qpdf-", suffix=".json", delete=False) as stream:
             json_path = Path(stream.name)
         json_result = run_qpdf(executable, [
             *private_input_arguments,

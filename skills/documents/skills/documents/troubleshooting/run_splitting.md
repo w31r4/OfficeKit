@@ -15,7 +15,7 @@ So searching for a substring and replacing it "as text" often fails.
 - Mixed run properties, empty-run gaps, paragraph boundaries, fields,
   hyperlinks, controls, revisions, and duplicate visible matches fail closed.
   Do not flatten the paragraph to make the replacement pass.
-- Use `../examples/openchestnut-source-text-patch-workflow.mjs` for the full
+- Use `../examples/officekit-source-text-patch-workflow.mjs` for the full
   immutable-input, changed-part, reimport, audit, and render-review workflow.
 - When you must replace a token, consider inserting a hidden marker run first (during `python-docx` authoring) so you can reliably locate the target later when patching OOXML.
 - For tracked changes replacements, wrap **exact runs** you want deleted as `<w:del>`, then insert new `<w:ins>` adjacent.

@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { PdfFile } from "open-office-artifact-tool";
+import { PdfFile } from "office-kit";
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -106,14 +106,14 @@ async function main() {
   }
 
   if (command === "probe") {
-    const { MUPDF_VERSION } = await import("open-office-artifact-tool/pdf/mupdf");
+    const { MUPDF_VERSION } = await import("office-kit/pdf/mupdf");
     print({ available: true, provider: "mupdf", version: MUPDF_VERSION, runtime: "mupdf.js", license: "AGPL-3.0-or-later", lazyLoaded: true });
     return;
   }
 
   const maxBytes = numberOption(options.max_bytes, "--max-bytes");
   const limits = maxBytes === undefined ? undefined : { maxBytes };
-  const password = process.env.OPEN_OFFICE_PDF_PASSWORD;
+  const password = process.env.OFFICE_KIT_PDF_PASSWORD;
 
   if (command === "inspect") {
     if (args.length !== 1) throw new Error(`inspect requires one input PDF.\n${usage()}`);

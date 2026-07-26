@@ -27,7 +27,7 @@ const { buildPresentation, exportPresentation } = await import(
   "../skills/presentations/skills/presentations/builtin_templates_support/scripts/create-presentation.mjs"
 );
 const outputDirectory = await fs.mkdtemp(
-  path.join(os.tmpdir(), "office-artifact-tool-grid-layout-library-"),
+  path.join(os.tmpdir(), "office-kit-grid-layout-library-"),
 );
 const outputPath = path.join(outputDirectory, "grid-layout-library.pptx");
 

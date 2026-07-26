@@ -8,7 +8,7 @@ footnote with footer text or a superscript character.
 
 ## Ordinary bounded workflow: public API
 
-Use `DocumentModel` and bundled OpenChestnut when each note has 1 through 16
+Use `DocumentModel` and bundled OfficeKit when each note has 1 through 16
 physical plain-text paragraphs and is anchored at the end of one paragraph or
 list item. The bounded profile permits at most one note per target block. The
 first paragraph owns the native marker; later paragraphs each own one ordinary
@@ -16,7 +16,7 @@ text run. Use `text` for the backward-compatible one-paragraph shorthand, or
 use `paragraphs` for an explicit multi-paragraph body.
 
 ```js
-import { DocumentFile, DocumentModel } from "open-office-artifact-tool";
+import { DocumentFile, DocumentModel } from "office-kit";
 
 const document = DocumentModel.create({ name: "Research note", blocks: [] });
 const claim = document.addParagraph("The pilot met its release threshold.");
@@ -59,7 +59,7 @@ Footnotes and endnotes live in separate package parts:
 
 The body points to them with `w:footnoteReference` or `w:endnoteReference`.
 Source-free note parts include the required separator (`w:id=-1`) and
-continuation-separator (`w:id=0`) entries. OpenChestnut allocates positive
+continuation-separator (`w:id=0`) entries. OfficeKit allocates positive
 native IDs independently for footnotes and endnotes. A canonical body contains
 1 through 16 direct `w:p` elements: the first has the appropriate marker plus
 one `w:t` run; every continuation paragraph has exactly one `w:t` run.

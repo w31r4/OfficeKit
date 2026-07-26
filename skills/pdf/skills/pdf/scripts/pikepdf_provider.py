@@ -19,8 +19,8 @@ import threading
 from typing import Any
 
 
-SCHEMA_INSPECT = "open-office-artifact-tool.pikepdf-inspect.v1"
-SCHEMA_CLEAN = "open-office-artifact-tool.pikepdf-structure-clean.v1"
+SCHEMA_INSPECT = "office-kit.pikepdf-inspect.v1"
+SCHEMA_CLEAN = "office-kit.pikepdf-structure-clean.v1"
 SUPPORTED_MIN = (10, 10, 0)
 SUPPORTED_MAX_EXCLUSIVE = (10, 11, 0)
 DEFAULT_MAX_INPUT_BYTES = 512 * 1024 * 1024
@@ -590,7 +590,7 @@ def inspect(args: argparse.Namespace) -> dict[str, Any]:
     if actual != expected:
         raise ProviderError(f"source SHA-256 mismatch: expected {expected}, received {actual}")
     _, version = require_pikepdf()
-    with tempfile.TemporaryDirectory(prefix="open-office-pikepdf-inspect-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="office-kit-pikepdf-inspect-") as temporary:
         temporary_root = Path(temporary)
         snapshot = snapshot_source(source, expected, temporary_root)
         worker = run_worker(
@@ -662,7 +662,7 @@ def clean(args: argparse.Namespace) -> dict[str, Any]:
     if actual != expected:
         raise ProviderError(f"source SHA-256 mismatch: expected {expected}, received {actual}")
     _, version = require_pikepdf()
-    with tempfile.TemporaryDirectory(prefix=".open-office-pikepdf-", dir=destination.parent) as temporary:
+    with tempfile.TemporaryDirectory(prefix=".office-kit-pikepdf-", dir=destination.parent) as temporary:
         temporary_root = Path(temporary)
         temporary_root.chmod(0o700)
         snapshot = snapshot_source(source, expected, temporary_root)

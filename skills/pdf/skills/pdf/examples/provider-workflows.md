@@ -25,7 +25,7 @@ separate AES-256 delivery-copy operation below; it does not pass arbitrary
 flags through to the provider:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pdf_provider.py check --provider qpdf --require
 "$PYTHON_BIN" scripts/qpdf_provider.py inspect input.pdf \
   > tmp/pdfs/qpdf-inspect.json
@@ -53,7 +53,7 @@ stricter (or equivalent Windows ACLs). Their contents never belong in these
 commands, environment variables, or the audit:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pdf_provider.py plan \
   --task encrypt --provider qpdf --strategy rewrite \
   --input input.pdf --output outputs/protected.pdf \
@@ -81,7 +81,7 @@ Resolve the explicitly selected pikepdf runtime before this workflow. The
 adapter exposes no arbitrary object edits or provider flags:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 SOURCE_SHA256="$($PYTHON_BIN -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest())' input.pdf)"
 "$PYTHON_BIN" scripts/pdf_provider.py check --provider pikepdf --require
 "$PYTHON_BIN" scripts/pikepdf_provider.py inspect input.pdf \
@@ -115,7 +115,7 @@ powers both shipped adapters; the separate `pyhanko-cli` package is not required
 for this bounded workflow, and keys/credentials remain caller-provided.
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 SOURCE_SHA256="$(shasum -a 256 input.pdf | awk '{print $1}')"
 CREDENTIAL_SHA256="$(shasum -a 256 /secure/signer.p12 | awk '{print $1}')"
 "$PYTHON_BIN" scripts/pdf_provider.py check --provider pyhanko --require
@@ -160,8 +160,8 @@ matches the delivery requirement. The shipped adapter validates an immutable
 private snapshot rather than accepting arbitrary veraPDF flags:
 
 ```bash
-export OPEN_OFFICE_PDF_VERAPDF="/absolute/path/to/verapdf"
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+export OFFICE_KIT_PDF_VERAPDF="/absolute/path/to/verapdf"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 SOURCE_SHA256="$(shasum -a 256 output.pdf | awk '{print $1}')"
 "$PYTHON_BIN" scripts/pdf_provider.py plan \
   --task validate-conformance --provider verapdf --strategy read-only \
@@ -184,8 +184,8 @@ selected provider route. Bind the operation to a fresh source hash and select th
 instead of relying on provider defaults:
 
 ```bash
-export OPEN_OFFICE_PDF_OCRMYPDF="/absolute/path/to/ocrmypdf"
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+export OFFICE_KIT_PDF_OCRMYPDF="/absolute/path/to/ocrmypdf"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 SOURCE_SHA256="$(shasum -a 256 scanned.pdf | awk '{print $1}')"
 "$PYTHON_BIN" scripts/pdf_provider.py plan \
   --task ocr --provider ocrmypdf --strategy rewrite \
@@ -208,7 +208,7 @@ manually review recognized text before delivery. See
 ## pypdf attachment quarantine
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pypdf_edit.py inspect input.pdf \
   --output tmp/pdfs/pypdf-inspect.json
 "$PYTHON_BIN" scripts/pdf_provider.py check --provider pypdf --require
@@ -226,7 +226,7 @@ Use only the `savedPath` values in the manifest. Raw display names and internal 
 Copy [`merge-stamp-manifest.json`](merge-stamp-manifest.json) to a task-local path and replace its source paths. The sequence must select each source page exactly once.
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pdf_provider.py check --provider pypdf --require
 "$PYTHON_BIN" scripts/pdf_provider.py plan \
   --task merge-stamp --provider pypdf --strategy rewrite \
@@ -256,7 +256,7 @@ pdftoppm -png -r 144 tmp/pdfs/release-evidence.pdf tmp/pdfs/release-evidence-pag
 Select this optional specialist route only when the requested operation, such as `insert_textbox`, `insert_image`, or `replace_image`, is outside the default MuPDF.js primitive set.
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pymupdf_edit.py probe --accept-license agpl
 "$PYTHON_BIN" scripts/pdf_provider.py plan \
   --task edit-content --provider pymupdf --strategy rewrite \
@@ -275,13 +275,13 @@ The sample assumes the exact text `Customer Secret` exists in one horizontal sou
 Before editing, run `pymupdf_edit.py probe` and `pdf_provider.py plan --task redact --provider pymupdf --strategy sanitize ... --invalidate-signatures --require-provider`; both must succeed before mutation.
 
 ```bash
-"${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}" scripts/pymupdf_edit.py edit input.pdf tmp/pdfs/sanitized.pdf \
+"${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}" scripts/pymupdf_edit.py edit input.pdf tmp/pdfs/sanitized.pdf \
   --strategy sanitize \
   --operations examples/pymupdf-redaction-operations.json \
   --sensitive-term 'Customer Secret' \
   --accept-license agpl \
   --invalidate-signatures
-"${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}" scripts/residue_scan.py tmp/pdfs/sanitized.pdf \
+"${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}" scripts/residue_scan.py tmp/pdfs/sanitized.pdf \
   --term 'Customer Secret' --require-ocr --require-single-revision
 pdftoppm -png -r 144 tmp/pdfs/sanitized.pdf tmp/pdfs/sanitized-page
 ```
@@ -292,7 +292,7 @@ For an exact term that exists only inside raster pixels, bind the OCR capability
 and expected match count before the same sanitize gate:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pymupdf_edit.py probe \
   --accept-license agpl --ocr-language eng --require-ocr
 "$PYTHON_BIN" scripts/pymupdf_edit.py edit input.pdf tmp/pdfs/ocr-sanitized.pdf \
@@ -318,7 +318,7 @@ confidence never authorizes an unbounded rectangle.
 For an active-content public copy without term redaction, use `[ { "type": "scrub" } ]`, plan `--task sanitize --strategy sanitize`, omit placeholder sensitive terms, and run the structural gate after the transactional edit:
 
 ```bash
-"${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}" scripts/residue_scan.py tmp/pdfs/public-safe.pdf \
+"${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}" scripts/residue_scan.py tmp/pdfs/public-safe.pdf \
   --require-inert --require-single-revision
 ```
 

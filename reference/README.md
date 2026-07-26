@@ -1,6 +1,6 @@
 # Reference materials
 
-This directory contains project-internal reference material for building `open-office-artifact-tool`.
+This directory contains project-internal reference material for building `office-kit`.
 
 ## `office-artifact-tool` submodule
 
@@ -29,7 +29,7 @@ adapted into this project's public Skills. Pinning the exact remote commit keeps
 the current reference checkout reproducible without importing the reference
 runtime.
 
-Do **not** vendor the reference package's runtime artifact, runtime module, runtime bindings, or implementation details into `open-office-artifact-tool`. Implement behavior independently using public standards, public libraries, OOXML/PDF specs, OpenXML SDK, Microsoft Office native automation, Playwright, LibreOffice, Poppler, PDF.js, sharp/canvas, and other legally usable technologies.
+Do **not** vendor the reference package's runtime artifact, runtime module, runtime bindings, or implementation details into `office-kit`. Implement behavior independently using public standards, public libraries, OOXML/PDF specs, OpenXML SDK, Microsoft Office native automation, Playwright, LibreOffice, Poppler, PDF.js, sharp/canvas, and other legally usable technologies.
 
 ## Reference Skill source
 

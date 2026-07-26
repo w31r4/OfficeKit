@@ -521,7 +521,7 @@ const authoredTitle = authoredLayoutSlide.placeholders.getItem("title");
 const authoredBody = authoredLayoutSlide.placeholders.getItem(1);
 assert.ok(authoredTitle);
 assert.ok(authoredBody);
-authoredTitle.text.set("OpenChestnut layout title");
+authoredTitle.text.set("OfficeKit layout title");
 authoredBody.text.set("A direct-frame body placeholder survives native export and import.");
 const authoredLayoutExport = await PresentationFile.exportPptx(authoredLayoutPresentation);
 const authoredLayoutZip = await JSZip.loadAsync(new Uint8Array(await authoredLayoutExport.arrayBuffer()));
@@ -543,7 +543,7 @@ assert.equal(authoredLayoutImported.master.placeholders[0].text[0].runs[0].link.
 assert.equal(authoredLayoutImported.layouts.items[0].placeholders[0].text[0].runs[0].link.customShow, "Layout route");
 const importedLayoutSlide = authoredLayoutImported.slides.getItem(0);
 assert.equal(importedLayoutSlide.layoutId, authoredLayoutImported.layouts.items[0].id);
-assert.equal(importedLayoutSlide.placeholders.getItem("title").text.value, "OpenChestnut layout title");
+assert.equal(importedLayoutSlide.placeholders.getItem("title").text.value, "OfficeKit layout title");
 assert.equal(importedLayoutSlide.placeholders.getItem("body").text.value, "A direct-frame body placeholder survives native export and import.");
 const authoredLayoutRoundTrip = await PresentationFile.exportPptx(authoredLayoutImported);
 assert.equal((await PresentationFile.inspectPptx(authoredLayoutRoundTrip)).ok, true);
@@ -640,7 +640,7 @@ assert.throws(
 
 // Groups are a recursive DrawingML ownership boundary, not flattened children
 // with synthetic parent IDs. The public model keeps child coordinates local and
-// OpenChestnut authors/imports native p:grpSp trees with fixed-topology edits.
+// OfficeKit authors/imports native p:grpSp trees with fixed-topology edits.
 const groupedPresentation = Presentation.create({ slideSize: { width: 960, height: 540 } });
 const groupedSlide = groupedPresentation.slides.add({ name: "Native group tree" });
 const authoredGroup = groupedSlide.groups.add({
@@ -799,7 +799,7 @@ await assert.rejects(
   (error) => error?.code === "unsupported_presentation_edit",
 );
 
-// The canonical file facade always crosses the OpenChestnut C# WASM layer.
+// The canonical file facade always crosses the OfficeKit C# WASM layer.
 const deck = Presentation.create({ slideSize: { width: 1280, height: 720 } });
 const coreSlide = deck.slides.add({ name: "Core objects", background: { fill: "#F1F5F9", mode: "solid" } });
 coreSlide.addNotes("Lead with the customer outcome.\nThen explain the operating model.");
@@ -1131,7 +1131,7 @@ coreSlide.speakerNotes.textFrame.setText("Lead with the customer outcome.\nThen 
 assert.equal(coreSlide.speakerNotes.append("").text, "Lead with the customer outcome.\nThen explain the operating model.");
 
 const firstExport = await PresentationFile.exportPptx(deck);
-assert.equal(firstExport.metadata.codec, "open-chestnut");
+assert.equal(firstExport.metadata.codec, "office-kit");
 assert.equal((await PresentationFile.inspectPptx(firstExport)).ok, true);
 
 // Speaker notes use the same paragraph/run model as visible slide text, but
@@ -2098,7 +2098,7 @@ assert.deepEqual(editedViewRoundTrip.view.slideGuides, [
   { orientation: "horizontal", position: 2161 },
   { orientation: "vertical", position: 2881 },
 ]);
-const tamperedViewState = editedViewRoundTrip[Symbol.for("open-office-artifact-tool.open-chestnut-presentation-state")];
+const tamperedViewState = editedViewRoundTrip[Symbol.for("office-kit.presentation-state")];
 tamperedViewState.viewProperties.source.residualSha256 = "0".repeat(64);
 await assert.rejects(
   () => PresentationFile.exportPptx(editedViewRoundTrip),
@@ -2407,9 +2407,9 @@ const smartArtFrame = '<p:graphicFrame xmlns:a="http://schemas.openxmlformats.or
 const smartArtRelationships = '<Relationship Id="rIdAgentDiagramData" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramData" Target="../diagrams/agent-data.xml"/><Relationship Id="rIdAgentDiagramLayout" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramLayout" Target="../diagrams/agent-layout.xml"/><Relationship Id="rIdAgentDiagramStyle" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramQuickStyle" Target="../diagrams/agent-style.xml"/><Relationship Id="rIdAgentDiagramColors" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramColors" Target="../diagrams/agent-colors.xml"/>';
 const smartArtParts = [
   ["ppt/diagrams/agent-data.xml", "application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml", '<dgm:dataModel xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram"><dgm:ptLst/><dgm:cxnLst/><dgm:bg/><dgm:whole/></dgm:dataModel>'],
-  ["ppt/diagrams/agent-layout.xml", "application/vnd.openxmlformats-officedocument.drawingml.diagramLayout+xml", '<dgm:layoutDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:open-office:agent-layout"><dgm:title val="Agent"/><dgm:desc val="Agent layout"/><dgm:catLst/><dgm:layoutNode name="root"/></dgm:layoutDef>'],
-  ["ppt/diagrams/agent-style.xml", "application/vnd.openxmlformats-officedocument.drawingml.diagramStyle+xml", '<dgm:styleDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:open-office:agent-style"><dgm:title val="Agent"/><dgm:desc val="Agent style"/><dgm:catLst/><dgm:styleLbl name="node0"/></dgm:styleDef>'],
-  ["ppt/diagrams/agent-colors.xml", "application/vnd.openxmlformats-officedocument.drawingml.diagramColors+xml", '<dgm:colorsDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:open-office:agent-colors"><dgm:title val="Agent"/><dgm:desc val="Agent colors"/><dgm:catLst/></dgm:colorsDef>'],
+  ["ppt/diagrams/agent-layout.xml", "application/vnd.openxmlformats-officedocument.drawingml.diagramLayout+xml", '<dgm:layoutDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:office-kit:agent-layout"><dgm:title val="Agent"/><dgm:desc val="Agent layout"/><dgm:catLst/><dgm:layoutNode name="root"/></dgm:layoutDef>'],
+  ["ppt/diagrams/agent-style.xml", "application/vnd.openxmlformats-officedocument.drawingml.diagramStyle+xml", '<dgm:styleDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:office-kit:agent-style"><dgm:title val="Agent"/><dgm:desc val="Agent style"/><dgm:catLst/><dgm:styleLbl name="node0"/></dgm:styleDef>'],
+  ["ppt/diagrams/agent-colors.xml", "application/vnd.openxmlformats-officedocument.drawingml.diagramColors+xml", '<dgm:colorsDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:office-kit:agent-colors"><dgm:title val="Agent"/><dgm:desc val="Agent colors"/><dgm:catLst/></dgm:colorsDef>'],
 ];
 const smartArtSource = await PresentationFile.patchPptx(cloneSourcePptx, [
   { path: "ppt/slides/slide1.xml", xml: oleCloneBaseSlideXml.replace("</p:spTree>", `${smartArtFrame}</p:spTree>`) },
@@ -2916,7 +2916,7 @@ importedCombo.title = "Updated revenue and margin";
 importedCombo.series[1].values = [12, 16, 18];
 
 const secondExport = await PresentationFile.exportPptx(imported);
-assert.equal(secondExport.metadata.codec, "open-chestnut");
+assert.equal(secondExport.metadata.codec, "office-kit");
 assert.equal((await PresentationFile.inspectPptx(secondExport)).ok, true);
 const secondZip = await JSZip.loadAsync(new Uint8Array(await secondExport.arrayBuffer()));
 assert.equal(await secondZip.file(masterPath).async("text"), sourceMasterXml);
@@ -2991,14 +2991,14 @@ assert.deepEqual(clearedBackgroundRoundTrip.slides.getItem(0).background, {});
 assert.equal(itemByName(clearedBackgroundRoundTrip.slides.getItem(0).images.items, "cover-image").crop, undefined);
 
 const importedWithoutSourceSnapshot = await PresentationFile.importPptx(firstExport);
-const presentationState = importedWithoutSourceSnapshot[Symbol.for("open-office-artifact-tool.open-chestnut-presentation-state")];
+const presentationState = importedWithoutSourceSnapshot[Symbol.for("office-kit.presentation-state")];
 presentationState.opaqueOpc.sourcePackage = undefined;
 await assert.rejects(
   () => PresentationFile.exportPptx(importedWithoutSourceSnapshot),
   (error) => error?.code === "missing_source_package",
 );
 
-// OpenChestnut owns a deliberately narrow legacy PPTX comment profile: one
+// OfficeKit owns a deliberately narrow legacy PPTX comment profile: one
 // slide-level text item at an explicit coordinate. It never turns the richer
 // JS thread facade into a fake element anchor, reply graph, or resolved state.
 const legacyAdditionSourceDeck = Presentation.create({ slideSize: { width: 1280, height: 720 } });
@@ -3244,7 +3244,7 @@ await assert.rejects(
 assert.equal(legacyCommentThread.id.startsWith("pc"), true);
 
 // Office 2021 modern comments use their native author/comments graph instead
-// of the legacy slide annotation part. OpenChestnut owns a bounded root +
+// of the legacy slide annotation part. OfficeKit owns a bounded root +
 // direct replies profile with top-level drawing and shape-text-range anchors.
 const modernCommentDeck = Presentation.create({
   slideSize: { width: 1280, height: 720 },

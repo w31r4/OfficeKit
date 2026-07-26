@@ -19,9 +19,9 @@ export const docxGradedCaseIds = new Set([
 ]);
 
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
-const SHIPPED_CLASSIC_COMMENT_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/documents|node_modules\/open-office-artifact-tool\/skills\/documents\/skills\/documents)\/examples\/openchestnut-classic-comment-edit-workflow\.mjs(?:$|[\s"'`])/i;
-const SHIPPED_HEADER_TEXT_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/documents|node_modules\/open-office-artifact-tool\/skills\/documents\/skills\/documents)\/examples\/openchestnut-header-text-edit-workflow\.mjs(?:$|[\s"'`])/i;
-const SHIPPED_FOOTER_TEXT_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/documents|node_modules\/open-office-artifact-tool\/skills\/documents\/skills\/documents)\/examples\/openchestnut-footer-text-edit-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_CLASSIC_COMMENT_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/documents|node_modules\/office-kit\/skills\/documents\/skills\/documents)\/examples\/officekit-classic-comment-edit-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_HEADER_TEXT_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/documents|node_modules\/office-kit\/skills\/documents\/skills\/documents)\/examples\/officekit-header-text-edit-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_FOOTER_TEXT_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/documents|node_modules\/office-kit\/skills\/documents\/skills\/documents)\/examples\/officekit-footer-text-edit-workflow\.mjs(?:$|[\s"'`])/i;
 
 function check(id, category, passed, details = {}) {
   return { id, category, gate: false, passed: Boolean(passed), ...details };
@@ -133,7 +133,7 @@ function normalizeTargetText(xml, expectedText) {
   let matches = 0;
   const normalized = xml.replace(pattern, (_whole, open, close) => {
     matches += 1;
-    return `${open}__OPEN_CHESTNUT_TARGET_TEXT__${close}`;
+    return `${open}__OFFICE_KIT_TARGET_TEXT__${close}`;
   });
   return { normalized, matches };
 }
@@ -328,7 +328,7 @@ export function gradeDocxClassicCommentEvidence({ evidence, audit, commands }) {
       source: { expected: source.sha256, actual: auditHash(audit, "source") },
       output: { expected: output.sha256, actual: auditHash(audit, "output") },
     }),
-    check("docx-trace:open-chestnut-provider", "trace", /open[- ]?chestnut/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
+    check("docx-trace:office-kit-provider", "trace", /office[- ]?kit/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
       provider: auditProvider(audit),
       version: auditVersion(audit),
     }),
@@ -461,7 +461,7 @@ function gradeDocxPageFurnitureTextEvidence({ evidence, audit, commands, fixture
       source: { expected: source.sha256, actual: auditHash(audit, "source") },
       output: { expected: output.sha256, actual: auditHash(audit, "output") },
     }),
-    check(`${prefix}-trace:open-chestnut-provider`, "trace", /open[- ]?chestnut/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
+    check(`${prefix}-trace:office-kit-provider`, "trace", /office[- ]?kit/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
       provider: auditProvider(audit),
       version: auditVersion(audit),
     }),

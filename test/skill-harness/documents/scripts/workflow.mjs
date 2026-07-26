@@ -9,10 +9,10 @@ import {
   FileBlob,
   verifyArtifact,
   visualQaArtifact,
-} from "open-office-artifact-tool";
-import { createLibreOfficeRenderer } from "open-office-artifact-tool/renderers/libreoffice";
-import { createPlaywrightRenderer } from "open-office-artifact-tool/renderers/playwright";
-import { createPopplerRenderer } from "open-office-artifact-tool/renderers/poppler";
+} from "office-kit";
+import { createLibreOfficeRenderer } from "office-kit/renderers/libreoffice";
+import { createPlaywrightRenderer } from "office-kit/renderers/playwright";
+import { createPopplerRenderer } from "office-kit/renderers/poppler";
 import {
   loadVisualBaseline,
   prepareNumberedVisualBaselines,
@@ -398,10 +398,10 @@ export async function runDocumentFixture(fixturePath, options = {}) {
         assert.ok(Number.isInteger(edit.row) && edit.row >= 0 && edit.row < table.values.length, `Invalid source-bound table row ${edit.row}.`);
         assert.ok(Number.isInteger(edit.column) && edit.column >= 0 && edit.column < table.values[edit.row].length, `Invalid source-bound table column ${edit.column}.`);
         const cell = table.getCell(edit.row, edit.column);
-        if (Object.prototype.hasOwnProperty.call(edit, "expectColumnSpan")) assert.equal(cell.columnSpan, edit.expectColumnSpan, `Unexpected OpenChestnut column span for ${edit.matchText || cell.id}.`);
-        if (Object.prototype.hasOwnProperty.call(edit, "expectRowSpan")) assert.equal(cell.rowSpan, edit.expectRowSpan, `Unexpected OpenChestnut row span for ${edit.matchText || cell.id}.`);
-        if (Object.prototype.hasOwnProperty.call(edit, "expectVerticalMerge")) assert.equal(cell.verticalMerge, edit.expectVerticalMerge, `Unexpected OpenChestnut vertical merge for ${edit.matchText || cell.id}.`);
-        if (Object.prototype.hasOwnProperty.call(edit, "expectEditable")) assert.equal(cell.editable, edit.expectEditable, `Unexpected OpenChestnut editability for ${edit.matchText || cell.id}.`);
+        if (Object.prototype.hasOwnProperty.call(edit, "expectColumnSpan")) assert.equal(cell.columnSpan, edit.expectColumnSpan, `Unexpected OfficeKit column span for ${edit.matchText || cell.id}.`);
+        if (Object.prototype.hasOwnProperty.call(edit, "expectRowSpan")) assert.equal(cell.rowSpan, edit.expectRowSpan, `Unexpected OfficeKit row span for ${edit.matchText || cell.id}.`);
+        if (Object.prototype.hasOwnProperty.call(edit, "expectVerticalMerge")) assert.equal(cell.verticalMerge, edit.expectVerticalMerge, `Unexpected OfficeKit vertical merge for ${edit.matchText || cell.id}.`);
+        if (Object.prototype.hasOwnProperty.call(edit, "expectEditable")) assert.equal(cell.editable, edit.expectEditable, `Unexpected OfficeKit editability for ${edit.matchText || cell.id}.`);
         table.values[edit.row][edit.column] = String(edit.value ?? "");
         continue;
       }
@@ -417,10 +417,10 @@ export async function runDocumentFixture(fixturePath, options = {}) {
         const listItem = imported.blocks.find((block) => block.kind === "listItem" && (!edit.matchText || block.text === edit.matchText));
         assert.ok(listItem, `Missing source-bound list-item fixture target ${edit.matchText || "(unspecified)"}.`);
         if (Object.prototype.hasOwnProperty.call(edit, "expectNumberingStyleId")) {
-          assert.equal(listItem.numberingStyleId, edit.expectNumberingStyleId, `Unexpected OpenChestnut numbering style for ${edit.matchText || listItem.id}.`);
+          assert.equal(listItem.numberingStyleId, edit.expectNumberingStyleId, `Unexpected OfficeKit numbering style for ${edit.matchText || listItem.id}.`);
         }
         if (Object.prototype.hasOwnProperty.call(edit, "expectLevel")) {
-          assert.equal(listItem.level, edit.expectLevel, `Unexpected OpenChestnut numbering level for ${edit.matchText || listItem.id}.`);
+          assert.equal(listItem.level, edit.expectLevel, `Unexpected OfficeKit numbering level for ${edit.matchText || listItem.id}.`);
         }
         if (Object.prototype.hasOwnProperty.call(edit, "text")) listItem.text = String(edit.text);
         if (Object.prototype.hasOwnProperty.call(edit, "numberFormat")) listItem.numberFormat = String(edit.numberFormat);

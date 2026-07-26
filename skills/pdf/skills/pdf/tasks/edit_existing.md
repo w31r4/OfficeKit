@@ -379,7 +379,7 @@ instead of selecting by order.
 For a capability outside the JavaScript contract, run the exact specialist adapter probe and route plan before any mutation. Do not defer either command until audit generation.
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pymupdf_edit.py probe --accept-license agpl
 "$PYTHON_BIN" scripts/pdf_provider.py plan \
   --task edit-content \
@@ -437,7 +437,7 @@ Signed input requires prior signature/DocMDP inspection. Use `--allow-signed` on
 
 After editing, compare intended deltas, reopen independently, render every page, and preserve the source file and operation manifest.
 
-Write the canonical [`open-office-artifact-tool.pdf-audit.v1`](../references/AUDIT_SCHEMA.md) envelope and validate it against the exact delivered bytes:
+Write the canonical [`office-kit.pdf-audit.v1`](../references/AUDIT_SCHEMA.md) envelope and validate it against the exact delivered bytes:
 
 ```bash
 python3 scripts/pdf_audit.py validate outputs/audit.json \

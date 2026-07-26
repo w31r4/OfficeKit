@@ -1,0 +1,53 @@
+{
+  "name": "office-kit-inline-fields",
+  "outputName": "office-kit-inline-fields.docx",
+  "styles": {
+    "Caption": { "name": "Caption", "type": "paragraph", "italic": true }
+  },
+  "blocks": [
+    { "kind": "paragraph", "styleId": "Title", "text": "Native inline field workflow" },
+    {
+      "kind": "paragraph",
+      "name": "field-caption",
+      "styleId": "Caption",
+      "runs": [
+        { "text": "Figure " },
+        { "text": "0", "style": { "bold": true }, "inlineField": { "instruction": "SEQ Figure \\* ARABIC", "bookmarkName": "fig1" } },
+        { "text": ": Revenue. See figure " },
+        { "text": "0", "inlineField": { "instruction": "REF fig1 \\h" } },
+        { "text": " on page " },
+        { "text": "0", "inlineField": { "instruction": "PAGEREF fig1 \\h" } },
+        { "text": "." }
+      ]
+    }
+  ],
+  "edits": [
+    {
+      "kind": "materializeFields",
+      "expectUpdated": 2,
+      "expectSeqFields": 1,
+      "expectRefFields": 1,
+      "expectSkippedPageReferences": 1
+    },
+    {
+      "kind": "paragraphRuns",
+      "matchText": "Figure 1: Revenue. See figure 1 on page 0.",
+      "runs": [
+        { "index": 1, "expectInstruction": "SEQ Figure \\* ARABIC", "expectBookmarkName": "fig1" },
+        { "index": 2, "text": ": Updated revenue. See figure " },
+        { "index": 3, "expectInstruction": "REF fig1 \\h" },
+        { "index": 5, "expectInstruction": "PAGEREF fig1 \\h", "text": "1" }
+      ]
+    }
+  ],
+  "expectInspect": [
+    { "kind": "paragraph", "pattern": "SEQ Figure" },
+    { "kind": "paragraph", "pattern": "PAGEREF fig1" }
+  ],
+  "qa": {
+    "previewFormat": "svg",
+    "nativeRender": "auto",
+    "inspectKind": "document,paragraph,layout",
+    "maxChars": 12000
+  }
+}

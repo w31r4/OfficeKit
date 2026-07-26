@@ -3,11 +3,11 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { DocumentModel, FileBlob, renderArtifact } from "open-office-artifact-tool";
-import { createLibreOfficeRenderer } from "open-office-artifact-tool/renderers/libreoffice";
-import { createPopplerRenderer } from "open-office-artifact-tool/renderers/poppler";
-import { createSharpRenderer } from "open-office-artifact-tool/renderers/sharp";
-import { createCanvasRenderer } from "open-office-artifact-tool/renderers/canvas";
+import { DocumentModel, FileBlob, renderArtifact } from "office-kit";
+import { createLibreOfficeRenderer } from "office-kit/renderers/libreoffice";
+import { createPopplerRenderer } from "office-kit/renderers/poppler";
+import { createSharpRenderer } from "office-kit/renderers/sharp";
+import { createCanvasRenderer } from "office-kit/renderers/canvas";
 
 function fakeSharp(input) {
   assert.ok(Buffer.isBuffer(input));
@@ -40,7 +40,7 @@ await assert.rejects(
   /supports SVG, PNG, JPEG, and WebP input/,
 );
 
-const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-poppler-test-"));
+const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-poppler-test-"));
 const mockPoppler = path.join(tempDir, "mock-poppler.mjs");
 await fs.writeFile(mockPoppler, `
 import fs from 'node:fs/promises';

@@ -31,7 +31,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Resolve, install, and probe the published qpdf pack
         env:
-          OPEN_OFFICE_PDF_LIVE_PACK_TEST: "1"
+          OFFICE_KIT_PDF_LIVE_PACK_TEST: "1"
         run: node test/pdf-qpdf-managed-release.mjs
       - name: Verify the release asset's GitHub attestation
         env:
@@ -80,8 +80,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Resolve, install, and probe the published Python pack
         env:
-          OPEN_OFFICE_PDF_LIVE_PACK_TEST: "1"
-          OPEN_OFFICE_PDF_LIVE_PACK: ${{ matrix.pack }}
+          OFFICE_KIT_PDF_LIVE_PACK_TEST: "1"
+          OFFICE_KIT_PDF_LIVE_PACK: ${{ matrix.pack }}
         run: node test/pdf-python-managed-release.mjs
       - name: Verify the release asset's GitHub attestation
         env:
@@ -123,7 +123,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Resolve, install, and probe the published OCR closure
         env:
-          OPEN_OFFICE_PDF_LIVE_PACK_TEST: "1"
+          OFFICE_KIT_PDF_LIVE_PACK_TEST: "1"
         run: node test/pdf-ocr-managed-release.mjs
       - name: Verify the release assets' GitHub attestations
         env:
@@ -172,7 +172,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Resolve, install, and probe the published veraPDF pack
         env:
-          OPEN_OFFICE_PDF_LIVE_PACK_TEST: "1"
+          OFFICE_KIT_PDF_LIVE_PACK_TEST: "1"
         run: node test/pdf-verapdf-managed-release.mjs
       - name: Verify the release asset's GitHub attestation
         env:

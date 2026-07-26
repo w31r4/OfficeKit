@@ -2,7 +2,7 @@
 
 PDF is the file-type wrapper plugin for PDF artifact workflows.
 
-This installable Skill bundle is distributed with `open-office-artifact-tool`.
+This installable Skill bundle is distributed with `office-kit`.
 
 ## Included Skills
 
@@ -28,7 +28,7 @@ ReportLab, pdfplumber, pypdf, PyMuPDF, Poppler, qpdf, pikepdf, pyHanko,
 veraPDF, OCRmyPDF, Tesseract, and related tools are explicit provider routes for
 layout creation, complex tables/forms/merge, strict scrub and residue/OCR
 evidence, signatures, conformance, searchable-layer OCR, and independent
-visual QA. The public `open-office-artifact-tool/pdf/providers` resolver owns
+visual QA. The public `office-kit/pdf/providers` resolver owns
 their catalogued version, platform, licence, size, and runtime facts. It may
 use only an explicitly selected deployment-owned `system-only` runtime or a
 policy-authorized, hash-pinned managed pack; it never invokes a package manager,

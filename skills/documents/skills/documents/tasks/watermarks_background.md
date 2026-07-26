@@ -2,11 +2,11 @@
 
 ## Agent contract
 
-Use the typed OpenChestnut path for a greenfield text watermark or a recognized imported canonical text watermark:
+Use the typed OfficeKit path for a greenfield text watermark or a recognized imported canonical text watermark:
 
 ```text
 intent -> import/inspect -> resolve one watermark -> typed edit/remove
-       -> OpenChestnut -> second import -> verify -> native page render -> export
+       -> OfficeKit -> second import -> verify -> native page render -> export
 ```
 
 Do not infer editability from a visible diagonal label. Word stores watermark-like content in header parts, but real files may use VML text paths, DrawingML, images, shared header parts, or several objects. The public API deliberately recognizes only an exclusive canonical VML text-watermark paragraph whose surrounding header can be hash-protected.
@@ -14,7 +14,7 @@ Do not infer editability from a visible diagonal label. Word stores watermark-li
 ## Create a canonical text watermark
 
 ```js
-import { DocumentFile, DocumentModel } from "open-office-artifact-tool";
+import { DocumentFile, DocumentModel } from "office-kit";
 
 const document = DocumentModel.create({ name: "Review copy", blocks: [] });
 document.addParagraph("Controlled review document.");
@@ -32,7 +32,7 @@ There may be only one modeled watermark per zero-based `sectionIndex` and `refer
 ## Inspect and edit an imported watermark
 
 ```js
-import { DocumentFile, FileBlob } from "open-office-artifact-tool";
+import { DocumentFile, FileBlob } from "office-kit";
 
 const source = await FileBlob.load("input.docx");
 const document = await DocumentFile.importDocx(source);
@@ -55,12 +55,12 @@ const output = await DocumentFile.exportDocx(document);
 await output.save("reviewed.docx");
 ```
 
-Use `watermark.remove()` instead of assigning blank text when the user requests removal. On export, OpenChestnut re-proves the exact header part, paragraph, VML shape, source semantics, element hash, and residual header hash. Text editing changes only the text-path string. Removal deletes only that complete watermark paragraph. Changing its section/reference scope, reordering imported watermarks, or adding a watermark to an imported package fails closed because those operations require unproven relationship or section-topology changes.
+Use `watermark.remove()` instead of assigning blank text when the user requests removal. On export, OfficeKit re-proves the exact header part, paragraph, VML shape, source semantics, element hash, and residual header hash. Text editing changes only the text-path string. Removal deletes only that complete watermark paragraph. Changing its section/reference scope, reordering imported watermarks, or adding a watermark to an imported package fails closed because those operations require unproven relationship or section-topology changes.
 
 For a real imported file, prefer the shipped transactional workflow:
 
 ```bash
-node examples/openchestnut-watermark-workflow.mjs \
+node examples/officekit-watermark-workflow.mjs \
   input.docx reviewed.docx watermark-audit.json \
   DRAFT "INTERNAL REVIEW" 0 default edit
 ```

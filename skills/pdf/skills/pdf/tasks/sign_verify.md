@@ -18,8 +18,8 @@ repair a missing runtime with `pip`, `uv`, a package manager, or a global
 installation command.
 
 ```js
-import { PdfFile } from "open-office-artifact-tool";
-import { PdfProviders } from "open-office-artifact-tool/pdf/providers";
+import { PdfFile } from "office-kit";
+import { PdfProviders } from "office-kit/pdf/providers";
 
 const inspection = await PdfFile.inspectPdf("input.pdf");
 
@@ -30,20 +30,20 @@ let resolution = await PdfProviders.resolve({
   savePolicy: "incremental",
   mutationAuthorized: true,
   credentials: ["local-pkcs12"],
-  policyPath: ".open-office-artifact-tool/pdf-providers.json",
+  policyPath: ".office-kit/pdf-providers.json",
 });
 if (resolution.status === "installable") {
-  resolution = await PdfProviders.ensure({ resolution, policyPath: ".open-office-artifact-tool/pdf-providers.json" });
+  resolution = await PdfProviders.ensure({ resolution, policyPath: ".office-kit/pdf-providers.json" });
 }
 if (resolution.status !== "ready") throw new Error(resolution.reason.message);
-await PdfProviders.probe({ provider: "pyhanko", task: "sign", policyPath: ".open-office-artifact-tool/pdf-providers.json" });
+await PdfProviders.probe({ provider: "pyhanko", task: "sign", policyPath: ".office-kit/pdf-providers.json" });
 ```
 
 After the selected route is ready, run the task-specific probes through the
 same configured Python executable:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:?select a ready pyHanko runtime first}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:?select a ready pyHanko runtime first}"
 "$PYTHON_BIN" scripts/pyhanko_sign_provider.py probe
 "$PYTHON_BIN" scripts/pyhanko_provider.py probe
 "$PYTHON_BIN" scripts/pdf_provider.py check --provider pyhanko --require
@@ -61,7 +61,7 @@ signature count, certification state, revision count, and the selected page's
 unrotated CropBox before choosing a field mode:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 SOURCE_SHA256="$(shasum -a 256 input.pdf | awk '{print $1}')"
 CREDENTIAL_SHA256="$(shasum -a 256 /secure/signer.p12 | awk '{print $1}')"
 
@@ -114,7 +114,7 @@ Record a fresh SHA-256, then choose one of two trust policies:
 
 ```bash
 SOURCE_SHA256="$(shasum -a 256 input.pdf | awk '{print $1}')"
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 
 # Integrity/difference evidence only. Trust is deliberately reported false.
 "$PYTHON_BIN" scripts/pyhanko_provider.py verify input.pdf \
@@ -145,7 +145,7 @@ one deliberately. Network fetching is always disabled, so strict revocation
 policies can succeed only when pyHanko already has adequate embedded/local
 evidence. Do not weaken the policy merely to turn a report green.
 
-The versioned `open-office-artifact-tool.pyhanko-verify.v1` report keeps these
+The versioned `office-kit.pyhanko-verify.v1` report keeps these
 facts separate for every signature:
 
 - signed revision and ByteRange coverage;

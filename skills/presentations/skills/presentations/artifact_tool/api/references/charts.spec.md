@@ -2,10 +2,10 @@
 
 `slide.charts` creates chart elements with slide placement and chart configuration.
 
-## Canonical OpenChestnut PPTX Boundary
+## Canonical OfficeKit PPTX Boundary
 
 The model and reference-shaped API describe many chart families, but native
-OpenChestnut PPTX creation/import/edit is deliberately narrower:
+OfficeKit PPTX creation/import/edit is deliberately narrower:
 
 - `bar`, `line`, `pie`, standard `area`, and fixed 50%-hole `doughnut`
   accept literal categories and one finite value per category. Pie and doughnut
@@ -44,7 +44,7 @@ though its series and right-axis title render; retain the OOXML/round-trip gate
 and use a Microsoft PowerPoint/native-host lane for release-grade placement QA.
 
 The runnable
-`examples/openchestnut-chart-families-workflow.mjs` authors area, doughnut,
+`examples/officekit-chart-families-workflow.mjs` authors area, doughnut,
 scatter, and bubble charts, inventories their native ChartParts, imports and
 edits one semantic field in each family, exports and imports a second time, and
 writes a real Playwright PNG plus a source/output-bound audit.

@@ -10,7 +10,7 @@ import {
   renderArtifact,
   visualQaArtifact,
   Workbook,
-} from "open-office-artifact-tool";
+} from "office-kit";
 import { createArtifactVisualQaApi } from "../src/qa/artifact-visual.mjs";
 
 function pngChunk(type, data = Buffer.alloc(0)) {

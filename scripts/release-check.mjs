@@ -37,7 +37,7 @@ function summarizeCheck(name, result, required = true) {
 
 const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
 const lock = JSON.parse(fs.readFileSync(path.join(repoRoot, "package-lock.json"), "utf8"));
-const licensePolicyPath = process.env.OFFICE_ARTIFACT_LICENSE_POLICY || path.join(repoRoot, "scripts", "license-policy.json");
+const licensePolicyPath = process.env.OFFICE_KIT_LICENSE_POLICY || path.join(repoRoot, "scripts", "license-policy.json");
 const licensePolicy = JSON.parse(fs.readFileSync(licensePolicyPath, "utf8"));
 const checks = [];
 const blockers = [];
@@ -108,12 +108,12 @@ if (!skipCommands) {
   } else {
     checks.push(summarizeCheck("dotnet test native/OfficeBridge", { ok: true, stdout: "skipped: dotnet or native/OfficeBridge unavailable", stderr: "", command: "dotnet test native/OfficeBridge" }, false));
   }
-  if (fs.existsSync(path.join(repoRoot, "native", "OpenChestnut")) && commandExists("dotnet")) {
-    const check = summarizeCheck("dotnet test native/OpenChestnut", run("dotnet", ["test", "native/OpenChestnut/OpenChestnut.sln", "--configuration", "Release"]));
+  if (fs.existsSync(path.join(repoRoot, "native", "OfficeKit")) && commandExists("dotnet")) {
+    const check = summarizeCheck("dotnet test native/OfficeKit", run("dotnet", ["test", "native/OfficeKit/OfficeKit.sln", "--configuration", "Release"]));
     checks.push(check);
-    if (!check.ok) blockers.push("dotnet test native/OpenChestnut failed.");
+    if (!check.ok) blockers.push("dotnet test native/OfficeKit failed.");
   } else {
-    checks.push(summarizeCheck("dotnet test native/OpenChestnut", { ok: true, stdout: "skipped: dotnet or native/OpenChestnut unavailable", stderr: "", command: "dotnet test native/OpenChestnut" }, false));
+    checks.push(summarizeCheck("dotnet test native/OfficeKit", { ok: true, stdout: "skipped: dotnet or native/OfficeKit unavailable", stderr: "", command: "dotnet test native/OfficeKit" }, false));
   }
 }
 

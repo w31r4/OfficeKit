@@ -83,7 +83,7 @@ range.textStyle.fontSize = fontSizePx;
 range.borders = borderConfig;
 ```
 
-Merge coordinates are inclusive and zero-based. OpenChestnut accepts complete,
+Merge coordinates are inclusive and zero-based. OfficeKit accepts complete,
 in-bounds rectangles that span at least two cells and do not overlap another
 merge. The upper-left cell retains its value; covered values are cleared and
 their cell facades become read-only. `getCell(row, column)` exposes

@@ -115,9 +115,9 @@ def builtin_font_alias(source_font: str) -> str | None:
 
 
 def accepted_license(value: str | None) -> str:
-    selected = str(value or os.environ.get("OPEN_OFFICE_PDF_PYMUPDF_LICENSE", "")).strip().lower()
+    selected = str(value or os.environ.get("OFFICE_KIT_PDF_PYMUPDF_LICENSE", "")).strip().lower()
     if selected not in {"agpl", "commercial"}:
-        raise ProviderError("PyMuPDF use requires --accept-license agpl|commercial or OPEN_OFFICE_PDF_PYMUPDF_LICENSE")
+        raise ProviderError("PyMuPDF use requires --accept-license agpl|commercial or OFFICE_KIT_PDF_PYMUPDF_LICENSE")
     return selected
 
 

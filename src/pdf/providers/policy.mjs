@@ -6,7 +6,7 @@ import path from "node:path";
 
 import { PDF_PROVIDER_CATALOG, clonePdfProviderValue } from "./catalog.mjs";
 
-export const DEFAULT_PDF_PROVIDER_POLICY_RELATIVE_PATH = path.join(".open-office-artifact-tool", "pdf-providers.json");
+export const DEFAULT_PDF_PROVIDER_POLICY_RELATIVE_PATH = path.join(".office-kit", "pdf-providers.json");
 export const DEFAULT_OCR_LANGUAGES = Object.freeze(["eng", "chi_sim"]);
 
 const MAX_POLICY_BYTES = 256 * 1024;

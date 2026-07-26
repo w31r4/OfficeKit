@@ -102,7 +102,7 @@ export function normalizeDocxThemeConfig(config = {}, base = {}) {
     fonts[key] = String(value ?? "");
   }
   if (!fonts.major.trim() || !fonts.minor.trim()) throw new TypeError("DOCX theme major and minor fonts must not be empty.");
-  const name = String(input.name ?? existing.name ?? "Open Office Clean Room");
+  const name = String(input.name ?? existing.name ?? "OfficeKit");
   if (!name.trim()) throw new TypeError("DOCX theme name must not be empty.");
   return { name, colors, fonts };
 }

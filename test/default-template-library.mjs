@@ -561,7 +561,7 @@ if (sourceRoot) {
   }
 }
 
-const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-template-library-"));
+const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-template-library-"));
 try {
   const materialized = [];
   for (const [id, , kind, extension] of TEMPLATES) {
@@ -580,7 +580,7 @@ try {
   const roundTripped = [];
   for (const { id, kind, output } of materialized) {
     const exported = await assertPublicOfficeRoundTrip(id, kind, output);
-    const roundTripOutput = path.join(temporary, `${id}-openchestnut${path.extname(output)}`);
+    const roundTripOutput = path.join(temporary, `${id}-officekit${path.extname(output)}`);
     await exported.save(roundTripOutput);
     roundTripped.push({ id, output: roundTripOutput });
   }
@@ -636,7 +636,7 @@ try {
       await assertNativeSpreadsheetCalculation(
         spreadsheet.id,
         roundTrip.output,
-        path.join(temporary, "native-calculation", spreadsheet.id, "openchestnut"),
+        path.join(temporary, "native-calculation", spreadsheet.id, "officekit"),
       );
     }
   }
@@ -644,7 +644,7 @@ try {
   if (["soffice", "pdfinfo", "pdftoppm"].every(commandAvailable)) {
     const rendered = path.join(temporary, "native-render");
     for (const { id, output } of materialized) await assertNativeRender(output, path.join(rendered, id, "source"));
-    for (const { id, output } of roundTripped) await assertNativeRender(output, path.join(rendered, id, "openchestnut"));
+    for (const { id, output } of roundTripped) await assertNativeRender(output, path.join(rendered, id, "officekit"));
     for (const { id, output } of editedDocuments) await assertNativeRender(output, path.join(rendered, id, "text-edit"));
     for (const { id, output } of editedPresentations) await assertNativeRender(output, path.join(rendered, id, "placeholder-edit"));
   }

@@ -101,7 +101,7 @@ export async function renderWithLibreOffice(request = {}, defaultOptions = {}) {
   const format = String(request.format || options.format || "pdf").trim().toLowerCase();
   const outputType = request.outputType || options.outputType || outputTypeFor(format, "application/pdf");
   const command = options.command || process.env.LIBREOFFICE_COMMAND || process.env.SOFFICE_COMMAND || "soffice";
-  const tempDir = await fs.mkdtemp(path.join(options.tempRoot || os.tmpdir(), "open-office-libreoffice-"));
+  const tempDir = await fs.mkdtemp(path.join(options.tempRoot || os.tmpdir(), "office-kit-libreoffice-"));
   const inputExt = extensionFor(inputType, options.inputExtension || "bin");
   const inputPath = options.inputPath || path.join(tempDir, `input.${inputExt}`);
   const outDir = options.outDir || tempDir;

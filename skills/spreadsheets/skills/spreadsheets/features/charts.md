@@ -12,7 +12,7 @@ Use a chart only when it makes a KPI, comparison, trend, distribution, ranking, 
 
 Optimize for one clear takeaway and prioritize the data. Use color only for meaning, and keep labels, units, and comparisons easy to read.
 
-The canonical OpenChestnut path supports native bar, line, pie, standard-area,
+The canonical OfficeKit path supports native bar, line, pie, standard-area,
 50%-hole doughnut, marker-only numeric-X/Y scatter, and bounded numeric-X/Y/Size
 bubble charts. Scatter line and smooth variants remain source-bound. Bubble
 requires positive, count-aligned sizes and is authored as 2D, 100%-scale,
@@ -22,7 +22,7 @@ options require a separately verified provider or must fail closed; never
 substitute a different chart family without telling the user.
 
 For marker-only scatter, do not set the series-level `line` or `stroke` fields:
-OpenChestnut emits an explicit native no-fill series outline so Office hosts do
+OfficeKit emits an explicit native no-fill series outline so Office hosts do
 not connect the points. Style the point border through `series.marker.line`.
 
 1. Choose the takeaway and most suitable chart type for the data.

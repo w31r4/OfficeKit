@@ -1,6 +1,6 @@
 # Source-bound SmartArt clone and plain-node text update
 
-OpenChestnut imports SmartArt as a native `nativeObject` with
+OfficeKit imports SmartArt as a native `nativeObject` with
 `nativeKind === "diagram"`. It never reconstructs a diagram as ordinary
 shapes. There are two deliberately separate, source-bound contracts:
 
@@ -48,7 +48,7 @@ four distinct typed diagram parts for the clone. Each new part is a byte copy
 of its corresponding source part. After reimport, source and clone have
 disjoint part paths and per-role hashes match.
 
-Use `examples/openchestnut-slide-duplicate-workflow.mjs` for an Agent-facing
+Use `examples/officekit-slide-duplicate-workflow.mjs` for an Agent-facing
 transaction. Its audit records the source and clone SlideParts, all four
 relationship IDs, source and clone part paths, content types, hashes, exact
 allowed package delta, second-import evidence, and model-render equivalence.
@@ -93,11 +93,11 @@ colors, geometry, and every non-data package part. The output is reimported and
 must expose the exact requested node list. Leading or trailing replacement
 whitespace is serialized with `xml:space="preserve"`.
 
-Use `examples/openchestnut-smartart-text-edit-workflow.mjs` for a no-overwrite
+Use `examples/officekit-smartart-text-edit-workflow.mjs` for a no-overwrite
 Agent transaction:
 
 ```sh
-node "$SKILL_DIR/examples/openchestnut-smartart-text-edit-workflow.mjs" \
+node "$SKILL_DIR/examples/officekit-smartart-text-edit-workflow.mjs" \
   input/source.pptx output/edited.pptx output/edited.audit.json \
   "Closed SmartArt" "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}" "Before" "After"
 ```

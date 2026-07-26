@@ -16,7 +16,7 @@ import {
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const skillsRoot = path.join(repoRoot, "skills");
-const pluginNames = ["documents", "spreadsheets", "presentations", "pdf", "officekit", "template-creator", "default-template-library"];
+const pluginNames = ["documents", "spreadsheets", "presentations", "pdf", "office-kit", "template-creator", "default-template-library"];
 const defaultTemplateSkills = [
   "artifact-template-analytics-dashboard",
   "artifact-template-business-review",
@@ -44,7 +44,7 @@ const expectedSkills = new Map([
   ["spreadsheets", ["excel-live-control", "spreadsheets"]],
   ["presentations", ["presentations"]],
   ["pdf", ["pdf"]],
-  ["officekit", ["officekit"]],
+  ["office-kit", ["office-kit"]],
   ["template-creator", ["template-creator"]],
   ["default-template-library", defaultTemplateSkills],
 ]);
@@ -54,7 +54,7 @@ const expectedDeclaredSkillNames = new Map([
   ["spreadsheets", "Spreadsheets"],
   ["presentations", "Presentations"],
   ["pdf", "pdf"],
-  ["officekit", "officekit"],
+  ["office-kit", "office-kit"],
   ["template-creator", "template-creator"],
 ]);
 for (const skillName of defaultTemplateSkills) expectedDeclaredSkillNames.set(skillName, skillName);
@@ -82,12 +82,12 @@ for (const pluginName of pluginNames) {
   const manifestPath = path.join(pluginRoot, ".codex-plugin", "plugin.json");
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
   assert.equal(manifest.name, pluginName);
-  assert.equal(manifest.version, pluginName === "officekit" ? "0.3.0" : "0.2.0");
+  assert.equal(manifest.version, pluginName === "office-kit" ? "0.3.0" : "0.2.0");
   assert.equal(manifest.license, pluginName === "default-template-library" ? "MIT" : "AGPL-3.0-or-later");
   assert.equal(manifest.skills, "./skills/");
-  assert.match(manifest.repository, /open-office-artifact-tool/);
+  assert.match(manifest.repository, /office-kit/);
   assert.ok(await exists(path.join(pluginRoot, "README.md")));
-  for (const iconKey of pluginName === "officekit" ? [] : ["composerIcon", "logo"]) {
+  for (const iconKey of pluginName === "office-kit" ? [] : ["composerIcon", "logo"]) {
     assert.ok(await exists(path.resolve(pluginRoot, manifest.interface[iconKey])), `${pluginName} ${iconKey} must resolve inside the plugin`);
   }
 
@@ -105,7 +105,7 @@ for (const pluginName of pluginNames) {
     const retainedTemplateSkill = pluginName === "default-template-library";
     const agentFilename = skillName === "template-creator" || retainedTemplateSkill ? "agent.yaml" : "openai.yaml";
     const agentText = await fs.readFile(path.join(skillRoot, "agents", agentFilename), "utf8");
-    for (const iconKey of pluginName === "officekit" ? [] : retainedTemplateSkill ? ["icon_large"] : ["icon_small", "icon_large"]) {
+    for (const iconKey of pluginName === "office-kit" ? [] : retainedTemplateSkill ? ["icon_large"] : ["icon_small", "icon_large"]) {
       const icon = yamlValue(agentText, iconKey);
       assert.ok(icon, `${pluginName}/${skillName} is missing ${iconKey}`);
       assert.ok(await exists(path.resolve(skillRoot, icon)), `${pluginName}/${skillName} ${iconKey} does not resolve`);
@@ -113,7 +113,7 @@ for (const pluginName of pluginNames) {
   }
 }
 
-const officeKitRoot = path.join(skillsRoot, "officekit", "skills", "officekit");
+const officeKitRoot = path.join(skillsRoot, "office-kit", "skills", "office-kit");
 const officeKitSkillText = await fs.readFile(path.join(officeKitRoot, "SKILL.md"), "utf8");
 const officeKitRoutingText = await fs.readFile(path.join(officeKitRoot, "references", "routing.md"), "utf8");
 const officeKitTemplateText = await fs.readFile(path.join(officeKitRoot, "references", "template-selection.md"), "utf8");
@@ -172,16 +172,16 @@ const spreadsheetSkillText = await fs.readFile(path.join(skillsRoot, "spreadshee
 assert.match(spreadsheetSkillText, /artifact_tool_docs\/API_QUICK_START\.md/);
 assert.match(spreadsheetSkillText, /features\/charts\.md/);
 assert.match(spreadsheetSkillText, /features\/pivot-tables\.md/);
-assert.match(spreadsheetSkillText, /openchestnut-pivot-table-workflow\.mjs/);
-assert.match(spreadsheetSkillText, /openchestnut-financial-returns-workflow\.mjs/);
-assert.match(spreadsheetSkillText, /openchestnut-loan-amortization-workflow\.mjs/);
-assert.match(spreadsheetSkillText, /openchestnut-asset-depreciation-workflow\.mjs/);
-assert.match(spreadsheetSkillText, /openchestnut-growth-assumption-edit-workflow\.mjs/);
-assert.match(spreadsheetSkillText, /openchestnut-connection-refresh-hardening-workflow\.mjs/);
-assert.match(spreadsheetSkillText, /openchestnut-pivot-refresh-hardening-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "openchestnut-growth-assumption-edit-workflow.mjs")));
-assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "openchestnut-connection-refresh-hardening-workflow.mjs")));
-assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "openchestnut-pivot-refresh-hardening-workflow.mjs")));
+assert.match(spreadsheetSkillText, /officekit-pivot-table-workflow\.mjs/);
+assert.match(spreadsheetSkillText, /officekit-financial-returns-workflow\.mjs/);
+assert.match(spreadsheetSkillText, /officekit-loan-amortization-workflow\.mjs/);
+assert.match(spreadsheetSkillText, /officekit-asset-depreciation-workflow\.mjs/);
+assert.match(spreadsheetSkillText, /officekit-growth-assumption-edit-workflow\.mjs/);
+assert.match(spreadsheetSkillText, /officekit-connection-refresh-hardening-workflow\.mjs/);
+assert.match(spreadsheetSkillText, /officekit-pivot-refresh-hardening-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-growth-assumption-edit-workflow.mjs")));
+assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-connection-refresh-hardening-workflow.mjs")));
+assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-pivot-refresh-hardening-workflow.mjs")));
 
 const presentationApiRoot = path.join(skillsRoot, "presentations", "skills", "presentations", "artifact_tool", "api");
 const presentationApiDocs = await fs.readFile(path.join(presentationApiRoot, "API_DOCS.md"), "utf8");
@@ -201,30 +201,30 @@ assert.match(presentationSpec, /guide count\/order\/orientation|add\/remove\/reo
 assert.match(presentationSpec, /presentation\.sections\.add/);
 assert.match(presentationSectionsSpec, /p14:sectionLst/);
 assert.match(presentationSectionsSpec, /partition every deck slide exactly once/i);
-assert.match(presentationSectionsSpec, /openchestnut-section-rename-workflow\.mjs/);
-assert.match(presentationSectionsSpec, /openchestnut-section-boundary-edit-workflow\.mjs/);
+assert.match(presentationSectionsSpec, /officekit-section-rename-workflow\.mjs/);
+assert.match(presentationSectionsSpec, /officekit-section-boundary-edit-workflow\.mjs/);
 assert.match(presentationLayoutSpec, /read-only `slideGuides`/);
 assert.match(presentationChartSpec, /standard `area`.*50%-hole `doughnut`/s);
 assert.match(presentationChartSpec, /Marker-only `scatter`.*aligned.*`xValues`/s);
 assert.match(presentationChartSpec, /2D `bubble`.*positive `bubbleSize`/s);
 assert.match(presentationChartSpec, /formula references[\s\S]*fail\s+closed/i);
 const presentationSkillText = await fs.readFile(path.join(skillsRoot, "presentations", "skills", "presentations", "SKILL.md"), "utf8");
-assert.match(presentationSkillText, /openchestnut-chart-families-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-chart-families-workflow.mjs")));
-assert.match(presentationSkillText, /openchestnut-title-notes-edit-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-title-notes-edit-workflow.mjs")));
-assert.match(presentationSkillText, /openchestnut-legacy-comment-edit-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-legacy-comment-edit-workflow.mjs")));
-assert.match(presentationSkillText, /openchestnut-slide-name-edit-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-slide-name-edit-workflow.mjs")));
-assert.match(presentationSkillText, /openchestnut-view-properties-edit-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-view-properties-edit-workflow.mjs")));
-assert.match(presentationSkillText, /openchestnut-transition-edit-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-transition-edit-workflow.mjs")));
-assert.match(presentationSkillText, /openchestnut-section-rename-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-section-rename-workflow.mjs")));
-assert.match(presentationSkillText, /openchestnut-section-boundary-edit-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-section-boundary-edit-workflow.mjs")));
+assert.match(presentationSkillText, /officekit-chart-families-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-chart-families-workflow.mjs")));
+assert.match(presentationSkillText, /officekit-title-notes-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-title-notes-edit-workflow.mjs")));
+assert.match(presentationSkillText, /officekit-legacy-comment-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-legacy-comment-edit-workflow.mjs")));
+assert.match(presentationSkillText, /officekit-slide-name-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-slide-name-edit-workflow.mjs")));
+assert.match(presentationSkillText, /officekit-view-properties-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-view-properties-edit-workflow.mjs")));
+assert.match(presentationSkillText, /officekit-transition-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-transition-edit-workflow.mjs")));
+assert.match(presentationSkillText, /officekit-section-rename-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-section-rename-workflow.mjs")));
+assert.match(presentationSkillText, /officekit-section-boundary-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-section-boundary-edit-workflow.mjs")));
 
 const documentsSkillRoot = path.join(skillsRoot, "documents", "skills", "documents");
 const documentsManifest = (await fs.readFile(path.join(documentsSkillRoot, "manifest.txt"), "utf8"))
@@ -238,8 +238,8 @@ for (const entry of documentsManifest) {
   assert.ok(await exists(path.join(documentsSkillRoot, entry)), `Documents manifest entry is missing: ${entry}`);
 }
 assert.ok(documentsManifest.includes("artifact_tool/API_QUICK_START.md"));
-assert.ok(documentsManifest.includes("examples/openchestnut-end-to-end.mjs"));
-assert.ok(documentsManifest.includes("examples/openchestnut-classic-comment-edit-workflow.mjs"));
+assert.ok(documentsManifest.includes("examples/officekit-end-to-end.mjs"));
+assert.ok(documentsManifest.includes("examples/officekit-classic-comment-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/end_to_end_smoke_test.md"));
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "end_to_end_smoke_test.md")));
 const documentsSkillText = await fs.readFile(path.join(documentsSkillRoot, "SKILL.md"), "utf8");
@@ -247,7 +247,7 @@ assert.match(documentsSkillText, /examples\/end_to_end_smoke_test\.md/);
 
 const pdfSkillRoot = path.join(skillsRoot, "pdf", "skills", "pdf");
 const pdfSkillText = await fs.readFile(path.join(pdfSkillRoot, "SKILL.md"), "utf8");
-assert.match(pdfSkillText, /open-office-artifact-tool/);
+assert.match(pdfSkillText, /office-kit/);
 assert.match(pdfSkillText, /PdfArtifact/);
 assert.match(pdfSkillText, /createPdfjsParser/);
 assert.match(pdfSkillText, /Poppler/);
@@ -309,15 +309,15 @@ if (await exists(officialValidator)) {
   }
 }
 
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-reference-skills-"));
-const previousPackageDir = process.env.OPEN_OFFICE_ARTIFACT_TOOL_PACKAGE_DIR;
+const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-reference-skills-"));
+const previousPackageDir = process.env.OFFICE_KIT_PACKAGE_DIR;
 try {
-  process.env.OPEN_OFFICE_ARTIFACT_TOOL_PACKAGE_DIR = repoRoot;
+  process.env.OFFICE_KIT_PACKAGE_DIR = repoRoot;
 
   const { createDocument, DEFAULT_BRIEF } = await import(
-    "../skills/documents/skills/documents/examples/openchestnut-end-to-end.mjs"
+    "../skills/documents/skills/documents/examples/officekit-end-to-end.mjs"
   );
-  const docxPath = path.join(tempRoot, "openchestnut-decision-brief.docx");
+  const docxPath = path.join(tempRoot, "officekit-decision-brief.docx");
   const authoredDocument = await createDocument(docxPath);
   assert.equal(authoredDocument.verification.ok, true);
   assert.match(authoredDocument.inspection.ndjson, /Launch readiness decision brief/);
@@ -390,7 +390,7 @@ try {
   const prepared = await ensureArtifactToolWorkspace(workspace);
   assert.equal(prepared.packageDir, repoRoot);
   assert.equal(
-    await fs.realpath(path.join(workspace, "node_modules", "open-office-artifact-tool")),
+    await fs.realpath(path.join(workspace, "node_modules", "office-kit")),
     await fs.realpath(repoRoot),
   );
   const importedPackage = await importArtifactTool(workspace);
@@ -420,7 +420,7 @@ try {
   assert.equal(allSlides.flatMap((slide) => slide.images.items).length, 1);
   assert.equal(allSlides.flatMap((slide) => slide.connectors.items).length, 2);
   const firstText = allShapes.find((shape) => String(shape.text?.value || "").includes("Your presentation"));
-  assert.ok(firstText, "the reference template headline must survive OpenChestnut export/import");
+  assert.ok(firstText, "the reference template headline must survive OfficeKit export/import");
   assert.equal(firstText.text.value, "Your presentation \nheadline goes here");
   assert.ok(Math.abs(firstText.position.left - 41.33) < 0.02);
   assert.ok(Math.abs(firstText.position.top - 182.55) < 0.02);
@@ -464,13 +464,13 @@ try {
     ["=C3/B3"],
     ["=C4/B4"],
   ]);
-  const csvWorkbook = await Workbook.fromCSV("Name,Value\nOpenChestnut,1", { sheetName: "Data" });
-  assert.deepEqual(csvWorkbook.worksheets.getItem("Data").getRange("A1:B2").values, [["Name", "Value"], ["OpenChestnut", "1"]]);
+  const csvWorkbook = await Workbook.fromCSV("Name,Value\nOfficeKit,1", { sheetName: "Data" });
+  assert.deepEqual(csvWorkbook.worksheets.getItem("Data").getRange("A1:B2").values, [["Name", "Value"], ["OfficeKit", "1"]]);
 
   const { createWorkbook: createReferenceWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-range-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-range-workflow.mjs"
   );
-  const spreadsheetPath = path.join(tempRoot, "openchestnut-range-workflow.xlsx");
+  const spreadsheetPath = path.join(tempRoot, "officekit-range-workflow.xlsx");
   const authoredWorkbook = await createReferenceWorkbook(spreadsheetPath);
   assert.equal(authoredWorkbook.verification.ok, true);
   assert.match(authoredWorkbook.inspection.ndjson, /Revenue trend/);
@@ -479,9 +479,9 @@ try {
   assert.equal(spreadsheetRoundTrip.worksheets.getItem("Forecast").getRange("B3").formulasR1C1[0][0], "=R[-1]C*(1+'Assumptions'!R2C2)");
 
   const { createSparklineWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-sparkline-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-sparkline-workflow.mjs"
   );
-  const sparklinePath = path.join(tempRoot, "openchestnut-sparkline-workflow.xlsx");
+  const sparklinePath = path.join(tempRoot, "officekit-sparkline-workflow.xlsx");
   const authoredSparklines = await createSparklineWorkbook(sparklinePath);
   assert.equal(authoredSparklines.verification.ok, true);
   assert.match(authoredSparklines.inspection.ndjson, /"kind":"sparkline"/);
@@ -490,9 +490,9 @@ try {
   assert.equal(sparklineRoundTrip.worksheets.getItem("Operating Trends").sparklineGroups.items[0].seriesColor, "#F97316");
 
   const { createDataTableWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-data-table-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-data-table-workflow.mjs"
   );
-  const dataTablePath = path.join(tempRoot, "openchestnut-data-table-workflow.xlsx");
+  const dataTablePath = path.join(tempRoot, "officekit-data-table-workflow.xlsx");
   const authoredDataTables = await createDataTableWorkbook(dataTablePath);
   assert.equal(authoredDataTables.verification.ok, true);
   assert.match(authoredDataTables.inspection.ndjson, /"kind":"dataTable"/);
@@ -503,9 +503,9 @@ try {
   );
 
   const { createPivotTableWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-pivot-table-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-table-workflow.mjs"
   );
-  const pivotTablePath = path.join(tempRoot, "openchestnut-pivot-table-workflow.xlsx");
+  const pivotTablePath = path.join(tempRoot, "officekit-pivot-table-workflow.xlsx");
   const authoredPivotTable = await createPivotTableWorkbook(pivotTablePath);
   assert.equal(authoredPivotTable.verification.ok, true);
   assert.match(authoredPivotTable.inspection.ndjson, /"kind":"pivotTable"/);
@@ -517,9 +517,9 @@ try {
   assert.deepEqual(pivotTable.computedValues().at(-1), ["Grand Total", "", 260, 25, 180, 19, 440, 44]);
 
   const { createFinancialReturnsWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-financial-returns-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-financial-returns-workflow.mjs"
   );
-  const financialReturnsPath = path.join(tempRoot, "openchestnut-financial-returns-workflow.xlsx");
+  const financialReturnsPath = path.join(tempRoot, "officekit-financial-returns-workflow.xlsx");
   const authoredFinancialReturns = await createFinancialReturnsWorkbook(financialReturnsPath);
   assert.equal(authoredFinancialReturns.verification.ok, true);
   assert.match(authoredFinancialReturns.inspection.ndjson, /XIRR/);
@@ -532,9 +532,9 @@ try {
   assert.deepEqual(financialReturnsRoundTrip.worksheets.getItem("Checks").getRange("E4:E10").values, [["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"]]);
 
   const { createLoanAmortizationWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-loan-amortization-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-loan-amortization-workflow.mjs"
   );
-  const loanAmortizationPath = path.join(tempRoot, "openchestnut-loan-amortization-workflow.xlsx");
+  const loanAmortizationPath = path.join(tempRoot, "officekit-loan-amortization-workflow.xlsx");
   const authoredLoanAmortization = await createLoanAmortizationWorkbook(loanAmortizationPath);
   assert.equal(authoredLoanAmortization.verification.ok, true);
   assert.match(authoredLoanAmortization.inspection.ndjson, /PPMT/);
@@ -562,9 +562,9 @@ try {
   assert.deepEqual(loanAmortizationRoundTrip.worksheets.getItem("Checks").getRange("E4:E15").values, Array.from({ length: 12 }, () => ["OK"]));
 
   const { createAssetDepreciationWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-asset-depreciation-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-asset-depreciation-workflow.mjs"
   );
-  const assetDepreciationPath = path.join(tempRoot, "openchestnut-asset-depreciation-workflow.xlsx");
+  const assetDepreciationPath = path.join(tempRoot, "officekit-asset-depreciation-workflow.xlsx");
   const authoredAssetDepreciation = await createAssetDepreciationWorkbook(assetDepreciationPath);
   assert.equal(authoredAssetDepreciation.verification.ok, true);
   assert.match(authoredAssetDepreciation.inspection.ndjson, /SLN/);
@@ -577,9 +577,9 @@ try {
   assert.deepEqual(assetDepreciationRoundTrip.worksheets.getItem("Checks").getRange("E4:E9").values, [["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"]]);
 
   const { createScatterWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-scatter-chart-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-scatter-chart-workflow.mjs"
   );
-  const scatterPath = path.join(tempRoot, "openchestnut-scatter-chart-workflow.xlsx");
+  const scatterPath = path.join(tempRoot, "officekit-scatter-chart-workflow.xlsx");
   const authoredScatter = await createScatterWorkbook(scatterPath);
   assert.equal(authoredScatter.verification.ok, true);
   assert.match(authoredScatter.inspection.ndjson, /"chartType":"scatter"/);
@@ -589,9 +589,9 @@ try {
   assert.deepEqual(scatterChart.series.items[0].xValues, [10, 20, 25, 34, 45]);
 
   const { createBubbleWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-bubble-chart-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-bubble-chart-workflow.mjs"
   );
-  const bubblePath = path.join(tempRoot, "openchestnut-bubble-chart-workflow.xlsx");
+  const bubblePath = path.join(tempRoot, "officekit-bubble-chart-workflow.xlsx");
   const authoredBubble = await createBubbleWorkbook(bubblePath);
   assert.equal(authoredBubble.verification.ok, true);
   assert.match(authoredBubble.inspection.ndjson, /"chartType":"bubble"/);
@@ -614,7 +614,7 @@ try {
   const pdfRoundTrip = await PdfFile.importPdf(await FileBlob.load(pdfPath));
   assert.equal(pdfRoundTrip.pages[0].tables[0].getCell(3, 2).value, "Verified");
   assert.match(pdfRoundTrip.extractText(), /Release readiness scorecard/);
-  const { createPdfjsParser } = await import("open-office-artifact-tool/pdf/pdfjs");
+  const { createPdfjsParser } = await import("office-kit/pdf/pdfjs");
   const parsedPdf = await PdfFile.importPdf(await FileBlob.load(pdfPath), {
     parser: createPdfjsParser(),
     preferParser: true,
@@ -622,8 +622,8 @@ try {
   });
   assert.match(parsedPdf.extractText(), /Release readiness scorecard/);
 } finally {
-  if (previousPackageDir === undefined) delete process.env.OPEN_OFFICE_ARTIFACT_TOOL_PACKAGE_DIR;
-  else process.env.OPEN_OFFICE_ARTIFACT_TOOL_PACKAGE_DIR = previousPackageDir;
+  if (previousPackageDir === undefined) delete process.env.OFFICE_KIT_PACKAGE_DIR;
+  else process.env.OFFICE_KIT_PACKAGE_DIR = previousPackageDir;
   await fs.rm(tempRoot, { recursive: true, force: true });
 }
 

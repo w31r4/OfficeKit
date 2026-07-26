@@ -19,7 +19,7 @@ import {
 
 const fixtureDir = path.join("test", "skill-harness", "presentations", "fixtures");
 
-const root = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-presentation-skill-test-"));
+const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-presentation-skill-test-"));
 const baselineDir = path.join(root, "baselines");
 const nativeStatus = nativePresentationRenderStatus();
 const nativeRender = nativeStatus.available ? "required" : "auto";
@@ -70,7 +70,7 @@ try {
   assert.deepEqual(nativeGroup.children.map((child) => child.layoutJson().kind), ["textbox", "textbox", "textbox", "groupShape", "connector"]);
   assert.equal(itemByName(nativeGroup.groups.items, "nested-qa-group").shapes.items[0].text.value, "Render + verify");
   assert.equal(itemByName(nativeGroup.connectors.items, "grouped-flow").line.endArrow, "triangle");
-  assert.match(readiness.qa.inspect.ndjson, /OpenChestnut closes the presentation loop/);
+  assert.match(readiness.qa.inspect.ndjson, /OfficeKit closes the presentation loop/);
   assert.match(readiness.qa.inspect.ndjson, /Coverage mix/);
   assert.match(readiness.qa.inspect.ndjson, /native-agent-group/);
 
@@ -105,14 +105,14 @@ try {
   const chartFamiliesPreview = path.join(chartFamiliesDir, "chart-families.png");
   const chartFamiliesAudit = path.join(chartFamiliesDir, "audit.json");
   const { createAndEditChartFamilyDeck } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-chart-families-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-chart-families-workflow.mjs"
   );
   const chartFamiliesResult = await createAndEditChartFamilyDeck({
     outputPath: chartFamiliesOutput,
     previewPath: chartFamiliesPreview,
     auditPath: chartFamiliesAudit,
   });
-  assert.equal(chartFamiliesResult.audit.provider.actual, "open-chestnut");
+  assert.equal(chartFamiliesResult.audit.provider.actual, "office-kit");
   assert.equal(chartFamiliesResult.audit.provider.silentFallback, false);
   assert.equal(chartFamiliesResult.audit.operation.type, "greenfield-native-chart-family-author-edit");
   assert.deepEqual(chartFamiliesResult.audit.operation.chartTypes, ["area", "doughnut", "scatter", "bubble"]);
@@ -140,7 +140,7 @@ try {
   assert.equal(chartFamiliesQa.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
   if (nativeStatus.available) assert.equal(chartFamiliesQa.nativeRender.pageCount, 1);
 
-  const roundtrip = await runPresentationFixture(path.join(fixtureDir, "open-chestnut-preservation.json"), {
+  const roundtrip = await runPresentationFixture(path.join(fixtureDir, "office-kit-preservation.json"), {
     outputDir: path.join(root, "roundtrip"),
     nativeRender,
   });
@@ -192,7 +192,7 @@ try {
   assert.equal(itemByName(coreReview.qa.presentation.slides.getItem(0).images.items, "review-status").alt, "Green review status");
   assert.equal(itemByName(coreReview.qa.presentation.slides.getItem(0).connectors.items, "visual-to-delivery").line.endArrow, "triangle");
 
-  const legacyComments = await runPresentationFixture(path.join(fixtureDir, "open-chestnut-legacy-comments.json"), {
+  const legacyComments = await runPresentationFixture(path.join(fixtureDir, "office-kit-legacy-comments.json"), {
     outputDir: path.join(root, "legacy-comments"),
     nativeRender,
   });
@@ -218,13 +218,13 @@ try {
   const modernCommentsOutput = path.join(modernCommentsDir, "decision-review.pptx");
   const modernCommentsAudit = path.join(modernCommentsDir, "audit.json");
   const { createAndEditModernCommentThread } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-modern-comment-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-modern-comment-workflow.mjs"
   );
   const modernCommentsResult = await createAndEditModernCommentThread({
     outputPath: modernCommentsOutput,
     auditPath: modernCommentsAudit,
   });
-  assert.equal(modernCommentsResult.audit.provider.actual, "open-chestnut");
+  assert.equal(modernCommentsResult.audit.provider.actual, "office-kit");
   assert.equal(modernCommentsResult.audit.provider.silentFallback, false);
   assert.equal(modernCommentsResult.audit.operation.type, "fixed-topology-modern-comment-text-status-edit");
   assert.equal(modernCommentsResult.audit.operation.replyCount, 1);
@@ -251,7 +251,7 @@ try {
   const modernCommentsCliOutput = path.join(modernCommentsDir, "decision-review-cli.pptx");
   const modernCommentsCliAudit = path.join(modernCommentsDir, "cli-audit.json");
   const modernCommentsCli = spawnSync(process.execPath, [
-    "skills/presentations/skills/presentations/examples/openchestnut-modern-comment-workflow.mjs",
+    "skills/presentations/skills/presentations/examples/officekit-modern-comment-workflow.mjs",
     modernCommentsCliOutput,
     modernCommentsCliAudit,
   ], { encoding: "utf8" });
@@ -279,7 +279,7 @@ try {
   await generateOfficeInput("pptx-title-notes-review", titleNotesInput);
   const titleNotesSource = await fs.readFile(titleNotesInput);
   const { editPptxTitleAndNotes } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-title-notes-edit-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-title-notes-edit-workflow.mjs"
   );
   const titleNotesResult = await editPptxTitleAndNotes({
     inputPath: titleNotesInput,
@@ -292,7 +292,7 @@ try {
     expectedNotes: PPTX_TITLE_NOTES_FIXTURE.originalNotes,
     replacementNotes: PPTX_TITLE_NOTES_FIXTURE.replacementNotes,
   });
-  assert.equal(titleNotesResult.audit.provider.actual, "open-chestnut");
+  assert.equal(titleNotesResult.audit.provider.actual, "office-kit");
   assert.equal(titleNotesResult.audit.validation.reimport.ok, true);
   assert.equal(titleNotesResult.audit.validation.modelRender.renderer, "model-svg");
   assert.deepEqual(await fs.readFile(titleNotesInput), titleNotesSource);
@@ -316,14 +316,14 @@ try {
   await generateOfficeInput("pptx-rich-notes-review", richNotesInput);
   const richNotesSource = await fs.readFile(richNotesInput);
   const { editPptxRichSpeakerNotes } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-rich-speaker-notes-edit-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-rich-speaker-notes-edit-workflow.mjs"
   );
   const richNotesResult = await editPptxRichSpeakerNotes({
     inputPath: richNotesInput,
     outputPath: richNotesOutput,
     auditPath: richNotesAudit,
   });
-  assert.equal(richNotesResult.audit.provider.actual, "open-chestnut");
+  assert.equal(richNotesResult.audit.provider.actual, "office-kit");
   assert.equal(richNotesResult.audit.operation.type, "title-and-rich-speaker-notes-run-edit");
   assert.equal(richNotesResult.audit.validation.reimport.richNotesFixedTopology, true);
   assert.deepEqual(await fs.readFile(richNotesInput), richNotesSource);
@@ -387,7 +387,7 @@ try {
   });
   assert.match(notesSourceImported.inspect({ kind: "slide,notes" }).ndjson, /"notesCapability":\{"sourceBound":true,"partPresent":false,"editable":false,"addable":true\}/);
   const { addPptxSpeakerNotes } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-speaker-notes-add-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-speaker-notes-add-workflow.mjs"
   );
   const notesAddResult = await addPptxSpeakerNotes({
     inputPath: notesAddInput,
@@ -396,7 +396,7 @@ try {
     slideName: "Speaker notes target",
     notes: notesText,
   });
-  assert.equal(notesAddResult.audit.provider.actual, "open-chestnut");
+  assert.equal(notesAddResult.audit.provider.actual, "office-kit");
   assert.equal(notesAddResult.audit.operation.type, "source-bound-speaker-notes-add");
   assert.equal(notesAddResult.audit.precondition.capability.addable, true);
   assert.equal(notesAddResult.audit.validation.package.notesMasterPolicy, "created-canonical-shared-theme");
@@ -484,7 +484,7 @@ try {
   });
   assert.match(legacyCommentAddImported.inspect({ kind: "slide" }).ndjson, /"commentsCapability":\{"sourceBound":true,"format":"legacy","partPresent":false,"editable":false,"addable":true\}/);
   const { addPptxLegacyReviewComment } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-legacy-comment-add-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-legacy-comment-add-workflow.mjs"
   );
   const legacyCommentAddResult = await addPptxLegacyReviewComment({
     inputPath: legacyCommentAddInput,
@@ -496,7 +496,7 @@ try {
     created: "2026-07-20T03:04:05Z",
     position: { x: 360, y: 240, unit: "px" },
   });
-  assert.equal(legacyCommentAddResult.audit.provider.actual, "open-chestnut");
+  assert.equal(legacyCommentAddResult.audit.provider.actual, "office-kit");
   assert.equal(legacyCommentAddResult.audit.operation.type, "source-bound-legacy-comment-add");
   assert.equal(legacyCommentAddResult.audit.precondition.capability.addable, true);
   assert.deepEqual(legacyCommentAddResult.audit.validation.package.addedParts, [
@@ -547,7 +547,7 @@ try {
   const legacyCommentEditSource = await fs.readFile(legacyCommentAddOutput);
   const legacyCommentEditSourceThread = legacyCommentAddRoundTrip.slides.getItem(0).comments.items[0];
   const { editPptxLegacyReviewComment } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-legacy-comment-edit-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-legacy-comment-edit-workflow.mjs"
   );
   const legacyCommentEditResult = await editPptxLegacyReviewComment({
     inputPath: legacyCommentAddOutput,
@@ -632,7 +632,7 @@ try {
   await generateOfficeInput("pptx-title-notes-review", slideNameInput);
   const slideNameSource = await fs.readFile(slideNameInput);
   const { editPptxSlideName } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-slide-name-edit-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-slide-name-edit-workflow.mjs"
   );
   const slideNameResult = await editPptxSlideName({
     inputPath: slideNameInput,
@@ -641,7 +641,7 @@ try {
     expectedName: PPTX_TITLE_NOTES_FIXTURE.targetSlideName,
     replacementName: "Go decision: controlled rollout",
   });
-  assert.equal(slideNameResult.audit.provider.actual, "open-chestnut");
+  assert.equal(slideNameResult.audit.provider.actual, "office-kit");
   assert.equal(slideNameResult.audit.operation.nativeAttribute, "p:cSld/@name");
   assert.equal(slideNameResult.audit.validation.package.targetNameVerified, true);
   assert.equal(slideNameResult.audit.validation.package.targetPartMayBeCanonicalized, true);
@@ -676,7 +676,7 @@ try {
   const slideNameCliOutput = path.join(slideNameDir, "launch-review-cli-renamed.pptx");
   const slideNameCliAudit = path.join(slideNameDir, "cli-audit.json");
   const slideNameCli = spawnSync(process.execPath, [
-    "skills/presentations/skills/presentations/examples/openchestnut-slide-name-edit-workflow.mjs",
+    "skills/presentations/skills/presentations/examples/officekit-slide-name-edit-workflow.mjs",
     slideNameInput,
     slideNameCliOutput,
     slideNameCliAudit,
@@ -718,7 +718,7 @@ try {
   await viewPropertiesSource.save(viewPropertiesInput);
   const viewPropertiesSourceBytes = await fs.readFile(viewPropertiesInput);
   const { editPptxViewProperties } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-view-properties-edit-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-view-properties-edit-workflow.mjs"
   );
   const viewPropertiesResult = await editPptxViewProperties({
     inputPath: viewPropertiesInput,
@@ -769,7 +769,7 @@ try {
   const viewPropertiesCliOutput = path.join(viewPropertiesDir, "view-properties-cli.pptx");
   const viewPropertiesCliAudit = path.join(viewPropertiesDir, "cli-audit.json");
   const viewPropertiesCli = spawnSync(process.execPath, [
-    "skills/presentations/skills/presentations/examples/openchestnut-view-properties-edit-workflow.mjs",
+    "skills/presentations/skills/presentations/examples/officekit-view-properties-edit-workflow.mjs",
     viewPropertiesInput,
     viewPropertiesCliOutput,
     viewPropertiesCliAudit,
@@ -801,7 +801,7 @@ try {
   await (await PresentationFile.exportPptx(transitionEditDeck)).save(transitionEditInput);
   const transitionEditSource = await fs.readFile(transitionEditInput);
   const { editPptxTransition } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-transition-edit-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-transition-edit-workflow.mjs"
   );
   const transitionEditResult = await editPptxTransition({
     inputPath: transitionEditInput,
@@ -900,7 +900,7 @@ try {
   const transitionEditCliOutput = path.join(transitionEditDir, "transition-cli.pptx");
   const transitionEditCliAudit = path.join(transitionEditDir, "cli-audit.json");
   const transitionEditCli = spawnSync(process.execPath, [
-    "skills/presentations/skills/presentations/examples/openchestnut-transition-edit-workflow.mjs",
+    "skills/presentations/skills/presentations/examples/officekit-transition-edit-workflow.mjs",
     transitionEditInput,
     transitionEditCliOutput,
     transitionEditCliAudit,
@@ -943,7 +943,7 @@ try {
   await (await PresentationFile.exportPptx(sectionRenameDeck)).save(sectionRenameInput);
   const sectionRenameSource = await fs.readFile(sectionRenameInput);
   const { renamePptxSection } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-section-rename-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-section-rename-workflow.mjs"
   );
   const sectionRenameResult = await renamePptxSection({
     inputPath: sectionRenameInput,
@@ -1075,7 +1075,7 @@ try {
   const sectionRenameCliOutput = path.join(sectionRenameDir, "section-cli.pptx");
   const sectionRenameCliAudit = path.join(sectionRenameDir, "cli-audit.json");
   const sectionRenameCli = spawnSync(process.execPath, [
-    "skills/presentations/skills/presentations/examples/openchestnut-section-rename-workflow.mjs",
+    "skills/presentations/skills/presentations/examples/officekit-section-rename-workflow.mjs",
     sectionRenameInput,
     sectionRenameCliOutput,
     sectionRenameCliAudit,
@@ -1154,7 +1154,7 @@ try {
   await (await PresentationFile.exportPptx(sectionBoundaryDeck)).save(sectionBoundaryInput);
   const sectionBoundarySource = await fs.readFile(sectionBoundaryInput);
   const { replacePptxSectionPartition } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-section-boundary-edit-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-section-boundary-edit-workflow.mjs"
   );
   const sectionBoundaryResult = await replacePptxSectionPartition({
     inputPath: sectionBoundaryInput,
@@ -1323,7 +1323,7 @@ try {
   await fs.writeFile(sectionBoundaryExpectedJson, JSON.stringify(expectedSectionPartition));
   await fs.writeFile(sectionBoundaryReplacementJson, JSON.stringify(replacementSectionPartition));
   const sectionBoundaryCli = spawnSync(process.execPath, [
-    "skills/presentations/skills/presentations/examples/openchestnut-section-boundary-edit-workflow.mjs",
+    "skills/presentations/skills/presentations/examples/officekit-section-boundary-edit-workflow.mjs",
     sectionBoundaryInput,
     sectionBoundaryCliOutput,
     sectionBoundaryCliAudit,
@@ -1337,7 +1337,7 @@ try {
   const sectionBoundaryInlineOutput = path.join(sectionBoundaryDir, "section-boundary-inline-cli.pptx");
   const sectionBoundaryInlineAudit = path.join(sectionBoundaryDir, "inline-cli-audit.json");
   const sectionBoundaryInlineCli = spawnSync(process.execPath, [
-    "skills/presentations/skills/presentations/examples/openchestnut-section-boundary-edit-workflow.mjs",
+    "skills/presentations/skills/presentations/examples/officekit-section-boundary-edit-workflow.mjs",
     sectionBoundaryInput,
     sectionBoundaryInlineOutput,
     sectionBoundaryInlineAudit,
@@ -1352,7 +1352,7 @@ try {
   await fs.writeFile(sectionBoundaryOversizedExpectedJson, "[");
   await fs.truncate(sectionBoundaryOversizedExpectedJson, (32 * 1024 * 1024) + 1);
   const sectionBoundaryOversizedCli = spawnSync(process.execPath, [
-    "skills/presentations/skills/presentations/examples/openchestnut-section-boundary-edit-workflow.mjs",
+    "skills/presentations/skills/presentations/examples/officekit-section-boundary-edit-workflow.mjs",
     sectionBoundaryInput,
     sectionBoundaryOversizedOutput,
     sectionBoundaryOversizedAudit,
@@ -1392,7 +1392,7 @@ try {
   await (await PresentationFile.exportPptx(customShowFixture)).save(customShowInput);
   const customShowSource = await fs.readFile(customShowInput);
   const { editPptxCustomShow } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-custom-show-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-custom-show-workflow.mjs"
   );
   const customShowResult = await editPptxCustomShow({
     inputPath: customShowInput,
@@ -1402,7 +1402,7 @@ try {
     replacementName: "Executive route",
     orderedSlideNames: ["Appendix", "Overview", "Appendix"],
   });
-  assert.equal(customShowResult.audit.provider.actual, "open-chestnut");
+  assert.equal(customShowResult.audit.provider.actual, "office-kit");
   assert.equal(customShowResult.audit.operation.nativeId, 7);
   assert.equal(customShowResult.audit.validation.package.onlyPresentationPartChanged, true);
   assert.equal(customShowResult.audit.validation.package.nativeIdPreserved, true);
@@ -1433,7 +1433,7 @@ try {
   const customShowCliOutput = path.join(customShowDir, "custom-show-cli.pptx");
   const customShowCliAudit = path.join(customShowDir, "cli-audit.json");
   const customShowCli = spawnSync(process.execPath, [
-    "skills/presentations/skills/presentations/examples/openchestnut-custom-show-workflow.mjs",
+    "skills/presentations/skills/presentations/examples/officekit-custom-show-workflow.mjs",
     customShowInput,
     customShowCliOutput,
     customShowCliAudit,
@@ -1503,7 +1503,7 @@ try {
   await duplicateSourcePptx.save(duplicateInput);
   const duplicateSourceBytes = await fs.readFile(duplicateInput);
   const { duplicatePptxSlide } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-slide-duplicate-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs"
   );
   const duplicateResult = await duplicatePptxSlide({
     inputPath: duplicateInput,
@@ -1511,7 +1511,7 @@ try {
     auditPath: duplicateAudit,
     expectedName: "Clone connector source",
   });
-  assert.equal(duplicateResult.audit.provider.actual, "open-chestnut");
+  assert.equal(duplicateResult.audit.provider.actual, "office-kit");
   assert.equal(duplicateResult.audit.operation.type, "source-bound-slide-duplicate");
   assert.equal(duplicateResult.audit.operation.sourcePart, "ppt/slides/slide1.xml");
   assert.equal(duplicateResult.audit.operation.clonePart, "ppt/slides/slide3.xml");
@@ -1726,7 +1726,7 @@ try {
   await oleOfficePackageSource.save(oleOfficePackageInput);
   const oleOfficePackageSourceBytes = await fs.readFile(oleOfficePackageInput);
   const { editPptxEmbeddedDocxPackage } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-ole-office-package-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-ole-office-package-workflow.mjs"
   );
   const oleOfficePackageResult = await editPptxEmbeddedDocxPackage({
     inputPath: oleOfficePackageInput,
@@ -1736,7 +1736,7 @@ try {
     expectedText: "Draft approval wording",
     replacementText: "Approved approval wording",
   });
-  assert.equal(oleOfficePackageResult.audit.provider.actual, "open-chestnut");
+  assert.equal(oleOfficePackageResult.audit.provider.actual, "office-kit");
   assert.equal(oleOfficePackageResult.audit.provider.silentFallback, false);
   assert.equal(oleOfficePackageResult.audit.operation.type, "source-bound-ole-docx-package-paragraph-edit");
   assert.equal(oleOfficePackageResult.audit.operation.package.kind, "docx");
@@ -1767,9 +1767,9 @@ try {
     { path: "ppt/slides/slide1.xml", xml: oleDuplicateSlideXml.replace('name="OLE clone source"', 'name="SmartArt clone source"').replace("</p:spTree>", `${smartArtFrame}</p:spTree>`) },
     { path: "ppt/slides/_rels/slide1.xml.rels", xml: oleDuplicateRelationships.replace("</Relationships>", `${smartArtRelationships}</Relationships>`) },
     { path: "ppt/diagrams/skill-data.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml", xml: '<dgm:dataModel xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><dgm:ptLst><dgm:pt modelId="{B59B8E5A-4DF0-4A3C-A5E2-A7D7B293E601}" type="doc"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Original SmartArt node</a:t></a:r></a:p></dgm:t></dgm:pt><dgm:pt modelId="{C6D16D59-0A5A-42E6-AF7F-C53A0E3D487C}" type="doc"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Second SmartArt node</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst><dgm:cxnLst/><dgm:bg/><dgm:whole/></dgm:dataModel>' },
-    { path: "ppt/diagrams/skill-layout.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramLayout+xml", xml: '<dgm:layoutDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:open-office:skill-layout"><dgm:title val="Skill"/><dgm:desc val="Skill layout"/><dgm:catLst/><dgm:layoutNode name="root"/></dgm:layoutDef>' },
-    { path: "ppt/diagrams/skill-style.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramStyle+xml", xml: '<dgm:styleDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:open-office:skill-style"><dgm:title val="Skill"/><dgm:desc val="Skill style"/><dgm:catLst/><dgm:styleLbl name="node0"/></dgm:styleDef>' },
-    { path: "ppt/diagrams/skill-colors.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramColors+xml", xml: '<dgm:colorsDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:open-office:skill-colors"><dgm:title val="Skill"/><dgm:desc val="Skill colors"/><dgm:catLst/></dgm:colorsDef>' },
+    { path: "ppt/diagrams/skill-layout.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramLayout+xml", xml: '<dgm:layoutDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:office-kit:skill-layout"><dgm:title val="Skill"/><dgm:desc val="Skill layout"/><dgm:catLst/><dgm:layoutNode name="root"/></dgm:layoutDef>' },
+    { path: "ppt/diagrams/skill-style.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramStyle+xml", xml: '<dgm:styleDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:office-kit:skill-style"><dgm:title val="Skill"/><dgm:desc val="Skill style"/><dgm:catLst/><dgm:styleLbl name="node0"/></dgm:styleDef>' },
+    { path: "ppt/diagrams/skill-colors.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramColors+xml", xml: '<dgm:colorsDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:office-kit:skill-colors"><dgm:title val="Skill"/><dgm:desc val="Skill colors"/><dgm:catLst/></dgm:colorsDef>' },
   ]);
   await smartArtSource.save(smartArtDuplicateInput);
   const smartArtSourceBytes = await fs.readFile(smartArtDuplicateInput);
@@ -1778,7 +1778,7 @@ try {
   const smartArtTextAudit = path.join(duplicateDir, "smartart-text-audit.json");
   await smartArtSource.save(smartArtTextInput);
   const { editPptxSmartArtNodeText } = await import(
-    "../skills/presentations/skills/presentations/examples/openchestnut-smartart-text-edit-workflow.mjs"
+    "../skills/presentations/skills/presentations/examples/officekit-smartart-text-edit-workflow.mjs"
   );
   const smartArtTextResult = await editPptxSmartArtNodeText({
     inputPath: smartArtTextInput,
@@ -1789,7 +1789,7 @@ try {
     expectedText: "Original SmartArt node",
     replacementText: "Updated SmartArt node",
   });
-  assert.equal(smartArtTextResult.audit.provider.actual, "open-chestnut");
+  assert.equal(smartArtTextResult.audit.provider.actual, "office-kit");
   assert.equal(smartArtTextResult.audit.operation.type, "source-bound-smartart-node-text-edit");
   assert.equal(smartArtTextResult.audit.operation.dataPart, "ppt/diagrams/skill-data.xml");
   assert.deepEqual(smartArtTextResult.audit.validation.package.changedPartPaths, ["ppt/diagrams/skill-data.xml"]);
@@ -2333,7 +2333,7 @@ try {
       '<Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml" Target="/ppt/customXml/item1.xml" Id="rIdUnexpected" /></Relationships>',
     ),
   );
-  irregularLeavesZip.file("ppt/customXml/item1.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><openchestnut:unexpected xmlns:openchestnut=\"https://openchestnut.invalid\" />");
+  irregularLeavesZip.file("ppt/customXml/item1.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><officekit:unexpected xmlns:officekit=\"https://officekit.invalid\" />");
   await fs.writeFile(irregularLeavesInput, await irregularLeavesZip.generateAsync({ type: "nodebuffer" }));
   await assert.rejects(
     () => duplicatePptxSlide({
@@ -2351,7 +2351,7 @@ try {
   const duplicateCliOutput = path.join(duplicateDir, "connector-duplicate-cli.pptx");
   const duplicateCliAudit = path.join(duplicateDir, "cli-audit.json");
   const duplicateCli = spawnSync(process.execPath, [
-    "skills/presentations/skills/presentations/examples/openchestnut-slide-duplicate-workflow.mjs",
+    "skills/presentations/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs",
     duplicateInput,
     duplicateCliOutput,
     duplicateCliAudit,
@@ -2366,7 +2366,7 @@ try {
   const closedLeavesCliOutput = path.join(duplicateDir, "closed-leaves-cli-output.pptx");
   const closedLeavesCliAudit = path.join(duplicateDir, "closed-leaves-cli-audit.json");
   const closedLeavesCli = spawnSync(process.execPath, [
-    "skills/presentations/skills/presentations/examples/openchestnut-slide-duplicate-workflow.mjs",
+    "skills/presentations/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs",
     closedLeavesInput,
     closedLeavesCliOutput,
     closedLeavesCliAudit,
@@ -2382,8 +2382,8 @@ try {
     ...[
       "agent-readiness.json",
       "modern-comments.json",
-      "open-chestnut-legacy-comments.json",
-      "open-chestnut-preservation.json",
+      "office-kit-legacy-comments.json",
+      "office-kit-preservation.json",
       "package-drawing.json",
       "package-notes-comments.json",
     ].map((name) => path.join(fixtureDir, name)),
@@ -2411,24 +2411,24 @@ try {
   assert.notEqual(starterResult.status, 0);
   assert.match(starterResult.stderr, /broad graph deletion[\s\S]*No output was written/);
   assert.deepEqual((await fs.readdir(starterRoot)).sort(), ["template-frame-map.json"]);
-  assert.match(skillText, /open-office-artifact-tool/);
-  assert.match(skillText, /openchestnut-speaker-notes-add-workflow\.mjs/);
-  assert.match(skillText, /openchestnut-rich-speaker-notes-edit-workflow\.mjs/);
+  assert.match(skillText, /office-kit/);
+  assert.match(skillText, /officekit-speaker-notes-add-workflow\.mjs/);
+  assert.match(skillText, /officekit-rich-speaker-notes-edit-workflow\.mjs/);
   assert.match(skillText, /paragraph `0`, run `1`[\s\S]*not widen the topology/is);
   assert.match(skillText, /### Rich Speaker Notes/);
   assert.match(skillText, /speakerNotes\.capability\.addable.*existing.*NotesMaster.*byte-for-byte.*canonical NotesMaster.*ThemePart.*back-reference/is);
-  assert.match(skillText, /openchestnut-legacy-comment-add-workflow\.mjs/);
-  assert.match(skillText, /openchestnut-legacy-comment-add-workflow\.mjs/);
+  assert.match(skillText, /officekit-legacy-comment-add-workflow\.mjs/);
+  assert.match(skillText, /officekit-legacy-comment-add-workflow\.mjs/);
   assert.match(skillText, /comments\.capability.*format: "legacy".*partPresent: false.*editable: false.*addable: true.*CommentAuthorsPart.*SlideCommentsPart.*collision-free.*pixel-identical/is);
-  assert.match(skillText, /openchestnut-legacy-comment-edit-workflow\.mjs/);
+  assert.match(skillText, /officekit-legacy-comment-edit-workflow\.mjs/);
   assert.match(skillText, /comments\.capability.*format: "legacy"?, partPresent: true, editable: true/is);
   assert.match(skillText, /stable comment ID.*expected\s+old text/is);
   assert.match(skillText, /only the selected root text.*author catalog.*byte-identical.*ppt\/comments\/commentN\.xml.*fail\s+closed/is);
-  assert.match(skillText, /openchestnut-title-notes-edit-workflow\.mjs/);
-  assert.match(skillText, /openchestnut-modern-comment-workflow\.mjs/);
-  assert.match(skillText, /openchestnut-slide-name-edit-workflow\.mjs/);
-  assert.match(skillText, /openchestnut-transition-edit-workflow\.mjs/);
-  assert.match(skillText, /openchestnut-slide-duplicate-workflow\.mjs/);
+  assert.match(skillText, /officekit-title-notes-edit-workflow\.mjs/);
+  assert.match(skillText, /officekit-modern-comment-workflow\.mjs/);
+  assert.match(skillText, /officekit-slide-name-edit-workflow\.mjs/);
+  assert.match(skillText, /officekit-transition-edit-workflow\.mjs/);
+  assert.match(skillText, /officekit-slide-duplicate-workflow\.mjs/);
   assert.match(skillText, /--allow-closed-leaves/);
   assert.match(quickStartText, /PresentationFile\.exportPptx/);
   assert.match(quickStartText, /addPptxSpeakerNotes/);
@@ -2439,11 +2439,11 @@ try {
   assert.match(quickStartText, /editPptxLegacyReviewComment/);
   assert.match(quickStartText, /comments\.capability.*sourceBound.*format.*partPresent.*editable.*addable.*no legacy or Office 2021 comment graph.*re-proves/is);
   assert.match(quickStartText, /editPptxSlideName/);
-  assert.match(quickStartText, /openchestnut-transition-edit-workflow\.mjs/);
+  assert.match(quickStartText, /officekit-transition-edit-workflow\.mjs/);
   assert.match(quickStartText, /duplicatePptxSlide/);
   assert.match(quickStartText, /allowClosedLeaves:\s*true/);
   assert.match(quickStartText, /commentFormat:\s*"modern"/);
-  assert.match(quickStartText, /open-office-artifact-tool/);
+  assert.match(quickStartText, /office-kit/);
   assert.match(skillText, /slides_test\.py/);
   assert.match(skillText, /slide\.setBackground.*slide\.clearBackground/s);
   assert.match(skillText, /`fade` or directional\s+`push`/is);
@@ -2488,7 +2488,7 @@ try {
   assert.match(commentsReferenceText, /Office 2021 modern threads/);
   assert.match(commentsReferenceText, /Only existing comment text and status are mutable/);
   assert.match(commentsReferenceText, /Reactions\/likes, task fields, extensions, rich text, nested replies/);
-  assert.match(commentsReferenceText, /openchestnut-modern-comment-workflow\.mjs/);
+  assert.match(commentsReferenceText, /officekit-modern-comment-workflow\.mjs/);
   assert.match(commentsReferenceText, /slide\.duplicate\(\).*byte-cop(?:y|ied).*author\s+catalog/is);
   const slideReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/slide.spec.md", "utf8");
   assert.match(slideReferenceText, /never flattens the\s+inherited color/i);
@@ -2509,7 +2509,7 @@ try {
   assert.match(transitionReferenceText, /with no transition is addable only when.*capability\.addable.*`p:cSld`.*`p:clrMapOvr`.*`p:transition`, `p:timing`, or extension leaf/is);
   assert.match(transitionReferenceText, /`p:timing`.*`p14:dur`.*sound.*extension.*opaque.*byte-for-byte/is);
   assert.match(transitionReferenceText, /static PNG\/PDF render cannot prove slideshow playback/is);
-  assert.match(transitionReferenceText, /openchestnut-transition-edit-workflow\.mjs.*unique imported slide name.*expected source state.*replacement state/is);
+  assert.match(transitionReferenceText, /officekit-transition-edit-workflow\.mjs.*unique imported slide name.*expected source state.*replacement state/is);
   assert.match(transitionReferenceText, /non-target parts.*Exactly the selected SlidePart must differ/is);
   const customShowReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/custom-shows.spec.md", "utf8");
   assert.match(customShowReferenceText, /bounded slide clone profile.*relationship-free action.*creates no hyperlink\/slide relationship.*clone is not implicitly added/is);
@@ -2530,7 +2530,7 @@ try {
   assert.match(oleWorkbookReferenceText, /getEmbeddedOfficePackage\(\).*replaceEmbeddedOfficePackage/s);
   assert.match(oleWorkbookReferenceText, /only newly supported kind is a DOCX package/i);
   assert.match(oleWorkbookReferenceText, /not a generic OLE\/container API/i);
-  assert.match(oleWorkbookReferenceText, /openchestnut-ole-office-package-workflow\.mjs/);
+  assert.match(oleWorkbookReferenceText, /officekit-ole-office-package-workflow\.mjs/);
   assert.match(skillText, /getEmbeddedOfficePackage\(\).*replaceEmbeddedOfficePackage\(\.\.\.\).*DOCX/is);
   assert.match(oleWorkbookReferenceText, /preserving the OLE\s+shell, relationship topology, preview image/is);
   assert.match(oleWorkbookReferenceText, /Microsoft Open XML\s+SDK/);
@@ -2539,7 +2539,7 @@ try {
   assert.match(oleWorkbookReferenceText, /no lossy reconstruction or silent\s+fallback/i);
   const smartArtReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/smartart-clone.spec.md", "utf8");
   assert.match(skillText, /artifact_tool\/api\/references\/smartart-clone\.spec\.md/);
-  assert.match(skillText, /openchestnut-smartart-text-edit-workflow\.mjs/);
+  assert.match(skillText, /officekit-smartart-text-edit-workflow\.mjs/);
   assert.match(smartArtReferenceText, /top-level `p:graphicFrame`.*exactly one `dgm:relIds`/is);
   assert.match(smartArtReferenceText, /four distinct typed diagram parts.*disjoint part paths.*per-role hashes/is);
   assert.match(smartArtReferenceText, /Neither contract is SmartArt\s+authoring.*fail closed/is);

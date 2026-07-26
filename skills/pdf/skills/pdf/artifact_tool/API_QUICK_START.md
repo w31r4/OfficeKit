@@ -1,6 +1,6 @@
 # PDF API quick start
 
-Use `open-office-artifact-tool` for greenfield modeled PDF creation, semantic editing of a trusted internal model, tagged export, inspect, resolve, render, and verification. The PDF pipeline is independent from OpenChestnut and does not require Microsoft Office, LibreOffice, or a local .NET SDK. Do not use this model as a fidelity-preserving mutation path for an arbitrary imported PDF.
+Use `office-kit` for greenfield modeled PDF creation, semantic editing of a trusted internal model, tagged export, inspect, resolve, render, and verification. The PDF pipeline is independent from OfficeKit and does not require Microsoft Office, LibreOffice, or a local .NET SDK. Do not use this model as a fidelity-preserving mutation path for an arbitrary imported PDF.
 
 For an executable six-page accessible report with H1-H3, a Figure alt description, meaningful Link annotation/OBJR, running Artifact text, a constrained cross-page logical Table, CJK font embedding, Poppler rendering, and separate modeled/veraPDF/human evidence, use [`../examples/accessible-board-report.mjs`](../examples/accessible-board-report.mjs).
 
@@ -14,7 +14,7 @@ import {
   PdfArtifact,
   PdfFile,
   verifyArtifact,
-} from "open-office-artifact-tool";
+} from "office-kit";
 ```
 
 ## Create an accessible PDF
@@ -465,7 +465,7 @@ pyHanko signer for one bounded local-PKCS#12 incremental revision, then use the
 separate validator with a fresh output hash and explicit trust policy:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 SOURCE_SHA256="$(shasum -a 256 input.pdf | awk '{print $1}')"
 CREDENTIAL_SHA256="$(shasum -a 256 /secure/signer.p12 | awk '{print $1}')"
 "$PYTHON_BIN" scripts/pyhanko_sign_provider.py sign \
@@ -505,8 +505,8 @@ veraPDF provider first (a verified managed pack when published or a declared
 final-file hash and one explicit built-in profile:
 
 ```bash
-export OPEN_OFFICE_PDF_VERAPDF="/absolute/path/to/verapdf"
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+export OFFICE_KIT_PDF_VERAPDF="/absolute/path/to/verapdf"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 SOURCE_SHA256="$(shasum -a 256 output.pdf | awk '{print $1}')"
 "$PYTHON_BIN" scripts/verapdf_provider.py validate output.pdf \
   --expected-sha256 "$SOURCE_SHA256" --flavour ua1 --require-compliant \
@@ -524,7 +524,7 @@ and review boundaries.
 Use the model SVG preview while authoring, then render the exported PDF with Poppler and inspect every page before delivery:
 
 ```js
-import { createPopplerRenderer } from "open-office-artifact-tool/renderers/poppler";
+import { createPopplerRenderer } from "office-kit/renderers/poppler";
 
 const preview = await pdf.render({ pageIndex: 0 });
 await preview.save("readiness-report-preview.svg");

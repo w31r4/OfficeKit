@@ -14,8 +14,8 @@ const skillRoot = path.join(repoRoot, "skills", "pdf", "skills", "pdf");
 const provider = path.join(skillRoot, "scripts", "pyhanko_sign_provider.py");
 const validator = path.join(skillRoot, "scripts", "pyhanko_provider.py");
 const registry = path.join(skillRoot, "scripts", "pdf_provider.py");
-const configuredPython = process.env.OPEN_OFFICE_PYHANKO_TEST_PYTHON;
-const passphrase = Buffer.from("open-office-signing-fixture-passphrase\n", "utf8");
+const configuredPython = process.env.OFFICE_KIT_PYHANKO_TEST_PYTHON;
+const passphrase = Buffer.from("office-kit-signing-fixture-passphrase\n", "utf8");
 
 function run(executable, args, options = {}) {
   const result = spawnSync(executable, args, {
@@ -117,18 +117,18 @@ assert.match(providerText, /def has_exact_prefix/);
 run("python3", ["-m", "py_compile", provider], { status: 0 });
 
 if (configuredPython) {
-  assert.ok(supportedPyHanko(configuredPython), `OPEN_OFFICE_PYHANKO_TEST_PYTHON must provide the supported pyHanko runtime: ${configuredPython}`);
+  assert.ok(supportedPyHanko(configuredPython), `OFFICE_KIT_PYHANKO_TEST_PYTHON must provide the supported pyHanko runtime: ${configuredPython}`);
 }
 const python = configuredPython || (supportedPyHanko("python3") ? "python3" : null);
 if (!python) {
   const unavailable = run("python3", [provider, "probe"], { status: 2 });
   assert.equal(jsonResult(unavailable, "stderr").silentFallback, false);
-  console.log("pyHanko signing provider smoke ok (real provider skipped: set OPEN_OFFICE_PYHANKO_TEST_PYTHON)");
+  console.log("pyHanko signing provider smoke ok (real provider skipped: set OFFICE_KIT_PYHANKO_TEST_PYTHON)");
   process.exit(0);
 }
 
 const providerEnv = {
-  OPEN_OFFICE_PDF_PROVIDER_PYTHON: python,
+  OFFICE_KIT_PDF_PROVIDER_PYTHON: python,
   PYTHONNOUSERSITE: "1",
 };
 run(python, ["-c", [
@@ -144,7 +144,7 @@ run(python, ["-c", [
   "assert bytes(secret)==b'hidden-tty-fixture'",
   "assert 'hidden' in module.probe()['passphraseChannels'][0]",
 ].join(";"), provider], { env: providerEnv, status: 0 });
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-pyhanko-sign-provider-"));
+const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-pyhanko-sign-provider-"));
 try {
   const artifact = PdfArtifact.create({ text: "Source-bound pyHanko signing fixture" });
   const exported = await PdfFile.exportPdf(artifact);
@@ -173,8 +173,8 @@ now = datetime.now(timezone.utc)
 
 root_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 root_name = x509.Name([
-    x509.NameAttribute(NameOID.COMMON_NAME, "Open Office Signing Test Root"),
-    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Open Office Artifact Tool"),
+    x509.NameAttribute(NameOID.COMMON_NAME, "OfficeKit Signing Test Root"),
+    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "OfficeKit"),
     x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
 ])
 root_cert = (
@@ -193,8 +193,8 @@ root_cert = (
 
 signer_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 signer_name = x509.Name([
-    x509.NameAttribute(NameOID.COMMON_NAME, "Open Office Signing Fixture"),
-    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Open Office Artifact Tool"),
+    x509.NameAttribute(NameOID.COMMON_NAME, "OfficeKit Signing Fixture"),
+    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "OfficeKit"),
     x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
 ])
 signer_cert = (
@@ -212,11 +212,11 @@ signer_cert = (
 )
 
 (root / "credential.p12").write_bytes(pkcs12.serialize_key_and_certificates(
-    b"open-office-signer", signer_key, signer_cert, [root_cert],
+    b"office-kit-signer", signer_key, signer_cert, [root_cert],
     serialization.BestAvailableEncryption(password),
 ))
 (root / "credential-unencrypted.p12").write_bytes(pkcs12.serialize_key_and_certificates(
-    b"open-office-signer", signer_key, signer_cert, [root_cert],
+    b"office-kit-signer", signer_key, signer_cert, [root_cert],
     serialization.NoEncryption(),
 ))
 (root / "root.pem").write_bytes(root_cert.public_bytes(serialization.Encoding.PEM))
@@ -259,7 +259,7 @@ with (root / "source.pdf").open("rb") as source, (root / "existing-field.pdf").o
     "0",
     "--trusted-input",
   ], { env: providerEnv, status: 0 }));
-  assert.equal(inspect.schema, "open-office-artifact-tool.pyhanko-signing-inspect.v1");
+  assert.equal(inspect.schema, "office-kit.pyhanko-signing-inspect.v1");
   assert.equal(inspect.summary.signatureCount, 0);
   assert.equal(inspect.summary.fieldCount, 0);
   assert.equal(inspect.pageCount, 1);
@@ -331,14 +331,14 @@ with (root / "source.pdf").open("rb") as source, (root / "existing-field.pdf").o
     "Test environment",
     "--trusted-input",
   ], { env: providerEnv, input: passphrase, status: 0 }));
-  assert.equal(visibleResult.schema, "open-office-artifact-tool.pyhanko-sign.v1");
+  assert.equal(visibleResult.schema, "office-kit.pyhanko-sign.v1");
   assert.equal(visibleResult.savePolicy, "incremental");
   assert.equal(visibleResult.source.sha256, sourceHash);
   assert.equal(visibleResult.credential.sha256, credentialHash);
   assert.equal(visibleResult.credential.passphraseChannel, "stdin");
   assert.equal(visibleResult.credential.secretLogged, false);
   assert.equal(visibleResult.credential.certificateTrustValidated, false);
-  assert.match(visibleResult.credential.certificate.subject, /Open Office Signing Fixture/);
+  assert.match(visibleResult.credential.certificate.subject, /OfficeKit Signing Fixture/);
   assert.equal(visibleResult.signature.fieldName, "Certification");
   assert.equal(visibleResult.signature.signatureKind, "certification");
   assert.equal(visibleResult.signature.docMDPPermission, "fill-forms");

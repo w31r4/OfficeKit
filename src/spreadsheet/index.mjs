@@ -351,7 +351,7 @@ class WorksheetTableRowsFacade {
   }
 }
 
-const WORKSHEET_TABLE_QUERY_UNSUPPORTED = Symbol("open-office-artifact-tool.worksheet-table-query-unsupported");
+const WORKSHEET_TABLE_QUERY_UNSUPPORTED = Symbol("office-kit.worksheet-table-query-unsupported");
 const WORKSHEET_TABLE_QUERY_REFRESH_POLICY_VALUES = Object.freeze({
   disableRefresh: true,
   backgroundRefresh: false,
@@ -2948,13 +2948,13 @@ export class SpreadsheetFile {
   }
 
   static async exportXlsx(workbook, options = {}) {
-    const { exportXlsxWithOpenChestnut } = await import("../codecs/open-chestnut.mjs");
-    return exportXlsxWithOpenChestnut(workbook, options);
+    const { exportXlsxWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    return exportXlsxWithOfficeKit(workbook, options);
   }
 
   static async importXlsx(blobOrBuffer, options = {}) {
-    const { importXlsxWithOpenChestnut } = await import("../codecs/open-chestnut.mjs");
-    return importXlsxWithOpenChestnut(blobOrBuffer, options);
+    const { importXlsxWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    return importXlsxWithOfficeKit(blobOrBuffer, options);
   }
 }
 

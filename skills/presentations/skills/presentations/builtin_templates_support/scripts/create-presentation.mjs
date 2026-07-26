@@ -1,7 +1,7 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { Presentation, PresentationFile } from "open-office-artifact-tool";
+import { Presentation, PresentationFile } from "office-kit";
 
 export async function buildPresentation(layoutLibraryRoot) {
   const entrypoint = path.join(

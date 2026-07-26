@@ -48,11 +48,11 @@ import {
   inspectRichNotesPptx,
   inspectTitleNotesPptx,
 } from "../scripts/agent-eval-presentation-graders.mjs";
-import { duplicatePptxSlide } from "../skills/presentations/skills/presentations/examples/openchestnut-slide-duplicate-workflow.mjs";
-import { editImportedHeaderText } from "../skills/documents/skills/documents/examples/openchestnut-header-text-edit-workflow.mjs";
-import { editImportedFooterText } from "../skills/documents/skills/documents/examples/openchestnut-footer-text-edit-workflow.mjs";
-import { hardenXlsxConnectionRefreshOnOpen } from "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-connection-refresh-hardening-workflow.mjs";
-import { hardenXlsxPivotRefreshOnLoad } from "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-pivot-refresh-hardening-workflow.mjs";
+import { duplicatePptxSlide } from "../skills/presentations/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs";
+import { editImportedHeaderText } from "../skills/documents/skills/documents/examples/officekit-header-text-edit-workflow.mjs";
+import { editImportedFooterText } from "../skills/documents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs";
+import { hardenXlsxConnectionRefreshOnOpen } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs";
+import { hardenXlsxPivotRefreshOnLoad } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs";
 import {
   extractCompletedCommands,
   gradeAcroFormEvidence,
@@ -119,7 +119,7 @@ assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
 assert.doesNotMatch(highlightVisible.prompt, /oracleSha256|outputHighlights|changedWithinAllowedMask/i);
 
 const threadedReplyItem = cases.find((item) => item.id === "xlsx-threaded-reply-resolve");
-const threadedReplyRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-eval-xlsx-threaded-"));
+const threadedReplyRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-xlsx-threaded-"));
 try {
   const threadedInput = path.join(threadedReplyRoot, "inputs", XLSX_THREADED_REVIEW_FIXTURE.workbookName);
   const threadedOutput = path.join(threadedReplyRoot, "outputs", "reviewed-budget-resolved.xlsx");
@@ -139,7 +139,7 @@ try {
     status: "succeeded",
     source: { sha256: hash(threadedSource) },
     output: { sha256: hash(threadedBytes) },
-    provider: { actual: "open-chestnut", version: "test", silentFallback: false },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
     savePolicy: { strategy: "rewrite" },
     operation: { type: "threaded-comment-direct-reply-resolve" },
     validation: { reimport: { ok: true } },
@@ -159,7 +159,7 @@ try {
   const publishedWorkflowChecks = gradeXlsxThreadedReplyEvidence({
     evidence: threadedEvidence,
     audit: threadedAudit,
-    commands: ["node .agents/skills/spreadsheets/examples/openchestnut-threaded-comment-reply-workflow.mjs inputs/reviewed-budget.xlsx outputs/reviewed-budget-resolved.xlsx outputs/audit.json"],
+    commands: ["node .agents/skills/spreadsheets/examples/officekit-threaded-comment-reply-workflow.mjs inputs/reviewed-budget.xlsx outputs/reviewed-budget-resolved.xlsx outputs/audit.json"],
     item: threadedReplyItem,
   });
   assert.equal(publishedWorkflowChecks.find((check) => check.id === "xlsx-trace:typed-roundtrip")?.passed, true);
@@ -183,7 +183,7 @@ try {
 
 const growthUpdateItem = cases.find((item) => item.id === "xlsx-growth-assumption-update");
 assert.ok(growthUpdateItem);
-const growthUpdateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-eval-xlsx-growth-"));
+const growthUpdateRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-xlsx-growth-"));
 try {
   const growthInput = path.join(growthUpdateRoot, "inputs", XLSX_GROWTH_UPDATE_FIXTURE.workbookName);
   const growthOutput = path.join(growthUpdateRoot, "outputs", "operating-plan-updated.xlsx");
@@ -214,7 +214,7 @@ try {
     status: "succeeded",
     source: { sha256: hash(growthSource) },
     output: { sha256: hash(growthBytes) },
-    provider: { actual: "open-chestnut", version: "test", silentFallback: false },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
     savePolicy: { strategy: "rewrite" },
     operation: { type: "growth-assumption-update" },
     validation: { reimport: { ok: true } },
@@ -247,7 +247,7 @@ try {
   const publishedGrowthWorkflowChecks = gradeXlsxGrowthUpdateEvidence({
     evidence: growthEvidence,
     audit: growthAudit,
-    commands: ["node .agents/skills/spreadsheets/examples/openchestnut-growth-assumption-edit-workflow.mjs inputs/operating-plan.xlsx outputs/operating-plan-updated.xlsx outputs/audit.json"],
+    commands: ["node .agents/skills/spreadsheets/examples/officekit-growth-assumption-edit-workflow.mjs inputs/operating-plan.xlsx outputs/operating-plan-updated.xlsx outputs/audit.json"],
     item: growthUpdateItem,
   });
   assert.equal(publishedGrowthWorkflowChecks.find((check) => check.id === "xlsx-growth-trace:typed-roundtrip")?.passed, true);
@@ -277,7 +277,7 @@ try {
 
 const connectionRefreshItem = cases.find((item) => item.id === "xlsx-connection-refresh-on-open");
 assert.ok(connectionRefreshItem);
-const connectionRefreshRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-eval-xlsx-connection-refresh-"));
+const connectionRefreshRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-xlsx-connection-refresh-"));
 try {
   const connectionInput = path.join(connectionRefreshRoot, "inputs", XLSX_CONNECTION_REFRESH_FIXTURE.workbookName);
   const connectionOutput = path.join(connectionRefreshRoot, "outputs", "external-sales-refresh-disabled.xlsx");
@@ -307,7 +307,7 @@ try {
     item: {
       type: "command_execution",
       id: "xlsx-connection-refresh",
-      command: "node .agents/skills/spreadsheets/examples/openchestnut-connection-refresh-hardening-workflow.mjs inputs/external-sales-refresh-on-open.xlsx outputs/external-sales-refresh-disabled.xlsx outputs/audit.json 7 'Fixture warehouse'",
+      command: "node .agents/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs inputs/external-sales-refresh-on-open.xlsx outputs/external-sales-refresh-disabled.xlsx outputs/audit.json 7 'Fixture warehouse'",
     },
   });
   const connectionChecks = gradeXlsxConnectionRefreshEvidence({
@@ -320,7 +320,7 @@ try {
   const publishedConnectionWorkflowChecks = gradeXlsxConnectionRefreshEvidence({
     evidence: connectionEvidence,
     audit: connectionAudit,
-    commands: ["node .agents/skills/spreadsheets/examples/openchestnut-connection-refresh-hardening-workflow.mjs inputs/external-sales-refresh-on-open.xlsx outputs/external-sales-refresh-disabled.xlsx outputs/audit.json 7 'Fixture warehouse'"],
+    commands: ["node .agents/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs inputs/external-sales-refresh-on-open.xlsx outputs/external-sales-refresh-disabled.xlsx outputs/audit.json 7 'Fixture warehouse'"],
     item: connectionRefreshItem,
   });
   assert.equal(publishedConnectionWorkflowChecks.find((check) => check.id === "xlsx-connection-trace:typed-roundtrip")?.passed, true);
@@ -381,7 +381,7 @@ try {
 
 const pivotRefreshItem = cases.find((item) => item.id === "xlsx-pivot-refresh-on-open");
 assert.ok(pivotRefreshItem);
-const pivotRefreshRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-eval-xlsx-pivot-refresh-"));
+const pivotRefreshRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-xlsx-pivot-refresh-"));
 try {
   const pivotInput = path.join(pivotRefreshRoot, "inputs", XLSX_PIVOT_REFRESH_FIXTURE.workbookName);
   const pivotOutput = path.join(pivotRefreshRoot, "outputs", "regional-revenue-refresh-disabled.xlsx");
@@ -411,7 +411,7 @@ try {
     item: {
       type: "command_execution",
       id: "xlsx-pivot-refresh",
-      command: "node .agents/skills/spreadsheets/examples/openchestnut-pivot-refresh-hardening-workflow.mjs inputs/regional-revenue-refresh-on-open.xlsx outputs/regional-revenue-refresh-disabled.xlsx outputs/audit.json 'Pivot Summary' 'Revenue by region'",
+      command: "node .agents/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs inputs/regional-revenue-refresh-on-open.xlsx outputs/regional-revenue-refresh-disabled.xlsx outputs/audit.json 'Pivot Summary' 'Revenue by region'",
     },
   });
   const pivotChecks = gradeXlsxPivotRefreshEvidence({
@@ -424,7 +424,7 @@ try {
   const publishedPivotWorkflowChecks = gradeXlsxPivotRefreshEvidence({
     evidence: pivotEvidence,
     audit: pivotAudit,
-    commands: ["node .agents/skills/spreadsheets/examples/openchestnut-pivot-refresh-hardening-workflow.mjs inputs/regional-revenue-refresh-on-open.xlsx outputs/regional-revenue-refresh-disabled.xlsx outputs/audit.json 'Pivot Summary' 'Revenue by region'"],
+    commands: ["node .agents/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs inputs/regional-revenue-refresh-on-open.xlsx outputs/regional-revenue-refresh-disabled.xlsx outputs/audit.json 'Pivot Summary' 'Revenue by region'"],
     item: pivotRefreshItem,
   });
   assert.equal(publishedPivotWorkflowChecks.find((check) => check.id === "xlsx-pivot-trace:typed-roundtrip")?.passed, true);
@@ -487,7 +487,7 @@ try {
 }
 
 const classicCommentItem = cases.find((item) => item.id === "docx-classic-comment-text-edit");
-const classicCommentRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-eval-docx-comment-"));
+const classicCommentRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-docx-comment-"));
 try {
   const classicInput = path.join(classicCommentRoot, "inputs", DOCX_CLASSIC_COMMENT_FIXTURE.documentName);
   const classicOutput = path.join(classicCommentRoot, "outputs", "legal-review-updated.docx");
@@ -512,7 +512,7 @@ try {
     status: "succeeded",
     source: { sha256: hash(classicSource) },
     output: { sha256: hash(classicBytes) },
-    provider: { actual: "open-chestnut", version: "test", silentFallback: false },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
     savePolicy: { strategy: "rewrite" },
     operation: { type: "classic-comment-text-edit" },
     validation: { reimport: { ok: true } },
@@ -537,7 +537,7 @@ try {
   const publishedClassicWorkflowChecks = gradeDocxClassicCommentEvidence({
     evidence: classicEvidence,
     audit: classicAudit,
-    commands: ["node .agents/skills/documents/examples/openchestnut-classic-comment-edit-workflow.mjs inputs/legal-review.docx outputs/legal-review-updated.docx outputs/audit.json"],
+    commands: ["node .agents/skills/documents/examples/officekit-classic-comment-edit-workflow.mjs inputs/legal-review.docx outputs/legal-review-updated.docx outputs/audit.json"],
     item: classicCommentItem,
   });
   assert.equal(publishedClassicWorkflowChecks.find((check) => check.id === "docx-trace:typed-roundtrip")?.passed, true);
@@ -567,7 +567,7 @@ try {
 
 const headerTextItem = cases.find((item) => item.id === "docx-header-text-edit");
 assert.ok(headerTextItem);
-const headerTextRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-eval-docx-header-"));
+const headerTextRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-docx-header-"));
 try {
   const headerInput = path.join(headerTextRoot, "inputs", DOCX_HEADER_TEXT_FIXTURE.documentName);
   const headerOutput = path.join(headerTextRoot, "outputs", "board-brief-header-reviewed.docx");
@@ -599,7 +599,7 @@ try {
     item: {
       type: "command_execution",
       id: "docx-header-text",
-      command: "node .agents/skills/documents/examples/openchestnut-header-text-edit-workflow.mjs inputs/board-brief-header.docx outputs/board-brief-header-reviewed.docx outputs/audit.json 'Northwind | Internal' 'Northwind | Reviewed' 0 default",
+      command: "node .agents/skills/documents/examples/officekit-header-text-edit-workflow.mjs inputs/board-brief-header.docx outputs/board-brief-header-reviewed.docx outputs/audit.json 'Northwind | Internal' 'Northwind | Reviewed' 0 default",
     },
   });
   const headerChecks = gradeDocxHeaderTextEvidence({
@@ -612,7 +612,7 @@ try {
   const publishedHeaderWorkflowChecks = gradeDocxHeaderTextEvidence({
     evidence: headerEvidence,
     audit: headerAudit,
-    commands: ["node .agents/skills/documents/examples/openchestnut-header-text-edit-workflow.mjs inputs/board-brief-header.docx outputs/board-brief-header-reviewed.docx outputs/audit.json"],
+    commands: ["node .agents/skills/documents/examples/officekit-header-text-edit-workflow.mjs inputs/board-brief-header.docx outputs/board-brief-header-reviewed.docx outputs/audit.json"],
     item: headerTextItem,
   });
   assert.equal(publishedHeaderWorkflowChecks.find((check) => check.id === "docx-header-trace:typed-roundtrip")?.passed, true);
@@ -662,7 +662,7 @@ try {
 
 const footerTextItem = cases.find((item) => item.id === "docx-footer-text-edit");
 assert.ok(footerTextItem);
-const footerTextRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-eval-docx-footer-"));
+const footerTextRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-docx-footer-"));
 try {
   const footerInput = path.join(footerTextRoot, "inputs", DOCX_FOOTER_TEXT_FIXTURE.documentName);
   const footerOutput = path.join(footerTextRoot, "outputs", "board-brief-footer-reviewed.docx");
@@ -694,7 +694,7 @@ try {
     item: {
       type: "command_execution",
       id: "docx-footer-text",
-      command: "node .agents/skills/documents/examples/openchestnut-footer-text-edit-workflow.mjs inputs/board-brief-footer.docx outputs/board-brief-footer-reviewed.docx outputs/audit.json 'Northwind | Internal' 'Northwind | Reviewed' 0 default",
+      command: "node .agents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs inputs/board-brief-footer.docx outputs/board-brief-footer-reviewed.docx outputs/audit.json 'Northwind | Internal' 'Northwind | Reviewed' 0 default",
     },
   });
   const footerChecks = gradeDocxFooterTextEvidence({
@@ -707,7 +707,7 @@ try {
   const publishedFooterWorkflowChecks = gradeDocxFooterTextEvidence({
     evidence: footerEvidence,
     audit: footerAudit,
-    commands: ["node .agents/skills/documents/examples/openchestnut-footer-text-edit-workflow.mjs inputs/board-brief-footer.docx outputs/board-brief-footer-reviewed.docx outputs/audit.json"],
+    commands: ["node .agents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs inputs/board-brief-footer.docx outputs/board-brief-footer-reviewed.docx outputs/audit.json"],
     item: footerTextItem,
   });
   assert.equal(publishedFooterWorkflowChecks.find((check) => check.id === "docx-footer-trace:typed-roundtrip")?.passed, true);
@@ -757,7 +757,7 @@ try {
 
 const richNotesItem = cases.find((item) => item.id === "pptx-title-and-notes-edit");
 assert.ok(richNotesItem);
-const richNotesRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-eval-pptx-rich-notes-"));
+const richNotesRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-pptx-rich-notes-"));
 try {
   const richNotesInput = path.join(richNotesRoot, "inputs", PPTX_RICH_NOTES_FIXTURE.presentationName);
   const richNotesOutput = path.join(richNotesRoot, "outputs", "rich-notes-review-updated.pptx");
@@ -794,7 +794,7 @@ try {
     status: "succeeded",
     source: { sha256: hash(richNotesSource) },
     output: { sha256: hash(richNotesBytes) },
-    provider: { actual: "open-chestnut", version: "test", silentFallback: false },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
     savePolicy: { strategy: "rewrite" },
     operation: {
       type: "title-and-rich-speaker-notes-run-edit",
@@ -874,7 +874,7 @@ try {
   const publishedRichNotesWorkflowChecks = gradePptxRichNotesEvidence({
     evidence: richNotesEvidence,
     audit: richNotesAudit,
-    commands: ["node .agents/skills/presentations/examples/openchestnut-rich-speaker-notes-edit-workflow.mjs inputs/rich-notes-review.pptx outputs/rich-notes-review-updated.pptx outputs/audit.json"],
+    commands: ["node .agents/skills/presentations/examples/officekit-rich-speaker-notes-edit-workflow.mjs inputs/rich-notes-review.pptx outputs/rich-notes-review-updated.pptx outputs/audit.json"],
     item: richNotesItem,
   });
   assert.equal(publishedRichNotesWorkflowChecks.find((check) => check.id === "pptx-rich-notes-trace:typed-roundtrip")?.passed, true);
@@ -904,7 +904,7 @@ try {
 
 const slideNameItem = cases.find((item) => item.id === "pptx-source-bound-slide-name-edit");
 assert.ok(slideNameItem);
-const slideNameRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-eval-pptx-slide-name-"));
+const slideNameRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-pptx-slide-name-"));
 try {
   const slideNameInput = path.join(slideNameRoot, "inputs", PPTX_SLIDE_NAME_FIXTURE.presentationName);
   const slideNameOutput = path.join(slideNameRoot, "outputs", "launch-review-renamed.pptx");
@@ -929,7 +929,7 @@ try {
     status: "succeeded",
     source: { sha256: hash(slideNameSource) },
     output: { sha256: hash(slideNameBytes) },
-    provider: { actual: "open-chestnut", version: "test", silentFallback: false },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
     savePolicy: { strategy: "rewrite" },
     operation: {
       type: "source-bound-slide-name-edit",
@@ -978,7 +978,7 @@ try {
   const publishedSlideNameWorkflowChecks = gradePptxSlideNameEvidence({
     evidence: slideNameEvidence,
     audit: slideNameAudit,
-    commands: ["node .agents/skills/presentations/examples/openchestnut-slide-name-edit-workflow.mjs inputs/launch-review.pptx outputs/launch-review-renamed.pptx outputs/audit.json"],
+    commands: ["node .agents/skills/presentations/examples/officekit-slide-name-edit-workflow.mjs inputs/launch-review.pptx outputs/launch-review-renamed.pptx outputs/audit.json"],
     item: slideNameItem,
   });
   assert.equal(publishedSlideNameWorkflowChecks.find((check) => check.id === "pptx-name-trace:typed-roundtrip")?.passed, true);
@@ -1018,7 +1018,7 @@ assert.equal(closedLeafCloneItem.grade.security.customShowMembershipStable, true
 assert.match(closedLeafCloneItem.prompt, /独立 ChartPart/);
 assert.match(closedLeafCloneItem.prompt, /独立.*XLSX EmbeddedPackagePart/);
 assert.match(closedLeafCloneItem.prompt, /custom show/i);
-const closedLeafCloneRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-eval-pptx-closed-leaf-clone-"));
+const closedLeafCloneRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-pptx-closed-leaf-clone-"));
 try {
   const closedLeafInput = path.join(closedLeafCloneRoot, "inputs", PPTX_CLOSED_LEAF_CLONE_FIXTURE.presentationName);
   const closedLeafOutput = path.join(closedLeafCloneRoot, "outputs", "release-review-with-copy.pptx");
@@ -1106,7 +1106,7 @@ try {
       ] },
     },
   };
-  const closedLeafTrace = JSON.stringify({ type: "item.completed", item: { type: "command_execution", id: "pptx-closed-leaf-clone", command: "node .agents/skills/presentations/examples/openchestnut-slide-duplicate-workflow.mjs inputs/release-review.pptx outputs/release-review-with-copy.pptx outputs/audit.json Release decision --allow-closed-leaves" } });
+  const closedLeafTrace = JSON.stringify({ type: "item.completed", item: { type: "command_execution", id: "pptx-closed-leaf-clone", command: "node .agents/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs inputs/release-review.pptx outputs/release-review-with-copy.pptx outputs/audit.json Release decision --allow-closed-leaves" } });
   const closedLeafChecks = gradePptxClosedLeafCloneEvidence({
     evidence: closedLeafEvidence,
     audit: closedLeafResult.audit,
@@ -1179,7 +1179,7 @@ try {
   const missingOptInChecks = gradePptxClosedLeafCloneEvidence({
     evidence: closedLeafEvidence,
     audit: closedLeafResult.audit,
-    commands: ["node .agents/skills/presentations/examples/openchestnut-slide-duplicate-workflow.mjs inputs/release-review.pptx outputs/release-review-with-copy.pptx outputs/audit.json Release decision"],
+    commands: ["node .agents/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs inputs/release-review.pptx outputs/release-review-with-copy.pptx outputs/audit.json Release decision"],
     item: closedLeafCloneItem,
   });
   assert.equal(missingOptInChecks.find((check) => check.id === "pptx-clone-trace:typed-roundtrip")?.passed, false);
@@ -1280,7 +1280,7 @@ const mergeOutlines = mergeSequence.map((identity, index) => {
 });
 const mergeNamed = Object.fromEntries(mergeOutlines.map((entry) => [`${entry.title}-named`, entry.page]));
 const mergeLinks = mergeOutlines.map((entry, index) => ({ page: entry.page, targetPage: mergeOutlines[(index + 1) % mergeOutlines.length].page, rect: [68, 100, 280, 124] }));
-const mergePathRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-eval-merge-paths-"));
+const mergePathRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-merge-paths-"));
 const mergePathAlias = `${mergePathRoot}-alias`;
 await fs.symlink(mergePathRoot, mergePathAlias);
 const mergeSources = Object.fromEntries([
@@ -1293,7 +1293,7 @@ const mergeEvidence = {
     bytes: 400,
     sha256: "manifest-sha",
     value: {
-      schema: "open-office-artifact-tool.pdf-merge-stamp.v1",
+      schema: "office-kit.pdf-merge-stamp.v1",
       sources: [{ id: "cover" }, { id: "report" }, { id: "appendix" }],
       sequence: [
         { source: "cover", pages: "all" },
@@ -1340,10 +1340,10 @@ assert.equal(adHocMergeChecks.find((entry) => entry.id === "pdf-trace:no-ad-hoc-
 await fs.rm(mergePathAlias);
 await fs.rm(mergePathRoot, { recursive: true, force: true });
 
-const providerInstruction = providerRuntimeInstruction(mergeItem, { OPEN_OFFICE_AGENT_EVAL_PYTHON: "/opt/eval python/bin/python3" });
-assert.match(providerInstruction, /OPEN_OFFICE_PDF_PROVIDER_PYTHON="\/opt\/eval python\/bin\/python3"/);
+const providerInstruction = providerRuntimeInstruction(mergeItem, { OFFICE_KIT_AGENT_EVAL_PYTHON: "/opt/eval python/bin/python3" });
+assert.match(providerInstruction, /OFFICE_KIT_PDF_PROVIDER_PYTHON="\/opt\/eval python\/bin\/python3"/);
 assert.match(providerInstruction, /Do not replace it/);
-assert.equal(providerRuntimeInstruction({ family: "xlsx" }, { OPEN_OFFICE_AGENT_EVAL_PYTHON: "/opt/python" }), "");
+assert.equal(providerRuntimeInstruction({ family: "xlsx" }, { OFFICE_KIT_AGENT_EVAL_PYTHON: "/opt/python" }), "");
 
 const validationSampleId = "pdf-bounded-contract-id-replace";
 const badNetwork = structuredClone(cases);
@@ -1699,7 +1699,7 @@ const attachmentEvidence = {
   expectedAttachments,
   unsafeRawPaths: [{ displayName: "../escape.exe", resolved: "/workspace/outputs/escape.exe" }],
   manifest: {
-    schema: "open-office-artifact-tool.pdf-attachments.v1",
+    schema: "office-kit.pdf-attachments.v1",
     source: { sha256: "attachment-source-sha" },
     attachments: manifestAttachments,
     validation: { sourceUnchanged: true, attachmentsOpenedOrExecuted: false },
@@ -1902,12 +1902,12 @@ const traceCommands = extractCompletedCommands([
 ].join("\n"));
 assert.deepEqual(traceCommands, ["echo safe"]);
 
-const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-agent-eval-test-"));
+const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-agent-eval-test-"));
 try {
   const missingPython = spawnSync(process.execPath, ["scripts/run-agent-evals.mjs", "prepare", "pdf-bounded-contract-id-replace", "--run-root", path.join(temporary, "missing-python")], {
     cwd: path.resolve(import.meta.dirname, ".."),
     encoding: "utf8",
-    env: { ...process.env, OPEN_OFFICE_AGENT_EVAL_PYTHON: process.execPath, OPEN_OFFICE_PDF_PROVIDER_PYTHON: "" },
+    env: { ...process.env, OFFICE_KIT_AGENT_EVAL_PYTHON: process.execPath, OFFICE_KIT_PDF_PROVIDER_PYTHON: "" },
   });
   assert.notEqual(missingPython.status, 0);
   assert.match(missingPython.stderr, /Generated Agent eval fixtures require a Python environment with reportlab and pypdf/);
@@ -1929,14 +1929,14 @@ try {
   await fs.mkdir(path.join(workspace, "outputs"), { recursive: true });
   await fs.mkdir(credentials, { recursive: true });
   await fs.mkdir(path.join(workspace, ".agents", "skills", "pdf"), { recursive: true });
-  await fs.mkdir(path.join(workspace, "node_modules", "open-office-artifact-tool"), { recursive: true });
+  await fs.mkdir(path.join(workspace, "node_modules", "office-kit"), { recursive: true });
   await fs.mkdir(evaluator, { recursive: true });
   await fs.writeFile(path.join(credentials, "signer.pem"), "test-only-key-material");
   await fs.writeFile(path.join(workspace, "PROMPT.md"), "test prompt");
   await fs.writeFile(path.join(workspace, "package.json"), "{}");
   await fs.writeFile(path.join(workspace, "package-lock.json"), "{}");
   await fs.writeFile(path.join(workspace, ".agents", "skills", "pdf", "SKILL.md"), "test skill");
-  const installedModule = path.join(workspace, "node_modules", "open-office-artifact-tool", "index.mjs");
+  const installedModule = path.join(workspace, "node_modules", "office-kit", "index.mjs");
   await fs.writeFile(installedModule, "export const version = 1;\n");
   const before = await fingerprintPath(credentials);
   assert.match(before, /^tree:[0-9a-f]{64}$/);

@@ -1,0 +1,70 @@
+{
+  "name": "office-kit-merged-table",
+  "outputName": "office-kit-merged-table.docx",
+  "edits": [
+    {
+      "kind": "tableCell",
+      "matchText": "Merged owner",
+      "row": 0,
+      "column": 0,
+      "expectColumnSpan": 2,
+      "expectRowSpan": 2,
+      "expectVerticalMerge": "restart",
+      "expectEditable": true,
+      "value": "Edited merged owner"
+    },
+    {
+      "kind": "tableFormatting",
+      "matchText": "Edited merged owner",
+      "widthDxa": 9300,
+      "indentDxa": 360,
+      "columnWidthsDxa": [2500, 3100, 3700],
+      "cellMarginsDxa": { "top": 40, "bottom": 60, "start": 80, "end": 100 },
+      "borderColor": "884400",
+      "borderSize": 10,
+      "headerFill": "FFF2CC"
+    }
+  ],
+  "blocks": [
+    {
+      "kind": "paragraph",
+      "styleId": "Normal",
+      "text": "OfficeKit direct merged-table authoring"
+    },
+    {
+      "kind": "table",
+      "name": "merged-table",
+      "styleId": "TableGrid",
+      "gridColumns": 3,
+      "widthDxa": 9000,
+      "indentDxa": 240,
+      "columnWidthsDxa": [2400, 3000, 3600],
+      "cellMarginsDxa": { "top": 60, "bottom": 80, "start": 100, "end": 140 },
+      "borderColor": "445566",
+      "borderSize": 8,
+      "headerFill": "E2E8F0",
+      "values": [
+        ["Merged owner", "Status"],
+        ["", "Ready"],
+        ["Scope", "Complete"]
+      ],
+      "cells": [
+        { "row": 0, "column": 0, "gridColumn": 0, "columnSpan": 2, "rowSpan": 2, "verticalMerge": "restart" },
+        { "row": 0, "column": 1, "gridColumn": 2, "columnSpan": 1, "rowSpan": 1 },
+        { "row": 1, "column": 0, "gridColumn": 0, "columnSpan": 2, "rowSpan": 0, "verticalMerge": "continue" },
+        { "row": 1, "column": 1, "gridColumn": 2, "columnSpan": 1, "rowSpan": 1 },
+        { "row": 2, "column": 0, "gridColumn": 0, "columnSpan": 1, "rowSpan": 1 },
+        { "row": 2, "column": 1, "gridColumn": 1, "columnSpan": 2, "rowSpan": 1 }
+      ]
+    }
+  ],
+  "expectInspect": [
+    { "kind": "table,tableCell", "pattern": "Merged owner" },
+    { "kind": "table,tableCell", "pattern": "verticalMerge" }
+  ],
+  "qa": {
+    "previewFormat": "svg",
+    "nativeRender": "auto",
+    "inspectKind": "document,paragraph,table,tableCell,layout"
+  }
+}

@@ -122,10 +122,10 @@ assert.equal(watermarkModel.watermarks.length, 0);
 assert.throws(() => modelWatermark.remove(), /no longer attached/i);
 
 const document = DocumentModel.create({
-  name: "OpenChestnut document profile",
+  name: "OfficeKit document profile",
   defaultRunStyle: { fontFamily: "Aptos", fontSize: 11, color: "#202020" },
   blocks: [
-    { kind: "paragraph", name: "title", styleId: "Title", text: "OpenChestnut document profile" },
+    { kind: "paragraph", name: "title", styleId: "Title", text: "OfficeKit document profile" },
   ],
 });
 document.styles.add("TableGrid", { name: "Table Grid", type: "table" });
@@ -297,7 +297,7 @@ const inspect = document.inspect({
   maxChars: 24_000,
 }).ndjson;
 for (const expected of [
-  "OpenChestnut document profile",
+  "OfficeKit document profile",
   "BodyAccent",
   "Bold and colored",
   "CUSTOMER_NAME",
@@ -357,7 +357,7 @@ await assert.rejects(
   /suppressLineNumbers must be boolean/i,
 );
 
-const watermarkDocument = DocumentModel.create({ name: "Watermark OpenChestnut slice", blocks: [] });
+const watermarkDocument = DocumentModel.create({ name: "Watermark OfficeKit slice", blocks: [] });
 watermarkDocument.addParagraph("Native watermark verification body.");
 watermarkDocument.addWatermark("CONFIDENTIAL", { id: "watermark/confidential", sectionIndex: 0 });
 watermarkDocument.addHeader("Controlled header content", { id: "header/watermark-companion", sectionIndex: 0 });
@@ -682,8 +682,8 @@ await assert.rejects(
     target: { kind: "paragraph", blockIndex: 0 },
     targetBlockIndex: 0,
     expectedText: document.blocks[0].text,
-    search: "OpenChestnut",
-    replacement: "OpenChestnut native",
+    search: "OfficeKit",
+    replacement: "OfficeKit native",
     author: "Reviewer",
   }),
   /either target or targetBlockIndex, not both/,
@@ -704,8 +704,8 @@ await assert.rejects(
     expectedSourceSha256: "0".repeat(64),
     targetBlockIndex: 0,
     expectedText: document.blocks[0].text,
-    search: "OpenChestnut",
-    replacement: "OpenChestnut native",
+    search: "OfficeKit",
+    replacement: "OfficeKit native",
     author: "Reviewer",
   }),
   (error) => error?.code === "document_source_hash_mismatch",
@@ -2461,7 +2461,7 @@ await assert.rejects(
 );
 
 const importedWithoutSourceSnapshot = await DocumentFile.importDocx(firstDocx);
-const documentState = importedWithoutSourceSnapshot[Symbol.for("open-office-artifact-tool.open-chestnut-document-state")];
+const documentState = importedWithoutSourceSnapshot[Symbol.for("office-kit.document-state")];
 documentState.opaqueOpc.sourcePackage = undefined;
 await assert.rejects(
   () => DocumentFile.exportDocx(importedWithoutSourceSnapshot),

@@ -1,7 +1,7 @@
 # Native grouped shapes
 
 Use `slide.groups.add(...)` when several slide objects must move, scale,
-inspect, and round-trip as one recursive DrawingML group. OpenChestnut writes a
+inspect, and round-trip as one recursive DrawingML group. OfficeKit writes a
 real `p:grpSp`; it does not flatten children or synthesize a visual-only parent.
 
 ## Coordinate contract
@@ -58,7 +58,7 @@ const group = slide.groups.add({
       position: { left: 450, top: 200, width: 300, height: 140 },
       fill: "#DCFCE7",
       line: { fill: "#16A34A", width: 2 },
-      text: "OpenChestnut",
+      text: "OfficeKit",
     },
     {
       kind: "groupShape",
@@ -100,7 +100,7 @@ importedGroup.childFrame.left = -40;
 presentation.resolve("model-node").text.set("Updated model");
 ```
 
-For a canonical imported group, OpenChestnut permits bounded semantic edits to
+For a canonical imported group, OfficeKit permits bounded semantic edits to
 the group name, outer frame, child frame, and supported descendants. The child
 tree topology is fixed: do not add, remove, reorder, or change the native kind
 of an imported child. Export rejects with

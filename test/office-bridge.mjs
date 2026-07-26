@@ -3,16 +3,16 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { DocumentModel, renderArtifact } from "open-office-artifact-tool";
+import { DocumentModel, renderArtifact } from "office-kit";
 import {
   callOfficeBridge,
   createNativeOfficeRenderer,
   nativeOfficeStatus,
   OfficeBridgeError,
   renderFileWithNativeOffice,
-} from "open-office-artifact-tool/native/office-bridge";
+} from "office-kit/native/office-bridge";
 
-const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-bridge-test-"));
+const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-bridge-test-"));
 const mockBridge = path.join(tempDir, "mock-bridge.mjs");
 await fs.writeFile(mockBridge, `
 import fs from 'node:fs/promises';

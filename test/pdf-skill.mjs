@@ -6,7 +6,7 @@ import path from "node:path";
 import { PdfFile } from "../src/index.mjs";
 import { nativePdfRenderStatus, runPdfFixture, verifyPdfFile } from "./skill-harness/pdf/scripts/workflow.mjs";
 
-const root = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-pdf-skill-test-"));
+const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-pdf-skill-test-"));
 const baselineDir = path.join(root, "baselines");
 const nativeStatus = nativePdfRenderStatus();
 

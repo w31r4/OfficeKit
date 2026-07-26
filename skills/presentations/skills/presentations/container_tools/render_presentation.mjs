@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Helper used by render_slides.py to render PowerPoint decks through
-// open-office-artifact-tool instead of calling LibreOffice/soffice directly.
+// office-kit instead of calling LibreOffice/soffice directly.
 
 import fs from "node:fs/promises";
 import os from "node:os";
