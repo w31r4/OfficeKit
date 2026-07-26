@@ -217,6 +217,33 @@ reimports the full section projection, verifies, model-renders, and publishes
 the DOCX/audit without overwrite. It never rescales the surrounding document.
 Review all affected pages with LibreOffice or Word plus Poppler before delivery.
 
+### Change one imported section's line numbering safely
+
+For one exact display-cadence correction, first inspect the imported section
+and record its **block index** plus the complete normalized line-numbering
+profile. `countBy` is always explicit in this workflow, even when the source
+uses Word's default omitted attribute; the optional fields are `start`,
+`distance`, and `restart`.
+
+```bash
+node examples/officekit-section-line-numbering-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 \
+  '{"countBy":5,"start":0,"distance":360,"restart":"newPage"}' \
+  '{"countBy":10,"start":4,"distance":480,"restart":"continuous"}'
+```
+
+The transaction requires one editable, resolvable section and exactly one raw
+canonical `w:lnNumType` leaf. It accepts only `w:countBy`, `w:start`,
+`w:distance`, and `w:restart`; an omitted `countBy` means the native default
+of `1`. Unknown/duplicate/non-Word attributes, noncanonical numeric spelling,
+child content, stale values, an absent leaf, or a noncanonical section fail
+closed. Only `word/document.xml` may change; the workflow masks only that
+leaf for a namespace-tolerant residual comparison, reimports the full section
+projection, verifies and model-renders, and writes a no-overwrite audit. It
+does not add a line-number leaf, remove one, change `suppressLineNumbers`, or
+calculate displayed line numbers. Review the affected pages in Word or
+LibreOffice plus Poppler before delivery.
+
 ## Render review
 
 - Only the intended pages change orientation.

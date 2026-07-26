@@ -150,6 +150,39 @@ try {
     if (!finalizedDocument.blocks.some((block) => block.text === "packaged accepted insertion") || finalizedDocument.blocks.some((block) => block.text === "packaged removed deletion")) process.exit(17);
     if (createHash("sha256").update(docx.bytes).digest("hex") !== docxSourceHash) process.exit(18);
 
+    const packageRoot = path.join(process.cwd(), "node_modules", "office-kit");
+    const lineNumberingWorkflowPath = path.join(
+      packageRoot,
+      "skills", "documents", "skills", "documents", "examples", "officekit-section-line-numbering-edit-workflow.mjs",
+    );
+    if (!fs.existsSync(lineNumberingWorkflowPath)) process.exit(63);
+    const lineNumberingSource = DocumentModel.create({ blocks: [] });
+    lineNumberingSource.addParagraph("Packaged source-bound line-numbering transaction.");
+    lineNumberingSource.addSection({
+      breakType: "nextPage",
+      lineNumbering: { countBy: 5, start: 0, distance: 360, restart: "newPage" },
+    });
+    lineNumberingSource.addParagraph("Only this section's line-number settings may change.");
+    const lineNumberingInput = path.join(process.cwd(), "packed-line-numbering-input.docx");
+    const lineNumberingOutput = path.join(process.cwd(), "packed-line-numbering-output.docx");
+    const lineNumberingAudit = path.join(process.cwd(), "packed-line-numbering-audit.json");
+    await (await DocumentFile.exportDocx(lineNumberingSource)).save(lineNumberingInput);
+    const { editImportedSectionLineNumbering } = await import(pathToFileURL(lineNumberingWorkflowPath).href);
+    const lineNumberingResult = await editImportedSectionLineNumbering({
+      inputPath: lineNumberingInput,
+      outputPath: lineNumberingOutput,
+      auditPath: lineNumberingAudit,
+      sectionBlockIndex: 1,
+      expectedLineNumbering: { countBy: 5, start: 0, distance: 360, restart: "newPage" },
+      replacementLineNumbering: { countBy: 10, start: 4, distance: 480, restart: "continuous" },
+    });
+    const lineNumberingRoundTrip = await DocumentFile.importDocx(await FileBlob.load(lineNumberingOutput));
+    if (
+      lineNumberingResult.audit.provider.actual !== "office-kit" ||
+      JSON.stringify(lineNumberingResult.audit.validation.changedParts) !== JSON.stringify(["word/document.xml"]) ||
+      JSON.stringify(lineNumberingRoundTrip.blocks[1]?.lineNumbering) !== JSON.stringify({ countBy: 10, start: 4, distance: 480, restart: "continuous" })
+    ) process.exit(64);
+
     const presentation = Presentation.create();
     presentation.slides.add({ name: "Packaged" }).shapes.add({
       name: "Title", geometry: "roundRect", text: "clean install PPTX",
