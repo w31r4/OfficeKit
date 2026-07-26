@@ -41,7 +41,7 @@ npx skills add w31r4/open-office-artifact-tool \
 npx skills add w31r4/open-office-artifact-tool --skill '*' --yes
 ```
 
-默认核心安装不会把 20 份模板描述同时塞给 Agent。OfficeKit 会先读取紧凑 metadata，选择 `0` 或 `1` 个模板；只有最后的少量候选才会加载预览和具体说明。
+默认核心安装不会把 20 份模板描述同时塞给 Agent。只有“目标明确、模板未指定”时，OfficeKit 才会用本地 BM25F 检索紧凑 metadata；脚本返回候选和命中理由，最终由 Agent 选择、询问或决定不用模板。只有最后的少量候选才会加载预览和具体说明。
 
 推荐 Node.js 22 或更新版本。Office 运行时已随包提供；PDF 的 MuPDF.js 只会在第一次 PDF 操作时加载。
 
@@ -137,7 +137,7 @@ console.log(resolution.status); // ready | installable | blocked
 
 模板文件留在仓库中，不进入 npm runtime 包；Agent 基于选定模板生成新的输出，再用同一套 API 检查、编辑和渲染，参考文件不会被当作输出覆盖。
 
-也可以用 [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) 把团队现有的 DOCX、XLSX 或 PPTX 参考文件变成自己的模板。
+用户上传的 DOCX、XLSX 或 PPTX 可以只在当前任务中作为模板使用，不需要注册，也不会自动进入模板库。只有明确要求以后复用时，才用 [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) 把它变成自己的本地模板。
 
 ## 给使用者和贡献者
 

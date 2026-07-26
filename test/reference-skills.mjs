@@ -122,6 +122,10 @@ assert.match(officeKitSkillText, /selected.*ask.*none/s);
 assert.match(officeKitSkillText, /Do not use the Office template catalog for a PDF-only task/i);
 assert.match(officeKitRoutingText, /One output has one owner/i);
 assert.match(officeKitTemplateText, /none.*successful design decision|Choose `none`/i);
+assert.match(officeKitTemplateText, /Classify the current task, not the user/i);
+assert.match(officeKitTemplateText, /task-scoped user reference/i);
+assert.match(officeKitTemplateText, /field-weighted BM25F index/i);
+assert.match(officeKitTemplateText, /does not call a model, build a vector/i);
 assert.ok(await exists(path.join(officeKitRoot, "scripts", "query-templates.mjs")));
 
 const templateCreatorManifest = JSON.parse(await fs.readFile(path.join(skillsRoot, "template-creator", "manifest.json"), "utf8"));

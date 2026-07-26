@@ -86,6 +86,16 @@ selection has three valid results: one selected template, a short user choice,
 or no template. The domain Skill remains responsible for editing, source
 preservation, render QA, and fail-closed behavior.
 
+Before querying, OfficeKit classifies task state along two axes: whether the
+artifact goal is clear and whether a template is already specified. Only a
+clear goal with no selected template enters the local field-weighted BM25F
+index. An unclear goal is clarified first; an uploaded or named template skips
+catalog search and is inspected through the owning domain Skill. Uploaded
+Office files are task-scoped references unless the user explicitly routes them
+to Template Creator for reusable local registration. BM25F returns ranking and
+match/conflict evidence with `selectionMade: false`; semantic and visual choice
+remains with the Agent, without a vector database or embedded model call.
+
 ## Facade contract
 
 The six Office methods are:
