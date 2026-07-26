@@ -87,6 +87,37 @@ canonical direct transition with its SlidePart. It does not copy or interpret a
 timing tree, sound relationship, or extension graph. Re-import after export
 before making another semantic change.
 
+## Source-Bound Transaction
+
+For an Agent request to replace one existing transition, use the shipped
+`examples/openchestnut-transition-edit-workflow.mjs` transaction rather than a
+raw XML patch:
+
+```bash
+node examples/openchestnut-transition-edit-workflow.mjs \
+  input.pptx output.pptx audit.json \
+  "Decision" \
+  '{"effect":"fade","speed":"medium","advanceOnClick":true}' \
+  '{"effect":"push","direction":"right","speed":"fast","advanceOnClick":false,"advanceAfterMs":2000}'
+```
+
+The fourth argument is one unique imported slide name. The two JSON objects are
+the complete expected source state and desired replacement state; defaults use
+the same public transition contract above. The workflow admits only an existing
+source-bound canonical direct transition with `partPresent: true` and
+`editable: true`. It does not add a transition to an absent source or clear an
+existing one.
+
+Before publication it binds source bytes, proves the expected state, writes a
+temporary output, and requires unchanged package topology plus byte-identical
+non-target parts. Exactly the selected SlidePart must differ. It reimports the
+replacement semantics, preserves every slide's non-transition model snapshot,
+checks static SVG render hashes, runs model verification, and writes a
+source/output-bound audit without replacing an existing output path. A missing
+or duplicate slide name, stale expected transition, opaque/timing/sound/extension
+graph, unexpected package change, no-op replacement, or output collision fails
+closed. Static proof still does not certify real PowerPoint playback.
+
 ## Verification
 
 After a mutation, export, re-import, and inspect the transition record again.

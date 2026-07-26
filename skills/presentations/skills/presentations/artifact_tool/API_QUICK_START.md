@@ -490,7 +490,13 @@ only `p:cSld` plus optional `p:clrMapOvr`, with no transition, timing, or
 extension leaf. Timing/sound/extension/other-effect graphs stay opaque and
 fail closed rather than being reconstructed. Reimport after export. Static
 render QA proves visible slide content only; use a PowerPoint/native-host lane
-for playback QA. See
+for playback QA. For an Agent-facing existing-transition edit, use
+`examples/openchestnut-transition-edit-workflow.mjs`: it requires one unique
+slide name plus a complete expected and replacement transition object, permits
+only that existing SlidePart to differ, reimports, verifies static render and
+non-transition semantic stability, and writes an auditable no-overwrite result.
+It intentionally does not turn transition-add/clear or animation graphs into a
+generic package patch. See
 `artifact_tool/api/references/transitions.spec.md` for the complete contract.
 
 ## Bounded Imported Slide Duplicate

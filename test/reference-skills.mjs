@@ -213,6 +213,8 @@ assert.match(presentationSkillText, /openchestnut-slide-name-edit-workflow\.mjs/
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-slide-name-edit-workflow.mjs")));
 assert.match(presentationSkillText, /openchestnut-view-properties-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-view-properties-edit-workflow.mjs")));
+assert.match(presentationSkillText, /openchestnut-transition-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-transition-edit-workflow.mjs")));
 
 const documentsSkillRoot = path.join(skillsRoot, "documents", "skills", "documents");
 const documentsManifest = (await fs.readFile(path.join(documentsSkillRoot, "manifest.txt"), "utf8"))

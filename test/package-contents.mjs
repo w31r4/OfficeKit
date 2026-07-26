@@ -225,6 +225,7 @@ for (const required of [
   "skills/presentations/skills/presentations/examples/openchestnut-rich-speaker-notes-edit-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-slide-name-edit-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-view-properties-edit-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/openchestnut-transition-edit-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-custom-show-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-slide-duplicate-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-smartart-text-edit-workflow.mjs",

@@ -3650,6 +3650,27 @@ retaining 25,757 bytes of headroom. Reference Skill sync also passed against
 separately configured specialist Python-provider repeats remained opt-in
 environment tests; no npm publish, tag, or release operation was attempted.
 
+### PPTX source-bound transition transaction
+
+On 2026-07-26, the Presentations Skill added
+`openchestnut-transition-edit-workflow.mjs` for the pre-existing bounded
+OpenChestnut direct-transition profile. It requires one unique imported slide
+name plus complete expected and replacement fade/push state, admits only an
+existing `partPresent` and `editable` canonical transition, keeps the source
+immutable, and refuses addition, removal, timing, sound, extension, opaque, or
+playback claims. Before no-overwrite publication it proves unchanged package
+topology and byte-identical non-target parts, allowing only the selected
+SlidePart to differ; it then reimports, compares non-transition semantics and
+static SVG renders, verifies the artifact, and emits source/output provenance.
+
+The local candidate passed `npm test`, `npm run docs:api`, `npm run proto:check`,
+deterministic `npm run verify:open-chestnut-build`, `npm run test:pack`,
+OfficeBridge `5/5`, and OpenChestnut `375/375`. The deterministic runtime has
+38 files and 15,160,000 bytes; the clean-install candidate has 516 files,
+9,416,504 compressed bytes, and 25,294,901 unpacked bytes, leaving 5,099 bytes
+under the existing 25,300,000-byte ceiling. No npm publish, tag, or release
+operation was attempted.
+
 ## Publishing
 
 Before publishing:

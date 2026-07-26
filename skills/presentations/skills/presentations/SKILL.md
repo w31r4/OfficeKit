@@ -562,6 +562,25 @@ opaque-preserved and fail closed on mutation. The strict slide
 clone profile may carry one unchanged canonical direct transition, but never a
 timing or sound graph.
 
+For one existing editable source-bound transition, use the shipped transaction
+rather than a raw SlidePart patch:
+
+```bash
+node examples/openchestnut-transition-edit-workflow.mjs \
+  input.pptx output.pptx audit.json \
+  "Decision slide" \
+  '{"effect":"fade","speed":"medium","advanceOnClick":true,"advanceAfterMs":1200}' \
+  '{"effect":"push","direction":"down","speed":"slow","advanceOnClick":false}'
+```
+
+It binds a unique imported slide name and the complete expected transition
+state, requires `partPresent: true` plus `editable: true`, keeps the original
+bytes immutable, permits exactly the selected SlidePart to differ, reimports,
+and verifies non-transition semantics and static model renders remain stable
+before it publishes a source/output-bound audit. It does not add or clear a
+transition, treat an unconfigured slide as a replacement target, widen the
+canonical fade/push profile, or certify native slideshow playback.
+
 Always export, reimport, and inspect the transition again. Static
 LibreOffice/Poppler review can prove the visible slide content is stable, not
 slideshow playback; use a native PowerPoint playback QA lane when timing or
