@@ -13,6 +13,7 @@ import {
   DOCX_HEADER_TEXT_FIXTURE,
   PPTX_CLOSED_LEAF_CLONE_FIXTURE,
   PPTX_RICH_NOTES_FIXTURE,
+  PPTX_SECTION_BOUNDARY_FIXTURE,
   PPTX_SLIDE_NAME_FIXTURE,
   PPTX_TITLE_NOTES_FIXTURE,
   XLSX_CONNECTION_REFRESH_FIXTURE,
@@ -43,12 +44,15 @@ import {
 import {
   gradePptxClosedLeafCloneEvidence,
   gradePptxRichNotesEvidence,
+  gradePptxSectionBoundaryEvidence,
   gradePptxSlideNameEvidence,
   inspectClosedLeafClonePptx,
   inspectRichNotesPptx,
+  inspectSectionBoundaryPptx,
   inspectTitleNotesPptx,
 } from "../scripts/agent-eval-presentation-graders.mjs";
 import { duplicatePptxSlide } from "../skills/presentations/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs";
+import { replacePptxSectionPartition } from "../skills/presentations/skills/presentations/examples/officekit-section-boundary-edit-workflow.mjs";
 import { editImportedHeaderText } from "../skills/documents/skills/documents/examples/officekit-header-text-edit-workflow.mjs";
 import { editImportedFooterText } from "../skills/documents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs";
 import { hardenXlsxConnectionRefreshOnOpen } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs";
@@ -82,12 +86,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 39, pdfCases: 21, ready: 18 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 40, pdfCases: 21, ready: 19 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 8);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 3);
-assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 3);
+assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
 assert.equal(referenceDocumentSkill, path.join(repoRoot, "reference", "office-artifact-tool", "skills", "documents", "skills", "documents"));
 assert.doesNotMatch(referenceDocumentSkill, /handoff/);
@@ -108,7 +112,7 @@ const runnerHelp = spawnSync(process.execPath, ["scripts/run-agent-evals.mjs", "
   encoding: "utf8",
 });
 assert.equal(runnerHelp.status, 0, runnerHelp.stderr);
-assert.match(runnerHelp.stdout, /three PPTX cases.*closed-leaf slide clone/i);
+assert.match(runnerHelp.stdout, /four PPTX cases.*section-boundary edit.*closed-leaf slide clone/i);
 assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
@@ -1004,6 +1008,126 @@ try {
   }
 } finally {
   await fs.rm(slideNameRoot, { recursive: true, force: true });
+}
+
+const sectionBoundaryItem = cases.find((item) => item.id === "pptx-source-bound-section-boundary-edit");
+assert.ok(sectionBoundaryItem);
+assert.equal(sectionBoundaryItem.grade.machine.fixedSectionCount, 3);
+assert.equal(sectionBoundaryItem.grade.machine.onlyPresentationPartChanged, true);
+assert.equal(sectionBoundaryItem.grade.security.fixedSectionIdentityPreserved, true);
+assert.match(sectionBoundaryItem.prompt, /目标完整 partition/i);
+assert.match(sectionBoundaryItem.prompt, /ppt\/presentation\.xml/);
+const sectionBoundaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-pptx-section-boundary-"));
+try {
+  const sectionBoundaryInput = path.join(sectionBoundaryRoot, "inputs", PPTX_SECTION_BOUNDARY_FIXTURE.presentationName);
+  const sectionBoundaryOutput = path.join(sectionBoundaryRoot, "outputs", "section-boundary-review-updated.pptx");
+  const sectionBoundaryAuditPath = path.join(sectionBoundaryRoot, "outputs", "audit.json");
+  await generateOfficeInput("pptx-section-boundary-review", sectionBoundaryInput);
+  const sectionBoundarySource = await fs.readFile(sectionBoundaryInput);
+  const sectionBoundaryResult = await replacePptxSectionPartition({
+    inputPath: sectionBoundaryInput,
+    outputPath: sectionBoundaryOutput,
+    auditPath: sectionBoundaryAuditPath,
+    expectedSections: structuredClone(PPTX_SECTION_BOUNDARY_FIXTURE.sourceSections),
+    replacementSections: structuredClone(PPTX_SECTION_BOUNDARY_FIXTURE.replacementSections),
+  });
+  assert.equal(sectionBoundaryResult.audit.operation.type, "source-bound-section-boundary-edit");
+  assert.equal(sectionBoundaryResult.audit.operation.changedSections.length, 2);
+  assert.equal(sectionBoundaryResult.audit.validation.package.targetPart, "ppt/presentation.xml");
+  assert.equal(sectionBoundaryResult.audit.validation.reimport.exactFixedIdentityPartitionRetained, true);
+  assert.deepEqual(await fs.readFile(sectionBoundaryInput), sectionBoundarySource);
+  const sectionBoundarySourceEvidence = await inspectSectionBoundaryPptx(sectionBoundaryInput);
+  const sectionBoundaryOutputEvidence = await inspectSectionBoundaryPptx(sectionBoundaryOutput);
+  const stablePages = PPTX_SECTION_BOUNDARY_FIXTURE.slides.map((_, index) => ({
+    width: 1,
+    height: 1,
+    nonWhitePixels: 1,
+    pixelSha256: `section-boundary-page-${index + 1}`,
+  }));
+  const sectionBoundaryEvidence = {
+    source: sectionBoundarySourceEvidence,
+    output: sectionBoundaryOutputEvidence,
+    visual: {
+      source: { available: true, ok: true, pageCount: stablePages.length, pages: stablePages },
+      output: { available: true, ok: true, pageCount: stablePages.length, pages: structuredClone(stablePages) },
+    },
+  };
+  const sectionBoundaryTrace = JSON.stringify({ type: "item.completed", item: {
+    type: "command_execution",
+    id: "pptx-section-boundary",
+    command: "node .agents/skills/presentations/examples/officekit-section-boundary-edit-workflow.mjs inputs/section-boundary-review.pptx outputs/section-boundary-review-updated.pptx outputs/audit.json @expected-sections.json @replacement-sections.json",
+  } });
+  const sectionBoundaryChecks = gradePptxSectionBoundaryEvidence({
+    evidence: sectionBoundaryEvidence,
+    audit: sectionBoundaryResult.audit,
+    commands: extractCompletedCommands(sectionBoundaryTrace),
+    item: sectionBoundaryItem,
+  });
+  assert.equal(sectionBoundaryChecks.every((check) => check.passed), true);
+  const partitionDriftEvidence = structuredClone(sectionBoundaryEvidence);
+  partitionDriftEvidence.output.sections[1].slidePaths = [
+    sectionBoundarySourceEvidence.slideParts[2],
+    sectionBoundarySourceEvidence.slideParts[1],
+  ];
+  const partitionDriftChecks = gradePptxSectionBoundaryEvidence({
+    evidence: partitionDriftEvidence,
+    audit: sectionBoundaryResult.audit,
+    commands: extractCompletedCommands(sectionBoundaryTrace),
+    item: sectionBoundaryItem,
+  });
+  assert.equal(partitionDriftChecks.find((check) => check.id === "pptx-section-boundary-machine:requested-fixed-identity-partition")?.passed, false);
+  const packageDriftEvidence = structuredClone(sectionBoundaryEvidence);
+  packageDriftEvidence.output.partHashes["ppt/slides/slide4.xml"] = "unexpected-appendix-part-change";
+  const packageDriftChecks = gradePptxSectionBoundaryEvidence({
+    evidence: packageDriftEvidence,
+    audit: sectionBoundaryResult.audit,
+    commands: extractCompletedCommands(sectionBoundaryTrace),
+    item: sectionBoundaryItem,
+  });
+  assert.equal(packageDriftChecks.find((check) => check.id === "pptx-section-boundary-security:fixed-topology-and-non-target-byte-preservation")?.passed, false);
+  const malformedSectionPath = path.join(sectionBoundaryRoot, "outputs", "section-boundary-malformed.pptx");
+  const malformedSectionZip = await JSZip.loadAsync(await fs.readFile(sectionBoundaryOutput));
+  const outputPresentationXml = await malformedSectionZip.file("ppt/presentation.xml").async("text");
+  const reorderedMembershipXml = outputPresentationXml.replace(
+    '<p14:sldId id="257" /><p14:sldId id="258" />',
+    '<p14:sldId id="258" /><p14:sldId id="257" />',
+  );
+  assert.notEqual(reorderedMembershipXml, outputPresentationXml);
+  malformedSectionZip.file("ppt/presentation.xml", reorderedMembershipXml);
+  await fs.writeFile(malformedSectionPath, await malformedSectionZip.generateAsync({ type: "nodebuffer" }));
+  await assert.rejects(
+    () => inspectSectionBoundaryPptx(malformedSectionPath),
+    /sections must partition every SlidePart once in presentation order/i,
+  );
+  const publishedSectionBoundaryWorkflowChecks = gradePptxSectionBoundaryEvidence({
+    evidence: sectionBoundaryEvidence,
+    audit: sectionBoundaryResult.audit,
+    commands: ["node .agents/skills/presentations/examples/officekit-section-boundary-edit-workflow.mjs inputs/section-boundary-review.pptx outputs/section-boundary-review-updated.pptx outputs/audit.json @expected-sections.json @replacement-sections.json"],
+    item: sectionBoundaryItem,
+  });
+  assert.equal(publishedSectionBoundaryWorkflowChecks.find((check) => check.id === "pptx-section-boundary-trace:typed-roundtrip")?.passed, true);
+  const untrustedSectionBoundaryWorkflowChecks = gradePptxSectionBoundaryEvidence({
+    evidence: sectionBoundaryEvidence,
+    audit: sectionBoundaryResult.audit,
+    commands: ["node scratch/section-boundary-edit.mjs inputs/section-boundary-review.pptx outputs/section-boundary-review-updated.pptx outputs/audit.json"],
+    item: sectionBoundaryItem,
+  });
+  assert.equal(untrustedSectionBoundaryWorkflowChecks.find((check) => check.id === "pptx-section-boundary-trace:typed-roundtrip")?.passed, false);
+  const nativeSectionBoundaryResult = await gradeOfficeCase({
+    item: sectionBoundaryItem,
+    workspace: sectionBoundaryRoot,
+    evaluator: path.join(sectionBoundaryRoot, "evaluator"),
+    finalMessage: "completed",
+    trace: sectionBoundaryTrace,
+  });
+  if (nativeSectionBoundaryResult.graded) {
+    assert.equal(nativeSectionBoundaryResult.rawScorePercent, 100);
+    assert.equal(nativeSectionBoundaryResult.caseSpecificPassed, true);
+  } else {
+    assert.ok(nativeSectionBoundaryResult.infrastructureErrors?.length);
+  }
+} finally {
+  await fs.rm(sectionBoundaryRoot, { recursive: true, force: true });
 }
 
 const closedLeafCloneItem = cases.find((item) => item.id === "pptx-closed-leaf-slide-clone");

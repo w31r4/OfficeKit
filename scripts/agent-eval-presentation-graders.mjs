@@ -7,6 +7,7 @@ import JSZip from "jszip";
 import {
   PPTX_CLOSED_LEAF_CLONE_FIXTURE,
   PPTX_RICH_NOTES_FIXTURE,
+  PPTX_SECTION_BOUNDARY_FIXTURE,
   PPTX_SLIDE_NAME_FIXTURE,
   PPTX_TITLE_NOTES_FIXTURE,
 } from "./agent-eval-office-fixtures.mjs";
@@ -16,13 +17,16 @@ import { extractCompletedCommands, summarizeCaseScore } from "./agent-eval-pdf-g
 export const pptxGradedCaseIds = new Set([
   "pptx-title-and-notes-edit",
   "pptx-source-bound-slide-name-edit",
+  "pptx-source-bound-section-boundary-edit",
   "pptx-closed-leaf-slide-clone",
 ]);
 
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
 const SHIPPED_RICH_NOTES_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/presentations|node_modules\/office-kit\/skills\/presentations\/skills\/presentations)\/examples\/officekit-rich-speaker-notes-edit-workflow\.mjs(?:$|[\s"'`])/i;
 const SHIPPED_SLIDE_NAME_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/presentations|node_modules\/office-kit\/skills\/presentations\/skills\/presentations)\/examples\/officekit-slide-name-edit-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_SECTION_BOUNDARY_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/presentations|node_modules\/office-kit\/skills\/presentations\/skills\/presentations)\/examples\/officekit-section-boundary-edit-workflow\.mjs(?:$|[\s"'`])/i;
 const SHIPPED_SLIDE_DUPLICATE_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/presentations|node_modules\/office-kit\/skills\/presentations\/skills\/presentations)\/examples\/officekit-slide-duplicate-workflow\.mjs(?:$|[\s"'`])/i;
+const PPTX_SECTION_EXTENSION_URI = "{521415D9-36F7-43E2-AB2F-B90AF26B5E84}";
 const CLONE_TOPOLOGY_PARTS = new Set([
   "[Content_Types].xml",
   "ppt/presentation.xml",
@@ -356,6 +360,43 @@ function exactlyOneRelationship(entries, suffix, label) {
   return matches[0];
 }
 
+async function orderedSlidePartsWithNativeIds(zip) {
+  const [presentationXml, entries] = await Promise.all([
+    zip.file("ppt/presentation.xml")?.async("text"),
+    relationshipEntries(zip, "ppt/presentation.xml"),
+  ]);
+  if (!presentationXml) throw new Error("PPTX has no ppt/presentation.xml.");
+  const relationships = new Map(entries.filter((entry) => String(entry.type).endsWith("/slide"))
+    .map((entry) => [entry.id, entry]));
+  const slides = [];
+  const nativeIds = new Set();
+  // The evaluator fixture deliberately owns the canonical p: prefix for the
+  // presentation slide list. A broad local-name search would also consume the
+  // nested p14:sldId membership entries in the section extension, which do
+  // not have an r:id relationship and are not presentation SlidePart entries.
+  for (const match of presentationXml.matchAll(/<p:sldId\b[^>]*>/g)) {
+    // Unlike ordinary relationship attributes, p:sldId has both unprefixed
+    // id (the native numeric slide identity) and r:id (the OPC relationship).
+    // Keep them distinct: xmlAttributes intentionally normalizes prefixes and
+    // would otherwise overwrite one with the other.
+    const nativeId = /\sid="([0-9]+)"/i.exec(match[0])?.[1];
+    const relationshipId = /\br:id="([^"]+)"/i.exec(match[0])?.[1];
+    const relationship = relationships.get(relationshipId);
+    if (!nativeId || !relationshipId || nativeIds.has(nativeId)) {
+      throw new Error("PPTX slide list contains a missing or duplicate native slide identity.");
+    }
+    if (!relationship?.targetPart || !zip.file(relationship.targetPart)) {
+      throw new Error("PPTX slide list contains an unresolved SlidePart relationship.");
+    }
+    nativeIds.add(nativeId);
+    slides.push({ nativeId, relationshipId, path: relationship.targetPart });
+  }
+  if (!slides.length || new Set(slides.map((slide) => slide.path)).size !== slides.length) {
+    throw new Error("PPTX slide list must contain distinct SlideParts.");
+  }
+  return { presentationXml, entries, slides };
+}
+
 async function orderedSlideParts(zip) {
   const [presentationXml, entries] = await Promise.all([
     zip.file("ppt/presentation.xml")?.async("text"),
@@ -375,6 +416,114 @@ async function orderedSlideParts(zip) {
   }
   if (!parts.length || new Set(parts).size !== parts.length) throw new Error("PPTX slide list must contain distinct SlideParts.");
   return parts;
+}
+
+function expectedSectionPartPartition(partition, slides) {
+  const slidePathById = new Map(slides.map((slide, index) => [`presentation/slide/${index + 1}`, slide.path]));
+  return partition.map((section) => ({
+    id: section.id,
+    name: section.name,
+    nativeId: section.nativeId,
+    slidePaths: section.slideIds.map((slideId) => slidePathById.get(slideId) || null),
+  }));
+}
+
+function inspectCanonicalSections(presentationXml, slides) {
+  const extensions = [...String(presentationXml).matchAll(/<(?:[\w.-]+:)?ext\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?ext>/gi)];
+  const sectionExtensions = extensions.filter((extension) => semanticXmlAttributes(extension[1]).uri === PPTX_SECTION_EXTENSION_URI);
+  if (sectionExtensions.length !== 1) {
+    throw new Error("PPTX must contain exactly one canonical PowerPoint section extension.");
+  }
+  const extension = sectionExtensions[0];
+  const extensionAttributes = semanticXmlAttributes(extension[1]);
+  if (!sameArray(Object.keys(extensionAttributes).sort(), ["uri"])) {
+    throw new Error("PPTX section extension has unsupported attributes.");
+  }
+  const sectionList = /^\s*<(?:[\w.-]+:)?sectionLst\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?sectionLst>\s*$/i.exec(extension[2]);
+  if (!sectionList || Object.keys(semanticXmlAttributes(sectionList[1])).length) {
+    throw new Error("PPTX section extension must contain one canonical section list.");
+  }
+  const sectionsXml = sectionList[2];
+  const sectionPattern = /<(?:[\w.-]+:)?section\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?section>/gi;
+  const matches = [...sectionsXml.matchAll(sectionPattern)];
+  if (!matches.length || sectionsXml.replace(sectionPattern, "").trim()) {
+    throw new Error("PPTX section list contains an unsupported child.");
+  }
+  const slideByNativeId = new Map(slides.map((slide) => [slide.nativeId, slide]));
+  const seenNativeSectionIds = new Set();
+  const seenNames = new Set();
+  const seenSlides = new Set();
+  const sections = matches.map((match, sectionIndex) => {
+    const attributes = semanticXmlAttributes(match[1]);
+    if (!sameArray(Object.keys(attributes).sort(), ["id", "name"])
+      || !attributes.name
+      || !/^\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\}$/.test(attributes.id || "")
+      || seenNativeSectionIds.has(attributes.id)
+      || seenNames.has(attributes.name.toLowerCase())) {
+      throw new Error("PPTX section has an invalid or duplicate fixed identity.");
+    }
+    seenNativeSectionIds.add(attributes.id);
+    seenNames.add(attributes.name.toLowerCase());
+    const slideList = /^\s*<(?:[\w.-]+:)?sldIdLst\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?sldIdLst>\s*$/i.exec(match[2]);
+    if (!slideList || Object.keys(semanticXmlAttributes(slideList[1])).length) {
+      throw new Error("PPTX section must contain exactly one canonical slide-ID list.");
+    }
+    const entryPattern = /<(?:[\w.-]+:)?sldId\b([^>]*)\/\s*>/gi;
+    const entries = [...slideList[2].matchAll(entryPattern)];
+    if (!entries.length || slideList[2].replace(entryPattern, "").trim()) {
+      throw new Error("PPTX section contains an unsupported slide-ID child.");
+    }
+    const slidePaths = entries.map((entry) => {
+      const entryAttributes = semanticXmlAttributes(entry[1]);
+      const nativeSlideId = entryAttributes.id;
+      const slide = slideByNativeId.get(nativeSlideId);
+      if (!sameArray(Object.keys(entryAttributes).sort(), ["id"]) || !slide || seenSlides.has(nativeSlideId)) {
+        throw new Error("PPTX section references an unresolved or duplicate native slide identity.");
+      }
+      seenSlides.add(nativeSlideId);
+      return slide.path;
+    });
+    return { id: `section/${sectionIndex + 1}`, name: attributes.name, nativeId: attributes.id, slidePaths };
+  });
+  if (!sameArray([...seenSlides].map((nativeId) => slideByNativeId.get(nativeId).path), slides.map((slide) => slide.path))) {
+    throw new Error("PPTX sections must partition every SlidePart once in presentation order.");
+  }
+  return sections;
+}
+
+/**
+ * Decode exactly the PowerPoint 2010 section profile used by this evaluator.
+ * This is a raw OPC oracle: it does not rely on the candidate's imported
+ * model, audit assertions, or public facade IDs.
+ */
+export async function inspectSectionBoundaryPptx(filePath) {
+  const fixture = PPTX_SECTION_BOUNDARY_FIXTURE;
+  const bytes = await fs.readFile(filePath);
+  const zip = await JSZip.loadAsync(bytes);
+  const paths = Object.keys(zip.files).filter((name) => !zip.files[name].dir).sort();
+  const ordered = await orderedSlidePartsWithNativeIds(zip);
+  const slides = [];
+  for (const slide of ordered.slides) {
+    const xml = await zip.file(slide.path)?.async("text");
+    if (!xml) throw new Error("PPTX section fixture is missing SlidePart " + slide.path);
+    slides.push({
+      path: slide.path,
+      nativeId: slide.nativeId,
+      name: slideName(xml),
+      texts: drawingTexts(xml),
+      background: directBackground(xml),
+    });
+  }
+  return {
+    bytes: bytes.length,
+    sha256: sha256(bytes),
+    paths,
+    partHashes: await partHashes(zip, paths),
+    slides,
+    slideParts: slides.map((slide) => slide.path),
+    sections: inspectCanonicalSections(ordered.presentationXml, ordered.slides),
+    expectedFixture: fixture.presentationName,
+  };
 }
 
 async function inspectCanonicalCustomShows(zip) {
@@ -714,6 +863,18 @@ function stableVisualEvidence(source, output) {
   };
 }
 
+function allPagesStableVisualEvidence(source, output, expectedPageCount) {
+  const available = Boolean(source?.available && output?.available);
+  const rendered = source?.ok === true && output?.ok === true
+    && source.pages?.every((page) => page.nonWhitePixels > 0)
+    && output.pages?.every((page) => page.nonWhitePixels > 0);
+  const pageCountsMatch = source?.pageCount === expectedPageCount && output?.pageCount === expectedPageCount;
+  const allPagesStable = pageCountsMatch && source.pages?.every((page, index) => page.width === output.pages?.[index]?.width
+    && page.height === output.pages?.[index]?.height
+    && page.pixelSha256 === output.pages?.[index]?.pixelSha256);
+  return { available, rendered, pageCountsMatch, allPagesStable };
+}
+
 function usedTypedRichNotesRoundTrip(commandText) {
   const directPublicApi = /PresentationFile\.importPptx/i.test(commandText)
     && /PresentationFile\.exportPptx/i.test(commandText);
@@ -724,6 +885,12 @@ function usedTypedSlideNameRoundTrip(commandText) {
   const directPublicApi = /PresentationFile\.importPptx/i.test(commandText)
     && /PresentationFile\.exportPptx/i.test(commandText);
   return directPublicApi || SHIPPED_SLIDE_NAME_WORKFLOW.test(commandText);
+}
+
+function usedTypedSectionBoundaryRoundTrip(commandText) {
+  const directPublicApi = /PresentationFile\.importPptx/i.test(commandText)
+    && /PresentationFile\.exportPptx/i.test(commandText);
+  return directPublicApi || SHIPPED_SECTION_BOUNDARY_WORKFLOW.test(commandText);
 }
 
 function usedTypedClosedLeafClone(commandText) {
@@ -1344,6 +1511,120 @@ export function gradePptxSlideNameEvidence({ evidence, audit, commands }) {
   ];
 }
 
+/**
+ * Grade a complete source-bound PowerPoint section partition transaction.
+ * The candidate can only change membership boundaries in the p14:sectionLst;
+ * slide XML, relationships, visible pages, section identities, and every
+ * package part other than ppt/presentation.xml are independent canaries.
+ */
+export function gradePptxSectionBoundaryEvidence({ evidence, audit, commands }) {
+  const fixture = PPTX_SECTION_BOUNDARY_FIXTURE;
+  const source = evidence.source;
+  const output = evidence.output;
+  const expectedSourceSections = expectedSectionPartPartition(fixture.sourceSections, source.slides);
+  const expectedReplacementSections = expectedSectionPartPartition(fixture.replacementSections, source.slides);
+  const changedPaths = packageChanges(source, output);
+  const expectedChangedPaths = ["ppt/presentation.xml"];
+  const visual = allPagesStableVisualEvidence(evidence.visual?.source, evidence.visual?.output, fixture.slides.length);
+  const operation = audit?.operation && typeof audit.operation === "object" ? audit.operation : {};
+  const expectedChangedSections = fixture.sourceSections.map((section, index) => ({
+    sectionId: section.id,
+    nativeId: section.nativeId,
+    ordinal: index + 1,
+    name: section.name,
+    expectedSlideIds: section.slideIds,
+    replacementSlideIds: fixture.replacementSections[index].slideIds,
+  })).filter((section) => !sameValue(section.expectedSlideIds, section.replacementSlideIds));
+  const slideCanary = (slides) => slides.map((slide) => ({
+    path: slide.path,
+    nativeId: slide.nativeId,
+    name: slide.name,
+    texts: slide.texts,
+    background: slide.background,
+  }));
+  const sourceMatchesFixture = source.slides.length === fixture.slides.length
+    && source.slides.every((slide, index) => slide.name === fixture.slides[index].name
+      && slide.background === fixture.slides[index].background
+      && slide.texts.includes(fixture.slides[index].title));
+  const commandText = commands.join("\n");
+  return [
+    check("pptx-section-boundary-machine:canonical-fixture", "machine", sourceMatchesFixture
+      && sameValue(source.sections, expectedSourceSections), {
+      sourceSlides: source.slides,
+      sourceSections: source.sections,
+      expectedSourceSections,
+    }),
+    check("pptx-section-boundary-machine:requested-fixed-identity-partition", "machine", sameValue(output.sections, expectedReplacementSections), {
+      outputSections: output.sections,
+      expectedReplacementSections,
+    }),
+    check("pptx-section-boundary-machine:slide-semantics-and-order-preserved", "machine", sameArray(source.slideParts, output.slideParts)
+      && sameValue(slideCanary(source.slides), slideCanary(output.slides)), {
+      sourceSlides: slideCanary(source.slides),
+      outputSlides: slideCanary(output.slides),
+    }),
+    check("pptx-section-boundary-machine:only-presentation-part-changed", "machine", sameArray(changedPaths, expectedChangedPaths), {
+      changedPaths,
+      expectedChangedPaths,
+    }),
+    check("pptx-section-boundary-machine:audit-succeeded", "machine", /^(?:success|succeeded|completed)$/i.test(String(audit?.status || "")), {
+      status: audit?.status || "unreported",
+    }),
+    check("pptx-section-boundary-visual:native-render", "visual", visual.available && visual.rendered && visual.pageCountsMatch, {
+      visual: evidence.visual,
+    }),
+    check("pptx-section-boundary-visual:all-pages-pixel-stable", "visual", visual.allPagesStable, {
+      visual: evidence.visual,
+    }),
+    gate("pptx-section-boundary-security:fixed-topology-and-non-target-byte-preservation", "security", sameArray(source.paths, output.paths)
+      && sameArray(source.slideParts, output.slideParts)
+      && sameArray(changedPaths, expectedChangedPaths)
+      && source.partHashes["ppt/presentation.xml"] !== output.partHashes["ppt/presentation.xml"], {
+      sourcePaths: source.paths,
+      outputPaths: output.paths,
+      changedPaths,
+      sourcePresentationSha256: source.partHashes["ppt/presentation.xml"],
+      outputPresentationSha256: output.partHashes["ppt/presentation.xml"],
+    }),
+    gate("pptx-section-boundary-security:byte-bound-audit-provenance", "security", auditHash(audit, "source") === source.sha256
+      && auditHash(audit, "output") === output.sha256
+      && source.sha256 !== output.sha256, {
+      source: { expected: source.sha256, actual: auditHash(audit, "source") },
+      output: { expected: output.sha256, actual: auditHash(audit, "output") },
+    }),
+    check("pptx-section-boundary-trace:office-kit-provider", "trace", /office[- ]?kit/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
+      provider: auditProvider(audit),
+      version: auditVersion(audit),
+    }),
+    gate("pptx-section-boundary-trace:no-silent-fallback", "trace", auditFallbackIsFalse(audit), { provider: audit?.provider || null }),
+    check("pptx-section-boundary-trace:rewrite-policy", "trace", /^rewrite$/i.test(auditStrategy(audit)), {
+      strategy: auditStrategy(audit),
+    }),
+    check("pptx-section-boundary-trace:complete-partition-operation", "trace", auditOperation(audit) === "source-bound-section-boundary-edit"
+      && operation.fixedSectionCount === fixture.sourceSections.length
+      && sameValue(operation.expectedSections, fixture.sourceSections)
+      && sameValue(operation.replacementSections, fixture.replacementSections)
+      && sameValue(operation.changedSections, expectedChangedSections), {
+      operation: audit?.operation || null,
+      expectedChangedSections,
+    }),
+    check("pptx-section-boundary-trace:workflow-validation", "trace", audit?.validation?.package?.ok === true
+      && audit?.validation?.package?.targetPart === "ppt/presentation.xml"
+      && audit?.validation?.package?.onlyPresentationPartChanged === true
+      && audit?.validation?.package?.nonTargetPartsByteIdentical === true
+      && audit?.validation?.reimport?.ok === true
+      && audit?.validation?.reimport?.exactFixedIdentityPartitionRetained === true
+      && audit?.validation?.nonSectionSemantics?.stable === true
+      && audit?.validation?.modelRender?.byteIdentical === true
+      && audit?.validation?.verify?.ok === true, {
+      validation: audit?.validation || null,
+    }),
+    check("pptx-section-boundary-trace:typed-roundtrip", "trace", usedTypedSectionBoundaryRoundTrip(commandText), {
+      expected: "public PresentationFile importPptx/exportPptx calls or the integrity-protected published section-boundary workflow",
+    }),
+  ];
+}
+
 async function readAudit(workspace) {
   try {
     return JSON.parse(await fs.readFile(path.join(workspace, "outputs", "audit.json"), "utf8"));
@@ -1355,19 +1636,23 @@ async function readAudit(workspace) {
 export async function gradePptxCase({ item, workspace, finalMessage, trace, weights = defaultWeights }) {
   if (!pptxGradedCaseIds.has(item.id)) return { supported: false };
   const isSlideNameCase = item.id === "pptx-source-bound-slide-name-edit";
+  const isSectionBoundaryCase = item.id === "pptx-source-bound-section-boundary-edit";
   const isClosedLeafCloneCase = item.id === "pptx-closed-leaf-slide-clone";
   const fixture = isClosedLeafCloneCase
     ? PPTX_CLOSED_LEAF_CLONE_FIXTURE
-    : isSlideNameCase ? PPTX_SLIDE_NAME_FIXTURE : PPTX_RICH_NOTES_FIXTURE;
+    : isSectionBoundaryCase ? PPTX_SECTION_BOUNDARY_FIXTURE
+      : isSlideNameCase ? PPTX_SLIDE_NAME_FIXTURE : PPTX_RICH_NOTES_FIXTURE;
   const audit = await readAudit(workspace);
   const commands = extractCompletedCommands(trace);
   const sourcePath = path.join(workspace, "inputs", fixture.presentationName);
   const outputPath = path.join(workspace, "outputs", isClosedLeafCloneCase
     ? "release-review-with-copy.pptx"
-    : isSlideNameCase ? "launch-review-renamed.pptx" : "rich-notes-review-updated.pptx");
+    : isSectionBoundaryCase ? "section-boundary-review-updated.pptx"
+      : isSlideNameCase ? "launch-review-renamed.pptx" : "rich-notes-review-updated.pptx");
   const inspect = isClosedLeafCloneCase
     ? inspectClosedLeafClonePptx
-    : isSlideNameCase ? inspectTitleNotesPptx : inspectRichNotesPptx;
+    : isSectionBoundaryCase ? inspectSectionBoundaryPptx
+      : isSlideNameCase ? inspectTitleNotesPptx : inspectRichNotesPptx;
   let source;
   let output;
   try {
@@ -1402,9 +1687,11 @@ export async function gradePptxCase({ item, workspace, finalMessage, trace, weig
   const evidence = { source, output, visual: { source: sourceRender, output: outputRender }, finalMessage };
   const checks = isClosedLeafCloneCase
     ? gradePptxClosedLeafCloneEvidence({ evidence, audit, commands, item })
-    : isSlideNameCase
-      ? gradePptxSlideNameEvidence({ evidence, audit, commands, item })
-      : gradePptxRichNotesEvidence({ evidence, audit, commands, item });
+    : isSectionBoundaryCase
+      ? gradePptxSectionBoundaryEvidence({ evidence, audit, commands, item })
+      : isSlideNameCase
+        ? gradePptxSlideNameEvidence({ evidence, audit, commands, item })
+        : gradePptxRichNotesEvidence({ evidence, audit, commands, item });
   const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
   return { supported: true, graded: true, checks, evidence, pending: [], ...score };
 }

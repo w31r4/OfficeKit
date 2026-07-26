@@ -217,6 +217,63 @@ export const PPTX_SLIDE_NAME_FIXTURE = Object.freeze({
   untouchedSlideName: PPTX_TITLE_NOTES_FIXTURE.untouchedSlideName,
 });
 
+// This fixture gives PromptBench a semantic PowerPoint-section transaction
+// that is deliberately invisible on the canvas. The four visible slides are
+// package/render canaries while the only allowed package change is the
+// canonical Office 2010 p14:sectionLst inside ppt/presentation.xml. Keeping
+// the public facade IDs and native GUIDs fixed makes the full partition
+// explicit: moving slide 2 from Context to Decision cannot be disguised as a
+// partial one-section edit.
+export const PPTX_SECTION_BOUNDARY_FIXTURE = Object.freeze({
+  presentationName: "section-boundary-review.pptx",
+  slides: Object.freeze([
+    Object.freeze({ name: "Boundary opening", title: "1. Boundary opening", background: "#DBEAFE" }),
+    Object.freeze({ name: "Boundary evidence", title: "2. Boundary evidence", background: "#DCFCE7" }),
+    Object.freeze({ name: "Boundary decision", title: "3. Boundary decision", background: "#FEF3C7" }),
+    Object.freeze({ name: "Boundary appendix", title: "4. Boundary appendix", background: "#FCE7F3" }),
+  ]),
+  sourceSections: Object.freeze([
+    Object.freeze({
+      id: "section/1",
+      name: "Context",
+      nativeId: "{01F07B81-39E6-4BBB-9B89-66EA253FBD29}",
+      slideIds: Object.freeze(["presentation/slide/1", "presentation/slide/2"]),
+    }),
+    Object.freeze({
+      id: "section/2",
+      name: "Decision",
+      nativeId: "{1FEF2C88-0CF2-4176-BA81-0DE6FD9D1274}",
+      slideIds: Object.freeze(["presentation/slide/3"]),
+    }),
+    Object.freeze({
+      id: "section/3",
+      name: "Appendix",
+      nativeId: "{2E92C0F3-07D0-4D22-8AC3-55C9651C42B1}",
+      slideIds: Object.freeze(["presentation/slide/4"]),
+    }),
+  ]),
+  replacementSections: Object.freeze([
+    Object.freeze({
+      id: "section/1",
+      name: "Context",
+      nativeId: "{01F07B81-39E6-4BBB-9B89-66EA253FBD29}",
+      slideIds: Object.freeze(["presentation/slide/1"]),
+    }),
+    Object.freeze({
+      id: "section/2",
+      name: "Decision",
+      nativeId: "{1FEF2C88-0CF2-4176-BA81-0DE6FD9D1274}",
+      slideIds: Object.freeze(["presentation/slide/2", "presentation/slide/3"]),
+    }),
+    Object.freeze({
+      id: "section/3",
+      name: "Appendix",
+      nativeId: "{2E92C0F3-07D0-4D22-8AC3-55C9651C42B1}",
+      slideIds: Object.freeze(["presentation/slide/4"]),
+    }),
+  ]),
+});
+
 // This fixture exercises the narrow imported-slide clone profile rather than
 // treating a presentation relationship graph as generally editable. Its
 // source slide owns three accepted closed leaves: one canonical notes slide,
@@ -670,6 +727,60 @@ export async function generatePptxSlideNameReview(target) {
   return generatePptxTitleNotesReview(target);
 }
 
+export async function generatePptxSectionBoundaryReview(target) {
+  const fixture = PPTX_SECTION_BOUNDARY_FIXTURE;
+  const presentation = Presentation.create({ slideSize: { width: 1280, height: 720 } });
+  const slides = fixture.slides.map((definition, index) => {
+    const slide = presentation.slides.add({ name: definition.name });
+    slide.setBackground({ fill: definition.background, mode: "solid" });
+    const title = slide.shapes.add({
+      name: `section-boundary-title-${index + 1}`,
+      geometry: "textbox",
+      position: { left: 72, top: 72, width: 1000, height: 96 },
+      text: definition.title,
+      fill: "none",
+      line: { style: "solid", fill: "none", width: 0 },
+    });
+    title.text.style = { fontSize: 34, bold: true, color: "#0F172A" };
+    const supporting = slide.shapes.add({
+      name: `section-boundary-canary-${index + 1}`,
+      geometry: "textbox",
+      position: { left: 72, top: 194, width: 920, height: 80 },
+      text: "Visible geometry and all non-section package parts must remain unchanged.",
+      fill: "none",
+      line: { style: "solid", fill: "none", width: 0 },
+    });
+    supporting.text.style = { fontSize: 18, color: "#334155" };
+    return slide;
+  });
+  for (const section of fixture.sourceSections) {
+    presentation.sections.add({
+      name: section.name,
+      nativeId: section.nativeId,
+      slides: section.slideIds.map((id) => slides[Number(id.split("/").at(-1)) - 1]),
+    });
+  }
+  // Source-free model IDs are allocator-local (`sl/...`). The evaluator's
+  // public fixture IDs intentionally become stable `presentation/slide/N`
+  // only after the PPTX is imported, so translate the expected membership for
+  // this pre-export self-check rather than asserting an accidental allocator
+  // identity.
+  const expectedModelSections = fixture.sourceSections.map((section) => ({
+    ...section,
+    slideIds: section.slideIds.map((id) => slides[Number(id.split("/").at(-1)) - 1].id),
+  }));
+  const actualSections = presentation.sections.items.map((section) => section.toJSON());
+  if (JSON.stringify(actualSections) !== JSON.stringify(expectedModelSections)) {
+    throw new Error("Generated PPTX section-boundary fixture did not retain the fixed source partition.");
+  }
+  const verification = presentation.verify({ visualQa: true });
+  if (!verification.ok) throw new Error("Generated PPTX section-boundary fixture failed model verification: " + verification.ndjson);
+  const exported = await PresentationFile.exportPptx(presentation);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, new Uint8Array(await exported.arrayBuffer()));
+  return { path: target, type: PPTX_MIME };
+}
+
 async function addClosedCloneOleWorkbook(exported, fixture) {
   const embeddedWorkbook = Workbook.create();
   embeddedWorkbook.worksheets.add("Evidence").getRange("A1:B3").values = [
@@ -784,6 +895,7 @@ export async function generateOfficeInput(generator, target) {
   if (generator === "pptx-title-notes-review") return generatePptxTitleNotesReview(target);
   if (generator === "pptx-rich-notes-review") return generatePptxRichNotesReview(target);
   if (generator === "pptx-slide-name-review") return generatePptxSlideNameReview(target);
+  if (generator === "pptx-section-boundary-review") return generatePptxSectionBoundaryReview(target);
   if (generator === "pptx-closed-leaf-clone") return generatePptxClosedLeafClone(target);
   return null;
 }
