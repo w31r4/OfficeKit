@@ -317,6 +317,47 @@ try {
       tableFormattingRoundTrip.blocks[1]?.headerFill !== "DDEBF7"
     ) process.exit(72);
 
+    const imageAltTextWorkflowPath = path.join(
+      packageRoot,
+      "skills", "documents", "skills", "documents", "examples", "officekit-image-alt-text-edit-workflow.mjs",
+    );
+    if (!fs.existsSync(imageAltTextWorkflowPath)) process.exit(73);
+    const imageAltTextSource = DocumentModel.create({ blocks: [] });
+    imageAltTextSource.addParagraph("Packaged source-bound image alternative-text transaction.");
+    imageAltTextSource.addImage({
+      dataUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==",
+      alt: "Packaged source chart",
+      widthPx: 48,
+      heightPx: 36,
+      placement: {
+        type: "floating",
+        horizontal: { relativeTo: "margin", offsetPx: 24 },
+        vertical: { relativeTo: "paragraph", offsetPx: 0 },
+        wrap: "square",
+        wrapSide: "bothSides",
+        distanceFromTextPx: { top: 0, right: 4, bottom: 0, left: 4 },
+      },
+    });
+    const imageAltTextInput = path.join(process.cwd(), "packed-image-alt-text-input.docx");
+    const imageAltTextOutput = path.join(process.cwd(), "packed-image-alt-text-output.docx");
+    const imageAltTextAudit = path.join(process.cwd(), "packed-image-alt-text-audit.json");
+    await (await DocumentFile.exportDocx(imageAltTextSource)).save(imageAltTextInput);
+    const { editImportedImageAltText } = await import(pathToFileURL(imageAltTextWorkflowPath).href);
+    const imageAltTextResult = await editImportedImageAltText({
+      inputPath: imageAltTextInput,
+      outputPath: imageAltTextOutput,
+      auditPath: imageAltTextAudit,
+      imageBlockIndex: 1,
+      expectedAlt: "Packaged source chart",
+      replacementAlt: "Packaged accessible chart description",
+    });
+    const imageAltTextRoundTrip = await DocumentFile.importDocx(await FileBlob.load(imageAltTextOutput));
+    if (
+      imageAltTextResult.audit.provider.actual !== "office-kit" ||
+      JSON.stringify(imageAltTextResult.audit.validation.changedParts) !== JSON.stringify(["word/document.xml"]) ||
+      imageAltTextRoundTrip.blocks[1]?.alt !== "Packaged accessible chart description"
+    ) process.exit(74);
+
     const presentation = Presentation.create();
     presentation.slides.add({ name: "Packaged" }).shapes.add({
       name: "Title", geometry: "roundRect", text: "clean install PPTX",

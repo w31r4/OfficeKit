@@ -274,6 +274,36 @@ Read `../tasks/images_figures.md` before using floating placement. Re-import the
 result, inspect the image record, then run native DOCX render QA; the model SVG
 is useful for planning but is not authoritative for cross-renderer anchoring.
 
+### Change one imported image's alternative text without rebuilding it
+
+For one known, recognized body image, use the shipped source-bound transaction
+instead of a broad XML rewrite. Inspect the document first and record the image
+block index plus its complete current non-empty `alt` value:
+
+```bash
+node examples/officekit-image-alt-text-edit-workflow.mjs \
+  input.docx reviewed.docx image-alt.audit.json 1 \
+  "Existing architecture overview" \
+  "Architecture overview showing the API gateway and three service lanes"
+```
+
+It accepts one canonical imported inline or bounded foreground floating
+PNG/JPEG image only when both native descriptions (`wp:docPr/@descr` and
+`pic:cNvPr/@descr`) agree with the inspected source value. It protects the
+source and output/audit paths, retains the asset bytes, dimensions, placement,
+paragraph style, relationship graph, and all non-document parts, permits only
+`word/document.xml`, masks exactly those paired description leaves for a raw
+residual check, reimports, verifies, model-renders, and writes a byte-bound
+audit. A native Word or LibreOffice plus Poppler review is still required before
+delivery; the visual output should remain unchanged, while a person must decide
+whether the replacement description accurately conveys author intent.
+
+It does not create missing descriptions, change the image title/name, replace
+the asset, resize/reposition it, change inline/floating topology, or interpret
+external, effect-bearing, overlapping, behind-text, nested, or irregular
+drawings. Those cases stay source-bound or require an explicit reviewed package
+route.
+
 ## Canonical text watermarks
 
 For a new document, add one text watermark per section/header-reference scope:

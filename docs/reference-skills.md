@@ -102,6 +102,16 @@ Unsupported anchors remain source-owned, and imported inline/floating
 transitions fail closed. Broader Word drawing placement remains outside the
 semantic model.
 
+### Documents source-bound image alternative-text evidence
+
+The Documents Skill also publishes one reviewable imported-image description
+transaction. It binds one body inline or foreground floating image by block
+index and complete old alt text, updates both native description leaves only,
+retains the image payload and layout/relationship graph, proves a raw residual
+and second import, and records a no-overwrite audit. Missing or disagreeing
+description leaves and noncanonical drawing graphs fail closed; native
+Word/LibreOffice plus Poppler remains the delivery review.
+
 ### Documents text-watermark evidence
 
 The public Documents path now authors one canonical section/header-scoped VML

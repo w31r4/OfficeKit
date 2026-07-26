@@ -228,13 +228,19 @@ node examples/officekit-header-text-edit-workflow.mjs input.docx reviewed.docx a
 node examples/officekit-footer-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
   "Northwind | Internal" "Northwind | Reviewed" 0 default
 
-# 5) Edit one bounded modern root + direct reply and mark the root resolved
+# 5) Update one recognized imported inline/floating image's reviewed alt text.
+# It binds the block index plus exact source description; visible pixels should
+# remain unchanged, but native render QA and author-intent review remain required.
+node examples/officekit-image-alt-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
+  1 "Existing architecture overview" "Architecture overview showing the API gateway and three service lanes"
+
+# 6) Edit one bounded modern root + direct reply and mark the root resolved
 node examples/officekit-modern-comment-thread-workflow.mjs input.docx reviewed.docx audit.json \
   "Decision: proceed with controlled rollout." \
   "Please confirm the release evidence." "Release evidence approved." \
   "The evidence is attached." "Evidence retained with the approval." resolved
 
-# 6) Add one source-bound native single-format in-paragraph tracked replacement.
+# 7) Add one source-bound native single-format in-paragraph tracked replacement.
 # request.json contains either paragraph-only targetBlockIndex or a structured
 # paragraph/tableCell target, plus expectedText, search, replacement, author,
 # and optional date.
@@ -360,6 +366,7 @@ Examples:
 - `examples/officekit-header-text-edit-workflow.mjs` — one ordinary source-bound HeaderPart paragraph edit with immutable input, exact one-part and header-residual proof, no-replace publication, second import, verification, and byte-bound audit; PAGE/simple fields and all broader page furniture fail closed
 - `examples/officekit-footer-text-edit-workflow.mjs` — the symmetric ordinary source-bound FooterPart transaction with the same immutable input, exact one-part/footer-residual proof, no-replace publication, second import, verification, and byte-bound audit; it never treats PAGE/simple fields or rich/shared page furniture as text
 - `examples/officekit-note-text-edit-workflow.mjs` — one fixed imported footnote/endnote physical-paragraph text edit bound to the semantic note ID, native ID, anchor ID, index, and exact source text; it permits only the matching note part, proves the raw residual outside that text leaf, reimports, verifies, model-renders, and publishes without overwrite
+- `examples/officekit-image-alt-text-edit-workflow.mjs` — one canonical imported inline or bounded floating image alternative-text edit with source block/old-text binding, paired native-description residual proof, immutable input, exact `word/document.xml` scope, reimport, model/native-render QA, and byte-bound audit
 - `examples/officekit-modern-comment-thread-workflow.mjs` — imported bounded root/direct-reply text and resolved-state edit with fixed identities/topology, second import, model/native render, byte-bound audit, and atomic output
 - `examples/officekit-watermark-workflow.mjs` — unique recognized canonical VML text-watermark edit/removal with immutable input, exact one-header-part scope, second import, model render, and byte-bound audit
 - `examples/end_to_end_smoke_test.md` — optional reference-compatible checklist for the explicit Python render/package-patch helpers; keep the public OfficeKit workflow above as the default
@@ -381,6 +388,7 @@ This is a quick index so you can jump from a helper script to the right task gui
 - `images_audit.py`, `a11y_audit.py` → `tasks/images_figures.md`, `tasks/accessibility_a11y.md`
 - `captions_and_crossrefs.py` → `tasks/captions_crossrefs.md`
 - Use `document.addImage({ ..., placement })` for the bounded public floating profile; keep inline placement as the default and treat native rendering as authoritative.
+- For one known imported image whose complete reviewed `alt` must change, use `examples/officekit-image-alt-text-edit-workflow.mjs`; it never guesses a description or alters the asset/geometry.
 
 ### Tables / spreadsheets
 - `table_geometry.py` → root `Design Preset Contract` table geometry rules
@@ -505,6 +513,7 @@ Then inspect the generated `page-<N>.png` files.
 - If headings/numbering/TOC levels are messy: `tasks/headings_numbering.md`
 - If you have mixed portrait/landscape or margin weirdness: `tasks/sections_layout.md`
 - If you need to edit one ordinary imported header or footer paragraph: use the matching `examples/officekit-{header,footer}-text-edit-workflow.mjs`, then follow `tasks/headers_footers.md`; each proves exactly one target `word/headerN.xml` or `word/footerN.xml` part and its residual before no-replace publication. PAGE/simple fields, rich, shared, inherited, or irregular page furniture stays read-only
+- If you need to update **one known imported image's alternative text**: inspect its block index and exact current `alt`, then use `examples/officekit-image-alt-text-edit-workflow.mjs`; it changes only the paired native description leaves and requires native render plus human author-intent review. For missing/irregular descriptions or asset/placement work, follow `tasks/images_figures.md`
 - If you need a **floating or wrapped image**, or images shift/overlap across renderers: use the bounded `document.addImage({ ..., placement })` profile and follow `tasks/images_figures.md`; never infer support for an imported anchor from its visible appearance alone
 - If you need spreadsheet ↔ table round-tripping: `tasks/tables_spreadsheets.md`
 - If you need **tracked changes (redlines)**: use public `document.addInsertion(...)` / `document.addDeletion(...)` for whole blocks, or `examples/officekit-tracked-replacement-workflow.mjs` for one exact source-bound literal inside a direct body paragraph or bounded single-paragraph table cell; use `document.setSettings({ trackRevisions: true })` for future edits, then route broader graphs through `ooxml/tracked_changes.md`

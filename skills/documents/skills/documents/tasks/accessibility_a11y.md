@@ -22,13 +22,29 @@ python scripts/a11y_audit.py input.docx --out_json a11y_report.json
 ```
 
 ## Apply quick fixes (optional)
-### 1) Fill missing image alt text using filenames
+### 1) Update one identified image with reviewed alternative text
+When an agent or reviewer can identify one canonical imported body image and
+write its actual description, prefer the source-bound OfficeKit transaction:
+
+```bash
+node examples/officekit-image-alt-text-edit-workflow.mjs \
+  input.docx reviewed.docx image-alt.audit.json 1 \
+  "Existing architecture overview" \
+  "Architecture overview showing the API gateway and three service lanes"
+```
+
+It binds the inspected block index and exact prior text, changes only paired
+native description leaves, preserves the media and layout, and emits a
+no-overwrite audit. It cannot decide that a picture is decorative or invent a
+missing description. See `tasks/images_figures.md` for the complete boundary.
+
+### 2) Fill missing image alt text using filenames
 This is a pragmatic baseline that is better than empty alt text.
 ```bash
 python scripts/a11y_audit.py input.docx --fix_image_alt from_filename --out a11y_fixed.docx
 ```
 
-### 2) Mark first row as a table header
+### 3) Mark first row as a table header
 Only do this when the first row *is actually* a header.
 ```bash
 python scripts/a11y_audit.py input.docx --fix_table_headers first_row --out a11y_fixed.docx
