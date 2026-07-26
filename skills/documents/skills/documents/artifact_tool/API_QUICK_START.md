@@ -975,6 +975,28 @@ verifies, model-renders, and writes a no-overwrite byte-bound audit. It does
 not add/remove or move the section boundary, or calculate the host's resulting
 pagination.
 
+For one fixed imported canonical table-column correction, use
+`examples/officekit-table-column-widths-edit-workflow.mjs`. Its CLI takes an
+inspected table block index plus the complete source/replacement width arrays:
+
+```bash
+node examples/officekit-table-column-widths-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 \
+  '[2100,4500,2700]' \
+  '[3000,3600,2700]'
+```
+
+The source must be one imported, flat, rectangular, unmerged fixed-layout
+table with a complete recognized direct-formatting profile. The replacement
+keeps the column count and total table width exactly fixed. OfficeKit updates
+each canonical `w:tblGrid/w:gridCol` and every matching `w:tcW`, permits only
+`word/document.xml` to differ, masks exactly those width leaves for a
+namespace-tolerant residual comparison, reimports the complete table
+projection, verifies, model-renders, and writes a no-overwrite byte-bound
+audit. It does not infer ideal widths, change text/style/merge topology, or
+calculate host text wrapping; review a native Word or LibreOffice render before
+delivery.
+
 Set one bounded passwordless Word editing restriction through the same settings state:
 
 ```js
