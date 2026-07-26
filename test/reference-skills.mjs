@@ -238,15 +238,19 @@ for (const entry of documentsManifest) {
   assert.ok(await exists(path.join(documentsSkillRoot, entry)), `Documents manifest entry is missing: ${entry}`);
 }
 assert.ok(documentsManifest.includes("artifact_tool/API_QUICK_START.md"));
+assert.ok(documentsManifest.includes("artifact_tool/_source_bound_docx.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-end-to-end.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-classic-comment-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-section-page-numbering-edit-workflow.mjs"));
+assert.ok(documentsManifest.includes("examples/officekit-note-text-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/end_to_end_smoke_test.md"));
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "end_to_end_smoke_test.md")));
 const documentsSkillText = await fs.readFile(path.join(documentsSkillRoot, "SKILL.md"), "utf8");
 assert.match(documentsSkillText, /examples\/end_to_end_smoke_test\.md/);
 assert.match(documentsSkillText, /officekit-section-page-numbering-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-section-page-numbering-edit-workflow.mjs")));
+assert.match(documentsSkillText, /officekit-note-text-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-note-text-edit-workflow.mjs")));
 
 const pdfSkillRoot = path.join(skillsRoot, "pdf", "skills", "pdf");
 const pdfSkillText = await fs.readFile(path.join(pdfSkillRoot, "SKILL.md"), "utf8");
