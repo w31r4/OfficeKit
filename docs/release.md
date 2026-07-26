@@ -78,6 +78,40 @@ f390576a4da9edc7d8dfd9d8465d99ca0480c99b`), leaving 13,866 bytes below the
 reviewed 25,450,000-byte unpacked-size gate. No npm publication, tag, or
 GitHub release operation was attempted.
 
+## 0.3.0 DOCX native repeat-header-row transaction
+
+`DocumentTableBlock.headerRowCount` and
+`documentTable.setHeaderRowCount(count)` now model Word's native contiguous
+leading `w:tblHeader` row prefix. This is a pagination/accessibility semantic,
+not a fill shortcut: `headerFill` remains visual styling for the first row.
+Source-free tables author the native markers. Recognized imports expose the
+count, while a source-bound change requires a flat table with a contiguous,
+no-`w:val`, ordered row-property profile containing only canonical grid offsets
+and repeat-header leaves.
+
+The packaged
+`officekit-table-header-rows-edit-workflow.mjs` binds one imported table block
+plus its complete expected and replacement count, protects the source, permits
+only `word/document.xml`, checks the residual outside native header markers,
+reimports, verifies/model-renders, and writes a no-overwrite audit. It does not
+infer headers from bold or fill, calculate pagination, normalize arbitrary row
+properties, or edit merged, nested, content-control, stale, no-op, explicit,
+duplicate, out-of-order, or extension-bearing inputs.
+
+### Repeat-header-row integration evidence
+
+On 2026-07-26, the local candidate passed `npm test`, `npm run docs:api`,
+`npm run proto:check`, deterministic `npm run verify:office-kit-build`,
+clean-install `npm run test:pack`, OfficeBridge `5/5`, and the complete
+OfficeKit Codec test suite. The bounded transaction smoke also completed its
+LibreOffice/Poppler render route when available. Two source-built WASM bundles
+reproduced the same 39 audited files; the shipped runtime has 38 files and
+15,160,988 bytes. The npm dry-run contains 532 files, 9,478,922 compressed
+bytes, and 25,615,049 unpacked bytes (`SHA-1
+8be2ee1098045ba55bdcd4a63b9423541447c934`), leaving 24,951 bytes below the
+new 25,640,000-byte unpacked-size gate. No npm publication, tag, or GitHub
+release operation was attempted.
+
 ## 0.3.0 DOCX source-bound section-margin transaction
 
 The Documents Skill now ships

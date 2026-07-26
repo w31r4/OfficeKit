@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 385);
+assert.equal(HELP_CATALOG.length, 386);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -176,6 +176,7 @@ assert.ok(HELP_CATALOG.some((item) => item.name === "document.addHyperlink"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "document.addBibliographySource"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "document.addBibliography"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "document.addTableOfContents"));
+assert.ok(HELP_CATALOG.some((item) => item.name === "documentTable.setHeaderRowCount"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "paragraph.addField"));
 assert.match(HELP_CATALOG.find((item) => item.name === "paragraph.replaceText")?.summary || "", /textPatchable.*unique ordinary w:r\/w:t.*adjacent non-empty direct runs.*byte-identical w:rPr.*fail closed/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "paragraph.replaceText")?.schema?.parameters?.search?.required, true);
@@ -429,7 +430,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.resolve")?.
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.ensure")?.schema?.returns?.result?.description || "", /pinned catalog assets.*safe extraction.*never downloads credentials or falls back/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.probe")?.schema?.returns?.state?.description || "", /no network request.*cache write.*MuPDF import.*provider fallback/i);
 const documentCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "document");
-assert.equal(documentCatalog.length, 67);
+assert.equal(documentCatalog.length, 68);
 assert.ok(documentCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.type, "object");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.description || "", /suppressLineNumbers.*true.*excludes.*display and calculation.*false.*override.*inherited style.*omission inherits.*source-owned.*fails closed/i);
@@ -708,6 +709,8 @@ assert.match(presentation.help("presentation.slides.insert").ndjson, /after an e
 assert.match(presentation.help("presentation.layout.placeholders.summary").ndjson, /editing the snapshot cannot mutate the model/i);
 assert.match(document.help("document.addField").ndjson, /fldSimple/);
 assert.match(document.help("document.addTableOfContents").ndjson, /complex TOC field/);
+assert.match(document.help("documentTable.setHeaderRowCount").ndjson, /contiguous leading rows.*w:tblHeader.*separate from headerFill.*fail closed/is);
+assert.equal(HELP_CATALOG.find((item) => item.name === "document.addTable")?.schema?.parameters?.headerRowCount?.type, "number");
 assert.match(document.help("paragraph.addField").ndjson, /inline field run/);
 assert.match(document.help("paragraph.replaceText").ndjson, /source-bound patches.*native-node.*source-hash validation/i);
 assert.match(document.help("documentTableCell.replaceText").ndjson, /visible cell.*ordinary direct w:r\/w:t.*adjacent non-empty direct runs.*paragraph boundary/i);

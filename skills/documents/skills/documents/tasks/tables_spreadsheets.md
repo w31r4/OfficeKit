@@ -90,6 +90,33 @@ package/design workflow. Review a native Word or LibreOffice plus Poppler
 render before delivery: the transaction preserves geometry, but it does not
 calculate host wrapping or pagination.
 
+## Edit one imported repeat-header prefix without changing table styling
+
+`headerFill` is a visual fill on the first row. Repeat-header semantics are a
+different native property: `headerRowCount` counts contiguous leading physical
+rows marked with `w:tblHeader`, which Word can repeat at page breaks. For a new
+table, set it directly with `document.addTable({ ..., headerRowCount: 1 })`.
+
+For an imported correction, bind the inspected block index and the complete
+source/replacement counts:
+
+```bash
+node examples/officekit-table-header-rows-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 1 2
+```
+
+The workflow accepts only one imported flat rectangular unmerged table whose
+row properties have the canonical optional grid-offset profile and a contiguous
+no-`w:val` `w:tblHeader` prefix. It changes only those marker leaves in
+`word/document.xml`; text, visual `headerFill`, widths, style, rows/cells, and
+all other package parts remain bound. It protects the source, refuses overwrite,
+checks the raw residual, reimports the full table projection, verifies,
+model-renders, and writes a byte-bound audit. Non-prefix, duplicate,
+explicit-value, extension-bearing, merged, nested, content-control, stale, and
+no-op sources fail closed. Review a native Word or LibreOffice plus Poppler
+render before delivery because changed repeat headers can alter visible page
+breaks even though the transaction does not calculate pagination.
+
 ## Render → PNG review checklist (tables)
 - Table fits within margins (no clipped columns)
 - Header row is visually distinct
