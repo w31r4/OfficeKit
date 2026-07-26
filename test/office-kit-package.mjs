@@ -244,6 +244,43 @@ try {
       sectionBreakRoundTrip.blocks[1]?.breakType !== "continuous"
     ) process.exit(68);
 
+    const tableColumnWidthsWorkflowPath = path.join(
+      packageRoot,
+      "skills", "documents", "skills", "documents", "examples", "officekit-table-column-widths-edit-workflow.mjs",
+    );
+    if (!fs.existsSync(tableColumnWidthsWorkflowPath)) process.exit(69);
+    const tableColumnWidthsSource = DocumentModel.create({ blocks: [] });
+    tableColumnWidthsSource.addParagraph("Packaged source-bound table column-width transaction.");
+    tableColumnWidthsSource.addTable({
+      values: [["Quarter", "Revenue", "Margin"], ["Q1", "1.2M", "44%"]],
+      widthDxa: 9300,
+      indentDxa: 120,
+      columnWidthsDxa: [2100, 4500, 2700],
+      cellMarginsDxa: { top: 80, bottom: 80, start: 120, end: 120 },
+      borderColor: "445566",
+      borderSize: 8,
+      headerFill: "E2E8F0",
+    });
+    const tableColumnWidthsInput = path.join(process.cwd(), "packed-table-column-widths-input.docx");
+    const tableColumnWidthsOutput = path.join(process.cwd(), "packed-table-column-widths-output.docx");
+    const tableColumnWidthsAudit = path.join(process.cwd(), "packed-table-column-widths-audit.json");
+    await (await DocumentFile.exportDocx(tableColumnWidthsSource)).save(tableColumnWidthsInput);
+    const { editImportedTableColumnWidths } = await import(pathToFileURL(tableColumnWidthsWorkflowPath).href);
+    const tableColumnWidthsResult = await editImportedTableColumnWidths({
+      inputPath: tableColumnWidthsInput,
+      outputPath: tableColumnWidthsOutput,
+      auditPath: tableColumnWidthsAudit,
+      tableBlockIndex: 1,
+      expectedColumnWidthsDxa: [2100, 4500, 2700],
+      replacementColumnWidthsDxa: [3000, 3600, 2700],
+    });
+    const tableColumnWidthsRoundTrip = await DocumentFile.importDocx(await FileBlob.load(tableColumnWidthsOutput));
+    if (
+      tableColumnWidthsResult.audit.provider.actual !== "office-kit" ||
+      JSON.stringify(tableColumnWidthsResult.audit.validation.changedParts) !== JSON.stringify(["word/document.xml"]) ||
+      JSON.stringify(tableColumnWidthsRoundTrip.blocks[1]?.columnWidthsDxa) !== JSON.stringify([3000, 3600, 2700])
+    ) process.exit(70);
+
     const presentation = Presentation.create();
     presentation.slides.add({ name: "Packaged" }).shapes.add({
       name: "Title", geometry: "roundRect", text: "clean install PPTX",

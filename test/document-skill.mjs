@@ -1578,6 +1578,217 @@ try {
   );
   assert.deepEqual(await fs.readFile(breakTypeSourcePath), breakTypeSourceBytes);
 
+  const {
+    editImportedTableColumnWidths,
+    parseTableColumnWidthsEditCli,
+    tableColumnWidthsCliOutput,
+  } = await import(
+    "../skills/documents/skills/documents/examples/officekit-table-column-widths-edit-workflow.mjs"
+  );
+  const tableWidthSourceDocument = DocumentModel.create({ name: "Source-bound table column-width edit", blocks: [] });
+  tableWidthSourceDocument.addParagraph("The first table is the target fixed-layout grid.");
+  tableWidthSourceDocument.addTable({
+    name: "target-table",
+    values: [
+      ["Quarter", "Revenue", "Margin"],
+      ["Q1", "1.2M", "44%"],
+      ["Q2", "1.4M", "46%"],
+    ],
+    widthDxa: 9300,
+    indentDxa: 120,
+    columnWidthsDxa: [2100, 4500, 2700],
+    cellMarginsDxa: { top: 80, bottom: 80, start: 120, end: 120 },
+    borderColor: "445566",
+    borderSize: 8,
+    headerFill: "E2E8F0",
+  });
+  tableWidthSourceDocument.addParagraph("The second table is a raw-XML canary.");
+  tableWidthSourceDocument.addTable({
+    name: "sibling-table",
+    values: [["Keep", "Unchanged"], ["Scope", "Canary"]],
+    widthDxa: 9300,
+    indentDxa: 120,
+    columnWidthsDxa: [3300, 6000],
+    cellMarginsDxa: { top: 80, bottom: 80, start: 120, end: 120 },
+    borderColor: "224466",
+    borderSize: 6,
+    headerFill: "DDEBF7",
+  });
+  const tableWidthSourcePath = path.join(outputDir, "source-bound-table-column-widths-source.docx");
+  await (await DocumentFile.exportDocx(tableWidthSourceDocument)).save(tableWidthSourcePath);
+  const tableWidthSourceBytes = await fs.readFile(tableWidthSourcePath);
+  const tableWidthImported = await DocumentFile.importDocx(await FileBlob.load(tableWidthSourcePath));
+  const sourceColumnWidths = [2100, 4500, 2700];
+  const replacementColumnWidths = [3000, 3600, 2700];
+  const siblingColumnWidths = [3300, 6000];
+  assert.deepEqual(tableWidthImported.blocks[1]?.columnWidthsDxa, sourceColumnWidths);
+  assert.deepEqual(tableWidthImported.blocks[3]?.columnWidthsDxa, siblingColumnWidths);
+  assert.equal(tableWidthImported.blocks[1]?.sourceBound, true);
+
+  const tableWidthWorkflowOutputPath = path.join(outputDir, "source-bound-table-column-widths-edited.docx");
+  const tableWidthWorkflowAuditPath = path.join(outputDir, "source-bound-table-column-widths-edited-audit.json");
+  const tableWidthWorkflow = await editImportedTableColumnWidths({
+    inputPath: tableWidthSourcePath,
+    outputPath: tableWidthWorkflowOutputPath,
+    auditPath: tableWidthWorkflowAuditPath,
+    tableBlockIndex: 1,
+    expectedColumnWidthsDxa: sourceColumnWidths,
+    replacementColumnWidthsDxa: replacementColumnWidths,
+  });
+  assert.equal(tableWidthWorkflow.audit.provider.actual, "office-kit");
+  assert.equal(tableWidthWorkflow.audit.provider.silentFallback, false);
+  assert.deepEqual(tableWidthWorkflow.audit.savePolicy, { strategy: "rewrite", noReplace: true });
+  assert.equal(tableWidthWorkflow.audit.operation.type, "source-bound-table-column-widths-edit");
+  assert.deepEqual(tableWidthWorkflow.audit.operation.target, {
+    id: tableWidthImported.blocks[1].id,
+    blockIndex: 1,
+    tableOrdinal: 0,
+  });
+  assert.equal(tableWidthWorkflow.audit.operation.tableWidthDxa, 9300);
+  assert.deepEqual(tableWidthWorkflow.audit.operation.sourceColumnWidthsDxa, sourceColumnWidths);
+  assert.deepEqual(tableWidthWorkflow.audit.operation.replacementColumnWidthsDxa, replacementColumnWidths);
+  assert.deepEqual(tableWidthWorkflow.audit.validation.changedParts, ["word/document.xml"]);
+  assert.equal(tableWidthWorkflow.audit.validation.tableWidthXmlResidual.ok, true);
+  assert.deepEqual(tableWidthWorkflow.audit.validation.reimport.columnWidthsDxa, replacementColumnWidths);
+  assert.equal(tableWidthWorkflow.audit.validation.nativeRenderRequired, true);
+  assert.deepEqual(tableColumnWidthsCliOutput(tableWidthWorkflow).changedParts, ["word/document.xml"]);
+  assert.deepEqual(await fs.readFile(tableWidthSourcePath), tableWidthSourceBytes);
+
+  const tableWidthWorkflowOutputBytes = await fs.readFile(tableWidthWorkflowOutputPath);
+  const [tableWidthSourceZip, tableWidthOutputZip] = await Promise.all([
+    JSZip.loadAsync(tableWidthSourceBytes),
+    JSZip.loadAsync(tableWidthWorkflowOutputBytes),
+  ]);
+  const tableWidthParts = Object.keys(tableWidthSourceZip.files).filter((partPath) => !tableWidthSourceZip.files[partPath].dir).sort();
+  assert.deepEqual(
+    Object.keys(tableWidthOutputZip.files).filter((partPath) => !tableWidthOutputZip.files[partPath].dir).sort(),
+    tableWidthParts,
+  );
+  for (const partPath of tableWidthParts) {
+    if (partPath === "word/document.xml") continue;
+    assert.deepEqual(
+      Buffer.from(await tableWidthOutputZip.file(partPath).async("uint8array")),
+      Buffer.from(await tableWidthSourceZip.file(partPath).async("uint8array")),
+      `Only word/document.xml may change; ${partPath} drifted.`,
+    );
+  }
+  const [tableWidthSourceXml, tableWidthOutputXml] = await Promise.all([
+    tableWidthSourceZip.file("word/document.xml").async("text"),
+    tableWidthOutputZip.file("word/document.xml").async("text"),
+  ]);
+  const flatTableMarkup = (xml) => [...xml.matchAll(/<w:tbl\b[\s\S]*?<\/w:tbl>/g)].map((match) => match[0]);
+  const tableGridWidths = (tableXml) => [...tableXml.matchAll(/<w:gridCol\b[^>]*w:w="(\d+)"[^>]*\/>/g)].map((match) => Number(match[1]));
+  const tableCellWidths = (tableXml) => [...tableXml.matchAll(/<w:tcW\b[^>]*w:w="(\d+)"[^>]*\/>/g)].map((match) => Number(match[1]));
+  const maskTableWidths = (tableXml) => tableXml
+    .replace(/<w:gridCol\b[^>]*\/>/g, '<w:gridCol w:w="officeKitWidthMasked"/>')
+    .replace(/<w:tcW\b[^>]*\/>/g, '<w:tcW w:type="dxa" w:w="officeKitWidthMasked"/>');
+  const sourceTables = flatTableMarkup(tableWidthSourceXml);
+  const outputTables = flatTableMarkup(tableWidthOutputXml);
+  assert.equal(sourceTables.length, 2);
+  assert.equal(outputTables.length, sourceTables.length);
+  assert.deepEqual(tableGridWidths(sourceTables[0]), sourceColumnWidths);
+  assert.deepEqual(tableGridWidths(outputTables[0]), replacementColumnWidths);
+  assert.deepEqual(tableCellWidths(sourceTables[0]), [...sourceColumnWidths, ...sourceColumnWidths, ...sourceColumnWidths]);
+  assert.deepEqual(tableCellWidths(outputTables[0]), [...replacementColumnWidths, ...replacementColumnWidths, ...replacementColumnWidths]);
+  assert.equal(maskTableWidths(outputTables[0]), maskTableWidths(sourceTables[0]));
+  assert.equal(outputTables[1], sourceTables[1]);
+  const tableWidthWorkflowOutputDocument = await DocumentFile.importDocx(await FileBlob.load(tableWidthWorkflowOutputPath));
+  assert.deepEqual(tableWidthWorkflowOutputDocument.blocks[1]?.columnWidthsDxa, replacementColumnWidths);
+  assert.deepEqual(tableWidthWorkflowOutputDocument.blocks[3]?.columnWidthsDxa, siblingColumnWidths);
+  const tableWidthWorkflowRender = await verifyDocumentFile(tableWidthWorkflowOutputPath, {
+    outputDir: path.join(outputDir, "source-bound-table-column-widths-render"),
+    previewFormat: "png",
+    nativeRender: nativeStatus.available ? "required" : "auto",
+  });
+  assert.equal(tableWidthWorkflowRender.summary.verifyOk, true);
+  assert.equal(tableWidthWorkflowRender.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
+
+  const tableWidthCliOutputPath = path.join(outputDir, "source-bound-table-column-widths-cli.docx");
+  const tableWidthCliAuditPath = path.join(outputDir, "source-bound-table-column-widths-cli-audit.json");
+  const tableWidthCliReplacement = [2600, 4000, 2700];
+  assert.deepEqual(parseTableColumnWidthsEditCli([
+    tableWidthSourcePath,
+    tableWidthCliOutputPath,
+    tableWidthCliAuditPath,
+    "1",
+    JSON.stringify(sourceColumnWidths),
+    JSON.stringify(tableWidthCliReplacement),
+  ]), {
+    inputPath: tableWidthSourcePath,
+    outputPath: tableWidthCliOutputPath,
+    auditPath: tableWidthCliAuditPath,
+    tableBlockIndex: 1,
+    expectedColumnWidthsDxa: sourceColumnWidths,
+    replacementColumnWidthsDxa: tableWidthCliReplacement,
+  });
+  const tableWidthCliProcess = spawnSync(process.execPath, [
+    path.join(repoRoot, "skills", "documents", "skills", "documents", "examples", "officekit-table-column-widths-edit-workflow.mjs"),
+    tableWidthSourcePath,
+    tableWidthCliOutputPath,
+    tableWidthCliAuditPath,
+    "1",
+    JSON.stringify(sourceColumnWidths),
+    JSON.stringify(tableWidthCliReplacement),
+  ], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(tableWidthCliProcess.status, 0, tableWidthCliProcess.stderr);
+  assert.deepEqual(JSON.parse(tableWidthCliProcess.stdout), {
+    outputPath: tableWidthCliOutputPath,
+    auditPath: tableWidthCliAuditPath,
+    outputSha256: createHash("sha256").update(await fs.readFile(tableWidthCliOutputPath)).digest("hex"),
+    changedParts: ["word/document.xml"],
+  });
+  assert.deepEqual((await DocumentFile.importDocx(await FileBlob.load(tableWidthCliOutputPath))).blocks[1]?.columnWidthsDxa, tableWidthCliReplacement);
+
+  await assert.rejects(
+    () => editImportedTableColumnWidths({
+      inputPath: tableWidthSourcePath,
+      outputPath: path.join(outputDir, "source-bound-table-column-widths-mismatched.docx"),
+      auditPath: path.join(outputDir, "source-bound-table-column-widths-mismatched-audit.json"),
+      tableBlockIndex: 1,
+      expectedColumnWidthsDxa: [2100, 4400, 2800],
+      replacementColumnWidthsDxa: replacementColumnWidths,
+    }),
+    /column widths do not match the expected source value/,
+  );
+  await assert.rejects(
+    () => editImportedTableColumnWidths({
+      inputPath: tableWidthSourcePath,
+      outputPath: path.join(outputDir, "source-bound-table-column-widths-noop.docx"),
+      auditPath: path.join(outputDir, "source-bound-table-column-widths-noop-audit.json"),
+      tableBlockIndex: 1,
+      expectedColumnWidthsDxa: sourceColumnWidths,
+      replacementColumnWidthsDxa: sourceColumnWidths,
+    }),
+    /replacementColumnWidthsDxa must differ from expectedColumnWidthsDxa/,
+  );
+  await assert.rejects(
+    () => editImportedTableColumnWidths({
+      inputPath: tableWidthSourcePath,
+      outputPath: path.join(outputDir, "source-bound-table-column-widths-total.docx"),
+      auditPath: path.join(outputDir, "source-bound-table-column-widths-total-audit.json"),
+      tableBlockIndex: 1,
+      expectedColumnWidthsDxa: sourceColumnWidths,
+      replacementColumnWidthsDxa: [3000, 3600, 2600],
+    }),
+    /must retain the source table total width/,
+  );
+  const nonCanonicalTableWidthSourcePath = path.join(outputDir, "source-bound-table-column-widths-noncanonical-source.docx");
+  const nonCanonicalTableWidthZip = await JSZip.loadAsync(tableWidthSourceBytes);
+  nonCanonicalTableWidthZip.file("word/document.xml", tableWidthSourceXml.replace(/<w:gridCol w:w="2100"/, '<w:gridCol w:w="02100"'));
+  await fs.writeFile(nonCanonicalTableWidthSourcePath, await nonCanonicalTableWidthZip.generateAsync({ type: "nodebuffer" }), { flag: "wx" });
+  await assert.rejects(
+    () => editImportedTableColumnWidths({
+      inputPath: nonCanonicalTableWidthSourcePath,
+      outputPath: path.join(outputDir, "source-bound-table-column-widths-noncanonical.docx"),
+      auditPath: path.join(outputDir, "source-bound-table-column-widths-noncanonical-audit.json"),
+      tableBlockIndex: 1,
+      expectedColumnWidthsDxa: sourceColumnWidths,
+      replacementColumnWidthsDxa: replacementColumnWidths,
+    }),
+    /canonical unsigned integer/,
+  );
+  assert.deepEqual(await fs.readFile(tableWidthSourcePath), tableWidthSourceBytes);
+
   await assert.rejects(
     () => editImportedSectionMargins({
       inputPath: marginWorkflowSourcePath,
