@@ -215,6 +215,35 @@ try {
       JSON.stringify(columnsRoundTrip.blocks[1]?.columns) !== JSON.stringify({ count: 3, spacing: 360, separator: false })
     ) process.exit(66);
 
+    const sectionBreakWorkflowPath = path.join(
+      packageRoot,
+      "skills", "documents", "skills", "documents", "examples", "officekit-section-break-edit-workflow.mjs",
+    );
+    if (!fs.existsSync(sectionBreakWorkflowPath)) process.exit(67);
+    const sectionBreakSource = DocumentModel.create({ blocks: [] });
+    sectionBreakSource.addParagraph("Packaged source-bound section-break transaction.");
+    sectionBreakSource.addSection({ breakType: "nextPage" });
+    sectionBreakSource.addParagraph("Only this section's break type may change.");
+    const sectionBreakInput = path.join(process.cwd(), "packed-section-break-input.docx");
+    const sectionBreakOutput = path.join(process.cwd(), "packed-section-break-output.docx");
+    const sectionBreakAudit = path.join(process.cwd(), "packed-section-break-audit.json");
+    await (await DocumentFile.exportDocx(sectionBreakSource)).save(sectionBreakInput);
+    const { editImportedSectionBreakType } = await import(pathToFileURL(sectionBreakWorkflowPath).href);
+    const sectionBreakResult = await editImportedSectionBreakType({
+      inputPath: sectionBreakInput,
+      outputPath: sectionBreakOutput,
+      auditPath: sectionBreakAudit,
+      sectionBlockIndex: 1,
+      expectedBreakType: "nextPage",
+      replacementBreakType: "continuous",
+    });
+    const sectionBreakRoundTrip = await DocumentFile.importDocx(await FileBlob.load(sectionBreakOutput));
+    if (
+      sectionBreakResult.audit.provider.actual !== "office-kit" ||
+      JSON.stringify(sectionBreakResult.audit.validation.changedParts) !== JSON.stringify(["word/document.xml"]) ||
+      sectionBreakRoundTrip.blocks[1]?.breakType !== "continuous"
+    ) process.exit(68);
+
     const presentation = Presentation.create();
     presentation.slides.add({ name: "Packaged" }).shapes.add({
       name: "Title", geometry: "roundRect", text: "clean install PPTX",

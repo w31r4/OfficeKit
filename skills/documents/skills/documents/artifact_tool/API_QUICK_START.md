@@ -958,6 +958,23 @@ model-renders, and writes a no-overwrite byte-bound audit. It does not add or
 remove columns, convert the native column graph, or calculate a host's visible
 column flow.
 
+For one fixed imported canonical section-break correction, use
+`examples/officekit-section-break-edit-workflow.mjs`. Its CLI takes an
+inspected section block index plus complete source/replacement break types:
+
+```bash
+node examples/officekit-section-break-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 nextPage continuous
+```
+
+It accepts exactly one editable section and one raw canonical `w:type` leaf
+whose `w:val` is `nextPage`, `continuous`, `evenPage`, or `oddPage`. It permits
+only `word/document.xml` to change, masks only that leaf for a
+namespace-tolerant residual comparison, reimports the full section projection,
+verifies, model-renders, and writes a no-overwrite byte-bound audit. It does
+not add/remove or move the section boundary, or calculate the host's resulting
+pagination.
+
 Set one bounded passwordless Word editing restriction through the same settings state:
 
 ```js

@@ -1402,6 +1402,182 @@ try {
   );
   assert.deepEqual(await fs.readFile(columnsSourcePath), columnsSourceBytes);
 
+  const {
+    editImportedSectionBreakType,
+    parseSectionBreakTypeEditCli,
+    sectionBreakTypeCliOutput,
+  } = await import(
+    "../skills/documents/skills/documents/examples/officekit-section-break-edit-workflow.mjs"
+  );
+  const breakTypeSourceDocument = DocumentModel.create({ name: "Source-bound section break-type edit", blocks: [] });
+  breakTypeSourceDocument.addParagraph("Prelude for the canonical section-break transaction.");
+  breakTypeSourceDocument.addSection({ breakType: "nextPage" });
+  breakTypeSourceDocument.addParagraph("Only this section's native break type may change.");
+  breakTypeSourceDocument.addSection({ breakType: "evenPage" });
+  breakTypeSourceDocument.addParagraph("The sibling section is a raw-XML canary.");
+  const breakTypeSourcePath = path.join(outputDir, "source-bound-section-break-type-source.docx");
+  await (await DocumentFile.exportDocx(breakTypeSourceDocument)).save(breakTypeSourcePath);
+  const breakTypeSourceBytes = await fs.readFile(breakTypeSourcePath);
+  const breakTypeImported = await DocumentFile.importDocx(await FileBlob.load(breakTypeSourcePath));
+  assert.equal(breakTypeImported.blocks[1]?.breakType, "nextPage");
+  assert.equal(breakTypeImported.blocks[3]?.breakType, "evenPage");
+
+  const breakTypeWorkflowOutputPath = path.join(outputDir, "source-bound-section-break-type-edited.docx");
+  const breakTypeWorkflowAuditPath = path.join(outputDir, "source-bound-section-break-type-edited-audit.json");
+  const breakTypeWorkflow = await editImportedSectionBreakType({
+    inputPath: breakTypeSourcePath,
+    outputPath: breakTypeWorkflowOutputPath,
+    auditPath: breakTypeWorkflowAuditPath,
+    sectionBlockIndex: 1,
+    expectedBreakType: "nextPage",
+    replacementBreakType: "continuous",
+  });
+  assert.equal(breakTypeWorkflow.audit.provider.actual, "office-kit");
+  assert.equal(breakTypeWorkflow.audit.provider.silentFallback, false);
+  assert.deepEqual(breakTypeWorkflow.audit.savePolicy, { strategy: "rewrite", noReplace: true });
+  assert.equal(breakTypeWorkflow.audit.operation.type, "source-bound-section-break-type-edit");
+  assert.deepEqual(breakTypeWorkflow.audit.operation.target, {
+    id: breakTypeImported.blocks[1].id,
+    blockIndex: 1,
+    sectionOrdinal: 0,
+  });
+  assert.equal(breakTypeWorkflow.audit.operation.sourceBreakType, "nextPage");
+  assert.equal(breakTypeWorkflow.audit.operation.replacementBreakType, "continuous");
+  assert.deepEqual(breakTypeWorkflow.audit.validation.changedParts, ["word/document.xml"]);
+  assert.equal(breakTypeWorkflow.audit.validation.sectionTypeXmlResidual.ok, true);
+  assert.equal(breakTypeWorkflow.audit.validation.reimport.breakType, "continuous");
+  assert.equal(breakTypeWorkflow.audit.validation.reimport.editable, true);
+  assert.equal(breakTypeWorkflow.audit.validation.nativeRenderRequired, true);
+  assert.deepEqual(sectionBreakTypeCliOutput(breakTypeWorkflow).changedParts, ["word/document.xml"]);
+  assert.deepEqual(await fs.readFile(breakTypeSourcePath), breakTypeSourceBytes);
+
+  const breakTypeWorkflowOutputBytes = await fs.readFile(breakTypeWorkflowOutputPath);
+  const [breakTypeSourceZip, breakTypeOutputZip] = await Promise.all([
+    JSZip.loadAsync(breakTypeSourceBytes),
+    JSZip.loadAsync(breakTypeWorkflowOutputBytes),
+  ]);
+  const breakTypeParts = Object.keys(breakTypeSourceZip.files).filter((partPath) => !breakTypeSourceZip.files[partPath].dir).sort();
+  assert.deepEqual(
+    Object.keys(breakTypeOutputZip.files).filter((partPath) => !breakTypeOutputZip.files[partPath].dir).sort(),
+    breakTypeParts,
+  );
+  for (const partPath of breakTypeParts) {
+    if (partPath === "word/document.xml") continue;
+    assert.deepEqual(
+      Buffer.from(await breakTypeOutputZip.file(partPath).async("uint8array")),
+      Buffer.from(await breakTypeSourceZip.file(partPath).async("uint8array")),
+      `Only word/document.xml may change; ${partPath} drifted.`,
+    );
+  }
+  const [breakTypeSourceXml, breakTypeOutputXml] = await Promise.all([
+    breakTypeSourceZip.file("word/document.xml").async("text"),
+    breakTypeOutputZip.file("word/document.xml").async("text"),
+  ]);
+  const sectionTypeMarkup = (xml) => [...xml.matchAll(/<w:type\b[^>]*\/>/g)].map((match) => match[0]);
+  const sourceTypeMarkup = sectionTypeMarkup(breakTypeSourceXml);
+  const outputTypeMarkup = sectionTypeMarkup(breakTypeOutputXml);
+  assert.equal(sourceTypeMarkup.length, 3);
+  assert.equal(outputTypeMarkup.length, sourceTypeMarkup.length);
+  assert.match(sourceTypeMarkup[0], /w:val="nextPage"/);
+  assert.match(outputTypeMarkup[0], /w:val="continuous"/);
+  assert.equal(outputTypeMarkup[1], sourceTypeMarkup[1]);
+  assert.equal(outputTypeMarkup[2], sourceTypeMarkup[2]);
+  const breakTypeWorkflowOutputDocument = await DocumentFile.importDocx(await FileBlob.load(breakTypeWorkflowOutputPath));
+  assert.equal(breakTypeWorkflowOutputDocument.blocks[1]?.breakType, "continuous");
+  assert.equal(breakTypeWorkflowOutputDocument.blocks[3]?.breakType, "evenPage");
+  const breakTypeWorkflowRender = await verifyDocumentFile(breakTypeWorkflowOutputPath, {
+    outputDir: path.join(outputDir, "source-bound-section-break-type-render"),
+    previewFormat: "png",
+    nativeRender: nativeStatus.available ? "required" : "auto",
+  });
+  assert.equal(breakTypeWorkflowRender.summary.verifyOk, true);
+  assert.equal(breakTypeWorkflowRender.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
+
+  const breakTypeCliOutputPath = path.join(outputDir, "source-bound-section-break-type-cli.docx");
+  const breakTypeCliAuditPath = path.join(outputDir, "source-bound-section-break-type-cli-audit.json");
+  assert.deepEqual(parseSectionBreakTypeEditCli([
+    breakTypeSourcePath,
+    breakTypeCliOutputPath,
+    breakTypeCliAuditPath,
+    "1",
+    "nextPage",
+    "oddPage",
+  ]), {
+    inputPath: breakTypeSourcePath,
+    outputPath: breakTypeCliOutputPath,
+    auditPath: breakTypeCliAuditPath,
+    sectionBlockIndex: 1,
+    expectedBreakType: "nextPage",
+    replacementBreakType: "oddPage",
+  });
+  const breakTypeCliProcess = spawnSync(process.execPath, [
+    path.join(repoRoot, "skills", "documents", "skills", "documents", "examples", "officekit-section-break-edit-workflow.mjs"),
+    breakTypeSourcePath,
+    breakTypeCliOutputPath,
+    breakTypeCliAuditPath,
+    "1",
+    "nextPage",
+    "oddPage",
+  ], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(breakTypeCliProcess.status, 0, breakTypeCliProcess.stderr);
+  assert.deepEqual(JSON.parse(breakTypeCliProcess.stdout), {
+    outputPath: breakTypeCliOutputPath,
+    auditPath: breakTypeCliAuditPath,
+    outputSha256: createHash("sha256").update(await fs.readFile(breakTypeCliOutputPath)).digest("hex"),
+    changedParts: ["word/document.xml"],
+  });
+  assert.equal((await DocumentFile.importDocx(await FileBlob.load(breakTypeCliOutputPath))).blocks[1]?.breakType, "oddPage");
+
+  await assert.rejects(
+    () => editImportedSectionBreakType({
+      inputPath: breakTypeSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-break-type-mismatched.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-break-type-mismatched-audit.json"),
+      sectionBlockIndex: 1,
+      expectedBreakType: "evenPage",
+      replacementBreakType: "continuous",
+    }),
+    /breakType does not match the expected source value/,
+  );
+  await assert.rejects(
+    () => editImportedSectionBreakType({
+      inputPath: breakTypeSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-break-type-invalid.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-break-type-invalid-audit.json"),
+      sectionBlockIndex: 1,
+      expectedBreakType: "nextPage",
+      replacementBreakType: "newPage",
+    }),
+    /replacementBreakType must be nextPage, continuous, evenPage, or oddPage/,
+  );
+  await assert.rejects(
+    () => editImportedSectionBreakType({
+      inputPath: breakTypeSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-break-type-noop.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-break-type-noop-audit.json"),
+      sectionBlockIndex: 1,
+      expectedBreakType: "nextPage",
+      replacementBreakType: "nextPage",
+    }),
+    /replacementBreakType must differ from expectedBreakType/,
+  );
+  const missingSectionTypeSourcePath = path.join(outputDir, "source-bound-section-break-type-missing-source.docx");
+  const missingSectionTypeZip = await JSZip.loadAsync(breakTypeSourceBytes);
+  missingSectionTypeZip.file("word/document.xml", breakTypeSourceXml.replace(sourceTypeMarkup[0], ""));
+  await fs.writeFile(missingSectionTypeSourcePath, await missingSectionTypeZip.generateAsync({ type: "nodebuffer" }), { flag: "wx" });
+  await assert.rejects(
+    () => editImportedSectionBreakType({
+      inputPath: missingSectionTypeSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-break-type-missing.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-break-type-missing-audit.json"),
+      sectionBlockIndex: 1,
+      expectedBreakType: "nextPage",
+      replacementBreakType: "continuous",
+    }),
+    /exactly one canonical w:type leaf/,
+  );
+  assert.deepEqual(await fs.readFile(breakTypeSourcePath), breakTypeSourceBytes);
+
   await assert.rejects(
     () => editImportedSectionMargins({
       inputPath: marginWorkflowSourcePath,
