@@ -239,9 +239,11 @@ for (const entry of documentsManifest) {
 }
 assert.ok(documentsManifest.includes("artifact_tool/API_QUICK_START.md"));
 assert.ok(documentsManifest.includes("artifact_tool/_source_bound_docx.mjs"));
+assert.ok(documentsManifest.includes("artifact_tool/_source_bound_sections.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-end-to-end.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-classic-comment-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-section-page-numbering-edit-workflow.mjs"));
+assert.ok(documentsManifest.includes("examples/officekit-section-margin-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-note-text-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/end_to_end_smoke_test.md"));
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "end_to_end_smoke_test.md")));
@@ -249,6 +251,8 @@ const documentsSkillText = await fs.readFile(path.join(documentsSkillRoot, "SKIL
 assert.match(documentsSkillText, /examples\/end_to_end_smoke_test\.md/);
 assert.match(documentsSkillText, /officekit-section-page-numbering-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-section-page-numbering-edit-workflow.mjs")));
+assert.match(documentsSkillText, /officekit-section-margin-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-section-margin-edit-workflow.mjs")));
 assert.match(documentsSkillText, /officekit-note-text-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-note-text-edit-workflow.mjs")));
 

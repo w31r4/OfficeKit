@@ -42,6 +42,34 @@ remain explicit environment lanes and were skipped by design; their catalog,
 policy, package-build, integrity, and offline tests ran. No npm publication,
 tag, or GitHub release was attempted.
 
+## 0.3.0 DOCX source-bound section-margin transaction
+
+The Documents Skill now ships
+`officekit-section-margin-edit-workflow.mjs` for one exact imported canonical
+section. The task supplies the inspected section block index and complete
+source/replacement `top`, `right`, `bottom`, `left`, and `gutter` twip values.
+It binds the semantic section identity and raw `w:pgMar` leaf before export,
+then publishes distinct DOCX and audit files without overwrite.
+
+The transaction permits only `word/document.xml` to differ. Its raw residual
+masks just the five body-margin attributes while retaining native `w:header`
+and `w:footer` page distances as canaries; it then reimports the full section
+projection, runs semantic/model-render verification, and records source/output
+hashes plus the OfficeKit provider version. It is intentionally limited to one
+canonical `w:pgMar` leaf: duplicate, extension-bearing, malformed, stale, or
+otherwise unrecognized section-margin markup is rejected before publication.
+
+### Section-margin transaction integration evidence
+
+On 2026-07-26, the local candidate passed `npm test`, `npm run docs:api`,
+clean-install `npm run test:pack`, `npm run proto:check`, deterministic
+`npm run verify:office-kit-build`, OfficeBridge `5/5`, OfficeKit Codec
+`375/375`, and the offline release-metadata check. The candidate tarball has
+521 files, 9,435,254 compressed bytes, and 25,394,065 unpacked bytes
+(`SHA-1 56883a74cf9f042e7fa76bcf81e5e5485e526515`), leaving 30,935 bytes below
+the reviewed 25,425,000-byte unpacked-size gate. Native Word or LibreOffice
+plus Poppler remains required for final visible page-geometry review.
+
 ## 0.3.0 DOCX source-bound note-paragraph transaction
 
 The Documents Skill now ships

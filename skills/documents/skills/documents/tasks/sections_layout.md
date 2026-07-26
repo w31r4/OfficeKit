@@ -134,7 +134,7 @@ for final QA. Chapter style/separator attributes, unsupported number formats,
 duplicate leaves, extensions, and empty `w:pgNumType` markup remain
 source-owned and make the section read-only.
 
-### Change one imported section safely
+### Change one imported section's page numbering safely
 
 When the user asks for a tightly bounded page-numbering correction in an
 existing DOCX, inspect the document first and record the section **block
@@ -168,6 +168,30 @@ unchanged. It reimports, verifies, creates a model SVG, and writes a byte-bound
 audit. Use LibreOffice/Word plus Poppler for the final PAGE-field visual review.
 The workflow changes metadata only: it does not insert a PAGE field or claim to
 refresh a cached field display.
+
+### Change one imported section's page margins safely
+
+For a constrained page-margin correction, inspect the existing DOCX first and
+record the section **block index** and all five current twip values. Do not
+select a section from nearby body text or a guessed page number.
+
+```bash
+node examples/officekit-section-margin-edit-workflow.mjs \
+  input.docx output.docx audit.json \
+  1 '{"top":1440,"right":1440,"bottom":1440,"left":1440,"gutter":0}' \
+  '{"top":1440,"right":1440,"bottom":1440,"left":1728,"gutter":0}'
+```
+
+The workflow requires an editable, resolvable imported section whose complete
+semantic `margins` object and raw canonical `w:pgMar` leaf match the supplied
+source value. It changes only the five body-margin attributes in that leaf;
+the native `w:header` and `w:footer` distances, sibling/terminal sections,
+every relationship, and every non-document package part remain bound. It
+exports through `DocumentFile`, permits only `word/document.xml` to change,
+compares a namespace-tolerant raw OPC residual, reimports the full section
+projection, verifies, model-renders, and publishes DOCX/audit files without
+overwrite. Use LibreOffice or Word plus Poppler to review the final page
+geometry.
 
 ## Render review
 

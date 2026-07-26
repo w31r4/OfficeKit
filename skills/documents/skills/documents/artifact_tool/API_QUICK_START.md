@@ -875,6 +875,26 @@ native `w:pgNumType` leaf, reimports, verifies, model-renders, and emits a
 byte-bound audit. It does not turn page numbering into a general PAGE-field or
 pagination editor.
 
+For a fixed imported canonical section margin correction, use
+`examples/officekit-section-margin-edit-workflow.mjs`. Its CLI also takes an
+inspected section block index and complete exact source/replacement margin
+objects:
+
+```bash
+node examples/officekit-section-margin-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 \
+  '{"top":1440,"right":1440,"bottom":1440,"left":1440,"gutter":0}' \
+  '{"top":1440,"right":1440,"bottom":1440,"left":1728,"gutter":0}'
+```
+
+The transaction accepts exactly one editable imported section and one canonical
+`w:pgMar` leaf. It changes only `top`, `right`, `bottom`, `left`, and `gutter`;
+the native `header` and `footer` page distances remain raw-XML canaries. It
+allows only `word/document.xml` to differ, verifies the full section projection
+on second import, model-renders, and writes a no-overwrite byte-bound audit.
+Irregular, extension-bearing, duplicate, or stale section-margin markup is not
+accepted by this route.
+
 Set one bounded passwordless Word editing restriction through the same settings state:
 
 ```js
