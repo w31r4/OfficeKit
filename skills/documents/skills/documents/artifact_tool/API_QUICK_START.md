@@ -997,6 +997,26 @@ audit. It does not infer ideal widths, change text/style/merge topology, or
 calculate host text wrapping; review a native Word or LibreOffice render before
 delivery.
 
+For one imported canonical table-direct-formatting correction, use
+`examples/officekit-table-formatting-edit-workflow.mjs`. Its CLI takes the
+inspected table block index plus complete source and replacement profiles:
+
+```bash
+node examples/officekit-table-formatting-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 \
+  '{"indentDxa":120,"cellMarginsDxa":{"top":80,"bottom":80,"start":120,"end":120},"borderColor":"445566","borderSize":8,"headerFill":"E2E8F0"}' \
+  '{"indentDxa":240,"cellMarginsDxa":{"top":100,"bottom":120,"start":160,"end":180},"borderColor":"224466","borderSize":12,"headerFill":"DDEBF7"}'
+```
+
+The source must be one imported flat rectangular unmerged fixed-layout table
+with the complete recognized direct profile. The operation retains table/grid
+and every physical-cell width, text, style, and topology. It changes only the
+canonical `w:tblInd`, six uniform `w:tblBorders`, four `w:tblCellMar`, and
+first-row `w:shd` fill leaves in `word/document.xml`; it masks those leaves for
+a namespace-tolerant residual comparison, reimports the complete projection,
+verifies/model-renders, and writes a no-overwrite byte-bound audit. It is not a
+generic Word table-style editor and does not calculate wrapping or pagination.
+
 Set one bounded passwordless Word editing restriction through the same settings state:
 
 ```js

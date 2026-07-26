@@ -272,6 +272,40 @@ check. The candidate tarball has 529 files, 9,454,362 compressed bytes, and
 reviewed 25,525,000-byte unpacked-size gate. No npm publication, tag, or
 GitHub release operation was attempted.
 
+## 0.3.0 DOCX source-bound table direct-formatting transaction
+
+The Documents Skill now ships
+`officekit-table-formatting-edit-workflow.mjs` for one exact imported flat,
+rectangular, unmerged fixed-layout Word table. The task supplies its inspected
+block index and complete source/replacement profile: table indentation, four
+cell margins, six uniform border values, and one uniform first-row fill. It
+retains the table width, grid and physical-cell widths, text, style, and row /
+cell / merge topology rather than pretending to be a generic table-style
+editor.
+
+Before publication the workflow binds the semantic table identity and raw
+canonical `w:tblInd`, `w:tblBorders`, `w:tblCellMar`, and first-row `w:shd`
+leaves. It keeps the input immutable, creates distinct output and audit paths
+without overwrite, permits only `word/document.xml`, masks exactly those leaves
+for a namespace-tolerant residual comparison, reimports the complete table
+projection, verifies the model render, and records source/output hashes plus
+the OfficeKit provider version. Incomplete, custom/mixed/conditional,
+nested/merged/content-control, stale/no-op, noncanonical, or package-drift
+sources fail before an output is published. A native Word or LibreOffice plus
+Poppler render remains required for final visible wrapping and page-flow review.
+
+### Table direct-formatting transaction integration evidence
+
+On 2026-07-26, the integrated candidate passed `npm test`, generated API
+documentation with no diff, `npm run proto:check`, deterministic
+`npm run verify:office-kit-build`, clean-install `npm run test:pack`,
+OfficeBridge `5/5`, OfficeKit Codec `375/375`, and the offline release-metadata
+check. The candidate tarball has 530 files, 9,461,177 compressed bytes, and
+25,555,825 unpacked bytes (`SHA-1
+1800171af43d3f9805cddad497966e9062340169`), leaving 9,175 bytes below the
+reviewed 25,565,000-byte unpacked-size gate. No npm publication, tag, or
+GitHub release operation was attempted.
+
 ## 0.3.0 DOCX source-bound note-paragraph transaction
 
 The Documents Skill now ships
