@@ -27,7 +27,7 @@ export const DEFAULT_BRIEF = Object.freeze({
     "Archive the rendered QA evidence with the release record.",
   ],
   sourceLabel: "Project release evidence",
-  sourceUrl: "https://github.com/w31r4/office-kit",
+  sourceUrl: "https://github.com/w31r4/OfficeKit",
 });
 
 function addStyles(document) {

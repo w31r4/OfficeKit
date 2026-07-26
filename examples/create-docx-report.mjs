@@ -13,7 +13,7 @@ document.addParagraph("This DOCX was generated with public WordprocessingML buil
 document.addListItem("Revenue trend is stable", { level: 0 });
 document.addListItem("Native image and section facades are available", { level: 0 });
 document.addTable({ name: "summary-table", values: [["Metric", "Value"], ["Revenue", "$12M"], ["Retention", "94%"]] });
-document.addHyperlink("Project repository", "https://github.com/w31r4/office-kit");
+document.addHyperlink("Project repository", "https://github.com/w31r4/OfficeKit");
 document.addField("PAGE", "1");
 document.addComment(document.blocks[0].id, "Review title wording before publishing.");
 document.addSection({ orientation: "portrait", pageSize: { widthTwips: 12240, heightTwips: 15840 } });

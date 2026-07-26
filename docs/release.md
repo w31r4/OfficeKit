@@ -2,9 +2,10 @@
 
 ## 0.3.0 OfficeKit identity consolidation
 
-The project is now named **OfficeKit** end to end. The npm package and GitHub
-repository are `office-kit`; JavaScript imports use `office-kit`; project state
-lives below `.office-kit`; public environment variables use the
+The project is now named **OfficeKit** end to end. The npm package and
+JavaScript imports use `office-kit`; the GitHub repository is
+`w31r4/OfficeKit`; project state lives below `.office-kit`; public environment
+variables use the
 `OFFICE_KIT_*` prefix; protocol types use `office_kit.*`; and the C# assemblies
 use `OfficeKit.*`.
 
@@ -1720,7 +1721,7 @@ page-count, and raster QA all passed. The package test also exercises scatter
 create/import from a production-only clean install with no `dotnet` on `PATH`.
 
 Final candidate `77706e52e72a22a6ff76bc11ca7dda29e9434b01` passed hosted
-[CI run 29600831755](https://github.com/w31r4/office-kit/actions/runs/29600831755)
+[CI run 29600831755](https://github.com/w31r4/OfficeKit/actions/runs/29600831755)
 in 4m43s. The run passed deterministic protocol/runtime verification, installed
 Chromium/LibreOffice/Poppler, the complete `npm test`, regenerated API-doc diff,
 offline release check, clean-install pack gate, OfficeBridge, and OfficeKit.
@@ -1752,7 +1753,7 @@ JavaScript evaluator does not pretend to simulate `TABLE`.
 
 The complete candidate at commit
 `94f1d2234c93078b0782a52fd95c115be9df86f8` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29594786964](https://github.com/w31r4/office-kit/actions/runs/29594786964)
+workflow in [GitHub Actions run 29594786964](https://github.com/w31r4/OfficeKit/actions/runs/29594786964)
 in 5m07s. The run covered deterministic protocol/runtime verification,
 Chromium/LibreOffice/Poppler setup, the full npm suite including the runnable
 What-If Skill workflow and fail-closed topology corpus, generated API-doc
@@ -1796,7 +1797,7 @@ production-only installation, validates the generated spreadsheet-template
 sidecar, and proves the retained XLSX and PNG bytes exactly match its inputs.
 The final candidate at commit
 `4f3dbbb4f95081e1c86747e88c10b4b16722ad0d` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29596412072](https://github.com/w31r4/office-kit/actions/runs/29596412072)
+workflow in [GitHub Actions run 29596412072](https://github.com/w31r4/OfficeKit/actions/runs/29596412072)
 in 4m40s, covering npm installation, deterministic OfficeKit verification,
 Chromium/native-tool setup, the complete npm/Skill/security suite, generated
 API-doc cleanliness, offline release metadata, clean-install packing,
@@ -1881,7 +1882,7 @@ or GitHub release operation was attempted.
 
 The completed candidate at commit
 `e61bb1ff143f27a9d4afc1ecdd6490634c3dfa4a` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29590185608](https://github.com/w31r4/office-kit/actions/runs/29590185608)
+workflow in [GitHub Actions run 29590185608](https://github.com/w31r4/OfficeKit/actions/runs/29590185608)
 on 2026-07-17. The run completed with conclusion `success` in 4m31s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including five-family chart author/import/edit/preservation
@@ -1922,7 +1923,7 @@ unpacked. No npm publish, tag, or GitHub release operation was attempted.
 
 The completed candidate at commit
 `fbe86f197850f2bc297c6a95c5b5d5d19e442ab2` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29588303966](https://github.com/w31r4/office-kit/actions/runs/29588303966)
+workflow in [GitHub Actions run 29588303966](https://github.com/w31r4/OfficeKit/actions/runs/29588303966)
 on 2026-07-17. The run completed with conclusion `success` in 4m29s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including the native field-materialization workflow and
@@ -1968,7 +1969,7 @@ unpacked. No npm publish, tag, or GitHub release operation was attempted.
 
 The completed candidate at commit
 `206712aef6691490318e42bfa26553d27b4d1fc9` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29586820145](https://github.com/w31r4/office-kit/actions/runs/29586820145)
+workflow in [GitHub Actions run 29586820145](https://github.com/w31r4/OfficeKit/actions/runs/29586820145)
 on 2026-07-17. The run completed with conclusion `success` in 4m36s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including the native caption/cross-reference workflow and
@@ -2008,7 +2009,7 @@ or GitHub release operation was attempted.
 
 The completed inline-field candidate at commit
 `05713031054388f92c0586e7f6547a407544c696` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29584754018](https://github.com/w31r4/office-kit/actions/runs/29584754018)
+workflow in [GitHub Actions run 29584754018](https://github.com/w31r4/OfficeKit/actions/runs/29584754018)
 on 2026-07-17. The run completed with conclusion `success` in 4m58s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including the native inline-field Documents fixture and
@@ -2048,7 +2049,7 @@ or GitHub release operation was attempted.
 
 The completed TOC/field-refresh candidate at commit
 `f7c83de4fbb83ddade81542cb95df86d01be4939` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29582981065](https://github.com/w31r4/office-kit/actions/runs/29582981065)
+workflow in [GitHub Actions run 29582981065](https://github.com/w31r4/OfficeKit/actions/runs/29582981065)
 on 2026-07-17. The run completed with conclusion `success` in 4m28s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including the native TOC Documents workflow and
@@ -2089,7 +2090,7 @@ attempted.
 
 The completed public-workflow candidate at commit
 `cec9628f8429934e48820bdbae064d5a2ff32fd5` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29580505711](https://github.com/w31r4/office-kit/actions/runs/29580505711)
+workflow in [GitHub Actions run 29580505711](https://github.com/w31r4/OfficeKit/actions/runs/29580505711)
 on 2026-07-17. The run completed with conclusion `success` in 4m11s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including the canonical bibliography/citation Documents
@@ -2132,7 +2133,7 @@ attempted.
 
 The completed public-workflow candidate at commit
 `6231544c88dd5eee461c2b3e4950425807c8add9` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29575996251](https://github.com/w31r4/office-kit/actions/runs/29575996251)
+workflow in [GitHub Actions run 29575996251](https://github.com/w31r4/OfficeKit/actions/runs/29575996251)
 on 2026-07-17. The run completed with conclusion `success` in 4m30s and covered
 protocol/runtime determinism, Chromium/LibreOffice/Poppler tool checks, the
 complete npm suite including the published Documents Skill example and native
@@ -2148,7 +2149,7 @@ The bounded topology is deliberately loss-aware: a reply may point only to its t
 
 The complete local gate passed `npm test` including Playwright, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, serial `npm run verify:office-kit-build`, OfficeKit `178/178`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,238,396-byte runtime. The clean-install tarball contains 422 files, is 9,234,762 bytes compressed and 22,965,796 bytes unpacked. No npm publish or tag operation was attempted.
 
-The complete direct-reply candidate at commit `f69b5b50ffb6ace73d0e6de53db9c3bb30f7571b` passed the hosted Linux `ci` workflow in [GitHub Actions run 29573634244](https://github.com/w31r4/office-kit/actions/runs/29573634244) on 2026-07-17. The run completed with conclusion `success` in 5m20s and covered deterministic protocol/runtime verification, Chromium/LibreOffice/Poppler tools, the full npm suite including the native direct-reply Skill fixture and topology gates, generated API-doc cleanliness, offline release metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `178/178`.
+The complete direct-reply candidate at commit `f69b5b50ffb6ace73d0e6de53db9c3bb30f7571b` passed the hosted Linux `ci` workflow in [GitHub Actions run 29573634244](https://github.com/w31r4/OfficeKit/actions/runs/29573634244) on 2026-07-17. The run completed with conclusion `success` in 5m20s and covered deterministic protocol/runtime verification, Chromium/LibreOffice/Poppler tools, the full npm suite including the native direct-reply Skill fixture and topology gates, generated API-doc cleanliness, offline release metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `178/178`.
 
 ### Reference 2.8.24 public API completion
 
@@ -2158,7 +2159,7 @@ The same observable audit found the read-only `Shape.useBackgroundFill` getter. 
 
 The complete local gate passed `npm test` including Playwright, `npm run docs:api`, `npm run proto:check`, `npm run test:pack`, serial `npm run verify:office-kit-build`, OfficeKit `178/178`, and OfficeBridge `5/5`. Two clean WASM builds produced the same 39 audited files and the same manifest-bound 38-file, 14,232,252-byte runtime. The clean-install tarball contains 422 files, is 9,229,500 bytes compressed and 22,954,466 bytes unpacked. `npm run release:check` passed every code, package, license, documentation, JavaScript, and .NET gate; before this evidence commit it reported only the intentionally dirty generated documentation plus the external npm-authentication blocker. No publish or tag operation was attempted.
 
-The completed reference 2.8.24 API-sync candidate at commit `a81d71823a3366805d9cb3a44c322bced386f2c5` passed the hosted Linux `ci` workflow in [GitHub Actions run 29571987958](https://github.com/w31r4/office-kit/actions/runs/29571987958) on 2026-07-17. The run completed with conclusion `success` in 4m07s and covered protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite, generated API-doc cleanliness, offline release metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `178/178`.
+The completed reference 2.8.24 API-sync candidate at commit `a81d71823a3366805d9cb3a44c322bced386f2c5` passed the hosted Linux `ci` workflow in [GitHub Actions run 29571987958](https://github.com/w31r4/OfficeKit/actions/runs/29571987958) on 2026-07-17. The run completed with conclusion `success` in 4m07s and covered protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite, generated API-doc cleanliness, offline release metadata, the 422-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `178/178`.
 
 ### Reference 2.8.24 Skill and Presentation-view convergence
 
@@ -2230,7 +2231,7 @@ On 2026-07-17, the native reference-plugin/OfficeKit compatibility worktree pass
 
 The repository-structure convergence candidate at commit
 `b11a249b2bcd2397b5355c4986a2cd08f0aee39a` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29675702140](https://github.com/w31r4/office-kit/actions/runs/29675702140)
+workflow in [GitHub Actions run 29675702140](https://github.com/w31r4/OfficeKit/actions/runs/29675702140)
 on 2026-07-19. The run covered npm installation, deterministic protocol and
 bundled OfficeKit runtime verification, Chromium/LibreOffice/Poppler tool
 checks, the complete npm suite, generated API-doc cleanliness, offline release
@@ -2239,7 +2240,7 @@ OfficeKit .NET suites.
 
 The bounded native XLSX PivotTable candidate at commit
 `4aac21752d502ed8b37c6574d205c8f06679d805` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29666171276](https://github.com/w31r4/office-kit/actions/runs/29666171276)
+workflow in [GitHub Actions run 29666171276](https://github.com/w31r4/OfficeKit/actions/runs/29666171276)
 on 2026-07-19. The job completed with conclusion `success` in 10m07s and
 covered npm installation, deterministic protocol/OfficeKit runtime
 verification, Chromium/LibreOffice/Poppler tool checks, the complete npm suite
@@ -2249,7 +2250,7 @@ OfficeBridge `5/5`, and OfficeKit `277/277`.
 
 The canonical Default Template Library reference-pin candidate at commit
 `2424ea03d28a7a5a9f2c51695a6113b6d219da78` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29656750965](https://github.com/w31r4/office-kit/actions/runs/29656750965)
+workflow in [GitHub Actions run 29656750965](https://github.com/w31r4/OfficeKit/actions/runs/29656750965)
 on 2026-07-19. The run completed with conclusion `success` in 12m14s. It
 recursively checked out public `office-artifact-tool` commit `256cb31`, compared
 all 40 retained Office/PNG assets byte-for-byte, and then passed deterministic
@@ -2260,7 +2261,7 @@ offline release metadata, the 447-file clean-install tarball, OfficeBridge
 
 The bounded imported SlidePart placeholder-text candidate at commit
 `f37d8adbcd5d0637efcbf6fcf10ef9821bfb4216` passed the hosted Linux `ci`
-workflow in [GitHub Actions run 29655361922](https://github.com/w31r4/office-kit/actions/runs/29655361922)
+workflow in [GitHub Actions run 29655361922](https://github.com/w31r4/OfficeKit/actions/runs/29655361922)
 on 2026-07-19. The run completed with conclusion `success` in 13m22s and
 covered npm installation, generated protocol plus deterministic bundled-runtime
 verification, Chromium/LibreOffice/Poppler tool checks, the complete npm suite
@@ -2268,33 +2269,33 @@ including all seven retained PPTX placeholder edits and native renders,
 generated API-doc cleanliness, offline release metadata, the 447-file
 clean-install tarball, OfficeBridge `5/5`, and OfficeKit `260/260`.
 
-The reference 2.8.24 Skill sync, Presentation view-properties codec, and completed DOCX note workflow candidate at commit `5cf2eb629f4612314d34c73041a5f1296a9ff145` passed the hosted Linux `ci` workflow in [GitHub Actions run 29569265350](https://github.com/w31r4/office-kit/actions/runs/29569265350) on 2026-07-17. The run completed with conclusion `success` in 4m15s and covered generated protocol plus deterministic bundled-runtime verification, Chromium/LibreOffice/Poppler tool checks, the complete npm suite including the native Spreadsheet path migration, Presentation `view/grid/guides` import/export/fail-closed regressions, Documents note workflow, generated API-doc cleanliness, offline release metadata, the 421-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `177/177`.
+The reference 2.8.24 Skill sync, Presentation view-properties codec, and completed DOCX note workflow candidate at commit `5cf2eb629f4612314d34c73041a5f1296a9ff145` passed the hosted Linux `ci` workflow in [GitHub Actions run 29569265350](https://github.com/w31r4/OfficeKit/actions/runs/29569265350) on 2026-07-17. The run completed with conclusion `success` in 4m15s and covered generated protocol plus deterministic bundled-runtime verification, Chromium/LibreOffice/Poppler tool checks, the complete npm suite including the native Spreadsheet path migration, Presentation `view/grid/guides` import/export/fail-closed regressions, Documents note workflow, generated API-doc cleanliness, offline release metadata, the 421-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `177/177`.
 
-The DOCX whole-block bookmark and Documents navigation candidate through commit `b161676d1e68df8acdc7bd3a4a3640fbcf267b3c` passed the hosted Linux `ci` workflow in [GitHub Actions run 29564975672](https://github.com/w31r4/office-kit/actions/runs/29564975672) on 2026-07-17. The run completed with conclusion `success` in 5m09s and covered generated protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including the public bookmark/internal-link Skill workflow and fail-closed topology regressions, generated API-doc cleanliness, offline release metadata, the 421-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `174/174`.
+The DOCX whole-block bookmark and Documents navigation candidate through commit `b161676d1e68df8acdc7bd3a4a3640fbcf267b3c` passed the hosted Linux `ci` workflow in [GitHub Actions run 29564975672](https://github.com/w31r4/OfficeKit/actions/runs/29564975672) on 2026-07-17. The run completed with conclusion `success` in 5m09s and covered generated protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including the public bookmark/internal-link Skill workflow and fail-closed topology regressions, generated API-doc cleanliness, offline release metadata, the 421-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `174/174`.
 
-The composition-root and complete Spreadsheet-domain layering candidate at commit `f8a4241a40448cc21ad1dce449edb6747d491473` passed the hosted Linux `ci` workflow in [GitHub Actions run 29563335625](https://github.com/w31r4/office-kit/actions/runs/29563335625) on 2026-07-17. The run completed with conclusion `success` in 4m26s and covered protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including root/leaf Spreadsheet binding identity and codec dependency-direction regressions, generated API-doc cleanliness, offline release metadata, the 421-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `173/173`.
+The composition-root and complete Spreadsheet-domain layering candidate at commit `f8a4241a40448cc21ad1dce449edb6747d491473` passed the hosted Linux `ci` workflow in [GitHub Actions run 29563335625](https://github.com/w31r4/OfficeKit/actions/runs/29563335625) on 2026-07-17. The run completed with conclusion `success` in 4m26s and covered protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including root/leaf Spreadsheet binding identity and codec dependency-direction regressions, generated API-doc cleanliness, offline release metadata, the 421-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `173/173`.
 
-The complete Presentation-domain layering candidate at commit `f8d50cad14ae74ee6cef7610ba58a52ea0438514` passed the hosted Linux `ci` workflow in [GitHub Actions run 29562292218](https://github.com/w31r4/office-kit/actions/runs/29562292218) on 2026-07-17. The run completed with conclusion `success` in 4m18s and covered protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including root/leaf Presentation binding identity and codec dependency-direction regressions, generated API-doc cleanliness, offline release metadata, the 420-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `173/173`.
+The complete Presentation-domain layering candidate at commit `f8d50cad14ae74ee6cef7610ba58a52ea0438514` passed the hosted Linux `ci` workflow in [GitHub Actions run 29562292218](https://github.com/w31r4/OfficeKit/actions/runs/29562292218) on 2026-07-17. The run completed with conclusion `success` in 4m18s and covered protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including root/leaf Presentation binding identity and codec dependency-direction regressions, generated API-doc cleanliness, offline release metadata, the 420-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `173/173`.
 
-The DOCX whole-paragraph tracked-change and Documents Skill candidate through commit `98dbdd7e8a0814f79830efb5e8a7e2675dfcf520` passed the hosted Linux `ci` workflow in [GitHub Actions run 29561312029](https://github.com/w31r4/office-kit/actions/runs/29561312029) on 2026-07-17. The run completed with conclusion `success` in 4m11s and covered generated protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including the public tracked-change Skill example and irregular-topology regression, generated API-doc cleanliness, offline release metadata, the 419-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `173/173`.
+The DOCX whole-paragraph tracked-change and Documents Skill candidate through commit `98dbdd7e8a0814f79830efb5e8a7e2675dfcf520` passed the hosted Linux `ci` workflow in [GitHub Actions run 29561312029](https://github.com/w31r4/OfficeKit/actions/runs/29561312029) on 2026-07-17. The run completed with conclusion `success` in 4m11s and covered generated protocol plus deterministic bundled-runtime verification, Chromium/native-tool checks, the complete npm suite including the public tracked-change Skill example and irregular-topology regression, generated API-doc cleanliness, offline release metadata, the 419-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `173/173`.
 
-The AGPL/MuPDF candidate at commit `40fcee0931c541c6f2cb1639ead0d10e2b76c7e6` passed the hosted Linux `ci` workflow in [GitHub Actions run 29558072285](https://github.com/w31r4/office-kit/actions/runs/29558072285) on 2026-07-17. The run completed with conclusion `success` in 4m52s and covered npm install, protocol/runtime verification, Chromium/native-tool checks, the full npm suite, generated API-doc cleanliness, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `170/170`.
+The AGPL/MuPDF candidate at commit `40fcee0931c541c6f2cb1639ead0d10e2b76c7e6` passed the hosted Linux `ci` workflow in [GitHub Actions run 29558072285](https://github.com/w31r4/OfficeKit/actions/runs/29558072285) on 2026-07-17. The run completed with conclusion `success` in 4m52s and covered npm install, protocol/runtime verification, Chromium/native-tool checks, the full npm suite, generated API-doc cleanliness, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `170/170`.
 
-The embedded-XLSX/OLE and Presentation native-object layering candidate at commit `6119c54ae05d4b60fe562641e7aef10130581782` passed the hosted Linux `ci` workflow in [GitHub Actions run 29558401718](https://github.com/w31r4/office-kit/actions/runs/29558401718) on 2026-07-17. The run completed with conclusion `success` in 4m22s and covered protocol/runtime verification, Chromium/native-tool checks, the full npm suite including payload-only OLE replacement and Presentation Skill regressions, generated API-doc cleanliness, offline release metadata, the 417-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `170/170`.
+The embedded-XLSX/OLE and Presentation native-object layering candidate at commit `6119c54ae05d4b60fe562641e7aef10130581782` passed the hosted Linux `ci` workflow in [GitHub Actions run 29558401718](https://github.com/w31r4/OfficeKit/actions/runs/29558401718) on 2026-07-17. The run completed with conclusion `success` in 4m22s and covered protocol/runtime verification, Chromium/native-tool checks, the full npm suite including payload-only OLE replacement and Presentation Skill regressions, generated API-doc cleanliness, offline release metadata, the 417-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `170/170`.
 
-The Document-domain and shared text-range layering candidate at commit `765040c5827ee73c3c4645824688470e281c8be5` passed the hosted Linux `ci` workflow in [GitHub Actions run 29559403816](https://github.com/w31r4/office-kit/actions/runs/29559403816) on 2026-07-17. The run completed with conclusion `success` in 5m22s and covered protocol/runtime verification, Chromium/native-tool checks, the full npm suite including root/leaf binding identity and native Documents workflow regressions, generated API-doc cleanliness, offline release metadata, the 419-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `170/170`.
+The Document-domain and shared text-range layering candidate at commit `765040c5827ee73c3c4645824688470e281c8be5` passed the hosted Linux `ci` workflow in [GitHub Actions run 29559403816](https://github.com/w31r4/OfficeKit/actions/runs/29559403816) on 2026-07-17. The run completed with conclusion `success` in 5m22s and covered protocol/runtime verification, Chromium/native-tool checks, the full npm suite including root/leaf binding identity and native Documents workflow regressions, generated API-doc cleanliness, offline release metadata, the 419-file clean-install tarball, OfficeBridge `5/5`, and OfficeKit `170/170`.
 
-The type-aware AcroForm candidate at commit `bffd35dbfdb94bb1183717703e7e55bfb83c3f3c` passed the hosted Linux `ci` workflow in [GitHub Actions run 29515214432](https://github.com/w31r4/office-kit/actions/runs/29515214432) on 2026-07-16. The run completed with conclusion `success` and covered the full npm suite including AcroForm provider and independent grader regressions, deterministic OfficeKit verification, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `167/167`.
+The type-aware AcroForm candidate at commit `bffd35dbfdb94bb1183717703e7e55bfb83c3f3c` passed the hosted Linux `ci` workflow in [GitHub Actions run 29515214432](https://github.com/w31r4/OfficeKit/actions/runs/29515214432) on 2026-07-16. The run completed with conclusion `success` and covered the full npm suite including AcroForm provider and independent grader regressions, deterministic OfficeKit verification, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `167/167`.
 
-The active-content PDF sanitization candidate at commit `099bf1ce2f62ab992971e61b82641e6d6712a95d` passed the hosted Linux `ci` workflow in [GitHub Actions run 29501149008](https://github.com/w31r4/office-kit/actions/runs/29501149008) on 2026-07-16. The run completed with conclusion `success` in 4m01s and covered deterministic OfficeKit verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite including the typed sanitize provider and independent grader regressions, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `167/167`.
+The active-content PDF sanitization candidate at commit `099bf1ce2f62ab992971e61b82641e6d6712a95d` passed the hosted Linux `ci` workflow in [GitHub Actions run 29501149008](https://github.com/w31r4/OfficeKit/actions/runs/29501149008) on 2026-07-16. The run completed with conclusion `success` in 4m01s and covered deterministic OfficeKit verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite including the typed sanitize provider and independent grader regressions, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `167/167`.
 
-The Agent PromptBench scaffold at commit `70b2ddeea642de3729f8b7d7401bf10bace3be69` passed the hosted Linux `ci` workflow in [GitHub Actions run 29493964234](https://github.com/w31r4/office-kit/actions/runs/29493964234) on 2026-07-16. The run completed with conclusion `success` and covered suite validation/tests inside the full npm gate, deterministic OfficeKit verification, Chromium/LibreOffice/Poppler checks, API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `167/167`.
+The Agent PromptBench scaffold at commit `70b2ddeea642de3729f8b7d7401bf10bace3be69` passed the hosted Linux `ci` workflow in [GitHub Actions run 29493964234](https://github.com/w31r4/OfficeKit/actions/runs/29493964234) on 2026-07-16. The run completed with conclusion `success` and covered suite validation/tests inside the full npm gate, deterministic OfficeKit verification, Chromium/LibreOffice/Poppler checks, API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `167/167`.
 
-The OfficeKit XLSX sparkline candidate at commit `e8aa3e14249de346207f16b8fa24d7cb00b1253f` passed the hosted Linux `ci` workflow in [GitHub Actions run 29492891825](https://github.com/w31r4/office-kit/actions/runs/29492891825) on 2026-07-16. The run completed with conclusion `success` in 4m02s and covered deterministic protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `167/167` including standard Office 2010 sparkline coverage.
+The OfficeKit XLSX sparkline candidate at commit `e8aa3e14249de346207f16b8fa24d7cb00b1253f` passed the hosted Linux `ci` workflow in [GitHub Actions run 29492891825](https://github.com/w31r4/OfficeKit/actions/runs/29492891825) on 2026-07-16. The run completed with conclusion `success` in 4m02s and covered deterministic protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge `5/5`, and OfficeKit `167/167` including standard Office 2010 sparkline coverage.
 
-The PDF provider-routing candidate at commit `b405ddd249c7c2f760c659c07e88495f3a3562f3` passed the hosted Linux `ci` workflow in [GitHub Actions run 29487829878](https://github.com/w31r4/office-kit/actions/runs/29487829878) on 2026-07-16. The run completed with conclusion `success` in 3m59s and covered deterministic protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite including the provider contract tests, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge, and OfficeKit 163-test execution. Optional Python providers remain an explicit local/environment gate rather than an undeclared hosted dependency.
+The PDF provider-routing candidate at commit `b405ddd249c7c2f760c659c07e88495f3a3562f3` passed the hosted Linux `ci` workflow in [GitHub Actions run 29487829878](https://github.com/w31r4/OfficeKit/actions/runs/29487829878) on 2026-07-16. The run completed with conclusion `success` in 3m59s and covered deterministic protocol/runtime verification, Chromium/LibreOffice/Poppler tool checks, the full npm suite including the provider contract tests, generated API-doc diff, offline release metadata, clean-install tarball, OfficeBridge, and OfficeKit 163-test execution. Optional Python providers remain an explicit local/environment gate rather than an undeclared hosted dependency.
 
-The Documents native-workflow/OfficeKit candidate through commit `e07e24382ff0259c7beefe27b0743d908a1f946f` passed the hosted Linux `ci` workflow in [GitHub Actions run 29483188346](https://github.com/w31r4/office-kit/actions/runs/29483188346) on 2026-07-16. The run completed with conclusion `success` in 3m55s and covered protocol/runtime reproducibility, Chromium/native render tools, `npm test`, generated API-doc diff, offline release metadata, the registry-independent clean-install tarball, OfficeBridge, and OfficeKit.
+The Documents native-workflow/OfficeKit candidate through commit `e07e24382ff0259c7beefe27b0743d908a1f946f` passed the hosted Linux `ci` workflow in [GitHub Actions run 29483188346](https://github.com/w31r4/OfficeKit/actions/runs/29483188346) on 2026-07-16. The run completed with conclusion `success` in 3m55s and covered protocol/runtime reproducibility, Chromium/native render tools, `npm test`, generated API-doc diff, offline release metadata, the registry-independent clean-install tarball, OfficeBridge, and OfficeKit.
 
 The bounded DOCX modern-comment candidate was locally closed on 2026-07-19. The public model/protobuf/OfficeKit path now authors one root with direct replies through native `commentsExtended`, optional comments IDs/extensible/people parts, and supports source-bound imported text/resolved-state edits while refusing nested or irregular graphs. The shipped Documents workflow proves fixed identity/topology, second import, model/native rendering, source immutability, atomic output, and a byte-bound audit. `npm test`, generated API docs, deterministic OfficeKit reconstruction, the production clean-install/package gate, OfficeKit `271/271`, and OfficeBridge `5/5` passed. The audited package contains 448 files at 9,472,335 packed bytes and 23,866,257 unpacked bytes; its bundled OfficeKit runtime contains 38 files at 14,489,788 bytes. The full PDF provider test remained contract-only because no explicit `OFFICE_KIT_PDF_PROVIDER_PYTHON` was configured; core MuPDF.js, Playwright/Chromium, LibreOffice/Poppler, canonical template corpus, and all other npm gates ran locally.
 
@@ -3104,7 +3105,7 @@ were not configured, so their contract/adversarial tests passed while those
 environment-gated provider executions were skipped. The implementation
 candidate at commit `276309a30fbdf6293d0aba6479b59c420a55d9ae` passed the
 hosted Linux `ci` workflow in [GitHub Actions run
-29714645455](https://github.com/w31r4/office-kit/actions/runs/29714645455)
+29714645455](https://github.com/w31r4/OfficeKit/actions/runs/29714645455)
 on 2026-07-20. Its single job completed with conclusion `success` in 17m10s
 after exercising all isolated PDF providers, deterministic protocol/runtime
 verification, Chromium/LibreOffice/Poppler, the full npm suite, generated-doc
@@ -3176,7 +3177,7 @@ returns `ENEEDAUTH`, so no publish or tag/release operation was attempted.
 The implementation candidate at commit
 `c5bc645e995e349d79b575ce6d1a55502c936843` passed the hosted Linux `ci`
 workflow in [GitHub Actions run
-29717832003](https://github.com/w31r4/office-kit/actions/runs/29717832003)
+29717832003](https://github.com/w31r4/OfficeKit/actions/runs/29717832003)
 on 2026-07-20. Its single job completed with conclusion `success` in 17m35s
 after exercising all isolated PDF providers, deterministic protocol/runtime
 verification, Chromium/LibreOffice/Poppler, the full npm suite, generated-doc
@@ -3235,7 +3236,7 @@ shell, so their contract/adversarial tests passed while those environment-gated
 executions were skipped; real MuPDF.js, qpdf, Poppler, LibreOffice, and
 Playwright paths ran. Commit `de16bf13fd4ed82be1548d95a10a83a963116fb5`
 passed the hosted Linux `ci` workflow in [GitHub Actions run
-29721704703](https://github.com/w31r4/office-kit/actions/runs/29721704703)
+29721704703](https://github.com/w31r4/OfficeKit/actions/runs/29721704703)
 on 2026-07-20. Its single job completed with conclusion `success` in 15m40s
 after running every isolated PDF provider, the complete npm suite, generated
 docs and release/package gates, OfficeBridge, and OfficeKit. `npm whoami`
@@ -3286,7 +3287,7 @@ remains unavailable, so no publish, tag, or release operation was attempted.
 
 Commit `72adb11522365a4199497d41c9bfe4ca2ff507a7` passed the hosted Linux `ci`
 workflow in [GitHub Actions run
-29739450691](https://github.com/w31r4/office-kit/actions/runs/29739450691)
+29739450691](https://github.com/w31r4/OfficeKit/actions/runs/29739450691)
 on 2026-07-20. The run completed every isolated PDF provider, the full npm
 suite, generated-doc and release/package checks, OfficeBridge, and
 OfficeKit with conclusion `success`.

@@ -85,7 +85,7 @@ for (const pluginName of pluginNames) {
   assert.equal(manifest.version, pluginName === "office-kit" ? "0.3.0" : "0.2.0");
   assert.equal(manifest.license, pluginName === "default-template-library" ? "MIT" : "AGPL-3.0-or-later");
   assert.equal(manifest.skills, "./skills/");
-  assert.match(manifest.repository, /office-kit/);
+  assert.equal(manifest.repository, "https://github.com/w31r4/OfficeKit");
   assert.ok(await exists(path.join(pluginRoot, "README.md")));
   for (const iconKey of pluginName === "office-kit" ? [] : ["composerIcon", "logo"]) {
     assert.ok(await exists(path.resolve(pluginRoot, manifest.interface[iconKey])), `${pluginName} ${iconKey} must resolve inside the plugin`);

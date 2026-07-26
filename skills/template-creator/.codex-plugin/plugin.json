@@ -5,10 +5,10 @@
   "author": {
     "name": "w31r4",
     "email": "w31r4@users.noreply.github.com",
-    "url": "https://github.com/w31r4/office-kit"
+    "url": "https://github.com/w31r4/OfficeKit"
   },
-  "homepage": "https://github.com/w31r4/office-kit",
-  "repository": "https://github.com/w31r4/office-kit",
+  "homepage": "https://github.com/w31r4/OfficeKit",
+  "repository": "https://github.com/w31r4/OfficeKit",
   "license": "AGPL-3.0-or-later",
   "keywords": [
     "office",
@@ -28,9 +28,9 @@
       "Interactive",
       "Write"
     ],
-    "websiteURL": "https://github.com/w31r4/office-kit",
-    "privacyPolicyURL": "https://github.com/w31r4/office-kit#readme",
-    "termsOfServiceURL": "https://github.com/w31r4/office-kit#readme",
+    "websiteURL": "https://github.com/w31r4/OfficeKit",
+    "privacyPolicyURL": "https://github.com/w31r4/OfficeKit#readme",
+    "termsOfServiceURL": "https://github.com/w31r4/OfficeKit#readme",
     "composerIcon": "./assets/icon.svg",
     "logo": "./assets/icon.svg",
     "defaultPrompt": [
