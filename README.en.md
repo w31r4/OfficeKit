@@ -42,8 +42,8 @@ Requires Node.js 22 or newer. Run these commands in the project where the agent
 will work:
 
 ```sh
-npm install github:w31r4/office-kit
-npx skills add w31r4/office-kit --skill '*' --yes
+npm install github:w31r4/OfficeKit
+npx skills add w31r4/OfficeKit --skill '*' --yes
 ```
 
 The first command installs the file runtime. The second installs OfficeKit, the
@@ -54,7 +54,7 @@ Python setup is required.
 To install only the core Skills:
 
 ```sh
-npx skills add w31r4/office-kit \
+npx skills add w31r4/OfficeKit \
   --skill office-kit documents spreadsheets excel-live-control presentations pdf template-creator \
   --yes
 ```

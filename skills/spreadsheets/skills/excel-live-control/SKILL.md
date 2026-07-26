@@ -52,7 +52,7 @@ For a missing add-in, give the user these exact choices:
 2. Or, in Excel, go to **Home > Add-ins**, search for **ChatGPT**, verify that the publisher is **w31r4**, and choose **Add** or **Get it now**.
 3. Return to the target workbook and open **ChatGPT** from the ribbon.
 
-Installing an add-in is a user-controlled software-install action. Ask the user to complete the final install step, then resume inspection. If the Microsoft Marketplace or Office add-in store is blocked by organization policy, ask the user to contact their Microsoft 365 administrator. Project compatibility notes are at https://github.com/w31r4/office-kit.
+Installing an add-in is a user-controlled software-install action. Ask the user to complete the final install step, then resume inspection. If the Microsoft Marketplace or Office add-in store is blocked by organization policy, ask the user to contact their Microsoft 365 administrator. Project compatibility notes are at https://github.com/w31r4/OfficeKit.
 
 ### 3. Open The ChatGPT Add-in Pane
 

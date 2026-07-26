@@ -18,12 +18,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/w31r4/office-kit.git"
+    "url": "git+https://github.com/w31r4/OfficeKit.git"
   },
   "bugs": {
-    "url": "https://github.com/w31r4/office-kit/issues"
+    "url": "https://github.com/w31r4/OfficeKit/issues"
   },
-  "homepage": "https://github.com/w31r4/office-kit#readme",
+  "homepage": "https://github.com/w31r4/OfficeKit#readme",
   "main": "./src/index.mjs",
   "exports": {
     ".": "./src/index.mjs",

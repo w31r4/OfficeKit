@@ -8,7 +8,7 @@ or one available template helps.
 Install the coordinated core Skills together:
 
 ```sh
-npx skills add w31r4/office-kit \
+npx skills add w31r4/OfficeKit \
   --skill office-kit documents spreadsheets excel-live-control presentations pdf template-creator \
   --yes
 ```

@@ -40,8 +40,8 @@ OfficeKit：
 需要 Node.js 22 或更新版本。在 Agent 工作的项目中执行：
 
 ```sh
-npm install github:w31r4/office-kit
-npx skills add w31r4/office-kit --skill '*' --yes
+npm install github:w31r4/OfficeKit
+npx skills add w31r4/OfficeKit --skill '*' --yes
 ```
 
 第一条命令安装文件运行库，第二条命令安装 OfficeKit、四个文件类型 Skill、
@@ -51,7 +51,7 @@ Excel Live Control、Template Creator 和开源模板。无需 clone 仓库，�
 只安装核心 Skills：
 
 ```sh
-npx skills add w31r4/office-kit \
+npx skills add w31r4/OfficeKit \
   --skill office-kit documents spreadsheets excel-live-control presentations pdf template-creator \
   --yes
 ```
