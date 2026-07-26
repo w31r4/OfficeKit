@@ -2,7 +2,7 @@
 
 This is the human capability boundary. It intentionally does **not** duplicate
 versions, package sizes, hashes, URLs, platform availability, or installation
-facts: `open-office-artifact-tool/pdf/providers` owns those in its versioned
+facts: `office-kit/pdf/providers` owns those in its versioned
 catalog and policy resolver.
 
 Choose one provider before touching a file. A provider error is not permission

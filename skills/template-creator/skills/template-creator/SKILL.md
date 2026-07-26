@@ -9,7 +9,7 @@ Create or update a reference-backed local template. The source Office file stays
 
 ## Routing
 
-- Manage only direct-child template skills below `${OFFICE_ARTIFACT_HOME:-~/.office-artifact-tool}/skills`.
+- Manage only direct-child template skills below `${OFFICE_KIT_HOME:-~/.office-kit}/skills`.
 - Create a new template by default. Use a numbered name instead of overwriting an existing template.
 - Update only when the user explicitly identifies exactly one existing `artifact-template-*` skill.
 - Keep template creation local. Do not fetch remote templates or modify installed caches.

@@ -2,9 +2,9 @@
 
 These are format and trust boundaries, not a backlog disguised as unsupported code.
 
-## No OpenChestnut PDF codec
+## No OfficeKit PDF codec
 
-OpenChestnut and its protobuf/WASM protocol remain limited to DOCX, XLSX, and PPTX. PDF uses an independent provider-routing layer. This project does not maintain a general-purpose C# PDF parser/writer, `OpenChestnut.Pdf`, or a second universal PDF object model.
+OfficeKit and its protobuf/WASM protocol remain limited to DOCX, XLSX, and PPTX. PDF uses an independent provider-routing layer. This project does not maintain a general-purpose C# PDF parser/writer, `OfficeKit.Pdf`, or a second universal PDF object model.
 
 The project-owned layer exposes agent-usable primitives: greenfield authoring, runtime-lazy MuPDF.js parsing/inspection/rendering/bounded edits, raw-source provenance, transactional output, save-policy and signature fail-closed rules, plus shared semantic/structural/visual/security QA. Specialist tools remain explicit routes rather than a second universal PDF model.
 

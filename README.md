@@ -40,8 +40,8 @@ OfficeKit：
 需要 Node.js 22 或更新版本。在 Agent 工作的项目中执行：
 
 ```sh
-npm install github:w31r4/open-office-artifact-tool
-npx skills add w31r4/open-office-artifact-tool --skill '*' --yes
+npm install github:w31r4/office-kit
+npx skills add w31r4/office-kit --skill '*' --yes
 ```
 
 第一条命令安装文件运行库，第二条命令安装 OfficeKit、四个文件类型 Skill、
@@ -51,15 +51,15 @@ Excel Live Control、Template Creator 和开源模板。无需 clone 仓库，�
 只安装核心 Skills：
 
 ```sh
-npx skills add w31r4/open-office-artifact-tool \
-  --skill officekit documents spreadsheets excel-live-control presentations pdf template-creator \
+npx skills add w31r4/office-kit \
+  --skill office-kit documents spreadsheets excel-live-control presentations pdf template-creator \
   --yes
 ```
 
 当前正式 npm 包尚未发布，因此使用 GitHub 安装源。发布后第一条命令可改为：
 
 ```sh
-npm install open-office-artifact-tool
+npm install office-kit
 ```
 
 ## 一个总入口，也保留直接入口
@@ -69,7 +69,7 @@ npm install open-office-artifact-tool
 
 | 入口 | 适合的任务 |
 | --- | --- |
-| [OfficeKit](skills/officekit/skills/officekit/SKILL.md) | 不想先研究工具，或需要跨格式、多交付物和模板判断。 |
+| [OfficeKit](skills/office-kit/skills/office-kit/SKILL.md) | 不想先研究工具，或需要跨格式、多交付物和模板判断。 |
 | [Documents](skills/documents/skills/documents/SKILL.md) | 已确定要创建或修改 Word。 |
 | [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | 已确定要处理 Excel、CSV、公式、模型或图表。 |
 | [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | 操作已经在 Excel 中打开的工作簿。 |
@@ -106,7 +106,7 @@ Agent 查看少量候选后选择一个、询问用户或明确不用模板。
 读取原件 → 创建或修改 → 导出 → 重新打开 → 渲染页面 → 检查结果
 ```
 
-- DOCX、XLSX 和 PPTX 统一通过 OpenChestnut C#/.NET WASM 读写；包内没有第二套
+- DOCX、XLSX 和 PPTX 统一通过 OfficeKit C#/.NET WASM 读写；包内没有第二套
   JavaScript Office writer 或静默 fallback。
 - 无法安全修改的 Office 内容会原样保留或明确拒绝修改，不会为了“看起来成功”
   而破坏原文件。
@@ -122,7 +122,7 @@ Skills 和应用代码使用同一个包。Agent 可以按 Skill 完成任务，
 API：
 
 ```js
-import { SpreadsheetFile, Workbook } from "open-office-artifact-tool";
+import { SpreadsheetFile, Workbook } from "office-kit";
 
 const workbook = Workbook.create();
 const sheet = workbook.worksheets.add("Summary");
@@ -142,8 +142,8 @@ await file.save("summary.xlsx");
 - [使用 Compose 创建 PPTX](examples/create-pptx-compose.mjs)
 - [解析与渲染 PDF](examples/parse-render-pdf.mjs)
 
-旧的 `codecs/openxml-wasm` 导入在 0.x 中仍是 OpenChestnut 的弃用别名；
-新代码应使用 `codecs/open-chestnut`。详见 [release notes](docs/release.md)。
+需要直接访问底层 Office codec 时，使用 `office-kit/codec`；生成的 wire
+类型位于 `office-kit/codec/wire`。
 
 ## 文档与开发
 
@@ -159,7 +159,7 @@ npm run docs:api
 npm run release:check
 ```
 
-`OfficeKit` 是产品名；当前包名仍为 `open-office-artifact-tool`。版本 `0.3.0`
+`OfficeKit` 是产品名，npm 包名为 `office-kit`。版本 `0.3.0`
 是 release candidate，尚未正式发布到 npm。
 
 ## 许可证

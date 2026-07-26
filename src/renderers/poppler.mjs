@@ -79,7 +79,7 @@ export async function renderWithPoppler(request = {}, defaultOptions = {}) {
   const outputType = request.outputType || MIME_BY_FORMAT[format];
   if (!outputType || !MIME_BY_FORMAT[format]) throw new Error(`Poppler renderer cannot produce ${request.format || request.outputType || "unknown"}; supported formats are png, ppm, and tiff.`);
   const command = options.command || process.env.POPPLER_RENDER_COMMAND || "pdftoppm";
-  const tempDir = await fs.mkdtemp(path.join(options.tempRoot || os.tmpdir(), "open-office-poppler-"));
+  const tempDir = await fs.mkdtemp(path.join(options.tempRoot || os.tmpdir(), "office-kit-poppler-"));
   const inputPath = path.join(tempDir, "input.pdf");
   const outputPrefix = path.join(tempDir, "page");
   const page = Number(request.options?.page ?? request.options?.pageIndex ?? request.page ?? request.pageIndex ?? options.page ?? options.pageIndex ?? 0) + (request.options?.page || request.page ? 0 : 1);

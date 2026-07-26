@@ -2,7 +2,7 @@
 
 Spreadsheets is the file-type wrapper plugin for spreadsheet artifact workflows, Google Sheets-ready workbooks, and Microsoft Excel live control.
 
-This installable Skill bundle is distributed with `open-office-artifact-tool`.
+This installable Skill bundle is distributed with `office-kit`.
 
 ## Included Skills
 

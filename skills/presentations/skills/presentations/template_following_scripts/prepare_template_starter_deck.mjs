@@ -67,7 +67,7 @@ async function main() {
 
   throw new Error(
     "Template starter generation requires source-preserving imported-slide duplication plus broad graph deletion. " +
-    "The current OpenChestnut codec has only an isolated layout-only delete profile and an unchanged shape/inline-table/image/recursive-group/closed-notes clone that requires export/reimport; it will not reconstruct or share a broad clone graph. No output was written.",
+    "The current OfficeKit codec has only an isolated layout-only delete profile and an unchanged shape/inline-table/image/recursive-group/closed-notes clone that requires export/reimport; it will not reconstruct or share a broad clone graph. No output was written.",
   );
 }
 

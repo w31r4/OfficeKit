@@ -1,5 +1,5 @@
 {
-  "schema": "open-office-artifact-tool.pdf-provider-ocr-release-inputs.v1",
+  "schema": "office-kit.pdf-provider-ocr-release-inputs.v1",
   "schemaVersion": 1,
   "ocrCore": {
     "packId": "ocr-core",
@@ -7,7 +7,7 @@
     "license": "PSF-2.0 AND MPL-2.0 AND Apache-2.0 AND GPL-2.0-or-later AND AGPL-3.0-or-later AND BSD-3-Clause AND MIT",
     "pythonInputs": {
       "path": "scripts/pdf-provider-python-release-inputs.v1.json",
-      "sha256": "35b865e49245334c6eb40eda9cc91e0e715f2a29bece2f9f5730d35cf8833d4e"
+      "sha256": "9c9d03e5a935dc928e7be16c88b742a3fa1d3302b8b1ec3e5fc41f45fc80c2c5"
     },
     "nativeBuild": {
       "darwin-arm64": {

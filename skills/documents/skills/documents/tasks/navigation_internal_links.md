@@ -22,7 +22,7 @@ document.addHyperlink("Jump to decision", target, {
 });
 ```
 
-OpenChestnut authors this as a native whole-block bookmark and internal
+OfficeKit authors this as a native whole-block bookmark and internal
 hyperlink. The bookmark name must begin with an ASCII letter, then use only
 letters, digits, or underscores, and be at most 40 characters. The target must
 be exactly one paragraph-like block. After export, re-import and resolve the

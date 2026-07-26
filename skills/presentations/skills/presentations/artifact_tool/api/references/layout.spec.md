@@ -1,6 +1,6 @@
 # Layouts
 
-`open-office-artifact-tool` can author a deliberately small native PresentationML
+`office-kit` can author a deliberately small native PresentationML
 layout profile. It is useful for repeated agent-generated title/body slides; it
 is not a generic PowerPoint template editor.
 
@@ -12,7 +12,7 @@ type `title`, `body`, `ctrTitle`, or `subTitle`.
 ## Create and apply
 
 ```js
-import { Presentation, PresentationFile } from "open-office-artifact-tool";
+import { Presentation, PresentationFile } from "office-kit";
 
 const presentation = Presentation.create({
   master: {

@@ -1,6 +1,6 @@
 # Third-party notices
 
-`open-office-artifact-tool` is licensed under GNU AGPL-3.0-or-later. It does not contain or redistribute the reference package's private runtime artifacts, compiled implementation modules, WebAssembly payloads, or native bindings. The npm package includes adapted reference Skill workflow text, scripts, and assets under `skills/`; their retained upstream MIT notices remain in force for the original material, while this project's modifications and combined distribution use the repository's AGPL license. The Office codec itself is independently source-built as OpenChestnut.
+`office-kit` is licensed under GNU AGPL-3.0-or-later. It does not contain or redistribute the reference package's private runtime artifacts, compiled implementation modules, WebAssembly payloads, or native bindings. The npm package includes adapted reference Skill workflow text, scripts, and assets under `skills/`; their retained upstream MIT notices remain in force for the original material, while this project's modifications and combined distribution use the repository's AGPL license. The Office codec itself is independently source-built as OfficeKit.
 
 The npm package declares or optionally integrates the following public libraries. Versions are pinned by `package-lock.json`; consult each installed package's `LICENSE` file for complete license text.
 
@@ -16,7 +16,7 @@ The npm package declares or optionally integrates the following public libraries
 | node-canvas (`canvas`) | Optional canvas raster adapter | MIT |
 | Microsoft Open XML SDK (`DocumentFormat.OpenXml`) | OOXML package codec compiled from source into the bundled WebAssembly runtime | MIT |
 | Google Protobuf for .NET | Public protobuf wire-schema runtime compiled from source into the bundled WebAssembly runtime | BSD-3-Clause |
-| .NET 8 WebAssembly runtime | Bundled execution runtime for the OpenChestnut codec | MIT plus the upstream third-party notices shipped under `runtime/open-chestnut/` |
+| .NET 8 WebAssembly runtime | Bundled execution runtime for the OfficeKit codec | MIT plus the upstream third-party notices shipped under `runtime/office-kit/` |
 | Reference file-type Skill bundles | Agent workflow text, helper scripts, and visual assets adapted for the public package | Retained upstream MIT notices for original material; project modifications and combined distribution are AGPL-3.0-or-later |
 
 ## Repository-only Default Template Library
@@ -70,7 +70,7 @@ The following external programs are invoked only when installed separately. They
 - .NET 8 SDK: used to build the WebAssembly codec and optional Office bridge; the SDK is not bundled. The source-built .NET WebAssembly runtime needed by consumers is bundled with its upstream license and notices.
 - Microsoft Office: reference software required only for optional Windows native automation; users must supply a valid installation and license.
 
-OOXML, Open Packaging Conventions, PDF, and related file-format specifications are used as public interoperability standards. OpenChestnut codec behavior is implemented from source with the public Open XML SDK and the repository's versioned wire schema; no private reference runtime binary is shipped.
+OOXML, Open Packaging Conventions, PDF, and related file-format specifications are used as public interoperability standards. OfficeKit codec behavior is implemented from source with the public Open XML SDK and the repository's versioned wire schema; no private reference runtime binary is shipped.
 
 ## Repository-only veraPDF test fixture
 

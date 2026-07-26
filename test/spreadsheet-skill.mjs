@@ -5,17 +5,17 @@ import os from "node:os";
 import path from "node:path";
 import JSZip from "jszip";
 
-import { FileBlob, SpreadsheetFile } from "open-office-artifact-tool";
+import { FileBlob, SpreadsheetFile } from "office-kit";
 import { XLSX_CONNECTION_REFRESH_FIXTURE, XLSX_GROWTH_UPDATE_FIXTURE, XLSX_PIVOT_REFRESH_FIXTURE, generateOfficeInput } from "../scripts/agent-eval-office-fixtures.mjs";
-import { hardenXlsxConnectionRefreshOnOpen } from "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-connection-refresh-hardening-workflow.mjs";
-import { hardenXlsxPivotRefreshOnLoad } from "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-pivot-refresh-hardening-workflow.mjs";
-import { replyAndResolveThreadedComment } from "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-threaded-comment-reply-workflow.mjs";
-import { updateXlsxGrowthAssumption } from "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-growth-assumption-edit-workflow.mjs";
+import { hardenXlsxConnectionRefreshOnOpen } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs";
+import { hardenXlsxPivotRefreshOnLoad } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs";
+import { replyAndResolveThreadedComment } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-threaded-comment-reply-workflow.mjs";
+import { updateXlsxGrowthAssumption } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-growth-assumption-edit-workflow.mjs";
 import { createWorkbookFromFixture, nativeSpreadsheetRenderStatus, runSpreadsheetFixture, verifyWorkbookFile } from "./skill-harness/spreadsheets/scripts/workflow.mjs";
 
 const repoRoot = path.resolve(new URL("..", import.meta.url).pathname);
 const fixtureDir = path.join(repoRoot, "test", "skill-harness", "spreadsheets", "fixtures");
-const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-spreadsheet-skill-"));
+const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-spreadsheet-skill-"));
 
 async function runFixture(name) {
   const result = await runSpreadsheetFixture(path.join(fixtureDir, `${name}.json`), {
@@ -135,7 +135,7 @@ try {
     reply: "Approved after sensitivity review",
     author: "Board secretary",
   });
-  assert.equal(threadedResult.audit.provider.actual, "open-chestnut");
+  assert.equal(threadedResult.audit.provider.actual, "office-kit");
   assert.equal(threadedResult.audit.savePolicy.strategy, "rewrite");
   const threadedRoundTrip = await SpreadsheetFile.importXlsx(await FileBlob.load(threadedEvalOutput));
   const threadedThread = threadedRoundTrip.comments.threads.find((thread) => thread.target.sheetName === "Forecast" && thread.target.address === "F19");
@@ -157,7 +157,7 @@ try {
     outputPath: growthEvalOutput,
     auditPath: growthEvalAudit,
   });
-  assert.equal(growthResult.audit.provider.actual, "open-chestnut");
+  assert.equal(growthResult.audit.provider.actual, "office-kit");
   assert.equal(growthResult.audit.savePolicy.strategy, "rewrite");
   assert.equal(growthResult.audit.validation.reimport.ok, true);
   assert.deepEqual(await fs.readFile(growthEvalInput), growthSourceBefore);
@@ -185,7 +185,7 @@ try {
     connectionId: XLSX_CONNECTION_REFRESH_FIXTURE.connectionId,
     expectedName: XLSX_CONNECTION_REFRESH_FIXTURE.connectionName,
   });
-  assert.equal(connectionResult.audit.provider.actual, "open-chestnut");
+  assert.equal(connectionResult.audit.provider.actual, "office-kit");
   assert.equal(connectionResult.audit.savePolicy.strategy, "rewrite");
   assert.equal(connectionResult.audit.operation.type, "connection-refresh-on-open-hardening");
   assert.equal(connectionResult.audit.validation.reimport.ok, true);
@@ -252,7 +252,7 @@ try {
     worksheetName: XLSX_PIVOT_REFRESH_FIXTURE.sheetName,
     pivotName: XLSX_PIVOT_REFRESH_FIXTURE.pivotName,
   });
-  assert.equal(pivotResult.audit.provider.actual, "open-chestnut");
+  assert.equal(pivotResult.audit.provider.actual, "office-kit");
   assert.equal(pivotResult.audit.savePolicy.strategy, "rewrite");
   assert.equal(pivotResult.audit.operation.type, "pivot-refresh-on-load-hardening");
   assert.equal(pivotResult.audit.validation.package.onlyCacheDefinitionChanged, true);
@@ -345,14 +345,14 @@ try {
   assert.deepEqual(fixtureAssetChecks.getRange("E2:E7").values, [["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"]]);
   assert.equal(fixtureAssetChecks.conditionalFormattings.items.length, 2);
 
-  const basicResult = await runFixture("open-chestnut-basic");
+  const basicResult = await runFixture("office-kit-basic");
   const basicWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(basicResult.workbookPath));
   const dashboard = basicWorkbook.worksheets.getItem("Dashboard");
   assert.deepEqual(dashboard.getRange("C2:C4").values, [[20], [40], [60]]);
   assert.deepEqual(dashboard.mergedRanges, ["A6:D6"]);
   assert.deepEqual(dashboard.charts.items.map((chart) => chart.type), ["bar", "line", "pie", "area", "doughnut"]);
   assert.equal(dashboard.charts.items[1].title, "Edited line trend");
-  assert.equal(dashboard.images.items[0].alt, "Edited OpenChestnut marker");
+  assert.equal(dashboard.images.items[0].alt, "Edited OfficeKit marker");
   assert.equal(dashboard.dataValidations.items.length, 1);
   assert.deepEqual(dashboard.conditionalFormattings.items.map((item) => item.ruleType), ["containsText", "colorScale"]);
   assert.equal(basicWorkbook.definedNames.getItem("ActualValues").refersTo, "Dashboard!$B$2:$B$4");
@@ -362,7 +362,7 @@ try {
   assert.equal(chartXml.filter((xml) => /<c:areaChart>/.test(xml)).length, 1);
   assert.equal(chartXml.filter((xml) => /<c:doughnutChart>/.test(xml)).length, 1);
 
-  const sparklineResult = await runFixture("open-chestnut-sparklines");
+  const sparklineResult = await runFixture("office-kit-sparklines");
   const sparklineWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(sparklineResult.workbookPath));
   const trends = sparklineWorkbook.worksheets.getItem("Trends");
   assert.deepEqual(trends.sparklineGroups.items.map((group) => group.type), ["line", "column", "stacked"]);
@@ -375,9 +375,9 @@ try {
   assert.equal((sparklineXml.match(/<x14:sparkline\b/g) || []).length, 9);
 
   const { createDataTableWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-data-table-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-data-table-workflow.mjs"
   );
-  const dataTablePath = path.join(outputDir, "openchestnut-data-table-workflow.xlsx");
+  const dataTablePath = path.join(outputDir, "officekit-data-table-workflow.xlsx");
   const dataTableResult = await createDataTableWorkbook(dataTablePath);
   assert.equal(dataTableResult.verification.ok, true);
   const dataTableWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(dataTablePath));
@@ -387,12 +387,12 @@ try {
   assert.equal((dataTableXml.match(/<x:f\b[^>]*t="dataTable"/g) || []).length, 2);
 
   const { createDataValidationWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-data-validation-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-data-validation-workflow.mjs"
   );
-  const dataValidationPath = path.join(outputDir, "openchestnut-data-validation-workflow.xlsx");
+  const dataValidationPath = path.join(outputDir, "officekit-data-validation-workflow.xlsx");
   const dataValidationResult = await createDataValidationWorkbook(dataValidationPath);
   assert.equal(dataValidationResult.verification.ok, true);
-  assert.equal(dataValidationResult.audit.provider.actual, "open-chestnut");
+  assert.equal(dataValidationResult.audit.provider.actual, "office-kit");
   assert.equal(dataValidationResult.audit.provider.fallbackUsed, false);
   assert.deepEqual(dataValidationResult.audit.validation.authoredRuleTypes, ["list", "whole", "custom"]);
   assert.equal(dataValidationResult.audit.validation.dropdownVisible, false);
@@ -423,12 +423,12 @@ try {
   }
 
   const { createProtectedInputWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-worksheet-protection-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-worksheet-protection-workflow.mjs"
   );
-  const protectionPath = path.join(outputDir, "openchestnut-worksheet-protection-workflow.xlsx");
+  const protectionPath = path.join(outputDir, "officekit-worksheet-protection-workflow.xlsx");
   const protectionResult = await createProtectedInputWorkbook(protectionPath);
   assert.equal(protectionResult.verification.ok, true);
-  assert.equal(protectionResult.audit.provider.actual, "open-chestnut");
+  assert.equal(protectionResult.audit.provider.actual, "office-kit");
   assert.equal(protectionResult.audit.provider.fallbackUsed, false);
   assert.equal(protectionResult.audit.securityBoundary, "editing-restriction-not-encryption");
   assert.deepEqual(protectionResult.audit.validation.allowedOperations, ["selectUnlockedCells", "sort", "autoFilter"]);
@@ -462,9 +462,9 @@ try {
   }
 
   const { createPivotTableWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-pivot-table-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-table-workflow.mjs"
   );
-  const pivotTablePath = path.join(outputDir, "openchestnut-pivot-table-workflow.xlsx");
+  const pivotTablePath = path.join(outputDir, "officekit-pivot-table-workflow.xlsx");
   const pivotTableResult = await createPivotTableWorkbook(pivotTablePath);
   assert.equal(pivotTableResult.verification.ok, true);
   assert.match(pivotTableResult.inspection.ndjson, /"kind":"pivotTable"/);
@@ -540,9 +540,9 @@ try {
   }
 
   const { createFinancialReturnsWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-financial-returns-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-financial-returns-workflow.mjs"
   );
-  const financialReturnsPath = path.join(outputDir, "openchestnut-financial-returns-workflow.xlsx");
+  const financialReturnsPath = path.join(outputDir, "officekit-financial-returns-workflow.xlsx");
   const financialReturnsResult = await createFinancialReturnsWorkbook(financialReturnsPath);
   assert.equal(financialReturnsResult.verification.ok, true);
   assert.match(financialReturnsResult.inspection.ndjson, /XIRR/);
@@ -558,7 +558,7 @@ try {
   assert.ok(Math.abs(financialReturns.getRange("B9").values[0][0] - 0.14400168352963139) < 1e-9);
   assert.deepEqual(financialChecks.getRange("E4:E10").values, [["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"]]);
   const financialReturnsQa = await verifyWorkbookFile(financialReturnsPath, {
-    outputDir: path.join(outputDir, "openchestnut-financial-returns-native-qa"),
+    outputDir: path.join(outputDir, "officekit-financial-returns-native-qa"),
     sheetName: "Returns",
     renderFormat: "svg",
     nativeRender: "auto",
@@ -570,9 +570,9 @@ try {
   }
 
   const { createLoanAmortizationWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-loan-amortization-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-loan-amortization-workflow.mjs"
   );
-  const loanAmortizationPath = path.join(outputDir, "openchestnut-loan-amortization-workflow.xlsx");
+  const loanAmortizationPath = path.join(outputDir, "officekit-loan-amortization-workflow.xlsx");
   const loanAmortizationResult = await createLoanAmortizationWorkbook(loanAmortizationPath);
   assert.equal(loanAmortizationResult.verification.ok, true);
   assert.match(loanAmortizationResult.inspection.ndjson, /IPMT/);
@@ -601,7 +601,7 @@ try {
   assert.ok(Math.abs(loanAmortizationChecks.getRange("B14").values[0][0] + 100000) < 1e-8);
   assert.deepEqual(loanAmortizationChecks.getRange("E4:E15").values, Array.from({ length: 12 }, () => ["OK"]));
   const loanAmortizationQa = await verifyWorkbookFile(loanAmortizationPath, {
-    outputDir: path.join(outputDir, "openchestnut-loan-amortization-native-qa"),
+    outputDir: path.join(outputDir, "officekit-loan-amortization-native-qa"),
     sheetName: "Amortization",
     renderFormat: "svg",
     nativeRender: "auto",
@@ -613,9 +613,9 @@ try {
   }
 
   const { createAssetDepreciationWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-asset-depreciation-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-asset-depreciation-workflow.mjs"
   );
-  const assetDepreciationPath = path.join(outputDir, "openchestnut-asset-depreciation-workflow.xlsx");
+  const assetDepreciationPath = path.join(outputDir, "officekit-asset-depreciation-workflow.xlsx");
   const assetDepreciationResult = await createAssetDepreciationWorkbook(assetDepreciationPath);
   assert.equal(assetDepreciationResult.verification.ok, true);
   assert.match(assetDepreciationResult.inspection.ndjson, /SLN/);
@@ -629,7 +629,7 @@ try {
   assert.equal(assetDepreciation.getRange("F9").values[0][0], 10000);
   assert.deepEqual(assetDepreciationChecks.getRange("E4:E9").values, [["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"]]);
   const assetDepreciationQa = await verifyWorkbookFile(assetDepreciationPath, {
-    outputDir: path.join(outputDir, "openchestnut-asset-depreciation-native-qa"),
+    outputDir: path.join(outputDir, "officekit-asset-depreciation-native-qa"),
     sheetName: "Depreciation",
     renderFormat: "svg",
     nativeRender: "auto",
@@ -641,9 +641,9 @@ try {
   }
 
   const { createScatterWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-scatter-chart-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-scatter-chart-workflow.mjs"
   );
-  const scatterPath = path.join(outputDir, "openchestnut-scatter-chart-workflow.xlsx");
+  const scatterPath = path.join(outputDir, "officekit-scatter-chart-workflow.xlsx");
   const scatterResult = await createScatterWorkbook(scatterPath);
   assert.equal(scatterResult.verification.ok, true);
   const scatterWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(scatterPath));
@@ -659,7 +659,7 @@ try {
   assert.equal((scatterXml.match(/<a:ln><a:noFill\s*\/><\/a:ln>/g) || []).length, 2);
   assert.equal((scatterXml.match(/<c:valAx>/g) || []).length, 2);
   const scatterQa = await verifyWorkbookFile(scatterPath, {
-    outputDir: path.join(outputDir, "openchestnut-scatter-native-qa"),
+    outputDir: path.join(outputDir, "officekit-scatter-native-qa"),
     sheetName: "Relationship Analysis",
     renderFormat: "svg",
     nativeRender: "auto",
@@ -670,9 +670,9 @@ try {
   }
 
   const { createBubbleWorkbook } = await import(
-    "../skills/spreadsheets/skills/spreadsheets/examples/openchestnut-bubble-chart-workflow.mjs"
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-bubble-chart-workflow.mjs"
   );
-  const bubblePath = path.join(outputDir, "openchestnut-bubble-chart-workflow.xlsx");
+  const bubblePath = path.join(outputDir, "officekit-bubble-chart-workflow.xlsx");
   const bubbleResult = await createBubbleWorkbook(bubblePath);
   assert.equal(bubbleResult.verification.ok, true);
   const bubbleWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(bubblePath));
@@ -688,7 +688,7 @@ try {
   assert.match(bubbleXml, /<c:bubbleSize>/);
   assert.equal((bubbleXml.match(/<c:valAx>/g) || []).length, 2);
   const bubbleQa = await verifyWorkbookFile(bubblePath, {
-    outputDir: path.join(outputDir, "openchestnut-bubble-native-qa"),
+    outputDir: path.join(outputDir, "officekit-bubble-native-qa"),
     sheetName: "Opportunity Analysis",
     renderFormat: "svg",
     nativeRender: "auto",
@@ -698,7 +698,7 @@ try {
     assert.equal(bubbleQa.summary.nativeRender.pageCount, 1);
   }
 
-  const queryResult = await runFixture("open-chestnut-query-table");
+  const queryResult = await runFixture("office-kit-query-table");
   assert.equal(queryResult.sourceQueryTable.sheet, "External Data");
   assert.equal(queryResult.sourceQueryTable.table, "ExternalSales");
   assert.equal(queryResult.sourceQueryTable.query.name, "Warehouse sales");
@@ -732,7 +732,7 @@ try {
   ]);
 
   await assert.rejects(
-    () => SpreadsheetFile.importXlsx(formulaBlob, { codec: "open-chestnut" }),
+    () => SpreadsheetFile.importXlsx(formulaBlob, { codec: "office-kit" }),
     /does not accept option codec/i,
   );
   await assert.rejects(

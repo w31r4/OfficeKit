@@ -11,7 +11,7 @@ file. A slide is one page in the deck.
 
 ```ts
 import fs from "node:fs/promises";
-import { FileBlob, Presentation, PresentationFile } from "open-office-artifact-tool";
+import { FileBlob, Presentation, PresentationFile } from "office-kit";
 ```
 
 ## Create, Render, Export
@@ -21,7 +21,7 @@ layout JSON, writes a deck montage with `montage: true`, and exports PPTX.
 
 ```ts
 import fs from "node:fs/promises";
-import { Presentation, PresentationFile } from "open-office-artifact-tool";
+import { Presentation, PresentationFile } from "office-kit";
 
 async function writeBlob(path: string, blob: Blob): Promise<void> {
   await fs.writeFile(path, new Uint8Array(await blob.arrayBuffer()));
@@ -139,7 +139,7 @@ main().catch((error) => {
 
 ## Canonical Native Chart Families
 
-OpenChestnut writes literal-data native ChartParts for `bar`, `line`, `pie`,
+OfficeKit writes literal-data native ChartParts for `bar`, `line`, `pie`,
 standard `area`, fixed 50%-hole `doughnut`, marker-only `scatter`, bounded 2D
 `bubble`, and the combo profile below. Category families use shared
 `categories`; scatter and bubble instead require aligned finite per-series
@@ -194,7 +194,7 @@ and topology changes fail closed.
 Run the complete Agent workflow from this Skill root:
 
 ```sh
-node examples/openchestnut-chart-families-workflow.mjs \
+node examples/officekit-chart-families-workflow.mjs \
   output/chart-families.pptx \
   output/chart-families.png \
   output/chart-families.audit.json
@@ -215,7 +215,7 @@ no topology changes after import. There are two canonical axis variants:
 - Leave every line on the default primary axis group to use one shared
   category/value pair.
 - Put **every** line at `axisGroup: "secondary"`, keep every bar primary, and
-  provide `axes.secondary.category` plus `axes.secondary.value`. OpenChestnut
+  provide `axes.secondary.category` plus `axes.secondary.value`. OfficeKit
   writes that second pair at the top and right of the chart.
 
 ```ts
@@ -259,7 +259,7 @@ Use JSX when the slide is naturally rows, columns, grids, or overlays.
 
 ```tsx
 /** @jsxRuntime automatic */
-/** @jsxImportSource open-office-artifact-tool/presentation-jsx */
+/** @jsxImportSource office-kit/presentation-jsx */
 
 const frame = { left: 72, top: 64, width: 1136, height: 592 };
 
@@ -371,7 +371,7 @@ When one original imported slide has one explicit, unique native name, use the
 shipped transaction rather than manipulating the package:
 
 ```ts
-import { editPptxSlideName } from "../examples/openchestnut-slide-name-edit-workflow.mjs";
+import { editPptxSlideName } from "../examples/officekit-slide-name-edit-workflow.mjs";
 
 await editPptxSlideName({
   inputPath: "input.pptx",
@@ -382,7 +382,7 @@ await editPptxSlideName({
 });
 ```
 
-The workflow changes only `slide.name`, which crosses OpenChestnut as the
+The workflow changes only `slide.name`, which crosses OfficeKit as the
 existing SlidePart's `p:cSld/@name`. It requires an exact source name, maps
 the actual `presentation.xml` relationship order to the target part, checks
 the saved target name, keeps every non-target part byte-identical, reimports,
@@ -410,7 +410,7 @@ overview.shapes.add({
 For one canonical imported show, use the audited fixed-topology transaction:
 
 ```ts
-import { editPptxCustomShow } from "../examples/openchestnut-custom-show-workflow.mjs";
+import { editPptxCustomShow } from "../examples/officekit-custom-show-workflow.mjs";
 
 await editPptxCustomShow({
   inputPath: "input.pptx",
@@ -444,7 +444,7 @@ presentation.sections.add("Context", [opening, evidence]);
 presentation.sections.add("Decision", [decision]);
 ```
 
-OpenChestnut writes `p14:sectionLst` under the documented PowerPoint section
+OfficeKit writes `p14:sectionLst` under the documented PowerPoint section
 extension in `ppt/presentation.xml`. A source-free section gets a deterministic
 native GUID unless `nativeId` is supplied. For a canonical imported list,
 inspect with `presentation.inspect({ kind: "section" })`, resolve its stable
@@ -470,7 +470,7 @@ For a single imported section-name correction, use the no-overwrite workflow
 instead of editing the package directly:
 
 ```bash
-node examples/openchestnut-section-rename-workflow.mjs \
+node examples/officekit-section-rename-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Context" "Background"
 ```
@@ -486,7 +486,7 @@ For a source-bound boundary move, declare the complete source and replacement
 partitions rather than mutating one neighboring group implicitly:
 
 ```bash
-node examples/openchestnut-section-boundary-edit-workflow.mjs \
+node examples/officekit-section-boundary-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   @expected-sections.json \
   @replacement-sections.json
@@ -529,7 +529,7 @@ extension leaf. Timing/sound/extension/other-effect graphs stay opaque and
 fail closed rather than being reconstructed. Reimport after export. Static
 render QA proves visible slide content only; use a PowerPoint/native-host lane
 for playback QA. For an Agent-facing existing-transition edit, use
-`examples/openchestnut-transition-edit-workflow.mjs`: it requires one unique
+`examples/officekit-transition-edit-workflow.mjs`: it requires one unique
 slide name plus a complete expected and replacement transition object, permits
 only that existing SlidePart to differ, reimports, verifies static render and
 non-transition semantic stability, and writes an auditable no-overwrite result.
@@ -546,7 +546,7 @@ selected source must have one explicit unique name and no NotesSlide or
 legacy-comments leaf.
 
 ```ts
-import { duplicatePptxSlide } from "../examples/openchestnut-slide-duplicate-workflow.mjs";
+import { duplicatePptxSlide } from "../examples/officekit-slide-duplicate-workflow.mjs";
 
 await duplicatePptxSlide({
   inputPath: "input.pptx",
@@ -638,7 +638,7 @@ For source protection, exact target selection, no-overwrite output, package
 scope validation, reimport, and audit, use the shipped workflow:
 
 ```ts
-import { editPptxSmartArtNodeText } from "../examples/openchestnut-smartart-text-edit-workflow.mjs";
+import { editPptxSmartArtNodeText } from "../examples/officekit-smartart-text-edit-workflow.mjs";
 
 await editPptxSmartArtNodeText({
   inputPath: "input/source.pptx",
@@ -699,7 +699,7 @@ if (!notes.capability.sourceBound || notes.capability.partPresent || !notes.capa
 Use the shipped source-bound transaction for the actual edit:
 
 ```ts
-import { addPptxSpeakerNotes } from "../examples/openchestnut-speaker-notes-add-workflow.mjs";
+import { addPptxSpeakerNotes } from "../examples/officekit-speaker-notes-add-workflow.mjs";
 
 await addPptxSpeakerNotes({
   inputPath: "input.pptx",
@@ -732,7 +732,7 @@ recognized local text body; placeholder text replacement preserves its native
 identity, geometry, formatting, and layout binding:
 
 ```ts
-import { editPptxTitleAndNotes } from "../examples/openchestnut-title-notes-edit-workflow.mjs";
+import { editPptxTitleAndNotes } from "../examples/officekit-title-notes-edit-workflow.mjs";
 
 await editPptxTitleAndNotes({
   inputPath: "input.pptx",
@@ -762,7 +762,7 @@ one exact existing run through the dedicated transaction. Do not replace
 `notes.text` or call `textFrame.setText()` on a multi-run imported body:
 
 ```ts
-import { editPptxRichSpeakerNotes } from "../examples/openchestnut-rich-speaker-notes-edit-workflow.mjs";
+import { editPptxRichSpeakerNotes } from "../examples/officekit-rich-speaker-notes-edit-workflow.mjs";
 
 await editPptxRichSpeakerNotes({
   inputPath: "input.pptx",
@@ -831,7 +831,7 @@ JS data cannot grant authority. Use the shipped source-protecting transaction
 for the common single-comment review workflow:
 
 ```ts
-import { addPptxLegacyReviewComment } from "../examples/openchestnut-legacy-comment-add-workflow.mjs";
+import { addPptxLegacyReviewComment } from "../examples/officekit-legacy-comment-add-workflow.mjs";
 
 await addPptxLegacyReviewComment({
   inputPath: "input.pptx",
@@ -845,7 +845,7 @@ await addPptxLegacyReviewComment({
 });
 ```
 
-OpenChestnut creates one canonical shared `CommentAuthorsPart` plus the target
+OfficeKit creates one canonical shared `CommentAuthorsPart` plus the target
 slide's closed numbered `SlideCommentsPart`, allocates relationship IDs without
 colliding with internal/external/hyperlink/data edges, reimports exact comment
 semantics, and leaves slide XML and visible rendering unchanged. The workflow
@@ -861,7 +861,7 @@ count, relationships, and family remain source-bound. Use the corresponding
 audited transaction, never a direct XML patch:
 
 ```ts
-import { editPptxLegacyReviewComment } from "../examples/openchestnut-legacy-comment-edit-workflow.mjs";
+import { editPptxLegacyReviewComment } from "../examples/officekit-legacy-comment-edit-workflow.mjs";
 
 await editPptxLegacyReviewComment({
   inputPath: "input-with-review.pptx",
@@ -923,7 +923,7 @@ Author/person/date identity, anchor/range, position, reply count/order,
 relationships, and source hashes remain fixed. Reactions, task fields, rich
 text, nested replies, connected comment parts, and unknown/nested anchors stay
 opaque/source-bound and fail closed. Run
-`examples/openchestnut-modern-comment-workflow.mjs` for the complete second-
+`examples/officekit-modern-comment-workflow.mjs` for the complete second-
 import, package-inspect, model-render, and audit loop.
 
 ## Local Image Bytes

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
-import { DocumentModel, FileBlob, renderArtifact } from "open-office-artifact-tool";
-import { createPlaywrightRenderer, playwrightRenderer } from "open-office-artifact-tool/renderers/playwright";
+import { DocumentModel, FileBlob, renderArtifact } from "office-kit";
+import { createPlaywrightRenderer, playwrightRenderer } from "office-kit/renderers/playwright";
 
 function shouldSkipPlaywright(error) {
   return /optional peer dependency|Cannot find package 'playwright'|Executable doesn't exist|playwright install|browserType\.launch/i.test(String(error?.message || error));

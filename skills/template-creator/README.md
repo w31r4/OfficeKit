@@ -7,10 +7,10 @@ Create or update reusable local Office templates from a reference `.docx`, `.ppt
 The creator writes user templates below:
 
 ```text
-${OFFICE_ARTIFACT_HOME:-~/.office-artifact-tool}/skills/
+${OFFICE_KIT_HOME:-~/.office-kit}/skills/
 ```
 
-Set `OFFICE_ARTIFACT_HOME` to choose another local root. Each template keeps a verbatim copy of its Office reference and its PNG preview; choose an appropriate local storage location before creating one.
+Set `OFFICE_KIT_HOME` to choose another local root. Each template keeps a verbatim copy of its Office reference and its PNG preview; choose an appropriate local storage location before creating one.
 
 ## Create
 
@@ -68,7 +68,7 @@ provided.
 ## Generated template layout
 
 ```text
-$OFFICE_ARTIFACT_HOME/skills/artifact-template-<slug>/
+$OFFICE_KIT_HOME/skills/artifact-template-<slug>/
 ├── SKILL.md
 ├── artifact-template.json
 ├── agents/agent.yaml

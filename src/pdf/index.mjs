@@ -598,7 +598,7 @@ export class PdfFile {
     for (const match of text.matchAll(/\/Type\s*\/StructElem\b[\s\S]*?\/S\s*\/([A-Za-z0-9]+)/g)) structureRoles[match[1]] = (structureRoles[match[1]] || 0) + 1;
     const headingLevels = Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`H${index + 1}`, structureRoles[`H${index + 1}`] || 0]));
     const records = [
-      { kind: "pdfFile", bytes: bytes.byteLength, version, pages, objects, hasEmbeddedModel: /%OPEN_OFFICE_ARTIFACT [A-Za-z0-9+/=]+/.test(text), hasEof: /%%EOF\s*$/.test(text), tagged: /\/StructTreeRoot\s+\d+\s+0\s+R/.test(text) && /\/MarkInfo\s*<<[^>]*\/Marked\s+true/.test(text), language: /\/Lang\s*\(([^)]*)\)/.exec(text)?.[1], embeddedFonts: [...text.matchAll(/\/Subtype\s*\/Type0\b/g)].length, subsetFonts: new Set([...text.matchAll(/\/BaseFont\s*\/([A-Z]{6}\+[A-Za-z0-9_-]+)/g)].map((match) => match[1])).size, toUnicodeMaps: [...text.matchAll(/\/ToUnicode\s+\d+\s+0\s+R/g)].length, structureElements: [...text.matchAll(/\/Type\s*\/StructElem\b/g)].length, structureRoles, headings: Object.values(headingLevels).reduce((sum, count) => sum + count, 0), headingLevels, readingOrderIds, readingOrderItems: readingOrderIds.length, ...figureAccessibility, ...linkAccessibility, tableStructures: structureRoles.Table || 0, tableRows: structureRoles.TR || 0, tableHeaders: structureRoles.TH || 0, tableDataCells: structureRoles.TD || 0, tableCellIds: [...text.matchAll(/\/S\s*\/(?:TH|TD)\b[\s\S]*?\/ID\s*(?:\([^)]*\)|<[A-Fa-f0-9]+>)/g)].length, rowSpans: [...text.matchAll(/\/RowSpan\s+[2-9]\d*/g)].length, columnSpans: [...text.matchAll(/\/ColSpan\s+[2-9]\d*/g)].length, headerAssociations: [...text.matchAll(/\/Headers\s*\[[^\]]+\]/g)].length, markedContentItems: [...text.matchAll(/\/MCID\s+\d+/g)].length },
+      { kind: "pdfFile", bytes: bytes.byteLength, version, pages, objects, hasEmbeddedModel: /%OFFICE_KIT_ARTIFACT [A-Za-z0-9+/=]+/.test(text), hasEof: /%%EOF\s*$/.test(text), tagged: /\/StructTreeRoot\s+\d+\s+0\s+R/.test(text) && /\/MarkInfo\s*<<[^>]*\/Marked\s+true/.test(text), language: /\/Lang\s*\(([^)]*)\)/.exec(text)?.[1], embeddedFonts: [...text.matchAll(/\/Subtype\s*\/Type0\b/g)].length, subsetFonts: new Set([...text.matchAll(/\/BaseFont\s*\/([A-Z]{6}\+[A-Za-z0-9_-]+)/g)].map((match) => match[1])).size, toUnicodeMaps: [...text.matchAll(/\/ToUnicode\s+\d+\s+0\s+R/g)].length, structureElements: [...text.matchAll(/\/Type\s*\/StructElem\b/g)].length, structureRoles, headings: Object.values(headingLevels).reduce((sum, count) => sum + count, 0), headingLevels, readingOrderIds, readingOrderItems: readingOrderIds.length, ...figureAccessibility, ...linkAccessibility, tableStructures: structureRoles.Table || 0, tableRows: structureRoles.TR || 0, tableHeaders: structureRoles.TH || 0, tableDataCells: structureRoles.TD || 0, tableCellIds: [...text.matchAll(/\/S\s*\/(?:TH|TD)\b[\s\S]*?\/ID\s*(?:\([^)]*\)|<[A-Fa-f0-9]+>)/g)].length, rowSpans: [...text.matchAll(/\/RowSpan\s+[2-9]\d*/g)].length, columnSpans: [...text.matchAll(/\/ColSpan\s+[2-9]\d*/g)].length, headerAssociations: [...text.matchAll(/\/Headers\s*\[[^\]]+\]/g)].length, markedContentItems: [...text.matchAll(/\/MCID\s+\d+/g)].length },
       ...[...text.matchAll(/(\d+)\s+0\s+obj\s*<<([\s\S]*?)>>/g)].slice(0, Math.max(0, Number(options.maxObjects ?? 200) || 0)).map((match) => ({ kind: "pdfObject", object: Number(match[1]), type: /\/Type\s*\/([A-Za-z0-9]+)/.exec(match[2])?.[1], subtype: /\/Subtype\s*\/([A-Za-z0-9]+)/.exec(match[2])?.[1], stream: /\bstream\b/.test(match[0]) })),
     ];
     records[0] = {
@@ -628,7 +628,7 @@ export class PdfFile {
   static async importPdf(blobOrBuffer, options = {}) {
     const bytes = await readPdfInputBytes(blobOrBuffer, options);
     const text = decoder.decode(bytes);
-    const metadata = /%OPEN_OFFICE_ARTIFACT ([A-Za-z0-9+/=]+)/.exec(text)?.[1];
+    const metadata = /%OFFICE_KIT_ARTIFACT ([A-Za-z0-9+/=]+)/.exec(text)?.[1];
     if (metadata && options.preferParser !== true) return PdfArtifact.create(JSON.parse(Buffer.from(metadata, "base64").toString("utf8")));
     const parser = options.parser || options.parseAdapter || options.adapter;
     if (typeof parser === "function") {
@@ -961,7 +961,7 @@ function parsePdfTrueTypeFont(input, options = {}) {
     numberOfGlyphs,
     glyphOffsets,
     glyphTableOffset: glyf.offset,
-    name: String(options.name || "OpenOfficeArtifactEmbedded").replace(/[^A-Za-z0-9_-]/g, "") || "OpenOfficeArtifactEmbedded",
+    name: String(options.name || "OfficeKitArtifactEmbedded").replace(/[^A-Za-z0-9_-]/g, "") || "OfficeKitArtifactEmbedded",
     unitsPerEm,
     advances,
     glyphForCodePoint,
@@ -1558,8 +1558,8 @@ function buildMinimalPdf(artifact, options = {}) {
     }
     for (const plan of plans) for (const group of plan.semanticGroups) writeStructureGroup(group, structTreeRootObjectId);
   }
-  objects.set(infoObjectId, Buffer.from(`<< /Title ${pdfStringToken(title)} /Creator (open-office-artifact-tool) /Producer (open-office-artifact-tool clean-room PDF writer) >>`, "ascii"));
-  const header = Buffer.from(`%PDF-1.7\n%OPEN_OFFICE_ARTIFACT ${metadata}\n`, "ascii");
+  objects.set(infoObjectId, Buffer.from(`<< /Title ${pdfStringToken(title)} /Creator (office-kit) /Producer (office-kit clean-room PDF writer) >>`, "ascii"));
+  const header = Buffer.from(`%PDF-1.7\n%OFFICE_KIT_ARTIFACT ${metadata}\n`, "ascii");
   const chunks = [header];
   const offsets = Array(nextObjectId).fill(0);
   let byteLength = header.byteLength;

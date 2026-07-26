@@ -16,7 +16,7 @@ import subprocess
 import sys
 
 
-CATALOG_SCHEMA = "open-office-artifact-tool.pdf-provider-catalog.v1"
+CATALOG_SCHEMA = "office-kit.pdf-provider-catalog.v1"
 
 
 def load_catalog() -> dict:
@@ -24,7 +24,7 @@ def load_catalog() -> dict:
 
     A packaged Skill may run in the package itself or be copied into an Agent
     workspace. In both cases Node module resolution finds the installed public
-    `open-office-artifact-tool/pdf/providers` subpath. This command reads data
+    `office-kit/pdf/providers` subpath. This command reads data
     only; it never initializes MuPDF or a specialist provider.
     """
 
@@ -32,7 +32,7 @@ def load_catalog() -> dict:
     if not node:
         raise RuntimeError("Node.js is required to read the canonical PDF provider catalog")
     program = (
-        "import { PDF_PROVIDER_CATALOG } from 'open-office-artifact-tool/pdf/providers';"
+        "import { PDF_PROVIDER_CATALOG } from 'office-kit/pdf/providers';"
         "process.stdout.write(JSON.stringify(PDF_PROVIDER_CATALOG));"
     )
     candidates = [Path.cwd(), *[parent for parent in Path(__file__).resolve().parents if (parent / "package.json").is_file()]]
@@ -156,7 +156,7 @@ def probe_provider(name: str, task: str | None = None) -> dict:
     result = {"provider": name, "role": config["role"], "kind": config["kind"], "integration": config["integration"], "available": False, "evidence": {}}
     if config["kind"] == "core":
         result["available"] = bool(shutil.which("node"))
-        result["evidence"] = {"runtime": "open-office-artifact-tool", "node": shutil.which("node")}
+        result["evidence"] = {"runtime": "office-kit", "node": shutil.which("node")}
     elif config["kind"] == "node-package":
         version = node_package_version(config["package"])
         result["available"] = version_in_range(version, config)
@@ -212,12 +212,12 @@ def probe_provider(name: str, task: str | None = None) -> dict:
             result["available"] = bool(result["available"] and all(version_in_range(version, version_config) for version in versions.values()))
     if config.get("license", {}).get("requiresAcknowledgement"):
         result["license"] = config["license"].get("id", config["license"]["expression"])
-        result["licenseAccepted"] = str(os.environ.get("OPEN_OFFICE_PDF_PYMUPDF_LICENSE", "")).lower() in set(config["license"].get("acceptedValues", []))
+        result["licenseAccepted"] = str(os.environ.get("OFFICE_KIT_PDF_PYMUPDF_LICENSE", "")).lower() in set(config["license"].get("acceptedValues", []))
     return result
 
 
 def accepted_pymupdf_license(value: str | None) -> str | None:
-    selected = str(value or os.environ.get("OPEN_OFFICE_PDF_PYMUPDF_LICENSE", "")).strip().lower()
+    selected = str(value or os.environ.get("OFFICE_KIT_PDF_PYMUPDF_LICENSE", "")).strip().lower()
     return selected if selected in {"agpl", "commercial"} else None
 
 
@@ -237,7 +237,7 @@ def validate_plan(args: argparse.Namespace) -> dict:
         raise ContractError("sanitize requires the explicit pymupdf provider")
     license_choice = accepted_pymupdf_license(args.accept_license) if args.provider == "pymupdf" else None
     if args.provider == "pymupdf" and not license_choice:
-        raise ContractError("pymupdf requires --accept-license agpl|commercial or OPEN_OFFICE_PDF_PYMUPDF_LICENSE")
+        raise ContractError("pymupdf requires --accept-license agpl|commercial or OFFICE_KIT_PDF_PYMUPDF_LICENSE")
 
     input_path = Path(args.input).expanduser().resolve() if args.input else None
     output_path = Path(args.output).expanduser().resolve() if args.output else None

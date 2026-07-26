@@ -22,7 +22,7 @@ const execFile = promisify(execFileCallback);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_INPUTS = path.join(__dirname, "pdf-provider-python-release-inputs.v1.json");
 const PACK_BUILDER = path.join(__dirname, "build-pdf-provider-pack.mjs");
-const INPUT_SCHEMA = "open-office-artifact-tool.pdf-provider-python-release-inputs.v1";
+const INPUT_SCHEMA = "office-kit.pdf-provider-python-release-inputs.v1";
 const SUPPORTED_PLATFORMS = new Set(["darwin-arm64", "linux-x64"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 const MAX_REDIRECTS = 5;
@@ -390,7 +390,7 @@ async function build(options, loaded) {
   if (!pack) fail(`inputs do not define pack ${options.pack}.`);
   const runtimeSource = loaded.value.pythonRuntime.platforms[options.platform];
   const wheels = [...pack.commonWheels, ...pack.platformWheels[options.platform]];
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-python-provider-pack-"));
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-python-provider-pack-"));
   try {
     const total = { value: 0 };
     const runtimeArchive = path.join(temporary, "runtime.tar.gz");

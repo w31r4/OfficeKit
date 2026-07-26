@@ -125,7 +125,7 @@ For an Agent-facing transaction over the bare profile (no notes/comments leaf),
 run the shipped workflow with one unique explicit source name:
 
 ```sh
-node "$SKILL_DIR/examples/openchestnut-slide-duplicate-workflow.mjs" \
+node "$SKILL_DIR/examples/officekit-slide-duplicate-workflow.mjs" \
   input/source.pptx output/source-with-copy.pptx output/clone-audit.json \
   "Unique source slide name"
 ```
@@ -255,6 +255,6 @@ const verified = await presentation.inspect({
 ```
 
 Keep unrelated threads and speaker notes intact unless the task explicitly asks
-to clear them. Speaker-note edits use the bounded plain-text OpenChestnut
+to clear them. Speaker-note edits use the bounded plain-text OfficeKit
 contract; rich or irregular imported notes remain preservation-only and fail
 closed on mutation.

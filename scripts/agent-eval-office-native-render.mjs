@@ -40,7 +40,7 @@ export async function renderOfficeFile(filePath, label = "artifact") {
   if (missing.length) return { available: false, reason: "missing " + missing.join(", "), commands: status.commands };
 
   const safeLabel = String(label).replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "") || "artifact";
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-agent-eval-" + safeLabel + "-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-agent-eval-" + safeLabel + "-"));
   try {
     const profile = path.join(root, "profile");
     const converted = spawnSync("soffice", [

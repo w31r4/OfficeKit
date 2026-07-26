@@ -8,7 +8,7 @@ description: "Create, inspect, edit, redact, sign, render, and verify PDF files 
 ## What this Skill does
 
 This Skill gives an agent bounded, auditable PDF primitives. PDF is independent
-from the OpenChestnut DOCX/XLSX/PPTX codec: do not add a PDF protobuf/WASM codec
+from the OfficeKit DOCX/XLSX/PPTX codec: do not add a PDF protobuf/WASM codec
 or reconstruct an imported PDF through `PdfArtifact` or PDF.js and call that a
 fidelity-preserving edit.
 
@@ -33,8 +33,8 @@ Use this sequence for every request:
    inspect, audit, render, and review the output.
 
 ```js
-import { PdfFile } from "open-office-artifact-tool";
-import { PdfProviders } from "open-office-artifact-tool/pdf/providers";
+import { PdfFile } from "office-kit";
+import { PdfProviders } from "office-kit/pdf/providers";
 
 const inspection = await PdfFile.inspectPdf("input.pdf");
 let resolution = await PdfProviders.resolve({
@@ -76,8 +76,8 @@ first MuPDF-backed PDF operation. Root import and provider resolution do not
 start WASM, download a pack, or modify the filesystem.
 
 External capability packs live in the project-private
-`.open-office-artifact-tool/providers/` cache. The conventional policy is
-`.open-office-artifact-tool/pdf-providers.json`; a missing file means
+`.office-kit/providers/` cache. The conventional policy is
+`.office-kit/pdf-providers.json`; a missing file means
 `installPolicy: "disabled"`. An agent may install only after the user/project
 sets `managed`, whitelists every provider and pack, accepts required licences,
 allows the requested OCR languages, and supplies finite byte budgets:

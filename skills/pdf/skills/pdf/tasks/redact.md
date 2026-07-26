@@ -23,7 +23,7 @@ MuPDF.js can apply `redact_text` or `redact_rect` during a full rewrite and refu
 Before mutation, prove the exact adapter surface and bind the destructive route:
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pymupdf_edit.py probe \
   --accept-license agpl --ocr-language eng --require-ocr
 "$PYTHON_BIN" scripts/pdf_provider.py plan \
@@ -73,7 +73,7 @@ For a public-release sanitize with no requested text redaction, use the typed sc
 ```
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pymupdf_edit.py probe --accept-license agpl
 "$PYTHON_BIN" scripts/pdf_provider.py plan \
   --task sanitize --provider pymupdf --strategy sanitize \
@@ -90,4 +90,4 @@ PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
 
 Opaque black rectangles, annotation-only redactions, incremental writes, or text-extraction-only checks are not acceptable. Keep the original and QA evidence under restricted access according to the user's data-handling requirements.
 
-Emit the canonical [`open-office-artifact-tool.pdf-audit.v1`](../references/AUDIT_SCHEMA.md) record, including residue and render evidence under `validation`, and run `scripts/pdf_audit.py validate` against the final sanitized bytes.
+Emit the canonical [`office-kit.pdf-audit.v1`](../references/AUDIT_SCHEMA.md) record, including residue and render evidence under `validation`, and run `scripts/pdf_audit.py validate` against the final sanitized bytes.

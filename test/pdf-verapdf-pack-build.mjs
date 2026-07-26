@@ -20,7 +20,7 @@ function run(arguments_, { expect = 0 } = {}) {
   return result;
 }
 
-assert.equal(inputs.schema, "open-office-artifact-tool.pdf-provider-verapdf-release-inputs.v1");
+assert.equal(inputs.schema, "office-kit.pdf-provider-verapdf-release-inputs.v1");
 assert.equal(inputs.schemaVersion, 1);
 assert.equal(inputs.verapdf.packId, "verapdf");
 assert.equal(inputs.verapdf.version, "1.30.2-oat.1");
@@ -72,7 +72,7 @@ for (const sourceFragment of [
 ]) assert.match(builderSource, new RegExp(sourceFragment.replace(/[.*+?^\x24{}()|[\]\\]/g, "\\$&")));
 assert.doesNotMatch(builderSource, /HOME: process\.env\.HOME/);
 
-const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-verapdf-lock-"));
+const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-verapdf-lock-"));
 try {
   const unsafe = structuredClone(inputs);
   unsafe.verapdf.jre.platforms["linux-x64"].javaHomePath = "../escape";

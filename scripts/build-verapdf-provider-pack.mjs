@@ -23,7 +23,7 @@ const ROOT = path.resolve(__dirname, "..");
 const DEFAULT_INPUTS = path.join(__dirname, "pdf-provider-verapdf-release-inputs.v1.json");
 const PACK_BUILDER = path.join(__dirname, "build-pdf-provider-pack.mjs");
 const INSTALL_TEMPLATE = path.join(ROOT, ".github", "verapdf-auto-install.xml");
-const INPUT_SCHEMA = "open-office-artifact-tool.pdf-provider-verapdf-release-inputs.v1";
+const INPUT_SCHEMA = "office-kit.pdf-provider-verapdf-release-inputs.v1";
 const SUPPORTED_PLATFORMS = new Set(["darwin-arm64", "linux-x64"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 const MAX_INPUT_BYTES = 256 * 1024;
@@ -312,7 +312,7 @@ function launcherText() {
 async function renderInstallerConfig(temporary) {
   const bytes = await fs.readFile(INSTALL_TEMPLATE);
   const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  const marker = "<installpath>/tmp/open-office-verapdf</installpath>";
+  const marker = "<installpath>/tmp/office-kit-verapdf</installpath>";
   if (text.split(marker).length !== 2) fail("the checked-in veraPDF installer template must contain exactly one install path marker.");
   const destination = path.join(temporary, "installation");
   const rendered = text.replace(marker, "<installpath>" + destination + "</installpath>");
@@ -396,7 +396,7 @@ async function build(options, loaded) {
   if (options.pack !== verapdf.packId) fail("inputs do not define pack " + options.pack + ".");
   if (options.version !== verapdf.version) fail("requested version does not match the pinned veraPDF pack version.");
   const jreSource = verapdf.jre.platforms[options.platform];
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-verapdf-provider-pack-"));
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-verapdf-provider-pack-"));
   try {
     const total = { value: 0 };
     const installerArchive = path.join(temporary, "verapdf-installer.zip");

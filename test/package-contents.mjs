@@ -10,8 +10,13 @@ assert.equal(packageMetadata.license, "AGPL-3.0-or-later");
 assert.equal(packageMetadata.dependencies.mupdf, "1.28.0");
 assert.equal(packageMetadata.exports["./pdf/mupdf"], "./src/pdf/mupdf.mjs");
 assert.equal(packageMetadata.exports["./pdf/providers"], "./src/pdf/providers/index.mjs");
-assert.equal(packageMetadata.exports["./codecs/openxml-wasm"], "./src/codecs/openxml-wasm.mjs");
-assert.equal(packageMetadata.exports["./codecs/openxml-wasm/wire"], "./src/codecs/openxml-wasm-wire.mjs");
+assert.equal(packageMetadata.exports["./codec"], "./src/codecs/office-kit.mjs");
+assert.equal(
+  packageMetadata.exports["./codec/wire"],
+  "./src/generated/office_kit/artifact/v1/office_artifact_pb.js",
+);
+assert.equal(packageMetadata.exports["./codecs/office-kit"], undefined);
+assert.equal(packageMetadata.exports["./codecs/openxml-wasm"], undefined);
 assert.equal(packageMetadata.bin, undefined, "MuPDF must not require an installer command");
 assert.equal(packageMetadata.scripts.postinstall, undefined, "MuPDF must not require npm lifecycle hooks");
 const pdfFacadeSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "index.mjs"), "utf8");
@@ -19,13 +24,13 @@ assert.match(pdfFacadeSource, /await import\("\.\/mupdf\.mjs"\)/, "MuPDF must lo
 assert.doesNotMatch(pdfFacadeSource, /from\s+["']mupdf["']/, "the root PDF facade must not initialize MuPDF eagerly");
 const pdfProvidersSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "providers", "index.mjs"), "utf8");
 assert.doesNotMatch(pdfProvidersSource, /from\s+["']mupdf["']/, "the explicit provider subpath must not initialize MuPDF eagerly");
-const presentationCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "open-chestnut-presentation.mjs"), "utf8");
+const presentationCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-presentation.mjs"), "utf8");
 assert.match(presentationCodecSource, /from "\.\.\/presentation\/index\.mjs";/, "the Presentation codec must depend on the Presentation leaf module");
-assert.match(presentationCodecSource, /from "\.\/open-chestnut-presentation-charts\.mjs";/, "the Presentation codec must delegate chart wire semantics to the chart leaf module");
+assert.match(presentationCodecSource, /from "\.\/office-kit-presentation-charts\.mjs";/, "the Presentation codec must delegate chart wire semantics to the chart leaf module");
 assert.doesNotMatch(presentationCodecSource, /from "\.\.\/index\.mjs";/, "the Presentation codec must not create a back-edge to the root entry");
-const presentationChartCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "open-chestnut-presentation-charts.mjs"), "utf8");
+const presentationChartCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-presentation-charts.mjs"), "utf8");
 assert.doesNotMatch(presentationChartCodecSource, /from "\.\.\/index\.mjs";/, "the Presentation chart codec must not create a back-edge to the root entry");
-const spreadsheetCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "open-chestnut.mjs"), "utf8");
+const spreadsheetCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit.mjs"), "utf8");
 assert.match(spreadsheetCodecSource, /from "\.\.\/spreadsheet\/index\.mjs";/, "the Spreadsheet codec must depend on the Spreadsheet leaf module");
 assert.doesNotMatch(spreadsheetCodecSource, /from "\.\.\/index\.mjs";/, "the Spreadsheet codec must not create a back-edge to the root entry");
 const spreadsheetLeafSource = await fs.readFile(path.join(repoRoot, "src", "spreadsheet", "index.mjs"), "utf8");
@@ -48,7 +53,7 @@ const files = report.files.map((item) => item.path);
 // lossless Skill-PNG recompression reduced the local candidate to 8,959,764
 // bytes without hiding future product growth behind a smaller replacement cap.
 const maxPackedBytes = 9_840_000;
-// The bundled OpenChestnut runtime is an audited product payload, not an
+// The bundled OfficeKit runtime is an audited product payload, not an
 // optional download. Keep its unpacked budget tight while allowing the
 // audited PDF provider/docs growth plus the bounded Office codecs and runnable
 // workflows. The managed-capability resolver distributes only catalog, policy,
@@ -83,24 +88,22 @@ for (const required of [
   "docs/api.md",
   "docs/reference-skills.md",
   "docs/template-library-provenance.md",
-  "proto/open_office/artifact/v1/office_artifact.proto",
-  "src/generated/open_office/artifact/v1/office_artifact_pb.js",
-  "src/codecs/open-chestnut.mjs",
-  "src/codecs/openxml-wasm.mjs",
-  "src/codecs/openxml-wasm-wire.mjs",
-  "src/codecs/open-chestnut-error.mjs",
-  "src/codecs/open-chestnut-assets.mjs",
-  "src/codecs/open-chestnut-presentation.mjs",
-  "src/codecs/open-chestnut-presentation-charts.mjs",
-  "src/codecs/open-chestnut-spreadsheet-pivots.mjs",
-  "runtime/open-chestnut/main.mjs",
-  "runtime/open-chestnut/manifest.json",
-  "runtime/open-chestnut/sbom.cdx.json",
-  "runtime/open-chestnut/DOTNET-LICENSE.TXT",
-  "runtime/open-chestnut/DOTNET-THIRD-PARTY-NOTICES.TXT",
-  "runtime/open-chestnut/_framework/dotnet.native.wasm",
-  "runtime/open-chestnut/_framework/OpenChestnut.Codec.wasm",
-  "runtime/open-chestnut/_framework/OpenChestnut.Runtime.wasm",
+  "proto/office_kit/artifact/v1/office_artifact.proto",
+  "src/generated/office_kit/artifact/v1/office_artifact_pb.js",
+  "src/codecs/office-kit.mjs",
+  "src/codecs/office-kit-error.mjs",
+  "src/codecs/office-kit-assets.mjs",
+  "src/codecs/office-kit-presentation.mjs",
+  "src/codecs/office-kit-presentation-charts.mjs",
+  "src/codecs/office-kit-spreadsheet-pivots.mjs",
+  "runtime/office-kit/main.mjs",
+  "runtime/office-kit/manifest.json",
+  "runtime/office-kit/sbom.cdx.json",
+  "runtime/office-kit/DOTNET-LICENSE.TXT",
+  "runtime/office-kit/DOTNET-THIRD-PARTY-NOTICES.TXT",
+  "runtime/office-kit/_framework/dotnet.native.wasm",
+  "runtime/office-kit/_framework/OfficeKit.Codec.wasm",
+  "runtime/office-kit/_framework/OfficeKit.Runtime.wasm",
   "src/ooxml/docx-comments.mjs",
   "src/ooxml/docx-bibliography.mjs",
   "src/ooxml/package.mjs",
@@ -155,7 +158,7 @@ for (const required of [
   "src/spreadsheet/index.mjs",
   "src/spreadsheet/data-validations.mjs",
   "src/spreadsheet/data-tables.mjs",
-  "src/codecs/open-chestnut-spreadsheet-data-tables.mjs",
+  "src/codecs/office-kit-spreadsheet-data-tables.mjs",
   "src/spreadsheet/formula-coercion.mjs",
   "src/spreadsheet/chart-source-data.mjs",
   "src/spreadsheet/ooxml-styles.mjs",
@@ -169,7 +172,7 @@ for (const required of [
   "src/spreadsheet/range-operations.mjs",
   "src/spreadsheet/structured-references.mjs",
   "src/spreadsheet/worksheet-protection.mjs",
-  "src/codecs/open-chestnut-spreadsheet-protection.mjs",
+  "src/codecs/office-kit-spreadsheet-protection.mjs",
   "native/OfficeBridge/src/OfficeBridge.csproj",
   "skills/documents/.codex-plugin/plugin.json",
   "skills/documents/README.md",
@@ -178,11 +181,11 @@ for (const required of [
   "skills/documents/skills/documents/agents/openai.yaml",
   "skills/documents/skills/documents/LICENSE.txt",
   "skills/documents/skills/documents/artifact_tool/API_QUICK_START.md",
-  "skills/documents/skills/documents/examples/openchestnut-end-to-end.mjs",
-  "skills/documents/skills/documents/examples/openchestnut-classic-comment-edit-workflow.mjs",
-  "skills/documents/skills/documents/examples/openchestnut-page-furniture-text-edit.mjs",
-  "skills/documents/skills/documents/examples/openchestnut-header-text-edit-workflow.mjs",
-  "skills/documents/skills/documents/examples/openchestnut-footer-text-edit-workflow.mjs",
+  "skills/documents/skills/documents/examples/officekit-end-to-end.mjs",
+  "skills/documents/skills/documents/examples/officekit-classic-comment-edit-workflow.mjs",
+  "skills/documents/skills/documents/examples/officekit-page-furniture-text-edit.mjs",
+  "skills/documents/skills/documents/examples/officekit-header-text-edit-workflow.mjs",
+  "skills/documents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/end_to_end_smoke_test.md",
   "skills/documents/skills/documents/render_docx.py",
   "skills/documents/skills/documents/scripts/docx_ooxml_patch.py",
@@ -195,19 +198,19 @@ for (const required of [
   "skills/spreadsheets/skills/spreadsheets/artifact_tool_docs/API_QUICK_START.md",
   "skills/spreadsheets/skills/spreadsheets/features/charts.md",
   "skills/spreadsheets/skills/spreadsheets/features/pivot-tables.md",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-range-workflow.mjs",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-sparkline-workflow.mjs",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-data-table-workflow.mjs",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-data-validation-workflow.mjs",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-worksheet-protection-workflow.mjs",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-pivot-table-workflow.mjs",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-loan-amortization-workflow.mjs",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-asset-depreciation-workflow.mjs",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-scatter-chart-workflow.mjs",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-bubble-chart-workflow.mjs",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-growth-assumption-edit-workflow.mjs",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-connection-refresh-hardening-workflow.mjs",
-  "skills/spreadsheets/skills/spreadsheets/examples/openchestnut-pivot-refresh-hardening-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-range-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-sparkline-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-data-table-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-data-validation-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-worksheet-protection-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-table-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-loan-amortization-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-asset-depreciation-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-scatter-chart-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-bubble-chart-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-growth-assumption-edit-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs",
   "skills/spreadsheets/skills/excel-live-control/SKILL.md",
   "skills/spreadsheets/skills/excel-live-control/agents/openai.yaml",
   "skills/spreadsheets/skills/excel-live-control/assets/file-spreadsheet.png",
@@ -218,21 +221,21 @@ for (const required of [
   "skills/presentations/skills/presentations/style_guidelines.md",
   "skills/presentations/skills/presentations/routing/google_slides.md",
   "skills/presentations/skills/presentations/artifact_tool/API_QUICK_START.md",
-  "skills/presentations/skills/presentations/examples/openchestnut-chart-families-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-legacy-comment-add-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-legacy-comment-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-speaker-notes-add-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-title-notes-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-rich-speaker-notes-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-slide-name-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-view-properties-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-transition-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-section-rename-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-section-boundary-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-custom-show-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-slide-duplicate-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-smartart-text-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/openchestnut-ole-office-package-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-chart-families-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-legacy-comment-add-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-legacy-comment-edit-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-speaker-notes-add-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-title-notes-edit-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-rich-speaker-notes-edit-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-slide-name-edit-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-view-properties-edit-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-transition-edit-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-section-rename-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-section-boundary-edit-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-custom-show-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-smartart-text-edit-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-ole-office-package-workflow.mjs",
   "skills/presentations/skills/presentations/artifact_tool/api/references/custom-shows.spec.md",
   "skills/presentations/skills/presentations/artifact_tool/api/references/sections.spec.md",
   "skills/presentations/skills/presentations/artifact_tool/api/references/transitions.spec.md",
@@ -245,13 +248,13 @@ for (const required of [
   "skills/presentations/skills/presentations/builtin_templates_support/scripts/create-presentation.mjs",
   "skills/presentations/skills/presentations/assets/builtin_templates/grid-layout-library/artifact-tool-compose/index.mjs",
   "skills/presentations/skills/presentations/assets/builtin_templates/grid-layout-library/assets/previews/layout-library.png",
-  "skills/officekit/.codex-plugin/plugin.json",
-  "skills/officekit/README.md",
-  "skills/officekit/skills/officekit/SKILL.md",
-  "skills/officekit/skills/officekit/agents/openai.yaml",
-  "skills/officekit/skills/officekit/references/routing.md",
-  "skills/officekit/skills/officekit/references/template-selection.md",
-  "skills/officekit/skills/officekit/scripts/query-templates.mjs",
+  "skills/office-kit/.codex-plugin/plugin.json",
+  "skills/office-kit/README.md",
+  "skills/office-kit/skills/office-kit/SKILL.md",
+  "skills/office-kit/skills/office-kit/agents/openai.yaml",
+  "skills/office-kit/skills/office-kit/references/routing.md",
+  "skills/office-kit/skills/office-kit/references/template-selection.md",
+  "skills/office-kit/skills/office-kit/scripts/query-templates.mjs",
   "skills/template-creator/.codex-plugin/plugin.json",
   "skills/template-creator/manifest.json",
   "skills/template-creator/README.md",
@@ -313,7 +316,7 @@ for (const required of [
 assert.ok(files.every((file) => !file.includes("/bin/") && !file.includes("/obj/")), "npm package must exclude dotnet bin/obj build output");
 for (const removed of [
   "src/codecs/office-codec-policy.mjs",
-  "skills/shared/open-chestnut-compat.mjs",
+  "skills/shared/office-kit-compat.mjs",
   "src/spreadsheet/ooxml-drawings.mjs",
   "src/spreadsheet/ooxml-pivots.mjs",
   "src/presentation/master-graph.mjs",
@@ -327,9 +330,9 @@ assert.ok(files.filter((file) => file.startsWith("src/pdf/providers/")).every((f
 assert.ok(files.every((file) => !file.startsWith("reference/")), "npm package must exclude reference material");
 assert.ok(!files.includes("native/OfficeBridge/OfficeBridge.sln"), "npm package must not publish a solution whose test project is repository-only");
 assert.ok(files.every((file) => !file.startsWith("skills/default-template-library/")), "npm package must exclude the repository-only retained default template library");
-assert.ok(files.every((file) => !file.startsWith("native/OpenChestnut/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OpenChestnut source or build tooling");
+assert.ok(files.every((file) => !file.startsWith("native/OfficeKit/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OfficeKit source or build tooling");
 assert.ok(files.every((file) => !file.startsWith("evals/") && file !== "docs/agent-evals.md"), "npm runtime package must exclude the evaluator-side PromptBench and its oracle documentation");
-assert.ok(!files.includes("docs/coverage.md") && !files.includes("docs/release.md") && !files.includes("docs/reference-runtime-architecture.md") && !files.includes("native/OpenChestnut/README.md"), "npm runtime package must exclude repository-only coverage, release history, and subsystem implementation notes");
+assert.ok(!files.includes("docs/coverage.md") && !files.includes("docs/release.md") && !files.includes("docs/reference-runtime-architecture.md") && !files.includes("native/OfficeKit/README.md"), "npm runtime package must exclude repository-only coverage, release history, and subsystem implementation notes");
 const skillPngs = report.files.filter(({ path: filename }) => /^skills\/(?:documents|spreadsheets|presentations|pdf)\/.*\.png$/.test(filename));
 const skillPngBytes = skillPngs.reduce((total, { size }) => total + size, 0);
 assert.equal(skillPngs.length, 40, "npm package must retain all 40 public Skill PNG assets");

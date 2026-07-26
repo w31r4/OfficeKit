@@ -5,10 +5,10 @@
   "author": {
     "name": "w31r4",
     "email": "w31r4@users.noreply.github.com",
-    "url": "https://github.com/w31r4/open-office-artifact-tool"
+    "url": "https://github.com/w31r4/office-kit"
   },
-  "homepage": "https://github.com/w31r4/open-office-artifact-tool",
-  "repository": "https://github.com/w31r4/open-office-artifact-tool",
+  "homepage": "https://github.com/w31r4/office-kit",
+  "repository": "https://github.com/w31r4/office-kit",
   "license": "AGPL-3.0-or-later",
   "keywords": [
     "slides",
@@ -33,9 +33,9 @@
       "Interactive",
       "Write"
     ],
-    "websiteURL": "https://github.com/w31r4/open-office-artifact-tool",
-    "privacyPolicyURL": "https://github.com/w31r4/open-office-artifact-tool#readme",
-    "termsOfServiceURL": "https://github.com/w31r4/open-office-artifact-tool#readme",
+    "websiteURL": "https://github.com/w31r4/office-kit",
+    "privacyPolicyURL": "https://github.com/w31r4/office-kit#readme",
+    "termsOfServiceURL": "https://github.com/w31r4/office-kit#readme",
     "composerIcon": "./assets/icon.png",
     "logo": "./assets/logo.png",
     "defaultPrompt": [

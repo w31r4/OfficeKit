@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import JSZip from "jszip";
 
-import { DocumentFile, DocumentModel, FileBlob } from "open-office-artifact-tool";
+import { DocumentFile, DocumentModel, FileBlob } from "office-kit";
 import {
   createDocumentFromFixture,
   nativeDocumentRenderStatus,
@@ -15,7 +15,7 @@ import {
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const fixturesDir = path.join(repoRoot, "test", "skill-harness", "documents", "fixtures");
-const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-document-skill-"));
+const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-document-skill-"));
 const baselineDir = path.join(outputDir, "baselines");
 const nativeStatus = nativeDocumentRenderStatus();
 
@@ -90,7 +90,7 @@ try {
   assert.match(businessXml, /<w:sectPr>/);
   assert.match(await fs.readFile(business.qa.summary.files.packageInspect, "utf8"), /word\/document\.xml/);
 
-  const floating = await runFixture("open-chestnut-floating-image", {
+  const floating = await runFixture("office-kit-floating-image", {
     nativeRender: nativeStatus.available ? "required" : "auto",
   });
   const floatingDocument = await DocumentFile.importDocx(await FileBlob.load(floating.docxPath));
@@ -112,7 +112,7 @@ try {
   assert.match(floatingXml, /<wp:positionV relativeFrom="paragraph"><wp:posOffset>0<\/wp:posOffset><\/wp:positionV>/);
   assert.match(floatingXml, /<wp:wrapTopAndBottom\s*\/>/);
 
-  const pictureBullets = await runFixture("open-chestnut-picture-bullets", {
+  const pictureBullets = await runFixture("office-kit-picture-bullets", {
     nativeRender: nativeStatus.available ? "required" : "auto",
   });
   const pictureBulletDocument = await DocumentFile.importDocx(await FileBlob.load(pictureBullets.docxPath));
@@ -133,7 +133,7 @@ try {
   assert.match(pictureBulletNumberingXml, /<w:lvlOverride[^>]*w:ilvl="0">[\s\S]*<w:lvlPicBulletId w:val="1"\s*\/>/);
   assert.match(pictureBulletNumberingXml, /<v:shape(?=[^>]*style="width:16pt;height:14pt")(?=[^>]*alt="Approved green action marker")[^>]*>/);
 
-  const watermark = await runFixture("open-chestnut-watermark", {
+  const watermark = await runFixture("office-kit-watermark", {
     nativeRender: nativeStatus.available ? "required" : "auto",
   });
   const watermarkDocument = await DocumentFile.importDocx(await FileBlob.load(watermark.docxPath));
@@ -156,7 +156,7 @@ try {
   assert.match(await watermarkZip.file(watermarkHeaderPath).async("text"), /<v:textpath[^>]*string="INTERNAL REVIEW"/);
   const watermarkSourceBytes = await fs.readFile(watermark.docxPath);
   const { editDocumentWatermark } = await import(
-    "../skills/documents/skills/documents/examples/openchestnut-watermark-workflow.mjs"
+    "../skills/documents/skills/documents/examples/officekit-watermark-workflow.mjs"
   );
   const watermarkWorkflowOutput = path.join(outputDir, "watermark-approved.docx");
   const watermarkWorkflowAudit = path.join(outputDir, "watermark-approved-audit.json");
@@ -170,7 +170,7 @@ try {
     referenceType: "default",
   });
   assert.deepEqual(watermarkWorkflow.audit.operation.changedParts, [watermarkHeaderPath]);
-  assert.equal(watermarkWorkflow.audit.provider.actual, "open-chestnut");
+  assert.equal(watermarkWorkflow.audit.provider.actual, "office-kit");
   assert.equal(watermarkWorkflow.audit.provider.silentFallback, false);
   assert.equal(watermarkWorkflow.audit.validation.secondImport, true);
   assert.equal(watermarkWorkflow.audit.validation.nativeRenderRequiredBeforeDelivery, true);
@@ -189,7 +189,7 @@ try {
   await (await DocumentFile.exportDocx(headerWorkflowDocument)).save(headerWorkflowSourcePath);
   const headerWorkflowSourceBytes = await fs.readFile(headerWorkflowSourcePath);
   const { editImportedHeaderText } = await import(
-    "../skills/documents/skills/documents/examples/openchestnut-header-text-edit-workflow.mjs"
+    "../skills/documents/skills/documents/examples/officekit-header-text-edit-workflow.mjs"
   );
   const headerWorkflow = await editImportedHeaderText({
     inputPath: headerWorkflowSourcePath,
@@ -200,7 +200,7 @@ try {
     sectionIndex: 0,
     referenceType: "default",
   });
-  assert.equal(headerWorkflow.audit.provider.actual, "open-chestnut");
+  assert.equal(headerWorkflow.audit.provider.actual, "office-kit");
   assert.equal(headerWorkflow.audit.provider.silentFallback, false);
   assert.equal(headerWorkflow.audit.savePolicy.noReplace, true);
   assert.deepEqual(headerWorkflow.audit.validation.changedParts, ["word/header1.xml"]);
@@ -246,7 +246,7 @@ try {
   await (await DocumentFile.exportDocx(footerWorkflowDocument)).save(footerWorkflowSourcePath);
   const footerWorkflowSourceBytes = await fs.readFile(footerWorkflowSourcePath);
   const { editImportedFooterText } = await import(
-    "../skills/documents/skills/documents/examples/openchestnut-footer-text-edit-workflow.mjs"
+    "../skills/documents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs"
   );
   const footerWorkflow = await editImportedFooterText({
     inputPath: footerWorkflowSourcePath,
@@ -257,7 +257,7 @@ try {
     sectionIndex: 0,
     referenceType: "default",
   });
-  assert.equal(footerWorkflow.audit.provider.actual, "open-chestnut");
+  assert.equal(footerWorkflow.audit.provider.actual, "office-kit");
   assert.equal(footerWorkflow.audit.provider.silentFallback, false);
   assert.equal(footerWorkflow.audit.savePolicy.noReplace, true);
   assert.deepEqual(footerWorkflow.audit.validation.changedParts, ["word/footer1.xml"]);
@@ -296,7 +296,7 @@ try {
   assert.deepEqual(watermarkRemoval.audit.operation.changedParts, [watermarkHeaderPath]);
   assert.equal((await DocumentFile.importDocx(await FileBlob.load(watermarkRemovalOutput))).watermarks.length, 0);
 
-  const merged = await runFixture("open-chestnut-merged-table");
+  const merged = await runFixture("office-kit-merged-table");
   const mergedDocument = await DocumentFile.importDocx(await FileBlob.load(merged.docxPath));
   const mergedTable = mergedDocument.blocks.find((block) => block.kind === "table");
   assert.equal(mergedTable?.values[0][0], "Edited merged owner");
@@ -308,21 +308,21 @@ try {
   assert.deepEqual(mergedTable?.columnWidthsDxa, [2500, 3100, 3700]);
   assert.equal(mergedTable?.borderColor, "884400");
 
-  const numbering = await runFixture("open-chestnut-numbering-edit");
+  const numbering = await runFixture("office-kit-numbering-edit");
   const numberingDocument = await DocumentFile.importDocx(await FileBlob.load(numbering.docxPath));
   const numberedItems = numberingDocument.blocks.filter((block) => block.kind === "listItem");
   assert.equal(numberedItems.length, 2);
   assert.equal(numberedItems[0].text, "Edited first grouped item");
   assert.equal(numberedItems.every((block) => block.numberFormat === "lowerRoman" && block.start === 5 && block.levelText === "%1."), true);
 
-  const comments = await runFixture("open-chestnut-comments");
+  const comments = await runFixture("office-kit-comments");
   const commentsDocument = await DocumentFile.importDocx(await FileBlob.load(comments.docxPath));
   assert.equal(commentsDocument.comments.length, 1);
   assert.equal(commentsDocument.comments[0].author, "Lead reviewer");
   assert.equal(commentsDocument.comments[0].initials, "LR");
   assert.equal(commentsDocument.comments[0].text, "Approved after source-bound review.");
 
-  const controls = await runFixture("open-chestnut-content-controls", {
+  const controls = await runFixture("office-kit-content-controls", {
     nativeRender: nativeStatus.available ? "required" : "auto",
   });
   const controlsDocument = await DocumentFile.importDocx(await FileBlob.load(controls.docxPath));
@@ -366,7 +366,7 @@ try {
   assert.match(controlsXml, /<w:tc>[\s\S]*?<w:tag w:val="TABLE_CONTACT"\s*\/>[\s\S]*?<w:comboBox w:lastValue="In person">[\s\S]*?<\/w:sdt>[\s\S]*?<\/w:tc>/);
   assert.match(controlsXml, /<w:tc>[\s\S]*?<w:tag w:val="TABLE_REVIEW_DATE"\s*\/>[\s\S]*?<w:date w:fullDate="2028-02-29T00:00:00Z">[\s\S]*?<\/w:sdt>[\s\S]*?<\/w:tc>/);
 
-  const bibliography = await runFixture("open-chestnut-bibliography");
+  const bibliography = await runFixture("office-kit-bibliography");
   const bibliographyDocument = await DocumentFile.importDocx(await FileBlob.load(bibliography.docxPath));
   assert.equal(bibliographyDocument.bibliography.styleName, "APA");
   assert.deepEqual(bibliographyDocument.bibliographySources.map((source) => [source.tag, source.title, source.authors[0].first]), [
@@ -383,13 +383,13 @@ try {
   assert.match(await bibliographyZip.file("word/document.xml").async("text"), /w:instr=" CITATION AgentSource "/);
   assert.match(await bibliographyZip.file("word/document.xml").async("text"), /w:instr="BIBLIOGRAPHY"/);
 
-  const multiParagraphNotes = await runFixture("open-chestnut-multi-paragraph-notes", {
+  const multiParagraphNotes = await runFixture("office-kit-multi-paragraph-notes", {
     nativeRender: nativeStatus.available ? "required" : "auto",
   });
   const multiParagraphNotesDocument = await DocumentFile.importDocx(await FileBlob.load(multiParagraphNotes.docxPath));
   assert.deepEqual(multiParagraphNotesDocument.notes.map((note) => [note.kind, note.paragraphs]), [
     ["footnote", ["The integration test passed against the bundled codec.", "Native page render evidence was reviewed before delivery."]],
-    ["endnote", ["OpenChestnut preserves the source-bound anchor and note identity.", "Exactly two physical plain-text paragraphs remain editable."]],
+    ["endnote", ["OfficeKit preserves the source-bound anchor and note identity.", "Exactly two physical plain-text paragraphs remain editable."]],
   ]);
   assert.equal(multiParagraphNotes.qa.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
   const multiParagraphNotesZip = await JSZip.loadAsync(await fs.readFile(multiParagraphNotes.docxPath));
@@ -397,10 +397,10 @@ try {
   const endnoteXml = await multiParagraphNotesZip.file("word/endnotes.xml").async("text");
   assert.match(footnoteXml, /The integration test passed against the bundled codec\./);
   assert.match(footnoteXml, /Native page render evidence was reviewed before delivery\./);
-  assert.match(endnoteXml, /OpenChestnut preserves the source-bound anchor and note identity\./);
+  assert.match(endnoteXml, /OfficeKit preserves the source-bound anchor and note identity\./);
   assert.match(endnoteXml, /Exactly two physical plain-text paragraphs remain editable\./);
 
-  const toc = await runFixture("open-chestnut-toc", {
+  const toc = await runFixture("office-kit-toc", {
     nativeRender: nativeStatus.available ? "required" : "auto",
   });
   const tocDocument = await DocumentFile.importDocx(await FileBlob.load(toc.docxPath));
@@ -419,7 +419,7 @@ try {
   assert.match(tocXml, /w:fldCharType="end"/);
   assert.match(tocSettings, /<w:updateFields\b[^>]*w:val="true"/);
 
-  const inlineFields = await runFixture("open-chestnut-inline-fields", {
+  const inlineFields = await runFixture("office-kit-inline-fields", {
     nativeRender: nativeStatus.available ? "required" : "auto",
   });
   const inlineFieldDocument = await DocumentFile.importDocx(await FileBlob.load(inlineFields.docxPath));
@@ -455,7 +455,7 @@ try {
   const classicTarget = classicDocument.blocks.find((block) => block.id === classicDocument.comments[0].targetId);
   assert.equal(classicTarget?.kind, "paragraph");
   const { editClassicComment } = await import(
-    "../skills/documents/skills/documents/examples/openchestnut-classic-comment-edit-workflow.mjs"
+    "../skills/documents/skills/documents/examples/officekit-classic-comment-edit-workflow.mjs"
   );
   const classicWorkflowOutput = path.join(outputDir, "classic-comment-updated.docx");
   const classicWorkflowAudit = path.join(outputDir, "classic-comment-audit.json");
@@ -467,7 +467,7 @@ try {
     expectedCommentText: classicDocument.comments[0].text,
     replacementText: "Decision paragraph approved after QA.",
   });
-  assert.equal(classicWorkflow.audit.provider.actual, "open-chestnut");
+  assert.equal(classicWorkflow.audit.provider.actual, "office-kit");
   assert.equal(classicWorkflow.audit.validation.reimport.ok, true);
   assert.equal(classicWorkflow.audit.validation.modelRender.renderer, "model-svg");
   assert.deepEqual(await fs.readFile(classicFixture.docxPath), classicSourceBytes);
@@ -503,7 +503,7 @@ try {
   await (await DocumentFile.exportDocx(modernSourceDocument)).save(modernSourcePath);
   const modernSourceBytes = await fs.readFile(modernSourcePath);
   const { editModernCommentThread } = await import(
-    "../skills/documents/skills/documents/examples/openchestnut-modern-comment-thread-workflow.mjs"
+    "../skills/documents/skills/documents/examples/officekit-modern-comment-thread-workflow.mjs"
   );
   const modernWorkflowOutput = path.join(outputDir, "modern-comment-reviewed.docx");
   const modernWorkflowAudit = path.join(outputDir, "modern-comment-audit.json");
@@ -518,7 +518,7 @@ try {
     replacementReplyText: "Evidence retained with the approval.",
     resolved: true,
   });
-  assert.equal(modernWorkflow.audit.provider.actual, "open-chestnut");
+  assert.equal(modernWorkflow.audit.provider.actual, "office-kit");
   assert.equal(modernWorkflow.audit.operation.resolved, true);
   assert.equal(modernWorkflow.audit.validation.reimport.commentCount, 2);
   assert.deepEqual(await fs.readFile(modernSourcePath), modernSourceBytes);
@@ -579,7 +579,7 @@ try {
   assert.equal(fragmentedPatchImported.blocks[fragmentedPatchTargetIndex].textEditable, false);
   assert.equal(fragmentedPatchImported.blocks[fragmentedPatchTargetIndex].textPatchable, true);
   const { patchImportedText } = await import(
-    "../skills/documents/skills/documents/examples/openchestnut-source-text-patch-workflow.mjs"
+    "../skills/documents/skills/documents/examples/officekit-source-text-patch-workflow.mjs"
   );
   const fragmentedPatchOutputPath = path.join(outputDir, "fragmented-patch-output.docx");
   const fragmentedPatchAuditPath = path.join(outputDir, "fragmented-patch-audit.json");
@@ -591,7 +591,7 @@ try {
     search: "Quarterly",
     replacement: "Annual",
   });
-  assert.equal(fragmentedPatchWorkflow.audit.provider.actual, "open-chestnut");
+  assert.equal(fragmentedPatchWorkflow.audit.provider.actual, "office-kit");
   assert.equal(fragmentedPatchWorkflow.audit.provider.silentFallback, false);
   assert.deepEqual(fragmentedPatchWorkflow.audit.validation.changedParts, ["word/document.xml"]);
   assert.equal(fragmentedPatchWorkflow.audit.validation.reimport.textPatchable, true);
@@ -643,7 +643,7 @@ try {
   await (await DocumentFile.exportDocx(trackedReplacementSourceDocument)).save(trackedReplacementSourcePath);
   const trackedReplacementSourceBytes = await fs.readFile(trackedReplacementSourcePath);
   const { addDocumentTrackedReplacement } = await import(
-    "../skills/documents/skills/documents/examples/openchestnut-tracked-replacement-workflow.mjs"
+    "../skills/documents/skills/documents/examples/officekit-tracked-replacement-workflow.mjs"
   );
   const trackedReplacementPath = path.join(outputDir, "tracked-replacement.docx");
   const trackedReplacementAuditPath = path.join(outputDir, "tracked-replacement-audit.json");
@@ -657,7 +657,7 @@ try {
     author: "Budget reviewer",
     date: "2026-07-21T09:30:00Z",
   });
-  assert.equal(trackedReplacementWorkflow.audit.provider.actual, "open-chestnut");
+  assert.equal(trackedReplacementWorkflow.audit.provider.actual, "office-kit");
   assert.equal(trackedReplacementWorkflow.audit.provider.silentFallback, false);
   assert.equal(trackedReplacementWorkflow.audit.savePolicy.overwrite, false);
   assert.deepEqual(trackedReplacementWorkflow.audit.operation.changedParts, ["word/document.xml"]);
@@ -811,7 +811,7 @@ try {
   await (await DocumentFile.exportDocx(revisionSourceDocument)).save(revisionSourcePath);
   const revisionSourceBytes = await fs.readFile(revisionSourcePath);
   const { finalizeDocumentRevisions } = await import(
-    "../skills/documents/skills/documents/examples/openchestnut-revision-finalization-workflow.mjs"
+    "../skills/documents/skills/documents/examples/officekit-revision-finalization-workflow.mjs"
   );
   const acceptedRevisionPath = path.join(outputDir, "revision-accepted.docx");
   const acceptedRevisionAuditPath = path.join(outputDir, "revision-accepted-audit.json");
@@ -821,7 +821,7 @@ try {
     auditPath: acceptedRevisionAuditPath,
     mode: "accept",
   });
-  assert.equal(acceptedRevisionWorkflow.audit.provider.actual, "open-chestnut");
+  assert.equal(acceptedRevisionWorkflow.audit.provider.actual, "office-kit");
   assert.equal(acceptedRevisionWorkflow.audit.provider.silentFallback, false);
   assert.equal(acceptedRevisionWorkflow.audit.savePolicy.overwrite, false);
   assert.deepEqual(acceptedRevisionWorkflow.audit.operation.changedParts, ["word/document.xml", "word/settings.xml"]);
@@ -900,7 +900,7 @@ try {
   assert.equal(sectionSettings.qa.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
   if (nativeStatus.available) assert.equal(sectionSettings.qa.summary.nativeRender.ok, true);
 
-  const protection = await runFixture("open-chestnut-protection");
+  const protection = await runFixture("office-kit-protection");
   const protectedDocument = await DocumentFile.importDocx(await FileBlob.load(protection.docxPath));
   assert.deepEqual(protectedDocument.settings.documentProtection, {
     edit: "comments",
@@ -916,7 +916,7 @@ try {
   const unprotectedFixture = structuredClone(protection.fixture);
   unprotectedFixture.settings.documentProtection = false;
   unprotectedFixture.edits = [];
-  const unprotectedPath = path.join(outputDir, "open-chestnut-protection", "unprotected-layout-control.docx");
+  const unprotectedPath = path.join(outputDir, "office-kit-protection", "unprotected-layout-control.docx");
   await (await DocumentFile.exportDocx(createDocumentFromFixture(unprotectedFixture))).save(unprotectedPath);
   const protectionBaselineDir = path.join(outputDir, "protection-layout-baseline");
   await verifyDocumentFile(unprotectedPath, {
@@ -971,12 +971,12 @@ try {
   assert.ok(!packageJson.files.includes("skills/default-template-library/**"));
   const skillText = await fs.readFile(path.join(repoRoot, "skills", "documents", "skills", "documents", "SKILL.md"), "utf8");
   const pluginReadme = await fs.readFile(path.join(repoRoot, "skills", "documents", "README.md"), "utf8");
-  assert.match(pluginReadme, /open-office-artifact-tool/);
-  assert.match(pluginReadme, /OpenChestnut/);
+  assert.match(pluginReadme, /office-kit/);
+  assert.match(pluginReadme, /OfficeKit/);
   assert.match(skillText, /render_docx\.py/);
   assert.match(skillText, /DocumentModel/);
   assert.match(skillText, /DocumentFile/);
-  assert.match(skillText, /OpenChestnut/);
+  assert.match(skillText, /OfficeKit/);
   assert.match(skillText, /artifact_tool\/API_QUICK_START\.md/);
   assert.match(skillText, /document\.addInsertion/);
   assert.match(skillText, /document\.addDeletion/);
@@ -1009,15 +1009,15 @@ try {
   assert.match(skillText, /document\.addCitation/);
   assert.match(skillText, /document\.addTableOfContents/);
   assert.match(skillText, /paragraph\.addField/);
-  assert.match(skillText, /openchestnut-source-text-patch-workflow\.mjs/);
-  assert.match(skillText, /openchestnut-classic-comment-edit-workflow\.mjs/);
-  assert.match(skillText, /openchestnut-header-text-edit-workflow\.mjs/);
-  assert.match(skillText, /openchestnut-footer-text-edit-workflow\.mjs/);
-  assert.match(skillText, /openchestnut-modern-comment-thread-workflow\.mjs/);
-  assert.match(skillText, /openchestnut-watermark-workflow\.mjs/);
+  assert.match(skillText, /officekit-source-text-patch-workflow\.mjs/);
+  assert.match(skillText, /officekit-classic-comment-edit-workflow\.mjs/);
+  assert.match(skillText, /officekit-header-text-edit-workflow\.mjs/);
+  assert.match(skillText, /officekit-footer-text-edit-workflow\.mjs/);
+  assert.match(skillText, /officekit-modern-comment-thread-workflow\.mjs/);
+  assert.match(skillText, /officekit-watermark-workflow\.mjs/);
   assert.match(skillText, /tasks\/headers_footers\.md/);
-  assert.match(skillText, /openchestnut-tracked-replacement-workflow\.mjs/);
-  assert.match(skillText, /openchestnut-revision-finalization-workflow\.mjs/);
+  assert.match(skillText, /officekit-tracked-replacement-workflow\.mjs/);
+  assert.match(skillText, /officekit-revision-finalization-workflow\.mjs/);
   assert.doesNotMatch(skillText, /Author\/edit with `python-docx`|Default tool: python-docx/);
   const commentsGuide = await fs.readFile(path.join(repoRoot, "skills", "documents", "skills", "documents", "tasks", "comments_manage.md"), "utf8");
   assert.match(commentsGuide, /document\.addComment/);
@@ -1025,20 +1025,20 @@ try {
   assert.match(commentsGuide, /\.resolve\(\)/);
   assert.doesNotMatch(commentsGuide, /If the task is to \*insert\* new comments.+use the OOXML-level guide/);
   const manifestText = await fs.readFile(path.join(repoRoot, "skills", "documents", "skills", "documents", "manifest.txt"), "utf8");
-  assert.match(manifestText, /^examples\/openchestnut-source-text-patch-workflow\.mjs$/m);
-  assert.match(manifestText, /^examples\/openchestnut-page-furniture-text-edit\.mjs$/m);
-  assert.match(manifestText, /^examples\/openchestnut-header-text-edit-workflow\.mjs$/m);
-  assert.match(manifestText, /^examples\/openchestnut-footer-text-edit-workflow\.mjs$/m);
-  assert.match(manifestText, /^examples\/openchestnut-modern-comment-thread-workflow\.mjs$/m);
-  assert.match(manifestText, /^examples\/openchestnut-watermark-workflow\.mjs$/m);
+  assert.match(manifestText, /^examples\/officekit-source-text-patch-workflow\.mjs$/m);
+  assert.match(manifestText, /^examples\/officekit-page-furniture-text-edit\.mjs$/m);
+  assert.match(manifestText, /^examples\/officekit-header-text-edit-workflow\.mjs$/m);
+  assert.match(manifestText, /^examples\/officekit-footer-text-edit-workflow\.mjs$/m);
+  assert.match(manifestText, /^examples\/officekit-modern-comment-thread-workflow\.mjs$/m);
+  assert.match(manifestText, /^examples\/officekit-watermark-workflow\.mjs$/m);
   assert.match(manifestText, /^tasks\/headers_footers\.md$/m);
-  assert.match(manifestText, /^examples\/openchestnut-tracked-replacement-workflow\.mjs$/m);
-  assert.match(manifestText, /^examples\/openchestnut-revision-finalization-workflow\.mjs$/m);
+  assert.match(manifestText, /^examples\/officekit-tracked-replacement-workflow\.mjs$/m);
+  assert.match(manifestText, /^examples\/officekit-revision-finalization-workflow\.mjs$/m);
   assert.match(manifestText, /^examples\/end_to_end_smoke_test\.md$/m);
   const watermarkGuide = await fs.readFile(path.join(repoRoot, "skills", "documents", "skills", "documents", "tasks", "watermarks_background.md"), "utf8");
   assert.match(watermarkGuide, /document\.addWatermark/);
   assert.match(watermarkGuide, /watermark\.remove\(\)/);
-  assert.match(watermarkGuide, /openchestnut-watermark-workflow\.mjs/);
+  assert.match(watermarkGuide, /officekit-watermark-workflow\.mjs/);
   assert.match(watermarkGuide, /exactly one `word\/headerN\.xml`/);
   assert.match(watermarkGuide, /shared header.*multiple/is);
   assert.match(watermarkGuide, /image watermarks.*DrawingML watermarks.*irregular VML/is);
@@ -1046,8 +1046,8 @@ try {
   assert.match(headersFootersGuide, /sourceBound.*editable/is);
   assert.match(headersFootersGuide, /at most one text edit.*part/is);
   assert.match(headersFootersGuide, /PAGE or other simple fields/);
-  assert.match(headersFootersGuide, /openchestnut-header-text-edit-workflow\.mjs/);
-  assert.match(headersFootersGuide, /openchestnut-footer-text-edit-workflow\.mjs/);
+  assert.match(headersFootersGuide, /officekit-header-text-edit-workflow\.mjs/);
+  assert.match(headersFootersGuide, /officekit-footer-text-edit-workflow\.mjs/);
   assert.match(headersFootersGuide, /two entry points are intentionally separate/i);
   assert.match(headersFootersGuide, /fail closed/);
   const controlsGuide = await fs.readFile(path.join(repoRoot, "skills", "documents", "skills", "documents", "tasks", "forms_content_controls.md"), "utf8");

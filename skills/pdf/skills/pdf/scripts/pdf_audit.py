@@ -11,7 +11,7 @@ import re
 import sys
 
 
-SCHEMA = "open-office-artifact-tool.pdf-audit.v1"
+SCHEMA = "office-kit.pdf-audit.v1"
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 SAVE_POLICIES = {"read-only", "rewrite", "incremental", "sanitize"}
 

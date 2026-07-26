@@ -1,9 +1,9 @@
 import os from "node:os";
 import path from "node:path";
 
-import { SpreadsheetFile, Workbook } from "open-office-artifact-tool";
+import { SpreadsheetFile, Workbook } from "office-kit";
 
-const outputDir = process.env.OUTPUT_DIR || path.join(os.tmpdir(), "open-office-artifact-examples");
+const outputDir = process.env.OUTPUT_DIR || path.join(os.tmpdir(), "office-kit-artifact-examples");
 
 const workbook = Workbook.create();
 const sheet = workbook.worksheets.add("Dashboard");

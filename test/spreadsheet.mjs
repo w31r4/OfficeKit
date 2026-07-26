@@ -258,7 +258,7 @@ const modelVerification = verifyArtifact(workbook);
 assert.equal(modelVerification.ok, true, modelVerification.ndjson);
 
 const firstXlsx = await SpreadsheetFile.exportXlsx(workbook);
-assert.equal(firstXlsx.metadata.codec, "open-chestnut");
+assert.equal(firstXlsx.metadata.codec, "office-kit");
 const packageInspect = await SpreadsheetFile.inspectXlsx(firstXlsx, { maxChars: 32_000 });
 assert.equal(packageInspect.ok, true, packageInspect.ndjson);
 assert.equal(packageInspect.records[0].semanticIssues, 0);
@@ -277,7 +277,7 @@ assert.match(firstChartXml.find((xml) => /<c:doughnutChart>/.test(xml)), /<c:sho
 assert.equal(Object.keys(firstZip.files).filter((name) => /^xl\/media\//i.test(name)).length, 1);
 assert.equal(Object.keys(firstZip.files).filter((name) => /^xl\/threadedcomments\/[^/]+\.xml$/i.test(name)).length, 1);
 assert.equal(Object.keys(firstZip.files).filter((name) => /^xl\/persons\/[^/]+\.xml$/i.test(name)).length, 1);
-assert.equal(firstZip.file("customXml/open-office-artifact.json"), null);
+assert.equal(firstZip.file("customXml/office-kit-artifact.json"), null);
 const firstWorksheetXml = await firstZip.file("xl/worksheets/sheet1.xml").async("text");
 const firstProtectionXml = firstWorksheetXml.match(/<x:sheetProtection\b[^>]*\/>/)?.[0] || "";
 assert.match(firstProtectionXml, /sheet="1"/);
@@ -1542,7 +1542,7 @@ const containsTextStyles = textPositionWorkbook.inspect({ kind: "computedStyle",
 assert.deepEqual(containsTextStyles.map((record) => [record.address, record.style.fill]), [["C1", "#DBEAFE"], ["C2", "#DBEAFE"]]);
 
 const importedWithoutSourceSnapshot = await SpreadsheetFile.importXlsx(firstXlsx);
-const workbookState = importedWithoutSourceSnapshot[Symbol.for("open-office-artifact-tool.open-chestnut-state")];
+const workbookState = importedWithoutSourceSnapshot[Symbol.for("office-kit.workbook-state")];
 workbookState.opaqueOpc.sourcePackage = undefined;
 await assert.rejects(
   () => SpreadsheetFile.exportXlsx(importedWithoutSourceSnapshot),

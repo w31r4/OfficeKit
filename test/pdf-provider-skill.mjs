@@ -259,7 +259,7 @@ assert.match(skillText, /PdfProviders\.ensure/);
 assert.match(skillText, /PdfProviders\.probe/);
 assert.match(skillText, /PdfFile\.inspectPdf\("input\.pdf"\).*PdfProviders\.resolve/is);
 assert.match(skillText, /status === "installable"[\s\S]*PdfProviders\.ensure[\s\S]*status !== "ready"/);
-assert.match(skillText, /open-office-artifact-tool\/pdf\/providers/);
+assert.match(skillText, /office-kit\/pdf\/providers/);
 assert.match(skillText, /installPolicy: "disabled"/);
 assert.match(skillText, /installPolicy": "managed"/);
 assert.match(skillText, /system-only/);
@@ -315,7 +315,7 @@ assert.match(providerSetupText, /PdfProviders\.probe/);
 assert.match(providerSetupText, /symlink\/hardlink/);
 assert.match(providerSetupText, /enterprise mirror.*identical hash-pinned bytes/is);
 assert.match(providerSetupText, /Current catalog state.*qpdf, `python-foundation`, and[\s\S]*`python-specialists`[\s\S]*veraPDF\/JRE `1\.30\.2-oat\.1`[\s\S]*OCR core[\s\S]*`17\.8\.1-oat\.1`[\s\S]*`eng`\/`chi_sim`[\s\S]*Poppler QA remains unpublished/is);
-assert.match(providerSetupText, /OPEN_OFFICE_PDF_TESSDATA_DIRS[\s\S]*private directory/is);
+assert.match(providerSetupText, /OFFICE_KIT_PDF_TESSDATA_DIRS[\s\S]*private directory/is);
 assert.doesNotMatch(providerSetupText, /brew install|apt-get|uv pip install/i);
 const encryptionTaskText = await fs.readFile(path.join(skillRoot, "tasks", "encryption.md"), "utf8");
 assert.match(encryptionTaskText, /qpdf `>=11\.7\.0`/);
@@ -334,7 +334,7 @@ assert.match(formsAnnotationsText, /removes every `\/Widget`[\s\S]*root `\/AcroF
 assert.match(formsAnnotationsText, /formValidation\.mode === "static"[\s\S]*allWidgetsRemoved === true[\s\S]*fieldTreeRemoved === true/is);
 assert.match(formsAnnotationsText, /never calls `reattach_fields\(\)` automatically/i);
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
-assert.match(pdfPluginReadme, /open-office-artifact-tool\/pdf\/providers/);
+assert.match(pdfPluginReadme, /office-kit\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
 assert.match(pdfPluginReadme, /qpdf, `python-foundation`, and `python-specialists`[\s\S]*veraPDF\/JRE `1\.30\.2-oat\.1`[\s\S]*OCR core `17\.8\.1-oat\.1`[\s\S]*`eng`[\s\S]*`chi_sim`[\s\S]*Poppler QA route remains `blocked`/is);
 assert.doesNotMatch(pdfPluginReadme, /remain separately installed|brew install|apt-get|uv pip install/i);
@@ -359,7 +359,7 @@ const pythonScripts = (await fs.readdir(scriptsRoot))
   .filter((file) => file.endsWith(".py"))
   .map((file) => path.join(scriptsRoot, file));
 const mupdfCliText = await fs.readFile(path.join(scriptsRoot, "mupdf.mjs"), "utf8");
-assert.match(mupdfCliText, /open-office-artifact-tool\/pdf\/mupdf/);
+assert.match(mupdfCliText, /office-kit\/pdf\/mupdf/);
 assert.match(mupdfCliText, /PdfFile\.editPdf/);
 assert.doesNotMatch(mupdfCliText, /postinstall/);
 const compile = run(python, [
@@ -369,7 +369,7 @@ const compile = run(python, [
 ], { status: 0 });
 assert.equal(compile.stderr, "");
 const auditSchema = JSON.parse(await fs.readFile(path.join(skillRoot, "references", "pdf-audit-v1.schema.json"), "utf8"));
-assert.equal(auditSchema.properties.schema.const, "open-office-artifact-tool.pdf-audit.v1");
+assert.equal(auditSchema.properties.schema.const, "office-kit.pdf-audit.v1");
 assert.equal(auditSchema.properties.inputs.type, "array");
 const fitUnit = run(python, ["-c", [
   "import importlib.util,sys",
@@ -389,7 +389,7 @@ const fitUnit = run(python, ["-c", [
 ].join(";"), path.join(scriptsRoot, "pymupdf_edit.py")], { status: 0 });
 assert.equal(fitUnit.stderr, "");
 
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-pdf-provider-skill-"));
+const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-pdf-provider-skill-"));
 try {
   // A configured provider virtual environment must survive re-exec. Its
   // bin/python is commonly a symlink to a base interpreter, so resolving the
@@ -408,7 +408,7 @@ try {
     "print(json.dumps({'executable': sys.executable, 'prefix': sys.prefix}))",
   ].join("\n"), "utf8");
   const runtimeResult = parseResult(run(python, [runtimeProbe, scriptsRoot], {
-    env: { OPEN_OFFICE_PDF_PROVIDER_PYTHON: runtimePython },
+    env: { OFFICE_KIT_PDF_PROVIDER_PYTHON: runtimePython },
     status: 0,
   }));
   assert.equal(await fs.realpath(runtimeResult.prefix), await fs.realpath(runtimeVenv));
@@ -762,7 +762,7 @@ try {
   };
   const auditPath = path.join(tempRoot, "audit.json");
   await fs.writeFile(auditPath, JSON.stringify({
-    schema: "open-office-artifact-tool.pdf-audit.v1",
+    schema: "office-kit.pdf-audit.v1",
     status: "succeeded",
     source: await evidence(dummyInput),
     output: await evidence(auditArtifact),
@@ -779,7 +779,7 @@ try {
   assert.match(staleAudit.stderr, /bytes\/hash do not match/);
   const refusalAuditPath = path.join(tempRoot, "refusal-audit.json");
   await fs.writeFile(refusalAuditPath, JSON.stringify({
-    schema: "open-office-artifact-tool.pdf-audit.v1",
+    schema: "office-kit.pdf-audit.v1",
     status: "failed_closed",
     source: await evidence(dummyInput),
     output: null,
@@ -796,7 +796,7 @@ try {
   await fs.writeFile(readOnlyManifest, JSON.stringify({ attachments: [] }), "utf8");
   const readOnlyAuditPath = path.join(tempRoot, "read-only-audit.json");
   await fs.writeFile(readOnlyAuditPath, JSON.stringify({
-    schema: "open-office-artifact-tool.pdf-audit.v1",
+    schema: "office-kit.pdf-audit.v1",
     status: "succeeded",
     source: await evidence(dummyInput),
     output: await evidence(readOnlyManifest),
@@ -815,11 +815,11 @@ try {
   const mergeManifest = path.join(tempRoot, "merge-manifest.json");
   const mergeArtifact = path.join(tempRoot, "merge-artifact.pdf");
   await fs.writeFile(secondInput, "%PDF-1.4\nsecond input\n%%EOF\n", "ascii");
-  await fs.writeFile(mergeManifest, JSON.stringify({ schema: "open-office-artifact-tool.pdf-merge-stamp.v1" }), "utf8");
+  await fs.writeFile(mergeManifest, JSON.stringify({ schema: "office-kit.pdf-merge-stamp.v1" }), "utf8");
   await fs.writeFile(mergeArtifact, "%PDF-1.4\nmerged artifact\n%%EOF\n", "ascii");
   const multiAuditPath = path.join(tempRoot, "multi-audit.json");
   await fs.writeFile(multiAuditPath, JSON.stringify({
-    schema: "open-office-artifact-tool.pdf-audit.v1",
+    schema: "office-kit.pdf-audit.v1",
     status: "succeeded",
     source: await evidence(mergeManifest),
     inputs: [await evidence(dummyInput), await evidence(secondInput)],
@@ -896,16 +896,16 @@ try {
   assert.match(unsafeSanitize.stderr, /invalidate-signatures/);
 
   const invalidConfiguredPython = run(python, [path.join(scriptsRoot, "pdf_provider.py"), "check", "--provider", "all"], {
-    env: { OPEN_OFFICE_PDF_PROVIDER_PYTHON: path.join(tempRoot, "missing-python") },
+    env: { OFFICE_KIT_PDF_PROVIDER_PYTHON: path.join(tempRoot, "missing-python") },
     status: 2,
   });
-  assert.match(invalidConfiguredPython.stderr, /OPEN_OFFICE_PDF_PROVIDER_PYTHON is not an executable file/);
+  assert.match(invalidConfiguredPython.stderr, /OFFICE_KIT_PDF_PROVIDER_PYTHON is not an executable file/);
 
   const directNoLicense = run(python, [path.join(scriptsRoot, "pymupdf_edit.py"), "probe"], { status: 2 });
   assert.equal(parseResult(directNoLicense, "stderr").silentFallback, false);
   assert.match(directNoLicense.stderr, /accept-license/);
 
-  const integrationPython = process.env.OPEN_OFFICE_PDF_PROVIDER_PYTHON;
+  const integrationPython = process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON;
   if (integrationPython) {
     const sourcePath = path.join(tempRoot, "source.pdf");
     const specPath = path.join(tempRoot, "report.json");
@@ -919,7 +919,7 @@ try {
       }],
     }), "utf8");
     const routedProbe = parseResult(run(python, [path.join(scriptsRoot, "pymupdf_edit.py"), "probe", "--accept-license", "agpl"], {
-      env: { OPEN_OFFICE_PDF_PROVIDER_PYTHON: integrationPython },
+      env: { OFFICE_KIT_PDF_PROVIDER_PYTHON: integrationPython },
       status: 0,
     }));
     assert.equal(routedProbe.available, true);
@@ -935,7 +935,7 @@ try {
       "--task", "sanitize", "--provider", "pymupdf", "--strategy", "sanitize",
       "--input", dummyInput, "--output", dummyOutput, "--accept-license", "agpl",
       "--invalidate-signatures", "--require-provider",
-    ], { env: { OPEN_OFFICE_PDF_PROVIDER_PYTHON: integrationPython }, status: 0 }));
+    ], { env: { OFFICE_KIT_PDF_PROVIDER_PYTHON: integrationPython }, status: 0 }));
     assert.equal(routedPlan.providerProbe.available, true);
     parseResult(run(integrationPython, [path.join(scriptsRoot, "reportlab_create.py"), "--spec", specPath, "--output", sourcePath], { status: 0 }));
     const sourceBytes = await fs.readFile(sourcePath);
@@ -989,7 +989,7 @@ try {
     const mergeSourceHashes = await Promise.all([mergeCover, mergeReport, mergeAppendix].map(async (target) => (await evidence(target)).sha256));
     const mergeSpec = path.join(tempRoot, "merge-stamp.json");
     await fs.writeFile(mergeSpec, JSON.stringify({
-      schema: "open-office-artifact-tool.pdf-merge-stamp.v1",
+      schema: "office-kit.pdf-merge-stamp.v1",
       sources: [
         { id: "cover", path: mergeCover },
         { id: "report", path: mergeReport },
@@ -1007,7 +1007,7 @@ try {
     const mergeResult = parseResult(run(integrationPython, [
       path.join(scriptsRoot, "pypdf_edit.py"), "merge-stamp", mergeSpec, mergeOutput, "--strategy", "rewrite",
     ], { status: 0 }));
-    assert.equal(mergeResult.schema, "open-office-artifact-tool.pdf-merge-stamp-result.v1");
+    assert.equal(mergeResult.schema, "office-kit.pdf-merge-stamp-result.v1");
     assert.deepEqual(mergeResult.operation.watermarks[0].outputPages, [3, 4]);
     assert.deepEqual(mergeResult.validation.pageMap.map((entry) => `${entry.source}:${entry.sourcePage}`), ["cover:1", "appendix:3", "report:1", "report:2", "appendix:1", "appendix:2"]);
     assert.equal(mergeResult.validation.navigation.outlines.length, 6);
@@ -1034,13 +1034,13 @@ try {
       path.join(scriptsRoot, "poppler_compare.py"), "merge-stamp", mergeSpec, mergeOutput,
       "--report", mergeVisualReport, "--render-dir", path.join(tempRoot, "merge-rendered"),
     ], { status: 0 }));
-    assert.equal(mergeVisual.schema, "open-office-artifact-tool.pdf-poppler-compare.v1");
+    assert.equal(mergeVisual.schema, "office-kit.pdf-poppler-compare.v1");
     assert.equal(mergeVisual.status, "passed");
     assert.deepEqual(mergeVisual.pages.map((entry) => entry.pixelStable), [true, true, false, false, true, true]);
     assert.equal(mergeVisual.pages.every((entry) => entry.passed), true);
     const incompleteMergeSpec = path.join(tempRoot, "merge-stamp-incomplete.json");
     await fs.writeFile(incompleteMergeSpec, JSON.stringify({
-      schema: "open-office-artifact-tool.pdf-merge-stamp.v1",
+      schema: "office-kit.pdf-merge-stamp.v1",
       sources: [{ id: "cover", path: mergeCover }, { id: "report", path: mergeReport }],
       sequence: [{ source: "cover", pages: "all" }, { source: "report", pages: [1] }],
       watermarks: [{ source: "report", text: "CONFIDENTIAL", opacity: 0.2 }],
@@ -1211,7 +1211,7 @@ try {
       path.join(scriptsRoot, "pypdf_edit.py"), "extract-attachments", attachmentSource, quarantineDirectory,
       "--manifest", attachmentManifest,
     ], { status: 0 }));
-    assert.equal(attachmentResult.schema, "open-office-artifact-tool.pdf-attachments.v1");
+    assert.equal(attachmentResult.schema, "office-kit.pdf-attachments.v1");
     assert.equal(attachmentResult.strategy, "read-only");
     assert.equal(attachmentResult.silentFallback, false);
     assert.equal(attachmentResult.source.sha256, attachmentSourceHash);
@@ -1643,7 +1643,7 @@ try {
     }
   }
 
-  console.log(`pdf provider skill smoke ok${process.env.OPEN_OFFICE_PDF_PROVIDER_PYTHON ? " (real providers)" : " (contract-only; set OPEN_OFFICE_PDF_PROVIDER_PYTHON for real providers)"}`);
+  console.log(`pdf provider skill smoke ok${process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON ? " (real providers)" : " (contract-only; set OFFICE_KIT_PDF_PROVIDER_PYTHON for real providers)"}`);
 } finally {
   await fs.rm(tempRoot, { recursive: true, force: true });
 }

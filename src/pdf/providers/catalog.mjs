@@ -185,7 +185,7 @@ function assertManagedRuntime(catalog, provider, pack, providerId) {
 /** Validate a candidate catalog before it can inform a download or runtime path. */
 export function validatePdfProviderCatalog(catalog) {
   if (!isPlainObject(catalog)) throw catalogError("catalog must be an object.");
-  if (catalog.schema !== "open-office-artifact-tool.pdf-provider-catalog.v1" || catalog.schemaVersion !== 1) {
+  if (catalog.schema !== "office-kit.pdf-provider-catalog.v1" || catalog.schemaVersion !== 1) {
     throw catalogError("unsupported schema or schemaVersion.");
   }
   if (!isPlainObject(catalog.releasePolicy)

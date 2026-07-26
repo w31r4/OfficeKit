@@ -90,11 +90,11 @@ before making another semantic change.
 ## Source-Bound Transaction
 
 For an Agent request to replace one existing transition, use the shipped
-`examples/openchestnut-transition-edit-workflow.mjs` transaction rather than a
+`examples/officekit-transition-edit-workflow.mjs` transaction rather than a
 raw XML patch:
 
 ```bash
-node examples/openchestnut-transition-edit-workflow.mjs \
+node examples/officekit-transition-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Decision" \
   '{"effect":"fade","speed":"medium","advanceOnClick":true}' \

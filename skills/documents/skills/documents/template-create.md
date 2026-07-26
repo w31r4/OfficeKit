@@ -31,9 +31,9 @@ document presets do not replace the template's visual system.
    design system.
 5. Import the retained DOCX with `DocumentFile.importDocx(...)`, resolve each
    recognized editable slot by semantic ID or bounded content search, and make
-   the smallest `DocumentModel` edit. Export through OpenChestnut and compare
+   the smallest `DocumentModel` edit. Export through OfficeKit and compare
    the preserve-only package inventory. If a required slot is source-bound or
-   OpenChestnut rejects the edit, stop and report the fidelity blocker. A
+   OfficeKit rejects the edit, stop and report the fidelity blocker. A
    task-local `scripts/docx_ooxml_patch.py` operation is allowed only when the
    user explicitly requests that low-level package mutation; never switch the
    whole document to another authoring engine. Do not rebuild unaffected parts.

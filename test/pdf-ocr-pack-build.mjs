@@ -18,7 +18,7 @@ const [inputBytes, pythonInputBytes, nativeSource, workflowSource] = await Promi
 ]);
 const inputs = JSON.parse(inputBytes);
 
-assert.equal(inputs.schema, "open-office-artifact-tool.pdf-provider-ocr-release-inputs.v1");
+assert.equal(inputs.schema, "office-kit.pdf-provider-ocr-release-inputs.v1");
 assert.equal(inputs.schemaVersion, 1);
 assert.equal(inputs.ocrCore.packId, "ocr-core");
 assert.equal(inputs.ocrCore.version, "17.8.1-oat.1");

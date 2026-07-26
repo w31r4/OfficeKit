@@ -29,9 +29,9 @@ import { planPresentationModernComments } from "./ooxml-modern-comments.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const importedShapeBackgroundFill = new WeakMap();
-const PRESENTATION_SLIDE_DUPLICATOR = Symbol.for("open-office-artifact-tool.open-chestnut-presentation-duplicate");
-const PRESENTATION_SPEAKER_NOTES_CAPABILITY = Symbol.for("open-office-artifact-tool.open-chestnut-speaker-notes-capability");
-const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("open-office-artifact-tool.open-chestnut-legacy-comments-capability");
+const PRESENTATION_SLIDE_DUPLICATOR = Symbol.for("office-kit.presentation-duplicate");
+const PRESENTATION_SPEAKER_NOTES_CAPABILITY = Symbol.for("office-kit.speaker-notes-capability");
+const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("office-kit.legacy-comments-capability");
 
 export { SlideTransition };
 
@@ -1277,7 +1277,7 @@ export class Slide {
       };
     });
     return slideLayoutSlice(this, {
-      schema: "open-office-artifact.layout/v1",
+      schema: "office-kit-artifact.layout/v1",
       unit: "px",
       slide: { id: this.id, slide: this.index + 1, frame: this.frame, background: this.effectiveBackground(), transition: this.transition.toJSON(), notes: this.speakerNotes.text || undefined },
       elements,
@@ -1368,7 +1368,7 @@ export class Shape {
     this.borderRadius = config.borderRadius;
     this.shadow = config.shadow ? { ...config.shadow } : undefined;
     this.placeholder = config.placeholder;
-    if (config._openChestnutUseBackgroundFill !== undefined) importedShapeBackgroundFill.set(this, Boolean(config._openChestnutUseBackgroundFill));
+    if (config._officeKitUseBackgroundFill !== undefined) importedShapeBackgroundFill.set(this, Boolean(config._officeKitUseBackgroundFill));
     this._text = new TextFrame(config.text ?? "", config.textBodyProperties, { defaultBodyProperties: config.textBodyProperties === undefined });
     this._text.style = { ...(config.textStyle || config.style?.text || {}) };
   }
@@ -1981,13 +1981,13 @@ export class PresentationFile {
   }
 
   static async exportPptx(presentation, options = {}) {
-    const { exportPptxWithOpenChestnut } = await import("../codecs/open-chestnut.mjs");
-    return exportPptxWithOpenChestnut(presentation, options);
+    const { exportPptxWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    return exportPptxWithOfficeKit(presentation, options);
   }
 
   static async importPptx(blobOrBuffer, options = {}) {
-    const { importPptxWithOpenChestnut } = await import("../codecs/open-chestnut.mjs");
-    return importPptxWithOpenChestnut(blobOrBuffer, options);
+    const { importPptxWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    return importPptxWithOfficeKit(blobOrBuffer, options);
   }
 }
 

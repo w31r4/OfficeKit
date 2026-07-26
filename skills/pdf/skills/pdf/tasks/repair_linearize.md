@@ -12,7 +12,7 @@ guessed download as an automatic repair path.
 ## Probe and inspect
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/qpdf_provider.py probe
 "$PYTHON_BIN" scripts/qpdf_provider.py inspect input.pdf \
   > tmp/pdfs/qpdf-inspect.json

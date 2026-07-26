@@ -380,10 +380,10 @@ async function generateInput(generator, target) {
 let generatorPython;
 function generatorPythonExecutable() {
   if (generatorPython) return generatorPython;
-  const python = process.env.OPEN_OFFICE_AGENT_EVAL_PYTHON || process.env.OPEN_OFFICE_PDF_PROVIDER_PYTHON || "python3";
+  const python = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "python3";
   const probe = spawnSync(python, ["-c", "import reportlab, pypdf"], { encoding: "utf8", env: process.env });
   if (probe.status !== 0) {
-    fail(`Generated Agent eval fixtures require a Python environment with reportlab and pypdf. Set OPEN_OFFICE_AGENT_EVAL_PYTHON to that interpreter (for Codex, use the Python path returned by load_workspace_dependencies). Probe failed for ${python}: ${String(probe.stderr || probe.error?.message || "unknown error").trim()}`);
+    fail(`Generated Agent eval fixtures require a Python environment with reportlab and pypdf. Set OFFICE_KIT_AGENT_EVAL_PYTHON to that interpreter (for Codex, use the Python path returned by load_workspace_dependencies). Probe failed for ${python}: ${String(probe.stderr || probe.error?.message || "unknown error").trim()}`);
   }
   generatorPython = python;
   return generatorPython;
@@ -410,7 +410,7 @@ async function patchReferenceSkillPackageName(root) {
       if (entry.isDirectory()) await walk(target);
       else if (entry.isFile() && textExtensions.has(path.extname(entry.name).toLowerCase())) {
         const source = await fs.readFile(target, "utf8");
-        const patched = source.replaceAll(/(?<!open-)office-artifact-tool/g, "open-office-artifact-tool");
+        const patched = source.replaceAll(/(?:open-)?office-artifact-tool/g, "office-kit");
         if (patched !== source) {
           await fs.writeFile(target, patched, "utf8");
           changed.push(path.relative(root, target));
@@ -488,10 +488,10 @@ async function packageCandidate(evaluatorDir, workspace) {
 }
 
 export function providerRuntimeInstruction(item, environment = process.env) {
-  const configured = environment.OPEN_OFFICE_AGENT_EVAL_PYTHON || environment.OPEN_OFFICE_PDF_PROVIDER_PYTHON;
+  const configured = environment.OFFICE_KIT_AGENT_EVAL_PYTHON || environment.OFFICE_KIT_PDF_PROVIDER_PYTHON;
   if (item?.family !== "pdf" || !configured) return "";
   const interpreter = path.resolve(configured);
-  return `\n## Prepared provider runtime\n\nThis isolated trial supplies the authoritative PDF provider interpreter below. Export it before every PDF Python probe, plan, mutation, scan, and audit command. Do not replace it, install another environment, or fall back to system Python.\n\n\`\`\`bash\nexport OPEN_OFFICE_PDF_PROVIDER_PYTHON=${JSON.stringify(interpreter)}\n\`\`\`\n`;
+  return `\n## Prepared provider runtime\n\nThis isolated trial supplies the authoritative PDF provider interpreter below. Export it before every PDF Python probe, plan, mutation, scan, and audit command. Do not replace it, install another environment, or fall back to system Python.\n\n\`\`\`bash\nexport OFFICE_KIT_PDF_PROVIDER_PYTHON=${JSON.stringify(interpreter)}\n\`\`\`\n`;
 }
 
 async function prepareCase(suite, item, options) {
@@ -499,7 +499,7 @@ async function prepareCase(suite, item, options) {
   const subject = options.subject || "candidate";
   const trial = Number(options.trial || 1);
   if (!Number.isInteger(trial) || trial < 1) fail("--trial must be a positive integer");
-  const runRoot = path.resolve(options.runRoot || path.join(os.tmpdir(), "open-office-agent-evals", new Date().toISOString().replace(/[:.]/g, "-")));
+  const runRoot = path.resolve(options.runRoot || path.join(os.tmpdir(), "office-kit-agent-evals", new Date().toISOString().replace(/[:.]/g, "-")));
   const trialRoot = path.join(runRoot, item.id, `${subject}-trial-${trial}`);
   const workspace = path.join(trialRoot, "workspace");
   const evaluator = path.join(trialRoot, "evaluator");
@@ -731,7 +731,7 @@ async function scorePrepared(item, prepared, options = {}) {
 }
 
 function help() {
-  return `Agent artifact PromptBench\n\nCommands:\n  validate\n  list [--family pdf] [--status ready] [--json]\n  show <case-id> [--json]\n  prepare <case-id> [--subject candidate|reference] [--trial 1] [--run-root <path>]\n  run <case-id> [prepare options] [--model <model>] [--codex <path>]\n  score <case-id> --trial-root <prepared trial directory>\n\nThe Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. Prepared PDF trials also declare one authoritative provider interpreter in PROMPT.md when the runner was given OPEN_OFFICE_AGENT_EVAL_PYTHON or OPEN_OFFICE_PDF_PROVIDER_PYTHON; the same interpreter is used for generated fixtures and hidden oracles. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The eight ready PDF cases plus the ready XLSX threaded-comment, growth-assumption, connection refresh-on-open, and Pivot refresh-on-open cases, three DOCX cases (classic-comment, source-bound DOCX header text, and source-bound DOCX footer text), and three PPTX cases (title plus fixed-topology rich-notes run edit, source-bound slide-name edit, and closed-leaf slide clone) have independent semantic, native-render, security, and provider-trace graders. PDF must remain an absolute majority of the full suite; the remaining 21 asset-required cases never claim full success before pinned corpus or PKI fixtures exist.\n`;
+  return `Agent artifact PromptBench\n\nCommands:\n  validate\n  list [--family pdf] [--status ready] [--json]\n  show <case-id> [--json]\n  prepare <case-id> [--subject candidate|reference] [--trial 1] [--run-root <path>]\n  run <case-id> [prepare options] [--model <model>] [--codex <path>]\n  score <case-id> --trial-root <prepared trial directory>\n\nThe Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. Prepared PDF trials also declare one authoritative provider interpreter in PROMPT.md when the runner was given OFFICE_KIT_AGENT_EVAL_PYTHON or OFFICE_KIT_PDF_PROVIDER_PYTHON; the same interpreter is used for generated fixtures and hidden oracles. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The eight ready PDF cases plus the ready XLSX threaded-comment, growth-assumption, connection refresh-on-open, and Pivot refresh-on-open cases, three DOCX cases (classic-comment, source-bound DOCX header text, and source-bound DOCX footer text), and three PPTX cases (title plus fixed-topology rich-notes run edit, source-bound slide-name edit, and closed-leaf slide clone) have independent semantic, native-render, security, and provider-trace graders. PDF must remain an absolute majority of the full suite; the remaining 21 asset-required cases never claim full success before pinned corpus or PKI fixtures exist.\n`;
 }
 
 export async function main(argv = process.argv.slice(2)) {

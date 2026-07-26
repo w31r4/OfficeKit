@@ -53,21 +53,21 @@ const signVerifyText = await fs.readFile(path.join(skillRoot, "tasks", "sign_ver
 assert.match(signVerifyText, /require-all-integrity-valid/);
 assert.match(signVerifyText, /complete PAdES profile conformance/i);
 
-const configuredPython = process.env.OPEN_OFFICE_PYHANKO_TEST_PYTHON;
+const configuredPython = process.env.OFFICE_KIT_PYHANKO_TEST_PYTHON;
 if (configuredPython) {
-  assert.ok(supportedPyHanko(configuredPython), `OPEN_OFFICE_PYHANKO_TEST_PYTHON must provide pyHanko 0.35.x: ${configuredPython}`);
+  assert.ok(supportedPyHanko(configuredPython), `OFFICE_KIT_PYHANKO_TEST_PYTHON must provide pyHanko 0.35.x: ${configuredPython}`);
 }
 const python = configuredPython || (supportedPyHanko("python3") ? "python3" : null);
 
 if (!python) {
   const unavailable = run("python3", [provider, "probe"], { status: 2 });
   assert.equal(jsonResult(unavailable, "stderr").silentFallback, false);
-  console.log("pyHanko provider smoke ok (real provider skipped: set OPEN_OFFICE_PYHANKO_TEST_PYTHON)");
+  console.log("pyHanko provider smoke ok (real provider skipped: set OFFICE_KIT_PYHANKO_TEST_PYTHON)");
   process.exit(0);
 }
 
 const providerEnv = {
-  OPEN_OFFICE_PDF_PROVIDER_PYTHON: python,
+  OFFICE_KIT_PDF_PROVIDER_PYTHON: python,
   PYTHONNOUSERSITE: "1",
 };
 
@@ -78,7 +78,7 @@ function runProvider(args, options = {}) {
   });
 }
 
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-pyhanko-provider-"));
+const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-pyhanko-provider-"));
 try {
   const artifact = PdfArtifact.create({ text: "pyHanko source-bound signature fixture" });
   const exported = await PdfFile.exportPdf(artifact);
@@ -110,7 +110,7 @@ try {
   assert.equal(plan.silentFallback, false);
 
   const unsigned = jsonResult(runProvider([provider, "verify", source, "--expected-sha256", sourceHash], { status: 0 }));
-  assert.equal(unsigned.schema, "open-office-artifact-tool.pyhanko-verify.v1");
+  assert.equal(unsigned.schema, "office-kit.pyhanko-verify.v1");
   assert.equal(unsigned.conclusion, "unsigned");
   assert.equal(unsigned.summary.signatureCount, 0);
   assert.equal(unsigned.sourceProtected, true);
@@ -164,8 +164,8 @@ from pyhanko.sign.fields import MDPPerm
 root = Path(sys.argv[1])
 key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 name = x509.Name([
-    x509.NameAttribute(NameOID.COMMON_NAME, "Open Office Test Root"),
-    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Open Office Artifact Tool"),
+    x509.NameAttribute(NameOID.COMMON_NAME, "OfficeKit Test Root"),
+    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "OfficeKit"),
     x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
 ])
 now = datetime.now(timezone.utc)

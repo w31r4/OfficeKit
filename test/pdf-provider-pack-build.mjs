@@ -23,7 +23,7 @@ function finalize(arguments_, { expect = 0 } = {}) {
   return result;
 }
 
-const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-pdf-pack-build-"));
+const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-pdf-pack-build-"));
 try {
   const payload = path.join(temporary, "payload");
   const outputA = path.join(temporary, "output-a");
@@ -51,7 +51,7 @@ try {
   ];
   const first = JSON.parse(run([...arguments_, "--output", outputA]).stdout);
   const second = JSON.parse(run([...arguments_, "--output", outputB]).stdout);
-  assert.equal(first.schema, "open-office-artifact-tool.pdf-provider-pack.v1");
+  assert.equal(first.schema, "office-kit.pdf-provider-pack.v1");
   assert.deepEqual(first, second, "same payload and provenance must create identical metadata");
   const archiveA = await fs.readFile(path.join(outputA, first.artifact.asset));
   const archiveB = await fs.readFile(path.join(outputB, second.artifact.asset));
@@ -90,7 +90,7 @@ try {
     "--release-base-url", "https://github.com/example/project/releases/download/pdf-provider-fixture-pack-1.2.3/",
     "--repository", "example/project", "--workflow", ".github/workflows/pdf-capability-packs.yml",
   ]).stdout);
-  assert.equal(finalized.schema, "open-office-artifact-tool.pdf-provider-release.v1");
+  assert.equal(finalized.schema, "office-kit.pdf-provider-release.v1");
   assert.equal(finalized.catalogFragment.state, "published");
   assert.deepEqual(finalized.catalogFragment.artifacts.map((artifact) => artifact.platform).sort(), ["darwin-arm64", "linux-x64"]);
   assert.equal(finalized.catalogFragment.artifacts.find((artifact) => artifact.platform === "linux-x64").sha256, linux.artifact.sha256);

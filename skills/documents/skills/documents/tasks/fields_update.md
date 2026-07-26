@@ -24,7 +24,7 @@ python scripts/fields_report.py /mnt/data/input.docx
 
 If you see `TOC`, `REF`, `PAGEREF`, `NUMPAGES`, or `PAGE`, plan for a field refresh step.
 
-For a source-free native TOC, prefer the public OpenChestnut path:
+For a source-free native TOC, prefer the public OfficeKit path:
 
 ```js
 document.addTableOfContents({ levels: "1-3" });

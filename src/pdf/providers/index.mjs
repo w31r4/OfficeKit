@@ -278,7 +278,7 @@ async function probeCommand(provider, commandPaths = undefined, taskId = undefin
 function pythonExecutable(policy, explicitPath = undefined) {
   if (explicitPath) return executableFromPath(explicitPath, undefined, { ...process.env, PATH: "" });
   if (policy.providerPython) return executableFromPath(policy.providerPython, undefined, { ...process.env, PATH: "" });
-  const configured = String(process.env.OPEN_OFFICE_PDF_PROVIDER_PYTHON || "").trim();
+  const configured = String(process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "").trim();
   if (configured) return executableFromPath(configured, undefined, { ...process.env, PATH: "" });
   return executableFromPath("python3");
 }
@@ -344,7 +344,7 @@ function probeNodePackage(provider) {
 }
 
 async function probeLocalRuntime(provider, policy, runtime = undefined, taskId = undefined) {
-  if (provider.kind === "core") return { available: true, evidence: { runtime: "open-office-artifact-tool" } };
+  if (provider.kind === "core") return { available: true, evidence: { runtime: "office-kit" } };
   if (provider.kind === "node-package") return probeNodePackage(provider);
   if (provider.kind === "command") return probeCommand(provider, runtime?.commandPaths, taskId);
   if (provider.kind === "python-module") return probePythonModule(provider, policy, runtime?.pythonPath);

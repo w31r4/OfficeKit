@@ -4,7 +4,7 @@ Use the typed pypdf `merge-stamp` primitive when complete source PDFs must be me
 
 ## Bounded contract
 
-The manifest must use `open-office-artifact-tool.pdf-merge-stamp.v1` and declare:
+The manifest must use `office-kit.pdf-merge-stamp.v1` and declare:
 
 - two or more unique source IDs and PDF paths;
 - a sequence that selects every source page exactly once, in final output order;
@@ -19,7 +19,7 @@ Start from [`examples/merge-stamp-manifest.json`](../examples/merge-stamp-manife
 ## Execute
 
 ```bash
-PYTHON_BIN="${OPEN_OFFICE_PDF_PROVIDER_PYTHON:-python3}"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 "$PYTHON_BIN" scripts/pdf_provider.py check --provider pypdf --require
 "$PYTHON_BIN" scripts/pdf_provider.py plan \
   --task merge-stamp --provider pypdf --strategy rewrite \

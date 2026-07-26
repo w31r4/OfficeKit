@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://open-office-artifact-tool.invalid/schemas/pdf-audit-v1.schema.json",
-  "title": "open-office-artifact-tool PDF mutation audit v1",
+  "$id": "https://office-kit.invalid/schemas/pdf-audit-v1.schema.json",
+  "title": "office-kit PDF mutation audit v1",
   "type": "object",
   "required": ["schema", "status", "source", "output", "provider", "savePolicy", "preflight", "operation", "validation"],
   "properties": {
-    "schema": { "const": "open-office-artifact-tool.pdf-audit.v1" },
+    "schema": { "const": "office-kit.pdf-audit.v1" },
     "status": { "enum": ["succeeded", "failed_closed"] },
     "source": { "$ref": "#/$defs/fileEvidence" },
     "inputs": {

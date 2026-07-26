@@ -1,9 +1,9 @@
 import os from "node:os";
 import path from "node:path";
 
-import { box, column, paragraph, Presentation, PresentationFile, row } from "open-office-artifact-tool";
+import { box, column, paragraph, Presentation, PresentationFile, row } from "office-kit";
 
-const outputDir = process.env.OUTPUT_DIR || path.join(os.tmpdir(), "open-office-artifact-examples");
+const outputDir = process.env.OUTPUT_DIR || path.join(os.tmpdir(), "office-kit-artifact-examples");
 
 const presentation = Presentation.create({ slideSize: { width: 1280, height: 720 } });
 const slide = presentation.slides.add({ name: "Overview" });

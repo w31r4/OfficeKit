@@ -17,7 +17,7 @@ mkdir -p tmp/pdfs/pages
 pdftoppm -png -r 144 output.pdf tmp/pdfs/pages/page
 ```
 
-Or use `createPopplerRenderer()` from `open-office-artifact-tool/renderers/poppler` when working in JavaScript.
+Or use `createPopplerRenderer()` from `office-kit/renderers/poppler` when working in JavaScript.
 
 Inspect every page, not only the first. Check:
 

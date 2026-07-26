@@ -4,7 +4,7 @@ const TRANSITION_DIRECTIONS = new Set(["left", "up", "right", "down"]);
 const TRANSITION_KEYS = new Set(["effect", "direction", "speed", "advanceOnClick", "advanceAfterMs"]);
 const MAX_ADVANCE_AFTER_MS = 86_400_000;
 
-export const PRESENTATION_TRANSITION_CAPABILITY = Symbol.for("open-office-artifact-tool.open-chestnut-slide-transition-capability");
+export const PRESENTATION_TRANSITION_CAPABILITY = Symbol.for("office-kit.slide-transition-capability");
 
 function own(object, key) {
   return Object.prototype.hasOwnProperty.call(object, key);
@@ -119,7 +119,7 @@ export class SlideTransition {
 
   toJSON() { return cloneTransition(this._value); }
 
-  // The OpenChestnut adapter uses this after it has decoded a validated
+  // The OfficeKit adapter uses this after it has decoded a validated
   // protobuf payload. It deliberately bypasses public source-bound mutation
   // checks; callers use set()/clear(), which remain capability-aware.
   _setImported(config) {

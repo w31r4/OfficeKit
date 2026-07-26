@@ -7,8 +7,8 @@ import {
   PdfArtifact,
   PdfFile,
   verifyArtifact,
-} from "open-office-artifact-tool";
-import { createPopplerRenderer } from "open-office-artifact-tool/renderers/poppler";
+} from "office-kit";
+import { createPopplerRenderer } from "office-kit/renderers/poppler";
 
 const STATUS_MARK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
@@ -64,7 +64,7 @@ export function buildPdf() {
     alt: "Verified release evidence status mark.",
     bbox: [72, 610, 28, 28],
   });
-  const footer = pdf.addText("Generated and verified with open-office-artifact-tool", {
+  const footer = pdf.addText("Generated and verified with office-kit", {
     id: "verification-footer",
     bbox: [112, 615, 360, 14],
     fontSize: 9,

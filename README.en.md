@@ -42,8 +42,8 @@ Requires Node.js 22 or newer. Run these commands in the project where the agent
 will work:
 
 ```sh
-npm install github:w31r4/open-office-artifact-tool
-npx skills add w31r4/open-office-artifact-tool --skill '*' --yes
+npm install github:w31r4/office-kit
+npx skills add w31r4/office-kit --skill '*' --yes
 ```
 
 The first command installs the file runtime. The second installs OfficeKit, the
@@ -54,8 +54,8 @@ Python setup is required.
 To install only the core Skills:
 
 ```sh
-npx skills add w31r4/open-office-artifact-tool \
-  --skill officekit documents spreadsheets excel-live-control presentations pdf template-creator \
+npx skills add w31r4/office-kit \
+  --skill office-kit documents spreadsheets excel-live-control presentations pdf template-creator \
   --yes
 ```
 
@@ -63,7 +63,7 @@ The formal npm package has not shipped yet, so the runtime currently uses the
 GitHub source. After publication, the first command becomes:
 
 ```sh
-npm install open-office-artifact-tool
+npm install office-kit
 ```
 
 ## One front door, with direct routes when you want them
@@ -73,7 +73,7 @@ output route, considers templates, and hands each file to its owning Skill.
 
 | Entry | Good for |
 | --- | --- |
-| [OfficeKit](skills/officekit/skills/officekit/SKILL.md) | Starting from the requested outcome without first choosing tools, or handling cross-format and multi-deliverable work. |
+| [OfficeKit](skills/office-kit/skills/office-kit/SKILL.md) | Starting from the requested outcome without first choosing tools, or handling cross-format and multi-deliverable work. |
 | [Documents](skills/documents/skills/documents/SKILL.md) | Creating or changing a Word document when the format is already known. |
 | [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | Excel, CSV, formulas, models, data preparation, and charts. |
 | [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | Working with a workbook already open in Excel. |
@@ -112,7 +112,7 @@ save that reference for reuse.
 read the source → create or change → export → reopen → render pages → check the result
 ```
 
-- DOCX, XLSX, and PPTX use OpenChestnut C#/.NET WASM. The package has no second
+- DOCX, XLSX, and PPTX use OfficeKit C#/.NET WASM. The package has no second
   JavaScript Office writer or silent fallback.
 - Office content that cannot be changed safely is preserved or rejected
   explicitly instead of being damaged to produce an apparently successful file.
@@ -129,7 +129,7 @@ Skills and application code use the same package. An agent can follow a Skill,
 while an application can call the API directly:
 
 ```js
-import { SpreadsheetFile, Workbook } from "open-office-artifact-tool";
+import { SpreadsheetFile, Workbook } from "office-kit";
 
 const workbook = Workbook.create();
 const sheet = workbook.worksheets.add("Summary");
@@ -149,9 +149,8 @@ Runnable examples:
 - [Create a PPTX deck with Compose](examples/create-pptx-compose.mjs)
 - [Parse and render a PDF](examples/parse-render-pdf.mjs)
 
-The older `codecs/openxml-wasm` import remains a deprecated OpenChestnut alias
-during 0.x. New code should use `codecs/open-chestnut`. See the
-[release notes](docs/release.md) for the migration boundary.
+For direct access to the low-level Office codec, use `office-kit/codec`.
+Generated wire types are available from `office-kit/codec/wire`.
 
 ## Documentation and development
 
@@ -167,8 +166,8 @@ npm run docs:api
 npm run release:check
 ```
 
-`OfficeKit` is the product name; the current package name remains
-`open-office-artifact-tool`. Version `0.3.0` is a release candidate and has not
+`OfficeKit` is the product name, and the npm package is `office-kit`.
+Version `0.3.0` is a release candidate and has not
 been formally published to npm.
 
 ## License

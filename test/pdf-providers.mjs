@@ -67,7 +67,7 @@ function fixturePack(archive, overrides = {}) {
     platform,
     asset: "fixture.tar.gz",
     version: "1.2.3",
-    url: "https://releases.example.test/open-office-artifact-tool/v1.2.3/fixture.tar.gz",
+    url: "https://releases.example.test/office-kit/v1.2.3/fixture.tar.gz",
     sha256: digest,
     downloadBytes: archive.length,
     unpackedBytes: 16 * 1024,
@@ -133,15 +133,15 @@ invalidPlatformCatalog.packs.qpdf.artifacts = [{
   platform: "win32-x64",
   asset: "qpdf.tar.gz",
   version: "1.2.3",
-  url: "https://releases.example.test/open-office-artifact-tool/v1.2.3/qpdf.tar.gz",
+  url: "https://releases.example.test/office-kit/v1.2.3/qpdf.tar.gz",
   sha256: "a".repeat(64),
   downloadBytes: 1,
   unpackedBytes: 1,
   archiveFormat: "tar.gz",
 }];
 invalidPlatformCatalog.packs.qpdf.releaseEvidence = {
-  sbom: { asset: "qpdf.cdx.json", url: "https://releases.example.test/open-office-artifact-tool/v1.2.3/qpdf.cdx.json", sha256: "b".repeat(64) },
-  thirdPartyNotices: { asset: "qpdf-notices.txt", url: "https://releases.example.test/open-office-artifact-tool/v1.2.3/qpdf-notices.txt", sha256: "c".repeat(64) },
+  sbom: { asset: "qpdf.cdx.json", url: "https://releases.example.test/office-kit/v1.2.3/qpdf.cdx.json", sha256: "b".repeat(64) },
+  thirdPartyNotices: { asset: "qpdf-notices.txt", url: "https://releases.example.test/office-kit/v1.2.3/qpdf-notices.txt", sha256: "c".repeat(64) },
   verifiedPlatforms: ["win32-x64"],
 };
 assert.throws(() => validatePdfProviderCatalog(invalidPlatformCatalog), /unsupported managed platform|outside the declared managed platforms/);
@@ -152,15 +152,15 @@ unsignedPublishedCatalog.packs.qpdf.artifacts = ["darwin-arm64", "linux-x64"].ma
   platform: candidatePlatform,
   asset: `qpdf-${candidatePlatform}.tar.gz`,
   version: "1.2.3",
-  url: `https://releases.example.test/open-office-artifact-tool/v1.2.3/qpdf-${candidatePlatform}.tar.gz`,
+  url: `https://releases.example.test/office-kit/v1.2.3/qpdf-${candidatePlatform}.tar.gz`,
   sha256: "a".repeat(64),
   downloadBytes: 1,
   unpackedBytes: 1,
   archiveFormat: "tar.gz",
 }));
 unsignedPublishedCatalog.packs.qpdf.releaseEvidence = {
-  sbom: { asset: "qpdf.cdx.json", url: "https://releases.example.test/open-office-artifact-tool/v1.2.3/qpdf.cdx.json", sha256: "b".repeat(64) },
-  thirdPartyNotices: { asset: "qpdf-notices.txt", url: "https://releases.example.test/open-office-artifact-tool/v1.2.3/qpdf-notices.txt", sha256: "c".repeat(64) },
+  sbom: { asset: "qpdf.cdx.json", url: "https://releases.example.test/office-kit/v1.2.3/qpdf.cdx.json", sha256: "b".repeat(64) },
+  thirdPartyNotices: { asset: "qpdf-notices.txt", url: "https://releases.example.test/office-kit/v1.2.3/qpdf-notices.txt", sha256: "c".repeat(64) },
   verifiedPlatforms: ["darwin-arm64", "linux-x64"],
 };
 assert.throws(() => validatePdfProviderCatalog(unsignedPublishedCatalog), /artifact-attestation/);
@@ -179,7 +179,7 @@ for (const [packId, version] of [["ocr-language-eng", "4.1.0-oat.1"], ["ocr-lang
   assert.equal(ocrRuntimeCatalog.packs[packId].releaseEvidence.provenance.workflow, ".github/workflows/pdf-ocr-capability-packs.yml");
 }
 assert.equal(validatePdfProviderCatalog(ocrRuntimeCatalog), true, "OCR may reference only declared files in its qpdf dependency closure");
-assert.equal(ocrRuntimeCatalog.providers.ocrmypdf.managedRuntime.languageDirectoryEnvironment, "OPEN_OFFICE_PDF_TESSDATA_DIRS");
+assert.equal(ocrRuntimeCatalog.providers.ocrmypdf.managedRuntime.languageDirectoryEnvironment, "OFFICE_KIT_PDF_TESSDATA_DIRS");
 const escapedOcrRuntimeCatalog = structuredClone(PDF_PROVIDER_CATALOG);
 escapedOcrRuntimeCatalog.providers.ocrmypdf.managedRuntime.commandPaths.qpdf = { packId: "python-foundation", path: "bin/python3" };
 assert.throws(() => validatePdfProviderCatalog(escapedOcrRuntimeCatalog), /outside its dependency closure/);
@@ -428,7 +428,7 @@ assert.equal(missingOcrProbeLanguage.reason.code, "ocr-language-required");
 
 const rootImport = await import("node:child_process").then(({ spawnSync }) => spawnSync(process.execPath, ["--input-type=module", "--eval", [
   "globalThis.fetch=()=>{throw new Error('network must remain unused')}",
-  "await import('open-office-artifact-tool/pdf/providers')",
+  "await import('office-kit/pdf/providers')",
   "process.stdout.write('providers-import-ok')",
 ].join(";")], { cwd: repoRoot, encoding: "utf8" }));
 assert.equal(rootImport.status, 0, rootImport.stderr);
@@ -440,13 +440,13 @@ assert.match(liveWorkflow, /node test\/pdf-ocr-managed-release\.mjs/);
 assert.match(liveWorkflow, /^  verapdf-managed-pack:/m);
 assert.match(liveWorkflow, /node test\/pdf-verapdf-managed-release\.mjs/);
 
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-pdf-providers-"));
+const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-pdf-providers-"));
 try {
   const oldQpdf = path.join(tempRoot, "old-qpdf.mjs");
   await fs.writeFile(oldQpdf, "#!/usr/bin/env node\nif (process.argv.includes('--version')) console.log('qpdf version 11.6.3'); else { console.error('qpdf: unrecognized argument -v'); process.exit(2); }\n", "utf8");
   await fs.chmod(oldQpdf, 0o755);
-  const previousQpdf = process.env.OPEN_OFFICE_PDF_QPDF;
-  process.env.OPEN_OFFICE_PDF_QPDF = oldQpdf;
+  const previousQpdf = process.env.OFFICE_KIT_PDF_QPDF;
+  process.env.OFFICE_KIT_PDF_QPDF = oldQpdf;
   try {
     const oldRepairProbe = await PdfProviders.probe({
       provider: "qpdf",
@@ -463,8 +463,8 @@ try {
     assert.equal(oldEncryptProbe.reason.code, "system-provider-unavailable");
     assert.equal(oldEncryptProbe.runtime.evidence.taskMinimumVersion, "11.7.0");
   } finally {
-    if (previousQpdf === undefined) delete process.env.OPEN_OFFICE_PDF_QPDF;
-    else process.env.OPEN_OFFICE_PDF_QPDF = previousQpdf;
+    if (previousQpdf === undefined) delete process.env.OFFICE_KIT_PDF_QPDF;
+    else process.env.OFFICE_KIT_PDF_QPDF = previousQpdf;
   }
 
   // A freshly unpacked isolated OCR runtime can take longer than the generic
@@ -483,8 +483,8 @@ try {
     "",
   ].join("\n"), "utf8");
   await fs.chmod(delayedOcr, 0o755);
-  const previousOcr = process.env.OPEN_OFFICE_PDF_OCRMYPDF;
-  process.env.OPEN_OFFICE_PDF_OCRMYPDF = delayedOcr;
+  const previousOcr = process.env.OFFICE_KIT_PDF_OCRMYPDF;
+  process.env.OFFICE_KIT_PDF_OCRMYPDF = delayedOcr;
   try {
     const started = Date.now();
     const delayedOcrProbe = await PdfProviders.probe({
@@ -496,8 +496,8 @@ try {
     assert.equal(delayedOcrProbe.status, "ready", JSON.stringify(delayedOcrProbe.reason));
     assert.ok(Date.now() - started >= 2_500, "OCR probe must wait beyond the generic 2.5-second command timeout");
   } finally {
-    if (previousOcr === undefined) delete process.env.OPEN_OFFICE_PDF_OCRMYPDF;
-    else process.env.OPEN_OFFICE_PDF_OCRMYPDF = previousOcr;
+    if (previousOcr === undefined) delete process.env.OFFICE_KIT_PDF_OCRMYPDF;
+    else process.env.OFFICE_KIT_PDF_OCRMYPDF = previousOcr;
   }
 
   // A system-only Python provider may be selected through a caller-owned
@@ -537,7 +537,7 @@ try {
   assert.equal(relativePythonProbe.status, "ready", JSON.stringify(relativePythonProbe.reason));
   assert.equal(relativePythonProbe.runtime.evidence.python, explicitPython);
 
-  const policyDirectory = path.join(tempRoot, ".open-office-artifact-tool");
+  const policyDirectory = path.join(tempRoot, ".office-kit");
   await fs.mkdir(policyDirectory);
   const policyPath = path.join(policyDirectory, "pdf-providers.json");
   await fs.writeFile(policyPath, JSON.stringify({
@@ -592,10 +592,10 @@ try {
   await installManagedPackForTest({
     cacheRoot: mirrorCache,
     pack,
-    enterpriseMirror: "https://mirror.example.test/open-office-artifact-tool/v1.2.3/",
+    enterpriseMirror: "https://mirror.example.test/office-kit/v1.2.3/",
     fetchImpl: fakeFetch(normalArchive, mirrorCalls),
   });
-  assert.deepEqual(mirrorCalls, ["https://mirror.example.test/open-office-artifact-tool/v1.2.3/fixture.tar.gz"]);
+  assert.deepEqual(mirrorCalls, ["https://mirror.example.test/office-kit/v1.2.3/fixture.tar.gz"]);
 
   const redirectCalls = [];
   const redirectCache = path.join(tempRoot, "redirect-cache");

@@ -62,7 +62,7 @@ export async function materializeTemplate({ templateId, outputPath, auditPath } 
     const outputBytes = await fs.readFile(temporaryOutput);
     if (!outputBytes.equals(sourceBytes)) throw new Error(`Materialized output differs from retained source for ${id}.`);
     const report = {
-      schema: "open-office-artifact-tool.default-template-library.v1",
+      schema: "office-kit.default-template-library.v1",
       status: "succeeded",
       operation: "materialize-retained-reference",
       template: { id, sourceCommit: integrity.source.commit, license: integrity.source.license },

@@ -21,12 +21,12 @@ See: `tasks/navigation_internal_links.md`.
 2. Keep heading text in the paragraph (avoid leading manual numbers as plain text).
 3. After edits, **update fields** before final export.
 
-## Public OpenChestnut path for a new/canonical document
+## Public OfficeKit path for a new/canonical document
 
 Use the public model for ordinary authoring:
 
 ```js
-import { DocumentFile, DocumentModel } from "open-office-artifact-tool";
+import { DocumentFile, DocumentModel } from "office-kit";
 
 const document = DocumentModel.create({ name: "Report", blocks: [] });
 document.addParagraph("Report", { styleId: "Title" });
@@ -43,7 +43,7 @@ await (await DocumentFile.exportDocx(document)).save("with_toc.docx");
 `addTableOfContents()` authors a canonical complex TOC field and sets
 `settings.updateFields`/native `w:updateFields` by default. That flag requests a
 refresh on open; it does not compute the TOC and is not QA evidence. After Word
-updates the field, the result may span many paragraphs. OpenChestnut preserves
+updates the field, the result may span many paragraphs. OfficeKit preserves
 that entire field span as opaque/source-bound and rejects semantic edits rather
 than treating cached entry paragraphs as ordinary body text.
 

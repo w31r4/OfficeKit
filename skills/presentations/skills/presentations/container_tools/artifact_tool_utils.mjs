@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
 export const DEFAULT_SLIDE_SIZE = { width: 1280, height: 720 };
-const ARTIFACT_TOOL_PACKAGE = "open-office-artifact-tool";
+const ARTIFACT_TOOL_PACKAGE = "office-kit";
 const MIN_ARTIFACT_TOOL_VERSION = "0.2.0";
 
 export function parseArgs(argv) {
@@ -167,13 +167,13 @@ function validateArtifactToolPackage(packageDir, context) {
 }
 
 function findArtifactToolPackage() {
-  const explicit = process.env.OPEN_OFFICE_ARTIFACT_TOOL_PACKAGE_DIR;
+  const explicit = process.env.OFFICE_KIT_PACKAGE_DIR;
   const packageDir = explicit
     ? path.resolve(explicit)
     : owningArtifactToolPackage() || runtimePackagePath(ARTIFACT_TOOL_PACKAGE);
   return validateArtifactToolPackage(
     packageDir,
-    explicit ? "OPEN_OFFICE_ARTIFACT_TOOL_PACKAGE_DIR" : `the bundled Codex runtime ${ARTIFACT_TOOL_PACKAGE} package`,
+    explicit ? "OFFICE_KIT_PACKAGE_DIR" : `the bundled runtime ${ARTIFACT_TOOL_PACKAGE} package`,
   );
 }
 

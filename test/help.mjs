@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import * as rootApi from "open-office-artifact-tool";
+import * as rootApi from "office-kit";
 
 import {
   DocumentModel,
@@ -12,7 +12,7 @@ import {
   Presentation,
   text,
   Workbook,
-} from "open-office-artifact-tool";
+} from "office-kit";
 import { HELP_CATALOG as LEAF_HELP_CATALOG } from "../src/help/index.mjs";
 import { node as leafNode, text as leafText } from "../src/presentation/compose.mjs";
 import * as presentationApi from "../src/presentation/index.mjs";
@@ -97,7 +97,7 @@ const revisionFinalizationSummary = HELP_CATALOG.find((item) => item.name === "D
 assert.match(revisionFinalizationSummary, /whole-paragraph.*in-paragraph.*source bytes/i);
 assert.match(revisionFinalizationSummary, /table-cell/i);
 assert.match(revisionFinalizationSummary, /SHA-256.*changed-part.*fail-closed/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "document.setSettings")?.summary || "", /mirrorMargins.*gutterAtTop.*trackRevisions.*inside the OpenChestnut 0\.3 DOCX boundary/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "document.setSettings")?.summary || "", /mirrorMargins.*gutterAtTop.*trackRevisions.*inside the OfficeKit 0\.3 DOCX boundary/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.speakerNotes.capability")?.schema?.returns?.capability?.description || "", /sourceBound.*partPresent.*editable.*addable.*preflight.*not mutable write authority/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.importXlsx")?.schema?.returns?.workbook?.description || "", /images.*charts/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "sheet.images.add")?.schema?.parameters?.transform?.description || "", /rotationDegrees.*flipHorizontal.*flipVertical/);
@@ -205,7 +205,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.addCitation")?.
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addChange")?.summary || "", /native w:ins\/w:del.*fixed-topology/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "document.replyToComment")?.summary || "", /source-free direct reply.*commentsExtended.*nested replies.*imported topology.*fail closed/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "documentComment.resolve")?.summary || "", /resolved=true.*source hashes.*commentsExtended topology/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "document.setSettings")?.summary || "", /evenAndOddHeaders.*mirrorMargins.*gutterAtTop.*trackRevisions.*updateFields.*passwordless documentProtection.*inside the OpenChestnut 0\.3 DOCX boundary.*irregular page-margin mode markup.*source-owned.*fail closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "document.setSettings")?.summary || "", /evenAndOddHeaders.*mirrorMargins.*gutterAtTop.*trackRevisions.*updateFields.*passwordless documentProtection.*inside the OfficeKit 0\.3 DOCX boundary.*irregular page-margin mode markup.*source-owned.*fail closed/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "document.setSettings")?.schema?.parameters?.settings?.description || "", /evenAndOddHeaders.*mirrorMargins.*gutterAtTop.*none\/readOnly\/comments\/trackedChanges\/forms.*password hashes.*irregular mirrorMargins\/gutterAtTop markup.*source-owned/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "pdf.extractTables"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "pdf.addPage"));
@@ -556,18 +556,18 @@ for (const name of [
 }
 assert.equal(HELP_CATALOG.find((item) => item.name === "OFFICE_CODEC_IDS"), undefined);
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.exportXlsx")?.schema?.parameters?.recalculate?.type, "boolean");
-assert.equal(HELP_CATALOG.find((item) => item.name === "exportXlsxWithOpenChestnut")?.schema?.parameters?.allowLossy, undefined);
-assert.equal(HELP_CATALOG.find((item) => item.name === "exportXlsxWithOpenChestnut")?.schema?.returns?.blob?.type, "FileBlob");
-assert.equal(HELP_CATALOG.find((item) => item.name === "exportDocxWithOpenChestnut")?.schema?.parameters?.allowLossy, undefined);
-assert.equal(HELP_CATALOG.find((item) => item.name === "exportDocxWithOpenChestnut")?.schema?.returns?.blob?.type, "FileBlob");
-assert.match(HELP_CATALOG.find((item) => item.name === "exportDocxWithOpenChestnut")?.summary || "", /direct w:r\/w:t.*adjacent same-format runs/i);
-assert.equal(HELP_CATALOG.find((item) => item.name === "importDocxWithOpenChestnut")?.schema?.returns?.document?.type, "DocumentModel");
-assert.equal(HELP_CATALOG.find((item) => item.name === "exportPptxWithOpenChestnut")?.schema?.parameters?.allowLossy, undefined);
-assert.equal(HELP_CATALOG.find((item) => item.name === "importPptxWithOpenChestnut")?.schema?.returns?.presentation?.type, "Presentation");
-assert.equal(HELP_CATALOG.find((item) => item.name === "importXlsxWithOpenChestnut")?.schema?.parameters?.limits?.type, "object");
-assert.match(HELP_CATALOG.find((item) => item.name === "importXlsxWithOpenChestnut")?.schema?.returns?.workbook?.description || "", /canonical Office 2010 sparkline groups.*non-reversible sparkline graphs.*preserved unchanged/i);
+assert.equal(HELP_CATALOG.find((item) => item.name === "exportXlsxWithOfficeKit")?.schema?.parameters?.allowLossy, undefined);
+assert.equal(HELP_CATALOG.find((item) => item.name === "exportXlsxWithOfficeKit")?.schema?.returns?.blob?.type, "FileBlob");
+assert.equal(HELP_CATALOG.find((item) => item.name === "exportDocxWithOfficeKit")?.schema?.parameters?.allowLossy, undefined);
+assert.equal(HELP_CATALOG.find((item) => item.name === "exportDocxWithOfficeKit")?.schema?.returns?.blob?.type, "FileBlob");
+assert.match(HELP_CATALOG.find((item) => item.name === "exportDocxWithOfficeKit")?.summary || "", /direct w:r\/w:t.*adjacent same-format runs/i);
+assert.equal(HELP_CATALOG.find((item) => item.name === "importDocxWithOfficeKit")?.schema?.returns?.document?.type, "DocumentModel");
+assert.equal(HELP_CATALOG.find((item) => item.name === "exportPptxWithOfficeKit")?.schema?.parameters?.allowLossy, undefined);
+assert.equal(HELP_CATALOG.find((item) => item.name === "importPptxWithOfficeKit")?.schema?.returns?.presentation?.type, "Presentation");
+assert.equal(HELP_CATALOG.find((item) => item.name === "importXlsxWithOfficeKit")?.schema?.parameters?.limits?.type, "object");
+assert.match(HELP_CATALOG.find((item) => item.name === "importXlsxWithOfficeKit")?.schema?.returns?.workbook?.description || "", /canonical Office 2010 sparkline groups.*non-reversible sparkline graphs.*preserved unchanged/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "workbook.sharedArrayFormulas")?.summary || "", /dynamic-array anchors.*source-bound and read-only/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "workbook.comments.addThread")?.schema?.returns?.thread?.description || "", /direct replies.*OpenChestnut export\/import.*nested\/branched.*fail closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "workbook.comments.addThread")?.schema?.returns?.thread?.description || "", /direct replies.*OfficeKit export\/import.*nested\/branched.*fail closed/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "thread.addReply")?.schema?.parameters?.text?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "thread.addReply")?.schema?.returns?.thread?.description || "", /direct reply.*nested graph.*fail closed/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "sheet.tables.add")?.schema?.returns?.table?.description || "", /QueryTable.*import-only and read-only/i);
@@ -583,8 +583,8 @@ assert.match(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.sche
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.dataLabels?.description || "", /showPercent.*pie\/doughnut/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "table.merge")?.schema?.parameters?.range?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "table.merge")?.schema?.returns?.table?.description || "", /upper-left value.*covered cells read-only.*topology remains source-bound/i);
-assert.equal(HELP_CATALOG.find((item) => item.name === "openChestnutStatus")?.schema?.returns?.status?.type, "object");
-assert.equal(HELP_CATALOG.find((item) => item.name === "invokeOpenChestnut")?.schema?.parameters?.request?.required, true);
+assert.equal(HELP_CATALOG.find((item) => item.name === "officeKitStatus")?.schema?.returns?.status?.type, "object");
+assert.equal(HELP_CATALOG.find((item) => item.name === "invokeOfficeKit")?.schema?.parameters?.request?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.inspectXlsx")?.schema?.parameters?.maxTotalBytes?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.inspectXlsx")?.schema?.parameters?.verifyCrc32?.type, "boolean");
 assert.equal(HELP_CATALOG.find((item) => item.name === "PresentationFile.inspectPptx")?.schema?.parameters?.verifyCrc32?.type, "boolean");

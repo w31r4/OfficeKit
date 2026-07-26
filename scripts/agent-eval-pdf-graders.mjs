@@ -499,7 +499,7 @@ export function gradeMergeStampEvidence({ evidence, audit, commands, item }) {
     check("pdf-visual:all-pages-rendered", "visual", evidence.visual?.pageCount === item.grade.machine.pageCount && visualPages.length === item.grade.machine.pageCount && visualPages.every((page) => page.sameDimensions && page.nonBlank), { renderer: evidence.visual?.renderer, pages: visualPages }),
     check("pdf-visual:non-watermarked-pages-stable", "visual", visualPages.filter((page) => !page.watermarkExpected).every((page) => page.pixelStable), { actual: visualPages.filter((page) => !page.watermarkExpected) }),
     check("pdf-visual:watermarked-pages-changed", "visual", visualPages.filter((page) => page.watermarkExpected).length === watermarkPages.size && visualPages.filter((page) => page.watermarkExpected).every((page) => !page.pixelStable && page.changedPixelsBBox), { actual: visualPages.filter((page) => page.watermarkExpected) }),
-    gate("pdf-security:manifest-contract", "security", manifest.schema === "open-office-artifact-tool.pdf-merge-stamp.v1" && JSON.stringify(manifestSequence) === JSON.stringify(expectedSequence) && manifestWatermark.source === "report" && manifestWatermark.text === item.grade.machine.watermarkText && Math.abs(Number(manifestWatermark.opacity) - item.grade.machine.watermarkOpacity) <= 0.001, { actual: manifest }),
+    gate("pdf-security:manifest-contract", "security", manifest.schema === "office-kit.pdf-merge-stamp.v1" && JSON.stringify(manifestSequence) === JSON.stringify(expectedSequence) && manifestWatermark.source === "report" && manifestWatermark.text === item.grade.machine.watermarkText && Math.abs(Number(manifestWatermark.opacity) - item.grade.machine.watermarkOpacity) <= 0.001, { actual: manifest }),
     gate("pdf-security:audit-provenance", "security", auditSourceHash(audit) === evidence.manifest?.sha256 && auditOutputHash(audit) === output.sha256, { expected: { source: evidence.manifest?.sha256, output: output.sha256 }, actual: { source: auditSourceHash(audit) || "unreported", output: auditOutputHash(audit) || "unreported" } }),
     gate("pdf-security:all-source-bytes-bound", "security", JSON.stringify(actualInputs) === JSON.stringify(expectedInputs), { expected: expectedInputs, actual: actualInputs }),
     gate("pdf-security:navigation-resolved", "security", navigationMatches, { expected: expectedNavigation, actual: actualNavigation }),
@@ -739,7 +739,7 @@ export function gradeAttachmentQuarantineEvidence({ evidence, audit, commands, i
   const validation = audit?.validation || {};
   return [
     check("pdf-machine:source-attachment-fixture-complete", "machine", sourceFixtureComplete, { actual: { count: expected.length, scopes: expected.map((entry) => entry.scope), unsafeRawPaths: evidence.unsafeRawPaths } }),
-    check("pdf-machine:manifest-schema-and-count", "machine", manifest.schema === "open-office-artifact-tool.pdf-attachments.v1" && manifestAttachments.length === expectedCount, { expected: expectedCount, actual: { schema: manifest.schema, count: manifestAttachments.length } }),
+    check("pdf-machine:manifest-schema-and-count", "machine", manifest.schema === "office-kit.pdf-attachments.v1" && manifestAttachments.length === expectedCount, { expected: expectedCount, actual: { schema: manifest.schema, count: manifestAttachments.length } }),
     check("pdf-machine:manifest-fields-exact", "machine", manifestFieldsExact, { expected, actual: manifestAttachments }),
     check("pdf-machine:attachment-bytes-and-hashes", "machine", JSON.stringify(expectedHashes) === JSON.stringify(manifestHashes) && JSON.stringify(expectedHashes) === JSON.stringify(fileHashes), { expected: expectedHashes, manifest: manifestHashes, files: fileHashes }),
     check("pdf-machine:unique-output-paths", "machine", pathsUnique, { actual: relativeManifestPaths }),
@@ -839,7 +839,7 @@ export function summarizeCaseScore(checks, grade, weights = defaultWeights, hard
 }
 
 function oraclePython() {
-  return process.env.OPEN_OFFICE_AGENT_EVAL_PYTHON || process.env.OPEN_OFFICE_PDF_PROVIDER_PYTHON || "python3";
+  return process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "python3";
 }
 
 function invokeOracle(payload, needsPoppler) {
@@ -848,7 +848,7 @@ function invokeOracle(payload, needsPoppler) {
   if (dependencyProbe.status !== 0) {
     return { infrastructureError: `PDF grader requires Pillow, pdfplumber, pypdf, and ReportLab in ${python}: ${String(dependencyProbe.stderr || dependencyProbe.error?.message || "probe failed").trim()}` };
   }
-  const poppler = process.env.OPEN_OFFICE_AGENT_EVAL_PDFTOPPM || "pdftoppm";
+  const poppler = process.env.OFFICE_KIT_AGENT_EVAL_PDFTOPPM || "pdftoppm";
   if (needsPoppler) {
     const popplerProbe = spawnSync(poppler, ["-v"], { encoding: "utf8", env: process.env });
     if (popplerProbe.status !== 0) return { infrastructureError: `PDF visual grader requires pdftoppm: ${String(popplerProbe.stderr || popplerProbe.error?.message || "probe failed").trim()}` };

@@ -18,12 +18,12 @@ and real list blocks.
    together and retain its embedded-versus-external source kind.
 5. Imported complex multilevel heading-numbering or irregular picture-bullet
    graphs are source-bound. Do
-   not rebuild or flatten them when OpenChestnut rejects an edit.
+   not rebuild or flatten them when OfficeKit rejects an edit.
 
 ## Public API pattern
 
 ```js
-import { DocumentFile, DocumentModel } from "open-office-artifact-tool";
+import { DocumentFile, DocumentModel } from "office-kit";
 
 const document = DocumentModel.create({ blocks: [] });
 for (const [id, fontSize, spaceBeforeTwips] of [

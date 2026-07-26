@@ -10,10 +10,10 @@ import {
   Workbook,
   verifyArtifact,
   visualQaArtifact,
-} from "open-office-artifact-tool";
-import { createPlaywrightRenderer } from "open-office-artifact-tool/renderers/playwright";
-import { createLibreOfficeRenderer } from "open-office-artifact-tool/renderers/libreoffice";
-import { createPopplerRenderer } from "open-office-artifact-tool/renderers/poppler";
+} from "office-kit";
+import { createPlaywrightRenderer } from "office-kit/renderers/playwright";
+import { createLibreOfficeRenderer } from "office-kit/renderers/libreoffice";
+import { createPopplerRenderer } from "office-kit/renderers/poppler";
 import {
   loadVisualBaseline,
   prepareNumberedVisualBaselines,
@@ -85,7 +85,7 @@ async function attachSourceQueryTableFixture(file, config = {}) {
     '<Relationship Id="rIdConnections" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/connections" Target="connections.xml"/></Relationships>',
   ));
   zip.file(tableRelationshipPath, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdQueryTable" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/queryTable" Target="${fixtureXmlEscape(queryTarget)}"/></Relationships>`);
-  zip.file("xl/connections.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><x:connections xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:fixture="urn:open-office-artifact-tool:query-fixture"><x:connection id="${connectionId}" name="${fixtureXmlEscape(config.connectionName || "Fixture connection")}" description="Read-only fixture source" type="5" refreshedVersion="8" keepAlive="0" interval="30" background="1" refreshOnLoad="${connectionRefreshOnLoad}" saveData="1" savePassword="0" credentials="integrated"><x:dbPr connection="Provider=Fixture.Provider;Data Source=fixture.invalid" command="SELECT fixture fields" commandType="2"/><x:extLst><x:ext uri="{E5A74D42-D212-4CC7-9D5B-A7393F4D8A61}"><fixture:connectionOpaque value="kept"/></x:ext></x:extLst></x:connection></x:connections>`);
+  zip.file("xl/connections.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><x:connections xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:fixture="urn:office-kit:query-fixture"><x:connection id="${connectionId}" name="${fixtureXmlEscape(config.connectionName || "Fixture connection")}" description="Read-only fixture source" type="5" refreshedVersion="8" keepAlive="0" interval="30" background="1" refreshOnLoad="${connectionRefreshOnLoad}" saveData="1" savePassword="0" credentials="integrated"><x:dbPr connection="Provider=Fixture.Provider;Data Source=fixture.invalid" command="SELECT fixture fields" commandType="2"/><x:extLst><x:ext uri="{E5A74D42-D212-4CC7-9D5B-A7393F4D8A61}"><fixture:connectionOpaque value="kept"/></x:ext></x:extLst></x:connection></x:connections>`);
   const queryFields = fields.map((name, index) => index === 0
     ? `<x:queryTableField id="1" name="${fixtureXmlEscape(name)}" dataBound="1" tableColumnId="1" fillFormulas="0" clipped="0"><x:extLst><x:ext uri="{71C44015-E485-449B-93BE-190C959F820F}"><fixture:fieldOpaque value="kept"/></x:ext></x:extLst></x:queryTableField>`
     : `<x:queryTableField id="${index + 1}" name="${fixtureXmlEscape(name)}" dataBound="1" tableColumnId="${index + 1}"/>`).join("");
@@ -94,7 +94,7 @@ async function attachSourceQueryTableFixture(file, config = {}) {
     ? `<x:queryTableDeletedFields count="${deletedFieldNames.length}">${deletedFieldNames.map((name) => `<x:deletedField name="${fixtureXmlEscape(name)}"/>`).join("")}</x:queryTableDeletedFields>`
     : "";
   const sortStateXml = sourceQuerySortStateXml(config.sortState);
-  zip.file(queryPartPath, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><x:queryTable xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:fixture="urn:open-office-artifact-tool:query-fixture" name="${fixtureXmlEscape(config.queryName || "Fixture query")}" headers="1" rowNumbers="0" disableRefresh="0" backgroundRefresh="1" firstBackgroundRefresh="0" refreshOnLoad="0" growShrinkType="insertClear" fillFormulas="0" removeDataOnSave="0" disableEdit="0" preserveFormatting="1" adjustColumnWidth="1" intermediate="0" connectionId="${connectionId}"><x:queryTableRefresh preserveSortFilterLayout="1" fieldIdWrapped="0" headersInLastRefresh="1" minimumVersion="0" nextId="${fields.length + 1}" unboundColumnsLeft="0" unboundColumnsRight="0"><x:queryTableFields count="${fields.length}">${queryFields}</x:queryTableFields>${deletedFieldsXml}${sortStateXml}</x:queryTableRefresh><x:extLst><x:ext uri="{A1D56E5F-35B8-4C51-9C80-779E6A39D52B}"><fixture:opaque value="kept"/></x:ext></x:extLst></x:queryTable>`);
+  zip.file(queryPartPath, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><x:queryTable xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:fixture="urn:office-kit:query-fixture" name="${fixtureXmlEscape(config.queryName || "Fixture query")}" headers="1" rowNumbers="0" disableRefresh="0" backgroundRefresh="1" firstBackgroundRefresh="0" refreshOnLoad="0" growShrinkType="insertClear" fillFormulas="0" removeDataOnSave="0" disableEdit="0" preserveFormatting="1" adjustColumnWidth="1" intermediate="0" connectionId="${connectionId}"><x:queryTableRefresh preserveSortFilterLayout="1" fieldIdWrapped="0" headersInLastRefresh="1" minimumVersion="0" nextId="${fields.length + 1}" unboundColumnsLeft="0" unboundColumnsRight="0"><x:queryTableFields count="${fields.length}">${queryFields}</x:queryTableFields>${deletedFieldsXml}${sortStateXml}</x:queryTableRefresh><x:extLst><x:ext uri="{A1D56E5F-35B8-4C51-9C80-779E6A39D52B}"><fixture:opaque value="kept"/></x:ext></x:extLst></x:queryTable>`);
   return new FileBlob(await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" }), { type: XLSX_MIME, name: "source-query-table-fixture.xlsx" });
 }
 

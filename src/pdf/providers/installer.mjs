@@ -22,7 +22,7 @@ import {
   pdfProviderById,
 } from "./catalog.mjs";
 
-const RECEIPT_SCHEMA = "open-office-artifact-tool.pdf-provider-receipt.v1";
+const RECEIPT_SCHEMA = "office-kit.pdf-provider-receipt.v1";
 const RECEIPT_FILE = ".receipt.json";
 const MAX_RECEIPT_BYTES = 128 * 1024;
 const LOCK_TIMEOUT_MS = 20_000;

@@ -4,7 +4,7 @@ PowerPoint sections are named, ordered groups that partition a deck. They are
 not custom shows: a custom show can repeat or omit slides, while a section owns
 each slide exactly once in presentation order.
 
-OpenChestnut writes the Office 2010 extension profile in
+OfficeKit writes the Office 2010 extension profile in
 `ppt/presentation.xml`: the presentation extension URI
 `{521415D9-36F7-43E2-AB2F-B90AF26B5E84}` contains one
 `p14:sectionLst`; every `p14:section` has a brace-delimited GUID and a list of
@@ -75,7 +75,7 @@ For an Agent task that changes one imported section label only, use the shipped
 workflow rather than a raw package patch:
 
 ```bash
-node examples/openchestnut-section-rename-workflow.mjs \
+node examples/officekit-section-rename-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Context" "Background"
 ```
@@ -105,7 +105,7 @@ transaction rather than individually calling `setSlides(...)` in an Agent
 workflow:
 
 ```bash
-node examples/openchestnut-section-boundary-edit-workflow.mjs \
+node examples/officekit-section-boundary-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   @expected-sections.json \
   @replacement-sections.json

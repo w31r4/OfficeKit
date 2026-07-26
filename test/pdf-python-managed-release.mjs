@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { PdfProviders } from "../src/pdf/providers/index.mjs";
 
 const execFile = promisify(execFileCallback);
-const packId = process.env.OPEN_OFFICE_PDF_LIVE_PACK || "python-foundation";
+const packId = process.env.OFFICE_KIT_PDF_LIVE_PACK || "python-foundation";
 const PACKS = Object.freeze({
   "python-foundation": {
     provider: "reportlab",
@@ -51,12 +51,12 @@ const profile = PACKS[packId];
 
 if (!profile) throw new Error(`Unsupported Python managed-release pack ${packId}.`);
 
-if (process.env.OPEN_OFFICE_PDF_LIVE_PACK_TEST !== "1") {
-  console.log(`${packId} managed release smoke skipped (set OPEN_OFFICE_PDF_LIVE_PACK_TEST=1)`);
+if (process.env.OFFICE_KIT_PDF_LIVE_PACK_TEST !== "1") {
+  console.log(`${packId} managed release smoke skipped (set OFFICE_KIT_PDF_LIVE_PACK_TEST=1)`);
 } else {
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), `open-office-${packId}-managed-release-`));
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), `office-kit-${packId}-managed-release-`));
   try {
-    const policyDirectory = path.join(temporary, ".open-office-artifact-tool");
+    const policyDirectory = path.join(temporary, ".office-kit");
     const policyPath = path.join(policyDirectory, "pdf-providers.json");
     await fs.mkdir(policyDirectory);
     await fs.writeFile(policyPath, JSON.stringify({

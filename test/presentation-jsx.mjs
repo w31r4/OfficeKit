@@ -3,10 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import JSZip from "jszip";
 
-import { FileBlob, Presentation, PresentationFile } from "open-office-artifact-tool";
-import { Fragment, chart as chartNode, grid as gridNode, image as imageNode, paragraph as paragraphNode, table as tableNode } from "open-office-artifact-tool/presentation-jsx";
-import { jsx, jsxs } from "open-office-artifact-tool/presentation-jsx/jsx-runtime";
-import { jsxDEV } from "open-office-artifact-tool/presentation-jsx/jsx-dev-runtime";
+import { FileBlob, Presentation, PresentationFile } from "office-kit";
+import { Fragment, chart as chartNode, grid as gridNode, image as imageNode, paragraph as paragraphNode, table as tableNode } from "office-kit/presentation-jsx";
+import { jsx, jsxs } from "office-kit/presentation-jsx/jsx-runtime";
+import { jsxDEV } from "office-kit/presentation-jsx/jsx-dev-runtime";
 
 function MetricCard({ name, label, children }) {
   return jsxs("box", {
@@ -169,7 +169,7 @@ assert.ok(objectLayout.elements.some((element) => element.kind === "chart" && el
 assert.ok(objectLayout.elements.some((element) => element.kind === "image" && element.name === "jsx-image"));
 assert.match(await (await dataSlide.export({ format: "svg" })).text(), /ARR trend/);
 
-const out = path.join(os.tmpdir(), `open-office-artifact-jsx-${process.pid}.pptx`);
+const out = path.join(os.tmpdir(), `office-kit-artifact-jsx-${process.pid}.pptx`);
 const pptx = await PresentationFile.exportPptx(presentation);
 const zip = await JSZip.loadAsync(new Uint8Array(await pptx.arrayBuffer()));
 assert.ok(Object.keys(zip.files).some((part) => /^ppt\/media\/[^/]+\.png$/.test(part)));

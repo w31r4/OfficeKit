@@ -1,4 +1,4 @@
-import { image, layers, shape, table, text } from "open-office-artifact-tool";
+import { image, layers, shape, table, text } from "office-kit";
 import { contentTokens } from "./runtime.mjs";
 
 export const slide08Tokens = contentTokens["slide-08"];

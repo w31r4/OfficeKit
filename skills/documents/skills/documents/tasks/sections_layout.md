@@ -23,7 +23,7 @@ count, geometry, and header/footer relationships before a semantic edit.
 ## Public API pattern
 
 ```js
-import { DocumentFile, DocumentModel } from "open-office-artifact-tool";
+import { DocumentFile, DocumentModel } from "office-kit";
 
 const document = DocumentModel.create({ blocks: [] });
 document.addParagraph("Portrait-section evidence.");
@@ -55,7 +55,7 @@ await (await DocumentFile.exportDocx(document)).save("out.docx");
 
 Imported section relationship/linkage graphs beyond the modeled section
 boundary are source-bound. If changing one would invalidate source evidence,
-OpenChestnut fails closed; do not flatten the document to force the edit.
+OfficeKit fails closed; do not flatten the document to force the edit.
 
 `columns` has two mutually exclusive bounded profiles. Equal-width layout uses
 `{ count, spacing, separator }`. Asymmetric layout uses ordered native column

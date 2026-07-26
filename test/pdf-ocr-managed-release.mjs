@@ -13,12 +13,12 @@ function combinedOutput(result) {
   return String(result.stdout || "") + String(result.stderr || "");
 }
 
-if (process.env.OPEN_OFFICE_PDF_LIVE_PACK_TEST !== "1") {
-  console.log("OCR managed release smoke skipped (set OPEN_OFFICE_PDF_LIVE_PACK_TEST=1)");
+if (process.env.OFFICE_KIT_PDF_LIVE_PACK_TEST !== "1") {
+  console.log("OCR managed release smoke skipped (set OFFICE_KIT_PDF_LIVE_PACK_TEST=1)");
 } else {
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-ocr-managed-release-"));
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-ocr-managed-release-"));
   try {
-    const policyDirectory = path.join(temporary, ".open-office-artifact-tool");
+    const policyDirectory = path.join(temporary, ".office-kit");
     const policyPath = path.join(policyDirectory, "pdf-providers.json");
     await fs.mkdir(policyDirectory);
     await fs.writeFile(policyPath, JSON.stringify({

@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { FileBlob } from "open-office-artifact-tool";
+import { FileBlob } from "office-kit";
 import {
   loadVisualBaseline,
   prepareNumberedVisualBaselines,
@@ -12,7 +12,7 @@ import {
 } from "./skill-harness/shared/visual-baselines.mjs";
 
 const whitePixelPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFgAI/ScL+YQAAAABJRU5ErkJggg==", "base64");
-const root = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-visual-baselines-"));
+const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-visual-baselines-"));
 const baselineDir = path.join(root, "baselines");
 
 try {

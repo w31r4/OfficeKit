@@ -1,9 +1,9 @@
 import os from "node:os";
 import path from "node:path";
 
-import { DocumentModel, DocumentFile } from "open-office-artifact-tool";
+import { DocumentModel, DocumentFile } from "office-kit";
 
-const outputDir = process.env.OUTPUT_DIR || path.join(os.tmpdir(), "open-office-artifact-examples");
+const outputDir = process.env.OUTPUT_DIR || path.join(os.tmpdir(), "office-kit-artifact-examples");
 
 const document = DocumentModel.create({ blocks: [] });
 document.styles.add("ExecutiveSummary", { name: "Executive Summary", fontSize: 28, bold: true });
@@ -13,7 +13,7 @@ document.addParagraph("This DOCX was generated with public WordprocessingML buil
 document.addListItem("Revenue trend is stable", { level: 0 });
 document.addListItem("Native image and section facades are available", { level: 0 });
 document.addTable({ name: "summary-table", values: [["Metric", "Value"], ["Revenue", "$12M"], ["Retention", "94%"]] });
-document.addHyperlink("Project repository", "https://github.com/w31r4/open-office-artifact-tool");
+document.addHyperlink("Project repository", "https://github.com/w31r4/office-kit");
 document.addField("PAGE", "1");
 document.addComment(document.blocks[0].id, "Review title wording before publishing.");
 document.addSection({ orientation: "portrait", pageSize: { widthTwips: 12240, heightTwips: 15840 } });

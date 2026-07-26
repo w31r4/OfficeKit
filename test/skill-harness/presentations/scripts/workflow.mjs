@@ -10,10 +10,10 @@ import {
   PresentationFile,
   verifyArtifact,
   visualQaArtifact,
-} from "open-office-artifact-tool";
-import { createLibreOfficeRenderer } from "open-office-artifact-tool/renderers/libreoffice";
-import { createPlaywrightRenderer } from "open-office-artifact-tool/renderers/playwright";
-import { createPopplerRenderer } from "open-office-artifact-tool/renderers/poppler";
+} from "office-kit";
+import { createLibreOfficeRenderer } from "office-kit/renderers/libreoffice";
+import { createPlaywrightRenderer } from "office-kit/renderers/playwright";
+import { createPopplerRenderer } from "office-kit/renderers/poppler";
 import {
   prepareNumberedVisualBaselines,
   runPngVisualQa,
@@ -102,7 +102,7 @@ async function addFixtureSlide(presentation, config = {}) {
 }
 
 export async function createPresentationFromFixture(fixture = {}) {
-  for (const field of ["theme", "master", "masters", "layouts", "customShows", "commentFormat", "packageReview", "openChestnut"]) {
+  for (const field of ["theme", "master", "masters", "layouts", "customShows", "commentFormat", "packageReview", "officeKit"]) {
     if (fixture[field] != null) throw new Error(`Presentation fixture ${fixture.name || "fixture"} uses unsupported 0.2 field ${field}.`);
   }
   const presentation = Presentation.create({ slideSize: fixture.slideSize || { width: 1280, height: 720 } });

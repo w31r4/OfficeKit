@@ -21,7 +21,7 @@ function mapping(target, source) {
 
 // A native sparkline group is a list of formula/target-cell pairs. The public
 // facade uses two ranges, so only the reversible row- and column-oriented
-// rectangular profiles are projected here and in OpenChestnut.
+// rectangular profiles are projected here and in OfficeKit.
 export function sparklineRangeMappings(group) {
   const target = parseRangeAddress(group.targetRange.address);
   const source = parseRangeAddress(group.sourceData.address);

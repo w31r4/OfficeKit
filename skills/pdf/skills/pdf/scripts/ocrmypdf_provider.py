@@ -22,7 +22,7 @@ from typing import Any
 import qpdf_provider as qpdf
 
 
-SCHEMA = "open-office-artifact-tool.ocrmypdf-ocr.v1"
+SCHEMA = "office-kit.ocrmypdf-ocr.v1"
 MINIMUM_VERSION = (17, 8, 0)
 MAXIMUM_VERSION_EXCLUSIVE = (17, 9, 0)
 MINIMUM_TESSERACT_VERSION = (5, 0, 0)
@@ -167,19 +167,19 @@ def managed_tessdata_directory(private_root: Path) -> Path | None:
 
     A managed language pack has its own immutable cache root, while Tesseract
     accepts only one tessdata directory. The caller may provide a path-list of
-    verified managed data directories through OPEN_OFFICE_PDF_TESSDATA_DIRS;
+    verified managed data directories through OFFICE_KIT_PDF_TESSDATA_DIRS;
     this adapter never follows their links or mutates their receipts. It copies
     regular traineddata files into the per-operation private root and exposes
     that one union to Tesseract. A missing variable preserves the selected
     system runtime's normal Tesseract data discovery.
     """
 
-    raw = os.environ.get("OPEN_OFFICE_PDF_TESSDATA_DIRS", "").strip()
+    raw = os.environ.get("OFFICE_KIT_PDF_TESSDATA_DIRS", "").strip()
     if not raw:
         return None
     source_texts = [value.strip() for value in raw.split(os.pathsep) if value.strip()]
     if not source_texts or len(source_texts) > MAX_TESSDATA_DIRECTORIES:
-        raise ProviderError(f"OPEN_OFFICE_PDF_TESSDATA_DIRS must contain 1..{MAX_TESSDATA_DIRECTORIES} directories")
+        raise ProviderError(f"OFFICE_KIT_PDF_TESSDATA_DIRS must contain 1..{MAX_TESSDATA_DIRECTORIES} directories")
     destination = private_root / "tessdata"
     destination.mkdir(mode=0o700, exist_ok=False)
     copied: set[str] = set()
@@ -381,10 +381,10 @@ def bounded_command(
 
 
 def component_probe(timeout_seconds: int, private_root: Path) -> dict[str, Any]:
-    ocrmypdf = executable_path("OPEN_OFFICE_PDF_OCRMYPDF", "ocrmypdf", "OCRmyPDF")
-    tesseract = executable_path("OPEN_OFFICE_PDF_TESSERACT", "tesseract", "Tesseract")
-    pdftotext = executable_path("OPEN_OFFICE_PDF_PDFTOTEXT", "pdftotext", "Poppler pdftotext")
-    ghostscript = executable_path("OPEN_OFFICE_PDF_GS", "gs", "Ghostscript")
+    ocrmypdf = executable_path("OFFICE_KIT_PDF_OCRMYPDF", "ocrmypdf", "OCRmyPDF")
+    tesseract = executable_path("OFFICE_KIT_PDF_TESSERACT", "tesseract", "Tesseract")
+    pdftotext = executable_path("OFFICE_KIT_PDF_PDFTOTEXT", "pdftotext", "Poppler pdftotext")
+    ghostscript = executable_path("OFFICE_KIT_PDF_GS", "gs", "Ghostscript")
     qpdf_executable = qpdf.qpdf_path()
     environment = provider_environment(private_root, [ocrmypdf, tesseract, pdftotext, ghostscript, qpdf_executable])
 
@@ -816,7 +816,7 @@ def ocr_pdf(args: argparse.Namespace) -> dict[str, Any]:
 
 def probe(args: argparse.Namespace) -> dict[str, Any]:
     timeout_seconds = checked_budget("--timeout-seconds", args.timeout_seconds, 60)
-    with tempfile.TemporaryDirectory(prefix="open-office-ocrmypdf-probe-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="office-kit-ocrmypdf-probe-") as temporary:
         components = component_probe(timeout_seconds, Path(temporary))
     return {
         "ok": True,

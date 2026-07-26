@@ -1,9 +1,9 @@
 import os from "node:os";
 import path from "node:path";
 
-import { FileBlob, PdfArtifact, PdfFile } from "open-office-artifact-tool";
+import { FileBlob, PdfArtifact, PdfFile } from "office-kit";
 
-const outputDir = process.env.OUTPUT_DIR || path.join(os.tmpdir(), "open-office-artifact-examples");
+const outputDir = process.env.OUTPUT_DIR || path.join(os.tmpdir(), "office-kit-artifact-examples");
 
 const pdf = PdfArtifact.create({
   pages: [

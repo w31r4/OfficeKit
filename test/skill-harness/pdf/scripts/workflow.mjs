@@ -8,10 +8,10 @@ import {
   PdfArtifact,
   PdfFile,
   verifyArtifact,
-} from "open-office-artifact-tool";
-import { createPdfjsParser } from "open-office-artifact-tool/pdf/pdfjs";
-import { createPlaywrightRenderer } from "open-office-artifact-tool/renderers/playwright";
-import { createPopplerRenderer } from "open-office-artifact-tool/renderers/poppler";
+} from "office-kit";
+import { createPdfjsParser } from "office-kit/pdf/pdfjs";
+import { createPlaywrightRenderer } from "office-kit/renderers/playwright";
+import { createPopplerRenderer } from "office-kit/renderers/poppler";
 import {
   prepareNumberedVisualBaselines,
   runPngVisualQa,

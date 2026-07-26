@@ -5,12 +5,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { PdfArtifact, PdfFile, verifyArtifact } from "open-office-artifact-tool";
-import { createPopplerRenderer } from "open-office-artifact-tool/renderers/poppler";
+import { PdfArtifact, PdfFile, verifyArtifact } from "office-kit";
+import { createPopplerRenderer } from "office-kit/renderers/poppler";
 
 const PAGE_COUNT = 6;
 const CJK_FONT_CANDIDATES = [
-  process.env.OPEN_OFFICE_CJK_FONT,
+  process.env.OFFICE_KIT_CJK_FONT,
   "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
   "/Library/Fonts/Arial Unicode.ttf",
   "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttf",
@@ -33,7 +33,7 @@ async function fileEvidence(filePath) {
 
 async function packageVersion() {
   try {
-    const entry = fileURLToPath(import.meta.resolve("open-office-artifact-tool"));
+    const entry = fileURLToPath(import.meta.resolve("office-kit"));
     const packageJson = JSON.parse(await fs.readFile(path.resolve(path.dirname(entry), "../package.json"), "utf8"));
     return String(packageJson.version || "unknown");
   } catch {
@@ -156,7 +156,7 @@ export async function createAccessibleBoardReport(inputPath, outputPath, auditPa
   const auditOutput = path.resolve(auditPath);
   const data = JSON.parse(await fs.readFile(input, "utf8"));
   const font = options.font || await existingFile(CJK_FONT_CANDIDATES);
-  if (!font) throw new Error("No standalone CJK TrueType font found. Set OPEN_OFFICE_CJK_FONT to a .ttf file; TTC/OTF inputs are not supported by this writer.");
+  if (!font) throw new Error("No standalone CJK TrueType font found. Set OFFICE_KIT_CJK_FONT to a .ttf file; TTC/OTF inputs are not supported by this writer.");
 
   const pdf = buildAccessibleBoardReport(data);
   const modeled = verifyArtifact(pdf, { maxChars: 32_000 });
@@ -187,7 +187,7 @@ export async function createAccessibleBoardReport(inputPath, outputPath, auditPa
   }
 
   const audit = {
-    schema: "open-office-artifact-tool.pdf-audit.v1",
+    schema: "office-kit.pdf-audit.v1",
     status: "succeeded",
     source: await fileEvidence(input),
     output: await fileEvidence(output),

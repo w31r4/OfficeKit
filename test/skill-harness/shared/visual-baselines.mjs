@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { FileBlob, visualQaArtifact } from "open-office-artifact-tool";
+import { FileBlob, visualQaArtifact } from "office-kit";
 
 function missingBaselineError(target) {
   return new Error(`Visual baseline is missing: ${target}. Run the workflow with writeBaseline=true first.`);

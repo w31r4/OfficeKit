@@ -1,12 +1,12 @@
 # PDF operation audit schema
 
-Every imported-PDF mutation and security-sensitive read-only extraction emits one canonical `open-office-artifact-tool.pdf-audit.v1` JSON record. Do not invent aliases such as `outputs.pdf`, `actual_provider`, `provider_version`, `save_strategy`, or `silent_fallback`; downstream Agent and evaluator code reads the stable camelCase fields below.
+Every imported-PDF mutation and security-sensitive read-only extraction emits one canonical `office-kit.pdf-audit.v1` JSON record. Do not invent aliases such as `outputs.pdf`, `actual_provider`, `provider_version`, `save_strategy`, or `silent_fallback`; downstream Agent and evaluator code reads the stable camelCase fields below.
 
 Required success shape:
 
 ```json
 {
-  "schema": "open-office-artifact-tool.pdf-audit.v1",
+  "schema": "office-kit.pdf-audit.v1",
   "status": "succeeded",
   "source": { "path": "/absolute/input.pdf", "bytes": 123, "sha256": "..." },
   "output": { "path": "/absolute/output.pdf", "bytes": 123, "sha256": "..." },

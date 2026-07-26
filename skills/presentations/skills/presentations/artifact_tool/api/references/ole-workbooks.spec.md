@@ -1,7 +1,7 @@
 # Embedded Office packages
 
 An ordinary imported PPTX may contain an Office package behind a top-level OLE
-object. OpenChestnut exposes narrow payload-only operations when the source
+object. OfficeKit exposes narrow payload-only operations when the source
 graph proves all of the following:
 
 - one top-level native object contains exactly one `p:oleObj`;
@@ -25,7 +25,7 @@ for the DOCX profile.
 import {
   PresentationFile,
   SpreadsheetFile,
-} from "open-office-artifact-tool";
+} from "office-kit";
 
 const presentation = await PresentationFile.importPptx(sourcePptx);
 const nativeObjects = presentation.inspect({
@@ -86,7 +86,7 @@ Document facade, then replace only that bound payload:
 import {
   DocumentFile,
   PresentationFile,
-} from "open-office-artifact-tool";
+} from "office-kit";
 
 const presentation = await PresentationFile.importPptx(sourcePptx);
 const oleObject = presentation.resolve(nativeObjectIdFromInspect);
@@ -127,7 +127,7 @@ unique inbound package ownership; it opens the replacement with the Microsoft
 Open XML SDK, requires a WordprocessingDocument body, applies the normal OPC
 budgets, and runs Office 2021 validation. It changes only the bound DOCX bytes.
 
-Use `examples/openchestnut-ole-office-package-workflow.mjs` for the complete
+Use `examples/officekit-ole-office-package-workflow.mjs` for the complete
 auditable transaction. It protects the input, resolves exactly one object and
 one single-run paragraph, requires an exact expected source string, checks that
 the embedded DOCX is the only changed package part, reimports both PPTX and
@@ -144,7 +144,7 @@ internal preview picture, exactly the package `r:id` plus preview `r:embed`
 relationship attributes, no child/external/hyperlink/data graph on the XLSX
 package, and no second inbound package relationship.
 
-On the first export, OpenChestnut preserves the source SlidePart and workbook
+On the first export, OfficeKit preserves the source SlidePart and workbook
 bytes, creates a distinct clone-local XLSX `EmbeddedPackagePart`, byte-copies
 the workbook, retains the source slide-local package relationship ID, and shares
 the immutable preview ImagePart. The pending clone must remain unchanged until
@@ -153,7 +153,7 @@ different `oleWorkbook.partPath` values and the same source digest; calling
 `replaceEmbeddedWorkbook(...)` on the clone then changes only its independent
 package.
 
-Use `examples/openchestnut-slide-duplicate-workflow.mjs` for the auditable
+Use `examples/officekit-slide-duplicate-workflow.mjs` for the auditable
 transaction. Its independent package checks prove content type, unique inbound
 ownership, empty child graph, exact source/clone bytes, distinct package paths,
 shared preview binding, retained source parts, second import, and model-render

@@ -1,6 +1,6 @@
-# OpenChestnut Documents API quick start
+# OfficeKit Documents API quick start
 
-Use `open-office-artifact-tool` for ordinary DOCX creation, import, semantic editing, export, inspect, and verification. `DocumentFile.importDocx` and `DocumentFile.exportDocx` always use the bundled OpenChestnut C# WebAssembly codec; do not pass codec selectors or lossy-fallback options.
+Use `office-kit` for ordinary DOCX creation, import, semantic editing, export, inspect, and verification. `DocumentFile.importDocx` and `DocumentFile.exportDocx` always use the bundled OfficeKit C# WebAssembly codec; do not pass codec selectors or lossy-fallback options.
 
 ## Startup
 
@@ -11,7 +11,7 @@ import {
   DocumentFile,
   DocumentModel,
   FileBlob,
-} from "open-office-artifact-tool";
+} from "office-kit";
 ```
 
 Use `document.fontFamilies` when you need a fresh sorted inventory of theme and
@@ -46,7 +46,7 @@ const output = await DocumentFile.exportDocx(document);
 await output.save("edited.docx");
 const reimported = await DocumentFile.importDocx(await FileBlob.load("edited.docx"));
 if (!reimported.blocks.some((block) => block.id === target.id && block.text.includes("replacement wording"))) {
-  throw new Error("Edited text did not survive the OpenChestnut round-trip.");
+  throw new Error("Edited text did not survive the OfficeKit round-trip.");
 }
 ```
 
@@ -61,7 +61,7 @@ Complex table cells use the same contract through
 unavailable when `cell.editable` is false. Export, re-import, and native-render
 every result before delivery.
 
-Use `examples/openchestnut-source-text-patch-workflow.mjs` when editing a real
+Use `examples/officekit-source-text-patch-workflow.mjs` when editing a real
 input file. It takes an explicit paragraph or physical table-cell selector,
 keeps the input immutable, requires `textPatchable` rather than whole-text
 editing, checks that only `word/document.xml` changed, publishes without
@@ -133,9 +133,9 @@ For one ordinary imported header or footer, prefer the matching packaged
 transaction:
 
 ```bash
-node examples/openchestnut-header-text-edit-workflow.mjs \
+node examples/officekit-header-text-edit-workflow.mjs \
   input.docx reviewed.docx audit.json "Northwind | Internal" "Northwind | Reviewed" 0 default
-node examples/openchestnut-footer-text-edit-workflow.mjs \
+node examples/officekit-footer-text-edit-workflow.mjs \
   input.docx reviewed.docx audit.json "Northwind | Internal" "Northwind | Reviewed" 0 default
 ```
 
@@ -288,13 +288,13 @@ document.addWatermark("DRAFT", {
 After importing an existing DOCX, inspect `document.watermarks`; never infer
 editability from a visible background object. A recognized object exposes
 `sourceBound === true` and `editable === true`. Locate exactly one record, edit
-only `.text`, or call `.remove()`, then export and import again. OpenChestnut
+only `.text`, or call `.remove()`, then export and import again. OfficeKit
 protects the exact VML paragraph and the residual header part. It rejects
 scope changes, reordering, new watermark relationships in an imported package,
 shared headers, multiple objects, DrawingML, images, and irregular VML rather
 than rebuilding or heuristically deleting them.
 
-Use `examples/openchestnut-watermark-workflow.mjs` for imported files. It keeps
+Use `examples/officekit-watermark-workflow.mjs` for imported files. It keeps
 the input immutable, allows exactly one changed `word/headerN.xml` part, writes
 an audit, and requires native page render review. Read
 `../tasks/watermarks_background.md` for the full workflow and the explicitly
@@ -305,11 +305,11 @@ separate heuristic package-tool boundary.
 For one ordinary imported classic comment, locate both its paragraph and
 comment uniquely, preserve its source-bound identity/anchor metadata, change
 only `text`, then export, re-import, verify, and render. The shipped
-`examples/openchestnut-classic-comment-edit-workflow.mjs` performs the full
+`examples/officekit-classic-comment-edit-workflow.mjs` performs the full
 transactional workflow and writes a byte-bound audit:
 
 ```js
-import { DocumentFile, FileBlob } from "open-office-artifact-tool";
+import { DocumentFile, FileBlob } from "office-kit";
 
 const source = await FileBlob.load("input.docx");
 const document = await DocumentFile.importDocx(source);
@@ -340,7 +340,7 @@ modern comment and reply graphs must be preserved or explicitly refused.
 
 ## Bounded modern comment thread
 
-For source-free authoring, a root may have direct replies. OpenChestnut writes
+For source-free authoring, a root may have direct replies. OfficeKit writes
 the native commentsExtended graph and optional durable/UTC/person parts:
 
 ```js
@@ -359,7 +359,7 @@ document.replyToComment(root, "Evidence confirmed.", {
 
 For an imported recognized thread, locate the root and reply unambiguously,
 change only `.text`, and call `root.resolve()` or `root.reopen()`. The shipped
-`examples/openchestnut-modern-comment-thread-workflow.mjs` performs the full
+`examples/officekit-modern-comment-thread-workflow.mjs` performs the full
 source-hash-bound transaction, second import, identity/topology checks, model
 render, and audit. Imported parentage, paragraph/durable IDs, UTC/person data,
 anchors, and comment count cannot change. Nested replies and irregular support
@@ -456,7 +456,7 @@ approvalTable.getCell(5, 1).addDateContentControl("2026-07-22", {
 });
 ```
 
-OpenChestnut emits one direct cell-level `w:sdt` containing exactly one
+OfficeKit emits one direct cell-level `w:sdt` containing exactly one
 `w:p/w:r/w:t`. Recognized imports expose the same type-specific state/tag/alias
 handle, but native ID, type, table coordinates, wrapper placement, list choices,
 checkbox symbols, date profile, and topology stay fixed; adding or removing a
@@ -533,7 +533,7 @@ a declared choice value or 1–255 characters of XML-safe custom text; matching
 choices use their display text and custom values render verbatim. Imported
 drop-down/combo-box choices and order are source-bound.
 `setDateContentControls()` accepts only real Gregorian dates in exact
-`YYYY-MM-DD` form. OpenChestnut owns the matching visible text and the native
+`YYYY-MM-DD` form. OfficeKit owns the matching visible text and the native
 `w:date` projection: UTC midnight `w:fullDate`, `yyyy-MM-dd`, `en-US`, `date`
 mapping, and Gregorian calendar. JavaScript `Date` objects, locale-formatted
 strings, and direct visible-text edits fail closed instead of invoking timezone
@@ -541,7 +541,7 @@ or machine-locale behavior.
 Re-resolve controls after each independent import because model IDs are
 object-lifetime locators.
 
-OpenChestnut authors and imports the bounded run-level and whole-table-cell
+OfficeKit authors and imports the bounded run-level and whole-table-cell
 plain-text, Word 2010+ checkbox, `w:dropDownList`, `w:comboBox`, and
 ISO/Gregorian `w:date` profiles, plus the separate one-paragraph/one-run
 body-block plain-text profile.
@@ -574,10 +574,10 @@ caption.addField("PAGEREF fig1 \\h", "0");
 caption.addRun(".");
 ```
 
-OpenChestnut writes each logical field run as the canonical five-run native
+OfficeKit writes each logical field run as the canonical five-run native
 `begin` / `instrText` / `separate` / cached-result / `end` graph. For a `SEQ`
 run, `bookmarkName` inserts a paired Word bookmark around only the cached
-result. OpenChestnut imports that exact profile back into one `run.inlineField`
+result. OfficeKit imports that exact profile back into one `run.inlineField`
 object. Source-free authoring
 accepts only `SEQ <label> \\* ARABIC`, `REF <bookmark> \\h`, and `PAGEREF
 <bookmark> \\h`, with bounded Word-compatible names. On an imported paragraph,
@@ -627,7 +627,7 @@ imported.blocks.find((block) => block.kind === "field" && block.instruction === 
   "Refresh bibliography before delivery";
 ```
 
-OpenChestnut authors one `b:Sources` Custom XML part, canonical
+OfficeKit authors one `b:Sources` Custom XML part, canonical
 `w:fldSimple` `CITATION <tag>` blocks, and at most one whole-paragraph,
 switch-free `w:fldSimple` `BIBLIOGRAPHY` placeholder. `addBibliography()`
 requires at least one modeled source, sets the `updateFields`-on-open hint by
@@ -673,7 +673,7 @@ only a request to refresh fields when a compatible host opens the document; it
 does not prove that cached headings or page numbers are current. Open the final
 DOCX in Word, update fields, save, and render every page before delivery.
 
-OpenChestnut can re-import and edit the unrefreshed one-paragraph canonical
+OfficeKit can re-import and edit the unrefreshed one-paragraph canonical
 placeholder. Once Word expands a TOC across multiple paragraphs, the whole
 field span is deliberately opaque/source-bound and read-only. Do not rebuild
 that result graph to claim a lossless edit. Use `tasks/toc_workflow.md` for the
@@ -726,7 +726,7 @@ document.setSettings({ mirrorMargins: true });
 // Disable/remove the canonical leaf setting with false.
 ```
 
-OpenChestnut owns exactly one leaf `w:mirrorMargins`. Duplicate, child-bearing,
+OfficeKit owns exactly one leaf `w:mirrorMargins`. Duplicate, child-bearing,
 extension, or otherwise irregular imported markup stays source-owned: unrelated
 body edits preserve it, while semantic replacement fails closed. Structurally
 irregular markup also blocks sibling settings edits when exact reserialization
@@ -745,7 +745,7 @@ document.addSection({
 
 All margin values are twentieths of a point. `margins.gutter` maps to
 `w:pgMar/@w:gutter`; `gutterAtTop: true` owns one canonical leaf
-`w:gutterAtTop`, while false/omission uses the binding side. OpenChestnut
+`w:gutterAtTop`, while false/omission uses the binding side. OfficeKit
 requires the ordinary margins plus the gutter to leave a positive content
 area. If imported `mirrorMargins` or `gutterAtTop` markup is duplicate,
 child-bearing, extension-bearing, or otherwise irregular, it remains
@@ -785,7 +785,7 @@ columns instead own ordered `definitions`; every definition has a positive
 `width`, and its `spacing` is the space after that column. Do not combine
 `definitions` with `count` or root `spacing`. The
 occupied widths/gaps plus horizontal margins and any binding-side gutter must
-fit the page content width. OpenChestnut authors, imports, edits, and removes
+fit the page content width. OfficeKit authors, imports, edits, and removes
 both canonical profiles (`section.columns = undefined`). Duplicate containers,
 ignored equal-width root attributes on a custom graph, unknown children,
 extension attributes, and other ambiguous graphs stay source-owned and make
@@ -848,14 +848,14 @@ document.setSettings({ documentProtection: "readOnly" });
 // Remove the element with false, null, or "off".
 ```
 
-The canonical object form is `{ edit, enforcement, formatting }`; string modes default to `enforcement: true` and `formatting: false`. This is a Word editing restriction, not encryption or access control. Password verifiers, cryptographic attributes, IRM, and permission exceptions remain source-owned. OpenChestnut preserves such imported markup when the semantic setting is left untouched and fails closed if the public model tries to replace it.
+The canonical object form is `{ edit, enforcement, formatting }`; string modes default to `enforcement: true` and `formatting: false`. This is a Word editing restriction, not encryption or access control. Password verifiers, cryptographic attributes, IRM, and permission exceptions remain source-owned. OfficeKit preserves such imported markup when the semantic setting is left untouched and fails closed if the public model tries to replace it.
 
 Add one exact in-paragraph tracked replacement directly to original source bytes:
 
 ```js
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
-import { DocumentFile, FileBlob } from "open-office-artifact-tool";
+import { DocumentFile, FileBlob } from "office-kit";
 
 const bytes = await fs.readFile("input.docx");
 const source = new FileBlob(bytes);
@@ -890,14 +890,14 @@ const reviewedCell = await DocumentFile.addTrackedReplacement(source, {
 });
 ```
 
-The structured selector and full paragraph/cell snapshot bind the semantic target; `targetBlockIndex` remains a paragraph-only compatibility option and is mutually exclusive with `target`. A table target must be a direct body table with a valid physical grid, a non-continuation cell, and exactly one direct paragraph. In both profiles the literal must occur exactly once inside one direct ordinary native text node or adjacent non-empty ordinary runs with byte-identical `w:rPr`. OpenChestnut retains every matched fragment in one `w:del`, writes one `w:ins` with the shared formatting, allocates collision-free native IDs, changes only `word/document.xml`, and reports `matchedSourceRunCount` with the structured target plus byte, element, text, index, native-ID, and changed-part evidence. Stale or duplicate text, empty-run gaps, mixed-format spans, multi-paragraph/nested/continuation table cells, hyperlinks, fields, content controls, drawings, or already-revised targets fail closed. Use `examples/openchestnut-tracked-replacement-workflow.mjs` for immutable-source, unique paragraph/table-cell discovery, no-overwrite publication, reimport, render, and audit checks.
+The structured selector and full paragraph/cell snapshot bind the semantic target; `targetBlockIndex` remains a paragraph-only compatibility option and is mutually exclusive with `target`. A table target must be a direct body table with a valid physical grid, a non-continuation cell, and exactly one direct paragraph. In both profiles the literal must occur exactly once inside one direct ordinary native text node or adjacent non-empty ordinary runs with byte-identical `w:rPr`. OfficeKit retains every matched fragment in one `w:del`, writes one `w:ins` with the shared formatting, allocates collision-free native IDs, changes only `word/document.xml`, and reports `matchedSourceRunCount` with the structured target plus byte, element, text, index, native-ID, and changed-part evidence. Stale or duplicate text, empty-run gaps, mixed-format spans, multi-paragraph/nested/continuation table cells, hyperlinks, fields, content controls, drawings, or already-revised targets fail closed. Use `examples/officekit-tracked-replacement-workflow.mjs` for immutable-source, unique paragraph/table-cell discovery, no-overwrite publication, reimport, render, and audit checks.
 
 Finalize either bounded revision profile from the original bytes, not from a reconstructed model:
 
 ```js
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
-import { DocumentFile, FileBlob } from "open-office-artifact-tool";
+import { DocumentFile, FileBlob } from "office-kit";
 
 const bytes = await fs.readFile("reviewed.docx");
 const expectedSourceSha256 = crypto.createHash("sha256").update(bytes).digest("hex");
@@ -910,9 +910,9 @@ console.log(clean.metadata.revisionFinalization);
 await clean.save("accepted.docx");
 ```
 
-This primitive accepts direct body whole-paragraph `w:ins`/`w:del` wrappers with one recognized run and one exact adjacent `w:del` + single-run `w:ins` pair in either a direct body paragraph or the bounded direct table-cell profile above. The deletion may retain multiple source fragments only when all runs share the insertion's exact `w:rPr`. It fails closed for other mixed-format, nested, moved, property-level, irregular-table, or non-body-story revision graphs. Use `examples/openchestnut-revision-finalization-workflow.mjs` for the richer whole-block projection workflow; the tracked-replacement example and API metadata provide the source-bound evidence for inline pairs.
+This primitive accepts direct body whole-paragraph `w:ins`/`w:del` wrappers with one recognized run and one exact adjacent `w:del` + single-run `w:ins` pair in either a direct body paragraph or the bounded direct table-cell profile above. The deletion may retain multiple source fragments only when all runs share the insertion's exact `w:rPr`. It fails closed for other mixed-format, nested, moved, property-level, irregular-table, or non-body-story revision graphs. Use `examples/officekit-revision-finalization-workflow.mjs` for the richer whole-block projection workflow; the tracked-replacement example and API metadata provide the source-bound evidence for inline pairs.
 
-Imported unsupported package graphs are source-bound. Keep edits within recognized editable blocks; if OpenChestnut rejects an edit, narrow the edit or report the unsupported boundary instead of flattening or silently rebuilding the document.
+Imported unsupported package graphs are source-bound. Keep edits within recognized editable blocks; if OfficeKit rejects an edit, narrow the edit or report the unsupported boundary instead of flattening or silently rebuilding the document.
 
 Model IDs and `name` values are locators for the current object graph, not a persistent identity protocol across independent DOCX imports. After a file round-trip, resolve targets again by bounded semantic text, style, block kind, or table position before editing.
 
@@ -954,4 +954,4 @@ In-paragraph revision graphs beyond the exact single-format deletion/insertion p
 
 Use `DocumentFile.inspectDocx` or `DocumentFile.patchDocx` only when the user explicitly requests package-level inspection or patching. These are deliberate low-level operations, never an automatic fallback for ordinary authoring.
 
-OpenChestnut preserves imported table-style catalogs, but direct source-free table authoring cannot materialize an arbitrary custom table style graph. Use `styleId: "TableGrid"` with explicit `widthDxa`, columns, margins, borders, and header fill; an unsupported custom table style fails closed.
+OfficeKit preserves imported table-style catalogs, but direct source-free table authoring cannot materialize an arbitrary custom table style graph. Use `styleId: "TableGrid"` with explicit `widthDxa`, columns, margins, borders, and header fill; an unsupported custom table style fails closed.

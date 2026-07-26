@@ -138,7 +138,7 @@ function normalizeColorMap(value, base) {
 export function normalizePresentationThemeConfig(config = {}, base = {}) {
   const input = assertObject(config, "presentation theme");
   const existing = assertObject(base, "presentation theme base");
-  const name = input.name ?? existing.name ?? "Open Office Clean Room";
+  const name = input.name ?? existing.name ?? "OfficeKit";
   if (!String(name).trim()) throw new TypeError("Presentation theme name must not be empty.");
   return {
     name: String(name),

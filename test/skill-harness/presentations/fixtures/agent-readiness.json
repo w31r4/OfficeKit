@@ -13,7 +13,7 @@
           "position": { "left": 52, "top": 32, "width": 1176, "height": 72 },
           "fill": "transparent",
           "line": { "fill": "transparent", "width": 0 },
-          "text": "OpenChestnut closes the presentation loop",
+          "text": "OfficeKit closes the presentation loop",
           "textStyle": { "fontFamily": "Arial", "fontSize": 38, "bold": true, "color": "#0F172A" }
         },
         {
@@ -184,7 +184,7 @@
               "position": { "left": 450, "top": 200, "width": 300, "height": 140 },
               "fill": "#DCFCE7",
               "line": { "fill": "#16A34A", "width": 2 },
-              "text": "OpenChestnut",
+              "text": "OfficeKit",
               "textStyle": { "fontFamily": "Arial", "fontSize": 28, "bold": true, "color": "#14532D" }
             }
           ],
@@ -222,7 +222,7 @@
     }
   ],
   "expectInspect": [
-    { "kind": "shape", "pattern": "OpenChestnut closes the presentation loop" },
+    { "kind": "shape", "pattern": "OfficeKit closes the presentation loop" },
     { "kind": "table", "pattern": "workflow-matrix" },
     { "kind": "connector", "pattern": "verify-to-deliver" },
     { "kind": "chart", "pattern": "Coverage mix" },

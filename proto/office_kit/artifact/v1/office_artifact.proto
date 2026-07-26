@@ -1,0 +1,3285 @@
+syntax = "proto3";
+
+package office_kit.artifact.v1;
+
+option csharp_namespace = "OfficeKit.Artifact.Wire.V1";
+
+// This is an independently designed public wire contract for the clean-room
+// implementation. Field numbers are part of this project's public API.
+enum ArtifactFamily {
+  ARTIFACT_FAMILY_UNSPECIFIED = 0;
+  ARTIFACT_FAMILY_WORKBOOK = 1;
+  ARTIFACT_FAMILY_PRESENTATION = 2;
+  ARTIFACT_FAMILY_DOCUMENT = 3;
+}
+
+enum CodecOperation {
+  CODEC_OPERATION_UNSPECIFIED = 0;
+  CODEC_OPERATION_IMPORT_XLSX = 1;
+  CODEC_OPERATION_EXPORT_XLSX = 2;
+  CODEC_OPERATION_IMPORT_DOCX = 3;
+  CODEC_OPERATION_EXPORT_DOCX = 4;
+  CODEC_OPERATION_IMPORT_PPTX = 5;
+  CODEC_OPERATION_EXPORT_PPTX = 6;
+  CODEC_OPERATION_FINALIZE_DOCX_REVISIONS = 7;
+  CODEC_OPERATION_ADD_DOCX_TRACKED_REPLACEMENT = 8;
+}
+
+enum DocumentRevisionFinalizationMode {
+  DOCUMENT_REVISION_FINALIZATION_MODE_UNSPECIFIED = 0;
+  DOCUMENT_REVISION_FINALIZATION_MODE_ACCEPT = 1;
+  DOCUMENT_REVISION_FINALIZATION_MODE_REJECT = 2;
+}
+
+enum DiagnosticSeverity {
+  DIAGNOSTIC_SEVERITY_UNSPECIFIED = 0;
+  DIAGNOSTIC_SEVERITY_INFO = 1;
+  DIAGNOSTIC_SEVERITY_WARNING = 2;
+  DIAGNOSTIC_SEVERITY_ERROR = 3;
+}
+
+enum WorkbookDateSystem {
+  WORKBOOK_DATE_SYSTEM_UNSPECIFIED = 0;
+  WORKBOOK_DATE_SYSTEM_1900 = 1;
+  WORKBOOK_DATE_SYSTEM_1904 = 2;
+}
+
+enum SpreadsheetCalculationMode {
+  SPREADSHEET_CALCULATION_MODE_UNSPECIFIED = 0;
+  SPREADSHEET_CALCULATION_MODE_AUTOMATIC = 1;
+  SPREADSHEET_CALCULATION_MODE_AUTOMATIC_EXCEPT_TABLES = 2;
+  SPREADSHEET_CALCULATION_MODE_MANUAL = 3;
+}
+
+enum SpreadsheetWorksheetVisibility {
+  SPREADSHEET_WORKSHEET_VISIBILITY_UNSPECIFIED = 0;
+  SPREADSHEET_WORKSHEET_VISIBILITY_VISIBLE = 1;
+  SPREADSHEET_WORKSHEET_VISIBILITY_HIDDEN = 2;
+  SPREADSHEET_WORKSHEET_VISIBILITY_VERY_HIDDEN = 3;
+}
+
+// Agent-facing permissions for one active worksheet editing restriction.
+// SpreadsheetML stores the inverse (true means that an operation is locked),
+// so the public wire names the allowed operation and leaves that inversion to
+// OfficeKit. This avoids leaking schema defaults into JavaScript callers.
+enum SpreadsheetWorksheetProtectionOperation {
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_UNSPECIFIED = 0;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_SELECT_LOCKED_CELLS = 1;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_SELECT_UNLOCKED_CELLS = 2;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_FORMAT_CELLS = 3;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_FORMAT_COLUMNS = 4;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_FORMAT_ROWS = 5;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_INSERT_COLUMNS = 6;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_INSERT_ROWS = 7;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_INSERT_HYPERLINKS = 8;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_DELETE_COLUMNS = 9;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_DELETE_ROWS = 10;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_SORT = 11;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_AUTO_FILTER = 12;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_PIVOT_TABLES = 13;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_EDIT_OBJECTS = 14;
+  SPREADSHEET_WORKSHEET_PROTECTION_OPERATION_EDIT_SCENARIOS = 15;
+}
+
+message CodecLimits {
+  uint64 max_input_bytes = 1;
+  uint64 max_uncompressed_bytes = 2;
+  uint32 max_parts = 3;
+  uint32 max_sheets = 4;
+  uint64 max_cells = 5;
+  uint32 max_compression_ratio = 6;
+}
+
+message CodecRequest {
+  reserved 7;
+  reserved "allow_lossy";
+
+  uint32 protocol_version = 1;
+  CodecOperation operation = 2;
+  ArtifactFamily family = 3;
+  ArtifactEnvelope artifact = 4;
+  bytes file = 5;
+  CodecLimits limits = 6;
+  DocumentRevisionFinalizationRequest revision_finalization = 8;
+  DocumentTrackedReplacementRequest tracked_replacement = 9;
+}
+
+message CodecResponse {
+  uint32 protocol_version = 1;
+  bool ok = 2;
+  bytes file = 3;
+  ArtifactEnvelope artifact = 4;
+  repeated Diagnostic diagnostics = 5;
+  DocumentRevisionFinalizationResult revision_finalization = 6;
+  DocumentTrackedReplacementResult tracked_replacement = 7;
+}
+
+message DocumentRevisionFinalizationRequest {
+  DocumentRevisionFinalizationMode mode = 1;
+  bool keep_tracking = 2;
+  string expected_source_sha256 = 3;
+}
+
+message DocumentRevisionFinalizationResult {
+  DocumentRevisionFinalizationMode mode = 1;
+  string source_sha256 = 2;
+  string output_sha256 = 3;
+  uint32 insertion_count = 4;
+  uint32 deletion_count = 5;
+  bool tracking_before = 6;
+  bool tracking_after = 7;
+  repeated string changed_parts = 8;
+}
+
+// Adds one source-bound, in-paragraph replacement as adjacent native w:del
+// and w:ins wrappers. target_block_index remains the compatibility selector
+// for a direct body paragraph. New callers also send target, whose oneof makes
+// a direct body paragraph or one physical table cell explicit without
+// overloading absent row/column scalar values.
+message DocumentTrackedReplacementRequest {
+  string expected_source_sha256 = 1;
+  uint32 target_block_index = 2;
+  string expected_paragraph_text = 3;
+  string search = 4;
+  string replacement = 5;
+  string author = 6;
+  optional string date = 7;
+  DocumentTrackedReplacementTarget target = 8;
+}
+
+// Byte-bound audit for one tracked replacement. Native revision IDs and body
+// indexes are package-local source evidence, not durable artifact identity.
+// target repeats the structured selector that OfficeKit re-proved.
+message DocumentTrackedReplacementResult {
+  string source_sha256 = 1;
+  string output_sha256 = 2;
+  uint32 target_block_index = 3;
+  uint32 target_body_index = 4;
+  string source_element_sha256 = 5;
+  string output_element_sha256 = 6;
+  string deleted_text_sha256 = 7;
+  string inserted_text_sha256 = 8;
+  uint32 deleted_text_chars = 9;
+  uint32 inserted_text_chars = 10;
+  string deletion_native_revision_id = 11;
+  string insertion_native_revision_id = 12;
+  repeated string changed_parts = 13;
+  DocumentTrackedReplacementTarget target = 14;
+  // Number of adjacent source w:r nodes consumed by the literal match. Values
+  // greater than one are admitted only when every run has identical w:rPr.
+  uint32 matched_source_run_count = 15;
+}
+
+message ArtifactEnvelope {
+  uint32 protocol_version = 1;
+  ArtifactFamily family = 2;
+  SourceIdentity source = 3;
+  repeated Asset assets = 4;
+  repeated Diagnostic diagnostics = 5;
+  OpaqueOpcGraph opaque_opc = 6;
+
+  oneof payload {
+    WorkbookArtifact workbook = 10;
+    PresentationArtifact presentation = 11;
+    DocumentArtifact document = 12;
+  }
+}
+
+message SourceIdentity {
+  string format = 1;
+  string package_sha256 = 2;
+  string producer = 3;
+  string source_name = 4;
+}
+
+message Asset {
+  string id = 1;
+  string file_name = 2;
+  string content_type = 3;
+  bytes data = 4;
+  string sha256 = 5;
+}
+
+message Diagnostic {
+  DiagnosticSeverity severity = 1;
+  string code = 2;
+  string message = 3;
+  string source_path = 4;
+  string source_identity = 5;
+}
+
+message OpaqueOpcGraph {
+  repeated OpaqueOpcPart parts = 1;
+  repeated OpaqueOpcRelationship package_relationships = 2;
+  SourcePackageSnapshot source_package = 3;
+}
+
+// A bounded, hash-bound copy of the imported OPC package. The Open XML SDK
+// codec uses it as the preservation base while semantic coverage is migrating;
+// unsupported parts are never reconstructed from undocumented assumptions.
+message SourcePackageSnapshot {
+  bytes data = 1;
+  string sha256 = 2;
+}
+
+// Public metadata for one source OPC part. Imported parts always carry their
+// resolved content type and source-local outgoing relationships. When a
+// SourcePackageSnapshot is present, data stays empty to avoid duplicating the
+// package bytes; sha256 binds this metadata to the preserved source entry.
+message OpaqueOpcPart {
+  string path = 1;
+  string content_type = 2;
+  bytes data = 3;
+  repeated OpaqueOpcRelationship relationships = 4;
+  string sha256 = 5;
+}
+
+message OpaqueOpcRelationship {
+  string id = 1;
+  string type = 2;
+  string target = 3;
+  string target_mode = 4;
+  string source_path = 5;
+}
+
+message WorkbookArtifact {
+  string id = 1;
+  WorkbookDateSystem date_system = 2;
+  repeated WorksheetArtifact worksheets = 3;
+  // The 12 ordered DrawingML color-scheme slots used by SpreadsheetML
+  // theme-index colors. Fonts, format schemes, transforms, and extensions
+  // remain source-bound residual content.
+  SpreadsheetThemeArtifact theme = 4;
+  // Bounded root metadata for existing workbook connections. OfficeKit
+  // never authors a connection graph from scratch; source-bound export keeps
+  // count/order/id/type/version fixed and can only change an explicitly true
+  // refresh_on_load value to false. Provider strings, commands, credentials,
+  // paths, child graphs, and extensions remain source-preserved.
+  repeated SpreadsheetConnectionArtifact connections = 5;
+  // Bounded workbook- or worksheet-scoped range names. Source-bound import
+  // exposes only ordinary range names; reserved built-ins, formula/constant
+  // names, macro attributes, and other advanced profiles remain hidden while
+  // source ordinal/count/order stay immutable.
+  repeated SpreadsheetDefinedNameArtifact defined_names = 6;
+  // Bounded workbook-level calculation policy from workbook.xml calcPr.
+  // Application/version identity, R1C1 mode, calculation-completed state,
+  // concurrent-calculation controls, and extensions remain source-preserved.
+  SpreadsheetCalculationArtifact calculation = 7;
+  // Active worksheet and selected worksheet-tab group for the primary
+  // workbook window. Existing consumers can continue reading this field.
+  SpreadsheetWorkbookViewArtifact view = 8;
+  // Additional workbook windows in native bookViews order. Together with
+  // view, this forms one ordered window sequence without duplicating primary
+  // state. First-sheet scrolling, geometry, visibility, and extensions remain
+  // source-preserved on every window.
+  repeated SpreadsheetWorkbookViewArtifact additional_views = 9;
+}
+
+message SpreadsheetWorkbookViewArtifact {
+  string active_worksheet_id = 1;
+  SpreadsheetWorkbookViewSourceBinding source = 2;
+  // Stable worksheet IDs selected in the primary window. An empty list means
+  // the active worksheet alone for compatibility with the first view slice.
+  repeated string selected_worksheet_ids = 3;
+}
+
+// Hash-bound locator for one workbookView. Ordinal is its zero-based position
+// in bookViews and also the workbookViewId used by its worksheet sheetViews.
+message SpreadsheetWorkbookViewSourceBinding {
+  uint32 ordinal = 1;
+  string workbook_xml_sha256 = 2;
+  string view_xml_sha256 = 3;
+  string semantic_sha256 = 4;
+  bool editable = 5;
+  // One hash-bound worksheet sheetView slot per worksheet. A complete list is
+  // required before OfficeKit edits tabSelected; incomplete/complex graphs
+  // keep the workbook view readable but make its semantics fail-closed.
+  repeated SpreadsheetWorksheetViewSourceBinding worksheet_views = 6;
+}
+
+message SpreadsheetWorksheetViewSourceBinding {
+  string worksheet_id = 1;
+  string part_path = 2;
+  uint32 view_ordinal = 3;
+  uint32 workbook_view_id = 4;
+  string worksheet_xml_sha256 = 5;
+  string view_xml_sha256 = 6;
+  optional bool tab_selected = 7;
+  bool editable = 8;
+}
+
+message SpreadsheetCalculationArtifact {
+  optional SpreadsheetCalculationMode mode = 1;
+  optional bool calculate_on_save = 2;
+  optional bool full_calculation_on_load = 3;
+  optional bool force_full_calculation = 4;
+  optional bool iteration_enabled = 5;
+  optional uint32 max_iterations = 6;
+  optional double max_change = 7;
+  optional bool full_precision = 8;
+  SpreadsheetCalculationSourceBinding source = 9;
+}
+
+// Hash-bound locator for one recognized workbook.xml calcPr element. Element
+// presence is immutable during source-preserving export, while every modeled
+// optional scalar retains native omission versus an explicit default value.
+message SpreadsheetCalculationSourceBinding {
+  string workbook_xml_sha256 = 1;
+  string calculation_xml_sha256 = 2;
+  string semantic_sha256 = 3;
+  bool editable = 4;
+}
+
+message SpreadsheetDefinedNameArtifact {
+  string id = 1;
+  string name = 2;
+  string refers_to = 3;
+  optional string scope_sheet_name = 4;
+  optional string comment = 5;
+  optional bool hidden = 6;
+  SpreadsheetDefinedNameSourceBinding source = 7;
+}
+
+// Hash-bound locator for one recognized <definedName> inside workbook.xml.
+// ordinal includes hidden/opaque sibling slots so a semantic projection cannot
+// reorder, add, remove, or replace native defined-name topology.
+message SpreadsheetDefinedNameSourceBinding {
+  uint32 ordinal = 1;
+  string workbook_xml_sha256 = 2;
+  string defined_name_xml_sha256 = 3;
+  string semantic_sha256 = 4;
+  bool editable = 5;
+}
+
+// One recognized <connection> root from the workbook ConnectionsPart.
+// connection_id, type, and refreshed_version are source identity. Optional
+// scalar presence retains native omission rather than silently writing schema
+// defaults during an unrelated edit.
+message SpreadsheetConnectionArtifact {
+  uint32 connection_id = 1;
+  string name = 2;
+  uint32 type = 3;
+  uint32 refreshed_version = 4;
+  optional string description = 5;
+  optional bool keep_alive = 6;
+  optional uint32 interval_minutes = 7;
+  optional bool background = 8;
+  optional bool refresh_on_load = 9;
+  optional bool save_data = 10;
+  SpreadsheetConnectionSourceBinding source = 11;
+}
+
+// Hash-bound locator for one recognized connection inside a shared
+// ConnectionsPart. The part hash proves all entries came from the same source;
+// the element and semantic hashes bind the one allowed in-place edit: an
+// explicit refresh_on_load=true may become false.
+message SpreadsheetConnectionSourceBinding {
+  string part_path = 1;
+  string part_xml_sha256 = 2;
+  string connection_xml_sha256 = 3;
+  string semantic_sha256 = 4;
+  bool editable = 5;
+}
+
+message SpreadsheetThemeArtifact {
+  string name = 1;
+  string dk1_rgb = 2;
+  string lt1_rgb = 3;
+  string dk2_rgb = 4;
+  string lt2_rgb = 5;
+  string accent1_rgb = 6;
+  string accent2_rgb = 7;
+  string accent3_rgb = 8;
+  string accent4_rgb = 9;
+  string accent5_rgb = 10;
+  string accent6_rgb = 11;
+  string hlink_rgb = 12;
+  string fol_hlink_rgb = 13;
+  SpreadsheetThemeSourceBinding source = 14;
+}
+
+message SpreadsheetThemeSourceBinding {
+  string part_path = 1;
+  string xml_sha256 = 2;
+  string semantic_sha256 = 3;
+  bool editable = 4;
+}
+
+message WorksheetArtifact {
+  string id = 1;
+  string name = 2;
+  repeated CellArtifact cells = 3;
+  bool show_grid_lines = 4;
+  FreezePane freeze_pane = 5;
+  repeated ColumnDimension column_dimensions = 6;
+  repeated RowDimension row_dimensions = 7;
+  repeated string merged_ranges = 8;
+  repeated SpreadsheetTableArtifact tables = 9;
+  // Worksheet-level sort state. Unlike a table AutoFilter sort, this may use
+  // column_sort to sort columns from left to right.
+  SpreadsheetTableSortStateArtifact sort_state = 10;
+  // Native workbook.xml sheet visibility. OfficeKit treats an omitted
+  // source state as visible and preserves hidden versus veryHidden exactly.
+  SpreadsheetWorksheetVisibility visibility = 11;
+  // Hash-bound workbook.xml sheet identity. Ordinal, relationship ID, and
+  // sheet ID are package locators and remain immutable after import.
+  SpreadsheetWorksheetSourceBinding source = 12;
+  // Bounded worksheet pictures backed by content-addressed envelope assets.
+  // The bounded slice owns one-cell, two-cell, and absolute anchors with
+  // embedded PNG/JPEG bytes; charts, shapes, external links, other anchor forms, and
+  // unmodeled picture properties remain source-preserved and hidden from
+  // editable semantics.
+  repeated SpreadsheetImageArtifact images = 13;
+  // Bounded native worksheet charts. OfficeKit owns the chart relationship
+  // and ChartPart while retaining unsupported chart markup behind a hash-bound
+  // source binding. The first public profile covers one bar, line, or pie plot
+  // with title, legend, category/value caches, and optional worksheet formulas.
+  repeated SpreadsheetChartArtifact charts = 14;
+  // Bounded worksheet validation rules. Advanced UI prompts, extensions, and
+  // unsupported rule types remain source-preserved and fail closed on edit.
+  repeated SpreadsheetDataValidationArtifact data_validations = 15;
+  // Bounded cellIs/expression/containsText/colorScale/dataBar/iconSet rules.
+  // Differential formatting reuses the static style projection instead of a
+  // second model. Visual rules use typed thresholds rather than magic formulas.
+  repeated SpreadsheetConditionalFormatArtifact conditional_formats = 16;
+  // One flattened root/direct-reply record per entry. Parent identity is
+  // explicit on direct replies; nested/branched graphs and mentions remain
+  // source-preserved and outside the editable profile.
+  repeated SpreadsheetThreadedCommentArtifact threaded_comments = 17;
+  // Bounded Office 2010 x14 sparkline groups. One-dimensional target ranges
+  // map to row- or column-oriented source slices; arbitrary/non-contiguous
+  // native groups remain source-preserved and hidden from editable semantics.
+  repeated SpreadsheetSparklineGroupArtifact sparkline_groups = 18;
+  // Bounded native PivotTables backed by worksheet ranges. The initial
+  // authoring profile owns one row field, at most one column field, and one
+  // sum/count/average/min/max data field. Cached worksheet output and cache
+  // records are derived projections, never an independent document model.
+  repeated SpreadsheetPivotTableArtifact pivot_tables = 19;
+  // Active passwordless worksheet editing restriction. The explicit enabled
+  // bit permits a source-bound caller to remove a recognized source element;
+  // a new/source-free artifact normally sends only enabled=true. Password and
+  // cryptographic verifier variants stay source-owned and fail closed on edit.
+  SpreadsheetWorksheetProtectionArtifact protection = 20;
+}
+
+message SpreadsheetWorksheetProtectionArtifact {
+  bool enabled = 1;
+  repeated SpreadsheetWorksheetProtectionOperation allowed_operations = 2;
+  SpreadsheetWorksheetProtectionSourceBinding source = 3;
+}
+
+// Hash-bound locator for one recognized worksheet sheetProtection element.
+// It authorizes only an in-place semantic edit/removal against the validated
+// source package; callers cannot forge editability by changing this message.
+message SpreadsheetWorksheetProtectionSourceBinding {
+  string part_path = 1;
+  string worksheet_xml_sha256 = 2;
+  string protection_xml_sha256 = 3;
+  string semantic_sha256 = 4;
+  bool editable = 5;
+}
+
+message SpreadsheetDataValidationArtifact {
+  string id = 1;
+  string range = 2;
+  string type = 3;
+  string operator = 4;
+  string formula1 = 5;
+  string formula2 = 6;
+  repeated string values = 7;
+  // Presence-aware user-interface semantics. Omitting allow_blank keeps the
+  // source-free compatibility default (true); imported native absence remains
+  // distinguishable from an explicit false value.
+  optional bool allow_blank = 8;
+  optional bool show_input_message = 9;
+  string prompt_title = 10;
+  string prompt = 11;
+  optional bool show_error_message = 12;
+  string error_title = 13;
+  string error = 14;
+  string error_style = 15;
+  // Public semantics are intuitive: true means the in-cell list arrow is
+  // visible. SpreadsheetML's showDropDown attribute has inverted semantics.
+  optional bool show_dropdown = 16;
+}
+
+message SpreadsheetConditionalFormatArtifact {
+  string id = 1;
+  string range = 2;
+  string rule_type = 3;
+  string operator = 4;
+  repeated string formulas = 5;
+  string text = 6;
+  CellStyleArtifact format = 7;
+  repeated SpreadsheetColor colors = 8;
+  uint32 priority = 9;
+  SpreadsheetDataBarArtifact data_bar = 10;
+  SpreadsheetIconSetArtifact icon_set = 11;
+}
+
+// A numeric boundary in a SpreadsheetML cfvo element. Formula thresholds and
+// exclusive (gte=false) extension semantics stay source-bound and read-only.
+message SpreadsheetConditionalFormatThresholdArtifact {
+  // min, max, num, percent, or percentile.
+  string type = 1;
+  optional double value = 2;
+}
+
+// The standard SpreadsheetML data-bar profile. The base namespace is gradient
+// only; gradient=false and negative-axis customization require x14 extensions.
+message SpreadsheetDataBarArtifact {
+  SpreadsheetColor color = 1;
+  repeated SpreadsheetConditionalFormatThresholdArtifact thresholds = 2;
+  optional bool show_value = 3;
+  optional bool gradient = 4;
+}
+
+// One built-in SpreadsheetML icon set. Custom/x14 icon collections stay opaque.
+message SpreadsheetIconSetArtifact {
+  string icon_set = 1;
+  repeated SpreadsheetConditionalFormatThresholdArtifact thresholds = 2;
+  optional bool show_value = 3;
+  optional bool reverse = 4;
+}
+
+message SpreadsheetThreadedCommentArtifact {
+  string id = 1;
+  string cell_reference = 2;
+  string native_comment_id = 3;
+  string text = 4;
+  string person_id = 5;
+  string author = 6;
+  string user_id = 7;
+  string provider_id = 8;
+  string date_time = 9;
+  bool resolved = 10;
+  // Empty for a thread root. Direct replies reference the root's native GUID.
+  string parent_native_comment_id = 11;
+}
+
+enum SpreadsheetSparklineType {
+  SPREADSHEET_SPARKLINE_TYPE_UNSPECIFIED = 0;
+  SPREADSHEET_SPARKLINE_TYPE_LINE = 1;
+  SPREADSHEET_SPARKLINE_TYPE_COLUMN = 2;
+  SPREADSHEET_SPARKLINE_TYPE_STACKED = 3;
+}
+
+enum SpreadsheetSparklineEmptyCells {
+  SPREADSHEET_SPARKLINE_EMPTY_CELLS_UNSPECIFIED = 0;
+  SPREADSHEET_SPARKLINE_EMPTY_CELLS_SPAN = 1;
+  SPREADSHEET_SPARKLINE_EMPTY_CELLS_GAP = 2;
+  SPREADSHEET_SPARKLINE_EMPTY_CELLS_ZERO = 3;
+}
+
+enum SpreadsheetSparklineAxisMode {
+  SPREADSHEET_SPARKLINE_AXIS_MODE_UNSPECIFIED = 0;
+  SPREADSHEET_SPARKLINE_AXIS_MODE_INDIVIDUAL = 1;
+  SPREADSHEET_SPARKLINE_AXIS_MODE_GROUP = 2;
+  SPREADSHEET_SPARKLINE_AXIS_MODE_CUSTOM = 3;
+}
+
+message SpreadsheetSparklineMarkersArtifact {
+  optional bool show = 1;
+  optional bool high = 2;
+  optional bool low = 3;
+  optional bool first = 4;
+  optional bool last = 5;
+  optional bool negative = 6;
+}
+
+message SpreadsheetSparklineAxisArtifact {
+  optional double manual_min = 1;
+  optional double manual_max = 2;
+  optional SpreadsheetSparklineAxisMode min_mode = 3;
+  optional SpreadsheetSparklineAxisMode max_mode = 4;
+  optional bool show_axis = 5;
+  optional bool right_to_left = 6;
+}
+
+// One public sparkline group. target_range belongs to the containing
+// worksheet; source_data_range and date_axis_range may be worksheet-qualified
+// A1 ranges. The C# codec expands the rectangular source into the native list
+// of individual x14:sparkline formula/reference pairs.
+message SpreadsheetSparklineGroupArtifact {
+  string id = 1;
+  SpreadsheetSparklineType type = 2;
+  string target_range = 3;
+  string source_data_range = 4;
+  string date_axis_range = 5;
+  SpreadsheetColor series_color = 6;
+  SpreadsheetColor negative_color = 7;
+  SpreadsheetColor axis_color = 8;
+  SpreadsheetColor markers_color = 9;
+  SpreadsheetColor first_marker_color = 10;
+  SpreadsheetColor last_marker_color = 11;
+  SpreadsheetColor high_marker_color = 12;
+  SpreadsheetColor low_marker_color = 13;
+  optional double line_weight = 14;
+  optional bool display_hidden = 15;
+  optional SpreadsheetSparklineEmptyCells display_empty_cells_as = 16;
+  SpreadsheetSparklineMarkersArtifact markers = 17;
+  SpreadsheetSparklineAxisArtifact axis = 18;
+  SpreadsheetSparklineSourceBinding source = 19;
+}
+
+// Hash-bound locator for one recognized x14:sparklineGroup inside a worksheet
+// extension. Ordinals include opaque siblings so modeled groups cannot replace
+// unknown extension content during a source-preserving edit.
+message SpreadsheetSparklineSourceBinding {
+  string part_path = 1;
+  string worksheet_xml_sha256 = 2;
+  uint32 extension_ordinal = 3;
+  uint32 group_ordinal = 4;
+  string group_xml_sha256 = 5;
+  string semantic_sha256 = 6;
+  bool editable = 7;
+}
+
+enum SpreadsheetPivotAggregation {
+  SPREADSHEET_PIVOT_AGGREGATION_UNSPECIFIED = 0;
+  SPREADSHEET_PIVOT_AGGREGATION_SUM = 1;
+  SPREADSHEET_PIVOT_AGGREGATION_COUNT = 2;
+  SPREADSHEET_PIVOT_AGGREGATION_AVERAGE = 3;
+  SPREADSHEET_PIVOT_AGGREGATION_MIN = 4;
+  SPREADSHEET_PIVOT_AGGREGATION_MAX = 5;
+}
+
+message SpreadsheetPivotValueFieldArtifact {
+  string field = 1;
+  string name = 2;
+  SpreadsheetPivotAggregation aggregation = 3;
+}
+
+message SpreadsheetPivotRefreshPolicyArtifact {
+  bool refresh_on_load = 1;
+  bool save_data = 2;
+  bool enable_refresh = 3;
+  bool invalid = 4;
+  uint32 missing_items_limit = 5;
+  string refreshed_by = 6;
+  string refreshed_date_iso = 7;
+}
+
+// One native worksheet PivotTable plus its workbook-owned cache. source_* is
+// the semantic input range; target_reference is the complete cached output
+// rectangle rather than only its top-left anchor. The bounded protocol keeps
+// field names instead of native indexes so JavaScript remains independent of
+// package-local cache identity.
+message SpreadsheetPivotTableArtifact {
+  string id = 1;
+  string name = 2;
+  string source_worksheet_id = 3;
+  string source_reference = 4;
+  string target_reference = 5;
+  repeated string row_fields = 6;
+  repeated string column_fields = 7;
+  repeated SpreadsheetPivotValueFieldArtifact value_fields = 8;
+  bool row_grand_totals = 9;
+  bool column_grand_totals = 10;
+  SpreadsheetPivotRefreshPolicyArtifact refresh_policy = 11;
+  SpreadsheetPivotTableSourceBinding source = 12;
+  repeated SpreadsheetPivotItemFilterArtifact item_filters = 13;
+}
+
+// Hash-bound locator for one recognized worksheet PivotTable and its cache
+// graph. The first profile is intentionally read-only after import: fixed
+// source/output snapshots can cross a second export unchanged, while edits to
+// native topology or cached data fail closed until an editable profile owns
+// the corresponding rewrite rules. refresh_on_load_hardenable is deliberately
+// narrower than editable: it grants only one verified true-to-false mutation
+// of an explicitly present cache refreshOnLoad attribute on a uniquely owned
+// cache definition.
+message SpreadsheetPivotTableSourceBinding {
+  string worksheet_part_path = 1;
+  string pivot_table_part_path = 2;
+  string pivot_table_xml_sha256 = 3;
+  string cache_definition_part_path = 4;
+  string cache_definition_xml_sha256 = 5;
+  string cache_records_part_path = 6;
+  string cache_records_xml_sha256 = 7;
+  uint32 pivot_ordinal = 8;
+  uint32 cache_id = 9;
+  string semantic_sha256 = 10;
+  bool editable = 11;
+  bool refresh_on_load_hardenable = 12;
+}
+
+message SpreadsheetWorksheetSourceBinding {
+  uint32 ordinal = 1;
+  string relationship_id = 2;
+  uint32 sheet_id = 3;
+  string sheet_element_sha256 = 4;
+  string semantic_sha256 = 5;
+  bool editable = 6;
+}
+
+// One embedded worksheet picture. Asset identity is content-addressed and
+// independent from package relationship IDs. The relationship ID and Drawing
+// part path are source locators only and never act as durable object identity.
+message SpreadsheetImageArtifact {
+  string id = 1;
+  string name = 2;
+  string alt_text = 3;
+  string asset_id = 4;
+  SpreadsheetOneCellAnchorArtifact anchor = 5;
+  SpreadsheetImageSourceBinding source = 6;
+  // Additive alternative to anchor. Exactly one anchor message must be set.
+  SpreadsheetTwoCellAnchorArtifact two_cell_anchor = 7;
+  // Additive page-relative alternative. Exactly one anchor message must be set.
+  SpreadsheetAbsoluteAnchorArtifact absolute_anchor = 8;
+  // Optional source rectangle applied before the image is stretched.
+  SpreadsheetImageCropArtifact crop = 9;
+  // Optional bounded effects applied by the picture blip.
+  SpreadsheetImageEffectsArtifact effects = 10;
+  // Optional bounded rotation and mirror attributes on the picture transform.
+  SpreadsheetImageTransformArtifact transform = 11;
+}
+
+enum SpreadsheetChartType {
+  SPREADSHEET_CHART_TYPE_UNSPECIFIED = 0;
+  SPREADSHEET_CHART_TYPE_BAR = 1;
+  SPREADSHEET_CHART_TYPE_LINE = 2;
+  SPREADSHEET_CHART_TYPE_PIE = 3;
+  SPREADSHEET_CHART_TYPE_AREA = 4;
+  SPREADSHEET_CHART_TYPE_DOUGHNUT = 5;
+  SPREADSHEET_CHART_TYPE_SCATTER = 6;
+  SPREADSHEET_CHART_TYPE_BUBBLE = 7;
+  // PresentationML uses this only with PresentationChart.combo_series. XLSX
+  // charts do not yet own mixed plots and reject this enum value explicitly.
+  SPREADSHEET_CHART_TYPE_COMBO = 8;
+}
+
+// One worksheet chart graphic frame and its relationship-backed ChartPart.
+// Exactly one anchor message must be present. Category and value formulas do
+// not carry a leading equals sign; cached values remain authoritative for
+// deterministic inspection and rendering when no calculation engine runs.
+message SpreadsheetChartArtifact {
+  string id = 1;
+  string name = 2;
+  string title = 3;
+  SpreadsheetChartType type = 4;
+  bool has_legend = 5;
+  repeated string categories = 6;
+  repeated SpreadsheetChartSeriesArtifact series = 7;
+  SpreadsheetOneCellAnchorArtifact anchor = 8;
+  SpreadsheetTwoCellAnchorArtifact two_cell_anchor = 9;
+  SpreadsheetAbsoluteAnchorArtifact absolute_anchor = 10;
+  SpreadsheetChartSourceBinding source = 11;
+  SpreadsheetChartAxisArtifact x_axis = 12;
+  SpreadsheetChartAxisArtifact y_axis = 13;
+  // Explicit chart-title text styling. Additive fields may extend this message;
+  // the initial bounded profile owns only a DrawingML font size in points.
+  SpreadsheetChartTextStyleArtifact title_text_style = 14;
+  // Optional line-plot behavior. The bounded profile owns explicit grouping
+  // and smooth interpolation plus direct color variation.
+  SpreadsheetChartLineOptionsArtifact line_options = 15;
+  // Optional plot-level labels. The bounded profile owns standard value/
+  // category-name booleans plus one optional semantic position. Per-series/
+  // per-point labels, text styles, and number formats remain source-owned.
+  SpreadsheetChartDataLabelsArtifact data_labels = 16;
+}
+
+message SpreadsheetChartSeriesArtifact {
+  string name = 1;
+  repeated double values = 2;
+  string category_formula = 3;
+  string value_formula = 4;
+  // Optional explicit series-level solid fill. The bounded worksheet-chart
+  // profile currently accepts only the RGB branch; other color sources stay
+  // reserved for future additive fidelity work.
+  SpreadsheetColor fill = 5;
+  // Optional bounded series outline. The public JS surface uses
+  // line { fill, style, width } and accepts stroke { color, style, weight }
+  // as an alias. Unknown native line graphs remain source-owned.
+  SpreadsheetChartLineStyleArtifact line = 6;
+  // Optional bounded line-series marker. Direct symbol/size, untinted RGB
+  // fill, and a bounded direct outline are modeled; picture and other complex
+  // marker graphs stay source-owned.
+  SpreadsheetChartMarkerArtifact marker = 7;
+  // Scatter and bubble charts own one numeric X cache/formula per series.
+  // Category charts leave both fields empty and continue to use
+  // chart.categories plus category_formula. Keeping this on the series
+  // preserves legal numeric plots whose series do not share an X range.
+  repeated double x_values = 8;
+  string x_value_formula = 9;
+  // Bubble charts add one positive numeric size cache/formula per series. All
+  // other chart types leave these fields empty. The X, Y, and size vectors
+  // have identical point counts in the bounded profile.
+  repeated double bubble_sizes = 10;
+  string bubble_size_formula = 11;
+}
+
+// Bounded primary-axis semantics for category/value worksheet charts. The x
+// axis is a text category axis and may use tick_label_interval. The y axis is
+// a numeric value axis and may use minimum, maximum, and major_unit. Message
+// and optional-scalar presence distinguish native defaults from explicit zero.
+message SpreadsheetChartAxisArtifact {
+  string title = 1;
+  string number_format_code = 2;
+  optional uint32 tick_label_interval = 3;
+  optional double minimum = 4;
+  optional double maximum = 5;
+  optional double major_unit = 6;
+  // Tick-label style, not the axis-title style. The initial bounded profile
+  // owns only font_size_points; complex native txPr graphs remain opaque.
+  SpreadsheetChartTextStyleArtifact text_style = 7;
+}
+
+// Drawing and chart hashes bind editable semantics to one imported package.
+// Relationship IDs, non-visual IDs, anchor ordinals, and part paths are source
+// locators only; none are durable artifact identity.
+message SpreadsheetChartSourceBinding {
+  string drawing_part_path = 1;
+  string drawing_xml_sha256 = 2;
+  uint32 anchor_ordinal = 3;
+  string anchor_xml_sha256 = 4;
+  string chart_part_path = 5;
+  string chart_xml_sha256 = 6;
+  string semantic_sha256 = 7;
+  string relationship_id = 8;
+  uint32 non_visual_id = 9;
+  bool editable = 10;
+}
+
+// SpreadsheetDrawingML stores one-cell geometry in English Metric Units.
+// Keeping that native unit on the wire avoids precision loss across repeated
+// source-bound imports while the JavaScript model continues exposing pixels.
+message SpreadsheetOneCellAnchorArtifact {
+  uint32 row = 1;
+  uint32 column = 2;
+  int64 row_offset_emu = 3;
+  int64 column_offset_emu = 4;
+  int64 width_emu = 5;
+  int64 height_emu = 6;
+}
+
+// One cell-relative marker in a two-cell DrawingML anchor. Native EMUs are
+// retained so repeated source-bound edits do not accumulate pixel rounding.
+message SpreadsheetCellMarkerArtifact {
+  uint32 row = 1;
+  uint32 column = 2;
+  int64 row_offset_emu = 3;
+  int64 column_offset_emu = 4;
+}
+
+enum SpreadsheetTwoCellEditAs {
+  SPREADSHEET_TWO_CELL_EDIT_AS_UNSPECIFIED = 0;
+  SPREADSHEET_TWO_CELL_EDIT_AS_TWO_CELL = 1;
+  SPREADSHEET_TWO_CELL_EDIT_AS_ONE_CELL = 2;
+  SPREADSHEET_TWO_CELL_EDIT_AS_ABSOLUTE = 3;
+}
+
+// SpreadsheetDrawingML two-cell geometry. Attribute presence is retained:
+// an omitted edit_as keeps the native default, while explicit values model
+// move-and-resize, move-only, or absolute positioning behavior.
+message SpreadsheetTwoCellAnchorArtifact {
+  SpreadsheetCellMarkerArtifact from = 1;
+  SpreadsheetCellMarkerArtifact to = 2;
+  optional SpreadsheetTwoCellEditAs edit_as = 3;
+}
+
+// SpreadsheetDrawingML absolute geometry. Position coordinates are signed
+// because ISO 29500 permits objects to begin outside the worksheet canvas;
+// extents remain strictly positive.
+message SpreadsheetAbsoluteAnchorArtifact {
+  int64 x_emu = 1;
+  int64 y_emu = 2;
+  int64 width_emu = 3;
+  int64 height_emu = 4;
+}
+
+// DrawingML ST_Percentage uses thousandths of one percent. This bounded
+// profile accepts signed insets/outsets from -100% through 100%, while each
+// opposing pair must leave a positive source rectangle.
+message SpreadsheetImageCropArtifact {
+  sint32 left_thousandth_percent = 1;
+  sint32 top_thousandth_percent = 2;
+  sint32 right_thousandth_percent = 3;
+  sint32 bottom_thousandth_percent = 4;
+}
+
+// Bounded DrawingML blip effects. Message/optional-scalar presence preserves
+// native element presence independently from zero-valued attributes.
+message SpreadsheetImageEffectsArtifact {
+  bool grayscale = 1;
+  SpreadsheetImageLuminanceEffectArtifact luminance = 2;
+  optional uint32 opacity_thousandth_percent = 3;
+}
+
+// DrawingML a:lum uses signed thousandths of one percent.
+message SpreadsheetImageLuminanceEffectArtifact {
+  sint32 brightness_thousandth_percent = 1;
+  sint32 contrast_thousandth_percent = 2;
+}
+
+// Bounded DrawingML a:xfrm attributes for worksheet pictures. Scalar
+// presence distinguishes an omitted attribute from an explicit zero/false
+// value so source-bound edits do not erase native author intent.
+message SpreadsheetImageTransformArtifact {
+  optional sint32 rotation_angle_60000 = 1;
+  optional bool flip_horizontal = 2;
+  optional bool flip_vertical = 3;
+}
+
+// Hash-bound locator for one recognized picture anchor in a worksheet-owned
+// Drawing part. Anchor ordinal includes opaque siblings so modeled pictures
+// cannot silently reorder or replace unknown charts/shapes during export.
+message SpreadsheetImageSourceBinding {
+  string part_path = 1;
+  string drawing_xml_sha256 = 2;
+  uint32 anchor_ordinal = 3;
+  string anchor_xml_sha256 = 4;
+  string semantic_sha256 = 5;
+  string relationship_id = 6;
+  uint32 non_visual_id = 7;
+  bool editable = 8;
+}
+
+// A bounded projection of one worksheet-owned TableDefinitionPart. Cell data
+// remains in the worksheet; this message owns the table range, columns, visual
+// toggles, and its package relationship/source identity.
+message SpreadsheetTableArtifact {
+  string id = 1;
+  string name = 2;
+  string reference = 3;
+  bool has_headers = 4;
+  bool show_totals = 5;
+  bool show_filter_button = 6;
+  string style_name = 7;
+  bool show_first_column = 8;
+  bool show_last_column = 9;
+  bool show_row_stripes = 10;
+  bool show_column_stripes = 11;
+  // Compatibility projection retained for clients that only model names.
+  repeated string column_names = 12;
+  SpreadsheetTableSourceBinding source = 13;
+  // Rich column semantics. When both projections are present, column_names is
+  // the compatibility-authoritative name list and the remaining fields come
+  // from this message.
+  repeated SpreadsheetTableColumnArtifact columns = 14;
+  // Bounded AutoFilter criteria keyed by zero-based table column index.
+  // Exact/grouped-date values, custom comparisons, dynamic, Top10, icon, and
+  // bounded cell-fill/font-color filters are modeled.
+  repeated SpreadsheetTableFilterArtifact filters = 15;
+  // Bounded AutoFilter sort state. Ordinary/custom-list value, icon, bounded
+  // cell-fill/font-color, and locale-method sorts are modeled.
+  SpreadsheetTableSortStateArtifact sort_state = 16;
+  // A source-bound projection of an existing QueryTablePart. OfficeKit can
+  // only monotonically harden four root automatic-refresh switches in place:
+  // disable_refresh=true and background_refresh, first_background_refresh, or
+  // refresh_on_load=false. It never rebinds, fabricates, or semantically edits
+  // an external connection; refresh history, fields, extensions, connection
+  // definitions, and unknown XML remain source-preserved.
+  SpreadsheetTableQueryArtifact query_table = 17;
+}
+
+// A bounded SpreadsheetML tableColumn projection. Formula strings use the
+// same leading-equals convention as CellArtifact.formula; the codec removes
+// that marker when writing table XML and restores it when reading.
+message SpreadsheetTableColumnArtifact {
+  string name = 1;
+  string calculated_column_formula = 2;
+  bool calculated_column_formula_array = 3;
+  string totals_row_function = 4;
+  string totals_row_label = 5;
+  string totals_row_formula = 6;
+  bool totals_row_formula_array = 7;
+}
+
+// One modeled table AutoFilter column. Exactly one criteria branch is set.
+message SpreadsheetTableFilterArtifact {
+  uint32 column_index = 1;
+  oneof criteria {
+    SpreadsheetTableValueFilterArtifact values = 2;
+    SpreadsheetTableCustomFilterArtifact custom = 3;
+    SpreadsheetTableDynamicFilterArtifact dynamic = 4;
+    SpreadsheetTableTop10FilterArtifact top10 = 5;
+    SpreadsheetTableIconArtifact icon = 6;
+    SpreadsheetTableColorArtifact color = 7;
+  }
+}
+
+// The native <filters> branch. It contains either exact strings or grouped
+// dates; blanks and one calendar interpretation apply to the branch.
+message SpreadsheetTableValueFilterArtifact {
+  repeated string values = 1;
+  bool include_blank = 2;
+  repeated SpreadsheetTableDateGroupItemArtifact date_groups = 3;
+  string calendar_type = 4;
+}
+
+// One or two comparison criteria. With two criteria, match_all selects AND;
+// otherwise Excel's OR behavior applies.
+message SpreadsheetTableCustomFilterArtifact {
+  bool match_all = 1;
+  repeated SpreadsheetTableCustomFilterCriterionArtifact criteria = 2;
+}
+
+message SpreadsheetTableCustomFilterCriterionArtifact {
+  string operator = 1;
+  string value = 2;
+}
+
+message SpreadsheetTableDateGroupItemArtifact {
+  uint32 year = 1;
+  optional uint32 month = 2;
+  optional uint32 day = 3;
+  optional uint32 hour = 4;
+  optional uint32 minute = 5;
+  optional uint32 second = 6;
+  string grouping = 7;
+}
+
+// Relative-date or aggregate filter. Optional thresholds retain the calculated
+// values written by spreadsheet applications without making them mandatory.
+message SpreadsheetTableDynamicFilterArtifact {
+  string type = 1;
+  optional double value = 2;
+  optional double max_value = 3;
+}
+
+message SpreadsheetTableTop10FilterArtifact {
+  bool top = 1;
+  bool percent = 2;
+  double value = 3;
+  optional double filter_value = 4;
+}
+
+// A standard SpreadsheetML icon-set selector shared by icon filters and icon
+// sort conditions. icon_id is optional because its absence means "no icon".
+message SpreadsheetTableIconArtifact {
+  string icon_set = 1;
+  optional uint32 icon_id = 2;
+}
+
+// A stable color semantic shared by table filters and sort conditions. The
+// target is explicit so protobuf's scalar defaults cannot silently turn an
+// omitted choice into a font-color request. The codec resolves/allocates the
+// package-local dxfId without exposing that address through the public wire.
+message SpreadsheetTableColorArtifact {
+  oneof target {
+    bool cell_color = 1;
+    bool font_color = 2;
+  }
+  SpreadsheetColor color = 3;
+}
+
+// Sort range plus ordered value/icon/color-sort conditions. By default a
+// condition is one column with the sort range's row span. When column_sort is
+// true, a condition is one row with the sort range's column span. Condition
+// order is significant. Optional scalar presence distinguishes omitted native
+// attributes from explicit SpreadsheetML values.
+message SpreadsheetTableSortStateArtifact {
+  string reference = 1;
+  bool case_sensitive = 2;
+  repeated SpreadsheetTableSortConditionArtifact conditions = 3;
+  optional string sort_method = 4;
+  optional bool column_sort = 5;
+}
+
+message SpreadsheetTableSortConditionArtifact {
+  string reference = 1;
+  bool descending = 2;
+  // Absent means the backward-compatible ordinary value sort.
+  SpreadsheetTableIconArtifact icon = 3;
+  // Mutually exclusive with icon; absence of both means value sort.
+  SpreadsheetTableColorArtifact color = 4;
+  // Native SpreadsheetML custom-list expression for a value sort only.
+  optional string custom_list = 5;
+}
+
+// Stable root semantics from one SpreadsheetML queryTable part. Optional
+// scalar presence retains the distinction between an omitted native attribute
+// and an explicit false/zero value. Connection credentials remain outside the
+// public semantic model. Source-bound export can only change the four
+// automatic-refresh switches documented above, and only to their safer values.
+message SpreadsheetTableQueryArtifact {
+  string name = 1;
+  uint32 connection_id = 2;
+  optional bool headers = 3;
+  optional bool row_numbers = 4;
+  optional bool disable_refresh = 5;
+  optional bool background_refresh = 6;
+  optional bool first_background_refresh = 7;
+  optional bool refresh_on_load = 8;
+  optional string grow_shrink_type = 9;
+  optional bool fill_formulas = 10;
+  optional bool remove_data_on_save = 11;
+  optional bool disable_edit = 12;
+  optional bool preserve_formatting = 13;
+  optional bool adjust_column_width = 14;
+  optional bool intermediate = 15;
+  optional uint32 auto_format_id = 16;
+  optional bool apply_number_formats = 17;
+  optional bool apply_border_formats = 18;
+  optional bool apply_font_formats = 19;
+  optional bool apply_pattern_formats = 20;
+  optional bool apply_alignment_formats = 21;
+  optional bool apply_width_height_formats = 22;
+  SpreadsheetTableQuerySourceBinding source = 23;
+  // Present only when the source queryTableRefresh has a recognized bounded
+  // profile. The codec never fabricates or removes this source child.
+  SpreadsheetTableQueryRefreshArtifact refresh = 24;
+}
+
+// Bounded refresh metadata for an existing query table. Optional scalar
+// presence retains native omission. Field IDs and table-column bindings are
+// source identities; this metadata is inspect/preserve-only on source-bound
+// export.
+message SpreadsheetTableQueryRefreshArtifact {
+  optional bool preserve_sort_filter_layout = 1;
+  optional bool field_id_wrapped = 2;
+  optional bool headers_in_last_refresh = 3;
+  optional uint32 minimum_version = 4;
+  optional uint32 next_id = 5;
+  optional uint32 unbound_columns_left = 6;
+  optional uint32 unbound_columns_right = 7;
+  repeated SpreadsheetTableQueryFieldArtifact fields = 8;
+  // Names from the existing queryTableDeletedFields history. Source-bound
+  // export preserves count, order, and names unchanged.
+  repeated string deleted_field_names = 9;
+  // Existing refresh-local sort state. Its presence and semantics are
+  // source-bound and preserved unchanged.
+  SpreadsheetTableSortStateArtifact sort_state = 10;
+}
+
+// One queryTableField from the recognized source refresh profile. id and
+// table_column_id are package-local identities and cannot be changed, added,
+// removed, or reordered by this bounded codec slice.
+message SpreadsheetTableQueryFieldArtifact {
+  uint32 id = 1;
+  optional string name = 2;
+  optional bool data_bound = 3;
+  optional bool row_numbers = 4;
+  optional bool fill_formulas = 5;
+  optional bool clipped = 6;
+  optional uint32 table_column_id = 7;
+}
+
+// Package locators and hashes used to prove that a query edit still targets
+// the validated source QueryTablePart and its unchanged ConnectionsPart.
+// Relationship IDs and part paths are package-local locators, not durable IDs.
+message SpreadsheetTableQuerySourceBinding {
+  string query_part_path = 1;
+  string relationship_id = 2;
+  string xml_sha256 = 3;
+  string semantic_sha256 = 4;
+  string connection_part_path = 5;
+  string connection_xml_sha256 = 6;
+  bool editable = 7;
+}
+
+message SpreadsheetTableSourceBinding {
+  string worksheet_part_path = 1;
+  string table_part_path = 2;
+  string relationship_id = 3;
+  string xml_sha256 = 4;
+  string semantic_sha256 = 5;
+  bool editable = 6;
+}
+
+message CellArtifact {
+  uint32 row = 1;
+  uint32 column = 2;
+  string formula = 3;
+  // Effective SpreadsheetML number-format code. Empty means General.
+  string number_format_code = 4;
+  // Native formula topology for shared and legacy array formulas.
+  CellFormulaMetadata formula_metadata = 5;
+  // Effective bounded static cell formatting. Number formats remain field 4
+  // so existing wire consumers retain their additive compatibility.
+  CellStyleArtifact style = 6;
+
+  oneof value {
+    string string_value = 10;
+    double number_value = 11;
+    bool bool_value = 12;
+    string error_value = 13;
+  }
+}
+
+enum CellFormulaKind {
+  CELL_FORMULA_KIND_UNSPECIFIED = 0;
+  CELL_FORMULA_KIND_SHARED = 1;
+  CELL_FORMULA_KIND_ARRAY = 2;
+  // A spill-capable Office 2019+ array formula whose anchor is linked to an
+  // XLDAPR record in the workbook CellMetadataPart. This is intentionally
+  // distinct from the legacy Ctrl+Shift+Enter array formula represented by
+  // CELL_FORMULA_KIND_ARRAY even though both serialize as f@t="array".
+  CELL_FORMULA_KIND_DYNAMIC_ARRAY = 3;
+  // A native SpreadsheetML What-If Analysis table anchored by
+  // f@t="dataTable". The formula body is intentionally empty; reference and
+  // input-cell semantics live in CellFormulaMetadata.
+  CELL_FORMULA_KIND_DATA_TABLE = 4;
+}
+
+message CellFormulaMetadata {
+  CellFormulaKind kind = 1;
+  uint32 shared_index = 2;
+  // Shared-group range, legacy-array range, or dynamic spill range according
+  // to kind. For data tables this is the result range and the formula cell is
+  // its top-left anchor.
+  string reference = 3;
+  // Data-table input cells. A one-variable table sets exactly one; a
+  // two-variable table sets both. Addresses are local, unqualified A1 cells.
+  string row_input = 4;
+  string column_input = 5;
+  // Mirrors SpreadsheetML dtr for a one-variable row-input table.
+  bool row_oriented = 6;
+  // Mirrors SpreadsheetML dt2D. It must agree with the presence of both input
+  // cells and is false for a one-variable table.
+  bool two_variable = 7;
+  // False when imported formula attributes exceed the canonical profile.
+  // Such data tables are visible but source-bound and read-only.
+  bool editable = 8;
+}
+
+// A clean-room semantic projection of the SpreadsheetML cell style record.
+// Named-style identity, conditional formats, gradients, phonetic settings,
+// and extension payloads remain source-bound opaque content.
+message CellStyleArtifact {
+  SpreadsheetFontStyle font = 1;
+  SpreadsheetFillStyle fill = 2;
+  SpreadsheetBorderStyle border = 3;
+  SpreadsheetAlignmentStyle alignment = 4;
+  SpreadsheetProtectionStyle protection = 5;
+}
+
+message SpreadsheetColor {
+  oneof source {
+    string rgb = 1;
+    uint32 theme = 2;
+    uint32 indexed = 3;
+    bool automatic = 4;
+  }
+  optional double tint = 5;
+}
+
+message SpreadsheetFontStyle {
+  optional bool bold = 1;
+  optional bool italic = 2;
+  optional string underline = 3;
+  optional bool strike = 4;
+  SpreadsheetColor color = 5;
+  optional double size_points = 6;
+  optional string name = 7;
+}
+
+message SpreadsheetFillStyle {
+  string pattern_type = 1;
+  SpreadsheetColor foreground = 2;
+  SpreadsheetColor background = 3;
+}
+
+message SpreadsheetBorderEdgeStyle {
+  string style = 1;
+  SpreadsheetColor color = 2;
+}
+
+message SpreadsheetBorderStyle {
+  SpreadsheetBorderEdgeStyle left = 1;
+  SpreadsheetBorderEdgeStyle right = 2;
+  SpreadsheetBorderEdgeStyle top = 3;
+  SpreadsheetBorderEdgeStyle bottom = 4;
+  SpreadsheetBorderEdgeStyle diagonal = 5;
+  SpreadsheetBorderEdgeStyle start = 6;
+  SpreadsheetBorderEdgeStyle end = 7;
+  SpreadsheetBorderEdgeStyle horizontal = 8;
+  SpreadsheetBorderEdgeStyle vertical = 9;
+  optional bool diagonal_up = 10;
+  optional bool diagonal_down = 11;
+  optional bool outline = 12;
+}
+
+message SpreadsheetAlignmentStyle {
+  optional string horizontal = 1;
+  optional string vertical = 2;
+  optional bool wrap_text = 3;
+  optional uint32 text_rotation = 4;
+  optional uint32 indent = 5;
+  optional bool shrink_to_fit = 6;
+  optional uint32 reading_order = 7;
+}
+
+message SpreadsheetProtectionStyle {
+  optional bool locked = 1;
+  optional bool hidden = 2;
+}
+
+message FreezePane {
+  uint32 rows = 1;
+  uint32 columns = 2;
+  string top_left_cell = 3;
+  string active_pane = 4;
+}
+
+message ColumnDimension {
+  uint32 column = 1;
+  double width = 2;
+  bool hidden = 3;
+  bool best_fit = 4;
+}
+
+message RowDimension {
+  uint32 row = 1;
+  double height = 2;
+  bool hidden = 3;
+}
+
+message PresentationArtifact {
+  string id = 1;
+  string name = 2;
+  int64 slide_width_emu = 3;
+  int64 slide_height_emu = 4;
+  repeated PresentationSlide slides = 5;
+  // Package-level identity remains separate from effective slide formatting.
+  // Source-bound exports require the original master/layout topology.
+  repeated PresentationMaster masters = 6;
+  repeated PresentationLayout layouts = 7;
+  // Imported presentation-wide view metadata. Editor visibility is local JS
+  // state and is never written back as visible by the canonical codec.
+  PresentationViewProperties view_properties = 8;
+  // Ordered native p:custShowLst semantics. Source-free authoring owns the
+  // complete list. Imported canonical lists keep their show count/order and
+  // native IDs fixed while allowing names and ordered slide membership to
+  // change through a hash-bound source profile.
+  repeated PresentationCustomShowArtifact custom_shows = 9;
+  // True only when an imported p:custShowLst exists outside the bounded
+  // canonical profile. Its exact XML remains in the validated source package;
+  // no semantic custom_shows are exposed and any attempted replacement fails.
+  bool custom_shows_opaque = 10;
+  // Ordered PowerPoint 2010 p14:sectionLst semantics. A modeled section list
+  // partitions all presentation slides exactly once and in presentation order.
+  // Source-free authoring owns the whole list. Imported canonical sections
+  // keep their count/order and native GUIDs fixed while names and contiguous
+  // membership change through a hash-bound source profile.
+  repeated PresentationSectionArtifact sections = 11;
+  // True only when an imported p14:sectionLst extension exists outside the
+  // bounded canonical profile. Its exact XML stays in the validated source
+  // package; no semantic sections are exposed and replacement fails closed.
+  bool sections_opaque = 12;
+}
+
+message PresentationViewProperties {
+  optional int64 grid_spacing_cx_emu = 1;
+  optional int64 grid_spacing_cy_emu = 2;
+  optional bool slide_view_snap_to_grid = 3;
+  optional bool slide_view_snap_to_objects = 4;
+  repeated PresentationSlideGuide slide_guides = 5;
+  PresentationViewPropertiesSourceBinding source = 6;
+}
+
+message PresentationSlideGuide {
+  enum Orientation {
+    ORIENTATION_UNSPECIFIED = 0;
+    ORIENTATION_HORIZONTAL = 1;
+    ORIENTATION_VERTICAL = 2;
+  }
+  Orientation orientation = 1;
+  // Raw PresentationML p:guide/@pos coordinate. It is exposed read-only.
+  int32 position = 2;
+}
+
+message PresentationViewPropertiesSourceBinding {
+  string part_path = 1;
+  string relationship_id = 2;
+  string view_xml_sha256 = 3;
+  string semantic_sha256 = 4;
+  // Hash of the native view-properties graph after the fixed-topology editable
+  // leaves (grid spacing values, snap attributes, and guide positions) have
+  // been removed. It proves that every other node/attribute remains intact.
+  string residual_sha256 = 5;
+  // True only for the deliberately narrow imported profile. This is preflight
+  // evidence; the codec independently re-proves the package before writing.
+  bool editable = 6;
+}
+
+message PresentationSlide {
+  string id = 1;
+  string name = 2;
+  repeated PresentationElement elements = 3;
+  PresentationSlideSourceBinding source = 4;
+  // Stable public locator for the source layout, not an inherited style
+  // snapshot. Changing this binding is outside the current bounded slice.
+  string layout_id = 5;
+  // Plain-text speaker notes. Source-free authoring creates the canonical
+  // PresentationML notes graph; imported notes remain hash-bound so complex
+  // notes content can be preserved without pretending it is safely editable.
+  PresentationSpeakerNotes speaker_notes = 6;
+  // Direct p:cSld/p:bg only. Effective layout/master inheritance stays in the
+  // JavaScript model and is never flattened into the slide part.
+  PresentationBackground background = 7;
+  // The bounded legacy PresentationML comment profile. This is deliberately a
+  // codec-level record rather than the richer JavaScript thread abstraction:
+  // legacy PowerPoint comments have one text item, one author, and one page
+  // coordinate, but no replies, resolved state, reactions, or element anchor.
+  repeated PresentationLegacyComment legacy_comments = 8;
+  // A source-preserving clone request. Unlike `source`, this does not claim
+  // that the target already owns the referenced SlidePart: the codec must
+  // create a distinct slide part and relationship graph from this verified
+  // origin. The bounded profile permits an untouched source slide with its
+  // verified layout, canonical picture-bound ImageParts, independently copied
+  // closed literal-data ChartParts, canonical run hyperlinks, and optional
+  // closed NotesSlide/comments leaves. Richer graph cloning remains an
+  // explicit later operation.
+  PresentationSlideSourceBinding clone_source = 9;
+  // A bounded Office 2021 p188 modern-comment graph. Source-free authoring
+  // supports one root plus direct replies and element/text-range anchors.
+  // Imported graphs expose text and active/resolved status as the only mutable
+  // fields; author identity, dates, anchor, position, topology, and package
+  // bindings remain hash-proven source evidence.
+  repeated PresentationModernCommentThread modern_comments = 10;
+  // One bounded direct p:transition leaf. The public profile deliberately
+  // separates slide advancement from p:timing animation graphs: only fade
+  // and four-direction push effects with explicit speed/click/timer settings
+  // are semantic. Other native transition children remain source-owned.
+  PresentationTransition transition = 11;
+}
+
+// One p:cm record from a legacy ppt/comments/commentN.xml part. `id` is a
+// stable locator only within the decoded artifact; native author/index values
+// are package-local source evidence, not durable cross-file identity.
+message PresentationLegacyComment {
+  string id = 1;
+  string author = 2;
+  string text = 3;
+  string created_at = 4;
+  int64 position_x_emu = 5;
+  int64 position_y_emu = 6;
+  uint32 native_author_id = 7;
+  uint32 native_index = 8;
+}
+
+message PresentationModernCommentThread {
+  string id = 1;
+  // Public artifact locator for the anchored element or text range.
+  string target_id = 2;
+  PresentationModernCommentAnchor anchor = 3;
+  int64 position_x_emu = 4;
+  int64 position_y_emu = 5;
+  PresentationModernComment root = 6;
+  repeated PresentationModernComment replies = 7;
+  PresentationModernCommentSourceBinding source = 8;
+}
+
+message PresentationModernComment {
+  string id = 1;
+  string author_id = 2;
+  string author = 3;
+  string initials = 4;
+  string user_id = 5;
+  string provider_id = 6;
+  string text = 7;
+  string created_at = 8;
+  // Office 2021 values: active, resolved, or closed. The JavaScript facade
+  // treats resolved and closed as resolved while preserving the exact wire
+  // value for an unchanged imported graph.
+  string status = 9;
+}
+
+message PresentationModernCommentAnchor {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_ELEMENT = 1;
+    KIND_TEXT_RANGE = 2;
+  }
+  Kind kind = 1;
+  // One drawing moniker in the bounded profile. Keeping this repeated makes
+  // unsupported nested/group chains observable without pretending they are
+  // editable; the codec accepts exactly one recognized moniker today.
+  repeated PresentationModernCommentMoniker monikers = 2;
+  optional uint32 text_start = 3;
+  optional uint32 text_length = 4;
+  optional uint32 context_length = 5;
+  optional uint32 context_hash = 6;
+  uint32 native_slide_id = 7;
+}
+
+message PresentationModernCommentMoniker {
+  // spMk, graphicFrameMk, cxnSpMk, picMk, or grpSpMk.
+  string type = 1;
+  uint32 native_id = 2;
+  // Optional a16:creationId evidence, serialized as a brace-delimited GUID.
+  string creation_id = 3;
+}
+
+message PresentationModernCommentSourceBinding {
+  string part_path = 1;
+  string relationship_id = 2;
+  string comment_xml_sha256 = 3;
+  string authors_part_path = 4;
+  string authors_relationship_id = 5;
+  string authors_xml_sha256 = 6;
+  // Hash of immutable identity, author, date, anchor, position, and topology.
+  string fixed_topology_sha256 = 7;
+  uint32 root_index = 8;
+  bool editable = 9;
+}
+
+message PresentationSlideSourceBinding {
+  uint32 slide_index = 1;
+  string part_path = 2;
+  string relationship_id = 3;
+  string slide_xml_sha256 = 4;
+  string layout_relationship_id = 5;
+  string background_semantic_sha256 = 6;
+  bool background_editable = 7;
+  // True only when the imported slide has no NotesSlide and OfficeKit can
+  // prove that the surrounding presentation graph can accept one canonical
+  // plain-text notes leaf. Export re-proves this capability from source bytes;
+  // callers cannot grant it by changing the wire value.
+  bool speaker_notes_addable = 8;
+  // True only when the imported presentation has no legacy or modern comment
+  // graph and this SlidePart can receive one canonical legacy comments leaf.
+  // Export re-proves the whole presentation graph before creating the shared
+  // author catalog and any slide-local comments parts.
+  bool legacy_comments_addable = 9;
+  // True only when this SlidePart already owns one closed legacy comments
+  // leaf and the presentation has one relationship-free legacy author
+  // catalog. The bounded edit profile may change existing comment text only;
+  // author, timestamp, position, package-local author/index identity, order,
+  // count, relationships, and every other comment-family graph detail remain
+  // source-bound.
+  bool legacy_comments_editable = 16;
+  // True when this concrete SlidePart owns any legacy or Office 2021 comment
+  // part, including an unsupported/opaque graph.
+  bool comment_part_present = 10;
+  // Presentation-wide family evidence: legacy, modern, or mixed.
+  // A comment-free presentation reports legacy because that is the bounded
+  // family OfficeKit may author when legacy_comments_addable is true.
+  string comment_family = 11;
+  // Hash of the direct p:transition semantics, or of an empty semantic message
+  // when no supported transition is exposed. The raw SlidePart hash remains
+  // the authority for an opaque transition graph.
+  string transition_semantic_sha256 = 12;
+  // True only for one canonical direct fade or push transition with explicit
+  // bounded attributes. Arbitrary effects, sound actions, extensions, and
+  // timing graphs remain source-owned.
+  bool transition_editable = 13;
+  // Distinguishes an absent transition from a retained opaque native one for
+  // Agent-facing inspect/capability reporting.
+  bool transition_present = 14;
+  // True only when this SlidePart has no p:transition, p:timing, or extension
+  // leaf and contains only its ordinary p:cSld plus optional p:clrMapOvr
+  // structure. Export re-proves that narrow shape before adding one canonical
+  // direct fade or push transition.
+  bool transition_addable = 15;
+}
+
+message PresentationSpeakerNotes {
+  string text = 1;
+  PresentationSpeakerNotesSourceBinding source = 2;
+  // Optional structured form of text. It must flatten exactly to `text`.
+  // The NotesSlide profile deliberately accepts only relationship-free
+  // paragraph/run semantics; notes-master layout and note-local hyperlinks,
+  // fields, and picture bullets stay source-owned.
+  PresentationTextBody text_body = 3;
+}
+
+message PresentationSpeakerNotesSourceBinding {
+  string part_path = 1;
+  string relationship_id = 2;
+  string notes_xml_sha256 = 3;
+  string semantic_sha256 = 4;
+  bool editable = 5;
+}
+
+// The first bounded package-level PresentationML slice exposes every source
+// master and layout as a hash-bound locator while keeping graph topology
+// read-only. Master p:txStyles defaults, direct backgrounds, and owner-local
+// placeholder text are modeled for source-preserving edits.
+message PresentationMaster {
+  string id = 1;
+  string name = 2;
+  PresentationMasterSourceBinding source = 3;
+  PresentationMasterTextStyles text_styles = 4;
+  // Direct p:bg only. On a source-bound artifact the semantic hash
+  // distinguishes unchanged absence from explicit removal; effective theme or
+  // layout inheritance is never flattened into this field.
+  PresentationBackground background = 5;
+  // Direct p:sp/p:nvSpPr/p:nvPr/p:ph entries in master shape-tree order.
+  // Position, geometry, fill, and effective inherited style remain source XML.
+  repeated PresentationPlaceholder placeholders = 6;
+}
+
+message PresentationMasterSourceBinding {
+  uint32 master_index = 1;
+  string part_path = 2;
+  string relationship_id = 3;
+  string master_xml_sha256 = 4;
+  string text_styles_semantic_sha256 = 5;
+  bool text_styles_editable = 6;
+  string background_semantic_sha256 = 7;
+  bool background_editable = 8;
+}
+
+message PresentationLayout {
+  string id = 1;
+  string name = 2;
+  string master_id = 3;
+  string type = 4;
+  PresentationLayoutSourceBinding source = 5;
+  // Direct layout p:bg only. On a source-bound artifact the semantic hash
+  // distinguishes unchanged absence from explicit removal; absence inherits
+  // from the linked master.
+  PresentationBackground background = 6;
+  // Direct layout placeholders only; inherited master placeholders are not
+  // duplicated into this owner-local list.
+  repeated PresentationPlaceholder placeholders = 7;
+}
+
+message PresentationLayoutSourceBinding {
+  // Index is local to the owning master's p:sldLayoutIdLst.
+  uint32 layout_index = 1;
+  string part_path = 2;
+  string relationship_id = 3;
+  string layout_xml_sha256 = 4;
+  string background_semantic_sha256 = 5;
+  bool background_editable = 6;
+}
+
+// Bounded direct PresentationML background. Color transforms, gradient,
+// pattern, image, group, and effect-bearing fills remain source-bound.
+message PresentationBackground {
+  oneof color {
+    string color_rgb = 1;
+    string color_scheme = 2;
+  }
+  oneof kind {
+    bool solid = 3;
+    uint32 style_reference_index = 4;
+  }
+}
+
+// Bounded owner-local placeholder semantics. Type/index/name are identity and
+// remain read-only for a source-bound package. text_body and a recognized
+// direct_frame slot participate in the edit slice, including bounded presence
+// changes recorded by source evidence; fill, shape style, inherited geometry,
+// and unmodeled p:ph attributes stay behind the element and residual hashes.
+message PresentationPlaceholder {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  uint32 index = 4;
+  PresentationTextBody text_body = 5;
+  PresentationElementSourceBinding source = 6;
+  PresentationPlaceholderFrame direct_frame = 7;
+}
+
+// Atomic direct a:xfrm for a Master/Layout placeholder. Message presence
+// distinguishes an editable direct transform from inherited or unrecognized
+// native geometry; partial coordinate presence is impossible. Optional visual
+// transform fields preserve native attribute absence independently from an
+// explicit zero/false value.
+message PresentationPlaceholderFrame {
+  int64 left_emu = 1;
+  int64 top_emu = 2;
+  int64 width_emu = 3;
+  int64 height_emu = 4;
+  optional sint32 rotation_angle_60000 = 5;
+  optional bool flip_horizontal = 6;
+  optional bool flip_vertical = 7;
+}
+
+message PresentationMasterTextStyles {
+  // Each level uses PresentationTextParagraph's required 0-based level and
+  // bounded paragraph-property fields. Runs are forbidden. Omitted levels
+  // preserve source state; deleted_* entries explicitly scrub only modeled
+  // fields and remove the native level when no residual content remains.
+  repeated PresentationTextParagraph title_levels = 1;
+  repeated PresentationTextParagraph body_levels = 2;
+  repeated PresentationTextParagraph other_levels = 3;
+  repeated uint32 deleted_title_levels = 4;
+  repeated uint32 deleted_body_levels = 5;
+  repeated uint32 deleted_other_levels = 6;
+}
+
+message PresentationElement {
+  string id = 1;
+  string name = 2;
+  PresentationElementSourceBinding source = 3;
+
+  oneof content {
+    PresentationShape shape = 10;
+    PresentationOpaqueElement opaque = 11;
+    PresentationImage image = 12;
+    PresentationTable table = 13;
+    PresentationConnector connector = 14;
+    PresentationChart chart = 15;
+    PresentationGroup group = 16;
+  }
+}
+
+// Shape-tree indexes are local to the owning p:spTree or p:grpSp after its
+// required non-visual and group-transform records. A nested PresentationGroup
+// therefore owns the bindings and identity of its children instead of
+// flattening their coordinate space into the slide.
+message PresentationElementSourceBinding {
+  uint32 shape_tree_index = 1;
+  string element_sha256 = 2;
+  string semantic_sha256 = 3;
+  bool editable = 4;
+  // Source evidence only: true when the placeholder's direct a:xfrm slot is
+  // either absent or a fully recognized owned transform, so message presence
+  // may safely change without flattening a complex native graph.
+  bool direct_frame_presence_editable = 5;
+  // Source evidence only: true when the owner-local p:txBody graph is fully
+  // recognized and may change its textual content without granting edit
+  // permission to the surrounding shape, placeholder identity, or geometry.
+  bool text_editable = 6;
+}
+
+// Bounded recursive p:grpSp projection. The outer frame maps the local child
+// coordinate rectangle through a:xfrm off/ext/chOff/chExt. Children retain
+// their ordinary element semantics and relationship-backed assets. Rotation,
+// flips, group-level effects, locks, extension records, unsupported children,
+// and topology changes remain source-bound opaque content.
+message PresentationGroup {
+  int64 left_emu = 1;
+  int64 top_emu = 2;
+  int64 width_emu = 3;
+  int64 height_emu = 4;
+  int64 child_left_emu = 5;
+  int64 child_top_emu = 6;
+  int64 child_width_emu = 7;
+  int64 child_height_emu = 8;
+  repeated PresentationElement children = 9;
+}
+
+message PresentationShape {
+  string geometry = 1;
+  int64 left_emu = 2;
+  int64 top_emu = 3;
+  int64 width_emu = 4;
+  int64 height_emu = 5;
+  // Flattened compatibility view. Writers should keep this equal to text_body
+  // paragraphs joined with line feeds. Legacy single-run writers may set only
+  // this field; multi-paragraph/run payloads must keep both views equal.
+  string text = 6;
+  string fill_rgb = 7;
+  string line_rgb = 8;
+  int64 line_width_emu = 9;
+  PresentationTextBody text_body = 10;
+  // Present only when the native p:sp is a slide placeholder. PowerPoint
+  // resolves an omitted direct frame from the linked Slide Layout placeholder
+  // with the same index. This identity remains read-only. A separately proven
+  // source.text_editable claim may permit only owner-local text-body content
+  // changes without granting identity, geometry, formatting, or layout edits.
+  PresentationPlaceholderIdentity placeholder = 11;
+  // Recognized owner-local a:xfrm only. Absence means either inherited geometry
+  // (when placeholder.inherits_geometry is true) or an unrecognized direct
+  // transform that must remain opaque and fail closed.
+  PresentationPlaceholderFrame direct_frame = 12;
+  // Presence-aware direct visual transform for an ordinary, non-placeholder
+  // p:sp. Position and extents remain in fields 2-5; this independently
+  // designed message owns only the optional a:xfrm attributes. Unknown or
+  // structurally complex native transforms remain source-bound and read-only.
+  PresentationShapeTransform transform = 13;
+  PresentationShadow shadow = 14;
+  // Source-free custom DrawingML geometry. The 0.2 slice intentionally owns
+  // only literal path coordinates and move/line/cubic/close commands. Guides,
+  // handles, connection sites, arcs, quadratic curves, and per-path fill or
+  // stroke overrides remain source-bound.
+  repeated PresentationCustomGeometryPath custom_paths = 15;
+  // Presence-aware imported p:sp/@useBgFill. This affects preview paint but is
+  // read-only and source-bound: source-free authoring and value/presence edits
+  // fail closed rather than flattening slide-background inheritance.
+  optional bool use_background_fill = 16;
+}
+
+message PresentationCustomGeometryPath {
+  int64 width = 1;
+  int64 height = 2;
+  repeated PresentationCustomGeometryCommand commands = 3;
+}
+
+message PresentationCustomGeometryCommand {
+  oneof command {
+    PresentationCustomGeometryPoint move_to = 1;
+    PresentationCustomGeometryPoint line_to = 2;
+    PresentationCustomGeometryCubicBezier cubic_bezier_to = 3;
+    bool close = 4;
+  }
+}
+
+message PresentationCustomGeometryPoint {
+  int64 x = 1;
+  int64 y = 2;
+}
+
+message PresentationCustomGeometryCubicBezier {
+  PresentationCustomGeometryPoint control_1 = 1;
+  PresentationCustomGeometryPoint control_2 = 2;
+  PresentationCustomGeometryPoint end = 3;
+}
+
+message PresentationShadow {
+  string color_rgb = 1;
+  int64 blur_radius_emu = 2;
+  int64 distance_emu = 3;
+  int32 direction_angle_60000 = 4;
+  uint32 opacity_thousandth_percent = 5;
+}
+
+message PresentationConnector {
+  string connector_type = 1;
+  int64 start_x_emu = 2;
+  int64 start_y_emu = 3;
+  int64 end_x_emu = 4;
+  int64 end_y_emu = 5;
+  string line_rgb = 6;
+  int64 line_width_emu = 7;
+  string start_arrow = 8;
+  string end_arrow = 9;
+  string start_target_id = 10;
+  string end_target_id = 11;
+}
+
+message PresentationChart {
+  int64 left_emu = 1;
+  int64 top_emu = 2;
+  int64 width_emu = 3;
+  int64 height_emu = 4;
+  SpreadsheetChartType type = 5;
+  string title = 6;
+  bool has_legend = 7;
+  repeated string categories = 8;
+  repeated SpreadsheetChartSeriesArtifact series = 9;
+  SpreadsheetChartAxisArtifact x_axis = 10;
+  SpreadsheetChartAxisArtifact y_axis = 11;
+  SpreadsheetChartDataLabelsArtifact data_labels = 12;
+  // A bounded literal bar+line composition. When type is COMBO, `series` must
+  // be empty and this collection must contain at least one primary BAR and one
+  // LINE entry. The wrapper keeps Presentation-only plot and axis identity out
+  // of the reusable Worksheet chart series contract.
+  repeated PresentationComboSeriesArtifact combo_series = 13;
+  // The canonical secondary-axis combo variant owns a second category/value
+  // pair for its line plot. These fields are unset for primary-axis combos.
+  SpreadsheetChartAxisArtifact secondary_x_axis = 14;
+  SpreadsheetChartAxisArtifact secondary_y_axis = 15;
+}
+
+// PresentationML plot/axis ownership is intentionally separate from
+// SpreadsheetChartSeriesArtifact: the latter is reusable across XLSX and has
+// no concept of a slide chart's paired axes. UNSPECIFIED is interpreted as
+// PRIMARY when reading older primary-axis combo payloads.
+enum PresentationChartAxisGroup {
+  PRESENTATION_CHART_AXIS_GROUP_UNSPECIFIED = 0;
+  PRESENTATION_CHART_AXIS_GROUP_PRIMARY = 1;
+  PRESENTATION_CHART_AXIS_GROUP_SECONDARY = 2;
+}
+
+// One series in a bounded PresentationML combo chart. The embedded series
+// keeps normal literal values and style semantics. The native profile permits
+// only primary clustered BAR entries plus either all-primary or all-secondary
+// standard LINE entries, avoiding mixed same-type plots and a third graph.
+message PresentationComboSeriesArtifact {
+  SpreadsheetChartType type = 1;
+  SpreadsheetChartSeriesArtifact series = 2;
+  PresentationChartAxisGroup axis_group = 3;
+}
+
+message PresentationShapeTransform {
+  optional sint32 rotation_angle_60000 = 1;
+  optional bool flip_horizontal = 2;
+  optional bool flip_vertical = 3;
+}
+
+// Bounded top-level p:pic projection. The asset is content-addressed in the
+// envelope; relationship IDs and OPC part names remain package-local. This
+// slice owns only an embedded PNG/JPEG/GIF/safe-SVG source, alternative text,
+// a rectangular stretch frame, a bounded native source rectangle, and direct
+// rotation/flips. Effects, external links, transformed blips, and
+// non-rectangular geometry remain source-bound opaque content.
+message PresentationImage {
+  string asset_id = 1;
+  string alt_text = 2;
+  int64 left_emu = 3;
+  int64 top_emu = 4;
+  int64 width_emu = 5;
+  int64 height_emu = 6;
+  PresentationImageTransform transform = 7;
+  PresentationImageCrop crop = 8;
+}
+
+message PresentationImageTransform {
+  optional sint32 rotation_angle_60000 = 1;
+  optional bool flip_horizontal = 2;
+  optional bool flip_vertical = 3;
+}
+
+// DrawingML a:srcRect signed thousandth-percent edges. Negative values expand
+// the source rectangle for contain/letterbox semantics; positive values crop.
+message PresentationImageCrop {
+  sint32 left_thousandth_percent = 1;
+  sint32 top_thousandth_percent = 2;
+  sint32 right_thousandth_percent = 3;
+  sint32 bottom_thousandth_percent = 4;
+}
+
+// Bounded top-level DrawingML table projection. Column widths and row heights
+// make the fixed grid explicit instead of deriving native geometry from cell
+// text. The bounded codec owns one rectangular p:graphicFrame, a complete
+// physical grid, non-overlapping rectangular merge ranges, and exactly one
+// plain-text run per visible origin cell. Covered cells remain present with an
+// empty run so the canonical a:tc gridSpan/rowSpan/hMerge/vMerge topology can
+// round-trip without inventing a second sparse table model. Rich cell text,
+// table styles, transformed frames, and topology changes after import remain
+// source-bound opaque content.
+message PresentationTable {
+  int64 left_emu = 1;
+  int64 top_emu = 2;
+  int64 width_emu = 3;
+  int64 height_emu = 4;
+  repeated int64 column_widths_emu = 5;
+  repeated PresentationTableRow rows = 6;
+  optional bool first_row = 7;
+  optional bool banded_rows = 8;
+  repeated PresentationTableMergeRange merge_ranges = 9;
+}
+
+message PresentationTableRow {
+  int64 height_emu = 1;
+  repeated PresentationTableCell cells = 2;
+}
+
+message PresentationTableCell {
+  string text = 1;
+}
+
+// Inclusive zero-based rectangle. A range must cover at least two physical
+// cells, remain within the table grid, and never overlap another range. The
+// upper-left cell owns the visible text; every covered cell is empty/read-only.
+message PresentationTableMergeRange {
+  uint32 start_row = 1;
+  uint32 end_row = 2;
+  uint32 start_column = 3;
+  uint32 end_column = 4;
+}
+
+message PresentationPlaceholderIdentity {
+  string type = 1;
+  uint32 index = 2;
+  // True only when the slide placeholder has no owner-local a:xfrm and its
+  // effective geometry should be resolved from its linked layout by index.
+  bool inherits_geometry = 3;
+}
+
+// The public PresentationML text slice models agent-facing paragraph/inlines,
+// list-marker/direct marker-style semantics, content-addressed or external
+// picture bullets, tab stops, direct left-margin/hanging-indent layout,
+// direct paragraph spacing/default-run styles, bounded text-body layout, and
+// bounded click links.
+// Transformed or non-sRGB/non-theme marker colors, custom-show/mouse-over
+// links, field paragraph properties, and unmodeled master/layout content stay
+// source-bound. Shape-local list levels and master p:txStyles levels reuse the
+// bounded fields below.
+message PresentationTextBody {
+  repeated PresentationTextParagraph paragraphs = 1;
+  // Text-body list defaults keyed by each paragraph message's required level
+  // field (0 through 8). Runs are forbidden here. An empty list preserves
+  // unknown source list-style content during a source-bound edit.
+  repeated PresentationTextParagraph list_styles = 2;
+  // Explicitly removes the modeled lvl1pPr through lvl9pPr children while
+  // retaining any unmodeled list-style content.
+  optional bool no_list_styles = 3;
+  PresentationTextBodyProperties body_properties = 4;
+}
+
+// Bounded a:bodyPr semantics. Each unset choice preserves source state; each
+// explicit no_* choice removes only the modeled attribute or AutoFit child.
+// Insets and column spacing use DrawingML EMUs; rotation retains native
+// 1/60000-degree units. WordArt vertical modes, paragraph compatibility flags,
+// warp/3D, and attributed normAutofit remain source-bound.
+message PresentationTextBodyProperties {
+  oneof left_inset {
+    int64 left_inset_emu = 1;
+    bool no_left_inset = 2;
+  }
+  oneof top_inset {
+    int64 top_inset_emu = 3;
+    bool no_top_inset = 4;
+  }
+  oneof right_inset {
+    int64 right_inset_emu = 5;
+    bool no_right_inset = 6;
+  }
+  oneof bottom_inset {
+    int64 bottom_inset_emu = 7;
+    bool no_bottom_inset = 8;
+  }
+  oneof anchor {
+    string vertical_anchor = 9;
+    bool no_vertical_anchor = 10;
+  }
+  oneof wrapping {
+    string wrap = 11;
+    bool no_wrap = 12;
+  }
+  oneof auto_fit {
+    string auto_fit_mode = 13;
+    bool no_auto_fit_mode = 14;
+  }
+  oneof rotation {
+    int32 rotation_angle_60000 = 15;
+    bool no_rotation = 16;
+  }
+  oneof vertical_text {
+    string vertical_text_mode = 17;
+    bool no_vertical_text_mode = 18;
+  }
+  oneof vertical_overflow {
+    string vertical_overflow_mode = 19;
+    bool no_vertical_overflow_mode = 20;
+  }
+  oneof horizontal_overflow {
+    string horizontal_overflow_mode = 21;
+    bool no_horizontal_overflow_mode = 22;
+  }
+  oneof column_count {
+    uint32 columns = 23;
+    bool no_columns = 24;
+  }
+  oneof column_spacing {
+    int64 column_spacing_emu = 25;
+    bool no_column_spacing = 26;
+  }
+  oneof column_direction {
+    bool right_to_left_columns = 27;
+    bool no_column_direction = 28;
+  }
+  oneof upright_text {
+    bool upright = 29;
+    bool no_upright = 30;
+  }
+}
+
+message PresentationTextStyle {
+  optional bool bold = 1;
+  optional bool italic = 2;
+  optional double font_size_points = 3;
+  optional string font_family = 4;
+  oneof color {
+    string color_rgb = 5;
+    // One of the 16 public DrawingML theme tokens. Color transforms remain
+    // source-bound rather than being flattened.
+    string color_scheme = 6;
+  }
+}
+
+message PresentationTextParagraph {
+  optional uint32 level = 1;
+  optional string alignment = 2;
+  repeated PresentationTextRun runs = 3;
+  // Unset means no direct marker for newly authored text and preserve an
+  // unknown source marker during a source-bound edit.
+  oneof bullet {
+    bool no_bullet = 4;
+    string bullet_character = 5;
+    PresentationAutoNumberBullet auto_number = 6;
+    PresentationPictureBullet picture_bullet = 16;
+  }
+  // Each unset style choice means no direct style for new text and preserve an
+  // unmodeled source choice during a source-bound edit.
+  oneof bullet_font {
+    string bullet_font_family = 7;
+    bool bullet_font_follow_text = 8;
+  }
+  oneof bullet_color {
+    string bullet_color_rgb = 9;
+    bool bullet_color_follow_text = 10;
+    // One of the 16 public DrawingML theme tokens (for example accent1 or
+    // tx1). Color transforms remain source-bound rather than being flattened.
+    string bullet_color_scheme = 17;
+  }
+  oneof bullet_size {
+    double bullet_size_points = 11;
+    double bullet_size_percent = 12;
+    bool bullet_size_follow_text = 13;
+  }
+  // Field 14 remains the original repeated-message wire shape. An empty list
+  // preserves an unmodeled source list; no_tab_stops explicitly removes it.
+  repeated PresentationTabStop tab_stops = 14;
+  optional bool no_tab_stops = 15;
+  // Values use DrawingML EMUs. Unset preserves source/inherited layout;
+  // explicit no_* choices remove a modeled direct override.
+  oneof left_margin {
+    int64 margin_left_emu = 18;
+    bool no_margin_left = 20;
+  }
+  oneof indentation {
+    int64 indent_emu = 19;
+    bool no_indent = 21;
+  }
+  // Point and multiplier choices retain the native DrawingML spcPts/spcPct
+  // identity. A multiplier of 1.0 is 100%. Unset preserves source/inherited
+  // spacing; explicit no_* choices remove a modeled direct override.
+  oneof line_spacing {
+    double line_spacing_points = 22;
+    double line_spacing_multiplier = 23;
+    bool no_line_spacing = 24;
+  }
+  oneof space_before {
+    double space_before_points = 25;
+    double space_before_multiplier = 26;
+    bool no_space_before = 27;
+  }
+  oneof space_after {
+    double space_after_points = 28;
+    double space_after_multiplier = 29;
+    bool no_space_after = 30;
+  }
+  // Direct a:defRPr semantics. Unset preserves source state; the explicit
+  // no_* choice removes only modeled fields and retains unknown native
+  // properties such as underline, script fonts, or color transforms.
+  oneof default_run_style {
+    PresentationTextStyle default_run_properties = 31;
+    bool no_default_run_properties = 32;
+  }
+}
+
+message PresentationPictureBullet {
+  // Embedded pictures reference an envelope Asset. External pictures remain
+  // non-fetched absolute http(s) URIs. Package relationship IDs are deliberately
+  // absent because they are local codec details, not durable artifact identity.
+  oneof source {
+    string asset_id = 1;
+    string uri = 2;
+  }
+}
+
+message PresentationAutoNumberBullet {
+  // ECMA-376 ST_TextAutonumberScheme token, for example arabicPeriod.
+  string scheme = 1;
+  optional uint32 start_at = 2;
+}
+
+message PresentationTabStop {
+  int64 position_emu = 1;
+  string alignment = 2;
+}
+
+message PresentationTextRun {
+  // Text remains field 1 for binary compatibility with the initial public
+  // schema. Moving it into this oneof makes the DrawingML a:r/a:br/a:fld
+  // distinction explicit without changing its wire encoding.
+  oneof content {
+    string text = 1;
+    bool line_break = 9;
+    PresentationTextField field = 10;
+  }
+  optional bool bold = 2;
+  optional bool italic = 3;
+  optional double font_size_points = 4;
+  optional string font_family = 5;
+  optional string color_rgb = 6;
+  // Unset preserves an unmodeled source click action. Explicit no_hyperlink
+  // removes a previously modeled click action during a source-bound edit.
+  oneof hyperlink {
+    bool no_hyperlink = 7;
+    PresentationRunHyperlink run_hyperlink = 8;
+  }
+}
+
+message PresentationTextField {
+  // DrawingML field IDs are canonical brace-wrapped UUIDs.
+  string id = 1;
+  string type = 2;
+  // Cached display text retained when Office cannot recalculate the field.
+  string text = 3;
+}
+
+message PresentationRunHyperlink {
+  oneof target {
+    string uri = 1;
+    string slide_id = 2;
+    string action = 3;
+    // Stable facade identity for one canonical presentation custom show. The
+    // native numeric ID remains an OfficeKit package detail so a name edit
+    // does not retarget or semantically rewrite every referring run.
+    string custom_show_id = 8;
+  }
+  optional string tooltip = 4;
+  optional string target_frame = 5;
+  optional bool history = 6;
+  optional bool highlight_click = 7;
+  // PowerPoint returns to the invoking slide after this custom show ends.
+  // Presence is valid only with custom_show_id.
+  optional bool return_to_slide = 9;
+}
+
+message PresentationOpaqueElement {
+  string element_name = 1;
+  string text = 2;
+  string raw_xml = 3;
+  int64 left_emu = 4;
+  int64 top_emu = 5;
+  int64 width_emu = 6;
+  int64 height_emu = 7;
+  // Agent-facing classification of the preserved native object. This is an
+  // open, forward-compatible token rather than an exhaustive enum: known
+  // values currently include picture, group, connector, graphicFrame,
+  // contentPart, oleObject, diagram, and media.
+  string native_kind = 8;
+  // Relationship-valued XML attributes found on this element or its
+  // descendants. IDs are owner-local to the source slide; relationship
+  // metadata remains canonical in ArtifactEnvelope.opaque_opc.
+  repeated PresentationNativeRelationshipReference relationship_references = 9;
+  // Bounded transitive closure of internal OPC parts reached from the root
+  // relationship references. Paths refer to OpaqueOpcGraph.parts, so package
+  // bytes and relationship metadata are not duplicated in this message.
+  repeated string preserved_part_paths = 10;
+  // Present only when a source-bound top-level OLE object owns exactly one
+  // internal package relationship to an ordinary XLSX workbook part. The
+  // locator, content type, relationship ID, and source digest are immutable;
+  // an export request may set only replacement_asset_id. The preview image
+  // remains source-owned and is deliberately not regenerated by this codec.
+  PresentationOleWorkbook ole_workbook = 11;
+  // Present only for a source-bound top-level SmartArt frame with one closed
+  // relationship-free DiagramDataPart and a fully recognized plain-text node
+  // profile. It exposes stable dgm:pt model IDs and text only; layout,
+  // styles, colors, edges, node topology, and all other diagram markup remain
+  // source-owned. An export request may change only node text values.
+  PresentationDiagramText diagram_text = 12;
+  // Present only for a source-bound top-level OLE object with one uniquely
+  // bound internal Office package in a profile this codec explicitly knows.
+  // This is deliberately narrower than an arbitrary OLE byte container:
+  // `kind`, content type, relationship, source bytes, shell, preview, and
+  // surrounding graph stay source-bound. An export request may set only a
+  // replacement asset with the exact same declared package kind.
+  PresentationOleOfficePackage ole_office_package = 13;
+}
+
+message PresentationOleWorkbook {
+  string part_path = 1;
+  string content_type = 2;
+  string source_sha256 = 3;
+  string relationship_id = 4;
+  string replacement_asset_id = 5;
+}
+
+message PresentationNativeRelationshipReference {
+  string attribute = 1;
+  string relationship_id = 2;
+  string namespace_uri = 3;
+}
+
+message DocumentArtifact {
+  string id = 1;
+  string name = 2;
+  repeated DocumentBlock blocks = 3;
+  // Classic WordprocessingML comments whose exact bounded profile is owned by
+  // OfficeKit. Package-local comment IDs and anchor ordinals stay in the
+  // source binding rather than becoming authoring identity.
+  repeated DocumentComment comments = 4;
+  repeated DocumentStyle styles = 5;
+  DocumentRunFormatting default_run_style = 6;
+  repeated DocumentHeaderFooter headers = 7;
+  repeated DocumentHeaderFooter footers = 8;
+  bool even_and_odd_headers = 9;
+  repeated DocumentSectionSettings section_settings = 10;
+  // Bounded whole-paragraph bookmarks. Source-free authoring wraps one
+  // paragraph-like block; recognized imports retain package-local identity in
+  // the source binding and remain fixed-topology/read-only in protocol 2.
+  repeated DocumentBookmark bookmarks = 11;
+  // Bounded plain-text footnotes/endnotes. Source-free authoring appends one
+  // reference to one paragraph/list block; recognized imports retain their
+  // package-local part, relationship, note ID, and anchor integrity evidence.
+  repeated DocumentNote notes = 12;
+  // One canonical Word bibliography source catalog. OfficeKit owns only a
+  // bounded b:Sources profile with ordinary Author names and scalar fields.
+  // Imported catalogs keep their part/relationship identity and fixed source
+  // topology in the source binding; irregular custom XML remains opaque.
+  DocumentBibliography bibliography = 13;
+  // Request field refresh when the document is next opened by a compatible
+  // WordprocessingML host. This is a refresh hint, not evidence that cached
+  // PAGE/TOC/REF results are current.
+  bool update_fields = 14;
+  // Whether compatible WordprocessingML hosts should track subsequent edits.
+  // This setting is independent from the presence of existing revision marks.
+  bool track_revisions = 15;
+  // One bounded passwordless document-editing restriction from
+  // word/settings.xml. Absence means no modeled restriction. Password hashes,
+  // cryptographic verifier attributes, permission exceptions, IRM, and
+  // extension-bearing protection remain source-owned and fail closed on edit.
+  DocumentProtectionSettings document_protection = 16;
+  // Canonical text watermarks live in header parts but remain distinct from
+  // ordinary header text in the public model. Source-free authoring owns one
+  // bounded VML text-path profile; recognized imports may edit its text or
+  // remove the complete watermark paragraph while preserving every other
+  // header node. DrawingML, image, shared-header, and irregular VML graphs
+  // remain opaque and source-bound.
+  repeated DocumentWatermark watermarks = 17;
+  // Mirror inside/outside page margins on facing pages. This is the canonical
+  // leaf w:mirrorMargins setting only; duplicate, child-bearing, extension, or
+  // otherwise irregular settings markup remains source-owned and fail-closed
+  // on semantic replacement.
+  bool mirror_margins = 18;
+  // Place each section's w:pgMar/@w:gutter allowance at the top edge rather
+  // than the binding side. This owns one canonical leaf w:gutterAtTop setting;
+  // irregular settings markup remains source-owned and fail-closed on edit.
+  bool gutter_at_top = 19;
+}
+
+enum DocumentProtectionMode {
+  DOCUMENT_PROTECTION_MODE_UNSPECIFIED = 0;
+  DOCUMENT_PROTECTION_MODE_NONE = 1;
+  DOCUMENT_PROTECTION_MODE_READ_ONLY = 2;
+  DOCUMENT_PROTECTION_MODE_COMMENTS = 3;
+  DOCUMENT_PROTECTION_MODE_TRACKED_CHANGES = 4;
+  DOCUMENT_PROTECTION_MODE_FORMS = 5;
+}
+
+message DocumentProtectionSettings {
+  DocumentProtectionMode mode = 1;
+  bool enforcement = 2;
+  bool formatting = 3;
+}
+
+message DocumentBibliography {
+  string selected_style = 1;
+  string style_name = 2;
+  string uri = 3;
+  repeated DocumentBibliographySource sources = 4;
+  DocumentBibliographySourceBinding source = 5;
+}
+
+message DocumentBibliographySource {
+  string id = 1;
+  string tag = 2;
+  string source_type = 3;
+  repeated DocumentBibliographyPerson authors = 4;
+  string corporate_author = 5;
+  // Keys are the independently documented JavaScript field names (for
+  // example title, year, publisher, journalName, and url), not native element
+  // names. Values are bounded strings; unknown native fields stay opaque.
+  map<string, string> fields = 6;
+}
+
+message DocumentBibliographyPerson {
+  string first = 1;
+  string middle = 2;
+  string last = 3;
+}
+
+message DocumentBibliographySourceBinding {
+  string part_path = 1;
+  string relationship_id = 2;
+  string part_sha256 = 3;
+  string semantic_sha256 = 4;
+  bool editable = 5;
+}
+
+message DocumentBookmark {
+  string id = 1;
+  string name = 2;
+  string target_block_id = 3;
+  string end_target_block_id = 4;
+  string native_id = 5;
+  DocumentBookmarkSourceBinding source = 6;
+}
+
+message DocumentBookmarkSourceBinding {
+  uint32 body_index = 1;
+  string native_id = 2;
+  string semantic_sha256 = 3;
+  bool editable = 4;
+}
+
+enum DocumentNoteKind {
+  DOCUMENT_NOTE_KIND_UNSPECIFIED = 0;
+  DOCUMENT_NOTE_KIND_FOOTNOTE = 1;
+  DOCUMENT_NOTE_KIND_ENDNOTE = 2;
+}
+
+message DocumentNote {
+  string id = 1;
+  DocumentNoteKind kind = 2;
+  string target_block_id = 3;
+  string text = 4;
+  string native_id = 5;
+  DocumentNoteSourceBinding source = 6;
+  // Canonical physical note paragraphs. When present, text is their LF-joined
+  // display projection. An absent field preserves the protocol-2 one-string
+  // authoring shape for older callers.
+  repeated string paragraphs = 7;
+}
+
+message DocumentNoteSourceBinding {
+  uint32 target_body_index = 1;
+  string native_id = 2;
+  string relationship_id = 3;
+  string part_path = 4;
+  string note_element_sha256 = 5;
+  string semantic_sha256 = 6;
+  string residual_sha256 = 7;
+  string anchor_sha256 = 8;
+  bool editable = 9;
+}
+
+enum DocumentStyleType {
+  DOCUMENT_STYLE_TYPE_UNSPECIFIED = 0;
+  DOCUMENT_STYLE_TYPE_PARAGRAPH = 1;
+  DOCUMENT_STYLE_TYPE_CHARACTER = 2;
+  DOCUMENT_STYLE_TYPE_TABLE = 3;
+}
+
+message DocumentStyle {
+  string id = 1;
+  string name = 2;
+  DocumentStyleType type = 3;
+  string based_on = 4;
+  DocumentRunFormatting run_format = 5;
+  DocumentParagraphFormatting paragraph_format = 6;
+}
+
+message DocumentRunFormatting {
+  optional string font_family = 1;
+  optional uint32 font_size_half_points = 2;
+  optional string color_rgb = 3;
+  optional int32 character_spacing_twips = 4;
+  optional bool bold = 5;
+  optional bool italic = 6;
+  optional bool underline = 7;
+}
+
+message DocumentParagraphFormatting {
+  optional string alignment = 1;
+  optional int32 left_indent_twips = 2;
+  optional int32 right_indent_twips = 3;
+  optional int32 first_line_indent_twips = 4;
+  optional int32 hanging_indent_twips = 5;
+  optional int32 space_before_twips = 6;
+  optional int32 space_after_twips = 7;
+  optional int32 line_spacing_twips = 8;
+  optional string line_spacing_rule = 9;
+  optional bool keep_next = 10;
+  optional bool page_break_before = 11;
+  // Presence-aware direct/style paragraph setting for w:suppressLineNumbers.
+  // True exempts the paragraph from section line-number calculation; false
+  // explicitly restores section numbering when an inherited style suppresses
+  // it. Omission leaves the style hierarchy unchanged.
+  optional bool suppress_line_numbers = 12;
+}
+
+enum DocumentHeaderFooterReference {
+  DOCUMENT_HEADER_FOOTER_REFERENCE_UNSPECIFIED = 0;
+  DOCUMENT_HEADER_FOOTER_REFERENCE_DEFAULT = 1;
+  DOCUMENT_HEADER_FOOTER_REFERENCE_FIRST = 2;
+  DOCUMENT_HEADER_FOOTER_REFERENCE_EVEN = 3;
+}
+
+message DocumentHeaderFooter {
+  string id = 1;
+  string name = 2;
+  string style_id = 3;
+  string text = 4;
+  DocumentHeaderFooterReference reference = 5;
+  optional uint32 section_index = 6;
+  string relationship_id = 7;
+  string part_path = 8;
+  optional bool variant_active = 9;
+  string field_instruction = 10;
+  DocumentHeaderFooterSourceBinding source = 11;
+  // Optional bounded inline sequence for source-free page furniture. When
+  // present, `text` is the exact concatenation of every segment display and
+  // `field_instruction` must be empty. The codec writes each field as its own
+  // canonical w:fldSimple and never treats this as a general rich-run model.
+  repeated DocumentHeaderFooterSegment segments = 12;
+}
+
+// Package-local identity and integrity evidence for one recognized ordinary
+// header/footer paragraph. These fields are not durable document identity.
+// A source-bound text edit may change only one unformatted direct w:t in one
+// uniquely owned HeaderPart/FooterPart; relationship identity, scope, style,
+// field mode, paragraph topology, and the residual part graph remain fixed.
+message DocumentHeaderFooterSourceBinding {
+  string relationship_id = 1;
+  string part_path = 2;
+  uint32 paragraph_index = 3;
+  string element_sha256 = 4;
+  string semantic_sha256 = 5;
+  string residual_sha256 = 6;
+  string part_residual_sha256 = 7;
+  bool editable = 8;
+}
+
+// One inline item in a source-free header/footer paragraph. This deliberately
+// stays narrower than DocumentParagraph runs: ordinary text is unformatted and
+// field segments use the bounded simple-field catalog. Imported multi-segment
+// page furniture is source-bound/read-only until a separately audited edit
+// profile proves its topology and residuals.
+message DocumentHeaderFooterSegment {
+  oneof content {
+    string text = 1;
+    DocumentField field = 2;
+  }
+}
+
+message DocumentWatermark {
+  string id = 1;
+  string text = 2;
+  DocumentHeaderFooterReference reference = 3;
+  optional uint32 section_index = 4;
+  DocumentWatermarkSourceBinding source = 5;
+}
+
+// Package-local identity and integrity evidence for one recognized canonical
+// VML text watermark. These fields are not durable document identity. They
+// bind a mutation to one exact header paragraph and protect the rest of the
+// header part while text editing or whole-watermark removal occurs.
+message DocumentWatermarkSourceBinding {
+  string relationship_id = 1;
+  string part_path = 2;
+  uint32 paragraph_index = 3;
+  string shape_id = 4;
+  string element_sha256 = 5;
+  string semantic_sha256 = 6;
+  string residual_sha256 = 7;
+  string part_residual_sha256 = 8;
+  bool editable = 9;
+}
+
+message DocumentSectionSettings {
+  uint32 section_index = 1;
+  optional bool different_first_page = 2;
+}
+
+message DocumentComment {
+  string id = 1;
+  string target_block_id = 2;
+  string author = 3;
+  string text = 4;
+  optional string initials = 5;
+  // ISO 8601 / XML Schema date-time text. Omission remains distinct from an
+  // authored timestamp so source documents are not assigned synthetic dates.
+  optional string created_at = 6;
+  DocumentCommentSourceBinding source = 7;
+  // Model identity of the root comment for one bounded direct reply. Empty
+  // means this comment is a root with a real document-story anchor.
+  string parent_comment_id = 8;
+  // Office 2013 commentsExtended thread state. Presence remains distinct from
+  // legacy comments that do not carry a commentsExtended record.
+  optional bool resolved = 9;
+  // Eight hexadecimal digits used by w14:paraId / w15:commentEx.
+  string paragraph_id = 10;
+  // Eight hexadecimal digits used by commentsIds/commentsExtensible.
+  string durable_id = 11;
+  optional string date_utc = 12;
+  DocumentCommentPerson person = 13;
+  optional bool intelligent_placeholder = 14;
+}
+
+// One bounded Word comments-person presence record. Author remains on the
+// classic w:comment; this record only carries provider/user identity.
+message DocumentCommentPerson {
+  string provider_id = 1;
+  string user_id = 2;
+}
+
+// Source-only locators and integrity evidence for a recognized classic DOCX
+// comment. None of these fields are durable agent-facing comment identity.
+message DocumentCommentSourceBinding {
+  string native_comment_id = 1;
+  uint32 target_body_index = 2;
+  string comment_element_sha256 = 3;
+  string semantic_sha256 = 4;
+  string residual_sha256 = 5;
+  string anchor_sha256 = 6;
+  bool editable = 7;
+  string extended_graph_sha256 = 8;
+  string comments_ids_graph_sha256 = 9;
+  string comments_extensible_graph_sha256 = 10;
+  string people_graph_sha256 = 11;
+  bool thread_editable = 12;
+}
+
+message DocumentBlock {
+  string id = 1;
+  string name = 2;
+  string style_id = 3;
+  DocumentSourceBinding source = 4;
+  // Source-bound literal replacements inside one uniquely matched ordinary
+  // paragraph w:t node or adjacent same-format direct run span. The semantic
+  // payload remains the original imported snapshot; these patches do not
+  // grant whole-paragraph editability.
+  repeated DocumentTextPatch text_patches = 5;
+
+  oneof content {
+    DocumentParagraph paragraph = 10;
+    DocumentTable table = 11;
+    DocumentOpaqueBlock opaque = 12;
+    DocumentHyperlink hyperlink = 13;
+    DocumentField field = 14;
+    DocumentImage image = 15;
+    DocumentSection section = 16;
+    DocumentChange change = 17;
+    // One whole-paragraph simple CITATION field whose source tag resolves in
+    // DocumentArtifact.bibliography. Complex fields and switches stay opaque.
+    DocumentCitation citation = 18;
+  }
+}
+
+// The source binding makes partial semantic coverage fail closed. Unchanged
+// advanced WordprocessingML can stay in the validated source package, while an
+// attempted edit to a block that is not yet modeled fails closed.
+message DocumentSourceBinding {
+  uint32 body_index = 1;
+  string element_sha256 = 2;
+  string semantic_sha256 = 3;
+  bool editable = 4;
+  // Hash of the source element after removing only the fields modeled by the
+  // selected content case. It protects formatting and extension markup while
+  // a source-bound edit changes modeled values in place.
+  string residual_sha256 = 5;
+  // Package-local w:id for a recognized tracked insertion/deletion. It is
+  // source identity, not durable agent-facing revision identity.
+  string native_revision_id = 6;
+  // True when this otherwise source-bound paragraph exposes at least one
+  // ordinary direct w:r/w:t node suitable for a bounded literal replacement.
+  // A requested literal may span adjacent non-empty nodes only when their
+  // exact w:rPr markup matches.
+  bool text_patchable = 7;
+}
+
+message DocumentTextPatch {
+  string search = 1;
+  string replacement = 2;
+  string source_text_sha256 = 3;
+}
+
+message DocumentParagraph {
+  string text = 1;
+  repeated DocumentRun runs = 2;
+  // Direct w:numPr identity plus its level definition. Source-free export can
+  // build a bounded text-marker numbering graph, while source-preserving
+  // export can edit one complete, directly assigned numId/level paragraph
+  // group through an instance-local level override.
+  DocumentNumbering numbering = 3;
+  DocumentParagraphFormatting formatting = 4;
+  // One bounded block-level Word plain-text content control. OfficeKit
+  // owns the canonical w:sdt/w:sdtContent wrapper around exactly one modeled
+  // paragraph containing one ordinary run. Multi-paragraph, table/cell,
+  // nested, rich-text, locked, placeholder, repeating-section, and
+  // data-bound block controls stay opaque and source-bound.
+  DocumentTextContentControl block_content_control = 5;
+}
+
+message DocumentNumbering {
+  uint32 numbering_id = 1;
+  uint32 level = 2;
+  uint32 abstract_numbering_id = 3;
+  string number_format = 4;
+  uint32 start = 5;
+  string level_text = 6;
+  // Friendly numbering-style identity resolved from w:styleLink or
+  // w:numStyleLink. Linked style graphs remain source-bound.
+  string numbering_style_id = 7;
+  // Optional shared picture-numbering symbol for this effective numId/level
+  // definition. Embedded images use a content-addressed envelope Asset;
+  // external images remain non-fetched absolute http(s) URIs. Native
+  // numPicBulletId and relationship IDs are package-local codec details.
+  DocumentPictureBullet picture_bullet = 8;
+}
+
+message DocumentPictureBullet {
+  oneof source {
+    string asset_id = 1;
+    string uri = 2;
+  }
+  int64 width_emu = 3;
+  int64 height_emu = 4;
+  string alt_text = 5;
+}
+
+message DocumentRun {
+  string text = 1;
+  string style_id = 2;
+  bool bold = 3;
+  bool italic = 4;
+  bool underline = 5;
+  DocumentRunFormatting formatting = 6;
+  // One bounded inline Word plain-text, checkbox, drop-down, combo-box, or
+  // ISO/Gregorian date content control. The model ID is
+  // agent-facing identity for one object lifetime; native_id is package-local
+  // w:sdtPr/w:id identity and is assigned deterministically when omitted.
+  // Rich text, irregular cell controls, data binding, custom checkbox symbols,
+  // placeholder documents, locking, and nested SDTs stay opaque. A separate
+  // bounded block-level plain-text profile is represented on
+  // DocumentParagraph.block_content_control.
+  DocumentTextContentControl text_content_control = 7;
+  // One logical inline Word field represented by the public run's text as its
+  // cached display result. OfficeKit authors/imports a canonical five-run
+  // begin/instrText/separate/result/end graph for bounded SEQ/REF/PAGEREF
+  // commands. A SEQ result may additionally carry one narrow native bookmark
+  // around only the cached-result run; field position, instruction, and that
+  // bookmark identity stay source-bound after import.
+  DocumentInlineField inline_field = 8;
+}
+
+message DocumentInlineField {
+  string instruction = 1;
+  string bookmark_name = 2;
+  string bookmark_native_id = 3;
+}
+
+message DocumentTextContentControl {
+  string id = 1;
+  string tag = 2;
+  string alias = 3;
+  optional uint32 native_id = 4;
+  DocumentContentControlType control_type = 5;
+  // Meaningful only when control_type is CHECKBOX. The canonical visible
+  // glyph and w14 checked/unchecked symbol declarations are codec-owned.
+  bool checked = 6;
+  // Meaningful when control_type is DROP_DOWN or COMBO_BOX. Choice order,
+  // values, and display text are source-bound after import.
+  repeated DocumentContentControlChoice choices = 7;
+  // Meaningful only when control_type is DROP_DOWN. It must match one declared
+  // choice value; the visible run text is derived from that choice.
+  string selected_value = 8;
+  // Meaningful only when control_type is COMBO_BOX. It may match one declared
+  // choice value (whose display text becomes visible) or carry bounded custom
+  // text (which becomes visible verbatim).
+  string value = 9;
+  // Meaningful only when control_type is DATE. It is a real proleptic
+  // Gregorian calendar date in canonical YYYY-MM-DD form. OfficeKit owns
+  // the visible text plus the fixed UTC-midnight/date-format/language/calendar
+  // projection used by the bounded native w:date profile.
+  string date_value = 10;
+}
+
+message DocumentContentControlChoice {
+  string display_text = 1;
+  string value = 2;
+}
+
+enum DocumentContentControlType {
+  DOCUMENT_CONTENT_CONTROL_TYPE_UNSPECIFIED = 0;
+  DOCUMENT_CONTENT_CONTROL_TYPE_PLAIN_TEXT = 1;
+  DOCUMENT_CONTENT_CONTROL_TYPE_CHECKBOX = 2;
+  DOCUMENT_CONTENT_CONTROL_TYPE_DROP_DOWN = 3;
+  DOCUMENT_CONTENT_CONTROL_TYPE_COMBO_BOX = 4;
+  DOCUMENT_CONTENT_CONTROL_TYPE_DATE = 5;
+}
+
+message DocumentImage {
+  string asset_id = 1;
+  string alt_text = 2;
+  int64 width_emu = 3;
+  int64 height_emu = 4;
+  // Absent means the established inline-picture profile. Present means one
+  // bounded foreground wp:anchor whose positioning, wrap mode, and text
+  // distances are fully semantic. Native stacking/locking/simple-position
+  // details remain codec-owned rather than leaking into the public model.
+  DocumentFloatingImagePlacement floating = 5;
+}
+
+message DocumentFloatingImagePlacement {
+  DocumentImageHorizontalRelativeFrom horizontal_relative_from = 1;
+  int64 horizontal_offset_emu = 2;
+  DocumentImageVerticalRelativeFrom vertical_relative_from = 3;
+  int64 vertical_offset_emu = 4;
+  DocumentImageWrapMode wrap_mode = 5;
+  DocumentImageWrapSide wrap_side = 6;
+  uint32 distance_top_emu = 7;
+  uint32 distance_right_emu = 8;
+  uint32 distance_bottom_emu = 9;
+  uint32 distance_left_emu = 10;
+}
+
+enum DocumentImageHorizontalRelativeFrom {
+  DOCUMENT_IMAGE_HORIZONTAL_RELATIVE_FROM_UNSPECIFIED = 0;
+  DOCUMENT_IMAGE_HORIZONTAL_RELATIVE_FROM_MARGIN = 1;
+  DOCUMENT_IMAGE_HORIZONTAL_RELATIVE_FROM_PAGE = 2;
+  DOCUMENT_IMAGE_HORIZONTAL_RELATIVE_FROM_COLUMN = 3;
+}
+
+enum DocumentImageVerticalRelativeFrom {
+  DOCUMENT_IMAGE_VERTICAL_RELATIVE_FROM_UNSPECIFIED = 0;
+  DOCUMENT_IMAGE_VERTICAL_RELATIVE_FROM_MARGIN = 1;
+  DOCUMENT_IMAGE_VERTICAL_RELATIVE_FROM_PAGE = 2;
+  DOCUMENT_IMAGE_VERTICAL_RELATIVE_FROM_PARAGRAPH = 3;
+}
+
+enum DocumentImageWrapMode {
+  DOCUMENT_IMAGE_WRAP_MODE_UNSPECIFIED = 0;
+  DOCUMENT_IMAGE_WRAP_MODE_SQUARE = 1;
+  DOCUMENT_IMAGE_WRAP_MODE_TOP_AND_BOTTOM = 2;
+}
+
+enum DocumentImageWrapSide {
+  DOCUMENT_IMAGE_WRAP_SIDE_UNSPECIFIED = 0;
+  DOCUMENT_IMAGE_WRAP_SIDE_BOTH_SIDES = 1;
+  DOCUMENT_IMAGE_WRAP_SIDE_LEFT = 2;
+  DOCUMENT_IMAGE_WRAP_SIDE_RIGHT = 3;
+  DOCUMENT_IMAGE_WRAP_SIDE_LARGEST = 4;
+}
+
+enum DocumentSectionBreak {
+  DOCUMENT_SECTION_BREAK_UNSPECIFIED = 0;
+  DOCUMENT_SECTION_BREAK_NEXT_PAGE = 1;
+  DOCUMENT_SECTION_BREAK_CONTINUOUS = 2;
+  DOCUMENT_SECTION_BREAK_EVEN_PAGE = 3;
+  DOCUMENT_SECTION_BREAK_ODD_PAGE = 4;
+}
+
+message DocumentSection {
+  DocumentSectionBreak break_type = 1;
+  uint32 page_width_twips = 2;
+  uint32 page_height_twips = 3;
+  bool landscape = 4;
+  uint32 margin_top_twips = 5;
+  uint32 margin_right_twips = 6;
+  uint32 margin_bottom_twips = 7;
+  uint32 margin_left_twips = 8;
+  // Binding allowance from w:pgMar/@w:gutter. The document-wide
+  // gutter_at_top setting determines whether a compatible host adds it to the
+  // top edge or the binding side.
+  uint32 margin_gutter_twips = 9;
+  // Optional canonical equal-width or explicit-width section columns.
+  // Absence leaves the section at the host default.
+  DocumentSectionColumns columns = 10;
+  // Optional canonical page-number restart and display format for this
+  // section. PAGE fields remain separate run/header/footer content.
+  DocumentSectionPageNumbering page_numbering = 11;
+  // Optional canonical line numbering shown before each text column in this
+  // section. Paragraph-level suppression remains outside this profile.
+  DocumentSectionLineNumbering line_numbering = 12;
+}
+
+message DocumentSectionColumns {
+  // Equal-width text column count. The bounded OfficeKit profile accepts
+  // the Word-compatible range 1 through 45. This field and spacing_twips must
+  // remain zero when definitions is non-empty.
+  uint32 count = 1;
+  // Space between adjacent equal-width columns in twentieths of a point.
+  uint32 spacing_twips = 2;
+  // Draw a vertical rule centered in each inter-column spacing area.
+  bool separator = 3;
+  // Explicit-width columns. A non-empty collection selects the unequal-width
+  // profile and defines the column count; count and spacing_twips must then be
+  // zero.
+  repeated DocumentSectionColumnDefinition definitions = 4;
+}
+
+message DocumentSectionColumnDefinition {
+  // Text column width in twentieths of a point.
+  uint32 width_twips = 1;
+  // Space after this column in twentieths of a point.
+  uint32 spacing_after_twips = 2;
+}
+
+message DocumentSectionPageNumbering {
+  // When present, restart this section at the specified non-negative page
+  // number. Omission continues the previous section's numbering sequence.
+  optional uint32 start = 1;
+  // Optional display format. UNSPECIFIED leaves the compatible host default.
+  DocumentSectionPageNumberFormat format = 2;
+}
+
+enum DocumentSectionPageNumberFormat {
+  DOCUMENT_SECTION_PAGE_NUMBER_FORMAT_UNSPECIFIED = 0;
+  DOCUMENT_SECTION_PAGE_NUMBER_FORMAT_DECIMAL = 1;
+  DOCUMENT_SECTION_PAGE_NUMBER_FORMAT_UPPER_ROMAN = 2;
+  DOCUMENT_SECTION_PAGE_NUMBER_FORMAT_LOWER_ROMAN = 3;
+  DOCUMENT_SECTION_PAGE_NUMBER_FORMAT_UPPER_LETTER = 4;
+  DOCUMENT_SECTION_PAGE_NUMBER_FORMAT_LOWER_LETTER = 5;
+}
+
+message DocumentHyperlink {
+  string text = 1;
+  oneof target {
+    string external_uri = 2;
+    string internal_anchor = 3;
+  }
+  // Package-local source locator. It is not durable hyperlink identity and is
+  // ignored by semantic comparison when a relationship is safely rewritten.
+  string relationship_id = 4;
+  optional string tooltip = 5;
+  optional bool history = 6;
+}
+
+message DocumentField {
+  string instruction = 1;
+  string display = 2;
+  // False is the bounded w:fldSimple profile. True is the canonical one-run
+  // begin/instrText/separate/result/end profile currently limited to TOC.
+  bool complex = 3;
+}
+
+message DocumentCitation {
+  string tag = 1;
+  string display = 2;
+}
+
+enum DocumentChangeType {
+  DOCUMENT_CHANGE_TYPE_UNSPECIFIED = 0;
+  DOCUMENT_CHANGE_TYPE_INSERT = 1;
+  DOCUMENT_CHANGE_TYPE_DELETE = 2;
+}
+
+// One bounded whole-paragraph tracked insertion or deletion. OfficeKit
+// deliberately excludes nested revisions, moves, property changes, mixed
+// accepted/revision runs, comments, bookmarks, fields, and other run graphs.
+message DocumentChange {
+  DocumentChangeType type = 1;
+  string text = 2;
+  string author = 3;
+  optional string date = 4;
+}
+
+message DocumentTable {
+  repeated DocumentTableRow rows = 1;
+  // Effective logical grid width after applying row offsets and grid spans.
+  // Imported tables expose it as source-bound topology. Source-free authoring
+  // accepts it only with a complete, validated physical-cell geometry graph.
+  uint32 grid_columns = 2;
+  // Optional direct table formatting. Presence means every field is modeled
+  // as one bounded, fixed-layout profile. Source-free export authors the
+  // profile; imported profiles remain source-bound until structural table
+  // editing is explicitly supported.
+  DocumentTableFormatting formatting = 3;
+  // Source-bound, literal replacements inside one uniquely matched plain w:t
+  // node or adjacent same-format direct run span. These patches let an agent
+  // update complex multi-paragraph table cells without flattening the cell
+  // into the simple authoring profile; a match cannot cross paragraphs.
+  // They are rejected for source-free authoring and never imply whole-cell
+  // editability.
+  repeated DocumentTableTextPatch text_patches = 4;
+}
+
+message DocumentTableFormatting {
+  uint32 width_dxa = 1;
+  uint32 indent_dxa = 2;
+  // One positive width per logical tblGrid column. Widths must sum to
+  // width_dxa so the fixed layout is deterministic across Office renderers.
+  repeated uint32 column_widths_dxa = 3;
+  DocumentTableCellMargins cell_margins_dxa = 4;
+  // Direct six-digit RGB values. Theme/auto/transformed colors stay outside
+  // this first authoring profile and therefore fail closed.
+  string border_color = 5;
+  // Border width in eighths of a point. Zero means explicit no-border;
+  // non-zero values follow the WordprocessingML 2..96 range.
+  uint32 border_size = 6;
+  string header_fill = 7;
+}
+
+message DocumentTableCellMargins {
+  uint32 top = 1;
+  uint32 bottom = 2;
+  uint32 start = 3;
+  uint32 end = 4;
+}
+
+message DocumentTableRow {
+  // Physical cell texts retained for backwards-compatible table consumers.
+  repeated string cells = 1;
+  // One entry per physical cell, in the same order as cells. Imported geometry
+  // is source-bound; source-free geometry must be complete and conforming.
+  // Only entries marked editable permit text changes after import.
+  repeated DocumentTableCell rich_cells = 2;
+  uint32 grid_before = 3;
+  uint32 grid_after = 4;
+}
+
+enum DocumentTableVerticalMerge {
+  DOCUMENT_TABLE_VERTICAL_MERGE_UNSPECIFIED = 0;
+  DOCUMENT_TABLE_VERTICAL_MERGE_RESTART = 1;
+  DOCUMENT_TABLE_VERTICAL_MERGE_CONTINUE = 2;
+}
+
+message DocumentTableCell {
+  uint32 grid_column = 1;
+  uint32 column_span = 2;
+  uint32 row_span = 3;
+  DocumentTableVerticalMerge vertical_merge = 4;
+  bool editable = 5;
+  // True when the cell contains at least one plain direct source text node
+  // that can be targeted by a bounded literal text patch. The actual patch
+  // still must match exactly once and may span only adjacent same-format runs;
+  // it is validated against the source cell hash.
+  bool text_patchable = 6;
+  // One canonical cell-level SDT wrapping the cell's only paragraph and run.
+  // Plain text, Word 2010+ checkbox, standard drop-down/combo-box, and the
+  // bounded ISO/Gregorian date profile reuse the same typed wire contract as
+  // inline controls. The cell remains the semantic visible-text owner.
+  // Inline-within-cell, rich, nested, multi-paragraph, repeating-section,
+  // irregular list/date, data-bound, locked, and placeholder controls stay
+  // opaque/source-bound.
+  DocumentTextContentControl text_content_control = 7;
+}
+
+message DocumentTableTextPatch {
+  uint32 row = 1;
+  uint32 column = 2;
+  string search = 3;
+  string replacement = 4;
+  string source_text_sha256 = 5;
+}
+
+message DocumentOpaqueBlock {
+  string element_name = 1;
+  string text = 2;
+}
+
+// Bounded worksheet-chart text style. Optional presence distinguishes an
+// inherited/native default from an explicit size. DrawingML stores this value
+// in hundredths of a point and permits 1 through 4,000 points. It is declared
+// at the end so additive wire evolution does not renumber generated descriptors.
+message SpreadsheetChartTextStyleArtifact {
+  optional double font_size_points = 1;
+}
+
+enum SpreadsheetChartLineDashStyle {
+  SPREADSHEET_CHART_LINE_DASH_STYLE_UNSPECIFIED = 0;
+  SPREADSHEET_CHART_LINE_DASH_STYLE_SOLID = 1;
+  SPREADSHEET_CHART_LINE_DASH_STYLE_DASHED = 2;
+  SPREADSHEET_CHART_LINE_DASH_STYLE_DOTTED = 3;
+  SPREADSHEET_CHART_LINE_DASH_STYLE_DASH_DOT = 4;
+  SPREADSHEET_CHART_LINE_DASH_STYLE_DASH_DOT_DOT = 5;
+}
+
+// Bounded DrawingML line graph for a worksheet-chart series. Message and
+// optional scalar presence distinguish no direct line, an explicit empty line,
+// and explicit width zero. Only direct RGB, preset dash, and width are owned.
+message SpreadsheetChartLineStyleArtifact {
+  SpreadsheetColor color = 1;
+  SpreadsheetChartLineDashStyle dash_style = 2;
+  optional double width_points = 3;
+}
+
+enum SpreadsheetChartMarkerSymbol {
+  SPREADSHEET_CHART_MARKER_SYMBOL_UNSPECIFIED = 0;
+  SPREADSHEET_CHART_MARKER_SYMBOL_NONE = 1;
+  SPREADSHEET_CHART_MARKER_SYMBOL_DOT = 2;
+  SPREADSHEET_CHART_MARKER_SYMBOL_CIRCLE = 3;
+  SPREADSHEET_CHART_MARKER_SYMBOL_SQUARE = 4;
+  SPREADSHEET_CHART_MARKER_SYMBOL_DIAMOND = 5;
+  SPREADSHEET_CHART_MARKER_SYMBOL_TRIANGLE = 6;
+  SPREADSHEET_CHART_MARKER_SYMBOL_X = 7;
+  SPREADSHEET_CHART_MARKER_SYMBOL_STAR = 8;
+  SPREADSHEET_CHART_MARKER_SYMBOL_PLUS = 9;
+  SPREADSHEET_CHART_MARKER_SYMBOL_DASH = 10;
+}
+
+// Bounded direct marker for a worksheet line-chart series. Message and scalar
+// presence distinguish no marker, an explicit marker, and an omitted size.
+message SpreadsheetChartMarkerArtifact {
+  SpreadsheetChartMarkerSymbol symbol = 1;
+  optional uint32 size = 2;
+  // Optional untinted six-digit RGB marker shape fill.
+  SpreadsheetColor fill = 3;
+  // Optional bounded direct marker outline; reuses the series-line profile.
+  SpreadsheetChartLineStyleArtifact line = 4;
+}
+
+enum SpreadsheetChartLineGrouping {
+  SPREADSHEET_CHART_LINE_GROUPING_UNSPECIFIED = 0;
+  SPREADSHEET_CHART_LINE_GROUPING_STANDARD = 1;
+  SPREADSHEET_CHART_LINE_GROUPING_STACKED = 2;
+  SPREADSHEET_CHART_LINE_GROUPING_PERCENT_STACKED = 3;
+}
+
+// Bounded chart-level options for one worksheet line plot. Scalar presence
+// distinguishes omitted/default standard grouping from an explicit grouping,
+// and no native smooth node from explicit true or false.
+message SpreadsheetChartLineOptionsArtifact {
+  optional bool smooth = 1;
+  optional SpreadsheetChartLineGrouping grouping = 2;
+  // Matches the native default: false is omitted from the wire and package;
+  // true authors one direct c:varyColors node.
+  bool vary_colors = 3;
+}
+
+enum SpreadsheetChartDataLabelPosition {
+  SPREADSHEET_CHART_DATA_LABEL_POSITION_UNSPECIFIED = 0;
+  SPREADSHEET_CHART_DATA_LABEL_POSITION_BEST_FIT = 1;
+  SPREADSHEET_CHART_DATA_LABEL_POSITION_BOTTOM = 2;
+  SPREADSHEET_CHART_DATA_LABEL_POSITION_CENTER = 3;
+  SPREADSHEET_CHART_DATA_LABEL_POSITION_INSIDE_BASE = 4;
+  SPREADSHEET_CHART_DATA_LABEL_POSITION_INSIDE_END = 5;
+  SPREADSHEET_CHART_DATA_LABEL_POSITION_LEFT = 6;
+  SPREADSHEET_CHART_DATA_LABEL_POSITION_OUTSIDE_END = 7;
+  SPREADSHEET_CHART_DATA_LABEL_POSITION_RIGHT = 8;
+  SPREADSHEET_CHART_DATA_LABEL_POSITION_TOP = 9;
+}
+
+// Bounded plot-level worksheet-chart data labels. Message presence owns one
+// canonical c:dLbls container while the booleans map to c:showVal and
+// c:showCatName, optional series-name visibility maps to c:showSerName, and
+// optional position maps to c:dLblPos. A present all-false message, explicit
+// series-name false, and explicit best-fit position remain distinct from
+// omission.
+message SpreadsheetChartDataLabelsArtifact {
+  bool show_value = 1;
+  bool show_category_name = 2;
+  optional SpreadsheetChartDataLabelPosition position = 3;
+  optional bool show_series_name = 4;
+  // Circular charts commonly label the share rather than the raw value.
+  // Presence distinguishes an explicit native false from omission so an
+  // imported c:showPercent node can round-trip without inventing a default.
+  optional bool show_percent = 5;
+}
+
+// Appended to preserve every pre-existing generated descriptor index while the
+// PivotTable message references this additive protocol-2 filter contract.
+enum SpreadsheetPivotItemFilterMode {
+  SPREADSHEET_PIVOT_ITEM_FILTER_MODE_UNSPECIFIED = 0;
+  SPREADSHEET_PIVOT_ITEM_FILTER_MODE_INCLUDE = 1;
+  SPREADSHEET_PIVOT_ITEM_FILTER_MODE_EXCLUDE = 2;
+}
+
+// One exact cached axis item used by a bounded manual PivotTable filter.
+// Presence-aware blank_value distinguishes an actual blank item from an
+// omitted oneof. Dates remain numeric cache values plus worksheet formatting;
+// formula/date-condition filters are intentionally outside this contract.
+message SpreadsheetPivotItemArtifact {
+  oneof value {
+    string string_value = 1;
+    double number_value = 2;
+    bool bool_value = 3;
+    bool blank_value = 4;
+    string error_value = 5;
+  }
+}
+
+message SpreadsheetPivotItemFilterArtifact {
+  string field = 1;
+  SpreadsheetPivotItemFilterMode mode = 2;
+  repeated SpreadsheetPivotItemArtifact items = 3;
+}
+
+// Appended to preserve every pre-existing generated descriptor index while
+// PresentationArtifact references this additive protocol-2 custom-show graph.
+message PresentationCustomShowArtifact {
+  string id = 1;
+  string name = 2;
+  uint32 native_id = 3;
+  repeated string slide_ids = 4;
+  PresentationCustomShowSourceBinding source = 5;
+}
+
+message PresentationCustomShowSourceBinding {
+  uint32 ordinal = 1;
+  string show_xml_sha256 = 2;
+  string semantic_sha256 = 3;
+  bool editable = 4;
+}
+
+// Appended to retain every pre-existing descriptor index. PowerPoint sections
+// live in p:presentation/p:extLst under the Office-defined p14:sectionLst
+// extension URI, and reference p:sldId/@id values rather than relationships.
+message PresentationSectionArtifact {
+  string id = 1;
+  string name = 2;
+  // Canonical brace-delimited GUID from p14:section/@id. It is package-local
+  // source identity, not a durable cross-file artifact identity.
+  string native_id = 3;
+  repeated string slide_ids = 4;
+  PresentationSectionSourceBinding source = 5;
+}
+
+message PresentationSectionSourceBinding {
+  uint32 ordinal = 1;
+  string section_xml_sha256 = 2;
+  string semantic_sha256 = 3;
+  bool editable = 4;
+}
+
+// Appended to preserve every pre-existing generated descriptor index while
+// the tracked-replacement request/result reference this additive protocol-2
+// target contract.
+message DocumentTrackedReplacementTarget {
+  uint32 block_index = 1;
+
+  oneof location {
+    DocumentTrackedReplacementBodyParagraph body_paragraph = 2;
+    DocumentTrackedReplacementTableCell table_cell = 3;
+  }
+}
+
+message DocumentTrackedReplacementBodyParagraph {}
+
+// row and column are zero-based physical row/cell indexes from the exact
+// imported table block. They are source selectors, not persistent identities.
+message DocumentTrackedReplacementTableCell {
+  uint32 row = 1;
+  uint32 column = 2;
+}
+
+// Appended so this additive protocol-2 SmartArt contract does not renumber
+// any pre-existing generated descriptor. PresentationOpaqueElement owns the
+// source-bound reference; these messages deliberately expose only plain-node
+// locators and text, never the source graph or layout markup.
+message PresentationDiagramText {
+  string part_path = 1;
+  string content_type = 2;
+  string source_sha256 = 3;
+  string relationship_id = 4;
+  repeated PresentationDiagramTextNode nodes = 5;
+}
+
+message PresentationDiagramTextNode {
+  // Immutable source-native dgm:pt/@modelId. It is a locator, not a
+  // cross-document identity protocol.
+  string model_id = 1;
+  // Editable only within the closed source-bound node profile.
+  string text = 2;
+}
+
+// Appended so this additive protocol-2 DOCX section contract does not renumber
+// any pre-existing generated descriptor. DocumentSection references it from
+// field 12 while paragraph-level line-number suppression remains unmodeled.
+message DocumentSectionLineNumbering {
+  // Display every nth line number. The bounded profile accepts 1..32767.
+  uint32 count_by = 1;
+  // Optional zero-based native starting value. The first displayed line is
+  // start + 1 under the WordprocessingML convention.
+  optional uint32 start = 2;
+  // Optional distance from text in twentieths of a point.
+  optional uint32 distance_twips = 3;
+  // Optional restart behavior. UNSPECIFIED retains the host default of
+  // restarting on each new page.
+  DocumentSectionLineNumberRestart restart = 4;
+}
+
+enum DocumentSectionLineNumberRestart {
+  DOCUMENT_SECTION_LINE_NUMBER_RESTART_UNSPECIFIED = 0;
+  DOCUMENT_SECTION_LINE_NUMBER_RESTART_NEW_PAGE = 1;
+  DOCUMENT_SECTION_LINE_NUMBER_RESTART_NEW_SECTION = 2;
+  DOCUMENT_SECTION_LINE_NUMBER_RESTART_CONTINUOUS = 3;
+}
+
+// Appended to preserve every pre-existing generated descriptor index while
+// PresentationSlide references this additive protocol-2 transition contract.
+// A presentation transition applies when this slide enters during a slideshow;
+// it is not an animation timeline, sound action, or Office-version extension.
+message PresentationTransition {
+  // fade or push.
+  string effect = 1;
+  // Required only for push: left, up, right, or down.
+  string direction = 2;
+  // slow, medium, or fast. The codec maps medium to native spd="med".
+  string speed = 3;
+  // Presence is meaningful: canonical source import requires explicit native
+  // advClick rather than assuming a host default.
+  optional bool advance_on_click = 4;
+  // Optional native advTm milliseconds. Zero is a valid explicit value.
+  optional uint32 advance_after_ms = 5;
+}
+
+// Appended to preserve every pre-existing generated descriptor index. This is
+// the additive successor to PresentationOleWorkbook for bounded non-XLSX
+// Office payloads. The legacy XLSX-specific field remains intact for
+// compatibility; supported kinds are intentionally an open token so a future
+// codec slice can add a new audited profile without renumbering this message.
+// Current writer support is limited to `docx`.
+message PresentationOleOfficePackage {
+  string part_path = 1;
+  string content_type = 2;
+  string source_sha256 = 3;
+  string relationship_id = 4;
+  string kind = 5;
+  string replacement_asset_id = 6;
+}

@@ -41,7 +41,7 @@ def build_pdf(spec: dict, output: Path) -> None:
         topMargin=0.68 * inch,
         bottomMargin=0.62 * inch,
         title=str(spec.get("title") or "Report"),
-        author=str(spec.get("author") or "open-office-artifact-tool PDF Skill"),
+        author=str(spec.get("author") or "office-kit PDF Skill"),
     )
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name="ReportTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=24, leading=28, textColor=colors.HexColor("#123B5D"), spaceAfter=7))

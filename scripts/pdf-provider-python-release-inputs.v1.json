@@ -1,5 +1,5 @@
 {
-  "schema": "open-office-artifact-tool.pdf-provider-python-release-inputs.v1",
+  "schema": "office-kit.pdf-provider-python-release-inputs.v1",
   "schemaVersion": 1,
   "pythonRuntime": {
     "distribution": "python-build-standalone",

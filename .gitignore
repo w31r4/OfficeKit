@@ -8,5 +8,5 @@ coverage/
 tmp/
 native/OfficeBridge/**/bin/
 native/OfficeBridge/**/obj/
-native/OpenChestnut/**/bin/
-native/OpenChestnut/**/obj/
+native/OfficeKit/**/bin/
+native/OfficeKit/**/obj/

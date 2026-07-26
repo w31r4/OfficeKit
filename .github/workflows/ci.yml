@@ -30,26 +30,26 @@ jobs:
       - run: npm ci
       - name: Install isolated PyMuPDF sanitize runtime
         run: |
-          python -m venv "$RUNNER_TEMP/open-office-pymupdf"
-          "$RUNNER_TEMP/open-office-pymupdf/bin/python" -m pip install --disable-pip-version-check \
+          python -m venv "$RUNNER_TEMP/office-kit-pymupdf"
+          "$RUNNER_TEMP/office-kit-pymupdf/bin/python" -m pip install --disable-pip-version-check \
             'PyMuPDF==1.27.2.3' 'reportlab==4.4.9' 'pdfplumber==0.11.9' \
             'pypdf==6.10.0' 'Pillow==12.2.0'
-          echo "OPEN_OFFICE_PDF_PROVIDER_PYTHON=$RUNNER_TEMP/open-office-pymupdf/bin/python" >> "$GITHUB_ENV"
+          echo "OFFICE_KIT_PDF_PROVIDER_PYTHON=$RUNNER_TEMP/office-kit-pymupdf/bin/python" >> "$GITHUB_ENV"
       - name: Install isolated pikepdf structure-clean runtime
         run: |
-          python -m venv "$RUNNER_TEMP/open-office-pikepdf"
-          "$RUNNER_TEMP/open-office-pikepdf/bin/python" -m pip install --disable-pip-version-check 'pikepdf==10.10.0'
-          echo "OPEN_OFFICE_PDF_PIKEPDF_TEST_PYTHON=$RUNNER_TEMP/open-office-pikepdf/bin/python" >> "$GITHUB_ENV"
+          python -m venv "$RUNNER_TEMP/office-kit-pikepdf"
+          "$RUNNER_TEMP/office-kit-pikepdf/bin/python" -m pip install --disable-pip-version-check 'pikepdf==10.10.0'
+          echo "OFFICE_KIT_PDF_PIKEPDF_TEST_PYTHON=$RUNNER_TEMP/office-kit-pikepdf/bin/python" >> "$GITHUB_ENV"
       - name: Install isolated pyHanko signing and validation runtime
         run: |
-          python -m venv "$RUNNER_TEMP/open-office-pyhanko"
-          "$RUNNER_TEMP/open-office-pyhanko/bin/python" -m pip install --disable-pip-version-check 'pyHanko==0.35.2' 'pyhanko-certvalidator==0.31.1'
-          echo "OPEN_OFFICE_PYHANKO_TEST_PYTHON=$RUNNER_TEMP/open-office-pyhanko/bin/python" >> "$GITHUB_ENV"
+          python -m venv "$RUNNER_TEMP/office-kit-pyhanko"
+          "$RUNNER_TEMP/office-kit-pyhanko/bin/python" -m pip install --disable-pip-version-check 'pyHanko==0.35.2' 'pyhanko-certvalidator==0.31.1'
+          echo "OFFICE_KIT_PYHANKO_TEST_PYTHON=$RUNNER_TEMP/office-kit-pyhanko/bin/python" >> "$GITHUB_ENV"
       - name: Install isolated OCRmyPDF runtime
         run: |
-          python -m venv "$RUNNER_TEMP/open-office-ocrmypdf"
-          "$RUNNER_TEMP/open-office-ocrmypdf/bin/python" -m pip install --disable-pip-version-check 'OCRmyPDF==17.8.1'
-          echo "OPEN_OFFICE_PDF_OCRMYPDF_TEST=$RUNNER_TEMP/open-office-ocrmypdf/bin/ocrmypdf" >> "$GITHUB_ENV"
+          python -m venv "$RUNNER_TEMP/office-kit-ocrmypdf"
+          "$RUNNER_TEMP/office-kit-ocrmypdf/bin/python" -m pip install --disable-pip-version-check 'OCRmyPDF==17.8.1'
+          echo "OFFICE_KIT_PDF_OCRMYPDF_TEST=$RUNNER_TEMP/office-kit-ocrmypdf/bin/ocrmypdf" >> "$GITHUB_ENV"
       - name: Install pinned veraPDF validation runtime
         run: |
           curl --fail --location --silent --show-error \
@@ -58,15 +58,15 @@ jobs:
           echo "6cc6341cb1af644044054b81f00a6590a7918abb18f762243de115258bcad838  $RUNNER_TEMP/verapdf-greenfield-1.30.2-installer.zip" | sha256sum --check --strict
           unzip -q "$RUNNER_TEMP/verapdf-greenfield-1.30.2-installer.zip" -d "$RUNNER_TEMP/verapdf-installer"
           java -jar "$RUNNER_TEMP/verapdf-installer/verapdf-greenfield-1.30.2/verapdf-izpack-installer-1.30.2.jar" .github/verapdf-auto-install.xml
-          echo "OPEN_OFFICE_PDF_VERAPDF=/tmp/open-office-verapdf/verapdf" >> "$GITHUB_ENV"
-          echo "OPEN_OFFICE_PDF_VERAPDF_TEST=/tmp/open-office-verapdf/verapdf" >> "$GITHUB_ENV"
+          echo "OFFICE_KIT_PDF_VERAPDF=/tmp/office-kit-verapdf/verapdf" >> "$GITHUB_ENV"
+          echo "OFFICE_KIT_PDF_VERAPDF_TEST=/tmp/office-kit-verapdf/verapdf" >> "$GITHUB_ENV"
       - name: Install .NET WebAssembly workloads
         run: dotnet workload install wasm-tools wasm-experimental --skip-manifest-update
-      - name: Verify generated protocol and bundled OpenChestnut runtime
+      - name: Verify generated protocol and bundled OfficeKit runtime
         run: |
           npm run proto:check
-          dotnet restore native/OpenChestnut/OpenChestnut.sln --locked-mode
-          npm run verify:open-chestnut-build
+          dotnet restore native/OfficeKit/OfficeKit.sln --locked-mode
+          npm run verify:office-kit-build
       - name: Install Chromium and native document tools
         run: |
           npx playwright install --with-deps chromium
@@ -81,16 +81,16 @@ jobs:
           gs --version
           pdfinfo -v
           pdftotext -v
-          "$OPEN_OFFICE_PDF_OCRMYPDF_TEST" --version
+          "$OFFICE_KIT_PDF_OCRMYPDF_TEST" --version
           tesseract --version
           tesseract --list-langs | grep -Fx eng
-          "$OPEN_OFFICE_PDF_PROVIDER_PYTHON" -c "from importlib.metadata import version; import pymupdf, reportlab, pdfplumber, pypdf, PIL; assert (pymupdf.__version__, version('reportlab'), version('pdfplumber'), version('pypdf'), version('Pillow')) == ('1.27.2.3', '4.4.9', '0.11.9', '6.10.0', '12.2.0')"
-          "$OPEN_OFFICE_PDF_PROVIDER_PYTHON" skills/pdf/skills/pdf/scripts/pymupdf_edit.py probe --accept-license agpl --ocr-language eng --require-ocr
-          "$OPEN_OFFICE_PDF_PIKEPDF_TEST_PYTHON" -c "from importlib.metadata import version; import pikepdf.sanitize as s; assert version('pikepdf') == '10.10.0'; assert all(callable(getattr(s.Sanitizer, name)) for name in ('remove_javascript','remove_external_access','remove_multimedia','remove_attachments','remove_thumbnails','remove_search_index','remove_web_capture','remove_private_app_data','remove_collection'))"
-          "$OPEN_OFFICE_PYHANKO_TEST_PYTHON" -c "from importlib.metadata import version; from pyhanko.sign import fields, signers; assert (version('pyHanko'), version('pyhanko-certvalidator')) == ('0.35.2', '0.31.1'); assert all(hasattr(signers, name) for name in ('SimpleSigner','PdfSignatureMetadata','sign_pdf')); assert all(hasattr(fields, name) for name in ('SigFieldSpec','SigSeedSubFilter','MDPPerm','enumerate_sig_fields'))"
-          "$RUNNER_TEMP/open-office-ocrmypdf/bin/python" -c "from importlib.metadata import version; assert version('ocrmypdf') == '17.8.1'; import pypdfium2, fpdf"
-          "$OPEN_OFFICE_PDF_VERAPDF" --version
-          "$OPEN_OFFICE_PDF_VERAPDF" --list
+          "$OFFICE_KIT_PDF_PROVIDER_PYTHON" -c "from importlib.metadata import version; import pymupdf, reportlab, pdfplumber, pypdf, PIL; assert (pymupdf.__version__, version('reportlab'), version('pdfplumber'), version('pypdf'), version('Pillow')) == ('1.27.2.3', '4.4.9', '0.11.9', '6.10.0', '12.2.0')"
+          "$OFFICE_KIT_PDF_PROVIDER_PYTHON" skills/pdf/skills/pdf/scripts/pymupdf_edit.py probe --accept-license agpl --ocr-language eng --require-ocr
+          "$OFFICE_KIT_PDF_PIKEPDF_TEST_PYTHON" -c "from importlib.metadata import version; import pikepdf.sanitize as s; assert version('pikepdf') == '10.10.0'; assert all(callable(getattr(s.Sanitizer, name)) for name in ('remove_javascript','remove_external_access','remove_multimedia','remove_attachments','remove_thumbnails','remove_search_index','remove_web_capture','remove_private_app_data','remove_collection'))"
+          "$OFFICE_KIT_PYHANKO_TEST_PYTHON" -c "from importlib.metadata import version; from pyhanko.sign import fields, signers; assert (version('pyHanko'), version('pyhanko-certvalidator')) == ('0.35.2', '0.31.1'); assert all(hasattr(signers, name) for name in ('SimpleSigner','PdfSignatureMetadata','sign_pdf')); assert all(hasattr(fields, name) for name in ('SigFieldSpec','SigSeedSubFilter','MDPPerm','enumerate_sig_fields'))"
+          "$RUNNER_TEMP/office-kit-ocrmypdf/bin/python" -c "from importlib.metadata import version; assert version('ocrmypdf') == '17.8.1'; import pypdfium2, fpdf"
+          "$OFFICE_KIT_PDF_VERAPDF" --version
+          "$OFFICE_KIT_PDF_VERAPDF" --list
           dotnet --version
       - name: Run tests
         env:
@@ -101,4 +101,4 @@ jobs:
       - run: git diff --exit-code docs/api.md
       - run: npm run test:pack
       - run: dotnet test native/OfficeBridge
-      - run: dotnet test native/OpenChestnut/OpenChestnut.sln --configuration Release --no-restore
+      - run: dotnet test native/OfficeKit/OfficeKit.sln --configuration Release --no-restore

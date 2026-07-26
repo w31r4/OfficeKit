@@ -1,0 +1,50 @@
+{
+  "name": "office-kit-query-table",
+  "outputName": "office-kit-query-table.xlsx",
+  "sheets": [
+    {
+      "name": "External Data",
+      "ranges": [
+        {
+          "range": "A1:B3",
+          "values": [["Region", "Revenue"], ["North", 120], ["South", 80]]
+        },
+        {
+          "range": "A1:B1",
+          "format": { "fill": "#0F766E", "font": { "bold": true, "color": "#FFFFFF" } }
+        }
+      ],
+      "tables": [
+        { "range": "A1:B3", "name": "ExternalSales", "style": "TableStyleMedium4", "showRowStripes": true }
+      ]
+    }
+  ],
+  "sourceQueryTableFixture": {
+    "sheet": "External Data",
+    "table": "ExternalSales",
+    "tablePartPath": "xl/tables/table1.xml",
+    "queryPartPath": "xl/queryTables/queryTable1.xml",
+    "connectionId": 7,
+    "connectionName": "Fixture warehouse",
+    "connectionRefreshOnLoad": true,
+    "disableConnectionRefreshOnLoad": true,
+    "queryName": "Warehouse sales",
+    "fields": ["Region", "Revenue"],
+    "refreshPolicy": {
+      "disableRefresh": true,
+      "backgroundRefresh": false,
+      "refreshOnLoad": false
+    }
+  },
+  "expectations": [
+    { "sheet": "External Data", "range": "A2:B3", "values": [["North", 120], ["South", 80]] }
+  ],
+  "qa": {
+    "sheetName": "External Data",
+    "range": "A1:B3",
+    "renderFormat": "png",
+    "inspectKind": "workbook,connection,sheet,table,style,computedStyle",
+    "maxChars": 16000,
+    "nativeRender": "off"
+  }
+}

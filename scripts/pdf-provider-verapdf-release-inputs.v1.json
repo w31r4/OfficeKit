@@ -1,5 +1,5 @@
 {
-  "schema": "open-office-artifact-tool.pdf-provider-verapdf-release-inputs.v1",
+  "schema": "office-kit.pdf-provider-verapdf-release-inputs.v1",
   "schemaVersion": 1,
   "verapdf": {
     "packId": "verapdf",

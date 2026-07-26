@@ -45,7 +45,7 @@ import {
   DocumentFile,
   DocumentModel,
   FileBlob,
-} from "open-office-artifact-tool";
+} from "office-kit";
 
 const document = DocumentModel.create({ blocks: [] });
 const customer = document.addParagraph("Customer: ");
@@ -60,7 +60,7 @@ const template = await DocumentFile.exportDocx(document);
 await template.save("template.docx");
 ```
 
-OpenChestnut assigns the package-local native `w:id` when it is omitted and
+OfficeKit assigns the package-local native `w:id` when it is omitted and
 authors canonical run-level `w:sdt` markup with `w:text`, `w:tag`, and
 `w:alias`. The model `id` is an Agent locator for the current object graph; it
 is not a persistent identity across independent imports.
@@ -200,7 +200,7 @@ const update = document.setCheckboxContentControls({
 if (update.missingTags.length) throw new Error("Required checkbox is missing");
 ```
 
-OpenChestnut owns the visible `☐`/`☒` glyph and the exact
+OfficeKit owns the visible `☐`/`☒` glyph and the exact
 `w14:checkbox`, `w14:checked`, `w14:checkedState`, and
 `w14:uncheckedState` declarations. The public value is boolean. Supplying or
 editing the visible glyph directly fails closed.
@@ -227,7 +227,7 @@ const selection = document.setDropdownContentControls({ PRIORITY: "high" });
 if (selection.missingTags.length) throw new Error("Required drop-down is missing");
 ```
 
-OpenChestnut authors canonical `w:dropDownList` / `w:listItem` markup. The
+OfficeKit authors canonical `w:dropDownList` / `w:listItem` markup. The
 public mutable state is only `selectedValue`; visible run text is derived from
 the matching `displayText`. Unknown tags and values outside the declared table
 fail before mutation. A string choice is shorthand for identical display text
@@ -256,7 +256,7 @@ const custom = document.setComboBoxContentControls({
 if (custom.missingTags.length) throw new Error("Required combo box is missing");
 ```
 
-OpenChestnut authors canonical `w:comboBox` / `w:listItem` markup. The mutable
+OfficeKit authors canonical `w:comboBox` / `w:listItem` markup. The mutable
 `value` may match a declared internal value, in which case Word shows that
 item's `displayText`, or it may be XML-safe custom text of 1–255 characters,
 which is shown verbatim. Choice order and identity remain source-bound after
@@ -283,7 +283,7 @@ const dateUpdate = document.setDateContentControls({
 if (dateUpdate.missingTags.length) throw new Error("Required date is missing");
 ```
 
-OpenChestnut writes a single-run `w:date` with UTC-midnight `w:fullDate`,
+OfficeKit writes a single-run `w:date` with UTC-midnight `w:fullDate`,
 `yyyy-MM-dd` display mask, `en-US` language, `date` mapped-data storage, and a
 Gregorian calendar. The visible run text is codec-owned and equals
 `dateValue`. Invalid leap days, JavaScript `Date` objects, timezone-bearing
@@ -396,7 +396,7 @@ python scripts/content_controls.py /mnt/data/template_sdt.docx list --json
 
 This helper is an explicit package patch, not a silent fallback. Protect the
 source file, write a distinct output, structurally inspect the result, re-import
-through OpenChestnut where possible, and render again.
+through OfficeKit where possible, and render again.
 
 ## Pitfalls and fail-closed boundaries
 

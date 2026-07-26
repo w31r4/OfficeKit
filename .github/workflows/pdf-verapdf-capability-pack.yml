@@ -70,7 +70,7 @@ jobs:
           test -d "$destination/jre/legal"
           env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$destination/bin/verapdf" --version | grep -Fx 'veraPDF 1.30.2'
           env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$destination/bin/verapdf" --list | grep -Eq '^[[:space:]]+ua2[[:space:]]+-'
-          OPEN_OFFICE_PDF_VERAPDF_TEST="$destination/bin/verapdf" node test/pdf-verapdf-provider.mjs
+          OFFICE_KIT_PDF_VERAPDF_TEST="$destination/bin/verapdf" node test/pdf-verapdf-provider.mjs
       - name: Attest immutable veraPDF pack provenance
         if: ${{ inputs.publish == 'true' }}
         uses: actions/attest@v4

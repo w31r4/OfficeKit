@@ -14,7 +14,7 @@ import path from "node:path";
 import { gzipSync } from "node:zlib";
 
 const BLOCK_SIZE = 512;
-const PACK_SCHEMA = "open-office-artifact-tool.pdf-provider-pack.v1";
+const PACK_SCHEMA = "office-kit.pdf-provider-pack.v1";
 const SUPPORTED_PLATFORMS = new Set(["darwin-arm64", "linux-x64"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 
@@ -215,11 +215,11 @@ function sbomFor({ pack, version, platform, sourceUrl, sourceSha256, license, pa
     metadata: {
       component: {
         type: "application",
-        name: `open-office-artifact-tool-pdf-provider-${pack}`,
+        name: `office-kit-pdf-provider-${pack}`,
         version,
         properties: [
-          { name: "open-office-artifact-tool:platform", value: platform },
-          { name: "open-office-artifact-tool:archive-format", value: "ustar+gzip" },
+          { name: "office-kit:platform", value: platform },
+          { name: "office-kit:archive-format", value: "ustar+gzip" },
         ],
       },
     },
@@ -233,8 +233,8 @@ function sbomFor({ pack, version, platform, sourceUrl, sourceSha256, license, pa
       },
     ],
     properties: [
-      { name: "open-office-artifact-tool:payload-file-count", value: String(payloadEntries.filter((entry) => entry.type === "file").length) },
-      { name: "open-office-artifact-tool:payload-unpacked-bytes", value: String(payloadEntries.filter((entry) => entry.type === "file").reduce((total, entry) => total + entry.bytes.length, 0)) },
+      { name: "office-kit:payload-file-count", value: String(payloadEntries.filter((entry) => entry.type === "file").length) },
+      { name: "office-kit:payload-unpacked-bytes", value: String(payloadEntries.filter((entry) => entry.type === "file").reduce((total, entry) => total + entry.bytes.length, 0)) },
     ],
   };
 }

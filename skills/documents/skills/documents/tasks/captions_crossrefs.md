@@ -10,7 +10,7 @@ Word implements captions/cross-references using fields:
 - `SEQ` for numbering (e.g., `SEQ Table` / `SEQ Figure`)
 - `REF` to reference a bookmark (cross-reference target)
 
-For source-free or recognized canonical paragraphs, use the public OpenChestnut
+For source-free or recognized canonical paragraphs, use the public OfficeKit
 run primitive first:
 
 ```js

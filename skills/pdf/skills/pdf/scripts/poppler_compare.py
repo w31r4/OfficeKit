@@ -13,8 +13,8 @@ import subprocess
 import sys
 
 
-MANIFEST_SCHEMA = "open-office-artifact-tool.pdf-merge-stamp.v1"
-REPORT_SCHEMA = "open-office-artifact-tool.pdf-poppler-compare.v1"
+MANIFEST_SCHEMA = "office-kit.pdf-merge-stamp.v1"
+REPORT_SCHEMA = "office-kit.pdf-poppler-compare.v1"
 
 
 class CompareError(RuntimeError):

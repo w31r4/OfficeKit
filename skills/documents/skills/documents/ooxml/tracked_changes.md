@@ -15,14 +15,14 @@ document.addDeletion("Removed wording", {
 });
 ```
 
-OpenChestnut writes these as native `<w:ins>` or `<w:del>` markup, re-imports them semantically, and permits fixed-topology text/author/date edits. It keeps `w:id` and unmodeled run/paragraph formatting source-bound.
+OfficeKit writes these as native `<w:ins>` or `<w:del>` markup, re-imports them semantically, and permits fixed-topology text/author/date edits. It keeps `w:id` and unmodeled run/paragraph formatting source-bound.
 
 For one exact replacement inside an existing ordinary paragraph, use the source-bound file primitive instead of rebuilding the document model:
 
 ```js
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
-import { DocumentFile, FileBlob } from "open-office-artifact-tool";
+import { DocumentFile, FileBlob } from "office-kit";
 
 const bytes = await fs.readFile("input.docx");
 const source = new FileBlob(bytes);
@@ -44,7 +44,7 @@ await reviewed.save("reviewed.docx");
 
 The same transaction accepts `{ kind: "tableCell", blockIndex, row, column }` when the exact imported block is a direct body table with a stable physical grid and the selected non-continuation cell contains exactly one direct paragraph. `targetBlockIndex` remains a paragraph-only compatibility selector and cannot be combined with `target`.
 
-The structured selector and full paragraph/cell snapshot bind the target in the exact source bytes. `search` must occur once inside one direct ordinary `w:r/w:t` or across adjacent non-empty ordinary runs whose exact `w:rPr` markup is identical. OpenChestnut retains each matched source fragment in one `w:del`, writes one adjacent `w:ins` using the same formatting, uses `w:delText` for the old text, allocates collision-free package-local IDs, and permits only `word/document.xml` to change. Stale text, duplicate matches, empty-run gaps, mixed-format spans, multi-paragraph/nested/continuation/irregular table cells, hyperlinks, fields, controls, drawings, existing revisions, and other native topologies fail closed. The operation returns `matchedSourceRunCount` with the re-proved target plus source/output, paragraph-element, deleted/inserted-text, native-ID, block/body-index, and changed-part evidence in `metadata.trackedReplacement`. Prefer `examples/openchestnut-tracked-replacement-workflow.mjs` when publishing because it also discovers one unique paragraph/table cell, protects the source, refuses overwrite, reimports, renders, and writes an audit.
+The structured selector and full paragraph/cell snapshot bind the target in the exact source bytes. `search` must occur once inside one direct ordinary `w:r/w:t` or across adjacent non-empty ordinary runs whose exact `w:rPr` markup is identical. OfficeKit retains each matched source fragment in one `w:del`, writes one adjacent `w:ins` using the same formatting, uses `w:delText` for the old text, allocates collision-free package-local IDs, and permits only `word/document.xml` to change. Stale text, duplicate matches, empty-run gaps, mixed-format spans, multi-paragraph/nested/continuation/irregular table cells, hyperlinks, fields, controls, drawings, existing revisions, and other native topologies fail closed. The operation returns `matchedSourceRunCount` with the re-proved target plus source/output, paragraph-element, deleted/inserted-text, native-ID, block/body-index, and changed-part evidence in `metadata.trackedReplacement`. Prefer `examples/officekit-tracked-replacement-workflow.mjs` when publishing because it also discovers one unique paragraph/table cell, protects the source, refuses overwrite, reimports, renders, and writes an audit.
 
 The same public boundary now supports the native future-edit setting and file-level finalization:
 
@@ -58,7 +58,7 @@ const finalized = await DocumentFile.finalizeRevisions(sourceDocx, {
 });
 ```
 
-`finalizeRevisions` accepts the original DOCX bytes directly, rechecks the exact source SHA-256 inside OpenChestnut, rewrites only `word/document.xml` and—when the existing tracking flag changes—`word/settings.xml`, and returns source/output hashes, revision counts, tracking state, and the exact changed-part list in `metadata.revisionFinalization`. It supports direct body whole-paragraph `w:ins`/`w:del` wrappers with one recognized run plus exact adjacent direct-run pairs in direct body paragraphs or bounded table cells authored above. Any other revision element, story part, mixed or nested graph, move, property change, irregular table target, or malformed wrapper fails closed before an output is published. `keepTracking` preserves an existing tracking flag; it does not silently enable one that was absent.
+`finalizeRevisions` accepts the original DOCX bytes directly, rechecks the exact source SHA-256 inside OfficeKit, rewrites only `word/document.xml` and—when the existing tracking flag changes—`word/settings.xml`, and returns source/output hashes, revision counts, tracking state, and the exact changed-part list in `metadata.revisionFinalization`. It supports direct body whole-paragraph `w:ins`/`w:del` wrappers with one recognized run plus exact adjacent direct-run pairs in direct body paragraphs or bounded table cells authored above. Any other revision element, story part, mixed or nested graph, move, property change, irregular table target, or malformed wrapper fails closed before an output is published. `keepTracking` preserves an existing tracking flag; it does not silently enable one that was absent.
 
 Do not silently rebuild a complex revision graph through the public model. Unsupported imported topologies are visible but read-only and must be preserved unchanged, handled by an explicit package workflow, or finalized in a real Word host.
 
@@ -94,7 +94,7 @@ Use this only for graphs outside the typed single-format replacement. See `scrip
 
 The CLI defaults to auto-generated `w:id` values (`--del-id auto --ins-id auto`) by scanning existing ids and choosing new ones.
 
-For a bounded whole-block accept/reject transaction, prefer `examples/openchestnut-revision-finalization-workflow.mjs`. It inspects the modeled revisions, binds the source hash, calls the typed OpenChestnut primitive, re-imports the output, proves that no revisions remain, refuses overwrite, and writes a byte-bound audit. For an inline pair, call the same `DocumentFile.finalizeRevisions` API against the tracked output and retain both operation audits. The Python `accept_tracked_changes.py` helper is an explicit broader package route, not a silent fallback from the public API.
+For a bounded whole-block accept/reject transaction, prefer `examples/officekit-revision-finalization-workflow.mjs`. It inspects the modeled revisions, binds the source hash, calls the typed OfficeKit primitive, re-imports the output, proves that no revisions remain, refuses overwrite, and writes a byte-bound audit. For an inline pair, call the same `DocumentFile.finalizeRevisions` API against the tracked output and retain both operation audits. The Python `accept_tracked_changes.py` helper is an explicit broader package route, not a silent fallback from the public API.
 
 ## Verification
 - Render to PDF/PNG for layout sanity (`tasks/verify_render.md`)

@@ -1071,7 +1071,7 @@ function documentLayoutJson(document, options = {}) {
       }
     }
   }
-  return documentLayoutSlice(document, { schema: "open-office-artifact.document-layout/v1", unit: "px", document: { id: document.id, name: document.name, designPreset: document.designPreset, theme: document.theme }, pages, elements }, options);
+  return documentLayoutSlice(document, { schema: "office-kit-artifact.document-layout/v1", unit: "px", document: { id: document.id, name: document.name, designPreset: document.designPreset, theme: document.theme }, pages, elements }, options);
 }
 
 function documentLayoutRecords(document, options = {}) {
@@ -1537,7 +1537,7 @@ export class DocumentModel {
     }
     this.blocks.push(block);
     if (!config._restore) {
-      const bookmarkName = block.metadata.bookmark || `OpenOfficeCitation_${block.id.replace(/[^A-Za-z0-9_]/g, "_")}`.slice(0, 40);
+      const bookmarkName = block.metadata.bookmark || `OfficeKitCitation_${block.id.replace(/[^A-Za-z0-9_]/g, "_")}`.slice(0, 40);
       const bookmark = this.addBookmark(block, bookmarkName, { id: block.metadata.bookmarkId || `${block.id}/bookmark`, nativeId: block.metadata.bookmarkNativeId });
       block.metadata.bookmark = bookmark.name;
       block.metadata.bookmarkId = bookmark.id;
@@ -2068,22 +2068,22 @@ export class DocumentFile {
   }
 
   static async exportDocx(document, options = {}) {
-    const { exportDocxWithOpenChestnut } = await import("../codecs/open-chestnut.mjs");
-    return exportDocxWithOpenChestnut(document, options);
+    const { exportDocxWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    return exportDocxWithOfficeKit(document, options);
   }
 
   static async importDocx(blobOrBuffer, options = {}) {
-    const { importDocxWithOpenChestnut } = await import("../codecs/open-chestnut.mjs");
-    return importDocxWithOpenChestnut(blobOrBuffer, options);
+    const { importDocxWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    return importDocxWithOfficeKit(blobOrBuffer, options);
   }
 
   static async addTrackedReplacement(blobOrBuffer, options = {}) {
-    const { addDocxTrackedReplacementWithOpenChestnut } = await import("../codecs/open-chestnut.mjs");
-    return addDocxTrackedReplacementWithOpenChestnut(blobOrBuffer, options);
+    const { addDocxTrackedReplacementWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    return addDocxTrackedReplacementWithOfficeKit(blobOrBuffer, options);
   }
 
   static async finalizeRevisions(blobOrBuffer, options = {}) {
-    const { finalizeDocxRevisionsWithOpenChestnut } = await import("../codecs/open-chestnut.mjs");
-    return finalizeDocxRevisionsWithOpenChestnut(blobOrBuffer, options);
+    const { finalizeDocxRevisionsWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    return finalizeDocxRevisionsWithOfficeKit(blobOrBuffer, options);
   }
 }

@@ -22,10 +22,10 @@ export const spreadsheetGradedCaseIds = new Set([
 
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
 const GUID = /^\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\}$/i;
-const SHIPPED_THREADED_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/open-office-artifact-tool\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/openchestnut-threaded-comment-reply-workflow\.mjs(?:$|[\s"'`])/i;
-const SHIPPED_GROWTH_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/open-office-artifact-tool\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/openchestnut-growth-assumption-edit-workflow\.mjs(?:$|[\s"'`])/i;
-const SHIPPED_CONNECTION_REFRESH_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/open-office-artifact-tool\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/openchestnut-connection-refresh-hardening-workflow\.mjs(?:$|[\s"'`])/i;
-const SHIPPED_PIVOT_REFRESH_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/open-office-artifact-tool\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/openchestnut-pivot-refresh-hardening-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_THREADED_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-threaded-comment-reply-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_GROWTH_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-growth-assumption-edit-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_CONNECTION_REFRESH_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-connection-refresh-hardening-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_PIVOT_REFRESH_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-pivot-refresh-hardening-workflow\.mjs(?:$|[\s"'`])/i;
 
 function check(id, category, passed, details = {}) {
   return { id, category, gate: false, passed: Boolean(passed), ...details };
@@ -433,7 +433,7 @@ export function gradeXlsxThreadedReplyEvidence({ evidence, audit, commands }) {
       source: { expected: source.sha256, actual: auditHash(audit, "source") },
       output: { expected: output.sha256, actual: auditHash(audit, "output") },
     }),
-    check("xlsx-trace:open-chestnut-provider", "trace", /open[- ]?chestnut/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
+    check("xlsx-trace:office-kit-provider", "trace", /office[- ]?kit/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
       provider: auditProvider(audit),
       version: auditVersion(audit),
     }),
@@ -542,7 +542,7 @@ export function gradeXlsxGrowthUpdateEvidence({ evidence, audit, commands }) {
       source: { expected: source.sha256, actual: auditHash(audit, "source") },
       output: { expected: output.sha256, actual: auditHash(audit, "output") },
     }),
-    check("xlsx-growth-trace:open-chestnut-provider", "trace", /open[- ]?chestnut/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
+    check("xlsx-growth-trace:office-kit-provider", "trace", /office[- ]?kit/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
       provider: auditProvider(audit),
       version: auditVersion(audit),
     }),
@@ -650,7 +650,7 @@ export function gradeXlsxConnectionRefreshEvidence({ evidence, audit, commands }
       source: { expected: source.sha256, actual: auditHash(audit, "source") },
       output: { expected: output.sha256, actual: auditHash(audit, "output") },
     }),
-    check("xlsx-connection-trace:open-chestnut-provider", "trace", /open[- ]?chestnut/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
+    check("xlsx-connection-trace:office-kit-provider", "trace", /office[- ]?kit/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
       provider: auditProvider(audit),
       version: auditVersion(audit),
     }),
@@ -766,7 +766,7 @@ export function gradeXlsxPivotRefreshEvidence({ evidence, audit, commands }) {
       source: { expected: source.sha256, actual: auditHash(audit, "source") },
       output: { expected: output.sha256, actual: auditHash(audit, "output") },
     }),
-    check("xlsx-pivot-trace:open-chestnut-provider", "trace", /open[- ]?chestnut/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
+    check("xlsx-pivot-trace:office-kit-provider", "trace", /office[- ]?kit/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), {
       provider: auditProvider(audit),
       version: auditVersion(audit),
     }),

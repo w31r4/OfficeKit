@@ -3,9 +3,9 @@
 Use this workflow for ordinary document authoring and semantic edits. Read
 `../artifact_tool/API_QUICK_START.md` before implementing the builder.
 
-## Default tool: DocumentModel + OpenChestnut
+## Default tool: DocumentModel + OfficeKit
 
-Use the public `open-office-artifact-tool` package for:
+Use the public `office-kit` package for:
 
 - paragraphs, formatted runs, and named styles;
 - real numbered or character-bulleted lists;
@@ -15,7 +15,7 @@ Use the public `open-office-artifact-tool` package for:
 - DOCX import, export, inspect, resolve, verification, and model preview.
 
 `DocumentFile.importDocx(...)` and `DocumentFile.exportDocx(...)` always use the
-bundled OpenChestnut C# WebAssembly codec. Do not pass codec selectors, lossy
+bundled OfficeKit C# WebAssembly codec. Do not pass codec selectors, lossy
 options, or a Python authoring fallback.
 
 ## Create
@@ -35,7 +35,7 @@ From the Skill root, the packaged runnable example covers the complete vertical
 slice:
 
 ```bash
-node examples/openchestnut-end-to-end.mjs output.docx
+node examples/officekit-end-to-end.mjs output.docx
 ```
 
 ## Edit an existing document
@@ -44,7 +44,7 @@ node examples/openchestnut-end-to-end.mjs output.docx
 import {
   DocumentFile,
   FileBlob,
-} from "open-office-artifact-tool";
+} from "office-kit";
 
 const document = await DocumentFile.importDocx(await FileBlob.load("input.docx"));
 const targets = document.blocks.filter(
@@ -79,7 +79,7 @@ A table cell exposes the same operation through
 fails when `cell.editable` is false.
 
 For an auditable existing-file transaction, use
-`../examples/openchestnut-source-text-patch-workflow.mjs`. It binds a structured
+`../examples/officekit-source-text-patch-workflow.mjs`. It binds a structured
 paragraph or physical table-cell target, protects the input, permits only
 `word/document.xml` to change, publishes without overwrite, reimports, verifies,
 and emits an audit JSON before the required native render review.
@@ -87,13 +87,13 @@ and emits an audit JSON before the required native render review.
 When a user explicitly needs one true redline inside an existing ordinary
 paragraph, do not use the untracked `textPatchable` route. Use
 `DocumentFile.addTrackedReplacement(...)` or
-`examples/openchestnut-tracked-replacement-workflow.mjs`; bind the exact source
+`examples/officekit-tracked-replacement-workflow.mjs`; bind the exact source
 hash, semantic block index, full paragraph snapshot, and unique literal. The
 literal may span adjacent non-empty ordinary runs only when their exact `w:rPr`
 markup matches; mixed formatting, empty-run gaps, and broader revision graphs
 still require the explicit OOXML or Office-host route.
 
-Preserve the original and make minimal, local changes. If OpenChestnut rejects
+Preserve the original and make minimal, local changes. If OfficeKit rejects
 an edit, narrow the edit or report the unsupported boundary instead of
 flattening or rebuilding the file.
 
@@ -103,7 +103,7 @@ The Python and OOXML scripts in this Skill are allowed only when the requested
 operation is explicitly package-level and is not an ordinary model edit, for
 example accepting imported tracked revisions, applying the Google Docs title
 sanitizer, or auditing package relationships. Run the narrow documented script
-after OpenChestnut export, then structurally inspect and re-render the result.
+after OfficeKit export, then structurally inspect and re-render the result.
 Never switch the whole document to `python-docx` because one construct is
 unsupported.
 

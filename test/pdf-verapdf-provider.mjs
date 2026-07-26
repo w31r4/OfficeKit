@@ -57,7 +57,7 @@ assert.match(accessibilityText, /--require-compliant/);
 const fixtureBytes = await fs.readFile(fixture);
 assert.equal(sha256(fixtureBytes), fixtureHash, "the attributed veraPDF corpus fixture must remain byte-identical");
 
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "open-office-verapdf-provider-"));
+const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-verapdf-provider-"));
 try {
   const source = path.join(tempRoot, "source.pdf");
   await fs.writeFile(source, fixtureBytes);
@@ -144,7 +144,7 @@ console.log(JSON.stringify(report));
 process.exit(compliant ? 0 : 1);
 `, "utf8");
   await fs.chmod(fakeProvider, 0o755);
-  const fakeEnv = { OPEN_OFFICE_PDF_VERAPDF: fakeProvider };
+  const fakeEnv = { OFFICE_KIT_PDF_VERAPDF: fakeProvider };
 
   const probe = jsonResult(run(python, [provider, "probe"], { env: fakeEnv, status: 0 }));
   assert.equal(probe.provider, "verapdf");
@@ -173,7 +173,7 @@ process.exit(compliant ? 0 : 1);
   const fakePass = jsonResult(run(python, [
     provider, "validate", source, "--expected-sha256", fixtureHash, "--flavour", "1b", "--require-compliant",
   ], { env: fakeEnv, status: 0 }));
-  assert.equal(fakePass.schema, "open-office-artifact-tool.verapdf-validation.v1");
+  assert.equal(fakePass.schema, "office-kit.verapdf-validation.v1");
   assert.equal(fakePass.machineRuleCompliant, true);
   assert.equal(fakePass.validationPolicy.explicitBuiltInProfile, true);
   assert.equal(fakePass.sourceProtected, true);
@@ -254,9 +254,9 @@ process.exit(compliant ? 0 : 1);
   assert.match(disappearedReport.error, /source PDF became unavailable during validation/);
   assert.doesNotMatch(disappeared.stderr, /Traceback/);
 
-  const realProvider = process.env.OPEN_OFFICE_PDF_VERAPDF_TEST || process.env.OPEN_OFFICE_PDF_VERAPDF;
+  const realProvider = process.env.OFFICE_KIT_PDF_VERAPDF_TEST || process.env.OFFICE_KIT_PDF_VERAPDF;
   if (realProvider) {
-    const realEnv = { OPEN_OFFICE_PDF_VERAPDF: realProvider };
+    const realEnv = { OFFICE_KIT_PDF_VERAPDF: realProvider };
     const realProbe = jsonResult(run(python, [provider, "probe"], { env: realEnv, status: 0 }));
     assert.equal(realProbe.providerVersion, "1.30.2");
     const realPass = jsonResult(run(python, [
@@ -284,7 +284,7 @@ process.exit(compliant ? 0 : 1);
 }
 
 console.log(
-  process.env.OPEN_OFFICE_PDF_VERAPDF_TEST || process.env.OPEN_OFFICE_PDF_VERAPDF
+  process.env.OFFICE_KIT_PDF_VERAPDF_TEST || process.env.OFFICE_KIT_PDF_VERAPDF
     ? "veraPDF provider smoke ok"
-    : "veraPDF provider smoke ok (real provider skipped: set OPEN_OFFICE_PDF_VERAPDF_TEST)",
+    : "veraPDF provider smoke ok (real provider skipped: set OFFICE_KIT_PDF_VERAPDF_TEST)",
 );
