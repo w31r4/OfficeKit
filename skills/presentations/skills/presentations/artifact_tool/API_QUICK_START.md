@@ -466,6 +466,22 @@ unchanged instead of being reconstructed. Reimport and inspect the output, then
 run render QA if native tools are available. See
 `artifact_tool/api/references/sections.spec.md` for the exact contract.
 
+For a single imported section-name correction, use the no-overwrite workflow
+instead of editing the package directly:
+
+```bash
+node examples/openchestnut-section-rename-workflow.mjs \
+  input.pptx output.pptx audit.json \
+  "Context" "Background"
+```
+
+It binds the exact current name to one canonical section and changes only that
+name. The fixed section identity/GUID/membership and every non-section semantic
+remain stable; only `ppt/presentation.xml` may differ. It reimports, verifies,
+compares static slide renders, and records source/output provenance. It does
+not move boundaries, alter the section catalog, or prove the PowerPoint
+navigation pane from static rendering.
+
 ## Bounded Slide Transitions
 
 For source-free slides, use one direct `fade` or directional `push` transition:

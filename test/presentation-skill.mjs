@@ -911,6 +911,180 @@ try {
   assert.equal(transitionEditCli.status, 0, `transition-edit CLI failed\n${transitionEditCli.stdout}\n${transitionEditCli.stderr}`);
   assert.equal(JSON.parse(transitionEditCli.stdout).targetPart, "ppt/slides/slide1.xml");
 
+  const sectionRenameDir = path.join(root, "section-rename-workflow");
+  const sectionRenameInput = path.join(sectionRenameDir, "section-source.pptx");
+  const sectionRenameOutput = path.join(sectionRenameDir, "section-updated.pptx");
+  const sectionRenameAudit = path.join(sectionRenameDir, "audit.json");
+  const sectionRenameDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+  const sectionRenameSlides = [
+    ["Section opening", "#DBEAFE"],
+    ["Section evidence", "#DCFCE7"],
+    ["Section decision", "#FEF3C7"],
+  ].map(([name, fill], index) => {
+    const slide = sectionRenameDeck.slides.add({ name, background: { fill } });
+    slide.shapes.add({
+      name: `section-title-${index + 1}`,
+      position: { left: 48, top: 72, width: 520, height: 72 },
+      text: `${index + 1}. ${name}`,
+    });
+    return slide;
+  });
+  sectionRenameDeck.sections.add({
+    name: "Context",
+    nativeId: "{01F07B81-39E6-4BBB-9B89-66EA253FBD29}",
+    slides: sectionRenameSlides.slice(0, 2),
+  });
+  sectionRenameDeck.sections.add({
+    name: "Decision",
+    nativeId: "{1FEF2C88-0CF2-4176-BA81-0DE6FD9D1274}",
+    slides: sectionRenameSlides.slice(2),
+  });
+  await fs.mkdir(sectionRenameDir, { recursive: true });
+  await (await PresentationFile.exportPptx(sectionRenameDeck)).save(sectionRenameInput);
+  const sectionRenameSource = await fs.readFile(sectionRenameInput);
+  const { renamePptxSection } = await import(
+    "../skills/presentations/skills/presentations/examples/openchestnut-section-rename-workflow.mjs"
+  );
+  const sectionRenameResult = await renamePptxSection({
+    inputPath: sectionRenameInput,
+    outputPath: sectionRenameOutput,
+    auditPath: sectionRenameAudit,
+    expectedName: "Context",
+    replacementName: "Background",
+  });
+  assert.equal(sectionRenameResult.audit.operation.type, "source-bound-section-name-edit");
+  assert.equal(sectionRenameResult.audit.operation.sectionId, "section/1");
+  assert.equal(sectionRenameResult.audit.operation.nativeId, "{01F07B81-39E6-4BBB-9B89-66EA253FBD29}");
+  assert.deepEqual(sectionRenameResult.audit.operation.orderedSlideIds, ["presentation/slide/1", "presentation/slide/2"]);
+  assert.equal(sectionRenameResult.audit.validation.package.targetPart, "ppt/presentation.xml");
+  assert.equal(sectionRenameResult.audit.validation.package.onlyPresentationPartChanged, true);
+  assert.equal(sectionRenameResult.audit.validation.package.nonTargetPartsByteIdentical, true);
+  assert.equal(sectionRenameResult.audit.validation.reimport.exactFixedTopologyRetained, true);
+  assert.equal(sectionRenameResult.audit.validation.nonSectionSemantics.stable, true);
+  assert.equal(sectionRenameResult.audit.validation.modelRender.byteIdentical, true);
+  assert.deepEqual(await fs.readFile(sectionRenameInput), sectionRenameSource);
+  const sectionRenameSourceZip = await JSZip.loadAsync(sectionRenameSource);
+  const sectionRenameOutputZip = await JSZip.loadAsync(await fs.readFile(sectionRenameOutput));
+  assert.notDeepEqual(
+    await sectionRenameSourceZip.file("ppt/presentation.xml").async("uint8array"),
+    await sectionRenameOutputZip.file("ppt/presentation.xml").async("uint8array"),
+  );
+  for (const partPath of Object.keys(sectionRenameSourceZip.files)) {
+    if (sectionRenameSourceZip.files[partPath].dir || partPath === "ppt/presentation.xml") continue;
+    assert.deepEqual(
+      await sectionRenameOutputZip.file(partPath).async("uint8array"),
+      await sectionRenameSourceZip.file(partPath).async("uint8array"),
+      `section rename changed non-target part ${partPath}`,
+    );
+  }
+  const sectionRenameRoundTrip = await PresentationFile.importPptx(new FileBlob(await fs.readFile(sectionRenameOutput), {
+    type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    name: "section-updated.pptx",
+  }));
+  assert.deepEqual(sectionRenameRoundTrip.sections.items.map((section) => section.toJSON()), [
+    {
+      id: "section/1",
+      name: "Background",
+      nativeId: "{01F07B81-39E6-4BBB-9B89-66EA253FBD29}",
+      slideIds: ["presentation/slide/1", "presentation/slide/2"],
+    },
+    {
+      id: "section/2",
+      name: "Decision",
+      nativeId: "{1FEF2C88-0CF2-4176-BA81-0DE6FD9D1274}",
+      slideIds: ["presentation/slide/3"],
+    },
+  ]);
+  const sectionRenameBaselineDir = path.join(sectionRenameDir, "baselines");
+  await verifyPresentationFile(sectionRenameInput, {
+    outputDir: path.join(sectionRenameDir, "source-qa"),
+    nativeRender,
+    baselineDir: sectionRenameBaselineDir,
+    writeBaseline: true,
+  });
+  const sectionRenameReview = await verifyPresentationFile(sectionRenameOutput, {
+    outputDir: path.join(sectionRenameDir, "output-qa"),
+    nativeRender,
+    baselineDir: sectionRenameBaselineDir,
+  });
+  assert.ok(sectionRenameReview.modelRender.slides.every((slide) => slide.pixelDiff?.changed === false));
+  if (nativeStatus.available) assert.ok(sectionRenameReview.nativeRender.pages.every((page) => page.pixelDiff?.changed === false));
+  const sectionRenameRejectedOutput = path.join(sectionRenameDir, "section-should-not-exist.pptx");
+  const sectionRenameRejectedAudit = path.join(sectionRenameDir, "rejected-audit.json");
+  await assert.rejects(
+    () => renamePptxSection({
+      inputPath: sectionRenameInput,
+      outputPath: sectionRenameRejectedOutput,
+      auditPath: sectionRenameRejectedAudit,
+      expectedName: "Stale context",
+      replacementName: "Background",
+    }),
+    /Expected exactly one imported PowerPoint section named/i,
+  );
+  assert.equal(await fs.access(sectionRenameRejectedOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(sectionRenameRejectedAudit).then(() => true, () => false), false);
+  const sectionRenameConflictOutput = path.join(sectionRenameDir, "section-conflict-output.pptx");
+  const sectionRenameConflictAudit = path.join(sectionRenameDir, "section-conflict-audit.json");
+  await assert.rejects(
+    () => renamePptxSection({
+      inputPath: sectionRenameInput,
+      outputPath: sectionRenameConflictOutput,
+      auditPath: sectionRenameConflictAudit,
+      expectedName: "Context",
+      replacementName: "Decision",
+    }),
+    /conflicts case-insensitively/i,
+  );
+  assert.equal(await fs.access(sectionRenameConflictOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(sectionRenameConflictAudit).then(() => true, () => false), false);
+  const sectionRenameOpaqueInput = path.join(sectionRenameDir, "section-opaque-source.pptx");
+  const sectionRenameOpaqueOutput = path.join(sectionRenameDir, "section-opaque-output.pptx");
+  const sectionRenameOpaqueAudit = path.join(sectionRenameDir, "section-opaque-audit.json");
+  const sectionRenameOpaqueZip = await JSZip.loadAsync(sectionRenameSource);
+  const sectionRenamePresentationXml = await sectionRenameOpaqueZip.file("ppt/presentation.xml").async("text");
+  sectionRenameOpaqueZip.file("ppt/presentation.xml", sectionRenamePresentationXml.replace('name="Context"', 'name="Context" unmodeled="true"'));
+  await fs.writeFile(sectionRenameOpaqueInput, await sectionRenameOpaqueZip.generateAsync({ type: "nodebuffer" }));
+  await assert.rejects(
+    () => renamePptxSection({
+      inputPath: sectionRenameOpaqueInput,
+      outputPath: sectionRenameOpaqueOutput,
+      auditPath: sectionRenameOpaqueAudit,
+      expectedName: "Context",
+      replacementName: "Background",
+    }),
+    /no semantic canonical PowerPoint sections/i,
+  );
+  assert.equal(await fs.access(sectionRenameOpaqueOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(sectionRenameOpaqueAudit).then(() => true, () => false), false);
+  const sectionRenameCollisionOutput = path.join(sectionRenameDir, "section-existing-output.pptx");
+  const sectionRenameCollisionAudit = path.join(sectionRenameDir, "collision-audit.json");
+  const sectionRenameCollisionSentinel = Buffer.from("preserve-existing-section-output");
+  await fs.writeFile(sectionRenameCollisionOutput, sectionRenameCollisionSentinel);
+  await assert.rejects(
+    () => renamePptxSection({
+      inputPath: sectionRenameInput,
+      outputPath: sectionRenameCollisionOutput,
+      auditPath: sectionRenameCollisionAudit,
+      expectedName: "Context",
+      replacementName: "Background",
+    }),
+    /outputPath already exists; refusing to overwrite/i,
+  );
+  assert.deepEqual(await fs.readFile(sectionRenameCollisionOutput), sectionRenameCollisionSentinel);
+  assert.equal(await fs.access(sectionRenameCollisionAudit).then(() => true, () => false), false);
+  const sectionRenameCliOutput = path.join(sectionRenameDir, "section-cli.pptx");
+  const sectionRenameCliAudit = path.join(sectionRenameDir, "cli-audit.json");
+  const sectionRenameCli = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/examples/openchestnut-section-rename-workflow.mjs",
+    sectionRenameInput,
+    sectionRenameCliOutput,
+    sectionRenameCliAudit,
+    "Context",
+    "Narrative context",
+  ], { encoding: "utf8" });
+  assert.equal(sectionRenameCli.status, 0, `section-rename CLI failed\n${sectionRenameCli.stdout}\n${sectionRenameCli.stderr}`);
+  assert.equal(JSON.parse(sectionRenameCli.stdout).targetPart, "ppt/presentation.xml");
+
   const customShowDir = path.join(root, "custom-show-workflow");
   const customShowInput = path.join(customShowDir, "custom-show-source.pptx");
   const customShowOutput = path.join(customShowDir, "custom-show-updated.pptx");

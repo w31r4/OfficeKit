@@ -1,5 +1,42 @@
 # Release
 
+## 0.3.0 PPTX source-bound section-name transaction
+
+The Presentations Skill now ships
+`openchestnut-section-rename-workflow.mjs` for one exact label correction in a
+canonical imported PowerPoint section list. It is not a general section editor:
+the task supplies an exact existing name and replacement name, and the workflow
+requires one matching source-bound section. It keeps the section count/order,
+facade ID, native brace GUID, and ordered slide membership fixed, so a rename
+cannot hide a partition rewrite.
+
+The transaction keeps the original PPTX immutable and publishes distinct output
+and audit paths without overwrite. It permits only `ppt/presentation.xml` to
+change, reimports the entire expected section snapshot, checks every
+non-section semantic plus static slide SVGs, runs `verify({ visualQa: true })`,
+and records source/output hashes with the target section's identity and
+membership. Missing, duplicate, opaque, section-free, incomplete-identity, or
+case-conflicting inputs fail closed. It does not move section boundaries,
+add/remove/reorder sections, combine with slide topology changes, or claim that
+static/native page rendering exercised the PowerPoint navigation pane.
+
+### Section-name transaction integration evidence
+
+On 2026-07-26, the combined local candidate passed `npm test`, generated API
+documentation, `npm run proto:check`, deterministic
+`npm run verify:open-chestnut-build`, clean-install `npm run test:pack`,
+OfficeBridge `5/5`, and OpenChestnut `375/375`. Two source-built WASM bundles
+reproduced the same 39 audited files; the manifest-bound runtime contains 38
+files at 15,160,000 bytes. The production tarball contains 517 files, 9,420,716
+compressed bytes, and 25,329,813 unpacked bytes (`SHA-1
+771b702d930ecccf6fca50d4ae43dd6887772894`), leaving 20,187 bytes below the
+reviewed 25,350,000-byte ceiling.
+
+Managed PDF live-download and separately configured specialist Python-provider
+repeats remained explicit environment lanes and were skipped by design; their
+contract, package-build, and offline tests still ran. No npm publication, tag,
+or GitHub release was attempted.
+
 ## 0.3.0 OfficeKit BM25F and uploaded-template routing
 
 OfficeKit now treats template choice as a two-axis task state: whether the
