@@ -9,6 +9,13 @@ import {
   DOCX_FOOTER_TEXT_FIXTURE,
   DOCX_HEADER_TEXT_FIXTURE,
 } from "./agent-eval-office-fixtures.mjs";
+import {
+  gradeDocxSectionPageNumberingCase,
+} from "./agent-eval-docx-section-page-numbering-grader.mjs";
+export {
+  gradeDocxSectionPageNumberingEvidence,
+  inspectSectionPageNumberingDocx,
+} from "./agent-eval-docx-section-page-numbering-grader.mjs";
 import { renderOfficeFile } from "./agent-eval-office-native-render.mjs";
 import { extractCompletedCommands, summarizeCaseScore } from "./agent-eval-pdf-graders.mjs";
 
@@ -16,6 +23,7 @@ export const docxGradedCaseIds = new Set([
   "docx-classic-comment-text-edit",
   "docx-header-text-edit",
   "docx-footer-text-edit",
+  "docx-section-page-numbering-edit",
 ]);
 
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
@@ -620,5 +628,6 @@ export async function gradeDocxCase(options) {
   if (options.item.id === "docx-classic-comment-text-edit") return gradeDocxClassicCommentCase(options);
   if (options.item.id === "docx-header-text-edit") return gradeDocxHeaderTextCase(options);
   if (options.item.id === "docx-footer-text-edit") return gradeDocxFooterTextCase(options);
+  if (options.item.id === "docx-section-page-numbering-edit") return gradeDocxSectionPageNumberingCase(options);
   return { supported: false };
 }

@@ -840,6 +840,23 @@ pagination host for final QA. Chapter style/separator settings, unsupported
 formats, duplicate/empty leaves, extensions, and other irregular
 `w:pgNumType` graphs remain source-owned and make section geometry read-only.
 
+For a fixed imported canonical section, use the no-overwrite transaction in
+`examples/officekit-section-page-numbering-edit-workflow.mjs`. Its CLI takes an
+inspected section block index plus exact source/replacement JSON objects:
+
+```bash
+node examples/officekit-section-page-numbering-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 \
+  '{"start":1,"format":"lowerRoman"}' \
+  '{"start":1,"format":"decimal"}'
+```
+
+It rejects a missing, read-only, ambiguous, or mismatched source section,
+changes only `word/document.xml`, checks a raw OPC residual outside the one
+native `w:pgNumType` leaf, reimports, verifies, model-renders, and emits a
+byte-bound audit. It does not turn page numbering into a general PAGE-field or
+pagination editor.
+
 Set one bounded passwordless Word editing restriction through the same settings state:
 
 ```js
