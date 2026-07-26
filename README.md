@@ -41,20 +41,21 @@ OfficeKit：
 
 ```sh
 npm install github:w31r4/OfficeKit
-npx skills add w31r4/OfficeKit --skill '*' --yes
+npx officekit init
 ```
 
-第一条命令安装文件运行库，第二条命令安装 OfficeKit、四个文件类型 Skill、
-Excel Live Control、Template Creator 和开源模板。标准工作流安装后即可使用；
-专项 PDF provider 会按项目策略加载自己的运行时。
+`officekit init` 会识别当前项目使用的 Agent，安装 OfficeKit 总入口、四个文件
+类型 Skill、Excel Live Control 和 Template Creator。选择工具后，7 个核心
+Skill 会写入对应的项目目录。
 
-只安装核心 Skills：
+脚本或 CI 可直接指定工具：
 
 ```sh
-npx skills add w31r4/OfficeKit \
-  --skill office-kit documents spreadsheets excel-live-control presentations pdf template-creator \
-  --yes
+npx officekit init --tools claude,cursor
 ```
+
+升级 OfficeKit 后，在项目里执行 `npx officekit update` 即可同步 Skill。
+专项 PDF provider 继续按项目策略加载自己的运行时。
 
 当前安装源为 GitHub。首个正式 npm 版本发布后，第一条命令可改为：
 
@@ -94,8 +95,9 @@ npm install office-kit
 ## 模板按需使用
 
 [Office Template Library](skills/default-template-library/README.md) 提供 20 套
-MIT 授权模板。OfficeKit 只在目标明确、模板未指定时检索紧凑 metadata；
-Agent 查看少量候选后选择一个、询问用户或明确不用模板。
+MIT 授权模板，并作为仓库资产按需使用。目标明确且模板未指定时，
+OfficeKit 检索精简元数据；Agent 查看少量候选后选择一个、询问用户或明确
+不用模板。
 
 用户上传的 DOCX、XLSX 或 PPTX 默认只用于当前任务。明确要求以后复用时，
 再交给 Template Creator 保存。

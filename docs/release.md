@@ -42,6 +42,42 @@ remain explicit environment lanes and were skipped by design; their catalog,
 policy, package-build, integrity, and offline tests ran. No npm publication,
 tag, or GitHub release was attempted.
 
+## 0.3.0 OfficeKit project initializer
+
+The package now exposes the `officekit` executable. `officekit init [path]`
+detects the Agent tools already represented in a project, or accepts an
+explicit comma-separated `--tools` selection, then places the seven packaged
+Skills in each tool's project-local Skill root. This includes the OfficeKit
+router, Documents, Spreadsheets, Excel Live Control, Presentations, PDF, and
+Template Creator.
+
+Initialization writes `.office-kit/skills.json` with the package version,
+selected tools, destinations, and exact SHA-256 for every managed Skill tree.
+Running `init` again is idempotent. `officekit update` refreshes the managed
+set after a package upgrade; a locally changed managed tree requires
+`--force`, while an unowned destination remains untouched even when its bytes
+match a packaged Skill. Destination preflight rejects file and symbolic-link
+collisions before writing any Skill, and verified staging plus atomic rename
+protect each replacement. The initializer performs local package reads and
+project writes; specialist PDF packs continue through their project policy,
+and the default template library remains an on-demand repository asset.
+
+### Project-initializer integration evidence
+
+On 2026-07-26, the combined local candidate passed the CLI matrix, full
+`npm test`, generated API documentation with a clean diff, clean-install
+`npm run test:pack`, `npm run proto:check`, deterministic
+`npm run verify:office-kit-build`, OfficeBridge `5/5`, OfficeKit Codec
+`375/375`, and the offline release-metadata check. The package test installs
+the production tarball in an empty project, invokes its real `officekit`
+executable, and proves that all seven standalone Skill trees are complete.
+
+The candidate tarball has 525 files, 9,446,364 compressed bytes, and
+25,436,134 unpacked bytes (`SHA-1
+f390576a4da9edc7d8dfd9d8465d99ca0480c99b`), leaving 13,866 bytes below the
+reviewed 25,450,000-byte unpacked-size gate. No npm publication, tag, or
+GitHub release operation was attempted.
+
 ## 0.3.0 DOCX source-bound section-margin transaction
 
 The Documents Skill now ships

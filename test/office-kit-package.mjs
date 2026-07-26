@@ -162,6 +162,46 @@ try {
     if ((await PresentationFile.importPptx(await PresentationFile.exportPptx(importedPresentation))).slides.count !== 1) process.exit(22);
 
     const installedPackage = path.join(process.cwd(), "node_modules", "office-kit");
+    const installedBin = path.join(
+      process.cwd(),
+      "node_modules",
+      ".bin",
+      process.platform === "win32" ? "officekit.cmd" : "officekit",
+    );
+    if (!fs.existsSync(installedBin)) process.exit(62);
+    const initializedProject = path.join(process.cwd(), "officekit-initialized-project");
+    const initialized = spawnSync(
+      installedBin,
+      [
+        "init",
+        initializedProject,
+        "--tools",
+        "agents",
+        "--json",
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        shell: process.platform === "win32",
+      },
+    );
+    if (initialized.status !== 0) {
+      process.stderr.write(initialized.stderr);
+      process.exit(60);
+    }
+    const initializedResult = JSON.parse(initialized.stdout);
+    if (
+      initializedResult.created !== 7 ||
+      initializedResult.tools[0]?.id !== "agents" ||
+      !fs.existsSync(path.join(initializedProject, ".agents", "skills", "office-kit", "SKILL.md")) ||
+      !fs.existsSync(path.join(initializedProject, ".agents", "skills", "documents", "SKILL.md")) ||
+      !fs.existsSync(path.join(initializedProject, ".agents", "skills", "spreadsheets", "SKILL.md")) ||
+      !fs.existsSync(path.join(initializedProject, ".agents", "skills", "excel-live-control", "SKILL.md")) ||
+      !fs.existsSync(path.join(initializedProject, ".agents", "skills", "presentations", "SKILL.md")) ||
+      !fs.existsSync(path.join(initializedProject, ".agents", "skills", "pdf", "SKILL.md")) ||
+      !fs.existsSync(path.join(initializedProject, ".agents", "skills", "template-creator", "SKILL.md"))
+    ) process.exit(61);
+
     const duplicateWorkflowPath = path.join(
       installedPackage,
       "skills", "presentations", "skills", "presentations", "examples", "officekit-slide-duplicate-workflow.mjs",
@@ -375,7 +415,9 @@ try {
   `;
 
   run(process.execPath, ["--input-type=module", "-e", probe], temporary, {
-    PATH: process.platform === "win32" ? "C:\\Windows\\System32" : "/usr/bin:/bin",
+    PATH: process.platform === "win32"
+      ? `${path.dirname(process.execPath)};C:\\Windows\\System32`
+      : `${path.dirname(process.execPath)}:/usr/bin:/bin`,
   });
 } finally {
   fs.rmSync(temporary, { force: true, recursive: true });

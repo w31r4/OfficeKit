@@ -5,16 +5,17 @@ work. It turns a request into an explicit artifact route, loads the required
 Documents, Spreadsheets, Presentations, or PDF Skill, and decides whether zero
 or one available template helps.
 
-Install the coordinated core Skills together:
+Install OfficeKit in the project where the Agent will work:
 
 ```sh
-npx skills add w31r4/OfficeKit \
-  --skill office-kit documents spreadsheets excel-live-control presentations pdf template-creator \
-  --yes
+npm install github:w31r4/OfficeKit
+npx officekit init
 ```
 
-The installer only deploys Skill instructions and resources. OfficeKit does
-not replace the format-specific workflows or provide a second file codec.
+The initializer detects the Agent tools used by the project and installs the
+OfficeKit entry point, Documents, Spreadsheets, Excel Live Control,
+Presentations, PDF, and Template Creator in their project-local Skill
+directories. Run `npx officekit update` after upgrading the package.
 
 Repository templates and locally created `artifact-template-*` Skills are
 queried through compact metadata and a local BM25F shortlist. The Agent decides
