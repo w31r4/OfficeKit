@@ -937,6 +937,27 @@ verifies, model-renders, and writes a no-overwrite byte-bound audit. It does
 not add/remove line-numbering, edit paragraph suppression, or calculate a
 host's visible line-number display.
 
+For one fixed imported canonical section-column correction, use
+`examples/officekit-section-columns-edit-workflow.mjs`. Its CLI takes an
+inspected section block index and complete normalized source/replacement
+profiles. Equal-width profiles state `count`, `spacing`, and `separator`;
+custom-width profiles state ordered `definitions` and `separator`:
+
+```bash
+node examples/officekit-section-columns-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 \
+  '{"count":2,"spacing":720,"separator":true}' \
+  '{"count":3,"spacing":360,"separator":false}'
+```
+
+The source must contain one editable canonical `w:cols` element. The operation
+keeps the source equal-width/custom-width shape, permits only
+`word/document.xml` to change, masks only that element for a namespace-tolerant
+residual comparison, reimports the full section projection, verifies,
+model-renders, and writes a no-overwrite byte-bound audit. It does not add or
+remove columns, convert the native column graph, or calculate a host's visible
+column flow.
+
 Set one bounded passwordless Word editing restriction through the same settings state:
 
 ```js

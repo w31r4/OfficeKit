@@ -244,6 +244,34 @@ does not add a line-number leaf, remove one, change `suppressLineNumbers`, or
 calculate displayed line numbers. Review the affected pages in Word or
 LibreOffice plus Poppler before delivery.
 
+### Change one imported section's columns safely
+
+For one exact column-flow correction, first inspect the imported section and
+record its **block index** plus one complete normalized profile. Equal-width
+profiles use `{ count, spacing, separator }`; explicit-width profiles use
+`{ definitions: [{ width, spacing }, ...], separator }`. The transaction keeps
+the inspected profile shape: it does not convert equal-width columns into an
+explicit-width graph, or the reverse.
+
+```bash
+node examples/officekit-section-columns-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 \
+  '{"count":2,"spacing":720,"separator":true}' \
+  '{"count":3,"spacing":360,"separator":false}'
+```
+
+The workflow requires one editable, resolvable section and one canonical
+`w:cols` element. Equal-width input accepts Word's omitted `w:equalWidth` and
+`w:num` defaults but requires native `w:space`; explicit-width input requires
+`w:equalWidth="false"` and 1 through 45 direct `w:col` leaves. Unknown,
+duplicate, non-Word, noncanonical-numeric, child/extension-bearing, stale, or
+noncanonical graphs fail closed. Only `word/document.xml` may change; the
+workflow masks only that one element for a namespace-tolerant residual
+comparison, reimports the full section projection, verifies and model-renders,
+and writes a no-overwrite audit. It does not add/remove a columns element or
+calculate the visible column flow. Review affected pages in Word or LibreOffice
+plus Poppler before delivery.
+
 ## Render review
 
 - Only the intended pages change orientation.

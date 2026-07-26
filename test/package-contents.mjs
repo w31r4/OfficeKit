@@ -77,10 +77,10 @@ const maxPackedBytes = 9_840_000;
 // XLSX connection-refresh and imported-Pivot refresh-on-load transactions,
 // formula-input syntax guard, and source-bound embedded-DOCX OLE package
 // replacement, plus the canonical DOCX 1-through-16-paragraph note body and
-// source-bound section line-numbering transaction, add
+// source-bound section line-numbering and column-profile transactions, add
 // protobuf, audited WASM, public Help, and native guidance;
 // retain measured headroom instead of hiding that product surface.
-const maxUnpackedBytes = 25_470_000;
+const maxUnpackedBytes = 25_495_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -201,6 +201,7 @@ for (const required of [
   "skills/documents/skills/documents/examples/officekit-section-margin-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-section-page-geometry-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-section-line-numbering-edit-workflow.mjs",
+  "skills/documents/skills/documents/examples/officekit-section-columns-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-note-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/end_to_end_smoke_test.md",
   "skills/documents/skills/documents/render_docx.py",

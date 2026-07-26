@@ -174,6 +174,39 @@ check. The candidate tarball has 526 files, 9,448,416 compressed bytes, and
 reviewed 25,470,000-byte unpacked-size gate. No npm publication, tag, or
 GitHub release operation was attempted.
 
+## 0.3.0 DOCX source-bound section columns transaction
+
+The Documents Skill now ships
+`officekit-section-columns-edit-workflow.mjs` for one exact imported canonical
+Word section. The task supplies its inspected block index plus complete
+normalized equal-width (`count`, `spacing`, `separator`) or explicit-width
+(`definitions`, `separator`) source and replacement profiles. A transaction
+retains that native profile shape: it neither adds/removes `w:cols` nor converts
+an equal-width graph into an explicit-width graph, or the reverse.
+
+Before publication the workflow binds the semantic section identity and one raw
+canonical `w:cols` element. It keeps the input immutable, creates distinct
+output and audit files without overwrite, permits only `word/document.xml` to
+change, masks that element in a namespace-tolerant residual check, reimports
+the full section projection, verifies the model render, and records
+source/output hashes plus the OfficeKit provider version. Duplicate,
+child/extension-bearing, non-Word, noncanonical-numeric, stale, absent, no-op,
+profile-converting, or package-drift inputs fail before an output is published.
+It does not calculate visible column flow; a native Word or LibreOffice plus
+Poppler render remains required for final display review.
+
+### Columns transaction integration evidence
+
+On 2026-07-26, the integrated candidate passed `npm test`, generated API
+documentation with no diff, `npm run proto:check`, deterministic
+`npm run verify:office-kit-build`, clean-install `npm run test:pack`,
+OfficeBridge `5/5`, OfficeKit Codec `375/375`, and the offline release-metadata
+check. The candidate tarball has 527 files, 9,449,909 compressed bytes, and
+25,476,745 unpacked bytes (`SHA-1
+f41e6dd7a7a4fdd8368085ee9b7a0bf57ca4f237`), leaving 18,255 bytes below the
+reviewed 25,495,000-byte unpacked-size gate. No npm publication, tag, or
+GitHub release operation was attempted.
+
 ## 0.3.0 DOCX source-bound note-paragraph transaction
 
 The Documents Skill now ships

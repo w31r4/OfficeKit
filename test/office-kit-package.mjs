@@ -183,6 +183,38 @@ try {
       JSON.stringify(lineNumberingRoundTrip.blocks[1]?.lineNumbering) !== JSON.stringify({ countBy: 10, start: 4, distance: 480, restart: "continuous" })
     ) process.exit(64);
 
+    const columnsWorkflowPath = path.join(
+      packageRoot,
+      "skills", "documents", "skills", "documents", "examples", "officekit-section-columns-edit-workflow.mjs",
+    );
+    if (!fs.existsSync(columnsWorkflowPath)) process.exit(65);
+    const columnsSource = DocumentModel.create({ blocks: [] });
+    columnsSource.addParagraph("Packaged source-bound section-columns transaction.");
+    columnsSource.addSection({
+      breakType: "nextPage",
+      columns: { count: 2, spacing: 720, separator: true },
+    });
+    columnsSource.addParagraph("Only this section's column profile may change.");
+    const columnsInput = path.join(process.cwd(), "packed-columns-input.docx");
+    const columnsOutput = path.join(process.cwd(), "packed-columns-output.docx");
+    const columnsAudit = path.join(process.cwd(), "packed-columns-audit.json");
+    await (await DocumentFile.exportDocx(columnsSource)).save(columnsInput);
+    const { editImportedSectionColumns } = await import(pathToFileURL(columnsWorkflowPath).href);
+    const columnsResult = await editImportedSectionColumns({
+      inputPath: columnsInput,
+      outputPath: columnsOutput,
+      auditPath: columnsAudit,
+      sectionBlockIndex: 1,
+      expectedColumns: { count: 2, spacing: 720, separator: true },
+      replacementColumns: { count: 3, spacing: 360, separator: false },
+    });
+    const columnsRoundTrip = await DocumentFile.importDocx(await FileBlob.load(columnsOutput));
+    if (
+      columnsResult.audit.provider.actual !== "office-kit" ||
+      JSON.stringify(columnsResult.audit.validation.changedParts) !== JSON.stringify(["word/document.xml"]) ||
+      JSON.stringify(columnsRoundTrip.blocks[1]?.columns) !== JSON.stringify({ count: 3, spacing: 360, separator: false })
+    ) process.exit(66);
+
     const presentation = Presentation.create();
     presentation.slides.add({ name: "Packaged" }).shapes.add({
       name: "Title", geometry: "roundRect", text: "clean install PPTX",
