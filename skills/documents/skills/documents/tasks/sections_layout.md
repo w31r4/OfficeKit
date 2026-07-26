@@ -193,6 +193,30 @@ projection, verifies, model-renders, and publishes DOCX/audit files without
 overwrite. Use LibreOffice or Word plus Poppler to review the final page
 geometry.
 
+### Change one imported section's page geometry safely
+
+For a portrait/landscape or paper-size correction, keep the orientation and
+both page dimensions together. They are one native `w:pgSz` value; do not make
+two independent partial changes or ask this workflow to rescale existing text,
+tables, drawings, headers, or footers.
+
+```bash
+node examples/officekit-section-page-geometry-edit-workflow.mjs \
+  input.docx output.docx audit.json \
+  1 '{"orientation":"portrait","pageSize":{"widthTwips":12240,"heightTwips":15840}}' \
+  '{"orientation":"landscape","pageSize":{"widthTwips":15840,"heightTwips":12240}}'
+```
+
+The transaction requires one editable, resolvable imported section whose full
+semantic geometry and raw canonical `w:pgSz` leaf match the supplied source
+value. It accepts exactly `w:w`, `w:h`, and `w:orient`, all canonical; paper
+codes, extensions, duplicate/non-Word attributes, stale geometry, and missing
+or partial values fail closed. It changes only that one leaf in
+`word/document.xml`, checks that all remaining XML/package content is stable,
+reimports the full section projection, verifies, model-renders, and publishes
+the DOCX/audit without overwrite. It never rescales the surrounding document.
+Review all affected pages with LibreOffice or Word plus Poppler before delivery.
+
 ## Render review
 
 - Only the intended pages change orientation.

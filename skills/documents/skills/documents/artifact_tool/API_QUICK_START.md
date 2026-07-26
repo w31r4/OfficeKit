@@ -895,6 +895,26 @@ on second import, model-renders, and writes a no-overwrite byte-bound audit.
 Irregular, extension-bearing, duplicate, or stale section-margin markup is not
 accepted by this route.
 
+For a fixed imported canonical section page-size/orientation correction, use
+`examples/officekit-section-page-geometry-edit-workflow.mjs`. Its CLI accepts
+complete source and replacement geometry values; `orientation` and `pageSize`
+are intentionally one atomic object:
+
+```bash
+node examples/officekit-section-page-geometry-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 \
+  '{"orientation":"portrait","pageSize":{"widthTwips":12240,"heightTwips":15840}}' \
+  '{"orientation":"landscape","pageSize":{"widthTwips":15840,"heightTwips":12240}}'
+```
+
+It accepts exactly one editable section and one raw canonical `w:pgSz` leaf
+with `w:w`, `w:h`, and `w:orient`. It permits only `word/document.xml` to
+change, masks only that leaf for a namespace-tolerant residual comparison,
+reimports the full section projection, verifies, model-renders, and writes a
+no-overwrite byte-bound audit. It neither resizes surrounding content nor
+claims that changing paper geometry reflows every arbitrary imported object
+without native review.
+
 Set one bounded passwordless Word editing restriction through the same settings state:
 
 ```js

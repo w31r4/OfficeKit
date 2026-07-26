@@ -19,7 +19,7 @@ import {
   sectionProjection,
   sectionProperties,
   selectCanonicalSection,
-  xmlAttributes,
+  wordAttributes,
 } from "../artifact_tool/_source_bound_sections.mjs";
 
 const PAGE_NUMBER_FORMATS = new Set(["decimal", "upperRoman", "lowerRoman", "upperLetter", "lowerLetter"]);
@@ -55,7 +55,7 @@ function canonicalPageNumberingLeaf(sectionXml, label) {
   const leaves = [...String(sectionXml).matchAll(/<w:pgNumType\b[^>]*\/>/g)];
   if (leaves.length !== 1) throw new Error(`${label} must contain exactly one canonical w:pgNumType leaf; found ${leaves.length}.`);
   const tag = leaves[0][0];
-  const attributes = xmlAttributes(tag);
+  const attributes = wordAttributes(tag, label);
   const unknown = Object.keys(attributes).filter((key) => key !== "start" && key !== "fmt");
   if (unknown.length) throw new Error(`${label} has unsupported w:pgNumType attributes: ${unknown.join(", ")}.`);
   const value = {};

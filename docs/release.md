@@ -70,6 +70,39 @@ clean-install `npm run test:pack`, `npm run proto:check`, deterministic
 the reviewed 25,425,000-byte unpacked-size gate. Native Word or LibreOffice
 plus Poppler remains required for final visible page-geometry review.
 
+## 0.3.0 DOCX source-bound section page-geometry transaction
+
+The Documents Skill now ships
+`officekit-section-page-geometry-edit-workflow.mjs` for one exact imported
+canonical section. The task supplies the inspected section block index and
+complete expected and replacement geometry: `portrait` or `landscape`, plus
+the complete positive `widthTwips` and `heightTwips` pair. It deliberately
+treats Word's single `w:pgSz` leaf as one atomic fact rather than offering a
+half orientation or half page-size edit; it does not guess swapped dimensions,
+resize nearby content, or promise reflow.
+
+Before publication the workflow binds semantic section identity and a raw
+canonical `w:pgSz` leaf containing exactly `w:w`, `w:h`, and `w:orient`. It
+keeps the input immutable, creates distinct output and audit files without
+overwrite, permits only `word/document.xml` to change, masks only that leaf,
+reimports the complete section projection, verifies the model render, and
+records source/output hashes and the OfficeKit provider version. Paper codes,
+extension-bearing or malformed leaves, stale preconditions, missing geometry,
+no-op edits, and package drift fail before an output is published. A native
+Word or LibreOffice plus Poppler render is still required for final visible
+layout review.
+
+### Page-geometry transaction integration evidence
+
+On 2026-07-26, the local candidate passed `npm test`, `npm run docs:api`,
+clean-install `npm run test:pack`, `npm run proto:check`, deterministic
+`npm run verify:office-kit-build`, OfficeBridge `5/5`, OfficeKit Codec
+`375/375`, and the offline release-metadata check. The candidate tarball has
+522 files, 9,438,455 compressed bytes, and 25,412,775 unpacked bytes
+(`SHA-1 bed97078098469910c4b8ba9ca0ccdcd36f27eed`), leaving 12,225 bytes below
+the reviewed 25,425,000-byte unpacked-size gate. No npm publication, tag, or
+GitHub release operation was attempted.
+
 ## 0.3.0 DOCX source-bound note-paragraph transaction
 
 The Documents Skill now ships

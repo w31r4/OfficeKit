@@ -19,7 +19,7 @@ import {
   sectionProjection,
   sectionProperties,
   selectCanonicalSection,
-  xmlAttributes,
+  wordAttributes,
 } from "../artifact_tool/_source_bound_sections.mjs";
 
 const MARGIN_KEYS = ["top", "right", "bottom", "left", "gutter"];
@@ -57,7 +57,7 @@ function canonicalPageMarginsLeaf(sectionXml, label) {
   const leaves = [...String(sectionXml).matchAll(/<w:pgMar\b[^>]*\/>/g)];
   if (leaves.length !== 1) throw new Error(`${label} must contain exactly one canonical w:pgMar leaf; found ${leaves.length}.`);
   const tag = leaves[0][0];
-  const attributes = xmlAttributes(tag);
+  const attributes = wordAttributes(tag, label);
   const unknown = Object.keys(attributes).filter((key) => !PAGE_MARGIN_KEYS.has(key));
   if (unknown.length) throw new Error(`${label} has unsupported w:pgMar attributes: ${unknown.join(", ")}.`);
   const values = {};

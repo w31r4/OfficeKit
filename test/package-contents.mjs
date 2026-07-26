@@ -190,6 +190,7 @@ for (const required of [
   "skills/documents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-section-page-numbering-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-section-margin-edit-workflow.mjs",
+  "skills/documents/skills/documents/examples/officekit-section-page-geometry-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-note-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/end_to_end_smoke_test.md",
   "skills/documents/skills/documents/render_docx.py",
