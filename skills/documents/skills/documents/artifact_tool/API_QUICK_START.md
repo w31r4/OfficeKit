@@ -915,6 +915,28 @@ no-overwrite byte-bound audit. It neither resizes surrounding content nor
 claims that changing paper geometry reflows every arbitrary imported object
 without native review.
 
+For one fixed imported canonical section line-numbering correction, use
+`examples/officekit-section-line-numbering-edit-workflow.mjs`. Its CLI takes
+an inspected section block index and complete normalized source/replacement
+profiles; `countBy` is always explicit, while `start`, `distance`, and
+`restart` remain optional:
+
+```bash
+node examples/officekit-section-line-numbering-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 \
+  '{"countBy":5,"start":0,"distance":360,"restart":"newPage"}' \
+  '{"countBy":10,"start":4,"distance":480,"restart":"continuous"}'
+```
+
+It accepts exactly one editable section and one raw canonical `w:lnNumType`
+leaf. The source may omit `w:countBy`, which means the native default `1`, but
+the supplied semantic source value must still state `countBy: 1`. It permits
+only `word/document.xml` to change, masks only that leaf for a
+namespace-tolerant residual comparison, reimports the full section projection,
+verifies, model-renders, and writes a no-overwrite byte-bound audit. It does
+not add/remove line-numbering, edit paragraph suppression, or calculate a
+host's visible line-number display.
+
 Set one bounded passwordless Word editing restriction through the same settings state:
 
 ```js

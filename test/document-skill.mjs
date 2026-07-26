@@ -974,6 +974,211 @@ try {
   );
   assert.deepEqual(await fs.readFile(marginWorkflowSourcePath), marginWorkflowSourceBytes);
 
+  const {
+    editImportedSectionLineNumbering,
+    parseSectionLineNumberingEditCli,
+    sectionLineNumberingCliOutput,
+  } = await import(
+    "../skills/documents/skills/documents/examples/officekit-section-line-numbering-edit-workflow.mjs"
+  );
+  const lineNumberingSourceDocument = DocumentModel.create({ name: "Source-bound section line-numbering edit", blocks: [] });
+  lineNumberingSourceDocument.addParagraph("Prelude for the canonical section line-numbering transaction.");
+  lineNumberingSourceDocument.addSection({
+    breakType: "nextPage",
+    lineNumbering: { countBy: 5, start: 0, distance: 360, restart: "newPage" },
+  });
+  lineNumberingSourceDocument.addParagraph("Only this section's line-number cadence, offset, distance, and restart behavior may change.");
+  lineNumberingSourceDocument.addSection({
+    breakType: "nextPage",
+    lineNumbering: { countBy: 2, start: 3, distance: 240, restart: "newSection" },
+  });
+  lineNumberingSourceDocument.addParagraph("The sibling section is a raw-XML canary.");
+  const lineNumberingSourcePath = path.join(outputDir, "source-bound-section-line-numbering-source.docx");
+  await (await DocumentFile.exportDocx(lineNumberingSourceDocument)).save(lineNumberingSourcePath);
+  const lineNumberingSourceBytes = await fs.readFile(lineNumberingSourcePath);
+  const lineNumberingImported = await DocumentFile.importDocx(await FileBlob.load(lineNumberingSourcePath));
+  const sourceLineNumbering = { countBy: 5, start: 0, distance: 360, restart: "newPage" };
+  const replacementLineNumbering = { countBy: 10, start: 4, distance: 480, restart: "continuous" };
+  assert.deepEqual(lineNumberingImported.blocks[1]?.lineNumbering, sourceLineNumbering);
+  assert.deepEqual(lineNumberingImported.blocks[3]?.lineNumbering, { countBy: 2, start: 3, distance: 240, restart: "newSection" });
+
+  const lineNumberingWorkflowOutputPath = path.join(outputDir, "source-bound-section-line-numbering-edited.docx");
+  const lineNumberingWorkflowAuditPath = path.join(outputDir, "source-bound-section-line-numbering-edited-audit.json");
+  const lineNumberingWorkflow = await editImportedSectionLineNumbering({
+    inputPath: lineNumberingSourcePath,
+    outputPath: lineNumberingWorkflowOutputPath,
+    auditPath: lineNumberingWorkflowAuditPath,
+    sectionBlockIndex: 1,
+    expectedLineNumbering: sourceLineNumbering,
+    replacementLineNumbering,
+  });
+  assert.equal(lineNumberingWorkflow.audit.provider.actual, "office-kit");
+  assert.equal(lineNumberingWorkflow.audit.provider.silentFallback, false);
+  assert.deepEqual(lineNumberingWorkflow.audit.savePolicy, { strategy: "rewrite", noReplace: true });
+  assert.equal(lineNumberingWorkflow.audit.operation.type, "source-bound-section-line-numbering-edit");
+  assert.deepEqual(lineNumberingWorkflow.audit.operation.target, {
+    id: lineNumberingImported.blocks[1].id,
+    blockIndex: 1,
+    sectionOrdinal: 0,
+  });
+  assert.deepEqual(lineNumberingWorkflow.audit.operation.sourceLineNumbering, sourceLineNumbering);
+  assert.deepEqual(lineNumberingWorkflow.audit.operation.replacementLineNumbering, replacementLineNumbering);
+  assert.deepEqual(lineNumberingWorkflow.audit.validation.changedParts, ["word/document.xml"]);
+  assert.equal(lineNumberingWorkflow.audit.validation.lineNumberingXmlResidual.ok, true);
+  assert.deepEqual(lineNumberingWorkflow.audit.validation.reimport.lineNumbering, replacementLineNumbering);
+  assert.equal(lineNumberingWorkflow.audit.validation.reimport.editable, true);
+  assert.equal(lineNumberingWorkflow.audit.validation.nativeRenderRequired, true);
+  assert.deepEqual(sectionLineNumberingCliOutput(lineNumberingWorkflow).changedParts, ["word/document.xml"]);
+  assert.deepEqual(await fs.readFile(lineNumberingSourcePath), lineNumberingSourceBytes);
+
+  const lineNumberingWorkflowOutputBytes = await fs.readFile(lineNumberingWorkflowOutputPath);
+  const [lineNumberingSourceZip, lineNumberingOutputZip] = await Promise.all([
+    JSZip.loadAsync(lineNumberingSourceBytes),
+    JSZip.loadAsync(lineNumberingWorkflowOutputBytes),
+  ]);
+  const lineNumberingParts = Object.keys(lineNumberingSourceZip.files).filter((partPath) => !lineNumberingSourceZip.files[partPath].dir).sort();
+  assert.deepEqual(
+    Object.keys(lineNumberingOutputZip.files).filter((partPath) => !lineNumberingOutputZip.files[partPath].dir).sort(),
+    lineNumberingParts,
+  );
+  for (const partPath of lineNumberingParts) {
+    if (partPath === "word/document.xml") continue;
+    assert.deepEqual(
+      Buffer.from(await lineNumberingOutputZip.file(partPath).async("uint8array")),
+      Buffer.from(await lineNumberingSourceZip.file(partPath).async("uint8array")),
+      `Only word/document.xml may change; ${partPath} drifted.`,
+    );
+  }
+  const [lineNumberingSourceXml, lineNumberingOutputXml] = await Promise.all([
+    lineNumberingSourceZip.file("word/document.xml").async("text"),
+    lineNumberingOutputZip.file("word/document.xml").async("text"),
+  ]);
+  const lineNumberingTags = (xml) => [...xml.matchAll(/<w:lnNumType\b[^>]*\/>/g)].map((match) => match[0]);
+  const lineNumberingAttributes = (tag) => Object.fromEntries(
+    [...tag.matchAll(/w:([\w-]+)="([^"]*)"/g)].map((match) => [match[1], match[1] === "restart" ? match[2] : Number(match[2])]),
+  );
+  const sourceLineNumberingTags = lineNumberingTags(lineNumberingSourceXml);
+  const outputLineNumberingTags = lineNumberingTags(lineNumberingOutputXml);
+  assert.equal(sourceLineNumberingTags.length, 2);
+  assert.equal(outputLineNumberingTags.length, sourceLineNumberingTags.length);
+  assert.deepEqual(lineNumberingAttributes(sourceLineNumberingTags[0]), { countBy: 5, start: 0, distance: 360, restart: "newPage" });
+  assert.deepEqual(lineNumberingAttributes(outputLineNumberingTags[0]), { countBy: 10, start: 4, distance: 480, restart: "continuous" });
+  assert.deepEqual(outputLineNumberingTags.slice(1), sourceLineNumberingTags.slice(1));
+  const lineNumberingWorkflowOutputDocument = await DocumentFile.importDocx(await FileBlob.load(lineNumberingWorkflowOutputPath));
+  assert.deepEqual(lineNumberingWorkflowOutputDocument.blocks[1]?.lineNumbering, replacementLineNumbering);
+  assert.deepEqual(lineNumberingWorkflowOutputDocument.blocks[3]?.lineNumbering, { countBy: 2, start: 3, distance: 240, restart: "newSection" });
+  const lineNumberingWorkflowRender = await verifyDocumentFile(lineNumberingWorkflowOutputPath, {
+    outputDir: path.join(outputDir, "source-bound-section-line-numbering-render"),
+    previewFormat: "png",
+    nativeRender: nativeStatus.available ? "required" : "auto",
+  });
+  assert.equal(lineNumberingWorkflowRender.summary.verifyOk, true);
+  assert.equal(lineNumberingWorkflowRender.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
+
+  const lineNumberingCliOutputPath = path.join(outputDir, "source-bound-section-line-numbering-cli.docx");
+  const lineNumberingCliAuditPath = path.join(outputDir, "source-bound-section-line-numbering-cli-audit.json");
+  const lineNumberingCliReplacement = { countBy: 3, distance: 240, restart: "newSection" };
+  assert.deepEqual(parseSectionLineNumberingEditCli([
+    lineNumberingSourcePath,
+    lineNumberingCliOutputPath,
+    lineNumberingCliAuditPath,
+    "1",
+    JSON.stringify(sourceLineNumbering),
+    JSON.stringify(lineNumberingCliReplacement),
+  ]), {
+    inputPath: lineNumberingSourcePath,
+    outputPath: lineNumberingCliOutputPath,
+    auditPath: lineNumberingCliAuditPath,
+    sectionBlockIndex: 1,
+    expectedLineNumbering: sourceLineNumbering,
+    replacementLineNumbering: lineNumberingCliReplacement,
+  });
+  const lineNumberingCliProcess = spawnSync(process.execPath, [
+    path.join(repoRoot, "skills", "documents", "skills", "documents", "examples", "officekit-section-line-numbering-edit-workflow.mjs"),
+    lineNumberingSourcePath,
+    lineNumberingCliOutputPath,
+    lineNumberingCliAuditPath,
+    "1",
+    JSON.stringify(sourceLineNumbering),
+    JSON.stringify(lineNumberingCliReplacement),
+  ], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(lineNumberingCliProcess.status, 0, lineNumberingCliProcess.stderr);
+  assert.deepEqual(JSON.parse(lineNumberingCliProcess.stdout), {
+    outputPath: lineNumberingCliOutputPath,
+    auditPath: lineNumberingCliAuditPath,
+    outputSha256: createHash("sha256").update(await fs.readFile(lineNumberingCliOutputPath)).digest("hex"),
+    changedParts: ["word/document.xml"],
+  });
+  const lineNumberingCliDocument = await DocumentFile.importDocx(await FileBlob.load(lineNumberingCliOutputPath));
+  assert.deepEqual(lineNumberingCliDocument.blocks[1]?.lineNumbering, lineNumberingCliReplacement);
+
+  await assert.rejects(
+    () => editImportedSectionLineNumbering({
+      inputPath: lineNumberingSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-line-numbering-mismatched.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-line-numbering-mismatched-audit.json"),
+      sectionBlockIndex: 1,
+      expectedLineNumbering: { ...sourceLineNumbering, countBy: 1 },
+      replacementLineNumbering,
+    }),
+    /lineNumbering does not match the expected source value/,
+  );
+  await assert.rejects(
+    () => editImportedSectionLineNumbering({
+      inputPath: lineNumberingSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-line-numbering-invalid.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-line-numbering-invalid-audit.json"),
+      sectionBlockIndex: 1,
+      expectedLineNumbering: sourceLineNumbering,
+      replacementLineNumbering: { start: 1 },
+    }),
+    /replacementLineNumbering\.countBy is required/,
+  );
+  await assert.rejects(
+    () => editImportedSectionLineNumbering({
+      inputPath: lineNumberingSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-line-numbering-noop.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-line-numbering-noop-audit.json"),
+      sectionBlockIndex: 1,
+      expectedLineNumbering: sourceLineNumbering,
+      replacementLineNumbering: sourceLineNumbering,
+    }),
+    /replacementLineNumbering must differ from expectedLineNumbering/,
+  );
+  const implicitLineNumberingSourcePath = path.join(outputDir, "source-bound-section-line-numbering-implicit-source.docx");
+  const implicitLineNumberingZip = await JSZip.loadAsync(lineNumberingSourceBytes);
+  const implicitLineNumberingXml = await implicitLineNumberingZip.file("word/document.xml").async("text");
+  implicitLineNumberingZip.file("word/document.xml", implicitLineNumberingXml.replace(sourceLineNumberingTags[0], "<w:lnNumType/>"));
+  await fs.writeFile(implicitLineNumberingSourcePath, await implicitLineNumberingZip.generateAsync({ type: "nodebuffer" }), { flag: "wx" });
+  const implicitLineNumberingOutputPath = path.join(outputDir, "source-bound-section-line-numbering-implicit-edited.docx");
+  const implicitLineNumberingAuditPath = path.join(outputDir, "source-bound-section-line-numbering-implicit-edited-audit.json");
+  const implicitLineNumbering = await editImportedSectionLineNumbering({
+    inputPath: implicitLineNumberingSourcePath,
+    outputPath: implicitLineNumberingOutputPath,
+    auditPath: implicitLineNumberingAuditPath,
+    sectionBlockIndex: 1,
+    expectedLineNumbering: { countBy: 1 },
+    replacementLineNumbering: { countBy: 4, restart: "continuous" },
+  });
+  assert.deepEqual(implicitLineNumbering.audit.validation.reimport.lineNumbering, { countBy: 4, restart: "continuous" });
+  const nonCanonicalLineNumberingSourcePath = path.join(outputDir, "source-bound-section-line-numbering-noncanonical-source.docx");
+  const nonCanonicalLineNumberingZip = await JSZip.loadAsync(lineNumberingSourceBytes);
+  const nonCanonicalLineNumberingXml = await nonCanonicalLineNumberingZip.file("word/document.xml").async("text");
+  nonCanonicalLineNumberingZip.file("word/document.xml", nonCanonicalLineNumberingXml.replace(/w:countBy="5"/, 'w:countBy="05"'));
+  await fs.writeFile(nonCanonicalLineNumberingSourcePath, await nonCanonicalLineNumberingZip.generateAsync({ type: "nodebuffer" }), { flag: "wx" });
+  await assert.rejects(
+    () => editImportedSectionLineNumbering({
+      inputPath: nonCanonicalLineNumberingSourcePath,
+      outputPath: path.join(outputDir, "source-bound-section-line-numbering-noncanonical.docx"),
+      auditPath: path.join(outputDir, "source-bound-section-line-numbering-noncanonical-audit.json"),
+      sectionBlockIndex: 1,
+      expectedLineNumbering: sourceLineNumbering,
+      replacementLineNumbering,
+    }),
+    /canonical unsigned integer/,
+  );
+  assert.deepEqual(await fs.readFile(lineNumberingSourcePath), lineNumberingSourceBytes);
+
   await assert.rejects(
     () => editImportedSectionMargins({
       inputPath: marginWorkflowSourcePath,

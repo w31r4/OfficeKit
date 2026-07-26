@@ -139,6 +139,41 @@ clean-install `npm run test:pack`, `npm run proto:check`, deterministic
 the reviewed 25,425,000-byte unpacked-size gate. No npm publication, tag, or
 GitHub release operation was attempted.
 
+## 0.3.0 DOCX source-bound section line-numbering transaction
+
+The Documents Skill now ships
+`officekit-section-line-numbering-edit-workflow.mjs` for one exact imported
+canonical Word section. The task supplies its inspected block index plus the
+complete normalized source/replacement line-numbering profile: explicit
+`countBy`, with optional zero-based `start`, twip `distance`, and restart mode.
+A raw omitted `w:countBy` is interpreted as Word's default `1`, but the task
+still states that semantic default explicitly. This avoids treating an
+unbounded XML patch as a document-edit operation.
+
+Before publication the workflow binds the semantic section identity and one raw
+canonical `w:lnNumType` leaf. It keeps the input immutable, creates distinct
+output and audit files without overwrite, permits only `word/document.xml` to
+change, masks only that leaf in a namespace-tolerant residual check, reimports
+the full section projection, verifies the model render, and records
+source/output hashes plus the OfficeKit provider version. It does not create or
+remove line numbering, modify `suppressLineNumbers`, or claim to calculate the
+visible line-number display. Duplicate, child/extension-bearing, non-Word,
+noncanonical-numeric, stale, absent, no-op, or package-drift inputs fail before
+an output is published. A native Word or LibreOffice plus Poppler render is
+still required for final visible display review.
+
+### Line-numbering transaction integration evidence
+
+On 2026-07-26, the integrated candidate passed `npm test`, generated API
+documentation with no diff, `npm run proto:check`, deterministic
+`npm run verify:office-kit-build`, clean-install `npm run test:pack`,
+OfficeBridge `5/5`, OfficeKit Codec `375/375`, and the offline release-metadata
+check. The candidate tarball has 526 files, 9,448,416 compressed bytes, and
+25,454,465 unpacked bytes (`SHA-1
+70e56dd1161992c17afe906d4731de12ac4bfc4a`), leaving 15,535 bytes below the
+reviewed 25,470,000-byte unpacked-size gate. No npm publication, tag, or
+GitHub release operation was attempted.
+
 ## 0.3.0 DOCX source-bound note-paragraph transaction
 
 The Documents Skill now ships

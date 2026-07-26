@@ -245,6 +245,7 @@ assert.ok(documentsManifest.includes("examples/officekit-classic-comment-edit-wo
 assert.ok(documentsManifest.includes("examples/officekit-section-page-numbering-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-section-margin-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-section-page-geometry-edit-workflow.mjs"));
+assert.ok(documentsManifest.includes("examples/officekit-section-line-numbering-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-note-text-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/end_to_end_smoke_test.md"));
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "end_to_end_smoke_test.md")));
@@ -256,6 +257,8 @@ assert.match(documentsSkillText, /officekit-section-margin-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-section-margin-edit-workflow.mjs")));
 assert.match(documentsSkillText, /officekit-section-page-geometry-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-section-page-geometry-edit-workflow.mjs")));
+assert.match(documentsSkillText, /officekit-section-line-numbering-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-section-line-numbering-edit-workflow.mjs")));
 assert.match(documentsSkillText, /officekit-note-text-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-note-text-edit-workflow.mjs")));
 

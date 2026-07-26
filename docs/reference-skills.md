@@ -138,6 +138,7 @@ paragraph reports the same sequence but is intentionally not editable; exact
 no-op export preserves it rather than rebuilding its field graph.
 
 | Document source-bound page geometry | done | `officekit-section-page-geometry-edit-workflow.mjs` edits one imported canonical Word section only when its block index and complete `{ orientation, pageSize }` source value match. It treats `w:pgSz` as an atomic leaf, permits only `word/document.xml`, checks the raw residual/package scope, reimports the full section projection, verifies/model-renders, protects the source, and writes a no-overwrite audit. It does not rescale surrounding content; paper-code, extension, duplicate/non-Word, stale, partial, or noncanonical geometry fails closed before publication. |
+| Document source-bound line numbering | done | `officekit-section-line-numbering-edit-workflow.mjs` edits one imported canonical Word section only when its block index and complete normalized `lineNumbering` source value match. It permits only `word/document.xml`, masks only the selected `w:lnNumType` for residual/package checks, reimports the full section projection, verifies/model-renders, protects the source, and writes a no-overwrite audit. It never adds/removes numbering, changes paragraph suppression, or claims to calculate displayed line numbers; duplicate, child/extension-bearing, unknown/non-Word, noncanonical-numeric, stale, or opaque leaves fail closed before publication. |
 
 ## Compatibility discipline
 
