@@ -306,6 +306,42 @@ check. The candidate tarball has 530 files, 9,461,177 compressed bytes, and
 reviewed 25,565,000-byte unpacked-size gate. No npm publication, tag, or
 GitHub release operation was attempted.
 
+## 0.3.0 DOCX source-bound image alternative-text transaction
+
+The Documents Skill now ships
+`officekit-image-alt-text-edit-workflow.mjs` for one exact imported canonical
+body inline or foreground floating image. The task supplies its inspected image
+block index, the complete current alternative text, and a nonempty replacement.
+It changes both native description leaves, `wp:docPr/@descr` and
+`pic:cNvPr/@descr`, together rather than attempting a broad image rewrite.
+
+Before publication the workflow binds the full imported image projection and
+the paired raw description values. It keeps the source immutable, creates
+distinct output and audit paths without overwrite, permits only
+`word/document.xml`, masks exactly the paired description leaves in a
+namespace-tolerant residual comparison, reimports the full image projection,
+verifies the model render, and records source/output hashes plus the OfficeKit
+provider version. Image bytes, title/name, dimensions, placement/wrapping,
+relationship topology, and non-document package parts remain fixed. Missing,
+disagreeing, duplicate, stale/no-op, external, effect-bearing, table/textbox,
+or otherwise irregular drawing sources fail before an output is published.
+Native Word or LibreOffice plus Poppler remains required for final visual and
+accessibility review.
+
+### Image alternative-text transaction integration evidence
+
+On 2026-07-26, the integrated candidate passed `npm test`, generated API
+documentation with no diff, `npm run proto:check`, deterministic
+`npm run verify:office-kit-build`, clean-install `npm run test:pack`,
+OfficeBridge `5/5`, OfficeKit Codec `375/375`, and the offline release-metadata
+check. The canonical floating workflow performed native LibreOffice/Poppler
+pixel comparison locally, while the smoke also exercises its inline CLI route.
+The candidate tarball has 531
+files, 9,471,995 compressed bytes, and 25,582,447 unpacked bytes (`SHA-1
+e95b197c5514e63785d4d382cf2c8975b242b1aa`), leaving 22,553 bytes below the
+reviewed 25,605,000-byte unpacked-size gate. No npm publication, tag, or
+GitHub release operation was attempted.
+
 ## 0.3.0 DOCX source-bound note-paragraph transaction
 
 The Documents Skill now ships

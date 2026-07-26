@@ -59,6 +59,36 @@ semantic model; preserve them unchanged or fail closed.
 The model SVG is an approximate planning preview. Word/LibreOffice native
 rendering is authoritative for floating placement.
 
+## Change one existing image description with an audit
+
+When a reviewer has identified one recognized body image and supplied the
+intended description, use the narrow public transaction rather than running a
+document-wide metadata patch:
+
+```bash
+node examples/officekit-image-alt-text-edit-workflow.mjs \
+  input.docx reviewed.docx image-alt.audit.json 1 \
+  "Existing architecture overview" \
+  "Architecture overview showing the API gateway and three service lanes"
+```
+
+The fourth argument is the inspected document **block index**. The workflow
+requires the complete prior non-empty alternative text, so a stale locator or a
+second matching-looking picture cannot silently receive the change. It accepts
+only one canonical inline or bounded foreground floating PNG/JPEG image whose
+`wp:docPr/@descr` and `pic:cNvPr/@descr` leaves agree. It keeps image bytes,
+dimensions, placement, paragraph style, relationship graph, all other body
+content, and every non-document part bound; only those two description leaves
+inside `word/document.xml` may change. It also protects the input, refuses
+output/audit overwrites, reimports, verifies/model-renders, and records a
+byte-bound audit.
+
+The operation deliberately does not add a missing description, decide whether
+an image is decorative, alter the image title/name, or change placement/asset
+bytes. Treat those as author-intent or package-review work. Render the source
+and result through Word or LibreOffice plus Poppler and expect a zero-pixel
+visual diff: alternative text improves nonvisual access, not page layout.
+
 ## Audit
 ```bash
 python scripts/images_audit.py /mnt/data/input.docx
