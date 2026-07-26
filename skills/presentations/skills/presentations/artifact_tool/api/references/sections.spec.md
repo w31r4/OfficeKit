@@ -96,6 +96,59 @@ source/output hashes. Static or LibreOffice/Poppler rendering demonstrates only
 visible-slide stability; it is not a claim that the native PowerPoint
 navigation pane was exercised.
 
+## Source-Bound Boundary Transaction
+
+Changing a boundary is more consequential than correcting a name. Do not send
+one section and assume the adjacent section: state both the exact source
+partition you inspected and a complete desired partition. Use the shipped
+transaction rather than individually calling `setSlides(...)` in an Agent
+workflow:
+
+```bash
+node examples/openchestnut-section-boundary-edit-workflow.mjs \
+  input.pptx output.pptx audit.json \
+  @expected-sections.json \
+  @replacement-sections.json
+```
+
+Both JSON arrays contain every section, in source order, with exactly these
+fields:
+
+```json
+[
+  {
+    "id": "section/1",
+    "name": "Context",
+    "nativeId": "{01F07B81-39E6-4BBB-9B89-66EA253FBD29}",
+    "slideIds": ["presentation/slide/1", "presentation/slide/2"]
+  }
+]
+```
+
+`expectedSections` must exactly match the semantic canonical snapshot returned
+by the current source import. `replacementSections` must retain the same count,
+order, section IDs, names, and native GUIDs, but explicitly list a different
+complete membership partition. Its flattened slide IDs must equal the retained
+deck order exactly once: no partial update, empty section, duplicate, omission,
+or slide reorder is accepted. Strings must already be canonical (no leading or
+trailing whitespace; GUIDs are uppercase brace form). Use the separate name
+transaction for a label change; this workflow deliberately rejects one.
+
+The CLI accepts either inline JSON or a local `@path/to/partition.json` argument.
+The latter is preferred for a large deck and is bounded to 32 MiB before parse.
+
+The transaction requires at least two canonical imported sections, preserves
+the source and publishes output/audit paths without overwrite, and permits only
+`ppt/presentation.xml` to differ. It reimports the exact fixed-identity target
+partition, proves every non-section semantic and static slide SVG remains
+stable, runs `presentation.verify({ visualQa: true })`, and records the full
+expected/replacement partition plus changed boundaries in a byte-bound audit.
+Opaque/section-free input, a stale source snapshot, topology/identity/name/GUID
+change, incomplete partition, no-op request, or slide topology work fails
+closed. As with a name edit, static or LibreOffice/Poppler page rendering proves
+visible-slide stability only; it does not exercise the PowerPoint navigation
+pane.
+
 ## Verify And Export
 
 Run `presentation.verify()` before export, then re-import the output and
