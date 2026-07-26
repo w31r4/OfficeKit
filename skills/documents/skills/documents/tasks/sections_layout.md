@@ -134,6 +134,41 @@ for final QA. Chapter style/separator attributes, unsupported number formats,
 duplicate leaves, extensions, and empty `w:pgNumType` markup remain
 source-owned and make the section read-only.
 
+### Change one imported section safely
+
+When the user asks for a tightly bounded page-numbering correction in an
+existing DOCX, inspect the document first and record the section **block
+index** plus the complete current value. Do not select by a guessed page number
+or by text near the section break.
+
+For the canonical profile, use the shipped transaction rather than XML patching:
+
+```bash
+node examples/officekit-section-page-numbering-edit-workflow.mjs \
+  input.docx output.docx audit.json \
+  1 '{"start":1,"format":"lowerRoman"}' \
+  '{"start":1,"format":"decimal"}'
+```
+
+The workflow requires all of the following before it writes anything:
+
+- the selected imported block is a section, `editable`, and still resolves by
+  its inspected identity;
+- its complete `pageNumbering` object exactly matches the supplied source
+  value;
+- the corresponding raw native `w:pgNumType` is one canonical leaf; and
+- `input.docx`, output, and audit paths are distinct and the output paths do
+  not already exist.
+
+It exports through `DocumentFile`, permits only `word/document.xml` to change,
+normalizes namespace-declaration placement and attribute order solely for the
+residual comparison, then proves that every other XML name, attribute value,
+text node, element order, section, relationship, and package part stayed
+unchanged. It reimports, verifies, creates a model SVG, and writes a byte-bound
+audit. Use LibreOffice/Word plus Poppler for the final PAGE-field visual review.
+The workflow changes metadata only: it does not insert a PAGE field or claim to
+refresh a cached field display.
+
 ## Render review
 
 - Only the intended pages change orientation.

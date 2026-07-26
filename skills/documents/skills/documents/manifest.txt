@@ -41,6 +41,7 @@ examples/officekit-classic-comment-edit-workflow.mjs
 examples/officekit-page-furniture-text-edit.mjs
 examples/officekit-header-text-edit-workflow.mjs
 examples/officekit-footer-text-edit-workflow.mjs
+examples/officekit-section-page-numbering-edit-workflow.mjs
 examples/officekit-modern-comment-thread-workflow.mjs
 examples/officekit-tracked-replacement-workflow.mjs
 examples/officekit-revision-finalization-workflow.mjs

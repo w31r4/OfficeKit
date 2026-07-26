@@ -11,6 +11,7 @@ import {
   DOCX_CLASSIC_COMMENT_FIXTURE,
   DOCX_FOOTER_TEXT_FIXTURE,
   DOCX_HEADER_TEXT_FIXTURE,
+  DOCX_SECTION_PAGE_NUMBERING_FIXTURE,
   PPTX_CLOSED_LEAF_CLONE_FIXTURE,
   PPTX_RICH_NOTES_FIXTURE,
   PPTX_SECTION_BOUNDARY_FIXTURE,
@@ -26,9 +27,11 @@ import {
   gradeDocxClassicCommentEvidence,
   gradeDocxFooterTextEvidence,
   gradeDocxHeaderTextEvidence,
+  gradeDocxSectionPageNumberingEvidence,
   inspectClassicCommentDocx,
   inspectFooterTextDocx,
   inspectHeaderTextDocx,
+  inspectSectionPageNumberingDocx,
 } from "../scripts/agent-eval-docx-graders.mjs";
 import { gradeOfficeCase } from "../scripts/agent-eval-office-graders.mjs";
 import {
@@ -55,6 +58,7 @@ import { duplicatePptxSlide } from "../skills/presentations/skills/presentations
 import { replacePptxSectionPartition } from "../skills/presentations/skills/presentations/examples/officekit-section-boundary-edit-workflow.mjs";
 import { editImportedHeaderText } from "../skills/documents/skills/documents/examples/officekit-header-text-edit-workflow.mjs";
 import { editImportedFooterText } from "../skills/documents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs";
+import { editImportedSectionPageNumbering } from "../skills/documents/skills/documents/examples/officekit-section-page-numbering-edit-workflow.mjs";
 import { hardenXlsxConnectionRefreshOnOpen } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs";
 import { hardenXlsxPivotRefreshOnLoad } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs";
 import {
@@ -86,11 +90,11 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 40, pdfCases: 21, ready: 19 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 20 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 8);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
-assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 3);
+assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
 assert.equal(referenceDocumentSkill, path.join(repoRoot, "reference", "office-artifact-tool", "skills", "documents", "skills", "documents"));
@@ -757,6 +761,129 @@ try {
   }
 } finally {
   await fs.rm(footerTextRoot, { recursive: true, force: true });
+}
+
+const sectionPageNumberingItem = cases.find((item) => item.id === "docx-section-page-numbering-edit");
+assert.ok(sectionPageNumberingItem);
+const sectionPageNumberingRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-docx-page-numbering-"));
+try {
+  const fixture = DOCX_SECTION_PAGE_NUMBERING_FIXTURE;
+  const sectionPageNumberingInput = path.join(sectionPageNumberingRoot, "inputs", fixture.documentName);
+  const sectionPageNumberingOutput = path.join(sectionPageNumberingRoot, "outputs", "front-matter-page-numbering-reviewed.docx");
+  const sectionPageNumberingAuditPath = path.join(sectionPageNumberingRoot, "outputs", "audit.json");
+  await generateOfficeInput("docx-section-page-numbering-review", sectionPageNumberingInput);
+  const sectionPageNumberingSourceBytes = await fs.readFile(sectionPageNumberingInput);
+  const sectionPageNumberingResult = await editImportedSectionPageNumbering({
+    inputPath: sectionPageNumberingInput,
+    outputPath: sectionPageNumberingOutput,
+    auditPath: sectionPageNumberingAuditPath,
+    sectionBlockIndex: fixture.target.blockIndex,
+    expectedPageNumbering: fixture.target.originalPageNumbering,
+    replacementPageNumbering: fixture.target.replacementPageNumbering,
+  });
+  assert.deepEqual(await fs.readFile(sectionPageNumberingInput), sectionPageNumberingSourceBytes);
+  assert.deepEqual(sectionPageNumberingResult.audit.validation.changedParts, ["word/document.xml"]);
+  await assert.rejects(
+    () => editImportedSectionPageNumbering({
+      inputPath: sectionPageNumberingInput,
+      outputPath: path.join(sectionPageNumberingRoot, "outputs", "wrong-source-value.docx"),
+      auditPath: path.join(sectionPageNumberingRoot, "outputs", "wrong-source-value-audit.json"),
+      sectionBlockIndex: fixture.target.blockIndex,
+      expectedPageNumbering: { start: 1, format: "upperRoman" },
+      replacementPageNumbering: fixture.target.replacementPageNumbering,
+    }),
+    /does not match the expected source value/i,
+  );
+  const sectionPageNumberingAudit = JSON.parse(await fs.readFile(sectionPageNumberingAuditPath, "utf8"));
+  const sectionPageNumberingEvidence = {
+    source: await inspectSectionPageNumberingDocx(sectionPageNumberingInput),
+    output: await inspectSectionPageNumberingDocx(sectionPageNumberingOutput),
+    visual: {
+      source: {
+        available: true,
+        ok: true,
+        pageCount: 3,
+        pages: [
+          { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "page-numbering-source-target" },
+          { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "page-numbering-stable-1" },
+          { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "page-numbering-stable-2" },
+        ],
+      },
+      output: {
+        available: true,
+        ok: true,
+        pageCount: 3,
+        pages: [
+          { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "page-numbering-output-target" },
+          { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "page-numbering-stable-1" },
+          { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "page-numbering-stable-2" },
+        ],
+      },
+    },
+  };
+  const sectionPageNumberingTrace = JSON.stringify({
+    type: "item.completed",
+    item: {
+      type: "command_execution",
+      id: "docx-section-page-numbering",
+      command: "node .agents/skills/documents/examples/officekit-section-page-numbering-edit-workflow.mjs inputs/front-matter-page-numbering.docx outputs/front-matter-page-numbering-reviewed.docx outputs/audit.json 1 '{\"start\":1,\"format\":\"lowerRoman\"}' '{\"start\":1,\"format\":\"decimal\"}'",
+    },
+  });
+  const sectionPageNumberingChecks = gradeDocxSectionPageNumberingEvidence({
+    evidence: sectionPageNumberingEvidence,
+    audit: sectionPageNumberingAudit,
+    commands: extractCompletedCommands(sectionPageNumberingTrace),
+    item: sectionPageNumberingItem,
+  });
+  assert.equal(sectionPageNumberingChecks.every((check) => check.passed), true);
+  const publishedSectionPageNumberingWorkflowChecks = gradeDocxSectionPageNumberingEvidence({
+    evidence: sectionPageNumberingEvidence,
+    audit: sectionPageNumberingAudit,
+    commands: ["node .agents/skills/documents/examples/officekit-section-page-numbering-edit-workflow.mjs inputs/front-matter-page-numbering.docx outputs/front-matter-page-numbering-reviewed.docx outputs/audit.json"],
+    item: sectionPageNumberingItem,
+  });
+  assert.equal(publishedSectionPageNumberingWorkflowChecks.find((check) => check.id === "docx-page-numbering-trace:typed-roundtrip")?.passed, true);
+  const untrustedSectionPageNumberingWorkflowChecks = gradeDocxSectionPageNumberingEvidence({
+    evidence: sectionPageNumberingEvidence,
+    audit: sectionPageNumberingAudit,
+    commands: ["node scratch/patch-pg-num-type.mjs inputs/front-matter-page-numbering.docx outputs/front-matter-page-numbering-reviewed.docx"],
+    item: sectionPageNumberingItem,
+  });
+  assert.equal(untrustedSectionPageNumberingWorkflowChecks.find((check) => check.id === "docx-page-numbering-trace:typed-roundtrip")?.passed, false);
+  const packageDriftEvidence = structuredClone(sectionPageNumberingEvidence);
+  packageDriftEvidence.output.partHashes["word/footer1.xml"] = "unexpected-footer-drift";
+  const packageDriftChecks = gradeDocxSectionPageNumberingEvidence({
+    evidence: packageDriftEvidence,
+    audit: sectionPageNumberingAudit,
+    commands: extractCompletedCommands(sectionPageNumberingTrace),
+    item: sectionPageNumberingItem,
+  });
+  assert.equal(packageDriftChecks.find((check) => check.id === "docx-page-numbering-security:only-document-part-changed")?.passed, false);
+  assert.equal(packageDriftChecks.find((check) => check.id === "docx-page-numbering-security:sibling-sections-footers-and-inventory-preserved")?.passed, false);
+  const residualDriftEvidence = structuredClone(sectionPageNumberingEvidence);
+  residualDriftEvidence.output.documentXml = residualDriftEvidence.output.documentXml.replace('w:fmt="upperLetter"', 'w:fmt="lowerLetter"');
+  const residualDriftChecks = gradeDocxSectionPageNumberingEvidence({
+    evidence: residualDriftEvidence,
+    audit: sectionPageNumberingAudit,
+    commands: extractCompletedCommands(sectionPageNumberingTrace),
+    item: sectionPageNumberingItem,
+  });
+  assert.equal(residualDriftChecks.find((check) => check.id === "docx-page-numbering-machine:document-xml-residual-stable")?.passed, false);
+  const nativeSectionPageNumberingResult = await gradeOfficeCase({
+    item: sectionPageNumberingItem,
+    workspace: sectionPageNumberingRoot,
+    evaluator: path.join(sectionPageNumberingRoot, "evaluator"),
+    finalMessage: "completed",
+    trace: sectionPageNumberingTrace,
+  });
+  if (nativeSectionPageNumberingResult.graded) {
+    assert.equal(nativeSectionPageNumberingResult.rawScorePercent, 100);
+    assert.equal(nativeSectionPageNumberingResult.caseSpecificPassed, true);
+  } else {
+    assert.ok(nativeSectionPageNumberingResult.infrastructureErrors?.length);
+  }
+} finally {
+  await fs.rm(sectionPageNumberingRoot, { recursive: true, force: true });
 }
 
 const richNotesItem = cases.find((item) => item.id === "pptx-title-and-notes-edit");

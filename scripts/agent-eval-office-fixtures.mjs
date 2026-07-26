@@ -151,6 +151,34 @@ export const DOCX_FOOTER_TEXT_FIXTURE = Object.freeze({
   }),
 });
 
+// The first modeled section owns a lower-Roman PAGE field presentation. The
+// ready transaction may change only that canonical w:pgNumType leaf to decimal;
+// a second modeled section and the terminal section, plus all three FooterParts,
+// are independent raw-OPC and native-render canaries.
+export const DOCX_SECTION_PAGE_NUMBERING_FIXTURE = Object.freeze({
+  documentName: "front-matter-page-numbering.docx",
+  title: "Board packet — section page numbering",
+  body: Object.freeze([
+    "Front-matter cover canary: only its page-number display format may change.",
+    "Roman-section canary: retain this section's native numbering metadata.",
+    "Body-section canary: retain decimal numbering and all page furniture.",
+  ]),
+  target: Object.freeze({
+    blockIndex: 1,
+    sectionOrdinal: 0,
+    originalPageNumbering: Object.freeze({ start: 1, format: "lowerRoman" }),
+    replacementPageNumbering: Object.freeze({ start: 1, format: "decimal" }),
+  }),
+  sibling: Object.freeze({
+    blockIndex: 3,
+    sectionOrdinal: 1,
+    pageNumbering: Object.freeze({ start: 1, format: "upperLetter" }),
+  }),
+  nativeSectionCount: 3,
+  footerSectionCount: 3,
+  footer: Object.freeze({ text: "1", fieldInstruction: "PAGE" }),
+});
+
 export const PPTX_TITLE_NOTES_FIXTURE = Object.freeze({
   presentationName: "launch-review.pptx",
   targetSlideName: "Go-no-go decision",
@@ -633,6 +661,50 @@ export async function generateDocxFooterTextReview(target) {
   return { path: target, type: DOCX_MIME };
 }
 
+export async function generateDocxSectionPageNumberingReview(target) {
+  const fixture = DOCX_SECTION_PAGE_NUMBERING_FIXTURE;
+  const document = DocumentModel.create({
+    name: fixture.title,
+    defaultRunStyle: { fontFamily: "Aptos", fontSize: 11, color: "#172033" },
+    blocks: [],
+  });
+  document.addParagraph(fixture.title, {
+    paragraphFormat: { spaceAfterTwips: 160 },
+    runs: [{ text: fixture.title, style: { bold: true, fontSize: 16, color: "#123B5D" } }],
+  });
+  document.addSection({ breakType: "nextPage", pageNumbering: fixture.target.originalPageNumbering });
+  document.addParagraph(fixture.body[0], { paragraphFormat: { spaceAfterTwips: 120 } });
+  document.addSection({ breakType: "nextPage", pageNumbering: fixture.sibling.pageNumbering });
+  document.addParagraph(fixture.body[1], { paragraphFormat: { spaceAfterTwips: 120 } });
+  document.addParagraph(fixture.body[2], { paragraphFormat: { spaceAfterTwips: 120 } });
+  for (let sectionIndex = 0; sectionIndex < fixture.footerSectionCount; sectionIndex += 1) {
+    document.addFooter(fixture.footer.text, {
+      id: `footer/page-${sectionIndex}`,
+      sectionIndex,
+      referenceType: "default",
+      fieldInstruction: fixture.footer.fieldInstruction,
+    });
+  }
+  const verification = document.verify({ visualQa: true });
+  if (!verification.ok) throw new Error("Generated DOCX section page-numbering fixture failed model verification: " + verification.ndjson);
+  const exported = await DocumentFile.exportDocx(document);
+  const bytes = new Uint8Array(await exported.arrayBuffer());
+  const imported = await DocumentFile.importDocx(bytes);
+  const targetSection = imported.blocks[fixture.target.blockIndex];
+  const siblingSection = imported.blocks[fixture.sibling.blockIndex];
+  if (targetSection?.kind !== "section" || !targetSection.editable
+    || JSON.stringify(targetSection.pageNumbering) !== JSON.stringify(fixture.target.originalPageNumbering)) {
+    throw new Error("Generated DOCX page-numbering fixture did not reimport its canonical target section.");
+  }
+  if (siblingSection?.kind !== "section" || !siblingSection.editable
+    || JSON.stringify(siblingSection.pageNumbering) !== JSON.stringify(fixture.sibling.pageNumbering)) {
+    throw new Error("Generated DOCX page-numbering fixture did not reimport its canonical sibling section.");
+  }
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, bytes);
+  return { path: target, type: DOCX_MIME };
+}
+
 export async function generatePptxTitleNotesReview(target) {
   const fixture = PPTX_TITLE_NOTES_FIXTURE;
   const presentation = Presentation.create({ slideSize: { width: 1280, height: 720 } });
@@ -892,6 +964,7 @@ export async function generateOfficeInput(generator, target) {
   if (generator === "docx-classic-comment-review") return generateDocxClassicCommentReview(target);
   if (generator === "docx-header-text-review") return generateDocxHeaderTextReview(target);
   if (generator === "docx-footer-text-review") return generateDocxFooterTextReview(target);
+  if (generator === "docx-section-page-numbering-review") return generateDocxSectionPageNumberingReview(target);
   if (generator === "pptx-title-notes-review") return generatePptxTitleNotesReview(target);
   if (generator === "pptx-rich-notes-review") return generatePptxRichNotesReview(target);
   if (generator === "pptx-slide-name-review") return generatePptxSlideNameReview(target);
