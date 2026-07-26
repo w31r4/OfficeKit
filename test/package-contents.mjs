@@ -61,13 +61,13 @@ const maxPackedBytes = 9_840_000;
 // parser, SUMPRODUCT range-mask profile, source-bound DOCX header/footer and
 // source-free structured page-furniture fields and source-bound PPTX
 // view-properties mutation,
-// the compact OfficeKit routing Skill,
+// the compact OfficeKit routing Skill plus its local BM25F template retrieval,
 // XLSX connection-refresh and imported-Pivot refresh-on-load transactions,
 // formula-input syntax guard, and source-bound embedded-DOCX OLE package
 // replacement, plus the canonical DOCX 1-through-16-paragraph note body, add
 // protobuf, audited WASM, public Help, and native guidance;
 // retain measured headroom instead of hiding that product surface.
-const maxUnpackedBytes = 25_300_000;
+const maxUnpackedBytes = 25_325_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from

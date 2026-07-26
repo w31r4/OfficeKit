@@ -362,6 +362,7 @@ try {
         "--kind", "spreadsheet",
         "--root", path.join(templateHome, "skills"),
         "--id", template.skillName,
+        "--purpose", "clean installed package fixture",
       ],
       {
         cwd: process.cwd(),
@@ -374,10 +375,13 @@ try {
     }
     const catalogResult = JSON.parse(queried.stdout);
     if (
+      catalogResult.schemaVersion !== 2 ||
       catalogResult.selectionMade !== false ||
+      catalogResult.ranking?.algorithm !== "bm25f" ||
       catalogResult.invalid.length !== 0 ||
       catalogResult.candidates.length !== 1 ||
       catalogResult.candidates[0].id !== template.skillName ||
+      !(catalogResult.candidates[0].match?.bm25 > 0) ||
       catalogResult.candidates[0].editProfile?.level !== "copy-only" ||
       catalogResult.candidates[0].skillPath !==
         path.join(template.skillPath, "SKILL.md") ||

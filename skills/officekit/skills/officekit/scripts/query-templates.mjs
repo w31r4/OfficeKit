@@ -17,6 +17,11 @@ const MAX_SIDECAR_BYTES = 128 * 1024;
 const MAX_SKILL_BYTES = 256 * 1024;
 const DEFAULT_MAX_CANDIDATES = 5;
 const MAX_CANDIDATES = 20;
+const MAX_INTENT_VALUES = 20;
+const MIN_FIELD_MATCH = 0.45;
+const AVOID_CONFLICT_MATCH = 0.72;
+const BM25_K1 = 1.2;
+const BM25_B = 0.75;
 const VALID_KINDS = new Set(["document", "presentation", "spreadsheet"]);
 const REFERENCE_EXTENSIONS = new Map([
   ["document", ".docx"],
@@ -27,14 +32,29 @@ const VALID_DENSITIES = new Set(["sparse", "medium", "dense", "mixed"]);
 const VALID_COLOR_MODES = new Set(["light", "dark", "neutral", "mixed"]);
 const VALID_COMMITMENTS = new Set(["neutral", "opinionated"]);
 const VALID_EDIT_LEVELS = new Set(["copy-only", "bounded-edit", "composable"]);
+const BM25_FIELD_WEIGHTS = Object.freeze({
+  identity: 1.5,
+  useWhen: 4,
+  audiences: 2,
+  contentShapes: 2,
+  tone: 1.25,
+  structure: 1,
+  density: 0.75,
+  colorMode: 0.75,
+});
 const USAGE = [
   "Usage: query-templates.mjs --kind <document|spreadsheet|presentation>",
-  "  [--tag <tag>]... [--id <artifact-template-id>]",
+  "  [--purpose <phrase>]... [--audience <phrase>]...",
+  "  [--content-shape <phrase>]... [--tone <phrase>]...",
+  "  [--structure <phrase>]... [--density <value>] [--color-mode <value>]",
+  "  [--operation <verified-operation>]... [--brand-sensitive]",
+  "  [--tag <legacy-tag>]... [--id <artifact-template-id>]",
   "  [--root <absolute-template-root>]... [--max <1-20>]",
 ].join("\n");
 
 export async function queryTemplates({
   kind,
+  intent = null,
   tags = [],
   id = null,
   roots = null,
@@ -43,12 +63,15 @@ export async function queryTemplates({
   assertKind(kind);
   assertTemplateId(id, "--id", true);
   const normalizedTags = normalizeQueryTags(tags);
+  const normalizedIntent = normalizeIntent(intent);
   if (!Number.isSafeInteger(maxCandidates) || maxCandidates < 1 || maxCandidates > MAX_CANDIDATES) {
     throw new Error(`maxCandidates must be an integer from 1 to ${MAX_CANDIDATES}.`);
   }
 
   const rootEntries = await resolveRoots(roots);
+  const discoveredCandidates = [];
   const candidates = [];
+  const rejected = [];
   const invalid = [];
   const seenTemplatePaths = new Set();
   const claimedTemplateIds = new Set();
@@ -71,8 +94,7 @@ export async function queryTemplates({
         });
         if (candidate.kind !== kind) continue;
         if (id != null && candidate.id !== id) continue;
-        candidate.matchedTags = matchedTags(candidate, normalizedTags);
-        candidates.push(candidate);
+        discoveredCandidates.push(candidate);
       } catch (error) {
         invalid.push({
           id: entry.name,
@@ -89,28 +111,83 @@ export async function queryTemplates({
     if (invalidRequested != null) {
       throw new Error(`Requested template ${id} is invalid: ${invalidRequested.error}`);
     }
-    if (candidates.length === 0) {
+    if (discoveredCandidates.length === 0) {
       throw new Error(`Requested template ${id} was not found for kind ${kind}.`);
     }
   }
 
+  const bm25 = createBm25Context(
+    discoveredCandidates,
+    normalizedIntent,
+    normalizedTags,
+  );
+  const assessments = discoveredCandidates.map((candidate) => ({
+    candidate,
+    assessment: assessCandidate(
+      candidate,
+      normalizedIntent,
+      normalizedTags,
+      bm25,
+    ),
+  }));
+  const maximumBm25 = Math.max(
+    0,
+    ...assessments.map(({ assessment }) => assessment.match.bm25),
+  );
+  for (const { candidate, assessment } of assessments) {
+    assessment.match.score =
+      maximumBm25 === 0
+        ? 0
+        : roundScore((assessment.match.bm25 / maximumBm25) * 100);
+    candidate.matchedTags = assessment.matchedTags;
+    candidate.match = assessment.match;
+    candidate.reviewFlags = assessment.reviewFlags;
+    if (id == null && assessment.rejectionReasons.length > 0) {
+      rejected.push({
+        id: candidate.id,
+        displayName: candidate.displayName,
+        score: assessment.match.score,
+        bm25: assessment.match.bm25,
+        reasons: assessment.rejectionReasons,
+        conflicts: assessment.match.conflicts,
+        missingOperations: assessment.match.missingOperations,
+      });
+    } else {
+      candidates.push(candidate);
+    }
+  }
+
+  rejected.sort((left, right) =>
+    right.score - left.score ||
+    left.id.localeCompare(right.id)
+  );
   candidates.sort((left, right) =>
+    right.match.score - left.match.score ||
     right.matchedTags.length - left.matchedTags.length ||
     left.id.localeCompare(right.id) ||
     left.templateRoot.localeCompare(right.templateRoot)
   );
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     kind,
     requestedId: id,
+    queryIntent: normalizedIntent,
     queryTags: normalizedTags,
+    ranking: {
+      algorithm: "bm25f",
+      k1: BM25_K1,
+      b: BM25_B,
+      queryTerms: bm25.queryTerms,
+    },
     searchedRoots: rootEntries.map((entry) => ({
       path: entry.path,
       source: entry.source,
     })),
     candidates: candidates.slice(0, id == null ? maxCandidates : 1),
+    rejected,
     invalid,
+    retrievalStatus: candidates.length === 0 ? "none" : "candidates",
     selectionMade: false,
   };
 }
@@ -357,20 +434,359 @@ async function resolveTemplateSkill(templatePath) {
   return canonicalSkillPath;
 }
 
-function matchedTags(candidate, tags) {
-  if (tags.length === 0) return [];
-  const searchable = [
-    candidate.id,
-    candidate.displayName,
-    ...candidate.useWhen,
-    ...candidate.audiences,
-    ...candidate.contentShapes,
-    ...candidate.visualTraits.tone,
-    candidate.visualTraits.density,
-    candidate.visualTraits.colorMode,
-    ...candidate.visualTraits.structure,
-  ].map(normalizeTag);
-  return tags.filter((tag) => searchable.some((value) => value === tag || value.includes(tag)));
+function createBm25Context(candidates, intent, tags) {
+  const queryTerms = tokenizeValues([
+    ...intent.purposes,
+    ...intent.audiences,
+    ...intent.contentShapes,
+    ...intent.visualTraits.tone,
+    ...(intent.visualTraits.density == null ? [] : [intent.visualTraits.density]),
+    ...(intent.visualTraits.colorMode == null ? [] : [intent.visualTraits.colorMode]),
+    ...intent.visualTraits.structure,
+    ...tags,
+  ]);
+  const uniqueQueryTerms = [...new Set(queryTerms)];
+  const documents = new Map(
+    candidates.map((candidate) => [candidate.id, candidateSearchFields(candidate)]),
+  );
+  const averageFieldLengths = {};
+  for (const field of Object.keys(BM25_FIELD_WEIGHTS)) {
+    const total = [...documents.values()].reduce(
+      (sum, document) => sum + document[field].length,
+      0,
+    );
+    averageFieldLengths[field] =
+      candidates.length === 0 ? 1 : Math.max(total / candidates.length, 1);
+  }
+  const inverseDocumentFrequency = new Map();
+  for (const term of uniqueQueryTerms) {
+    let containingDocuments = 0;
+    for (const document of documents.values()) {
+      if (
+        Object.values(document).some((tokens) => tokens.includes(term))
+      ) {
+        containingDocuments += 1;
+      }
+    }
+    const population = Math.max(candidates.length, 1);
+    inverseDocumentFrequency.set(
+      term,
+      Math.log(
+        1 +
+          (population - containingDocuments + 0.5) /
+            (containingDocuments + 0.5),
+      ),
+    );
+  }
+  return {
+    averageFieldLengths,
+    documents,
+    inverseDocumentFrequency,
+    queryTerms: uniqueQueryTerms,
+  };
+}
+
+function candidateSearchFields(candidate) {
+  return {
+    identity: tokenizeValues([candidate.id, candidate.displayName]),
+    useWhen: tokenizeValues(candidate.useWhen),
+    audiences: tokenizeValues(candidate.audiences),
+    contentShapes: tokenizeValues(candidate.contentShapes),
+    tone: tokenizeValues(candidate.visualTraits.tone),
+    structure: tokenizeValues(candidate.visualTraits.structure),
+    density: tokenizeValues([candidate.visualTraits.density]),
+    colorMode: tokenizeValues([candidate.visualTraits.colorMode]),
+  };
+}
+
+function scoreBm25Candidate(candidate, context) {
+  const document = context.documents.get(candidate.id);
+  let raw = 0;
+  const matchedTerms = [];
+  for (const term of context.queryTerms) {
+    let weightedFrequency = 0;
+    const fields = [];
+    for (const [field, weight] of Object.entries(BM25_FIELD_WEIGHTS)) {
+      const tokens = document[field];
+      const frequency = tokens.filter((token) => token === term).length;
+      if (frequency === 0) continue;
+      const lengthNormalization =
+        1 -
+        BM25_B +
+        BM25_B *
+          (tokens.length / context.averageFieldLengths[field]);
+      weightedFrequency += weight * (frequency / lengthNormalization);
+      fields.push(field);
+    }
+    if (weightedFrequency === 0) continue;
+    raw +=
+      context.inverseDocumentFrequency.get(term) *
+      (((BM25_K1 + 1) * weightedFrequency) /
+        (BM25_K1 + weightedFrequency));
+    matchedTerms.push({ term, fields });
+  }
+  return {
+    raw: roundBm25(raw),
+    matchedTerms,
+    queryCoverage:
+      context.queryTerms.length === 0
+        ? 0
+        : roundScore(
+            (matchedTerms.length / context.queryTerms.length) * 100,
+          ),
+  };
+}
+
+function assessCandidate(candidate, intent, tags, bm25) {
+  const matched = [];
+  const explainField = (field, queries, values) => {
+    for (const query of queries) {
+      const best = bestLexicalMatch(query, values);
+      if (best.quality >= MIN_FIELD_MATCH) {
+        matched.push({
+          field,
+          query,
+          value: best.value,
+          quality: roundScore(best.quality * 100),
+        });
+      }
+    }
+  };
+  explainField(
+    "purpose",
+    intent.purposes,
+    [candidate.id, candidate.displayName, ...candidate.useWhen],
+  );
+  explainField("audience", intent.audiences, candidate.audiences);
+  explainField("contentShape", intent.contentShapes, candidate.contentShapes);
+  explainField("tone", intent.visualTraits.tone, candidate.visualTraits.tone);
+  explainField(
+    "structure",
+    intent.visualTraits.structure,
+    candidate.visualTraits.structure,
+  );
+  explainField(
+    "density",
+    intent.visualTraits.density == null ? [] : [intent.visualTraits.density],
+    [candidate.visualTraits.density],
+  );
+  explainField(
+    "colorMode",
+    intent.visualTraits.colorMode == null ? [] : [intent.visualTraits.colorMode],
+    [candidate.visualTraits.colorMode],
+  );
+
+  const positiveFields = Object.values(candidateSearchFields(candidate))
+    .flat();
+  const matchedTags = [];
+  for (const tag of tags) {
+    const best = bestLexicalMatch(tag, positiveFields);
+    if (best.quality >= MIN_FIELD_MATCH) {
+      matchedTags.push(tag);
+      matched.push({
+        field: "legacyTag",
+        query: tag,
+        value: best.value,
+        quality: roundScore(best.quality * 100),
+      });
+    }
+  }
+
+  const conflictSignals = [
+    ...intent.purposes,
+    ...intent.audiences,
+    ...intent.contentShapes,
+    ...tags,
+  ];
+  const conflicts = [];
+  for (const avoid of candidate.avoidWhen) {
+    const best = bestLexicalMatch(avoid, conflictSignals);
+    if (best.quality >= AVOID_CONFLICT_MATCH) {
+      conflicts.push({
+        avoidWhen: avoid,
+        query: best.value,
+        quality: roundScore(best.quality * 100),
+      });
+    }
+  }
+
+  const verifiedOperations = new Set(
+    candidate.editProfile.verifiedOperations.map(normalizeTag),
+  );
+  const missingOperations = intent.requiredOperations.filter(
+    (operation) => !verifiedOperations.has(operation),
+  );
+  const bm25Score = scoreBm25Candidate(candidate, bm25);
+  const reviewFlags = [];
+  if (intent.brandSensitive) reviewFlags.push("brand-sensitive");
+  if (candidate.visualCommitment === "opinionated") reviewFlags.push("opinionated-template");
+  const rejectionReasons = [];
+  if (conflicts.length > 0) rejectionReasons.push("avoid-when-conflict");
+  if (missingOperations.length > 0) rejectionReasons.push("missing-verified-operation");
+  if (bm25.queryTerms.length > 0 && bm25Score.raw === 0) {
+    rejectionReasons.push("insufficient-relevance");
+  }
+
+  return {
+    matchedTags,
+    match: {
+      score: 0,
+      bm25: bm25Score.raw,
+      queryCoverage: bm25Score.queryCoverage,
+      matchedTerms: bm25Score.matchedTerms,
+      matched,
+      conflicts,
+      missingOperations,
+    },
+    reviewFlags,
+    rejectionReasons,
+  };
+}
+
+function bestLexicalMatch(query, values) {
+  let best = { quality: 0, value: null };
+  for (const value of values) {
+    const quality = lexicalSimilarity(query, value);
+    if (quality > best.quality) best = { quality, value };
+  }
+  return best;
+}
+
+function lexicalSimilarity(left, right) {
+  const query = normalizeSearchText(left);
+  const candidate = normalizeSearchText(right);
+  if (query.length === 0 || candidate.length === 0) return 0;
+  if (query === candidate) return 1;
+  const queryTokens = new Set(query.split(" "));
+  const candidateTokens = new Set(candidate.split(" "));
+  let overlap = 0;
+  for (const token of queryTokens) {
+    if (candidateTokens.has(token)) overlap += 1;
+  }
+  if (overlap === 0) return 0;
+  const coverage = overlap / queryTokens.size;
+  const precision = overlap / candidateTokens.size;
+  const tokenScore = 0.7 * coverage + 0.3 * precision;
+  if (candidate.includes(query) || query.includes(candidate)) {
+    const lengthRatio =
+      Math.min(queryTokens.size, candidateTokens.size) /
+      Math.max(queryTokens.size, candidateTokens.size);
+    return Math.max(tokenScore, 0.85 + 0.15 * lengthRatio);
+  }
+  return tokenScore;
+}
+
+function tokenizeValues(values) {
+  return values.flatMap((value) => {
+    const normalized = normalizeSearchText(value);
+    return normalized.length === 0 ? [] : normalized.split(" ");
+  });
+}
+
+function normalizeIntent(intent) {
+  const result = {
+    purposes: [],
+    audiences: [],
+    contentShapes: [],
+    visualTraits: {
+      tone: [],
+      density: null,
+      colorMode: null,
+      structure: [],
+    },
+    requiredOperations: [],
+    brandSensitive: false,
+  };
+  if (intent == null) return result;
+  if (typeof intent !== "object" || Array.isArray(intent)) {
+    throw new Error("intent must be an object.");
+  }
+  assertObjectKeys(
+    intent,
+    "intent",
+    [
+      "purposes",
+      "audiences",
+      "contentShapes",
+      "visualTraits",
+      "requiredOperations",
+      "brandSensitive",
+    ],
+  );
+  result.purposes = normalizeIntentValues(intent.purposes, "intent.purposes");
+  result.audiences = normalizeIntentValues(intent.audiences, "intent.audiences");
+  result.contentShapes = normalizeIntentValues(
+    intent.contentShapes,
+    "intent.contentShapes",
+  );
+  result.requiredOperations = normalizeIntentValues(
+    intent.requiredOperations,
+    "intent.requiredOperations",
+    normalizeTag,
+  );
+  if (intent.visualTraits != null) {
+    if (
+      typeof intent.visualTraits !== "object" ||
+      Array.isArray(intent.visualTraits)
+    ) {
+      throw new Error("intent.visualTraits must be an object.");
+    }
+    assertObjectKeys(
+      intent.visualTraits,
+      "intent.visualTraits",
+      ["tone", "density", "colorMode", "structure"],
+    );
+    result.visualTraits.tone = normalizeIntentValues(
+      intent.visualTraits.tone,
+      "intent.visualTraits.tone",
+    );
+    result.visualTraits.structure = normalizeIntentValues(
+      intent.visualTraits.structure,
+      "intent.visualTraits.structure",
+    );
+    if (intent.visualTraits.density != null) {
+      assertEnum(intent.visualTraits.density, "intent.visualTraits.density", VALID_DENSITIES);
+      result.visualTraits.density = intent.visualTraits.density;
+    }
+    if (intent.visualTraits.colorMode != null) {
+      assertEnum(
+        intent.visualTraits.colorMode,
+        "intent.visualTraits.colorMode",
+        VALID_COLOR_MODES,
+      );
+      result.visualTraits.colorMode = intent.visualTraits.colorMode;
+    }
+  }
+  if (
+    intent.brandSensitive != null &&
+    typeof intent.brandSensitive !== "boolean"
+  ) {
+    throw new Error("intent.brandSensitive must be a boolean.");
+  }
+  result.brandSensitive = intent.brandSensitive ?? false;
+  return result;
+}
+
+function normalizeIntentValues(value, label, normalizer = normalizeSearchText) {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > MAX_INTENT_VALUES) {
+    throw new Error(`${label} must be an array of at most ${MAX_INTENT_VALUES} strings.`);
+  }
+  const normalized = value.map((entry) => {
+    if (
+      typeof entry !== "string" ||
+      entry.trim().length === 0 ||
+      entry.length > 120 ||
+      /[\0\r\n]/u.test(entry)
+    ) {
+      throw new Error(`${label} entries must be one non-empty line of at most 120 characters.`);
+    }
+    return normalizer(entry);
+  });
+  if (normalized.some((entry) => entry.length === 0)) {
+    throw new Error(`${label} entries must contain searchable text.`);
+  }
+  return [...new Set(normalized)];
 }
 
 function normalizeQueryTags(tags) {
@@ -386,11 +802,26 @@ function normalizeQueryTags(tags) {
 }
 
 function normalizeTag(value) {
+  return normalizeSearchText(value)
+    .replace(/\s+/gu, "-");
+}
+
+function normalizeSearchText(value) {
   return value
     .normalize("NFKC")
     .toLowerCase()
     .trim()
-    .replace(/[_\s]+/gu, "-");
+    .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
+    .trim()
+    .replace(/\s+/gu, " ");
+}
+
+function roundScore(value) {
+  return Math.round(value * 10) / 10;
+}
+
+function roundBm25(value) {
+  return Math.round(value * 10_000) / 10_000;
 }
 
 function assertTemplateId(value, label, optional = false) {
@@ -475,17 +906,43 @@ async function sha256File(filePath) {
 }
 
 function parseArguments(args) {
-  const request = { tags: [], roots: [] };
+  const request = {
+    tags: [],
+    roots: [],
+    intent: {
+      purposes: [],
+      audiences: [],
+      contentShapes: [],
+      visualTraits: {
+        tone: [],
+        structure: [],
+      },
+      requiredOperations: [],
+      brandSensitive: false,
+    },
+  };
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
     if (flag === "--help" || flag === "-h") {
       return { help: true };
+    }
+    if (flag === "--brand-sensitive") {
+      request.intent.brandSensitive = true;
+      continue;
     }
     const value = args[index + 1];
     if (value == null || value.startsWith("--")) throw new Error(USAGE);
     index += 1;
     if (flag === "--kind") request.kind = value;
     else if (flag === "--tag") request.tags.push(value);
+    else if (flag === "--purpose") request.intent.purposes.push(value);
+    else if (flag === "--audience") request.intent.audiences.push(value);
+    else if (flag === "--content-shape") request.intent.contentShapes.push(value);
+    else if (flag === "--tone") request.intent.visualTraits.tone.push(value);
+    else if (flag === "--structure") request.intent.visualTraits.structure.push(value);
+    else if (flag === "--density") request.intent.visualTraits.density = value;
+    else if (flag === "--color-mode") request.intent.visualTraits.colorMode = value;
+    else if (flag === "--operation") request.intent.requiredOperations.push(value);
     else if (flag === "--id") request.id = value;
     else if (flag === "--root") request.roots.push(value);
     else if (flag === "--max") request.maxCandidates = Number(value);

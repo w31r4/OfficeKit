@@ -17,6 +17,11 @@ The installer only deploys Skill instructions and resources. OfficeKit does
 not replace the format-specific workflows or provide a second file codec.
 
 Repository templates and locally created `artifact-template-*` Skills are
-queried through compact metadata. Individual template Skills remain directly
-installable for people who want explicit template invocation. OfficeKit loads a
-template's full instructions only after that template has been selected.
+queried through compact metadata and a local BM25F shortlist. The Agent decides
+whether to select one, ask, or use none after it reviews the result and final
+previews. Individual template Skills remain directly installable for explicit
+invocation.
+
+An uploaded DOCX, XLSX, or PPTX can be used once without registration. OfficeKit
+preserves and inspects that file through the owning format Skill; Template
+Creator is used only when the user explicitly wants a reusable local template.

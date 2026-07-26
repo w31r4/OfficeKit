@@ -1,5 +1,45 @@
 # Release
 
+## 0.3.0 OfficeKit BM25F and uploaded-template routing
+
+OfficeKit now treats template choice as a two-axis task state: whether the
+artifact goal is clear and whether a template is already specified. Only a
+clear goal without a named or uploaded template enters catalog search. An
+unclear goal is clarified first or elicited from the selected template's
+structure; a known goal plus known template skips search and goes directly to
+the owning Skill's source-bound feasibility gate.
+
+An uploaded DOCX, XLSX, or PPTX is an immutable, task-scoped reference. The
+owning Skill inspects the actual package, renders representative previews, and
+proves the requested edit before producing a distinct output. OfficeKit does
+not silently register the upload, substitute a catalog entry, or trust the file
+extension. Reusable registration remains an explicit Template Creator task.
+A PDF can supply visual guidance, but it is not presented as an editable Office
+source template.
+
+For the clear-goal/no-template state, the catalog query now uses a
+dependency-free local BM25F index. It boosts intended-use fields above audience,
+content shape, and visual traits; `avoidWhen` conflicts and missing canonical
+verified operations reject a candidate. The result includes query terms, BM25F
+scores, field matches, coverage, conflicts, missing operations, and
+brand/opinionated review flags. It still returns `selectionMade: false`: the
+Agent performs semantic normalization, reviews the final one to three previews,
+and decides `selected`, `ask`, or `none`. No vector database, embedded model
+call, network fetch, or parallel template codec was introduced.
+
+### OfficeKit template-routing integration evidence
+
+On 2026-07-26, the isolated candidate passed the complete `npm test` suite,
+generated API documentation, clean-install `test:pack`, protocol determinism,
+OfficeBridge `5/5`, OpenChestnut `375/375`, and the deterministic OpenChestnut
+build gate. Two clean WASM builds reproduced the same 39 audited files; the
+manifest-bound runtime contains 38 files at 15,160,000 bytes. The production
+tarball contains 516 files, 9,418,804 compressed bytes, and 25,314,405 unpacked
+bytes, below the 25,325,000-byte ceiling. The offline release metadata and
+license audit was publish-ready. Managed PDF live downloads and separately
+configured specialist Python providers remained explicit environment lanes;
+no network installation or npm publication was performed.
+
 ## 0.3.0 OpenChestnut import compatibility
 
 0.3.0 restores the old `codecs/openxml-wasm` and `codecs/openxml-wasm/wire`
@@ -127,10 +167,21 @@ artifact model, codec, or runtime:
   explicitly named templates take precedence. New DOCX/XLSX/PPTX work has one
   of three valid template decisions: one selected template, a short user
   choice, or no template. PDF-only work does not query the Office catalog.
+- Template routing now separates four task states along goal clarity and
+  template choice. Only a clear goal without a specified template searches the
+  catalog. An unclear goal is clarified first or elicited from the chosen
+  template; a clear goal with a named or uploaded template goes directly to
+  owner-Skill feasibility. Uploaded Office files are immutable task-scoped
+  references and are registered only after an explicit reusable-template
+  request.
 - The bounded template query validates schema-v2 metadata, safe relative
   paths, file budgets, exact Office/preview hashes, duplicate-ID root
-  precedence, and untrusted descriptive fields. It returns compact candidates
-  but never selects a template, fetches a URL, executes metadata, or opens all
+  precedence, and untrusted descriptive fields. Its dependency-free local
+  BM25F index field-weights purpose, audience, content shape, and visual
+  evidence, while `avoidWhen` conflicts and missing verified operations reject
+  a candidate. It returns compact scores, matched fields, review flags, and
+  rejection reasons with `selectionMade: false`, but never selects a template,
+  calls a model/vector service, fetches a URL, executes metadata, or opens all
   assets/previews.
 - The retained 20-template MIT library now has local schema-v2 selection
   sidecars while every Office/PNG asset remains byte-identical to the pinned

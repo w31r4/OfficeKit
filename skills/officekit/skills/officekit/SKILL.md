@@ -53,9 +53,15 @@ this coordination layer.
 Make a template decision only for a new or substantially redesigned DOCX,
 XLSX, or PPTX.
 
-1. Prefer a user-provided reference.
-2. Honor an explicitly named template.
-3. Otherwise read [template-selection.md](references/template-selection.md).
+1. Decide whether the artifact goal is clear and whether a template is already
+   specified. Search only when the goal is clear and no template is specified;
+   otherwise clarify the goal, inspect the specified template, or proceed
+   directly as described in
+   [template-selection.md](references/template-selection.md).
+2. Treat a user-provided template as a task-scoped reference, not a catalog
+   entry. Never register it unless the user explicitly asks for later reuse.
+3. Summarize a searchable request as structured purpose, audience, content-shape,
+   visual-trait, and required-operation intent.
 4. Query available metadata with
    `scripts/query-templates.mjs`; do not inspect every template file.
 5. Choose exactly one of `selected`, `ask`, or `none`.

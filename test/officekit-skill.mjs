@@ -43,6 +43,13 @@ assert.match(templateSelectionText, /不用模板，由领域 Skill 设计/);
 assert.match(templateSelectionText, /does not select a\s+template/i);
 assert.match(templateSelectionText, /untrusted descriptive data/i);
 assert.match(templateSelectionText, /attribution, not permission to access the network/i);
+assert.match(templateSelectionText, /Classify the current task, not the user/i);
+assert.match(templateSelectionText, /Clear \| Not specified \| Query the catalog/i);
+assert.match(templateSelectionText, /Unclear \| Specified or uploaded/i);
+assert.match(templateSelectionText, /task-scoped user reference/i);
+assert.match(templateSelectionText, /must not be copied into a template directory/i);
+assert.match(templateSelectionText, /BM25F remains deterministic and local/i);
+assert.match(templateSelectionText, /does not call a model, build a vector/i);
 
 const expectedCounts = new Map([
   ["document", 7],
@@ -57,6 +64,10 @@ for (const [kind, expectedCount] of expectedCounts) {
   });
   assert.equal(result.candidates.length, expectedCount, `${kind} template count`);
   assert.deepEqual(result.invalid, [], `${kind} template metadata`);
+  assert.deepEqual(result.rejected, []);
+  assert.equal(result.schemaVersion, 2);
+  assert.equal(result.ranking.algorithm, "bm25f");
+  assert.deepEqual(result.ranking.queryTerms, []);
   assert.equal(result.selectionMade, false);
   for (const candidate of result.candidates) {
     assert.equal(candidate.kind, kind);
@@ -82,6 +93,88 @@ const ranked = await queryTemplates({
 assert.equal(ranked.candidates[0].id, "artifact-template-business-review");
 assert.deepEqual(ranked.candidates[0].matchedTags, ["executive", "quarterly"]);
 assert.equal(ranked.candidates.length, 3);
+assert.equal(ranked.ranking.algorithm, "bm25f");
+assert.ok(ranked.candidates[0].match.bm25 > ranked.candidates[1].match.bm25);
+
+const structuredRanked = await queryTemplates({
+  kind: "presentation",
+  roots: [templateRoot],
+  intent: {
+    purposes: ["quarterly business review"],
+    audiences: ["executive"],
+    contentShapes: ["KPIs", "decisions"],
+    visualTraits: {
+      tone: ["formal"],
+      density: "medium",
+      colorMode: "neutral",
+      structure: ["sectioned"],
+    },
+    requiredOperations: ["recognized-placeholder-title-text-replace"],
+    brandSensitive: false,
+  },
+  maxCandidates: 5,
+});
+assert.equal(
+  structuredRanked.candidates[0].id,
+  "artifact-template-business-review",
+);
+assert.equal(structuredRanked.candidates[0].match.score, 100);
+assert.equal(structuredRanked.candidates[0].match.queryCoverage, 100);
+assert.equal(structuredRanked.candidates[0].match.missingOperations.length, 0);
+assert.ok(
+  structuredRanked.candidates[0].match.matched.some(
+    (entry) => entry.field === "purpose" && entry.quality === 100,
+  ),
+);
+const conflictingKickoff = structuredRanked.rejected.find(
+  (entry) => entry.id === "artifact-template-project-kickoff",
+);
+assert.ok(conflictingKickoff);
+assert.ok(conflictingKickoff.reasons.includes("avoid-when-conflict"));
+assert.match(conflictingKickoff.conflicts[0].avoidWhen, /quarterly business review/i);
+
+const noSemanticMatch = await queryTemplates({
+  kind: "presentation",
+  roots: [templateRoot],
+  intent: {
+    purposes: ["quantum entanglement laboratory protocol"],
+  },
+});
+assert.equal(noSemanticMatch.retrievalStatus, "none");
+assert.deepEqual(noSemanticMatch.candidates, []);
+assert.equal(noSemanticMatch.rejected.length, expectedCounts.get("presentation"));
+assert.ok(
+  noSemanticMatch.rejected.every((entry) =>
+    entry.reasons.includes("insufficient-relevance"),
+  ),
+);
+
+const unsupportedOperation = await queryTemplates({
+  kind: "presentation",
+  roots: [templateRoot],
+  intent: {
+    purposes: ["quarterly business review"],
+    requiredOperations: ["replace-embedded-workbook"],
+  },
+});
+assert.equal(unsupportedOperation.retrievalStatus, "none");
+assert.deepEqual(unsupportedOperation.candidates, []);
+assert.ok(
+  unsupportedOperation.rejected
+    .find((entry) => entry.id === "artifact-template-business-review")
+    .missingOperations.includes("replace-embedded-workbook"),
+);
+
+const brandSensitive = await queryTemplates({
+  kind: "presentation",
+  roots: [templateRoot],
+  id: "artifact-template-business-review",
+  intent: {
+    purposes: ["quarterly business review"],
+    brandSensitive: true,
+  },
+});
+assert.ok(brandSensitive.candidates[0].reviewFlags.includes("brand-sensitive"));
 
 const explicit = await queryTemplates({
   kind: "document",
@@ -117,6 +210,38 @@ assert.equal(cli.status, 0, cli.stderr);
 const cliResult = JSON.parse(cli.stdout);
 assert.equal(cliResult.selectionMade, false);
 assert.equal(cliResult.candidates[0].id, "artifact-template-sales-pipeline");
+
+const structuredCli = spawnSync(
+  process.execPath,
+  [
+    path.join(skillRoot, "scripts", "query-templates.mjs"),
+    "--kind",
+    "presentation",
+    "--root",
+    templateRoot,
+    "--purpose",
+    "quarterly business review",
+    "--audience",
+    "executive",
+    "--content-shape",
+    "KPIs",
+    "--operation",
+    "recognized-placeholder-title-text-replace",
+    "--brand-sensitive",
+  ],
+  { encoding: "utf8" },
+);
+assert.equal(structuredCli.status, 0, structuredCli.stderr);
+const structuredCliResult = JSON.parse(structuredCli.stdout);
+assert.equal(structuredCliResult.ranking.algorithm, "bm25f");
+assert.equal(
+  structuredCliResult.candidates[0].id,
+  "artifact-template-business-review",
+);
+assert.equal(structuredCliResult.queryIntent.brandSensitive, true);
+assert.ok(
+  structuredCliResult.candidates[0].reviewFlags.includes("brand-sensitive"),
+);
 
 const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "officekit-template-query-"));
 try {
@@ -254,6 +379,32 @@ try {
     queryTemplates({ kind: "document", roots: [tempRoot], tags: Array.from({ length: 21 }, () => "tag") }),
     /At most 20 query tags/,
   );
+  await assert.rejects(
+    queryTemplates({
+      kind: "document",
+      roots: [tempRoot],
+      intent: { undocumentedIntent: true },
+    }),
+    /intent contains unsupported fields: undocumentedIntent/,
+  );
+  await assert.rejects(
+    queryTemplates({
+      kind: "document",
+      roots: [tempRoot],
+      intent: {
+        purposes: Array.from({ length: 21 }, (_, index) => `purpose ${index}`),
+      },
+    }),
+    /intent\.purposes must be an array of at most 20 strings/,
+  );
+  await assert.rejects(
+    queryTemplates({
+      kind: "document",
+      roots: [tempRoot],
+      intent: { brandSensitive: "yes" },
+    }),
+    /intent\.brandSensitive must be a boolean/,
+  );
 
   const alias = path.join(path.dirname(tempRoot), `${path.basename(tempRoot)}-alias`);
   await fs.symlink(tempRoot, alias, "dir");
@@ -279,6 +430,74 @@ assert.equal(evalRecords.filter((record) => record.expectedTrigger === "officeki
 assert.equal(evalRecords.filter((record) => record.expectedTrigger !== "officekit").length, 10);
 assert.ok(evalRecords.every((record) => record.prompt.length >= 80));
 assert.ok(evalRecords.every((record) => ["consider", "explicit", "skip"].includes(record.templatePolicy)));
+
+const templateEvalRecords = (
+  await fs.readFile(
+    path.join(repoRoot, "evals", "officekit-template-selection.jsonl"),
+    "utf8",
+  )
+)
+  .split(/\r?\n/)
+  .filter(Boolean)
+  .map(JSON.parse);
+assert.equal(templateEvalRecords.length, 14);
+assert.equal(new Set(templateEvalRecords.map((record) => record.id)).size, 14);
+assert.ok(templateEvalRecords.every((record) => record.prompt.length >= 60));
+assert.ok(
+  templateEvalRecords.every((record) =>
+    ["clear", "unclear"].includes(record.goalClarity),
+  ),
+);
+assert.ok(
+  templateEvalRecords.every((record) =>
+    ["unspecified", "named", "uploaded", "multiple-uploaded"].includes(
+      record.templateChoice,
+    ),
+  ),
+);
+assert.ok(
+  templateEvalRecords.every((record) =>
+    ["search", "clarify", "template-elicit", "direct-feasibility", "register"].includes(
+      record.expectedRoute,
+    ),
+  ),
+);
+assert.ok(
+  templateEvalRecords.every((record) =>
+    ["selected", "ask", "none", "defer", "register"].includes(
+      record.expectedDecision,
+    ),
+  ),
+);
+assert.ok(
+  templateEvalRecords
+    .filter((record) => record.expectedRoute === "search")
+    .every((record) => record.catalogQuery === true),
+);
+assert.ok(
+  templateEvalRecords
+    .filter((record) => record.expectedRoute !== "search")
+    .every((record) => record.catalogQuery === false),
+);
+assert.ok(
+  templateEvalRecords.some(
+    (record) =>
+      record.goalClarity === "unclear" &&
+      record.templateChoice === "unspecified",
+  ),
+);
+assert.ok(
+  templateEvalRecords.some(
+    (record) =>
+      record.goalClarity === "unclear" &&
+      ["named", "uploaded"].includes(record.templateChoice),
+  ),
+);
+assert.ok(
+  templateEvalRecords.filter((record) =>
+    record.templateChoice.includes("uploaded"),
+  ).length >= 6,
+);
 
 const skillValidatorPath = path.join(
   os.homedir(),

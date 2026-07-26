@@ -42,8 +42,10 @@ npx skills add w31r4/open-office-artifact-tool --skill '*' --yes
 ```
 
 The core install does not put all 20 template descriptions into the Agent’s
-default context. OfficeKit first reads compact metadata and chooses zero or one
-template; only the final shortlist needs previews and detailed instructions.
+default context. Only a clear goal without a specified template enters the
+local BM25F metadata search. The script returns candidates and match evidence;
+the Agent selects one, asks, or chooses none. Only the final shortlist needs
+previews and detailed instructions.
 
 Node.js 22 or newer is recommended. The Office runtime is included in the package. MuPDF.js loads only when the first PDF operation needs it.
 
@@ -139,7 +141,7 @@ The [Office Template Library](skills/default-template-library/README.md) has 20 
 
 The template files stay in the repository rather than the npm runtime package. An agent creates a new output from a selected template, then uses the same APIs to inspect, edit, and render it; the reference file is not used as the output.
 
-Use [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) to turn your team’s DOCX, XLSX, or PPTX reference files into your own templates.
+An uploaded DOCX, XLSX, or PPTX can be used as a template for one task without registration or automatic catalog insertion. Use [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) only when the user explicitly wants that reference saved as a reusable local template.
 
 ## For users and contributors
 
