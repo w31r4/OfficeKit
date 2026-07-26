@@ -69,6 +69,33 @@ attribute, invalid GUID/name, unresolved native slide ID, empty group, repeated
 membership, or non-contiguous overall partition remains opaque and is preserved
 unchanged; semantic replacement is refused rather than guessed.
 
+## Source-Bound Name Transaction
+
+For an Agent task that changes one imported section label only, use the shipped
+workflow rather than a raw package patch:
+
+```bash
+node examples/openchestnut-section-rename-workflow.mjs \
+  input.pptx output.pptx audit.json \
+  "Context" "Background"
+```
+
+The transaction requires exactly one exact `expectedName` in a semantic
+canonical imported list. It rejects a missing or duplicate target, an empty or
+opaque section list, a missing fixed facade/native identity or membership, and
+a replacement that conflicts case-insensitively with another section. It does
+not call `setSlides(...)`: the count, order, facade IDs, brace GUIDs, and
+ordered slide membership stay fixed.
+
+Before it promotes distinct output and audit paths without overwrite, the
+workflow proves that only `ppt/presentation.xml` changed, reimports the exact
+expected full section snapshot, compares all non-section semantics and static
+slide SVG renders, and runs `presentation.verify({ visualQa: true })`. Its
+byte-bound audit records the target section ID/GUID/ordinal/membership and
+source/output hashes. Static or LibreOffice/Poppler rendering demonstrates only
+visible-slide stability; it is not a claim that the native PowerPoint
+navigation pane was exercised.
+
 ## Verify And Export
 
 Run `presentation.verify()` before export, then re-import the output and

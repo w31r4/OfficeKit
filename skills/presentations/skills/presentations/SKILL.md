@@ -534,6 +534,26 @@ semantically replaced. Read `artifact_tool/api/references/sections.spec.md`
 before editing an imported deck, then reimport and inspect sections after
 export; run native render review when available.
 
+For one exact source-bound section-name correction, use the shipped transaction
+rather than patching `ppt/presentation.xml`:
+
+```bash
+node examples/openchestnut-section-rename-workflow.mjs \
+  input.pptx output.pptx audit.json \
+  "Context" "Background"
+```
+
+It requires one canonical imported section list and exactly one exact existing
+name. It changes the name only: section count/order, facade ID, native GUID, and
+ordered slide membership stay fixed. The source stays immutable; only
+`ppt/presentation.xml` may differ; second import proves the complete section
+snapshot plus non-section semantics; static model renders and `verify()` must
+remain stable before no-overwrite output/audit promotion. Missing/duplicate or
+case-insensitively conflicting names, section-free or opaque inputs, and any
+attempt to move a boundary, add/remove/reorder a section, or pair the rename
+with slide topology work fail closed. Static/native page renders prove visible
+slide stability only, not PowerPoint's navigation-pane behavior.
+
 ### Bounded Slide Transitions
 
 Use direct `p:transition` metadata only for an intentional between-slide

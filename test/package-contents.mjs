@@ -58,7 +58,8 @@ const maxPackedBytes = 9_840_000;
 // tarball. Its retained Office/PNG sources must never consume this consumer
 // package budget. PowerPoint sections plus the bounded transition and rich
 // speaker-notes leaves, the public formula catalog, bounded formula expression
-// parser, SUMPRODUCT range-mask profile, source-bound DOCX header/footer and
+// parser, SUMPRODUCT range-mask profile, source-bound DOCX header/footer,
+// source-bound PowerPoint section-name transaction, and
 // source-free structured page-furniture fields and source-bound PPTX
 // view-properties mutation,
 // the compact OfficeKit routing Skill plus its local BM25F template retrieval,
@@ -67,7 +68,7 @@ const maxPackedBytes = 9_840_000;
 // replacement, plus the canonical DOCX 1-through-16-paragraph note body, add
 // protobuf, audited WASM, public Help, and native guidance;
 // retain measured headroom instead of hiding that product surface.
-const maxUnpackedBytes = 25_325_000;
+const maxUnpackedBytes = 25_350_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -226,6 +227,7 @@ for (const required of [
   "skills/presentations/skills/presentations/examples/openchestnut-slide-name-edit-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-view-properties-edit-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-transition-edit-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/openchestnut-section-rename-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-custom-show-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-slide-duplicate-workflow.mjs",
   "skills/presentations/skills/presentations/examples/openchestnut-smartart-text-edit-workflow.mjs",

@@ -201,6 +201,7 @@ assert.match(presentationSpec, /guide count\/order\/orientation|add\/remove\/reo
 assert.match(presentationSpec, /presentation\.sections\.add/);
 assert.match(presentationSectionsSpec, /p14:sectionLst/);
 assert.match(presentationSectionsSpec, /partition every deck slide exactly once/i);
+assert.match(presentationSectionsSpec, /openchestnut-section-rename-workflow\.mjs/);
 assert.match(presentationLayoutSpec, /read-only `slideGuides`/);
 assert.match(presentationChartSpec, /standard `area`.*50%-hole `doughnut`/s);
 assert.match(presentationChartSpec, /Marker-only `scatter`.*aligned.*`xValues`/s);
@@ -219,6 +220,8 @@ assert.match(presentationSkillText, /openchestnut-view-properties-edit-workflow\
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-view-properties-edit-workflow.mjs")));
 assert.match(presentationSkillText, /openchestnut-transition-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-transition-edit-workflow.mjs")));
+assert.match(presentationSkillText, /openchestnut-section-rename-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "openchestnut-section-rename-workflow.mjs")));
 
 const documentsSkillRoot = path.join(skillsRoot, "documents", "skills", "documents");
 const documentsManifest = (await fs.readFile(path.join(documentsSkillRoot, "manifest.txt"), "utf8"))
