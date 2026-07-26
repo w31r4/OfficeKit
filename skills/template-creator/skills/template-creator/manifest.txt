@@ -1,3 +1,4 @@
 SKILL.md
 agents/agent.yaml
+assets/icon.svg
 scripts/create-template-skill.mjs

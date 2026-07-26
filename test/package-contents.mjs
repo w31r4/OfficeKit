@@ -17,13 +17,19 @@ assert.equal(
 );
 assert.equal(packageMetadata.exports["./codecs/office-kit"], undefined);
 assert.equal(packageMetadata.exports["./codecs/openxml-wasm"], undefined);
-assert.equal(packageMetadata.bin, undefined, "MuPDF must not require an installer command");
+assert.deepEqual(packageMetadata.bin, {
+  officekit: "./bin/officekit.mjs",
+});
+assert.equal(packageMetadata.engines.node, ">=22");
 assert.equal(packageMetadata.scripts.postinstall, undefined, "MuPDF must not require npm lifecycle hooks");
 const pdfFacadeSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "index.mjs"), "utf8");
 assert.match(pdfFacadeSource, /await import\("\.\/mupdf\.mjs"\)/, "MuPDF must load only when a PDF operation needs it");
 assert.doesNotMatch(pdfFacadeSource, /from\s+["']mupdf["']/, "the root PDF facade must not initialize MuPDF eagerly");
 const pdfProvidersSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "providers", "index.mjs"), "utf8");
 assert.doesNotMatch(pdfProvidersSource, /from\s+["']mupdf["']/, "the explicit provider subpath must not initialize MuPDF eagerly");
+const officeKitCliSource = await fs.readFile(path.join(repoRoot, "src", "cli", "officekit.mjs"), "utf8");
+assert.doesNotMatch(officeKitCliSource, /node:child_process|https?:\/\/|\bfetch\s*\(/, "officekit init must remain a local Skill installer");
+assert.doesNotMatch(officeKitCliSource, /pdf\/providers|from\s+["']mupdf["']/, "officekit init must not initialize PDF runtimes or capability packs");
 const presentationCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-presentation.mjs"), "utf8");
 assert.match(presentationCodecSource, /from "\.\.\/presentation\/index\.mjs";/, "the Presentation codec must depend on the Presentation leaf module");
 assert.match(presentationCodecSource, /from "\.\/office-kit-presentation-charts\.mjs";/, "the Presentation codec must delegate chart wire semantics to the chart leaf module");
@@ -73,7 +79,7 @@ const maxPackedBytes = 9_840_000;
 // replacement, plus the canonical DOCX 1-through-16-paragraph note body, add
 // protobuf, audited WASM, public Help, and native guidance;
 // retain measured headroom instead of hiding that product surface.
-const maxUnpackedBytes = 25_425_000;
+const maxUnpackedBytes = 25_450_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -85,6 +91,7 @@ for (const required of [
   "README.md",
   "README.en.md",
   "THIRD_PARTY_NOTICES.md",
+  "bin/officekit.mjs",
   "docs/api.md",
   "docs/reference-skills.md",
   "docs/template-library-provenance.md",
@@ -127,6 +134,7 @@ for (const required of [
   "src/pdf/providers/policy.mjs",
   "src/pdf/providers/provider-catalog.v1.json",
   "src/document/index.mjs",
+  "src/cli/officekit.mjs",
   "src/help/index.mjs",
   "src/index.mjs",
   "src/ooxml/docx-source-references.mjs",
@@ -267,6 +275,7 @@ for (const required of [
   "skills/template-creator/assets/icon.svg",
   "skills/template-creator/skills/template-creator/SKILL.md",
   "skills/template-creator/skills/template-creator/agents/agent.yaml",
+  "skills/template-creator/skills/template-creator/assets/icon.svg",
   "skills/template-creator/skills/template-creator/manifest.txt",
   "skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs",
   "skills/pdf/.codex-plugin/plugin.json",

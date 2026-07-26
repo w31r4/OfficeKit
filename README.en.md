@@ -43,21 +43,22 @@ will work:
 
 ```sh
 npm install github:w31r4/OfficeKit
-npx skills add w31r4/OfficeKit --skill '*' --yes
+npx officekit init
 ```
 
-The first command installs the file runtime. The second installs OfficeKit, the
-four file-type Skills, Excel Live Control, Template Creator, and the open-source
-templates. Standard workflows are ready after installation; specialist PDF
-providers load their own runtimes according to project policy.
+`officekit init` detects the agent tools used by the current project, then
+installs the OfficeKit entry point, the four file-type Skills, Excel Live
+Control, and Template Creator into their project directories.
 
-To install only the core Skills:
+For scripts and CI, select the tools directly:
 
 ```sh
-npx skills add w31r4/OfficeKit \
-  --skill office-kit documents spreadsheets excel-live-control presentations pdf template-creator \
-  --yes
+npx officekit init --tools claude,cursor
 ```
+
+After upgrading OfficeKit, run `npx officekit update` in the project to refresh
+its Skills. Specialist PDF providers continue to load their own runtimes
+according to project policy.
 
 GitHub is the current installation source. After the first formal npm release,
 the first command becomes:
@@ -99,9 +100,10 @@ See [coverage](docs/coverage.md) for the complete supported boundary.
 ## Use templates when they fit
 
 The [Office Template Library](skills/default-template-library/README.md) provides
-20 MIT-licensed templates. OfficeKit searches compact metadata only when the
-goal is clear and no template has been specified. After reviewing a small
-shortlist, the agent selects one, asks, or proceeds without a template.
+20 MIT-licensed templates as on-demand repository assets. OfficeKit searches
+compact metadata only when the goal is clear and no template has been specified.
+After reviewing a small shortlist, the agent selects one, asks, or proceeds
+without a template.
 
 An uploaded DOCX, XLSX, or PPTX stays scoped to the current task by default.
 Template Creator saves it when the user explicitly wants future reuse.
