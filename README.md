@@ -9,7 +9,7 @@ Word、Excel、PowerPoint 或 PDF。
 
 ```text
 → 一个入口，自动选择 Word、Excel、PPT 或 PDF 工作流
-→ 有合适模板就复用，没有就从零开始
+→ 复用合适模板，也能从零设计
 → 修改已有文件时保留未触及的复杂内容
 → 交付前重新打开、渲染并检查
 ```
@@ -45,8 +45,8 @@ npx skills add w31r4/OfficeKit --skill '*' --yes
 ```
 
 第一条命令安装文件运行库，第二条命令安装 OfficeKit、四个文件类型 Skill、
-Excel Live Control、Template Creator 和开源模板。无需 clone 仓库，也不要求
-本机安装 Microsoft Office、.NET SDK 或 Python。
+Excel Live Control、Template Creator 和开源模板。标准工作流安装后即可使用；
+专项 PDF provider 会按项目策略加载自己的运行时。
 
 只安装核心 Skills：
 
@@ -56,7 +56,7 @@ npx skills add w31r4/OfficeKit \
   --yes
 ```
 
-当前正式 npm 包尚未发布，因此使用 GitHub 安装源。发布后第一条命令可改为：
+当前安装源为 GitHub。首个正式 npm 版本发布后，第一条命令可改为：
 
 ```sh
 npm install office-kit
@@ -69,7 +69,7 @@ npm install office-kit
 
 | 入口 | 适合的任务 |
 | --- | --- |
-| [OfficeKit](skills/office-kit/skills/office-kit/SKILL.md) | 不想先研究工具，或需要跨格式、多交付物和模板判断。 |
+| [OfficeKit](skills/office-kit/skills/office-kit/SKILL.md) | 从目标直接开始，或处理跨格式、多交付物和模板判断。 |
 | [Documents](skills/documents/skills/documents/SKILL.md) | 已确定要创建或修改 Word。 |
 | [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | 已确定要处理 Excel、CSV、公式、模型或图表。 |
 | [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | 操作已经在 Excel 中打开的工作簿。 |
@@ -77,8 +77,8 @@ npm install office-kit
 | [PDF](skills/pdf/skills/pdf/SKILL.md) | 已确定要读取、创建、检查或处理 PDF。 |
 | [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | 把自己的 DOCX、XLSX 或 PPTX 保存为可复用模板。 |
 
-入口不同，底层文件能力和检查规则相同。直接使用领域 Skill 只会跳过格式路由，
-不会绕过源文件保护、渲染或验证。
+入口不同，底层文件能力和检查规则相同。直接使用领域 Skill 会跳过格式路由，
+并继续执行源文件保护、渲染和验证。
 
 ## 能做什么
 
@@ -91,14 +91,14 @@ npm install office-kit
 
 完整边界见 [coverage](docs/coverage.md)。
 
-## 模板是加速器，不是前提
+## 模板按需使用
 
 [Office Template Library](skills/default-template-library/README.md) 提供 20 套
 MIT 授权模板。OfficeKit 只在目标明确、模板未指定时检索紧凑 metadata；
 Agent 查看少量候选后选择一个、询问用户或明确不用模板。
 
-用户上传的 DOCX、XLSX 或 PPTX 可以只用于当前任务，不会自动注册或覆盖。
-只有明确要求以后复用时，才交给 Template Creator 保存。
+用户上传的 DOCX、XLSX 或 PPTX 默认只用于当前任务。明确要求以后复用时，
+再交给 Template Creator 保存。
 
 ## 文件交付前会再检查一遍
 
@@ -106,12 +106,12 @@ Agent 查看少量候选后选择一个、询问用户或明确不用模板。
 读取原件 → 创建或修改 → 导出 → 重新打开 → 渲染页面 → 检查结果
 ```
 
-- DOCX、XLSX 和 PPTX 统一通过 OfficeKit C#/.NET WASM 读写；包内没有第二套
-  JavaScript Office writer 或静默 fallback。
-- 无法安全修改的 Office 内容会原样保留或明确拒绝修改，不会为了“看起来成功”
-  而破坏原文件。
+- DOCX、XLSX 和 PPTX 统一通过 OfficeKit C#/.NET WASM 读写；导入、编辑、
+  导出和二次校验沿用同一条路径。
+- OfficeKit 先确定复杂 Office 内容的可编辑范围，再修改受支持的部分；其余内容
+  保持原样并报告具体限制。
 - PDF 默认通过 MuPDF.js 读取、编辑、检查和渲染。qpdf、OCR、严格清理、
-  pyHanko 签名和 veraPDF 等重型能力由项目显式授权后按需启用，不会静默下载。
+  pyHanko 签名和 veraPDF 等重型能力由项目显式授权后按任务加载。
 
 PDF provider 的策略和限制见
 [Provider Setup](skills/pdf/skills/pdf/tasks/provider_setup.md)。
@@ -160,7 +160,7 @@ npm run release:check
 ```
 
 `OfficeKit` 是产品名，npm 包名为 `office-kit`。版本 `0.3.0`
-是 release candidate，尚未正式发布到 npm。
+当前处于 release candidate 阶段，正式发布后即可从 npm 安装。
 
 ## 许可证
 

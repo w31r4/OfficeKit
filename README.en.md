@@ -9,7 +9,7 @@ Excel, PowerPoint, or PDF file that opens, remains editable, and is ready to use
 
 ```text
 → one entry point for Word, Excel, PowerPoint, and PDF work
-→ reuse a template when it fits; start clean when it does not
+→ reuse a fitting template or design from scratch
 → preserve complex source content that was not changed
 → reopen, render, and check every deliverable
 ```
@@ -48,8 +48,8 @@ npx skills add w31r4/OfficeKit --skill '*' --yes
 
 The first command installs the file runtime. The second installs OfficeKit, the
 four file-type Skills, Excel Live Control, Template Creator, and the open-source
-templates. No repository clone, Microsoft Office installation, .NET SDK, or
-Python setup is required.
+templates. Standard workflows are ready after installation; specialist PDF
+providers load their own runtimes according to project policy.
 
 To install only the core Skills:
 
@@ -59,8 +59,8 @@ npx skills add w31r4/OfficeKit \
   --yes
 ```
 
-The formal npm package has not shipped yet, so the runtime currently uses the
-GitHub source. After publication, the first command becomes:
+GitHub is the current installation source. After the first formal npm release,
+the first command becomes:
 
 ```sh
 npm install office-kit
@@ -73,7 +73,7 @@ output route, considers templates, and hands each file to its owning Skill.
 
 | Entry | Good for |
 | --- | --- |
-| [OfficeKit](skills/office-kit/skills/office-kit/SKILL.md) | Starting from the requested outcome without first choosing tools, or handling cross-format and multi-deliverable work. |
+| [OfficeKit](skills/office-kit/skills/office-kit/SKILL.md) | Starting from the requested outcome, or handling cross-format and multi-deliverable work. |
 | [Documents](skills/documents/skills/documents/SKILL.md) | Creating or changing a Word document when the format is already known. |
 | [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | Excel, CSV, formulas, models, data preparation, and charts. |
 | [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | Working with a workbook already open in Excel. |
@@ -82,7 +82,8 @@ output route, considers templates, and hands each file to its owning Skill.
 | [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | Saving your own DOCX, XLSX, or PPTX reference as a reusable template. |
 
 Every route uses the same file capabilities and checks. Invoking a domain Skill
-directly skips format routing, not source protection, rendering, or verification.
+directly skips format routing while retaining source protection, rendering, and
+verification.
 
 ## What it handles
 
@@ -95,16 +96,15 @@ directly skips format routing, not source protection, rendering, or verification
 
 See [coverage](docs/coverage.md) for the complete supported boundary.
 
-## Templates accelerate the work; they are not a requirement
+## Use templates when they fit
 
 The [Office Template Library](skills/default-template-library/README.md) provides
 20 MIT-licensed templates. OfficeKit searches compact metadata only when the
 goal is clear and no template has been specified. After reviewing a small
 shortlist, the agent selects one, asks, or proceeds without a template.
 
-An uploaded DOCX, XLSX, or PPTX can be used for one task without registration
-or overwrite. Template Creator is used only when the user explicitly wants to
-save that reference for reuse.
+An uploaded DOCX, XLSX, or PPTX stays scoped to the current task by default.
+Template Creator saves it when the user explicitly wants future reuse.
 
 ## Files are checked before handoff
 
@@ -112,13 +112,13 @@ save that reference for reuse.
 read the source → create or change → export → reopen → render pages → check the result
 ```
 
-- DOCX, XLSX, and PPTX use OfficeKit C#/.NET WASM. The package has no second
-  JavaScript Office writer or silent fallback.
-- Office content that cannot be changed safely is preserved or rejected
-  explicitly instead of being damaged to produce an apparently successful file.
+- DOCX, XLSX, and PPTX use OfficeKit C#/.NET WASM. Import, editing, export, and
+  second-pass verification follow the same path.
+- OfficeKit identifies the editable scope of complex Office content, applies
+  supported changes, preserves the rest, and reports the exact boundary.
 - PDF uses MuPDF.js for normal reading, editing, inspection, and rendering.
   qpdf, OCR, strict cleanup, pyHanko signing, veraPDF, and other heavy
-  capabilities are enabled on demand only after project authorization.
+  capabilities load by task after project authorization.
 
 See [Provider Setup](skills/pdf/skills/pdf/tasks/provider_setup.md) for PDF
 provider policy and operational limits.
@@ -167,8 +167,8 @@ npm run release:check
 ```
 
 `OfficeKit` is the product name, and the npm package is `office-kit`.
-Version `0.3.0` is a release candidate and has not
-been formally published to npm.
+Version `0.3.0` is currently a release candidate; npm installation follows the
+formal release.
 
 ## License
 
