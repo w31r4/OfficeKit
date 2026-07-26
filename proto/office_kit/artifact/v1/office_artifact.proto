@@ -2947,6 +2947,10 @@ message DocumentTable {
   // They are rejected for source-free authoring and never imply whole-cell
   // editability.
   repeated DocumentTableTextPatch text_patches = 4;
+  // Number of contiguous leading rows marked as native repeat headers with
+  // w:tblHeader. Zero means no repeat header. Imported noncanonical row-
+  // property graphs remain source-bound and do not expose a writable count.
+  uint32 header_row_count = 5;
 }
 
 message DocumentTableFormatting {

@@ -44,19 +44,30 @@ This is a pragmatic baseline that is better than empty alt text.
 python scripts/a11y_audit.py input.docx --fix_image_alt from_filename --out a11y_fixed.docx
 ```
 
-### 3) Mark first row as a table header
-Only do this when the first row *is actually* a header.
-```bash
-python scripts/a11y_audit.py input.docx --fix_table_headers first_row --out a11y_fixed.docx
+### 3) Mark repeating table headers
+Only do this when leading rows really are headers. For a new document, declare
+the native repeat-header semantics separately from the visual first-row fill:
+
+```js
+document.addTable({
+  values: [["Metric", "Value"], ["Readiness", "92%"]],
+  headerFill: "DCEAF3",
+  headerRowCount: 1,
+});
 ```
 
-You can combine fixes:
+For one imported flat rectangular table, bind its inspected block index and the
+complete current/replacement count:
+
 ```bash
-python scripts/a11y_audit.py input.docx \
-  --fix_image_alt from_filename \
-  --fix_table_headers first_row \
-  --out a11y_fixed.docx
+node examples/officekit-table-header-rows-edit-workflow.mjs \
+  input.docx a11y_fixed.docx table-header.audit.json 1 1 2
 ```
+
+It changes only native `w:tblHeader` markers and fails closed for non-prefix,
+duplicate, explicit-value, extension-bearing, merged, nested, or irregular
+inputs. It does not infer header semantics from bold text or fill. The Python
+audit helper remains explicit when you deliberately want its report/fix policy.
 
 ## Verification loop
 1) Apply fixes (if any)

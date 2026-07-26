@@ -2132,6 +2132,18 @@ function sameDocumentTableGeometry(block, table) {
   });
 }
 
+function documentTableHeaderRowCount(block, rowCount) {
+  const value = Number(block.headerRowCount ?? 0);
+  if (!Number.isInteger(value) || value < 0 || value > rowCount) {
+    throw new OfficeKitCodecError(`Document table ${block.id} headerRowCount must be an integer from 0 through ${rowCount}.`, [], { code: "invalid_document_table" });
+  }
+  return value;
+}
+
+function sameDocumentTableHeaderRows(block, table) {
+  return documentTableHeaderRowCount(block, table.rows.length) === Number(table.headerRowCount || 0);
+}
+
 function sameDocumentTableContentControlTopology(block, table) {
   const sourceCells = documentTableCells(table);
   if (!Array.isArray(block.cells) || block.cells.length !== sourceCells.length) return false;
@@ -3516,6 +3528,7 @@ function unchangedSourceBlock(block, original, assets) {
       if (block.kind !== "table" || block.textPatches?.length || !sameTableValues(block, original) ||
           !sameDocumentTableGeometry(block, original.content.value) ||
           !sameDocumentTableContentControls(block, original.content.value) ||
+          !sameDocumentTableHeaderRows(block, original.content.value) ||
           !sameDocumentTableFormatting(block, original.content.value)) return false;
       return block.styleId === original.styleId || (!original.styleId && block.styleId === "TableGrid");
     }
@@ -3655,6 +3668,7 @@ function documentBlock(block, original, directNumbering, assets, contentControlN
   if (block.kind === "table") {
     const source = original?.content.case === "table" ? original.content.value : undefined;
     const authored = !source && Array.isArray(block.cells) ? authoredDocumentTableGeometry(block, contentControlNativeIds) : undefined;
+    const headerRowCount = documentTableHeaderRowCount(block, source?.rows.length ?? block.values.length);
     if (source && !sameDocumentTableContentControlTopology(block, source)) {
       throw new OfficeKitCodecError(`Document table ${block.id} content-control topology is source-bound.`, [], { code: "document_content_control_topology_changed" });
     }
@@ -3682,6 +3696,7 @@ function documentBlock(block, original, directNumbering, assets, contentControlN
         case: "table",
         value: {
           ...(source ? { gridColumns: source.gridColumns } : authored ? { gridColumns: authored.gridColumns } : {}),
+          headerRowCount,
           ...(source ? (source.formatting ? {
             formatting: formattingChanged
               ? documentTableFormatting(block, source.gridColumns || Math.max(1, ...source.rows.map((row) => row.cells.length)))
@@ -4202,6 +4217,7 @@ function documentFromEnvelope(envelope) {
           sourceBound: Boolean(block.source),
           values: block.content.value.rows.map((row) => [...row.cells]),
           gridColumns: block.content.value.gridColumns,
+          headerRowCount: Number(block.content.value.headerRowCount || 0),
           cells: documentTableCells(block.content.value),
           textPatches: [],
           ...formatting,

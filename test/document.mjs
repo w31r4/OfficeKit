@@ -204,8 +204,10 @@ const table = document.addTable({
   borderColor: "445566",
   borderSize: 8,
   headerFill: "E2E8F0",
+  headerRowCount: 1,
   values: [["Gate", "Status"], ["Semantic", "Pending"], ["Visual", "Required"]],
 });
+assert.throws(() => table.setHeaderRowCount(4), /headerRowCount must be an integer from 0 through 3/i);
 const hyperlink = document.addHyperlink(
   "Open XML SDK documentation",
   "https://learn.microsoft.com/office/open-xml/open-xml-sdk",
@@ -348,8 +350,10 @@ assert.equal(firstDocx.type, "application/vnd.openxmlformats-officedocument.word
 const firstDocxBytes = Buffer.from(await firstDocx.arrayBuffer());
 const firstDocxSha256 = createHash("sha256").update(firstDocxBytes).digest("hex");
 const firstDocxZip = await JSZip.loadAsync(firstDocxBytes);
+const firstDocumentXml = await firstDocxZip.file("word/document.xml").async("text");
 assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style\b(?=[^>]*w:styleId="BodyAccent")[\s\S]*?<w:suppressLineNumbers\b[^>]*w:val="true"[^>]*\/>[\s\S]*?<\/w:style>/);
-assert.match(await firstDocxZip.file("word/document.xml").async("text"), /<w:p>[\s\S]*?<w:suppressLineNumbers\b[^>]*w:val="false"[^>]*\/>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
+assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:suppressLineNumbers\b[^>]*w:val="false"[^>]*\/>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
+assert.equal((firstDocumentXml.match(/<w:tblHeader\b[^>]*\/>/g) || []).length, 1, "source-free table must mark exactly its leading header row");
 await assert.rejects(
   () => DocumentFile.exportDocx(DocumentModel.create({
     blocks: [{ kind: "paragraph", text: "Invalid suppression", paragraphFormat: { suppressLineNumbers: "yes" } }],
@@ -780,6 +784,7 @@ assert.equal(imported.contentControls[0].text, "Ada Lovelace");
 assert.ok(Number.isInteger(imported.contentControls[0].nativeId));
 assert.equal(imported.blocks.filter((block) => block.kind === "listItem").length, 2);
 assert.equal(imported.blocks.find((block) => block.kind === "table")?.values[1][1], "Pending");
+assert.equal(imported.blocks.find((block) => block.kind === "table")?.headerRowCount, 1);
 assert.equal(imported.blocks.find((block) => block.kind === "hyperlink")?.url, hyperlink.url);
 assert.equal(imported.blocks.find((block) => block.kind === "field")?.instruction, "PAGE");
 assert.deepEqual(imported.blocks.filter((block) => block.kind === "change").map((block) => [block.changeType, block.text, block.author]), [
@@ -824,6 +829,7 @@ const importedBullet = imported.blocks.find((block) => block.kind === "listItem"
 importedBullet.text = "Inspect the edited semantic model.";
 const importedTable = imported.blocks.find((block) => block.kind === "table");
 importedTable.values[1][1] = "Pass";
+importedTable.setHeaderRowCount(2);
 const importedLink = imported.blocks.find((block) => block.kind === "hyperlink");
 importedLink.url = "https://learn.microsoft.com/office/open-xml/word-processing";
 importedLink.tooltip = "Edited target";
@@ -857,6 +863,7 @@ assert.equal(roundTripFormatted?.runs[1].style.color, "#008844");
 assert.equal(roundTripFormatted?.paragraphFormat.suppressLineNumbers, true);
 assert.equal(roundTrip.blocks.some((block) => block.kind === "listItem" && block.text === "Inspect the edited semantic model."), true);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.values[1][1], "Pass");
+assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.headerRowCount, 2);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "hyperlink")?.history, false);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "field")?.instruction, "NUMPAGES");
 assert.deepEqual(roundTrip.blocks.filter((block) => block.kind === "change").map((block) => [block.changeType, block.text, block.author]), [

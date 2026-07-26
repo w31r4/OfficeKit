@@ -321,7 +321,8 @@ export const HELP_CATALOG = [
   { artifactKind: "document", kind: "api", name: "document.addChange", summary: "Append one bounded whole-paragraph tracked insertion or deletion. OfficeKit authors native w:ins/w:del markup and permits fixed-topology imported text/author/date edits; mixed or nested revision graphs remain source-bound." },
   { artifactKind: "document", kind: "api", name: "document.addInsertion", summary: "Append one bounded whole-paragraph tracked insertion using native w:ins markup. For one exact in-paragraph replacement in existing source bytes, use DocumentFile.addTrackedReplacement; mixed, moved, nested, and property-level revisions remain outside the bounded profile." },
   { artifactKind: "document", kind: "api", name: "document.addDeletion", summary: "Append one bounded whole-paragraph tracked deletion using native w:del/w:delText markup. For one exact in-paragraph replacement in existing source bytes, use DocumentFile.addTrackedReplacement; mixed, moved, nested, and property-level revisions remain outside the bounded profile." },
-  { artifactKind: "document", kind: "api", name: "document.addTable", summary: "Append a Word-style table with physical cell values, optional logical merge geometry, and fixed-layout width/margin/border/header formatting." },
+  { artifactKind: "document", kind: "api", name: "document.addTable", summary: "Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, and an optional native repeating-header prefix." },
+  { artifactKind: "document", kind: "api", name: "documentTable.setHeaderRowCount", summary: "Set the number of contiguous leading rows marked with native w:tblHeader repetition semantics. This is separate from headerFill styling; imported tables accept it only when their row-property profile is canonical, otherwise the edit fails closed." },
   { artifactKind: "document", kind: "api", name: "documentTableCell.addTextContentControl", summary: "Wrap one source-free rectangular table cell's existing text in a canonical cell-level plain-text w:sdt. The handle reports placement=tableCell plus row/column; recognized imported controls permit fixed-topology text/tag/alias edits, while adding or removing imported control topology fails closed." },
   { artifactKind: "document", kind: "api", name: "documentTableCell.addCheckboxContentControl", summary: "Wrap one source-free rectangular table cell in a canonical Word 2010+ checkbox w:sdt. OfficeKit owns the visible glyph and symbols; recognized imports permit checked/tag/alias edits while identity, type, placement, symbols, and topology remain fixed." },
   { artifactKind: "document", kind: "api", name: "documentTableCell.addDropdownContentControl", summary: "Wrap one source-free rectangular table cell in a canonical standard drop-down w:sdt with ordered choices and a typed selectedValue. Recognized imports permit selectedValue/tag/alias edits while the choice table and topology remain fixed." },
@@ -1329,8 +1330,12 @@ const DOCUMENT_HELP_SCHEMAS = {
     cellMarginsDxa: { type: "object", description: "Cell margins in twentieths of a point." },
     borderColor: { type: "string", description: "Table border color." },
     borderSize: { type: "number", description: "Uniform border width in eighths of a point; zero disables borders." },
-    headerFill: { type: "string", description: "Header-row fill color." },
+    headerFill: { type: "string", description: "First-row fill color. This is visual styling only and does not mark rows as native repeat headers." },
+    headerRowCount: { type: "number", description: "Number of contiguous leading physical rows to mark as native Word w:tblHeader repeat headers; 0 through the table row count, default 0." },
   }, "table", "DocumentTableBlock", "Appended table block."),
+  "documentTable.setHeaderRowCount": helpSchema({
+    count: { type: "number", required: true, description: "Integer from 0 through the table's physical row count. It sets the complete native w:tblHeader prefix, not cell fill styling." },
+  }, "table", "DocumentTableBlock", "Sets source-free or recognized imported table repeat-header rows. Imported row properties may contain only the canonical grid offsets and no-w:val w:tblHeader leaves; non-prefix, duplicate, explicit-value, extension-bearing, or otherwise irregular profiles stay source-bound and fail closed."),
   "documentTableCell.addTextContentControl": helpSchema({
     id: { type: "string", description: "Agent-facing content-control ID; generated when omitted." },
     tag: { type: "string", required: true, description: "Table-cell plain-text SDT tag, 1 to 64 characters without controls." },

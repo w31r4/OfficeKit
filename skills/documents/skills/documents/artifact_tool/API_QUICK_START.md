@@ -202,6 +202,7 @@ document.addTable({
   borderColor: "B8C4CE",
   borderSize: 6,
   headerFill: "DCEAF3",
+  headerRowCount: 1,
   values: [
     ["Metric", "Value", "Interpretation"],
     ["Readiness", "92%", "Core gates passed"],
@@ -1046,6 +1047,27 @@ first-row `w:shd` fill leaves in `word/document.xml`; it masks those leaves for
 a namespace-tolerant residual comparison, reimports the complete projection,
 verifies/model-renders, and writes a no-overwrite byte-bound audit. It is not a
 generic Word table-style editor and does not calculate wrapping or pagination.
+
+For one imported canonical repeat-header correction, use
+`examples/officekit-table-header-rows-edit-workflow.mjs`. Its CLI takes the
+inspected table block index and complete source/replacement count:
+
+```bash
+node examples/officekit-table-header-rows-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 1 2
+```
+
+`headerRowCount` is the number of contiguous leading physical rows carrying
+native `w:tblHeader`; it controls repetition across page breaks. It is separate
+from `headerFill`, which styles only the first row. The transaction accepts one
+imported flat rectangular table with canonical optional grid-offset row
+properties and no-`w:val` header leaves, keeps content/style/width/topology
+bound, permits only `word/document.xml`, masks only the header markers for its
+residual check, reimports, verifies/model-renders, and writes a no-overwrite
+audit. Non-prefix, duplicate, explicit-value, extension-bearing, nested,
+merged, content-control, stale, or no-op inputs fail closed. Review a native
+Word or LibreOffice plus Poppler render: changing repeat headers can change the
+visible page boundary even though it does not calculate pagination.
 
 Set one bounded passwordless Word editing restriction through the same settings state:
 
