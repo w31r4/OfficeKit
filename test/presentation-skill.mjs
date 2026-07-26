@@ -1085,6 +1085,285 @@ try {
   assert.equal(sectionRenameCli.status, 0, `section-rename CLI failed\n${sectionRenameCli.stdout}\n${sectionRenameCli.stderr}`);
   assert.equal(JSON.parse(sectionRenameCli.stdout).targetPart, "ppt/presentation.xml");
 
+  const sectionBoundaryDir = path.join(root, "section-boundary-workflow");
+  const sectionBoundaryInput = path.join(sectionBoundaryDir, "section-boundary-source.pptx");
+  const sectionBoundaryOutput = path.join(sectionBoundaryDir, "section-boundary-updated.pptx");
+  const sectionBoundaryAudit = path.join(sectionBoundaryDir, "audit.json");
+  const sectionBoundaryDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+  const sectionBoundarySlides = [
+    ["Boundary opening", "#DBEAFE"],
+    ["Boundary evidence", "#DCFCE7"],
+    ["Boundary decision", "#FEF3C7"],
+    ["Boundary appendix", "#FCE7F3"],
+  ].map(([name, fill], index) => {
+    const slide = sectionBoundaryDeck.slides.add({ name, background: { fill } });
+    slide.shapes.add({
+      name: `section-boundary-title-${index + 1}`,
+      position: { left: 48, top: 72, width: 520, height: 72 },
+      text: `${index + 1}. ${name}`,
+    });
+    return slide;
+  });
+  sectionBoundaryDeck.sections.add({
+    name: "Context",
+    nativeId: "{01F07B81-39E6-4BBB-9B89-66EA253FBD29}",
+    slides: sectionBoundarySlides.slice(0, 2),
+  });
+  sectionBoundaryDeck.sections.add({
+    name: "Decision",
+    nativeId: "{1FEF2C88-0CF2-4176-BA81-0DE6FD9D1274}",
+    slides: sectionBoundarySlides.slice(2, 3),
+  });
+  sectionBoundaryDeck.sections.add({
+    name: "Appendix",
+    nativeId: "{2E92C0F3-07D0-4D22-8AC3-55C9651C42B1}",
+    slides: sectionBoundarySlides.slice(3),
+  });
+  const expectedSectionPartition = [
+    {
+      id: "section/1",
+      name: "Context",
+      nativeId: "{01F07B81-39E6-4BBB-9B89-66EA253FBD29}",
+      slideIds: ["presentation/slide/1", "presentation/slide/2"],
+    },
+    {
+      id: "section/2",
+      name: "Decision",
+      nativeId: "{1FEF2C88-0CF2-4176-BA81-0DE6FD9D1274}",
+      slideIds: ["presentation/slide/3"],
+    },
+    {
+      id: "section/3",
+      name: "Appendix",
+      nativeId: "{2E92C0F3-07D0-4D22-8AC3-55C9651C42B1}",
+      slideIds: ["presentation/slide/4"],
+    },
+  ];
+  const replacementSectionPartition = [
+    {
+      ...expectedSectionPartition[0],
+      slideIds: ["presentation/slide/1"],
+    },
+    {
+      ...expectedSectionPartition[1],
+      slideIds: ["presentation/slide/2", "presentation/slide/3"],
+    },
+    expectedSectionPartition[2],
+  ];
+  await fs.mkdir(sectionBoundaryDir, { recursive: true });
+  await (await PresentationFile.exportPptx(sectionBoundaryDeck)).save(sectionBoundaryInput);
+  const sectionBoundarySource = await fs.readFile(sectionBoundaryInput);
+  const { replacePptxSectionPartition } = await import(
+    "../skills/presentations/skills/presentations/examples/openchestnut-section-boundary-edit-workflow.mjs"
+  );
+  const sectionBoundaryResult = await replacePptxSectionPartition({
+    inputPath: sectionBoundaryInput,
+    outputPath: sectionBoundaryOutput,
+    auditPath: sectionBoundaryAudit,
+    expectedSections: expectedSectionPartition,
+    replacementSections: replacementSectionPartition,
+  });
+  assert.equal(sectionBoundaryResult.audit.operation.type, "source-bound-section-boundary-edit");
+  assert.equal(sectionBoundaryResult.audit.operation.fixedSectionCount, 3);
+  assert.equal(sectionBoundaryResult.audit.operation.changedSections.length, 2);
+  assert.deepEqual(sectionBoundaryResult.audit.operation.replacementSections, replacementSectionPartition);
+  assert.equal(sectionBoundaryResult.audit.validation.package.targetPart, "ppt/presentation.xml");
+  assert.equal(sectionBoundaryResult.audit.validation.package.onlyPresentationPartChanged, true);
+  assert.equal(sectionBoundaryResult.audit.validation.package.nonTargetPartsByteIdentical, true);
+  assert.equal(sectionBoundaryResult.audit.validation.reimport.exactFixedIdentityPartitionRetained, true);
+  assert.equal(sectionBoundaryResult.audit.validation.nonSectionSemantics.stable, true);
+  assert.equal(sectionBoundaryResult.audit.validation.modelRender.byteIdentical, true);
+  assert.deepEqual(await fs.readFile(sectionBoundaryInput), sectionBoundarySource);
+  const sectionBoundarySourceZip = await JSZip.loadAsync(sectionBoundarySource);
+  const sectionBoundaryOutputZip = await JSZip.loadAsync(await fs.readFile(sectionBoundaryOutput));
+  assert.notDeepEqual(
+    await sectionBoundarySourceZip.file("ppt/presentation.xml").async("uint8array"),
+    await sectionBoundaryOutputZip.file("ppt/presentation.xml").async("uint8array"),
+  );
+  for (const partPath of Object.keys(sectionBoundarySourceZip.files)) {
+    if (sectionBoundarySourceZip.files[partPath].dir || partPath === "ppt/presentation.xml") continue;
+    assert.deepEqual(
+      await sectionBoundaryOutputZip.file(partPath).async("uint8array"),
+      await sectionBoundarySourceZip.file(partPath).async("uint8array"),
+      `section boundary edit changed non-target part ${partPath}`,
+    );
+  }
+  const sectionBoundaryRoundTrip = await PresentationFile.importPptx(new FileBlob(await fs.readFile(sectionBoundaryOutput), {
+    type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    name: "section-boundary-updated.pptx",
+  }));
+  assert.deepEqual(sectionBoundaryRoundTrip.sections.items.map((section) => section.toJSON()), replacementSectionPartition);
+  const sectionBoundaryBaselineDir = path.join(sectionBoundaryDir, "baselines");
+  await verifyPresentationFile(sectionBoundaryInput, {
+    outputDir: path.join(sectionBoundaryDir, "source-qa"),
+    nativeRender,
+    baselineDir: sectionBoundaryBaselineDir,
+    writeBaseline: true,
+  });
+  const sectionBoundaryReview = await verifyPresentationFile(sectionBoundaryOutput, {
+    outputDir: path.join(sectionBoundaryDir, "output-qa"),
+    nativeRender,
+    baselineDir: sectionBoundaryBaselineDir,
+  });
+  assert.ok(sectionBoundaryReview.modelRender.slides.every((slide) => slide.pixelDiff?.changed === false));
+  if (nativeStatus.available) assert.ok(sectionBoundaryReview.nativeRender.pages.every((page) => page.pixelDiff?.changed === false));
+  const sectionBoundaryStaleOutput = path.join(sectionBoundaryDir, "section-boundary-stale-output.pptx");
+  const sectionBoundaryStaleAudit = path.join(sectionBoundaryDir, "stale-audit.json");
+  await assert.rejects(
+    () => replacePptxSectionPartition({
+      inputPath: sectionBoundaryInput,
+      outputPath: sectionBoundaryStaleOutput,
+      auditPath: sectionBoundaryStaleAudit,
+      expectedSections: [{ ...expectedSectionPartition[0], name: "Stale context" }, ...expectedSectionPartition.slice(1)],
+      replacementSections: replacementSectionPartition,
+    }),
+    /expectedSections does not exactly match/i,
+  );
+  assert.equal(await fs.access(sectionBoundaryStaleOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(sectionBoundaryStaleAudit).then(() => true, () => false), false);
+  const sectionBoundaryNoncanonicalOutput = path.join(sectionBoundaryDir, "section-boundary-noncanonical-output.pptx");
+  const sectionBoundaryNoncanonicalAudit = path.join(sectionBoundaryDir, "noncanonical-audit.json");
+  await assert.rejects(
+    () => replacePptxSectionPartition({
+      inputPath: sectionBoundaryInput,
+      outputPath: sectionBoundaryNoncanonicalOutput,
+      auditPath: sectionBoundaryNoncanonicalAudit,
+      expectedSections: [{ ...expectedSectionPartition[0], name: "Context " }, ...expectedSectionPartition.slice(1)],
+      replacementSections: replacementSectionPartition,
+    }),
+    /without leading or trailing whitespace/i,
+  );
+  assert.equal(await fs.access(sectionBoundaryNoncanonicalOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(sectionBoundaryNoncanonicalAudit).then(() => true, () => false), false);
+  const sectionBoundaryPartialOutput = path.join(sectionBoundaryDir, "section-boundary-partial-output.pptx");
+  const sectionBoundaryPartialAudit = path.join(sectionBoundaryDir, "partial-audit.json");
+  await assert.rejects(
+    () => replacePptxSectionPartition({
+      inputPath: sectionBoundaryInput,
+      outputPath: sectionBoundaryPartialOutput,
+      auditPath: sectionBoundaryPartialAudit,
+      expectedSections: expectedSectionPartition,
+      replacementSections: replacementSectionPartition.slice(0, 2),
+    }),
+    /must each list every fixed source section/i,
+  );
+  assert.equal(await fs.access(sectionBoundaryPartialOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(sectionBoundaryPartialAudit).then(() => true, () => false), false);
+  const sectionBoundaryRenameOutput = path.join(sectionBoundaryDir, "section-boundary-rename-output.pptx");
+  const sectionBoundaryRenameAudit = path.join(sectionBoundaryDir, "rename-audit.json");
+  await assert.rejects(
+    () => replacePptxSectionPartition({
+      inputPath: sectionBoundaryInput,
+      outputPath: sectionBoundaryRenameOutput,
+      auditPath: sectionBoundaryRenameAudit,
+      expectedSections: expectedSectionPartition,
+      replacementSections: [{ ...replacementSectionPartition[0], name: "Background" }, ...replacementSectionPartition.slice(1)],
+    }),
+    /must preserve the source section ID, name, and native GUID/i,
+  );
+  assert.equal(await fs.access(sectionBoundaryRenameOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(sectionBoundaryRenameAudit).then(() => true, () => false), false);
+  const sectionBoundaryOrderOutput = path.join(sectionBoundaryDir, "section-boundary-order-output.pptx");
+  const sectionBoundaryOrderAudit = path.join(sectionBoundaryDir, "order-audit.json");
+  await assert.rejects(
+    () => replacePptxSectionPartition({
+      inputPath: sectionBoundaryInput,
+      outputPath: sectionBoundaryOrderOutput,
+      auditPath: sectionBoundaryOrderAudit,
+      expectedSections: expectedSectionPartition,
+      replacementSections: [
+        { ...replacementSectionPartition[0], slideIds: ["presentation/slide/2"] },
+        { ...replacementSectionPartition[1], slideIds: ["presentation/slide/1", "presentation/slide/3"] },
+        replacementSectionPartition[2],
+      ],
+    }),
+    /must partition every retained deck slide exactly once and in presentation order/i,
+  );
+  assert.equal(await fs.access(sectionBoundaryOrderOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(sectionBoundaryOrderAudit).then(() => true, () => false), false);
+  const sectionBoundaryOpaqueInput = path.join(sectionBoundaryDir, "section-boundary-opaque-source.pptx");
+  const sectionBoundaryOpaqueOutput = path.join(sectionBoundaryDir, "section-boundary-opaque-output.pptx");
+  const sectionBoundaryOpaqueAudit = path.join(sectionBoundaryDir, "opaque-audit.json");
+  const sectionBoundaryOpaqueZip = await JSZip.loadAsync(sectionBoundarySource);
+  const sectionBoundaryPresentationXml = await sectionBoundaryOpaqueZip.file("ppt/presentation.xml").async("text");
+  sectionBoundaryOpaqueZip.file("ppt/presentation.xml", sectionBoundaryPresentationXml.replace('name="Context"', 'name="Context" unmodeled="true"'));
+  await fs.writeFile(sectionBoundaryOpaqueInput, await sectionBoundaryOpaqueZip.generateAsync({ type: "nodebuffer" }));
+  await assert.rejects(
+    () => replacePptxSectionPartition({
+      inputPath: sectionBoundaryOpaqueInput,
+      outputPath: sectionBoundaryOpaqueOutput,
+      auditPath: sectionBoundaryOpaqueAudit,
+      expectedSections: expectedSectionPartition,
+      replacementSections: replacementSectionPartition,
+    }),
+    /no semantic canonical PowerPoint sections/i,
+  );
+  assert.equal(await fs.access(sectionBoundaryOpaqueOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(sectionBoundaryOpaqueAudit).then(() => true, () => false), false);
+  const sectionBoundaryCollisionOutput = path.join(sectionBoundaryDir, "section-boundary-existing-output.pptx");
+  const sectionBoundaryCollisionAudit = path.join(sectionBoundaryDir, "collision-audit.json");
+  const sectionBoundaryCollisionSentinel = Buffer.from("preserve-existing-section-boundary-output");
+  await fs.writeFile(sectionBoundaryCollisionOutput, sectionBoundaryCollisionSentinel);
+  await assert.rejects(
+    () => replacePptxSectionPartition({
+      inputPath: sectionBoundaryInput,
+      outputPath: sectionBoundaryCollisionOutput,
+      auditPath: sectionBoundaryCollisionAudit,
+      expectedSections: expectedSectionPartition,
+      replacementSections: replacementSectionPartition,
+    }),
+    /outputPath already exists; refusing to overwrite/i,
+  );
+  assert.deepEqual(await fs.readFile(sectionBoundaryCollisionOutput), sectionBoundaryCollisionSentinel);
+  assert.equal(await fs.access(sectionBoundaryCollisionAudit).then(() => true, () => false), false);
+  const sectionBoundaryCliOutput = path.join(sectionBoundaryDir, "section-boundary-cli.pptx");
+  const sectionBoundaryCliAudit = path.join(sectionBoundaryDir, "cli-audit.json");
+  const sectionBoundaryExpectedJson = path.join(sectionBoundaryDir, "expected-sections.json");
+  const sectionBoundaryReplacementJson = path.join(sectionBoundaryDir, "replacement-sections.json");
+  await fs.writeFile(sectionBoundaryExpectedJson, JSON.stringify(expectedSectionPartition));
+  await fs.writeFile(sectionBoundaryReplacementJson, JSON.stringify(replacementSectionPartition));
+  const sectionBoundaryCli = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/examples/openchestnut-section-boundary-edit-workflow.mjs",
+    sectionBoundaryInput,
+    sectionBoundaryCliOutput,
+    sectionBoundaryCliAudit,
+    "@" + sectionBoundaryExpectedJson,
+    "@" + sectionBoundaryReplacementJson,
+  ], { encoding: "utf8" });
+  assert.equal(sectionBoundaryCli.status, 0, `section-boundary CLI failed\n${sectionBoundaryCli.stdout}\n${sectionBoundaryCli.stderr}`);
+  const sectionBoundaryCliResult = JSON.parse(sectionBoundaryCli.stdout);
+  assert.equal(sectionBoundaryCliResult.targetPart, "ppt/presentation.xml");
+  assert.equal(sectionBoundaryCliResult.changedSections, 2);
+  const sectionBoundaryInlineOutput = path.join(sectionBoundaryDir, "section-boundary-inline-cli.pptx");
+  const sectionBoundaryInlineAudit = path.join(sectionBoundaryDir, "inline-cli-audit.json");
+  const sectionBoundaryInlineCli = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/examples/openchestnut-section-boundary-edit-workflow.mjs",
+    sectionBoundaryInput,
+    sectionBoundaryInlineOutput,
+    sectionBoundaryInlineAudit,
+    JSON.stringify(expectedSectionPartition),
+    JSON.stringify(replacementSectionPartition),
+  ], { encoding: "utf8" });
+  assert.equal(sectionBoundaryInlineCli.status, 0, `section-boundary inline CLI failed\n${sectionBoundaryInlineCli.stdout}\n${sectionBoundaryInlineCli.stderr}`);
+  assert.equal(JSON.parse(sectionBoundaryInlineCli.stdout).changedSections, 2);
+  const sectionBoundaryOversizedExpectedJson = path.join(sectionBoundaryDir, "oversized-expected-sections.json");
+  const sectionBoundaryOversizedOutput = path.join(sectionBoundaryDir, "section-boundary-oversized-cli.pptx");
+  const sectionBoundaryOversizedAudit = path.join(sectionBoundaryDir, "oversized-cli-audit.json");
+  await fs.writeFile(sectionBoundaryOversizedExpectedJson, "[");
+  await fs.truncate(sectionBoundaryOversizedExpectedJson, (32 * 1024 * 1024) + 1);
+  const sectionBoundaryOversizedCli = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/examples/openchestnut-section-boundary-edit-workflow.mjs",
+    sectionBoundaryInput,
+    sectionBoundaryOversizedOutput,
+    sectionBoundaryOversizedAudit,
+    "@" + sectionBoundaryOversizedExpectedJson,
+    "@" + sectionBoundaryReplacementJson,
+  ], { encoding: "utf8" });
+  assert.notEqual(sectionBoundaryOversizedCli.status, 0, "section-boundary CLI must refuse an oversized partition file before parsing it");
+  assert.match(sectionBoundaryOversizedCli.stderr, /exceeds the 33554432-byte JSON budget/i);
+  assert.equal(await fs.access(sectionBoundaryOversizedOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(sectionBoundaryOversizedAudit).then(() => true, () => false), false);
+
   const customShowDir = path.join(root, "custom-show-workflow");
   const customShowInput = path.join(customShowDir, "custom-show-source.pptx");
   const customShowOutput = path.join(customShowDir, "custom-show-updated.pptx");

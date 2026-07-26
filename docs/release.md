@@ -1,5 +1,42 @@
 # Release
 
+## 0.3.0 PPTX source-bound section-boundary transaction
+
+The Presentations Skill now separately ships
+`openchestnut-section-boundary-edit-workflow.mjs` for moving one or more
+boundaries in a canonical imported PowerPoint section list. A boundary edit is
+not a rename or a generic section editor: the task supplies the exact current
+complete partition and a complete replacement partition. The replacement keeps
+the source section count, order, facade IDs, names, and brace GUIDs fixed, while
+its flattened slide IDs must form the retained deck order exactly once.
+
+The transaction rejects partial updates, stale source snapshots, label/GUID or
+catalog changes, empty or no-op groups, duplicate/omitted/reordered slides,
+opaque/section-free inputs, and slide topology work. It protects the source,
+permits only `ppt/presentation.xml` to differ, reimports the exact requested
+fixed-identity partition, checks non-section semantics plus static slide SVGs,
+runs `verify({ visualQa: true })`, and publishes output/audit paths without
+overwrite. Its audit binds source/output hashes, both complete partitions, and
+every changed boundary. Static/native page rendering demonstrates visible-slide
+stability only, not PowerPoint navigation-pane behavior.
+
+### Section-boundary transaction integration evidence
+
+On 2026-07-26, the combined local candidate passed `npm test`, generated API
+documentation with a clean diff, `npm run proto:check`, deterministic
+`npm run verify:open-chestnut-build`, clean-install `npm run test:pack`,
+OfficeBridge `5/5`, OpenChestnut `375/375`, and the offline release metadata
+check. Two source-built WASM bundles reproduced the same 39 audited files; the
+manifest-bound runtime contains 38 files at 15,160,000 bytes. The production
+tarball contains 518 files, 9,422,043 compressed bytes, and 25,348,154
+unpacked bytes (`SHA-1 c1f8358d71987f058b537d1b3dcf76d999cd506f`), leaving
+26,846 bytes below the reviewed 25,375,000-byte ceiling.
+
+Managed PDF live-download and separately configured specialist Python-provider
+repeats remained explicit environment lanes and were skipped by design; their
+contract, package-build, and offline tests still ran. No npm publication, tag,
+or GitHub release was attempted.
+
 ## 0.3.0 PPTX source-bound section-name transaction
 
 The Presentations Skill now ships

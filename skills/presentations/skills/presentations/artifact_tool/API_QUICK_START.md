@@ -482,6 +482,28 @@ compares static slide renders, and records source/output provenance. It does
 not move boundaries, alter the section catalog, or prove the PowerPoint
 navigation pane from static rendering.
 
+For a source-bound boundary move, declare the complete source and replacement
+partitions rather than mutating one neighboring group implicitly:
+
+```bash
+node examples/openchestnut-section-boundary-edit-workflow.mjs \
+  input.pptx output.pptx audit.json \
+  @expected-sections.json \
+  @replacement-sections.json
+```
+
+Each array has every section in source order with exactly `id`, `name`,
+`nativeId`, and `slideIds`. The expected partition must exactly equal the
+current canonical import. The replacement must retain the same section
+count/order/IDs/names/GUIDs and state a different full ordered partition of the
+retained deck. It rejects partial requests, rename attempts, no-op partitions,
+empty groups, duplicate/omitted/reordered slides, opaque sources, and slide
+topology work. It changes only `ppt/presentation.xml`, reimports the exact
+target partition, checks non-section semantics and static renders, verifies the
+deck, and emits a no-overwrite provenance audit.
+Use `@path/to/file.json` for large complete partitions; inline JSON remains
+accepted and file input is bounded to 32 MiB before parsing.
+
 ## Bounded Slide Transitions
 
 For source-free slides, use one direct `fade` or directional `push` transition:

@@ -554,6 +554,28 @@ attempt to move a boundary, add/remove/reorder a section, or pair the rename
 with slide topology work fail closed. Static/native page renders prove visible
 slide stability only, not PowerPoint's navigation-pane behavior.
 
+For an imported boundary move, do not call `setSlides(...)` on one section and
+infer the neighbor. Use the separate complete-partition transaction instead:
+
+```bash
+node examples/openchestnut-section-boundary-edit-workflow.mjs \
+  input.pptx output.pptx audit.json \
+  @expected-sections.json \
+  @replacement-sections.json
+```
+
+Both arrays must list every imported section in source order with exactly
+`id`, `name`, `nativeId`, and ordered `slideIds`. The first is the exact current
+snapshot. The second retains every fixed ID/name/GUID and changes membership
+only as one complete ordered deck partition; a partial list, a label change,
+empty group, duplicate/omitted/reordered slide, stale source, no-op, opaque
+graph, or slide topology change fails closed. The transaction protects the
+source, permits only `ppt/presentation.xml` to change, reimports the exact
+target partition, verifies non-section semantics/static SVGs/`verify()`, and
+publishes a no-overwrite audit. It makes no native navigation-pane claim.
+Use `@path/to/file.json` for a large array; inline JSON remains supported and
+the file form has a 32 MiB input budget.
+
 ### Bounded Slide Transitions
 
 Use direct `p:transition` metadata only for an intentional between-slide
