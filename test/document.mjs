@@ -901,6 +901,13 @@ assert.deepEqual(imported.notes.map((note) => [note.kind, note.text, note.native
 assert.deepEqual(imported.notes[0].paragraphs, ["Source-free footnote", "Second source-free footnote paragraph"]);
 assert.equal(imported.notes.every((note) => imported.resolve(note.id) === note), true);
 
+const importedForBorderClear = await DocumentFile.importDocx(firstDocx);
+const importedForBorderClearFormatted = importedForBorderClear.blocks.find((block) => block.text === "Bold and colored");
+delete importedForBorderClearFormatted.paragraphFormat.borders;
+const clearedBordersDocx = await DocumentFile.exportDocx(importedForBorderClear);
+const clearedBordersRoundTrip = await DocumentFile.importDocx(clearedBordersDocx);
+assert.equal(clearedBordersRoundTrip.blocks.find((block) => block.text === "Bold and colored")?.paragraphFormat.borders, undefined);
+
 const resegmentedNotes = await DocumentFile.importDocx(firstDocx);
 resegmentedNotes.notes[0].paragraphs = ["Source-free footnote", "Second source-free footnote paragraph", "An unsupported third paragraph"];
 await assert.rejects(
