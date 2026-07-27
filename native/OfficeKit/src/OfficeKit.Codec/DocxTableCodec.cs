@@ -379,6 +379,8 @@ internal static class DocxTableCodec
         }
         var shading = DocxTableFormatting.BuildHeaderShading(formatting, header);
         if (shading is not null) properties.Append(shading);
+        var verticalAlignment = DocxTableFormatting.BuildVerticalAlignment(formatting);
+        if (verticalAlignment is not null) properties.Append(verticalAlignment);
         if (properties.ChildElements.Count > 0) cell.Append(properties);
         var text = new W.Text(value)
         {

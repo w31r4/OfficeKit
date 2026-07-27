@@ -25,7 +25,7 @@ Generated from `HELP_CATALOG` in `src/help/index.mjs`.
 | `document.addListItem` | api | Append a numbered, character-bulleted, or bounded picture-bulleted list item using native DOCX numbering definitions. Picture markers are shared numbering-level resources: every item using the same numberingId and level must agree, and recognized imported edits must update the complete group without changing embedded-versus-external source kind. |
 | `document.addParagraph` | api | Append a styled paragraph with optional run spans and bounded direct paragraph formatting, including canonical solid shading and solid paragraph borders, presence-aware contextual spacing, and line-number suppression. |
 | `document.addSection` | api | Append a DOCX section break with page size, orientation, margins, binding gutter, canonical equal-width or explicit-width columns, bounded page-number start/format, and break-type metadata backed by w:sectPr. Imported geometry and page numbering are writable only when their native markup is canonical. |
-| `document.addTable` | api | Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, an optional native repeating-header prefix, and individual rows kept together across pages. |
+| `document.addTable` | api | Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, optional uniform top/center/bottom physical-cell alignment, an optional native repeating-header prefix, and individual rows kept together across pages. |
 | `document.addTableOfContents` | api | Append one canonical one-paragraph complex TOC field with bounded heading levels/switches and enable the native updateFields-on-open hint by default. Refreshed cross-paragraph result graphs remain opaque/source-bound and read-only. |
 | `document.addWatermark` | api | Add one canonical VML text watermark to a section/header-reference scope. Recognized imported watermarks permit text-only edits or whole-object removal; adding to an imported package, changing scope, shared headers, multiple objects, DrawingML, images, and irregular VML fail closed. |
 | `document.applyDesignPreset` | api | Apply a clean-room report or memo design preset that updates named styles for consistent DOCX export and SVG/layout previews. |
@@ -407,7 +407,7 @@ Append a DOCX section break with page size, orientation, margins, binding gutter
 
 #### `document.addTable`
 
-Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, an optional native repeating-header prefix, and individual rows kept together across pages.
+Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, optional uniform top/center/bottom physical-cell alignment, an optional native repeating-header prefix, and individual rows kept together across pages.
 
 **Schema parameters:**
 
@@ -423,6 +423,7 @@ Append a Word-style table with physical cell values, optional logical merge geom
 - `borderColor` (string) — Table border color.
 - `borderSize` (number) — Uniform border width in eighths of a point; zero disables borders.
 - `headerFill` (string) — First-row fill color. This is visual styling only and does not mark rows as native repeat headers.
+- `verticalAlignment` ("top" | "center" | "bottom") — Optional uniform physical-cell alignment. Omit for Word's native top default; a recognized imported table can edit or clear it only when every physical cell has the same canonical direct w:vAlign profile.
 - `headerRowCount` (number) — Number of contiguous leading physical rows to mark as native Word w:tblHeader repeat headers; 0 through the table row count, default 0.
 - `keepTogetherRows` (number[]) — Zero-based physical table rows that must not split across pages through native w:cantSplit. Values form a deduplicated ascending set within the table row count; this does not group rows or calculate pagination.
 

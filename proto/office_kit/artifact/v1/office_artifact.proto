@@ -2998,6 +2998,11 @@ message DocumentTableFormatting {
   // non-zero values follow the WordprocessingML 2..96 range.
   uint32 border_size = 6;
   string header_fill = 7;
+  // Optional uniform cell vertical alignment. Omission retains Word's native
+  // default (top) instead of inventing an explicit cell property. When set,
+  // the bounded profile owns one canonical w:vAlign value on every physical
+  // cell; mixed or irregular cell alignment remains source-bound.
+  optional DocumentTableVerticalAlignment vertical_alignment = 8;
 }
 
 message DocumentTableCellMargins {
@@ -3022,6 +3027,15 @@ enum DocumentTableVerticalMerge {
   DOCUMENT_TABLE_VERTICAL_MERGE_UNSPECIFIED = 0;
   DOCUMENT_TABLE_VERTICAL_MERGE_RESTART = 1;
   DOCUMENT_TABLE_VERTICAL_MERGE_CONTINUE = 2;
+}
+
+// Uniform physical-cell alignment in the bounded fixed-layout table profile.
+// This intentionally does not model arbitrary per-cell style graphs.
+enum DocumentTableVerticalAlignment {
+  DOCUMENT_TABLE_VERTICAL_ALIGNMENT_UNSPECIFIED = 0;
+  DOCUMENT_TABLE_VERTICAL_ALIGNMENT_TOP = 1;
+  DOCUMENT_TABLE_VERTICAL_ALIGNMENT_CENTER = 2;
+  DOCUMENT_TABLE_VERTICAL_ALIGNMENT_BOTTOM = 3;
 }
 
 message DocumentTableCell {

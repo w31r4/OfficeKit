@@ -3255,6 +3255,8 @@ public sealed class DocxCodecTests
         Assert.Equal("445566", tableArtifact.Formatting.BorderColor);
         Assert.Equal(8u, tableArtifact.Formatting.BorderSize);
         Assert.Equal("E2E8F0", tableArtifact.Formatting.HeaderFill);
+        Assert.True(tableArtifact.Formatting.HasVerticalAlignment);
+        Assert.Equal(DocumentTableVerticalAlignment.Center, tableArtifact.Formatting.VerticalAlignment);
     }
 
     [Fact]
@@ -3295,6 +3297,12 @@ public sealed class DocxCodecTests
         var invalidBorderResponse = Invoke(invalidBorder);
         Assert.False(invalidBorderResponse.Ok);
         Assert.Equal("invalid_document_table", Assert.Single(invalidBorderResponse.Diagnostics).Code);
+
+        var invalidVerticalAlignment = MergedTableExportRequest();
+        invalidVerticalAlignment.Artifact.Document.Blocks[0].Table.Formatting.VerticalAlignment = DocumentTableVerticalAlignment.Unspecified;
+        var invalidVerticalAlignmentResponse = Invoke(invalidVerticalAlignment);
+        Assert.False(invalidVerticalAlignmentResponse.Ok);
+        Assert.Equal("invalid_document_table", Assert.Single(invalidVerticalAlignmentResponse.Diagnostics).Code);
 
         var noBorder = MergedTableExportRequest();
         noBorder.Artifact.Document.Blocks[0].Table.Formatting.BorderSize = 0;
@@ -3341,6 +3349,7 @@ public sealed class DocxCodecTests
         table.Formatting.BorderColor = "AA3300";
         table.Formatting.BorderSize = 12;
         table.Formatting.HeaderFill = "FFF2CC";
+        table.Formatting.VerticalAlignment = DocumentTableVerticalAlignment.Bottom;
         var edited = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -3364,6 +3373,8 @@ public sealed class DocxCodecTests
             var rows = nativeTable.Elements<W.TableRow>().ToArray();
             Assert.Equal("Edited merged owner", rows[0].Elements<W.TableCell>().First().InnerText);
             Assert.Equal("FFF2CC", rows[0].Elements<W.TableCell>().First().TableCellProperties!.Shading!.Fill!.Value);
+            Assert.All(rows.SelectMany(row => row.Elements<W.TableCell>()), cell =>
+                Assert.Equal(W.TableVerticalAlignmentValues.Bottom, cell.TableCellProperties!.GetFirstChild<W.TableCellVerticalAlignment>()!.Val!.Value));
             Assert.Equal(480u, rows[1].TableRowProperties!.GetFirstChild<W.TableRowHeight>()!.Val!.Value);
             Assert.Equal(W.JustificationValues.Center, rows[2].Elements<W.TableCell>().First().Elements<W.Paragraph>().Single().ParagraphProperties!.Justification!.Val!.Value);
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(document));
@@ -3386,6 +3397,58 @@ public sealed class DocxCodecTests
         Assert.Equal("AA3300", roundTripFormatting.BorderColor);
         Assert.Equal(12u, roundTripFormatting.BorderSize);
         Assert.Equal("FFF2CC", roundTripFormatting.HeaderFill);
+        Assert.True(roundTripFormatting.HasVerticalAlignment);
+        Assert.Equal(DocumentTableVerticalAlignment.Bottom, roundTripFormatting.VerticalAlignment);
+
+        var cleared = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        cleared.Artifact.Document.Blocks[0].Table.Formatting.ClearVerticalAlignment();
+        var clearedExport = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = cleared.Artifact,
+        });
+        Assert.True(clearedExport.Ok, Diagnostics(clearedExport));
+        using (var stream = new MemoryStream(clearedExport.File.ToByteArray()))
+        using (var document = WordprocessingDocument.Open(stream, false))
+        {
+            Assert.Empty(document.MainDocumentPart!.Document!.Body!.Descendants<W.TableCellVerticalAlignment>());
+        }
+        var clearedRoundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = clearedExport.File,
+        });
+        Assert.False(clearedRoundTrip.Artifact.Document.Blocks[0].Table.Formatting.HasVerticalAlignment);
+
+        var duplicateAlignment = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = ByteString.CopyFrom(AddDuplicateTableVerticalAlignment(authored.File.ToByteArray())),
+        });
+        Assert.True(duplicateAlignment.Ok, Diagnostics(duplicateAlignment));
+        Assert.Null(duplicateAlignment.Artifact.Document.Blocks[0].Table.Formatting);
+        duplicateAlignment.Artifact.Document.Blocks[0].Table.Formatting = MergedTableExportRequest().Artifact.Document.Blocks[0].Table.Formatting.Clone();
+        var duplicateAlignmentRejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = duplicateAlignment.Artifact,
+        });
+        Assert.False(duplicateAlignmentRejected.Ok);
+        Assert.Equal("unsupported_document_edit", Assert.Single(duplicateAlignmentRejected.Diagnostics).Code);
 
         var removed = Invoke(new CodecRequest
         {
@@ -9029,6 +9092,7 @@ public sealed class DocxCodecTests
             BorderColor = "445566",
             BorderSize = 8,
             HeaderFill = "E2E8F0",
+            VerticalAlignment = DocumentTableVerticalAlignment.Center,
         };
         table.Formatting.ColumnWidthsDxa.Add(3000);
         table.Formatting.ColumnWidthsDxa.Add(3000);
@@ -9223,6 +9287,21 @@ public sealed class DocxCodecTests
             }));
             rows[2].Elements<W.TableCell>().First().Elements<W.Paragraph>().Single()
                 .PrependChild(new W.ParagraphProperties(new W.Justification { Val = W.JustificationValues.Center }));
+            document.MainDocumentPart.Document.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddDuplicateTableVerticalAlignment(byte[] bytes)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var document = WordprocessingDocument.Open(stream, true))
+        {
+            var properties = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single()
+                .Descendants<W.TableCell>().First().TableCellProperties!;
+            properties.Append(new W.TableCellVerticalAlignment { Val = W.TableVerticalAlignmentValues.Center });
             document.MainDocumentPart.Document.Save();
         }
         return stream.ToArray();
