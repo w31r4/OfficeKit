@@ -1965,6 +1965,234 @@ public sealed class DocxCodecTests
     }
 
     [Fact]
+    public void ParagraphBordersAuthorImportEditClearAndRejectIrregularMarkup()
+    {
+        var request = ExportRequest(includeSecondParagraph: true);
+        request.Artifact.Document.Blocks[0].Paragraph.Formatting = new DocumentParagraphFormatting
+        {
+            KeepNext = true,
+            SuppressLineNumbers = true,
+            SpaceAfterTwips = 240,
+            Borders = new DocumentParagraphBorders
+            {
+                Top = new DocumentParagraphBorder { ColorRgb = "315a83", SizeEighthPoints = 8, SpacePoints = 3 },
+                Bottom = new DocumentParagraphBorder { ColorRgb = "9c2b2e", SizeEighthPoints = 12, SpacePoints = 0 },
+                Between = new DocumentParagraphBorder { ColorRgb = "64748b", SizeEighthPoints = 4, SpacePoints = 1 },
+            },
+        };
+        request.Artifact.Document.Blocks[1].Paragraph.Formatting = new DocumentParagraphFormatting
+        {
+            Borders = new DocumentParagraphBorders
+            {
+                Bar = new DocumentParagraphBorder { ColorRgb = "0f766e", SizeEighthPoints = 6, SpacePoints = 2 },
+            },
+        };
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = WordprocessingDocument.Open(stream, false))
+        {
+            var paragraphs = package.MainDocumentPart!.Document!.Body!.Elements<W.Paragraph>().ToArray();
+            var firstProperties = paragraphs[0].ParagraphProperties!;
+            var firstBorders = firstProperties.GetFirstChild<W.ParagraphBorders>()!;
+            var firstTop = firstBorders.GetFirstChild<W.TopBorder>()!;
+            var firstBottom = firstBorders.GetFirstChild<W.BottomBorder>()!;
+            var firstBetween = firstBorders.GetFirstChild<W.BetweenBorder>()!;
+            Assert.Equal(W.BorderValues.Single, firstTop.Val!.Value);
+            Assert.Equal("315A83", firstTop.Color!.Value);
+            Assert.Equal(8u, firstTop.Size!.Value);
+            Assert.Equal(3u, firstTop.Space!.Value);
+            Assert.Equal("9C2B2E", firstBottom.Color!.Value);
+            Assert.Equal(12u, firstBottom.Size!.Value);
+            Assert.Equal(0u, firstBottom.Space!.Value);
+            Assert.Equal("64748B", firstBetween.Color!.Value);
+            Assert.Equal(4u, firstBetween.Size!.Value);
+            Assert.Equal(1u, firstBetween.Space!.Value);
+            Assert.Equal("0F766E", paragraphs[1].ParagraphProperties!.GetFirstChild<W.ParagraphBorders>()!
+                .GetFirstChild<W.BarBorder>()!.Color!.Value);
+            var propertyChildren = firstProperties.ChildElements.ToList();
+            Assert.True(propertyChildren.IndexOf(firstProperties.GetFirstChild<W.SuppressLineNumbers>()!) <
+                        propertyChildren.IndexOf(firstBorders));
+            Assert.True(propertyChildren.IndexOf(firstBorders) <
+                        propertyChildren.IndexOf(firstProperties.GetFirstChild<W.SpacingBetweenLines>()!));
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var imported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedFirst = imported.Artifact.Document.Blocks[0];
+        var importedSecond = imported.Artifact.Document.Blocks[1];
+        Assert.True(importedFirst.Source.Editable);
+        var importedFirstBorders = Assert.IsType<DocumentParagraphBorders>(importedFirst.Paragraph.Formatting.Borders);
+        Assert.Equal("315A83", importedFirstBorders.Top!.ColorRgb);
+        Assert.Equal(8u, importedFirstBorders.Top.SizeEighthPoints);
+        Assert.Equal(3u, importedFirstBorders.Top.SpacePoints);
+        Assert.Equal("9C2B2E", importedFirstBorders.Bottom!.ColorRgb);
+        Assert.Null(importedFirstBorders.Left);
+        Assert.Equal("64748B", importedFirstBorders.Between!.ColorRgb);
+        Assert.Equal("0F766E", Assert.IsType<DocumentParagraphBorders>(importedSecond.Paragraph.Formatting.Borders).Bar!.ColorRgb);
+
+        var unchanged = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.True(unchanged.Ok, Diagnostics(unchanged));
+        Assert.Equal(authored.File, unchanged.File);
+
+        importedFirst.Paragraph.Formatting.Borders = new DocumentParagraphBorders
+        {
+            Right = new DocumentParagraphBorder { ColorRgb = "2563eb", SizeEighthPoints = 10, SpacePoints = 0 },
+            Bottom = new DocumentParagraphBorder { ColorRgb = "f97316", SizeEighthPoints = 6, SpacePoints = 2 },
+        };
+        importedSecond.Paragraph.Formatting.Borders = new DocumentParagraphBorders
+        {
+            Top = new DocumentParagraphBorder { ColorRgb = "14532d", SizeEighthPoints = 14, SpacePoints = 1 },
+        };
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var roundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = edited.File,
+        });
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        var roundTripFirstBorders = Assert.IsType<DocumentParagraphBorders>(roundTrip.Artifact.Document.Blocks[0].Paragraph.Formatting.Borders);
+        Assert.Equal("2563EB", roundTripFirstBorders.Right!.ColorRgb);
+        Assert.Equal("F97316", roundTripFirstBorders.Bottom!.ColorRgb);
+        Assert.Null(roundTripFirstBorders.Top);
+        Assert.Null(roundTripFirstBorders.Between);
+        Assert.Equal("14532D", Assert.IsType<DocumentParagraphBorders>(roundTrip.Artifact.Document.Blocks[1].Paragraph.Formatting.Borders).Top!.ColorRgb);
+
+        var clearedImport = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        Assert.True(clearedImport.Ok, Diagnostics(clearedImport));
+        clearedImport.Artifact.Document.Blocks[0].Paragraph.Formatting.Borders = null;
+        var cleared = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = clearedImport.Artifact,
+        });
+        Assert.True(cleared.Ok, Diagnostics(cleared));
+        var clearedRoundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = cleared.File,
+        });
+        Assert.True(clearedRoundTrip.Ok, Diagnostics(clearedRoundTrip));
+        Assert.Null(clearedRoundTrip.Artifact.Document.Blocks[0].Paragraph.Formatting?.Borders);
+        Assert.Equal("0F766E", Assert.IsType<DocumentParagraphBorders>(clearedRoundTrip.Artifact.Document.Blocks[1].Paragraph.Formatting.Borders).Bar!.ColorRgb);
+
+        var unbordered = Invoke(ExportRequest(includeSecondParagraph: false));
+        Assert.True(unbordered.Ok, Diagnostics(unbordered));
+        var unborderedImport = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = unbordered.File,
+        });
+        Assert.True(unborderedImport.Ok, Diagnostics(unborderedImport));
+        var unborderedBlock = Assert.Single(unborderedImport.Artifact.Document.Blocks,
+            block => block.ContentCase == DocumentBlock.ContentOneofCase.Paragraph);
+        Assert.True(unborderedBlock.Source.Editable);
+        Assert.Null(unborderedBlock.Paragraph.Formatting?.Borders);
+        unborderedBlock.Paragraph.Formatting = new DocumentParagraphFormatting
+        {
+            Borders = new DocumentParagraphBorders
+            {
+                Left = new DocumentParagraphBorder { ColorRgb = "7c3aed", SizeEighthPoints = 8, SpacePoints = 4 },
+            },
+        };
+        var added = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = unborderedImport.Artifact,
+        });
+        Assert.True(added.Ok, Diagnostics(added));
+        var addedRoundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = added.File,
+        });
+        Assert.True(addedRoundTrip.Ok, Diagnostics(addedRoundTrip));
+        Assert.Equal("7C3AED", Assert.IsType<DocumentParagraphBorders>(Assert.Single(addedRoundTrip.Artifact.Document.Blocks,
+            block => block.ContentCase == DocumentBlock.ContentOneofCase.Paragraph).Paragraph.Formatting.Borders).Left!.ColorRgb);
+
+        foreach (var mode in new[] { "duplicate", "extension", "invalid" })
+        {
+            var irregularBytes = MakeParagraphBordersIrregular(authored.File.ToByteArray(), mode);
+            var irregular = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ImportDocx,
+                Family = ArtifactFamily.Document,
+                File = ByteString.CopyFrom(irregularBytes),
+            });
+            Assert.True(irregular.Ok, Diagnostics(irregular));
+            var irregularBlock = irregular.Artifact.Document.Blocks[0];
+            Assert.False(irregularBlock.Source.Editable);
+            Assert.Null(irregularBlock.Paragraph.Formatting?.Borders);
+            var preserved = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ExportDocx,
+                Family = ArtifactFamily.Document,
+                Artifact = irregular.Artifact,
+            });
+            Assert.True(preserved.Ok, Diagnostics(preserved));
+            Assert.Equal(ByteString.CopyFrom(irregularBytes), preserved.File);
+
+            irregularBlock.Paragraph.Formatting = new DocumentParagraphFormatting
+            {
+                Borders = new DocumentParagraphBorders
+                {
+                    Top = new DocumentParagraphBorder { ColorRgb = "FFFFFF", SizeEighthPoints = 8, SpacePoints = 0 },
+                },
+            };
+            var rejected = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ExportDocx,
+                Family = ArtifactFamily.Document,
+                Artifact = irregular.Artifact,
+            });
+            Assert.False(rejected.Ok);
+            Assert.Equal("unsupported_document_edit", Assert.Single(rejected.Diagnostics).Code);
+        }
+    }
+
+    [Fact]
     public void OfficeSkillProfileRoundTripsFormattingImagesSectionsAndHeaders()
     {
         var authored = Invoke(OfficeSkillProfileExportRequest());
@@ -9133,6 +9361,42 @@ public sealed class DocxCodecTests
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown contextual-spacing irregularity.");
+            }
+            document.MainDocumentPart.Document.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] MakeParagraphBordersIrregular(byte[] bytes, string mode)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var document = WordprocessingDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var paragraph = document.MainDocumentPart!.Document!.Body!.Elements<W.Paragraph>().First();
+            var properties = paragraph.ParagraphProperties!;
+            var borders = properties.GetFirstChild<W.ParagraphBorders>()!;
+            var top = borders.GetFirstChild<W.TopBorder>()!;
+            switch (mode)
+            {
+                case "duplicate":
+                    borders.InsertAfter(new W.TopBorder
+                    {
+                        Val = W.BorderValues.Single,
+                        Color = "FFFFFF",
+                        Size = 8,
+                        Space = 0,
+                    }, top);
+                    break;
+                case "extension":
+                    borders.SetAttribute(new OpenXmlAttribute("oat", "probe", "urn:office-kit:test", "1"));
+                    break;
+                case "invalid":
+                    top.Val = W.BorderValues.Double;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown paragraph-border irregularity.");
             }
             document.MainDocumentPart.Document.Save();
         }

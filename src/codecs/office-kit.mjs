@@ -1820,6 +1820,70 @@ function publicDocumentRunFormatting(formatting) {
   };
 }
 
+const DOCUMENT_PARAGRAPH_BORDER_SIDES = ["top", "left", "bottom", "right", "between", "bar"];
+const DOCUMENT_PARAGRAPH_BORDER_EDGE_KEYS = new Set(["color", "size", "space"]);
+
+function documentParagraphBorders(value, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new OfficeKitCodecError(`${label} must be a non-empty border object.`, [], { code: "invalid_document_formatting" });
+  }
+  const unsupported = Object.keys(value).filter((key) => !DOCUMENT_PARAGRAPH_BORDER_SIDES.includes(key));
+  if (unsupported.length) {
+    throw new OfficeKitCodecError(`${label} uses unsupported border sides: ${unsupported.join(", ")}.`, [], { code: "unsupported_document_features" });
+  }
+  const result = {};
+  for (const side of DOCUMENT_PARAGRAPH_BORDER_SIDES) {
+    if (!Object.hasOwn(value, side)) continue;
+    const edge = value[side];
+    if (!edge || typeof edge !== "object" || Array.isArray(edge)) {
+      throw new OfficeKitCodecError(`${label}.${side} must be a border edge object.`, [], { code: "invalid_document_formatting" });
+    }
+    const unknownEdgeKeys = Object.keys(edge).filter((key) => !DOCUMENT_PARAGRAPH_BORDER_EDGE_KEYS.has(key));
+    if (unknownEdgeKeys.length) {
+      throw new OfficeKitCodecError(`${label}.${side} uses unsupported fields: ${unknownEdgeKeys.join(", ")}.`, [], { code: "unsupported_document_features" });
+    }
+    if (!Object.hasOwn(edge, "color") || !Object.hasOwn(edge, "size")) {
+      throw new OfficeKitCodecError(`${label}.${side} requires color and size.`, [], { code: "invalid_document_formatting" });
+    }
+    const size = Number(edge.size);
+    if (!Number.isInteger(size) || size < 2 || size > 96) {
+      throw new OfficeKitCodecError(`${label}.${side} size must be an integer from 2 through 96 eighths of a point.`, [], { code: "invalid_document_formatting" });
+    }
+    const space = edge.space === undefined ? 0 : Number(edge.space);
+    if (!Number.isInteger(space) || space < 0 || space > 31) {
+      throw new OfficeKitCodecError(`${label}.${side} space must be an integer from 0 through 31 points.`, [], { code: "invalid_document_formatting" });
+    }
+    if (typeof edge.color !== "string" || !/^#[0-9A-Fa-f]{6}$/.test(edge.color)) {
+      throw new OfficeKitCodecError(`${label}.${side} color must be a #RRGGBB value.`, [], { code: "invalid_document_formatting" });
+    }
+    const colorRgb = documentRgb(edge.color, `${label}.${side}`);
+    result[side] = {
+      colorRgb,
+      sizeEighthPoints: size,
+      spacePoints: space,
+    };
+  }
+  if (!Object.keys(result).length) {
+    throw new OfficeKitCodecError(`${label} requires at least one border edge.`, [], { code: "invalid_document_formatting" });
+  }
+  return result;
+}
+
+function publicDocumentParagraphBorders(value) {
+  if (!value) return undefined;
+  const result = {};
+  for (const side of DOCUMENT_PARAGRAPH_BORDER_SIDES) {
+    const edge = value[side];
+    if (!edge) continue;
+    result[side] = {
+      color: `#${edge.colorRgb}`,
+      size: edge.sizeEighthPoints,
+      space: edge.spacePoints,
+    };
+  }
+  return Object.keys(result).length ? result : undefined;
+}
+
 function documentParagraphFormatting(block) {
   const value = block?.paragraphFormat || block?.formatting || {};
   const result = {};
@@ -1833,6 +1897,7 @@ function documentParagraphFormatting(block) {
   text("alignment", "alignment");
   for (const [model, wire] of [["leftIndentTwips", "leftIndentTwips"], ["rightIndentTwips", "rightIndentTwips"], ["firstLineIndentTwips", "firstLineIndentTwips"], ["hangingIndentTwips", "hangingIndentTwips"], ["spaceBeforeTwips", "spaceBeforeTwips"], ["spaceAfterTwips", "spaceAfterTwips"], ["lineSpacingTwips", "lineSpacingTwips"]]) integer(model, wire);
   text("lineSpacingRule", "lineSpacingRule");
+  if (value.borders != null) result.borders = documentParagraphBorders(value.borders, `Document paragraph ${block.id} borders`);
   if (value.keepNext != null) result.keepNext = Boolean(value.keepNext);
   if (value.keepLinesTogether != null) {
     if (typeof value.keepLinesTogether !== "boolean") throw new OfficeKitCodecError(`Document paragraph ${block.id} keepLinesTogether must be boolean.`, [], { code: "invalid_document_formatting" });
@@ -1864,6 +1929,8 @@ function publicDocumentParagraphFormatting(value) {
   for (const key of ["alignment", "leftIndentTwips", "rightIndentTwips", "firstLineIndentTwips", "hangingIndentTwips", "spaceBeforeTwips", "spaceAfterTwips", "lineSpacingTwips", "lineSpacingRule", "keepNext", "keepLinesTogether", "pageBreakBefore", "widowControl", "outlineLevel", "contextualSpacing", "suppressLineNumbers"]) {
     if (value[key] !== undefined) result[key] = value[key];
   }
+  const borders = publicDocumentParagraphBorders(value.borders);
+  if (borders) result.borders = borders;
   return Object.keys(result).length ? result : undefined;
 }
 

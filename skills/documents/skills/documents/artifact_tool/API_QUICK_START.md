@@ -900,6 +900,14 @@ document.addParagraph("A compact continuation in the same body style.", {
   styleId: "BodyText",
   paragraphFormat: { contextualSpacing: true },
 });
+document.addParagraph("Decision boundary", {
+  paragraphFormat: {
+    borders: {
+      top: { color: "#315A83", size: 8, space: 2 },
+      bottom: { color: "#315A83", size: 8, space: 2 },
+    },
+  },
+});
 document.addParagraph("A generated-outline entry.", {
   paragraphFormat: { outlineLevel: 1 },
 });
@@ -925,10 +933,19 @@ calculating a TOC. `contextualSpacing` is separately presence-aware:
 `true` writes `w:contextualSpacing` and suppresses before/after spacing only
 between adjacent paragraphs with the same style; explicit `false` overrides an
 inherited named-style value, while omission inherits. It neither calculates
-layout nor collapses spacing across different styles. Duplicate,
-child-bearing, extension-bearing, or invalid lexical pagination markup remains
-source-owned and fails closed on semantic replacement. Use native Word or
-LibreOffice rendering to confirm the actual page boundary.
+layout nor collapses spacing across different styles. `borders` is a complete
+profile, not a generic border DSL: supply a nonempty subset of `top`, `left`,
+`bottom`, `right`, `between`, and `bar`, with each edge expressed as
+`{ color: "#RRGGBB", size: 2..96, space?: 0..31 }`. `size` is in eighths of a
+point and `space` is in points. OfficeKit writes exact `w:pBdr` children with
+`w:val="single"`; a recognized ordinary direct paragraph can add, replace, or
+clear the whole profile. A source-free named paragraph style may author the
+same profile, while imported style catalogs, themes/patterns/frame/shadow,
+other border styles, duplicate edges, child-bearing markup, extensions, and
+unknown attributes remain source-bound. Duplicate, child-bearing,
+extension-bearing, or invalid lexical pagination/border markup fails closed on
+semantic replacement. Use native Word or LibreOffice rendering to confirm the
+actual page boundary.
 
 `start` is optional and accepts integers from 0 through 2147483647. Omit it to
 continue the preceding section's sequence. `format` is optional and accepts

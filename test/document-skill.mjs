@@ -2429,6 +2429,7 @@ try {
   assert.match(skillText, /pageNumbering: \{ start: 1, format: "lowerRoman" \}/);
   assert.match(skillText, /lineNumbering: \{ countBy: 5, start: 0, distance: 360, restart: "newPage" \}/);
   assert.match(skillText, /paragraphFormat: \{ suppressLineNumbers: true \}/);
+  assert.match(skillText, /paragraphFormat: \{ borders: \{ bottom: \{ color: "#315A83", size: 8, space: 2 \} \} \}/);
   assert.match(skillText, /document\.addBibliographySource/);
   assert.match(skillText, /document\.addBibliography/);
   assert.match(skillText, /document\.addCitation/);

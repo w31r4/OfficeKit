@@ -9,6 +9,8 @@ namespace OfficeKit.Codec;
 // other inherited graphs remain source-owned.
 internal static class DocxFormattingCodec
 {
+    private const string WordprocessingNamespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+
     private static readonly HashSet<string> Alignments = new(StringComparer.Ordinal)
     {
         "left", "center", "right", "justify",
@@ -79,26 +81,28 @@ internal static class DocxFormattingCodec
     internal static DocumentParagraphFormatting? ReadParagraphFormatting(W.ParagraphProperties? properties)
     {
         if (properties is null) return null;
-        if (!TryReadParagraphOnOffProperties(properties, out var keepNext, out var keepLinesTogether,
+        if (!TryReadParagraphBorders(properties, out var borders) ||
+            !TryReadParagraphOnOffProperties(properties, out var keepNext, out var keepLinesTogether,
                                              out var pageBreakBefore, out var widowControl,
                                              out var suppressLineNumbers, out var contextualSpacing) ||
             !TryReadOutlineLevel(properties, out var outlineLevel)) return null;
         var result = ReadParagraphFormattingCore(properties.Justification, properties.Indentation,
             properties.SpacingBetweenLines, keepNext, keepLinesTogether, pageBreakBefore, widowControl,
-            suppressLineNumbers, outlineLevel, contextualSpacing);
+            suppressLineNumbers, outlineLevel, contextualSpacing, borders);
         return HasParagraphFormatting(result) ? result : null;
     }
 
     internal static DocumentParagraphFormatting? ReadStyleParagraphFormatting(W.StyleParagraphProperties? properties)
     {
         if (properties is null) return null;
-        if (!TryReadParagraphOnOffProperties(properties, out var keepNext, out var keepLinesTogether,
+        if (!TryReadParagraphBorders(properties, out var borders) ||
+            !TryReadParagraphOnOffProperties(properties, out var keepNext, out var keepLinesTogether,
                                              out var pageBreakBefore, out var widowControl,
                                              out var suppressLineNumbers, out var contextualSpacing) ||
             !TryReadOutlineLevel(properties, out var outlineLevel)) return null;
         var result = ReadParagraphFormattingCore(properties.Justification, properties.Indentation,
             properties.SpacingBetweenLines, keepNext, keepLinesTogether, pageBreakBefore, widowControl,
-            suppressLineNumbers, outlineLevel, contextualSpacing);
+            suppressLineNumbers, outlineLevel, contextualSpacing, borders);
         return HasParagraphFormatting(result) ? result : null;
     }
 
@@ -160,10 +164,11 @@ internal static class DocxFormattingCodec
     internal static bool IsSupportedParagraphProperties(W.ParagraphProperties? properties, bool allowNumbering = false, bool allowSection = false)
     {
         if (properties is null) return true;
-        if (!TryReadParagraphOnOffProperties(properties, out _, out _, out _, out _, out _, out _) ||
+        if (!TryReadParagraphBorders(properties, out _) ||
+            !TryReadParagraphOnOffProperties(properties, out _, out _, out _, out _, out _, out _) ||
             !TryReadOutlineLevel(properties, out _)) return false;
         return properties.ChildElements.All(child => child is W.ParagraphStyleId or W.Justification or W.Indentation or
-            W.SpacingBetweenLines or W.KeepNext or W.KeepLines or W.PageBreakBefore or W.WidowControl or W.SuppressLineNumbers or W.ContextualSpacing or W.OutlineLevel ||
+            W.SpacingBetweenLines or W.KeepNext or W.KeepLines or W.PageBreakBefore or W.WidowControl or W.SuppressLineNumbers or W.ParagraphBorders or W.ContextualSpacing or W.OutlineLevel ||
             (allowNumbering && child is W.NumberingProperties) ||
             (allowSection && child is W.SectionProperties));
     }
@@ -216,6 +221,29 @@ internal static class DocxFormattingCodec
             throw new CodecException("invalid_document_paragraph_formatting", $"{label} line-spacing rule requires line spacing.");
         if (formatting.HasOutlineLevel && formatting.OutlineLevel > 9)
             throw new CodecException("invalid_document_paragraph_formatting", $"{label} outline level must be an integer from 0 through 9.");
+        ValidateParagraphBorders(formatting.Borders, label);
+    }
+
+    private static void ValidateParagraphBorders(DocumentParagraphBorders? borders, string label)
+    {
+        if (borders is null) return;
+        var edges = new (string Name, DocumentParagraphBorder? Value)[]
+        {
+            ("top", borders.Top), ("left", borders.Left), ("bottom", borders.Bottom),
+            ("right", borders.Right), ("between", borders.Between), ("bar", borders.Bar),
+        };
+        if (edges.All(edge => edge.Value is null))
+            throw new CodecException("invalid_document_paragraph_formatting", $"{label} borders require at least one edge.");
+        foreach (var (name, edge) in edges)
+        {
+            if (edge is null) continue;
+            if (!IsRgb(edge.ColorRgb))
+                throw new CodecException("invalid_document_paragraph_formatting", $"{label} {name} border color must be a six-digit RGB value.");
+            if (edge.SizeEighthPoints is < 2 or > 96)
+                throw new CodecException("invalid_document_paragraph_formatting", $"{label} {name} border size must be from 2 through 96 eighths of a point.");
+            if (edge.SpacePoints > 31)
+                throw new CodecException("invalid_document_paragraph_formatting", $"{label} {name} border space must be from 0 through 31 points.");
+        }
     }
 
     internal static DocumentRunFormatting MergeLegacy(DocumentRun source)
@@ -235,7 +263,8 @@ internal static class DocxFormattingCodec
         (value.HasAlignment || value.HasLeftIndentTwips || value.HasRightIndentTwips || value.HasFirstLineIndentTwips ||
          value.HasHangingIndentTwips || value.HasSpaceBeforeTwips || value.HasSpaceAfterTwips || value.HasLineSpacingTwips ||
          value.HasLineSpacingRule || value.HasKeepNext || value.HasKeepLinesTogether || value.HasPageBreakBefore ||
-         value.HasWidowControl || value.HasSuppressLineNumbers || value.HasOutlineLevel || value.HasContextualSpacing);
+         value.HasWidowControl || value.HasSuppressLineNumbers || value.HasOutlineLevel || value.HasContextualSpacing ||
+         value.Borders is not null);
 
     private static DocumentParagraphFormatting ReadParagraphFormattingCore(
         W.Justification? justification,
@@ -247,7 +276,8 @@ internal static class DocxFormattingCodec
         bool? widowControl,
         bool? suppressLineNumbers,
         uint? outlineLevel,
-        bool? contextualSpacing)
+        bool? contextualSpacing,
+        DocumentParagraphBorders? borders)
     {
         var result = new DocumentParagraphFormatting();
         var nativeAlignment = justification?.Val?.Value;
@@ -287,6 +317,7 @@ internal static class DocxFormattingCodec
         if (suppressLineNumbers is not null) result.SuppressLineNumbers = suppressLineNumbers.Value;
         if (outlineLevel is not null) result.OutlineLevel = outlineLevel.Value;
         if (contextualSpacing is not null) result.ContextualSpacing = contextualSpacing.Value;
+        if (borders is not null) result.Borders = borders;
         return result;
     }
 
@@ -321,6 +352,8 @@ internal static class DocxFormattingCodec
         if (formatting is null) return;
         if (formatting.HasSuppressLineNumbers)
             properties.Append(new W.SuppressLineNumbers { Val = formatting.SuppressLineNumbers });
+        if (formatting.Borders is not null)
+            properties.Append(BuildParagraphBorders(formatting.Borders));
         if (formatting.HasSpaceBeforeTwips || formatting.HasSpaceAfterTwips || formatting.HasLineSpacingTwips)
         {
             var spacing = new W.SpacingBetweenLines();
@@ -363,6 +396,27 @@ internal static class DocxFormattingCodec
             properties.Append(new W.OutlineLevel { Val = checked((int)formatting.OutlineLevel) });
     }
 
+    private static W.ParagraphBorders BuildParagraphBorders(DocumentParagraphBorders source)
+    {
+        var borders = new W.ParagraphBorders();
+        if (source.Top is not null) borders.Append(BuildParagraphBorder(new W.TopBorder(), source.Top));
+        if (source.Left is not null) borders.Append(BuildParagraphBorder(new W.LeftBorder(), source.Left));
+        if (source.Bottom is not null) borders.Append(BuildParagraphBorder(new W.BottomBorder(), source.Bottom));
+        if (source.Right is not null) borders.Append(BuildParagraphBorder(new W.RightBorder(), source.Right));
+        if (source.Between is not null) borders.Append(BuildParagraphBorder(new W.BetweenBorder(), source.Between));
+        if (source.Bar is not null) borders.Append(BuildParagraphBorder(new W.BarBorder(), source.Bar));
+        return borders;
+    }
+
+    private static T BuildParagraphBorder<T>(T target, DocumentParagraphBorder source) where T : W.BorderType
+    {
+        target.Val = W.BorderValues.Single;
+        target.Color = source.ColorRgb.ToUpperInvariant();
+        target.Size = source.SizeEighthPoints;
+        target.Space = source.SpacePoints;
+        return target;
+    }
+
     private static bool IsOn(W.OnOffType value) => value.Val?.Value != false;
 
     private static bool TryReadParagraphOnOffProperties(
@@ -387,6 +441,83 @@ internal static class DocxFormattingCodec
                TryReadOnOff<W.SuppressLineNumbers>(properties, out suppressLineNumbers) &&
                TryReadOnOff<W.ContextualSpacing>(properties, out contextualSpacing);
     }
+
+    private static bool TryReadParagraphBorders(OpenXmlCompositeElement properties, out DocumentParagraphBorders? result)
+    {
+        result = null;
+        var elements = properties.Elements<W.ParagraphBorders>().ToArray();
+        if (elements.Length == 0) return true;
+        if (elements.Length != 1) return false;
+        var source = elements[0];
+        if (source.ChildElements.Count == 0 || source.GetAttributes().Count != 0 || source.ExtendedAttributes.Any()) return false;
+
+        var borders = new DocumentParagraphBorders();
+        foreach (var child in source.ChildElements)
+        {
+            if (!TryReadParagraphBorder(child, out var edge) || edge is null) return false;
+            switch (child)
+            {
+                case W.TopBorder when borders.Top is null:
+                    borders.Top = edge;
+                    break;
+                case W.LeftBorder when borders.Left is null:
+                    borders.Left = edge;
+                    break;
+                case W.BottomBorder when borders.Bottom is null:
+                    borders.Bottom = edge;
+                    break;
+                case W.RightBorder when borders.Right is null:
+                    borders.Right = edge;
+                    break;
+                case W.BetweenBorder when borders.Between is null:
+                    borders.Between = edge;
+                    break;
+                case W.BarBorder when borders.Bar is null:
+                    borders.Bar = edge;
+                    break;
+                default:
+                    return false;
+            }
+        }
+        if (!HasParagraphBorders(borders)) return false;
+        result = borders;
+        return true;
+    }
+
+    private static bool TryReadParagraphBorder(OpenXmlElement element, out DocumentParagraphBorder? result)
+    {
+        result = null;
+        if (element is not W.BorderType border || border.ChildElements.Count != 0 || border.ExtendedAttributes.Any()) return false;
+        var attributes = border.GetAttributes();
+        if (attributes.Count != 4 || attributes.Any(attribute =>
+                attribute.NamespaceUri != WordprocessingNamespace ||
+                (attribute.LocalName != "val" && attribute.LocalName != "color" &&
+                 attribute.LocalName != "sz" && attribute.LocalName != "space"))) return false;
+        try
+        {
+            var value = border.Val?.Value;
+            var color = border.Color?.Value;
+            var size = border.Size?.Value;
+            var space = border.Space?.Value;
+            if (value != W.BorderValues.Single || !IsRgb(color) || size is null || size is < 2 or > 96 ||
+                space is null || space > 31) return false;
+            result = new DocumentParagraphBorder
+            {
+                ColorRgb = color!.ToUpperInvariant(),
+                SizeEighthPoints = size.Value,
+                SpacePoints = space.Value,
+            };
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
+
+    private static bool HasParagraphBorders(DocumentParagraphBorders borders) =>
+        borders.Top is not null || borders.Left is not null || borders.Bottom is not null ||
+        borders.Right is not null || borders.Between is not null || borders.Bar is not null;
 
     private static bool TryReadOutlineLevel(OpenXmlCompositeElement properties, out uint? value)
     {
