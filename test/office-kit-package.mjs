@@ -623,7 +623,7 @@ try {
     const expectedReferencePath = fs.realpathSync(
       path.join(template.skillPath, "assets", "reference.xlsx"),
     );
-    if (
+    const catalogMismatch =
       catalogResult.schemaVersion !== 2 ||
       catalogResult.selectionMade !== false ||
       catalogResult.ranking?.algorithm !== "bm25f" ||
@@ -633,8 +633,30 @@ try {
       !(catalogResult.candidates[0].match?.bm25 > 0) ||
       catalogResult.candidates[0].editProfile?.level !== "copy-only" ||
       catalogResult.candidates[0].skillPath !== expectedSkillPath ||
-      catalogResult.candidates[0].referencePath !== expectedReferencePath
-    ) process.exit(58);
+      catalogResult.candidates[0].referencePath !== expectedReferencePath;
+    if (catalogMismatch) {
+      process.stderr.write(JSON.stringify({
+        expected: {
+          id: template.skillName,
+          skillPath: expectedSkillPath,
+          referencePath: expectedReferencePath,
+        },
+        actual: {
+          schemaVersion: catalogResult.schemaVersion,
+          selectionMade: catalogResult.selectionMade,
+          ranking: catalogResult.ranking?.algorithm,
+          invalid: catalogResult.invalid,
+          candidates: catalogResult.candidates.map((candidate) => ({
+            id: candidate.id,
+            bm25: candidate.match?.bm25,
+            level: candidate.editProfile?.level,
+            skillPath: candidate.skillPath,
+            referencePath: candidate.referencePath,
+          })),
+        },
+      }, null, 2));
+      process.exit(58);
+    }
   `;
 
   // Keep the probe in a module file instead of passing it through `node -e`.
