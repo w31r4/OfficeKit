@@ -62,7 +62,7 @@ if (process.env.OFFICE_KIT_PDF_LIVE_PACK_TEST !== "1") {
       env: { ...process.env, ...runtime.environment },
     };
     assert.match(combinedOutput(await execFile(runtime.commandPaths.ocrmypdf, ["--version"], commandOptions)), /^17\.8\.1\s*$/m);
-    assert.match(combinedOutput(await execFile(runtime.commandPaths.tesseract, ["--version"], commandOptions)), /^tesseract 5\./m);
+    assert.match(combinedOutput(await execFile(runtime.commandPaths.tesseract, ["--version"], commandOptions)), /^tesseract v?5\./m);
     assert.match(combinedOutput(await execFile(runtime.commandPaths.qpdf, ["--version"], commandOptions)), /^qpdf version 12\.3\.2\s*$/m);
 
     const cached = await PdfProviders.probe({

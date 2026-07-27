@@ -463,7 +463,7 @@ jobs:
             pdftotext_version="$(run_probe pdftotext "$destination/bin/pdftotext" -v)"
           fi
           grep -Fx 17.8.1 "$ocrmypdf_version" || { cat "$ocrmypdf_version" >&2; exit 2; }
-          grep -q '^tesseract 5\.' "$tesseract_version" || { cat "$tesseract_version" >&2; exit 2; }
+          grep -Eq '^tesseract v?5\.' "$tesseract_version" || { cat "$tesseract_version" >&2; exit 2; }
           grep -q '^[0-9]' "$ghostscript_version" || { cat "$ghostscript_version" >&2; exit 2; }
           grep -q 'Poppler' "$pdftotext_version" || { cat "$pdftotext_version" >&2; exit 2; }
       - name: Attest immutable OCR core provenance
