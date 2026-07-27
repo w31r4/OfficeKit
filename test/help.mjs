@@ -457,6 +457,7 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "documentTable.setRowKeep
 assert.match(HELP_CATALOG.find((item) => item.name === "documentTable.setRowKeepTogether")?.summary || "", /physical table row.*w:cantSplit.*not a row-group.*fails? closed/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addListItem")?.schema?.parameters?.numberingStyleId?.type, "string");
 assert.match(HELP_CATALOG.find((item) => item.name === "DocumentModel.create")?.schema?.parameters?.styles?.description || "", /numberingId\/numberingLevel/);
+assert.match(HELP_CATALOG.find((item) => item.name === "DocumentModel.create")?.summary || "", /solid paragraph borders/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "DocumentFile.importDocx")?.schema?.returns?.document?.type, "DocumentModel");
 assert.equal(HELP_CATALOG.find((item) => item.name === "paragraph.addTextContentControl")?.schema?.parameters?.tag?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addBlockTextContentControl")?.schema?.parameters?.tag?.required, true);
