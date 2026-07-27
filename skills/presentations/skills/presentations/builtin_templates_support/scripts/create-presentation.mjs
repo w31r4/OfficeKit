@@ -31,7 +31,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const [, , layoutLibraryRoot, outputPath] = process.argv;
   if (!layoutLibraryRoot || !outputPath) {
     throw new Error(
-      "Usage: node create-presentation.mjs <layout-library-asset-root> <output-pptx>",
+      "Usage: officekit run create-presentation.mjs <layout-library-asset-root> <output-pptx>",
     );
   }
   await exportPresentation(layoutLibraryRoot, outputPath);

@@ -98,7 +98,7 @@ The input, output, and audit paths must be distinct.
    paragraph through its own index rather than adding a line break.
 
 ```bash
-node examples/officekit-note-text-edit-workflow.mjs \
+officekit run examples/officekit-note-text-edit-workflow.mjs \
   input.docx output.docx audit.json \
   '{"kind":"footnote","noteId":"document/note/1","nativeId":1,"targetId":"document/block/1","paragraphIndex":0,"expectedText":"Pilot report, section 4.2."}' \
   'Pilot report, section 4.2, independently reviewed.'

@@ -60,10 +60,11 @@ XLSX, or PPTX.
    [template-selection.md](references/template-selection.md).
 2. Treat a user-provided template as a task-scoped reference, not a catalog
    entry. Never register it unless the user explicitly asks for later reuse.
-3. Summarize a searchable request as structured purpose, audience, content-shape,
-   visual-trait, and required-operation intent.
-4. Query available metadata with
-   `scripts/query-templates.mjs`; do not inspect every template file.
+3. Summarize the purpose, audience, content shape, visual traits, and required
+   operations as short English search terms. Continue speaking to the user in
+   the user's language.
+4. Run `officekit template search ... --json`; do not inspect every template
+   file.
 5. Choose exactly one of `selected`, `ask`, or `none`.
 6. Load previews only for the final one to three candidates.
 7. Before selecting a template, load the owning domain Skill and confirm that

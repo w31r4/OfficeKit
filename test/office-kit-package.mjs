@@ -20,6 +20,7 @@ try {
     "install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund",
     "--omit=dev", "--legacy-peer-deps", "--no-save", tarball, ...dependencyTarballs,
   ], temporary);
+  testGlobalCli({ dependencyTarballs, tarball, temporary });
 
   const probe = String.raw`
     import { spawnSync } from "node:child_process";
@@ -580,21 +581,31 @@ try {
       !retainedPreview.equals(fs.readFileSync(previewPath))
     ) process.exit(54);
 
-    if (fs.existsSync(path.join(installedPackage, "skills", "default-template-library"))) process.exit(55);
-
-    const officeKitQueryPath = path.join(
+    const packagedTemplateRoot = path.join(
       installedPackage,
-      "skills", "office-kit", "skills", "office-kit", "scripts", "query-templates.mjs",
+      "skills", "default-template-library", "skills",
     );
-    if (!fs.existsSync(officeKitQueryPath)) process.exit(56);
+    if (
+      !fs.existsSync(packagedTemplateRoot) ||
+      fs.readdirSync(packagedTemplateRoot).filter((name) =>
+        name.startsWith("artifact-template-")
+      ).length !== 20
+    ) process.exit(55);
+    if (
+      fs.existsSync(path.join(
+        installedPackage,
+        "skills", "office-kit", "skills", "office-kit", "scripts", "query-templates.mjs",
+      ))
+    ) process.exit(56);
     const queried = spawnSync(
-      process.execPath,
+      installedBin,
       [
-        officeKitQueryPath,
+        "template", "search",
         "--kind", "spreadsheet",
         "--root", path.join(templateHome, "skills"),
         "--id", template.skillName,
         "--purpose", "clean installed package fixture",
+        "--json",
       ],
       {
         cwd: process.cwd(),
@@ -631,7 +642,7 @@ try {
   fs.rmSync(temporary, { force: true, recursive: true });
 }
 
-console.log("Office file Skills, PDF, OfficeKit, and Template Creator clean-install package smoke ok; repository-only templates are excluded");
+console.log("Office file Skills, PDF, OfficeKit, Template Creator, and bundled templates clean-install package smoke ok");
 
 function run(command, args, cwd, environment = {}) {
   const result = spawnSync(command, args, {
@@ -657,4 +668,170 @@ function packProductionDependencies(temporary) {
       const report = JSON.parse(packed.stdout)[0];
       return path.join(destination, report.filename);
     });
+}
+
+function testGlobalCli({ dependencyTarballs, tarball, temporary }) {
+  const globalPrefix = path.join(temporary, "global-prefix");
+  run("npm", [
+    "install", "--global", "--prefix", globalPrefix, "--offline",
+    "--ignore-scripts", "--no-audit", "--no-fund", "--omit=dev",
+    "--legacy-peer-deps", tarball, ...dependencyTarballs,
+  ], temporary);
+  const officekit = process.platform === "win32"
+    ? path.join(globalPrefix, "officekit.cmd")
+    : path.join(globalPrefix, "bin", "officekit");
+  assert.ok(fs.existsSync(officekit), "global-prefix install must expose officekit");
+  const execute = (args, cwd, environment = {}) => spawnSync(officekit, args, {
+    cwd,
+    encoding: "utf8",
+    env: { ...process.env, ...environment },
+    shell: process.platform === "win32",
+  });
+  const expectSuccess = (args, cwd, environment = {}) => {
+    const result = execute(args, cwd, environment);
+    assert.equal(
+      result.status,
+      0,
+      `global officekit ${args.join(" ")} failed\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`,
+    );
+    return result;
+  };
+
+  const project = path.join(temporary, "global-empty-project");
+  fs.mkdirSync(project, { recursive: true });
+  assert.equal(expectSuccess(["--version"], project).stdout.trim(), "0.4.0");
+  const initialized = JSON.parse(expectSuccess([
+    "init", ".", "--tools", "agents", "--json",
+  ], project).stdout);
+  assert.equal(initialized.created, 7);
+  assert.ok(fs.existsSync(path.join(project, ".agents", "skills", "office-kit", "SKILL.md")));
+  assert.equal(
+    fs.existsSync(path.join(project, ".agents", "skills", "default-template-library")),
+    false,
+    "officekit init must not duplicate bundled templates into the project",
+  );
+  const updated = JSON.parse(expectSuccess([
+    "update", ".", "--json",
+  ], project).stdout);
+  assert.equal(updated.unchanged, 7);
+
+  const expectedTemplateCounts = new Map([
+    ["document", 7],
+    ["spreadsheet", 6],
+    ["presentation", 7],
+  ]);
+  for (const [kind, expectedCount] of expectedTemplateCounts) {
+    const search = JSON.parse(expectSuccess([
+      "template", "search", "--kind", kind, "--max", "20", "--json",
+    ], project).stdout);
+    assert.equal(search.candidates.length, expectedCount, `${kind} bundled templates`);
+    assert.equal(search.selectionMade, false);
+    assert.deepEqual(search.invalid, []);
+    assert.ok(search.searchedRoots.some((root) => root.source === "package-default"));
+  }
+  const none = JSON.parse(expectSuccess([
+    "template", "search", "--kind", "presentation",
+    "--purpose", "quantum entanglement laboratory protocol", "--json",
+  ], project).stdout);
+  assert.equal(none.retrievalStatus, "none");
+  assert.deepEqual(none.candidates, []);
+  const lazySearch = expectSuccess([
+    "template", "search", "--kind", "document", "--max", "20", "--json",
+  ], project, { NODE_DEBUG: "esm" });
+  assert.doesNotMatch(
+    lazySearch.stderr,
+    /node_modules\/mupdf|src\/pdf\/mupdf|runtime\/office-kit\/main|src\/codecs\//iu,
+    "template search must not initialize Office or PDF runtimes",
+  );
+  assert.equal(
+    fs.existsSync(path.join(project, ".open-office-artifact-tool", "providers")),
+    false,
+    "init/search must not download a provider",
+  );
+
+  const packageMetadata = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
+  const publicSpecifiers = Object.keys(packageMetadata.exports).map((subpath) =>
+    subpath === "." ? packageMetadata.name : `${packageMetadata.name}/${subpath.slice(2)}`,
+  );
+  const taskPath = path.join(project, "four-formats.mjs");
+  fs.writeFileSync(taskPath, [
+    'import fs from "node:fs/promises";',
+    'import {',
+    '  DocumentFile, DocumentModel, PdfArtifact, PdfFile, Presentation,',
+    '  PresentationFile, SpreadsheetFile, Workbook,',
+    '} from "office-kit";',
+    `const publicSpecifiers = ${JSON.stringify(publicSpecifiers)};`,
+    "for (const specifier of publicSpecifiers) await import(specifier);",
+    'const document = DocumentModel.create({ paragraphs: ["global CLI DOCX"] });',
+    "const docx = await DocumentFile.exportDocx(document);",
+    'await docx.save("global.docx");',
+    "if ((await DocumentFile.importDocx(docx)).blocks[0].text !== 'global CLI DOCX') process.exit(11);",
+    "const workbook = Workbook.create();",
+    'workbook.worksheets.add("Data").getRange("A1:B2").values = [["Label", "Value"], ["global CLI XLSX", 7]];',
+    "const xlsx = await SpreadsheetFile.exportXlsx(workbook);",
+    'await xlsx.save("global.xlsx");',
+    "if ((await SpreadsheetFile.importXlsx(xlsx)).worksheets.getItem('Data').getRange('B2').values[0][0] !== 7) process.exit(12);",
+    "const presentation = Presentation.create();",
+    'presentation.slides.add({ name: "Global CLI" }).shapes.add({',
+    '  geometry: "textbox", text: "global CLI PPTX",',
+    '  position: { left: 40, top: 40, width: 400, height: 80 },',
+    "});",
+    "const pptx = await PresentationFile.exportPptx(presentation);",
+    'await pptx.save("global.pptx");',
+    "if ((await PresentationFile.importPptx(pptx)).slides.count !== 1) process.exit(13);",
+    'const pdf = await PdfFile.exportPdf(PdfArtifact.create({ pages: [{ text: "global CLI PDF" }] }));',
+    'await pdf.save("global.pdf");',
+    "if (!(await PdfFile.importPdf(pdf)).extractText().includes('global CLI PDF')) process.exit(14);",
+    "for (const filename of ['global.docx', 'global.xlsx', 'global.pptx', 'global.pdf']) {",
+    "  if ((await fs.stat(filename)).size < 100) process.exit(15);",
+    "}",
+    "console.log(JSON.stringify({",
+    "  argv: process.argv.slice(2),",
+    "  cwd: process.cwd(),",
+    "  publicSubpaths: publicSpecifiers.length,",
+    "}));",
+    "",
+  ].join("\n"));
+  assert.equal(
+    fs.existsSync(path.join(project, "node_modules")),
+    false,
+    "empty task project must start without node_modules",
+  );
+  const taskResult = JSON.parse(expectSuccess([
+    "run", "four-formats.mjs", "--", "alpha", "two words",
+  ], project).stdout);
+  assert.deepEqual(taskResult.argv, ["alpha", "two words"]);
+  assert.equal(taskResult.cwd, fs.realpathSync(project));
+  assert.equal(taskResult.publicSubpaths, publicSpecifiers.length);
+  assert.equal(
+    fs.existsSync(path.join(project, "node_modules")),
+    false,
+    "officekit run must not install a project-local package",
+  );
+
+  const dependencyProject = path.join(temporary, "global-local-dependency-project");
+  const dependencyRoot = path.join(dependencyProject, "node_modules", "local-probe");
+  fs.mkdirSync(dependencyRoot, { recursive: true });
+  fs.writeFileSync(
+    path.join(dependencyRoot, "package.json"),
+    `${JSON.stringify({
+      name: "local-probe",
+      version: "1.0.0",
+      type: "module",
+      exports: "./index.mjs",
+    })}\n`,
+  );
+  fs.writeFileSync(path.join(dependencyRoot, "index.mjs"), "export default 41;\n");
+  fs.writeFileSync(
+    path.join(dependencyProject, "dependency-task.mjs"),
+    'import value from "local-probe"; console.log(value + 1);\n',
+  );
+  assert.equal(
+    expectSuccess(["run", "dependency-task.mjs"], dependencyProject).stdout.trim(),
+    "42",
+  );
+
+  fs.writeFileSync(path.join(project, "exit-task.mjs"), "process.exitCode = 7;\n");
+  const exitResult = execute(["run", "exit-task.mjs"], project);
+  assert.equal(exitResult.status, 7, "officekit run must preserve task exit codes");
 }

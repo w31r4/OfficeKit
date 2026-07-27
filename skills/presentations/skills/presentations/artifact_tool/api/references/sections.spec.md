@@ -75,7 +75,7 @@ For an Agent task that changes one imported section label only, use the shipped
 workflow rather than a raw package patch:
 
 ```bash
-node examples/officekit-section-rename-workflow.mjs \
+officekit run examples/officekit-section-rename-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Context" "Background"
 ```
@@ -105,7 +105,7 @@ transaction rather than individually calling `setSlides(...)` in an Agent
 workflow:
 
 ```bash
-node examples/officekit-section-boundary-edit-workflow.mjs \
+officekit run examples/officekit-section-boundary-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   @expected-sections.json \
   @replacement-sections.json

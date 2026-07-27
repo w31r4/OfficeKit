@@ -328,6 +328,17 @@ try {
     unsupportedSelectionResult.stderr,
     /visualTraits contains unsupported fields: undocumentedTrait/,
   );
+  const nonEnglishSelection = structuredClone(pptxSelection);
+  nonEnglishSelection.useWhen = ["季度项目复盘"];
+  const nonEnglishSelectionResult = await runCreator([
+    "--reference-path", pptxPath,
+    "--preview-path", previewPath,
+    "--display-name", "Non-English selection fixture",
+    "--description", "This fixture must keep one English search representation.",
+    "--selection-json", JSON.stringify(nonEnglishSelection),
+  ]);
+  assert.notEqual(nonEnglishSelectionResult.code, 0);
+  assert.match(nonEnglishSelectionResult.stderr, /useWhen must use English search text/);
 
   const pptxTemplate = await runSuccessfulCreator([
     "--reference-path", pptxPath,

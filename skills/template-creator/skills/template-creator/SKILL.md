@@ -17,7 +17,12 @@ Create or update a reference-backed local template. The source Office file stays
 ## Create workflow
 
 1. Require exactly one `.docx`, `.pptx`, or `.xlsx` reference unless the user explicitly requests a batch. For a batch, complete this workflow separately for every file. An extension alone is not evidence: the creator must accept the reference as a bounded Office OPC package before retaining it.
-2. Infer a concise display name, intended-use description, and artifact kind from the reference and request. If there is enough evidence, also prepare compact selection metadata: intended uses, avoid cases, audiences, content shapes, visual traits, visual commitment, and provenance.
+2. Infer a concise display name, intended-use description, and artifact kind
+   from the reference and request. Always prepare schema-v2 selection metadata.
+   Write `useWhen`, `avoidWhen`, audiences, content shapes, tone, and structure
+   as concise English search text, regardless of the user's language. Include
+   at least one evidence-backed `useWhen`; keep unknown arrays empty and
+   density or color mode as `mixed`.
 3. Create `preview.png` before packaging:
    - DOCX: render the reference and use a representative page PNG.
    - PPTX: render the reference and use a representative slide PNG.
@@ -26,17 +31,17 @@ Create or update a reference-backed local template. The source Office file stays
 5. Set `SKILL_DIR` to this skill directory and pass shell-escaped values directly to the creator:
 
 ```bash
-node "$SKILL_DIR/scripts/create-template-skill.mjs" \
+officekit run "$SKILL_DIR/scripts/create-template-skill.mjs" \
   --reference-path "/absolute/path/reference.docx" \
   --preview-path "/absolute/path/preview.png" \
   --display-name "Standup" \
   --description "Run a structured daily standup with updates, blockers, and owners."
 ```
 
-Pass selection metadata as one shell-escaped JSON value when it is known:
+Pass the complete selection metadata as one shell-escaped JSON value:
 
 ```bash
-node "$SKILL_DIR/scripts/create-template-skill.mjs" \
+officekit run "$SKILL_DIR/scripts/create-template-skill.mjs" \
   --reference-path "/absolute/path/reference.pptx" \
   --preview-path "/absolute/path/preview.png" \
   --display-name "Quarterly Review" \
@@ -44,11 +49,12 @@ node "$SKILL_DIR/scripts/create-template-skill.mjs" \
   --selection-json '{"useWhen":["quarterly business review"],"avoidWhen":["project kickoff"],"audiences":["executive"],"contentShapes":["KPIs","decisions","risks"],"visualTraits":{"tone":["formal"],"density":"medium","colorMode":"light","structure":["sectioned"]},"visualCommitment":"neutral","editProfile":{"level":"copy-only","verifiedOperations":[]},"provenance":{"license":"user-provided","source":"local-user-reference"}}'
 ```
 
-Do not claim a verified edit operation from visual inspection. Keep
+Do not invent metadata just to fill a field. Do not claim a verified edit
+operation from visual inspection. Keep
 `editProfile.level` as `copy-only` until a real import/edit/export/reimport test
-proves a narrower or broader profile. If selection metadata is omitted, the
-creator safely defaults to the intended-use description, an opinionated visual
-commitment, and `copy-only`.
+proves a narrower or broader profile. The script permits a minimal default only
+when the English intended-use description itself is enough for `useWhen`; the
+normal Skill workflow should pass the explicit evidence-backed profile.
 
 6. Read the JSON result. Verify that the generated directory contains `SKILL.md`, schema-v2 `artifact-template.json`, `agents/agent.yaml`, the retained `assets/reference.<ext>`, and `assets/preview.png`. Verify the recorded reference and preview hashes.
 
@@ -63,10 +69,13 @@ changing a template.
 1. Resolve the exact passed template and read its `SKILL.md`, `artifact-template.json`, `agents/agent.yaml`, retained reference, and preview. Stop if it is not a direct child of the local skills directory or if more than one target was passed.
 2. Preserve the template folder name and every file or behavior the user did not ask to change.
 3. For reference or visual changes, edit a temporary copy of the retained reference using the matching Office artifact workflow, render a new preview, and inspect it. For display-name or intended-use changes, retain the existing reference and preview unless they also change.
-4. Pass every current or changed required value to the creator explicitly. Existing schema-v2 selection metadata is preserved when `--selection-json` is omitted; pass a complete replacement value when that metadata must change:
+4. Pass every current or changed required value to the creator explicitly.
+   Existing schema-v2 selection metadata is preserved when `--selection-json`
+   is omitted; pass a complete English replacement value when that metadata
+   must change:
 
 ```bash
-node "$SKILL_DIR/scripts/create-template-skill.mjs" \
+officekit run "$SKILL_DIR/scripts/create-template-skill.mjs" \
   --mode "update" \
   --skill-name "artifact-template-standup" \
   --reference-path "/absolute/path/updated-reference.docx" \
@@ -88,4 +97,5 @@ Report the created or updated template's display name, artifact kind, and local 
 - Do not delete or sanitize the retained reference; fidelity depends on retaining it verbatim.
 - Do not change the artifact kind during an update.
 - Do not mark a template `bounded-edit` or `composable` without repeatable capability evidence.
+- Do not create translated metadata copies or a `searchLanguage` field.
 - Do not modify global skill metadata or protocol files.

@@ -14,9 +14,9 @@ Check field hierarchy, widget pages, current values, annotations, encryption, si
 For a supported MuPDF.js field or text note:
 
 ```bash
-node scripts/mupdf.mjs probe
-node scripts/mupdf.mjs inspect input.pdf
-node scripts/mupdf.mjs edit input.pdf tmp/pdfs/form-operations.json tmp/pdfs/filled.pdf \
+officekit run scripts/mupdf.mjs probe
+officekit run scripts/mupdf.mjs inspect input.pdf
+officekit run scripts/mupdf.mjs edit input.pdf tmp/pdfs/form-operations.json tmp/pdfs/filled.pdf \
   --save-policy rewrite
 ```
 

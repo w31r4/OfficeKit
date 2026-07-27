@@ -169,7 +169,12 @@ The npm package contains:
 - `runtime/office-kit` WASM/runtime assets;
 - integrity manifest, SBOM, and license notices;
 - the optional `native/OfficeBridge/src` project, without its repository-only solution or tests;
-- six npm-distributed native plugin bundles containing seven Skills: the four file-type workflows, the separate `excel-live-control` route, the project-native `officekit` coordinator, and the local-only `template-creator` utility. The source repository additionally contains a seventh, MIT-licensed, repository-only `default-template-library` bundle with twenty retained DOCX/PPTX/XLSX template Skills; it is deliberately excluded from consumer npm tarballs.
+- seven npm-distributed native plugin bundles: six provide the seven initialized
+  workflow Skills (the four file-type routes, `excel-live-control`, the
+  `office-kit` coordinator, and `template-creator`); the seventh is the
+  MIT-licensed `default-template-library` with twenty retained
+  DOCX/PPTX/XLSX template Skills. The global package keeps the template assets
+  in one place, and `officekit init` does not copy them into projects.
 
 It excludes OfficeKit C# source, every C# test and solution, all C# build output, repository-only scripts/tests, and removed legacy codec modules. Normal package use therefore works without a local .NET SDK; only consumers who explicitly build the optional OfficeBridge helper need one.
 

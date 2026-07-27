@@ -89,7 +89,7 @@ export async function materializeTemplate({ templateId, outputPath, auditPath } 
 function usage() {
   return [
     "Usage:",
-    "  node materialize-template.mjs --template-id <id> --output <path> [--audit <path>]",
+    "  officekit run materialize-template.mjs --template-id <id> --output <path> [--audit <path>]",
     "",
     "Creates a distinct byte-identical working copy of one retained repository template.",
   ].join("\n");

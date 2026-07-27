@@ -8,7 +8,7 @@ import { parseArgs, requireArg } from "../container_tools/artifact_tool_utils.mj
 function usage() {
   return [
     "Usage:",
-    "  node template_following_scripts/prepare_template_starter_deck.mjs --workspace <dir> --pptx <source.pptx> --map <template-frame-map.json> --out <starter.pptx> [options]",
+    "  officekit run template_following_scripts/prepare_template_starter_deck.mjs --workspace <dir> --pptx <source.pptx> --map <template-frame-map.json> --out <starter.pptx> [options]",
     "",
     "Options:",
     "  --preview-dir <dir>     Render starter slide PNGs. Defaults to <workspace>/template-starter-preview.",

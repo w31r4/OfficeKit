@@ -15,7 +15,7 @@ import {
 function usage() {
   return [
     "Usage:",
-    "  node template_following_scripts/inspect_template_deck.mjs --workspace <dir> --pptx <source.pptx> [options]",
+    "  officekit run template_following_scripts/inspect_template_deck.mjs --workspace <dir> --pptx <source.pptx> [options]",
     "",
     "Options:",
     "  --out-dir <dir>   Output directory under workspace. Defaults to <workspace>/template-inspect.",

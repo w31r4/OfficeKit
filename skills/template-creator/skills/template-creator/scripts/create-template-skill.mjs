@@ -411,8 +411,13 @@ User instructions control requested content and explicit deviations. The retaine
 }
 
 function defaultSelectionMetadata(description) {
+  const useWhen = compactMetadataDescription(description);
+  assertEnglishSearchText(
+    useWhen,
+    "--description (or provide English --selection-json useWhen)",
+  );
   return {
-    useWhen: [compactMetadataDescription(description)],
+    useWhen: [useWhen],
     avoidWhen: [],
     audiences: [],
     contentShapes: [],
@@ -489,12 +494,12 @@ function assertNestedSelectionKeys(value, label, allowedKeys) {
 
 function selectionMetadataFrom(sidecar) {
   const metadata = {
-    useWhen: stringArrayFrom(sidecar.useWhen, "useWhen", 1, 20),
-    avoidWhen: stringArrayFrom(sidecar.avoidWhen, "avoidWhen", 0, 20),
-    audiences: stringArrayFrom(sidecar.audiences, "audiences", 0, 20),
-    contentShapes: stringArrayFrom(sidecar.contentShapes, "contentShapes", 0, 20),
+    useWhen: englishStringArrayFrom(sidecar.useWhen, "useWhen", 1, 20),
+    avoidWhen: englishStringArrayFrom(sidecar.avoidWhen, "avoidWhen", 0, 20),
+    audiences: englishStringArrayFrom(sidecar.audiences, "audiences", 0, 20),
+    contentShapes: englishStringArrayFrom(sidecar.contentShapes, "contentShapes", 0, 20),
     visualTraits: {
-      tone: stringArrayFrom(sidecar.visualTraits?.tone, "visualTraits.tone", 0, 12),
+      tone: englishStringArrayFrom(sidecar.visualTraits?.tone, "visualTraits.tone", 0, 12),
       density: enumFrom(
         sidecar.visualTraits?.density,
         "visualTraits.density",
@@ -505,7 +510,7 @@ function selectionMetadataFrom(sidecar) {
         "visualTraits.colorMode",
         ["light", "dark", "neutral", "mixed"],
       ),
-      structure: stringArrayFrom(
+      structure: englishStringArrayFrom(
         sidecar.visualTraits?.structure,
         "visualTraits.structure",
         0,
@@ -562,6 +567,18 @@ function stringArrayFrom(value, label, min, max) {
     throw new Error(`${label} must not contain duplicates.`);
   }
   return result;
+}
+
+function englishStringArrayFrom(value, label, min, max) {
+  const result = stringArrayFrom(value, label, min, max);
+  for (const entry of result) assertEnglishSearchText(entry, label);
+  return result;
+}
+
+function assertEnglishSearchText(value, label) {
+  if (!/^[\x20-\x7e]+$/u.test(value) || !/[a-z]/iu.test(value)) {
+    throw new Error(`${label} must use English search text.`);
+  }
 }
 
 function enumFrom(value, label, values) {

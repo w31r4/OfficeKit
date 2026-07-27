@@ -17,7 +17,7 @@ Set `OFFICE_KIT_HOME` to choose another local root. Each template keeps a verbat
 Provide one supported Office reference, a valid PNG preview, a concise display name, and an intended-use description:
 
 ```sh
-node skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs \
+officekit run skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs \
   --reference-path /absolute/path/reference.pptx \
   --preview-path /absolute/path/preview.png \
   --display-name "Quarterly business review" \
@@ -34,11 +34,13 @@ primary part, declared main content type, and exactly one root
 file, a cross-family Office package, a broken root relationship, or a corrupt
 archive fails closed and creates no template tree.
 
-The generated `artifact-template.json` uses schema version 2. It records
-selection metadata plus SHA-256 values for the retained Office file and PNG.
-Without explicit selection metadata, new templates are intentionally
-`copy-only` and visually `opinionated`; an Agent may recommend them but must not
-claim that their content is safely editable.
+The generated `artifact-template.json` uses schema version 2. Its searchable
+fields use one English canonical form: `useWhen`, `avoidWhen`, audiences,
+content shapes, tone, and structure. Unknown evidence stays empty or `mixed`;
+there are no translated metadata copies. The sidecar also records SHA-256
+values for the retained Office file and PNG. Without explicit selection
+metadata, the English description becomes the sole `useWhen`; new templates
+remain `copy-only` and visually `opinionated`.
 
 Optional `--selection-json` accepts the complete selection profile in one JSON
 value. Verified edit operations must come from a real
@@ -49,7 +51,7 @@ import/edit/export/reimport test, not visual inspection.
 Updates require the exact template name and preserve other skill-owned files:
 
 ```sh
-node skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs \
+officekit run skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs \
   --mode update \
   --skill-name artifact-template-quarterly-business-review \
   --reference-path /absolute/path/updated-reference.pptx \

@@ -38,12 +38,12 @@ Use OfficeKit to inspect the forms, signatures, and accessibility of report.pdf 
 
 ## Quick Start
 
-Requires Node.js 22 or newer. Run these commands in the project where the agent
-will work:
+Requires Node.js 22.15 or newer. Install OfficeKit globally once, then
+initialize each project that will use it:
 
 ```sh
-npm install github:w31r4/OfficeKit
-npx officekit init
+npm install -g github:w31r4/OfficeKit
+officekit init
 ```
 
 `officekit init` detects the agent tools used by the current project, then
@@ -53,10 +53,10 @@ Control, and Template Creator into their project directories.
 For scripts and CI, select the tools directly:
 
 ```sh
-npx officekit init --tools claude,cursor
+officekit init --tools claude,cursor
 ```
 
-After upgrading OfficeKit, run `npx officekit update` in the project to refresh
+After upgrading the global package, run `officekit update` in the project to refresh
 its Skills. Specialist PDF providers continue to load their own runtimes
 according to project policy.
 
@@ -64,8 +64,17 @@ GitHub is the current installation source. After the first formal npm release,
 the first command becomes:
 
 ```sh
-npm install office-kit
+npm install -g office-kit
 ```
+
+Run JavaScript tasks referenced by the Skills with:
+
+```sh
+officekit run task.mjs -- input.docx output.docx
+```
+
+`officekit run` supplies the matching global OfficeKit API. A task's other
+dependencies continue to resolve from the task's own project.
 
 ## One front door, with direct routes when you want them
 
@@ -100,10 +109,19 @@ See [coverage](docs/coverage.md) for the complete supported boundary.
 ## Use templates when they fit
 
 The [Office Template Library](skills/default-template-library/README.md) provides
-20 MIT-licensed templates as on-demand repository assets. OfficeKit searches
-compact metadata only when the goal is clear and no template has been specified.
-After reviewing a small shortlist, the agent selects one, asks, or proceeds
-without a template.
+20 MIT-licensed templates stored once in the global package. `officekit init`
+installs Skills and leaves the template assets in place. When the goal is clear
+and no template has been specified, OfficeKit normalizes the intent into
+English search terms and runs local BM25F retrieval. After reviewing a small
+shortlist, the agent selects one, asks, or proceeds without a template.
+
+```sh
+officekit template search \
+  --kind presentation \
+  --purpose "quarterly business review" \
+  --audience executive \
+  --json
+```
 
 An uploaded DOCX, XLSX, or PPTX stays scoped to the current task by default.
 Template Creator saves it when the user explicitly wants future reuse.
@@ -127,8 +145,9 @@ provider policy and operational limits.
 
 ## JavaScript API
 
-Skills and application code use the same package. An agent can follow a Skill,
-while an application can call the API directly:
+Skills and application code use the same API. Skill tasks use the global
+package through `officekit run`; application developers can also add
+`office-kit` to a project and call it directly:
 
 ```js
 import { SpreadsheetFile, Workbook } from "office-kit";
@@ -169,7 +188,7 @@ npm run release:check
 ```
 
 `OfficeKit` is the product name, and the npm package is `office-kit`.
-Version `0.3.0` is currently a release candidate; npm installation follows the
+Version `0.4.0` is currently a release candidate; npm installation follows the
 formal release.
 
 ## License

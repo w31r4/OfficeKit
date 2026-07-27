@@ -27,7 +27,7 @@ When an agent or reviewer can identify one canonical imported body image and
 write its actual description, prefer the source-bound OfficeKit transaction:
 
 ```bash
-node examples/officekit-image-alt-text-edit-workflow.mjs \
+officekit run examples/officekit-image-alt-text-edit-workflow.mjs \
   input.docx reviewed.docx image-alt.audit.json 1 \
   "Existing architecture overview" \
   "Architecture overview showing the API gateway and three service lanes"
@@ -60,7 +60,7 @@ For one imported flat rectangular table, bind its inspected block index and the
 complete current/replacement count:
 
 ```bash
-node examples/officekit-table-header-rows-edit-workflow.mjs \
+officekit run examples/officekit-table-header-rows-edit-workflow.mjs \
   input.docx a11y_fixed.docx table-header.audit.json 1 1 2
 ```
 

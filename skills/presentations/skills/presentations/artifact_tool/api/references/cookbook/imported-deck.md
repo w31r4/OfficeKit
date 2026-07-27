@@ -125,7 +125,7 @@ For an Agent-facing transaction over the bare profile (no notes/comments leaf),
 run the shipped workflow with one unique explicit source name:
 
 ```sh
-node "$SKILL_DIR/examples/officekit-slide-duplicate-workflow.mjs" \
+officekit run "$SKILL_DIR/examples/officekit-slide-duplicate-workflow.mjs" \
   input/source.pptx output/source-with-copy.pptx output/clone-audit.json \
   "Unique source slide name"
 ```

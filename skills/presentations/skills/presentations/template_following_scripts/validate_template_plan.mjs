@@ -30,7 +30,7 @@ const PLACEHOLDER_PATTERNS = [
 function usage() {
   return [
     "Usage:",
-    "  node template_following_scripts/validate_template_plan.mjs --workspace <dir> --map <template-frame-map.json> [options]",
+    "  officekit run template_following_scripts/validate_template_plan.mjs --workspace <dir> --map <template-frame-map.json> [options]",
     "",
     "Options:",
     "  --inspect <path>             template-inspect.ndjson. Defaults to <workspace>/template-inspect/template-inspect.ndjson.",

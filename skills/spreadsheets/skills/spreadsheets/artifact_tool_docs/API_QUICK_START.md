@@ -1,6 +1,6 @@
 # Using artifact_tool APIs (JavaScript)
 
-Library version: 0.3.0+
+Library version: 0.4.0+
 
 ## Required Imports + Startup
 

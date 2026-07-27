@@ -61,9 +61,9 @@ download or fallback.
 Run the default native CLI before an imported-PDF operation:
 
 ```bash
-node scripts/mupdf.mjs probe
-node scripts/mupdf.mjs inspect input.pdf
-node scripts/mupdf.mjs render input.pdf tmp/pdfs/page-1.png --page 1 --dpi 144
+officekit run scripts/mupdf.mjs probe
+officekit run scripts/mupdf.mjs inspect input.pdf
+officekit run scripts/mupdf.mjs render input.pdf tmp/pdfs/page-1.png --page 1 --dpi 144
 ```
 
 The CLI budgets input/page/object/render work, refuses source overwrite

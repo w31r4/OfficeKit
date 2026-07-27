@@ -63,7 +63,7 @@ not fall back to a theme-matched rebuild.
 Before planning final copy, run:
 
 ```bash
-node "$SKILL_DIR/template_following_scripts/inspect_template_deck.mjs" \
+officekit run "$SKILL_DIR/template_following_scripts/inspect_template_deck.mjs" \
   --workspace "$TMP_DIR" \
   --pptx "<source.pptx>"
 ```
@@ -109,7 +109,7 @@ audit or frame map.
 After `template-frame-map.json` is complete, run:
 
 ```bash
-node "$SKILL_DIR/template_following_scripts/prepare_template_starter_deck.mjs" \
+officekit run "$SKILL_DIR/template_following_scripts/prepare_template_starter_deck.mjs" \
   --workspace "$TMP_DIR" \
   --pptx "<source.pptx>" \
   --map "$TMP_DIR/template-frame-map.json" \
@@ -243,7 +243,7 @@ images, fake evidence, or generated approximations of real entities.
 4. Before delivery, run:
 
 ```bash
-node "$SKILL_DIR/template_following_scripts/check_template_fidelity.mjs" \
+officekit run "$SKILL_DIR/template_following_scripts/check_template_fidelity.mjs" \
   --workspace "$TMP_DIR" \
   --starter-pptx "$TMP_DIR/template-starter.pptx" \
   --final-pptx "$FINAL_PPTX" \

@@ -1,5 +1,43 @@
 # Release
 
+## 0.4.0 global CLI and bundled template catalog
+
+OfficeKit now uses one global command for Agent projects:
+
+```sh
+npm install -g github:w31r4/OfficeKit
+officekit init
+```
+
+`officekit update` refreshes the seven project-local workflow Skills after a
+global package upgrade. Their runnable JavaScript workflows use
+`officekit run <task.mjs>`, whose Node 22.15+ synchronous module hook binds
+`office-kit` and every published package subpath to the same global
+installation. Working directory, task arguments, local third-party dependency
+resolution, exit status, and task error stacks remain task-owned. URLs, stdin
+source, non-file inputs, and unpublished OfficeKit subpaths are rejected.
+
+Template retrieval now lives in the package at
+`officekit template search`. The command validates schema-v2 metadata and
+retained-asset hashes, applies configured/project/user/bundled root priority,
+ranks English purpose/audience/content/visual metadata with local BM25F, and
+returns candidates, rejections, invalid entries, coverage, risk flags, and
+`selectionMade: false`. A no-match result is successful. The OfficeKit Skill
+continues to decide whether to select, ask, or use no template.
+
+All twenty MIT-licensed default templates ship once in the package:
+7 DOCX, 7 PPTX, and 6 XLSX. `officekit init` does not copy them into projects.
+Template Creator emits one English canonical search profile with at least one
+`useWhen`; unknown evidence remains empty or `mixed`, while editability remains
+`copy-only` until a real round trip proves a verified operation.
+
+The current dry-run candidate contains 640 files, 36,052,917 compressed bytes,
+and 52,754,087 unpacked bytes. Package gates cap it at 37,500,000 compressed
+and 53,500,000 unpacked bytes. The clean-install test installs the actual
+tarball into a global prefix, initializes and updates an empty project, finds
+all twenty templates, imports every public subpath, and creates/reimports
+DOCX, XLSX, PPTX, and PDF from a project without a local OfficeKit dependency.
+
 ## 0.3.0 OfficeKit identity consolidation
 
 The project is now named **OfficeKit** end to end. The npm package and
@@ -4240,7 +4278,7 @@ operation was attempted.
 
 Before publishing:
 
-1. Verify `package.json` and `package-lock.json` both declare `0.3.0`.
+1. Verify `package.json` and `package-lock.json` both declare the release version.
 2. Rebuild and verify the OfficeKit runtime from source.
 3. Regenerate API documentation after the final public API change.
 4. Inspect `npm pack --dry-run --json` for the required runtime/proto/Skill files and forbidden legacy files.

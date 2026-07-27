@@ -6,9 +6,9 @@
 enough; its WASM starts only for a MuPDF-backed operation:
 
 ```bash
-npm install office-kit
-node scripts/mupdf.mjs probe
-node scripts/mupdf.mjs inspect input.pdf
+officekit --version
+officekit run scripts/mupdf.mjs probe
+officekit run scripts/mupdf.mjs inspect input.pdf
 ```
 
 There is no PDF `postinstall`, standalone downloader, virtual-environment

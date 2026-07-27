@@ -7,14 +7,14 @@ Do not route an existing PDF through `PdfArtifact` for mutation. Pass the origin
 The default MuPDF.js path probes and inspects before mutation:
 
 ```bash
-node scripts/mupdf.mjs probe
-node scripts/mupdf.mjs inspect input.pdf
+officekit run scripts/mupdf.mjs probe
+officekit run scripts/mupdf.mjs inspect input.pdf
 ```
 
 Its typed operations are source-bound `add_text_annotation` and `add_text_highlight`, legacy text/choice/checkbox `fill_form`, source-bound `update_form_field`, `delete_page`, source-bound `duplicate_page`, source-bound `delete_annotation` and `update_annotation`, complete `rearrange_pages`, visible-only `set_page_crop`, absolute-quarter-turn `rotate_page`, `set_metadata`, `delete_embedded_file`, source-bound `add_link`, `delete_link`, and `update_link`, `redact_text`, and `redact_rect`. Run with one explicit save policy:
 
 ```bash
-node scripts/mupdf.mjs edit input.pdf tmp/pdfs/edit-operations.json tmp/pdfs/edited.pdf \
+officekit run scripts/mupdf.mjs edit input.pdf tmp/pdfs/edit-operations.json tmp/pdfs/edited.pdf \
   --save-policy rewrite
 ```
 

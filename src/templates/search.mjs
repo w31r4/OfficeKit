@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
@@ -8,8 +6,9 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
-const SKILL_DIRECTORY = path.resolve(SCRIPT_DIRECTORY, "..");
+const MODULE_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
+const PACKAGE_ROOT = path.resolve(MODULE_DIRECTORY, "../..");
+const MANAGED_SKILLS_MANIFEST = ".office-kit/skills.json";
 const SIDECAR_NAME = "artifact-template.json";
 const TEMPLATE_NAME_PATTERN = /^artifact-template-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const HASH_PATTERN = /^[a-f0-9]{64}$/u;
@@ -42,14 +41,14 @@ const BM25_FIELD_WEIGHTS = Object.freeze({
   density: 0.75,
   colorMode: 0.75,
 });
-const USAGE = [
-  "Usage: query-templates.mjs --kind <document|spreadsheet|presentation>",
+export const TEMPLATE_SEARCH_USAGE = [
+  "Usage: officekit template search --kind <document|spreadsheet|presentation>",
   "  [--purpose <phrase>]... [--audience <phrase>]...",
   "  [--content-shape <phrase>]... [--tone <phrase>]...",
   "  [--structure <phrase>]... [--density <value>] [--color-mode <value>]",
   "  [--operation <verified-operation>]... [--brand-sensitive]",
   "  [--tag <legacy-tag>]... [--id <artifact-template-id>]",
-  "  [--root <absolute-template-root>]... [--max <1-20>]",
+  "  [--root <absolute-template-root>]... [--max <1-20>] [--json]",
 ].join("\n");
 
 export async function queryTemplates({
@@ -59,6 +58,7 @@ export async function queryTemplates({
   id = null,
   roots = null,
   maxCandidates = DEFAULT_MAX_CANDIDATES,
+  projectPath = process.cwd(),
 } = {}) {
   assertKind(kind);
   assertTemplateId(id, "--id", true);
@@ -68,7 +68,7 @@ export async function queryTemplates({
     throw new Error(`maxCandidates must be an integer from 1 to ${MAX_CANDIDATES}.`);
   }
 
-  const rootEntries = await resolveRoots(roots);
+  const rootEntries = await resolveRoots(roots, projectPath);
   const discoveredCandidates = [];
   const candidates = [];
   const rejected = [];
@@ -192,7 +192,7 @@ export async function queryTemplates({
   };
 }
 
-async function resolveRoots(explicitRoots) {
+async function resolveRoots(explicitRoots, projectPath) {
   if (explicitRoots != null && !Array.isArray(explicitRoots)) {
     throw new Error("Template roots must be an array of paths.");
   }
@@ -200,7 +200,7 @@ async function resolveRoots(explicitRoots) {
     throw new Error("At most 20 template roots may be queried.");
   }
   const requested = explicitRoots == null || explicitRoots.length === 0
-    ? defaultRoots()
+    ? await defaultRoots(projectPath)
     : explicitRoots.map((root) => ({ path: root, source: "explicit" }));
   const resolved = [];
   const seen = new Set();
@@ -226,7 +226,7 @@ async function resolveRoots(explicitRoots) {
   return resolved;
 }
 
-function defaultRoots() {
+async function defaultRoots(projectPath) {
   const configured = (process.env.OFFICE_KIT_TEMPLATE_ROOTS ?? "")
     .split(path.delimiter)
     .filter(Boolean)
@@ -236,13 +236,53 @@ function defaultRoots() {
     : path.resolve(process.env.OFFICE_KIT_HOME);
   return [
     ...configured,
+    ...await projectTemplateRoots(projectPath),
     { path: path.join(officeKitHome, "skills"), source: "local-user" },
-    { path: path.resolve(SKILL_DIRECTORY, ".."), source: "flat-installed" },
     {
-      path: path.resolve(SKILL_DIRECTORY, "../../../default-template-library/skills"),
-      source: "repository-default",
+      path: path.join(PACKAGE_ROOT, "skills/default-template-library/skills"),
+      source: "package-default",
     },
   ];
+}
+
+async function projectTemplateRoots(projectPath) {
+  const absoluteProject = path.resolve(projectPath);
+  const manifestPath = path.join(absoluteProject, MANAGED_SKILLS_MANIFEST);
+  const stat = await fs.lstat(manifestPath).catch((error) => {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  });
+  if (stat == null) return [];
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX_SIDECAR_BYTES) {
+    throw new Error(`${MANAGED_SKILLS_MANIFEST} must be a bounded regular file.`);
+  }
+  let manifest;
+  try {
+    manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+  } catch (error) {
+    throw new Error(`${MANAGED_SKILLS_MANIFEST} is not valid JSON: ${error.message}`);
+  }
+  if (manifest?.schemaVersion !== 1 || !Array.isArray(manifest.installations)) {
+    throw new Error(`${MANAGED_SKILLS_MANIFEST} uses an unsupported or invalid schema.`);
+  }
+  const roots = [];
+  const seen = new Set();
+  for (const installation of manifest.installations) {
+    const relativePath = installation?.path;
+    if (
+      typeof relativePath !== "string" ||
+      path.isAbsolute(relativePath) ||
+      relativePath.includes("\\") ||
+      relativePath.split("/").some((segment) => segment === "" || segment === "." || segment === "..")
+    ) {
+      throw new Error(`${MANAGED_SKILLS_MANIFEST} contains an unsafe installation path.`);
+    }
+    const skillsRoot = path.resolve(absoluteProject, path.posix.dirname(relativePath));
+    if (!isInsideOrEqual(absoluteProject, skillsRoot) || seen.has(skillsRoot)) continue;
+    seen.add(skillsRoot);
+    roots.push({ path: skillsRoot, source: "project" });
+  }
+  return roots;
 }
 
 async function readTemplate({ expectedId, root, templatePath }) {
@@ -339,10 +379,10 @@ function validateMetadata(value, expectedId) {
   }
   assertShortString(value.displayName, "displayName", 80);
   assertKind(value.kind);
-  assertStringArray(value.useWhen, "useWhen", { min: 1, max: 20 });
-  assertStringArray(value.avoidWhen, "avoidWhen", { min: 0, max: 20 });
-  assertStringArray(value.audiences, "audiences", { min: 0, max: 20 });
-  assertStringArray(value.contentShapes, "contentShapes", { min: 0, max: 20 });
+  assertEnglishSearchArray(value.useWhen, "useWhen", { min: 1, max: 20 });
+  assertEnglishSearchArray(value.avoidWhen, "avoidWhen", { min: 0, max: 20 });
+  assertEnglishSearchArray(value.audiences, "audiences", { min: 0, max: 20 });
+  assertEnglishSearchArray(value.contentShapes, "contentShapes", { min: 0, max: 20 });
   assertRelativeAssetPath(value.reference, "reference");
   assertRelativeAssetPath(value.preview, "preview");
   if (path.posix.extname(value.reference).toLowerCase() !== REFERENCE_EXTENSIONS.get(value.kind)) {
@@ -360,10 +400,10 @@ function validateMetadata(value, expectedId) {
     "visualTraits",
     ["tone", "density", "colorMode", "structure"],
   );
-  assertStringArray(value.visualTraits.tone, "visualTraits.tone", { min: 0, max: 12 });
+  assertEnglishSearchArray(value.visualTraits.tone, "visualTraits.tone", { min: 0, max: 12 });
   assertEnum(value.visualTraits.density, "visualTraits.density", VALID_DENSITIES);
   assertEnum(value.visualTraits.colorMode, "visualTraits.colorMode", VALID_COLOR_MODES);
-  assertStringArray(value.visualTraits.structure, "visualTraits.structure", { min: 0, max: 12 });
+  assertEnglishSearchArray(value.visualTraits.structure, "visualTraits.structure", { min: 0, max: 12 });
   assertEnum(value.visualCommitment, "visualCommitment", VALID_COMMITMENTS);
 
   if (value.editProfile == null || typeof value.editProfile !== "object" || Array.isArray(value.editProfile)) {
@@ -862,6 +902,15 @@ function assertStringArray(value, label, { min, max }) {
   }
 }
 
+function assertEnglishSearchArray(value, label, bounds) {
+  assertStringArray(value, label, bounds);
+  for (const entry of value) {
+    if (!/^[\x20-\x7e]+$/u.test(entry) || !/[a-z]/iu.test(entry)) {
+      throw new Error(`${label} must use English search text`);
+    }
+  }
+}
+
 function assertEnum(value, label, allowed) {
   if (!allowed.has(value)) {
     throw new Error(`${label} must be one of ${[...allowed].join(", ")}`);
@@ -899,13 +948,19 @@ function isInside(root, candidate) {
   return relative.length > 0 && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 }
 
+function isInsideOrEqual(root, candidate) {
+  const relative = path.relative(root, candidate);
+  return relative === "" ||
+    (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+}
+
 async function sha256File(filePath) {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(filePath)) hash.update(chunk);
   return hash.digest("hex");
 }
 
-function parseArguments(args) {
+export function parseTemplateSearchArguments(args) {
   const request = {
     tags: [],
     roots: [],
@@ -926,12 +981,16 @@ function parseArguments(args) {
     if (flag === "--help" || flag === "-h") {
       return { help: true };
     }
+    if (flag === "--json") {
+      request.json = true;
+      continue;
+    }
     if (flag === "--brand-sensitive") {
       request.intent.brandSensitive = true;
       continue;
     }
     const value = args[index + 1];
-    if (value == null || value.startsWith("--")) throw new Error(USAGE);
+    if (value == null || value.startsWith("--")) throw new Error(TEMPLATE_SEARCH_USAGE);
     index += 1;
     if (flag === "--kind") request.kind = value;
     else if (flag === "--tag") request.tags.push(value);
@@ -946,30 +1005,40 @@ function parseArguments(args) {
     else if (flag === "--id") request.id = value;
     else if (flag === "--root") request.roots.push(value);
     else if (flag === "--max") request.maxCandidates = Number(value);
-    else throw new Error(USAGE);
+    else throw new Error(TEMPLATE_SEARCH_USAGE);
   }
-  if (request.kind == null) throw new Error(USAGE);
+  if (request.kind == null) throw new Error(TEMPLATE_SEARCH_USAGE);
+  if (request.roots.length === 0) request.roots = null;
   return request;
 }
 
-async function main() {
-  const request = parseArguments(process.argv.slice(2));
-  if (request.help) {
-    process.stdout.write(`${USAGE}\n`);
-    return;
+export function formatTemplateSearchResult(result) {
+  if (result.candidates.length === 0) {
+    return [
+      `No ${result.kind} template matched the search.`,
+      `Searched ${result.searchedRoots.length} catalog root${result.searchedRoots.length === 1 ? "" : "s"}; ` +
+        `${result.rejected.length} rejected, ${result.invalid.length} invalid.`,
+      "Template decision: none remains available.",
+    ].join("\n");
   }
-  if (request.roots.length === 0) request.roots = null;
-  const result = await queryTemplates(request);
-  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-}
-
-const invokedPath = process.argv[1] == null
-  ? null
-  : await fs.realpath(path.resolve(process.argv[1]));
-const modulePath = await fs.realpath(fileURLToPath(import.meta.url));
-if (invokedPath === modulePath) {
-  main().catch((error) => {
-    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-    process.exitCode = 2;
-  });
+  const rows = [
+    ["Rank", "Template", "Score", "Coverage", "Review"],
+    ...result.candidates.map((candidate, index) => [
+      String(index + 1),
+      `${candidate.displayName} (${candidate.id})`,
+      candidate.match.score.toFixed(1),
+      `${candidate.match.queryCoverage.toFixed(1)}%`,
+      candidate.reviewFlags.length === 0 ? "-" : candidate.reviewFlags.join(","),
+    ]),
+  ];
+  const widths = rows[0].map((_, column) =>
+    Math.max(...rows.map((row) => row[column].length)));
+  return [
+    ...rows.map((row) =>
+      row.map((value, column) => value.padEnd(widths[column])).join("  ").trimEnd()),
+    "",
+    `Returned ${result.candidates.length} candidate${result.candidates.length === 1 ? "" : "s"}; ` +
+      `${result.rejected.length} rejected, ${result.invalid.length} invalid.`,
+    "Selection remains with the Agent (selected, ask, or none).",
+  ].join("\n");
 }

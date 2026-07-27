@@ -13,7 +13,9 @@ try {
   const help = run(["--help"]);
   assert.match(help.stdout, /officekit init \[path\]/);
   assert.match(help.stdout, /officekit update \[path\]/);
-  assert.equal(run(["--version"]).stdout.trim(), "0.3.0");
+  assert.match(help.stdout, /officekit run <task\.mjs>/);
+  assert.match(help.stdout, /officekit template search/);
+  assert.equal(run(["--version"]).stdout.trim(), "0.4.0");
 
   const project = path.join(temporary, "detected-project");
   fs.mkdirSync(path.join(project, ".claude"), { recursive: true });
@@ -49,7 +51,7 @@ try {
   assert.deepEqual(manifest.tools, ["claude", "cursor"]);
   assert.equal(manifest.installations.length, 14);
   assert.equal(manifest.package.name, "office-kit");
-  assert.equal(manifest.package.version, "0.3.0");
+  assert.equal(manifest.package.version, "0.4.0");
 
   const idempotent = parseJson(run(["init", project, "--yes", "--json"]).stdout);
   assert.equal(idempotent.created, 0);
@@ -139,6 +141,142 @@ try {
     fs.existsSync(path.join(explicitProject, "skills", "default-template-library")),
     false,
   );
+  const catalog = parseJson(
+    run(
+      [
+        "template",
+        "search",
+        "--kind",
+        "presentation",
+        "--purpose",
+        "quarterly business review",
+        "--max",
+        "20",
+        "--json",
+      ],
+      { cwd: explicitProject },
+    ).stdout,
+  );
+  assert.equal(catalog.selectionMade, false);
+  assert.equal(catalog.candidates[0].id, "artifact-template-business-review");
+  assert.ok(catalog.searchedRoots.some((root) => root.source === "project"));
+  assert.ok(catalog.searchedRoots.some((root) => root.source === "package-default"));
+  const catalogTable = run(
+    [
+      "template",
+      "search",
+      "--kind",
+      "presentation",
+      "--purpose",
+      "quarterly business review",
+    ],
+    { cwd: explicitProject },
+  ).stdout;
+  assert.match(catalogTable, /Rank\s+Template\s+Score\s+Coverage\s+Review/);
+  assert.match(catalogTable, /artifact-template-business-review/);
+  assert.match(catalogTable, /Selection remains with the Agent/);
+
+  const noCatalogMatch = parseJson(
+    run(
+      [
+        "template",
+        "search",
+        "--kind",
+        "presentation",
+        "--purpose",
+        "quantum entanglement laboratory protocol",
+        "--json",
+      ],
+      { cwd: explicitProject },
+    ).stdout,
+  );
+  assert.equal(noCatalogMatch.retrievalStatus, "none");
+  assert.deepEqual(noCatalogMatch.candidates, []);
+  assert.equal(noCatalogMatch.selectionMade, false);
+
+  const taskProject = path.join(temporary, "run-project");
+  const dependencyRoot = path.join(taskProject, "node_modules", "local-probe");
+  fs.mkdirSync(dependencyRoot, { recursive: true });
+  fs.writeFileSync(
+    path.join(dependencyRoot, "package.json"),
+    `${JSON.stringify({
+      name: "local-probe",
+      version: "1.0.0",
+      type: "module",
+      exports: "./index.mjs",
+    })}\n`,
+  );
+  fs.writeFileSync(
+    path.join(dependencyRoot, "index.mjs"),
+    "export default 'resolved-from-task-project';\n",
+  );
+  const taskPath = path.join(taskProject, "task.mjs");
+  fs.writeFileSync(
+    taskPath,
+    [
+      'import { createRequire } from "node:module";',
+      'import { FileBlob } from "office-kit";',
+      'import * as wire from "office-kit/codec/wire";',
+      'import localProbe from "local-probe";',
+      "const require = createRequire(import.meta.url);",
+      "console.log(JSON.stringify({",
+      "  argv: process.argv.slice(2),",
+      "  cwd: process.cwd(),",
+      "  fileBlob: typeof FileBlob === 'function',",
+      "  wire: wire.CodecRequestSchema != null,",
+      '  resolvedOfficeKit: require.resolve("office-kit"),',
+      "  localProbe,",
+      "}));",
+      "",
+    ].join("\n"),
+  );
+  const taskResult = parseJson(
+    run(["run", "task.mjs", "--", "alpha", "two words"], {
+      cwd: taskProject,
+    }).stdout,
+  );
+  assert.deepEqual(taskResult.argv, ["alpha", "two words"]);
+  assert.equal(taskResult.cwd, fs.realpathSync(taskProject));
+  assert.equal(taskResult.fileBlob, true);
+  assert.equal(taskResult.wire, true);
+  assert.equal(
+    path.resolve(taskResult.resolvedOfficeKit),
+    path.join(repoRoot, "src", "index.mjs"),
+  );
+  assert.equal(taskResult.localProbe, "resolved-from-task-project");
+  assert.equal(
+    fs.existsSync(path.join(taskProject, "node_modules", "office-kit")),
+    false,
+    "officekit run must not require a project-local OfficeKit package",
+  );
+
+  const failedTaskPath = path.join(taskProject, "failed-task.mjs");
+  fs.writeFileSync(failedTaskPath, 'throw new Error("task stack sentinel");\n');
+  const failedTask = run(["run", failedTaskPath], {
+    cwd: taskProject,
+    expectFailure: true,
+  });
+  assert.match(failedTask.stderr, /task stack sentinel/);
+  assert.match(failedTask.stderr, /failed-task\.mjs:1/);
+  assert.doesNotMatch(failedTask.stderr, /^OfficeKit:/);
+
+  const privateSubpathPath = path.join(taskProject, "private-subpath.mjs");
+  fs.writeFileSync(
+    privateSubpathPath,
+    'await import("office-kit/src/index.mjs");\n',
+  );
+  const privateSubpath = run(["run", privateSubpathPath], {
+    cwd: taskProject,
+    expectFailure: true,
+  });
+  assert.match(privateSubpath.stderr, /unpublished package subpath/);
+  assert.match(
+    run(["run", "https://example.com/task.mjs"], {
+      cwd: taskProject,
+      expectFailure: true,
+    }).stderr,
+    /not stdin or a URL/,
+  );
 
   const invalid = run(
     ["init", path.join(temporary, "invalid"), "--tools", "unknown", "--json"],
@@ -191,10 +329,15 @@ try {
 
 console.log("OfficeKit CLI initialization smoke ok");
 
-function run(args, { expectFailure = false } = {}) {
+function run(args, {
+  expectFailure = false,
+  cwd = repoRoot,
+  environment = {},
+} = {}) {
   const result = spawnSync(process.execPath, [cli, ...args], {
-    cwd: repoRoot,
+    cwd,
     encoding: "utf8",
+    env: { ...process.env, ...environment },
     shell: false,
   });
   if (expectFailure) {

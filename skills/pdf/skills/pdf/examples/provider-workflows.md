@@ -7,10 +7,10 @@ Run these from the PDF Skill directory. Always substitute task-local source/outp
 The normal npm installation includes required `mupdf@1.28.0`; the root facade loads its WASM runtime only when the first MuPDF-backed PDF operation runs. Explicit provider probing imports the MuPDF subpath intentionally. Use the thin Skill CLI for the default arbitrary-file path:
 
 ```bash
-node scripts/mupdf.mjs probe
-node scripts/mupdf.mjs inspect input.pdf
-node scripts/mupdf.mjs render input.pdf tmp/pdfs/page-1.png --page 1 --dpi 144
-node scripts/mupdf.mjs edit input.pdf tmp/pdfs/edit-operations.json tmp/pdfs/edited.pdf \
+officekit run scripts/mupdf.mjs probe
+officekit run scripts/mupdf.mjs inspect input.pdf
+officekit run scripts/mupdf.mjs render input.pdf tmp/pdfs/page-1.png --page 1 --dpi 144
+officekit run scripts/mupdf.mjs edit input.pdf tmp/pdfs/edit-operations.json tmp/pdfs/edited.pdf \
   --save-policy rewrite
 ```
 

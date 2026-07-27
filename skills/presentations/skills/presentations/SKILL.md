@@ -298,7 +298,7 @@ For the bare agent-facing clone profile, use the shipped transaction rather
 than copying ZIP parts or rebuilding the slide:
 
 ```sh
-node "$SKILL_DIR/examples/officekit-slide-duplicate-workflow.mjs" \
+officekit run "$SKILL_DIR/examples/officekit-slide-duplicate-workflow.mjs" \
   input/source.pptx output/source-with-copy.pptx output/clone-audit.json \
   "Unique source slide name"
 ```
@@ -343,7 +343,7 @@ already-closed relationship leaves, opt in explicitly rather than relying on a
 fallback or ZIP manipulation:
 
 ```sh
-node "$SKILL_DIR/examples/officekit-slide-duplicate-workflow.mjs" \
+officekit run "$SKILL_DIR/examples/officekit-slide-duplicate-workflow.mjs" \
   input/source.pptx output/source-with-copy.pptx output/clone-audit.json \
   "Unique source slide name" --allow-closed-leaves
 ```
@@ -365,7 +365,7 @@ transaction below, which changes only the bound DiagramDataPart and writes a
 no-overwrite audit:
 
 ```sh
-node "$SKILL_DIR/examples/officekit-smartart-text-edit-workflow.mjs" \
+officekit run "$SKILL_DIR/examples/officekit-smartart-text-edit-workflow.mjs" \
   input/source.pptx output/edited.pptx output/edited.audit.json \
   "Closed SmartArt" "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}" "Before" "After"
 ```
@@ -414,7 +414,7 @@ Before running any generated presentation module, initialize its workspace so
 Node.js can resolve the bundled `office-kit` package:
 
 ```bash
-node "$SKILL_DIR/container_tools/setup_artifact_tool_workspace.mjs" \
+officekit run "$SKILL_DIR/container_tools/setup_artifact_tool_workspace.mjs" \
   --workspace "$TMP_DIR"
 ```
 
@@ -431,7 +431,7 @@ For one uniquely named original imported slide, use the shipped public
 OfficeKit workflow rather than patching `ppt/slides/slide*.xml` directly:
 
 ```bash
-node examples/officekit-slide-name-edit-workflow.mjs \
+officekit run examples/officekit-slide-name-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Go-no-go decision" "Go decision: controlled rollout"
 ```
@@ -453,7 +453,7 @@ for a file edit. For an imported deck whose `presentation.view.capability`
 reports `editable: true`, use the shipped transaction:
 
 ```bash
-node examples/officekit-view-properties-edit-workflow.mjs \
+officekit run examples/officekit-view-properties-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   '{"gridSpacingCxEmu":72000,"gridSpacingCyEmu":91440,"slideViewSnapToGrid":true,"slideViewSnapToObjects":false,"slideGuides":[{"orientation":"horizontal","position":2160},{"orientation":"vertical","position":2880}]}'
 ```
@@ -485,7 +485,7 @@ For one exact imported show, use the shipped transaction instead of patching
 `ppt/presentation.xml`:
 
 ```bash
-node examples/officekit-custom-show-workflow.mjs \
+officekit run examples/officekit-custom-show-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Board route" "Executive route" "Appendix,Overview,Appendix"
 ```
@@ -538,7 +538,7 @@ For one exact source-bound section-name correction, use the shipped transaction
 rather than patching `ppt/presentation.xml`:
 
 ```bash
-node examples/officekit-section-rename-workflow.mjs \
+officekit run examples/officekit-section-rename-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Context" "Background"
 ```
@@ -558,7 +558,7 @@ For an imported boundary move, do not call `setSlides(...)` on one section and
 infer the neighbor. Use the separate complete-partition transaction instead:
 
 ```bash
-node examples/officekit-section-boundary-edit-workflow.mjs \
+officekit run examples/officekit-section-boundary-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   @expected-sections.json \
   @replacement-sections.json
@@ -608,7 +608,7 @@ For one existing editable source-bound transition, use the shipped transaction
 rather than a raw SlidePart patch:
 
 ```bash
-node examples/officekit-transition-edit-workflow.mjs \
+officekit run examples/officekit-transition-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Decision slide" \
   '{"effect":"fade","speed":"medium","advanceOnClick":true,"advanceAfterMs":1200}' \
@@ -668,7 +668,7 @@ paragraph/run location, then requires reimported paragraph/run topology and
 every non-target run to remain exact:
 
 ```bash
-node examples/officekit-rich-speaker-notes-edit-workflow.mjs \
+officekit run examples/officekit-rich-speaker-notes-edit-workflow.mjs \
   input.pptx output/edited.pptx output/audit.json
 ```
 
@@ -695,7 +695,7 @@ speaker notes only when `slide.speakerNotes.capability.addable` is true. Inspect
 transaction over direct OOXML relationship edits:
 
 ```bash
-node examples/officekit-speaker-notes-add-workflow.mjs \
+officekit run examples/officekit-speaker-notes-add-workflow.mjs \
   input.pptx output/with-notes.pptx output/with-notes.audit.json \
   "Unique target slide name" "Lead with the evidence.\nClose with the decision."
 ```
@@ -723,7 +723,7 @@ the shipped transaction over editing `.rels`, `commentAuthors.xml`, or
 `comments/comment*.xml` yourself:
 
 ```bash
-node examples/officekit-legacy-comment-add-workflow.mjs \
+officekit run examples/officekit-legacy-comment-add-workflow.mjs \
   input.pptx output/with-review.pptx output/with-review.audit.json \
   "Unique target slide name" "Confirm the imported evidence." \
   "Review Owner" "2026-07-20T03:04:05Z" 360 240
@@ -760,7 +760,7 @@ old text; never locate the target with a broad text replacement or patch
 `comments/comment*.xml` directly:
 
 ```bash
-node examples/officekit-legacy-comment-edit-workflow.mjs \
+officekit run examples/officekit-legacy-comment-edit-workflow.mjs \
   input-with-review.pptx output/review-text-updated.pptx output/review-text-updated.audit.json \
   "Unique target slide name" "presentation/slide/1/legacy-comment/1" \
   "Confirm the imported evidence before delivery." \
@@ -792,7 +792,7 @@ exports to a distinct path, reimports, verifies the retained slide/title/notes
 identities, produces a model SVG check, and writes a byte-bound audit.
 
 ```bash
-node examples/officekit-title-notes-edit-workflow.mjs \
+officekit run examples/officekit-title-notes-edit-workflow.mjs \
   input.pptx output.pptx audit.json
 ```
 
@@ -817,7 +817,7 @@ shipped workflow for a complete root/direct-reply create → import → fixed-
 topology text/status edit → second import → inspect/render/audit loop:
 
 ```bash
-node examples/officekit-modern-comment-workflow.mjs \
+officekit run examples/officekit-modern-comment-workflow.mjs \
   output/decision-review.pptx output/modern-comments-audit.json
 ```
 
@@ -864,7 +864,7 @@ Keep `$TMP_DIR/source-notes.txt` for content and asset provenance.
 Inspect the complete source deck:
 
 ```bash
-node "$SKILL_DIR/template_following_scripts/inspect_template_deck.mjs" \
+officekit run "$SKILL_DIR/template_following_scripts/inspect_template_deck.mjs" \
   --workspace "$TMP_DIR" \
   --pptx "$TEMPLATE_PPTX"
 ```
@@ -875,11 +875,11 @@ for the future broad graph-clone milestone, but currently rejects before writing
 an output deck:
 
 ```bash
-node "$SKILL_DIR/template_following_scripts/validate_template_plan.mjs" \
+officekit run "$SKILL_DIR/template_following_scripts/validate_template_plan.mjs" \
   --workspace "$TMP_DIR" \
   --map "$TMP_DIR/template-frame-map.json"
 
-node "$SKILL_DIR/template_following_scripts/prepare_template_starter_deck.mjs" \
+officekit run "$SKILL_DIR/template_following_scripts/prepare_template_starter_deck.mjs" \
   --workspace "$TMP_DIR" \
   --pptx "$TEMPLATE_PPTX" \
   --map "$TMP_DIR/template-frame-map.json" \

@@ -2,7 +2,7 @@
 
 ## Source and license
 
-`skills/default-template-library/` is a repository-only import of the 20 Office templates committed in [`office-artifact-tool` `256cb31bfe0a07b3cef0051b6b159342be381378`](https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378), **Add default Office template library**.
+`skills/default-template-library/` is a checked-in import of the 20 Office templates committed in [`office-artifact-tool` `256cb31bfe0a07b3cef0051b6b159342be381378`](https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378), **Add default Office template library**.
 
 The checked-in [`reference/office-artifact-tool`](../reference/office-artifact-tool) submodule pins that exact commit, so a fresh recursive checkout contains the authoritative source tree used by the byte-comparison gate.
 
@@ -23,15 +23,22 @@ exact Office/preview hashes. The original v1 metadata remains available in the
 pinned reference submodule. Other import changes are limited to the
 repository-level adapter surface needed here: plugin manifest,
 attribution/license record, integrity record, path policy, safety gates, and
-public-package exclusion. No retained Office or preview asset is regenerated,
+package discovery metadata. No retained Office or preview asset is regenerated,
 normalized, re-compressed, or rewritten.
 
 ## Delivery boundary
 
-The library is intentionally excluded from the npm tarball. It is available to Agents working from this repository, where OfficeKit can discover compact validated metadata and choose one template, ask about a short list, or choose none. A named template Skill uses the retained reference as a read-only starting point and writes a distinct output artifact. `scripts/materialize-template.mjs` first verifies the retained SHA-256, then atomically creates a byte-identical output plus a provenance audit and refuses to overwrite either destination. No source-free substitute or second template-generator fallback remains in this plugin.
+The library ships once inside the OfficeKit package. A global installation can
+discover its compact validated metadata through `officekit template search`;
+`officekit init` leaves these assets in place instead of copying them into each
+project. A named template Skill uses the retained reference as a read-only
+starting point and writes a distinct output artifact.
+`scripts/materialize-template.mjs` first verifies the retained SHA-256, then
+atomically creates a byte-identical output plus a provenance audit and refuses
+to overwrite either destination.
 
 The source files may contain rich or source-bound Office topology. A requested operation must use the matching Documents, Presentations, or Spreadsheets workflow and preserve the source boundary; when the public model cannot safely import or modify a graph, it must explain the limitation and fail closed rather than flattening the template or silently replacing its layout.
 
 ## Verification
 
-`test/default-template-library.mjs` checks the canonical file inventory, secure relative paths, no symbolic links, schema-v2 JSON/YAML metadata, PNG structure, Office ZIP signatures, size budgets, every asset's SHA-256, and the source aggregate. `test/office-kit-skill.mjs` independently verifies all 20 sidecars, hash-bound discovery, root precedence, invalid-entry isolation, untrusted metadata rejection, and compact query results. The library test materializes all 20 templates, verifies overwrite refusal, runs every source through the public facade's import / unchanged export / second-import path, and, when LibreOffice plus Poppler are present, renders both source and processed files to non-empty native rasters. All seven PPTX templates additionally replace one visible SlidePart-placeholder title through `TextFrame.set()`, reimport it, prove placeholder identity/geometry plus paragraph/run formatting are unchanged, and render the edited output; a deliberate newline-topology change fails closed. It can additionally compare bytes against an explicitly supplied `OFFICE_TEMPLATE_SOURCE_ROOT` checkout. `DefaultTemplateLibraryCodecTests` adds native OfficeKit no-op and bounded-edit coverage: slide-name metadata and recognized owner-local placeholder text for each PPTX, `updateFields` for each DOCX, ordinary string-cell edits for each XLSX, and source-bound rejection for the Financial Budget partial shared-formula range. `test/package-contents.mjs` and the clean-install package probe verify that no default-template-library file enters the npm tarball.
+`test/default-template-library.mjs` checks the canonical file inventory, secure relative paths, no symbolic links, schema-v2 JSON/YAML metadata, PNG structure, Office ZIP signatures, size budgets, every asset's SHA-256, and the source aggregate. `test/office-kit-skill.mjs` independently verifies all 20 sidecars, hash-bound discovery, root precedence, invalid-entry isolation, untrusted metadata rejection, and compact query results. The library test materializes all 20 templates, verifies overwrite refusal, runs every source through the public facade's import / unchanged export / second-import path, and, when LibreOffice plus Poppler are present, renders both source and processed files to non-empty native rasters. All seven PPTX templates additionally replace one visible SlidePart-placeholder title through `TextFrame.set()`, reimport it, prove placeholder identity/geometry plus paragraph/run formatting are unchanged, and render the edited output; a deliberate newline-topology change fails closed. It can additionally compare bytes against an explicitly supplied `OFFICE_TEMPLATE_SOURCE_ROOT` checkout. `DefaultTemplateLibraryCodecTests` adds native OfficeKit no-op and bounded-edit coverage: slide-name metadata and recognized owner-local placeholder text for each PPTX, `updateFields` for each DOCX, ordinary string-cell edits for each XLSX, and source-bound rejection for the Financial Budget partial shared-formula range. `test/package-contents.mjs` and the clean-install package probe verify the exact 20-template package inventory and installed CLI discovery path.
