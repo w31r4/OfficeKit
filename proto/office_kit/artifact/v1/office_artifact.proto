@@ -3008,6 +3008,11 @@ message DocumentTableFormatting {
   // the bounded profile owns one canonical w:vAlign value on every physical
   // cell; mixed or irregular cell alignment remains source-bound.
   optional DocumentTableVerticalAlignment vertical_alignment = 8;
+  // Optional table-level horizontal placement. Omission retains Word's
+  // native left default. center/right are accepted only with zero table
+  // indentation so OfficeKit never asks a host to reconcile competing
+  // w:jc and w:tblInd placement semantics.
+  optional DocumentTableHorizontalAlignment horizontal_alignment = 9;
 }
 
 message DocumentTableCellMargins {
@@ -3359,4 +3364,15 @@ message DocumentParagraphBorders {
   DocumentParagraphBorder right = 4;
   DocumentParagraphBorder between = 5;
   DocumentParagraphBorder bar = 6;
+}
+
+// Appended to preserve every pre-existing generated descriptor index while
+// DocumentTableFormatting references this additive table-placement contract.
+// This is deliberately separate from physical-cell vertical alignment and
+// paragraph justification inside a cell.
+enum DocumentTableHorizontalAlignment {
+  DOCUMENT_TABLE_HORIZONTAL_ALIGNMENT_UNSPECIFIED = 0;
+  DOCUMENT_TABLE_HORIZONTAL_ALIGNMENT_LEFT = 1;
+  DOCUMENT_TABLE_HORIZONTAL_ALIGNMENT_CENTER = 2;
+  DOCUMENT_TABLE_HORIZONTAL_ALIGNMENT_RIGHT = 3;
 }

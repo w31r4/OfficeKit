@@ -8,7 +8,10 @@ namespace OfficeKit.Codec;
 // Owns the first bounded direct table-formatting profile. The profile is
 // deliberately complete: presence means fixed dxa width/grid, four cell
 // margins, six uniform RGB borders, a uniformly filled/bold first row, and
-// one optional uniform physical-cell vertical-alignment value.
+// one optional uniform physical-cell vertical-alignment value, and optional
+// table-level left/center/right placement. Center/right placement must not be
+// combined with an indentation, so the public profile never relies on a
+// host-specific resolution of competing table-position properties.
 // Only a profile recognized in full can be edited in place. Partial,
 // theme-based, conditional, or style-effective formatting remains in source
 // XML instead of being represented as safely editable semantics.
@@ -50,6 +53,12 @@ internal static class DocxTableFormatting
             throw Invalid("Document table formatting border_size must be zero or between 2 and 96 eighths of a point.");
         if (formatting.HasVerticalAlignment && !IsVerticalAlignment(formatting.VerticalAlignment))
             throw Invalid("Document table formatting vertical_alignment must be top, center, or bottom.");
+        if (formatting.HasHorizontalAlignment && !IsHorizontalAlignment(formatting.HorizontalAlignment))
+            throw Invalid("Document table formatting horizontal_alignment must be left, center, or right.");
+        if (formatting.HasHorizontalAlignment &&
+            (formatting.HorizontalAlignment is DocumentTableHorizontalAlignment.Center or DocumentTableHorizontalAlignment.Right) &&
+            formatting.IndentDxa != 0)
+            throw Invalid("Document table formatting center or right horizontal_alignment requires indent_dxa 0.");
     }
 
     internal static W.TableProperties? BuildProperties(string styleId, DocumentTableFormatting? formatting)
@@ -60,6 +69,8 @@ internal static class DocxTableFormatting
         if (formatting is null) return properties;
 
         properties.Append(Dxa(new W.TableWidth(), formatting.WidthDxa));
+        if (formatting.HasHorizontalAlignment)
+            properties.Append(new W.TableJustification { Val = ToOpenXmlHorizontalAlignment(formatting.HorizontalAlignment) });
         properties.Append(Dxa(new W.TableIndentation(), formatting.IndentDxa));
         properties.Append(new W.TableBorders(
             Border(new W.TopBorder(), formatting),
@@ -105,11 +116,16 @@ internal static class DocxTableFormatting
     {
         var properties = table.GetFirstChild<W.TableProperties>();
         if (properties is null || properties.ChildElements.Any(child => child is not W.TableStyle and
-                not W.TableWidth and not W.TableIndentation and not W.TableBorders and
+                not W.TableWidth and not W.TableJustification and not W.TableIndentation and not W.TableBorders and
                 not W.TableLayout and not W.TableCellMarginDefault)) return null;
         if (!TryDxa(properties.GetFirstChild<W.TableWidth>(), positive: true, out var width) ||
             !TryDxa(properties.GetFirstChild<W.TableIndentation>(), positive: false, out var indent) ||
             properties.GetFirstChild<W.TableLayout>()?.Type?.Value != W.TableLayoutValues.Fixed)
+            return null;
+        var horizontalAlignments = properties.Elements<W.TableJustification>().ToArray();
+        if (horizontalAlignments.Length > 1 ||
+            !TryReadHorizontalAlignment(horizontalAlignments.SingleOrDefault(), out var horizontalAlignment) ||
+            (horizontalAlignment is DocumentTableHorizontalAlignment.Center or DocumentTableHorizontalAlignment.Right) && indent != 0)
             return null;
 
         var grid = table.GetFirstChild<W.TableGrid>();
@@ -194,6 +210,7 @@ internal static class DocxTableFormatting
             HeaderFill = headerFill.ToUpperInvariant(),
         };
         formatting.ColumnWidthsDxa.Add(widths);
+        if (horizontalAlignment is not null) formatting.HorizontalAlignment = horizontalAlignment.Value;
         if (verticalAlignment is not null) formatting.VerticalAlignment = verticalAlignment.Value;
         return formatting;
     }
@@ -209,6 +226,8 @@ internal static class DocxTableFormatting
                left.CellMarginsDxa?.End == right.CellMarginsDxa?.End &&
                left.BorderColor == right.BorderColor && left.BorderSize == right.BorderSize &&
                left.HeaderFill == right.HeaderFill &&
+               left.HasHorizontalAlignment == right.HasHorizontalAlignment &&
+               (!left.HasHorizontalAlignment || left.HorizontalAlignment == right.HorizontalAlignment) &&
                left.HasVerticalAlignment == right.HasVerticalAlignment &&
                (!left.HasVerticalAlignment || left.VerticalAlignment == right.VerticalAlignment);
     }
@@ -217,6 +236,7 @@ internal static class DocxTableFormatting
     {
         var properties = table.GetFirstChild<W.TableProperties>()!;
         SetDxa(properties.GetFirstChild<W.TableWidth>()!, formatting.WidthDxa);
+        SetHorizontalAlignment(properties, formatting);
         SetDxa(properties.GetFirstChild<W.TableIndentation>()!, formatting.IndentDxa);
 
         var borders = properties.GetFirstChild<W.TableBorders>()!;
@@ -324,6 +344,29 @@ internal static class DocxTableFormatting
             ? new W.TableCellVerticalAlignment { Val = ToOpenXmlVerticalAlignment(formatting.VerticalAlignment) }
             : null;
 
+    private static void SetHorizontalAlignment(W.TableProperties properties, DocumentTableFormatting formatting)
+    {
+        var existing = properties.Elements<W.TableJustification>().ToArray();
+        if (existing.Length > 1)
+            throw Invalid("Document table formatting cannot replace duplicate horizontal_alignment elements.");
+        if (!formatting.HasHorizontalAlignment)
+        {
+            foreach (var alignment in existing) alignment.Remove();
+            return;
+        }
+
+        var output = existing.Length == 1
+            ? existing[0]
+            : new W.TableJustification();
+        if (existing.Length == 0)
+        {
+            var width = properties.GetFirstChild<W.TableWidth>()
+                ?? throw Invalid("Document table formatting requires w:tblW before w:jc.");
+            properties.InsertAfter(output, width);
+        }
+        output.Val = ToOpenXmlHorizontalAlignment(formatting.HorizontalAlignment);
+    }
+
     private static void SetVerticalAlignment(W.TableCellProperties properties, DocumentTableFormatting formatting)
     {
         var existing = properties.Elements<W.TableCellVerticalAlignment>().ToArray();
@@ -362,12 +405,41 @@ internal static class DocxTableFormatting
     private static bool IsVerticalAlignment(DocumentTableVerticalAlignment value) => value is
         DocumentTableVerticalAlignment.Top or DocumentTableVerticalAlignment.Center or DocumentTableVerticalAlignment.Bottom;
 
+    private static bool TryReadHorizontalAlignment(
+        W.TableJustification? alignment,
+        out DocumentTableHorizontalAlignment? result)
+    {
+        result = null;
+        if (alignment is null) return true;
+        var attributes = alignment.GetAttributes();
+        if (alignment.ChildElements.Count != 0 || alignment.ExtendedAttributes.Any() || attributes.Count != 1 ||
+            attributes[0].NamespaceUri != WordprocessingNamespace || attributes[0].LocalName != "val") return false;
+        var native = alignment.Val?.Value;
+        if (native is null) return false;
+        if (native.Equals(W.TableRowAlignmentValues.Left)) result = DocumentTableHorizontalAlignment.Left;
+        else if (native.Equals(W.TableRowAlignmentValues.Center)) result = DocumentTableHorizontalAlignment.Center;
+        else if (native.Equals(W.TableRowAlignmentValues.Right)) result = DocumentTableHorizontalAlignment.Right;
+        else return false;
+        return true;
+    }
+
+    private static bool IsHorizontalAlignment(DocumentTableHorizontalAlignment value) => value is
+        DocumentTableHorizontalAlignment.Left or DocumentTableHorizontalAlignment.Center or DocumentTableHorizontalAlignment.Right;
+
     private static W.TableVerticalAlignmentValues ToOpenXmlVerticalAlignment(DocumentTableVerticalAlignment value) => value switch
     {
         DocumentTableVerticalAlignment.Top => W.TableVerticalAlignmentValues.Top,
         DocumentTableVerticalAlignment.Center => W.TableVerticalAlignmentValues.Center,
         DocumentTableVerticalAlignment.Bottom => W.TableVerticalAlignmentValues.Bottom,
         _ => throw Invalid("Document table formatting vertical_alignment must be top, center, or bottom."),
+    };
+
+    private static W.TableRowAlignmentValues ToOpenXmlHorizontalAlignment(DocumentTableHorizontalAlignment value) => value switch
+    {
+        DocumentTableHorizontalAlignment.Left => W.TableRowAlignmentValues.Left,
+        DocumentTableHorizontalAlignment.Center => W.TableRowAlignmentValues.Center,
+        DocumentTableHorizontalAlignment.Right => W.TableRowAlignmentValues.Right,
+        _ => throw Invalid("Document table formatting horizontal_alignment must be left, center, or right."),
     };
 
     private static T Dxa<T>(T element, uint width) where T : OpenXmlElement

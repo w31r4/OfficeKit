@@ -3747,6 +3747,136 @@ public sealed class DocxCodecTests
     }
 
     [Fact]
+    public void NativeTableHorizontalAlignmentAuthorsImportsEditsAndRejectsIrregularProfiles()
+    {
+        var authoredRequest = MergedTableExportRequest();
+        authoredRequest.Artifact.Document.Blocks[0].Table.Formatting.IndentDxa = 0;
+        authoredRequest.Artifact.Document.Blocks[0].Table.Formatting.HorizontalAlignment = DocumentTableHorizontalAlignment.Center;
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var document = WordprocessingDocument.Open(stream, false))
+        {
+            var properties = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single().TableProperties!;
+            Assert.Equal(W.TableRowAlignmentValues.Center, properties.GetFirstChild<W.TableJustification>()!.Val!.Value);
+            Assert.Equal(0, properties.GetFirstChild<W.TableIndentation>()!.Width!.Value);
+            var children = properties.ChildElements.ToArray();
+            Assert.True(Array.FindIndex(children, child => child is W.TableWidth) < Array.FindIndex(children, child => child is W.TableJustification));
+            Assert.True(Array.FindIndex(children, child => child is W.TableJustification) < Array.FindIndex(children, child => child is W.TableIndentation));
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(document));
+        }
+
+        var imported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedFormatting = imported.Artifact.Document.Blocks[0].Table.Formatting;
+        Assert.NotNull(importedFormatting);
+        Assert.True(importedFormatting.HasHorizontalAlignment);
+        Assert.Equal(DocumentTableHorizontalAlignment.Center, importedFormatting.HorizontalAlignment);
+
+        importedFormatting.HorizontalAlignment = DocumentTableHorizontalAlignment.Right;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        using (var stream = new MemoryStream(edited.File.ToByteArray()))
+        using (var document = WordprocessingDocument.Open(stream, false))
+        {
+            var properties = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single().TableProperties!;
+            Assert.Equal(W.TableRowAlignmentValues.Right, properties.GetFirstChild<W.TableJustification>()!.Val!.Value);
+            Assert.Equal(0, properties.GetFirstChild<W.TableIndentation>()!.Width!.Value);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(document));
+        }
+        var roundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = edited.File,
+        });
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.True(roundTrip.Artifact.Document.Blocks[0].Table.Formatting.HasHorizontalAlignment);
+        Assert.Equal(DocumentTableHorizontalAlignment.Right, roundTrip.Artifact.Document.Blocks[0].Table.Formatting.HorizontalAlignment);
+
+        var cleared = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        cleared.Artifact.Document.Blocks[0].Table.Formatting.ClearHorizontalAlignment();
+        var clearedExport = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = cleared.Artifact,
+        });
+        Assert.True(clearedExport.Ok, Diagnostics(clearedExport));
+        using (var stream = new MemoryStream(clearedExport.File.ToByteArray()))
+        using (var document = WordprocessingDocument.Open(stream, false))
+            Assert.Null(document.MainDocumentPart!.Document!.Body!.Descendants<W.TableJustification>().SingleOrDefault());
+
+        var conflictingAuthoring = MergedTableExportRequest();
+        conflictingAuthoring.Artifact.Document.Blocks[0].Table.Formatting.HorizontalAlignment = DocumentTableHorizontalAlignment.Center;
+        var conflictingAuthoringResponse = Invoke(conflictingAuthoring);
+        Assert.False(conflictingAuthoringResponse.Ok);
+        Assert.Equal("invalid_document_table", Assert.Single(conflictingAuthoringResponse.Diagnostics).Code);
+
+        var duplicate = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = ByteString.CopyFrom(AddDuplicateTableHorizontalAlignment(authored.File.ToByteArray())),
+        });
+        Assert.True(duplicate.Ok, Diagnostics(duplicate));
+        Assert.Null(duplicate.Artifact.Document.Blocks[0].Table.Formatting);
+        duplicate.Artifact.Document.Blocks[0].Table.Formatting = authoredRequest.Artifact.Document.Blocks[0].Table.Formatting.Clone();
+        duplicate.Artifact.Document.Blocks[0].Table.Formatting.HorizontalAlignment = DocumentTableHorizontalAlignment.Right;
+        var duplicateRejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = duplicate.Artifact,
+        });
+        Assert.False(duplicateRejected.Ok);
+        Assert.Equal("unsupported_document_edit", Assert.Single(duplicateRejected.Diagnostics).Code);
+
+        var conflictingSource = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = ByteString.CopyFrom(AddConflictingTableHorizontalAlignment(authored.File.ToByteArray())),
+        });
+        Assert.True(conflictingSource.Ok, Diagnostics(conflictingSource));
+        Assert.Null(conflictingSource.Artifact.Document.Blocks[0].Table.Formatting);
+        conflictingSource.Artifact.Document.Blocks[0].Table.Formatting = authoredRequest.Artifact.Document.Blocks[0].Table.Formatting.Clone();
+        var conflictingSourceRejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = conflictingSource.Artifact,
+        });
+        Assert.False(conflictingSourceRejected.Ok);
+        Assert.Equal("unsupported_document_edit", Assert.Single(conflictingSourceRejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void ImportedTableRowKeepTogetherEditRejectsExplicitOrOutOfOrderRowProperties()
     {
         var authored = Invoke(MergedTableExportRequest());
@@ -9440,6 +9570,36 @@ public sealed class DocxCodecTests
                 default:
                     throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown table row-height irregularity.");
             }
+            document.MainDocumentPart.Document.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddDuplicateTableHorizontalAlignment(byte[] bytes)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var document = WordprocessingDocument.Open(stream, true))
+        {
+            var properties = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single().TableProperties!;
+            var width = properties.GetFirstChild<W.TableWidth>()!;
+            properties.InsertAfter(new W.TableJustification { Val = W.TableRowAlignmentValues.Center }, width);
+            document.MainDocumentPart.Document.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddConflictingTableHorizontalAlignment(byte[] bytes)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var document = WordprocessingDocument.Open(stream, true))
+        {
+            var indentation = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single()
+                .TableProperties!.GetFirstChild<W.TableIndentation>()!;
+            indentation.Width = 120;
             document.MainDocumentPart.Document.Save();
         }
         return stream.ToArray();

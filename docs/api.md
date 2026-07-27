@@ -25,7 +25,7 @@ Generated from `HELP_CATALOG` in `src/help/index.mjs`.
 | `document.addListItem` | api | Append a numbered, character-bulleted, or bounded picture-bulleted list item using native DOCX numbering definitions. Picture markers are shared numbering-level resources: every item using the same numberingId and level must agree, and recognized imported edits must update the complete group without changing embedded-versus-external source kind. |
 | `document.addParagraph` | api | Append a styled paragraph with optional run spans and bounded direct paragraph formatting, including canonical solid shading and solid paragraph borders, presence-aware contextual spacing, and line-number suppression. |
 | `document.addSection` | api | Append a DOCX section break with page size, orientation, margins, binding gutter, canonical equal-width or explicit-width columns, bounded page-number start/format, and break-type metadata backed by w:sectPr. Imported geometry and page numbering are writable only when their native markup is canonical. |
-| `document.addTable` | api | Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, optional uniform top/center/bottom physical-cell alignment, non-clipping per-row minimum heights, an optional native repeating-header prefix, and individual rows kept together across pages. |
+| `document.addTable` | api | Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, optional left/center/right table placement, optional uniform top/center/bottom physical-cell alignment, non-clipping per-row minimum heights, an optional native repeating-header prefix, and individual rows kept together across pages. |
 | `document.addTableOfContents` | api | Append one canonical one-paragraph complex TOC field with bounded heading levels/switches and enable the native updateFields-on-open hint by default. Refreshed cross-paragraph result graphs remain opaque/source-bound and read-only. |
 | `document.addWatermark` | api | Add one canonical VML text watermark to a section/header-reference scope. Recognized imported watermarks permit text-only edits or whole-object removal; adding to an imported package, changing scope, shared headers, multiple objects, DrawingML, images, and irregular VML fail closed. |
 | `document.applyDesignPreset` | api | Apply a clean-room report or memo design preset that updates named styles for consistent DOCX export and SVG/layout previews. |
@@ -58,6 +58,7 @@ Generated from `HELP_CATALOG` in `src/help/index.mjs`.
 | `documentHeaderFooter.setSegments` | api | Atomically replace one source-free header/footer's ordered literal/simple-field sequence. The derived visible text must remain the concatenated segment displays; imported page furniture cannot use this mutation profile. |
 | `DocumentModel.create` | api | Create a document with paragraph/character styles, formatted paragraphs/runs including canonical solid paragraph shading and bounded solid paragraph borders, canonical inline and one-paragraph table-cell plain-text, checkbox, drop-down, combo-box, and ISO/Gregorian date content controls, one-paragraph block plain-text controls, canonical inline SEQ/REF/PAGEREF fields, sections, headers/footers, canonical VML text watermarks, lists, TableGrid fixed-geometry tables, links, bounded whole-block bookmarks, 1-through-16-paragraph plain-text footnotes/endnotes, canonical bibliography-backed citations plus one source-free switch-free BIBLIOGRAPHY output placeholder, simple fields, a canonical complex TOC placeholder, bounded whole-paragraph tracked insertions/deletions, classic comments, bounded modern root/direct-reply threads, and PNG/JPEG images. Nested/irregular modern threads, rich comment bodies, multi-paragraph/rich/inline-within-cell/nested/data-bound/locked/placeholder table-cell SDTs, other nested/data-bound/locked/placeholder SDTs, irregular lists, localized dates, custom checkbox symbols, image/DrawingML/irregular VML watermarks, other complex field graphs, arbitrary table-style graphs, complex bookmark/note/revision graphs, and advanced settings remain unsupported or source-bound. |
 | `documentTable.setHeaderRowCount` | api | Set the number of contiguous leading rows marked with native w:tblHeader repetition semantics. This is separate from headerFill styling; imported tables accept it only when their row-property profile is canonical, otherwise the edit fails closed. |
+| `documentTable.setHorizontalAlignment` | api | Set or clear native table-level w:jc placement. Center/right require zero table indent so OfficeKit never relies on host-specific resolution of competing w:jc and w:tblInd values; irregular imported table-property profiles fail closed. |
 | `documentTable.setMinimumRowHeight` | api | Set or clear one physical row's non-clipping minimum height through native w:trHeight hRule=atLeast. It is not a fixed exact height or a pagination calculator; imported tables accept it only under the canonical row-property profile, otherwise the edit fails closed. |
 | `documentTable.setRowKeepTogether` | api | Set whether one physical table row may split across pages through native w:cantSplit. This is a per-row pagination constraint, not a row-group or pagination calculator; imported tables accept it only under the canonical row-property profile, otherwise the edit fails closed. |
 | `documentTableCell.addCheckboxContentControl` | api | Wrap one source-free rectangular table cell in a canonical Word 2010+ checkbox w:sdt. OfficeKit owns the visible glyph and symbols; recognized imports permit checked/tag/alias edits while identity, type, placement, symbols, and topology remain fixed. |
@@ -408,7 +409,7 @@ Append a DOCX section break with page size, orientation, margins, binding gutter
 
 #### `document.addTable`
 
-Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, optional uniform top/center/bottom physical-cell alignment, non-clipping per-row minimum heights, an optional native repeating-header prefix, and individual rows kept together across pages.
+Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, optional left/center/right table placement, optional uniform top/center/bottom physical-cell alignment, non-clipping per-row minimum heights, an optional native repeating-header prefix, and individual rows kept together across pages.
 
 **Schema parameters:**
 
@@ -419,6 +420,7 @@ Append a Word-style table with physical cell values, optional logical merge geom
 - `styleId` (string) — Table style ID.
 - `widthDxa` (number) — Table width in twentieths of a point.
 - `indentDxa` (number) — Leading table indent in twentieths of a point.
+- `horizontalAlignment` ("left" | "center" | "right") — Optional native table-level w:jc placement. Omit for Word's normal left default. center/right require indentDxa 0, preventing a host-dependent conflict between table placement and table indentation.
 - `columnWidthsDxa` (number[]) — One width per logical table-grid column in twentieths of a point; values must sum to widthDxa.
 - `cellMarginsDxa` (object) — Cell margins in twentieths of a point.
 - `borderColor` (string) — Table border color.
@@ -915,6 +917,18 @@ Set the number of contiguous leading rows marked with native w:tblHeader repetit
 **Schema returns:**
 
 - `table` (DocumentTableBlock) — Sets source-free or recognized imported table repeat-header rows. Imported row properties may contain only canonical grid offsets, non-clipping w:trHeight hRule=atLeast, and no-w:val w:cantSplit/w:tblHeader leaves in native order; non-prefix, duplicate, exact-height, explicit-value, extension-bearing, or otherwise irregular profiles stay source-bound and fail closed.
+
+#### `documentTable.setHorizontalAlignment`
+
+Set or clear native table-level w:jc placement. Center/right require zero table indent so OfficeKit never relies on host-specific resolution of competing w:jc and w:tblInd values; irregular imported table-property profiles fail closed.
+
+**Schema parameters:**
+
+- `value` ("left" | "center" | "right" | null) required — left, center, or right writes canonical table-level w:jc; null removes it. center/right require the table's indentDxa to be exactly 0.
+
+**Schema returns:**
+
+- `table` (DocumentTableBlock) — Sets or clears source-free or recognized imported table placement. Imported table properties must be the complete canonical fixed-layout direct-formatting profile with zero-or-one canonical w:jc leaf; duplicate, malformed, extension-bearing, or center/right-plus-indent profiles stay source-bound and fail closed.
 
 #### `documentTable.setMinimumRowHeight`
 

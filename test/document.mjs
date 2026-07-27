@@ -216,12 +216,16 @@ const table = document.addTable({
   name: "readiness-table",
   styleId: "TableGrid",
   widthDxa: 9000,
-  indentDxa: 120,
+  // Center/right placement intentionally uses zero indentation: Word has
+  // separate w:jc and w:tblInd mechanisms and OfficeKit does not ask hosts
+  // to reconcile a conflicting combination.
+  indentDxa: 0,
   columnWidthsDxa: [4500, 4500],
   cellMarginsDxa: { top: 60, right: 100, bottom: 60, left: 100 },
   borderColor: "445566",
   borderSize: 8,
   headerFill: "E2E8F0",
+  horizontalAlignment: "center",
   verticalAlignment: "center",
   headerRowCount: 1,
   keepTogetherRows: [1],
@@ -232,12 +236,26 @@ assert.throws(() => table.setHeaderRowCount(4), /headerRowCount must be an integ
 assert.throws(() => table.setRowKeepTogether(3), /row index must be an integer from 0 through 2/i);
 assert.throws(() => table.setRowKeepTogether(1, "yes"), /keepTogether must be a boolean/i);
 assert.deepEqual(table.minimumRowHeightsDxa, [0, 480, 720]);
+assert.equal(table.horizontalAlignment, "center");
+assert.throws(() => table.setHorizontalAlignment("middle"), /horizontal alignment must be left, center, right, or null to clear/i);
+table.indentDxa = 120;
+assert.throws(() => table.setHorizontalAlignment("right"), /center or right horizontal alignment requires indentDxa 0/i);
+table.indentDxa = 0;
+table.setHorizontalAlignment("right");
+assert.equal(table.horizontalAlignment, "right");
+table.setHorizontalAlignment(null);
+assert.equal(table.horizontalAlignment, undefined);
+table.setHorizontalAlignment("center");
 assert.throws(() => table.setMinimumRowHeight(3, 480), /row index must be an integer from 0 through 2/i);
 assert.throws(() => table.setMinimumRowHeight(1, 0), /minimum row height must be an integer DXA value from 1 through 1000000, or null to clear/i);
 assert.throws(() => DocumentModel.create({ name: "Invalid table row minimum", blocks: [] }).addTable({
   values: [["A"], ["B"]],
   minimumRowHeightsDxa: [480],
 }), /minimumRowHeightsDxa must contain one value for each of its 2 physical rows/i);
+await assert.rejects(() => DocumentFile.exportDocx(DocumentModel.create({
+  name: "Invalid centered table indent",
+  blocks: [{ kind: "table", values: [["A"]], indentDxa: 120, horizontalAlignment: "center" }],
+})), /center or right horizontalAlignment requires indentDxa 0/i);
 const hyperlink = document.addHyperlink(
   "Open XML SDK documentation",
   "https://learn.microsoft.com/office/open-xml/open-xml-sdk",
@@ -396,6 +414,7 @@ assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:shd\b(?=[^>]*w:val="clear")(?=[^
 assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style\b(?=[^>]*w:styleId="BodyAccent")[\s\S]*?<w:pBdr>[\s\S]*?<w:top\b(?=[^>]*w:val="single")(?=[^>]*w:color="1D4ED8")(?=[^>]*w:sz="8")(?=[^>]*w:space="1")[^>]*\/>[\s\S]*?<w:between\b(?=[^>]*w:val="single")(?=[^>]*w:color="64748B")(?=[^>]*w:sz="4")(?=[^>]*w:space="0")[^>]*\/>[\s\S]*?<\/w:pBdr>[\s\S]*?<\/w:style>/);
 assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:pBdr>[\s\S]*?<w:bottom\b(?=[^>]*w:val="single")(?=[^>]*w:color="9C2B2E")(?=[^>]*w:sz="12")(?=[^>]*w:space="0")[^>]*\/>[\s\S]*?<w:bar\b(?=[^>]*w:val="single")(?=[^>]*w:color="0F766E")(?=[^>]*w:sz="6")(?=[^>]*w:space="2")[^>]*\/>[\s\S]*?<\/w:pBdr>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
 assert.equal((firstDocumentXml.match(/<w:tblHeader\b[^>]*\/>/g) || []).length, 1, "source-free table must mark exactly its leading header row");
+assert.match(firstDocumentXml, /<w:jc\b[^>]*w:val="center"[^>]*\/>/, "source-free table must write canonical center table placement");
 assert.equal((firstDocumentXml.match(/<w:vAlign\b[^>]*w:val="center"[^>]*\/>/g) || []).length, 6, "source-free table alignment must be explicit on every physical cell");
 assert.equal((firstDocumentXml.match(/<w:trHeight\b[^>]*\/>/g) || []).length, 2, "source-free table must write only nonzero row minimums");
 assert.match(firstDocumentXml, /<w:trHeight\b(?=[^>]*w:val="480")(?=[^>]*w:hRule="atLeast")[^>]*\/>/);
@@ -403,6 +422,35 @@ assert.match(firstDocumentXml, /<w:trHeight\b(?=[^>]*w:val="720")(?=[^>]*w:hRule
 table.verticalAlignment = "middle";
 await assert.rejects(() => DocumentFile.exportDocx(document), /verticalAlignment must be top, center, or bottom/i);
 table.verticalAlignment = "center";
+table.horizontalAlignment = "middle";
+await assert.rejects(() => DocumentFile.exportDocx(document), /horizontalAlignment must be left, center, or right/i);
+table.horizontalAlignment = "center";
+const duplicateTableHorizontalAlignmentZip = await JSZip.loadAsync(firstDocxBytes);
+const duplicateTableHorizontalAlignmentXml = await duplicateTableHorizontalAlignmentZip.file("word/document.xml").async("text");
+let duplicateTableHorizontalAlignmentCount = 0;
+duplicateTableHorizontalAlignmentZip.file("word/document.xml", duplicateTableHorizontalAlignmentXml.replace(/(<w:tblPr\b[^>]*>[\s\S]*?)(<w:jc\b[^>]*w:val="center"[^>]*\/>)/, (_match, prefix, leaf) => {
+  duplicateTableHorizontalAlignmentCount += 1;
+  return `${prefix}${leaf}${leaf}`;
+}));
+assert.equal(duplicateTableHorizontalAlignmentCount, 1);
+const duplicateTableHorizontalAlignmentDocument = await DocumentFile.importDocx(await duplicateTableHorizontalAlignmentZip.generateAsync({ type: "uint8array" }));
+const duplicateTableHorizontalAlignment = duplicateTableHorizontalAlignmentDocument.blocks.find((block) => block.kind === "table");
+assert.equal(duplicateTableHorizontalAlignment.horizontalAlignment, undefined, "duplicate native table placement must remain source-bound");
+duplicateTableHorizontalAlignment.horizontalAlignment = "right";
+await assert.rejects(() => DocumentFile.exportDocx(duplicateTableHorizontalAlignmentDocument), /direct formatting can change only when OfficeKit recognized the complete bounded profile/i);
+const conflictingTableHorizontalAlignmentZip = await JSZip.loadAsync(firstDocxBytes);
+const conflictingTableHorizontalAlignmentXml = await conflictingTableHorizontalAlignmentZip.file("word/document.xml").async("text");
+let conflictingTableHorizontalAlignmentCount = 0;
+conflictingTableHorizontalAlignmentZip.file("word/document.xml", conflictingTableHorizontalAlignmentXml.replace(/<w:tblInd\b(?=[^>]*w:w="0")(?=[^>]*w:type="dxa")[^>]*\/>/, (match) => {
+  conflictingTableHorizontalAlignmentCount += 1;
+  return match.replace('w:w="0"', 'w:w="120"');
+}));
+assert.equal(conflictingTableHorizontalAlignmentCount, 1);
+const conflictingTableHorizontalAlignmentDocument = await DocumentFile.importDocx(await conflictingTableHorizontalAlignmentZip.generateAsync({ type: "uint8array" }));
+const conflictingTableHorizontalAlignment = conflictingTableHorizontalAlignmentDocument.blocks.find((block) => block.kind === "table");
+assert.equal(conflictingTableHorizontalAlignment.horizontalAlignment, undefined, "center placement plus a native table indent must remain source-bound");
+conflictingTableHorizontalAlignment.horizontalAlignment = "right";
+await assert.rejects(() => DocumentFile.exportDocx(conflictingTableHorizontalAlignmentDocument), /direct formatting can change only when OfficeKit recognized the complete bounded profile/i);
 const mixedTableAlignmentZip = await JSZip.loadAsync(firstDocxBytes);
 const mixedTableAlignmentXml = await mixedTableAlignmentZip.file("word/document.xml").async("text");
 let mixedTableAlignmentCount = 0;
