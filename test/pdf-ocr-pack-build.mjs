@@ -128,6 +128,10 @@ assert.match(workflowSource, /The extracted Ghostscript archive did not expose g
   "the private Ghostscript extraction must require the exact native CLI payload");
 assert.doesNotMatch(workflowSource, /Start-Process|WaitForExit|Stop-Process|Start-Sleep/,
   "the Windows Ghostscript source must never execute an installer or poll a child process");
+const windowsPowerShellBlock = workflowSource.match(/powershell\.exe -NoProfile -NonInteractive -Command '\n([\s\S]*?)\n            '/)?.[1];
+assert.ok(windowsPowerShellBlock, "the Windows OCR release path must retain one explicit PowerShell block");
+assert.doesNotMatch(windowsPowerShellBlock, /'/,
+  "the single-quoted Bash PowerShell payload must not contain an unescaped apostrophe that breaks every platform's shell parse");
 assert.match(workflowSource, /--expected-platforms darwin-arm64,linux-x64,win32-x64/);
 assert.match(workflowSource, /\.catalogFragment\.artifacts \| length == 3/);
 assert.match(workflowSource, /resource_target/);
