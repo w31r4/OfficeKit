@@ -8,8 +8,16 @@ or one available template helps.
 Install OfficeKit once, then initialize a project:
 
 ```sh
-npm install -g github:w31r4/OfficeKit
+curl -fsSL https://github.com/w31r4/OfficeKit/releases/download/v0.5.0/install.sh | sh
 officekit init
+```
+
+The self-contained macOS arm64 and Linux x64 builds carry Node 24.18.0,
+OfficeKit, its Skills, and the default templates. The global npm package remains
+available for other platforms and system-Node installations:
+
+```sh
+npm install -g github:w31r4/OfficeKit
 ```
 
 The initializer detects the Agent tools used by the project and installs the

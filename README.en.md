@@ -38,8 +38,21 @@ Use OfficeKit to inspect the forms, signatures, and accessibility of report.pdf 
 
 ## Quick Start
 
-Requires Node.js 22.15 or newer. Install OfficeKit globally once, then
-initialize each project that will use it:
+On Apple Silicon macOS and x64 Linux, install the distribution that carries its
+own Node 24.18.0 runtime:
+
+```sh
+curl -fsSL https://github.com/w31r4/OfficeKit/releases/download/v0.5.0/install.sh | sh
+officekit init
+```
+
+The installer verifies a pinned byte size and SHA-256, publishes the version
+under `~/.office-kit/versions/0.5.0`, and atomically switches
+`~/.office-kit/current`. Add the single `~/.local/bin/officekit` command to
+`PATH`. A failed upgrade leaves the active version available.
+
+Developers on other platforms, or those who prefer the system runtime, can use
+the global npm package with Node.js 22.15 or newer:
 
 ```sh
 npm install -g github:w31r4/OfficeKit
@@ -56,12 +69,11 @@ For scripts and CI, select the tools directly:
 officekit init --tools claude,cursor
 ```
 
-After upgrading the global package, run `officekit update` in the project to refresh
-its Skills. Specialist PDF providers continue to load their own runtimes
-according to project policy.
+After installing a new standalone version or upgrading the global package, run
+`officekit update` in the project to refresh its Skills. Specialist PDF
+providers continue to load their own runtimes according to project policy.
 
-GitHub is the current installation source. After the first formal npm release,
-the first command becomes:
+After the formal npm release, the global installation command becomes:
 
 ```sh
 npm install -g office-kit
@@ -75,6 +87,11 @@ officekit run task.mjs -- input.docx output.docx
 
 `officekit run` supplies the matching global OfficeKit API. A task's other
 dependencies continue to resolve from the task's own project.
+
+The standalone distribution carries OfficeKit JavaScript, production
+dependencies, OfficeKit Codec WASM, MuPDF, seven Skills, twenty templates,
+licenses, and a CycloneDX SBOM. qpdf, OCR, Python, JRE, LibreOffice, and Poppler
+load by task under project policy.
 
 ## One front door, with direct routes when you want them
 
@@ -188,7 +205,7 @@ npm run release:check
 ```
 
 `OfficeKit` is the product name, and the npm package is `office-kit`.
-Version `0.4.0` is currently a release candidate; npm installation follows the
+Version `0.5.0` is currently a release candidate; npm installation follows the
 formal release.
 
 ## License

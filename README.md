@@ -37,8 +37,20 @@ OfficeKit：
 
 ## Quick Start
 
-需要 Node.js 22.15 或更新版本。全局安装一次，然后在每个要使用
-OfficeKit 的项目里初始化：
+macOS Apple Silicon 和 Linux x64 可以直接安装自带 Node 24.18.0 的版本：
+
+```sh
+curl -fsSL https://github.com/w31r4/OfficeKit/releases/download/v0.5.0/install.sh | sh
+officekit init
+```
+
+安装器校验固定的文件大小和 SHA-256，把版本放在
+`~/.office-kit/versions/0.5.0`，再原子切换 `~/.office-kit/current`。
+`~/.local/bin/officekit` 是唯一需要加入 `PATH` 的命令。新版本安装失败时，
+当前版本继续可用。
+
+其他平台或希望使用系统 Node 的开发者可以全局安装 npm 包；需要
+Node.js 22.15 或更新版本：
 
 ```sh
 npm install -g github:w31r4/OfficeKit
@@ -55,10 +67,10 @@ Skill 会写入对应的项目目录。
 officekit init --tools claude,cursor
 ```
 
-升级全局包后，在项目里执行 `officekit update` 即可同步 Skill。
+安装新版本或升级全局包后，在项目里执行 `officekit update` 即可同步 Skill。
 专项 PDF provider 继续按项目策略加载自己的运行时。
 
-当前安装源为 GitHub。首个正式 npm 版本发布后，第一条命令可改为：
+正式 npm 版本发布后，全局安装命令可改为：
 
 ```sh
 npm install -g office-kit
@@ -72,6 +84,10 @@ officekit run task.mjs -- input.docx output.docx
 
 `officekit run` 使用全局安装的同版本 API。任务自己的第三方依赖仍从
 任务所在项目解析。
+
+自包含发行物包含 OfficeKit JavaScript、生产依赖、OfficeKit Codec WASM、
+MuPDF、7 个 Skill、20 个模板、许可证和 SBOM。qpdf、OCR、Python、JRE、
+LibreOffice 和 Poppler 按具体任务及项目策略加载。
 
 ## 一个总入口，也保留直接入口
 
@@ -180,7 +196,7 @@ npm run docs:api
 npm run release:check
 ```
 
-`OfficeKit` 是产品名，npm 包名为 `office-kit`。版本 `0.4.0`
+`OfficeKit` 是产品名，npm 包名为 `office-kit`。版本 `0.5.0`
 当前处于 release candidate 阶段，正式发布后即可从 npm 安装。
 
 ## 许可证

@@ -15,7 +15,7 @@ try {
   assert.match(help.stdout, /officekit update \[path\]/);
   assert.match(help.stdout, /officekit run <task\.mjs>/);
   assert.match(help.stdout, /officekit template search/);
-  assert.equal(run(["--version"]).stdout.trim(), "0.4.0");
+  assert.equal(run(["--version"]).stdout.trim(), "0.5.0");
 
   const project = path.join(temporary, "detected-project");
   fs.mkdirSync(path.join(project, ".claude"), { recursive: true });
@@ -51,7 +51,7 @@ try {
   assert.deepEqual(manifest.tools, ["claude", "cursor"]);
   assert.equal(manifest.installations.length, 14);
   assert.equal(manifest.package.name, "office-kit");
-  assert.equal(manifest.package.version, "0.4.0");
+  assert.equal(manifest.package.version, "0.5.0");
 
   const idempotent = parseJson(run(["init", project, "--yes", "--json"]).stdout);
   assert.equal(idempotent.created, 0);

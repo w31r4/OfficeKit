@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "nodeVersion": "24.18.0",
+  "runtimes": {
+    "darwin-arm64": {
+      "archive": "node-v24.18.0-darwin-arm64.tar.gz",
+      "root": "node-v24.18.0-darwin-arm64",
+      "url": "https://nodejs.org/dist/v24.18.0/node-v24.18.0-darwin-arm64.tar.gz",
+      "sha256": "e1a97e14c99c803e96c7339403282ea05a499c32f8d83defe9ef5ec66f979ed1",
+      "size": 52087559
+    },
+    "linux-x64": {
+      "archive": "node-v24.18.0-linux-x64.tar.gz",
+      "root": "node-v24.18.0-linux-x64",
+      "url": "https://nodejs.org/dist/v24.18.0/node-v24.18.0-linux-x64.tar.gz",
+      "sha256": "783130984963db7ba9cbd01089eaf2c2efb055c7c1693c943174b967b3050cb8",
+      "size": 57224421
+    }
+  }
+}

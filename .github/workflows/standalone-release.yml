@@ -1,0 +1,175 @@
+name: standalone release
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_release:
+        description: "Upload verified assets to the matching GitHub release"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-24.04
+          - target: darwin-arm64
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.18.0
+          cache: npm
+      - run: npm ci
+      - name: Verify local standalone contracts
+        run: npm run test:standalone
+      - name: Build from the pinned official Node runtime
+        run: |
+          test "$(node --version)" = "v24.18.0"
+          npm run build:standalone -- \
+            --target "${{ matrix.target }}" \
+            --output "$RUNNER_TEMP/office-kit-standalone"
+      - name: Verify the pinned release identity
+        env:
+          TARGET: ${{ matrix.target }}
+          OUTPUT: ${{ runner.temp }}/office-kit-standalone
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+          const catalog = JSON.parse(fs.readFileSync("standalone/releases.v1.json", "utf8"));
+          const reportPath = path.join(
+            process.env.OUTPUT,
+            `office-kit-${pkg.version}-${process.env.TARGET}.release.json`,
+          );
+          const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+          const expected = catalog.assets[process.env.TARGET];
+          if (
+            report.officeKitVersion !== catalog.officeKitVersion ||
+            report.asset !== expected.asset ||
+            report.sha256 !== expected.sha256 ||
+            report.size !== expected.size
+          ) {
+            throw new Error(`standalone release identity drifted: ${JSON.stringify({ report, expected })}`);
+          }
+          NODE
+      - name: Install without system Node or npm and run all four formats
+        env:
+          TARGET: ${{ matrix.target }}
+          OUTPUT: ${{ runner.temp }}/office-kit-standalone
+        run: |
+          version=$(node -p "require('./package.json').version")
+          report="$OUTPUT/office-kit-$version-$TARGET.release.json"
+          archive="$OUTPUT/office-kit-$version-$TARGET.tar.gz"
+          expected_sha=$(node -p "require(process.argv[1]).sha256" "$report")
+          expected_size=$(node -p "require(process.argv[1]).size" "$report")
+          test_home="$RUNNER_TEMP/office-kit-home"
+          trap_bin="$RUNNER_TEMP/no-system-node"
+          trap_log="$RUNNER_TEMP/system-runtime-invoked.log"
+          mkdir -p "$test_home" "$trap_bin" "$RUNNER_TEMP/empty-project"
+          for command in node npm npx; do
+            printf '#!/bin/sh\nprintf "%%s\\n" "%s" >> "%s"\nexit 99\n' \
+              "$command" "$trap_log" > "$trap_bin/$command"
+            chmod +x "$trap_bin/$command"
+          done
+          export HOME="$test_home"
+          export OFFICE_KIT_HOME="$test_home/.office-kit"
+          export OFFICE_KIT_BIN_DIR="$test_home/.local/bin"
+          export OFFICE_KIT_INSTALL_TEST=1
+          export OFFICE_KIT_TEST_TARGET="$TARGET"
+          export OFFICE_KIT_TEST_ARCHIVE="$archive"
+          export OFFICE_KIT_TEST_SHA256="$expected_sha"
+          export OFFICE_KIT_TEST_SIZE="$expected_size"
+          export PATH="$trap_bin:/usr/bin:/bin"
+          sh standalone/install.sh
+          officekit="$OFFICE_KIT_BIN_DIR/officekit"
+          test "$("$officekit" --version)" = "$version"
+          cd "$RUNNER_TEMP/empty-project"
+          "$officekit" init . --tools agents --json
+          "$officekit" template search --kind document --max 20 --json
+          "$officekit" template search --kind spreadsheet --max 20 --json
+          "$officekit" template search --kind presentation --max 20 --json
+          "$officekit" run "$GITHUB_WORKSPACE/test/fixtures/standalone-four-formats.mjs" -- release-lane
+          test -s standalone.docx
+          test -s standalone.xlsx
+          test -s standalone.pptx
+          test -s standalone.pdf
+          test ! -s "$trap_log"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: office-kit-${{ matrix.target }}
+          path: ${{ runner.temp }}/office-kit-standalone/*
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.upload_release == 'true'
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.18.0
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: office-kit-*
+          path: artifacts
+          merge-multiple: true
+      - name: Verify both release assets
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          const catalog = JSON.parse(fs.readFileSync("standalone/releases.v1.json", "utf8"));
+          for (const [target, expected] of Object.entries(catalog.assets)) {
+            const report = JSON.parse(
+              fs.readFileSync(
+                path.join("artifacts", `office-kit-${catalog.officeKitVersion}-${target}.release.json`),
+                "utf8",
+              ),
+            );
+            if (
+              report.asset !== expected.asset ||
+              report.sha256 !== expected.sha256 ||
+              report.size !== expected.size
+            ) {
+              throw new Error(`${target} release evidence does not match the pinned catalog.`);
+            }
+          }
+          NODE
+          cp standalone/install.sh artifacts/install.sh
+          cp standalone/releases.v1.json artifacts/releases.v1.json
+          cp standalone/node-runtimes.v1.json artifacts/node-runtimes.v1.json
+      - name: Upload to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          tag="v$version"
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            test "$GITHUB_REF_NAME" = "$tag"
+          fi
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" \
+              --title "OfficeKit $tag" \
+              --notes "Self-contained OfficeKit distributions for macOS arm64 and Linux x64."
+          fi
+          gh release upload "$tag" artifacts/* --clobber

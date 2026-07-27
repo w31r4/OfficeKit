@@ -699,7 +699,7 @@ function testGlobalCli({ dependencyTarballs, tarball, temporary }) {
 
   const project = path.join(temporary, "global-empty-project");
   fs.mkdirSync(project, { recursive: true });
-  assert.equal(expectSuccess(["--version"], project).stdout.trim(), "0.4.0");
+  assert.equal(expectSuccess(["--version"], project).stdout.trim(), "0.5.0");
   const initialized = JSON.parse(expectSuccess([
     "init", ".", "--tools", "agents", "--json",
   ], project).stdout);
