@@ -140,6 +140,7 @@ document.styles.add("BodyAccent", {
   alignment: "left",
   spaceAfterTwips: 240,
   keepNext: true,
+  keepLinesTogether: true,
   suppressLineNumbers: true,
 });
 
@@ -158,6 +159,7 @@ const formatted = document.addParagraph("Bold and colored", {
     lineSpacingTwips: 300,
     lineSpacingRule: "auto",
     keepNext: true,
+    keepLinesTogether: true,
     suppressLineNumbers: false,
   },
   runs: [
@@ -356,12 +358,20 @@ const firstDocxZip = await JSZip.loadAsync(firstDocxBytes);
 const firstDocumentXml = await firstDocxZip.file("word/document.xml").async("text");
 assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style\b(?=[^>]*w:styleId="BodyAccent")[\s\S]*?<w:suppressLineNumbers\b[^>]*w:val="true"[^>]*\/>[\s\S]*?<\/w:style>/);
 assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:suppressLineNumbers\b[^>]*w:val="false"[^>]*\/>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
+assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style\b(?=[^>]*w:styleId="BodyAccent")[\s\S]*?<w:keepLines\b[^>]*w:val="true"[^>]*\/>[\s\S]*?<\/w:style>/);
+assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:keepLines\b[^>]*w:val="true"[^>]*\/>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
 assert.equal((firstDocumentXml.match(/<w:tblHeader\b[^>]*\/>/g) || []).length, 1, "source-free table must mark exactly its leading header row");
 await assert.rejects(
   () => DocumentFile.exportDocx(DocumentModel.create({
     blocks: [{ kind: "paragraph", text: "Invalid suppression", paragraphFormat: { suppressLineNumbers: "yes" } }],
   })),
   /suppressLineNumbers must be boolean/i,
+);
+await assert.rejects(
+  () => DocumentFile.exportDocx(DocumentModel.create({
+    blocks: [{ kind: "paragraph", text: "Invalid keep-lines", paragraphFormat: { keepLinesTogether: "yes" } }],
+  })),
+  /keepLinesTogether must be boolean/i,
 );
 
 const watermarkDocument = DocumentModel.create({ name: "Watermark OfficeKit slice", blocks: [] });
@@ -770,10 +780,12 @@ assert.equal(imported.defaultRunStyle.fontFamily, "Aptos");
 assert.equal(imported.defaultRunStyle.fontSize, 11);
 assert.equal(imported.styles.values().some((style) => style.id === "BodyAccent" && style.basedOn === "Normal"), true);
 assert.equal(imported.styles.get("BodyAccent")?.suppressLineNumbers, true);
+assert.equal(imported.styles.get("BodyAccent")?.keepLinesTogether, true);
 const importedFormatted = imported.blocks.find((block) => block.text === "Bold and colored");
 assert.equal(importedFormatted?.kind, "paragraph");
 assert.equal(importedFormatted?.paragraphFormat.alignment, "center");
 assert.equal(importedFormatted?.paragraphFormat.suppressLineNumbers, false);
+assert.equal(importedFormatted?.paragraphFormat.keepLinesTogether, true);
 assert.equal(importedFormatted?.runs.length, 2);
 assert.equal(importedFormatted?.runs[0].style.bold, true);
 assert.equal(importedFormatted?.runs[0].style.fontSize, 15);
@@ -829,6 +841,7 @@ importedFormatted.runs[0].text = "Bold ";
 importedFormatted.runs[1].text = "and edited";
 importedFormatted.runs[1].style.color = "#008844";
 importedFormatted.paragraphFormat.suppressLineNumbers = true;
+importedFormatted.paragraphFormat.keepLinesTogether = false;
 const importedBullet = imported.blocks.find((block) => block.kind === "listItem" && block.listType === "bullet");
 importedBullet.text = "Inspect the edited semantic model.";
 const importedTable = imported.blocks.find((block) => block.kind === "table");
@@ -866,6 +879,7 @@ assert.equal(roundTripFormatted?.runs[0].style.bold, true);
 assert.equal(roundTripFormatted?.runs[1].style.italic, true);
 assert.equal(roundTripFormatted?.runs[1].style.color, "#008844");
 assert.equal(roundTripFormatted?.paragraphFormat.suppressLineNumbers, true);
+assert.equal(roundTripFormatted?.paragraphFormat.keepLinesTogether, false);
 assert.equal(roundTrip.blocks.some((block) => block.kind === "listItem" && block.text === "Inspect the edited semantic model."), true);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.values[1][1], "Pass");
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.headerRowCount, 2);

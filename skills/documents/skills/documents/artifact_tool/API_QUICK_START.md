@@ -880,6 +880,33 @@ and semantic replacement fails closed. Irregular section numbering likewise
 makes section geometry read-only. Use a native pagination host for final visual
 QA.
 
+Paragraph pagination flags are independent host directives, not a page-layout
+engine. Keep a heading with its following paragraph, prevent a single paragraph
+from splitting across pages, or start a paragraph on a new page with the exact
+flag that matches the task:
+
+```js
+document.addParagraph("Decision", {
+  styleId: "Heading1",
+  paragraphFormat: { keepNext: true },
+});
+document.addParagraph("This conclusion must remain on one page.", {
+  paragraphFormat: { keepLinesTogether: true },
+});
+document.addParagraph("Appendix", {
+  styleId: "Heading1",
+  paragraphFormat: { pageBreakBefore: true },
+});
+```
+
+`keepLinesTogether` is a presence-aware boolean mapping to `w:keepLines`:
+`true` enables it, `false` explicitly overrides an inherited named-style value,
+and omission inherits. Canonical direct/style `w:keepNext`, `w:keepLines`, and
+`w:pageBreakBefore` leaves are editable after import. Duplicate,
+child-bearing, extension-bearing, or invalid lexical pagination markup remains
+source-owned and fails closed on semantic replacement. Use native Word or
+LibreOffice rendering to confirm the actual page boundary.
+
 `start` is optional and accepts integers from 0 through 2147483647. Omit it to
 continue the preceding section's sequence. `format` is optional and accepts
 `decimal`, `upperRoman`, `lowerRoman`, `upperLetter`, or `lowerLetter`; at

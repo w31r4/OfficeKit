@@ -79,18 +79,20 @@ internal static class DocxFormattingCodec
     internal static DocumentParagraphFormatting? ReadParagraphFormatting(W.ParagraphProperties? properties)
     {
         if (properties is null) return null;
-        if (!TryReadSuppressLineNumbers(properties, out var suppressLineNumbers)) return null;
+        if (!TryReadParagraphPagination(properties, out var keepNext, out var keepLinesTogether,
+                                        out var pageBreakBefore, out var suppressLineNumbers)) return null;
         var result = ReadParagraphFormattingCore(properties.Justification, properties.Indentation,
-            properties.SpacingBetweenLines, properties.KeepNext, properties.PageBreakBefore, suppressLineNumbers);
+            properties.SpacingBetweenLines, keepNext, keepLinesTogether, pageBreakBefore, suppressLineNumbers);
         return HasParagraphFormatting(result) ? result : null;
     }
 
     internal static DocumentParagraphFormatting? ReadStyleParagraphFormatting(W.StyleParagraphProperties? properties)
     {
         if (properties is null) return null;
-        if (!TryReadSuppressLineNumbers(properties, out var suppressLineNumbers)) return null;
+        if (!TryReadParagraphPagination(properties, out var keepNext, out var keepLinesTogether,
+                                        out var pageBreakBefore, out var suppressLineNumbers)) return null;
         var result = ReadParagraphFormattingCore(properties.Justification, properties.Indentation,
-            properties.SpacingBetweenLines, properties.KeepNext, properties.PageBreakBefore, suppressLineNumbers);
+            properties.SpacingBetweenLines, keepNext, keepLinesTogether, pageBreakBefore, suppressLineNumbers);
         return HasParagraphFormatting(result) ? result : null;
     }
 
@@ -152,9 +154,9 @@ internal static class DocxFormattingCodec
     internal static bool IsSupportedParagraphProperties(W.ParagraphProperties? properties, bool allowNumbering = false, bool allowSection = false)
     {
         if (properties is null) return true;
-        if (!TryReadSuppressLineNumbers(properties, out _)) return false;
+        if (!TryReadParagraphPagination(properties, out _, out _, out _, out _)) return false;
         return properties.ChildElements.All(child => child is W.ParagraphStyleId or W.Justification or W.Indentation or
-            W.SpacingBetweenLines or W.KeepNext or W.PageBreakBefore or W.SuppressLineNumbers ||
+            W.SpacingBetweenLines or W.KeepNext or W.KeepLines or W.PageBreakBefore or W.SuppressLineNumbers ||
             (allowNumbering && child is W.NumberingProperties) ||
             (allowSection && child is W.SectionProperties));
     }
@@ -223,14 +225,15 @@ internal static class DocxFormattingCodec
     internal static bool HasParagraphFormatting(DocumentParagraphFormatting? value) => value is not null &&
         (value.HasAlignment || value.HasLeftIndentTwips || value.HasRightIndentTwips || value.HasFirstLineIndentTwips ||
          value.HasHangingIndentTwips || value.HasSpaceBeforeTwips || value.HasSpaceAfterTwips || value.HasLineSpacingTwips ||
-         value.HasLineSpacingRule || value.HasKeepNext || value.HasPageBreakBefore || value.HasSuppressLineNumbers);
+         value.HasLineSpacingRule || value.HasKeepNext || value.HasKeepLinesTogether || value.HasPageBreakBefore || value.HasSuppressLineNumbers);
 
     private static DocumentParagraphFormatting ReadParagraphFormattingCore(
         W.Justification? justification,
         W.Indentation? indentation,
         W.SpacingBetweenLines? spacing,
-        W.KeepNext? keepNext,
-        W.PageBreakBefore? pageBreakBefore,
+        bool? keepNext,
+        bool? keepLinesTogether,
+        bool? pageBreakBefore,
         bool? suppressLineNumbers)
     {
         var result = new DocumentParagraphFormatting();
@@ -264,8 +267,9 @@ internal static class DocxFormattingCodec
         // source-bound style catalogs remain byte-preserved and edits are
         // rejected by DocxDirectStyles.AssertSourceUnchanged.
         if (hasLineSpacing && rule is not null) result.LineSpacingRule = rule;
-        if (keepNext is not null) result.KeepNext = IsOn(keepNext);
-        if (pageBreakBefore is not null) result.PageBreakBefore = IsOn(pageBreakBefore);
+        if (keepNext is not null) result.KeepNext = keepNext.Value;
+        if (keepLinesTogether is not null) result.KeepLinesTogether = keepLinesTogether.Value;
+        if (pageBreakBefore is not null) result.PageBreakBefore = pageBreakBefore.Value;
         if (suppressLineNumbers is not null) result.SuppressLineNumbers = suppressLineNumbers.Value;
         return result;
     }
@@ -289,6 +293,7 @@ internal static class DocxFormattingCodec
     {
         if (formatting is null) return;
         if (formatting.HasKeepNext) properties.Append(new W.KeepNext { Val = formatting.KeepNext });
+        if (formatting.HasKeepLinesTogether) properties.Append(new W.KeepLines { Val = formatting.KeepLinesTogether });
         if (formatting.HasPageBreakBefore) properties.Append(new W.PageBreakBefore { Val = formatting.PageBreakBefore });
     }
 
@@ -339,10 +344,28 @@ internal static class DocxFormattingCodec
 
     private static bool IsOn(W.OnOffType value) => value.Val?.Value != false;
 
-    private static bool TryReadSuppressLineNumbers(OpenXmlCompositeElement properties, out bool? value)
+    private static bool TryReadParagraphPagination(
+        OpenXmlCompositeElement properties,
+        out bool? keepNext,
+        out bool? keepLinesTogether,
+        out bool? pageBreakBefore,
+        out bool? suppressLineNumbers)
+    {
+        keepNext = null;
+        keepLinesTogether = null;
+        pageBreakBefore = null;
+        suppressLineNumbers = null;
+        return TryReadOnOff<W.KeepNext>(properties, out keepNext) &&
+               TryReadOnOff<W.KeepLines>(properties, out keepLinesTogether) &&
+               TryReadOnOff<W.PageBreakBefore>(properties, out pageBreakBefore) &&
+               TryReadOnOff<W.SuppressLineNumbers>(properties, out suppressLineNumbers);
+    }
+
+    private static bool TryReadOnOff<T>(OpenXmlCompositeElement properties, out bool? value)
+        where T : W.OnOffType
     {
         value = null;
-        var elements = properties.Elements<W.SuppressLineNumbers>().ToArray();
+        var elements = properties.Elements<T>().ToArray();
         if (elements.Length == 0) return true;
         if (elements.Length != 1) return false;
         var element = elements[0];

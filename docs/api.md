@@ -126,7 +126,7 @@ Append one canonical block-level Word plain-text content control around exactly 
 - `tag` (string) required — Block plain-text SDT tag, 1 to 64 characters without controls.
 - `alias` (string) — Human title/alias, 1 to 255 characters; defaults to tag.
 - `styleId` (string) — Optional modeled paragraph style ID.
-- `paragraphFormat` (object) — Optional modeled paragraph formatting for the wrapped paragraph, including presence-aware boolean suppressLineNumbers with the same direct/style inheritance and fail-closed source rules as document.addParagraph.
+- `paragraphFormat` (object) — Optional modeled paragraph formatting for the wrapped paragraph, including keepNext, boolean keepLinesTogether, pageBreakBefore, and presence-aware boolean suppressLineNumbers with the same direct/style inheritance and fail-closed source rules as document.addParagraph.
 - `runStyle` (object) — Optional modeled formatting for the single ordinary run.
 
 **Schema returns:**
@@ -380,7 +380,7 @@ Append a styled paragraph with optional run spans and bounded direct paragraph f
 - `text` (string) required — Paragraph text.
 - `styleId` (string) — Named paragraph style ID.
 - `name` (string) — Inspectable block name.
-- `paragraphFormat` (object) — Optional modeled paragraph formatting. suppressLineNumbers accepts only boolean true or false: true excludes this paragraph's lines from section line-number display and calculation; false is an explicit direct override of inherited style suppression; omission inherits the named style/default. Canonical direct or style w:suppressLineNumbers leaves are editable, while duplicate, child-bearing, extension-bearing, or invalid lexical markup stays source-owned and semantic replacement fails closed.
+- `paragraphFormat` (object) — Optional modeled paragraph formatting. keepNext keeps this paragraph with its following paragraph, keepLinesTogether keeps one paragraph from splitting across pages, and pageBreakBefore asks the host to begin it on a new page; these independent pagination directives do not calculate pages. keepLinesTogether accepts only boolean true or false, where false explicitly overrides an inherited style setting and omission inherits. Canonical direct or style w:keepNext/w:keepLines/w:pageBreakBefore/w:suppressLineNumbers leaves are editable; duplicate, child-bearing, extension-bearing, or invalid lexical markup stays source-owned and semantic replacement fails closed. suppressLineNumbers true excludes this paragraph from section line-number display and calculation; false explicitly overrides inherited style suppression; omission inherits the named style/default.
 - `runs` (object[]) — Optional run spans whose style may include runStyleId plus direct/theme formatting. A run may carry a bounded contentControl { id, tag, alias, nativeId?, controlType?, checked?, choices?, selectedValue?, value? } or inlineField { instruction, bookmarkName?, bookmarkNativeId? }.
 
 **Schema returns:**
