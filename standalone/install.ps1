@@ -64,7 +64,15 @@ function Get-ExpectedTarget() {
 }
 
 function Get-Sha256([string] $Path) {
-  return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+  $stream = [System.IO.File]::OpenRead($Path)
+  $algorithm = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $hash = $algorithm.ComputeHash($stream)
+    return ([System.BitConverter]::ToString($hash).Replace("-", "")).ToLowerInvariant()
+  } finally {
+    $algorithm.Dispose()
+    $stream.Dispose()
+  }
 }
 
 function Test-ZipEntryPath([string] $Value) {
