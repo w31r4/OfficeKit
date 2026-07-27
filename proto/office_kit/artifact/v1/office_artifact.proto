@@ -2464,6 +2464,10 @@ message DocumentParagraphFormatting {
   // the pagination host not to split one paragraph across pages; false is an
   // explicit override of an inherited keep-lines setting.
   optional bool keep_lines_together = 13;
+  // Presence-aware direct/style paragraph setting for w:widowControl. True
+  // asks the pagination host to avoid orphan/widow lines; false explicitly
+  // overrides an inherited setting.
+  optional bool widow_control = 14;
 }
 
 enum DocumentHeaderFooterReference {

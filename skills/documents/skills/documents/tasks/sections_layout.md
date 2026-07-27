@@ -130,6 +130,9 @@ document.addParagraph("Decision", {
 document.addParagraph("A short conclusion that must not split across pages.", {
   paragraphFormat: { keepLinesTogether: true },
 });
+document.addParagraph("Avoid a single first or last line at a page boundary.", {
+  paragraphFormat: { widowControl: true },
+});
 document.addParagraph("Appendix", {
   styleId: "Heading1",
   paragraphFormat: { pageBreakBefore: true },
@@ -138,12 +141,15 @@ document.addParagraph("Appendix", {
 
 `keepNext` asks Word to keep this paragraph with its following paragraph.
 `keepLinesTogether` writes `w:keepLines`, so one paragraph may move to the
-next page rather than split across two pages. `pageBreakBefore` writes
-`w:pageBreakBefore`. All three accept boolean `true`/`false`; omission inherits
-the named-style/default behavior. Canonical direct/style leaves are editable
-after import. Duplicate, child-bearing, extension-bearing, or invalid lexical
-`w:keepNext`, `w:keepLines`, `w:pageBreakBefore`, or `w:suppressLineNumbers`
-markup stays source-owned and semantic replacement fails closed. Native
+next page rather than split across two pages. `widowControl` writes
+`w:widowControl`, asking the host to avoid a single first or last line at a
+page boundary. `pageBreakBefore` writes `w:pageBreakBefore`. All four accept
+boolean `true`/`false`; omission inherits the named-style/default behavior.
+Canonical direct/style leaves are editable after import. Duplicate,
+child-bearing, extension-bearing, or invalid lexical `w:keepNext`,
+`w:keepLines`, `w:widowControl`, `w:pageBreakBefore`, or
+`w:suppressLineNumbers` markup stays source-owned and semantic replacement
+fails closed. Native
 Word/LibreOffice rendering remains the final authority on actual page breaks.
 
 `pageNumbering` owns one canonical native `w:pgNumType` leaf. Use `start` to

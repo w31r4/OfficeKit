@@ -893,16 +893,20 @@ document.addParagraph("Decision", {
 document.addParagraph("This conclusion must remain on one page.", {
   paragraphFormat: { keepLinesTogether: true },
 });
+document.addParagraph("Avoid a single first or last line at a page boundary.", {
+  paragraphFormat: { widowControl: true },
+});
 document.addParagraph("Appendix", {
   styleId: "Heading1",
   paragraphFormat: { pageBreakBefore: true },
 });
 ```
 
-`keepLinesTogether` is a presence-aware boolean mapping to `w:keepLines`:
-`true` enables it, `false` explicitly overrides an inherited named-style value,
-and omission inherits. Canonical direct/style `w:keepNext`, `w:keepLines`, and
-`w:pageBreakBefore` leaves are editable after import. Duplicate,
+`keepLinesTogether` and `widowControl` are presence-aware booleans mapping to
+`w:keepLines` and `w:widowControl`: `true` enables the selected host policy,
+`false` explicitly overrides an inherited named-style value, and omission
+inherits. Canonical direct/style `w:keepNext`, `w:keepLines`,
+`w:widowControl`, and `w:pageBreakBefore` leaves are editable after import. Duplicate,
 child-bearing, extension-bearing, or invalid lexical pagination markup remains
 source-owned and fails closed on semantic replacement. Use native Word or
 LibreOffice rendering to confirm the actual page boundary.
