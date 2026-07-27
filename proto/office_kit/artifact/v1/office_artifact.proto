@@ -2481,6 +2481,10 @@ message DocumentParagraphFormatting {
   // A recognized ordinary direct paragraph may add, change, or clear this
   // field; patterns, theme colors, and imported style catalogs stay source-bound.
   optional string shading_fill = 17;
+  // Canonical direct/style w:pBdr profile. Every modeled edge is an explicit
+  // solid RGB line; patterned/theme/frame/shadow border graphs remain
+  // source-bound. Omission removes a previously modeled direct border graph.
+  DocumentParagraphBorders borders = 18;
 }
 
 enum DocumentHeaderFooterReference {
@@ -3313,4 +3317,27 @@ message PresentationOleOfficePackage {
   string relationship_id = 4;
   string kind = 5;
   string replacement_asset_id = 6;
+}
+
+// Appended to preserve every pre-existing generated descriptor index while
+// DocumentParagraphFormatting references this additive protocol-2 profile.
+// One explicit Word paragraph-border edge. `size_eighth_points` maps to
+// w:sz and is constrained to Word's 2..96 range; `space_points` maps to
+// w:space and is constrained to 0..31. The first profile fixes w:val=single.
+message DocumentParagraphBorder {
+  string color_rgb = 1;
+  uint32 size_eighth_points = 2;
+  uint32 space_points = 3;
+}
+
+// Complete replacement profile for one w:pBdr. Any nonempty subset of the
+// six standard paragraph-border edges is supported; absent edges are removed
+// when a recognized imported direct profile is edited.
+message DocumentParagraphBorders {
+  DocumentParagraphBorder top = 1;
+  DocumentParagraphBorder left = 2;
+  DocumentParagraphBorder bottom = 3;
+  DocumentParagraphBorder right = 4;
+  DocumentParagraphBorder between = 5;
+  DocumentParagraphBorder bar = 6;
 }
