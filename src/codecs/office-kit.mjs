@@ -2144,6 +2144,24 @@ function sameDocumentTableHeaderRows(block, table) {
   return documentTableHeaderRowCount(block, table.rows.length) === Number(table.headerRowCount || 0);
 }
 
+function documentTableKeepTogetherRows(block, rowCount) {
+  const values = block.keepTogetherRows == null ? [] : block.keepTogetherRows;
+  if (!Array.isArray(values)) {
+    throw new OfficeKitCodecError(`Document table ${block.id} keepTogetherRows must be an array of physical row indexes.`, [], { code: "invalid_document_table" });
+  }
+  const normalized = values.map((value) => Number(value));
+  if (normalized.some((value) => !Number.isInteger(value) || value < 0 || value >= rowCount)) {
+    throw new OfficeKitCodecError(`Document table ${block.id} keepTogetherRows must contain integer row indexes from 0 through ${Math.max(0, rowCount - 1)}.`, [], { code: "invalid_document_table" });
+  }
+  return [...new Set(normalized)].sort((left, right) => left - right);
+}
+
+function sameDocumentTableKeepTogetherRows(block, table) {
+  const requested = documentTableKeepTogetherRows(block, table.rows.length);
+  const source = (table.keepTogetherRows || []).map((value) => Number(value));
+  return requested.length === source.length && requested.every((value, index) => value === source[index]);
+}
+
 function sameDocumentTableContentControlTopology(block, table) {
   const sourceCells = documentTableCells(table);
   if (!Array.isArray(block.cells) || block.cells.length !== sourceCells.length) return false;
@@ -3529,6 +3547,7 @@ function unchangedSourceBlock(block, original, assets) {
           !sameDocumentTableGeometry(block, original.content.value) ||
           !sameDocumentTableContentControls(block, original.content.value) ||
           !sameDocumentTableHeaderRows(block, original.content.value) ||
+          !sameDocumentTableKeepTogetherRows(block, original.content.value) ||
           !sameDocumentTableFormatting(block, original.content.value)) return false;
       return block.styleId === original.styleId || (!original.styleId && block.styleId === "TableGrid");
     }
@@ -3669,6 +3688,7 @@ function documentBlock(block, original, directNumbering, assets, contentControlN
     const source = original?.content.case === "table" ? original.content.value : undefined;
     const authored = !source && Array.isArray(block.cells) ? authoredDocumentTableGeometry(block, contentControlNativeIds) : undefined;
     const headerRowCount = documentTableHeaderRowCount(block, source?.rows.length ?? block.values.length);
+    const keepTogetherRows = documentTableKeepTogetherRows(block, source?.rows.length ?? block.values.length);
     if (source && !sameDocumentTableContentControlTopology(block, source)) {
       throw new OfficeKitCodecError(`Document table ${block.id} content-control topology is source-bound.`, [], { code: "document_content_control_topology_changed" });
     }
@@ -3697,6 +3717,7 @@ function documentBlock(block, original, directNumbering, assets, contentControlN
         value: {
           ...(source ? { gridColumns: source.gridColumns } : authored ? { gridColumns: authored.gridColumns } : {}),
           headerRowCount,
+          keepTogetherRows,
           ...(source ? (source.formatting ? {
             formatting: formattingChanged
               ? documentTableFormatting(block, source.gridColumns || Math.max(1, ...source.rows.map((row) => row.cells.length)))
@@ -4218,6 +4239,7 @@ function documentFromEnvelope(envelope) {
           values: block.content.value.rows.map((row) => [...row.cells]),
           gridColumns: block.content.value.gridColumns,
           headerRowCount: Number(block.content.value.headerRowCount || 0),
+          keepTogetherRows: (block.content.value.keepTogetherRows || []).map((value) => Number(value)),
           cells: documentTableCells(block.content.value),
           textPatches: [],
           ...formatting,

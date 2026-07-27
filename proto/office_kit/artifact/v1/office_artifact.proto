@@ -2951,6 +2951,12 @@ message DocumentTable {
   // w:tblHeader. Zero means no repeat header. Imported noncanonical row-
   // property graphs remain source-bound and do not expose a writable count.
   uint32 header_row_count = 5;
+  // Zero-based physical row indexes marked with native w:cantSplit. Each
+  // marker prevents that individual row from breaking across pages; it does
+  // not group rows or calculate pagination. Values are a strictly ascending
+  // set within the table's physical row count. Imported noncanonical row-
+  // property graphs remain source-bound and do not expose a writable set.
+  repeated uint32 keep_together_rows = 6;
 }
 
 message DocumentTableFormatting {

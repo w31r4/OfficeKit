@@ -205,9 +205,12 @@ const table = document.addTable({
   borderSize: 8,
   headerFill: "E2E8F0",
   headerRowCount: 1,
+  keepTogetherRows: [1],
   values: [["Gate", "Status"], ["Semantic", "Pending"], ["Visual", "Required"]],
 });
 assert.throws(() => table.setHeaderRowCount(4), /headerRowCount must be an integer from 0 through 3/i);
+assert.throws(() => table.setRowKeepTogether(3), /row index must be an integer from 0 through 2/i);
+assert.throws(() => table.setRowKeepTogether(1, "yes"), /keepTogether must be a boolean/i);
 const hyperlink = document.addHyperlink(
   "Open XML SDK documentation",
   "https://learn.microsoft.com/office/open-xml/open-xml-sdk",
@@ -785,6 +788,7 @@ assert.ok(Number.isInteger(imported.contentControls[0].nativeId));
 assert.equal(imported.blocks.filter((block) => block.kind === "listItem").length, 2);
 assert.equal(imported.blocks.find((block) => block.kind === "table")?.values[1][1], "Pending");
 assert.equal(imported.blocks.find((block) => block.kind === "table")?.headerRowCount, 1);
+assert.deepEqual(imported.blocks.find((block) => block.kind === "table")?.keepTogetherRows, [1]);
 assert.equal(imported.blocks.find((block) => block.kind === "hyperlink")?.url, hyperlink.url);
 assert.equal(imported.blocks.find((block) => block.kind === "field")?.instruction, "PAGE");
 assert.deepEqual(imported.blocks.filter((block) => block.kind === "change").map((block) => [block.changeType, block.text, block.author]), [
@@ -830,6 +834,7 @@ importedBullet.text = "Inspect the edited semantic model.";
 const importedTable = imported.blocks.find((block) => block.kind === "table");
 importedTable.values[1][1] = "Pass";
 importedTable.setHeaderRowCount(2);
+importedTable.setRowKeepTogether(2, true);
 const importedLink = imported.blocks.find((block) => block.kind === "hyperlink");
 importedLink.url = "https://learn.microsoft.com/office/open-xml/word-processing";
 importedLink.tooltip = "Edited target";
@@ -864,6 +869,7 @@ assert.equal(roundTripFormatted?.paragraphFormat.suppressLineNumbers, true);
 assert.equal(roundTrip.blocks.some((block) => block.kind === "listItem" && block.text === "Inspect the edited semantic model."), true);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.values[1][1], "Pass");
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.headerRowCount, 2);
+assert.deepEqual(roundTrip.blocks.find((block) => block.kind === "table")?.keepTogetherRows, [1, 2]);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "hyperlink")?.history, false);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "field")?.instruction, "NUMPAGES");
 assert.deepEqual(roundTrip.blocks.filter((block) => block.kind === "change").map((block) => [block.changeType, block.text, block.author]), [

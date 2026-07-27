@@ -17,7 +17,11 @@ internal static class DocxTableCodec
     internal static DocumentTable Read(W.Table table, out bool editable, string blockId = "document/table")
     {
         var artifact = DocxTableGeometry.Read(table, out var validGeometry);
-        artifact.HeaderRowCount = DocxTableHeaderRows.TryRead(table, out var headerRowCount) ? headerRowCount : 0;
+        if (DocxTableRowPagination.TryRead(table, out var headerRowCount, out var keepTogetherRows))
+        {
+            artifact.HeaderRowCount = headerRowCount;
+            artifact.KeepTogetherRows.Add(keepTogetherRows);
+        }
         var rows = table.Elements<W.TableRow>().ToArray();
         for (var rowIndex = 0; rowIndex < rows.Length; rowIndex++)
         {
@@ -47,8 +51,9 @@ internal static class DocxTableCodec
         if (!editable) throw Unsupported("Source-preserving DOCX export cannot edit this table topology.");
         if (!DocxTableGeometry.SameTopology(requested, source))
             throw Unsupported("Source-preserving DOCX table grid, span, and merge topology cannot be changed.");
-        if (requested.HeaderRowCount != source.HeaderRowCount)
-            DocxTableHeaderRows.Apply(table, requested.HeaderRowCount);
+        if (requested.HeaderRowCount != source.HeaderRowCount ||
+            !requested.KeepTogetherRows.SequenceEqual(source.KeepTogetherRows))
+            DocxTableRowPagination.Apply(table, requested.HeaderRowCount, requested.KeepTogetherRows);
         if (!DocxTableFormatting.Same(requested.Formatting, source.Formatting))
         {
             if (source.Formatting is null || requested.Formatting is null)
@@ -123,7 +128,7 @@ internal static class DocxTableCodec
                         header: rowIndex == 0));
                 table.Append(row);
             }
-            DocxTableHeaderRows.Apply(table, block.Table.HeaderRowCount);
+            DocxTableRowPagination.Apply(table, block.Table.HeaderRowCount, block.Table.KeepTogetherRows);
             return table;
         }
 
@@ -152,7 +157,7 @@ internal static class DocxTableCodec
                     rowIndex == 0));
             table.Append(row);
         }
-        DocxTableHeaderRows.Apply(table, block.Table.HeaderRowCount);
+        DocxTableRowPagination.Apply(table, block.Table.HeaderRowCount, block.Table.KeepTogetherRows);
         return table;
     }
 
@@ -162,7 +167,7 @@ internal static class DocxTableCodec
         var artifact = DocxTableGeometry.Read(clone, out _);
         if (DocxTableFormatting.Read(clone, artifact) is not null)
             DocxTableFormatting.MaskModeled(clone, artifact);
-        DocxTableHeaderRows.MaskModeled(clone);
+        DocxTableRowPagination.MaskModeled(clone);
         foreach (var control in clone.Elements<W.TableRow>()
                      .SelectMany(row => row.Elements<W.TableCell>())
                      .SelectMany(cell => cell.Elements<W.SdtBlock>())
@@ -182,6 +187,8 @@ internal static class DocxTableCodec
         if (table.TextPatches.Count > 10_000) throw Invalid("Document table exceeds 10,000 source text patches.");
         if (table.HeaderRowCount > table.Rows.Count)
             throw Invalid("Document table header_row_count cannot exceed the physical row count.");
+        if (!DocxTableRowPagination.HasCanonicalKeepTogetherRows(table.KeepTogetherRows, table.Rows.Count))
+            throw Invalid("Document table keep_together_rows must be strictly ascending physical row indexes within the table row count.");
         DocxTableFormatting.Validate(table);
         for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
         {

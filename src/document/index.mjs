@@ -179,6 +179,16 @@ function documentTableDefaultColumnWidths(columns, widthDxa) {
   return Array.from({ length: count }, (_, index) => base + (index < total - base * count ? 1 : 0));
 }
 
+function normalizeDocumentTableKeepTogetherRows(value, rows, tableId) {
+  if (value == null) return [];
+  if (!Array.isArray(value)) throw new TypeError(`Document table ${tableId} keepTogetherRows must be an array of physical row indexes.`);
+  const normalized = value.map((item) => Number(item));
+  if (normalized.some((item) => !Number.isInteger(item) || item < 0 || item >= rows)) {
+    throw new RangeError(`Document table ${tableId} keepTogetherRows must contain integer row indexes from 0 through ${Math.max(0, rows - 1)}.`);
+  }
+  return [...new Set(normalized)].sort((left, right) => left - right);
+}
+
 class DocumentTableBlock {
   constructor(document, config = {}) {
     this.document = document;
@@ -231,6 +241,7 @@ class DocumentTableBlock {
     this.borderSize = Math.round(Number(config.borderSize ?? 4));
     this.headerFill = String(config.headerFill || "F2F4F7").replace(/^#/, "").toUpperCase();
     this.headerRowCount = config.headerRowCount === undefined ? 0 : Number(config.headerRowCount);
+    this.keepTogetherRows = normalizeDocumentTableKeepTogetherRows(config.keepTogetherRows, this.rows, this.id);
   }
 
   ensureCell(row, column) { while (this.values.length <= row) this.values.push([]); while (this.values[row].length <= column) this.values[row].push(""); this.rows = this.values.length; this.columns = Math.max(this.columns, column + 1); }
@@ -240,6 +251,18 @@ class DocumentTableBlock {
       throw new RangeError(`Document table ${this.id} headerRowCount must be an integer from 0 through ${this.rows}.`);
     }
     this.headerRowCount = count;
+    return this;
+  }
+  setRowKeepTogether(rowIndex, keepTogether = true) {
+    const row = Number(rowIndex);
+    if (!Number.isInteger(row) || row < 0 || row >= this.rows) {
+      throw new RangeError(`Document table ${this.id} row index must be an integer from 0 through ${Math.max(0, this.rows - 1)}.`);
+    }
+    if (typeof keepTogether !== "boolean") throw new TypeError(`Document table ${this.id} keepTogether must be a boolean.`);
+    const rows = new Set(this.keepTogetherRows);
+    if (keepTogether) rows.add(row);
+    else rows.delete(row);
+    this.keepTogetherRows = [...rows].sort((left, right) => left - right);
     return this;
   }
   _ensureCellRecords() {
@@ -261,8 +284,8 @@ class DocumentTableBlock {
     return this.cells;
   }
   getCell(row, column) { return new DocumentTableCell(this, row, column); }
-  inspectRecord(index) { return { kind: "table", id: this.id, index, name: this.name || undefined, rows: this.rows, cols: this.columns, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, cells: this.cells, pendingTextPatches: this.textPatches.length, styleId: this.styleId, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, values: this.values.map((row, rowIndex) => row.map((_, columnIndex) => this.getCell(rowIndex, columnIndex).value)) }; }
-  toProto() { return { kind: "table", id: this.id, name: this.name, styleId: this.styleId, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, cells: this.cells, textPatches: this.textPatches, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, values: this.values }; }
+  inspectRecord(index) { return { kind: "table", id: this.id, index, name: this.name || undefined, rows: this.rows, cols: this.columns, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], cells: this.cells, pendingTextPatches: this.textPatches.length, styleId: this.styleId, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, values: this.values.map((row, rowIndex) => row.map((_, columnIndex) => this.getCell(rowIndex, columnIndex).value)) }; }
+  toProto() { return { kind: "table", id: this.id, name: this.name, styleId: this.styleId, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], cells: this.cells, textPatches: this.textPatches, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, values: this.values }; }
 }
 
 function normalizeDocumentInlineField(value) {
@@ -1821,6 +1844,9 @@ export class DocumentModel {
         if (!block.rows || !block.columns) issues.push(verificationIssue("document", "emptyTable", `Table ${block.id} has no rows or columns.`, { id: block.id, rows: block.rows, columns: block.columns }));
         if (block.columns > 12) issues.push(verificationIssue("document", "wideTable", `Table ${block.id} has ${block.columns} columns and may not fit the page.`, { severity: "warning", id: block.id, columns: block.columns }));
         if (!Number.isInteger(block.headerRowCount) || block.headerRowCount < 0 || block.headerRowCount > block.rows) issues.push(verificationIssue("document", "invalidTableHeaderRowCount", `Table ${block.id} headerRowCount must be an integer from 0 through its ${block.rows} physical rows.`, { id: block.id, headerRowCount: block.headerRowCount, rows: block.rows }));
+        if (!Array.isArray(block.keepTogetherRows) || block.keepTogetherRows.some((row, index) => !Number.isInteger(row) || row < 0 || row >= block.rows || (index > 0 && row <= block.keepTogetherRows[index - 1]))) {
+          issues.push(verificationIssue("document", "invalidTableKeepTogetherRows", `Table ${block.id} keepTogetherRows must be strictly ascending physical row indexes from 0 through ${Math.max(0, block.rows - 1)}.`, { id: block.id, keepTogetherRows: block.keepTogetherRows, rows: block.rows }));
+        }
         if (!Number.isFinite(block.widthDxa) || block.widthDxa <= 0) issues.push(verificationIssue("document", "invalidTableWidth", `Table ${block.id} has an invalid width.`, { id: block.id, widthDxa: block.widthDxa }));
         if (!Number.isFinite(block.indentDxa) || block.indentDxa < 0) issues.push(verificationIssue("document", "invalidTableIndent", `Table ${block.id} has an invalid indent.`, { id: block.id, indentDxa: block.indentDxa }));
         const formattingColumns = block.cells?.length ? block.gridColumns : block.columns;
