@@ -619,6 +619,10 @@ try {
       process.exit(57);
     }
     const catalogResult = JSON.parse(queried.stdout);
+    const expectedSkillPath = fs.realpathSync(path.join(template.skillPath, "SKILL.md"));
+    const expectedReferencePath = fs.realpathSync(
+      path.join(template.skillPath, "assets", "reference.xlsx"),
+    );
     if (
       catalogResult.schemaVersion !== 2 ||
       catalogResult.selectionMade !== false ||
@@ -628,10 +632,8 @@ try {
       catalogResult.candidates[0].id !== template.skillName ||
       !(catalogResult.candidates[0].match?.bm25 > 0) ||
       catalogResult.candidates[0].editProfile?.level !== "copy-only" ||
-      catalogResult.candidates[0].skillPath !==
-        path.join(template.skillPath, "SKILL.md") ||
-      catalogResult.candidates[0].referencePath !==
-        path.join(template.skillPath, "assets", "reference.xlsx")
+      catalogResult.candidates[0].skillPath !== expectedSkillPath ||
+      catalogResult.candidates[0].referencePath !== expectedReferencePath
     ) process.exit(58);
   `;
 
