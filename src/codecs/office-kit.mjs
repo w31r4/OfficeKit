@@ -30,6 +30,7 @@ import {
   DocumentSectionLineNumberRestart,
   DocumentSectionPageNumberFormat,
   DocumentStyleType,
+  DocumentTableHorizontalAlignment,
   DocumentTableVerticalAlignment,
   DocumentTableVerticalMerge,
   SpreadsheetCalculationMode,
@@ -2435,6 +2436,17 @@ function documentTableFormatting(block, logicalColumns) {
   };
   const widthDxa = dxa(block.widthDxa, "widthDxa", { positive: true });
   const indentDxa = dxa(block.indentDxa, "indentDxa");
+  const horizontalAlignment = block.horizontalAlignment == null ? undefined : String(block.horizontalAlignment);
+  const wireHorizontalAlignment = horizontalAlignment === undefined ? undefined
+    : horizontalAlignment === "left" ? DocumentTableHorizontalAlignment.LEFT
+      : horizontalAlignment === "center" ? DocumentTableHorizontalAlignment.CENTER
+        : horizontalAlignment === "right" ? DocumentTableHorizontalAlignment.RIGHT : undefined;
+  if (horizontalAlignment !== undefined && wireHorizontalAlignment === undefined) {
+    invalid("horizontalAlignment must be left, center, or right when provided.");
+  }
+  if ((horizontalAlignment === "center" || horizontalAlignment === "right") && indentDxa !== 0) {
+    invalid("center or right horizontalAlignment requires indentDxa 0.");
+  }
   if (!Number.isInteger(logicalColumns) || logicalColumns < 1 || logicalColumns > 4_096) {
     invalid("requires between 1 and 4096 logical formatting columns.");
   }
@@ -2477,6 +2489,7 @@ function documentTableFormatting(block, logicalColumns) {
     borderColor,
     borderSize,
     headerFill,
+    ...(wireHorizontalAlignment === undefined ? {} : { horizontalAlignment: wireHorizontalAlignment }),
     ...(wireVerticalAlignment === undefined ? {} : { verticalAlignment: wireVerticalAlignment }),
   };
 }
@@ -2493,6 +2506,9 @@ function documentTableFormattingConfig(table) {
       borderColor: formatting.borderColor,
       borderSize: formatting.borderSize,
       headerFill: formatting.headerFill,
+      ...(formatting.horizontalAlignment === DocumentTableHorizontalAlignment.LEFT ? { horizontalAlignment: "left" }
+        : formatting.horizontalAlignment === DocumentTableHorizontalAlignment.CENTER ? { horizontalAlignment: "center" }
+          : formatting.horizontalAlignment === DocumentTableHorizontalAlignment.RIGHT ? { horizontalAlignment: "right" } : {}),
       ...(formatting.verticalAlignment === DocumentTableVerticalAlignment.TOP ? { verticalAlignment: "top" }
         : formatting.verticalAlignment === DocumentTableVerticalAlignment.CENTER ? { verticalAlignment: "center" }
           : formatting.verticalAlignment === DocumentTableVerticalAlignment.BOTTOM ? { verticalAlignment: "bottom" } : {}),
@@ -2518,7 +2534,8 @@ function sameDocumentTableFormatting(block, table) {
     block.cellMarginsDxa?.start === expected.cellMarginsDxa.start &&
     block.cellMarginsDxa?.end === expected.cellMarginsDxa.end &&
     block.borderColor === expected.borderColor && block.borderSize === expected.borderSize &&
-    block.headerFill === expected.headerFill && block.verticalAlignment === expected.verticalAlignment;
+    block.headerFill === expected.headerFill && block.horizontalAlignment === expected.horizontalAlignment &&
+    block.verticalAlignment === expected.verticalAlignment;
 }
 
 const DOCUMENT_PICTURE_BULLET_EMU_PER_POINT = 12_700;

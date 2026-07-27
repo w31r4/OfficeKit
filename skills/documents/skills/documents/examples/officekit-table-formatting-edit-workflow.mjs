@@ -20,6 +20,8 @@ const MAX_DXA = 1_000_000;
 const DXA_ATTRIBUTES = new Set(["w", "type"]);
 const BORDER_ATTRIBUTES = new Set(["val", "color", "sz", "space"]);
 const SHADING_ATTRIBUTES = new Set(["val", "color", "fill"]);
+const HORIZONTAL_ALIGNMENT_ATTRIBUTES = new Set(["val"]);
+const HORIZONTAL_ALIGNMENTS = new Set(["left", "center", "right"]);
 const VERTICAL_ALIGNMENT_ATTRIBUTES = new Set(["val"]);
 const VERTICAL_ALIGNMENTS = new Set(["top", "center", "bottom"]);
 const ROW_HEIGHT_ATTRIBUTES = new Set(["val", "hRule"]);
@@ -68,6 +70,14 @@ function normalizedVerticalAlignment(value, label) {
   return alignment;
 }
 
+function normalizedHorizontalAlignment(value, label) {
+  const alignment = String(value || "");
+  if (!HORIZONTAL_ALIGNMENTS.has(alignment)) {
+    throw new TypeError(`${label} must be left, center, or right.`);
+  }
+  return alignment;
+}
+
 function normalizeMinimumRowHeights(value, label, rowCount = undefined) {
   if (!Array.isArray(value)) throw new TypeError(`${label} must be an array of one minimum row height per physical table row.`);
   if (rowCount !== undefined && value.length !== rowCount) {
@@ -106,19 +116,27 @@ function normalizeDirectFormatting(value, label) {
     throw new TypeError(`${label} must be a complete direct table-formatting object.`);
   }
   const required = ["indentDxa", "cellMarginsDxa", "borderColor", "borderSize", "headerFill"];
-  const allowed = new Set([...required, "verticalAlignment", "minimumRowHeightsDxa"]);
+  const allowed = new Set([...required, "horizontalAlignment", "verticalAlignment", "minimumRowHeightsDxa"]);
   const actual = Object.keys(value).sort();
   if (actual.length < required.length || required.some((key) => !Object.hasOwn(value, key)) || actual.some((key) => !allowed.has(key))) {
-    throw new TypeError(`${label} must contain indentDxa, cellMarginsDxa, borderColor, borderSize, and headerFill, plus optional verticalAlignment and minimumRowHeightsDxa.`);
+    throw new TypeError(`${label} must contain indentDxa, cellMarginsDxa, borderColor, borderSize, and headerFill, plus optional horizontalAlignment, verticalAlignment, and minimumRowHeightsDxa.`);
   }
   const borderSize = normalizedInteger(value.borderSize, `${label}.borderSize`, { maximum: 96 });
   if (borderSize === 1) throw new TypeError(`${label}.borderSize must be zero or from 2 through 96.`);
+  const indentDxa = normalizedInteger(value.indentDxa, `${label}.indentDxa`);
+  const horizontalAlignment = Object.hasOwn(value, "horizontalAlignment")
+    ? normalizedHorizontalAlignment(value.horizontalAlignment, `${label}.horizontalAlignment`)
+    : undefined;
+  if ((horizontalAlignment === "center" || horizontalAlignment === "right") && indentDxa !== 0) {
+    throw new TypeError(`${label} center or right horizontalAlignment requires indentDxa 0.`);
+  }
   return {
-    indentDxa: normalizedInteger(value.indentDxa, `${label}.indentDxa`),
+    indentDxa,
     cellMarginsDxa: normalizeMargins(value.cellMarginsDxa, `${label}.cellMarginsDxa`),
     borderColor: normalizedRgb(value.borderColor, `${label}.borderColor`),
     borderSize,
     headerFill: normalizedRgb(value.headerFill, `${label}.headerFill`),
+    ...(horizontalAlignment === undefined ? {} : { horizontalAlignment }),
     ...(Object.hasOwn(value, "verticalAlignment") ? { verticalAlignment: normalizedVerticalAlignment(value.verticalAlignment, `${label}.verticalAlignment`) } : {}),
     ...(Object.hasOwn(value, "minimumRowHeightsDxa") ? { minimumRowHeightsDxa: normalizeMinimumRowHeights(value.minimumRowHeightsDxa, `${label}.minimumRowHeightsDxa`) } : {}),
   };
@@ -229,6 +247,13 @@ function canonicalShading(markup, label) {
   return normalizedRgb(attributes.fill, `${label} w:fill`);
 }
 
+function canonicalHorizontalAlignment(markup, label) {
+  const attributes = wordAttributes(markup, label);
+  onlyAttributes(attributes, HORIZONTAL_ALIGNMENT_ATTRIBUTES, label);
+  if (!Object.hasOwn(attributes, "val")) throw new Error(`${label} is missing w:val.`);
+  return normalizedHorizontalAlignment(attributes.val, `${label} w:val`);
+}
+
 function canonicalVerticalAlignment(markup, label) {
   const attributes = wordAttributes(markup, label);
   onlyAttributes(attributes, VERTICAL_ALIGNMENT_ATTRIBUTES, label);
@@ -287,11 +312,22 @@ function tablePropertiesMarkup(tableXml, label) {
   const markup = exactlyOne(properties, `${label} w:tblPr`);
   const inner = wordElementInner(markup, "tblPr", `${label} w:tblPr`);
   const width = exactlyOne(selfClosingLeaves(inner, "tblW"), `${label} w:tblW`);
+  const horizontalAlignmentLeaves = selfClosingLeaves(inner, "jc");
+  if (/<w:jc\b/.test(inner) && horizontalAlignmentLeaves.length !== 1) {
+    throw new Error(`${label} w:tblPr must contain zero or one canonical w:jc leaf.`);
+  }
+  const horizontalAlignmentMarkup = horizontalAlignmentLeaves[0];
+  const horizontalAlignment = horizontalAlignmentMarkup
+    ? canonicalHorizontalAlignment(horizontalAlignmentMarkup, `${label} w:jc`)
+    : undefined;
   const indent = exactlyOne(selfClosingLeaves(inner, "tblInd"), `${label} w:tblInd`);
   const layout = exactlyOne(selfClosingLeaves(inner, "tblLayout"), `${label} w:tblLayout`);
   const borders = exactlyOne([...inner.matchAll(/<w:tblBorders\b[^>]*>[\s\S]*?<\/w:tblBorders>/g)].map((match) => match[0]), `${label} w:tblBorders`);
   const margins = exactlyOne([...inner.matchAll(/<w:tblCellMar\b[^>]*>[\s\S]*?<\/w:tblCellMar>/g)].map((match) => match[0]), `${label} w:tblCellMar`);
-  const stripped = inner
+  const withoutHorizontalAlignment = horizontalAlignmentMarkup
+    ? inner.replace(horizontalAlignmentMarkup, "")
+    : inner;
+  const stripped = withoutHorizontalAlignment
     .replace(/<w:tblStyle\b[^>]*\/>/g, "")
     .replace(width, "")
     .replace(indent, "")
@@ -302,14 +338,20 @@ function tablePropertiesMarkup(tableXml, label) {
   const layoutAttributes = wordAttributes(layout, `${label} w:tblLayout`);
   onlyAttributes(layoutAttributes, new Set(["type"]), `${label} w:tblLayout`);
   if (layoutAttributes.type !== "fixed") throw new Error(`${label} w:tblLayout must be fixed.`);
+  const indentDxa = canonicalDxaLeaf(indent, `${label} w:tblInd`);
+  if ((horizontalAlignment === "center" || horizontalAlignment === "right") && indentDxa !== 0) {
+    throw new Error(`${label} center or right w:jc requires w:tblInd 0.`);
+  }
   return {
     markup,
     widthMarkup: width,
+    horizontalAlignmentMarkup,
     indentMarkup: indent,
     bordersMarkup: borders,
     marginsMarkup: margins,
     widthDxa: canonicalDxaLeaf(width, `${label} w:tblW`, { positive: true }),
-    indentDxa: canonicalDxaLeaf(indent, `${label} w:tblInd`),
+    indentDxa,
+    ...(horizontalAlignment === undefined ? {} : { horizontalAlignment }),
   };
 }
 
@@ -530,6 +572,13 @@ function maskHeaderRow(markup, expectedColumns, label) {
   return masked;
 }
 
+function maskTableHorizontalAlignment(properties) {
+  const marker = '<w:jc w:val="officeKitTableHorizontalAlignmentMasked"/>';
+  return properties.horizontalAlignmentMarkup
+    ? properties.markup.replace(properties.horizontalAlignmentMarkup, marker)
+    : properties.markup.replace(properties.widthMarkup, `${properties.widthMarkup}${marker}`);
+}
+
 function tableRawFormatting(tableXml, { rows, columns, ownsMinimumRowHeights = false }, label) {
   const properties = tablePropertiesMarkup(tableXml, label);
   const borders = tableBordersMarkup(properties.bordersMarkup, `${label} w:tblBorders`);
@@ -546,10 +595,11 @@ function tableRawFormatting(tableXml, { rows, columns, ownsMinimumRowHeights = f
     borderColor: borders.color,
     borderSize: borders.size,
     headerFill: header.fill,
+    ...(properties.horizontalAlignment === undefined ? {} : { horizontalAlignment: properties.horizontalAlignment }),
     ...(verticalAlignment === undefined ? {} : { verticalAlignment }),
     ...(rowMinimums ? { minimumRowHeightsDxa: rowMinimums.minimumRowHeightsDxa } : {}),
   };
-  const maskedProperties = properties.markup
+  const maskedProperties = maskTableHorizontalAlignment(properties)
     .replace(properties.indentMarkup, maskDxaLeaf(properties.indentMarkup, `${label} w:tblInd`, "officeKitTableIndentMasked"))
     .replace(properties.bordersMarkup, maskBorders(properties.bordersMarkup, `${label} w:tblBorders`))
     .replace(properties.marginsMarkup, maskMargins(properties.marginsMarkup, `${label} w:tblCellMar`));
@@ -599,6 +649,7 @@ function tableSnapshot(block, blockIndex, tableOrdinal) {
     borderColor: block.borderColor,
     borderSize: block.borderSize,
     headerFill: block.headerFill,
+    ...(block.horizontalAlignment == null ? {} : { horizontalAlignment: block.horizontalAlignment }),
     ...(block.verticalAlignment == null ? {} : { verticalAlignment: block.verticalAlignment }),
     minimumRowHeightsDxa: [...block.minimumRowHeightsDxa],
   };
@@ -649,6 +700,7 @@ function blockFormatting(block, label, { ownsMinimumRowHeights = false } = {}) {
     borderColor: block.borderColor,
     borderSize: block.borderSize,
     headerFill: block.headerFill,
+    ...(block.horizontalAlignment == null ? {} : { horizontalAlignment: block.horizontalAlignment }),
     ...(block.verticalAlignment == null ? {} : { verticalAlignment: block.verticalAlignment }),
   }, label);
   return ownsMinimumRowHeights
@@ -713,6 +765,8 @@ function applyFormatting(block, formatting) {
   block.borderColor = formatting.borderColor;
   block.borderSize = formatting.borderSize;
   block.headerFill = formatting.headerFill;
+  if (formatting.horizontalAlignment === undefined) delete block.horizontalAlignment;
+  else block.horizontalAlignment = formatting.horizontalAlignment;
   if (formatting.verticalAlignment === undefined) delete block.verticalAlignment;
   else block.verticalAlignment = formatting.verticalAlignment;
   if (Object.hasOwn(formatting, "minimumRowHeightsDxa")) block.minimumRowHeightsDxa = [...formatting.minimumRowHeightsDxa];
@@ -734,8 +788,8 @@ async function modelRender(document) {
  * Changes one complete direct formatting profile on an imported fixed-layout
  * DOCX table through the public DocumentFile path. Table width/grid/cell-width
  * leaves, table text/style/topology, and every other package part are bound;
- * only the canonical indent, six uniform borders, four cell margins, first-row
- * cell-shading fills, and uniform physical-cell w:vAlign leaves in
+ * only the canonical table w:jc, indent, six uniform borders, four cell
+ * margins, first-row cell-shading fills, and uniform physical-cell w:vAlign leaves in
  * word/document.xml may differ.
  */
 export async function editImportedTableFormatting({
@@ -789,7 +843,7 @@ export async function editImportedTableFormatting({
     const outputResidual = normalizedTargetTableFormattingXml(outputXml, selected, sourceTables.length, "output target table");
     assertRawMatchesModel(outputResidual, selected, replacement, "Output raw");
     if (sourceResidual.tableCount !== outputResidual.tableCount || outputResidual.normalized !== sourceResidual.normalized) {
-      throw new Error("Table formatting edit changed word/document.xml outside the bound indent, borders, cell margins, header fills, and physical-cell alignment leaves.");
+      throw new Error("Table formatting edit changed word/document.xml outside the bound table placement, indent, borders, cell margins, header fills, and physical-cell alignment leaves.");
     }
 
     const reimported = await DocumentFile.importDocx(new FileBlob(output, { type: DOCX_MIME, name: path.basename(finalPath) }));
@@ -803,6 +857,8 @@ export async function editImportedTableFormatting({
     expectedTable.borderColor = replacement.borderColor;
     expectedTable.borderSize = replacement.borderSize;
     expectedTable.headerFill = replacement.headerFill;
+    if (replacement.horizontalAlignment === undefined) delete expectedTable.horizontalAlignment;
+    else expectedTable.horizontalAlignment = replacement.horizontalAlignment;
     if (replacement.verticalAlignment === undefined) delete expectedTable.verticalAlignment;
     else expectedTable.verticalAlignment = replacement.verticalAlignment;
     if (Object.hasOwn(replacement, "minimumRowHeightsDxa")) expectedTable.minimumRowHeightsDxa = [...replacement.minimumRowHeightsDxa];
@@ -846,7 +902,7 @@ export async function editImportedTableFormatting({
         modelRender: { ok: true, ...render },
         nativeRenderRequired: true,
       },
-      warnings: ["This transaction changes one complete recognized direct table-formatting profile. Optional minimum row heights are native atLeast constraints, never exact fixed heights, so wrapped content may expand. It retains table width/grid/cell widths and does not calculate Word wrapping or page flow; inspect a native Word or LibreOffice render before delivery."],
+      warnings: ["This transaction changes one complete recognized direct table-formatting profile. center/right table placement requires zero indentation, so it never relies on host-specific w:jc versus w:tblInd conflict resolution. Optional minimum row heights are native atLeast constraints, never exact fixed heights, so wrapped content may expand. It retains table width/grid/cell widths and does not calculate Word wrapping or page flow; inspect a native Word or LibreOffice render before delivery."],
     };
     await fs.writeFile(temporaryAuditPath, `${JSON.stringify(audit, null, 2)}\n`, { flag: "wx" });
     await publishNoReplace(temporaryPath, finalPath);

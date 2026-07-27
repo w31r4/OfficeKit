@@ -28,6 +28,7 @@ import { createTextRange, textRangeRecord } from "../shared/text-range.mjs";
 import { queryHelpRecords } from "../help/index.mjs";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const DOCUMENT_TABLE_HORIZONTAL_ALIGNMENTS = new Set(["left", "center", "right"]);
 const DOCUMENT_TABLE_VERTICAL_ALIGNMENTS = new Set(["top", "center", "bottom"]);
 const DOCUMENT_TABLE_MAX_MINIMUM_ROW_HEIGHT_DXA = 1_000_000;
 
@@ -241,7 +242,10 @@ class DocumentTableBlock {
     this.gridColumns = Math.max(0, Math.round(Number(config.gridColumns ?? Math.max(this.columns, derivedGridColumns))));
     const formattingColumns = this.cells?.length ? this.gridColumns : this.columns;
     this.widthDxa = Math.round(Number(config.widthDxa ?? 9360));
-    this.indentDxa = Math.round(Number(config.indentDxa ?? 120));
+    this.horizontalAlignment = config.horizontalAlignment == null ? undefined : String(config.horizontalAlignment);
+    this.indentDxa = Math.round(Number(config.indentDxa ?? (
+      this.horizontalAlignment === "center" || this.horizontalAlignment === "right" ? 0 : 120
+    )));
     this.columnWidthsDxa = Array.isArray(config.columnWidthsDxa)
       ? config.columnWidthsDxa.map((value) => Math.round(Number(value)))
       : documentTableDefaultColumnWidths(formattingColumns, this.widthDxa);
@@ -287,6 +291,21 @@ class DocumentTableBlock {
     this.keepTogetherRows = [...rows].sort((left, right) => left - right);
     return this;
   }
+  setHorizontalAlignment(value) {
+    if (value == null) {
+      this.horizontalAlignment = undefined;
+      return this;
+    }
+    const alignment = String(value);
+    if (!DOCUMENT_TABLE_HORIZONTAL_ALIGNMENTS.has(alignment)) {
+      throw new RangeError(`Document table ${this.id} horizontal alignment must be left, center, right, or null to clear it.`);
+    }
+    if ((alignment === "center" || alignment === "right") && this.indentDxa !== 0) {
+      throw new RangeError(`Document table ${this.id} center or right horizontal alignment requires indentDxa 0.`);
+    }
+    this.horizontalAlignment = alignment;
+    return this;
+  }
   setMinimumRowHeight(rowIndex, heightDxa) {
     const row = Number(rowIndex);
     if (!Number.isInteger(row) || row < 0 || row >= this.rows) {
@@ -322,8 +341,8 @@ class DocumentTableBlock {
     return this.cells;
   }
   getCell(row, column) { return new DocumentTableCell(this, row, column); }
-  inspectRecord(index) { return { kind: "table", id: this.id, index, name: this.name || undefined, rows: this.rows, cols: this.columns, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], minimumRowHeightsDxa: [...this.minimumRowHeightsDxa], cells: this.cells, pendingTextPatches: this.textPatches.length, styleId: this.styleId, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values.map((row, rowIndex) => row.map((_, columnIndex) => this.getCell(rowIndex, columnIndex).value)) }; }
-  toProto() { return { kind: "table", id: this.id, name: this.name, styleId: this.styleId, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], minimumRowHeightsDxa: [...this.minimumRowHeightsDxa], cells: this.cells, textPatches: this.textPatches, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values }; }
+  inspectRecord(index) { return { kind: "table", id: this.id, index, name: this.name || undefined, rows: this.rows, cols: this.columns, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], minimumRowHeightsDxa: [...this.minimumRowHeightsDxa], cells: this.cells, pendingTextPatches: this.textPatches.length, styleId: this.styleId, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.horizontalAlignment == null ? {} : { horizontalAlignment: this.horizontalAlignment }), ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values.map((row, rowIndex) => row.map((_, columnIndex) => this.getCell(rowIndex, columnIndex).value)) }; }
+  toProto() { return { kind: "table", id: this.id, name: this.name, styleId: this.styleId, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], minimumRowHeightsDxa: [...this.minimumRowHeightsDxa], cells: this.cells, textPatches: this.textPatches, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.horizontalAlignment == null ? {} : { horizontalAlignment: this.horizontalAlignment }), ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values }; }
 }
 
 function normalizeDocumentInlineField(value) {
@@ -1884,6 +1903,11 @@ export class DocumentModel {
         if (!Number.isInteger(block.headerRowCount) || block.headerRowCount < 0 || block.headerRowCount > block.rows) issues.push(verificationIssue("document", "invalidTableHeaderRowCount", `Table ${block.id} headerRowCount must be an integer from 0 through its ${block.rows} physical rows.`, { id: block.id, headerRowCount: block.headerRowCount, rows: block.rows }));
         if (!Array.isArray(block.keepTogetherRows) || block.keepTogetherRows.some((row, index) => !Number.isInteger(row) || row < 0 || row >= block.rows || (index > 0 && row <= block.keepTogetherRows[index - 1]))) {
           issues.push(verificationIssue("document", "invalidTableKeepTogetherRows", `Table ${block.id} keepTogetherRows must be strictly ascending physical row indexes from 0 through ${Math.max(0, block.rows - 1)}.`, { id: block.id, keepTogetherRows: block.keepTogetherRows, rows: block.rows }));
+        }
+        if (block.horizontalAlignment != null && !DOCUMENT_TABLE_HORIZONTAL_ALIGNMENTS.has(block.horizontalAlignment)) {
+          issues.push(verificationIssue("document", "invalidTableHorizontalAlignment", `Table ${block.id} horizontalAlignment must be left, center, right, or omitted.`, { id: block.id, horizontalAlignment: block.horizontalAlignment }));
+        } else if ((block.horizontalAlignment === "center" || block.horizontalAlignment === "right") && block.indentDxa !== 0) {
+          issues.push(verificationIssue("document", "invalidTableHorizontalAlignmentIndent", `Table ${block.id} center or right horizontalAlignment requires indentDxa 0.`, { id: block.id, horizontalAlignment: block.horizontalAlignment, indentDxa: block.indentDxa }));
         }
         if (!Array.isArray(block.minimumRowHeightsDxa) || block.minimumRowHeightsDxa.length !== block.rows ||
             block.minimumRowHeightsDxa.some((height) => !Number.isInteger(height) || height < 0 || height > DOCUMENT_TABLE_MAX_MINIMUM_ROW_HEIGHT_DXA)) {

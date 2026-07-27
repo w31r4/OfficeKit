@@ -24,6 +24,8 @@ function widths(tableXml, tagName) {
 
 function assertFormattingMarkup(tableXml, formatting, rows, columns) {
   assert.match(tableXml, new RegExp(`<w:tblInd\\b(?=[^>]*w:w="${formatting.indentDxa}")(?=[^>]*w:type="dxa")[^>]*/>`));
+  const horizontalAlignments = [...tableXml.matchAll(/<w:jc\b[^>]*w:val="([^"]+)"[^>]*\/>/g)].map((match) => match[1]);
+  assert.deepEqual(horizontalAlignments, formatting.horizontalAlignment === undefined ? [] : [formatting.horizontalAlignment]);
   for (const [side, value] of Object.entries(formatting.cellMarginsDxa)) {
     assert.match(tableXml, new RegExp(`<w:${side}\\b(?=[^>]*w:w="${value}")(?=[^>]*w:type="dxa")[^>]*/>`));
   }
@@ -58,12 +60,13 @@ try {
       ["Q2", "1.4M", "46%"],
     ],
     widthDxa: 9300,
-    indentDxa: 120,
+    indentDxa: 0,
     columnWidthsDxa: [2100, 4500, 2700],
     cellMarginsDxa: { top: 80, bottom: 80, start: 120, end: 120 },
     borderColor: "445566",
     borderSize: 8,
     headerFill: "E2E8F0",
+    horizontalAlignment: "center",
     verticalAlignment: "center",
     minimumRowHeightsDxa: [0, 480, 720],
   });
@@ -84,25 +87,28 @@ try {
   const sourceBytes = await fs.readFile(sourcePath);
   const sourceImported = await DocumentFile.importDocx(await FileBlob.load(sourcePath));
   const sourceFormatting = {
-    indentDxa: 120,
+    indentDxa: 0,
     cellMarginsDxa: { top: 80, bottom: 80, start: 120, end: 120 },
     borderColor: "445566",
     borderSize: 8,
     headerFill: "E2E8F0",
+    horizontalAlignment: "center",
     verticalAlignment: "center",
     minimumRowHeightsDxa: [0, 480, 720],
   };
   const replacementFormatting = {
-    indentDxa: 240,
+    indentDxa: 0,
     cellMarginsDxa: { top: 100, bottom: 120, start: 160, end: 180 },
     borderColor: "224466",
     borderSize: 12,
     headerFill: "DDEBF7",
+    horizontalAlignment: "right",
     verticalAlignment: "bottom",
     minimumRowHeightsDxa: [360, 0, 960],
   };
   assert.equal(sourceImported.blocks[1]?.sourceBound, true);
   assert.deepEqual(sourceImported.blocks[1]?.columnWidthsDxa, [2100, 4500, 2700]);
+  assert.equal(sourceImported.blocks[1]?.horizontalAlignment, "center");
   assert.equal(sourceImported.blocks[1]?.verticalAlignment, "center");
   assert.deepEqual(sourceImported.blocks[1]?.minimumRowHeightsDxa, [0, 480, 720]);
 
@@ -170,6 +176,7 @@ try {
   assert.equal(reimported.blocks[1]?.borderColor, replacementFormatting.borderColor);
   assert.equal(reimported.blocks[1]?.borderSize, replacementFormatting.borderSize);
   assert.equal(reimported.blocks[1]?.headerFill, replacementFormatting.headerFill);
+  assert.equal(reimported.blocks[1]?.horizontalAlignment, replacementFormatting.horizontalAlignment);
   assert.equal(reimported.blocks[1]?.verticalAlignment, replacementFormatting.verticalAlignment);
   assert.deepEqual(reimported.blocks[1]?.minimumRowHeightsDxa, replacementFormatting.minimumRowHeightsDxa);
   assert.deepEqual(reimported.blocks[1]?.columnWidthsDxa, [2100, 4500, 2700]);
@@ -182,6 +189,7 @@ try {
   assert.equal(rendered.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
 
   const clearedFormatting = { ...replacementFormatting };
+  delete clearedFormatting.horizontalAlignment;
   delete clearedFormatting.verticalAlignment;
   const clearPath = path.join(outputDir, "cleared-alignment.docx");
   const clearAuditPath = path.join(outputDir, "cleared-alignment.audit.json");
@@ -197,11 +205,13 @@ try {
   const clearedBytes = await fs.readFile(clearPath);
   const clearedZip = await JSZip.loadAsync(clearedBytes);
   const clearedXml = await clearedZip.file("word/document.xml").async("text");
+  assert.doesNotMatch(flatTables(clearedXml)[0], /<w:jc\b/);
   assert.doesNotMatch(flatTables(clearedXml)[0], /<w:vAlign\b/);
+  assert.equal((await DocumentFile.importDocx(await FileBlob.load(clearPath))).blocks[1]?.horizontalAlignment, undefined);
   assert.equal((await DocumentFile.importDocx(await FileBlob.load(clearPath))).blocks[1]?.verticalAlignment, undefined);
   assert.deepEqual((await DocumentFile.importDocx(await FileBlob.load(clearPath))).blocks[1]?.minimumRowHeightsDxa, [360, 0, 960]);
 
-  const restoredFormatting = { ...clearedFormatting, verticalAlignment: "top" };
+  const restoredFormatting = { ...clearedFormatting, indentDxa: 180, horizontalAlignment: "left", verticalAlignment: "top" };
   const restorePath = path.join(outputDir, "restored-alignment.docx");
   const restoreAuditPath = path.join(outputDir, "restored-alignment.audit.json");
   const restored = await editImportedTableFormatting({
@@ -215,6 +225,7 @@ try {
   assert.deepEqual(restored.audit.validation.changedParts, ["word/document.xml"]);
   const restoredZip = await JSZip.loadAsync(await fs.readFile(restorePath));
   assertFormattingMarkup(flatTables(await restoredZip.file("word/document.xml").async("text"))[0], restoredFormatting, 3, 3);
+  assert.equal((await DocumentFile.importDocx(await FileBlob.load(restorePath))).blocks[1]?.horizontalAlignment, "left");
   assert.equal((await DocumentFile.importDocx(await FileBlob.load(restorePath))).blocks[1]?.verticalAlignment, "top");
   assert.deepEqual((await DocumentFile.importDocx(await FileBlob.load(restorePath))).blocks[1]?.minimumRowHeightsDxa, [360, 0, 960]);
 
@@ -226,6 +237,7 @@ try {
     borderColor: "336699",
     borderSize: 0,
     headerFill: "EAF2F8",
+    horizontalAlignment: "left",
     verticalAlignment: "top",
     minimumRowHeightsDxa: [0, 600, 0],
   };
@@ -251,6 +263,7 @@ try {
   });
   const cliImported = await DocumentFile.importDocx(await FileBlob.load(cliOutput));
   assert.equal(cliImported.blocks[1]?.headerFill, cliReplacement.headerFill);
+  assert.equal(cliImported.blocks[1]?.horizontalAlignment, cliReplacement.horizontalAlignment);
   assert.equal(cliImported.blocks[1]?.verticalAlignment, cliReplacement.verticalAlignment);
   assert.deepEqual(cliImported.blocks[1]?.minimumRowHeightsDxa, cliReplacement.minimumRowHeightsDxa);
 
@@ -297,6 +310,17 @@ try {
       replacementFormatting: { ...replacementFormatting, verticalAlignment: "middle" },
     }),
     /verticalAlignment must be top, center, or bottom/,
+  );
+  await assert.rejects(
+    () => editImportedTableFormatting({
+      inputPath: sourcePath,
+      outputPath: path.join(outputDir, "invalid-horizontal-alignment.docx"),
+      auditPath: path.join(outputDir, "invalid-horizontal-alignment.json"),
+      tableBlockIndex: 1,
+      expectedFormatting: sourceFormatting,
+      replacementFormatting: { ...replacementFormatting, indentDxa: 240, horizontalAlignment: "center" },
+    }),
+    /center or right horizontalAlignment requires indentDxa 0/,
   );
   await assert.rejects(
     () => editImportedTableFormatting({
@@ -350,9 +374,29 @@ try {
     }),
     /direct formatting does not match the expected source value/,
   );
+  const duplicateHorizontalAlignmentPath = path.join(outputDir, "duplicate-horizontal-alignment.docx");
+  const duplicateHorizontalAlignmentZip = await JSZip.loadAsync(sourceBytes);
+let horizontalAlignmentLeaves = 0;
+duplicateHorizontalAlignmentZip.file("word/document.xml", sourceXml.replace(/(<w:tblPr\b[^>]*>[\s\S]*?)(<w:jc\b[^>]*w:val="center"[^>]*\/>)/, (_match, prefix, leaf) => {
+  horizontalAlignmentLeaves += 1;
+  return `${prefix}${leaf}${leaf}`;
+}));
+  assert.equal(horizontalAlignmentLeaves, 1);
+  await fs.writeFile(duplicateHorizontalAlignmentPath, await duplicateHorizontalAlignmentZip.generateAsync({ type: "nodebuffer" }), { flag: "wx" });
+  await assert.rejects(
+    () => editImportedTableFormatting({
+      inputPath: duplicateHorizontalAlignmentPath,
+      outputPath: path.join(outputDir, "duplicate-horizontal-alignment-output.docx"),
+      auditPath: path.join(outputDir, "duplicate-horizontal-alignment.audit.json"),
+      tableBlockIndex: 1,
+      expectedFormatting: sourceFormatting,
+      replacementFormatting,
+    }),
+    /direct formatting does not match the expected source value/,
+  );
   const nonCanonicalPath = path.join(outputDir, "noncanonical.docx");
   const nonCanonicalZip = await JSZip.loadAsync(sourceBytes);
-  nonCanonicalZip.file("word/document.xml", sourceXml.replace(/<w:tblInd w:w="120"/, '<w:tblInd w:w="0120"'));
+  nonCanonicalZip.file("word/document.xml", sourceXml.replace(/<w:tblInd\b(?=[^>]*w:w="0")(?=[^>]*w:type="dxa")[^>]*\/>/, (leaf) => leaf.replace('w:w="0"', 'w:w="00"')));
   await fs.writeFile(nonCanonicalPath, await nonCanonicalZip.generateAsync({ type: "nodebuffer" }), { flag: "wx" });
   await assert.rejects(
     () => editImportedTableFormatting({
