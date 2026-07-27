@@ -97,7 +97,7 @@ const revisionFinalizationSummary = HELP_CATALOG.find((item) => item.name === "D
 assert.match(revisionFinalizationSummary, /whole-paragraph.*in-paragraph.*source bytes/i);
 assert.match(revisionFinalizationSummary, /table-cell/i);
 assert.match(revisionFinalizationSummary, /SHA-256.*changed-part.*fail-closed/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "document.setSettings")?.summary || "", /mirrorMargins.*gutterAtTop.*trackRevisions.*inside the OfficeKit 0\.3 DOCX boundary/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "document.setSettings")?.summary || "", /mirrorMargins.*gutterAtTop.*trackRevisions.*inside the bounded OfficeKit DOCX profile/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.speakerNotes.capability")?.schema?.returns?.capability?.description || "", /sourceBound.*partPresent.*editable.*addable.*preflight.*not mutable write authority/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.importXlsx")?.schema?.returns?.workbook?.description || "", /images.*charts/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "sheet.images.add")?.schema?.parameters?.transform?.description || "", /rotationDegrees.*flipHorizontal.*flipVertical/);
@@ -206,7 +206,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.addCitation")?.
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addChange")?.summary || "", /native w:ins\/w:del.*fixed-topology/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "document.replyToComment")?.summary || "", /source-free direct reply.*commentsExtended.*nested replies.*imported topology.*fail closed/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "documentComment.resolve")?.summary || "", /resolved=true.*source hashes.*commentsExtended topology/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "document.setSettings")?.summary || "", /evenAndOddHeaders.*mirrorMargins.*gutterAtTop.*trackRevisions.*updateFields.*passwordless documentProtection.*inside the OfficeKit 0\.3 DOCX boundary.*irregular page-margin mode markup.*source-owned.*fail closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "document.setSettings")?.summary || "", /evenAndOddHeaders.*mirrorMargins.*gutterAtTop.*trackRevisions.*updateFields.*passwordless documentProtection.*inside the bounded OfficeKit DOCX profile.*irregular page-margin mode markup.*source-owned.*fail closed/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "document.setSettings")?.schema?.parameters?.settings?.description || "", /evenAndOddHeaders.*mirrorMargins.*gutterAtTop.*none\/readOnly\/comments\/trackedChanges\/forms.*password hashes.*irregular mirrorMargins\/gutterAtTop markup.*source-owned/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "pdf.extractTables"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "pdf.addPage"));
@@ -433,7 +433,9 @@ const documentCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "doc
 assert.equal(documentCatalog.length, 69);
 assert.ok(documentCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.type, "object");
-assert.match(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.description || "", /keepNext.*following paragraph.*keepLinesTogether.*paragraph.*splitting across pages.*widowControl.*orphan.*widow.*pageBreakBefore.*new page.*independent.*do not calculate pages.*true or false.*false.*override.*inherited.*contextualSpacing.*true.*before.*after.*adjacent.*same style.*false.*override.*inherited.*outlineLevel.*0 through 9.*9 explicitly clears.*w:keepNext\/w:keepLines\/w:pageBreakBefore\/w:widowControl\/w:contextualSpacing\/w:outlineLvl\/w:suppressLineNumbers.*source-owned.*fails closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.description || "", /keepNext.*following paragraph.*keepLinesTogether.*paragraph.*splitting across pages.*widowControl.*orphan.*widow.*pageBreakBefore.*new page.*independent.*do not calculate pages.*true or false.*false.*override.*inherited.*contextualSpacing.*true.*before.*after.*adjacent.*same style.*false.*override.*inherited.*outlineLevel.*0 through 9.*9 explicitly clears.*w:keepNext\/w:keepLines\/w:pageBreakBefore\/w:widowControl\/w:contextualSpacing\/w:shd\/w:outlineLvl\/w:suppressLineNumbers.*source-owned.*fails closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.summary || "", /canonical solid shading/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.description || "", /shadingFill.*#RRGGBB.*w:shd.*clear pattern.*auto foreground.*recognized ordinary direct paragraph.*add, change, or clear.*fixed fill.*theme colors.*patterns.*style-catalog.*source-bound/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addSection")?.schema?.parameters?.margins?.type, "object");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addSection")?.schema?.parameters?.margins?.description || "", /binding gutter.*gutterAtTop.*top-edge.*binding-side/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addSection")?.schema?.parameters?.columns?.type, "object");

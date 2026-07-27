@@ -79,26 +79,28 @@ internal static class DocxFormattingCodec
     internal static DocumentParagraphFormatting? ReadParagraphFormatting(W.ParagraphProperties? properties)
     {
         if (properties is null) return null;
-        if (!TryReadParagraphOnOffProperties(properties, out var keepNext, out var keepLinesTogether,
+        if (!TryReadParagraphShading(properties, out var shadingFill) ||
+            !TryReadParagraphOnOffProperties(properties, out var keepNext, out var keepLinesTogether,
                                              out var pageBreakBefore, out var widowControl,
                                              out var suppressLineNumbers, out var contextualSpacing) ||
             !TryReadOutlineLevel(properties, out var outlineLevel)) return null;
         var result = ReadParagraphFormattingCore(properties.Justification, properties.Indentation,
             properties.SpacingBetweenLines, keepNext, keepLinesTogether, pageBreakBefore, widowControl,
-            suppressLineNumbers, outlineLevel, contextualSpacing);
+            suppressLineNumbers, outlineLevel, contextualSpacing, shadingFill);
         return HasParagraphFormatting(result) ? result : null;
     }
 
     internal static DocumentParagraphFormatting? ReadStyleParagraphFormatting(W.StyleParagraphProperties? properties)
     {
         if (properties is null) return null;
-        if (!TryReadParagraphOnOffProperties(properties, out var keepNext, out var keepLinesTogether,
+        if (!TryReadParagraphShading(properties, out var shadingFill) ||
+            !TryReadParagraphOnOffProperties(properties, out var keepNext, out var keepLinesTogether,
                                              out var pageBreakBefore, out var widowControl,
                                              out var suppressLineNumbers, out var contextualSpacing) ||
             !TryReadOutlineLevel(properties, out var outlineLevel)) return null;
         var result = ReadParagraphFormattingCore(properties.Justification, properties.Indentation,
             properties.SpacingBetweenLines, keepNext, keepLinesTogether, pageBreakBefore, widowControl,
-            suppressLineNumbers, outlineLevel, contextualSpacing);
+            suppressLineNumbers, outlineLevel, contextualSpacing, shadingFill);
         return HasParagraphFormatting(result) ? result : null;
     }
 
@@ -160,10 +162,11 @@ internal static class DocxFormattingCodec
     internal static bool IsSupportedParagraphProperties(W.ParagraphProperties? properties, bool allowNumbering = false, bool allowSection = false)
     {
         if (properties is null) return true;
-        if (!TryReadParagraphOnOffProperties(properties, out _, out _, out _, out _, out _, out _) ||
+        if (!TryReadParagraphShading(properties, out _) ||
+            !TryReadParagraphOnOffProperties(properties, out _, out _, out _, out _, out _, out _) ||
             !TryReadOutlineLevel(properties, out _)) return false;
         return properties.ChildElements.All(child => child is W.ParagraphStyleId or W.Justification or W.Indentation or
-            W.SpacingBetweenLines or W.KeepNext or W.KeepLines or W.PageBreakBefore or W.WidowControl or W.SuppressLineNumbers or W.ContextualSpacing or W.OutlineLevel ||
+            W.SpacingBetweenLines or W.KeepNext or W.KeepLines or W.PageBreakBefore or W.WidowControl or W.SuppressLineNumbers or W.Shading or W.ContextualSpacing or W.OutlineLevel ||
             (allowNumbering && child is W.NumberingProperties) ||
             (allowSection && child is W.SectionProperties));
     }
@@ -216,6 +219,8 @@ internal static class DocxFormattingCodec
             throw new CodecException("invalid_document_paragraph_formatting", $"{label} line-spacing rule requires line spacing.");
         if (formatting.HasOutlineLevel && formatting.OutlineLevel > 9)
             throw new CodecException("invalid_document_paragraph_formatting", $"{label} outline level must be an integer from 0 through 9.");
+        if (formatting.HasShadingFill && !IsRgb(formatting.ShadingFill))
+            throw new CodecException("invalid_document_paragraph_formatting", $"{label} shading fill must be a six-digit RGB value.");
     }
 
     internal static DocumentRunFormatting MergeLegacy(DocumentRun source)
@@ -235,7 +240,8 @@ internal static class DocxFormattingCodec
         (value.HasAlignment || value.HasLeftIndentTwips || value.HasRightIndentTwips || value.HasFirstLineIndentTwips ||
          value.HasHangingIndentTwips || value.HasSpaceBeforeTwips || value.HasSpaceAfterTwips || value.HasLineSpacingTwips ||
          value.HasLineSpacingRule || value.HasKeepNext || value.HasKeepLinesTogether || value.HasPageBreakBefore ||
-         value.HasWidowControl || value.HasSuppressLineNumbers || value.HasOutlineLevel || value.HasContextualSpacing);
+         value.HasWidowControl || value.HasSuppressLineNumbers || value.HasOutlineLevel || value.HasContextualSpacing ||
+         value.HasShadingFill);
 
     private static DocumentParagraphFormatting ReadParagraphFormattingCore(
         W.Justification? justification,
@@ -247,7 +253,8 @@ internal static class DocxFormattingCodec
         bool? widowControl,
         bool? suppressLineNumbers,
         uint? outlineLevel,
-        bool? contextualSpacing)
+        bool? contextualSpacing,
+        string? shadingFill)
     {
         var result = new DocumentParagraphFormatting();
         var nativeAlignment = justification?.Val?.Value;
@@ -287,6 +294,7 @@ internal static class DocxFormattingCodec
         if (suppressLineNumbers is not null) result.SuppressLineNumbers = suppressLineNumbers.Value;
         if (outlineLevel is not null) result.OutlineLevel = outlineLevel.Value;
         if (contextualSpacing is not null) result.ContextualSpacing = contextualSpacing.Value;
+        if (shadingFill is not null) result.ShadingFill = shadingFill;
         return result;
     }
 
@@ -321,6 +329,13 @@ internal static class DocxFormattingCodec
         if (formatting is null) return;
         if (formatting.HasSuppressLineNumbers)
             properties.Append(new W.SuppressLineNumbers { Val = formatting.SuppressLineNumbers });
+        if (formatting.HasShadingFill)
+            properties.Append(new W.Shading
+            {
+                Val = W.ShadingPatternValues.Clear,
+                Color = "auto",
+                Fill = formatting.ShadingFill.ToUpperInvariant(),
+            });
         if (formatting.HasSpaceBeforeTwips || formatting.HasSpaceAfterTwips || formatting.HasLineSpacingTwips)
         {
             var spacing = new W.SpacingBetweenLines();
@@ -399,6 +414,24 @@ internal static class DocxFormattingCodec
         var nativeValue = element.Val?.Value;
         if (nativeValue is null || nativeValue is < 0 or > 9) return false;
         value = checked((uint)nativeValue.Value);
+        return true;
+    }
+
+    private static bool TryReadParagraphShading(OpenXmlCompositeElement properties, out string? fill)
+    {
+        fill = null;
+        var elements = properties.Elements<W.Shading>().ToArray();
+        if (elements.Length == 0) return true;
+        if (elements.Length != 1) return false;
+        var element = elements[0];
+        if (element.ChildElements.Count != 0 || element.ExtendedAttributes.Any() ||
+            element.Val?.Value != W.ShadingPatternValues.Clear ||
+            !string.Equals(element.Color?.Value, "auto", StringComparison.OrdinalIgnoreCase) ||
+            !IsRgb(element.Fill?.Value) ||
+            element.ThemeColor is not null || element.ThemeTint is not null || element.ThemeShade is not null ||
+            element.ThemeFill is not null || element.ThemeFillTint is not null || element.ThemeFillShade is not null)
+            return false;
+        fill = element.Fill!.Value!.ToUpperInvariant();
         return true;
     }
 

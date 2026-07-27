@@ -896,7 +896,7 @@ function wireWorkbookConnections(workbook, state) {
     else output.push(wireSourceBoundConnectionRefreshOnLoad(slot));
   }
   if (remaining.size) {
-    throw new OfficeKitCodecError("OfficeKit 0.3 cannot author workbook connections; imported connections may only disable explicit refreshOnLoad=true.", [], { code: "unsupported_workbook_connection_edit" });
+    throw new OfficeKitCodecError("OfficeKit cannot author workbook connections; imported connections may only disable explicit refreshOnLoad=true.", [], { code: "unsupported_workbook_connection_edit" });
   }
   return output;
 }
@@ -1342,7 +1342,7 @@ function wireTableQuery(table) {
     return wireSourceBoundQueryRefreshPolicy(table, state.wire?.queryTable, query, state.querySnapshot);
   }
   if (query) {
-    throw new OfficeKitCodecError(`OfficeKit 0.3 cannot author query table ${table.name}; only recognized imported query tables may apply refresh-policy hardening.`, [], { code: "unsupported_query_table_edit" });
+    throw new OfficeKitCodecError(`OfficeKit cannot author query table ${table.name}; only recognized imported query tables may apply refresh-policy hardening.`, [], { code: "unsupported_query_table_edit" });
   }
   return undefined;
 }
@@ -1833,6 +1833,7 @@ function documentParagraphFormatting(block) {
   text("alignment", "alignment");
   for (const [model, wire] of [["leftIndentTwips", "leftIndentTwips"], ["rightIndentTwips", "rightIndentTwips"], ["firstLineIndentTwips", "firstLineIndentTwips"], ["hangingIndentTwips", "hangingIndentTwips"], ["spaceBeforeTwips", "spaceBeforeTwips"], ["spaceAfterTwips", "spaceAfterTwips"], ["lineSpacingTwips", "lineSpacingTwips"]]) integer(model, wire);
   text("lineSpacingRule", "lineSpacingRule");
+  if (value.shadingFill != null) result.shadingFill = documentRgb(value.shadingFill, `Document paragraph ${block.id} shadingFill`);
   if (value.keepNext != null) result.keepNext = Boolean(value.keepNext);
   if (value.keepLinesTogether != null) {
     if (typeof value.keepLinesTogether !== "boolean") throw new OfficeKitCodecError(`Document paragraph ${block.id} keepLinesTogether must be boolean.`, [], { code: "invalid_document_formatting" });
@@ -1861,9 +1862,10 @@ function documentParagraphFormatting(block) {
 function publicDocumentParagraphFormatting(value) {
   if (!value) return undefined;
   const result = {};
-  for (const key of ["alignment", "leftIndentTwips", "rightIndentTwips", "firstLineIndentTwips", "hangingIndentTwips", "spaceBeforeTwips", "spaceAfterTwips", "lineSpacingTwips", "lineSpacingRule", "keepNext", "keepLinesTogether", "pageBreakBefore", "widowControl", "outlineLevel", "contextualSpacing", "suppressLineNumbers"]) {
+  for (const key of ["alignment", "leftIndentTwips", "rightIndentTwips", "firstLineIndentTwips", "hangingIndentTwips", "spaceBeforeTwips", "spaceAfterTwips", "lineSpacingTwips", "lineSpacingRule", "shadingFill", "keepNext", "keepLinesTogether", "pageBreakBefore", "widowControl", "outlineLevel", "contextualSpacing", "suppressLineNumbers"]) {
     if (value[key] !== undefined) result[key] = value[key];
   }
+  if (result.shadingFill !== undefined) result.shadingFill = `#${result.shadingFill}`;
   return Object.keys(result).length ? result : undefined;
 }
 

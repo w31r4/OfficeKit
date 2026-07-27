@@ -2476,6 +2476,11 @@ message DocumentParagraphFormatting {
   // before/after spacing between adjacent paragraphs with the same style;
   // false explicitly restores that spacing, while omission inherits.
   optional bool contextual_spacing = 16;
+  // Canonical direct/style w:shd fill. This narrow profile uses a solid
+  // six-digit RGB background with w:val="clear" and w:color="auto".
+  // A recognized ordinary direct paragraph may add, change, or clear this
+  // field; patterns, theme colors, and imported style catalogs stay source-bound.
+  optional string shading_fill = 17;
 }
 
 enum DocumentHeaderFooterReference {
