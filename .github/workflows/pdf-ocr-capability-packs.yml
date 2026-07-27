@@ -41,6 +41,8 @@ jobs:
             runner: ubuntu-24.04
           - platform: darwin-arm64
             runner: macos-14
+          - platform: win32-x64
+            runner: windows-2025
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
@@ -58,9 +60,15 @@ jobs:
             .schemaVersion == 1 and
             .ocrCore.packId == "ocr-core" and
             .ocrCore.version == "17.8.1-oat.2" and
+            (.ocrCore.nativeBuild["win32-x64"].tesseract.sha256 | test("^[a-f0-9]{64}$")) and
+            (.ocrCore.nativeBuild["win32-x64"].ghostscript.sha256 | test("^[a-f0-9]{64}$")) and
+            (.ocrCore.nativeBuild["win32-x64"].poppler.sha256 | test("^[a-f0-9]{64}$")) and
             (.languages.eng.sha256 | test("^[a-f0-9]{64}$")) and
             (.languages.chi_sim.sha256 | test("^[a-f0-9]{64}$")) and
-            (.licenseMaterial.tessdataFastApache20.sha256 | test("^[a-f0-9]{64}$"))
+            (.licenseMaterial.tessdataFastApache20.sha256 | test("^[a-f0-9]{64}$")) and
+            (.licenseMaterial.windowsNative.tesseractApache20.sha256 | test("^[a-f0-9]{64}$")) and
+            (.licenseMaterial.windowsNative.ghostscriptAgpl30.sha256 | test("^[a-f0-9]{64}$")) and
+            (.licenseMaterial.windowsNative.popplerGpl20.sha256 | test("^[a-f0-9]{64}$"))
           ' "$OCR_INPUTS"
           test "$(shasum -a 256 "$PYTHON_INPUTS" | awk '{print $1}')" = "$(jq -r '.ocrCore.pythonInputs.sha256' "$OCR_INPUTS")"
           node scripts/build-python-provider-pack.mjs --verify-lock
@@ -71,9 +79,41 @@ jobs:
           if [ "${{ matrix.platform }}" = "linux-x64" ]; then
             sudo apt-get update
             sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng ghostscript poppler-utils poppler-data libgs-common fonts-droid-fallback fonts-urw-base35 patchelf
-          else
+          elif [ "${{ matrix.platform }}" = "darwin-arm64" ]; then
             brew install tesseract ghostscript poppler
+          else
+            # Windows inputs are downloaded from the immutable lock below and
+            # installed only under RUNNER_TEMP. No package manager or global
+            # Python is part of the customer-runtime closure.
+            for command in curl tar shasum cygpath powershell.exe; do command -v "$command"; done
           fi
+      - name: Compile capability-pack-owned Windows OCR launchers
+        if: ${{ matrix.platform == 'win32-x64' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $installation = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installation) { throw 'Visual Studio C++ build tools are unavailable.' }
+          $devcmd = Join-Path $installation 'Common7\Tools\VsDevCmd.bat'
+          $pythonLauncher = Join-Path $env:RUNNER_TEMP 'office-kit-ocrmypdf-launcher.exe'
+          $ghostscriptLauncher = Join-Path $env:RUNNER_TEMP 'office-kit-ghostscript-launcher.exe'
+          # A generated batch file keeps the Visual Studio path and both
+          # output paths quoted through the cmd.exe boundary.  Passing a
+          # nested quoted command string directly from PowerShell is fragile
+          # when the hosted image changes its Program Files layout.
+          $buildScript = Join-Path $env:RUNNER_TEMP 'office-kit-build-ocr-launchers.cmd'
+          @"
+          @echo off
+          call "$devcmd" -arch=x64 -host_arch=x64 >nul
+          if errorlevel 1 exit /b %errorlevel%
+          cl.exe /nologo /O2 /MT /W4 /DUNICODE /D_UNICODE /Fe"$pythonLauncher" scripts\windows-python-module-launcher.c /link /SUBSYSTEM:CONSOLE
+          if errorlevel 1 exit /b %errorlevel%
+          cl.exe /nologo /O2 /MT /W4 /DUNICODE /D_UNICODE /Fe"$ghostscriptLauncher" scripts\windows-ghostscript-launcher.c /link /SUBSYSTEM:CONSOLE
+          exit /b %errorlevel%
+          "@ | Set-Content -LiteralPath $buildScript -Encoding ascii
+          & $buildScript
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $pythonLauncher -PathType Leaf) -or -not (Test-Path -LiteralPath $ghostscriptLauncher -PathType Leaf)) { throw 'Windows OCR launcher compilation failed.' }
       - name: Build isolated OCRmyPDF Python payload
         shell: bash
         run: |
@@ -187,7 +227,7 @@ jobs:
               "${resource_args[@]}" \
               "${poppler_args[@]}" \
               "${library_args[@]}"
-          else
+          elif [ "${{ matrix.platform }}" = "darwin-arm64" ]; then
             # A one-formula `brew deps` invocation on an installed formula
             # reports its actual runtime closure. Calling it separately keeps
             # the union without switching to the declared (and incomplete)
@@ -211,6 +251,85 @@ jobs:
               --poppler-root "$(brew --prefix poppler)/share/poppler" \
               --tessdata-root "$(brew --prefix tesseract)/share/tessdata" \
               "${library_args[@]}"
+          else
+            # Every Windows source is an exact URL/byte/hash from the audited
+            # input lock. The installers are run only inside RUNNER_TEMP;
+            # `build-ocr-native-payload` then dereferences their native DLL
+            # closure into the pack and the consumer probe below has no access
+            # to these build directories.
+            windows_sources="$RUNNER_TEMP/ocr-windows-sources"
+            tesseract_install="$RUNNER_TEMP/ocr-tesseract-install"
+            ghostscript_install="$RUNNER_TEMP/ocr-ghostscript-install"
+            poppler_extract="$RUNNER_TEMP/ocr-poppler-extract"
+            mkdir -p "$windows_sources" "$tesseract_install" "$ghostscript_install" "$poppler_extract"
+            fetch_locked() {
+              local selector="$1"
+              local target="$2"
+              local url sha bytes
+              url="$(jq -r "$selector.url" "$OCR_INPUTS")"
+              sha="$(jq -r "$selector.sha256" "$OCR_INPUTS")"
+              bytes="$(jq -r "$selector.downloadBytes" "$OCR_INPUTS")"
+              curl --fail --location --retry 3 --proto '=https' --tlsv1.2 "$url" --output "$target"
+              test "$(wc -c < "$target" | tr -d ' ')" = "$bytes"
+              echo "$sha  $target" | shasum -a 256 --check --status
+            }
+            fetch_locked '.ocrCore.nativeBuild["win32-x64"].tesseract' "$windows_sources/tesseract.exe"
+            fetch_locked '.ocrCore.nativeBuild["win32-x64"].ghostscript' "$windows_sources/ghostscript.exe"
+            fetch_locked '.ocrCore.nativeBuild["win32-x64"].poppler' "$windows_sources/poppler.zip"
+            export OFFICEKIT_TESSERACT_INSTALLER="$(cygpath -w "$windows_sources/tesseract.exe")"
+            export OFFICEKIT_TESSERACT_INSTALL_ROOT="$(cygpath -w "$tesseract_install")"
+            export OFFICEKIT_GHOSTSCRIPT_INSTALLER="$(cygpath -w "$windows_sources/ghostscript.exe")"
+            export OFFICEKIT_GHOSTSCRIPT_INSTALL_ROOT="$(cygpath -w "$ghostscript_install")"
+            export OFFICEKIT_POPPLER_ARCHIVE="$(cygpath -w "$windows_sources/poppler.zip")"
+            export OFFICEKIT_POPPLER_EXTRACT_ROOT="$(cygpath -w "$poppler_extract")"
+            export OFFICEKIT_WINDOWS_PATHS="$(cygpath -w "$RUNNER_TEMP/ocr-windows-paths.json")"
+            powershell.exe -NoProfile -NonInteractive -Command '
+              $ErrorActionPreference = "Stop"
+              foreach ($pair in @(
+                @($env:OFFICEKIT_TESSERACT_INSTALLER, $env:OFFICEKIT_TESSERACT_INSTALL_ROOT),
+                @($env:OFFICEKIT_GHOSTSCRIPT_INSTALLER, $env:OFFICEKIT_GHOSTSCRIPT_INSTALL_ROOT)
+              )) {
+                $process = Start-Process -FilePath $pair[0] -ArgumentList @("/S", "/D=$($pair[1])") -Wait -PassThru
+                if ($process.ExitCode -ne 0) { throw "native installer failed with exit $($process.ExitCode): $($pair[0])" }
+              }
+              Expand-Archive -LiteralPath $env:OFFICEKIT_POPPLER_ARCHIVE -DestinationPath $env:OFFICEKIT_POPPLER_EXTRACT_ROOT -Force
+              $tesseract = Get-ChildItem -LiteralPath $env:OFFICEKIT_TESSERACT_INSTALL_ROOT -Recurse -File -Filter tesseract.exe | Select-Object -First 1
+              $ghostscript = Get-ChildItem -LiteralPath $env:OFFICEKIT_GHOSTSCRIPT_INSTALL_ROOT -Recurse -File -Filter gswin64c.exe | Select-Object -First 1
+              $popplerRootName = (Get-Content -Raw $env:OCR_INPUTS | ConvertFrom-Json).ocrCore.nativeBuild."win32-x64".poppler.root
+              $popplerRoot = Join-Path $env:OFFICEKIT_POPPLER_EXTRACT_ROOT $popplerRootName
+              $pdftotext = Join-Path $popplerRoot "Library\\bin\\pdftotext.exe"
+              $popplerShare = Join-Path $popplerRoot "share\\poppler"
+              if (-not $tesseract -or -not $ghostscript -or -not (Test-Path -LiteralPath $pdftotext -PathType Leaf) -or -not (Test-Path -LiteralPath $popplerShare -PathType Container)) { throw "Windows native OCR install did not expose the expected Tesseract, Ghostscript, or Poppler layout." }
+              $tesseractBin = $tesseract.Directory.FullName
+              $tessdata = Join-Path $tesseractBin "tessdata"
+              if (-not (Test-Path -LiteralPath $tessdata -PathType Container)) {
+                $tessdata = Join-Path (Split-Path -Parent $tesseractBin) "tessdata"
+              }
+              $ghostscriptRoot = Split-Path -Parent $ghostscript.Directory.FullName
+              if (-not (Test-Path -LiteralPath $tessdata -PathType Container) -or -not (Test-Path -LiteralPath (Join-Path $ghostscriptRoot "Resource") -PathType Container) -or -not (Test-Path -LiteralPath (Join-Path $ghostscriptRoot "lib") -PathType Container)) { throw "Windows native OCR resources are incomplete." }
+              $pathsJson = @{ tesseract = $tesseract.FullName; tesseractRoot = $tesseractBin; tessdata = $tessdata; ghostscript = $ghostscript.FullName; ghostscriptRoot = $ghostscriptRoot; ghostscriptBin = $ghostscript.Directory.FullName; pdftotext = $pdftotext; popplerBin = Split-Path -Parent $pdftotext; popplerShare = $popplerShare } | ConvertTo-Json -Compress
+              [System.IO.File]::WriteAllText($env:OFFICEKIT_WINDOWS_PATHS, $pathsJson, [System.Text.UTF8Encoding]::new($false))
+            '
+            windows_paths="$RUNNER_TEMP/ocr-windows-paths.json"
+            library_args+=(--library-root "$(jq -r '.tesseractRoot' "$windows_paths")")
+            library_args+=(--library-root "$(jq -r '.ghostscriptBin' "$windows_paths")")
+            library_args+=(--library-root "$(jq -r '.popplerBin' "$windows_paths")")
+            node scripts/build-ocr-native-payload.mjs \
+              --platform win32-x64 \
+              --payload "$payload" \
+              --notices "$native_notices" \
+              --tesseract "$(jq -r '.tesseract' "$windows_paths")" \
+              --ghostscript "$(jq -r '.ghostscript' "$windows_paths")" \
+              --pdftotext "$(jq -r '.pdftotext' "$windows_paths")" \
+              --ghostscript-root "$(jq -r '.ghostscriptRoot' "$windows_paths")" \
+              --poppler-root "$(jq -r '.popplerShare' "$windows_paths")" \
+              --tessdata-root "$(jq -r '.tessdata' "$windows_paths")" \
+              --windows-python-launcher "$RUNNER_TEMP/office-kit-ocrmypdf-launcher.exe" \
+              --windows-ghostscript-launcher "$RUNNER_TEMP/office-kit-ghostscript-launcher.exe" \
+              "${library_args[@]}"
+            fetch_locked '.licenseMaterial.windowsNative.tesseractApache20' "$RUNNER_TEMP/tesseract-LICENSE.txt"
+            fetch_locked '.licenseMaterial.windowsNative.ghostscriptAgpl30' "$RUNNER_TEMP/ghostscript-AGPL-3.0.txt"
+            fetch_locked '.licenseMaterial.windowsNative.popplerGpl20' "$RUNNER_TEMP/poppler-GPL-2.0.txt"
           fi
           {
             cat "$RUNNER_TEMP/ocr-python-notices.md"
@@ -223,6 +342,20 @@ jobs:
                 printf '\n'
                 cat "/usr/share/doc/$package/copyright"
               done
+            elif [ "${{ matrix.platform }}" = "win32-x64" ]; then
+              printf '\n\n## Windows native source locks\n\n'
+              jq -r '.ocrCore.nativeBuild["win32-x64"] | to_entries[] | "- \(.key): \(.value.url) (sha256:\(.value.sha256))"' "$OCR_INPUTS"
+              printf '\n\n### Tesseract Apache-2.0\n\n'
+              cat "$RUNNER_TEMP/tesseract-LICENSE.txt"
+              printf '\n\n### Ghostscript GNU AGPL-3.0-or-later\n\n'
+              cat "$RUNNER_TEMP/ghostscript-AGPL-3.0.txt"
+              printf '\n\n### Poppler GPL-2.0-or-later\n\n'
+              cat "$RUNNER_TEMP/poppler-GPL-2.0.txt"
+              printf '\n\n### Poppler source-distribution notices\n\n'
+              while IFS= read -r notice; do
+                printf '\n#### %s\n\n' "$(basename "$notice")"
+                cat "$notice"
+              done < <(find "$(jq -r '.popplerShare' "$windows_paths")" -maxdepth 1 -type f \( -name 'COPYING*' -o -name 'NOTICE*' \) -print | LC_ALL=C sort)
             fi
           } > "$RUNNER_TEMP/ocr-notices.md"
           inputs_sha="$(shasum -a 256 "$OCR_INPUTS" | awk '{print $1}')"
@@ -245,26 +378,44 @@ jobs:
           home="$RUNNER_TEMP/ocr-home"
           mkdir -p "$destination" "$home"
           tar -xzf "$archive" -C "$destination"
-          test -x "$destination/bin/ocrmypdf"
-          test -x "$destination/bin/tesseract"
-          test -x "$destination/bin/gs"
-          test -x "$destination/bin/pdftotext"
           test ! -e "$destination/bin/pip"
           test -z "$(find "$destination/share/tessdata" -type f -name '*.traineddata' -print -quit)"
-          run_probe() {
-            local name="$1"
-            shift
-            local output="$RUNNER_TEMP/$name-version.txt"
-            if ! env -i HOME="$home" PATH="$destination/bin:/usr/bin:/bin" "$@" > "$output" 2>&1; then
-              cat "$output" >&2
-              return 1
-            fi
-            printf '%s\n' "$output"
-          }
-          ocrmypdf_version="$(run_probe ocrmypdf "$destination/bin/ocrmypdf" --version)"
-          tesseract_version="$(run_probe tesseract "$destination/bin/tesseract" --version)"
-          ghostscript_version="$(run_probe ghostscript "$destination/bin/gs" --version)"
-          pdftotext_version="$(run_probe pdftotext "$destination/bin/pdftotext" -v)"
+          if [ "${{ matrix.platform }}" = "win32-x64" ]; then
+            for executable in ocrmypdf.exe tesseract.exe gs.exe gswin64c.exe pdftotext.exe; do test -f "$destination/bin/$executable"; done
+            run_probe() {
+              local name="$1"
+              local launcher="$2"
+              shift 2
+              local output="$RUNNER_TEMP/$name-version.txt"
+              local launcher_windows
+              launcher_windows="$(cygpath -w "$launcher")"
+              if ! powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; \$env:Path = [System.IO.Path]::Combine(\$env:SystemRoot, 'System32'); \$env:PYTHONHOME = 'ambient'; \$env:PYTHONPATH = 'ambient'; & '${launcher_windows}' $*" > "$output" 2>&1; then
+                cat "$output" >&2
+                return 1
+              fi
+              printf '%s\n' "$output"
+            }
+            ocrmypdf_version="$(run_probe ocrmypdf "$destination/bin/ocrmypdf.exe" --version)"
+            tesseract_version="$(run_probe tesseract "$destination/bin/tesseract.exe" --version)"
+            ghostscript_version="$(run_probe ghostscript "$destination/bin/gs.exe" --version)"
+            pdftotext_version="$(run_probe pdftotext "$destination/bin/pdftotext.exe" -v)"
+          else
+            for executable in ocrmypdf tesseract gs pdftotext; do test -x "$destination/bin/$executable"; done
+            run_probe() {
+              local name="$1"
+              shift
+              local output="$RUNNER_TEMP/$name-version.txt"
+              if ! env -i HOME="$home" PATH="$destination/bin:/usr/bin:/bin" "$@" > "$output" 2>&1; then
+                cat "$output" >&2
+                return 1
+              fi
+              printf '%s\n' "$output"
+            }
+            ocrmypdf_version="$(run_probe ocrmypdf "$destination/bin/ocrmypdf" --version)"
+            tesseract_version="$(run_probe tesseract "$destination/bin/tesseract" --version)"
+            ghostscript_version="$(run_probe ghostscript "$destination/bin/gs" --version)"
+            pdftotext_version="$(run_probe pdftotext "$destination/bin/pdftotext" -v)"
+          fi
           grep -Fx 17.8.1 "$ocrmypdf_version" || { cat "$ocrmypdf_version" >&2; exit 2; }
           grep -q '^tesseract 5\.' "$tesseract_version" || { cat "$tesseract_version" >&2; exit 2; }
           grep -q '^[0-9]' "$ghostscript_version" || { cat "$ghostscript_version" >&2; exit 2; }
@@ -301,6 +452,10 @@ jobs:
             pack: ocr-language-eng
             platform: darwin-arm64
             runner: macos-14
+          - language: eng
+            pack: ocr-language-eng
+            platform: win32-x64
+            runner: windows-2025
           - language: chi_sim
             pack: ocr-language-chi-sim
             platform: linux-x64
@@ -309,6 +464,10 @@ jobs:
             pack: ocr-language-chi-sim
             platform: darwin-arm64
             runner: macos-14
+          - language: chi_sim
+            pack: ocr-language-chi-sim
+            platform: win32-x64
+            runner: windows-2025
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
@@ -413,8 +572,9 @@ jobs:
             --output "$RUNNER_TEMP/ocr-core-final" \
             --release-base-url "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/" \
             --repository "$GITHUB_REPOSITORY" \
-            --workflow .github/workflows/pdf-ocr-capability-packs.yml
-          jq -e '.catalogFragment.state == "published" and (.catalogFragment.artifacts | length == 2)' "$RUNNER_TEMP/ocr-core-final/ocr-core-$OCR_CORE_PACK_VERSION.release-manifest.json"
+            --workflow .github/workflows/pdf-ocr-capability-packs.yml \
+            --expected-platforms darwin-arm64,linux-x64,win32-x64
+          jq -e '.catalogFragment.state == "published" and (.catalogFragment.artifacts | length == 3)' "$RUNNER_TEMP/ocr-core-final/ocr-core-$OCR_CORE_PACK_VERSION.release-manifest.json"
       - name: Attest OCR core release evidence
         if: ${{ inputs.publish == 'true' }}
         uses: actions/attest@v4
@@ -477,8 +637,9 @@ jobs:
             --output "$RUNNER_TEMP/${{ matrix.pack }}-final" \
             --release-base-url "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/" \
             --repository "$GITHUB_REPOSITORY" \
-            --workflow .github/workflows/pdf-ocr-capability-packs.yml
-          jq -e '.catalogFragment.state == "published" and (.catalogFragment.artifacts | length == 2)' "$RUNNER_TEMP/${{ matrix.pack }}-final/${{ matrix.pack }}-$OCR_LANGUAGE_PACK_VERSION.release-manifest.json"
+            --workflow .github/workflows/pdf-ocr-capability-packs.yml \
+            --expected-platforms darwin-arm64,linux-x64,win32-x64
+          jq -e '.catalogFragment.state == "published" and (.catalogFragment.artifacts | length == 3)' "$RUNNER_TEMP/${{ matrix.pack }}-final/${{ matrix.pack }}-$OCR_LANGUAGE_PACK_VERSION.release-manifest.json"
       - name: Attest OCR language release evidence
         if: ${{ inputs.publish == 'true' }}
         uses: actions/attest@v4
