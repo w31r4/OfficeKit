@@ -53,8 +53,11 @@ for (const fragment of [
   "actions/attest@v4",
   "pdf-provider-poppler-qa-",
   "System32",
+  "sha256-file.mjs",
+  "verify-pdf-provider-pack.mjs",
 ]) assert.match(workflow, new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 assert.doesNotMatch(workflow, /(?:choco|winget|scoop)\s+(?:install|add)/i, "the release lane must not use a global Windows package manager");
+assert.doesNotMatch(workflow, /shasum|tar -xzf/, "the Windows release lane must not inherit Git Bash hashing or tar behavior");
 
 const lock = spawnSync(process.execPath, [builderPath, "--verify-lock"], { cwd: root, encoding: "utf8" });
 assert.equal(lock.status, 0, lock.stderr || lock.stdout);

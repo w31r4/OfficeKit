@@ -66,25 +66,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          launcher_args=()
           if [ "${{ matrix.platform }}" = "win32-x64" ]; then
-            launcher_args+=(--windows-launcher "$RUNNER_TEMP/office-kit-verapdf-launcher.exe")
+            node scripts/build-verapdf-provider-pack.mjs \
+              --pack verapdf \
+              --version "$VERAPDF_PACK_VERSION" \
+              --platform "${{ matrix.platform }}" \
+              --output "$RUNNER_TEMP/verapdf-release" \
+              --source-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/$VERAPDF_INPUTS" \
+              --windows-launcher "$RUNNER_TEMP/office-kit-verapdf-launcher.exe"
+          else
+            node scripts/build-verapdf-provider-pack.mjs \
+              --pack verapdf \
+              --version "$VERAPDF_PACK_VERSION" \
+              --platform "${{ matrix.platform }}" \
+              --output "$RUNNER_TEMP/verapdf-release" \
+              --source-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/$VERAPDF_INPUTS"
           fi
-          node scripts/build-verapdf-provider-pack.mjs \
-            --pack verapdf \
-            --version "$VERAPDF_PACK_VERSION" \
-            --platform "${{ matrix.platform }}" \
-            --output "$RUNNER_TEMP/verapdf-release" \
-            --source-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/$VERAPDF_INPUTS" \
-            "${launcher_args[@]}"
       - name: Verify the extracted managed runtime and real conformance adapter
         shell: bash
         run: |
           set -euo pipefail
           archive="$RUNNER_TEMP/verapdf-release/verapdf-$VERAPDF_PACK_VERSION-${{ matrix.platform }}.tar.gz"
           destination="$RUNNER_TEMP/verapdf-consumer"
-          mkdir -p "$destination" "$RUNNER_TEMP/verapdf-home"
-          tar -xzf "$archive" -C "$destination"
+          mkdir -p "$RUNNER_TEMP/verapdf-home"
+          node scripts/verify-pdf-provider-pack.mjs \
+            --archive "$archive" \
+            --manifest "$RUNNER_TEMP/verapdf-release/verapdf-$VERAPDF_PACK_VERSION-${{ matrix.platform }}.manifest.json" \
+            --destination "$destination"
           if [ "${{ matrix.platform }}" = "win32-x64" ]; then
             test -f "$destination/bin/verapdf.exe"
             test -f "$destination/jre/bin/java.exe"

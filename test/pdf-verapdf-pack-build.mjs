@@ -9,9 +9,11 @@ const root = path.resolve(import.meta.dirname, "..");
 const inputsPath = path.join(root, "scripts", "pdf-provider-verapdf-release-inputs.v1.json");
 const builder = path.join(root, "scripts", "build-verapdf-provider-pack.mjs");
 const windowsLauncher = path.join(root, "scripts", "windows-java-jar-launcher.c");
-const [inputBytes, builderSource] = await Promise.all([
+const workflowPath = path.join(root, ".github", "workflows", "pdf-verapdf-capability-pack.yml");
+const [inputBytes, builderSource, workflowSource] = await Promise.all([
   fs.readFile(inputsPath),
   fs.readFile(builder, "utf8"),
+  fs.readFile(workflowPath, "utf8"),
 ]);
 const windowsLauncherSource = await fs.readFile(windowsLauncher, "utf8");
 const inputs = JSON.parse(inputBytes);
@@ -81,6 +83,8 @@ for (const sourceFragment of [
   "cli.jar",
 ]) assert.match(builderSource, new RegExp(sourceFragment.replace(/[.*+?^\x24{}()|[\]\\]/g, "\\$&")));
 assert.doesNotMatch(builderSource, /HOME: process\.env\.HOME/);
+assert.match(workflowSource, /verify-pdf-provider-pack\.mjs/);
+assert.doesNotMatch(workflowSource, /launcher_args|tar -xzf/);
 
 for (const sourceFragment of [
   "CreateProcessW",

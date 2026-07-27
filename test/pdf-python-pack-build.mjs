@@ -24,6 +24,8 @@ assert.match(workflow, /runner: windows-2025/);
 assert.match(workflow, /PYTHON_PACK_VERSION: 3\.13\.14-oat\.2/);
 assert.match(workflow, /--expected-platforms darwin-arm64,linux-x64,win32-x64/);
 assert.match(workflow, /python="\$destination\/python\.exe"/);
+assert.match(workflow, /verify-pdf-provider-pack\.mjs/);
+assert.doesNotMatch(workflow, /tar -xzf/);
 
 function run(arguments_, { expect = 0 } = {}) {
   const result = spawnSync(process.execPath, [buildScript, ...arguments_], { cwd: root, encoding: "utf8" });
