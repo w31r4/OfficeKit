@@ -76,6 +76,7 @@ function addStyles(document) {
       spaceAfterTwips: 70,
       keepNext: true,
       keepLinesTogether: true,
+      widowControl: true,
     },
     BriefCallout: {
       name: "Brief Callout",

@@ -1839,6 +1839,10 @@ function documentParagraphFormatting(block) {
     result.keepLinesTogether = value.keepLinesTogether;
   }
   if (value.pageBreakBefore != null) result.pageBreakBefore = Boolean(value.pageBreakBefore);
+  if (value.widowControl != null) {
+    if (typeof value.widowControl !== "boolean") throw new OfficeKitCodecError(`Document paragraph ${block.id} widowControl must be boolean.`, [], { code: "invalid_document_formatting" });
+    result.widowControl = value.widowControl;
+  }
   if (value.suppressLineNumbers != null) {
     if (typeof value.suppressLineNumbers !== "boolean") throw new OfficeKitCodecError(`Document paragraph ${block.id} suppressLineNumbers must be boolean.`, [], { code: "invalid_document_formatting" });
     result.suppressLineNumbers = value.suppressLineNumbers;
@@ -1849,7 +1853,7 @@ function documentParagraphFormatting(block) {
 function publicDocumentParagraphFormatting(value) {
   if (!value) return undefined;
   const result = {};
-  for (const key of ["alignment", "leftIndentTwips", "rightIndentTwips", "firstLineIndentTwips", "hangingIndentTwips", "spaceBeforeTwips", "spaceAfterTwips", "lineSpacingTwips", "lineSpacingRule", "keepNext", "keepLinesTogether", "pageBreakBefore", "suppressLineNumbers"]) {
+  for (const key of ["alignment", "leftIndentTwips", "rightIndentTwips", "firstLineIndentTwips", "hangingIndentTwips", "spaceBeforeTwips", "spaceAfterTwips", "lineSpacingTwips", "lineSpacingRule", "keepNext", "keepLinesTogether", "pageBreakBefore", "widowControl", "suppressLineNumbers"]) {
     if (value[key] !== undefined) result[key] = value[key];
   }
   return Object.keys(result).length ? result : undefined;

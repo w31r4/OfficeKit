@@ -80,9 +80,11 @@ internal static class DocxFormattingCodec
     {
         if (properties is null) return null;
         if (!TryReadParagraphPagination(properties, out var keepNext, out var keepLinesTogether,
-                                        out var pageBreakBefore, out var suppressLineNumbers)) return null;
+                                        out var pageBreakBefore, out var widowControl,
+                                        out var suppressLineNumbers)) return null;
         var result = ReadParagraphFormattingCore(properties.Justification, properties.Indentation,
-            properties.SpacingBetweenLines, keepNext, keepLinesTogether, pageBreakBefore, suppressLineNumbers);
+            properties.SpacingBetweenLines, keepNext, keepLinesTogether, pageBreakBefore, widowControl,
+            suppressLineNumbers);
         return HasParagraphFormatting(result) ? result : null;
     }
 
@@ -90,9 +92,11 @@ internal static class DocxFormattingCodec
     {
         if (properties is null) return null;
         if (!TryReadParagraphPagination(properties, out var keepNext, out var keepLinesTogether,
-                                        out var pageBreakBefore, out var suppressLineNumbers)) return null;
+                                        out var pageBreakBefore, out var widowControl,
+                                        out var suppressLineNumbers)) return null;
         var result = ReadParagraphFormattingCore(properties.Justification, properties.Indentation,
-            properties.SpacingBetweenLines, keepNext, keepLinesTogether, pageBreakBefore, suppressLineNumbers);
+            properties.SpacingBetweenLines, keepNext, keepLinesTogether, pageBreakBefore, widowControl,
+            suppressLineNumbers);
         return HasParagraphFormatting(result) ? result : null;
     }
 
@@ -154,9 +158,9 @@ internal static class DocxFormattingCodec
     internal static bool IsSupportedParagraphProperties(W.ParagraphProperties? properties, bool allowNumbering = false, bool allowSection = false)
     {
         if (properties is null) return true;
-        if (!TryReadParagraphPagination(properties, out _, out _, out _, out _)) return false;
+        if (!TryReadParagraphPagination(properties, out _, out _, out _, out _, out _)) return false;
         return properties.ChildElements.All(child => child is W.ParagraphStyleId or W.Justification or W.Indentation or
-            W.SpacingBetweenLines or W.KeepNext or W.KeepLines or W.PageBreakBefore or W.SuppressLineNumbers ||
+            W.SpacingBetweenLines or W.KeepNext or W.KeepLines or W.PageBreakBefore or W.WidowControl or W.SuppressLineNumbers ||
             (allowNumbering && child is W.NumberingProperties) ||
             (allowSection && child is W.SectionProperties));
     }
@@ -225,7 +229,8 @@ internal static class DocxFormattingCodec
     internal static bool HasParagraphFormatting(DocumentParagraphFormatting? value) => value is not null &&
         (value.HasAlignment || value.HasLeftIndentTwips || value.HasRightIndentTwips || value.HasFirstLineIndentTwips ||
          value.HasHangingIndentTwips || value.HasSpaceBeforeTwips || value.HasSpaceAfterTwips || value.HasLineSpacingTwips ||
-         value.HasLineSpacingRule || value.HasKeepNext || value.HasKeepLinesTogether || value.HasPageBreakBefore || value.HasSuppressLineNumbers);
+         value.HasLineSpacingRule || value.HasKeepNext || value.HasKeepLinesTogether || value.HasPageBreakBefore ||
+         value.HasWidowControl || value.HasSuppressLineNumbers);
 
     private static DocumentParagraphFormatting ReadParagraphFormattingCore(
         W.Justification? justification,
@@ -234,6 +239,7 @@ internal static class DocxFormattingCodec
         bool? keepNext,
         bool? keepLinesTogether,
         bool? pageBreakBefore,
+        bool? widowControl,
         bool? suppressLineNumbers)
     {
         var result = new DocumentParagraphFormatting();
@@ -270,6 +276,7 @@ internal static class DocxFormattingCodec
         if (keepNext is not null) result.KeepNext = keepNext.Value;
         if (keepLinesTogether is not null) result.KeepLinesTogether = keepLinesTogether.Value;
         if (pageBreakBefore is not null) result.PageBreakBefore = pageBreakBefore.Value;
+        if (widowControl is not null) result.WidowControl = widowControl.Value;
         if (suppressLineNumbers is not null) result.SuppressLineNumbers = suppressLineNumbers.Value;
         return result;
     }
@@ -295,6 +302,7 @@ internal static class DocxFormattingCodec
         if (formatting.HasKeepNext) properties.Append(new W.KeepNext { Val = formatting.KeepNext });
         if (formatting.HasKeepLinesTogether) properties.Append(new W.KeepLines { Val = formatting.KeepLinesTogether });
         if (formatting.HasPageBreakBefore) properties.Append(new W.PageBreakBefore { Val = formatting.PageBreakBefore });
+        if (formatting.HasWidowControl) properties.Append(new W.WidowControl { Val = formatting.WidowControl });
     }
 
     private static void AppendParagraphFormattingAfterNumbering(
@@ -349,15 +357,18 @@ internal static class DocxFormattingCodec
         out bool? keepNext,
         out bool? keepLinesTogether,
         out bool? pageBreakBefore,
+        out bool? widowControl,
         out bool? suppressLineNumbers)
     {
         keepNext = null;
         keepLinesTogether = null;
         pageBreakBefore = null;
+        widowControl = null;
         suppressLineNumbers = null;
         return TryReadOnOff<W.KeepNext>(properties, out keepNext) &&
                TryReadOnOff<W.KeepLines>(properties, out keepLinesTogether) &&
                TryReadOnOff<W.PageBreakBefore>(properties, out pageBreakBefore) &&
+               TryReadOnOff<W.WidowControl>(properties, out widowControl) &&
                TryReadOnOff<W.SuppressLineNumbers>(properties, out suppressLineNumbers);
     }
 
