@@ -307,7 +307,7 @@ jobs:
               }
               function Extract-PinnedGhostscriptRuntime([string]$archive, [string]$destination) {
                 if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw "Ghostscript source archive is missing: $archive" }
-                # Ghostscript's official Windows source is also a
+                # The official Ghostscript Windows source is also a
                 # self-extracting archive.  Do not execute it: an NSIS child
                 # can outlive the parent installer even with a private /D
                 # target.  Extract the verified bytes directly instead.
