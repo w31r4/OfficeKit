@@ -25,7 +25,7 @@ Generated from `HELP_CATALOG` in `src/help/index.mjs`.
 | `document.addListItem` | api | Append a numbered, character-bulleted, or bounded picture-bulleted list item using native DOCX numbering definitions. Picture markers are shared numbering-level resources: every item using the same numberingId and level must agree, and recognized imported edits must update the complete group without changing embedded-versus-external source kind. |
 | `document.addParagraph` | api | Append a styled paragraph with optional run spans and bounded direct paragraph formatting, including canonical solid shading and solid paragraph borders, presence-aware contextual spacing, and line-number suppression. |
 | `document.addSection` | api | Append a DOCX section break with page size, orientation, margins, binding gutter, canonical equal-width or explicit-width columns, bounded page-number start/format, and break-type metadata backed by w:sectPr. Imported geometry and page numbering are writable only when their native markup is canonical. |
-| `document.addTable` | api | Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, optional uniform top/center/bottom physical-cell alignment, an optional native repeating-header prefix, and individual rows kept together across pages. |
+| `document.addTable` | api | Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, optional uniform top/center/bottom physical-cell alignment, non-clipping per-row minimum heights, an optional native repeating-header prefix, and individual rows kept together across pages. |
 | `document.addTableOfContents` | api | Append one canonical one-paragraph complex TOC field with bounded heading levels/switches and enable the native updateFields-on-open hint by default. Refreshed cross-paragraph result graphs remain opaque/source-bound and read-only. |
 | `document.addWatermark` | api | Add one canonical VML text watermark to a section/header-reference scope. Recognized imported watermarks permit text-only edits or whole-object removal; adding to an imported package, changing scope, shared headers, multiple objects, DrawingML, images, and irregular VML fail closed. |
 | `document.applyDesignPreset` | api | Apply a clean-room report or memo design preset that updates named styles for consistent DOCX export and SVG/layout previews. |
@@ -58,6 +58,7 @@ Generated from `HELP_CATALOG` in `src/help/index.mjs`.
 | `documentHeaderFooter.setSegments` | api | Atomically replace one source-free header/footer's ordered literal/simple-field sequence. The derived visible text must remain the concatenated segment displays; imported page furniture cannot use this mutation profile. |
 | `DocumentModel.create` | api | Create a document with paragraph/character styles, formatted paragraphs/runs including canonical solid paragraph shading and bounded solid paragraph borders, canonical inline and one-paragraph table-cell plain-text, checkbox, drop-down, combo-box, and ISO/Gregorian date content controls, one-paragraph block plain-text controls, canonical inline SEQ/REF/PAGEREF fields, sections, headers/footers, canonical VML text watermarks, lists, TableGrid fixed-geometry tables, links, bounded whole-block bookmarks, 1-through-16-paragraph plain-text footnotes/endnotes, canonical bibliography-backed citations plus one source-free switch-free BIBLIOGRAPHY output placeholder, simple fields, a canonical complex TOC placeholder, bounded whole-paragraph tracked insertions/deletions, classic comments, bounded modern root/direct-reply threads, and PNG/JPEG images. Nested/irregular modern threads, rich comment bodies, multi-paragraph/rich/inline-within-cell/nested/data-bound/locked/placeholder table-cell SDTs, other nested/data-bound/locked/placeholder SDTs, irregular lists, localized dates, custom checkbox symbols, image/DrawingML/irregular VML watermarks, other complex field graphs, arbitrary table-style graphs, complex bookmark/note/revision graphs, and advanced settings remain unsupported or source-bound. |
 | `documentTable.setHeaderRowCount` | api | Set the number of contiguous leading rows marked with native w:tblHeader repetition semantics. This is separate from headerFill styling; imported tables accept it only when their row-property profile is canonical, otherwise the edit fails closed. |
+| `documentTable.setMinimumRowHeight` | api | Set or clear one physical row's non-clipping minimum height through native w:trHeight hRule=atLeast. It is not a fixed exact height or a pagination calculator; imported tables accept it only under the canonical row-property profile, otherwise the edit fails closed. |
 | `documentTable.setRowKeepTogether` | api | Set whether one physical table row may split across pages through native w:cantSplit. This is a per-row pagination constraint, not a row-group or pagination calculator; imported tables accept it only under the canonical row-property profile, otherwise the edit fails closed. |
 | `documentTableCell.addCheckboxContentControl` | api | Wrap one source-free rectangular table cell in a canonical Word 2010+ checkbox w:sdt. OfficeKit owns the visible glyph and symbols; recognized imports permit checked/tag/alias edits while identity, type, placement, symbols, and topology remain fixed. |
 | `documentTableCell.addComboBoxContentControl` | api | Wrap one source-free rectangular table cell in a canonical standard combo-box w:sdt with ordered choices and a declared-or-custom typed value. Recognized imports permit value/tag/alias edits while the choice table and topology remain fixed. |
@@ -407,7 +408,7 @@ Append a DOCX section break with page size, orientation, margins, binding gutter
 
 #### `document.addTable`
 
-Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, optional uniform top/center/bottom physical-cell alignment, an optional native repeating-header prefix, and individual rows kept together across pages.
+Append a Word-style table with physical cell values, optional logical merge geometry, fixed-layout width/margin/border styling, optional uniform top/center/bottom physical-cell alignment, non-clipping per-row minimum heights, an optional native repeating-header prefix, and individual rows kept together across pages.
 
 **Schema parameters:**
 
@@ -426,6 +427,7 @@ Append a Word-style table with physical cell values, optional logical merge geom
 - `verticalAlignment` ("top" | "center" | "bottom") — Optional uniform physical-cell alignment. Omit for Word's native top default; a recognized imported table can edit or clear it only when every physical cell has the same canonical direct w:vAlign profile.
 - `headerRowCount` (number) — Number of contiguous leading physical rows to mark as native Word w:tblHeader repeat headers; 0 through the table row count, default 0.
 - `keepTogetherRows` (number[]) — Zero-based physical table rows that must not split across pages through native w:cantSplit. Values form a deduplicated ascending set within the table row count; this does not group rows or calculate pagination.
+- `minimumRowHeightsDxa` (number[]) — One non-negative integer DXA value per physical row. Zero omits the native height leaf; a positive value writes canonical w:trHeight hRule=atLeast so wrapped content may expand instead of being clipped.
 
 **Schema returns:**
 
@@ -912,7 +914,20 @@ Set the number of contiguous leading rows marked with native w:tblHeader repetit
 
 **Schema returns:**
 
-- `table` (DocumentTableBlock) — Sets source-free or recognized imported table repeat-header rows. Imported row properties may contain only the canonical grid offsets and no-w:val w:tblHeader leaves; non-prefix, duplicate, explicit-value, extension-bearing, or otherwise irregular profiles stay source-bound and fail closed.
+- `table` (DocumentTableBlock) — Sets source-free or recognized imported table repeat-header rows. Imported row properties may contain only canonical grid offsets, non-clipping w:trHeight hRule=atLeast, and no-w:val w:cantSplit/w:tblHeader leaves in native order; non-prefix, duplicate, exact-height, explicit-value, extension-bearing, or otherwise irregular profiles stay source-bound and fail closed.
+
+#### `documentTable.setMinimumRowHeight`
+
+Set or clear one physical row's non-clipping minimum height through native w:trHeight hRule=atLeast. It is not a fixed exact height or a pagination calculator; imported tables accept it only under the canonical row-property profile, otherwise the edit fails closed.
+
+**Schema parameters:**
+
+- `rowIndex` (number) required — Zero-based physical table row index from 0 through rowCount - 1.
+- `heightDxa` (number|null) — Positive integer DXA minimum from 1 through 1000000, or null to clear the native height leaf. OfficeKit always writes hRule=atLeast, never an exact clipping height.
+
+**Schema returns:**
+
+- `table` (DocumentTableBlock) — Sets source-free or recognized imported row minimum height. Imported row properties may contain only canonical grid offsets, one positive w:trHeight hRule=atLeast, and no-w:val w:cantSplit/w:tblHeader leaves in native order; duplicate, exact, explicit-value, reordered, extension-bearing, or otherwise irregular profiles stay source-bound and fail closed.
 
 #### `documentTable.setRowKeepTogether`
 
@@ -925,7 +940,7 @@ Set whether one physical table row may split across pages through native w:cantS
 
 **Schema returns:**
 
-- `table` (DocumentTableBlock) — Sets source-free or recognized imported row page-break policy. Imported row properties may contain only canonical grid offsets plus no-w:val w:cantSplit and w:tblHeader leaves in native order; duplicate, explicit-value, reordered, extension-bearing, or otherwise irregular profiles stay source-bound and fail closed.
+- `table` (DocumentTableBlock) — Sets source-free or recognized imported row page-break policy. Imported row properties may contain only canonical grid offsets, non-clipping w:trHeight hRule=atLeast, and no-w:val w:cantSplit/w:tblHeader leaves in native order; duplicate, exact-height, explicit-value, reordered, extension-bearing, or otherwise irregular profiles stay source-bound and fail closed.
 
 #### `documentTableCell.addCheckboxContentControl`
 

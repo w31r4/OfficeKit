@@ -2982,6 +2982,11 @@ message DocumentTable {
   // set within the table's physical row count. Imported noncanonical row-
   // property graphs remain source-bound and do not expose a writable set.
   repeated uint32 keep_together_rows = 6;
+  // One value per physical row. Zero leaves the row unconstrained; a positive
+  // value writes a canonical w:trHeight with hRule="atLeast", so wrapped
+  // content may still expand and is never clipped by an exact fixed height.
+  // Imported irregular row-property graphs remain source-bound.
+  repeated uint32 minimum_row_heights_dxa = 7;
 }
 
 message DocumentTableFormatting {

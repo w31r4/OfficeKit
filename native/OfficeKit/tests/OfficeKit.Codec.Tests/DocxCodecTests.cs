@@ -3257,6 +3257,7 @@ public sealed class DocxCodecTests
         Assert.Equal("E2E8F0", tableArtifact.Formatting.HeaderFill);
         Assert.True(tableArtifact.Formatting.HasVerticalAlignment);
         Assert.Equal(DocumentTableVerticalAlignment.Center, tableArtifact.Formatting.VerticalAlignment);
+        Assert.Equal([0u, 0u, 0u], tableArtifact.MinimumRowHeightsDxa);
     }
 
     [Fact]
@@ -3340,6 +3341,7 @@ public sealed class DocxCodecTests
         Assert.True(imported.Ok, Diagnostics(imported));
         var table = imported.Artifact.Document.Blocks[0].Table;
         Assert.NotNull(table.Formatting);
+        Assert.Equal([0u, 480u, 0u], table.MinimumRowHeightsDxa);
         table.Rows[0].Cells[0] = "Edited merged owner";
         table.Formatting.WidthDxa = 9600;
         table.Formatting.IndentDxa = 360;
@@ -3376,6 +3378,7 @@ public sealed class DocxCodecTests
             Assert.All(rows.SelectMany(row => row.Elements<W.TableCell>()), cell =>
                 Assert.Equal(W.TableVerticalAlignmentValues.Bottom, cell.TableCellProperties!.GetFirstChild<W.TableCellVerticalAlignment>()!.Val!.Value));
             Assert.Equal(480u, rows[1].TableRowProperties!.GetFirstChild<W.TableRowHeight>()!.Val!.Value);
+            Assert.Equal(W.HeightRuleValues.AtLeast, rows[1].TableRowProperties!.GetFirstChild<W.TableRowHeight>()!.HeightType!.Value);
             Assert.Equal(W.JustificationValues.Center, rows[2].Elements<W.TableCell>().First().Elements<W.Paragraph>().Single().ParagraphProperties!.Justification!.Val!.Value);
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(document));
         }
@@ -3399,6 +3402,7 @@ public sealed class DocxCodecTests
         Assert.Equal("FFF2CC", roundTripFormatting.HeaderFill);
         Assert.True(roundTripFormatting.HasVerticalAlignment);
         Assert.Equal(DocumentTableVerticalAlignment.Bottom, roundTripFormatting.VerticalAlignment);
+        Assert.Equal([0u, 480u, 0u], roundTrip.Artifact.Document.Blocks[0].Table.MinimumRowHeightsDxa);
 
         var cleared = Invoke(new CodecRequest
         {
@@ -3618,6 +3622,128 @@ public sealed class DocxCodecTests
         var invalidResponse = Invoke(invalid);
         Assert.False(invalidResponse.Ok);
         Assert.Equal("invalid_document_table", Assert.Single(invalidResponse.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void NativeTableMinimumRowHeightsAuthorImportEditAndRejectIrregularProfiles()
+    {
+        var authoredRequest = MergedTableExportRequest();
+        authoredRequest.Artifact.Document.Blocks[0].Table.MinimumRowHeightsDxa.Add([0u, 480u, 720u]);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var document = WordprocessingDocument.Open(stream, false))
+        {
+            var rows = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single().Elements<W.TableRow>().ToArray();
+            Assert.Null(rows[0].TableRowProperties?.GetFirstChild<W.TableRowHeight>());
+            Assert.Equal(480u, rows[1].TableRowProperties!.GetFirstChild<W.TableRowHeight>()!.Val!.Value);
+            Assert.Equal(W.HeightRuleValues.AtLeast, rows[1].TableRowProperties!.GetFirstChild<W.TableRowHeight>()!.HeightType!.Value);
+            Assert.Equal(720u, rows[2].TableRowProperties!.GetFirstChild<W.TableRowHeight>()!.Val!.Value);
+            Assert.Equal(W.HeightRuleValues.AtLeast, rows[2].TableRowProperties!.GetFirstChild<W.TableRowHeight>()!.HeightType!.Value);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(document));
+        }
+
+        var imported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedTable = imported.Artifact.Document.Blocks[0].Table;
+        Assert.Equal([0u, 480u, 720u], importedTable.MinimumRowHeightsDxa);
+
+        importedTable.MinimumRowHeightsDxa.Clear();
+        importedTable.MinimumRowHeightsDxa.Add([360u, 0u, 960u]);
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        using (var stream = new MemoryStream(edited.File.ToByteArray()))
+        using (var document = WordprocessingDocument.Open(stream, false))
+        {
+            var rows = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single().Elements<W.TableRow>().ToArray();
+            Assert.Equal(360u, rows[0].TableRowProperties!.GetFirstChild<W.TableRowHeight>()!.Val!.Value);
+            Assert.Null(rows[1].TableRowProperties?.GetFirstChild<W.TableRowHeight>());
+            Assert.Equal(960u, rows[2].TableRowProperties!.GetFirstChild<W.TableRowHeight>()!.Val!.Value);
+            Assert.All(rows.Where(row => row.TableRowProperties?.GetFirstChild<W.TableRowHeight>() is not null), row =>
+                Assert.Equal(W.HeightRuleValues.AtLeast, row.TableRowProperties!.GetFirstChild<W.TableRowHeight>()!.HeightType!.Value));
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(document));
+        }
+        var roundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = edited.File,
+        });
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.Equal([360u, 0u, 960u], roundTrip.Artifact.Document.Blocks[0].Table.MinimumRowHeightsDxa);
+
+        var invalidLength = MergedTableExportRequest();
+        invalidLength.Artifact.Document.Blocks[0].Table.MinimumRowHeightsDxa.Add([480u, 720u]);
+        var invalidLengthResponse = Invoke(invalidLength);
+        Assert.False(invalidLengthResponse.Ok);
+        Assert.Equal("invalid_document_table", Assert.Single(invalidLengthResponse.Diagnostics).Code);
+
+        var invalidHeight = MergedTableExportRequest();
+        invalidHeight.Artifact.Document.Blocks[0].Table.MinimumRowHeightsDxa.Add([0u, 1_000_001u, 0u]);
+        var invalidHeightResponse = Invoke(invalidHeight);
+        Assert.False(invalidHeightResponse.Ok);
+        Assert.Equal("invalid_document_table", Assert.Single(invalidHeightResponse.Diagnostics).Code);
+
+        var exactHeight = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = ByteString.CopyFrom(AddIrregularTableRowHeight(authored.File.ToByteArray(), "exact")),
+        });
+        Assert.True(exactHeight.Ok, Diagnostics(exactHeight));
+        Assert.Equal([0u, 0u, 0u], exactHeight.Artifact.Document.Blocks[0].Table.MinimumRowHeightsDxa);
+        var noOpExact = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = exactHeight.Artifact,
+        });
+        Assert.True(noOpExact.Ok, Diagnostics(noOpExact));
+        exactHeight.Artifact.Document.Blocks[0].Table.MinimumRowHeightsDxa[1] = 480;
+        var exactRejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = exactHeight.Artifact,
+        });
+        Assert.False(exactRejected.Ok);
+        Assert.Equal("unsupported_document_edit", Assert.Single(exactRejected.Diagnostics).Code);
+
+        var duplicateHeight = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = ByteString.CopyFrom(AddIrregularTableRowHeight(authored.File.ToByteArray(), "duplicate")),
+        });
+        Assert.True(duplicateHeight.Ok, Diagnostics(duplicateHeight));
+        duplicateHeight.Artifact.Document.Blocks[0].Table.MinimumRowHeightsDxa[1] = 360;
+        var duplicateRejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = duplicateHeight.Artifact,
+        });
+        Assert.False(duplicateRejected.Ok);
+        Assert.Equal("unsupported_document_edit", Assert.Single(duplicateRejected.Diagnostics).Code);
     }
 
     [Fact]
@@ -9287,6 +9413,33 @@ public sealed class DocxCodecTests
             }));
             rows[2].Elements<W.TableCell>().First().Elements<W.Paragraph>().Single()
                 .PrependChild(new W.ParagraphProperties(new W.Justification { Val = W.JustificationValues.Center }));
+            document.MainDocumentPart.Document.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddIrregularTableRowHeight(byte[] bytes, string mode)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var document = WordprocessingDocument.Open(stream, true))
+        {
+            var row = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single().Elements<W.TableRow>().ElementAt(1);
+            var properties = row.TableRowProperties ?? row.PrependChild(new W.TableRowProperties());
+            foreach (var height in properties.Elements<W.TableRowHeight>().ToArray()) height.Remove();
+            switch (mode)
+            {
+                case "exact":
+                    properties.Append(new W.TableRowHeight { Val = 480, HeightType = W.HeightRuleValues.Exact });
+                    break;
+                case "duplicate":
+                    properties.Append(new W.TableRowHeight { Val = 480, HeightType = W.HeightRuleValues.AtLeast });
+                    properties.Append(new W.TableRowHeight { Val = 720, HeightType = W.HeightRuleValues.AtLeast });
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown table row-height irregularity.");
+            }
             document.MainDocumentPart.Document.Save();
         }
         return stream.ToArray();
