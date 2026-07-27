@@ -123,7 +123,22 @@ try {
     );
     await fs.chmod(path.join(runtimeRoot, "bin", "node"), 0o755);
   }
-  const nodeLicense = path.resolve(path.dirname(process.execPath), "..", "LICENSE");
+  const nodeLicenseCandidates = [
+    path.join(path.dirname(process.execPath), "LICENSE"),
+    path.resolve(path.dirname(process.execPath), "..", "LICENSE"),
+  ];
+  let nodeLicense = null;
+  for (const candidate of nodeLicenseCandidates) {
+    try {
+      await fs.access(candidate);
+      nodeLicense = candidate;
+      break;
+    } catch {
+      // Node's Windows archive keeps LICENSE alongside node.exe; Unix layouts
+      // commonly keep it one directory above the executable.
+    }
+  }
+  assert.ok(nodeLicense, "the local Node runtime must include a LICENSE file");
   await fs.copyFile(nodeLicense, path.join(runtimeRoot, "LICENSE"));
   const runtimeArchive = path.join(temporary, `${runtimeRootName}${windows ? ".zip" : ".tar.gz"}`);
   const runtimeArchiveBytes = windows
