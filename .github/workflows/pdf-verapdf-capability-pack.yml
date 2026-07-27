@@ -112,7 +112,7 @@ jobs:
             # cannot rewrite its drive-letter form before the Python adapter
             # receives it. The prior inline Bash assignment made Python try
             # to execute a POSIX-looking path and fail with WinError 193.
-            powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; \$env:OFFICE_KIT_PDF_VERAPDF_TEST = '${launcher_windows}'; & node.exe test/pdf-verapdf-provider.mjs; if (\$LASTEXITCODE -ne 0) { exit \$LASTEXITCODE }"
+            powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; \$env:OFFICE_KIT_PDF_VERAPDF_TEST = '${launcher_windows}'; \$env:OFFICE_KIT_PDF_VERAPDF_TEST_PYTHON = (Get-Command python.exe -ErrorAction Stop).Source; & node.exe test/pdf-verapdf-provider.mjs; if (\$LASTEXITCODE -ne 0) { exit \$LASTEXITCODE }"
           else
             env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$launcher" --version | grep -Fx 'veraPDF 1.30.2'
             env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$launcher" --list | grep -Eq '^[[:space:]]+ua2[[:space:]]+-'
