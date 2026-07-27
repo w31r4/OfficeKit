@@ -69,6 +69,28 @@ duplicate, explicit-value, extension-bearing, merged, nested, or irregular
 inputs. It does not infer header semantics from bold text or fill. The Python
 audit helper remains explicit when you deliberately want its report/fix policy.
 
+### 3) Review non-visible table alternative text
+Table alternative text is not a visible caption. When a reviewer supplies the
+actual title and description for one imported canonical table, bind both the
+inspected block index and the complete current metadata, then use the
+source-bound OfficeKit transaction:
+
+```bash
+officekit run examples/officekit-table-accessibility-edit-workflow.mjs \
+  input.docx reviewed.docx table-a11y.audit.json 1 \
+  '{"title":"Quarterly delivery readiness","description":"A two-column release-readiness matrix."}' \
+  '{"title":"Release-readiness decision matrix"}'
+```
+
+The replacement object is deliberate: omitting `description` clears that
+non-visible native `w:tblDescription` value, while the table remains visually
+unchanged. The workflow changes only canonical `w:tblCaption/@w:val` and
+`w:tblDescription/@w:val` leaves in `word/document.xml`, preserves the input,
+reimports the complete table projection, and writes a no-overwrite audit. It
+does not create a caption paragraph, infer author intent, edit cell text or
+formatting, or accept duplicate, empty, child-bearing, extension-bearing, or
+otherwise irregular alternative-text leaves.
+
 ## Verification loop
 1) Apply fixes (if any)
 2) **Render → inspect PNGs** to confirm nothing drifted visually:
@@ -80,3 +102,4 @@ python render_docx.py a11y_fixed.docx --output_dir out_a11y
 - "Fixing" headings is rarely mechanical; it usually requires editorial judgement. This tool **reports** heading issues but does not rewrite styles.
 - Setting table header flags can change repeated header rendering across page breaks. Always re-render and review.
 - Alt text generated from filenames is a baseline; replace it with meaningful descriptions for real accessibility.
+- A table title and description help assistive technology but do not make an arbitrary table accessible by themselves; header semantics, reading order, and real author intent still need review.

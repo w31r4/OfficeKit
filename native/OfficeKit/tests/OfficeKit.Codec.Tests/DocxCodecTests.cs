@@ -3877,6 +3877,105 @@ public sealed class DocxCodecTests
     }
 
     [Fact]
+    public void NativeTableAccessibilityMetadataAuthorsImportsEditsAndRejectsIrregularProfiles()
+    {
+        var authoredRequest = MergedTableExportRequest();
+        authoredRequest.Artifact.Document.Blocks[0].Table.AccessibilityTitle = "Quarterly delivery status";
+        authoredRequest.Artifact.Document.Blocks[0].Table.AccessibilityDescription = "A three-row matrix of release gates, semantic checks, and visual review status.";
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var document = WordprocessingDocument.Open(stream, false))
+        {
+            var properties = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single().TableProperties!;
+            Assert.Equal("Quarterly delivery status", properties.TableCaption!.Val!.Value);
+            Assert.Equal("A three-row matrix of release gates, semantic checks, and visual review status.", properties.TableDescription!.Val!.Value);
+            var children = properties.ChildElements.ToArray();
+            Assert.True(Array.FindIndex(children, child => child is W.TableCaption) < Array.FindIndex(children, child => child is W.TableDescription));
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(document));
+        }
+
+        var imported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedTable = imported.Artifact.Document.Blocks[0].Table;
+        Assert.True(importedTable.HasAccessibilityTitle);
+        Assert.Equal("Quarterly delivery status", importedTable.AccessibilityTitle);
+        Assert.True(importedTable.HasAccessibilityDescription);
+
+        importedTable.AccessibilityTitle = "Release-readiness matrix";
+        importedTable.ClearAccessibilityDescription();
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        using (var stream = new MemoryStream(edited.File.ToByteArray()))
+        using (var document = WordprocessingDocument.Open(stream, false))
+        {
+            var properties = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single().TableProperties!;
+            Assert.Equal("Release-readiness matrix", properties.TableCaption!.Val!.Value);
+            Assert.Null(properties.TableDescription);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(document));
+        }
+        var roundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = edited.File,
+        });
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        var roundTripTable = roundTrip.Artifact.Document.Blocks[0].Table;
+        Assert.True(roundTripTable.HasAccessibilityTitle);
+        Assert.Equal("Release-readiness matrix", roundTripTable.AccessibilityTitle);
+        Assert.False(roundTripTable.HasAccessibilityDescription);
+
+        var invalid = MergedTableExportRequest();
+        invalid.Artifact.Document.Blocks[0].Table.AccessibilityTitle = new string('a', 32_768);
+        var invalidResponse = Invoke(invalid);
+        Assert.False(invalidResponse.Ok);
+        Assert.Equal("invalid_document_table", Assert.Single(invalidResponse.Diagnostics).Code);
+
+        var duplicate = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = ByteString.CopyFrom(AddDuplicateTableAccessibility(authored.File.ToByteArray())),
+        });
+        Assert.True(duplicate.Ok, Diagnostics(duplicate));
+        Assert.False(duplicate.Artifact.Document.Blocks[0].Table.HasAccessibilityTitle);
+        var duplicateNoOp = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = duplicate.Artifact,
+        });
+        Assert.True(duplicateNoOp.Ok, Diagnostics(duplicateNoOp));
+        duplicate.Artifact.Document.Blocks[0].Table.AccessibilityTitle = "Requested replacement";
+        var duplicateRejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = duplicate.Artifact,
+        });
+        Assert.False(duplicateRejected.Ok);
+        Assert.Equal("unsupported_document_edit", Assert.Single(duplicateRejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void ImportedTableRowKeepTogetherEditRejectsExplicitOrOutOfOrderRowProperties()
     {
         var authored = Invoke(MergedTableExportRequest());
@@ -9600,6 +9699,20 @@ public sealed class DocxCodecTests
             var indentation = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single()
                 .TableProperties!.GetFirstChild<W.TableIndentation>()!;
             indentation.Width = 120;
+            document.MainDocumentPart.Document.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddDuplicateTableAccessibility(byte[] bytes)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var document = WordprocessingDocument.Open(stream, true))
+        {
+            var properties = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single().TableProperties!;
+            properties.Append(new W.TableCaption { Val = "Conflicting title" });
             document.MainDocumentPart.Document.Save();
         }
         return stream.ToArray();

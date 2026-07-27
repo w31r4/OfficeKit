@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 389);
+assert.equal(HELP_CATALOG.length, 390);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -178,6 +178,7 @@ assert.ok(HELP_CATALOG.some((item) => item.name === "document.addBibliography"))
 assert.ok(HELP_CATALOG.some((item) => item.name === "document.addTableOfContents"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "documentTable.setHorizontalAlignment"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "documentTable.setHeaderRowCount"));
+assert.ok(HELP_CATALOG.some((item) => item.name === "documentTable.setAccessibilityMetadata"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "paragraph.addField"));
 assert.match(HELP_CATALOG.find((item) => item.name === "paragraph.replaceText")?.summary || "", /textPatchable.*unique ordinary w:r\/w:t.*adjacent non-empty direct runs.*byte-identical w:rPr.*fail closed/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "paragraph.replaceText")?.schema?.parameters?.search?.required, true);
@@ -431,7 +432,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.resolve")?.
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.ensure")?.schema?.returns?.result?.description || "", /pinned catalog assets.*safe extraction.*never downloads credentials or falls back/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.probe")?.schema?.returns?.state?.description || "", /no network request.*cache write.*MuPDF import.*provider fallback/i);
 const documentCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "document");
-assert.equal(documentCatalog.length, 71);
+assert.equal(documentCatalog.length, 72);
 assert.ok(documentCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.type, "object");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.description || "", /keepNext.*following paragraph.*keepLinesTogether.*paragraph.*splitting across pages.*widowControl.*orphan.*widow.*pageBreakBefore.*new page.*independent.*do not calculate pages.*true or false.*false.*override.*inherited.*contextualSpacing.*true.*before.*after.*adjacent.*same style.*false.*override.*inherited.*shadingFill.*#RRGGBB.*w:shd.*borders.*nonempty object.*top\/left\/bottom\/right\/between\/bar.*w:pBdr.*outlineLevel.*0 through 9.*9 explicitly clears.*w:keepNext\/w:keepLines\/w:pageBreakBefore\/w:widowControl\/w:contextualSpacing\/w:shd\/w:pBdr\/w:outlineLvl\/w:suppressLineNumbers.*source-owned.*fails closed/i);
@@ -466,6 +467,11 @@ assert.match(HELP_CATALOG.find((item) => item.name === "documentTable.setRowKeep
 assert.ok(HELP_CATALOG.some((item) => item.name === "documentTable.setMinimumRowHeight"));
 assert.equal(HELP_CATALOG.find((item) => item.name === "documentTable.setMinimumRowHeight")?.schema?.parameters?.rowIndex?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "documentTable.setMinimumRowHeight")?.summary || "", /physical row.*w:trHeight.*atLeast.*not a fixed exact height.*fails? closed/i);
+assert.ok(HELP_CATALOG.some((item) => item.name === "documentTable.setAccessibilityMetadata"));
+assert.equal(HELP_CATALOG.find((item) => item.name === "documentTable.setAccessibilityMetadata")?.schema?.parameters?.title?.type, "string | null");
+assert.match(HELP_CATALOG.find((item) => item.name === "documentTable.setAccessibilityMetadata")?.summary || "", /non-visible Word table alternative text.*tblCaption.*tblDescription.*visible caption paragraph.*fail closed/i);
+assert.equal(HELP_CATALOG.find((item) => item.name === "document.addTable")?.schema?.parameters?.accessibility?.type, "object");
+assert.match(HELP_CATALOG.find((item) => item.name === "document.addTable")?.schema?.parameters?.accessibility?.description || "", /non-visible.*tblCaption.*tblDescription.*visible caption paragraph/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addListItem")?.schema?.parameters?.numberingStyleId?.type, "string");
 assert.match(HELP_CATALOG.find((item) => item.name === "DocumentModel.create")?.schema?.parameters?.styles?.description || "", /numberingId\/numberingLevel/);
 assert.match(HELP_CATALOG.find((item) => item.name === "DocumentModel.create")?.summary || "", /solid paragraph borders/i);
@@ -732,6 +738,7 @@ assert.match(document.help("document.addField").ndjson, /fldSimple/);
 assert.match(document.help("document.addTableOfContents").ndjson, /complex TOC field/);
 assert.match(document.help("documentTable.setHorizontalAlignment").ndjson, /w:jc.*center\/right.*indentDxa.*fail closed/is);
 assert.match(document.help("documentTable.setHeaderRowCount").ndjson, /contiguous leading rows.*w:tblHeader.*separate from headerFill.*fail closed/is);
+assert.match(document.help("documentTable.setAccessibilityMetadata").ndjson, /non-visible.*tblCaption.*tblDescription.*visible caption paragraph.*fail closed/is);
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addTable")?.schema?.parameters?.headerRowCount?.type, "number");
 assert.match(document.help("paragraph.addField").ndjson, /inline field run/);
 assert.match(document.help("paragraph.replaceText").ndjson, /source-bound patches.*native-node.*source-hash validation/i);
