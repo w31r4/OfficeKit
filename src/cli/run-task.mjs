@@ -20,10 +20,13 @@ export async function runTaskCommand(args, { output = process.stdout } = {}) {
     return;
   }
   const [requestedScript, ...remainder] = args;
+  const urlScheme = /^[a-z][a-z0-9+.-]*:/iu.test(requestedScript);
+  const windowsDrivePath =
+    process.platform === "win32" && /^[a-z]:/iu.test(requestedScript);
   if (
     requestedScript === "-" ||
     requestedScript.includes("\0") ||
-    /^[a-z][a-z0-9+.-]*:/iu.test(requestedScript)
+    (urlScheme && !windowsDrivePath)
   ) {
     throw new Error("officekit run accepts one local .mjs or .js file path, not stdin or a URL.");
   }
