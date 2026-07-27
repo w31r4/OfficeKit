@@ -26,7 +26,7 @@ Pinned release identities:
 | --- | ---: | ---: | ---: | --- |
 | `darwin-arm64` | 84,108,516 | 192,058,893 | 1,146 | `4120f33135af1770b0478d8156613d0b0abdc73ecc0a7965921565971c879bf0` |
 | `linux-x64` | 89,231,813 | 194,749,396 | 1,146 | `9c29968d67770505d739b906c0c68b13465f80af6615b0c2ef40545f369a1ec8` |
-| `win32-x64` | 80,447,505 | 163,630,621 | 1,146 | `02d60b835fe563db786c849e9ae43900e9449d1d35097f854352bca8c8fa339f` |
+| `win32-x64` | 80,459,043 | 163,786,506 | 1,146 | `0f3ae269edf6b52d5e57d6cc69e9d9f95e995ce607fd1b736b751f9eef6f0d61` |
 
 The runtime catalog separately pins the official Node archives:
 `e1a97e14c99c803e96c7339403282ea05a499c32f8d83defe9ef5ec66f979ed1`

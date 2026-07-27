@@ -251,8 +251,8 @@ if ($target -ne "win32-x64") {
   Fail "unsupported target $target."
 }
 
-$expectedSha256 = "02d60b835fe563db786c849e9ae43900e9449d1d35097f854352bca8c8fa339f"
-$expectedSize = 80447505
+$expectedSha256 = "0f3ae269edf6b52d5e57d6cc69e9d9f95e995ce607fd1b736b751f9eef6f0d61"
+$expectedSize = 80459043
 if ($env:OFFICE_KIT_INSTALL_TEST -eq "1") {
   if ([string]::IsNullOrWhiteSpace($env:OFFICE_KIT_TEST_ARCHIVE)) {
     Fail "OFFICE_KIT_TEST_ARCHIVE is required in test mode."

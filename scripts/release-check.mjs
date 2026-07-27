@@ -129,7 +129,7 @@ try {
     !windowsInstaller.includes(`$OfficeKitVersion = "${pkg.version}"`) ||
     /RELEASE_(?:SHA256|SIZE)/.test(windowsInstaller) ||
     !/Invoke-WebRequest/.test(windowsInstaller) ||
-    !/Get-FileHash/.test(windowsInstaller)
+    !/System\.Security\.Cryptography\.SHA256/.test(windowsInstaller)
   ) {
     standaloneIssues.push("Windows standalone installer version, hashes, or verification is incomplete");
   }

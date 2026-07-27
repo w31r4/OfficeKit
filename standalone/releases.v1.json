@@ -14,8 +14,8 @@
     },
     "win32-x64": {
       "asset": "office-kit-0.5.0-win32-x64.zip",
-      "sha256": "02d60b835fe563db786c849e9ae43900e9449d1d35097f854352bca8c8fa339f",
-      "size": 80447505
+      "sha256": "0f3ae269edf6b52d5e57d6cc69e9d9f95e995ce607fd1b736b751f9eef6f0d61",
+      "size": 80459043
     }
   }
 }
