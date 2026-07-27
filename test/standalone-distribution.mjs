@@ -66,6 +66,26 @@ async function countTemplateCards(packageRoot) {
 
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-standalone-"));
 try {
+  const compressionFixture = path.join(temporary, "compression-fixture");
+  await fs.mkdir(path.join(compressionFixture, "sub"), { recursive: true });
+  await fs.writeFile(path.join(compressionFixture, "alpha.txt"), "alpha\n");
+  await fs.writeFile(
+    path.join(compressionFixture, "sub", "run"),
+    "#!/bin/sh\nexit 0\n",
+    { mode: 0o755 },
+  );
+  await fs.chmod(path.join(compressionFixture, "sub", "run"), 0o755);
+  const compressionVector = await createDeterministicTarGz(
+    compressionFixture,
+    "fixture",
+  );
+  assert.equal(compressionVector.length, 174);
+  assert.equal(
+    sha256(compressionVector),
+    "e444435e9be092e8a177e1f8c448c101c4cf8b453e8a89a956e8752b1553ea13",
+    "release compression must stay independent of the host Node/zlib version",
+  );
+
   const fakeRuntime = path.join(temporary, "fake-runtime");
   const runtimeRootName = `node-v${process.versions.node}-${target}`;
   const runtimeRoot = path.join(fakeRuntime, runtimeRootName);

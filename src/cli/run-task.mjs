@@ -1,5 +1,5 @@
 import { lstat, readFile, realpath } from "node:fs/promises";
-import { registerHooks } from "node:module";
+import Module, { registerHooks } from "node:module";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -45,21 +45,43 @@ export async function runTaskCommand(args, { output = process.stdout } = {}) {
     readPackageMetadata(),
   ]);
   const exportTargets = exportedOfficeKitTargets(packageMetadata);
+  const commonJsTargets = new Map(
+    [...exportTargets].map(([specifier, target]) => [
+      specifier,
+      fileURLToPath(target),
+    ]),
+  );
+  const unpublishedSubpathError = (specifier) =>
+    new Error(`OfficeKit task requested unpublished package subpath "${specifier}".`);
+  const isOfficeKitSpecifier = (specifier) =>
+    specifier === packageMetadata.name ||
+    specifier.startsWith(`${packageMetadata.name}/`);
   const hooks = registerHooks({
     resolve(specifier, context, nextResolve) {
       const target = exportTargets.get(specifier);
       if (target != null) return { shortCircuit: true, url: target };
-      if (
-        specifier === packageMetadata.name ||
-        specifier.startsWith(`${packageMetadata.name}/`)
-      ) {
-        throw new Error(
-          `OfficeKit task requested unpublished package subpath "${specifier}".`,
-        );
-      }
+      if (isOfficeKitSpecifier(specifier)) throw unpublishedSubpathError(specifier);
       return nextResolve(specifier, context);
     },
   });
+  const originalCommonJsResolve = Module._resolveFilename;
+  const commonJsResolve = function resolveOfficeKitFromCli(
+    specifier,
+    parent,
+    isMain,
+    options,
+  ) {
+    const target = commonJsTargets.get(specifier);
+    if (target != null) return target;
+    if (isOfficeKitSpecifier(specifier)) throw unpublishedSubpathError(specifier);
+    return Reflect.apply(originalCommonJsResolve, this, [
+      specifier,
+      parent,
+      isMain,
+      options,
+    ]);
+  };
+  Module._resolveFilename = commonJsResolve;
 
   const originalArgv = process.argv;
   process.argv = [process.execPath, canonicalScript, ...taskArguments];
@@ -75,6 +97,7 @@ export async function runTaskCommand(args, { output = process.stdout } = {}) {
     throw error;
   } finally {
     process.argv = originalArgv;
+    Module._resolveFilename = originalCommonJsResolve;
     hooks.deregister();
   }
 }
