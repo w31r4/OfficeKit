@@ -117,6 +117,35 @@ invalid numeric values, and unknown restart values likewise make the section
 read-only. Use native Word/LibreOffice pagination to check the displayed
 numbers and column placement; model preview alone is not authoritative.
 
+## Keep headings and paragraphs together
+
+Paragraph pagination directives are separate from page geometry. Use only the
+one that expresses the request; OfficeKit does not simulate pagination:
+
+```js
+document.addParagraph("Decision", {
+  styleId: "Heading1",
+  paragraphFormat: { keepNext: true },
+});
+document.addParagraph("A short conclusion that must not split across pages.", {
+  paragraphFormat: { keepLinesTogether: true },
+});
+document.addParagraph("Appendix", {
+  styleId: "Heading1",
+  paragraphFormat: { pageBreakBefore: true },
+});
+```
+
+`keepNext` asks Word to keep this paragraph with its following paragraph.
+`keepLinesTogether` writes `w:keepLines`, so one paragraph may move to the
+next page rather than split across two pages. `pageBreakBefore` writes
+`w:pageBreakBefore`. All three accept boolean `true`/`false`; omission inherits
+the named-style/default behavior. Canonical direct/style leaves are editable
+after import. Duplicate, child-bearing, extension-bearing, or invalid lexical
+`w:keepNext`, `w:keepLines`, `w:pageBreakBefore`, or `w:suppressLineNumbers`
+markup stays source-owned and semantic replacement fails closed. Native
+Word/LibreOffice rendering remains the final authority on actual page breaks.
+
 `pageNumbering` owns one canonical native `w:pgNumType` leaf. Use `start` to
 restart a section at an integer from 0 through 2147483647; omit it to continue
 the previous section's sequence. The optional `format` is one of `decimal`,

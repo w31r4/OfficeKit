@@ -2460,6 +2460,10 @@ message DocumentParagraphFormatting {
   // explicitly restores section numbering when an inherited style suppresses
   // it. Omission leaves the style hierarchy unchanged.
   optional bool suppress_line_numbers = 12;
+  // Presence-aware direct/style paragraph setting for w:keepLines. True asks
+  // the pagination host not to split one paragraph across pages; false is an
+  // explicit override of an inherited keep-lines setting.
+  optional bool keep_lines_together = 13;
 }
 
 enum DocumentHeaderFooterReference {

@@ -433,7 +433,7 @@ const documentCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "doc
 assert.equal(documentCatalog.length, 69);
 assert.ok(documentCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.type, "object");
-assert.match(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.description || "", /suppressLineNumbers.*true.*excludes.*display and calculation.*false.*override.*inherited style.*omission inherits.*source-owned.*fails closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.description || "", /keepNext.*following paragraph.*keepLinesTogether.*paragraph.*splitting across pages.*pageBreakBefore.*new page.*independent.*do not calculate pages.*true or false.*false.*override.*inherited.*w:keepNext\/w:keepLines\/w:pageBreakBefore\/w:suppressLineNumbers.*source-owned.*fails closed/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addSection")?.schema?.parameters?.margins?.type, "object");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addSection")?.schema?.parameters?.margins?.description || "", /binding gutter.*gutterAtTop.*top-edge.*binding-side/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addSection")?.schema?.parameters?.columns?.type, "object");

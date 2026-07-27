@@ -1501,6 +1501,122 @@ public sealed class DocxCodecTests
     }
 
     [Fact]
+    public void ParagraphKeepLinesTogetherAuthorsImportsEditsAndRejectsIrregularMarkup()
+    {
+        var request = ExportRequest(includeSecondParagraph: true);
+        request.Artifact.Document.Blocks[0].Paragraph.Formatting = new DocumentParagraphFormatting
+        {
+            KeepNext = true,
+            KeepLinesTogether = true,
+            PageBreakBefore = true,
+        };
+        request.Artifact.Document.Blocks[1].Paragraph.Formatting = new DocumentParagraphFormatting
+        {
+            KeepLinesTogether = false,
+        };
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = WordprocessingDocument.Open(stream, false))
+        {
+            var paragraphs = package.MainDocumentPart!.Document!.Body!.Elements<W.Paragraph>().ToArray();
+            var firstProperties = paragraphs[0].ParagraphProperties!;
+            Assert.True(firstProperties.GetFirstChild<W.KeepLines>()!.Val!.Value);
+            var propertyChildren = firstProperties.ChildElements.ToList();
+            Assert.True(propertyChildren.IndexOf(firstProperties.GetFirstChild<W.KeepNext>()!) <
+                        propertyChildren.IndexOf(firstProperties.GetFirstChild<W.KeepLines>()!));
+            Assert.True(propertyChildren.IndexOf(firstProperties.GetFirstChild<W.KeepLines>()!) <
+                        propertyChildren.IndexOf(firstProperties.GetFirstChild<W.PageBreakBefore>()!));
+            Assert.False(paragraphs[1].ParagraphProperties!.GetFirstChild<W.KeepLines>()!.Val!.Value);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var imported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedFirst = imported.Artifact.Document.Blocks[0];
+        var importedSecond = imported.Artifact.Document.Blocks[1];
+        Assert.True(importedFirst.Source.Editable);
+        Assert.True(importedFirst.Paragraph.Formatting.HasKeepLinesTogether);
+        Assert.True(importedFirst.Paragraph.Formatting.KeepLinesTogether);
+        Assert.True(importedSecond.Paragraph.Formatting.HasKeepLinesTogether);
+        Assert.False(importedSecond.Paragraph.Formatting.KeepLinesTogether);
+
+        var unchanged = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.True(unchanged.Ok, Diagnostics(unchanged));
+        Assert.Equal(authored.File, unchanged.File);
+
+        importedFirst.Paragraph.Formatting.KeepLinesTogether = false;
+        importedSecond.Paragraph.Formatting.KeepLinesTogether = true;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var roundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = edited.File,
+        });
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.False(roundTrip.Artifact.Document.Blocks[0].Paragraph.Formatting.KeepLinesTogether);
+        Assert.True(roundTrip.Artifact.Document.Blocks[1].Paragraph.Formatting.KeepLinesTogether);
+
+        foreach (var mode in new[] { "duplicate", "extension", "invalid" })
+        {
+            var irregularBytes = MakeKeepLinesIrregular(authored.File.ToByteArray(), mode);
+            var irregular = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ImportDocx,
+                Family = ArtifactFamily.Document,
+                File = ByteString.CopyFrom(irregularBytes),
+            });
+            Assert.True(irregular.Ok, Diagnostics(irregular));
+            var irregularBlock = irregular.Artifact.Document.Blocks[0];
+            Assert.False(irregularBlock.Source.Editable);
+            Assert.False(irregularBlock.Paragraph.Formatting?.HasKeepLinesTogether ?? false);
+            var preserved = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ExportDocx,
+                Family = ArtifactFamily.Document,
+                Artifact = irregular.Artifact,
+            });
+            Assert.True(preserved.Ok, Diagnostics(preserved));
+            Assert.Equal(ByteString.CopyFrom(irregularBytes), preserved.File);
+
+            irregularBlock.Paragraph.Formatting = new DocumentParagraphFormatting { KeepLinesTogether = false };
+            var rejected = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ExportDocx,
+                Family = ArtifactFamily.Document,
+                Artifact = irregular.Artifact,
+            });
+            Assert.False(rejected.Ok);
+            Assert.Equal("unsupported_document_edit", Assert.Single(rejected.Diagnostics).Code);
+        }
+    }
+
+    [Fact]
     public void OfficeSkillProfileRoundTripsFormattingImagesSectionsAndHeaders()
     {
         var authored = Invoke(OfficeSkillProfileExportRequest());
@@ -8552,6 +8668,35 @@ public sealed class DocxCodecTests
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown suppression irregularity.");
+            }
+            document.MainDocumentPart.Document.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] MakeKeepLinesIrregular(byte[] bytes, string mode)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var document = WordprocessingDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var paragraph = document.MainDocumentPart!.Document!.Body!.Elements<W.Paragraph>().First();
+            var properties = paragraph.ParagraphProperties!;
+            var keepLines = properties.GetFirstChild<W.KeepLines>()!;
+            switch (mode)
+            {
+                case "duplicate":
+                    properties.InsertAfter(new W.KeepLines(), keepLines);
+                    break;
+                case "extension":
+                    keepLines.SetAttribute(new OpenXmlAttribute("oat", "probe", "urn:office-kit:test", "1"));
+                    break;
+                case "invalid":
+                    keepLines.SetAttribute(new OpenXmlAttribute("w", "val", "http://schemas.openxmlformats.org/wordprocessingml/2006/main", "invalid"));
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown keep-lines irregularity.");
             }
             document.MainDocumentPart.Document.Save();
         }
