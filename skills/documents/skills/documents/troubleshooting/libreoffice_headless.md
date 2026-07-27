@@ -8,6 +8,8 @@ Use the canonical helper (`render_docx.py`). It:
 - creates a unique per-run LibreOffice profile
 - forces a writable `HOME` / XDG dirs under that profile
 - captures stdout/stderr so failures are diagnosable
+- uses Poppler's `pdfinfo` and `pdftoppm` directly, with no `pdf2image` or
+  other Python-package dependency
 
 ```bash
 python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out

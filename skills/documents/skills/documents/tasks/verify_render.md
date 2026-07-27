@@ -16,6 +16,11 @@ python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out --verbose
 python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out --emit_pdf
 ```
 
+It requires `soffice` plus Poppler's `pdfinfo` and `pdftoppm` on `PATH`. The
+script uses no Python packages beyond the standard library and never installs a
+renderer for you. If one of those commands is unavailable, surface that
+capability gap instead of silently changing renderer.
+
 ## Manual render command (if you need it)
 Use a unique LibreOffice profile (permission/locking issues are common in containers):
 

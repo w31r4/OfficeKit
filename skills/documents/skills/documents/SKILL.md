@@ -55,6 +55,10 @@ DOCX text extraction (or reading XML) will miss layout defects: clipping, overla
 - Open the PNGs (100% zoom) and confirm every page is clean
 - If anything looks off, fix the DOCX and **re-render** (repeat until flawless)
 
+The packaged renderer uses only the Python standard library plus the existing
+`soffice`, `pdfinfo`, and `pdftoppm` executables. It never asks the Agent to
+install a Python package or silently substitutes another renderer.
+
 If rendering fails because LibreOffice/`soffice` is missing, it is acceptable to return the requested DOCX without rendered PNG QA. In that fallback case, use the relevant Markdown task docs in this skill package as the authoritative guidance for building and checking the document structurally, state clearly in the final response that rendering/visual QA could not be completed, and do not imply that the document passed the render gate.
 
 If rendering fails for any other reason, fix rendering first (LibreOffice profile/HOME, conversion errors, or renderer setup) rather than guessing.
