@@ -12,6 +12,11 @@ const provider = path.join(skillRoot, "scripts", "verapdf_provider.py");
 const registry = path.join(skillRoot, "scripts", "pdf_provider.py");
 const fixture = path.join(repoRoot, "test", "fixtures", "pdf", "verapdf-pdfa1b-pass.pdf");
 const fixtureHash = "66077f449d472a048e3bbf7192aa6d2b0b0ebd6b6d8a6f878f776f69424b6deb";
+const providerSource = await fs.readFile(provider, "utf8");
+assert.match(providerSource, /popen_options\["executable"\] = str\(executable\)/,
+  "the Windows adapter must bind CreateProcess to the verified native launcher path");
+assert.match(providerSource, /shell": False/,
+  "the Windows adapter must not introduce a command shell while binding its launcher");
 // GitHub's Windows image has both a native Python and Git Bash's POSIX
 // `python3` shim. The adapter must execute the native veraPDF launcher with
 // native CreateProcess semantics, so the release lane may pin its interpreter
