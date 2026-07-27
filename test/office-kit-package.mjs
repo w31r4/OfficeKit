@@ -619,10 +619,10 @@ try {
       process.exit(57);
     }
     const catalogResult = JSON.parse(queried.stdout);
-    const expectedSkillPath = fs.realpathSync(path.join(template.skillPath, "SKILL.md"));
-    const expectedReferencePath = fs.realpathSync(
-      path.join(template.skillPath, "assets", "reference.xlsx"),
-    );
+    const [expectedSkillPath, expectedReferencePath] = await Promise.all([
+      fs.promises.realpath(path.join(template.skillPath, "SKILL.md")),
+      fs.promises.realpath(path.join(template.skillPath, "assets", "reference.xlsx")),
+    ]);
     const catalogMismatch =
       catalogResult.schemaVersion !== 2 ||
       catalogResult.selectionMade !== false ||
