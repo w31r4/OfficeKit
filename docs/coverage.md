@@ -273,6 +273,14 @@ the final accessibility and visual-review path.
 | Redaction and sanitize | partial | MuPDF.js applies real text/rectangle redactions only in a rewrite and explicitly labels that result as narrower than sanitize. The specialist PyMuPDF `>=1.27.2,<1.28` workflow adds active-content cleanup, strict scrub, full rewrite, original-prefix removal, decoded/raw/metadata/attachment/annotation/form/action/hidden-text/OCR residue scans, and single-revision checks. Its typed `redact_ocr_text` vertical slice removes exact raster-only terms from one page whose 0/90/180/270-degree rotation is an explicit precondition: Tesseract language/DPI capability probe, expected-match precondition, native image-placement coverage, canonical unrotated-coordinate redaction, restored `/Rotate`, source immutability, qpdf structural check, rotation-aware post-rewrite OCR residue proof, and Poppler display-space pixel-scope QA all fail closed. Separately installed Tesseract remains required; approximate/fuzzy OCR intent, handwriting, ambiguous multi-image matches, and broader hostile/corpus validation remain open rather than becoming automatic broad redactions. |
 | Signatures and conformance | partial | Signature dictionaries are detected from the object graph. The shipped pyHanko signer supports one source-bound local-PKCS#12 approval or certification signature: exact source/credential hashes, field inventory, visible-field CropBox guard, first-signature certification plus explicit DocMDP, expected-count/acknowledged countersigning, SHA-256 detached/PAdES subfilters, exact-prefix incremental output, no-replace promotion, and mandatory post-sign integrity/DocMDP validation. Real fixtures cover visible certification, invisible countersigning, existing empty fields, explicit-root trust, prior-revision `form-filling`, Poppler appearance bounds/invariance, qpdf/MuPDF re-open, stale hashes, secret non-disclosure/budgets, symlinks, collisions, encryption, and fail-closed policy errors. The separate read-only validator reports cryptographic integrity, selected-policy trust, timestamps, ByteRange/revision coverage, difference analysis, DocMDP/FieldMDP, seed values, and bottom-line gates. veraPDF validates one explicit PDF/A/PDF/UA machine profile. TSA/LTV/DSS, PKCS#11/HSM, remote signing, online revocation retrieval, complete PAdES profile validation, conformance repair, and universal PDF/UA author-intent judgment remain external or human workflows. |
 
+### Documents renderer portability
+
+The packaged Documents `render_docx.py` renderer is runnable with the Python
+standard library plus the explicit `soffice`, `pdfinfo`, and `pdftoppm`
+commands already required for native QA. It does not rely on `pdf2image`,
+install a Python package, or substitute another renderer when Poppler is
+unavailable.
+
 ## Reference Skills
 
 The source and npm layouts contain seven native plugin bundles and twenty-seven

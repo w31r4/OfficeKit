@@ -19,6 +19,9 @@ const fixturesDir = path.join(repoRoot, "test", "skill-harness", "documents", "f
 const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-document-skill-"));
 const baselineDir = path.join(outputDir, "baselines");
 const nativeStatus = nativeDocumentRenderStatus();
+const packagedRenderScript = path.join(repoRoot, "skills", "documents", "skills", "documents", "render_docx.py");
+const packagedRenderSource = await fs.readFile(packagedRenderScript, "utf8");
+assert.doesNotMatch(packagedRenderSource, /pdf2image/i, "the packaged renderer must not require an undeclared Python package");
 
 async function runFixture(name, options = {}) {
   const result = await runDocumentFixture(path.join(fixturesDir, `${name}.json`), {
@@ -48,6 +51,61 @@ try {
   for (const filePath of Object.values(business.qa.summary.files)) {
     const stat = await fs.stat(filePath);
     assert.ok(stat.isFile() && stat.size > 0, `Expected non-empty document skill output ${filePath}`);
+  }
+
+  const renderPython = process.env.OFFICE_KIT_DOCUMENTS_PYTHON || "python3";
+  const pythonVersion = spawnSync(renderPython, ["--version"], { encoding: "utf8" });
+  if (nativeStatus.available && pythonVersion.status === 0) {
+    const renderedOutput = path.join(outputDir, "packaged-render-docx");
+    const rendered = spawnSync(renderPython, [
+      packagedRenderScript,
+      business.docxPath,
+      "--output_dir",
+      renderedOutput,
+      "--emit_pdf",
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      timeout: 60_000,
+      env: { ...process.env, PYTHONNOUSERSITE: "1" },
+    });
+    assert.equal(rendered.status, 0, `The packaged renderer must work with a standard Python runtime\nSTDOUT:\n${rendered.stdout}\nSTDERR:\n${rendered.stderr}`);
+    const renderedFiles = await fs.readdir(renderedOutput);
+    assert.ok(renderedFiles.includes("page-1.png"), "the packaged renderer must promote canonical page PNG names");
+    assert.ok(renderedFiles.includes(path.basename(business.docxPath, ".docx") + ".pdf"), "--emit_pdf must retain the native PDF for explicit QA");
+    assert.ok((await fs.stat(path.join(renderedOutput, "page-1.png"))).size > 0);
+
+    const pdfInfoProbe = spawnSync(renderPython, [
+      "-c",
+      "import importlib.util, sys; spec = importlib.util.spec_from_file_location('renderer', sys.argv[1]); renderer = importlib.util.module_from_spec(spec); spec.loader.exec_module(renderer); width, height = renderer._read_pdf_page_size(sys.argv[2], False); assert width > 0 and height > 0",
+      packagedRenderScript,
+      path.join(renderedOutput, path.basename(business.docxPath, ".docx") + ".pdf"),
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      timeout: 30_000,
+      env: { ...process.env, PYTHONNOUSERSITE: "1" },
+    });
+    assert.equal(pdfInfoProbe.status, 0, `The packaged renderer's Poppler pdfinfo fallback must work\nSTDOUT:\n${pdfInfoProbe.stdout}\nSTDERR:\n${pdfInfoProbe.stderr}`);
+
+    if (!process.env.OFFICE_KIT_DOCUMENTS_PYTHON) {
+      const pythonExecutable = spawnSync(renderPython, ["-c", "import sys; print(sys.executable)"], { encoding: "utf8" }).stdout.trim();
+      const noPopplerPath = path.join(outputDir, "no-poppler-path");
+      await fs.mkdir(noPopplerPath);
+      const missingPoppler = spawnSync(pythonExecutable, [
+        "-c",
+        "import importlib.util, sys; spec = importlib.util.spec_from_file_location('renderer', sys.argv[1]); renderer = importlib.util.module_from_spec(spec); spec.loader.exec_module(renderer); renderer._read_pdf_page_size(sys.argv[2], False)",
+        packagedRenderScript,
+        path.join(renderedOutput, path.basename(business.docxPath, ".docx") + ".pdf"),
+      ], {
+        cwd: repoRoot,
+        encoding: "utf8",
+        timeout: 30_000,
+        env: { ...process.env, PATH: noPopplerPath, PYTHONNOUSERSITE: "1" },
+      });
+      assert.notEqual(missingPoppler.status, 0, "a missing Poppler command must fail closed");
+      assert.match(missingPoppler.stderr, /Poppler pdfinfo is unavailable: expected `pdfinfo` on PATH/i);
+    }
   }
 
   const document = await DocumentFile.importDocx(await FileBlob.load(business.docxPath));

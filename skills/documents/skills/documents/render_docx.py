@@ -9,10 +9,8 @@ import tempfile
 import xml.etree.ElementTree as ET
 from os import makedirs, replace
 from os.path import abspath, basename, exists, expanduser, join, splitext
-from typing import Sequence, cast
+from typing import Sequence
 from zipfile import ZipFile
-
-from pdf2image import convert_from_path, pdfinfo_from_path
 
 TWIPS_PER_INCH: int = 1440
 
@@ -164,6 +162,82 @@ def _run_cmd(cmd: list[str], env: dict, verbose: bool) -> subprocess.CompletedPr
     return proc
 
 
+def _run_required_command(
+    cmd: list[str], env: dict, verbose: bool, label: str
+) -> subprocess.CompletedProcess:
+    """Run one required external command with a concise actionable failure."""
+
+    try:
+        proc = _run_cmd(cmd, env=env, verbose=verbose)
+    except FileNotFoundError as error:
+        raise RuntimeError(
+            f"{label} is unavailable: expected `{cmd[0]}` on PATH. "
+            "Install or expose the required LibreOffice/Poppler command; "
+            "the renderer does not download or install providers."
+        ) from error
+    if proc.returncode != 0:
+        details = (proc.stderr or proc.stdout or "no output").strip()
+        raise RuntimeError(f"{label} failed ({proc.returncode}): {details}")
+    return proc
+
+
+def _read_pdf_page_size(pdf_path: str, verbose: bool) -> tuple[float, float]:
+    """Return a PDF's first-page width and height in points using Poppler."""
+
+    _prepend_bundled_runtime_bin()
+    result = _run_required_command(
+        ["pdfinfo", pdf_path],
+        env=os.environ.copy(),
+        verbose=verbose,
+        label="Poppler pdfinfo",
+    )
+    # Standard Poppler output is e.g. `Page size:      612 x 792 pts (letter)`.
+    match = re.search(
+        r"^Page size:\s*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*pts\b",
+        result.stdout or "",
+        flags=re.MULTILINE,
+    )
+    if not match:
+        raise RuntimeError("Poppler pdfinfo did not report a parseable first-page size.")
+    width_pts = float(match.group(1))
+    height_pts = float(match.group(2))
+    if width_pts <= 0 or height_pts <= 0:
+        raise RuntimeError("Poppler pdfinfo reported an invalid first-page size.")
+    return width_pts, height_pts
+
+
+def _rasterize_pdf(pdf_path: str, out_dir: str, dpi: int, verbose: bool) -> list[str]:
+    """Render all PDF pages through Poppler and promote canonical page names."""
+
+    _prepend_bundled_runtime_bin()
+    # Keep staged PNGs beside their final names so os.replace stays atomic even
+    # when a caller writes to a mounted workspace rather than the system temp
+    # volume.
+    with tempfile.TemporaryDirectory(prefix=".officekit-poppler_", dir=out_dir) as raster_tmp_dir:
+        prefix = join(raster_tmp_dir, "page")
+        _run_required_command(
+            ["pdftoppm", "-png", "-r", str(dpi), pdf_path, prefix],
+            env=os.environ.copy(),
+            verbose=verbose,
+            label="Poppler pdftoppm",
+        )
+        pages: list[tuple[int, str]] = []
+        for src_path in glob.glob(join(raster_tmp_dir, "page-*.png")):
+            match = re.fullmatch(r"page-(\d+)\.png", basename(src_path))
+            if not match:
+                continue
+            pages.append((int(match.group(1)), src_path))
+        pages.sort(key=lambda item: item[0])
+        if not pages:
+            raise RuntimeError("Poppler pdftoppm completed without producing page PNGs.")
+        output_paths: list[str] = []
+        for page_number, src_path in pages:
+            dst_path = join(out_dir, f"page-{page_number}.png")
+            replace(src_path, dst_path)
+            output_paths.append(dst_path)
+        return output_paths
+
+
 def convert_to_pdf(
     doc_path: str,
     user_profile: str,
@@ -284,24 +358,7 @@ def calc_dpi_via_pdf(input_path: str, max_w_px: int, max_h_px: int, verbose: boo
             if not (pdf_path and exists(pdf_path)):
                 raise RuntimeError("Failed to convert input to PDF for DPI computation.\n" + debug)
 
-            info = pdfinfo_from_path(pdf_path)
-            size_val = info.get("Page size")
-            if not size_val:
-                for k, v in info.items():
-                    if isinstance(v, str) and "size" in k.lower() and "pts" in v:
-                        size_val = v
-                        break
-            if not isinstance(size_val, str):
-                raise RuntimeError("Failed to read PDF page size for DPI computation.")
-
-            # Example formats:
-            # - "612 x 792 pts"
-            # - "612.0 x 792.0 pts (letter)"
-            m = re.search(r"(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*pts", size_val)
-            if not m:
-                raise RuntimeError("Unrecognized PDF page size format.")
-            width_pts = float(m.group(1))
-            height_pts = float(m.group(2))
+            width_pts, height_pts = _read_pdf_page_size(pdf_path, verbose=verbose)
             width_in = width_pts / 72.0
             height_in = height_pts / 72.0
             if width_in <= 0 or height_in <= 0:
@@ -341,30 +398,7 @@ def rasterize(
                 shutil.copy2(pdf_path, tmp_pdf)
                 replace(tmp_pdf, dst_pdf)
 
-            paths_raw = cast(
-                list[str],
-                convert_from_path(
-                    pdf_path,
-                    dpi=dpi,
-                    fmt="png",
-                    thread_count=8,
-                    output_folder=out_dir,
-                    paths_only=True,
-                    output_file="page",
-                ),
-            )
-
-    # Rename convert_from_path's output format f'page{thread_id:04d}-{page_num:02d}.png' to 'page-<num>.png'
-    pages: list[tuple[int, str]] = []
-    for src_path in paths_raw:
-        base = splitext(basename(src_path))[0]
-        page_num_str = base.split("-")[-1]
-        page_num = int(page_num_str)
-        dst_path = join(out_dir, f"page-{page_num}.png")
-        replace(src_path, dst_path)
-        pages.append((page_num, dst_path))
-    pages.sort(key=lambda t: t[0])
-    return [path for _, path in pages]
+            return _rasterize_pdf(pdf_path, out_dir, dpi=dpi, verbose=verbose)
 
 
 def main() -> None:
