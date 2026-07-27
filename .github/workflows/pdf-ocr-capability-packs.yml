@@ -255,15 +255,15 @@ jobs:
               "${library_args[@]}"
           else
             # Every Windows source is an exact URL/byte/hash from the audited
-            # input lock. The installers are run only inside RUNNER_TEMP;
-            # `build-ocr-native-payload` then dereferences their native DLL
-            # closure into the pack and the consumer probe below has no access
-            # to these build directories.
+            # input lock. Self-extracting sources are unpacked only under
+            # RUNNER_TEMP; `build-ocr-native-payload` then dereferences their
+            # native DLL closure into the pack and the consumer probe below
+            # has no access to these build directories.
             windows_sources="$RUNNER_TEMP/ocr-windows-sources"
-            tesseract_install="$RUNNER_TEMP/ocr-tesseract-install"
-            ghostscript_install="$RUNNER_TEMP/ocr-ghostscript-install"
+            tesseract_extract="$RUNNER_TEMP/ocr-tesseract-extract"
+            ghostscript_extract="$RUNNER_TEMP/ocr-ghostscript-extract"
             poppler_extract="$RUNNER_TEMP/ocr-poppler-extract"
-            mkdir -p "$windows_sources" "$tesseract_install" "$ghostscript_install" "$poppler_extract"
+            mkdir -p "$windows_sources" "$tesseract_extract" "$ghostscript_extract" "$poppler_extract"
             fetch_locked() {
               local selector="$1"
               local target="$2"
@@ -278,10 +278,10 @@ jobs:
             fetch_locked '.ocrCore.nativeBuild["win32-x64"].tesseract' "$windows_sources/tesseract.exe"
             fetch_locked '.ocrCore.nativeBuild["win32-x64"].ghostscript' "$windows_sources/ghostscript.exe"
             fetch_locked '.ocrCore.nativeBuild["win32-x64"].poppler' "$windows_sources/poppler.zip"
-            export OFFICEKIT_TESSERACT_INSTALLER="$(cygpath -w "$windows_sources/tesseract.exe")"
-            export OFFICEKIT_TESSERACT_INSTALL_ROOT="$(cygpath -w "$tesseract_install")"
-            export OFFICEKIT_GHOSTSCRIPT_INSTALLER="$(cygpath -w "$windows_sources/ghostscript.exe")"
-            export OFFICEKIT_GHOSTSCRIPT_INSTALL_ROOT="$(cygpath -w "$ghostscript_install")"
+            export OFFICEKIT_TESSERACT_ARCHIVE="$(cygpath -w "$windows_sources/tesseract.exe")"
+            export OFFICEKIT_TESSERACT_EXTRACT_ROOT="$(cygpath -w "$tesseract_extract")"
+            export OFFICEKIT_GHOSTSCRIPT_ARCHIVE="$(cygpath -w "$windows_sources/ghostscript.exe")"
+            export OFFICEKIT_GHOSTSCRIPT_EXTRACT_ROOT="$(cygpath -w "$ghostscript_extract")"
             export OFFICEKIT_POPPLER_ARCHIVE="$(cygpath -w "$windows_sources/poppler.zip")"
             export OFFICEKIT_POPPLER_EXTRACT_ROOT="$(cygpath -w "$poppler_extract")"
             export OFFICEKIT_WINDOWS_PATHS="$(cygpath -w "$RUNNER_TEMP/ocr-windows-paths.json")"
@@ -305,35 +305,27 @@ jobs:
                   Write-Host "::endgroup::"
                 }
               }
-              function Install-PinnedGhostscriptRuntime([string]$installer, [string]$destination) {
-                if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) { throw "Ghostscript installer is missing: $installer" }
-                Write-Host "::group::Install Ghostscript into the private build root"
+              function Extract-PinnedGhostscriptRuntime([string]$archive, [string]$destination) {
+                if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw "Ghostscript source archive is missing: $archive" }
+                # Ghostscript's official Windows source is also a
+                # self-extracting archive.  Do not execute it: an NSIS child
+                # can outlive the parent installer even with a private /D
+                # target.  Extract the verified bytes directly instead.
+                $sevenZip = (Get-Command 7z.exe -ErrorAction Stop).Source
+                Write-Host "::group::Extract pinned Ghostscript into the private build root"
                 try {
-                  $process = Start-Process -FilePath $installer -ArgumentList @("/S", "/D=$destination") -PassThru -ErrorAction Stop
-                  if (-not $process.WaitForExit(300000)) {
-                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-                    throw "Ghostscript installer exceeded the 300-second deadline (pid $($process.Id)): $installer"
-                  }
-                  if ($process.ExitCode -ne 0) { throw "Ghostscript installer failed with exit $($process.ExitCode): $installer" }
-                  # Some NSIS installers hand their file-copy work to a child
-                  # process. Do not retain an unbounded process-tree wait;
-                  # instead wait only for the exact layout this pack needs.
-                  $layoutDeadline = [DateTimeOffset]::UtcNow.AddSeconds(90)
-                  while ([DateTimeOffset]::UtcNow -lt $layoutDeadline) {
-                    $installed = Get-ChildItem -LiteralPath $destination -Recurse -File -Filter gswin64c.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-                    if ($null -ne $installed) {
-                      Write-Host "Ghostscript installer completed with exit 0 and exposed gswin64c.exe."
-                      return $installed
-                    }
-                    Start-Sleep -Seconds 1
-                  }
-                  throw "Ghostscript installer completed but did not expose gswin64c.exe within the 90-second layout deadline: $destination"
+                  & $sevenZip x -y "-o$destination" $archive
+                  if ($LASTEXITCODE -ne 0) { throw "7-Zip could not extract the pinned Ghostscript archive (exit $LASTEXITCODE): $archive" }
+                  $ghostscript = Get-ChildItem -LiteralPath $destination -Recurse -File -Filter gswin64c.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+                  if ($null -eq $ghostscript) { throw "The extracted Ghostscript archive did not expose gswin64c.exe: $destination" }
+                  Write-Host "Ghostscript archive exposed gswin64c.exe without executing the installer."
+                  return $ghostscript
                 } finally {
                   Write-Host "::endgroup::"
                 }
               }
-              $tesseract = Extract-PinnedTesseractRuntime $env:OFFICEKIT_TESSERACT_INSTALLER $env:OFFICEKIT_TESSERACT_INSTALL_ROOT
-              $ghostscript = Install-PinnedGhostscriptRuntime $env:OFFICEKIT_GHOSTSCRIPT_INSTALLER $env:OFFICEKIT_GHOSTSCRIPT_INSTALL_ROOT
+              $tesseract = Extract-PinnedTesseractRuntime $env:OFFICEKIT_TESSERACT_ARCHIVE $env:OFFICEKIT_TESSERACT_EXTRACT_ROOT
+              $ghostscript = Extract-PinnedGhostscriptRuntime $env:OFFICEKIT_GHOSTSCRIPT_ARCHIVE $env:OFFICEKIT_GHOSTSCRIPT_EXTRACT_ROOT
               Expand-Archive -LiteralPath $env:OFFICEKIT_POPPLER_ARCHIVE -DestinationPath $env:OFFICEKIT_POPPLER_EXTRACT_ROOT -Force
               $popplerRootName = (Get-Content -Raw $env:OCR_INPUTS | ConvertFrom-Json).ocrCore.nativeBuild."win32-x64".poppler.root
               $popplerRoot = Join-Path $env:OFFICEKIT_POPPLER_EXTRACT_ROOT $popplerRootName
