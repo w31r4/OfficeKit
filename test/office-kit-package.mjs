@@ -688,11 +688,28 @@ function testGlobalCli({ dependencyTarballs, tarball, temporary }) {
     ? path.join(globalPrefix, "officekit.cmd")
     : path.join(globalPrefix, "bin", "officekit");
   assert.ok(fs.existsSync(officekit), "global-prefix install must expose officekit");
-  const execute = (args, cwd, environment = {}) => spawnSync(officekit, args, {
+  const globalModules = process.platform === "win32"
+    ? path.join(globalPrefix, "node_modules")
+    : path.join(globalPrefix, "lib", "node_modules");
+  const officekitModule = path.join(globalModules, "office-kit", "bin", "officekit.mjs");
+  assert.ok(fs.existsSync(officekitModule), "global-prefix install must retain the OfficeKit CLI module");
+  const launcherVersion = spawnSync(officekit, ["--version"], {
+    cwd: temporary,
+    encoding: "utf8",
+    shell: process.platform === "win32",
+  });
+  assert.equal(launcherVersion.status, 0, `global officekit launcher failed\nSTDERR:\n${launcherVersion.stderr}`);
+  assert.equal(launcherVersion.stdout.trim(), "0.5.0");
+  // A Windows .cmd launcher is intended for an interactive command shell. Node's
+  // `shell: true` flattens argv before it reaches that launcher, which changes
+  // values containing spaces. Check that the launcher exists, then exercise the
+  // CLI module with Node's normal argv contract; the standalone Windows lane
+  // separately invokes officekit.cmd from PowerShell as an end user would.
+  const execute = (args, cwd, environment = {}) => spawnSync(process.execPath, [officekitModule, ...args], {
     cwd,
     encoding: "utf8",
     env: { ...process.env, ...environment },
-    shell: process.platform === "win32",
+    shell: false,
   });
   const expectSuccess = (args, cwd, environment = {}) => {
     const result = execute(args, cwd, environment);
