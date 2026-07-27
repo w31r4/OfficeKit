@@ -1,127 +1,133 @@
 # OfficeKit
 
-## 把一句需求变成可以交付的 Office 文件
+## Turn one request into an Office file ready to hand off
 
-**简体中文** | [English](README.en.md)
+**English** | [简体中文](README.zh-CN.md)
 
-给 Agent 数据、现有文件和一句需求，拿回能打开、能继续编辑、能交付的
-Word、Excel、PowerPoint 或 PDF。
+Give an agent your data, existing files, and a short request. Get back a Word,
+Excel, PowerPoint, or PDF file that opens, remains editable, and is ready to use.
 
 ```text
-→ 一个入口，自动选择 Word、Excel、PPT 或 PDF 工作流
-→ 复用合适模板，也能从零设计
-→ 修改已有文件时保留未触及的复杂内容
-→ 交付前重新打开、渲染并检查
+→ one entry point for Word, Excel, PowerPoint, and PDF work
+→ reuse a fitting template or design from scratch
+→ preserve complex source content that was not changed
+→ reopen, render, and check every deliverable
 ```
 
-## 看它怎么工作
+## See it in action
 
 ```text
-你：
-使用 OfficeKit。用 sales.xlsx 做一份给管理层看的 Q2 经营复盘 PPT，
-必须包含收入、毛利、区域差异、主要风险和三项决策；模板由你判断。
+You:
+Use OfficeKit. Turn sales.xlsx into a Q2 business review deck for management.
+Include revenue, margin, regional differences, major risks, and three decisions.
+Choose a template only if one clearly fits.
 
-OfficeKit：
-读取数据 → 确定 PPT 工作流 → 选择模板或不用模板
-→ 生成文件 → 重新打开 → 渲染检查 → 返回 q2-review.pptx
+OfficeKit:
+read the data → choose the presentation workflow → select a template or none
+→ build the deck → reopen it → render and check it → return q2-review.pptx
 ```
 
-也可以直接提出单一格式任务：
+Single-format requests are just as direct:
 
 ```text
-使用 OfficeKit，把这些 CSV 做成带公式、图表和异常标记的 Excel 经营看板。
-使用 OfficeKit，沿用 template.pptx 和 data.xlsx 完成一份客户汇报。
-使用 OfficeKit，更新 contract.docx 的日期和条款，保留目录、批注和页眉。
-使用 OfficeKit，检查 report.pdf 的表单、签名和可访问性并输出审计结果。
+Use OfficeKit to turn these CSV files into an Excel operating dashboard with formulas, charts, and exception flags.
+Use OfficeKit with template.pptx and data.xlsx to complete a customer presentation.
+Use OfficeKit to update the dates and clauses in contract.docx without disturbing its TOC, comments, or headers.
+Use OfficeKit to inspect the forms, signatures, and accessibility of report.pdf and return an audit.
 ```
 
 ## Quick Start
 
-安装一次 OfficeKit；不需要预装 Node.js 或 npm。
+Install OfficeKit once. Node.js and npm are not prerequisites.
 
-macOS（Apple 芯片）和 Linux x64：
+macOS on Apple silicon and Linux x64:
 
 ```sh
 curl -fsSL https://github.com/w31r4/OfficeKit/releases/latest/download/install.sh | sh
 ```
 
-Windows PowerShell：
+Windows PowerShell:
 
 ```powershell
 irm https://github.com/w31r4/OfficeKit/releases/latest/download/install.ps1 | iex
 ```
 
-新开一个终端，进入要处理 Office 文件的项目：
+Open a new terminal, then enter the project where you want to work with Office files:
 
 ```sh
 cd your-project
 officekit init
 ```
 
-`officekit init` 会识别项目里的 Agent 配置，并让你选择将 7 个 OfficeKit Skill
-写入哪些目录。直接回车接受识别结果；需要明确指定时：
+`officekit init` finds the Agent configurations in the project and lets you
+choose which directories receive the seven OfficeKit Skills. Press Enter to
+accept the detected targets, or name them explicitly:
 
 ```sh
 officekit init --tools claude,cursor
 ```
 
-也可以直接对正在使用的 Agent 说：
+You can also tell your current Agent:
 
-> 在这个项目安装并配置 OfficeKit。
+> Set up OfficeKit in this project.
 
-它会使用同一安装器，运行初始化，并按项目配置选择目标。项目里有多个 Agent，
-或目标无法判断时，才需要你确认。
+It uses the same installer, runs initialization, and selects targets from the
+project configuration. It asks you to confirm only when several Agent targets
+are present or none can be identified.
 
-安装新版后，在项目里刷新已安装的 Skill：
+After installing a newer release, refresh the installed Skills from the project:
 
 ```sh
 officekit update
 ```
 
-Skill 里的 JavaScript 任务这样运行：
+Run JavaScript tasks referenced by the Skills with:
 
 ```sh
 officekit run task.mjs -- input.docx output.docx
 ```
 
-`officekit run` 使用已安装的同版本 API；任务自己的第三方依赖仍从任务所在项目解析。
+`officekit run` supplies the matching installed OfficeKit API. A task's other
+dependencies continue to resolve from the task's own project.
 
-## 一个总入口，也保留直接入口
+## One front door, with direct routes when you want them
 
-普通任务直接使用 OfficeKit。它会检查输入、确定输出格式、判断是否需要模板，
-再把文件交给对应 Skill 完成。
+For ordinary work, start with OfficeKit. It inspects the inputs, decides the
+output route, considers templates, and hands each file to its owning Skill.
 
-| 入口 | 适合的任务 |
+| Entry | Good for |
 | --- | --- |
-| [OfficeKit](skills/office-kit/skills/office-kit/SKILL.md) | 从目标直接开始，或处理跨格式、多交付物和模板判断。 |
-| [Documents](skills/documents/skills/documents/SKILL.md) | 已确定要创建或修改 Word。 |
-| [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | 已确定要处理 Excel、CSV、公式、模型或图表。 |
-| [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | 操作已经在 Excel 中打开的工作簿。 |
-| [Presentations](skills/presentations/skills/presentations/SKILL.md) | 已确定要创建或修改 PowerPoint。 |
-| [PDF](skills/pdf/skills/pdf/SKILL.md) | 已确定要读取、创建、检查或处理 PDF。 |
-| [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | 把自己的 DOCX、XLSX 或 PPTX 保存为可复用模板。 |
+| [OfficeKit](skills/office-kit/skills/office-kit/SKILL.md) | Starting from the requested outcome, or handling cross-format and multi-deliverable work. |
+| [Documents](skills/documents/skills/documents/SKILL.md) | Creating or changing a Word document when the format is already known. |
+| [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | Excel, CSV, formulas, models, data preparation, and charts. |
+| [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | Working with a workbook already open in Excel. |
+| [Presentations](skills/presentations/skills/presentations/SKILL.md) | Creating or changing a PowerPoint presentation. |
+| [PDF](skills/pdf/skills/pdf/SKILL.md) | Reading, creating, inspecting, or processing a PDF. |
+| [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | Saving your own DOCX, XLSX, or PPTX reference as a reusable template. |
 
-入口不同，底层文件能力和检查规则相同。直接使用领域 Skill 会跳过格式路由，
-并继续执行源文件保护、渲染和验证。
+Every route uses the same file capabilities and checks. Invoking a domain Skill
+directly skips format routing while retaining source protection, rendering, and
+verification.
 
-## 能做什么
+## What it handles
 
-| 文件 | 常见任务 |
+| File | Common work |
 | --- | --- |
-| Word / DOCX | 报告、函件、合同草稿、样式、分节、页眉页脚、表格、图片、字段、批注和有界局部修改。 |
-| Excel / XLSX | 数据整理、公式、样式、表格、验证、条件格式、图表、sparklines、有界 PivotTable 和财务模型。 |
-| PowerPoint / PPTX | 演示文稿、模板套用、富文本、图片裁剪、表格、图表、连接线、备注、批注和 Master/Layout 保真。 |
-| PDF | 创建、提取文本/表格/图片/链接、表单、批注、页面操作、渲染、rewrite 脱敏和有界签名。 |
+| Word / DOCX | Reports, letters, contract drafts, styles, sections, headers and footers, tables, images, fields, comments, and bounded edits. |
+| Excel / XLSX | Data preparation, formulas, styles, tables, validation, conditional formats, charts, sparklines, bounded PivotTables, and financial models. |
+| PowerPoint / PPTX | Decks, templates, rich text, reversible image crops, tables, charts, connectors, notes, comments, and master/layout fidelity. |
+| PDF | Authoring; text, table, image, and link extraction; forms; annotations; page operations; rendering; rewrite redaction; and bounded signing. |
 
-完整边界见 [coverage](docs/coverage.md)。
+See [coverage](docs/coverage.md) for the complete supported boundary.
 
-## 模板按需使用
+## Use templates when they fit
 
-[Office Template Library](skills/default-template-library/README.md) 提供 20 套
-MIT 授权模板，随已安装的 OfficeKit 保存一份。`officekit init` 只安装 Skill，模板继续
-留在包内。目标明确且模板未指定时，OfficeKit 把需求归一成英文检索词，
-再执行本地 BM25F 搜索；Agent 查看少量候选后选择一个、询问用户或明确
-不用模板。
+The [Office Template Library](skills/default-template-library/README.md) provides
+20 MIT-licensed templates stored once in the installed OfficeKit runtime. `officekit init`
+installs Skills and leaves the template assets in place. When the goal is clear
+and no template has been specified, OfficeKit normalizes the intent into
+English search terms and runs local BM25F retrieval. After reviewing a small
+shortlist, the agent selects one, asks, or proceeds without a template.
 
 ```sh
 officekit template search \
@@ -131,29 +137,31 @@ officekit template search \
   --json
 ```
 
-用户上传的 DOCX、XLSX 或 PPTX 默认只用于当前任务。明确要求以后复用时，
-再交给 Template Creator 保存。
+An uploaded DOCX, XLSX, or PPTX stays scoped to the current task by default.
+Template Creator saves it when the user explicitly wants future reuse.
 
-## 文件交付前会再检查一遍
+## Files are checked before handoff
 
 ```text
-读取原件 → 创建或修改 → 导出 → 重新打开 → 渲染页面 → 检查结果
+read the source → create or change → export → reopen → render pages → check the result
 ```
 
-- DOCX、XLSX 和 PPTX 统一通过 OfficeKit C#/.NET WASM 读写；导入、编辑、
-  导出和二次校验沿用同一条路径。
-- OfficeKit 先确定复杂 Office 内容的可编辑范围，再修改受支持的部分；其余内容
-  保持原样并报告具体限制。
-- PDF 默认通过 MuPDF.js 读取、编辑、检查和渲染。qpdf、OCR、严格清理、
-  pyHanko 签名和 veraPDF 等重型能力由项目显式授权后按任务加载。
+- DOCX, XLSX, and PPTX use OfficeKit C#/.NET WASM. Import, editing, export, and
+  second-pass verification follow the same path.
+- OfficeKit identifies the editable scope of complex Office content, applies
+  supported changes, preserves the rest, and reports the exact boundary.
+- PDF uses MuPDF.js for normal reading, editing, inspection, and rendering.
+  qpdf, OCR, strict cleanup, pyHanko signing, veraPDF, and other heavy
+  capabilities load by task after project authorization.
 
-PDF provider 的策略和限制见
-[Provider Setup](skills/pdf/skills/pdf/tasks/provider_setup.md)。
+See [Provider Setup](skills/pdf/skills/pdf/tasks/provider_setup.md) for PDF
+provider policy and operational limits.
 
 ## JavaScript API
 
-Skills 和应用代码使用同一个 API。Skill 任务通过 `officekit run` 使用全局包；
-应用开发者也可以把 `office-kit` 加入自己的项目依赖后直接调用：
+Skills and application code use the same API. Skill tasks use the global
+package through `officekit run`; application developers can also add
+`office-kit` to a project and call it directly:
 
 ```js
 import { SpreadsheetFile, Workbook } from "office-kit";
@@ -169,22 +177,22 @@ const file = await SpreadsheetFile.exportXlsx(workbook, { recalculate: true });
 await file.save("summary.xlsx");
 ```
 
-可运行示例：
+Runnable examples:
 
-- [创建 DOCX 报告](examples/create-docx-report.mjs)
-- [创建 XLSX 仪表盘](examples/create-xlsx-dashboard.mjs)
-- [使用 Compose 创建 PPTX](examples/create-pptx-compose.mjs)
-- [解析与渲染 PDF](examples/parse-render-pdf.mjs)
+- [Create a DOCX report](examples/create-docx-report.mjs)
+- [Create an XLSX dashboard](examples/create-xlsx-dashboard.mjs)
+- [Create a PPTX deck with Compose](examples/create-pptx-compose.mjs)
+- [Parse and render a PDF](examples/parse-render-pdf.mjs)
 
-需要直接访问底层 Office codec 时，使用 `office-kit/codec`；生成的 wire
-类型位于 `office-kit/codec/wire`。
+For direct access to the low-level Office codec, use `office-kit/codec`.
+Generated wire types are available from `office-kit/codec/wire`.
 
-## 文档与开发
+## Documentation and development
 
-- [API 参考](docs/api.md)
-- [参考 Skill 兼容性](docs/reference-skills.md)
-- [全部能力边界](docs/coverage.md)
-- [发布状态](docs/release.md)
+- [API reference](docs/api.md)
+- [Reference Skill compatibility](docs/reference-skills.md)
+- [Complete capability boundary](docs/coverage.md)
+- [Release status](docs/release.md)
 
 ```sh
 npm test
@@ -193,11 +201,13 @@ npm run docs:api
 npm run release:check
 ```
 
-`OfficeKit` 是产品名，npm 包名为 `office-kit`。版本 `0.5.0`
-当前处于 release candidate 阶段，正式发布后即可从 npm 安装。
+OfficeKit's standalone installers are published through
+[GitHub Releases](https://github.com/w31r4/OfficeKit/releases). The JavaScript
+API remains available for developers who embed OfficeKit in an application.
 
-## 许可证
+## License
 
-[GNU AGPL v3 或更高版本](LICENSE)。网络部署、修改和分发必须遵守 AGPL
-的对应义务。第三方运行时、MuPDF 和专项 provider 的许可证与来源见
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+[GNU AGPL v3 or later](LICENSE). Network deployment, modification, and
+redistribution must meet the applicable AGPL obligations. Third-party runtime,
+MuPDF, and specialist-provider licenses and provenance are recorded in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

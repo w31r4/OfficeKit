@@ -67,7 +67,7 @@
     "native/OfficeBridge/src/*.cs",
     "native/OfficeBridge/src/*.csproj",
     "README.md",
-    "README.en.md",
+    "README.zh-CN.md",
     "THIRD_PARTY_NOTICES.md",
     "LICENSE"
   ],
