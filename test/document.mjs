@@ -222,6 +222,7 @@ const table = document.addTable({
   borderColor: "445566",
   borderSize: 8,
   headerFill: "E2E8F0",
+  verticalAlignment: "center",
   headerRowCount: 1,
   keepTogetherRows: [1],
   values: [["Gate", "Status"], ["Semantic", "Pending"], ["Visual", "Required"]],
@@ -387,6 +388,23 @@ assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:shd\b(?=[^>]*w:val="clear")(?=[^
 assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style\b(?=[^>]*w:styleId="BodyAccent")[\s\S]*?<w:pBdr>[\s\S]*?<w:top\b(?=[^>]*w:val="single")(?=[^>]*w:color="1D4ED8")(?=[^>]*w:sz="8")(?=[^>]*w:space="1")[^>]*\/>[\s\S]*?<w:between\b(?=[^>]*w:val="single")(?=[^>]*w:color="64748B")(?=[^>]*w:sz="4")(?=[^>]*w:space="0")[^>]*\/>[\s\S]*?<\/w:pBdr>[\s\S]*?<\/w:style>/);
 assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:pBdr>[\s\S]*?<w:bottom\b(?=[^>]*w:val="single")(?=[^>]*w:color="9C2B2E")(?=[^>]*w:sz="12")(?=[^>]*w:space="0")[^>]*\/>[\s\S]*?<w:bar\b(?=[^>]*w:val="single")(?=[^>]*w:color="0F766E")(?=[^>]*w:sz="6")(?=[^>]*w:space="2")[^>]*\/>[\s\S]*?<\/w:pBdr>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
 assert.equal((firstDocumentXml.match(/<w:tblHeader\b[^>]*\/>/g) || []).length, 1, "source-free table must mark exactly its leading header row");
+assert.equal((firstDocumentXml.match(/<w:vAlign\b[^>]*w:val="center"[^>]*\/>/g) || []).length, 6, "source-free table alignment must be explicit on every physical cell");
+table.verticalAlignment = "middle";
+await assert.rejects(() => DocumentFile.exportDocx(document), /verticalAlignment must be top, center, or bottom/i);
+table.verticalAlignment = "center";
+const mixedTableAlignmentZip = await JSZip.loadAsync(firstDocxBytes);
+const mixedTableAlignmentXml = await mixedTableAlignmentZip.file("word/document.xml").async("text");
+let mixedTableAlignmentCount = 0;
+mixedTableAlignmentZip.file("word/document.xml", mixedTableAlignmentXml.replace(/<w:vAlign\b[^>]*w:val="center"[^>]*\/>/g, (match) => {
+  mixedTableAlignmentCount += 1;
+  return mixedTableAlignmentCount === 2 ? match.replace('w:val="center"', 'w:val="bottom"') : match;
+}));
+assert.equal(mixedTableAlignmentCount, 6);
+const mixedTableAlignmentDocument = await DocumentFile.importDocx(await mixedTableAlignmentZip.generateAsync({ type: "uint8array" }));
+const mixedTableAlignment = mixedTableAlignmentDocument.blocks.find((block) => block.kind === "table");
+assert.equal(mixedTableAlignment.verticalAlignment, undefined, "mixed native cell alignment must remain source-bound");
+mixedTableAlignment.verticalAlignment = "top";
+await assert.rejects(() => DocumentFile.exportDocx(mixedTableAlignmentDocument), /direct formatting can change only when OfficeKit recognized the complete bounded profile/i);
 await assert.rejects(
   () => DocumentFile.exportDocx(DocumentModel.create({
     blocks: [{ kind: "paragraph", text: "Invalid suppression", paragraphFormat: { suppressLineNumbers: "yes" } }],
@@ -885,6 +903,7 @@ assert.equal(imported.blocks.filter((block) => block.kind === "listItem").length
 assert.equal(imported.blocks.find((block) => block.kind === "table")?.values[1][1], "Pending");
 assert.equal(imported.blocks.find((block) => block.kind === "table")?.headerRowCount, 1);
 assert.deepEqual(imported.blocks.find((block) => block.kind === "table")?.keepTogetherRows, [1]);
+assert.equal(imported.blocks.find((block) => block.kind === "table")?.verticalAlignment, "center");
 assert.equal(imported.blocks.find((block) => block.kind === "hyperlink")?.url, hyperlink.url);
 assert.equal(imported.blocks.find((block) => block.kind === "field")?.instruction, "PAGE");
 assert.deepEqual(imported.blocks.filter((block) => block.kind === "change").map((block) => [block.changeType, block.text, block.author]), [
@@ -920,6 +939,11 @@ const clearedBordersDocx = await DocumentFile.exportDocx(importedForBorderClear)
 const clearedBordersRoundTrip = await DocumentFile.importDocx(clearedBordersDocx);
 assert.equal(clearedBordersRoundTrip.blocks.find((block) => block.text === "Bold and colored")?.paragraphFormat.borders, undefined);
 
+const importedForTableAlignmentClear = await DocumentFile.importDocx(firstDocx);
+delete importedForTableAlignmentClear.blocks.find((block) => block.kind === "table").verticalAlignment;
+const clearedTableAlignment = await DocumentFile.importDocx(await DocumentFile.exportDocx(importedForTableAlignmentClear));
+assert.equal(clearedTableAlignment.blocks.find((block) => block.kind === "table")?.verticalAlignment, undefined);
+
 const resegmentedNotes = await DocumentFile.importDocx(firstDocx);
 resegmentedNotes.notes[0].paragraphs = ["Source-free footnote", "Second source-free footnote paragraph", "An unsupported third paragraph"];
 await assert.rejects(
@@ -945,6 +969,7 @@ const importedBullet = imported.blocks.find((block) => block.kind === "listItem"
 importedBullet.text = "Inspect the edited semantic model.";
 const importedTable = imported.blocks.find((block) => block.kind === "table");
 importedTable.values[1][1] = "Pass";
+importedTable.verticalAlignment = "bottom";
 importedTable.setHeaderRowCount(2);
 importedTable.setRowKeepTogether(2, true);
 const importedLink = imported.blocks.find((block) => block.kind === "hyperlink");
@@ -1004,6 +1029,7 @@ assert.equal(roundTrip.blocks.some((block) => block.kind === "listItem" && block
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.values[1][1], "Pass");
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.headerRowCount, 2);
 assert.deepEqual(roundTrip.blocks.find((block) => block.kind === "table")?.keepTogetherRows, [1, 2]);
+assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.verticalAlignment, "bottom");
 assert.equal(roundTrip.blocks.find((block) => block.kind === "hyperlink")?.history, false);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "field")?.instruction, "NUMPAGES");
 assert.deepEqual(roundTrip.blocks.filter((block) => block.kind === "change").map((block) => [block.changeType, block.text, block.author]), [

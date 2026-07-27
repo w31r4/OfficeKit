@@ -28,6 +28,7 @@ import { createTextRange, textRangeRecord } from "../shared/text-range.mjs";
 import { queryHelpRecords } from "../help/index.mjs";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const DOCUMENT_TABLE_VERTICAL_ALIGNMENTS = new Set(["top", "center", "bottom"]);
 
 const DOCX_PACKAGE_CONFIG = {
   family: "DOCX",
@@ -240,6 +241,7 @@ class DocumentTableBlock {
     this.borderColor = String(config.borderColor || "D9D9D9").replace(/^#/, "").toUpperCase();
     this.borderSize = Math.round(Number(config.borderSize ?? 4));
     this.headerFill = String(config.headerFill || "F2F4F7").replace(/^#/, "").toUpperCase();
+    this.verticalAlignment = config.verticalAlignment == null ? undefined : String(config.verticalAlignment);
     this.headerRowCount = config.headerRowCount === undefined ? 0 : Number(config.headerRowCount);
     this.keepTogetherRows = normalizeDocumentTableKeepTogetherRows(config.keepTogetherRows, this.rows, this.id);
   }
@@ -284,8 +286,8 @@ class DocumentTableBlock {
     return this.cells;
   }
   getCell(row, column) { return new DocumentTableCell(this, row, column); }
-  inspectRecord(index) { return { kind: "table", id: this.id, index, name: this.name || undefined, rows: this.rows, cols: this.columns, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], cells: this.cells, pendingTextPatches: this.textPatches.length, styleId: this.styleId, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, values: this.values.map((row, rowIndex) => row.map((_, columnIndex) => this.getCell(rowIndex, columnIndex).value)) }; }
-  toProto() { return { kind: "table", id: this.id, name: this.name, styleId: this.styleId, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], cells: this.cells, textPatches: this.textPatches, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, values: this.values }; }
+  inspectRecord(index) { return { kind: "table", id: this.id, index, name: this.name || undefined, rows: this.rows, cols: this.columns, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], cells: this.cells, pendingTextPatches: this.textPatches.length, styleId: this.styleId, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values.map((row, rowIndex) => row.map((_, columnIndex) => this.getCell(rowIndex, columnIndex).value)) }; }
+  toProto() { return { kind: "table", id: this.id, name: this.name, styleId: this.styleId, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], cells: this.cells, textPatches: this.textPatches, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values }; }
 }
 
 function normalizeDocumentInlineField(value) {
@@ -1860,6 +1862,7 @@ export class DocumentModel {
         if (!Number.isFinite(block.borderSize) || block.borderSize < 0) issues.push(verificationIssue("document", "invalidTableBorderSize", `Table ${block.id} has an invalid border size.`, { id: block.id, borderSize: block.borderSize }));
         if (!/^[A-F0-9]{6}$/.test(block.borderColor)) issues.push(verificationIssue("document", "invalidTableBorderColor", `Table ${block.id} has an invalid border color.`, { id: block.id, borderColor: block.borderColor }));
         if (!/^[A-F0-9]{6}$/.test(block.headerFill)) issues.push(verificationIssue("document", "invalidTableHeaderFill", `Table ${block.id} has an invalid header fill.`, { id: block.id, headerFill: block.headerFill }));
+        if (block.verticalAlignment != null && !DOCUMENT_TABLE_VERTICAL_ALIGNMENTS.has(block.verticalAlignment)) issues.push(verificationIssue("document", "invalidTableVerticalAlignment", `Table ${block.id} verticalAlignment must be top, center, or bottom.`, { id: block.id, verticalAlignment: block.verticalAlignment }));
         block.values.forEach((row, rowIndex) => {
           if (row.length !== block.columns) issues.push(verificationIssue("document", "raggedTableRows", `Table ${block.id} row ${rowIndex} has ${row.length} cells; expected ${block.columns}.`, { id: block.id, row: rowIndex, cells: row.length, expected: block.columns }));
           for (const cell of row) {

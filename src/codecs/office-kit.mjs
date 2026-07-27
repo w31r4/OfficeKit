@@ -30,6 +30,7 @@ import {
   DocumentSectionLineNumberRestart,
   DocumentSectionPageNumberFormat,
   DocumentStyleType,
+  DocumentTableVerticalAlignment,
   DocumentTableVerticalMerge,
   SpreadsheetCalculationMode,
   SpreadsheetWorksheetVisibility,
@@ -2438,7 +2439,24 @@ function documentTableFormatting(block, logicalColumns) {
   if (!Number.isInteger(borderSize) || borderSize < 0 || borderSize > 96 || borderSize === 1) {
     invalid("borderSize must be zero or an integer from 2 through 96 eighths of a point.");
   }
-  return { widthDxa, indentDxa, columnWidthsDxa, cellMarginsDxa, borderColor, borderSize, headerFill };
+  const verticalAlignment = block.verticalAlignment == null ? undefined : String(block.verticalAlignment);
+  const wireVerticalAlignment = verticalAlignment === undefined ? undefined
+    : verticalAlignment === "top" ? DocumentTableVerticalAlignment.TOP
+      : verticalAlignment === "center" ? DocumentTableVerticalAlignment.CENTER
+        : verticalAlignment === "bottom" ? DocumentTableVerticalAlignment.BOTTOM : undefined;
+  if (verticalAlignment !== undefined && wireVerticalAlignment === undefined) {
+    invalid("verticalAlignment must be top, center, or bottom when provided.");
+  }
+  return {
+    widthDxa,
+    indentDxa,
+    columnWidthsDxa,
+    cellMarginsDxa,
+    borderColor,
+    borderSize,
+    headerFill,
+    ...(wireVerticalAlignment === undefined ? {} : { verticalAlignment: wireVerticalAlignment }),
+  };
 }
 
 function documentTableFormattingConfig(table) {
@@ -2453,6 +2471,9 @@ function documentTableFormattingConfig(table) {
       borderColor: formatting.borderColor,
       borderSize: formatting.borderSize,
       headerFill: formatting.headerFill,
+      ...(formatting.verticalAlignment === DocumentTableVerticalAlignment.TOP ? { verticalAlignment: "top" }
+        : formatting.verticalAlignment === DocumentTableVerticalAlignment.CENTER ? { verticalAlignment: "center" }
+          : formatting.verticalAlignment === DocumentTableVerticalAlignment.BOTTOM ? { verticalAlignment: "bottom" } : {}),
     };
   }
   return {
@@ -2475,7 +2496,7 @@ function sameDocumentTableFormatting(block, table) {
     block.cellMarginsDxa?.start === expected.cellMarginsDxa.start &&
     block.cellMarginsDxa?.end === expected.cellMarginsDxa.end &&
     block.borderColor === expected.borderColor && block.borderSize === expected.borderSize &&
-    block.headerFill === expected.headerFill;
+    block.headerFill === expected.headerFill && block.verticalAlignment === expected.verticalAlignment;
 }
 
 const DOCUMENT_PICTURE_BULLET_EMU_PER_POINT = 12_700;
