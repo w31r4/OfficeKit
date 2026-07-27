@@ -377,11 +377,13 @@ try {
       ".bin",
       process.platform === "win32" ? "officekit.cmd" : "officekit",
     );
-    if (!fs.existsSync(installedBin)) process.exit(62);
+    const installedCliModule = path.join(installedPackage, "bin", "officekit.mjs");
+    if (!fs.existsSync(installedBin) || !fs.existsSync(installedCliModule)) process.exit(62);
     const initializedProject = path.join(process.cwd(), "officekit-initialized-project");
     const initialized = spawnSync(
-      installedBin,
+      process.execPath,
       [
+        installedCliModule,
         "init",
         initializedProject,
         "--tools",
@@ -391,7 +393,6 @@ try {
       {
         cwd: process.cwd(),
         encoding: "utf8",
-        shell: process.platform === "win32",
       },
     );
     if (initialized.status !== 0) {
@@ -598,8 +599,9 @@ try {
       ))
     ) process.exit(56);
     const queried = spawnSync(
-      installedBin,
+      process.execPath,
       [
+        installedCliModule,
         "template", "search",
         "--kind", "spreadsheet",
         "--root", path.join(templateHome, "skills"),
