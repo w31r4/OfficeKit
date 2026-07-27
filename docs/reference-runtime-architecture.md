@@ -2,18 +2,16 @@
 
 ## Decision
 
-OfficeKit is the only XLSX, DOCX, and PPTX codec. It is implemented in C# with the Open XML SDK and compiled into the bundled .NET WebAssembly runtime. PDF remains an independent implementation.
+OfficeKit Codec is the only XLSX, DOCX, and PPTX codec. It is implemented in C# with the Open XML SDK and compiled into the bundled .NET WebAssembly runtime. PDF remains an independent implementation.
 
-Version 0.3 retains the single-codec boundary: no Office codec registry,
-selector, alternate runtime shim, or fallback path. Deprecated import-name
-bridges remain compatibility surface only and never participate in codec
-selection.
+OfficeKit retains the single-codec boundary: no Office codec registry,
+selector, alternate runtime shim, or fallback path.
 
 ```mermaid
 flowchart LR
   A["JavaScript artifact model"] --> B["Office facade"]
   B --> C["OfficeKit wire adapter"]
-  C --> D["C# WASM codec"]
+  C --> D["OfficeKit Codec (.NET WASM)"]
   D --> E["XLSX / DOCX / PPTX package"]
   E --> D
   D --> C
@@ -48,7 +46,7 @@ JavaScript owns:
 
 JavaScript does not serialize or parse DOCX, XLSX, or PPTX for the normal file facades.
 
-### OfficeKit C# WASM
+### OfficeKit Codec
 
 OfficeKit owns:
 
@@ -66,7 +64,7 @@ PDF never enters the Office codec request, has no Office protobuf payload, and d
 
 The JavaScript `PdfArtifact`/`PdfFile` domain owns greenfield semantic/tagged authoring, trusted-model roundtrip, reading order, accessibility metadata, inspect/verify, and modeled render QA. The required `mupdf@1.28.0` dependency is loaded only when a PDF operation needs it; arbitrary PDFs use MuPDF.js by default for native parsing, structured-text/image/link evidence, inspection, raster rendering, and bounded direct-original edits. PDF.js remains an optional reconstructed read/inspect adapter, never an edit representation.
 
-The native PDF Skill calls the same `PdfFile` MuPDF.js primitives through a thin JavaScript CLI. `office-kit/pdf/providers` is a separate, lightweight control plane: it imports a versioned catalog and project policy but does not load MuPDF, download, or write a cache. It resolves exactly one selected task/provider to `ready`, `installable`, or `blocked`; a missing `.office-kit/pdf-providers.json` means download-disabled. Under explicit managed policy it may install only catalog-declared, versioned, hash-pinned release assets into a project-private cache using locks, bounded temporary downloads, safe extraction, receipts, and atomic publication. A `system-only` deployment remains possible, but neither route silently changes to the other. At the 0.3.0 boundary, qpdf `12.3.2-oat.1`, `python-foundation` `3.13.14-oat.1`, `python-specialists` `3.13.14-oat.1`, veraPDF/JRE `1.30.2-oat.1`, OCR core `17.8.1-oat.1`, and `eng`/`chi_sim` language packs `4.1.0-oat.1` are published and attested for `darwin-arm64` and `linux-x64`. The foundation contains isolated CPython, ReportLab, pdfplumber, pypdf, and Pillow. Specialists contain PyMuPDF, pikepdf, pyHanko, and certificate validation, depend on qpdf, and require an AGPL-or-commercial acknowledgement. The veraPDF pack brings a managed JRE, so probe/validation has no global Java dependency. OCR installs its qpdf/core/language closure only after policy authorization; the core contains isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`, and language packs are selected explicitly. Only Poppler QA remains intentionally unpublished and therefore blocks rather than substituting an unverified download.
+The native PDF Skill calls the same `PdfFile` MuPDF.js primitives through a thin JavaScript CLI. `office-kit/pdf/providers` is a separate, lightweight control plane: it imports a versioned catalog and project policy but does not load MuPDF, download, or write a cache. It resolves exactly one selected task/provider to `ready`, `installable`, or `blocked`; a missing `.office-kit/pdf-providers.json` means download-disabled. Under explicit managed policy it may install only catalog-declared, versioned, hash-pinned release assets into a project-private cache using locks, bounded temporary downloads, safe extraction, receipts, and atomic publication. A `system-only` deployment remains possible, but neither route silently changes to the other. The current catalog publishes and attests qpdf `12.3.2-oat.1`, `python-foundation` `3.13.14-oat.1`, `python-specialists` `3.13.14-oat.1`, veraPDF/JRE `1.30.2-oat.1`, OCR core `17.8.1-oat.1`, and `eng`/`chi_sim` language packs `4.1.0-oat.1` for `darwin-arm64` and `linux-x64`. The foundation contains isolated CPython, ReportLab, pdfplumber, pypdf, and Pillow. Specialists contain PyMuPDF, pikepdf, pyHanko, and certificate validation, depend on qpdf, and require an AGPL-or-commercial acknowledgement. The veraPDF pack brings a managed JRE, so probe/validation has no global Java dependency. OCR installs its qpdf/core/language closure only after policy authorization; the core contains isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`, and language packs are selected explicitly. Only Poppler QA remains intentionally unpublished and therefore blocks rather than substituting an unverified download.
 
 OfficeKit 0.5.0 also has a distribution boundary above the runtime graph. The
 `darwin-arm64`, `linux-x64`, and `win32-x64` standalone archives carry an

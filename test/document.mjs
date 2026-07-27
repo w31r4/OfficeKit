@@ -144,6 +144,7 @@ document.styles.add("BodyAccent", {
   widowControl: true,
   outlineLevel: 2,
   contextualSpacing: true,
+  shadingFill: "#FEF3C7",
   suppressLineNumbers: true,
 });
 
@@ -166,6 +167,7 @@ const formatted = document.addParagraph("Bold and colored", {
     widowControl: true,
     outlineLevel: 9,
     contextualSpacing: false,
+    shadingFill: "#E0F2FE",
     suppressLineNumbers: false,
   },
   runs: [
@@ -372,6 +374,8 @@ assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style
 assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:outlineLvl\b[^>]*w:val="9"[^>]*\/>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
 assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style\b(?=[^>]*w:styleId="BodyAccent")[\s\S]*?<w:contextualSpacing\b[^>]*w:val="true"[^>]*\/>[\s\S]*?<\/w:style>/);
 assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:contextualSpacing\b[^>]*w:val="false"[^>]*\/>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
+assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style\b(?=[^>]*w:styleId="BodyAccent")[\s\S]*?<w:shd\b(?=[^>]*w:val="clear")(?=[^>]*w:color="auto")(?=[^>]*w:fill="FEF3C7")[^>]*\/>[\s\S]*?<\/w:style>/);
+assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:shd\b(?=[^>]*w:val="clear")(?=[^>]*w:color="auto")(?=[^>]*w:fill="E0F2FE")[^>]*\/>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
 assert.equal((firstDocumentXml.match(/<w:tblHeader\b[^>]*\/>/g) || []).length, 1, "source-free table must mark exactly its leading header row");
 await assert.rejects(
   () => DocumentFile.exportDocx(DocumentModel.create({
@@ -396,6 +400,12 @@ await assert.rejects(
     blocks: [{ kind: "paragraph", text: "Invalid contextual spacing", paragraphFormat: { contextualSpacing: "yes" } }],
   })),
   /contextualSpacing must be boolean/i,
+);
+await assert.rejects(
+  () => DocumentFile.exportDocx(DocumentModel.create({
+    blocks: [{ kind: "paragraph", text: "Invalid paragraph shading", paragraphFormat: { shadingFill: "#12GG00" } }],
+  })),
+  /shadingFill color must be a six-digit RGB value/i,
 );
 for (const invalidOutlineLevel of [-1, 10, 2.5, "2"]) {
   await assert.rejects(
@@ -816,6 +826,7 @@ assert.equal(imported.styles.get("BodyAccent")?.keepLinesTogether, true);
 assert.equal(imported.styles.get("BodyAccent")?.widowControl, true);
 assert.equal(imported.styles.get("BodyAccent")?.outlineLevel, 2);
 assert.equal(imported.styles.get("BodyAccent")?.contextualSpacing, true);
+assert.equal(imported.styles.get("BodyAccent")?.shadingFill?.toUpperCase(), "#FEF3C7");
 const importedFormatted = imported.blocks.find((block) => block.text === "Bold and colored");
 assert.equal(importedFormatted?.kind, "paragraph");
 assert.equal(importedFormatted?.paragraphFormat.alignment, "center");
@@ -824,6 +835,7 @@ assert.equal(importedFormatted?.paragraphFormat.keepLinesTogether, true);
 assert.equal(importedFormatted?.paragraphFormat.widowControl, true);
 assert.equal(importedFormatted?.paragraphFormat.outlineLevel, 9);
 assert.equal(importedFormatted?.paragraphFormat.contextualSpacing, false);
+assert.equal(importedFormatted?.paragraphFormat.shadingFill?.toUpperCase(), "#E0F2FE");
 assert.equal(importedFormatted?.runs.length, 2);
 assert.equal(importedFormatted?.runs[0].style.bold, true);
 assert.equal(importedFormatted?.runs[0].style.fontSize, 15);
@@ -883,6 +895,7 @@ importedFormatted.paragraphFormat.keepLinesTogether = false;
 importedFormatted.paragraphFormat.widowControl = false;
 importedFormatted.paragraphFormat.outlineLevel = 4;
 importedFormatted.paragraphFormat.contextualSpacing = true;
+importedFormatted.paragraphFormat.shadingFill = "#DCFCE7";
 const importedBullet = imported.blocks.find((block) => block.kind === "listItem" && block.listType === "bullet");
 importedBullet.text = "Inspect the edited semantic model.";
 const importedTable = imported.blocks.find((block) => block.kind === "table");
@@ -924,6 +937,20 @@ assert.equal(roundTripFormatted?.paragraphFormat.keepLinesTogether, false);
 assert.equal(roundTripFormatted?.paragraphFormat.widowControl, false);
 assert.equal(roundTripFormatted?.paragraphFormat.outlineLevel, 4);
 assert.equal(roundTripFormatted?.paragraphFormat.contextualSpacing, true);
+assert.equal(roundTripFormatted?.paragraphFormat.shadingFill?.toUpperCase(), "#DCFCE7");
+
+const unshadedParagraphDocx = await DocumentFile.exportDocx(DocumentModel.create({
+  blocks: [{ kind: "paragraph", text: "Imported paragraph without shading" }],
+}));
+const importedUnshadedParagraph = await DocumentFile.importDocx(unshadedParagraphDocx);
+assert.equal(importedUnshadedParagraph.blocks[0]?.paragraphFormat?.shadingFill, undefined);
+importedUnshadedParagraph.blocks[0].paragraphFormat = { shadingFill: "#FDE68A" };
+const addedImportedShading = await DocumentFile.importDocx(await DocumentFile.exportDocx(importedUnshadedParagraph));
+assert.equal(addedImportedShading.blocks[0]?.paragraphFormat?.shadingFill?.toUpperCase(), "#FDE68A");
+delete addedImportedShading.blocks[0].paragraphFormat.shadingFill;
+const clearedImportedShading = await DocumentFile.importDocx(await DocumentFile.exportDocx(addedImportedShading));
+assert.equal(clearedImportedShading.blocks[0]?.paragraphFormat?.shadingFill, undefined);
+
 assert.equal(roundTrip.blocks.some((block) => block.kind === "listItem" && block.text === "Inspect the edited semantic model."), true);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.values[1][1], "Pass");
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.headerRowCount, 2);

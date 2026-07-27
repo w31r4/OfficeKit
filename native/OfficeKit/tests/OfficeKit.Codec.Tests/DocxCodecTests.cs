@@ -1965,6 +1965,193 @@ public sealed class DocxCodecTests
     }
 
     [Fact]
+    public void ParagraphShadingAuthorsImportsEditsAndRejectsIrregularMarkup()
+    {
+        var request = ExportRequest(includeSecondParagraph: true);
+        request.Artifact.Document.Blocks[0].Paragraph.Formatting = new DocumentParagraphFormatting
+        {
+            Alignment = "center",
+            KeepNext = true,
+            SuppressLineNumbers = true,
+            SpaceAfterTwips = 240,
+            ShadingFill = "fef3c7",
+        };
+        request.Artifact.Document.Blocks[1].Paragraph.Formatting = new DocumentParagraphFormatting
+        {
+            ShadingFill = "e0f2fe",
+        };
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = WordprocessingDocument.Open(stream, false))
+        {
+            var paragraphs = package.MainDocumentPart!.Document!.Body!.Elements<W.Paragraph>().ToArray();
+            var firstProperties = paragraphs[0].ParagraphProperties!;
+            var firstShading = firstProperties.GetFirstChild<W.Shading>()!;
+            Assert.Equal(W.ShadingPatternValues.Clear, firstShading.Val!.Value);
+            Assert.Equal("auto", firstShading.Color!.Value, ignoreCase: true);
+            Assert.Equal("FEF3C7", firstShading.Fill!.Value);
+            var propertyChildren = firstProperties.ChildElements.ToList();
+            Assert.True(propertyChildren.IndexOf(firstProperties.GetFirstChild<W.KeepNext>()!) <
+                        propertyChildren.IndexOf(firstShading));
+            Assert.True(propertyChildren.IndexOf(firstProperties.GetFirstChild<W.SuppressLineNumbers>()!) <
+                        propertyChildren.IndexOf(firstShading));
+            Assert.True(propertyChildren.IndexOf(firstShading) <
+                        propertyChildren.IndexOf(firstProperties.GetFirstChild<W.SpacingBetweenLines>()!));
+            Assert.True(propertyChildren.IndexOf(firstShading) <
+                        propertyChildren.IndexOf(firstProperties.Justification!));
+            Assert.Equal("E0F2FE", paragraphs[1].ParagraphProperties!.GetFirstChild<W.Shading>()!.Fill!.Value);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var imported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedFirst = imported.Artifact.Document.Blocks[0];
+        var importedSecond = imported.Artifact.Document.Blocks[1];
+        Assert.True(importedFirst.Source.Editable);
+        Assert.True(importedFirst.Paragraph.Formatting.HasShadingFill);
+        Assert.Equal("FEF3C7", importedFirst.Paragraph.Formatting.ShadingFill);
+        Assert.True(importedSecond.Paragraph.Formatting.HasShadingFill);
+        Assert.Equal("E0F2FE", importedSecond.Paragraph.Formatting.ShadingFill);
+
+        var unchanged = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.True(unchanged.Ok, Diagnostics(unchanged));
+        Assert.Equal(authored.File, unchanged.File);
+
+        importedFirst.Paragraph.Formatting.ShadingFill = "DCFCE7";
+        importedSecond.Paragraph.Formatting.ShadingFill = "FCE7F3";
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var roundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = edited.File,
+        });
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.Equal("DCFCE7", roundTrip.Artifact.Document.Blocks[0].Paragraph.Formatting.ShadingFill);
+        Assert.Equal("FCE7F3", roundTrip.Artifact.Document.Blocks[1].Paragraph.Formatting.ShadingFill);
+
+        var clearedImport = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        Assert.True(clearedImport.Ok, Diagnostics(clearedImport));
+        clearedImport.Artifact.Document.Blocks[0].Paragraph.Formatting.ClearShadingFill();
+        var cleared = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = clearedImport.Artifact,
+        });
+        Assert.True(cleared.Ok, Diagnostics(cleared));
+        var clearedRoundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = cleared.File,
+        });
+        Assert.True(clearedRoundTrip.Ok, Diagnostics(clearedRoundTrip));
+        Assert.False(clearedRoundTrip.Artifact.Document.Blocks[0].Paragraph.Formatting.HasShadingFill);
+        Assert.Equal("E0F2FE", clearedRoundTrip.Artifact.Document.Blocks[1].Paragraph.Formatting.ShadingFill);
+
+        var unshaded = Invoke(ExportRequest(includeSecondParagraph: false));
+        Assert.True(unshaded.Ok, Diagnostics(unshaded));
+        var unshadedImport = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = unshaded.File,
+        });
+        Assert.True(unshadedImport.Ok, Diagnostics(unshadedImport));
+        var unshadedBlock = Assert.Single(unshadedImport.Artifact.Document.Blocks,
+            block => block.ContentCase == DocumentBlock.ContentOneofCase.Paragraph);
+        Assert.True(unshadedBlock.Source.Editable);
+        Assert.False(unshadedBlock.Paragraph.Formatting?.HasShadingFill ?? false);
+        unshadedBlock.Paragraph.Formatting = new DocumentParagraphFormatting { ShadingFill = "FDE68A" };
+        var added = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = unshadedImport.Artifact,
+        });
+        Assert.True(added.Ok, Diagnostics(added));
+        var addedRoundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = added.File,
+        });
+        Assert.True(addedRoundTrip.Ok, Diagnostics(addedRoundTrip));
+        Assert.Equal("FDE68A", Assert.Single(addedRoundTrip.Artifact.Document.Blocks,
+            block => block.ContentCase == DocumentBlock.ContentOneofCase.Paragraph).Paragraph.Formatting.ShadingFill);
+
+        foreach (var mode in new[] { "duplicate", "extension", "invalid" })
+        {
+            var irregularBytes = MakeParagraphShadingIrregular(authored.File.ToByteArray(), mode);
+            var irregular = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ImportDocx,
+                Family = ArtifactFamily.Document,
+                File = ByteString.CopyFrom(irregularBytes),
+            });
+            Assert.True(irregular.Ok, Diagnostics(irregular));
+            var irregularBlock = irregular.Artifact.Document.Blocks[0];
+            Assert.False(irregularBlock.Source.Editable);
+            Assert.False(irregularBlock.Paragraph.Formatting?.HasShadingFill ?? false);
+            var preserved = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ExportDocx,
+                Family = ArtifactFamily.Document,
+                Artifact = irregular.Artifact,
+            });
+            Assert.True(preserved.Ok, Diagnostics(preserved));
+            Assert.Equal(ByteString.CopyFrom(irregularBytes), preserved.File);
+
+            irregularBlock.Paragraph.Formatting = new DocumentParagraphFormatting { ShadingFill = "FFFFFF" };
+            var rejected = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ExportDocx,
+                Family = ArtifactFamily.Document,
+                Artifact = irregular.Artifact,
+            });
+            Assert.False(rejected.Ok);
+            Assert.Equal("unsupported_document_edit", Assert.Single(rejected.Diagnostics).Code);
+        }
+    }
+
+    [Fact]
     public void OfficeSkillProfileRoundTripsFormattingImagesSectionsAndHeaders()
     {
         var authored = Invoke(OfficeSkillProfileExportRequest());
@@ -9133,6 +9320,40 @@ public sealed class DocxCodecTests
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown contextual-spacing irregularity.");
+            }
+            document.MainDocumentPart.Document.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] MakeParagraphShadingIrregular(byte[] bytes, string mode)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var document = WordprocessingDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var paragraph = document.MainDocumentPart!.Document!.Body!.Elements<W.Paragraph>().First();
+            var properties = paragraph.ParagraphProperties!;
+            var shading = properties.GetFirstChild<W.Shading>()!;
+            switch (mode)
+            {
+                case "duplicate":
+                    properties.InsertAfter(new W.Shading
+                    {
+                        Val = W.ShadingPatternValues.Clear,
+                        Color = "auto",
+                        Fill = "FFFFFF",
+                    }, shading);
+                    break;
+                case "extension":
+                    shading.SetAttribute(new OpenXmlAttribute("oat", "probe", "urn:office-kit:test", "1"));
+                    break;
+                case "invalid":
+                    shading.Val = W.ShadingPatternValues.Solid;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown paragraph-shading irregularity.");
             }
             document.MainDocumentPart.Document.Save();
         }
