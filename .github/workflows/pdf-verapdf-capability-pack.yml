@@ -83,6 +83,7 @@ jobs:
               --source-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/$VERAPDF_INPUTS"
           fi
       - name: Verify the extracted managed runtime and real conformance adapter
+        if: ${{ matrix.platform != 'win32-x64' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -93,31 +94,46 @@ jobs:
             --archive "$archive" \
             --manifest "$RUNNER_TEMP/verapdf-release/verapdf-$VERAPDF_PACK_VERSION-${{ matrix.platform }}.manifest.json" \
             --destination "$destination"
-          if [ "${{ matrix.platform }}" = "win32-x64" ]; then
-            test -f "$destination/bin/verapdf.exe"
-            test -f "$destination/jre/bin/java.exe"
-            launcher="$destination/bin/verapdf.exe"
-          else
-            test -x "$destination/bin/verapdf"
-            test -x "$destination/jre/bin/java"
-            launcher="$destination/bin/verapdf"
-          fi
+          test -x "$destination/bin/verapdf"
+          test -x "$destination/jre/bin/java"
+          launcher="$destination/bin/verapdf"
           test -f "$destination/libexec/bin/cli-1.30.2.jar"
           test -d "$destination/jre/legal"
-          if [ "${{ matrix.platform }}" = "win32-x64" ]; then
-            launcher_windows="$(cygpath -w "$launcher")"
-            powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; \$env:JAVA_TOOL_OPTIONS = ''; \$env:JDK_JAVA_OPTIONS = ''; \$env:_JAVA_OPTIONS = ''; \$env:CLASSPATH = ''; & '${launcher_windows}' --version" | grep -Fx 'veraPDF 1.30.2'
-            powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; & '${launcher_windows}' --list" | grep -Eq '^[[:space:]]+ua2[[:space:]]+-'
-            # Pass the native launcher path through PowerShell so Git Bash
-            # cannot rewrite its drive-letter form before the Python adapter
-            # receives it. The prior inline Bash assignment made Python try
-            # to execute a POSIX-looking path and fail with WinError 193.
-            powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; \$env:OFFICE_KIT_PDF_VERAPDF_TEST = '${launcher_windows}'; \$env:OFFICE_KIT_PDF_VERAPDF_TEST_PYTHON = (Get-Command python.exe -ErrorAction Stop).Source; & node.exe test/pdf-verapdf-provider.mjs; if (\$LASTEXITCODE -ne 0) { exit \$LASTEXITCODE }"
-          else
-            env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$launcher" --version | grep -Fx 'veraPDF 1.30.2'
-            env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$launcher" --list | grep -Eq '^[[:space:]]+ua2[[:space:]]+-'
-            OFFICE_KIT_PDF_VERAPDF_TEST="$launcher" node test/pdf-verapdf-provider.mjs
-          fi
+          env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$launcher" --version | grep -Fx 'veraPDF 1.30.2'
+          env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$launcher" --list | grep -Eq '^[[:space:]]+ua2[[:space:]]+-'
+          OFFICE_KIT_PDF_VERAPDF_TEST="$launcher" node test/pdf-verapdf-provider.mjs
+      - name: Verify the extracted managed Windows runtime and real conformance adapter
+        if: ${{ matrix.platform == 'win32-x64' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Do not hand a native drive-letter path from Git Bash to either
+          # Python or the pack launcher. This entire consumer probe runs in
+          # the Windows process model used by the managed provider itself.
+          $archive = Join-Path $env:RUNNER_TEMP "verapdf-release\verapdf-$env:VERAPDF_PACK_VERSION-win32-x64.tar.gz"
+          $manifest = Join-Path $env:RUNNER_TEMP "verapdf-release\verapdf-$env:VERAPDF_PACK_VERSION-win32-x64.manifest.json"
+          $destination = Join-Path $env:RUNNER_TEMP 'verapdf-consumer'
+          & node.exe scripts/verify-pdf-provider-pack.mjs --archive $archive --manifest $manifest --destination $destination
+          if ($LASTEXITCODE -ne 0) { throw "The Windows veraPDF pack verifier failed with exit code $LASTEXITCODE" }
+          $launcher = Join-Path $destination 'bin\verapdf.exe'
+          $java = Join-Path $destination 'jre\bin\java.exe'
+          $jar = Join-Path $destination 'libexec\bin\cli-1.30.2.jar'
+          if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) { throw 'The Windows veraPDF launcher is missing.' }
+          if (-not (Test-Path -LiteralPath $java -PathType Leaf)) { throw 'The managed JRE is missing.' }
+          if (-not (Test-Path -LiteralPath $jar -PathType Leaf)) { throw 'The managed veraPDF CLI JAR is missing.' }
+          if (-not (Test-Path -LiteralPath (Join-Path $destination 'jre\legal') -PathType Container)) { throw 'The managed JRE legal directory is missing.' }
+          $env:JAVA_TOOL_OPTIONS = ''
+          $env:JDK_JAVA_OPTIONS = ''
+          $env:_JAVA_OPTIONS = ''
+          $env:CLASSPATH = ''
+          $version = & $launcher --version
+          if ($LASTEXITCODE -ne 0 -or $version -notcontains 'veraPDF 1.30.2') { throw 'The Windows launcher did not report veraPDF 1.30.2.' }
+          $profiles = & $launcher --list
+          if ($LASTEXITCODE -ne 0 -or $profiles -notmatch '^\s+ua2\s+-') { throw 'The Windows launcher does not expose the required ua2 profile.' }
+          $env:OFFICE_KIT_PDF_VERAPDF_TEST = $launcher
+          $env:OFFICE_KIT_PDF_VERAPDF_TEST_PYTHON = (Get-Command python.exe -ErrorAction Stop).Source
+          & node.exe test/pdf-verapdf-provider.mjs
+          if ($LASTEXITCODE -ne 0) { throw "The Windows veraPDF adapter smoke failed with exit code $LASTEXITCODE" }
       - name: Attest immutable veraPDF pack provenance
         if: ${{ inputs.publish == 'true' }}
         uses: actions/attest@v4
