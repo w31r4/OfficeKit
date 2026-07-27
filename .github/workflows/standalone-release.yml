@@ -155,7 +155,8 @@ jobs:
           $env:OFFICE_KIT_TEST_SHA256 = $identity.sha256
           $env:OFFICE_KIT_TEST_SIZE = [string] $identity.size
           $env:PATH = "$trapBin;$env:SystemRoot\System32"
-          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File standalone/install.ps1
+          $windowsPowerShell = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+          & $windowsPowerShell -NoProfile -ExecutionPolicy Bypass -File standalone/install.ps1
           if ($LASTEXITCODE -ne 0) { throw "installer failed" }
           $officekit = Join-Path $env:OFFICE_KIT_BIN_DIR "officekit.cmd"
           if ((& $officekit --version).Trim() -ne $version) { throw "installed command has the wrong version" }
