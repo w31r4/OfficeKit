@@ -146,6 +146,10 @@ document.styles.add("BodyAccent", {
   contextualSpacing: true,
   shadingFill: "#FEF3C7",
   suppressLineNumbers: true,
+  borders: {
+    top: { color: "#1D4ED8", size: 8, space: 1 },
+    between: { color: "#64748B", size: 4, space: 0 },
+  },
 });
 
 const commentTarget = document.addParagraph("Review this paragraph before release.", {
@@ -169,6 +173,10 @@ const formatted = document.addParagraph("Bold and colored", {
     contextualSpacing: false,
     shadingFill: "#E0F2FE",
     suppressLineNumbers: false,
+    borders: {
+      bottom: { color: "#9C2B2E", size: 12, space: 0 },
+      bar: { color: "#0F766E", size: 6, space: 2 },
+    },
   },
   runs: [
     { text: "Bold ", style: { bold: true, fontFamily: "Aptos Display", fontSize: 15 } },
@@ -376,6 +384,8 @@ assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style
 assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:contextualSpacing\b[^>]*w:val="false"[^>]*\/>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
 assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style\b(?=[^>]*w:styleId="BodyAccent")[\s\S]*?<w:shd\b(?=[^>]*w:val="clear")(?=[^>]*w:color="auto")(?=[^>]*w:fill="FEF3C7")[^>]*\/>[\s\S]*?<\/w:style>/);
 assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:shd\b(?=[^>]*w:val="clear")(?=[^>]*w:color="auto")(?=[^>]*w:fill="E0F2FE")[^>]*\/>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
+assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style\b(?=[^>]*w:styleId="BodyAccent")[\s\S]*?<w:pBdr>[\s\S]*?<w:top\b(?=[^>]*w:val="single")(?=[^>]*w:color="1D4ED8")(?=[^>]*w:sz="8")(?=[^>]*w:space="1")[^>]*\/>[\s\S]*?<w:between\b(?=[^>]*w:val="single")(?=[^>]*w:color="64748B")(?=[^>]*w:sz="4")(?=[^>]*w:space="0")[^>]*\/>[\s\S]*?<\/w:pBdr>[\s\S]*?<\/w:style>/);
+assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:pBdr>[\s\S]*?<w:bottom\b(?=[^>]*w:val="single")(?=[^>]*w:color="9C2B2E")(?=[^>]*w:sz="12")(?=[^>]*w:space="0")[^>]*\/>[\s\S]*?<w:bar\b(?=[^>]*w:val="single")(?=[^>]*w:color="0F766E")(?=[^>]*w:sz="6")(?=[^>]*w:space="2")[^>]*\/>[\s\S]*?<\/w:pBdr>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
 assert.equal((firstDocumentXml.match(/<w:tblHeader\b[^>]*\/>/g) || []).length, 1, "source-free table must mark exactly its leading header row");
 await assert.rejects(
   () => DocumentFile.exportDocx(DocumentModel.create({
@@ -413,6 +423,22 @@ for (const invalidOutlineLevel of [-1, 10, 2.5, "2"]) {
       blocks: [{ kind: "paragraph", text: "Invalid outline level", paragraphFormat: { outlineLevel: invalidOutlineLevel } }],
     })),
     /outlineLevel must be an integer from 0 through 9/i,
+  );
+}
+for (const [invalidBorders, message] of [
+  [{}, /requires at least one border edge/i],
+  [{ top: { color: "#112233" } }, /requires color and size/i],
+  [{ top: { color: "#11223", size: 8 } }, /color must be a #RRGGBB value/i],
+  [{ top: { color: "112233", size: 8 } }, /color must be a #RRGGBB value/i],
+  [{ top: { color: "#112233", size: 1 } }, /size must be an integer from 2 through 96/i],
+  [{ top: { color: "#112233", size: 8, space: 32 } }, /space must be an integer from 0 through 31/i],
+  [{ diagonal: { color: "#112233", size: 8 } }, /unsupported border sides/i],
+]) {
+  await assert.rejects(
+    () => DocumentFile.exportDocx(DocumentModel.create({
+      blocks: [{ kind: "paragraph", text: "Invalid paragraph borders", paragraphFormat: { borders: invalidBorders } }],
+    })),
+    message,
   );
 }
 
@@ -827,6 +853,10 @@ assert.equal(imported.styles.get("BodyAccent")?.widowControl, true);
 assert.equal(imported.styles.get("BodyAccent")?.outlineLevel, 2);
 assert.equal(imported.styles.get("BodyAccent")?.contextualSpacing, true);
 assert.equal(imported.styles.get("BodyAccent")?.shadingFill?.toUpperCase(), "#FEF3C7");
+assert.deepEqual(imported.styles.get("BodyAccent")?.borders, {
+  top: { color: "#1D4ED8", size: 8, space: 1 },
+  between: { color: "#64748B", size: 4, space: 0 },
+});
 const importedFormatted = imported.blocks.find((block) => block.text === "Bold and colored");
 assert.equal(importedFormatted?.kind, "paragraph");
 assert.equal(importedFormatted?.paragraphFormat.alignment, "center");
@@ -836,6 +866,10 @@ assert.equal(importedFormatted?.paragraphFormat.widowControl, true);
 assert.equal(importedFormatted?.paragraphFormat.outlineLevel, 9);
 assert.equal(importedFormatted?.paragraphFormat.contextualSpacing, false);
 assert.equal(importedFormatted?.paragraphFormat.shadingFill?.toUpperCase(), "#E0F2FE");
+assert.deepEqual(importedFormatted?.paragraphFormat.borders, {
+  bottom: { color: "#9C2B2E", size: 12, space: 0 },
+  bar: { color: "#0F766E", size: 6, space: 2 },
+});
 assert.equal(importedFormatted?.runs.length, 2);
 assert.equal(importedFormatted?.runs[0].style.bold, true);
 assert.equal(importedFormatted?.runs[0].style.fontSize, 15);
@@ -896,6 +930,10 @@ importedFormatted.paragraphFormat.widowControl = false;
 importedFormatted.paragraphFormat.outlineLevel = 4;
 importedFormatted.paragraphFormat.contextualSpacing = true;
 importedFormatted.paragraphFormat.shadingFill = "#DCFCE7";
+importedFormatted.paragraphFormat.borders = {
+  right: { color: "#2563EB", size: 10, space: 0 },
+  bottom: { color: "#F97316", size: 6, space: 2 },
+};
 const importedBullet = imported.blocks.find((block) => block.kind === "listItem" && block.listType === "bullet");
 importedBullet.text = "Inspect the edited semantic model.";
 const importedTable = imported.blocks.find((block) => block.kind === "table");
@@ -951,6 +989,10 @@ delete addedImportedShading.blocks[0].paragraphFormat.shadingFill;
 const clearedImportedShading = await DocumentFile.importDocx(await DocumentFile.exportDocx(addedImportedShading));
 assert.equal(clearedImportedShading.blocks[0]?.paragraphFormat?.shadingFill, undefined);
 
+assert.deepEqual(roundTripFormatted?.paragraphFormat.borders, {
+  right: { color: "#2563EB", size: 10, space: 0 },
+  bottom: { color: "#F97316", size: 6, space: 2 },
+});
 assert.equal(roundTrip.blocks.some((block) => block.kind === "listItem" && block.text === "Inspect the edited semantic model."), true);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.values[1][1], "Pass");
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.headerRowCount, 2);
