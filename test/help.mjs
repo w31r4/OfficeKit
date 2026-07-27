@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 386);
+assert.equal(HELP_CATALOG.length, 387);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -430,7 +430,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.resolve")?.
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.ensure")?.schema?.returns?.result?.description || "", /pinned catalog assets.*safe extraction.*never downloads credentials or falls back/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.probe")?.schema?.returns?.state?.description || "", /no network request.*cache write.*MuPDF import.*provider fallback/i);
 const documentCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "document");
-assert.equal(documentCatalog.length, 68);
+assert.equal(documentCatalog.length, 69);
 assert.ok(documentCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.type, "object");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.description || "", /suppressLineNumbers.*true.*excludes.*display and calculation.*false.*override.*inherited style.*omission inherits.*source-owned.*fails closed/i);
@@ -446,6 +446,11 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.addSection")?.s
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addListItem")?.schema?.parameters?.pictureBullet?.type, "string|object");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addListItem")?.summary || "", /picture-bulleted.*shared numbering-level resources.*complete group/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addListItem")?.schema?.parameters?.pictureBullet?.description || "", /PNG\/JPEG\/GIF.*HTTP\(S\).*4 through 72 points.*never fetched.*full-group edit.*fail closed/i);
+assert.equal(HELP_CATALOG.find((item) => item.name === "document.addTable")?.schema?.parameters?.keepTogetherRows?.type, "number[]");
+assert.match(HELP_CATALOG.find((item) => item.name === "document.addTable")?.schema?.parameters?.keepTogetherRows?.description || "", /zero-based physical table rows.*w:cantSplit.*does not group rows.*calculate pagination/i);
+assert.ok(HELP_CATALOG.some((item) => item.name === "documentTable.setRowKeepTogether"));
+assert.equal(HELP_CATALOG.find((item) => item.name === "documentTable.setRowKeepTogether")?.schema?.parameters?.rowIndex?.required, true);
+assert.match(HELP_CATALOG.find((item) => item.name === "documentTable.setRowKeepTogether")?.summary || "", /physical table row.*w:cantSplit.*not a row-group.*fails? closed/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addListItem")?.schema?.parameters?.numberingStyleId?.type, "string");
 assert.match(HELP_CATALOG.find((item) => item.name === "DocumentModel.create")?.schema?.parameters?.styles?.description || "", /numberingId\/numberingLevel/);
 assert.equal(HELP_CATALOG.find((item) => item.name === "DocumentFile.importDocx")?.schema?.returns?.document?.type, "DocumentModel");

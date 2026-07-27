@@ -27,6 +27,23 @@ function assertPdf(bytes) {
 const document = DocumentModel.create({ paragraphs: ["Playwright render smoke"] });
 const renderer = createPlaywrightRenderer({ viewport: { width: 360, height: 220 }, deviceScaleFactor: 1, timeout: 20_000 });
 assert.equal(typeof playwrightRenderer, "function");
+
+const launchCalls = [];
+const launchProbe = createPlaywrightRenderer({
+  chromium: {
+    async launch(options) {
+      launchCalls.push(options);
+      throw new Error("launch probe complete");
+    },
+  },
+  launchOptions: { args: ["--enable-logging"] },
+});
+await assert.rejects(
+  () => launchProbe({ input: "<main>launch probe</main>", inputType: "text/html", outputType: "image/png", format: "png" }),
+  /launch probe complete/,
+);
+assert.deepEqual(launchCalls, [{ headless: true, args: ["--disable-gpu", "--enable-logging"] }]);
+
 await assert.rejects(
   () => renderer({ input: new FileBlob(new Uint8Array([0]), { type: "image/png" }), inputType: "image/png", outputType: "image/png", format: "png" }),
   /supports SVG or HTML input/,

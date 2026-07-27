@@ -2768,6 +2768,144 @@ public sealed class DocxCodecTests
     }
 
     [Fact]
+    public void NativeTableRowKeepTogetherAuthorsImportsAndEditsWithoutChangingHeaderSemantics()
+    {
+        var authoredRequest = MergedTableExportRequest();
+        authoredRequest.Artifact.Document.Blocks[0].Table.HeaderRowCount = 2;
+        authoredRequest.Artifact.Document.Blocks[0].Table.KeepTogetherRows.Add(1);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var document = WordprocessingDocument.Open(stream, false))
+        {
+            var rows = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single().Elements<W.TableRow>().ToArray();
+            Assert.Null(rows[0].TableRowProperties?.GetFirstChild<W.CantSplit>());
+            Assert.NotNull(rows[1].TableRowProperties?.GetFirstChild<W.CantSplit>());
+            Assert.Null(rows[2].TableRowProperties?.GetFirstChild<W.CantSplit>());
+            var rowProperties = rows[1].TableRowProperties!.ChildElements.ToArray();
+            Assert.True(Array.FindIndex(rowProperties, child => child is W.CantSplit) < Array.FindIndex(rowProperties, child => child is W.TableHeader));
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(document));
+        }
+
+        var imported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = authored.File,
+        });
+        Assert.True(imported.Ok, Diagnostics(imported));
+        Assert.Equal(2u, imported.Artifact.Document.Blocks[0].Table.HeaderRowCount);
+        Assert.Equal([1u], imported.Artifact.Document.Blocks[0].Table.KeepTogetherRows);
+
+        imported.Artifact.Document.Blocks[0].Table.KeepTogetherRows.Clear();
+        imported.Artifact.Document.Blocks[0].Table.KeepTogetherRows.Add(2);
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+
+        var roundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = edited.File,
+        });
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.Equal(2u, roundTrip.Artifact.Document.Blocks[0].Table.HeaderRowCount);
+        Assert.Equal([2u], roundTrip.Artifact.Document.Blocks[0].Table.KeepTogetherRows);
+
+        var invalid = MergedTableExportRequest();
+        invalid.Artifact.Document.Blocks[0].Table.KeepTogetherRows.Add(1);
+        invalid.Artifact.Document.Blocks[0].Table.KeepTogetherRows.Add(1);
+        var invalidResponse = Invoke(invalid);
+        Assert.False(invalidResponse.Ok);
+        Assert.Equal("invalid_document_table", Assert.Single(invalidResponse.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void ImportedTableRowKeepTogetherEditRejectsExplicitOrOutOfOrderRowProperties()
+    {
+        var authored = Invoke(MergedTableExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        byte[] explicitValue;
+        using (var stream = new MemoryStream())
+        {
+            stream.Write(authored.File.ToByteArray());
+            stream.Position = 0;
+            using (var document = WordprocessingDocument.Open(stream, true, new OpenSettings { AutoSave = false }))
+            {
+                var row = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single().Elements<W.TableRow>().ElementAt(1);
+                var properties = row.TableRowProperties ?? row.PrependChild(new W.TableRowProperties());
+                properties.Append(new W.CantSplit { Val = W.OnOffOnlyValues.On });
+                document.MainDocumentPart.Document.Save();
+            }
+            explicitValue = stream.ToArray();
+        }
+
+        var imported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = ByteString.CopyFrom(explicitValue),
+        });
+        Assert.True(imported.Ok, Diagnostics(imported));
+        Assert.Empty(imported.Artifact.Document.Blocks[0].Table.KeepTogetherRows);
+        imported.Artifact.Document.Blocks[0].Table.KeepTogetherRows.Add(1);
+
+        var rejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = imported.Artifact,
+        });
+        Assert.False(rejected.Ok);
+        Assert.Equal("unsupported_document_edit", Assert.Single(rejected.Diagnostics).Code);
+
+        byte[] outOfOrder;
+        using (var stream = new MemoryStream())
+        {
+            stream.Write(authored.File.ToByteArray());
+            stream.Position = 0;
+            using (var document = WordprocessingDocument.Open(stream, true, new OpenSettings { AutoSave = false }))
+            {
+                var row = document.MainDocumentPart!.Document!.Body!.Elements<W.Table>().Single().Elements<W.TableRow>().First();
+                var properties = row.TableRowProperties ?? row.PrependChild(new W.TableRowProperties());
+                properties.Append(new W.TableHeader());
+                properties.Append(new W.CantSplit());
+                document.MainDocumentPart.Document.Save();
+            }
+            outOfOrder = stream.ToArray();
+        }
+        var outOfOrderImported = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportDocx,
+            Family = ArtifactFamily.Document,
+            File = ByteString.CopyFrom(outOfOrder),
+        });
+        Assert.True(outOfOrderImported.Ok, Diagnostics(outOfOrderImported));
+        outOfOrderImported.Artifact.Document.Blocks[0].Table.KeepTogetherRows.Add(0);
+        var outOfOrderRejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ExportDocx,
+            Family = ArtifactFamily.Document,
+            Artifact = outOfOrderImported.Artifact,
+        });
+        Assert.False(outOfOrderRejected.Ok);
+        Assert.Equal("unsupported_document_edit", Assert.Single(outOfOrderRejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void ImportedRepeatTableHeaderEditRejectsNonPrefixRowPropertyGraphs()
     {
         var authored = Invoke(MergedTableExportRequest());

@@ -203,6 +203,7 @@ document.addTable({
   borderSize: 6,
   headerFill: "DCEAF3",
   headerRowCount: 1,
+  keepTogetherRows: [1],
   values: [
     ["Metric", "Value", "Interpretation"],
     ["Readiness", "92%", "Core gates passed"],
@@ -1068,6 +1069,26 @@ audit. Non-prefix, duplicate, explicit-value, extension-bearing, nested,
 merged, content-control, stale, or no-op inputs fail closed. Review a native
 Word or LibreOffice plus Poppler render: changing repeat headers can change the
 visible page boundary even though it does not calculate pagination.
+
+For one imported physical table-row page-break correction, use
+`examples/officekit-table-row-break-policy-edit-workflow.mjs`. Its CLI takes
+the inspected table block index, physical row index, and complete
+source/replacement booleans:
+
+```bash
+node examples/officekit-table-row-break-policy-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 2 false true
+```
+
+`keepTogetherRows` maps each listed zero-based physical row to native
+`w:cantSplit`. It prevents that row from splitting across a page boundary; it
+does not keep a group of rows together or calculate pagination. The transaction
+requires the canonical row-property profile, changes only the selected
+no-`w:val` `w:cantSplit` leaf in `word/document.xml`, retains any native
+repeat-header markers and all content/style/geometry/topology, proves a raw
+residual, reimports, verifies/model-renders, and emits a no-overwrite audit.
+Explicit values, duplicates, reordered or extension-bearing row properties,
+merged/nested/content-control tables, stale inputs, and no-ops fail closed.
 
 Set one bounded passwordless Word editing restriction through the same settings state:
 

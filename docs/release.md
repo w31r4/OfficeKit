@@ -112,6 +112,51 @@ bytes, and 25,615,049 unpacked bytes (`SHA-1
 new 25,640,000-byte unpacked-size gate. No npm publication, tag, or GitHub
 release operation was attempted.
 
+## 0.3.0 DOCX source-bound table row page-break policy
+
+`DocumentTableBlock.keepTogetherRows` and
+`documentTable.setRowKeepTogether(rowIndex, keepTogether)` now expose Word's
+native `w:cantSplit` row property. The value is a sorted, unique set of
+zero-based physical row indexes: each selected row may not split across pages.
+It neither groups adjacent rows nor performs pagination calculation, and it is
+separate from visual `headerFill` and native repeat-header `w:tblHeader`
+semantics.
+
+Source-free tables author canonical row properties. Recognized imported tables
+may change this policy only when every row uses the constrained, ordered
+`gridBefore`, `gridAfter`, `cantSplit`, `tblHeader` profile with no duplicate,
+extension, or explicit `w:val` marker. The public protobuf wire carries the
+same typed row-index set, and the source-bound codec re-proves the profile
+before it writes.
+
+The packaged `officekit-table-row-break-policy-edit-workflow.mjs` binds one
+imported table block, physical row, and complete expected/replacement boolean.
+It protects the source, permits only `word/document.xml`, masks exactly the
+selected `w:cantSplit` leaf for residual proof, retains repeat-header state,
+content, style, geometry, and topology, then reimports, verifies,
+model-renders, runs the native page-flow route when available, and writes a
+no-overwrite audit. Merged, nested, content-control, stale/no-op, duplicate,
+explicit-value, reordered, extension-bearing, or package-drifting input fails
+closed.
+
+### Table row page-break policy integration evidence
+
+On 2026-07-27, the complete local `npm test` passed, including the Documents
+workflow's LibreOffice/Poppler route, the new source-bound row-policy smoke,
+Playwright rendering, retained-template QA, PDF/provider contracts, reference
+Skill sync, PromptBench, visual baselines, package-content, and Help gates.
+`npm run docs:api`, `npm run proto:check`, deterministic
+`npm run verify:office-kit-build`, clean-install `npm run test:pack`,
+OfficeBridge `5/5`, and OfficeKit Codec `380/380` also passed. Two source-built
+WASM bundles reproduced the same 39 audited files; the shipped runtime has 38
+files and 15,162,524 bytes.
+
+The npm dry-run contains 533 files, 9,482,882 compressed bytes, and
+25,649,988 unpacked bytes (`SHA-1 e0a3ac9f52b12893df49599ab754e4d519c9f8a0`),
+leaving 25,012 bytes below the narrowly reviewed 25,675,000-byte
+total-unpacked gate. No npm publication, tag, or GitHub release operation was
+attempted.
+
 ## 0.3.0 DOCX source-bound section-margin transaction
 
 The Documents Skill now ships

@@ -117,6 +117,33 @@ no-op sources fail closed. Review a native Word or LibreOffice plus Poppler
 render before delivery because changed repeat headers can alter visible page
 breaks even though the transaction does not calculate pagination.
 
+## Keep one imported physical table row intact across a page boundary
+
+`keepTogetherRows` is a zero-based set of physical row indexes. Each selected
+row writes native `w:cantSplit`, which tells Word not to split that row across
+pages. It does not keep several rows as a group, and it does not calculate
+where a page break will land. For a new table, use
+`document.addTable({ ..., keepTogetherRows: [1, 4] })` or
+`table.setRowKeepTogether(1, true)`.
+
+For one imported correction, bind one table block, one physical row, and the
+complete old/new boolean state:
+
+```bash
+node examples/officekit-table-row-break-policy-edit-workflow.mjs \
+  input.docx output.docx audit.json 1 2 false true
+```
+
+The workflow accepts only one imported flat rectangular unmerged table with
+canonical optional `w:gridBefore`/`w:gridAfter`, no-`w:val` `w:cantSplit`, and
+no-`w:val` `w:tblHeader` leaves in native order. It changes one selected
+`w:cantSplit` leaf in `word/document.xml`, keeps any repeat-header state,
+content, visual styling, widths, style, topology, and every other package part
+bound, then reimports, verifies, model-renders, and emits a no-overwrite audit.
+Duplicate, explicit-value, reordered, extension-bearing, merged, nested,
+content-control, stale, and no-op sources fail closed. Review a native Word or
+LibreOffice plus Poppler render before delivery because page flow can change.
+
 ## Render → PNG review checklist (tables)
 - Table fits within margins (no clipped columns)
 - Header row is visually distinct

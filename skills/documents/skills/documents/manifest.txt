@@ -53,6 +53,7 @@ examples/officekit-section-break-edit-workflow.mjs
 examples/officekit-table-column-widths-edit-workflow.mjs
 examples/officekit-table-formatting-edit-workflow.mjs
 examples/officekit-table-header-rows-edit-workflow.mjs
+examples/officekit-table-row-break-policy-edit-workflow.mjs
 examples/officekit-note-text-edit-workflow.mjs
 examples/officekit-modern-comment-thread-workflow.mjs
 examples/officekit-tracked-replacement-workflow.mjs

@@ -9,6 +9,7 @@ const MIME_BY_FORMAT = {
 };
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 720 };
+const DETERMINISTIC_LAUNCH_ARGS = ["--disable-gpu"];
 
 function normalizeMime(type = "") {
   return String(type || "").split(";")[0].trim().toLowerCase();
@@ -117,6 +118,16 @@ function mergeAdapterOptions(defaultOptions = {}, request = {}) {
   };
 }
 
+function launchOptionsFor(options = {}) {
+  const { args: callerArgs = [], ...launchOptions } = options.launchOptions || {};
+  if (!Array.isArray(callerArgs)) throw new TypeError("Playwright launchOptions.args must be an array when provided.");
+  return {
+    headless: true,
+    ...launchOptions,
+    args: [...new Set([...DETERMINISTIC_LAUNCH_ARGS, ...callerArgs])],
+  };
+}
+
 async function readInputText(input) {
   if (typeof input === "string") return input;
   if (input && typeof input.text === "function") return input.text();
@@ -197,7 +208,7 @@ export async function renderWithPlaywright(request = {}, defaultOptions = {}) {
   const timeout = options.timeout ?? 30_000;
   const deviceScaleFactor = options.deviceScaleFactor ?? 1;
   const ownsBrowser = !options.browser;
-  const browser = options.browser || await chromium.launch({ headless: true, ...(options.launchOptions || {}) });
+  const browser = options.browser || await chromium.launch(launchOptionsFor(options));
   let context;
 
   try {
