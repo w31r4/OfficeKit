@@ -29,6 +29,7 @@ import { queryHelpRecords } from "../help/index.mjs";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const DOCUMENT_TABLE_VERTICAL_ALIGNMENTS = new Set(["top", "center", "bottom"]);
+const DOCUMENT_TABLE_MAX_MINIMUM_ROW_HEIGHT_DXA = 1_000_000;
 
 const DOCX_PACKAGE_CONFIG = {
   family: "DOCX",
@@ -190,6 +191,18 @@ function normalizeDocumentTableKeepTogetherRows(value, rows, tableId) {
   return [...new Set(normalized)].sort((left, right) => left - right);
 }
 
+function normalizeDocumentTableMinimumRowHeights(value, rows, tableId) {
+  if (value == null) return Array.from({ length: rows }, () => 0);
+  if (!Array.isArray(value) || value.length !== rows) {
+    throw new TypeError(`Document table ${tableId} minimumRowHeightsDxa must contain one value for each of its ${rows} physical rows.`);
+  }
+  const normalized = value.map((item) => Number(item));
+  if (normalized.some((item) => !Number.isInteger(item) || item < 0 || item > DOCUMENT_TABLE_MAX_MINIMUM_ROW_HEIGHT_DXA)) {
+    throw new RangeError(`Document table ${tableId} minimumRowHeightsDxa values must be integer DXA values from 0 through ${DOCUMENT_TABLE_MAX_MINIMUM_ROW_HEIGHT_DXA}.`);
+  }
+  return normalized;
+}
+
 class DocumentTableBlock {
   constructor(document, config = {}) {
     this.document = document;
@@ -244,9 +257,16 @@ class DocumentTableBlock {
     this.verticalAlignment = config.verticalAlignment == null ? undefined : String(config.verticalAlignment);
     this.headerRowCount = config.headerRowCount === undefined ? 0 : Number(config.headerRowCount);
     this.keepTogetherRows = normalizeDocumentTableKeepTogetherRows(config.keepTogetherRows, this.rows, this.id);
+    this.minimumRowHeightsDxa = normalizeDocumentTableMinimumRowHeights(config.minimumRowHeightsDxa, this.rows, this.id);
   }
 
-  ensureCell(row, column) { while (this.values.length <= row) this.values.push([]); while (this.values[row].length <= column) this.values[row].push(""); this.rows = this.values.length; this.columns = Math.max(this.columns, column + 1); }
+  ensureCell(row, column) {
+    while (this.values.length <= row) this.values.push([]);
+    while (this.values[row].length <= column) this.values[row].push("");
+    this.rows = this.values.length;
+    this.columns = Math.max(this.columns, column + 1);
+    while (this.minimumRowHeightsDxa.length < this.rows) this.minimumRowHeightsDxa.push(0);
+  }
   setHeaderRowCount(value) {
     const count = Number(value);
     if (!Number.isInteger(count) || count < 0 || count > this.rows) {
@@ -265,6 +285,22 @@ class DocumentTableBlock {
     if (keepTogether) rows.add(row);
     else rows.delete(row);
     this.keepTogetherRows = [...rows].sort((left, right) => left - right);
+    return this;
+  }
+  setMinimumRowHeight(rowIndex, heightDxa) {
+    const row = Number(rowIndex);
+    if (!Number.isInteger(row) || row < 0 || row >= this.rows) {
+      throw new RangeError(`Document table ${this.id} row index must be an integer from 0 through ${Math.max(0, this.rows - 1)}.`);
+    }
+    if (heightDxa == null) {
+      this.minimumRowHeightsDxa[row] = 0;
+      return this;
+    }
+    const height = Number(heightDxa);
+    if (!Number.isInteger(height) || height < 1 || height > DOCUMENT_TABLE_MAX_MINIMUM_ROW_HEIGHT_DXA) {
+      throw new RangeError(`Document table ${this.id} minimum row height must be an integer DXA value from 1 through ${DOCUMENT_TABLE_MAX_MINIMUM_ROW_HEIGHT_DXA}, or null to clear it.`);
+    }
+    this.minimumRowHeightsDxa[row] = height;
     return this;
   }
   _ensureCellRecords() {
@@ -286,8 +322,8 @@ class DocumentTableBlock {
     return this.cells;
   }
   getCell(row, column) { return new DocumentTableCell(this, row, column); }
-  inspectRecord(index) { return { kind: "table", id: this.id, index, name: this.name || undefined, rows: this.rows, cols: this.columns, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], cells: this.cells, pendingTextPatches: this.textPatches.length, styleId: this.styleId, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values.map((row, rowIndex) => row.map((_, columnIndex) => this.getCell(rowIndex, columnIndex).value)) }; }
-  toProto() { return { kind: "table", id: this.id, name: this.name, styleId: this.styleId, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], cells: this.cells, textPatches: this.textPatches, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values }; }
+  inspectRecord(index) { return { kind: "table", id: this.id, index, name: this.name || undefined, rows: this.rows, cols: this.columns, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], minimumRowHeightsDxa: [...this.minimumRowHeightsDxa], cells: this.cells, pendingTextPatches: this.textPatches.length, styleId: this.styleId, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values.map((row, rowIndex) => row.map((_, columnIndex) => this.getCell(rowIndex, columnIndex).value)) }; }
+  toProto() { return { kind: "table", id: this.id, name: this.name, styleId: this.styleId, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], minimumRowHeightsDxa: [...this.minimumRowHeightsDxa], cells: this.cells, textPatches: this.textPatches, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values }; }
 }
 
 function normalizeDocumentInlineField(value) {
@@ -1848,6 +1884,10 @@ export class DocumentModel {
         if (!Number.isInteger(block.headerRowCount) || block.headerRowCount < 0 || block.headerRowCount > block.rows) issues.push(verificationIssue("document", "invalidTableHeaderRowCount", `Table ${block.id} headerRowCount must be an integer from 0 through its ${block.rows} physical rows.`, { id: block.id, headerRowCount: block.headerRowCount, rows: block.rows }));
         if (!Array.isArray(block.keepTogetherRows) || block.keepTogetherRows.some((row, index) => !Number.isInteger(row) || row < 0 || row >= block.rows || (index > 0 && row <= block.keepTogetherRows[index - 1]))) {
           issues.push(verificationIssue("document", "invalidTableKeepTogetherRows", `Table ${block.id} keepTogetherRows must be strictly ascending physical row indexes from 0 through ${Math.max(0, block.rows - 1)}.`, { id: block.id, keepTogetherRows: block.keepTogetherRows, rows: block.rows }));
+        }
+        if (!Array.isArray(block.minimumRowHeightsDxa) || block.minimumRowHeightsDxa.length !== block.rows ||
+            block.minimumRowHeightsDxa.some((height) => !Number.isInteger(height) || height < 0 || height > DOCUMENT_TABLE_MAX_MINIMUM_ROW_HEIGHT_DXA)) {
+          issues.push(verificationIssue("document", "invalidTableMinimumRowHeights", `Table ${block.id} minimumRowHeightsDxa must contain one integer DXA value from 0 through ${DOCUMENT_TABLE_MAX_MINIMUM_ROW_HEIGHT_DXA} for each physical row.`, { id: block.id, minimumRowHeightsDxa: block.minimumRowHeightsDxa, rows: block.rows }));
         }
         if (!Number.isFinite(block.widthDxa) || block.widthDxa <= 0) issues.push(verificationIssue("document", "invalidTableWidth", `Table ${block.id} has an invalid width.`, { id: block.id, widthDxa: block.widthDxa }));
         if (!Number.isFinite(block.indentDxa) || block.indentDxa < 0) issues.push(verificationIssue("document", "invalidTableIndent", `Table ${block.id} has an invalid indent.`, { id: block.id, indentDxa: block.indentDxa }));

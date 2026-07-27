@@ -2242,6 +2242,28 @@ function documentTableKeepTogetherRows(block, rowCount) {
   return [...new Set(normalized)].sort((left, right) => left - right);
 }
 
+function documentTableMinimumRowHeights(block, rowCount) {
+  const values = block.minimumRowHeightsDxa == null
+    ? Array.from({ length: rowCount }, () => 0)
+    : block.minimumRowHeightsDxa;
+  if (!Array.isArray(values) || values.length !== rowCount) {
+    throw new OfficeKitCodecError(`Document table ${block.id} minimumRowHeightsDxa must contain one value for each of its ${rowCount} physical rows.`, [], { code: "invalid_document_table" });
+  }
+  const normalized = values.map((value) => Number(value));
+  if (normalized.some((value) => !Number.isInteger(value) || value < 0 || value > 1_000_000)) {
+    throw new OfficeKitCodecError(`Document table ${block.id} minimumRowHeightsDxa values must be integer DXA values from 0 through 1000000.`, [], { code: "invalid_document_table" });
+  }
+  return normalized;
+}
+
+function sameDocumentTableMinimumRowHeights(block, table) {
+  const requested = documentTableMinimumRowHeights(block, table.rows.length);
+  const source = (table.minimumRowHeightsDxa || []).length === table.rows.length
+    ? table.minimumRowHeightsDxa.map((value) => Number(value))
+    : Array.from({ length: table.rows.length }, () => 0);
+  return requested.length === source.length && requested.every((value, index) => value === source[index]);
+}
+
 function sameDocumentTableKeepTogetherRows(block, table) {
   const requested = documentTableKeepTogetherRows(block, table.rows.length);
   const source = (table.keepTogetherRows || []).map((value) => Number(value));
@@ -3654,6 +3676,7 @@ function unchangedSourceBlock(block, original, assets) {
           !sameDocumentTableContentControls(block, original.content.value) ||
           !sameDocumentTableHeaderRows(block, original.content.value) ||
           !sameDocumentTableKeepTogetherRows(block, original.content.value) ||
+          !sameDocumentTableMinimumRowHeights(block, original.content.value) ||
           !sameDocumentTableFormatting(block, original.content.value)) return false;
       return block.styleId === original.styleId || (!original.styleId && block.styleId === "TableGrid");
     }
@@ -3795,6 +3818,7 @@ function documentBlock(block, original, directNumbering, assets, contentControlN
     const authored = !source && Array.isArray(block.cells) ? authoredDocumentTableGeometry(block, contentControlNativeIds) : undefined;
     const headerRowCount = documentTableHeaderRowCount(block, source?.rows.length ?? block.values.length);
     const keepTogetherRows = documentTableKeepTogetherRows(block, source?.rows.length ?? block.values.length);
+    const minimumRowHeightsDxa = documentTableMinimumRowHeights(block, source?.rows.length ?? block.values.length);
     if (source && !sameDocumentTableContentControlTopology(block, source)) {
       throw new OfficeKitCodecError(`Document table ${block.id} content-control topology is source-bound.`, [], { code: "document_content_control_topology_changed" });
     }
@@ -3824,6 +3848,7 @@ function documentBlock(block, original, directNumbering, assets, contentControlN
           ...(source ? { gridColumns: source.gridColumns } : authored ? { gridColumns: authored.gridColumns } : {}),
           headerRowCount,
           keepTogetherRows,
+          minimumRowHeightsDxa,
           ...(source ? (source.formatting ? {
             formatting: formattingChanged
               ? documentTableFormatting(block, source.gridColumns || Math.max(1, ...source.rows.map((row) => row.cells.length)))
@@ -4346,6 +4371,9 @@ function documentFromEnvelope(envelope) {
           gridColumns: block.content.value.gridColumns,
           headerRowCount: Number(block.content.value.headerRowCount || 0),
           keepTogetherRows: (block.content.value.keepTogetherRows || []).map((value) => Number(value)),
+          minimumRowHeightsDxa: (block.content.value.minimumRowHeightsDxa || []).length === block.content.value.rows.length
+            ? block.content.value.minimumRowHeightsDxa.map((value) => Number(value))
+            : Array.from({ length: block.content.value.rows.length }, () => 0),
           cells: documentTableCells(block.content.value),
           textPatches: [],
           ...formatting,

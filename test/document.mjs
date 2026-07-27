@@ -225,11 +225,19 @@ const table = document.addTable({
   verticalAlignment: "center",
   headerRowCount: 1,
   keepTogetherRows: [1],
+  minimumRowHeightsDxa: [0, 480, 720],
   values: [["Gate", "Status"], ["Semantic", "Pending"], ["Visual", "Required"]],
 });
 assert.throws(() => table.setHeaderRowCount(4), /headerRowCount must be an integer from 0 through 3/i);
 assert.throws(() => table.setRowKeepTogether(3), /row index must be an integer from 0 through 2/i);
 assert.throws(() => table.setRowKeepTogether(1, "yes"), /keepTogether must be a boolean/i);
+assert.deepEqual(table.minimumRowHeightsDxa, [0, 480, 720]);
+assert.throws(() => table.setMinimumRowHeight(3, 480), /row index must be an integer from 0 through 2/i);
+assert.throws(() => table.setMinimumRowHeight(1, 0), /minimum row height must be an integer DXA value from 1 through 1000000, or null to clear/i);
+assert.throws(() => DocumentModel.create({ name: "Invalid table row minimum", blocks: [] }).addTable({
+  values: [["A"], ["B"]],
+  minimumRowHeightsDxa: [480],
+}), /minimumRowHeightsDxa must contain one value for each of its 2 physical rows/i);
 const hyperlink = document.addHyperlink(
   "Open XML SDK documentation",
   "https://learn.microsoft.com/office/open-xml/open-xml-sdk",
@@ -389,6 +397,9 @@ assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style
 assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:pBdr>[\s\S]*?<w:bottom\b(?=[^>]*w:val="single")(?=[^>]*w:color="9C2B2E")(?=[^>]*w:sz="12")(?=[^>]*w:space="0")[^>]*\/>[\s\S]*?<w:bar\b(?=[^>]*w:val="single")(?=[^>]*w:color="0F766E")(?=[^>]*w:sz="6")(?=[^>]*w:space="2")[^>]*\/>[\s\S]*?<\/w:pBdr>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
 assert.equal((firstDocumentXml.match(/<w:tblHeader\b[^>]*\/>/g) || []).length, 1, "source-free table must mark exactly its leading header row");
 assert.equal((firstDocumentXml.match(/<w:vAlign\b[^>]*w:val="center"[^>]*\/>/g) || []).length, 6, "source-free table alignment must be explicit on every physical cell");
+assert.equal((firstDocumentXml.match(/<w:trHeight\b[^>]*\/>/g) || []).length, 2, "source-free table must write only nonzero row minimums");
+assert.match(firstDocumentXml, /<w:trHeight\b(?=[^>]*w:val="480")(?=[^>]*w:hRule="atLeast")[^>]*\/>/);
+assert.match(firstDocumentXml, /<w:trHeight\b(?=[^>]*w:val="720")(?=[^>]*w:hRule="atLeast")[^>]*\/>/);
 table.verticalAlignment = "middle";
 await assert.rejects(() => DocumentFile.exportDocx(document), /verticalAlignment must be top, center, or bottom/i);
 table.verticalAlignment = "center";
@@ -417,6 +428,32 @@ const missingTableAlignment = missingTableAlignmentDocument.blocks.find((block) 
 assert.equal(missingTableAlignment.verticalAlignment, undefined, "partially missing native cell alignment must remain source-bound");
 missingTableAlignment.verticalAlignment = "top";
 await assert.rejects(() => DocumentFile.exportDocx(missingTableAlignmentDocument), /direct formatting can change only when OfficeKit recognized the complete bounded profile/i);
+const exactTableMinimumHeightZip = await JSZip.loadAsync(firstDocxBytes);
+const exactTableMinimumHeightXml = await exactTableMinimumHeightZip.file("word/document.xml").async("text");
+let exactTableMinimumHeightCount = 0;
+exactTableMinimumHeightZip.file("word/document.xml", exactTableMinimumHeightXml.replace(/<w:trHeight\b(?=[^>]*w:val="480")[^>]*\/>/g, (match) => {
+  exactTableMinimumHeightCount += 1;
+  return match.replace('w:hRule="atLeast"', 'w:hRule="exact"');
+}));
+assert.equal(exactTableMinimumHeightCount, 1);
+const exactTableMinimumHeightDocument = await DocumentFile.importDocx(await exactTableMinimumHeightZip.generateAsync({ type: "uint8array" }));
+const exactTableMinimumHeight = exactTableMinimumHeightDocument.blocks.find((block) => block.kind === "table");
+assert.deepEqual(exactTableMinimumHeight.minimumRowHeightsDxa, [0, 0, 0], "exact native row heights must remain source-bound");
+exactTableMinimumHeight.setMinimumRowHeight(1, 480);
+await assert.rejects(() => DocumentFile.exportDocx(exactTableMinimumHeightDocument), /table row layout requires a non-empty table with only canonical/i);
+const duplicateTableMinimumHeightZip = await JSZip.loadAsync(firstDocxBytes);
+const duplicateTableMinimumHeightXml = await duplicateTableMinimumHeightZip.file("word/document.xml").async("text");
+let duplicateTableMinimumHeightCount = 0;
+duplicateTableMinimumHeightZip.file("word/document.xml", duplicateTableMinimumHeightXml.replace(/<w:trHeight\b[^>]*w:val="480"[^>]*\/>/, (match) => {
+  duplicateTableMinimumHeightCount += 1;
+  return `${match}${match}`;
+}));
+assert.equal(duplicateTableMinimumHeightCount, 1);
+const duplicateTableMinimumHeightDocument = await DocumentFile.importDocx(await duplicateTableMinimumHeightZip.generateAsync({ type: "uint8array" }));
+const duplicateTableMinimumHeight = duplicateTableMinimumHeightDocument.blocks.find((block) => block.kind === "table");
+assert.deepEqual(duplicateTableMinimumHeight.minimumRowHeightsDxa, [0, 0, 0], "duplicate native row heights must remain source-bound");
+duplicateTableMinimumHeight.setMinimumRowHeight(1, 360);
+await assert.rejects(() => DocumentFile.exportDocx(duplicateTableMinimumHeightDocument), /table row layout requires a non-empty table with only canonical/i);
 await assert.rejects(
   () => DocumentFile.exportDocx(DocumentModel.create({
     blocks: [{ kind: "paragraph", text: "Invalid suppression", paragraphFormat: { suppressLineNumbers: "yes" } }],
@@ -915,6 +952,7 @@ assert.equal(imported.blocks.filter((block) => block.kind === "listItem").length
 assert.equal(imported.blocks.find((block) => block.kind === "table")?.values[1][1], "Pending");
 assert.equal(imported.blocks.find((block) => block.kind === "table")?.headerRowCount, 1);
 assert.deepEqual(imported.blocks.find((block) => block.kind === "table")?.keepTogetherRows, [1]);
+assert.deepEqual(imported.blocks.find((block) => block.kind === "table")?.minimumRowHeightsDxa, [0, 480, 720]);
 assert.equal(imported.blocks.find((block) => block.kind === "table")?.verticalAlignment, "center");
 assert.equal(imported.blocks.find((block) => block.kind === "hyperlink")?.url, hyperlink.url);
 assert.equal(imported.blocks.find((block) => block.kind === "field")?.instruction, "PAGE");
@@ -984,6 +1022,9 @@ importedTable.values[1][1] = "Pass";
 importedTable.verticalAlignment = "bottom";
 importedTable.setHeaderRowCount(2);
 importedTable.setRowKeepTogether(2, true);
+importedTable.setMinimumRowHeight(0, 360);
+importedTable.setMinimumRowHeight(1, null);
+importedTable.setMinimumRowHeight(2, 960);
 const importedLink = imported.blocks.find((block) => block.kind === "hyperlink");
 importedLink.url = "https://learn.microsoft.com/office/open-xml/word-processing";
 importedLink.tooltip = "Edited target";
@@ -1041,6 +1082,7 @@ assert.equal(roundTrip.blocks.some((block) => block.kind === "listItem" && block
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.values[1][1], "Pass");
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.headerRowCount, 2);
 assert.deepEqual(roundTrip.blocks.find((block) => block.kind === "table")?.keepTogetherRows, [1, 2]);
+assert.deepEqual(roundTrip.blocks.find((block) => block.kind === "table")?.minimumRowHeightsDxa, [360, 0, 960]);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.verticalAlignment, "bottom");
 assert.equal(roundTrip.blocks.find((block) => block.kind === "hyperlink")?.history, false);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "field")?.instruction, "NUMPAGES");

@@ -17,10 +17,18 @@ internal static class DocxTableCodec
     internal static DocumentTable Read(W.Table table, out bool editable, string blockId = "document/table")
     {
         var artifact = DocxTableGeometry.Read(table, out var validGeometry);
-        if (DocxTableRowPagination.TryRead(table, out var headerRowCount, out var keepTogetherRows))
+        if (DocxTableRowPagination.TryRead(table, out var headerRowCount, out var keepTogetherRows, out var minimumRowHeights))
         {
             artifact.HeaderRowCount = headerRowCount;
             artifact.KeepTogetherRows.Add(keepTogetherRows);
+            artifact.MinimumRowHeightsDxa.Add(minimumRowHeights);
+        }
+        else
+        {
+            // Retain opaque row properties untouched on a no-op export. A
+            // requested minimum-height change will re-prove the profile and
+            // fail closed rather than normalize unknown trPr markup.
+            artifact.MinimumRowHeightsDxa.Add(Enumerable.Repeat(0u, artifact.Rows.Count));
         }
         var rows = table.Elements<W.TableRow>().ToArray();
         for (var rowIndex = 0; rowIndex < rows.Length; rowIndex++)
@@ -52,8 +60,13 @@ internal static class DocxTableCodec
         if (!DocxTableGeometry.SameTopology(requested, source))
             throw Unsupported("Source-preserving DOCX table grid, span, and merge topology cannot be changed.");
         if (requested.HeaderRowCount != source.HeaderRowCount ||
-            !requested.KeepTogetherRows.SequenceEqual(source.KeepTogetherRows))
-            DocxTableRowPagination.Apply(table, requested.HeaderRowCount, requested.KeepTogetherRows);
+            !requested.KeepTogetherRows.SequenceEqual(source.KeepTogetherRows) ||
+            !requested.MinimumRowHeightsDxa.SequenceEqual(source.MinimumRowHeightsDxa))
+            DocxTableRowPagination.Apply(
+                table,
+                requested.HeaderRowCount,
+                requested.KeepTogetherRows,
+                requested.MinimumRowHeightsDxa);
         if (!DocxTableFormatting.Same(requested.Formatting, source.Formatting))
         {
             if (source.Formatting is null || requested.Formatting is null)
@@ -128,7 +141,11 @@ internal static class DocxTableCodec
                         header: rowIndex == 0));
                 table.Append(row);
             }
-            DocxTableRowPagination.Apply(table, block.Table.HeaderRowCount, block.Table.KeepTogetherRows);
+            DocxTableRowPagination.Apply(
+                table,
+                block.Table.HeaderRowCount,
+                block.Table.KeepTogetherRows,
+                block.Table.MinimumRowHeightsDxa);
             return table;
         }
 
@@ -157,7 +174,11 @@ internal static class DocxTableCodec
                     rowIndex == 0));
             table.Append(row);
         }
-        DocxTableRowPagination.Apply(table, block.Table.HeaderRowCount, block.Table.KeepTogetherRows);
+        DocxTableRowPagination.Apply(
+            table,
+            block.Table.HeaderRowCount,
+            block.Table.KeepTogetherRows,
+            block.Table.MinimumRowHeightsDxa);
         return table;
     }
 
@@ -189,6 +210,13 @@ internal static class DocxTableCodec
             throw Invalid("Document table header_row_count cannot exceed the physical row count.");
         if (!DocxTableRowPagination.HasCanonicalKeepTogetherRows(table.KeepTogetherRows, table.Rows.Count))
             throw Invalid("Document table keep_together_rows must be strictly ascending physical row indexes within the table row count.");
+        // Protocol v2 clients predating this field send an empty repeated list.
+        // Normalize that omission to Word's unconstrained-row default instead
+        // of making a wire addition a breaking table requirement.
+        if (table.MinimumRowHeightsDxa.Count == 0)
+            table.MinimumRowHeightsDxa.Add(Enumerable.Repeat(0u, table.Rows.Count));
+        if (!DocxTableRowPagination.HasCanonicalMinimumRowHeights(table.MinimumRowHeightsDxa, table.Rows.Count))
+            throw Invalid("Document table minimum_row_heights_dxa must contain one bounded value for each physical row.");
         DocxTableFormatting.Validate(table);
         for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
         {

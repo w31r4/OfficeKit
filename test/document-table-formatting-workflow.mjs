@@ -35,6 +35,16 @@ function assertFormattingMarkup(tableXml, formatting, rows, columns) {
   assert.deepEqual(fills, Array(columns).fill(formatting.headerFill));
   const alignments = [...tableXml.matchAll(/<w:vAlign\b[^>]*w:val="([^"]+)"[^>]*\/>/g)].map((match) => match[1]);
   assert.deepEqual(alignments, formatting.verticalAlignment === undefined ? [] : Array(rows * columns).fill(formatting.verticalAlignment));
+  const rawRows = [...tableXml.matchAll(/<w:tr\b[^>]*>[\s\S]*?<\/w:tr>/g)].map((match) => match[0]);
+  assert.equal(rawRows.length, rows);
+  const minimumRowHeights = rawRows.map((row, rowIndex) => {
+    const leaves = [...row.matchAll(/<w:trHeight\b[^>]*\/>/g)].map((match) => match[0]);
+    assert.ok(leaves.length <= 1, `row ${rowIndex} must not have duplicate native trHeight leaves`);
+    if (!leaves.length) return 0;
+    assert.match(leaves[0], /(?=[^>]*w:hRule="atLeast")(?=[^>]*w:val="\d+")/);
+    return Number(/w:val="(\d+)"/.exec(leaves[0])?.[1]);
+  });
+  assert.deepEqual(minimumRowHeights, formatting.minimumRowHeightsDxa || Array(rows).fill(0));
 }
 
 try {
@@ -55,6 +65,7 @@ try {
     borderSize: 8,
     headerFill: "E2E8F0",
     verticalAlignment: "center",
+    minimumRowHeightsDxa: [0, 480, 720],
   });
   sourceDocument.addParagraph("The second table is a raw-XML canary.");
   sourceDocument.addTable({
@@ -79,6 +90,7 @@ try {
     borderSize: 8,
     headerFill: "E2E8F0",
     verticalAlignment: "center",
+    minimumRowHeightsDxa: [0, 480, 720],
   };
   const replacementFormatting = {
     indentDxa: 240,
@@ -87,10 +99,12 @@ try {
     borderSize: 12,
     headerFill: "DDEBF7",
     verticalAlignment: "bottom",
+    minimumRowHeightsDxa: [360, 0, 960],
   };
   assert.equal(sourceImported.blocks[1]?.sourceBound, true);
   assert.deepEqual(sourceImported.blocks[1]?.columnWidthsDxa, [2100, 4500, 2700]);
   assert.equal(sourceImported.blocks[1]?.verticalAlignment, "center");
+  assert.deepEqual(sourceImported.blocks[1]?.minimumRowHeightsDxa, [0, 480, 720]);
 
   const workflowPath = path.join(repoRoot, "skills", "documents", "skills", "documents", "examples", "officekit-table-formatting-edit-workflow.mjs");
   const {
@@ -157,6 +171,7 @@ try {
   assert.equal(reimported.blocks[1]?.borderSize, replacementFormatting.borderSize);
   assert.equal(reimported.blocks[1]?.headerFill, replacementFormatting.headerFill);
   assert.equal(reimported.blocks[1]?.verticalAlignment, replacementFormatting.verticalAlignment);
+  assert.deepEqual(reimported.blocks[1]?.minimumRowHeightsDxa, replacementFormatting.minimumRowHeightsDxa);
   assert.deepEqual(reimported.blocks[1]?.columnWidthsDxa, [2100, 4500, 2700]);
   const rendered = await verifyDocumentFile(outputPath, {
     outputDir: path.join(outputDir, "render"),
@@ -184,6 +199,7 @@ try {
   const clearedXml = await clearedZip.file("word/document.xml").async("text");
   assert.doesNotMatch(flatTables(clearedXml)[0], /<w:vAlign\b/);
   assert.equal((await DocumentFile.importDocx(await FileBlob.load(clearPath))).blocks[1]?.verticalAlignment, undefined);
+  assert.deepEqual((await DocumentFile.importDocx(await FileBlob.load(clearPath))).blocks[1]?.minimumRowHeightsDxa, [360, 0, 960]);
 
   const restoredFormatting = { ...clearedFormatting, verticalAlignment: "top" };
   const restorePath = path.join(outputDir, "restored-alignment.docx");
@@ -200,6 +216,7 @@ try {
   const restoredZip = await JSZip.loadAsync(await fs.readFile(restorePath));
   assertFormattingMarkup(flatTables(await restoredZip.file("word/document.xml").async("text"))[0], restoredFormatting, 3, 3);
   assert.equal((await DocumentFile.importDocx(await FileBlob.load(restorePath))).blocks[1]?.verticalAlignment, "top");
+  assert.deepEqual((await DocumentFile.importDocx(await FileBlob.load(restorePath))).blocks[1]?.minimumRowHeightsDxa, [360, 0, 960]);
 
   const cliOutput = path.join(outputDir, "cli-output.docx");
   const cliAudit = path.join(outputDir, "cli-audit.json");
@@ -210,6 +227,7 @@ try {
     borderSize: 0,
     headerFill: "EAF2F8",
     verticalAlignment: "top",
+    minimumRowHeightsDxa: [0, 600, 0],
   };
   assert.deepEqual(parseTableFormattingEditCli([
     sourcePath, cliOutput, cliAudit, "1", JSON.stringify(sourceFormatting), JSON.stringify(cliReplacement),
@@ -234,6 +252,7 @@ try {
   const cliImported = await DocumentFile.importDocx(await FileBlob.load(cliOutput));
   assert.equal(cliImported.blocks[1]?.headerFill, cliReplacement.headerFill);
   assert.equal(cliImported.blocks[1]?.verticalAlignment, cliReplacement.verticalAlignment);
+  assert.deepEqual(cliImported.blocks[1]?.minimumRowHeightsDxa, cliReplacement.minimumRowHeightsDxa);
 
   await assert.rejects(
     () => editImportedTableFormatting({
@@ -278,6 +297,38 @@ try {
       replacementFormatting: { ...replacementFormatting, verticalAlignment: "middle" },
     }),
     /verticalAlignment must be top, center, or bottom/,
+  );
+  await assert.rejects(
+    () => editImportedTableFormatting({
+      inputPath: sourcePath,
+      outputPath: path.join(outputDir, "minimum-height-ownership-mismatch.docx"),
+      auditPath: path.join(outputDir, "minimum-height-ownership-mismatch.json"),
+      tableBlockIndex: 1,
+      expectedFormatting: sourceFormatting,
+      replacementFormatting: Object.fromEntries(Object.entries(replacementFormatting).filter(([key]) => key !== "minimumRowHeightsDxa")),
+    }),
+    /must either both include minimumRowHeightsDxa or both omit it/,
+  );
+  const exactMinimumHeightZip = await JSZip.loadAsync(sourceBytes);
+  const exactMinimumHeightXml = await exactMinimumHeightZip.file("word/document.xml").async("text");
+  let exactMinimumHeightCount = 0;
+  exactMinimumHeightZip.file("word/document.xml", exactMinimumHeightXml.replace(/<w:trHeight\b(?=[^>]*w:val="480")[^>]*\/>/g, (match) => {
+    exactMinimumHeightCount += 1;
+    return match.replace('w:hRule="atLeast"', 'w:hRule="exact"');
+  }));
+  assert.equal(exactMinimumHeightCount, 1);
+  const exactMinimumHeightPath = path.join(outputDir, "exact-minimum-height.docx");
+  await fs.writeFile(exactMinimumHeightPath, await exactMinimumHeightZip.generateAsync({ type: "uint8array" }));
+  await assert.rejects(
+    () => editImportedTableFormatting({
+      inputPath: exactMinimumHeightPath,
+      outputPath: path.join(outputDir, "exact-minimum-height-output.docx"),
+      auditPath: path.join(outputDir, "exact-minimum-height-output.json"),
+      tableBlockIndex: 1,
+      expectedFormatting: { ...sourceFormatting, minimumRowHeightsDxa: [0, 0, 0] },
+      replacementFormatting: { ...sourceFormatting, minimumRowHeightsDxa: [0, 480, 720] },
+    }),
+    /w:hRule must be atLeast; exact row heights can clip content and stay source-bound/,
   );
   const mixedAlignmentPath = path.join(outputDir, "mixed-alignment.docx");
   const mixedAlignmentZip = await JSZip.loadAsync(sourceBytes);
