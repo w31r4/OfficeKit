@@ -1986,7 +1986,7 @@ try {
   const fragmentedPatchOriginalXml = await fragmentedPatchZip.file("word/document.xml").async("text");
   const fragmentedPatchSourceXml = fragmentedPatchOriginalXml.replace(
     '<w:pPr><w:pStyle w:val="Normal" /></w:pPr><w:r><w:t>Quarterly plan</w:t></w:r>',
-    '<w:pPr><w:pStyle w:val="Normal" /><w:widowControl /><w:contextualSpacing /></w:pPr><w:r><w:t>Quarter</w:t></w:r><w:r><w:t>ly plan</w:t></w:r>',
+    '<w:pPr><w:pStyle w:val="Normal" /><w:widowControl /><w:suppressAutoHyphens /></w:pPr><w:r><w:t>Quarter</w:t></w:r><w:r><w:t>ly plan</w:t></w:r>',
   ).replace(
     '<w:r><w:rPr><w:b /></w:rPr><w:t>Revenue</w:t></w:r>',
     '<w:r><w:rPr><w:b /></w:rPr><w:t>Rev</w:t></w:r><w:r><w:rPr><w:b /></w:rPr><w:t>enue</w:t></w:r>',

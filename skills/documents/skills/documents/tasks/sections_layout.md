@@ -133,6 +133,10 @@ document.addParagraph("A short conclusion that must not split across pages.", {
 document.addParagraph("Avoid a single first or last line at a page boundary.", {
   paragraphFormat: { widowControl: true },
 });
+document.addParagraph("A compact continuation in the same body style.", {
+  styleId: "BodyText",
+  paragraphFormat: { contextualSpacing: true },
+});
 document.addParagraph("A standalone heading for the generated outline.", {
   paragraphFormat: { outlineLevel: 1 }, // native outline level 1 (second level)
 });
@@ -156,10 +160,15 @@ boolean `true`/`false`; omission inherits the named-style/default behavior.
 the native outline levels, and `9` explicitly clears an inherited level;
 omission inherits. It writes `w:outlineLvl` and does not restyle text or
 calculate a TOC.
+`contextualSpacing` is a separate presence-aware spacing setting. `true` writes
+`w:contextualSpacing` and suppresses `spaceBefore`/`spaceAfter` only between
+adjacent paragraphs with the same style; explicit `false` overrides an
+inherited style value, while omission inherits. It does not calculate layout
+or collapse spacing across different styles.
 Canonical direct/style leaves are editable after import. Duplicate,
 child-bearing, extension-bearing, or invalid lexical `w:keepNext`,
 `w:keepLines`, `w:widowControl`, `w:pageBreakBefore`, or
-`w:outlineLvl`/`w:suppressLineNumbers` markup stays source-owned and semantic replacement
+`w:contextualSpacing`/`w:outlineLvl`/`w:suppressLineNumbers` markup stays source-owned and semantic replacement
 fails closed. Native
 Word/LibreOffice rendering remains the final authority on actual page breaks.
 

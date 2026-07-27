@@ -81,11 +81,11 @@ internal static class DocxFormattingCodec
         if (properties is null) return null;
         if (!TryReadParagraphOnOffProperties(properties, out var keepNext, out var keepLinesTogether,
                                              out var pageBreakBefore, out var widowControl,
-                                             out var suppressLineNumbers) ||
+                                             out var suppressLineNumbers, out var contextualSpacing) ||
             !TryReadOutlineLevel(properties, out var outlineLevel)) return null;
         var result = ReadParagraphFormattingCore(properties.Justification, properties.Indentation,
             properties.SpacingBetweenLines, keepNext, keepLinesTogether, pageBreakBefore, widowControl,
-            suppressLineNumbers, outlineLevel);
+            suppressLineNumbers, outlineLevel, contextualSpacing);
         return HasParagraphFormatting(result) ? result : null;
     }
 
@@ -94,11 +94,11 @@ internal static class DocxFormattingCodec
         if (properties is null) return null;
         if (!TryReadParagraphOnOffProperties(properties, out var keepNext, out var keepLinesTogether,
                                              out var pageBreakBefore, out var widowControl,
-                                             out var suppressLineNumbers) ||
+                                             out var suppressLineNumbers, out var contextualSpacing) ||
             !TryReadOutlineLevel(properties, out var outlineLevel)) return null;
         var result = ReadParagraphFormattingCore(properties.Justification, properties.Indentation,
             properties.SpacingBetweenLines, keepNext, keepLinesTogether, pageBreakBefore, widowControl,
-            suppressLineNumbers, outlineLevel);
+            suppressLineNumbers, outlineLevel, contextualSpacing);
         return HasParagraphFormatting(result) ? result : null;
     }
 
@@ -160,10 +160,10 @@ internal static class DocxFormattingCodec
     internal static bool IsSupportedParagraphProperties(W.ParagraphProperties? properties, bool allowNumbering = false, bool allowSection = false)
     {
         if (properties is null) return true;
-        if (!TryReadParagraphOnOffProperties(properties, out _, out _, out _, out _, out _) ||
+        if (!TryReadParagraphOnOffProperties(properties, out _, out _, out _, out _, out _, out _) ||
             !TryReadOutlineLevel(properties, out _)) return false;
         return properties.ChildElements.All(child => child is W.ParagraphStyleId or W.Justification or W.Indentation or
-            W.SpacingBetweenLines or W.KeepNext or W.KeepLines or W.PageBreakBefore or W.WidowControl or W.SuppressLineNumbers or W.OutlineLevel ||
+            W.SpacingBetweenLines or W.KeepNext or W.KeepLines or W.PageBreakBefore or W.WidowControl or W.SuppressLineNumbers or W.ContextualSpacing or W.OutlineLevel ||
             (allowNumbering && child is W.NumberingProperties) ||
             (allowSection && child is W.SectionProperties));
     }
@@ -235,7 +235,7 @@ internal static class DocxFormattingCodec
         (value.HasAlignment || value.HasLeftIndentTwips || value.HasRightIndentTwips || value.HasFirstLineIndentTwips ||
          value.HasHangingIndentTwips || value.HasSpaceBeforeTwips || value.HasSpaceAfterTwips || value.HasLineSpacingTwips ||
          value.HasLineSpacingRule || value.HasKeepNext || value.HasKeepLinesTogether || value.HasPageBreakBefore ||
-         value.HasWidowControl || value.HasSuppressLineNumbers || value.HasOutlineLevel);
+         value.HasWidowControl || value.HasSuppressLineNumbers || value.HasOutlineLevel || value.HasContextualSpacing);
 
     private static DocumentParagraphFormatting ReadParagraphFormattingCore(
         W.Justification? justification,
@@ -246,7 +246,8 @@ internal static class DocxFormattingCodec
         bool? pageBreakBefore,
         bool? widowControl,
         bool? suppressLineNumbers,
-        uint? outlineLevel)
+        uint? outlineLevel,
+        bool? contextualSpacing)
     {
         var result = new DocumentParagraphFormatting();
         var nativeAlignment = justification?.Val?.Value;
@@ -285,6 +286,7 @@ internal static class DocxFormattingCodec
         if (widowControl is not null) result.WidowControl = widowControl.Value;
         if (suppressLineNumbers is not null) result.SuppressLineNumbers = suppressLineNumbers.Value;
         if (outlineLevel is not null) result.OutlineLevel = outlineLevel.Value;
+        if (contextualSpacing is not null) result.ContextualSpacing = contextualSpacing.Value;
         return result;
     }
 
@@ -344,6 +346,8 @@ internal static class DocxFormattingCodec
             if (formatting.HasHangingIndentTwips) indentation.Hanging = formatting.HangingIndentTwips.ToString();
             properties.Append(indentation);
         }
+        if (formatting.HasContextualSpacing)
+            properties.Append(new W.ContextualSpacing { Val = formatting.ContextualSpacing });
         if (formatting.HasAlignment)
             properties.Append(new W.Justification
             {
@@ -367,18 +371,21 @@ internal static class DocxFormattingCodec
         out bool? keepLinesTogether,
         out bool? pageBreakBefore,
         out bool? widowControl,
-        out bool? suppressLineNumbers)
+        out bool? suppressLineNumbers,
+        out bool? contextualSpacing)
     {
         keepNext = null;
         keepLinesTogether = null;
         pageBreakBefore = null;
         widowControl = null;
         suppressLineNumbers = null;
+        contextualSpacing = null;
         return TryReadOnOff<W.KeepNext>(properties, out keepNext) &&
                TryReadOnOff<W.KeepLines>(properties, out keepLinesTogether) &&
                TryReadOnOff<W.PageBreakBefore>(properties, out pageBreakBefore) &&
                TryReadOnOff<W.WidowControl>(properties, out widowControl) &&
-               TryReadOnOff<W.SuppressLineNumbers>(properties, out suppressLineNumbers);
+               TryReadOnOff<W.SuppressLineNumbers>(properties, out suppressLineNumbers) &&
+               TryReadOnOff<W.ContextualSpacing>(properties, out contextualSpacing);
     }
 
     private static bool TryReadOutlineLevel(OpenXmlCompositeElement properties, out uint? value)
