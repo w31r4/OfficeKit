@@ -80,9 +80,57 @@ type PresetShapeConfig = {
   adjustmentList?: Array<{ name: string; formula: string }>;
   borderRadius?: number | string; // number = pixels; string = supported rounded-* token
   shadow?: string; // shadow token, "shadow-none", or custom "2px 7px 19px #000000/17"
+  accessibility?: {
+    title?: string;
+    description?: string;
+  };
   className?: string;
 };
 ```
+
+## Shape Alternative Text
+
+Ordinary shapes may carry non-visible PowerPoint alternative text independently
+of their visible slide text. OfficeKit maps `title` and `description` to the
+native `p:nvSpPr/p:cNvPr/@title` and `@descr` attributes. Each present value is
+1 through 1,024 XML-safe characters. It is not a visible caption, a reading
+order operation, or a generic accessibility-repair API.
+
+```ts
+const status = slide.shapes.add({
+  geometry: "roundRect",
+  name: "decision-status",
+  position: { left: 64, top: 132, width: 360, height: 88 },
+  fill: "emerald-50",
+  line: { style: "solid", fill: "emerald-200", width: 1 },
+  accessibility: {
+    title: "Controlled rollout decision",
+    description: "Status box explaining that the rollout is controlled.",
+  },
+});
+
+status.setAccessibilityMetadata({
+  title: "Go decision: controlled rollout",
+  description: null, // remove only @descr
+});
+```
+
+On an imported PPTX, this edit is available only for a simple ordinary `p:sp`
+whose `p:cNvPr` is child-free and has exactly one positive `id` and non-empty
+XML-safe `name`, optional non-empty XML-safe `title`/`descr`, and at most one canonical
+`hidden` boolean. Unknown attributes, child hyperlinks or extensions, empty or
+duplicate values, and any other irregular profile remain preserved as
+source-owned XML and fail closed on semantic edits. Pictures, tables, charts,
+connectors, groups, OLE, SmartArt, InkML, and media each use different native
+owners and are outside this shape method.
+
+For one exact imported metadata change, use
+`examples/officekit-shape-accessibility-edit-workflow.mjs`. It binds one unique
+slide name, one unique top-level shape name, and the complete previous
+`{ title?, description? }` value; it permits only the selected SlidePart to
+change, canonicalizes equivalent standard namespace placement and attribute
+ordering, then masks only those two native attributes in its XML residual,
+reimports, verifies static render stability, and writes a no-overwrite audit.
 
 Placeholder authoring is layout-driven rather than a generic shape option.
 For a new source-free deck, define a direct-frame `title`, `body`, `ctrTitle`,

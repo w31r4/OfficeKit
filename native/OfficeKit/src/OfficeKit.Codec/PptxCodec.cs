@@ -1145,11 +1145,13 @@ internal static class PptxCodec
         if (shape.UseBackgroundFill?.HasValue == true)
             result.UseBackgroundFill = shape.UseBackgroundFill.Value;
         result.CustomPaths.Add(PptxCustomGeometryCodec.Read(properties?.GetFirstChild<A.CustomGeometry>()));
+        _ = PptxShapeAccessibility.Read(shape, result);
         return result;
     }
 
     private static bool IsSimpleShape(P.Shape shape)
     {
+        if (!PptxShapeAccessibility.Supports(shape)) return false;
         if (shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.GetFirstChild<P.PlaceholderShape>() is not null) return false;
         if (shape.ShapeStyle is not null) return false;
         var properties = shape.ShapeProperties;
@@ -1261,6 +1263,7 @@ internal static class PptxCodec
         }
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
             nonVisual.Name = source.Name;
+        PptxShapeAccessibility.Apply(shape, semantic);
         ApplyShadow(properties, semantic.Shadow);
         PptxTextCodec.Apply(shape, semantic, slideContext);
     }
@@ -1643,9 +1646,11 @@ internal static class PptxCodec
             nativePlaceholder.SetAttribute(new OpenXmlAttribute("type", string.Empty, semantic.Placeholder.Type));
             applicationProperties.Append(nativePlaceholder);
         }
+        var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name };
+        PptxShapeAccessibility.ApplyAuthored(nonVisual, semantic);
         return new P.Shape(
             new P.NonVisualShapeProperties(
-                new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name },
+                nonVisual,
                 new P.NonVisualShapeDrawingProperties { TextBox = semantic.Geometry == "textbox" ? true : null },
                 applicationProperties),
             properties,
@@ -2235,6 +2240,7 @@ internal static class PptxCodec
             if (!string.IsNullOrWhiteSpace(element.Shape.LineRgb)) PptxColor.Normalize(element.Shape.LineRgb);
             PptxShapeTransformCodec.Validate(element.Shape.Transform, element.Id);
             ValidateShadow(element.Shape.Shadow, element.Id);
+            PptxShapeAccessibility.Validate(element.Shape, element.Id);
             PptxTextCodec.Validate(element.Shape);
             foreach (var paragraph in element.Shape.TextBody?.Paragraphs ?? [])
                 if (paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.PictureBullet &&
@@ -4667,6 +4673,7 @@ internal static class PptxCodec
     private static string ShapeResidualHash(P.Shape source, PptxPartContext slideContext)
     {
         var shape = (P.Shape)source.CloneNode(true);
+        PptxShapeAccessibility.MaskModeled(shape);
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual) nonVisual.Name = string.Empty;
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties) drawingProperties.TextBox = null;
         if (shape.ShapeProperties is { } properties)

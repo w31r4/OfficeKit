@@ -8,7 +8,7 @@ import { aid } from "../shared/ids.mjs";
 import { imageDataFromDataUrl } from "../shared/images.mjs";
 import { filterInspectRecords, inspectRecordMatchesTarget, inspectTargetTokens, ndjson, normalizeKinds, verificationIssue, verificationResult } from "../shared/inspection.mjs";
 import { LAYOUT_MIME } from "../shared/render-output.mjs";
-import { attrEscape, xmlEscape } from "../shared/xml.mjs";
+import { attrEscape, isXmlSafeText, xmlEscape } from "../shared/xml.mjs";
 import { createTextRange, textRangeRecord } from "../shared/text-range.mjs";
 import { materializeComposeNode } from "./compose.mjs";
 import { normalizePresentationThemeConfig } from "./ooxml-theme.mjs";
@@ -28,6 +28,7 @@ import { normalizePresentationImageCrop, normalizePresentationImageFit, presenta
 import { planPresentationModernComments } from "./ooxml-modern-comments.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+const PRESENTATION_SHAPE_MAX_ACCESSIBILITY_TEXT_LENGTH = 1024;
 const importedShapeBackgroundFill = new WeakMap();
 const PRESENTATION_SLIDE_DUPLICATOR = Symbol.for("office-kit.presentation-duplicate");
 const PRESENTATION_SPEAKER_NOTES_CAPABILITY = Symbol.for("office-kit.speaker-notes-capability");
@@ -1352,6 +1353,27 @@ class TextFrame {
   toString() { return this.value; }
 }
 
+function normalizePresentationShapeAccessibilityText(value, shapeId, field) {
+  if (typeof value !== "string" || !value.length || value.length > PRESENTATION_SHAPE_MAX_ACCESSIBILITY_TEXT_LENGTH || !isXmlSafeText(value)) {
+    throw new TypeError(`Presentation shape ${shapeId} accessibility.${field} must contain 1 through ${PRESENTATION_SHAPE_MAX_ACCESSIBILITY_TEXT_LENGTH} XML-safe characters.`);
+  }
+  return value;
+}
+
+export function normalizePresentationShapeAccessibility(value, shapeId = "shape") {
+  if (value == null) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) throw new TypeError(`Presentation shape ${shapeId} accessibility must be an object with title and/or description.`);
+  const fields = ["title", "description"];
+  const unsupported = Object.keys(value).filter((field) => !fields.includes(field));
+  if (unsupported.length) throw new TypeError(`Presentation shape ${shapeId} accessibility does not support ${unsupported.join(", ")}.`);
+  const accessibility = {};
+  for (const field of fields) {
+    if (!Object.hasOwn(value, field) || value[field] == null) continue;
+    accessibility[field] = normalizePresentationShapeAccessibilityText(value[field], shapeId, field);
+  }
+  return Object.keys(accessibility).length ? accessibility : undefined;
+}
+
 export class Shape {
   constructor(slide, config = {}) {
     this.slide = slide;
@@ -1368,6 +1390,7 @@ export class Shape {
     this.borderRadius = config.borderRadius;
     this.shadow = config.shadow ? { ...config.shadow } : undefined;
     this.placeholder = config.placeholder;
+    this.accessibility = normalizePresentationShapeAccessibility(config.accessibility, this.id);
     if (config._officeKitUseBackgroundFill !== undefined) importedShapeBackgroundFill.set(this, Boolean(config._officeKitUseBackgroundFill));
     this._text = new TextFrame(config.text ?? "", config.textBodyProperties, { defaultBodyProperties: config.textBodyProperties === undefined });
     this._text.style = { ...(config.textStyle || config.style?.text || {}) };
@@ -1377,13 +1400,33 @@ export class Shape {
   set text(value) { this._text.set(value); }
   get useBackgroundFill() { return importedShapeBackgroundFill.get(this); }
 
+  setAccessibilityMetadata(update) {
+    if (!update || typeof update !== "object" || Array.isArray(update)) {
+      throw new TypeError(`Presentation shape ${this.id} accessibility metadata update must be an object with title and/or description.`);
+    }
+    const fields = ["title", "description"];
+    const unsupported = Object.keys(update).filter((field) => !fields.includes(field));
+    if (unsupported.length) throw new TypeError(`Presentation shape ${this.id} accessibility metadata does not support ${unsupported.join(", ")}.`);
+    if (!fields.some((field) => Object.hasOwn(update, field))) {
+      throw new TypeError(`Presentation shape ${this.id} accessibility metadata update requires title and/or description.`);
+    }
+    const accessibility = { ...(this.accessibility || {}) };
+    for (const field of fields) {
+      if (!Object.hasOwn(update, field)) continue;
+      if (update[field] == null) delete accessibility[field];
+      else accessibility[field] = normalizePresentationShapeAccessibilityText(update[field], this.id, field);
+    }
+    this.accessibility = Object.keys(accessibility).length ? accessibility : undefined;
+    return this;
+  }
+
   inspectRecord(kind = "shape") {
     const p = this.position;
     const paragraphs = this.text.effectiveParagraphs();
-    return { kind, id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, text: this.text.value || undefined, textPreview: this.text.value || undefined, textChars: this.text.value.length || undefined, textLines: this.text.value ? this.text.value.split("\n").length : undefined, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, customPathCount: this.customPaths.length || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", transform: this.transform, shadow: this.shadow, placeholder: this.placeholder || undefined, useBackgroundFill: this.useBackgroundFill };
+    return { kind, id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, text: this.text.value || undefined, textPreview: this.text.value || undefined, textChars: this.text.value.length || undefined, textLines: this.text.value ? this.text.value.split("\n").length : undefined, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, customPathCount: this.customPaths.length || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", transform: this.transform, shadow: this.shadow, placeholder: this.placeholder || undefined, ...(this.accessibility ? { accessibility: { ...this.accessibility } } : {}), useBackgroundFill: this.useBackgroundFill };
   }
 
-  layoutJson() { const paragraphs = this.text.effectiveParagraphs(); return { kind: this.text.value ? "textbox" : "shape", id: this.id, name: this.name, geometry: this.geometry, customPaths: this.customPaths.length ? this.customPaths : undefined, frame: this.position, transform: this.transform, text: this.text.value, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, placeholder: this.placeholder, style: { fill: this.fill, line: this.line, borderRadius: this.borderRadius, shadow: this.shadow, text: this.text.style, useBackgroundFill: this.useBackgroundFill } }; }
+  layoutJson() { const paragraphs = this.text.effectiveParagraphs(); return { kind: this.text.value ? "textbox" : "shape", id: this.id, name: this.name, geometry: this.geometry, customPaths: this.customPaths.length ? this.customPaths : undefined, frame: this.position, transform: this.transform, text: this.text.value, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, placeholder: this.placeholder, ...(this.accessibility ? { accessibility: { ...this.accessibility } } : {}), style: { fill: this.fill, line: this.line, borderRadius: this.borderRadius, shadow: this.shadow, text: this.text.style, useBackgroundFill: this.useBackgroundFill } }; }
 
   toSvg() {
     const p = this.position;

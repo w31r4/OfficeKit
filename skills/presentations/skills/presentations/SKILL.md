@@ -446,6 +446,38 @@ writes a source/output-bound audit. Duplicate/missing names, fallback-only
 native names, unexpected package changes, pending clones, and any other
 ambiguous edit fail closed. This is not a generic template metadata editor.
 
+### Bounded Imported Shape Alternative-Text Edit
+
+For one ordinary top-level imported shape, use the shipped workflow rather than
+patching `ppt/slides/slide*.xml` directly:
+
+```bash
+officekit run examples/officekit-shape-accessibility-edit-workflow.mjs \
+  input.pptx output.pptx audit.json \
+  "Accessibility review target" "decision-status" \
+  '{"title":"Controlled rollout decision","description":"Status box explaining that the rollout is controlled."}' \
+  '{"title":"Go decision: controlled rollout"}'
+```
+
+It binds exactly one imported slide name, one top-level `shape.name`, and the
+complete old `{ title?, description? }` value. The method owns only
+`p:nvSpPr/p:cNvPr/@title` and `@descr`; `null` clears one field. It preserves
+visible shape text, geometry, fill/line, drawing order, relationships, and all
+non-target package parts. Its target residual masks only those attributes after
+strictly canonicalizing equivalent standard `p`/`a`/`r` namespace placement and
+attribute order, then it reimports, checks all non-accessibility semantics and
+static renders, runs `verify()`, protects the source, and promotes a
+no-overwrite audit.
+
+Use this only for child-free canonical `p:cNvPr` with `id`, `name`, optional
+`title`/`descr`, and optional `hidden`. Existing metadata must be non-empty and
+XML-safe. Pictures, tables, charts, connectors, groups, OLE, SmartArt, InkML,
+and media use separate native owners. Unknown attributes, child hyperlinks or
+extensions, empty/duplicate/stale metadata, duplicate target names, source
+topology changes, and irregular non-visual properties fail closed; do not
+rebuild or flatten the source to work around that refusal. Read
+`artifact_tool/api/references/shapes.spec.md` first.
+
 ### Bounded Imported View-Properties Edit
 
 Do not patch `ppt/viewProps.xml` or use local guide visibility as a substitute

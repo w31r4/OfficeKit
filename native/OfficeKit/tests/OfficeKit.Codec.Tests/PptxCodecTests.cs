@@ -66,6 +66,82 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void ShapeAlternativeTextAuthorsImportsEditsClearsAndFailsClosedForIrregularNonVisualProperties()
+    {
+        var request = ExportRequest();
+        var authoredShape = request.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        authoredShape.AccessibilityTitle = "Quarterly delivery decision";
+        authoredShape.AccessibilityDescription = "A single-slide release decision with the current owner and status.";
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var nonVisual = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.Shape>().Single()
+                .NonVisualShapeProperties!.NonVisualDrawingProperties!;
+            Assert.Equal("Quarterly delivery decision", nonVisual.Title!.Value);
+            Assert.Equal("A single-slide release decision with the current owner and status.", nonVisual.Description!.Value);
+        }
+
+        var imported = Import(authored.File.ToByteArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedShape = Assert.Single(Assert.Single(imported.Artifact.Presentation.Slides).Elements).Shape;
+        Assert.True(importedShape.HasAccessibilityTitle);
+        Assert.Equal("Quarterly delivery decision", importedShape.AccessibilityTitle);
+        Assert.True(importedShape.HasAccessibilityDescription);
+        Assert.Equal("A single-slide release decision with the current owner and status.", importedShape.AccessibilityDescription);
+
+        importedShape.AccessibilityTitle = "Release decision";
+        importedShape.ClearAccessibilityDescription();
+        var edited = Export(imported.Artifact);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        using (var stream = new MemoryStream(edited.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var nonVisual = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.Shape>().Single()
+                .NonVisualShapeProperties!.NonVisualDrawingProperties!;
+            Assert.Equal("Release decision", nonVisual.Title!.Value);
+            Assert.Null(nonVisual.Description);
+        }
+        var roundTrip = Import(edited.File.ToByteArray());
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        var roundTripShape = Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements).Shape;
+        Assert.True(roundTripShape.HasAccessibilityTitle);
+        Assert.Equal("Release decision", roundTripShape.AccessibilityTitle);
+        Assert.False(roundTripShape.HasAccessibilityDescription);
+
+        var invalid = ExportRequest();
+        invalid.Artifact.Presentation.Slides[0].Elements[0].Shape.AccessibilityTitle = new string('a', 1_025);
+        var invalidResponse = Invoke(invalid);
+        Assert.False(invalidResponse.Ok);
+        Assert.Equal("invalid_presentation_shape", Assert.Single(invalidResponse.Diagnostics).Code);
+
+        var irregularBytes = ReplaceZipText(authored.File.ToByteArray(), "ppt/slides/slide1.xml", xml =>
+            xml.Replace("name=\"Title\"", "name=\"Title\" xmlns:fixture=\"urn:office-kit:shape-accessibility\" fixture:opaque=\"kept\"", StringComparison.Ordinal));
+        var irregular = Import(irregularBytes);
+        Assert.True(irregular.Ok, Diagnostics(irregular));
+        var irregularElement = Assert.Single(Assert.Single(irregular.Artifact.Presentation.Slides).Elements);
+        Assert.False(irregularElement.Source!.Editable);
+        Assert.False(irregularElement.Shape.HasAccessibilityTitle);
+        irregularElement.Shape.AccessibilityTitle = "Must reject";
+        var rejected = Export(irregular.Artifact);
+        Assert.False(rejected.Ok);
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(rejected.Diagnostics).Code);
+
+        var emptyName = Import(ReplaceZipText(authored.File.ToByteArray(), "ppt/slides/slide1.xml", xml =>
+            xml.Replace("name=\"Title\"", "name=\"\"", StringComparison.Ordinal)));
+        Assert.True(emptyName.Ok, Diagnostics(emptyName));
+        Assert.False(Assert.Single(Assert.Single(emptyName.Artifact.Presentation.Slides).Elements).Source!.Editable);
+
+        var invalidHidden = Import(ReplaceZipText(authored.File.ToByteArray(), "ppt/slides/slide1.xml", xml =>
+            xml.Replace("name=\"Title\"", "name=\"Title\" hidden=\"maybe\"", StringComparison.Ordinal)));
+        Assert.True(invalidHidden.Ok, Diagnostics(invalidHidden));
+        Assert.False(Assert.Single(Assert.Single(invalidHidden.Artifact.Presentation.Slides).Elements).Source!.Editable);
+    }
+
+    [Fact]
     public void CustomShowsAuthorImportAndEditWithinFixedTopology()
     {
         var request = ExportRequest();

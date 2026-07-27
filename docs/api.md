@@ -1797,6 +1797,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `PresentationFile.importPptx` | api | Import PPTX through the single bundled OfficeKit codec with source-bound opaque preservation, speaker-notes edit/add capability evidence, bounded text-only edits for recognized local SlidePart placeholders and canonical SmartArt plain document nodes, eligible OLE XLSX payload access/replacement plus uniquely bound DOCX Office-package access/replacement, and fail-closed unsupported edits. |
 | `PresentationFile.inspectPptx` | api | Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics under decompression budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `PresentationFile.patchPptx` | api | Apply path-validated PPTX part patches, including safe slide/master/layout ID lists and slide image/chart DrawingML mutations, and atomically reject dangling package references or invalid notes/comments semantics. |
+| `shape.setAccessibilityMetadata` | api | Set or clear an ordinary shape's non-visible PowerPoint alternative-text title/description through p:nvSpPr/p:cNvPr. It never changes visible text, layout, drawing order, or relationships; irregular imported non-visual properties fail closed. |
 | `shape.text.set` | api | Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export. |
 | `shape.useBackgroundFill` | api | Read the presence-aware imported PresentationML p:sp useBgFill flag. It affects preview paint but remains source-bound and read-only; source-free authoring or wire mutation fails closed. |
 | `slide.addNotes` | api | Set speaker notes as text or relationship-free paragraph/run data for inspect, preview, and canonical PPTX output. OfficeKit authors source-free notes, preserves the legacy text-only edit path, and edits a fixed imported rich paragraph/run topology; fields, hyperlinks, picture bullets, notes-body list styles/layout, and unsafe NotesMaster graphs remain source-bound and fail closed. |
@@ -1818,7 +1819,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.setBackground` | api | Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited. |
 | `slide.setLayout` | api | Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export. |
 | `slide.setTransition` | api | Set a direct p:transition to bounded fade or directional push behavior with slow/medium/fast speed plus click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, extension, opaque-effect, and every other source graph fail closed. |
-| `slide.shapes.add` | api | Add a shape/textbox with preset or bounded literal custom geometry, position, optional center-based rotation/flips, fill, line, text, and DrawingML text-body layout. |
+| `slide.shapes.add` | api | Add a shape/textbox with preset or bounded literal custom geometry, position, optional center-based rotation/flips, fill, line, text, DrawingML text-body layout, and optional non-visible p:cNvPr alternative text. |
 | `slide.speakerNotes.capability` | api | Return defensive sourceBound, partPresent, editable, and addable evidence. addable identifies an imported notes-absent slide whose source NotesMaster/SlideMaster Theme graph can safely receive a canonical NotesSlide. Export independently re-proves the package graph, so mutating model or wire data cannot grant authority. |
 | `slide.tables.add` | api | Add an inspectable table facade with rows, columns, values, cells, rectangular merges, layout JSON, SVG preview, and canonical OfficeKit plain-text PPTX output. |
 | `slideCommentThread.addReply` | api | Append a direct reply to a source-free Office 2021 modern comment thread. Imported reply topology is fixed: existing reply text/status may change, but adding or removing replies fails closed. |
@@ -2475,6 +2476,19 @@ Apply path-validated PPTX part patches, including safe slide/master/layout ID li
 
 - `blob` (FileBlob) — Patched PPTX FileBlob with part/relationship/content-type/source-reference update counts and validation metadata.
 
+#### `shape.setAccessibilityMetadata`
+
+Set or clear an ordinary shape's non-visible PowerPoint alternative-text title/description through p:nvSpPr/p:cNvPr. It never changes visible text, layout, drawing order, or relationships; irregular imported non-visual properties fail closed.
+
+**Schema parameters:**
+
+- `title` (string | null) — Non-visible shape alternative-text title. A 1 through 1024 character XML-safe string writes p:cNvPr/@title; null clears it.
+- `description` (string | null) — Non-visible shape alternative-text description. A 1 through 1024 character XML-safe string writes p:cNvPr/@descr; null clears it.
+
+**Schema returns:**
+
+- `shape` (Shape) — Sets or clears non-visible alternative text on an ordinary p:sp without changing visible text, frame, fill, line, drawing order, or relationships. An imported shape may use this only when its p:cNvPr is child-free with canonical id/name/title/descr/hidden attributes and non-empty XML-safe existing metadata; unknown attributes, children, duplicates, empty values, hyperlinks, extensions, and other irregular profiles remain source-owned and fail closed.
+
 #### `shape.text.set`
 
 Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export.
@@ -2759,7 +2773,7 @@ Set a direct p:transition to bounded fade or directional push behavior with slow
 
 #### `slide.shapes.add`
 
-Add a shape/textbox with preset or bounded literal custom geometry, position, optional center-based rotation/flips, fill, line, text, and DrawingML text-body layout.
+Add a shape/textbox with preset or bounded literal custom geometry, position, optional center-based rotation/flips, fill, line, text, DrawingML text-body layout, and optional non-visible p:cNvPr alternative text.
 
 **Schema parameters:**
 
@@ -2772,6 +2786,7 @@ Add a shape/textbox with preset or bounded literal custom geometry, position, op
 - `textBodyProperties` (object) — DrawingML text-frame layout: pixel insets; anchor/wrap/AutoFit; -360..360 degree rotation; horizontal/vertical/vertical270 text; horizontal/vertical overflow; 1-16 columns with pixel spacing and RTL flow; and upright text.
 - `fill` (string|object) — Shape fill.
 - `line` (object) — Line color, width, dash, and arrow metadata.
+- `accessibility` (object) — Optional non-visible PowerPoint shape alternative text: { title?: string, description?: string }. Each present value is 1 through 1024 XML-safe characters and maps to p:nvSpPr/p:cNvPr/@title or @descr. It does not change visible shape text or layout.
 - `placeholder` (object) — Optional layout placeholder metadata.
 
 **Schema returns:**

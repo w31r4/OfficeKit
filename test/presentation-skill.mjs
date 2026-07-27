@@ -686,6 +686,144 @@ try {
   assert.equal(slideNameCli.status, 0, `slide-name CLI failed\n${slideNameCli.stdout}\n${slideNameCli.stderr}`);
   assert.equal(JSON.parse(slideNameCli.stdout).sourcePart, "ppt/slides/slide1.xml");
 
+  const shapeAccessibilityDir = path.join(root, "shape-accessibility-workflow");
+  const shapeAccessibilityInput = path.join(shapeAccessibilityDir, "shape-accessibility-source.pptx");
+  const shapeAccessibilityOutput = path.join(shapeAccessibilityDir, "shape-accessibility-updated.pptx");
+  const shapeAccessibilityAudit = path.join(shapeAccessibilityDir, "audit.json");
+  const shapeAccessibilityDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+  shapeAccessibilityDeck.slides.add({ name: "Accessibility review target" }).shapes.add({
+    name: "decision-status",
+    position: { left: 48, top: 72, width: 520, height: 72 },
+    fill: "#DBEAFE",
+    text: "Visible decision wording must remain stable",
+    accessibility: {
+      title: "Controlled rollout decision",
+      description: "Status box explaining that the rollout is controlled.",
+    },
+  });
+  shapeAccessibilityDeck.slides.add({ name: "Accessibility appendix" }).shapes.add({
+    name: "appendix-status",
+    position: { left: 48, top: 72, width: 520, height: 72 },
+    text: "Appendix slide remains byte-stable",
+  });
+  await fs.mkdir(shapeAccessibilityDir, { recursive: true });
+  await (await PresentationFile.exportPptx(shapeAccessibilityDeck)).save(shapeAccessibilityInput);
+  const shapeAccessibilitySource = await fs.readFile(shapeAccessibilityInput);
+  const { editPptxShapeAccessibility } = await import(
+    "../skills/presentations/skills/presentations/examples/officekit-shape-accessibility-edit-workflow.mjs"
+  );
+  const shapeAccessibilityResult = await editPptxShapeAccessibility({
+    inputPath: shapeAccessibilityInput,
+    outputPath: shapeAccessibilityOutput,
+    auditPath: shapeAccessibilityAudit,
+    slideName: "Accessibility review target",
+    shapeName: "decision-status",
+    expectedAccessibility: {
+      title: "Controlled rollout decision",
+      description: "Status box explaining that the rollout is controlled.",
+    },
+    replacementAccessibility: { title: "Go decision: controlled rollout" },
+  });
+  assert.equal(shapeAccessibilityResult.audit.operation.type, "source-bound-shape-accessibility-edit");
+  assert.deepEqual(shapeAccessibilityResult.audit.operation.nativeAttributes, ["p:cNvPr/@title", "p:cNvPr/@descr"]);
+  assert.equal(shapeAccessibilityResult.audit.validation.package.onlyTargetSlidePartChanged, true);
+  assert.equal(shapeAccessibilityResult.audit.validation.package.targetResidualByteIdentical, true);
+  assert.equal(shapeAccessibilityResult.audit.validation.package.nonTargetPartsByteIdentical, true);
+  assert.equal(shapeAccessibilityResult.audit.validation.reimport.replacementSemanticsRetained, true);
+  assert.equal(shapeAccessibilityResult.audit.validation.modelRender.byteIdentical, true);
+  assert.deepEqual(await fs.readFile(shapeAccessibilityInput), shapeAccessibilitySource);
+  const shapeAccessibilitySourceZip = await JSZip.loadAsync(shapeAccessibilitySource);
+  const shapeAccessibilityOutputZip = await JSZip.loadAsync(await fs.readFile(shapeAccessibilityOutput));
+  assert.notDeepEqual(
+    await shapeAccessibilityOutputZip.file("ppt/slides/slide1.xml").async("uint8array"),
+    await shapeAccessibilitySourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
+  );
+  assert.deepEqual(
+    await shapeAccessibilityOutputZip.file("ppt/slides/slide2.xml").async("uint8array"),
+    await shapeAccessibilitySourceZip.file("ppt/slides/slide2.xml").async("uint8array"),
+  );
+  const shapeAccessibilityRoundTrip = await PresentationFile.importPptx(new FileBlob(await fs.readFile(shapeAccessibilityOutput), {
+    type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    name: "shape-accessibility-updated.pptx",
+  }));
+  assert.deepEqual(itemByName(shapeAccessibilityRoundTrip.slides.getItem(0).shapes.items, "decision-status").accessibility, {
+    title: "Go decision: controlled rollout",
+  });
+  const shapeAccessibilityBaselineDir = path.join(shapeAccessibilityDir, "baselines");
+  await verifyPresentationFile(shapeAccessibilityInput, {
+    outputDir: path.join(shapeAccessibilityDir, "source-qa"),
+    nativeRender,
+    baselineDir: shapeAccessibilityBaselineDir,
+    writeBaseline: true,
+  });
+  const shapeAccessibilityReview = await verifyPresentationFile(shapeAccessibilityOutput, {
+    outputDir: path.join(shapeAccessibilityDir, "output-qa"),
+    nativeRender,
+    baselineDir: shapeAccessibilityBaselineDir,
+  });
+  assert.ok(shapeAccessibilityReview.modelRender.slides.every((slide) => slide.pixelDiff?.changed === false));
+  if (nativeStatus.available) assert.ok(shapeAccessibilityReview.nativeRender.pages.every((page) => page.pixelDiff?.changed === false));
+  const shapeAccessibilityRejectedOutput = path.join(shapeAccessibilityDir, "shape-accessibility-should-not-exist.pptx");
+  const shapeAccessibilityRejectedAudit = path.join(shapeAccessibilityDir, "rejected-audit.json");
+  await assert.rejects(
+    () => editPptxShapeAccessibility({
+      inputPath: shapeAccessibilityInput,
+      outputPath: shapeAccessibilityRejectedOutput,
+      auditPath: shapeAccessibilityRejectedAudit,
+      slideName: "Accessibility review target",
+      shapeName: "decision-status",
+      expectedAccessibility: { title: "Stale title" },
+      replacementAccessibility: { title: "Never publish" },
+    }),
+    /does not match expectedAccessibility/i,
+  );
+  assert.equal(await fs.access(shapeAccessibilityRejectedOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(shapeAccessibilityRejectedAudit).then(() => true, () => false), false);
+  const irregularShapeAccessibilityInput = path.join(shapeAccessibilityDir, "shape-accessibility-irregular.pptx");
+  const irregularShapeAccessibilityOutput = path.join(shapeAccessibilityDir, "shape-accessibility-irregular-output.pptx");
+  const irregularShapeAccessibilityAudit = path.join(shapeAccessibilityDir, "shape-accessibility-irregular-audit.json");
+  const irregularShapeAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource);
+  irregularShapeAccessibilityZip.file(
+    "ppt/slides/slide1.xml",
+    (await irregularShapeAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+      .replace(/(<p:cNvPr\b[^>]*\bname="decision-status")/, "$1 custom=\"unmodeled\""),
+  );
+  await fs.writeFile(irregularShapeAccessibilityInput, await irregularShapeAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }));
+  await assert.rejects(
+    () => editPptxShapeAccessibility({
+      inputPath: irregularShapeAccessibilityInput,
+      outputPath: irregularShapeAccessibilityOutput,
+      auditPath: irregularShapeAccessibilityAudit,
+      slideName: "Accessibility review target",
+      shapeName: "decision-status",
+      expectedAccessibility: {
+        title: "Controlled rollout decision",
+        description: "Status box explaining that the rollout is controlled.",
+      },
+      replacementAccessibility: { title: "Never reconstruct an irregular cNvPr" },
+    }),
+    /does not match expectedAccessibility/i,
+  );
+  assert.equal(await fs.access(irregularShapeAccessibilityOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(irregularShapeAccessibilityAudit).then(() => true, () => false), false);
+  const shapeAccessibilityCliOutput = path.join(shapeAccessibilityDir, "shape-accessibility-cli.pptx");
+  const shapeAccessibilityCliAudit = path.join(shapeAccessibilityDir, "cli-audit.json");
+  const shapeAccessibilityCli = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/examples/officekit-shape-accessibility-edit-workflow.mjs",
+    shapeAccessibilityInput,
+    shapeAccessibilityCliOutput,
+    shapeAccessibilityCliAudit,
+    "Accessibility review target",
+    "decision-status",
+    JSON.stringify({
+      title: "Controlled rollout decision",
+      description: "Status box explaining that the rollout is controlled.",
+    }),
+    JSON.stringify({ title: "CLI controlled rollout" }),
+  ], { encoding: "utf8" });
+  assert.equal(shapeAccessibilityCli.status, 0, `shape-accessibility CLI failed\n${shapeAccessibilityCli.stdout}\n${shapeAccessibilityCli.stderr}`);
+  assert.equal(JSON.parse(shapeAccessibilityCli.stdout).targetPart, "ppt/slides/slide1.xml");
+
   const viewPropertiesDir = path.join(root, "view-properties-workflow");
   const viewPropertiesInput = path.join(viewPropertiesDir, "view-properties-source.pptx");
   const viewPropertiesOutput = path.join(viewPropertiesDir, "view-properties-updated.pptx");
@@ -2427,6 +2565,7 @@ try {
   assert.match(skillText, /officekit-title-notes-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-modern-comment-workflow\.mjs/);
   assert.match(skillText, /officekit-slide-name-edit-workflow\.mjs/);
+  assert.match(skillText, /officekit-shape-accessibility-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-transition-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-slide-duplicate-workflow\.mjs/);
   assert.match(skillText, /--allow-closed-leaves/);
@@ -2448,6 +2587,8 @@ try {
   assert.match(skillText, /slide\.setBackground.*slide\.clearBackground/s);
   assert.match(skillText, /`fade` or directional\s+`push`/is);
   assert.match(skillText, /slide\.setTransition\(\{.*effect: "push".*advanceOnClick.*advanceAfterMs/is);
+  assert.match(skillText, /p:nvSpPr\/p:cNvPr\/@title.*@descr.*visible shape text.*geometry.*drawing order.*relationships/is);
+  assert.match(skillText, /child-free canonical `p:cNvPr`.*`id`, `name`, optional\s+`title`\/`descr`.*optional `hidden`.*fail closed/is);
   assert.match(skillText, /transition\.capability.*canonical direct fade\/push.*no transition.*addable: true.*p:cSld.*p:clrMapOvr.*no transition, timing, or extension leaf.*timing.*sound.*p14.*extension.*opaque-preserved.*fail closed/is);
   assert.match(skillText, /slide\.moveTo\(existingZeroBasedIndex\).*retained source.*p:sldIdLst.*slide\.delete\(\).*isolated.*layout relationship/is);
   assert.match(skillText, /starter-deck command below still needs a\s+broad imported-slide graph clone and broad graph delete semantics/is);
@@ -2502,6 +2643,12 @@ try {
   assert.match(slideReferenceText, /Gradient,\s+pattern, image.*opaque-preserved/is);
   assert.match(slideReferenceText, /p:cSld\/@name.*export\/reimport/is);
   assert.match(slideReferenceText, /direct transition profile.*`fade`.*directional `push`.*absent transition may be added only when.*transition\.capability\.addable.*`p:cSld`.*`p:clrMapOvr`.*opaque-preserved/is);
+  const shapesReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/shapes.spec.md", "utf8");
+  assert.match(shapesReferenceText, /Shape Alternative Text/);
+  assert.match(shapesReferenceText, /p:nvSpPr\/p:cNvPr\/@title.*@descr/is);
+  assert.match(shapesReferenceText, /setAccessibilityMetadata\(\{[\s\S]*description: null/is);
+  assert.match(shapesReferenceText, /child-free.*exactly one positive `id`.*XML-safe `name`.*optional non-empty XML-safe `title`\/`descr`.*canonical\s+`hidden` boolean[\s\S]*fail closed/is);
+  assert.match(shapesReferenceText, /officekit-shape-accessibility-edit-workflow\.mjs.*complete previous[\s\S]*no-overwrite audit/is);
   const transitionReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/transitions.spec.md", "utf8");
   assert.match(transitionReferenceText, /`p:transition` contract.*not a PowerPoint timing or\s+animation engine/is);
   assert.match(transitionReferenceText, /`effect`.*`"fade"`.*`"push"`/s);

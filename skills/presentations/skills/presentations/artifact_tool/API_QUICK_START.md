@@ -137,6 +137,38 @@ main().catch((error) => {
 });
 ```
 
+## Ordinary Shape Alternative Text
+
+Use shape alternative text for a non-visible title/description of an ordinary
+`p:sp`; it does not alter the visible shape text, layout, drawing order, or
+relationships.
+
+```ts
+const status = slide.shapes.add({
+  geometry: "roundRect",
+  name: "decision-status",
+  position: { left: 72, top: 520, width: 320, height: 56 },
+  fill: "emerald-50",
+  line: { style: "solid", fill: "emerald-200", width: 1 },
+  accessibility: {
+    title: "Controlled rollout decision",
+    description: "Status box explaining that the rollout is controlled.",
+  },
+});
+
+// `null` removes one native p:cNvPr field.
+status.setAccessibilityMetadata({ description: null });
+```
+
+For imported files, first inspect and resolve the exact top-level shape. The
+method accepts only a child-free canonical `p:cNvPr`; unknown attributes,
+children, empty metadata, and other irregular non-visual profiles remain
+source-owned and reject edits. For one auditable imported edit, use
+`examples/officekit-shape-accessibility-edit-workflow.mjs` with the unique
+slide name, unique shape name, complete expected metadata, and replacement.
+Read [`api/references/shapes.spec.md`](./api/references/shapes.spec.md) before
+using that route.
+
 ## Canonical Native Chart Families
 
 OfficeKit writes literal-data native ChartParts for `bar`, `line`, `pie`,

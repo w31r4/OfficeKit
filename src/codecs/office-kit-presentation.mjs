@@ -1,5 +1,5 @@
 import { create, toBinary } from "@bufbuild/protobuf";
-import { ChartElement, GroupShape, ImageElement, Presentation, Shape, Slide, TableElement } from "../presentation/index.mjs";
+import { ChartElement, GroupShape, ImageElement, normalizePresentationShapeAccessibility, Presentation, Shape, Slide, TableElement } from "../presentation/index.mjs";
 import {
   ArtifactFamily,
   PresentationDiagramTextNodeSchema,
@@ -1526,6 +1526,16 @@ function modelPresentationShadow(shadow) {
   };
 }
 
+function modelPresentationShapeAccessibility(shape) {
+  if (shape.accessibilityTitle === undefined && shape.accessibilityDescription === undefined) return {};
+  return {
+    accessibility: {
+      ...(shape.accessibilityTitle === undefined ? {} : { title: shape.accessibilityTitle }),
+      ...(shape.accessibilityDescription === undefined ? {} : { description: shape.accessibilityDescription }),
+    },
+  };
+}
+
 function sourceBoundCloneConnectorTargetId(value, sourceIdByCloneId, connector, side) {
   const targetId = String(value || "");
   if (!targetId || !sourceIdByCloneId) return targetId;
@@ -1616,6 +1626,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const placeholder = !original && shape.placeholder ? sourceFreeSlidePlaceholder(shape) : undefined;
   const textBody = presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
   const shadow = presentationShadow(shape.shadow, shape.id);
+  const accessibility = normalizePresentationShapeAccessibility(shape.accessibility, shape.id);
   return {
     id: original?.id || shape.id,
     name: shape.name || original?.name || "",
@@ -1638,6 +1649,8 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         ...(shadow ? { shadow } : {}),
         ...(customPaths.length ? { customPaths } : {}),
         ...(shape.useBackgroundFill === undefined ? {} : { useBackgroundFill: shape.useBackgroundFill }),
+        ...(accessibility?.title === undefined ? {} : { accessibilityTitle: accessibility.title }),
+        ...(accessibility?.description === undefined ? {} : { accessibilityDescription: accessibility.description }),
       },
     },
   };
@@ -2812,6 +2825,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       line: { fill: shape.lineRgb ? `#${shape.lineRgb}` : "transparent", width: Number(shape.lineWidthEmu) / EMU_PER_POINT },
       ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
       ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
+      ...modelPresentationShapeAccessibility(shape),
       text: modelText(shape, assetCatalog, customShowLinks),
       textBodyProperties: modelTextBodyProperties(shape),
     };
@@ -3041,6 +3055,7 @@ export async function presentationFromEnvelope(envelope) {
           line: { fill: shape.lineRgb ? `#${shape.lineRgb}` : "transparent", width: Number(shape.lineWidthEmu) / EMU_PER_POINT },
           ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
           ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
+          ...modelPresentationShapeAccessibility(shape),
           text: modelText(shape, assetCatalog, customShowLinks),
           textBodyProperties: modelTextBodyProperties(shape),
         });

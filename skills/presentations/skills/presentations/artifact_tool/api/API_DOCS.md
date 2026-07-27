@@ -27,6 +27,7 @@ Use the presentation facades to create PowerPoint-style decks in TypeScript.
 - Duplicate one canonical top-level embedded MP4 without sharing mutable media bytes: [`references/embedded-video-clone.spec.md`](./references/embedded-video-clone.spec.md).
 - Author or safely adjust native PowerPoint sections as an ordered full-deck partition, including separate source-bound name and complete-boundary transactions: [`references/sections.spec.md`](./references/sections.spec.md).
 - Author or safely edit one direct bounded fade/push slide transition: [`references/transitions.spec.md`](./references/transitions.spec.md).
+- Author or safely edit non-visible alternative text on one ordinary shape: [`references/shapes.spec.md`](./references/shapes.spec.md).
 
 ## Quick start
 

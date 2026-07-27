@@ -1785,6 +1785,13 @@ message PresentationShape {
   // read-only and source-bound: source-free authoring and value/presence edits
   // fail closed rather than flattening slide-background inheritance.
   optional bool use_background_fill = 16;
+  // Non-visible shape alternative text stored directly on p:cNvPr. This is
+  // intentionally independent of visible shape text, the cNvPr name, and
+  // DrawingML geometry. Imported values are editable only for a canonical,
+  // child-free cNvPr profile; hyperlinks, extensions, empty values, and
+  // unknown attributes remain source-bound opaque metadata.
+  optional string accessibility_title = 17;
+  optional string accessibility_description = 18;
 }
 
 message PresentationCustomGeometryPath {

@@ -96,6 +96,91 @@ await assert.rejects(
   /presentation theme customization/i,
 );
 
+// Shape alternative text belongs to the native p:cNvPr leaf, not visible
+// slide text. The small profile deliberately covers ordinary p:sp only: it
+// may add, replace, or clear title/description without changing layout or the
+// visible SVG, while irregular non-visual properties stay source-owned.
+const shapeAccessibilityDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const shapeAccessibilitySlide = shapeAccessibilityDeck.slides.add({ name: "Accessibility metadata" });
+const shapeAccessibilityShape = shapeAccessibilitySlide.shapes.add({
+  name: "decision-status",
+  position: { left: 48, top: 72, width: 360, height: 88 },
+  fill: "#DBEAFE",
+  text: "Decision: controlled rollout",
+  accessibility: {
+    title: "Controlled rollout decision",
+    description: "Status box explaining that the rollout is controlled.",
+  },
+});
+assert.deepEqual(shapeAccessibilityShape.accessibility, {
+  title: "Controlled rollout decision",
+  description: "Status box explaining that the rollout is controlled.",
+});
+assert.match(shapeAccessibilityDeck.inspect({ kind: "shape", maxChars: 4_000 }).ndjson, /Controlled rollout decision/);
+assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({}), /requires title and\/or description/i);
+assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({ title: "" }), /1 through 1024 XML-safe characters/i);
+assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({ alt: "Not a p:cNvPr field" }), /does not support alt/i);
+const shapeAccessibilitySource = await PresentationFile.exportPptx(shapeAccessibilityDeck);
+const shapeAccessibilitySourceZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const shapeAccessibilitySourceXml = await shapeAccessibilitySourceZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(
+  shapeAccessibilitySourceXml,
+  /<p:cNvPr\b(?=[^>]*\bname="decision-status")(?=[^>]*\btitle="Controlled rollout decision")(?=[^>]*\bdescr="Status box explaining that the rollout is controlled\.")[^>]*\/>/,
+);
+const shapeAccessibilityImported = await PresentationFile.importPptx(shapeAccessibilitySource);
+const importedAccessibilityShape = itemByName(shapeAccessibilityImported.slides.getItem(0).shapes.items, "decision-status");
+assert.deepEqual(importedAccessibilityShape.accessibility, shapeAccessibilityShape.accessibility);
+const shapeAccessibilityNoOp = await PresentationFile.exportPptx(shapeAccessibilityImported);
+const shapeAccessibilityNoOpZip = await JSZip.loadAsync(shapeAccessibilityNoOp.bytes);
+assert.deepEqual(
+  await shapeAccessibilityNoOpZip.file("ppt/slides/slide1.xml").async("uint8array"),
+  await shapeAccessibilitySourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
+  "unchanged imported p:cNvPr alternative text must retain its SlidePart bytes",
+);
+const sourceAccessibilitySvg = await shapeAccessibilityImported.slides.getItem(0).export({ format: "svg" });
+importedAccessibilityShape.setAccessibilityMetadata({
+  title: "Go decision: controlled rollout",
+  description: null,
+});
+const shapeAccessibilityEdited = await PresentationFile.exportPptx(shapeAccessibilityImported);
+const shapeAccessibilityEditedZip = await JSZip.loadAsync(shapeAccessibilityEdited.bytes);
+const shapeAccessibilityEditedXml = await shapeAccessibilityEditedZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(
+  shapeAccessibilityEditedXml,
+  /<p:cNvPr\b(?=[^>]*\bname="decision-status")(?=[^>]*\btitle="Go decision: controlled rollout")[^>]*\/>/,
+);
+assert.doesNotMatch(shapeAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="decision-status")[^>]*\bdescr=/);
+for (const [partPath, entry] of Object.entries(shapeAccessibilitySourceZip.files)) {
+  if (entry.dir || partPath === "ppt/slides/slide1.xml") continue;
+  assert.deepEqual(
+    await shapeAccessibilityEditedZip.file(partPath).async("uint8array"),
+    await shapeAccessibilitySourceZip.file(partPath).async("uint8array"),
+    `shape alternative-text edit changed non-target part ${partPath}`,
+  );
+}
+const shapeAccessibilityRoundTrip = await PresentationFile.importPptx(shapeAccessibilityEdited);
+const roundTripAccessibilityShape = itemByName(shapeAccessibilityRoundTrip.slides.getItem(0).shapes.items, "decision-status");
+assert.deepEqual(roundTripAccessibilityShape.accessibility, { title: "Go decision: controlled rollout" });
+const outputAccessibilitySvg = await shapeAccessibilityRoundTrip.slides.getItem(0).export({ format: "svg" });
+assert.deepEqual(outputAccessibilitySvg.bytes, sourceAccessibilitySvg.bytes, "shape alternative-text edits must not alter model SVG output");
+
+const irregularShapeAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const irregularShapeAccessibilityXml = (await irregularShapeAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(/(<p:cNvPr\b[^>]*\bname="decision-status")/, "$1 custom=\"unmodeled\"");
+irregularShapeAccessibilityZip.file("ppt/slides/slide1.xml", irregularShapeAccessibilityXml);
+const irregularShapeAccessibilityFile = new FileBlob(
+  await irregularShapeAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const irregularShapeAccessibilityImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
+const irregularAccessibilityShape = itemByName(irregularShapeAccessibilityImported.slides.getItem(0).shapes.items, "decision-status");
+assert.equal(irregularAccessibilityShape.accessibility, undefined);
+irregularAccessibilityShape.setAccessibilityMetadata({ title: "Do not rewrite unmodeled cNvPr" });
+await assert.rejects(
+  () => PresentationFile.exportPptx(irregularShapeAccessibilityImported),
+  (error) => error?.code === "unsupported_presentation_edit",
+);
+
 // Custom shows are a real inline PresentationML graph. Source-free decks own
 // the complete list; canonical imports may edit only names and ordered slide
 // membership while show topology/native identity remain source-bound.
