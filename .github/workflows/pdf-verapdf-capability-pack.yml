@@ -129,7 +129,8 @@ jobs:
           $version = & $launcher --version
           if ($LASTEXITCODE -ne 0 -or $version -notcontains 'veraPDF 1.30.2') { throw 'The Windows launcher did not report veraPDF 1.30.2.' }
           $profiles = & $launcher --list
-          if ($LASTEXITCODE -ne 0 -or $profiles -notmatch '^\s+ua2\s+-') { throw 'The Windows launcher does not expose the required ua2 profile.' }
+          $profileText = [string]::Join([Environment]::NewLine, [string[]]$profiles)
+          if ($LASTEXITCODE -ne 0 -or $profileText -notmatch '(?m)^\s+ua2\s+-') { throw 'The Windows launcher does not expose the required ua2 profile.' }
           $env:OFFICE_KIT_PDF_VERAPDF_TEST = $launcher
           $env:OFFICE_KIT_PDF_VERAPDF_TEST_PYTHON = (Get-Command python.exe -ErrorAction Stop).Source
           & node.exe test/pdf-verapdf-provider.mjs
