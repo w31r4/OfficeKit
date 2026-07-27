@@ -2472,6 +2472,10 @@ message DocumentParagraphFormatting {
   // through 8 are the native outline levels; 9 explicitly removes an
   // inherited outline level. Omission leaves the style hierarchy unchanged.
   optional uint32 outline_level = 15;
+  // Presence-aware direct/style setting for w:contextualSpacing. True ignores
+  // before/after spacing between adjacent paragraphs with the same style;
+  // false explicitly restores that spacing, while omission inherits.
+  optional bool contextual_spacing = 16;
 }
 
 enum DocumentHeaderFooterReference {

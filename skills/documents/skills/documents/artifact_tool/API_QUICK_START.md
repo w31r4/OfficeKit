@@ -896,6 +896,10 @@ document.addParagraph("This conclusion must remain on one page.", {
 document.addParagraph("Avoid a single first or last line at a page boundary.", {
   paragraphFormat: { widowControl: true },
 });
+document.addParagraph("A compact continuation in the same body style.", {
+  styleId: "BodyText",
+  paragraphFormat: { contextualSpacing: true },
+});
 document.addParagraph("A generated-outline entry.", {
   paragraphFormat: { outlineLevel: 1 },
 });
@@ -917,7 +921,11 @@ inherits. Canonical direct/style `w:keepNext`, `w:keepLines`,
 `outlineLevel` is independent structure metadata: integer `0` through `8`
 selects the native outline level, `9` explicitly clears an inherited level,
 and omission inherits; it writes `w:outlineLvl` without restyling text or
-calculating a TOC. Duplicate,
+calculating a TOC. `contextualSpacing` is separately presence-aware:
+`true` writes `w:contextualSpacing` and suppresses before/after spacing only
+between adjacent paragraphs with the same style; explicit `false` overrides an
+inherited named-style value, while omission inherits. It neither calculates
+layout nor collapses spacing across different styles. Duplicate,
 child-bearing, extension-bearing, or invalid lexical pagination markup remains
 source-owned and fails closed on semantic replacement. Use native Word or
 LibreOffice rendering to confirm the actual page boundary.
