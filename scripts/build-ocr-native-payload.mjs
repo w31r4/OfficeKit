@@ -648,7 +648,9 @@ async function build(options) {
   const bin = path.join(payload, "bin");
   const native = path.join(payload, "native");
   const share = path.join(payload, "share");
-  await Promise.all([fs.mkdir(libexec, { recursive: true, mode: 0o755 }), fs.mkdir(lib, { recursive: true, mode: 0o755 }), fs.mkdir(bin, { recursive: true, mode: 0o755 }), fs.mkdir(native, { recursive: true, mode: 0o755 }), fs.mkdir(share, { recursive: true, mode: 0o755 })]);
+  const payloadDirectories = [libexec, lib, bin, share];
+  if (isWindowsPlatform(options.platform)) payloadDirectories.push(native);
+  await Promise.all(payloadDirectories.map((directory) => fs.mkdir(directory, { recursive: true, mode: 0o755 })));
   const [tesseract, ghostscript, pdftotext] = await Promise.all([
     realFile(options.tesseract, "tesseract", options.platform),
     realFile(options.ghostscript, "ghostscript", options.platform),
