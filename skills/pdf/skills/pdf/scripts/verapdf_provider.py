@@ -165,11 +165,12 @@ def run_bounded(
         "shell": False,
         "env": environment or provider_environment(),
     }
-    if os.name == "nt":
+    if os.name == "nt" and executable.suffix.lower() in {".com", ".exe"}:
         # The managed Windows pack exposes a verified native launcher. Pass
         # that absolute PE path separately to CreateProcess instead of asking
         # Windows to recover the executable from the serialized argv string.
-        # Arguments remain an argv list; this does not introduce a shell.
+        # Explicit non-PE command wrappers retain the normal no-shell Popen
+        # behavior instead. Arguments remain an argv list throughout.
         popen_options["executable"] = str(executable)
     try:
         process = subprocess.Popen(command, **popen_options)

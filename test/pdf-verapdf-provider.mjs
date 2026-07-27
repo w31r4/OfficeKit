@@ -13,8 +13,10 @@ const registry = path.join(skillRoot, "scripts", "pdf_provider.py");
 const fixture = path.join(repoRoot, "test", "fixtures", "pdf", "verapdf-pdfa1b-pass.pdf");
 const fixtureHash = "66077f449d472a048e3bbf7192aa6d2b0b0ebd6b6d8a6f878f776f69424b6deb";
 const providerSource = await fs.readFile(provider, "utf8");
+assert.match(providerSource, /os\.name == "nt" and executable\.suffix\.lower\(\) in \{"\.com", "\.exe"\}/,
+  "the Windows adapter must bind CreateProcess only to a verified native launcher path");
 assert.match(providerSource, /popen_options\["executable"\] = str\(executable\)/,
-  "the Windows adapter must bind CreateProcess to the verified native launcher path");
+  "the Windows adapter must bind a native launcher directly instead of routing it through a command shell");
 assert.match(providerSource, /shell": False/,
   "the Windows adapter must not introduce a command shell while binding its launcher");
 // GitHub's Windows image has both a native Python and Git Bash's POSIX
@@ -71,8 +73,11 @@ const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-verapdf-pro
 try {
   const source = path.join(tempRoot, "source.pdf");
   await fs.writeFile(source, fixtureBytes);
-  const fakeProvider = path.join(tempRoot, "fake-verapdf.mjs");
-  await fs.writeFile(fakeProvider, String.raw`#!/usr/bin/env node
+  const fakeProviderModule = path.join(tempRoot, "fake-verapdf.mjs");
+  const fakeProvider = process.platform === "win32"
+    ? path.join(tempRoot, "fake-verapdf.cmd")
+    : fakeProviderModule;
+  await fs.writeFile(fakeProviderModule, String.raw`#!/usr/bin/env node
 import fs from "node:fs";
 
 const args = process.argv.slice(2);
@@ -153,6 +158,12 @@ const report = {
 console.log(JSON.stringify(report));
 process.exit(compliant ? 0 : 1);
 `, "utf8");
+  if (process.platform === "win32") {
+    // The production pack is a native .exe. The generic fake is JavaScript,
+    // so its Windows test wrapper deliberately exercises the documented
+    // command-wrapper path instead of pretending an .mjs file is a PE image.
+    await fs.writeFile(fakeProvider, `@echo off\r\n"${process.execPath}" "%~dp0fake-verapdf.mjs" %*\r\n`, "utf8");
+  }
   await fs.chmod(fakeProvider, 0o755);
   const fakeEnv = { OFFICE_KIT_PDF_VERAPDF: fakeProvider };
 
