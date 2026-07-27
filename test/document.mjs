@@ -142,6 +142,7 @@ document.styles.add("BodyAccent", {
   keepNext: true,
   keepLinesTogether: true,
   widowControl: true,
+  outlineLevel: 2,
   suppressLineNumbers: true,
 });
 
@@ -162,6 +163,7 @@ const formatted = document.addParagraph("Bold and colored", {
     keepNext: true,
     keepLinesTogether: true,
     widowControl: true,
+    outlineLevel: 9,
     suppressLineNumbers: false,
   },
   runs: [
@@ -364,6 +366,8 @@ assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style
 assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:keepLines\b[^>]*w:val="true"[^>]*\/>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
 assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style\b(?=[^>]*w:styleId="BodyAccent")[\s\S]*?<w:widowControl\b[^>]*w:val="true"[^>]*\/>[\s\S]*?<\/w:style>/);
 assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:widowControl\b[^>]*w:val="true"[^>]*\/>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
+assert.match(await firstDocxZip.file("word/styles.xml").async("text"), /<w:style\b(?=[^>]*w:styleId="BodyAccent")[\s\S]*?<w:outlineLvl\b[^>]*w:val="2"[^>]*\/>[\s\S]*?<\/w:style>/);
+assert.match(firstDocumentXml, /<w:p>[\s\S]*?<w:outlineLvl\b[^>]*w:val="9"[^>]*\/>[\s\S]*?Bold [\s\S]*?and colored[\s\S]*?<\/w:p>/);
 assert.equal((firstDocumentXml.match(/<w:tblHeader\b[^>]*\/>/g) || []).length, 1, "source-free table must mark exactly its leading header row");
 await assert.rejects(
   () => DocumentFile.exportDocx(DocumentModel.create({
@@ -383,6 +387,14 @@ await assert.rejects(
   })),
   /widowControl must be boolean/i,
 );
+for (const invalidOutlineLevel of [-1, 10, 2.5, "2"]) {
+  await assert.rejects(
+    () => DocumentFile.exportDocx(DocumentModel.create({
+      blocks: [{ kind: "paragraph", text: "Invalid outline level", paragraphFormat: { outlineLevel: invalidOutlineLevel } }],
+    })),
+    /outlineLevel must be an integer from 0 through 9/i,
+  );
+}
 
 const watermarkDocument = DocumentModel.create({ name: "Watermark OfficeKit slice", blocks: [] });
 watermarkDocument.addParagraph("Native watermark verification body.");
@@ -792,12 +804,14 @@ assert.equal(imported.styles.values().some((style) => style.id === "BodyAccent" 
 assert.equal(imported.styles.get("BodyAccent")?.suppressLineNumbers, true);
 assert.equal(imported.styles.get("BodyAccent")?.keepLinesTogether, true);
 assert.equal(imported.styles.get("BodyAccent")?.widowControl, true);
+assert.equal(imported.styles.get("BodyAccent")?.outlineLevel, 2);
 const importedFormatted = imported.blocks.find((block) => block.text === "Bold and colored");
 assert.equal(importedFormatted?.kind, "paragraph");
 assert.equal(importedFormatted?.paragraphFormat.alignment, "center");
 assert.equal(importedFormatted?.paragraphFormat.suppressLineNumbers, false);
 assert.equal(importedFormatted?.paragraphFormat.keepLinesTogether, true);
 assert.equal(importedFormatted?.paragraphFormat.widowControl, true);
+assert.equal(importedFormatted?.paragraphFormat.outlineLevel, 9);
 assert.equal(importedFormatted?.runs.length, 2);
 assert.equal(importedFormatted?.runs[0].style.bold, true);
 assert.equal(importedFormatted?.runs[0].style.fontSize, 15);
@@ -855,6 +869,7 @@ importedFormatted.runs[1].style.color = "#008844";
 importedFormatted.paragraphFormat.suppressLineNumbers = true;
 importedFormatted.paragraphFormat.keepLinesTogether = false;
 importedFormatted.paragraphFormat.widowControl = false;
+importedFormatted.paragraphFormat.outlineLevel = 4;
 const importedBullet = imported.blocks.find((block) => block.kind === "listItem" && block.listType === "bullet");
 importedBullet.text = "Inspect the edited semantic model.";
 const importedTable = imported.blocks.find((block) => block.kind === "table");
@@ -894,6 +909,7 @@ assert.equal(roundTripFormatted?.runs[1].style.color, "#008844");
 assert.equal(roundTripFormatted?.paragraphFormat.suppressLineNumbers, true);
 assert.equal(roundTripFormatted?.paragraphFormat.keepLinesTogether, false);
 assert.equal(roundTripFormatted?.paragraphFormat.widowControl, false);
+assert.equal(roundTripFormatted?.paragraphFormat.outlineLevel, 4);
 assert.equal(roundTrip.blocks.some((block) => block.kind === "listItem" && block.text === "Inspect the edited semantic model."), true);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.values[1][1], "Pass");
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.headerRowCount, 2);

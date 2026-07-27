@@ -2468,6 +2468,10 @@ message DocumentParagraphFormatting {
   // asks the pagination host to avoid orphan/widow lines; false explicitly
   // overrides an inherited setting.
   optional bool widow_control = 14;
+  // Presence-aware direct/style outline level for w:outlineLvl. Values 0
+  // through 8 are the native outline levels; 9 explicitly removes an
+  // inherited outline level. Omission leaves the style hierarchy unchanged.
+  optional uint32 outline_level = 15;
 }
 
 enum DocumentHeaderFooterReference {

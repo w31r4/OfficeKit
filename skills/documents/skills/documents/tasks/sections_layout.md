@@ -133,6 +133,13 @@ document.addParagraph("A short conclusion that must not split across pages.", {
 document.addParagraph("Avoid a single first or last line at a page boundary.", {
   paragraphFormat: { widowControl: true },
 });
+document.addParagraph("A standalone heading for the generated outline.", {
+  paragraphFormat: { outlineLevel: 1 }, // native outline level 1 (second level)
+});
+document.addParagraph("Override an inherited heading style to ordinary body text.", {
+  styleId: "Heading1",
+  paragraphFormat: { outlineLevel: 9 }, // explicit no-outline override
+});
 document.addParagraph("Appendix", {
   styleId: "Heading1",
   paragraphFormat: { pageBreakBefore: true },
@@ -145,10 +152,14 @@ next page rather than split across two pages. `widowControl` writes
 `w:widowControl`, asking the host to avoid a single first or last line at a
 page boundary. `pageBreakBefore` writes `w:pageBreakBefore`. All four accept
 boolean `true`/`false`; omission inherits the named-style/default behavior.
+`outlineLevel` is separate document-structure metadata: `0` through `8` are
+the native outline levels, and `9` explicitly clears an inherited level;
+omission inherits. It writes `w:outlineLvl` and does not restyle text or
+calculate a TOC.
 Canonical direct/style leaves are editable after import. Duplicate,
 child-bearing, extension-bearing, or invalid lexical `w:keepNext`,
 `w:keepLines`, `w:widowControl`, `w:pageBreakBefore`, or
-`w:suppressLineNumbers` markup stays source-owned and semantic replacement
+`w:outlineLvl`/`w:suppressLineNumbers` markup stays source-owned and semantic replacement
 fails closed. Native
 Word/LibreOffice rendering remains the final authority on actual page breaks.
 
