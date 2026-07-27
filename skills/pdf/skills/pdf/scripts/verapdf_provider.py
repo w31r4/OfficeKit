@@ -174,7 +174,7 @@ def run_bounded(
     try:
         process = subprocess.Popen(command, **popen_options)
     except OSError as exc:
-        raise ProviderError(f"veraPDF could not start: {bounded_text(exc)}") from exc
+        raise ProviderError(f"veraPDF could not start {executable}: {bounded_text(exc)}") from exc
 
     def record_violation(message: str) -> None:
         with lock:

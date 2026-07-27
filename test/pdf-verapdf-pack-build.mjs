@@ -95,6 +95,10 @@ assert.match(workflowSource, /Verify the extracted managed Windows runtime and r
   "the Windows consumer probe must own its native-process boundary");
 assert.match(workflowSource, /profileText = \[string\]::Join/,
   "the Windows profile probe must join multi-line launcher output before matching it");
+assert.match(workflowSource, /Windows Python CreateProcess preflight/,
+  "the Windows release lane must separate Python process-start evidence from the higher-level adapter smoke");
+assert.match(workflowSource, /native launcher magic/,
+  "a Windows Python start failure must retain the target binary identity in the release log");
 
 for (const sourceFragment of [
   "CreateProcessW",
