@@ -52,7 +52,7 @@ function sha256(bytes) {
 
 function parseArguments(argv) {
   const values = {};
-  const repeated = { "library-root": [], "resource-root": [] };
+  const repeated = { "library-root": [], "resource-root": [], "windows-sidecar-root": [] };
   const singleValueOptions = new Set([
     "platform",
     "payload",
@@ -65,6 +65,8 @@ function parseArguments(argv) {
     "tessdata-root",
     "windows-python-launcher",
     "windows-ghostscript-launcher",
+    "windows-tesseract-launcher",
+    "windows-pdftotext-launcher",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -85,13 +87,35 @@ function parseArguments(argv) {
     if (!nonEmptyString(values[required])) fail(`--${required} is required.`);
   }
   if (!SUPPORTED_PLATFORMS.has(values.platform)) fail(`platform must be one of ${[...SUPPORTED_PLATFORMS].join(", ")}.`);
-  if (!repeated["library-root"].length) fail("at least one --library-root is required.");
   if (values.platform === "win32-x64") {
-    for (const required of ["windows-python-launcher", "windows-ghostscript-launcher"]) {
+    for (const required of ["windows-python-launcher", "windows-ghostscript-launcher", "windows-tesseract-launcher", "windows-pdftotext-launcher"]) {
       if (!nonEmptyString(values[required])) fail(`--${required} is required for win32-x64.`);
     }
-  } else if (values["windows-python-launcher"] !== undefined || values["windows-ghostscript-launcher"] !== undefined) {
-    fail("Windows launchers are valid only for win32-x64.");
+    if (repeated["library-root"].length) fail("--library-root is not valid for win32-x64; use --windows-sidecar-root.");
+    const sidecars = {};
+    for (const value of repeated["windows-sidecar-root"]) {
+      const delimiter = value.indexOf("=");
+      const name = delimiter === -1 ? "" : value.slice(0, delimiter);
+      const location = delimiter === -1 ? "" : value.slice(delimiter + 1);
+      if (!new Set(["tesseract", "ghostscript", "poppler"]).has(name) || !nonEmptyString(location)) {
+        fail("--windows-sidecar-root must use tesseract=<directory>, ghostscript=<directory>, or poppler=<directory>.");
+      }
+      if (Object.hasOwn(sidecars, name)) fail(`--windows-sidecar-root ${name} may be supplied only once.`);
+      sidecars[name] = path.resolve(location);
+    }
+    for (const name of ["tesseract", "ghostscript", "poppler"]) {
+      if (!sidecars[name]) fail(`--windows-sidecar-root ${name}=<directory> is required for win32-x64.`);
+    }
+    values.windowsSidecars = sidecars;
+  } else {
+    if (!repeated["library-root"].length) fail("at least one --library-root is required.");
+    if (repeated["windows-sidecar-root"].length
+      || values["windows-python-launcher"] !== undefined
+      || values["windows-ghostscript-launcher"] !== undefined
+      || values["windows-tesseract-launcher"] !== undefined
+      || values["windows-pdftotext-launcher"] !== undefined) {
+      fail("Windows sidecar roots and launchers are valid only for win32-x64.");
+    }
   }
   return {
     platform: values.platform,
@@ -107,6 +131,9 @@ function parseArguments(argv) {
     resourceRoots: repeated["resource-root"].map((value) => path.resolve(value)),
     windowsPythonLauncher: values["windows-python-launcher"] ? path.resolve(values["windows-python-launcher"]) : undefined,
     windowsGhostscriptLauncher: values["windows-ghostscript-launcher"] ? path.resolve(values["windows-ghostscript-launcher"]) : undefined,
+    windowsTesseractLauncher: values["windows-tesseract-launcher"] ? path.resolve(values["windows-tesseract-launcher"]) : undefined,
+    windowsPdftotextLauncher: values["windows-pdftotext-launcher"] ? path.resolve(values["windows-pdftotext-launcher"]) : undefined,
+    windowsSidecars: values.windowsSidecars,
   };
 }
 
@@ -319,14 +346,74 @@ async function listWindowsLibraryFiles(rootPath) {
   return results;
 }
 
-async function copyWindowsLibraries(options, binDirectory) {
+async function copyWindowsSidecarLibraries(rootPath, destinationDirectory, sidecarName) {
   const copied = new Map();
-  for (const rootPath of options.libraryRoots) {
-    for (const candidate of await listWindowsLibraryFiles(rootPath)) {
-      await copyByBasename(candidate, binDirectory, copied);
+  for (const candidate of await listWindowsLibraryFiles(rootPath)) {
+    const actual = await fs.realpath(candidate);
+    const name = path.basename(candidate);
+    // Windows resolves sibling DLL names case-insensitively, so the private
+    // closure must reject a case-only alias when its bytes differ too.
+    const key = name.toLowerCase();
+    const bytes = await fs.readFile(actual);
+    const digest = sha256(bytes);
+    const previous = copied.get(key);
+    if (previous) {
+      if (previous.digest !== digest) {
+        fail(
+          `Windows ${sidecarName} private closure has conflicting ${name}: `
+          + `${previous.source} (sha256:${previous.digest}) versus ${actual} (sha256:${digest}).`,
+        );
+      }
+      continue;
     }
+    const destination = path.join(destinationDirectory, name);
+    await copyFile(actual, destination);
+    copied.set(key, { destination, source: actual, digest });
   }
-  if (!copied.size) fail("no Windows native DLLs were collected from the declared library roots.");
+  if (!copied.size) fail(`Windows ${sidecarName} private closure has no DLL runtime files.`);
+  return copied;
+}
+
+async function copyWindowsSidecar({ name, rootPath, executable, executableName }, nativeDirectory) {
+  const root = await realDirectory(rootPath, `Windows ${name} sidecar root`);
+  containedPath([root], executable, `Windows ${name} executable`);
+  if (path.basename(executable).toLowerCase() !== executableName) {
+    fail(`Windows ${name} executable must be named ${executableName}.`);
+  }
+  const destination = path.join(nativeDirectory, name);
+  await fs.mkdir(destination, { recursive: true, mode: 0o755 });
+  await copyFile(executable, path.join(destination, executableName), { executable: true });
+  const libraries = await copyWindowsSidecarLibraries(root, destination, name);
+  return new Map([...libraries].map(([libraryName, record]) => [`${name}/${libraryName}`, record]));
+}
+
+async function copyWindowsSidecars(options, executables, nativeDirectory) {
+  const descriptors = [
+    {
+      name: "tesseract",
+      rootPath: options.windowsSidecars.tesseract,
+      executable: executables.tesseract,
+      executableName: "tesseract.exe",
+    },
+    {
+      name: "ghostscript",
+      rootPath: options.windowsSidecars.ghostscript,
+      executable: executables.ghostscript,
+      executableName: "gswin64c.exe",
+    },
+    {
+      name: "poppler",
+      rootPath: options.windowsSidecars.poppler,
+      executable: executables.pdftotext,
+      executableName: "pdftotext.exe",
+    },
+  ];
+  const copied = new Map();
+  for (const descriptor of descriptors) {
+    const sidecar = await copyWindowsSidecar(descriptor, nativeDirectory);
+    for (const [key, value] of sidecar) copied.set(key, value);
+  }
+  if (!copied.size) fail("no Windows native DLLs were collected into private sidecar closures.");
   return copied;
 }
 
@@ -530,12 +617,16 @@ async function writeLaunchers(payload, options) {
   }
   await fs.mkdir(bin, { recursive: true, mode: 0o755 });
   if (isWindowsPlatform(platform)) {
-    const [pythonLauncher, ghostscriptLauncher] = await Promise.all([
+    const [pythonLauncher, ghostscriptLauncher, tesseractLauncher, pdftotextLauncher] = await Promise.all([
       realFile(options.windowsPythonLauncher, "Windows Python launcher", platform),
       realFile(options.windowsGhostscriptLauncher, "Windows Ghostscript launcher", platform),
+      realFile(options.windowsTesseractLauncher, "Windows Tesseract launcher", platform),
+      realFile(options.windowsPdftotextLauncher, "Windows pdftotext launcher", platform),
     ]);
     await copyFile(pythonLauncher, path.join(bin, "ocrmypdf.exe"), { executable: true });
     await copyFile(ghostscriptLauncher, path.join(bin, "gs.exe"), { executable: true });
+    await copyFile(tesseractLauncher, path.join(bin, "tesseract.exe"), { executable: true });
+    await copyFile(pdftotextLauncher, path.join(bin, "pdftotext.exe"), { executable: true });
     if (process.platform !== "win32") fail("win32 payload must be assembled on win32.");
     return;
   }
@@ -555,18 +646,15 @@ async function build(options) {
   const libexec = path.join(payload, "libexec");
   const lib = path.join(payload, "lib");
   const bin = path.join(payload, "bin");
+  const native = path.join(payload, "native");
   const share = path.join(payload, "share");
-  await Promise.all([fs.mkdir(libexec, { recursive: true, mode: 0o755 }), fs.mkdir(lib, { recursive: true, mode: 0o755 }), fs.mkdir(bin, { recursive: true, mode: 0o755 }), fs.mkdir(share, { recursive: true, mode: 0o755 })]);
+  await Promise.all([fs.mkdir(libexec, { recursive: true, mode: 0o755 }), fs.mkdir(lib, { recursive: true, mode: 0o755 }), fs.mkdir(bin, { recursive: true, mode: 0o755 }), fs.mkdir(native, { recursive: true, mode: 0o755 }), fs.mkdir(share, { recursive: true, mode: 0o755 })]);
   const [tesseract, ghostscript, pdftotext] = await Promise.all([
     realFile(options.tesseract, "tesseract", options.platform),
     realFile(options.ghostscript, "ghostscript", options.platform),
     realFile(options.pdftotext, "pdftotext", options.platform),
   ]);
-  if (isWindowsPlatform(options.platform)) {
-    await copyFile(tesseract, path.join(bin, "tesseract.exe"), { executable: true });
-    await copyFile(ghostscript, path.join(bin, "gswin64c.exe"), { executable: true });
-    await copyFile(pdftotext, path.join(bin, "pdftotext.exe"), { executable: true });
-  } else {
+  if (!isWindowsPlatform(options.platform)) {
     await copyFile(tesseract, path.join(libexec, "tesseract"), { executable: true });
     await copyFile(ghostscript, path.join(libexec, "gs"), { executable: true });
     await copyFile(pdftotext, path.join(libexec, "pdftotext"), { executable: true });
@@ -602,7 +690,7 @@ async function build(options) {
     ], lib);
     await finalizeLinuxPayload(payload);
   } else {
-    copied = await copyWindowsLibraries(options, bin);
+    copied = await copyWindowsSidecars(options, { tesseract, ghostscript, pdftotext }, native);
   }
   await writeLaunchers(payload, options);
 

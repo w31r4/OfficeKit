@@ -11,14 +11,16 @@ const nativeBuilder = path.join(root, "scripts", "build-ocr-native-payload.mjs")
 const workflowPath = path.join(root, ".github", "workflows", "pdf-ocr-capability-packs.yml");
 const windowsPythonLauncher = path.join(root, "scripts", "windows-python-module-launcher.c");
 const windowsGhostscriptLauncher = path.join(root, "scripts", "windows-ghostscript-launcher.c");
+const windowsSidecarLauncher = path.join(root, "scripts", "windows-ocr-sidecar-launcher.c");
 
-const [inputBytes, pythonInputBytes, nativeSource, workflowSource, windowsPythonLauncherSource, windowsGhostscriptLauncherSource] = await Promise.all([
+const [inputBytes, pythonInputBytes, nativeSource, workflowSource, windowsPythonLauncherSource, windowsGhostscriptLauncherSource, windowsSidecarLauncherSource] = await Promise.all([
   fs.readFile(inputsPath),
   fs.readFile(pythonInputsPath),
   fs.readFile(nativeBuilder, "utf8"),
   fs.readFile(workflowPath, "utf8"),
   fs.readFile(windowsPythonLauncher, "utf8"),
   fs.readFile(windowsGhostscriptLauncher, "utf8"),
+  fs.readFile(windowsSidecarLauncher, "utf8"),
 ]);
 const inputs = JSON.parse(inputBytes);
 
@@ -83,10 +85,15 @@ for (const sourceFragment of [
   "isElfFile",
   "PE_MAGIC",
   "isPeFile",
-  "copyWindowsLibraries",
+  "copyWindowsSidecars",
+  "copyWindowsSidecarLibraries",
+  "private closure has conflicting",
+  "windows-sidecar-root",
   "Windows library root contains a non-PE DLL",
   "windows-python-launcher",
   "windows-ghostscript-launcher",
+  "windows-tesseract-launcher",
+  "windows-pdftotext-launcher",
   "loaderPath",
   "linuxRpath",
   "listLinuxLibraryFiles",
@@ -109,8 +116,15 @@ assert.match(workflowSource, /poppler-data/);
 assert.match(workflowSource, /platform: win32-x64\s+runner: windows-2025/);
 assert.match(workflowSource, /windows-python-module-launcher\.c/);
 assert.match(workflowSource, /windows-ghostscript-launcher\.c/);
+assert.match(workflowSource, /windows-ocr-sidecar-launcher\.c/);
 assert.match(workflowSource, /office-kit-build-ocr-launchers\.cmd/);
 assert.match(workflowSource, /VsDevCmd\.bat/);
+assert.match(workflowSource, /OFFICEKIT_TESSERACT_LAUNCHER/);
+assert.match(workflowSource, /OFFICEKIT_PDFTOTEXT_LAUNCHER/);
+assert.match(workflowSource, /--windows-sidecar-root/);
+assert.match(workflowSource, /native\/tesseract\/tesseract\.exe/);
+assert.match(workflowSource, /native\/ghostscript\/gswin64c\.exe/);
+assert.match(workflowSource, /native\/poppler\/pdftotext\.exe/);
 assert.match(workflowSource, /Expand-Archive/);
 assert.match(workflowSource, /Extract-PinnedTesseractRuntime/,
   "the Windows Tesseract source must be extracted into the private build root instead of installed globally");
@@ -155,7 +169,18 @@ for (const source of [windowsPythonLauncherSource, windowsGhostscriptLauncherSou
 }
 assert.match(windowsPythonLauncherSource, /parent_directory\(root\) \|\| !parent_directory\(root\)/);
 assert.match(windowsGhostscriptLauncherSource, /GS_LIB/);
+assert.match(windowsGhostscriptLauncherSource, /native\\\\ghostscript/);
 assert.match(windowsGhostscriptLauncherSource, /gswin64c\.exe/);
+for (const sourceFragment of [
+  "CreateProcessW",
+  "CommandLineToArgvW",
+  "OFFICEKIT_TESSERACT_LAUNCHER",
+  "OFFICEKIT_PDFTOTEXT_LAUNCHER",
+  "native\\\\tesseract",
+  "native\\\\poppler",
+  "TESSDATA_PREFIX",
+]) assert.match(windowsSidecarLauncherSource, new RegExp(sourceFragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+assert.doesNotMatch(windowsSidecarLauncherSource, /cmd\.exe|powershell|system\s*\(/i, "the private sidecar launcher must not delegate to a command interpreter");
 
 const invalidPlatform = spawnSync(process.execPath, [nativeBuilder,
   "--platform", "win32-arm64",
@@ -184,5 +209,22 @@ const missingWindowsLaunchers = spawnSync(process.execPath, [nativeBuilder,
 ], { cwd: root, encoding: "utf8" });
 assert.equal(missingWindowsLaunchers.status, 2);
 assert.match(missingWindowsLaunchers.stderr, /--windows-python-launcher is required for win32-x64/);
+
+const missingWindowsSidecars = spawnSync(process.execPath, [nativeBuilder,
+  "--platform", "win32-x64",
+  "--payload", root,
+  "--notices", path.join(root, "package.json"),
+  "--tesseract", process.execPath,
+  "--ghostscript", process.execPath,
+  "--pdftotext", process.execPath,
+  "--ghostscript-root", root,
+  "--tessdata-root", root,
+  "--windows-python-launcher", root,
+  "--windows-ghostscript-launcher", root,
+  "--windows-tesseract-launcher", root,
+  "--windows-pdftotext-launcher", root,
+], { cwd: root, encoding: "utf8" });
+assert.equal(missingWindowsSidecars.status, 2);
+assert.match(missingWindowsSidecars.stderr, /--windows-sidecar-root tesseract=<directory> is required for win32-x64/);
 
 console.log("OCR PDF capability-pack build smoke ok");
