@@ -287,16 +287,36 @@ jobs:
             export OFFICEKIT_WINDOWS_PATHS="$(cygpath -w "$RUNNER_TEMP/ocr-windows-paths.json")"
             powershell.exe -NoProfile -NonInteractive -Command '
               $ErrorActionPreference = "Stop"
-              foreach ($pair in @(
-                @($env:OFFICEKIT_TESSERACT_INSTALLER, $env:OFFICEKIT_TESSERACT_INSTALL_ROOT),
-                @($env:OFFICEKIT_GHOSTSCRIPT_INSTALLER, $env:OFFICEKIT_GHOSTSCRIPT_INSTALL_ROOT)
-              )) {
-                $process = Start-Process -FilePath $pair[0] -ArgumentList @("/S", "/D=$($pair[1])") -Wait -PassThru
-                if ($process.ExitCode -ne 0) { throw "native installer failed with exit $($process.ExitCode): $($pair[0])" }
+              function Install-PinnedNativeRuntime([string]$label, [string]$installer, [string]$destination, [string]$expectedExecutable) {
+                if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) { throw "$label installer is missing: $installer" }
+                Write-Host "::group::Install $label into the private build root"
+                try {
+                  $process = Start-Process -FilePath $installer -ArgumentList @("/S", "/D=$destination") -PassThru -ErrorAction Stop
+                  if (-not $process.WaitForExit(300000)) {
+                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    throw "$label installer exceeded the 300-second deadline (pid $($process.Id)): $installer"
+                  }
+                  if ($process.ExitCode -ne 0) { throw "$label installer failed with exit $($process.ExitCode): $installer" }
+                  # Some NSIS installers hand their file-copy work to a child
+                  # process. Do not retain an unbounded process-tree wait;
+                  # instead wait only for the exact layout this pack needs.
+                  $layoutDeadline = [DateTimeOffset]::UtcNow.AddSeconds(90)
+                  while ([DateTimeOffset]::UtcNow -lt $layoutDeadline) {
+                    $installed = Get-ChildItem -LiteralPath $destination -Recurse -File -Filter $expectedExecutable -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($null -ne $installed) {
+                      Write-Host "$label installer completed with exit 0 and exposed $expectedExecutable."
+                      return $installed
+                    }
+                    Start-Sleep -Seconds 1
+                  }
+                  throw "$label installer completed but did not expose $expectedExecutable within the 90-second layout deadline: $destination"
+                } finally {
+                  Write-Host "::endgroup::"
+                }
               }
+              $tesseract = Install-PinnedNativeRuntime "Tesseract" $env:OFFICEKIT_TESSERACT_INSTALLER $env:OFFICEKIT_TESSERACT_INSTALL_ROOT "tesseract.exe"
+              $ghostscript = Install-PinnedNativeRuntime "Ghostscript" $env:OFFICEKIT_GHOSTSCRIPT_INSTALLER $env:OFFICEKIT_GHOSTSCRIPT_INSTALL_ROOT "gswin64c.exe"
               Expand-Archive -LiteralPath $env:OFFICEKIT_POPPLER_ARCHIVE -DestinationPath $env:OFFICEKIT_POPPLER_EXTRACT_ROOT -Force
-              $tesseract = Get-ChildItem -LiteralPath $env:OFFICEKIT_TESSERACT_INSTALL_ROOT -Recurse -File -Filter tesseract.exe | Select-Object -First 1
-              $ghostscript = Get-ChildItem -LiteralPath $env:OFFICEKIT_GHOSTSCRIPT_INSTALL_ROOT -Recurse -File -Filter gswin64c.exe | Select-Object -First 1
               $popplerRootName = (Get-Content -Raw $env:OCR_INPUTS | ConvertFrom-Json).ocrCore.nativeBuild."win32-x64".poppler.root
               $popplerRoot = Join-Path $env:OFFICEKIT_POPPLER_EXTRACT_ROOT $popplerRootName
               $pdftotext = Join-Path $popplerRoot "Library\\bin\\pdftotext.exe"
