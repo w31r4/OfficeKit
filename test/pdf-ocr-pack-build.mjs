@@ -121,8 +121,11 @@ assert.match(workflowSource, /for root_formula in tesseract ghostscript poppler;
 assert.match(workflowSource, /unapproved Ghostscript resource target/);
 assert.match(workflowSource, /run_probe\(\)/);
 assert.match(workflowSource, /ocr-home/);
+assert.match(workflowSource, /sha256-file\.mjs/);
+assert.match(workflowSource, /verify-pdf-provider-pack\.mjs/);
 assert.doesNotMatch(workflowSource, /brew deps --include-optional/);
 assert.doesNotMatch(workflowSource, /brew deps --union tesseract ghostscript poppler/);
+assert.doesNotMatch(workflowSource, /shasum/);
 
 for (const source of [windowsPythonLauncherSource, windowsGhostscriptLauncherSource]) {
   for (const fragment of ["CreateProcessW", "CommandLineToArgvW", "SystemRoot", "PATH"]) {

@@ -73,8 +73,10 @@ jobs:
           set -euo pipefail
           archive="$RUNNER_TEMP/python-release/${{ inputs.pack }}-$PYTHON_PACK_VERSION-${{ matrix.platform }}.tar.gz"
           destination="$RUNNER_TEMP/python-consumer"
-          mkdir -p "$destination"
-          tar -xzf "$archive" -C "$destination"
+          node scripts/verify-pdf-provider-pack.mjs \
+            --archive "$archive" \
+            --manifest "$RUNNER_TEMP/python-release/${{ inputs.pack }}-$PYTHON_PACK_VERSION-${{ matrix.platform }}.manifest.json" \
+            --destination "$destination"
           if [ "${{ matrix.platform }}" = "win32-x64" ]; then
             python="$destination/python.exe"
             test -f "$python"

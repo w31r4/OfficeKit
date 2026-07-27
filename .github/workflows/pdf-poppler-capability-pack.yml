@@ -64,7 +64,7 @@ jobs:
           source_bytes="$(jq -r '.popplerQa.nativeBuild["win32-x64"].downloadBytes' "$POPPLER_INPUTS")"
           curl --fail --location --retry 3 --proto '=https' --tlsv1.2 "$source_url" --output "$source_zip"
           test "$(wc -c < "$source_zip" | tr -d ' ')" = "$source_bytes"
-          echo "$source_sha  $source_zip" | shasum -a 256 --check --status
+          test "$(node scripts/sha256-file.mjs "$source_zip")" = "$source_sha"
           export OFFICEKIT_POPPLER_SOURCE_ZIP="$(cygpath -w "$source_zip")"
           export OFFICEKIT_POPPLER_SOURCE_ROOT="$(cygpath -w "$source_root")"
           powershell.exe -NoProfile -NonInteractive -Command '
@@ -90,7 +90,7 @@ jobs:
           license_file="$RUNNER_TEMP/poppler-GPL-2.0.txt"
           curl --fail --location --retry 3 --proto '=https' --tlsv1.2 "$license_url" --output "$license_file"
           test "$(wc -c < "$license_file" | tr -d ' ')" = "$license_bytes"
-          echo "$license_sha  $license_file" | shasum -a 256 --check --status
+          test "$(node scripts/sha256-file.mjs "$license_file")" = "$license_sha"
           {
             cat "$notices"
             printf '\n# Source provenance\n\n'
@@ -120,8 +120,10 @@ jobs:
           set -euo pipefail
           archive="$RUNNER_TEMP/poppler-qa-release/poppler-qa-$POPPLER_PACK_VERSION-win32-x64.tar.gz"
           destination="$RUNNER_TEMP/poppler-qa-consumer"
-          mkdir -p "$destination"
-          tar -xzf "$archive" -C "$destination"
+          node scripts/verify-pdf-provider-pack.mjs \
+            --archive "$archive" \
+            --manifest "$RUNNER_TEMP/poppler-qa-release/poppler-qa-$POPPLER_PACK_VERSION-win32-x64.manifest.json" \
+            --destination "$destination"
           for executable in pdfinfo.exe pdftoppm.exe pdftotext.exe; do test -f "$destination/bin/$executable"; done
           for command in pdfinfo.exe pdftoppm.exe pdftotext.exe; do
             command_windows="$(cygpath -w "$destination/bin/$command")"

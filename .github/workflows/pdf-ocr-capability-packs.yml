@@ -70,7 +70,7 @@ jobs:
             (.licenseMaterial.windowsNative.ghostscriptAgpl30.sha256 | test("^[a-f0-9]{64}$")) and
             (.licenseMaterial.windowsNative.popplerGpl20.sha256 | test("^[a-f0-9]{64}$"))
           ' "$OCR_INPUTS"
-          test "$(shasum -a 256 "$PYTHON_INPUTS" | awk '{print $1}')" = "$(jq -r '.ocrCore.pythonInputs.sha256' "$OCR_INPUTS")"
+          test "$(node scripts/sha256-file.mjs "$PYTHON_INPUTS")" = "$(jq -r '.ocrCore.pythonInputs.sha256' "$OCR_INPUTS")"
           node scripts/build-python-provider-pack.mjs --verify-lock
       - name: Install platform-native OCR build inputs
         shell: bash
@@ -85,7 +85,7 @@ jobs:
             # Windows inputs are downloaded from the immutable lock below and
             # installed only under RUNNER_TEMP. No package manager or global
             # Python is part of the customer-runtime closure.
-            for command in curl tar shasum cygpath powershell.exe; do command -v "$command"; done
+            for command in curl cygpath powershell.exe; do command -v "$command"; done
           fi
       - name: Compile capability-pack-owned Windows OCR launchers
         if: ${{ matrix.platform == 'win32-x64' }}
@@ -130,8 +130,10 @@ jobs:
           set -euo pipefail
           python_archive="$RUNNER_TEMP/ocr-python/ocr-core-$OCR_CORE_PACK_VERSION-${{ matrix.platform }}.tar.gz"
           payload="$RUNNER_TEMP/ocr-payload"
-          mkdir -p "$payload"
-          tar -xzf "$python_archive" -C "$payload"
+          node scripts/verify-pdf-provider-pack.mjs \
+            --archive "$python_archive" \
+            --manifest "$RUNNER_TEMP/ocr-python/ocr-core-$OCR_CORE_PACK_VERSION-${{ matrix.platform }}.manifest.json" \
+            --destination "$payload"
           mv "$payload/THIRD_PARTY_NOTICES.md" "$RUNNER_TEMP/ocr-python-notices.md"
           rm "$payload/sbom.cdx.json"
           native_notices="$RUNNER_TEMP/ocr-native-notices.md"
@@ -271,7 +273,7 @@ jobs:
               bytes="$(jq -r "$selector.downloadBytes" "$OCR_INPUTS")"
               curl --fail --location --retry 3 --proto '=https' --tlsv1.2 "$url" --output "$target"
               test "$(wc -c < "$target" | tr -d ' ')" = "$bytes"
-              echo "$sha  $target" | shasum -a 256 --check --status
+              test "$(node scripts/sha256-file.mjs "$target")" = "$sha"
             }
             fetch_locked '.ocrCore.nativeBuild["win32-x64"].tesseract' "$windows_sources/tesseract.exe"
             fetch_locked '.ocrCore.nativeBuild["win32-x64"].ghostscript' "$windows_sources/ghostscript.exe"
@@ -358,7 +360,7 @@ jobs:
               done < <(find "$(jq -r '.popplerShare' "$windows_paths")" -maxdepth 1 -type f \( -name 'COPYING*' -o -name 'NOTICE*' \) -print | LC_ALL=C sort)
             fi
           } > "$RUNNER_TEMP/ocr-notices.md"
-          inputs_sha="$(shasum -a 256 "$OCR_INPUTS" | awk '{print $1}')"
+          inputs_sha="$(node scripts/sha256-file.mjs "$OCR_INPUTS")"
           node scripts/build-pdf-provider-pack.mjs \
             --pack ocr-core \
             --version "$OCR_CORE_PACK_VERSION" \
@@ -376,8 +378,11 @@ jobs:
           archive="$RUNNER_TEMP/ocr-core-release/ocr-core-$OCR_CORE_PACK_VERSION-${{ matrix.platform }}.tar.gz"
           destination="$RUNNER_TEMP/ocr-core-consumer"
           home="$RUNNER_TEMP/ocr-home"
-          mkdir -p "$destination" "$home"
-          tar -xzf "$archive" -C "$destination"
+          mkdir -p "$home"
+          node scripts/verify-pdf-provider-pack.mjs \
+            --archive "$archive" \
+            --manifest "$RUNNER_TEMP/ocr-core-release/ocr-core-$OCR_CORE_PACK_VERSION-${{ matrix.platform }}.manifest.json" \
+            --destination "$destination"
           test ! -e "$destination/bin/pip"
           test -z "$(find "$destination/share/tessdata" -type f -name '*.traineddata' -print -quit)"
           if [ "${{ matrix.platform }}" = "win32-x64" ]; then
@@ -493,14 +498,14 @@ jobs:
           data="$payload/share/tessdata/$language.traineddata"
           curl --fail --location --retry 3 --proto '=https' --tlsv1.2 "$url" --output "$data"
           test "$(wc -c < "$data" | tr -d ' ')" = "$bytes"
-          echo "$sha  $data" | shasum -a 256 --check --status
+          test "$(node scripts/sha256-file.mjs "$data")" = "$sha"
           license_url="$(jq -r '.licenseMaterial.tessdataFastApache20.url' "$OCR_INPUTS")"
           license_sha="$(jq -r '.licenseMaterial.tessdataFastApache20.sha256' "$OCR_INPUTS")"
           license_bytes="$(jq -r '.licenseMaterial.tessdataFastApache20.downloadBytes' "$OCR_INPUTS")"
           license_file="$RUNNER_TEMP/tessdata-fast-LICENSE.txt"
           curl --fail --location --retry 3 --proto '=https' --tlsv1.2 "$license_url" --output "$license_file"
           test "$(wc -c < "$license_file" | tr -d ' ')" = "$license_bytes"
-          echo "$license_sha  $license_file" | shasum -a 256 --check --status
+          test "$(node scripts/sha256-file.mjs "$license_file")" = "$license_sha"
           {
             printf '%s\n\n' "# Tesseract $language language-data notice"
             printf '%s\n\n' "This immutable pack contains only tessdata_fast 4.1.0 $language.traineddata, downloaded from $url and SHA-256 verified before packaging."
@@ -522,8 +527,10 @@ jobs:
           set -euo pipefail
           archive="$RUNNER_TEMP/${{ matrix.pack }}-release/${{ matrix.pack }}-$OCR_LANGUAGE_PACK_VERSION-${{ matrix.platform }}.tar.gz"
           destination="$RUNNER_TEMP/${{ matrix.pack }}-consumer"
-          mkdir -p "$destination"
-          tar -xzf "$archive" -C "$destination"
+          node scripts/verify-pdf-provider-pack.mjs \
+            --archive "$archive" \
+            --manifest "$RUNNER_TEMP/${{ matrix.pack }}-release/${{ matrix.pack }}-$OCR_LANGUAGE_PACK_VERSION-${{ matrix.platform }}.manifest.json" \
+            --destination "$destination"
           test -f "$destination/share/tessdata/${{ matrix.language }}.traineddata"
           test "$(find "$destination/share/tessdata" -type f | wc -l | tr -d ' ')" = 1
       - name: Attest immutable OCR language-pack provenance

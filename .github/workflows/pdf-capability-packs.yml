@@ -64,10 +64,12 @@ jobs:
             brew install cmake jpeg-turbo
           else
             # windows-2025 already provides MSVC, CMake, Git Bash, curl,
-            # tar, unzip, and shasum. Do not use a machine-wide package
+            # tar, and unzip. Hashes are verified by the checked-in Node
+            # helper, so this build does not depend on a Perl checksum shim.
+            # Do not use a machine-wide package
             # manager: a capability pack must be reproducible from its
             # pinned source inputs alone.
-            for command in cmake curl tar unzip shasum cygpath powershell.exe; do
+            for command in cmake curl tar unzip cygpath powershell.exe; do
               command -v "$command"
             done
             cmake --version
@@ -81,13 +83,13 @@ jobs:
           curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
             "https://github.com/qpdf/qpdf/releases/download/v${QPDF_VERSION}/qpdf-${QPDF_VERSION}.tar.gz" \
             --output "qpdf-${QPDF_VERSION}.tar.gz"
-          echo "${QPDF_SOURCE_SHA256}  qpdf-${QPDF_VERSION}.tar.gz" | shasum -a 256 --check --status
+          test "$(node "$GITHUB_WORKSPACE/scripts/sha256-file.mjs" "qpdf-${QPDF_VERSION}.tar.gz")" = "$QPDF_SOURCE_SHA256"
           tar -xzf "qpdf-${QPDF_VERSION}.tar.gz"
           if [ "${{ matrix.platform }}" = "win32-x64" ]; then
             curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
               "https://github.com/qpdf/external-libs/releases/download/${QPDF_EXTERNAL_LIBS_VERSION}/qpdf-external-libs-bin.zip" \
               --output qpdf-external-libs-bin.zip
-            echo "${QPDF_EXTERNAL_LIBS_SHA256}  qpdf-external-libs-bin.zip" | shasum -a 256 --check --status
+            test "$(node "$GITHUB_WORKSPACE/scripts/sha256-file.mjs" qpdf-external-libs-bin.zip)" = "$QPDF_EXTERNAL_LIBS_SHA256"
             unzip -q qpdf-external-libs-bin.zip -d "qpdf-${QPDF_VERSION}"
           fi
       - name: Build a self-contained qpdf command payload
@@ -206,8 +208,10 @@ jobs:
           set -euo pipefail
           archive="$RUNNER_TEMP/qpdf-release/qpdf-${PACK_VERSION}-${{ matrix.platform }}.tar.gz"
           destination="$RUNNER_TEMP/qpdf-consumer"
-          mkdir -p "$destination"
-          tar -xzf "$archive" -C "$destination"
+          node scripts/verify-pdf-provider-pack.mjs \
+            --archive "$archive" \
+            --manifest "$RUNNER_TEMP/qpdf-release/qpdf-$PACK_VERSION-${{ matrix.platform }}.manifest.json" \
+            --destination "$destination"
           if [ "${{ matrix.platform }}" = "win32-x64" ]; then
             "$destination/bin/qpdf.exe" --version | grep -Fx "qpdf version ${QPDF_VERSION}"
           else
