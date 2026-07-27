@@ -90,6 +90,26 @@ function pythonExecutableLabel(platform) {
   return isWindowsPlatform(platform) ? "python.exe" : "bin/python3";
 }
 
+function runtimeArchiveExtractor(platform) {
+  if (!isWindowsPlatform(platform)) return "tar";
+  // Git for Windows places GNU tar ahead of the system tools on PATH. That
+  // implementation treats a native C:\\ path as a remote archive specifier,
+  // while the release builder intentionally passes absolute Node paths. Use
+  // the OS-owned extractor by its absolute location instead of inheriting a
+  // shell or PATH-dependent tool choice.
+  const systemRoot = String(process.env.SystemRoot || process.env.WINDIR || "").trim();
+  if (!systemRoot) fail("Windows runtime extraction requires SystemRoot.");
+  return path.join(systemRoot, "System32", "tar.exe");
+}
+
+async function extractRuntimeArchive(runtimeArchive, runtimeExtract, platform) {
+  await execFile(runtimeArchiveExtractor(platform), ["-xzf", runtimeArchive, "-C", runtimeExtract], {
+    timeout: 120_000,
+    maxBuffer: 64 * 1024,
+    windowsHide: true,
+  });
+}
+
 function wheelNameFromUrl(value, label) {
   const url = httpsUrl(value, label);
   return safeWheelName(path.posix.basename(url.pathname), label);
@@ -436,7 +456,7 @@ async function build(options, loaded) {
     await downloadPinned(runtimeSource, runtimeArchive, "Python runtime", total);
     const runtimeExtract = path.join(temporary, "runtime");
     await fs.mkdir(runtimeExtract, { mode: 0o700 });
-    await execFile("tar", ["-xzf", runtimeArchive, "-C", runtimeExtract], { timeout: 120_000, maxBuffer: 64 * 1024 });
+    await extractRuntimeArchive(runtimeArchive, runtimeExtract, options.platform);
     const sourceRoot = path.join(runtimeExtract, "python");
     const sourceStat = await fs.lstat(sourceRoot);
     if (!sourceStat.isDirectory() || sourceStat.isSymbolicLink()) fail("Python runtime archive does not contain a safe python directory.");
