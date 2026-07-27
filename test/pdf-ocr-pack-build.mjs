@@ -112,16 +112,22 @@ assert.match(workflowSource, /windows-ghostscript-launcher\.c/);
 assert.match(workflowSource, /office-kit-build-ocr-launchers\.cmd/);
 assert.match(workflowSource, /VsDevCmd\.bat/);
 assert.match(workflowSource, /Expand-Archive/);
-assert.match(workflowSource, /Install-PinnedNativeRuntime/,
-  "the Windows native installers must use one explicit, named private-build helper");
+assert.match(workflowSource, /Extract-PinnedTesseractRuntime/,
+  "the Windows Tesseract source must be extracted into the private build root instead of installed globally");
+assert.match(workflowSource, /Get-Command 7z\.exe/,
+  "the Windows Tesseract extractor must use the hosted 7-Zip tool only against the hash-pinned source archive");
+assert.match(workflowSource, /never run it or let it choose a machine-wide install path/,
+  "the Windows Tesseract path must not execute the installer or use a machine-wide destination");
+assert.match(workflowSource, /Install-PinnedGhostscriptRuntime/,
+  "the independently packaged Ghostscript installer must retain its own bounded private-build helper");
 assert.match(workflowSource, /WaitForExit\(300000\)/,
-  "the Windows native installers must fail with a bounded diagnostic instead of hanging the release lane indefinitely");
-assert.match(workflowSource, /installer exceeded the 300-second deadline/,
-  "the Windows native-installer timeout must identify the failed bounded phase");
+  "the Windows Ghostscript installer must fail with a bounded diagnostic instead of hanging the release lane indefinitely");
+assert.match(workflowSource, /Ghostscript installer exceeded the 300-second deadline/,
+  "the Windows Ghostscript timeout must identify the failed bounded phase");
 assert.match(workflowSource, /completed but did not expose .*90-second layout deadline/,
-  "the Windows native-installer helper must wait for its required private layout after its parent exits");
+  "the Windows Ghostscript installer must wait for its required private layout after its parent exits");
 assert.doesNotMatch(workflowSource, /-Wait -PassThru/,
-  "the Windows native installers must not rely on an unbounded Start-Process wait");
+  "the Windows Ghostscript installer must not rely on an unbounded Start-Process wait");
 assert.match(workflowSource, /--expected-platforms darwin-arm64,linux-x64,win32-x64/);
 assert.match(workflowSource, /\.catalogFragment\.artifacts \| length == 3/);
 assert.match(workflowSource, /resource_target/);

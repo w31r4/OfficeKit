@@ -287,35 +287,53 @@ jobs:
             export OFFICEKIT_WINDOWS_PATHS="$(cygpath -w "$RUNNER_TEMP/ocr-windows-paths.json")"
             powershell.exe -NoProfile -NonInteractive -Command '
               $ErrorActionPreference = "Stop"
-              function Install-PinnedNativeRuntime([string]$label, [string]$installer, [string]$destination, [string]$expectedExecutable) {
-                if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) { throw "$label installer is missing: $installer" }
-                Write-Host "::group::Install $label into the private build root"
+              function Extract-PinnedTesseractRuntime([string]$archive, [string]$destination) {
+                if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw "Tesseract source archive is missing: $archive" }
+                # The official Windows source is a self-extracting NSIS
+                # archive. Extract its verified bytes under RUNNER_TEMP;
+                # never run it or let it choose a machine-wide install path.
+                $sevenZip = (Get-Command 7z.exe -ErrorAction Stop).Source
+                Write-Host "::group::Extract pinned Tesseract into the private build root"
+                try {
+                  & $sevenZip x -y "-o$destination" $archive
+                  if ($LASTEXITCODE -ne 0) { throw "7-Zip could not extract the pinned Tesseract archive (exit $LASTEXITCODE): $archive" }
+                  $tesseract = Get-ChildItem -LiteralPath $destination -Recurse -File -Filter tesseract.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+                  if ($null -eq $tesseract) { throw "The extracted Tesseract archive did not expose tesseract.exe: $destination" }
+                  Write-Host "Tesseract archive exposed tesseract.exe without executing the installer."
+                  return $tesseract
+                } finally {
+                  Write-Host "::endgroup::"
+                }
+              }
+              function Install-PinnedGhostscriptRuntime([string]$installer, [string]$destination) {
+                if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) { throw "Ghostscript installer is missing: $installer" }
+                Write-Host "::group::Install Ghostscript into the private build root"
                 try {
                   $process = Start-Process -FilePath $installer -ArgumentList @("/S", "/D=$destination") -PassThru -ErrorAction Stop
                   if (-not $process.WaitForExit(300000)) {
                     Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-                    throw "$label installer exceeded the 300-second deadline (pid $($process.Id)): $installer"
+                    throw "Ghostscript installer exceeded the 300-second deadline (pid $($process.Id)): $installer"
                   }
-                  if ($process.ExitCode -ne 0) { throw "$label installer failed with exit $($process.ExitCode): $installer" }
+                  if ($process.ExitCode -ne 0) { throw "Ghostscript installer failed with exit $($process.ExitCode): $installer" }
                   # Some NSIS installers hand their file-copy work to a child
                   # process. Do not retain an unbounded process-tree wait;
                   # instead wait only for the exact layout this pack needs.
                   $layoutDeadline = [DateTimeOffset]::UtcNow.AddSeconds(90)
                   while ([DateTimeOffset]::UtcNow -lt $layoutDeadline) {
-                    $installed = Get-ChildItem -LiteralPath $destination -Recurse -File -Filter $expectedExecutable -ErrorAction SilentlyContinue | Select-Object -First 1
+                    $installed = Get-ChildItem -LiteralPath $destination -Recurse -File -Filter gswin64c.exe -ErrorAction SilentlyContinue | Select-Object -First 1
                     if ($null -ne $installed) {
-                      Write-Host "$label installer completed with exit 0 and exposed $expectedExecutable."
+                      Write-Host "Ghostscript installer completed with exit 0 and exposed gswin64c.exe."
                       return $installed
                     }
                     Start-Sleep -Seconds 1
                   }
-                  throw "$label installer completed but did not expose $expectedExecutable within the 90-second layout deadline: $destination"
+                  throw "Ghostscript installer completed but did not expose gswin64c.exe within the 90-second layout deadline: $destination"
                 } finally {
                   Write-Host "::endgroup::"
                 }
               }
-              $tesseract = Install-PinnedNativeRuntime "Tesseract" $env:OFFICEKIT_TESSERACT_INSTALLER $env:OFFICEKIT_TESSERACT_INSTALL_ROOT "tesseract.exe"
-              $ghostscript = Install-PinnedNativeRuntime "Ghostscript" $env:OFFICEKIT_GHOSTSCRIPT_INSTALLER $env:OFFICEKIT_GHOSTSCRIPT_INSTALL_ROOT "gswin64c.exe"
+              $tesseract = Extract-PinnedTesseractRuntime $env:OFFICEKIT_TESSERACT_INSTALLER $env:OFFICEKIT_TESSERACT_INSTALL_ROOT
+              $ghostscript = Install-PinnedGhostscriptRuntime $env:OFFICEKIT_GHOSTSCRIPT_INSTALLER $env:OFFICEKIT_GHOSTSCRIPT_INSTALL_ROOT
               Expand-Archive -LiteralPath $env:OFFICEKIT_POPPLER_ARCHIVE -DestinationPath $env:OFFICEKIT_POPPLER_EXTRACT_ROOT -Force
               $popplerRootName = (Get-Content -Raw $env:OCR_INPUTS | ConvertFrom-Json).ocrCore.nativeBuild."win32-x64".poppler.root
               $popplerRoot = Join-Path $env:OFFICEKIT_POPPLER_EXTRACT_ROOT $popplerRootName
