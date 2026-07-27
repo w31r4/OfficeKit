@@ -98,7 +98,9 @@ jobs:
           $devcmd = Join-Path $installation 'Common7\Tools\VsDevCmd.bat'
           $pythonLauncher = Join-Path $env:RUNNER_TEMP 'office-kit-ocrmypdf-launcher.exe'
           $ghostscriptLauncher = Join-Path $env:RUNNER_TEMP 'office-kit-ghostscript-launcher.exe'
-          # A generated batch file keeps the Visual Studio path and both
+          $tesseractLauncher = Join-Path $env:RUNNER_TEMP 'office-kit-tesseract-launcher.exe'
+          $pdftotextLauncher = Join-Path $env:RUNNER_TEMP 'office-kit-pdftotext-launcher.exe'
+          # A generated batch file keeps the Visual Studio path and all
           # output paths quoted through the cmd.exe boundary.  Passing a
           # nested quoted command string directly from PowerShell is fragile
           # when the hosted image changes its Program Files layout.
@@ -110,10 +112,15 @@ jobs:
           cl.exe /nologo /O2 /MT /W4 /DUNICODE /D_UNICODE /Fe"$pythonLauncher" scripts\windows-python-module-launcher.c /link /SUBSYSTEM:CONSOLE
           if errorlevel 1 exit /b %errorlevel%
           cl.exe /nologo /O2 /MT /W4 /DUNICODE /D_UNICODE /Fe"$ghostscriptLauncher" scripts\windows-ghostscript-launcher.c /link /SUBSYSTEM:CONSOLE
+          if errorlevel 1 exit /b %errorlevel%
+          cl.exe /nologo /O2 /MT /W4 /DUNICODE /D_UNICODE /DOFFICEKIT_TESSERACT_LAUNCHER /Fe"$tesseractLauncher" scripts\windows-ocr-sidecar-launcher.c /link /SUBSYSTEM:CONSOLE
+          if errorlevel 1 exit /b %errorlevel%
+          cl.exe /nologo /O2 /MT /W4 /DUNICODE /D_UNICODE /DOFFICEKIT_PDFTOTEXT_LAUNCHER /Fe"$pdftotextLauncher" scripts\windows-ocr-sidecar-launcher.c /link /SUBSYSTEM:CONSOLE
+          if errorlevel 1 exit /b %errorlevel%
           exit /b %errorlevel%
           "@ | Set-Content -LiteralPath $buildScript -Encoding ascii
           & $buildScript
-          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $pythonLauncher -PathType Leaf) -or -not (Test-Path -LiteralPath $ghostscriptLauncher -PathType Leaf)) { throw 'Windows OCR launcher compilation failed.' }
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $pythonLauncher -PathType Leaf) -or -not (Test-Path -LiteralPath $ghostscriptLauncher -PathType Leaf) -or -not (Test-Path -LiteralPath $tesseractLauncher -PathType Leaf) -or -not (Test-Path -LiteralPath $pdftotextLauncher -PathType Leaf)) { throw 'Windows OCR launcher compilation failed.' }
       - name: Build isolated OCRmyPDF Python payload
         shell: bash
         run: |
@@ -138,6 +145,7 @@ jobs:
           rm "$payload/sbom.cdx.json"
           native_notices="$RUNNER_TEMP/ocr-native-notices.md"
           library_args=()
+          sidecar_args=()
           poppler_args=()
           resource_args=()
           resource_packages=()
@@ -343,9 +351,9 @@ jobs:
               [System.IO.File]::WriteAllText($env:OFFICEKIT_WINDOWS_PATHS, $pathsJson, [System.Text.UTF8Encoding]::new($false))
             '
             windows_paths="$RUNNER_TEMP/ocr-windows-paths.json"
-            library_args+=(--library-root "$(jq -r '.tesseractRoot' "$windows_paths")")
-            library_args+=(--library-root "$(jq -r '.ghostscriptBin' "$windows_paths")")
-            library_args+=(--library-root "$(jq -r '.popplerBin' "$windows_paths")")
+            sidecar_args+=(--windows-sidecar-root "tesseract=$(jq -r '.tesseractRoot' "$windows_paths")")
+            sidecar_args+=(--windows-sidecar-root "ghostscript=$(jq -r '.ghostscriptBin' "$windows_paths")")
+            sidecar_args+=(--windows-sidecar-root "poppler=$(jq -r '.popplerBin' "$windows_paths")")
             node scripts/build-ocr-native-payload.mjs \
               --platform win32-x64 \
               --payload "$payload" \
@@ -358,7 +366,9 @@ jobs:
               --tessdata-root "$(jq -r '.tessdata' "$windows_paths")" \
               --windows-python-launcher "$RUNNER_TEMP/office-kit-ocrmypdf-launcher.exe" \
               --windows-ghostscript-launcher "$RUNNER_TEMP/office-kit-ghostscript-launcher.exe" \
-              "${library_args[@]}"
+              --windows-tesseract-launcher "$RUNNER_TEMP/office-kit-tesseract-launcher.exe" \
+              --windows-pdftotext-launcher "$RUNNER_TEMP/office-kit-pdftotext-launcher.exe" \
+              "${sidecar_args[@]}"
             fetch_locked '.licenseMaterial.windowsNative.tesseractApache20' "$RUNNER_TEMP/tesseract-LICENSE.txt"
             fetch_locked '.licenseMaterial.windowsNative.ghostscriptAgpl30' "$RUNNER_TEMP/ghostscript-AGPL-3.0.txt"
             fetch_locked '.licenseMaterial.windowsNative.popplerGpl20' "$RUNNER_TEMP/poppler-GPL-2.0.txt"
@@ -416,7 +426,8 @@ jobs:
           test ! -e "$destination/bin/pip"
           test -z "$(find "$destination/share/tessdata" -type f -name '*.traineddata' -print -quit)"
           if [ "${{ matrix.platform }}" = "win32-x64" ]; then
-            for executable in ocrmypdf.exe tesseract.exe gs.exe gswin64c.exe pdftotext.exe; do test -f "$destination/bin/$executable"; done
+            for executable in ocrmypdf.exe tesseract.exe gs.exe pdftotext.exe; do test -f "$destination/bin/$executable"; done
+            for sidecar in native/tesseract/tesseract.exe native/ghostscript/gswin64c.exe native/poppler/pdftotext.exe; do test -f "$destination/$sidecar"; done
             run_probe() {
               local name="$1"
               local launcher="$2"

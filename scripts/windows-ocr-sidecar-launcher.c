@@ -1,9 +1,13 @@
 /*
- * Minimal Windows launcher for the capability-pack-owned Ghostscript console
- * binary.  Ghostscript needs an explicit resource search path after its
- * executable is relocated, so this launcher derives every path from the pack
- * root, never invokes a shell, and removes ambient GS configuration before
- * starting the real console program.
+ * Minimal Windows launcher for one private OCR native sidecar.
+ *
+ * Tesseract and Poppler may carry DLL basenames that collide with Ghostscript
+ * (for example different OpenSSL builds). The release builder therefore keeps
+ * every supplier in payload/native/<supplier> and compiles this source once
+ * per public command. The launcher derives that supplier directory from its
+ * own absolute path, starts the actual executable by absolute path, and gives
+ * the child only its private directory plus System32 on PATH. It never uses a
+ * shell or ambient executable lookup.
  */
 
 #define UNICODE
@@ -17,6 +21,20 @@
 #include <wchar.h>
 
 #define OFFICEKIT_MAX_PATH 32768
+
+#if defined(OFFICEKIT_TESSERACT_LAUNCHER) && defined(OFFICEKIT_PDFTOTEXT_LAUNCHER)
+#error Define exactly one OfficeKit OCR sidecar launcher target.
+#elif defined(OFFICEKIT_TESSERACT_LAUNCHER)
+#define OFFICEKIT_SIDECAR_RELATIVE L"native\\tesseract"
+#define OFFICEKIT_TARGET_NAME L"tesseract.exe"
+#define OFFICEKIT_SIDECAR_LABEL L"Tesseract"
+#elif defined(OFFICEKIT_PDFTOTEXT_LAUNCHER)
+#define OFFICEKIT_SIDECAR_RELATIVE L"native\\poppler"
+#define OFFICEKIT_TARGET_NAME L"pdftotext.exe"
+#define OFFICEKIT_SIDECAR_LABEL L"Poppler pdftotext"
+#else
+#error Define one OfficeKit OCR sidecar launcher target.
+#endif
 
 typedef struct {
   wchar_t *value;
@@ -63,7 +81,8 @@ static int append_repeat(wide_buffer *buffer, wchar_t character, size_t count) {
   return 1;
 }
 
-/* Quote an argv element according to CreateProcess/CommandLineToArgvW rules. */
+/* Quote argv according to the documented CreateProcessW/CommandLineToArgvW
+ * rules used by the child when it reconstructs command-line arguments. */
 static int append_quoted(wide_buffer *buffer, const wchar_t *argument) {
   if (!append_char(buffer, L'\"')) return 0;
   size_t slashes = 0;
@@ -111,18 +130,6 @@ static wchar_t *join_path(const wchar_t *root, const wchar_t *relative) {
   return result;
 }
 
-static wchar_t *join_list(const wchar_t *first, const wchar_t *second) {
-  size_t first_length = wcslen(first);
-  size_t second_length = wcslen(second);
-  if (first_length > SIZE_MAX - second_length - 2) return NULL;
-  wchar_t *result = (wchar_t *)calloc(first_length + second_length + 2, sizeof(wchar_t));
-  if (!result) return NULL;
-  memcpy(result, first, first_length * sizeof(wchar_t));
-  result[first_length] = L';';
-  memcpy(result + first_length + 1, second, (second_length + 1) * sizeof(wchar_t));
-  return result;
-}
-
 static int is_regular_non_reparse_file(const wchar_t *path) {
   DWORD attributes = GetFileAttributesW(path);
   return attributes != INVALID_FILE_ATTRIBUTES
@@ -131,7 +138,7 @@ static int is_regular_non_reparse_file(const wchar_t *path) {
 }
 
 static void report_failure(const wchar_t *message) {
-  fwprintf(stderr, L"office-kit Ghostscript launcher: %ls (Windows error %lu)\n", message, GetLastError());
+  fwprintf(stderr, L"office-kit %ls launcher: %ls (Windows error %lu)\n", OFFICEKIT_SIDECAR_LABEL, message, GetLastError());
 }
 
 int wmain(int argc, wchar_t **argv) {
@@ -148,23 +155,15 @@ int wmain(int argc, wchar_t **argv) {
     free(root);
     return 2;
   }
-  /* Ghostscript ships a different OpenSSL closure from the other OCR
-   * sidecars. Keep its executable and DLLs together under a private
-   * directory; placing all three suppliers' DLLs in bin would silently pick
-   * a winner for duplicate basenames. */
-  wchar_t *sidecar = join_path(root, L"native\\ghostscript");
-  wchar_t *target = sidecar ? join_path(sidecar, L"gswin64c.exe") : NULL;
-  wchar_t *resource = join_path(root, L"share\\ghostscript\\Resource");
-  wchar_t *library = join_path(root, L"share\\ghostscript\\lib");
+  wchar_t *sidecar = join_path(root, OFFICEKIT_SIDECAR_RELATIVE);
+  wchar_t *target = sidecar ? join_path(sidecar, OFFICEKIT_TARGET_NAME) : NULL;
   const wchar_t *system_root_value = _wgetenv(L"SystemRoot");
   wchar_t *system_root = copy_path(system_root_value && *system_root_value ? system_root_value : L"C:\\Windows");
-  if (!sidecar || !target || !resource || !library || !system_root || !is_regular_non_reparse_file(target)) {
-    report_failure(L"capability-pack Ghostscript runtime is missing or unsafe");
+  if (!sidecar || !target || !system_root || !is_regular_non_reparse_file(target)) {
+    report_failure(L"capability-pack native sidecar is missing or unsafe");
     free(root);
     free(sidecar);
     free(target);
-    free(resource);
-    free(library);
     free(system_root);
     return 2;
   }
@@ -175,31 +174,24 @@ int wmain(int argc, wchar_t **argv) {
     assembled = append_char(&command, L' ') && append_quoted(&command, argv[index]);
   }
   wchar_t *system32 = join_path(system_root, L"System32");
-  wchar_t *gs_lib = join_list(resource, library);
   size_t path_length = wcslen(sidecar) + (system32 ? wcslen(system32) : 0) + 2;
   wchar_t *runtime_path = system32 ? (wchar_t *)calloc(path_length, sizeof(wchar_t)) : NULL;
-  if (!assembled || !system32 || !gs_lib || !runtime_path) {
-    report_failure(L"could not allocate Ghostscript command or environment");
+  if (!assembled || !system32 || !runtime_path) {
+    report_failure(L"could not allocate sidecar command or environment");
     free(command.value);
     free(root);
     free(sidecar);
     free(target);
-    free(resource);
-    free(library);
     free(system_root);
     free(system32);
-    free(gs_lib);
     free(runtime_path);
     return 2;
   }
   swprintf(runtime_path, path_length, L"%ls;%ls", sidecar, system32);
 
-  /* Do not allow a caller's Ghostscript configuration to select another
-   * resource tree, device, or startup option. */
-  SetEnvironmentVariableW(L"GS_OPTIONS", NULL);
-  SetEnvironmentVariableW(L"GS_DEVICE", NULL);
-  SetEnvironmentVariableW(L"GS_LIB", gs_lib);
-  SetEnvironmentVariableW(L"GS_FONTPATH", NULL);
+  /* TESSDATA_PREFIX is intentionally preserved: the managed OCR adapter
+   * points it at a verified, per-operation language mirror. Everything else
+   * comes from this launcher-owned runtime layout. */
   SetEnvironmentVariableW(L"SystemRoot", system_root);
   SetEnvironmentVariableW(L"PATH", runtime_path);
 
@@ -207,33 +199,27 @@ int wmain(int argc, wchar_t **argv) {
   PROCESS_INFORMATION process = { 0 };
   startup.cb = sizeof(startup);
   if (!CreateProcessW(target, command.value, NULL, NULL, FALSE, 0, NULL, root, &startup, &process)) {
-    report_failure(L"could not start capability-pack Ghostscript runtime");
+    report_failure(L"could not start capability-pack native sidecar");
     free(command.value);
     free(root);
     free(sidecar);
     free(target);
-    free(resource);
-    free(library);
     free(system_root);
     free(system32);
-    free(gs_lib);
     free(runtime_path);
     return 2;
   }
   WaitForSingleObject(process.hProcess, INFINITE);
   DWORD exit_code = 2;
-  if (!GetExitCodeProcess(process.hProcess, &exit_code)) report_failure(L"could not read Ghostscript process exit status");
+  if (!GetExitCodeProcess(process.hProcess, &exit_code)) report_failure(L"could not read native sidecar exit status");
   CloseHandle(process.hThread);
   CloseHandle(process.hProcess);
   free(command.value);
   free(root);
   free(sidecar);
   free(target);
-  free(resource);
-  free(library);
   free(system_root);
   free(system32);
-  free(gs_lib);
   free(runtime_path);
   return (int)exit_code;
 }
