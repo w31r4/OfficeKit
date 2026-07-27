@@ -101,7 +101,7 @@ function Expand-VerifiedZip([string] $Archive, [string] $Destination, [string] $
         Fail "archive contains an unsafe path: $raw"
       }
       if ($relative -ne $ExpectedRoot -and -not $relative.StartsWith("$ExpectedRoot/", [System.StringComparison]::Ordinal)) {
-        Fail "archive entry is outside $ExpectedRoot: $raw"
+        Fail "archive entry is outside ${ExpectedRoot}: $raw"
       }
       if (-not $seen.Add($relative)) {
         Fail "archive contains a duplicate path: $relative"
