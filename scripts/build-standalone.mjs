@@ -139,6 +139,7 @@ function run(command, args, options = {}) {
     encoding: "utf8",
     env: options.env ?? process.env,
     maxBuffer: 64 * 1024 * 1024,
+    shell: process.platform === "win32" && executable === "npm.cmd",
   });
   if (result.error) fail(`${executable} could not start: ${result.error.message}`);
   if (result.status !== 0) {
