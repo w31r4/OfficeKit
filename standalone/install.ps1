@@ -17,7 +17,7 @@ function Get-FullPath([string] $Value) {
 
 function Assert-RealDirectory([string] $Path, [string] $Label) {
   if (-not (Test-Path -LiteralPath $Path)) {
-    New-Item -ItemType Directory -LiteralPath $Path -Force | Out-Null
+    New-Item -ItemType Directory -Path $Path -Force | Out-Null
   }
   $item = Get-Item -LiteralPath $Path -Force
   if (
