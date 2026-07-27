@@ -19,6 +19,7 @@ import {
   PDF_PROVIDER_CATALOG_SHA256,
   clonePdfProviderValue,
   currentPdfProviderPlatform,
+  pdfPackEntrypointsForPlatform,
   pdfPackById,
   pdfProviderById,
   pdfTaskById,
@@ -170,7 +171,7 @@ function buildInstallPlan(providerId, provider, task, policy, requestedLanguages
       dependencyClosure: [...pack.dependencyClosure],
       estimatedDownloadBytes: pack.estimatedDownloadBytes,
       estimatedUnpackedBytes: pack.estimatedUnpackedBytes,
-      entrypoints: clonePdfProviderValue(pack.entrypoints),
+      entrypoints: clonePdfProviderValue(pdfPackEntrypointsForPlatform(pack, platform)),
       artifact: artifact ? clonePdfProviderValue(artifact) : null,
       license: clonePdfProviderValue(pack.license),
     };

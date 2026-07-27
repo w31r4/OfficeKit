@@ -12,7 +12,7 @@ on:
           - python-foundation
           - python-specialists
       publish:
-        description: "Create the immutable release only after both platform builds and probes pass"
+        description: "Create the immutable release only after every platform build and probe passes"
         required: true
         default: "false"
         type: choice
@@ -30,7 +30,9 @@ permissions:
   id-token: write
 
 env:
-  PYTHON_PACK_VERSION: 3.13.14-oat.1
+  # `oat.1` is already published for macOS and Linux. Windows support is a
+  # fresh all-platform immutable release, never an append to that tag.
+  PYTHON_PACK_VERSION: 3.13.14-oat.2
 
 jobs:
   python-pack:
@@ -43,6 +45,8 @@ jobs:
             runner: ubuntu-22.04
           - platform: darwin-arm64
             runner: macos-14
+          - platform: win32-x64
+            runner: windows-2025
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
@@ -71,14 +75,21 @@ jobs:
           destination="$RUNNER_TEMP/python-consumer"
           mkdir -p "$destination"
           tar -xzf "$archive" -C "$destination"
-          test -x "$destination/bin/python3"
-          test ! -e "$destination/bin/pip"
+          if [ "${{ matrix.platform }}" = "win32-x64" ]; then
+            python="$destination/python.exe"
+            test -f "$python"
+            test ! -e "$destination/Scripts/pip.exe"
+          else
+            python="$destination/bin/python3"
+            test -x "$python"
+            test ! -e "$destination/bin/pip"
+          fi
           case "${{ inputs.pack }}" in
             python-foundation)
-              "$destination/bin/python3" -I -c 'import importlib.metadata as m, reportlab, pdfplumber, pypdf, PIL; assert m.version("reportlab") == "4.4.9"; assert m.version("pdfplumber") == "0.11.9"; assert m.version("pypdf") == "6.10.0"; assert m.version("pillow") == "12.2.0"'
+              "$python" -I -c 'import importlib.metadata as m, reportlab, pdfplumber, pypdf, PIL; assert m.version("reportlab") == "4.4.9"; assert m.version("pdfplumber") == "0.11.9"; assert m.version("pypdf") == "6.10.0"; assert m.version("pillow") == "12.2.0"'
               ;;
             python-specialists)
-              "$destination/bin/python3" -I -c 'import importlib.metadata as m, pymupdf, pikepdf, pyhanko, pyhanko_certvalidator; assert m.version("PyMuPDF") == "1.27.2.3"; assert m.version("pikepdf") == "10.10.0"; assert m.version("pyHanko") == "0.35.2"; assert m.version("pyhanko-certvalidator") == "0.31.1"'
+              "$python" -I -c 'import importlib.metadata as m, pymupdf, pikepdf, pyhanko, pyhanko_certvalidator; assert m.version("PyMuPDF") == "1.27.2.3"; assert m.version("pikepdf") == "10.10.0"; assert m.version("pyHanko") == "0.35.2"; assert m.version("pyhanko-certvalidator") == "0.31.1"'
               ;;
             *)
               echo "unsupported pack" >&2
@@ -132,8 +143,9 @@ jobs:
             --output "$RUNNER_TEMP/python-final" \
             --release-base-url "$release_base" \
             --repository "$GITHUB_REPOSITORY" \
-            --workflow .github/workflows/pdf-python-capability-packs.yml
-          jq -e '.catalogFragment.state == "published" and (.catalogFragment.artifacts | length == 2)' "$RUNNER_TEMP/python-final/${{ inputs.pack }}-$PYTHON_PACK_VERSION.release-manifest.json"
+            --workflow .github/workflows/pdf-python-capability-packs.yml \
+            --expected-platforms darwin-arm64,linux-x64,win32-x64
+          jq -e '.catalogFragment.state == "published" and (.catalogFragment.artifacts | length == 3)' "$RUNNER_TEMP/python-final/${{ inputs.pack }}-$PYTHON_PACK_VERSION.release-manifest.json"
       - name: Attest release evidence assets
         if: ${{ inputs.publish == 'true' }}
         uses: actions/attest@v4

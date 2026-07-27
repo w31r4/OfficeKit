@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: "Create the immutable qpdf release after both platform builds and probes pass"
+        description: "Create the immutable qpdf release after every platform build and probe passes"
         required: true
         default: "false"
         type: choice
@@ -24,8 +24,13 @@ permissions:
 env:
   QPDF_VERSION: 12.3.2
   QPDF_SOURCE_SHA256: 6cba2f9f2cd887d905faeb99e0e51a307b217920d1bbf3e9cfbb2e8178a2deda
-  PACK_VERSION: 12.3.2-oat.1
-  RELEASE_TAG: pdf-provider-qpdf-12.3.2-oat.1
+  # Pack releases are immutable. `oat.1` already publishes macOS and Linux
+  # bytes, so Windows support is a fresh all-platform release rather than an
+  # unsafe append to an existing tag.
+  PACK_VERSION: 12.3.2-oat.2
+  RELEASE_TAG: pdf-provider-qpdf-12.3.2-oat.2
+  QPDF_EXTERNAL_LIBS_VERSION: release-2025-05-04
+  QPDF_EXTERNAL_LIBS_SHA256: 7816302d676eca685387f3be384995aa14621208c947eb2db6c8f7aa5b2c35af
 
 jobs:
   qpdf:
@@ -38,6 +43,8 @@ jobs:
             runner: ubuntu-22.04
           - platform: darwin-arm64
             runner: macos-14
+          - platform: win32-x64
+            runner: windows-2025
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
@@ -53,8 +60,17 @@ jobs:
           if [ "${{ matrix.platform }}" = "linux-x64" ]; then
             sudo apt-get update
             sudo apt-get install -y --no-install-recommends cmake g++ libjpeg-turbo8-dev zlib1g-dev
-          else
+          elif [ "${{ matrix.platform }}" = "darwin-arm64" ]; then
             brew install cmake jpeg-turbo
+          else
+            # windows-2025 already provides MSVC, CMake, Git Bash, curl,
+            # tar, unzip, and shasum. Do not use a machine-wide package
+            # manager: a capability pack must be reproducible from its
+            # pinned source inputs alone.
+            for command in cmake curl tar unzip shasum cygpath powershell.exe; do
+              command -v "$command"
+            done
+            cmake --version
           fi
       - name: Download and verify qpdf source
         shell: bash
@@ -67,6 +83,13 @@ jobs:
             --output "qpdf-${QPDF_VERSION}.tar.gz"
           echo "${QPDF_SOURCE_SHA256}  qpdf-${QPDF_VERSION}.tar.gz" | shasum -a 256 --check --status
           tar -xzf "qpdf-${QPDF_VERSION}.tar.gz"
+          if [ "${{ matrix.platform }}" = "win32-x64" ]; then
+            curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
+              "https://github.com/qpdf/external-libs/releases/download/${QPDF_EXTERNAL_LIBS_VERSION}/qpdf-external-libs-bin.zip" \
+              --output qpdf-external-libs-bin.zip
+            echo "${QPDF_EXTERNAL_LIBS_SHA256}  qpdf-external-libs-bin.zip" | shasum -a 256 --check --status
+            unzip -q qpdf-external-libs-bin.zip -d "qpdf-${QPDF_VERSION}"
+          fi
       - name: Build a self-contained qpdf command payload
         shell: bash
         run: |
@@ -81,37 +104,80 @@ jobs:
             zlib_lib=/usr/lib/x86_64-linux-gnu/libz.a
             jpeg_include=/usr/include
             zlib_include=/usr/include
-          else
+            PKG_CONFIG_LIBDIR=/nonexistent cmake -S "$source_dir" -B "$build_dir" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_SHARED_LIBS=OFF \
+              -DBUILD_STATIC_LIBS=ON \
+              -DUSE_IMPLICIT_CRYPTO=OFF \
+              -DREQUIRE_CRYPTO_NATIVE=ON \
+              -DZLIB_H_PATH="$zlib_include" \
+              -DZLIB_LIB_PATH="$zlib_lib" \
+              -DLIBJPEG_H_PATH="$jpeg_include" \
+              -DLIBJPEG_LIB_PATH="$jpeg_lib"
+            cmake --build "$build_dir" --parallel
+            cmake --install "$build_dir" --prefix "$install_dir" --component cli
+            mkdir -p "$payload/bin"
+            cp "$install_dir/bin/qpdf" "$payload/bin/qpdf"
+            chmod 0755 "$payload/bin/qpdf"
+            "$payload/bin/qpdf" --version | grep -Fx "qpdf version ${QPDF_VERSION}"
+            "$payload/bin/qpdf" --show-crypto | grep -q "native"
+            ! ldd "$payload/bin/qpdf" | grep -q "libqpdf"
+          elif [ "${{ matrix.platform }}" = "darwin-arm64" ]; then
             jpeg_prefix="$(brew --prefix jpeg-turbo)"
             sdk_root="$(xcrun --show-sdk-path)"
             jpeg_lib="$jpeg_prefix/lib/libjpeg.a"
             zlib_lib="$sdk_root/usr/lib/libz.tbd"
             jpeg_include="$jpeg_prefix/include"
             zlib_include="$sdk_root/usr/include"
-          fi
-          test -f "$jpeg_lib"
-          test -f "$zlib_lib"
-          PKG_CONFIG_LIBDIR=/nonexistent cmake -S "$source_dir" -B "$build_dir" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DBUILD_STATIC_LIBS=ON \
-            -DUSE_IMPLICIT_CRYPTO=OFF \
-            -DREQUIRE_CRYPTO_NATIVE=ON \
-            -DZLIB_H_PATH="$zlib_include" \
-            -DZLIB_LIB_PATH="$zlib_lib" \
-            -DLIBJPEG_H_PATH="$jpeg_include" \
-            -DLIBJPEG_LIB_PATH="$jpeg_lib"
-          cmake --build "$build_dir" --parallel
-          cmake --install "$build_dir" --prefix "$install_dir" --component cli
-          mkdir -p "$payload/bin"
-          cp "$install_dir/bin/qpdf" "$payload/bin/qpdf"
-          chmod 0755 "$payload/bin/qpdf"
-          "$payload/bin/qpdf" --version | grep -Fx "qpdf version ${QPDF_VERSION}"
-          "$payload/bin/qpdf" --show-crypto | grep -q "native"
-          if [ "${{ matrix.platform }}" = "linux-x64" ]; then
-            ! ldd "$payload/bin/qpdf" | grep -q "libqpdf"
-          else
+            test -f "$jpeg_lib"
+            test -f "$zlib_lib"
+            PKG_CONFIG_LIBDIR=/nonexistent cmake -S "$source_dir" -B "$build_dir" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_SHARED_LIBS=OFF \
+              -DBUILD_STATIC_LIBS=ON \
+              -DUSE_IMPLICIT_CRYPTO=OFF \
+              -DREQUIRE_CRYPTO_NATIVE=ON \
+              -DZLIB_H_PATH="$zlib_include" \
+              -DZLIB_LIB_PATH="$zlib_lib" \
+              -DLIBJPEG_H_PATH="$jpeg_include" \
+              -DLIBJPEG_LIB_PATH="$jpeg_lib"
+            cmake --build "$build_dir" --parallel
+            cmake --install "$build_dir" --prefix "$install_dir" --component cli
+            mkdir -p "$payload/bin"
+            cp "$install_dir/bin/qpdf" "$payload/bin/qpdf"
+            chmod 0755 "$payload/bin/qpdf"
+            "$payload/bin/qpdf" --version | grep -Fx "qpdf version ${QPDF_VERSION}"
+            "$payload/bin/qpdf" --show-crypto | grep -q "native"
             ! otool -L "$payload/bin/qpdf" | grep -q "/opt/homebrew"
+          else
+            # qpdf's own Windows instructions use this exact prebuilt static
+            # external-library bundle. The Visual Studio generator discovers
+            # it below the source tree; static qpdf avoids a libqpdf DLL.
+            cmake -S "$source_dir" -B "$build_dir" -G "Visual Studio 17 2022" -A x64 \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_SHARED_LIBS=OFF \
+              -DBUILD_STATIC_LIBS=ON \
+              -DUSE_IMPLICIT_CRYPTO=OFF \
+              -DREQUIRE_CRYPTO_NATIVE=ON \
+              -DINSTALL_MANUAL=OFF
+            cmake --build "$build_dir" --config Release --parallel
+            # Do not select only the `cli` component here: CMake's MSVC
+            # runtime-DLL installation is intentionally unscoped. We retain
+            # only `bin` below, which gives the payload qpdf.exe plus the
+            # compiler runtime it actually needs.
+            cmake --install "$build_dir" --prefix "$install_dir" --config Release
+            mkdir -p "$payload/bin"
+            find "$install_dir/bin" -maxdepth 1 -type f -print -exec cp {} "$payload/bin/" \;
+            test -f "$payload/bin/qpdf.exe"
+            find "$payload/bin" -maxdepth 1 -type f -iname 'vcruntime*.dll' -print -quit | grep -q .
+            "$payload/bin/qpdf.exe" --version | grep -Fx "qpdf version ${QPDF_VERSION}"
+            "$payload/bin/qpdf.exe" --show-crypto | grep -q "native"
+            # Prove the staged executable does not depend on the build-tool
+            # PATH. DLL lookup may use the payload directory plus Windows
+            # system directories, but never a Visual Studio installation.
+            qpdf_windows_path="$(cygpath -w "$payload/bin/qpdf.exe")"
+            powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; \$env:Path = [System.IO.Path]::Combine(\$env:SystemRoot, 'System32'); & '${qpdf_windows_path}' --version" \
+              | grep -Fx "qpdf version ${QPDF_VERSION}"
           fi
           {
             printf '%s\n\n' '# qpdf PDF capability pack notices'
@@ -120,6 +186,9 @@ jobs:
             printf '\n\n%s\n' '----- qpdf Apache-2.0 license -----'
             cat "$source_dir/LICENSE.txt"
             printf '\n\n%s\n' 'This software is based in part on the work of the Independent JPEG Group.'
+            if [ "${{ matrix.platform }}" = "win32-x64" ]; then
+              printf '\n%s\n' "Windows static external libraries: qpdf/external-libs release ${QPDF_EXTERNAL_LIBS_VERSION} (SHA-256 ${QPDF_EXTERNAL_LIBS_SHA256})."
+            fi
           } > "$notices"
           node scripts/build-pdf-provider-pack.mjs \
             --pack qpdf \
@@ -139,7 +208,11 @@ jobs:
           destination="$RUNNER_TEMP/qpdf-consumer"
           mkdir -p "$destination"
           tar -xzf "$archive" -C "$destination"
-          "$destination/bin/qpdf" --version | grep -Fx "qpdf version ${QPDF_VERSION}"
+          if [ "${{ matrix.platform }}" = "win32-x64" ]; then
+            "$destination/bin/qpdf.exe" --version | grep -Fx "qpdf version ${QPDF_VERSION}"
+          else
+            "$destination/bin/qpdf" --version | grep -Fx "qpdf version ${QPDF_VERSION}"
+          fi
       - name: Attest immutable pack provenance
         if: ${{ inputs.publish == 'true' }}
         uses: actions/attest@v4
@@ -189,8 +262,9 @@ jobs:
             --output "$RUNNER_TEMP/qpdf-final" \
             --release-base-url "$release_base" \
             --repository "$GITHUB_REPOSITORY" \
-            --workflow .github/workflows/pdf-capability-packs.yml
-          jq -e '.catalogFragment.state == "published" and (.catalogFragment.artifacts | length == 2)' "$RUNNER_TEMP/qpdf-final/qpdf-${PACK_VERSION}.release-manifest.json"
+            --workflow .github/workflows/pdf-capability-packs.yml \
+            --expected-platforms darwin-arm64,linux-x64,win32-x64
+          jq -e '.catalogFragment.state == "published" and (.catalogFragment.artifacts | length == 3)' "$RUNNER_TEMP/qpdf-final/qpdf-${PACK_VERSION}.release-manifest.json"
       - name: Attest release evidence assets
         if: ${{ inputs.publish == 'true' }}
         uses: actions/attest@v4

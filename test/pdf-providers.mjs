@@ -126,10 +126,18 @@ assert.equal(PDF_PROVIDER_CATALOG.providers.verapdf.probeTimeoutMs, 20_000);
 assert.equal(PDF_PROVIDER_CATALOG.providers.ocrmypdf.probeTimeoutMs, 20_000, "cold isolated OCR runtime probing needs the same bounded startup allowance as managed veraPDF");
 assert.ok(!("managedPack" in PDF_PROVIDER_CATALOG.providers.qpdf), "pack metadata must have one canonical top-level home");
 
-const invalidPlatformCatalog = structuredClone(PDF_PROVIDER_CATALOG);
-invalidPlatformCatalog.packs.qpdf.state = "published";
-invalidPlatformCatalog.packs.qpdf.version = "1.2.3";
-invalidPlatformCatalog.packs.qpdf.artifacts = [{
+const windowsPlatformCatalog = structuredClone(PDF_PROVIDER_CATALOG);
+windowsPlatformCatalog.releasePolicy.managedPlatforms = ["darwin-arm64", "linux-x64", "win32-x64"];
+windowsPlatformCatalog.packs.qpdf.platforms = ["win32-x64"];
+windowsPlatformCatalog.packs.qpdf.state = "published";
+windowsPlatformCatalog.packs.qpdf.version = "1.2.3";
+windowsPlatformCatalog.packs.qpdf.entrypoints = [{
+  path: "bin/qpdf",
+  platformPaths: { "win32-x64": "bin/qpdf.exe" },
+  kind: "file",
+  executable: true,
+}];
+windowsPlatformCatalog.packs.qpdf.artifacts = [{
   platform: "win32-x64",
   asset: "qpdf.tar.gz",
   version: "1.2.3",
@@ -139,12 +147,21 @@ invalidPlatformCatalog.packs.qpdf.artifacts = [{
   unpackedBytes: 1,
   archiveFormat: "tar.gz",
 }];
-invalidPlatformCatalog.packs.qpdf.releaseEvidence = {
+windowsPlatformCatalog.packs.qpdf.releaseEvidence = {
   sbom: { asset: "qpdf.cdx.json", url: "https://releases.example.test/office-kit/v1.2.3/qpdf.cdx.json", sha256: "b".repeat(64) },
   thirdPartyNotices: { asset: "qpdf-notices.txt", url: "https://releases.example.test/office-kit/v1.2.3/qpdf-notices.txt", sha256: "c".repeat(64) },
+  provenance: {
+    provider: "github-actions-artifact-attestation",
+    repository: "example/project",
+    workflow: ".github/workflows/pdf-capability-packs.yml",
+    verificationCommand: "gh attestation verify <asset> --repo example/project",
+  },
   verifiedPlatforms: ["win32-x64"],
 };
-assert.throws(() => validatePdfProviderCatalog(invalidPlatformCatalog), /unsupported managed platform|outside the declared managed platforms/);
+assert.equal(validatePdfProviderCatalog(windowsPlatformCatalog), true, "a reviewed Windows release record may use a platform-specific executable path");
+const invalidPlatformPathCatalog = structuredClone(windowsPlatformCatalog);
+invalidPlatformPathCatalog.packs.qpdf.entrypoints[0].platformPaths = { "darwin-arm64": "bin/qpdf.exe" };
+assert.throws(() => validatePdfProviderCatalog(invalidPlatformPathCatalog), /platformPaths contains an unsupported platform or unsafe path/);
 const unsignedPublishedCatalog = structuredClone(PDF_PROVIDER_CATALOG);
 unsignedPublishedCatalog.packs.qpdf.state = "published";
 unsignedPublishedCatalog.packs.qpdf.version = "1.2.3";
@@ -575,6 +592,44 @@ try {
   assert.equal(receipt.artifact.sha256, pack.artifacts[0].sha256);
   await fs.access(path.join(first.root, "bin", "tool"));
   assert.ok((await listTree(cacheRoot)).every((entry) => !entry.includes(".fixture-pack.tmp-") && !entry.endsWith(".lock")), "successful install must clean its download staging and lock");
+
+  // The installer receives one logical provider path, while an immutable
+  // Windows pack may need a physical `.exe` path. A platform override must be
+  // resolved before extraction, entrypoint verification, and receipt write;
+  // otherwise a hash-valid pack could be cached but never be executable.
+  const platformArchive = tarGz([{ name: "bin/tool.exe", bytes: "native fixture", mode: 0o755 }]);
+  const platformPack = fixturePack(platformArchive, {
+    pack: {
+      entrypoints: [{
+        path: "bin/tool",
+        platformPaths: { [platform]: "bin/tool.exe" },
+        kind: "file",
+        executable: true,
+      }],
+    },
+  });
+  const platformInstalled = await installManagedPackForTest({
+    cacheRoot: path.join(tempRoot, "platform-entrypoint-cache"),
+    pack: platformPack,
+    fetchImpl: fakeFetch(platformArchive),
+  });
+  assert.equal(platformInstalled.ready, true);
+  await fs.access(path.join(platformInstalled.root, "bin", "tool.exe"));
+  const platformReceipt = JSON.parse(await fs.readFile(path.join(platformInstalled.root, ".receipt.json"), "utf8"));
+  assert.equal(platformReceipt.entrypoints[0].logicalPath, "bin/tool");
+  assert.equal(platformReceipt.entrypoints[0].path, "bin/tool.exe");
+  platformReceipt.entrypoints[0].path = "bin/tampered.exe";
+  await fs.writeFile(path.join(platformInstalled.root, ".receipt.json"), `${JSON.stringify(platformReceipt, null, 2)}\n`, "utf8");
+  await assert.rejects(
+    () => installManagedPackForTest({
+      cacheRoot: path.join(tempRoot, "platform-entrypoint-cache"),
+      pack: platformPack,
+      fetchImpl: fakeFetch(platformArchive),
+    }),
+    /receipt-mismatch/,
+    "cache reuse must bind the verified physical entrypoint path",
+  );
+
   const second = await installManagedPackForTest({ cacheRoot, pack, fetchImpl: async () => { throw new Error("cache hit must not download"); } });
   assert.equal(second.ready, true);
   assert.equal(second.reused, true);
