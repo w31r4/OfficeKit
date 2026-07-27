@@ -1,0 +1,27 @@
+{
+  "schema": "office-kit.pdf-provider-poppler-release-inputs.v1",
+  "schemaVersion": 1,
+  "popplerQa": {
+    "packId": "poppler-qa",
+    "version": "24.08.0-oat.1",
+    "license": "GPL-2.0-or-later",
+    "nativeBuild": {
+      "win32-x64": {
+        "version": "24.08.0-0",
+        "url": "https://github.com/oschwartz10612/poppler-windows/releases/download/v24.08.0-0/Release-24.08.0-0.zip",
+        "sha256": "58a6f9ae269756231d2f9aa6cba39d75fec6deacaf3c4a50683383b5f3d5a527",
+        "downloadBytes": 15090263,
+        "root": "poppler-24.08.0",
+        "binRelativePath": "Library/bin",
+        "dataRelativePath": "share/poppler"
+      }
+    }
+  },
+  "licenseMaterial": {
+    "popplerGpl20": {
+      "url": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt",
+      "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
+      "downloadBytes": 17984
+    }
+  }
+}
