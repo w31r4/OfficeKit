@@ -125,6 +125,8 @@ assert.match(workflowSource, /--windows-sidecar-root/);
 assert.match(workflowSource, /native\/tesseract\/tesseract\.exe/);
 assert.match(workflowSource, /native\/ghostscript\/gswin64c\.exe/);
 assert.match(workflowSource, /native\/poppler\/pdftotext\.exe/);
+assert.match(workflowSource, /tesseract v\?5\\\./,
+  "the cross-platform runtime probe must accept the official Windows Tesseract v5 banner");
 assert.match(workflowSource, /Expand-Archive/);
 assert.match(workflowSource, /Extract-PinnedTesseractRuntime/,
   "the Windows Tesseract source must be extracted into the private build root instead of installed globally");
