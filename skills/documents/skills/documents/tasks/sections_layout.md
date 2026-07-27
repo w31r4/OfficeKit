@@ -137,6 +137,9 @@ document.addParagraph("A compact continuation in the same body style.", {
   styleId: "BodyText",
   paragraphFormat: { contextualSpacing: true },
 });
+document.addParagraph("A short, deliberately highlighted review note.", {
+  paragraphFormat: { shadingFill: "#FEF3C7" },
+});
 document.addParagraph("A standalone heading for the generated outline.", {
   paragraphFormat: { outlineLevel: 1 }, // native outline level 1 (second level)
 });
@@ -165,10 +168,17 @@ calculate a TOC.
 adjacent paragraphs with the same style; explicit `false` overrides an
 inherited style value, while omission inherits. It does not calculate layout
 or collapse spacing across different styles.
-Canonical direct/style leaves are editable after import. Duplicate,
+`shadingFill` is a separate `#RRGGBB` callout/background primitive. It writes
+only canonical `w:shd` (`w:val="clear"`, `w:color="auto"`, and a six-digit
+fill), not a generic pattern or theme-color API. A recognized ordinary direct
+paragraph can add, change, or clear that fill inside its modeled
+direct-formatting profile; theme/pattern markup and imported style-catalog
+changes remain source-bound.
+Canonical direct leaves are editable after import; source-free named styles may
+use the same fields, while imported style catalogs remain source-bound. Duplicate,
 child-bearing, extension-bearing, or invalid lexical `w:keepNext`,
 `w:keepLines`, `w:widowControl`, `w:pageBreakBefore`, or
-`w:contextualSpacing`/`w:outlineLvl`/`w:suppressLineNumbers` markup stays source-owned and semantic replacement
+`w:contextualSpacing`/`w:shd`/`w:outlineLvl`/`w:suppressLineNumbers` markup stays source-owned and semantic replacement
 fails closed. Native
 Word/LibreOffice rendering remains the final authority on actual page breaks.
 

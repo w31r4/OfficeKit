@@ -900,6 +900,9 @@ document.addParagraph("A compact continuation in the same body style.", {
   styleId: "BodyText",
   paragraphFormat: { contextualSpacing: true },
 });
+document.addParagraph("A short, deliberately highlighted review note.", {
+  paragraphFormat: { shadingFill: "#FEF3C7" },
+});
 document.addParagraph("A generated-outline entry.", {
   paragraphFormat: { outlineLevel: 1 },
 });
@@ -925,7 +928,13 @@ calculating a TOC. `contextualSpacing` is separately presence-aware:
 `true` writes `w:contextualSpacing` and suppresses before/after spacing only
 between adjacent paragraphs with the same style; explicit `false` overrides an
 inherited named-style value, while omission inherits. It neither calculates
-layout nor collapses spacing across different styles. Duplicate,
+layout nor collapses spacing across different styles. `shadingFill` separately
+accepts one `#RRGGBB` callout/background color and writes canonical
+`w:shd` with `w:val="clear"` and `w:color="auto"`. It is not a pattern or
+theme-color API: a recognized ordinary direct paragraph can add, change, or
+clear that one fixed fill as part of its modeled direct-formatting profile,
+while theme/pattern markup and imported style-catalog edits remain
+source-bound. Duplicate,
 child-bearing, extension-bearing, or invalid lexical pagination markup remains
 source-owned and fails closed on semantic replacement. Use native Word or
 LibreOffice rendering to confirm the actual page boundary.
