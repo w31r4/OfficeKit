@@ -405,6 +405,18 @@ const mixedTableAlignment = mixedTableAlignmentDocument.blocks.find((block) => b
 assert.equal(mixedTableAlignment.verticalAlignment, undefined, "mixed native cell alignment must remain source-bound");
 mixedTableAlignment.verticalAlignment = "top";
 await assert.rejects(() => DocumentFile.exportDocx(mixedTableAlignmentDocument), /direct formatting can change only when OfficeKit recognized the complete bounded profile/i);
+const missingTableAlignmentZip = await JSZip.loadAsync(firstDocxBytes);
+let missingTableAlignmentCount = 0;
+missingTableAlignmentZip.file("word/document.xml", firstDocumentXml.replace(/<w:vAlign\b[^>]*w:val="center"[^>]*\/>/g, (match) => {
+  missingTableAlignmentCount += 1;
+  return missingTableAlignmentCount === 2 ? "" : match;
+}));
+assert.equal(missingTableAlignmentCount, 6);
+const missingTableAlignmentDocument = await DocumentFile.importDocx(await missingTableAlignmentZip.generateAsync({ type: "uint8array" }));
+const missingTableAlignment = missingTableAlignmentDocument.blocks.find((block) => block.kind === "table");
+assert.equal(missingTableAlignment.verticalAlignment, undefined, "partially missing native cell alignment must remain source-bound");
+missingTableAlignment.verticalAlignment = "top";
+await assert.rejects(() => DocumentFile.exportDocx(missingTableAlignmentDocument), /direct formatting can change only when OfficeKit recognized the complete bounded profile/i);
 await assert.rejects(
   () => DocumentFile.exportDocx(DocumentModel.create({
     blocks: [{ kind: "paragraph", text: "Invalid suppression", paragraphFormat: { suppressLineNumbers: "yes" } }],
