@@ -38,14 +38,21 @@ Use OfficeKit to inspect the forms, signatures, and accessibility of report.pdf 
 
 ## Quick Start
 
-Install OfficeKit once on Windows, macOS, or Linux. It requires Node.js 22.15
-or newer:
+Install OfficeKit once. Node.js and npm are not prerequisites.
+
+macOS on Apple silicon and Linux x64:
 
 ```sh
-npm install -g github:w31r4/OfficeKit
+curl -fsSL https://github.com/w31r4/OfficeKit/releases/latest/download/install.sh | sh
 ```
 
-Then enter the project where you want to work with Office files:
+Windows PowerShell:
+
+```powershell
+irm https://github.com/w31r4/OfficeKit/releases/latest/download/install.ps1 | iex
+```
+
+Open a new terminal, then enter the project where you want to work with Office files:
 
 ```sh
 cd your-project
@@ -64,11 +71,11 @@ You can also tell your current Agent:
 
 > Set up OfficeKit in this project.
 
-It checks or installs `officekit`, runs initialization, and selects targets from
-the project configuration. It asks you to confirm only when several Agent
-targets are present or none can be identified.
+It uses the same installer, runs initialization, and selects targets from the
+project configuration. It asks you to confirm only when several Agent targets
+are present or none can be identified.
 
-After an upgrade, refresh the installed Skills from the project:
+After installing a newer release, refresh the installed Skills from the project:
 
 ```sh
 officekit update
@@ -80,7 +87,7 @@ Run JavaScript tasks referenced by the Skills with:
 officekit run task.mjs -- input.docx output.docx
 ```
 
-`officekit run` supplies the matching global OfficeKit API. A task's other
+`officekit run` supplies the matching installed OfficeKit API. A task's other
 dependencies continue to resolve from the task's own project.
 
 ## One front door, with direct routes when you want them
@@ -116,7 +123,7 @@ See [coverage](docs/coverage.md) for the complete supported boundary.
 ## Use templates when they fit
 
 The [Office Template Library](skills/default-template-library/README.md) provides
-20 MIT-licensed templates stored once in the global package. `officekit init`
+20 MIT-licensed templates stored once in the installed OfficeKit runtime. `officekit init`
 installs Skills and leaves the template assets in place. When the goal is clear
 and no template has been specified, OfficeKit normalizes the intent into
 English search terms and runs local BM25F retrieval. After reviewing a small

@@ -8,22 +8,28 @@ or one available template helps.
 Install OfficeKit once, then initialize a project:
 
 ```sh
-curl -fsSL https://github.com/w31r4/OfficeKit/releases/download/v0.5.0/install.sh | sh
+curl -fsSL https://github.com/w31r4/OfficeKit/releases/latest/download/install.sh | sh
+```
+
+On Windows PowerShell:
+
+```powershell
+irm https://github.com/w31r4/OfficeKit/releases/latest/download/install.ps1 | iex
+```
+
+Open a new terminal, then initialize the project:
+
+```sh
 officekit init
 ```
 
-The self-contained macOS arm64 and Linux x64 builds carry Node 24.18.0,
-OfficeKit, its Skills, and the default templates. The global npm package remains
-available for other platforms and system-Node installations:
-
-```sh
-npm install -g github:w31r4/OfficeKit
-```
+The self-contained macOS arm64, Linux x64, and Windows x64 builds carry Node
+24.18.0, OfficeKit, its Skills, and the default templates.
 
 The initializer detects the Agent tools used by the project and installs the
 OfficeKit entry point, Documents, Spreadsheets, Excel Live Control,
 Presentations, PDF, and Template Creator in their project-local Skill
-directories. Run `officekit update` after upgrading the global package. Skill
+directories. Run `officekit update` after installing a newer OfficeKit release. Skill
 tasks use `officekit run task.mjs`, so the project does not need a local
 `office-kit` dependency.
 

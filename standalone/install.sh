@@ -21,7 +21,7 @@ detect_target() {
   case "$kernel-$machine" in
     Darwin-arm64) printf '%s\n' darwin-arm64 ;;
     Linux-x86_64|Linux-amd64) printf '%s\n' linux-x64 ;;
-    *) fail "no self-contained build is available for $kernel/$machine; use the global npm package." ;;
+    *) fail "no self-contained build is available for $kernel/$machine." ;;
   esac
 }
 
@@ -48,6 +48,42 @@ download() {
     wget --quiet "$url" --output-document="$output"
   else
     fail "curl or wget is required."
+  fi
+}
+
+configure_path() {
+  if [ "${OFFICE_KIT_INSTALL_TEST:-0}" = "1" ] &&
+    [ "${OFFICE_KIT_TEST_CONFIGURE_PATH:-0}" != "1" ]; then
+    return 0
+  fi
+  if [ "$bin_root" != "$HOME/.local/bin" ]; then
+    return 0
+  fi
+  case "$bin_root" in
+    *'"'*|*'`'*) fail "installation path contains unsupported shell characters." ;;
+  esac
+  shell_name=${SHELL##*/}
+  profile=
+  case "$shell_name" in
+    zsh) profile="$HOME/.zshrc" ;;
+    bash)
+      if [ -f "$HOME/.bash_profile" ]; then
+        profile="$HOME/.bash_profile"
+      else
+        profile="$HOME/.bashrc"
+      fi
+      ;;
+    *) return 0 ;;
+  esac
+  path_line="export PATH=\"$bin_root:\$PATH\""
+  if [ ! -e "$profile" ]; then
+    (umask 077 && : > "$profile") || fail "could not create $profile."
+  fi
+  [ -f "$profile" ] && [ ! -L "$profile" ] ||
+    fail "$profile must be a regular non-symlink shell profile."
+  if ! grep -F "$path_line" "$profile" >/dev/null 2>&1; then
+    printf '\n# OfficeKit\n%s\n' "$path_line" >> "$profile" ||
+      fail "could not update $profile."
   fi
 }
 
@@ -110,12 +146,12 @@ else
 fi
 case "$target" in
   darwin-arm64)
-    expected_sha256=e6a2c488105591f0a7f40bdda2813f42e6110dc749bd83445c4b150d52e244d5
-    expected_size=84108367
+    expected_sha256=4120f33135af1770b0478d8156613d0b0abdc73ecc0a7965921565971c879bf0
+    expected_size=84108516
     ;;
   linux-x64)
-    expected_sha256=b05f5c49b56a0efc58d5bd28f88ff1e4b7b28e89fa4bd76aa2c54713c7d82c0f
-    expected_size=89231540
+    expected_sha256=9c29968d67770505d739b906c0c68b13465f80af6615b0c2ef40545f369a1ec8
+    expected_size=89231813
     ;;
   *) fail "unsupported target $target." ;;
 esac
@@ -234,9 +270,11 @@ ln -s "versions/$OFFICE_KIT_VERSION" "$current_next" ||
 mv -f "$current_next" "$current_link" ||
   fail "could not activate OfficeKit $OFFICE_KIT_VERSION."
 
+configure_path
+
 printf '%s\n' "OfficeKit $OFFICE_KIT_VERSION installed at $version_root"
 printf '%s\n' "Command: $command_link"
 case ":$PATH:" in
   *":$bin_root:"*) ;;
-  *) printf '%s\n' "Add $bin_root to PATH to run officekit." ;;
+  *) printf '%s\n' "Open a new terminal, then run officekit." ;;
 esac

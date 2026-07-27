@@ -15,6 +15,13 @@
       "url": "https://nodejs.org/dist/v24.18.0/node-v24.18.0-linux-x64.tar.gz",
       "sha256": "783130984963db7ba9cbd01089eaf2c2efb055c7c1693c943174b967b3050cb8",
       "size": 57224421
+    },
+    "win32-x64": {
+      "archive": "node-v24.18.0-win-x64.zip",
+      "root": "node-v24.18.0-win-x64",
+      "url": "https://nodejs.org/dist/v24.18.0/node-v24.18.0-win-x64.zip",
+      "sha256": "0ae68406b42d7725661da979b1403ec9926da205c6770827f33aac9d8f26e821",
+      "size": 37176245
     }
   }
 }
