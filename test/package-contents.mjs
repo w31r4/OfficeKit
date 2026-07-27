@@ -146,7 +146,7 @@ const maxSkillPngBytes = 3_550_000;
 for (const required of [
   "LICENSE",
   "README.md",
-  "README.en.md",
+  "README.zh-CN.md",
   "THIRD_PARTY_NOTICES.md",
   "bin/officekit.mjs",
   "docs/api.md",
