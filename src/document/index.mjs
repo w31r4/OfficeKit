@@ -31,6 +31,7 @@ const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingm
 const DOCUMENT_TABLE_HORIZONTAL_ALIGNMENTS = new Set(["left", "center", "right"]);
 const DOCUMENT_TABLE_VERTICAL_ALIGNMENTS = new Set(["top", "center", "bottom"]);
 const DOCUMENT_TABLE_MAX_MINIMUM_ROW_HEIGHT_DXA = 1_000_000;
+const DOCUMENT_TABLE_MAX_ACCESSIBILITY_TEXT_LENGTH = 32_767;
 
 const DOCX_PACKAGE_CONFIG = {
   family: "DOCX",
@@ -204,6 +205,26 @@ function normalizeDocumentTableMinimumRowHeights(value, rows, tableId) {
   return normalized;
 }
 
+function normalizeDocumentTableAccessibilityText(value, tableId, field) {
+  if (typeof value !== "string" || !value.length || value.length > DOCUMENT_TABLE_MAX_ACCESSIBILITY_TEXT_LENGTH || !isXmlSafeText(value)) {
+    throw new TypeError(`Document table ${tableId} accessibility.${field} must contain 1 through ${DOCUMENT_TABLE_MAX_ACCESSIBILITY_TEXT_LENGTH} XML-safe characters.`);
+  }
+  return value;
+}
+
+function normalizeDocumentTableAccessibility(value, tableId) {
+  if (value == null) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) throw new TypeError(`Document table ${tableId} accessibility must be an object with title and/or description.`);
+  const unsupported = Object.keys(value).filter((key) => key !== "title" && key !== "description");
+  if (unsupported.length) throw new TypeError(`Document table ${tableId} accessibility does not support ${unsupported.join(", ")}.`);
+  const accessibility = {};
+  for (const field of ["title", "description"]) {
+    if (!Object.hasOwn(value, field) || value[field] == null) continue;
+    accessibility[field] = normalizeDocumentTableAccessibilityText(value[field], tableId, field);
+  }
+  return Object.keys(accessibility).length ? accessibility : undefined;
+}
+
 class DocumentTableBlock {
   constructor(document, config = {}) {
     this.document = document;
@@ -262,6 +283,7 @@ class DocumentTableBlock {
     this.headerRowCount = config.headerRowCount === undefined ? 0 : Number(config.headerRowCount);
     this.keepTogetherRows = normalizeDocumentTableKeepTogetherRows(config.keepTogetherRows, this.rows, this.id);
     this.minimumRowHeightsDxa = normalizeDocumentTableMinimumRowHeights(config.minimumRowHeightsDxa, this.rows, this.id);
+    this.accessibility = normalizeDocumentTableAccessibility(config.accessibility, this.id);
   }
 
   ensureCell(row, column) {
@@ -322,6 +344,25 @@ class DocumentTableBlock {
     this.minimumRowHeightsDxa[row] = height;
     return this;
   }
+  setAccessibilityMetadata(update) {
+    if (!update || typeof update !== "object" || Array.isArray(update)) {
+      throw new TypeError(`Document table ${this.id} accessibility metadata update must be an object with title and/or description.`);
+    }
+    const fields = ["title", "description"];
+    const unsupported = Object.keys(update).filter((key) => !fields.includes(key));
+    if (unsupported.length) throw new TypeError(`Document table ${this.id} accessibility metadata does not support ${unsupported.join(", ")}.`);
+    if (!fields.some((field) => Object.hasOwn(update, field))) {
+      throw new TypeError(`Document table ${this.id} accessibility metadata update requires title and/or description.`);
+    }
+    const accessibility = { ...(this.accessibility || {}) };
+    for (const field of fields) {
+      if (!Object.hasOwn(update, field)) continue;
+      if (update[field] == null) delete accessibility[field];
+      else accessibility[field] = normalizeDocumentTableAccessibilityText(update[field], this.id, field);
+    }
+    this.accessibility = Object.keys(accessibility).length ? accessibility : undefined;
+    return this;
+  }
   _ensureCellRecords() {
     if (this.cells) return this.cells;
     if (!this.values.length || !this.columns || this.values.some((row) => row.length !== this.columns)) {
@@ -341,8 +382,8 @@ class DocumentTableBlock {
     return this.cells;
   }
   getCell(row, column) { return new DocumentTableCell(this, row, column); }
-  inspectRecord(index) { return { kind: "table", id: this.id, index, name: this.name || undefined, rows: this.rows, cols: this.columns, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], minimumRowHeightsDxa: [...this.minimumRowHeightsDxa], cells: this.cells, pendingTextPatches: this.textPatches.length, styleId: this.styleId, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.horizontalAlignment == null ? {} : { horizontalAlignment: this.horizontalAlignment }), ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values.map((row, rowIndex) => row.map((_, columnIndex) => this.getCell(rowIndex, columnIndex).value)) }; }
-  toProto() { return { kind: "table", id: this.id, name: this.name, styleId: this.styleId, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], minimumRowHeightsDxa: [...this.minimumRowHeightsDxa], cells: this.cells, textPatches: this.textPatches, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.horizontalAlignment == null ? {} : { horizontalAlignment: this.horizontalAlignment }), ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values }; }
+  inspectRecord(index) { return { kind: "table", id: this.id, index, name: this.name || undefined, rows: this.rows, cols: this.columns, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], minimumRowHeightsDxa: [...this.minimumRowHeightsDxa], ...(this.accessibility ? { accessibility: { ...this.accessibility } } : {}), cells: this.cells, pendingTextPatches: this.textPatches.length, styleId: this.styleId, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.horizontalAlignment == null ? {} : { horizontalAlignment: this.horizontalAlignment }), ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values.map((row, rowIndex) => row.map((_, columnIndex) => this.getCell(rowIndex, columnIndex).value)) }; }
+  toProto() { return { kind: "table", id: this.id, name: this.name, styleId: this.styleId, gridColumns: this.gridColumns, headerRowCount: this.headerRowCount, keepTogetherRows: [...this.keepTogetherRows], minimumRowHeightsDxa: [...this.minimumRowHeightsDxa], ...(this.accessibility ? { accessibility: { ...this.accessibility } } : {}), cells: this.cells, textPatches: this.textPatches, widthDxa: this.widthDxa, indentDxa: this.indentDxa, columnWidthsDxa: this.columnWidthsDxa, cellMarginsDxa: this.cellMarginsDxa, borderColor: this.borderColor, borderSize: this.borderSize, headerFill: this.headerFill, ...(this.horizontalAlignment == null ? {} : { horizontalAlignment: this.horizontalAlignment }), ...(this.verticalAlignment == null ? {} : { verticalAlignment: this.verticalAlignment }), values: this.values }; }
 }
 
 function normalizeDocumentInlineField(value) {
@@ -1927,6 +1968,13 @@ export class DocumentModel {
         if (!/^[A-F0-9]{6}$/.test(block.borderColor)) issues.push(verificationIssue("document", "invalidTableBorderColor", `Table ${block.id} has an invalid border color.`, { id: block.id, borderColor: block.borderColor }));
         if (!/^[A-F0-9]{6}$/.test(block.headerFill)) issues.push(verificationIssue("document", "invalidTableHeaderFill", `Table ${block.id} has an invalid header fill.`, { id: block.id, headerFill: block.headerFill }));
         if (block.verticalAlignment != null && !DOCUMENT_TABLE_VERTICAL_ALIGNMENTS.has(block.verticalAlignment)) issues.push(verificationIssue("document", "invalidTableVerticalAlignment", `Table ${block.id} verticalAlignment must be top, center, or bottom.`, { id: block.id, verticalAlignment: block.verticalAlignment }));
+        if (block.accessibility !== undefined) {
+          try {
+            normalizeDocumentTableAccessibility(block.accessibility, block.id);
+          } catch (error) {
+            issues.push(verificationIssue("document", "invalidTableAccessibility", `Table ${block.id} has invalid accessibility metadata: ${error.message}`, { id: block.id, accessibility: block.accessibility }));
+          }
+        }
         block.values.forEach((row, rowIndex) => {
           if (row.length !== block.columns) issues.push(verificationIssue("document", "raggedTableRows", `Table ${block.id} row ${rowIndex} has ${row.length} cells; expected ${block.columns}.`, { id: block.id, row: rowIndex, cells: row.length, expected: block.columns }));
           for (const cell of row) {

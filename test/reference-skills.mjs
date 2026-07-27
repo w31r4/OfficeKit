@@ -257,6 +257,7 @@ assert.ok(documentsManifest.includes("examples/officekit-table-column-widths-edi
 assert.ok(documentsManifest.includes("examples/officekit-table-formatting-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-table-header-rows-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-table-row-break-policy-edit-workflow.mjs"));
+assert.ok(documentsManifest.includes("examples/officekit-table-accessibility-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-note-text-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/end_to_end_smoke_test.md"));
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "end_to_end_smoke_test.md")));
@@ -284,6 +285,8 @@ assert.match(documentsSkillText, /officekit-table-header-rows-edit-workflow\.mjs
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-table-header-rows-edit-workflow.mjs")));
 assert.match(documentsSkillText, /officekit-table-row-break-policy-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-table-row-break-policy-edit-workflow.mjs")));
+assert.match(documentsSkillText, /officekit-table-accessibility-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-table-accessibility-edit-workflow.mjs")));
 assert.match(documentsSkillText, /officekit-note-text-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-note-text-edit-workflow.mjs")));
 

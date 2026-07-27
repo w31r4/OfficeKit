@@ -2987,6 +2987,17 @@ message DocumentTable {
   // content may still expand and is never clipped by an exact fixed height.
   // Imported irregular row-property graphs remain source-bound.
   repeated uint32 minimum_row_heights_dxa = 7;
+  // Non-visible Word table alternative-text title, represented by one
+  // canonical w:tblCaption/@w:val leaf. An absent field removes that direct
+  // metadata; it never creates a visible caption paragraph or changes table
+  // layout. Imported duplicate, empty, or extension-bearing leaves remain
+  // source-bound.
+  optional string accessibility_title = 8;
+  // Non-visible Word table alternative-text description, represented by one
+  // canonical w:tblDescription/@w:val leaf. It is independent of visual
+  // table formatting and has the same bounded source-preserving behavior as
+  // accessibility_title.
+  optional string accessibility_description = 9;
 }
 
 message DocumentTableFormatting {

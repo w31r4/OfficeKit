@@ -47,6 +47,11 @@ internal static class DocxTableCodec
             }
         }
         artifact.Formatting = DocxTableFormatting.Read(table, artifact);
+        // This is non-visible table alternative text, not part of the visual
+        // fixed-layout formatting profile above. An irregular metadata leaf
+        // stays in raw source XML while ordinary table editing remains
+        // independently available where it is otherwise safe.
+        DocxTableAccessibility.Read(table, artifact);
         editable = validGeometry && HasSafeContainerTopology(table) &&
                    artifact.Rows.SelectMany(row => row.RichCells).Any(cell => cell.Editable || cell.TextPatchable);
         return artifact;
@@ -75,6 +80,8 @@ internal static class DocxTableCodec
             if (!DocxTableFormatting.Same(DocxTableFormatting.Read(table, requested), requested.Formatting))
                 throw Unsupported("Source-preserving DOCX table formatting did not round trip through the bounded direct-formatting profile.");
         }
+        if (!DocxTableAccessibility.Same(requested, source))
+            DocxTableAccessibility.Apply(table, requested);
 
         var rows = table.Elements<W.TableRow>().ToArray();
         if (rows.Length != requested.Rows.Count)
@@ -120,6 +127,10 @@ internal static class DocxTableCodec
                 $"Direct DOCX table authoring cannot materialize custom table style {block.StyleId} without a modeled style graph.");
         var table = new W.Table();
         var tableProperties = DocxTableFormatting.BuildProperties(block.StyleId, block.Table.Formatting);
+        if (tableProperties is null && (block.Table.HasAccessibilityTitle || block.Table.HasAccessibilityDescription))
+            tableProperties = new W.TableProperties();
+        if (tableProperties is not null)
+            DocxTableAccessibility.AppendAuthored(tableProperties, block.Table);
         if (tableProperties is not null) table.Append(tableProperties);
 
         if (block.Table.Rows.All(row => row.RichCells.Count == 0))
@@ -188,6 +199,7 @@ internal static class DocxTableCodec
         var artifact = DocxTableGeometry.Read(clone, out _);
         if (DocxTableFormatting.Read(clone, artifact) is not null)
             DocxTableFormatting.MaskModeled(clone, artifact);
+        DocxTableAccessibility.MaskModeled(clone);
         DocxTableRowPagination.MaskModeled(clone);
         foreach (var control in clone.Elements<W.TableRow>()
                      .SelectMany(row => row.Elements<W.TableCell>())
@@ -218,6 +230,7 @@ internal static class DocxTableCodec
         if (!DocxTableRowPagination.HasCanonicalMinimumRowHeights(table.MinimumRowHeightsDxa, table.Rows.Count))
             throw Invalid("Document table minimum_row_heights_dxa must contain one bounded value for each physical row.");
         DocxTableFormatting.Validate(table);
+        DocxTableAccessibility.Validate(table);
         for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
         {
             var row = table.Rows[rowIndex];

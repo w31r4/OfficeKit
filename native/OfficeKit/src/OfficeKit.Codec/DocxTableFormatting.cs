@@ -117,7 +117,7 @@ internal static class DocxTableFormatting
         var properties = table.GetFirstChild<W.TableProperties>();
         if (properties is null || properties.ChildElements.Any(child => child is not W.TableStyle and
                 not W.TableWidth and not W.TableJustification and not W.TableIndentation and not W.TableBorders and
-                not W.TableLayout and not W.TableCellMarginDefault)) return null;
+                not W.TableLayout and not W.TableCellMarginDefault and not W.TableCaption and not W.TableDescription)) return null;
         if (!TryDxa(properties.GetFirstChild<W.TableWidth>(), positive: true, out var width) ||
             !TryDxa(properties.GetFirstChild<W.TableIndentation>(), positive: false, out var indent) ||
             properties.GetFirstChild<W.TableLayout>()?.Type?.Value != W.TableLayoutValues.Fixed)

@@ -2265,6 +2265,33 @@ function sameDocumentTableMinimumRowHeights(block, table) {
   return requested.length === source.length && requested.every((value, index) => value === source[index]);
 }
 
+function documentTableAccessibility(block) {
+  if (block.accessibility == null) return {};
+  if (typeof block.accessibility !== "object" || Array.isArray(block.accessibility)) {
+    throw new OfficeKitCodecError(`Document table ${block.id} accessibility must be an object with title and/or description.`, [], { code: "invalid_document_table" });
+  }
+  const unsupported = Object.keys(block.accessibility).filter((key) => key !== "title" && key !== "description");
+  if (unsupported.length) {
+    throw new OfficeKitCodecError(`Document table ${block.id} accessibility does not support ${unsupported.join(", ")}.`, [], { code: "invalid_document_table" });
+  }
+  const output = {};
+  for (const [property, field] of [["title", "accessibilityTitle"], ["description", "accessibilityDescription"]]) {
+    if (!Object.hasOwn(block.accessibility, property) || block.accessibility[property] == null) continue;
+    const value = block.accessibility[property];
+    if (typeof value !== "string" || !value.length || value.length > 32_767 || !isXmlSafeText(value)) {
+      throw new OfficeKitCodecError(`Document table ${block.id} accessibility.${property} must contain 1 through 32767 XML-safe characters.`, [], { code: "invalid_document_table" });
+    }
+    output[field] = value;
+  }
+  return output;
+}
+
+function sameDocumentTableAccessibility(block, table) {
+  const requested = documentTableAccessibility(block);
+  return requested.accessibilityTitle === (table.accessibilityTitle || undefined) &&
+    requested.accessibilityDescription === (table.accessibilityDescription || undefined);
+}
+
 function sameDocumentTableKeepTogetherRows(block, table) {
   const requested = documentTableKeepTogetherRows(block, table.rows.length);
   const source = (table.keepTogetherRows || []).map((value) => Number(value));
@@ -3694,6 +3721,7 @@ function unchangedSourceBlock(block, original, assets) {
           !sameDocumentTableHeaderRows(block, original.content.value) ||
           !sameDocumentTableKeepTogetherRows(block, original.content.value) ||
           !sameDocumentTableMinimumRowHeights(block, original.content.value) ||
+          !sameDocumentTableAccessibility(block, original.content.value) ||
           !sameDocumentTableFormatting(block, original.content.value)) return false;
       return block.styleId === original.styleId || (!original.styleId && block.styleId === "TableGrid");
     }
@@ -3836,6 +3864,7 @@ function documentBlock(block, original, directNumbering, assets, contentControlN
     const headerRowCount = documentTableHeaderRowCount(block, source?.rows.length ?? block.values.length);
     const keepTogetherRows = documentTableKeepTogetherRows(block, source?.rows.length ?? block.values.length);
     const minimumRowHeightsDxa = documentTableMinimumRowHeights(block, source?.rows.length ?? block.values.length);
+    const accessibility = documentTableAccessibility(block);
     if (source && !sameDocumentTableContentControlTopology(block, source)) {
       throw new OfficeKitCodecError(`Document table ${block.id} content-control topology is source-bound.`, [], { code: "document_content_control_topology_changed" });
     }
@@ -3866,6 +3895,7 @@ function documentBlock(block, original, directNumbering, assets, contentControlN
           headerRowCount,
           keepTogetherRows,
           minimumRowHeightsDxa,
+          ...accessibility,
           ...(source ? (source.formatting ? {
             formatting: formattingChanged
               ? documentTableFormatting(block, source.gridColumns || Math.max(1, ...source.rows.map((row) => row.cells.length)))
@@ -4378,6 +4408,9 @@ function documentFromEnvelope(envelope) {
       case "table":
         {
           const formatting = documentTableFormattingConfig(block.content.value);
+          const accessibility = {};
+          if (block.content.value.accessibilityTitle !== undefined) accessibility.title = block.content.value.accessibilityTitle;
+          if (block.content.value.accessibilityDescription !== undefined) accessibility.description = block.content.value.accessibilityDescription;
         return {
           kind: "table",
           id: block.id,
@@ -4391,6 +4424,7 @@ function documentFromEnvelope(envelope) {
           minimumRowHeightsDxa: (block.content.value.minimumRowHeightsDxa || []).length === block.content.value.rows.length
             ? block.content.value.minimumRowHeightsDxa.map((value) => Number(value))
             : Array.from({ length: block.content.value.rows.length }, () => 0),
+          ...(Object.keys(accessibility).length ? { accessibility } : {}),
           cells: documentTableCells(block.content.value),
           textPatches: [],
           ...formatting,

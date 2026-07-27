@@ -230,6 +230,10 @@ const table = document.addTable({
   headerRowCount: 1,
   keepTogetherRows: [1],
   minimumRowHeightsDxa: [0, 480, 720],
+  accessibility: {
+    title: "Quarterly delivery readiness",
+    description: "A three-row release-readiness matrix for semantic and visual delivery gates.",
+  },
   values: [["Gate", "Status"], ["Semantic", "Pending"], ["Visual", "Required"]],
 });
 assert.throws(() => table.setHeaderRowCount(4), /headerRowCount must be an integer from 0 through 3/i);
@@ -237,6 +241,15 @@ assert.throws(() => table.setRowKeepTogether(3), /row index must be an integer f
 assert.throws(() => table.setRowKeepTogether(1, "yes"), /keepTogether must be a boolean/i);
 assert.deepEqual(table.minimumRowHeightsDxa, [0, 480, 720]);
 assert.equal(table.horizontalAlignment, "center");
+assert.deepEqual(table.accessibility, {
+  title: "Quarterly delivery readiness",
+  description: "A three-row release-readiness matrix for semantic and visual delivery gates.",
+});
+assert.throws(() => table.setAccessibilityMetadata({}), /requires title and\/or description/i);
+assert.throws(() => table.setAccessibilityMetadata({ title: "" }), /must contain 1 through 32767 XML-safe characters/i);
+table.setAccessibilityMetadata({ description: null });
+assert.deepEqual(table.accessibility, { title: "Quarterly delivery readiness" });
+table.setAccessibilityMetadata({ description: "A three-row release-readiness matrix for semantic and visual delivery gates." });
 assert.throws(() => table.setHorizontalAlignment("middle"), /horizontal alignment must be left, center, right, or null to clear/i);
 table.indentDxa = 120;
 assert.throws(() => table.setHorizontalAlignment("right"), /center or right horizontal alignment requires indentDxa 0/i);
@@ -419,6 +432,8 @@ assert.equal((firstDocumentXml.match(/<w:vAlign\b[^>]*w:val="center"[^>]*\/>/g) 
 assert.equal((firstDocumentXml.match(/<w:trHeight\b[^>]*\/>/g) || []).length, 2, "source-free table must write only nonzero row minimums");
 assert.match(firstDocumentXml, /<w:trHeight\b(?=[^>]*w:val="480")(?=[^>]*w:hRule="atLeast")[^>]*\/>/);
 assert.match(firstDocumentXml, /<w:trHeight\b(?=[^>]*w:val="720")(?=[^>]*w:hRule="atLeast")[^>]*\/>/);
+assert.match(firstDocumentXml, /<w:tblCaption\b[^>]*w:val="Quarterly delivery readiness"[^>]*\/>/, "source-free table accessibility title must use native non-visible metadata");
+assert.match(firstDocumentXml, /<w:tblDescription\b[^>]*w:val="A three-row release-readiness matrix for semantic and visual delivery gates\."[^>]*\/>/, "source-free table accessibility description must use native non-visible metadata");
 table.verticalAlignment = "middle";
 await assert.rejects(() => DocumentFile.exportDocx(document), /verticalAlignment must be top, center, or bottom/i);
 table.verticalAlignment = "center";
@@ -502,6 +517,26 @@ const duplicateTableMinimumHeight = duplicateTableMinimumHeightDocument.blocks.f
 assert.deepEqual(duplicateTableMinimumHeight.minimumRowHeightsDxa, [0, 0, 0], "duplicate native row heights must remain source-bound");
 duplicateTableMinimumHeight.setMinimumRowHeight(1, 360);
 await assert.rejects(() => DocumentFile.exportDocx(duplicateTableMinimumHeightDocument), /table row layout requires a non-empty table with only canonical/i);
+const duplicateTableAccessibilityZip = await JSZip.loadAsync(firstDocxBytes);
+const duplicateTableAccessibilityXml = await duplicateTableAccessibilityZip.file("word/document.xml").async("text");
+let duplicateTableAccessibilityCount = 0;
+duplicateTableAccessibilityZip.file("word/document.xml", duplicateTableAccessibilityXml.replace(/(<w:tblCaption\b[^>]*w:val="Quarterly delivery readiness"[^>]*\/>)/, (match) => {
+  duplicateTableAccessibilityCount += 1;
+  return `${match}<w:tblCaption w:val="Conflicting title"/>`;
+}));
+assert.equal(duplicateTableAccessibilityCount, 1);
+const duplicateTableAccessibilityDocument = await DocumentFile.importDocx(await duplicateTableAccessibilityZip.generateAsync({ type: "uint8array" }));
+const duplicateTableAccessibility = duplicateTableAccessibilityDocument.blocks.find((block) => block.kind === "table");
+assert.equal(duplicateTableAccessibility.accessibility, undefined, "duplicate native table accessibility leaves must remain source-bound");
+const duplicateTableAccessibilityNoOp = await DocumentFile.exportDocx(duplicateTableAccessibilityDocument);
+const duplicateTableAccessibilityNoOpZip = await JSZip.loadAsync(await duplicateTableAccessibilityNoOp.arrayBuffer());
+assert.equal(
+  await duplicateTableAccessibilityNoOpZip.file("word/document.xml").async("text"),
+  await duplicateTableAccessibilityZip.file("word/document.xml").async("text"),
+  "a no-op export must retain duplicate table accessibility markup verbatim",
+);
+duplicateTableAccessibility.setAccessibilityMetadata({ title: "Requested replacement" });
+await assert.rejects(() => DocumentFile.exportDocx(duplicateTableAccessibilityDocument), /accessibility metadata requires zero or one canonical/i);
 await assert.rejects(
   () => DocumentFile.exportDocx(DocumentModel.create({
     blocks: [{ kind: "paragraph", text: "Invalid suppression", paragraphFormat: { suppressLineNumbers: "yes" } }],
@@ -1002,6 +1037,10 @@ assert.equal(imported.blocks.find((block) => block.kind === "table")?.headerRowC
 assert.deepEqual(imported.blocks.find((block) => block.kind === "table")?.keepTogetherRows, [1]);
 assert.deepEqual(imported.blocks.find((block) => block.kind === "table")?.minimumRowHeightsDxa, [0, 480, 720]);
 assert.equal(imported.blocks.find((block) => block.kind === "table")?.verticalAlignment, "center");
+assert.deepEqual(imported.blocks.find((block) => block.kind === "table")?.accessibility, {
+  title: "Quarterly delivery readiness",
+  description: "A three-row release-readiness matrix for semantic and visual delivery gates.",
+});
 assert.equal(imported.blocks.find((block) => block.kind === "hyperlink")?.url, hyperlink.url);
 assert.equal(imported.blocks.find((block) => block.kind === "field")?.instruction, "PAGE");
 assert.deepEqual(imported.blocks.filter((block) => block.kind === "change").map((block) => [block.changeType, block.text, block.author]), [
@@ -1073,6 +1112,7 @@ importedTable.setRowKeepTogether(2, true);
 importedTable.setMinimumRowHeight(0, 360);
 importedTable.setMinimumRowHeight(1, null);
 importedTable.setMinimumRowHeight(2, 960);
+importedTable.setAccessibilityMetadata({ title: "Release-readiness matrix", description: null });
 const importedLink = imported.blocks.find((block) => block.kind === "hyperlink");
 importedLink.url = "https://learn.microsoft.com/office/open-xml/word-processing";
 importedLink.tooltip = "Edited target";
@@ -1132,6 +1172,7 @@ assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.headerRow
 assert.deepEqual(roundTrip.blocks.find((block) => block.kind === "table")?.keepTogetherRows, [1, 2]);
 assert.deepEqual(roundTrip.blocks.find((block) => block.kind === "table")?.minimumRowHeightsDxa, [360, 0, 960]);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "table")?.verticalAlignment, "bottom");
+assert.deepEqual(roundTrip.blocks.find((block) => block.kind === "table")?.accessibility, { title: "Release-readiness matrix" });
 assert.equal(roundTrip.blocks.find((block) => block.kind === "hyperlink")?.history, false);
 assert.equal(roundTrip.blocks.find((block) => block.kind === "field")?.instruction, "NUMPAGES");
 assert.deepEqual(roundTrip.blocks.filter((block) => block.kind === "change").map((block) => [block.changeType, block.text, block.author]), [
