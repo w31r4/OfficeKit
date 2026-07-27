@@ -158,15 +158,21 @@ def run_bounded(
     stderr = bytearray()
     violations: list[str] = []
     lock = threading.Lock()
+    popen_options: dict[str, Any] = {
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "shell": False,
+        "env": environment or provider_environment(),
+    }
+    if os.name == "nt":
+        # The managed Windows pack exposes a verified native launcher. Pass
+        # that absolute PE path separately to CreateProcess instead of asking
+        # Windows to recover the executable from the serialized argv string.
+        # Arguments remain an argv list; this does not introduce a shell.
+        popen_options["executable"] = str(executable)
     try:
-        process = subprocess.Popen(
-            command,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=False,
-            env=environment or provider_environment(),
-        )
+        process = subprocess.Popen(command, **popen_options)
     except OSError as exc:
         raise ProviderError(f"veraPDF could not start: {bounded_text(exc)}") from exc
 
