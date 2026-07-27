@@ -104,6 +104,7 @@ jobs:
             unzip -q qpdf-external-libs-bin.zip -d "qpdf-${QPDF_VERSION}"
           fi
       - name: Build a self-contained qpdf command payload
+        if: ${{ matrix.platform != 'win32-x64' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -162,42 +163,65 @@ jobs:
             "$payload/bin/qpdf" --version | grep -Fx "qpdf version ${QPDF_VERSION}"
             "$payload/bin/qpdf" --show-crypto | grep -q "native"
             ! otool -L "$payload/bin/qpdf" | grep -q "/opt/homebrew"
-          else
-            # qpdf's own Windows instructions use this exact prebuilt static
-            # external-library bundle. Activate the actual hosted MSVC
-            # toolchain and use CMake's generator-independent NMake mode;
-            # pinning a Visual Studio marketing version broke when the
-            # windows-2025 image moved from VS 2022 to VS 2026.
-            devcmd_windows="$(cygpath -w "$OFFICEKIT_MSVC_DEVCMD")"
-            source_windows="$(cygpath -w "$source_dir")"
-            build_windows="$(cygpath -w "$build_dir")"
-            install_windows="$(cygpath -w "$install_dir")"
-            build_script="$RUNNER_TEMP/office-kit-build-qpdf.cmd"
-            cat > "$build_script" <<EOF
-          @echo off
-          call "$devcmd_windows" -arch=x64 -host_arch=x64 >nul
-          if errorlevel 1 exit /b %errorlevel%
-          cmake -S "$source_windows" -B "$build_windows" -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DUSE_IMPLICIT_CRYPTO=OFF -DREQUIRE_CRYPTO_NATIVE=ON -DINSTALL_MANUAL=OFF
-          if errorlevel 1 exit /b %errorlevel%
-          cmake --build "$build_windows"
-          if errorlevel 1 exit /b %errorlevel%
-          cmake --install "$build_windows" --prefix "$install_windows"
-          exit /b %errorlevel%
-          EOF
-            cmd.exe /d /s /c "$(cygpath -w "$build_script")"
-            mkdir -p "$payload/bin"
-            find "$install_dir/bin" -maxdepth 1 -type f -print -exec cp {} "$payload/bin/" \;
-            test -f "$payload/bin/qpdf.exe"
-            find "$payload/bin" -maxdepth 1 -type f -iname 'vcruntime*.dll' -print -quit | grep -q .
-            "$payload/bin/qpdf.exe" --version | grep -Fx "qpdf version ${QPDF_VERSION}"
-            "$payload/bin/qpdf.exe" --show-crypto | grep -q "native"
-            # Prove the staged executable does not depend on the build-tool
-            # PATH. DLL lookup may use the payload directory plus Windows
-            # system directories, but never a Visual Studio installation.
-            qpdf_windows_path="$(cygpath -w "$payload/bin/qpdf.exe")"
-            powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; \$env:Path = [System.IO.Path]::Combine(\$env:SystemRoot, 'System32'); & '${qpdf_windows_path}' --version" \
-              | grep -Fx "qpdf version ${QPDF_VERSION}"
           fi
+      - name: Build a self-contained qpdf command payload on Windows
+        if: ${{ matrix.platform == 'win32-x64' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Keep Windows-native paths inside PowerShell/CMD. Git Bash
+          # interprets `C:` arguments before cmd.exe gets them, which made
+          # the prior one-step handoff open an interactive shell instead of
+          # executing the generated build script.
+          $sourceDir = Join-Path $env:RUNNER_TEMP "qpdf-source\\qpdf-$env:QPDF_VERSION"
+          $buildDir = Join-Path $env:RUNNER_TEMP 'qpdf-build'
+          $installDir = Join-Path $env:RUNNER_TEMP 'qpdf-install'
+          $payload = Join-Path $env:RUNNER_TEMP 'qpdf-payload'
+          $buildScript = Join-Path $env:RUNNER_TEMP 'office-kit-build-qpdf.cmd'
+          @"
+          @echo off
+          call "$env:OFFICEKIT_MSVC_DEVCMD" -arch=x64 -host_arch=x64 >nul
+          if errorlevel 1 exit /b %errorlevel%
+          cmake -S "$sourceDir" -B "$buildDir" -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DUSE_IMPLICIT_CRYPTO=OFF -DREQUIRE_CRYPTO_NATIVE=ON -DINSTALL_MANUAL=OFF
+          if errorlevel 1 exit /b %errorlevel%
+          cmake --build "$buildDir"
+          if errorlevel 1 exit /b %errorlevel%
+          cmake --install "$buildDir" --prefix "$installDir"
+          exit /b %errorlevel%
+          "@ | Set-Content -LiteralPath $buildScript -Encoding ascii
+          $command = 'call "{0}"' -f $buildScript
+          & $env:ComSpec /d /s /c $command
+          if ($LASTEXITCODE -ne 0) { throw "qpdf Windows build failed with exit code $LASTEXITCODE" }
+          $payloadBin = Join-Path $payload 'bin'
+          New-Item -ItemType Directory -Force -Path $payloadBin | Out-Null
+          Get-ChildItem -LiteralPath (Join-Path $installDir 'bin') -File | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $payloadBin -Force
+          }
+          $qpdf = Join-Path $payloadBin 'qpdf.exe'
+          if (-not (Test-Path -LiteralPath $qpdf -PathType Leaf)) { throw 'qpdf.exe was not installed into the payload.' }
+          if (-not (Get-ChildItem -LiteralPath $payloadBin -File -Filter 'vcruntime*.dll')) { throw 'The qpdf payload is missing its MSVC runtime DLL.' }
+          $version = & $qpdf --version
+          if ($LASTEXITCODE -ne 0 -or $version -notcontains "qpdf version $env:QPDF_VERSION") { throw 'The staged qpdf.exe did not report the pinned version.' }
+          $crypto = & $qpdf --show-crypto
+          if ($LASTEXITCODE -ne 0 -or $crypto -notmatch 'native') { throw 'The staged qpdf.exe does not expose native crypto.' }
+          # Prove the staged executable does not depend on the build-tool
+          # PATH. DLL lookup may use the payload directory plus Windows
+          # system directories, but never a Visual Studio installation.
+          $priorPath = $env:Path
+          try {
+            $env:Path = Join-Path $env:SystemRoot 'System32'
+            $systemVersion = & $qpdf --version
+            if ($LASTEXITCODE -ne 0 -or $systemVersion -notcontains "qpdf version $env:QPDF_VERSION") { throw 'The staged qpdf.exe requires a build-tool PATH.' }
+          } finally {
+            $env:Path = $priorPath
+          }
+      - name: Package the qpdf command payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$RUNNER_TEMP/qpdf-source/qpdf-${QPDF_VERSION}"
+          payload="$RUNNER_TEMP/qpdf-payload"
+          notices="$RUNNER_TEMP/qpdf-notices.md"
           {
             printf '%s\n\n' '# qpdf PDF capability pack notices'
             printf '%s\n\n' 'This artifact was built from the hash-pinned qpdf source release recorded in its SBOM.'

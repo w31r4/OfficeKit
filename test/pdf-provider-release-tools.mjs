@@ -16,6 +16,9 @@ assert.match(qpdfWorkflow, /sha256-file\.mjs/);
 assert.match(qpdfWorkflow, /verify-pdf-provider-pack\.mjs/);
 assert.match(qpdfWorkflow, /NMake Makefiles/);
 assert.match(qpdfWorkflow, /vswhere\.exe/);
+assert.match(qpdfWorkflow, /Build a self-contained qpdf command payload on Windows/);
+assert.match(qpdfWorkflow, /Git Bash[\s\S]*cmd\.exe gets them/,
+  "the Windows-native build boundary must document why it is not run through Git Bash");
 assert.doesNotMatch(qpdfWorkflow, /shasum/, "the Windows qpdf lane must not depend on Git Bash's optional Perl shim");
 assert.match(attributes, /^scripts\/pdf-provider-\*\.json text eol=lf$/m, "release input locks must hash identical bytes on Windows");
 

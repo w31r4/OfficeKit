@@ -12,7 +12,12 @@ const provider = path.join(skillRoot, "scripts", "verapdf_provider.py");
 const registry = path.join(skillRoot, "scripts", "pdf_provider.py");
 const fixture = path.join(repoRoot, "test", "fixtures", "pdf", "verapdf-pdfa1b-pass.pdf");
 const fixtureHash = "66077f449d472a048e3bbf7192aa6d2b0b0ebd6b6d8a6f878f776f69424b6deb";
-const python = "python3";
+// GitHub's Windows image has both a native Python and Git Bash's POSIX
+// `python3` shim. The adapter must execute the native veraPDF launcher with
+// native CreateProcess semantics, so the release lane may pin its interpreter
+// explicitly instead of inheriting whichever shim happens to win PATH order.
+const python = process.env.OFFICE_KIT_PDF_VERAPDF_TEST_PYTHON
+  || (process.platform === "win32" ? "python.exe" : "python3");
 
 
 function run(executable, args, options = {}) {
