@@ -633,7 +633,12 @@ try {
     ) process.exit(58);
   `;
 
-  run(process.execPath, ["--input-type=module", "-e", probe], temporary, {
+  // Keep the probe in a module file instead of passing it through `node -e`.
+  // The installed-package probe is intentionally comprehensive and exceeds
+  // Windows' command-line length limit when serialized as one argument.
+  const probePath = path.join(temporary, "clean-install-probe.mjs");
+  fs.writeFileSync(probePath, probe, "utf8");
+  run(process.execPath, [probePath], temporary, {
     PATH: process.platform === "win32"
       ? `${path.dirname(process.execPath)};C:\\Windows\\System32`
       : `${path.dirname(process.execPath)}:/usr/bin:/bin`,
