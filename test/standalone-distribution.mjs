@@ -372,7 +372,7 @@ try {
     runOfficeKit(["run", task, "--", "alpha"], project).stdout,
   );
   assert.deepEqual(taskResult.argv, ["alpha"]);
-  assert.equal(taskResult.cwd, await fs.realpath(project));
+  assert.equal(await fs.realpath(taskResult.cwd), await fs.realpath(project));
   assert.equal(taskResult.publicSubpaths, Object.keys(packageMetadata.exports).length);
   for (const extension of ["docx", "xlsx", "pptx", "pdf"]) {
     assert.ok((await fs.stat(path.join(project, `standalone.${extension}`))).size > 100);
