@@ -37,11 +37,12 @@ OfficeKit：
 
 ## Quick Start
 
-需要 Node.js 22 或更新版本。在 Agent 工作的项目中执行：
+需要 Node.js 22.15 或更新版本。全局安装一次，然后在每个要使用
+OfficeKit 的项目里初始化：
 
 ```sh
-npm install github:w31r4/OfficeKit
-npx officekit init
+npm install -g github:w31r4/OfficeKit
+officekit init
 ```
 
 `officekit init` 会识别当前项目使用的 Agent，安装 OfficeKit 总入口、四个文件
@@ -51,17 +52,26 @@ Skill 会写入对应的项目目录。
 脚本或 CI 可直接指定工具：
 
 ```sh
-npx officekit init --tools claude,cursor
+officekit init --tools claude,cursor
 ```
 
-升级 OfficeKit 后，在项目里执行 `npx officekit update` 即可同步 Skill。
+升级全局包后，在项目里执行 `officekit update` 即可同步 Skill。
 专项 PDF provider 继续按项目策略加载自己的运行时。
 
 当前安装源为 GitHub。首个正式 npm 版本发布后，第一条命令可改为：
 
 ```sh
-npm install office-kit
+npm install -g office-kit
 ```
+
+Skill 里的 JavaScript 任务统一这样运行：
+
+```sh
+officekit run task.mjs -- input.docx output.docx
+```
+
+`officekit run` 使用全局安装的同版本 API。任务自己的第三方依赖仍从
+任务所在项目解析。
 
 ## 一个总入口，也保留直接入口
 
@@ -95,9 +105,18 @@ npm install office-kit
 ## 模板按需使用
 
 [Office Template Library](skills/default-template-library/README.md) 提供 20 套
-MIT 授权模板，并作为仓库资产按需使用。目标明确且模板未指定时，
-OfficeKit 检索精简元数据；Agent 查看少量候选后选择一个、询问用户或明确
+MIT 授权模板，随全局包保存一份。`officekit init` 只安装 Skill，模板继续
+留在包内。目标明确且模板未指定时，OfficeKit 把需求归一成英文检索词，
+再执行本地 BM25F 搜索；Agent 查看少量候选后选择一个、询问用户或明确
 不用模板。
+
+```sh
+officekit template search \
+  --kind presentation \
+  --purpose "quarterly business review" \
+  --audience executive \
+  --json
+```
 
 用户上传的 DOCX、XLSX 或 PPTX 默认只用于当前任务。明确要求以后复用时，
 再交给 Template Creator 保存。
@@ -120,8 +139,8 @@ PDF provider 的策略和限制见
 
 ## JavaScript API
 
-Skills 和应用代码使用同一个包。Agent 可以按 Skill 完成任务，应用也可以直接调用
-API：
+Skills 和应用代码使用同一个 API。Skill 任务通过 `officekit run` 使用全局包；
+应用开发者也可以把 `office-kit` 加入自己的项目依赖后直接调用：
 
 ```js
 import { SpreadsheetFile, Workbook } from "office-kit";
@@ -161,7 +180,7 @@ npm run docs:api
 npm run release:check
 ```
 
-`OfficeKit` 是产品名，npm 包名为 `office-kit`。版本 `0.3.0`
+`OfficeKit` 是产品名，npm 包名为 `office-kit`。版本 `0.4.0`
 当前处于 release candidate 阶段，正式发布后即可从 npm 安装。
 
 ## 许可证

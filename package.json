@@ -1,6 +1,6 @@
 {
   "name": "office-kit",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "OfficeKit: agent-native Office and PDF Skills plus JavaScript APIs for creating, inspecting, editing, rendering, and verifying artifacts.",
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -29,7 +29,7 @@
     "officekit": "./bin/officekit.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.15.0"
   },
   "exports": {
     ".": "./src/index.mjs",
@@ -61,6 +61,7 @@
     "skills/pdf/**",
     "skills/office-kit/**",
     "skills/template-creator/**",
+    "skills/default-template-library/**",
     "proto/**",
     "runtime/office-kit/**",
     "native/OfficeBridge/src/*.cs",

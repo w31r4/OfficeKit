@@ -97,7 +97,7 @@ Use `examples/officekit-smartart-text-edit-workflow.mjs` for a no-overwrite
 Agent transaction:
 
 ```sh
-node "$SKILL_DIR/examples/officekit-smartart-text-edit-workflow.mjs" \
+officekit run "$SKILL_DIR/examples/officekit-smartart-text-edit-workflow.mjs" \
   input/source.pptx output/edited.pptx output/edited.audit.json \
   "Closed SmartArt" "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}" "Before" "After"
 ```

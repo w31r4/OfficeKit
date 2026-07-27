@@ -2388,11 +2388,12 @@ try {
     "skills/presentations/**",
     "skills/pdf/**",
     "skills/template-creator/**",
+    "skills/default-template-library/**",
   ]) {
     assert.ok(packageJson.files.includes(shippedSkillPath));
   }
   assert.ok(!packageJson.files.includes("skills/**"));
-  assert.ok(!packageJson.files.includes("skills/default-template-library/**"));
+  assert.ok(packageJson.files.includes("skills/default-template-library/**"));
   const skillText = await fs.readFile(path.join(repoRoot, "skills", "documents", "skills", "documents", "SKILL.md"), "utf8");
   const pluginReadme = await fs.readFile(path.join(repoRoot, "skills", "documents", "README.md"), "utf8");
   assert.match(pluginReadme, /office-kit/);

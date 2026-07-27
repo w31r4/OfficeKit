@@ -33,7 +33,7 @@ const SKIP_SCAN_DIRS = new Set([
 function usage() {
   return [
     "Usage:",
-    "  node template_following_scripts/check_template_fidelity.mjs --workspace <dir> --final-pptx <deck.pptx> [options]",
+    "  officekit run template_following_scripts/check_template_fidelity.mjs --workspace <dir> --final-pptx <deck.pptx> [options]",
     "",
     "Options:",
     "  --map <path>                  template-frame-map.json.",

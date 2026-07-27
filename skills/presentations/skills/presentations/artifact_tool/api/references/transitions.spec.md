@@ -94,7 +94,7 @@ For an Agent request to replace one existing transition, use the shipped
 raw XML patch:
 
 ```bash
-node examples/officekit-transition-edit-workflow.mjs \
+officekit run examples/officekit-transition-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Decision" \
   '{"effect":"fade","speed":"medium","advanceOnClick":true}' \

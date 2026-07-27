@@ -99,10 +99,10 @@ For the ordinary imported **header** or **footer** profile, prefer the matching
 packaged transaction instead of reproducing its package proof by hand:
 
 ```bash
-node examples/officekit-header-text-edit-workflow.mjs \
+officekit run examples/officekit-header-text-edit-workflow.mjs \
   input.docx reviewed.docx audit.json \
   "Northwind | Internal" "Northwind | Reviewed" 0 default
-node examples/officekit-footer-text-edit-workflow.mjs \
+officekit run examples/officekit-footer-text-edit-workflow.mjs \
   input.docx reviewed.docx audit.json \
   "Northwind | Internal" "Northwind | Reviewed" 0 default
 ```

@@ -66,7 +66,7 @@ intended description, use the narrow public transaction rather than running a
 document-wide metadata patch:
 
 ```bash
-node examples/officekit-image-alt-text-edit-workflow.mjs \
+officekit run examples/officekit-image-alt-text-edit-workflow.mjs \
   input.docx reviewed.docx image-alt.audit.json 1 \
   "Existing architecture overview" \
   "Architecture overview showing the API gateway and three service lanes"

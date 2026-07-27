@@ -94,10 +94,22 @@ export async function runOfficeKitCli(
     errorOutput = process.stderr,
   } = {},
 ) {
-  const parsed = parseArguments(argv);
   const packageMetadata = JSON.parse(
     await readFile(path.join(PACKAGE_ROOT, "package.json"), "utf8"),
   );
+  const [command, ...commandArguments] = argv;
+
+  if (command === "run") {
+    const { runTaskCommand } = await import("./run-task.mjs");
+    await runTaskCommand(commandArguments, { output });
+    return;
+  }
+  if (command === "template") {
+    await runTemplateCommand(commandArguments, { output });
+    return;
+  }
+
+  const parsed = parseArguments(argv);
 
   if (parsed.version) {
     output.write(`${packageMetadata.version}\n`);
@@ -156,6 +168,47 @@ export async function runOfficeKitCli(
   if (errorOutput && result.warnings.length > 0) {
     for (const warning of result.warnings) errorOutput.write(`OfficeKit: ${warning}\n`);
   }
+}
+
+async function runTemplateCommand(args, { output }) {
+  const [subcommand, ...subcommandArguments] = args;
+  const {
+    TEMPLATE_SEARCH_USAGE,
+    formatTemplateSearchResult,
+    parseTemplateSearchArguments,
+    queryTemplates,
+  } = await import("../templates/search.mjs");
+
+  if (
+    subcommand == null ||
+    subcommand === "help" ||
+    subcommand === "--help" ||
+    subcommand === "-h"
+  ) {
+    output.write(`${TEMPLATE_SEARCH_USAGE}\n`);
+    return;
+  }
+  if (subcommand !== "search") {
+    throw new Error(
+      `Unknown template command "${subcommand}". Run "officekit template search --help".`,
+    );
+  }
+
+  const request = parseTemplateSearchArguments(subcommandArguments);
+  if (request.help) {
+    output.write(`${TEMPLATE_SEARCH_USAGE}\n`);
+    return;
+  }
+  const { json = false, ...query } = request;
+  const result = await queryTemplates({
+    ...query,
+    projectPath: process.cwd(),
+  });
+  output.write(
+    json
+      ? `${JSON.stringify(result)}\n`
+      : `${formatTemplateSearchResult(result)}\n`,
+  );
 }
 
 function parseArguments(argv) {
@@ -634,16 +687,20 @@ function toPosix(value) {
 function helpText(version) {
   return `OfficeKit ${version}
 
-Initialize project-local Skills for your Agent.
+Install Skills, run Office tasks, and search reusable templates.
 
 Usage:
   officekit init [path] [--tools <ids>] [--yes] [--json]
   officekit update [path] [--tools <ids>] [--force] [--json]
+  officekit run <task.mjs> [-- <task arguments>]
+  officekit template search [search options] [--json]
   officekit --version
 
 Commands:
-  init      Detect Agent tools and install the OfficeKit Skills
-  update    Refresh Skills already managed by OfficeKit
+  init       Detect Agent tools and install the OfficeKit Skills
+  update     Refresh Skills already managed by OfficeKit
+  run        Run a task with this OfficeKit installation
+  template   Search the bundled and project template catalogs
 
 Options:
   --tools <ids>  Comma-separated Agent tool IDs, or "all"
@@ -660,5 +717,7 @@ Examples:
   officekit init
   officekit init --tools claude,cursor
   officekit update
+  officekit run task.mjs -- input.docx output.docx
+  officekit template search --kind presentation --purpose "quarterly business review"
 `;
 }

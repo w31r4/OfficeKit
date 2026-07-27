@@ -70,19 +70,20 @@ an editable DOCX/XLSX/PPTX source template.
 
 ## Query the catalog
 
-Run from the OfficeKit Skill directory:
+Normalize the user's intent into concise English search terms, then run:
 
 ```sh
-node scripts/query-templates.mjs \
+officekit template search \
   --kind presentation \
   --purpose "quarterly business review" \
   --audience executive \
   --content-shape KPIs \
   --content-shape decisions \
-  --tone formal
+  --tone formal \
+  --json
 ```
 
-Valid kinds are `document`, `spreadsheet`, and `presentation`. The query script
+Valid kinds are `document`, `spreadsheet`, and `presentation`. The command
 validates metadata, paths, retained-file hashes, and preview hashes. It filters
 by kind, ranks a local field-weighted BM25F index, rejects `avoidWhen` conflicts and
 missing verified operations, returns no more than five compact candidates, and
@@ -97,12 +98,15 @@ Summarize the request into the smallest useful set of:
 - `--operation` for an exact canonical verified operation
 - `--brand-sensitive` when the choice carries brand risk
 
-The Agent performs semantic normalization, such as mapping “senior leadership”
-to the catalog audience term “executive”, without inventing requirements.
+The Agent performs semantic normalization in English, such as mapping “senior
+leadership” to the catalog audience term “executive”, without inventing
+requirements. Search metadata uses one English canonical form; do not create
+translated duplicates. Continue the conversation and final response in the
+user's language.
 BM25F remains deterministic and local: it does not call a model, build a vector
 index, or fetch external content.
 
-The script returns `match.score`, the fields that matched, negative conflicts,
+The command returns `match.score`, the fields that matched, negative conflicts,
 missing operations, and review flags. It always returns
 `selectionMade: false`; these are retrieval facts for Agent judgment, not an
 aesthetic decision. `--tag` remains a lower-fidelity compatibility input.
@@ -114,8 +118,9 @@ is attribution, not permission to access the network.
 
 Use `--id artifact-template-name` for an explicitly requested template. Use
 one or more `--root /absolute/template/skills/root` arguments to query a
-specific installed catalog. Without `--root`, the script checks configured,
-local-user, flat-installed, and repository template roots.
+specific installed catalog. Without `--root`, the command checks configured
+roots, template Skills installed in the current project, the user-local
+catalog, and the templates bundled with OfficeKit, in that priority order.
 
 Schema-v1 template entries are reported as invalid because they do not carry
 enough selection evidence. Migrate an explicitly owned local template through

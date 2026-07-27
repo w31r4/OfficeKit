@@ -5,12 +5,13 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { queryTemplates } from "../skills/office-kit/skills/office-kit/scripts/query-templates.mjs";
+import { queryTemplates } from "../src/templates/search.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const pluginRoot = path.join(repoRoot, "skills", "office-kit");
 const skillRoot = path.join(pluginRoot, "skills", "office-kit");
 const templateRoot = path.join(repoRoot, "skills", "default-template-library", "skills");
+const officeKitCli = path.join(repoRoot, "bin", "officekit.mjs");
 
 const [plugin, skillText, agentText, routingText, templateSelectionText] = await Promise.all([
   readJson(path.join(pluginRoot, ".codex-plugin", "plugin.json")),
@@ -21,7 +22,7 @@ const [plugin, skillText, agentText, routingText, templateSelectionText] = await
 ]);
 
 assert.equal(plugin.name, "office-kit");
-assert.equal(plugin.version, "0.3.0");
+assert.equal(plugin.version, "0.4.0");
 assert.equal(plugin.license, "AGPL-3.0-or-later");
 assert.equal(plugin.skills, "./skills/");
 assert.match(plugin.description, /cross-format Office and PDF/i);
@@ -33,6 +34,9 @@ assert.match(skillText, /selected`, `ask`, or `none`/);
 assert.match(skillText, /Do not preload every Office Skill/);
 assert.match(skillText, /Do not send the user away to repeat the request/);
 assert.match(skillText, /PDF-only task/);
+assert.match(skillText, /officekit template search \.\.\. --json/);
+assert.match(skillText, /English search terms/);
+assert.doesNotMatch(skillText, /query-templates\.mjs/);
 assert.match(agentText, /display_name: "OfficeKit"/);
 assert.match(agentText, /default_prompt: "Use \$office-kit /);
 assert.match(routingText, /\.\.\/documents\/SKILL\.md/);
@@ -50,6 +54,8 @@ assert.match(templateSelectionText, /task-scoped user reference/i);
 assert.match(templateSelectionText, /must not be copied into a template directory/i);
 assert.match(templateSelectionText, /BM25F remains deterministic and local/i);
 assert.match(templateSelectionText, /does not call a model, build a vector/i);
+assert.match(templateSelectionText, /one English canonical form/i);
+assert.match(templateSelectionText, /templates bundled with OfficeKit/i);
 
 const expectedCounts = new Map([
   ["document", 7],
@@ -196,13 +202,16 @@ await assert.rejects(
 const cli = spawnSync(
   process.execPath,
   [
-    path.join(skillRoot, "scripts", "query-templates.mjs"),
+    officeKitCli,
+    "template",
+    "search",
     "--kind",
     "spreadsheet",
     "--root",
     templateRoot,
     "--id",
     "artifact-template-sales-pipeline",
+    "--json",
   ],
   { encoding: "utf8" },
 );
@@ -214,7 +223,9 @@ assert.equal(cliResult.candidates[0].id, "artifact-template-sales-pipeline");
 const structuredCli = spawnSync(
   process.execPath,
   [
-    path.join(skillRoot, "scripts", "query-templates.mjs"),
+    officeKitCli,
+    "template",
+    "search",
     "--kind",
     "presentation",
     "--root",
@@ -228,6 +239,7 @@ const structuredCli = spawnSync(
     "--operation",
     "recognized-placeholder-title-text-replace",
     "--brand-sensitive",
+    "--json",
   ],
   { encoding: "utf8" },
 );
@@ -245,31 +257,6 @@ assert.ok(
 
 const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-template-query-"));
 try {
-  const scriptAlias = path.join(tempRoot, "query-templates-alias.mjs");
-  await fs.symlink(
-    path.join(skillRoot, "scripts", "query-templates.mjs"),
-    scriptAlias,
-    "file",
-  );
-  const aliasedCli = spawnSync(
-    process.execPath,
-    [
-      scriptAlias,
-      "--kind",
-      "presentation",
-      "--root",
-      templateRoot,
-      "--id",
-      "artifact-template-business-review",
-    ],
-    { encoding: "utf8" },
-  );
-  assert.equal(aliasedCli.status, 0, aliasedCli.stderr);
-  assert.equal(
-    JSON.parse(aliasedCli.stdout).candidates[0].id,
-    "artifact-template-business-review",
-  );
-
   await writeBrokenTemplate(tempRoot, "artifact-template-old-schema", {
     schemaVersion: 1,
     kind: "document",
@@ -294,6 +281,9 @@ try {
       undocumentedTrait: true,
     },
   });
+  await writeTemplate(tempRoot, "artifact-template-non-english-search", {
+    useWhen: ["季度业务复盘"],
+  });
   await writeTemplate(tempRoot, "artifact-template-wrong-reference-kind", {
     reference: "assets/reference.xlsx",
   });
@@ -305,7 +295,7 @@ try {
     maxCandidates: 20,
   });
   assert.equal(invalid.candidates.length, 0);
-  assert.equal(invalid.invalid.length, 7);
+  assert.equal(invalid.invalid.length, 8);
   assert.match(invalid.invalid.find((entry) => entry.id === "artifact-template-old-schema").error, /schemaVersion must be 2/);
   assert.match(invalid.invalid.find((entry) => entry.id === "artifact-template-bad-hash").error, /SHA-256 mismatch/);
   assert.match(invalid.invalid.find((entry) => entry.id === "artifact-template-path-escape").error, /safe relative path/);
@@ -316,6 +306,10 @@ try {
   assert.match(
     invalid.invalid.find((entry) => entry.id === "artifact-template-unknown-visual-trait").error,
     /visualTraits contains unsupported fields: undocumentedTrait/,
+  );
+  assert.match(
+    invalid.invalid.find((entry) => entry.id === "artifact-template-non-english-search").error,
+    /useWhen must use English search text/,
   );
   assert.match(
     invalid.invalid.find((entry) => entry.id === "artifact-template-wrong-reference-kind").error,

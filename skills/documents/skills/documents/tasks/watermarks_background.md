@@ -60,7 +60,7 @@ Use `watermark.remove()` instead of assigning blank text when the user requests 
 For a real imported file, prefer the shipped transactional workflow:
 
 ```bash
-node examples/officekit-watermark-workflow.mjs \
+officekit run examples/officekit-watermark-workflow.mjs \
   input.docx reviewed.docx watermark-audit.json \
   DRAFT "INTERNAL REVIEW" 0 default edit
 ```

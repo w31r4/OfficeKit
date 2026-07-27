@@ -8,6 +8,8 @@ try {
   const message = error instanceof Error ? error.message : String(error);
   if (process.argv.includes("--json")) {
     process.stderr.write(`${JSON.stringify({ ok: false, error: message })}\n`);
+  } else if (error?.officeKitShowStack && error instanceof Error) {
+    process.stderr.write(`${error.stack ?? error.message}\n`);
   } else {
     process.stderr.write(`OfficeKit: ${message}\n`);
   }

@@ -173,7 +173,7 @@ or by text near the section break.
 For the canonical profile, use the shipped transaction rather than XML patching:
 
 ```bash
-node examples/officekit-section-page-numbering-edit-workflow.mjs \
+officekit run examples/officekit-section-page-numbering-edit-workflow.mjs \
   input.docx output.docx audit.json \
   1 '{"start":1,"format":"lowerRoman"}' \
   '{"start":1,"format":"decimal"}'
@@ -205,7 +205,7 @@ record the section **block index** and all five current twip values. Do not
 select a section from nearby body text or a guessed page number.
 
 ```bash
-node examples/officekit-section-margin-edit-workflow.mjs \
+officekit run examples/officekit-section-margin-edit-workflow.mjs \
   input.docx output.docx audit.json \
   1 '{"top":1440,"right":1440,"bottom":1440,"left":1440,"gutter":0}' \
   '{"top":1440,"right":1440,"bottom":1440,"left":1728,"gutter":0}'
@@ -230,7 +230,7 @@ two independent partial changes or ask this workflow to rescale existing text,
 tables, drawings, headers, or footers.
 
 ```bash
-node examples/officekit-section-page-geometry-edit-workflow.mjs \
+officekit run examples/officekit-section-page-geometry-edit-workflow.mjs \
   input.docx output.docx audit.json \
   1 '{"orientation":"portrait","pageSize":{"widthTwips":12240,"heightTwips":15840}}' \
   '{"orientation":"landscape","pageSize":{"widthTwips":15840,"heightTwips":12240}}'
@@ -255,7 +255,7 @@ uses Word's default omitted attribute; the optional fields are `start`,
 `distance`, and `restart`.
 
 ```bash
-node examples/officekit-section-line-numbering-edit-workflow.mjs \
+officekit run examples/officekit-section-line-numbering-edit-workflow.mjs \
   input.docx output.docx audit.json 1 \
   '{"countBy":5,"start":0,"distance":360,"restart":"newPage"}' \
   '{"countBy":10,"start":4,"distance":480,"restart":"continuous"}'
@@ -283,7 +283,7 @@ the inspected profile shape: it does not convert equal-width columns into an
 explicit-width graph, or the reverse.
 
 ```bash
-node examples/officekit-section-columns-edit-workflow.mjs \
+officekit run examples/officekit-section-columns-edit-workflow.mjs \
   input.docx output.docx audit.json 1 \
   '{"count":2,"spacing":720,"separator":true}' \
   '{"count":3,"spacing":360,"separator":false}'
@@ -308,7 +308,7 @@ section and record its **block index** plus the complete current `breakType`.
 The supported values are `nextPage`, `continuous`, `evenPage`, and `oddPage`.
 
 ```bash
-node examples/officekit-section-break-edit-workflow.mjs \
+officekit run examples/officekit-section-break-edit-workflow.mjs \
   input.docx output.docx audit.json 1 nextPage continuous
 ```
 

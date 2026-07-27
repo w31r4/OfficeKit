@@ -9,11 +9,11 @@ Given a DOCX with tracked changes, produce a distinct accepted or rejected copy,
 For direct whole-paragraph `w:ins` / `w:del` revisions containing one recognized run, use the shipped OfficeKit workflow:
 
 ```bash
-node examples/officekit-revision-finalization-workflow.mjs \
+officekit run examples/officekit-revision-finalization-workflow.mjs \
   input.docx accepted.docx accepted.audit.json accept
 
 # Or reject the revisions and preserve an existing trackRevisions setting:
-node examples/officekit-revision-finalization-workflow.mjs \
+officekit run examples/officekit-revision-finalization-workflow.mjs \
   input.docx rejected.docx rejected.audit.json reject --keep-tracking
 ```
 

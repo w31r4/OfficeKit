@@ -133,9 +133,9 @@ For one ordinary imported header or footer, prefer the matching packaged
 transaction:
 
 ```bash
-node examples/officekit-header-text-edit-workflow.mjs \
+officekit run examples/officekit-header-text-edit-workflow.mjs \
   input.docx reviewed.docx audit.json "Northwind | Internal" "Northwind | Reviewed" 0 default
-node examples/officekit-footer-text-edit-workflow.mjs \
+officekit run examples/officekit-footer-text-edit-workflow.mjs \
   input.docx reviewed.docx audit.json "Northwind | Internal" "Northwind | Reviewed" 0 default
 ```
 
@@ -283,7 +283,7 @@ instead of a broad XML rewrite. Inspect the document first and record the image
 block index plus its complete current non-empty `alt` value:
 
 ```bash
-node examples/officekit-image-alt-text-edit-workflow.mjs \
+officekit run examples/officekit-image-alt-text-edit-workflow.mjs \
   input.docx reviewed.docx image-alt.audit.json 1 \
   "Existing architecture overview" \
   "Architecture overview showing the API gateway and three service lanes"
@@ -750,7 +750,7 @@ target binds the inspected semantic note ID, native ID, anchor target, paragraph
 index, and exact source text:
 
 ```bash
-node examples/officekit-note-text-edit-workflow.mjs \
+officekit run examples/officekit-note-text-edit-workflow.mjs \
   input.docx output.docx audit.json \
   '{"kind":"footnote","noteId":"document/note/1","nativeId":1,"targetId":"document/block/1","paragraphIndex":0,"expectedText":"Pilot report, section 4.2."}' \
   'Pilot report, section 4.2, independently reviewed.'
@@ -922,7 +922,7 @@ For a fixed imported canonical section, use the no-overwrite transaction in
 inspected section block index plus exact source/replacement JSON objects:
 
 ```bash
-node examples/officekit-section-page-numbering-edit-workflow.mjs \
+officekit run examples/officekit-section-page-numbering-edit-workflow.mjs \
   input.docx output.docx audit.json 1 \
   '{"start":1,"format":"lowerRoman"}' \
   '{"start":1,"format":"decimal"}'
@@ -940,7 +940,7 @@ inspected section block index and complete exact source/replacement margin
 objects:
 
 ```bash
-node examples/officekit-section-margin-edit-workflow.mjs \
+officekit run examples/officekit-section-margin-edit-workflow.mjs \
   input.docx output.docx audit.json 1 \
   '{"top":1440,"right":1440,"bottom":1440,"left":1440,"gutter":0}' \
   '{"top":1440,"right":1440,"bottom":1440,"left":1728,"gutter":0}'
@@ -960,7 +960,7 @@ complete source and replacement geometry values; `orientation` and `pageSize`
 are intentionally one atomic object:
 
 ```bash
-node examples/officekit-section-page-geometry-edit-workflow.mjs \
+officekit run examples/officekit-section-page-geometry-edit-workflow.mjs \
   input.docx output.docx audit.json 1 \
   '{"orientation":"portrait","pageSize":{"widthTwips":12240,"heightTwips":15840}}' \
   '{"orientation":"landscape","pageSize":{"widthTwips":15840,"heightTwips":12240}}'
@@ -981,7 +981,7 @@ profiles; `countBy` is always explicit, while `start`, `distance`, and
 `restart` remain optional:
 
 ```bash
-node examples/officekit-section-line-numbering-edit-workflow.mjs \
+officekit run examples/officekit-section-line-numbering-edit-workflow.mjs \
   input.docx output.docx audit.json 1 \
   '{"countBy":5,"start":0,"distance":360,"restart":"newPage"}' \
   '{"countBy":10,"start":4,"distance":480,"restart":"continuous"}'
@@ -1003,7 +1003,7 @@ profiles. Equal-width profiles state `count`, `spacing`, and `separator`;
 custom-width profiles state ordered `definitions` and `separator`:
 
 ```bash
-node examples/officekit-section-columns-edit-workflow.mjs \
+officekit run examples/officekit-section-columns-edit-workflow.mjs \
   input.docx output.docx audit.json 1 \
   '{"count":2,"spacing":720,"separator":true}' \
   '{"count":3,"spacing":360,"separator":false}'
@@ -1022,7 +1022,7 @@ For one fixed imported canonical section-break correction, use
 inspected section block index plus complete source/replacement break types:
 
 ```bash
-node examples/officekit-section-break-edit-workflow.mjs \
+officekit run examples/officekit-section-break-edit-workflow.mjs \
   input.docx output.docx audit.json 1 nextPage continuous
 ```
 
@@ -1039,7 +1039,7 @@ For one fixed imported canonical table-column correction, use
 inspected table block index plus the complete source/replacement width arrays:
 
 ```bash
-node examples/officekit-table-column-widths-edit-workflow.mjs \
+officekit run examples/officekit-table-column-widths-edit-workflow.mjs \
   input.docx output.docx audit.json 1 \
   '[2100,4500,2700]' \
   '[3000,3600,2700]'
@@ -1061,7 +1061,7 @@ For one imported canonical table-direct-formatting correction, use
 inspected table block index plus complete source and replacement profiles:
 
 ```bash
-node examples/officekit-table-formatting-edit-workflow.mjs \
+officekit run examples/officekit-table-formatting-edit-workflow.mjs \
   input.docx output.docx audit.json 1 \
   '{"indentDxa":120,"cellMarginsDxa":{"top":80,"bottom":80,"start":120,"end":120},"borderColor":"445566","borderSize":8,"headerFill":"E2E8F0"}' \
   '{"indentDxa":240,"cellMarginsDxa":{"top":100,"bottom":120,"start":160,"end":180},"borderColor":"224466","borderSize":12,"headerFill":"DDEBF7"}'
@@ -1081,7 +1081,7 @@ For one imported canonical repeat-header correction, use
 inspected table block index and complete source/replacement count:
 
 ```bash
-node examples/officekit-table-header-rows-edit-workflow.mjs \
+officekit run examples/officekit-table-header-rows-edit-workflow.mjs \
   input.docx output.docx audit.json 1 1 2
 ```
 

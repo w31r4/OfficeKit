@@ -35,7 +35,7 @@ From the Skill root, the packaged runnable example covers the complete vertical
 slice:
 
 ```bash
-node examples/officekit-end-to-end.mjs output.docx
+officekit run examples/officekit-end-to-end.mjs output.docx
 ```
 
 ## Edit an existing document

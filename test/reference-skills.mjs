@@ -82,7 +82,7 @@ for (const pluginName of pluginNames) {
   const manifestPath = path.join(pluginRoot, ".codex-plugin", "plugin.json");
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
   assert.equal(manifest.name, pluginName);
-  assert.equal(manifest.version, pluginName === "office-kit" ? "0.3.0" : "0.2.0");
+  assert.equal(manifest.version, pluginName === "office-kit" ? "0.4.0" : "0.2.0");
   assert.equal(manifest.license, pluginName === "default-template-library" ? "MIT" : "AGPL-3.0-or-later");
   assert.equal(manifest.skills, "./skills/");
   assert.equal(manifest.repository, "https://github.com/w31r4/OfficeKit");
@@ -126,7 +126,11 @@ assert.match(officeKitTemplateText, /Classify the current task, not the user/i);
 assert.match(officeKitTemplateText, /task-scoped user reference/i);
 assert.match(officeKitTemplateText, /field-weighted BM25F index/i);
 assert.match(officeKitTemplateText, /does not call a model, build a vector/i);
-assert.ok(await exists(path.join(officeKitRoot, "scripts", "query-templates.mjs")));
+assert.equal(
+  await exists(path.join(officeKitRoot, "scripts", "query-templates.mjs")),
+  false,
+);
+assert.ok(await exists(path.join(repoRoot, "src", "templates", "search.mjs")));
 
 const templateCreatorManifest = JSON.parse(await fs.readFile(path.join(skillsRoot, "template-creator", "manifest.json"), "utf8"));
 assert.equal(templateCreatorManifest.schemaVersion, 1);

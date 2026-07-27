@@ -89,7 +89,7 @@ For an existing uploaded workbook, use the transactional public Skill example
 instead of treating its ZIP as a patch target:
 
 ```sh
-node examples/officekit-pivot-refresh-hardening-workflow.mjs \
+officekit run examples/officekit-pivot-refresh-hardening-workflow.mjs \
   input.xlsx output.xlsx audit.json "Pivot Summary" "Revenue by region"
 ```
 

@@ -194,7 +194,7 @@ and topology changes fail closed.
 Run the complete Agent workflow from this Skill root:
 
 ```sh
-node examples/officekit-chart-families-workflow.mjs \
+officekit run examples/officekit-chart-families-workflow.mjs \
   output/chart-families.pptx \
   output/chart-families.png \
   output/chart-families.audit.json
@@ -470,7 +470,7 @@ For a single imported section-name correction, use the no-overwrite workflow
 instead of editing the package directly:
 
 ```bash
-node examples/officekit-section-rename-workflow.mjs \
+officekit run examples/officekit-section-rename-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Context" "Background"
 ```
@@ -486,7 +486,7 @@ For a source-bound boundary move, declare the complete source and replacement
 partitions rather than mutating one neighboring group implicitly:
 
 ```bash
-node examples/officekit-section-boundary-edit-workflow.mjs \
+officekit run examples/officekit-section-boundary-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   @expected-sections.json \
   @replacement-sections.json

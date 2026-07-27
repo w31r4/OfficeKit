@@ -20,7 +20,7 @@ skills/default-template-library/
 ```
 
 Each nested skill retains its reference Office file and preview image. Its
-schema-v2 `artifact-template.json` adds intended uses, avoid cases, audiences,
+schema-v2 `artifact-template.json` adds English intended uses, avoid cases, audiences,
 content shapes, visual traits, visual commitment, verified edit operations,
 license/source provenance, and retained-asset hashes. OfficeKit can therefore
 shortlist templates without loading all twenty Skill descriptions or opening
@@ -29,12 +29,15 @@ every Office file.
 Use the named template skill to create a new artifact while preserving the
 retained layout and formatting unless the request calls for a change.
 
-These resources are repository-only and are intentionally excluded from the npm package tarball. Create a distinct output from a selected retained reference; never overwrite or mutate the checked-in reference file.
+These resources ship once inside the global OfficeKit package.
+`officekit init` leaves them there instead of copying them into every project.
+Use `officekit template search` to query them, then create a distinct output
+from the selected retained reference. Never overwrite or mutate that reference.
 
 For a guarded working copy, run:
 
 ```sh
-node skills/default-template-library/scripts/materialize-template.mjs \
+officekit run skills/default-template-library/scripts/materialize-template.mjs \
   --template-id artifact-template-system-design \
   --output /absolute/path/system-design.docx
 ```

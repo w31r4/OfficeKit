@@ -5,7 +5,7 @@ import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const packageMetadata = JSON.parse(await fs.readFile(path.join(repoRoot, "package.json"), "utf8"));
-assert.equal(packageMetadata.version, "0.3.0");
+assert.equal(packageMetadata.version, "0.4.0");
 assert.equal(packageMetadata.license, "AGPL-3.0-or-later");
 assert.equal(packageMetadata.dependencies.mupdf, "1.28.0");
 assert.equal(packageMetadata.exports["./pdf/mupdf"], "./src/pdf/mupdf.mjs");
@@ -20,7 +20,7 @@ assert.equal(packageMetadata.exports["./codecs/openxml-wasm"], undefined);
 assert.deepEqual(packageMetadata.bin, {
   officekit: "./bin/officekit.mjs",
 });
-assert.equal(packageMetadata.engines.node, ">=22");
+assert.equal(packageMetadata.engines.node, ">=22.15.0");
 assert.equal(packageMetadata.scripts.postinstall, undefined, "MuPDF must not require npm lifecycle hooks");
 const pdfFacadeSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "index.mjs"), "utf8");
 assert.match(pdfFacadeSource, /await import\("\.\/mupdf\.mjs"\)/, "MuPDF must load only when a PDF operation needs it");
@@ -30,6 +30,8 @@ assert.doesNotMatch(pdfProvidersSource, /from\s+["']mupdf["']/, "the explicit pr
 const officeKitCliSource = await fs.readFile(path.join(repoRoot, "src", "cli", "officekit.mjs"), "utf8");
 assert.doesNotMatch(officeKitCliSource, /node:child_process|https?:\/\/|\bfetch\s*\(/, "officekit init must remain a local Skill installer");
 assert.doesNotMatch(officeKitCliSource, /pdf\/providers|from\s+["']mupdf["']/, "officekit init must not initialize PDF runtimes or capability packs");
+const templateSearchSource = await fs.readFile(path.join(repoRoot, "src", "templates", "search.mjs"), "utf8");
+assert.doesNotMatch(templateSearchSource, /pdf\/providers|from\s+["']mupdf["']|runtime\/office-kit/, "template search must not initialize Office or PDF runtimes");
 const presentationCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-presentation.mjs"), "utf8");
 assert.match(presentationCodecSource, /from "\.\.\/presentation\/index\.mjs";/, "the Presentation codec must depend on the Presentation leaf module");
 assert.match(presentationCodecSource, /from "\.\/office-kit-presentation-charts\.mjs";/, "the Presentation codec must delegate chart wire semantics to the chart leaf module");
@@ -55,19 +57,20 @@ assert.equal(result.status, 0, `npm pack manifest failed\nSTDOUT:\n${result.stdo
 const report = JSON.parse(result.stdout)[0];
 const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
-// and hosted gates. Keep the existing cross-platform ceiling: deterministic
-// lossless Skill-PNG recompression reduced the local candidate to 8,959,764
-// bytes without hiding future product growth behind a smaller replacement cap.
-const maxPackedBytes = 9_840_000;
+// and hosted gates. The 0.4.0 global CLI deliberately ships the twenty audited
+// default DOCX/XLSX/PPTX templates once inside the package. Keep narrow
+// cross-platform headroom over the measured 36,052,917-byte archive.
+const maxPackedBytes = 37_500_000;
 // The bundled OfficeKit runtime is an audited product payload, not an
 // optional download. Keep its unpacked budget tight while allowing the
 // audited PDF provider/docs growth plus the bounded Office codecs and runnable
 // workflows. The managed-capability resolver distributes only catalog, policy,
 // and installer source -- never specialist binaries. Keep bounded headroom for
 // its Skill/API contract without concealing a runtime bundle in the npm tarball.
-// The repository-only MIT Default Template Library is excluded from the npm
-// tarball. Its retained Office/PNG sources must never consume this consumer
-// package budget. PowerPoint sections plus the bounded transition and rich
+// The MIT Default Template Library is a deliberate consumer payload: init
+// references it in place and never copies it into a project. Its twenty
+// retained Office files, previews, metadata cards, and Skill instructions
+// account for the 0.4.0 budget increase. PowerPoint sections plus the bounded transition and rich
 // speaker-notes leaves, the public formula catalog, bounded formula expression
 // parser, SUMPRODUCT range-mask profile, source-bound DOCX header/footer,
 // source-bound PowerPoint section-name and complete-boundary transactions, and
@@ -81,7 +84,7 @@ const maxPackedBytes = 9_840_000;
 // column-width, direct-formatting, repeat-header-row, and image-alt-text
 // transactions add protobuf, audited WASM, public Help, and native guidance;
 // retain measured headroom instead of hiding that product surface.
-const maxUnpackedBytes = 25_675_000;
+const maxUnpackedBytes = 53_500_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -137,6 +140,8 @@ for (const required of [
   "src/pdf/providers/provider-catalog.v1.json",
   "src/document/index.mjs",
   "src/cli/officekit.mjs",
+  "src/cli/run-task.mjs",
+  "src/templates/search.mjs",
   "src/help/index.mjs",
   "src/index.mjs",
   "src/ooxml/docx-source-references.mjs",
@@ -278,7 +283,6 @@ for (const required of [
   "skills/office-kit/skills/office-kit/agents/openai.yaml",
   "skills/office-kit/skills/office-kit/references/routing.md",
   "skills/office-kit/skills/office-kit/references/template-selection.md",
-  "skills/office-kit/skills/office-kit/scripts/query-templates.mjs",
   "skills/template-creator/.codex-plugin/plugin.json",
   "skills/template-creator/manifest.json",
   "skills/template-creator/README.md",
@@ -288,6 +292,14 @@ for (const required of [
   "skills/template-creator/skills/template-creator/assets/icon.svg",
   "skills/template-creator/skills/template-creator/manifest.txt",
   "skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs",
+  "skills/default-template-library/LICENSE.md",
+  "skills/default-template-library/README.md",
+  "skills/default-template-library/manifest.json",
+  "skills/default-template-library/integrity.json",
+  "skills/default-template-library/skills/artifact-template-business-review/SKILL.md",
+  "skills/default-template-library/skills/artifact-template-business-review/artifact-template.json",
+  "skills/default-template-library/skills/artifact-template-business-review/assets/reference.pptx",
+  "skills/default-template-library/skills/artifact-template-business-review/assets/preview.png",
   "skills/pdf/.codex-plugin/plugin.json",
   "skills/pdf/README.md",
   "skills/pdf/skills/pdf/SKILL.md",
@@ -354,7 +366,14 @@ assert.ok(files.every((file) => !file.includes(".DS_Store") && !file.includes("_
 assert.ok(files.filter((file) => file.startsWith("src/pdf/providers/")).every((file) => !/\.(?:tar\.gz|tgz|zip|whl|jar|exe|dylib|so)$/i.test(file)), "npm package must ship provider policy/source only, never capability-pack binaries");
 assert.ok(files.every((file) => !file.startsWith("reference/")), "npm package must exclude reference material");
 assert.ok(!files.includes("native/OfficeBridge/OfficeBridge.sln"), "npm package must not publish a solution whose test project is repository-only");
-assert.ok(files.every((file) => !file.startsWith("skills/default-template-library/")), "npm package must exclude the repository-only retained default template library");
+const packagedTemplateSidecars = files.filter((file) =>
+  /^skills\/default-template-library\/skills\/artifact-template-[^/]+\/artifact-template\.json$/u.test(file),
+);
+assert.equal(
+  packagedTemplateSidecars.length,
+  20,
+  "npm package must ship exactly the 20 audited default templates",
+);
 assert.ok(files.every((file) => !file.startsWith("native/OfficeKit/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OfficeKit source or build tooling");
 assert.ok(files.every((file) => !file.startsWith("evals/") && file !== "docs/agent-evals.md"), "npm runtime package must exclude the evaluator-side PromptBench and its oracle documentation");
 assert.ok(!files.includes("docs/coverage.md") && !files.includes("docs/release.md") && !files.includes("docs/reference-runtime-architecture.md") && !files.includes("native/OfficeKit/README.md"), "npm runtime package must exclude repository-only coverage, release history, and subsystem implementation notes");

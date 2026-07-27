@@ -216,6 +216,6 @@ by an imported fixed-topology text/status edit, second import, package inspect,
 model render, and byte-bound audit:
 
 ```bash
-node examples/officekit-modern-comment-workflow.mjs \
+officekit run examples/officekit-modern-comment-workflow.mjs \
   output/decision-review.pptx output/modern-comments-audit.json
 ```

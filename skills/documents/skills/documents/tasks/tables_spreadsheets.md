@@ -35,7 +35,7 @@ or by a guessed visual position.
 Use the bounded public transaction:
 
 ```bash
-node examples/officekit-table-column-widths-edit-workflow.mjs \
+officekit run examples/officekit-table-column-widths-edit-workflow.mjs \
   input.docx output.docx audit.json 1 \
   '[2100,4500,2700]' \
   '[3000,3600,2700]'
@@ -68,7 +68,7 @@ Inspect its document block index and record the entire current direct profile;
 do not submit a partial style patch or a visual guess.
 
 ```bash
-node examples/officekit-table-formatting-edit-workflow.mjs \
+officekit run examples/officekit-table-formatting-edit-workflow.mjs \
   input.docx output.docx audit.json 1 \
   '{"indentDxa":120,"cellMarginsDxa":{"top":80,"bottom":80,"start":120,"end":120},"borderColor":"445566","borderSize":8,"headerFill":"E2E8F0"}' \
   '{"indentDxa":240,"cellMarginsDxa":{"top":100,"bottom":120,"start":160,"end":180},"borderColor":"224466","borderSize":12,"headerFill":"DDEBF7"}'
@@ -101,7 +101,7 @@ For an imported correction, bind the inspected block index and the complete
 source/replacement counts:
 
 ```bash
-node examples/officekit-table-header-rows-edit-workflow.mjs \
+officekit run examples/officekit-table-header-rows-edit-workflow.mjs \
   input.docx output.docx audit.json 1 1 2
 ```
 

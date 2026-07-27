@@ -201,18 +201,18 @@ When the user asks to edit an existing document, preserve the original and make 
 
 ```bash
 # 0) Run the shipped public-API/OfficeKit create-import-edit-export example
-node examples/officekit-end-to-end.mjs output.docx
+officekit run examples/officekit-end-to-end.mjs output.docx
 
 # 1) Apply one source-bound literal edit to block 0. This permits a match split
 # across adjacent native runs only when their formatting is byte-identical.
-node examples/officekit-source-text-patch-workflow.mjs \
+officekit run examples/officekit-source-text-patch-workflow.mjs \
   input.docx edited.docx edited.audit.json paragraph 0 "Quarterly" "Annual"
 # For table cell row 1, column 2 in block 4:
-node examples/officekit-source-text-patch-workflow.mjs \
+officekit run examples/officekit-source-text-patch-workflow.mjs \
   input.docx edited.docx edited.audit.json tableCell 4 "Pending" "Approved" 1 2
 
 # 2) Apply one bounded imported classic-comment text edit with full reimport/audit evidence
-node examples/officekit-classic-comment-edit-workflow.mjs input.docx reviewed.docx audit.json \
+officekit run examples/officekit-classic-comment-edit-workflow.mjs input.docx reviewed.docx audit.json \
   "Decision: proceed with controlled rollout." \
   "Please confirm the final retention wording." \
   "Approved after legal review."
@@ -220,22 +220,22 @@ node examples/officekit-classic-comment-edit-workflow.mjs input.docx reviewed.do
 # 3) Edit one ordinary imported header paragraph. It rejects PAGE/simple fields,
 # shared/inherited parts, rich text, topology changes, and every second edit to
 # the same HeaderPart; only one word/headerN.xml part may change.
-node examples/officekit-header-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
+officekit run examples/officekit-header-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
   "Northwind | Internal" "Northwind | Reviewed" 0 default
 
 # 4) Edit one ordinary imported footer paragraph. It uses the same narrow
 # source-bound transaction, but accepts only one word/footerN.xml part.
-node examples/officekit-footer-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
+officekit run examples/officekit-footer-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
   "Northwind | Internal" "Northwind | Reviewed" 0 default
 
 # 5) Update one recognized imported inline/floating image's reviewed alt text.
 # It binds the block index plus exact source description; visible pixels should
 # remain unchanged, but native render QA and author-intent review remain required.
-node examples/officekit-image-alt-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
+officekit run examples/officekit-image-alt-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
   1 "Existing architecture overview" "Architecture overview showing the API gateway and three service lanes"
 
 # 6) Edit one bounded modern root + direct reply and mark the root resolved
-node examples/officekit-modern-comment-thread-workflow.mjs input.docx reviewed.docx audit.json \
+officekit run examples/officekit-modern-comment-thread-workflow.mjs input.docx reviewed.docx audit.json \
   "Decision: proceed with controlled rollout." \
   "Please confirm the release evidence." "Release evidence approved." \
   "The evidence is attached." "Evidence retained with the approval." resolved
@@ -244,7 +244,7 @@ node examples/officekit-modern-comment-thread-workflow.mjs input.docx reviewed.d
 # request.json contains either paragraph-only targetBlockIndex or a structured
 # paragraph/tableCell target, plus expectedText, search, replacement, author,
 # and optional date.
-node examples/officekit-tracked-replacement-workflow.mjs \
+officekit run examples/officekit-tracked-replacement-workflow.mjs \
   input.docx reviewed.docx reviewed.audit.json request.json
 
 # 7) Sanitize Google Docs-targeted title blocks after OfficeKit export
@@ -258,9 +258,9 @@ python render_docx.py input.docx --output_dir out
 python scripts/comments_strip.py input.docx --out no_comments.docx
 
 # 8) Finalize bounded whole-paragraph revisions or a canonical tracked replacement through OfficeKit
-node examples/officekit-revision-finalization-workflow.mjs input.docx accepted.docx audit.json accept
+officekit run examples/officekit-revision-finalization-workflow.mjs input.docx accepted.docx audit.json accept
 # Reject instead, while preserving an existing trackRevisions setting:
-node examples/officekit-revision-finalization-workflow.mjs input.docx rejected.docx audit.json reject --keep-tracking
+officekit run examples/officekit-revision-finalization-workflow.mjs input.docx rejected.docx audit.json reject --keep-tracking
 
 # 9) Accessibility audit (+ optional explicit package fixes)
 python scripts/a11y_audit.py input.docx

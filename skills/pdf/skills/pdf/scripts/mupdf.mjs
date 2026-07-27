@@ -90,10 +90,10 @@ function print(value) {
 function usage() {
   return [
     "Usage:",
-    "  node scripts/mupdf.mjs probe",
-    "  node scripts/mupdf.mjs inspect <input.pdf> [--max-bytes N]",
-    "  node scripts/mupdf.mjs render <input.pdf> <output.png|jpg> [--page N] [--dpi N] [--format png|jpeg]",
-    "  node scripts/mupdf.mjs edit <input.pdf> <operations.json> <output.pdf> [--save-policy rewrite|incremental] [--allow-signed] [--invalidate-signatures]",
+    "  officekit run scripts/mupdf.mjs probe",
+    "  officekit run scripts/mupdf.mjs inspect <input.pdf> [--max-bytes N]",
+    "  officekit run scripts/mupdf.mjs render <input.pdf> <output.png|jpg> [--page N] [--dpi N] [--format png|jpeg]",
+    "  officekit run scripts/mupdf.mjs edit <input.pdf> <operations.json> <output.pdf> [--save-policy rewrite|incremental] [--allow-signed] [--invalidate-signatures]",
   ].join("\n");
 }
 

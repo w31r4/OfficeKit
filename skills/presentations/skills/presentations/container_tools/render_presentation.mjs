@@ -18,7 +18,7 @@ import {
 function usage() {
   return [
     "Usage:",
-    "  node container_tools/render_presentation.mjs --input <deck.pptx> --output_dir <dir> [options]",
+    "  officekit run container_tools/render_presentation.mjs --input <deck.pptx> --output_dir <dir> [options]",
     "",
     "Options:",
     "  --scale <number>     Render scale. Defaults to 1.",
