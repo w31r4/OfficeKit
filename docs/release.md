@@ -1,5 +1,58 @@
 # Release
 
+## 0.5.0 self-contained OfficeKit distributions
+
+OfficeKit now publishes the same `officekit` command as a versioned
+self-contained distribution for `darwin-arm64` and `linux-x64`. Each archive
+contains the pinned official Node.js 24.18.0 executable, the OfficeKit
+JavaScript package and production dependencies, OfficeKit Codec WASM, MuPDF,
+seven workflow Skills, twenty default templates, licenses, third-party
+notices, a complete file-integrity manifest, and a CycloneDX 1.5 SBOM.
+
+The versioned installer verifies the archive's exact byte count and SHA-256,
+extracts it in an isolated transaction, probes the bundled Node and OfficeKit,
+publishes it under `~/.office-kit/versions/0.5.0`, and atomically switches
+`~/.office-kit/current`. The command link is
+`~/.local/bin/officekit`. Re-running the installer is idempotent; archive,
+probe, path-ownership, or publication failures leave the active version
+unchanged.
+
+Pinned release identities:
+
+| Target | Archive bytes | Unpacked bytes | Files | SHA-256 |
+| --- | ---: | ---: | ---: | --- |
+| `darwin-arm64` | 84,107,969 | 192,049,373 | 1,146 | `f3948f1a115411ed5ef2b89a641dca8f5dbe08492c567e6a29f87a971c8c4a3b` |
+| `linux-x64` | 89,231,440 | 194,739,876 | 1,146 | `bf274b4779a2f9dcbb3d3f3bcc755a273a6f7a16a1bf2f88fbb2ce4314e8ae25` |
+
+The runtime catalog separately pins the official Node archives:
+`e1a97e14c99c803e96c7339403282ea05a499c32f8d83defe9ef5ec66f979ed1`
+for macOS arm64 and
+`783130984963db7ba9cbd01089eaf2c2efb055c7c1693c943174b967b3050cb8`
+for Linux x64. The builder validates the source archive before extraction,
+normalizes modes and timestamps into strict USTAR+gzip, emits external SBOM,
+notice, checksum, and release-evidence assets, and reproduces the same bytes
+for an identical source tree. The installed verifier checks every manifested
+path, byte count, SHA-256, and executable bit before first activation and on
+idempotent reinstall.
+
+The local distribution smoke builds twice, installs into a fresh HOME with
+system `node`, `npm`, and `npx` replaced by failing probes, initializes all
+seven Skills, finds all twenty templates across the three Office kinds, and
+creates/reimports DOCX, XLSX, PPTX, and PDF from an empty project. A second
+test used the pinned official macOS Node archive and completed the same
+four-format task. The standalone release workflow repeats the real-archive
+build and installation on native GitHub-hosted macOS arm64 and Linux x64
+runners before any asset can be attached to a release.
+
+The corresponding npm candidate remains the system-Node distribution: 641
+files, 36,059,678 compressed bytes, and 52,797,334 unpacked bytes. Platform
+archives and standalone build tooling stay in the GitHub release lane rather
+than the npm tarball.
+
+The specialist qpdf, Python, OCR, JRE, LibreOffice, and Poppler runtimes retain
+their project-authorized capability-pack lifecycle. They remain outside the
+base standalone archive.
+
 ## 0.4.0 global CLI and bundled template catalog
 
 OfficeKit now uses one global command for Agent projects:

@@ -5,7 +5,7 @@ import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const packageMetadata = JSON.parse(await fs.readFile(path.join(repoRoot, "package.json"), "utf8"));
-assert.equal(packageMetadata.version, "0.4.0");
+assert.equal(packageMetadata.version, "0.5.0");
 assert.equal(packageMetadata.license, "AGPL-3.0-or-later");
 assert.equal(packageMetadata.dependencies.mupdf, "1.28.0");
 assert.equal(packageMetadata.exports["./pdf/mupdf"], "./src/pdf/mupdf.mjs");
@@ -21,7 +21,41 @@ assert.deepEqual(packageMetadata.bin, {
   officekit: "./bin/officekit.mjs",
 });
 assert.equal(packageMetadata.engines.node, ">=22.15.0");
+assert.equal(
+  packageMetadata.scripts["build:standalone"],
+  "node scripts/build-standalone.mjs",
+);
+assert.equal(
+  packageMetadata.scripts["test:standalone"],
+  "node test/standalone-distribution.mjs",
+);
 assert.equal(packageMetadata.scripts.postinstall, undefined, "MuPDF must not require npm lifecycle hooks");
+const nodeRuntimes = JSON.parse(
+  await fs.readFile(path.join(repoRoot, "standalone", "node-runtimes.v1.json"), "utf8"),
+);
+assert.equal(nodeRuntimes.schemaVersion, 1);
+assert.equal(nodeRuntimes.nodeVersion, "24.18.0");
+for (const [target, runtime] of Object.entries(nodeRuntimes.runtimes)) {
+  assert.ok(["darwin-arm64", "linux-x64"].includes(target));
+  assert.match(runtime.url, /^https:\/\/nodejs\.org\/dist\/v24\.18\.0\//);
+  assert.match(runtime.sha256, /^[a-f0-9]{64}$/);
+  assert.ok(Number.isSafeInteger(runtime.size) && runtime.size > 50_000_000);
+}
+const standaloneReleases = JSON.parse(
+  await fs.readFile(path.join(repoRoot, "standalone", "releases.v1.json"), "utf8"),
+);
+assert.equal(standaloneReleases.officeKitVersion, packageMetadata.version);
+for (const [target, release] of Object.entries(standaloneReleases.assets)) {
+  assert.equal(release.asset, `office-kit-${packageMetadata.version}-${target}.tar.gz`);
+  assert.match(release.sha256, /^[a-f0-9]{64}$/);
+  assert.ok(Number.isSafeInteger(release.size) && release.size > 50_000_000);
+}
+const standaloneInstaller = await fs.readFile(
+  path.join(repoRoot, "standalone", "install.sh"),
+  "utf8",
+);
+assert.match(standaloneInstaller, /OFFICE_KIT_VERSION=0\.5\.0/);
+assert.doesNotMatch(standaloneInstaller, /FINALIZE_/);
 const pdfFacadeSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "index.mjs"), "utf8");
 assert.match(pdfFacadeSource, /await import\("\.\/mupdf\.mjs"\)/, "MuPDF must load only when a PDF operation needs it");
 assert.doesNotMatch(pdfFacadeSource, /from\s+["']mupdf["']/, "the root PDF facade must not initialize MuPDF eagerly");
@@ -375,6 +409,10 @@ assert.equal(
   "npm package must ship exactly the 20 audited default templates",
 );
 assert.ok(files.every((file) => !file.startsWith("native/OfficeKit/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OfficeKit source or build tooling");
+assert.ok(
+  files.every((file) => !file.startsWith("standalone/")),
+  "npm runtime package must not contain platform-specific standalone release assets",
+);
 assert.ok(files.every((file) => !file.startsWith("evals/") && file !== "docs/agent-evals.md"), "npm runtime package must exclude the evaluator-side PromptBench and its oracle documentation");
 assert.ok(!files.includes("docs/coverage.md") && !files.includes("docs/release.md") && !files.includes("docs/reference-runtime-architecture.md") && !files.includes("native/OfficeKit/README.md"), "npm runtime package must exclude repository-only coverage, release history, and subsystem implementation notes");
 const skillPngs = report.files.filter(({ path: filename }) => /^skills\/(?:documents|spreadsheets|presentations|pdf)\/.*\.png$/.test(filename));
