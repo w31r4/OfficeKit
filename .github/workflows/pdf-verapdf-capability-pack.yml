@@ -108,7 +108,11 @@ jobs:
             launcher_windows="$(cygpath -w "$launcher")"
             powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; \$env:JAVA_TOOL_OPTIONS = ''; \$env:JDK_JAVA_OPTIONS = ''; \$env:_JAVA_OPTIONS = ''; \$env:CLASSPATH = ''; & '${launcher_windows}' --version" | grep -Fx 'veraPDF 1.30.2'
             powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; & '${launcher_windows}' --list" | grep -Eq '^[[:space:]]+ua2[[:space:]]+-'
-            OFFICE_KIT_PDF_VERAPDF_TEST="$launcher_windows" node test/pdf-verapdf-provider.mjs
+            # Pass the native launcher path through PowerShell so Git Bash
+            # cannot rewrite its drive-letter form before the Python adapter
+            # receives it. The prior inline Bash assignment made Python try
+            # to execute a POSIX-looking path and fail with WinError 193.
+            powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; \$env:OFFICE_KIT_PDF_VERAPDF_TEST = '${launcher_windows}'; & node.exe test/pdf-verapdf-provider.mjs; if (\$LASTEXITCODE -ne 0) { exit \$LASTEXITCODE }"
           else
             env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$launcher" --version | grep -Fx 'veraPDF 1.30.2'
             env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$launcher" --list | grep -Eq '^[[:space:]]+ua2[[:space:]]+-'

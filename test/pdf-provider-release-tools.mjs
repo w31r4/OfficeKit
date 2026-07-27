@@ -10,10 +10,14 @@ const hashScript = path.join(root, "scripts", "sha256-file.mjs");
 const packBuilder = path.join(root, "scripts", "build-pdf-provider-pack.mjs");
 const verifier = path.join(root, "scripts", "verify-pdf-provider-pack.mjs");
 const qpdfWorkflow = await fs.readFile(path.join(root, ".github", "workflows", "pdf-capability-packs.yml"), "utf8");
+const attributes = await fs.readFile(path.join(root, ".gitattributes"), "utf8");
 
 assert.match(qpdfWorkflow, /sha256-file\.mjs/);
 assert.match(qpdfWorkflow, /verify-pdf-provider-pack\.mjs/);
+assert.match(qpdfWorkflow, /NMake Makefiles/);
+assert.match(qpdfWorkflow, /vswhere\.exe/);
 assert.doesNotMatch(qpdfWorkflow, /shasum/, "the Windows qpdf lane must not depend on Git Bash's optional Perl shim");
+assert.match(attributes, /^scripts\/pdf-provider-\*\.json text eol=lf$/m, "release input locks must hash identical bytes on Windows");
 
 function run(script, arguments_, { expect = 0 } = {}) {
   const result = spawnSync(process.execPath, [script, ...arguments_], { cwd: root, encoding: "utf8" });
