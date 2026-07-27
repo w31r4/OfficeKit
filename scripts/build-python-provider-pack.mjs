@@ -23,7 +23,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_INPUTS = path.join(__dirname, "pdf-provider-python-release-inputs.v1.json");
 const PACK_BUILDER = path.join(__dirname, "build-pdf-provider-pack.mjs");
 const INPUT_SCHEMA = "office-kit.pdf-provider-python-release-inputs.v1";
-const SUPPORTED_PLATFORMS = new Set(["darwin-arm64", "linux-x64"]);
+const SUPPORTED_PLATFORMS = new Set(["darwin-arm64", "linux-x64", "win32-x64"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 const MAX_REDIRECTS = 5;
 const MAX_SOURCE_BYTES = 128 * 1024 * 1024;
@@ -71,10 +71,23 @@ function normalizedPackageName(value) {
   return value.toLowerCase().replace(/[-_.]+/g, "-");
 }
 
-function pythonLibraryRelativePath(runtime) {
+function isWindowsPlatform(platform) {
+  return platform === "win32-x64";
+}
+
+function pythonLibraryRelativePath(runtime, platform) {
+  if (isWindowsPlatform(platform)) return "Lib";
   const match = /^(\d+)\.(\d+)/.exec(runtime.version || "");
   if (!match) fail("Python runtime version must begin with major.minor.");
   return path.join("lib", `python${match[1]}.${match[2]}`);
+}
+
+function pythonExecutableRelativePath(platform) {
+  return isWindowsPlatform(platform) ? "python.exe" : path.join("bin", "python3");
+}
+
+function pythonExecutableLabel(platform) {
+  return isWindowsPlatform(platform) ? "python.exe" : "bin/python3";
 }
 
 function wheelNameFromUrl(value, label) {
@@ -288,7 +301,7 @@ async function collectLicenseFiles(root, limit = []) {
   return limit;
 }
 
-async function noticesFor({ payload, runtime, wheels }) {
+async function noticesFor({ payload, runtime, platform, wheels }) {
   const parts = [
     "# Python PDF capability-pack notices",
     "",
@@ -303,8 +316,10 @@ async function noticesFor({ payload, runtime, wheels }) {
     "",
     "## Included license material",
   ];
-  const pythonLibrary = path.join(payload, pythonLibraryRelativePath(runtime));
-  const runtimeLicense = path.join(pythonLibrary, "LICENSE.txt");
+  const pythonLibrary = path.join(payload, pythonLibraryRelativePath(runtime, platform));
+  const runtimeLicense = isWindowsPlatform(platform)
+    ? path.join(payload, "LICENSE.txt")
+    : path.join(pythonLibrary, "LICENSE.txt");
   const material = [runtimeLicense, ...await collectLicenseFiles(path.join(pythonLibrary, "site-packages"))];
   const seen = new Set();
   for (const file of material.sort((left, right) => left.localeCompare(right, "en"))) {
@@ -323,30 +338,46 @@ async function removePayloadPath(payload, relativePath) {
   await fs.rm(target, { recursive: true, force: true });
 }
 
-async function pruneRuntimePayload(payload, runtime) {
+async function pruneRuntimePayload(payload, runtime, platform) {
   // The standalone runtime deliberately includes developer tooling and GUI
   // stacks. Capability packs only execute the shipped thin adapters through
-  // bin/python3, so retain exactly that interpreter and its import runtime.
-  const bin = path.join(payload, "bin");
-  const binEntries = await fs.readdir(bin, { withFileTypes: true });
-  for (const entry of binEntries) {
-    if (entry.name !== "python3") await removePayloadPath(payload, path.join("bin", entry.name));
+  // one explicit interpreter path, so retain exactly that interpreter and its
+  // import runtime. Windows keeps the same contract but its standalone layout
+  // is root/python.exe + Lib + DLLs rather than bin/python3 + lib/pythonX.Y.
+  if (isWindowsPlatform(platform)) {
+    await removePayloadPath(payload, "pythonw.exe");
+    // No supported provider invokes a setuptools-generated console wrapper.
+    // OCR writes its own controlled launcher in the native-sidecar phase.
+    await removePayloadPath(payload, "Scripts");
+  } else {
+    const bin = path.join(payload, "bin");
+    const binEntries = await fs.readdir(bin, { withFileTypes: true });
+    for (const entry of binEntries) {
+      if (entry.name !== "python3") await removePayloadPath(payload, path.join("bin", entry.name));
+    }
   }
-  const pythonLibrary = pythonLibraryRelativePath(runtime);
-  for (const relativePath of [
-    "include",
-    "share",
-    path.join("lib", "pkgconfig"),
-    path.join("lib", "tcl9"),
-    path.join("lib", "tcl9.0"),
-    path.join("lib", "tk9.0"),
-    path.join("lib", "itcl4.3.5"),
-    path.join("lib", "thread3.0.4"),
+  const pythonLibrary = pythonLibraryRelativePath(runtime, platform);
+  const prunePaths = [
     path.join(pythonLibrary, "ensurepip"),
     path.join(pythonLibrary, "idlelib"),
     path.join(pythonLibrary, "tkinter"),
     path.join(pythonLibrary, "turtledemo"),
-  ]) await removePayloadPath(payload, relativePath);
+  ];
+  if (isWindowsPlatform(platform)) {
+    prunePaths.push("include", "share");
+  } else {
+    prunePaths.push(
+      "include",
+      "share",
+      path.join("lib", "pkgconfig"),
+      path.join("lib", "tcl9"),
+      path.join("lib", "tcl9.0"),
+      path.join("lib", "tk9.0"),
+      path.join("lib", "itcl4.3.5"),
+      path.join("lib", "thread3.0.4"),
+    );
+  }
+  for (const relativePath of prunePaths) await removePayloadPath(payload, relativePath);
   const libraryEntries = await fs.readdir(path.join(payload, pythonLibrary), { withFileTypes: true });
   for (const entry of libraryEntries) {
     if (entry.name.startsWith("config-")) await removePayloadPath(payload, path.join(pythonLibrary, entry.name));
@@ -361,10 +392,18 @@ async function pruneRuntimePayload(payload, runtime) {
   // Tcl/Tk at library-closure time, despite no supported PDF provider using
   // it. Remove the native bridge as well as the Python package so a pack
   // cannot accidentally regain a host Tcl/Tk dependency.
-  const dynamicExtensions = path.join(payload, pythonLibrary, "lib-dynload");
+  const dynamicExtensions = isWindowsPlatform(platform)
+    ? path.join(payload, "DLLs")
+    : path.join(payload, pythonLibrary, "lib-dynload");
   const dynamicEntries = await fs.readdir(dynamicExtensions, { withFileTypes: true }).catch(() => []);
   for (const entry of dynamicEntries) {
-    if (/^_tkinter(?:\.|$)/.test(entry.name)) await removePayloadPath(payload, path.join(pythonLibrary, "lib-dynload", entry.name));
+    if (/^_tkinter(?:\.|$)/.test(entry.name)
+      || (isWindowsPlatform(platform) && /^(?:tcl|tk)\d.*\.dll$/i.test(entry.name))) {
+      const relative = isWindowsPlatform(platform)
+        ? path.join("DLLs", entry.name)
+        : path.join(pythonLibrary, "lib-dynload", entry.name);
+      await removePayloadPath(payload, relative);
+    }
   }
 }
 
@@ -404,9 +443,12 @@ async function build(options, loaded) {
     const payload = path.join(temporary, "payload");
     await fs.mkdir(payload, { mode: 0o700 });
     await copyDereferencedTree(sourceRoot, payload, await fs.realpath(sourceRoot));
-    const python = path.join(payload, "bin", "python3");
+    const python = path.join(payload, pythonExecutableRelativePath(options.platform));
     const pythonStat = await fs.lstat(python);
-    if (!pythonStat.isFile() || pythonStat.isSymbolicLink() || (pythonStat.mode & 0o111) === 0) fail("dereferenced Python runtime does not expose executable bin/python3.");
+    if (!pythonStat.isFile() || pythonStat.isSymbolicLink()
+      || (!isWindowsPlatform(options.platform) && (pythonStat.mode & 0o111) === 0)) {
+      fail(`dereferenced Python runtime does not expose executable ${pythonExecutableLabel(options.platform)}.`);
+    }
 
     const wheelhouse = path.join(temporary, "wheelhouse");
     await fs.mkdir(wheelhouse, { mode: 0o700 });
@@ -425,10 +467,10 @@ async function build(options, loaded) {
       maxBuffer: 128 * 1024,
       env: { ...process.env, PYTHONPATH: "", PYTHONHOME: "", PYTHONNOUSERSITE: "1", PIP_NO_INDEX: "1", PIP_DISABLE_PIP_VERSION_CHECK: "1" },
     });
-    await pruneRuntimePayload(payload, loaded.value.pythonRuntime);
+    await pruneRuntimePayload(payload, loaded.value.pythonRuntime, options.platform);
     await verifyPayloadPython(python, pack);
     const notices = path.join(temporary, "THIRD_PARTY_NOTICES.md");
-    await fs.writeFile(notices, await noticesFor({ payload, runtime: loaded.value.pythonRuntime, wheels }), { mode: 0o600 });
+    await fs.writeFile(notices, await noticesFor({ payload, runtime: loaded.value.pythonRuntime, platform: options.platform, wheels }), { mode: 0o600 });
     const result = await execFile(process.execPath, [PACK_BUILDER,
       "--pack", options.pack,
       "--version", options.version,

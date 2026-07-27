@@ -15,10 +15,11 @@ import { createGunzip } from "node:zlib";
 import {
   PDF_PROVIDER_CATALOG,
   PDF_PROVIDER_CATALOG_SHA256,
-  clonePdfProviderValue,
   currentPdfProviderPlatform,
   isSafePdfProviderRelativePath,
   pdfPackById,
+  pdfPackEntrypointForLogicalPath,
+  pdfPackEntrypointsForPlatform,
   pdfProviderById,
 } from "./catalog.mjs";
 
@@ -320,10 +321,39 @@ function receiptFor({ packId, pack, platform, artifact, extraction, catalogSha25
       downloadBytes: artifact.downloadBytes,
       unpackedBytes: artifact.unpackedBytes,
     },
-    entrypoints: clonePdfProviderValue(pack.entrypoints),
+    // Bind the logical provider contract to the physical archive paths that
+    // were actually verified. A Windows archive can legitimately expose
+    // `bin/qpdf.exe` while providers continue to refer to `bin/qpdf`.
+    entrypoints: receiptEntrypointsForPlatform(pack, platform),
     extractedBytes: extraction.unpackedBytes,
     installedAt: new Date().toISOString(),
   };
+}
+
+function receiptEntrypointsForPlatform(pack, platform) {
+  return pdfPackEntrypointsForPlatform(pack, platform).map((entry) => ({
+    logicalPath: entry.logicalPath,
+    path: entry.path,
+    kind: entry.kind,
+    executable: entry.executable,
+  }));
+}
+
+function receiptEntrypointsMatch(received, expected) {
+  if (!Array.isArray(received) || received.length !== expected.length) return false;
+  return received.every((entry, index) => {
+    if (!isPlainObject(entry)
+      || !isSafePdfProviderRelativePath(entry.path)
+      || !["file", "directory"].includes(entry.kind)
+      || typeof entry.executable !== "boolean") return false;
+    // Receipts written before platform-specific entrypoints existed recorded
+    // just `path`; that remains the logical and physical path for Unix packs.
+    const logicalPath = entry.logicalPath ?? entry.path;
+    return logicalPath === expected[index].logicalPath
+      && entry.path === expected[index].path
+      && entry.kind === expected[index].kind
+      && entry.executable === expected[index].executable;
+  });
 }
 
 async function writeReceipt(root, receipt) {
@@ -377,10 +407,11 @@ async function installedPackRecord({ cacheRoot, packId, pack, platform }) {
       || receipt.artifact?.asset !== artifact.asset
       || receipt.artifact?.sha256 !== artifact.sha256.toLowerCase()
       || receipt.artifact?.downloadBytes !== artifact.downloadBytes
-      || receipt.artifact?.unpackedBytes !== artifact.unpackedBytes) {
+      || receipt.artifact?.unpackedBytes !== artifact.unpackedBytes
+      || !receiptEntrypointsMatch(receipt.entrypoints, receiptEntrypointsForPlatform(pack, platform))) {
       return { ready: false, reason: "receipt-mismatch", root };
     }
-    await verifyEntrypoints(root, pack.entrypoints);
+    await verifyEntrypoints(root, pdfPackEntrypointsForPlatform(pack, platform));
     return { ready: true, root, receipt };
   } catch (error) {
     if (error?.code === "ENOENT") return { ready: false, reason: "not-installed", root };
@@ -429,7 +460,7 @@ async function installPackRecord({ cacheRoot, packId, pack, platform, enterprise
     const staging = path.join(temporary, "payload");
     await fs.promises.mkdir(staging, { mode: 0o700 });
     const extraction = await safeExtractTarGz(bytes, staging, artifact.unpackedBytes);
-    await verifyEntrypoints(staging, pack.entrypoints);
+    await verifyEntrypoints(staging, pdfPackEntrypointsForPlatform(pack, platform));
     await writeReceipt(staging, receiptFor({ packId, pack, platform, artifact, extraction, catalogSha256 }));
     await fs.promises.rename(staging, target);
     return {
@@ -454,6 +485,7 @@ function managedRuntime(provider, installed, languages = []) {
   const root = installed[provider.packId]?.root;
   if (!root) throw new Error(`Managed runtime is missing provider pack ${provider.packId}.`);
   const runtime = provider.managedRuntime;
+  const platform = currentPdfProviderPlatform();
   const absolute = (reference, label) => {
     const target = typeof reference === "string" ? { packId: provider.packId, path: reference } : reference;
     if (!isPlainObject(target) || !nonEmptyString(target.packId) || !isSafePdfProviderRelativePath(target.path)) {
@@ -461,14 +493,15 @@ function managedRuntime(provider, installed, languages = []) {
     }
     const targetRoot = installed[target.packId]?.root;
     if (!targetRoot) throw new Error(`Managed runtime is missing dependency pack ${target.packId}.`);
-    return containedPath(targetRoot, target.path);
+    const entrypoint = pdfPackEntrypointForLogicalPath(target.packId, target.path, platform);
+    return containedPath(targetRoot, entrypoint.path);
   };
   const commandPaths = Object.fromEntries(Object.entries(runtime.commandPaths || {}).map(([command, target]) => [command, absolute(target, `command ${command}`)]));
   const languagePacks = languages.map((language) => {
     const packId = PDF_PROVIDER_CATALOG.ocrLanguagePacks[language];
     const languageRoot = packId ? installed[packId]?.root : undefined;
     if (!packId || !languageRoot) throw new Error(`Managed OCR language pack is missing: ${language}.`);
-    const entrypoint = pdfPackById(packId).entrypoints.find((entry) => entry.kind === "file");
+    const entrypoint = pdfPackEntrypointsForPlatform(packId, platform).find((entry) => entry.kind === "file");
     if (!entrypoint) throw new Error(`Managed OCR language pack has no data entrypoint: ${packId}.`);
     const dataPath = containedPath(languageRoot, entrypoint.path);
     return { language, packId, dataPath, dataDirectory: path.dirname(dataPath) };

@@ -12,7 +12,7 @@ import path from "node:path";
 
 const RELEASE_SCHEMA = "office-kit.pdf-provider-release.v1";
 const PACK_SCHEMA = "office-kit.pdf-provider-pack.v1";
-const SUPPORTED_PLATFORMS = new Set(["darwin-arm64", "linux-x64"]);
+const SUPPORTED_PLATFORMS = new Set(["darwin-arm64", "linux-x64", "win32-x64"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 
 function fail(message) {
@@ -69,7 +69,7 @@ function parseArguments(argv) {
   safeSegment(values.version, "version");
   const expectedPlatforms = (values["expected-platforms"] || "darwin-arm64,linux-x64").split(",").map((item) => item.trim()).filter(Boolean);
   if (!expectedPlatforms.length || expectedPlatforms.some((platform) => !SUPPORTED_PLATFORMS.has(platform))) {
-    fail("--expected-platforms must be a non-empty comma-separated subset of darwin-arm64,linux-x64.");
+    fail("--expected-platforms must be a non-empty comma-separated subset of darwin-arm64,linux-x64,win32-x64.");
   }
   let releaseBaseUrl;
   try {

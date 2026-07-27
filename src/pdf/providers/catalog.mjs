@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 const CATALOG_PATH = fileURLToPath(new URL("./provider-catalog.v1.json", import.meta.url));
 const PACK_STATES = new Set(["built-in", "unpublished", "published"]);
 const PACK_DELIVERIES = new Set(["npm-package", "versioned-signed-platform-release-asset"]);
-const SUPPORTED_MANAGED_PLATFORMS = new Set(["darwin-arm64", "linux-x64"]);
+const SUPPORTED_MANAGED_PLATFORMS = new Set(["darwin-arm64", "linux-x64", "win32-x64"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 
 function isPlainObject(value) {
@@ -55,7 +55,7 @@ function assertLicense(value, label) {
   if (value.acceptedValues !== undefined) assertStringArray(value.acceptedValues, `${label}.acceptedValues`);
 }
 
-function assertEntrypoints(value, label) {
+function assertEntrypoints(value, label, platforms) {
   if (!Array.isArray(value)) throw catalogError(`${label} must be an array.`);
   const seen = new Set();
   for (const entry of value) {
@@ -64,6 +64,25 @@ function assertEntrypoints(value, label) {
     }
     if (seen.has(entry.path)) throw catalogError(`${label} contains duplicate entrypoint ${entry.path}.`);
     seen.add(entry.path);
+    if (entry.platformPaths !== undefined) {
+      if (!isPlainObject(entry.platformPaths) || Object.keys(entry.platformPaths).length === 0) {
+        throw catalogError(`${label}.${entry.path}.platformPaths must be a non-empty object when supplied.`);
+      }
+      for (const [platform, platformPath] of Object.entries(entry.platformPaths)) {
+        if (!SUPPORTED_MANAGED_PLATFORMS.has(platform) || !platforms.includes(platform) || !isSafeRelativePath(platformPath)) {
+          throw catalogError(`${label}.${entry.path}.platformPaths contains an unsupported platform or unsafe path.`);
+        }
+      }
+    }
+  }
+  for (const platform of platforms) {
+    if (platform === "any") continue;
+    const resolved = new Set();
+    for (const entry of value) {
+      const platformPath = entry.platformPaths?.[platform] ?? entry.path;
+      if (resolved.has(platformPath)) throw catalogError(`${label} resolves duplicate entrypoint ${platformPath} on ${platform}.`);
+      resolved.add(platformPath);
+    }
   }
 }
 
@@ -210,7 +229,7 @@ export function validatePdfProviderCatalog(catalog) {
     assertStringArray(pack.platforms, `pack ${packId}.platforms`);
     assertStringArray(pack.requiresPackIds, `pack ${packId}.requiresPackIds`, { allowEmpty: true });
     assertStringArray(pack.dependencyClosure, `pack ${packId}.dependencyClosure`);
-    assertEntrypoints(pack.entrypoints, `pack ${packId}.entrypoints`);
+    assertEntrypoints(pack.entrypoints, `pack ${packId}.entrypoints`, pack.platforms);
     assertLicense(pack.license, `pack ${packId}.license`);
     if (!Array.isArray(pack.artifacts)) throw catalogError(`pack ${packId}.artifacts must be an array.`);
     if (pack.state === "built-in") {
@@ -319,6 +338,35 @@ export function pdfPackById(packId) {
   const pack = PDF_PROVIDER_CATALOG.packs[packId];
   if (!pack) throw new TypeError(`Unknown PDF capability pack: ${packId}.`);
   return pack;
+}
+
+/**
+ * Resolve a pack's physical entrypoints for one platform without exposing
+ * platform-specific layout decisions to provider integrations. `path` is the
+ * actual archive path; `logicalPath` remains the catalog key used by runtime
+ * references and receipt validation.
+ */
+export function pdfPackEntrypointsForPlatform(packOrId, platform = currentPdfProviderPlatform()) {
+  const pack = typeof packOrId === "string" ? pdfPackById(packOrId) : packOrId;
+  if (!isPlainObject(pack) || !Array.isArray(pack.entrypoints) || !nonEmptyString(platform)) {
+    throw new TypeError("PDF capability pack and platform are required to resolve entrypoints.");
+  }
+  if (!pack.platforms.includes("any") && !pack.platforms.includes(platform)) {
+    throw new TypeError(`Capability pack does not support platform ${platform}.`);
+  }
+  return pack.entrypoints.map((entry) => ({
+    ...clonePdfProviderValue(entry),
+    logicalPath: entry.path,
+    path: entry.platformPaths?.[platform] ?? entry.path,
+  }));
+}
+
+/** Resolve one logical runtime reference to its physical platform path. */
+export function pdfPackEntrypointForLogicalPath(packOrId, logicalPath, platform = currentPdfProviderPlatform()) {
+  if (!nonEmptyString(logicalPath)) throw new TypeError("Capability-pack logical entrypoint path is required.");
+  const entrypoint = pdfPackEntrypointsForPlatform(packOrId, platform).find((entry) => entry.logicalPath === logicalPath);
+  if (!entrypoint) throw new TypeError(`Capability-pack entrypoint is not declared: ${logicalPath}.`);
+  return entrypoint;
 }
 
 export function pdfTaskById(taskId) {

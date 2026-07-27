@@ -29,16 +29,19 @@ try {
   const outputA = path.join(temporary, "output-a");
   const outputB = path.join(temporary, "output-b");
   const outputLinux = path.join(temporary, "output-linux");
+  const outputWindows = path.join(temporary, "output-windows");
   const release = path.join(temporary, "release");
   const unpacked = path.join(temporary, "unpacked");
   const notices = path.join(temporary, "notices.md");
   const linuxNotices = path.join(temporary, "notices-linux.md");
+  const windowsNotices = path.join(temporary, "notices-windows.md");
   await fs.mkdir(path.join(payload, "bin"), { recursive: true });
   await fs.mkdir(path.join(payload, "share", "data"), { recursive: true });
   await fs.writeFile(path.join(payload, "bin", "tool"), "#!/bin/sh\necho capability-pack\n", { mode: 0o755 });
   await fs.writeFile(path.join(payload, "share", "data", "fixture.txt"), "fixture\n", { mode: 0o644 });
   await fs.writeFile(notices, "fixture notices\n", "utf8");
   await fs.writeFile(linuxNotices, "fixture Linux notices\n", "utf8");
+  await fs.writeFile(windowsNotices, "fixture Windows notices\n", "utf8");
   const arguments_ = [
     "--pack", "fixture-pack",
     "--version", "1.2.3",
@@ -85,15 +88,22 @@ try {
   linuxArguments[linuxArguments.indexOf(notices)] = linuxNotices;
   const linux = JSON.parse(run([...linuxArguments, "--output", outputLinux]).stdout);
   for (const file of await fs.readdir(outputLinux)) await fs.copyFile(path.join(outputLinux, file), path.join(outputA, file));
+  const windowsArguments = [...arguments_];
+  windowsArguments[windowsArguments.indexOf("darwin-arm64")] = "win32-x64";
+  windowsArguments[windowsArguments.indexOf(notices)] = windowsNotices;
+  const windows = JSON.parse(run([...windowsArguments, "--output", outputWindows]).stdout);
+  for (const file of await fs.readdir(outputWindows)) await fs.copyFile(path.join(outputWindows, file), path.join(outputA, file));
   const finalized = JSON.parse(finalize([
     "--pack", "fixture-pack", "--version", "1.2.3", "--input", outputA, "--output", release,
     "--release-base-url", "https://github.com/example/project/releases/download/pdf-provider-fixture-pack-1.2.3/",
     "--repository", "example/project", "--workflow", ".github/workflows/pdf-capability-packs.yml",
+    "--expected-platforms", "darwin-arm64,linux-x64,win32-x64",
   ]).stdout);
   assert.equal(finalized.schema, "office-kit.pdf-provider-release.v1");
   assert.equal(finalized.catalogFragment.state, "published");
-  assert.deepEqual(finalized.catalogFragment.artifacts.map((artifact) => artifact.platform).sort(), ["darwin-arm64", "linux-x64"]);
+  assert.deepEqual(finalized.catalogFragment.artifacts.map((artifact) => artifact.platform).sort(), ["darwin-arm64", "linux-x64", "win32-x64"]);
   assert.equal(finalized.catalogFragment.artifacts.find((artifact) => artifact.platform === "linux-x64").sha256, linux.artifact.sha256);
+  assert.equal(finalized.catalogFragment.artifacts.find((artifact) => artifact.platform === "win32-x64").sha256, windows.artifact.sha256);
   const releaseSbom = JSON.parse(await fs.readFile(path.join(release, "fixture-pack-1.2.3.sbom.cdx.json"), "utf8"));
   assert.equal(releaseSbom.bomFormat, "CycloneDX");
   assert.match(releaseSbom.serialNumber, /^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
@@ -102,6 +112,8 @@ try {
   assert.match(releaseNotices, /fixture notices/);
   assert.match(releaseNotices, /## linux-x64/);
   assert.match(releaseNotices, /fixture Linux notices/);
+  assert.match(releaseNotices, /## win32-x64/);
+  assert.match(releaseNotices, /fixture Windows notices/);
 
   const malicious = path.join(temporary, "malicious");
   await fs.mkdir(malicious);

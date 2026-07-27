@@ -23,8 +23,10 @@ permissions:
 env:
   OCR_INPUTS: scripts/pdf-provider-ocr-release-inputs.v1.json
   PYTHON_INPUTS: scripts/pdf-provider-python-release-inputs.v1.json
-  OCR_CORE_PACK_VERSION: 17.8.1-oat.1
-  OCR_LANGUAGE_PACK_VERSION: 4.1.0-oat.1
+  # `oat.1` is immutable for macOS and Linux. Windows support receives fresh
+  # all-platform releases after its native closure has passed real probes.
+  OCR_CORE_PACK_VERSION: 17.8.1-oat.2
+  OCR_LANGUAGE_PACK_VERSION: 4.1.0-oat.2
 
 jobs:
   ocr-core:
@@ -55,7 +57,7 @@ jobs:
             .schema == "office-kit.pdf-provider-ocr-release-inputs.v1" and
             .schemaVersion == 1 and
             .ocrCore.packId == "ocr-core" and
-            .ocrCore.version == "17.8.1-oat.1" and
+            .ocrCore.version == "17.8.1-oat.2" and
             (.languages.eng.sha256 | test("^[a-f0-9]{64}$")) and
             (.languages.chi_sim.sha256 | test("^[a-f0-9]{64}$")) and
             (.licenseMaterial.tessdataFastApache20.sha256 | test("^[a-f0-9]{64}$"))

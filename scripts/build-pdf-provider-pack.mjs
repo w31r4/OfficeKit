@@ -15,7 +15,7 @@ import { gzipSync } from "node:zlib";
 
 const BLOCK_SIZE = 512;
 const PACK_SCHEMA = "office-kit.pdf-provider-pack.v1";
-const SUPPORTED_PLATFORMS = new Set(["darwin-arm64", "linux-x64"]);
+const SUPPORTED_PLATFORMS = new Set(["darwin-arm64", "linux-x64", "win32-x64"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 
 function fail(message) {
