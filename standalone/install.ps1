@@ -344,11 +344,26 @@ try {
     "$OfficeKitVersion" + [Environment]::NewLine,
     [System.Text.UTF8Encoding]::new($false)
   )
-  if (Test-Path -LiteralPath $currentPath) {
-    Assert-RegularFile $currentPath "active version record"
-    [System.IO.File]::Replace($nextCurrent, $currentPath, $null)
-  } else {
-    [System.IO.File]::Move($nextCurrent, $currentPath)
+  try {
+    if (Test-Path -LiteralPath $currentPath) {
+      Assert-RegularFile $currentPath "active version record"
+      $previousCurrent = Join-Path $installRoot (".current.previous." + [Guid]::NewGuid().ToString("N"))
+      try {
+        [System.IO.File]::Replace($nextCurrent, $currentPath, $previousCurrent)
+      } finally {
+        if (Test-Path -LiteralPath $previousCurrent) {
+          Assert-RegularFile $previousCurrent "previous active version record"
+          Remove-Item -LiteralPath $previousCurrent -Force
+        }
+      }
+    } else {
+      [System.IO.File]::Move($nextCurrent, $currentPath)
+    }
+  } finally {
+    if (Test-Path -LiteralPath $nextCurrent) {
+      Assert-RegularFile $nextCurrent "pending active version record"
+      Remove-Item -LiteralPath $nextCurrent -Force
+    }
   }
   Ensure-Launcher $binRoot $installRoot
   Add-UserPath $binRoot ($env:OFFICE_KIT_INSTALL_TEST -ne "1")
