@@ -186,8 +186,9 @@ The npm package contains:
   workflow Skills (the four file-type routes, `excel-live-control`, the
   `office-kit` coordinator, and `template-creator`); the seventh is the
   MIT-licensed `default-template-library` with twenty retained
-  DOCX/PPTX/XLSX template Skills. The global package keeps the template assets
-  in one place, and `officekit init` does not copy them into projects.
+  DOCX/PPTX/XLSX template Skills. The installed OfficeKit runtime keeps the
+  template assets in one place, and `officekit init` does not copy them into
+  projects.
 
 It excludes OfficeKit C# source, every C# test and solution, all C# build output, repository-only scripts/tests, and removed legacy codec modules. Normal package use therefore works without a local .NET SDK; only consumers who explicitly build the optional OfficeBridge helper need one.
 

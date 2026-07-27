@@ -58,22 +58,18 @@ The specialist qpdf, Python, OCR, JRE, LibreOffice, and Poppler runtimes retain
 their project-authorized capability-pack lifecycle. They remain outside the
 base standalone archive.
 
-## 0.4.0 global CLI and bundled template catalog
+## 0.4.0 OfficeKit CLI and bundled template catalog
 
-OfficeKit now uses one global command for Agent projects:
-
-```sh
-npm install -g github:w31r4/OfficeKit
-officekit init
-```
-
-`officekit update` refreshes the seven project-local workflow Skills after a
-global package upgrade. Their runnable JavaScript workflows use
-`officekit run <task.mjs>`, whose Node 22.15+ synchronous module hook binds
-`office-kit` and every published package subpath to the same global
-installation. Working directory, task arguments, local third-party dependency
-resolution, exit status, and task error stacks remain task-owned. URLs, stdin
-source, non-file inputs, and unpublished OfficeKit subpaths are rejected.
+This milestone introduced the `officekit` commands used by Agent projects.
+The current standalone installation is described above; after it is installed,
+`officekit init` places the selected workflow Skills in a project and
+`officekit update` refreshes them after an upgrade. Runnable JavaScript
+workflows use `officekit run <task.mjs>`, whose Node 22.15+ synchronous module
+hook binds `office-kit` and every published package subpath to the same
+installed OfficeKit runtime. Working directory, task arguments, local
+third-party dependency resolution, exit status, and task error stacks remain
+task-owned. URLs, stdin source, non-file inputs, and unpublished OfficeKit
+subpaths are rejected.
 
 Template retrieval now lives in the package at
 `officekit template search`. The command validates schema-v2 metadata and
