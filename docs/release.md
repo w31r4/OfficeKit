@@ -3,17 +3,20 @@
 ## 0.5.0 self-contained OfficeKit distributions
 
 OfficeKit now publishes the same `officekit` command as a versioned
-self-contained distribution for `darwin-arm64` and `linux-x64`. Each archive
-contains the pinned official Node.js 24.18.0 executable, the OfficeKit
-JavaScript package and production dependencies, OfficeKit Codec WASM, MuPDF,
-seven workflow Skills, twenty default templates, licenses, third-party
+self-contained distribution for `darwin-arm64`, `linux-x64`, and `win32-x64`.
+Each archive contains the pinned official Node.js 24.18.0 executable, the
+OfficeKit JavaScript package and production dependencies, OfficeKit Codec WASM,
+MuPDF, seven workflow Skills, twenty default templates, licenses, third-party
 notices, a complete file-integrity manifest, and a CycloneDX 1.5 SBOM.
 
-The versioned installer verifies the archive's exact byte count and SHA-256,
+The POSIX installer verifies the archive's exact byte count and SHA-256,
 extracts it in an isolated transaction, probes the bundled Node and OfficeKit,
 publishes it under `~/.office-kit/versions/0.5.0`, and atomically switches
-`~/.office-kit/current`. The command link is
-`~/.local/bin/officekit`. Re-running the installer is idempotent; archive,
+`~/.office-kit/current`. It exposes `~/.local/bin/officekit` and writes a
+small PATH entry to the normal zsh/bash profile. The PowerShell installer uses
+the same fixed identity checks, publishes under the user-local OfficeKit
+directory, atomically switches `current.version`, and exposes `officekit.cmd`
+through the user PATH. Re-running either installer is idempotent; archive,
 probe, path-ownership, or publication failures leave the active version
 unchanged.
 
@@ -21,31 +24,33 @@ Pinned release identities:
 
 | Target | Archive bytes | Unpacked bytes | Files | SHA-256 |
 | --- | ---: | ---: | ---: | --- |
-| `darwin-arm64` | 84,108,367 | 192,058,387 | 1,146 | `e6a2c488105591f0a7f40bdda2813f42e6110dc749bd83445c4b150d52e244d5` |
-| `linux-x64` | 89,231,540 | 194,748,890 | 1,146 | `b05f5c49b56a0efc58d5bd28f88ff1e4b7b28e89fa4bd76aa2c54713c7d82c0f` |
+| `darwin-arm64` | 84,108,516 | 192,058,893 | 1,146 | `4120f33135af1770b0478d8156613d0b0abdc73ecc0a7965921565971c879bf0` |
+| `linux-x64` | 89,231,813 | 194,749,396 | 1,146 | `9c29968d67770505d739b906c0c68b13465f80af6615b0c2ef40545f369a1ec8` |
+| `win32-x64` | 80,447,505 | 163,630,621 | 1,146 | `02d60b835fe563db786c849e9ae43900e9449d1d35097f854352bca8c8fa339f` |
 
 The runtime catalog separately pins the official Node archives:
 `e1a97e14c99c803e96c7339403282ea05a499c32f8d83defe9ef5ec66f979ed1`
-for macOS arm64 and
+for macOS arm64,
 `783130984963db7ba9cbd01089eaf2c2efb055c7c1693c943174b967b3050cb8`
-for Linux x64. The builder validates the source archive before extraction,
-normalizes modes and timestamps into strict USTAR+gzip, emits external SBOM,
-notice, checksum, and release-evidence assets, and reproduces the same bytes
-for an identical source tree. The installed verifier checks every manifested
-path, byte count, SHA-256, and executable bit before first activation and on
-idempotent reinstall.
+for Linux x64, and
+`0ae68406b42d7725661da979b1403ec9926da205c6770827f33aac9d8f26e821`
+for Windows x64. The builder validates the source archive before extraction,
+normalizes modes and timestamps into strict USTAR+gzip or deterministic ZIP,
+emits external SBOM, notice, checksum, and release-evidence assets, and
+reproduces the same bytes for an identical source tree. The installed verifier
+checks every manifested path, byte count, SHA-256, and executable bit before
+first activation and on idempotent reinstall.
 
-The local distribution smoke builds twice, installs into a fresh HOME with
-system `node`, `npm`, and `npx` replaced by failing probes, initializes all
-seven Skills, finds all twenty templates across the three Office kinds, and
-creates/reimports DOCX, XLSX, PPTX, and PDF from an empty project. A second
-test used the pinned official macOS Node archive and completed the same
-four-format task. The standalone release workflow repeats the real-archive
-build and installation on native GitHub-hosted macOS arm64 and Linux x64
-runners before any asset can be attached to a release.
+The local distribution smoke builds twice, installs into a fresh user home
+with system `node`, `npm`, and `npx` replaced by failing probes, initializes
+all seven Skills, finds all twenty templates across the three Office kinds,
+and creates/reimports DOCX, XLSX, PPTX, and PDF from an empty project. The
+standalone release workflow repeats the real-archive build and installation on
+native GitHub-hosted macOS arm64, Linux x64, and Windows x64 runners before
+any asset can be attached to a release.
 
-The corresponding npm candidate remains the system-Node distribution: 641
-files, 36,063,190 compressed bytes, and 52,806,348 unpacked bytes. Platform
+The corresponding package candidate remains the application-developer distribution: 641
+files, 36,063,261 compressed bytes, and 52,806,854 unpacked bytes. Platform
 archives and standalone build tooling stay in the GitHub release lane rather
 than the npm tarball.
 

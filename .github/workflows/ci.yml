@@ -20,6 +20,7 @@ jobs:
       - run: npm ci
       - run: node test/officekit-cli.mjs
       - run: node test/office-kit-package.mjs
+      - run: node test/standalone-distribution.mjs
 
   node:
     runs-on: ubuntu-latest

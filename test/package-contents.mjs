@@ -35,20 +35,31 @@ const nodeRuntimes = JSON.parse(
 );
 assert.equal(nodeRuntimes.schemaVersion, 1);
 assert.equal(nodeRuntimes.nodeVersion, "24.18.0");
+assert.deepEqual(Object.keys(nodeRuntimes.runtimes).sort(), [
+  "darwin-arm64",
+  "linux-x64",
+  "win32-x64",
+]);
 for (const [target, runtime] of Object.entries(nodeRuntimes.runtimes)) {
-  assert.ok(["darwin-arm64", "linux-x64"].includes(target));
+  assert.ok(["darwin-arm64", "linux-x64", "win32-x64"].includes(target));
   assert.match(runtime.url, /^https:\/\/nodejs\.org\/dist\/v24\.18\.0\//);
   assert.match(runtime.sha256, /^[a-f0-9]{64}$/);
-  assert.ok(Number.isSafeInteger(runtime.size) && runtime.size > 50_000_000);
+  assert.ok(Number.isSafeInteger(runtime.size) && runtime.size > 30_000_000);
 }
 const standaloneReleases = JSON.parse(
   await fs.readFile(path.join(repoRoot, "standalone", "releases.v1.json"), "utf8"),
 );
 assert.equal(standaloneReleases.officeKitVersion, packageMetadata.version);
+assert.deepEqual(Object.keys(standaloneReleases.assets).sort(), [
+  "darwin-arm64",
+  "linux-x64",
+  "win32-x64",
+]);
 for (const [target, release] of Object.entries(standaloneReleases.assets)) {
-  assert.equal(release.asset, `office-kit-${packageMetadata.version}-${target}.tar.gz`);
+  const extension = target === "win32-x64" ? ".zip" : ".tar.gz";
+  assert.equal(release.asset, `office-kit-${packageMetadata.version}-${target}${extension}`);
   assert.match(release.sha256, /^[a-f0-9]{64}$/);
-  assert.ok(Number.isSafeInteger(release.size) && release.size > 50_000_000);
+  assert.ok(Number.isSafeInteger(release.size) && release.size > 30_000_000);
 }
 const standaloneInstaller = await fs.readFile(
   path.join(repoRoot, "standalone", "install.sh"),
@@ -56,6 +67,13 @@ const standaloneInstaller = await fs.readFile(
 );
 assert.match(standaloneInstaller, /OFFICE_KIT_VERSION=0\.5\.0/);
 assert.doesNotMatch(standaloneInstaller, /FINALIZE_/);
+const windowsStandaloneInstaller = await fs.readFile(
+  path.join(repoRoot, "standalone", "install.ps1"),
+  "utf8",
+);
+assert.match(windowsStandaloneInstaller, /\$OfficeKitVersion = "0\.5\.0"/);
+assert.match(windowsStandaloneInstaller, /win32-x64/);
+assert.doesNotMatch(windowsStandaloneInstaller, /RELEASE_(?:SHA256|SIZE)/);
 const pdfFacadeSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "index.mjs"), "utf8");
 assert.match(pdfFacadeSource, /await import\("\.\/mupdf\.mjs"\)/, "MuPDF must load only when a PDF operation needs it");
 assert.doesNotMatch(pdfFacadeSource, /from\s+["']mupdf["']/, "the root PDF facade must not initialize MuPDF eagerly");

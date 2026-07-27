@@ -28,7 +28,7 @@ normalized, re-compressed, or rewritten.
 
 ## Delivery boundary
 
-The library ships once inside the OfficeKit package. A global installation can
+The library ships once inside the OfficeKit runtime. An installed OfficeKit can
 discover its compact validated metadata through `officekit template search`;
 `officekit init` leaves these assets in place instead of copying them into each
 project. A named template Skill uses the retained reference as a read-only

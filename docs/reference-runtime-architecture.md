@@ -69,14 +69,14 @@ The JavaScript `PdfArtifact`/`PdfFile` domain owns greenfield semantic/tagged au
 The native PDF Skill calls the same `PdfFile` MuPDF.js primitives through a thin JavaScript CLI. `office-kit/pdf/providers` is a separate, lightweight control plane: it imports a versioned catalog and project policy but does not load MuPDF, download, or write a cache. It resolves exactly one selected task/provider to `ready`, `installable`, or `blocked`; a missing `.office-kit/pdf-providers.json` means download-disabled. Under explicit managed policy it may install only catalog-declared, versioned, hash-pinned release assets into a project-private cache using locks, bounded temporary downloads, safe extraction, receipts, and atomic publication. A `system-only` deployment remains possible, but neither route silently changes to the other. At the 0.3.0 boundary, qpdf `12.3.2-oat.1`, `python-foundation` `3.13.14-oat.1`, `python-specialists` `3.13.14-oat.1`, veraPDF/JRE `1.30.2-oat.1`, OCR core `17.8.1-oat.1`, and `eng`/`chi_sim` language packs `4.1.0-oat.1` are published and attested for `darwin-arm64` and `linux-x64`. The foundation contains isolated CPython, ReportLab, pdfplumber, pypdf, and Pillow. Specialists contain PyMuPDF, pikepdf, pyHanko, and certificate validation, depend on qpdf, and require an AGPL-or-commercial acknowledgement. The veraPDF pack brings a managed JRE, so probe/validation has no global Java dependency. OCR installs its qpdf/core/language closure only after policy authorization; the core contains isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`, and language packs are selected explicitly. Only Poppler QA remains intentionally unpublished and therefore blocks rather than substituting an unverified download.
 
 OfficeKit 0.5.0 also has a distribution boundary above the runtime graph. The
-global npm package remains available for Node 22.15+, while the
-`darwin-arm64` and `linux-x64` standalone archives carry an official
-SHA-256-pinned Node 24.18.0 executable plus the same npm payload and production
-dependency closure. `bin/officekit` always invokes that co-located runtime.
-The installer stages one complete version, probes its CLI, publishes it below
-`~/.office-kit/versions/<version>`, then atomically changes the `current`
-symlink. OfficeKit Codec and MuPDF remain lazy within that installed process;
-`init`, `update`, and template retrieval stay on the lightweight CLI path.
+`darwin-arm64`, `linux-x64`, and `win32-x64` standalone archives carry an
+official SHA-256-pinned Node 24.18.0 executable plus the same OfficeKit payload
+and production dependency closure. `bin/officekit` or `bin/officekit.cmd`
+always invokes that co-located runtime. The POSIX or PowerShell installer stages
+one complete version, probes its CLI, publishes it below a versioned user
+directory, then atomically changes the active version. OfficeKit Codec and
+MuPDF remain lazy within that installed process; `init`, `update`, and template
+retrieval stay on the lightweight CLI path.
 Provider-managed qpdf, Python, OCR, veraPDF/JRE, LibreOffice, and Poppler
 continue to live outside this base archive and retain their existing project
 policy, cache, receipt, and task-selection contracts.

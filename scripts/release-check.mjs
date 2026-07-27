@@ -72,6 +72,7 @@ if (!checks.at(-1).ok) blockers.push("package.json metadata is incomplete for np
 const standaloneRuntimePath = path.join(repoRoot, "standalone", "node-runtimes.v1.json");
 const standaloneReleasePath = path.join(repoRoot, "standalone", "releases.v1.json");
 const standaloneInstallerPath = path.join(repoRoot, "standalone", "install.sh");
+const standaloneWindowsInstallerPath = path.join(repoRoot, "standalone", "install.ps1");
 const standaloneVerifierPath = path.join(repoRoot, "standalone", "verify-install.mjs");
 const standaloneWorkflowPath = path.join(repoRoot, ".github", "workflows", "standalone-release.yml");
 let standaloneIssues = [];
@@ -79,6 +80,7 @@ try {
   const runtimeCatalog = JSON.parse(fs.readFileSync(standaloneRuntimePath, "utf8"));
   const releaseCatalog = JSON.parse(fs.readFileSync(standaloneReleasePath, "utf8"));
   const installer = fs.readFileSync(standaloneInstallerPath, "utf8");
+  const windowsInstaller = fs.readFileSync(standaloneWindowsInstallerPath, "utf8");
   const verifier = fs.readFileSync(standaloneVerifierPath, "utf8");
   const workflow = fs.readFileSync(standaloneWorkflowPath, "utf8");
   if (runtimeCatalog.schemaVersion !== 1 || runtimeCatalog.nodeVersion !== "24.18.0") {
@@ -87,9 +89,11 @@ try {
   if (releaseCatalog.schemaVersion !== 1 || releaseCatalog.officeKitVersion !== pkg.version) {
     standaloneIssues.push("standalone release catalog version does not match package.json");
   }
-  for (const target of ["darwin-arm64", "linux-x64"]) {
+  for (const target of ["darwin-arm64", "linux-x64", "win32-x64"]) {
     const runtime = runtimeCatalog.runtimes?.[target];
     const release = releaseCatalog.assets?.[target];
+    const archiveExtension = target === "win32-x64" ? ".zip" : ".tar.gz";
+    const targetInstaller = target === "win32-x64" ? windowsInstaller : installer;
     if (
       !runtime ||
       !/^https:\/\/nodejs\.org\/dist\/v24\.18\.0\//.test(runtime.url) ||
@@ -101,15 +105,15 @@ try {
     }
     if (
       !release ||
-      release.asset !== `office-kit-${pkg.version}-${target}.tar.gz` ||
+      release.asset !== `office-kit-${pkg.version}-${target}${archiveExtension}` ||
       !/^[a-f0-9]{64}$/.test(release.sha256) ||
       !Number.isSafeInteger(release.size) ||
       release.size <= 0
     ) {
       standaloneIssues.push(`${target} standalone release pin is incomplete`);
     } else if (
-      !installer.includes(release.sha256) ||
-      !installer.includes(String(release.size))
+      !targetInstaller.includes(release.sha256) ||
+      !targetInstaller.includes(String(release.size))
     ) {
       standaloneIssues.push(`${target} installer constants do not match the release catalog`);
     }
@@ -122,6 +126,14 @@ try {
     standaloneIssues.push("standalone installer version, hashes, or executable mode are incomplete");
   }
   if (
+    !windowsInstaller.includes(`$OfficeKitVersion = "${pkg.version}"`) ||
+    /RELEASE_(?:SHA256|SIZE)/.test(windowsInstaller) ||
+    !/Invoke-WebRequest/.test(windowsInstaller) ||
+    !/Get-FileHash/.test(windowsInstaller)
+  ) {
+    standaloneIssues.push("Windows standalone installer version, hashes, or verification is incomplete");
+  }
+  if (
     !/standalone-manifest\.json/.test(verifier) ||
     !/installed file failed integrity verification/.test(verifier) ||
     (fs.statSync(standaloneVerifierPath).mode & 0o111) === 0
@@ -132,9 +144,11 @@ try {
     !/linux-x64/.test(workflow) ||
     !/darwin-arm64/.test(workflow) ||
     !/node-version:\s*24\.18\.0/.test(workflow) ||
+    !/win32-x64/.test(workflow) ||
+    !/install\.ps1/.test(workflow) ||
     !/standalone-four-formats\.mjs/.test(workflow)
   ) {
-    standaloneIssues.push("standalone release workflow does not verify both native targets and all four formats");
+    standaloneIssues.push("standalone release workflow does not verify all native targets and all four formats");
   }
 } catch (error) {
   standaloneIssues.push(error instanceof Error ? error.message : String(error));
@@ -142,7 +156,7 @@ try {
 const standaloneOk = standaloneIssues.length === 0;
 checks.push(summarizeCheck("standalone release metadata", {
   ok: standaloneOk,
-  stdout: standaloneOk ? `OfficeKit ${pkg.version}, Node 24.18.0, darwin-arm64 + linux-x64` : "standalone release audit failed",
+  stdout: standaloneOk ? `OfficeKit ${pkg.version}, Node 24.18.0, darwin-arm64 + linux-x64 + win32-x64` : "standalone release audit failed",
   stderr: standaloneIssues.join("\n"),
   command: "audit standalone runtime, release, installer, and workflow pins",
 }));

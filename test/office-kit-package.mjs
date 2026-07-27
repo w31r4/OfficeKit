@@ -645,13 +645,19 @@ try {
 console.log("Office file Skills, PDF, OfficeKit, Template Creator, and bundled templates clean-install package smoke ok");
 
 function run(command, args, cwd, environment = {}) {
-  const result = spawnSync(command, args, {
+  // npm is a .cmd shim on Windows. spawnSync does not resolve that shim when
+  // shell is disabled, so name it explicitly while retaining an argv-only
+  // invocation on every platform.
+  const executable = process.platform === "win32" && command === "npm"
+    ? "npm.cmd"
+    : command;
+  const result = spawnSync(executable, args, {
     cwd,
     encoding: "utf8",
     env: { ...process.env, ...environment },
     shell: false,
   });
-  assert.equal(result.status, 0, `${command} ${args.join(" ")} failed\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`);
+  assert.equal(result.status, 0, `${executable} ${args.join(" ")} failed\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`);
   return result;
 }
 

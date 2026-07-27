@@ -28,6 +28,8 @@ jobs:
             runner: ubuntu-24.04
           - target: darwin-arm64
             runner: macos-15
+          - target: win32-x64
+            runner: windows-2025
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
@@ -41,12 +43,23 @@ jobs:
       - name: Verify local standalone contracts
         run: npm run test:standalone
       - name: Build from the pinned official Node runtime
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           test "$(node --version)" = "v24.18.0"
           npm run build:standalone -- \
             --target "${{ matrix.target }}" \
             --output "$RUNNER_TEMP/office-kit-standalone"
+      - name: Build from the pinned official Node runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if ((node --version) -ne "v24.18.0") { throw "the release lane must use Node 24.18.0" }
+          npm run build:standalone -- `
+            --target "${{ matrix.target }}" `
+            --output "$env:RUNNER_TEMP/office-kit-standalone"
       - name: Verify the pinned release identity
+        shell: bash
         env:
           TARGET: ${{ matrix.target }}
           OUTPUT: ${{ runner.temp }}/office-kit-standalone
@@ -72,6 +85,8 @@ jobs:
           }
           NODE
       - name: Install without system Node or npm and run all four formats
+        if: runner.os != 'Windows'
+        shell: bash
         env:
           TARGET: ${{ matrix.target }}
           OUTPUT: ${{ runner.temp }}/office-kit-standalone
@@ -113,6 +128,51 @@ jobs:
           test -s standalone.pptx
           test -s standalone.pdf
           test ! -s "$trap_log"
+      - name: Install without system Node or npm and run all four formats
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TARGET: ${{ matrix.target }}
+          OUTPUT: ${{ runner.temp }}/office-kit-standalone
+        run: |
+          $version = node -p "require('./package.json').version"
+          $report = Join-Path $env:OUTPUT "office-kit-$version-$env:TARGET.release.json"
+          $archive = Join-Path $env:OUTPUT "office-kit-$version-$env:TARGET.zip"
+          $identity = Get-Content -Raw -LiteralPath $report | ConvertFrom-Json
+          $testHome = Join-Path $env:RUNNER_TEMP "office-kit-home"
+          $trapBin = Join-Path $env:RUNNER_TEMP "no-system-node"
+          $trapLog = Join-Path $env:RUNNER_TEMP "system-runtime-invoked.log"
+          $project = Join-Path $env:RUNNER_TEMP "empty-project"
+          New-Item -ItemType Directory -Force -Path $testHome, $trapBin, $project | Out-Null
+          foreach ($command in @("node", "npm", "npx")) {
+            Set-Content -LiteralPath (Join-Path $trapBin "$command.cmd") -Value "@echo off`necho $command>>$trapLog`nexit /b 99" -NoNewline -Encoding ascii
+          }
+          $env:OFFICE_KIT_HOME = Join-Path $testHome ".office-kit"
+          $env:OFFICE_KIT_BIN_DIR = Join-Path $env:OFFICE_KIT_HOME "bin"
+          $env:OFFICE_KIT_INSTALL_TEST = "1"
+          $env:OFFICE_KIT_TEST_TARGET = $env:TARGET
+          $env:OFFICE_KIT_TEST_ARCHIVE = $archive
+          $env:OFFICE_KIT_TEST_SHA256 = $identity.sha256
+          $env:OFFICE_KIT_TEST_SIZE = [string] $identity.size
+          $env:PATH = "$trapBin;$env:SystemRoot\System32"
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File standalone/install.ps1
+          if ($LASTEXITCODE -ne 0) { throw "installer failed" }
+          $officekit = Join-Path $env:OFFICE_KIT_BIN_DIR "officekit.cmd"
+          if ((& $officekit --version).Trim() -ne $version) { throw "installed command has the wrong version" }
+          Push-Location $project
+          try {
+            & $officekit init . --tools agents --json
+            & $officekit template search --kind document --max 20 --json
+            & $officekit template search --kind spreadsheet --max 20 --json
+            & $officekit template search --kind presentation --max 20 --json
+            & $officekit run "$env:GITHUB_WORKSPACE\test\fixtures\standalone-four-formats.mjs" -- release-lane
+            foreach ($extension in @("docx", "xlsx", "pptx", "pdf")) {
+              if (-not (Test-Path -LiteralPath "standalone.$extension")) { throw "standalone.$extension was not created" }
+            }
+          } finally {
+            Pop-Location
+          }
+          if (Test-Path -LiteralPath $trapLog) { throw "system runtime was invoked: $(Get-Content -Raw -LiteralPath $trapLog)" }
       - uses: actions/upload-artifact@v4
         with:
           name: office-kit-${{ matrix.target }}
@@ -133,7 +193,7 @@ jobs:
           pattern: office-kit-*
           path: artifacts
           merge-multiple: true
-      - name: Verify both release assets
+      - name: Verify all release assets
         run: |
           node --input-type=module <<'NODE'
           import fs from "node:fs";
@@ -156,6 +216,7 @@ jobs:
           }
           NODE
           cp standalone/install.sh artifacts/install.sh
+          cp standalone/install.ps1 artifacts/install.ps1
           cp standalone/releases.v1.json artifacts/releases.v1.json
           cp standalone/node-runtimes.v1.json artifacts/node-runtimes.v1.json
       - name: Upload to the GitHub release
@@ -170,6 +231,6 @@ jobs:
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" \
               --title "OfficeKit $tag" \
-              --notes "Self-contained OfficeKit distributions for macOS arm64 and Linux x64."
+              --notes "Self-contained OfficeKit distributions for macOS arm64, Linux x64, and Windows x64."
           fi
           gh release upload "$tag" artifacts/* --clobber

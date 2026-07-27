@@ -37,13 +37,21 @@ OfficeKit：
 
 ## Quick Start
 
-在 Windows、macOS 或 Linux 上安装一次 OfficeKit。需要 Node.js 22.15 或更新版本：
+安装一次 OfficeKit；不需要预装 Node.js 或 npm。
+
+macOS（Apple 芯片）和 Linux x64：
 
 ```sh
-npm install -g github:w31r4/OfficeKit
+curl -fsSL https://github.com/w31r4/OfficeKit/releases/latest/download/install.sh | sh
 ```
 
-进入要处理 Office 文件的项目：
+Windows PowerShell：
+
+```powershell
+irm https://github.com/w31r4/OfficeKit/releases/latest/download/install.ps1 | iex
+```
+
+新开一个终端，进入要处理 Office 文件的项目：
 
 ```sh
 cd your-project
@@ -59,12 +67,12 @@ officekit init --tools claude,cursor
 
 也可以直接对正在使用的 Agent 说：
 
-> 帮我在这个项目安装并配置 OfficeKit。
+> 在这个项目安装并配置 OfficeKit。
 
-它会检查或安装 `officekit`，运行初始化，并按项目配置选择目标。项目里有多个
-Agent，或目标无法判断时，才需要你确认。
+它会使用同一安装器，运行初始化，并按项目配置选择目标。项目里有多个 Agent，
+或目标无法判断时，才需要你确认。
 
-升级后，在项目里刷新已安装的 Skill：
+安装新版后，在项目里刷新已安装的 Skill：
 
 ```sh
 officekit update
@@ -76,8 +84,7 @@ Skill 里的 JavaScript 任务这样运行：
 officekit run task.mjs -- input.docx output.docx
 ```
 
-`officekit run` 使用全局安装的同版本 API；任务自己的第三方依赖仍从任务所在
-项目解析。
+`officekit run` 使用已安装的同版本 API；任务自己的第三方依赖仍从任务所在项目解析。
 
 ## 一个总入口，也保留直接入口
 
@@ -111,7 +118,7 @@ officekit run task.mjs -- input.docx output.docx
 ## 模板按需使用
 
 [Office Template Library](skills/default-template-library/README.md) 提供 20 套
-MIT 授权模板，随全局包保存一份。`officekit init` 只安装 Skill，模板继续
+MIT 授权模板，随已安装的 OfficeKit 保存一份。`officekit init` 只安装 Skill，模板继续
 留在包内。目标明确且模板未指定时，OfficeKit 把需求归一成英文检索词，
 再执行本地 BM25F 搜索；Agent 查看少量候选后选择一个、询问用户或明确
 不用模板。

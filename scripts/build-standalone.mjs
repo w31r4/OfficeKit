@@ -20,6 +20,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import JSZip from "jszip";
 import pako from "pako";
 
 const REPOSITORY_ROOT = path.resolve(import.meta.dirname, "..");
@@ -28,10 +29,11 @@ const RUNTIME_CATALOG_PATH = path.join(
   "standalone",
   "node-runtimes.v1.json",
 );
-const SUPPORTED_TARGETS = new Set(["darwin-arm64", "linux-x64"]);
+const SUPPORTED_TARGETS = new Set(["darwin-arm64", "linux-x64", "win32-x64"]);
 const BLOCK_SIZE = 512;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const MAX_RUNTIME_ARCHIVE_BYTES = 80_000_000;
+const ZIP_TIMESTAMP = new Date("1980-01-01T00:00:00.000Z");
 
 function fail(message) {
   throw new Error(`OfficeKit standalone build: ${message}`);
@@ -39,6 +41,18 @@ function fail(message) {
 
 function sha256(bytes) {
   return crypto.createHash("sha256").update(bytes).digest("hex");
+}
+
+function isWindowsTarget(target) {
+  return target.startsWith("win32-");
+}
+
+function nodeRuntimeTarget(target) {
+  return target === "win32-x64" ? "win-x64" : target;
+}
+
+function standaloneArchiveExtension(target) {
+  return isWindowsTarget(target) ? ".zip" : ".tar.gz";
 }
 
 function stableJson(value) {
@@ -117,16 +131,19 @@ function parseArguments(argv) {
 }
 
 function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
+  const executable = process.platform === "win32" && command === "npm"
+    ? "npm.cmd"
+    : command;
+  const result = spawnSync(executable, args, {
     cwd: options.cwd ?? REPOSITORY_ROOT,
     encoding: "utf8",
     env: options.env ?? process.env,
     maxBuffer: 64 * 1024 * 1024,
   });
-  if (result.error) fail(`${command} could not start: ${result.error.message}`);
+  if (result.error) fail(`${executable} could not start: ${result.error.message}`);
   if (result.status !== 0) {
     const detail = (result.stderr || result.stdout || "").trim();
-    fail(`${command} exited ${result.status}${detail ? `: ${detail}` : "."}`);
+    fail(`${executable} exited ${result.status}${detail ? `: ${detail}` : "."}`);
   }
   return result;
 }
@@ -147,7 +164,7 @@ async function validateRuntimeEntry(entry, target, nodeVersion) {
   if (!Number.isSafeInteger(entry.size) || entry.size <= 0 || entry.size > MAX_RUNTIME_ARCHIVE_BYTES) {
     fail(`${target} runtime size is outside the accepted bound.`);
   }
-  const expectedRoot = `node-v${nodeVersion}-${target}`;
+  const expectedRoot = `node-v${nodeVersion}-${nodeRuntimeTarget(target)}`;
   if (entry.root !== expectedRoot) {
     fail(`${target} runtime root must be ${expectedRoot}.`);
   }
@@ -240,7 +257,83 @@ function validateTarListing(listing, expectedRoot) {
   }
 }
 
+function zipEntryMode(entry) {
+  if (typeof entry.unixPermissions === "number") return entry.unixPermissions;
+  if (typeof entry.unixPermissions === "string") {
+    return Number.parseInt(entry.unixPermissions, 8);
+  }
+  return null;
+}
+
+function safeZipEntryPath(value) {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.includes("\\") ||
+    value.includes("\0") ||
+    value.startsWith("/") ||
+    /^[a-z]:/iu.test(value)
+  ) {
+    return false;
+  }
+  return safeRelativePath(value);
+}
+
+async function extractPinnedZip(archive, expectedRoot, destination) {
+  const zip = await JSZip.loadAsync(await readFile(archive), {
+    checkCRC32: true,
+    createFolders: false,
+  });
+  const entries = Object.values(zip.files).sort((left, right) =>
+    lexicalCompare(left.name, right.name),
+  );
+  if (entries.length === 0) fail("archive contains no entries.");
+
+  const seen = new Set();
+  for (const entry of entries) {
+    const rawName = entry.unsafeOriginalName ?? entry.name;
+    const pathname = rawName.replace(/\/$/u, "");
+    if (!safeZipEntryPath(pathname)) {
+      fail(`archive contains unsafe path ${JSON.stringify(rawName)}.`);
+    }
+    if (pathname !== expectedRoot && !pathname.startsWith(`${expectedRoot}/`)) {
+      fail(`archive entry is outside ${expectedRoot}: ${rawName}.`);
+    }
+    if (seen.has(pathname)) fail(`archive contains duplicate path ${pathname}.`);
+    seen.add(pathname);
+    const mode = zipEntryMode(entry);
+    if (mode != null && (mode & 0o170000) === 0o120000) {
+      fail(`archive contains a symlink: ${rawName}.`);
+    }
+  }
+
+  const resolvedDestination = path.resolve(destination);
+  await mkdir(resolvedDestination, { recursive: true });
+  for (const entry of entries) {
+    if (entry.dir) continue;
+    const pathname = (entry.unsafeOriginalName ?? entry.name).replace(/\/$/u, "");
+    const output = path.resolve(resolvedDestination, ...pathname.split("/"));
+    if (!output.startsWith(`${resolvedDestination}${path.sep}`)) {
+      fail(`archive entry escaped extraction root: ${pathname}.`);
+    }
+    await mkdir(path.dirname(output), { recursive: true });
+    await writeFile(output, await entry.async("nodebuffer"), {
+      flag: "wx",
+      mode: 0o644,
+    });
+  }
+  const extractedRoot = path.join(destination, expectedRoot);
+  const rootMetadata = await lstat(extractedRoot);
+  if (!rootMetadata.isDirectory() || rootMetadata.isSymbolicLink()) {
+    fail("archive root is not a real directory.");
+  }
+  return extractedRoot;
+}
+
 async function extractPinnedArchive(archive, expectedRoot, destination) {
+  if (path.extname(archive).toLowerCase() === ".zip") {
+    return extractPinnedZip(archive, expectedRoot, destination);
+  }
   const listing = run("tar", ["-tzf", archive]).stdout;
   validateTarListing(listing, expectedRoot);
   await mkdir(destination, { recursive: true });
@@ -366,7 +459,25 @@ async function packOfficeKit({ repositoryRoot, destination }) {
   return { archive, packageRoot, report: report[0] };
 }
 
-function launcherScript() {
+function launcherScript(target) {
+  if (isWindowsTarget(target)) {
+    return `@echo off
+setlocal EnableExtensions
+set "ROOT=%~dp0.."
+set "NODE=%ROOT%\\runtime\\node\\node.exe"
+set "ENTRY=%ROOT%\\app\\node_modules\\office-kit\\bin\\officekit.mjs"
+if not exist "%NODE%" (
+  echo OfficeKit installation is incomplete: bundled Node is missing. 1>&2
+  exit /b 1
+)
+if not exist "%ENTRY%" (
+  echo OfficeKit installation is incomplete: command entrypoint is missing. 1>&2
+  exit /b 1
+)
+"%NODE%" "%ENTRY%" %*
+exit /b %ERRORLEVEL%
+`;
+  }
   return `#!/bin/sh
 set -eu
 self=$0
@@ -652,6 +763,28 @@ export async function createDeterministicTarGz(rootDirectory, rootName) {
   return archive;
 }
 
+export async function createDeterministicZip(rootDirectory, rootName) {
+  const entries = await archiveEntries(rootDirectory, rootName);
+  const zip = new JSZip();
+  for (const entry of entries) {
+    if (entry.type !== "file") continue;
+    zip.file(entry.path, entry.bytes, {
+      binary: true,
+      compression: "DEFLATE",
+      compressionOptions: { level: 9 },
+      createFolders: false,
+      date: ZIP_TIMESTAMP,
+    });
+  }
+  return zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+    compressionOptions: { level: 9 },
+    comment: "",
+    platform: "DOS",
+  });
+}
+
 async function writeBundle({
   bundleRoot,
   packageMetadata,
@@ -661,17 +794,23 @@ async function writeBundle({
   npmPackageRoot,
   repositoryRoot,
 }) {
-  const runtimeBin = path.join(bundleRoot, "runtime", "node", "bin");
+  const windows = isWindowsTarget(target);
+  const runtimeBin = windows
+    ? path.join(bundleRoot, "runtime", "node")
+    : path.join(bundleRoot, "runtime", "node", "bin");
   const appNodeModules = path.join(bundleRoot, "app", "node_modules");
   const officeKitDestination = path.join(appNodeModules, "office-kit");
   await mkdir(runtimeBin, { recursive: true });
   await mkdir(appNodeModules, { recursive: true });
 
-  const nodeSource = path.join(runtimeRoot, "bin", "node");
+  const nodeFile = windows ? "node.exe" : "node";
+  const nodeSource = windows
+    ? path.join(runtimeRoot, nodeFile)
+    : path.join(runtimeRoot, "bin", nodeFile);
   await regularFile(nodeSource, "Node executable");
   await regularFile(path.join(runtimeRoot, "LICENSE"), "Node license");
-  await cp(nodeSource, path.join(runtimeBin, "node"));
-  await chmod(path.join(runtimeBin, "node"), 0o755);
+  await cp(nodeSource, path.join(runtimeBin, nodeFile));
+  if (!windows) await chmod(path.join(runtimeBin, nodeFile), 0o755);
   await assertTreeContainsNoLinks(npmPackageRoot);
   await cp(npmPackageRoot, officeKitDestination, { recursive: true });
   const packedMetadata = JSON.parse(
@@ -693,10 +832,11 @@ async function writeBundle({
   const libRoot = path.join(bundleRoot, "lib");
   await mkdir(binRoot, { recursive: true });
   await mkdir(libRoot, { recursive: true });
-  await writeFile(path.join(binRoot, "officekit"), launcherScript(), {
-    mode: 0o755,
+  const launcher = windows ? "officekit.cmd" : "officekit";
+  await writeFile(path.join(binRoot, launcher), launcherScript(target), {
+    mode: windows ? 0o644 : 0o755,
   });
-  await chmod(path.join(binRoot, "officekit"), 0o755);
+  if (!windows) await chmod(path.join(binRoot, launcher), 0o755);
   await cp(
     path.join(repositoryRoot, "standalone", "verify-install.mjs"),
     path.join(libRoot, "verify-install.mjs"),
@@ -725,7 +865,7 @@ async function writeBundle({
     officeKitVersion: packageMetadata.version,
     nodeVersion,
     target,
-    entrypoint: "bin/officekit",
+    entrypoint: `bin/${launcher}`,
     fileCount: inventory.length,
     unpackedBytes: inventory.reduce((total, entry) => total + entry.bytes, 0),
     files: inventory,
@@ -774,7 +914,10 @@ export async function buildStandalone({
   const output = path.resolve(outputDirectory);
   await mkdir(output, { recursive: true });
   const baseName = `office-kit-${packageMetadata.version}-${target}`;
-  const archiveDestination = path.join(output, `${baseName}.tar.gz`);
+  const archiveDestination = path.join(
+    output,
+    `${baseName}${standaloneArchiveExtension(target)}`,
+  );
   const checksumDestination = `${archiveDestination}.sha256`;
   const releaseDestination = path.join(output, `${baseName}.release.json`);
   const sbomDestination = path.join(output, `${baseName}.sbom.cdx.json`);
@@ -820,7 +963,9 @@ export async function buildStandalone({
       npmPackageRoot: npmPack.packageRoot,
       repositoryRoot,
     });
-    const archiveBytes = await createDeterministicTarGz(bundleRoot, baseName);
+    const archiveBytes = isWindowsTarget(target)
+      ? await createDeterministicZip(bundleRoot, baseName)
+      : await createDeterministicTarGz(bundleRoot, baseName);
     const archiveHash = sha256(archiveBytes);
     const sbomBytes = await readFile(path.join(bundleRoot, "sbom.cdx.json"));
     const noticesBytes = await readFile(
