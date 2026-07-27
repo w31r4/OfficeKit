@@ -15,6 +15,7 @@ try {
   assert.match(help.stdout, /officekit update \[path\]/);
   assert.match(help.stdout, /officekit run <task\.mjs>/);
   assert.match(help.stdout, /officekit template search/);
+  assert.match(help.stdout, /Choose Agent targets and install the OfficeKit Skills/);
   assert.equal(run(["--version"]).stdout.trim(), "0.5.0");
 
   const project = path.join(temporary, "detected-project");
@@ -283,6 +284,13 @@ try {
     { expectFailure: true },
   );
   assert.match(invalid.stderr, /Unknown Agent tool/);
+
+  const noDetectedTarget = run(
+    ["init", path.join(temporary, "no-agent-target"), "--yes", "--json"],
+    { expectFailure: true },
+  );
+  assert.match(noDetectedTarget.stderr, /interactive terminal to choose a target/);
+  assert.match(noDetectedTarget.stderr, /--tools codex/);
 
   const uninitializedUpdate = run(
     ["update", path.join(temporary, "not-initialized"), "--tools", "agents", "--json"],

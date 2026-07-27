@@ -37,57 +37,47 @@ OfficeKit：
 
 ## Quick Start
 
-macOS Apple Silicon 和 Linux x64 可以直接安装自带 Node 24.18.0 的版本：
-
-```sh
-curl -fsSL https://github.com/w31r4/OfficeKit/releases/download/v0.5.0/install.sh | sh
-officekit init
-```
-
-安装器校验固定的文件大小和 SHA-256，把版本放在
-`~/.office-kit/versions/0.5.0`，再原子切换 `~/.office-kit/current`。
-`~/.local/bin/officekit` 是唯一需要加入 `PATH` 的命令。新版本安装失败时，
-当前版本继续可用。
-
-其他平台或希望使用系统 Node 的开发者可以全局安装 npm 包；需要
-Node.js 22.15 或更新版本：
+在 Windows、macOS 或 Linux 上安装一次 OfficeKit。需要 Node.js 22.15 或更新版本：
 
 ```sh
 npm install -g github:w31r4/OfficeKit
+```
+
+进入要处理 Office 文件的项目：
+
+```sh
+cd your-project
 officekit init
 ```
 
-`officekit init` 会识别当前项目使用的 Agent，安装 OfficeKit 总入口、四个文件
-类型 Skill、Excel Live Control 和 Template Creator。选择工具后，7 个核心
-Skill 会写入对应的项目目录。
-
-脚本或 CI 可直接指定工具：
+`officekit init` 会识别项目里的 Agent 配置，并让你选择将 7 个 OfficeKit Skill
+写入哪些目录。直接回车接受识别结果；需要明确指定时：
 
 ```sh
 officekit init --tools claude,cursor
 ```
 
-安装新版本或升级全局包后，在项目里执行 `officekit update` 即可同步 Skill。
-专项 PDF provider 继续按项目策略加载自己的运行时。
+也可以直接对正在使用的 Agent 说：
 
-正式 npm 版本发布后，全局安装命令可改为：
+> 帮我在这个项目安装并配置 OfficeKit。
+
+它会检查或安装 `officekit`，运行初始化，并按项目配置选择目标。项目里有多个
+Agent，或目标无法判断时，才需要你确认。
+
+升级后，在项目里刷新已安装的 Skill：
 
 ```sh
-npm install -g office-kit
+officekit update
 ```
 
-Skill 里的 JavaScript 任务统一这样运行：
+Skill 里的 JavaScript 任务这样运行：
 
 ```sh
 officekit run task.mjs -- input.docx output.docx
 ```
 
-`officekit run` 使用全局安装的同版本 API。任务自己的第三方依赖仍从
-任务所在项目解析。
-
-自包含发行物包含 OfficeKit JavaScript、生产依赖、OfficeKit Codec WASM、
-MuPDF、7 个 Skill、20 个模板、许可证和 SBOM。qpdf、OCR、Python、JRE、
-LibreOffice 和 Poppler 按具体任务及项目策略加载。
+`officekit run` 使用全局安装的同版本 API；任务自己的第三方依赖仍从任务所在
+项目解析。
 
 ## 一个总入口，也保留直接入口
 

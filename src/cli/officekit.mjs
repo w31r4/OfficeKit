@@ -285,7 +285,7 @@ async function selectTools({ parsed, manifest, projectPath, input, output }) {
       selected = detected;
     } else {
       throw new Error(
-        "No Agent tool was detected. Pass --tools <ids>; for example, --tools agents or --tools claude,cursor.",
+        "No Agent tool was detected. Run officekit init in an interactive terminal to choose a target, or pass --tools <ids>; for example, --tools codex or --tools claude,cursor.",
       );
     }
   }
@@ -330,8 +330,8 @@ async function promptForTools({ detected, input, output }) {
   const defaultIds = detected.length > 0 ? detected : ["agents"];
   output.write(
     detected.length > 0
-      ? `Detected: ${detected.join(", ")}\n`
-      : "Choose where OfficeKit should install project Skills.\n",
+      ? `Detected Agent tools: ${detected.join(", ")}\n`
+      : "Choose where OfficeKit should install its seven project Skills.\n",
   );
   output.write(`Available: ${TOOLS.map((tool) => tool.id).join(", ")}\n`);
   const prompt = createInterface({ input, output });
@@ -697,7 +697,7 @@ Usage:
   officekit --version
 
 Commands:
-  init       Detect Agent tools and install the OfficeKit Skills
+  init       Choose Agent targets and install the OfficeKit Skills
   update     Refresh Skills already managed by OfficeKit
   run        Run a task with this OfficeKit installation
   template   Search the bundled and project template catalogs
