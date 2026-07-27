@@ -131,8 +131,32 @@ jobs:
           $profiles = & $launcher --list
           $profileText = [string]::Join([Environment]::NewLine, [string[]]$profiles)
           if ($LASTEXITCODE -ne 0 -or $profileText -notmatch '(?m)^\s+ua2\s+-') { throw 'The Windows launcher does not expose the required ua2 profile.' }
+          # Capture a native Python CreateProcess preflight separately from
+          # the adapter. If this ever fails, the release log preserves the
+          # exact resolved target and PE magic instead of collapsing every
+          # startup fault into a generic provider error.
+          Write-Host '::group::Windows Python CreateProcess preflight'
+          $env:OFFICE_KIT_PDF_VERAPDF = $launcher
+          $python = (Get-Command python.exe -ErrorAction Stop).Source
+          $pythonPreflight = @'
+          import os
+          from pathlib import Path
+          import subprocess
+
+          target = Path(os.environ["OFFICE_KIT_PDF_VERAPDF"]).resolve()
+          print("resolved native launcher: " + str(target))
+          with target.open("rb") as stream:
+              print("native launcher magic: " + stream.read(2).hex())
+          environment = dict(os.environ)
+          for name in ("BASH_ENV", "CLASSPATH_PREFIX", "ENDORSED_DIR", "ENV", "JAVA_OPTS", "JDK_JAVA_OPTIONS", "REPO", "_JAVA_OPTIONS", "JAVA_TOOL_OPTIONS"):
+              environment.pop(name, None)
+          subprocess.run([str(target), "--version"], executable=str(target), stdin=subprocess.DEVNULL, shell=False, env=environment, check=True)
+          '@
+          & $python -c $pythonPreflight
+          if ($LASTEXITCODE -ne 0) { throw "The Windows Python CreateProcess preflight failed with exit code $LASTEXITCODE" }
+          Write-Host '::endgroup::'
           $env:OFFICE_KIT_PDF_VERAPDF_TEST = $launcher
-          $env:OFFICE_KIT_PDF_VERAPDF_TEST_PYTHON = (Get-Command python.exe -ErrorAction Stop).Source
+          $env:OFFICE_KIT_PDF_VERAPDF_TEST_PYTHON = $python
           & node.exe test/pdf-verapdf-provider.mjs
           if ($LASTEXITCODE -ne 0) { throw "The Windows veraPDF adapter smoke failed with exit code $LASTEXITCODE" }
       - name: Attest immutable veraPDF pack provenance
