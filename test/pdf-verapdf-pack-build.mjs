@@ -85,6 +85,10 @@ for (const sourceFragment of [
 assert.doesNotMatch(builderSource, /HOME: process\.env\.HOME/);
 assert.match(workflowSource, /verify-pdf-provider-pack\.mjs/);
 assert.doesNotMatch(workflowSource, /launcher_args|tar -xzf/);
+assert.match(workflowSource, /OFFICE_KIT_PDF_VERAPDF_TEST =/,
+  "the Windows adapter smoke must receive the native launcher path through PowerShell");
+assert.match(workflowSource, /node\.exe test\/pdf-verapdf-provider\.mjs/,
+  "the Windows adapter smoke must launch Node without Git Bash path conversion");
 
 for (const sourceFragment of [
   "CreateProcessW",

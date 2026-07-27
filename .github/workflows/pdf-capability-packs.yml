@@ -69,11 +69,22 @@ jobs:
             # Do not use a machine-wide package
             # manager: a capability pack must be reproducible from its
             # pinned source inputs alone.
-            for command in cmake curl tar unzip cygpath powershell.exe; do
+            for command in cmake curl tar unzip cygpath powershell.exe cmd.exe; do
               command -v "$command"
             done
             cmake --version
           fi
+      - name: Discover the Windows C++ toolchain
+        if: ${{ matrix.platform == 'win32-x64' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $installation = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installation) { throw 'Visual Studio C++ build tools are unavailable.' }
+          $devcmd = Join-Path $installation 'Common7\Tools\VsDevCmd.bat'
+          if (-not (Test-Path -LiteralPath $devcmd -PathType Leaf)) { throw "Visual Studio developer command script is unavailable: $devcmd" }
+          "OFFICEKIT_MSVC_DEVCMD=$devcmd" | Add-Content -LiteralPath $env:GITHUB_ENV
       - name: Download and verify qpdf source
         shell: bash
         run: |
@@ -153,21 +164,27 @@ jobs:
             ! otool -L "$payload/bin/qpdf" | grep -q "/opt/homebrew"
           else
             # qpdf's own Windows instructions use this exact prebuilt static
-            # external-library bundle. The Visual Studio generator discovers
-            # it below the source tree; static qpdf avoids a libqpdf DLL.
-            cmake -S "$source_dir" -B "$build_dir" -G "Visual Studio 17 2022" -A x64 \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DBUILD_SHARED_LIBS=OFF \
-              -DBUILD_STATIC_LIBS=ON \
-              -DUSE_IMPLICIT_CRYPTO=OFF \
-              -DREQUIRE_CRYPTO_NATIVE=ON \
-              -DINSTALL_MANUAL=OFF
-            cmake --build "$build_dir" --config Release --parallel
-            # Do not select only the `cli` component here: CMake's MSVC
-            # runtime-DLL installation is intentionally unscoped. We retain
-            # only `bin` below, which gives the payload qpdf.exe plus the
-            # compiler runtime it actually needs.
-            cmake --install "$build_dir" --prefix "$install_dir" --config Release
+            # external-library bundle. Activate the actual hosted MSVC
+            # toolchain and use CMake's generator-independent NMake mode;
+            # pinning a Visual Studio marketing version broke when the
+            # windows-2025 image moved from VS 2022 to VS 2026.
+            devcmd_windows="$(cygpath -w "$OFFICEKIT_MSVC_DEVCMD")"
+            source_windows="$(cygpath -w "$source_dir")"
+            build_windows="$(cygpath -w "$build_dir")"
+            install_windows="$(cygpath -w "$install_dir")"
+            build_script="$RUNNER_TEMP/office-kit-build-qpdf.cmd"
+            cat > "$build_script" <<EOF
+          @echo off
+          call "$devcmd_windows" -arch=x64 -host_arch=x64 >nul
+          if errorlevel 1 exit /b %errorlevel%
+          cmake -S "$source_windows" -B "$build_windows" -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DUSE_IMPLICIT_CRYPTO=OFF -DREQUIRE_CRYPTO_NATIVE=ON -DINSTALL_MANUAL=OFF
+          if errorlevel 1 exit /b %errorlevel%
+          cmake --build "$build_windows"
+          if errorlevel 1 exit /b %errorlevel%
+          cmake --install "$build_windows" --prefix "$install_windows"
+          exit /b %errorlevel%
+          EOF
+            cmd.exe /d /s /c "$(cygpath -w "$build_script")"
             mkdir -p "$payload/bin"
             find "$install_dir/bin" -maxdepth 1 -type f -print -exec cp {} "$payload/bin/" \;
             test -f "$payload/bin/qpdf.exe"
