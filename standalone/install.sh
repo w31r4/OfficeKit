@@ -110,12 +110,12 @@ else
 fi
 case "$target" in
   darwin-arm64)
-    expected_sha256=f3948f1a115411ed5ef2b89a641dca8f5dbe08492c567e6a29f87a971c8c4a3b
-    expected_size=84107969
+    expected_sha256=12490ce195ba7cf18038f11db2eaebee75ba021a809fc4435b0c30c9432f2a18
+    expected_size=84108153
     ;;
   linux-x64)
-    expected_sha256=bf274b4779a2f9dcbb3d3f3bcc755a273a6f7a16a1bf2f88fbb2ce4314e8ae25
-    expected_size=89231440
+    expected_sha256=6bfea68be5f4fe5129f7197e5a1b751e232d73952305eae10bca5b3f0fb52afa
+    expected_size=89231193
     ;;
   *) fail "unsupported target $target." ;;
 esac
