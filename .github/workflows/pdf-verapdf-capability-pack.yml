@@ -22,7 +22,9 @@ permissions:
   id-token: write
 
 env:
-  VERAPDF_PACK_VERSION: 1.30.2-oat.1
+  # `oat.1` is immutable for macOS and Linux. A Windows-capable release is
+  # rebuilt and verified on all three platforms before its catalog pins move.
+  VERAPDF_PACK_VERSION: 1.30.2-oat.2
   VERAPDF_INPUTS: scripts/pdf-provider-verapdf-release-inputs.v1.json
 
 jobs:
@@ -36,6 +38,8 @@ jobs:
             runner: ubuntu-22.04
           - platform: darwin-arm64
             runner: macos-14
+          - platform: win32-x64
+            runner: windows-2025
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
@@ -46,16 +50,33 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Validate pinned veraPDF and JRE inputs
         run: node scripts/build-verapdf-provider-pack.mjs --verify-lock
+      - name: Compile the capability-pack-owned Windows Java launcher
+        if: ${{ matrix.platform == 'win32-x64' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $installation = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installation) { throw 'Visual Studio C++ build tools are unavailable.' }
+          $devcmd = Join-Path $installation 'Common7\Tools\VsDevCmd.bat'
+          $launcher = Join-Path $env:RUNNER_TEMP 'office-kit-verapdf-launcher.exe'
+          cmd.exe /d /s /c "call `"$devcmd`" -arch=x64 -host_arch=x64 >nul && cl.exe /nologo /O2 /MT /W4 /DUNICODE /D_UNICODE /Fe`"$launcher`" scripts\windows-java-jar-launcher.c /link /SUBSYSTEM:CONSOLE"
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $launcher -PathType Leaf)) { throw 'Windows Java launcher compilation failed.' }
       - name: Assemble a self-contained veraPDF CLI pack
         shell: bash
         run: |
           set -euo pipefail
+          launcher_args=()
+          if [ "${{ matrix.platform }}" = "win32-x64" ]; then
+            launcher_args+=(--windows-launcher "$RUNNER_TEMP/office-kit-verapdf-launcher.exe")
+          fi
           node scripts/build-verapdf-provider-pack.mjs \
             --pack verapdf \
             --version "$VERAPDF_PACK_VERSION" \
             --platform "${{ matrix.platform }}" \
             --output "$RUNNER_TEMP/verapdf-release" \
-            --source-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/$VERAPDF_INPUTS"
+            --source-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/$VERAPDF_INPUTS" \
+            "${launcher_args[@]}"
       - name: Verify the extracted managed runtime and real conformance adapter
         shell: bash
         run: |
@@ -64,13 +85,27 @@ jobs:
           destination="$RUNNER_TEMP/verapdf-consumer"
           mkdir -p "$destination" "$RUNNER_TEMP/verapdf-home"
           tar -xzf "$archive" -C "$destination"
-          test -x "$destination/bin/verapdf"
-          test -x "$destination/jre/bin/java"
+          if [ "${{ matrix.platform }}" = "win32-x64" ]; then
+            test -f "$destination/bin/verapdf.exe"
+            test -f "$destination/jre/bin/java.exe"
+            launcher="$destination/bin/verapdf.exe"
+          else
+            test -x "$destination/bin/verapdf"
+            test -x "$destination/jre/bin/java"
+            launcher="$destination/bin/verapdf"
+          fi
           test -f "$destination/libexec/bin/cli-1.30.2.jar"
           test -d "$destination/jre/legal"
-          env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$destination/bin/verapdf" --version | grep -Fx 'veraPDF 1.30.2'
-          env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$destination/bin/verapdf" --list | grep -Eq '^[[:space:]]+ua2[[:space:]]+-'
-          OFFICE_KIT_PDF_VERAPDF_TEST="$destination/bin/verapdf" node test/pdf-verapdf-provider.mjs
+          if [ "${{ matrix.platform }}" = "win32-x64" ]; then
+            launcher_windows="$(cygpath -w "$launcher")"
+            powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; \$env:JAVA_TOOL_OPTIONS = ''; \$env:JDK_JAVA_OPTIONS = ''; \$env:_JAVA_OPTIONS = ''; \$env:CLASSPATH = ''; & '${launcher_windows}' --version" | grep -Fx 'veraPDF 1.30.2'
+            powershell.exe -NoProfile -NonInteractive -Command "\$ErrorActionPreference = 'Stop'; & '${launcher_windows}' --list" | grep -Eq '^[[:space:]]+ua2[[:space:]]+-'
+            OFFICE_KIT_PDF_VERAPDF_TEST="$launcher_windows" node test/pdf-verapdf-provider.mjs
+          else
+            env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$launcher" --version | grep -Fx 'veraPDF 1.30.2'
+            env -i HOME="$RUNNER_TEMP/verapdf-home" PATH="$destination/bin:/usr/bin:/bin" "$launcher" --list | grep -Eq '^[[:space:]]+ua2[[:space:]]+-'
+            OFFICE_KIT_PDF_VERAPDF_TEST="$launcher" node test/pdf-verapdf-provider.mjs
+          fi
       - name: Attest immutable veraPDF pack provenance
         if: ${{ inputs.publish == 'true' }}
         uses: actions/attest@v4
@@ -118,8 +153,9 @@ jobs:
             --output "$RUNNER_TEMP/verapdf-final" \
             --release-base-url "$release_base" \
             --repository "$GITHUB_REPOSITORY" \
-            --workflow .github/workflows/pdf-verapdf-capability-pack.yml
-          jq -e '.catalogFragment.state == "published" and (.catalogFragment.artifacts | length == 2)' "$RUNNER_TEMP/verapdf-final/verapdf-$VERAPDF_PACK_VERSION.release-manifest.json"
+            --workflow .github/workflows/pdf-verapdf-capability-pack.yml \
+            --expected-platforms darwin-arm64,linux-x64,win32-x64
+          jq -e '.catalogFragment.state == "published" and (.catalogFragment.artifacts | length == 3)' "$RUNNER_TEMP/verapdf-final/verapdf-$VERAPDF_PACK_VERSION.release-manifest.json"
       - name: Attest veraPDF release evidence assets
         if: ${{ inputs.publish == 'true' }}
         uses: actions/attest@v4

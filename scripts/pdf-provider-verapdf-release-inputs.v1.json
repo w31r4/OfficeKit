@@ -3,12 +3,13 @@
   "schemaVersion": 1,
   "verapdf": {
     "packId": "verapdf",
-    "version": "1.30.2-oat.1",
+    "version": "1.30.2-oat.2",
     "license": "MPL-2.0 AND GPL-3.0-or-later AND GPL-2.0-only WITH Classpath-exception-2.0",
     "installer": {
       "url": "https://software.verapdf.org/releases/1.30/verapdf-greenfield-1.30.2-installer.zip",
       "sha256": "6cc6341cb1af644044054b81f00a6590a7918abb18f762243de115258bcad838",
       "downloadBytes": 32923960,
+      "archiveFormat": "zip",
       "installerJarPath": "verapdf-greenfield-1.30.2/verapdf-izpack-installer-1.30.2.jar",
       "cliJarPath": "bin/cli-1.30.2.jar"
     },
@@ -22,12 +23,21 @@
           "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.7%2B6/OpenJDK21U-jre_aarch64_mac_hotspot_21.0.7_6.tar.gz",
           "sha256": "61dca7744d0b92d5d270f03e2ff32d64e95f3f7c8d0acbe642d7733ccb8523ac",
           "downloadBytes": 48027074,
+          "archiveFormat": "tar.gz",
           "javaHomePath": "jdk-21.0.7+6-jre/Contents/Home"
         },
         "linux-x64": {
           "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.7%2B6/OpenJDK21U-jre_x64_linux_hotspot_21.0.7_6.tar.gz",
           "sha256": "6d48379e00d47e6fdd417e96421e973898ac90765ea8ff2d09ae0af6d5d6a1c6",
           "downloadBytes": 51863597,
+          "archiveFormat": "tar.gz",
+          "javaHomePath": "jdk-21.0.7+6-jre"
+        },
+        "win32-x64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.7%2B6/OpenJDK21U-jre_x64_windows_hotspot_21.0.7_6.zip",
+          "sha256": "b2850a96293048ed3020f8bfca2d92a785ae9bf80c7d96bbfe3ec4ccf45aef98",
+          "downloadBytes": 48875360,
+          "archiveFormat": "zip",
           "javaHomePath": "jdk-21.0.7+6-jre"
         }
       }
