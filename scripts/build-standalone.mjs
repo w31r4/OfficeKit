@@ -20,7 +20,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { gzipSync } from "node:zlib";
+import pako from "pako";
 
 const REPOSITORY_ROOT = path.resolve(import.meta.dirname, "..");
 const RUNTIME_CATALOG_PATH = path.join(
@@ -640,7 +640,12 @@ export async function createDeterministicTarGz(rootDirectory, rootName) {
     }
   }
   records.push(Buffer.alloc(BLOCK_SIZE * 2));
-  const archive = gzipSync(Buffer.concat(records), { level: 9, mtime: 0 });
+  // Node's native zlib output can change between the zlib versions bundled by
+  // different Node releases. pako is pinned in package-lock.json and produces
+  // the same DEFLATE stream on every supported build host.
+  const archive = Buffer.from(
+    pako.gzip(Buffer.concat(records), { level: 9, mtime: 0 }),
+  );
   // RFC 1952 permits 255 for an unknown originating OS. Fixing this byte
   // keeps release bytes identical across the supported build hosts.
   archive[9] = 255;
