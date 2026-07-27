@@ -18,7 +18,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 const execFile = promisify(execFileCallback);
-const SUPPORTED_PLATFORMS = new Set(["darwin-arm64", "linux-x64"]);
+const SUPPORTED_PLATFORMS = new Set(["darwin-arm64", "linux-x64", "win32-x64"]);
 const MAX_OUTPUT = 512 * 1024;
 // `otool` can report a non-Mach-O input without a failing process status on
 // some macOS releases. Never let that turn a Python source file or launcher
@@ -35,6 +35,8 @@ const MACHO_MAGICS = new Set([
   0xbfbafeca,
 ]);
 const ELF_MAGIC = Buffer.from([0x7f, 0x45, 0x4c, 0x46]);
+const PE_MAGIC = Buffer.from([0x4d, 0x5a]);
+const PE_SIGNATURE = Buffer.from([0x50, 0x45, 0x00, 0x00]);
 
 function fail(message) {
   throw new Error(`OCR native capability-pack build: ${message}`);
@@ -51,10 +53,24 @@ function sha256(bytes) {
 function parseArguments(argv) {
   const values = {};
   const repeated = { "library-root": [], "resource-root": [] };
+  const singleValueOptions = new Set([
+    "platform",
+    "payload",
+    "notices",
+    "tesseract",
+    "ghostscript",
+    "pdftotext",
+    "ghostscript-root",
+    "poppler-root",
+    "tessdata-root",
+    "windows-python-launcher",
+    "windows-ghostscript-launcher",
+  ]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith("--")) fail(`unexpected argument ${token}.`);
     const name = token.slice(2);
+    if (!Object.hasOwn(repeated, name) && !singleValueOptions.has(name)) fail(`unsupported argument --${name}.`);
     const value = argv[index + 1];
     if (!nonEmptyString(value) || value.startsWith("--")) fail(`--${name} requires a value.`);
     if (Object.hasOwn(repeated, name)) {
@@ -70,6 +86,13 @@ function parseArguments(argv) {
   }
   if (!SUPPORTED_PLATFORMS.has(values.platform)) fail(`platform must be one of ${[...SUPPORTED_PLATFORMS].join(", ")}.`);
   if (!repeated["library-root"].length) fail("at least one --library-root is required.");
+  if (values.platform === "win32-x64") {
+    for (const required of ["windows-python-launcher", "windows-ghostscript-launcher"]) {
+      if (!nonEmptyString(values[required])) fail(`--${required} is required for win32-x64.`);
+    }
+  } else if (values["windows-python-launcher"] !== undefined || values["windows-ghostscript-launcher"] !== undefined) {
+    fail("Windows launchers are valid only for win32-x64.");
+  }
   return {
     platform: values.platform,
     payload: path.resolve(values.payload),
@@ -82,6 +105,8 @@ function parseArguments(argv) {
     tessdataRoot: path.resolve(values["tessdata-root"]),
     libraryRoots: repeated["library-root"].map((value) => path.resolve(value)),
     resourceRoots: repeated["resource-root"].map((value) => path.resolve(value)),
+    windowsPythonLauncher: values["windows-python-launcher"] ? path.resolve(values["windows-python-launcher"]) : undefined,
+    windowsGhostscriptLauncher: values["windows-ghostscript-launcher"] ? path.resolve(values["windows-ghostscript-launcher"]) : undefined,
   };
 }
 
@@ -91,13 +116,36 @@ async function realDirectory(value, label) {
   return fs.realpath(value);
 }
 
-async function realFile(value, label) {
+async function isPeFile(target) {
+  const stat = await fs.lstat(target).catch(() => undefined);
+  if (!stat?.isFile() || stat.isSymbolicLink() || stat.size < 64) return false;
+  const handle = await fs.open(target, "r");
+  try {
+    const header = Buffer.alloc(64);
+    const { bytesRead } = await handle.read(header, 0, header.length, 0);
+    if (bytesRead !== header.length || !header.subarray(0, PE_MAGIC.length).equals(PE_MAGIC)) return false;
+    const peOffset = header.readUInt32LE(0x3c);
+    if (peOffset < header.length || peOffset > 1024 * 1024 || peOffset + PE_SIGNATURE.length > stat.size) return false;
+    const signature = Buffer.alloc(PE_SIGNATURE.length);
+    const read = await handle.read(signature, 0, signature.length, peOffset);
+    return read.bytesRead === signature.length && signature.equals(PE_SIGNATURE);
+  } finally {
+    await handle.close();
+  }
+}
+
+async function realFile(value, label, platform) {
   const stat = await fs.lstat(value).catch(() => undefined);
   if (!stat?.isFile() && !stat?.isSymbolicLink()) fail(`${label} must be an existing executable file.`);
   const actual = await fs.realpath(value);
   const actualStat = await fs.lstat(actual);
-  if (!actualStat.isFile() || (actualStat.mode & 0o111) === 0) fail(`${label} must resolve to an executable regular file.`);
+  if (!actualStat.isFile() || (!isWindowsPlatform(platform) && (actualStat.mode & 0o111) === 0)) fail(`${label} must resolve to an executable regular file.`);
+  if (isWindowsPlatform(platform) && !await isPeFile(actual)) fail(`${label} must resolve to a PE executable regular file.`);
   return actual;
+}
+
+function isWindowsPlatform(platform) {
+  return platform === "win32-x64";
 }
 
 function containedPath(roots, target, label) {
@@ -242,6 +290,43 @@ async function copyMacLibraries(options, libDirectory) {
     }
   }
   if (!copied.size) fail("no macOS native libraries were collected from the declared library roots.");
+  return copied;
+}
+
+async function listWindowsLibraryFiles(rootPath) {
+  const root = await realDirectory(rootPath, "Windows library root");
+  const results = [];
+  async function walk(current) {
+    const entries = await fs.readdir(current, { withFileTypes: true });
+    entries.sort((left, right) => left.name.localeCompare(right.name, "en"));
+    for (const entry of entries) {
+      const candidate = path.join(current, entry.name);
+      const stat = await fs.lstat(candidate);
+      if (stat.isSymbolicLink()) fail(`Windows library root contains a symlink: ${candidate}.`);
+      if (stat.isDirectory()) {
+        const actual = await fs.realpath(candidate);
+        containedPath([root], actual, "Windows library directory");
+        await walk(actual);
+        continue;
+      }
+      if (!stat.isFile()) fail(`Windows library root contains an unsupported filesystem entry: ${candidate}.`);
+      if (!entry.name.toLowerCase().endsWith(".dll")) continue;
+      if (!await isPeFile(candidate)) fail(`Windows library root contains a non-PE DLL: ${candidate}.`);
+      results.push(candidate);
+    }
+  }
+  await walk(root);
+  return results;
+}
+
+async function copyWindowsLibraries(options, binDirectory) {
+  const copied = new Map();
+  for (const rootPath of options.libraryRoots) {
+    for (const candidate of await listWindowsLibraryFiles(rootPath)) {
+      await copyByBasename(candidate, binDirectory, copied);
+    }
+  }
+  if (!copied.size) fail("no Windows native DLLs were collected from the declared library roots.");
   return copied;
 }
 
@@ -435,12 +520,25 @@ function wrapperFor(name, platform) {
   return `#!/bin/sh\nset -eu\n${root}\n${dynamic}\n${gs}exec \"$ROOT/libexec/${name}\" \"$@\"\n`;
 }
 
-async function writeLaunchers(payload, platform) {
+async function writeLaunchers(payload, options) {
+  const { platform } = options;
   const bin = path.join(payload, "bin");
-  const python = path.join(bin, "python3");
+  const python = isWindowsPlatform(platform) ? path.join(payload, "python.exe") : path.join(bin, "python3");
   const pythonStat = await fs.lstat(python).catch(() => undefined);
-  if (!pythonStat?.isFile() || pythonStat.isSymbolicLink() || (pythonStat.mode & 0o111) === 0) fail("OCR payload is missing safe isolated bin/python3.");
+  if (!pythonStat?.isFile() || pythonStat.isSymbolicLink() || (!isWindowsPlatform(platform) && (pythonStat.mode & 0o111) === 0)) {
+    fail(`OCR payload is missing safe isolated ${isWindowsPlatform(platform) ? "python.exe" : "bin/python3"}.`);
+  }
   await fs.mkdir(bin, { recursive: true, mode: 0o755 });
+  if (isWindowsPlatform(platform)) {
+    const [pythonLauncher, ghostscriptLauncher] = await Promise.all([
+      realFile(options.windowsPythonLauncher, "Windows Python launcher", platform),
+      realFile(options.windowsGhostscriptLauncher, "Windows Ghostscript launcher", platform),
+    ]);
+    await copyFile(pythonLauncher, path.join(bin, "ocrmypdf.exe"), { executable: true });
+    await copyFile(ghostscriptLauncher, path.join(bin, "gs.exe"), { executable: true });
+    if (process.platform !== "win32") fail("win32 payload must be assembled on win32.");
+    return;
+  }
   await writeText(path.join(bin, "ocrmypdf"), "#!/bin/sh\nset -eu\nROOT=$(CDPATH= cd -- \"$(dirname -- \"$0\")/..\" && pwd -P)\nexec \"$ROOT/bin/python3\" -I -m ocrmypdf \"$@\"\n", { executable: true });
   for (const name of ["tesseract", "gs", "pdftotext"]) await writeText(path.join(bin, name), wrapperFor(name, platform), { executable: true });
   if (platform === "darwin-arm64" && process.platform !== "darwin") fail("darwin payload must be assembled on darwin.");
@@ -456,16 +554,23 @@ async function build(options) {
   const payload = await realDirectory(options.payload, "payload");
   const libexec = path.join(payload, "libexec");
   const lib = path.join(payload, "lib");
+  const bin = path.join(payload, "bin");
   const share = path.join(payload, "share");
-  await Promise.all([fs.mkdir(libexec, { recursive: true, mode: 0o755 }), fs.mkdir(lib, { recursive: true, mode: 0o755 }), fs.mkdir(share, { recursive: true, mode: 0o755 })]);
+  await Promise.all([fs.mkdir(libexec, { recursive: true, mode: 0o755 }), fs.mkdir(lib, { recursive: true, mode: 0o755 }), fs.mkdir(bin, { recursive: true, mode: 0o755 }), fs.mkdir(share, { recursive: true, mode: 0o755 })]);
   const [tesseract, ghostscript, pdftotext] = await Promise.all([
-    realFile(options.tesseract, "tesseract"),
-    realFile(options.ghostscript, "ghostscript"),
-    realFile(options.pdftotext, "pdftotext"),
+    realFile(options.tesseract, "tesseract", options.platform),
+    realFile(options.ghostscript, "ghostscript", options.platform),
+    realFile(options.pdftotext, "pdftotext", options.platform),
   ]);
-  await copyFile(tesseract, path.join(libexec, "tesseract"), { executable: true });
-  await copyFile(ghostscript, path.join(libexec, "gs"), { executable: true });
-  await copyFile(pdftotext, path.join(libexec, "pdftotext"), { executable: true });
+  if (isWindowsPlatform(options.platform)) {
+    await copyFile(tesseract, path.join(bin, "tesseract.exe"), { executable: true });
+    await copyFile(ghostscript, path.join(bin, "gswin64c.exe"), { executable: true });
+    await copyFile(pdftotext, path.join(bin, "pdftotext.exe"), { executable: true });
+  } else {
+    await copyFile(tesseract, path.join(libexec, "tesseract"), { executable: true });
+    await copyFile(ghostscript, path.join(libexec, "gs"), { executable: true });
+    await copyFile(pdftotext, path.join(libexec, "pdftotext"), { executable: true });
+  }
 
   const resource = path.join(share, "ghostscript");
   await fs.mkdir(resource, { recursive: true, mode: 0o755 });
@@ -484,7 +589,7 @@ async function build(options) {
   if (options.platform === "darwin-arm64") {
     copied = await copyMacLibraries(options, lib);
     await finalizeMacPayload(payload, new Set(copied.keys()));
-  } else {
+  } else if (options.platform === "linux-x64") {
     const pythonNativeFiles = [];
     for (const target of await listRegularFiles(lib)) {
       if (await isElfFile(target)) pythonNativeFiles.push(target);
@@ -496,14 +601,17 @@ async function build(options) {
       ...pythonNativeFiles,
     ], lib);
     await finalizeLinuxPayload(payload);
+  } else {
+    copied = await copyWindowsLibraries(options, bin);
   }
-  await writeLaunchers(payload, options.platform);
+  await writeLaunchers(payload, options);
 
+  const extension = isWindowsPlatform(options.platform) ? ".exe" : "";
   const versions = {
-    tesseract: await captureVersion(path.join(payload, "bin", "tesseract"), ["--version"]),
-    ghostscript: await captureVersion(path.join(payload, "bin", "gs"), ["--version"]),
-    pdftotext: await captureVersion(path.join(payload, "bin", "pdftotext"), ["-v"]),
-    ocrmypdf: await captureVersion(path.join(payload, "bin", "ocrmypdf"), ["--version"]),
+    tesseract: await captureVersion(path.join(payload, "bin", `tesseract${extension}`), ["--version"]),
+    ghostscript: await captureVersion(path.join(payload, "bin", `gs${extension}`), ["--version"]),
+    pdftotext: await captureVersion(path.join(payload, "bin", `pdftotext${extension}`), ["-v"]),
+    ocrmypdf: await captureVersion(path.join(payload, "bin", `ocrmypdf${extension}`), ["--version"]),
   };
   const tessdata = path.join(payload, "share", "tessdata");
   const leakedLanguage = (await listRegularFiles(tessdata)).find((file) => file.endsWith(".traineddata"));

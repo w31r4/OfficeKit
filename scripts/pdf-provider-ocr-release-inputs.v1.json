@@ -25,6 +25,27 @@
           "ghostscript": "/usr/bin/gs",
           "pdftotext": "/usr/bin/pdftotext"
         }
+      },
+      "win32-x64": {
+        "tesseract": {
+          "version": "5.5.0.20241111",
+          "url": "https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe",
+          "sha256": "f3fc4236425b690c8be756f35793f77394ee004be0a6460a440c754d892f68bc",
+          "downloadBytes": 21381872
+        },
+        "ghostscript": {
+          "version": "10.05.1",
+          "url": "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10051/gs10051w64.exe",
+          "sha256": "a0e49d912d21d8193ff0cb89ef741a47b21286fbb0a0e35dd0192b0097d35766",
+          "downloadBytes": 64674040
+        },
+        "poppler": {
+          "version": "24.08.0-0",
+          "url": "https://github.com/oschwartz10612/poppler-windows/releases/download/v24.08.0-0/Release-24.08.0-0.zip",
+          "sha256": "58a6f9ae269756231d2f9aa6cba39d75fec6deacaf3c4a50683383b5f3d5a527",
+          "downloadBytes": 15090263,
+          "root": "poppler-24.08.0"
+        }
       }
     }
   },
@@ -51,6 +72,23 @@
       "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/4.1.0/LICENSE",
       "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
       "downloadBytes": 11358
+    },
+    "windowsNative": {
+      "tesseractApache20": {
+        "url": "https://raw.githubusercontent.com/tesseract-ocr/tesseract/5.5.0/LICENSE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "downloadBytes": 11358
+      },
+      "ghostscriptAgpl30": {
+        "url": "https://www.gnu.org/licenses/agpl-3.0.txt",
+        "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
+        "downloadBytes": 34523
+      },
+      "popplerGpl20": {
+        "url": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt",
+        "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
+        "downloadBytes": 17984
+      }
     }
   }
 }
