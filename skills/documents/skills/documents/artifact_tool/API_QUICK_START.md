@@ -896,6 +896,13 @@ document.addParagraph("This conclusion must remain on one page.", {
 document.addParagraph("Avoid a single first or last line at a page boundary.", {
   paragraphFormat: { widowControl: true },
 });
+document.addParagraph("A generated-outline entry.", {
+  paragraphFormat: { outlineLevel: 1 },
+});
+document.addParagraph("Body text despite an inherited heading style.", {
+  styleId: "Heading1",
+  paragraphFormat: { outlineLevel: 9 },
+});
 document.addParagraph("Appendix", {
   styleId: "Heading1",
   paragraphFormat: { pageBreakBefore: true },
@@ -906,7 +913,11 @@ document.addParagraph("Appendix", {
 `w:keepLines` and `w:widowControl`: `true` enables the selected host policy,
 `false` explicitly overrides an inherited named-style value, and omission
 inherits. Canonical direct/style `w:keepNext`, `w:keepLines`,
-`w:widowControl`, and `w:pageBreakBefore` leaves are editable after import. Duplicate,
+`w:widowControl`, and `w:pageBreakBefore` leaves are editable after import.
+`outlineLevel` is independent structure metadata: integer `0` through `8`
+selects the native outline level, `9` explicitly clears an inherited level,
+and omission inherits; it writes `w:outlineLvl` without restyling text or
+calculating a TOC. Duplicate,
 child-bearing, extension-bearing, or invalid lexical pagination markup remains
 source-owned and fails closed on semantic replacement. Use native Word or
 LibreOffice rendering to confirm the actual page boundary.
