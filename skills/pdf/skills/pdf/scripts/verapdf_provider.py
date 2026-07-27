@@ -177,14 +177,49 @@ def run_bounded(
     except OSError as exc:
         raise ProviderError(f"veraPDF could not start {executable}: {bounded_text(exc)}") from exc
 
-    def record_violation(message: str) -> None:
-        with lock:
-            if not violations:
-                violations.append(message)
+    def terminate_process_tree() -> None:
+        """End the provider and, on Windows, any command-wrapper descendants.
+
+        A caller can select a verified native ``.exe`` from a managed pack,
+        but the test and system-only paths also permit an explicit command
+        wrapper.  Windows may host a ``.cmd`` wrapper under ``cmd.exe``;
+        terminating only that parent leaves its child holding stdout/stderr
+        open and defeats the adapter's timeout.  Use the OS-owned taskkill
+        binary by absolute path, never a shell or PATH lookup, then retain
+        the direct process kill as the portable fallback.
+        """
+        if process.poll() is not None:
+            return
+        if os.name == "nt":
+            system_root = os.environ.get("SystemRoot") or os.environ.get("WINDIR") or r"C:\Windows"
+            taskkill = Path(system_root) / "System32" / "taskkill.exe"
+            if taskkill.is_file():
+                try:
+                    subprocess.run(
+                        [str(taskkill), "/PID", str(process.pid), "/T", "/F"],
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        shell=False,
+                        check=False,
+                        timeout=10,
+                    )
+                except (OSError, subprocess.TimeoutExpired):
+                    # The direct kill below still guarantees a bounded
+                    # best-effort termination when taskkill itself is absent
+                    # or unavailable in a constrained host.
+                    pass
         try:
             process.kill()
         except OSError:
             pass
+
+    def record_violation(message: str) -> None:
+        with lock:
+            if violations:
+                return
+            violations.append(message)
+        terminate_process_tree()
 
     def pump(stream: Any, buffer: bytearray, limit: int, label: str) -> None:
         try:
@@ -210,10 +245,18 @@ def run_bounded(
         process.wait(timeout=timeout_seconds)
     except subprocess.TimeoutExpired:
         timed_out = True
-        process.kill()
-        process.wait()
-    stdout_thread.join()
-    stderr_thread.join()
+        terminate_process_tree()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired as exc:
+            raise ProviderError("veraPDF did not terminate within 10 seconds after the timeout") from exc
+    # A provider must not retain our capture handles after its bounded process
+    # lifetime.  The timeout makes a bad command-wrapper tree a clear error
+    # rather than an indefinitely hung Agent task.
+    stdout_thread.join(timeout=10)
+    stderr_thread.join(timeout=10)
+    if stdout_thread.is_alive() or stderr_thread.is_alive():
+        raise ProviderError("veraPDF output capture did not close after process termination")
     if timed_out:
         raise ProviderError(f"veraPDF timed out after {timeout_seconds} seconds")
     if violations:

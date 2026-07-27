@@ -19,6 +19,12 @@ assert.match(providerSource, /popen_options\["executable"\] = str\(executable\)/
   "the Windows adapter must bind a native launcher directly instead of routing it through a command shell");
 assert.match(providerSource, /shell": False/,
   "the Windows adapter must not introduce a command shell while binding its launcher");
+assert.match(providerSource, /taskkill\.exe/,
+  "a timed-out Windows command wrapper must terminate its child process tree instead of retaining output pipes");
+assert.match(providerSource, /"\/PID", str\(process\.pid\), "\/T", "\/F"/,
+  "the Windows process-tree terminator must bind only the spawned numeric PID");
+assert.match(providerSource, /output capture did not close after process termination/,
+  "provider capture shutdown must be bounded even if a child retains its inherited pipes");
 // GitHub's Windows image has both a native Python and Git Bash's POSIX
 // `python3` shim. The adapter must execute the native veraPDF launcher with
 // native CreateProcess semantics, so the release lane may pin its interpreter
