@@ -38,45 +38,40 @@ Use OfficeKit to inspect the forms, signatures, and accessibility of report.pdf 
 
 ## Quick Start
 
-On Apple Silicon macOS and x64 Linux, install the distribution that carries its
-own Node 24.18.0 runtime:
-
-```sh
-curl -fsSL https://github.com/w31r4/OfficeKit/releases/download/v0.5.0/install.sh | sh
-officekit init
-```
-
-The installer verifies a pinned byte size and SHA-256, publishes the version
-under `~/.office-kit/versions/0.5.0`, and atomically switches
-`~/.office-kit/current`. Add the single `~/.local/bin/officekit` command to
-`PATH`. A failed upgrade leaves the active version available.
-
-Developers on other platforms, or those who prefer the system runtime, can use
-the global npm package with Node.js 22.15 or newer:
+Install OfficeKit once on Windows, macOS, or Linux. It requires Node.js 22.15
+or newer:
 
 ```sh
 npm install -g github:w31r4/OfficeKit
+```
+
+Then enter the project where you want to work with Office files:
+
+```sh
+cd your-project
 officekit init
 ```
 
-`officekit init` detects the agent tools used by the current project, then
-installs the OfficeKit entry point, the four file-type Skills, Excel Live
-Control, and Template Creator into their project directories.
-
-For scripts and CI, select the tools directly:
+`officekit init` finds the Agent configurations in the project and lets you
+choose which directories receive the seven OfficeKit Skills. Press Enter to
+accept the detected targets, or name them explicitly:
 
 ```sh
 officekit init --tools claude,cursor
 ```
 
-After installing a new standalone version or upgrading the global package, run
-`officekit update` in the project to refresh its Skills. Specialist PDF
-providers continue to load their own runtimes according to project policy.
+You can also tell your current Agent:
 
-After the formal npm release, the global installation command becomes:
+> Set up OfficeKit in this project.
+
+It checks or installs `officekit`, runs initialization, and selects targets from
+the project configuration. It asks you to confirm only when several Agent
+targets are present or none can be identified.
+
+After an upgrade, refresh the installed Skills from the project:
 
 ```sh
-npm install -g office-kit
+officekit update
 ```
 
 Run JavaScript tasks referenced by the Skills with:
@@ -87,11 +82,6 @@ officekit run task.mjs -- input.docx output.docx
 
 `officekit run` supplies the matching global OfficeKit API. A task's other
 dependencies continue to resolve from the task's own project.
-
-The standalone distribution carries OfficeKit JavaScript, production
-dependencies, OfficeKit Codec WASM, MuPDF, seven Skills, twenty templates,
-licenses, and a CycloneDX SBOM. qpdf, OCR, Python, JRE, LibreOffice, and Poppler
-load by task under project policy.
 
 ## One front door, with direct routes when you want them
 

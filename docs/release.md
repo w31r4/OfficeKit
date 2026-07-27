@@ -21,8 +21,8 @@ Pinned release identities:
 
 | Target | Archive bytes | Unpacked bytes | Files | SHA-256 |
 | --- | ---: | ---: | ---: | --- |
-| `darwin-arm64` | 84,108,956 | 192,052,558 | 1,146 | `4e7984fd5aa984f09e3ae6c4467c4406d7d52777be16d1ddabaca80baf61d361` |
-| `linux-x64` | 89,230,204 | 194,743,061 | 1,146 | `72aa6f6402022f8ba3f0ee63d41a23695836e9f988e11c3ba015e08db964704f` |
+| `darwin-arm64` | 84,108,420 | 192,058,239 | 1,146 | `e6aaf1f801833f2db93ba0f1727723527ff09d70cefec1e73fb92cfb2c04eb89` |
+| `linux-x64` | 89,231,389 | 194,748,742 | 1,146 | `2443220caec145945eeef1bce5d3d103e861c8728205e9a60e42904966161985` |
 
 The runtime catalog separately pins the official Node archives:
 `e1a97e14c99c803e96c7339403282ea05a499c32f8d83defe9ef5ec66f979ed1`
@@ -45,7 +45,7 @@ build and installation on native GitHub-hosted macOS arm64 and Linux x64
 runners before any asset can be attached to a release.
 
 The corresponding npm candidate remains the system-Node distribution: 641
-files, 36,060,733 compressed bytes, and 52,800,519 unpacked bytes. Platform
+files, 36,063,124 compressed bytes, and 52,806,200 unpacked bytes. Platform
 archives and standalone build tooling stay in the GitHub release lane rather
 than the npm tarball.
 
