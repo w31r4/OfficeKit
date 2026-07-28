@@ -1,0 +1,172 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [ 4 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+/OutputIntents [ 12 0 R ]
+/OCProperties <<
+/OCGs [ 9 0 R ]
+/D <<
+/Order [ 9 0 R ]
+/ON [ 9 0 R ]
+>>
+>>
+>>
+endobj
+4 0 obj
+<<
+/Contents [ 5 0 R 10 0 R ]
+/MediaBox [ 0 0 612 792 ]
+/Resources <<
+/Font 6 0 R
+/ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+/ColorSpace <<
+/SpotRisk [ /Separation /PANTONE#2320185#2320C /DeviceCMYK <<
+/FunctionType 2
+/Domain [ 0 1 0 1 ]
+/Range [ 0 1 0 1 0 1 0 1 ]
+/C0 [ 0 0 0 0 ]
+/C1 [ 1 1 1 1 ]
+/N 1
+>> ]
+/BrandDeviceN [ /DeviceN [ /PANTONE#2320185#2320C /PANTONE#2320293#2320C ] /DeviceCMYK <<
+/FunctionType 2
+/Domain [ 0 1 0 1 ]
+/Range [ 0 1 0 1 0 1 0 1 ]
+/C0 [ 0 0 0 0 ]
+/C1 [ 1 1 1 1 ]
+/N 1
+>> ]
+>>
+/ExtGState <<
+/GSPrint <<
+/Type /ExtGState
+/OP true
+/op true
+/OPM 1
+/CA 0.75
+/ca 0.75
+/BM /Multiply
+>>
+>>
+/Properties <<
+/Proofing 9 0 R
+>>
+>>
+/Rotate 0
+/Trans <<
+>>
+/Type /Page
+/Parent 2 0 R
+>>
+endobj
+5 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ]
+/Length 331
+>>
+stream
+GarW4hep:R*/3j0MK?<[NqGoIe]YKfB#ueE`sWH9b,1C'2;?lH<jNXL&0MP0q7]*Bnt9FAHXJIGpIl\>\HW?e+CFXa8$&Y6/LFk)M7TY$q!f=^UERK?dltX*<MrC%Vc3I\TG@^l*`qgH\od7*gN5L0efi]@KsgkS>qjllT9(u6O9AG:K1[WZ'!1.-1&L!B`F;[)s3dq#FJ-aXNUU[mcksGp_*gDSK@T+$%##5P<D\<:oPK1tGAS/9BFcHbhK+Y;_]lj;9qGI1a`m!g-0#V";nYHJ8+aL4C,&6._&*utID'YRDn4Z+J)DtE,+?2cam+--NR9E;m;f`~>
+endstream
+endobj
+6 0 obj
+<<
+/F1 7 0 R
+/F2 8 0 R
+>>
+endobj
+7 0 obj
+<<
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Name /F1
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+8 0 obj
+<<
+/BaseFont /Helvetica-Bold
+/Encoding /WinAnsiEncoding
+/Name /F2
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+9 0 obj
+<<
+/Type /OCG
+/Name (Print proofing layer)
+>>
+endobj
+10 0 obj
+<<
+/Length 87
+>>
+stream
+q
+/GSPrint gs
+/OC /Proofing BDC
+/BrandDeviceN cs
+0.75 0.25 scn
+54 54 175 24 re f
+EMC
+Q
+
+endstream
+endobj
+11 0 obj
+<<
+/N 4
+/Length 63
+>>
+stream
+OfficeKit PromptBench synthetic CMYK output profile placeholder
+endstream
+endobj
+12 0 obj
+<<
+/Type /OutputIntent
+/S /GTS_PDFX
+/OutputConditionIdentifier (OfficeKit synthetic print condition)
+/Info (Structural print\055production risk fixture\073 not a certified PDF\057X profile\056)
+/DestOutputProfile 11 0 R
+>>
+endobj
+xref
+0 13
+0000000000 65535 f 
+0000000015 00000 n 
+0000000054 00000 n 
+0000000113 00000 n 
+0000000264 00000 n 
+0000000984 00000 n 
+0000001406 00000 n 
+0000001447 00000 n 
+0000001554 00000 n 
+0000001666 00000 n 
+0000001727 00000 n 
+0000001865 00000 n 
+0000001984 00000 n 
+trailer
+<<
+/Size 13
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+2223
+%%EOF
