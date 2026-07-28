@@ -106,9 +106,19 @@ candidate print zero, still preserved the source and emitted only an audit, but
 failed hard gates because the Agent wrote a noncanonical or incomplete typed
 no-artifact/no-mutation envelope. This is recorded as an audit-contract
 reliability gap, not relabeled as a semantic PDF success. `pdf_audit.py
-failed-closed` now owns the canonical audit-only refusal generation; its next
-matrix is a new candidate package, not a retroactive rewrite of this evidence.
-The evaluator normalizes the published audit envelope and structured equivalent
+failed-closed` now owns the canonical audit-only refusal generation. At clean
+commit `51d3275fa2e94aabe2c381a2a16dbc4d942f9054`, a new package SHA-256
+`812067781a90d0efc8058fc841a1369eb6b1497e52f71a1fde6b9316f7730e47`
+passed a fresh print-production matrix at candidate `3/3` and reference `3/3`,
+all `100/100` with every hard gate. The candidate Skill SHA-256 was
+`bce7065aba7e4836f171b9103c49857afef84cf3222ea0518ae91a857780c7fd`; the
+reference Skill SHA-256 remained
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`.
+Every one of those six traces invoked `pdf_audit.py failed-closed`; the output
+had only `audit.json`, `output: null`, an explicit provider/version, typed
+source preservation, typed no-artifact checks, and no mutation command. This
+is a new package identity, not a retroactive rewrite of earlier evidence. The
+evaluator normalizes the published audit envelope and structured equivalent
 forms: an explicit
 no-mutation result can be `executed: false`, `performed: false`/`"none"`,
 `mutationAttempted: false`, or a typed `refused_not_attempted` operation. It
