@@ -253,6 +253,15 @@ const requiredFiles = [
 ];
 for (const file of requiredFiles) assert.ok(manifest.includes(file), `PDF manifest is missing ${file}`);
 
+const ruledTableWorkflow = await fs.readFile(path.join(skillRoot, "examples", "officekit-ruled-cross-page-table-workflow.mjs"), "utf8");
+assert.doesNotMatch(
+  ruledTableWorkflow,
+  /from\s+["'](?!node:)/,
+  "the shipped ruled-table workflow must not acquire an undeclared clean-install dependency",
+);
+assert.match(ruledTableWorkflow, /data:image\/png;base64/, "the Poppler review overlay must embed its rendered source page");
+assert.match(ruledTableWorkflow, /table-overlay-\$\{segment\.page\}\.svg/, "the Poppler review overlay must remain a self-contained visual artifact");
+
 const skillText = await fs.readFile(path.join(skillRoot, "SKILL.md"), "utf8");
 assert.ok(skillText.split(/\r?\n/).length <= 210, "PDF Skill overview should route, not duplicate task references");
 assert.match(skillText, /scripts\/mupdf\.mjs/);

@@ -14,8 +14,6 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import sharp from "sharp";
-
 const here = path.dirname(fileURLToPath(import.meta.url));
 const scripts = path.resolve(here, "..", "scripts");
 
@@ -113,10 +111,24 @@ function run(command, args, label) {
   return completed.stdout;
 }
 
-function overlaySvg(width, height, bbox, title) {
+function pngDimensions(bytes, label) {
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (bytes.length < 24 || !bytes.subarray(0, 8).equals(signature) || bytes.subarray(12, 16).toString("ascii") !== "IHDR") {
+    throw new Error(`${label} is not a complete PNG raster`);
+  }
+  const width = bytes.readUInt32BE(16);
+  const height = bytes.readUInt32BE(20);
+  if (!width || !height) throw new Error(`${label} has invalid PNG dimensions`);
+  return { width, height };
+}
+
+function overlaySvg(width, height, bbox, title, sourcePng) {
   const [x0, top, x1, bottom] = bbox.map(Number);
+  if (![x0, top, x1, bottom].every(Number.isFinite) || x1 <= x0 || bottom <= top) throw new Error("table bbox is invalid for Poppler overlay");
   const safeTitle = String(title).replace(/[&<>]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[character]);
-  return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect x="${x0}" y="${top}" width="${x1 - x0}" height="${bottom - top}" fill="none" stroke="#e63946" stroke-width="2"/><rect x="${x0}" y="${Math.max(0, top - 18)}" width="${Math.max(140, safeTitle.length * 7)}" height="17" fill="#e63946"/><text x="${x0 + 4}" y="${Math.max(12, top - 5)}" fill="white" font-family="Arial" font-size="11">${safeTitle}</text></svg>`;
+  const labelWidth = Math.min(width - x0, Math.max(140, safeTitle.length * 7));
+  const embeddedRaster = sourcePng.toString("base64");
+  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><image href="data:image/png;base64,${embeddedRaster}" width="${width}" height="${height}"/><rect x="${x0}" y="${top}" width="${x1 - x0}" height="${bottom - top}" fill="none" stroke="#e63946" stroke-width="2"/><rect x="${x0}" y="${Math.max(0, top - 18)}" width="${labelWidth}" height="17" fill="#e63946"/><text x="${x0 + 4}" y="${Math.max(12, top - 5)}" fill="white" font-family="Arial" font-size="11">${safeTitle}</text></svg>`;
 }
 
 async function writeAtomic(target, value) {
@@ -148,17 +160,18 @@ async function renderAndOverlay({ source, result, renderDir, pdftoppm }) {
   const overlays = [];
   for (const segment of result.table.segments) {
     const sourcePng = path.join(renderDir, `source-${segment.page}.png`);
-    const metadata = await sharp(sourcePng).metadata();
-    if (!metadata.width || !metadata.height) throw new Error(`Poppler page ${segment.page} has no image dimensions`);
-    const xScale = metadata.width / Number(segment.pageSize.width);
-    const yScale = metadata.height / Number(segment.pageSize.height);
+    const sourcePngBytes = await fs.readFile(sourcePng);
+    const { width, height } = pngDimensions(sourcePngBytes, `Poppler page ${segment.page}`);
+    const xScale = width / Number(segment.pageSize.width);
+    const yScale = height / Number(segment.pageSize.height);
+    if (!Number.isFinite(xScale) || !Number.isFinite(yScale) || xScale <= 0 || yScale <= 0) throw new Error(`Poppler page ${segment.page} has invalid scale evidence`);
     const [x0, top, x1, bottom] = segment.tableBBox;
     const scaled = [x0 * xScale, top * yScale, x1 * xScale, bottom * yScale];
-    const overlay = path.join(renderDir, `table-overlay-${segment.page}.png`);
-    await sharp(sourcePng)
-      .composite([{ input: Buffer.from(overlaySvg(metadata.width, metadata.height, scaled, `ruled table: ${result.table.title}`)) }])
-      .png()
-      .toFile(overlay);
+    // An SVG embeds the exact Poppler raster before drawing the review box.
+    // This keeps the shipped workflow self-contained: `sharp` is an optional
+    // package peer and must not become an accidental clean-install dependency.
+    const overlay = path.join(renderDir, `table-overlay-${segment.page}.svg`);
+    await writeAtomic(overlay, overlaySvg(width, height, scaled, `ruled table: ${result.table.title}`, sourcePngBytes));
     const overlayStat = await fs.stat(overlay);
     if (overlayStat.size < 1_000) throw new Error(`table overlay for page ${segment.page} is unexpectedly small`);
     overlays.push({ page: segment.page, source: sourcePng, overlay, bytes: overlayStat.size, tableBBox: segment.tableBBox });
