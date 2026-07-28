@@ -93,12 +93,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 27 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 28 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 15);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 16);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
@@ -127,12 +127,16 @@ assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /15 ready PDF cases include seven locked corpus signature\/boundary fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 14 asset-required cases/i);
+assert.match(runnerHelp.stdout, /16 ready PDF cases include eight locked corpus signature\/boundary fixtures/i);
+assert.match(runnerHelp.stdout, /remaining 13 asset-required cases/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
 assert.doesNotMatch(highlightVisible.prompt, /oracleSha256|outputHighlights|changedWithinAllowedMask/i);
+const mixedScanVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-mixed-scan-ocr-boundary"));
+assert.match(mixedScanVisible.prompt, /倒置.*倾斜|倾斜.*倒置/);
+assert.match(mixedScanVisible.prompt, /born-digital selectable-text canaries/i);
+assert.doesNotMatch(mixedScanVisible.prompt, /scanImageCanariesMatch|imageOnlyPages|pixelEncodedDeskewDegrees/i);
 
 const corpusPython = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "python3";
 const corpusVerification = spawnSync(corpusPython, ["scripts/agent-eval-corpus-fixtures.py", "verify"], {
@@ -150,6 +154,7 @@ const lockedFixturePaths = [
   "pdf/encryption/user-password.json",
   "pdf/annotations/reply-chain.pdf",
   "pdf/accessibility/untagged-complex-report.pdf",
+  "pdf/ocr/mixed-bilingual-scan.pdf",
   "pdf/xfa/dynamic-dependents.pdf",
   "pdf/print/print-production-risk.pdf",
   "pdf/signing/docmdp-p1-final.pdf",
@@ -171,7 +176,7 @@ assert.equal(docmdpP2Item?.status, "ready");
 assert.equal(docmdpP2Item?.inputs?.some((input) => input.asset === "pdf/signing/test-pki/docmdp-p2-root.pem"), true);
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 10, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 11, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -220,6 +225,7 @@ const boundaryCases = [
   { id: "pdf-encrypted-owner-policy-boundary", boundary: "encrypted-owner-policy", source: path.join(repoRoot, "evals", "assets", "pdf", "encryption", "owner-policy-aes256.pdf"), userPassword: "fixture-user-password", diagnostic: "owner password is unavailable" },
   { id: "pdf-annotation-reply-resolve-boundary", boundary: "annotation-reply-chain", source: path.join(repoRoot, "evals", "assets", "pdf", "annotations", "reply-chain.pdf"), diagnostic: "reply chain and resolved state are not supported" },
   { id: "pdf-auto-pdfua-overclaim-refusal", boundary: "pdfua-overclaim", source: path.join(repoRoot, "evals", "assets", "pdf", "accessibility", "untagged-complex-report.pdf"), diagnostic: "human author intent is required" },
+  { id: "pdf-mixed-scan-ocr-boundary", boundary: "mixed-scan-ocr", source: path.join(repoRoot, "evals", "assets", "pdf", "ocr", "mixed-bilingual-scan.pdf"), diagnostic: "deskew and orientation preprocessing are not in the published OCR profile" },
   { id: "pdf-dynamic-xfa-boundary", boundary: "dynamic-xfa", source: path.join(repoRoot, "evals", "assets", "pdf", "xfa", "dynamic-dependents.pdf"), diagnostic: "Dynamic XFA runtime is not supported" },
   { id: "pdf-print-production-boundary", boundary: "print-production", source: path.join(repoRoot, "evals", "assets", "pdf", "print", "print-production-risk.pdf"), diagnostic: "DeviceN and overprint need preflight" },
   { id: "pdf-docmdp-forbidden-title-edit", boundary: "docmdp-p1", source: path.join(repoRoot, "evals", "assets", "pdf", "signing", "docmdp-p1-final.pdf"), diagnostic: "DocMDP P=1 prohibits title modification", provider: "pyhanko" },
@@ -361,6 +367,29 @@ const xfaFixtureFailure = gradeBoundaryRefusalEvidence({
   outputEntries: ["audit.json"],
 });
 assert.equal(xfaFixtureFailure.find((check) => check.id === "pdf-machine:source-boundary-fixture")?.passed, false);
+const mixedScanBoundary = boundaryCases.find((boundary) => boundary.id === "pdf-mixed-scan-ocr-boundary");
+const mixedScanItem = cases.find((candidate) => candidate.id === mixedScanBoundary.id);
+const mixedScanEvidence = boundaryOracle(mixedScanBoundary.boundary, mixedScanBoundary.source);
+mixedScanEvidence.scanImageCanariesMatch = false;
+const mixedScanFixtureFailure = gradeBoundaryRefusalEvidence({
+  evidence: mixedScanEvidence,
+  audit: {
+    status: "failed_closed",
+    source: { sha256: mixedScanEvidence.source.sha256 },
+    output: null,
+    provider: { actual: "ocrmypdf", version: "17.8.1", silentFallback: false },
+    savePolicy: { strategy: "none", executed: false, sourcePreserved: true, artifactPublished: false },
+    operation: { type: "ocr-with-automatic-deskew", executed: false },
+    validation: { no_partial_modified_pdf_in_outputs: true, outputDirectoryPolicy: { modifiedPdfPresent: false, partialArtifactPresent: false } },
+    delivered_modified_pdf: false,
+    reason: "deskew and orientation preprocessing are not in the published OCR profile",
+  },
+  commands: ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider ocrmypdf"],
+  finalMessage: "deskew and orientation preprocessing are not in the published OCR profile",
+  item: mixedScanItem,
+  outputEntries: ["audit.json"],
+});
+assert.equal(mixedScanFixtureFailure.find((check) => check.id === "pdf-machine:source-boundary-fixture")?.passed, false);
 
 const p2ProviderPython = process.env.OFFICE_KIT_PYHANKO_TEST_PYTHON;
 const p2Poppler = process.env.OFFICE_KIT_AGENT_EVAL_PDFTOPPM || "pdftoppm";

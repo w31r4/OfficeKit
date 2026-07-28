@@ -16,9 +16,9 @@ The suite is evaluator-side repository infrastructure. `evals/`, the runner, loc
 ## Current suite
 
 - 41 cases: 21 PDF, 7 Documents, 7 Spreadsheets, and 6 Presentations. PDF is 51.2% of the suite and is required to remain an absolute majority, so a meaningful Office vertical slice never creates unrelated PDF filler prompts.
-- 27 `ready` cases: 15 PDF cases, four bounded XLSX workflows (threaded-comment, formula-assumption update, source-bound connection refresh-on-open, and source-bound Pivot refresh-on-open), four DOCX workflows (classic-comment plus source-bound header/footer text and source-bound section page numbering), and four PPTX workflows (title plus fixed-topology rich-speaker-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone).
-- Seven locked, self-authored PDF corpus inputs are now ready. Six are auditable safe-refusal boundaries: AES-256 owner/user permission split, native annotation reply chain, untagged complex report, Dynamic XFA packet, print-production risk structure, and a real DocMDP P=1 certification signature with a public test root. The seventh is a real DocMDP P=2/FieldMDP form whose one permitted controlled finalisation is independently graded. Every asset has a committed SHA-256/byte manifest and parser oracle; generic “no output” does not pass either kind of case.
-- 14 `asset-required` cases still await their pinned corpus files or test PKI. They remain excluded from readiness and repeat-matrix claims.
+- 28 `ready` cases: 16 PDF cases, four bounded XLSX workflows (threaded-comment, formula-assumption update, source-bound connection refresh-on-open, and source-bound Pivot refresh-on-open), four DOCX workflows (classic-comment plus source-bound header/footer text and source-bound section page numbering), and four PPTX workflows (title plus fixed-topology rich-speaker-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone).
+- Eight locked, self-authored PDF corpus inputs are now ready. Seven are auditable safe-refusal boundaries: AES-256 owner/user permission split, native annotation reply chain, untagged complex report, mixed bilingual scan orientation/deskew, Dynamic XFA packet, print-production risk structure, and a real DocMDP P=1 certification signature with a public test root. The eighth is a real DocMDP P=2/FieldMDP form whose one permitted controlled finalisation is independently graded. Every asset has a committed SHA-256/byte manifest and parser oracle; generic “no output” does not pass either kind of case.
+- 13 `asset-required` cases still await their pinned corpus files or test PKI. They remain excluded from readiness and repeat-matrix claims.
 - Every family has both a success and a fail-closed case. Some advanced PDF cases accept either verified success or an explicit safe refusal.
 - The default policy uses three trials per subject. Trial count is recorded per case rather than silently inferred by the Agent.
 
@@ -32,6 +32,7 @@ npm run eval:agents -- list --family pdf --status ready
 npm run eval:agents -- show pdf-bounded-contract-id-replace
 npm run eval:agents -- prepare pdf-bounded-contract-id-replace --subject candidate --trial 1
 npm run eval:agents -- prepare pdf-encrypted-owner-policy-boundary --subject candidate --trial 1
+npm run eval:agents -- prepare pdf-mixed-scan-ocr-boundary --subject candidate --trial 1
 npm run eval:agents -- prepare pdf-bounded-contract-id-replace --subject reference --trial 1
 npm run eval:agents -- prepare pdf-source-bound-text-highlight --subject candidate --trial 1
 npm run eval:agents -- run pdf-source-bound-text-highlight --subject candidate --trial 1
@@ -67,7 +68,7 @@ Generated PDF fixtures and the locked-corpus verifier require Python with Report
 
 ## Locked boundary corpus
 
-The seven ready signature/boundary fixtures live below `evals/assets/`, outside the npm
+The eight ready signature/boundary fixtures live below `evals/assets/`, outside the npm
 payload. `integrity.json` records every declared file's SHA-256 and byte count;
 the runner rejects a missing manifest entry, a mismatched byte stream, or a
 symbolic link before copying a file into the read-only trial workspace. The
@@ -81,8 +82,11 @@ candidate provider. It verifies the actual AES-256 permission dictionary and
 attachment/form canaries; `/IRT` reply, Popup, Highlight, author/date and
 review-state graph; missing PDF structure tree plus visual-complexity canaries;
 XFA template/datasets, repeat-subform, FormCalc, JavaScript and
-`NeedsRendering`; or DeviceN, Separation, overprint, transparency, OCG and
-OutputIntent dictionaries. A response passes only if that input proof, a
+`NeedsRendering`; DeviceN, Separation, overprint, transparency, OCG and
+OutputIntent dictionaries; or the eight-page mixed-document proof: six exact
+image-only scan canaries plus two true-text pages, pinned image pixels for the
+upside-down/sideways/`+3°`/`-2°` preprocessing cases, and the document
+language/metadata canaries. A response passes only if that input proof, a
 failed-closed audit bound to the source hash, an explicit inspection trace,
 no-fallback/no-mutation evidence, and the case diagnostic all agree. At clean
 commit `42cd55bdf78696e1b56302981a49ce7dbcc9325f`, all three AES candidate
@@ -185,6 +189,18 @@ public-root SHA-256
 `11ac11935e4637e4c971086b777e584309824389d63693904539042de87de902`. This is
 a Skill-workflow comparison over the same candidate package, not a claim that
 the reference package independently supplies this OfficeKit primitive.
+
+`pdf-mixed-scan-ocr-boundary` is a real source asset rather than an obsolete
+“planned provider” placeholder. The managed OCR route can install OCRmyPDF,
+Tesseract 5, and explicit `eng`/`chi_sim` language packs, and its `skip` mode
+does preserve pages that already carry true text. The requested pixel-level
+upside-down/sideways correction and `+3°`/`-2°` deskew, however, are not a
+published typed OCR preprocessing operation. The case therefore requires a
+source-hash-bound inspection and a failed-closed, audit-only refusal; it must
+not silently skip those corrections, rasterize all eight pages, or claim that
+the shipped OCR provider is unavailable. Its hidden parser oracle proves the
+mixed source before it grades the refusal. A candidate/reference repeat matrix
+will be recorded only after real Agent trials run against one clean tarball.
 
 The evaluator normalizes the published audit envelope and structured equivalent
 forms: an explicit

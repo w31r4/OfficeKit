@@ -22,6 +22,15 @@ certification signature with `/Perms` → `/DocMDP` permission `P=1`. Its paired
 The normal verifier checks its locked bytes, visible and metadata canaries,
 ByteRange/CMS presence, and DocMDP structure without requiring pyHanko.
 
+`pdf/ocr/mixed-bilingual-scan.pdf` is an eight-page self-authored mixed-source
+fixture: six raster-only English/Chinese scan canaries encode upside-down,
+sideways, and `+3°`/`-2°` skew cases in pixels; pages seven and eight contain
+ordinary selectable-text canaries. It exercises an OCR preprocessing boundary,
+not OCR provider availability. The published managed OCR route can handle an
+explicit-language `skip` rewrite, but automatic orientation and deskew are not
+part of its typed contract, so the matching PromptBench case requires an
+audit-only safe refusal.
+
 `pdf/signing/docmdp-p2-form.pdf` is a separate real self-authored certification
 with `P=2`, one empty visible `ApprovedAmount` text field, and one
 `FieldMDP Include`-locked `LockedAmount=LOCKED-9000` field. Its paired

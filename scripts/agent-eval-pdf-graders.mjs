@@ -18,6 +18,7 @@ const supportedCases = new Set([
   "pdf-encrypted-owner-policy-boundary",
   "pdf-annotation-reply-resolve-boundary",
   "pdf-auto-pdfua-overclaim-refusal",
+  "pdf-mixed-scan-ocr-boundary",
   "pdf-dynamic-xfa-boundary",
   "pdf-print-production-boundary",
   "pdf-docmdp-forbidden-title-edit",
@@ -28,6 +29,7 @@ const boundaryRefusalCases = new Map([
   ["pdf-encrypted-owner-policy-boundary", { boundary: "encrypted-owner-policy", source: "inputs/owner-policy-aes256.pdf", credential: "inputs/credentials/user-password.json" }],
   ["pdf-annotation-reply-resolve-boundary", { boundary: "annotation-reply-chain", source: "inputs/source.pdf" }],
   ["pdf-auto-pdfua-overclaim-refusal", { boundary: "pdfua-overclaim", source: "inputs/source.pdf" }],
+  ["pdf-mixed-scan-ocr-boundary", { boundary: "mixed-scan-ocr", source: "inputs/source.pdf" }],
   ["pdf-dynamic-xfa-boundary", { boundary: "dynamic-xfa", source: "inputs/source.pdf" }],
   ["pdf-print-production-boundary", { boundary: "print-production", source: "inputs/source.pdf" }],
   ["pdf-docmdp-forbidden-title-edit", { boundary: "docmdp-p1", source: "inputs/source.pdf" }],
@@ -850,6 +852,20 @@ function boundaryFixtureComplete(evidence, item) {
       && evidence.imageCount >= 1
       && evidence.hasTwoColumnCanaries === true
       && evidence.pageCount >= 1;
+  }
+  if (item.id === "pdf-mixed-scan-ocr-boundary") {
+    return evidence.pageCount === 8
+      && evidence.language === "zh-CN"
+      && evidence.metadata?.title === "Mixed scan OCR boundary fixture"
+      && /OFFICEKIT-MIXED-SCAN-OCR-BOUNDARY/.test(evidence.metadata?.keywords || "")
+      && JSON.stringify(evidence.imageOnlyPages) === JSON.stringify([1, 2, 3, 4, 5, 6])
+      && JSON.stringify(evidence.imageCounts) === JSON.stringify([1, 1, 1, 1, 1, 1, 0, 0])
+      && evidence.scanImageCanariesMatch === true
+      && evidence.bornDigitalCanaries === true
+      && evidence.requires?.pixelEncodedUpsideDown === true
+      && evidence.requires?.pixelEncodedSideways === true
+      && JSON.stringify(evidence.requires?.pixelEncodedDeskewDegrees) === JSON.stringify([3, -2])
+      && evidence.requires?.mixedImageOnlyAndBornDigitalPages === true;
   }
   if (item.id === "pdf-dynamic-xfa-boundary") {
     return evidence.hasXfaPackets === true
