@@ -795,6 +795,45 @@ try {
   }), "utf8");
   const refusalValidation = parseResult(run(python, [path.join(scriptsRoot, "pdf_audit.py"), "validate", refusalAuditPath, "--source", dummyInput, "--require-operation", "replace_text"], { status: 0 }));
   assert.equal(refusalValidation.status, "failed_closed");
+  const generatedRefusalDir = path.join(tempRoot, "generated-refusal");
+  const generatedRefusalPath = path.join(generatedRefusalDir, "audit.json");
+  const generatedRefusal = parseResult(run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "failed-closed", generatedRefusalPath,
+    "--source", dummyInput,
+    "--provider", "mupdf-js", "--provider-version", "1.28.0",
+    "--operation", "print-production-footer", "--reason", "professional print preflight is unavailable",
+    "--probe-completed", "--plan-completed", "--source-inspected",
+  ], { status: 0 }));
+  assert.equal(generatedRefusal.status, "failed_closed");
+  const generatedRefusalRecord = JSON.parse(await fs.readFile(generatedRefusalPath, "utf8"));
+  assert.equal(generatedRefusalRecord.output, null);
+  assert.equal(generatedRefusalRecord.provider.silentFallback, false);
+  assert.equal(generatedRefusalRecord.operation.mutationAttempted, false);
+  assert.equal(generatedRefusalRecord.validation.sourceIdentity.sourcePreserved, true);
+  assert.equal(generatedRefusalRecord.validation.artifactChecks.modifiedPdfPresent, false);
+  assert.equal(generatedRefusalRecord.validation.artifactChecks.partialArtifactPresent, false);
+  const generatedRefusalValidation = parseResult(run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "validate", generatedRefusalPath,
+    "--source", dummyInput, "--require-operation", "print-production-footer",
+  ], { status: 0 }));
+  assert.equal(generatedRefusalValidation.status, "failed_closed");
+  const generatedRefusalOverwrite = run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "failed-closed", generatedRefusalPath,
+    "--source", dummyInput,
+    "--provider", "mupdf-js", "--provider-version", "1.28.0",
+    "--operation", "print-production-footer", "--reason", "professional print preflight is unavailable",
+  ], { status: 2 });
+  assert.match(generatedRefusalOverwrite.stderr, /refuses to overwrite existing audit/);
+  const nonemptyRefusalDir = path.join(tempRoot, "nonempty-refusal");
+  await fs.mkdir(nonemptyRefusalDir);
+  await fs.writeFile(path.join(nonemptyRefusalDir, "partial.pdf"), "must not be promoted");
+  const generatedRefusalNonempty = run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "failed-closed", path.join(nonemptyRefusalDir, "audit.json"),
+    "--source", dummyInput,
+    "--provider", "mupdf-js", "--provider-version", "1.28.0",
+    "--operation", "print-production-footer", "--reason", "professional print preflight is unavailable",
+  ], { status: 2 });
+  assert.match(generatedRefusalNonempty.stderr, /output directory must be empty/);
   const readOnlyManifest = path.join(tempRoot, "read-only-manifest.json");
   await fs.writeFile(readOnlyManifest, JSON.stringify({ attachments: [] }), "utf8");
   const readOnlyAuditPath = path.join(tempRoot, "read-only-audit.json");
