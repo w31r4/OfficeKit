@@ -559,8 +559,8 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
     stagedWarningAudit.validation.freshInspection = {
       provider: "qpdf",
       completed: true,
-      status: "clean",
-      exitCode: 0,
+      checkStatus: "clean",
+      checkExitCode: 0,
     };
     stagedWarningAudit.validation.unrecoverableControl = {
       inspectedSeparately: true,
