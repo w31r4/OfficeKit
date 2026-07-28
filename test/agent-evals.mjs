@@ -657,6 +657,17 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
     const unboundQpdfCommands = shellVariableCommands.map((command) => command.replace("qpdf_provider.py", "other_provider.py"));
     const unboundQpdfChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: qpdfFreshAudit, commands: unboundQpdfCommands, item: damagedXrefItem });
     assert.equal(unboundQpdfChecks.find((check) => check.id === "pdf-trace:inspect-before-repair")?.passed, false, "a shell variable without a qpdf adapter binding must not satisfy the typed route");
+    const namedShellVariableCommands = [
+      'provider_script=".agents/skills/pdf/scripts/qpdf_provider.py"\n"$provider_script" inspect inputs/recoverable.pdf\n"$provider_script" inspect inputs/unrecoverable.pdf\n"$provider_script" rewrite inputs/recoverable.pdf outputs/recovered.pdf --mode repair\n"$provider_script" inspect outputs/recovered.pdf\npdftoppm -png -r 144 outputs/recovered.pdf outputs/render/recovered',
+    ];
+    const namedShellVariableChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: qpdfFreshAudit, commands: namedShellVariableCommands, item: damagedXrefItem });
+    assert.equal(namedShellVariableChecks.every((check) => check.passed), true, JSON.stringify(namedShellVariableChecks.filter((check) => !check.passed), null, 2));
+    const wronglyBoundNamedCommands = namedShellVariableCommands.map((command) => command.replace("qpdf_provider.py", "other_provider.py"));
+    const wronglyBoundNamedChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: qpdfFreshAudit, commands: wronglyBoundNamedCommands, item: damagedXrefItem });
+    assert.equal(wronglyBoundNamedChecks.find((check) => check.id === "pdf-trace:inspect-before-repair")?.passed, false, "an arbitrary variable name still needs a same-command qpdf adapter binding");
+    const nearMissDirectCommands = shellVariableCommands.map((command) => command.replaceAll("qpdf_provider.py", "other_qpdf_provider.py"));
+    const nearMissDirectChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: qpdfFreshAudit, commands: nearMissDirectCommands, item: damagedXrefItem });
+    assert.equal(nearMissDirectChecks.find((check) => check.id === "pdf-trace:inspect-before-repair")?.passed, false, "a similarly named script must not satisfy the published qpdf adapter route");
     const attachmentLoss = structuredClone(evidence);
     attachmentLoss.outputAttachments = [];
     const attachmentLossChecks = gradeDamagedXrefRecoveryEvidence({ evidence: attachmentLoss, audit, commands, item: damagedXrefItem });

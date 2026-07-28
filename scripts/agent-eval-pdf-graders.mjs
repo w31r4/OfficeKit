@@ -382,30 +382,61 @@ function completedInvocation(commands, pattern) {
   return null;
 }
 
-function qpdfProviderInvocationPattern(action) {
-  return new RegExp(`(?:qpdf_provider\\.py["']?|["']?\\$\\{?QPDF_SCRIPT\\}?["']?)\\s+${action}\\b`, "i");
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function qpdfProviderPath(value) {
+  return /(?:^|[/\\'"\s])qpdf_provider\.py\b/i.test(String(value || ""));
+}
+
+function qpdfProviderBindings(command) {
+  const bindings = new Set();
+  const assignment = /(?:^|[\s;])(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(?:"([^"]*)"|'([^']*)'|([^\s;]+))/g;
+  for (const match of String(command || "").matchAll(assignment)) {
+    const [, name, doubleQuoted, singleQuoted, unquoted] = match;
+    if (qpdfProviderPath(doubleQuoted ?? singleQuoted ?? unquoted ?? "")) bindings.add(name);
+  }
+  return bindings;
+}
+
+function qpdfProviderInvocationPattern(action, bindings = []) {
+  const variables = [...new Set(bindings)].map(escapeRegExp);
+  const variableInvocation = variables.length > 0
+    ? `|["']?\\$\\{?(?:${variables.join("|")})\\}?["']?`
+    : "";
+  const directInvocation = String.raw`(?:^|[\s/'"])qpdf_provider\.py["']?`;
+  // A direct adapter path is always allowed. A variable invocation is allowed
+  // only when its name came from qpdfProviderBindings() for this shell command
+  // or its containing rewrite command.
+  return new RegExp(`(?:${directInvocation}${variableInvocation})\\s+${escapeRegExp(action)}\\b`, "i");
+}
+
+function qpdfProviderInvocationMatches(command, action, bindings = []) {
+  const pattern = qpdfProviderInvocationPattern(action, bindings);
+  return [...String(command || "").matchAll(new RegExp(pattern.source, `${pattern.flags}g`))];
 }
 
 function completedQpdfProviderInvocation(commands, action) {
-  const pattern = qpdfProviderInvocationPattern(action);
   for (let commandIndex = 0; commandIndex < commands.length; commandIndex += 1) {
     const command = String(commands[commandIndex]);
-    // A shell variable is accepted only when that same shell command binds it
-    // to the published qpdf adapter. A bare `qpdf` executable is not enough.
-    if (!/qpdf_provider\.py/i.test(command)) continue;
-    const expression = new RegExp(pattern.source, pattern.flags.replace("g", "") + "g");
-    for (const match of command.matchAll(expression)) {
+    const bindings = qpdfProviderBindings(command);
+    for (const match of qpdfProviderInvocationMatches(command, action, bindings)) {
       const tail = command.slice((match.index || 0) + match[0].length);
       if (/^\s+(?:--help|-h)\b/i.test(tail)) continue;
-      return { commandIndex, offset: match.index || 0 };
+      return { commandIndex, offset: match.index || 0, bindings: [...bindings] };
     }
   }
   return null;
 }
 
-function hasQpdfProviderInvocation(command, action, inheritedBinding = false) {
+function hasQpdfProviderInvocation(command, action, inheritedBindings = []) {
   const text = String(command || "");
-  return (inheritedBinding || /qpdf_provider\.py/i.test(text)) && qpdfProviderInvocationPattern(action).test(text);
+  const bindings = new Set([
+    ...qpdfProviderBindings(text),
+    ...(Array.isArray(inheritedBindings) ? inheritedBindings : []),
+  ]);
+  return qpdfProviderInvocationMatches(text, action, bindings).length > 0;
 }
 
 function invocationBefore(left, right) {
@@ -912,8 +943,7 @@ function qpdfRecoveryTraceChecks(audit, commands) {
   const inspect = completedQpdfProviderInvocation(commands, "inspect");
   const rewrite = completedQpdfProviderInvocation(commands, "rewrite");
   const afterRewrite = commandTextAfter(commands, rewrite);
-  const rewriteCommandBindsQpdf = Boolean(rewrite && /qpdf_provider\.py/i.test(String(commands[rewrite.commandIndex])));
-  const outputInspect = hasQpdfProviderInvocation(afterRewrite, "inspect", rewriteCommandBindsQpdf);
+  const outputInspect = hasQpdfProviderInvocation(afterRewrite, "inspect", rewrite?.bindings || []);
   const outputRender = /(?:\bpdftoppm\b|mupdf\.mjs["']?\s+render\b)/i.test(afterRewrite);
   const controlInspected = commands.some((command) => hasQpdfProviderInvocation(command, "inspect") && /unrecoverable\.pdf/i.test(String(command)))
     || /\bqpdf\s+--check\b[\s\S]*unrecoverable\.pdf/i.test(commandText);
