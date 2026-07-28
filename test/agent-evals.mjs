@@ -513,6 +513,14 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
     };
     const compactContractChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: compactContractAudit, commands, item: damagedXrefItem });
     assert.equal(compactContractChecks.every((check) => check.passed), true, JSON.stringify(compactContractChecks.filter((check) => !check.passed), null, 2));
+    const freshInspectionPrecedenceAudit = structuredClone(compactContractAudit);
+    freshInspectionPrecedenceAudit.validation.repairAfter = {
+      qpdfStatus: "warnings",
+      qpdfExitCode: 3,
+      freshInspect: false,
+    };
+    const freshInspectionPrecedenceChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: freshInspectionPrecedenceAudit, commands, item: damagedXrefItem });
+    assert.equal(freshInspectionPrecedenceChecks.every((check) => check.passed), true, JSON.stringify(freshInspectionPrecedenceChecks.filter((check) => !check.passed), null, 2));
     const missingCompactWarnings = structuredClone(compactContractAudit);
     delete missingCompactWarnings.validation.repairEvidence.before;
     const missingCompactWarningChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: missingCompactWarnings, commands, item: damagedXrefItem });
