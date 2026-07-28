@@ -4,11 +4,13 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import sharp from "sharp";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const skillRoot = path.join(repoRoot, "skills", "pdf", "skills", "pdf");
 const verifier = path.join(skillRoot, "scripts", "pyhanko_provider.py");
 const filler = path.join(skillRoot, "scripts", "pyhanko_certified_form_fill.py");
+const mupdf = path.join(skillRoot, "scripts", "mupdf.mjs");
 const evaluatorPython = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || "python3";
 
 function run(executable, args, options = {}) {
@@ -32,6 +34,31 @@ function jsonResult(result, stream = "stdout") {
 
 function sha256(bytes) {
   return crypto.createHash("sha256").update(bytes).digest("hex");
+}
+
+async function staticAppearanceBounds(pngPath) {
+  const { data, info } = await sharp(pngPath).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const scale = info.width / 612;
+  const left = Math.round(220 * scale) + 4;
+  const right = Math.round(370 * scale) - 4;
+  const top = Math.round((792 - 684) * scale) + 4;
+  const bottom = Math.round((792 - 660) * scale) - 4;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = top; y <= bottom; y += 1) {
+    for (let x = left; x <= right; x += 1) {
+      const offset = (y * info.width + x) * 3;
+      if (data[offset] < 90 && data[offset + 1] < 90 && data[offset + 2] < 90) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+  return { left, right, top, bottom, minX, minY, maxX, maxY };
 }
 
 function supportedPyHanko(executable) {
@@ -211,6 +238,7 @@ with (root / "source.pdf").open("rb") as source, (root / "certified.pdf").open("
   assert.equal(fill.savePolicy.revisionsAfter, fill.savePolicy.revisionsBefore + 1);
   assert.equal(fill.field.target, "ApprovedAmount");
   assert.equal(fill.field.value, "12500.00");
+  assert.deepEqual(fill.field.appearance, { mode: "static", verticalAlignment: "middle", innerMarginPoints: 3 });
   assert.equal(fill.field.after.readOnly, true);
   assert.equal(fill.field.after.hasNormalAppearance, true);
   assert.equal(fill.field.after.hasDefaultAppearance, false);
@@ -270,6 +298,12 @@ print(json.dumps({
   } else {
     assert.equal(extracted.error?.code, "ENOENT", `pdftotext must either render the static field or be unavailable: ${extracted.stderr}`);
   }
+  const rendered = path.join(tempRoot, "approved-amount.png");
+  run(process.execPath, [mupdf, "render", output, rendered, "--page", "1", "--dpi", "144"], { status: 0 });
+  const appearanceBounds = await staticAppearanceBounds(rendered);
+  assert.ok(appearanceBounds.maxX >= appearanceBounds.minX, `static field appearance must paint text: ${JSON.stringify(appearanceBounds)}`);
+  assert.ok(appearanceBounds.minY >= appearanceBounds.top + 5, `static field appearance must not touch its top border: ${JSON.stringify(appearanceBounds)}`);
+  assert.ok(appearanceBounds.maxY <= appearanceBounds.bottom - 5, `static field appearance must not touch its bottom border: ${JSON.stringify(appearanceBounds)}`);
 
   const collision = runManaged([
     filler, "fill", source, output,

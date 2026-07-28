@@ -48,6 +48,7 @@ DEFAULT_TIMEOUT_SECONDS = 120
 DEFAULT_MAX_STDOUT_BYTES = 2 * 1024 * 1024
 DEFAULT_MAX_STDERR_BYTES = 512 * 1024
 MAX_WORKER_CONFIG_BYTES = 128 * 1024
+STATIC_TEXT_MARGIN_POINTS = 3
 MAX_FIELD_NAME_CHARS = 128
 MAX_FIELD_VALUE_CHARS = 64
 DECIMAL_VALUE = re.compile(r"(?:0|[1-9][0-9]{0,8})\.[0-9]{2}\Z")
@@ -333,6 +334,7 @@ def postflight_signature(report: dict[str, Any], args: argparse.Namespace) -> di
 def fill_worker(config: dict[str, Any]) -> dict[str, Any]:
     from pyhanko.pdf_utils.form_tools import populate_static_text_field
     from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
+    from pyhanko.pdf_utils.layout import AxisAlignment, InnerScaling, Margins, SimpleBoxLayoutRule
     from pyhanko.pdf_utils.reader import PdfFileReader
     from pyhanko.pdf_utils.text import TextBoxStyle
 
@@ -356,7 +358,15 @@ def fill_worker(config: dict[str, Any]) -> dict[str, Any]:
         populate_static_text_field(
             writer,
             config["field"],
-            TextBoxStyle(font_size=10),
+            TextBoxStyle(
+                font_size=10,
+                box_layout_rule=SimpleBoxLayoutRule(
+                    x_align=AxisAlignment.ALIGN_MIN,
+                    y_align=AxisAlignment.ALIGN_MID,
+                    margins=Margins.uniform(STATIC_TEXT_MARGIN_POINTS),
+                    inner_content_scaling=InnerScaling.NO_SCALING,
+                ),
+            ),
             config["value"],
         )
         with output.open("xb") as target:
@@ -648,6 +658,11 @@ def fill(args: argparse.Namespace) -> dict[str, Any]:
         "field": {
             "target": args.field,
             "value": args.value,
+            "appearance": {
+                "mode": "static",
+                "verticalAlignment": "middle",
+                "innerMarginPoints": STATIC_TEXT_MARGIN_POINTS,
+            },
             "locked": {"name": args.expected_locked_field, "value": args.expected_locked_value},
             "before": before["fields"][args.field],
             "after": after["fields"][args.field],
