@@ -750,6 +750,7 @@ async function scorePrepared(item, prepared, options = {}) {
     evaluator: prepared.evaluator,
     finalMessage,
     trace,
+    outputEntries,
     weights: options.weights,
   });
   if (caseGrade.supported) checks.push(...caseGrade.checks);

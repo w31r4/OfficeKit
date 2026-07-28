@@ -110,6 +110,43 @@ function auditOperationRecord(audit) {
   return null;
 }
 
+function auditRefusalOperationUnexecuted(audit) {
+  const operation = auditOperationRecord(audit) || {};
+  return Boolean(auditOperation(audit)) && (
+    operation.executed === false
+    || operation.performed === false
+    || operation.mutationAttempted === false
+  );
+}
+
+function auditRefusalNoArtifactClaim(audit) {
+  const validation = audit?.validation || {};
+  const artifactChecks = validation.artifactChecks || validation.artifact_checks || {};
+  const outputDirectoryPolicy = validation.outputDirectoryPolicy || {};
+  return audit?.output === null && audit?.delivered_modified_pdf !== true && (
+    audit?.delivered_modified_pdf === false
+    || validation.no_partial_modified_pdf_in_outputs === true
+    || audit?.noPartialOutput === true
+    || artifactChecks.modifiedPdfCreated === false
+    || artifactChecks.modifiedPdfProduced === false
+    || artifactChecks.outputIsNull === true
+    || outputDirectoryPolicy.modifiedPdfPresent === false && outputDirectoryPolicy.partialArtifactPresent === false
+  );
+}
+
+function auditRefusalSavePolicy(audit) {
+  const saveRecord = audit?.savePolicy || audit?.save_policy || {};
+  const noMutation = saveRecord.executed === false
+    || saveRecord.performed === false
+    || saveRecord.sourceOverwrite === false
+    || saveRecord.modifiedArtifactAllowed === false
+    || /(?:failed.closed|audit.only)/i.test(String(saveRecord.publication || ""));
+  const sourcePreserved = saveRecord.sourcePreserved === true
+    || saveRecord.sourceOverwrite === false
+    || audit?.validation?.sourceImmutable === true;
+  return Boolean(auditSaveStrategy(audit)) && noMutation && sourcePreserved && auditRefusalNoArtifactClaim(audit);
+}
+
 export function extractCompletedCommands(trace) {
   const commands = new Map();
   for (const line of String(trace || "").split(/\r?\n/)) {
@@ -171,7 +208,6 @@ function overflowTraceChecks(audit, commands) {
 
 function boundaryRefusalTraceChecks(audit, commands, item) {
   const commandText = commands.join("\n");
-  const actualSave = String(auditSaveStrategy(audit) || "");
   const saveRecord = audit?.savePolicy || audit?.save_policy || {};
   const hasInspection = /(?:pdf_provider\.py\s+(?:check|plan)|pymupdf_edit\.py\s+probe|\bqpdf\b|\bpdfinfo\b|\bpypdf\b|PdfFile\.(?:inspect|open))/i.test(commandText);
   const mutationPatterns = [
@@ -185,7 +221,7 @@ function boundaryRefusalTraceChecks(audit, commands, item) {
   ];
   return [
     check("pdf-trace:provider-declared", "trace", Boolean(String(auditProvider(audit)).trim()), { actual: auditProvider(audit) || "unreported" }),
-    check("pdf-trace:refusal-save-policy", "trace", Boolean(actualSave) && saveRecord.executed === false && saveRecord.sourcePreserved === true && saveRecord.artifactPublished === false, { expected: "a declared but unexecuted policy with immutable source and no published artifact", actual: saveRecord }),
+    check("pdf-trace:refusal-save-policy", "trace", auditRefusalSavePolicy(audit), { expected: "a declared no-mutation policy with immutable source and no published artifact", actual: saveRecord }),
     check("pdf-trace:source-inspection", "trace", hasInspection, { expected: "an explicit PDF/provider inspection before refusal" }),
     gate("pdf-trace:no-silent-fallback", "trace", auditFallback(audit) === true, { expected: false, actual: auditFallback(audit) === null ? "unreported" : !auditFallback(audit) }),
     gate("pdf-trace:no-mutation-command", "trace", !mutationPatterns.some((pattern) => pattern.test(commandText)), { forbidden: mutationPatterns.map(String) }),
@@ -705,23 +741,18 @@ function boundaryFixtureComplete(evidence, item) {
   return false;
 }
 
-export function gradeBoundaryRefusalEvidence({ evidence, audit, commands, finalMessage, item }) {
+export function gradeBoundaryRefusalEvidence({ evidence, audit, commands, finalMessage, item, outputEntries }) {
   const diagnostics = item.grade?.machine?.diagnosticTerms || [];
   const diagnosticText = `${finalMessage}\n${audit?.reason || ""}\n${JSON.stringify(audit?.warnings || [])}`.toLowerCase();
-  const operation = String(auditOperation(audit) || "");
   const operationRecord = auditOperationRecord(audit) || {};
-  const outputDirectoryPolicy = audit?.validation?.outputDirectoryPolicy || {};
+  const actualOutputs = Array.isArray(outputEntries) ? outputEntries : null;
   return [
     check("pdf-machine:source-boundary-fixture", "machine", boundaryFixtureComplete(evidence, item), { actual: evidence }),
     check("pdf-machine:safe-refusal-status", "machine", audit?.status === "failed_closed" && audit?.delivered_modified_pdf !== true, { actual: audit?.status || "unreported" }),
     check("pdf-machine:diagnostic", "machine", diagnostics.some((term) => diagnosticText.includes(String(term).toLowerCase())), { expectedAny: diagnostics }),
-    check("pdf-machine:refusal-operation", "machine", Boolean(operation) && operationRecord.executed === false, { expected: "an explicit requested operation with executed:false", actual: operationRecord || operation || "unreported" }),
+    check("pdf-machine:refusal-operation", "machine", auditRefusalOperationUnexecuted(audit), { expected: "an explicit requested operation with a verified no-mutation result", actual: operationRecord || "unreported" }),
     gate("pdf-security:audit-provenance", "security", auditSourceHash(audit) === evidence.source?.sha256, { expected: evidence.source?.sha256, actual: auditSourceHash(audit) || "unreported" }),
-    gate("pdf-security:no-partial-output", "security", audit?.delivered_modified_pdf !== true && (
-      audit?.validation?.no_partial_modified_pdf_in_outputs === true
-      || audit?.noPartialOutput === true
-      || outputDirectoryPolicy.modifiedPdfPresent === false && outputDirectoryPolicy.partialArtifactPresent === false
-    ), { actual: Object.keys(outputDirectoryPolicy).length ? outputDirectoryPolicy : (audit?.validation?.no_partial_modified_pdf_in_outputs ?? audit?.noPartialOutput ?? "unreported") }),
+    gate("pdf-security:no-partial-output", "security", auditRefusalNoArtifactClaim(audit) && (actualOutputs === null || actualOutputs.length === 1 && actualOutputs[0] === "audit.json"), { expected: "audit-only outputs plus a failed-closed null-output claim", actual: { auditOutput: audit?.output, outputEntries: actualOutputs } }),
     ...boundaryRefusalTraceChecks(audit, commands, item),
   ];
 }
@@ -1101,7 +1132,7 @@ function unreadableMergeStampChecks(audit, commands, oracleError) {
   ];
 }
 
-export async function gradePdfCase({ item, workspace, evaluator, finalMessage, trace, weights = defaultWeights }) {
+export async function gradePdfCase({ item, workspace, evaluator, finalMessage, trace, outputEntries, weights = defaultWeights }) {
   if (!supportedCases.has(item.id)) return { supported: false };
   const audit = await readAudit(workspace);
   const commands = extractCompletedCommands(trace);
@@ -1180,7 +1211,7 @@ export async function gradePdfCase({ item, workspace, evaluator, finalMessage, t
       return { supported: true, graded: true, checks, evidence: { oracleError: oracle.oracleError }, pending: [], ...score };
     }
     if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
-    checks = gradeBoundaryRefusalEvidence({ evidence: oracle.evidence, audit, commands, finalMessage, item });
+    checks = gradeBoundaryRefusalEvidence({ evidence: oracle.evidence, audit, commands, finalMessage, item, outputEntries });
   } else if (item.id === "pdf-acroform-visible-preserved") {
     const output = path.join(workspace, "outputs", "form-filled.pdf");
     try { await fs.access(output); } catch {
