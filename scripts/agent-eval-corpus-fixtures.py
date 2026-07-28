@@ -20,7 +20,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from pypdf import PdfReader, PdfWriter
 from pypdf.constants import UserAccessPermissions
 from pypdf.generic import (
@@ -440,6 +440,134 @@ def create_untagged_complex_report(root: Path) -> None:
     )
 
 
+SCAN_CJK_PIXEL_GLYPHS = {
+    # These small glyphs are deliberately hand-authored test artwork rather
+    # than a system font dependency.  They make the scanned pages visibly
+    # bilingual without embedding a platform font in this repository-only
+    # fixture recipe.
+    "中": ("01110", "01010", "01010", "11111", "01010", "01010", "01110"),
+    "英": ("00100", "11111", "00100", "11111", "01010", "01010", "10001"),
+    "文": ("00100", "11111", "00100", "01010", "10001", "01010", "00100"),
+    "审": ("11111", "00100", "01110", "01010", "11111", "01010", "01010"),
+    "核": ("10010", "10100", "11111", "10100", "10010", "01110", "01010"),
+}
+
+
+def draw_scan_cjk(draw: ImageDraw.ImageDraw, x: int, y: int, text: str, *, cell: int = 4, color: str = "#182B49") -> None:
+    """Draw a few self-authored CJK canaries into a raster scan page.
+
+    The PromptBench boundary only needs a realistic mixed-language raster
+    source; it must not depend on a proprietary macOS CJK font or bundle a
+    large third-party font solely to create a repository-only test PDF.
+    """
+
+    cursor = x
+    for character in text:
+        glyph = SCAN_CJK_PIXEL_GLYPHS.get(character)
+        if glyph is None:
+            cursor += cell * 3
+            continue
+        for row, pixels in enumerate(glyph):
+            for column, pixel in enumerate(pixels):
+                if pixel == "1":
+                    draw.rectangle(
+                        (cursor + column * cell, y + row * cell, cursor + (column + 1) * cell - 1, y + (row + 1) * cell - 1),
+                        fill=color,
+                    )
+        cursor += len(glyph[0]) * cell + cell * 2
+
+
+def mixed_scan_page_image(page_number: int) -> Image.Image:
+    """Return one image-only, intentionally imperfect scanned page.
+
+    The variants are encoded into pixels rather than `/Rotate`: correcting
+    them needs an OCR preprocessing decision, which the current typed OCR
+    route intentionally does not expose.
+    """
+
+    image = Image.new("RGB", (612, 792), "#F7F3E8")
+    draw = ImageDraw.Draw(image)
+    latin = ImageFont.load_default()
+    ink = "#172B4D"
+    muted = "#5C6B7A"
+    draw.rectangle((34, 30, 578, 756), outline="#C4B99B", width=2)
+    draw.text((58, 58), f"SCANNED REVIEW PAGE {page_number}", fill=ink, font=latin)
+    draw_scan_cjk(draw, 58, 84, "中英文审核", color=ink)
+    draw.text((58, 122), "Mixed bilingual scan - image pixels only", fill=muted, font=latin)
+    for row in range(7):
+        y = 170 + row * 42
+        draw.rectangle((58, y, 544 - (row % 3) * 28, y + 6), fill="#79899A")
+        draw.rectangle((58, y + 14, 504 - (row % 2) * 36, y + 18), fill="#B0BAC4")
+    draw.rectangle((58, 500, 544, 680), outline="#697A8A", width=2)
+    for x in (58, 208, 358, 544):
+        draw.line((x, 500, x, 680), fill="#8797A5", width=1)
+    for y in (500, 536, 572, 608, 644, 680):
+        draw.line((58, y, 544, y), fill="#8797A5", width=1)
+    draw.text((78, 512), "English", fill=ink, font=latin)
+    draw_scan_cjk(draw, 236, 508, "中文", color=ink)
+    draw.text((378, 512), "CANARY", fill=ink, font=latin)
+
+    if page_number == 2:
+        return image.rotate(180, resample=Image.Resampling.BICUBIC, expand=False, fillcolor="#F7F3E8")
+    if page_number == 3:
+        return image.rotate(90, resample=Image.Resampling.BICUBIC, expand=False, fillcolor="#F7F3E8")
+    if page_number == 4:
+        return image.rotate(3, resample=Image.Resampling.BICUBIC, expand=False, fillcolor="#F7F3E8")
+    if page_number == 5:
+        return image.rotate(-2, resample=Image.Resampling.BICUBIC, expand=False, fillcolor="#F7F3E8")
+    if page_number == 6:
+        overlay = ImageDraw.Draw(image, "RGBA")
+        overlay.ellipse((398, 620, 536, 730), outline=(170, 35, 45, 145), width=5)
+        overlay.text((422, 664), "STAMP", fill=(170, 35, 45, 145), font=latin)
+        overlay.rectangle((58, 170, 544, 458), fill=(247, 243, 232, 65))
+    return image
+
+
+def create_mixed_scan_ocr_boundary(root: Path) -> None:
+    """Create an 8-page mixed scan fixture for the OCR preprocessing boundary."""
+
+    temporary = root / ".mixed-scan-ocr-base.pdf"
+    target = root / "pdf" / "ocr" / "mixed-bilingual-scan.pdf"
+    document = canvas.Canvas(str(temporary), pagesize=(612, 792), invariant=1)
+    document.setTitle("Mixed scan OCR boundary fixture")
+    document.setSubject("Six image-only bilingual scans plus two born-digital canaries")
+    document.setAuthor("OfficeKit PromptBench fixture generator")
+    document.setKeywords("OFFICEKIT-MIXED-SCAN-OCR-BOUNDARY eng chi_sim")
+    for page_number in range(1, 7):
+        image = mixed_scan_page_image(page_number)
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG", compress_level=9)
+        buffer.seek(0)
+        document.drawImage(ImageReader(buffer), 0, 0, width=612, height=792, mask="auto")
+        document.showPage()
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Born-digital canary 7")
+    document.setFont("Helvetica", 10)
+    document.drawString(54, 700, "BORN-DIGITAL-7: existing selectable text must not be OCRed again.")
+    document.drawString(54, 678, "The requested automatic rotation and deskew are separate preprocessing work.")
+    document.showPage()
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Born-digital canary 8")
+    document.setFont("Helvetica", 10)
+    document.drawString(54, 700, "BORN-DIGITAL-8: preserve true text and the original page geometry.")
+    document.drawString(54, 678, "Do not silently rasterize the whole document to work around an unsupported request.")
+    document.showPage()
+    document.save()
+    reader = PdfReader(str(temporary), strict=True)
+    writer = PdfWriter()
+    writer.clone_document_from_reader(reader)
+    writer._root_object[n("Lang")] = TextStringObject("zh-CN")
+    writer.add_metadata({
+        "/Title": "Mixed scan OCR boundary fixture",
+        "/Subject": "Six image-only bilingual scans plus two born-digital canaries",
+        "/Keywords": "OFFICEKIT-MIXED-SCAN-OCR-BOUNDARY eng chi_sim",
+    })
+    write_writer(writer, target)
+    temporary.unlink(missing_ok=True)
+
+
 def stream_with_bytes(payload: bytes) -> DecodedStreamObject:
     stream = DecodedStreamObject()
     stream.set_data(payload)
@@ -694,6 +822,7 @@ FIXTURES = {
     "pdf/encryption/user-password.json": "Test-only user credential; deliberately excludes the owner password.",
     "pdf/annotations/reply-chain.pdf": "Native PDF annotation root/reply/Popup/Highlight graph with resolved-state semantics.",
     "pdf/accessibility/untagged-complex-report.pdf": "Untagged two-column report with image and table visual structure.",
+    "pdf/ocr/mixed-bilingual-scan.pdf": "Eight-page mixed English/Chinese source: six image-only scans with pixel-encoded upside-down/sideways/skew variants plus two born-digital text canaries.",
     "pdf/xfa/dynamic-dependents.pdf": "Dynamic-XFA-shaped template/datasets packet with repeat and FormCalc markers.",
     "pdf/print/print-production-risk.pdf": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",
     "pdf/signing/docmdp-p1-final.pdf": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",
@@ -708,6 +837,7 @@ def generate(root: Path, signing_python: str | None) -> dict:
     create_encrypted_owner_policy(root)
     create_annotation_reply_chain(root)
     create_untagged_complex_report(root)
+    create_mixed_scan_ocr_boundary(root)
     create_dynamic_xfa(root)
     create_print_production_risk(root)
     managed_signing_python = required_signing_python(signing_python)
@@ -805,6 +935,33 @@ def verify_print(path: Path) -> None:
         raise ValueError("print fixture has no DeviceN/Separation/overprint resource")
     if not bool(ext["/GSPrint"].get_object().get("/OP")):
         raise ValueError("print fixture has no overprint flag")
+
+
+def page_image_count(page) -> int:
+    resources = dictionary_object(page.get("/Resources")) if page.get("/Resources") else {}
+    xobjects = dictionary_object(resources.get("/XObject")) if resources.get("/XObject") else {}
+    return sum(1 for value in xobjects.values() if str(dictionary_object(value).get("/Subtype", "")) == "/Image")
+
+
+def verify_mixed_scan_ocr(path: Path) -> None:
+    reader = PdfReader(str(path), strict=True)
+    root = root_dictionary(reader)
+    if len(reader.pages) != 8:
+        raise ValueError("mixed scan OCR fixture must contain exactly eight pages")
+    if str(root.get("/Lang", "")) != "zh-CN":
+        raise ValueError("mixed scan OCR fixture is missing its zh-CN document-language canary")
+    if str(reader.metadata.title or "") != "Mixed scan OCR boundary fixture":
+        raise ValueError("mixed scan OCR fixture title canary is missing")
+    if "OFFICEKIT-MIXED-SCAN-OCR-BOUNDARY" not in str(reader.metadata.keywords or ""):
+        raise ValueError("mixed scan OCR fixture keyword canary is missing")
+    scan_pages = [index for index, page in enumerate(reader.pages[:6], 1) if page_image_count(page) == 1 and not (page.extract_text() or "").strip()]
+    if scan_pages != [1, 2, 3, 4, 5, 6]:
+        raise ValueError("mixed scan OCR fixture must keep six image-only scanned pages")
+    born_digital = [page.extract_text() or "" for page in reader.pages[6:]]
+    if "BORN-DIGITAL-7" not in born_digital[0] or "BORN-DIGITAL-8" not in born_digital[1]:
+        raise ValueError("mixed scan OCR fixture is missing born-digital text canaries")
+    if any(page_image_count(page) for page in reader.pages[6:]):
+        raise ValueError("mixed scan OCR fixture born-digital pages must not carry image XObjects")
 
 
 def verify_docmdp_p1(path: Path, root_certificate: Path) -> None:
@@ -918,6 +1075,7 @@ def verify(root: Path) -> dict:
     verify_encryption(root / "pdf" / "encryption" / "owner-policy-aes256.pdf")
     verify_annotations(root / "pdf" / "annotations" / "reply-chain.pdf")
     verify_untagged_report(root / "pdf" / "accessibility" / "untagged-complex-report.pdf")
+    verify_mixed_scan_ocr(root / "pdf" / "ocr" / "mixed-bilingual-scan.pdf")
     verify_xfa(root / "pdf" / "xfa" / "dynamic-dependents.pdf")
     verify_print(root / "pdf" / "print" / "print-production-risk.pdf")
     verify_docmdp_p1(root / "pdf" / "signing" / "docmdp-p1-final.pdf", root / "pdf" / "signing" / "test-pki" / "root.pem")

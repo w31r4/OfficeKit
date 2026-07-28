@@ -1391,6 +1391,56 @@ def boundary_pdfua_overclaim(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+MIXED_SCAN_IMAGE_SHA256 = (
+    "cc943853f42e1bb8d830589b602830a2d02eb7c7a748418fa78fb831fd992de5",
+    "c5f8b0eb7563f804f945037fca2d58aa3fc4450b3ad86a1a0da2be87d063768c",
+    "9c42f84f9465f6d5270d45dc0d3f6d42c222396745105b4b61a65e72ab891dfd",
+    "ae758e4a767dede1fe01c5c6bb5c2bdb3ef122f0dbc8ff766e51a771a839a32e",
+    "6aa81eda4490a706d527e0607f75920dae55c63f920be28820edfd7c9bb99aa3",
+    "52c6c5378f464659bfaabbe592f4520679d0778040ce8dc0e476d0f173bec1f9",
+)
+
+
+def boundary_mixed_scan_ocr(payload: dict[str, Any]) -> dict[str, Any]:
+    source = pathlib.Path(payload["source"])
+    reader = pypdf.PdfReader(str(source), strict=True)
+    root = root_dictionary(reader)
+    image_hashes: list[str] = []
+    image_only_pages: list[int] = []
+    image_counts: list[int] = []
+    for index, page in enumerate(reader.pages, 1):
+        resources = resolve_pdf_value(page.get("/Resources")) if page.get("/Resources") else {}
+        xobjects = resolve_pdf_value(resources.get("/XObject")) if resources.get("/XObject") else {}
+        images = [resolve_pdf_value(value) for value in xobjects.values() if str(resolve_pdf_value(value).get("/Subtype", "")) == "/Image"]
+        image_counts.append(len(images))
+        text = (page.extract_text() or "").strip()
+        if not text and len(images) == 1:
+            image_only_pages.append(index)
+            image_hashes.append(hashlib.sha256(images[0].get_data()).hexdigest())
+    born_digital_text = [reader.pages[index].extract_text() or "" for index in (6, 7)] if len(reader.pages) == 8 else []
+    return {
+        "kind": "boundary-refusal",
+        "boundary": "mixed-scan-ocr",
+        "source": boundary_source_identity(source),
+        "pageCount": len(reader.pages),
+        "language": str(root.get("/Lang", "")),
+        "metadata": {
+            "title": str(reader.metadata.title or ""),
+            "keywords": str(reader.metadata.keywords or ""),
+        },
+        "imageOnlyPages": image_only_pages,
+        "imageCounts": image_counts,
+        "scanImageCanariesMatch": tuple(image_hashes) == MIXED_SCAN_IMAGE_SHA256,
+        "bornDigitalCanaries": len(born_digital_text) == 2 and "BORN-DIGITAL-7" in born_digital_text[0] and "BORN-DIGITAL-8" in born_digital_text[1],
+        "requires": {
+            "pixelEncodedUpsideDown": True,
+            "pixelEncodedSideways": True,
+            "pixelEncodedDeskewDegrees": [3, -2],
+            "mixedImageOnlyAndBornDigitalPages": True,
+        },
+    }
+
+
 def boundary_dynamic_xfa(payload: dict[str, Any]) -> dict[str, Any]:
     source = pathlib.Path(payload["source"])
     reader = pypdf.PdfReader(str(source), strict=True)
@@ -1485,6 +1535,8 @@ def boundary_refusal(payload: dict[str, Any]) -> dict[str, Any]:
         return boundary_annotation_reply_chain(payload)
     if boundary == "pdfua-overclaim":
         return boundary_pdfua_overclaim(payload)
+    if boundary == "mixed-scan-ocr":
+        return boundary_mixed_scan_ocr(payload)
     if boundary == "dynamic-xfa":
         return boundary_dynamic_xfa(payload)
     if boundary == "print-production":

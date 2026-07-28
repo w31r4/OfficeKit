@@ -24,6 +24,12 @@
       "kind": "file",
       "sha256": "c54fd09144002f7f3e34ed2a913e1c258025879c18db9e170a6f97f2916f32a9"
     },
+    "pdf/ocr/mixed-bilingual-scan.pdf": {
+      "bytes": 314225,
+      "description": "Eight-page mixed English/Chinese source: six image-only scans with pixel-encoded upside-down/sideways/skew variants plus two born-digital text canaries.",
+      "kind": "file",
+      "sha256": "8394fa11243eec03a3fe4fe152f0dd69f2857a2bf7df33ad04c4d8899cf46987"
+    },
     "pdf/print/print-production-risk.pdf": {
       "bytes": 2561,
       "description": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",
