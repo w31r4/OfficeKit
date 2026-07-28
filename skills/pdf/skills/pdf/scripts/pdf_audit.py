@@ -6,8 +6,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
+import secrets
 import sys
 
 
@@ -126,6 +128,104 @@ def validate_record(record: dict, source: Path, inputs: list[Path], artifact: Pa
     }
 
 
+def absolute_file_evidence(path: Path) -> dict[str, str | int]:
+    resolved = path.expanduser().resolve()
+    return {"path": str(resolved), **digest(resolved)}
+
+
+def write_new_json(path: Path, record: dict) -> Path:
+    """Atomically publish a new audit without overwriting an earlier record."""
+    target = path.expanduser().resolve()
+    if target.exists() or target.is_symlink():
+        raise AuditError(f"refuses to overwrite existing audit: {target}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.tmp-{os.getpid()}-{secrets.token_hex(8)}")
+    try:
+        with temporary.open("x", encoding="utf8") as handle:
+            json.dump(record, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+    return target
+
+
+def create_failed_closed_record(args) -> dict:
+    source = args.source.expanduser().resolve()
+    audit = args.audit.expanduser().resolve()
+    if not source.is_file():
+        raise AuditError(f"source file does not exist: {source}")
+    if source == audit:
+        raise AuditError("audit path must be different from source")
+    if not args.provider.strip() or not args.provider_version.strip():
+        raise AuditError("provider and provider version must be non-empty")
+    if not args.operation.strip() or not args.reason.strip():
+        raise AuditError("operation and reason must be non-empty")
+    if audit.exists() or audit.is_symlink():
+        raise AuditError(f"refuses to overwrite existing audit: {audit}")
+
+    # A failed-closed task publishes only its audit in the delivery directory.
+    # This makes the typed no-artifact assertion an observed local fact instead
+    # of a prose promise. Diagnostics belong under tmp/ or another caller-owned
+    # directory, not alongside the delivered audit.
+    try:
+        existing_entries = sorted(entry.name for entry in audit.parent.iterdir())
+    except FileNotFoundError:
+        existing_entries = []
+    if existing_entries:
+        raise AuditError(
+            f"failed-closed output directory must be empty before publishing audit: {audit.parent} contains {existing_entries}"
+        )
+
+    record = {
+        "schema": SCHEMA,
+        "status": "failed_closed",
+        "delivered_modified_pdf": False,
+        "source": absolute_file_evidence(source),
+        "output": None,
+        "provider": {
+            "actual": args.provider,
+            "version": args.provider_version,
+            "silentFallback": False,
+        },
+        "savePolicy": {
+            "strategy": args.strategy,
+            "sourceOverwrite": False,
+            "artifactWritten": False,
+            "publication": "audit_only",
+        },
+        "preflight": {
+            "probeCompleted": bool(args.probe_completed),
+            "planCompleted": bool(args.plan_completed),
+            "sourceInspectionCompleted": bool(args.source_inspected),
+        },
+        "operation": {
+            "type": args.operation,
+            "mutationAttempted": False,
+            "performed": False,
+            "result": "not_attempted",
+        },
+        "validation": {
+            "sourceIdentity": {"sourcePreserved": True},
+            "artifactChecks": {
+                "modifiedPdfPresent": False,
+                "partialArtifactPresent": False,
+            },
+            "outputDirectory": {
+                "path": str(audit.parent),
+                "entriesBeforeAudit": [],
+                "auditOnly": True,
+            },
+        },
+        "reason": args.reason,
+    }
+    validate_record(record, source, [], None, args.operation)
+    return record
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description=__doc__)
     subparsers = root.add_subparsers(dest="command", required=True)
@@ -135,6 +235,20 @@ def parser() -> argparse.ArgumentParser:
     validate.add_argument("--input", type=Path, action="append", default=[])
     validate.add_argument("--artifact", type=Path)
     validate.add_argument("--require-operation")
+    failed_closed = subparsers.add_parser(
+        "failed-closed",
+        help="atomically write a canonical audit-only no-mutation refusal",
+    )
+    failed_closed.add_argument("audit", type=Path)
+    failed_closed.add_argument("--source", type=Path, required=True)
+    failed_closed.add_argument("--provider", required=True)
+    failed_closed.add_argument("--provider-version", required=True)
+    failed_closed.add_argument("--operation", required=True)
+    failed_closed.add_argument("--reason", required=True)
+    failed_closed.add_argument("--strategy", choices=sorted(SAVE_POLICIES), default="read-only")
+    failed_closed.add_argument("--probe-completed", action="store_true")
+    failed_closed.add_argument("--plan-completed", action="store_true")
+    failed_closed.add_argument("--source-inspected", action="store_true")
     return root
 
 
@@ -143,6 +257,21 @@ def main() -> int:
     reexec_configured_provider_python()
     args = parser().parse_args()
     try:
+        if args.command == "failed-closed":
+            record = create_failed_closed_record(args)
+            target = write_new_json(args.audit, record)
+            print(json.dumps({
+                "ok": True,
+                "schema": SCHEMA,
+                "status": "failed_closed",
+                "audit": str(target),
+                "source": record["source"],
+                "provider": record["provider"]["actual"],
+                "providerVersion": record["provider"]["version"],
+                "operation": record["operation"]["type"],
+                "silentFallback": False,
+            }, indent=2, sort_keys=True))
+            return 0
         record = json.loads(args.audit.read_text("utf8"))
         print(json.dumps(validate_record(record, args.source, args.input, args.artifact, args.require_operation), indent=2, sort_keys=True))
         return 0

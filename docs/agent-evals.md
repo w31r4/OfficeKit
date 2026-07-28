@@ -84,9 +84,8 @@ XFA template/datasets, repeat-subform, FormCalc, JavaScript and
 `NeedsRendering`; or DeviceN, Separation, overprint, transparency, OCG and
 OutputIntent dictionaries. A response passes only if that input proof, a
 failed-closed audit bound to the source hash, an explicit inspection trace,
-no-fallback/no-mutation evidence, and the case diagnostic all agree. These are
-fixture and grader tests so far except the AES-256 owner-policy boundary. At
-clean commit `42cd55bdf78696e1b56302981a49ce7dbcc9325f`, all three candidate
+no-fallback/no-mutation evidence, and the case diagnostic all agree. At clean
+commit `42cd55bdf78696e1b56302981a49ce7dbcc9325f`, all three AES candidate
 trials passed at `100/100` against tarball SHA-256
 `3adba43ab0bb20d736dbd03fcd069eab754ec6f3f3b15e3a0e7003fc51acf35c` and
 candidate Skill SHA-256
@@ -97,9 +96,20 @@ one `100/100` pass and two hard-gate failures. Those two reference trials left
 the source intact and produced only `audit.json`, but used noncanonical audit
 aliases such as `actual_provider` and `save_policy`; the evaluator correctly
 did not infer required provider/save-policy/no-artifact proof from those
-aliases. The other four boundary fixtures still have no autonomous
-candidate/reference repeat claim. The evaluator normalizes the
-published audit envelope and structured equivalent forms: an explicit
+aliases. The same package and Skill hashes were then used for three-repeat
+matrices of the other four fixtures: annotation reply-chain refusal was
+candidate `3/3` and reference `3/3`; untagged complex PDF/UA refusal was
+candidate `3/3` and reference `3/3`; Dynamic XFA refusal was candidate `3/3`
+and reference `1/3`; print-production refusal was candidate `2/3` and
+reference `1/3`. Every zero in the latter two reference matrices, and the one
+candidate print zero, still preserved the source and emitted only an audit, but
+failed hard gates because the Agent wrote a noncanonical or incomplete typed
+no-artifact/no-mutation envelope. This is recorded as an audit-contract
+reliability gap, not relabeled as a semantic PDF success. `pdf_audit.py
+failed-closed` now owns the canonical audit-only refusal generation; its next
+matrix is a new candidate package, not a retroactive rewrite of this evidence.
+The evaluator normalizes the published audit envelope and structured equivalent
+forms: an explicit
 no-mutation result can be `executed: false`, `performed: false`/`"none"`,
 `mutationAttempted: false`, or a typed `refused_not_attempted` operation. It
 also recognizes the corresponding explicit no-artifact fields. It never trusts

@@ -190,7 +190,8 @@ retry via a different Python interpreter after a failed probe.
 ## Delivery gate
 
 1. Record selected provider, version, policy/receipt (if any), source hash,
-   save strategy, and no-fallback evidence in the canonical audit envelope.
+   save strategy, and no-fallback evidence in the canonical audit envelope. A
+   no-mutation refusal uses `pdf_audit.py failed-closed`; do not hand-write it.
 2. Reopen and verify the intended change; use `scripts/pdf_audit.py validate`.
 3. Run the requested specialist evidence. Sanitization must pass its residue
    and single-revision gates; signatures and PDF/UA retain their separate

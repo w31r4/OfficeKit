@@ -57,6 +57,24 @@ than relying on `reason` or warning prose: use
 and the actual output directory without implying that an unsupported operation
 was performed.
 
+For that common safe-refusal path, do not hand-write a near miss. After the
+read-only provider/source inspection, use the shipped generator. It rejects a
+non-empty delivery directory, writes only `audit.json` atomically, binds the
+source hash, and emits the complete typed no-mutation/no-artifact envelope:
+
+```bash
+python3 scripts/pdf_audit.py failed-closed outputs/audit.json \
+  --source inputs/source.pdf \
+  --provider mupdf-js --provider-version 1.28.0 \
+  --operation add-footer-work-order \
+  --reason "professional print preflight is unavailable" \
+  --probe-completed --plan-completed --source-inspected
+```
+
+Keep inspection logs under `tmp/`, not `outputs/`. The generator validates its
+own envelope before publication; run `validate` as an independent final check
+when the workflow requires it.
+
 Validate before delivery:
 
 ```bash
