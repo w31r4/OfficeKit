@@ -868,6 +868,24 @@ function damagedXrefRepair(audit) {
       requiresFreshInspection: true,
     };
   }
+  const freshInspection = audit?.validation?.freshInspection;
+  if (freshInspection && typeof freshInspection === "object") {
+    const repairEvidence = audit?.validation?.repairEvidence;
+    return {
+      // `freshInspection` is the required compact final-inspection record.
+      // It must outrank a legacy `repairAfter` summary when both are present:
+      // the latter may describe the same qpdf invocation rather than a fresh
+      // post-write check.
+      // Some agents keep the corresponding pre-repair warning evidence beside
+      // it under `repairEvidence.before` rather than duplicating it at the
+      // audit root. Preserve that evidence without treating the write itself
+      // as a fresh inspection.
+      checkBefore: repairEvidence?.checkBefore || repairEvidence?.before || audit?.warnings?.repairBefore,
+      qpdfWrite: repairEvidence?.qpdfWrite || repairEvidence?.rewrite || audit?.warnings?.rewrite,
+      checkAfter: normalizeQpdfInspection(freshInspection),
+      requiresFreshInspection: true,
+    };
+  }
   const repairAfter = audit?.validation?.repairAfter;
   if (repairAfter && typeof repairAfter === "object") {
     return {
@@ -878,23 +896,6 @@ function damagedXrefRepair(audit) {
         freshInspect: repairAfter.freshInspect,
         exitCode: repairAfter.qpdfExitCode,
       }),
-      requiresFreshInspection: true,
-    };
-  }
-  const freshInspection = audit?.validation?.freshInspection;
-  if (freshInspection && typeof freshInspection === "object") {
-    const repairEvidence = audit?.validation?.repairEvidence;
-    return {
-      // `freshInspection` is the required compact final-inspection record.
-      // Some agents keep the corresponding pre-repair warning evidence beside
-      // it under `repairEvidence.before` rather than duplicating it at the
-      // audit root. Preserve that evidence without treating the write itself
-      // as a fresh inspection.
-      checkBefore: repairEvidence?.checkBefore || repairEvidence?.before || audit?.warnings?.repairBefore,
-      qpdfWrite: repairEvidence?.qpdfWrite || repairEvidence?.rewrite || audit?.warnings?.rewrite,
-      // This shape records repair warnings at the audit root and retains the
-      // separate post-write qpdf inspection under validation.
-      checkAfter: normalizeQpdfInspection(freshInspection),
       requiresFreshInspection: true,
     };
   }
