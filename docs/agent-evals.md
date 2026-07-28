@@ -16,9 +16,9 @@ The suite is evaluator-side repository infrastructure. `evals/`, the runner, loc
 ## Current suite
 
 - 41 cases: 21 PDF, 7 Documents, 7 Spreadsheets, and 6 Presentations. PDF is 51.2% of the suite and is required to remain an absolute majority, so a meaningful Office vertical slice never creates unrelated PDF filler prompts.
-- 28 `ready` cases: 16 PDF cases, four bounded XLSX workflows (threaded-comment, formula-assumption update, source-bound connection refresh-on-open, and source-bound Pivot refresh-on-open), four DOCX workflows (classic-comment plus source-bound header/footer text and source-bound section page numbering), and four PPTX workflows (title plus fixed-topology rich-speaker-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone).
-- Eight locked, self-authored PDF corpus inputs are now ready. Seven are auditable safe-refusal boundaries: AES-256 owner/user permission split, native annotation reply chain, untagged complex report, mixed bilingual scan orientation/deskew, Dynamic XFA packet, print-production risk structure, and a real DocMDP P=1 certification signature with a public test root. The eighth is a real DocMDP P=2/FieldMDP form whose one permitted controlled finalisation is independently graded. Every asset has a committed SHA-256/byte manifest and parser oracle; generic “no output” does not pass either kind of case.
-- 13 `asset-required` cases still await their pinned corpus files or test PKI. They remain excluded from readiness and repeat-matrix claims.
+- 29 `ready` cases: 17 PDF cases, four bounded XLSX workflows (threaded-comment, formula-assumption update, source-bound connection refresh-on-open, and source-bound Pivot refresh-on-open), four DOCX workflows (classic-comment plus source-bound header/footer text and source-bound section page numbering), and four PPTX workflows (title plus fixed-topology rich-speaker-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone).
+- Ten locked, self-authored PDF corpus inputs are now ready. Seven are auditable safe-refusal boundaries: AES-256 owner/user permission split, native annotation reply chain, untagged complex report, mixed bilingual scan orientation/deskew, Dynamic XFA packet, print-production risk structure, and a real DocMDP P=1 certification signature with a public test root. One is a real DocMDP P=2/FieldMDP form whose one permitted controlled finalisation is independently graded. The remaining two form a qpdf structural-repair pair: one two-page native-text PDF whose only damage is `startxref = 0` plus a document attachment, and one malformed no-trailer/no-page-tree control that must be rejected. Every asset has a committed SHA-256/byte manifest and parser oracle; generic “no output” does not pass either kind of case.
+- 12 `asset-required` cases still await their pinned corpus files or test PKI. They remain excluded from readiness and repeat-matrix claims.
 - Every family has both a success and a fail-closed case. Some advanced PDF cases accept either verified success or an explicit safe refusal.
 - The default policy uses three trials per subject. Trial count is recorded per case rather than silently inferred by the Agent.
 
@@ -33,6 +33,8 @@ npm run eval:agents -- show pdf-bounded-contract-id-replace
 npm run eval:agents -- prepare pdf-bounded-contract-id-replace --subject candidate --trial 1
 npm run eval:agents -- prepare pdf-encrypted-owner-policy-boundary --subject candidate --trial 1
 npm run eval:agents -- prepare pdf-mixed-scan-ocr-boundary --subject candidate --trial 1
+npm run eval:agents -- prepare pdf-damaged-xref-recovery --subject candidate --trial 1
+npm run eval:agents -- run pdf-damaged-xref-recovery --subject candidate --trial 1
 npm run eval:agents -- prepare pdf-bounded-contract-id-replace --subject reference --trial 1
 npm run eval:agents -- prepare pdf-source-bound-text-highlight --subject candidate --trial 1
 npm run eval:agents -- run pdf-source-bound-text-highlight --subject candidate --trial 1
@@ -64,11 +66,11 @@ npm run eval:agents -- prepare pptx-closed-leaf-slide-clone --subject candidate 
 npm run eval:agents -- run pptx-closed-leaf-slide-clone --subject candidate --trial 1
 ```
 
-Generated PDF fixtures and the locked-corpus verifier require Python with ReportLab, pypdf, and Pillow. The nine artifact-producing ready PDF graders additionally require pdfplumber; their applicable visual oracles require `pdftoppm`. Set `OFFICE_KIT_AGENT_EVAL_PYTHON` to that evaluator interpreter and, only when it is not on `PATH`, set `OFFICE_KIT_AGENT_EVAL_PDFTOPPM`. A prepared PDF prompt binds its actual provider interpreter from `OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON`, then legacy `OFFICE_KIT_PDF_PROVIDER_PYTHON`, then the evaluator interpreter. This keeps a small parser/render evaluator separate from a policy-authorized managed specialist runtime such as pyHanko; `run.json` records both paths. In Codex, use the Python executable returned by `load_workspace_dependencies` for the evaluator and a managed provider path only when the case needs it.
+Generated PDF fixtures and the locked-corpus verifier require Python with ReportLab, pypdf, and Pillow. Artifact-producing PDF graders additionally require pdfplumber where they inspect text geometry; applicable visual oracles require `pdftoppm`. Set `OFFICE_KIT_AGENT_EVAL_PYTHON` to that evaluator interpreter and, only when it is not on `PATH`, set `OFFICE_KIT_AGENT_EVAL_PDFTOPPM`. A prepared PDF prompt binds its actual provider interpreter from `OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON`, then legacy `OFFICE_KIT_PDF_PROVIDER_PYTHON`, then the evaluator interpreter. This keeps a small parser/render evaluator separate from a policy-authorized managed specialist runtime such as pyHanko; `run.json` records both paths. In Codex, use the Python executable returned by `load_workspace_dependencies` for the evaluator and a managed provider path only when the case needs it.
 
 ## Locked boundary corpus
 
-The eight ready signature/boundary fixtures live below `evals/assets/`, outside the npm
+The ten ready signature/boundary/repair fixture PDFs live below `evals/assets/`, outside the npm
 payload. `integrity.json` records every declared file's SHA-256 and byte count;
 the runner rejects a missing manifest entry, a mismatched byte stream, or a
 symbolic link before copying a file into the read-only trial workspace. The
@@ -86,7 +88,10 @@ XFA template/datasets, repeat-subform, FormCalc, JavaScript and
 OutputIntent dictionaries; or the eight-page mixed-document proof: six exact
 image-only scan canaries plus two true-text pages, pinned image pixels for the
 upside-down/sideways/`+3°`/`-2°` preprocessing cases, and the document
-language/metadata canaries. A response passes only if that input proof, a
+language/metadata canaries. The repair pair is independently checked for a raw
+terminal `startxref = 0`, the exact recoverable document attachment, all page
+text/geometry canaries, an exact Poppler page comparison after repair, and a
+malformed control with no trailer or usable page tree. A response passes only if that input proof, a
 failed-closed audit bound to the source hash, an explicit inspection trace,
 no-fallback/no-mutation evidence, and the case diagnostic all agree. At clean
 commit `42cd55bdf78696e1b56302981a49ce7dbcc9325f`, all three AES candidate
@@ -219,6 +224,21 @@ audit-only refusal path. This is a Skill-workflow comparison over the same
 candidate package, not a claim that the reference package independently
 supplies the OfficeKit OCR provider or that a managed OCR success workflow ran.
 
+`pdf-damaged-xref-recovery` is a separate two-input qpdf repair contract. The
+recoverable input is self-authored and differs from its intact source only at
+the terminal `startxref` value; it retains two native-text pages and one exact
+document-level `repair-evidence.txt` attachment. The second input has a PDF
+header but deliberately lacks a usable trailer and page tree. An accepted
+success must inspect both files, retain the recoverable qpdf reconstruction
+warnings, use the typed qpdf rewrite-repair route, then prove a clean output
+inspection, preserved pages and attachment, and Poppler pixel identity. It
+must also record qpdf's refusal of the malformed control and produce no control
+output. A qpdf-unavailable environment may only make the published audit-only
+refusal; page re-rendering, a generic PDF writer, or a silent substitute cannot
+turn that refusal into a pass. The repository smoke uses the real qpdf binary;
+a candidate/reference Agent repeat matrix is recorded only after the runner
+executes it.
+
 The evaluator normalizes the published audit envelope and structured equivalent
 forms: an explicit
 no-mutation result can be `executed: false`, `performed: false`/`"none"`,
@@ -271,7 +291,7 @@ Current generic hard gates verify:
 
 Generic gates alone do **not** constitute a passing task score. Reports for cases without a case grader continue to say `partial-generic-only` or `generic-refusal-gates` and keep their semantic, visual, security, and trace evidence in `pending`.
 
-All nine ready PDF cases now have complete case-specific grading:
+The following ten ready PDF cases have complete case-specific grading:
 
 | Case | Machine | Visual | Security | Trace |
 | --- | --- | --- | --- | --- |
@@ -284,6 +304,7 @@ All nine ready PDF cases now have complete case-specific grading:
 | `pdf-greenfield-accessible-report` | Strict pypdf catalog and structure-tree traversal proves six pages, title/language, H1-H3, one logical Table spanning pages, Figure alt text, Link annotation/StructParent/OBJR, reading-order IDs, and running artifacts | Poppler/Pillow renders all six pages, rejects blank or edge-clipped pages, checks common geometry, and requires readable table text on both physical segments | Canonical source/output hashes, no PDF/UA overclaim, and separate modeled, veraPDF-machine, and human-review evidence | `artifact-tool`/version, explicit `rewrite`, no fallback, shipped typed report example, Poppler evidence, and no ad-hoc PDF writer |
 | `pdf-merge-reorder-stamp-links` | Independent pypdf proves exact six-page source order, preserved boxes/rotation, 20% watermark placement, six outlines, six named destinations, and six resolved internal links | Poppler/Pillow maps every output page to its source; four non-target pages must be pixel-identical and both report pages must change | Manifest plus all source/output hashes, one revision, decodable streams, navigation resolution, and watermark absence from sources | pypdf/version, `rewrite`, check/plan before typed merge, typed Poppler comparison and multi-source audit after mutation, no ad-hoc writer |
 | `pdf-docmdp-allowed-field-fill` | Independent pypdf proves the signed P=2 baseline, exact FieldMDP Include lock, one empty visible target, `12500.00` output value, static/read-only target, unchanged locked/non-target fields, original signature contents, and stable catalog references | Poppler/Pillow requires every page to remain nonblank and confines every changed pixel to the target widget; the shipped P2 smoke separately requires a native MuPDF render whose glyph pixels clear the widget borders | Original bytes must be a strict output prefix, exactly one revision is appended, the original signed range remains bound to the baseline, and the raw typed pyHanko audit binds source/output hashes, explicit root, integrity, trust, DocMDP, FieldMDP, changed field, and no-replace transaction | Published P2 probe and finalisation primitive before post-fill explicit-root verification and render; no fallback or ad-hoc form/object writer |
+| `pdf-damaged-xref-recovery` | pypdf independently proves the recoverable raw terminal `startxref = 0`, two native-text pages, exact page boxes, and the exact document-level attachment; the malformed control's header/canary/no-trailer state is recorded separately | Poppler/Pillow requires same-size, nonblank, pixel-identical pages before and after repair | Exact source/control/output hashes, exact attachment bytes, one clean repaired revision, no output for the malformed control, and no raster/text-writer reconstruction | Explicit qpdf inspection of both inputs, retained pre-repair warnings, typed `rewrite --mode repair`, clean post-repair inspection/render, and no fallback or ad-hoc writer |
 
 One clean candidate run of `pdf-source-bound-text-highlight` at commit `535d875504f84ccd469cb05922ce94528cfd14d8` passed `100/100`: all hard gates plus 6 machine, 3 visual, 3 security, and 8 trace checks passed. It bound package SHA-256 `c1569217b49725d0e31cc818fc5e2ee035eccc8690d7ee49c57a3e8dc74d33de`, copied-Skill SHA-256 `dc4a294e27b76540cf43e5a7ff1989ccbdcb822ea6e621d9ead413feef9fc20f`, input SHA-256 `3e31e282b7702940c572316958bb3d3263e54f62357605c84303b2fa1a7f31da`, and oracle SHA-256 `20286e3071ecdf9381db2c0543c96dd13c2082c43d3d815003e851d81455fc09`. This is one candidate run, not the default three-repeat matrix or a reference-Skill comparison.
 

@@ -70,6 +70,7 @@ import {
   gradeBoundaryRefusalEvidence,
   gradeBoundedReplaceEvidence,
   gradeCertifiedDocMdpP2FillEvidence,
+  gradeDamagedXrefRecoveryEvidence,
   gradeMergeStampEvidence,
   gradeOverflowRefusalEvidence,
   gradeSourceBoundHighlightEvidence,
@@ -93,12 +94,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 28 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 29 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 16);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 17);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
@@ -127,8 +128,8 @@ assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /16 ready PDF cases include eight locked corpus signature\/boundary fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 13 asset-required cases/i);
+assert.match(runnerHelp.stdout, /17 ready PDF cases include nine locked corpus signature\/boundary\/repair fixtures/i);
+assert.match(runnerHelp.stdout, /remaining 12 asset-required cases/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
@@ -137,6 +138,11 @@ const mixedScanVisible = visibleCase(suite, cases.find((item) => item.id === "pd
 assert.match(mixedScanVisible.prompt, /倒置.*倾斜|倾斜.*倒置/);
 assert.match(mixedScanVisible.prompt, /born-digital selectable-text canaries/i);
 assert.doesNotMatch(mixedScanVisible.prompt, /scanImageCanariesMatch|imageOnlyPages|pixelEncodedDeskewDegrees/i);
+const damagedXrefVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-damaged-xref-recovery"));
+assert.match(damagedXrefVisible.prompt, /qpdf repair|qpdf.*repair/i);
+assert.match(damagedXrefVisible.prompt, /inputs\/recoverable\.pdf/);
+assert.match(damagedXrefVisible.prompt, /inputs\/unrecoverable\.pdf/);
+assert.doesNotMatch(damagedXrefVisible.prompt, /f3847151df00468cce51c49a00cec7b5c35c24421160e310cbde0e90148b5550|sourceRawStartxrefIsZero/i);
 
 const corpusPython = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "python3";
 const corpusVerification = spawnSync(corpusPython, ["scripts/agent-eval-corpus-fixtures.py", "verify"], {
@@ -155,6 +161,8 @@ const lockedFixturePaths = [
   "pdf/annotations/reply-chain.pdf",
   "pdf/accessibility/untagged-complex-report.pdf",
   "pdf/ocr/mixed-bilingual-scan.pdf",
+  "pdf/corrupt/recoverable.pdf",
+  "pdf/corrupt/unrecoverable.pdf",
   "pdf/xfa/dynamic-dependents.pdf",
   "pdf/print/print-production-risk.pdf",
   "pdf/signing/docmdp-p1-final.pdf",
@@ -176,7 +184,7 @@ assert.equal(docmdpP2Item?.status, "ready");
 assert.equal(docmdpP2Item?.inputs?.some((input) => input.asset === "pdf/signing/test-pki/docmdp-p2-root.pem"), true);
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 11, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 13, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -390,6 +398,78 @@ const mixedScanFixtureFailure = gradeBoundaryRefusalEvidence({
   outputEntries: ["audit.json"],
 });
 assert.equal(mixedScanFixtureFailure.find((check) => check.id === "pdf-machine:source-boundary-fixture")?.passed, false);
+
+const damagedXrefItem = cases.find((item) => item.id === "pdf-damaged-xref-recovery");
+const recoveryQpdf = process.env.OFFICE_KIT_AGENT_EVAL_QPDF || process.env.OFFICE_KIT_PDF_QPDF || "qpdf";
+const recoveryPoppler = process.env.OFFICE_KIT_AGENT_EVAL_PDFTOPPM || "pdftoppm";
+const recoveryQpdfAvailable = spawnSync(recoveryQpdf, ["--version"], { encoding: "utf8", env: process.env }).status === 0;
+const recoveryPopplerAvailable = spawnSync(recoveryPoppler, ["-v"], { encoding: "utf8", env: process.env }).status === 0;
+if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
+  const recoveryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-agent-eval-damaged-xref-"));
+  try {
+    const recoverable = path.join(recoveryRoot, "inputs", "recoverable.pdf");
+    const unrecoverable = path.join(recoveryRoot, "inputs", "unrecoverable.pdf");
+    const recovered = path.join(recoveryRoot, "outputs", "recovered.pdf");
+    await fs.mkdir(path.dirname(recoverable), { recursive: true });
+    await fs.mkdir(path.dirname(recovered), { recursive: true });
+    await fs.copyFile(path.join(repoRoot, "evals", "assets", "pdf", "corrupt", "recoverable.pdf"), recoverable);
+    await fs.copyFile(path.join(repoRoot, "evals", "assets", "pdf", "corrupt", "unrecoverable.pdf"), unrecoverable);
+    const qpdfProvider = path.join(repoRoot, "skills", "pdf", "skills", "pdf", "scripts", "qpdf_provider.py");
+    const providerEnvironment = { ...process.env, OFFICE_KIT_PDF_QPDF: recoveryQpdf, PYTHONDONTWRITEBYTECODE: "1" };
+    const inspect = spawnSync(corpusPython, [qpdfProvider, "inspect", recoverable], { cwd: repoRoot, encoding: "utf8", env: providerEnvironment });
+    assert.equal(inspect.status, 0, inspect.stderr);
+    const inspectAudit = JSON.parse(inspect.stdout);
+    assert.equal(inspectAudit.check.status, "warnings");
+    const rewrite = spawnSync(corpusPython, [qpdfProvider, "rewrite", recoverable, recovered, "--mode", "repair", "--expected-sha256", inspectAudit.source.sha256], { cwd: repoRoot, encoding: "utf8", env: providerEnvironment });
+    assert.equal(rewrite.status, 0, rewrite.stderr);
+    const repairAudit = JSON.parse(rewrite.stdout);
+    const rejected = spawnSync(corpusPython, [qpdfProvider, "inspect", unrecoverable], { cwd: repoRoot, encoding: "utf8", env: providerEnvironment });
+    assert.equal(rejected.status, 2, rejected.stdout || rejected.stderr);
+    const recoverableHash = crypto.createHash("sha256").update(await fs.readFile(recoverable)).digest("hex");
+    const unrecoverableHash = crypto.createHash("sha256").update(await fs.readFile(unrecoverable)).digest("hex");
+    const audit = {
+      ...repairAudit,
+      status: "succeeded",
+      controls: {
+        unrecoverable: {
+          status: "rejected",
+          source: { sha256: unrecoverableHash },
+          output: null,
+          artifactWritten: false,
+          diagnostics: String(rejected.stderr || rejected.stdout).split(/\r?\n/).filter(Boolean),
+        },
+      },
+      validation: { sourceImmutable: true, render: { renderer: "pdftoppm", allPages: true } },
+    };
+    const oracle = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: providerEnvironment,
+      input: JSON.stringify({ kind: "damaged-xref-recovery", recoverable, unrecoverable, output: recovered, renderRoot: path.join(recoveryRoot, "evaluator", "render"), poppler: recoveryPoppler }),
+    });
+    assert.equal(oracle.status, 0, oracle.stderr);
+    const evidence = JSON.parse(oracle.stdout);
+    const commands = [
+      "python .agents/skills/pdf/scripts/qpdf_provider.py probe",
+      "python .agents/skills/pdf/scripts/qpdf_provider.py inspect inputs/recoverable.pdf > tmp/recoverable-inspect.json",
+      "python .agents/skills/pdf/scripts/qpdf_provider.py inspect inputs/unrecoverable.pdf > tmp/unrecoverable-inspect.json || true",
+      `python .agents/skills/pdf/scripts/qpdf_provider.py rewrite inputs/recoverable.pdf outputs/recovered.pdf --mode repair --expected-sha256 ${recoverableHash} > tmp/rewrite.json`,
+      "python .agents/skills/pdf/scripts/qpdf_provider.py inspect outputs/recovered.pdf > tmp/recovered-inspect.json",
+      "pdftoppm -png -r 144 outputs/recovered.pdf outputs/render/recovered",
+    ];
+    const checks = gradeDamagedXrefRecoveryEvidence({ evidence, audit, commands, item: damagedXrefItem });
+    assert.equal(checks.every((check) => check.passed), true, JSON.stringify(checks.filter((check) => !check.passed), null, 2));
+    assert.equal(summarizeCaseScore(checks, damagedXrefItem.grade).rawScorePercent, 100);
+    const attachmentLoss = structuredClone(evidence);
+    attachmentLoss.outputAttachments = [];
+    const attachmentLossChecks = gradeDamagedXrefRecoveryEvidence({ evidence: attachmentLoss, audit, commands, item: damagedXrefItem });
+    assert.equal(attachmentLossChecks.find((check) => check.id === "pdf-machine:document-attachment-preserved")?.passed, false, "a repaired page stream without its document attachment must fail");
+  } finally {
+    await fs.rm(recoveryRoot, { recursive: true, force: true });
+  }
+} else {
+  console.log("PromptBench damaged-XRef qpdf execution smoke skipped (provide qpdf and pdftoppm)");
+}
 
 const p2ProviderPython = process.env.OFFICE_KIT_PYHANKO_TEST_PYTHON;
 const p2Poppler = process.env.OFFICE_KIT_AGENT_EVAL_PDFTOPPM || "pdftoppm";

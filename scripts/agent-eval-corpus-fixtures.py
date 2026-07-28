@@ -15,6 +15,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -568,6 +569,73 @@ def create_mixed_scan_ocr_boundary(root: Path) -> None:
     temporary.unlink(missing_ok=True)
 
 
+def create_damaged_xref_recovery(root: Path) -> None:
+    """Create one recoverable XRef damage fixture and one hard failure control.
+
+    The recoverable source remains a real two-page PDF with one document-level
+    attachment.  Only its terminal ``startxref`` pointer is made wrong, which
+    lets a conforming structural reader reconstruct the cross-reference table
+    without requiring an Agent to recreate pages or extract/re-add the
+    attachment.  The control has a PDF header but no usable trailer/page tree,
+    so a repair route must report a failure rather than invent an output.
+    """
+
+    temporary = root / ".damaged-xref-base.pdf"
+    pristine = root / ".damaged-xref-pristine.pdf"
+    recoverable = root / "pdf" / "corrupt" / "recoverable.pdf"
+    unrecoverable = root / "pdf" / "corrupt" / "unrecoverable.pdf"
+    document = canvas.Canvas(str(temporary), pagesize=(612, 792), invariant=1)
+    document.setTitle("Recoverable XRef repair fixture")
+    document.setSubject("Self-authored structural repair PromptBench input")
+    document.setAuthor("OfficeKit PromptBench fixture generator")
+    document.setKeywords("OFFICEKIT-XREF-RECOVERY-CANARY attachment-preservation")
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Recoverable XRef repair fixture — page 1")
+    document.setFont("Helvetica", 10)
+    document.drawString(54, 706, "RECOVERABLE-XREF-PAGE-ONE: preserve native text and page geometry.")
+    document.drawString(54, 684, "The attached repair evidence must remain document-level data.")
+    document.showPage()
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Recoverable XRef repair fixture — page 2")
+    document.setFont("Helvetica", 10)
+    document.drawString(54, 706, "RECOVERABLE-XREF-PAGE-TWO: a structural rewrite must not rasterize this page.")
+    document.drawString(54, 684, "The visible canaries make a page rebuild detectable in the evaluator.")
+    document.showPage()
+    document.save()
+
+    writer = writer_from(temporary)
+    writer.add_attachment(
+        "repair-evidence.txt",
+        b"OFFICEKIT-XREF-ATTACHMENT-CANARY\nThe qpdf repair fixture retains this exact document attachment.\n",
+    )
+    writer.add_metadata({
+        "/Title": "Recoverable XRef repair fixture",
+        "/Subject": "Self-authored structural repair PromptBench input",
+        "/Keywords": "OFFICEKIT-XREF-RECOVERY-CANARY attachment-preservation",
+    })
+    write_writer(writer, pristine)
+    raw = pristine.read_bytes()
+    corrupted, substitutions = re.subn(
+        rb"(?m)^startxref\s*\n\d+\s*\n%%EOF\s*$",
+        b"startxref\n0\n%%EOF\n",
+        raw,
+    )
+    if substitutions != 1 or corrupted == raw:
+        raise ValueError("could not create deterministic recoverable startxref damage")
+    recoverable.parent.mkdir(parents=True, exist_ok=True)
+    recoverable.write_bytes(corrupted)
+    # This is intentionally not a valid indirect-object graph.  It tests that
+    # the Agent records the qpdf rejection and leaves no pretend repair.
+    unrecoverable.write_bytes(
+        b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n"
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+        b"% OFFICEKIT-XREF-UNRECOVERABLE-CONTROL: closing graph intentionally absent\n"
+        b"%%EOF\n"
+    )
+    temporary.unlink(missing_ok=True)
+    pristine.unlink(missing_ok=True)
+
+
 def stream_with_bytes(payload: bytes) -> DecodedStreamObject:
     stream = DecodedStreamObject()
     stream.set_data(payload)
@@ -817,12 +885,37 @@ def refresh_docmdp(root: Path, signing_python: str) -> dict:
     return manifest
 
 
+def refresh_corrupt(root: Path) -> dict:
+    """Refresh only the deterministic structural-repair corpus pair."""
+
+    manifest_path = root / "integrity.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("assets"), dict):
+        raise ValueError("unsupported corpus integrity schema")
+    create_damaged_xref_recovery(root)
+    for relative in (
+        "pdf/corrupt/recoverable.pdf",
+        "pdf/corrupt/unrecoverable.pdf",
+    ):
+        asset = root / relative
+        manifest["assets"][relative] = {
+            "bytes": asset.stat().st_size,
+            "description": FIXTURES[relative],
+            "kind": "file",
+            "sha256": sha256(asset),
+        }
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return manifest
+
+
 FIXTURES = {
     "pdf/encryption/owner-policy-aes256.pdf": "AES-256 encrypted user/owner permission split with embedded attachment and AcroForm canaries.",
     "pdf/encryption/user-password.json": "Test-only user credential; deliberately excludes the owner password.",
     "pdf/annotations/reply-chain.pdf": "Native PDF annotation root/reply/Popup/Highlight graph with resolved-state semantics.",
     "pdf/accessibility/untagged-complex-report.pdf": "Untagged two-column report with image and table visual structure.",
     "pdf/ocr/mixed-bilingual-scan.pdf": "Eight-page mixed English/Chinese source: six image-only scans with pixel-encoded upside-down/sideways/skew variants plus two born-digital text canaries.",
+    "pdf/corrupt/recoverable.pdf": "Recoverable wrong-startxref two-page PDF with native-text and document-attachment canaries.",
+    "pdf/corrupt/unrecoverable.pdf": "PDF-header-only malformed structural-repair control with no usable trailer or page tree.",
     "pdf/xfa/dynamic-dependents.pdf": "Dynamic-XFA-shaped template/datasets packet with repeat and FormCalc markers.",
     "pdf/print/print-production-risk.pdf": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",
     "pdf/signing/docmdp-p1-final.pdf": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",
@@ -838,6 +931,7 @@ def generate(root: Path, signing_python: str | None) -> dict:
     create_annotation_reply_chain(root)
     create_untagged_complex_report(root)
     create_mixed_scan_ocr_boundary(root)
+    create_damaged_xref_recovery(root)
     create_dynamic_xfa(root)
     create_print_production_risk(root)
     managed_signing_python = required_signing_python(signing_python)
@@ -964,6 +1058,27 @@ def verify_mixed_scan_ocr(path: Path) -> None:
         raise ValueError("mixed scan OCR fixture born-digital pages must not carry image XObjects")
 
 
+def verify_damaged_xref_recovery(recoverable: Path, unrecoverable: Path) -> None:
+    raw = recoverable.read_bytes()
+    if raw.count(b"startxref") != 1 or not re.search(rb"(?m)^startxref\s*\n0\s*\n%%EOF\s*$", raw):
+        raise ValueError("recoverable XRef fixture must have exactly one deliberately wrong startxref pointer")
+    reader = PdfReader(str(recoverable), strict=False)
+    if len(reader.pages) != 2:
+        raise ValueError("recoverable XRef fixture must retain both pages after tolerant parsing")
+    first_text = reader.pages[0].extract_text() or ""
+    second_text = reader.pages[1].extract_text() or ""
+    if "RECOVERABLE-XREF-PAGE-ONE" not in first_text or "RECOVERABLE-XREF-PAGE-TWO" not in second_text:
+        raise ValueError("recoverable XRef fixture visible canaries are missing")
+    attachments = list(reader.attachment_list)
+    if len(attachments) != 1 or attachments[0].name != "repair-evidence.txt" or b"OFFICEKIT-XREF-ATTACHMENT-CANARY" not in attachments[0].content:
+        raise ValueError("recoverable XRef fixture attachment canary is missing")
+    control = unrecoverable.read_bytes()
+    if not control.startswith(b"%PDF-") or b"OFFICEKIT-XREF-UNRECOVERABLE-CONTROL" not in control:
+        raise ValueError("unrecoverable XRef control does not carry its bounded malformed-file marker")
+    if re.search(rb"(?mi)^(?:xref|trailer)\b", control) or b"/Type /Pages" in control:
+        raise ValueError("unrecoverable XRef control accidentally acquired recoverable structure")
+
+
 def verify_docmdp_p1(path: Path, root_certificate: Path) -> None:
     raw = path.read_bytes()
     reader = PdfReader(str(path), strict=True)
@@ -1076,6 +1191,7 @@ def verify(root: Path) -> dict:
     verify_annotations(root / "pdf" / "annotations" / "reply-chain.pdf")
     verify_untagged_report(root / "pdf" / "accessibility" / "untagged-complex-report.pdf")
     verify_mixed_scan_ocr(root / "pdf" / "ocr" / "mixed-bilingual-scan.pdf")
+    verify_damaged_xref_recovery(root / "pdf" / "corrupt" / "recoverable.pdf", root / "pdf" / "corrupt" / "unrecoverable.pdf")
     verify_xfa(root / "pdf" / "xfa" / "dynamic-dependents.pdf")
     verify_print(root / "pdf" / "print" / "print-production-risk.pdf")
     verify_docmdp_p1(root / "pdf" / "signing" / "docmdp-p1-final.pdf", root / "pdf" / "signing" / "test-pki" / "root.pem")
@@ -1085,7 +1201,7 @@ def verify(root: Path) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("generate", "refresh-docmdp", "verify"))
+    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-corrupt", "verify"))
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     parser.add_argument("--signing-python", help=f"managed pyHanko interpreter used only by generate (or set {SIGNING_PYTHON_ENV})")
     options = parser.parse_args()
@@ -1093,6 +1209,8 @@ def main() -> None:
         print(json.dumps(generate(options.root, options.signing_python), indent=2, sort_keys=True))
     elif options.command == "refresh-docmdp":
         print(json.dumps(refresh_docmdp(options.root, required_signing_python(options.signing_python)), indent=2, sort_keys=True))
+    elif options.command == "refresh-corrupt":
+        print(json.dumps(refresh_corrupt(options.root), indent=2, sort_keys=True))
     else:
         print(json.dumps(verify(options.root), sort_keys=True))
 
