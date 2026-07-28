@@ -26,6 +26,41 @@ python3 scripts/pdfplumber_extract.py input.pdf \
 
 Extraction is not layout fidelity. Compare extracted text/table candidates against rendered pages, especially multi-column layouts, rotated text, merged cells, OCR layers, and scanned pages.
 
+## Verified ruled cross-page table profile
+
+`pdfplumber_extract.py` remains a candidate-evidence route. It must not be
+presented as a proven table when a page has multiple columns, merged cells, or
+rotated text.
+
+For one narrow, read-only profile, use the published workflow instead:
+
+```bash
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
+OFFICE_KIT_PDF_PROVIDER_PYTHON="$PYTHON_BIN" \
+node examples/officekit-ruled-cross-page-table-workflow.mjs input.pdf \
+  --table-title "Regional Revenue" \
+  --expected-columns 4 \
+  --header-rows 2 \
+  --min-pages 3 \
+  --footnote-prefix "*" \
+  --json outputs/regional-revenue.json \
+  --csv outputs/regional-revenue.csv \
+  --audit outputs/audit.json \
+  --render-dir tmp/pdfs/regional-revenue-review
+```
+
+It accepts only an explicitly titled, consecutive-page table with complete
+ruled-grid coverage, fixed column boundaries, the same merged header geometry
+on every segment, rectangular non-empty data rows, and an optional explicit
+adjacent footnote prefix. It emits typed cells with `page`, `bbox`, `rowspan`,
+`colspan`, and confidence evidence; CSV is flattened from the verified JSON.
+It also renders every selected source page with Poppler and writes a table-bbox
+overlay plus a byte-bound read-only audit.
+
+There is no fallback from this profile to heuristic extraction. If the proof
+fails, publish neither JSON nor CSV; use generic candidate evidence and request
+human review instead of guessing cells or silently mixing nearby narrative.
+
 For qpdf structural evidence:
 
 ```bash

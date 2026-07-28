@@ -7,7 +7,9 @@ that are independent from the PyMuPDF mutation provider under evaluation.
 
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 import math
 import mimetypes
@@ -762,6 +764,96 @@ def overflow_refusal(payload: dict[str, Any]) -> dict[str, Any]:
             "availableWidth": available_width,
             "fits": replacement_width <= available_width if replacement_width is not None and available_width is not None else None,
         },
+    }
+
+
+def required_regular_file(value: str, label: str) -> pathlib.Path:
+    """Resolve one evaluator input without allowing a symlink indirection."""
+
+    path = pathlib.Path(value)
+    if not path.is_file() or path.is_symlink():
+        raise ValueError(f"{label} must be a regular non-symlink file: {path}")
+    return path
+
+
+def source_render_evidence(source: pathlib.Path, render_root: pathlib.Path, poppler: str) -> dict[str, Any]:
+    """Render the immutable source and return only native visual facts.
+
+    The ruled-table route is read-only, so this oracle deliberately does not
+    render an invented output PDF.  It establishes that every selected source
+    page was natively rendered, is nonblank, and has stable page geometry for
+    the Agent's overlay review to bind against.
+    """
+
+    shutil.rmtree(render_root, ignore_errors=True)
+    images = run_poppler(poppler, source, render_root / "page", 144)
+    pages: list[dict[str, Any]] = []
+    for index, image_path in enumerate(images, 1):
+        with Image.open(image_path) as raw:
+            image = raw.convert("RGB")
+            ink = ImageChops.difference(image, Image.new("RGB", image.size, "white")).getbbox()
+            pages.append({
+                "page": index,
+                "width": image.width,
+                "height": image.height,
+                "bytes": image_path.stat().st_size,
+                "nonBlank": ink is not None,
+                "inkBBox": list(ink) if ink else None,
+            })
+    return {
+        "renderer": "poppler-pdftoppm",
+        "dpi": 144,
+        "pageCount": len(images),
+        "pages": pages,
+    }
+
+
+def cross_page_ruled_table(payload: dict[str, Any]) -> dict[str, Any]:
+    """Read the source and table deliverables independently of the Agent.
+
+    This deliberately proves only the locked PromptBench profile.  It does
+    not invoke the published extractor or infer a generic table.  The hidden
+    grader compares the parsed delivery with the fixture's exact evaluator
+    expectations, while this oracle independently checks that those expected
+    table terms and exclusion canaries are actually present in the immutable
+    PDF source.
+    """
+
+    source = required_regular_file(payload["source"], "source")
+    json_output = required_regular_file(payload["jsonOutput"], "JSON output")
+    csv_output = required_regular_file(payload["csvOutput"], "CSV output")
+    terms = [str(term) for term in payload.get("sourceTerms", [])]
+    try:
+        json_bytes = json_output.read_bytes()
+        json_value = json.loads(json_bytes)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"ruled-table JSON output is invalid: {error}") from error
+    try:
+        csv_bytes = csv_output.read_bytes()
+        csv_text = csv_bytes.decode("utf-8")
+        csv_rows = list(csv.reader(io.StringIO(csv_text, newline="")))
+    except (OSError, UnicodeDecodeError, csv.Error) as error:
+        raise ValueError(f"ruled-table CSV output is invalid: {error}") from error
+
+    reader = pypdf.PdfReader(str(source), strict=True)
+    source_page_text = [page.extract_text() or "" for page in reader.pages]
+    return {
+        "kind": "cross-page-ruled-table",
+        "source": inspect_pdf(source, terms),
+        "sourcePageText": source_page_text,
+        "json": {
+            "path": str(json_output),
+            "bytes": len(json_bytes),
+            "sha256": hashlib.sha256(json_bytes).hexdigest(),
+            "value": json_value,
+        },
+        "csv": {
+            "path": str(csv_output),
+            "bytes": len(csv_bytes),
+            "sha256": hashlib.sha256(csv_bytes).hexdigest(),
+            "rows": csv_rows,
+        },
+        "visual": source_render_evidence(source, pathlib.Path(payload["renderRoot"]), payload["poppler"]),
     }
 
 
@@ -1818,6 +1910,8 @@ def main() -> None:
         evidence = source_bound_highlight(payload)
     elif kind == "overflow-refusal":
         evidence = overflow_refusal(payload)
+    elif kind == "cross-page-ruled-table":
+        evidence = cross_page_ruled_table(payload)
     elif kind == "active-content-sanitize":
         evidence = active_content_sanitize(payload)
     elif kind == "multichannel-redaction":

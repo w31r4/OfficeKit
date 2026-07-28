@@ -320,6 +320,7 @@ for (const relativePath of [
   "scripts/mupdf.mjs",
   "scripts/reportlab_create.py",
   "scripts/pdfplumber_extract.py",
+  "scripts/extract_ruled_table.py",
   "scripts/pypdf_edit.py",
   "scripts/pymupdf_edit.py",
   "scripts/python_runtime.py",
@@ -333,6 +334,8 @@ for (const relativePath of [
   "tasks/accessibility.md",
   "tasks/render_review.md",
 ]) assert.ok(await exists(path.join(pdfSkillRoot, relativePath)), `PDF Skill is missing ${relativePath}`);
+assert.ok(await exists(path.join(pdfSkillRoot, "examples", "officekit-ruled-cross-page-table-workflow.mjs")));
+assert.match(pdfSkillText, /officekit-ruled-cross-page-table-workflow\.mjs/);
 
 const liveExcelSkillRoot = path.join(skillsRoot, "spreadsheets", "skills", "excel-live-control");
 const liveExcelSkill = await fs.readFile(path.join(liveExcelSkillRoot, "SKILL.md"), "utf8");

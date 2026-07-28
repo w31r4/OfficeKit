@@ -911,6 +911,96 @@ def create_richmedia_opaque_preservation(root: Path) -> None:
     temporary.unlink(missing_ok=True)
 
 
+def create_cross_page_ruled_table(root: Path) -> None:
+    """Create a self-authored, narrow-profile three-page ruled-table fixture.
+
+    This is intentionally not a benchmark for generic layout inference.  Its
+    table has an explicit repeated title, a complete line-drawn grid, one
+    merged/row-spanning header shape, invariant column boundaries, and a
+    footnote immediately below the final segment.  Adjacent two-column prose
+    and a rotated marginal label are negative canaries: a table extractor must
+    not absorb them into a data cell merely because they share a page.
+    """
+
+    target = root / "pdf" / "tables" / "regional-revenue.pdf"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    document = canvas.Canvas(str(target), pagesize=(612, 792), invariant=1)
+    document.setTitle("Regional Revenue ruled-table extraction fixture")
+    document.setAuthor("OfficeKit PromptBench fixture generator")
+    document.setSubject("Self-authored cross-page ruled-table extraction profile")
+
+    x0 = 108
+    widths = [100, 110, 100, 114]
+    x_positions = [x0]
+    for width in widths:
+        x_positions.append(x_positions[-1] + width)
+    table_top = 555
+    first_header_height = 26
+    second_header_height = 22
+    data_height = 30
+    headers = ["Region", "FY 2025 Revenue (USD m)", "Gross revenue", "Returns", "Net revenue"]
+    page_rows = [
+        [("North", "120", "(7)", "113"), ("South", "95", "(5)", "90"), ("Central", "88", "(4)", "84")],
+        [("East", "110", "(8)", "102"), ("West", "70", "(3)", "67"), ("Online", "64", "(2)", "62")],
+        [("Enterprise", "130", "(10)", "120"), ("Total", "677", "(39)", "638")],
+    ]
+
+    def draw_table(rows: list[tuple[str, str, str, str]]) -> float:
+        table_bottom = table_top - first_header_height - second_header_height - len(rows) * data_height
+        document.setStrokeColor(HexColor("#243B53"))
+        document.setLineWidth(0.75)
+        for y in [table_top, table_top - first_header_height - second_header_height, *[table_top - first_header_height - second_header_height - (index + 1) * data_height for index in range(len(rows))]]:
+            document.line(x_positions[0], y, x_positions[-1], y)
+        document.line(x_positions[1], table_top - first_header_height, x_positions[-1], table_top - first_header_height)
+        for x in (x_positions[0], x_positions[1], x_positions[-1]):
+            document.line(x, table_top, x, table_bottom)
+        for x in (x_positions[2], x_positions[3]):
+            document.line(x, table_top - first_header_height, x, table_bottom)
+
+        document.setFillColor(HexColor("#102A43"))
+        document.setFont("Helvetica-Bold", 9)
+        document.drawCentredString((x_positions[0] + x_positions[1]) / 2, table_top - 30, headers[0])
+        document.drawCentredString((x_positions[1] + x_positions[-1]) / 2, table_top - 17, headers[1])
+        for index, value in enumerate(headers[2:], 1):
+            document.drawCentredString((x_positions[index] + x_positions[index + 1]) / 2, table_top - first_header_height - 15, value)
+
+        document.setFont("Helvetica", 10)
+        for row_index, row in enumerate(rows):
+            baseline = table_top - first_header_height - second_header_height - row_index * data_height - 19
+            for column, value in enumerate(row):
+                document.drawCentredString((x_positions[column] + x_positions[column + 1]) / 2, baseline, value)
+        return table_bottom
+
+    for page_number, rows in enumerate(page_rows, 1):
+        document.setFillColor(HexColor("#102A43"))
+        document.setFont("Helvetica-Bold", 18)
+        document.drawString(54, 744, "Annual Report 2025")
+        document.setFont("Helvetica", 9)
+        document.drawString(54, 710, f"NARRATIVE-LEFT-P{page_number}: outside the table grid.")
+        document.drawString(330, 710, f"NARRATIVE-RIGHT-P{page_number}: not a table cell.")
+        document.drawString(54, 692, "Left-column prose stays out of scope.")
+        document.drawString(330, 692, "Right-column prose stays out of scope.")
+        document.saveState()
+        document.translate(82, 352)
+        document.rotate(90)
+        document.setFillColor(HexColor("#486581"))
+        document.setFont("Helvetica-Bold", 8)
+        document.drawString(0, 0, f"ROTATED-LABEL-P{page_number}")
+        document.restoreState()
+        document.setFillColor(HexColor("#102A43"))
+        document.setFont("Helvetica-Bold", 13)
+        document.drawString(x0, 580, "Regional Revenue" if page_number == 1 else "Regional Revenue (continued)")
+        bottom = draw_table(rows)
+        if page_number == len(page_rows):
+            document.setFont("Helvetica", 8)
+            document.drawString(x0, bottom - 20, "* Returns are shown in parentheses; amounts are USD millions.")
+        document.setFillColor(HexColor("#486581"))
+        document.setFont("Helvetica", 8)
+        document.drawString(54, 52, f"OfficeKit self-authored ruled-table fixture — page {page_number}")
+        document.showPage()
+    document.save()
+
+
 def stream_with_bytes(payload: bytes) -> DecodedStreamObject:
     stream = DecodedStreamObject()
     stream.set_data(payload)
@@ -1223,6 +1313,26 @@ def refresh_richmedia(root: Path) -> dict:
     return manifest
 
 
+def refresh_tables(root: Path) -> dict:
+    """Refresh only the self-authored ruled-table extraction fixture."""
+
+    manifest_path = root / "integrity.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("assets"), dict):
+        raise ValueError("unsupported corpus integrity schema")
+    create_cross_page_ruled_table(root)
+    relative = "pdf/tables/regional-revenue.pdf"
+    asset = root / relative
+    manifest["assets"][relative] = {
+        "bytes": asset.stat().st_size,
+        "description": FIXTURES[relative],
+        "kind": "file",
+        "sha256": sha256(asset),
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return manifest
+
+
 FIXTURES = {
     "pdf/encryption/owner-policy-aes256.pdf": "AES-256 encrypted user/owner permission split with embedded attachment and AcroForm canaries.",
     "pdf/encryption/user-password.json": "Test-only user credential; deliberately excludes the owner password.",
@@ -1233,6 +1343,7 @@ FIXTURES = {
     "pdf/corrupt/unrecoverable.pdf": "PDF-header-only malformed structural-repair control with no usable trailer or page tree.",
     "pdf/redaction/multichannel-secret.pdf": "Four-page incremental PDF with one self-authored canary in visible/white/OCR text, raster pixels, attachment, XMP, annotation, widget, orphan stream, and prior revision.",
     "pdf/richmedia/3d-review.pdf": "Two-page self-authored opaque /3D and /RichMedia annotation graph with default view, activation, asset, configuration, and JavaScript canaries; it is never executed.",
+    "pdf/tables/regional-revenue.pdf": "Three-page self-authored Regional Revenue ruled-table profile with repeated merged headers, two-column/rotated negative canaries, parentheses negatives, and a final footnote.",
     "pdf/xfa/dynamic-dependents.pdf": "Dynamic-XFA-shaped template/datasets packet with repeat and FormCalc markers.",
     "pdf/print/print-production-risk.pdf": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",
     "pdf/signing/docmdp-p1-final.pdf": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",
@@ -1251,6 +1362,7 @@ def generate(root: Path, signing_python: str | None) -> dict:
     create_damaged_xref_recovery(root)
     create_multichannel_redaction(root)
     create_richmedia_opaque_preservation(root)
+    create_cross_page_ruled_table(root)
     create_dynamic_xfa(root)
     create_print_production_risk(root)
     managed_signing_python = required_signing_python(signing_python)
@@ -1496,6 +1608,36 @@ def verify_richmedia_opaque(path: Path) -> None:
         raise ValueError("opaque RichMedia fixture is missing its media/configuration/activation/JavaScript graph")
 
 
+def verify_cross_page_ruled_table(path: Path) -> None:
+    reader = PdfReader(str(path), strict=True)
+    if len(reader.pages) != 3:
+        raise ValueError("cross-page ruled-table fixture must contain exactly three pages")
+    expected_rows = [
+        ("North", "120", "(7)", "113"),
+        ("South", "95", "(5)", "90"),
+        ("Central", "88", "(4)", "84"),
+        ("East", "110", "(8)", "102"),
+        ("West", "70", "(3)", "67"),
+        ("Online", "64", "(2)", "62"),
+        ("Enterprise", "130", "(10)", "120"),
+        ("Total", "677", "(39)", "638"),
+    ]
+    page_text = [page.extract_text() or "" for page in reader.pages]
+    for index, text in enumerate(page_text, 1):
+        if "Regional Revenue" not in text:
+            raise ValueError(f"ruled-table fixture page {index} is missing its repeated title")
+        if f"NARRATIVE-LEFT-P{index}" not in text or f"NARRATIVE-RIGHT-P{index}" not in text:
+            raise ValueError(f"ruled-table fixture page {index} is missing a two-column narrative canary")
+        if f"ROTATED-LABEL-P{index}" not in text:
+            raise ValueError(f"ruled-table fixture page {index} is missing its rotated-label canary")
+    text = "\n".join(page_text)
+    for row in expected_rows:
+        if not all(value in text for value in row):
+            raise ValueError(f"ruled-table fixture is missing expected row {row}")
+    if "Returns are shown in parentheses" not in page_text[-1]:
+        raise ValueError("ruled-table fixture is missing its final footnote")
+
+
 def verify_docmdp_p1(path: Path, root_certificate: Path) -> None:
     raw = path.read_bytes()
     reader = PdfReader(str(path), strict=True)
@@ -1611,6 +1753,7 @@ def verify(root: Path) -> dict:
     verify_damaged_xref_recovery(root / "pdf" / "corrupt" / "recoverable.pdf", root / "pdf" / "corrupt" / "unrecoverable.pdf")
     verify_multichannel_redaction(root / "pdf" / "redaction" / "multichannel-secret.pdf")
     verify_richmedia_opaque(root / "pdf" / "richmedia" / "3d-review.pdf")
+    verify_cross_page_ruled_table(root / "pdf" / "tables" / "regional-revenue.pdf")
     verify_xfa(root / "pdf" / "xfa" / "dynamic-dependents.pdf")
     verify_print(root / "pdf" / "print" / "print-production-risk.pdf")
     verify_docmdp_p1(root / "pdf" / "signing" / "docmdp-p1-final.pdf", root / "pdf" / "signing" / "test-pki" / "root.pem")
@@ -1620,7 +1763,7 @@ def verify(root: Path) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-corrupt", "refresh-redaction", "refresh-richmedia", "verify"))
+    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-corrupt", "refresh-redaction", "refresh-richmedia", "refresh-tables", "verify"))
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     parser.add_argument("--signing-python", help=f"managed pyHanko interpreter used only by generate (or set {SIGNING_PYTHON_ENV})")
     options = parser.parse_args()
@@ -1634,6 +1777,8 @@ def main() -> None:
         print(json.dumps(refresh_redaction(options.root), indent=2, sort_keys=True))
     elif options.command == "refresh-richmedia":
         print(json.dumps(refresh_richmedia(options.root), indent=2, sort_keys=True))
+    elif options.command == "refresh-tables":
+        print(json.dumps(refresh_tables(options.root), indent=2, sort_keys=True))
     else:
         print(json.dumps(verify(options.root), sort_keys=True))
 
