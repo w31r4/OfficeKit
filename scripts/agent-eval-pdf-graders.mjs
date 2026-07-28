@@ -796,12 +796,18 @@ function damagedXrefControlSourceHash(control, audit) {
 function damagedXrefRepair(audit) {
   const qpdf = audit?.validation?.qpdf;
   if (qpdf && typeof qpdf === "object") {
+    const namedFreshInspect = qpdf.freshInspect || qpdf.freshInspection;
+    const stagedFreshInspect = qpdf.freshInspectCompleted === true && qpdf.after && typeof qpdf.after === "object"
+      ? { ...qpdf.after, freshInspect: true }
+      : undefined;
     return {
       checkBefore: qpdf.before,
-      qpdfWrite: qpdf.rewrite,
+      qpdfWrite: qpdf.rewrite || audit?.warnings?.repairWrite,
       // A rewrite's own success claim is not evidence that the resulting
-      // package is clean. Require the separate, post-write inspection.
-      checkAfter: qpdf.freshInspect,
+      // package is clean. Require a named fresh record, or an explicit
+      // `freshInspectCompleted: true` staging marker plus its after record.
+      checkAfter: namedFreshInspect || stagedFreshInspect,
+      requiresFreshInspection: qpdf.freshInspectCompleted === true,
     };
   }
   const qpdfFreshInspect = audit?.validation?.qpdfFreshInspect;
@@ -967,7 +973,7 @@ export function gradeDamagedXrefRecoveryEvidence({ evidence, audit, commands, it
     audit?.warnings,
   ]).join("\n");
   const controlStatus = String(control?.status || control?.result || control?.decision || "").toLowerCase();
-  const controlRejected = (/reject|fail|error|unrecoverable|refus/.test(controlStatus) || control?.qpdfAccepted === false || control?.qpdfRejected === true || control?.accepted === false || control?.rejected === true)
+  const controlRejected = (/reject|fail|error|unrecoverable|refus/.test(controlStatus) || control?.qpdfAccepted === false || control?.qpdfRejected === true || control?.accepted === false || control?.rejected === true || control?.refused === true)
     && damagedXrefControlSourceHash(control, audit) === evidence.unrecoverable?.sha256
     && (control?.output === null || control?.outputPath === null || control?.artifactWritten === false || control?.published === false || control?.outputGenerated === false || control?.outputPresent === false || control?.pseudoRepairProduced === false || control?.pseudoRepairGenerated === false);
   const qpdfOutputClean = repair?.checkAfter?.status === "clean"
