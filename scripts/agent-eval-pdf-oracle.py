@@ -357,6 +357,7 @@ def form_structure_evidence(file_path: pathlib.Path) -> dict[str, Any]:
             "defaultValue": "" if isinstance(default_value, NullObject) else str(default_value or ""),
             "flags": flags,
             "readOnly": bool(flags & 1),
+            "hasDefaultAppearance": field.get("/DA") is not None,
             "states": states,
             "kids": len(list(field.get("/Kids", []) or [])),
         }
@@ -811,6 +812,136 @@ def acroform_visible(payload: dict[str, Any]) -> dict[str, Any]:
             payload["poppler"],
             source_structure,
             expected_fields,
+        ),
+    }
+
+
+def byte_range_surface(signature: dict[str, Any], raw: bytes) -> dict[str, Any]:
+    value = resolve_pdf_value(signature.get("/ByteRange")) if isinstance(signature, dict) else None
+    offsets = [int(item) for item in value] if isinstance(value, (list, tuple, pypdf.generic.ArrayObject)) and len(value) == 4 else []
+    valid_segments = bool(
+        len(offsets) == 4
+        and offsets[0] == 0
+        and min(offsets[1:]) >= 0
+        and offsets[0] + offsets[1] <= offsets[2]
+        and offsets[2] + offsets[3] <= len(raw)
+    )
+    covered_bytes = offsets[2] + offsets[3] if valid_segments else None
+    return {
+        "offsets": offsets,
+        "validSegments": valid_segments,
+        "coveredBytes": covered_bytes,
+        "coversEntireFile": covered_bytes == len(raw),
+    }
+
+
+def object_identity(value: Any) -> list[int] | None:
+    identity = indirect_identity(value)
+    return list(identity) if identity is not None else None
+
+
+def signature_bytes_hash(signature: dict[str, Any]) -> str | None:
+    if not isinstance(signature, dict) or signature.get("/Contents") is None:
+        return None
+    value = resolve_pdf_value(signature.get("/Contents"))
+    try:
+        payload = bytes(value)
+    except (TypeError, ValueError):
+        payload = str(value).encode("utf-8", "replace")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def docmdp_signature_surface(file_path: pathlib.Path) -> dict[str, Any]:
+    raw = file_path.read_bytes()
+    reader = pypdf.PdfReader(str(file_path), strict=True)
+    root = root_dictionary(reader)
+    permissions = resolve_pdf_value(root.get("/Perms")) if root.get("/Perms") else {}
+    signature_reference = permissions.get("/DocMDP") if isinstance(permissions, dict) else None
+    signature = resolve_pdf_value(signature_reference) if signature_reference is not None else {}
+    references = resolve_pdf_value(signature.get("/Reference")) if isinstance(signature, dict) and signature.get("/Reference") is not None else []
+    if not isinstance(references, (list, tuple, pypdf.generic.ArrayObject)):
+        references = []
+    docmdp_parameters: list[dict[str, Any]] = []
+    fieldmdp_parameters: list[dict[str, Any]] = []
+    for reference in references:
+        transform = resolve_pdf_value(reference)
+        if not isinstance(transform, dict):
+            continue
+        parameters = resolve_pdf_value(transform.get("/TransformParams")) if transform.get("/TransformParams") is not None else {}
+        if not isinstance(parameters, dict):
+            continue
+        method = str(resolve_pdf_value(transform.get("/TransformMethod", "")))
+        if method == "/DocMDP":
+            docmdp_parameters.append(parameters)
+        elif method == "/FieldMDP":
+            fieldmdp_parameters.append(parameters)
+    docmdp = docmdp_parameters[0] if len(docmdp_parameters) == 1 else {}
+    fieldmdp = fieldmdp_parameters[0] if len(fieldmdp_parameters) == 1 else {}
+    field_names = resolve_pdf_value(fieldmdp.get("/Fields")) if isinstance(fieldmdp, dict) and fieldmdp.get("/Fields") is not None else []
+    return {
+        "pageCount": len(reader.pages),
+        "catalogRefs": {
+            "perms": object_identity(root.get("/Perms")),
+            "acroForm": object_identity(root.get("/AcroForm")),
+            "metadata": object_identity(root.get("/Metadata")),
+            "info": object_identity(reader.trailer.get("/Info")),
+        },
+        "signature": {
+            "present": isinstance(signature, dict) and bool(signature),
+            "reference": object_identity(signature_reference),
+            "contentsSha256": signature_bytes_hash(signature),
+            "byteRange": byte_range_surface(signature, raw),
+        },
+        "docMDP": {
+            "transformCount": len(docmdp_parameters),
+            "permission": int(docmdp.get("/P", 0) or 0) if isinstance(docmdp, dict) else 0,
+        },
+        "fieldMDP": {
+            "transformCount": len(fieldmdp_parameters),
+            "action": str(resolve_pdf_value(fieldmdp.get("/Action", ""))).lstrip("/") if isinstance(fieldmdp, dict) else "",
+            "fields": [str(resolve_pdf_value(value)) for value in field_names] if isinstance(field_names, (list, tuple, pypdf.generic.ArrayObject)) else [],
+        },
+    }
+
+
+def certified_docmdp_p2_fill(payload: dict[str, Any]) -> dict[str, Any]:
+    source = pathlib.Path(payload["source"])
+    output = pathlib.Path(payload["output"])
+    target_name = str(payload["field"])
+    target_value = str(payload["value"])
+    locked_name = str(payload["lockedField"])
+    source_form = form_structure_evidence(source)
+    output_form = form_structure_evidence(output)
+    source_fields = source_form.get("fields", {})
+    output_fields = output_form.get("fields", {})
+    source_bytes = source.read_bytes()
+    output_bytes = output.read_bytes()
+    source_signature = docmdp_signature_surface(source)
+    output_signature = docmdp_signature_surface(output)
+    return {
+        "kind": "certified-docmdp-p2-fill",
+        "source": inspect_pdf(source, [target_value]),
+        "output": inspect_pdf(output, [target_value]),
+        "sourceForm": source_form,
+        "outputForm": output_form,
+        "sourceSignature": source_signature,
+        "outputSignature": output_signature,
+        "originalPrefixPreserved": output_bytes.startswith(source_bytes),
+        "nonTargetFieldsStable": set(source_fields) == set(output_fields)
+        and all(
+            source_fields[name] == output_fields[name]
+            for name in source_fields
+            if name != target_name and source_fields[name].get("fieldType") != "/Sig"
+        ),
+        "lockedFieldStable": source_fields.get(locked_name) == output_fields.get(locked_name),
+        "catalogRefsStable": source_signature.get("catalogRefs") == output_signature.get("catalogRefs"),
+        "visual": compare_form_render(
+            source,
+            output,
+            pathlib.Path(payload["renderRoot"]),
+            payload["poppler"],
+            source_form,
+            {target_name: target_value},
         ),
     }
 
@@ -1376,6 +1507,8 @@ def main() -> None:
         evidence = active_content_sanitize(payload)
     elif kind == "acroform-visible":
         evidence = acroform_visible(payload)
+    elif kind == "certified-docmdp-p2-fill":
+        evidence = certified_docmdp_p2_fill(payload)
     elif kind == "attachment-quarantine":
         evidence = attachment_quarantine(payload)
     elif kind == "accessible-report":

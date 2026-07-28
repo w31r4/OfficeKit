@@ -180,4 +180,13 @@ The optional PyMuPDF specialist script also exposes `add_text_annotation` and `f
 
 An incremental update can retain signed byte ranges, but it can still violate DocMDP or a field lock. The script refuses signed inputs unless `--allow-signed` is explicit. Run pyHanko validation before and after and compare the reported modifications.
 
+For one pre-verified DocMDP P=2 certification, there is a separate
+[`pyHanko controlled form finalisation`](sign_verify.md#finalise-one-allowed-docmdp-p2-field)
+route. It accepts one flat empty visible `/Tx` field, one explicit locked field
+and value, one expected certification field, and one caller-provided trust root.
+It finalises the target as a visible static/read-only decimal in one incremental
+revision only after explicit-root validation proves that exactly the target field
+changed. It is not a route for arbitrary signed form edits, hierarchical/shared
+fields, radio/choice fields, changing a lock set, or preserving interactivity.
+
 Record the canonical [`office-kit.pdf-audit.v1`](../references/AUDIT_SCHEMA.md) envelope and run `scripts/pdf_audit.py validate` against the exact source and delivered artifact before handoff.

@@ -126,7 +126,7 @@ source of pack versions, hashes, sizes, and installation facts.
 | Create an AES-256 encrypted delivery copy | `scripts/qpdf_provider.py` | [encryption](tasks/encryption.md) |
 | Active/auxiliary structure cleanup | `scripts/pikepdf_provider.py` | [structure cleanup](tasks/structure_clean.md) |
 | Searchable-layer OCR | `scripts/ocrmypdf_provider.py` | [OCR](tasks/ocr.md) |
-| Local PKCS#12 sign or signature validation | `scripts/pyhanko_sign_provider.py`, `scripts/pyhanko_provider.py` | [sign](tasks/sign_verify.md) |
+| Local PKCS#12 sign, validation, or controlled P=2 form finalisation | `scripts/pyhanko_sign_provider.py`, `scripts/pyhanko_provider.py`, `scripts/pyhanko_certified_form_fill.py` | [sign](tasks/sign_verify.md) |
 | PDF/A or PDF/UA machine checks | `scripts/verapdf_provider.py` | [accessibility](tasks/accessibility.md) |
 | Independent native visual QA | Poppler | [render review](tasks/render_review.md) |
 
@@ -177,9 +177,10 @@ and [forms and annotations](tasks/forms_annotations.md), not this overview.
   raster work, residue evidence, rewrite, and invalidation acknowledgement.
   Coordinates remain unrotated PyMuPDF page space. A complete imported PDF
   OCR workflow is not a sanitizer; see [OCR](tasks/ocr.md).
-- pyHanko local PKCS#12 signing uses a passphrase on stdin only. `pyhanko_provider.py`
-  validates under an explicit trust root. Timestamp, LTV, PKCS#11/HSM, remote
-  signing, and network evidence are external workflows, never auto-installed.
+- pyHanko local PKCS#12 signing uses a passphrase on stdin only. Its P=2 route
+  finalises one verified empty decimal field under an exact FieldMDP lock set;
+  `pyhanko_provider.py` validates under an explicit trust root. Timestamp,
+  LTV, PKCS#11/HSM, remote signing, and network evidence are external workflows.
 - veraPDF's `verapdf_provider.py` is a machine-rule gate, not repair or a substitute for
   human review of PDF/UA. See [accessibility](tasks/accessibility.md).
 

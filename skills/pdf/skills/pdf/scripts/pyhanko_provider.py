@@ -346,9 +346,24 @@ def validated_signature(signature: Any, index: int, signer_context: Any, timesta
             signer_validation_context=signer_context,
             ts_validation_context=timestamp_context,
         )
-        changed_fields = []
-        if status.diff_result is not None:
-            changed_fields = sorted(bounded_text(value, 2_048) for value in status.diff_result.changed_form_fields)[:1_024]
+        # `diff_result` is normally a DiffResult, but pyHanko intentionally
+        # returns SuspiciousModification as a value when the signed revision
+        # cannot be reconciled with the selected DocMDP/FieldMDP policy. That
+        # is a completed signature validation with a negative policy result,
+        # not an adapter or transport failure. Keep the evidence explicit so
+        # callers can distinguish it from malformed CMS or an unavailable
+        # validation runtime.
+        diff_result = status.diff_result
+        changed_fields = sorted(
+            bounded_text(value, 2_048)
+            for value in (getattr(diff_result, "changed_form_fields", ()) or ())
+        )[:1_024]
+        difference_result = type(diff_result).__name__ if diff_result is not None else "none"
+        difference_error = (
+            bounded_text(diff_result, 1_024)
+            if diff_result is not None and not hasattr(diff_result, "changed_form_fields")
+            else None
+        )
         result.update({
             "validationCompleted": True,
             "intact": bool(status.intact),
@@ -359,6 +374,8 @@ def validated_signature(signature: Any, index: int, signer_context: Any, timesta
             "coverage": enum_name(status.coverage),
             "modificationLevel": enum_name(status.modification_level),
             "changedFormFields": changed_fields,
+            "differenceResult": difference_result,
+            "differenceError": difference_error,
             "docMDPCompliant": bool(status.docmdp_ok),
             "hasSeedValues": bool(status.has_seed_values),
             "seedValueCompliant": bool(status.seed_value_ok) if status.has_seed_values else None,

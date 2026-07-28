@@ -46,12 +46,16 @@ function supportedPyHanko(executable) {
 
 const manifest = (await fs.readFile(path.join(skillRoot, "manifest.txt"), "utf8")).split(/\r?\n/).filter(Boolean);
 assert.ok(manifest.includes("scripts/pyhanko_provider.py"));
+assert.ok(manifest.includes("scripts/pyhanko_certified_form_fill.py"));
 const skillText = await fs.readFile(path.join(skillRoot, "SKILL.md"), "utf8");
 assert.match(skillText, /pyhanko_provider\.py/);
+assert.match(skillText, /pyhanko_certified_form_fill\.py/);
 assert.match(skillText, /explicit trust root/i);
 const signVerifyText = await fs.readFile(path.join(skillRoot, "tasks", "sign_verify.md"), "utf8");
 assert.match(signVerifyText, /require-all-integrity-valid/);
 assert.match(signVerifyText, /complete PAdES profile conformance/i);
+assert.match(signVerifyText, /Finalise one allowed DocMDP P=2 field/);
+assert.match(signVerifyText, /fill-certified-form/);
 
 const configuredPython = process.env.OFFICE_KIT_PYHANKO_TEST_PYTHON;
 if (configuredPython) {
@@ -221,6 +225,12 @@ with (root / "signed.pdf").open("rb") as source, (root / "modified.pdf").open("w
         generic.pdf_name("/Producer"): generic.pdf_string("post-signature validation fixture")
     }))
     writer.write(output)
+
+with (root / "signed.pdf").open("rb") as source, (root / "disallowed.pdf").open("wb") as output:
+    writer = IncrementalPdfFileWriter(source)
+    writer.root[generic.pdf_name("/PageMode")] = generic.pdf_name("/FullScreen")
+    writer.update_root()
+    writer.write(output)
 `, "utf8");
   runProvider([fixtureBuilder, tempRoot], { status: 0 });
 
@@ -286,6 +296,29 @@ with (root / "signed.pdf").open("rb") as source, (root / "modified.pdf").open("w
   assert.equal(modifiedReport.signatures[0].coverage, "entire-revision");
   assert.equal(modifiedReport.signatures[0].modificationLevel, "lta-updates");
   assert.equal(modifiedReport.signatures[0].docMDPCompliant, true);
+
+  const disallowed = path.join(tempRoot, "disallowed.pdf");
+  const disallowedBytes = await fs.readFile(disallowed);
+  const disallowedResult = runProvider([
+    provider, "verify", disallowed, "--expected-sha256", sha256(disallowedBytes),
+    "--trust-policy", "explicit-roots", "--trust-root", cert,
+    "--require-signature", "--require-all-integrity-valid", "--require-all-trusted",
+    "--require-docmdp-compliant", "--require-all-bottom-line",
+  ], { status: 2 });
+  const disallowedReport = jsonResult(disallowedResult, "stderr");
+  const disallowedSignature = disallowedReport.signatures[0];
+  assert.equal(disallowedSignature.validationCompleted, true);
+  assert.equal(disallowedSignature.intact, true);
+  assert.equal(disallowedSignature.cryptographicallyValid, true);
+  assert.equal(disallowedSignature.trusted, true);
+  assert.equal(disallowedSignature.bottomLine, false);
+  assert.equal(disallowedSignature.docMDPCompliant, false);
+  assert.equal(disallowedSignature.differenceResult, "SuspiciousModification");
+  assert.equal(typeof disallowedSignature.differenceError, "string");
+  assert.ok(disallowedSignature.differenceError.length > 0);
+  assert.deepEqual(disallowedSignature.changedFormFields, []);
+  assert.equal(disallowedReport.summary.allValidationCompleted, true);
+  assert.equal(disallowedReport.summary.hasPostSigningChanges, true);
 
   const tampered = path.join(tempRoot, "tampered.pdf");
   const tamperedBytes = Buffer.from(signedBytes);

@@ -16,9 +16,9 @@ The suite is evaluator-side repository infrastructure. `evals/`, the runner, loc
 ## Current suite
 
 - 41 cases: 21 PDF, 7 Documents, 7 Spreadsheets, and 6 Presentations. PDF is 51.2% of the suite and is required to remain an absolute majority, so a meaningful Office vertical slice never creates unrelated PDF filler prompts.
-- 26 `ready` cases: 14 PDF cases, four bounded XLSX workflows (threaded-comment, formula-assumption update, source-bound connection refresh-on-open, and source-bound Pivot refresh-on-open), four DOCX workflows (classic-comment plus source-bound header/footer text and source-bound section page numbering), and four PPTX workflows (title plus fixed-topology rich-speaker-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone).
-- Six locked, self-authored PDF corpus inputs are now ready: AES-256 owner/user permission split, native annotation reply chain, untagged complex report, Dynamic XFA packet, print-production risk structure, and a real DocMDP P=1 certification signature with a public test root. Each has a committed SHA-256/byte manifest and an independent parser oracle; they grade only an auditable safe refusal, never a generic “no output” result.
-- 15 `asset-required` cases still await their pinned corpus files or test PKI. They remain excluded from readiness and repeat-matrix claims.
+- 27 `ready` cases: 15 PDF cases, four bounded XLSX workflows (threaded-comment, formula-assumption update, source-bound connection refresh-on-open, and source-bound Pivot refresh-on-open), four DOCX workflows (classic-comment plus source-bound header/footer text and source-bound section page numbering), and four PPTX workflows (title plus fixed-topology rich-speaker-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone).
+- Seven locked, self-authored PDF corpus inputs are now ready. Six are auditable safe-refusal boundaries: AES-256 owner/user permission split, native annotation reply chain, untagged complex report, Dynamic XFA packet, print-production risk structure, and a real DocMDP P=1 certification signature with a public test root. The seventh is a real DocMDP P=2/FieldMDP form whose one permitted controlled finalisation is independently graded. Every asset has a committed SHA-256/byte manifest and parser oracle; generic “no output” does not pass either kind of case.
+- 14 `asset-required` cases still await their pinned corpus files or test PKI. They remain excluded from readiness and repeat-matrix claims.
 - Every family has both a success and a fail-closed case. Some advanced PDF cases accept either verified success or an explicit safe refusal.
 - The default policy uses three trials per subject. Trial count is recorded per case rather than silently inferred by the Agent.
 
@@ -63,11 +63,11 @@ npm run eval:agents -- prepare pptx-closed-leaf-slide-clone --subject candidate 
 npm run eval:agents -- run pptx-closed-leaf-slide-clone --subject candidate --trial 1
 ```
 
-Generated PDF fixtures and the locked-corpus verifier require Python with ReportLab, pypdf, and Pillow. The eight artifact-producing ready PDF graders additionally require pdfplumber; their applicable visual oracles require `pdftoppm`. Set `OFFICE_KIT_AGENT_EVAL_PYTHON` to that evaluator interpreter and, only when it is not on `PATH`, set `OFFICE_KIT_AGENT_EVAL_PDFTOPPM`. A prepared PDF prompt binds its actual provider interpreter from `OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON`, then legacy `OFFICE_KIT_PDF_PROVIDER_PYTHON`, then the evaluator interpreter. This keeps a small parser/render evaluator separate from a policy-authorized managed specialist runtime such as pyHanko; `run.json` records both paths. In Codex, use the Python executable returned by `load_workspace_dependencies` for the evaluator and a managed provider path only when the case needs it.
+Generated PDF fixtures and the locked-corpus verifier require Python with ReportLab, pypdf, and Pillow. The nine artifact-producing ready PDF graders additionally require pdfplumber; their applicable visual oracles require `pdftoppm`. Set `OFFICE_KIT_AGENT_EVAL_PYTHON` to that evaluator interpreter and, only when it is not on `PATH`, set `OFFICE_KIT_AGENT_EVAL_PDFTOPPM`. A prepared PDF prompt binds its actual provider interpreter from `OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON`, then legacy `OFFICE_KIT_PDF_PROVIDER_PYTHON`, then the evaluator interpreter. This keeps a small parser/render evaluator separate from a policy-authorized managed specialist runtime such as pyHanko; `run.json` records both paths. In Codex, use the Python executable returned by `load_workspace_dependencies` for the evaluator and a managed provider path only when the case needs it.
 
 ## Locked boundary corpus
 
-The six ready boundary fixtures live below `evals/assets/`, outside the npm
+The seven ready signature/boundary fixtures live below `evals/assets/`, outside the npm
 payload. `integrity.json` records every declared file's SHA-256 and byte count;
 the runner rejects a missing manifest entry, a mismatched byte stream, or a
 symbolic link before copying a file into the read-only trial workspace. The
@@ -150,8 +150,30 @@ explicit-root pyHanko validation and the typed
 `pdf_audit.py failed-closed --require-docmdp-no-changes` route, which binds the
 real verification report, selected public root, full-file coverage, P=1 policy,
 and no-mutation decision into the sole `audit.json` output. This is evidence
-that both workflow texts can use the published safe-refusal primitive; it does
-not generalize P=1 handling to P=2/P=3, FieldMDP, or arbitrary signed PDFs.
+that both workflow texts can use the published safe-refusal primitive. P=2,
+P=3, FieldMDP, and arbitrary signed PDFs remain outside that refusal primitive
+except for the separate, explicitly constrained P=2 finalisation described
+below.
+
+`pdf-docmdp-allowed-field-fill` uses a different self-authored source and
+public root: P=2 allows form filling, while a FieldMDP Include transform locks
+only `LockedAmount=LOCKED-9000`. The only success contract is to convert the
+empty visible `ApprovedAmount` `/Tx` widget into the canonical decimal
+`12500.00` with the published `pyhanko_certified_form_fill.py` primitive. The
+primitive rejects any post-certification baseline revision, non-flat form,
+wrong source/root hash, non-P=2 policy, wrong FieldMDP lock, locked target,
+noncanonical amount, output collision, and symlink path before publication. It
+uses one incremental revision, makes the target static/read-only with a normal
+appearance, suppresses unrelated metadata updates, revalidates through the
+explicit root, then publishes without replacement. The hidden evaluator does
+not trust that report: it reopens both bytes with pypdf, checks the original
+signature contents and ByteRange, DocMDP/FieldMDP transforms, catalog
+references, exact field scope, strict source prefix, revision count, and a
+Poppler target-widget mask. Repository smoke has exercised that fixture through
+the managed pyHanko runtime and the independent evaluator. One isolated Agent
+candidate trial against the dirty implementation candidate also passed all 37
+applicable checks at `100/100`; it remains neither a clean-commit result nor a
+candidate/reference three-repeat claim.
 
 The evaluator normalizes the published audit envelope and structured equivalent
 forms: an explicit
@@ -205,7 +227,7 @@ Current generic hard gates verify:
 
 Generic gates alone do **not** constitute a passing task score. Reports for cases without a case grader continue to say `partial-generic-only` or `generic-refusal-gates` and keep their semantic, visual, security, and trace evidence in `pending`.
 
-All eight ready PDF cases now have complete case-specific grading:
+All nine ready PDF cases now have complete case-specific grading:
 
 | Case | Machine | Visual | Security | Trace |
 | --- | --- | --- | --- | --- |
@@ -217,6 +239,7 @@ All eight ready PDF cases now have complete case-specific grading:
 | `pdf-active-content-public-sanitize` | pypdf proves the fixture contains root/additional JavaScript, Launch/SubmitForm actions, attachments, invisible text, a comment, populated form values, and personal metadata, then proves every channel is inert | Poppler renders every page and permits changes only inside the removed widget-value/comment masks | All canaries absent from object strings, streams, attachments, annotations/forms, text, and metadata; one revision; original prefix absent; canonical audit hashes match | Probe and route plan before typed scrub, then standalone inert residue scan, Poppler render, audit byte validation, no fallback or low-level mutation bypass |
 | `pdf-greenfield-accessible-report` | Strict pypdf catalog and structure-tree traversal proves six pages, title/language, H1-H3, one logical Table spanning pages, Figure alt text, Link annotation/StructParent/OBJR, reading-order IDs, and running artifacts | Poppler/Pillow renders all six pages, rejects blank or edge-clipped pages, checks common geometry, and requires readable table text on both physical segments | Canonical source/output hashes, no PDF/UA overclaim, and separate modeled, veraPDF-machine, and human-review evidence | `artifact-tool`/version, explicit `rewrite`, no fallback, shipped typed report example, Poppler evidence, and no ad-hoc PDF writer |
 | `pdf-merge-reorder-stamp-links` | Independent pypdf proves exact six-page source order, preserved boxes/rotation, 20% watermark placement, six outlines, six named destinations, and six resolved internal links | Poppler/Pillow maps every output page to its source; four non-target pages must be pixel-identical and both report pages must change | Manifest plus all source/output hashes, one revision, decodable streams, navigation resolution, and watermark absence from sources | pypdf/version, `rewrite`, check/plan before typed merge, typed Poppler comparison and multi-source audit after mutation, no ad-hoc writer |
+| `pdf-docmdp-allowed-field-fill` | Independent pypdf proves the signed P=2 baseline, exact FieldMDP Include lock, one empty visible target, `12500.00` output value, static/read-only target, unchanged locked/non-target fields, original signature contents, and stable catalog references | Poppler/Pillow requires every page to remain nonblank and confines every changed pixel to the target widget | Original bytes must be a strict output prefix, exactly one revision is appended, the original signed range remains bound to the baseline, and the raw typed pyHanko audit binds source/output hashes, explicit root, integrity, trust, DocMDP, FieldMDP, changed field, and no-replace transaction | Published P2 probe and finalisation primitive before post-fill explicit-root verification and render; no fallback or ad-hoc form/object writer |
 
 One clean candidate run of `pdf-source-bound-text-highlight` at commit `535d875504f84ccd469cb05922ce94528cfd14d8` passed `100/100`: all hard gates plus 6 machine, 3 visual, 3 security, and 8 trace checks passed. It bound package SHA-256 `c1569217b49725d0e31cc818fc5e2ee035eccc8690d7ee49c57a3e8dc74d33de`, copied-Skill SHA-256 `dc4a294e27b76540cf43e5a7ff1989ccbdcb822ea6e621d9ead413feef9fc20f`, input SHA-256 `3e31e282b7702940c572316958bb3d3263e54f62357605c84303b2fa1a7f31da`, and oracle SHA-256 `20286e3071ecdf9381db2c0543c96dd13c2082c43d3d815003e851d81455fc09`. This is one candidate run, not the default three-repeat matrix or a reference-Skill comparison.
 

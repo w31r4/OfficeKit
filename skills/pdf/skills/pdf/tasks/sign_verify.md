@@ -219,6 +219,82 @@ the selected root with all signature policy gates passing. It publishes only
 no-mutation decision. A P=2 or P=3 form change needs its own field and policy
 analysis; do not route it through this blanket refusal.
 
+## Finalise one allowed DocMDP P=2 field
+
+Use this route only when all preconditions are already known and the requested
+result is a one-time static delivery value: one certification signature named
+by the caller, `DocMDP P=2`/`fill-forms`, exactly one `FieldMDP Include` locked
+field with an expected value, and one flat empty visible `/Tx` target. It turns
+that target into a visible read-only decimal. It does not claim that an earlier
+signer approves arbitrary later revisions, and it is not a general signed-form
+editor.
+
+First inspect the original and resolve the exact mutating capability. The trust
+root is declared as caller-supplied evidence; it is never fetched or installed:
+
+```js
+import { PdfFile } from "office-kit";
+import { PdfProviders } from "office-kit/pdf/providers";
+
+const inspection = await PdfFile.inspectPdf("inputs/source.pdf");
+let resolution = await PdfProviders.resolve({
+  task: "fill-certified-form",
+  provider: "pyhanko",
+  inspection,
+  savePolicy: "incremental",
+  mutationAuthorized: true,
+  credentials: ["caller-supplied-trust-root"],
+  policyPath: ".office-kit/pdf-providers.json",
+});
+if (resolution.status === "installable") {
+  resolution = await PdfProviders.ensure({ resolution, policyPath: ".office-kit/pdf-providers.json" });
+}
+if (resolution.status !== "ready") throw new Error(resolution.reason.message);
+await PdfProviders.probe({ provider: "pyhanko", task: "fill-certified-form", policyPath: ".office-kit/pdf-providers.json" });
+```
+
+Then bind every precondition to exact source bytes. The output path must not
+exist. The script creates a private source/root snapshot, checks the baseline
+under that root, writes exactly one incremental revision without unrelated
+metadata drift, verifies the output under the same root, and atomically
+publishes its typed audit report. `--caller-isolated` means the caller has
+already isolated this untrusted input; otherwise use `--trusted-input`.
+
+```bash
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:?select a ready pyHanko runtime first}"
+SOURCE_SHA256="$(node -e 'const fs=require("fs"),c=require("crypto"); process.stdout.write(c.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex"))' inputs/source.pdf)"
+
+"$PYTHON_BIN" scripts/pyhanko_certified_form_fill.py probe
+"$PYTHON_BIN" scripts/pyhanko_certified_form_fill.py fill \
+  inputs/source.pdf outputs/approved-amount.pdf \
+  --expected-source-sha256 "$SOURCE_SHA256" \
+  --trust-root inputs/credentials/test-root.pem \
+  --field ApprovedAmount --value 12500.00 \
+  --expected-signature-field Certification \
+  --expected-locked-field LockedAmount --expected-locked-value LOCKED-9000 \
+  --caller-isolated \
+  > outputs/audit.json
+
+OUTPUT_SHA256="$(node -e 'const fs=require("fs"),c=require("crypto"); process.stdout.write(c.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex"))' outputs/approved-amount.pdf)"
+"$PYTHON_BIN" scripts/pyhanko_provider.py verify outputs/approved-amount.pdf \
+  --expected-sha256 "$OUTPUT_SHA256" \
+  --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem \
+  --require-signature --require-all-integrity-valid --require-all-trusted \
+  --require-docmdp-compliant --require-all-bottom-line \
+  > tmp/pdfs/approved-amount-signature-validation.json
+```
+
+The final report requires `coverage: entire-revision`,
+`modificationLevel: form-filling`, `changedFormFields: ["ApprovedAmount"]`,
+and `docMDPCompliant: true`; it also records the exact source prefix, root,
+field before/after state, revision count, and no-replace transaction. Reinspect
+with a separate form reader and render every page with Poppler before delivery.
+Fail closed if any field is hierarchical/shared, any source revision already
+follows certification, the lock set/value differs, the target is nonempty or
+read-only, a signature is missing/untrusted, any non-target field changes, or
+the operation would need reflow, a new signature, timestamp, LTV/DSS, or
+interactive form preservation.
+
 ## Capabilities outside the shipped signer
 
 Use an explicit external pyHanko workflow for PKCS#11/HSM credentials, remote
