@@ -768,6 +768,16 @@ function damagedXrefControlSourceHash(control, audit) {
 }
 
 function damagedXrefRepair(audit) {
+  const qpdf = audit?.validation?.qpdf;
+  if (qpdf && typeof qpdf === "object") {
+    return {
+      checkBefore: qpdf.before,
+      qpdfWrite: qpdf.rewrite,
+      // A rewrite's own success claim is not evidence that the resulting
+      // package is clean. Require the separate, post-write inspection.
+      checkAfter: qpdf.freshInspect,
+    };
+  }
   const candidates = [
     audit?.repair,
     audit?.validation?.repair,
@@ -878,7 +888,7 @@ export function gradeDamagedXrefRecoveryEvidence({ evidence, audit, commands, it
     audit?.warnings,
   ]).join("\n");
   const controlStatus = String(control?.status || control?.result || control?.decision || "").toLowerCase();
-  const controlRejected = (/reject|fail|error|unrecoverable|refus/.test(controlStatus) || control?.qpdfAccepted === false || control?.rejected === true)
+  const controlRejected = (/reject|fail|error|unrecoverable|refus/.test(controlStatus) || control?.qpdfAccepted === false || control?.qpdfRejected === true || control?.rejected === true)
     && damagedXrefControlSourceHash(control, audit) === evidence.unrecoverable?.sha256
     && (control?.output === null || control?.outputPath === null || control?.artifactWritten === false || control?.published === false || control?.outputGenerated === false || control?.outputPresent === false || control?.pseudoRepairProduced === false);
   return [

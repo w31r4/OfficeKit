@@ -514,6 +514,33 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
     };
     const agentStyleChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: agentStyleAudit, commands, item: damagedXrefItem });
     assert.equal(agentStyleChecks.every((check) => check.passed), true, JSON.stringify(agentStyleChecks.filter((check) => !check.passed), null, 2));
+    const qpdfProviderAudit = structuredClone(agentStyleAudit);
+    delete qpdfProviderAudit.validation.qpdfRepair;
+    qpdfProviderAudit.validation.qpdf = {
+      before: {
+        status: canonicalRepair.checkBefore?.status,
+        exitCode: 3,
+      },
+      rewrite: {
+        status: "succeeded",
+        checkAfterStatus: "clean",
+      },
+      freshInspect: {
+        status: "clean",
+        exitCode: 0,
+      },
+    };
+    qpdfProviderAudit.validation.unrecoverableControl = {
+      inspectedSeparately: true,
+      qpdfRejected: true,
+      outputGenerated: false,
+    };
+    const qpdfProviderChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: qpdfProviderAudit, commands, item: damagedXrefItem });
+    assert.equal(qpdfProviderChecks.every((check) => check.passed), true, JSON.stringify(qpdfProviderChecks.filter((check) => !check.passed), null, 2));
+    const missingFreshInspect = structuredClone(qpdfProviderAudit);
+    delete missingFreshInspect.validation.qpdf.freshInspect;
+    const missingFreshInspectChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: missingFreshInspect, commands, item: damagedXrefItem });
+    assert.equal(missingFreshInspectChecks.find((check) => check.id === "pdf-machine:qpdf-output-clean")?.passed, false, "a qpdf rewrite success claim without a fresh final inspection must fail");
     const attachmentLoss = structuredClone(evidence);
     attachmentLoss.outputAttachments = [];
     const attachmentLossChecks = gradeDamagedXrefRecoveryEvidence({ evidence: attachmentLoss, audit, commands, item: damagedXrefItem });
