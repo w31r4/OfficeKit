@@ -236,8 +236,28 @@ must also record qpdf's refusal of the malformed control and produce no control
 output. A qpdf-unavailable environment may only make the published audit-only
 refusal; page re-rendering, a generic PDF writer, or a silent substitute cannot
 turn that refusal into a pass. The repository smoke uses the real qpdf binary;
-a candidate/reference Agent repeat matrix is recorded only after the runner
-executes it.
+a fresh six-record matrix at clean evaluator commit
+`ae05768037aeb5ae49e711eeff116c83076c1ccb` passed candidate `3/3` and
+copied-reference `3/3`: every trial had all 35 checks and hard gates passing at
+`100/100`. The six records share the packed candidate tarball SHA-256
+`7e31440be693705e40cf9652f067b2d4921c104049ecd30706edc857656d2217`, prompt
+SHA-256 `37a31e8395216f82b1e52fe39cb71dda2a4e24bb163d71b789dcf3d9d9f47a1f`,
+recoverable-source SHA-256
+`f71efab36939d8138aedb34f84ca438ae03770eda80d63fa5a9b634edf745f74de67fce`,
+control SHA-256
+`3c70bdcc61c958b72068bc40b916b5ceb12d3d5535a9b634edf745f74de67fce`, and
+oracle SHA-256
+`34e054f149af594450501a9e664aa0067630c6c1fc0176801d8cb707b55caa24`. The
+candidate Skill SHA-256 was
+`0a5c820ef1d8014966e0e398616c8282020e3c27727b146e4a7fb34d0acff848`; the
+copied-reference Skill SHA-256 was
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`. qpdf
+was `12.3.2` and Poppler `pdftoppm` was `26.05.0`. The copied-reference subject
+uses the same candidate tarball and differs only in its isolated Skill text, so
+this is workflow compatibility evidence, not an implementation comparison or
+claim that the reference package provides the OfficeKit qpdf route. Earlier
+pre-oracle exploratory trials are diagnostic evidence only and are not counted
+in this matrix.
 
 The evaluator normalizes the published audit envelope and structured equivalent
 forms: an explicit
