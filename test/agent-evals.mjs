@@ -460,6 +460,33 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
     const checks = gradeDamagedXrefRecoveryEvidence({ evidence, audit, commands, item: damagedXrefItem });
     assert.equal(checks.every((check) => check.passed), true, JSON.stringify(checks.filter((check) => !check.passed), null, 2));
     assert.equal(summarizeCaseScore(checks, damagedXrefItem.grade).rawScorePercent, 100);
+    const nestedAudit = structuredClone(audit);
+    const canonicalRepair = nestedAudit.repair || repairAudit;
+    delete nestedAudit.repair;
+    delete nestedAudit.controls;
+    nestedAudit.inputs = [
+      { role: "recoverable-source", sha256: recoverableHash },
+      { role: "unrecoverable-control", sha256: unrecoverableHash },
+    ];
+    nestedAudit.warnings = canonicalRepair.checkBefore?.lines || canonicalRepair.checkBefore?.jsonLines || [];
+    nestedAudit.validation = {
+      ...nestedAudit.validation,
+      repairEvidence: {
+        checkBefore: {
+          status: canonicalRepair.checkBefore?.status,
+          warnings: canonicalRepair.checkBefore?.lines || canonicalRepair.checkBefore?.jsonLines || [],
+        },
+        checkAfter: canonicalRepair.checkAfter,
+      },
+      unrecoverableControl: {
+        inspectedSeparately: true,
+        qpdfAccepted: false,
+        outputGenerated: false,
+        partialArtifactPresent: false,
+      },
+    };
+    const nestedChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: nestedAudit, commands, item: damagedXrefItem });
+    assert.equal(nestedChecks.every((check) => check.passed), true, JSON.stringify(nestedChecks.filter((check) => !check.passed), null, 2));
     const attachmentLoss = structuredClone(evidence);
     attachmentLoss.outputAttachments = [];
     const attachmentLossChecks = gradeDamagedXrefRecoveryEvidence({ evidence: attachmentLoss, audit, commands, item: damagedXrefItem });
