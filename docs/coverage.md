@@ -337,7 +337,10 @@ publication, and bounded worker I/O all fail closed. The PromptBench fixture and
 hidden oracle separately reparse the signature/transform surface, field scope,
 source prefix, revision count, output audit, and target-only Poppler diff. It
 does not allow arbitrary field filling, interactive edits, reflow, signatures,
-P=3, dynamic XFA, PAdES/LTV claims, or a policy bypass.
+P=3, dynamic XFA, PAdES/LTV claims, or a policy bypass. At clean commit
+`215e16db`, PromptBench completed candidate `3/3` and copied-reference `3/3`
+real-Agent repeats at `100/100`, with all hard gates, source/root provenance,
+independent pyHanko validation, and target-only render checks passing each time.
 
 ## Reference Skills
 
