@@ -837,6 +837,18 @@ function damagedXrefRepair(audit) {
       requiresFreshInspection: true,
     };
   }
+  const freshInspect = audit?.validation?.freshInspect;
+  if (freshInspect && typeof freshInspect === "object") {
+    return {
+      checkBefore: audit?.warnings?.repairBefore,
+      qpdfWrite: audit?.warnings?.repairWrite,
+      // Agents commonly name this compact post-write record `freshInspect`.
+      // Its completed flag remains mandatory: a clean-looking field attached
+      // to the rewrite result itself is not independent evidence.
+      checkAfter: freshInspect,
+      requiresFreshInspection: true,
+    };
+  }
   const candidates = [
     audit?.repair,
     audit?.validation?.repair,
