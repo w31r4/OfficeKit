@@ -797,8 +797,17 @@ function damagedXrefRepair(audit) {
   const qpdf = audit?.validation?.qpdf;
   if (qpdf && typeof qpdf === "object") {
     const namedFreshInspect = qpdf.freshInspect || qpdf.freshInspection;
-    const stagedFreshInspect = qpdf.freshInspectCompleted === true && qpdf.after && typeof qpdf.after === "object"
-      ? { ...qpdf.after, freshInspect: true }
+    const stagedFreshInspect = qpdf.freshInspectCompleted === true
+      ? (qpdf.after && typeof qpdf.after === "object"
+        ? { ...qpdf.after, freshInspect: true }
+        : (typeof qpdf.afterStatus === "string"
+          ? {
+            status: qpdf.afterStatus,
+            exitCode: qpdf.afterExitCode,
+            message: qpdf.afterMessage,
+            freshInspect: true,
+          }
+          : undefined))
       : undefined;
     return {
       checkBefore: qpdf.before,
