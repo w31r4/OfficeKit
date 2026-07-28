@@ -326,8 +326,9 @@ baseline with one certification signature, DocMDP P=2/fill-forms, and a
 FieldMDP Include list containing exactly one read-only locked `/Tx` field. It
 can finalise exactly one different empty visible `/Tx` field to one canonical
 non-negative two-decimal value, makes it static/read-only with a normal
-appearance, preserves the original bytes as a strict prefix, and adds exactly
-one incremental revision. It revalidates the original signature against a
+appearance whose text is vertically centred inside a three-point inset,
+preserves the original bytes as a strict prefix, and adds exactly one incremental
+revision. It revalidates the original signature against a
 caller-supplied public root; the result must report intact/cryptographically
 valid/trusted/bottom-line/DocMDP evidence, `form-filling`, and exactly the
 target changed field. Source/root hashes, flat field topology, page/catalog/info
