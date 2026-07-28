@@ -71,6 +71,152 @@ def validate_input_evidence(evidence, actual_paths: list[Path]) -> int:
     return len(evidence)
 
 
+def require_regular_file(path: Path, label: str) -> Path:
+    candidate = path.expanduser()
+    if candidate.is_symlink() or not candidate.is_file():
+        raise AuditError(f"{label} must be a regular file")
+    return candidate.resolve()
+
+
+def require_docmdp_no_changes_verification(verification_path: Path, source: Path, trust_root: Path) -> dict:
+    """Load a pyHanko report and retain only verified P=1 refusal evidence.
+
+    This is intentionally narrower than a general signature editor: it accepts
+    a complete, explicit-root pyHanko report for a source that currently has a
+    fully valid DocMDP P=1 certification, then returns the exact facts that a
+    no-mutation audit may publish. The caller still owns the requested change;
+    this helper only records why no change may be made.
+    """
+    report_path = require_regular_file(verification_path, "signature verification report")
+    root_path = require_regular_file(trust_root, "DocMDP trust root")
+    try:
+        report = json.loads(report_path.read_text(encoding="utf8"))
+    except json.JSONDecodeError as exc:
+        raise AuditError(f"signature verification report is not valid JSON: {exc}") from exc
+    report = require_object(report, "signature verification report")
+    if report.get("schema") != "office-kit.pyhanko-verify.v1":
+        raise AuditError("signature verification report must use office-kit.pyhanko-verify.v1")
+    validate_file_evidence(report.get("source"), source, "signature verification report.source")
+    if report.get("sourceProtected") is not True or report.get("silentFallback") is not False:
+        raise AuditError("signature verification report must prove a protected source and no fallback")
+    if report.get("savePolicy") != "read-only":
+        raise AuditError("signature verification report must use read-only save policy")
+
+    provider = require_object(report.get("provider"), "signature verification report.provider")
+    if provider.get("name") != "pyhanko" or not isinstance(provider.get("version"), str) or not provider["version"].strip():
+        raise AuditError("signature verification report must name a versioned pyhanko provider")
+    policy_gates = require_object(report.get("policyGates"), "signature verification report.policyGates")
+    requested = require_object(policy_gates.get("requested"), "signature verification report.policyGates.requested")
+    if policy_gates.get("passed") is not True or any(requested.get(field) is not True for field in (
+        "requireSignature",
+        "requireAllIntegrityValid",
+        "requireAllTrusted",
+        "requireDocMDPCompliant",
+        "requireAllBottomLine",
+    )):
+        raise AuditError("signature verification report must pass all required integrity, trust, DocMDP, and bottom-line gates")
+
+    validation_policy = require_object(report.get("validationPolicy"), "signature verification report.validationPolicy")
+    if validation_policy.get("trustPolicy") != "explicit-roots":
+        raise AuditError("signature verification report must use explicit-roots trust")
+    root_evidence = absolute_file_evidence(root_path)
+    roots = validation_policy.get("trustRoots")
+    def matching_root(entry) -> bool:
+        if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+            return False
+        entry_path = Path(entry["path"]).expanduser()
+        return (
+            entry_path.is_absolute()
+            and entry_path.resolve() == root_path
+            and entry.get("bytes") == root_evidence["bytes"]
+            and entry.get("sha256") == root_evidence["sha256"]
+        )
+    if not isinstance(roots, list) or not any(
+        matching_root(entry)
+        for entry in roots
+    ):
+        raise AuditError("signature verification report does not bind the selected explicit trust root")
+
+    summary = require_object(report.get("summary"), "signature verification report.summary")
+    if any(summary.get(field) is not True for field in (
+        "allBottomLine",
+        "allDocMDPCompliant",
+        "allIntegrityValid",
+        "allTrusted",
+        "allValidationCompleted",
+    )):
+        raise AuditError("signature verification summary is incomplete")
+    signatures = report.get("signatures")
+    if not isinstance(signatures, list) or not signatures:
+        raise AuditError("signature verification report must contain at least one signature")
+    matching = []
+    for signature in signatures:
+        if not isinstance(signature, dict):
+            continue
+        docmdp = signature.get("docMDP")
+        if not isinstance(docmdp, dict) or docmdp.get("present") is not True or docmdp.get("permissionCode") != 1:
+            continue
+        if all(signature.get(field) is True for field in (
+            "intact",
+            "trusted",
+            "bottomLine",
+            "docMDPCompliant",
+            "validationCompleted",
+        )) and signature.get("coverage") == "entire-file" and signature.get("modificationLevel") == "none":
+            matching.append(signature)
+    if len(matching) != 1:
+        raise AuditError("signature verification report must prove exactly one intact, trusted DocMDP P=1 certification")
+    signature = matching[0]
+    field_name = signature.get("fieldName")
+    if not isinstance(field_name, str) or not field_name.strip():
+        raise AuditError("DocMDP certification field name is missing")
+    return {
+        "signaturePolicy": {
+            "certificationField": field_name,
+            "certificationSignaturePresent": True,
+            "docMDP": {
+                "permission": "no-changes",
+                "permissionCode": 1,
+                "requestedChangeAllowed": False,
+            },
+            "policyDecision": "refuse_without_mutation",
+        },
+        "signatureVerification": {
+            "conclusion": "valid-under-selected-policy",
+            "cryptographicallyValid": True,
+            "intact": True,
+            "trusted": True,
+            "trustPolicy": "explicit-roots",
+            "trustRoot": root_evidence,
+            "bottomLine": True,
+            "coverage": "entire-file",
+            "docMDPCompliantBeforeRequestedChange": True,
+            "revisionCount": report.get("revisionCount"),
+            "signatureCount": len(signatures),
+            "signedRevision": signature.get("signedRevision"),
+        },
+    }
+
+
+def validate_docmdp_no_changes_record(record: dict, trust_root: Path) -> None:
+    policy = require_object(record.get("signaturePolicy"), "signaturePolicy")
+    docmdp = require_object(policy.get("docMDP"), "signaturePolicy.docMDP")
+    if policy.get("certificationSignaturePresent") is not True or policy.get("policyDecision") != "refuse_without_mutation":
+        raise AuditError("DocMDP refusal audit must record a certification no-mutation decision")
+    if docmdp.get("permission") != "no-changes" or docmdp.get("permissionCode") != 1 or docmdp.get("requestedChangeAllowed") is not False:
+        raise AuditError("DocMDP refusal audit must record P=1 no-changes policy")
+    verification = require_object(require_object(record.get("validation"), "validation").get("signatureVerification"), "validation.signatureVerification")
+    if any(verification.get(field) is not True for field in (
+        "cryptographicallyValid",
+        "intact",
+        "trusted",
+        "bottomLine",
+        "docMDPCompliantBeforeRequestedChange",
+    )) or verification.get("conclusion") != "valid-under-selected-policy" or verification.get("trustPolicy") != "explicit-roots" or verification.get("coverage") != "entire-file":
+        raise AuditError("DocMDP refusal audit has incomplete signature validation evidence")
+    validate_file_evidence(verification.get("trustRoot"), require_regular_file(trust_root, "DocMDP trust root"), "validation.signatureVerification.trustRoot")
+
+
 def validate_record(record: dict, source: Path, inputs: list[Path], artifact: Path | None, required_operation: str | None) -> dict:
     record = require_object(record, "audit")
     if record.get("schema") != SCHEMA:
@@ -166,6 +312,17 @@ def create_failed_closed_record(args) -> dict:
         raise AuditError("operation and reason must be non-empty")
     if audit.exists() or audit.is_symlink():
         raise AuditError(f"refuses to overwrite existing audit: {audit}")
+    docmdp_evidence = None
+    if args.require_docmdp_no_changes:
+        if args.signature_verification is None or args.trust_root is None:
+            raise AuditError("--require-docmdp-no-changes requires --signature-verification and --trust-root")
+        if args.provider != "pyhanko" or args.strategy != "read-only":
+            raise AuditError("DocMDP P=1 refusal requires provider pyhanko and read-only strategy")
+        if not args.probe_completed or not args.plan_completed or not args.source_inspected:
+            raise AuditError("DocMDP P=1 refusal requires completed probe, plan, and source inspection")
+        docmdp_evidence = require_docmdp_no_changes_verification(args.signature_verification, source, args.trust_root)
+    elif args.signature_verification is not None or args.trust_root is not None:
+        raise AuditError("--signature-verification and --trust-root require --require-docmdp-no-changes")
 
     # A failed-closed task publishes only its audit in the delivery directory.
     # This makes the typed no-artifact assertion an observed local fact instead
@@ -222,7 +379,16 @@ def create_failed_closed_record(args) -> dict:
         },
         "reason": args.reason,
     }
+    if docmdp_evidence is not None:
+        record["signaturePolicy"] = docmdp_evidence["signaturePolicy"]
+        record["validation"]["signatureVerification"] = docmdp_evidence["signatureVerification"]
+        record["warnings"] = [
+            "DocMDP P=1 permits no post-certification changes.",
+            "An intact signed ByteRange does not authorize a later revision.",
+        ]
     validate_record(record, source, [], None, args.operation)
+    if docmdp_evidence is not None:
+        validate_docmdp_no_changes_record(record, args.trust_root)
     return record
 
 
@@ -235,6 +401,8 @@ def parser() -> argparse.ArgumentParser:
     validate.add_argument("--input", type=Path, action="append", default=[])
     validate.add_argument("--artifact", type=Path)
     validate.add_argument("--require-operation")
+    validate.add_argument("--require-docmdp-no-changes", action="store_true")
+    validate.add_argument("--trust-root", type=Path)
     failed_closed = subparsers.add_parser(
         "failed-closed",
         help="atomically write a canonical audit-only no-mutation refusal",
@@ -249,6 +417,9 @@ def parser() -> argparse.ArgumentParser:
     failed_closed.add_argument("--probe-completed", action="store_true")
     failed_closed.add_argument("--plan-completed", action="store_true")
     failed_closed.add_argument("--source-inspected", action="store_true")
+    failed_closed.add_argument("--signature-verification", type=Path)
+    failed_closed.add_argument("--require-docmdp-no-changes", action="store_true")
+    failed_closed.add_argument("--trust-root", type=Path)
     return root
 
 
@@ -273,7 +444,14 @@ def main() -> int:
             }, indent=2, sort_keys=True))
             return 0
         record = json.loads(args.audit.read_text("utf8"))
-        print(json.dumps(validate_record(record, args.source, args.input, args.artifact, args.require_operation), indent=2, sort_keys=True))
+        result = validate_record(record, args.source, args.input, args.artifact, args.require_operation)
+        if args.require_docmdp_no_changes:
+            if args.trust_root is None:
+                raise AuditError("--require-docmdp-no-changes requires --trust-root")
+            validate_docmdp_no_changes_record(record, args.trust_root)
+        elif args.trust_root is not None:
+            raise AuditError("--trust-root requires --require-docmdp-no-changes")
+        print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     except (AuditError, OSError, json.JSONDecodeError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)}), file=sys.stderr)

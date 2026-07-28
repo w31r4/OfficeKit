@@ -174,6 +174,51 @@ does not mean the signer approved arbitrary later revisions. Review
 `coverage`, `modificationLevel`, `docMDPCompliant`, timestamps, and every
 signature in revision order.
 
+## Refuse a forbidden P=1 certification change
+
+For a requested content change on a fully verified DocMDP `P=1` certification,
+do not append a revision, paint an overlay, or hand-write an audit. First save
+the exact explicit-root verification report outside the delivery directory,
+then let the canonical audit primitive bind its proven signature facts:
+
+```bash
+SOURCE_SHA256="$(shasum -a 256 inputs/source.pdf | awk '{print $1}')"
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:?select a ready pyHanko runtime first}"
+
+"$PYTHON_BIN" scripts/pyhanko_provider.py verify inputs/source.pdf \
+  --expected-sha256 "$SOURCE_SHA256" \
+  --trust-policy explicit-roots \
+  --trust-root inputs/credentials/test-root.pem \
+  --require-signature \
+  --require-all-integrity-valid \
+  --require-all-trusted \
+  --require-docmdp-compliant \
+  --require-all-bottom-line \
+  > tmp/pdfs/signature-validation.json
+
+"$PYTHON_BIN" scripts/pdf_audit.py failed-closed outputs/audit.json \
+  --source inputs/source.pdf \
+  --provider pyhanko --provider-version 0.35.2 \
+  --operation requested-content-change-under-docmdp-p1 \
+  --reason "DocMDP P=1 permits no post-certification content changes." \
+  --strategy read-only --probe-completed --plan-completed --source-inspected \
+  --signature-verification tmp/pdfs/signature-validation.json \
+  --require-docmdp-no-changes \
+  --trust-root inputs/credentials/test-root.pem
+
+"$PYTHON_BIN" scripts/pdf_audit.py validate outputs/audit.json \
+  --source inputs/source.pdf \
+  --require-operation requested-content-change-under-docmdp-p1 \
+  --require-docmdp-no-changes \
+  --trust-root inputs/credentials/test-root.pem
+```
+
+This route accepts only one intact, trusted, full-file P=1 certification under
+the selected root with all signature policy gates passing. It publishes only
+`audit.json`, including the source-bound trust/DocMDP evidence and explicit
+no-mutation decision. A P=2 or P=3 form change needs its own field and policy
+analysis; do not route it through this blanket refusal.
+
 ## Capabilities outside the shipped signer
 
 Use an explicit external pyHanko workflow for PKCS#11/HSM credentials, remote

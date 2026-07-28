@@ -92,12 +92,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 25 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 26 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 13);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 14);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
@@ -126,6 +126,8 @@ assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
+assert.match(runnerHelp.stdout, /14 ready PDF cases include six locked corpus boundary fixtures/i);
+assert.match(runnerHelp.stdout, /remaining 15 asset-required cases/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
@@ -149,6 +151,8 @@ const lockedFixturePaths = [
   "pdf/accessibility/untagged-complex-report.pdf",
   "pdf/xfa/dynamic-dependents.pdf",
   "pdf/print/print-production-risk.pdf",
+  "pdf/signing/docmdp-p1-final.pdf",
+  "pdf/signing/test-pki/root.pem",
 ];
 for (const relative of lockedFixturePaths) {
   assert.equal(await verifiedLockedAsset(relative), path.join(repoRoot, "evals", "assets", relative));
@@ -161,7 +165,7 @@ assert.match(encryptionVisible.prompt, /inputs\/credentials\/user-password\.json
 assert.doesNotMatch(encryptionVisible.prompt, /fixture-owner-password-not-for-agent/);
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 6, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 8, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -173,21 +177,55 @@ function boundaryOracle(boundary, source, userPassword) {
   return JSON.parse(result.stdout);
 }
 
+function docmdpRefusalAudit(sourceHash, { includeProof = true } = {}) {
+  const audit = {
+    status: "failed_closed",
+    source: { sha256: sourceHash },
+    output: null,
+    provider: { actual: "pyhanko", version: "0.35.2", silentFallback: false },
+    savePolicy: { strategy: "read-only", executed: false, sourcePreserved: true, artifactWritten: false },
+    operation: { type: "replace-title-preserve-certification-signature", executed: false },
+    validation: { no_partial_modified_pdf_in_outputs: true, outputDirectoryPolicy: { modifiedPdfPresent: false, partialArtifactPresent: false } },
+    delivered_modified_pdf: false,
+    reason: "DocMDP P=1 prohibits title modification",
+  };
+  if (includeProof) {
+    audit.signaturePolicy = {
+      certificationSignaturePresent: true,
+      docMDP: { permissionCode: 1, requestedChangeAllowed: false },
+      policyDecision: "refuse_without_mutation",
+    };
+    audit.validation.signatureVerification = {
+      conclusion: "valid-under-selected-policy",
+      cryptographicallyValid: true,
+      intact: true,
+      trusted: true,
+      trustPolicy: "explicit-roots",
+      trustRoot: { sha256: "a".repeat(64) },
+      bottomLine: true,
+      coverage: "entire-file",
+      docMDPCompliantBeforeRequestedChange: true,
+    };
+  }
+  return audit;
+}
+
 const boundaryCases = [
   { id: "pdf-encrypted-owner-policy-boundary", boundary: "encrypted-owner-policy", source: path.join(repoRoot, "evals", "assets", "pdf", "encryption", "owner-policy-aes256.pdf"), userPassword: "fixture-user-password", diagnostic: "owner password is unavailable" },
   { id: "pdf-annotation-reply-resolve-boundary", boundary: "annotation-reply-chain", source: path.join(repoRoot, "evals", "assets", "pdf", "annotations", "reply-chain.pdf"), diagnostic: "reply chain and resolved state are not supported" },
   { id: "pdf-auto-pdfua-overclaim-refusal", boundary: "pdfua-overclaim", source: path.join(repoRoot, "evals", "assets", "pdf", "accessibility", "untagged-complex-report.pdf"), diagnostic: "human author intent is required" },
   { id: "pdf-dynamic-xfa-boundary", boundary: "dynamic-xfa", source: path.join(repoRoot, "evals", "assets", "pdf", "xfa", "dynamic-dependents.pdf"), diagnostic: "Dynamic XFA runtime is not supported" },
   { id: "pdf-print-production-boundary", boundary: "print-production", source: path.join(repoRoot, "evals", "assets", "pdf", "print", "print-production-risk.pdf"), diagnostic: "DeviceN and overprint need preflight" },
+  { id: "pdf-docmdp-forbidden-title-edit", boundary: "docmdp-p1", source: path.join(repoRoot, "evals", "assets", "pdf", "signing", "docmdp-p1-final.pdf"), diagnostic: "DocMDP P=1 prohibits title modification", provider: "pyhanko" },
 ];
 for (const boundary of boundaryCases) {
   const item = cases.find((candidate) => candidate.id === boundary.id);
   const evidence = boundaryOracle(boundary.boundary, boundary.source, boundary.userPassword);
-  const audit = {
+  const audit = boundary.id === "pdf-docmdp-forbidden-title-edit" ? docmdpRefusalAudit(evidence.source.sha256) : {
     status: "failed_closed",
     source: { sha256: evidence.source.sha256 },
     output: null,
-    provider: { actual: "qpdf", version: "12.3.2-oat.2", silentFallback: false },
+    provider: { actual: boundary.provider || "qpdf", version: boundary.provider ? "0.35.2" : "12.3.2-oat.2", silentFallback: false },
     savePolicy: { strategy: "none", executed: false, sourcePreserved: true, artifactPublished: false },
     operation: { type: "inspect-and-refuse-unsupported-boundary", executed: false },
     validation: { no_partial_modified_pdf_in_outputs: true, outputDirectoryPolicy: { modifiedPdfPresent: false, partialArtifactPresent: false } },
@@ -197,7 +235,9 @@ for (const boundary of boundaryCases) {
   const checks = gradeBoundaryRefusalEvidence({
     evidence,
     audit,
-    commands: ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
+    commands: boundary.id === "pdf-docmdp-forbidden-title-edit"
+      ? ["python .agents/skills/pdf/scripts/pyhanko_provider.py verify inputs/source.pdf --expected-sha256 deadbeef --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid --require-all-trusted --require-docmdp-compliant --require-all-bottom-line"]
+      : ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
     finalMessage: boundary.diagnostic,
     item,
     outputEntries: ["audit.json"],
@@ -205,6 +245,27 @@ for (const boundary of boundaryCases) {
   assert.equal(checks.every((check) => check.passed), true, boundary.id);
   assert.equal(summarizeCaseScore(checks, item.grade).rawScorePercent, 100, boundary.id);
 }
+const docmdpBoundary = boundaryCases.find((boundary) => boundary.id === "pdf-docmdp-forbidden-title-edit");
+const docmdpItem = cases.find((item) => item.id === docmdpBoundary.id);
+const docmdpEvidence = boundaryOracle(docmdpBoundary.boundary, docmdpBoundary.source);
+const docmdpIncompleteValidation = gradeBoundaryRefusalEvidence({
+  evidence: docmdpEvidence,
+  audit: docmdpRefusalAudit(docmdpEvidence.source.sha256),
+  commands: ["python .agents/skills/pdf/scripts/pyhanko_provider.py verify inputs/source.pdf --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid"],
+  finalMessage: docmdpBoundary.diagnostic,
+  item: docmdpItem,
+  outputEntries: ["audit.json"],
+});
+assert.equal(docmdpIncompleteValidation.find((check) => check.id === "pdf-security:docmdp-explicit-root-validation")?.passed, false, "DocMDP refusal requires trust, integrity, policy, and bottom-line validation");
+const docmdpUnboundAudit = gradeBoundaryRefusalEvidence({
+  evidence: docmdpEvidence,
+  audit: docmdpRefusalAudit(docmdpEvidence.source.sha256, { includeProof: false }),
+  commands: ["python .agents/skills/pdf/scripts/pyhanko_provider.py verify inputs/source.pdf --expected-sha256 deadbeef --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid --require-all-trusted --require-docmdp-compliant --require-all-bottom-line"],
+  finalMessage: docmdpBoundary.diagnostic,
+  item: docmdpItem,
+  outputEntries: ["audit.json"],
+});
+assert.equal(docmdpUnboundAudit.find((check) => check.id === "pdf-security:docmdp-explicit-root-validation")?.passed, false, "DocMDP refusal requires audit-bound verification evidence, not only a command trace");
 const encryptedBoundary = boundaryCases.find((boundary) => boundary.id === "pdf-encrypted-owner-policy-boundary");
 const encryptedItem = cases.find((item) => item.id === encryptedBoundary.id);
 const encryptedEvidence = boundaryOracle(encryptedBoundary.boundary, encryptedBoundary.source, encryptedBoundary.userPassword);
@@ -1764,6 +1825,13 @@ await fs.rm(mergePathRoot, { recursive: true, force: true });
 const providerInstruction = providerRuntimeInstruction(mergeItem, { OFFICE_KIT_AGENT_EVAL_PYTHON: "/opt/eval python/bin/python3" });
 assert.match(providerInstruction, /OFFICE_KIT_PDF_PROVIDER_PYTHON="\/opt\/eval python\/bin\/python3"/);
 assert.match(providerInstruction, /Do not replace it/);
+const splitRuntimeInstruction = providerRuntimeInstruction(mergeItem, {
+  OFFICE_KIT_AGENT_EVAL_PYTHON: "/opt/oracle/bin/python3",
+  OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON: "/opt/provider/bin/python3",
+  OFFICE_KIT_PDF_PROVIDER_PYTHON: "/opt/legacy-provider/bin/python3",
+});
+assert.match(splitRuntimeInstruction, /OFFICE_KIT_PDF_PROVIDER_PYTHON="\/opt\/provider\/bin\/python3"/);
+assert.doesNotMatch(splitRuntimeInstruction, /oracle\/bin\/python3|legacy-provider\/bin\/python3/);
 assert.equal(providerRuntimeInstruction({ family: "xlsx" }, { OFFICE_KIT_AGENT_EVAL_PYTHON: "/opt/python" }), "");
 
 const validationSampleId = "pdf-bounded-contract-id-replace";

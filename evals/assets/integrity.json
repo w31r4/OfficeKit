@@ -30,6 +30,18 @@
       "kind": "file",
       "sha256": "76735f17073f101e092040626dce56b89bbede060e663c0322fced4a573fd890"
     },
+    "pdf/signing/docmdp-p1-final.pdf": {
+      "bytes": 10630,
+      "description": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",
+      "kind": "file",
+      "sha256": "6ad55dd93543921c3b13d96f9cffed7a000ddea3b7da54643dae915034d19060"
+    },
+    "pdf/signing/test-pki/root.pem": {
+      "bytes": 1200,
+      "description": "Public-only self-authored PromptBench root certificate for the DocMDP P=1 fixture.",
+      "kind": "file",
+      "sha256": "ab15a064bf134b4c8409a08669b9308c5c9ba25d7d66dae74e99f30ccb7c606b"
+    },
     "pdf/xfa/dynamic-dependents.pdf": {
       "bytes": 2312,
       "description": "Dynamic-XFA-shaped template/datasets packet with repeat and FormCalc markers.",

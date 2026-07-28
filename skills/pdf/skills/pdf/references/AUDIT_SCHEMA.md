@@ -75,6 +75,18 @@ Keep inspection logs under `tmp/`, not `outputs/`. The generator validates its
 own envelope before publication; run `validate` as an independent final check
 when the workflow requires it.
 
+For a fully verified DocMDP P=1 certification refusal, the generic envelope is
+not enough: bind the actual `office-kit.pyhanko-verify.v1` report instead of
+copying its conclusions by hand. The failure-closed generator requires the
+report, an exact explicit trust-root file, `pyhanko`, `read-only`, and completed
+probe/plan/source inspection; it accepts only one intact, trusted, full-file
+P=1 certification with all requested integrity, trust, DocMDP, and bottom-line
+gates passing. It then writes `signaturePolicy` and
+`validation.signatureVerification` with the exact root hash and no-mutation
+decision. Use `--require-docmdp-no-changes --trust-root ...` again with
+`validate` to recheck that evidence. P=2/P=3 changes are not blanket refusals:
+they require a separately bounded field/policy workflow.
+
 Validate before delivery:
 
 ```bash

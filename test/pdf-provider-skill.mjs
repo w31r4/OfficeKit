@@ -834,6 +834,92 @@ try {
     "--operation", "print-production-footer", "--reason", "professional print preflight is unavailable",
   ], { status: 2 });
   assert.match(generatedRefusalNonempty.stderr, /output directory must be empty/);
+  const docmdpRoot = path.join(tempRoot, "docmdp-root.pem");
+  await fs.writeFile(docmdpRoot, "public test root only\n", "utf8");
+  const docmdpVerification = path.join(tempRoot, "docmdp-verification.json");
+  await fs.writeFile(docmdpVerification, JSON.stringify({
+    schema: "office-kit.pyhanko-verify.v1",
+    source: await evidence(dummyInput),
+    sourceProtected: true,
+    silentFallback: false,
+    savePolicy: "read-only",
+    provider: { name: "pyhanko", version: "0.35.2" },
+    policyGates: {
+      passed: true,
+      requested: {
+        requireSignature: true,
+        requireAllIntegrityValid: true,
+        requireAllTrusted: true,
+        requireDocMDPCompliant: true,
+        requireAllBottomLine: true,
+      },
+    },
+    validationPolicy: { trustPolicy: "explicit-roots", trustRoots: [await evidence(docmdpRoot)] },
+    summary: {
+      allBottomLine: true,
+      allDocMDPCompliant: true,
+      allIntegrityValid: true,
+      allTrusted: true,
+      allValidationCompleted: true,
+    },
+    revisionCount: 2,
+    signatures: [{
+      fieldName: "Certification",
+      intact: true,
+      trusted: true,
+      bottomLine: true,
+      docMDPCompliant: true,
+      validationCompleted: true,
+      coverage: "entire-file",
+      modificationLevel: "none",
+      signedRevision: 1,
+      docMDP: { present: true, permissionCode: 1 },
+    }],
+  }), "utf8");
+  const docmdpRefusalPath = path.join(tempRoot, "docmdp-refusal", "audit.json");
+  const docmdpRefusal = parseResult(run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "failed-closed", docmdpRefusalPath,
+    "--source", dummyInput,
+    "--provider", "pyhanko", "--provider-version", "0.35.2",
+    "--operation", "replace-title-preserve-certification-signature", "--reason", "DocMDP P=1 permits no changes",
+    "--strategy", "read-only", "--probe-completed", "--plan-completed", "--source-inspected",
+    "--signature-verification", docmdpVerification, "--require-docmdp-no-changes", "--trust-root", docmdpRoot,
+  ], { status: 0 }));
+  assert.equal(docmdpRefusal.status, "failed_closed");
+  const docmdpRefusalRecord = JSON.parse(await fs.readFile(docmdpRefusalPath, "utf8"));
+  assert.equal(docmdpRefusalRecord.signaturePolicy.docMDP.permissionCode, 1);
+  assert.equal(docmdpRefusalRecord.signaturePolicy.docMDP.requestedChangeAllowed, false);
+  assert.equal(docmdpRefusalRecord.validation.signatureVerification.trustRoot.sha256, (await evidence(docmdpRoot)).sha256);
+  assert.equal(docmdpRefusalRecord.validation.signatureVerification.docMDPCompliantBeforeRequestedChange, true);
+  parseResult(run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "validate", docmdpRefusalPath,
+    "--source", dummyInput, "--require-operation", "replace-title-preserve-certification-signature",
+    "--require-docmdp-no-changes", "--trust-root", docmdpRoot,
+  ], { status: 0 }));
+  const invalidDocmdpRefusal = run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "failed-closed", path.join(tempRoot, "invalid-docmdp-refusal", "audit.json"),
+    "--source", dummyInput,
+    "--provider", "pyhanko", "--provider-version", "0.35.2",
+    "--operation", "replace-title-preserve-certification-signature", "--reason", "DocMDP P=1 permits no changes",
+    "--strategy", "read-only", "--probe-completed", "--plan-completed", "--source-inspected",
+    "--signature-verification", docmdpVerification, "--require-docmdp-no-changes", "--trust-root", dummyInput,
+  ], { status: 2 });
+  assert.match(invalidDocmdpRefusal.stderr, /does not bind the selected explicit trust root/);
+  const p2DocmdpVerification = path.join(tempRoot, "docmdp-p2-verification.json");
+  const p2VerificationRecord = JSON.parse(await fs.readFile(docmdpVerification, "utf8"));
+  p2VerificationRecord.signatures[0].docMDP.permissionCode = 2;
+  await fs.writeFile(p2DocmdpVerification, JSON.stringify(p2VerificationRecord), "utf8");
+  const p2DocmdpRefusalPath = path.join(tempRoot, "p2-docmdp-refusal", "audit.json");
+  const p2DocmdpRefusal = run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "failed-closed", p2DocmdpRefusalPath,
+    "--source", dummyInput,
+    "--provider", "pyhanko", "--provider-version", "0.35.2",
+    "--operation", "replace-title-preserve-certification-signature", "--reason", "DocMDP P=2 is not the P=1 no-change contract",
+    "--strategy", "read-only", "--probe-completed", "--plan-completed", "--source-inspected",
+    "--signature-verification", p2DocmdpVerification, "--require-docmdp-no-changes", "--trust-root", docmdpRoot,
+  ], { status: 2 });
+  assert.match(p2DocmdpRefusal.stderr, /exactly one intact, trusted DocMDP P=1 certification/);
+  await assert.rejects(fs.access(p2DocmdpRefusalPath));
   const readOnlyManifest = path.join(tempRoot, "read-only-manifest.json");
   await fs.writeFile(readOnlyManifest, JSON.stringify({ attachments: [] }), "utf8");
   const readOnlyAuditPath = path.join(tempRoot, "read-only-audit.json");

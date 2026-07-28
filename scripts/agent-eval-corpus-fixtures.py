@@ -14,7 +14,10 @@ import argparse
 import hashlib
 import io
 import json
+import os
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -39,6 +42,101 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ROOT = REPO_ROOT / "evals" / "assets"
 USER_PASSWORD = "fixture-user-password"
 OWNER_PASSWORD = "fixture-owner-password-not-for-agent"
+SIGNING_PYTHON_ENV = "OFFICE_KIT_PROMPTBENCH_SIGNING_PYTHON"
+
+
+# This program is deliberately executed only by the separately selected,
+# managed pyHanko runtime.  The ordinary corpus verifier stays dependent on
+# the small ReportLab/pypdf evaluator runtime, so routine repository gates can
+# verify the locked bytes without installing a signing provider.
+DOCMDP_P1_SIGNING_PROGRAM = r'''
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+import sys
+
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
+from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
+from pyhanko.sign import signers
+from pyhanko.sign.fields import MDPPerm
+
+work = Path(sys.argv[1])
+source = Path(sys.argv[2])
+target = Path(sys.argv[3])
+root_target = Path(sys.argv[4])
+now = datetime.now(timezone.utc)
+
+root_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+root_name = x509.Name([
+    x509.NameAttribute(NameOID.COMMON_NAME, "OfficeKit PromptBench Test Root"),
+    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "OfficeKit"),
+    x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+])
+root_cert = (
+    x509.CertificateBuilder()
+    .subject_name(root_name)
+    .issuer_name(root_name)
+    .public_key(root_key.public_key())
+    .serial_number(x509.random_serial_number())
+    .not_valid_before(now - timedelta(days=1))
+    .not_valid_after(now + timedelta(days=3650))
+    .add_extension(x509.BasicConstraints(ca=True, path_length=1), critical=True)
+    .add_extension(x509.KeyUsage(
+        digital_signature=True, content_commitment=True, key_encipherment=False,
+        data_encipherment=False, key_agreement=False, key_cert_sign=True,
+        crl_sign=True, encipher_only=None, decipher_only=None,
+    ), critical=True)
+    .sign(root_key, hashes.SHA256())
+)
+signer_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+signer_name = x509.Name([
+    x509.NameAttribute(NameOID.COMMON_NAME, "OfficeKit PromptBench Certification"),
+    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "OfficeKit"),
+    x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+])
+signer_cert = (
+    x509.CertificateBuilder()
+    .subject_name(signer_name)
+    .issuer_name(root_name)
+    .public_key(signer_key.public_key())
+    .serial_number(x509.random_serial_number())
+    .not_valid_before(now - timedelta(days=1))
+    .not_valid_after(now + timedelta(days=3650))
+    .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+    .add_extension(x509.KeyUsage(
+        digital_signature=True, content_commitment=True, key_encipherment=False,
+        data_encipherment=False, key_agreement=False, key_cert_sign=False,
+        crl_sign=False, encipher_only=None, decipher_only=None,
+    ), critical=True)
+    .sign(root_key, hashes.SHA256())
+)
+key_path = work / "signer-key.pem"
+cert_path = work / "signer-cert.pem"
+key_path.write_bytes(signer_key.private_bytes(
+    serialization.Encoding.PEM,
+    serialization.PrivateFormat.PKCS8,
+    serialization.NoEncryption(),
+))
+cert_path.write_bytes(signer_cert.public_bytes(serialization.Encoding.PEM))
+root_target.parent.mkdir(parents=True, exist_ok=True)
+root_target.write_bytes(root_cert.public_bytes(serialization.Encoding.PEM))
+signer = signers.SimpleSigner.load(key_path, cert_path, ca_chain_files=[root_target])
+target.parent.mkdir(parents=True, exist_ok=True)
+with source.open("rb") as input_handle, target.open("wb") as output_handle:
+    writer = IncrementalPdfFileWriter(input_handle, strict=True)
+    signers.sign_pdf(
+        writer,
+        signers.PdfSignatureMetadata(
+            field_name="Certification",
+            certify=True,
+            docmdp_permissions=MDPPerm.NO_CHANGES,
+        ),
+        signer=signer,
+        output=output_handle,
+    )
+'''
 
 
 def n(value: str) -> NameObject:
@@ -358,6 +456,75 @@ def create_print_production_risk(root: Path) -> None:
     temporary.unlink(missing_ok=True)
 
 
+def required_signing_python(value: str | None) -> str:
+    candidate = value or os.environ.get(SIGNING_PYTHON_ENV)
+    if not candidate:
+        raise ValueError(
+            "Generating the real DocMDP fixture requires --signing-python or "
+            f"{SIGNING_PYTHON_ENV}; select the policy-authorized managed pyHanko runtime."
+        )
+    executable = Path(candidate)
+    if not executable.is_file() or executable.is_symlink() or not os.access(executable, os.X_OK):
+        raise ValueError("the selected PromptBench signing Python must be a regular executable file")
+    return str(executable)
+
+
+def create_docmdp_p1_final(root: Path, signing_python: str) -> None:
+    """Create a real P=1 certification without retaining a private key.
+
+    The committed corpus receives exactly one signed PDF and the public test
+    root.  RSA private material, the temporary signer certificate, and the
+    unsigned staging PDF live only under `TemporaryDirectory` and are removed
+    when this function returns.
+    """
+    target = root / "pdf" / "signing" / "docmdp-p1-final.pdf"
+    root_certificate = root / "pdf" / "signing" / "test-pki" / "root.pem"
+    with tempfile.TemporaryDirectory(prefix="officekit-promptbench-docmdp-") as directory:
+        work = Path(directory)
+        source = work / "unsigned-final.pdf"
+        write_reportlab_pdf(
+            source,
+            "Final",
+            [
+                "This self-authored document is certified with DocMDP P=1.",
+                "Any title change must be refused without an appended revision.",
+            ],
+        )
+        completed = subprocess.run(
+            [signing_python, "-I", "-c", DOCMDP_P1_SIGNING_PROGRAM, str(work), str(source), str(target), str(root_certificate)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if completed.returncode != 0:
+            target.unlink(missing_ok=True)
+            root_certificate.unlink(missing_ok=True)
+            raise ValueError(
+                "managed pyHanko fixture signing failed: "
+                f"{completed.stderr.strip() or completed.stdout.strip() or 'unknown error'}"
+            )
+
+
+def refresh_docmdp_p1(root: Path, signing_python: str) -> dict:
+    """Refresh only the signed DocMDP fixture and its two integrity records."""
+    manifest_path = root / "integrity.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("assets"), dict):
+        raise ValueError("unsupported corpus integrity schema")
+    create_docmdp_p1_final(root, signing_python)
+    for relative in ("pdf/signing/docmdp-p1-final.pdf", "pdf/signing/test-pki/root.pem"):
+        asset = root / relative
+        manifest["assets"][relative] = {
+            "bytes": asset.stat().st_size,
+            "description": FIXTURES[relative],
+            "kind": "file",
+            "sha256": sha256(asset),
+        }
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return manifest
+
+
 FIXTURES = {
     "pdf/encryption/owner-policy-aes256.pdf": "AES-256 encrypted user/owner permission split with embedded attachment and AcroForm canaries.",
     "pdf/encryption/user-password.json": "Test-only user credential; deliberately excludes the owner password.",
@@ -365,16 +532,19 @@ FIXTURES = {
     "pdf/accessibility/untagged-complex-report.pdf": "Untagged two-column report with image and table visual structure.",
     "pdf/xfa/dynamic-dependents.pdf": "Dynamic-XFA-shaped template/datasets packet with repeat and FormCalc markers.",
     "pdf/print/print-production-risk.pdf": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",
+    "pdf/signing/docmdp-p1-final.pdf": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",
+    "pdf/signing/test-pki/root.pem": "Public-only self-authored PromptBench root certificate for the DocMDP P=1 fixture.",
 }
 
 
-def generate(root: Path) -> dict:
+def generate(root: Path, signing_python: str | None) -> dict:
     root.mkdir(parents=True, exist_ok=True)
     create_encrypted_owner_policy(root)
     create_annotation_reply_chain(root)
     create_untagged_complex_report(root)
     create_dynamic_xfa(root)
     create_print_production_risk(root)
+    create_docmdp_p1_final(root, required_signing_python(signing_python))
     assets = {}
     for relative, description in FIXTURES.items():
         path = root / relative
@@ -469,6 +639,42 @@ def verify_print(path: Path) -> None:
         raise ValueError("print fixture has no overprint flag")
 
 
+def verify_docmdp_p1(path: Path, root_certificate: Path) -> None:
+    raw = path.read_bytes()
+    reader = PdfReader(str(path), strict=True)
+    root = root_dictionary(reader)
+    permissions = dictionary_object(root.get("/Perms")) if root.get("/Perms") else {}
+    signature = dictionary_object(permissions.get("/DocMDP")) if permissions.get("/DocMDP") else {}
+    byte_range = signature.get("/ByteRange") if signature else None
+    if not isinstance(byte_range, ArrayObject) or len(byte_range) != 4:
+        raise ValueError("DocMDP fixture is missing one four-number ByteRange")
+    offsets = [int(value) for value in byte_range]
+    if offsets[0] != 0 or min(offsets[1:]) < 0 or offsets[0] + offsets[1] > offsets[2] or offsets[2] + offsets[3] != len(raw):
+        raise ValueError("DocMDP fixture has an invalid ByteRange")
+    if not signature.get("/Contents"):
+        raise ValueError("DocMDP fixture has no CMS contents")
+    references = signature.get("/Reference") if signature else None
+    if not isinstance(references, ArrayObject):
+        raise ValueError("DocMDP fixture has no transform reference")
+    transform_params = [
+        dictionary_object(reference).get("/TransformParams")
+        for reference in references
+        if str(dictionary_object(reference).get("/TransformMethod", "")) == "/DocMDP"
+    ]
+    if len(transform_params) != 1:
+        raise ValueError("DocMDP fixture has no unique DocMDP transform")
+    params = dictionary_object(transform_params[0])
+    if int(params.get("/P", 0) or 0) != 1:
+        raise ValueError("DocMDP fixture does not prohibit all later changes")
+    if str(reader.metadata.title or "") != "Final":
+        raise ValueError("DocMDP fixture title canary is missing")
+    if "certified with DocMDP P=1" not in (reader.pages[0].extract_text() or ""):
+        raise ValueError("DocMDP fixture visible-content canary is missing")
+    certificate = root_certificate.read_bytes()
+    if b"BEGIN CERTIFICATE" not in certificate or b"PRIVATE KEY" in certificate:
+        raise ValueError("DocMDP fixture root certificate must be public-only PEM")
+
+
 def verify(root: Path) -> dict:
     manifest_path = root / "integrity.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -486,16 +692,20 @@ def verify(root: Path) -> dict:
     verify_untagged_report(root / "pdf" / "accessibility" / "untagged-complex-report.pdf")
     verify_xfa(root / "pdf" / "xfa" / "dynamic-dependents.pdf")
     verify_print(root / "pdf" / "print" / "print-production-risk.pdf")
+    verify_docmdp_p1(root / "pdf" / "signing" / "docmdp-p1-final.pdf", root / "pdf" / "signing" / "test-pki" / "root.pem")
     return {"ok": True, "assets": len(manifest["assets"]), "root": str(root)}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("generate", "verify"))
+    parser.add_argument("command", choices=("generate", "refresh-docmdp", "verify"))
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
+    parser.add_argument("--signing-python", help=f"managed pyHanko interpreter used only by generate (or set {SIGNING_PYTHON_ENV})")
     options = parser.parse_args()
     if options.command == "generate":
-        print(json.dumps(generate(options.root), indent=2, sort_keys=True))
+        print(json.dumps(generate(options.root, options.signing_python), indent=2, sort_keys=True))
+    elif options.command == "refresh-docmdp":
+        print(json.dumps(refresh_docmdp_p1(options.root, required_signing_python(options.signing_python)), indent=2, sort_keys=True))
     else:
         print(json.dumps(verify(options.root), sort_keys=True))
 

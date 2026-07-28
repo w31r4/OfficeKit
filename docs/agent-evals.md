@@ -16,9 +16,9 @@ The suite is evaluator-side repository infrastructure. `evals/`, the runner, loc
 ## Current suite
 
 - 41 cases: 21 PDF, 7 Documents, 7 Spreadsheets, and 6 Presentations. PDF is 51.2% of the suite and is required to remain an absolute majority, so a meaningful Office vertical slice never creates unrelated PDF filler prompts.
-- 25 `ready` cases: 13 PDF cases, four bounded XLSX workflows (threaded-comment, formula-assumption update, source-bound connection refresh-on-open, and source-bound Pivot refresh-on-open), four DOCX workflows (classic-comment plus source-bound header/footer text and source-bound section page numbering), and four PPTX workflows (title plus fixed-topology rich-speaker-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone).
-- Five locked, self-authored PDF corpus inputs are now ready: AES-256 owner/user permission split, native annotation reply chain, untagged complex report, Dynamic XFA packet, and print-production risk structure. Each has a committed SHA-256/byte manifest and an independent parser oracle; they grade only an auditable safe refusal, never a generic “no output” result.
-- 16 `asset-required` cases still await their pinned corpus files or test PKI. They remain excluded from readiness and repeat-matrix claims.
+- 26 `ready` cases: 14 PDF cases, four bounded XLSX workflows (threaded-comment, formula-assumption update, source-bound connection refresh-on-open, and source-bound Pivot refresh-on-open), four DOCX workflows (classic-comment plus source-bound header/footer text and source-bound section page numbering), and four PPTX workflows (title plus fixed-topology rich-speaker-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone).
+- Six locked, self-authored PDF corpus inputs are now ready: AES-256 owner/user permission split, native annotation reply chain, untagged complex report, Dynamic XFA packet, print-production risk structure, and a real DocMDP P=1 certification signature with a public test root. Each has a committed SHA-256/byte manifest and an independent parser oracle; they grade only an auditable safe refusal, never a generic “no output” result.
+- 15 `asset-required` cases still await their pinned corpus files or test PKI. They remain excluded from readiness and repeat-matrix claims.
 - Every family has both a success and a fail-closed case. Some advanced PDF cases accept either verified success or an explicit safe refusal.
 - The default policy uses three trials per subject. Trial count is recorded per case rather than silently inferred by the Agent.
 
@@ -63,18 +63,18 @@ npm run eval:agents -- prepare pptx-closed-leaf-slide-clone --subject candidate 
 npm run eval:agents -- run pptx-closed-leaf-slide-clone --subject candidate --trial 1
 ```
 
-Generated PDF fixtures and the locked-corpus verifier require Python with ReportLab, pypdf, and Pillow. The eight artifact-producing ready PDF graders additionally require pdfplumber; their applicable visual oracles require `pdftoppm`. Set `OFFICE_KIT_AGENT_EVAL_PYTHON` to that interpreter and, only when it is not on `PATH`, set `OFFICE_KIT_AGENT_EVAL_PDFTOPPM`. Prepared PDF prompts explicitly bind that interpreter as `OFFICE_KIT_PDF_PROVIDER_PYTHON`, because Codex shell policy may not inherit the runner environment. In Codex, use the Python executable returned by `load_workspace_dependencies`.
+Generated PDF fixtures and the locked-corpus verifier require Python with ReportLab, pypdf, and Pillow. The eight artifact-producing ready PDF graders additionally require pdfplumber; their applicable visual oracles require `pdftoppm`. Set `OFFICE_KIT_AGENT_EVAL_PYTHON` to that evaluator interpreter and, only when it is not on `PATH`, set `OFFICE_KIT_AGENT_EVAL_PDFTOPPM`. A prepared PDF prompt binds its actual provider interpreter from `OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON`, then legacy `OFFICE_KIT_PDF_PROVIDER_PYTHON`, then the evaluator interpreter. This keeps a small parser/render evaluator separate from a policy-authorized managed specialist runtime such as pyHanko; `run.json` records both paths. In Codex, use the Python executable returned by `load_workspace_dependencies` for the evaluator and a managed provider path only when the case needs it.
 
 ## Locked boundary corpus
 
-The five ready boundary fixtures live below `evals/assets/`, outside the npm
+The six ready boundary fixtures live below `evals/assets/`, outside the npm
 payload. `integrity.json` records every declared file's SHA-256 and byte count;
 the runner rejects a missing manifest entry, a mismatched byte stream, or a
 symbolic link before copying a file into the read-only trial workspace. The
 reviewed self-authored recipe is
 `scripts/agent-eval-corpus-fixtures.py`; it intentionally contains only test
-data and a user password that opens the encryption fixture. It never supplies
-the owner password or production key material.
+data and a user password that opens the encryption fixture. The committed
+corpus never carries the owner password or retained private key material.
 
 The evaluator-side oracle parses the source fixture independently of the
 candidate provider. It verifies the actual AES-256 permission dictionary and
@@ -118,7 +118,42 @@ Every one of those six traces invoked `pdf_audit.py failed-closed`; the output
 had only `audit.json`, `output: null`, an explicit provider/version, typed
 source preservation, typed no-artifact checks, and no mutation command. This
 is a new package identity, not a retroactive rewrite of earlier evidence. The
-evaluator normalizes the published audit envelope and structured equivalent
+new DocMDP case uses the self-authored signed PDF SHA-256
+`6ad55dd93543921c3b13d96f9cffed7a000ddea3b7da54643dae915034d19060` and
+public test-root SHA-256
+`ab15a064bf134b4c8409a08669b9308c5c9ba25d7d66dae74e99f30ccb7c606b`. Its
+parser oracle proves the source title canary, `/Perms` → `/DocMDP`, a full-file
+ByteRange, CMS contents, one DocMDP transform, and permission `P=1`; the
+prepared prompt supplies the root and an explicit managed pyHanko runtime for
+trust/difference validation before the requested title change is refused. Its
+DocMDP hard gate requires the explicit-root pyHanko verification command and
+the matching audit-bound signature, integrity, trust, DocMDP-compliance, and
+bottom-line evidence; a probe or structural parse alone does not pass. The
+certificate lasts ten years so this fixed test asset does not need a routine
+annual rollover. The
+fresh six-record matrix was run at base commit `885d5cdc` from one explicitly
+recorded dirty worktree: its status SHA-256 was
+`60ad721d87a3c1d0f8766a812201ddacaf7b60a946eff44e7882b30d6099272f` and
+tracked-diff SHA-256 was
+`cfef635e5b7581d7573eddaddc84dc6351e2bdb215f8f609a563700f2c3e8281`.
+All three candidate and all three copied-reference trials used the same packed
+candidate tarball SHA-256
+`b29c915944dbac4d1641fd9a1e53757cc83da2ff2cd75be33960e4c503faf1fc`, the
+same oracle fingerprint
+`5e28dad9e2553d2fddfaa50a4e9a95177f9fcd0d696efe9c46f3e60bc0423e25`, and
+the source/root hashes above. The candidate Skill SHA-256 was
+`429bf9aec9b2ebc7a1c75b1674807252074a3e9e8c1b61a5276be622a6006a0c`; the
+reference Skill SHA-256 was
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`.
+Every trial passed `100/100` with every hard gate. Both subjects ran
+explicit-root pyHanko validation and the typed
+`pdf_audit.py failed-closed --require-docmdp-no-changes` route, which binds the
+real verification report, selected public root, full-file coverage, P=1 policy,
+and no-mutation decision into the sole `audit.json` output. This is evidence
+that both workflow texts can use the published safe-refusal primitive; it does
+not generalize P=1 handling to P=2/P=3, FieldMDP, or arbitrary signed PDFs.
+
+The evaluator normalizes the published audit envelope and structured equivalent
 forms: an explicit
 no-mutation result can be `executed: false`, `performed: false`/`"none"`,
 `mutationAttempted: false`, or a typed `refused_not_attempted` operation. It
@@ -152,7 +187,7 @@ Each preparation creates a fresh trial tree outside the repository by default:
     report.json
 ```
 
-`run.json` records the git commit, whether the source worktree was dirty, hashes of its status and tracked diff, the actual packed tarball hash, Skill-tree hash, input fingerprints, reference-only package-name patches, and an oracle fingerprint. The tarball SHA-256 is the authoritative identity of the candidate bytes, including when a local WIP is intentionally evaluated; a recorded HEAD is never presented as if it alone identified a dirty trial. The record also fingerprints `PROMPT.md`, the workspace package/lock files, `.agents`, and the complete installed `node_modules` tree, including file modes and symlink targets; changing the Skill or executed dependency graph therefore fails a hard gate. Skill copying filters ignored Python bytecode, the installed tree is read-only, and Codex runs with Python bytecode generation disabled, so local cache noise cannot enter the immutable Skill subject. File inputs are made read-only and SHA-256 checked after execution. Directory inputs such as test PKI are recursively made read-only and hashed as a deterministic tree, so added, removed, renamed, mode-changed, or content-changed files fail the source-immutability gate.
+`run.json` records the git commit, whether the source worktree was dirty, hashes of its status and tracked diff, the actual packed tarball hash, Skill-tree hash, input fingerprints, reference-only package-name patches, and an oracle fingerprint. That fingerprint covers the case outcome/grade specification plus the checked-in runner and applicable PDF or Office grader source bytes, so a later evaluator implementation change invalidates an older prepared trial rather than silently regrading it under a new oracle. The tarball SHA-256 is the authoritative identity of the candidate bytes, including when a local WIP is intentionally evaluated; a recorded HEAD is never presented as if it alone identified a dirty trial. The record also fingerprints `PROMPT.md`, the workspace package/lock files, `.agents`, and the complete installed `node_modules` tree, including file modes and symlink targets; changing the Skill or executed dependency graph therefore fails a hard gate. Skill copying filters ignored Python bytecode, the installed tree is read-only, and Codex runs with Python bytecode generation disabled, so local cache noise cannot enter the immutable Skill subject. File inputs are made read-only and SHA-256 checked after execution. Directory inputs such as test PKI are recursively made read-only and hashed as a deterministic tree, so added, removed, renamed, mode-changed, or content-changed files fail the source-immutability gate.
 
 The runner starts Codex with an ephemeral, ignored-config `workspace-write` sandbox. This is useful process isolation, but it is not an oracle-confidentiality boundary on every host. A production benchmark must mount only the trial workspace into a no-network container or VM and keep the evaluator directory and repository unavailable to the Agent.
 
