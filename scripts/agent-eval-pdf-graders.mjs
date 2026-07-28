@@ -778,6 +778,19 @@ function damagedXrefRepair(audit) {
       checkAfter: qpdf.freshInspect,
     };
   }
+  const repairAfter = audit?.validation?.repairAfter;
+  if (repairAfter && typeof repairAfter === "object") {
+    return {
+      checkBefore: audit?.validation?.repairBefore,
+      qpdfWrite: audit?.warnings,
+      checkAfter: {
+        status: repairAfter.qpdfStatus,
+        freshInspect: repairAfter.freshInspect,
+        exitCode: repairAfter.qpdfExitCode,
+      },
+      requiresFreshInspection: true,
+    };
+  }
   const freshInspection = audit?.validation?.freshInspection;
   if (freshInspection && typeof freshInspection === "object") {
     return {
@@ -786,6 +799,7 @@ function damagedXrefRepair(audit) {
       // This shape records repair warnings at the audit root and retains the
       // separate post-write qpdf inspection under validation.
       checkAfter: freshInspection,
+      requiresFreshInspection: true,
     };
   }
   const candidates = [
@@ -907,9 +921,11 @@ export function gradeDamagedXrefRecoveryEvidence({ evidence, audit, commands, it
   const controlRejected = (/reject|fail|error|unrecoverable|refus/.test(controlStatus) || control?.qpdfAccepted === false || control?.qpdfRejected === true || control?.accepted === false || control?.rejected === true)
     && damagedXrefControlSourceHash(control, audit) === evidence.unrecoverable?.sha256
     && (control?.output === null || control?.outputPath === null || control?.artifactWritten === false || control?.published === false || control?.outputGenerated === false || control?.outputPresent === false || control?.pseudoRepairProduced === false || control?.pseudoRepairGenerated === false);
+  const qpdfOutputClean = repair?.checkAfter?.status === "clean"
+    && (!repair?.requiresFreshInspection || repair?.checkAfter?.freshInspect === true || repair?.checkAfter?.completed === true);
   return [
     check("pdf-machine:damaged-source-and-control-fixture", "machine", sourceFixtureComplete, { actual: { source: { pageCount: source.pageCount, startxrefIsZero: evidence.sourceRawStartxrefIsZero, attachments: expectedAttachments }, unrecoverable: evidence.unrecoverable } }),
-    check("pdf-machine:qpdf-output-clean", "machine", repair?.checkAfter?.status === "clean", { actual: repair?.checkAfter || "unreported" }),
+    check("pdf-machine:qpdf-output-clean", "machine", qpdfOutputClean, { actual: repair?.checkAfter || "unreported" }),
     check("pdf-machine:page-count-and-geometry-preserved", "machine", output.pageCount === source.pageCount && samePageBoxes(source.pages, output.pages), { actual: { source: source.pageCount, output: output.pageCount } }),
     check("pdf-machine:document-attachment-preserved", "machine", JSON.stringify(actualAttachments) === JSON.stringify(expectedAttachments), { expected: expectedAttachments, actual: actualAttachments }),
     check("pdf-machine:unrecoverable-control-rejected", "machine", controlRejected, { expected: { sourceSha256: evidence.unrecoverable?.sha256, noOutput: true }, actual: control || "unreported" }),

@@ -571,6 +571,28 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
     };
     const stagedWarningChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: stagedWarningAudit, commands, item: damagedXrefItem });
     assert.equal(stagedWarningChecks.every((check) => check.passed), true, JSON.stringify(stagedWarningChecks.filter((check) => !check.passed), null, 2));
+    const repairAfterAudit = structuredClone(agentStyleAudit);
+    delete repairAfterAudit.validation.qpdfRepair;
+    repairAfterAudit.validation.repairBefore = {
+      qpdfStatus: "warnings",
+      qpdfExitCode: 3,
+    };
+    repairAfterAudit.validation.repairAfter = {
+      freshInspect: true,
+      qpdfStatus: "clean",
+      qpdfExitCode: 0,
+    };
+    repairAfterAudit.validation.unrecoverableControl = {
+      inspectedSeparately: true,
+      qpdfRejected: true,
+      outputGenerated: false,
+    };
+    const repairAfterChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: repairAfterAudit, commands, item: damagedXrefItem });
+    assert.equal(repairAfterChecks.every((check) => check.passed), true, JSON.stringify(repairAfterChecks.filter((check) => !check.passed), null, 2));
+    const staleRepairAfter = structuredClone(repairAfterAudit);
+    staleRepairAfter.validation.repairAfter.freshInspect = false;
+    const staleRepairAfterChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: staleRepairAfter, commands, item: damagedXrefItem });
+    assert.equal(staleRepairAfterChecks.find((check) => check.id === "pdf-machine:qpdf-output-clean")?.passed, false, "a clean repairAfter claim without a fresh inspection must fail");
     const attachmentLoss = structuredClone(evidence);
     attachmentLoss.outputAttachments = [];
     const attachmentLossChecks = gradeDamagedXrefRecoveryEvidence({ evidence: attachmentLoss, audit, commands, item: damagedXrefItem });
