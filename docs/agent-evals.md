@@ -88,7 +88,11 @@ XFA template/datasets, repeat-subform, FormCalc, JavaScript and
 OutputIntent dictionaries; or the eight-page mixed-document proof: six exact
 image-only scan canaries plus two true-text pages, pinned image pixels for the
 upside-down/sideways/`+3°`/`-2°` preprocessing cases, and the document
-language/metadata canaries. The repair pair is independently checked for a raw
+language/metadata canaries. The RichMedia boundary is independently traversed
+for exactly one page-two `/3D` and one `/RichMedia` annotation, its binary
+`/3DD` stream, default view and activation dictionaries, asset/configuration/
+settings graph, JavaScript action, and two opaque-stream hashes; the oracle
+never executes any of them. The repair pair is independently checked for a raw
 terminal `startxref = 0`, the exact recoverable document attachment, all page
 text/geometry canaries, an exact Poppler page comparison after repair, and a
 malformed control with no trailer or usable page tree. A response passes only if that input proof, a
@@ -127,7 +131,25 @@ Every one of those six traces invoked `pdf_audit.py failed-closed`; the output
 had only `audit.json`, `output: null`, an explicit provider/version, typed
 source preservation, typed no-artifact checks, and no mutation command. This
 is a new package identity, not a retroactive rewrite of earlier evidence. The
-new DocMDP case uses the self-authored signed PDF SHA-256
+RichMedia matrix ran from clean commit
+`03ef69c95a66d75de46a3f26892b4918e046a3c1`: all three candidate trials passed
+at `100/100`, while the copied-reference Skill passed one of three. All six
+trials used tarball SHA-256
+`4623162922f1acb4fc64df2789c900add321e3dd196bdccae1eb6f62b3fdbb2e`, source
+SHA-256 `d6c88be344726c030c4680456935aea2b40e16210dde74df284a7f61cce1521c`, and
+oracle SHA-256
+`45efd2997f96be7966850ce796b6815b760193372d69caf92a2618850a73097e`. The
+candidate Skill SHA-256 was
+`07a82797f184b0dc0511fcf1238ff14141892aaf723b56db88341079bee4677d`; the
+copied-reference Skill SHA-256 was
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`. Every
+trial preserved the source and emitted only `audit.json`; the two reference
+zeros were correctly retained because their audits did not supply the
+canonical null-output/no-mutation and no-fallback evidence. This is a
+safe-refusal audit-contract result, not evidence that either Skill can edit or
+play a 3D/RichMedia runtime.
+
+The new DocMDP case uses the self-authored signed PDF SHA-256
 `6ad55dd93543921c3b13d96f9cffed7a000ddea3b7da54643dae915034d19060` and
 public test-root SHA-256
 `ab15a064bf134b4c8409a08669b9308c5c9ba25d7d66dae74e99f30ccb7c606b`. Its
