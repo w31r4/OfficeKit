@@ -69,6 +69,7 @@ import {
   gradeAttachmentQuarantineEvidence,
   gradeBoundaryRefusalEvidence,
   gradeBoundedReplaceEvidence,
+  gradeCertifiedDocMdpP2FillEvidence,
   gradeMergeStampEvidence,
   gradeOverflowRefusalEvidence,
   gradeSourceBoundHighlightEvidence,
@@ -92,12 +93,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 26 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 27 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 14);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 15);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
@@ -126,8 +127,8 @@ assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /14 ready PDF cases include six locked corpus boundary fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 15 asset-required cases/i);
+assert.match(runnerHelp.stdout, /15 ready PDF cases include seven locked corpus signature\/boundary fixtures/i);
+assert.match(runnerHelp.stdout, /remaining 14 asset-required cases/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
@@ -153,6 +154,8 @@ const lockedFixturePaths = [
   "pdf/print/print-production-risk.pdf",
   "pdf/signing/docmdp-p1-final.pdf",
   "pdf/signing/test-pki/root.pem",
+  "pdf/signing/docmdp-p2-form.pdf",
+  "pdf/signing/test-pki/docmdp-p2-root.pem",
 ];
 for (const relative of lockedFixturePaths) {
   assert.equal(await verifiedLockedAsset(relative), path.join(repoRoot, "evals", "assets", relative));
@@ -163,9 +166,12 @@ assert.doesNotMatch(ownerCredential, /fixture-owner-password-not-for-agent/);
 const encryptionVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary"));
 assert.match(encryptionVisible.prompt, /inputs\/credentials\/user-password\.json/);
 assert.doesNotMatch(encryptionVisible.prompt, /fixture-owner-password-not-for-agent/);
+const docmdpP2Item = cases.find((item) => item.id === "pdf-docmdp-allowed-field-fill");
+assert.equal(docmdpP2Item?.status, "ready");
+assert.equal(docmdpP2Item?.inputs?.some((input) => input.asset === "pdf/signing/test-pki/docmdp-p2-root.pem"), true);
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 8, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 10, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -355,6 +361,75 @@ const xfaFixtureFailure = gradeBoundaryRefusalEvidence({
   outputEntries: ["audit.json"],
 });
 assert.equal(xfaFixtureFailure.find((check) => check.id === "pdf-machine:source-boundary-fixture")?.passed, false);
+
+const p2ProviderPython = process.env.OFFICE_KIT_PYHANKO_TEST_PYTHON;
+const p2Poppler = process.env.OFFICE_KIT_AGENT_EVAL_PDFTOPPM || "pdftoppm";
+const p2PopplerAvailable = spawnSync(p2Poppler, ["-v"], { encoding: "utf8", env: process.env }).status === 0;
+if (p2ProviderPython && p2PopplerAvailable) {
+  const p2Root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-agent-eval-docmdp-p2-"));
+  try {
+    const source = path.join(p2Root, "inputs", "source.pdf");
+    const trustRoot = path.join(p2Root, "inputs", "credentials", "test-root.pem");
+    const output = path.join(p2Root, "outputs", "approved-amount.pdf");
+    const auditPath = path.join(p2Root, "outputs", "audit.json");
+    await fs.mkdir(path.dirname(trustRoot), { recursive: true });
+    await fs.mkdir(path.dirname(output), { recursive: true });
+    await fs.copyFile(path.join(repoRoot, "evals", "assets", "pdf", "signing", "docmdp-p2-form.pdf"), source);
+    await fs.copyFile(path.join(repoRoot, "evals", "assets", "pdf", "signing", "test-pki", "docmdp-p2-root.pem"), trustRoot);
+    const sourceHash = crypto.createHash("sha256").update(await fs.readFile(source)).digest("hex");
+    const filler = path.join(repoRoot, "skills", "pdf", "skills", "pdf", "scripts", "pyhanko_certified_form_fill.py");
+    const filled = spawnSync(p2ProviderPython, [
+      filler, "fill", source, output,
+      "--expected-source-sha256", sourceHash,
+      "--trust-root", trustRoot,
+      "--field", "ApprovedAmount", "--value", "12500.00",
+      "--expected-signature-field", "Certification",
+      "--expected-locked-field", "LockedAmount", "--expected-locked-value", "LOCKED-9000",
+      "--caller-isolated",
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: { ...process.env, OFFICE_KIT_PDF_PROVIDER_PYTHON: p2ProviderPython, PYTHONDONTWRITEBYTECODE: "1" },
+    });
+    assert.equal(filled.status, 0, filled.stderr);
+    const p2Audit = JSON.parse(filled.stdout);
+    await fs.writeFile(auditPath, JSON.stringify(p2Audit, null, 2));
+    const p2Oracle = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: process.env,
+      input: JSON.stringify({
+        kind: "certified-docmdp-p2-fill",
+        source,
+        output,
+        field: "ApprovedAmount",
+        value: "12500.00",
+        lockedField: "LockedAmount",
+        renderRoot: path.join(p2Root, "evaluator", "render"),
+        poppler: p2Poppler,
+      }),
+    });
+    assert.equal(p2Oracle.status, 0, p2Oracle.stderr);
+    const p2Evidence = JSON.parse(p2Oracle.stdout);
+    const p2Commands = [
+      "python .agents/skills/pdf/scripts/pyhanko_certified_form_fill.py probe",
+      "python .agents/skills/pdf/scripts/pyhanko_certified_form_fill.py fill inputs/source.pdf outputs/approved-amount.pdf --expected-source-sha256 deadbeef --trust-root inputs/credentials/test-root.pem --field ApprovedAmount --value 12500.00 --expected-signature-field Certification --expected-locked-field LockedAmount --expected-locked-value LOCKED-9000 --caller-isolated",
+      "python .agents/skills/pdf/scripts/pyhanko_provider.py verify outputs/approved-amount.pdf --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid --require-all-trusted --require-docmdp-compliant --require-all-bottom-line",
+      "node .agents/skills/pdf/scripts/mupdf.mjs render outputs/approved-amount.pdf outputs/render",
+    ];
+    const p2Checks = gradeCertifiedDocMdpP2FillEvidence({ evidence: p2Evidence, audit: p2Audit, commands: p2Commands, item: docmdpP2Item });
+    assert.equal(p2Checks.every((check) => check.passed), true, "DocMDP P=2 PromptBench fixture must pass every independent check");
+    assert.equal(summarizeCaseScore(p2Checks, docmdpP2Item.grade).rawScorePercent, 100);
+    const p2TamperedAudit = structuredClone(p2Audit);
+    p2TamperedAudit.signature.postflight.changedFormFields = ["LockedAmount"];
+    const p2TamperedChecks = gradeCertifiedDocMdpP2FillEvidence({ evidence: p2Evidence, audit: p2TamperedAudit, commands: p2Commands, item: docmdpP2Item });
+    assert.equal(p2TamperedChecks.find((check) => check.id === "pdf-security:audit-provenance-and-policy")?.passed, false, "a generic success audit cannot replace an exact DocMDP/FieldMDP proof");
+  } finally {
+    await fs.rm(p2Root, { recursive: true, force: true });
+  }
+} else {
+  console.log("PromptBench DocMDP P=2 execution smoke skipped (set OFFICE_KIT_PYHANKO_TEST_PYTHON and provide pdftoppm)");
+}
 }
 
 const threadedReplyItem = cases.find((item) => item.id === "xlsx-threaded-reply-resolve");

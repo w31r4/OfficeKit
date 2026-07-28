@@ -457,6 +457,31 @@ const missingCredential = await PdfProviders.resolve({
 assert.equal(missingCredential.status, "blocked");
 assert.equal(missingCredential.reason.code, "credential-declaration-required");
 
+const missingCertifiedFormTrustRoot = await PdfProviders.resolve({
+  task: "fill-certified-form",
+  provider: "pyhanko",
+  savePolicy: "incremental",
+  inspection: inspectedPdf,
+  mutationAuthorized: true,
+  policy: { installPolicy: "managed", allowedProviders: ["pyhanko"], allowedPacks: ["python-specialists", "qpdf"], acceptedLicenses: ["agpl"], maxDownloadBytes: 1, maxUnpackedBytes: 1 },
+});
+assert.equal(missingCertifiedFormTrustRoot.status, "blocked");
+assert.equal(missingCertifiedFormTrustRoot.reason.code, "credential-declaration-required");
+assert.deepEqual(missingCertifiedFormTrustRoot.consents.credentials.required, ["caller-supplied-trust-root"]);
+
+const declaredCertifiedFormTrustRoot = await PdfProviders.resolve({
+  task: "fill-certified-form",
+  provider: "pyhanko",
+  savePolicy: "incremental",
+  inspection: inspectedPdf,
+  mutationAuthorized: true,
+  credentials: ["caller-supplied-trust-root"],
+  policy: { installPolicy: "managed", allowedProviders: ["pyhanko"], allowedPacks: ["python-specialists", "qpdf"], acceptedLicenses: ["agpl"], maxDownloadBytes: 1, maxUnpackedBytes: 1 },
+});
+assert.notEqual(declaredCertifiedFormTrustRoot.reason.code, "credential-declaration-required");
+assert.equal(declaredCertifiedFormTrustRoot.mutation, true);
+assert.equal(declaredCertifiedFormTrustRoot.silentFallback, false);
+
 const ocrLanguagePolicy = await PdfProviders.resolve({
   task: "ocr",
   provider: "ocrmypdf",

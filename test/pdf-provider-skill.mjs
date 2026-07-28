@@ -229,6 +229,7 @@ const requiredFiles = [
   "scripts/qpdf_provider.py",
   "scripts/pyhanko_provider.py",
   "scripts/pyhanko_sign_provider.py",
+  "scripts/pyhanko_certified_form_fill.py",
   "scripts/verapdf_provider.py",
   "scripts/ocrmypdf_provider.py",
   "scripts/pikepdf_provider.py",

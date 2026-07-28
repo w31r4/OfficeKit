@@ -139,6 +139,100 @@ with source.open("rb") as input_handle, target.open("wb") as output_handle:
 '''
 
 
+DOCMDP_P2_SIGNING_PROGRAM = r'''
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+import sys
+
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
+from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
+from pyhanko.sign import signers
+from pyhanko.sign.fields import FieldMDPAction, FieldMDPSpec, MDPPerm, SigFieldSpec
+
+work = Path(sys.argv[1])
+source = Path(sys.argv[2])
+target = Path(sys.argv[3])
+root_target = Path(sys.argv[4])
+now = datetime.now(timezone.utc)
+
+root_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+root_name = x509.Name([
+    x509.NameAttribute(NameOID.COMMON_NAME, "OfficeKit PromptBench P2 Test Root"),
+    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "OfficeKit"),
+    x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+])
+root_cert = (
+    x509.CertificateBuilder()
+    .subject_name(root_name)
+    .issuer_name(root_name)
+    .public_key(root_key.public_key())
+    .serial_number(x509.random_serial_number())
+    .not_valid_before(now - timedelta(days=1))
+    .not_valid_after(now + timedelta(days=3650))
+    .add_extension(x509.BasicConstraints(ca=True, path_length=1), critical=True)
+    .add_extension(x509.KeyUsage(
+        digital_signature=True, content_commitment=True, key_encipherment=False,
+        data_encipherment=False, key_agreement=False, key_cert_sign=True,
+        crl_sign=True, encipher_only=None, decipher_only=None,
+    ), critical=True)
+    .sign(root_key, hashes.SHA256())
+)
+signer_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+signer_name = x509.Name([
+    x509.NameAttribute(NameOID.COMMON_NAME, "OfficeKit PromptBench P2 Certification"),
+    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "OfficeKit"),
+    x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+])
+signer_cert = (
+    x509.CertificateBuilder()
+    .subject_name(signer_name)
+    .issuer_name(root_name)
+    .public_key(signer_key.public_key())
+    .serial_number(x509.random_serial_number())
+    .not_valid_before(now - timedelta(days=1))
+    .not_valid_after(now + timedelta(days=3650))
+    .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+    .add_extension(x509.KeyUsage(
+        digital_signature=True, content_commitment=True, key_encipherment=False,
+        data_encipherment=False, key_agreement=False, key_cert_sign=False,
+        crl_sign=False, encipher_only=None, decipher_only=None,
+    ), critical=True)
+    .sign(root_key, hashes.SHA256())
+)
+key_path = work / "signer-key.pem"
+cert_path = work / "signer-cert.pem"
+key_path.write_bytes(signer_key.private_bytes(
+    serialization.Encoding.PEM,
+    serialization.PrivateFormat.PKCS8,
+    serialization.NoEncryption(),
+))
+cert_path.write_bytes(signer_cert.public_bytes(serialization.Encoding.PEM))
+root_target.parent.mkdir(parents=True, exist_ok=True)
+root_target.write_bytes(root_cert.public_bytes(serialization.Encoding.PEM))
+signer = signers.SimpleSigner.load(key_path, cert_path, ca_chain_files=[root_target])
+target.parent.mkdir(parents=True, exist_ok=True)
+with source.open("rb") as input_handle, target.open("wb") as output_handle:
+    writer = IncrementalPdfFileWriter(input_handle, strict=True)
+    signers.sign_pdf(
+        writer,
+        signers.PdfSignatureMetadata(
+            field_name="Certification",
+            certify=True,
+            docmdp_permissions=MDPPerm.FILL_FORMS,
+        ),
+        signer=signer,
+        new_field_spec=SigFieldSpec(
+            sig_field_name="Certification",
+            field_mdp_spec=FieldMDPSpec(FieldMDPAction.INCLUDE, fields=["LockedAmount"]),
+        ),
+        output=output_handle,
+    )
+'''
+
+
 def n(value: str) -> NameObject:
     return NameObject(value if value.startswith("/") else f"/{value}")
 
@@ -506,14 +600,84 @@ def create_docmdp_p1_final(root: Path, signing_python: str) -> None:
             )
 
 
-def refresh_docmdp_p1(root: Path, signing_python: str) -> dict:
-    """Refresh only the signed DocMDP fixture and its two integrity records."""
+def create_docmdp_p2_form(root: Path, signing_python: str) -> None:
+    """Create a real P=2/FieldMDP form fixture without retaining a private key."""
+    target = root / "pdf" / "signing" / "docmdp-p2-form.pdf"
+    root_certificate = root / "pdf" / "signing" / "test-pki" / "docmdp-p2-root.pem"
+    with tempfile.TemporaryDirectory(prefix="officekit-promptbench-docmdp-p2-") as directory:
+        work = Path(directory)
+        base = work / "base.pdf"
+        source = work / "unsigned-p2.pdf"
+        document = canvas.Canvas(str(base), pagesize=(612, 792), invariant=1)
+        document.setTitle("Controlled approval")
+        document.setAuthor("OfficeKit PromptBench fixture generator")
+        document.setFillColor(HexColor("#102A43"))
+        document.setFont("Helvetica-Bold", 18)
+        document.drawString(54, 740, "Controlled approval")
+        document.setFillColor(HexColor("#243B53"))
+        document.setFont("Helvetica", 10)
+        document.drawString(54, 698, "This self-authored form is certified with DocMDP P=2.")
+        document.drawString(54, 674, "Approved amount (USD):")
+        document.acroForm.textfield(
+            name="ApprovedAmount",
+            x=220,
+            y=658,
+            width=160,
+            height=24,
+            value="",
+            fontName="Helvetica",
+            fontSize=10,
+            borderWidth=1,
+            forceBorder=True,
+        )
+        document.drawString(54, 626, "Locked reference: LOCKED-9000")
+        document.drawString(54, 602, "Only the empty approved amount may be finalised under the certification policy.")
+        document.showPage()
+        document.save()
+        reader = PdfReader(str(base), strict=True)
+        writer = PdfWriter()
+        writer.clone_document_from_reader(reader)
+        acroform = dictionary_object(writer._root_object["/AcroForm"])
+        fields = dictionary_object(acroform["/Fields"])
+        locked = DictionaryObject({
+            n("FT"): n("Tx"),
+            n("T"): TextStringObject("LockedAmount"),
+            n("V"): TextStringObject("LOCKED-9000"),
+            n("Ff"): NumberObject(1),
+        })
+        fields.append(indirect(writer, locked))
+        with source.open("wb") as handle:
+            writer.write(handle)
+        completed = subprocess.run(
+            [signing_python, "-I", "-c", DOCMDP_P2_SIGNING_PROGRAM, str(work), str(source), str(target), str(root_certificate)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if completed.returncode != 0:
+            target.unlink(missing_ok=True)
+            root_certificate.unlink(missing_ok=True)
+            raise ValueError(
+                "managed pyHanko P=2 fixture signing failed: "
+                f"{completed.stderr.strip() or completed.stdout.strip() or 'unknown error'}"
+            )
+
+
+def refresh_docmdp(root: Path, signing_python: str) -> dict:
+    """Refresh both signed DocMDP fixtures and their integrity records."""
     manifest_path = root / "integrity.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("assets"), dict):
         raise ValueError("unsupported corpus integrity schema")
     create_docmdp_p1_final(root, signing_python)
-    for relative in ("pdf/signing/docmdp-p1-final.pdf", "pdf/signing/test-pki/root.pem"):
+    create_docmdp_p2_form(root, signing_python)
+    for relative in (
+        "pdf/signing/docmdp-p1-final.pdf",
+        "pdf/signing/test-pki/root.pem",
+        "pdf/signing/docmdp-p2-form.pdf",
+        "pdf/signing/test-pki/docmdp-p2-root.pem",
+    ):
         asset = root / relative
         manifest["assets"][relative] = {
             "bytes": asset.stat().st_size,
@@ -534,6 +698,8 @@ FIXTURES = {
     "pdf/print/print-production-risk.pdf": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",
     "pdf/signing/docmdp-p1-final.pdf": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",
     "pdf/signing/test-pki/root.pem": "Public-only self-authored PromptBench root certificate for the DocMDP P=1 fixture.",
+    "pdf/signing/docmdp-p2-form.pdf": "Real self-authored DocMDP P=2 certification with one visible empty amount field and one FieldMDP-locked reference field.",
+    "pdf/signing/test-pki/docmdp-p2-root.pem": "Public-only self-authored PromptBench root certificate for the DocMDP P=2 form fixture.",
 }
 
 
@@ -544,7 +710,9 @@ def generate(root: Path, signing_python: str | None) -> dict:
     create_untagged_complex_report(root)
     create_dynamic_xfa(root)
     create_print_production_risk(root)
-    create_docmdp_p1_final(root, required_signing_python(signing_python))
+    managed_signing_python = required_signing_python(signing_python)
+    create_docmdp_p1_final(root, managed_signing_python)
+    create_docmdp_p2_form(root, managed_signing_python)
     assets = {}
     for relative, description in FIXTURES.items():
         path = root / relative
@@ -675,6 +843,66 @@ def verify_docmdp_p1(path: Path, root_certificate: Path) -> None:
         raise ValueError("DocMDP fixture root certificate must be public-only PEM")
 
 
+def verify_docmdp_p2(path: Path, root_certificate: Path) -> None:
+    raw = path.read_bytes()
+    reader = PdfReader(str(path), strict=True)
+    root = root_dictionary(reader)
+    permissions = dictionary_object(root.get("/Perms")) if root.get("/Perms") else {}
+    signature = dictionary_object(permissions.get("/DocMDP")) if permissions.get("/DocMDP") else {}
+    byte_range = signature.get("/ByteRange") if signature else None
+    if not isinstance(byte_range, ArrayObject) or len(byte_range) != 4:
+        raise ValueError("DocMDP P=2 fixture is missing one four-number ByteRange")
+    offsets = [int(value) for value in byte_range]
+    if offsets[0] != 0 or min(offsets[1:]) < 0 or offsets[0] + offsets[1] > offsets[2] or offsets[2] + offsets[3] != len(raw):
+        raise ValueError("DocMDP P=2 fixture has an invalid ByteRange")
+    if not signature.get("/Contents"):
+        raise ValueError("DocMDP P=2 fixture has no CMS contents")
+    references = signature.get("/Reference") if signature else None
+    if not isinstance(references, ArrayObject):
+        raise ValueError("DocMDP P=2 fixture has no transform references")
+    docmdp_params = [
+        dictionary_object(dictionary_object(reference).get("/TransformParams"))
+        for reference in references
+        if str(dictionary_object(reference).get("/TransformMethod", "")) == "/DocMDP"
+    ]
+    fieldmdp_params = [
+        dictionary_object(dictionary_object(reference).get("/TransformParams"))
+        for reference in references
+        if str(dictionary_object(reference).get("/TransformMethod", "")) == "/FieldMDP"
+    ]
+    if len(docmdp_params) != 1 or int(docmdp_params[0].get("/P", 0) or 0) != 2:
+        raise ValueError("DocMDP P=2 fixture does not permit only form filling")
+    if len(fieldmdp_params) != 1:
+        raise ValueError("DocMDP P=2 fixture has no unique FieldMDP transform")
+    if str(fieldmdp_params[0].get("/Action", "")) != "/Include":
+        raise ValueError("DocMDP P=2 fixture does not use FieldMDP Include")
+    fieldmdp_fields = [str(value) for value in fieldmdp_params[0].get("/Fields", [])]
+    if fieldmdp_fields != ["LockedAmount"]:
+        raise ValueError("DocMDP P=2 fixture locks an unexpected field set")
+    fields = reader.get_fields() or {}
+    approved = fields.get("ApprovedAmount")
+    locked = fields.get("LockedAmount")
+    certification = fields.get("Certification")
+    if approved is None or locked is None or certification is None:
+        raise ValueError("DocMDP P=2 fixture has an incomplete AcroForm field inventory")
+    if str(approved.get("/FT", "")) != "/Tx" or approved.get("/V") not in {None, ""}:
+        raise ValueError("DocMDP P=2 fixture approved amount is not an empty text field")
+    if str(locked.get("/FT", "")) != "/Tx" or str(locked.get("/V", "")) != "LOCKED-9000" or not (int(locked.get("/Ff", 0)) & 1):
+        raise ValueError("DocMDP P=2 fixture locked reference canary is invalid")
+    if str(certification.get("/FT", "")) != "/Sig":
+        raise ValueError("DocMDP P=2 fixture certification field is missing")
+    widgets = [reference.get_object() for reference in reader.pages[0].get("/Annots", [])]
+    approved_widgets = [widget for widget in widgets if str(widget.get("/T", "")) == "ApprovedAmount"]
+    if len(approved_widgets) != 1 or str(approved_widgets[0].get("/Subtype", "")) != "/Widget" or not approved_widgets[0].get("/AP"):
+        raise ValueError("DocMDP P=2 fixture approved amount is not visibly widget-backed")
+    page_text = reader.pages[0].extract_text() or ""
+    if "DocMDP P=2" not in page_text or "LOCKED-9000" not in page_text:
+        raise ValueError("DocMDP P=2 fixture visible-content canaries are missing")
+    certificate = root_certificate.read_bytes()
+    if b"BEGIN CERTIFICATE" not in certificate or b"PRIVATE KEY" in certificate:
+        raise ValueError("DocMDP P=2 fixture root certificate must be public-only PEM")
+
+
 def verify(root: Path) -> dict:
     manifest_path = root / "integrity.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -693,6 +921,7 @@ def verify(root: Path) -> dict:
     verify_xfa(root / "pdf" / "xfa" / "dynamic-dependents.pdf")
     verify_print(root / "pdf" / "print" / "print-production-risk.pdf")
     verify_docmdp_p1(root / "pdf" / "signing" / "docmdp-p1-final.pdf", root / "pdf" / "signing" / "test-pki" / "root.pem")
+    verify_docmdp_p2(root / "pdf" / "signing" / "docmdp-p2-form.pdf", root / "pdf" / "signing" / "test-pki" / "docmdp-p2-root.pem")
     return {"ok": True, "assets": len(manifest["assets"]), "root": str(root)}
 
 
@@ -705,7 +934,7 @@ def main() -> None:
     if options.command == "generate":
         print(json.dumps(generate(options.root, options.signing_python), indent=2, sort_keys=True))
     elif options.command == "refresh-docmdp":
-        print(json.dumps(refresh_docmdp_p1(options.root, required_signing_python(options.signing_python)), indent=2, sort_keys=True))
+        print(json.dumps(refresh_docmdp(options.root, required_signing_python(options.signing_python)), indent=2, sort_keys=True))
     else:
         print(json.dumps(verify(options.root), sort_keys=True))
 

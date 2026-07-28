@@ -22,6 +22,13 @@ certification signature with `/Perms` → `/DocMDP` permission `P=1`. Its paired
 The normal verifier checks its locked bytes, visible and metadata canaries,
 ByteRange/CMS presence, and DocMDP structure without requiring pyHanko.
 
+`pdf/signing/docmdp-p2-form.pdf` is a separate real self-authored certification
+with `P=2`, one empty visible `ApprovedAmount` text field, and one
+`FieldMDP Include`-locked `LockedAmount=LOCKED-9000` field. Its paired
+`pdf/signing/test-pki/docmdp-p2-root.pem` is public-only. The fixture recipe
+retains neither root nor signer private material. It is a controlled
+finalisation test, not an example of arbitrary signed-form editing.
+
 Refreshing fixtures is an intentional corpus update: regenerate the files,
 review their structure and provenance, then commit the revised assets and
 integrity manifest together. Generating the DocMDP fixture additionally needs
@@ -37,5 +44,5 @@ OFFICE_KIT_PROMPTBENCH_SIGNING_PYTHON=/path/to/managed/python3 \
 fixture passwords, public test root, or any future PKI material as production
 credentials.
 
-To refresh only the time-bound signed fixture without changing the other locked
+To refresh only the time-bound signed fixtures without changing the other locked
 boundary assets, replace `generate` with `refresh-docmdp` in that command.

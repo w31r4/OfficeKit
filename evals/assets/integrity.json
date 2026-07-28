@@ -36,6 +36,18 @@
       "kind": "file",
       "sha256": "6ad55dd93543921c3b13d96f9cffed7a000ddea3b7da54643dae915034d19060"
     },
+    "pdf/signing/docmdp-p2-form.pdf": {
+      "bytes": 13577,
+      "description": "Real self-authored DocMDP P=2 certification with one visible empty amount field and one FieldMDP-locked reference field.",
+      "kind": "file",
+      "sha256": "147f668c0e1854834f063077cc14ea29b4711a180d4cd8b5e95b67fc8a0d5d62"
+    },
+    "pdf/signing/test-pki/docmdp-p2-root.pem": {
+      "bytes": 1208,
+      "description": "Public-only self-authored PromptBench root certificate for the DocMDP P=2 form fixture.",
+      "kind": "file",
+      "sha256": "11ac11935e4637e4c971086b777e584309824389d63693904539042de87de902"
+    },
     "pdf/signing/test-pki/root.pem": {
       "bytes": 1200,
       "description": "Public-only self-authored PromptBench root certificate for the DocMDP P=1 fixture.",

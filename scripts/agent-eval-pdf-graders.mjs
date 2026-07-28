@@ -21,6 +21,7 @@ const supportedCases = new Set([
   "pdf-dynamic-xfa-boundary",
   "pdf-print-production-boundary",
   "pdf-docmdp-forbidden-title-edit",
+  "pdf-docmdp-allowed-field-fill",
 ]);
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
 const boundaryRefusalCases = new Map([
@@ -469,6 +470,41 @@ function acroformTraceChecks(audit, commands) {
     check("pdf-trace:post-mutation-poppler-render", "trace", /\bpdftoppm\b/i.test(afterFill), { actual: { fillObserved: Boolean(fill), postMutationRenderObserved: /\bpdftoppm\b/i.test(afterFill) } }),
     check("pdf-trace:audit-byte-validation", "trace", /pdf_audit\.py\s+validate\b/i.test(afterFill), { actual: { postMutationAuditValidationObserved: /pdf_audit\.py\s+validate\b/i.test(afterFill) } }),
     gate("pdf-trace:no-ad-hoc-pypdf-writer", "trace", !bypassPatterns.some((pattern) => pattern.test(commandText)), { forbidden: bypassPatterns.map(String) }),
+  ];
+}
+
+function certifiedDocMdpP2TraceChecks(audit, commands) {
+  const commandText = commands.join("\n");
+  const probe = completedInvocation(commands, /pyhanko_certified_form_fill\.py["']?\s+probe\b/i);
+  const fill = completedInvocation(commands, /pyhanko_certified_form_fill\.py["']?\s+fill\b/i);
+  const afterFill = commandTextAfter(commands, fill);
+  const postflightVerification = commands.some((command, index) => index > (fill?.commandIndex ?? Number.MAX_SAFE_INTEGER)
+    && /pyhanko_provider\.py["']?\s+verify\b/i.test(String(command))
+    && /--trust-policy\s+explicit-roots\b/i.test(String(command))
+    && /--trust-root\s+/i.test(String(command))
+    && /--require-signature\b/i.test(String(command))
+    && /--require-all-integrity-valid\b/i.test(String(command))
+    && /--require-all-trusted\b/i.test(String(command))
+    && /--require-docmdp-compliant\b/i.test(String(command))
+    && /--require-all-bottom-line\b/i.test(String(command)));
+  const renderAfterFill = /(?:mupdf\.mjs["']?\s+render\b|\bpdftoppm\b)/i.test(afterFill);
+  const bypassPatterns = [
+    /\bPdfWriter\s*\(/,
+    /\bupdate_page_form_field_values\s*\(/,
+    /\bupdate_stream\s*\(/i,
+    /\bset_contents\s*\(/i,
+    /\bwriter\.write\s*\(/i,
+  ];
+  return [
+    check("pdf-trace:provider", "trace", /^pyhanko$/i.test(String(auditProvider(audit))), { expected: "pyhanko", actual: auditProvider(audit) }),
+    check("pdf-trace:provider-version", "trace", Boolean(String(auditProviderVersion(audit)).trim()), { actual: auditProviderVersion(audit) || "unreported" }),
+    check("pdf-trace:save-policy", "trace", /^incremental$/i.test(String(auditSaveStrategy(audit))), { expected: "incremental", actual: auditSaveStrategy(audit) }),
+    gate("pdf-trace:no-silent-fallback", "trace", auditFallback(audit) === true, { expected: false, actual: auditFallback(audit) === null ? "unreported" : !auditFallback(audit) }),
+    check("pdf-trace:controlled-probe-before-fill", "trace", invocationBefore(probe, fill), { actual: { probe: probe?.commandIndex ?? -1, fill: fill?.commandIndex ?? -1 } }),
+    check("pdf-trace:typed-certified-form-primitive", "trace", Boolean(fill) && audit?.operation === "fill-certified-docmdp-p2-text-field", { actual: audit?.operation || "unreported" }),
+    check("pdf-trace:postflight-explicit-root-validation", "trace", postflightVerification, { expected: "post-fill explicit-root pyHanko integrity, trust, DocMDP, and bottom-line validation" }),
+    check("pdf-trace:postflight-render", "trace", renderAfterFill, { actual: { fillObserved: Boolean(fill), renderObserved: renderAfterFill } }),
+    gate("pdf-trace:no-ad-hoc-form-writer", "trace", !bypassPatterns.some((pattern) => pattern.test(commandText)), { forbidden: bypassPatterns.map(String) }),
   ];
 }
 
@@ -935,6 +971,116 @@ export function gradeAcroFormEvidence({ evidence, audit, commands, item }) {
   ];
 }
 
+export function gradeCertifiedDocMdpP2FillEvidence({ evidence, audit, commands, item }) {
+  const targetName = Object.keys(item.grade.machine.field || {})[0] || "ApprovedAmount";
+  const targetValue = String(item.grade.machine.field?.[targetName] || "12500.00");
+  const lockedName = "LockedAmount";
+  const lockedValue = "LOCKED-9000";
+  const sourceFields = evidence.sourceForm?.fields || {};
+  const outputFields = evidence.outputForm?.fields || {};
+  const sourceWidgets = evidence.sourceForm?.widgets || [];
+  const outputWidgets = evidence.outputForm?.widgets || [];
+  const sourceTarget = sourceFields[targetName];
+  const outputTarget = outputFields[targetName];
+  const sourceLocked = sourceFields[lockedName];
+  const outputLocked = outputFields[lockedName];
+  const sourceTargetWidgets = sourceWidgets.filter((widget) => widget.name === targetName);
+  const outputTargetWidgets = outputWidgets.filter((widget) => widget.name === targetName);
+  const visualPages = evidence.visual?.pages || [];
+  const widgetChanges = evidence.visual?.widgetChanges || [];
+  const targetWidgetChanges = widgetChanges.filter((widget) => widget.name === targetName);
+  const sourceSignature = evidence.sourceSignature || {};
+  const outputSignature = evidence.outputSignature || {};
+  const sourceByteRange = sourceSignature.signature?.byteRange || {};
+  const outputByteRange = outputSignature.signature?.byteRange || {};
+  const sourceDocMdp = sourceSignature.docMDP || {};
+  const outputDocMdp = outputSignature.docMDP || {};
+  const sourceFieldMdp = sourceSignature.fieldMDP || {};
+  const outputFieldMdp = outputSignature.fieldMDP || {};
+  const auditPostflight = audit?.signature?.postflight || {};
+  const auditPreflight = audit?.signature?.preflight || {};
+  const auditField = audit?.field || {};
+  const auditControlledFinalisation = audit?.schema === "office-kit.pyhanko-certified-form-fill.v1"
+    && audit?.ok === true
+    && audit?.operationCompleted === true
+    && audit?.operation === "fill-certified-docmdp-p2-text-field"
+    && audit?.silentFallback === false
+    && audit?.trustRoot?.sha256
+    && /^[a-f0-9]{64}$/i.test(String(audit.trustRoot.sha256))
+    && audit?.savePolicy?.strategy === "incremental"
+    && audit?.savePolicy?.sourcePrefixPreserved === true
+    && Number(audit?.savePolicy?.revisionsAfter) === Number(audit?.savePolicy?.revisionsBefore) + 1
+    && auditField?.target === targetName
+    && auditField?.value === targetValue
+    && auditField?.locked?.name === lockedName
+    && auditField?.locked?.value === lockedValue
+    && auditField?.nonTargetFieldsUnchanged === true
+    && audit?.transaction?.distinctOutput === true
+    && audit?.transaction?.noReplace === true
+    && audit?.transaction?.outputPublishedAtomically === true
+    && auditPreflight?.fieldName === "Certification"
+    && auditPreflight?.coverage === "entire-file"
+    && auditPreflight?.modificationLevel === "none"
+    && auditPreflight?.docMDP?.permission === "fill-forms"
+    && auditPreflight?.fieldMDP?.action === "include"
+    && JSON.stringify(auditPreflight?.fieldMDP?.fields) === JSON.stringify([lockedName])
+    && auditPostflight?.fieldName === "Certification"
+    && auditPostflight?.coverage === "entire-revision"
+    && auditPostflight?.modificationLevel === "form-filling"
+    && auditPostflight?.cryptographicallyValid === true
+    && auditPostflight?.intact === true
+    && auditPostflight?.trusted === true
+    && auditPostflight?.bottomLine === true
+    && auditPostflight?.docMDPCompliant === true
+    && auditPostflight?.docMDP?.permission === "fill-forms"
+    && auditPostflight?.fieldMDP?.action === "include"
+    && JSON.stringify(auditPostflight?.fieldMDP?.fields) === JSON.stringify([lockedName])
+    && JSON.stringify(auditPostflight?.changedFormFields) === JSON.stringify([targetName]);
+  const sourceFixtureComplete = sourceSignature.signature?.present === true
+    && sourceByteRange.validSegments === true
+    && sourceByteRange.coversEntireFile === true
+    && sourceDocMdp.transformCount === 1
+    && sourceDocMdp.permission === 2
+    && sourceFieldMdp.transformCount === 1
+    && sourceFieldMdp.action === "Include"
+    && JSON.stringify(sourceFieldMdp.fields) === JSON.stringify([lockedName])
+    && sourceTarget?.fieldType === "/Tx"
+    && sourceTarget?.value === ""
+    && sourceTarget?.readOnly === false
+    && sourceTargetWidgets.length === 1
+    && sourceLocked?.fieldType === "/Tx"
+    && sourceLocked?.value === lockedValue
+    && sourceLocked?.readOnly === true;
+  const certificationSurfacePreserved = outputSignature.signature?.present === true
+    && JSON.stringify(sourceSignature.signature?.reference) === JSON.stringify(outputSignature.signature?.reference)
+    && sourceSignature.signature?.contentsSha256 === outputSignature.signature?.contentsSha256
+    && outputByteRange.validSegments === true
+    && outputByteRange.coveredBytes === evidence.source?.bytes
+    && outputByteRange.coversEntireFile === false
+    && outputDocMdp.transformCount === 1
+    && outputDocMdp.permission === 2
+    && outputFieldMdp.transformCount === 1
+    && outputFieldMdp.action === "Include"
+    && JSON.stringify(outputFieldMdp.fields) === JSON.stringify([lockedName])
+    && evidence.catalogRefsStable === true;
+  return [
+    check("pdf-machine:source-certified-form-fixture-complete", "machine", sourceFixtureComplete, { actual: { sourceSignature, sourceTarget, sourceLocked, sourceTargetWidgets } }),
+    check("pdf-machine:page-count-and-boxes-unchanged", "machine", evidence.output?.pageCount === evidence.source?.pageCount && samePageBoxes(evidence.source?.pages, evidence.output?.pages), { actual: { source: evidence.source?.pageCount, output: evidence.output?.pageCount } }),
+    check("pdf-machine:target-finalised-visible-and-read-only", "machine", outputTarget?.fieldType === "/Tx" && outputTarget?.value === targetValue && outputTarget?.readOnly === true && outputTarget?.hasDefaultAppearance === false && outputTargetWidgets.length === 1 && outputTargetWidgets[0]?.appearancePresent === true && outputTargetWidgets[0]?.readOnly === true, { expected: { targetName, targetValue, readOnly: true, normalAppearance: true, defaultAppearance: false }, actual: { target: outputTarget, widgets: outputTargetWidgets } }),
+    check("pdf-machine:locked-field-unchanged", "machine", outputLocked?.fieldType === "/Tx" && outputLocked?.value === lockedValue && outputLocked?.readOnly === true && evidence.lockedFieldStable === true, { expected: sourceLocked, actual: outputLocked }),
+    check("pdf-machine:non-target-fields-unchanged", "machine", evidence.nonTargetFieldsStable === true, { actual: { sourceFields, outputFields } }),
+    check("pdf-machine:certification-surface-preserved", "machine", certificationSurfacePreserved, { actual: { sourceSignature, outputSignature, catalogRefsStable: evidence.catalogRefsStable } }),
+    check("pdf-machine:audit-success", "machine", audit?.ok === true && audit?.operationCompleted === true, { actual: { ok: audit?.ok, operationCompleted: audit?.operationCompleted } }),
+    check("pdf-visual:all-pages-rendered", "visual", evidence.visual?.sourcePageCount === evidence.source?.pageCount && evidence.visual?.outputPageCount === evidence.source?.pageCount && visualPages.length === evidence.source?.pageCount && visualPages.every((page) => page.sameDimensions && page.nonBlank), { renderer: evidence.visual?.renderer, pages: visualPages }),
+    check("pdf-visual:only-target-widget-changed", "visual", visualPages.every((page) => page.changedOnlyWithinAllowedMasks) && targetWidgetChanges.length === 1 && targetWidgetChanges[0]?.changedPixelsBBox !== null && targetWidgetChanges[0]?.changedInteriorPixelsBBox !== null, { actual: { pages: visualPages, targetWidgetChanges } }),
+    gate("pdf-security:incremental-prefix-and-one-revision", "security", evidence.originalPrefixPreserved === true && evidence.output?.startxrefCount === evidence.source?.startxrefCount + 1 && evidence.output?.eofCount === evidence.source?.eofCount + 1, { actual: { originalPrefixPreserved: evidence.originalPrefixPreserved, sourceStartxref: evidence.source?.startxrefCount, outputStartxref: evidence.output?.startxrefCount, sourceEof: evidence.source?.eofCount, outputEof: evidence.output?.eofCount } }),
+    gate("pdf-security:only-authorised-docmdp-form-fill", "security", certificationSurfacePreserved && evidence.nonTargetFieldsStable === true && evidence.lockedFieldStable === true, { actual: { certificationSurfacePreserved, nonTargetFieldsStable: evidence.nonTargetFieldsStable, lockedFieldStable: evidence.lockedFieldStable } }),
+    gate("pdf-security:audit-provenance-and-policy", "security", auditSourceHash(audit) === evidence.source?.sha256 && auditOutputHash(audit) === evidence.output?.sha256 && auditControlledFinalisation, { expected: { source: evidence.source?.sha256, output: evidence.output?.sha256, operation: "fill-certified-docmdp-p2-text-field" }, actual: { source: auditSourceHash(audit) || "unreported", output: auditOutputHash(audit) || "unreported", controlledFinalisation: auditControlledFinalisation } }),
+    gate("pdf-security:all-streams-decodable", "security", evidence.source?.decodedStreamErrors?.length === 0 && evidence.output?.decodedStreamErrors?.length === 0, { actual: { source: evidence.source?.decodedStreamErrors || [], output: evidence.output?.decodedStreamErrors || [] } }),
+    ...certifiedDocMdpP2TraceChecks(audit, commands),
+  ];
+}
+
 export function gradeAttachmentQuarantineEvidence({ evidence, audit, commands, item }) {
   const expected = evidence.expectedAttachments || [];
   const manifest = evidence.manifest || {};
@@ -1180,6 +1326,24 @@ function unreadableAcroFormArtifactChecks(audit, commands, oracleError) {
   ];
 }
 
+function missingCertifiedDocMdpP2ArtifactChecks(audit, commands) {
+  return [
+    check("pdf-machine:artifact-available-for-oracle", "machine", false),
+    check("pdf-visual:artifact-available-for-oracle", "visual", false),
+    gate("pdf-security:artifact-available-for-oracle", "security", false),
+    ...certifiedDocMdpP2TraceChecks(audit, commands),
+  ];
+}
+
+function unreadableCertifiedDocMdpP2ArtifactChecks(audit, commands, oracleError) {
+  return [
+    check("pdf-machine:artifact-readable-by-oracle", "machine", false, { actual: oracleError }),
+    check("pdf-visual:artifact-renderable-by-oracle", "visual", false, { actual: oracleError }),
+    gate("pdf-security:artifact-readable-by-oracle", "security", false, { actual: oracleError }),
+    ...certifiedDocMdpP2TraceChecks(audit, commands),
+  ];
+}
+
 function missingAttachmentQuarantineChecks(audit, commands) {
   return [
     check("pdf-machine:attachment-manifest-and-quarantine-available", "machine", false),
@@ -1335,6 +1499,29 @@ export async function gradePdfCase({ item, workspace, evaluator, finalMessage, t
     }
     if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
     checks = gradeAcroFormEvidence({ evidence: oracle.evidence, audit, commands, item });
+  } else if (item.id === "pdf-docmdp-allowed-field-fill") {
+    const output = path.join(workspace, "outputs", "approved-amount.pdf");
+    try { await fs.access(output); } catch {
+      checks = missingCertifiedDocMdpP2ArtifactChecks(audit, commands);
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: null, pending: [], ...score };
+    }
+    oracle = invokeOracle({
+      kind: "certified-docmdp-p2-fill",
+      source: path.join(workspace, "inputs", "source.pdf"),
+      output,
+      field: "ApprovedAmount",
+      value: item.grade.machine.field.ApprovedAmount,
+      lockedField: "LockedAmount",
+      renderRoot: path.join(evaluator, "pdf-oracle-render"),
+    }, true);
+    if (!oracle.evidence && oracle.oracleError) {
+      checks = unreadableCertifiedDocMdpP2ArtifactChecks(audit, commands, oracle.oracleError);
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: { oracleError: oracle.oracleError }, pending: [], ...score };
+    }
+    if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
+    checks = gradeCertifiedDocMdpP2FillEvidence({ evidence: oracle.evidence, audit, commands, item });
   } else if (item.id === "pdf-attachment-quarantine-inventory") {
     const manifest = path.join(workspace, "outputs", "attachments.json");
     const quarantine = path.join(workspace, "outputs", "quarantine");

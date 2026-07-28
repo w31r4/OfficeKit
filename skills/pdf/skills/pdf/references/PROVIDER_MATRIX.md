@@ -19,7 +19,7 @@ to retry through another route.
 | Poppler | Independent file evidence and native raster QA | `read-only` | Renderer/inspector only, not an editor or conformance validator. |
 | qpdf | Structural diagnosis, recovery rewrite, linearization, one source-to-AES-256 delivery copy | `read-only`, `rewrite` | AES-256 copy only from an unencrypted source with caller-owned restricted password files; not an encrypted-input opener/decrypter, permission editor, renderer, sanitizer, or signature validator. |
 | pikepdf | Fixed-profile active/auxiliary structure cleanup | `read-only`, `rewrite` | Not redaction, metadata/form/XFA cleanup, strict sanitize, rendering, or malware isolation. |
-| pyHanko | Local PKCS#12 signing and exact-source signature validation | `read-only`, bounded `incremental` | Certificates, keys, HSMs, TSA/LTV, remote signing, trust roots, and online retrieval remain explicit caller concerns. |
+| pyHanko | Local PKCS#12 signing, exact-source validation, and one controlled DocMDP P=2 decimal-field finalisation | `read-only`, bounded `incremental` | Certificates, keys, HSMs, TSA/LTV, remote signing, trust roots, and online retrieval remain explicit caller concerns; the P=2 route is not a general signed-PDF editor. |
 | veraPDF | PDF/A and PDF/UA machine-rule validation | `read-only` | One explicit profile; a green report is not repair or universal accessibility certification. |
 | OCRmyPDF / Tesseract | Complete-document searchable layer and OCR residue evidence | `rewrite` / `read-only` | Source-bound rewrite, explicit language data, isolation; not proof of OCR accuracy, sanitization, or PDF/UA repair. |
 
