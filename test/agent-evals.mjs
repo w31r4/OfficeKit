@@ -213,9 +213,9 @@ const candidateRefusalAudit = {
   source: { sha256: encryptedEvidence.source.sha256 },
   output: null,
   provider: { actual: "qpdf", version: "12.3.2", silentFallback: false },
-  savePolicy: { strategy: "rewrite", decision: "refused before mutation; source preserved byte-for-byte" },
+  savePolicy: { strategy: "rewrite", attempted: false, sourceOverwrite: false, artifactPublished: false },
   operation: { type: "change-copy-permission", performed: "none" },
-  validation: { sourceIntegrity: { sourceOverwritten: false }, artifactCheck: { modifiedArtifactCreated: false, partialArtifactPresent: false } },
+  validation: { sourceIdentity: { sourcePreserved: true }, outputsDirectory: { modifiedPdfPresent: false, partialArtifactPresent: false, allowedFiles: ["audit.json"] } },
   reason: "owner password is unavailable",
 };
 const candidateRefusalChecks = gradeBoundaryRefusalEvidence({
@@ -229,14 +229,14 @@ const candidateRefusalChecks = gradeBoundaryRefusalEvidence({
 assert.equal(candidateRefusalChecks.every((check) => check.passed), true, "candidate-style refusal audit");
 const referenceRefusalAudit = {
   status: "failed_closed",
-  source: { sha256: encryptedEvidence.source.sha256, preserved_unchanged: true },
-  provider: { actual_inspection_provider: "pypdf", actual_inspection_provider_version: "6.10.0", provider_switched: false },
-  save_policy: { mode: "failed_closed", artifact_written: false, partial_results_written: false, allowed_output: "audit_only" },
+  source: { sha256: encryptedEvidence.source.sha256, preserved: true },
+  provider: { actualProvider: "mupdf-js", actualProviderVersion: "1.28.0", fallbackUsed: false },
+  saveStrategy: { selected: "none", publication: "refused" },
   operations: [
     { operation: "sha256", mode: "read_only", result: "passed" },
-    { operation: "permission_change", mode: "mutation", result: "refused_not_attempted" },
+    { operation: "permission_change", result: "not_attempted" },
   ],
-  validation: { checks: [{ check: "modified_artifact_absent", result: "passed" }] },
+  verification: { modifiedArtifactPresent: false },
   reason: "owner password is unavailable",
 };
 const referenceRefusalChecks = gradeBoundaryRefusalEvidence({

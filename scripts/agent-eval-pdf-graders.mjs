@@ -59,7 +59,7 @@ function sameBoundingBox(left = [], right = [], tolerance = 0.01) {
 function auditProvider(audit) {
   const provider = audit?.provider;
   if (typeof provider === "string") return provider;
-  return provider?.actual || provider?.actual_inspection_provider || provider?.selected || provider?.name || provider?.provider || audit?.actualProvider || "";
+  return provider?.actual || provider?.actualProvider || provider?.actual_inspection_provider || provider?.selected || provider?.name || provider?.provider || audit?.actualProvider || "";
 }
 
 function auditFallback(audit) {
@@ -81,7 +81,7 @@ function auditFallback(audit) {
 
 function auditProviderVersion(audit) {
   const provider = audit?.provider;
-  return provider?.version || provider?.actual_inspection_provider_version || provider?.providerVersion || audit?.providerVersion || audit?.provider_version || "";
+  return provider?.version || provider?.actualProviderVersion || provider?.actual_inspection_provider_version || provider?.providerVersion || audit?.providerVersion || audit?.provider_version || "";
 }
 
 function auditSourceHash(audit) {
@@ -92,10 +92,17 @@ function auditOutputHash(audit) {
   return audit?.output?.sha256 || audit?.outputSha256 || audit?.output_sha256 || "";
 }
 
-function auditSaveStrategy(audit) {
+function auditSaveRecord(audit) {
   const policy = audit?.savePolicy || audit?.save_policy || audit?.saveStrategy || audit?.save_strategy;
-  if (typeof policy === "string") return policy;
-  return policy?.strategy || policy?.mode || policy?.selected || audit?.strategy || "";
+  return policy && typeof policy === "object" && !Array.isArray(policy) ? policy : {};
+}
+
+function auditSaveStrategy(audit) {
+  const rawPolicy = audit?.savePolicy || audit?.save_policy || audit?.saveStrategy || audit?.save_strategy;
+  const policy = auditSaveRecord(audit);
+  return typeof rawPolicy === "string"
+    ? rawPolicy
+    : policy.strategy || policy.mode || policy.selected || audit?.strategy || "";
 }
 
 function auditOperationRecords(audit) {
@@ -131,10 +138,13 @@ function auditRefusalOperationUnexecuted(audit) {
 function auditRefusalNoArtifactClaim(audit) {
   const validation = audit?.validation || {};
   const artifactChecks = validation.artifactChecks || validation.artifact_checks || validation.artifactCheck || validation.artifact_check || {};
-  const outputDirectoryPolicy = validation.outputDirectoryPolicy || {};
-  const saveRecord = audit?.savePolicy || audit?.save_policy || {};
+  const outputDirectoryPolicy = validation.outputDirectoryPolicy || validation.outputsDirectory || {};
+  const saveRecord = auditSaveRecord(audit);
+  const verification = audit?.verification || {};
   const validationChecks = Array.isArray(validation.checks) ? validation.checks : [];
-  const auditOnly = saveRecord.allowed_output === "audit_only" || /(?:failed.closed|audit.only)/i.test(String(saveRecord.publication || ""));
+  const auditOnly = saveRecord.allowed_output === "audit_only"
+    || saveRecord.selected === "none" && /refused/i.test(String(saveRecord.publication || ""))
+    || /(?:failed.closed|audit.only)/i.test(String(saveRecord.publication || ""));
   const noModifiedArtifact = (
     audit?.delivered_modified_pdf === false
     || validation.no_partial_modified_pdf_in_outputs === true
@@ -144,6 +154,7 @@ function auditRefusalNoArtifactClaim(audit) {
     || artifactChecks.outputIsNull === true
     || artifactChecks.modifiedArtifactCreated === false
     || artifactChecks.modifiedArtifactProduced === false
+    || verification.modifiedArtifactPresent === false
     || saveRecord.artifactWritten === false
     || saveRecord.artifact_written === false
     || validationChecks.some((entry) => /(?:modified|artifact).*absent/i.test(String(entry?.check || "")) && /^(?:passed|true)$/i.test(String(entry?.result ?? entry?.passed)))
@@ -164,18 +175,21 @@ function auditRefusalNoArtifactClaim(audit) {
 }
 
 function auditRefusalSavePolicy(audit) {
-  const saveRecord = audit?.savePolicy || audit?.save_policy || {};
+  const saveRecord = auditSaveRecord(audit);
   const noMutation = saveRecord.executed === false
     || saveRecord.performed === false
+    || saveRecord.attempted === false
     || saveRecord.sourceOverwrite === false
     || saveRecord.modifiedArtifactAllowed === false
     || saveRecord.artifactWritten === false
     || saveRecord.artifact_written === false
     || saveRecord.mode === "failed_closed"
+    || saveRecord.selected === "none"
     || /(?:failed.closed|audit.only|refused.*mutation)/i.test(String(saveRecord.publication || saveRecord.decision || ""));
   const sourcePreserved = saveRecord.sourcePreserved === true
     || saveRecord.sourceOverwrite === false
     || audit?.source?.preserved_unchanged === true
+    || audit?.source?.preserved === true
     || audit?.validation?.sourceImmutable === true
     || audit?.validation?.sourceIntegrity?.sourceOverwritten === false;
   return Boolean(auditSaveStrategy(audit)) && noMutation && sourcePreserved && auditRefusalNoArtifactClaim(audit);
