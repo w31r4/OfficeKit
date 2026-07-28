@@ -27,7 +27,7 @@ const inputs = JSON.parse(inputBytes);
 assert.equal(inputs.schema, "office-kit.pdf-provider-ocr-release-inputs.v1");
 assert.equal(inputs.schemaVersion, 1);
 assert.equal(inputs.ocrCore.packId, "ocr-core");
-assert.equal(inputs.ocrCore.version, "17.8.1-oat.2");
+assert.equal(inputs.ocrCore.version, "17.8.1-oat.3");
 assert.equal(
   inputs.ocrCore.pythonInputs.sha256,
   crypto.createHash("sha256").update(pythonInputBytes).digest("hex"),
@@ -52,7 +52,7 @@ for (const source of Object.values(windowsNative)) {
 for (const [language, expected] of Object.entries({ eng: "ocr-language-eng", chi_sim: "ocr-language-chi-sim" })) {
   const languageInput = inputs.languages[language];
   assert.equal(languageInput.packId, expected);
-  assert.equal(languageInput.version, "4.1.0-oat.2");
+  assert.equal(languageInput.version, "4.1.0-oat.3");
   assert.equal(languageInput.license, "Apache-2.0");
   assert.match(languageInput.url, /^https:\/\//);
   assert.match(languageInput.sha256, /^[a-f0-9]{64}$/);

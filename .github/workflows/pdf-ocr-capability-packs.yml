@@ -25,8 +25,8 @@ env:
   PYTHON_INPUTS: scripts/pdf-provider-python-release-inputs.v1.json
   # `oat.1` is immutable for macOS and Linux. Windows support receives fresh
   # all-platform releases after its native closure has passed real probes.
-  OCR_CORE_PACK_VERSION: 17.8.1-oat.2
-  OCR_LANGUAGE_PACK_VERSION: 4.1.0-oat.2
+  OCR_CORE_PACK_VERSION: 17.8.1-oat.3
+  OCR_LANGUAGE_PACK_VERSION: 4.1.0-oat.3
 
 jobs:
   ocr-core:
@@ -59,7 +59,7 @@ jobs:
             .schema == "office-kit.pdf-provider-ocr-release-inputs.v1" and
             .schemaVersion == 1 and
             .ocrCore.packId == "ocr-core" and
-            .ocrCore.version == "17.8.1-oat.2" and
+            .ocrCore.version == "17.8.1-oat.3" and
             (.ocrCore.nativeBuild["win32-x64"].tesseract.sha256 | test("^[a-f0-9]{64}$")) and
             (.ocrCore.nativeBuild["win32-x64"].ghostscript.sha256 | test("^[a-f0-9]{64}$")) and
             (.ocrCore.nativeBuild["win32-x64"].poppler.sha256 | test("^[a-f0-9]{64}$")) and
