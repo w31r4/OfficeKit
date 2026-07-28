@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -12,19 +13,22 @@ try {
   const report = JSON.parse(packed.stdout)[0];
   const tarball = path.join(temporary, report.filename);
   assert.ok(fs.existsSync(tarball), `npm pack did not create ${tarball}`);
-  // `npm ci` prepares the locked production tarballs in npm's cache before
-  // this test runs. Install the candidate from that cache with networking
-  // forbidden. Re-packing installed dependency directories is not equivalent:
-  // npm 10 on Windows may run a third-party local `prepare` script even when
-  // `--ignore-scripts` is supplied to `npm pack`.
+  // `npm ci` prepares the locked production tarballs in npm's content-addressed
+  // cache, but npm 10 does not retain every registry packument needed to solve
+  // semver ranges later in offline mode. Materialize the exact lock-pinned
+  // tarballs from that cache instead. Re-packing installed dependency
+  // directories is not equivalent: npm 10 on Windows may run a third-party
+  // local `prepare` script even when `--ignore-scripts` is supplied to
+  // `npm pack`.
   //
   // Optional renderer peers are intentionally outside this core OfficeKit/PDF
   // probe and remain covered by package metadata tests.
+  const dependencyTarballs = materializeProductionDependencyTarballs(temporary);
   run("npm", [
     "install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund",
-    "--omit=dev", "--legacy-peer-deps", "--no-save", tarball,
+    "--omit=dev", "--legacy-peer-deps", "--no-save", tarball, ...dependencyTarballs,
   ], temporary);
-  testGlobalCli({ tarball, temporary });
+  testGlobalCli({ dependencyTarballs, tarball, temporary });
 
   const probe = String.raw`
     import { spawnSync } from "node:child_process";
@@ -697,12 +701,49 @@ function run(command, args, cwd, environment = {}) {
   return result;
 }
 
-function testGlobalCli({ tarball, temporary }) {
+function materializeProductionDependencyTarballs(temporary) {
+  const lock = JSON.parse(fs.readFileSync(path.join(repoRoot, "package-lock.json"), "utf8"));
+  const destination = path.join(temporary, "dependency-tarballs");
+  fs.mkdirSync(destination, { recursive: true });
+  const cache = run("npm", ["config", "get", "cache"], repoRoot).stdout.trim();
+  assert.ok(path.isAbsolute(cache), `npm must report an absolute cache path, received ${JSON.stringify(cache)}`);
+  const packages = Object.entries(lock.packages || {})
+    .filter(([location, metadata]) => location.startsWith("node_modules/") && !metadata.dev && !metadata.optional && !metadata.peer);
+  return packages.map(([location, metadata], index) => materializeCacheTarball({
+    cache,
+    destination,
+    index,
+    integrity: metadata.integrity,
+    location,
+  }));
+}
+
+function materializeCacheTarball({ cache, destination, index, integrity, location }) {
+  const match = typeof integrity === "string" && integrity.match(/(?:^|\s)sha512-([^\s]+)/);
+  assert.ok(match, `${location} must carry one sha512 package-lock integrity value`);
+  const digest = Buffer.from(match[1], "base64");
+  assert.equal(digest.length, 64, `${location} has an invalid sha512 package-lock integrity digest`);
+  const hex = digest.toString("hex");
+  const cacheTarball = path.join(cache, "_cacache", "content-v2", "sha512", hex.slice(0, 2), hex.slice(2, 4), hex.slice(4));
+  const stat = fs.lstatSync(cacheTarball, { throwIfNoEntry: false });
+  assert.ok(stat?.isFile() && !stat.isSymbolicLink(), `${location} is missing its regular sha512-pinned npm cache tarball`);
+  const bytes = fs.readFileSync(cacheTarball);
+  assert.equal(
+    createHash("sha512").update(bytes).digest("base64"),
+    match[1],
+    `${location} npm cache tarball does not match package-lock sha512 integrity`,
+  );
+  const output = path.join(destination, `dependency-${String(index).padStart(3, "0")}.tgz`);
+  fs.writeFileSync(output, bytes, { flag: "wx", mode: 0o600 });
+  return output;
+}
+
+function testGlobalCli({ dependencyTarballs, tarball, temporary }) {
   const globalPrefix = path.join(temporary, "global-prefix");
   run("npm", [
     "install", "--global", "--prefix", globalPrefix, "--offline",
     "--ignore-scripts", "--no-audit", "--no-fund", "--omit=dev",
-    "--legacy-peer-deps", tarball,
+    "--legacy-peer-deps", tarball, ...dependencyTarballs,
   ], temporary);
   const officekit = process.platform === "win32"
     ? path.join(globalPrefix, "officekit.cmd")
