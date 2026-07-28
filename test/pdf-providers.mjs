@@ -11,6 +11,7 @@ import {
   resolvePdfCapability,
   validatePdfProviderCatalog,
 } from "../src/pdf/providers/index.mjs";
+import { pdfPackEntrypointsForPlatform } from "../src/pdf/providers/catalog.mjs";
 import {
   PDF_PROVIDER_RECEIPT_SCHEMA,
   installManagedPackForTest,
@@ -125,6 +126,25 @@ assert.equal(PDF_PROVIDER_CATALOG.packs.verapdf.license.expression, "MPL-2.0 AND
 assert.equal(PDF_PROVIDER_CATALOG.providers.verapdf.probeTimeoutMs, 20_000);
 assert.equal(PDF_PROVIDER_CATALOG.providers.ocrmypdf.probeTimeoutMs, 20_000, "cold isolated OCR runtime probing needs the same bounded startup allowance as managed veraPDF");
 assert.ok(!("managedPack" in PDF_PROVIDER_CATALOG.providers.qpdf), "pack metadata must have one canonical top-level home");
+
+function entrypointPaths(packId, platformId) {
+  return Object.fromEntries(pdfPackEntrypointsForPlatform(packId, platformId).map(({ logicalPath, path: physicalPath }) => [logicalPath, physicalPath]));
+}
+
+assert.deepEqual(entrypointPaths("qpdf", "win32-x64"), { "bin/qpdf": "bin/qpdf.exe" });
+assert.deepEqual(entrypointPaths("python-foundation", "win32-x64"), { "bin/python3": "python.exe" });
+assert.deepEqual(entrypointPaths("python-specialists", "win32-x64"), { "bin/python3": "python.exe" });
+assert.deepEqual(entrypointPaths("ocr-core", "win32-x64"), {
+  "bin/ocrmypdf": "bin/ocrmypdf.exe",
+  "bin/tesseract": "bin/tesseract.exe",
+  "bin/gs": "bin/gs.exe",
+  "bin/pdftotext": "bin/pdftotext.exe",
+  "share/tessdata": "share/tessdata",
+});
+assert.deepEqual(entrypointPaths("verapdf", "win32-x64"), {
+  "bin/verapdf": "bin/verapdf.exe",
+  "jre/bin/java": "jre/bin/java.exe",
+});
 
 const windowsPlatformCatalog = structuredClone(PDF_PROVIDER_CATALOG);
 windowsPlatformCatalog.releasePolicy.managedPlatforms = ["darwin-arm64", "linux-x64", "win32-x64"];

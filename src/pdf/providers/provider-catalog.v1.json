@@ -74,7 +74,7 @@
         }
       ],
       "requiresPackIds": [],
-      "entrypoints": [{ "path": "bin/python3", "kind": "file", "executable": true }],
+      "entrypoints": [{ "path": "bin/python3", "platformPaths": { "win32-x64": "python.exe" }, "kind": "file", "executable": true }],
       "dependencyClosure": ["isolated CPython", "reportlab", "pdfplumber", "pypdf", "Pillow"],
       "estimatedDownloadBytes": null,
       "estimatedUnpackedBytes": null,
@@ -141,7 +141,7 @@
         }
       ],
       "requiresPackIds": ["qpdf"],
-      "entrypoints": [{ "path": "bin/python3", "kind": "file", "executable": true }],
+      "entrypoints": [{ "path": "bin/python3", "platformPaths": { "win32-x64": "python.exe" }, "kind": "file", "executable": true }],
       "dependencyClosure": ["isolated CPython", "PyMuPDF", "pikepdf", "pyHanko", "pyhanko-certvalidator", "qpdf runtime"],
       "estimatedDownloadBytes": null,
       "estimatedUnpackedBytes": null,
@@ -225,7 +225,7 @@
         }
       ],
       "requiresPackIds": [],
-      "entrypoints": [{ "path": "bin/qpdf", "kind": "file", "executable": true }],
+      "entrypoints": [{ "path": "bin/qpdf", "platformPaths": { "win32-x64": "bin/qpdf.exe" }, "kind": "file", "executable": true }],
       "dependencyClosure": ["qpdf CLI >=11"],
       "estimatedDownloadBytes": null,
       "estimatedUnpackedBytes": null,
@@ -293,10 +293,10 @@
       ],
       "requiresPackIds": ["qpdf"],
       "entrypoints": [
-        { "path": "bin/ocrmypdf", "kind": "file", "executable": true },
-        { "path": "bin/tesseract", "kind": "file", "executable": true },
-        { "path": "bin/gs", "kind": "file", "executable": true },
-        { "path": "bin/pdftotext", "kind": "file", "executable": true },
+        { "path": "bin/ocrmypdf", "platformPaths": { "win32-x64": "bin/ocrmypdf.exe" }, "kind": "file", "executable": true },
+        { "path": "bin/tesseract", "platformPaths": { "win32-x64": "bin/tesseract.exe" }, "kind": "file", "executable": true },
+        { "path": "bin/gs", "platformPaths": { "win32-x64": "bin/gs.exe" }, "kind": "file", "executable": true },
+        { "path": "bin/pdftotext", "platformPaths": { "win32-x64": "bin/pdftotext.exe" }, "kind": "file", "executable": true },
         { "path": "share/tessdata", "kind": "directory", "executable": false }
       ],
       "dependencyClosure": ["isolated Python", "OCRmyPDF >=17.8,<17.9", "Tesseract >=5,<6", "Ghostscript", "native Poppler pdftotext", "qpdf"],
@@ -500,8 +500,8 @@
       ],
       "requiresPackIds": [],
       "entrypoints": [
-        { "path": "bin/verapdf", "kind": "file", "executable": true },
-        { "path": "jre/bin/java", "kind": "file", "executable": true }
+        { "path": "bin/verapdf", "platformPaths": { "win32-x64": "bin/verapdf.exe" }, "kind": "file", "executable": true },
+        { "path": "jre/bin/java", "platformPaths": { "win32-x64": "jre/bin/java.exe" }, "kind": "file", "executable": true }
       ],
       "dependencyClosure": ["veraPDF CLI >=1.30,<1.31", "managed JRE"],
       "estimatedDownloadBytes": null,
