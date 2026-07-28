@@ -1,0 +1,140 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [ 4 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+4 0 obj
+<<
+/Contents 5 0 R
+/MediaBox [ 0 0 612 792 ]
+/Resources <<
+/Font 6 0 R
+/ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>>
+/Rotate 0
+/Trans <<
+>>
+/Type /Page
+/Parent 2 0 R
+/Annots [ 9 0 R 10 0 R 11 0 R 12 0 R ]
+>>
+endobj
+5 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ]
+/Length 319
+>>
+stream
+GarW3_.pkA&4H!_ME/*KX'Sr;P%+jdWMcI4;!guYON9_Ne+E+0fV+[1()D(%k04I[4>cI!"M>R6^Ca#Rlp+/kR!633PpdTN<=M6RdU`M(k<&$3P=1#R2i/g-ga2blGP>9,WtOQJLC_*Yrdsfl82e#p,OkO(?*q:f*]nR?A)KkE"3f3s-:O_K^ksUI5ub-jRpU&n>#%rV^XQl%?;NXiMdTiO%]O)W$dsjK(g8OQRk.g',9uAB]o+l)@/%L/Ha1Z`a'[0l-G/fu`T6rG/qgcsoj,;lE4f^nb`*L<0dbuTpgi`O2C8(P/J2+`!/%Ck$i~>
+endstream
+endobj
+6 0 obj
+<<
+/F1 7 0 R
+/F2 8 0 R
+>>
+endobj
+7 0 obj
+<<
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Name /F1
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+8 0 obj
+<<
+/BaseFont /Helvetica-Bold
+/Encoding /WinAnsiEncoding
+/Name /F2
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+9 0 obj
+<<
+/Type /Annot
+/Subtype /Text
+/Rect [ 62 640 82 660 ]
+/NM (A\05517)
+/T (Reviewer A)
+/Contents (Please reconcile the source\055data total\056)
+/CreationDate (D\07220260728090000Z)
+/StateModel /Review
+/State /Accepted
+>>
+endobj
+10 0 obj
+<<
+/Type /Annot
+/Subtype /Text
+/Rect [ 92 640 112 660 ]
+/NM (A\05517\055R1)
+/T (Data steward)
+/Contents (Existing reply\072 source extract attached to the review record\056)
+/CreationDate (D\07220260728100000Z)
+/IRT 9 0 R
+/RT /R
+/StateModel /Review
+/State /Accepted
+>>
+endobj
+11 0 obj
+<<
+/Type /Annot
+/Subtype /Popup
+/Rect [ 115 520 310 640 ]
+/Parent 9 0 R
+/Open false
+>>
+endobj
+12 0 obj
+<<
+/Type /Annot
+/Subtype /Highlight
+/Rect [ 54 675 380 692 ]
+/QuadPoints [ 54 692 380 692 54 675 380 675 ]
+/T (Reviewer A)
+/Contents (A\05517 highlight anchor)
+>>
+endobj
+xref
+0 13
+0000000000 65535 f 
+0000000015 00000 n 
+0000000054 00000 n 
+0000000113 00000 n 
+0000000162 00000 n 
+0000000390 00000 n 
+0000000800 00000 n 
+0000000841 00000 n 
+0000000948 00000 n 
+0000001060 00000 n 
+0000001295 00000 n 
+0000001580 00000 n 
+0000001683 00000 n 
+trailer
+<<
+/Size 13
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+1862
+%%EOF

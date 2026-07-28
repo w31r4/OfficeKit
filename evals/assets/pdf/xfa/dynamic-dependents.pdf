@@ -1,0 +1,118 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [ 4 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+/AcroForm <<
+/Fields [ ]
+/XFA [ (template) 9 0 R (datasets) 10 0 R ]
+>>
+/NeedsRendering true
+>>
+endobj
+4 0 obj
+<<
+/Contents 5 0 R
+/MediaBox [ 0 0 612 792 ]
+/Resources <<
+/Font 6 0 R
+/ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>>
+/Rotate 0
+/Trans <<
+>>
+/Type /Page
+/Parent 2 0 R
+>>
+endobj
+5 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ]
+/Length 321
+>>
+stream
+GarW3Yti1j&;KpA`BOD:DU*6bFp(Da"pPU>`c4qPjq9\7J@EQn$WID&ABAKapO,QQ;pfX>*k9g(2$B)h4-1'^q?`3D'6tm><C0NYlF__1VgIX5,pGY@@mlKYcB6VSoCPqS<]P8_X6h:(hHRWLGA,gr\9/d0m4`V"c@<bm\81:ekaM`KMPr_u$7b<BU6)5*r(rSj^50p]RFPo_0_O9uGht?_"%VBsK&K-@\pcc/kj\$#*X3boRHV3Y<PpZ.mY9)H$`cLVqO?KkUn81[?np?m`sB:9gpm_G]a`Q<+ZQn?Vf`HX(es0R+U>^a+Su5m3Gt>~>
+endstream
+endobj
+6 0 obj
+<<
+/F1 7 0 R
+/F2 8 0 R
+>>
+endobj
+7 0 obj
+<<
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Name /F1
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+8 0 obj
+<<
+/BaseFont /Helvetica-Bold
+/Encoding /WinAnsiEncoding
+/Name /F2
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+9 0 obj
+<<
+/Length 572
+>>
+stream
+<?xml version="1.0" encoding="UTF-8"?>
+<template xmlns="http://www.xfa.org/schema/xfa-template/3.3/">
+    <subform name="form1" layout="tb"><event activity="initialize"><script contentType="application/x-javascript">xfa.form.recalculate(1);</script></event>
+    <field name="DependentCount"><ui><numericEdit/></ui><calculate><script contentType="application/x-formcalc">$ = Sum(Dependent[*].count)</script></calculate></field>
+    <subform name="Dependent" layout="tb" occur="min=0 max=-1"><field name="Name"><ui><textEdit/></ui></field></subform>
+  </subform>
+</template>
+endstream
+endobj
+10 0 obj
+<<
+/Length 223
+>>
+stream
+<?xml version="1.0" encoding="UTF-8"?>
+<datasets xmlns="http://www.xfa.org/schema/xfa-data/1.0/"><data><form1><DependentCount>1</DependentCount><Dependent><Name>Fixture dependent</Name></Dependent></form1></data></datasets>
+endstream
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000015 00000 n 
+0000000054 00000 n 
+0000000113 00000 n 
+0000000255 00000 n 
+0000000444 00000 n 
+0000000856 00000 n 
+0000000897 00000 n 
+0000001004 00000 n 
+0000001116 00000 n 
+0000001739 00000 n 
+trailer
+<<
+/Size 11
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+2014
+%%EOF

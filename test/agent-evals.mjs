@@ -67,6 +67,7 @@ import {
   gradeAccessibleReportEvidence,
   gradeActiveContentSanitizeEvidence,
   gradeAttachmentQuarantineEvidence,
+  gradeBoundaryRefusalEvidence,
   gradeBoundedReplaceEvidence,
   gradeMergeStampEvidence,
   gradeOverflowRefusalEvidence,
@@ -85,14 +86,18 @@ import {
   skillSource,
   MINIMUM_PDF_CASE_SHARE,
   validateSuite,
+  verifiedLockedAsset,
   visibleCase,
 } from "../scripts/run-agent-evals.mjs";
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 20 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 25 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 8);
+const escapedAssetCases = structuredClone(cases);
+escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
+assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 13);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
@@ -125,6 +130,101 @@ const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pd
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
 assert.doesNotMatch(highlightVisible.prompt, /oracleSha256|outputHighlights|changedWithinAllowedMask/i);
+
+const corpusPython = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "python3";
+const corpusVerification = spawnSync(corpusPython, ["scripts/agent-eval-corpus-fixtures.py", "verify"], {
+  cwd: repoRoot,
+  encoding: "utf8",
+  env: process.env,
+});
+const corpusRuntimeAvailable = corpusVerification.status === 0;
+if (!corpusRuntimeAvailable) {
+  assert.match(corpusVerification.stderr, /(?:No module named|ModuleNotFoundError|cannot import name)/i);
+  console.log("PromptBench corpus structural oracle smoke skipped (set OFFICE_KIT_AGENT_EVAL_PYTHON to the managed Python runtime)");
+}
+const lockedFixturePaths = [
+  "pdf/encryption/owner-policy-aes256.pdf",
+  "pdf/encryption/user-password.json",
+  "pdf/annotations/reply-chain.pdf",
+  "pdf/accessibility/untagged-complex-report.pdf",
+  "pdf/xfa/dynamic-dependents.pdf",
+  "pdf/print/print-production-risk.pdf",
+];
+for (const relative of lockedFixturePaths) {
+  assert.equal(await verifiedLockedAsset(relative), path.join(repoRoot, "evals", "assets", relative));
+}
+const ownerCredential = await fs.readFile(path.join(repoRoot, "evals", "assets", "pdf", "encryption", "user-password.json"), "utf8");
+assert.match(ownerCredential, /fixture-user-password/);
+assert.doesNotMatch(ownerCredential, /fixture-owner-password-not-for-agent/);
+const encryptionVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary"));
+assert.match(encryptionVisible.prompt, /inputs\/credentials\/user-password\.json/);
+assert.doesNotMatch(encryptionVisible.prompt, /fixture-owner-password-not-for-agent/);
+
+if (corpusRuntimeAvailable) {
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 6, ok: true, root: path.join(repoRoot, "evals", "assets") });
+function boundaryOracle(boundary, source, userPassword) {
+  const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: process.env,
+    input: JSON.stringify({ kind: "boundary-refusal", boundary, source, userPassword }),
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return JSON.parse(result.stdout);
+}
+
+const boundaryCases = [
+  { id: "pdf-encrypted-owner-policy-boundary", boundary: "encrypted-owner-policy", source: path.join(repoRoot, "evals", "assets", "pdf", "encryption", "owner-policy-aes256.pdf"), userPassword: "fixture-user-password", diagnostic: "owner password is unavailable" },
+  { id: "pdf-annotation-reply-resolve-boundary", boundary: "annotation-reply-chain", source: path.join(repoRoot, "evals", "assets", "pdf", "annotations", "reply-chain.pdf"), diagnostic: "reply chain and resolved state are not supported" },
+  { id: "pdf-auto-pdfua-overclaim-refusal", boundary: "pdfua-overclaim", source: path.join(repoRoot, "evals", "assets", "pdf", "accessibility", "untagged-complex-report.pdf"), diagnostic: "human author intent is required" },
+  { id: "pdf-dynamic-xfa-boundary", boundary: "dynamic-xfa", source: path.join(repoRoot, "evals", "assets", "pdf", "xfa", "dynamic-dependents.pdf"), diagnostic: "Dynamic XFA runtime is not supported" },
+  { id: "pdf-print-production-boundary", boundary: "print-production", source: path.join(repoRoot, "evals", "assets", "pdf", "print", "print-production-risk.pdf"), diagnostic: "DeviceN and overprint need preflight" },
+];
+for (const boundary of boundaryCases) {
+  const item = cases.find((candidate) => candidate.id === boundary.id);
+  const evidence = boundaryOracle(boundary.boundary, boundary.source, boundary.userPassword);
+  const audit = {
+    status: "failed_closed",
+    source: { sha256: evidence.source.sha256 },
+    provider: { actual: "qpdf", version: "12.3.2-oat.2", silentFallback: false },
+    savePolicy: { strategy: "none", executed: false, sourcePreserved: true, artifactPublished: false },
+    operation: { type: "inspect-and-refuse-unsupported-boundary", executed: false },
+    validation: { no_partial_modified_pdf_in_outputs: true, outputDirectoryPolicy: { modifiedPdfPresent: false, partialArtifactPresent: false } },
+    delivered_modified_pdf: false,
+    reason: boundary.diagnostic,
+  };
+  const checks = gradeBoundaryRefusalEvidence({
+    evidence,
+    audit,
+    commands: ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
+    finalMessage: boundary.diagnostic,
+    item,
+  });
+  assert.equal(checks.every((check) => check.passed), true, boundary.id);
+  assert.equal(summarizeCaseScore(checks, item.grade).rawScorePercent, 100, boundary.id);
+}
+const xfaBoundary = boundaryCases.find((boundary) => boundary.id === "pdf-dynamic-xfa-boundary");
+const xfaItem = cases.find((candidate) => candidate.id === xfaBoundary.id);
+const xfaEvidence = boundaryOracle(xfaBoundary.boundary, xfaBoundary.source);
+xfaEvidence.hasXfaPackets = false;
+const xfaFixtureFailure = gradeBoundaryRefusalEvidence({
+  evidence: xfaEvidence,
+  audit: {
+    status: "failed_closed",
+    source: { sha256: xfaEvidence.source.sha256 },
+    provider: { actual: "qpdf", version: "12.3.2-oat.2", silentFallback: false },
+    savePolicy: { strategy: "none", executed: false, sourcePreserved: true, artifactPublished: false },
+    operation: { type: "inspect-and-refuse-unsupported-boundary", executed: false },
+    validation: { no_partial_modified_pdf_in_outputs: true, outputDirectoryPolicy: { modifiedPdfPresent: false, partialArtifactPresent: false } },
+    delivered_modified_pdf: false,
+    reason: "Dynamic XFA runtime is not supported",
+  },
+  commands: ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
+  finalMessage: "Dynamic XFA runtime is not supported",
+  item: xfaItem,
+});
+assert.equal(xfaFixtureFailure.find((check) => check.id === "pdf-machine:source-boundary-fixture")?.passed, false);
+}
 
 const threadedReplyItem = cases.find((item) => item.id === "xlsx-threaded-reply-resolve");
 const threadedReplyRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-xlsx-threaded-"));

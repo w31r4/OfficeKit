@@ -16,8 +16,9 @@ The suite is evaluator-side repository infrastructure. `evals/`, the runner, loc
 ## Current suite
 
 - 41 cases: 21 PDF, 7 Documents, 7 Spreadsheets, and 6 Presentations. PDF is 51.2% of the suite and is required to remain an absolute majority, so a meaningful Office vertical slice never creates unrelated PDF filler prompts.
-- 20 `ready` cases use deterministic generated or inline inputs: eight PDF cases, four bounded XLSX workflows (threaded-comment, formula-assumption update, source-bound connection refresh-on-open, and source-bound Pivot refresh-on-open), four DOCX workflows (classic-comment plus source-bound header/footer text and source-bound section page numbering), and four PPTX workflows (title plus fixed-topology rich-speaker-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone).
-- 21 `asset-required` cases define fixture specifications but do not run until licensed, version-pinned corpus files or test PKI are placed under `evals/assets/`.
+- 25 `ready` cases: 13 PDF cases, four bounded XLSX workflows (threaded-comment, formula-assumption update, source-bound connection refresh-on-open, and source-bound Pivot refresh-on-open), four DOCX workflows (classic-comment plus source-bound header/footer text and source-bound section page numbering), and four PPTX workflows (title plus fixed-topology rich-speaker-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone).
+- Five locked, self-authored PDF corpus inputs are now ready: AES-256 owner/user permission split, native annotation reply chain, untagged complex report, Dynamic XFA packet, and print-production risk structure. Each has a committed SHA-256/byte manifest and an independent parser oracle; they grade only an auditable safe refusal, never a generic “no output” result.
+- 16 `asset-required` cases still await their pinned corpus files or test PKI. They remain excluded from readiness and repeat-matrix claims.
 - Every family has both a success and a fail-closed case. Some advanced PDF cases accept either verified success or an explicit safe refusal.
 - The default policy uses three trials per subject. Trial count is recorded per case rather than silently inferred by the Agent.
 
@@ -30,6 +31,7 @@ npm run eval:agents -- validate
 npm run eval:agents -- list --family pdf --status ready
 npm run eval:agents -- show pdf-bounded-contract-id-replace
 npm run eval:agents -- prepare pdf-bounded-contract-id-replace --subject candidate --trial 1
+npm run eval:agents -- prepare pdf-encrypted-owner-policy-boundary --subject candidate --trial 1
 npm run eval:agents -- prepare pdf-bounded-contract-id-replace --subject reference --trial 1
 npm run eval:agents -- prepare pdf-source-bound-text-highlight --subject candidate --trial 1
 npm run eval:agents -- run pdf-source-bound-text-highlight --subject candidate --trial 1
@@ -61,7 +63,30 @@ npm run eval:agents -- prepare pptx-closed-leaf-slide-clone --subject candidate 
 npm run eval:agents -- run pptx-closed-leaf-slide-clone --subject candidate --trial 1
 ```
 
-Generated PDF fixtures require Python with ReportLab and pypdf. All eight ready PDF case graders additionally require pdfplumber and Pillow; their applicable visual oracles require `pdftoppm`. Set `OFFICE_KIT_AGENT_EVAL_PYTHON` to that interpreter and, only when it is not on `PATH`, set `OFFICE_KIT_AGENT_EVAL_PDFTOPPM`. Prepared PDF prompts explicitly bind that interpreter as `OFFICE_KIT_PDF_PROVIDER_PYTHON`, because Codex shell policy may not inherit the runner environment. In Codex, use the Python executable returned by `load_workspace_dependencies`.
+Generated PDF fixtures and the locked-corpus verifier require Python with ReportLab, pypdf, and Pillow. The eight artifact-producing ready PDF graders additionally require pdfplumber; their applicable visual oracles require `pdftoppm`. Set `OFFICE_KIT_AGENT_EVAL_PYTHON` to that interpreter and, only when it is not on `PATH`, set `OFFICE_KIT_AGENT_EVAL_PDFTOPPM`. Prepared PDF prompts explicitly bind that interpreter as `OFFICE_KIT_PDF_PROVIDER_PYTHON`, because Codex shell policy may not inherit the runner environment. In Codex, use the Python executable returned by `load_workspace_dependencies`.
+
+## Locked boundary corpus
+
+The five ready boundary fixtures live below `evals/assets/`, outside the npm
+payload. `integrity.json` records every declared file's SHA-256 and byte count;
+the runner rejects a missing manifest entry, a mismatched byte stream, or a
+symbolic link before copying a file into the read-only trial workspace. The
+reviewed self-authored recipe is
+`scripts/agent-eval-corpus-fixtures.py`; it intentionally contains only test
+data and a user password that opens the encryption fixture. It never supplies
+the owner password or production key material.
+
+The evaluator-side oracle parses the source fixture independently of the
+candidate provider. It verifies the actual AES-256 permission dictionary and
+attachment/form canaries; `/IRT` reply, Popup, Highlight, author/date and
+review-state graph; missing PDF structure tree plus visual-complexity canaries;
+XFA template/datasets, repeat-subform, FormCalc, JavaScript and
+`NeedsRendering`; or DeviceN, Separation, overprint, transparency, OCG and
+OutputIntent dictionaries. A response passes only if that input proof, a
+failed-closed audit bound to the source hash, an explicit inspection trace,
+no-fallback/no-mutation evidence, and the case diagnostic all agree. These are
+fixture and grader tests so far; no autonomous candidate/reference repeat is
+claimed until the actual trial matrix has run.
 
 There are four ready PPTX graders. The source-bound slide-name edit uses the canonical `launch-review.pptx` two-slide fixture; the rich-notes edit uses a separate `rich-notes-review.pptx` two-slide fixture; the section-boundary edit uses a four-slide complete native-section partition fixture; and the clone uses `release-review.pptx` with a deliberately small notes/comments/chart leaf profile plus one relationship-free custom-show run action.
 

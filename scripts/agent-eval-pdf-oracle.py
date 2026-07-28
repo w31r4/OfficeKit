@@ -1164,6 +1164,165 @@ def merge_stamp(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def boundary_source_identity(path: pathlib.Path) -> dict[str, Any]:
+    raw = path.read_bytes()
+    return {
+        "path": str(path),
+        "bytes": len(raw),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+    }
+
+
+def root_dictionary(reader: pypdf.PdfReader) -> Any:
+    return resolve_pdf_value(reader.trailer["/Root"])
+
+
+def indirect_identity(value: Any) -> tuple[int, int] | None:
+    if isinstance(value, IndirectObject):
+        return value.idnum, value.generation
+    return None
+
+
+def boundary_encrypted_owner_policy(payload: dict[str, Any]) -> dict[str, Any]:
+    source = pathlib.Path(payload["source"])
+    reader = pypdf.PdfReader(str(source), strict=True)
+    encrypted = bool(reader.is_encrypted)
+    password_result = reader.decrypt(payload.get("userPassword", "")) if encrypted else 0
+    encryption = resolve_pdf_value(reader.trailer.get("/Encrypt")) if encrypted else {}
+    root = root_dictionary(reader) if password_result else {}
+    names = resolve_pdf_value(root.get("/Names")) if root.get("/Names") else {}
+    acroform = resolve_pdf_value(root.get("/AcroForm")) if root.get("/AcroForm") else {}
+    fields = [resolve_pdf_value(value) for value in acroform.get("/Fields", [])]
+    permissions = int(encryption.get("/P", 0) or 0)
+    return {
+        "kind": "boundary-refusal",
+        "boundary": "encrypted-owner-policy",
+        "source": boundary_source_identity(source),
+        "encrypted": encrypted,
+        "userPasswordAccepted": bool(password_result),
+        "encryption": {
+            "version": int(encryption.get("/V", 0) or 0),
+            "revision": int(encryption.get("/R", 0) or 0),
+            "permissions": permissions,
+            "copyAllowed": bool(permissions & (1 << 4)),
+        },
+        "hasEmbeddedFiles": bool(names.get("/EmbeddedFiles")),
+        "hasAcroForm": bool(acroform),
+        "hasSignatureField": any(str(field.get("/FT", "")) == "/Sig" for field in fields),
+    }
+
+
+def boundary_annotation_reply_chain(payload: dict[str, Any]) -> dict[str, Any]:
+    source = pathlib.Path(payload["source"])
+    reader = pypdf.PdfReader(str(source), strict=True)
+    references = list(reader.pages[0].get("/Annots", []))
+    annotations = [(reference, resolve_pdf_value(reference)) for reference in references]
+    root = next(((reference, value) for reference, value in annotations if str(value.get("/NM", "")) == "A-17"), None)
+    root_identity = indirect_identity(root[0]) if root else None
+    replies = [value for _, value in annotations if indirect_identity(value.get("/IRT")) == root_identity]
+    popups = [value for _, value in annotations if str(value.get("/Subtype", "")) == "/Popup" and indirect_identity(value.get("/Parent")) == root_identity]
+    highlights = [value for _, value in annotations if str(value.get("/Subtype", "")) == "/Highlight"]
+    return {
+        "kind": "boundary-refusal",
+        "boundary": "annotation-reply-chain",
+        "source": boundary_source_identity(source),
+        "root": {
+            "present": root is not None,
+            "author": str(root[1].get("/T", "")) if root else "",
+            "creationDate": str(root[1].get("/CreationDate", "")) if root else "",
+            "state": str(root[1].get("/State", "")) if root else "",
+            "stateModel": str(root[1].get("/StateModel", "")) if root else "",
+        },
+        "replyCount": len(replies),
+        "replyStates": [{"state": str(value.get("/State", "")), "stateModel": str(value.get("/StateModel", "")), "author": str(value.get("/T", ""))} for value in replies],
+        "popupCount": len(popups),
+        "highlightCount": len(highlights),
+    }
+
+
+def boundary_pdfua_overclaim(payload: dict[str, Any]) -> dict[str, Any]:
+    source = pathlib.Path(payload["source"])
+    reader = pypdf.PdfReader(str(source), strict=True)
+    root = root_dictionary(reader)
+    page = reader.pages[0]
+    resources = resolve_pdf_value(page.get("/Resources"))
+    xobjects = resolve_pdf_value(resources.get("/XObject")) if resources.get("/XObject") else {}
+    image_count = sum(1 for value in xobjects.values() if str(resolve_pdf_value(value).get("/Subtype", "")) == "/Image")
+    text = page.extract_text() or ""
+    return {
+        "kind": "boundary-refusal",
+        "boundary": "pdfua-overclaim",
+        "source": boundary_source_identity(source),
+        "hasStructTreeRoot": "/StructTreeRoot" in root,
+        "imageCount": image_count,
+        "hasTwoColumnCanaries": "author intent" in text and "South" in text,
+        "pageCount": len(reader.pages),
+    }
+
+
+def boundary_dynamic_xfa(payload: dict[str, Any]) -> dict[str, Any]:
+    source = pathlib.Path(payload["source"])
+    reader = pypdf.PdfReader(str(source), strict=True)
+    root = root_dictionary(reader)
+    acroform = resolve_pdf_value(root.get("/AcroForm")) if root.get("/AcroForm") else {}
+    xfa = acroform.get("/XFA") if acroform else None
+    streams: list[bytes] = []
+    if isinstance(xfa, (list, pypdf.generic.ArrayObject)):
+        for value in xfa:
+            resolved = resolve_pdf_value(value)
+            if hasattr(resolved, "get_data"):
+                streams.append(resolved.get_data())
+    payload_bytes = b"\n".join(streams)
+    return {
+        "kind": "boundary-refusal",
+        "boundary": "dynamic-xfa",
+        "source": boundary_source_identity(source),
+        "hasXfaPackets": isinstance(xfa, (list, pypdf.generic.ArrayObject)) and len(xfa) >= 4,
+        "needsRendering": bool(root.get("/NeedsRendering")),
+        "hasRepeatSubform": b"occur=\"min=0 max=-1\"" in payload_bytes,
+        "hasFormCalc": b"application/x-formcalc" in payload_bytes,
+        "hasJavaScript": b"application/x-javascript" in payload_bytes,
+    }
+
+
+def boundary_print_production(payload: dict[str, Any]) -> dict[str, Any]:
+    source = pathlib.Path(payload["source"])
+    reader = pypdf.PdfReader(str(source), strict=True)
+    root = root_dictionary(reader)
+    resources = resolve_pdf_value(reader.pages[0].get("/Resources"))
+    color_spaces = resolve_pdf_value(resources.get("/ColorSpace")) if resources.get("/ColorSpace") else {}
+    ext_state = resolve_pdf_value(resources.get("/ExtGState")) if resources.get("/ExtGState") else {}
+    devicen = resolve_pdf_value(color_spaces.get("/BrandDeviceN")) if color_spaces.get("/BrandDeviceN") else []
+    spot = resolve_pdf_value(color_spaces.get("/SpotRisk")) if color_spaces.get("/SpotRisk") else []
+    state = resolve_pdf_value(ext_state.get("/GSPrint")) if ext_state.get("/GSPrint") else {}
+    return {
+        "kind": "boundary-refusal",
+        "boundary": "print-production",
+        "source": boundary_source_identity(source),
+        "hasOutputIntent": bool(root.get("/OutputIntents")),
+        "hasOcg": bool(root.get("/OCProperties")),
+        "hasDeviceN": bool(devicen) and str(devicen[0]) == "/DeviceN",
+        "hasSeparation": bool(spot) and str(spot[0]) == "/Separation",
+        "overprint": bool(state.get("/OP")) and bool(state.get("/op")),
+        "transparency": float(state.get("/CA", 1)) < 1 and float(state.get("/ca", 1)) < 1 and str(state.get("/BM", "")) == "/Multiply",
+    }
+
+
+def boundary_refusal(payload: dict[str, Any]) -> dict[str, Any]:
+    boundary = payload.get("boundary")
+    if boundary == "encrypted-owner-policy":
+        return boundary_encrypted_owner_policy(payload)
+    if boundary == "annotation-reply-chain":
+        return boundary_annotation_reply_chain(payload)
+    if boundary == "pdfua-overclaim":
+        return boundary_pdfua_overclaim(payload)
+    if boundary == "dynamic-xfa":
+        return boundary_dynamic_xfa(payload)
+    if boundary == "print-production":
+        return boundary_print_production(payload)
+    raise ValueError(f"unsupported PDF boundary-refusal oracle: {boundary}")
+
+
 def main() -> None:
     payload = json.load(sys.stdin)
     kind = payload.get("kind")
@@ -1183,6 +1342,8 @@ def main() -> None:
         evidence = accessible_report(payload)
     elif kind == "merge-stamp":
         evidence = merge_stamp(payload)
+    elif kind == "boundary-refusal":
+        evidence = boundary_refusal(payload)
     else:
         raise ValueError(f"unsupported PDF oracle kind: {kind}")
     evidence["toolchain"] = {

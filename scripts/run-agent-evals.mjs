@@ -19,6 +19,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 // prompts whenever a meaningful Office vertical slice is added.
 export const MINIMUM_PDF_CASE_SHARE = 0.5;
 const casesPath = path.join(repoRoot, "evals", "cases.jsonl");
+const evalAssetsRoot = path.join(repoRoot, "evals", "assets");
+const evalAssetIntegrityPath = path.join(evalAssetsRoot, "integrity.json");
 const families = new Set(["pdf", "documents", "spreadsheets", "presentations"]);
 const skillsByFamily = new Map([
   ["pdf", "pdf"],
@@ -118,7 +120,12 @@ function validateSuite(suite, cases) {
       if (normalized) inputPaths.add(normalized);
       if (!new Set(["generated", "inline", "asset", "repo"]).has(input.kind)) errors.push(`${prefix}: unsupported input kind ${input.kind}`);
       if (input.kind === "generated" && !input.generator) errors.push(`${prefix}: generated input is missing generator`);
-      if (input.kind === "asset" && !input.asset) errors.push(`${prefix}: asset input is missing asset path`);
+      if (input.kind === "asset") {
+        if (!input.asset) errors.push(`${prefix}: asset input is missing asset path`);
+        else {
+          try { safeRelative(input.asset, `${prefix} input.asset`); } catch (error) { errors.push(error.message); }
+        }
+      }
     }
     for (const deliverable of item.deliverables || []) {
       let normalized;
@@ -130,7 +137,6 @@ function validateSuite(suite, cases) {
     }
     if (item.expectedOutcome === "safe-refusal" && item.deliverables?.length) errors.push(`${prefix}: safe-refusal cases must not declare deliverables`);
     if (item.expectedOutcome !== "safe-refusal" && !deliverablePaths.has(path.join("outputs", "audit.json"))) errors.push(`${prefix}: successful outcomes must declare outputs/audit.json`);
-    if (item.status === "ready" && item.inputs?.some((input) => input.kind === "asset")) errors.push(`${prefix}: ready cases cannot depend on locked assets`);
     if (item.status === "asset-required" && !item.inputs?.some((input) => input.kind === "asset")) errors.push(`${prefix}: asset-required case has no asset input`);
     for (const source of item.sources || []) if (!/^https:\/\//.test(source)) errors.push(`${prefix}: source must be an HTTPS URL`);
   }
@@ -172,6 +178,53 @@ function oracleFingerprint(item) {
 
 async function hashFile(filePath) {
   return sha256(await fs.readFile(filePath));
+}
+
+let lockedAssetManifest;
+
+async function loadLockedAssetManifest() {
+  if (lockedAssetManifest) return lockedAssetManifest;
+  let manifest;
+  try { manifest = JSON.parse(await fs.readFile(evalAssetIntegrityPath, "utf8")); } catch (error) {
+    fail(`locked eval assets require a valid integrity manifest at ${path.relative(repoRoot, evalAssetIntegrityPath)}: ${error.message}`);
+  }
+  if (manifest?.schemaVersion !== 1 || !manifest.assets || typeof manifest.assets !== "object") {
+    fail(`locked eval asset integrity manifest has an unsupported schema: ${path.relative(repoRoot, evalAssetIntegrityPath)}`);
+  }
+  lockedAssetManifest = manifest;
+  return lockedAssetManifest;
+}
+
+async function assertNoAssetSymlinks(target) {
+  const stat = await fs.lstat(target);
+  if (stat.isSymbolicLink()) fail(`locked eval asset cannot be a symbolic link: ${path.relative(repoRoot, target)}`);
+  if (stat.isFile()) return;
+  if (!stat.isDirectory()) fail(`locked eval asset must be a regular file or directory: ${path.relative(repoRoot, target)}`);
+  for (const entry of await fs.readdir(target)) await assertNoAssetSymlinks(path.join(target, entry));
+}
+
+async function verifiedLockedAsset(relative) {
+  const normalized = safeRelative(relative, "input.asset");
+  const manifest = await loadLockedAssetManifest();
+  const record = manifest.assets[normalized];
+  if (!record || record.kind !== "file" || !/^[a-f0-9]{64}$/.test(record.sha256 || "") || !Number.isInteger(record.bytes) || record.bytes < 0) {
+    fail(`locked eval asset is absent from the integrity manifest: ${normalized}`);
+  }
+  const root = await fs.realpath(evalAssetsRoot).catch(() => fail(`locked eval asset root is missing: ${path.relative(repoRoot, evalAssetsRoot)}`));
+  const candidate = path.join(evalAssetsRoot, normalized);
+  const resolved = await fs.realpath(candidate).catch(() => fail(`missing locked eval asset: ${path.relative(repoRoot, candidate)}`));
+  const relativeToRoot = path.relative(root, resolved);
+  if (!relativeToRoot || relativeToRoot === ".." || relativeToRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeToRoot)) {
+    fail(`locked eval asset escapes its corpus root: ${normalized}`);
+  }
+  await assertNoAssetSymlinks(candidate);
+  const stat = await fs.stat(candidate);
+  if (!stat.isFile()) fail(`locked eval manifest currently supports regular-file inputs only: ${normalized}`);
+  const digest = await hashFile(candidate);
+  if (digest !== record.sha256 || stat.size !== record.bytes) {
+    fail(`locked eval asset integrity mismatch: ${normalized}`);
+  }
+  return candidate;
 }
 
 function repositoryProvenance() {
@@ -436,8 +489,7 @@ async function materializeInput(input, workspace) {
   else if (input.kind === "generated") await generateInput(input.generator, target);
   else if (input.kind === "repo") await copyTree(path.join(repoRoot, safeRelative(input.source, "input.source")), target);
   else if (input.kind === "asset") {
-    const source = path.join(repoRoot, "evals", "assets", safeRelative(input.asset, "input.asset"));
-    try { await fs.access(source); } catch { fail(`missing locked eval asset: ${path.relative(repoRoot, source)}\nFixture requirement: ${input.fixtureSpec || "not documented"}`); }
+    const source = await verifiedLockedAsset(input.asset);
     await copyTree(source, target);
   }
   await makeReadOnly(target);
@@ -731,7 +783,20 @@ async function scorePrepared(item, prepared, options = {}) {
 }
 
 function help() {
-  return `Agent artifact PromptBench\n\nCommands:\n  validate\n  list [--family pdf] [--status ready] [--json]\n  show <case-id> [--json]\n  prepare <case-id> [--subject candidate|reference] [--trial 1] [--run-root <path>]\n  run <case-id> [prepare options] [--model <model>] [--codex <path>]\n  score <case-id> --trial-root <prepared trial directory>\n\nThe Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. Prepared PDF trials also declare one authoritative provider interpreter in PROMPT.md when the runner was given OFFICE_KIT_AGENT_EVAL_PYTHON or OFFICE_KIT_PDF_PROVIDER_PYTHON; the same interpreter is used for generated fixtures and hidden oracles. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The eight ready PDF cases plus the ready XLSX threaded-comment, growth-assumption, connection refresh-on-open, and Pivot refresh-on-open cases, four DOCX cases (classic-comment, source-bound DOCX header text, source-bound DOCX footer text, and source-bound DOCX section page-numbering), and four PPTX cases (title plus fixed-topology rich-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone) have independent semantic, native-render, security, and provider-trace graders. PDF must remain an absolute majority of the full suite; the remaining 21 asset-required cases never claim full success before pinned corpus or PKI fixtures exist.\n`;
+  return [
+    "Agent artifact PromptBench",
+    "",
+    "Commands:",
+    "  validate",
+    "  list [--family pdf] [--status ready] [--json]",
+    "  show <case-id> [--json]",
+    "  prepare <case-id> [--subject candidate|reference] [--trial 1] [--run-root <path>]",
+    "  run <case-id> [prepare options] [--model <model>] [--codex <path>]",
+    "  score <case-id> --trial-root <prepared trial directory>",
+    "",
+    "The Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. Prepared PDF trials also declare one authoritative provider interpreter in PROMPT.md when the runner was given OFFICE_KIT_AGENT_EVAL_PYTHON or OFFICE_KIT_PDF_PROVIDER_PYTHON; the same interpreter is used for generated fixtures and hidden oracles. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The 13 ready PDF cases include five locked corpus boundary fixtures with independent source-structure, audit, and trace grading; they do not pass from generic no-artifact gates alone. The ready XLSX threaded-comment, growth-assumption, connection refresh-on-open, and Pivot refresh-on-open cases, four DOCX cases (classic-comment, source-bound DOCX header text, source-bound DOCX footer text, and source-bound DOCX section page-numbering), and four PPTX cases (title plus fixed-topology rich-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone) also have independent semantic, native-render, security, and provider-trace graders. PDF must remain an absolute majority of the full suite; the remaining 16 asset-required cases never claim full success before pinned corpus or PKI fixtures exist.",
+    "",
+  ].join("\n");
 }
 
 export async function main(argv = process.argv.slice(2)) {
@@ -775,7 +840,7 @@ export async function main(argv = process.argv.slice(2)) {
   } else fail(`unknown command ${command}\n\n${help()}`);
 }
 
-export { fingerprintPath, generateInput, loadSuite, makeReadOnly, oracleFingerprint, removePreparedTree, repositoryProvenance, scorePrepared, validateSuite, visibleCase };
+export { fingerprintPath, generateInput, loadSuite, makeReadOnly, oracleFingerprint, removePreparedTree, repositoryProvenance, scorePrepared, validateSuite, verifiedLockedAsset, visibleCase };
 
 const entryPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
 if (entryPath === fileURLToPath(import.meta.url)) await main();
