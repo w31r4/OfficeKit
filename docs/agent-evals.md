@@ -170,10 +170,21 @@ not trust that report: it reopens both bytes with pypdf, checks the original
 signature contents and ByteRange, DocMDP/FieldMDP transforms, catalog
 references, exact field scope, strict source prefix, revision count, and a
 Poppler target-widget mask. Repository smoke has exercised that fixture through
-the managed pyHanko runtime and the independent evaluator. One isolated Agent
-candidate trial against the dirty implementation candidate also passed all 37
-applicable checks at `100/100`; it remains neither a clean-commit result nor a
-candidate/reference three-repeat claim.
+the managed pyHanko runtime and the independent evaluator. At clean commit
+`215e16db7d35b29a66ff985676e81419468bbe90`, the same packed candidate tarball
+SHA-256 `7e31440be693705e40cf9652f067b2d4921c104049ecd30706edc857656d2217`
+passed a complete repeat matrix: candidate `3/3` and copied-reference `3/3`,
+every run `100/100` with all 21 hard gates. The candidate Skill SHA-256 was
+`0a5c820ef1d8014966e0e398616c8282020e3c27727b146e4a7fb34d0acff848`; the
+copied reference Skill SHA-256 was
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`; both
+used oracle SHA-256
+`57fbcfe856a1d3ce806e1c03c33bc236f82a55e8828bcc0b89c02a3479b1b81d`, source
+SHA-256 `147f668c0e1854834f063077cc14ea29b4711a180d4cd8b5e95b67fc8a0d5d62`, and
+public-root SHA-256
+`11ac11935e4637e4c971086b777e584309824389d63693904539042de87de902`. This is
+a Skill-workflow comparison over the same candidate package, not a claim that
+the reference package independently supplies this OfficeKit primitive.
 
 The evaluator normalizes the published audit envelope and structured equivalent
 forms: an explicit
