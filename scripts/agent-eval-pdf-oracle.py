@@ -54,9 +54,9 @@ def decoded_stream_evidence(reader: pypdf.PdfReader) -> tuple[bytes, list[dict[s
     return b"\n".join(chunks), errors
 
 
-def inspect_pdf(file_path: pathlib.Path, terms: list[str]) -> dict[str, Any]:
+def inspect_pdf(file_path: pathlib.Path, terms: list[str], *, strict: bool = True) -> dict[str, Any]:
     raw = file_path.read_bytes()
-    reader = pypdf.PdfReader(str(file_path), strict=True)
+    reader = pypdf.PdfReader(str(file_path), strict=strict)
     if reader.is_encrypted:
         raise ValueError(f"oracle cannot inspect encrypted fixture without credentials: {file_path}")
     pages: list[dict[str, Any]] = []
@@ -213,8 +213,8 @@ def pdf_name_text(value: Any) -> str | None:
     return re.sub(r"#([0-9A-Fa-f]{2})", lambda match: chr(int(match.group(1), 16)), raw) or None
 
 
-def expected_attachment_evidence(file_path: pathlib.Path) -> list[dict[str, Any]]:
-    reader = pypdf.PdfReader(str(file_path), strict=True)
+def expected_attachment_evidence(file_path: pathlib.Path, *, strict: bool = True) -> list[dict[str, Any]]:
+    reader = pypdf.PdfReader(str(file_path), strict=strict)
     records: list[dict[str, Any]] = []
     for ordinal, attachment in enumerate(reader.attachment_list, 1):
         payload = bytes(attachment.content)
@@ -1295,6 +1295,89 @@ def merge_stamp(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def compare_rendered_pages_exact(
+    source: pathlib.Path,
+    output: pathlib.Path,
+    render_root: pathlib.Path,
+    poppler: str,
+    dpi: int = 144,
+) -> dict[str, Any]:
+    """Render two inputs and require an exact native-pixel preservation proof."""
+
+    shutil.rmtree(render_root, ignore_errors=True)
+    source_pages = run_poppler(poppler, source, render_root / "source" / "page", dpi)
+    output_pages = run_poppler(poppler, output, render_root / "output" / "page", dpi)
+    pages = []
+    for index in range(max(len(source_pages), len(output_pages))):
+        if index >= len(source_pages) or index >= len(output_pages):
+            pages.append({"page": index + 1, "missing": True})
+            continue
+        with Image.open(source_pages[index]) as source_raw, Image.open(output_pages[index]) as output_raw:
+            source_image = source_raw.convert("RGB")
+            output_image = output_raw.convert("RGB")
+            same_dimensions = source_image.size == output_image.size
+            difference = ImageChops.difference(source_image, output_image) if same_dimensions else None
+            changed_bbox = difference.getbbox() if difference else None
+            nonblank_bbox = ImageChops.difference(output_image, Image.new("RGB", output_image.size, "white")).getbbox()
+            pages.append({
+                "page": index + 1,
+                "sameDimensions": same_dimensions,
+                "nonBlank": nonblank_bbox is not None,
+                "changedPixelsBBox": list(changed_bbox) if changed_bbox else None,
+                "pixelStable": changed_bbox is None,
+            })
+    return {
+        "renderer": "poppler-pdftoppm",
+        "dpi": dpi,
+        "sourcePageCount": len(source_pages),
+        "outputPageCount": len(output_pages),
+        "pages": pages,
+    }
+
+
+def damaged_xref_recovery(payload: dict[str, Any]) -> dict[str, Any]:
+    """Collect independent semantic and render evidence for qpdf recovery."""
+
+    recoverable = pathlib.Path(payload["recoverable"])
+    unrecoverable = pathlib.Path(payload["unrecoverable"])
+    output_value = payload.get("output")
+    output = pathlib.Path(output_value) if output_value else None
+    terms = [
+        "RECOVERABLE-XREF-PAGE-ONE",
+        "RECOVERABLE-XREF-PAGE-TWO",
+        "OFFICEKIT-XREF-ATTACHMENT-CANARY",
+    ]
+    source_raw = recoverable.read_bytes()
+    control_raw = unrecoverable.read_bytes()
+    source = inspect_pdf(recoverable, terms, strict=False)
+    evidence = {
+        "kind": "damaged-xref-recovery",
+        "source": source,
+        "sourceRawStartxrefIsZero": bool(re.search(rb"(?m)^startxref\s*\n0\s*\n%%EOF\s*$", source_raw)),
+        "sourceAttachments": expected_attachment_evidence(recoverable, strict=False),
+        "unrecoverable": {
+            **boundary_source_identity(unrecoverable),
+            "hasPdfHeader": control_raw.startswith(b"%PDF-"),
+            "hasControlCanary": b"OFFICEKIT-XREF-UNRECOVERABLE-CONTROL" in control_raw,
+            "hasXrefOrTrailer": bool(re.search(rb"(?mi)^(?:xref|trailer)\b", control_raw)),
+        },
+    }
+    if output is None:
+        evidence["output"] = None
+        evidence["outputAttachments"] = None
+        evidence["visual"] = None
+        return evidence
+    evidence["output"] = inspect_pdf(output, terms, strict=True)
+    evidence["outputAttachments"] = expected_attachment_evidence(output, strict=True)
+    evidence["visual"] = compare_rendered_pages_exact(
+        recoverable,
+        output,
+        pathlib.Path(payload["renderRoot"]),
+        payload["poppler"],
+    )
+    return evidence
+
+
 def boundary_source_identity(path: pathlib.Path) -> dict[str, Any]:
     raw = path.read_bytes()
     return {
@@ -1567,6 +1650,8 @@ def main() -> None:
         evidence = accessible_report(payload)
     elif kind == "merge-stamp":
         evidence = merge_stamp(payload)
+    elif kind == "damaged-xref-recovery":
+        evidence = damaged_xref_recovery(payload)
     elif kind == "boundary-refusal":
         evidence = boundary_refusal(payload)
     else:

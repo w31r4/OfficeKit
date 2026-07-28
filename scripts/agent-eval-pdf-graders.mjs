@@ -23,6 +23,7 @@ const supportedCases = new Set([
   "pdf-print-production-boundary",
   "pdf-docmdp-forbidden-title-edit",
   "pdf-docmdp-allowed-field-fill",
+  "pdf-damaged-xref-recovery",
 ]);
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
 const boundaryRefusalCases = new Map([
@@ -744,6 +745,125 @@ export function gradeBoundedReplaceEvidence({ evidence, audit, commands, item })
     gate("pdf-security:single-revision", "security", output.startxrefCount === 1 && output.eofCount === 1, { expected: { startxref: 1, eof: 1 }, actual: { startxref: output.startxrefCount, eof: output.eofCount } }),
     gate("pdf-security:audit-provenance", "security", auditSourceHash(audit) === source.sha256 && auditOutputHash(audit) === output.sha256, { expected: { source: source.sha256, output: output.sha256 }, actual: { source: auditSourceHash(audit) || "unreported", output: auditOutputHash(audit) || "unreported" } }),
     ...boundedTraceChecks(audit, commands),
+  ];
+}
+
+function damagedXrefControl(audit) {
+  const candidates = [
+    audit?.controls?.unrecoverable,
+    audit?.control?.unrecoverable,
+    audit?.unrecoverable,
+    audit?.validation?.unrecoverable,
+  ];
+  return candidates.find((value) => value && typeof value === "object") || {};
+}
+
+function damagedXrefControlSourceHash(control) {
+  return control?.source?.sha256 || control?.sourceSha256 || control?.source_sha256 || "";
+}
+
+function stableRecords(records = []) {
+  return [...records].sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+}
+
+function qpdfRecoveryTraceChecks(audit, commands) {
+  const commandText = commands.join("\n");
+  const operation = auditOperation(audit);
+  const inspect = completedInvocation(commands, /qpdf_provider\.py["']?\s+inspect\b/i);
+  const rewrite = completedInvocation(commands, /qpdf_provider\.py["']?\s+rewrite\b/i);
+  const afterRewrite = commandTextAfter(commands, rewrite);
+  const outputInspect = /qpdf_provider\.py["']?\s+inspect\b/i.test(afterRewrite);
+  const outputRender = /(?:\bpdftoppm\b|mupdf\.mjs["']?\s+render\b)/i.test(afterRewrite);
+  const controlInspected = /(?:qpdf_provider\.py["']?\s+inspect\b|\bqpdf\s+--check\b)[\s\S]*unrecoverable\.pdf/i.test(commandText);
+  const manualWriterPatterns = [
+    /\bPdfWriter\s*\(/,
+    /\bcanvas\.Canvas\s*\(/,
+    /\bwriter\.write\s*\(/,
+    /\b(?:fitz|pymupdf)\.open\s*\(/i,
+    /\bupdate_stream\s*\(/i,
+    /\bset_contents\s*\(/i,
+  ];
+  return [
+    check("pdf-trace:provider", "trace", /^qpdf$/i.test(String(auditProvider(audit))), { expected: "qpdf", actual: auditProvider(audit) }),
+    check("pdf-trace:provider-version", "trace", Boolean(String(auditProviderVersion(audit)).trim()), { actual: auditProviderVersion(audit) || "unreported" }),
+    check("pdf-trace:save-policy", "trace", /^rewrite$/i.test(String(auditSaveStrategy(audit))), { expected: "rewrite", actual: auditSaveStrategy(audit) }),
+    gate("pdf-trace:no-silent-fallback", "trace", auditFallback(audit) === true, { expected: false, actual: auditFallback(audit) === null ? "unreported" : !auditFallback(audit) }),
+    check("pdf-trace:inspect-before-repair", "trace", invocationBefore(inspect, rewrite), { actual: { inspect: inspect?.commandIndex ?? -1, rewrite: rewrite?.commandIndex ?? -1 } }),
+    check("pdf-trace:typed-qpdf-repair", "trace", Boolean(rewrite) && /qpdf[-_ ]?rewrite|repair/i.test(operation), { actual: operation || "unreported" }),
+    check("pdf-trace:unrecoverable-control-inspected", "trace", controlInspected, { expected: "explicit qpdf inspection of inputs/unrecoverable.pdf" }),
+    check("pdf-trace:reinspect-and-render-output", "trace", outputInspect && outputRender, { actual: { outputInspect, outputRender } }),
+    gate("pdf-trace:no-ad-hoc-pdf-rebuild", "trace", !manualWriterPatterns.some((pattern) => pattern.test(commandText)), { forbidden: manualWriterPatterns.map(String) }),
+  ];
+}
+
+export function gradeDamagedXrefSafeRefusalEvidence({ evidence, audit, commands, finalMessage, outputEntries }) {
+  const source = evidence.source || {};
+  const control = damagedXrefControl(audit);
+  const commandText = commands.join("\n");
+  const noOutput = auditRefusalNoArtifactClaim(audit)
+    && Array.isArray(outputEntries)
+    && outputEntries.length === 1
+    && outputEntries[0] === "audit.json";
+  const diagnostic = `${finalMessage || ""}\n${audit?.reason || ""}\n${JSON.stringify(audit?.warnings || [])}`;
+  const noRepair = !/qpdf_provider\.py["']?\s+rewrite\b/i.test(commandText);
+  return [
+    check("pdf-machine:damaged-source-and-control-fixture", "machine", source.pageCount === 2 && evidence.sourceRawStartxrefIsZero === true && (evidence.sourceAttachments || []).length === 1 && evidence.unrecoverable?.hasControlCanary === true, { actual: { source, unrecoverable: evidence.unrecoverable } }),
+    check("pdf-machine:safe-refusal-status", "machine", audit?.status === "failed_closed" && audit?.delivered_modified_pdf !== true, { actual: audit?.status || "unreported" }),
+    check("pdf-machine:diagnostic", "machine", /qpdf|xref|repair|provider|unrecoverable/i.test(diagnostic), { actual: diagnostic || "unreported" }),
+    check("pdf-visual:no-output-on-safe-refusal", "visual", noOutput, { actual: outputEntries || [] }),
+    gate("pdf-security:both-inputs-bound", "security", auditSourceHash(audit) === source.sha256 && damagedXrefControlSourceHash(control) === evidence.unrecoverable?.sha256, { expected: { recoverable: source.sha256, unrecoverable: evidence.unrecoverable?.sha256 }, actual: { recoverable: auditSourceHash(audit) || "unreported", unrecoverable: damagedXrefControlSourceHash(control) || "unreported" } }),
+    gate("pdf-security:no-partial-output", "security", noOutput, { actual: { audit: audit?.output, outputEntries } }),
+    check("pdf-trace:provider-declared", "trace", Boolean(String(auditProvider(audit)).trim()), { actual: auditProvider(audit) || "unreported" }),
+    check("pdf-trace:source-inspection", "trace", /(?:qpdf_provider\.py["']?\s+(?:probe|inspect)\b|\bqpdf\b)/i.test(commandText), { actual: commandText || "unreported" }),
+    check("pdf-trace:no-repair-after-refusal", "trace", noRepair, { actual: commandText || "unreported" }),
+    gate("pdf-trace:no-silent-fallback", "trace", auditFallback(audit) === true, { expected: false, actual: auditFallback(audit) === null ? "unreported" : !auditFallback(audit) }),
+  ];
+}
+
+export function gradeDamagedXrefRecoveryEvidence({ evidence, audit, commands, item }) {
+  const source = evidence.source || {};
+  const output = evidence.output || {};
+  const visual = evidence.visual || {};
+  const pages = visual.pages || [];
+  const repair = audit?.repair && typeof audit.repair === "object" ? audit.repair : audit || {};
+  const control = damagedXrefControl(audit);
+  const expectedAttachments = stableRecords(evidence.sourceAttachments || []);
+  const actualAttachments = stableRecords(evidence.outputAttachments || []);
+  const textCanaries = ["RECOVERABLE-XREF-PAGE-ONE", "RECOVERABLE-XREF-PAGE-TWO"];
+  const sourceFixtureComplete = source.pageCount === 2
+    && evidence.sourceRawStartxrefIsZero === true
+    && textCanaries.every((term, index) => source.termCounts?.[term] === 1 && source.pages?.[index]?.termCounts?.[term] === 1)
+    && expectedAttachments.length === 1
+    && expectedAttachments[0]?.displayName === "repair-evidence.txt"
+    && expectedAttachments[0]?.bytes === 97
+    && expectedAttachments[0]?.sha256 === "f3847151df00468cce51c49a00cec7b5c35c24421160e310cbde0e90148b5550"
+    && evidence.unrecoverable?.hasPdfHeader === true
+    && evidence.unrecoverable?.hasControlCanary === true
+    && evidence.unrecoverable?.hasXrefOrTrailer === false;
+  const outputCanariesStable = textCanaries.every((term, index) => output.termCounts?.[term] === 1 && output.pages?.[index]?.termCounts?.[term] === 1)
+    && output.decodedStreamTermCounts?.["OFFICEKIT-XREF-ATTACHMENT-CANARY"] === 1;
+  const warningLines = [
+    ...(repair?.checkBefore?.lines || []),
+    ...(repair?.checkBefore?.jsonLines || []),
+    ...(repair?.qpdfWrite?.lines || []),
+  ].join("\n");
+  const controlStatus = String(control?.status || control?.result || control?.decision || "").toLowerCase();
+  const controlRejected = /reject|fail|error|unrecoverable|refus/.test(controlStatus)
+    && damagedXrefControlSourceHash(control) === evidence.unrecoverable?.sha256
+    && (control?.output === null || control?.outputPath === null || control?.artifactWritten === false || control?.published === false);
+  return [
+    check("pdf-machine:damaged-source-and-control-fixture", "machine", sourceFixtureComplete, { actual: { source: { pageCount: source.pageCount, startxrefIsZero: evidence.sourceRawStartxrefIsZero, attachments: expectedAttachments }, unrecoverable: evidence.unrecoverable } }),
+    check("pdf-machine:qpdf-output-clean", "machine", repair?.checkAfter?.status === "clean", { actual: repair?.checkAfter || "unreported" }),
+    check("pdf-machine:page-count-and-geometry-preserved", "machine", output.pageCount === source.pageCount && samePageBoxes(source.pages, output.pages), { actual: { source: source.pageCount, output: output.pageCount } }),
+    check("pdf-machine:document-attachment-preserved", "machine", JSON.stringify(actualAttachments) === JSON.stringify(expectedAttachments), { expected: expectedAttachments, actual: actualAttachments }),
+    check("pdf-machine:unrecoverable-control-rejected", "machine", controlRejected, { expected: { sourceSha256: evidence.unrecoverable?.sha256, noOutput: true }, actual: control || "unreported" }),
+    check("pdf-machine:audit-success", "machine", /^(?:success|succeeded|completed)$/i.test(String(audit?.status || "")), { actual: audit?.status || "unreported" }),
+    check("pdf-visual:all-pages-rendered", "visual", visual.sourcePageCount === source.pageCount && visual.outputPageCount === source.pageCount && pages.length === source.pageCount && pages.every((page) => page.sameDimensions && page.nonBlank), { renderer: visual.renderer, pages }),
+    check("pdf-visual:all-pages-pixel-stable", "visual", pages.length === source.pageCount && pages.every((page) => page.pixelStable === true), { actual: pages.map(({ page, changedPixelsBBox }) => ({ page, changedPixelsBBox })) }),
+    gate("pdf-security:repair-warnings-retained", "security", /reconstruct cross-reference/i.test(warningLines) && /file is damaged/i.test(warningLines), { actual: warningLines || "unreported" }),
+    gate("pdf-security:no-raster-reconstruction", "security", outputCanariesStable && JSON.stringify(actualAttachments) === JSON.stringify(expectedAttachments) && output.decodedStreamErrors?.length === 0, { actual: { text: output.termCounts, decoded: output.decodedStreamTermCounts, attachments: actualAttachments, decodedErrors: output.decodedStreamErrors || [] } }),
+    gate("pdf-security:single-clean-revision-and-provenance", "security", output.startxrefCount === 1 && output.eofCount === 1 && auditSourceHash(audit) === source.sha256 && auditOutputHash(audit) === output.sha256 && output.sha256 !== source.sha256, { expected: { source: source.sha256, output: output.sha256 }, actual: { startxref: output.startxrefCount, eof: output.eofCount, source: auditSourceHash(audit) || "unreported", output: auditOutputHash(audit) || "unreported" } }),
+    ...qpdfRecoveryTraceChecks(audit, commands),
   ];
 }
 
@@ -1474,6 +1594,27 @@ export async function gradePdfCase({ item, workspace, evaluator, finalMessage, t
     }, false);
     if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
     checks = gradeOverflowRefusalEvidence({ evidence: oracle.evidence, audit, commands, finalMessage, item });
+  } else if (item.id === "pdf-damaged-xref-recovery") {
+    const output = path.join(workspace, "outputs", "recovered.pdf");
+    const outputExists = await fs.access(output).then(() => true, () => false);
+    oracle = invokeOracle({
+      kind: "damaged-xref-recovery",
+      recoverable: path.join(workspace, "inputs", "recoverable.pdf"),
+      unrecoverable: path.join(workspace, "inputs", "unrecoverable.pdf"),
+      ...(outputExists ? { output, renderRoot: path.join(evaluator, "pdf-oracle-render") } : {}),
+    }, outputExists);
+    if (!oracle.evidence && oracle.oracleError) {
+      checks = [
+        check("pdf-machine:damaged-xref-oracle-readable", "machine", false, { actual: oracle.oracleError }),
+        gate("pdf-security:damaged-xref-oracle-readable", "security", false, { actual: oracle.oracleError }),
+      ];
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: { oracleError: oracle.oracleError }, pending: [], ...score };
+    }
+    if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
+    checks = outputExists
+      ? gradeDamagedXrefRecoveryEvidence({ evidence: oracle.evidence, audit, commands, item })
+      : gradeDamagedXrefSafeRefusalEvidence({ evidence: oracle.evidence, audit, commands, finalMessage, outputEntries });
   } else if (boundaryRefusalCases.has(item.id)) {
     const boundary = boundaryRefusalCases.get(item.id);
     const credential = boundary.credential ? await readJsonInput(workspace, boundary.credential) : null;

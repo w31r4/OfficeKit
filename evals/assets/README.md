@@ -38,6 +38,16 @@ with `P=2`, one empty visible `ApprovedAmount` text field, and one
 retains neither root nor signer private material. It is a controlled
 finalisation test, not an example of arbitrary signed-form editing.
 
+`pdf/corrupt/recoverable.pdf` and `pdf/corrupt/unrecoverable.pdf` are a
+self-authored qpdf structural-repair pair. The recoverable file contains two
+native-text pages and the exact document-level `repair-evidence.txt` attachment;
+only its terminal `startxref` pointer is deliberately set to `0`. The malformed
+control has a PDF header but no usable trailer or page tree. The matching
+PromptBench oracle checks source/control identity, attachment bytes, strict
+post-repair structure, and page-for-page Poppler pixels. Refresh the pair only
+through `scripts/agent-eval-corpus-fixtures.py refresh-corrupt` and commit it
+with the updated integrity manifest.
+
 Refreshing fixtures is an intentional corpus update: regenerate the files,
 review their structure and provenance, then commit the revised assets and
 integrity manifest together. Generating the DocMDP fixture additionally needs

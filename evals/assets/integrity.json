@@ -12,6 +12,18 @@
       "kind": "file",
       "sha256": "049f755334f9abf1059dad74b92ae4e02cccb85e4df50efbaad8ccf90178c272"
     },
+    "pdf/corrupt/recoverable.pdf": {
+      "bytes": 2535,
+      "description": "Recoverable wrong-startxref two-page PDF with native-text and document-attachment canaries.",
+      "kind": "file",
+      "sha256": "f71efab36939d8138aedb34f84ca438ae03770eda80d63fa5a9b7a4f74b47b37"
+    },
+    "pdf/corrupt/unrecoverable.pdf": {
+      "bytes": 145,
+      "description": "PDF-header-only malformed structural-repair control with no usable trailer or page tree.",
+      "kind": "file",
+      "sha256": "3c70bdcc61c958b72068bc40b916b5ceb12d3d5535a9b634edf745f74de67fce"
+    },
     "pdf/encryption/owner-policy-aes256.pdf": {
       "bytes": 3646,
       "description": "AES-256 encrypted user/owner permission split with embedded attachment and AcroForm canaries.",
