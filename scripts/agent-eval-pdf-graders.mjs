@@ -793,6 +793,15 @@ function damagedXrefControlSourceHash(control, audit) {
     || "";
 }
 
+function normalizeQpdfInspection(record) {
+  if (!record || typeof record !== "object") return record;
+  return {
+    ...record,
+    status: record.status || record.checkStatus || record.qpdfStatus,
+    exitCode: record.exitCode ?? record.checkExitCode ?? record.qpdfExitCode,
+  };
+}
+
 function damagedXrefRepair(audit) {
   const qpdf = audit?.validation?.qpdf;
   if (qpdf && typeof qpdf === "object") {
@@ -815,7 +824,7 @@ function damagedXrefRepair(audit) {
       // A rewrite's own success claim is not evidence that the resulting
       // package is clean. Require a named fresh record, or an explicit
       // `freshInspectCompleted: true` staging marker plus its after record.
-      checkAfter: namedFreshInspect || stagedFreshInspect,
+      checkAfter: normalizeQpdfInspection(namedFreshInspect || stagedFreshInspect),
       requiresFreshInspection: qpdf.freshInspectCompleted === true,
     };
   }
@@ -824,7 +833,7 @@ function damagedXrefRepair(audit) {
     return {
       checkBefore: audit?.warnings?.repairBefore,
       qpdfWrite: audit?.warnings?.repairWrite,
-      checkAfter: qpdfFreshInspect,
+      checkAfter: normalizeQpdfInspection(qpdfFreshInspect),
       requiresFreshInspection: true,
     };
   }
@@ -833,11 +842,11 @@ function damagedXrefRepair(audit) {
     return {
       checkBefore: audit?.validation?.repairBefore,
       qpdfWrite: audit?.warnings,
-      checkAfter: {
+      checkAfter: normalizeQpdfInspection({
         status: repairAfter.qpdfStatus,
         freshInspect: repairAfter.freshInspect,
         exitCode: repairAfter.qpdfExitCode,
-      },
+      }),
       requiresFreshInspection: true,
     };
   }
@@ -848,7 +857,7 @@ function damagedXrefRepair(audit) {
       qpdfWrite: audit?.warnings?.rewrite,
       // This shape records repair warnings at the audit root and retains the
       // separate post-write qpdf inspection under validation.
-      checkAfter: freshInspection,
+      checkAfter: normalizeQpdfInspection(freshInspection),
       requiresFreshInspection: true,
     };
   }
