@@ -125,6 +125,10 @@ assert.deepEqual(PDF_PROVIDER_CATALOG.packs.verapdf.releaseEvidence.verifiedPlat
 assert.equal(PDF_PROVIDER_CATALOG.packs.verapdf.license.expression, "MPL-2.0 AND GPL-3.0-or-later AND GPL-2.0-only WITH Classpath-exception-2.0");
 assert.equal(PDF_PROVIDER_CATALOG.providers.verapdf.probeTimeoutMs, 20_000);
 assert.equal(PDF_PROVIDER_CATALOG.providers.ocrmypdf.probeTimeoutMs, 20_000, "cold isolated OCR runtime probing needs the same bounded startup allowance as managed veraPDF");
+assert.equal(PDF_PROVIDER_CATALOG.packs["poppler-qa"].state, "published");
+assert.equal(PDF_PROVIDER_CATALOG.packs["poppler-qa"].version, "24.08.0-oat.1");
+assert.deepEqual(PDF_PROVIDER_CATALOG.packs["poppler-qa"].platforms, ["win32-x64"]);
+assert.deepEqual(PDF_PROVIDER_CATALOG.packs["poppler-qa"].releaseEvidence.verifiedPlatforms, ["win32-x64"]);
 assert.ok(!("managedPack" in PDF_PROVIDER_CATALOG.providers.qpdf), "pack metadata must have one canonical top-level home");
 
 function entrypointPaths(packId, platformId) {
@@ -144,6 +148,11 @@ assert.deepEqual(entrypointPaths("ocr-core", "win32-x64"), {
 assert.deepEqual(entrypointPaths("verapdf", "win32-x64"), {
   "bin/verapdf": "bin/verapdf.exe",
   "jre/bin/java": "jre/bin/java.exe",
+});
+assert.deepEqual(entrypointPaths("poppler-qa", "win32-x64"), {
+  "bin/pdfinfo": "bin/pdfinfo.exe",
+  "bin/pdftoppm": "bin/pdftoppm.exe",
+  "bin/pdftotext": "bin/pdftotext.exe",
 });
 
 const windowsPlatformCatalog = structuredClone(PDF_PROVIDER_CATALOG);
@@ -322,6 +331,30 @@ assert.equal(managedVeraPdf.reason.code, "managed-install-required");
 assert.deepEqual(managedVeraPdf.installPlan.packIds, ["verapdf"]);
 assert.equal(managedVeraPdf.installPlan.runtime.managedRuntime.commandPaths.verapdf, "bin/verapdf");
 
+const managedPoppler = await PdfProviders.resolve({
+  task: "render",
+  provider: "poppler",
+  savePolicy: "read-only",
+  inspection: inspectedPdf,
+  policy: {
+    installPolicy: "managed",
+    allowedProviders: ["poppler"],
+    allowedPacks: ["poppler-qa"],
+    maxDownloadBytes: 32 * 1024 * 1024,
+    maxUnpackedBytes: 64 * 1024 * 1024,
+  },
+});
+if (platform === "win32-x64") {
+  assert.equal(managedPoppler.status, "installable");
+  assert.equal(managedPoppler.reason.code, "managed-install-required");
+  assert.deepEqual(managedPoppler.installPlan.packIds, ["poppler-qa"]);
+  assert.equal(managedPoppler.installPlan.runtime.managedRuntime.commandPaths.pdfinfo, "bin/pdfinfo");
+} else {
+  assert.equal(managedPoppler.status, "blocked");
+  assert.equal(managedPoppler.reason.code, "platform-artifact-unavailable");
+  assert.deepEqual(managedPoppler.installPlan.packs[0].entrypoints, []);
+}
+
 const unacknowledgedSpecialists = await PdfProviders.resolve({
   task: "inspect",
   provider: "pymupdf",
@@ -477,6 +510,8 @@ assert.match(liveWorkflow, /^  ocr-managed-pack:/m);
 assert.match(liveWorkflow, /node test\/pdf-ocr-managed-release\.mjs/);
 assert.match(liveWorkflow, /^  verapdf-managed-pack:/m);
 assert.match(liveWorkflow, /node test\/pdf-verapdf-managed-release\.mjs/);
+assert.match(liveWorkflow, /^  poppler-managed-pack:/m);
+assert.match(liveWorkflow, /node test\/pdf-poppler-managed-release\.mjs/);
 
 const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-pdf-providers-"));
 try {

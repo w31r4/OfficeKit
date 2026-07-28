@@ -204,3 +204,42 @@ jobs:
           asset="$(jq -r .asset <<<"$metadata")"
           gh release download "$tag" --pattern "$asset" --dir "$RUNNER_TEMP/verapdf-attestation"
           gh attestation verify "$RUNNER_TEMP/verapdf-attestation/$asset" --repo "$GITHUB_REPOSITORY"
+
+  poppler-managed-pack:
+    name: Poppler QA managed pack (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: win32-x64
+            runner: windows-2025
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Resolve, install, probe, and render with the published Poppler QA pack
+        env:
+          OFFICE_KIT_PDF_LIVE_PACK_TEST: "1"
+        run: node test/pdf-poppler-managed-release.mjs
+      - name: Verify the release asset's GitHub attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACK_PLATFORM: ${{ matrix.platform }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata="$(node --input-type=module --eval '
+            import { PDF_PROVIDER_CATALOG } from "./src/pdf/providers/index.mjs";
+            const pack = PDF_PROVIDER_CATALOG.packs["poppler-qa"];
+            const artifact = pack.artifacts.find((entry) => entry.platform === process.env.PACK_PLATFORM);
+            if (!artifact) throw new Error("missing Poppler QA artifact for " + process.env.PACK_PLATFORM);
+            process.stdout.write(JSON.stringify({ tag: "pdf-provider-poppler-qa-" + pack.version, asset: artifact.asset }));
+          ')"
+          tag="$(jq -r .tag <<<"$metadata")"
+          asset="$(jq -r .asset <<<"$metadata")"
+          gh release download "$tag" --pattern "$asset" --dir "$RUNNER_TEMP/poppler-attestation"
+          gh attestation verify "$RUNNER_TEMP/poppler-attestation/$asset" --repo "$GITHUB_REPOSITORY"

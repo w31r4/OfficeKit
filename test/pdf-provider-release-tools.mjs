@@ -35,7 +35,8 @@ for (const [jobName, nextJobName] of [
   ["qpdf-managed-pack", "python-managed-pack"],
   ["python-managed-pack", "ocr-managed-pack"],
   ["ocr-managed-pack", "verapdf-managed-pack"],
-  ["verapdf-managed-pack", null],
+  ["verapdf-managed-pack", "poppler-managed-pack"],
+  ["poppler-managed-pack", null],
 ]) {
   assert.match(
     workflowJob(liveWorkflow, jobName, nextJobName),

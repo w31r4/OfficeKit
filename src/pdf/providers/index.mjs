@@ -161,6 +161,7 @@ function buildInstallPlan(providerId, provider, task, policy, requestedLanguages
   const { packIds, missingLanguages } = packIdsFor(provider, task, requestedLanguages);
   const packs = packIds.map((packId) => {
     const pack = pdfPackById(packId);
+    const platformSupported = pack.platforms.includes("any") || pack.platforms.includes(platform);
     const artifact = pack.state === "published" ? packArtifactForPlatform(pack, platform) : undefined;
     return {
       packId,
@@ -171,7 +172,11 @@ function buildInstallPlan(providerId, provider, task, policy, requestedLanguages
       dependencyClosure: [...pack.dependencyClosure],
       estimatedDownloadBytes: pack.estimatedDownloadBytes,
       estimatedUnpackedBytes: pack.estimatedUnpackedBytes,
-      entrypoints: clonePdfProviderValue(pdfPackEntrypointsForPlatform(pack, platform)),
+      // A catalog can publish an intentionally single-platform pack. Resolving
+      // it on a different platform is a normal capability outcome, not a
+      // malformed request: expose a later structured blocker instead of
+      // throwing while attempting to map physical executable paths.
+      entrypoints: platformSupported ? clonePdfProviderValue(pdfPackEntrypointsForPlatform(pack, platform)) : [],
       artifact: artifact ? clonePdfProviderValue(artifact) : null,
       license: clonePdfProviderValue(pack.license),
     };
