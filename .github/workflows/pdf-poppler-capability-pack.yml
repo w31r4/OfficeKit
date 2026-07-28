@@ -48,7 +48,8 @@ jobs:
             .popplerQa.packId == "poppler-qa" and
             .popplerQa.version == "24.08.0-oat.1" and
             (.popplerQa.nativeBuild["win32-x64"].sha256 | test("^[a-f0-9]{64}$")) and
-            (.licenseMaterial.popplerGpl20.sha256 | test("^[a-f0-9]{64}$"))
+            (.popplerQa.nativeBuild["win32-x64"].licenseRelativePath == "share/poppler/COPYING.gpl2") and
+            (.popplerQa.nativeBuild["win32-x64"].licenseSha256 | test("^[a-f0-9]{64}$"))
           ' "$POPPLER_INPUTS"
       - name: Download and assemble the isolated Windows Poppler closure
         shell: bash
@@ -84,11 +85,11 @@ jobs:
             --bin-root "$bin_root" \
             --data-root "$data_root" \
             --notices "$notices"
-          license_url="$(jq -r '.licenseMaterial.popplerGpl20.url' "$POPPLER_INPUTS")"
-          license_sha="$(jq -r '.licenseMaterial.popplerGpl20.sha256' "$POPPLER_INPUTS")"
-          license_bytes="$(jq -r '.licenseMaterial.popplerGpl20.downloadBytes' "$POPPLER_INPUTS")"
-          license_file="$RUNNER_TEMP/poppler-GPL-2.0.txt"
-          curl --fail --location --retry 3 --proto '=https' --tlsv1.2 "$license_url" --output "$license_file"
+          license_relative="$(jq -r '.popplerQa.nativeBuild["win32-x64"].licenseRelativePath' "$POPPLER_INPUTS")"
+          license_sha="$(jq -r '.popplerQa.nativeBuild["win32-x64"].licenseSha256' "$POPPLER_INPUTS")"
+          license_bytes="$(jq -r '.popplerQa.nativeBuild["win32-x64"].licenseBytes' "$POPPLER_INPUTS")"
+          license_file="$source_root/$archive_root/$license_relative"
+          test -f "$license_file"
           test "$(wc -c < "$license_file" | tr -d ' ')" = "$license_bytes"
           test "$(node scripts/sha256-file.mjs "$license_file")" = "$license_sha"
           {
@@ -102,7 +103,7 @@ jobs:
             while IFS= read -r notice; do
               printf '\n## %s\n\n' "$(basename "$notice")"
               cat "$notice"
-            done < <(find "$data_root" -maxdepth 1 -type f \( -name 'COPYING*' -o -name 'NOTICE*' \) -print | LC_ALL=C sort)
+            done < <(find "$data_root" -maxdepth 1 -type f \( -name 'COPYING' -o -name 'COPYING.adobe' -o -name 'NOTICE*' \) -print | LC_ALL=C sort)
           } > "$RUNNER_TEMP/poppler-qa-notices.md"
           node scripts/build-pdf-provider-pack.mjs \
             --pack poppler-qa \

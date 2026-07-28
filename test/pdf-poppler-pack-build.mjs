@@ -26,11 +26,12 @@ assert.equal(native.version, "24.08.0-0");
 assert.equal(native.root, "poppler-24.08.0");
 assert.equal(native.binRelativePath, "Library/bin");
 assert.equal(native.dataRelativePath, "share/poppler");
-for (const value of [native, inputs.licenseMaterial.popplerGpl20]) {
-  assert.match(value.url, /^https:\/\//);
-  assert.match(value.sha256, /^[a-f0-9]{64}$/);
-  assert.ok(Number.isSafeInteger(value.downloadBytes) && value.downloadBytes > 1_000);
-}
+assert.equal(native.licenseRelativePath, "share/poppler/COPYING.gpl2");
+assert.equal(native.licenseSha256, "ab15fd526bd8dd18a9e77ebc139656bf4d33e97fc7238cd11bf60e2b9b8666c6");
+assert.equal(native.licenseBytes, 17987);
+assert.match(native.url, /^https:\/\//);
+assert.match(native.sha256, /^[a-f0-9]{64}$/);
+assert.ok(Number.isSafeInteger(native.downloadBytes) && native.downloadBytes > 1_000);
 
 for (const fragment of [
   "win32 payload must be assembled on win32",
@@ -42,6 +43,8 @@ for (const fragment of [
   "Poppler data contains a symlink",
   "Poppler binary root has no DLL runtime closure",
   "same-directory DLL closure",
+  "safe archive-relative path, SHA-256, and positive byte size",
+  "license material must live inside the copied data tree",
 ]) assert.match(builder, new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 
 for (const fragment of [
@@ -55,6 +58,7 @@ for (const fragment of [
   "System32",
   "sha256-file.mjs",
   "verify-pdf-provider-pack.mjs",
+  "COPYING.gpl2",
 ]) assert.match(workflow, new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 assert.doesNotMatch(workflow, /(?:choco|winget|scoop)\s+(?:install|add)/i, "the release lane must not use a global Windows package manager");
 assert.doesNotMatch(workflow, /shasum|tar -xzf/, "the Windows release lane must not inherit Git Bash hashing or tar behavior");

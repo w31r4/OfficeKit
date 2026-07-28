@@ -56,6 +56,14 @@ function assertLockedAsset(value, label) {
   if (url.protocol !== "https:") fail(`${label}.url must be HTTPS.`);
 }
 
+function assertLockedEmbeddedLicense(value, label) {
+  if (!value || typeof value !== "object" || !isSafeRelativePath(value.licenseRelativePath)
+    || !SHA256.test(value.licenseSha256 || "")
+    || !Number.isSafeInteger(value.licenseBytes) || value.licenseBytes <= 0) {
+    fail(`${label} must pin a safe archive-relative path, SHA-256, and positive byte size.`);
+  }
+}
+
 async function loadInputs() {
   const bytes = await fs.readFile(DEFAULT_INPUTS);
   let inputs;
@@ -75,7 +83,10 @@ async function loadInputs() {
     fail("release input lock has an invalid Windows Poppler source layout.");
   }
   assertLockedAsset(native, "Windows Poppler source");
-  assertLockedAsset(inputs.licenseMaterial?.popplerGpl20, "Poppler GPL-2.0 license material");
+  assertLockedEmbeddedLicense(native, "Windows Poppler GPL-2.0 license material");
+  if (!native.licenseRelativePath.startsWith(`${native.dataRelativePath}/`)) {
+    fail("Windows Poppler GPL-2.0 license material must live inside the copied data tree.");
+  }
   return inputs;
 }
 

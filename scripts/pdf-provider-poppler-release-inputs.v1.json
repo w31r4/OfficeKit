@@ -13,15 +13,11 @@
         "downloadBytes": 15090263,
         "root": "poppler-24.08.0",
         "binRelativePath": "Library/bin",
-        "dataRelativePath": "share/poppler"
+        "dataRelativePath": "share/poppler",
+        "licenseRelativePath": "share/poppler/COPYING.gpl2",
+        "licenseSha256": "ab15fd526bd8dd18a9e77ebc139656bf4d33e97fc7238cd11bf60e2b9b8666c6",
+        "licenseBytes": 17987
       }
-    }
-  },
-  "licenseMaterial": {
-    "popplerGpl20": {
-      "url": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt",
-      "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
-      "downloadBytes": 17984
     }
   }
 }
