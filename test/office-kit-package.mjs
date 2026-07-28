@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -13,22 +12,19 @@ try {
   const report = JSON.parse(packed.stdout)[0];
   const tarball = path.join(temporary, report.filename);
   assert.ok(fs.existsSync(tarball), `npm pack did not create ${tarball}`);
-  // `npm ci` prepares the locked production tarballs in npm's content-addressed
-  // cache, but npm 10 does not retain every registry packument needed to solve
-  // semver ranges later in offline mode. Materialize the exact lock-pinned
-  // tarballs from that cache instead. Re-packing installed dependency
-  // directories is not equivalent: npm 10 on Windows may run a third-party
-  // local `prepare` script even when `--ignore-scripts` is supplied to
-  // `npm pack`.
+  // Use a consumer lockfile that pins this just-packed candidate and the exact
+  // production closure already present in the repository lock. `npm ci` can
+  // then install it from its tarball cache without resolving semver ranges
+  // against the registry. Passing local tarballs to an unpinned `npm install`
+  // is not equivalent: npm 10 still asks for registry packuments while it
+  // resolves transitive ranges. Re-packing installed dependency directories is
+  // also not equivalent: npm 10 on Windows may run a third-party local
+  // `prepare` script even when `--ignore-scripts` is supplied to `npm pack`.
   //
   // Optional renderer peers are intentionally outside this core OfficeKit/PDF
   // probe and remain covered by package metadata tests.
-  const dependencyTarballs = materializeProductionDependencyTarballs(temporary);
-  run("npm", [
-    "install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund",
-    "--omit=dev", "--legacy-peer-deps", "--no-save", tarball, ...dependencyTarballs,
-  ], temporary);
-  testGlobalCli({ dependencyTarballs, tarball, temporary });
+  installLockedCandidate({ tarball, temporary });
+  testGlobalCli({ temporary });
 
   const probe = String.raw`
     import { spawnSync } from "node:child_process";
@@ -701,49 +697,57 @@ function run(command, args, cwd, environment = {}) {
   return result;
 }
 
-function materializeProductionDependencyTarballs(temporary) {
+function installLockedCandidate({ tarball, temporary }) {
   const lock = JSON.parse(fs.readFileSync(path.join(repoRoot, "package-lock.json"), "utf8"));
-  const destination = path.join(temporary, "dependency-tarballs");
-  fs.mkdirSync(destination, { recursive: true });
-  const cache = run("npm", ["config", "get", "cache"], repoRoot).stdout.trim();
-  assert.ok(path.isAbsolute(cache), `npm must report an absolute cache path, received ${JSON.stringify(cache)}`);
-  const packages = Object.entries(lock.packages || {})
-    .filter(([location, metadata]) => location.startsWith("node_modules/") && !metadata.dev && !metadata.optional && !metadata.peer);
-  return packages.map(([location, metadata], index) => materializeCacheTarball({
-    cache,
-    destination,
-    index,
-    integrity: metadata.integrity,
-    location,
-  }));
+  const filename = path.basename(tarball);
+  const candidateSpec = `file:${filename}`;
+  const consumer = {
+    name: "office-kit-clean-install-smoke",
+    private: true,
+    version: "0.0.0",
+    dependencies: { "office-kit": candidateSpec },
+  };
+  const consumerLock = {
+    name: consumer.name,
+    version: consumer.version,
+    lockfileVersion: 3,
+    requires: true,
+    packages: {
+      "": {
+        name: consumer.name,
+        version: consumer.version,
+        dependencies: consumer.dependencies,
+      },
+      "node_modules/office-kit": {
+        ...lock.packages[""],
+        resolved: candidateSpec,
+      },
+    },
+  };
+  for (const [location, metadata] of Object.entries(lock.packages || {})) {
+    if (location && !metadata.dev) consumerLock.packages[location] = metadata;
+  }
+  fs.writeFileSync(path.join(temporary, "package.json"), `${JSON.stringify(consumer, null, 2)}\n`, { mode: 0o600 });
+  fs.writeFileSync(path.join(temporary, "package-lock.json"), `${JSON.stringify(consumerLock, null, 2)}\n`, { mode: 0o600 });
+  run("npm", [
+    "ci", "--offline", "--ignore-scripts", "--no-audit", "--no-fund",
+    "--omit=dev", "--legacy-peer-deps",
+  ], temporary);
 }
 
-function materializeCacheTarball({ cache, destination, index, integrity, location }) {
-  const match = typeof integrity === "string" && integrity.match(/(?:^|\s)sha512-([^\s]+)/);
-  assert.ok(match, `${location} must carry one sha512 package-lock integrity value`);
-  const digest = Buffer.from(match[1], "base64");
-  assert.equal(digest.length, 64, `${location} has an invalid sha512 package-lock integrity digest`);
-  const hex = digest.toString("hex");
-  const cacheTarball = path.join(cache, "_cacache", "content-v2", "sha512", hex.slice(0, 2), hex.slice(2, 4), hex.slice(4));
-  const stat = fs.lstatSync(cacheTarball, { throwIfNoEntry: false });
-  assert.ok(stat?.isFile() && !stat.isSymbolicLink(), `${location} is missing its regular sha512-pinned npm cache tarball`);
-  const bytes = fs.readFileSync(cacheTarball);
-  assert.equal(
-    createHash("sha512").update(bytes).digest("base64"),
-    match[1],
-    `${location} npm cache tarball does not match package-lock sha512 integrity`,
-  );
-  const output = path.join(destination, `dependency-${String(index).padStart(3, "0")}.tgz`);
-  fs.writeFileSync(output, bytes, { flag: "wx", mode: 0o600 });
-  return output;
-}
-
-function testGlobalCli({ dependencyTarballs, tarball, temporary }) {
+function testGlobalCli({ temporary }) {
   const globalPrefix = path.join(temporary, "global-prefix");
+  // The packed candidate above is installed through the generated lockfile.
+  // A directory global install then creates npm's normal global launcher for
+  // that exact installed package without triggering a second unconstrained
+  // dependency solve. This keeps the global CLI smoke offline and makes the
+  // packed clean-install evidence and launcher evidence both explicit.
+  const installedCandidate = path.join(temporary, "node_modules", "office-kit");
+  assert.ok(fs.existsSync(installedCandidate), "locked candidate install must produce office-kit before global launcher validation");
   run("npm", [
     "install", "--global", "--prefix", globalPrefix, "--offline",
     "--ignore-scripts", "--no-audit", "--no-fund", "--omit=dev",
-    "--legacy-peer-deps", tarball, ...dependencyTarballs,
+    "--legacy-peer-deps", installedCandidate,
   ], temporary);
   const officekit = process.platform === "win32"
     ? path.join(globalPrefix, "officekit.cmd")
