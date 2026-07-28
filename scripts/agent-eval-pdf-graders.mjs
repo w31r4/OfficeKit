@@ -59,7 +59,7 @@ function sameBoundingBox(left = [], right = [], tolerance = 0.01) {
 function auditProvider(audit) {
   const provider = audit?.provider;
   if (typeof provider === "string") return provider;
-  return provider?.actual || provider?.selected || provider?.name || provider?.provider || audit?.actualProvider || "";
+  return provider?.actual || provider?.actual_inspection_provider || provider?.selected || provider?.name || provider?.provider || audit?.actualProvider || "";
 }
 
 function auditFallback(audit) {
@@ -69,6 +69,8 @@ function auditFallback(audit) {
     provider?.silent_fallback,
     provider?.fallbackUsed,
     provider?.fallback_used,
+    provider?.providerSwitched,
+    provider?.provider_switched,
     audit?.silentFallback,
     audit?.silent_fallback,
     audit?.fallbackUsed,
@@ -79,7 +81,7 @@ function auditFallback(audit) {
 
 function auditProviderVersion(audit) {
   const provider = audit?.provider;
-  return provider?.version || provider?.providerVersion || audit?.providerVersion || audit?.provider_version || "";
+  return provider?.version || provider?.actual_inspection_provider_version || provider?.providerVersion || audit?.providerVersion || audit?.provider_version || "";
 }
 
 function auditSourceHash(audit) {
@@ -93,45 +95,72 @@ function auditOutputHash(audit) {
 function auditSaveStrategy(audit) {
   const policy = audit?.savePolicy || audit?.save_policy || audit?.saveStrategy || audit?.save_strategy;
   if (typeof policy === "string") return policy;
-  return policy?.strategy || policy?.selected || audit?.strategy || "";
+  return policy?.strategy || policy?.mode || policy?.selected || audit?.strategy || "";
+}
+
+function auditOperationRecords(audit) {
+  const operation = audit?.operation;
+  if (operation && typeof operation === "object" && !Array.isArray(operation)) return [operation];
+  if (Array.isArray(operation)) return operation.filter((value) => value && typeof value === "object");
+  if (Array.isArray(audit?.operations)) return audit.operations.filter((value) => value && typeof value === "object");
+  return [];
 }
 
 function auditOperation(audit) {
   const operation = audit?.operation;
   if (typeof operation === "string") return operation;
-  if (Array.isArray(operation)) return operation.map((value) => typeof value === "string" ? value : value?.type || value?.operation || "").join(" ");
-  return operation?.type || operation?.operation || operation?.name || operation?.performed || "";
+  const records = auditOperationRecords(audit);
+  return records.map((value) => value.type || value.operation || value.name || value.performed || "").join(" ");
 }
 
 function auditOperationRecord(audit) {
-  if (audit?.operation && typeof audit.operation === "object" && !Array.isArray(audit.operation)) return audit.operation;
-  if (Array.isArray(audit?.operation)) return audit.operation.find((value) => value && typeof value === "object") || null;
-  if (Array.isArray(audit?.operations)) return audit.operations.find((value) => value && typeof value === "object") || null;
-  return null;
+  const records = auditOperationRecords(audit);
+  return records.find((record) => record.mode === "mutation" || /(?:permission|edit|replace|redact|fill|flatten|sign|mutation|refus)/i.test(String(record.type || record.operation || record.name || ""))) || records[0] || null;
 }
 
 function auditRefusalOperationUnexecuted(audit) {
-  const operation = auditOperationRecord(audit) || {};
-  return Boolean(auditOperation(audit)) && (
+  return auditOperationRecords(audit).some((operation) => Boolean(operation.type || operation.operation || operation.name) && (
     operation.executed === false
     || operation.performed === false
+    || operation.performed === "none"
     || operation.mutationAttempted === false
-  );
+    || /(?:refused|not.?attempted|not.?performed|no.?mutation)/i.test(String(operation.result || ""))
+  ));
 }
 
 function auditRefusalNoArtifactClaim(audit) {
   const validation = audit?.validation || {};
-  const artifactChecks = validation.artifactChecks || validation.artifact_checks || {};
+  const artifactChecks = validation.artifactChecks || validation.artifact_checks || validation.artifactCheck || validation.artifact_check || {};
   const outputDirectoryPolicy = validation.outputDirectoryPolicy || {};
-  return audit?.output === null && audit?.delivered_modified_pdf !== true && (
+  const saveRecord = audit?.savePolicy || audit?.save_policy || {};
+  const validationChecks = Array.isArray(validation.checks) ? validation.checks : [];
+  const auditOnly = saveRecord.allowed_output === "audit_only" || /(?:failed.closed|audit.only)/i.test(String(saveRecord.publication || ""));
+  const noModifiedArtifact = (
     audit?.delivered_modified_pdf === false
     || validation.no_partial_modified_pdf_in_outputs === true
     || audit?.noPartialOutput === true
     || artifactChecks.modifiedPdfCreated === false
     || artifactChecks.modifiedPdfProduced === false
     || artifactChecks.outputIsNull === true
+    || artifactChecks.modifiedArtifactCreated === false
+    || artifactChecks.modifiedArtifactProduced === false
+    || saveRecord.artifactWritten === false
+    || saveRecord.artifact_written === false
+    || validationChecks.some((entry) => /(?:modified|artifact).*absent/i.test(String(entry?.check || "")) && /^(?:passed|true)$/i.test(String(entry?.result ?? entry?.passed)))
     || outputDirectoryPolicy.modifiedPdfPresent === false && outputDirectoryPolicy.partialArtifactPresent === false
   );
+  const noPartialArtifact = (
+    validation.no_partial_modified_pdf_in_outputs === true
+    || audit?.noPartialOutput === true
+    || artifactChecks.partialArtifactPresent === false
+    || artifactChecks.partialArtifactProduced === false
+    || saveRecord.partialResultsWritten === false
+    || saveRecord.partial_results_written === false
+    || outputDirectoryPolicy.partialArtifactPresent === false
+    || auditOnly
+  );
+  const outputIsNullOrOmitted = !Object.hasOwn(audit || {}, "output") || audit.output === null;
+  return outputIsNullOrOmitted && audit?.delivered_modified_pdf !== true && noModifiedArtifact && noPartialArtifact;
 }
 
 function auditRefusalSavePolicy(audit) {
@@ -140,10 +169,15 @@ function auditRefusalSavePolicy(audit) {
     || saveRecord.performed === false
     || saveRecord.sourceOverwrite === false
     || saveRecord.modifiedArtifactAllowed === false
-    || /(?:failed.closed|audit.only)/i.test(String(saveRecord.publication || ""));
+    || saveRecord.artifactWritten === false
+    || saveRecord.artifact_written === false
+    || saveRecord.mode === "failed_closed"
+    || /(?:failed.closed|audit.only|refused.*mutation)/i.test(String(saveRecord.publication || saveRecord.decision || ""));
   const sourcePreserved = saveRecord.sourcePreserved === true
     || saveRecord.sourceOverwrite === false
-    || audit?.validation?.sourceImmutable === true;
+    || audit?.source?.preserved_unchanged === true
+    || audit?.validation?.sourceImmutable === true
+    || audit?.validation?.sourceIntegrity?.sourceOverwritten === false;
   return Boolean(auditSaveStrategy(audit)) && noMutation && sourcePreserved && auditRefusalNoArtifactClaim(audit);
 }
 
@@ -209,7 +243,7 @@ function overflowTraceChecks(audit, commands) {
 function boundaryRefusalTraceChecks(audit, commands, item) {
   const commandText = commands.join("\n");
   const saveRecord = audit?.savePolicy || audit?.save_policy || {};
-  const hasInspection = /(?:pdf_provider\.py\s+(?:check|plan)|pymupdf_edit\.py\s+probe|\bqpdf\b|\bpdfinfo\b|\bpypdf\b|PdfFile\.(?:inspect|open))/i.test(commandText);
+  const hasInspection = /(?:pdf_provider\.py\s+(?:check|plan)|qpdf_provider\.py\s+(?:inspect|probe)|pymupdf_edit\.py\s+probe|\bqpdf\b|\bpdfinfo\b|\bpypdf\b|PdfFile\.(?:inspect|open))/i.test(commandText);
   const mutationPatterns = [
     /pymupdf_edit\.py\s+edit\b/i,
     /\bupdate_stream\s*\(/i,
