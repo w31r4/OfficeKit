@@ -86,11 +86,13 @@ OutputIntent dictionaries. A response passes only if that input proof, a
 failed-closed audit bound to the source hash, an explicit inspection trace,
 no-fallback/no-mutation evidence, and the case diagnostic all agree. These are
 fixture and grader tests so far; no autonomous candidate/reference repeat is
-claimed until the actual trial matrix has run. The evaluator accepts the
-canonical audit's equivalent explicit no-mutation fields (`executed: false`,
-`performed: false`, or `mutationAttempted: false`) but never trusts the audit
-alone: it separately inventories the trial output directory and requires the
-audit to bind a null output plus no-artifact evidence.
+claimed until the actual trial matrix has run. The evaluator normalizes the
+published audit envelope and structured equivalent forms: an explicit
+no-mutation result can be `executed: false`, `performed: false`/`"none"`,
+`mutationAttempted: false`, or a typed `refused_not_attempted` operation. It
+also recognizes the corresponding explicit no-artifact fields. It never trusts
+that audit alone: it separately inventories the trial output directory and
+requires it to contain only `audit.json`.
 
 There are four ready PPTX graders. The source-bound slide-name edit uses the canonical `launch-review.pptx` two-slide fixture; the rich-notes edit uses a separate `rich-notes-review.pptx` two-slide fixture; the section-boundary edit uses a four-slide complete native-section partition fixture; and the clone uses `release-review.pptx` with a deliberately small notes/comments/chart leaf profile plus one relationship-free custom-show run action.
 

@@ -212,29 +212,37 @@ const candidateRefusalAudit = {
   status: "failed_closed",
   source: { sha256: encryptedEvidence.source.sha256 },
   output: null,
-  provider: { actual: "pypdf", version: "6.10.0", silentFallback: false },
-  savePolicy: { strategy: "rewrite", performed: false, sourcePreserved: true },
-  operation: { type: "change-copy-permission", performed: false },
-  validation: { artifactChecks: { modifiedPdfCreated: false, outputIsNull: true } },
+  provider: { actual: "qpdf", version: "12.3.2", silentFallback: false },
+  savePolicy: { strategy: "rewrite", decision: "refused before mutation; source preserved byte-for-byte" },
+  operation: { type: "change-copy-permission", performed: "none" },
+  validation: { sourceIntegrity: { sourceOverwritten: false }, artifactCheck: { modifiedArtifactCreated: false, partialArtifactPresent: false } },
   reason: "owner password is unavailable",
 };
 const candidateRefusalChecks = gradeBoundaryRefusalEvidence({
   evidence: encryptedEvidence,
   audit: candidateRefusalAudit,
-  commands: ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
+  commands: ["python .agents/skills/pdf/scripts/qpdf_provider.py inspect inputs/owner-policy-aes256.pdf"],
   finalMessage: "owner password is unavailable",
   item: encryptedItem,
   outputEntries: ["audit.json"],
 });
 assert.equal(candidateRefusalChecks.every((check) => check.passed), true, "candidate-style refusal audit");
-const referenceRefusalAudit = structuredClone(candidateRefusalAudit);
-referenceRefusalAudit.savePolicy = { strategy: "read-only", publication: "failed-closed; audit-only", sourceOverwrite: false, modifiedArtifactAllowed: false };
-referenceRefusalAudit.operation = { type: "edit-encrypted-pdf-copy-permission", mutationAttempted: false };
-referenceRefusalAudit.validation = { sourceImmutable: true, artifactChecks: { modifiedPdfProduced: false, partialArtifactProduced: false } };
+const referenceRefusalAudit = {
+  status: "failed_closed",
+  source: { sha256: encryptedEvidence.source.sha256, preserved_unchanged: true },
+  provider: { actual_inspection_provider: "pypdf", actual_inspection_provider_version: "6.10.0", provider_switched: false },
+  save_policy: { mode: "failed_closed", artifact_written: false, partial_results_written: false, allowed_output: "audit_only" },
+  operations: [
+    { operation: "sha256", mode: "read_only", result: "passed" },
+    { operation: "permission_change", mode: "mutation", result: "refused_not_attempted" },
+  ],
+  validation: { checks: [{ check: "modified_artifact_absent", result: "passed" }] },
+  reason: "owner password is unavailable",
+};
 const referenceRefusalChecks = gradeBoundaryRefusalEvidence({
   evidence: encryptedEvidence,
   audit: referenceRefusalAudit,
-  commands: ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
+  commands: ["from pypdf import PdfReader"],
   finalMessage: "owner password is unavailable",
   item: encryptedItem,
   outputEntries: ["audit.json"],
