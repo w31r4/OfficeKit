@@ -90,6 +90,33 @@ officekit run task.mjs -- input.docx output.docx
 `officekit run` supplies the matching installed OfficeKit API. A task's other
 dependencies continue to resolve from the task's own project.
 
+## Work in the Excel workbook already on screen
+
+Use this route when the workbook is open in Microsoft Excel and may contain
+unsaved work. OfficeKit connects the workbook to the local CLI through its own
+Excel Add-in:
+
+```sh
+officekit excel install
+officekit excel doctor --json
+```
+
+`install` asks before adding a user-local certificate trust, then prints the
+manifest path. In Excel desktop, upload it once through:
+
+```text
+Home > Add-ins > My Add-ins > Upload My Add-in
+```
+
+Open **OfficeKit** from the Home ribbon and click **Connect OfficeKit**. The
+Agent then discovers the intended workbook with `officekit excel sessions
+--json`, uses typed range, formatting, chart, table, PivotTable, screenshot,
+and save operations, and reads changes back before reporting completion.
+
+Excel Live Control V1 targets Microsoft Excel desktop on Windows and macOS.
+The first Add-in load uses Microsoft's Office.js runtime; the workbook and
+OfficeKit's request audit remain on the local machine.
+
 ## One front door, with direct routes when you want them
 
 For ordinary work, start with OfficeKit. It inspects the inputs, decides the
@@ -100,7 +127,7 @@ output route, considers templates, and hands each file to its owning Skill.
 | [OfficeKit](skills/office-kit/skills/office-kit/SKILL.md) | Starting from the requested outcome, or handling cross-format and multi-deliverable work. |
 | [Documents](skills/documents/skills/documents/SKILL.md) | Creating or changing a Word document when the format is already known. |
 | [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | Excel, CSV, formulas, models, data preparation, and charts. |
-| [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | Working with a workbook already open in Excel. |
+| [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | Working with a workbook already open in Microsoft Excel desktop through the local OfficeKit Add-in. |
 | [Presentations](skills/presentations/skills/presentations/SKILL.md) | Creating or changing a PowerPoint presentation. |
 | [PDF](skills/pdf/skills/pdf/SKILL.md) | Reading, creating, inspecting, or processing a PDF. |
 | [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | Saving your own DOCX, XLSX, or PPTX reference as a reusable template. |

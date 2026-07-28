@@ -22,6 +22,15 @@ export const REFERENCE_SKILL_BUNDLES = Object.freeze([
   "default-template-library",
 ]);
 
+// These two reference files describe the former host-owned Excel connector.
+// OfficeKit keeps the upstream bundle inventory and source digest intact, but
+// replaces that connector surface with its own local Add-in protocol. Every
+// other reference path remains required in the project tree.
+export const REPLACED_REFERENCE_SKILL_PATHS = new Set([
+  "spreadsheets/.app.json",
+  "spreadsheets/skills/excel-live-control/officejs.md",
+]);
+
 async function regularFiles(root, relative = "") {
   const entries = await fs.readdir(path.join(root, relative), { withFileTypes: true });
   const output = [];
@@ -102,6 +111,7 @@ async function missingProjectPaths(pathsByBundle) {
   const missing = [];
   for (const bundle of REFERENCE_SKILL_BUNDLES) {
     for (const relative of pathsByBundle[bundle]) {
+      if (REPLACED_REFERENCE_SKILL_PATHS.has(`${bundle}/${relative}`)) continue;
       const projectPath = path.join(projectSkillsRoot, bundle, relative);
       const stat = await fs.lstat(projectPath).catch(() => null);
       if (!stat?.isFile()) missing.push(`${bundle}/${relative}`);

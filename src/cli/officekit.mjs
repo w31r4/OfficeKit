@@ -108,6 +108,11 @@ export async function runOfficeKitCli(
     await runTemplateCommand(commandArguments, { output });
     return;
   }
+  if (command === "excel") {
+    const { runExcelCommand } = await import("../excel-live/cli.mjs");
+    await runExcelCommand(commandArguments, { input, output });
+    return;
+  }
 
   const parsed = parseArguments(argv);
 
@@ -694,6 +699,7 @@ Usage:
   officekit update [path] [--tools <ids>] [--force] [--json]
   officekit run <task.mjs> [-- <task arguments>]
   officekit template search [search options] [--json]
+  officekit excel <command> [options]
   officekit --version
 
 Commands:
@@ -701,6 +707,7 @@ Commands:
   update     Refresh Skills already managed by OfficeKit
   run        Run a task with this OfficeKit installation
   template   Search the bundled and project template catalogs
+  excel      Connect an open Microsoft Excel workbook to local OfficeKit control
 
 Options:
   --tools <ids>  Comma-separated Agent tool IDs, or "all"
@@ -719,5 +726,7 @@ Examples:
   officekit update
   officekit run task.mjs -- input.docx output.docx
   officekit template search --kind presentation --purpose "quarterly business review"
+  officekit excel install
+  officekit excel sessions --json
 `;
 }

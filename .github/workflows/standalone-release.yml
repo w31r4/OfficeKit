@@ -40,6 +40,8 @@ jobs:
           node-version: 24.18.0
           cache: npm
       - run: npm ci
+      - name: Build and verify the bundled Excel Add-in
+        run: npm run test:excel-live
       - name: Verify local standalone contracts
         run: npm run test:standalone
       - name: Build from the pinned official Node runtime

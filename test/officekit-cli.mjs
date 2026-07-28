@@ -8,6 +8,7 @@ import path from "node:path";
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const cli = path.join(repoRoot, "bin", "officekit.mjs");
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "officekit-cli-"));
+const lazyExcelHome = path.join(temporary, "lazy-excel-state");
 
 try {
   const help = run(["--help"]);
@@ -15,8 +16,30 @@ try {
   assert.match(help.stdout, /officekit update \[path\]/);
   assert.match(help.stdout, /officekit run <task\.mjs>/);
   assert.match(help.stdout, /officekit template search/);
+  assert.match(help.stdout, /officekit excel <command>/);
   assert.match(help.stdout, /Choose Agent targets and install the OfficeKit Skills/);
   assert.equal(run(["--version"]).stdout.trim(), "0.5.0");
+  const excelHelp = run(["excel", "--help"]);
+  assert.match(excelHelp.stdout, /officekit excel install/);
+  assert.match(excelHelp.stdout, /officekit excel execute <request\.json>/);
+
+  const lazyProject = path.join(temporary, "lazy-excel-project");
+  const lazyEnvironment = { OFFICEKIT_EXCEL_HOME: lazyExcelHome };
+  parseJson(run(["init", lazyProject, "--tools", "agents", "--json"], { environment: lazyEnvironment }).stdout);
+  parseJson(run([
+    "template",
+    "search",
+    "--kind",
+    "document",
+    "--purpose",
+    "board briefing",
+    "--json",
+  ], { cwd: lazyProject, environment: lazyEnvironment }).stdout);
+  assert.equal(
+    fs.existsSync(lazyExcelHome),
+    false,
+    "root CLI initialization and template search must not initialize the Excel bridge or state",
+  );
 
   const project = path.join(temporary, "detected-project");
   fs.mkdirSync(path.join(project, ".claude"), { recursive: true });

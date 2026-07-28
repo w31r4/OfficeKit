@@ -18,6 +18,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run test:excel-live
       - run: node test/officekit-cli.mjs
       - run: node test/office-kit-package.mjs
       - run: node test/standalone-distribution.mjs

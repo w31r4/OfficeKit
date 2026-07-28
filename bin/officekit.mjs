@@ -7,7 +7,10 @@ try {
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   if (process.argv.includes("--json")) {
-    process.stderr.write(`${JSON.stringify({ ok: false, error: message })}\n`);
+    const failure = error?.code
+      ? (await import("../src/excel-live/protocol.mjs")).createExcelFailure(error)
+      : { ok: false, error: message };
+    process.stderr.write(`${JSON.stringify(failure)}\n`);
   } else if (error?.officeKitShowStack && error instanceof Error) {
     process.stderr.write(`${error.stack ?? error.message}\n`);
   } else {

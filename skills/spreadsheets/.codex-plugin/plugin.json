@@ -20,20 +20,19 @@
     "excel",
     "microsoft excel",
     "excel add-in",
-    "chatgpt add-in for excel",
+    "officekit excel add-in",
     "open workbook",
-    "connected excel session",
+    "live excel session",
     "csv",
     "xlsx",
     "xls",
     "workbook"
   ],
   "skills": "./skills/",
-  "apps": "./.app.json",
   "interface": {
     "displayName": "Spreadsheets",
     "shortDescription": "Create and edit spreadsheet files",
-    "longDescription": "Create, edit, inspect, render, verify, and export XLSX, CSV, and TSV spreadsheets locally, including local XLSX authoring for native Google Sheets handoff. Use Spreadsheets when the durable output or target is a spreadsheet, workbook, sheet, Google Sheet, or CSV file. Use Excel Live Control for working on a spreadsheet open in Microsoft Excel app, through the ChatGPT add-in.",
+    "longDescription": "Create, edit, inspect, render, verify, and export XLSX, CSV, and TSV spreadsheets locally, including local XLSX authoring for native Google Sheets handoff. Use Spreadsheets when the durable output or target is a spreadsheet, workbook, sheet, Google Sheet, or CSV file. Use Excel Live Control for a workbook already open in Microsoft Excel desktop through the local OfficeKit Add-in.",
     "developerName": "w31r4",
     "category": "Productivity",
     "capabilities": [

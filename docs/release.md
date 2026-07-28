@@ -1,5 +1,33 @@
 # Release
 
+## Unreleased: personal Excel Live Add-in
+
+OfficeKit now includes its own local Excel desktop adapter. `officekit excel
+install` creates a per-user root/localhost certificate, a sideloadable
+add-in-only manifest, and the local bridge used by `doctor`, `sessions`, and
+`execute`. The user uploads the manifest once through **Home > Add-ins > My
+Add-ins > Upload My Add-in**, then connects the intended open workbook from
+the OfficeKit Home-ribbon entry.
+
+The Add-in and bridge stay local. The manifest uses a long Shared Runtime and
+the Add-in loads Office.js from Microsoft's CDN on first use. Browser pairing
+uses a Secure/HttpOnly/SameSite cookie; the CLI uses a separate private secret
+and localhost certificate fingerprint pinning. Protocol 1 accepts only
+schema-validated typed operations, serializes them per workbook session, and
+emits content-free audit records. Saving is always explicit.
+
+Automated certificate, manifest, bridge, protocol, and mocked Office.js
+end-to-end checks are part of the regular test suite. The capability remains
+`partial` until manual acceptance covers the manifest/Ribbon workflow,
+hidden-pane continuity, two-workbook isolation, typed primitives, screenshot,
+table/chart/PivotTable, save, disconnect, and uninstall on Windows x64 and
+macOS Apple Silicon Excel desktop.
+
+The current development package candidate carries the compiled Add-in pages,
+manifest generator, bridge, and Skill route: 656 files, 36,132,696 compressed
+bytes, and 53,054,592 unpacked bytes. The 37,500,000-byte compressed and
+53,500,000-byte unpacked package ceilings remain in force.
+
 ## 0.5.0 self-contained OfficeKit distributions
 
 OfficeKit now publishes the same `officekit` command as a versioned
