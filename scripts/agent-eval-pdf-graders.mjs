@@ -754,12 +754,26 @@ function damagedXrefControl(audit) {
     audit?.control?.unrecoverable,
     audit?.unrecoverable,
     audit?.validation?.unrecoverable,
+    audit?.validation?.unrecoverableControl,
   ];
   return candidates.find((value) => value && typeof value === "object") || {};
 }
 
-function damagedXrefControlSourceHash(control) {
-  return control?.source?.sha256 || control?.sourceSha256 || control?.source_sha256 || "";
+function damagedXrefControlSourceHash(control, audit) {
+  return control?.source?.sha256
+    || control?.sourceSha256
+    || control?.source_sha256
+    || audit?.inputs?.find((input) => /unrecoverable/i.test(String(input?.role || input?.path || "")))?.sha256
+    || "";
+}
+
+function damagedXrefRepair(audit) {
+  const candidates = [
+    audit?.repair,
+    audit?.validation?.repair,
+    audit?.validation?.repairEvidence,
+  ];
+  return candidates.find((value) => value && typeof value === "object") || audit || {};
 }
 
 function stableRecords(records = []) {
@@ -811,7 +825,7 @@ export function gradeDamagedXrefSafeRefusalEvidence({ evidence, audit, commands,
     check("pdf-machine:safe-refusal-status", "machine", audit?.status === "failed_closed" && audit?.delivered_modified_pdf !== true, { actual: audit?.status || "unreported" }),
     check("pdf-machine:diagnostic", "machine", /qpdf|xref|repair|provider|unrecoverable/i.test(diagnostic), { actual: diagnostic || "unreported" }),
     check("pdf-visual:no-output-on-safe-refusal", "visual", noOutput, { actual: outputEntries || [] }),
-    gate("pdf-security:both-inputs-bound", "security", auditSourceHash(audit) === source.sha256 && damagedXrefControlSourceHash(control) === evidence.unrecoverable?.sha256, { expected: { recoverable: source.sha256, unrecoverable: evidence.unrecoverable?.sha256 }, actual: { recoverable: auditSourceHash(audit) || "unreported", unrecoverable: damagedXrefControlSourceHash(control) || "unreported" } }),
+    gate("pdf-security:both-inputs-bound", "security", auditSourceHash(audit) === source.sha256 && damagedXrefControlSourceHash(control, audit) === evidence.unrecoverable?.sha256, { expected: { recoverable: source.sha256, unrecoverable: evidence.unrecoverable?.sha256 }, actual: { recoverable: auditSourceHash(audit) || "unreported", unrecoverable: damagedXrefControlSourceHash(control, audit) || "unreported" } }),
     gate("pdf-security:no-partial-output", "security", noOutput, { actual: { audit: audit?.output, outputEntries } }),
     check("pdf-trace:provider-declared", "trace", Boolean(String(auditProvider(audit)).trim()), { actual: auditProvider(audit) || "unreported" }),
     check("pdf-trace:source-inspection", "trace", /(?:qpdf_provider\.py["']?\s+(?:probe|inspect)\b|\bqpdf\b)/i.test(commandText), { actual: commandText || "unreported" }),
@@ -825,7 +839,7 @@ export function gradeDamagedXrefRecoveryEvidence({ evidence, audit, commands, it
   const output = evidence.output || {};
   const visual = evidence.visual || {};
   const pages = visual.pages || [];
-  const repair = audit?.repair && typeof audit.repair === "object" ? audit.repair : audit || {};
+  const repair = damagedXrefRepair(audit);
   const control = damagedXrefControl(audit);
   const expectedAttachments = stableRecords(evidence.sourceAttachments || []);
   const actualAttachments = stableRecords(evidence.outputAttachments || []);
@@ -845,12 +859,15 @@ export function gradeDamagedXrefRecoveryEvidence({ evidence, audit, commands, it
   const warningLines = [
     ...(repair?.checkBefore?.lines || []),
     ...(repair?.checkBefore?.jsonLines || []),
+    ...(repair?.checkBefore?.warnings || []),
     ...(repair?.qpdfWrite?.lines || []),
+    ...(repair?.warnings || []),
+    ...(audit?.warnings || []),
   ].join("\n");
   const controlStatus = String(control?.status || control?.result || control?.decision || "").toLowerCase();
-  const controlRejected = /reject|fail|error|unrecoverable|refus/.test(controlStatus)
-    && damagedXrefControlSourceHash(control) === evidence.unrecoverable?.sha256
-    && (control?.output === null || control?.outputPath === null || control?.artifactWritten === false || control?.published === false);
+  const controlRejected = (/reject|fail|error|unrecoverable|refus/.test(controlStatus) || control?.qpdfAccepted === false)
+    && damagedXrefControlSourceHash(control, audit) === evidence.unrecoverable?.sha256
+    && (control?.output === null || control?.outputPath === null || control?.artifactWritten === false || control?.published === false || control?.outputGenerated === false);
   return [
     check("pdf-machine:damaged-source-and-control-fixture", "machine", sourceFixtureComplete, { actual: { source: { pageCount: source.pageCount, startxrefIsZero: evidence.sourceRawStartxrefIsZero, attachments: expectedAttachments }, unrecoverable: evidence.unrecoverable } }),
     check("pdf-machine:qpdf-output-clean", "machine", repair?.checkAfter?.status === "clean", { actual: repair?.checkAfter || "unreported" }),
