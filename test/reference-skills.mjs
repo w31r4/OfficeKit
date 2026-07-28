@@ -334,12 +334,19 @@ for (const relativePath of [
   "tasks/render_review.md",
 ]) assert.ok(await exists(path.join(pdfSkillRoot, relativePath)), `PDF Skill is missing ${relativePath}`);
 
-const spreadsheetApp = JSON.parse(await fs.readFile(path.join(skillsRoot, "spreadsheets", ".app.json"), "utf8"));
-assert.equal(
-  spreadsheetApp.apps.connected_documents.id,
-  "connector_office-artifact-tool_codex_document_control",
-  "Excel live control must retain the host connector contract",
-);
+const liveExcelSkillRoot = path.join(skillsRoot, "spreadsheets", "skills", "excel-live-control");
+const liveExcelSkill = await fs.readFile(path.join(liveExcelSkillRoot, "SKILL.md"), "utf8");
+const liveExcelProtocol = await fs.readFile(path.join(liveExcelSkillRoot, "references", "live-protocol.md"), "utf8");
+assert.equal(await exists(path.join(skillsRoot, "spreadsheets", ".app.json")), false, "Excel Live Control must not retain a host connector declaration");
+assert.match(liveExcelSkill, /officekit excel doctor --json/);
+assert.match(liveExcelSkill, /officekit excel execute request\.json --json/);
+assert.match(liveExcelSkill, /Home > Add-ins > My Add-ins > Upload My Add-in/);
+assert.match(liveExcelSkill, /shared runtime/i);
+assert.doesNotMatch(liveExcelSkill, /run_officejs|ChatGPT add-in|connected-document/i);
+assert.match(liveExcelProtocol, /"protocol": 1/);
+assert.match(liveExcelProtocol, /`pivot_table`/);
+assert.match(liveExcelProtocol, /maybeApplied/);
+assert.equal(await exists(path.join(liveExcelSkillRoot, "officejs.md")), false);
 
 for (const file of (await walk(skillsRoot)).filter((item) => /\.(?:md|mjs|js|json|ya?ml|py)$/i.test(item))) {
   const source = await fs.readFile(file, "utf8");

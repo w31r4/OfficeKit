@@ -8,6 +8,7 @@ const packageMetadata = JSON.parse(await fs.readFile(path.join(repoRoot, "packag
 assert.equal(packageMetadata.version, "0.5.0");
 assert.equal(packageMetadata.license, "AGPL-3.0-or-later");
 assert.equal(packageMetadata.dependencies.mupdf, "1.28.0");
+assert.equal(packageMetadata.dependencies.selfsigned, "^5.5.0");
 assert.equal(packageMetadata.exports["./pdf/mupdf"], "./src/pdf/mupdf.mjs");
 assert.equal(packageMetadata.exports["./pdf/providers"], "./src/pdf/providers/index.mjs");
 assert.equal(packageMetadata.exports["./codec"], "./src/codecs/office-kit.mjs");
@@ -24,6 +25,14 @@ assert.equal(packageMetadata.engines.node, ">=22.15.0");
 assert.equal(
   packageMetadata.scripts["build:standalone"],
   "node scripts/build-standalone.mjs",
+);
+assert.equal(
+  packageMetadata.scripts["build:excel-addin"],
+  "node scripts/build-excel-addin.mjs",
+);
+assert.equal(
+  packageMetadata.scripts["test:excel-live"],
+  "node scripts/build-excel-addin.mjs && node test/excel-live.mjs",
 );
 assert.equal(
   packageMetadata.scripts["test:standalone"],
@@ -82,6 +91,8 @@ assert.doesNotMatch(pdfProvidersSource, /from\s+["']mupdf["']/, "the explicit pr
 const officeKitCliSource = await fs.readFile(path.join(repoRoot, "src", "cli", "officekit.mjs"), "utf8");
 assert.doesNotMatch(officeKitCliSource, /node:child_process|https?:\/\/|\bfetch\s*\(/, "officekit init must remain a local Skill installer");
 assert.doesNotMatch(officeKitCliSource, /pdf\/providers|from\s+["']mupdf["']/, "officekit init must not initialize PDF runtimes or capability packs");
+assert.match(officeKitCliSource, /await import\("\.\.\/excel-live\/cli\.mjs"\)/, "Excel Live Control must load only for the excel subcommand");
+assert.doesNotMatch(officeKitCliSource, /from\s+["']\.\.\/excel-live\//, "root CLI import must not start the Excel bridge");
 const templateSearchSource = await fs.readFile(path.join(repoRoot, "src", "templates", "search.mjs"), "utf8");
 assert.doesNotMatch(templateSearchSource, /pdf\/providers|from\s+["']mupdf["']|runtime\/office-kit/, "template search must not initialize Office or PDF runtimes");
 const presentationCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-presentation.mjs"), "utf8");
@@ -145,6 +156,12 @@ const maxSkillPngBytes = 3_550_000;
 
 for (const required of [
   "LICENSE",
+  "apps/excel-addin/dist/taskpane.html",
+  "apps/excel-addin/dist/taskpane.js",
+  "apps/excel-addin/dist/taskpane.css",
+  "apps/excel-addin/dist/support.html",
+  "apps/excel-addin/dist/assets/officekit-excel-32.png",
+  "apps/excel-addin/dist/assets/officekit-excel-80.png",
   "README.md",
   "README.zh-CN.md",
   "THIRD_PARTY_NOTICES.md",
@@ -193,6 +210,15 @@ for (const required of [
   "src/document/index.mjs",
   "src/cli/officekit.mjs",
   "src/cli/run-task.mjs",
+  "src/excel-live/bridge.mjs",
+  "src/excel-live/bridge-server.mjs",
+  "src/excel-live/certificates.mjs",
+  "src/excel-live/cli.mjs",
+  "src/excel-live/client.mjs",
+  "src/excel-live/errors.mjs",
+  "src/excel-live/manifest.mjs",
+  "src/excel-live/protocol.mjs",
+  "src/excel-live/state.mjs",
   "src/templates/search.mjs",
   "src/help/index.mjs",
   "src/index.mjs",
@@ -273,7 +299,6 @@ for (const required of [
   "skills/documents/skills/documents/scripts/docx_ooxml_patch.py",
   "skills/documents/skills/documents/tasks/create_edit.md",
   "skills/spreadsheets/.codex-plugin/plugin.json",
-  "skills/spreadsheets/.app.json",
   "skills/spreadsheets/README.md",
   "skills/spreadsheets/skills/spreadsheets/SKILL.md",
   "skills/spreadsheets/skills/spreadsheets/agents/openai.yaml",
@@ -296,6 +321,7 @@ for (const required of [
   "skills/spreadsheets/skills/excel-live-control/SKILL.md",
   "skills/spreadsheets/skills/excel-live-control/agents/openai.yaml",
   "skills/spreadsheets/skills/excel-live-control/assets/file-spreadsheet.png",
+  "skills/spreadsheets/skills/excel-live-control/references/live-protocol.md",
   "skills/presentations/.codex-plugin/plugin.json",
   "skills/presentations/README.md",
   "skills/presentations/skills/presentations/SKILL.md",
@@ -403,6 +429,11 @@ for (const required of [
 ]) {
   assert.ok(files.includes(required), `npm package is missing ${required}`);
 }
+assert.equal(
+  files.includes("skills/spreadsheets/.app.json"),
+  false,
+  "npm package must not ship the retired host-connector declaration",
+);
 assert.ok(files.every((file) => !file.includes("/bin/") && !file.includes("/obj/")), "npm package must exclude dotnet bin/obj build output");
 for (const removed of [
   "src/codecs/office-codec-policy.mjs",

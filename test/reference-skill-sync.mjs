@@ -6,6 +6,7 @@ import {
   checkReferenceSkillSync,
   createReferenceSkillSnapshot,
   REFERENCE_SKILL_BUNDLES,
+  REPLACED_REFERENCE_SKILL_PATHS,
 } from "../scripts/reference-skill-sync.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -21,6 +22,10 @@ assert.equal(rebuilt.totalFiles, 345);
 assert.deepEqual(Object.keys(rebuilt.bundles), REFERENCE_SKILL_BUNDLES);
 assert.equal(Object.values(rebuilt.bundles).reduce((sum, bundle) => sum + bundle.files, 0), rebuilt.totalFiles);
 assert.equal(Object.values(rebuilt.bundles).reduce((sum, bundle) => sum + bundle.bytes, 0), rebuilt.totalBytes);
+assert.deepEqual([...REPLACED_REFERENCE_SKILL_PATHS].sort(), [
+  "spreadsheets/.app.json",
+  "spreadsheets/skills/excel-live-control/officejs.md",
+]);
 
 const referenceChecklist = await fs.readFile(path.join(
   repoRoot,

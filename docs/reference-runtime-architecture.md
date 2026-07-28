@@ -85,6 +85,28 @@ The router has no silent fallback. Mutation records source hashes and uses a dis
 
 The project and official MuPDF.js dependency are GNU AGPL-3.0-or-later. Normal npm installation resolves MuPDF.js as a required direct dependency; it remains in its own dependency tarball and is not copied into this project's `.tgz`. Capability-pack binaries, Python wheels, OCR language data, JREs, and qpdf are never bundled into the npm tarball. No lifecycle hook or standalone dependency installer is used.
 
+### Excel Live Control
+
+Excel Live Control is a local host adapter, not an XLSX codec and not a cloud
+connector. `officekit excel install` generates a per-user root certificate,
+localhost leaf certificate, add-in-only Excel XML manifest, and a fixed-port
+loopback HTTPS bridge. The user sideloads the manifest and clicks the OfficeKit
+Home-ribbon command in the workbook they intend to expose. The Add-in uses the
+Office.js CDN plus a long shared runtime; browser pairing is a Secure,
+HttpOnly, SameSite cookie and CLI requests use a separate private secret with
+the saved localhost leaf fingerprint pinned on every request.
+
+The bridge is launched by `install`, `doctor`, `sessions`, or `execute` and
+exits after an idle grace period with no live workbook. It has no login item,
+daemon registration, account, tenant, relay, or arbitrary Office.js execution
+endpoint. Protocol 1 carries schema-validated typed operations only; each is
+capability-checked in the Add-in, serialized per session, bounded in payload,
+idempotent by caller key, and followed by an audit record that excludes cell
+contents and formulas. Explicit `save` leaves the file path and overwrite
+choice to Excel and the user. V1 is limited to Microsoft Excel desktop on
+Windows and macOS; browser/mobile Excel, VBA/COM, and enterprise deployment
+are outside this adapter.
+
 ### Skill routing
 
 OfficeKit is a project-native coordination Skill, not another artifact model or
@@ -214,7 +236,7 @@ The shared OOXML package phase moved JSZip loading, decompression limits, safe p
 1. Protocol generation/lint and protocol-version checks.
 2. C# unit tests for each codec and opaque/failure profiles.
 3. JavaScript facade roundtrips and strict option rejection.
-4. Native plugin validation plus audited Documents, Spreadsheets, Excel live-control routing, Presentations, and PDF Skill workflows.
+4. Native plugin validation plus audited Documents, Spreadsheets, Excel live-control bridge/mock-Office.js, Presentations, and PDF Skill workflows.
 5. Semantic inspect/verify and render/visual QA.
 6. Open XML SDK package validation plus optional LibreOffice/native Office checks.
 7. Clean-install probes with `dotnet` absent from `PATH`.

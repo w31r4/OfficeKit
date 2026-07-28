@@ -86,6 +86,30 @@ officekit run task.mjs -- input.docx output.docx
 
 `officekit run` 使用已安装的同版本 API；任务自己的第三方依赖仍从任务所在项目解析。
 
+## 直接操作当前打开的 Excel 工作簿
+
+工作簿已经在 Microsoft Excel 里打开、甚至还没有保存时，走这条路径。OfficeKit 通过
+自己的 Excel Add-in 把当前工作簿连接到本机 CLI：
+
+```sh
+officekit excel install
+officekit excel doctor --json
+```
+
+`install` 会先征求是否信任用户级本地证书，然后输出 manifest 路径。第一次在 Excel
+桌面版中按下面的路径上传：
+
+```text
+Home > Add-ins > My Add-ins > Upload My Add-in
+```
+
+在 Home Ribbon 打开 **OfficeKit** 并点击 **Connect OfficeKit**。随后 Agent 用
+`officekit excel sessions --json` 找到目标工作簿，通过有类型的范围、格式、图表、表格、
+PivotTable、截图和保存操作执行任务，并在完成前读回验证。
+
+Excel Live Control V1 面向 Windows 和 macOS 的 Microsoft Excel 桌面版。第一次加载
+Add-in 需要访问微软的 Office.js 运行时；工作簿内容和 OfficeKit 的请求审计都留在本机。
+
 ## 一个总入口，也保留直接入口
 
 普通任务直接使用 OfficeKit。它会检查输入、确定输出格式、判断是否需要模板，
@@ -96,7 +120,7 @@ officekit run task.mjs -- input.docx output.docx
 | [OfficeKit](skills/office-kit/skills/office-kit/SKILL.md) | 从目标直接开始，或处理跨格式、多交付物和模板判断。 |
 | [Documents](skills/documents/skills/documents/SKILL.md) | 已确定要创建或修改 Word。 |
 | [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | 已确定要处理 Excel、CSV、公式、模型或图表。 |
-| [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | 操作已经在 Excel 中打开的工作簿。 |
+| [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | 通过本机 OfficeKit Add-in 操作 Microsoft Excel 桌面版里已经打开的工作簿。 |
 | [Presentations](skills/presentations/skills/presentations/SKILL.md) | 已确定要创建或修改 PowerPoint。 |
 | [PDF](skills/pdf/skills/pdf/SKILL.md) | 已确定要读取、创建、检查或处理 PDF。 |
 | [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | 把自己的 DOCX、XLSX 或 PPTX 保存为可复用模板。 |

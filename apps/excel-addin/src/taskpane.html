@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://appsforoffice.microsoft.com; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self' https://appsforoffice.microsoft.com" />
+    <title>OfficeKit for Excel</title>
+    <link rel="stylesheet" href="/taskpane.css" />
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
+    <script type="module" src="/taskpane.js"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/assets/officekit-excel-80.png" alt="" width="40" height="40" />
+        <div>
+          <h1>OfficeKit</h1>
+          <p>Local Excel control for your Agent.</p>
+        </div>
+      </header>
+      <section id="setup" class="card">
+        <h2>Connect this workbook</h2>
+        <p id="setup-copy">Preparing OfficeKit…</p>
+        <button id="connect" type="button" disabled>Connect OfficeKit</button>
+      </section>
+      <section id="session" class="card" hidden>
+        <h2>Connected</h2>
+        <dl>
+          <div><dt>Workbook</dt><dd id="workbook-name">—</dd></div>
+          <div><dt>Session</dt><dd id="session-id">—</dd></div>
+          <div><dt>Status</dt><dd id="connection-status">Waiting for OfficeKit commands</dd></div>
+        </dl>
+        <div class="buttons">
+          <button id="refresh" type="button">Refresh status</button>
+          <button id="disconnect" type="button" class="secondary">Disconnect</button>
+        </div>
+      </section>
+      <section id="diagnostics" class="card">
+        <h2>Diagnostics</h2>
+        <pre id="diagnostics-output">Loading…</pre>
+      </section>
+      <section id="audit" class="card">
+        <h2>Last request</h2>
+        <p>OfficeKit records operation metadata and a request hash, never cell values or formulas.</p>
+        <pre id="audit-output">No completed request in this task pane.</pre>
+      </section>
+    </main>
+  </body>
+</html>
