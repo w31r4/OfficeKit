@@ -72,7 +72,8 @@ upper byte budget; it does not authorize another provider:
 
 `managed` requires an exact catalogue artifact for the current platform, every
 pack in the dependency closure, licence acknowledgement where declared, and
-both budgets. Initial managed targets are `darwin-arm64` and `linux-x64`.
+both budgets. Managed targets are `darwin-arm64`, `linux-x64`, and
+`win32-x64`.
 `eng` and `chi_sim` are the initial OCR policy defaults; any other language must
 appear in both policy and the immutable language-pack catalogue.
 
@@ -99,17 +100,18 @@ language-pack directories. `ocrmypdf_provider.py` copies regular, unlinked
 `.traineddata` files into a per-operation private directory and sets its own
 `TESSDATA_PREFIX`; never point `TESSDATA_PREFIX` directly at the project cache.
 
-**Current catalog state:** qpdf, `python-foundation`, and
-`python-specialists` `3.13.14-oat.1`, veraPDF/JRE `1.30.2-oat.1`, OCR core
-`17.8.1-oat.1`, and `eng`/`chi_sim` language packs `4.1.0-oat.1` have published
-attested assets for `darwin-arm64` and `linux-x64`. A policy-authorized qpdf,
-foundation, specialist, veraPDF, or OCR route can resolve as `installable` and
-be passed unchanged to `ensure`. OCR expands only to qpdf, the core, and the
-explicitly requested language packs; the core carries isolated OCRmyPDF,
-Tesseract 5, Ghostscript, and `pdftotext`. The foundation contains isolated
-CPython plus ReportLab, pdfplumber, pypdf, and Pillow. Specialists contain
-PyMuPDF, pikepdf, pyHanko, and certificate validation and require the
-catalogued AGPL-or-commercial acknowledgement. The veraPDF pack carries its
+**Current catalog state:** qpdf `12.3.2-oat.2`, `python-foundation`
+`3.13.14-oat.2`, `python-specialists` `3.13.14-oat.2`, veraPDF/JRE
+`1.30.2-oat.2`, OCR core `17.8.1-oat.3`, and `eng`/`chi_sim` language packs
+`4.1.0-oat.3` have published attested assets for `darwin-arm64`, `linux-x64`,
+and `win32-x64`; public live acceptance verifies every published closure. A
+policy-authorized qpdf, foundation, specialist, veraPDF, or OCR route can
+resolve as `installable` and be passed unchanged to `ensure`. OCR expands only
+to qpdf, the core, and the explicitly requested language packs; the core
+carries isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`. The
+foundation contains isolated CPython plus ReportLab, pdfplumber, pypdf, and
+Pillow. Specialists contain PyMuPDF, pikepdf, pyHanko, and certificate
+validation and require the catalogued AGPL-or-commercial acknowledgement. The veraPDF pack carries its
 own JRE. Only Poppler QA remains unpublished, so that route is `blocked` with a
 precise reason even under a permissive policy. Do not substitute a hand-written
 download URL or claim that `ensure` installed a future pack.

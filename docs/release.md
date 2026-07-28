@@ -866,19 +866,21 @@ a second PDF codec or putting large runtimes in the npm tarball:
   undeclared URLs, archive path escape, and symlink/hardlink entries.
 - MuPDF remains the only required, runtime-lazy npm PDF dependency. qpdf,
   isolated Python specialists, OCR languages/core, veraPDF/JRE, and Poppler are
-  not embedded in the tarball. The first managed targets are `darwin-arm64` and
-  `linux-x64`.
-- qpdf `12.3.2-oat.1`, `python-foundation` `3.13.14-oat.1`,
-  `python-specialists` `3.13.14-oat.1`, veraPDF/JRE `1.30.2-oat.1`, OCR core
-  `17.8.1-oat.1`, and `eng`/`chi_sim` language packs `4.1.0-oat.1` are
+  not embedded in the tarball. Managed targets are `darwin-arm64`,
+  `linux-x64`, and `win32-x64`.
+- qpdf `12.3.2-oat.2`, `python-foundation` `3.13.14-oat.2`,
+  `python-specialists` `3.13.14-oat.2`, veraPDF/JRE `1.30.2-oat.2`, OCR core
+  `17.8.1-oat.3`, and `eng`/`chi_sim` language packs `4.1.0-oat.3` are
   published as hash-pinned, SBOM/notices-attached, GitHub-attested
-  `darwin-arm64` and `linux-x64` assets. Under an explicit managed policy,
-  `ensure` can install precisely the selected closure. Foundation provides
-  isolated CPython with ReportLab, pdfplumber, pypdf, and Pillow; specialists
-  provide PyMuPDF, pikepdf, pyHanko, and certificate validation over qpdf after
-  an AGPL-or-commercial acknowledgement; the veraPDF pack includes its JRE;
-  OCR core contains isolated OCRmyPDF, Tesseract 5, Ghostscript, and
-  `pdftotext`, while each language remains separately policy-authorized.
+  `darwin-arm64`, `linux-x64`, and `win32-x64` assets. The public live matrix
+  verifies every published closure through resolve, ensure, probe, and asset
+  attestation. Under an explicit managed policy, `ensure` can install precisely
+  the selected closure. Foundation provides isolated CPython with ReportLab,
+  pdfplumber, pypdf, and Pillow; specialists provide PyMuPDF, pikepdf, pyHanko,
+  and certificate validation over qpdf after an AGPL-or-commercial
+  acknowledgement; the veraPDF pack includes its JRE; OCR core contains
+  isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`, while each
+  language remains separately policy-authorized.
   Redirect hops remain HTTPS-only and credential-free before final
   byte-size/hash validation. Only the Poppler QA pack remains intentionally
   unpublished and resolves as `blocked`; no document, Skill, or API may claim

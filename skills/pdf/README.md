@@ -39,16 +39,18 @@ The bundle ships bounded adapters for strict PyMuPDF sanitize and image-backed
 pikepdf source-bound active/auxiliary structure cleanup, pyHanko exact-source
 local-PKCS#12 signing and signature validation, veraPDF exact-source PDF/A/PDF/UA
 machine-rule validation, and OCRmyPDF exact-source complete-document searchable-
-layer generation. qpdf, `python-foundation`, and `python-specialists`
-`3.13.14-oat.1` managed packs are published with hash-pinned, attested
-`darwin-arm64` and `linux-x64` assets. The foundation carries isolated CPython
-plus ReportLab, pdfplumber, pypdf, and Pillow; specialists carry PyMuPDF,
-pikepdf, pyHanko, and certificate validation, depend on qpdf, and require an
-explicit AGPL-or-commercial acknowledgement. veraPDF/JRE `1.30.2-oat.1` is
-also published and carries its own managed JRE, so no global Java runtime is
-used. OCR core `17.8.1-oat.1` and the separately policy-authorized `eng` and
-`chi_sim` language packs `4.1.0-oat.1` are also published for both managed
-platforms; only the Poppler QA route remains `blocked`. The OCR
+layer generation. qpdf `12.3.2-oat.2`, `python-foundation` `3.13.14-oat.2`,
+and `python-specialists` `3.13.14-oat.2` managed packs are published with
+hash-pinned, attested `darwin-arm64`, `linux-x64`, and `win32-x64` assets. The
+foundation carries isolated CPython plus ReportLab, pdfplumber, pypdf, and
+Pillow; specialists carry PyMuPDF, pikepdf, pyHanko, and certificate
+validation, depend on qpdf, and require an explicit AGPL-or-commercial
+acknowledgement. veraPDF/JRE `1.30.2-oat.2` is also published and carries its
+own managed JRE, so no global Java runtime is used. OCR core `17.8.1-oat.3`
+and the separately policy-authorized `eng` and `chi_sim` language packs
+`4.1.0-oat.3` are also published for all managed platforms; public live
+acceptance covers every published closure. Only the Poppler QA route remains
+`blocked`. The OCR
 redaction primitive requires one explicit page, an exact
 expected 0/90/180/270-degree page rotation, an exact term, expected image-backed
 match count, full sanitize rewrite, rotation-aware residue scan, and render QA;
