@@ -813,6 +813,7 @@ export function gradeRuledCrossPageTableEvidence({ evidence, audit, commands, it
     && cellsBySegment.every(({ cell, page }) => {
       const sourcePage = pageFacts.get(page);
       return sourcePage
+        && Number(cell?.page) === page
         && finiteBbox(cell?.bbox, Number(sourcePage.width), Number(sourcePage.height))
         && Number(cell?.confidence) >= 0.99
         && Array.isArray(cell?.confidenceReasons)
@@ -842,7 +843,7 @@ export function gradeRuledCrossPageTableEvidence({ evidence, audit, commands, it
     check("pdf-visual:overlay-review-bound-to-every-segment", "visual", audit?.validation?.poppler?.status === "passed" && audit?.validation?.poppler?.pageCount === expected.pageCount && Array.isArray(overlays) && overlays.length === expected.pageRange.length && overlays.every((overlay, index) => Number(overlay?.page) === Number(expected.pageRange[index]) && Number(overlay?.bytes) > 1_000 && Array.isArray(overlay?.tableBBox) && overlay.tableBBox.length === 4), { actual: audit?.validation?.poppler || "unreported" }),
     gate("pdf-security:source-and-output-provenance", "security", result.source?.sha256 === source.sha256 && auditSourceHash(audit) === source.sha256 && auditOutputHash(audit) === evidence.json?.sha256 && auditOutputJson?.sha256 === evidence.json?.sha256 && auditOutputCsv?.sha256 === evidence.csv?.sha256, { expected: { source: source.sha256, json: evidence.json?.sha256, csv: evidence.csv?.sha256 }, actual: { resultSource: result.source?.sha256, auditSource: auditSourceHash(audit), auditJson: auditOutputJson?.sha256, auditCsv: auditOutputCsv?.sha256 } }),
     gate("pdf-security:read-only-source-and-validated-profile", "security", auditSaveStrategy(audit) === "read-only" && audit?.savePolicy?.sourceOverwrite === false && sourceIdentity?.sourcePreserved === true && sourceIdentity?.before?.sha256 === source.sha256 && sourceIdentity?.after?.sha256 === source.sha256 && audit?.validation?.ruledTable?.passed === true && Array.isArray(auditChecks) && auditChecks.length >= 6 && auditChecks.every((entry) => entry?.passed === true), { actual: { savePolicy: audit?.savePolicy, sourceIdentity, ruledTable: audit?.validation?.ruledTable } }),
-    gate("pdf-security:complete-typed-cell-proofs", "security", allCells.length > 0 && allCells.every((cell) => Number.isInteger(cell?.row) && Number.isInteger(cell?.column) && Number.isInteger(cell?.rowspan) && Number.isInteger(cell?.colspan) && cell.rowspan >= 1 && cell.colspan >= 1 && finiteBbox(cell?.bbox, 612, 792)), { actual: { cells: allCells.length } }),
+    gate("pdf-security:complete-typed-cell-proofs", "security", allCells.length > 0 && cellsBySegment.every(({ cell, page }) => Number.isInteger(cell?.page) && cell.page === page && Number.isInteger(cell?.row) && Number.isInteger(cell?.column) && Number.isInteger(cell?.rowspan) && Number.isInteger(cell?.colspan) && cell.rowspan >= 1 && cell.colspan >= 1 && finiteBbox(cell?.bbox, 612, 792)), { actual: { cells: allCells.length, cellsWithPage: allCells.filter((cell) => Number.isInteger(cell?.page)).length } }),
     ...ruledCrossPageTableTraceChecks(audit, commands),
   ];
 }
