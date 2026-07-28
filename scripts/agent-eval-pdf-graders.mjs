@@ -151,6 +151,7 @@ function auditRefusalNoArtifactClaim(audit) {
     || audit?.noPartialOutput === true
     || artifactChecks.modifiedPdfCreated === false
     || artifactChecks.modifiedPdfProduced === false
+    || artifactChecks.modifiedPdfPresent === false
     || artifactChecks.outputIsNull === true
     || artifactChecks.modifiedArtifactCreated === false
     || artifactChecks.modifiedArtifactProduced === false
@@ -185,12 +186,14 @@ function auditRefusalSavePolicy(audit) {
     || saveRecord.artifact_written === false
     || saveRecord.mode === "failed_closed"
     || saveRecord.selected === "none"
+    || auditRefusalOperationUnexecuted(audit)
     || /(?:failed.closed|audit.only|refused.*mutation)/i.test(String(saveRecord.publication || saveRecord.decision || ""));
   const sourcePreserved = saveRecord.sourcePreserved === true
     || saveRecord.sourceOverwrite === false
     || audit?.source?.preserved_unchanged === true
     || audit?.source?.preserved === true
     || audit?.validation?.sourceImmutable === true
+    || audit?.validation?.sourceIdentity?.sourcePreserved === true
     || audit?.validation?.sourceIntegrity?.sourceOverwritten === false;
   return Boolean(auditSaveStrategy(audit)) && noMutation && sourcePreserved && auditRefusalNoArtifactClaim(audit);
 }
@@ -256,8 +259,8 @@ function overflowTraceChecks(audit, commands) {
 
 function boundaryRefusalTraceChecks(audit, commands, item) {
   const commandText = commands.join("\n");
-  const saveRecord = audit?.savePolicy || audit?.save_policy || {};
-  const hasInspection = /(?:pdf_provider\.py\s+(?:check|plan)|qpdf_provider\.py\s+(?:inspect|probe)|pymupdf_edit\.py\s+probe|\bqpdf\b|\bpdfinfo\b|\bpypdf\b|PdfFile\.(?:inspect|open))/i.test(commandText);
+  const saveRecord = auditSaveRecord(audit);
+  const hasInspection = /(?:pdf_provider\.py\s+(?:check|plan)|qpdf_provider\.py\s+(?:inspect|probe)|pymupdf_edit\.py\s+probe|mupdf\.mjs["']?\s+(?:probe|inspect)\b|\bqpdf\b|\bpdfinfo\b|\bpypdf\b|PdfFile\.(?:inspect|open))/i.test(commandText);
   const mutationPatterns = [
     /pymupdf_edit\.py\s+edit\b/i,
     /\bupdate_stream\s*\(/i,

@@ -212,21 +212,35 @@ const candidateRefusalAudit = {
   status: "failed_closed",
   source: { sha256: encryptedEvidence.source.sha256 },
   output: null,
-  provider: { actual: "qpdf", version: "12.3.2", silentFallback: false },
-  savePolicy: { strategy: "rewrite", attempted: false, sourceOverwrite: false, artifactPublished: false },
-  operation: { type: "change-copy-permission", performed: "none" },
-  validation: { sourceIdentity: { sourcePreserved: true }, outputsDirectory: { modifiedPdfPresent: false, partialArtifactPresent: false, allowedFiles: ["audit.json"] } },
+  provider: { actual: "mupdf", version: "1.28.0", silentFallback: false },
+  savePolicy: { strategy: "read-only", artifactPolicy: "no modified artifact on failed-closed refusal" },
+  operation: { type: "change-copy-permission", mutationAttempted: false },
+  validation: { sourceIdentity: { sourcePreserved: true }, artifactChecks: { modifiedPdfPresent: false, partialArtifactPresent: false } },
   reason: "owner password is unavailable",
 };
 const candidateRefusalChecks = gradeBoundaryRefusalEvidence({
   evidence: encryptedEvidence,
   audit: candidateRefusalAudit,
-  commands: ["python .agents/skills/pdf/scripts/qpdf_provider.py inspect inputs/owner-policy-aes256.pdf"],
+  commands: ["node_modules/.bin/officekit run .agents/skills/pdf/scripts/mupdf.mjs probe", "node_modules/.bin/officekit run .agents/skills/pdf/scripts/mupdf.mjs inspect inputs/owner-policy-aes256.pdf"],
   finalMessage: "owner password is unavailable",
   item: encryptedItem,
   outputEntries: ["audit.json"],
 });
 assert.equal(candidateRefusalChecks.every((check) => check.passed), true, "candidate-style refusal audit");
+const proseOnlyRefusalAudit = {
+  ...candidateRefusalAudit,
+  operation: { type: "change-copy-permission", performed: "authorization reviewed" },
+  validation: { sourceIdentity: { sourcePreserved: true } },
+};
+const proseOnlyRefusalChecks = gradeBoundaryRefusalEvidence({
+  evidence: encryptedEvidence,
+  audit: proseOnlyRefusalAudit,
+  commands: ["node_modules/.bin/officekit run .agents/skills/pdf/scripts/mupdf.mjs probe"],
+  finalMessage: "owner password is unavailable",
+  item: encryptedItem,
+  outputEntries: ["audit.json"],
+});
+assert.equal(proseOnlyRefusalChecks.find((check) => check.id === "pdf-security:no-partial-output")?.passed, false, "prose does not prove an absent output artifact");
 const referenceRefusalAudit = {
   status: "failed_closed",
   source: { sha256: encryptedEvidence.source.sha256, preserved: true },
