@@ -72,6 +72,7 @@ import {
   gradeCertifiedDocMdpP2FillEvidence,
   gradeDamagedXrefRecoveryEvidence,
   gradeMergeStampEvidence,
+  gradeMultichannelRedactionEvidence,
   gradeOverflowRefusalEvidence,
   gradeSourceBoundHighlightEvidence,
   summarizeCaseScore,
@@ -82,6 +83,7 @@ import {
   makeReadOnly,
   oracleFingerprint,
   providerRuntimeInstruction,
+  providerRuntimeEnvironment,
   removePreparedTree,
   repositoryProvenance,
   scorePrepared,
@@ -94,12 +96,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 29 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 30 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 17);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 18);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
@@ -128,8 +130,8 @@ assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /17 ready PDF cases include nine locked corpus signature\/boundary\/repair fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 12 asset-required cases/i);
+assert.match(runnerHelp.stdout, /18 ready PDF cases include eleven locked corpus signature\/boundary\/repair\/redaction fixtures/i);
+assert.match(runnerHelp.stdout, /remaining 11 asset-required cases/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
@@ -143,6 +145,10 @@ assert.match(damagedXrefVisible.prompt, /qpdf repair|qpdf.*repair/i);
 assert.match(damagedXrefVisible.prompt, /inputs\/recoverable\.pdf/);
 assert.match(damagedXrefVisible.prompt, /inputs\/unrecoverable\.pdf/);
 assert.doesNotMatch(damagedXrefVisible.prompt, /f3847151df00468cce51c49a00cec7b5c35c24421160e310cbde0e90148b5550|sourceRawStartxrefIsZero/i);
+const multichannelVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-redact-multichannel-secret"));
+assert.match(multichannelVisible.prompt, /redact_ocr_text.*redact_text|redact_text.*redact_ocr_text/i);
+assert.match(multichannelVisible.prompt, /outputs\/redacted\.pdf/);
+assert.doesNotMatch(multichannelVisible.prompt, /oracleSha256|imageMask|previousRevisionCount/i);
 
 const corpusPython = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "python3";
 const corpusVerification = spawnSync(corpusPython, ["scripts/agent-eval-corpus-fixtures.py", "verify"], {
@@ -163,6 +169,7 @@ const lockedFixturePaths = [
   "pdf/ocr/mixed-bilingual-scan.pdf",
   "pdf/corrupt/recoverable.pdf",
   "pdf/corrupt/unrecoverable.pdf",
+  "pdf/redaction/multichannel-secret.pdf",
   "pdf/xfa/dynamic-dependents.pdf",
   "pdf/print/print-production-risk.pdf",
   "pdf/signing/docmdp-p1-final.pdf",
@@ -184,7 +191,7 @@ assert.equal(docmdpP2Item?.status, "ready");
 assert.equal(docmdpP2Item?.inputs?.some((input) => input.asset === "pdf/signing/test-pki/docmdp-p2-root.pem"), true);
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 13, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 14, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -400,9 +407,13 @@ const mixedScanFixtureFailure = gradeBoundaryRefusalEvidence({
 assert.equal(mixedScanFixtureFailure.find((check) => check.id === "pdf-machine:source-boundary-fixture")?.passed, false);
 
 const damagedXrefItem = cases.find((item) => item.id === "pdf-damaged-xref-recovery");
-const recoveryQpdf = process.env.OFFICE_KIT_AGENT_EVAL_QPDF || process.env.OFFICE_KIT_PDF_QPDF || "qpdf";
+const recoveryQpdfRequested = process.env.OFFICE_KIT_AGENT_EVAL_QPDF || process.env.OFFICE_KIT_PDF_QPDF || "qpdf";
 const recoveryPoppler = process.env.OFFICE_KIT_AGENT_EVAL_PDFTOPPM || "pdftoppm";
-const recoveryQpdfAvailable = spawnSync(recoveryQpdf, ["--version"], { encoding: "utf8", env: process.env }).status === 0;
+const qpdfLookup = spawnSync(process.platform === "win32" ? "where" : "which", [recoveryQpdfRequested], { encoding: "utf8", env: process.env });
+const recoveryQpdf = qpdfLookup.status === 0
+  ? String(qpdfLookup.stdout).split(/\r?\n/).map((value) => value.trim()).find(Boolean)
+  : undefined;
+const recoveryQpdfAvailable = Boolean(recoveryQpdf) && spawnSync(recoveryQpdf, ["--version"], { encoding: "utf8", env: process.env }).status === 0;
 const recoveryPopplerAvailable = spawnSync(recoveryPoppler, ["-v"], { encoding: "utf8", env: process.env }).status === 0;
 if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
   const recoveryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-agent-eval-damaged-xref-"));
@@ -2254,7 +2265,7 @@ await fs.rm(mergePathRoot, { recursive: true, force: true });
 
 const providerInstruction = providerRuntimeInstruction(mergeItem, { OFFICE_KIT_AGENT_EVAL_PYTHON: "/opt/eval python/bin/python3" });
 assert.match(providerInstruction, /OFFICE_KIT_PDF_PROVIDER_PYTHON="\/opt\/eval python\/bin\/python3"/);
-assert.match(providerInstruction, /Do not replace it/);
+assert.match(providerInstruction, /Do not replace them/);
 const splitRuntimeInstruction = providerRuntimeInstruction(mergeItem, {
   OFFICE_KIT_AGENT_EVAL_PYTHON: "/opt/oracle/bin/python3",
   OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON: "/opt/provider/bin/python3",
@@ -2262,6 +2273,36 @@ const splitRuntimeInstruction = providerRuntimeInstruction(mergeItem, {
 });
 assert.match(splitRuntimeInstruction, /OFFICE_KIT_PDF_PROVIDER_PYTHON="\/opt\/provider\/bin\/python3"/);
 assert.doesNotMatch(splitRuntimeInstruction, /oracle\/bin\/python3|legacy-provider\/bin\/python3/);
+const completeRuntimeInstruction = providerRuntimeInstruction(mergeItem, {
+  OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON: "/opt/provider/bin/python3",
+  OFFICE_KIT_AGENT_EVAL_PDFINFO: "/opt/poppler/bin/pdfinfo",
+  OFFICE_KIT_AGENT_EVAL_PDFTOPPM: "/opt/poppler/bin/pdftoppm",
+  OFFICE_KIT_AGENT_EVAL_PDFTOTEXT: "/opt/poppler/bin/pdftotext",
+  PATH: "/usr/bin",
+});
+assert.match(completeRuntimeInstruction, /OFFICE_KIT_PDF_PDFINFO="\/opt\/poppler\/bin\/pdfinfo"/);
+assert.match(completeRuntimeInstruction, /OFFICE_KIT_PDF_PDFTOPPM="\/opt\/poppler\/bin\/pdftoppm"/);
+assert.match(completeRuntimeInstruction, /OFFICE_KIT_PDF_PDFTOTEXT="\/opt\/poppler\/bin\/pdftotext"/);
+assert.match(completeRuntimeInstruction, /do not substitute ambient PATH tools/i);
+assert.deepEqual(providerRuntimeEnvironment(mergeItem, {
+  OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON: "/opt/provider/bin/python3",
+  OFFICE_KIT_AGENT_EVAL_PDFINFO: "/opt/poppler/bin/pdfinfo",
+  OFFICE_KIT_AGENT_EVAL_PDFTOPPM: "/opt/poppler/bin/pdftoppm",
+  OFFICE_KIT_AGENT_EVAL_PDFTOTEXT: "/opt/poppler/bin/pdftotext",
+  PATH: "/usr/bin",
+}), {
+  OFFICE_KIT_PDF_PROVIDER_PYTHON: "/opt/provider/bin/python3",
+  OFFICE_KIT_PDF_PDFINFO: "/opt/poppler/bin/pdfinfo",
+  OFFICE_KIT_PDF_PDFTOPPM: "/opt/poppler/bin/pdftoppm",
+  OFFICE_KIT_PDF_PDFTOTEXT: "/opt/poppler/bin/pdftotext",
+  PATH: `/opt/poppler/bin${path.delimiter}/usr/bin`,
+});
+assert.deepEqual(providerRuntimeEnvironment({ family: "xlsx" }, {
+  OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON: "/opt/provider/bin/python3",
+  OFFICE_KIT_AGENT_EVAL_PDFINFO: "/opt/poppler/bin/pdfinfo",
+  OFFICE_KIT_AGENT_EVAL_PDFTOPPM: "/opt/poppler/bin/pdftoppm",
+  OFFICE_KIT_AGENT_EVAL_PDFTOTEXT: "/opt/poppler/bin/pdftotext",
+}), {});
 assert.equal(providerRuntimeInstruction({ family: "xlsx" }, { OFFICE_KIT_AGENT_EVAL_PYTHON: "/opt/python" }), "");
 
 const validationSampleId = "pdf-bounded-contract-id-replace";
@@ -2814,6 +2855,104 @@ const preMutationQaChecks = gradeActiveContentSanitizeEvidence({ evidence: activ
 for (const id of ["pdf-trace:post-mutation-residue-scan", "pdf-trace:post-mutation-poppler-render", "pdf-trace:audit-byte-validation"]) {
   assert.equal(preMutationQaChecks.find((entry) => entry.id === id)?.passed, false, `${id} must require evidence after mutation`);
 }
+
+const multichannelItem = cases.find((item) => item.id === "pdf-redact-multichannel-secret");
+const multichannelTerm = multichannelItem.grade.machine.residueTerms[0];
+const multichannelZero = { [multichannelTerm]: 0 };
+const multichannelOne = { [multichannelTerm]: 1 };
+const multichannelEvidence = {
+  source: {
+    sha256: "multichannel-source-sha",
+    pageCount: 4,
+    pages: [1, 2, 3, 4].map((page) => ({ page, width: 612, height: 792, rotation: 0, termCounts: page < 4 ? multichannelOne : multichannelZero })),
+    termCounts: { [multichannelTerm]: 3 },
+    rawTermCounts: { [multichannelTerm]: 3 },
+    decodedStreamTermCounts: { [multichannelTerm]: 6 },
+    metadataTermCounts: { [multichannelTerm]: 2 },
+    decodedStreamErrors: [],
+  },
+  output: {
+    sha256: "multichannel-output-sha",
+    pageCount: 4,
+    pages: [1, 2, 3, 4].map((page) => ({ page, width: 612, height: 792, rotation: 0, termCounts: multichannelZero })),
+    termCounts: multichannelZero,
+    rawTermCounts: multichannelZero,
+    decodedStreamTermCounts: multichannelZero,
+    metadataTermCounts: multichannelZero,
+    decodedStreamErrors: [],
+  },
+  sourceStructure: {
+    attachments: [{ name: "restricted-evidence.txt" }],
+    attachmentTermCounts: multichannelOne,
+    structureTermCounts: { [multichannelTerm]: 5 },
+    commentAnnotations: [{ page: 4, subtype: "/Text" }],
+    populatedWidgets: [{ page: 4, name: "RestrictedIdentifier", values: { "/V": multichannelTerm } }],
+  },
+  outputStructure: {
+    attachments: [],
+    attachmentTermCounts: multichannelZero,
+    structureTermCounts: multichannelZero,
+    commentAnnotations: [],
+    populatedWidgets: [],
+  },
+  sourceXmpTermCounts: multichannelOne,
+  outputXmpTermCounts: multichannelZero,
+  sourceOcr: { termCounts: { [multichannelTerm]: 2 }, pages: [{ page: 1, termCounts: multichannelOne }, { page: 2, termCounts: multichannelZero }, { page: 3, termCounts: multichannelOne }, { page: 4, termCounts: multichannelZero }] },
+  outputOcr: { termCounts: multichannelZero, pages: [1, 2, 3, 4].map((page) => ({ page, termCounts: multichannelZero })) },
+  sourceRevision: { eofCount: 2, previousRevisionCount: 1 },
+  outputRevision: { eofCount: 1, previousRevisionCount: 0 },
+  originalPrefixPreserved: false,
+  visual: {
+    renderer: "poppler-pdftoppm",
+    pages: [
+      { page: 1, sameDimensions: true, nonBlank: true, changedPixelsBBox: [140, 250, 360, 300], changedOnlyWithinAllowedMasks: true },
+      { page: 2, sameDimensions: true, nonBlank: true, changedPixelsBBox: null, changedOnlyWithinAllowedMasks: true },
+      { page: 3, sameDimensions: true, nonBlank: true, changedPixelsBBox: [160, 520, 700, 800], changedOnlyWithinAllowedMasks: true },
+      { page: 4, sameDimensions: true, nonBlank: true, changedPixelsBBox: null, changedOnlyWithinAllowedMasks: true },
+    ],
+  },
+};
+const multichannelAudit = {
+  status: "succeeded",
+  source: { sha256: "multichannel-source-sha" },
+  output: { sha256: "multichannel-output-sha" },
+  provider: { actual: "pymupdf", version: "1.27.2.3", silentFallback: false },
+  savePolicy: { strategy: "sanitize" },
+  preflight: { probeCompleted: true, planCompleted: true },
+  operation: {
+    type: "redact-and-sanitize",
+    orderedOperations: [
+      { type: "redact_ocr_text", page: 3, matches: 1 },
+      { type: "redact_text", matches: 3 },
+      { type: "scrub" },
+      { type: "active_content_cleanup" },
+    ],
+  },
+  validation: { residue: { ok: true, requireOcr: true, requireSingleRevision: true }, render: { pages: 4 } },
+};
+const multichannelCommands = [
+  "python pymupdf_edit.py probe --accept-license agpl --ocr-language eng --require-ocr",
+  "python pdf_provider.py plan --task redact --provider pymupdf --strategy sanitize",
+  "python pymupdf_edit.py edit inputs/source.pdf outputs/redacted.pdf --strategy sanitize --operations tmp/redactions.json --accept-license agpl --invalidate-signatures",
+  "python residue_scan.py outputs/redacted.pdf --term ZXQ-PHI-9173 --require-ocr --require-single-revision --require-inert",
+  "pdftoppm -png outputs/redacted.pdf tmp/render/page",
+  "python pdf_audit.py validate outputs/audit.json",
+];
+const multichannelChecks = gradeMultichannelRedactionEvidence({ evidence: multichannelEvidence, audit: multichannelAudit, commands: multichannelCommands, item: multichannelItem });
+assert.equal(multichannelChecks.every((entry) => entry.passed), true);
+assert.equal(summarizeCaseScore(multichannelChecks, multichannelItem.grade).rawScorePercent, 100);
+const multichannelOcrResidue = structuredClone(multichannelEvidence);
+multichannelOcrResidue.outputOcr.termCounts[multichannelTerm] = 1;
+const multichannelOcrResidueChecks = gradeMultichannelRedactionEvidence({ evidence: multichannelOcrResidue, audit: multichannelAudit, commands: multichannelCommands, item: multichannelItem });
+assert.equal(multichannelOcrResidueChecks.find((entry) => entry.id === "pdf-security:all-multichannel-residue-absent")?.passed, false);
+const multichannelMisorderedAudit = structuredClone(multichannelAudit);
+multichannelMisorderedAudit.operation.orderedOperations = [
+  { type: "redact_text", matches: 3 },
+  { type: "redact_ocr_text", page: 3, matches: 1 },
+  { type: "scrub" },
+];
+const multichannelMisorderedChecks = gradeMultichannelRedactionEvidence({ evidence: multichannelEvidence, audit: multichannelMisorderedAudit, commands: multichannelCommands, item: multichannelItem });
+assert.equal(multichannelMisorderedChecks.find((entry) => entry.id === "pdf-trace:typed-selectable-and-raster-redaction")?.passed, false);
 
 const traceCommands = extractCompletedCommands([
   JSON.stringify({ type: "item.started", item: { id: "one", type: "command_execution", command: "ignored-started-command" } }),

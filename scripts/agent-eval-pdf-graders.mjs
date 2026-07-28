@@ -13,6 +13,7 @@ const supportedCases = new Set([
   "pdf-acroform-visible-preserved",
   "pdf-attachment-quarantine-inventory",
   "pdf-active-content-public-sanitize",
+  "pdf-redact-multichannel-secret",
   "pdf-greenfield-accessible-report",
   "pdf-merge-reorder-stamp-links",
   "pdf-encrypted-owner-policy-boundary",
@@ -113,7 +114,12 @@ function auditSaveStrategy(audit) {
 
 function auditOperationRecords(audit) {
   const operation = audit?.operation;
-  if (operation && typeof operation === "object" && !Array.isArray(operation)) return [operation];
+  if (operation && typeof operation === "object" && !Array.isArray(operation)) {
+    const ordered = Array.isArray(operation.orderedOperations)
+      ? operation.orderedOperations.filter((value) => value && typeof value === "object")
+      : [];
+    return [operation, ...ordered];
+  }
   if (Array.isArray(operation)) return operation.filter((value) => value && typeof value === "object");
   if (Array.isArray(audit?.operations)) return audit.operations.filter((value) => value && typeof value === "object");
   return [];
@@ -366,6 +372,27 @@ function activeContentTraceChecks(audit, commands) {
     check("pdf-trace:post-mutation-poppler-render", "trace", renderAfterEdit, { actual: { editObserved: editIndex >= 0, postMutationRenderObserved: renderAfterEdit } }),
     check("pdf-trace:audit-byte-validation", "trace", auditAfterEdit, { actual: { postMutationAuditValidationObserved: auditAfterEdit } }),
     gate("pdf-trace:no-content-stream-bypass", "trace", !bypassPatterns.some((pattern) => pattern.test(commandText)), { forbidden: bypassPatterns.map(String) }),
+  ];
+}
+
+function multichannelRedactionTraceChecks(audit, commands) {
+  const operations = auditOperationRecords(audit);
+  const ocrIndex = operations.findIndex((operation) => operation.type === "redact_ocr_text");
+  const textIndex = operations.findIndex((operation) => operation.type === "redact_text");
+  const scrubIndex = operations.findIndex((operation) => operation.type === "scrub" || operation.type === "active_content_cleanup");
+  const commandText = commands.join("\n");
+  const editIndex = commands.findIndex((command) => /pymupdf_edit\.py\s+edit\b/i.test(command));
+  const postEditCommands = editIndex >= 0 ? commands.slice(editIndex).join("\n") : "";
+  return [
+    ...activeContentTraceChecks(audit, commands),
+    check("pdf-trace:typed-selectable-and-raster-redaction", "trace", ocrIndex >= 0 && textIndex >= 0 && scrubIndex >= 0 && ocrIndex < textIndex, {
+      expected: "redact_ocr_text before redact_text, followed by scrub/cleanup",
+      actual: operations.map((operation) => operation.type || operation.operation || "unreported"),
+    }),
+    check("pdf-trace:ocr-probe-required", "trace", /pymupdf_edit\.py\s+probe\b[^\n]*--require-ocr/i.test(commandText), { expected: "pymupdf OCR capability probe" }),
+    check("pdf-trace:strict-post-mutation-residue-scan", "trace", /residue_scan\.py\b/i.test(postEditCommands) && /--require-ocr\b/i.test(postEditCommands) && /--require-single-revision\b/i.test(postEditCommands), {
+      expected: "post-mutation residue scan with OCR and revision requirements",
+    }),
   ];
 }
 
@@ -1514,6 +1541,77 @@ export function gradeActiveContentSanitizeEvidence({ evidence, audit, commands, 
   ];
 }
 
+export function gradeMultichannelRedactionEvidence({ evidence, audit, commands, item }) {
+  const source = evidence.source;
+  const output = evidence.output;
+  const sourceStructure = evidence.sourceStructure;
+  const outputStructure = evidence.outputStructure;
+  const term = item.grade.machine.residueTerms?.[0];
+  const visualPages = evidence.visual?.pages || [];
+  const sourceVisibleChannels = (
+    source.pages?.[0]?.termCounts?.[term] === 1
+    && source.pages?.[1]?.termCounts?.[term] === 1
+    && source.pages?.[2]?.termCounts?.[term] === 1
+    && evidence.sourceOcr?.pages?.[2]?.termCounts?.[term] === 1
+    && sourceStructure.attachments?.length === 1
+    && sourceStructure.commentAnnotations?.length === 1
+    && sourceStructure.populatedWidgets?.length === 1
+    && Number(sourceStructure.attachmentTermCounts?.[term] || 0) > 0
+    && Number(sourceStructure.structureTermCounts?.[term] || 0) > 0
+    && Number(evidence.sourceXmpTermCounts?.[term] || 0) > 0
+    && Number(source.decodedStreamTermCounts?.[term] || 0) > 0
+    && evidence.sourceRevision?.eofCount === 2
+    && evidence.sourceRevision?.previousRevisionCount === 1
+  );
+  const outputTermsAbsent = (
+    evidenceTermCount(output, term) === 0
+    && structureTermCount(outputStructure, term) === 0
+    && Number(evidence.outputXmpTermCounts?.[term] || 0) === 0
+    && Number(evidence.outputOcr?.termCounts?.[term] || 0) === 0
+  );
+  const sourcePageCounts = source.pageCount === item.grade.machine.pageCount;
+  const outputStructureClean = outputStructure.attachments?.length === 0
+    && outputStructure.commentAnnotations?.length === 0
+    && outputStructure.populatedWidgets?.length === 0;
+  const visualStable = visualPages.length === item.grade.machine.pageCount
+    && visualPages.every((page) => page.sameDimensions && page.nonBlank && page.changedOnlyWithinAllowedMasks)
+    && visualPages.find((page) => page.page === 1)?.changedPixelsBBox !== null
+    && visualPages.find((page) => page.page === 3)?.changedPixelsBBox !== null
+    && visualPages.filter((page) => page.page === 2 || page.page === 4).every((page) => page.changedPixelsBBox === null);
+  const auditStatus = String(audit?.status || "");
+  return [
+    check("pdf-machine:multichannel-source-fixture-complete", "machine", sourceVisibleChannels, {
+      actual: {
+        pages: source.pages?.map((page) => page.termCounts?.[term]),
+        sourceOcrPage3: evidence.sourceOcr?.pages?.[2]?.termCounts?.[term],
+        attachments: sourceStructure.attachments?.length,
+        annotations: sourceStructure.commentAnnotations?.length,
+        populatedWidgets: sourceStructure.populatedWidgets?.length,
+        xmp: evidence.sourceXmpTermCounts?.[term],
+        decoded: source.decodedStreamTermCounts?.[term],
+        revisions: evidence.sourceRevision,
+      },
+    }),
+    check("pdf-machine:page-count-and-boxes-unchanged", "machine", sourcePageCounts && output.pageCount === source.pageCount && samePageBoxes(source.pages, output.pages), { actual: { source: source.pageCount, output: output.pageCount } }),
+    check("pdf-machine:non-page-sensitive-channels-cleared", "machine", outputStructureClean, { actual: { attachments: outputStructure.attachments?.length, annotations: outputStructure.commentAnnotations?.length, populatedWidgets: outputStructure.populatedWidgets?.length } }),
+    check("pdf-machine:audit-success", "machine", /^(?:success|succeeded|completed)$/i.test(auditStatus), { actual: auditStatus || "unreported" }),
+    check("pdf-visual:all-pages-rendered-with-bounded-delta", "visual", visualStable, { renderer: evidence.visual?.renderer, actual: visualPages }),
+    gate("pdf-security:all-multichannel-residue-absent", "security", outputTermsAbsent, {
+      term,
+      actual: {
+        output: { raw: output.rawTermCounts?.[term], decoded: output.decodedStreamTermCounts?.[term], metadata: output.metadataTermCounts?.[term], extracted: output.termCounts?.[term] },
+        structure: outputStructure.structureTermCounts?.[term],
+        xmp: evidence.outputXmpTermCounts?.[term],
+        ocr: evidence.outputOcr?.termCounts?.[term],
+      },
+    }),
+    gate("pdf-security:all-streams-decodable", "security", source.decodedStreamErrors?.length === 0 && output.decodedStreamErrors?.length === 0, { actual: { source: source.decodedStreamErrors || [], output: output.decodedStreamErrors || [] } }),
+    gate("pdf-security:single-revision-and-no-old-prefix", "security", evidence.outputRevision?.eofCount === 1 && evidence.outputRevision?.previousRevisionCount === 0 && evidence.originalPrefixPreserved === false, { actual: { outputRevision: evidence.outputRevision, originalPrefixPreserved: evidence.originalPrefixPreserved } }),
+    gate("pdf-security:audit-provenance", "security", auditSourceHash(audit) === source.sha256 && auditOutputHash(audit) === output.sha256, { expected: { source: source.sha256, output: output.sha256 }, actual: { source: auditSourceHash(audit) || "unreported", output: auditOutputHash(audit) || "unreported" } }),
+    ...multichannelRedactionTraceChecks(audit, commands),
+  ];
+}
+
 export function summarizeCaseScore(checks, grade, weights = defaultWeights, hardGatesPassed = true) {
   const categories = ["machine", "visual", "security", "trace"];
   const categoryScores = {};
@@ -1543,7 +1641,7 @@ function oraclePython() {
   return process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "python3";
 }
 
-function invokeOracle(payload, needsPoppler) {
+function invokeOracle(payload, needsPoppler, needsTesseract = false) {
   const python = oraclePython();
   const dependencyProbe = spawnSync(python, ["-c", "import PIL, pdfplumber, pypdf, reportlab"], { encoding: "utf8", env: process.env });
   if (dependencyProbe.status !== 0) {
@@ -1554,9 +1652,14 @@ function invokeOracle(payload, needsPoppler) {
     const popplerProbe = spawnSync(poppler, ["-v"], { encoding: "utf8", env: process.env });
     if (popplerProbe.status !== 0) return { infrastructureError: `PDF visual grader requires pdftoppm: ${String(popplerProbe.stderr || popplerProbe.error?.message || "probe failed").trim()}` };
   }
+  const tesseract = process.env.OFFICE_KIT_AGENT_EVAL_TESSERACT || "tesseract";
+  if (needsTesseract) {
+    const tesseractProbe = spawnSync(tesseract, ["--version"], { encoding: "utf8", env: process.env });
+    if (tesseractProbe.status !== 0) return { infrastructureError: `PDF multichannel grader requires Tesseract: ${String(tesseractProbe.stderr || tesseractProbe.error?.message || "probe failed").trim()}` };
+  }
   const result = spawnSync(python, [oracleScript], {
     encoding: "utf8",
-    input: JSON.stringify({ ...payload, poppler }),
+    input: JSON.stringify({ ...payload, poppler, tesseract }),
     env: process.env,
     maxBuffer: 64 * 1024 * 1024,
   });
@@ -1623,6 +1726,24 @@ function unreadableActiveContentArtifactChecks(audit, commands, oracleError) {
     check("pdf-visual:artifact-renderable-by-oracle", "visual", false, { actual: oracleError }),
     gate("pdf-security:artifact-readable-by-oracle", "security", false, { actual: oracleError }),
     ...activeContentTraceChecks(audit, commands),
+  ];
+}
+
+function missingMultichannelRedactionChecks(audit, commands) {
+  return [
+    check("pdf-machine:artifact-available-for-oracle", "machine", false),
+    check("pdf-visual:artifact-available-for-oracle", "visual", false),
+    gate("pdf-security:artifact-available-for-oracle", "security", false),
+    ...multichannelRedactionTraceChecks(audit, commands),
+  ];
+}
+
+function unreadableMultichannelRedactionChecks(audit, commands, oracleError) {
+  return [
+    check("pdf-machine:artifact-readable-by-oracle", "machine", false, { actual: oracleError }),
+    check("pdf-visual:artifact-renderable-by-oracle", "visual", false, { actual: oracleError }),
+    gate("pdf-security:artifact-readable-by-oracle", "security", false, { actual: oracleError }),
+    ...multichannelRedactionTraceChecks(audit, commands),
   ];
 }
 
@@ -1952,6 +2073,28 @@ export async function gradePdfCase({ item, workspace, evaluator, finalMessage, t
     }
     if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
     checks = gradeMergeStampEvidence({ evidence: oracle.evidence, audit, commands, item });
+  } else if (item.id === "pdf-redact-multichannel-secret") {
+    const output = path.join(workspace, "outputs", "redacted.pdf");
+    try { await fs.access(output); } catch {
+      checks = missingMultichannelRedactionChecks(audit, commands);
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: null, pending: [], ...score };
+    }
+    oracle = invokeOracle({
+      kind: "multichannel-redaction",
+      source: path.join(workspace, "inputs", "source.pdf"),
+      output,
+      terms: item.grade.machine.residueTerms,
+      imageMask: { page: 3, bbox: [72, 258, 540, 492] },
+      renderRoot: path.join(evaluator, "pdf-oracle-render"),
+    }, true, true);
+    if (!oracle.evidence && oracle.oracleError) {
+      checks = unreadableMultichannelRedactionChecks(audit, commands, oracle.oracleError);
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: { oracleError: oracle.oracleError }, pending: [], ...score };
+    }
+    if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
+    checks = gradeMultichannelRedactionEvidence({ evidence: oracle.evidence, audit, commands, item });
   } else {
     const output = path.join(workspace, "outputs", "public-safe.pdf");
     try { await fs.access(output); } catch {

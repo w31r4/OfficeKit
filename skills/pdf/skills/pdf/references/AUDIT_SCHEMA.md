@@ -25,6 +25,13 @@ Required success shape:
 
 `source.sha256` and `output.sha256` identify the exact delivered bytes. `provider.actual`, `provider.version`, `provider.silentFallback`, `savePolicy.strategy`, and `operation.type` are never inferred from prose. Provider-specific evidence, fit checks, signature policy, residue scans, Poppler results, warnings, and task-specific assertions belong in additional fields without renaming the canonical envelope.
 
+When one delivery executes multiple typed steps, keep the umbrella
+`operation.type` and add `operation.orderedOperations`: an array of the
+provider's executed typed records in order. Preserve page, match, coordinate,
+or cleanup facts from the provider report. This is execution evidence, not a
+human-written summary; a generic `redact-and-sanitize` label alone is not an
+auditable substitute for `redact_ocr_text`, `redact_text`, and `scrub` records.
+
 For a multi-source operation, keep `source` as the exact operation manifest and add an `inputs` array containing the same file-evidence shape for every imported PDF. The validator requires a matching repeated `--input` path for every record and recomputes each byte count and SHA-256; ordering is not significant, but missing, duplicate, or extra records fail.
 
 ```json

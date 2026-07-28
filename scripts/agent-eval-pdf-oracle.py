@@ -11,6 +11,7 @@ import hashlib
 import json
 import math
 import mimetypes
+import os
 import pathlib
 import re
 import shutil
@@ -785,6 +786,113 @@ def active_content_sanitize(payload: dict[str, Any]) -> dict[str, Any]:
             [
                 {"page": 1, "bbox": [72, 148, 252, 172]},
                 {"page": 1, "bbox": [500, 92, 520, 112]},
+            ],
+        ),
+    }
+
+
+def xmp_term_counts(file_path: pathlib.Path, terms: list[str]) -> dict[str, int]:
+    """Read XMP independently from the candidate mutation provider."""
+
+    reader = pypdf.PdfReader(str(file_path), strict=True)
+    root = resolve_pdf_value(reader.trailer["/Root"])
+    metadata = resolve_pdf_value(root.get("/Metadata")) if isinstance(root, dict) else None
+    payload = bytes(metadata.get_data()) if callable(getattr(metadata, "get_data", None)) else b""
+    return {term: term_count(payload, term) for term in terms}
+
+
+def tesseract_render_evidence(
+    file_path: pathlib.Path,
+    render_root: pathlib.Path,
+    poppler: str,
+    tesseract: str,
+    terms: list[str],
+    *,
+    language: str = "eng",
+) -> dict[str, Any]:
+    """OCR Poppler raster output through an evaluator-owned Tesseract pass.
+
+    This intentionally avoids the PyMuPDF OCR result used by the candidate.
+    It resolves image paths before launching Tesseract because macOS's `/tmp`
+    alias is not accepted by every installed Leptonica build.
+    """
+
+    shutil.rmtree(render_root, ignore_errors=True)
+    pages = run_poppler(poppler, file_path, render_root / "page", 200)
+    environment = dict(os.environ)
+    environment.pop("TESSDATA_PREFIX", None)
+    records = []
+    aggregate = {term: 0 for term in terms}
+    for index, image in enumerate(pages, 1):
+        result = subprocess.run(
+            [tesseract, str(image.resolve()), "stdout", "-l", language, "--psm", "6"],
+            text=True,
+            capture_output=True,
+            timeout=90,
+            check=False,
+            env=environment,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Tesseract failed for rendered page {index} of {file_path}: "
+                f"{result.stderr.strip() or result.stdout.strip() or 'unknown error'}"
+            )
+        counts = {term: term_count(result.stdout, term) for term in terms}
+        for term, count in counts.items():
+            aggregate[term] += count
+        records.append({"page": index, "termCounts": counts, "textChars": len(result.stdout)})
+    return {"language": language, "pageCount": len(pages), "termCounts": aggregate, "pages": records}
+
+
+def multichannel_redaction(payload: dict[str, Any]) -> dict[str, Any]:
+    source = pathlib.Path(payload["source"])
+    output = pathlib.Path(payload["output"])
+    terms = list(payload.get("terms") or [])
+    image_mask = dict(payload.get("imageMask") or {})
+    if set(image_mask) != {"page", "bbox"} or image_mask["page"] != 3 or not isinstance(image_mask["bbox"], list) or len(image_mask["bbox"]) != 4:
+        raise ValueError("multichannel-redaction requires a bounded page-three image mask")
+    source_style = literal_style(source, 1, terms[0]) if terms else {"found": False}
+    if not source_style.get("found"):
+        raise ValueError("multichannel-redaction source has no unique visible page-one canary")
+    visible_bbox = source_style["bbox"]
+    # A real redaction annotation can extend a fractional point beyond the
+    # original glyph box. Keep this tolerance local to the visible canary;
+    # untouched pages still require pixel identity.
+    visible_mask = {
+        "page": 1,
+        "bbox": [visible_bbox[0] - 1, visible_bbox[1] - 1, visible_bbox[2] + 1, visible_bbox[3] + 1],
+    }
+    source_bytes = source.read_bytes()
+    output_bytes = output.read_bytes()
+    source_revision = {
+        "eofCount": len(re.findall(rb"%%EOF", source_bytes)),
+        "previousRevisionCount": len(re.findall(rb"/Prev\s+\d+", source_bytes)),
+    }
+    output_revision = {
+        "eofCount": len(re.findall(rb"%%EOF", output_bytes)),
+        "previousRevisionCount": len(re.findall(rb"/Prev\s+\d+", output_bytes)),
+    }
+    return {
+        "kind": "multichannel-redaction",
+        "source": inspect_pdf(source, terms),
+        "output": inspect_pdf(output, terms),
+        "sourceStructure": active_structure_evidence(source, terms),
+        "outputStructure": active_structure_evidence(output, terms),
+        "sourceXmpTermCounts": xmp_term_counts(source, terms),
+        "outputXmpTermCounts": xmp_term_counts(output, terms),
+        "sourceOcr": tesseract_render_evidence(source, pathlib.Path(payload["renderRoot"]) / "source-ocr", payload["poppler"], payload["tesseract"], terms),
+        "outputOcr": tesseract_render_evidence(output, pathlib.Path(payload["renderRoot"]) / "output-ocr", payload["poppler"], payload["tesseract"], terms),
+        "sourceRevision": source_revision,
+        "outputRevision": output_revision,
+        "originalPrefixPreserved": output_bytes.startswith(source_bytes),
+        "visual": compare_rendered_pages_with_masks(
+            source,
+            output,
+            pathlib.Path(payload["renderRoot"]) / "visual",
+            payload["poppler"],
+            [
+                visible_mask,
+                image_mask,
             ],
         ),
     }
@@ -1640,6 +1748,8 @@ def main() -> None:
         evidence = overflow_refusal(payload)
     elif kind == "active-content-sanitize":
         evidence = active_content_sanitize(payload)
+    elif kind == "multichannel-redaction":
+        evidence = multichannel_redaction(payload)
     elif kind == "acroform-visible":
         evidence = acroform_visible(payload)
     elif kind == "certified-docmdp-p2-fill":

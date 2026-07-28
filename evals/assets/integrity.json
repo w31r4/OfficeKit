@@ -48,6 +48,12 @@
       "kind": "file",
       "sha256": "76735f17073f101e092040626dce56b89bbede060e663c0322fced4a573fd890"
     },
+    "pdf/redaction/multichannel-secret.pdf": {
+      "bytes": 88037,
+      "description": "Four-page incremental PDF with one self-authored canary in visible/white/OCR text, raster pixels, attachment, XMP, annotation, widget, orphan stream, and prior revision.",
+      "kind": "file",
+      "sha256": "3b726ecd11f6c78f68c4ebebf6c3a6de4e9760ba94fcb6c2467d0dfee80c6805"
+    },
     "pdf/signing/docmdp-p1-final.pdf": {
       "bytes": 10630,
       "description": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",

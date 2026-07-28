@@ -62,6 +62,11 @@ PyMuPDF page space, restores `/Rotate`, and reports both unrotated and
 display-space rectangles for independent QA. OCR uncertainty is never converted
 into a broad rectangle or provider fallback.
 
+When one page contains both the raster target and a selectable OCR/text overlay,
+place `redact_ocr_text` before `redact_text` in the operations file. Adding a
+text redaction annotation first can alter the rendered image that OCR observes;
+the recorded operation order is therefore part of the audit evidence.
+
 If an image-bearing page requires OCR and Tesseract/PyMuPDF OCR cannot run, the strict residue gate fails. Install/configure OCR, repeat the scan, and do not deliver an incompletely scanned file. After redaction, the same OCR term must be absent from the fully rewritten output; source bytes remain immutable.
 
 ## Active-content public copy
@@ -91,3 +96,7 @@ PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 Opaque black rectangles, annotation-only redactions, incremental writes, or text-extraction-only checks are not acceptable. Keep the original and QA evidence under restricted access according to the user's data-handling requirements.
 
 Emit the canonical [`office-kit.pdf-audit.v1`](../references/AUDIT_SCHEMA.md) record, including residue and render evidence under `validation`, and run `scripts/pdf_audit.py validate` against the final sanitized bytes.
+For a compound sanitize, retain `operation.type` but also record the provider's
+executed steps in `operation.orderedOperations` in their actual order. Copy the
+typed records from the edit report (including OCR page/match facts) rather than
+replacing them with a prose label such as `redact-and-sanitize`.

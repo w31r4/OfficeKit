@@ -560,10 +560,54 @@ export function providerRuntimePath(item, environment = process.env) {
   return configured ? path.resolve(configured) : null;
 }
 
+function preparedPopplerRuntime(item, environment = process.env) {
+  if (item?.family !== "pdf") return null;
+  const configured = {
+    pdfinfo: environment.OFFICE_KIT_AGENT_EVAL_PDFINFO,
+    pdftoppm: environment.OFFICE_KIT_AGENT_EVAL_PDFTOPPM,
+    pdftotext: environment.OFFICE_KIT_AGENT_EVAL_PDFTOTEXT,
+  };
+  if (Object.values(configured).some((value) => !value)) return null;
+  const commandPaths = Object.fromEntries(Object.entries(configured).map(([command, executable]) => [command, path.resolve(executable)]));
+  const directories = new Set(Object.values(commandPaths).map((executable) => path.dirname(executable)));
+  return {
+    commandPaths,
+    pathDirectory: directories.size === 1 ? [...directories][0] : null,
+  };
+}
+
+export function providerRuntimeEnvironment(item, environment = process.env) {
+  if (item?.family !== "pdf") return {};
+  const runtime = {};
+  const interpreter = providerRuntimePath(item, environment);
+  if (interpreter) runtime.OFFICE_KIT_PDF_PROVIDER_PYTHON = interpreter;
+  const poppler = preparedPopplerRuntime(item, environment);
+  if (poppler) {
+    runtime.OFFICE_KIT_PDF_PDFINFO = poppler.commandPaths.pdfinfo;
+    runtime.OFFICE_KIT_PDF_PDFTOPPM = poppler.commandPaths.pdftoppm;
+    runtime.OFFICE_KIT_PDF_PDFTOTEXT = poppler.commandPaths.pdftotext;
+    if (poppler.pathDirectory) runtime.PATH = `${poppler.pathDirectory}${path.delimiter}${environment.PATH || ""}`;
+  }
+  return runtime;
+}
+
 export function providerRuntimeInstruction(item, environment = process.env) {
   const interpreter = providerRuntimePath(item, environment);
-  if (!interpreter) return "";
-  return `\n## Prepared provider runtime\n\nThis isolated trial supplies the authoritative PDF provider interpreter below. Export it before every PDF Python probe, plan, mutation, scan, and audit command. Do not replace it, install another environment, or fall back to system Python.\n\n\`\`\`bash\nexport OFFICE_KIT_PDF_PROVIDER_PYTHON=${JSON.stringify(interpreter)}\n\`\`\`\n`;
+  const poppler = preparedPopplerRuntime(item, environment);
+  if (!interpreter && !poppler) return "";
+  const exports = [];
+  const rules = [];
+  if (interpreter) {
+    exports.push(`export OFFICE_KIT_PDF_PROVIDER_PYTHON=${JSON.stringify(interpreter)}`);
+    rules.push("Export the provider interpreter before every PDF Python probe, plan, mutation, scan, and audit command.");
+  }
+  if (poppler) {
+    exports.push(`export OFFICE_KIT_PDF_PDFINFO=${JSON.stringify(poppler.commandPaths.pdfinfo)}`);
+    exports.push(`export OFFICE_KIT_PDF_PDFTOPPM=${JSON.stringify(poppler.commandPaths.pdftoppm)}`);
+    exports.push(`export OFFICE_KIT_PDF_PDFTOTEXT=${JSON.stringify(poppler.commandPaths.pdftotext)}`);
+    rules.push("Use these exact Poppler commands for native inspection, text QA, and rendering; do not substitute ambient PATH tools.");
+  }
+  return `\n## Prepared PDF runtimes\n\nThis isolated trial supplies the authoritative PDF runtime paths below. ${rules.join(" ")} Do not replace them, install another environment, or fall back to a different provider.\n\n\`\`\`bash\n${exports.join("\n")}\n\`\`\`\n`;
 }
 
 async function prepareCase(suite, item, options) {
@@ -596,6 +640,7 @@ async function prepareCase(suite, item, options) {
   }
   const packageRecord = await packageCandidate(evaluator, workspace);
   const preparedProviderRuntime = providerRuntimePath(item);
+  const preparedProviderEnvironment = providerRuntimeEnvironment(item);
   const prompt = `${visibleCase(suite, item).prompt}${providerRuntimeInstruction(item)}`;
   await fs.writeFile(path.join(workspace, "PROMPT.md"), `${prompt}\n`, "utf8");
   const workspaceHashes = {};
@@ -622,10 +667,11 @@ async function prepareCase(suite, item, options) {
     inputHashes,
     oracleSha256: oracleFingerprint(item),
     providerRuntime: preparedProviderRuntime,
+    providerRuntimeEnvironment: Object.fromEntries(Object.entries(preparedProviderEnvironment).filter(([name]) => name !== "PATH")),
     evaluatorPython: item.family === "pdf" ? path.resolve(process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || "python3") : null,
   };
   await fs.writeFile(path.join(evaluator, "run.json"), JSON.stringify(runRecord, null, 2), "utf8");
-  return { trialRoot, workspace, evaluator, promptPath: path.join(workspace, "PROMPT.md") };
+  return { trialRoot, workspace, evaluator, promptPath: path.join(workspace, "PROMPT.md"), family: item.family };
 }
 
 async function hashTree(root) {
@@ -668,7 +714,7 @@ async function runCodex(prepared, options) {
     cwd: prepared.workspace,
     encoding: "utf8",
     input: prompt,
-    env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1" },
+    env: { ...process.env, ...providerRuntimeEnvironment({ family: prepared.family }), PYTHONDONTWRITEBYTECODE: "1" },
     maxBuffer: 256 * 1024 * 1024,
   });
   await fs.writeFile(path.join(prepared.evaluator, "trace.jsonl"), result.stdout || "", "utf8");
@@ -818,7 +864,7 @@ function help() {
     "  run <case-id> [prepare options] [--model <model>] [--codex <path>]",
     "  score <case-id> --trial-root <prepared trial directory>",
     "",
-    "The Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. Prepared PDF trials declare one authoritative provider interpreter in PROMPT.md from OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON, OFFICE_KIT_PDF_PROVIDER_PYTHON, or OFFICE_KIT_AGENT_EVAL_PYTHON, in that order. OFFICE_KIT_AGENT_EVAL_PYTHON remains the separate fixture/oracle interpreter, so a small evaluator runtime can grade a managed specialist provider without pretending that they are the same environment. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The 17 ready PDF cases include nine locked corpus signature/boundary/repair fixtures with independent source-structure, audit, render, and trace grading; they do not pass from generic no-artifact gates alone. The ready XLSX threaded-comment, growth-assumption, connection refresh-on-open, and Pivot refresh-on-open cases, four DOCX cases (classic-comment, source-bound DOCX header text, source-bound DOCX footer text, and source-bound DOCX section page-numbering), and four PPTX cases (title plus fixed-topology rich-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone) also have independent semantic, native-render, security, and provider-trace graders. PDF must remain an absolute majority of the full suite; the remaining 12 asset-required cases never claim full success before pinned corpus or PKI fixtures exist.",
+    "The Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. Prepared PDF trials declare one authoritative provider interpreter in PROMPT.md from OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON, OFFICE_KIT_PDF_PROVIDER_PYTHON, or OFFICE_KIT_AGENT_EVAL_PYTHON, in that order. OFFICE_KIT_AGENT_EVAL_PYTHON remains the separate fixture/oracle interpreter, so a small evaluator runtime can grade a managed specialist provider without pretending that they are the same environment. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The 18 ready PDF cases include eleven locked corpus signature/boundary/repair/redaction fixtures with independent source-structure, audit, render, OCR, and trace grading; they do not pass from generic no-artifact gates alone. The ready XLSX threaded-comment, growth-assumption, connection refresh-on-open, and Pivot refresh-on-open cases, four DOCX cases (classic-comment, source-bound DOCX header text, source-bound DOCX footer text, and source-bound DOCX section page-numbering), and four PPTX cases (title plus fixed-topology rich-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone) also have independent semantic, native-render, security, and provider-trace graders. PDF must remain an absolute majority of the full suite; the remaining 11 asset-required cases never claim full success before pinned corpus or PKI fixtures exist.",
     "",
   ].join("\n");
 }
