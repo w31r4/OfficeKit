@@ -200,7 +200,24 @@ source-hash-bound inspection and a failed-closed, audit-only refusal; it must
 not silently skip those corrections, rasterize all eight pages, or claim that
 the shipped OCR provider is unavailable. Its hidden parser oracle proves the
 mixed source before it grades the refusal. A candidate/reference repeat matrix
-will be recorded only after real Agent trials run against one clean tarball.
+ran at clean commit `3477d7156140658c74c37d0a65b24083f364bc56`: candidate
+`3/3` and copied-reference `3/3`, every run `100/100` with all 23 evaluator
+checks and all hard gates. The shared candidate tarball SHA-256 was
+`7e31440be693705e40cf9652f067b2d4921c104049ecd30706edc857656d2217`; the
+prompt, locked source, and hidden oracle SHA-256 values were respectively
+`5b29c6c4b00f6ce979282cbf54e7ce046fae8f53a068ef72a15ac9aea0a457dc`,
+`8394fa11243eec03a3fe4fe152f0dd69f2857a2bf7df33ad04c4d8899cf46987`, and
+`1310696bd255ca709a8827ba1a4838355c9bc3f0fd5684648ffd209b90c66d3f`. The
+candidate Skill SHA-256 was
+`0a5c820ef1d8014966e0e398616c8282020e3c27727b146e4a7fb34d0acff848`; the
+copied reference Skill SHA-256 was
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`, with
+no text patches required. The prepared runtime's policy/probe state may add a
+separate local blocker, but every accepted trace named the unsupported
+orientation/deskew preprocessing as the primary reason and used the canonical
+audit-only refusal path. This is a Skill-workflow comparison over the same
+candidate package, not a claim that the reference package independently
+supplies the OfficeKit OCR provider or that a managed OCR success workflow ran.
 
 The evaluator normalizes the published audit envelope and structured equivalent
 forms: an explicit
