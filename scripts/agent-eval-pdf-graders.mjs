@@ -382,6 +382,32 @@ function completedInvocation(commands, pattern) {
   return null;
 }
 
+function qpdfProviderInvocationPattern(action) {
+  return new RegExp(`(?:qpdf_provider\\.py["']?|["']?\\$\\{?QPDF_SCRIPT\\}?["']?)\\s+${action}\\b`, "i");
+}
+
+function completedQpdfProviderInvocation(commands, action) {
+  const pattern = qpdfProviderInvocationPattern(action);
+  for (let commandIndex = 0; commandIndex < commands.length; commandIndex += 1) {
+    const command = String(commands[commandIndex]);
+    // A shell variable is accepted only when that same shell command binds it
+    // to the published qpdf adapter. A bare `qpdf` executable is not enough.
+    if (!/qpdf_provider\.py/i.test(command)) continue;
+    const expression = new RegExp(pattern.source, pattern.flags.replace("g", "") + "g");
+    for (const match of command.matchAll(expression)) {
+      const tail = command.slice((match.index || 0) + match[0].length);
+      if (/^\s+(?:--help|-h)\b/i.test(tail)) continue;
+      return { commandIndex, offset: match.index || 0 };
+    }
+  }
+  return null;
+}
+
+function hasQpdfProviderInvocation(command, action, inheritedBinding = false) {
+  const text = String(command || "");
+  return (inheritedBinding || /qpdf_provider\.py/i.test(text)) && qpdfProviderInvocationPattern(action).test(text);
+}
+
 function invocationBefore(left, right) {
   return Boolean(left && right && (
     left.commandIndex < right.commandIndex
@@ -778,6 +804,15 @@ function damagedXrefRepair(audit) {
       checkAfter: qpdf.freshInspect,
     };
   }
+  const qpdfFreshInspect = audit?.validation?.qpdfFreshInspect;
+  if (qpdfFreshInspect && typeof qpdfFreshInspect === "object") {
+    return {
+      checkBefore: audit?.warnings?.repairBefore,
+      qpdfWrite: audit?.warnings?.repairWrite,
+      checkAfter: qpdfFreshInspect,
+      requiresFreshInspection: true,
+    };
+  }
   const repairAfter = audit?.validation?.repairAfter;
   if (repairAfter && typeof repairAfter === "object") {
     return {
@@ -838,12 +873,14 @@ function stableRecords(records = []) {
 function qpdfRecoveryTraceChecks(audit, commands) {
   const commandText = commands.join("\n");
   const operation = auditOperation(audit);
-  const inspect = completedInvocation(commands, /qpdf_provider\.py["']?\s+inspect\b/i);
-  const rewrite = completedInvocation(commands, /qpdf_provider\.py["']?\s+rewrite\b/i);
+  const inspect = completedQpdfProviderInvocation(commands, "inspect");
+  const rewrite = completedQpdfProviderInvocation(commands, "rewrite");
   const afterRewrite = commandTextAfter(commands, rewrite);
-  const outputInspect = /qpdf_provider\.py["']?\s+inspect\b/i.test(afterRewrite);
+  const rewriteCommandBindsQpdf = Boolean(rewrite && /qpdf_provider\.py/i.test(String(commands[rewrite.commandIndex])));
+  const outputInspect = hasQpdfProviderInvocation(afterRewrite, "inspect", rewriteCommandBindsQpdf);
   const outputRender = /(?:\bpdftoppm\b|mupdf\.mjs["']?\s+render\b)/i.test(afterRewrite);
-  const controlInspected = /(?:qpdf_provider\.py["']?\s+inspect\b|\bqpdf\s+--check\b)[\s\S]*unrecoverable\.pdf/i.test(commandText);
+  const controlInspected = commands.some((command) => hasQpdfProviderInvocation(command, "inspect") && /unrecoverable\.pdf/i.test(String(command)))
+    || /\bqpdf\s+--check\b[\s\S]*unrecoverable\.pdf/i.test(commandText);
   const manualWriterPatterns = [
     /\bPdfWriter\s*\(/,
     /\bcanvas\.Canvas\s*\(/,
@@ -874,7 +911,7 @@ export function gradeDamagedXrefSafeRefusalEvidence({ evidence, audit, commands,
     && outputEntries.length === 1
     && outputEntries[0] === "audit.json";
   const diagnostic = `${finalMessage || ""}\n${audit?.reason || ""}\n${JSON.stringify(audit?.warnings || [])}`;
-  const noRepair = !/qpdf_provider\.py["']?\s+rewrite\b/i.test(commandText);
+  const noRepair = !commands.some((command) => hasQpdfProviderInvocation(command, "rewrite"));
   return [
     check("pdf-machine:damaged-source-and-control-fixture", "machine", source.pageCount === 2 && evidence.sourceRawStartxrefIsZero === true && (evidence.sourceAttachments || []).length === 1 && evidence.unrecoverable?.hasControlCanary === true, { actual: { source, unrecoverable: evidence.unrecoverable } }),
     check("pdf-machine:safe-refusal-status", "machine", audit?.status === "failed_closed" && audit?.delivered_modified_pdf !== true, { actual: audit?.status || "unreported" }),
@@ -883,7 +920,7 @@ export function gradeDamagedXrefSafeRefusalEvidence({ evidence, audit, commands,
     gate("pdf-security:both-inputs-bound", "security", auditSourceHash(audit) === source.sha256 && damagedXrefControlSourceHash(control, audit) === evidence.unrecoverable?.sha256, { expected: { recoverable: source.sha256, unrecoverable: evidence.unrecoverable?.sha256 }, actual: { recoverable: auditSourceHash(audit) || "unreported", unrecoverable: damagedXrefControlSourceHash(control, audit) || "unreported" } }),
     gate("pdf-security:no-partial-output", "security", noOutput, { actual: { audit: audit?.output, outputEntries } }),
     check("pdf-trace:provider-declared", "trace", Boolean(String(auditProvider(audit)).trim()), { actual: auditProvider(audit) || "unreported" }),
-    check("pdf-trace:source-inspection", "trace", /(?:qpdf_provider\.py["']?\s+(?:probe|inspect)\b|\bqpdf\b)/i.test(commandText), { actual: commandText || "unreported" }),
+    check("pdf-trace:source-inspection", "trace", commands.some((command) => hasQpdfProviderInvocation(command, "probe") || hasQpdfProviderInvocation(command, "inspect")) || /\bqpdf\b/i.test(commandText), { actual: commandText || "unreported" }),
     check("pdf-trace:no-repair-after-refusal", "trace", noRepair, { actual: commandText || "unreported" }),
     gate("pdf-trace:no-silent-fallback", "trace", auditFallback(audit) === true, { expected: false, actual: auditFallback(audit) === null ? "unreported" : !auditFallback(audit) }),
   ];
