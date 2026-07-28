@@ -37,9 +37,9 @@ Status meanings:
 ### PromptBench current inventory
 
 The current v1 inventory supersedes the historical count embedded in the table
-row above: 41 cases total, with 21 PDF and 20 Office; 30 are `ready` and 11
-remain `asset-required`. Eighteen ready PDF cases include eleven locked corpus
-inputs. Seven are verified safe-refusal boundaries, including the new real
+row above: 41 cases total, with 21 PDF and 20 Office; 31 are `ready` and 10
+remain `asset-required`. Nineteen ready PDF cases include twelve locked corpus
+inputs. Eight are verified safe-refusal boundaries, including the new real
 eight-page mixed English/Chinese scan: six pixel-only pages encode upside-down,
 sideways, and `+3°`/`-2°` skew canaries, while two pages carry true selectable
 text. The managed OCR route is available, but automatic orientation/deskew is
@@ -49,7 +49,14 @@ clean `3477d715` PromptBench matrix passed candidate `3/3` and copied-reference
 `3/3`, all at `100/100` with all 23 evaluator checks and hard gates, against
 the same candidate tarball and hidden source oracle. It proves the bounded
 workflow's refusal discipline, not an OCR success path or independent reference
-provider capability. One locked corpus input is the real DocMDP P=2/FieldMDP
+provider capability. The new self-authored two-page RichMedia boundary contains
+one native `/3D` annotation and one `/RichMedia` annotation on its poster page,
+with a binary payload, default view, activation dictionary, RichMedia
+asset/configuration/settings graph, JavaScript action, and two parser-pinned
+opaque-stream hashes. It is a structural preservation boundary only: the
+evaluator never executes the media or script, and a current Agent must produce
+an audit-only refusal unless its selected provider can prove runtime-safe
+incremental preservation. One locked corpus input is the real DocMDP P=2/FieldMDP
 form success case: only
 `ApprovedAmount` may become visible static `12500.00`, while the signed baseline
 bytes, original signature contents, P=2 transform, exact lock, non-target

@@ -1718,6 +1718,76 @@ def boundary_docmdp_p1(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def opaque_stream_sha256(value: Any) -> str | None:
+    """Return a hash only for an independently readable opaque stream."""
+
+    value = resolve_pdf_value(value)
+    getter = getattr(value, "get_data", None)
+    if not callable(getter):
+        return None
+    data = getter()
+    if not isinstance(data, bytes) or not data:
+        return None
+    return hashlib.sha256(data).hexdigest()
+
+
+def boundary_richmedia_opaque(payload: dict[str, Any]) -> dict[str, Any]:
+    """Collect the exact opaque graph that makes a 3D/RichMedia edit unsafe.
+
+    This is intentionally a structural oracle.  It never opens a media asset,
+    invokes JavaScript, or pretends that a parser can prove viewer/runtime
+    behavior.  Its job is to prove that the locked source contains the graph
+    the Agent must either preserve with a stronger provider-specific proof or
+    reject without writing an artifact.
+    """
+
+    source = pathlib.Path(payload["source"])
+    reader = pypdf.PdfReader(str(source), strict=True)
+    page = reader.pages[1] if len(reader.pages) >= 2 else None
+    annotations = [resolve_pdf_value(reference) for reference in page.get("/Annots", [])] if page is not None else []
+    three_d = [annotation for annotation in annotations if isinstance(annotation, dict) and str(annotation.get("/Subtype", "")) == "/3D"]
+    rich_media = [annotation for annotation in annotations if isinstance(annotation, dict) and str(annotation.get("/Subtype", "")) == "/RichMedia"]
+    three_d_annotation = three_d[0] if len(three_d) == 1 else {}
+    rich_media_annotation = rich_media[0] if len(rich_media) == 1 else {}
+    three_d_stream = resolve_pdf_value(three_d_annotation.get("/3DD")) if three_d_annotation else {}
+    three_d_view = resolve_pdf_value(three_d_annotation.get("/3DV")) if three_d_annotation else {}
+    three_d_activation = resolve_pdf_value(three_d_annotation.get("/3DA")) if three_d_annotation else {}
+    content = resolve_pdf_value(rich_media_annotation.get("/RichMediaContent")) if rich_media_annotation else {}
+    settings = resolve_pdf_value(rich_media_annotation.get("/RichMediaSettings")) if rich_media_annotation else {}
+    assets = resolve_pdf_value(content.get("/Assets")) if isinstance(content, dict) and content.get("/Assets") else {}
+    names = assets.get("/Names", []) if isinstance(assets, dict) else []
+    asset_stream = resolve_pdf_value(names[1]) if isinstance(names, (list, pypdf.generic.ArrayObject)) and len(names) == 2 else {}
+    configurations = content.get("/Configurations", []) if isinstance(content, dict) else []
+    configuration = resolve_pdf_value(configurations[0]) if isinstance(configurations, (list, pypdf.generic.ArrayObject)) and len(configurations) == 1 else {}
+    instances = configuration.get("/Instances", []) if isinstance(configuration, dict) else []
+    instance = resolve_pdf_value(instances[0]) if isinstance(instances, (list, pypdf.generic.ArrayObject)) and len(instances) == 1 else {}
+    activation = resolve_pdf_value(settings.get("/Activation")) if isinstance(settings, dict) and settings.get("/Activation") else {}
+    additional_actions = resolve_pdf_value(rich_media_annotation.get("/AA")) if rich_media_annotation else {}
+    javascript_action = resolve_pdf_value(additional_actions.get("/PO")) if isinstance(additional_actions, dict) and additional_actions.get("/PO") else {}
+    opaque_hashes = {
+        "threeD": opaque_stream_sha256(three_d_stream),
+        "richMediaAsset": opaque_stream_sha256(asset_stream),
+    }
+    return {
+        "kind": "boundary-refusal",
+        "boundary": "richmedia-opaque",
+        "source": boundary_source_identity(source),
+        "pageCount": len(reader.pages),
+        "threeDAnnotationCount": len(three_d),
+        "richMediaAnnotationCount": len(rich_media),
+        "hasThreeDStream": bool(three_d_stream) and str(three_d_stream.get("/Type", "")) == "/3D" and opaque_hashes["threeD"] is not None,
+        "hasThreeDDefaultView": bool(three_d_view) and str(three_d_view.get("/Type", "")) == "/3DView" and str(three_d_view.get("/XN", "")) == "Default review view",
+        "hasThreeDActivation": bool(three_d_activation) and str(three_d_activation.get("/A", "")) == "/PO" and str(three_d_activation.get("/Style", "")) == "/Embedded",
+        "hasRichMediaContent": bool(content),
+        "hasRichMediaSettings": bool(settings),
+        "hasRichMediaAssets": isinstance(names, (list, pypdf.generic.ArrayObject)) and len(names) == 2 and str(names[0]) == "review-runtime.bin" and opaque_hashes["richMediaAsset"] is not None,
+        "hasRichMediaConfiguration": bool(configuration) and str(configuration.get("/Type", "")) == "/RichMediaConfiguration" and bool(instance) and opaque_stream_sha256(instance.get("/Asset")) == opaque_hashes["richMediaAsset"],
+        "hasRichMediaActivation": bool(activation) and str(activation.get("/Condition", "")) == "/PV",
+        "hasJavaScript": bool(javascript_action) and str(javascript_action.get("/S", "")) == "/JavaScript" and "OFFICEKIT-RICHMEDIA-OPAQUE-CANARY" in str(javascript_action.get("/JS", "")),
+        "opaqueStreamSha256": opaque_hashes,
+    }
+
+
 def boundary_refusal(payload: dict[str, Any]) -> dict[str, Any]:
     boundary = payload.get("boundary")
     if boundary == "encrypted-owner-policy":
@@ -1734,6 +1804,8 @@ def boundary_refusal(payload: dict[str, Any]) -> dict[str, Any]:
         return boundary_print_production(payload)
     if boundary == "docmdp-p1":
         return boundary_docmdp_p1(payload)
+    if boundary == "richmedia-opaque":
+        return boundary_richmedia_opaque(payload)
     raise ValueError(f"unsupported PDF boundary-refusal oracle: {boundary}")
 
 

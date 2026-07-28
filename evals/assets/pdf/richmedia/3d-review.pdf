@@ -1,0 +1,223 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 2
+/Kids [ 4 0 R 9 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+4 0 obj
+<<
+/Contents 5 0 R
+/MediaBox [ 0 0 612 792 ]
+/Resources <<
+/Font 6 0 R
+/ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>>
+/Rotate 0
+/Trans <<
+>>
+/Type /Page
+/Parent 2 0 R
+>>
+endobj
+5 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ]
+/Length 297
+>>
+stream
+GarW3_+qok'LhcpMRuiO5p/i_CD0tk(PX$Ip.^=!KaP">naE=,`L%JT!fu,X/dem8<VLqDSh(pi'U4>865a3>?h%qO+^<cj4bRQE-X-lTHV\-M,9#jO7^Nfq(+F=4dJ!j9Og#MehWa%aMVa''%upsE]MQ1p4i9I"Z._Io#5WgOBs>J@a_/OKpu'RZAiC@FJ5:hd?OLGBTq#0Bc@lh_Z&\qPdRYqg3cF6L_,U886sOtCG_KaR,V7o<Eiu,W?d&'-M?[c$lmG-t3)e-@/eR5FrY:<]SI[R4g<f`th2l:P~>
+endstream
+endobj
+6 0 obj
+<<
+/F1 7 0 R
+/F2 8 0 R
+>>
+endobj
+7 0 obj
+<<
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Name /F1
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+8 0 obj
+<<
+/BaseFont /Helvetica-Bold
+/Encoding /WinAnsiEncoding
+/Name /F2
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+9 0 obj
+<<
+/Contents 10 0 R
+/MediaBox [ 0 0 612 792 ]
+/Resources <<
+/Font 6 0 R
+/ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>>
+/Rotate 0
+/Trans <<
+>>
+/Type /Page
+/Parent 2 0 R
+/Annots [ 20 0 R 21 0 R ]
+>>
+endobj
+10 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ]
+/Length 405
+>>
+stream
+Gat%\btc/1&;9M#ME(`QKC/T)@q\esTG2u<E3p6Z0r.QaSFHB.'U9lPTTrQY3IEnE'P&%AmU?Q/$Ciau."g0&#$q:LMc<A>SUp?-SP_':f'*tp$kNXH@Z-HC:;1iX[PLZs'm<=;PWa_FJN,a<L+d*8_Z"/0BOpoHCn">Q;j;#A]@rt1l?s"B38I6*)`'pcMe](\/KrkL3Cm)C/Zde<Vc@E$m0_HJ=eh'J>-1usaGn5"o0XUkIh@g1_[B&W3CA6Q0o-\a-O:n+((q%_a$U`\BKu(_mf8SA#^ef_aNT`p[!PbD/IPQ9FnrdY7P*5&f?7_`:N&!CbHq$;.U?T,Cjhp<4JfB0EgPk55JbAG5MdVQV4`-;GLA>a7eOnjS%a/J/R5,V'[>Rl\Dt"Oq#HJUPfj~>
+endstream
+endobj
+11 0 obj
+<<
+/Type /3D
+/Subtype /U3D
+/Length 76
+>>
+stream
+U3D-LIKE-OPAQUE-PAYLOAD\x00OFFICEKIT-RICHMEDIA-OPAQUE-CANARY\x00default-view
+endstream
+endobj
+12 0 obj
+<<
+/Type /3DView
+/XN (Default review view)
+/MS /M
+/C2W [ 1 0.0 0.0 0.0 1 0.0 0.0 0.0 1 0.0 0.0 12 ]
+>>
+endobj
+13 0 obj
+<<
+/A /PO
+/AIS true
+/Style /Embedded
+>>
+endobj
+14 0 obj
+<<
+/Type /EmbeddedFile
+/Length 94
+>>
+stream
+RICHMEDIA-ASSET-OPAQUE-BYTES\x00OFFICEKIT-RICHMEDIA-OPAQUE-CANARY\x00not-a-playable-media-file
+endstream
+endobj
+15 0 obj
+<<
+/Names [ (review\055runtime\056bin) 14 0 R ]
+>>
+endobj
+16 0 obj
+<<
+/Type /RichMediaConfiguration
+/Subtype /Video
+/Instances [ <<
+/Asset 14 0 R
+/Params <<
+/Binding /Foreground
+>>
+>> ]
+>>
+endobj
+17 0 obj
+<<
+/Assets 15 0 R
+/Configurations [ 16 0 R ]
+>>
+endobj
+18 0 obj
+<<
+/Activation <<
+/Condition /PV
+/Presentation <<
+/Style /Embedded
+>>
+>>
+>>
+endobj
+19 0 obj
+<<
+/S /JavaScript
+/JS (app\056alert\050\047OFFICEKIT\055RICHMEDIA\055OPAQUE\055CANARY\072 do not execute\047\051\073)
+>>
+endobj
+20 0 obj
+<<
+/Type /Annot
+/Subtype /3D
+/Rect [ 88 300 304 500 ]
+/Contents (Opaque 3D review model)
+/3DD 11 0 R
+/3DV 12 0 R
+/3DA 13 0 R
+>>
+endobj
+21 0 obj
+<<
+/Type /Annot
+/Subtype /RichMedia
+/Rect [ 320 300 540 500 ]
+/Contents (Opaque RichMedia review asset)
+/RichMediaContent 17 0 R
+/RichMediaSettings 18 0 R
+/AA <<
+/PO 19 0 R
+>>
+>>
+endobj
+xref
+0 22
+0000000000 65535 f 
+0000000015 00000 n 
+0000000054 00000 n 
+0000000119 00000 n 
+0000000168 00000 n 
+0000000357 00000 n 
+0000000745 00000 n 
+0000000786 00000 n 
+0000000893 00000 n 
+0000001005 00000 n 
+0000001221 00000 n 
+0000001718 00000 n 
+0000001869 00000 n 
+0000001988 00000 n 
+0000002044 00000 n 
+0000002209 00000 n 
+0000002276 00000 n 
+0000002414 00000 n 
+0000002478 00000 n 
+0000002570 00000 n 
+0000002707 00000 n 
+0000002851 00000 n 
+trailer
+<<
+/Size 22
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+3046
+%%EOF
