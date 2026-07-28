@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "ocrCore": {
     "packId": "ocr-core",
-    "version": "17.8.1-oat.2",
+    "version": "17.8.1-oat.3",
     "license": "PSF-2.0 AND MPL-2.0 AND Apache-2.0 AND GPL-2.0-or-later AND AGPL-3.0-or-later AND BSD-3-Clause AND MIT",
     "pythonInputs": {
       "path": "scripts/pdf-provider-python-release-inputs.v1.json",
@@ -52,7 +52,7 @@
   "languages": {
     "eng": {
       "packId": "ocr-language-eng",
-      "version": "4.1.0-oat.2",
+      "version": "4.1.0-oat.3",
       "license": "Apache-2.0",
       "url": "https://github.com/tesseract-ocr/tessdata_fast/raw/4.1.0/eng.traineddata",
       "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2",
@@ -60,7 +60,7 @@
     },
     "chi_sim": {
       "packId": "ocr-language-chi-sim",
-      "version": "4.1.0-oat.2",
+      "version": "4.1.0-oat.3",
       "license": "Apache-2.0",
       "url": "https://github.com/tesseract-ocr/tessdata_fast/raw/4.1.0/chi_sim.traineddata",
       "sha256": "a5fcb6f0db1e1d6d8522f39db4e848f05984669172e584e8d76b6b3141e1f730",
