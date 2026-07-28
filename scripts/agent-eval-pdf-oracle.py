@@ -1308,6 +1308,44 @@ def boundary_print_production(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def boundary_docmdp_p1(payload: dict[str, Any]) -> dict[str, Any]:
+    source = pathlib.Path(payload["source"])
+    raw = source.read_bytes()
+    reader = pypdf.PdfReader(str(source), strict=True)
+    root = root_dictionary(reader)
+    permissions = resolve_pdf_value(root.get("/Perms")) if root.get("/Perms") else {}
+    signature = resolve_pdf_value(permissions.get("/DocMDP")) if permissions.get("/DocMDP") else {}
+    byte_range = signature.get("/ByteRange") if signature else None
+    offsets = [int(value) for value in byte_range] if isinstance(byte_range, (list, pypdf.generic.ArrayObject)) and len(byte_range) == 4 else []
+    byte_range_valid = bool(
+        len(offsets) == 4
+        and offsets[0] == 0
+        and min(offsets[1:]) >= 0
+        and offsets[0] + offsets[1] <= offsets[2]
+        and offsets[2] + offsets[3] == len(raw)
+    )
+    references = signature.get("/Reference") if signature else []
+    docmdp_parameters = [
+        resolve_pdf_value(resolve_pdf_value(reference).get("/TransformParams"))
+        for reference in references
+        if str(resolve_pdf_value(reference).get("/TransformMethod", "")) == "/DocMDP"
+    ] if isinstance(references, (list, pypdf.generic.ArrayObject)) else []
+    permission = int(docmdp_parameters[0].get("/P", 0) or 0) if len(docmdp_parameters) == 1 else 0
+    return {
+        "kind": "boundary-refusal",
+        "boundary": "docmdp-p1",
+        "source": boundary_source_identity(source),
+        "pageCount": len(reader.pages),
+        "metadataTitle": str(reader.metadata.title or ""),
+        "hasPerms": bool(permissions),
+        "hasDocMDP": bool(signature),
+        "byteRangeValid": byte_range_valid,
+        "cmsContentsPresent": bool(signature.get("/Contents")) if signature else False,
+        "docMDPTransformCount": len(docmdp_parameters),
+        "docMDPPermission": permission,
+    }
+
+
 def boundary_refusal(payload: dict[str, Any]) -> dict[str, Any]:
     boundary = payload.get("boundary")
     if boundary == "encrypted-owner-policy":
@@ -1320,6 +1358,8 @@ def boundary_refusal(payload: dict[str, Any]) -> dict[str, Any]:
         return boundary_dynamic_xfa(payload)
     if boundary == "print-production":
         return boundary_print_production(payload)
+    if boundary == "docmdp-p1":
+        return boundary_docmdp_p1(payload)
     raise ValueError(f"unsupported PDF boundary-refusal oracle: {boundary}")
 
 

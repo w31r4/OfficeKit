@@ -2,6 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
+import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -21,6 +22,13 @@ export const MINIMUM_PDF_CASE_SHARE = 0.5;
 const casesPath = path.join(repoRoot, "evals", "cases.jsonl");
 const evalAssetsRoot = path.join(repoRoot, "evals", "assets");
 const evalAssetIntegrityPath = path.join(evalAssetsRoot, "integrity.json");
+const commonOracleSources = ["scripts/run-agent-evals.mjs"];
+const oracleSourcesByFamily = new Map([
+  ["pdf", ["scripts/agent-eval-pdf-graders.mjs", "scripts/agent-eval-pdf-oracle.py"]],
+  ["documents", ["scripts/agent-eval-office-graders.mjs", "scripts/agent-eval-office-fixtures.mjs"]],
+  ["spreadsheets", ["scripts/agent-eval-office-graders.mjs", "scripts/agent-eval-office-fixtures.mjs"]],
+  ["presentations", ["scripts/agent-eval-office-graders.mjs", "scripts/agent-eval-office-fixtures.mjs"]],
+]);
 const families = new Set(["pdf", "documents", "spreadsheets", "presentations"]);
 const skillsByFamily = new Map([
   ["pdf", "pdf"],
@@ -173,7 +181,12 @@ function sha256(bytes) {
 }
 
 function oracleFingerprint(item) {
-  return sha256(Buffer.from(JSON.stringify({ expectedOutcome: item.expectedOutcome, grade: item.grade }), "utf8"));
+  const sources = [...commonOracleSources, ...(oracleSourcesByFamily.get(item.family) || [])];
+  const implementation = sources.map((relative) => ({
+    path: relative,
+    sha256: sha256(readFileSync(path.join(repoRoot, relative))),
+  }));
+  return sha256(Buffer.from(JSON.stringify({ expectedOutcome: item.expectedOutcome, grade: item.grade, implementation }), "utf8"));
 }
 
 async function hashFile(filePath) {
@@ -539,10 +552,17 @@ async function packageCandidate(evaluatorDir, workspace) {
   return { tarball: path.relative(evaluatorDir, tarball), sha256: await hashFile(tarball) };
 }
 
+export function providerRuntimePath(item, environment = process.env) {
+  if (item?.family !== "pdf") return null;
+  const configured = environment.OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON
+    || environment.OFFICE_KIT_PDF_PROVIDER_PYTHON
+    || environment.OFFICE_KIT_AGENT_EVAL_PYTHON;
+  return configured ? path.resolve(configured) : null;
+}
+
 export function providerRuntimeInstruction(item, environment = process.env) {
-  const configured = environment.OFFICE_KIT_AGENT_EVAL_PYTHON || environment.OFFICE_KIT_PDF_PROVIDER_PYTHON;
-  if (item?.family !== "pdf" || !configured) return "";
-  const interpreter = path.resolve(configured);
+  const interpreter = providerRuntimePath(item, environment);
+  if (!interpreter) return "";
   return `\n## Prepared provider runtime\n\nThis isolated trial supplies the authoritative PDF provider interpreter below. Export it before every PDF Python probe, plan, mutation, scan, and audit command. Do not replace it, install another environment, or fall back to system Python.\n\n\`\`\`bash\nexport OFFICE_KIT_PDF_PROVIDER_PYTHON=${JSON.stringify(interpreter)}\n\`\`\`\n`;
 }
 
@@ -575,6 +595,7 @@ async function prepareCase(suite, item, options) {
     inputHashes[input.to] = await fingerprintPath(target);
   }
   const packageRecord = await packageCandidate(evaluator, workspace);
+  const preparedProviderRuntime = providerRuntimePath(item);
   const prompt = `${visibleCase(suite, item).prompt}${providerRuntimeInstruction(item)}`;
   await fs.writeFile(path.join(workspace, "PROMPT.md"), `${prompt}\n`, "utf8");
   const workspaceHashes = {};
@@ -600,6 +621,8 @@ async function prepareCase(suite, item, options) {
     workspaceHashes,
     inputHashes,
     oracleSha256: oracleFingerprint(item),
+    providerRuntime: preparedProviderRuntime,
+    evaluatorPython: item.family === "pdf" ? path.resolve(process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || "python3") : null,
   };
   await fs.writeFile(path.join(evaluator, "run.json"), JSON.stringify(runRecord, null, 2), "utf8");
   return { trialRoot, workspace, evaluator, promptPath: path.join(workspace, "PROMPT.md") };
@@ -795,7 +818,7 @@ function help() {
     "  run <case-id> [prepare options] [--model <model>] [--codex <path>]",
     "  score <case-id> --trial-root <prepared trial directory>",
     "",
-    "The Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. Prepared PDF trials also declare one authoritative provider interpreter in PROMPT.md when the runner was given OFFICE_KIT_AGENT_EVAL_PYTHON or OFFICE_KIT_PDF_PROVIDER_PYTHON; the same interpreter is used for generated fixtures and hidden oracles. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The 13 ready PDF cases include five locked corpus boundary fixtures with independent source-structure, audit, and trace grading; they do not pass from generic no-artifact gates alone. The ready XLSX threaded-comment, growth-assumption, connection refresh-on-open, and Pivot refresh-on-open cases, four DOCX cases (classic-comment, source-bound DOCX header text, source-bound DOCX footer text, and source-bound DOCX section page-numbering), and four PPTX cases (title plus fixed-topology rich-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone) also have independent semantic, native-render, security, and provider-trace graders. PDF must remain an absolute majority of the full suite; the remaining 16 asset-required cases never claim full success before pinned corpus or PKI fixtures exist.",
+    "The Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. Prepared PDF trials declare one authoritative provider interpreter in PROMPT.md from OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON, OFFICE_KIT_PDF_PROVIDER_PYTHON, or OFFICE_KIT_AGENT_EVAL_PYTHON, in that order. OFFICE_KIT_AGENT_EVAL_PYTHON remains the separate fixture/oracle interpreter, so a small evaluator runtime can grade a managed specialist provider without pretending that they are the same environment. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The 14 ready PDF cases include six locked corpus boundary fixtures with independent source-structure, audit, and trace grading; they do not pass from generic no-artifact gates alone. The ready XLSX threaded-comment, growth-assumption, connection refresh-on-open, and Pivot refresh-on-open cases, four DOCX cases (classic-comment, source-bound DOCX header text, source-bound DOCX footer text, and source-bound DOCX section page-numbering), and four PPTX cases (title plus fixed-topology rich-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone) also have independent semantic, native-render, security, and provider-trace graders. PDF must remain an absolute majority of the full suite; the remaining 15 asset-required cases never claim full success before pinned corpus or PKI fixtures exist.",
     "",
   ].join("\n");
 }

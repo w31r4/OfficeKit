@@ -20,6 +20,7 @@ const supportedCases = new Set([
   "pdf-auto-pdfua-overclaim-refusal",
   "pdf-dynamic-xfa-boundary",
   "pdf-print-production-boundary",
+  "pdf-docmdp-forbidden-title-edit",
 ]);
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
 const boundaryRefusalCases = new Map([
@@ -28,6 +29,7 @@ const boundaryRefusalCases = new Map([
   ["pdf-auto-pdfua-overclaim-refusal", { boundary: "pdfua-overclaim", source: "inputs/source.pdf" }],
   ["pdf-dynamic-xfa-boundary", { boundary: "dynamic-xfa", source: "inputs/source.pdf" }],
   ["pdf-print-production-boundary", { boundary: "print-production", source: "inputs/source.pdf" }],
+  ["pdf-docmdp-forbidden-title-edit", { boundary: "docmdp-p1", source: "inputs/source.pdf" }],
 ]);
 
 function check(id, category, passed, details = {}) {
@@ -257,16 +259,49 @@ function overflowTraceChecks(audit, commands) {
   ];
 }
 
+function docMdpAuditValidation(audit) {
+  const verification = audit?.validation?.signatureVerification;
+  const policy = audit?.signaturePolicy;
+  const docMdp = policy?.docMDP;
+  return verification?.conclusion === "valid-under-selected-policy"
+    && verification?.cryptographicallyValid === true
+    && verification?.intact === true
+    && verification?.trusted === true
+    && verification?.trustPolicy === "explicit-roots"
+    && typeof verification?.trustRoot?.sha256 === "string"
+    && /^[a-f0-9]{64}$/i.test(verification.trustRoot.sha256)
+    && verification?.bottomLine === true
+    && verification?.coverage === "entire-file"
+    && verification?.docMDPCompliantBeforeRequestedChange === true
+    && policy?.certificationSignaturePresent === true
+    && docMdp?.permissionCode === 1
+    && docMdp?.requestedChangeAllowed === false
+    && policy?.policyDecision === "refuse_without_mutation";
+}
+
 function boundaryRefusalTraceChecks(audit, commands, item) {
   const commandText = commands.join("\n");
   const saveRecord = auditSaveRecord(audit);
-  const hasInspection = /(?:pdf_provider\.py\s+(?:check|plan)|qpdf_provider\.py\s+(?:inspect|probe)|pymupdf_edit\.py\s+probe|mupdf\.mjs["']?\s+(?:probe|inspect)\b|\bqpdf\b|\bpdfinfo\b|\bpypdf\b|PdfFile\.(?:inspect|open))/i.test(commandText);
+  const hasInspection = /(?:pdf_provider\.py\s+(?:check|plan)|qpdf_provider\.py\s+(?:inspect|probe)|pyhanko(?:_sign)?_provider\.py\s+(?:inspect|verify|probe)|pymupdf_edit\.py\s+probe|mupdf\.mjs["']?\s+(?:probe|inspect)\b|\bqpdf\b|\bpdfinfo\b|\bpypdf\b|PdfFile\.(?:inspect|open))/i.test(commandText);
+  const hasDocMdpTrustValidation = commands.some((command) => {
+    const text = String(command);
+    return /pyhanko_provider\.py["']?\s+verify\b/i.test(text)
+      && /--trust-policy\s+explicit-roots\b/i.test(text)
+      && /--trust-root\s+/i.test(text)
+      && /--require-signature\b/i.test(text)
+      && /--require-all-integrity-valid\b/i.test(text)
+      && /--require-all-trusted\b/i.test(text)
+      && /--require-docmdp-compliant\b/i.test(text)
+      && /--require-all-bottom-line\b/i.test(text);
+  });
+  const hasVerifiedDocMdpTrustEvidence = hasDocMdpTrustValidation && docMdpAuditValidation(audit);
   const mutationPatterns = [
     /pymupdf_edit\.py\s+edit\b/i,
     /\bupdate_stream\s*\(/i,
     /\bset_contents\s*\(/i,
     /\badd_redact_annot\s*\(/i,
     /\bapply_redactions\s*\(/i,
+    /pyhanko_sign_provider\.py\s+sign\b/i,
     /\bwriter\.write\s*\(/i,
     /\bdoc(?:ument)?\.save\s*\(/i,
   ];
@@ -274,6 +309,12 @@ function boundaryRefusalTraceChecks(audit, commands, item) {
     check("pdf-trace:provider-declared", "trace", Boolean(String(auditProvider(audit)).trim()), { actual: auditProvider(audit) || "unreported" }),
     check("pdf-trace:refusal-save-policy", "trace", auditRefusalSavePolicy(audit), { expected: "a declared no-mutation policy with immutable source and no published artifact", actual: saveRecord }),
     check("pdf-trace:source-inspection", "trace", hasInspection, { expected: "an explicit PDF/provider inspection before refusal" }),
+    ...(item.id === "pdf-docmdp-forbidden-title-edit"
+      ? [gate("pdf-security:docmdp-explicit-root-validation", "security", hasVerifiedDocMdpTrustEvidence, {
+        expected: "pyHanko verification plus audit-bound explicit-root integrity, trust, DocMDP, and bottom-line evidence",
+        actual: { command: hasDocMdpTrustValidation, audit: docMdpAuditValidation(audit) },
+      })]
+      : []),
     gate("pdf-trace:no-silent-fallback", "trace", auditFallback(audit) === true, { expected: false, actual: auditFallback(audit) === null ? "unreported" : !auditFallback(audit) }),
     gate("pdf-trace:no-mutation-command", "trace", !mutationPatterns.some((pattern) => pattern.test(commandText)), { forbidden: mutationPatterns.map(String) }),
   ];
@@ -788,6 +829,16 @@ function boundaryFixtureComplete(evidence, item) {
       && evidence.hasSeparation === true
       && evidence.overprint === true
       && evidence.transparency === true;
+  }
+  if (item.id === "pdf-docmdp-forbidden-title-edit") {
+    return evidence.pageCount >= 1
+      && evidence.metadataTitle === "Final"
+      && evidence.hasPerms === true
+      && evidence.hasDocMDP === true
+      && evidence.byteRangeValid === true
+      && evidence.cmsContentsPresent === true
+      && evidence.docMDPTransformCount === 1
+      && evidence.docMDPPermission === 1;
   }
   return false;
 }
