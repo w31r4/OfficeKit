@@ -45,6 +45,11 @@ sideways, and `+3°`/`-2°` skew canaries, while two pages carry true selectable
 text. The managed OCR route is available, but automatic orientation/deskew is
 not a published typed preprocessing operation, so this exact request must
 produce a source-bound audit-only refusal rather than an approximated file. The
+clean `3477d715` PromptBench matrix passed candidate `3/3` and copied-reference
+`3/3`, all at `100/100` with all 23 evaluator checks and hard gates, against
+the same candidate tarball and hidden source oracle. It proves the bounded
+workflow's refusal discipline, not an OCR success path or independent reference
+provider capability. The
 eighth corpus fixture is the real DocMDP P=2/FieldMDP form success case: only
 `ApprovedAmount` may become visible static `12500.00`, while the signed baseline
 bytes, original signature contents, P=2 transform, exact lock, non-target
