@@ -593,6 +593,27 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
     staleRepairAfter.validation.repairAfter.freshInspect = false;
     const staleRepairAfterChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: staleRepairAfter, commands, item: damagedXrefItem });
     assert.equal(staleRepairAfterChecks.find((check) => check.id === "pdf-machine:qpdf-output-clean")?.passed, false, "a clean repairAfter claim without a fresh inspection must fail");
+    const qpdfFreshAudit = structuredClone(agentStyleAudit);
+    delete qpdfFreshAudit.validation.qpdfRepair;
+    qpdfFreshAudit.validation.qpdfFreshInspect = {
+      completed: true,
+      status: "clean",
+      exitCode: 0,
+      provider: "qpdf",
+    };
+    qpdfFreshAudit.validation.unrecoverableControl = {
+      inspectedSeparately: true,
+      qpdfRejected: true,
+      outputGenerated: false,
+    };
+    const shellVariableCommands = [
+      'QPDF_SCRIPT=".agents/skills/pdf/scripts/qpdf_provider.py"\n"$QPDF_SCRIPT" inspect inputs/recoverable.pdf\n"$QPDF_SCRIPT" inspect inputs/unrecoverable.pdf\n"$QPDF_SCRIPT" rewrite inputs/recoverable.pdf outputs/recovered.pdf --mode repair\n"$QPDF_SCRIPT" inspect outputs/recovered.pdf\npdftoppm -png -r 144 outputs/recovered.pdf outputs/render/recovered',
+    ];
+    const qpdfFreshChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: qpdfFreshAudit, commands: shellVariableCommands, item: damagedXrefItem });
+    assert.equal(qpdfFreshChecks.every((check) => check.passed), true, JSON.stringify(qpdfFreshChecks.filter((check) => !check.passed), null, 2));
+    const unboundQpdfCommands = shellVariableCommands.map((command) => command.replace("qpdf_provider.py", "other_provider.py"));
+    const unboundQpdfChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: qpdfFreshAudit, commands: unboundQpdfCommands, item: damagedXrefItem });
+    assert.equal(unboundQpdfChecks.find((check) => check.id === "pdf-trace:inspect-before-repair")?.passed, false, "a shell variable without a qpdf adapter binding must not satisfy the typed route");
     const attachmentLoss = structuredClone(evidence);
     attachmentLoss.outputAttachments = [];
     const attachmentLossChecks = gradeDamagedXrefRecoveryEvidence({ evidence: attachmentLoss, audit, commands, item: damagedXrefItem });
