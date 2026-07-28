@@ -607,6 +607,24 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
     incompleteFreshInspect.validation.freshInspect.completed = false;
     const incompleteFreshInspectChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: incompleteFreshInspect, commands, item: damagedXrefItem });
     assert.equal(incompleteFreshInspectChecks.find((check) => check.id === "pdf-machine:qpdf-output-clean")?.passed, false, "a compact freshInspect record without completion must fail");
+    const stagedQpdfAudit = structuredClone(agentStyleAudit);
+    delete stagedQpdfAudit.validation.qpdfRepair;
+    stagedQpdfAudit.validation.qpdf = {
+      freshInspectCompleted: true,
+      before: { status: "warnings", exitCode: 3 },
+      after: { status: "clean", exitCode: 0, provider: "qpdf" },
+    };
+    stagedQpdfAudit.validation.unrecoverableControl = {
+      inspectedSeparately: true,
+      refused: true,
+      outputGenerated: false,
+    };
+    const stagedQpdfChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: stagedQpdfAudit, commands, item: damagedXrefItem });
+    assert.equal(stagedQpdfChecks.every((check) => check.passed), true, JSON.stringify(stagedQpdfChecks.filter((check) => !check.passed), null, 2));
+    const incompleteStagedQpdf = structuredClone(stagedQpdfAudit);
+    incompleteStagedQpdf.validation.qpdf.freshInspectCompleted = false;
+    const incompleteStagedQpdfChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: incompleteStagedQpdf, commands, item: damagedXrefItem });
+    assert.equal(incompleteStagedQpdfChecks.find((check) => check.id === "pdf-machine:qpdf-output-clean")?.passed, false, "a staged qpdf after record without explicit fresh completion must fail");
     const qpdfFreshAudit = structuredClone(agentStyleAudit);
     delete qpdfFreshAudit.validation.qpdfRepair;
     qpdfFreshAudit.validation.qpdfFreshInspect = {
