@@ -625,6 +625,17 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
     incompleteStagedQpdf.validation.qpdf.freshInspectCompleted = false;
     const incompleteStagedQpdfChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: incompleteStagedQpdf, commands, item: damagedXrefItem });
     assert.equal(incompleteStagedQpdfChecks.find((check) => check.id === "pdf-machine:qpdf-output-clean")?.passed, false, "a staged qpdf after record without explicit fresh completion must fail");
+    const flatStagedQpdfAudit = structuredClone(stagedQpdfAudit);
+    delete flatStagedQpdfAudit.validation.qpdf.after;
+    flatStagedQpdfAudit.validation.qpdf.afterStatus = "clean";
+    flatStagedQpdfAudit.validation.qpdf.afterExitCode = 0;
+    flatStagedQpdfAudit.validation.qpdf.afterMessage = "No syntax errors found";
+    const flatStagedQpdfChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: flatStagedQpdfAudit, commands, item: damagedXrefItem });
+    assert.equal(flatStagedQpdfChecks.every((check) => check.passed), true, JSON.stringify(flatStagedQpdfChecks.filter((check) => !check.passed), null, 2));
+    const missingFlatStagedCompletion = structuredClone(flatStagedQpdfAudit);
+    missingFlatStagedCompletion.validation.qpdf.freshInspectCompleted = false;
+    const missingFlatStagedCompletionChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: missingFlatStagedCompletion, commands, item: damagedXrefItem });
+    assert.equal(missingFlatStagedCompletionChecks.find((check) => check.id === "pdf-machine:qpdf-output-clean")?.passed, false, "a flat qpdf after status without explicit fresh completion must fail");
     const qpdfFreshAudit = structuredClone(agentStyleAudit);
     delete qpdfFreshAudit.validation.qpdfRepair;
     qpdfFreshAudit.validation.qpdfFreshInspect = {
