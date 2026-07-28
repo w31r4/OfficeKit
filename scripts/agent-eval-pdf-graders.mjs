@@ -772,8 +772,23 @@ function damagedXrefRepair(audit) {
     audit?.repair,
     audit?.validation?.repair,
     audit?.validation?.repairEvidence,
+    audit?.validation?.qpdfRepair,
   ];
   return candidates.find((value) => value && typeof value === "object") || audit || {};
+}
+
+function auditTextLines(value) {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(auditTextLines);
+  if (!value || typeof value !== "object") return [];
+  return [
+    ...auditTextLines(value.line),
+    ...auditTextLines(value.lines),
+    ...auditTextLines(value.jsonLines),
+    ...auditTextLines(value.warnings),
+    ...auditTextLines(value.message),
+    ...auditTextLines(value.reason),
+  ];
 }
 
 function stableRecords(records = []) {
@@ -856,18 +871,16 @@ export function gradeDamagedXrefRecoveryEvidence({ evidence, audit, commands, it
     && evidence.unrecoverable?.hasXrefOrTrailer === false;
   const outputCanariesStable = textCanaries.every((term, index) => output.termCounts?.[term] === 1 && output.pages?.[index]?.termCounts?.[term] === 1)
     && output.decodedStreamTermCounts?.["OFFICEKIT-XREF-ATTACHMENT-CANARY"] === 1;
-  const warningLines = [
-    ...(repair?.checkBefore?.lines || []),
-    ...(repair?.checkBefore?.jsonLines || []),
-    ...(repair?.checkBefore?.warnings || []),
-    ...(repair?.qpdfWrite?.lines || []),
-    ...(repair?.warnings || []),
-    ...(audit?.warnings || []),
-  ].join("\n");
+  const warningLines = auditTextLines([
+    repair?.checkBefore,
+    repair?.qpdfWrite,
+    repair?.warnings,
+    audit?.warnings,
+  ]).join("\n");
   const controlStatus = String(control?.status || control?.result || control?.decision || "").toLowerCase();
-  const controlRejected = (/reject|fail|error|unrecoverable|refus/.test(controlStatus) || control?.qpdfAccepted === false)
+  const controlRejected = (/reject|fail|error|unrecoverable|refus/.test(controlStatus) || control?.qpdfAccepted === false || control?.rejected === true)
     && damagedXrefControlSourceHash(control, audit) === evidence.unrecoverable?.sha256
-    && (control?.output === null || control?.outputPath === null || control?.artifactWritten === false || control?.published === false || control?.outputGenerated === false);
+    && (control?.output === null || control?.outputPath === null || control?.artifactWritten === false || control?.published === false || control?.outputGenerated === false || control?.outputPresent === false || control?.pseudoRepairProduced === false);
   return [
     check("pdf-machine:damaged-source-and-control-fixture", "machine", sourceFixtureComplete, { actual: { source: { pageCount: source.pageCount, startxrefIsZero: evidence.sourceRawStartxrefIsZero, attachments: expectedAttachments }, unrecoverable: evidence.unrecoverable } }),
     check("pdf-machine:qpdf-output-clean", "machine", repair?.checkAfter?.status === "clean", { actual: repair?.checkAfter || "unreported" }),
