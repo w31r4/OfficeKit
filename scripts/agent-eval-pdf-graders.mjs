@@ -883,9 +883,15 @@ function damagedXrefRepair(audit) {
   }
   const freshInspection = audit?.validation?.freshInspection;
   if (freshInspection && typeof freshInspection === "object") {
+    const repairEvidence = audit?.validation?.repairEvidence;
     return {
-      checkBefore: audit?.warnings?.repairBefore,
-      qpdfWrite: audit?.warnings?.rewrite,
+      // `freshInspection` is the required compact final-inspection record.
+      // Some agents keep the corresponding pre-repair warning evidence beside
+      // it under `repairEvidence.before` rather than duplicating it at the
+      // audit root. Preserve that evidence without treating the write itself
+      // as a fresh inspection.
+      checkBefore: repairEvidence?.checkBefore || repairEvidence?.before || audit?.warnings?.repairBefore,
+      qpdfWrite: repairEvidence?.qpdfWrite || repairEvidence?.rewrite || audit?.warnings?.rewrite,
       // This shape records repair warnings at the audit root and retains the
       // separate post-write qpdf inspection under validation.
       checkAfter: normalizeQpdfInspection(freshInspection),

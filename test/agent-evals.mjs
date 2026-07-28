@@ -487,6 +487,36 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
     };
     const nestedChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: nestedAudit, commands, item: damagedXrefItem });
     assert.equal(nestedChecks.every((check) => check.passed), true, JSON.stringify(nestedChecks.filter((check) => !check.passed), null, 2));
+    const compactContractAudit = structuredClone(nestedAudit);
+    delete compactContractAudit.warnings;
+    compactContractAudit.validation.repairEvidence = {
+      before: {
+        status: canonicalRepair.checkBefore?.status,
+        exitCode: 3,
+        warnings: canonicalRepair.checkBefore?.lines || canonicalRepair.checkBefore?.jsonLines || [],
+      },
+      after: {
+        status: "clean",
+        exitCode: 0,
+      },
+      qpdfWriteExitCode: 3,
+    };
+    compactContractAudit.validation.freshInspection = {
+      completed: true,
+      status: "clean",
+      exitCode: 0,
+    };
+    compactContractAudit.validation.unrecoverableControl = {
+      inspectedSeparately: true,
+      rejected: true,
+      outputGenerated: false,
+    };
+    const compactContractChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: compactContractAudit, commands, item: damagedXrefItem });
+    assert.equal(compactContractChecks.every((check) => check.passed), true, JSON.stringify(compactContractChecks.filter((check) => !check.passed), null, 2));
+    const missingCompactWarnings = structuredClone(compactContractAudit);
+    delete missingCompactWarnings.validation.repairEvidence.before;
+    const missingCompactWarningChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: missingCompactWarnings, commands, item: damagedXrefItem });
+    assert.equal(missingCompactWarningChecks.find((check) => check.id === "pdf-security:repair-warnings-retained")?.passed, false, "a compact fresh-inspection audit still needs retained pre-repair warning evidence");
     const agentStyleAudit = structuredClone(nestedAudit);
     delete agentStyleAudit.validation.repairEvidence;
     agentStyleAudit.inputs = [
