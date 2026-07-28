@@ -85,8 +85,20 @@ XFA template/datasets, repeat-subform, FormCalc, JavaScript and
 OutputIntent dictionaries. A response passes only if that input proof, a
 failed-closed audit bound to the source hash, an explicit inspection trace,
 no-fallback/no-mutation evidence, and the case diagnostic all agree. These are
-fixture and grader tests so far; no autonomous candidate/reference repeat is
-claimed until the actual trial matrix has run. The evaluator normalizes the
+fixture and grader tests so far except the AES-256 owner-policy boundary. At
+clean commit `42cd55bdf78696e1b56302981a49ce7dbcc9325f`, all three candidate
+trials passed at `100/100` against tarball SHA-256
+`3adba43ab0bb20d736dbd03fcd069eab754ec6f3f3b15e3a0e7003fc51acf35c` and
+candidate Skill SHA-256
+`1baeae66ef4ba5723b395f2318537aa757f7f5eccd7d93840494b9c50932e0a7`.
+The same tarball with the copied reference Skill (SHA-256
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`) had
+one `100/100` pass and two hard-gate failures. Those two reference trials left
+the source intact and produced only `audit.json`, but used noncanonical audit
+aliases such as `actual_provider` and `save_policy`; the evaluator correctly
+did not infer required provider/save-policy/no-artifact proof from those
+aliases. The other four boundary fixtures still have no autonomous
+candidate/reference repeat claim. The evaluator normalizes the
 published audit envelope and structured equivalent forms: an explicit
 no-mutation result can be `executed: false`, `performed: false`/`"none"`,
 `mutationAttempted: false`, or a typed `refused_not_attempted` operation. It
