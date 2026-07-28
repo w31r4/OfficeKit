@@ -119,10 +119,20 @@ function expandPackIds(packIds) {
   return result;
 }
 
-function packIdsFor(provider, task, languages) {
+function ocrLanguageRequest(provider, languages) {
+  const mode = provider.ocrLanguageMode || "none";
+  return {
+    mode,
+    required: mode === "required",
+    active: mode === "required" || (mode === "optional" && languages.length > 0),
+    unsupported: mode === "none" && languages.length > 0,
+  };
+}
+
+function packIdsFor(provider, languages) {
   const ids = [provider.packId];
   const missingLanguages = [];
-  if (task.ocrLanguages) {
+  if (ocrLanguageRequest(provider, languages).active) {
     for (const language of languages) {
       const packId = PDF_PROVIDER_CATALOG.ocrLanguagePacks[language];
       if (!packId) missingLanguages.push(language);
@@ -158,7 +168,7 @@ function policyAllowsProvider(providerId, provider, packIds, policy) {
 
 function buildInstallPlan(providerId, provider, task, policy, requestedLanguages, taskId = undefined) {
   const platform = currentPdfProviderPlatform();
-  const { packIds, missingLanguages } = packIdsFor(provider, task, requestedLanguages);
+  const { packIds, missingLanguages } = packIdsFor(provider, requestedLanguages);
   const packs = packIds.map((packId) => {
     const pack = pdfPackById(packId);
     const platformSupported = pack.platforms.includes("any") || pack.platforms.includes(platform);
@@ -394,14 +404,18 @@ export async function probePdfProvider(providerOrRequest, options = undefined) {
   const policyContext = await resolvePdfCapabilityPolicy(request);
   const task = request.task ? pdfTaskById(request.task) : { ocrLanguages: false };
   const languages = normalizeStringArray(request.languages ?? request.ocrLanguages, "languages");
+  const ocr = ocrLanguageRequest(provider, languages);
   const installPlan = buildInstallPlan(providerId, provider, task, policyContext.policy, languages, request.task);
   const base = providerResultBase(providerId, provider, policyContext, installPlan);
   const packIds = installPlan.packIds;
   const allBuiltin = installPlan.packs.every((pack) => pack.state === "built-in");
-  if (task.ocrLanguages && !languages.length) {
+  if (ocr.unsupported) {
+    return { ...base, status: "blocked", reason: reason("provider-ocr-language-unsupported", "The selected provider has no OCR-language runtime; choose an explicitly capable provider without fallback."), runtime: null };
+  }
+  if (ocr.required && !languages.length) {
     return { ...base, status: "blocked", reason: reason("ocr-language-required", "OCR probe requires one or more explicit language identifiers."), runtime: null };
   }
-  if (task.ocrLanguages) {
+  if (ocr.active) {
     const disallowed = languages.filter((language) => !policyContext.policy.allowedOcrLanguages.includes(language));
     if (disallowed.length) {
       return { ...base, status: "blocked", reason: reason("ocr-language-not-allowed", "Policy does not allow every requested OCR language.", { languages: disallowed }), runtime: null };
@@ -492,6 +506,7 @@ export async function resolvePdfCapability(request = {}) {
 
   const provider = pdfProviderById(providerId);
   const requestedLanguages = normalizeStringArray(request.languages ?? request.ocrLanguages, "ocrLanguages");
+  const ocr = ocrLanguageRequest(provider, requestedLanguages);
   const declaredCredentials = normalizeStringArray(request.credentials, "credentials");
   const requiredCredentials = task.credentials || [];
   const installPlan = buildInstallPlan(providerId, provider, task, policyContext.policy, requestedLanguages, request.task);
@@ -499,12 +514,22 @@ export async function resolvePdfCapability(request = {}) {
     mutation: { required: Boolean(task.mutation), authorized: request.mutationAuthorized === true },
     invalidateSignatures: { required: Boolean(task.invalidateSignatures), authorized: request.invalidateSignaturesAuthorized === true },
     credentials: { required: [...requiredCredentials], declared: declaredCredentials, automaticAcquisition: false },
-    ocrLanguages: { requested: requestedLanguages, allowed: [...policyContext.policy.allowedOcrLanguages], automaticAcquisition: false },
+    ocrLanguages: {
+      mode: ocr.mode,
+      required: ocr.required,
+      requested: requestedLanguages,
+      allowed: [...policyContext.policy.allowedOcrLanguages],
+      automaticAcquisition: false,
+    },
   };
   if (task.mutation && request.mutationAuthorized !== true) return { ...base, status: "blocked", reason: reason("mutation-authorization-required", "Destructive PDF mutation requires explicit caller authorization."), installPlan, consents };
   if (task.invalidateSignatures && request.invalidateSignaturesAuthorized !== true) return { ...base, status: "blocked", reason: reason("signature-invalidation-authorization-required", "This task can invalidate signatures and requires explicit authorization."), installPlan, consents };
   if (requiredCredentials.some((credential) => !declaredCredentials.includes(credential))) return { ...base, status: "blocked", reason: reason("credential-declaration-required", "Credentials must be declared by the caller and are never acquired automatically."), installPlan, consents };
-  if (task.ocrLanguages) {
+  if (ocr.unsupported) return { ...base, status: "blocked", reason: reason("provider-ocr-language-unsupported", "The selected provider has no OCR-language runtime; choose an explicitly capable provider without fallback."), installPlan, consents };
+  if (ocr.required && !requestedLanguages.length) {
+    return { ...base, status: "blocked", reason: reason("ocr-language-required", "OCR requires one or more explicit language identifiers."), installPlan, consents };
+  }
+  if (ocr.active) {
     if (!requestedLanguages.length) return { ...base, status: "blocked", reason: reason("ocr-language-required", "OCR requires one or more explicit language identifiers."), installPlan, consents };
     const disallowed = requestedLanguages.filter((language) => !policyContext.policy.allowedOcrLanguages.includes(language));
     if (disallowed.length) return { ...base, status: "blocked", reason: reason("ocr-language-not-allowed", "Policy does not allow every requested OCR language.", { languages: disallowed }), installPlan, consents };

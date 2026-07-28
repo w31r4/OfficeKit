@@ -94,11 +94,14 @@ and cache paths that escape the project directory.
 After `ensure` returns `ready`, use only the exact paths in
 `result.runtime.managed`: pass its `pythonPath`, `commandPaths`, and
 `environment` to the selected adapter. Do not reconstruct a cache path or mix
-it with a system runtime. For managed OCR, `environment` includes
-`OFFICE_KIT_PDF_TESSDATA_DIRS`, a platform path-list of the selected verified
-language-pack directories. `ocrmypdf_provider.py` copies regular, unlinked
+it with a system runtime. An OCRmyPDF route receives
+`OFFICE_KIT_PDF_TESSDATA_DIRS`, a platform path-list of selected verified
+language-pack directories; `ocrmypdf_provider.py` copies regular, unlinked
 `.traineddata` files into a per-operation private directory and sets its own
-`TESSDATA_PREFIX`; never point `TESSDATA_PREFIX` directly at the project cache.
+`TESSDATA_PREFIX`. A PyMuPDF OCR-redaction route instead receives a verified
+`TESSDATA_PREFIX` directly, and resolving it with a named language includes the
+corresponding language pack in the installation plan. Do not invent either
+cache path or substitute a system language directory.
 
 **Current catalog state:** qpdf `12.3.2-oat.2`, `python-foundation`
 `3.13.14-oat.2`, `python-specialists` `3.13.14-oat.2`, veraPDF/JRE
