@@ -48,6 +48,16 @@ post-repair structure, and page-for-page Poppler pixels. Refresh the pair only
 through `scripts/agent-eval-corpus-fixtures.py refresh-corrupt` and commit it
 with the updated integrity manifest.
 
+`pdf/redaction/multichannel-secret.pdf` is a self-authored four-page sanitize
+fixture. Its fictional canary occurs in visible and white selectable text, a
+scanned image, an invisible OCR layer, an annotation, a hidden widget, an
+attachment, document metadata/XMP, an unreferenced decoded stream, and a prior
+incremental revision. It exists to prove that a claimed high-trust redaction
+removes every named channel instead of drawing an overlay. Refresh it only with
+`scripts/agent-eval-corpus-fixtures.py refresh-redaction`, then verify the
+fixture and commit its revised hash in `integrity.json` together with the source
+recipe.
+
 Refreshing fixtures is an intentional corpus update: regenerate the files,
 review their structure and provenance, then commit the revised assets and
 integrity manifest together. Generating the DocMDP fixture additionally needs

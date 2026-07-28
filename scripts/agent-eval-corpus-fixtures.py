@@ -30,6 +30,7 @@ from pypdf.generic import (
     DecodedStreamObject,
     DictionaryObject,
     FloatObject,
+    IndirectObject,
     NameObject,
     NumberObject,
     TextStringObject,
@@ -44,6 +45,7 @@ DEFAULT_ROOT = REPO_ROOT / "evals" / "assets"
 USER_PASSWORD = "fixture-user-password"
 OWNER_PASSWORD = "fixture-owner-password-not-for-agent"
 SIGNING_PYTHON_ENV = "OFFICE_KIT_PROMPTBENCH_SIGNING_PYTHON"
+MULTICHANNEL_SECRET = "ZXQ-PHI-9173"
 
 
 # This program is deliberately executed only by the separately selected,
@@ -636,6 +638,154 @@ def create_damaged_xref_recovery(root: Path) -> None:
     pristine.unlink(missing_ok=True)
 
 
+def multichannel_secret_image() -> Image.Image:
+    """Return self-authored raster artwork with an OCR-stable test canary.
+
+    Pillow's bundled default face keeps this fixture independent of a host font
+    installation.  The source image is deliberately much larger than its PDF
+    placement so a normal English Tesseract pass has an unambiguous raster
+    target without treating OCR as a broad fuzzy inference problem.
+    """
+
+    image = Image.new("RGB", (1800, 900), "#F7F8FA")
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.load_default(size=144)
+    draw.rounded_rectangle((74, 74, 1726, 826), radius=28, outline="#94A3B8", width=10)
+    draw.text((144, 150), "SCANNED INTAKE IMAGE", fill="#334155", font=font)
+    draw.text((144, 360), MULTICHANNEL_SECRET, fill="#111827", font=font, stroke_width=1)
+    draw.text((144, 600), "Image-only canary for bounded OCR redaction.", fill="#475569", font=font)
+    return image
+
+
+def create_multichannel_redaction(root: Path) -> None:
+    """Create the source-bound multichannel redact/sanitize fixture.
+
+    The fixture is intentionally a small self-authored PDF rather than a
+    synthetic object-dictionary-only test.  It puts the same canary in visible
+    text, white selectable text, image pixels plus an invisible OCR layer,
+    attachments, XMP, an annotation, a hidden widget, an unreachable stream,
+    and an earlier incremental revision.  A real sanitize route must therefore
+    make one complete rewritten public copy; an overlay or ordinary text-only
+    edit cannot satisfy the independent oracle.
+    """
+
+    temporary = root / ".multichannel-redaction-base.pdf"
+    pre_incremental = root / ".multichannel-redaction-pre-incremental.pdf"
+    target = root / "pdf" / "redaction" / "multichannel-secret.pdf"
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    document = canvas.Canvas(str(temporary), pagesize=(612, 792), invariant=1)
+    document.setTitle("Multichannel redaction fixture")
+    document.setAuthor("OfficeKit PromptBench fixture generator")
+    document.setSubject("Self-authored high-trust redaction evidence")
+
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Redaction evidence — visible text")
+    document.setFont("Helvetica", 10)
+    document.drawString(54, 706, "The code below is visible ordinary text and must be removed by a real redaction.")
+    document.setFont("Helvetica-Bold", 16)
+    document.drawString(72, 650, MULTICHANNEL_SECRET)
+    document.setFont("Helvetica", 10)
+    document.drawString(72, 618, "The remaining public record text is a stability canary.")
+    document.showPage()
+
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Redaction evidence — white selectable text")
+    document.setFont("Helvetica", 10)
+    document.drawString(54, 706, "The white-on-white canary remains selectable even though it is not visibly rendered.")
+    document.setFillColor(HexColor("#FFFFFF"))
+    document.setFont("Helvetica-Bold", 16)
+    document.drawString(72, 650, MULTICHANNEL_SECRET)
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica", 10)
+    document.drawString(54, 618, "This page should remain visually stable after removing its invisible term.")
+    document.showPage()
+
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Redaction evidence — scanned image")
+    image = multichannel_secret_image()
+    image_bytes = io.BytesIO()
+    image.save(image_bytes, format="PNG", compress_level=9)
+    image_bytes.seek(0)
+    image_x, image_y, image_width, image_height = 72, 300, 468, 234
+    document.drawImage(ImageReader(image_bytes), image_x, image_y, width=image_width, height=image_height, mask="auto")
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica", 10)
+    document.drawString(54, 250, "The image pixels and the invisible OCR layer carry the same bounded canary.")
+    ocr_layer = document.beginText(image_x + 38, image_y + 108)
+    ocr_layer.setFont("Helvetica", 16)
+    ocr_layer.setTextRenderMode(3)
+    ocr_layer.textLine(MULTICHANNEL_SECRET)
+    document.drawText(ocr_layer)
+    document.showPage()
+
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Redaction evidence — non-page channels")
+    document.setFont("Helvetica", 10)
+    document.drawString(54, 706, "Attachment, metadata, XMP, annotation, hidden widget, orphan object, and prior revision carry the canary.")
+    document.drawString(54, 684, "None of those channels should become visible in the public copy.")
+    document.showPage()
+    document.save()
+
+    reader = PdfReader(str(temporary), strict=True)
+    writer = PdfWriter()
+    writer.clone_document_from_reader(reader)
+    page = writer.pages[3]
+    annotation = DictionaryObject({
+        n("Type"): n("Annot"),
+        n("Subtype"): n("Text"),
+        n("Rect"): ArrayObject([FloatObject(12), FloatObject(12), FloatObject(24), FloatObject(24)]),
+        n("F"): NumberObject(2),
+        n("T"): TextStringObject("Restricted reviewer"),
+        n("Contents"): TextStringObject(f"Annotation canary {MULTICHANNEL_SECRET}"),
+    })
+    annotation_ref = indirect(writer, annotation)
+    widget = DictionaryObject({
+        n("Type"): n("Annot"),
+        n("Subtype"): n("Widget"),
+        n("FT"): n("Tx"),
+        n("T"): TextStringObject("RestrictedIdentifier"),
+        n("V"): TextStringObject(MULTICHANNEL_SECRET),
+        n("DV"): TextStringObject(MULTICHANNEL_SECRET),
+        n("Rect"): ArrayObject([FloatObject(0), FloatObject(0), FloatObject(1), FloatObject(1)]),
+        n("F"): NumberObject(2),
+    })
+    widget_ref = indirect(writer, widget)
+    ensure_annots(page).extend([annotation_ref, widget_ref])
+    writer._root_object[n("AcroForm")] = DictionaryObject({n("Fields"): ArrayObject([widget_ref])})
+    writer.add_attachment("restricted-evidence.txt", f"Attachment canary: {MULTICHANNEL_SECRET}\n".encode("utf-8"))
+    writer.add_metadata({
+        "/Title": "Multichannel redaction fixture",
+        "/Author": "OfficeKit PromptBench fixture generator",
+        "/Subject": f"Metadata canary {MULTICHANNEL_SECRET}",
+        "/Keywords": f"OfficeKit redact {MULTICHANNEL_SECRET}",
+    })
+    xmp = stream_with_bytes(
+        (
+            "<?xpacket begin=\"\ufeff\"?>"
+            "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">"
+            f"<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description rdf:about=\"\" officekit:canary=\"{MULTICHANNEL_SECRET}\" xmlns:officekit=\"https://officekit.dev/promptbench\"/></rdf:RDF>"
+            "</x:xmpmeta><?xpacket end=\"w\"?>"
+        ).encode("utf-8")
+    )
+    xmp[n("Type")] = n("Metadata")
+    xmp[n("Subtype")] = n("XML")
+    writer._root_object[n("Metadata")] = indirect(writer, xmp)
+    orphan = stream_with_bytes(f"ORPHAN-MULTICHANNEL-CANARY {MULTICHANNEL_SECRET}".encode("utf-8"))
+    indirect(writer, orphan)
+    write_writer(writer, pre_incremental)
+
+    incremental = PdfWriter(str(pre_incremental), incremental=True)
+    incremental.add_metadata({"/ModDate": "D:20260728000000Z", "/Creator": "OfficeKit PromptBench incremental revision"})
+    write_writer(incremental, target)
+    temporary.unlink(missing_ok=True)
+    pre_incremental.unlink(missing_ok=True)
+
+
 def stream_with_bytes(payload: bytes) -> DecodedStreamObject:
     stream = DecodedStreamObject()
     stream.set_data(payload)
@@ -908,6 +1058,26 @@ def refresh_corrupt(root: Path) -> dict:
     return manifest
 
 
+def refresh_redaction(root: Path) -> dict:
+    """Refresh only the self-authored multichannel redact/sanitize fixture."""
+
+    manifest_path = root / "integrity.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("assets"), dict):
+        raise ValueError("unsupported corpus integrity schema")
+    create_multichannel_redaction(root)
+    relative = "pdf/redaction/multichannel-secret.pdf"
+    asset = root / relative
+    manifest["assets"][relative] = {
+        "bytes": asset.stat().st_size,
+        "description": FIXTURES[relative],
+        "kind": "file",
+        "sha256": sha256(asset),
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return manifest
+
+
 FIXTURES = {
     "pdf/encryption/owner-policy-aes256.pdf": "AES-256 encrypted user/owner permission split with embedded attachment and AcroForm canaries.",
     "pdf/encryption/user-password.json": "Test-only user credential; deliberately excludes the owner password.",
@@ -916,6 +1086,7 @@ FIXTURES = {
     "pdf/ocr/mixed-bilingual-scan.pdf": "Eight-page mixed English/Chinese source: six image-only scans with pixel-encoded upside-down/sideways/skew variants plus two born-digital text canaries.",
     "pdf/corrupt/recoverable.pdf": "Recoverable wrong-startxref two-page PDF with native-text and document-attachment canaries.",
     "pdf/corrupt/unrecoverable.pdf": "PDF-header-only malformed structural-repair control with no usable trailer or page tree.",
+    "pdf/redaction/multichannel-secret.pdf": "Four-page incremental PDF with one self-authored canary in visible/white/OCR text, raster pixels, attachment, XMP, annotation, widget, orphan stream, and prior revision.",
     "pdf/xfa/dynamic-dependents.pdf": "Dynamic-XFA-shaped template/datasets packet with repeat and FormCalc markers.",
     "pdf/print/print-production-risk.pdf": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",
     "pdf/signing/docmdp-p1-final.pdf": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",
@@ -932,6 +1103,7 @@ def generate(root: Path, signing_python: str | None) -> dict:
     create_untagged_complex_report(root)
     create_mixed_scan_ocr_boundary(root)
     create_damaged_xref_recovery(root)
+    create_multichannel_redaction(root)
     create_dynamic_xfa(root)
     create_print_production_risk(root)
     managed_signing_python = required_signing_python(signing_python)
@@ -1079,6 +1251,58 @@ def verify_damaged_xref_recovery(recoverable: Path, unrecoverable: Path) -> None
         raise ValueError("unrecoverable XRef control accidentally acquired recoverable structure")
 
 
+def decoded_stream_bytes(reader: PdfReader) -> bytes:
+    chunks = []
+    for generation, object_numbers in getattr(reader, "xref", {}).items():
+        for object_number in object_numbers:
+            try:
+                value = reader.get_object(IndirectObject(object_number, generation, reader))
+                getter = getattr(value, "get_data", None)
+                if callable(getter):
+                    chunks.append(bytes(getter()))
+            except Exception:
+                continue
+    return b"\n".join(chunks)
+
+
+def verify_multichannel_redaction(path: Path) -> None:
+    raw = path.read_bytes()
+    if raw.count(b"%%EOF") != 2 or len(re.findall(rb"/Prev\s+\d+", raw)) != 1:
+        raise ValueError("multichannel redaction fixture must retain exactly one prior incremental revision")
+    reader = PdfReader(str(path), strict=True)
+    if len(reader.pages) != 4:
+        raise ValueError("multichannel redaction fixture must contain exactly four pages")
+    visible = reader.pages[0].extract_text() or ""
+    white = reader.pages[1].extract_text() or ""
+    ocr_layer = reader.pages[2].extract_text() or ""
+    if MULTICHANNEL_SECRET not in visible or MULTICHANNEL_SECRET not in white or MULTICHANNEL_SECRET not in ocr_layer:
+        raise ValueError("multichannel fixture is missing a selectable visible, white, or OCR-layer canary")
+    if page_image_count(reader.pages[2]) != 1:
+        raise ValueError("multichannel fixture must retain one raster-only image placement on page three")
+    page_four_annots = [reference.get_object() for reference in reader.pages[3].get("/Annots", []) or []]
+    annotations = [annotation for annotation in page_four_annots if str(annotation.get("/Subtype", "")) == "/Text"]
+    widgets = [annotation for annotation in page_four_annots if str(annotation.get("/Subtype", "")) == "/Widget"]
+    if len(annotations) != 1 or MULTICHANNEL_SECRET not in str(annotations[0].get("/Contents", "")):
+        raise ValueError("multichannel fixture is missing its hidden annotation canary")
+    if len(widgets) != 1 or str(widgets[0].get("/V", "")) != MULTICHANNEL_SECRET:
+        raise ValueError("multichannel fixture is missing its hidden widget value canary")
+    root = root_dictionary(reader)
+    acro_form = dictionary_object(root.get("/AcroForm"))
+    if not acro_form or len(list(acro_form.get("/Fields", []) or [])) != 1:
+        raise ValueError("multichannel fixture has an incomplete AcroForm canary")
+    attachments = list(reader.attachment_list)
+    if len(attachments) != 1 or attachments[0].name != "restricted-evidence.txt" or MULTICHANNEL_SECRET.encode("utf-8") not in attachments[0].content:
+        raise ValueError("multichannel fixture is missing its document attachment canary")
+    if MULTICHANNEL_SECRET not in str(reader.metadata.subject or "") or MULTICHANNEL_SECRET not in str(reader.metadata.keywords or ""):
+        raise ValueError("multichannel fixture is missing its document metadata canary")
+    metadata = dictionary_object(root.get("/Metadata"))
+    if not metadata or MULTICHANNEL_SECRET.encode("utf-8") not in metadata.get_data():
+        raise ValueError("multichannel fixture is missing its XMP canary")
+    streams = decoded_stream_bytes(reader)
+    if f"ORPHAN-MULTICHANNEL-CANARY {MULTICHANNEL_SECRET}".encode("utf-8") not in streams:
+        raise ValueError("multichannel fixture is missing its unreachable-stream canary")
+
+
 def verify_docmdp_p1(path: Path, root_certificate: Path) -> None:
     raw = path.read_bytes()
     reader = PdfReader(str(path), strict=True)
@@ -1192,6 +1416,7 @@ def verify(root: Path) -> dict:
     verify_untagged_report(root / "pdf" / "accessibility" / "untagged-complex-report.pdf")
     verify_mixed_scan_ocr(root / "pdf" / "ocr" / "mixed-bilingual-scan.pdf")
     verify_damaged_xref_recovery(root / "pdf" / "corrupt" / "recoverable.pdf", root / "pdf" / "corrupt" / "unrecoverable.pdf")
+    verify_multichannel_redaction(root / "pdf" / "redaction" / "multichannel-secret.pdf")
     verify_xfa(root / "pdf" / "xfa" / "dynamic-dependents.pdf")
     verify_print(root / "pdf" / "print" / "print-production-risk.pdf")
     verify_docmdp_p1(root / "pdf" / "signing" / "docmdp-p1-final.pdf", root / "pdf" / "signing" / "test-pki" / "root.pem")
@@ -1201,7 +1426,7 @@ def verify(root: Path) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-corrupt", "verify"))
+    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-corrupt", "refresh-redaction", "verify"))
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     parser.add_argument("--signing-python", help=f"managed pyHanko interpreter used only by generate (or set {SIGNING_PYTHON_ENV})")
     options = parser.parse_args()
@@ -1211,6 +1436,8 @@ def main() -> None:
         print(json.dumps(refresh_docmdp(options.root, required_signing_python(options.signing_python)), indent=2, sort_keys=True))
     elif options.command == "refresh-corrupt":
         print(json.dumps(refresh_corrupt(options.root), indent=2, sort_keys=True))
+    elif options.command == "refresh-redaction":
+        print(json.dumps(refresh_redaction(options.root), indent=2, sort_keys=True))
     else:
         print(json.dumps(verify(options.root), sort_keys=True))
 
