@@ -80,14 +80,14 @@
         "downloadBytes": 11358
       },
       "ghostscriptAgpl30": {
-        "url": "https://www.gnu.org/licenses/agpl-3.0.txt",
-        "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
-        "downloadBytes": 34523
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/5bf6d9610255540bfbee6890765a616042bf1e11/text/AGPL-3.0-only.txt",
+        "sha256": "d8a6cc31abc16b6748c7a21f21611f5a1ec33f67d22ca23d7da1c19b95496bee",
+        "downloadBytes": 34020
       },
       "popplerGpl20": {
-        "url": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt",
-        "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
-        "downloadBytes": 17984
+        "url": "https://raw.githubusercontent.com/spdx/license-list-data/5bf6d9610255540bfbee6890765a616042bf1e11/text/GPL-2.0-only.txt",
+        "sha256": "aaf135472f81c5b4a0dca9367e5bb5e9750032b5bebe5442b36e4c0a47430df3",
+        "downloadBytes": 17337
       }
     }
   }

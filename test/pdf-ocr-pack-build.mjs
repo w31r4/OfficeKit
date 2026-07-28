@@ -66,6 +66,13 @@ for (const source of Object.values(inputs.licenseMaterial.windowsNative)) {
   assert.match(source.sha256, /^[a-f0-9]{64}$/);
   assert.ok(Number.isSafeInteger(source.downloadBytes) && source.downloadBytes > 1000);
 }
+for (const licenseName of ["ghostscriptAgpl30", "popplerGpl20"]) {
+  assert.match(
+    inputs.licenseMaterial.windowsNative[licenseName].url,
+    /^https:\/\/raw\.githubusercontent\.com\/spdx\/license-list-data\/[a-f0-9]{40}\/text\//,
+    `${licenseName} must use an immutable, hash-pinned SPDX license-text source rather than an availability-sensitive live license endpoint`,
+  );
+}
 
 // The release builder must force every package-local executable through its
 // own relocated libraries, remove all bundled language data, and leave only a
