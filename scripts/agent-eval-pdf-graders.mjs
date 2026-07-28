@@ -778,6 +778,16 @@ function damagedXrefRepair(audit) {
       checkAfter: qpdf.freshInspect,
     };
   }
+  const freshInspection = audit?.validation?.freshInspection;
+  if (freshInspection && typeof freshInspection === "object") {
+    return {
+      checkBefore: audit?.warnings?.repairBefore,
+      qpdfWrite: audit?.warnings?.rewrite,
+      // This shape records repair warnings at the audit root and retains the
+      // separate post-write qpdf inspection under validation.
+      checkAfter: freshInspection,
+    };
+  }
   const candidates = [
     audit?.repair,
     audit?.validation?.repair,
@@ -791,6 +801,7 @@ function auditTextLines(value) {
   if (typeof value === "string") return [value];
   if (Array.isArray(value)) return value.flatMap(auditTextLines);
   if (!value || typeof value !== "object") return [];
+  const textFields = new Set(["line", "lines", "jsonLines", "warnings", "message", "reason"]);
   return [
     ...auditTextLines(value.line),
     ...auditTextLines(value.lines),
@@ -798,6 +809,11 @@ function auditTextLines(value) {
     ...auditTextLines(value.warnings),
     ...auditTextLines(value.message),
     ...auditTextLines(value.reason),
+    // Warning records may be grouped by a semantic stage. Recurse through
+    // nested records, but only collect approved textual evidence fields.
+    ...Object.entries(value)
+      .filter(([key, child]) => !textFields.has(key) && child && typeof child === "object")
+      .flatMap(([, child]) => auditTextLines(child)),
   ];
 }
 
@@ -888,9 +904,9 @@ export function gradeDamagedXrefRecoveryEvidence({ evidence, audit, commands, it
     audit?.warnings,
   ]).join("\n");
   const controlStatus = String(control?.status || control?.result || control?.decision || "").toLowerCase();
-  const controlRejected = (/reject|fail|error|unrecoverable|refus/.test(controlStatus) || control?.qpdfAccepted === false || control?.qpdfRejected === true || control?.rejected === true)
+  const controlRejected = (/reject|fail|error|unrecoverable|refus/.test(controlStatus) || control?.qpdfAccepted === false || control?.qpdfRejected === true || control?.accepted === false || control?.rejected === true)
     && damagedXrefControlSourceHash(control, audit) === evidence.unrecoverable?.sha256
-    && (control?.output === null || control?.outputPath === null || control?.artifactWritten === false || control?.published === false || control?.outputGenerated === false || control?.outputPresent === false || control?.pseudoRepairProduced === false);
+    && (control?.output === null || control?.outputPath === null || control?.artifactWritten === false || control?.published === false || control?.outputGenerated === false || control?.outputPresent === false || control?.pseudoRepairProduced === false || control?.pseudoRepairGenerated === false);
   return [
     check("pdf-machine:damaged-source-and-control-fixture", "machine", sourceFixtureComplete, { actual: { source: { pageCount: source.pageCount, startxrefIsZero: evidence.sourceRawStartxrefIsZero, attachments: expectedAttachments }, unrecoverable: evidence.unrecoverable } }),
     check("pdf-machine:qpdf-output-clean", "machine", repair?.checkAfter?.status === "clean", { actual: repair?.checkAfter || "unreported" }),

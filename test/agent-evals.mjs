@@ -541,6 +541,36 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
     delete missingFreshInspect.validation.qpdf.freshInspect;
     const missingFreshInspectChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: missingFreshInspect, commands, item: damagedXrefItem });
     assert.equal(missingFreshInspectChecks.find((check) => check.id === "pdf-machine:qpdf-output-clean")?.passed, false, "a qpdf rewrite success claim without a fresh final inspection must fail");
+    const stagedWarningAudit = structuredClone(agentStyleAudit);
+    delete stagedWarningAudit.validation.qpdfRepair;
+    stagedWarningAudit.warnings = {
+      repairBefore: {
+        status: "warnings",
+        lines: canonicalRepair.checkBefore?.lines || canonicalRepair.checkBefore?.jsonLines || [],
+      },
+      rewrite: {
+        lines: canonicalRepair.checkBefore?.lines || canonicalRepair.checkBefore?.jsonLines || [],
+      },
+      repairAfter: {
+        status: "clean",
+        lines: ["No syntax errors found"],
+      },
+    };
+    stagedWarningAudit.validation.freshInspection = {
+      provider: "qpdf",
+      completed: true,
+      status: "clean",
+      exitCode: 0,
+    };
+    stagedWarningAudit.validation.unrecoverableControl = {
+      inspectedSeparately: true,
+      accepted: false,
+      mutationAttempted: false,
+      pseudoRepairGenerated: false,
+      outputPresent: false,
+    };
+    const stagedWarningChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: stagedWarningAudit, commands, item: damagedXrefItem });
+    assert.equal(stagedWarningChecks.every((check) => check.passed), true, JSON.stringify(stagedWarningChecks.filter((check) => !check.passed), null, 2));
     const attachmentLoss = structuredClone(evidence);
     attachmentLoss.outputAttachments = [];
     const attachmentLossChecks = gradeDamagedXrefRecoveryEvidence({ evidence: attachmentLoss, audit, commands, item: damagedXrefItem });
