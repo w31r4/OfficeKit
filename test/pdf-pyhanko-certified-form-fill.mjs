@@ -11,7 +11,7 @@ const skillRoot = path.join(repoRoot, "skills", "pdf", "skills", "pdf");
 const verifier = path.join(skillRoot, "scripts", "pyhanko_provider.py");
 const filler = path.join(skillRoot, "scripts", "pyhanko_certified_form_fill.py");
 const mupdf = path.join(skillRoot, "scripts", "mupdf.mjs");
-const evaluatorPython = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || "python3";
+const evaluatorPython = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "python3";
 
 function run(executable, args, options = {}) {
   const result = spawnSync(executable, args, {
