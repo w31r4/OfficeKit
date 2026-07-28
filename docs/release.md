@@ -901,7 +901,7 @@ a second PDF codec or putting large runtimes in the npm tarball:
   `17.8.1-oat.3`, and `eng`/`chi_sim` language packs `4.1.0-oat.3` are
   published as hash-pinned, SBOM/notices-attached, GitHub-attested
   `darwin-arm64`, `linux-x64`, and `win32-x64` assets. The public live matrix
-  verifies every published closure through resolve, ensure, probe, and asset
+  verifies those all-platform closures through resolve, ensure, probe, and asset
   attestation. Under an explicit managed policy, `ensure` can install precisely
   the selected closure. Foundation provides isolated CPython with ReportLab,
   pdfplumber, pypdf, and Pillow; specialists provide PyMuPDF, pikepdf, pyHanko,
@@ -910,9 +910,11 @@ a second PDF codec or putting large runtimes in the npm tarball:
   isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`, while each
   language remains separately policy-authorized.
   Redirect hops remain HTTPS-only and credential-free before final
-  byte-size/hash validation. Only the Poppler QA pack remains intentionally
-  unpublished and resolves as `blocked`; no document, Skill, or API may claim
-  that `ensure` can download a future asset today.
+  byte-size/hash validation. Poppler QA `24.08.0-oat.1` is published and
+  attested for `win32-x64` only. A policy-authorized Windows route may install
+  its exact `pdfinfo`, `pdftoppm`, and `pdftotext` bytes; macOS/Linux resolve
+  as `platform-artifact-unavailable`, and no document, Skill, or API may claim
+  that `ensure` can download an artifact outside that catalogued boundary.
 - P12/private keys, HSM/remote-signing credentials, TSA/LTV access, and trust
   roots are never capability packs and are never acquired automatically.
 

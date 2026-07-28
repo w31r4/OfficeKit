@@ -171,20 +171,50 @@
       "license": { "expression": "PSF-2.0 AND MPL-2.0 AND AGPL-3.0-or-later AND MIT", "requiresAcknowledgement": true, "id": "python-specialists-license", "acceptedValues": ["agpl", "commercial"] }
     },
     "poppler-qa": {
-      "state": "unpublished",
+      "state": "published",
       "delivery": "versioned-signed-platform-release-asset",
-      "platforms": ["darwin-arm64", "linux-x64"],
-      "version": null,
-      "artifacts": [],
+      "platforms": ["win32-x64"],
+      "version": "24.08.0-oat.1",
+      "artifacts": [
+        {
+          "platform": "win32-x64",
+          "asset": "poppler-qa-24.08.0-oat.1-win32-x64.tar.gz",
+          "version": "24.08.0-oat.1",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-poppler-qa-24.08.0-oat.1/poppler-qa-24.08.0-oat.1-win32-x64.tar.gz",
+          "sha256": "63c47cf55a06f8993faaa7fc4a997fe6f9243acdc7d61d9298dfa06aa4cf7d1d",
+          "downloadBytes": 13170964,
+          "unpackedBytes": 35686811,
+          "archiveFormat": "tar.gz"
+        }
+      ],
       "requiresPackIds": [],
       "entrypoints": [
-        { "path": "bin/pdfinfo", "kind": "file", "executable": true },
-        { "path": "bin/pdftoppm", "kind": "file", "executable": true },
-        { "path": "bin/pdftotext", "kind": "file", "executable": true }
+        { "path": "bin/pdfinfo", "platformPaths": { "win32-x64": "bin/pdfinfo.exe" }, "kind": "file", "executable": true },
+        { "path": "bin/pdftoppm", "platformPaths": { "win32-x64": "bin/pdftoppm.exe" }, "kind": "file", "executable": true },
+        { "path": "bin/pdftotext", "platformPaths": { "win32-x64": "bin/pdftotext.exe" }, "kind": "file", "executable": true }
       ],
       "dependencyClosure": ["Poppler CLI"],
       "estimatedDownloadBytes": null,
       "estimatedUnpackedBytes": null,
+      "releaseEvidence": {
+        "sbom": {
+          "asset": "poppler-qa-24.08.0-oat.1.sbom.cdx.json",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-poppler-qa-24.08.0-oat.1/poppler-qa-24.08.0-oat.1.sbom.cdx.json",
+          "sha256": "dc84fd02eedc44b71df8f3abf73cefb1a347f03acb9abc8c86f87e9fa40ee3bc"
+        },
+        "thirdPartyNotices": {
+          "asset": "poppler-qa-24.08.0-oat.1.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-poppler-qa-24.08.0-oat.1/poppler-qa-24.08.0-oat.1.THIRD_PARTY_NOTICES.md",
+          "sha256": "3512cdb152444356eef0c0af5ee5fc05639c44bb1a839f55f351e84612c230d3"
+        },
+        "provenance": {
+          "provider": "github-actions-artifact-attestation",
+          "repository": "w31r4/OfficeKit",
+          "workflow": ".github/workflows/pdf-poppler-capability-pack.yml",
+          "verificationCommand": "gh attestation verify <asset> --repo w31r4/OfficeKit"
+        },
+        "verifiedPlatforms": ["win32-x64"]
+      },
       "license": { "expression": "GPL-2.0-or-later", "requiresAcknowledgement": false }
     },
     "qpdf": {

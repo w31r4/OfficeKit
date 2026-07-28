@@ -101,12 +101,12 @@ publication, and a receipt. It rejects `latest`, package-manager/global-pip
 installs, lifecycle hooks, path traversal, links, and undeclared URLs. The
 managed targets are `darwin-arm64`, `linux-x64`, and `win32-x64`.
 
-**Current release-catalog state:** qpdf `12.3.2-oat.2`, `python-foundation`/`python-specialists` `3.13.14-oat.2`, veraPDF/JRE `1.30.2-oat.2`, OCR core `17.8.1-oat.3`, and `eng`/`chi_sim` `4.1.0-oat.3` have published, attested `darwin-arm64`, `linux-x64`, and `win32-x64` assets; public live acceptance verifies each published closure.
+**Current release-catalog state:** qpdf `12.3.2-oat.2`, `python-foundation`/`python-specialists` `3.13.14-oat.2`, veraPDF/JRE `1.30.2-oat.2`, OCR core `17.8.1-oat.3`, and `eng`/`chi_sim` `4.1.0-oat.3` have published, attested `darwin-arm64`, `linux-x64`, and `win32-x64` assets; public live acceptance verifies those all-platform closures.
 qpdf covers repair, linearization, inspection, and the bounded AES-256 delivery-copy route. The foundation is isolated CPython with ReportLab,
 pdfplumber, pypdf, and Pillow. Specialists contain PyMuPDF, pikepdf, pyHanko,
 and certificate validation; they depend on qpdf and require the catalogued
 AGPL-or-commercial acknowledgement. The veraPDF pack carries its managed JRE;
-OCR installs qpdf, its isolated OCRmyPDF/Tesseract 5/Ghostscript/`pdftotext` core, and only explicit language packs. Only Poppler QA remains unpublished and deliberately resolves as `blocked`, not as a downloadable promise. Use a selected `system-only` policy with an explicitly configured local runtime when one is already managed by the deployment. Once a task chooses managed or system-only, do not switch routes.
+OCR installs qpdf, its isolated OCRmyPDF/Tesseract 5/Ghostscript/`pdftotext` core, and only explicit language packs. Poppler QA `24.08.0-oat.1` is published and attested for `win32-x64` only; it resolves as `installable` only under an explicit Windows managed policy and is `blocked` with `platform-artifact-unavailable` on macOS/Linux. The dedicated live release check uses `resolve` → `ensure` → `probe`, native text extraction, and raster output against those exact Windows bytes. Use a selected `system-only` policy with an explicitly configured local runtime when one is already managed by the deployment. Once a task chooses managed or system-only, do not switch routes.
 
 See [provider setup and probes](tasks/provider_setup.md) for the full policy,
 system-runtime, probe, and failure contract. The [provider matrix](references/PROVIDER_MATRIX.md)

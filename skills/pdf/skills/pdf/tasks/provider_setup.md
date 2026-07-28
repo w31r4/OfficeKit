@@ -104,7 +104,7 @@ language-pack directories. `ocrmypdf_provider.py` copies regular, unlinked
 `3.13.14-oat.2`, `python-specialists` `3.13.14-oat.2`, veraPDF/JRE
 `1.30.2-oat.2`, OCR core `17.8.1-oat.3`, and `eng`/`chi_sim` language packs
 `4.1.0-oat.3` have published attested assets for `darwin-arm64`, `linux-x64`,
-and `win32-x64`; public live acceptance verifies every published closure. A
+and `win32-x64`; public live acceptance verifies those all-platform closures. A
 policy-authorized qpdf, foundation, specialist, veraPDF, or OCR route can
 resolve as `installable` and be passed unchanged to `ensure`. OCR expands only
 to qpdf, the core, and the explicitly requested language packs; the core
@@ -112,9 +112,12 @@ carries isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`. The
 foundation contains isolated CPython plus ReportLab, pdfplumber, pypdf, and
 Pillow. Specialists contain PyMuPDF, pikepdf, pyHanko, and certificate
 validation and require the catalogued AGPL-or-commercial acknowledgement. The veraPDF pack carries its
-own JRE. Only Poppler QA remains unpublished, so that route is `blocked` with a
-precise reason even under a permissive policy. Do not substitute a hand-written
-download URL or claim that `ensure` installed a future pack.
+own JRE. Poppler QA `24.08.0-oat.1` is published and attested for `win32-x64`
+only. A policy-authorized Windows route can resolve as `installable` and use
+its pinned `pdfinfo`, `pdftoppm`, and `pdftotext` executables; macOS/Linux
+return `platform-artifact-unavailable` rather than selecting a fallback. Do not
+substitute a hand-written download URL or claim that `ensure` installed an
+artifact outside the catalogued platform boundary.
 
 ## Existing controlled runtime: system-only
 
