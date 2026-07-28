@@ -15,7 +15,7 @@ to retry through another route.
 | ReportLab | New visual/layout PDF | `rewrite` | Does not inherit the `PdfArtifact` tagged/reading-order contract. |
 | pdfplumber | Read-only text, word geometry, tables, lines, rectangles | `read-only` | Extraction is evidence, not an edit representation. |
 | pypdf | Attachment quarantine, complete-source merge/reorder/stamp, complex forms/annotations | `read-only`, `rewrite`, explicit `incremental` | Inspect signatures/DocMDP first; an incremental layout is not authorization. |
-| PyMuPDF | Strict scrub/residue/OCR redaction and selected advanced bounded edits | explicit `rewrite`, `incremental`, `sanitize` | Explicit specialist only. Sanitization is full-rewrite and residue-scanned; it is not the signing authority. |
+| PyMuPDF | Strict scrub/residue/OCR redaction and selected advanced bounded edits | explicit `rewrite`, `incremental`, `sanitize` | Explicit specialist only. A requested OCR language is an exact managed language-pack dependency; sanitization is full-rewrite and residue-scanned, not a signing authority. |
 | Poppler | Independent file evidence and native raster QA | `read-only` | Renderer/inspector only, not an editor or conformance validator. |
 | qpdf | Structural diagnosis, recovery rewrite, linearization, one source-to-AES-256 delivery copy | `read-only`, `rewrite` | AES-256 copy only from an unencrypted source with caller-owned restricted password files; not an encrypted-input opener/decrypter, permission editor, renderer, sanitizer, or signature validator. |
 | pikepdf | Fixed-profile active/auxiliary structure cleanup | `read-only`, `rewrite` | Not redaction, metadata/form/XFA cleanup, strict sanitize, rendering, or malware isolation. |
@@ -37,6 +37,8 @@ to retry through another route.
    Redaction and delete operations must not be incremental.
 6. High-trust redaction requires the explicit sanitize route: real redactions,
    scrub, full rewrite, residue/single-revision checks, then render review.
+   When that route includes raster OCR, name every language before resolving;
+   the selected provider receives only verified language-pack directories.
 
 ## Delivery and licensing boundary
 

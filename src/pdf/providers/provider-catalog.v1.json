@@ -620,12 +620,17 @@
       "kind": "python-module",
       "packId": "python-specialists",
       "module": "pymupdf",
+      "ocrLanguageMode": "optional",
       "minimumVersion": "1.27.2",
       "maximumVersionExclusive": "1.28.0",
       "role": "advanced imported-PDF editing, image-backed OCR redaction, and sanitize",
       "integration": "shipped-thin-script-external-python",
       "taskIds": ["extract", "inspect", "edit-content", "fill-form", "annotate", "redact", "sanitize"],
-      "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
+      "managedRuntime": {
+        "pythonPath": "bin/python3",
+        "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" },
+        "languageDirectoryEnvironment": "TESSDATA_PREFIX"
+      },
       "license": { "id": "agpl-or-commercial", "expression": "AGPL-3.0-or-later OR commercial", "requiresAcknowledgement": true, "acceptedValues": ["agpl", "commercial"] },
       "matrixBoundary": "Explicit advanced provider only. Sanitization is full-rewrite and residue-scanned; PyMuPDF is not the digital-signature authority."
     },
@@ -709,6 +714,7 @@
       "kind": "command",
       "packId": "ocr-core",
       "commands": ["ocrmypdf"],
+      "ocrLanguageMode": "required",
       "environment": "OFFICE_KIT_PDF_OCRMYPDF",
       "minimumVersion": "17.8.0",
       "maximumVersionExclusive": "17.9.0",
@@ -741,10 +747,14 @@
       "kind": "command",
       "packId": "ocr-core",
       "commands": ["tesseract"],
+      "ocrLanguageMode": "required",
       "role": "OCR engine used by strict image residue checks",
       "integration": "external-required-for-image-ocr",
       "taskIds": [],
-      "managedRuntime": { "commandPaths": { "tesseract": "bin/tesseract" }, "environment": { "TESSDATA_PREFIX": "share/tessdata" } },
+      "managedRuntime": {
+        "commandPaths": { "tesseract": "bin/tesseract" },
+        "languageDirectoryEnvironment": "TESSDATA_PREFIX"
+      },
       "license": { "expression": "Apache-2.0", "requiresAcknowledgement": false },
       "matrixBoundary": "Only use after the caller has selected an OCR workflow and explicit language packs; never auto-download a language."
     }

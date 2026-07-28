@@ -119,6 +119,8 @@ assert.deepEqual(PDF_PROVIDER_CATALOG.packs["python-foundation"].releaseEvidence
 assert.equal(PDF_PROVIDER_CATALOG.packs["python-specialists"].state, "published");
 assert.equal(PDF_PROVIDER_CATALOG.packs["python-specialists"].version, "3.13.14-oat.2");
 assert.deepEqual(PDF_PROVIDER_CATALOG.packs["python-specialists"].releaseEvidence.verifiedPlatforms, ["darwin-arm64", "linux-x64", "win32-x64"]);
+assert.equal(PDF_PROVIDER_CATALOG.providers.pymupdf.ocrLanguageMode, "optional");
+assert.equal(PDF_PROVIDER_CATALOG.providers.pymupdf.managedRuntime.languageDirectoryEnvironment, "TESSDATA_PREFIX");
 assert.equal(PDF_PROVIDER_CATALOG.packs.verapdf.state, "published");
 assert.equal(PDF_PROVIDER_CATALOG.packs.verapdf.version, "1.30.2-oat.2");
 assert.deepEqual(PDF_PROVIDER_CATALOG.packs.verapdf.releaseEvidence.verifiedPlatforms, ["darwin-arm64", "linux-x64", "win32-x64"]);
@@ -227,6 +229,9 @@ for (const [packId, version] of [["ocr-language-eng", "4.1.0-oat.3"], ["ocr-lang
 }
 assert.equal(validatePdfProviderCatalog(ocrRuntimeCatalog), true, "OCR may reference only declared files in its qpdf dependency closure");
 assert.equal(ocrRuntimeCatalog.providers.ocrmypdf.managedRuntime.languageDirectoryEnvironment, "OFFICE_KIT_PDF_TESSDATA_DIRS");
+assert.equal(ocrRuntimeCatalog.providers.ocrmypdf.ocrLanguageMode, "required");
+assert.equal(ocrRuntimeCatalog.providers.tesseract.ocrLanguageMode, "required");
+assert.equal(ocrRuntimeCatalog.providers.tesseract.managedRuntime.languageDirectoryEnvironment, "TESSDATA_PREFIX");
 const escapedOcrRuntimeCatalog = structuredClone(PDF_PROVIDER_CATALOG);
 escapedOcrRuntimeCatalog.providers.ocrmypdf.managedRuntime.commandPaths.qpdf = { packId: "python-foundation", path: "bin/python3" };
 assert.throws(() => validatePdfProviderCatalog(escapedOcrRuntimeCatalog), /outside its dependency closure/);
@@ -236,6 +241,9 @@ assert.throws(() => validatePdfProviderCatalog(invalidTaskMinimumCatalog), /task
 const invalidProbeTimeoutCatalog = structuredClone(PDF_PROVIDER_CATALOG);
 invalidProbeTimeoutCatalog.providers.verapdf.probeTimeoutMs = 60_001;
 assert.throws(() => validatePdfProviderCatalog(invalidProbeTimeoutCatalog), /probeTimeoutMs must be an integer/);
+const invalidOcrLanguageModeCatalog = structuredClone(PDF_PROVIDER_CATALOG);
+invalidOcrLanguageModeCatalog.providers.pymupdf.ocrLanguageMode = "sometimes";
+assert.throws(() => validatePdfProviderCatalog(invalidOcrLanguageModeCatalog), /ocrLanguageMode must be none, optional, or required/);
 
 const builtIn = await PdfProviders.resolve({ task: "inspect", savePolicy: "read-only", inspection: inspectedPdf });
 assert.equal(builtIn.status, "ready");
@@ -387,6 +395,42 @@ assert.equal(managedPymupdf.status, "installable");
 assert.equal(managedPymupdf.reason.code, "managed-install-required");
 assert.deepEqual(managedPymupdf.installPlan.packIds, ["qpdf", "python-specialists"]);
 assert.equal(managedPymupdf.installPlan.runtime.managedRuntime.pythonPath, "bin/python3");
+
+const managedPymupdfOcrRedaction = await PdfProviders.resolve({
+  task: "redact",
+  provider: "pymupdf",
+  savePolicy: "sanitize",
+  inspection: inspectedPdf,
+  mutationAuthorized: true,
+  invalidateSignaturesAuthorized: true,
+  ocrLanguages: ["eng"],
+  policy: {
+    installPolicy: "managed",
+    allowedProviders: ["pymupdf"],
+    allowedPacks: ["qpdf", "python-specialists", "ocr-language-eng"],
+    acceptedLicenses: ["agpl"],
+    allowedOcrLanguages: ["eng"],
+    maxDownloadBytes: 128_000_000,
+    maxUnpackedBytes: 300_000_000,
+  },
+});
+assert.equal(managedPymupdfOcrRedaction.status, "installable");
+assert.equal(managedPymupdfOcrRedaction.reason.code, "managed-install-required");
+assert.deepEqual(managedPymupdfOcrRedaction.installPlan.packIds, ["qpdf", "python-specialists", "ocr-language-eng"]);
+assert.equal(managedPymupdfOcrRedaction.consents.ocrLanguages.mode, "optional");
+assert.equal(managedPymupdfOcrRedaction.consents.ocrLanguages.required, false);
+
+const unsupportedMupdfJsOcrRedaction = await PdfProviders.resolve({
+  task: "redact",
+  provider: "mupdf-js",
+  savePolicy: "sanitize",
+  inspection: inspectedPdf,
+  mutationAuthorized: true,
+  invalidateSignaturesAuthorized: true,
+  ocrLanguages: ["eng"],
+});
+assert.equal(unsupportedMupdfJsOcrRedaction.status, "blocked");
+assert.equal(unsupportedMupdfJsOcrRedaction.reason.code, "provider-ocr-language-unsupported");
 
 const encryptWithoutCredentialDeclaration = await PdfProviders.resolve({
   task: "encrypt",

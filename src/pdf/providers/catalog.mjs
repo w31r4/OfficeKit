@@ -15,6 +15,7 @@ const CATALOG_PATH = fileURLToPath(new URL("./provider-catalog.v1.json", import.
 const PACK_STATES = new Set(["built-in", "unpublished", "published"]);
 const PACK_DELIVERIES = new Set(["npm-package", "versioned-signed-platform-release-asset"]);
 const SUPPORTED_MANAGED_PLATFORMS = new Set(["darwin-arm64", "linux-x64", "win32-x64"]);
+const OCR_LANGUAGE_MODES = new Set(["none", "optional", "required"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 
 function isPlainObject(value) {
@@ -271,6 +272,9 @@ export function validatePdfProviderCatalog(catalog) {
     }
     if (provider.kind === "python-module" && !nonEmptyString(provider.module)) throw catalogError(`python provider ${providerId} is missing module.`);
     if (provider.kind === "command" && (!Array.isArray(provider.commands) || provider.commands.some((command) => !nonEmptyString(command)))) throw catalogError(`command provider ${providerId} is missing commands.`);
+    if (provider.ocrLanguageMode !== undefined && !OCR_LANGUAGE_MODES.has(provider.ocrLanguageMode)) {
+      throw catalogError(`provider ${providerId}.ocrLanguageMode must be none, optional, or required.`);
+    }
     if (provider.probeTimeoutMs !== undefined && (!Number.isSafeInteger(provider.probeTimeoutMs) || provider.probeTimeoutMs < 250 || provider.probeTimeoutMs > 60_000)) {
       throw catalogError(`provider ${providerId}.probeTimeoutMs must be an integer from 250 through 60000.`);
     }
