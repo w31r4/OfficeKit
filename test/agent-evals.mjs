@@ -186,6 +186,7 @@ for (const boundary of boundaryCases) {
   const audit = {
     status: "failed_closed",
     source: { sha256: evidence.source.sha256 },
+    output: null,
     provider: { actual: "qpdf", version: "12.3.2-oat.2", silentFallback: false },
     savePolicy: { strategy: "none", executed: false, sourcePreserved: true, artifactPublished: false },
     operation: { type: "inspect-and-refuse-unsupported-boundary", executed: false },
@@ -199,10 +200,55 @@ for (const boundary of boundaryCases) {
     commands: ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
     finalMessage: boundary.diagnostic,
     item,
+    outputEntries: ["audit.json"],
   });
   assert.equal(checks.every((check) => check.passed), true, boundary.id);
   assert.equal(summarizeCaseScore(checks, item.grade).rawScorePercent, 100, boundary.id);
 }
+const encryptedBoundary = boundaryCases.find((boundary) => boundary.id === "pdf-encrypted-owner-policy-boundary");
+const encryptedItem = cases.find((item) => item.id === encryptedBoundary.id);
+const encryptedEvidence = boundaryOracle(encryptedBoundary.boundary, encryptedBoundary.source, encryptedBoundary.userPassword);
+const candidateRefusalAudit = {
+  status: "failed_closed",
+  source: { sha256: encryptedEvidence.source.sha256 },
+  output: null,
+  provider: { actual: "pypdf", version: "6.10.0", silentFallback: false },
+  savePolicy: { strategy: "rewrite", performed: false, sourcePreserved: true },
+  operation: { type: "change-copy-permission", performed: false },
+  validation: { artifactChecks: { modifiedPdfCreated: false, outputIsNull: true } },
+  reason: "owner password is unavailable",
+};
+const candidateRefusalChecks = gradeBoundaryRefusalEvidence({
+  evidence: encryptedEvidence,
+  audit: candidateRefusalAudit,
+  commands: ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
+  finalMessage: "owner password is unavailable",
+  item: encryptedItem,
+  outputEntries: ["audit.json"],
+});
+assert.equal(candidateRefusalChecks.every((check) => check.passed), true, "candidate-style refusal audit");
+const referenceRefusalAudit = structuredClone(candidateRefusalAudit);
+referenceRefusalAudit.savePolicy = { strategy: "read-only", publication: "failed-closed; audit-only", sourceOverwrite: false, modifiedArtifactAllowed: false };
+referenceRefusalAudit.operation = { type: "edit-encrypted-pdf-copy-permission", mutationAttempted: false };
+referenceRefusalAudit.validation = { sourceImmutable: true, artifactChecks: { modifiedPdfProduced: false, partialArtifactProduced: false } };
+const referenceRefusalChecks = gradeBoundaryRefusalEvidence({
+  evidence: encryptedEvidence,
+  audit: referenceRefusalAudit,
+  commands: ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
+  finalMessage: "owner password is unavailable",
+  item: encryptedItem,
+  outputEntries: ["audit.json"],
+});
+assert.equal(referenceRefusalChecks.every((check) => check.passed), true, "reference-style refusal audit");
+const partialOutputChecks = gradeBoundaryRefusalEvidence({
+  evidence: encryptedEvidence,
+  audit: candidateRefusalAudit,
+  commands: ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
+  finalMessage: "owner password is unavailable",
+  item: encryptedItem,
+  outputEntries: ["audit.json", "partial.pdf"],
+});
+assert.equal(partialOutputChecks.find((check) => check.id === "pdf-security:no-partial-output")?.passed, false);
 const xfaBoundary = boundaryCases.find((boundary) => boundary.id === "pdf-dynamic-xfa-boundary");
 const xfaItem = cases.find((candidate) => candidate.id === xfaBoundary.id);
 const xfaEvidence = boundaryOracle(xfaBoundary.boundary, xfaBoundary.source);
@@ -212,6 +258,7 @@ const xfaFixtureFailure = gradeBoundaryRefusalEvidence({
   audit: {
     status: "failed_closed",
     source: { sha256: xfaEvidence.source.sha256 },
+    output: null,
     provider: { actual: "qpdf", version: "12.3.2-oat.2", silentFallback: false },
     savePolicy: { strategy: "none", executed: false, sourcePreserved: true, artifactPublished: false },
     operation: { type: "inspect-and-refuse-unsupported-boundary", executed: false },
@@ -222,6 +269,7 @@ const xfaFixtureFailure = gradeBoundaryRefusalEvidence({
   commands: ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
   finalMessage: "Dynamic XFA runtime is not supported",
   item: xfaItem,
+  outputEntries: ["audit.json"],
 });
 assert.equal(xfaFixtureFailure.find((check) => check.id === "pdf-machine:source-boundary-fixture")?.passed, false);
 }
