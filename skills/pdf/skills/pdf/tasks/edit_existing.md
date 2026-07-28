@@ -20,6 +20,39 @@ officekit run scripts/mupdf.mjs edit input.pdf tmp/pdfs/edit-operations.json tmp
 
 The CLI refuses source overwrite, writes atomically, and rejects incremental redaction, page duplication, source-bound annotation/link creation or mutation (including text highlights), deletion, and signed-PDF incremental edits. A bounded source-bound single-widget form-field update may use unsigned incremental save; unsupported operations do not route elsewhere.
 
+## Opaque 3D and RichMedia boundary
+
+When read-only inspection finds `/3D`, `/RichMedia`, dynamic XFA, or complex
+Acrobat JavaScript, do not treat an ordinary annotation API as proof that the
+embedded runtime will remain usable. Do not execute the media or script, flatten
+the page, rebuild it from a screenshot, or write an incremental copy merely
+because its page pixels look stable. First inventory the source with the
+explicit structure provider and retain its SHA-256:
+
+```bash
+SOURCE_SHA256=$(shasum -a 256 inputs/source.pdf | awk '{print $1}')
+"$PYTHON_BIN" scripts/pikepdf_provider.py inspect inputs/source.pdf \
+  --expected-sha256 "$SOURCE_SHA256" \
+  > tmp/pdfs/opaque-runtime-inspection.json
+```
+
+If the selected provider does not publish a source-bound guarantee covering the
+complete opaque graph and the requested operation, fail closed. Publish no PDF;
+write the canonical audit with the actual inspected provider/version and a
+no-mutation operation record:
+
+```bash
+"$PYTHON_BIN" scripts/pdf_audit.py failed-closed outputs/audit.json \
+  --source inputs/source.pdf \
+  --provider pikepdf --provider-version "<inspection version>" \
+  --operation incremental-review-annotation-with-opaque-runtime \
+  --reason "Opaque 3D/RichMedia runtime preservation cannot be proven for this incremental edit" \
+  --strategy read-only --source-inspected
+```
+
+This refusal describes a current provider boundary, not a claim that the
+objects were corrupt or that their runtime behavior was tested.
+
 ## Update one imported form field
 
 Inspect the exact input and select one `mupdfFormField` record, not a name or

@@ -58,6 +58,18 @@ removes every named channel instead of drawing an overlay. Refresh it only with
 fixture and commit its revised hash in `integrity.json` together with the source
 recipe.
 
+`pdf/richmedia/3d-review.pdf` is a self-authored two-page opaque-runtime
+boundary. Its second page has one native `/3D` annotation with a binary payload,
+default view, and activation dictionary, plus one `/RichMedia` annotation with
+an asset/configuration/settings graph and JavaScript action. The fixture is
+structural only: neither the corpus verifier nor an Agent may execute the
+media or script, and no test result claims that a viewer can play it. The
+matching task accepts a source-bound audit-only refusal unless a selected
+provider can prove that every opaque object and its runtime contract survives
+an incremental edit. Refresh it only with
+`scripts/agent-eval-corpus-fixtures.py refresh-richmedia`, then verify and
+commit its hash with `integrity.json` and the source recipe.
+
 Refreshing fixtures is an intentional corpus update: regenerate the files,
 review their structure and provenance, then commit the revised assets and
 integrity manifest together. Generating the DocMDP fixture additionally needs

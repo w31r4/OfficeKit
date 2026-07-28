@@ -22,6 +22,7 @@ const supportedCases = new Set([
   "pdf-mixed-scan-ocr-boundary",
   "pdf-dynamic-xfa-boundary",
   "pdf-print-production-boundary",
+  "pdf-richmedia-opaque-preservation",
   "pdf-docmdp-forbidden-title-edit",
   "pdf-docmdp-allowed-field-fill",
   "pdf-damaged-xref-recovery",
@@ -34,6 +35,7 @@ const boundaryRefusalCases = new Map([
   ["pdf-mixed-scan-ocr-boundary", { boundary: "mixed-scan-ocr", source: "inputs/source.pdf" }],
   ["pdf-dynamic-xfa-boundary", { boundary: "dynamic-xfa", source: "inputs/source.pdf" }],
   ["pdf-print-production-boundary", { boundary: "print-production", source: "inputs/source.pdf" }],
+  ["pdf-richmedia-opaque-preservation", { boundary: "richmedia-opaque", source: "inputs/source.pdf" }],
   ["pdf-docmdp-forbidden-title-edit", { boundary: "docmdp-p1", source: "inputs/source.pdf" }],
 ]);
 
@@ -292,7 +294,7 @@ function docMdpAuditValidation(audit) {
 function boundaryRefusalTraceChecks(audit, commands, item) {
   const commandText = commands.join("\n");
   const saveRecord = auditSaveRecord(audit);
-  const hasInspection = /(?:pdf_provider\.py\s+(?:check|plan)|qpdf_provider\.py\s+(?:inspect|probe)|pyhanko(?:_sign)?_provider\.py\s+(?:inspect|verify|probe)|pymupdf_edit\.py\s+probe|mupdf\.mjs["']?\s+(?:probe|inspect)\b|\bqpdf\b|\bpdfinfo\b|\bpypdf\b|PdfFile\.(?:inspect|open))/i.test(commandText);
+  const hasInspection = /(?:pdf_provider\.py\s+(?:check|plan)|qpdf_provider\.py\s+(?:inspect|probe)|pikepdf_provider\.py\s+(?:inspect|probe)|pyhanko(?:_sign)?_provider\.py\s+(?:inspect|verify|probe)|pymupdf_edit\.py\s+probe|mupdf\.mjs["']?\s+(?:probe|inspect)\b|\bqpdf\b|\bpdfinfo\b|\bpypdf\b|PdfFile\.(?:inspect|open))/i.test(commandText);
   const hasDocMdpTrustValidation = commands.some((command) => {
     const text = String(command);
     return /pyhanko_provider\.py["']?\s+verify\b/i.test(text)
@@ -1210,6 +1212,23 @@ function boundaryFixtureComplete(evidence, item) {
       && evidence.hasSeparation === true
       && evidence.overprint === true
       && evidence.transparency === true;
+  }
+  if (item.id === "pdf-richmedia-opaque-preservation") {
+    const hashes = Object.values(evidence.opaqueStreamSha256 || {});
+    return evidence.pageCount === 2
+      && evidence.threeDAnnotationCount === 1
+      && evidence.richMediaAnnotationCount === 1
+      && evidence.hasThreeDStream === true
+      && evidence.hasThreeDDefaultView === true
+      && evidence.hasThreeDActivation === true
+      && evidence.hasRichMediaContent === true
+      && evidence.hasRichMediaSettings === true
+      && evidence.hasRichMediaAssets === true
+      && evidence.hasRichMediaConfiguration === true
+      && evidence.hasRichMediaActivation === true
+      && evidence.hasJavaScript === true
+      && hashes.length === 2
+      && hashes.every((hash) => typeof hash === "string" && /^[a-f0-9]{64}$/i.test(hash));
   }
   if (item.id === "pdf-docmdp-forbidden-title-edit") {
     return evidence.pageCount >= 1

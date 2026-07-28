@@ -54,6 +54,12 @@
       "kind": "file",
       "sha256": "3b726ecd11f6c78f68c4ebebf6c3a6de4e9760ba94fcb6c2467d0dfee80c6805"
     },
+    "pdf/richmedia/3d-review.pdf": {
+      "bytes": 3564,
+      "description": "Two-page self-authored opaque /3D and /RichMedia annotation graph with default view, activation, asset, configuration, and JavaScript canaries; it is never executed.",
+      "kind": "file",
+      "sha256": "d6c88be344726c030c4680456935aea2b40e16210dde74df284a7f61cce1521c"
+    },
     "pdf/signing/docmdp-p1-final.pdf": {
       "bytes": 10630,
       "description": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",

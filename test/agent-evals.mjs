@@ -96,12 +96,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 30 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 31 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 18);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 19);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
@@ -130,8 +130,8 @@ assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /18 ready PDF cases include eleven locked corpus signature\/boundary\/repair\/redaction fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 11 asset-required cases/i);
+assert.match(runnerHelp.stdout, /19 ready PDF cases include twelve locked corpus signature\/boundary\/repair\/redaction fixtures/i);
+assert.match(runnerHelp.stdout, /remaining 10 asset-required cases/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
@@ -149,6 +149,10 @@ const multichannelVisible = visibleCase(suite, cases.find((item) => item.id === 
 assert.match(multichannelVisible.prompt, /redact_ocr_text.*redact_text|redact_text.*redact_ocr_text/i);
 assert.match(multichannelVisible.prompt, /outputs\/redacted\.pdf/);
 assert.doesNotMatch(multichannelVisible.prompt, /oracleSha256|imageMask|previousRevisionCount/i);
+const richmediaVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-richmedia-opaque-preservation"));
+assert.match(richmediaVisible.prompt, /\/3D.*\/RichMedia|\/RichMedia.*\/3D/);
+assert.match(richmediaVisible.prompt, /failed-closed audit/i);
+assert.doesNotMatch(richmediaVisible.prompt, /opaqueStreamSha256|threeDAnnotationCount/i);
 
 const corpusPython = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "python3";
 const corpusVerification = spawnSync(corpusPython, ["scripts/agent-eval-corpus-fixtures.py", "verify"], {
@@ -170,6 +174,7 @@ const lockedFixturePaths = [
   "pdf/corrupt/recoverable.pdf",
   "pdf/corrupt/unrecoverable.pdf",
   "pdf/redaction/multichannel-secret.pdf",
+  "pdf/richmedia/3d-review.pdf",
   "pdf/xfa/dynamic-dependents.pdf",
   "pdf/print/print-production-risk.pdf",
   "pdf/signing/docmdp-p1-final.pdf",
@@ -191,7 +196,7 @@ assert.equal(docmdpP2Item?.status, "ready");
 assert.equal(docmdpP2Item?.inputs?.some((input) => input.asset === "pdf/signing/test-pki/docmdp-p2-root.pem"), true);
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 14, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 15, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -243,6 +248,7 @@ const boundaryCases = [
   { id: "pdf-mixed-scan-ocr-boundary", boundary: "mixed-scan-ocr", source: path.join(repoRoot, "evals", "assets", "pdf", "ocr", "mixed-bilingual-scan.pdf"), diagnostic: "deskew and orientation preprocessing are not in the published OCR profile" },
   { id: "pdf-dynamic-xfa-boundary", boundary: "dynamic-xfa", source: path.join(repoRoot, "evals", "assets", "pdf", "xfa", "dynamic-dependents.pdf"), diagnostic: "Dynamic XFA runtime is not supported" },
   { id: "pdf-print-production-boundary", boundary: "print-production", source: path.join(repoRoot, "evals", "assets", "pdf", "print", "print-production-risk.pdf"), diagnostic: "DeviceN and overprint need preflight" },
+  { id: "pdf-richmedia-opaque-preservation", boundary: "richmedia-opaque", source: path.join(repoRoot, "evals", "assets", "pdf", "richmedia", "3d-review.pdf"), diagnostic: "opaque 3D and RichMedia runtime preservation cannot be proven", provider: "pikepdf" },
   { id: "pdf-docmdp-forbidden-title-edit", boundary: "docmdp-p1", source: path.join(repoRoot, "evals", "assets", "pdf", "signing", "docmdp-p1-final.pdf"), diagnostic: "DocMDP P=1 prohibits title modification", provider: "pyhanko" },
 ];
 for (const boundary of boundaryCases) {
@@ -252,7 +258,7 @@ for (const boundary of boundaryCases) {
     status: "failed_closed",
     source: { sha256: evidence.source.sha256 },
     output: null,
-    provider: { actual: boundary.provider || "qpdf", version: boundary.provider ? "0.35.2" : "12.3.2-oat.2", silentFallback: false },
+    provider: { actual: boundary.provider || "qpdf", version: boundary.provider === "pikepdf" ? "10.10.0" : boundary.provider ? "0.35.2" : "12.3.2-oat.2", silentFallback: false },
     savePolicy: { strategy: "none", executed: false, sourcePreserved: true, artifactPublished: false },
     operation: { type: "inspect-and-refuse-unsupported-boundary", executed: false },
     validation: { no_partial_modified_pdf_in_outputs: true, outputDirectoryPolicy: { modifiedPdfPresent: false, partialArtifactPresent: false } },
@@ -264,6 +270,8 @@ for (const boundary of boundaryCases) {
     audit,
     commands: boundary.id === "pdf-docmdp-forbidden-title-edit"
       ? ["python .agents/skills/pdf/scripts/pyhanko_provider.py verify inputs/source.pdf --expected-sha256 deadbeef --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid --require-all-trusted --require-docmdp-compliant --require-all-bottom-line"]
+      : boundary.id === "pdf-richmedia-opaque-preservation"
+        ? ["python .agents/skills/pdf/scripts/pikepdf_provider.py inspect inputs/source.pdf --expected-sha256 deadbeef"]
       : ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
     finalMessage: boundary.diagnostic,
     item,
@@ -405,6 +413,29 @@ const mixedScanFixtureFailure = gradeBoundaryRefusalEvidence({
   outputEntries: ["audit.json"],
 });
 assert.equal(mixedScanFixtureFailure.find((check) => check.id === "pdf-machine:source-boundary-fixture")?.passed, false);
+const richmediaBoundary = boundaryCases.find((boundary) => boundary.id === "pdf-richmedia-opaque-preservation");
+const richmediaItem = cases.find((candidate) => candidate.id === richmediaBoundary.id);
+const richmediaEvidence = boundaryOracle(richmediaBoundary.boundary, richmediaBoundary.source);
+richmediaEvidence.hasJavaScript = false;
+const richmediaFixtureFailure = gradeBoundaryRefusalEvidence({
+  evidence: richmediaEvidence,
+  audit: {
+    status: "failed_closed",
+    source: { sha256: richmediaEvidence.source.sha256 },
+    output: null,
+    provider: { actual: "pikepdf", version: "10.10.0", silentFallback: false },
+    savePolicy: { strategy: "none", executed: false, sourcePreserved: true, artifactPublished: false },
+    operation: { type: "incremental-review-annotation-with-opaque-runtime", executed: false },
+    validation: { no_partial_modified_pdf_in_outputs: true, outputDirectoryPolicy: { modifiedPdfPresent: false, partialArtifactPresent: false } },
+    delivered_modified_pdf: false,
+    reason: "opaque 3D and RichMedia runtime preservation cannot be proven",
+  },
+  commands: ["python .agents/skills/pdf/scripts/pikepdf_provider.py inspect inputs/source.pdf --expected-sha256 deadbeef"],
+  finalMessage: "opaque 3D and RichMedia runtime preservation cannot be proven",
+  item: richmediaItem,
+  outputEntries: ["audit.json"],
+});
+assert.equal(richmediaFixtureFailure.find((check) => check.id === "pdf-machine:source-boundary-fixture")?.passed, false);
 
 const damagedXrefItem = cases.find((item) => item.id === "pdf-damaged-xref-recovery");
 const recoveryQpdfRequested = process.env.OFFICE_KIT_AGENT_EVAL_QPDF || process.env.OFFICE_KIT_PDF_QPDF || "qpdf";
@@ -2980,7 +3011,7 @@ try {
   await removePreparedTree(path.join(temporary, "removable"));
   await assert.rejects(() => fs.access(path.join(temporary, "removable")), /ENOENT/);
 
-  const item = cases.find((candidate) => candidate.id === "pdf-richmedia-opaque-preservation");
+  const item = cases.find((candidate) => candidate.id === "pptx-smartart-notes-comments-boundary");
   const workspace = path.join(temporary, "workspace");
   const evaluator = path.join(temporary, "evaluator");
   const credentials = path.join(workspace, "inputs", "credentials");
@@ -3007,7 +3038,7 @@ try {
   await fs.writeFile(path.join(workspace, "outputs", "audit.json"), JSON.stringify({ status: "failed_closed", delivered_modified_pdf: false }));
   await fs.writeFile(path.join(evaluator, "run.json"), JSON.stringify({ oracleSha256: oracleFingerprint(item), workspaceHashes, inputHashes: { "inputs/credentials": before } }));
   await fs.writeFile(path.join(evaluator, "exit.json"), JSON.stringify({ status: 0, signal: null }));
-  await fs.writeFile(path.join(evaluator, "final.txt"), "Opaque RichMedia runtime behavior cannot be proven; failed closed.");
+  await fs.writeFile(path.join(evaluator, "final.txt"), "The unsupported nested SmartArt/comment graph cannot be proven safe; failed closed.");
   await fs.writeFile(path.join(evaluator, "trace.jsonl"), "{\"type\":\"result\"}\n");
 
   const prepared = { workspace, evaluator };
