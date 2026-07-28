@@ -21,6 +21,8 @@ jobs:
             runner: ubuntu-22.04
           - platform: darwin-arm64
             runner: macos-14
+          - platform: win32-x64
+            runner: windows-2025
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
@@ -64,11 +66,17 @@ jobs:
           - platform: darwin-arm64
             runner: macos-14
             pack: python-foundation
+          - platform: win32-x64
+            runner: windows-2025
+            pack: python-foundation
           - platform: linux-x64
             runner: ubuntu-22.04
             pack: python-specialists
           - platform: darwin-arm64
             runner: macos-14
+            pack: python-specialists
+          - platform: win32-x64
+            runner: windows-2025
             pack: python-specialists
     runs-on: ${{ matrix.runner }}
     steps:
@@ -113,6 +121,8 @@ jobs:
             runner: ubuntu-24.04
           - platform: darwin-arm64
             runner: macos-14
+          - platform: win32-x64
+            runner: windows-2025
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
@@ -162,6 +172,8 @@ jobs:
             runner: ubuntu-24.04
           - platform: darwin-arm64
             runner: macos-14
+          - platform: win32-x64
+            runner: windows-2025
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5

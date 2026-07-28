@@ -10,6 +10,7 @@ const hashScript = path.join(root, "scripts", "sha256-file.mjs");
 const packBuilder = path.join(root, "scripts", "build-pdf-provider-pack.mjs");
 const verifier = path.join(root, "scripts", "verify-pdf-provider-pack.mjs");
 const qpdfWorkflow = await fs.readFile(path.join(root, ".github", "workflows", "pdf-capability-packs.yml"), "utf8");
+const liveWorkflow = await fs.readFile(path.join(root, ".github", "workflows", "pdf-capability-pack-live.yml"), "utf8");
 const attributes = await fs.readFile(path.join(root, ".gitattributes"), "utf8");
 
 assert.match(qpdfWorkflow, /sha256-file\.mjs/);
@@ -21,6 +22,27 @@ assert.match(qpdfWorkflow, /Git Bash[\s\S]*cmd\.exe gets them/,
   "the Windows-native build boundary must document why it is not run through Git Bash");
 assert.doesNotMatch(qpdfWorkflow, /shasum/, "the Windows qpdf lane must not depend on Git Bash's optional Perl shim");
 assert.match(attributes, /^scripts\/pdf-provider-\*\.json text eol=lf$/m, "release input locks must hash identical bytes on Windows");
+
+function workflowJob(source, jobName, nextJobName) {
+  const start = source.indexOf(`  ${jobName}:`);
+  assert.notEqual(start, -1, `missing ${jobName} live verification job`);
+  const end = nextJobName ? source.indexOf(`  ${nextJobName}:`, start) : source.length;
+  assert.notEqual(end, -1, `missing ${nextJobName} boundary after ${jobName}`);
+  return source.slice(start, end);
+}
+
+for (const [jobName, nextJobName] of [
+  ["qpdf-managed-pack", "python-managed-pack"],
+  ["python-managed-pack", "ocr-managed-pack"],
+  ["ocr-managed-pack", "verapdf-managed-pack"],
+  ["verapdf-managed-pack", null],
+]) {
+  assert.match(
+    workflowJob(liveWorkflow, jobName, nextJobName),
+    /platform: win32-x64\s+runner: windows-2025/,
+    `${jobName} must exercise the public managed-install path on Windows`,
+  );
+}
 
 function run(script, arguments_, { expect = 0 } = {}) {
   const result = spawnSync(process.execPath, [script, ...arguments_], { cwd: root, encoding: "utf8" });
