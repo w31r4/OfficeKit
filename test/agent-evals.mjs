@@ -487,6 +487,33 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
     };
     const nestedChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: nestedAudit, commands, item: damagedXrefItem });
     assert.equal(nestedChecks.every((check) => check.passed), true, JSON.stringify(nestedChecks.filter((check) => !check.passed), null, 2));
+    const agentStyleAudit = structuredClone(nestedAudit);
+    delete agentStyleAudit.validation.repairEvidence;
+    agentStyleAudit.inputs = [
+      { path: "inputs/recoverable.pdf", sha256: recoverableHash },
+      { path: "inputs/unrecoverable.pdf", sha256: unrecoverableHash },
+    ];
+    agentStyleAudit.warnings = [{
+      stage: "recoverable-pre-repair-qpdf-check",
+      status: "warnings",
+      lines: canonicalRepair.checkBefore?.lines || canonicalRepair.checkBefore?.jsonLines || [],
+    }];
+    agentStyleAudit.validation.qpdfRepair = {
+      checkBefore: {
+        status: canonicalRepair.checkBefore?.status,
+        startxrefMissing: true,
+        xrefReconstructionAttempted: true,
+      },
+      checkAfter: canonicalRepair.checkAfter,
+    };
+    agentStyleAudit.validation.unrecoverableControl = {
+      inspectedSeparately: true,
+      rejected: true,
+      outputPresent: false,
+      pseudoRepairProduced: false,
+    };
+    const agentStyleChecks = gradeDamagedXrefRecoveryEvidence({ evidence, audit: agentStyleAudit, commands, item: damagedXrefItem });
+    assert.equal(agentStyleChecks.every((check) => check.passed), true, JSON.stringify(agentStyleChecks.filter((check) => !check.passed), null, 2));
     const attachmentLoss = structuredClone(evidence);
     attachmentLoss.outputAttachments = [];
     const attachmentLossChecks = gradeDamagedXrefRecoveryEvidence({ evidence: attachmentLoss, audit, commands, item: damagedXrefItem });
