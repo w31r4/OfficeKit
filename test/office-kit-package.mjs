@@ -12,15 +12,19 @@ try {
   const report = JSON.parse(packed.stdout)[0];
   const tarball = path.join(temporary, report.filename);
   assert.ok(fs.existsSync(tarball), `npm pack did not create ${tarball}`);
-  const dependencyTarballs = packProductionDependencies(temporary);
-  // Exercise a real npm install without making a release gate depend on the
-  // registry. Optional renderer peers are intentionally outside this core
-  // OfficeKit/PDF probe and remain covered by package metadata tests.
+  // `npm ci` prepares the locked production tarballs in npm's cache before
+  // this test runs. Install the candidate from that cache with networking
+  // forbidden. Re-packing installed dependency directories is not equivalent:
+  // npm 10 on Windows may run a third-party local `prepare` script even when
+  // `--ignore-scripts` is supplied to `npm pack`.
+  //
+  // Optional renderer peers are intentionally outside this core OfficeKit/PDF
+  // probe and remain covered by package metadata tests.
   run("npm", [
     "install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund",
-    "--omit=dev", "--legacy-peer-deps", "--no-save", tarball, ...dependencyTarballs,
+    "--omit=dev", "--legacy-peer-deps", "--no-save", tarball,
   ], temporary);
-  testGlobalCli({ dependencyTarballs, tarball, temporary });
+  testGlobalCli({ tarball, temporary });
 
   const probe = String.raw`
     import { spawnSync } from "node:child_process";
@@ -693,27 +697,12 @@ function run(command, args, cwd, environment = {}) {
   return result;
 }
 
-function packProductionDependencies(temporary) {
-  const lock = JSON.parse(fs.readFileSync(path.join(repoRoot, "package-lock.json"), "utf8"));
-  const destination = path.join(temporary, "dependency-tarballs");
-  fs.mkdirSync(destination, { recursive: true });
-  return Object.entries(lock.packages || {})
-    .filter(([location, metadata]) => location.startsWith("node_modules/") && !metadata.dev && !metadata.optional && !metadata.peer)
-    .map(([location]) => {
-      const source = path.join(repoRoot, location);
-      assert.ok(fs.existsSync(source), `npm ci production dependency is missing: ${location}`);
-      const packed = run("npm", ["pack", source, "--json", "--ignore-scripts", "--pack-destination", destination], repoRoot);
-      const report = JSON.parse(packed.stdout)[0];
-      return path.join(destination, report.filename);
-    });
-}
-
-function testGlobalCli({ dependencyTarballs, tarball, temporary }) {
+function testGlobalCli({ tarball, temporary }) {
   const globalPrefix = path.join(temporary, "global-prefix");
   run("npm", [
     "install", "--global", "--prefix", globalPrefix, "--offline",
     "--ignore-scripts", "--no-audit", "--no-fund", "--omit=dev",
-    "--legacy-peer-deps", tarball, ...dependencyTarballs,
+    "--legacy-peer-deps", tarball,
   ], temporary);
   const officekit = process.platform === "win32"
     ? path.join(globalPrefix, "officekit.cmd")
