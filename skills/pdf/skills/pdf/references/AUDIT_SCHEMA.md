@@ -48,6 +48,15 @@ private argument-file contents, or a command line containing a secret.
 
 For `failed_closed`, set `output` to `null`, include a non-empty `reason`, keep the source/provider/save-policy/operation evidence, record `preflight.probeCompleted` and `preflight.planCompleted` truthfully (either may be `false` when that gate caused the refusal), and do not leave a partial modified PDF at the requested output path. A `succeeded` record requires both preflight fields to be `true`.
 
+For an independently auditable no-mutation refusal, keep those facts typed rather
+than relying on `reason` or warning prose: use
+`operation.mutationAttempted: false`,
+`validation.sourceIdentity.sourcePreserved: true`, and
+`validation.artifactChecks.modifiedPdfPresent: false` plus
+`partialArtifactPresent: false`. These fields bind the refusal to the source
+and the actual output directory without implying that an unsupported operation
+was performed.
+
 Validate before delivery:
 
 ```bash
