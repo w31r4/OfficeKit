@@ -7,7 +7,7 @@
     "forbidGlobalInstallers": true,
     "cacheScope": "project-private",
     "defaultInstallPolicy": "disabled",
-    "managedPlatforms": ["darwin-arm64", "linux-x64"]
+    "managedPlatforms": ["darwin-arm64", "linux-x64", "win32-x64"]
   },
   "packs": {
     "core-js": {
@@ -39,27 +39,37 @@
     "python-foundation": {
       "state": "published",
       "delivery": "versioned-signed-platform-release-asset",
-      "platforms": ["darwin-arm64", "linux-x64"],
-      "version": "3.13.14-oat.1",
+      "platforms": ["darwin-arm64", "linux-x64", "win32-x64"],
+      "version": "3.13.14-oat.2",
       "artifacts": [
         {
           "platform": "darwin-arm64",
-          "asset": "python-foundation-3.13.14-oat.1-darwin-arm64.tar.gz",
-          "version": "3.13.14-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-foundation-3.13.14-oat.1/python-foundation-3.13.14-oat.1-darwin-arm64.tar.gz",
-          "sha256": "c45523fbcbe87363f6955698b68dd8f9c701eda85bc15c11e192de40bf43aec6",
-          "downloadBytes": 44377484,
-          "unpackedBytes": 106398446,
+          "asset": "python-foundation-3.13.14-oat.2-darwin-arm64.tar.gz",
+          "version": "3.13.14-oat.2",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-foundation-3.13.14-oat.2/python-foundation-3.13.14-oat.2-darwin-arm64.tar.gz",
+          "sha256": "c7b69e2952efe7c7817acc4ab53bc6fa64033d66f9e64517d08a2f298660d1b9",
+          "downloadBytes": 44350578,
+          "unpackedBytes": 106297910,
           "archiveFormat": "tar.gz"
         },
         {
           "platform": "linux-x64",
-          "asset": "python-foundation-3.13.14-oat.1-linux-x64.tar.gz",
-          "version": "3.13.14-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-foundation-3.13.14-oat.1/python-foundation-3.13.14-oat.1-linux-x64.tar.gz",
-          "sha256": "11ccf3748f6d09ec068525d321020551a5eb30675dccfde35900f65121103cf3",
-          "downloadBytes": 67327027,
-          "unpackedBytes": 179446477,
+          "asset": "python-foundation-3.13.14-oat.2-linux-x64.tar.gz",
+          "version": "3.13.14-oat.2",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-foundation-3.13.14-oat.2/python-foundation-3.13.14-oat.2-linux-x64.tar.gz",
+          "sha256": "14ebe4981be1d7d1cb43a1e9395147c558458e9ebf1fa640804639dbb2eb70b1",
+          "downloadBytes": 67283272,
+          "unpackedBytes": 179317578,
+          "archiveFormat": "tar.gz"
+        },
+        {
+          "platform": "win32-x64",
+          "asset": "python-foundation-3.13.14-oat.2-win32-x64.tar.gz",
+          "version": "3.13.14-oat.2",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-foundation-3.13.14-oat.2/python-foundation-3.13.14-oat.2-win32-x64.tar.gz",
+          "sha256": "7e8acc251820ae749c1eae647b33ab4cad7e4dad91019edf9bd312fb9b035dbe",
+          "downloadBytes": 39034132,
+          "unpackedBytes": 95583948,
           "archiveFormat": "tar.gz"
         }
       ],
@@ -70,14 +80,14 @@
       "estimatedUnpackedBytes": null,
       "releaseEvidence": {
         "sbom": {
-          "asset": "python-foundation-3.13.14-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-foundation-3.13.14-oat.1/python-foundation-3.13.14-oat.1.sbom.cdx.json",
-          "sha256": "1f9e377fedc0a7d7e28519be64853c675a7717722caed2b190be2b1be86fce31"
+          "asset": "python-foundation-3.13.14-oat.2.sbom.cdx.json",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-foundation-3.13.14-oat.2/python-foundation-3.13.14-oat.2.sbom.cdx.json",
+          "sha256": "5965b094133add945fe015da7906465a3d6e55e8ffc672c2ab6a91326e142875"
         },
         "thirdPartyNotices": {
-          "asset": "python-foundation-3.13.14-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-foundation-3.13.14-oat.1/python-foundation-3.13.14-oat.1.THIRD_PARTY_NOTICES.md",
-          "sha256": "a895a09ac14debca3e365e85cdd697523fdc4761dae31bfc30826271d62c938d"
+          "asset": "python-foundation-3.13.14-oat.2.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-foundation-3.13.14-oat.2/python-foundation-3.13.14-oat.2.THIRD_PARTY_NOTICES.md",
+          "sha256": "f8df7b76537b27aef8cb0785ba4dd462499e52f9e0466197faa3d85131c7fae4"
         },
         "provenance": {
           "provider": "github-actions-artifact-attestation",
@@ -85,34 +95,48 @@
           "workflow": ".github/workflows/pdf-python-capability-packs.yml",
           "verificationCommand": "gh attestation verify <asset> --repo w31r4/OfficeKit"
         },
-        "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
+        "verifiedPlatforms": [
+          "darwin-arm64",
+          "linux-x64",
+          "win32-x64"
+        ]
       },
       "license": { "expression": "PSF-2.0 AND MPL-2.0 AND BSD-3-Clause AND MIT", "requiresAcknowledgement": false }
     },
     "python-specialists": {
       "state": "published",
       "delivery": "versioned-signed-platform-release-asset",
-      "platforms": ["darwin-arm64", "linux-x64"],
-      "version": "3.13.14-oat.1",
+      "platforms": ["darwin-arm64", "linux-x64", "win32-x64"],
+      "version": "3.13.14-oat.2",
       "artifacts": [
         {
           "platform": "darwin-arm64",
-          "asset": "python-specialists-3.13.14-oat.1-darwin-arm64.tar.gz",
-          "version": "3.13.14-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-specialists-3.13.14-oat.1/python-specialists-3.13.14-oat.1-darwin-arm64.tar.gz",
-          "sha256": "afc248981d3c3060991fb6dca795defcd32dfdd21162fc211d46b67ac9109333",
-          "downloadBytes": 71471223,
-          "unpackedBytes": 181342971,
+          "asset": "python-specialists-3.13.14-oat.2-darwin-arm64.tar.gz",
+          "version": "3.13.14-oat.2",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-specialists-3.13.14-oat.2/python-specialists-3.13.14-oat.2-darwin-arm64.tar.gz",
+          "sha256": "93fd3d9fb06db2fea92fcf47fdd7eb1da70ba3cfaf761528ac7d16f06de59a0d",
+          "downloadBytes": 71453251,
+          "unpackedBytes": 181242313,
           "archiveFormat": "tar.gz"
         },
         {
           "platform": "linux-x64",
-          "asset": "python-specialists-3.13.14-oat.1-linux-x64.tar.gz",
-          "version": "3.13.14-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-specialists-3.13.14-oat.1/python-specialists-3.13.14-oat.1-linux-x64.tar.gz",
-          "sha256": "e97e0dd058c85c0304de505ef1ae6ae6916c3d49a4477a91b81dfe8a117b95cc",
-          "downloadBytes": 90635639,
-          "unpackedBytes": 247049796,
+          "asset": "python-specialists-3.13.14-oat.2-linux-x64.tar.gz",
+          "version": "3.13.14-oat.2",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-specialists-3.13.14-oat.2/python-specialists-3.13.14-oat.2-linux-x64.tar.gz",
+          "sha256": "d3d9b651c06e82122c7a7ceb3d1c5a85139c898dca0b7939af27e4e071fcffd9",
+          "downloadBytes": 90593827,
+          "unpackedBytes": 246920792,
+          "archiveFormat": "tar.gz"
+        },
+        {
+          "platform": "win32-x64",
+          "asset": "python-specialists-3.13.14-oat.2-win32-x64.tar.gz",
+          "version": "3.13.14-oat.2",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-specialists-3.13.14-oat.2/python-specialists-3.13.14-oat.2-win32-x64.tar.gz",
+          "sha256": "cba9f3e07825537dae19aff70eefe4ef5127bc3082a89d2984559ea5745852c1",
+          "downloadBytes": 55819173,
+          "unpackedBytes": 150077032,
           "archiveFormat": "tar.gz"
         }
       ],
@@ -123,14 +147,14 @@
       "estimatedUnpackedBytes": null,
       "releaseEvidence": {
         "sbom": {
-          "asset": "python-specialists-3.13.14-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-specialists-3.13.14-oat.1/python-specialists-3.13.14-oat.1.sbom.cdx.json",
-          "sha256": "d9aee32d671bc9011180d3e6dcaff8ebfe8ffda54d2cb8035969f09475f3f337"
+          "asset": "python-specialists-3.13.14-oat.2.sbom.cdx.json",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-specialists-3.13.14-oat.2/python-specialists-3.13.14-oat.2.sbom.cdx.json",
+          "sha256": "7bb571ce1d13a09721dbe489a81f0f24443c0d0b8abf47842673e429b843e2a8"
         },
         "thirdPartyNotices": {
-          "asset": "python-specialists-3.13.14-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-specialists-3.13.14-oat.1/python-specialists-3.13.14-oat.1.THIRD_PARTY_NOTICES.md",
-          "sha256": "2e1cd7005751617ccfcc639e0f5c527e3bbcd5db8ad6b67fc03daa380bfb284f"
+          "asset": "python-specialists-3.13.14-oat.2.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-python-specialists-3.13.14-oat.2/python-specialists-3.13.14-oat.2.THIRD_PARTY_NOTICES.md",
+          "sha256": "6a2a7a12b1d3b293927a5c22c0a13dd0f242514712709723aad0d35a4f6c75e1"
         },
         "provenance": {
           "provider": "github-actions-artifact-attestation",
@@ -138,7 +162,11 @@
           "workflow": ".github/workflows/pdf-python-capability-packs.yml",
           "verificationCommand": "gh attestation verify <asset> --repo w31r4/OfficeKit"
         },
-        "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
+        "verifiedPlatforms": [
+          "darwin-arm64",
+          "linux-x64",
+          "win32-x64"
+        ]
       },
       "license": { "expression": "PSF-2.0 AND MPL-2.0 AND AGPL-3.0-or-later AND MIT", "requiresAcknowledgement": true, "id": "python-specialists-license", "acceptedValues": ["agpl", "commercial"] }
     },
@@ -162,27 +190,37 @@
     "qpdf": {
       "state": "published",
       "delivery": "versioned-signed-platform-release-asset",
-      "platforms": ["darwin-arm64", "linux-x64"],
-      "version": "12.3.2-oat.1",
+      "platforms": ["darwin-arm64", "linux-x64", "win32-x64"],
+      "version": "12.3.2-oat.2",
       "artifacts": [
         {
           "platform": "darwin-arm64",
-          "asset": "qpdf-12.3.2-oat.1-darwin-arm64.tar.gz",
-          "version": "12.3.2-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-qpdf-12.3.2-oat.1/qpdf-12.3.2-oat.1-darwin-arm64.tar.gz",
-          "sha256": "33ea84e818dd1c20029e3b62c3345e7bc2d0c0f5e82ce2fdf5b1dba9ef127131",
-          "downloadBytes": 1215894,
-          "unpackedBytes": 3920089,
+          "asset": "qpdf-12.3.2-oat.2-darwin-arm64.tar.gz",
+          "version": "12.3.2-oat.2",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-qpdf-12.3.2-oat.2/qpdf-12.3.2-oat.2-darwin-arm64.tar.gz",
+          "sha256": "488dff6948f0b8098426489a8ee26c673a47bfd1424c4e84e0ee4c73185d2da9",
+          "downloadBytes": 1215887,
+          "unpackedBytes": 3920014,
           "archiveFormat": "tar.gz"
         },
         {
           "platform": "linux-x64",
-          "asset": "qpdf-12.3.2-oat.1-linux-x64.tar.gz",
-          "version": "12.3.2-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-qpdf-12.3.2-oat.1/qpdf-12.3.2-oat.1-linux-x64.tar.gz",
-          "sha256": "f16d595d44d42d913bc1b0fed27ba892c5cc5ae9e90f7db15ffd35b7af2dc02b",
-          "downloadBytes": 1545519,
-          "unpackedBytes": 4522998,
+          "asset": "qpdf-12.3.2-oat.2-linux-x64.tar.gz",
+          "version": "12.3.2-oat.2",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-qpdf-12.3.2-oat.2/qpdf-12.3.2-oat.2-linux-x64.tar.gz",
+          "sha256": "abb083459820cfba8723c6b691bd9785fdb20391110adb42e708ede0f21ae397",
+          "downloadBytes": 1545513,
+          "unpackedBytes": 4522923,
+          "archiveFormat": "tar.gz"
+        },
+        {
+          "platform": "win32-x64",
+          "asset": "qpdf-12.3.2-oat.2-win32-x64.tar.gz",
+          "version": "12.3.2-oat.2",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-qpdf-12.3.2-oat.2/qpdf-12.3.2-oat.2-win32-x64.tar.gz",
+          "sha256": "b2c9cfcc3eecbb97d29c7fd750285efa9bc6a0364eebce72f0797a9cda857f1c",
+          "downloadBytes": 1947150,
+          "unpackedBytes": 5039490,
           "archiveFormat": "tar.gz"
         }
       ],
@@ -193,14 +231,14 @@
       "estimatedUnpackedBytes": null,
       "releaseEvidence": {
         "sbom": {
-          "asset": "qpdf-12.3.2-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-qpdf-12.3.2-oat.1/qpdf-12.3.2-oat.1.sbom.cdx.json",
-          "sha256": "f5b718ed0fdb12361fe186f52b15e3c5f8e7550ddb4bfe80bd6f4c0c10419ff1"
+          "asset": "qpdf-12.3.2-oat.2.sbom.cdx.json",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-qpdf-12.3.2-oat.2/qpdf-12.3.2-oat.2.sbom.cdx.json",
+          "sha256": "a7427d8c1800998de2d1fe20245939e8225937053e2e81e25c1dff3347af3e89"
         },
         "thirdPartyNotices": {
-          "asset": "qpdf-12.3.2-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-qpdf-12.3.2-oat.1/qpdf-12.3.2-oat.1.THIRD_PARTY_NOTICES.md",
-          "sha256": "3de0f185f6e303c06408bf18d41ed076fea791e27640f8acf4464b29555c435a"
+          "asset": "qpdf-12.3.2-oat.2.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-qpdf-12.3.2-oat.2/qpdf-12.3.2-oat.2.THIRD_PARTY_NOTICES.md",
+          "sha256": "d3c11a5acb08f5d15e9685486f0bed1f0297a4d5c7fe7587ee50338a01d7ef68"
         },
         "provenance": {
           "provider": "github-actions-artifact-attestation",
@@ -208,34 +246,48 @@
           "workflow": ".github/workflows/pdf-capability-packs.yml",
           "verificationCommand": "gh attestation verify <asset> --repo w31r4/OfficeKit"
         },
-        "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
+        "verifiedPlatforms": [
+          "darwin-arm64",
+          "linux-x64",
+          "win32-x64"
+        ]
       },
       "license": { "expression": "Apache-2.0", "requiresAcknowledgement": false }
     },
     "ocr-core": {
       "state": "published",
       "delivery": "versioned-signed-platform-release-asset",
-      "platforms": ["darwin-arm64", "linux-x64"],
-      "version": "17.8.1-oat.1",
+      "platforms": ["darwin-arm64", "linux-x64", "win32-x64"],
+      "version": "17.8.1-oat.3",
       "artifacts": [
         {
           "platform": "darwin-arm64",
-          "asset": "ocr-core-17.8.1-oat.1-darwin-arm64.tar.gz",
-          "version": "17.8.1-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-core-17.8.1-oat.1/ocr-core-17.8.1-oat.1-darwin-arm64.tar.gz",
-          "sha256": "02a9eb183321717842a2ec886fbd78b3bf17399d2fabcda88b3ab09b2818c69b",
-          "downloadBytes": 208127744,
-          "unpackedBytes": 628438042,
+          "asset": "ocr-core-17.8.1-oat.3-darwin-arm64.tar.gz",
+          "version": "17.8.1-oat.3",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-core-17.8.1-oat.3/ocr-core-17.8.1-oat.3-darwin-arm64.tar.gz",
+          "sha256": "54a5241e95a402815654838048de77e51ecb0b73249a0c4439c43244efb56011",
+          "downloadBytes": 208130452,
+          "unpackedBytes": 628437671,
           "archiveFormat": "tar.gz"
         },
         {
           "platform": "linux-x64",
-          "asset": "ocr-core-17.8.1-oat.1-linux-x64.tar.gz",
-          "version": "17.8.1-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-core-17.8.1-oat.1/ocr-core-17.8.1-oat.1-linux-x64.tar.gz",
-          "sha256": "dc26faefa6a9d05c83c289cfe4f28dfc4b566cdaeca776da017cbb52958f8a92",
-          "downloadBytes": 154770547,
-          "unpackedBytes": 420653539,
+          "asset": "ocr-core-17.8.1-oat.3-linux-x64.tar.gz",
+          "version": "17.8.1-oat.3",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-core-17.8.1-oat.3/ocr-core-17.8.1-oat.3-linux-x64.tar.gz",
+          "sha256": "e37d3e4d2441c300570803f4ca618990fdaafd12ab8faa997f94b33f50a4cd07",
+          "downloadBytes": 154771745,
+          "unpackedBytes": 420653168,
+          "archiveFormat": "tar.gz"
+        },
+        {
+          "platform": "win32-x64",
+          "asset": "ocr-core-17.8.1-oat.3-win32-x64.tar.gz",
+          "version": "17.8.1-oat.3",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-core-17.8.1-oat.3/ocr-core-17.8.1-oat.3-win32-x64.tar.gz",
+          "sha256": "449b193b29edb204eb60ea93eb1f013edaaf399ea8b6fcb91020945bec11c4ac",
+          "downloadBytes": 125791941,
+          "unpackedBytes": 303333194,
           "archiveFormat": "tar.gz"
         }
       ],
@@ -252,14 +304,14 @@
       "estimatedUnpackedBytes": null,
       "releaseEvidence": {
         "sbom": {
-          "asset": "ocr-core-17.8.1-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-core-17.8.1-oat.1/ocr-core-17.8.1-oat.1.sbom.cdx.json",
-          "sha256": "304f38f561ca2856d13287a3819cab1d764e714ed172c5c55eb419e025a6781e"
+          "asset": "ocr-core-17.8.1-oat.3.sbom.cdx.json",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-core-17.8.1-oat.3/ocr-core-17.8.1-oat.3.sbom.cdx.json",
+          "sha256": "45e08d1da4fa09a13103337fa5812a83e2cd16e097cbb2c18fd098ec77fac8cf"
         },
         "thirdPartyNotices": {
-          "asset": "ocr-core-17.8.1-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-core-17.8.1-oat.1/ocr-core-17.8.1-oat.1.THIRD_PARTY_NOTICES.md",
-          "sha256": "bcaa162f3ef1e6a9294bcbfea5290aec91468592107c6f47a1ae4020bf72e975"
+          "asset": "ocr-core-17.8.1-oat.3.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-core-17.8.1-oat.3/ocr-core-17.8.1-oat.3.THIRD_PARTY_NOTICES.md",
+          "sha256": "81761243b0364b37de57ca913a56799a1034679e6b265be49864bdce18b3524d"
         },
         "provenance": {
           "provider": "github-actions-artifact-attestation",
@@ -267,34 +319,48 @@
           "workflow": ".github/workflows/pdf-ocr-capability-packs.yml",
           "verificationCommand": "gh attestation verify <asset> --repo w31r4/OfficeKit"
         },
-        "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
+        "verifiedPlatforms": [
+          "darwin-arm64",
+          "linux-x64",
+          "win32-x64"
+        ]
       },
       "license": { "expression": "PSF-2.0 AND MPL-2.0 AND Apache-2.0 AND GPL-2.0-or-later AND AGPL-3.0-or-later AND BSD-3-Clause AND MIT", "requiresAcknowledgement": false }
     },
     "ocr-language-eng": {
       "state": "published",
       "delivery": "versioned-signed-platform-release-asset",
-      "platforms": ["darwin-arm64", "linux-x64"],
-      "version": "4.1.0-oat.1",
+      "platforms": ["darwin-arm64", "linux-x64", "win32-x64"],
+      "version": "4.1.0-oat.3",
       "artifacts": [
         {
           "platform": "darwin-arm64",
-          "asset": "ocr-language-eng-4.1.0-oat.1-darwin-arm64.tar.gz",
-          "version": "4.1.0-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.1/ocr-language-eng-4.1.0-oat.1-darwin-arm64.tar.gz",
-          "sha256": "5b848be97910c205099ecda298895ef1e9b3a26a39e80db2f788d4753562a41f",
-          "downloadBytes": 1981766,
-          "unpackedBytes": 4126093,
+          "asset": "ocr-language-eng-4.1.0-oat.3-darwin-arm64.tar.gz",
+          "version": "4.1.0-oat.3",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.3/ocr-language-eng-4.1.0-oat.3-darwin-arm64.tar.gz",
+          "sha256": "00f2c4344dd25370f9a0dc4e61d48c1e74007b736d740959a9886949921c952b",
+          "downloadBytes": 1981746,
+          "unpackedBytes": 4126018,
           "archiveFormat": "tar.gz"
         },
         {
           "platform": "linux-x64",
-          "asset": "ocr-language-eng-4.1.0-oat.1-linux-x64.tar.gz",
-          "version": "4.1.0-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.1/ocr-language-eng-4.1.0-oat.1-linux-x64.tar.gz",
-          "sha256": "0b7e44640e12b6c0f83995931e0887b3ebafbebfd073a9b81e91e2a8e1b5630b",
-          "downloadBytes": 1981763,
-          "unpackedBytes": 4126090,
+          "asset": "ocr-language-eng-4.1.0-oat.3-linux-x64.tar.gz",
+          "version": "4.1.0-oat.3",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.3/ocr-language-eng-4.1.0-oat.3-linux-x64.tar.gz",
+          "sha256": "300917ba4fec5128ded982840c177333c618be74bec4bc456c9fc0e9798d2817",
+          "downloadBytes": 1981746,
+          "unpackedBytes": 4126015,
+          "archiveFormat": "tar.gz"
+        },
+        {
+          "platform": "win32-x64",
+          "asset": "ocr-language-eng-4.1.0-oat.3-win32-x64.tar.gz",
+          "version": "4.1.0-oat.3",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.3/ocr-language-eng-4.1.0-oat.3-win32-x64.tar.gz",
+          "sha256": "c97e2a225dcf882646a70a76e8c086fa3dbfad31153d5043d31211774d6440ae",
+          "downloadBytes": 1981746,
+          "unpackedBytes": 4126015,
           "archiveFormat": "tar.gz"
         }
       ],
@@ -305,13 +371,13 @@
       "estimatedUnpackedBytes": null,
       "releaseEvidence": {
         "sbom": {
-          "asset": "ocr-language-eng-4.1.0-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.1/ocr-language-eng-4.1.0-oat.1.sbom.cdx.json",
-          "sha256": "07d70afe0df5854d78dca59e95ef5301d529c414d79eacce7e34680c6cb778f7"
+          "asset": "ocr-language-eng-4.1.0-oat.3.sbom.cdx.json",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.3/ocr-language-eng-4.1.0-oat.3.sbom.cdx.json",
+          "sha256": "c3c752d0b63f041d534dbb3685be87b0ecd6ced7fb88cf3357856cbfc9e21248"
         },
         "thirdPartyNotices": {
-          "asset": "ocr-language-eng-4.1.0-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.1/ocr-language-eng-4.1.0-oat.1.THIRD_PARTY_NOTICES.md",
+          "asset": "ocr-language-eng-4.1.0-oat.3.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-eng-4.1.0-oat.3/ocr-language-eng-4.1.0-oat.3.THIRD_PARTY_NOTICES.md",
           "sha256": "f084cd6e2ce92791faed4c1e60384cb7c16a53707a214a5ac1894ca17ce5dfde"
         },
         "provenance": {
@@ -320,34 +386,48 @@
           "workflow": ".github/workflows/pdf-ocr-capability-packs.yml",
           "verificationCommand": "gh attestation verify <asset> --repo w31r4/OfficeKit"
         },
-        "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
+        "verifiedPlatforms": [
+          "darwin-arm64",
+          "linux-x64",
+          "win32-x64"
+        ]
       },
       "license": { "expression": "Apache-2.0", "requiresAcknowledgement": false }
     },
     "ocr-language-chi-sim": {
       "state": "published",
       "delivery": "versioned-signed-platform-release-asset",
-      "platforms": ["darwin-arm64", "linux-x64"],
-      "version": "4.1.0-oat.1",
+      "platforms": ["darwin-arm64", "linux-x64", "win32-x64"],
+      "version": "4.1.0-oat.3",
       "artifacts": [
         {
           "platform": "darwin-arm64",
-          "asset": "ocr-language-chi-sim-4.1.0-oat.1-darwin-arm64.tar.gz",
-          "version": "4.1.0-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.1/ocr-language-chi-sim-4.1.0-oat.1-darwin-arm64.tar.gz",
-          "sha256": "e202fec7e2fdc58cadaeea1652b71323c5a2eeb606aba4f0dd736b13a943fb78",
-          "downloadBytes": 1733864,
-          "unpackedBytes": 2482185,
+          "asset": "ocr-language-chi-sim-4.1.0-oat.3-darwin-arm64.tar.gz",
+          "version": "4.1.0-oat.3",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.3/ocr-language-chi-sim-4.1.0-oat.3-darwin-arm64.tar.gz",
+          "sha256": "ff029c9bac803e00154221d487115baee136a85f29d43182cce0a16a4e5d12c6",
+          "downloadBytes": 1733842,
+          "unpackedBytes": 2482110,
           "archiveFormat": "tar.gz"
         },
         {
           "platform": "linux-x64",
-          "asset": "ocr-language-chi-sim-4.1.0-oat.1-linux-x64.tar.gz",
-          "version": "4.1.0-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.1/ocr-language-chi-sim-4.1.0-oat.1-linux-x64.tar.gz",
-          "sha256": "f429ca34cdc6c25632d7c45434201b4e67aaa663d344655db4afb44e22bf6745",
-          "downloadBytes": 1733869,
-          "unpackedBytes": 2482182,
+          "asset": "ocr-language-chi-sim-4.1.0-oat.3-linux-x64.tar.gz",
+          "version": "4.1.0-oat.3",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.3/ocr-language-chi-sim-4.1.0-oat.3-linux-x64.tar.gz",
+          "sha256": "edad7fa3d4ef7323d3c73c5dffea1dbe93d6d2c3e8a3a77cf632e07e8f87343c",
+          "downloadBytes": 1733833,
+          "unpackedBytes": 2482107,
+          "archiveFormat": "tar.gz"
+        },
+        {
+          "platform": "win32-x64",
+          "asset": "ocr-language-chi-sim-4.1.0-oat.3-win32-x64.tar.gz",
+          "version": "4.1.0-oat.3",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.3/ocr-language-chi-sim-4.1.0-oat.3-win32-x64.tar.gz",
+          "sha256": "5d8f7cb00b6f1ed625ab2a788c478efa629f63b20b4de85c471932f3a13f151f",
+          "downloadBytes": 1733832,
+          "unpackedBytes": 2482107,
           "archiveFormat": "tar.gz"
         }
       ],
@@ -358,13 +438,13 @@
       "estimatedUnpackedBytes": null,
       "releaseEvidence": {
         "sbom": {
-          "asset": "ocr-language-chi-sim-4.1.0-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.1/ocr-language-chi-sim-4.1.0-oat.1.sbom.cdx.json",
-          "sha256": "28849809618daf160126b56da73b8193681319cd5a6230a673d4ddf3bf2685de"
+          "asset": "ocr-language-chi-sim-4.1.0-oat.3.sbom.cdx.json",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.3/ocr-language-chi-sim-4.1.0-oat.3.sbom.cdx.json",
+          "sha256": "e02a0b8f4a73debab47b55dde6ab5f762ac87b16ee75b46166d51e3ff6fc6c1d"
         },
         "thirdPartyNotices": {
-          "asset": "ocr-language-chi-sim-4.1.0-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.1/ocr-language-chi-sim-4.1.0-oat.1.THIRD_PARTY_NOTICES.md",
+          "asset": "ocr-language-chi-sim-4.1.0-oat.3.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-ocr-language-chi-sim-4.1.0-oat.3/ocr-language-chi-sim-4.1.0-oat.3.THIRD_PARTY_NOTICES.md",
           "sha256": "cef8e10c7ad7a1ebfb754dc5983bc71bf95df24222d0476d866df5ac965c49fb"
         },
         "provenance": {
@@ -373,34 +453,48 @@
           "workflow": ".github/workflows/pdf-ocr-capability-packs.yml",
           "verificationCommand": "gh attestation verify <asset> --repo w31r4/OfficeKit"
         },
-        "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
+        "verifiedPlatforms": [
+          "darwin-arm64",
+          "linux-x64",
+          "win32-x64"
+        ]
       },
       "license": { "expression": "Apache-2.0", "requiresAcknowledgement": false }
     },
     "verapdf": {
       "state": "published",
       "delivery": "versioned-signed-platform-release-asset",
-      "platforms": ["darwin-arm64", "linux-x64"],
-      "version": "1.30.2-oat.1",
+      "platforms": ["darwin-arm64", "linux-x64", "win32-x64"],
+      "version": "1.30.2-oat.2",
       "artifacts": [
         {
           "platform": "darwin-arm64",
-          "asset": "verapdf-1.30.2-oat.1-darwin-arm64.tar.gz",
-          "version": "1.30.2-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-verapdf-1.30.2-oat.1/verapdf-1.30.2-oat.1-darwin-arm64.tar.gz",
-          "sha256": "e75bb934df36b06b53402230ece1e7b3e185265a336d85380019a03f4e253592",
-          "downloadBytes": 63616368,
-          "unpackedBytes": 173332643,
+          "asset": "verapdf-1.30.2-oat.2-darwin-arm64.tar.gz",
+          "version": "1.30.2-oat.2",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-verapdf-1.30.2-oat.2/verapdf-1.30.2-oat.2-darwin-arm64.tar.gz",
+          "sha256": "a2dcd0d66a4a0e6792cc4bf177f5309fa25433057081d92990a8ca0ce53bec84",
+          "downloadBytes": 63616355,
+          "unpackedBytes": 173332552,
           "archiveFormat": "tar.gz"
         },
         {
           "platform": "linux-x64",
-          "asset": "verapdf-1.30.2-oat.1-linux-x64.tar.gz",
-          "version": "1.30.2-oat.1",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-verapdf-1.30.2-oat.1/verapdf-1.30.2-oat.1-linux-x64.tar.gz",
-          "sha256": "d23b14c123f3912c6b23a94a4a5a8ae00132c1bb81baeead19ae41e20c4c1d1c",
-          "downloadBytes": 67801238,
-          "unpackedBytes": 181794036,
+          "asset": "verapdf-1.30.2-oat.2-linux-x64.tar.gz",
+          "version": "1.30.2-oat.2",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-verapdf-1.30.2-oat.2/verapdf-1.30.2-oat.2-linux-x64.tar.gz",
+          "sha256": "fe13bdb69cffa4f324b3b37d8656738c6f1d18fee3c2645e6658d026af249088",
+          "downloadBytes": 67801222,
+          "unpackedBytes": 181793945,
+          "archiveFormat": "tar.gz"
+        },
+        {
+          "platform": "win32-x64",
+          "asset": "verapdf-1.30.2-oat.2-win32-x64.tar.gz",
+          "version": "1.30.2-oat.2",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-verapdf-1.30.2-oat.2/verapdf-1.30.2-oat.2-win32-x64.tar.gz",
+          "sha256": "2978770d8ecb9c7aabd0846c16155eb3d103dc8fcd061c3ee657b764f8bea9a9",
+          "downloadBytes": 78870879,
+          "unpackedBytes": 183418022,
           "archiveFormat": "tar.gz"
         }
       ],
@@ -414,14 +508,14 @@
       "estimatedUnpackedBytes": null,
       "releaseEvidence": {
         "sbom": {
-          "asset": "verapdf-1.30.2-oat.1.sbom.cdx.json",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-verapdf-1.30.2-oat.1/verapdf-1.30.2-oat.1.sbom.cdx.json",
-          "sha256": "77f32ff3ec4fdd6da4b25af6a2073dbd4278cde4a00bdbcf107f83eb539ba159"
+          "asset": "verapdf-1.30.2-oat.2.sbom.cdx.json",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-verapdf-1.30.2-oat.2/verapdf-1.30.2-oat.2.sbom.cdx.json",
+          "sha256": "d50b96ac965d4955c1800b7e83cd8665d70093d53c467a83f2d68aa68a52a7bb"
         },
         "thirdPartyNotices": {
-          "asset": "verapdf-1.30.2-oat.1.THIRD_PARTY_NOTICES.md",
-          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-verapdf-1.30.2-oat.1/verapdf-1.30.2-oat.1.THIRD_PARTY_NOTICES.md",
-          "sha256": "3ef7dad12680bed92d5e6bba68034d876f4fc8d0eaa2794b4871b95bc3e5c406"
+          "asset": "verapdf-1.30.2-oat.2.THIRD_PARTY_NOTICES.md",
+          "url": "https://github.com/w31r4/OfficeKit/releases/download/pdf-provider-verapdf-1.30.2-oat.2/verapdf-1.30.2-oat.2.THIRD_PARTY_NOTICES.md",
+          "sha256": "28dd8f72a4e920d4d9dc7e28e34bf34b733708700ff994c17172f879e8cd395b"
         },
         "provenance": {
           "provider": "github-actions-artifact-attestation",
@@ -429,7 +523,11 @@
           "workflow": ".github/workflows/pdf-verapdf-capability-pack.yml",
           "verificationCommand": "gh attestation verify <asset> --repo w31r4/OfficeKit"
         },
-        "verifiedPlatforms": ["darwin-arm64", "linux-x64"]
+        "verifiedPlatforms": [
+          "darwin-arm64",
+          "linux-x64",
+          "win32-x64"
+        ]
       },
       "license": { "expression": "MPL-2.0 AND GPL-3.0-or-later AND GPL-2.0-only WITH Classpath-exception-2.0", "requiresAcknowledgement": false }
     }
