@@ -380,6 +380,12 @@ def main() -> int:
                     continue
                 table, title_line = candidate_for_title(page, lines, args.table_title)
                 cells, x_coordinates, y_coordinates = extract_grid_cells(table, words, args.expected_columns)
+                # A segment is its own physical page, but each emitted cell
+                # carries that identity as well. Consumers must never infer a
+                # cell's location from its container when they join segments
+                # or flatten the table for audit/review.
+                for cell in cells:
+                    cell["page"] = page_number
                 if len(y_coordinates) - 1 <= args.header_rows:
                     raise ExtractionError(f"table on page {page_number} has no data row after its header")
                 signature = header_signature(cells, args.header_rows)

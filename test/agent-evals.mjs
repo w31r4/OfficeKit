@@ -862,6 +862,15 @@ if (ruledTablePopplerAvailable) {
       item: ruledTableItem,
     });
     assert.equal(narrativeLeakageChecks.find((check) => check.id === "pdf-machine:footnote-and-no-narrative-leakage")?.passed, false, "narrative text must never pass as a table cell");
+    const missingCellPageEvidence = structuredClone(ruledTableResult.evidence);
+    delete missingCellPageEvidence.json.value.table.segments[0].headerCells[0].page;
+    const missingCellPageChecks = gradeRuledCrossPageTableEvidence({
+      evidence: missingCellPageEvidence,
+      audit: ruledTableAudit,
+      commands: extractCompletedCommands(ruledTableTrace),
+      item: ruledTableItem,
+    });
+    assert.equal(missingCellPageChecks.find((check) => check.id === "pdf-security:complete-typed-cell-proofs")?.passed, false, "every physical table cell must carry its own page identity");
     const genericExtractionChecks = gradeRuledCrossPageTableEvidence({
       evidence: ruledTableResult.evidence,
       audit: ruledTableAudit,
