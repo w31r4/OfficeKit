@@ -22,6 +22,7 @@ references/pdf-audit-v1.schema.json
 artifact_tool/API_QUICK_START.md
 examples/public-api-end-to-end.mjs
 examples/accessible-board-report.mjs
+examples/officekit-ruled-cross-page-table-workflow.mjs
 examples/provider-workflows.md
 examples/reportlab-report-spec.json
 examples/pymupdf-edit-operations.json
@@ -39,6 +40,7 @@ scripts/pikepdf_provider.py
 scripts/mupdf.mjs
 scripts/reportlab_create.py
 scripts/pdfplumber_extract.py
+scripts/extract_ruled_table.py
 scripts/pypdf_edit.py
 scripts/poppler_compare.py
 scripts/pymupdf_edit.py

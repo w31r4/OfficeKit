@@ -26,6 +26,7 @@ const supportedCases = new Set([
   "pdf-docmdp-forbidden-title-edit",
   "pdf-docmdp-allowed-field-fill",
   "pdf-damaged-xref-recovery",
+  "pdf-cross-page-table-extraction",
 ]);
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
 const boundaryRefusalCases = new Map([
@@ -722,6 +723,127 @@ function mergeStampTraceChecks(audit, commands) {
     check("pdf-trace:post-mutation-poppler-render", "trace", popplerAfterMerge, { actual: { mergeObserved: Boolean(merge), postMutationRenderObserved: popplerAfterMerge } }),
     check("pdf-trace:multi-source-audit-validation", "trace", auditAfterMerge, { actual: { mergeObserved: Boolean(merge), auditWithThreeInputsObserved: auditAfterMerge } }),
     gate("pdf-trace:no-ad-hoc-pdf-writer", "trace", !manualWriterPatterns.some((pattern) => pattern.test(commands.join("\n"))), { forbidden: manualWriterPatterns.map(String) }),
+  ];
+}
+
+function ruledCrossPageTableTraceChecks(audit, commands) {
+  const commandText = commands.join("\n");
+  const workflow = completedInvocation(commands, /officekit-ruled-cross-page-table-workflow\.mjs\b/i);
+  const operation = auditOperation(audit);
+  const genericOrManualPatterns = [
+    /pdfplumber_extract\.py\b/i,
+    /\bpdfplumber\.open\s*\(/i,
+    /\bfind_tables\s*\(/i,
+    /\bextract_tables?\s*\(/i,
+    /\bPdfReader\s*\(/i,
+  ];
+  return [
+    check("pdf-trace:provider", "trace", /^pdfplumber$/i.test(String(auditProvider(audit))), { expected: "pdfplumber", actual: auditProvider(audit) }),
+    check("pdf-trace:provider-version", "trace", Boolean(String(auditProviderVersion(audit)).trim()), { actual: auditProviderVersion(audit) || "unreported" }),
+    check("pdf-trace:save-policy", "trace", /^read-only$/i.test(String(auditSaveStrategy(audit))), { expected: "read-only", actual: auditSaveStrategy(audit) }),
+    gate("pdf-trace:no-silent-fallback", "trace", auditFallback(audit) === true, { expected: false, actual: auditFallback(audit) === null ? "unreported" : !auditFallback(audit) }),
+    check("pdf-trace:published-ruled-table-workflow", "trace", Boolean(workflow), { expected: "officekit-ruled-cross-page-table-workflow.mjs", actual: workflow ? commands[workflow.commandIndex] : "not observed" }),
+    check("pdf-trace:workflow-preflight", "trace", audit?.preflight?.probeCompleted === true && audit?.preflight?.planCompleted === true && audit?.preflight?.sourceInspectionCompleted === true, { actual: audit?.preflight || "unreported" }),
+    check("pdf-trace:typed-ruled-table-operation", "trace", /extract[-_ ]?ruled[-_ ]?cross[-_ ]?page[-_ ]?table/i.test(operation), { actual: operation || "unreported" }),
+    check("pdf-trace:poppler-overlay-review", "trace", audit?.validation?.poppler?.status === "passed" && Array.isArray(audit?.validation?.poppler?.overlays), { actual: audit?.validation?.poppler || "unreported" }),
+    gate("pdf-trace:no-generic-or-manual-table-route", "trace", !genericOrManualPatterns.some((pattern) => pattern.test(commandText)), { forbidden: genericOrManualPatterns.map(String) }),
+  ];
+}
+
+function canonicalTableHeader(cells) {
+  return Array.isArray(cells)
+    ? cells.map((cell) => ({
+      row: Number(cell?.row),
+      column: Number(cell?.column),
+      rowspan: Number(cell?.rowspan),
+      colspan: Number(cell?.colspan),
+      text: String(cell?.text || ""),
+    }))
+    : [];
+}
+
+function canonicalTableRows(rows) {
+  return Array.isArray(rows)
+    ? rows.map((row) => ({
+      page: Number(row?.page),
+      sourceRow: Number(row?.sourceRow),
+      values: Array.isArray(row?.cells) ? row.cells.map((cell) => String(cell?.text || "")) : [],
+    }))
+    : [];
+}
+
+function finiteBbox(bbox, width, height) {
+  return Array.isArray(bbox)
+    && bbox.length === 4
+    && bbox.every((value) => Number.isFinite(Number(value)))
+    && Number(bbox[0]) >= 0
+    && Number(bbox[1]) >= 0
+    && Number(bbox[2]) > Number(bbox[0])
+    && Number(bbox[3]) > Number(bbox[1])
+    && Number(bbox[2]) <= width
+    && Number(bbox[3]) <= height;
+}
+
+export function gradeRuledCrossPageTableEvidence({ evidence, audit, commands, item }) {
+  const expected = item.grade?.machine || {};
+  const result = evidence.json?.value || {};
+  const table = result.table || {};
+  const source = evidence.source || {};
+  const expectedHeader = expected.header || [];
+  const expectedRows = expected.rows || [];
+  const expectedLabels = expected.columnLabels || [];
+  const expectedFootnote = expected.footnote || "";
+  const sourceTerms = expected.sourceTerms || [];
+  const actualHeader = canonicalTableHeader(table.header);
+  const actualRows = canonicalTableRows(table.dataRows);
+  const expectedCanonicalRows = expectedRows.map((row) => ({ page: Number(row.page), sourceRow: Number(row.sourceRow), values: row.values.map(String) }));
+  const expectedCsv = [
+    ["page", "sourceRow", ...expectedLabels],
+    ...expectedCanonicalRows.map((row) => [String(row.page), String(row.sourceRow), ...row.values]),
+  ];
+  const actualCsv = Array.isArray(evidence.csv?.rows) ? evidence.csv.rows : [];
+  const pageFacts = new Map((source.pages || []).map((page) => [Number(page.page), page]));
+  const segments = Array.isArray(table.segments) ? table.segments : [];
+  const cellsBySegment = segments.flatMap((segment) => [
+    ...(Array.isArray(segment?.headerCells) ? segment.headerCells : []),
+    ...(Array.isArray(segment?.dataRows) ? segment.dataRows.flatMap((row) => Array.isArray(row?.cells) ? row.cells : []) : []),
+  ].map((cell) => ({ cell, page: Number(segment?.page) })));
+  const allCells = cellsBySegment.map(({ cell }) => cell);
+  const geometryValid = allCells.length === expectedHeader.length * (expected.pageRange || []).length + expectedRows.length * Number(expected.expectedColumns || 0)
+    && cellsBySegment.every(({ cell, page }) => {
+      const sourcePage = pageFacts.get(page);
+      return sourcePage
+        && finiteBbox(cell?.bbox, Number(sourcePage.width), Number(sourcePage.height))
+        && Number(cell?.confidence) >= 0.99
+        && Array.isArray(cell?.confidenceReasons)
+        && cell.confidenceReasons.includes("ruled-grid");
+    });
+  const repeatedHeaders = segments.length === (expected.pageRange || []).length
+    && segments.every((segment, index) => Number(segment?.page) === Number(expected.pageRange?.[index])
+      && JSON.stringify(canonicalTableHeader(segment?.headerCells)) === JSON.stringify(expectedHeader)
+      && JSON.stringify((segment?.columns || []).map((column) => String(column?.label || ""))) === JSON.stringify(expectedLabels));
+  const narrativeLeakage = /(?:NARRATIVE-(?:LEFT|RIGHT)|ROTATED-LABEL)/i.test(JSON.stringify({ table, csv: actualCsv }));
+  const footnotes = Array.isArray(table.footnotes) ? table.footnotes : [];
+  const overlays = audit?.validation?.poppler?.overlays;
+  const visualPages = evidence.visual?.pages || [];
+  const auditOutputCsv = audit?.outputs?.csv || {};
+  const auditOutputJson = audit?.outputs?.json || audit?.output || {};
+  const sourceIdentity = audit?.validation?.sourceIdentity || {};
+  const auditChecks = audit?.validation?.ruledTable?.checks || [];
+  return [
+    check("pdf-machine:locked-source-profile", "machine", source.pageCount === expected.pageCount && sourceTerms.every((term) => Number(source.termCounts?.[term] || 0) > 0), { expected: { pageCount: expected.pageCount, sourceTerms }, actual: { pageCount: source.pageCount, termCounts: source.termCounts } }),
+    check("pdf-machine:typed-table-schema-and-profile", "machine", result.schema === "office-kit.pdf-ruled-table.v1" && result.operation?.profile === "ruled-cross-page-v1" && result.operation?.type === "extract-ruled-cross-page-table" && result.operation?.tableTitle === expected.title && Number(result.operation?.expectedColumns) === Number(expected.expectedColumns) && Number(result.operation?.headerRows) === Number(expected.headerRows), { actual: { schema: result.schema, operation: result.operation } }),
+    check("pdf-machine:page-range-repeated-header-and-columns", "machine", JSON.stringify(table.pageRange) === JSON.stringify(expected.pageRange) && repeatedHeaders && JSON.stringify(table.columnLabels) === JSON.stringify(expectedLabels) && JSON.stringify(actualHeader) === JSON.stringify(expectedHeader), { expected: { pageRange: expected.pageRange, header: expectedHeader, columnLabels: expectedLabels }, actual: { pageRange: table.pageRange, header: actualHeader, columnLabels: table.columnLabels } }),
+    check("pdf-machine:exact-table-rows-and-csv", "machine", JSON.stringify(actualRows) === JSON.stringify(expectedCanonicalRows) && JSON.stringify(actualCsv) === JSON.stringify(expectedCsv), { expected: { rows: expectedCanonicalRows, csv: expectedCsv }, actual: { rows: actualRows, csv: actualCsv } }),
+    check("pdf-machine:merged-spans-and-cell-geometry", "machine", geometryValid && actualHeader.length === expectedHeader.length && actualHeader.every((cell) => cell.rowspan >= 1 && cell.colspan >= 1), { actual: { cellCount: allCells.length, expectedCellCount: expectedHeader.length * (expected.pageRange || []).length + expectedRows.length * Number(expected.expectedColumns || 0), geometryValid } }),
+    check("pdf-machine:footnote-and-no-narrative-leakage", "machine", footnotes.length === 1 && footnotes[0]?.text === expectedFootnote && Number(footnotes[0]?.page) === Number(expected.pageRange?.at(-1)) && narrativeLeakage === false, { expected: { footnote: expectedFootnote, page: expected.pageRange?.at(-1), noNarrativeLeakage: true }, actual: { footnotes, narrativeLeakage } }),
+    check("pdf-machine:audit-success", "machine", /^(?:success|succeeded|completed)$/i.test(String(audit?.status || "")), { actual: audit?.status || "unreported" }),
+    check("pdf-visual:all-source-pages-rendered", "visual", evidence.visual?.renderer === "poppler-pdftoppm" && evidence.visual?.pageCount === expected.pageCount && visualPages.length === expected.pageCount && visualPages.every((page) => page.nonBlank && page.bytes > 1_000 && page.inkBBox), { actual: evidence.visual }),
+    check("pdf-visual:overlay-review-bound-to-every-segment", "visual", audit?.validation?.poppler?.status === "passed" && audit?.validation?.poppler?.pageCount === expected.pageCount && Array.isArray(overlays) && overlays.length === expected.pageRange.length && overlays.every((overlay, index) => Number(overlay?.page) === Number(expected.pageRange[index]) && Number(overlay?.bytes) > 1_000 && Array.isArray(overlay?.tableBBox) && overlay.tableBBox.length === 4), { actual: audit?.validation?.poppler || "unreported" }),
+    gate("pdf-security:source-and-output-provenance", "security", result.source?.sha256 === source.sha256 && auditSourceHash(audit) === source.sha256 && auditOutputHash(audit) === evidence.json?.sha256 && auditOutputJson?.sha256 === evidence.json?.sha256 && auditOutputCsv?.sha256 === evidence.csv?.sha256, { expected: { source: source.sha256, json: evidence.json?.sha256, csv: evidence.csv?.sha256 }, actual: { resultSource: result.source?.sha256, auditSource: auditSourceHash(audit), auditJson: auditOutputJson?.sha256, auditCsv: auditOutputCsv?.sha256 } }),
+    gate("pdf-security:read-only-source-and-validated-profile", "security", auditSaveStrategy(audit) === "read-only" && audit?.savePolicy?.sourceOverwrite === false && sourceIdentity?.sourcePreserved === true && sourceIdentity?.before?.sha256 === source.sha256 && sourceIdentity?.after?.sha256 === source.sha256 && audit?.validation?.ruledTable?.passed === true && Array.isArray(auditChecks) && auditChecks.length >= 6 && auditChecks.every((entry) => entry?.passed === true), { actual: { savePolicy: audit?.savePolicy, sourceIdentity, ruledTable: audit?.validation?.ruledTable } }),
+    gate("pdf-security:complete-typed-cell-proofs", "security", allCells.length > 0 && allCells.every((cell) => Number.isInteger(cell?.row) && Number.isInteger(cell?.column) && Number.isInteger(cell?.rowspan) && Number.isInteger(cell?.colspan) && cell.rowspan >= 1 && cell.colspan >= 1 && finiteBbox(cell?.bbox, 612, 792)), { actual: { cells: allCells.length } }),
+    ...ruledCrossPageTableTraceChecks(audit, commands),
   ];
 }
 
@@ -1856,6 +1978,24 @@ function unreadableMergeStampChecks(audit, commands, oracleError) {
   ];
 }
 
+function missingRuledCrossPageTableChecks(audit, commands) {
+  return [
+    check("pdf-machine:table-json-and-csv-available", "machine", false),
+    check("pdf-visual:source-render-and-overlay-evidence-available", "visual", false),
+    gate("pdf-security:table-json-and-csv-available", "security", false),
+    ...ruledCrossPageTableTraceChecks(audit, commands),
+  ];
+}
+
+function unreadableRuledCrossPageTableChecks(audit, commands, oracleError) {
+  return [
+    check("pdf-machine:table-deliverables-readable-by-oracle", "machine", false, { actual: oracleError }),
+    check("pdf-visual:source-render-and-overlay-evidence-readable", "visual", false, { actual: oracleError }),
+    gate("pdf-security:table-deliverables-readable-by-oracle", "security", false, { actual: oracleError }),
+    ...ruledCrossPageTableTraceChecks(audit, commands),
+  ];
+}
+
 export async function gradePdfCase({ item, workspace, evaluator, finalMessage, trace, outputEntries, weights = defaultWeights }) {
   if (!supportedCases.has(item.id)) return { supported: false };
   const audit = await readAudit(workspace);
@@ -1916,6 +2056,31 @@ export async function gradePdfCase({ item, workspace, evaluator, finalMessage, t
     }, false);
     if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
     checks = gradeOverflowRefusalEvidence({ evidence: oracle.evidence, audit, commands, finalMessage, item });
+  } else if (item.id === "pdf-cross-page-table-extraction") {
+    const jsonOutput = path.join(workspace, "outputs", "regional-revenue.json");
+    const csvOutput = path.join(workspace, "outputs", "regional-revenue.csv");
+    try {
+      await Promise.all([fs.access(jsonOutput), fs.access(csvOutput)]);
+    } catch {
+      checks = missingRuledCrossPageTableChecks(audit, commands);
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: null, pending: [], ...score };
+    }
+    oracle = invokeOracle({
+      kind: "cross-page-ruled-table",
+      source: path.join(workspace, "inputs", "source.pdf"),
+      jsonOutput,
+      csvOutput,
+      sourceTerms: item.grade.machine.sourceTerms,
+      renderRoot: path.join(evaluator, "pdf-oracle-render"),
+    }, true);
+    if (!oracle.evidence && oracle.oracleError) {
+      checks = unreadableRuledCrossPageTableChecks(audit, commands, oracle.oracleError);
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: { oracleError: oracle.oracleError }, pending: [], ...score };
+    }
+    if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
+    checks = gradeRuledCrossPageTableEvidence({ evidence: oracle.evidence, audit, commands, item });
   } else if (item.id === "pdf-damaged-xref-recovery") {
     const output = path.join(workspace, "outputs", "recovered.pdf");
     const outputExists = await fs.access(output).then(() => true, () => false);

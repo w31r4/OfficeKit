@@ -74,6 +74,8 @@ import {
   gradeMergeStampEvidence,
   gradeMultichannelRedactionEvidence,
   gradeOverflowRefusalEvidence,
+  gradePdfCase,
+  gradeRuledCrossPageTableEvidence,
   gradeSourceBoundHighlightEvidence,
   summarizeCaseScore,
 } from "../scripts/agent-eval-pdf-graders.mjs";
@@ -96,12 +98,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 31 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 32 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 19);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 20);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
@@ -130,8 +132,8 @@ assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /19 ready PDF cases include twelve locked corpus signature\/boundary\/repair\/redaction fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 10 asset-required cases/i);
+assert.match(runnerHelp.stdout, /20 ready PDF cases include thirteen locked corpus signature\/boundary\/repair\/redaction\/table fixtures/i);
+assert.match(runnerHelp.stdout, /remaining 9 asset-required cases/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
@@ -153,6 +155,11 @@ const richmediaVisible = visibleCase(suite, cases.find((item) => item.id === "pd
 assert.match(richmediaVisible.prompt, /\/3D.*\/RichMedia|\/RichMedia.*\/3D/);
 assert.match(richmediaVisible.prompt, /failed-closed audit/i);
 assert.doesNotMatch(richmediaVisible.prompt, /opaqueStreamSha256|threeDAnnotationCount/i);
+const ruledTableVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-cross-page-table-extraction"));
+assert.match(ruledTableVisible.prompt, /officekit-ruled-cross-page-table-workflow\.mjs/);
+assert.match(ruledTableVisible.prompt, /outputs\/regional-revenue\.json/);
+assert.match(ruledTableVisible.prompt, /outputs\/regional-revenue\.csv/);
+assert.doesNotMatch(ruledTableVisible.prompt, /sourceTerms|expectedColumns|oracleSha256|grade/i);
 
 const corpusPython = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "python3";
 const corpusVerification = spawnSync(corpusPython, ["scripts/agent-eval-corpus-fixtures.py", "verify"], {
@@ -175,6 +182,7 @@ const lockedFixturePaths = [
   "pdf/corrupt/unrecoverable.pdf",
   "pdf/redaction/multichannel-secret.pdf",
   "pdf/richmedia/3d-review.pdf",
+  "pdf/tables/regional-revenue.pdf",
   "pdf/xfa/dynamic-dependents.pdf",
   "pdf/print/print-production-risk.pdf",
   "pdf/signing/docmdp-p1-final.pdf",
@@ -196,7 +204,7 @@ assert.equal(docmdpP2Item?.status, "ready");
 assert.equal(docmdpP2Item?.inputs?.some((input) => input.asset === "pdf/signing/test-pki/docmdp-p2-root.pem"), true);
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 15, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 16, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -757,6 +765,116 @@ if (recoveryQpdfAvailable && recoveryPopplerAvailable) {
   }
 } else {
   console.log("PromptBench damaged-XRef qpdf execution smoke skipped (provide qpdf and pdftoppm)");
+}
+
+const ruledTableItem = cases.find((item) => item.id === "pdf-cross-page-table-extraction");
+assert.equal(ruledTableItem?.status, "ready");
+const ruledTablePoppler = process.env.OFFICE_KIT_AGENT_EVAL_PDFTOPPM || "pdftoppm";
+const ruledTablePopplerAvailable = spawnSync(ruledTablePoppler, ["-v"], { encoding: "utf8", env: process.env }).status === 0;
+if (ruledTablePopplerAvailable) {
+  const ruledTableRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-agent-eval-ruled-table-"));
+  try {
+    const source = path.join(ruledTableRoot, "inputs", "source.pdf");
+    const jsonOutput = path.join(ruledTableRoot, "outputs", "regional-revenue.json");
+    const csvOutput = path.join(ruledTableRoot, "outputs", "regional-revenue.csv");
+    const auditPath = path.join(ruledTableRoot, "outputs", "audit.json");
+    const renderDirectory = path.join(ruledTableRoot, "render");
+    await fs.mkdir(path.dirname(source), { recursive: true });
+    await fs.mkdir(path.dirname(jsonOutput), { recursive: true });
+    await fs.copyFile(path.join(repoRoot, "evals", "assets", "pdf", "tables", "regional-revenue.pdf"), source);
+    const sourceBefore = await fs.readFile(source);
+    const workflow = path.join(repoRoot, "skills", "pdf", "skills", "pdf", "examples", "officekit-ruled-cross-page-table-workflow.mjs");
+    const workflowResult = spawnSync(process.execPath, [
+      workflow, source,
+      "--table-title", "Regional Revenue",
+      "--expected-columns", "4",
+      "--header-rows", "2",
+      "--min-pages", "3",
+      "--footnote-prefix", "*",
+      "--json", jsonOutput,
+      "--csv", csvOutput,
+      "--audit", auditPath,
+      "--render-dir", renderDirectory,
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        OFFICE_KIT_PDF_PROVIDER_PYTHON: corpusPython,
+        OFFICE_KIT_PDF_PDFTOPPM: ruledTablePoppler,
+        PYTHONDONTWRITEBYTECODE: "1",
+      },
+    });
+    assert.equal(workflowResult.status, 0, workflowResult.stderr || workflowResult.stdout);
+    assert.deepEqual(await fs.readFile(source), sourceBefore, "the read-only table workflow must retain source bytes");
+    const rejectedJson = path.join(ruledTableRoot, "outputs", "rejected.json");
+    const rejectedCsv = path.join(ruledTableRoot, "outputs", "rejected.csv");
+    const rejectedAudit = path.join(ruledTableRoot, "outputs", "rejected-audit.json");
+    const rejectedWorkflow = spawnSync(process.execPath, [
+      workflow, source,
+      "--table-title", "Regional Revenue",
+      "--expected-columns", "5",
+      "--header-rows", "2",
+      "--min-pages", "3",
+      "--json", rejectedJson,
+      "--csv", rejectedCsv,
+      "--audit", rejectedAudit,
+      "--render-dir", path.join(ruledTableRoot, "rejected-render"),
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        OFFICE_KIT_PDF_PROVIDER_PYTHON: corpusPython,
+        OFFICE_KIT_PDF_PDFTOPPM: ruledTablePoppler,
+        PYTHONDONTWRITEBYTECODE: "1",
+      },
+    });
+    assert.equal(rejectedWorkflow.status, 2, rejectedWorkflow.stderr || rejectedWorkflow.stdout);
+    await Promise.all([rejectedJson, rejectedCsv, rejectedAudit].map((candidate) => assert.rejects(fs.access(candidate), /ENOENT/)));
+    assert.deepEqual(await fs.readFile(source), sourceBefore, "a failed ruled-table precondition must not alter source bytes");
+    const ruledTableTrace = JSON.stringify({
+      type: "item.completed",
+      item: {
+        type: "command_execution",
+        id: "ruled-table-workflow",
+        command: "node .agents/skills/pdf/examples/officekit-ruled-cross-page-table-workflow.mjs inputs/source.pdf --table-title 'Regional Revenue' --expected-columns 4 --header-rows 2 --min-pages 3 --footnote-prefix '*' --json outputs/regional-revenue.json --csv outputs/regional-revenue.csv --audit outputs/audit.json --render-dir tmp/pdfs/table-review",
+      },
+    });
+    const ruledTableResult = await gradePdfCase({
+      item: ruledTableItem,
+      workspace: ruledTableRoot,
+      evaluator: path.join(ruledTableRoot, "evaluator"),
+      finalMessage: "已完成受限 ruled-table profile 的只读提取与 Poppler overlay 审查。",
+      trace: ruledTableTrace,
+      outputEntries: ["outputs/regional-revenue.json", "outputs/regional-revenue.csv", "outputs/audit.json"],
+    });
+    assert.equal(ruledTableResult.graded, true, JSON.stringify(ruledTableResult.infrastructureErrors || ruledTableResult, null, 2));
+    assert.equal(ruledTableResult.rawScorePercent, 100, JSON.stringify(ruledTableResult.checks.filter((check) => !check.passed), null, 2));
+    assert.equal(ruledTableResult.caseSpecificPassed, true);
+    const ruledTableAudit = JSON.parse(await fs.readFile(auditPath, "utf8"));
+    const narrativeLeakageEvidence = structuredClone(ruledTableResult.evidence);
+    narrativeLeakageEvidence.json.value.table.dataRows[0].cells[0].text = "NARRATIVE-LEFT-P1";
+    const narrativeLeakageChecks = gradeRuledCrossPageTableEvidence({
+      evidence: narrativeLeakageEvidence,
+      audit: ruledTableAudit,
+      commands: extractCompletedCommands(ruledTableTrace),
+      item: ruledTableItem,
+    });
+    assert.equal(narrativeLeakageChecks.find((check) => check.id === "pdf-machine:footnote-and-no-narrative-leakage")?.passed, false, "narrative text must never pass as a table cell");
+    const genericExtractionChecks = gradeRuledCrossPageTableEvidence({
+      evidence: ruledTableResult.evidence,
+      audit: ruledTableAudit,
+      commands: ["python .agents/skills/pdf/scripts/pdfplumber_extract.py inputs/source.pdf --output outputs/regional-revenue.json"],
+      item: ruledTableItem,
+    });
+    assert.equal(genericExtractionChecks.find((check) => check.id === "pdf-trace:published-ruled-table-workflow")?.passed, false, "generic candidate extraction is not the verified ruled-table route");
+    assert.equal(genericExtractionChecks.find((check) => check.id === "pdf-trace:no-generic-or-manual-table-route")?.passed, false);
+  } finally {
+    await fs.rm(ruledTableRoot, { recursive: true, force: true });
+  }
+} else {
+  console.log("PromptBench ruled-table execution smoke skipped (provide pdftoppm)");
 }
 
 const p2ProviderPython = process.env.OFFICE_KIT_PYHANKO_TEST_PYTHON;

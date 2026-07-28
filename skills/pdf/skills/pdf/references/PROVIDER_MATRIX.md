@@ -13,7 +13,7 @@ to retry through another route.
 | `PdfArtifact` | New tagged semantic authoring, reading order, inspect/verify | `rewrite` | New/trusted model only; never an imported-PDF fidelity editor. |
 | MuPDF.js / `PdfFile` | Default arbitrary-PDF parse, inspect, render, bounded direct-original edit | `read-only`, `rewrite`, explicit `incremental` | No Word-style reflow, complete sanitize, or signature authority. Source-bound edits and page evidence remain mandatory. |
 | ReportLab | New visual/layout PDF | `rewrite` | Does not inherit the `PdfArtifact` tagged/reading-order contract. |
-| pdfplumber | Read-only text, word geometry, tables, lines, rectangles | `read-only` | Extraction is evidence, not an edit representation. |
+| pdfplumber | Read-only text, word geometry, candidate tables, lines, rectangles; one verified ruled cross-page table profile | `read-only` | Generic extraction is evidence, not an edit representation. The published ruled-table profile requires title, complete grid, fixed columns, repeated headers, rectangular rows, and consecutive pages; ambiguous layouts fail closed. |
 | pypdf | Attachment quarantine, complete-source merge/reorder/stamp, complex forms/annotations | `read-only`, `rewrite`, explicit `incremental` | Inspect signatures/DocMDP first; an incremental layout is not authorization. |
 | PyMuPDF | Strict scrub/residue/OCR redaction and selected advanced bounded edits | explicit `rewrite`, `incremental`, `sanitize` | Explicit specialist only. A requested OCR language is an exact managed language-pack dependency; sanitization is full-rewrite and residue-scanned, not a signing authority. |
 | Poppler | Independent file evidence and native raster QA | `read-only` | Renderer/inspector only, not an editor or conformance validator. |
