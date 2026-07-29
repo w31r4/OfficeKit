@@ -30,6 +30,7 @@ SCHEMA_SIGN = "office-kit.pyhanko-sign.v1"
 DEFAULT_MAX_INPUT_BYTES = 512 * 1024 * 1024
 DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024 * 1024
 DEFAULT_MAX_CREDENTIAL_BYTES = 16 * 1024 * 1024
+DEFAULT_MAX_TEST_LTV_EVIDENCE_BYTES = 4 * 1024 * 1024
 DEFAULT_MAX_PAGES = 10_000
 DEFAULT_MAX_FIELDS = 10_000
 DEFAULT_MAX_SIGNATURES = 64
@@ -99,8 +100,8 @@ def probe() -> dict[str, Any]:
         "savePolicies": ["read-only", "incremental"],
         "passphraseChannels": ["stdin-pipe-or-hidden-tty-prompt", "none"],
         "networkAllowed": False,
-        "timestampAuthoritySupported": False,
-        "ltvEmbeddingSupported": False,
+        "timestampAuthoritySupported": ["local-test-rfc3161-only"],
+        "ltvEmbeddingSupported": ["local-test-pades-lta-only"],
         "pkcs11Supported": False,
         "arbitraryProviderFlags": False,
         "silentFallback": False,
@@ -193,6 +194,19 @@ def bounded_metadata(value: str | None, label: str) -> str | None:
     if any(ord(character) < 0x20 and character not in "\t\n\r" for character in value):
         raise ProviderError(f"{label} contains unsupported control characters")
     return value
+
+
+def test_tsa_moment(value: str) -> str:
+    normalized = value.strip()
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ProviderError("--test-tsa-moment must be an ISO 8601 timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ProviderError("--test-tsa-moment must include an explicit UTC offset")
+    return parsed.isoformat()
 
 
 def parse_box(value: str) -> tuple[int, int, int, int]:
@@ -397,7 +411,7 @@ def inspect_worker(config: dict[str, Any]) -> dict[str, Any]:
 
 def sign_worker(config: dict[str, Any]) -> dict[str, Any]:
     from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
-    from pyhanko.sign import fields, signers
+    from pyhanko.sign import fields, signers, timestamps
 
     encoded_passphrase = config.pop("passphraseBase64", None)
     passphrase = (
@@ -416,6 +430,36 @@ def sign_worker(config: dict[str, Any]) -> dict[str, Any]:
             for index in range(len(passphrase)):
                 passphrase[index] = 0
     credential_identity = validate_credential(signer)
+    pades_ltv_test_profile = bool(config.get("padesLtvTestProfile"))
+    test_tsa_identity = None
+    validation_context = None
+    timestamper = None
+    if pades_ltv_test_profile:
+        from asn1crypto import crl as asn1_crl
+        from pyhanko.keys import load_cert_from_pemder
+        from pyhanko_certvalidator import ValidationContext
+
+        test_tsa_signer = signers.SimpleSigner.load_pkcs12(
+            config["testTsaCredential"], passphrase=None, prefer_pss=False
+        )
+        test_tsa_identity = validate_credential(test_tsa_signer)
+        trust_root = load_cert_from_pemder(config["ltvTrustRoot"])
+        test_crl = asn1_crl.CertificateList.load(Path(config["ltvCrl"]).read_bytes())
+        fixed_moment = datetime.fromisoformat(config["testTsaMoment"])
+        validation_context = ValidationContext(
+            trust_roots=[trust_root],
+            other_certs=[test_tsa_signer.signing_cert],
+            crls=[test_crl],
+            moment=fixed_moment,
+            allow_fetching=False,
+            revocation_mode="require",
+        )
+        timestamper = timestamps.DummyTimeStamper(
+            test_tsa_signer.signing_cert,
+            test_tsa_signer.signing_key,
+            certs_to_embed=test_tsa_signer.cert_registry,
+            fixed_dt=fixed_moment,
+        )
 
     with Path(config["input"]).open("rb") as source:
         writer = IncrementalPdfFileWriter(source, strict=True)
@@ -469,8 +513,9 @@ def sign_worker(config: dict[str, Any]) -> dict[str, Any]:
             name=config.get("signerName"),
             certify=config["signatureKind"] == "certification",
             subfilter=getattr(fields.SigSeedSubFilter, SUBFILTERS[config["subfilter"]]),
-            embed_validation_info=False,
-            use_pades_lta=False,
+            embed_validation_info=pades_ltv_test_profile,
+            use_pades_lta=pades_ltv_test_profile,
+            validation_context=validation_context,
             docmdp_permissions=getattr(fields.MDPPerm, DOCMDP_PERMISSIONS[config["docMDPPermission"]]),
         )
         with Path(config["output"]).open("wb") as output:
@@ -478,6 +523,7 @@ def sign_worker(config: dict[str, Any]) -> dict[str, Any]:
                 writer,
                 metadata,
                 signer=signer,
+                timestamper=timestamper,
                 new_field_spec=new_field_spec,
                 existing_fields_only=config["fieldMode"] == "existing",
                 in_place=False,
@@ -493,15 +539,20 @@ def sign_worker(config: dict[str, Any]) -> dict[str, Any]:
         after = signature_inventory(output_reader, config["maxFields"], config["maxSignatures"])
         if int(output_reader.root["/Pages"]["/Count"]) != page_count:
             raise ProviderError("signing changed the PDF page count")
-    if after["signatureCount"] != before["signatureCount"] + 1:
-        raise ProviderError("signing did not add exactly one embedded signature")
-    if after["signatureNames"][-1] != config["fieldName"]:
-        raise ProviderError("the new embedded signature does not use the requested field name")
+    expected_added_signatures = 2 if pades_ltv_test_profile else 1
+    if after["signatureCount"] != before["signatureCount"] + expected_added_signatures:
+        raise ProviderError(
+            f"signing did not add the expected {expected_added_signatures} embedded signature record(s)"
+        )
+    if after["signatureNames"].count(config["fieldName"]) != 1:
+        raise ProviderError("the new embedded approval signature does not use the requested field name")
     return {
         "workerSchema": 1,
         "credential": credential_identity,
         "pageCount": page_count,
         "selectedPage": selected_page,
+        "testTsa": test_tsa_identity,
+        "padesLtvTestProfile": pades_ltv_test_profile,
         "before": before,
         "after": after,
     }
@@ -617,7 +668,13 @@ def run_worker(
 
 
 def run_validator(
-    candidate: Path, output_hash: str, timeout_seconds: int, max_stdout_bytes: int, max_stderr_bytes: int
+    candidate: Path,
+    output_hash: str,
+    timeout_seconds: int,
+    max_stdout_bytes: int,
+    max_stderr_bytes: int,
+    *,
+    pades_ltv_test_profile: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     validator = Path(__file__).with_name("pyhanko_provider.py")
     validator_stdout_bytes = min(max_stdout_bytes, 2 * 1024 * 1024)
@@ -641,6 +698,19 @@ def run_validator(
         "--max-stderr-bytes",
         str(validator_stderr_bytes),
     ]
+    if pades_ltv_test_profile is not None:
+        command.extend([
+            "--trust-policy", "explicit-roots",
+            "--trust-root", pades_ltv_test_profile["trustRoot"],
+            "--crl", pades_ltv_test_profile["crl"],
+            "--revocation-policy", "require",
+            "--require-all-trusted",
+            "--require-all-bottom-line",
+            "--require-signature-timestamp",
+            "--require-document-timestamp",
+            "--require-dss-validation-info",
+            "--require-revocation-evidence",
+        ])
     try:
         result = subprocess.run(
             command,
@@ -765,6 +835,46 @@ def validate_sign_args(args: argparse.Namespace) -> None:
         raise ProviderError("--page-index and --box are accepted only with --field-mode create-visible")
     if args.expected_signature_count > args.max_signatures:
         raise ProviderError("--expected-signature-count exceeds --max-signatures")
+    test_profile_values = (
+        args.test_tsa_credential,
+        args.test_tsa_credential_sha256,
+        args.ltv_trust_root,
+        args.ltv_trust_root_sha256,
+        args.ltv_crl,
+        args.ltv_crl_sha256,
+        args.test_tsa_moment,
+    )
+    if not args.pades_ltv_test_profile and (
+        any(value is not None for value in test_profile_values) or args.test_tsa_no_passphrase
+    ):
+        raise ProviderError(
+            "local test TSA/LTV inputs require --pades-ltv-test-profile; generic TSA routing is not exposed"
+        )
+    if args.pades_ltv_test_profile:
+        if args.subfilter != "pades":
+            raise ProviderError("--pades-ltv-test-profile requires --subfilter pades")
+        if args.signature_kind != "approval":
+            raise ProviderError("--pades-ltv-test-profile is limited to one approval signature")
+        if args.expected_signature_count != 0 or args.allow_existing_signatures:
+            raise ProviderError("--pades-ltv-test-profile requires an unsigned source and no existing-signature acknowledgement")
+        if args.field_mode == "existing":
+            raise ProviderError("--pades-ltv-test-profile does not sign an existing field")
+        if not args.test_tsa_no_passphrase:
+            raise ProviderError("--pades-ltv-test-profile requires --test-tsa-no-passphrase for the explicit test credential")
+        missing = [
+            name for name, value in (
+                ("--test-tsa-credential", args.test_tsa_credential),
+                ("--test-tsa-credential-sha256", args.test_tsa_credential_sha256),
+                ("--ltv-trust-root", args.ltv_trust_root),
+                ("--ltv-trust-root-sha256", args.ltv_trust_root_sha256),
+                ("--ltv-crl", args.ltv_crl),
+                ("--ltv-crl-sha256", args.ltv_crl_sha256),
+                ("--test-tsa-moment", args.test_tsa_moment),
+            ) if value is None
+        ]
+        if missing:
+            raise ProviderError(f"--pades-ltv-test-profile requires {', '.join(missing)}")
+        test_tsa_moment(args.test_tsa_moment)
 
 
 def sign(args: argparse.Namespace) -> dict[str, Any]:
@@ -778,6 +888,37 @@ def sign(args: argparse.Namespace) -> dict[str, Any]:
     )
     source_expected = expected_hash(args.expected_sha256)
     credential_expected = expected_hash(args.credential_sha256)
+    pades_ltv_test_profile = bool(args.pades_ltv_test_profile)
+    test_tsa_credential = None
+    test_tsa_expected = None
+    ltv_trust_root = None
+    ltv_trust_root_expected = None
+    ltv_crl = None
+    ltv_crl_expected = None
+    fixed_test_tsa_moment = None
+    if pades_ltv_test_profile:
+        test_tsa_credential = regular_input_path(
+            args.test_tsa_credential,
+            "test TSA PKCS#12 credential",
+            args.max_credential_bytes,
+            pdf=False,
+        )
+        ltv_trust_root = regular_input_path(
+            args.ltv_trust_root,
+            "test LTV trust root",
+            DEFAULT_MAX_TEST_LTV_EVIDENCE_BYTES,
+            pdf=False,
+        )
+        ltv_crl = regular_input_path(
+            args.ltv_crl,
+            "test LTV CRL",
+            DEFAULT_MAX_TEST_LTV_EVIDENCE_BYTES,
+            pdf=False,
+        )
+        test_tsa_expected = expected_hash(args.test_tsa_credential_sha256)
+        ltv_trust_root_expected = expected_hash(args.ltv_trust_root_sha256)
+        ltv_crl_expected = expected_hash(args.ltv_crl_sha256)
+        fixed_test_tsa_moment = test_tsa_moment(args.test_tsa_moment)
     source_actual = sha256(source)
     credential_actual = sha256(credential)
     if source_actual != source_expected:
@@ -786,12 +927,23 @@ def sign(args: argparse.Namespace) -> dict[str, Any]:
         raise ProviderError(
             f"PKCS#12 credential SHA-256 mismatch: expected {credential_expected}, received {credential_actual}"
         )
+    if pades_ltv_test_profile:
+        for source_path, expected, label in (
+            (test_tsa_credential, test_tsa_expected, "test TSA PKCS#12 credential"),
+            (ltv_trust_root, ltv_trust_root_expected, "test LTV trust root"),
+            (ltv_crl, ltv_crl_expected, "test LTV CRL"),
+        ):
+            assert source_path is not None and expected is not None
+            actual = sha256(source_path)
+            if actual != expected:
+                raise ProviderError(f"{label} SHA-256 mismatch: expected {expected}, received {actual}")
     versions = require_signing_runtime()
     passphrase = read_passphrase(args)
     output_hash = ""
     validator_report: dict[str, Any] = {}
     preflight_validator_report: dict[str, Any] | None = None
     worker: dict[str, Any] = {}
+    ltv_profile: dict[str, str] | None = None
     try:
         with tempfile.TemporaryDirectory(prefix=".office-kit-pyhanko-sign-", dir=destination.parent) as temporary:
             root = Path(temporary)
@@ -801,6 +953,28 @@ def sign(args: argparse.Namespace) -> dict[str, Any]:
             candidate = root / "candidate.pdf"
             snapshot_file(source, source_snapshot, source_expected)
             snapshot_file(credential, credential_snapshot, credential_expected)
+            if pades_ltv_test_profile:
+                assert (
+                    test_tsa_credential is not None
+                    and test_tsa_expected is not None
+                    and ltv_trust_root is not None
+                    and ltv_trust_root_expected is not None
+                    and ltv_crl is not None
+                    and ltv_crl_expected is not None
+                    and fixed_test_tsa_moment is not None
+                )
+                test_tsa_snapshot = root / "test-tsa.p12"
+                trust_root_snapshot = root / "ltv-root.pem"
+                crl_snapshot = root / "ltv.crl"
+                snapshot_file(test_tsa_credential, test_tsa_snapshot, test_tsa_expected)
+                snapshot_file(ltv_trust_root, trust_root_snapshot, ltv_trust_root_expected)
+                snapshot_file(ltv_crl, crl_snapshot, ltv_crl_expected)
+                ltv_profile = {
+                    "testTsaCredential": str(test_tsa_snapshot),
+                    "trustRoot": str(trust_root_snapshot),
+                    "crl": str(crl_snapshot),
+                    "moment": fixed_test_tsa_moment,
+                }
             if args.expected_signature_count:
                 preflight_validator_report = run_validator(
                     source_snapshot,
@@ -829,7 +1003,15 @@ def sign(args: argparse.Namespace) -> dict[str, Any]:
                 "location": args.location,
                 "contactInfo": args.contact_info,
                 "signerName": args.signer_name,
+                "padesLtvTestProfile": pades_ltv_test_profile,
             })
+            if ltv_profile is not None:
+                config.update({
+                    "testTsaCredential": ltv_profile["testTsaCredential"],
+                    "ltvTrustRoot": ltv_profile["trustRoot"],
+                    "ltvCrl": ltv_profile["crl"],
+                    "testTsaMoment": ltv_profile["moment"],
+                })
             worker = run_worker(config, args.timeout_seconds, args.max_stdout_bytes, args.max_stderr_bytes)
             if not candidate.is_file():
                 raise ProviderError("pyHanko signing worker did not produce a transactional output")
@@ -847,19 +1029,50 @@ def sign(args: argparse.Namespace) -> dict[str, Any]:
                 raise ProviderError("PKCS#12 credential changed during signing")
             candidate.chmod(0o400)
             validator_report = run_validator(
-                candidate, output_hash, args.timeout_seconds, args.max_stdout_bytes, args.max_stderr_bytes
+                candidate,
+                output_hash,
+                args.timeout_seconds,
+                args.max_stdout_bytes,
+                args.max_stderr_bytes,
+                pades_ltv_test_profile=ltv_profile,
             )
             signatures = validator_report["signatures"]
-            if len(signatures) != args.expected_signature_count + 1:
-                raise ProviderError("post-signature validator did not observe exactly one added signature")
-            if signatures[-1].get("fieldName") != args.field_name:
-                raise ProviderError("post-signature validator resolved a different final signature field")
-            if signatures[-1].get("coverage") != "entire-file":
-                raise ProviderError("new signature does not cover the entire final file")
+            expected_added_signatures = 2 if pades_ltv_test_profile else 1
+            if len(signatures) != args.expected_signature_count + expected_added_signatures:
+                raise ProviderError("post-signature validator did not observe the expected added signature records")
+            new_approval_signatures = [
+                signature for signature in signatures
+                if signature.get("fieldName") == args.field_name and not signature.get("documentTimestamp")
+            ]
+            if len(new_approval_signatures) != 1:
+                raise ProviderError("post-signature validator resolved an unexpected approval signature field")
+            new_signature = new_approval_signatures[0]
+            expected_approval_coverage = "entire-revision" if pades_ltv_test_profile else "entire-file"
+            if new_signature.get("coverage") != expected_approval_coverage:
+                raise ProviderError(
+                    f"new approval signature has coverage {new_signature.get('coverage')!r}, "
+                    f"expected {expected_approval_coverage!r}"
+                )
+            if pades_ltv_test_profile:
+                document_timestamps = [
+                    signature for signature in signatures if signature.get("documentTimestamp")
+                ]
+                if len(document_timestamps) != 1 or not document_timestamps[0].get("bottomLine"):
+                    raise ProviderError("local PAdES-LTA test profile did not produce one valid DocumentTimeStamp")
             if sha256(source_snapshot) != source_expected or sha256(source) != source_expected:
                 raise ProviderError("source PDF changed during post-signature validation")
             if sha256(credential_snapshot) != credential_expected or sha256(credential) != credential_expected:
                 raise ProviderError("PKCS#12 credential changed during post-signature validation")
+            if pades_ltv_test_profile:
+                assert test_tsa_credential is not None and test_tsa_expected is not None
+                assert ltv_trust_root is not None and ltv_trust_root_expected is not None
+                assert ltv_crl is not None and ltv_crl_expected is not None
+                if (
+                    sha256(test_tsa_credential) != test_tsa_expected
+                    or sha256(ltv_trust_root) != ltv_trust_root_expected
+                    or sha256(ltv_crl) != ltv_crl_expected
+                ):
+                    raise ProviderError("local PAdES-LTA test evidence changed during signing")
             candidate.chmod(0o600)
             with candidate.open("rb+") as stream:
                 os.fsync(stream.fileno())
@@ -869,11 +1082,21 @@ def sign(args: argparse.Namespace) -> dict[str, Any]:
             for index in range(len(passphrase)):
                 passphrase[index] = 0
 
-    for path, expected, label in (
+    final_hash_inputs = [
         (source, source_expected, "source PDF"),
         (credential, credential_expected, "PKCS#12 credential"),
         (destination, output_hash, "published signed PDF"),
-    ):
+    ]
+    if pades_ltv_test_profile:
+        assert test_tsa_credential is not None and test_tsa_expected is not None
+        assert ltv_trust_root is not None and ltv_trust_root_expected is not None
+        assert ltv_crl is not None and ltv_crl_expected is not None
+        final_hash_inputs.extend([
+            (test_tsa_credential, test_tsa_expected, "test TSA PKCS#12 credential"),
+            (ltv_trust_root, ltv_trust_root_expected, "test LTV trust root"),
+            (ltv_crl, ltv_crl_expected, "test LTV CRL"),
+        ])
+    for path, expected, label in final_hash_inputs:
         if sha256(path) != expected:
             try:
                 destination.unlink()
@@ -881,7 +1104,13 @@ def sign(args: argparse.Namespace) -> dict[str, Any]:
                 pass
             raise ProviderError(f"{label} hash changed before the signing report was finalized")
 
-    new_signature = validator_report["signatures"][-1]
+    new_approval_signatures = [
+        signature for signature in validator_report["signatures"]
+        if signature.get("fieldName") == args.field_name and not signature.get("documentTimestamp")
+    ]
+    if len(new_approval_signatures) != 1:
+        raise ProviderError("published validation report does not identify exactly one approval signature")
+    new_signature = new_approval_signatures[0]
     return {
         "schema": SCHEMA_SIGN,
         "ok": True,
@@ -911,6 +1140,40 @@ def sign(args: argparse.Namespace) -> dict[str, Any]:
             "certificate": worker["credential"],
             "certificateTrustValidated": False,
         },
+        "padesLtvTestProfile": {
+            "enabled": pades_ltv_test_profile,
+            "testOnly": pades_ltv_test_profile,
+            "networkAllowed": False,
+            "testTsaMoment": fixed_test_tsa_moment,
+            "testTsaCredential": (
+                {
+                    "path": str(test_tsa_credential),
+                    "bytes": test_tsa_credential.stat().st_size,
+                    "sha256": test_tsa_expected,
+                    "certificate": worker.get("testTsa"),
+                }
+                if pades_ltv_test_profile and test_tsa_credential is not None and test_tsa_expected is not None
+                else None
+            ),
+            "trustRoot": (
+                {
+                    "path": str(ltv_trust_root),
+                    "bytes": ltv_trust_root.stat().st_size,
+                    "sha256": ltv_trust_root_expected,
+                }
+                if pades_ltv_test_profile and ltv_trust_root is not None and ltv_trust_root_expected is not None
+                else None
+            ),
+            "crl": (
+                {
+                    "path": str(ltv_crl),
+                    "bytes": ltv_crl.stat().st_size,
+                    "sha256": ltv_crl_expected,
+                }
+                if pades_ltv_test_profile and ltv_crl is not None and ltv_crl_expected is not None
+                else None
+            ),
+        },
         "signature": {
             "fieldName": args.field_name,
             "fieldMode": args.field_mode,
@@ -926,9 +1189,9 @@ def sign(args: argparse.Namespace) -> dict[str, Any]:
                 "contactInfo": args.contact_info,
                 "signerName": args.signer_name,
             },
-            "timestampAuthorityUsed": False,
-            "validationInfoEmbedded": False,
-            "ltvEnabled": False,
+            "timestampAuthorityUsed": pades_ltv_test_profile,
+            "validationInfoEmbedded": pades_ltv_test_profile,
+            "ltvEnabled": pades_ltv_test_profile,
             "padesProfileConformanceClaimed": False,
         },
         "existingSignatures": {
@@ -951,10 +1214,12 @@ def sign(args: argparse.Namespace) -> dict[str, Any]:
             "sourcePrefixPreserved": True,
             "sourceReproved": True,
             "credentialReproved": True,
-            "signatureCountDelta": 1,
+            "signatureCountDelta": 2 if pades_ltv_test_profile else 1,
             "newSignature": new_signature,
             "allIntegrityValid": validator_report["summary"]["allIntegrityValid"],
             "allDocMDPCompliant": validator_report["summary"]["allDocMDPCompliant"],
+            "hasDocumentTimestamp": validator_report["summary"].get("hasDocumentTimestamp", False),
+            "ltvEvidence": validator_report.get("ltvEvidence"),
             "postValidationSchema": validator_report["schema"],
         },
         "transaction": {
@@ -972,7 +1237,7 @@ def sign(args: argparse.Namespace) -> dict[str, Any]:
         "limitations": [
             "the adapter signs only with a local PKCS#12 credential supplied by the caller",
             "certificate trust is not established during signing and must be validated separately",
-            "timestamp authorities, LTV/DSS embedding, PKCS#11, remote signing, and complete PAdES conformance are not implemented",
+            "only the explicit local-test PAdES-LTA profile can add test-local RFC 3161 timestamps and DSS/LTV evidence; external TSA routing and production PAdES conformance claims are not implemented",
             "an earlier valid signature covers its own revision; it does not imply approval of this new revision",
             "the adapter is not a malware sandbox; attacker-chosen input requires caller isolation",
         ],
@@ -1033,6 +1298,19 @@ def build_parser() -> argparse.ArgumentParser:
     sign_parser.add_argument("--location")
     sign_parser.add_argument("--contact-info")
     sign_parser.add_argument("--signer-name")
+    sign_parser.add_argument(
+        "--pades-ltv-test-profile",
+        action="store_true",
+        help="run the explicitly bounded local-test RFC 3161/DSS PAdES-LTA profile; not a production TSA route",
+    )
+    sign_parser.add_argument("--test-tsa-credential")
+    sign_parser.add_argument("--test-tsa-credential-sha256")
+    sign_parser.add_argument("--test-tsa-no-passphrase", action="store_true")
+    sign_parser.add_argument("--ltv-trust-root")
+    sign_parser.add_argument("--ltv-trust-root-sha256")
+    sign_parser.add_argument("--ltv-crl")
+    sign_parser.add_argument("--ltv-crl-sha256")
+    sign_parser.add_argument("--test-tsa-moment")
     add_trust(sign_parser)
     add_limits(sign_parser, output=True, credential=True)
     return parser

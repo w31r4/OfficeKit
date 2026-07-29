@@ -497,6 +497,13 @@ complete PAdES profile conformance. Re-run it after every incremental revision.
 See the Skill's [sign and verify](../tasks/sign_verify.md) task for dependency,
 revocation, signing, and key-handling boundaries.
 
+For a repository-only, disclosed test PKI, the PDF Skill also ships
+`examples/officekit-pades-ltv-test-sign-workflow.mjs`. It pins a local test
+TSA, root, and CRL; writes one incremental approval signature plus
+DocumentTimeStamp/DSS evidence; verifies it with the same explicit test root;
+and renders it with Poppler. It is intentionally marked test-only and does not
+accept production TSA routing or claim PAdES conformance.
+
 ## Validate PDF/A or PDF/UA machine rules on exact bytes
 
 Conformance validation is outside the JavaScript model. Resolve the explicit

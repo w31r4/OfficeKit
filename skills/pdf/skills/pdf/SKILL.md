@@ -177,10 +177,10 @@ and [forms and annotations](tasks/forms_annotations.md), not this overview.
   raster work, residue evidence, rewrite, and invalidation acknowledgement.
   Coordinates remain unrotated PyMuPDF page space. A complete imported PDF
   OCR workflow is not a sanitizer; see [OCR](tasks/ocr.md).
-- pyHanko local PKCS#12 signing uses a passphrase on stdin only. Its P=2 route
-  finalises one verified empty decimal field under an exact FieldMDP lock set;
-  `pyhanko_provider.py` validates under an explicit trust root. Timestamp,
-  LTV, PKCS#11/HSM, remote signing, and network evidence are external workflows.
+- pyHanko local PKCS#12 signing uses a passphrase on stdin only. Its P=2 route finalises
+  one verified empty decimal field under an exact FieldMDP lock; `pyhanko_provider.py` validates under an explicit trust root.
+  `officekit-pades-ltv-test-sign-workflow.mjs` is a disclosed offline test-only TSA/CRL/DSS/DocumentTimeStamp PromptBench profile, not a production TSA route or PAdES conformance claim.
+  Generic timestamp/LTV, PKCS#11/HSM, remote signing, and network evidence remain external workflows.
 - veraPDF's `verapdf_provider.py` is a machine-rule gate, not repair or a substitute for
   human review of PDF/UA. See [accessibility](tasks/accessibility.md).
 

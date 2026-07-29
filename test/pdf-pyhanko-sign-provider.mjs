@@ -163,7 +163,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import pkcs12
-from cryptography.x509.oid import NameOID
+from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
 from pyhanko.sign.fields import SigFieldSpec, append_signature_field
 
@@ -211,6 +211,35 @@ signer_cert = (
     .sign(root_key, hashes.SHA256())
 )
 
+tsa_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+tsa_name = x509.Name([
+    x509.NameAttribute(NameOID.COMMON_NAME, "OfficeKit Test TSA"),
+    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "OfficeKit"),
+    x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+])
+tsa_cert = (
+    x509.CertificateBuilder()
+    .subject_name(tsa_name).issuer_name(root_name).public_key(tsa_key.public_key())
+    .serial_number(x509.random_serial_number())
+    .not_valid_before(now - timedelta(days=1)).not_valid_after(now + timedelta(days=365))
+    .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+    .add_extension(x509.KeyUsage(
+        digital_signature=True, content_commitment=True, key_encipherment=False,
+        data_encipherment=False, key_agreement=False, key_cert_sign=False,
+        crl_sign=False, encipher_only=None, decipher_only=None,
+    ), critical=True)
+    .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.TIME_STAMPING]), critical=True)
+    .sign(root_key, hashes.SHA256())
+)
+
+root_crl = (
+    x509.CertificateRevocationListBuilder()
+    .issuer_name(root_name)
+    .last_update(now - timedelta(minutes=1))
+    .next_update(now + timedelta(days=30))
+    .sign(root_key, hashes.SHA256())
+)
+
 (root / "credential.p12").write_bytes(pkcs12.serialize_key_and_certificates(
     b"office-kit-signer", signer_key, signer_cert, [root_cert],
     serialization.BestAvailableEncryption(password),
@@ -221,6 +250,10 @@ signer_cert = (
 ))
 (root / "root.pem").write_bytes(root_cert.public_bytes(serialization.Encoding.PEM))
 (root / "signer.pem").write_bytes(signer_cert.public_bytes(serialization.Encoding.PEM))
+(root / "tsa-unencrypted.p12").write_bytes(pkcs12.serialize_key_and_certificates(
+    b"office-kit-test-tsa", tsa_key, tsa_cert, [root_cert], serialization.NoEncryption(),
+))
+(root / "root.crl").write_bytes(root_crl.public_bytes(serialization.Encoding.DER))
 
 with (root / "source.pdf").open("rb") as source, (root / "existing-field.pdf").open("wb") as output:
     writer = IncrementalPdfFileWriter(source, strict=True)
@@ -245,8 +278,8 @@ with (root / "source.pdf").open("rb") as source, (root / "existing-field.pdf").o
   assert.match(probe.certvalidatorVersion, /^0\.31\./);
   assert.deepEqual(probe.fieldModes, ["existing", "create-invisible", "create-visible"]);
   assert.equal(probe.networkAllowed, false);
-  assert.equal(probe.timestampAuthoritySupported, false);
-  assert.equal(probe.ltvEmbeddingSupported, false);
+  assert.deepEqual(probe.timestampAuthoritySupported, ["local-test-rfc3161-only"]);
+  assert.deepEqual(probe.ltvEmbeddingSupported, ["local-test-pades-lta-only"]);
   assert.equal(probe.silentFallback, false);
 
   const inspect = jsonResult(run(python, [
@@ -275,7 +308,7 @@ with (root / "source.pdf").open("rb") as source, (root / "existing-field.pdf").o
     "--require",
   ], { env: providerEnv, status: 0 }));
   assert.equal(registryProbe.providers[0].available, true);
-  assert.match(registryProbe.providers[0].role, /signing plus read-only signature validation/);
+  assert.match(registryProbe.providers[0].role, /local-PKCS#12 signing.*explicit-root signature validation/);
   const plan = jsonResult(run(python, [
     registry,
     "plan",
@@ -508,6 +541,105 @@ with (root / "source.pdf").open("rb") as source, (root / "existing-field.pdf").o
   assert.equal(noPassphraseResult.validation.allIntegrityValid, true);
   assert.ok((await fs.readFile(noPassphraseOutput)).subarray(0, sourceBytes.length).equals(sourceBytes));
 
+  const testTsaCredential = path.join(tempRoot, "tsa-unencrypted.p12");
+  const testTsaBytes = await fs.readFile(testTsaCredential);
+  const rootCrl = path.join(tempRoot, "root.crl");
+  const rootCrlBytes = await fs.readFile(rootCrl);
+  const padesLtvOutput = path.join(tempRoot, "pades-ltv-test-profile.pdf");
+  const padesLtvResult = jsonResult(run(python, [
+    provider,
+    "sign",
+    source,
+    padesLtvOutput,
+    "--expected-sha256",
+    sourceHash,
+    "--credential",
+    unencryptedCredential,
+    "--credential-sha256",
+    sha256(unencryptedCredentialBytes),
+    "--no-passphrase",
+    "--field-name",
+    "TestLtaApproval",
+    "--field-mode",
+    "create-visible",
+    "--page-index",
+    "0",
+    "--box",
+    "72,72,300,150",
+    "--signature-kind",
+    "approval",
+    "--subfilter",
+    "pades",
+    "--expected-signature-count",
+    "0",
+    "--pades-ltv-test-profile",
+    "--test-tsa-credential",
+    testTsaCredential,
+    "--test-tsa-credential-sha256",
+    sha256(testTsaBytes),
+    "--test-tsa-no-passphrase",
+    "--ltv-trust-root",
+    rootCertificate,
+    "--ltv-trust-root-sha256",
+    sha256(await fs.readFile(rootCertificate)),
+    "--ltv-crl",
+    rootCrl,
+    "--ltv-crl-sha256",
+    sha256(rootCrlBytes),
+    "--test-tsa-moment",
+    new Date().toISOString(),
+    "--trusted-input",
+  ], { env: providerEnv, status: 0 }));
+  assert.equal(padesLtvResult.padesLtvTestProfile.enabled, true);
+  assert.equal(padesLtvResult.padesLtvTestProfile.testOnly, true);
+  assert.equal(padesLtvResult.padesLtvTestProfile.networkAllowed, false);
+  assert.equal(padesLtvResult.signature.timestampAuthorityUsed, true);
+  assert.equal(padesLtvResult.signature.validationInfoEmbedded, true);
+  assert.equal(padesLtvResult.signature.ltvEnabled, true);
+  assert.equal(padesLtvResult.signature.padesProfileConformanceClaimed, false);
+  assert.equal(padesLtvResult.validation.signatureCountDelta, 2);
+  assert.equal(padesLtvResult.validation.newSignature.fieldName, "TestLtaApproval");
+  assert.equal(padesLtvResult.validation.newSignature.coverage, "entire-revision");
+  assert.equal(padesLtvResult.validation.hasDocumentTimestamp, true);
+  assert.equal(padesLtvResult.validation.ltvEvidence.embeddedDss.present, true);
+  assert.ok(padesLtvResult.validation.ltvEvidence.embeddedDss.certificateCount > 0);
+  assert.ok(padesLtvResult.validation.ltvEvidence.embeddedDss.crlCount > 0);
+  assert.ok(padesLtvResult.validation.ltvEvidence.embeddedDss.vriCount > 0);
+  const padesLtvBytes = await fs.readFile(padesLtvOutput);
+  assert.ok(padesLtvBytes.subarray(0, sourceBytes.length).equals(sourceBytes));
+  assert.deepEqual(await fs.readFile(source), sourceBytes);
+  const padesLtvVerify = jsonResult(run(python, [
+    validator,
+    "verify",
+    padesLtvOutput,
+    "--expected-sha256",
+    sha256(padesLtvBytes),
+    "--trust-policy",
+    "explicit-roots",
+    "--trust-root",
+    rootCertificate,
+    "--crl",
+    rootCrl,
+    "--revocation-policy",
+    "require",
+    "--require-signature",
+    "--require-all-integrity-valid",
+    "--require-all-trusted",
+    "--require-all-bottom-line",
+    "--require-signature-timestamp",
+    "--require-document-timestamp",
+    "--require-dss-validation-info",
+    "--require-revocation-evidence",
+  ], { env: providerEnv, status: 0 }));
+  assert.equal(padesLtvVerify.summary.signatureCount, 2);
+  assert.equal(padesLtvVerify.summary.hasSignatureTimestamp, true);
+  assert.equal(padesLtvVerify.summary.hasDocumentTimestamp, true);
+  assert.equal(padesLtvVerify.summary.allDocMDPCompliant, true);
+  assert.deepEqual(padesLtvVerify.signatures.map((record) => record.signatureObjectType), ["/Sig", "/DocTimeStamp"]);
+  assert.equal(padesLtvVerify.signatures[1].bottomLineKind, "timestamp-integrity-and-trust");
+  assert.equal(padesLtvVerify.dss.present, true);
+  assert.equal(padesLtvVerify.ltvEvidence.explicitCrlCount, 1);
+
   const missingTrust = run(python, [
     provider,
     "inspect",
@@ -565,6 +697,11 @@ with (root / "source.pdf").open("rb") as source, (root / "existing-field.pdf").o
     sourceHash,
     "--trusted-input",
   ];
+  const incompletePadesLtv = run(python, [
+    ...baseSignArgs,
+    "--pades-ltv-test-profile",
+  ], { env: providerEnv, input: passphrase, status: 2 });
+  assert.match(jsonResult(incompletePadesLtv, "stderr").error, /requires --test-tsa-/);
   const missingVisibleGeometryArgs = baseSignArgs.map((value, index) => (
     value === "create-invisible" && baseSignArgs[index - 1] === "--field-mode" ? "create-visible" : value
   ));

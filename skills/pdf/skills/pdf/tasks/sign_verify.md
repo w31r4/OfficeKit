@@ -51,8 +51,10 @@ PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:?select a ready pyHanko runtime fir
 
 Neither adapter uses a system trust store, fetches certificates, CRLs, or OCSP
 responses, invokes a CLI, or routes to another provider. The signer supports
-local PKCS#12 credentials only; TSA, LTV/DSS, PKCS#11, remote signing, and
-complete PAdES conformance remain external.
+local PKCS#12 credentials only. PKCS#11, remote signing, generic TSA/LTV, and
+complete PAdES conformance remain external. The sole shipped TSA/LTV exception
+is the explicit offline test profile documented below; it is for disclosed,
+disposable test material only and does not become a production signing route.
 
 ## Inspect and sign one exact source
 
@@ -295,11 +297,44 @@ read-only, a signature is missing/untrusted, any non-target field changes, or
 the operation would need reflow, a new signature, timestamp, LTV/DSS, or
 interactive form preservation.
 
+## Bounded offline PAdES-LTA test profile
+
+`examples/officekit-pades-ltv-test-sign-workflow.mjs` exists for the locked
+PromptBench case and for equivalent **non-production** test fixtures. It adds
+one visible approval signature at a fixed second-page box, uses a caller-held
+local test TSA to create RFC 3161 evidence, embeds bounded DSS validation data,
+then appends a DocumentTimeStamp. It requires a public test root and an
+explicit CRL, performs no network I/O, uses `incremental`, and runs a strict
+explicit-root/CRL postflight verifier plus Poppler render. It rejects existing
+output paths and removes an incomplete output on failure.
+
+Use it only with deliberately disclosed, revocable test PKCS#12 files that are
+outside real trust systems. Do not pass a production private key, a customer
+certificate, a real TSA credential, an HSM token, or a remote-signing secret.
+The workflow does not claim any PAdES baseline/LT/LTA conformance profile.
+
+```bash
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:?select a ready pyHanko runtime first}"
+node examples/officekit-pades-ltv-test-sign-workflow.mjs \
+  inputs/source.pdf outputs/signed.pdf outputs/audit.json \
+  --signer inputs/credentials/signer.p12 \
+  --tsa inputs/credentials/test-tsa.p12 \
+  --root inputs/credentials/test-root.pem \
+  --crl inputs/credentials/test-root.crl \
+  --python "$PYTHON_BIN"
+```
+
+The audit marks `testOnly: true`, records hashes rather than secret bytes, and
+states `padesProfileConformanceClaimed: false`. The evaluator-side PromptBench
+validator independently checks the output's CMS, explicit root, CRL, DSS,
+approval timestamp, and DocumentTimeStamp; it is not copied into the Agent
+workspace.
+
 ## Capabilities outside the shipped signer
 
 Use an explicit external pyHanko workflow for PKCS#11/HSM credentials, remote
 signing services, timestamp authorities, revocation-material embedding, LTV/DSS
-updates, or a claimed PAdES profile. Keep private keys, tokens, PINs, and
+updates, or a claimed PAdES profile outside the bounded test profile. Keep private keys, tokens, PINs, and
 passphrases outside scripts, logs, shell history, reports, and repository files.
 Review pyHanko's official
 [signing](https://docs.pyhanko.eu/en/latest/cli-guide/signing.html) and
