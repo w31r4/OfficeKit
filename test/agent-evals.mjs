@@ -74,6 +74,7 @@ import {
   gradeMergeStampEvidence,
   gradeMultichannelRedactionEvidence,
   gradeOverflowRefusalEvidence,
+  gradePadesLtvSignatureEvidence,
   gradePdfCase,
   gradeRuledCrossPageTableEvidence,
   gradeSourceBoundHighlightEvidence,
@@ -98,12 +99,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 32 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 33 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 20);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 21);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
@@ -132,8 +133,8 @@ assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /20 ready PDF cases include thirteen locked corpus signature\/boundary\/repair\/redaction\/table fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 9 asset-required cases/i);
+assert.match(runnerHelp.stdout, /21 ready PDF cases include fourteen locked corpus signature\/boundary\/repair\/redaction\/table fixtures/i);
+assert.match(runnerHelp.stdout, /remaining 8 asset-required cases/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
@@ -160,6 +161,11 @@ assert.match(ruledTableVisible.prompt, /officekit-ruled-cross-page-table-workflo
 assert.match(ruledTableVisible.prompt, /outputs\/regional-revenue\.json/);
 assert.match(ruledTableVisible.prompt, /outputs\/regional-revenue\.csv/);
 assert.doesNotMatch(ruledTableVisible.prompt, /sourceTerms|expectedColumns|oracleSha256|grade/i);
+const padesLtvVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-pades-ltv-signature"));
+assert.match(padesLtvVisible.prompt, /公开.*一次性.*PKCS#12|PKCS#12.*公开.*一次性/i);
+assert.match(padesLtvVisible.prompt, /PAdES-LTA/i);
+assert.match(padesLtvVisible.prompt, /outputs\/signed\.pdf/);
+assert.doesNotMatch(padesLtvVisible.prompt, /padesProfileConformanceClaimed|oracleSha256|embeddedDss/i);
 
 const corpusPython = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "python3";
 const corpusVerification = spawnSync(corpusPython, ["scripts/agent-eval-corpus-fixtures.py", "verify"], {
@@ -189,6 +195,11 @@ const lockedFixturePaths = [
   "pdf/signing/test-pki/root.pem",
   "pdf/signing/docmdp-p2-form.pdf",
   "pdf/signing/test-pki/docmdp-p2-root.pem",
+  "pdf/signing/final-document.pdf",
+  "pdf/signing/test-pki/pades-ltv-root.pem",
+  "pdf/signing/test-pki/pades-ltv-root.crl",
+  "pdf/signing/test-pki/pades-ltv-signer.p12",
+  "pdf/signing/test-pki/pades-ltv-tsa.p12",
 ];
 for (const relative of lockedFixturePaths) {
   assert.equal(await verifiedLockedAsset(relative), path.join(repoRoot, "evals", "assets", relative));
@@ -202,9 +213,90 @@ assert.doesNotMatch(encryptionVisible.prompt, /fixture-owner-password-not-for-ag
 const docmdpP2Item = cases.find((item) => item.id === "pdf-docmdp-allowed-field-fill");
 assert.equal(docmdpP2Item?.status, "ready");
 assert.equal(docmdpP2Item?.inputs?.some((input) => input.asset === "pdf/signing/test-pki/docmdp-p2-root.pem"), true);
+const padesLtvItem = cases.find((item) => item.id === "pdf-pades-ltv-signature");
+assert.equal(padesLtvItem?.status, "ready");
+assert.equal(padesLtvItem?.inputs?.filter((input) => input.kind === "asset").length, 5);
+
+const padesLtvSyntheticEvidence = {
+  source: { pageCount: 2, sha256: "pades-source", startxrefCount: 1, eofCount: 1, decodedStreamErrors: [], pages: [{ width: 612, height: 792, rotation: 0 }, { width: 612, height: 792, rotation: 0 }] },
+  output: { pageCount: 2, sha256: "pades-output", startxrefCount: 4, eofCount: 4, decodedStreamErrors: [], pages: [{ width: 612, height: 792, rotation: 0 }, { width: 612, height: 792, rotation: 0 }] },
+  sourceForm: { acroFormPresent: false, fields: {} },
+  outputForm: { acroFormPresent: true, fields: { ApprovalSignature: { fieldType: "/Sig" } } },
+  outputSignature: {
+    signatureFields: [
+      { name: "ApprovalSignature", signatureObjectType: "/Sig", subFilter: "/ETSI.CAdES.detached", byteRange: { validSegments: true } },
+      { name: "Timestamp-test", signatureObjectType: "/DocTimeStamp", subFilter: "/ETSI.RFC3161", byteRange: { validSegments: true } },
+    ],
+  },
+  approvalWidgets: [{ name: "ApprovalSignature", page: 2, rect: [72, 642, 300, 720], appearancePresent: true, appearanceStreamBytes: 900 }],
+  originalPrefixPreserved: true,
+  visual: {
+    sourcePageCount: 2,
+    outputPageCount: 2,
+    renderer: "poppler-pdftoppm",
+    pages: [
+      { page: 1, sameDimensions: true, nonBlank: true, changedPixelsBBox: null, changedOnlyWithinAllowedMasks: true },
+      { page: 2, sameDimensions: true, nonBlank: true, changedPixelsBBox: [144, 1284, 600, 1440], changedOnlyWithinAllowedMasks: true },
+    ],
+  },
+};
+const padesLtvSyntheticCrypto = {
+  ok: true,
+  networkAllowed: false,
+  padesProfileConformanceClaimed: false,
+  trust: { revocationMode: "require", rootSha256: "r".repeat(64), crlSha256: "c".repeat(64) },
+  summary: { signatureCount: 2, ordinarySignatureCount: 1, documentTimestampCount: 1, ordinarySignatureValid: true, signatureTimestampsValid: true, documentTimestampValid: true, dssValidationInfoValid: true },
+  dss: { present: true, certificateCount: 3, crlCount: 1, vriCount: 2 },
+};
+const padesLtvSyntheticAudit = {
+  schema: "office-kit.pades-ltv-test-sign-workflow.v1",
+  ok: true,
+  operationCompleted: true,
+  operation: "sign-local-pkcs12-pades-ltv-test-profile",
+  networkAllowed: false,
+  silentFallback: false,
+  provider: { name: "pyhanko", version: "0.35.2", silentFallback: false },
+  savePolicy: { strategy: "incremental" },
+  source: { sha256: "pades-source" },
+  output: { sha256: "pades-output" },
+  credential: { secretLogged: false, passphraseChannel: "none" },
+  padesLtvTestProfile: { enabled: true, testOnly: true, networkAllowed: false, padesProfileConformanceClaimed: false },
+  transaction: { noReplace: true, outputPublishedAtomically: true },
+  validation: { postflight: { ok: true }, poppler: { ok: true } },
+};
+const padesLtvSyntheticCommands = [
+  "node .agents/skills/pdf/examples/officekit-pades-ltv-test-sign-workflow.mjs inputs/source.pdf outputs/signed.pdf outputs/audit.json --signer inputs/credentials/signer.p12 --tsa inputs/credentials/test-tsa.p12 --root inputs/credentials/test-root.pem --crl inputs/credentials/test-root.crl",
+];
+const padesLtvSyntheticChecks = gradePadesLtvSignatureEvidence({ evidence: padesLtvSyntheticEvidence, cryptoEvidence: padesLtvSyntheticCrypto, audit: padesLtvSyntheticAudit, commands: padesLtvSyntheticCommands, item: padesLtvItem });
+assert.equal(padesLtvSyntheticChecks.every((check) => check.passed), true, "bounded PAdES-LTA synthetic evidence must cover every grade category");
+assert.equal(summarizeCaseScore(padesLtvSyntheticChecks, padesLtvItem.grade).rawScorePercent, 100);
+const padesLtvMetadataProbeChecks = gradePadesLtvSignatureEvidence({
+  evidence: padesLtvSyntheticEvidence,
+  cryptoEvidence: padesLtvSyntheticCrypto,
+  audit: padesLtvSyntheticAudit,
+  commands: [...padesLtvSyntheticCommands, "python -c 'import importlib.metadata as m; print(m.version(\"pymupdf\"))'"],
+  item: padesLtvItem,
+});
+assert.equal(padesLtvMetadataProbeChecks.every((check) => check.passed), true, "a package-metadata probe must not be treated as an ad-hoc PDF edit");
+const padesLtvDirectMuPdfChecks = gradePadesLtvSignatureEvidence({
+  evidence: padesLtvSyntheticEvidence,
+  cryptoEvidence: padesLtvSyntheticCrypto,
+  audit: padesLtvSyntheticAudit,
+  commands: [...padesLtvSyntheticCommands, "python -c 'import fitz; document = fitz.open(\"inputs/source.pdf\")'"],
+  item: padesLtvItem,
+});
+assert.equal(padesLtvDirectMuPdfChecks.find((check) => check.id === "pdf-security:no-ad-hoc-writer-or-secret-material")?.passed, false, "a direct PyMuPDF import must not pass as the bounded pyHanko workflow");
+const padesLtvMissingTimestampChecks = gradePadesLtvSignatureEvidence({
+  evidence: padesLtvSyntheticEvidence,
+  cryptoEvidence: { ...padesLtvSyntheticCrypto, summary: { ...padesLtvSyntheticCrypto.summary, documentTimestampValid: false } },
+  audit: padesLtvSyntheticAudit,
+  commands: padesLtvSyntheticCommands,
+  item: padesLtvItem,
+});
+assert.equal(padesLtvMissingTimestampChecks.find((check) => check.id === "pdf-machine:offline-crypto-validation")?.passed, false, "a missing trusted DocumentTimeStamp must fail the PAdES-LTA score");
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 16, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 21, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -953,6 +1045,67 @@ if (p2ProviderPython && p2PopplerAvailable) {
   }
 } else {
   console.log("PromptBench DocMDP P=2 execution smoke skipped (set OFFICE_KIT_PYHANKO_TEST_PYTHON and provide pdftoppm)");
+}
+
+if (p2ProviderPython && p2PopplerAvailable) {
+  const padesRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-agent-eval-pades-ltv-"));
+  const previousProviderPython = process.env.OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON;
+  try {
+    const source = path.join(padesRoot, "inputs", "source.pdf");
+    const credentials = path.join(padesRoot, "inputs", "credentials");
+    const output = path.join(padesRoot, "outputs", "signed.pdf");
+    const audit = path.join(padesRoot, "outputs", "audit.json");
+    await fs.mkdir(credentials, { recursive: true });
+    await fs.mkdir(path.dirname(output), { recursive: true });
+    await fs.copyFile(path.join(repoRoot, "evals", "assets", "pdf", "signing", "final-document.pdf"), source);
+    await Promise.all([
+      ["pades-ltv-signer.p12", "signer.p12"],
+      ["pades-ltv-tsa.p12", "test-tsa.p12"],
+      ["pades-ltv-root.pem", "test-root.pem"],
+      ["pades-ltv-root.crl", "test-root.crl"],
+    ].map(([from, to]) => fs.copyFile(path.join(repoRoot, "evals", "assets", "pdf", "signing", "test-pki", from), path.join(credentials, to))));
+    const sourceBefore = await fs.readFile(source);
+    const workflow = path.join(repoRoot, "skills", "pdf", "skills", "pdf", "examples", "officekit-pades-ltv-test-sign-workflow.mjs");
+    const signed = spawnSync(process.execPath, [
+      workflow, source, output, audit,
+      "--signer", path.join(credentials, "signer.p12"),
+      "--tsa", path.join(credentials, "test-tsa.p12"),
+      "--root", path.join(credentials, "test-root.pem"),
+      "--crl", path.join(credentials, "test-root.crl"),
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: { ...process.env, OFFICE_KIT_PDF_PROVIDER_PYTHON: p2ProviderPython, OFFICE_KIT_AGENT_EVAL_PDFTOPPM: p2Poppler, PYTHONDONTWRITEBYTECODE: "1" },
+    });
+    assert.equal(signed.status, 0, signed.stderr || signed.stdout);
+    assert.deepEqual(await fs.readFile(source), sourceBefore, "PAdES workflow must retain locked source bytes");
+    process.env.OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON = p2ProviderPython;
+    const padesTrace = JSON.stringify({
+      type: "item.completed",
+      item: {
+        type: "command_execution",
+        id: "pades-ltv-workflow",
+        command: "node .agents/skills/pdf/examples/officekit-pades-ltv-test-sign-workflow.mjs inputs/source.pdf outputs/signed.pdf outputs/audit.json --signer inputs/credentials/signer.p12 --tsa inputs/credentials/test-tsa.p12 --root inputs/credentials/test-root.pem --crl inputs/credentials/test-root.crl",
+      },
+    });
+    const padesResult = await gradePdfCase({
+      item: padesLtvItem,
+      workspace: padesRoot,
+      evaluator: path.join(padesRoot, "evaluator"),
+      finalMessage: "已完成公开、一次性测试 PKI 的离线 PAdES-LTA 测试签名与独立验证。",
+      trace: padesTrace,
+      outputEntries: ["outputs/signed.pdf", "outputs/audit.json"],
+    });
+    assert.equal(padesResult.graded, true, JSON.stringify(padesResult.infrastructureErrors || padesResult, null, 2));
+    assert.equal(padesResult.rawScorePercent, 100, JSON.stringify(padesResult.checks.filter((check) => !check.passed), null, 2));
+    assert.equal(padesResult.caseSpecificPassed, true);
+  } finally {
+    if (previousProviderPython === undefined) delete process.env.OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON;
+    else process.env.OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON = previousProviderPython;
+    await fs.rm(padesRoot, { recursive: true, force: true });
+  }
+} else {
+  console.log("PromptBench PAdES-LTA execution smoke skipped (set OFFICE_KIT_PYHANKO_TEST_PYTHON and provide pdftoppm)");
 }
 }
 

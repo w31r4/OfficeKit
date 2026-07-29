@@ -72,11 +72,41 @@
       "kind": "file",
       "sha256": "147f668c0e1854834f063077cc14ea29b4711a180d4cd8b5e95b67fc8a0d5d62"
     },
+    "pdf/signing/final-document.pdf": {
+      "bytes": 2598,
+      "description": "Two-page self-authored PAdES-LTA source with one visibly outlined final-page approval box.",
+      "kind": "file",
+      "sha256": "4bd10d30faae5605a37937d1ef9158921057f96a946184f6da722018a3445353"
+    },
     "pdf/signing/test-pki/docmdp-p2-root.pem": {
       "bytes": 1208,
       "description": "Public-only self-authored PromptBench root certificate for the DocMDP P=2 form fixture.",
       "kind": "file",
       "sha256": "11ac11935e4637e4c971086b777e584309824389d63693904539042de87de902"
+    },
+    "pdf/signing/test-pki/pades-ltv-root.crl": {
+      "bytes": 426,
+      "description": "Empty test CRL signed by the disclosed PromptBench PAdES-LTA test root.",
+      "kind": "file",
+      "sha256": "2fc8b19b3aa9f4e3f971dd91f612ffbf04a75a5b728851340b3cdf4a05510b0f"
+    },
+    "pdf/signing/test-pki/pades-ltv-root.pem": {
+      "bytes": 1229,
+      "description": "Public test root for the disclosed PromptBench PAdES-LTA test profile; never a production trust anchor.",
+      "kind": "file",
+      "sha256": "ad12b7578900fda28c74f8b3fe29951516f7202624840364b45a4189f361ed58"
+    },
+    "pdf/signing/test-pki/pades-ltv-signer.p12": {
+      "bytes": 3426,
+      "description": "Disclosed disposable no-passphrase PKCS#12 signer key for the repository-only PromptBench PAdES-LTA case.",
+      "kind": "file",
+      "sha256": "b44a8150789cd2336fecd4a3976ba4f8b3da18c31590e0913cbc4bb954b5cc27"
+    },
+    "pdf/signing/test-pki/pades-ltv-tsa.p12": {
+      "bytes": 3434,
+      "description": "Disclosed disposable no-passphrase PKCS#12 TSA key for the repository-only PromptBench PAdES-LTA case.",
+      "kind": "file",
+      "sha256": "fe2920d1cd3472dc7d2d9489ddf9b7d5986990e6f45c7533aad8b38147b4de89"
     },
     "pdf/signing/test-pki/root.pem": {
       "bytes": 1200,

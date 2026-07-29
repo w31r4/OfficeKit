@@ -1146,6 +1146,83 @@ def certified_docmdp_p2_fill(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def pades_ltv_signature_surface(file_path: pathlib.Path) -> dict[str, Any]:
+    """Collect only parser-visible signature topology for the PAdES test case.
+
+    CMS and trust validation intentionally live in the separate evaluator-only
+    pyHanko validator.  This oracle owns native PDF topology and render evidence
+    with the ordinary evaluator toolchain.
+    """
+
+    raw = file_path.read_bytes()
+    reader = pypdf.PdfReader(str(file_path), strict=True)
+    records: list[dict[str, Any]] = []
+    for name, field in (reader.get_fields() or {}).items():
+        if str(field.get("/FT", "")) != "/Sig":
+            continue
+        signature = resolve_pdf_value(field.get("/V")) if field.get("/V") is not None else {}
+        records.append({
+            "name": str(name),
+            "signatureObjectType": str(signature.get("/Type", "")) if isinstance(signature, dict) else "",
+            "subFilter": str(signature.get("/SubFilter", "")) if isinstance(signature, dict) else "",
+            "byteRange": byte_range_surface(signature, raw),
+        })
+    return {"signatureFields": records, "dss": dss_surface(reader)}
+
+
+def dss_surface(reader: pypdf.PdfReader) -> dict[str, Any]:
+    root = root_dictionary(reader)
+    dss = resolve_pdf_value(root.get("/DSS")) if isinstance(root, dict) and root.get("/DSS") is not None else None
+    if not isinstance(dss, dict):
+        return {"present": False, "certificateCount": 0, "crlCount": 0, "ocspCount": 0, "vriCount": 0}
+
+    def count(key: str) -> int:
+        value = resolve_pdf_value(dss.get(key)) if dss.get(key) is not None else []
+        try:
+            result = len(value)
+        except TypeError as exc:
+            raise ValueError(f"DSS {key} is not an array") from exc
+        if result < 0 or result > 256:
+            raise ValueError(f"DSS {key} exceeds the bounded oracle budget")
+        return result
+
+    return {
+        "present": True,
+        "certificateCount": count("/Certs"),
+        "crlCount": count("/CRLs"),
+        "ocspCount": count("/OCSPs"),
+        "vriCount": count("/VRI"),
+    }
+
+
+def pades_ltv_signature(payload: dict[str, Any]) -> dict[str, Any]:
+    source = pathlib.Path(payload["source"])
+    output = pathlib.Path(payload["output"])
+    source_bytes = source.read_bytes()
+    output_bytes = output.read_bytes()
+    source_form = form_structure_evidence(source)
+    output_form = form_structure_evidence(output)
+    output_widgets = output_form["widgets"]
+    approval_widgets = [widget for widget in output_widgets if widget["name"] == "ApprovalSignature"]
+    return {
+        "kind": "pades-ltv-signature",
+        "source": inspect_pdf(source, []),
+        "output": inspect_pdf(output, []),
+        "sourceForm": source_form,
+        "outputForm": output_form,
+        "outputSignature": pades_ltv_signature_surface(output),
+        "approvalWidgets": approval_widgets,
+        "originalPrefixPreserved": output_bytes.startswith(source_bytes),
+        "visual": compare_rendered_pages_with_masks(
+            source,
+            output,
+            pathlib.Path(payload["renderRoot"]),
+            payload["poppler"],
+            [{"page": 2, "bbox": [72, 642, 300, 720]}],
+        ),
+    }
+
+
 def tagged_structure_evidence(file_path: pathlib.Path) -> dict[str, Any]:
     reader = pypdf.PdfReader(str(file_path), strict=True)
     root = resolve_pdf_value(reader.trailer["/Root"])
@@ -1920,6 +1997,8 @@ def main() -> None:
         evidence = acroform_visible(payload)
     elif kind == "certified-docmdp-p2-fill":
         evidence = certified_docmdp_p2_fill(payload)
+    elif kind == "pades-ltv-signature":
+        evidence = pades_ltv_signature(payload)
     elif kind == "attachment-quarantine":
         evidence = attachment_quarantine(payload)
     elif kind == "accessible-report":

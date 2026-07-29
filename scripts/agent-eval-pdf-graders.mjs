@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const oracleScript = path.join(scriptDirectory, "agent-eval-pdf-oracle.py");
+const padesLtvValidatorScript = path.join(scriptDirectory, "agent-eval-pades-ltv-validator.py");
 const supportedCases = new Set([
   "pdf-bounded-contract-id-replace",
   "pdf-source-bound-text-highlight",
@@ -25,6 +26,7 @@ const supportedCases = new Set([
   "pdf-richmedia-opaque-preservation",
   "pdf-docmdp-forbidden-title-edit",
   "pdf-docmdp-allowed-field-fill",
+  "pdf-pades-ltv-signature",
   "pdf-damaged-xref-recovery",
   "pdf-cross-page-table-extraction",
 ]);
@@ -595,6 +597,71 @@ function certifiedDocMdpP2TraceChecks(audit, commands) {
     check("pdf-trace:postflight-explicit-root-validation", "trace", postflightVerification, { expected: "post-fill explicit-root pyHanko integrity, trust, DocMDP, and bottom-line validation" }),
     check("pdf-trace:postflight-render", "trace", renderAfterFill, { actual: { fillObserved: Boolean(fill), renderObserved: renderAfterFill } }),
     gate("pdf-trace:no-ad-hoc-form-writer", "trace", !bypassPatterns.some((pattern) => pattern.test(commandText)), { forbidden: bypassPatterns.map(String) }),
+  ];
+}
+
+function padesLtvTraceChecks(audit, commands) {
+  const commandText = commands.join("\n");
+  const sign = completedInvocation(commands, /pyhanko_sign_provider\.py["']?\s+sign\b/i);
+  const verify = completedInvocation(commands, /pyhanko_provider\.py["']?\s+verify\b/i);
+  const workflow = completedInvocation(commands, /officekit-pades-ltv-test-sign-workflow\.mjs["']?\b/i);
+  const afterSign = commandTextAfter(commands, sign);
+  const signText = sign?.command || "";
+  const verifyText = verify?.command || "";
+  const postflightVerify = Boolean(sign && verify && verify.commandIndex > sign.commandIndex)
+    && /--trust-policy\s+explicit-roots\b/i.test(verifyText)
+    && /--trust-root\s+/i.test(verifyText)
+    && /--crl\s+/i.test(verifyText)
+    && /--revocation-policy\s+require\b/i.test(verifyText)
+    && /--require-signature\b/i.test(verifyText)
+    && /--require-all-integrity-valid\b/i.test(verifyText)
+    && /--require-all-trusted\b/i.test(verifyText)
+    && /--require-all-bottom-line\b/i.test(verifyText)
+    && /--require-signature-timestamp\b/i.test(verifyText)
+    && /--require-document-timestamp\b/i.test(verifyText)
+    && /--require-dss-validation-info\b/i.test(verifyText)
+    && /--require-revocation-evidence\b/i.test(verifyText);
+  const boundedProfile = Boolean(sign)
+    && /--pades-ltv-test-profile\b/i.test(signText)
+    && /--test-tsa-credential\s+/i.test(signText)
+    && /--test-tsa-credential-sha256\s+[a-f0-9]{64}\b/i.test(signText)
+    && /--test-tsa-no-passphrase\b/i.test(signText)
+    && /--ltv-trust-root\s+/i.test(signText)
+    && /--ltv-trust-root-sha256\s+[a-f0-9]{64}\b/i.test(signText)
+    && /--ltv-crl\s+/i.test(signText)
+    && /--ltv-crl-sha256\s+[a-f0-9]{64}\b/i.test(signText)
+    && /--signature-kind\s+approval\b/i.test(signText)
+    && /--subfilter\s+pades\b/i.test(signText);
+  const workflowProfile = Boolean(workflow)
+    && audit?.schema === "office-kit.pades-ltv-test-sign-workflow.v1"
+    && audit?.padesLtvTestProfile?.enabled === true
+    && audit?.padesLtvTestProfile?.testOnly === true
+    && audit?.padesLtvTestProfile?.networkAllowed === false
+    && audit?.padesLtvTestProfile?.padesProfileConformanceClaimed === false;
+  const directMutationPatterns = [
+    /\bPdfWriter\s*\(/,
+    /\bupdate_stream\s*\(/i,
+    /\bset_contents\s*\(/i,
+    /\bwriter\.write\s*\(/i,
+    /\bpymupdf_edit\.py["']?\s+(?:edit|redact|scrub)\b/i,
+    /\b(?:import|from)\s+(?:fitz|pymupdf)\b/i,
+    /\bimportlib\.import_module\(\s*["'](?:fitz|pymupdf)["']/i,
+    /\b(?:fitz|pymupdf)\.(?:open|Document|Page)\s*\(/i,
+  ];
+  const secretPatterns = [
+    /-----BEGIN (?:[A-Z ]*PRIVATE KEY|PKCS12)/i,
+    /--passphrase-stdin\b/i,
+    /(?:base64|xxd|hexdump|openssl\s+pkcs12)[^\n]*(?:signer|tsa).*\.p12/i,
+  ];
+  return [
+    check("pdf-trace:provider", "trace", /^pyhanko$/i.test(String(auditProvider(audit))), { expected: "pyhanko", actual: auditProvider(audit) }),
+    check("pdf-trace:provider-version", "trace", Boolean(String(auditProviderVersion(audit)).trim()), { actual: auditProviderVersion(audit) || "unreported" }),
+    check("pdf-trace:incremental-save-policy", "trace", /^incremental$/i.test(String(auditSaveStrategy(audit))), { expected: "incremental", actual: auditSaveStrategy(audit) }),
+    gate("pdf-trace:no-silent-fallback", "trace", auditFallback(audit) === true, { expected: false, actual: auditFallback(audit) === null ? "unreported" : !auditFallback(audit) }),
+    check("pdf-trace:bounded-local-test-profile", "trace", boundedProfile || workflowProfile, { expected: "explicit local test TSA, root, CRL, and digest pins", actual: { direct: signText || "unobserved", workflow: workflow?.command || "unobserved", workflowProfile } }),
+    check("pdf-trace:postflight-explicit-root-ltv-verification", "trace", postflightVerify || workflowProfile && audit?.validation?.postflight?.ok === true, { expected: "post-sign strict explicit-root, CRL, timestamp, DSS, and revocation verification", actual: { direct: verifyText || "unobserved", workflow: audit?.validation?.postflight || "unreported" } }),
+    check("pdf-trace:postflight-poppler-render", "trace", /(?:mupdf\.mjs["']?\s+render\b|\bpdftoppm\b)/i.test(afterSign) || workflowProfile && audit?.validation?.poppler?.ok === true, { actual: { signObserved: Boolean(sign), workflowObserved: Boolean(workflow), renderObserved: /(?:mupdf\.mjs["']?\s+render\b|\bpdftoppm\b)/i.test(afterSign), workflowRender: audit?.validation?.poppler || "unreported" } }),
+    gate("pdf-security:no-ad-hoc-writer-or-secret-material", "security", !directMutationPatterns.some((pattern) => pattern.test(commandText)) && !secretPatterns.some((pattern) => pattern.test(commandText)), { forbidden: directMutationPatterns.concat(secretPatterns).map(String) }),
   ];
 }
 
@@ -1568,6 +1635,62 @@ export function gradeCertifiedDocMdpP2FillEvidence({ evidence, audit, commands, 
   ];
 }
 
+export function gradePadesLtvSignatureEvidence({ evidence, cryptoEvidence, audit, commands, item }) {
+  const source = evidence.source || {};
+  const output = evidence.output || {};
+  const sourceForm = evidence.sourceForm || {};
+  const outputForm = evidence.outputForm || {};
+  const outputSignature = evidence.outputSignature || {};
+  const signatureFields = outputSignature.signatureFields || [];
+  const approval = signatureFields.filter((record) => record.signatureObjectType === "/Sig");
+  const documentTimestamps = signatureFields.filter((record) => record.signatureObjectType === "/DocTimeStamp");
+  const approvalWidgets = evidence.approvalWidgets || [];
+  const visualPages = evidence.visual?.pages || [];
+  const cryptoSummary = cryptoEvidence?.summary || {};
+  const cryptoDss = cryptoEvidence?.dss || {};
+  const auditProfile = audit?.padesLtvTestProfile || {};
+  const auditValidation = audit?.validation || {};
+  const auditControlledFinalisation = audit?.schema === "office-kit.pades-ltv-test-sign-workflow.v1"
+    && audit?.ok === true
+    && audit?.operation === "sign-local-pkcs12-pades-ltv-test-profile"
+    && audit?.networkAllowed === false
+    && audit?.silentFallback === false
+    && auditProfile?.enabled === true
+    && auditProfile?.testOnly === true
+    && auditProfile?.networkAllowed === false
+    && auditProfile?.padesProfileConformanceClaimed === false
+    && audit?.credential?.secretLogged === false
+    && audit?.credential?.passphraseChannel === "none"
+    && audit?.transaction?.noReplace === true
+    && audit?.transaction?.outputPublishedAtomically === true
+    && auditValidation?.postflight?.ok === true
+    && auditValidation?.poppler?.ok === true;
+  const approvalBox = approvalWidgets[0]?.rect || [];
+  const approvalBoxCorrect = approvalWidgets.length === 1
+    && approvalWidgets[0]?.page === 2
+    && sameBoundingBox(approvalBox, [72, 642, 300, 720])
+    && approvalWidgets[0]?.appearancePresent === true
+    && Number(approvalWidgets[0]?.appearanceStreamBytes || 0) > 0;
+  const allVisualPagesStable = visualPages.length === source.pageCount
+    && visualPages.every((page) => page.sameDimensions && page.nonBlank && page.changedOnlyWithinAllowedMasks);
+  const pageOneStable = visualPages[0]?.changedPixelsBBox === null;
+  const pageTwoVisible = visualPages[1]?.changedPixelsBBox !== null;
+  return [
+    check("pdf-machine:unsigned-two-page-test-fixture", "machine", source.pageCount === 2 && sourceForm.acroFormPresent === false && Object.keys(sourceForm.fields || {}).length === 0, { actual: { pageCount: source.pageCount, sourceForm } }),
+    check("pdf-machine:incremental-signature-topology", "machine", output.pageCount === source.pageCount && samePageBoxes(source.pages, output.pages) && approval.length === 1 && approval[0]?.name === "ApprovalSignature" && approval[0]?.subFilter === "/ETSI.CAdES.detached" && documentTimestamps.length === 1 && documentTimestamps[0]?.subFilter === "/ETSI.RFC3161", { actual: { approval, documentTimestamps } }),
+    check("pdf-machine:visible-approval-field", "machine", approvalBoxCorrect, { expected: [72, 642, 300, 720], actual: approvalWidgets }),
+    check("pdf-machine:offline-crypto-validation", "machine", cryptoEvidence?.ok === true && cryptoEvidence?.networkAllowed === false && cryptoEvidence?.padesProfileConformanceClaimed === false && cryptoSummary.ordinarySignatureValid === true && cryptoSummary.signatureTimestampsValid === true && cryptoSummary.documentTimestampValid === true && cryptoSummary.dssValidationInfoValid === true, { actual: cryptoEvidence || "unavailable" }),
+    check("pdf-machine:audit-success", "machine", audit?.ok === true && audit?.operationCompleted === true, { actual: { ok: audit?.ok, operationCompleted: audit?.operationCompleted } }),
+    check("pdf-visual:all-pages-rendered", "visual", evidence.visual?.sourcePageCount === 2 && evidence.visual?.outputPageCount === 2 && allVisualPagesStable, { renderer: evidence.visual?.renderer, pages: visualPages }),
+    check("pdf-visual:only-final-signature-box-changed", "visual", pageOneStable && pageTwoVisible, { actual: visualPages }),
+    gate("pdf-security:incremental-prefix-and-signature-evidence", "security", evidence.originalPrefixPreserved === true && output.startxrefCount >= source.startxrefCount + 2 && output.startxrefCount <= source.startxrefCount + 4 && output.eofCount === output.startxrefCount && approval.every((record) => record.byteRange?.validSegments) && documentTimestamps.every((record) => record.byteRange?.validSegments) && cryptoDss.present === true && cryptoDss.certificateCount >= 2 && cryptoDss.crlCount >= 1 && cryptoDss.vriCount >= 2, { actual: { originalPrefixPreserved: evidence.originalPrefixPreserved, sourceStartxref: source.startxrefCount, outputStartxref: output.startxrefCount, sourceEof: source.eofCount, outputEof: output.eofCount, cryptoDss } }),
+    gate("pdf-security:independent-explicit-root-validation", "security", cryptoEvidence?.ok === true && cryptoEvidence?.trust?.revocationMode === "require" && cryptoEvidence?.trust?.rootSha256 && cryptoEvidence?.trust?.crlSha256 && cryptoSummary.signatureCount === 2 && cryptoSummary.ordinarySignatureCount === 1 && cryptoSummary.documentTimestampCount === 1, { actual: cryptoEvidence || "unavailable" }),
+    gate("pdf-security:audit-provenance-and-bounded-profile", "security", auditSourceHash(audit) === source.sha256 && auditOutputHash(audit) === output.sha256 && auditControlledFinalisation, { expected: { source: source.sha256, output: output.sha256, schema: "office-kit.pades-ltv-test-sign-workflow.v1" }, actual: { source: auditSourceHash(audit) || "unreported", output: auditOutputHash(audit) || "unreported", controlledFinalisation: auditControlledFinalisation } }),
+    gate("pdf-security:all-streams-decodable", "security", source.decodedStreamErrors?.length === 0 && output.decodedStreamErrors?.length === 0, { actual: { source: source.decodedStreamErrors || [], output: output.decodedStreamErrors || [] } }),
+    ...padesLtvTraceChecks(audit, commands),
+  ];
+}
+
 export function gradeAttachmentQuarantineEvidence({ evidence, audit, commands, item }) {
   const expected = evidence.expectedAttachments || [];
   const manifest = evidence.manifest || {};
@@ -1807,6 +1930,41 @@ function invokeOracle(payload, needsPoppler, needsTesseract = false) {
   });
   if (result.status !== 0) return { oracleError: `PDF oracle rejected the candidate artifact (${result.status}): ${String(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}` };
   try { return { evidence: JSON.parse(result.stdout) }; } catch (error) { return { infrastructureError: `PDF oracle returned invalid JSON: ${error.message}` }; }
+}
+
+function padesLtvValidatorPython() {
+  return process.env.OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "";
+}
+
+function invokePadesLtvValidator(payload) {
+  const python = padesLtvValidatorPython();
+  if (!python) {
+    return {
+      infrastructureError: "PAdES-LTA PromptBench grading requires OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON or OFFICE_KIT_PDF_PROVIDER_PYTHON; the evaluator will not silently use an arbitrary Python runtime",
+    };
+  }
+  const dependencyProbe = spawnSync(python, ["-c", "import asn1crypto, pyhanko, pyhanko_certvalidator"], { encoding: "utf8", env: process.env });
+  if (dependencyProbe.status !== 0) {
+    return {
+      infrastructureError: `PAdES-LTA cryptographic grader requires pyHanko and pyhanko-certvalidator in ${python}: ${String(dependencyProbe.stderr || dependencyProbe.error?.message || "probe failed").trim()}`,
+    };
+  }
+  const result = spawnSync(python, [padesLtvValidatorScript], {
+    encoding: "utf8",
+    input: JSON.stringify(payload),
+    env: process.env,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  if (result.status !== 0) {
+    return {
+      validatorError: `PAdES-LTA evaluator rejected the candidate artifact (${result.status}): ${String(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`,
+    };
+  }
+  try {
+    return { evidence: JSON.parse(result.stdout) };
+  } catch (error) {
+    return { infrastructureError: `PAdES-LTA evaluator returned invalid JSON: ${error.message}` };
+  }
 }
 
 async function readAudit(workspace) {
@@ -2167,6 +2325,54 @@ export async function gradePdfCase({ item, workspace, evaluator, finalMessage, t
     }
     if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
     checks = gradeCertifiedDocMdpP2FillEvidence({ evidence: oracle.evidence, audit, commands, item });
+  } else if (item.id === "pdf-pades-ltv-signature") {
+    const output = path.join(workspace, "outputs", "signed.pdf");
+    try { await fs.access(output); } catch {
+      checks = [
+        check("pdf-machine:artifact-available-for-oracle", "machine", false),
+        check("pdf-visual:artifact-available-for-oracle", "visual", false),
+        gate("pdf-security:artifact-available-for-oracle", "security", false),
+        ...padesLtvTraceChecks(audit, commands),
+      ];
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: null, pending: [], ...score };
+    }
+    oracle = invokeOracle({
+      kind: "pades-ltv-signature",
+      source: path.join(workspace, "inputs", "source.pdf"),
+      output,
+      renderRoot: path.join(evaluator, "pdf-oracle-render"),
+    }, true);
+    if (!oracle.evidence && oracle.oracleError) {
+      checks = [
+        check("pdf-machine:artifact-readable-by-oracle", "machine", false, { actual: oracle.oracleError }),
+        check("pdf-visual:artifact-renderable-by-oracle", "visual", false, { actual: oracle.oracleError }),
+        gate("pdf-security:artifact-readable-by-oracle", "security", false, { actual: oracle.oracleError }),
+        ...padesLtvTraceChecks(audit, commands),
+      ];
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: { oracleError: oracle.oracleError }, pending: [], ...score };
+    }
+    if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
+    const cryptographic = invokePadesLtvValidator({
+      output,
+      root: path.join(workspace, "inputs", "credentials", "test-root.pem"),
+      crl: path.join(workspace, "inputs", "credentials", "test-root.crl"),
+      expectedOutputSha256: oracle.evidence.output?.sha256,
+    });
+    if (!cryptographic.evidence) {
+      if (cryptographic.infrastructureError) return { supported: true, graded: false, checks: [], pending: ["PAdES-LTA cryptographic evaluator runtime"], infrastructureErrors: [cryptographic.infrastructureError] };
+      checks = [
+        check("pdf-machine:independent-crypto-validator", "machine", false, { actual: cryptographic.validatorError }),
+        gate("pdf-security:independent-crypto-validator", "security", false, { actual: cryptographic.validatorError }),
+        ...padesLtvTraceChecks(audit, commands),
+      ];
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: { structural: oracle.evidence, validatorError: cryptographic.validatorError }, pending: [], ...score };
+    }
+    checks = gradePadesLtvSignatureEvidence({ evidence: oracle.evidence, cryptoEvidence: cryptographic.evidence, audit, commands, item });
+    const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+    return { supported: true, graded: true, checks, evidence: { structural: oracle.evidence, cryptographic: cryptographic.evidence }, pending: [], ...score };
   } else if (item.id === "pdf-attachment-quarantine-inventory") {
     const manifest = path.join(workspace, "outputs", "attachments.json");
     const quarantine = path.join(workspace, "outputs", "quarantine");

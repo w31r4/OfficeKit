@@ -244,6 +244,7 @@ const requiredFiles = [
   "examples/provider-workflows.md",
   "examples/accessible-board-report.mjs",
   "examples/officekit-ruled-cross-page-table-workflow.mjs",
+  "examples/officekit-pades-ltv-test-sign-workflow.mjs",
   "examples/reportlab-report-spec.json",
   "examples/pymupdf-edit-operations.json",
   "examples/pymupdf-redaction-operations.json",

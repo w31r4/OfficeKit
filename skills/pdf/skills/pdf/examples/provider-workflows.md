@@ -150,8 +150,10 @@ or `require` when the task and available evidence demand it. The adapter never
 fetches network evidence or guesses trust roots. Review every signature's
 signed revision, coverage, modification level, DocMDP result, timestamp, and
 trust status rather than treating an intact old ByteRange as approval of later
-edits. The report is not a complete PAdES conformance certificate. TSA/LTV,
-PKCS#11/HSM, and remote signing remain explicit external workflows.
+edits. The report is not a complete PAdES conformance certificate. PKCS#11/HSM,
+remote signing, and generic TSA/LTV remain explicit external workflows; the
+only included exception is the separately documented, offline,
+disclosed-test-PKI `officekit-pades-ltv-test-sign-workflow.mjs` profile.
 
 ## veraPDF source-bound machine validation
 

@@ -6,7 +6,11 @@ read-only input files.
 
 The initial PDF boundary set is self-authored. It contains no customer data,
 production credentials, production trust anchors or private signing keys, or
-third-party sample assets.
+third-party sample assets. One tightly scoped exception is the disclosed,
+disposable PAdES-LTA **test** PKCS#12 pair described below; it exists solely so
+the evaluator can require a real offline signing/timestamp/DSS chain. It must
+never be reused for a customer, deployment, trust store, or production signing
+operation.
 `scripts/agent-eval-corpus-fixtures.py` is the reviewed source recipe; the
 checked-in `integrity.json` pins the byte hashes actually used by PromptBench.
 
@@ -37,6 +41,15 @@ with `P=2`, one empty visible `ApprovedAmount` text field, and one
 `pdf/signing/test-pki/docmdp-p2-root.pem` is public-only. The fixture recipe
 retains neither root nor signer private material. It is a controlled
 finalisation test, not an example of arbitrary signed-form editing.
+
+`pdf/signing/final-document.pdf` plus
+`pdf/signing/test-pki/pades-ltv-{signer,tsa}.p12`,
+`pades-ltv-root.pem`, and `pades-ltv-root.crl` form one repository-only,
+offline PAdES-LTA test profile. Both P12 files have no passphrase and are
+intentionally public/disposable; the root and empty CRL are likewise test-only.
+The case must use the shipped bounded workflow, retain the source prefix, and
+be checked by the evaluator-only explicit-root/CRL validator. The profile is
+test evidence, not a PAdES conformance certificate or a generic TSA feature.
 
 `pdf/corrupt/recoverable.pdf` and `pdf/corrupt/unrecoverable.pdf` are a
 self-authored qpdf structural-repair pair. The recoverable file contains two
@@ -86,4 +99,7 @@ fixture passwords, public test root, or any future PKI material as production
 credentials.
 
 To refresh only the time-bound signed fixtures without changing the other locked
-boundary assets, replace `generate` with `refresh-docmdp` in that command.
+boundary assets, replace `generate` with `refresh-docmdp` or
+`refresh-pades-ltv` in that command. The latter deliberately regenerates the
+public disposable test PKI; review all five new hashes and the source recipe
+together before committing.

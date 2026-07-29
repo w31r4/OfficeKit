@@ -3,7 +3,10 @@
 
 The corpus deliberately uses self-authored, non-production documents.  The
 fixtures are realistic enough to exercise parser and policy boundaries, but
-they contain no customer data, trusted private keys, or third-party samples.
+they contain no customer data, production private keys, or third-party samples.
+The one PAdES fixture includes disclosed, disposable test PKCS#12 keys so an
+isolated Agent can exercise a real offline signing flow; they are never
+production credentials or trust anchors.
 The checked-in integrity manifest pins the exact bytes consumed by Agent
 trials; this generator is the reviewed recipe for intentional fixture updates.
 """
@@ -234,6 +237,90 @@ with source.open("rb") as input_handle, target.open("wb") as output_handle:
         ),
         output=output_handle,
     )
+'''
+
+
+# This program produces only deliberately disclosed, disposable PromptBench
+# credentials. It never creates a production CA, accepts a user secret, or
+# contacts a timestamp authority. The Agent later uses the pinned P12 files
+# with the shipped local-test PAdES-LTA primitive.
+PADES_LTV_TEST_PKI_PROGRAM = r'''
+from datetime import datetime, timezone
+from pathlib import Path
+import sys
+
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.serialization import pkcs12
+from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
+
+target = Path(sys.argv[1])
+pki = Path(sys.argv[2])
+pki.mkdir(parents=True, exist_ok=True)
+not_before = datetime(2020, 1, 1, tzinfo=timezone.utc)
+not_after = datetime(2050, 1, 1, tzinfo=timezone.utc)
+crl_this_update = datetime(2020, 1, 1, tzinfo=timezone.utc)
+crl_next_update = datetime(2049, 12, 31, tzinfo=timezone.utc)
+
+root_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+root_name = x509.Name([
+    x509.NameAttribute(NameOID.COMMON_NAME, "OfficeKit PromptBench PAdES Test Root"),
+    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "OfficeKit PromptBench"),
+    x509.NameAttribute(NameOID.COUNTRY_NAME, "ZZ"),
+])
+root_cert = (
+    x509.CertificateBuilder()
+    .subject_name(root_name).issuer_name(root_name).public_key(root_key.public_key())
+    .serial_number(1).not_valid_before(not_before).not_valid_after(not_after)
+    .add_extension(x509.BasicConstraints(ca=True, path_length=1), critical=True)
+    .add_extension(x509.KeyUsage(
+        digital_signature=True, content_commitment=True, key_encipherment=False,
+        data_encipherment=False, key_agreement=False, key_cert_sign=True,
+        crl_sign=True, encipher_only=None, decipher_only=None,
+    ), critical=True)
+    .sign(root_key, hashes.SHA256())
+)
+
+def issued_certificate(common_name, serial, *, timestamping=False):
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    name = x509.Name([
+        x509.NameAttribute(NameOID.COMMON_NAME, common_name),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "OfficeKit PromptBench"),
+        x509.NameAttribute(NameOID.COUNTRY_NAME, "ZZ"),
+    ])
+    builder = (
+        x509.CertificateBuilder()
+        .subject_name(name).issuer_name(root_name).public_key(key.public_key())
+        .serial_number(serial).not_valid_before(not_before).not_valid_after(not_after)
+        .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        .add_extension(x509.KeyUsage(
+            digital_signature=True, content_commitment=True, key_encipherment=False,
+            data_encipherment=False, key_agreement=False, key_cert_sign=False,
+            crl_sign=False, encipher_only=None, decipher_only=None,
+        ), critical=True)
+    )
+    if timestamping:
+        builder = builder.add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.TIME_STAMPING]), critical=True)
+    return key, builder.sign(root_key, hashes.SHA256())
+
+signer_key, signer_cert = issued_certificate("OfficeKit PromptBench PAdES Signer", 2)
+tsa_key, tsa_cert = issued_certificate("OfficeKit PromptBench PAdES TSA", 3, timestamping=True)
+root_crl = (
+    x509.CertificateRevocationListBuilder()
+    .issuer_name(root_name).last_update(crl_this_update).next_update(crl_next_update)
+    .sign(root_key, hashes.SHA256())
+)
+
+target.parent.mkdir(parents=True, exist_ok=True)
+(pki / "pades-ltv-root.pem").write_bytes(root_cert.public_bytes(serialization.Encoding.PEM))
+(pki / "pades-ltv-root.crl").write_bytes(root_crl.public_bytes(serialization.Encoding.DER))
+(pki / "pades-ltv-signer.p12").write_bytes(pkcs12.serialize_key_and_certificates(
+    b"officekit-promptbench-pades-signer", signer_key, signer_cert, [root_cert], serialization.NoEncryption(),
+))
+(pki / "pades-ltv-tsa.p12").write_bytes(pkcs12.serialize_key_and_certificates(
+    b"officekit-promptbench-pades-tsa", tsa_key, tsa_cert, [root_cert], serialization.NoEncryption(),
+))
 '''
 
 
@@ -1225,6 +1312,69 @@ def create_docmdp_p2_form(root: Path, signing_python: str) -> None:
             )
 
 
+def create_pades_ltv_test_inputs(root: Path, signing_python: str) -> None:
+    """Create a source PDF plus disclosed, test-only offline PAdES inputs.
+
+    The signer/TSA PKCS#12 files deliberately contain disposable private keys,
+    so PromptBench can test source-bound local signing without asking an Agent
+    to manufacture credentials or fetch a network TSA. They must remain
+    repository-only evaluator material and never be used as production trust.
+    """
+    target = root / "pdf" / "signing" / "final-document.pdf"
+    pki = root / "pdf" / "signing" / "test-pki"
+    with tempfile.TemporaryDirectory(prefix="officekit-promptbench-pades-ltv-") as directory:
+        work = Path(directory)
+        source = work / "unsigned-final-document.pdf"
+        document = canvas.Canvas(str(source), pagesize=(612, 792), invariant=1)
+        document.setTitle("PromptBench PAdES-LTA test document")
+        document.setAuthor("OfficeKit PromptBench fixture generator")
+        document.setFillColor(HexColor("#102A43"))
+        document.setFont("Helvetica-Bold", 18)
+        document.drawString(54, 740, "Controlled PAdES-LTA test document")
+        document.setFillColor(HexColor("#243B53"))
+        document.setFont("Helvetica", 10)
+        document.drawString(54, 696, "This is a self-authored, non-production PromptBench signing fixture.")
+        document.drawString(54, 676, "Its associated PKCS#12 credentials are disclosed, disposable test material only.")
+        document.drawString(54, 656, "The final page contains the exact visible approval-signature placement.")
+        document.showPage()
+        document.setFillColor(HexColor("#102A43"))
+        document.setFont("Helvetica-Bold", 16)
+        document.drawString(54, 740, "Approval and validation")
+        document.setFillColor(HexColor("#243B53"))
+        document.setFont("Helvetica", 10)
+        document.drawString(54, 700, "Sign only in the outlined box. Do not replace the source file.")
+        document.drawString(54, 680, "Use the provided local test TSA, test root and CRL; network access is forbidden.")
+        document.setStrokeColor(HexColor("#486581"))
+        document.setLineWidth(1)
+        document.rect(72, 72, 228, 78, stroke=1, fill=0)
+        document.setFont("Helvetica", 8)
+        document.drawString(78, 58, "Required visible signature box: (72,72,300,150)")
+        document.showPage()
+        document.save()
+        completed = subprocess.run(
+            [signing_python, "-I", "-c", PADES_LTV_TEST_PKI_PROGRAM, str(target), str(pki)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if completed.returncode != 0:
+            for relative in (
+                "final-document.pdf",
+                "test-pki/pades-ltv-root.pem",
+                "test-pki/pades-ltv-root.crl",
+                "test-pki/pades-ltv-signer.p12",
+                "test-pki/pades-ltv-tsa.p12",
+            ):
+                (root / "pdf" / "signing" / relative).unlink(missing_ok=True)
+            raise ValueError(
+                "managed PAdES test-PKI generation failed: "
+                f"{completed.stderr.strip() or completed.stdout.strip() or 'unknown error'}"
+            )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source.replace(target)
+
+
 def refresh_docmdp(root: Path, signing_python: str) -> dict:
     """Refresh both signed DocMDP fixtures and their integrity records."""
     manifest_path = root / "integrity.json"
@@ -1238,6 +1388,31 @@ def refresh_docmdp(root: Path, signing_python: str) -> dict:
         "pdf/signing/test-pki/root.pem",
         "pdf/signing/docmdp-p2-form.pdf",
         "pdf/signing/test-pki/docmdp-p2-root.pem",
+    ):
+        asset = root / relative
+        manifest["assets"][relative] = {
+            "bytes": asset.stat().st_size,
+            "description": FIXTURES[relative],
+            "kind": "file",
+            "sha256": sha256(asset),
+        }
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return manifest
+
+
+def refresh_pades_ltv(root: Path, signing_python: str) -> dict:
+    """Refresh the disclosed test-PKI inputs and their locked manifest rows."""
+    manifest_path = root / "integrity.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("assets"), dict):
+        raise ValueError("unsupported corpus integrity schema")
+    create_pades_ltv_test_inputs(root, signing_python)
+    for relative in (
+        "pdf/signing/final-document.pdf",
+        "pdf/signing/test-pki/pades-ltv-root.pem",
+        "pdf/signing/test-pki/pades-ltv-root.crl",
+        "pdf/signing/test-pki/pades-ltv-signer.p12",
+        "pdf/signing/test-pki/pades-ltv-tsa.p12",
     ):
         asset = root / relative
         manifest["assets"][relative] = {
@@ -1350,6 +1525,11 @@ FIXTURES = {
     "pdf/signing/test-pki/root.pem": "Public-only self-authored PromptBench root certificate for the DocMDP P=1 fixture.",
     "pdf/signing/docmdp-p2-form.pdf": "Real self-authored DocMDP P=2 certification with one visible empty amount field and one FieldMDP-locked reference field.",
     "pdf/signing/test-pki/docmdp-p2-root.pem": "Public-only self-authored PromptBench root certificate for the DocMDP P=2 form fixture.",
+    "pdf/signing/final-document.pdf": "Two-page self-authored PAdES-LTA source with one visibly outlined final-page approval box.",
+    "pdf/signing/test-pki/pades-ltv-root.pem": "Public test root for the disclosed PromptBench PAdES-LTA test profile; never a production trust anchor.",
+    "pdf/signing/test-pki/pades-ltv-root.crl": "Empty test CRL signed by the disclosed PromptBench PAdES-LTA test root.",
+    "pdf/signing/test-pki/pades-ltv-signer.p12": "Disclosed disposable no-passphrase PKCS#12 signer key for the repository-only PromptBench PAdES-LTA case.",
+    "pdf/signing/test-pki/pades-ltv-tsa.p12": "Disclosed disposable no-passphrase PKCS#12 TSA key for the repository-only PromptBench PAdES-LTA case.",
 }
 
 
@@ -1368,6 +1548,7 @@ def generate(root: Path, signing_python: str | None) -> dict:
     managed_signing_python = required_signing_python(signing_python)
     create_docmdp_p1_final(root, managed_signing_python)
     create_docmdp_p2_form(root, managed_signing_python)
+    create_pades_ltv_test_inputs(root, managed_signing_python)
     assets = {}
     for relative, description in FIXTURES.items():
         path = root / relative
@@ -1734,6 +1915,27 @@ def verify_docmdp_p2(path: Path, root_certificate: Path) -> None:
         raise ValueError("DocMDP P=2 fixture root certificate must be public-only PEM")
 
 
+def verify_pades_ltv_test_inputs(root: Path) -> None:
+    source = root / "pdf" / "signing" / "final-document.pdf"
+    reader = PdfReader(str(source), strict=True)
+    if len(reader.pages) != 2:
+        raise ValueError("PAdES-LTA source must have exactly two pages")
+    if "/AcroForm" in root_dictionary(reader):
+        raise ValueError("PAdES-LTA source must be unsigned before the Agent applies the test profile")
+    final_page_text = reader.pages[1].extract_text() or ""
+    if "Required visible signature box: (72,72,300,150)" not in final_page_text:
+        raise ValueError("PAdES-LTA source is missing its visible signature-placement canary")
+    pki = root / "pdf" / "signing" / "test-pki"
+    root_pem = (pki / "pades-ltv-root.pem").read_bytes()
+    root_crl = (pki / "pades-ltv-root.crl").read_bytes()
+    signer_p12 = (pki / "pades-ltv-signer.p12").read_bytes()
+    tsa_p12 = (pki / "pades-ltv-tsa.p12").read_bytes()
+    if b"BEGIN CERTIFICATE" not in root_pem or b"PRIVATE KEY" in root_pem:
+        raise ValueError("PAdES-LTA test root must be public-only PEM")
+    if len(root_crl) < 128 or len(signer_p12) < 1024 or len(tsa_p12) < 1024:
+        raise ValueError("PAdES-LTA test-PKI assets are unexpectedly incomplete")
+
+
 def verify(root: Path) -> dict:
     manifest_path = root / "integrity.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -1758,12 +1960,13 @@ def verify(root: Path) -> dict:
     verify_print(root / "pdf" / "print" / "print-production-risk.pdf")
     verify_docmdp_p1(root / "pdf" / "signing" / "docmdp-p1-final.pdf", root / "pdf" / "signing" / "test-pki" / "root.pem")
     verify_docmdp_p2(root / "pdf" / "signing" / "docmdp-p2-form.pdf", root / "pdf" / "signing" / "test-pki" / "docmdp-p2-root.pem")
+    verify_pades_ltv_test_inputs(root)
     return {"ok": True, "assets": len(manifest["assets"]), "root": str(root)}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-corrupt", "refresh-redaction", "refresh-richmedia", "refresh-tables", "verify"))
+    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-pades-ltv", "refresh-corrupt", "refresh-redaction", "refresh-richmedia", "refresh-tables", "verify"))
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     parser.add_argument("--signing-python", help=f"managed pyHanko interpreter used only by generate (or set {SIGNING_PYTHON_ENV})")
     options = parser.parse_args()
@@ -1771,6 +1974,8 @@ def main() -> None:
         print(json.dumps(generate(options.root, options.signing_python), indent=2, sort_keys=True))
     elif options.command == "refresh-docmdp":
         print(json.dumps(refresh_docmdp(options.root, required_signing_python(options.signing_python)), indent=2, sort_keys=True))
+    elif options.command == "refresh-pades-ltv":
+        print(json.dumps(refresh_pades_ltv(options.root, required_signing_python(options.signing_python)), indent=2, sort_keys=True))
     elif options.command == "refresh-corrupt":
         print(json.dumps(refresh_corrupt(options.root), indent=2, sort_keys=True))
     elif options.command == "refresh-redaction":

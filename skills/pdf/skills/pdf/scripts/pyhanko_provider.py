@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -33,6 +34,9 @@ MAX_WORKER_CONFIG_BYTES = 256 * 1024
 MAX_CERTIFICATE_BYTES = 4 * 1024 * 1024
 MAX_CERTIFICATE_TOTAL_BYTES = 64 * 1024 * 1024
 MAX_CERTIFICATES_PER_ROLE = 32
+MAX_REVOCATION_BYTES = 4 * 1024 * 1024
+MAX_REVOCATION_TOTAL_BYTES = 64 * 1024 * 1024
+MAX_REVOCATION_INPUTS = 32
 MAX_SIGNATURES = 64
 MAX_TEXT_CHARS = 4_096
 
@@ -131,10 +135,26 @@ def expected_hash(value: str) -> str:
     return normalized
 
 
+def regular_file_path(value: str, label: str, max_bytes: int, *, min_bytes: int = 1) -> Path:
+    raw = Path(value).expanduser()
+    target = raw if raw.is_absolute() else Path.cwd() / raw
+    target = Path(os.path.abspath(target))
+    try:
+        metadata = target.lstat()
+    except FileNotFoundError as exc:
+        raise ProviderError(f"{label} does not exist: {target}") from exc
+    if stat.S_ISLNK(metadata.st_mode):
+        raise ProviderError(f"{label} is a symbolic link and will not be followed: {target}")
+    if not stat.S_ISREG(metadata.st_mode):
+        raise ProviderError(f"{label} is not a regular file: {target}")
+    size = metadata.st_size
+    if size < min_bytes or size > max_bytes:
+        raise ProviderError(f"{label} size {size} is outside the {min_bytes}..{max_bytes} byte budget")
+    return target
+
+
 def input_path(value: str, max_input_bytes: int) -> Path:
-    target = Path(value).expanduser().resolve()
-    if not target.is_file():
-        raise ProviderError(f"input PDF does not exist or is not a regular file: {target}")
+    target = regular_file_path(value, "input PDF", max_input_bytes, min_bytes=5)
     size = target.stat().st_size
     if size < 5 or size > max_input_bytes:
         raise ProviderError(f"input PDF size {size} is outside the 5..{max_input_bytes} byte budget")
@@ -160,15 +180,11 @@ def parse_moment(value: str | None) -> str | None:
 
 
 def certificate_path(value: str) -> Path:
-    target = Path(value).expanduser().resolve()
-    if not target.is_file():
-        raise ProviderError(f"certificate does not exist or is not a regular file: {target}")
-    size = target.stat().st_size
-    if size < 1 or size > MAX_CERTIFICATE_BYTES:
-        raise ProviderError(
-            f"certificate {target} size {size} is outside the 1..{MAX_CERTIFICATE_BYTES} byte budget"
-        )
-    return target
+    return regular_file_path(value, "certificate", MAX_CERTIFICATE_BYTES)
+
+
+def revocation_path(value: str) -> Path:
+    return regular_file_path(value, "revocation evidence", MAX_REVOCATION_BYTES)
 
 
 def snapshot_certificates(
@@ -191,6 +207,35 @@ def snapshot_certificates(
             os.fsync(stream.fileno())
         if sha256(snapshot) != source_hash:
             raise ProviderError(f"{role} certificate snapshot hash mismatch: {source}")
+        snapshots.append(str(snapshot))
+        evidence.append({
+            "path": str(source),
+            "bytes": source.stat().st_size,
+            "sha256": source_hash,
+        })
+    return snapshots, evidence
+
+
+def snapshot_revocation_evidence(
+    values: list[str], temporary_root: Path
+) -> tuple[list[str], list[dict[str, Any]]]:
+    if len(values) > MAX_REVOCATION_INPUTS:
+        raise ProviderError(f"at most {MAX_REVOCATION_INPUTS} CRL files are accepted")
+    snapshots: list[str] = []
+    evidence: list[dict[str, Any]] = []
+    total = 0
+    for index, value in enumerate(values):
+        source = revocation_path(value)
+        total += source.stat().st_size
+        if total > MAX_REVOCATION_TOTAL_BYTES:
+            raise ProviderError(f"CRL inputs exceed the {MAX_REVOCATION_TOTAL_BYTES} byte aggregate budget")
+        source_hash = sha256(source)
+        snapshot = temporary_root / f"crl-{index}.der"
+        shutil.copyfile(source, snapshot)
+        with snapshot.open("rb+") as stream:
+            os.fsync(stream.fileno())
+        if sha256(snapshot) != source_hash:
+            raise ProviderError(f"CRL snapshot hash mismatch: {source}")
         snapshots.append(str(snapshot))
         evidence.append({
             "path": str(source),
@@ -298,11 +343,20 @@ def certificate_identity(certificate: Any) -> dict[str, Any]:
 def timestamp_status(status: Any) -> dict[str, Any] | None:
     if status is None:
         return None
+    intact = bool(getattr(status, "intact", False))
+    cryptographically_valid = bool(getattr(status, "valid", False))
+    trusted = bool(getattr(status, "trusted", False))
+    # TimestampSignatureStatus deliberately does not expose PdfSignatureStatus'
+    # DocMDP-aware bottom_line property. Its testable bottom line is therefore
+    # the complete timestamp signature/trust result, not a fabricated DocMDP
+    # conclusion.
+    bottom_line = bool(getattr(status, "bottom_line", intact and cryptographically_valid and trusted))
     return {
-        "intact": bool(status.intact),
-        "cryptographicallyValid": bool(status.valid),
-        "trusted": bool(status.trusted),
-        "bottomLine": bool(status.bottom_line),
+        "intact": intact,
+        "cryptographicallyValid": cryptographically_valid,
+        "trusted": trusted,
+        "bottomLine": bottom_line,
+        "bottomLineKind": "provider" if hasattr(status, "bottom_line") else "timestamp-integrity-and-trust",
         "validationTime": iso_datetime(getattr(status, "validation_time", None)),
         "summary": bounded_text(status.summary(), 1_024),
     }
@@ -312,9 +366,13 @@ def signature_base(signature: Any, index: int) -> dict[str, Any]:
     byte_range = [int(value) for value in signature.byte_range]
     docmdp = signature.docmdp_level
     fieldmdp = signature.fieldmdp
+    object_type = bounded_text(signature.sig_object_type, 256)
+    document_timestamp = object_type == "/DocTimeStamp"
     return {
         "index": index,
         "fieldName": bounded_text(signature.field_name, 2_048),
+        "signatureObjectType": object_type,
+        "documentTimestamp": document_timestamp,
         "signedRevision": int(signature.signed_revision),
         "byteRange": byte_range,
         "signedByteCount": sum(byte_range[1::2]),
@@ -337,14 +395,19 @@ def signature_base(signature: Any, index: int) -> dict[str, Any]:
 
 
 def validated_signature(signature: Any, index: int, signer_context: Any, timestamp_context: Any) -> dict[str, Any]:
-    from pyhanko.sign.validation import validate_pdf_signature
+    from pyhanko.sign.validation import validate_pdf_signature, validate_pdf_timestamp
 
     result = signature_base(signature, index)
     try:
-        status = validate_pdf_signature(
-            signature,
-            signer_validation_context=signer_context,
-            ts_validation_context=timestamp_context,
+        document_timestamp = result["documentTimestamp"]
+        status = (
+            validate_pdf_timestamp(signature, validation_context=timestamp_context)
+            if document_timestamp
+            else validate_pdf_signature(
+                signature,
+                signer_validation_context=signer_context,
+                ts_validation_context=timestamp_context,
+            )
         )
         # `diff_result` is normally a DiffResult, but pyHanko intentionally
         # returns SuspiciousModification as a value when the signed revision
@@ -353,7 +416,9 @@ def validated_signature(signature: Any, index: int, signer_context: Any, timesta
         # not an adapter or transport failure. Keep the evidence explicit so
         # callers can distinguish it from malformed CMS or an unavailable
         # validation runtime.
-        diff_result = status.diff_result
+        # A DocumentTimeStamp is not a form signature. Its status object does
+        # not expose the PdfSignatureStatus difference-analysis surface.
+        diff_result = getattr(status, "diff_result", None)
         changed_fields = sorted(
             bounded_text(value, 2_048)
             for value in (getattr(diff_result, "changed_form_fields", ()) or ())
@@ -364,31 +429,38 @@ def validated_signature(signature: Any, index: int, signer_context: Any, timesta
             if diff_result is not None and not hasattr(diff_result, "changed_form_fields")
             else None
         )
+        intact = bool(status.intact)
+        cryptographically_valid = bool(status.valid)
+        trusted = bool(status.trusted)
+        bottom_line = bool(getattr(status, "bottom_line", intact and cryptographically_valid and trusted))
         result.update({
             "validationCompleted": True,
-            "intact": bool(status.intact),
-            "cryptographicallyValid": bool(status.valid),
-            "trusted": bool(status.trusted),
-            "bottomLine": bool(status.bottom_line),
+            "intact": intact,
+            "cryptographicallyValid": cryptographically_valid,
+            "trusted": trusted,
+            "bottomLine": bottom_line,
+            "bottomLineKind": "provider" if hasattr(status, "bottom_line") else "timestamp-integrity-and-trust",
             "summary": bounded_text(status.summary(), 1_024),
-            "coverage": enum_name(status.coverage),
-            "modificationLevel": enum_name(status.modification_level),
+            "coverage": enum_name(getattr(status, "coverage", None)),
+            "modificationLevel": enum_name(getattr(status, "modification_level", None)),
             "changedFormFields": changed_fields,
             "differenceResult": difference_result,
             "differenceError": difference_error,
-            "docMDPCompliant": bool(status.docmdp_ok),
-            "hasSeedValues": bool(status.has_seed_values),
-            "seedValueCompliant": bool(status.seed_value_ok) if status.has_seed_values else None,
-            "seedValueError": bounded_text(status.seed_value_constraint_error),
-            "digestAlgorithm": bounded_text(status.md_algorithm, 256),
-            "signatureMechanism": bounded_text(status.pkcs7_signature_mechanism, 256),
-            "validationTime": iso_datetime(status.validation_time),
-            "signerReportedTime": iso_datetime(status.signer_reported_dt),
-            "revoked": bool(status.revoked),
-            "revocationEvidencePresent": status.revocation_details is not None,
-            "trustProblemIndicator": enum_name(status.trust_problem_indic),
-            "signatureTimestamp": timestamp_status(status.timestamp_validity),
-            "contentTimestamp": timestamp_status(status.content_timestamp_validity),
+            "docMDPApplicable": not document_timestamp,
+            "docMDPCompliant": (bool(getattr(status, "docmdp_ok", False)) if not document_timestamp else None),
+            "hasSeedValues": bool(getattr(status, "has_seed_values", False)) if not document_timestamp else False,
+            "seedValueCompliant": (bool(getattr(status, "seed_value_ok", False)) if getattr(status, "has_seed_values", False) else None),
+            "seedValueError": bounded_text(getattr(status, "seed_value_constraint_error", None)),
+            "digestAlgorithm": bounded_text(getattr(status, "md_algorithm", None), 256),
+            "signatureMechanism": bounded_text(getattr(status, "pkcs7_signature_mechanism", None), 256),
+            "validationTime": iso_datetime(getattr(status, "validation_time", None)),
+            "signerReportedTime": iso_datetime(getattr(status, "signer_reported_dt", None)),
+            "timestampTime": iso_datetime(getattr(status, "timestamp", None)) if document_timestamp else None,
+            "revoked": bool(getattr(status, "revoked", False)),
+            "revocationEvidencePresent": getattr(status, "revocation_details", None) is not None,
+            "trustProblemIndicator": enum_name(getattr(status, "trust_problem_indic", None)),
+            "signatureTimestamp": timestamp_status(getattr(status, "timestamp_validity", None)),
+            "contentTimestamp": timestamp_status(getattr(status, "content_timestamp_validity", None)),
         })
     except Exception as exc:  # pyHanko reports malformed CMS and unsupported constructs here
         result.update({
@@ -396,6 +468,47 @@ def validated_signature(signature: Any, index: int, signer_context: Any, timesta
             "validationError": bounded_text(f"{type(exc).__name__}: {exc}"),
         })
     return result
+
+
+def dereference(value: Any) -> Any:
+    """Resolve one PDF indirect object without traversing arbitrary graphs."""
+    return value.get_object() if hasattr(value, "get_object") else value
+
+
+def bounded_dss_count(dss: Any, key: str) -> int:
+    value = dss.get(key) if hasattr(dss, "get") else None
+    if value is None:
+        return 0
+    entries = dereference(value)
+    try:
+        count = len(entries)
+    except TypeError as exc:
+        raise ProviderError(f"DSS {key} is not a bounded array") from exc
+    if count < 0 or count > MAX_SIGNATURES * MAX_SIGNATURES:
+        raise ProviderError(f"DSS {key} count {count} exceeds the validation budget")
+    return count
+
+
+def dss_evidence(root: Any) -> dict[str, Any]:
+    raw_dss = root.get("/DSS") if hasattr(root, "get") else None
+    if raw_dss is None:
+        return {
+            "present": False,
+            "certificateCount": 0,
+            "crlCount": 0,
+            "ocspCount": 0,
+            "vriCount": 0,
+        }
+    dss = dereference(raw_dss)
+    if not hasattr(dss, "get"):
+        raise ProviderError("DSS is not a PDF dictionary")
+    return {
+        "present": True,
+        "certificateCount": bounded_dss_count(dss, "/Certs"),
+        "crlCount": bounded_dss_count(dss, "/CRLs"),
+        "ocspCount": bounded_dss_count(dss, "/OCSPs"),
+        "vriCount": bounded_dss_count(dss, "/VRI"),
+    }
 
 
 def worker_main() -> int:
@@ -408,18 +521,21 @@ def worker_main() -> int:
         if not isinstance(config, dict):
             raise ProviderError("worker configuration must be a JSON object")
         provider_versions()
+        from asn1crypto import crl as asn1_crl
         from pyhanko.keys import load_cert_from_pemder
         from pyhanko.pdf_utils.reader import PdfFileReader
         from pyhanko_certvalidator import ValidationContext
 
         roots = [load_cert_from_pemder(path) for path in config["trustRoots"]]
         others = [load_cert_from_pemder(path) for path in config["otherCertificates"]]
+        crls = [asn1_crl.CertificateList.load(Path(path).read_bytes()) for path in config.get("crls", [])]
         moment = datetime.fromisoformat(config["moment"]) if config.get("moment") else None
 
         def validation_context() -> Any:
             return ValidationContext(
                 trust_roots=roots,
                 other_certs=others,
+                crls=crls or None,
                 moment=moment,
                 allow_fetching=False,
                 revocation_mode=config["revocationPolicy"],
@@ -437,11 +553,14 @@ def worker_main() -> int:
                 for index, signature in enumerate(signatures)
             ]
             total_revisions = int(reader.xrefs.total_revisions)
+            dss = dss_evidence(reader.root)
         print(json.dumps({
             "workerSchema": 1,
             "totalRevisions": total_revisions,
             "trustAnchors": [certificate_identity(value) for value in roots],
             "otherCertificates": [certificate_identity(value) for value in others],
+            "crlCount": len(crls),
+            "dss": dss,
             "signatures": records,
         }, separators=(",", ":"), sort_keys=True))
         return 0
@@ -452,6 +571,9 @@ def worker_main() -> int:
 
 def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
     complete = [record for record in records if record.get("validationCompleted")]
+    docmdp_applicable = [record for record in records if record.get("docMDPApplicable")]
+    document_timestamps = [record for record in records if record.get("documentTimestamp")]
+    ordinary_signatures = [record for record in records if not record.get("documentTimestamp")]
     return {
         "signatureCount": len(records),
         "validationCompletedCount": len(complete),
@@ -459,9 +581,18 @@ def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
         "allIntegrityValid": bool(records) and all(record.get("intact") and record.get("cryptographicallyValid") for record in records),
         "allTrusted": bool(records) and all(record.get("trusted") for record in records),
         "allBottomLine": bool(records) and all(record.get("bottomLine") for record in records),
-        "allDocMDPCompliant": bool(records) and all(record.get("docMDPCompliant") for record in records),
+        "allDocMDPCompliant": bool(docmdp_applicable) and all(record.get("docMDPCompliant") for record in docmdp_applicable),
         "hasPostSigningChanges": any(record.get("modificationLevel") not in {None, "none"} for record in records),
-        "hasSignatureTimestamp": any(record.get("signatureTimestamp") is not None for record in records),
+        "ordinarySignatureCount": len(ordinary_signatures),
+        "documentTimestampCount": len(document_timestamps),
+        "hasDocumentTimestamp": bool(document_timestamps),
+        "signatureTimestampCount": sum(record.get("signatureTimestamp") is not None for record in ordinary_signatures),
+        "hasSignatureTimestamp": any(record.get("signatureTimestamp") is not None for record in ordinary_signatures),
+        "allSignatureTimestampsValid": bool(ordinary_signatures) and all(
+            isinstance(record.get("signatureTimestamp"), dict)
+            and bool(record["signatureTimestamp"].get("bottomLine"))
+            for record in ordinary_signatures
+        ),
     }
 
 
@@ -483,6 +614,14 @@ def conclusion(summary: dict[str, Any]) -> str:
 
 def verify(args: argparse.Namespace) -> dict[str, Any]:
     versions = provider_versions()
+    # Other shipped Python workflows invoke this validator through a bounded
+    # internal Namespace rather than argparse. Keep that call surface backward
+    # compatible when new optional LTV flags are introduced.
+    crl_values = list(getattr(args, "crl", []) or [])
+    require_signature_timestamp = bool(getattr(args, "require_signature_timestamp", False))
+    require_document_timestamp = bool(getattr(args, "require_document_timestamp", False))
+    require_dss_validation_info = bool(getattr(args, "require_dss_validation_info", False))
+    require_revocation_evidence = bool(getattr(args, "require_revocation_evidence", False))
     for label, value, maximum in (
         ("--max-input-bytes", args.max_input_bytes, DEFAULT_MAX_INPUT_BYTES),
         ("--timeout-seconds", args.timeout_seconds, DEFAULT_TIMEOUT_SECONDS),
@@ -504,6 +643,10 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         raise ProviderError("--trust-root requires --trust-policy explicit-roots; trust is never inferred silently")
     if args.require_all_trusted and args.trust_policy != "explicit-roots":
         raise ProviderError("--require-all-trusted requires --trust-policy explicit-roots")
+    if args.revocation_policy in {"hard-fail", "require"} and not crl_values:
+        raise ProviderError(
+            f"--revocation-policy {args.revocation_policy} requires at least one bounded --crl; network fetching is disabled"
+        )
 
     with tempfile.TemporaryDirectory(prefix="office-kit-pyhanko-") as temporary:
         temporary_root = Path(temporary)
@@ -515,6 +658,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
             raise ProviderError("private validation snapshot does not match the inspected source SHA-256")
         roots, root_evidence = snapshot_certificates(args.trust_root, "trust-root", temporary_root)
         others, other_evidence = snapshot_certificates(args.other_cert, "other-cert", temporary_root)
+        crls, crl_evidence = snapshot_revocation_evidence(crl_values, temporary_root)
         if sum(value["bytes"] for value in [*root_evidence, *other_evidence]) > MAX_CERTIFICATE_TOTAL_BYTES:
             raise ProviderError(f"all certificate inputs exceed the {MAX_CERTIFICATE_TOTAL_BYTES} byte aggregate budget")
         worker = run_worker({
@@ -522,16 +666,21 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
             "trustPolicy": args.trust_policy,
             "trustRoots": roots,
             "otherCertificates": others,
+            "crls": crls,
             "moment": moment,
             "revocationPolicy": args.revocation_policy,
         }, args.timeout_seconds, args.max_stdout_bytes, args.max_stderr_bytes)
-        if len(worker["trustAnchors"]) != len(root_evidence) or len(worker["otherCertificates"]) != len(other_evidence):
+        if (
+            len(worker["trustAnchors"]) != len(root_evidence)
+            or len(worker["otherCertificates"]) != len(other_evidence)
+            or worker["crlCount"] != len(crl_evidence)
+        ):
             raise ProviderError("pyHanko worker certificate evidence count does not match the snapshotted inputs")
         if sha256(snapshot) != expected or sha256(source) != expected:
             raise ProviderError("source PDF changed during signature validation")
-        for evidence in [*root_evidence, *other_evidence]:
+        for evidence in [*root_evidence, *other_evidence, *crl_evidence]:
             if sha256(Path(evidence["path"])) != evidence["sha256"]:
-                raise ProviderError(f"certificate changed during signature validation: {evidence['path']}")
+                raise ProviderError(f"validation evidence changed during signature validation: {evidence['path']}")
 
     if sha256(source) != expected:
         raise ProviderError("source PDF changed before the validation report was finalized")
@@ -542,6 +691,10 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         "requireAllTrusted": bool(args.require_all_trusted),
         "requireDocMDPCompliant": bool(args.require_docmdp_compliant),
         "requireAllBottomLine": bool(args.require_all_bottom_line),
+        "requireSignatureTimestamp": require_signature_timestamp,
+        "requireDocumentTimestamp": require_document_timestamp,
+        "requireDssValidationInfo": require_dss_validation_info,
+        "requireRevocationEvidence": require_revocation_evidence,
     }
     failures = []
     if args.require_signature and summary["signatureCount"] == 0:
@@ -558,6 +711,20 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         failures.append("not every post-signing change complies with DocMDP")
     if args.require_all_bottom_line and not summary["allBottomLine"]:
         failures.append("not every signature satisfies pyHanko's selected-policy bottom line")
+    if require_signature_timestamp and not summary["allSignatureTimestampsValid"]:
+        failures.append("every ordinary signature must carry an intact, valid, trusted signature timestamp")
+    if require_document_timestamp and not summary["hasDocumentTimestamp"]:
+        failures.append("document does not contain an embedded DocumentTimeStamp")
+    if require_dss_validation_info and not (
+        worker["dss"]["present"]
+        and worker["dss"]["certificateCount"] > 0
+        and worker["dss"]["vriCount"] > 0
+    ):
+        failures.append("document does not contain bounded DSS certificate and VRI validation information")
+    if require_revocation_evidence and not (
+        crl_evidence and worker["dss"]["crlCount"] > 0
+    ):
+        failures.append("requested revocation evidence is absent from the explicit CRL input or embedded DSS")
     validation_errors = [record for record in worker["signatures"] if not record.get("validationCompleted")]
     if validation_errors:
         failures.append(f"{len(validation_errors)} signature validation record(s) are incomplete")
@@ -590,11 +757,19 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
                 {**evidence, "certificate": identity}
                 for evidence, identity in zip(other_evidence, worker["otherCertificates"])
             ],
+            "crls": crl_evidence,
             "validationMoment": moment or "provider-current-time",
             "revocationPolicy": args.revocation_policy,
             "networkAllowed": False,
         },
         "revisionCount": worker["totalRevisions"],
+        "dss": worker["dss"],
+        "ltvEvidence": {
+            "documentTimestampCount": summary["documentTimestampCount"],
+            "signatureTimestampCount": summary["signatureTimestampCount"],
+            "explicitCrlCount": len(crl_evidence),
+            "embeddedDss": worker["dss"],
+        },
         "signatures": worker["signatures"],
         "summary": summary,
         "conclusion": conclusion(summary),
@@ -618,6 +793,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify_parser.add_argument("--trust-policy", choices=["cryptographic-only", "explicit-roots"], default="cryptographic-only")
     verify_parser.add_argument("--trust-root", action="append", default=[])
     verify_parser.add_argument("--other-cert", action="append", default=[])
+    verify_parser.add_argument("--crl", action="append", default=[])
     verify_parser.add_argument("--moment")
     verify_parser.add_argument("--revocation-policy", choices=["none", "soft-fail", "hard-fail", "require"], default="none")
     verify_parser.add_argument("--require-signature", action="store_true")
@@ -625,6 +801,10 @@ def build_parser() -> argparse.ArgumentParser:
     verify_parser.add_argument("--require-all-trusted", action="store_true")
     verify_parser.add_argument("--require-docmdp-compliant", action="store_true")
     verify_parser.add_argument("--require-all-bottom-line", action="store_true")
+    verify_parser.add_argument("--require-signature-timestamp", action="store_true")
+    verify_parser.add_argument("--require-document-timestamp", action="store_true")
+    verify_parser.add_argument("--require-dss-validation-info", action="store_true")
+    verify_parser.add_argument("--require-revocation-evidence", action="store_true")
     verify_parser.add_argument("--max-input-bytes", type=positive_int, default=DEFAULT_MAX_INPUT_BYTES)
     verify_parser.add_argument("--timeout-seconds", type=positive_int, default=DEFAULT_TIMEOUT_SECONDS)
     verify_parser.add_argument("--max-stdout-bytes", type=positive_int, default=DEFAULT_MAX_STDOUT_BYTES)
