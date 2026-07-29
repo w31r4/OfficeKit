@@ -21,6 +21,7 @@ export const XLSX_THREADED_REVIEW_FIXTURE = Object.freeze({
     personId: "{AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA}",
     author: "Scenario owner",
     userId: "scenario.owner@example.com",
+    providerId: "None",
     date: "2026-07-17T09:00:00.000Z",
     text: "Please confirm the downside cash buffer before board circulation.",
   }),
@@ -29,10 +30,37 @@ export const XLSX_THREADED_REVIEW_FIXTURE = Object.freeze({
     personId: "{BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB}",
     author: "Risk reviewer",
     userId: "risk.reviewer@example.com",
+    providerId: "None",
     date: "2026-07-17T09:30:00.000Z",
     text: "Sensitivity analysis is attached to the approved planning case.",
   }),
   requestedReply: "Approved after sensitivity review",
+});
+
+// The source-backed threaded-comment profile is deliberately limited to one
+// root plus direct replies. This fixture starts from that accepted native XLSX
+// package and appends a real reply-of-reply with its own person identity. It
+// is therefore an Office-valid relationship/content-type graph that must be
+// retained and refused, rather than a malformed parent-reference control.
+export const XLSX_THREADED_NESTED_REPLY_BOUNDARY_FIXTURE = Object.freeze({
+  workbookName: "reviewed-budget-nested.xlsx",
+  sheetName: XLSX_THREADED_REVIEW_FIXTURE.sheetName,
+  address: XLSX_THREADED_REVIEW_FIXTURE.address,
+  worksheetPartPath: "xl/worksheets/sheet1.xml",
+  threadedPartPath: "xl/threadedcomments/threadedcomment.xml",
+  personPartPath: "xl/persons/person.xml",
+  root: XLSX_THREADED_REVIEW_FIXTURE.root,
+  directReply: XLSX_THREADED_REVIEW_FIXTURE.priorReply,
+  nestedReply: Object.freeze({
+    id: "{33333333-3333-4333-8333-333333333333}",
+    personId: "{CCCCCCCC-CCCC-4CCC-8CCC-CCCCCCCCCCCC}",
+    author: "Legal reviewer",
+    userId: "legal.reviewer@example.com",
+    providerId: "None",
+    date: "2026-07-17T09:45:00.000Z",
+    text: "Legal review is in progress.",
+    done: false,
+  }),
 });
 
 export const XLSX_GROWTH_UPDATE_FIXTURE = Object.freeze({
@@ -453,6 +481,53 @@ export async function generateXlsxThreadedReview(target) {
   const exported = await SpreadsheetFile.exportXlsx(workbook, { recalculate: false });
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, new Uint8Array(await exported.arrayBuffer()));
+  return { path: target, type: XLSX_MIME };
+}
+
+function appendBeforeFinalElement(xml, localName, fragment, label) {
+  const closing = new RegExp(`</(?:[A-Za-z_][\\w.-]*:)?${localName}\\s*>`, "ig");
+  const matches = [...String(xml).matchAll(closing)];
+  const match = matches.at(-1);
+  if (!match || match.index == null) throw new Error(`XLSX threaded-comment fixture is missing ${label}.`);
+  return `${xml.slice(0, match.index)}${fragment}${xml.slice(match.index)}`;
+}
+
+function rootElementPrefix(xml, localName, label) {
+  const match = new RegExp(`<([A-Za-z_][\\w.-]*:)?${localName}\\b`, "i").exec(String(xml));
+  if (!match) throw new Error(`XLSX threaded-comment fixture is missing ${label}.`);
+  return match[1] || "";
+}
+
+async function appendNestedXlsxThreadedReply(bytes, fixture) {
+  const zip = await JSZip.loadAsync(bytes);
+  const paths = Object.keys(zip.files).filter((name) => !zip.files[name].dir);
+  const threadedPaths = paths.filter((name) => /^xl\/threadedcomments\/[^/]+\.xml$/i.test(name));
+  const personPaths = paths.filter((name) => /^xl\/persons\/[^/]+\.xml$/i.test(name));
+  if (threadedPaths.length !== 1 || personPaths.length !== 1) {
+    throw new Error("XLSX nested threaded-comment fixture requires one threaded-comments and one person part.");
+  }
+  const [threadedPath] = threadedPaths;
+  const [personPath] = personPaths;
+  const [threadedXml, personXml] = await Promise.all([
+    zip.file(threadedPath)?.async("text"),
+    zip.file(personPath)?.async("text"),
+  ]);
+  if (!threadedXml || !personXml) throw new Error("XLSX nested threaded-comment fixture could not read native comment parts.");
+  const nested = fixture.nestedReply;
+  const threadedPrefix = rootElementPrefix(threadedXml, "ThreadedComments", "ThreadedComments root");
+  const personPrefix = rootElementPrefix(personXml, "personList", "personList root");
+  const comment = `<${threadedPrefix}threadedComment ref="${fixture.address}" dT="${nested.date}" personId="${nested.personId}" id="${nested.id}" parentId="${fixture.directReply.id}" done="0"><${threadedPrefix}text>${xmlEscape(nested.text)}</${threadedPrefix}text></${threadedPrefix}threadedComment>`;
+  const person = `<${personPrefix}person displayName="${xmlEscape(nested.author)}" id="${nested.personId}" userId="${xmlEscape(nested.userId)}" providerId="${xmlEscape(nested.providerId)}"/>`;
+  zip.file(threadedPath, appendBeforeFinalElement(threadedXml, "ThreadedComments", comment, "ThreadedComments root"));
+  zip.file(personPath, appendBeforeFinalElement(personXml, "personList", person, "personList root"));
+  return new Uint8Array(await zip.generateAsync({ type: "uint8array", compression: "DEFLATE", compressionOptions: { level: 6 } }));
+}
+
+export async function generateXlsxThreadedNestedReplyBoundary(target) {
+  const fixture = XLSX_THREADED_NESTED_REPLY_BOUNDARY_FIXTURE;
+  await generateXlsxThreadedReview(target);
+  const nestedBytes = await appendNestedXlsxThreadedReply(await fs.readFile(target), fixture);
+  await fs.writeFile(target, nestedBytes);
   return { path: target, type: XLSX_MIME };
 }
 
@@ -1110,6 +1185,7 @@ export async function generatePptxClosedLeafClone(target) {
 
 export async function generateOfficeInput(generator, target) {
   if (generator === "xlsx-threaded-review") return generateXlsxThreadedReview(target);
+  if (generator === "xlsx-threaded-nested-reply-boundary") return generateXlsxThreadedNestedReplyBoundary(target);
   if (generator === "xlsx-growth-update") return generateXlsxGrowthUpdate(target);
   if (generator === "xlsx-connection-refresh") return generateXlsxConnectionRefresh(target);
   if (generator === "xlsx-pivot-refresh") return generateXlsxPivotRefresh(target);
