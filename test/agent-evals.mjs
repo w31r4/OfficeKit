@@ -2500,6 +2500,32 @@ try {
   });
   assert.equal(incompleteChecks.find((check) => check.id === "docx-complex-table-trace:typed-import-inspect-preflight")?.passed, false);
 
+  const claimedSuccessAudit = structuredClone(refusalAudit);
+  claimedSuccessAudit.status = "succeeded";
+  claimedSuccessAudit.operation.mutationAttempted = true;
+  const claimedSuccessChecks = gradeDocxComplexTableTopologyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: claimedSuccessAudit,
+    commands: extractCompletedCommands(refusalTrace),
+    item: complexTableBoundaryItem,
+  });
+  assert.equal(claimedSuccessChecks.find((check) => check.id === "docx-complex-table-machine:audit-is-failed-closed-when-present")?.passed, false);
+
+  const normalizedOfficeKitAudit = structuredClone(refusalAudit);
+  normalizedOfficeKitAudit.officeKit = {
+    actualProvider: "OfficeKit bundled C# WebAssembly codec",
+    actualVersion: "0.5.0",
+    silentFallback: false,
+  };
+  delete normalizedOfficeKitAudit.provider;
+  const normalizedOfficeKitChecks = gradeDocxComplexTableTopologyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: normalizedOfficeKitAudit,
+    commands: ["node preflight.mjs"],
+    item: complexTableBoundaryItem,
+  });
+  assert.equal(normalizedOfficeKitChecks.every((check) => check.passed), true);
+
   const bypassChecks = gradeDocxComplexTableTopologyBoundaryEvidence({
     evidence: refusalEvidence,
     audit: refusalAudit,

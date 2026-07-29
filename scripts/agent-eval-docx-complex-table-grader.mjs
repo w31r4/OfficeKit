@@ -186,12 +186,21 @@ function auditHash(audit, side) {
 function auditProvider(audit) {
   const provider = audit?.provider;
   if (typeof provider === "string") return provider;
-  return [provider?.actual, provider?.selected, provider?.name, provider?.package, provider?.provider]
+  const officeKit = audit?.officeKit || audit?.officekit || {};
+  return [provider?.actual, provider?.selected, provider?.name, provider?.package, provider?.provider, officeKit.actualProvider, officeKit.actual_provider]
+    .find((candidate) => typeof candidate === "string" && candidate.trim()) || "";
+}
+
+function auditProviderVersion(audit) {
+  const provider = audit?.provider || {};
+  const officeKit = audit?.officeKit || audit?.officekit || {};
+  return [provider.version, provider.actualVersion, provider.actual_version, audit?.providerVersion, audit?.provider_version, officeKit.actualVersion, officeKit.actual_version]
     .find((candidate) => typeof candidate === "string" && candidate.trim()) || "";
 }
 
 function auditFallbackIsFalse(audit) {
   const provider = audit?.provider || {};
+  const officeKit = audit?.officeKit || audit?.officekit || {};
   const values = [
     provider.silentFallback,
     provider.silent_fallback,
@@ -201,6 +210,10 @@ function auditFallbackIsFalse(audit) {
     audit?.silent_fallback,
     audit?.fallbackUsed,
     audit?.fallback_used,
+    officeKit.silentFallback,
+    officeKit.silent_fallback,
+    officeKit.fallbackUsed,
+    officeKit.fallback_used,
   ].filter((value) => value !== undefined);
   return values.length > 0 && values.every((value) => value === false || value === "false");
 }
@@ -270,14 +283,17 @@ function failedClosedAudit(audit, source) {
       && noArtifact
       && audit?.deliveredModifiedDocx !== true
       && audit?.delivered_modified_docx !== true
+      && /office[- ]?kit/i.test(auditProvider(audit))
+      && Boolean(auditProviderVersion(audit))
       && auditFallbackIsFalse(audit),
   };
 }
 
 function hasTypedInspection(commandText, audit) {
+  if (!typedComplexTablePreflight(audit)) return false;
   return /(?:DocumentFile\.)?importDocx/i.test(commandText)
     || /(?:^|\/)officekit(?:\.mjs)?\s+run\b|node_modules\/.bin\/officekit\s+run\b/i.test(commandText)
-      && typedComplexTablePreflight(audit);
+    || /(?:^|\s)(?:node|nodejs)\b[^\n]{0,320}?\.(?:mjs|js)(?=\s|['"]|$)/i.test(commandText);
 }
 
 export function gradeDocxComplexTableTopologyBoundaryEvidence({ evidence, audit, commands, item }) {
