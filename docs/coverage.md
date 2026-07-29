@@ -37,8 +37,17 @@ Status meanings:
 ### PromptBench current inventory
 
 The current v1 inventory supersedes the historical count embedded in the table
-row above: 41 cases total, with 21 PDF and 20 Office; 34 are `ready` and 7
-remain `asset-required`. Twenty-one ready PDF cases include fourteen locked corpus
+row above: 41 cases total, with 21 PDF and 20 Office; 36 are `ready` and 5
+remain `asset-required`.
+
+The locked `docx-complex-table-topology-boundary` uses the source-bound
+`ClinicalDoseMatrix` profile rather than a generic table editor. Its frozen
+local `v27` matrix at `f3f48e3f` passed candidate `3/3` and copied-reference
+`3/3`, every record at `100/100` with every hard gate against one candidate
+tarball, source, and raw-OPC oracle. This is workflow/audit-contract
+compatibility on the same package, not independent implementation parity.
+
+Twenty-one ready PDF cases include fourteen locked corpus
 inputs. Eight are verified safe-refusal boundaries, including the new real
 eight-page mixed English/Chinese scan: six pixel-only pages encode upside-down,
 sideways, and `+3°`/`-2°` skew canaries, while two pages carry true selectable
