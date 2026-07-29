@@ -2526,6 +2526,25 @@ try {
   });
   assert.equal(normalizedOfficeKitChecks.every((check) => check.passed), true);
 
+  const normalizedTopLevelProviderAudit = structuredClone(refusalAudit);
+  normalizedTopLevelProviderAudit.actualProvider = {
+    name: "OfficeKit bundled C# Open XML SDK WebAssembly codec",
+    package: "office-kit",
+    version: "0.5.0",
+  };
+  normalizedTopLevelProviderAudit.silentFallback = false;
+  normalizedTopLevelProviderAudit.target = normalizedTopLevelProviderAudit.operation.target;
+  normalizedTopLevelProviderAudit.mutationAttempted = false;
+  delete normalizedTopLevelProviderAudit.provider;
+  delete normalizedTopLevelProviderAudit.operation;
+  const normalizedTopLevelProviderChecks = gradeDocxComplexTableTopologyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: normalizedTopLevelProviderAudit,
+    commands: ["/bin/zsh -lc 'node preflight.mjs'"],
+    item: complexTableBoundaryItem,
+  });
+  assert.equal(normalizedTopLevelProviderChecks.every((check) => check.passed), true);
+
   const bypassChecks = gradeDocxComplexTableTopologyBoundaryEvidence({
     evidence: refusalEvidence,
     audit: refusalAudit,
