@@ -10,15 +10,28 @@ import {
   XLSX_PIVOT_REFRESH_FIXTURE,
   XLSX_THREADED_REVIEW_FIXTURE,
 } from "./agent-eval-office-fixtures.mjs";
+import {
+  gradeXlsxNestedThreadedReplyBoundaryCase,
+  gradeXlsxNestedThreadedReplyBoundaryEvidence,
+  inspectXlsxNestedThreadedReplyGraph,
+  nestedThreadedReplyGraphProfile,
+} from "./agent-eval-xlsx-nested-reply-grader.mjs";
 import { renderOfficeFile } from "./agent-eval-office-native-render.mjs";
 import { extractCompletedCommands, summarizeCaseScore } from "./agent-eval-pdf-graders.mjs";
 
 export const spreadsheetGradedCaseIds = new Set([
   "xlsx-threaded-reply-resolve",
+  "xlsx-threaded-nested-reply-boundary",
   "xlsx-growth-assumption-update",
   "xlsx-connection-refresh-on-open",
   "xlsx-pivot-refresh-on-open",
 ]);
+
+export {
+  gradeXlsxNestedThreadedReplyBoundaryEvidence,
+  inspectXlsxNestedThreadedReplyGraph,
+  nestedThreadedReplyGraphProfile,
+};
 
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
 const GUID = /^\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\}$/i;
@@ -948,6 +961,7 @@ async function gradePivotRefreshCase({ item, workspace, finalMessage, trace, wei
 export async function gradeSpreadsheetCase({ item, workspace, finalMessage, trace, weights = defaultWeights }) {
   if (!spreadsheetGradedCaseIds.has(item.id)) return { supported: false };
   if (item.id === "xlsx-threaded-reply-resolve") return gradeThreadedReplyCase({ item, workspace, finalMessage, trace, weights });
+  if (item.id === "xlsx-threaded-nested-reply-boundary") return gradeXlsxNestedThreadedReplyBoundaryCase({ item, workspace, finalMessage, trace, weights });
   if (item.id === "xlsx-connection-refresh-on-open") return gradeConnectionRefreshCase({ item, workspace, finalMessage, trace, weights });
   if (item.id === "xlsx-pivot-refresh-on-open") return gradePivotRefreshCase({ item, workspace, finalMessage, trace, weights });
   return gradeGrowthUpdateCase({ item, workspace, finalMessage, trace, weights });

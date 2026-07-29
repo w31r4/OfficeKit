@@ -21,6 +21,7 @@ import {
   XLSX_CONNECTION_REFRESH_FIXTURE,
   XLSX_GROWTH_UPDATE_FIXTURE,
   XLSX_PIVOT_REFRESH_FIXTURE,
+  XLSX_THREADED_NESTED_REPLY_BOUNDARY_FIXTURE,
   XLSX_THREADED_REVIEW_FIXTURE,
   generateOfficeInput,
 } from "../scripts/agent-eval-office-fixtures.mjs";
@@ -43,11 +44,14 @@ import {
   gradeXlsxConnectionRefreshEvidence,
   gradeXlsxGrowthUpdateEvidence,
   gradeXlsxPivotRefreshEvidence,
+  gradeXlsxNestedThreadedReplyBoundaryEvidence,
   gradeXlsxThreadedReplyEvidence,
   inspectConnectionRefreshWorkbook,
   inspectGrowthWorkbook,
   inspectPivotRefreshWorkbook,
+  inspectXlsxNestedThreadedReplyGraph,
   inspectThreadedWorkbook,
+  nestedThreadedReplyGraphProfile,
 } from "../scripts/agent-eval-spreadsheet-graders.mjs";
 import {
   gradePptxClosedLeafCloneEvidence,
@@ -104,13 +108,13 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 34 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 35 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 21);
-assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
+assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 5);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 5);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
@@ -136,10 +140,11 @@ assert.equal(runnerHelp.status, 0, runnerHelp.stderr);
 assert.match(runnerHelp.stdout, /four PPTX cases.*section-boundary edit.*closed-leaf slide clone/i);
 assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
+assert.match(runnerHelp.stdout, /five ready XLSX cases.*nested-reply refusal/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /21 ready PDF cases include fourteen locked corpus signature\/boundary\/repair\/redaction\/table fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 7 asset-required cases/i);
+assert.match(runnerHelp.stdout, /remaining 6 asset-required cases/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
@@ -184,6 +189,7 @@ if (!corpusRuntimeAvailable) {
   console.log("PromptBench corpus structural oracle smoke skipped (set OFFICE_KIT_AGENT_EVAL_PYTHON to the managed Python runtime)");
 }
 const lockedFixturePaths = [
+  "spreadsheets/reviewed-budget-nested.xlsx",
   "pdf/encryption/owner-policy-aes256.pdf",
   "pdf/encryption/user-password.json",
   "pdf/annotations/reply-chain.pdf",
@@ -301,7 +307,7 @@ const padesLtvMissingTimestampChecks = gradePadesLtvSignatureEvidence({
 assert.equal(padesLtvMissingTimestampChecks.find((check) => check.id === "pdf-machine:offline-crypto-validation")?.passed, false, "a missing trusted DocumentTimeStamp must fail the PAdES-LTA score");
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 22, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 23, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -1175,6 +1181,694 @@ try {
   }
 } finally {
   await fs.rm(threadedReplyRoot, { recursive: true, force: true });
+}
+
+const nestedThreadedBoundaryItem = cases.find((item) => item.id === "xlsx-threaded-nested-reply-boundary");
+assert.ok(nestedThreadedBoundaryItem);
+const nestedThreadedBoundaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-xlsx-nested-threaded-"));
+try {
+  const generatedPath = path.join(nestedThreadedBoundaryRoot, "generated", XLSX_THREADED_NESTED_REPLY_BOUNDARY_FIXTURE.workbookName);
+  await generateOfficeInput("xlsx-threaded-nested-reply-boundary", generatedPath);
+  const generatedEvidence = await inspectXlsxNestedThreadedReplyGraph(generatedPath);
+  assert.equal(nestedThreadedReplyGraphProfile(generatedEvidence).ok, true);
+
+  const lockedAssetPath = await verifiedLockedAsset("spreadsheets/reviewed-budget-nested.xlsx");
+  const lockedEvidence = await inspectXlsxNestedThreadedReplyGraph(lockedAssetPath);
+  assert.equal(nestedThreadedReplyGraphProfile(lockedEvidence).ok, true);
+  const lockedSource = await fs.readFile(lockedAssetPath);
+  const importedNestedThreadedBoundary = await SpreadsheetFile.importXlsx(new FileBlob(lockedSource, {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    name: XLSX_THREADED_NESTED_REPLY_BOUNDARY_FIXTURE.workbookName,
+  }));
+  assert.equal(importedNestedThreadedBoundary.comments.threads.length, 0, "nested threaded replies must remain outside the editable public model");
+  const preservedNestedThreadedBoundary = await SpreadsheetFile.exportXlsx(importedNestedThreadedBoundary, { recalculate: false });
+  const preservedPath = path.join(nestedThreadedBoundaryRoot, "preserved", XLSX_THREADED_NESTED_REPLY_BOUNDARY_FIXTURE.workbookName);
+  await fs.mkdir(path.dirname(preservedPath), { recursive: true });
+  await fs.writeFile(preservedPath, new Uint8Array(await preservedNestedThreadedBoundary.arrayBuffer()));
+  const preservedEvidence = await inspectXlsxNestedThreadedReplyGraph(preservedPath);
+  assert.equal(nestedThreadedReplyGraphProfile(preservedEvidence).ok, true);
+  assert.deepEqual(preservedEvidence.paths, lockedEvidence.paths);
+  assert.deepEqual(preservedEvidence.partHashes, lockedEvidence.partHashes, "the opaque nested reply OPC graph must preserve every package part");
+
+  const sourceRender = await renderOfficeFile(lockedAssetPath, "xlsx-nested-threaded-comment-refusal-source");
+  if (sourceRender.available) {
+    assert.equal(sourceRender.ok, true);
+    assert.ok(sourceRender.pageCount >= 1);
+    assert.ok(sourceRender.pages.every((page) => page.nonWhitePixels > 0));
+  }
+
+  const refusalTrace = JSON.stringify({
+    type: "item.completed",
+    item: {
+      type: "command_execution",
+      id: "xlsx-nested-threaded-comment-inspect",
+      command: "node --input-type=module -e 'const workbook = await SpreadsheetFile.importXlsx(input); console.log(workbook.comments.threads.length)'",
+    },
+  });
+  const refusalEvidence = {
+    source: lockedEvidence,
+    finalMessage: "Excel threaded comment 的 nested reply 图谱不支持身份保持编辑；已 source-bound 安全拒绝，未输出修改版 XLSX。",
+  };
+  const refusalChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: null,
+    commands: extractCompletedCommands(refusalTrace),
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(refusalChecks.every((check) => check.passed), true);
+  const refusalAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    validation: {
+      classic_note_fallback_used: false,
+      flattened_root_reply_fallback_used: false,
+      plain_cell_text_fallback_used: false,
+    },
+  };
+  const auditedRefusalChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: refusalAudit,
+    commands: extractCompletedCommands(refusalTrace),
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(auditedRefusalChecks.every((check) => check.passed), true);
+  const structuredPreflightAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    preflight: {
+      import: { ok: true, method: "SpreadsheetFile.importXlsx" },
+      inspect: { ok: true, threadCount: 0, expectedNestedGraphProjected: false },
+      capabilityDecision: { supported: false },
+    },
+  };
+  const structuredPreflightChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: structuredPreflightAudit,
+    commands: ["node_modules/.bin/officekit run preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(structuredPreflightChecks.every((check) => check.passed), true);
+  const taskLocalPreflightAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    validation: {
+      import: { ok: true },
+      inspect: { ok: true, kind: "workbook,sheet,thread" },
+      targetThread: {
+        ok: false,
+        expectedTarget: { sheetName: "Forecast", address: "F19" },
+        editableProjectionCount: 0,
+        modeledWorkbookThreadCount: 0,
+      },
+      verify: { ok: true },
+    },
+  };
+  const taskLocalPreflightChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: taskLocalPreflightAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(taskLocalPreflightChecks.every((check) => check.passed), true);
+  const runnerPreflightAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    validation: {
+      preflight: {
+        ok: true,
+        method: "OfficeKit SpreadsheetFile.importXlsx plus workbook.inspect",
+        threadInspection: {
+          target: "Forecast!F19",
+          inspectRecordCount: 0,
+          publicModelMatchingThreadCount: 0,
+          identityPreservingNestedReplyCapability: false,
+        },
+      },
+    },
+  };
+  const runnerPreflightChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: runnerPreflightAudit,
+    commands: ["node outputs/officekit_nested_preflight.mjs inputs/reviewed-budget-nested.xlsx"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(runnerPreflightChecks.every((check) => check.passed), true);
+  const summaryPreflightAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    validation: {
+      import: { ok: true },
+      inspect: {
+        ok: true,
+        provider: "office-kit",
+        summary: '{"kind":"workbook","id":"workbook/1"}\n{"kind":"sheet","id":"worksheet/1","name":"Forecast"}',
+      },
+      projectedThreadCount: 0,
+      verify: { ok: true },
+      sourceUnchanged: { ok: true },
+    },
+  };
+  const summaryPreflightChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: summaryPreflightAudit,
+    commands: ["node .officekit_nested_preflight.mjs inputs/reviewed-budget-nested.xlsx outputs/audit.json"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(summaryPreflightChecks.every((check) => check.passed), true);
+  const sourceBoundInspectionAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: {
+      target: { sheet: "Forecast", cell: "F19" },
+      performed: ["office-kit-import", "office-kit-inspect", "source-render-preflight"],
+    },
+    validation: {
+      import: { ok: true },
+      inspect: {
+        ok: true,
+        targetThreadCount: 0,
+        editableProjectionAvailable: false,
+        nestedReplyCount: 0,
+        comments: [],
+        sheetInspectionNdjson: '{"kind":"sheet","id":"worksheet/1","name":"Forecast"}',
+      },
+    },
+  };
+  const sourceBoundInspectionChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: sourceBoundInspectionAudit,
+    commands: ["node preflight_failed_closed.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(sourceBoundInspectionChecks.every((check) => check.passed), true);
+  const countedProjectionAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: { target: { sheet: "Forecast", cell: "F19" } },
+    validation: {
+      import: { ok: true },
+      inspect: { ok: true, kind: "workbook,sheet,thread" },
+      targetThread: { ok: false, count: 0, nestedReplyCount: 0, comments: [] },
+      modelCapability: { ok: false, decision: "source-bound fail closed" },
+    },
+  };
+  const countedProjectionChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: countedProjectionAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(countedProjectionChecks.every((check) => check.passed), true);
+  const threadGraphAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: { target: { sheet: "Forecast", cell: "F19" } },
+    validation: {
+      import: { ok: true },
+      inspect: { ok: true },
+      threadGraph: {
+        publicProjectionCountAtTarget: 0,
+        totalPublicThreadCount: 0,
+        target: { sheet: "Forecast", cell: "F19" },
+        identityPreservingNestedMutationSupported: false,
+      },
+    },
+  };
+  const threadGraphChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: threadGraphAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(threadGraphChecks.every((check) => check.passed), true);
+  const omittedProjectionAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: { target: { sheet: "Forecast", cell: "F19" } },
+    validation: {
+      import: { ok: true },
+      inspect: {
+        ok: false,
+        threadCountAtTarget: 0,
+        sourceBoundThreadOmittedFromEditableModel: true,
+      },
+      capability: { identityPreservingNestedReplyGraphMutationAvailable: false },
+    },
+  };
+  const omittedProjectionChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: omittedProjectionAudit,
+    commands: ["node preflight-threaded-comments.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(omittedProjectionChecks.every((check) => check.passed), true);
+  const arbitraryTaskNameChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: omittedProjectionAudit,
+    commands: ["node task-boundary.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(arbitraryTaskNameChecks.every((check) => check.passed), true, "a valid typed audit, not a prescribed task filename, proves preflight");
+  const auditedSourceBoundPreflight = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: {
+      target: { sheet: "Forecast", cell: "F19" },
+      attempted: false,
+      refusal: { supported: false, reason: "target_thread_not_unique" },
+    },
+    preflight: {
+      import: { ok: true, provider: "office-kit" },
+      inspect: {
+        ok: true,
+        method: "workbook.inspect",
+        workbook: [{ kind: "workbook" }, { kind: "sheet", name: "Forecast" }],
+        target: [],
+      },
+    },
+    validation: {
+      sourceVerify: { ok: true },
+      finalWorkbookArtifactAbsent: true,
+    },
+  };
+  const auditedSourceBoundPreflightChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: auditedSourceBoundPreflight,
+    commands: ["node .preflight-threaded-comments.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(auditedSourceBoundPreflightChecks.every((check) => check.passed), true, "an audit-backed OfficeKit workbook.inspect preflight can prove a source-bound refusal");
+  const validationSourceBoundPreflight = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: {
+      target: { sheet: "Forecast", cell: "F19" },
+      performed: false,
+    },
+    warnings: [{
+      code: "SOURCE_BOUND_NESTED_THREADED_COMMENT_GRAPH",
+      message: "The source-bound nested threaded-comment graph cannot preserve identity through the editable model.",
+    }],
+    validation: {
+      import: { ok: true, provider: "office-kit" },
+      inspect: { ok: true, method: "workbook.inspect", targetThreadCount: 0 },
+      finalArtifact: { exists: false },
+      sourceRender: { ok: true },
+    },
+  };
+  const validationSourceBoundPreflightChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: validationSourceBoundPreflight,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(validationSourceBoundPreflightChecks.every((check) => check.passed), true, "a validation-backed source-bound warning can prove fail-closed nested-comment preflight");
+  const capabilityBoundaryAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: {
+      target: { sheet: "Forecast", cell: "F19" },
+      performed: false,
+    },
+    validation: {
+      import: { ok: true },
+      inspect: {
+        ok: true,
+        requestedTarget: { sheet: "Forecast", cell: "F19" },
+        projectedThreadCount: 0,
+      },
+      capabilityBoundary: {
+        supportedMutation: false,
+        sourceBound: true,
+      },
+      verify: { ok: true },
+      finalArtifacts: [],
+    },
+    failure: { code: "SOURCE_BOUND_NESTED_THREADED_COMMENT_GRAPH" },
+  };
+  const capabilityBoundaryChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: capabilityBoundaryAudit,
+    commands: ["node preflight_nested_thread.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(capabilityBoundaryChecks.every((check) => check.passed), true, "an identity-preserving source-bound capability audit can prove nested-comment refusal");
+  const unprojectedTargetThreadAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: {
+      target: { sheet: "Forecast", cell: "F19" },
+      performed: "import-and-inspect-preflight-only",
+      mutationAttempted: false,
+    },
+    validation: {
+      import: { ok: true },
+      inspect: { ok: true },
+      targetThread: { found: false, commentCount: 0, comments: [] },
+      capability: {
+        supported: false,
+        requiredModel: "identity-preserving nested threaded-comment reply graph",
+        availableModel: "root plus direct replies only",
+      },
+      verify: { ok: true },
+    },
+    failure: { code: "SOURCE_BOUND_NESTED_THREADED_COMMENT_GRAPH" },
+  };
+  const unprojectedTargetThreadChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: unprojectedTargetThreadAudit,
+    commands: ["node preflight_nested_thread.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(unprojectedTargetThreadChecks.every((check) => check.passed), true, "a zero-comment unprojected target can prove the public threaded model refused safely");
+  const splitPreflightAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: {
+      target: { sheet: "Forecast", cell: "F19" },
+      performed: false,
+    },
+    warnings: [{ code: "SOURCE_BOUND_NESTED_THREADED_COMMENT_GRAPH" }],
+    preflight: {
+      import: { ok: true },
+      workbookInspect: { ok: true },
+      targetInspect: { ok: true },
+      targetThread: { count: 0, projectedByModel: false, comments: [] },
+    },
+    validation: {
+      sourceUnchanged: true,
+      workbookVerify: { ok: true },
+      refusalBoundary: { ok: true },
+    },
+  };
+  const splitPreflightChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: splitPreflightAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(splitPreflightChecks.every((check) => check.passed), true, "split workbook and target inspections can prove the same typed preflight facts");
+  const reasonCodeAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    reason: { code: "source_bound_nested_threaded_comment_graph" },
+    operation: {
+      target: { sheet: "Forecast", cell: "F19" },
+      applied: false,
+    },
+    validation: {
+      import: { ok: true },
+      inspect: {
+        ok: true,
+        targetThreadCount: 0,
+        capabilityBoundary: {
+          nestedOrBranchedGraphsEditable: false,
+          targetThreadProjected: false,
+        },
+      },
+      verify: { ok: true },
+    },
+  };
+  const reasonCodeChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: reasonCodeAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(reasonCodeChecks.every((check) => check.passed), true, "a case-normalized source-bound reason plus typed inspect boundary can prove safe refusal");
+  const threadGraphCountAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: {
+      target: { sheet: "Forecast", cell: "F19" },
+      attemptedMutation: false,
+    },
+    validation: {
+      import: { ok: true },
+      inspect: { ok: true, kind: "thread" },
+      threadGraph: { ok: false, threadCountAtTarget: 0, comments: [] },
+      verify: { ok: true },
+    },
+    failure: { code: "SOURCE_BOUND_NESTED_THREADED_COMMENT_GRAPH", safeRefusal: true },
+  };
+  const threadGraphCountChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: threadGraphCountAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(threadGraphCountChecks.every((check) => check.passed), true, "a zero-count thread graph and explicit no-mutation evidence can prove safe refusal");
+  const topLevelCapabilityAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: {
+      target: { sheet: "Forecast", cell: "F19" },
+      mutationAttempted: false,
+    },
+    capability: {
+      identityPreservingNestedReply: false,
+      sourceBound: true,
+    },
+    validation: {
+      import: { ok: true },
+      inspect: { ok: true, targetPublicThreadCount: 0 },
+      verify: { ok: true },
+    },
+  };
+  const topLevelCapabilityChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: topLevelCapabilityAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(topLevelCapabilityChecks.every((check) => check.passed), true, "a top-level identity-preserving capability record can prove the same source-bound refusal");
+  const flatAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    target: "Forecast!F19",
+    mutationAttempted: false,
+    import: { succeeded: true },
+    inspect: { succeeded: true, targetPublicThreadCount: 0 },
+    capabilities: { identityPreservingNestedReply: false },
+    verification: { succeeded: true },
+  };
+  const flatAuditChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: flatAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(flatAuditChecks.every((check) => check.passed), true, "a flat audit can carry the same bounded import, inspect, capability, and no-mutation facts");
+  const operationLogAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    target: { sheet: "Forecast", cell: "F19" },
+    mutationAttempted: false,
+    operations: [
+      { operation: "importXlsx", success: true, mutation: false },
+      { operation: "inspect", success: true, result: { publicThreadCount: 0 } },
+    ],
+    capabilities: { identityPreservingNestedReply: false },
+  };
+  const operationLogChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: operationLogAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(operationLogChecks.every((check) => check.passed), true, "an event-style audit can carry the same import, inspect, target, and zero-projection facts");
+  const stringTargetAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: { target: "Forecast!F19", mutationAttempted: false },
+    capabilities: { identityPreservingNestedReply: false },
+    validation: {
+      import: { ok: true },
+      inspect: { ok: true, targetPublicThreadCount: 0 },
+      verify: { ok: true },
+    },
+  };
+  const stringTargetChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: stringTargetAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(stringTargetChecks.every((check) => check.passed), true, "a canonical A1 target string can carry the same typed preflight target binding");
+  const flatPreflightFlagsAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    target: { worksheet: "Forecast", cell: "F19", address: "Forecast!F19" },
+    mutationAttempted: false,
+    capability: { identityPreservingNestedReply: false },
+    preflight: {
+      importSucceeded: true,
+      inspectSucceeded: true,
+      targetPublicThreadCount: 0,
+    },
+  };
+  const flatPreflightFlagsChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: flatPreflightFlagsAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(flatPreflightFlagsChecks.every((check) => check.passed), true, "flat preflight facts and a canonical target address bind the same safe-refusal boundary");
+  const verificationFactsAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    target: { sheet: "Forecast", cell: "F19", a1: "Forecast!F19" },
+    mutationAttempted: false,
+    operations: [
+      { operation: "SpreadsheetFile.importXlsx", result: "success" },
+      { operation: "workbook.inspect", result: "success", publicThreadCount: 0 },
+    ],
+    capabilities: { identityPreservingNestedReplyGraphMutation: false },
+    verification: {
+      importSucceeded: true,
+      inspectSucceeded: true,
+      targetPublicThreadCount: 0,
+    },
+  };
+  const verificationFactsChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: verificationFactsAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(verificationFactsChecks.every((check) => check.passed), true, "successful typed operations and verification facts prove the same bounded refusal");
+  const successfulPreflightObjectsAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    target: "Forecast!F19",
+    operation: { mutationAttempted: false },
+    capabilities: { identityPreservingNestedReplyGraph: false },
+    preflight: {
+      import: { success: true },
+      inspect: { success: true, targetPublicThreadCount: 0 },
+    },
+  };
+  const successfulPreflightObjectsChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: successfulPreflightObjectsAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(successfulPreflightObjectsChecks.every((check) => check.passed), true, "a successful nested preflight object is normalized without prescribing its field spelling");
+  const failedImportAudit = structuredClone(successfulPreflightObjectsAudit);
+  failedImportAudit.preflight.import.success = false;
+  const failedImportChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: failedImportAudit,
+    commands: ["node preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(failedImportChecks.find((check) => check.id === "xlsx-nested-trace:typed-threaded-comment-inspection")?.passed, false, "a false import fact cannot satisfy the normalized preflight contract");
+  const compoundPreflightAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: true, name: "office-kit", fallback_used: false },
+    operations: [{
+      name: "OfficeKit import/inspect preflight",
+      result: "unsupported_model_boundary",
+      details: {
+        imported_thread_count: 0,
+        inspect_thread_item_count: 0,
+        workbook_verify_ok: true,
+      },
+    }],
+  };
+  const compoundPreflightChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: compoundPreflightAudit,
+    commands: ["node_modules/.bin/officekit run preflight.mjs"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(compoundPreflightChecks.every((check) => check.passed), true);
+  const bypassChecks = gradeXlsxNestedThreadedReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: null,
+    commands: ["node -e 'const workbook = await SpreadsheetFile.importXlsx(input); await SpreadsheetFile.exportXlsx(workbook)'"],
+    item: nestedThreadedBoundaryItem,
+  });
+  assert.equal(bypassChecks.find((check) => check.id === "xlsx-nested-security:no-note-downgrade-or-package-write")?.passed, false);
+  assert.equal(bypassChecks.find((check) => check.id === "xlsx-nested-trace:no-silent-fallback")?.passed, false);
+
+  const malformedZip = await JSZip.loadAsync(lockedSource);
+  const malformedThreaded = await malformedZip.file(XLSX_THREADED_NESTED_REPLY_BOUNDARY_FIXTURE.threadedPartPath).async("text");
+  const malformedGraph = malformedThreaded.replace(
+    `parentId="${XLSX_THREADED_NESTED_REPLY_BOUNDARY_FIXTURE.directReply.id}"`,
+    `parentId="${XLSX_THREADED_NESTED_REPLY_BOUNDARY_FIXTURE.root.id}"`,
+  );
+  assert.notEqual(malformedGraph, malformedThreaded);
+  malformedZip.file(XLSX_THREADED_NESTED_REPLY_BOUNDARY_FIXTURE.threadedPartPath, malformedGraph);
+  const malformedPath = path.join(nestedThreadedBoundaryRoot, "malformed.xlsx");
+  await fs.writeFile(malformedPath, await malformedZip.generateAsync({ type: "uint8array" }));
+  assert.equal(nestedThreadedReplyGraphProfile(await inspectXlsxNestedThreadedReplyGraph(malformedPath)).ok, false);
+
+  const mistypedZip = await JSZip.loadAsync(lockedSource);
+  const contentTypes = await mistypedZip.file("[Content_Types].xml").async("text");
+  const mistypedContentTypes = contentTypes.replace(
+    'ContentType="application/vnd.ms-excel.person+xml"',
+    'ContentType="application/vnd.ms-excel.threadedcomments+xml"',
+  );
+  assert.notEqual(mistypedContentTypes, contentTypes);
+  mistypedZip.file("[Content_Types].xml", mistypedContentTypes);
+  const mistypedPath = path.join(nestedThreadedBoundaryRoot, "mistyped.xlsx");
+  await fs.writeFile(mistypedPath, await mistypedZip.generateAsync({ type: "uint8array" }));
+  assert.equal(nestedThreadedReplyGraphProfile(await inspectXlsxNestedThreadedReplyGraph(mistypedPath)).ok, false);
+
+  const reroutedZip = await JSZip.loadAsync(lockedSource);
+  const relationships = await reroutedZip.file("xl/worksheets/_rels/sheet1.xml.rels").async("text");
+  const reroutedRelationships = relationships.replace(
+    "http://schemas.microsoft.com/office/2017/10/relationships/threadedComment",
+    "http://schemas.microsoft.com/office/2017/10/relationships/person",
+  );
+  assert.notEqual(reroutedRelationships, relationships);
+  reroutedZip.file("xl/worksheets/_rels/sheet1.xml.rels", reroutedRelationships);
+  const reroutedPath = path.join(nestedThreadedBoundaryRoot, "rerouted.xlsx");
+  await fs.writeFile(reroutedPath, await reroutedZip.generateAsync({ type: "uint8array" }));
+  assert.equal(nestedThreadedReplyGraphProfile(await inspectXlsxNestedThreadedReplyGraph(reroutedPath)).ok, false);
+
+  const trialWorkspace = path.join(nestedThreadedBoundaryRoot, "workspace");
+  await fs.mkdir(path.join(trialWorkspace, "inputs"), { recursive: true });
+  await fs.mkdir(path.join(trialWorkspace, "outputs"), { recursive: true });
+  await fs.copyFile(lockedAssetPath, path.join(trialWorkspace, "inputs", XLSX_THREADED_NESTED_REPLY_BOUNDARY_FIXTURE.workbookName));
+  const nativeNestedThreadedResult = await gradeOfficeCase({
+    item: nestedThreadedBoundaryItem,
+    workspace: trialWorkspace,
+    evaluator: path.join(trialWorkspace, "evaluator"),
+    finalMessage: refusalEvidence.finalMessage,
+    trace: refusalTrace,
+  });
+  assert.equal(nativeNestedThreadedResult.graded, true);
+  assert.equal(nativeNestedThreadedResult.rawScorePercent, 100);
+  assert.equal(nativeNestedThreadedResult.caseSpecificPassed, true);
+} finally {
+  await fs.rm(nestedThreadedBoundaryRoot, { recursive: true, force: true });
 }
 
 const growthUpdateItem = cases.find((item) => item.id === "xlsx-growth-assumption-update");
