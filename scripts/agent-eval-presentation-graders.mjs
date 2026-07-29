@@ -11,6 +11,14 @@ import {
   PPTX_SLIDE_NAME_FIXTURE,
   PPTX_TITLE_NOTES_FIXTURE,
 } from "./agent-eval-office-fixtures.mjs";
+import {
+  gradePptxSmartArtNotesCommentsBoundaryCase,
+} from "./agent-eval-pptx-smartart-boundary-grader.mjs";
+export {
+  gradePptxSmartArtNotesCommentsBoundaryEvidence,
+  inspectPptxSmartArtNotesCommentsBoundary,
+  pptxSmartArtNotesCommentsProfile,
+} from "./agent-eval-pptx-smartart-boundary-grader.mjs";
 import { renderOfficeFile } from "./agent-eval-office-native-render.mjs";
 import { extractCompletedCommands, summarizeCaseScore } from "./agent-eval-pdf-graders.mjs";
 
@@ -19,6 +27,7 @@ export const pptxGradedCaseIds = new Set([
   "pptx-source-bound-slide-name-edit",
   "pptx-source-bound-section-boundary-edit",
   "pptx-closed-leaf-slide-clone",
+  "pptx-smartart-notes-comments-boundary",
 ]);
 
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
@@ -1635,6 +1644,9 @@ async function readAudit(workspace) {
 
 export async function gradePptxCase({ item, workspace, finalMessage, trace, weights = defaultWeights }) {
   if (!pptxGradedCaseIds.has(item.id)) return { supported: false };
+  if (item.id === "pptx-smartart-notes-comments-boundary") {
+    return gradePptxSmartArtNotesCommentsBoundaryCase({ item, workspace, finalMessage, trace, weights });
+  }
   const isSlideNameCase = item.id === "pptx-source-bound-slide-name-edit";
   const isSectionBoundaryCase = item.id === "pptx-source-bound-section-boundary-edit";
   const isClosedLeafCloneCase = item.id === "pptx-closed-leaf-slide-clone";
