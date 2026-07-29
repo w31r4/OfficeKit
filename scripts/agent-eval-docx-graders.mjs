@@ -17,12 +17,21 @@ export {
   gradeDocxSectionPageNumberingEvidence,
   inspectSectionPageNumberingDocx,
 } from "./agent-eval-docx-section-page-numbering-grader.mjs";
+import {
+  gradeDocxComplexTableTopologyBoundaryCase,
+} from "./agent-eval-docx-complex-table-grader.mjs";
+export {
+  complexTableTopologyProfile,
+  gradeDocxComplexTableTopologyBoundaryEvidence,
+  inspectDocxComplexTableTopology,
+} from "./agent-eval-docx-complex-table-grader.mjs";
 import { renderOfficeFile } from "./agent-eval-office-native-render.mjs";
 import { extractCompletedCommands, summarizeCaseScore } from "./agent-eval-pdf-graders.mjs";
 
 export const docxGradedCaseIds = new Set([
   "docx-classic-comment-text-edit",
   "docx-modern-comment-reply-boundary",
+  "docx-complex-table-topology-boundary",
   "docx-header-text-edit",
   "docx-footer-text-edit",
   "docx-section-page-numbering-edit",
@@ -965,6 +974,7 @@ async function gradeDocxFooterTextCase(options) {
 export async function gradeDocxCase(options) {
   if (options.item.id === "docx-classic-comment-text-edit") return gradeDocxClassicCommentCase(options);
   if (options.item.id === "docx-modern-comment-reply-boundary") return gradeDocxModernCommentReplyBoundaryCase(options);
+  if (options.item.id === "docx-complex-table-topology-boundary") return gradeDocxComplexTableTopologyBoundaryCase(options);
   if (options.item.id === "docx-header-text-edit") return gradeDocxHeaderTextCase(options);
   if (options.item.id === "docx-footer-text-edit") return gradeDocxFooterTextCase(options);
   if (options.item.id === "docx-section-page-numbering-edit") return gradeDocxSectionPageNumberingCase(options);

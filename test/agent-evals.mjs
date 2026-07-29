@@ -9,6 +9,7 @@ import JSZip from "jszip";
 import { DocumentFile, FileBlob, PresentationFile, SpreadsheetFile } from "../src/index.mjs";
 import {
   DOCX_CLASSIC_COMMENT_FIXTURE,
+  DOCX_COMPLEX_TABLE_TOPOLOGY_BOUNDARY_FIXTURE,
   DOCX_FOOTER_TEXT_FIXTURE,
   DOCX_HEADER_TEXT_FIXTURE,
   DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE,
@@ -27,11 +28,14 @@ import {
 } from "../scripts/agent-eval-office-fixtures.mjs";
 import {
   gradeDocxClassicCommentEvidence,
+  complexTableTopologyProfile,
+  gradeDocxComplexTableTopologyBoundaryEvidence,
   gradeDocxFooterTextEvidence,
   gradeDocxHeaderTextEvidence,
   gradeDocxModernCommentReplyBoundaryEvidence,
   gradeDocxSectionPageNumberingEvidence,
   inspectClassicCommentDocx,
+  inspectDocxComplexTableTopology,
   inspectFooterTextDocx,
   inspectHeaderTextDocx,
   inspectModernCommentReplyGraphDocx,
@@ -108,14 +112,14 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 35 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 36 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 21);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 5);
-assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 5);
+assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
 assert.equal(referenceDocumentSkill, path.join(repoRoot, "reference", "office-artifact-tool", "skills", "documents", "skills", "documents"));
@@ -143,8 +147,9 @@ assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /five ready XLSX cases.*nested-reply refusal/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
+assert.match(runnerHelp.stdout, /complex-table-topology refusal/i);
 assert.match(runnerHelp.stdout, /21 ready PDF cases include fourteen locked corpus signature\/boundary\/repair\/redaction\/table fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 6 asset-required cases/i);
+assert.match(runnerHelp.stdout, /remaining 5 asset-required cases/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
@@ -307,7 +312,7 @@ const padesLtvMissingTimestampChecks = gradePadesLtvSignatureEvidence({
 assert.equal(padesLtvMissingTimestampChecks.find((check) => check.id === "pdf-machine:offline-crypto-validation")?.passed, false, "a missing trusted DocumentTimeStamp must fail the PAdES-LTA score");
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 23, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 24, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -2406,6 +2411,142 @@ try {
   assert.equal(nativeModernResult.caseSpecificPassed, true);
 } finally {
   await fs.rm(modernCommentBoundaryRoot, { recursive: true, force: true });
+}
+
+const complexTableBoundaryItem = cases.find((item) => item.id === "docx-complex-table-topology-boundary");
+assert.ok(complexTableBoundaryItem);
+const complexTableBoundaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-docx-complex-table-"));
+try {
+  const generatedPath = path.join(complexTableBoundaryRoot, "generated", DOCX_COMPLEX_TABLE_TOPOLOGY_BOUNDARY_FIXTURE.documentName);
+  await generateOfficeInput("docx-complex-table-topology-boundary", generatedPath);
+  const generatedEvidence = await inspectDocxComplexTableTopology(generatedPath);
+  assert.equal(complexTableTopologyProfile(generatedEvidence).ok, true);
+
+  const lockedAssetPath = await verifiedLockedAsset("documents/clinical-form.docx");
+  const lockedEvidence = await inspectDocxComplexTableTopology(lockedAssetPath);
+  assert.equal(complexTableTopologyProfile(lockedEvidence).ok, true);
+  const lockedSource = await fs.readFile(lockedAssetPath);
+  const importedComplexBoundary = await DocumentFile.importDocx(new FileBlob(lockedSource, {
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    name: DOCX_COMPLEX_TABLE_TOPOLOGY_BOUNDARY_FIXTURE.documentName,
+  }));
+  const importedTables = importedComplexBoundary.blocks.filter((block) => block.kind === "table");
+  assert.equal(importedTables.length, 2, "the public model must preserve both source tables");
+  assert.ok(importedTables.every((table) => table.sourceBound), "the complex imported table profile must remain source-bound");
+  assert.equal(importedComplexBoundary.contentControls.length, 0, "the nested table-cell SDT must not be projected as an editable control");
+  assert.equal(importedComplexBoundary.verify({ visualQa: true }).ok, true);
+  const preservedComplexBoundary = await DocumentFile.exportDocx(importedComplexBoundary);
+  assert.deepEqual(Buffer.from(await preservedComplexBoundary.arrayBuffer()), lockedSource, "an unchanged complex table package must round-trip byte-for-byte");
+
+  const sourceRender = await renderOfficeFile(lockedAssetPath, "docx-complex-table-refusal-source");
+  if (sourceRender.available) {
+    assert.equal(sourceRender.ok, true);
+    assert.equal(sourceRender.pageCount, 1);
+    assert.ok(sourceRender.pages.every((page) => page.nonWhitePixels > 0));
+  }
+
+  const refusalTrace = JSON.stringify({
+    type: "item.completed",
+    item: {
+      type: "command_execution",
+      id: "docx-complex-table-inspect",
+      command: "node --input-type=module -e 'const document = await DocumentFile.importDocx(input); console.log(document.blocks.filter((block) => block.kind === \"table\").length)'",
+    },
+  });
+  const refusalAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    operation: {
+      type: "source-bound-complex-table-topology-edit",
+      target: { tableCaption: DOCX_COMPLEX_TABLE_TOPOLOGY_BOUNDARY_FIXTURE.tableCaption, insertColumn: "Frequency", before: "Route" },
+      mutationAttempted: false,
+    },
+    preflight: {
+      import: { ok: true, method: "DocumentFile.importDocx" },
+      inspect: {
+        ok: true,
+        tableCaption: DOCX_COMPLEX_TABLE_TOPOLOGY_BOUNDARY_FIXTURE.tableCaption,
+        topLevelTableCount: 2,
+        nestedTableCount: 1,
+        verticalMerge: true,
+        customStyle: true,
+        revision: true,
+        contentControl: true,
+      },
+      capabilityDecision: { supported: false },
+      verify: { ok: true },
+    },
+  };
+  const refusalEvidence = {
+    source: lockedEvidence,
+    finalMessage: "The complex table topology is source-bound and cannot be changed safely; no modified DOCX was produced.",
+  };
+  const refusalChecks = gradeDocxComplexTableTopologyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: refusalAudit,
+    commands: extractCompletedCommands(refusalTrace),
+    item: complexTableBoundaryItem,
+  });
+  assert.equal(refusalChecks.every((check) => check.passed), true);
+
+  const incompleteAudit = structuredClone(refusalAudit);
+  incompleteAudit.preflight.inspect.contentControl = false;
+  const incompleteChecks = gradeDocxComplexTableTopologyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: incompleteAudit,
+    commands: extractCompletedCommands(refusalTrace),
+    item: complexTableBoundaryItem,
+  });
+  assert.equal(incompleteChecks.find((check) => check.id === "docx-complex-table-trace:typed-import-inspect-preflight")?.passed, false);
+
+  const bypassChecks = gradeDocxComplexTableTopologyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: refusalAudit,
+    commands: ["node -e 'await DocumentFile.importDocx(input); await DocumentFile.exportDocx(document)'"],
+    item: complexTableBoundaryItem,
+  });
+  assert.equal(bypassChecks.find((check) => check.id === "docx-complex-table-security:no-output-or-package-mutation")?.passed, false);
+  assert.equal(bypassChecks.find((check) => check.id === "docx-complex-table-trace:no-silent-fallback")?.passed, false);
+
+  const malformedMergeZip = await JSZip.loadAsync(lockedSource);
+  const malformedMergeDocument = await malformedMergeZip.file("word/document.xml").async("text");
+  malformedMergeZip.file("word/document.xml", malformedMergeDocument.replace('<w:vMerge w:val="restart"/>', '<w:vMerge w:val="continue"/>'));
+  const malformedMergePath = path.join(complexTableBoundaryRoot, "malformed-merge.docx");
+  await fs.writeFile(malformedMergePath, await malformedMergeZip.generateAsync({ type: "uint8array" }));
+  assert.equal(complexTableTopologyProfile(await inspectDocxComplexTableTopology(malformedMergePath)).ok, false);
+
+  const malformedStyleZip = await JSZip.loadAsync(lockedSource);
+  const malformedStyles = await malformedStyleZip.file("word/styles.xml").async("text");
+  malformedStyleZip.file("word/styles.xml", malformedStyles.replace('w:styleId="ClinicalProtocolTable"', 'w:styleId="ClinicalProtocolTableRemoved"'));
+  const malformedStylePath = path.join(complexTableBoundaryRoot, "malformed-style.docx");
+  await fs.writeFile(malformedStylePath, await malformedStyleZip.generateAsync({ type: "uint8array" }));
+  assert.equal(complexTableTopologyProfile(await inspectDocxComplexTableTopology(malformedStylePath)).ok, false);
+
+  const malformedControlZip = await JSZip.loadAsync(lockedSource);
+  const malformedControlDocument = await malformedControlZip.file("word/document.xml").async("text");
+  malformedControlZip.file("word/document.xml", malformedControlDocument.replace('w:val="ROUTE_CONTROL"', 'w:val="ROUTE_CONTROL_REMOVED"'));
+  const malformedControlPath = path.join(complexTableBoundaryRoot, "malformed-control.docx");
+  await fs.writeFile(malformedControlPath, await malformedControlZip.generateAsync({ type: "uint8array" }));
+  assert.equal(complexTableTopologyProfile(await inspectDocxComplexTableTopology(malformedControlPath)).ok, false);
+
+  const trialWorkspace = path.join(complexTableBoundaryRoot, "workspace");
+  await fs.mkdir(path.join(trialWorkspace, "inputs"), { recursive: true });
+  await fs.mkdir(path.join(trialWorkspace, "outputs"), { recursive: true });
+  await fs.copyFile(lockedAssetPath, path.join(trialWorkspace, "inputs", DOCX_COMPLEX_TABLE_TOPOLOGY_BOUNDARY_FIXTURE.documentName));
+  await fs.writeFile(path.join(trialWorkspace, "outputs", "audit.json"), JSON.stringify(refusalAudit, null, 2));
+  const nativeComplexResult = await gradeOfficeCase({
+    item: complexTableBoundaryItem,
+    workspace: trialWorkspace,
+    evaluator: path.join(trialWorkspace, "evaluator"),
+    finalMessage: refusalEvidence.finalMessage,
+    trace: refusalTrace,
+  });
+  assert.equal(nativeComplexResult.graded, true);
+  assert.equal(nativeComplexResult.rawScorePercent, 100);
+  assert.equal(nativeComplexResult.caseSpecificPassed, true);
+} finally {
+  await fs.rm(complexTableBoundaryRoot, { recursive: true, force: true });
 }
 
 const headerTextItem = cases.find((item) => item.id === "docx-header-text-edit");
