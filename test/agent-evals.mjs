@@ -3289,6 +3289,9 @@ const smartArtBoundaryItem = cases.find((item) => item.id === "pptx-smartart-not
 assert.ok(smartArtBoundaryItem);
 assert.match(smartArtBoundaryItem.prompt, /原子事务/);
 assert.match(smartArtBoundaryItem.prompt, /PresentationFile\.importPptx/);
+assert.match(smartArtBoundaryItem.prompt, /"nodeModelId"/);
+assert.match(smartArtBoundaryItem.prompt, /"modernCommentThread"/);
+assert.match(smartArtBoundaryItem.prompt, /Presentation\.verify/);
 const smartArtBoundaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-pptx-smartart-boundary-"));
 try {
   const generatedPath = path.join(smartArtBoundaryRoot, "generated", PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.presentationName);
@@ -3361,7 +3364,7 @@ try {
         },
       },
       capabilityDecision: { supported: false },
-      verify: { ok: true },
+      verify: { ok: true, method: "Presentation.verify({ visualQa: true })" },
     },
   };
   const refusalTrace = JSON.stringify({ type: "item.completed", item: {
@@ -3390,6 +3393,16 @@ try {
     item: smartArtBoundaryItem,
   });
   assert.equal(incompleteChecks.find((check) => check.id === "pptx-smartart-boundary-trace:typed-import-inspect-preflight")?.passed, false);
+
+  const unboundVerificationAudit = structuredClone(refusalAudit);
+  unboundVerificationAudit.preflight.verify.method = "PresentationFile.inspectPptx";
+  const unboundVerificationChecks = gradePptxSmartArtNotesCommentsBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: unboundVerificationAudit,
+    commands: extractCompletedCommands(refusalTrace),
+    item: smartArtBoundaryItem,
+  });
+  assert.equal(unboundVerificationChecks.find((check) => check.id === "pptx-smartart-boundary-trace:typed-import-inspect-preflight")?.passed, false);
 
   const claimedSuccessAudit = structuredClone(refusalAudit);
   claimedSuccessAudit.status = "succeeded";

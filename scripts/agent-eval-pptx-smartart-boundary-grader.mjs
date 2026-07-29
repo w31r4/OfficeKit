@@ -400,6 +400,7 @@ function typedSmartArtPreflight(audit) {
     && review.modernCommentReplyCount === 1
     && preflight.capabilityDecision?.supported === false
     && verifyRecord.ok === true
+    && /\bPresentation\.verify\b/i.test(String(verifyRecord.method || verifyRecord.operation || ""))
     && target.smartArtName === fixture.smartArt.name
     && target.nodeModelId === fixture.smartArt.nodes[2].id
     && target.slide === fixture.smartArt.slideIndex + 1
