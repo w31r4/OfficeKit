@@ -1423,7 +1423,10 @@ export async function generatePptxSmartArtNotesCommentsBoundary(target) {
     const supporting = slide.shapes.add({
       name: `strategy-boundary-canary-${index + 1}`,
       geometry: "textbox",
-      position: { left: 72, top: 194, width: 920, height: 80 },
+      // The opaque SmartArt graphic frame is injected at 192–480px on slide
+      // one. Keep this ordinary text canary below it so a public import and
+      // visual verification of the locked source is genuinely clean.
+      position: { left: 72, top: index === fixture.smartArt.slideIndex ? 520 : 194, width: 920, height: 80 },
       text: "Preserve this source-bound review package without partial edits.",
       fill: "none",
       line: { style: "solid", fill: "none", width: 0 },
@@ -1486,6 +1489,7 @@ export async function generatePptxSmartArtNotesCommentsBoundary(target) {
   const exported = await PresentationFile.exportPptx(presentation);
   const patched = await addConnectedSmartArtBoundary(exported, fixture);
   const imported = await PresentationFile.importPptx(patched);
+  const importedVerification = imported.verify({ visualQa: true });
   const diagram = imported.slides.getItem(fixture.smartArt.slideIndex).nativeObjects.items
     .find((item) => item.name === fixture.smartArt.name);
   const reviewSlide = imported.slides.getItem(fixture.notes.slideIndex);
@@ -1496,7 +1500,8 @@ export async function generatePptxSmartArtNotesCommentsBoundary(target) {
     || reviewSlide.comments.items.length !== 1
     || comment?.comments.length !== 2
     || comment?.comments[0]?.text !== root.text
-    || comment?.comments[1]?.text !== reply.text) {
+    || comment?.comments[1]?.text !== reply.text
+    || !importedVerification.ok) {
     throw new Error("Generated PPTX SmartArt boundary fixture did not reimport its source-bound diagram and review canaries.");
   }
   await fs.mkdir(path.dirname(target), { recursive: true });
