@@ -18,6 +18,7 @@ import {
   PPTX_RICH_NOTES_FIXTURE,
   PPTX_SECTION_BOUNDARY_FIXTURE,
   PPTX_SLIDE_NAME_FIXTURE,
+  PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE,
   PPTX_TITLE_NOTES_FIXTURE,
   XLSX_CONNECTION_REFRESH_FIXTURE,
   XLSX_GROWTH_UPDATE_FIXTURE,
@@ -67,6 +68,10 @@ import {
   inspectSectionBoundaryPptx,
   inspectTitleNotesPptx,
 } from "../scripts/agent-eval-presentation-graders.mjs";
+import {
+  inspectPptxSmartArtNotesCommentsBoundary,
+  pptxSmartArtNotesCommentsProfile,
+} from "../scripts/agent-eval-pptx-smartart-boundary-grader.mjs";
 import { duplicatePptxSlide } from "../skills/presentations/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs";
 import { replacePptxSectionPartition } from "../skills/presentations/skills/presentations/examples/officekit-section-boundary-edit-workflow.mjs";
 import { editImportedHeaderText } from "../skills/documents/skills/documents/examples/officekit-header-text-edit-workflow.mjs";
@@ -195,6 +200,7 @@ if (!corpusRuntimeAvailable) {
 }
 const lockedFixturePaths = [
   "spreadsheets/reviewed-budget-nested.xlsx",
+  "presentations/strategy-review.pptx",
   "pdf/encryption/owner-policy-aes256.pdf",
   "pdf/encryption/user-password.json",
   "pdf/annotations/reply-chain.pdf",
@@ -312,7 +318,7 @@ const padesLtvMissingTimestampChecks = gradePadesLtvSignatureEvidence({
 assert.equal(padesLtvMissingTimestampChecks.find((check) => check.id === "pdf-machine:offline-crypto-validation")?.passed, false, "a missing trusted DocumentTimeStamp must fail the PAdES-LTA score");
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 24, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 25, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -3276,6 +3282,67 @@ try {
   }
 } finally {
   await fs.rm(sectionBoundaryRoot, { recursive: true, force: true });
+}
+
+const smartArtBoundaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-pptx-smartart-boundary-"));
+try {
+  const generatedPath = path.join(smartArtBoundaryRoot, "generated", PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.presentationName);
+  await generateOfficeInput("pptx-smartart-notes-comments-boundary", generatedPath);
+  assert.equal(pptxSmartArtNotesCommentsProfile(await inspectPptxSmartArtNotesCommentsBoundary(generatedPath)).ok, true);
+
+  const lockedAssetPath = await verifiedLockedAsset("presentations/strategy-review.pptx");
+  const lockedSource = await fs.readFile(lockedAssetPath);
+  const lockedEvidence = await inspectPptxSmartArtNotesCommentsBoundary(lockedAssetPath);
+  assert.equal(pptxSmartArtNotesCommentsProfile(lockedEvidence).ok, true);
+
+  const imported = await PresentationFile.importPptx(new FileBlob(lockedSource, {
+    type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    name: PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.presentationName,
+  }));
+  assert.equal(imported.slides.items.length, 4);
+  const diagram = imported.slides.getItem(PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.slideIndex).nativeObjects.items
+    .find((item) => item.name === PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.name);
+  assert.equal(diagram?.nativeKind, "diagram");
+  assert.equal(diagram?.diagramText, undefined);
+  assert.equal(
+    diagram?.inspectRecord().nativeParts.find((part) => part.path === PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.dataPartPath)?.relationships,
+    1,
+  );
+  const reviewSlide = imported.slides.getItem(PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.notes.slideIndex);
+  assert.equal(reviewSlide.speakerNotes.text, PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.notes.text);
+  assert.equal(reviewSlide.comments.items.length, 1);
+  assert.equal(reviewSlide.comments.items[0]?.comments.length, 2);
+  assert.equal(reviewSlide.comments.items[0]?.comments[0]?.text, PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.comment.root.text);
+  assert.equal(reviewSlide.comments.items[0]?.comments[1]?.text, PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.comment.directReply.text);
+
+  const preservedPath = path.join(smartArtBoundaryRoot, "preserved", PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.presentationName);
+  await (await PresentationFile.exportPptx(imported)).save(preservedPath);
+  const preservedEvidence = await inspectPptxSmartArtNotesCommentsBoundary(preservedPath);
+  for (const [partPath, sourceHash] of Object.entries(lockedEvidence.partHashes)) {
+    assert.equal(preservedEvidence.partHashes[partPath], sourceHash, `unchanged re-export must retain ${partPath}`);
+  }
+  assert.equal(pptxSmartArtNotesCommentsProfile(preservedEvidence).ok, true);
+
+  const malformedRelationshipZip = await JSZip.loadAsync(lockedSource);
+  const relationshipXml = await malformedRelationshipZip.file(PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.dataRelationshipPath)?.async("text");
+  assert.equal(typeof relationshipXml, "string");
+  malformedRelationshipZip.file(
+    PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.dataRelationshipPath,
+    relationshipXml.replace('TargetMode="External"', 'TargetMode="Internal"'),
+  );
+  const malformedRelationshipPath = path.join(smartArtBoundaryRoot, "malformed-external-link.pptx");
+  await fs.writeFile(malformedRelationshipPath, await malformedRelationshipZip.generateAsync({ type: "nodebuffer" }));
+  assert.equal(pptxSmartArtNotesCommentsProfile(await inspectPptxSmartArtNotesCommentsBoundary(malformedRelationshipPath)).ok, false);
+
+  const malformedNodeZip = await JSZip.loadAsync(lockedSource);
+  const dataXml = await malformedNodeZip.file(PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.dataPartPath)?.async("text");
+  assert.equal(typeof dataXml, "string");
+  malformedNodeZip.file(PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.dataPartPath, dataXml.replace("Scale candidate", "Scale"));
+  const malformedNodePath = path.join(smartArtBoundaryRoot, "malformed-node.pptx");
+  await fs.writeFile(malformedNodePath, await malformedNodeZip.generateAsync({ type: "nodebuffer" }));
+  assert.equal(pptxSmartArtNotesCommentsProfile(await inspectPptxSmartArtNotesCommentsBoundary(malformedNodePath)).ok, false);
+} finally {
+  await fs.rm(smartArtBoundaryRoot, { recursive: true, force: true });
 }
 
 const closedLeafCloneItem = cases.find((item) => item.id === "pptx-closed-leaf-slide-clone");

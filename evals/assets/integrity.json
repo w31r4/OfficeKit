@@ -12,6 +12,12 @@
       "kind": "file",
       "sha256": "43e70c765eb7c616e521bda2e9f17727ee8ccfa186de20e3c98e599158abac00"
     },
+    "presentations/strategy-review.pptx": {
+      "bytes": 13721,
+      "description": "Four-slide native PPTX with one externally connected four-part SmartArt graph plus independent speaker-note and modern root/direct-comment canaries.",
+      "kind": "file",
+      "sha256": "edc3bea415badc0ed88f2137151113cd66db696a75a6f2afc3a1373d4466ddc6"
+    },
     "spreadsheets/reviewed-budget-nested.xlsx": {
       "bytes": 5172,
       "description": "Native Excel threaded-comment graph with a root, direct reply, reply-of-reply, three person identities, content-type, and relationship canaries.",
