@@ -4499,7 +4499,15 @@ try {
   await removePreparedTree(path.join(temporary, "removable"));
   await assert.rejects(() => fs.access(path.join(temporary, "removable")), /ENOENT/);
 
-  const item = cases.find((candidate) => candidate.id === "pptx-smartart-notes-comments-boundary");
+  // This is deliberately an ungraded synthetic envelope: it proves the
+  // runner's immutable-workspace gates independently of a real case-specific
+  // oracle and must not inherit a newly added format-specific grader.
+  const item = {
+    id: "runner-immutability-envelope",
+    family: "meta",
+    expectedOutcome: "safe-refusal",
+    grade: { machine: { diagnosticTerms: ["SmartArt"] } },
+  };
   const workspace = path.join(temporary, "workspace");
   const evaluator = path.join(temporary, "evaluator");
   const credentials = path.join(workspace, "inputs", "credentials");
