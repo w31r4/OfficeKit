@@ -1900,6 +1900,86 @@ try {
   assert.equal(await fs.access(connectedSmartArtOutput).then(() => true, () => false), false);
   assert.equal(await fs.access(connectedSmartArtAudit).then(() => true, () => false), false);
 
+  const connectedSmartArtRefusalDir = path.join(root, "connected-smartart-refusal-workflow");
+  const connectedSmartArtRefusalInput = path.join(connectedSmartArtRefusalDir, "source.pptx");
+  const connectedSmartArtRefusalAudit = path.join(connectedSmartArtRefusalDir, "audit.json");
+  const connectedSmartArtRefusalCliAudit = path.join(connectedSmartArtRefusalDir, "cli-audit.json");
+  await fs.mkdir(connectedSmartArtRefusalDir, { recursive: true });
+  await fs.copyFile("evals/assets/presentations/strategy-review.pptx", connectedSmartArtRefusalInput);
+  const connectedSmartArtRefusalSource = await fs.readFile(connectedSmartArtRefusalInput);
+  const { refuseConnectedSmartArtTransaction } = await import(
+    "../skills/presentations/skills/presentations/examples/officekit-connected-smartart-refusal-workflow.mjs"
+  );
+  const connectedSmartArtRefusalResult = await refuseConnectedSmartArtTransaction({
+    inputPath: connectedSmartArtRefusalInput,
+    auditPath: connectedSmartArtRefusalAudit,
+    smartArtName: "Strategy topology diagram",
+    nodeModelId: "{33333333-3333-4333-8333-333333333333}",
+    expectedText: "Scale candidate",
+    slide: 1,
+    notesSlide: 4,
+    modernCommentThread: "{44444444-4444-4444-8444-444444444444}",
+    expectedDirectReplies: 1,
+  });
+  assert.equal(connectedSmartArtRefusalResult.audit.status, "failed_closed");
+  assert.equal(connectedSmartArtRefusalResult.audit.output, null);
+  assert.equal(connectedSmartArtRefusalResult.audit.mutationAttempted, false);
+  assert.deepEqual(connectedSmartArtRefusalResult.audit.officeKit.silentFallback, false);
+  assert.deepEqual(connectedSmartArtRefusalResult.audit.target, {
+    smartArtName: "Strategy topology diagram",
+    nodeModelId: "{33333333-3333-4333-8333-333333333333}",
+    slide: 1,
+    notesSlide: 4,
+    modernCommentThread: "{44444444-4444-4444-8444-444444444444}",
+  });
+  assert.deepEqual(connectedSmartArtRefusalResult.audit.preflight.capabilityDecision.supported, false);
+  assert.equal(connectedSmartArtRefusalResult.audit.preflight.inspect.smartArt.connectedDataRelationship, true);
+  assert.equal(connectedSmartArtRefusalResult.audit.preflight.inspect.smartArt.editable, false);
+  assert.equal(connectedSmartArtRefusalResult.audit.preflight.inspect.review.speakerNotes, true);
+  assert.equal(connectedSmartArtRefusalResult.audit.preflight.inspect.review.modernCommentReplyCount, 1);
+  assert.equal(connectedSmartArtRefusalResult.audit.preflight.verify.method, "Presentation.verify({ visualQa: true })");
+  assert.equal(connectedSmartArtRefusalResult.audit.savePolicy.strategy, "no-output-fail-closed");
+  assert.deepEqual(await fs.readFile(connectedSmartArtRefusalInput), connectedSmartArtRefusalSource);
+  assert.equal(await fs.access(path.join(connectedSmartArtRefusalDir, "output.pptx")).then(() => true, () => false), false);
+  assert.deepEqual((await fs.readdir(connectedSmartArtRefusalDir)).sort(), ["audit.json", "source.pptx"]);
+  await assert.rejects(
+    () => refuseConnectedSmartArtTransaction({
+      inputPath: connectedSmartArtRefusalInput,
+      auditPath: path.join(connectedSmartArtRefusalDir, "missing-thread-audit.json"),
+      smartArtName: "Strategy topology diagram",
+      nodeModelId: "{33333333-3333-4333-8333-333333333333}",
+      expectedText: "Scale candidate",
+      slide: 1,
+      notesSlide: 4,
+      modernCommentThread: "{00000000-0000-4000-8000-000000000000}",
+    }),
+    /expected modern comment thread/,
+  );
+  assert.equal(await fs.access(path.join(connectedSmartArtRefusalDir, "missing-thread-audit.json")).then(() => true, () => false), false);
+  const connectedSmartArtRefusalCli = spawnSync(process.execPath, [
+    "bin/officekit.mjs",
+    "run",
+    "skills/presentations/skills/presentations/examples/officekit-connected-smartart-refusal-workflow.mjs",
+    "--",
+    "--input", connectedSmartArtRefusalInput,
+    "--audit", connectedSmartArtRefusalCliAudit,
+    "--smartart-name", "Strategy topology diagram",
+    "--node-model-id", "{33333333-3333-4333-8333-333333333333}",
+    "--expected-text", "Scale candidate",
+    "--slide", "1",
+    "--notes-slide", "4",
+    "--modern-comment-thread", "{44444444-4444-4444-8444-444444444444}",
+    "--expected-direct-replies", "1",
+  ], { encoding: "utf8" });
+  assert.equal(connectedSmartArtRefusalCli.status, 0, `connected SmartArt refusal CLI failed\n${connectedSmartArtRefusalCli.stdout}\n${connectedSmartArtRefusalCli.stderr}`);
+  assert.deepEqual(JSON.parse(connectedSmartArtRefusalCli.stdout), {
+    status: "failed_closed",
+    auditPath: connectedSmartArtRefusalCliAudit,
+    sourceSha256: connectedSmartArtRefusalResult.audit.source.sha256,
+    output: null,
+  });
+  assert.deepEqual(await fs.readFile(connectedSmartArtRefusalInput), connectedSmartArtRefusalSource);
+
   const inkDuplicateInput = path.join(duplicateDir, "inkml-source.pptx");
   const inkDuplicateOutput = path.join(duplicateDir, "inkml-output.pptx");
   const inkDuplicateAudit = path.join(duplicateDir, "inkml-audit.json");
@@ -2430,6 +2510,7 @@ try {
   assert.match(skillText, /officekit-transition-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-slide-duplicate-workflow\.mjs/);
   assert.match(skillText, /--allow-closed-leaves/);
+  assert.match(skillText, /officekit-connected-smartart-refusal-workflow\.mjs/);
   assert.match(quickStartText, /PresentationFile\.exportPptx/);
   assert.match(quickStartText, /addPptxSpeakerNotes/);
   assert.match(quickStartText, /editPptxRichSpeakerNotes/);
