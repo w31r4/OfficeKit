@@ -378,6 +378,33 @@ or geometry, or claim model SVG verification is a native-host rendering check.
 Read `artifact_tool/api/references/smartart-clone.spec.md` before using either
 the clone or text-edit profile.
 
+When one atomic imported-deck request combines a connected SmartArt graph with
+speaker-note and modern-comment changes, do not make a partial notes/comment
+edit. The graph is source-bound, so write an audit-only refusal through the
+installed workflow instead:
+
+```sh
+officekit run "$SKILL_DIR/examples/officekit-connected-smartart-refusal-workflow.mjs" \
+  -- \
+  --input input/strategy-review.pptx \
+  --audit outputs/audit.json \
+  --smartart-name "Strategy topology diagram" \
+  --node-model-id "{33333333-3333-4333-8333-333333333333}" \
+  --expected-text "Scale candidate" \
+  --slide 1 \
+  --notes-slide 4 \
+  --modern-comment-thread "{44444444-4444-4444-8444-444444444444}" \
+  --expected-direct-replies 1
+```
+
+It binds the named graph and node through public import, semantic inspection,
+and bounded `PresentationFile.inspectPptx`, then proves the note/comment
+canaries and executes `Presentation.verify({ visualQa: true })`. It publishes
+only an atomic, source-hash-bound `failed_closed` audit with no PPTX output;
+the workflow never extracts or patches ZIP entries. Use the closed-node edit
+workflow above only when the complete requested transaction is within that
+smaller typed profile.
+
 For an original imported slide, `slide.name = "Decision review"` is a narrow
 in-place metadata edit: OfficeKit changes only that SlidePart's
 `p:cSld/@name`, preserves its relationship graph and all other parts, and

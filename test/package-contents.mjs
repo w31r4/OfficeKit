@@ -343,6 +343,7 @@ for (const required of [
   "skills/presentations/skills/presentations/examples/officekit-custom-show-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-smartart-text-edit-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-connected-smartart-refusal-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-ole-office-package-workflow.mjs",
   "skills/presentations/skills/presentations/artifact_tool/api/references/custom-shows.spec.md",
   "skills/presentations/skills/presentations/artifact_tool/api/references/sections.spec.md",

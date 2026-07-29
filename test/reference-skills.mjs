@@ -229,6 +229,8 @@ assert.match(presentationSkillText, /officekit-section-rename-workflow\.mjs/);
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-section-rename-workflow.mjs")));
 assert.match(presentationSkillText, /officekit-section-boundary-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-section-boundary-edit-workflow.mjs")));
+assert.match(presentationSkillText, /officekit-connected-smartart-refusal-workflow\.mjs/);
+assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-connected-smartart-refusal-workflow.mjs")));
 
 const documentsSkillRoot = path.join(skillsRoot, "documents", "skills", "documents");
 const documentsManifest = (await fs.readFile(path.join(documentsSkillRoot, "manifest.txt"), "utf8"))
