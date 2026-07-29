@@ -20,6 +20,16 @@ Use the evaluator Python to verify it:
 /path/to/python3 scripts/agent-eval-corpus-fixtures.py verify
 ```
 
+`presentations/strategy-review.pptx` is a self-authored four-slide PPTX
+boundary fixture. Its first slide has a four-part SmartArt graph whose data
+part owns one external child relationship. Slide four carries ordinary speaker
+notes and a modern root/direct-reply comment thread as independent preservation
+canaries. The matching prompt asks for all three mutations as one transaction:
+the connected SmartArt graph is the reason to refuse; the notes and comments
+are not presented as unsupported on their own. Refresh it through
+`scripts/agent-eval-office-fixtures.mjs`, then review the raw OPC profile and
+update `integrity.json` in the same change.
+
 The `pdf/signing/docmdp-p1-final.pdf` fixture is a real self-authored
 certification signature with `/Perms` → `/DocMDP` permission `P=1`. Its paired
 `pdf/signing/test-pki/root.pem` is a public test trust root, not a private key.
