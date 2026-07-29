@@ -1,5 +1,11 @@
 {
   "assets": {
+    "documents/modern-comment-replies.docx": {
+      "bytes": 3904,
+      "description": "Native Word modern-comment graph with a root, direct reply, reply-of-reply, durable IDs, people identities, resolved state, and one body anchor.",
+      "kind": "file",
+      "sha256": "43e70c765eb7c616e521bda2e9f17727ee8ccfa186de20e3c98e599158abac00"
+    },
     "pdf/accessibility/untagged-complex-report.pdf": {
       "bytes": 2935,
       "description": "Untagged two-column report with image and table visual structure.",

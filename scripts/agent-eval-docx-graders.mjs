@@ -8,6 +8,7 @@ import {
   DOCX_CLASSIC_COMMENT_FIXTURE,
   DOCX_FOOTER_TEXT_FIXTURE,
   DOCX_HEADER_TEXT_FIXTURE,
+  DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE,
 } from "./agent-eval-office-fixtures.mjs";
 import {
   gradeDocxSectionPageNumberingCase,
@@ -21,6 +22,7 @@ import { extractCompletedCommands, summarizeCaseScore } from "./agent-eval-pdf-g
 
 export const docxGradedCaseIds = new Set([
   "docx-classic-comment-text-edit",
+  "docx-modern-comment-reply-boundary",
   "docx-header-text-edit",
   "docx-footer-text-edit",
   "docx-section-page-numbering-edit",
@@ -28,6 +30,7 @@ export const docxGradedCaseIds = new Set([
 
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
 const SHIPPED_CLASSIC_COMMENT_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/documents|node_modules\/office-kit\/skills\/documents\/skills\/documents)\/examples\/officekit-classic-comment-edit-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_MODERN_COMMENT_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/documents|node_modules\/office-kit\/skills\/documents\/skills\/documents)\/examples\/officekit-modern-comment-thread-workflow\.mjs(?:$|[\s"'`])/i;
 const SHIPPED_HEADER_TEXT_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/documents|node_modules\/office-kit\/skills\/documents\/skills\/documents)\/examples\/officekit-header-text-edit-workflow\.mjs(?:$|[\s"'`])/i;
 const SHIPPED_FOOTER_TEXT_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/documents|node_modules\/office-kit\/skills\/documents\/skills\/documents)\/examples\/officekit-footer-text-edit-workflow\.mjs(?:$|[\s"'`])/i;
 
@@ -136,6 +139,210 @@ export async function inspectClassicCommentDocx(filePath) {
   };
 }
 
+function parseModernCommentBodies(xml = "") {
+  const comments = [];
+  for (const match of String(xml).matchAll(/<(?:[\w.-]+:)?comment\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?comment>/g)) {
+    const opening = /^<(?:[\w.-]+:)?comment\b[^>]*>/.exec(match[0])?.[0] || "";
+    const paragraphs = [...match[1].matchAll(/<(?:[\w.-]+:)?p\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?p>/g)];
+    const paragraphOpening = paragraphs.length === 1
+      ? /^<(?:[\w.-]+:)?p\b[^>]*>/.exec(paragraphs[0][0])?.[0] || ""
+      : "";
+    const attributes = xmlAttributes(opening);
+    const paragraphAttributes = xmlAttributes(paragraphOpening);
+    comments.push({
+      nativeId: String(attributes.id || ""),
+      author: attributes.author || "",
+      initials: attributes.initials || "",
+      date: attributes.date || "",
+      paraId: paragraphAttributes.paraId || "",
+      paragraphCount: paragraphs.length,
+      text: wordText(match[1]),
+    });
+  }
+  return comments;
+}
+
+function parseOpenTags(xml = "", name) {
+  const pattern = new RegExp(`<(?:[\\w.-]+:)?${escapeRegex(name)}\\b[^>]*\\/?\\s*>`, "gi");
+  return [...String(xml).matchAll(pattern)].map((match) => xmlAttributes(match[0]));
+}
+
+function parseModernCommentPeople(xml = "") {
+  const people = [];
+  for (const match of String(xml).matchAll(/<(?:[\w.-]+:)?person\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?person>/g)) {
+    const opening = /^<(?:[\w.-]+:)?person\b[^>]*>/.exec(match[0])?.[0] || "";
+    const presence = parseOpenTags(match[1], "presenceInfo");
+    const attributes = xmlAttributes(opening);
+    people.push({
+      author: attributes.author || "",
+      providerId: presence.length === 1 ? presence[0].providerId || "" : "",
+      userId: presence.length === 1 ? presence[0].userId || "" : "",
+      presenceCount: presence.length,
+    });
+  }
+  return people;
+}
+
+function xmlBoolean(value) {
+  return /^(?:1|true)$/i.test(String(value || ""));
+}
+
+function normalizedRelationshipTarget(target = "") {
+  const value = String(target || "").replaceAll("\\", "/");
+  if (value.startsWith("/")) return value.slice(1);
+  return path.posix.normalize(path.posix.join("word", value));
+}
+
+function relationshipRecords(xml = "") {
+  return parseOpenTags(xml, "Relationship").map((attributes) => ({
+    id: attributes.Id || "",
+    type: attributes.Type || "",
+    target: normalizedRelationshipTarget(attributes.Target),
+  }));
+}
+
+function contentTypeOverrides(xml = "") {
+  return parseOpenTags(xml, "Override").map((attributes) => ({
+    partPath: String(attributes.PartName || "").replace(/^\//, ""),
+    contentType: attributes.ContentType || "",
+  }));
+}
+
+/**
+ * Reads the modern Word-comment support graph directly from OPC/XML. It does
+ * not call DocumentFile, so a candidate cannot satisfy the PromptBench oracle
+ * simply by echoing its own model projection.
+ */
+export async function inspectModernCommentReplyGraphDocx(filePath) {
+  const bytes = await fs.readFile(filePath);
+  const zip = await JSZip.loadAsync(bytes);
+  const paths = Object.keys(zip.files).filter((name) => !zip.files[name].dir).sort();
+  const entries = await Promise.all(paths.map(async (partPath) => [partPath, Buffer.from(await zip.file(partPath)?.async("uint8array") || [])]));
+  const parts = new Map(entries.map(([partPath, value]) => [partPath, value.toString("utf8")]));
+  const partHashes = Object.fromEntries(entries.map(([partPath, value]) => [partPath, sha256(value)]));
+  const text = (partPath) => parts.get(partPath) || "";
+  const comments = parseModernCommentBodies(text("word/comments.xml"));
+  const commentsExtended = parseOpenTags(text("word/commentsExtended.xml"), "commentEx").map((attributes) => ({
+    paraId: attributes.paraId || "",
+    parentParaId: attributes.paraIdParent || "",
+    resolved: xmlBoolean(attributes.done),
+  }));
+  const commentsIds = parseOpenTags(text("word/commentsIds.xml"), "commentId").map((attributes) => ({
+    paraId: attributes.paraId || "",
+    durableId: attributes.durableId || "",
+  }));
+  const commentsExtensible = parseOpenTags(text("word/commentsExtensible.xml"), "commentExtensible").map((attributes) => ({
+    durableId: attributes.durableId || "",
+    dateUtc: attributes.dateUtc || "",
+  }));
+  const documentXml = text("word/document.xml");
+  return {
+    bytes: bytes.length,
+    sha256: sha256(bytes),
+    paths,
+    partHashes,
+    comments,
+    commentsExtended,
+    commentsIds,
+    commentsExtensible,
+    people: parseModernCommentPeople(text("word/people.xml")),
+    paragraphs: parseParagraphs(documentXml),
+    relationships: relationshipRecords(text("word/_rels/document.xml.rels")),
+    contentTypeOverrides: contentTypeOverrides(text("[Content_Types].xml")),
+  };
+}
+
+export function modernCommentReplyGraphProfile(document) {
+  const fixture = DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE;
+  const expectedParts = [
+    "word/comments.xml",
+    "word/commentsExtended.xml",
+    "word/commentsIds.xml",
+    "word/commentsExtensible.xml",
+    "word/people.xml",
+  ];
+  const byNativeId = new Map(fixture.comments.map((comment) => [comment.nativeId, comment]));
+  const commentsMatch = document.comments.length === fixture.comments.length
+    && document.comments.every((actual, index) => {
+      const expected = fixture.comments[index];
+      return actual.nativeId === expected.nativeId
+        && actual.paraId === expected.paraId
+        && actual.author === expected.author
+        && actual.initials === expected.initials
+        && actual.date === expected.date
+        && actual.text === expected.text
+        && actual.paragraphCount === 1;
+    });
+  const extendedMatch = document.commentsExtended.length === fixture.comments.length
+    && document.commentsExtended.every((actual, index) => {
+      const expected = fixture.comments[index];
+      const parent = expected.parentNativeId ? byNativeId.get(expected.parentNativeId) : null;
+      return actual.paraId === expected.paraId
+        && actual.parentParaId === (parent?.paraId || "")
+        && actual.resolved === expected.resolved;
+    });
+  const idsMatch = document.commentsIds.length === fixture.comments.length
+    && document.commentsIds.every((actual, index) => actual.paraId === fixture.comments[index].paraId
+      && actual.durableId === fixture.comments[index].durableId);
+  const extensibleMatch = document.commentsExtensible.length === fixture.comments.length
+    && document.commentsExtensible.every((actual, index) => actual.durableId === fixture.comments[index].durableId
+      && actual.dateUtc === fixture.comments[index].dateUtc);
+  const peopleMatch = document.people.length === fixture.comments.length
+    && document.people.every((actual, index) => actual.author === fixture.comments[index].author
+      && actual.providerId === fixture.comments[index].providerId
+      && actual.userId === fixture.comments[index].userId
+      && actual.presenceCount === 1);
+  const anchors = document.paragraphs.filter((paragraph) => paragraph.text === fixture.anchorText);
+  const root = fixture.comments[0];
+  const anchorMatch = anchors.length === 1
+    && anchors[0].commentRangeStarts.filter((id) => id === root.nativeId).length === 1
+    && anchors[0].commentRangeEnds.filter((id) => id === root.nativeId).length === 1
+    && anchors[0].commentReferences.filter((id) => id === root.nativeId).length === 1
+    && !document.paragraphs.some((paragraph) => ["1", "2"].some((id) => paragraph.commentRangeStarts.includes(id)
+      || paragraph.commentRangeEnds.includes(id) || paragraph.commentReferences.includes(id)));
+  const expectedSupportParts = new Map([
+    ["word/comments.xml", {
+      relationshipType: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments",
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml",
+    }],
+    ["word/commentsExtended.xml", {
+      relationshipType: "http://schemas.microsoft.com/office/2011/relationships/commentsExtended",
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml",
+    }],
+    ["word/commentsIds.xml", {
+      relationshipType: "http://schemas.microsoft.com/office/2016/09/relationships/commentsIds",
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsIds+xml",
+    }],
+    ["word/commentsExtensible.xml", {
+      relationshipType: "http://schemas.microsoft.com/office/2018/08/relationships/commentsExtensible",
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtensible+xml",
+    }],
+    ["word/people.xml", {
+      relationshipType: "http://schemas.microsoft.com/office/2011/relationships/people",
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.people+xml",
+    }],
+  ]);
+  const supportPartsMatch = expectedParts.every((partPath) => {
+    const expected = expectedSupportParts.get(partPath);
+    return document.paths.includes(partPath)
+      && document.contentTypeOverrides.some((override) => override.partPath === partPath && override.contentType === expected.contentType)
+      && document.relationships.some((relationship) => relationship.target === partPath && relationship.type === expected.relationshipType);
+  });
+  const bodyMatch = document.paragraphs.some((paragraph) => paragraph.text === fixture.title)
+    && document.paragraphs.some((paragraph) => paragraph.text === fixture.supportingText);
+  return {
+    ok: commentsMatch && extendedMatch && idsMatch && extensibleMatch && peopleMatch && anchorMatch && supportPartsMatch && bodyMatch,
+    commentsMatch,
+    extendedMatch,
+    idsMatch,
+    extensibleMatch,
+    peopleMatch,
+    anchorMatch,
+    supportPartsMatch,
+    bodyMatch,
+  };
+}
+
 function normalizeTargetText(xml, expectedText) {
   const pattern = new RegExp(`(<w:t(?:\\s[^>]*)?>)${escapeRegex(escapeXmlText(expectedText))}(</w:t>)`, "g");
   let matches = 0;
@@ -188,7 +395,11 @@ export const inspectFooterTextDocx = inspectPageFurnitureTextDocx;
 
 function auditProvider(audit) {
   const provider = audit?.provider;
-  return String(typeof provider === "string" ? provider : provider?.actual || provider?.selected || provider?.name || "");
+  if (typeof provider === "string") return provider;
+  for (const value of [provider?.actual, provider?.selected, provider?.name, provider?.package, provider?.provider]) {
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return "";
 }
 
 function auditVersion(audit) {
@@ -352,6 +563,108 @@ export function gradeDocxClassicCommentEvidence({ evidence, audit, commands }) {
     }),
     check("docx-trace:second-import", "trace", audit?.validation?.reimport?.ok === true || audit?.validation?.secondImport?.ok === true, {
       validation: audit?.validation || null,
+    }),
+  ];
+}
+
+function modernCommentAuditHasTypedPreflight(audit) {
+  const operations = Array.isArray(audit?.operations) ? audit.operations : [];
+  const recordedOperations = operations.some((operation) => operation?.name === "officekit_import" && operation?.result === "completed" && operation?.mutation === false)
+    && operations.some((operation) => operation?.name === "officekit_inspect" && operation?.result === "completed" && operation?.mutation === false);
+  const compoundOperation = operations.some((operation) => {
+    const name = String(operation?.name || "");
+    const details = operation?.details;
+    return /office[- ]?kit/i.test(name)
+      && /import/i.test(name)
+      && /inspect/i.test(name)
+      && ["completed", "unsupported_model_boundary", "refused"].includes(String(operation?.result || ""))
+      && (details?.imported_comment_count ?? details?.importedCommentCount) === 0
+      && (details?.inspect_comment_item_count ?? details?.inspectCommentItemCount) === 0
+      && (details?.document_verify_ok ?? details?.documentVerifyOk) === true;
+  });
+  const preflight = audit?.preflight;
+  const structuredPreflight = preflight?.import?.ok === true
+    && /(?:DocumentFile\.)?importDocx/i.test(String(preflight.import.method || ""))
+    && preflight?.inspect?.ok === true
+    && Number.isInteger(preflight.inspect.commentCount)
+    && preflight.inspect.commentCount === 0
+    && preflight.inspect.expectedNestedGraphProjected === false
+    && preflight?.capabilityDecision?.supported === false;
+  return /office[- ]?kit/i.test(auditProvider(audit)) && (recordedOperations || compoundOperation || structuredPreflight);
+}
+
+function usedTypedModernCommentInspection(commandText, audit) {
+  return /(?:DocumentFile\.)?importDocx/i.test(commandText)
+    || SHIPPED_MODERN_COMMENT_WORKFLOW.test(commandText)
+    || /(?:^|\/)officekit(?:\.mjs)?\s+run\b|node_modules\/\.bin\/officekit\s+run\b/i.test(commandText) && modernCommentAuditHasTypedPreflight(audit);
+}
+
+function hasModernCommentMutationBypass(commandText) {
+  return [
+    /(?:DocumentFile\.)?exportDocx/i,
+    /(?:DocumentFile\.)?patchDocx/i,
+    /\b(?:JSZip|AdmZip|zipfile)\b/i,
+    /(?:commentsExtended|commentsExtensible|commentsIds|people)\.xml[^\n]{0,240}(?:write|replace|append|set|patch)/i,
+    /\bzip\s+-[a-z]*[udf][a-z]*\b/i,
+  ].some((pattern) => pattern.test(commandText));
+}
+
+function failedClosedModernCommentAudit(audit, source) {
+  if (!audit) return { present: false, valid: true };
+  const output = audit.output;
+  const noArtifact = output === null || output === undefined
+    || output?.path === null || output?.path === undefined;
+  const noFallback = auditFallbackIsFalse(audit)
+    || audit?.provider?.provider_switch === false
+      && audit?.validation?.classic_comment_fallback_used === false
+      && audit?.validation?.plain_text_fallback_used === false
+      && audit?.validation?.new_root_fallback_used === false;
+  return {
+    present: true,
+    valid: audit?.status === "failed_closed"
+      && auditHash(audit, "source") === source.sha256
+      && noArtifact
+      && audit?.deliveredModifiedDocx !== true
+      && audit?.delivered_modified_docx !== true
+      && noFallback,
+  };
+}
+
+export function gradeDocxModernCommentReplyBoundaryEvidence({ evidence, audit, commands, item }) {
+  const profile = modernCommentReplyGraphProfile(evidence.source);
+  const commandText = commands.join("\n");
+  const diagnostics = item.grade?.machine?.diagnosticTerms || [];
+  const diagnosticText = `${evidence.finalMessage || ""}\n${audit?.reason || ""}\n${JSON.stringify(audit?.warnings || [])}`.toLowerCase();
+  const auditResult = failedClosedModernCommentAudit(audit, evidence.source);
+  const mutationBypass = hasModernCommentMutationBypass(commandText);
+  return [
+    check("docx-modern-machine:fixture-nested-reply-graph", "machine", profile.ok, {
+      profile,
+      comments: evidence.source.comments,
+      commentsExtended: evidence.source.commentsExtended,
+    }),
+    check("docx-modern-machine:explicit-safe-refusal", "machine", diagnostics.some((term) => diagnosticText.includes(String(term).toLowerCase())), {
+      expectedAny: diagnostics,
+      actual: diagnosticText,
+    }),
+    check("docx-modern-machine:audit-is-failed-closed-when-present", "machine", auditResult.valid, {
+      auditPresent: auditResult.present,
+      audit: audit || null,
+    }),
+    gate("docx-modern-security:modern-identity-and-reply-of-reply-preserved", "security", profile.ok
+      && evidence.source.commentsExtended[2]?.parentParaId === DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE.comments[1].paraId, {
+      profile,
+    }),
+    gate("docx-modern-security:no-classic-downgrade-or-package-write", "security", !mutationBypass, {
+      forbidden: "DOCX export/patch or low-level comments XML write after a nested-reply refusal",
+      commands,
+    }),
+    check("docx-modern-trace:typed-modern-comment-inspection", "trace", usedTypedModernCommentInspection(commandText, audit), {
+      expected: "public DocumentFile.importDocx, the published modern-comment workflow, or a traced officekit run with a typed audit preflight",
+      commands,
+    }),
+    gate("docx-modern-trace:no-silent-fallback", "trace", !mutationBypass, {
+      commands,
     }),
   ];
 }
@@ -553,6 +866,31 @@ async function gradeDocxClassicCommentCase({ item, workspace, finalMessage, trac
   return { supported: true, graded: true, checks, evidence, pending: [], ...score };
 }
 
+async function gradeDocxModernCommentReplyBoundaryCase({ item, workspace, finalMessage, trace, weights = defaultWeights }) {
+  const fixture = DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE;
+  const audit = await readAudit(workspace);
+  const commands = extractCompletedCommands(trace);
+  const sourcePath = path.join(workspace, "inputs", fixture.documentName);
+  let source;
+  try {
+    source = await inspectModernCommentReplyGraphDocx(sourcePath);
+  } catch (error) {
+    const checks = [
+      gate("docx-modern-machine:readable-source", "machine", false, { error: error.message }),
+      gate("docx-modern-security:no-partial-success", "security", false, { error: error.message }),
+    ];
+    const score = summarizeCaseScore(checks, item.grade, weights, false);
+    return { supported: true, graded: true, checks, evidence: { error: error.message }, pending: [], ...score };
+  }
+  // No modified DOCX is allowed for this refusal case. Native page rendering is
+  // not a semantic oracle for Word comments, and there is no output package to
+  // compare, so structural support-part and source-immutability checks lead.
+  const evidence = { source, finalMessage };
+  const checks = gradeDocxModernCommentReplyBoundaryEvidence({ evidence, audit, commands, item });
+  const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+  return { supported: true, graded: true, checks, evidence, pending: [], ...score };
+}
+
 async function gradeDocxPageFurnitureTextCase({
   item,
   workspace,
@@ -626,6 +964,7 @@ async function gradeDocxFooterTextCase(options) {
 
 export async function gradeDocxCase(options) {
   if (options.item.id === "docx-classic-comment-text-edit") return gradeDocxClassicCommentCase(options);
+  if (options.item.id === "docx-modern-comment-reply-boundary") return gradeDocxModernCommentReplyBoundaryCase(options);
   if (options.item.id === "docx-header-text-edit") return gradeDocxHeaderTextCase(options);
   if (options.item.id === "docx-footer-text-edit") return gradeDocxFooterTextCase(options);
   if (options.item.id === "docx-section-page-numbering-edit") return gradeDocxSectionPageNumberingCase(options);

@@ -102,6 +102,62 @@ export const DOCX_CLASSIC_COMMENT_FIXTURE = Object.freeze({
   }),
 });
 
+// The public document model intentionally supports only a root plus direct
+// replies. This fixture starts with that supported profile and then adds a
+// third, genuinely nested native Word reply. It is therefore a real Office
+// package that must be preserved and refused, not a malformed self-parenting
+// graph invented solely for the evaluator.
+export const DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE = Object.freeze({
+  documentName: "modern-comment-replies.docx",
+  title: "Controlled rollout modern review",
+  anchorText: "Decision: preserve the source-bound modern review thread.",
+  supportingText: "The nested legal reply is an immutable review-history canary.",
+  comments: Object.freeze([
+    Object.freeze({
+      nativeId: "0",
+      paraId: "11111111",
+      durableId: "33333333",
+      author: "Lead reviewer",
+      initials: "LR",
+      date: "2026-07-20T09:00:00Z",
+      dateUtc: "2026-07-20T09:00:00Z",
+      providerId: "provider-a",
+      userId: "lead@example.test",
+      text: "Please confirm the legal boundary.",
+      resolved: true,
+      parentNativeId: "",
+    }),
+    Object.freeze({
+      nativeId: "1",
+      paraId: "22222222",
+      durableId: "44444444",
+      author: "Release reviewer",
+      initials: "RR",
+      date: "2026-07-20T09:05:00Z",
+      dateUtc: "2026-07-20T09:05:00Z",
+      providerId: "provider-b",
+      userId: "release@example.test",
+      text: "Evidence attached for release review.",
+      resolved: false,
+      parentNativeId: "0",
+    }),
+    Object.freeze({
+      nativeId: "2",
+      paraId: "55555555",
+      durableId: "66666666",
+      author: "Legal reviewer",
+      initials: "LG",
+      date: "2026-07-20T09:10:00Z",
+      dateUtc: "2026-07-20T09:10:00Z",
+      providerId: "provider-c",
+      userId: "legal@example.test",
+      text: "Legal review is in progress.",
+      resolved: false,
+      parentNativeId: "1",
+    }),
+  ]),
+});
+
 // This fixture is intentionally narrow: two ordinary paragraphs share one
 // uniquely used default HeaderPart, while a PAGE footer is a canary for the
 // source-owned field boundary. The ready PromptBench task may change only the
@@ -589,6 +645,102 @@ export async function generateDocxClassicCommentReview(target) {
   return { path: target, type: DOCX_MIME };
 }
 
+function appendBeforeClosingTag(xml, closingTag, fragment, label) {
+  const index = xml.lastIndexOf(closingTag);
+  if (index < 0) throw new Error(`DOCX modern-comment fixture is missing ${label}.`);
+  return `${xml.slice(0, index)}${fragment}${xml.slice(index)}`;
+}
+
+async function appendNestedModernCommentReply(authored, fixture) {
+  const [, directReply, nestedReply] = fixture.comments;
+  const zip = await JSZip.loadAsync(await authored.arrayBuffer());
+  const requiredParts = [
+    "word/comments.xml",
+    "word/commentsExtended.xml",
+    "word/commentsIds.xml",
+    "word/commentsExtensible.xml",
+    "word/people.xml",
+  ];
+  const contents = Object.fromEntries(await Promise.all(requiredParts.map(async (partPath) => {
+    const part = zip.file(partPath);
+    if (!part) throw new Error(`DOCX modern-comment fixture did not author ${partPath}.`);
+    return [partPath, await part.async("text")];
+  })));
+  const commentBody = `<w:comment w:id="${nestedReply.nativeId}" w:author="${xmlEscape(nestedReply.author)}" w:initials="${xmlEscape(nestedReply.initials)}" w:date="${nestedReply.date}"><w:p xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" w14:paraId="${nestedReply.paraId}"><w:r><w:t>${xmlEscape(nestedReply.text)}</w:t></w:r></w:p></w:comment>`;
+  contents["word/comments.xml"] = appendBeforeClosingTag(contents["word/comments.xml"], "</w:comments>", commentBody, "w:comments");
+  contents["word/commentsExtended.xml"] = appendBeforeClosingTag(
+    contents["word/commentsExtended.xml"],
+    "</w15:commentsEx>",
+    `<w15:commentEx w15:paraId="${nestedReply.paraId}" w15:paraIdParent="${directReply.paraId}" w15:done="0"/>`,
+    "w15:commentsEx",
+  );
+  contents["word/commentsIds.xml"] = appendBeforeClosingTag(
+    contents["word/commentsIds.xml"],
+    "</w16cid:commentsIds>",
+    `<w16cid:commentId w16cid:paraId="${nestedReply.paraId}" w16cid:durableId="${nestedReply.durableId}"/>`,
+    "w16cid:commentsIds",
+  );
+  contents["word/commentsExtensible.xml"] = appendBeforeClosingTag(
+    contents["word/commentsExtensible.xml"],
+    "</w16cex:commentsExtensible>",
+    `<w16cex:commentExtensible w16cex:durableId="${nestedReply.durableId}" w16cex:dateUtc="${nestedReply.dateUtc}"/>`,
+    "w16cex:commentsExtensible",
+  );
+  contents["word/people.xml"] = appendBeforeClosingTag(
+    contents["word/people.xml"],
+    "</w15:people>",
+    `<w15:person w15:author="${xmlEscape(nestedReply.author)}"><w15:presenceInfo w15:providerId="${xmlEscape(nestedReply.providerId)}" w15:userId="${xmlEscape(nestedReply.userId)}"/></w15:person>`,
+    "w15:people",
+  );
+  for (const [partPath, xml] of Object.entries(contents)) zip.file(partPath, xml);
+  return new Uint8Array(await zip.generateAsync({ type: "uint8array", compression: "DEFLATE", compressionOptions: { level: 6 } }));
+}
+
+export async function generateDocxModernCommentReplyBoundary(target) {
+  const fixture = DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE;
+  const [root, directReply] = fixture.comments;
+  const document = DocumentModel.create({
+    name: fixture.title,
+    defaultRunStyle: { fontFamily: "Aptos", fontSize: 11, color: "#172033" },
+    blocks: [],
+  });
+  document.addParagraph(fixture.title, {
+    paragraphFormat: { spaceAfterTwips: 160 },
+    runs: [{ text: fixture.title, style: { bold: true, fontSize: 16, color: "#123B5D" } }],
+  });
+  const decision = document.addParagraph(fixture.anchorText, {
+    paragraphFormat: { spaceAfterTwips: 120 },
+    runs: [{ text: fixture.anchorText, style: { bold: true } }],
+  });
+  document.addParagraph(fixture.supportingText, { paragraphFormat: { spaceAfterTwips: 120 } });
+  const rootComment = document.addComment(decision, root.text, {
+    author: root.author,
+    initials: root.initials,
+    date: root.date,
+    resolved: root.resolved,
+    paraId: root.paraId,
+    durableId: root.durableId,
+    dateUtc: root.dateUtc,
+    person: { providerId: root.providerId, userId: root.userId },
+  });
+  document.replyToComment(rootComment, directReply.text, {
+    author: directReply.author,
+    initials: directReply.initials,
+    date: directReply.date,
+    paraId: directReply.paraId,
+    durableId: directReply.durableId,
+    dateUtc: directReply.dateUtc,
+    person: { providerId: directReply.providerId, userId: directReply.userId },
+  });
+  const verification = document.verify({ visualQa: true });
+  if (!verification.ok) throw new Error("Generated DOCX modern-comment boundary fixture failed model verification: " + verification.ndjson);
+  const authored = await DocumentFile.exportDocx(document);
+  const nestedBytes = await appendNestedModernCommentReply(authored, fixture);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, nestedBytes);
+  return { path: target, type: DOCX_MIME };
+}
+
 export async function generateDocxHeaderTextReview(target) {
   const fixture = DOCX_HEADER_TEXT_FIXTURE;
   const document = DocumentModel.create({
@@ -962,6 +1114,7 @@ export async function generateOfficeInput(generator, target) {
   if (generator === "xlsx-connection-refresh") return generateXlsxConnectionRefresh(target);
   if (generator === "xlsx-pivot-refresh") return generateXlsxPivotRefresh(target);
   if (generator === "docx-classic-comment-review") return generateDocxClassicCommentReview(target);
+  if (generator === "docx-modern-comment-reply-boundary") return generateDocxModernCommentReplyBoundary(target);
   if (generator === "docx-header-text-review") return generateDocxHeaderTextReview(target);
   if (generator === "docx-footer-text-review") return generateDocxFooterTextReview(target);
   if (generator === "docx-section-page-numbering-review") return generateDocxSectionPageNumberingReview(target);
