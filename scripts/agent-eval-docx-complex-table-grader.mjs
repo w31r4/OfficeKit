@@ -187,14 +187,17 @@ function auditProvider(audit) {
   const provider = audit?.provider;
   if (typeof provider === "string") return provider;
   const officeKit = audit?.officeKit || audit?.officekit || {};
-  return [provider?.actual, provider?.selected, provider?.name, provider?.package, provider?.provider, officeKit.actualProvider, officeKit.actual_provider]
+  const actualProvider = audit?.actualProvider || audit?.actual_provider || {};
+  if (typeof actualProvider === "string") return actualProvider;
+  return [provider?.actual, provider?.selected, provider?.name, provider?.package, provider?.provider, officeKit.actualProvider, officeKit.actual_provider, actualProvider.name, actualProvider.package, actualProvider.provider]
     .find((candidate) => typeof candidate === "string" && candidate.trim()) || "";
 }
 
 function auditProviderVersion(audit) {
   const provider = audit?.provider || {};
   const officeKit = audit?.officeKit || audit?.officekit || {};
-  return [provider.version, provider.actualVersion, provider.actual_version, audit?.providerVersion, audit?.provider_version, officeKit.actualVersion, officeKit.actual_version]
+  const actualProvider = audit?.actualProvider || audit?.actual_provider || {};
+  return [provider.version, provider.actualVersion, provider.actual_version, audit?.providerVersion, audit?.provider_version, officeKit.actualVersion, officeKit.actual_version, actualProvider.version, actualProvider.actualVersion, actualProvider.actual_version]
     .find((candidate) => typeof candidate === "string" && candidate.trim()) || "";
 }
 
@@ -293,7 +296,7 @@ function hasTypedInspection(commandText, audit) {
   if (!typedComplexTablePreflight(audit)) return false;
   return /(?:DocumentFile\.)?importDocx/i.test(commandText)
     || /(?:^|\/)officekit(?:\.mjs)?\s+run\b|node_modules\/.bin\/officekit\s+run\b/i.test(commandText)
-    || /(?:^|\s)(?:node|nodejs)\b[^\n]{0,320}?\.(?:mjs|js)(?=\s|['"]|$)/i.test(commandText);
+    || /(?:^|[^\w.-])(?:node|nodejs)\b[^\n]{0,320}?\.(?:mjs|js)(?=\s|['"]|$)/i.test(commandText);
 }
 
 export function gradeDocxComplexTableTopologyBoundaryEvidence({ evidence, audit, commands, item }) {
