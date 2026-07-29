@@ -63,6 +63,7 @@ import {
   gradePptxRichNotesEvidence,
   gradePptxSectionBoundaryEvidence,
   gradePptxSlideNameEvidence,
+  gradePptxSmartArtNotesCommentsBoundaryEvidence,
   inspectClosedLeafClonePptx,
   inspectRichNotesPptx,
   inspectSectionBoundaryPptx,
@@ -117,7 +118,7 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 36 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 37 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
@@ -125,7 +126,7 @@ assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escap
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 21);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 5);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 6);
-assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
+assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 5);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
 assert.equal(referenceDocumentSkill, path.join(repoRoot, "reference", "office-artifact-tool", "skills", "documents", "skills", "documents"));
 assert.doesNotMatch(referenceDocumentSkill, /handoff/);
@@ -146,7 +147,7 @@ const runnerHelp = spawnSync(process.execPath, ["scripts/run-agent-evals.mjs", "
   encoding: "utf8",
 });
 assert.equal(runnerHelp.status, 0, runnerHelp.stderr);
-assert.match(runnerHelp.stdout, /four PPTX cases.*section-boundary edit.*closed-leaf slide clone/i);
+assert.match(runnerHelp.stdout, /five PPTX cases.*section-boundary edit.*closed-leaf slide clone.*connected-SmartArt compound refusal/i);
 assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /five ready XLSX cases.*nested-reply refusal/i);
@@ -154,7 +155,7 @@ assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /complex-table-topology refusal/i);
 assert.match(runnerHelp.stdout, /21 ready PDF cases include fourteen locked corpus signature\/boundary\/repair\/redaction\/table fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 5 asset-required cases/i);
+assert.match(runnerHelp.stdout, /remaining 4 asset-required cases/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
@@ -3284,6 +3285,10 @@ try {
   await fs.rm(sectionBoundaryRoot, { recursive: true, force: true });
 }
 
+const smartArtBoundaryItem = cases.find((item) => item.id === "pptx-smartart-notes-comments-boundary");
+assert.ok(smartArtBoundaryItem);
+assert.match(smartArtBoundaryItem.prompt, /原子事务/);
+assert.match(smartArtBoundaryItem.prompt, /PresentationFile\.importPptx/);
 const smartArtBoundaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-pptx-smartart-boundary-"));
 try {
   const generatedPath = path.join(smartArtBoundaryRoot, "generated", PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.presentationName);
@@ -3322,6 +3327,104 @@ try {
     assert.equal(preservedEvidence.partHashes[partPath], sourceHash, `unchanged re-export must retain ${partPath}`);
   }
   assert.equal(pptxSmartArtNotesCommentsProfile(preservedEvidence).ok, true);
+
+  const refusalAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    output: null,
+    officeKit: { actualProvider: "OfficeKit bundled C# WebAssembly codec", actualVersion: "0.5.0-test", silentFallback: false },
+    target: {
+      smartArtName: PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.name,
+      nodeModelId: PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.nodes[2].id,
+      slide: PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.slideIndex + 1,
+      notesSlide: PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.notes.slideIndex + 1,
+      modernCommentThread: PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.comment.root.id,
+    },
+    mutationAttempted: false,
+    preflight: {
+      import: { ok: true, method: "PresentationFile.importPptx" },
+      inspect: {
+        ok: true,
+        slideCount: 4,
+        smartArt: {
+          name: PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.name,
+          nodeCount: 3,
+          connectedDataRelationship: true,
+          editable: false,
+        },
+        review: {
+          slide: 4,
+          speakerNotes: true,
+          modernCommentThreadCount: 1,
+          modernCommentReplyCount: 1,
+        },
+      },
+      capabilityDecision: { supported: false },
+      verify: { ok: true },
+    },
+  };
+  const refusalTrace = JSON.stringify({ type: "item.completed", item: {
+    type: "command_execution",
+    id: "pptx-smartart-preflight",
+    command: "node --input-type=module -e 'const presentation = await PresentationFile.importPptx(input); console.log(presentation.slides.items.length)'",
+  } });
+  const refusalEvidence = {
+    source: lockedEvidence,
+    finalMessage: "The connected SmartArt graph is source-bound and cannot be changed safely as part of this transaction; no modified PPTX was produced.",
+  };
+  const refusalChecks = gradePptxSmartArtNotesCommentsBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: refusalAudit,
+    commands: extractCompletedCommands(refusalTrace),
+    item: smartArtBoundaryItem,
+  });
+  assert.equal(refusalChecks.every((check) => check.passed), true);
+
+  const incompleteAudit = structuredClone(refusalAudit);
+  incompleteAudit.preflight.inspect.smartArt.connectedDataRelationship = false;
+  const incompleteChecks = gradePptxSmartArtNotesCommentsBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: incompleteAudit,
+    commands: extractCompletedCommands(refusalTrace),
+    item: smartArtBoundaryItem,
+  });
+  assert.equal(incompleteChecks.find((check) => check.id === "pptx-smartart-boundary-trace:typed-import-inspect-preflight")?.passed, false);
+
+  const claimedSuccessAudit = structuredClone(refusalAudit);
+  claimedSuccessAudit.status = "succeeded";
+  claimedSuccessAudit.mutationAttempted = true;
+  const claimedSuccessChecks = gradePptxSmartArtNotesCommentsBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: claimedSuccessAudit,
+    commands: extractCompletedCommands(refusalTrace),
+    item: smartArtBoundaryItem,
+  });
+  assert.equal(claimedSuccessChecks.find((check) => check.id === "pptx-smartart-boundary-machine:audit-is-failed-closed")?.passed, false);
+
+  const bypassChecks = gradePptxSmartArtNotesCommentsBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: refusalAudit,
+    commands: ["node -e 'await PresentationFile.importPptx(input); await PresentationFile.exportPptx(presentation)'"],
+    item: smartArtBoundaryItem,
+  });
+  assert.equal(bypassChecks.find((check) => check.id === "pptx-smartart-boundary-security:no-output-or-package-mutation")?.passed, false);
+  assert.equal(bypassChecks.find((check) => check.id === "pptx-smartart-boundary-trace:no-silent-fallback")?.passed, false);
+
+  const trialWorkspace = path.join(smartArtBoundaryRoot, "workspace");
+  await fs.mkdir(path.join(trialWorkspace, "inputs"), { recursive: true });
+  await fs.mkdir(path.join(trialWorkspace, "outputs"), { recursive: true });
+  await fs.copyFile(lockedAssetPath, path.join(trialWorkspace, "inputs", PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.presentationName));
+  await fs.writeFile(path.join(trialWorkspace, "outputs", "audit.json"), JSON.stringify(refusalAudit, null, 2));
+  const nativeSmartArtResult = await gradeOfficeCase({
+    item: smartArtBoundaryItem,
+    workspace: trialWorkspace,
+    evaluator: path.join(trialWorkspace, "evaluator"),
+    finalMessage: refusalEvidence.finalMessage,
+    trace: refusalTrace,
+  });
+  assert.equal(nativeSmartArtResult.graded, true);
+  assert.equal(nativeSmartArtResult.rawScorePercent, 100);
+  assert.equal(nativeSmartArtResult.caseSpecificPassed, true);
 
   const malformedRelationshipZip = await JSZip.loadAsync(lockedSource);
   const relationshipXml = await malformedRelationshipZip.file(PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.dataRelationshipPath)?.async("text");
