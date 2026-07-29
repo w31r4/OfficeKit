@@ -11,6 +11,7 @@ import {
   DOCX_CLASSIC_COMMENT_FIXTURE,
   DOCX_FOOTER_TEXT_FIXTURE,
   DOCX_HEADER_TEXT_FIXTURE,
+  DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE,
   DOCX_SECTION_PAGE_NUMBERING_FIXTURE,
   PPTX_CLOSED_LEAF_CLONE_FIXTURE,
   PPTX_RICH_NOTES_FIXTURE,
@@ -27,13 +28,17 @@ import {
   gradeDocxClassicCommentEvidence,
   gradeDocxFooterTextEvidence,
   gradeDocxHeaderTextEvidence,
+  gradeDocxModernCommentReplyBoundaryEvidence,
   gradeDocxSectionPageNumberingEvidence,
   inspectClassicCommentDocx,
   inspectFooterTextDocx,
   inspectHeaderTextDocx,
+  inspectModernCommentReplyGraphDocx,
   inspectSectionPageNumberingDocx,
+  modernCommentReplyGraphProfile,
 } from "../scripts/agent-eval-docx-graders.mjs";
 import { gradeOfficeCase } from "../scripts/agent-eval-office-graders.mjs";
+import { renderOfficeFile } from "../scripts/agent-eval-office-native-render.mjs";
 import {
   gradeXlsxConnectionRefreshEvidence,
   gradeXlsxGrowthUpdateEvidence,
@@ -99,14 +104,14 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 33 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 34 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 21);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
-assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
+assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 5);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
 assert.equal(referenceDocumentSkill, path.join(repoRoot, "reference", "office-artifact-tool", "skills", "documents", "skills", "documents"));
@@ -134,7 +139,7 @@ assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /21 ready PDF cases include fourteen locked corpus signature\/boundary\/repair\/redaction\/table fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 8 asset-required cases/i);
+assert.match(runnerHelp.stdout, /remaining 7 asset-required cases/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
@@ -296,7 +301,7 @@ const padesLtvMissingTimestampChecks = gradePadesLtvSignatureEvidence({
 assert.equal(padesLtvMissingTimestampChecks.find((check) => check.id === "pdf-machine:offline-crypto-validation")?.passed, false, "a missing trusted DocumentTimeStamp must fail the PAdES-LTA score");
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 21, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 22, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -1554,6 +1559,159 @@ try {
   }
 } finally {
   await fs.rm(classicCommentRoot, { recursive: true, force: true });
+}
+
+const modernCommentBoundaryItem = cases.find((item) => item.id === "docx-modern-comment-reply-boundary");
+assert.ok(modernCommentBoundaryItem);
+const modernCommentBoundaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-docx-modern-comment-"));
+try {
+  const generatedPath = path.join(modernCommentBoundaryRoot, "generated", DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE.documentName);
+  await generateOfficeInput("docx-modern-comment-reply-boundary", generatedPath);
+  const generatedEvidence = await inspectModernCommentReplyGraphDocx(generatedPath);
+  assert.equal(modernCommentReplyGraphProfile(generatedEvidence).ok, true);
+
+  const lockedAssetPath = await verifiedLockedAsset("documents/modern-comment-replies.docx");
+  const lockedEvidence = await inspectModernCommentReplyGraphDocx(lockedAssetPath);
+  assert.equal(modernCommentReplyGraphProfile(lockedEvidence).ok, true);
+  const lockedSource = await fs.readFile(lockedAssetPath);
+  const importedModernBoundary = await DocumentFile.importDocx(new FileBlob(lockedSource, {
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    name: DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE.documentName,
+  }));
+  assert.equal(importedModernBoundary.comments.length, 0, "nested modern replies must remain outside the editable public model");
+  const preservedModernBoundary = await DocumentFile.exportDocx(importedModernBoundary);
+  assert.deepEqual(Buffer.from(await preservedModernBoundary.arrayBuffer()), lockedSource, "unsupported nested modern reply graph must round-trip byte-for-byte");
+
+  const sourceRender = await renderOfficeFile(lockedAssetPath, "docx-modern-comment-refusal-source");
+  if (sourceRender.available) {
+    assert.equal(sourceRender.ok, true);
+    assert.equal(sourceRender.pageCount, 1);
+    assert.ok(sourceRender.pages.every((page) => page.nonWhitePixels > 0));
+  }
+
+  const refusalTrace = JSON.stringify({
+    type: "item.completed",
+    item: {
+      type: "command_execution",
+      id: "docx-modern-comment-inspect",
+      command: "node --input-type=module -e 'const document = await DocumentFile.importDocx(input); console.log(document.comments.length)'",
+    },
+  });
+  const refusalEvidence = { source: lockedEvidence, finalMessage: "现代 Word 评论的 reply-of-reply 图谱不支持身份保持编辑；已 source-bound 安全拒绝，未输出修改版 DOCX。" };
+  const refusalChecks = gradeDocxModernCommentReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: null,
+    commands: extractCompletedCommands(refusalTrace),
+    item: modernCommentBoundaryItem,
+  });
+  assert.equal(refusalChecks.every((check) => check.passed), true);
+  const refusalAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", provider_switch: false },
+    validation: {
+      classic_comment_fallback_used: false,
+      plain_text_fallback_used: false,
+      new_root_fallback_used: false,
+    },
+  };
+  const auditedRefusalChecks = gradeDocxModernCommentReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: refusalAudit,
+    commands: extractCompletedCommands(refusalTrace),
+    item: modernCommentBoundaryItem,
+  });
+  assert.equal(auditedRefusalChecks.every((check) => check.passed), true);
+  const structuredPreflightAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    preflight: {
+      import: { ok: true, method: "DocumentFile.importDocx" },
+      inspect: { ok: true, commentCount: 0, expectedNestedGraphProjected: false },
+      capabilityDecision: { supported: false },
+    },
+  };
+  const structuredPreflightChecks = gradeDocxModernCommentReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: structuredPreflightAudit,
+    commands: ["node_modules/.bin/officekit run preflight.mjs"],
+    item: modernCommentBoundaryItem,
+  });
+  assert.equal(structuredPreflightChecks.every((check) => check.passed), true);
+  const compoundPreflightAudit = {
+    status: "failed_closed",
+    source: { sha256: lockedEvidence.sha256 },
+    provider: { actual: true, name: "office-kit", fallback_used: false },
+    operations: [{
+      name: "OfficeKit import/inspect preflight",
+      result: "unsupported_model_boundary",
+      details: {
+        imported_comment_count: 0,
+        inspect_comment_item_count: 0,
+        document_verify_ok: true,
+      },
+    }],
+  };
+  const compoundPreflightChecks = gradeDocxModernCommentReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: compoundPreflightAudit,
+    commands: ["node_modules/.bin/officekit run preflight.mjs"],
+    item: modernCommentBoundaryItem,
+  });
+  assert.equal(compoundPreflightChecks.every((check) => check.passed), true);
+  const bypassChecks = gradeDocxModernCommentReplyBoundaryEvidence({
+    evidence: refusalEvidence,
+    audit: null,
+    commands: ["node -e 'await DocumentFile.importDocx(input); await DocumentFile.exportDocx(document)'"],
+    item: modernCommentBoundaryItem,
+  });
+  assert.equal(bypassChecks.find((check) => check.id === "docx-modern-security:no-classic-downgrade-or-package-write")?.passed, false);
+  assert.equal(bypassChecks.find((check) => check.id === "docx-modern-trace:no-silent-fallback")?.passed, false);
+
+  const malformedZip = await JSZip.loadAsync(lockedSource);
+  const malformedExtended = await malformedZip.file("word/commentsExtended.xml").async("text");
+  malformedZip.file("word/commentsExtended.xml", malformedExtended.replace('w15:paraIdParent="22222222"', 'w15:paraIdParent="11111111"'));
+  const malformedPath = path.join(modernCommentBoundaryRoot, "malformed.docx");
+  await fs.writeFile(malformedPath, await malformedZip.generateAsync({ type: "uint8array" }));
+  assert.equal(modernCommentReplyGraphProfile(await inspectModernCommentReplyGraphDocx(malformedPath)).ok, false);
+
+  const mistypedZip = await JSZip.loadAsync(lockedSource);
+  const contentTypes = await mistypedZip.file("[Content_Types].xml").async("text");
+  mistypedZip.file("[Content_Types].xml", contentTypes.replace(
+    'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.commentsIds+xml"',
+    'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"',
+  ));
+  const mistypedPath = path.join(modernCommentBoundaryRoot, "mistyped.docx");
+  await fs.writeFile(mistypedPath, await mistypedZip.generateAsync({ type: "uint8array" }));
+  assert.equal(modernCommentReplyGraphProfile(await inspectModernCommentReplyGraphDocx(mistypedPath)).ok, false);
+
+  const reroutedZip = await JSZip.loadAsync(lockedSource);
+  const relationships = await reroutedZip.file("word/_rels/document.xml.rels").async("text");
+  reroutedZip.file("word/_rels/document.xml.rels", relationships.replace(
+    "http://schemas.microsoft.com/office/2016/09/relationships/commentsIds",
+    "http://schemas.microsoft.com/office/2016/09/relationships/comments",
+  ));
+  const reroutedPath = path.join(modernCommentBoundaryRoot, "rerouted.docx");
+  await fs.writeFile(reroutedPath, await reroutedZip.generateAsync({ type: "uint8array" }));
+  assert.equal(modernCommentReplyGraphProfile(await inspectModernCommentReplyGraphDocx(reroutedPath)).ok, false);
+
+  const trialWorkspace = path.join(modernCommentBoundaryRoot, "workspace");
+  await fs.mkdir(path.join(trialWorkspace, "inputs"), { recursive: true });
+  await fs.mkdir(path.join(trialWorkspace, "outputs"), { recursive: true });
+  await fs.copyFile(lockedAssetPath, path.join(trialWorkspace, "inputs", DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE.documentName));
+  const nativeModernResult = await gradeOfficeCase({
+    item: modernCommentBoundaryItem,
+    workspace: trialWorkspace,
+    evaluator: path.join(trialWorkspace, "evaluator"),
+    finalMessage: refusalEvidence.finalMessage,
+    trace: refusalTrace,
+  });
+  assert.equal(nativeModernResult.graded, true);
+  assert.equal(nativeModernResult.rawScorePercent, 100);
+  assert.equal(nativeModernResult.caseSpecificPassed, true);
+} finally {
+  await fs.rm(modernCommentBoundaryRoot, { recursive: true, force: true });
 }
 
 const headerTextItem = cases.find((item) => item.id === "docx-header-text-edit");
