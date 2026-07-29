@@ -3319,6 +3319,7 @@ try {
   assert.equal(reviewSlide.comments.items[0]?.comments.length, 2);
   assert.equal(reviewSlide.comments.items[0]?.comments[0]?.text, PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.comment.root.text);
   assert.equal(reviewSlide.comments.items[0]?.comments[1]?.text, PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.comment.directReply.text);
+  assert.equal(imported.verify({ visualQa: true }).ok, true, "locked SmartArt boundary source must pass public visual verification");
 
   const preservedPath = path.join(smartArtBoundaryRoot, "preserved", PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.presentationName);
   await (await PresentationFile.exportPptx(imported)).save(preservedPath);

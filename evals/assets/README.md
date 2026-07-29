@@ -28,7 +28,9 @@ canaries. The matching prompt asks for all three mutations as one transaction:
 the connected SmartArt graph is the reason to refuse; the notes and comments
 are not presented as unsupported on their own. Refresh it through
 `scripts/agent-eval-office-fixtures.mjs`, then review the raw OPC profile and
-update `integrity.json` in the same change.
+update `integrity.json` in the same change. The locked source itself must pass
+public `PresentationFile.importPptx(...).verify({ visualQa: true })`; the
+opaque graph is a mutation boundary, not a known source-layout error.
 
 The `pdf/signing/docmdp-p1-final.pdf` fixture is a real self-authored
 certification signature with `/Perms` → `/DocMDP` permission `P=1`. Its paired
