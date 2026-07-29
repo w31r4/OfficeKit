@@ -1,5 +1,11 @@
 {
   "assets": {
+    "documents/clinical-form.docx": {
+      "bytes": 2789,
+      "description": "Native Word source-bound table profile with exactly one vertical merge, nested table, custom table style, inserted revision, and block-level content control.",
+      "kind": "file",
+      "sha256": "1ba3aba2dc6d4de094cba14da25675c124bdc142c38105da432ea7b5fdf4906d"
+    },
     "documents/modern-comment-replies.docx": {
       "bytes": 3904,
       "description": "Native Word modern-comment graph with a root, direct reply, reply-of-reply, durable IDs, people identities, resolved state, and one body anchor.",

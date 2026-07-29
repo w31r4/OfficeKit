@@ -186,6 +186,39 @@ export const DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE = Object.freeze({
   ]),
 });
 
+// This is a deliberately small imported-table boundary, not a claim that
+// OfficeKit can author or reconstruct arbitrary Word tables. The second
+// top-level table combines exactly one vertical merge, nested table, custom
+// table style, revision, and block-level SDT. Adding a column through that
+// profile would have to preserve several independent native graphs, so the
+// public model must inspect and refuse rather than approximate the edit.
+export const DOCX_COMPLEX_TABLE_TOPOLOGY_BOUNDARY_FIXTURE = Object.freeze({
+  documentName: "clinical-form.docx",
+  title: "Clinical protocol review",
+  introduction: "The following source-bound clinical dose matrix is retained for review only.",
+  baselineTable: Object.freeze([
+    Object.freeze(["Record", "Status"]),
+    Object.freeze(["Protocol intake", "Complete"]),
+  ]),
+  tableCaption: "ClinicalDoseMatrix",
+  styleId: "ClinicalProtocolTable",
+  headers: Object.freeze(["Dose", "Route", "Review state"]),
+  mergedDose: "5 mg",
+  routeValue: "Oral",
+  nestedScheduleLabel: "Schedule details",
+  nestedSchedule: Object.freeze(["Morning", "With food"]),
+  revision: Object.freeze({
+    id: "37",
+    author: "Clinical QA",
+    date: "2026-07-28T08:00:00Z",
+    text: "Amber",
+  }),
+  control: Object.freeze({
+    alias: "Route control",
+    tag: "ROUTE_CONTROL",
+  }),
+});
+
 // This fixture is intentionally narrow: two ordinary paragraphs share one
 // uniquely used default HeaderPart, while a PAGE footer is a canary for the
 // source-owned field boundary. The ready PromptBench task may change only the
@@ -816,6 +849,89 @@ export async function generateDocxModernCommentReplyBoundary(target) {
   return { path: target, type: DOCX_MIME };
 }
 
+function wordParagraph(text) {
+  return `<w:p><w:r><w:t>${xmlEscape(text)}</w:t></w:r></w:p>`;
+}
+
+function wordTableCell(content, properties = "") {
+  return `<w:tc><w:tcPr><w:tcW w:w="2800" w:type="dxa"/>${properties}</w:tcPr>${content}</w:tc>`;
+}
+
+function wordTableRow(cells) {
+  return `<w:tr>${cells.join("")}</w:tr>`;
+}
+
+function complexTableTopologyXml(fixture) {
+  const nestedTable = `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="1300"/><w:gridCol w:w="2700"/></w:tblGrid>${wordTableRow([
+    wordTableCell(wordParagraph(fixture.nestedSchedule[0])),
+    wordTableCell(wordParagraph(fixture.nestedSchedule[1])),
+  ])}</w:tbl>`;
+  const routeControl = `<w:sdt><w:sdtPr><w:alias w:val="${xmlEscape(fixture.control.alias)}"/><w:tag w:val="${xmlEscape(fixture.control.tag)}"/><w:text/></w:sdtPr><w:sdtContent>${wordParagraph(fixture.routeValue)}</w:sdtContent></w:sdt><w:p/>`;
+  const revisedState = `<w:p><w:ins w:id="${fixture.revision.id}" w:author="${xmlEscape(fixture.revision.author)}" w:date="${fixture.revision.date}"><w:r><w:t>${xmlEscape(fixture.revision.text)}</w:t></w:r></w:ins></w:p>`;
+  return `<w:tbl><w:tblPr><w:tblStyle w:val="${fixture.styleId}"/><w:tblW w:w="8400" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCaption w:val="${fixture.tableCaption}"/></w:tblPr><w:tblGrid><w:gridCol w:w="2200"/><w:gridCol w:w="3100"/><w:gridCol w:w="3100"/></w:tblGrid>${wordTableRow(fixture.headers.map((header) => wordTableCell(wordParagraph(header))))}${wordTableRow([
+    wordTableCell(wordParagraph(fixture.mergedDose), '<w:vMerge w:val="restart"/>'),
+    wordTableCell(routeControl),
+    wordTableCell(revisedState),
+  ])}${wordTableRow([
+    wordTableCell("<w:p/>", "<w:vMerge/>"),
+    wordTableCell(`${wordParagraph(fixture.nestedScheduleLabel)}${nestedTable}<w:p/>`),
+    wordTableCell(wordParagraph("Pending")),
+  ])}</w:tbl>`;
+}
+
+function insertBeforeFinalDocumentSectionProperties(documentXml, fragment) {
+  const index = documentXml.lastIndexOf("<w:sectPr");
+  if (index < 0) throw new Error("DOCX complex-table fixture is missing the final w:sectPr.");
+  return `${documentXml.slice(0, index)}${fragment}${documentXml.slice(index)}`;
+}
+
+function customClinicalTableStyleXml(fixture) {
+  return `<w:style w:type="table" w:styleId="${fixture.styleId}" w:customStyle="1"><w:name w:val="Clinical protocol table"/><w:uiPriority w:val="99"/><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="8" w:space="0" w:color="2F5597"/><w:left w:val="single" w:sz="8" w:space="0" w:color="2F5597"/><w:bottom w:val="single" w:sz="8" w:space="0" w:color="2F5597"/><w:right w:val="single" w:sz="8" w:space="0" w:color="2F5597"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="A6A6A6"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="A6A6A6"/></w:tblBorders></w:tblPr></w:style>`;
+}
+
+async function appendComplexTableTopology(authored, fixture) {
+  const zip = await JSZip.loadAsync(await authored.arrayBuffer());
+  const requiredParts = ["word/document.xml", "word/styles.xml"];
+  const contents = Object.fromEntries(await Promise.all(requiredParts.map(async (partPath) => {
+    const part = zip.file(partPath);
+    if (!part) throw new Error(`DOCX complex-table fixture did not author ${partPath}.`);
+    return [partPath, await part.async("text")];
+  })));
+  contents["word/document.xml"] = insertBeforeFinalDocumentSectionProperties(contents["word/document.xml"], complexTableTopologyXml(fixture));
+  contents["word/styles.xml"] = appendBeforeClosingTag(contents["word/styles.xml"], "</w:styles>", customClinicalTableStyleXml(fixture), "w:styles");
+  for (const [partPath, xml] of Object.entries(contents)) zip.file(partPath, xml);
+  return new Uint8Array(await zip.generateAsync({ type: "uint8array", compression: "DEFLATE", compressionOptions: { level: 6 } }));
+}
+
+export async function generateDocxComplexTableTopologyBoundary(target) {
+  const fixture = DOCX_COMPLEX_TABLE_TOPOLOGY_BOUNDARY_FIXTURE;
+  const document = DocumentModel.create({
+    name: fixture.title,
+    defaultRunStyle: { fontFamily: "Aptos", fontSize: 11, color: "#172033" },
+    blocks: [],
+  });
+  document.applyDesignPreset("report");
+  document.addParagraph(fixture.title, {
+    paragraphFormat: { spaceAfterTwips: 160 },
+    runs: [{ text: fixture.title, style: { bold: true, fontSize: 16, color: "#123B5D" } }],
+  });
+  document.addTable({
+    name: "baseline-clinical-review",
+    values: fixture.baselineTable,
+    widthDxa: 6000,
+    columnWidthsDxa: [3600, 2400],
+    headerFill: "DCE6F1",
+  });
+  document.addParagraph(fixture.introduction, { paragraphFormat: { spaceBeforeTwips: 120, spaceAfterTwips: 120 } });
+  const verification = document.verify({ visualQa: true });
+  if (!verification.ok) throw new Error("Generated DOCX complex-table boundary fixture failed model verification: " + verification.ndjson);
+  const authored = await DocumentFile.exportDocx(document);
+  const boundaryBytes = await appendComplexTableTopology(authored, fixture);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, boundaryBytes);
+  return { path: target, type: DOCX_MIME };
+}
+
 export async function generateDocxHeaderTextReview(target) {
   const fixture = DOCX_HEADER_TEXT_FIXTURE;
   const document = DocumentModel.create({
@@ -1191,6 +1307,7 @@ export async function generateOfficeInput(generator, target) {
   if (generator === "xlsx-pivot-refresh") return generateXlsxPivotRefresh(target);
   if (generator === "docx-classic-comment-review") return generateDocxClassicCommentReview(target);
   if (generator === "docx-modern-comment-reply-boundary") return generateDocxModernCommentReplyBoundary(target);
+  if (generator === "docx-complex-table-topology-boundary") return generateDocxComplexTableTopologyBoundary(target);
   if (generator === "docx-header-text-review") return generateDocxHeaderTextReview(target);
   if (generator === "docx-footer-text-review") return generateDocxFooterTextReview(target);
   if (generator === "docx-section-page-numbering-review") return generateDocxSectionPageNumberingReview(target);
