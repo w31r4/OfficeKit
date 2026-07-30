@@ -170,6 +170,75 @@ const docmdpP2Item = cases.find((item) => item.id === "pdf-docmdp-allowed-field-
 assert.equal(docmdpP2Item?.status, "ready");
 assert.equal(docmdpP2Item?.inputs?.some((input) => input.asset === "pdf/signing/test-pki/docmdp-p2-root.pem"), true);
 
+const p2TraceAudit = {
+  operation: "fill-certified-docmdp-p2-text-field",
+  provider: { name: "pyhanko", version: "0.35.2" },
+  savePolicy: { strategy: "incremental" },
+  silentFallback: false,
+};
+const p2TraceEvidence = { source: {}, output: {}, sourceForm: {}, outputForm: {}, visual: {} };
+const p2PublishedScript = "node_modules/office-kit/skills/pdf/skills/pdf/scripts/pyhanko_certified_form_fill.py";
+const p2PublishedVerifier = "node_modules/office-kit/skills/pdf/skills/pdf/scripts/pyhanko_provider.py";
+const p2BoundScriptChecks = gradeCertifiedDocMdpP2FillEvidence({
+  evidence: p2TraceEvidence,
+  audit: p2TraceAudit,
+  commands: [
+    `SCRIPT=${p2PublishedScript}\n"$OFFICE_KIT_PDF_PROVIDER_PYTHON" "$SCRIPT" probe`,
+    `SCRIPT=${p2PublishedScript}\n"$OFFICE_KIT_PDF_PROVIDER_PYTHON" "$SCRIPT" fill inputs/source.pdf outputs/approved-amount.pdf`,
+    `P=${p2PublishedVerifier}\n"$OFFICE_KIT_PDF_PROVIDER_PYTHON" "$P" verify outputs/approved-amount.pdf --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid --require-all-trusted --require-docmdp-compliant --require-all-bottom-line`,
+    '"$OFFICE_KIT_PDF_PDFTOPPM" -png -r 144 outputs/approved-amount.pdf outputs/render/page',
+  ],
+  item: docmdpP2Item,
+});
+for (const checkId of [
+  "pdf-trace:controlled-probe-before-fill",
+  "pdf-trace:typed-certified-form-primitive",
+  "pdf-trace:postflight-explicit-root-validation",
+  "pdf-trace:postflight-render",
+]) {
+  assert.equal(p2BoundScriptChecks.find((check) => check.id === checkId)?.passed, true, `published same-command variable binding must satisfy ${checkId}`);
+}
+const p2UnpublishedBoundScriptChecks = gradeCertifiedDocMdpP2FillEvidence({
+  evidence: p2TraceEvidence,
+  audit: p2TraceAudit,
+  commands: [
+    "SCRIPT=tools/pyhanko_certified_form_fill.py\n\"$SCRIPT\" probe",
+    "SCRIPT=tools/pyhanko_certified_form_fill.py\n\"$SCRIPT\" fill inputs/source.pdf outputs/approved-amount.pdf",
+  ],
+  item: docmdpP2Item,
+});
+assert.equal(p2UnpublishedBoundScriptChecks.find((check) => check.id === "pdf-trace:typed-certified-form-primitive")?.passed, false, "a same-named untrusted script must not satisfy the typed form primitive");
+const p2UnboundScriptChecks = gradeCertifiedDocMdpP2FillEvidence({
+  evidence: p2TraceEvidence,
+  audit: p2TraceAudit,
+  commands: [
+    '"$SCRIPT" fill inputs/source.pdf outputs/approved-amount.pdf',
+  ],
+  item: docmdpP2Item,
+});
+assert.equal(p2UnboundScriptChecks.find((check) => check.id === "pdf-trace:typed-certified-form-primitive")?.passed, false, "an unbound script variable must not satisfy the typed form primitive");
+const p2HelpOnlyChecks = gradeCertifiedDocMdpP2FillEvidence({
+  evidence: p2TraceEvidence,
+  audit: p2TraceAudit,
+  commands: [
+    `SCRIPT=${p2PublishedScript}\n"$OFFICE_KIT_PDF_PROVIDER_PYTHON" "$SCRIPT" fill --help`,
+  ],
+  item: docmdpP2Item,
+});
+assert.equal(p2HelpOnlyChecks.find((check) => check.id === "pdf-trace:typed-certified-form-primitive")?.passed, false, "a help-only published script invocation must not satisfy the typed form primitive");
+const p2PreflightOnlyVerificationChecks = gradeCertifiedDocMdpP2FillEvidence({
+  evidence: p2TraceEvidence,
+  audit: p2TraceAudit,
+  commands: [
+    `SCRIPT=${p2PublishedScript}\n"$OFFICE_KIT_PDF_PROVIDER_PYTHON" "$SCRIPT" probe`,
+    `P=${p2PublishedVerifier}\n"$OFFICE_KIT_PDF_PROVIDER_PYTHON" "$P" verify inputs/source.pdf --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid --require-all-trusted --require-docmdp-compliant --require-all-bottom-line`,
+    `SCRIPT=${p2PublishedScript}\n"$OFFICE_KIT_PDF_PROVIDER_PYTHON" "$SCRIPT" fill inputs/source.pdf outputs/approved-amount.pdf`,
+    `P=${p2PublishedVerifier}\n"$OFFICE_KIT_PDF_PROVIDER_PYTHON" "$P" verify outputs/approved-amount.pdf`,
+  ],
+  item: docmdpP2Item,
+});
+assert.equal(p2PreflightOnlyVerificationChecks.find((check) => check.id === "pdf-trace:postflight-explicit-root-validation")?.passed, false, "a complete preflight cannot stand in for post-fill explicit-root validation");
+
 if (corpusRuntimeAvailable) {
 assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 10, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {

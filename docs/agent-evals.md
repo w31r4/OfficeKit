@@ -175,6 +175,16 @@ candidate trial against the dirty implementation candidate also passed all 37
 applicable checks at `100/100`; it remains neither a clean-commit result nor a
 candidate/reference three-repeat claim.
 
+P2 typed-operation trace evidence is deliberately narrower than a shell
+interpreter: it accepts either a direct packaged Script path or a variable
+bound to that exact path in the same completed command record. The accepted
+paths are the installed `.agents` PDF Skill or the installed `office-kit`
+package; an unbound variable, a cross-command binding, or an arbitrary
+same-named workspace script does not count. The independent post-fill verifier
+uses the same rule, and the official OfficeKit Poppler-runtime variable counts
+as a render command. This preserves shell-safe invocation without treating a
+trace as authorization evidence.
+
 The evaluator normalizes the published audit envelope and structured equivalent
 forms: an explicit
 no-mutation result can be `executed: false`, `performed: false`/`"none"`,
