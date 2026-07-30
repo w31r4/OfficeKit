@@ -22,7 +22,7 @@ The suite is evaluator-side repository infrastructure. `evals/`, the runner, loc
 - Every family has both a success and a fail-closed case. Some advanced PDF cases accept either verified success or an explicit safe refusal.
 - The default policy uses three trials per subject. Trial count is recorded per case rather than silently inferred by the Agent.
 
-The committed JSONL contains evaluator-only expected outcomes, sources, and grade specifications. The Agent receives only `PROMPT.md`, declared inputs, the selected Skill, the installed candidate tarball, and exact deliverable paths.
+The committed JSONL contains evaluator-only expected outcomes, sources, and grade specifications. The Agent receives only `PROMPT.md`, declared inputs, the selected Skill, the installed candidate tarball, and exact deliverable paths. When a candidate/reference or repeat matrix uses one explicit `--run-root`, the runner creates one schema-versioned, read-only, hash-validated input snapshot for that case and copies those exact bytes into every trial. `run.json` records the fixture root, input-contract hash, and source hashes; a missing, changed, or mismatched cache fails preparation rather than silently regenerating a different input.
 
 ## Commands
 
