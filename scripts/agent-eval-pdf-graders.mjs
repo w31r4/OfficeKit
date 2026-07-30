@@ -453,7 +453,14 @@ function commandTextAfter(commands, position) {
 
 function commandStatementAfter(commands, position) {
   if (!position) return "";
-  return String(commands[position.commandIndex]).slice(position.offset).split(/(?:\r?\n|;|&&|\|\|)/, 1)[0];
+  // A command trace stores the original shell text, including escaped physical
+  // line breaks. They remain one shell statement, so retain them while still
+  // stopping at an ordinary line break or a command separator. This is not a
+  // general shell parser.
+  return String(commands[position.commandIndex])
+    .slice(position.offset)
+    .replace(/\\+\r?\n/g, " ")
+    .split(/(?:\r?\n|;|&&|\|\|)/, 1)[0];
 }
 
 function explicitRootVerificationCommand(command) {
