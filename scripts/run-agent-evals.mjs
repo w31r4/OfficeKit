@@ -22,6 +22,7 @@ export const MINIMUM_PDF_CASE_SHARE = 0.5;
 const casesPath = path.join(repoRoot, "evals", "cases.jsonl");
 const evalAssetsRoot = path.join(repoRoot, "evals", "assets");
 const evalAssetIntegrityPath = path.join(evalAssetsRoot, "integrity.json");
+const INPUT_FIXTURE_SCHEMA_VERSION = 1;
 const commonOracleSources = ["scripts/run-agent-evals.mjs"];
 const oracleSourcesByFamily = new Map([
   ["pdf", ["scripts/agent-eval-pdf-graders.mjs", "scripts/agent-eval-pdf-oracle.py"]],
@@ -508,6 +509,118 @@ async function materializeInput(input, workspace) {
   await makeReadOnly(target);
 }
 
+function inputFixtureRoot(runRoot, item) {
+  return path.join(runRoot, safeRelative(item.id, "case.id"), ".input-fixture-v1");
+}
+
+function inputFixtureSpecSha256(item) {
+  return sha256(Buffer.from(JSON.stringify(item.inputs || []), "utf8"));
+}
+
+function fixtureInputPaths(item) {
+  return (item.inputs || []).map((input) => ({
+    key: input.to,
+    relative: safeRelative(input.to, "input.to"),
+  }));
+}
+
+async function validateInputFixture(item, root) {
+  const stat = await fs.lstat(root).catch(() => null);
+  if (!stat?.isDirectory() || stat.isSymbolicLink()) {
+    fail(`input fixture cache is not a real directory: ${root}`);
+  }
+  const manifestPath = path.join(root, "manifest.json");
+  let manifest;
+  try {
+    manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+  } catch {
+    fail(`input fixture cache has no valid manifest: ${manifestPath}`);
+  }
+  const expectedPaths = fixtureInputPaths(item);
+  const expectedKeys = expectedPaths.map(({ key }) => key).sort();
+  if (manifest?.schemaVersion !== INPUT_FIXTURE_SCHEMA_VERSION
+    || manifest.case !== item.id
+    || manifest.inputSpecSha256 !== inputFixtureSpecSha256(item)
+    || !manifest.inputHashes
+    || typeof manifest.inputHashes !== "object"
+    || Array.isArray(manifest.inputHashes)
+    || JSON.stringify(Object.keys(manifest.inputHashes).sort()) !== JSON.stringify(expectedKeys)) {
+    fail(`input fixture cache does not match the requested case contract: ${root}`);
+  }
+  for (const { key, relative } of expectedPaths) {
+    const actual = await fingerprintPath(path.join(root, relative));
+    if (actual !== manifest.inputHashes[key]) {
+      fail(`input fixture cache integrity mismatch for ${key}: ${root}`);
+    }
+  }
+  return Object.freeze({
+    root,
+    schemaVersion: manifest.schemaVersion,
+    inputSpecSha256: manifest.inputSpecSha256,
+    inputHashes: Object.freeze({ ...manifest.inputHashes }),
+  });
+}
+
+/**
+ * Materialize one immutable input fixture set for every subject/trial in a
+ * shared run root. Generated Office packages are not necessarily byte-stable
+ * across fresh exports, so this cache is what makes candidate/reference and
+ * repeat-matrix comparisons use the same source bytes.
+ */
+export async function prepareInputFixture(item, runRoot) {
+  const root = inputFixtureRoot(path.resolve(runRoot), item);
+  if (await fs.lstat(root).catch(() => null)) return validateInputFixture(item, root);
+  const caseRoot = path.dirname(root);
+  await fs.mkdir(caseRoot, { recursive: true });
+  const staging = await fs.mkdtemp(path.join(caseRoot, ".input-fixture-staging-"));
+  let published = false;
+  try {
+    for (const input of item.inputs || []) await materializeInput(input, staging);
+    const inputHashes = {};
+    for (const { key, relative } of fixtureInputPaths(item)) {
+      inputHashes[key] = await fingerprintPath(path.join(staging, relative));
+    }
+    await fs.writeFile(path.join(staging, "manifest.json"), JSON.stringify({
+      schemaVersion: INPUT_FIXTURE_SCHEMA_VERSION,
+      case: item.id,
+      inputSpecSha256: inputFixtureSpecSha256(item),
+      inputHashes,
+    }, null, 2), "utf8");
+    try {
+      await fs.rename(staging, root);
+      await makeReadOnly(root);
+      published = true;
+    } catch (error) {
+      // A concurrent preparation may have published the same immutable
+      // snapshot first. Never overwrite it; validate it below instead.
+      if (!new Set(["EEXIST", "ENOTEMPTY"]).has(error?.code)) throw error;
+    }
+    return validateInputFixture(item, root);
+  } finally {
+    if (!published && await fs.lstat(staging).catch(() => null)) {
+      await removePreparedTree(staging);
+    }
+  }
+}
+
+export async function materializeInputFixture(item, fixture, workspace) {
+  const validated = await validateInputFixture(item, fixture.root);
+  const inputHashes = {};
+  for (const { key, relative } of fixtureInputPaths(item)) {
+    const source = path.join(validated.root, relative);
+    const target = path.join(workspace, relative);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await copyTree(source, target);
+    await makeReadOnly(target);
+    const actual = await fingerprintPath(target);
+    if (actual !== validated.inputHashes[key]) {
+      fail(`input fixture copy integrity mismatch for ${key}`);
+    }
+    inputHashes[key] = actual;
+  }
+  return inputHashes;
+}
+
 async function makeReadOnly(target) {
   const stat = await fs.lstat(target);
   if (stat.isSymbolicLink()) fail(`eval inputs cannot contain symbolic links: ${target}`);
@@ -588,12 +701,8 @@ async function prepareCase(suite, item, options) {
   await copySkillTree(sourceSkill, installedSkill);
   const referencePackageNamePatches = subject === "reference" ? await patchReferenceSkillPackageName(installedSkill) : [];
   await makeReadOnly(installedSkill);
-  for (const input of item.inputs || []) await materializeInput(input, workspace);
-  const inputHashes = {};
-  for (const input of item.inputs || []) {
-    const target = path.join(workspace, safeRelative(input.to, "input.to"));
-    inputHashes[input.to] = await fingerprintPath(target);
-  }
+  const inputFixture = await prepareInputFixture(item, runRoot);
+  const inputHashes = await materializeInputFixture(item, inputFixture, workspace);
   const packageRecord = await packageCandidate(evaluator, workspace);
   const preparedProviderRuntime = providerRuntimePath(item);
   const prompt = `${visibleCase(suite, item).prompt}${providerRuntimeInstruction(item)}`;
@@ -618,6 +727,12 @@ async function prepareCase(suite, item, options) {
     package: packageRecord,
     referencePackageNamePatches,
     skillSha256: await hashTree(installedSkill),
+    inputFixture: {
+      schemaVersion: inputFixture.schemaVersion,
+      root: path.relative(runRoot, inputFixture.root),
+      inputSpecSha256: inputFixture.inputSpecSha256,
+      inputHashes: inputFixture.inputHashes,
+    },
     workspaceHashes,
     inputHashes,
     oracleSha256: oracleFingerprint(item),
@@ -818,7 +933,7 @@ function help() {
     "  run <case-id> [prepare options] [--model <model>] [--codex <path>]",
     "  score <case-id> --trial-root <prepared trial directory>",
     "",
-    "The Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. Prepared PDF trials declare one authoritative provider interpreter in PROMPT.md from OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON, OFFICE_KIT_PDF_PROVIDER_PYTHON, or OFFICE_KIT_AGENT_EVAL_PYTHON, in that order. OFFICE_KIT_AGENT_EVAL_PYTHON remains the separate fixture/oracle interpreter, so a small evaluator runtime can grade a managed specialist provider without pretending that they are the same environment. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The 15 ready PDF cases include seven locked corpus signature/boundary fixtures with independent source-structure, audit, and trace grading; they do not pass from generic no-artifact gates alone. The ready XLSX threaded-comment, growth-assumption, connection refresh-on-open, and Pivot refresh-on-open cases, four DOCX cases (classic-comment, source-bound DOCX header text, source-bound DOCX footer text, and source-bound DOCX section page-numbering), and four PPTX cases (title plus fixed-topology rich-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone) also have independent semantic, native-render, security, and provider-trace graders. PDF must remain an absolute majority of the full suite; the remaining 14 asset-required cases never claim full success before pinned corpus or PKI fixtures exist.",
+    "The Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. A shared --run-root materializes exactly one read-only, hash-validated input fixture snapshot per case, then copies those same bytes into every candidate/reference trial; use one run root for a comparable repeat matrix. Prepared PDF trials declare one authoritative provider interpreter in PROMPT.md from OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON, OFFICE_KIT_PDF_PROVIDER_PYTHON, or OFFICE_KIT_AGENT_EVAL_PYTHON, in that order. OFFICE_KIT_AGENT_EVAL_PYTHON remains the separate fixture/oracle interpreter, so a small evaluator runtime can grade a managed specialist provider without pretending that they are the same environment. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The 15 ready PDF cases include seven locked corpus signature/boundary fixtures with independent source-structure, audit, and trace grading; they do not pass from generic no-artifact gates alone. The ready XLSX threaded-comment, growth-assumption, connection refresh-on-open, and Pivot refresh-on-open cases, four DOCX cases (classic-comment, source-bound DOCX header text, source-bound DOCX footer text, and source-bound DOCX section page-numbering), and four PPTX cases (title plus fixed-topology rich-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone) also have independent semantic, native-render, security, and provider-trace graders. PDF must remain an absolute majority of the full suite; the remaining 14 asset-required cases never claim full success before pinned corpus or PKI fixtures exist.",
     "",
   ].join("\n");
 }

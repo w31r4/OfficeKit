@@ -80,6 +80,8 @@ import {
   loadSuite,
   makeReadOnly,
   oracleFingerprint,
+  materializeInputFixture,
+  prepareInputFixture,
   providerRuntimeInstruction,
   removePreparedTree,
   repositoryProvenance,
@@ -129,6 +131,7 @@ assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /15 ready PDF cases include seven locked corpus signature\/boundary fixtures/i);
 assert.match(runnerHelp.stdout, /remaining 14 asset-required cases/i);
+assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
@@ -2588,6 +2591,29 @@ assert.deepEqual(traceCommands, ["echo safe"]);
 
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-agent-eval-test-"));
 try {
+  const sectionBoundaryItem = cases.find((candidate) => candidate.id === "pptx-source-bound-section-boundary-edit");
+  assert.ok(sectionBoundaryItem);
+  const sharedFixtureRoot = path.join(temporary, "shared-input-fixtures");
+  const sharedFixture = await prepareInputFixture(sectionBoundaryItem, sharedFixtureRoot);
+  assert.equal(sharedFixture.schemaVersion, 1);
+  assert.match(sharedFixture.inputSpecSha256, /^[a-f0-9]{64}$/);
+  const sharedFixtureAgain = await prepareInputFixture(sectionBoundaryItem, sharedFixtureRoot);
+  assert.deepEqual(sharedFixtureAgain.inputHashes, sharedFixture.inputHashes);
+  const candidateInputs = path.join(temporary, "shared-candidate-inputs");
+  const referenceInputs = path.join(temporary, "shared-reference-inputs");
+  const candidateHashes = await materializeInputFixture(sectionBoundaryItem, sharedFixture, candidateInputs);
+  const referenceHashes = await materializeInputFixture(sectionBoundaryItem, sharedFixture, referenceInputs);
+  assert.deepEqual(candidateHashes, sharedFixture.inputHashes);
+  assert.deepEqual(referenceHashes, sharedFixture.inputHashes);
+  const sharedSource = path.join(sharedFixture.root, "inputs", "section-boundary-review.pptx");
+  assert.equal((await fs.stat(sharedSource)).mode & 0o222, 0, "cached source must remain read-only");
+  await fs.chmod(sharedSource, 0o600);
+  await fs.appendFile(sharedSource, "tampered");
+  await assert.rejects(
+    () => prepareInputFixture(sectionBoundaryItem, sharedFixtureRoot),
+    /input fixture cache integrity mismatch/i,
+  );
+
   const missingPython = spawnSync(process.execPath, ["scripts/run-agent-evals.mjs", "prepare", "pdf-bounded-contract-id-replace", "--run-root", path.join(temporary, "missing-python")], {
     cwd: path.resolve(import.meta.dirname, ".."),
     encoding: "utf8",
