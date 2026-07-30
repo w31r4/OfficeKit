@@ -3292,6 +3292,7 @@ assert.match(smartArtBoundaryItem.prompt, /PresentationFile\.importPptx/);
 assert.match(smartArtBoundaryItem.prompt, /"nodeModelId"/);
 assert.match(smartArtBoundaryItem.prompt, /"modernCommentThread"/);
 assert.match(smartArtBoundaryItem.prompt, /Presentation\.verify/);
+assert.match(smartArtBoundaryItem.prompt, /officekit-connected-smartart-refusal-workflow\.mjs/);
 const smartArtBoundaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-pptx-smartart-boundary-"));
 try {
   const generatedPath = path.join(smartArtBoundaryRoot, "generated", PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.presentationName);
