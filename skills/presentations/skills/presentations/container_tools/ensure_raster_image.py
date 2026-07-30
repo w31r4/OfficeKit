@@ -7,7 +7,7 @@ preview image assets extracted from PowerPoint files.
 
 Dependencies used by this tool:
 - Codex runtime Node + sharp: SVG/SVGZ rasterization
-- Codex runtime Poppler + pdf2image: PDF rasterization (first page)
+- Codex runtime Poppler: PDF rasterization (first page)
 - Codex runtime Pillow: TIFF/JPEG XR output bridging
 - libheif-examples: heif-convert for HEIC/HEIF -> PNG
 - jxr-tools (or libjxr-tools on older distros): JxrDecApp for JPEG XR (JXR/WDP)
@@ -17,18 +17,15 @@ import argparse
 import gzip
 import sys
 import tempfile
-from os import listdir
+from os import listdir, makedirs, replace
 from os.path import basename, dirname, expanduser, isfile, join, splitext
 from subprocess import run
-
-from pdf2image import convert_from_path
-from PIL import Image
 
 SCRIPT_DIR = dirname(__file__)
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from runtime_tools import node_binary, poppler_bin_dir, runtime_binary, runtime_env  # noqa: E402
+from runtime_tools import node_binary, runtime_binary, runtime_env  # noqa: E402
 
 RASTER_EXTS = {
     ".png",
@@ -66,6 +63,10 @@ SUPPORTED_EXTS = RASTER_EXTS | CONVERTIBLE_EXTS
 
 
 def _pillow_convert(src_path: str, dst_path: str) -> None:
+    # Pillow is intentionally needed only for the formats it bridges.  The
+    # PDF path below remains runnable with standard Python plus Poppler.
+    from PIL import Image
+
     with Image.open(src_path) as img:
         img.seek(0)
         if img.mode not in ("1", "L", "LA", "P", "RGB", "RGBA"):
@@ -94,17 +95,39 @@ def _rasterize_svgz(src_path: str, dst_path: str) -> None:
 
 
 def _rasterize_pdf_first_page(src_path: str, dst_path: str) -> None:
-    pages = convert_from_path(
-        src_path,
-        dpi=200,
-        first_page=1,
-        last_page=1,
-        fmt="png",
-        poppler_path=poppler_bin_dir(),
-    )
-    if not pages:
-        raise RuntimeError("No PDF pages were rendered: " + src_path)
-    pages[0].save(dst_path, format="PNG")
+    """Render exactly page one through the runtime-resolved Poppler binary."""
+
+    out_dir = dirname(dst_path)
+    makedirs(out_dir, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".officekit-poppler-", dir=out_dir) as stage_dir:
+        prefix = join(stage_dir, "page-1")
+        command = [
+            runtime_binary("pdftoppm"),
+            "-f",
+            "1",
+            "-l",
+            "1",
+            "-singlefile",
+            "-png",
+            "-r",
+            "200",
+            src_path,
+            prefix,
+        ]
+        try:
+            result = run(command, check=False, capture_output=True, text=True, env=runtime_env())
+        except FileNotFoundError as error:
+            raise RuntimeError(
+                f"Poppler pdftoppm is unavailable: expected `{command[0]}` on PATH. "
+                "Expose the required Poppler command; this helper does not install providers."
+            ) from error
+        if result.returncode != 0:
+            details = (result.stderr or result.stdout or "no output").strip()
+            raise RuntimeError(f"Poppler pdftoppm failed ({result.returncode}): {details}")
+        staged_path = prefix + ".png"
+        if not isfile(staged_path):
+            raise RuntimeError("Poppler pdftoppm completed without producing a first-page PNG: " + src_path)
+        replace(staged_path, dst_path)
 
 
 def _unsupported_format(path: str, reason: str) -> None:
@@ -115,7 +138,7 @@ def ensure_raster_image(path: str, out_dir: str | None = None) -> str:
     """Return a raster image path for the given input, converting when needed.
 
     - SVG/SVGZ are rasterized via the bundled Node runtime and sharp
-    - PDFs are rasterized via bundled Poppler through pdf2image
+    - PDFs are rasterized directly through bundled Poppler
     - WDP/JXR are decoded via JxrDecApp and bridged to PNG via Pillow
     - Known raster formats are returned as-is
 

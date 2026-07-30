@@ -18,6 +18,16 @@ import {
 } from "./skill-harness/presentations/scripts/workflow.mjs";
 
 const fixtureDir = path.join("test", "skill-harness", "presentations", "fixtures");
+const repoRoot = path.resolve(import.meta.dirname, "..");
+const presentationSkillDir = path.join(repoRoot, "skills", "presentations", "skills", "presentations");
+const packagedSlideRenderer = path.join(presentationSkillDir, "container_tools", "render_slides.py");
+const packagedRasterHelper = path.join(presentationSkillDir, "container_tools", "ensure_raster_image.py");
+const [packagedSlideRendererSource, packagedRasterHelperSource] = await Promise.all([
+  fs.readFile(packagedSlideRenderer, "utf8"),
+  fs.readFile(packagedRasterHelper, "utf8"),
+]);
+assert.doesNotMatch(packagedSlideRendererSource, /pdf2image/i, "the packaged slide renderer must not require an undeclared Python package");
+assert.doesNotMatch(packagedRasterHelperSource, /pdf2image/i, "the packaged raster helper must not require an undeclared Python package");
 
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-presentation-skill-test-"));
 const baselineDir = path.join(root, "baselines");
@@ -45,6 +55,62 @@ try {
   assert.equal(readiness.qa.modelRender.montage.ok, true);
   assert.equal(readiness.qa.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
   if (nativeStatus.available) assert.equal(readiness.qa.nativeRender.pageCount, 3);
+
+  const renderPython = process.env.OFFICE_KIT_PRESENTATIONS_PYTHON || "python3";
+  const pythonVersion = spawnSync(renderPython, ["-S", "--version"], { encoding: "utf8" });
+  if (pythonVersion.status === 0) {
+    const packagedRenderDir = path.join(root, "packaged-slide-renderer");
+    const renderedPptx = spawnSync(renderPython, [
+      "-S",
+      packagedSlideRenderer,
+      readiness.pptxPath,
+      "--output_dir",
+      path.join(packagedRenderDir, "pptx"),
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      timeout: 60_000,
+      env: { ...process.env, PYTHONNOUSERSITE: "1" },
+    });
+    assert.equal(renderedPptx.status, 0, `The packaged slide renderer must render PPTX without third-party Python imports\nSTDOUT:\n${renderedPptx.stdout}\nSTDERR:\n${renderedPptx.stderr}`);
+    assert.deepEqual((await fs.readdir(path.join(packagedRenderDir, "pptx"))).filter((name) => /^slide-\d+\.png$/.test(name)).sort(), ["slide-1.png", "slide-2.png", "slide-3.png"]);
+
+    if (nativeStatus.available) {
+      const nativePdfPath = readiness.qa.nativeRender.pdfPath;
+      assert.equal(typeof nativePdfPath, "string");
+      const renderedPdf = spawnSync(renderPython, [
+        "-S",
+        packagedSlideRenderer,
+        nativePdfPath,
+        "--output_dir",
+        path.join(packagedRenderDir, "pdf"),
+      ], {
+        cwd: repoRoot,
+        encoding: "utf8",
+        timeout: 60_000,
+        env: { ...process.env, PYTHONNOUSERSITE: "1" },
+      });
+      assert.equal(renderedPdf.status, 0, `The packaged slide renderer must use Poppler directly for PDF input\nSTDOUT:\n${renderedPdf.stdout}\nSTDERR:\n${renderedPdf.stderr}`);
+      assert.deepEqual((await fs.readdir(path.join(packagedRenderDir, "pdf"))).filter((name) => /^slide-\d+\.png$/.test(name)).sort(), ["slide-1.png", "slide-2.png", "slide-3.png"]);
+
+      const rasterDir = path.join(packagedRenderDir, "raster");
+      const rasterized = spawnSync(renderPython, [
+        "-S",
+        packagedRasterHelper,
+        "--input_files",
+        nativePdfPath,
+        "--output_dir",
+        rasterDir,
+      ], {
+        cwd: repoRoot,
+        encoding: "utf8",
+        timeout: 60_000,
+        env: { ...process.env, PYTHONNOUSERSITE: "1" },
+      });
+      assert.equal(rasterized.status, 0, `The packaged raster helper must use Poppler directly for PDF input\nSTDOUT:\n${rasterized.stdout}\nSTDERR:\n${rasterized.stderr}`);
+      assert.ok((await fs.stat(path.join(rasterDir, "native-render.png"))).size > 0);
+    }
+  }
 
   const workflowSlide = readiness.qa.presentation.slides.getItem(0);
   assert.deepEqual(workflowSlide.background, { fill: "#f1f5f9", mode: "solid" });

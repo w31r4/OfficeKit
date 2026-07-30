@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Copyright (c) w31r4. All rights reserved.
 import argparse
+from glob import glob
 import json
 import re
 import subprocess
@@ -12,17 +13,41 @@ from os.path import abspath, basename, dirname, exists, expanduser, join, splite
 from typing import Sequence, cast
 from zipfile import ZipFile
 
-from pdf2image import convert_from_path, pdfinfo_from_path
-from PIL import Image
-
 SCRIPT_DIR = dirname(__file__)
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from runtime_tools import node_binary, poppler_bin_dir, runtime_env  # noqa: E402
+from runtime_tools import node_binary, runtime_binary, runtime_env  # noqa: E402
 
 EMU_PER_INCH: int = 914_400
 PRESENTATION_EXTS = (".pptx", ".ppsx", ".potx", ".pptm", ".ppsm", ".potm")
+
+
+def _run_poppler(command: list[str], label: str) -> subprocess.CompletedProcess[str]:
+    """Run one required Poppler command with an actionable failure.
+
+    These helpers intentionally call the bundled/runtime-resolved Poppler
+    binaries directly.  A third-party Python wrapper is not part of this
+    skill's runtime contract.
+    """
+
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            check=False,
+            text=True,
+            env=runtime_env(),
+        )
+    except FileNotFoundError as error:
+        raise RuntimeError(
+            f"{label} is unavailable: expected `{command[0]}` on PATH. "
+            "Expose the required Poppler command; this helper does not install providers."
+        ) from error
+    if result.returncode != 0:
+        details = (result.stderr or result.stdout or "no output").strip()
+        raise RuntimeError(f"{label} failed ({result.returncode}): {details}")
+    return result
 
 
 def calc_dpi_via_ooxml(input_path: str, max_w_px: int, max_h_px: int) -> int:
@@ -55,12 +80,21 @@ def calc_dpi_via_pdf(input_path: str, max_w_px: int, max_h_px: int) -> int:
             return calc_dpi_via_ooxml(input_path, max_w_px, max_h_px)
         raise RuntimeError("DPI computation is supported for PDF and OOXML presentation inputs.")
 
-    info = pdfinfo_from_path(input_path, poppler_path=poppler_bin_dir())
-    size_val = info.get("Page size")
+    info = _run_poppler(
+        [runtime_binary("pdfinfo"), input_path],
+        "Poppler pdfinfo",
+    ).stdout
+    size_val = None
+    for line in info.splitlines():
+        label, separator, value = line.partition(":")
+        if separator and label.strip().lower() == "page size":
+            size_val = value.strip()
+            break
     if not size_val:
-        for k, v in info.items():
-            if isinstance(v, str) and "size" in k.lower() and "pts" in v:
-                size_val = v
+        for line in info.splitlines():
+            if "size" in line.lower() and "pts" in line.lower():
+                _, _, value = line.partition(":")
+                size_val = value.strip() if value else line.strip()
                 break
     if not isinstance(size_val, str):
         raise RuntimeError("Failed to read PDF page size for DPI computation.")
@@ -158,6 +192,10 @@ def convert_to_pdf(
     if not paths:
         return ""
 
+    # This legacy assembly helper is the only path in this module that needs
+    # Pillow.  PPTX/PDF PNG rendering itself is standard-library + Poppler.
+    from PIL import Image
+
     images = []
     try:
         for path in paths:
@@ -185,28 +223,25 @@ def rasterize(
     if not input_path.lower().endswith(".pdf"):
         raise RuntimeError("Rasterization is supported for PDF and OOXML presentation inputs.")
 
-    paths_raw = cast(
-        list[str],
-        convert_from_path(
-            input_path,
-            dpi=dpi,
-            fmt="png",
-            thread_count=8,
-            output_folder=out_dir,
-            paths_only=True,
-            output_file="slide",
-            poppler_path=poppler_bin_dir(),
-        ),
-    )
-    # Rename convert_from_path's output format f'slide{thread_id:04d}-{page_num:02d}.png'
-    slides = []
-    for src_path in paths_raw:
-        base = splitext(basename(src_path))[0]
-        slide_num_str = base.split("-")[-1]
-        slide_num = int(slide_num_str)
-        dst_path = join(out_dir, f"slide-{slide_num}.png")
-        replace(src_path, dst_path)
-        slides.append((slide_num, dst_path))
+    # Stage beneath the destination so promotion remains an atomic rename even
+    # when the caller chose a mounted output directory.
+    with tempfile.TemporaryDirectory(prefix=".officekit-poppler-", dir=out_dir) as stage_dir:
+        prefix = join(stage_dir, "slide")
+        _run_poppler(
+            [runtime_binary("pdftoppm"), "-png", "-r", str(dpi), input_path, prefix],
+            "Poppler pdftoppm",
+        )
+        slides = []
+        for src_path in glob(join(stage_dir, "slide-*.png")):
+            match = re.fullmatch(r"slide-(\d+)\.png", basename(src_path))
+            if not match:
+                continue
+            slide_num = int(match.group(1))
+            dst_path = join(out_dir, f"slide-{slide_num}.png")
+            replace(src_path, dst_path)
+            slides.append((slide_num, dst_path))
+        if not slides:
+            raise RuntimeError("Poppler pdftoppm completed without producing slide PNGs.")
     slides.sort(key=lambda t: t[0])
     final_paths = [path for _, path in slides]
     return final_paths
