@@ -238,6 +238,34 @@ const p2PreflightOnlyVerificationChecks = gradeCertifiedDocMdpP2FillEvidence({
   item: docmdpP2Item,
 });
 assert.equal(p2PreflightOnlyVerificationChecks.find((check) => check.id === "pdf-trace:postflight-explicit-root-validation")?.passed, false, "a complete preflight cannot stand in for post-fill explicit-root validation");
+const p2EscapedShellContinuation = "\\\\\n";
+const p2EscapedContinuationChecks = gradeCertifiedDocMdpP2FillEvidence({
+  evidence: p2TraceEvidence,
+  audit: p2TraceAudit,
+  commands: [
+    `${p2PublishedScript} probe`,
+    `${p2PublishedScript} fill inputs/source.pdf outputs/approved-amount.pdf`,
+    [
+      `${p2PublishedVerifier} verify outputs/approved-amount.pdf`,
+      "--trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem",
+      "--require-signature --require-all-integrity-valid --require-all-trusted",
+      "--require-docmdp-compliant --require-all-bottom-line",
+    ].join(p2EscapedShellContinuation),
+  ],
+  item: docmdpP2Item,
+});
+assert.equal(p2EscapedContinuationChecks.find((check) => check.id === "pdf-trace:postflight-explicit-root-validation")?.passed, true, "an escaped shell continuation remains part of the post-fill verifier statement");
+const p2OrdinaryNewlineChecks = gradeCertifiedDocMdpP2FillEvidence({
+  evidence: p2TraceEvidence,
+  audit: p2TraceAudit,
+  commands: [
+    `${p2PublishedScript} probe`,
+    `${p2PublishedScript} fill inputs/source.pdf outputs/approved-amount.pdf`,
+    `${p2PublishedVerifier} verify outputs/approved-amount.pdf\n--trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid --require-all-trusted --require-docmdp-compliant --require-all-bottom-line`,
+  ],
+  item: docmdpP2Item,
+});
+assert.equal(p2OrdinaryNewlineChecks.find((check) => check.id === "pdf-trace:postflight-explicit-root-validation")?.passed, false, "an ordinary following line must not be joined to the post-fill verifier");
 
 if (corpusRuntimeAvailable) {
 assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 10, ok: true, root: path.join(repoRoot, "evals", "assets") });
