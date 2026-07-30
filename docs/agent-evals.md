@@ -273,6 +273,27 @@ All nine ready PDF cases now have complete case-specific grading:
 
 One clean candidate run of `pdf-source-bound-text-highlight` at commit `535d875504f84ccd469cb05922ce94528cfd14d8` passed `100/100`: all hard gates plus 6 machine, 3 visual, 3 security, and 8 trace checks passed. It bound package SHA-256 `c1569217b49725d0e31cc818fc5e2ee035eccc8690d7ee49c57a3e8dc74d33de`, copied-Skill SHA-256 `dc4a294e27b76540cf43e5a7ff1989ccbdcb822ea6e621d9ead413feef9fc20f`, input SHA-256 `3e31e282b7702940c572316958bb3d3263e54f62357605c84303b2fa1a7f31da`, and oracle SHA-256 `20286e3071ecdf9381db2c0543c96dd13c2082c43d3d815003e851d81455fc09`. This is one candidate run, not the default three-repeat matrix or a reference-Skill comparison.
 
+A subsequent clean six-trial matrix at
+`a1f966e646e06a1d9f8d8c89830dcaa6a54a09fc` makes the repeat result explicit:
+the OfficeKit PDF Skill passed candidate `3/3` at `100/100`; the reference
+Skill passed `2/3` at `100/100`. The remaining reference trial produced a
+semantically and visually correct native highlight, but its audit omitted the
+required `rewrite` save-policy and explicit no-fallback fields. Its raw score
+was `90/100`, then the trace hard gate correctly forced its final score to
+zero. Every record used the same clean worktree status hash
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`, source
+SHA-256 `3e31e282b7702940c572316958bb3d3263e54f62357605c84303b2fa1a7f31da`,
+candidate tarball SHA-256
+`7e31440be693705e40cf9652f067b2d4921c104049ecd30706edc857656d2217`, and
+oracle fingerprint
+`0d21f3da37fb369bbafa641c143b48a9515d7bd7576247b1672e471fcf9beae6`. The
+candidate/reference Skill tree hashes were respectively
+`0a5c820ef1d8014966e0e398616c8282020e3c27727b146e4a7fb34d0acff848` and
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`; the
+reference copy recorded no package-name patches. This is a bounded workflow
+and auditability comparison, not a general PDF-fidelity or Skill-superiority
+claim.
+
 The category weights are machine 45, visual 25, security 20, and trace 10. A category earns its weight only when every check in it passes; a not-applicable category is removed from the denominator. `rawScorePercent` preserves the evidence-weighted result; a failed safety hard gate forces `scorePercent` to zero. `taskPassed` is true only when generic hard gates and every applicable case category pass. Missing evaluator dependencies produce `grader-unavailable` with an infrastructure error, never a candidate failure or an inferred pass. A present but unreadable or unrenderable candidate PDF is instead a definitive graded failure.
 
 The PDF oracle is evaluator-side and never copied into the Agent workspace. It uses pypdf/pdfplumber for semantic and structural evidence and Poppler/Pillow for visual evidence, independently of the PyMuPDF mutation provider. Audit claims and Codex command traces are graded separately from final bytes.
