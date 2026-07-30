@@ -177,12 +177,13 @@ candidate/reference three-repeat claim.
 
 P2 typed-operation trace evidence is deliberately narrower than a shell
 interpreter: it accepts either a direct packaged Script path or a variable
-bound to that exact path in the same completed command record. The accepted
-paths are the installed `.agents` PDF Skill or the installed `office-kit`
-package; an unbound variable, a cross-command binding, or an arbitrary
-same-named workspace script does not count. The independent post-fill verifier
-uses the same rule and accepts only its escaped shell line continuations—not an
-ordinary following line. The official OfficeKit Poppler-runtime variable counts
+bound to that path or its scripts directory in the same completed command
+record. The accepted paths are the installed `.agents` PDF Skill or the
+installed `office-kit` package; an unbound variable, a cross-command binding,
+or an arbitrary same-named workspace script does not count. The independent
+post-fill verifier uses the same rule and accepts only its escaped shell line
+continuations—not an ordinary following line. The official OfficeKit
+Poppler-runtime variable counts
 as a render command. This preserves shell-safe invocation without treating a
 trace as authorization evidence.
 

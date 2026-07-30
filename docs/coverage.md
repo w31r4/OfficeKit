@@ -340,11 +340,12 @@ does not allow arbitrary field filling, interactive edits, reflow, signatures,
 P=3, dynamic XFA, PAdES/LTV claims, or a policy bypass.
 
 PromptBench recognizes the published P=2 finalisation and independent verifier
-from a direct packaged Script path or a same-command variable binding only. An
-unbound variable, a cross-command binding, and a same-named workspace script
-do not satisfy the typed-operation trace; escaped shell continuations are part
-of the verifier statement but ordinary following lines are not. The official
-OfficeKit Poppler runtime variable remains valid render evidence.
+from a direct packaged Script path or a same-command variable binding to that
+path or its scripts directory only. An unbound variable, a cross-command
+binding, and a same-named workspace script do not satisfy the typed-operation
+trace; escaped shell continuations are part of the verifier statement but
+ordinary following lines are not. The official OfficeKit Poppler runtime
+variable remains valid render evidence.
 
 ## Reference Skills
 
