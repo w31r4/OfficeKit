@@ -310,6 +310,14 @@ commands already required for native QA. It does not rely on `pdf2image`,
 install a Python package, or substitute another renderer when Poppler is
 unavailable.
 
+### Presentations renderer portability
+
+The packaged Presentations `render_slides.py` and `ensure_raster_image.py`
+helpers use runtime-resolved `pdfinfo` and `pdftoppm` directly for PDF input.
+Their PDF paths do not require `pdf2image` or install a Python package, and
+they do not select another renderer when Poppler is unavailable. Pillow remains
+limited to the declared image-bridging/PDF-assembly paths that need it.
+
 ### PDF DocMDP P=1 refusal audit
 
 `pdf_audit.py failed-closed` can bind one complete `pyhanko_provider.py verify`

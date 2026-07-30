@@ -44,8 +44,8 @@ Contents of the `slides/` skill folder:
 
 The following helper scripts are located in the `container_tools/` directory:
 
-- `ensure_raster_image.py`: Ensure images are rasterized; convert to PNG if needed; quick usage `--input_files <img_path1> ...`.
-- `render_slides.py`: Render a PowerPoint file into a folder of PNG slides using default sizing; quick usage: `<input.pptx>`. Output files are named `slide-1.png`, `slide-2.png`, ... in a directory with the same name as the input file.
+- `ensure_raster_image.py`: Ensure images are rasterized; convert to PNG if needed; quick usage `--input_files <img_path1> ...`. PDF input uses the runtime-resolved `pdftoppm` directly, with no undeclared Python wrapper.
+- `render_slides.py`: Render a PowerPoint file into a folder of PNG slides using default sizing; quick usage: `<input.pptx>`. Output files are named `slide-1.png`, `slide-2.png`, ... in a directory with the same name as the input file. PDF input uses runtime-resolved `pdfinfo`/`pdftoppm` directly.
 - `create_montage.py`: Build a tiled montage from images in a directory (for viewing multiple image assets or rendered slides at once); quick usage: `--input_dir <imgs_dir> --output_file <montage.png>`. It supports most image formats with auto conversion under the hood.
 - `slides_test.py`: Detect content overflowing the original slide canvas; usage: `<input.pptx>`.
 
