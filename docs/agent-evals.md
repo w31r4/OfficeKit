@@ -257,7 +257,7 @@ Current generic hard gates verify:
 
 Generic gates alone do **not** constitute a passing task score. Reports for cases without a case grader continue to say `partial-generic-only` or `generic-refusal-gates` and keep their semantic, visual, security, and trace evidence in `pending`.
 
-All nine ready PDF cases now have complete case-specific grading:
+Nine ready PDF cases have complete case-specific grading:
 
 | Case | Machine | Visual | Security | Trace |
 | --- | --- | --- | --- | --- |
@@ -293,6 +293,28 @@ candidate/reference Skill tree hashes were respectively
 reference copy recorded no package-name patches. This is a bounded workflow
 and auditability comparison, not a general PDF-fidelity or Skill-superiority
 claim.
+
+`pdf-bounded-contract-id-replace` now also has a clean, six-trial matrix at
+`f57db7ba61eed23987c85127a88f02f13ebe028e`: candidate and reference Skills
+each passed `3/3` at `100/100`. The fixed five-page source SHA-256 was
+`1b016ee5263d83e29c554e6af14808bd30537a5342de29b7391a90e4e7595995`; every
+record bound the clean-worktree hash
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`, the
+candidate tarball SHA-256
+`7e31440be693705e40cf9652f067b2d4921c104049ecd30706edc857656d2217`, and
+the oracle fingerprint
+`9f7e1e88614e820ad548dfa93cabc80bcd2be4ff49385e620092a41af0c30eaa`.
+Candidate/reference Skill tree hashes were respectively
+`0a5c820ef1d8014966e0e398616c8282020e3c27727b146e4a7fb34d0acff848` and
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`; the
+reference copy again recorded no package-name patches. Each trial used an
+explicit-policy, receipt-backed private `python-specialists` provider cache
+after `resolve` → `ensure` → `probe`, reporting PyMuPDF `1.27.2.3`; no global
+Python dependency was used. The oracle proved the one page-3 fixed-width
+replacement, unchanged Helvetica 11-point geometry, pixel-identical pages
+1–2 and 4–5, a target-mask-contained page-3 diff, no old-term residue, one
+rewrite revision, and the shipped typed `replace_text` operation. This is a
+bounded source-owned replacement contract, not a general PDF reflow claim.
 
 The category weights are machine 45, visual 25, security 20, and trace 10. A category earns its weight only when every check in it passes; a not-applicable category is removed from the denominator. `rawScorePercent` preserves the evidence-weighted result; a failed safety hard gate forces `scorePercent` to zero. `taskPassed` is true only when generic hard gates and every applicable case category pass. Missing evaluator dependencies produce `grader-unavailable` with an infrastructure error, never a candidate failure or an inferred pass. A present but unreadable or unrenderable candidate PDF is instead a definitive graded failure.
 
@@ -345,7 +367,7 @@ The first generated PDF pilots produced two useful product signals:
 1. The overflow replacement correctly failed closed, preserved the source hash, and emitted no modified PDF.
 2. The first bounded equal-length contract-ID replacement was semantically and visually correct, including five-page count and unchanged non-target pages. However, the shipped `pymupdf_edit.py replace_text` primitive rejected the replacement because its fit calculation exceeded the box by roughly `0.00002pt`; the Agent then bypassed the typed primitive with a direct content-stream replacement. The grader scores that historical result 90/100: machine, visual, and security pass, while save-policy, typed-primitive, and low-level-bypass trace checks fail. It is therefore not a passing task.
 3. The typed primitive now preserves the source baseline/default Base14 style and tolerates only provider/search-box float quantization, capped at `0.0005pt`; genuine overflow and rotated/cross-span input still fail closed. A second trial exposed an underspecified audit envelope, so the Skill now publishes `office-kit.pdf-audit.v1`, a JSON Schema, and `pdf_audit.py validate` to bind canonical provider/save-policy/operation evidence to exact source/output bytes.
-4. With those changes fixed, one candidate trial scored 100/100 across machine, visual, security, and trace categories. A reference-subject trial using the byte-identical candidate tarball also scored 100/100: its different reference Skill discovered and used the published candidate PDF tasks/scripts. This supports package discoverability and reference-workflow compatibility; it does not establish candidate-Skill superiority, and the default three repeat trials per fixed subject have not yet been run.
+4. With those changes fixed, the later clean six-trial matrix passed candidate and reference subjects `3/3` at `100/100`. The reference Skill discovered and used the published candidate PDF tasks/scripts through the same byte-identical candidate tarball. The matrix used the explicit private managed PyMuPDF route recorded above; it supports package discoverability and reference-workflow compatibility, not candidate-Skill superiority or general PDF reflow.
 5. The active-content case exposed a provider-contract gap: PyMuPDF's stock scrub left root actions, invisible text, a comment, and a populated form value in the generated file. The typed adapter now removes the bounded inert-publication surface, fails when invisible text overlaps visible text, and runs a structural `--require-inert` gate after the full rewrite. A first live trial safely refused because the Skill hard-coded system `python3` instead of the runner-configured provider interpreter. After making interpreter selection explicit, two fixed-candidate trials passed 100/100. A third repeat exposed a narrower gap: PyMuPDF represented removed `/OpenAction`, `/AA`, `/JavaScript`, and `/EmbeddedFiles` names as `null`; the Agent repaired the final bytes through direct object mutation, so the trace hard gate correctly reduced a 90 raw score to zero. The official scrub primitive now physically removes those null active-content names, reports their xrefs, and fails closed on unfamiliar object serialization. The repeat matrix must be restarted on the fixed tarball; the historical bypass is not counted as a pass.
 6. The first two restarted candidate trials then safely refused because both Agents invoked system `python3` despite the non-empty provider-runtime variable and documented command expansion. This was not accepted as environmental noise: the scripts now make runtime selection executable. Every shipped Python entry point re-executes through `OFFICE_KIT_PDF_PROVIDER_PYTHON` before dependency probing/import, and an invalid configured interpreter fails closed. This keeps probe, plan, mutation, scan, and audit on one provider identity even when an Agent writes `python3 script.py`; the matrix must restart again on that fixed package.
 7. The final fixed active-content matrix passed candidate `3/3` and reference Skill `3/3`, every run at 100/100 across machine, visual, security, and trace. All six records bind clean commit `39fa301dcb1005f2848282e6e63da1e934104821`, package SHA-256 `e78e18c0f8f1cffe301ae1f2ea17e882bc879b3044914033e24b0b11ac0e8b69`, prompt/input/oracle fingerprints, candidate Skill SHA-256 `8ff51b8081babac4ec5af6ba1a8e4ae5b1df6a4a783dc51691fd580fa236fe3e`, and distinct reference Skill SHA-256 `4a32786820fbadf1d6c528002555597cc3aac200ac96e17040056eb51846b79b`. Reference trial 3 initially received a false trace failure because it viewed `edit --help` before mutation and independently scheduled probe/plan so plan finished first; the evaluator now ignores help-only invocations and requires both successful preflights, in either order, before the real edit. The retained trace then scores 100 without weakening bypass or post-mutation gates.
