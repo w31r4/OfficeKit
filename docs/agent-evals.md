@@ -175,6 +175,24 @@ candidate trial against the dirty implementation candidate also passed all 37
 applicable checks at `100/100`; it remains neither a clean-commit result nor a
 candidate/reference three-repeat claim.
 
+A subsequent clean-commit matrix provides that missing repetition. At
+`5599aa6094db8940fecb2197d0f66f3b54e3c5fc`, all three candidate trials and all
+three reference-Skill trials passed every hard gate and scored `100/100`. Every
+recorded worktree was clean (empty-status SHA-256
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`), used
+the same candidate tarball SHA-256
+`7e31440be693705e40cf9652f067b2d4921c104049ecd30706edc857656d2217`, and
+used oracle fingerprint
+`2bd647ff60210eeb2e4932424bd4723402934dd6403995e5781cc374a77a370e`. The
+candidate Skill tree hash was
+`0a5c820ef1d8014966e0e398616c8282020e3c27727b146e4a7fb34d0acff848`; the
+reference Skill tree hash was
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`. The
+reference copy recorded no package-name patches. This is a constrained P=2
+workflow compatibility result under the declared source/root inputs, managed
+provider, and hidden structural/visual oracle—not a general PDF-fidelity or
+reference-superiority claim.
+
 P2 typed-operation trace evidence is deliberately narrower than a shell
 interpreter: it accepts either a direct packaged Script path or a variable
 bound to that path or its scripts directory in the same completed command

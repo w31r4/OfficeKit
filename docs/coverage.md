@@ -347,6 +347,15 @@ trace; escaped shell continuations are part of the verifier statement but
 ordinary following lines are not. The official OfficeKit Poppler runtime
 variable remains valid render evidence.
 
+At clean commit `5599aa6094db8940fecb2197d0f66f3b54e3c5fc`, the P=2
+PromptBench matrix recorded candidate `3/3` and reference Skill `3/3` at
+`100/100`, using the same packed candidate SHA-256
+`7e31440be693705e40cf9652f067b2d4921c104049ecd30706edc857656d2217` and
+oracle fingerprint
+`2bd647ff60210eeb2e4932424bd4723402934dd6403995e5781cc374a77a370e`. This
+covers the bounded finalisation workflow only; it does not generalize to P=3,
+arbitrary signed PDFs, or general PDF editing.
+
 ## Reference Skills
 
 The source and npm layouts contain seven native plugin bundles and twenty-seven
