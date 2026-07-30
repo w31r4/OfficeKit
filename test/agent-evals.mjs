@@ -179,6 +179,7 @@ const p2TraceAudit = {
 const p2TraceEvidence = { source: {}, output: {}, sourceForm: {}, outputForm: {}, visual: {} };
 const p2PublishedScript = "node_modules/office-kit/skills/pdf/skills/pdf/scripts/pyhanko_certified_form_fill.py";
 const p2PublishedVerifier = "node_modules/office-kit/skills/pdf/skills/pdf/scripts/pyhanko_provider.py";
+const p2PublishedScriptsDirectory = "node_modules/office-kit/skills/pdf/skills/pdf/scripts";
 const p2BoundScriptChecks = gradeCertifiedDocMdpP2FillEvidence({
   evidence: p2TraceEvidence,
   audit: p2TraceAudit,
@@ -217,6 +218,28 @@ const p2UnboundScriptChecks = gradeCertifiedDocMdpP2FillEvidence({
   item: docmdpP2Item,
 });
 assert.equal(p2UnboundScriptChecks.find((check) => check.id === "pdf-trace:typed-certified-form-primitive")?.passed, false, "an unbound script variable must not satisfy the typed form primitive");
+const p2BoundDirectoryVerifierChecks = gradeCertifiedDocMdpP2FillEvidence({
+  evidence: p2TraceEvidence,
+  audit: p2TraceAudit,
+  commands: [
+    `${p2PublishedScript} probe`,
+    `${p2PublishedScript} fill inputs/source.pdf outputs/approved-amount.pdf`,
+    `S=${p2PublishedScriptsDirectory}\n"$S/pyhanko_provider.py" verify outputs/approved-amount.pdf --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid --require-all-trusted --require-docmdp-compliant --require-all-bottom-line`,
+  ],
+  item: docmdpP2Item,
+});
+assert.equal(p2BoundDirectoryVerifierChecks.find((check) => check.id === "pdf-trace:postflight-explicit-root-validation")?.passed, true, "a same-command published scripts-directory binding must satisfy the post-fill verifier");
+const p2UnpublishedDirectoryVerifierChecks = gradeCertifiedDocMdpP2FillEvidence({
+  evidence: p2TraceEvidence,
+  audit: p2TraceAudit,
+  commands: [
+    `${p2PublishedScript} probe`,
+    `${p2PublishedScript} fill inputs/source.pdf outputs/approved-amount.pdf`,
+    "S=tools/pdf-scripts\n\"$S/pyhanko_provider.py\" verify outputs/approved-amount.pdf --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid --require-all-trusted --require-docmdp-compliant --require-all-bottom-line",
+  ],
+  item: docmdpP2Item,
+});
+assert.equal(p2UnpublishedDirectoryVerifierChecks.find((check) => check.id === "pdf-trace:postflight-explicit-root-validation")?.passed, false, "an untrusted scripts-directory binding must not satisfy the post-fill verifier");
 const p2HelpOnlyChecks = gradeCertifiedDocMdpP2FillEvidence({
   evidence: p2TraceEvidence,
   audit: p2TraceAudit,

@@ -399,10 +399,22 @@ function isPublishedPdfSkillScriptPath(value, scriptName) {
   ));
 }
 
+function isPublishedPdfSkillScriptRoot(value) {
+  const normalized = String(value || "")
+    .replaceAll("\\", "/")
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/^\.\//, "");
+  return publishedPdfSkillScriptRoots.some((root) => (
+    normalized === root
+    || normalized.endsWith(`/${root}`)
+  ));
+}
+
 // Command traces are evidence, not a shell to interpret. Recognise only a
 // direct published script path, or a variable that is bound to that exact path
-// in the same completed shell command. In particular, do not carry variable
-// bindings across command records or accept an arbitrary same-named script.
+// (or its published scripts directory) in the same completed shell command.
+// In particular, do not carry variable bindings across command records or
+// accept an arbitrary same-named script.
 function completedPublishedPdfSkillInvocation(commands, scriptName, operation, after = null) {
   const escapedScriptName = escapeRegularExpression(scriptName);
   const escapedOperation = escapeRegularExpression(operation);
@@ -419,9 +431,15 @@ function completedPublishedPdfSkillInvocation(commands, scriptName, operation, a
     for (const assignment of command.matchAll(assignmentExpression)) {
       const variable = assignment[1];
       const value = assignment[2] || assignment[3] || assignment[4];
-      if (!isPublishedPdfSkillScriptPath(value, scriptName)) continue;
+      const scriptPathBinding = isPublishedPdfSkillScriptPath(value, scriptName);
+      const scriptRootBinding = isPublishedPdfSkillScriptRoot(value);
+      if (!scriptPathBinding && !scriptRootBinding) continue;
       const bindingEnd = (assignment.index || 0) + assignment[0].length;
-      const variableExpression = new RegExp(`(?:"\\$\\{?${escapeRegularExpression(variable)}\\}?"|\\$\\{?${escapeRegularExpression(variable)}\\}?)\\s+${escapedOperation}\\b`, "g");
+      const variableReference = `\\$\\{?${escapeRegularExpression(variable)}\\}?`;
+      const invokedPath = scriptPathBinding
+        ? variableReference
+        : `${variableReference}/${escapedScriptName}`;
+      const variableExpression = new RegExp(`(?:"${invokedPath}"|${invokedPath})\\s+${escapedOperation}\\b`, "g");
       for (const invocation of command.matchAll(variableExpression)) {
         const offset = invocation.index || 0;
         if (offset < bindingEnd) continue;
