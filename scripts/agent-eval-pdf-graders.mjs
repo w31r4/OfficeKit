@@ -379,6 +379,66 @@ function completedInvocation(commands, pattern) {
   return null;
 }
 
+const publishedPdfSkillScriptRoots = [
+  ".agents/skills/pdf/scripts",
+  "node_modules/office-kit/skills/pdf/skills/pdf/scripts",
+];
+
+function escapeRegularExpression(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isPublishedPdfSkillScriptPath(value, scriptName) {
+  const normalized = String(value || "")
+    .replaceAll("\\", "/")
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/^\.\//, "");
+  return publishedPdfSkillScriptRoots.some((root) => (
+    normalized === `${root}/${scriptName}`
+    || normalized.endsWith(`/${root}/${scriptName}`)
+  ));
+}
+
+// Command traces are evidence, not a shell to interpret. Recognise only a
+// direct published script path, or a variable that is bound to that exact path
+// in the same completed shell command. In particular, do not carry variable
+// bindings across command records or accept an arbitrary same-named script.
+function completedPublishedPdfSkillInvocation(commands, scriptName, operation, after = null) {
+  const escapedScriptName = escapeRegularExpression(scriptName);
+  const escapedOperation = escapeRegularExpression(operation);
+  const directExpression = new RegExp(`([^\\s\"';|&]+${escapedScriptName})[\"']?\\s+${escapedOperation}\\b`, "gi");
+  const assignmentExpression = /(?:^|[;\n])\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(?:"([^"]+)"|'([^']+)'|([^\s;|&]+))/g;
+
+  for (let commandIndex = 0; commandIndex < commands.length; commandIndex += 1) {
+    const command = String(commands[commandIndex]);
+    const candidates = [];
+    for (const match of command.matchAll(directExpression)) {
+      if (!isPublishedPdfSkillScriptPath(match[1], scriptName)) continue;
+      candidates.push({ offset: match.index || 0, end: (match.index || 0) + match[0].length });
+    }
+    for (const assignment of command.matchAll(assignmentExpression)) {
+      const variable = assignment[1];
+      const value = assignment[2] || assignment[3] || assignment[4];
+      if (!isPublishedPdfSkillScriptPath(value, scriptName)) continue;
+      const bindingEnd = (assignment.index || 0) + assignment[0].length;
+      const variableExpression = new RegExp(`(?:"\\$\\{?${escapeRegularExpression(variable)}\\}?"|\\$\\{?${escapeRegularExpression(variable)}\\}?)\\s+${escapedOperation}\\b`, "g");
+      for (const invocation of command.matchAll(variableExpression)) {
+        const offset = invocation.index || 0;
+        if (offset < bindingEnd) continue;
+        candidates.push({ offset, end: offset + invocation[0].length });
+      }
+    }
+    candidates.sort((left, right) => left.offset - right.offset);
+    for (const candidate of candidates) {
+      if (/^\s+(?:--help|-h)\b/i.test(command.slice(candidate.end))) continue;
+      const position = { commandIndex, offset: candidate.offset };
+      if (after && !invocationBefore(after, position)) continue;
+      return position;
+    }
+  }
+  return null;
+}
+
 function invocationBefore(left, right) {
   return Boolean(left && right && (
     left.commandIndex < right.commandIndex
@@ -389,6 +449,26 @@ function invocationBefore(left, right) {
 function commandTextAfter(commands, position) {
   if (!position) return "";
   return [String(commands[position.commandIndex]).slice(position.offset), ...commands.slice(position.commandIndex + 1)].join("\n");
+}
+
+function commandStatementAfter(commands, position) {
+  if (!position) return "";
+  return String(commands[position.commandIndex]).slice(position.offset).split(/(?:\r?\n|;|&&|\|\|)/, 1)[0];
+}
+
+function explicitRootVerificationCommand(command) {
+  const text = String(command || "");
+  return /--trust-policy\s+explicit-roots\b/i.test(text)
+    && /--trust-root\s+/i.test(text)
+    && /--require-signature\b/i.test(text)
+    && /--require-all-integrity-valid\b/i.test(text)
+    && /--require-all-trusted\b/i.test(text)
+    && /--require-docmdp-compliant\b/i.test(text)
+    && /--require-all-bottom-line\b/i.test(text);
+}
+
+function postFillRenderCommand(text) {
+  return /(?:mupdf\.mjs["']?\s+render\b|\bpdftoppm\b|\$\{?OFFICE_KIT_(?:PDF|AGENT_EVAL)_PDFTOPPM\}?)/i.test(String(text || ""));
 }
 
 function highlightColorMatches(actual, expected, tolerance = 0.001) {
@@ -475,19 +555,13 @@ function acroformTraceChecks(audit, commands) {
 
 function certifiedDocMdpP2TraceChecks(audit, commands) {
   const commandText = commands.join("\n");
-  const probe = completedInvocation(commands, /pyhanko_certified_form_fill\.py["']?\s+probe\b/i);
-  const fill = completedInvocation(commands, /pyhanko_certified_form_fill\.py["']?\s+fill\b/i);
+  const probe = completedPublishedPdfSkillInvocation(commands, "pyhanko_certified_form_fill.py", "probe");
+  const fill = completedPublishedPdfSkillInvocation(commands, "pyhanko_certified_form_fill.py", "fill");
+  const postflight = completedPublishedPdfSkillInvocation(commands, "pyhanko_provider.py", "verify", fill);
   const afterFill = commandTextAfter(commands, fill);
-  const postflightVerification = commands.some((command, index) => index > (fill?.commandIndex ?? Number.MAX_SAFE_INTEGER)
-    && /pyhanko_provider\.py["']?\s+verify\b/i.test(String(command))
-    && /--trust-policy\s+explicit-roots\b/i.test(String(command))
-    && /--trust-root\s+/i.test(String(command))
-    && /--require-signature\b/i.test(String(command))
-    && /--require-all-integrity-valid\b/i.test(String(command))
-    && /--require-all-trusted\b/i.test(String(command))
-    && /--require-docmdp-compliant\b/i.test(String(command))
-    && /--require-all-bottom-line\b/i.test(String(command)));
-  const renderAfterFill = /(?:mupdf\.mjs["']?\s+render\b|\bpdftoppm\b)/i.test(afterFill);
+  const postflightVerification = Boolean(postflight)
+    && explicitRootVerificationCommand(commandStatementAfter(commands, postflight));
+  const renderAfterFill = postFillRenderCommand(afterFill);
   const bypassPatterns = [
     /\bPdfWriter\s*\(/,
     /\bupdate_page_form_field_values\s*\(/,
