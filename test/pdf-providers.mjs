@@ -814,6 +814,44 @@ try {
     fetchImpl: async () => new Response(null, { status: 307, headers: { location: "https://release-storage.example.test/again" } }),
   }), /exceeded 5 HTTPS redirects/);
 
+  const responseTimeoutCache = path.join(tempRoot, "response-timeout-cache");
+  let responseTimeoutAborted = false;
+  const responseTimeoutStarted = Date.now();
+  await assert.rejects(() => installManagedPackForTest({
+    cacheRoot: responseTimeoutCache,
+    pack,
+    downloadTimeouts: { responseMs: 25, idleMs: 25 },
+    fetchImpl: async (_url, { signal }) => new Promise((_, reject) => {
+      signal.addEventListener("abort", () => {
+        responseTimeoutAborted = true;
+        reject(signal.reason);
+      }, { once: true });
+    }),
+  }), /timed out waiting for an HTTPS response/);
+  assert.equal(responseTimeoutAborted, true, "response timeout must abort the underlying fetch");
+  assert.ok(Date.now() - responseTimeoutStarted < 1_000, "response timeout must remain bounded in the test seam");
+  assert.ok((await listTree(responseTimeoutCache)).every((entry) => !entry.includes(".fixture-pack.tmp-") && !entry.endsWith(".lock")), "response timeout must clean its staging and lock");
+
+  const idleTimeoutCache = path.join(tempRoot, "idle-timeout-cache");
+  let idleTimeoutCancelled = false;
+  const idleTimeoutStarted = Date.now();
+  await assert.rejects(() => installManagedPackForTest({
+    cacheRoot: idleTimeoutCache,
+    pack,
+    downloadTimeouts: { responseMs: 25, idleMs: 25 },
+    fetchImpl: async () => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(normalArchive.subarray(0, 1));
+      },
+      cancel() {
+        idleTimeoutCancelled = true;
+      },
+    }), { status: 200 }),
+  }), /timed out waiting for the next response-body chunk/);
+  assert.equal(idleTimeoutCancelled, true, "idle timeout must cancel the unread response body");
+  assert.ok(Date.now() - idleTimeoutStarted < 1_000, "idle timeout must remain bounded in the test seam");
+  assert.ok((await listTree(idleTimeoutCache)).every((entry) => !entry.includes(".fixture-pack.tmp-") && !entry.endsWith(".lock")), "idle timeout must clean its staging and lock");
+
   const concurrentCache = path.join(tempRoot, "concurrent-cache");
   let concurrentFetches = 0;
   const delayedFetch = async () => {

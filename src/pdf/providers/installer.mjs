@@ -29,6 +29,8 @@ const MAX_RECEIPT_BYTES = 128 * 1024;
 const LOCK_TIMEOUT_MS = 20_000;
 const LOCK_RETRY_MS = 25;
 const MAX_DOWNLOAD_REDIRECTS = 5;
+const DOWNLOAD_RESPONSE_TIMEOUT_MS = 30_000;
+const DOWNLOAD_IDLE_TIMEOUT_MS = 30_000;
 const MIN_TAR_METADATA_BYTES = 4 * 1024 * 1024;
 const MAX_TAR_METADATA_BYTES = 16 * 1024 * 1024;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
@@ -39,6 +41,46 @@ function nonEmptyString(value) {
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function downloadTimeouts(value = undefined) {
+  if (value === undefined) {
+    return {
+      responseMs: DOWNLOAD_RESPONSE_TIMEOUT_MS,
+      idleMs: DOWNLOAD_IDLE_TIMEOUT_MS,
+    };
+  }
+  if (!isPlainObject(value)) throw new TypeError("Capability-pack download timeouts must be an object.");
+  const responseMs = value.responseMs ?? DOWNLOAD_RESPONSE_TIMEOUT_MS;
+  const idleMs = value.idleMs ?? DOWNLOAD_IDLE_TIMEOUT_MS;
+  for (const [label, timeoutMs] of [["responseMs", responseMs], ["idleMs", idleMs]]) {
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new TypeError(`Capability-pack download timeout ${label} must be a positive safe integer.`);
+  }
+  return { responseMs, idleMs };
+}
+
+function downloadTimeoutError(asset, phase, timeoutMs) {
+  const error = new Error(`Capability-pack download timed out waiting for ${phase} for ${asset} after ${timeoutMs} ms.`);
+  error.code = "ERR_OFFICE_KIT_CAPABILITY_DOWNLOAD_TIMEOUT";
+  return error;
+}
+
+async function withDownloadTimeout(operation, { controller, asset, phase, timeoutMs }) {
+  let timer;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          const error = downloadTimeoutError(asset, phase, timeoutMs);
+          controller.abort(error);
+          reject(error);
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function sha256(bytes) {
@@ -256,7 +298,7 @@ function isRedirectStatus(status) {
   return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
 }
 
-async function fetchPinnedArtifact(initialUrl, asset, fetchImpl) {
+async function fetchPinnedArtifact(initialUrl, asset, fetchImpl, { controller, responseTimeoutMs }) {
   let url = initialUrl;
   for (let redirects = 0; redirects <= MAX_DOWNLOAD_REDIRECTS; redirects += 1) {
     let response;
@@ -264,8 +306,12 @@ async function fetchPinnedArtifact(initialUrl, asset, fetchImpl) {
       // Release assets legitimately redirect to a short-lived object URL. We
       // retain control of every hop instead of allowing the runtime's generic
       // redirect behavior, and still bind the final bytes to the catalog hash.
-      response = await fetchImpl(url, { redirect: "manual" });
+      response = await withDownloadTimeout(
+        fetchImpl(url, { redirect: "manual", signal: controller.signal }),
+        { controller, asset, phase: "an HTTPS response", timeoutMs: responseTimeoutMs },
+      );
     } catch (error) {
+      if (error?.code === "ERR_OFFICE_KIT_CAPABILITY_DOWNLOAD_TIMEOUT") throw error;
       throw new Error(`Capability-pack download failed for ${asset}: ${String(error?.message || error)}.`);
     }
     if (!response) throw new Error(`Capability-pack download failed for ${asset}: no HTTP response.`);
@@ -287,18 +333,40 @@ async function fetchPinnedArtifact(initialUrl, asset, fetchImpl) {
   throw new Error(`Capability-pack download exceeded ${MAX_DOWNLOAD_REDIRECTS} HTTPS redirects for ${asset}.`);
 }
 
-async function downloadArtifact(artifact, enterpriseMirror, fetchImpl) {
+async function downloadArtifact(artifact, enterpriseMirror, fetchImpl, timeoutOptions = undefined) {
   if (typeof fetchImpl !== "function") throw new Error("No fetch implementation is available for managed capability installation.");
+  const { responseMs, idleMs } = downloadTimeouts(timeoutOptions);
   const url = resolveArtifactUrl(artifact, enterpriseMirror);
-  const response = await fetchPinnedArtifact(url, artifact.asset, fetchImpl);
+  const controller = new AbortController();
+  const response = await fetchPinnedArtifact(url, artifact.asset, fetchImpl, { controller, responseTimeoutMs: responseMs });
   if (!response || response.ok !== true || !response.body) throw new Error(`Capability-pack download failed for ${artifact.asset}: HTTP ${response?.status ?? "unknown"}.`);
   const chunks = [];
   let downloadedBytes = 0;
-  for await (const chunk of response.body) {
-    const bytes = Buffer.from(chunk);
-    downloadedBytes += bytes.length;
-    if (downloadedBytes > artifact.downloadBytes) throw new Error(`Capability-pack download exceeds pinned size for ${artifact.asset}.`);
-    chunks.push(bytes);
+  const reader = response.body.getReader?.();
+  if (!reader) throw new Error(`Capability-pack download failed for ${artifact.asset}: response body is not a readable stream.`);
+  try {
+    while (true) {
+      let entry;
+      try {
+        entry = await withDownloadTimeout(
+          reader.read(),
+          { controller, asset: artifact.asset, phase: "the next response-body chunk", timeoutMs: idleMs },
+        );
+      } catch (error) {
+        if (controller.signal.aborted && controller.signal.reason?.code === "ERR_OFFICE_KIT_CAPABILITY_DOWNLOAD_TIMEOUT") {
+          throw controller.signal.reason;
+        }
+        throw error;
+      }
+      if (entry.done) break;
+      const bytes = Buffer.from(entry.value);
+      downloadedBytes += bytes.length;
+      if (downloadedBytes > artifact.downloadBytes) throw new Error(`Capability-pack download exceeds pinned size for ${artifact.asset}.`);
+      chunks.push(bytes);
+    }
+  } finally {
+    if (controller.signal.aborted) await reader.cancel(controller.signal.reason).catch(() => {});
+    reader.releaseLock?.();
   }
   if (downloadedBytes !== artifact.downloadBytes) throw new Error(`Capability-pack download size mismatch for ${artifact.asset}.`);
   const bytes = Buffer.concat(chunks, downloadedBytes);
@@ -441,7 +509,7 @@ async function acquireLock(lockPath) {
   }
 }
 
-async function installPackRecord({ cacheRoot, packId, pack, platform, enterpriseMirror, fetchImpl, catalogSha256 = PDF_PROVIDER_CATALOG_SHA256 }) {
+async function installPackRecord({ cacheRoot, packId, pack, platform, enterpriseMirror, fetchImpl, downloadTimeouts: timeoutOptions, catalogSha256 = PDF_PROVIDER_CATALOG_SHA256 }) {
   if (pack.state !== "published") throw new Error(`Capability pack ${packId} is ${pack.state}; no immutable release artifact is available.`);
   const artifact = artifactForPlatform(pack, platform);
   const target = locationForPack(cacheRoot, packId, pack.version, platform);
@@ -455,7 +523,7 @@ async function installPackRecord({ cacheRoot, packId, pack, platform, enterprise
     if (existing.reason !== "not-installed") throw new Error(`Refusing to replace invalid managed capability cache for ${packId}: ${existing.reason}.`);
     temporary = await fs.promises.mkdtemp(path.join(parent, `.${packId}.tmp-`));
     await ensureRealDirectory(temporary);
-    const { bytes, downloadedBytes, url } = await downloadArtifact(artifact, enterpriseMirror, fetchImpl);
+    const { bytes, downloadedBytes, url } = await downloadArtifact(artifact, enterpriseMirror, fetchImpl, timeoutOptions);
     await fs.promises.writeFile(path.join(temporary, "download.tar.gz"), bytes, { flag: "wx", mode: 0o600 });
     const staging = path.join(temporary, "payload");
     await fs.promises.mkdir(staging, { mode: 0o700 });
@@ -585,7 +653,7 @@ export async function probeManagedProviderRuntime({ providerId, packIds, policyC
  * tests can exercise the real downloader, lock, receipt, and extractor using a
  * fake hash-pinned release record without publishing a fake production pack.
  */
-export async function installManagedPackForTest({ cacheRoot, packId = "fixture-pack", pack, platform, enterpriseMirror, fetchImpl, catalogSha256 = PDF_PROVIDER_CATALOG_SHA256 }) {
+export async function installManagedPackForTest({ cacheRoot, packId = "fixture-pack", pack, platform, enterpriseMirror, fetchImpl, downloadTimeouts: timeoutOptions, catalogSha256 = PDF_PROVIDER_CATALOG_SHA256 }) {
   if (!nonEmptyString(cacheRoot) || !nonEmptyString(packId) || !isPlainObject(pack)) throw new TypeError("Fixture install requires cacheRoot, packId, and pack.");
   if (pack.state !== "published" || !nonEmptyString(pack.version) || !Array.isArray(pack.artifacts) || !Array.isArray(pack.entrypoints)) {
     throw new TypeError("Fixture pack must be a published immutable pack record.");
@@ -598,6 +666,7 @@ export async function installManagedPackForTest({ cacheRoot, packId = "fixture-p
     platform: platform || currentPdfProviderPlatform(),
     enterpriseMirror,
     fetchImpl,
+    downloadTimeouts: timeoutOptions,
     catalogSha256,
   });
 }
