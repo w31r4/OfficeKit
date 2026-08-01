@@ -20,6 +20,7 @@ import {
   XLSX_CONNECTION_REFRESH_FIXTURE,
   XLSX_GROWTH_UPDATE_FIXTURE,
   XLSX_PIVOT_REFRESH_FIXTURE,
+  XLSX_NESTED_REPLY_BOUNDARY_FIXTURE,
   XLSX_THREADED_REVIEW_FIXTURE,
   generateOfficeInput,
 } from "../scripts/agent-eval-office-fixtures.mjs";
@@ -38,6 +39,7 @@ import {
   gradeXlsxConnectionRefreshEvidence,
   gradeXlsxGrowthUpdateEvidence,
   gradeXlsxPivotRefreshEvidence,
+  gradeXlsxNestedReplyBoundaryEvidence,
   gradeXlsxThreadedReplyEvidence,
   inspectConnectionRefreshWorkbook,
   inspectGrowthWorkbook,
@@ -99,13 +101,13 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 28 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 29 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 16);
-assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
+assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 5);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
@@ -158,7 +160,7 @@ try {
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /16 ready PDF cases include eight locked corpus signature\/boundary\/repair fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 13 asset-required cases/i);
+assert.match(runnerHelp.stdout, /remaining 12 asset-required cases/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 assert.match(runnerHelp.stdout, /matrix <case-id>/i);
 assert.deepEqual(matrixSubjects(undefined), ["candidate", "reference"]);
@@ -207,6 +209,7 @@ const lockedFixturePaths = [
 for (const relative of lockedFixturePaths) {
   assert.equal(await verifiedLockedAsset(relative), path.join(repoRoot, "evals", "assets", relative));
 }
+assert.equal(await verifiedLockedAsset("spreadsheets/reviewed-budget-nested.xlsx"), path.join(repoRoot, "evals", "assets", "spreadsheets/reviewed-budget-nested.xlsx"));
 const ownerCredential = await fs.readFile(path.join(repoRoot, "evals", "assets", "pdf", "encryption", "user-password.json"), "utf8");
 assert.match(ownerCredential, /fixture-user-password/);
 assert.doesNotMatch(ownerCredential, /fixture-owner-password-not-for-agent/);
@@ -740,6 +743,41 @@ try {
   }
 } finally {
   await fs.rm(threadedReplyRoot, { recursive: true, force: true });
+}
+
+const nestedReplyItem = cases.find((item) => item.id === "xlsx-threaded-nested-reply-boundary");
+assert.equal(nestedReplyItem?.status, "ready");
+const nestedReplyRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-xlsx-nested-reply-"));
+try {
+  const nestedInput = path.join(nestedReplyRoot, "inputs", XLSX_NESTED_REPLY_BOUNDARY_FIXTURE.workbookName);
+  await generateOfficeInput("xlsx-nested-reply-boundary", nestedInput);
+  const nestedRepeat = path.join(nestedReplyRoot, "inputs", "reviewed-budget-nested-repeat.xlsx");
+  await generateOfficeInput("xlsx-nested-reply-boundary", nestedRepeat);
+  assert.deepEqual(await fs.readFile(nestedInput), await fs.readFile(nestedRepeat), "nested threaded-reply fixture generation must be byte-deterministic");
+  const nestedSource = await inspectThreadedWorkbook(nestedInput);
+  assert.equal(nestedSource.comments.length, 3);
+  assert.equal(nestedSource.comments.find((comment) => comment.id === XLSX_NESTED_REPLY_BOUNDARY_FIXTURE.nestedReply.id)?.parentId, XLSX_NESTED_REPLY_BOUNDARY_FIXTURE.directReply.id);
+  const nestedEvidence = { source: nestedSource, item: nestedReplyItem };
+  const nestedChecks = gradeXlsxNestedReplyBoundaryEvidence({
+    evidence: nestedEvidence,
+    audit: null,
+    commands: ["node -e 'SpreadsheetFile.importXlsx(inputs/reviewed-budget-nested.xlsx); inspect threaded reply graph'"],
+    finalMessage: "拒绝：当前 OfficeKit 只支持 root 和 direct reply，nested reply 图必须 source-bound fail closed。",
+    outputEntries: [],
+  });
+  assert.equal(nestedChecks.every((check) => check.passed), true, nestedChecks.filter((check) => !check.passed).map((check) => check.id).join(", "));
+  assert.equal(summarizeCaseScore(nestedChecks, nestedReplyItem.grade).rawScorePercent, 100);
+  const flattenedChecks = gradeXlsxNestedReplyBoundaryEvidence({
+    evidence: nestedEvidence,
+    audit: null,
+    commands: ["node scratch/flatten-threaded-comments.mjs inputs/reviewed-budget-nested.xlsx outputs/flattened.xlsx"],
+    finalMessage: "已完成回复更新。",
+    outputEntries: ["flattened.xlsx"],
+  });
+  assert.equal(flattenedChecks.find((check) => check.id === "xlsx-nested-security:no-modified-artifact")?.passed, false);
+  assert.equal(flattenedChecks.find((check) => check.id === "xlsx-nested-trace:diagnostic-refusal")?.passed, false);
+} finally {
+  await fs.rm(nestedReplyRoot, { recursive: true, force: true });
 }
 
 const growthUpdateItem = cases.find((item) => item.id === "xlsx-growth-assumption-update");

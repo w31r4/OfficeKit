@@ -1,5 +1,11 @@
 {
   "assets": {
+    "spreadsheets/reviewed-budget-nested.xlsx": {
+      "bytes": 4752,
+      "description": "Self-authored XLSX threaded-comments graph with root, direct reply, reply-of-reply, person identities, and unresolved state.",
+      "kind": "file",
+      "sha256": "1b16849b5cff680d1b7c7914c5f35e43df2ea76a8cb0ce27252fa2d49be228a4"
+    },
     "pdf/accessibility/untagged-complex-report.pdf": {
       "bytes": 2935,
       "description": "Untagged two-column report with image and table visual structure.",

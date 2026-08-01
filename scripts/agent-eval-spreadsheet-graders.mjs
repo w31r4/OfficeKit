@@ -8,6 +8,7 @@ import {
   XLSX_CONNECTION_REFRESH_FIXTURE,
   XLSX_GROWTH_UPDATE_FIXTURE,
   XLSX_PIVOT_REFRESH_FIXTURE,
+  XLSX_NESTED_REPLY_BOUNDARY_FIXTURE,
   XLSX_THREADED_REVIEW_FIXTURE,
 } from "./agent-eval-office-fixtures.mjs";
 import { renderOfficeFile } from "./agent-eval-office-native-render.mjs";
@@ -15,6 +16,7 @@ import { extractCompletedCommands, summarizeCaseScore } from "./agent-eval-pdf-g
 
 export const spreadsheetGradedCaseIds = new Set([
   "xlsx-threaded-reply-resolve",
+  "xlsx-threaded-nested-reply-boundary",
   "xlsx-growth-assumption-update",
   "xlsx-connection-refresh-on-open",
   "xlsx-pivot-refresh-on-open",
@@ -335,11 +337,19 @@ function auditVersion(audit) {
 
 function auditFallbackIsFalse(audit) {
   const provider = audit?.provider || {};
-  return provider.silentFallback === false || provider.fallbackUsed === false || audit?.silentFallback === false || audit?.fallbackUsed === false;
+  return provider.silentFallback === false
+    || provider.fallbackUsed === false
+    || provider.fallback_used === false
+    || audit?.silentFallback === false
+    || audit?.fallbackUsed === false
+    || audit?.fallback_used === false
+    || audit?.noFallback === true
+    || audit?.no_fallback === true
+    || /^no[-_ ]fallback$/i.test(String(audit?.fallback_policy || audit?.fallback || ""));
 }
 
 function auditStrategy(audit) {
-  const policy = audit?.savePolicy || audit?.save_strategy;
+  const policy = audit?.savePolicy || audit?.saveStrategy || audit?.save_policy || audit?.save_strategy;
   return String(typeof policy === "string" ? policy : policy?.strategy || audit?.strategy || "");
 }
 
@@ -446,6 +456,57 @@ export function gradeXlsxThreadedReplyEvidence({ evidence, audit, commands }) {
     check("xlsx-trace:second-import", "trace", audit?.validation?.reimport?.ok === true || audit?.validation?.secondImport?.ok === true, {
       validation: audit?.validation || null,
     }),
+  ];
+}
+
+export function gradeXlsxNestedReplyBoundaryEvidence({ evidence, audit, commands, finalMessage, outputEntries = [] }) {
+  const fixture = XLSX_NESTED_REPLY_BOUNDARY_FIXTURE;
+  const source = evidence.source;
+  const comments = source?.comments || [];
+  const people = new Map((source?.people || []).map((person) => [person.id, person]));
+  const root = comments.find((comment) => comment.id === fixture.root.id);
+  const direct = comments.find((comment) => comment.id === fixture.directReply.id);
+  const nested = comments.find((comment) => comment.id === fixture.nestedReply.id);
+  const commandText = commands.join("\n");
+  const diagnosticTerms = (evidence.item?.grade?.machine?.diagnosticTerms || ["threaded", "nested", "reply", "source-bound", "不支持"]);
+  const hasDiagnostic = diagnosticTerms.some((term) => String(finalMessage || "").toLowerCase().includes(String(term).toLowerCase()));
+  const noArtifact = outputEntries.every((entry) => entry === "audit.json");
+  const safeAudit = audit === null || (
+    audit?.status === "failed_closed"
+    && audit?.delivered_modified_artifact !== true
+    && audit?.delivered_modified_workbook !== true
+    && auditFallbackIsFalse(audit)
+    && /^none$/i.test(auditStrategy(audit))
+    && (!auditHash(audit, "source") || auditHash(audit, "source") === source?.sha256)
+  );
+  const sourceShape = {
+    readable: Boolean(source?.sha256),
+    canonicalParts: source?.threadedPaths?.length === 1 && source?.personPaths?.length === 1 && source?.classicCommentPaths?.length === 0,
+    exactCommentCount: comments.length === 3,
+    root: Boolean(root && root.parentId === null && root.ref === fixture.address && root.personId === fixture.root.personId && root.text === fixture.root.text),
+    directReply: Boolean(direct && direct.parentId === fixture.root.id && direct.ref === fixture.address && direct.personId === fixture.directReply.personId && direct.text === fixture.directReply.text),
+    nestedReply: Boolean(nested && nested.parentId === fixture.nestedReply.parentId && nested.ref === fixture.address && nested.personId === fixture.nestedReply.personId && nested.text === fixture.nestedReply.text),
+    personIdentities: [fixture.root.personId, fixture.directReply.personId, fixture.nestedReply.personId].every((id) => people.has(id)),
+    unresolvedState: comments.every((comment) => comment.done === false),
+  };
+  return [
+    gate("xlsx-nested-machine:source-readable", "machine", sourceShape.readable),
+    gate("xlsx-nested-machine:canonical-threaded-parts", "machine", sourceShape.canonicalParts, {
+      threadedPaths: source?.threadedPaths || [],
+      personPaths: source?.personPaths || [],
+      classicCommentPaths: source?.classicCommentPaths || [],
+    }),
+    check("xlsx-nested-machine:exact-reply-graph", "machine", sourceShape.exactCommentCount && sourceShape.root && sourceShape.directReply && sourceShape.nestedReply, {
+      sourceShape,
+      comments,
+    }),
+    check("xlsx-nested-machine:person-identities", "machine", sourceShape.personIdentities, { people: [...people.values()] }),
+    check("xlsx-nested-machine:unresolved-state", "machine", sourceShape.unresolvedState, { comments: comments.map((comment) => ({ id: comment.id, done: comment.done })) }),
+    gate("xlsx-nested-security:no-modified-artifact", "security", noArtifact, { outputEntries }),
+    gate("xlsx-nested-security:failed-closed-audit", "security", safeAudit, { audit: audit ? { status: audit.status, strategy: auditStrategy(audit) } : null }),
+    check("xlsx-nested-trace:diagnostic-refusal", "trace", hasDiagnostic, { expectedAny: diagnosticTerms, finalMessage }),
+    check("xlsx-nested-trace:inspected-thread-graph", "trace", /(?:importXlsx|threaded|nested|reply|comment|inspect|resolve)/i.test(commandText), { commands }),
+    gate("xlsx-nested-trace:no-export-or-fallback", "trace", !/exportXlsx|SpreadsheetFile\.exportXlsx|(?:silent.?fallback|fallbackUsed)\s*[:=]\s*true/i.test(commandText) && (audit === null || auditFallbackIsFalse(audit)), { commands }),
   ];
 }
 
@@ -831,6 +892,35 @@ async function gradeThreadedReplyCase({ item, workspace, finalMessage, trace, we
   return { supported: true, graded: true, checks, evidence, pending: [], ...score };
 }
 
+async function gradeNestedReplyBoundaryCase({ item, workspace, finalMessage, trace, weights }) {
+  const audit = await readAudit(workspace);
+  const commands = extractCompletedCommands(trace);
+  const fixture = XLSX_NESTED_REPLY_BOUNDARY_FIXTURE;
+  let source;
+  try {
+    source = await inspectThreadedWorkbook(path.join(workspace, "inputs", fixture.workbookName));
+  } catch (error) {
+    const checks = [
+      gate("xlsx-nested-machine:readable-source", "machine", false, { error: error.message }),
+      gate("xlsx-nested-security:no-partial-output", "security", false, { error: error.message }),
+      check("xlsx-nested-trace:diagnostic-refusal", "trace", false, { error: error.message }),
+    ];
+    const score = summarizeCaseScore(checks, item.grade, weights, false);
+    return { supported: true, graded: true, checks, evidence: { error: error.message }, pending: [], ...score };
+  }
+  let outputEntries = [];
+  try {
+    outputEntries = (await fs.readdir(path.join(workspace, "outputs"), { withFileTypes: true }))
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .sort();
+  } catch {}
+  const evidence = { source, finalMessage, item };
+  const checks = gradeXlsxNestedReplyBoundaryEvidence({ evidence, audit, commands, finalMessage, outputEntries });
+  const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+  return { supported: true, graded: true, checks, evidence: { source, audit, outputEntries, finalMessage }, pending: [], ...score };
+}
+
 async function gradeGrowthUpdateCase({ item, workspace, finalMessage, trace, weights }) {
   const audit = await readAudit(workspace);
   const commands = extractCompletedCommands(trace);
@@ -948,6 +1038,7 @@ async function gradePivotRefreshCase({ item, workspace, finalMessage, trace, wei
 export async function gradeSpreadsheetCase({ item, workspace, finalMessage, trace, weights = defaultWeights }) {
   if (!spreadsheetGradedCaseIds.has(item.id)) return { supported: false };
   if (item.id === "xlsx-threaded-reply-resolve") return gradeThreadedReplyCase({ item, workspace, finalMessage, trace, weights });
+  if (item.id === "xlsx-threaded-nested-reply-boundary") return gradeNestedReplyBoundaryCase({ item, workspace, finalMessage, trace, weights });
   if (item.id === "xlsx-connection-refresh-on-open") return gradeConnectionRefreshCase({ item, workspace, finalMessage, trace, weights });
   if (item.id === "xlsx-pivot-refresh-on-open") return gradePivotRefreshCase({ item, workspace, finalMessage, trace, weights });
   return gradeGrowthUpdateCase({ item, workspace, finalMessage, trace, weights });
