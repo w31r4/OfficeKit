@@ -403,25 +403,30 @@ if (corpusRuntimeAvailable && spawnSync(qpdfExecutable, ["--version"], { stdio: 
   assert.equal(qpdfOracle.status, 0, qpdfOracle.stderr);
   const qpdfEvidence = JSON.parse(qpdfOracle.stdout);
   const qpdfAudit = {
-    status: "success",
+    status: "succeeded",
     source: { sha256: qpdfEvidence.recoverable.sha256 },
     output: { sha256: qpdfEvidence.output.sha256 },
-    inputs: [
-      { path: "inputs/recoverable.pdf", sha256: qpdfEvidence.recoverable.sha256 },
-      { path: "inputs/unrecoverable.pdf", sha256: qpdfEvidence.unrecoverable.sha256 },
-    ],
-    provider: { name: "qpdf", version: "12.3.2-oat.2", silentFallback: false },
+    provider: { actual: "qpdf", version: "12.3.2-oat.2", silentFallback: false },
     savePolicy: { strategy: "rewrite" },
-    operation: "qpdf-rewrite",
-    checkAfter: { status: "clean" },
+    operation: { type: "qpdf-repair", mode: "repair" },
+    validation: {
+      qpdfCheckAfter: { status: "clean", exitCode: 0 },
+      unrecoverableControl: {
+        path: "inputs/unrecoverable.pdf",
+        sha256: qpdfEvidence.unrecoverable.sha256,
+        status: "failed_closed",
+        mutationAttempted: false,
+        modifiedArtifactPresent: false,
+      },
+    },
   };
   const qpdfChecks = gradeQpdfRepairEvidence({
     evidence: qpdfEvidence,
     audit: qpdfAudit,
     commands: [
-      "node_modules/office-kit/skills/pdf/skills/pdf/scripts/qpdf_provider.py inspect inputs/recoverable.pdf --expected-sha256 source",
-      "node_modules/office-kit/skills/pdf/skills/pdf/scripts/qpdf_provider.py inspect inputs/unrecoverable.pdf",
-      "node_modules/office-kit/skills/pdf/skills/pdf/scripts/qpdf_provider.py rewrite inputs/recoverable.pdf outputs/recovered.pdf --mode repair --expected-sha256 source",
+      "PDF_SKILL=\"node_modules/office-kit/skills/pdf/skills/pdf\"; \"$PDF_SKILL/scripts/qpdf_provider.py\" inspect inputs/recoverable.pdf --expected-sha256 source",
+      "PDF_SKILL=\"node_modules/office-kit/skills/pdf/skills/pdf\"; \"$PDF_SKILL/scripts/qpdf_provider.py\" inspect inputs/unrecoverable.pdf",
+      "PDF_SKILL=\"node_modules/office-kit/skills/pdf/skills/pdf\"; \"$PDF_SKILL/scripts/qpdf_provider.py\" rewrite inputs/recoverable.pdf outputs/recovered.pdf --mode repair --expected-sha256 source",
       "pdftoppm -png -r 144 outputs/recovered.pdf outputs/render/page",
     ],
     finalMessage: "qpdf recovery completed",
