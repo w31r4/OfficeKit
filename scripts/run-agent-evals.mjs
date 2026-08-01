@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -19,6 +19,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 // PDF majority, not a fixed percentage that would force unrelated filler
 // prompts whenever a meaningful Office vertical slice is added.
 export const MINIMUM_PDF_CASE_SHARE = 0.5;
+export const DEFAULT_CODEX_TIMEOUT_MS = 20 * 60 * 1000;
+const MAX_CODEX_OUTPUT_BYTES = 256 * 1024 * 1024;
 const casesPath = path.join(repoRoot, "evals", "cases.jsonl");
 const evalAssetsRoot = path.join(repoRoot, "evals", "assets");
 const evalAssetIntegrityPath = path.join(evalAssetsRoot, "integrity.json");
@@ -65,6 +67,17 @@ function parseArgs(argv) {
     else flags.set(key, true);
   }
   return { command, positionals, flags };
+}
+
+function positiveInteger(value, label) {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) fail(`${label} must be a positive integer`);
+  return parsed;
+}
+
+export function agentEvalTimeoutMs(value = process.env.OFFICE_KIT_AGENT_EVAL_TIMEOUT_MS) {
+  if (value === undefined || value === null || value === "") return DEFAULT_CODEX_TIMEOUT_MS;
+  return positiveInteger(value, "agent evaluation timeout");
 }
 
 async function loadRecords() {
@@ -774,22 +787,80 @@ async function hashTree(root) {
   return digest.digest("hex");
 }
 
-async function runCodex(prepared, options) {
+function killChildTree(child, signal) {
+  if (!child?.pid) return;
+  try {
+    if (process.platform !== "win32") process.kill(-child.pid, signal);
+    else child.kill(signal);
+  } catch {
+    try { child.kill(signal); } catch {}
+  }
+}
+
+export async function runCodex(prepared, options = {}) {
   const prompt = await fs.readFile(prepared.promptPath, "utf8");
   const args = ["exec", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--json", "--sandbox", "workspace-write", "--skip-git-repo-check", "-C", prepared.workspace, "-o", path.join(prepared.evaluator, "final.txt")];
   if (options.model) args.push("--model", options.model);
   args.push("-");
-  const result = spawnSync(options.codex || "codex", args, {
+  const timeoutMs = options.timeoutMs === undefined ? agentEvalTimeoutMs() : positiveInteger(options.timeoutMs, "agent evaluation timeout");
+  const child = spawn(options.codex || "codex", args, {
     cwd: prepared.workspace,
     encoding: "utf8",
-    input: prompt,
     env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1" },
-    maxBuffer: 256 * 1024 * 1024,
+    stdio: ["pipe", "pipe", "pipe"],
+    detached: process.platform !== "win32",
   });
-  await fs.writeFile(path.join(prepared.evaluator, "trace.jsonl"), result.stdout || "", "utf8");
-  await fs.writeFile(path.join(prepared.evaluator, "stderr.txt"), result.stderr || "", "utf8");
-  await fs.writeFile(path.join(prepared.evaluator, "exit.json"), JSON.stringify({ status: result.status, signal: result.signal }, null, 2), "utf8");
-  return result.status;
+  let stdout = "";
+  let stderr = "";
+  let timedOut = false;
+  let outputExceeded = false;
+  const appendOutput = (target, chunk) => {
+    const nextBytes = Buffer.byteLength(target) + Buffer.byteLength(chunk);
+    if (nextBytes <= MAX_CODEX_OUTPUT_BYTES) return target + chunk;
+    outputExceeded = true;
+    const remaining = Math.max(0, MAX_CODEX_OUTPUT_BYTES - Buffer.byteLength(target));
+    return target + Buffer.from(chunk).subarray(0, remaining).toString("utf8");
+  };
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => { stdout = appendOutput(stdout, chunk); });
+  child.stderr.on("data", (chunk) => { stderr = appendOutput(stderr, chunk); });
+  const result = await new Promise((resolve) => {
+    let settled = false;
+    let killTimer = null;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      killChildTree(child, "SIGTERM");
+      killTimer = setTimeout(() => killChildTree(child, "SIGKILL"), 5000);
+    }, timeoutMs);
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (killTimer) clearTimeout(killTimer);
+      resolve(value);
+    };
+    child.once("error", (error) => finish({ status: null, signal: null, error: error.message }));
+    child.once("close", (status, signal) => finish({ status, signal }));
+    const stopOnOutputLimit = () => {
+      if (outputExceeded) killChildTree(child, "SIGTERM");
+    };
+    child.stdout.on("data", stopOnOutputLimit);
+    child.stderr.on("data", stopOnOutputLimit);
+    child.stdin.end(prompt);
+  });
+  const exitStatus = timedOut ? 124 : outputExceeded ? 125 : result.status;
+  await fs.writeFile(path.join(prepared.evaluator, "trace.jsonl"), stdout, "utf8");
+  await fs.writeFile(path.join(prepared.evaluator, "stderr.txt"), stderr, "utf8");
+  await fs.writeFile(path.join(prepared.evaluator, "exit.json"), JSON.stringify({
+    status: exitStatus,
+    signal: result.signal,
+    error: result.error || null,
+    timedOut,
+    outputExceeded,
+    timeoutMs,
+  }, null, 2), "utf8");
+  return exitStatus;
 }
 
 async function inventoryRelativeFiles(root) {
@@ -930,9 +1001,10 @@ function help() {
     "  list [--family pdf] [--status ready] [--json]",
     "  show <case-id> [--json]",
     "  prepare <case-id> [--subject candidate|reference] [--trial 1] [--run-root <path>]",
-    "  run <case-id> [prepare options] [--model <model>] [--codex <path>]",
+    "  run <case-id> [prepare options] [--model <model>] [--codex <path>] [--timeout-ms <milliseconds>]",
     "  score <case-id> --trial-root <prepared trial directory>",
     "",
+    `Every run has a ${DEFAULT_CODEX_TIMEOUT_MS / 60000}-minute Codex execution deadline by default; set OFFICE_KIT_AGENT_EVAL_TIMEOUT_MS or --timeout-ms to change it. A timeout terminates the child process tree, writes timedOut:true and the deadline to evaluator/exit.json, and scores as an incomplete hard-gate failure.`,
     "The Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. A shared --run-root materializes exactly one read-only, hash-validated input fixture snapshot per case, then copies those same bytes into every candidate/reference trial; use one run root for a comparable repeat matrix. Prepared PDF trials declare one authoritative provider interpreter in PROMPT.md from OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON, OFFICE_KIT_PDF_PROVIDER_PYTHON, or OFFICE_KIT_AGENT_EVAL_PYTHON, in that order. OFFICE_KIT_AGENT_EVAL_PYTHON remains the separate fixture/oracle interpreter, so a small evaluator runtime can grade a managed specialist provider without pretending that they are the same environment. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The 16 ready PDF cases include eight locked corpus signature/boundary/repair fixtures with independent source-structure, audit, visual, and trace grading; they do not pass from generic no-artifact gates alone. The ready XLSX threaded-comment, growth-assumption, connection refresh-on-open, and Pivot refresh-on-open cases, four DOCX cases (classic-comment, source-bound DOCX header text, source-bound DOCX footer text, and source-bound DOCX section page-numbering), and four PPTX cases (title plus fixed-topology rich-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone) also have independent semantic, native-render, security, and provider-trace graders. PDF must remain an absolute majority of the full suite; the remaining 13 asset-required cases never claim full success before pinned corpus or PKI fixtures exist.",
     "",
   ].join("\n");
@@ -962,7 +1034,7 @@ export async function main(argv = process.argv.slice(2)) {
     let exitStatus = null;
     let report = null;
     if (command === "run") {
-      exitStatus = await runCodex(prepared, { model: flags.get("model"), codex: flags.get("codex") });
+      exitStatus = await runCodex(prepared, { model: flags.get("model"), codex: flags.get("codex"), timeoutMs: flags.get("timeout-ms") });
       report = await scorePrepared(item, prepared, { weights: suite.weights });
     }
     console.log(JSON.stringify({ prepared, exitStatus, report }, null, 2));
