@@ -550,6 +550,103 @@ def create_print_production_risk(root: Path) -> None:
     temporary.unlink(missing_ok=True)
 
 
+def create_richmedia_opaque(root: Path) -> None:
+    """Create a two-page opaque RichMedia/3D fixture for fail-closed edits."""
+    temporary = root / ".richmedia-base.pdf"
+    target = root / "pdf" / "richmedia" / "3d-review.pdf"
+    temporary.parent.mkdir(parents=True, exist_ok=True)
+    document = canvas.Canvas(str(temporary), pagesize=(612, 792), invariant=1)
+    document.setTitle("RichMedia opaque-preservation fixture")
+    document.setAuthor("OfficeKit PromptBench fixture generator")
+    document.setFont("Helvetica-Bold", 18)
+    document.setFillColor(HexColor("#102A43"))
+    document.drawString(54, 740, "Review cover")
+    document.setFont("Helvetica", 11)
+    document.setFillColor(HexColor("#243B53"))
+    document.drawString(54, 700, "A normal cover page where an annotation would be requested.")
+    document.drawString(54, 680, "The second page is deliberately opaque and runtime-dependent.")
+    document.showPage()
+    document.setFont("Helvetica-Bold", 18)
+    document.setFillColor(HexColor("#102A43"))
+    document.drawString(54, 740, "Interactive appendix")
+    document.setFont("Helvetica", 11)
+    document.setFillColor(HexColor("#243B53"))
+    document.drawString(54, 700, "3D-MODEL-CANARY / rich-media-canary")
+    document.drawString(54, 680, "Default view, activation, animation, and script are opaque by design.")
+    document.showPage()
+    document.save()
+
+    writer = writer_from(temporary)
+    model = stream_with_bytes(b"OfficeKit-3D-MODEL-CANARY")
+    model.update({n("Type"): n("3D"), n("Subtype"): n("U3D")})
+    model_ref = indirect(writer, model)
+    view = DictionaryObject({
+        n("Type"): n("3DView"),
+        n("XN"): TextStringObject("default-view-canary"),
+        n("IN"): TextStringObject("OfficeKit default view"),
+    })
+    view_ref = indirect(writer, view)
+    payload = stream_with_bytes(b"OfficeKit-RichMedia-PAYLOAD-CANARY")
+    payload.update({n("Type"): n("EmbeddedFile"), n("Subtype"): n("model#2Fvnd.u3d")})
+    payload_ref = indirect(writer, payload)
+    script = DictionaryObject({
+        n("S"): n("JavaScript"),
+        n("JS"): TextStringObject("app.alert('richmedia-script-canary');"),
+    })
+    script_ref = indirect(writer, script)
+    instance = DictionaryObject({
+        n("Type"): n("RichMediaInstance"),
+        n("Subtype"): n("3D"),
+        n("Asset"): payload_ref,
+        n("Params"): DictionaryObject({n("Binding"): n("Foreground")}),
+    })
+    configuration = DictionaryObject({
+        n("Type"): n("RichMediaConfiguration"),
+        n("Subtype"): n("3D"),
+        n("Instances"): ArrayObject([indirect(writer, instance)]),
+    })
+    configuration_ref = indirect(writer, configuration)
+    content = DictionaryObject({
+        n("Type"): n("RichMediaContent"),
+        n("Assets"): DictionaryObject({n("Names"): ArrayObject([TextStringObject("model.u3d"), payload_ref])}),
+        n("Configurations"): ArrayObject([configuration_ref]),
+        n("Scripts"): ArrayObject([script_ref]),
+        n("Canary"): TextStringObject("rich-media-canary"),
+    })
+    content_ref = indirect(writer, content)
+    richmedia = DictionaryObject({
+        n("Type"): n("Annot"),
+        n("Subtype"): n("RichMedia"),
+        n("Rect"): ArrayObject([NumberObject(72), NumberObject(450), NumberObject(540), NumberObject(720)]),
+        n("RichMediaContent"): content_ref,
+        n("RichMediaSettings"): DictionaryObject({
+            n("Activation"): DictionaryObject({n("Condition"): n("PO")}),
+            n("Deactivation"): DictionaryObject({n("Condition"): n("PI")}),
+        }),
+        n("NM"): TextStringObject("OfficeKit-richmedia-annotation"),
+    })
+    three_d = DictionaryObject({
+        n("Type"): n("Annot"),
+        n("Subtype"): n("3D"),
+        n("Rect"): ArrayObject([NumberObject(72), NumberObject(450), NumberObject(540), NumberObject(720)]),
+        n("3DD"): model_ref,
+        n("3DV"): ArrayObject([view_ref]),
+        n("3DA"): DictionaryObject({n("A"): n("PO")}),
+        n("NM"): TextStringObject("OfficeKit-3d-annotation"),
+    })
+    ensure_annots(writer.pages[1]).extend([indirect(writer, three_d), indirect(writer, richmedia)])
+    names = dictionary_object(writer._root_object.get(n("Names"))) if writer._root_object.get(n("Names")) else DictionaryObject()
+    names[n("JavaScript")] = indirect(writer, DictionaryObject({
+        n("Names"): ArrayObject([TextStringObject("OfficeKit-RichMedia-Script"), script_ref]),
+    }))
+    names[n("EmbeddedFiles")] = indirect(writer, DictionaryObject({
+        n("Names"): ArrayObject([TextStringObject("model.u3d"), payload_ref]),
+    }))
+    writer._root_object[n("Names")] = indirect(writer, names)
+    write_writer(writer, target)
+    temporary.unlink(missing_ok=True)
+
+
 def create_damaged_xref(root: Path) -> None:
     """Create one qpdf-recoverable and one deliberately unrecoverable PDF.
 
@@ -747,6 +844,7 @@ FIXTURES = {
     "pdf/accessibility/untagged-complex-report.pdf": "Untagged two-column report with image and table visual structure.",
     "pdf/xfa/dynamic-dependents.pdf": "Dynamic-XFA-shaped template/datasets packet with repeat and FormCalc markers.",
     "pdf/print/print-production-risk.pdf": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",
+    "pdf/richmedia/3d-review.pdf": "Two-page self-authored PDF with opaque 3D/RichMedia content, default view, activation, and JavaScript canaries.",
     "pdf/corrupt/recoverable.pdf": "Two-page self-authored PDF with attachment, damaged startxref, and missing EOF; qpdf can reconstruct it with warnings.",
     "pdf/corrupt/unrecoverable.pdf": "Deliberately unrecoverable PDF comparison with no trailer, page tree, or EOF marker.",
     "pdf/signing/docmdp-p1-final.pdf": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",
@@ -763,6 +861,7 @@ def generate(root: Path, signing_python: str | None) -> dict:
     create_untagged_complex_report(root)
     create_dynamic_xfa(root)
     create_print_production_risk(root)
+    create_richmedia_opaque(root)
     create_damaged_xref(root)
     managed_signing_python = required_signing_python(signing_python)
     create_docmdp_p1_final(root, managed_signing_python)
@@ -859,6 +958,30 @@ def verify_print(path: Path) -> None:
         raise ValueError("print fixture has no DeviceN/Separation/overprint resource")
     if not bool(ext["/GSPrint"].get_object().get("/OP")):
         raise ValueError("print fixture has no overprint flag")
+
+
+def verify_richmedia_opaque(path: Path) -> None:
+    reader = PdfReader(str(path), strict=True)
+    if len(reader.pages) != 2:
+        raise ValueError("RichMedia fixture must have a normal cover plus an opaque second page")
+    second_page = reader.pages[1]
+    annotations = [dictionary_object(value) for value in second_page.get("/Annots", [])]
+    richmedia = [value for value in annotations if str(value.get("/Subtype", "")) == "/RichMedia"]
+    three_d = [value for value in annotations if str(value.get("/Subtype", "")) == "/3D"]
+    if len(richmedia) != 1 or len(three_d) != 1:
+        raise ValueError("RichMedia fixture must contain one RichMedia and one 3D annotation")
+    content = dictionary_object(richmedia[0].get("/RichMediaContent"))
+    if str(content.get("/Canary", "")) != "rich-media-canary" or not content.get("/Assets") or not content.get("/Configurations"):
+        raise ValueError("RichMedia fixture content graph is incomplete")
+    model = dictionary_object(three_d[0].get("/3DD"))
+    if str(model.get("/Subtype", "")) != "/U3D" or b"3D-MODEL-CANARY" not in model.get_data():
+        raise ValueError("RichMedia fixture 3D model canary is missing")
+    names = dictionary_object(root_dictionary(reader).get("/Names"))
+    javascript = dictionary_object(names.get("/JavaScript")) if names.get("/JavaScript") else {}
+    script_names = javascript.get("/Names") if javascript else None
+    script = dictionary_object(script_names[1]) if isinstance(script_names, ArrayObject) and len(script_names) >= 2 else {}
+    if not script_names or "richmedia-script-canary" not in str(script.get("/JS", "")):
+        raise ValueError("RichMedia fixture JavaScript canary is missing")
 
 
 def verify_damaged_xref(root: Path) -> None:
@@ -987,6 +1110,7 @@ def verify(root: Path) -> dict:
     verify_untagged_report(root / "pdf" / "accessibility" / "untagged-complex-report.pdf")
     verify_xfa(root / "pdf" / "xfa" / "dynamic-dependents.pdf")
     verify_print(root / "pdf" / "print" / "print-production-risk.pdf")
+    verify_richmedia_opaque(root / "pdf" / "richmedia" / "3d-review.pdf")
     verify_damaged_xref(root)
     verify_docmdp_p1(root / "pdf" / "signing" / "docmdp-p1-final.pdf", root / "pdf" / "signing" / "test-pki" / "root.pem")
     verify_docmdp_p2(root / "pdf" / "signing" / "docmdp-p2-form.pdf", root / "pdf" / "signing" / "test-pki" / "docmdp-p2-root.pem")
@@ -995,7 +1119,7 @@ def verify(root: Path) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-damaged-xref", "verify"))
+    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-richmedia", "refresh-damaged-xref", "verify"))
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     parser.add_argument("--signing-python", help=f"managed pyHanko interpreter used only by generate (or set {SIGNING_PYTHON_ENV})")
     options = parser.parse_args()
@@ -1003,6 +1127,22 @@ def main() -> None:
         print(json.dumps(generate(options.root, options.signing_python), indent=2, sort_keys=True))
     elif options.command == "refresh-docmdp":
         print(json.dumps(refresh_docmdp(options.root, required_signing_python(options.signing_python)), indent=2, sort_keys=True))
+    elif options.command == "refresh-richmedia":
+        manifest_path = options.root / "integrity.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("assets"), dict):
+            raise ValueError("unsupported corpus integrity schema")
+        create_richmedia_opaque(options.root)
+        relative = "pdf/richmedia/3d-review.pdf"
+        asset = options.root / relative
+        manifest["assets"][relative] = {
+            "bytes": asset.stat().st_size,
+            "description": FIXTURES[relative],
+            "kind": "file",
+            "sha256": sha256(asset),
+        }
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(json.dumps({"ok": True, "assets": len(manifest["assets"]), "root": str(options.root)}, sort_keys=True))
     elif options.command == "refresh-damaged-xref":
         manifest_path = options.root / "integrity.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

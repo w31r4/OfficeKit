@@ -1439,6 +1439,47 @@ def boundary_print_production(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def boundary_richmedia_opaque(payload: dict[str, Any]) -> dict[str, Any]:
+    source = pathlib.Path(payload["source"])
+    reader = pypdf.PdfReader(str(source), strict=True)
+    richmedia_count = 0
+    three_d_count = 0
+    richmedia_canary = False
+    default_view = False
+    model_canary = False
+    for page in reader.pages:
+        annotations = [resolve_pdf_value(value) for value in page.get("/Annots", [])]
+        for annotation in annotations:
+            subtype = str(annotation.get("/Subtype", ""))
+            if subtype == "/RichMedia":
+                richmedia_count += 1
+                content = resolve_pdf_value(annotation.get("/RichMediaContent"))
+                richmedia_canary = richmedia_canary or str(content.get("/Canary", "")) == "rich-media-canary"
+            elif subtype == "/3D":
+                three_d_count += 1
+                model = resolve_pdf_value(annotation.get("/3DD"))
+                model_canary = model_canary or b"3D-MODEL-CANARY" in model.get_data()
+                views = annotation.get("/3DV") or []
+                default_view = default_view or any("default-view-canary" in str(resolve_pdf_value(view).get("/XN", "")) for view in views)
+    root = root_dictionary(reader)
+    names = resolve_pdf_value(root.get("/Names")) if root.get("/Names") else {}
+    javascript = resolve_pdf_value(names.get("/JavaScript")) if names.get("/JavaScript") else {}
+    script_names = javascript.get("/Names") or []
+    script_canary = any("richmedia-script-canary" in str(resolve_pdf_value(script).get("/JS", "")) for script in script_names[1::2])
+    return {
+        "kind": "boundary-refusal",
+        "boundary": "richmedia-opaque",
+        "source": boundary_source_identity(source),
+        "pageCount": len(reader.pages),
+        "richMediaCount": richmedia_count,
+        "threeDCount": three_d_count,
+        "richMediaCanary": richmedia_canary,
+        "defaultView": default_view,
+        "modelCanary": model_canary,
+        "scriptCanary": script_canary,
+    }
+
+
 def boundary_docmdp_p1(payload: dict[str, Any]) -> dict[str, Any]:
     source = pathlib.Path(payload["source"])
     raw = source.read_bytes()
@@ -1550,6 +1591,8 @@ def boundary_refusal(payload: dict[str, Any]) -> dict[str, Any]:
         return boundary_dynamic_xfa(payload)
     if boundary == "print-production":
         return boundary_print_production(payload)
+    if boundary == "richmedia-opaque":
+        return boundary_richmedia_opaque(payload)
     if boundary == "docmdp-p1":
         return boundary_docmdp_p1(payload)
     raise ValueError(f"unsupported PDF boundary-refusal oracle: {boundary}")

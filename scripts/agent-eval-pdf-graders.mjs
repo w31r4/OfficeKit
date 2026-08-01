@@ -20,6 +20,7 @@ const supportedCases = new Set([
   "pdf-auto-pdfua-overclaim-refusal",
   "pdf-dynamic-xfa-boundary",
   "pdf-print-production-boundary",
+  "pdf-richmedia-opaque-preservation",
   "pdf-docmdp-forbidden-title-edit",
   "pdf-docmdp-allowed-field-fill",
   "pdf-damaged-xref-recovery",
@@ -31,6 +32,7 @@ const boundaryRefusalCases = new Map([
   ["pdf-auto-pdfua-overclaim-refusal", { boundary: "pdfua-overclaim", source: "inputs/source.pdf" }],
   ["pdf-dynamic-xfa-boundary", { boundary: "dynamic-xfa", source: "inputs/source.pdf" }],
   ["pdf-print-production-boundary", { boundary: "print-production", source: "inputs/source.pdf" }],
+  ["pdf-richmedia-opaque-preservation", { boundary: "richmedia-opaque", source: "inputs/source.pdf" }],
   ["pdf-docmdp-forbidden-title-edit", { boundary: "docmdp-p1", source: "inputs/source.pdf" }],
 ]);
 
@@ -966,6 +968,15 @@ function boundaryFixtureComplete(evidence, item) {
       && evidence.hasSeparation === true
       && evidence.overprint === true
       && evidence.transparency === true;
+  }
+  if (item.id === "pdf-richmedia-opaque-preservation") {
+    return evidence.pageCount === 2
+      && evidence.richMediaCount === 1
+      && evidence.threeDCount === 1
+      && evidence.richMediaCanary === true
+      && evidence.defaultView === true
+      && evidence.modelCanary === true
+      && evidence.scriptCanary === true;
   }
   if (item.id === "pdf-docmdp-forbidden-title-edit") {
     return evidence.pageCount >= 1

@@ -1,0 +1,235 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 2
+/Kids [ 4 0 R 9 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+/Names 22 0 R
+>>
+endobj
+4 0 obj
+<<
+/Contents 5 0 R
+/MediaBox [ 0 0 612 792 ]
+/Resources <<
+/Font 6 0 R
+/ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>>
+/Rotate 0
+/Trans <<
+>>
+/Type /Page
+/Parent 2 0 R
+>>
+endobj
+5 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ]
+/Length 292
+>>
+stream
+GarWr9hrS[&-_!?:[s_b$'TA!\1EO@.os_-E9!WdQ.Wom)KC,p;c&U<Xc`OWq47oGFD.(B$To@j^(NuRI"7GX0Q21jRjFDoh4.+NjY[iW.CCWJW)Pf.+lrK[a*EBAHD.!3#1MT"SM)j]W5=8K(?Q$Hs6EIo[.NKIrqN:Fo^(_)lPq+8KmNTNcW5K*+(B#T[/ca\1<'ttL@s$g+k]g"O"h'&_grEqF5T6e'7YLQA!agX2CCu?<UamKlQ2(UqS:K*DS?ZC4'>L?6QCKR>CLPHZ$5Q`XcCXb&)Ui7~>
+endstream
+endobj
+6 0 obj
+<<
+/F1 7 0 R
+/F2 8 0 R
+>>
+endobj
+7 0 obj
+<<
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Name /F1
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+8 0 obj
+<<
+/BaseFont /Helvetica-Bold
+/Encoding /WinAnsiEncoding
+/Name /F2
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+9 0 obj
+<<
+/Contents 10 0 R
+/MediaBox [ 0 0 612 792 ]
+/Resources <<
+/Font 6 0 R
+/ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>>
+/Rotate 0
+/Trans <<
+>>
+/Type /Page
+/Parent 2 0 R
+/Annots [ 18 0 R 19 0 R ]
+>>
+endobj
+10 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ]
+/Length 297
+>>
+stream
+GarW29htgF&;KZOMYAO=/Y0>^$V,:n0gSN-0-4o<@#\CAZCq,BpB([JAs19[S':I4J[\'r[hWk_0tAZnJ6md@;p\/goVg(>B\MR"=E_n+cU=p60ZmA?1GCQMES[24Oe+&`MF1ITH3fLg`\r;7@-ZI"df59"5G54+T%6]N?SZWlO<Vh/^*K+>0I]mWqa\O/N@^75k@1\imcI=:QWHil]mW[+=*g'4'21Od[9bPml+e_&b3V;2m(N;163"9*r$JdlnC;e8Z*i!2%8:lreE1Q0n9.(][XK7LKa"5Y4MG)m~>
+endstream
+endobj
+11 0 obj
+<<
+/Type /3D
+/Subtype /U3D
+/Length 25
+>>
+stream
+OfficeKit-3D-MODEL-CANARY
+endstream
+endobj
+12 0 obj
+<<
+/Type /3DView
+/XN (default\055view\055canary)
+/IN (OfficeKit default view)
+>>
+endobj
+13 0 obj
+<<
+/Type /EmbeddedFile
+/Subtype /model#232Fvnd.u3d
+/Length 34
+>>
+stream
+OfficeKit-RichMedia-PAYLOAD-CANARY
+endstream
+endobj
+14 0 obj
+<<
+/S /JavaScript
+/JS (app\056alert\050\047richmedia\055script\055canary\047\051\073)
+>>
+endobj
+15 0 obj
+<<
+/Type /RichMediaInstance
+/Subtype /3D
+/Asset 13 0 R
+/Params <<
+/Binding /Foreground
+>>
+>>
+endobj
+16 0 obj
+<<
+/Type /RichMediaConfiguration
+/Subtype /3D
+/Instances [ 15 0 R ]
+>>
+endobj
+17 0 obj
+<<
+/Type /RichMediaContent
+/Assets <<
+/Names [ (model\056u3d) 13 0 R ]
+>>
+/Configurations [ 16 0 R ]
+/Scripts [ 14 0 R ]
+/Canary (rich\055media\055canary)
+>>
+endobj
+18 0 obj
+<<
+/Type /Annot
+/Subtype /3D
+/Rect [ 72 450 540 720 ]
+/3DD 11 0 R
+/3DV [ 12 0 R ]
+/3DA <<
+/A /PO
+>>
+/NM (OfficeKit\0553d\055annotation)
+>>
+endobj
+19 0 obj
+<<
+/Type /Annot
+/Subtype /RichMedia
+/Rect [ 72 450 540 720 ]
+/RichMediaContent 17 0 R
+/RichMediaSettings <<
+/Activation <<
+/Condition /PO
+>>
+/Deactivation <<
+/Condition /PI
+>>
+>>
+/NM (OfficeKit\055richmedia\055annotation)
+>>
+endobj
+20 0 obj
+<<
+/Names [ (OfficeKit\055RichMedia\055Script) 14 0 R ]
+>>
+endobj
+21 0 obj
+<<
+/Names [ (model\056u3d) 13 0 R ]
+>>
+endobj
+22 0 obj
+<<
+/JavaScript 20 0 R
+/EmbeddedFiles 21 0 R
+>>
+endobj
+xref
+0 23
+0000000000 65535 f 
+0000000015 00000 n 
+0000000054 00000 n 
+0000000119 00000 n 
+0000000182 00000 n 
+0000000371 00000 n 
+0000000754 00000 n 
+0000000795 00000 n 
+0000000902 00000 n 
+0000001014 00000 n 
+0000001230 00000 n 
+0000001619 00000 n 
+0000001719 00000 n 
+0000001816 00000 n 
+0000001949 00000 n 
+0000002054 00000 n 
+0000002163 00000 n 
+0000002250 00000 n 
+0000002424 00000 n 
+0000002579 00000 n 
+0000002820 00000 n 
+0000002895 00000 n 
+0000002950 00000 n 
+trailer
+<<
+/Size 23
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+3013
+%%EOF

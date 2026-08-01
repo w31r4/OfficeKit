@@ -114,12 +114,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 33 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 34 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 16);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 17);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 5);
@@ -172,8 +172,8 @@ try {
 }
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /16 ready PDF cases include eight locked corpus signature\/boundary\/repair fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 8 asset-required cases/i);
+assert.match(runnerHelp.stdout, /17 ready PDF cases include nine locked corpus signature\/boundary\/repair fixtures/i);
+assert.match(runnerHelp.stdout, /remaining 7 asset-required cases/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 assert.match(runnerHelp.stdout, /matrix <case-id>/i);
 assert.deepEqual(matrixSubjects(undefined), ["candidate", "reference"]);
@@ -357,7 +357,7 @@ const p2OrdinaryNewlineChecks = gradeCertifiedDocMdpP2FillEvidence({
 assert.equal(p2OrdinaryNewlineChecks.find((check) => check.id === "pdf-trace:postflight-explicit-root-validation")?.passed, false, "an ordinary following line must not be joined to the post-fill verifier");
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 18, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 19, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -3072,6 +3072,10 @@ try {
   const credentials = path.join(workspace, "inputs", "credentials");
   await fs.mkdir(path.join(workspace, "outputs"), { recursive: true });
   await fs.mkdir(credentials, { recursive: true });
+  const richmediaSource = path.join(workspace, "inputs", "source.pdf");
+  await fs.copyFile(path.join(repoRoot, "evals", "assets", "pdf", "richmedia", "3d-review.pdf"), richmediaSource);
+  await makeReadOnly(richmediaSource);
+  const richmediaSourceSha256 = crypto.createHash("sha256").update(await fs.readFile(richmediaSource)).digest("hex");
   await fs.mkdir(path.join(workspace, ".agents", "skills", "pdf"), { recursive: true });
   await fs.mkdir(path.join(workspace, "node_modules", "office-kit"), { recursive: true });
   await fs.mkdir(evaluator, { recursive: true });
@@ -3090,11 +3094,19 @@ try {
     workspaceHashes[relative] = await fingerprintPath(path.join(workspace, relative));
   }
 
-  await fs.writeFile(path.join(workspace, "outputs", "audit.json"), JSON.stringify({ status: "failed_closed", delivered_modified_pdf: false }));
+  await fs.writeFile(path.join(workspace, "outputs", "audit.json"), JSON.stringify({
+    status: "failed_closed",
+    delivered_modified_pdf: false,
+    provider: { name: "pymupdf", version: "1.27.2.3", silentFallback: false },
+    source: { sha256: richmediaSourceSha256, path: "inputs/source.pdf", preserved_unchanged: true },
+    operation: [{ type: "richmedia-opaque-preservation", executed: false, result: "refused: RichMedia/3D runtime behavior cannot be proven" }],
+    savePolicy: { strategy: "none", selected: "none", sourcePreserved: true, artifactWritten: false, allowed_output: "audit_only", publication: "failed_closed" },
+    validation: { sourceImmutable: true, no_partial_modified_pdf_in_outputs: true },
+  }));
   await fs.writeFile(path.join(evaluator, "run.json"), JSON.stringify({ oracleSha256: oracleFingerprint(item), workspaceHashes, inputHashes: { "inputs/credentials": before } }));
   await fs.writeFile(path.join(evaluator, "exit.json"), JSON.stringify({ status: 0, signal: null }));
   await fs.writeFile(path.join(evaluator, "final.txt"), "Opaque RichMedia runtime behavior cannot be proven; failed closed.");
-  await fs.writeFile(path.join(evaluator, "trace.jsonl"), "{\"type\":\"result\"}\n");
+  await fs.writeFile(path.join(evaluator, "trace.jsonl"), `${JSON.stringify({ type: "item.completed", item: { id: "probe", type: "command_execution", command: "python .agents/skills/pdf/scripts/pymupdf_edit.py probe inputs/source.pdf", aggregated_output: "RichMedia and 3D constructs detected" } })}\n`);
 
   const prepared = { workspace, evaluator };
   const refusal = await scorePrepared(item, prepared);
