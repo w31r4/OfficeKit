@@ -405,10 +405,11 @@ function isPublishedPdfSkillScriptRoot(value) {
     .replaceAll("\\", "/")
     .replace(/^['"]|['"]$/g, "")
     .replace(/^\.\//, "");
-  return publishedPdfSkillScriptRoots.some((root) => (
-    normalized === root
-    || normalized.endsWith(`/${root}`)
-  ));
+  const candidates = [normalized, `${normalized}/scripts`];
+  return candidates.some((candidate) => publishedPdfSkillScriptRoots.some((root) => (
+    candidate === root
+    || candidate.endsWith(`/${root}`)
+  )));
 }
 
 // Command traces are evidence, not a shell to interpret. Recognise only a
@@ -439,7 +440,7 @@ function completedPublishedPdfSkillInvocation(commands, scriptName, operation, a
       const variableReference = `\\$\\{?${escapeRegularExpression(variable)}\\}?`;
       const invokedPath = scriptPathBinding
         ? variableReference
-        : `${variableReference}/${escapedScriptName}`;
+        : `${variableReference}/(?:scripts/)?${escapedScriptName}`;
       const variableExpression = new RegExp(`(?:"${invokedPath}"|${invokedPath})\\s+${escapedOperation}\\b`, "g");
       for (const invocation of command.matchAll(variableExpression)) {
         const offset = invocation.index || 0;
@@ -1497,7 +1498,7 @@ function qpdfRepairTraceChecks(audit, commands, { requireRewrite = true } = {}) 
   const afterRewrite = commandTextAfter(commands, rewrite);
   const renderAfterRewrite = Boolean(rewrite) && /\b(?:pdftoppm|pdfinfo)\b/i.test(afterRewrite);
   const sourceInputs = /inputs[\\/]recoverable\.pdf/i.test(commandText) && /inputs[\\/]unrecoverable\.pdf/i.test(commandText);
-  const rasterReconstruction = /(?:PdfArtifact|canvas\.Canvas|PdfWriter\s*\(|merge_page\s*\(|merge_transformed_page\s*\()/i.test(commandText);
+  const rasterReconstruction = qpdfRasterReconstruction(commands);
   return [
     check("pdf-trace:provider", "trace", /^qpdf$/i.test(String(auditProvider(audit))), { expected: "qpdf", actual: auditProvider(audit) }),
     check("pdf-trace:provider-version", "trace", Boolean(String(auditProviderVersion(audit)).trim()), { actual: auditProviderVersion(audit) || "unreported" }),
@@ -1509,6 +1510,22 @@ function qpdfRepairTraceChecks(audit, commands, { requireRewrite = true } = {}) 
     check("pdf-trace:post-repair-poppler-qa", "trace", !requireRewrite || renderAfterRewrite, { actual: { rewriteObserved: Boolean(rewrite), renderObserved: renderAfterRewrite } }),
     gate("pdf-trace:no-raster-reconstruction", "trace", !rasterReconstruction, { forbidden: "PdfArtifact/reportlab/PdfWriter/page merge reconstruction" }),
   ];
+}
+
+function qpdfRasterReconstruction(commands) {
+  const commandText = commands.join("\n");
+  return /(?:PdfArtifact|ReportLab|canvas\.Canvas|PdfWriter\s*\(|merge_page\s*\(|merge_transformed_page\s*\(|from\s+PIL|Image\.(?:open|new|save)|pypdf\s+.*(?:merge|writer)|(?:convert|write)\s+.*(?:png|jpe?g).*\.pdf)/i.test(commandText);
+}
+
+function qpdfAuditInputHashes(audit) {
+  const hashes = new Set([auditSourceHash(audit), ...(Array.isArray(audit?.inputs) ? audit.inputs : [])
+    .map((input) => input?.sha256)
+    .filter(Boolean)]);
+  const unrecoverableControl = audit?.validation?.unrecoverableControl
+    || audit?.validation?.unrecoverable_control;
+  const unrecoverableSource = unrecoverableControl?.source || unrecoverableControl;
+  if (unrecoverableSource?.sha256) hashes.add(unrecoverableSource.sha256);
+  return hashes;
 }
 
 export function gradeQpdfRepairEvidence({ evidence, audit, commands, finalMessage, item }) {
@@ -1524,7 +1541,7 @@ export function gradeQpdfRepairEvidence({ evidence, audit, commands, finalMessag
       check("pdf-machine:failed-closed-audit", "machine", /^failed_closed$/i.test(String(audit?.status || "")), { actual: audit?.status || "unreported" }),
       check("pdf-visual:not-claimed", "visual", true),
       gate("pdf-security:source-preserved", "security", auditSourceHash(audit) === source.sha256 || audit?.source?.recoverableSha256 === source.sha256, { expected: source.sha256, actual: auditSourceHash(audit) || audit?.source?.recoverableSha256 || "unreported" }),
-      gate("pdf-security:no-raster-reconstruction", "security", !/PdfArtifact|canvas\.Canvas|PdfWriter\s*\(|merge_page\s*\(/i.test(commands.join("\n"))),
+      gate("pdf-security:no-raster-reconstruction", "security", !qpdfRasterReconstruction(commands)),
       check("pdf-trace:explicit-refusal", "trace", /(?:qpdf|repair|recover|unsupported|unavailable|拒绝|失败)/i.test(refusalText), { actual: refusalText.slice(0, 500) || "unreported" }),
       ...qpdfRepairTraceChecks(audit, commands, { requireRewrite: false }),
     ];
@@ -1533,21 +1550,25 @@ export function gradeQpdfRepairEvidence({ evidence, audit, commands, finalMessag
   const expectedText = String(item.grade.machine.requiredText || "");
   const attachmentNames = new Set((evidence.outputAttachments || []).map((attachment) => attachment.name));
   const visualPages = evidence.visual?.pages || [];
-  const inputs = Array.isArray(audit?.inputs) ? audit.inputs : [];
-  const inputHashes = new Set(inputs.map((input) => input?.sha256).filter(Boolean));
+  const inputHashes = qpdfAuditInputHashes(audit);
+  const qpdfCheckAfter = audit?.checkAfter
+    || audit?.structureAfter?.check
+    || audit?.qpdf?.checkAfter
+    || audit?.validation?.qpdfCheckAfter
+    || audit?.validation?.qpdfCheck;
   return [
     check("pdf-machine:recoverable-source-is-damaged", "machine", source.pdfHeader === true && source.startxrefCount === 1 && source.hasTrailer === true && source.hasEof === false, { actual: source }),
     check("pdf-machine:unrecoverable-rejected", "machine", comparison.pdfHeader === true && comparison.hasTrailer === false && comparison.hasEof === false, { actual: comparison }),
     check("pdf-machine:page-count-preserved", "machine", output.pageCount === expectedPageCount, { expected: expectedPageCount, actual: output.pageCount }),
     check("pdf-machine:visible-text-preserved", "machine", output.termCounts?.[expectedText] === expectedPageCount, { expected: expectedPageCount, actual: output.termCounts?.[expectedText] }),
-    check("pdf-machine:recovery-output-clean", "machine", audit?.checkAfter?.status === "clean" || audit?.structureAfter?.check?.status === "clean" || audit?.qpdf?.checkAfter?.status === "clean", { actual: audit?.checkAfter || audit?.structureAfter?.check || audit?.qpdf?.checkAfter || "unreported" }),
+    check("pdf-machine:recovery-output-clean", "machine", qpdfCheckAfter?.status === "clean" || qpdfCheckAfter?.after === "clean", { actual: qpdfCheckAfter || "unreported" }),
     check("pdf-machine:attachment-preserved", "machine", attachmentNames.has("repair-canary.txt"), { expected: ["repair-canary.txt"], actual: [...attachmentNames] }),
     check("pdf-machine:audit-success", "machine", /^(?:success|succeeded|completed)$/i.test(String(audit?.status || "")), { actual: audit?.status || "unreported" }),
     check("pdf-visual:all-pages-rendered", "visual", visualPages.length === expectedPageCount && visualPages.every((page) => page.sameDimensions && page.nonBlank), { renderer: evidence.visual?.renderer, pages: visualPages }),
     check("pdf-visual:repaired-pages-pixel-stable", "visual", visualPages.length === expectedPageCount && visualPages.every((page) => page.changedPixelsBBox === null), { actual: visualPages.map(({ page, changedPixelsBBox }) => ({ page, changedPixelsBBox })) }),
     gate("pdf-security:source-provenance", "security", auditSourceHash(audit) === source.sha256 || audit?.source?.recoverableSha256 === source.sha256, { expected: source.sha256, actual: auditSourceHash(audit) || audit?.source?.recoverableSha256 || "unreported" }),
     gate("pdf-security:both-inputs-bound", "security", inputHashes.has(source.sha256) && inputHashes.has(comparison.sha256), { expected: [source.sha256, comparison.sha256], actual: [...inputHashes] }),
-    gate("pdf-security:no-raster-reconstruction", "security", !/PdfArtifact|canvas\.Canvas|PdfWriter\s*\(|merge_page\s*\(|pdftoppm[^\n]*(?:recoverable|unrecoverable)[^\n]*outputs/i.test(commands.join("\n"))),
+    gate("pdf-security:no-raster-reconstruction", "security", !qpdfRasterReconstruction(commands)),
     ...qpdfRepairTraceChecks(audit, commands),
   ];
 }
