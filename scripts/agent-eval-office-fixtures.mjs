@@ -101,6 +101,40 @@ export const XLSX_PIVOT_REFRESH_FIXTURE = Object.freeze({
   targetRange: "A1",
 });
 
+// This fixture is a deliberately bounded enterprise-workbook preservation
+// case.  The ordinary line chart and Assumptions!B4 are the only editable
+// semantic targets; the connection, QueryTable, PivotTable, sparkline,
+// dynamic-array metadata, threaded comment, and disconnected native/opaque
+// parts are preservation canaries rather than authoring claims.
+export const XLSX_OPAQUE_ENTERPRISE_FIXTURE = Object.freeze({
+  workbookName: "enterprise-plan.xlsx",
+  assumptionsSheetName: "Assumptions",
+  assumptionAddress: "B4",
+  originalAssumption: 0.065,
+  replacementAssumption: 0.07,
+  dashboardSheetName: "Dashboard",
+  chartName: "enterprise-line-chart",
+  originalChartTitle: "Revenue Outlook",
+  replacementChartTitle: "Updated Revenue Outlook",
+  dataSheetName: "Data",
+  tableName: "EnterpriseData",
+  pivotSheetName: "Summary",
+  pivotName: "Enterprise Revenue",
+  dynamicArrayAddress: "G2:G4",
+  connectionId: 9,
+  connectionName: "Enterprise warehouse",
+  connectionCommand: "SELECT Quarter, Revenue FROM EnterpriseSales",
+  connectionOpaqueValue: "enterprise-keep",
+  queryTableName: "Enterprise sales query",
+  customPowerQueryPath: "customXml/itemEnterprisePowerQuery.xml",
+  slicerPath: "xl/slicers/slicer1.xml",
+  slicerCachePath: "xl/slicerCaches/slicerCache1.xml",
+  comboChartPath: "xl/drawings/charts/chart2.xml",
+  comboChartMarker: "Enterprise combo chart is source-owned",
+  threadedCommentAddress: "B4",
+  threadedCommentText: "Confirm the enterprise assumption before circulation.",
+});
+
 export const XLSX_OPERATING_PLAN_FIXTURE = Object.freeze({
   actualsPath: "spreadsheets/operating-plan/actuals.csv",
   assumptionsPath: "spreadsheets/operating-plan/assumptions.json",
@@ -669,6 +703,120 @@ async function attachConnectionRefreshFixture(file, fixture) {
   return new Uint8Array(await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" }));
 }
 
+async function canonicalizeXlsxZip(zip) {
+  const entries = [];
+  const relationshipIds = new Map();
+  for (const name of Object.keys(zip.files).filter((entry) => !zip.files[entry].dir).sort()) {
+    const file = zip.file(name);
+    if (!file) continue;
+    const bytes = await file.async("uint8array");
+    if (!/\.(?:xml|rels)$/i.test(name)) {
+      entries.push({ name, bytes, xml: null });
+      continue;
+    }
+    const xml = new TextDecoder().decode(bytes);
+    for (const match of xml.matchAll(/\bR[a-f0-9]{16}\b/gi)) {
+      if (!relationshipIds.has(match[0])) relationshipIds.set(match[0], `rId${relationshipIds.size + 1}`);
+    }
+    entries.push({ name, bytes, xml });
+  }
+  const fixedDate = new Date("1980-01-01T00:00:00.000Z");
+  const canonicalZip = new JSZip();
+  for (const entry of entries) {
+    const data = entry.xml === null
+      ? entry.bytes
+      : entry.xml.replace(/\bR[a-f0-9]{16}\b/gi, (id) => relationshipIds.get(id) || id);
+    canonicalZip.file(entry.name, data, {
+      date: fixedDate,
+      createFolders: false,
+      compression: "DEFLATE",
+      compressionOptions: { level: 9 },
+    });
+  }
+  return new Uint8Array(await canonicalZip.generateAsync({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 9 },
+    platform: "DOS",
+  }));
+}
+
+function relationshipTargetMap(xml = "") {
+  const targets = new Map();
+  for (const match of String(xml).matchAll(/<Relationship\b([^>]*)\/?\s*>/g)) {
+    const id = /\bId="([^"]+)"/i.exec(match[1])?.[1];
+    const target = /\bTarget="([^"]+)"/i.exec(match[1])?.[1];
+    if (id && target) targets.set(id, target);
+  }
+  return targets;
+}
+
+async function enterpriseWorksheetPath(zip, sheetName) {
+  const workbookXml = await zip.file("xl/workbook.xml")?.async("text") || "";
+  const workbookRels = await zip.file("xl/_rels/workbook.xml.rels")?.async("text") || "";
+  const targets = relationshipTargetMap(workbookRels);
+  const sheet = [...workbookXml.matchAll(/<[^>]*sheet\b([^>]*)\/?\s*>/g)]
+    .map((match) => ({
+      name: /\bname="([^"]+)"/i.exec(match[1])?.[1] || "",
+      relId: /\br:id="([^"]+)"/i.exec(match[1])?.[1] || "",
+    }))
+    .find((candidate) => candidate.name === sheetName);
+  if (!sheet) return null;
+  const target = targets.get(sheet.relId);
+  if (!target) return null;
+  const normalized = String(target).replace(/^\/+/, "");
+  return path.posix.normalize(normalized.startsWith("xl/") ? normalized : path.posix.join("xl", normalized));
+}
+
+async function attachOpaqueEnterpriseFixture(file, fixture) {
+  const zip = await JSZip.loadAsync(new Uint8Array(await file.arrayBuffer()));
+  const [contentTypes, workbookRelationships, dataSheetPath] = await Promise.all([
+    zip.file("[Content_Types].xml")?.async("text"),
+    zip.file("xl/_rels/workbook.xml.rels")?.async("text"),
+    enterpriseWorksheetPath(zip, fixture.dataSheetName),
+  ]);
+  const tablePartPath = Object.keys(zip.files).find((name) => /^xl\/tables\/table1\.xml$/i.test(name));
+  if (!contentTypes?.includes("</Types>") || !workbookRelationships?.includes("</Relationships>") || !tablePartPath || !dataSheetPath) {
+    throw new Error("XLSX opaque-enterprise fixture could not locate the canonical workbook/table/data parts.");
+  }
+  const queryPartPath = "xl/queryTables/queryTable1.xml";
+  const tableRelationshipPath = `${path.posix.dirname(tablePartPath)}/_rels/${path.posix.basename(tablePartPath)}.rels`;
+  if (zip.file(tableRelationshipPath)) throw new Error("XLSX opaque-enterprise fixture found an unexpected existing table relationship part.");
+  const overrides = [
+    ["/xl/connections.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.connections+xml"],
+    [`/${queryPartPath}`, "application/vnd.openxmlformats-officedocument.spreadsheetml.queryTable+xml"],
+    [`/${fixture.slicerPath}`, "application/vnd.ms-excel.slicer+xml"],
+    [`/${fixture.slicerCachePath}`, "application/vnd.ms-excel.slicerCache+xml"],
+    [`/${fixture.comboChartPath}`, "application/vnd.openxmlformats-officedocument.drawingml.chart+xml"],
+  ];
+  let updatedContentTypes = contentTypes;
+  for (const [partName, contentType] of overrides) {
+    if (!updatedContentTypes.includes(`PartName="${partName}"`)) {
+      updatedContentTypes = updatedContentTypes.replace("</Types>", `<Override PartName="${partName}" ContentType="${contentType}"/></Types>`);
+    }
+  }
+  zip.file("[Content_Types].xml", updatedContentTypes);
+  let updatedWorkbookRelationships = workbookRelationships;
+  if (!updatedWorkbookRelationships.includes('Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/connections"')) {
+    updatedWorkbookRelationships = updatedWorkbookRelationships.replace(
+      "</Relationships>",
+      '<Relationship Id="rIdEnterpriseConnections" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/connections" Target="connections.xml"/></Relationships>',
+    );
+  }
+  zip.file("xl/_rels/workbook.xml.rels", updatedWorkbookRelationships);
+  zip.file(tableRelationshipPath, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdEnterpriseQueryTable" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/queryTable" Target="../queryTables/queryTable1.xml"/></Relationships>');
+  zip.file("xl/connections.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><x:connections xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:fixture="urn:office-kit:promptbench"><x:connection id="${fixture.connectionId}" name="${xmlEscape(fixture.connectionName)}" description="Enterprise warehouse source" type="5" refreshedVersion="8" keepAlive="0" interval="30" background="1" refreshOnLoad="1" saveData="1" savePassword="0" credentials="integrated"><x:dbPr connection="Provider=Enterprise.Fixture;Data Source=fixture.invalid" command="${xmlEscape(fixture.connectionCommand)}" commandType="2"/><x:extLst><x:ext uri="{E5A74D42-D212-4CC7-9D5B-A7393F4D8A61}"><fixture:connectionOpaque value="${xmlEscape(fixture.connectionOpaqueValue)}"/></x:ext></x:extLst></x:connection></x:connections>`);
+  zip.file(queryPartPath, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><x:queryTable xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:fixture="urn:office-kit:promptbench" name="${xmlEscape(fixture.queryTableName)}" headers="1" rowNumbers="0" disableRefresh="0" backgroundRefresh="1" refreshOnLoad="0" connectionId="${fixture.connectionId}"><x:queryTableRefresh preserveSortFilterLayout="1" fieldIdWrapped="0" headersInLastRefresh="1" minimumVersion="0" nextId="3"><x:queryTableFields count="2"><x:queryTableField id="1" name="Quarter" dataBound="1" tableColumnId="1"/><x:queryTableField id="2" name="Revenue" dataBound="1" tableColumnId="2"/></x:queryTableFields></x:queryTableRefresh><x:extLst><x:ext uri="{A1D56E5F-35B8-4C51-9C80-779E6A39D52B}"><fixture:queryOpaque value="enterprise-keep"/></x:ext></x:extLst></x:queryTable>`);
+  zip.file(fixture.customPowerQueryPath, `<?xml version="1.0" encoding="UTF-8"?><PowerQuery xmlns="urn:office-kit:enterprise-query"><Query name="EnterpriseSales" source="fixture.invalid" refresh="manual">${fixture.comboChartMarker}</Query></PowerQuery>`);
+  zip.file(fixture.slicerPath, `<?xml version="1.0" encoding="UTF-8"?><x:slicer xmlns:x="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main" name="EnterpriseRegion" cache="EnterpriseRegionCache"><x:extLst><x:ext uri="{4A3D1B9B-68D8-44CA-9C61-ENTERPRISE01}"><fixture:opaque xmlns:fixture="urn:office-kit:promptbench" value="slicer-keep"/></x:ext></x:extLst></x:slicer>`);
+  zip.file(fixture.slicerCachePath, `<?xml version="1.0" encoding="UTF-8"?><x:slicerCache xmlns:x="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main" name="EnterpriseRegionCache" sourceName="Region"><x:extLst><x:ext uri="{4A3D1B9B-68D8-44CA-9C61-ENTERPRISE02}"><fixture:opaque xmlns:fixture="urn:office-kit:promptbench" value="slicer-cache-keep"/></x:ext></x:extLst></x:slicerCache>`);
+  zip.file(fixture.comboChartPath, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:fixture="urn:office-kit:promptbench"><c:chart><c:autoTitleDeleted val="0"/><c:title><c:tx><c:rich><a:t xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">${fixture.comboChartMarker}</a:t></c:rich></c:tx></c:title><c:plotArea><c:barChart><c:barDir val="col"/></c:barChart><c:lineChart><c:grouping val="standard"/></c:lineChart></c:plotArea><c:plotVisOnly val="1"/></c:chart><fixture:preservation value="combo-chart-opaque"/></c:chartSpace>`);
+  zip.file("xl/metadata.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><x:metadata xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><x:metadataTypes count="1"><x:metadataType name="XLDAPR" minSupportedVersion="120000" copy="1" pasteAll="1" pasteValues="1" merge="1" splitFirst="1" rowColShift="1" clearFormats="1" clearComments="1" assign="1" coerce="1" cellMeta="1"/></x:metadataTypes><x:futureMetadata name="XLDAPR" count="1"><x:bk><x:extLst><x:ext uri="{BDBB8CDC-FA1E-496E-A857-3C3F30C029C3}"><xda:dynamicArrayProperties fDynamic="1" fCollapsed="0" xmlns:xda="http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray"/></x:ext></x:extLst></x:bk></x:futureMetadata><x:cellMetadata count="1"><x:bk><x:rc t="1" v="0"/></x:bk></x:cellMetadata></x:metadata>`);
+  const dataSheetXml = await zip.file(dataSheetPath).async("text");
+  if (!/<[^>]*c\b[^>]*\br="G2"[^>]*>/i.test(dataSheetXml)) throw new Error("XLSX opaque-enterprise fixture dynamic-array anchor G2 is missing.");
+  return canonicalizeXlsxZip(zip);
+}
+
 export async function generateXlsxConnectionRefresh(target) {
   const fixture = XLSX_CONNECTION_REFRESH_FIXTURE;
   const workbook = Workbook.create();
@@ -684,6 +832,120 @@ export async function generateXlsxConnectionRefresh(target) {
   sheet.freezePanes.freezeRows(1);
   const exported = await SpreadsheetFile.exportXlsx(workbook);
   const patched = await attachConnectionRefreshFixture(exported, fixture);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, patched);
+  return { path: target, type: XLSX_MIME };
+}
+
+export async function generateXlsxOpaqueEnterprise(target) {
+  const fixture = XLSX_OPAQUE_ENTERPRISE_FIXTURE;
+  const workbook = Workbook.create();
+  const assumptions = workbook.worksheets.add(fixture.assumptionsSheetName);
+  assumptions.getRange("A1:C6").values = [
+    ["Enterprise planning assumptions", null, null],
+    ["Assumption", "Value", "Owner"],
+    ["Fiscal year", "FY27", "Finance"],
+    ["Revenue growth", fixture.originalAssumption, "Planning"],
+    ["Gross margin", 0.58, "Planning"],
+    ["Refresh policy", "Manual review", "Data steward"],
+  ];
+  assumptions.getRange("A1:C1").format = { fill: "#0F172A", font: { bold: true, color: "#FFFFFF", size: 14 } };
+  assumptions.getRange("A2:C2").format = { fill: "#E2E8F0", font: { bold: true } };
+  assumptions.getRange("B4:B5").setNumberFormat("0.0%");
+  assumptions.getRange("A1:C6").format.columnWidthPx = 160;
+  assumptions.getRange("A1:A6").format.columnWidthPx = 220;
+  assumptions.freezePanes.freezeRows(2);
+
+  const dashboard = workbook.worksheets.add(fixture.dashboardSheetName);
+  dashboard.getRange("A1:B4").values = [
+    ["Quarter", "Revenue"],
+    ["Q1", 100],
+    ["Q2", 120],
+    ["Q3", 150],
+  ];
+  dashboard.getRange("A1:B1").format = { fill: "#DBEAFE", font: { bold: true, color: "#1E3A8A" } };
+  dashboard.getRange("A1:B4").format.columnWidthPx = 130;
+  const chart = dashboard.charts.add("line", dashboard.getRange("A1:B4"));
+  chart.name = fixture.chartName;
+  chart.title = fixture.originalChartTitle;
+  chart.setPosition("D1", "K16");
+
+  const data = workbook.worksheets.add(fixture.dataSheetName);
+  data.getRange("A1:D5").values = [
+    ["Quarter", "Revenue", "Cost", "Region"],
+    ["Q1", 100, 60, "North"],
+    ["Q2", 120, 68, "South"],
+    ["Q3", 150, 79, "North"],
+    ["Q4", 175, 92, "West"],
+  ];
+  data.tables.add("A1:D5", true, fixture.tableName);
+  data.getRange("A1:D1").format = { fill: "#0F172A", font: { bold: true, color: "#FFFFFF" } };
+  data.getRange("A1:D5").format.columnWidthPx = 120;
+  data.freezePanes.freezeRows(1);
+  data.getRange("E2:E5").sparklines.add("line", data.getRange("B2:C5"), { seriesColor: "#0EA5E9" });
+  const dynamicAnchor = data.store.get("G2");
+  // The native metadata part marks this as an XLDAPR-style spill canary, but
+  // the bounded public evaluator keeps the legacy array formula result
+  // deterministic so workbook.verify() has no formula-error dependency.
+  dynamicAnchor.formula = "=1";
+  dynamicAnchor.formulaType = "array";
+  dynamicAnchor.arrayRef = fixture.dynamicArrayAddress;
+  dynamicAnchor.value = 1;
+  data.store.get("G3").value = 2;
+  data.store.get("G4").value = 3;
+
+  const summary = workbook.worksheets.add(fixture.pivotSheetName);
+  summary.getRange("A1:B4").values = [["Enterprise summary", null], ["Region", "Revenue"], ["North", 250], ["South", 120]];
+  summary.getRange("A1:B1").format = { fill: "#FEF3C7", font: { bold: true, color: "#92400E" } };
+  summary.getRange("A1:B4").format.columnWidthPx = 150;
+  summary.pivotTables.add({
+    name: fixture.pivotName,
+    sourceRange: `${fixture.dataSheetName}!A1:D5`,
+    targetRange: "A6",
+    rowFields: ["Region"],
+    valueFields: [{ field: "Revenue", summarizeBy: "sum", name: "Revenue" }],
+    rowGrandTotals: true,
+    columnGrandTotals: true,
+    refreshPolicy: { refreshOnLoad: true, saveData: true, enableRefresh: true },
+  });
+
+  workbook.comments.setSelf({ displayName: "Enterprise planning" });
+  const thread = workbook.comments.addThread(
+    { cell: assumptions.getRange(fixture.threadedCommentAddress) },
+    fixture.threadedCommentText,
+    {
+      id: "enterprise-assumption-review",
+      author: "Planning reviewer",
+      resolved: false,
+      comment: {
+        id: "{44444444-4444-4444-8444-444444444444}",
+        personId: "{DDDDDDDD-DDDD-4DDD-8DDD-DDDDDDDDDDDD}",
+        date: "2026-07-20T09:00:00.000Z",
+        person: {
+          id: "{DDDDDDDD-DDDD-4DDD-8DDD-DDDDDDDDDDDD}",
+          displayName: "Planning reviewer",
+          userId: "planning@example.test",
+          providerId: "None",
+        },
+      },
+    },
+  );
+  thread.addReply("The warehouse refresh remains manual.", {
+    id: "{55555555-5555-4555-8555-555555555555}",
+    personId: "{EEEEEEEE-EEEE-4EEE-8EEE-EEEEEEEEEEEE}",
+    author: "Data steward",
+    date: "2026-07-20T09:05:00.000Z",
+    person: {
+      id: "{EEEEEEEE-EEEE-4EEE-8EEE-EEEEEEEEEEEE}",
+      displayName: "Data steward",
+      userId: "data@example.test",
+      providerId: "None",
+    },
+    done: true,
+  });
+  workbook.recalculate();
+  const exported = await SpreadsheetFile.exportXlsx(workbook, { recalculate: false });
+  const patched = await attachOpaqueEnterpriseFixture(exported, fixture);
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, patched);
   return { path: target, type: XLSX_MIME };
@@ -1425,6 +1687,7 @@ export async function generateOfficeInput(generator, target) {
   if (generator === "xlsx-nested-reply-boundary") return generateXlsxNestedReplyBoundary(target);
   if (generator === "xlsx-growth-update") return generateXlsxGrowthUpdate(target);
   if (generator === "xlsx-connection-refresh") return generateXlsxConnectionRefresh(target);
+  if (generator === "xlsx-opaque-enterprise") return generateXlsxOpaqueEnterprise(target);
   if (generator === "xlsx-pivot-refresh") return generateXlsxPivotRefresh(target);
   if (generator === "docx-classic-comment-review") return generateDocxClassicCommentReview(target);
   if (generator === "docx-modern-comment-reply-boundary") return generateDocxModernCommentReplyBoundary(target);

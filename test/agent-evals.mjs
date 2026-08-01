@@ -22,6 +22,7 @@ import {
   PPTX_TITLE_NOTES_FIXTURE,
   XLSX_CONNECTION_REFRESH_FIXTURE,
   XLSX_GROWTH_UPDATE_FIXTURE,
+  XLSX_OPAQUE_ENTERPRISE_FIXTURE,
   XLSX_OPERATING_PLAN_FIXTURE,
   XLSX_PIVOT_REFRESH_FIXTURE,
   XLSX_NESTED_REPLY_BOUNDARY_FIXTURE,
@@ -47,12 +48,14 @@ import {
   gradeXlsxConnectionRefreshEvidence,
   gradeXlsxGrowthUpdateEvidence,
   gradeXlsxOperatingPlanEvidence,
+  gradeXlsxOpaqueEnterpriseEvidence,
   gradeXlsxPivotRefreshEvidence,
   gradeXlsxNestedReplyBoundaryEvidence,
   gradeXlsxThreadedReplyEvidence,
   inspectConnectionRefreshWorkbook,
   inspectGrowthWorkbook,
   inspectOperatingPlanWorkbook,
+  inspectOpaqueEnterpriseWorkbook,
   inspectPivotRefreshWorkbook,
   inspectThreadedWorkbook,
 } from "../scripts/agent-eval-spreadsheet-graders.mjs";
@@ -75,6 +78,7 @@ import { editImportedFooterText } from "../skills/documents/skills/documents/exa
 import { editImportedSectionPageNumbering } from "../skills/documents/skills/documents/examples/officekit-section-page-numbering-edit-workflow.mjs";
 import { hardenXlsxConnectionRefreshOnOpen } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs";
 import { hardenXlsxPivotRefreshOnLoad } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs";
+import { editXlsxOpaqueEnterprise } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-opaque-enterprise-local-edit-workflow.mjs";
 import { createOperatingPlan } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-operating-plan-workflow.mjs";
 import {
   extractCompletedCommands,
@@ -116,13 +120,13 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 38 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 39 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 21);
-assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 6);
+assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 7);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 5);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
@@ -175,7 +179,8 @@ try {
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /21 ready PDF cases include twelve locked corpus signature\/boundary\/repair\/redaction\/table fixtures plus PAdES\/TSA\/LTV and mixed-scan OCR preprocessing fail-closed routes/i);
-assert.match(runnerHelp.stdout, /remaining 3 asset-required cases/i);
+assert.match(runnerHelp.stdout, /remaining 2 asset-required cases/i);
+assert.match(runnerHelp.stdout, /opaque[- ]enterprise/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 assert.match(runnerHelp.stdout, /matrix <case-id>/i);
 assert.deepEqual(matrixSubjects(undefined), ["candidate", "reference"]);
@@ -1245,6 +1250,76 @@ try {
   }
 } finally {
   await fs.rm(pivotRefreshRoot, { recursive: true, force: true });
+}
+
+const opaqueEnterpriseItem = cases.find((item) => item.id === "xlsx-opaque-enterprise-local-edit");
+assert.ok(opaqueEnterpriseItem);
+const opaqueEnterpriseRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-xlsx-opaque-enterprise-"));
+try {
+  const opaqueInput = path.join(opaqueEnterpriseRoot, "inputs", XLSX_OPAQUE_ENTERPRISE_FIXTURE.workbookName);
+  const opaqueOutput = path.join(opaqueEnterpriseRoot, "outputs", "enterprise-plan-updated.xlsx");
+  const opaqueAuditPath = path.join(opaqueEnterpriseRoot, "outputs", "audit.json");
+  await generateOfficeInput("xlsx-opaque-enterprise", opaqueInput);
+  const opaqueSourceBytes = await fs.readFile(opaqueInput);
+  const opaqueResult = await editXlsxOpaqueEnterprise({ inputPath: opaqueInput, outputPath: opaqueOutput, auditPath: opaqueAuditPath });
+  assert.equal(opaqueResult.audit.validation.reimport.ok, true);
+  assert.deepEqual(await fs.readFile(opaqueInput), opaqueSourceBytes);
+  const opaqueAudit = JSON.parse(await fs.readFile(opaqueAuditPath, "utf8"));
+  const opaqueEvidence = {
+    source: await inspectOpaqueEnterpriseWorkbook(opaqueInput),
+    output: await inspectOpaqueEnterpriseWorkbook(opaqueOutput),
+    visual: {
+      source: { available: true, ok: true, pageCount: 5, pages: [
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "assumptions-source" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "dashboard-source" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "dashboard-continuation" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "data-stable" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "summary-stable" },
+      ] },
+      output: { available: true, ok: true, pageCount: 5, pages: [
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "assumptions-output" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "dashboard-output" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "dashboard-continuation-output" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "data-stable" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "summary-stable" },
+      ] },
+    },
+  };
+  const opaqueTrace = JSON.stringify({
+    type: "item.completed",
+    item: {
+      type: "command_execution",
+      id: "xlsx-opaque-enterprise",
+      command: "node .agents/skills/spreadsheets/examples/officekit-opaque-enterprise-local-edit-workflow.mjs inputs/enterprise-plan.xlsx outputs/enterprise-plan-updated.xlsx outputs/audit.json; SpreadsheetFile.importXlsx; SpreadsheetFile.exportXlsx",
+    },
+  });
+  const opaqueChecks = gradeXlsxOpaqueEnterpriseEvidence({
+    evidence: opaqueEvidence,
+    audit: opaqueAudit,
+    commands: extractCompletedCommands(opaqueTrace),
+  });
+  assert.equal(opaqueChecks.every((check) => check.passed), true, opaqueChecks.filter((check) => !check.passed).map((check) => check.id).join(", "));
+  const untrustedOpaqueChecks = gradeXlsxOpaqueEnterpriseEvidence({
+    evidence: opaqueEvidence,
+    audit: opaqueAudit,
+    commands: ["node scratch/patch-enterprise-xml.mjs inputs/enterprise-plan.xlsx outputs/enterprise-plan-updated.xlsx"],
+  });
+  assert.equal(untrustedOpaqueChecks.find((check) => check.id === "xlsx-opaque-enterprise-trace:typed-roundtrip")?.passed, false);
+  const nativeOpaqueResult = await gradeOfficeCase({
+    item: opaqueEnterpriseItem,
+    workspace: opaqueEnterpriseRoot,
+    evaluator: path.join(opaqueEnterpriseRoot, "evaluator"),
+    finalMessage: "completed",
+    trace: opaqueTrace,
+  });
+  if (nativeOpaqueResult.graded) {
+    assert.equal(nativeOpaqueResult.rawScorePercent, 100);
+    assert.equal(nativeOpaqueResult.caseSpecificPassed, true);
+  } else {
+    assert.ok(nativeOpaqueResult.infrastructureErrors?.length);
+  }
+} finally {
+  await fs.rm(opaqueEnterpriseRoot, { recursive: true, force: true });
 }
 
 const classicCommentItem = cases.find((item) => item.id === "docx-classic-comment-text-edit");

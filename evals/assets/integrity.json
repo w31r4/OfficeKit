@@ -36,6 +36,12 @@
       "kind": "file",
       "sha256": "1b16849b5cff680d1b7c7914c5f35e43df2ea76a8cb0ce27252fa2d49be228a4"
     },
+    "spreadsheets/enterprise-plan.xlsx": {
+      "bytes": 15251,
+      "description": "Self-authored four-sheet enterprise XLSX with source-owned connection, QueryTable, Pivot/slicer, Power Query, sparkline, array-metadata, threaded-comment, and opaque combo-chart canaries.",
+      "kind": "file",
+      "sha256": "8e56719b4dd65ff694969afac2ebeaf3473d2d4fa72d71e16ae8a0295982e94e"
+    },
     "pdf/accessibility/untagged-complex-report.pdf": {
       "bytes": 2935,
       "description": "Untagged two-column report with image and table visual structure.",
