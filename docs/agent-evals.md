@@ -16,9 +16,9 @@ The suite is evaluator-side repository infrastructure. `evals/`, the runner, loc
 ## Current suite
 
 - 41 cases: 21 PDF, 7 Documents, 7 Spreadsheets, and 6 Presentations. PDF is 51.2% of the suite and is required to remain an absolute majority, so a meaningful Office vertical slice never creates unrelated PDF filler prompts.
-- 31 `ready` cases: 16 PDF cases, five bounded XLSX workflows (threaded-comment direct reply, nested-reply safe refusal, formula-assumption update, source-bound connection refresh-on-open, and source-bound Pivot refresh-on-open), six DOCX workflows (classic-comment, modern-comment nested-reply safe refusal, complex-table topology safe refusal, and source-bound header/footer text plus section page numbering), and four PPTX workflows (title plus fixed-topology rich-speaker-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, and closed-leaf slide clone).
+- 32 `ready` cases: 16 PDF cases, five bounded XLSX workflows (threaded-comment direct reply, nested-reply safe refusal, formula-assumption update, source-bound connection refresh-on-open, and source-bound Pivot refresh-on-open), six DOCX workflows (classic-comment, modern-comment nested-reply safe refusal, complex-table topology safe refusal, and source-bound header/footer text plus section page numbering), and five PPTX workflows (title plus fixed-topology rich-speaker-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, closed-leaf slide clone, and SmartArt/notes/comment-reply safe refusal).
 - Eight locked, self-authored PDF corpus inputs are now ready. Six are auditable safe-refusal boundaries: AES-256 owner/user permission split, native annotation reply chain, untagged complex report, Dynamic XFA packet, print-production risk structure, and a real DocMDP P=1 certification signature with a public test root. The seventh is a real DocMDP P=2/FieldMDP form whose one permitted controlled finalisation is independently graded. The eighth is a two-file qpdf repair pair: a damaged xref/EOF source whose pages and attachment survive recovery, plus an unrecoverable comparison that must be rejected. Every asset has a committed SHA-256/byte manifest and parser/render oracle; generic “no output” does not pass either kind of case.
-- 10 `asset-required` cases still await their pinned corpus files or test PKI. They remain excluded from readiness and repeat-matrix claims.
+- 9 `asset-required` cases still await their pinned corpus files or test PKI. They remain excluded from readiness and repeat-matrix claims.
 - Every family has both a success and a fail-closed case. Some advanced PDF cases accept either verified success or an explicit safe refusal.
 - The default policy uses three trials per subject. Trial count is recorded per case rather than silently inferred by the Agent.
 
@@ -396,6 +396,22 @@ The strict same-source matrix now closes that gap. At clean `dcac620360d04944925
 One clean autonomous candidate Agent trial at `0e8824cb3dac8332ff631b0cb75850ebe2a56f6b` scored `100/100`: all hard gates plus 6 machine, 2 visual, 2 security, and 7 trace checks passed. The Agent selected the published workflow, supplied the required closed-leaf opt-in, and did not write scratch OOXML. The run bound tarball SHA-256 `b9759b4ef9712958c335712166887a2dd96d5b4eaa6b1b5fba1127b10b1fcac6`, copied-Skill SHA-256 `971096a78fec3c01c178cae76d6a458712a1b40df344a724cadde3b3acc6a9ff`, prompt SHA-256 `2bd75b885f0d4fa0b36e3395b82bcde17fe559088c54f9b9c78a54d3bdc908ea`, input SHA-256 `fc3b4ce9bbfbf101cea046e30c9c8a7550e9165771874061536ed131f15ef63e`, and oracle SHA-256 `0e8a68981b16824d464e86bacf3744bab45593ef451812b458e36923e9f4225d`. The source worktree was clean. This is historical one-trial evidence only.
 
 The strict same-source matrix now closes the extended OLE case. At clean `0027dfe5fefc803549ed7e1300eeda67fa6d9511`, all six runs shared input SHA-256 `cfb63e44ee7272bdbb061b23ff37e0970923a3c3fd8b059e01cad196ad30b218`, input-contract SHA-256 `17289d9f3877ffdf7302fc610c8dbf3190d58888774224dc8dd04607d9370c5d`, candidate tarball SHA-256 `0d599353ec5f87655fdd9e28e052bc47d4dbb83919f33c975e76e25321ac4a62`, and oracle SHA-256 `3ba5677ede743c145e3ce466debda7404b10539816a338bcfc18dfe00079ac64`. Candidate and copied reference Skills each passed `3/3` at `100/100`, with identical hard gates and category checks (8 machine, 2 visual, 2 security, 7 trace). Their installed-tree hashes were `1b03b731f0e79e7d239c4c5d1b8092de204b03e458ec1842c611f6c0319856dc` and `fa9f6badd10fc4957b489ce10c9ccc2d4edc6357cf2396df38c447de6e7d0506`; the isolated reference copy recorded 34 necessary package-name text patches. No fixture, prompt, package, or oracle was patched between subjects. This is a compatibility result for the bounded closed-leaf clone transaction, not a general relationship-graph authoring claim.
+
+The ready `pptx-smartart-notes-comments-boundary` case locks
+`evals/assets/presentations/strategy-review.pptx`, a self-authored four-slide
+deck whose first slide owns a closed four-part SmartArt graph and whose fourth
+slide owns a NotesSlide plus an Office 2021 modern comment root/direct-reply
+graph. The independent raw OPC inspector proves the third SmartArt node,
+all four diagram parts, the page-four notes text, and the reply topology before
+grading. The requested three-way mutation is intentionally outside one
+source-bound transaction, so the accepted result is a `failed_closed` audit
+with `save: none`, no PPTX or flattened image, explicit OfficeKit inspection,
+and a diagnostic naming SmartArt, speaker notes, and the comment reply. The
+grader rejects partial output, SmartArt flattening, untyped XML writes, and
+silent fallback. Fixture SHA-256 is
+`bcb469d5b586f4fd8f562b918c8d9f04ef500cd6289728683c10ee2ced7be367`; this
+repository smoke proves the refusal contract, not general SmartArt authoring
+or a reference/candidate repeat matrix.
 
 The ready `docx-complex-table-topology-boundary` case locks
 `evals/assets/documents/clinical-form.docx`, a self-authored DOCX whose second

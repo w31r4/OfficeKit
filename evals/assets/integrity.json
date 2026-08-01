@@ -12,6 +12,12 @@
       "kind": "file",
       "sha256": "30060ed6ba571dc81eb01394819b6107b5a050360349dd656630a3118ddab888"
     },
+    "presentations/strategy-review.pptx": {
+      "bytes": 13258,
+      "description": "Self-authored four-slide PPTX combining a closed four-part SmartArt graph, page-four speaker notes, and an Office 2021 modern comment root/direct-reply graph for safe-refusal evaluation.",
+      "kind": "file",
+      "sha256": "bcb469d5b586f4fd8f562b918c8d9f04ef500cd6289728683c10ee2ced7be367"
+    },
     "spreadsheets/reviewed-budget-nested.xlsx": {
       "bytes": 4752,
       "description": "Self-authored XLSX threaded-comments graph with root, direct reply, reply-of-reply, person identities, and unresolved state.",

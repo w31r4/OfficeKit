@@ -18,6 +18,7 @@ import {
   PPTX_RICH_NOTES_FIXTURE,
   PPTX_SECTION_BOUNDARY_FIXTURE,
   PPTX_SLIDE_NAME_FIXTURE,
+  PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE,
   PPTX_TITLE_NOTES_FIXTURE,
   XLSX_CONNECTION_REFRESH_FIXTURE,
   XLSX_GROWTH_UPDATE_FIXTURE,
@@ -57,9 +58,11 @@ import {
   gradePptxRichNotesEvidence,
   gradePptxSectionBoundaryEvidence,
   gradePptxSlideNameEvidence,
+  gradePptxSmartArtNotesCommentsBoundaryEvidence,
   inspectClosedLeafClonePptx,
   inspectRichNotesPptx,
   inspectSectionBoundaryPptx,
+  inspectSmartArtNotesCommentsBoundaryPptx,
   inspectTitleNotesPptx,
 } from "../scripts/agent-eval-presentation-graders.mjs";
 import { duplicatePptxSlide } from "../skills/presentations/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs";
@@ -107,7 +110,7 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 31 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 32 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
@@ -115,7 +118,7 @@ assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escap
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 16);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 5);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 6);
-assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
+assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 5);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
 assert.equal(referenceDocumentSkill, path.join(repoRoot, "reference", "office-artifact-tool", "skills", "documents", "skills", "documents"));
 assert.doesNotMatch(referenceDocumentSkill, /handoff/);
@@ -136,7 +139,7 @@ const runnerHelp = spawnSync(process.execPath, ["scripts/run-agent-evals.mjs", "
   encoding: "utf8",
 });
 assert.equal(runnerHelp.status, 0, runnerHelp.stderr);
-assert.match(runnerHelp.stdout, /four PPTX cases.*section-boundary edit.*closed-leaf slide clone/i);
+assert.match(runnerHelp.stdout, /five PPTX cases.*section-boundary edit.*closed-leaf slide clone.*SmartArt/i);
 assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 const timeoutRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-agent-eval-timeout-"));
@@ -166,7 +169,7 @@ try {
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /16 ready PDF cases include eight locked corpus signature\/boundary\/repair fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 10 asset-required cases/i);
+assert.match(runnerHelp.stdout, /remaining 9 asset-required cases/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 assert.match(runnerHelp.stdout, /matrix <case-id>/i);
 assert.deepEqual(matrixSubjects(undefined), ["candidate", "reference"]);
@@ -218,6 +221,7 @@ for (const relative of lockedFixturePaths) {
 assert.equal(await verifiedLockedAsset("spreadsheets/reviewed-budget-nested.xlsx"), path.join(repoRoot, "evals", "assets", "spreadsheets/reviewed-budget-nested.xlsx"));
 assert.equal(await verifiedLockedAsset("documents/modern-comment-replies.docx"), path.join(repoRoot, "evals", "assets", "documents", "modern-comment-replies.docx"));
 assert.equal(await verifiedLockedAsset("documents/clinical-form.docx"), path.join(repoRoot, "evals", "assets", "documents", "clinical-form.docx"));
+assert.equal(await verifiedLockedAsset("presentations/strategy-review.pptx"), path.join(repoRoot, "evals", "assets", "presentations", "strategy-review.pptx"));
 const ownerCredential = await fs.readFile(path.join(repoRoot, "evals", "assets", "pdf", "encryption", "user-password.json"), "utf8");
 assert.match(ownerCredential, /fixture-user-password/);
 assert.doesNotMatch(ownerCredential, /fixture-owner-password-not-for-agent/);
@@ -2188,6 +2192,63 @@ try {
   assert.notDeepEqual(closedLeafSource, closedLeafOutputBytes);
 } finally {
   await fs.rm(closedLeafCloneRoot, { recursive: true, force: true });
+}
+
+const smartArtBoundaryItem = cases.find((item) => item.id === "pptx-smartart-notes-comments-boundary");
+const smartArtBoundaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-pptx-smartart-boundary-"));
+try {
+  const smartArtBoundaryInput = path.join(smartArtBoundaryRoot, "inputs", PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.presentationName);
+  const smartArtBoundaryAuditPath = path.join(smartArtBoundaryRoot, "outputs", "audit.json");
+  await fs.mkdir(path.dirname(smartArtBoundaryInput), { recursive: true });
+  await fs.mkdir(path.dirname(smartArtBoundaryAuditPath), { recursive: true });
+  await fs.copyFile(path.join(repoRoot, "evals", "assets", "presentations", PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.presentationName), smartArtBoundaryInput);
+  const smartArtBoundarySource = await inspectSmartArtNotesCommentsBoundaryPptx(smartArtBoundaryInput);
+  assert.equal(smartArtBoundarySource.smartArtSlides[0].smartArt.objectName, PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.objectName);
+  assert.deepEqual(smartArtBoundarySource.smartArtSlides[0].smartArt.nodes.map((node) => node.text), [...PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.smartArt.nodeTexts]);
+  assert.equal(smartArtBoundarySource.notesSlide.notes.text, PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE.notes.text);
+  assert.equal(smartArtBoundarySource.commentsSlide.comments.replyCount, 1);
+  const smartArtBoundaryAudit = {
+    status: "failed_closed",
+    source: { sha256: smartArtBoundarySource.sha256 },
+    provider: { actual: "office-kit", version: "0.5.0", silentFallback: false },
+    savePolicy: { strategy: "none" },
+    operation: { type: "smartart-notes-comment-reply-refusal", sourceBound: true },
+    diagnostic: "SmartArt, speaker notes, and modern comment reply are source-bound; fail closed with no partial output.",
+    validation: { sourceUnchanged: true, noArtifact: true },
+  };
+  await fs.writeFile(smartArtBoundaryAuditPath, JSON.stringify(smartArtBoundaryAudit, null, 2));
+  const smartArtBoundaryTrace = JSON.stringify({ type: "item.completed", item: { type: "command_execution", id: "pptx-smartart-boundary", command: "node -e 'PresentationFile.importPptx(); PresentationFile.inspectPptx(); inspect SmartArt speaker notes modern comment reply; fail closed'" } });
+  const smartArtBoundaryChecks = gradePptxSmartArtNotesCommentsBoundaryEvidence({
+    evidence: { source: smartArtBoundarySource },
+    audit: smartArtBoundaryAudit,
+    commands: extractCompletedCommands(smartArtBoundaryTrace),
+    outputEntries: ["audit.json"],
+    finalMessage: smartArtBoundaryAudit.diagnostic,
+  });
+  assert.equal(summarizeCaseScore(smartArtBoundaryChecks, smartArtBoundaryItem.grade).rawScorePercent, 100);
+  const nativeSmartArtBoundaryResult = await gradeOfficeCase({
+    item: smartArtBoundaryItem,
+    workspace: smartArtBoundaryRoot,
+    evaluator: path.join(smartArtBoundaryRoot, "evaluator"),
+    finalMessage: smartArtBoundaryAudit.diagnostic,
+    trace: smartArtBoundaryTrace,
+  });
+  assert.equal(nativeSmartArtBoundaryResult.rawScorePercent, 100);
+  assert.equal(nativeSmartArtBoundaryResult.caseSpecificPassed, true);
+
+  await fs.writeFile(path.join(smartArtBoundaryRoot, "outputs", "partial.pptx"), Buffer.from("not-a-pptx"));
+  const partialSmartArtResult = await gradeOfficeCase({
+    item: smartArtBoundaryItem,
+    workspace: smartArtBoundaryRoot,
+    evaluator: path.join(smartArtBoundaryRoot, "evaluator"),
+    finalMessage: smartArtBoundaryAudit.diagnostic,
+    trace: smartArtBoundaryTrace,
+  });
+  assert.equal(partialSmartArtResult.checks.find((check) => check.id === "pptx-smartart-boundary-machine:no-modified-presentation")?.passed, false);
+  assert.equal(partialSmartArtResult.checks.find((check) => check.id === "pptx-smartart-boundary-security:no-flattening-or-partial-output")?.passed, false);
+  assert.equal(partialSmartArtResult.scorePercent, 0);
+} finally {
+  await fs.rm(smartArtBoundaryRoot, { recursive: true, force: true });
 }
 
 const accessibleItem = cases.find((item) => item.id === "pdf-greenfield-accessible-report");

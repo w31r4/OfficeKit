@@ -9,6 +9,7 @@ import {
   PPTX_RICH_NOTES_FIXTURE,
   PPTX_SECTION_BOUNDARY_FIXTURE,
   PPTX_SLIDE_NAME_FIXTURE,
+  PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE,
   PPTX_TITLE_NOTES_FIXTURE,
 } from "./agent-eval-office-fixtures.mjs";
 import { renderOfficeFile } from "./agent-eval-office-native-render.mjs";
@@ -19,6 +20,7 @@ export const pptxGradedCaseIds = new Set([
   "pptx-source-bound-slide-name-edit",
   "pptx-source-bound-section-boundary-edit",
   "pptx-closed-leaf-slide-clone",
+  "pptx-smartart-notes-comments-boundary",
 ]);
 
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
@@ -785,6 +787,144 @@ export async function inspectClosedLeafClonePptx(filePath) {
       sha256: sha256(await zip.file(authorPart).async("uint8array")),
     } : null,
   };
+}
+
+/**
+ * Inspect the deliberately unsupported SmartArt + NotesSlide + modern
+ * comment-reply combination without trusting a candidate model or audit.
+ * This is a refusal fixture: the source graph must be fully visible to the
+ * evaluator, while a successful trial must not publish a replacement PPTX.
+ */
+export async function inspectSmartArtNotesCommentsBoundaryPptx(filePath) {
+  const fixture = PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE;
+  const bytes = await fs.readFile(filePath);
+  const zip = await JSZip.loadAsync(bytes);
+  const paths = Object.keys(zip.files).filter((name) => !zip.files[name].dir).sort();
+  const slideParts = await orderedSlideParts(zip);
+  const slides = [];
+  for (const partPath of slideParts) {
+    const xml = await zip.file(partPath).async("text");
+    const entries = await relationshipEntries(zip, partPath, { required: false });
+    const diagramFrames = [...xml.matchAll(/<(?:[\w.-]+:)?graphicData\b[^>]*\buri="http:\/\/schemas\.openxmlformats\.org\/drawingml\/2006\/diagram"[\s\S]*?<\/(?:[\w.-]+:)?graphicData>/gi)];
+    let smartArt = null;
+    if (diagramFrames.length) {
+      const diagramData = exactlyOneRelationship(entries, "diagramData", "SmartArt DiagramDataPart");
+      const layout = exactlyOneRelationship(entries, "diagramLayout", "SmartArt DiagramLayoutPart");
+      const style = exactlyOneRelationship(entries, "diagramQuickStyle", "SmartArt DiagramStylePart");
+      const colors = exactlyOneRelationship(entries, "diagramColors", "SmartArt DiagramColorsPart");
+      const dataXml = await zip.file(diagramData.targetPart)?.async("text");
+      if (!dataXml) throw new Error("SmartArt DiagramDataPart is missing: " + diagramData.targetPart);
+      const nodes = [...dataXml.matchAll(/<(?:[\w.-]+:)?pt\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?pt>/gi)].map((match) => ({
+        modelId: xmlAttributes(match[0]).modelId || null,
+        text: decodeXml((/<(?:[\w.-]+:)?t\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?t>/i.exec(match[1])?.[1] || "").replace(/<[^>]+>/g, "")),
+      }));
+      smartArt = {
+        objectName: xmlAttributes(/<(?:[\w.-]+:)?cNvPr\b[^>]*\bname="Strategy SmartArt"[^>]*>/i.exec(xml)?.[0] || "").name || null,
+        frameCount: diagramFrames.length,
+        dataPart: diagramData.targetPart,
+        dataSha256: sha256(Buffer.from(dataXml)),
+        nodes,
+        parts: [diagramData.targetPart, layout.targetPart, style.targetPart, colors.targetPart],
+        relationshipIds: [diagramData.id, layout.id, style.id, colors.id],
+      };
+    }
+    const notesRelationship = relationshipWithSuffix(entries, "notesSlide")[0] || null;
+    const notesXml = notesRelationship?.targetPart ? await zip.file(notesRelationship.targetPart)?.async("text") : null;
+    const modernCommentRelationship = relationshipWithSuffix(entries, "comments")
+      .find((entry) => String(entry.targetPart || "").includes("/comments/")) || null;
+    const commentsXml = modernCommentRelationship?.targetPart
+      ? await zip.file(modernCommentRelationship.targetPart)?.async("text") : null;
+    slides.push({
+      path: partPath,
+      name: slideName(xml),
+      smartArt,
+      notes: notesXml ? { part: notesRelationship.targetPart, text: drawingTexts(notesXml).join("\n"), sha256: sha256(Buffer.from(notesXml)) } : null,
+      comments: commentsXml ? {
+        part: modernCommentRelationship.targetPart,
+        modern: /<[^>]*replyLst\b/i.test(commentsXml),
+        rootText: elementTexts(commentsXml, "t").at(-1) || null,
+        replyCount: [...commentsXml.matchAll(/<(?!\/)[^>]*reply\b/gi)].length,
+        sha256: sha256(Buffer.from(commentsXml)),
+      } : null,
+    });
+  }
+  const smartArtSlides = slides.filter((slide) => slide.smartArt);
+  const notesSlide = slides.find((slide) => slide.notes?.text === fixture.notes.text) || null;
+  const commentsSlide = slides.find((slide) => slide.comments?.modern && slide.comments.replyCount === 1) || null;
+  return {
+    bytes: bytes.length,
+    sha256: sha256(bytes),
+    paths,
+    slidePaths: slideParts,
+    slides,
+    smartArtSlides,
+    notesSlide,
+    commentsSlide,
+  };
+}
+
+export function gradePptxSmartArtNotesCommentsBoundaryEvidence({ evidence, audit, commands, outputEntries = [], finalMessage = "" }) {
+  const fixture = PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE;
+  const source = evidence?.source;
+  const commandText = commands.join("\n");
+  const diagnosticText = [finalMessage, audit?.diagnostic, audit?.reason, audit?.message].filter(Boolean).join(" ");
+  const smartArt = source?.smartArtSlides?.length === 1 ? source.smartArtSlides[0]?.smartArt : null;
+  const notesSlide = source?.notesSlide;
+  const commentsSlide = source?.commentsSlide;
+  const onlyAudit = outputEntries.length === 1 && outputEntries[0] === "audit.json";
+  return [
+    check("pptx-smartart-boundary-machine:canonical-source-graph", "machine", source?.slidePaths?.length === 4
+      && source.slides.map((slide) => slide.name).join("|") === fixture.slideNames.join("|")
+      && smartArt?.objectName === fixture.smartArt.objectName
+      && smartArt?.frameCount === 1
+      && smartArt?.dataPart === fixture.smartArt.dataPart
+      && sameArray(smartArt.nodes?.map((node) => node.text) || [], fixture.smartArt.nodeTexts)
+      && smartArt.parts?.length === 4
+      && notesSlide?.path === source.slides[fixture.notes.slideIndex]?.path
+      && notesSlide.notes?.text === fixture.notes.text
+      && commentsSlide?.path === source.slides[fixture.notes.slideIndex]?.path
+      && commentsSlide.comments?.modern === true
+      && commentsSlide.comments?.replyCount === 1
+      && commentsSlide.comments?.rootText === fixture.comments.root, {
+      sourceSlides: source?.slides || [],
+      smartArt,
+      notesSlide,
+      commentsSlide,
+    }),
+    gate("pptx-smartart-boundary-machine:no-modified-presentation", "machine", !outputEntries.some((entry) => entry.toLowerCase().endsWith(".pptx")), {
+      outputEntries,
+    }),
+    check("pptx-smartart-boundary-machine:failed-closed-audit-only", "machine", onlyAudit && audit?.status === "failed_closed", {
+      outputEntries,
+      status: audit?.status || "unreported",
+    }),
+    gate("pptx-smartart-boundary-security:source-provenance-and-no-overwrite", "security", auditHash(audit, "source") === source?.sha256
+      && auditStrategy(audit).toLowerCase() === "none"
+      && auditFallbackIsFalse(audit), {
+      expectedSource: source?.sha256,
+      auditSource: auditHash(audit, "source"),
+      strategy: auditStrategy(audit),
+      provider: audit?.provider || null,
+    }),
+    gate("pptx-smartart-boundary-security:no-flattening-or-partial-output", "security", onlyAudit
+      && !outputEntries.some((entry) => /(?:png|jpg|jpeg|xml|json\.tmp)$/i.test(entry)), {
+      outputEntries,
+    }),
+    check("pptx-smartart-boundary-trace:explicit-office-kit-inspection", "trace", /PresentationFile\.(?:importPptx|inspectPptx)/i.test(commandText)
+      && /SmartArt|speaker.?notes|comment.?reply|source.?bound/i.test(commandText), {
+      commands,
+    }),
+    gate("pptx-smartart-boundary-trace:no-silent-fallback", "trace", auditFallbackIsFalse(audit), {
+      provider: audit?.provider || null,
+    }),
+    check("pptx-smartart-boundary-trace:unsupported-combination-explained", "trace", /SmartArt/i.test(diagnosticText)
+      && /speaker.?notes|notes/i.test(diagnosticText)
+      && /comment.?reply|reply/i.test(diagnosticText)
+      && /source.?bound|fail.?closed|拒绝|unsupported/i.test(diagnosticText), {
+      finalMessage,
+      diagnostic: audit?.diagnostic || audit?.reason || null,
+    }),
+  ];
 }
 
 function auditProvider(audit) {
@@ -1635,6 +1775,31 @@ async function readAudit(workspace) {
 
 export async function gradePptxCase({ item, workspace, finalMessage, trace, weights = defaultWeights }) {
   if (!pptxGradedCaseIds.has(item.id)) return { supported: false };
+  if (item.id === "pptx-smartart-notes-comments-boundary") {
+    const fixture = PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE;
+    const audit = await readAudit(workspace);
+    const commands = extractCompletedCommands(trace);
+    const sourcePath = path.join(workspace, "inputs", fixture.presentationName);
+    const outputEntries = (await fs.readdir(path.join(workspace, "outputs"), { withFileTypes: true }).catch(() => []))
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .sort();
+    let source;
+    try {
+      source = await inspectSmartArtNotesCommentsBoundaryPptx(sourcePath);
+    } catch (error) {
+      const checks = [
+        gate("pptx-smartart-boundary-machine:readable-source", "machine", false, { error: error.message }),
+        gate("pptx-smartart-boundary-security:no-partial-success", "security", false, { error: error.message }),
+      ];
+      const score = summarizeCaseScore(checks, item.grade, weights, false);
+      return { supported: true, graded: true, checks, evidence: { error: error.message }, pending: [], ...score };
+    }
+    const evidence = { source, outputEntries, finalMessage };
+    const checks = gradePptxSmartArtNotesCommentsBoundaryEvidence({ evidence, audit, commands, outputEntries, finalMessage });
+    const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+    return { supported: true, graded: true, checks, evidence, pending: [], ...score };
+  }
   const isSlideNameCase = item.id === "pptx-source-bound-slide-name-edit";
   const isSectionBoundaryCase = item.id === "pptx-source-bound-section-boundary-edit";
   const isClosedLeafCloneCase = item.id === "pptx-closed-leaf-slide-clone";

@@ -26,6 +26,10 @@ The DOCX boundary source recipe is the same module's
 `generateDocxModernCommentReplyBoundary`.
 The complex-table source recipe is
 `generateDocxComplexTableTopologyBoundary` in the same module.
+The PPTX SmartArt boundary source recipe is
+`generatePptxSmartArtNotesCommentsBoundary` in the same module; its four-part
+SmartArt graph, page-four NotesSlide, and modern root/direct-reply comment are
+all self-authored and locked for a no-partial-output refusal case.
 
 Use the evaluator Python to verify it:
 
