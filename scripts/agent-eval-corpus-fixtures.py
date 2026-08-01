@@ -805,6 +805,116 @@ def create_multichannel_redaction(root: Path) -> None:
     temporary.unlink(missing_ok=True)
 
 
+REGIONAL_TABLE_COLUMNS = [
+    ("Region", 54, 160),
+    ("Segment", 160, 264),
+    ("FY2024 Actual", 264, 360),
+    ("FY2025 Forecast", 360, 460),
+    ("YoY", 460, 558),
+]
+REGIONAL_TABLE_ROWS = [
+    ("North", "Retail", "1,240", "1,310", "5.6%"),
+    ("North", "Enterprise", "980", "1,020", "4.1%"),
+    ("EMEA", "Retail", "870", "915", "5.2%"),
+    ("EMEA", "Enterprise", "(120)", "80", "166.7%"),
+    ("APAC", "Retail", "760", "805", "5.9%"),
+    ("APAC", "Enterprise", "640", "700", "9.4%"),
+    ("LATAM", "Retail", "510", "548", "7.5%"),
+    ("LATAM", "Enterprise", "275", "(35)", "-112.7%"),
+    ("Public Sector", "Direct", "420", "460", "9.5%"),
+    ("Public Sector", "Partner", "300", "330", "10.0%"),
+    ("Global", "Strategic", "1,550", "1,680", "8.4%"),
+    ("Global", "Other", "(75)", "20", "126.7%"),
+]
+
+
+def draw_regional_table_page(document: canvas.Canvas, page_number: int, rows: list[tuple[str, ...]]) -> None:
+    """Draw one deterministic page of the three-page table fixture."""
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Regional Revenue")
+    document.setFillColor(HexColor("#486581"))
+    document.setFont("Helvetica", 9)
+    document.drawString(54, 720, "Annual report extract • USD millions • source-bound read-only fixture")
+    document.setFillColor(HexColor("#243B53"))
+    document.setFont("Helvetica", 9)
+    left_lines = [
+        "Regional revenue is reported across three pages.",
+        "Narrative columns are deliberately outside the table.",
+        "Repeated headers must not become data rows.",
+    ]
+    right_lines = [
+        "Parentheses denote negative values.",
+        "A low-confidence cell must be reported, not guessed.",
+        f"Table page {page_number} of 3.",
+    ]
+    for index, line in enumerate(left_lines):
+        document.drawString(54, 690 - index * 15, line)
+    for index, line in enumerate(right_lines):
+        document.drawString(326, 690 - index * 15, line)
+    document.saveState()
+    document.translate(33, 415)
+    document.rotate(90)
+    document.setFillColor(HexColor("#829AB1"))
+    document.setFont("Helvetica", 8)
+    document.drawString(0, 0, "Table 1 • Regional Revenue")
+    document.restoreState()
+
+    x0, x1 = 54, 558
+    title_top, title_bottom = 520, 496
+    header_bottom = 472
+    row_height = 22
+    document.setFillColor(HexColor("#D9E2EC"))
+    document.rect(x0, title_bottom, x1 - x0, title_top - title_bottom, fill=1, stroke=0)
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 9)
+    document.drawCentredString((x0 + x1) / 2, title_bottom + 8, "Regional Revenue (USD M)")
+    document.setFillColor(HexColor("#E8EEF3"))
+    document.rect(x0, header_bottom, x1 - x0, title_bottom - header_bottom, fill=1, stroke=0)
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 8)
+    for label, left, right in REGIONAL_TABLE_COLUMNS:
+        document.drawCentredString((left + right) / 2, header_bottom + 8, label)
+
+    document.setStrokeColor(HexColor("#829AB1"))
+    document.setLineWidth(0.6)
+    horizontal = [title_top, title_bottom, header_bottom]
+    for row_index in range(len(rows) + 1):
+        horizontal.append(header_bottom - row_index * row_height)
+    for y in horizontal:
+        document.line(x0, y, x1, y)
+    for _, left, right in REGIONAL_TABLE_COLUMNS:
+        document.line(left, title_bottom, left, header_bottom - len(rows) * row_height)
+        document.line(right, title_bottom, right, header_bottom - len(rows) * row_height)
+    document.setFillColor(HexColor("#243B53"))
+    document.setFont("Helvetica", 8)
+    for row_index, values in enumerate(rows):
+        baseline = header_bottom - (row_index + 1) * row_height + 7
+        for value, (_, left, right) in zip(values, REGIONAL_TABLE_COLUMNS):
+            document.drawCentredString((left + right) / 2, baseline, value)
+    if page_number == 3:
+        document.setFillColor(HexColor("#52606D"))
+        document.setFont("Helvetica-Oblique", 8)
+        document.drawString(54, 280, "* Forecast excludes one-time restructuring cost.")
+        document.drawString(54, 264, "Note: parentheses denote negative values; all amounts are USD millions.")
+    document.setFillColor(HexColor("#829AB1"))
+    document.setFont("Helvetica", 8)
+    document.drawRightString(558, 42, f"OfficeKit PromptBench • page {page_number}")
+    document.showPage()
+
+
+def create_regional_revenue_table(root: Path) -> None:
+    """Create a self-authored three-page table with repeated/merged headers."""
+    target = root / "pdf" / "tables" / "regional-revenue.pdf"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    document = canvas.Canvas(str(target), pagesize=(612, 792), invariant=1)
+    document.setTitle("Regional Revenue table fixture")
+    document.setAuthor("OfficeKit PromptBench fixture generator")
+    for page_number, offset in enumerate((0, 4, 8), 1):
+        draw_regional_table_page(document, page_number, REGIONAL_TABLE_ROWS[offset:offset + 4])
+    document.save()
+
+
 def create_damaged_xref(root: Path) -> None:
     """Create one qpdf-recoverable and one deliberately unrecoverable PDF.
 
@@ -1004,6 +1114,7 @@ FIXTURES = {
     "pdf/print/print-production-risk.pdf": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",
     "pdf/richmedia/3d-review.pdf": "Two-page self-authored PDF with opaque 3D/RichMedia content, default view, activation, and JavaScript canaries.",
     "pdf/redaction/multichannel-secret.pdf": "Four-page self-authored redaction fixture with selectable, hidden, raster/OCR, annotation, form, attachment, XMP, decoded-stream, and old-revision canaries.",
+    "pdf/tables/regional-revenue.pdf": "Three-page self-authored Regional Revenue table with merged title, repeated headers, rotated label, coordinates, and parenthesized negatives.",
     "pdf/corrupt/recoverable.pdf": "Two-page self-authored PDF with attachment, damaged startxref, and missing EOF; qpdf can reconstruct it with warnings.",
     "pdf/corrupt/unrecoverable.pdf": "Deliberately unrecoverable PDF comparison with no trailer, page tree, or EOF marker.",
     "pdf/signing/docmdp-p1-final.pdf": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",
@@ -1022,6 +1133,7 @@ def generate(root: Path, signing_python: str | None) -> dict:
     create_print_production_risk(root)
     create_richmedia_opaque(root)
     create_multichannel_redaction(root)
+    create_regional_revenue_table(root)
     create_damaged_xref(root)
     managed_signing_python = required_signing_python(signing_python)
     create_docmdp_p1_final(root, managed_signing_python)
@@ -1173,6 +1285,18 @@ def verify_multichannel_redaction(path: Path) -> None:
         raise ValueError("redaction fixture XMP canary is missing")
 
 
+def verify_regional_revenue_table(path: Path) -> None:
+    reader = PdfReader(str(path), strict=True)
+    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    if len(reader.pages) != 3 or text.count("Regional Revenue") < 3:
+        raise ValueError("regional revenue fixture must have three repeated table pages")
+    for value in {cell for row in REGIONAL_TABLE_ROWS for cell in row}:
+        if value not in text:
+            raise ValueError(f"regional revenue fixture is missing table value {value!r}")
+    if "Narrative columns are deliberately outside the table." not in text or "Table 1" not in text:
+        raise ValueError("regional revenue fixture narrative/rotated label is missing")
+
+
 def verify_damaged_xref(root: Path) -> None:
     recoverable = root / "pdf" / "corrupt" / "recoverable.pdf"
     unrecoverable = root / "pdf" / "corrupt" / "unrecoverable.pdf"
@@ -1301,6 +1425,7 @@ def verify(root: Path) -> dict:
     verify_print(root / "pdf" / "print" / "print-production-risk.pdf")
     verify_richmedia_opaque(root / "pdf" / "richmedia" / "3d-review.pdf")
     verify_multichannel_redaction(root / "pdf" / "redaction" / "multichannel-secret.pdf")
+    verify_regional_revenue_table(root / "pdf" / "tables" / "regional-revenue.pdf")
     verify_damaged_xref(root)
     verify_docmdp_p1(root / "pdf" / "signing" / "docmdp-p1-final.pdf", root / "pdf" / "signing" / "test-pki" / "root.pem")
     verify_docmdp_p2(root / "pdf" / "signing" / "docmdp-p2-form.pdf", root / "pdf" / "signing" / "test-pki" / "docmdp-p2-root.pem")
@@ -1309,7 +1434,7 @@ def verify(root: Path) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-richmedia", "refresh-redaction", "refresh-damaged-xref", "verify"))
+    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-richmedia", "refresh-redaction", "refresh-regional-table", "refresh-damaged-xref", "verify"))
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     parser.add_argument("--signing-python", help=f"managed pyHanko interpreter used only by generate (or set {SIGNING_PYTHON_ENV})")
     options = parser.parse_args()
@@ -1340,6 +1465,22 @@ def main() -> None:
             raise ValueError("unsupported corpus integrity schema")
         create_multichannel_redaction(options.root)
         relative = "pdf/redaction/multichannel-secret.pdf"
+        asset = options.root / relative
+        manifest["assets"][relative] = {
+            "bytes": asset.stat().st_size,
+            "description": FIXTURES[relative],
+            "kind": "file",
+            "sha256": sha256(asset),
+        }
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(json.dumps({"ok": True, "assets": len(manifest["assets"]), "root": str(options.root)}, sort_keys=True))
+    elif options.command == "refresh-regional-table":
+        manifest_path = options.root / "integrity.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("assets"), dict):
+            raise ValueError("unsupported corpus integrity schema")
+        create_regional_revenue_table(options.root)
+        relative = "pdf/tables/regional-revenue.pdf"
         asset = options.root / relative
         manifest["assets"][relative] = {
             "bytes": asset.stat().st_size,

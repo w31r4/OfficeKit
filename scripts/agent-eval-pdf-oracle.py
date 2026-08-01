@@ -844,6 +844,59 @@ def multichannel_redaction(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def regional_revenue_table(payload: dict[str, Any]) -> dict[str, Any]:
+    """Extract the self-authored table with an independent pdfplumber oracle."""
+    source = pathlib.Path(payload["source"])
+    expected_cells: list[dict[str, Any]] = []
+    page_reports: list[dict[str, Any]] = []
+    with pdfplumber.open(str(source)) as pdf:
+        for page_number, page in enumerate(pdf.pages, 1):
+            tables = page.find_tables()
+            if len(tables) != 1:
+                raise ValueError(f"regional revenue source page {page_number} must contain exactly one table")
+            table = tables[0]
+            extracted = table.extract()
+            if not extracted or len(extracted) != 6:
+                raise ValueError(f"regional revenue source page {page_number} must contain a merged title, header, and four data rows")
+            cells: list[dict[str, Any]] = []
+            for row_index, row in enumerate(table.rows):
+                values = extracted[row_index]
+                row_cells = list(row.cells)
+                if len(row_cells) == 1:
+                    values = [values[0]]
+                if len(row_cells) != len(values):
+                    raise ValueError(f"regional revenue source page {page_number} has a cell/value topology mismatch")
+                for column_index, (cell, value) in enumerate(zip(row_cells, values)):
+                    if value is None:
+                        continue
+                    x0, top, x1, bottom = [float(item) for item in cell]
+                    record = {
+                        "page": page_number,
+                        "text": str(value).strip(),
+                        "bbox": [x0, top, x1, bottom],
+                        "rowspan": 1,
+                        "colspan": 5 if row_index == 0 else 1,
+                        "confidence": 1.0,
+                        "row": row_index,
+                        "column": column_index,
+                    }
+                    cells.append(record)
+                    expected_cells.append(record)
+            page_reports.append({
+                "page": page_number,
+                "tableBBox": [float(item) for item in table.bbox],
+                "rows": len(extracted),
+                "cells": cells,
+                "text": page.extract_text() or "",
+            })
+    return {
+        "kind": "regional-revenue-table",
+        "source": inspect_pdf(source, []),
+        "table": {"name": "Regional Revenue", "pages": page_reports, "cells": expected_cells},
+        "visual": render_created_pdf(source, pathlib.Path(payload["renderRoot"]), payload["poppler"]),
+    }
+
+
 def acroform_visible(payload: dict[str, Any]) -> dict[str, Any]:
     source = pathlib.Path(payload["source"])
     output = pathlib.Path(payload["output"])
@@ -1665,6 +1718,8 @@ def main() -> None:
         evidence = active_content_sanitize(payload)
     elif kind == "multichannel-redaction":
         evidence = multichannel_redaction(payload)
+    elif kind == "regional-revenue-table":
+        evidence = regional_revenue_table(payload)
     elif kind == "acroform-visible":
         evidence = acroform_visible(payload)
     elif kind == "certified-docmdp-p2-fill":

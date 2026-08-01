@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -14,6 +15,7 @@ const supportedCases = new Set([
   "pdf-attachment-quarantine-inventory",
   "pdf-active-content-public-sanitize",
   "pdf-redact-multichannel-secret",
+  "pdf-cross-page-table-extraction",
   "pdf-greenfield-accessible-report",
   "pdf-merge-reorder-stamp-links",
   "pdf-encrypted-owner-policy-boundary",
@@ -467,6 +469,10 @@ function invocationBefore(left, right) {
     left.commandIndex < right.commandIndex
     || left.commandIndex === right.commandIndex && left.offset < right.offset
   ));
+}
+
+function invocationAfter(left, right) {
+  return invocationBefore(right, left);
 }
 
 function commandTextAfter(commands, position) {
@@ -1325,6 +1331,101 @@ export function gradeMultichannelRedactionEvidence({ evidence, audit, commands, 
   return checks;
 }
 
+function regionalCellKey(cell) {
+  return `${Number(cell?.page)}|${String(cell?.text ?? "").trim()}`;
+}
+
+function regionalCellBox(cell) {
+  return cell?.bbox || cell?.box || [cell?.x0, cell?.top ?? cell?.y0, cell?.x1, cell?.bottom ?? cell?.y1];
+}
+
+function regionalSpan(cell, name, fallback) {
+  const value = cell?.[name] ?? cell?.[name.toLowerCase()] ?? cell?.[name.replace(/^./, (character) => character.toLowerCase())];
+  return Number.isInteger(value) ? value : fallback;
+}
+
+function parseSimpleCsv(text) {
+  return String(text || "").trim().split(/\r?\n/u).filter(Boolean).map((line) => {
+    const fields = [];
+    let field = "";
+    let quoted = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const character = line[index];
+      if (character === '"' && line[index + 1] === '"' && quoted) {
+        field += '"';
+        index += 1;
+      } else if (character === '"') {
+        quoted = !quoted;
+      } else if (character === "," && !quoted) {
+        fields.push(field);
+        field = "";
+      } else {
+        field += character;
+      }
+    }
+    fields.push(field);
+    return fields;
+  });
+}
+
+export function gradeRegionalRevenueTableEvidence({ evidence, report, csv, audit, commands, item, outputHashes = {} }) {
+  const expected = evidence?.table?.cells || [];
+  const candidates = Array.isArray(report?.cells) ? report.cells : [];
+  const unmatched = new Map(expected.map((cell, index) => [regionalCellKey(cell), { cell, index }]));
+  const candidateErrors = [];
+  for (const candidate of candidates) {
+    const key = regionalCellKey(candidate);
+    const expectedEntry = unmatched.get(key);
+    if (!expectedEntry) {
+      candidateErrors.push({ reason: "unexpected-cell", candidate });
+      continue;
+    }
+    unmatched.delete(key);
+    const expectedCell = expectedEntry.cell;
+    const box = regionalCellBox(candidate);
+    if (!sameBoundingBox(box, expectedCell.bbox, 2.5)) candidateErrors.push({ reason: "bbox", expected: expectedCell, candidate });
+    if (regionalSpan(candidate, "rowSpan", regionalSpan(candidate, "rowspan", 1)) !== expectedCell.rowspan) candidateErrors.push({ reason: "rowspan", expected: expectedCell, candidate });
+    if (regionalSpan(candidate, "colSpan", regionalSpan(candidate, "colspan", 1)) !== expectedCell.colspan) candidateErrors.push({ reason: "colspan", expected: expectedCell, candidate });
+    if (!(Number(candidate.confidence) >= 0.98 && Number(candidate.confidence) <= 1)) candidateErrors.push({ reason: "confidence", candidate });
+  }
+  const header = parseSimpleCsv(csv)[0] || [];
+  const csvRows = parseSimpleCsv(csv).slice(1);
+  const csvKeys = new Set(csvRows.map((row) => `${Number(row[0])}|${String(row[1] || "").trim()}`));
+  const expectedKeys = new Set(expected.map(regionalCellKey));
+  const reportText = candidates.map((cell) => String(cell?.text || "")).join(" ");
+  const narrativeLeakage = /narrative columns|parentheses denote|low-confidence cell|regional revenue is reported|table page/i.test(reportText);
+  const extract = completedInvocation(commands, /pdfplumber_extract\.py["']?\b/i) || completedInvocation(commands, /(?:table|extract)[-_ ]?(?:pdf|table)/i);
+  const checkProvider = completedInvocation(commands, /pdf_provider\.py["']?\s+check\b[^\n]*--provider\s+pdfplumber\b/i);
+  const plan = completedInvocation(commands, /pdf_provider\.py["']?\s+plan\b[^\n]*--task\s+(?:extract|table)/i);
+  const render = completedInvocation(commands, /(?:pdftoppm|poppler_compare|render)/i);
+  const auditValidation = completedInvocation(commands, /pdf_audit\.py["']?\s+validate\b/i);
+  const positions = Object.fromEntries(Object.entries({ checkProvider, plan, extract, render, auditValidation }).map(([name, value]) => [name, value?.commandIndex ?? -1]));
+  const validation = audit?.validation || {};
+  const overlay = validation.overlay || validation.bboxOverlay || {};
+  const auditOutputs = audit?.outputs || {};
+  return [
+    check("pdf-machine:table-name", "machine", report?.table === "Regional Revenue" || report?.name === "Regional Revenue", { expected: "Regional Revenue", actual: report?.table || report?.name || "unreported" }),
+    check("pdf-machine:three-table-pages", "machine", evidence?.table?.pages?.length === 3 && evidence.table.pages.every((page) => page.rows === 6 && page.cells.length === 26), { expected: "3 pages × 6 rows with a merged title", actual: evidence?.table?.pages || [] }),
+    check("pdf-machine:cell-value-f1", "machine", expected.length > 0 && unmatched.size === 0 && candidateErrors.filter((error) => error.reason === "unexpected-cell").length === 0, { expectedCells: expected.length, actualCells: candidates.length, unmatched: [...unmatched.values()].map(({ cell }) => cell), errors: candidateErrors.slice(0, 20) }),
+    check("pdf-machine:coordinates-and-spans", "machine", candidateErrors.every((error) => !["bbox", "rowspan", "colspan"].includes(error.reason)), { errors: candidateErrors.filter((error) => ["bbox", "rowspan", "colspan"].includes(error.reason)).slice(0, 20) }),
+    check("pdf-machine:confidence-reported", "machine", candidateErrors.every((error) => error.reason !== "confidence") && candidates.length === expected.length, { expected: "0.98 <= confidence <= 1 for every cell", actualCells: candidates.length, errors: candidateErrors.filter((error) => error.reason === "confidence").slice(0, 20) }),
+    check("pdf-machine:csv-complete", "machine", header.includes("page") && header.includes("text") && header.includes("bbox") && csvRows.length === expected.length && csvKeys.size === expectedKeys.size && [...expectedKeys].every((key) => csvKeys.has(key)), { expectedRows: expected.length, actualRows: csvRows.length, header, missing: [...expectedKeys].filter((key) => !csvKeys.has(key)) }),
+    gate("pdf-security:no-narrative-leakage", "security", !narrativeLeakage, { actual: narrativeLeakage ? reportText : "none" }),
+    gate("pdf-security:no-fabricated-cells", "security", candidates.length === expected.length && unmatched.size === 0 && candidateErrors.every((error) => error.reason !== "unexpected-cell"), { expected: expected.length, actual: candidates.length }),
+    gate("pdf-security:source-provenance", "security", auditSourceHash(audit) === evidence?.source?.sha256, { expected: evidence?.source?.sha256, actual: auditSourceHash(audit) || "unreported" }),
+    gate("pdf-security:output-provenance", "security", auditOutputs?.json?.sha256 === outputHashes.json && auditOutputs?.csv?.sha256 === outputHashes.csv, { expected: outputHashes, actual: auditOutputs }),
+    check("pdf-visual:all-source-pages-rendered", "visual", evidence?.visual?.pageCount === 3 && evidence.visual.pages?.length === 3 && evidence.visual.pages.every((page) => page.nonBlank && page.touchesEdge === false), { renderer: evidence?.visual?.renderer, pages: evidence?.visual?.pages || [] }),
+    check("pdf-visual:bbox-overlay-reviewed", "visual", overlay.status === "passed" && Array.isArray(overlay.pages) && overlay.pages.join(",") === "1,2,3" && Number(overlay.tableCount || overlay.bboxCount || 0) >= 3, { expected: { status: "passed", pages: [1, 2, 3], tableCount: 3 }, actual: overlay }),
+    check("pdf-trace:provider", "trace", /^pdfplumber$/i.test(String(auditProvider(audit))), { expected: "pdfplumber", actual: auditProvider(audit) }),
+    check("pdf-trace:provider-version", "trace", Boolean(String(auditProviderVersion(audit)).trim()), { actual: auditProviderVersion(audit) || "unreported" }),
+    check("pdf-trace:read-only-policy", "trace", /^read-only$/i.test(String(auditSaveStrategy(audit))), { expected: "read-only", actual: auditSaveStrategy(audit) }),
+    gate("pdf-trace:no-silent-fallback", "trace", auditFallback(audit) === true, { expected: false, actual: auditFallback(audit) === null ? "unreported" : !auditFallback(audit) }),
+    check("pdf-trace:check-plan-extract-order", "trace", invocationBefore(checkProvider, extract) && invocationBefore(plan, extract), { actual: positions }),
+    check("pdf-trace:render-and-audit-after-extract", "trace", invocationAfter(render, extract) && invocationAfter(auditValidation, extract), { actual: positions }),
+    check("pdf-trace:typed-table-primitive", "trace", /table|pdfplumber_extract/i.test(auditOperation(audit)) && Boolean(extract), { expected: "pdfplumber_extract.py table primitive", actual: auditOperation(audit) || "unreported" }),
+  ];
+}
+
 export function summarizeCaseScore(checks, grade, weights = defaultWeights, hardGatesPassed = true) {
   const categories = ["machine", "visual", "security", "trace"];
   const categoryScores = {};
@@ -1381,6 +1482,12 @@ async function readAudit(workspace) {
 
 async function readJsonInput(workspace, relative) {
   try { return JSON.parse(await fs.readFile(path.join(workspace, relative), "utf8")); } catch { return null; }
+}
+
+async function sha256File(filePath) {
+  const digest = createHash("sha256");
+  digest.update(await fs.readFile(filePath));
+  return digest.digest("hex");
 }
 
 function missingArtifactChecks(audit, commands) {
@@ -1868,6 +1975,50 @@ export async function gradePdfCase({ item, workspace, evaluator, finalMessage, t
     }
     if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
     checks = gradeMultichannelRedactionEvidence({ evidence: oracle.evidence, audit, commands, item });
+  } else if (item.id === "pdf-cross-page-table-extraction") {
+    const reportPath = path.join(workspace, "outputs", "regional-revenue.json");
+    const csvPath = path.join(workspace, "outputs", "regional-revenue.csv");
+    try {
+      await Promise.all([fs.access(reportPath), fs.access(csvPath)]);
+    } catch {
+      checks = missingArtifactChecks(audit, commands);
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: null, pending: [], ...score };
+    }
+    let report;
+    let csv;
+    let outputHashes;
+    try {
+      [report, csv, outputHashes] = await Promise.all([
+        readJsonInput(workspace, "outputs/regional-revenue.json"),
+        fs.readFile(csvPath, "utf8"),
+        Promise.all([
+          sha256File(reportPath),
+          sha256File(csvPath),
+        ]).then(([json, csvHash]) => ({ json, csv: csvHash })),
+      ]);
+    } catch (error) {
+      checks = unreadableArtifactChecks(audit, commands, `regional revenue deliverables are unreadable: ${error.message}`);
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: { oracleError: error.message }, pending: [], ...score };
+    }
+    if (!report || typeof csv !== "string") {
+      checks = unreadableArtifactChecks(audit, commands, "regional revenue JSON/CSV deliverables are invalid");
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: { oracleError: "invalid JSON/CSV deliverables" }, pending: [], ...score };
+    }
+    oracle = invokeOracle({
+      kind: "regional-revenue-table",
+      source: path.join(workspace, "inputs", "source.pdf"),
+      renderRoot: path.join(evaluator, "pdf-oracle-render"),
+    }, true);
+    if (!oracle.evidence && oracle.oracleError) {
+      checks = unreadableArtifactChecks(audit, commands, oracle.oracleError);
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: { oracleError: oracle.oracleError }, pending: [], ...score };
+    }
+    if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
+    checks = gradeRegionalRevenueTableEvidence({ evidence: oracle.evidence, report, csv, audit, commands, item, outputHashes });
   } else {
     const output = path.join(workspace, "outputs", "public-safe.pdf");
     try { await fs.access(output); } catch {

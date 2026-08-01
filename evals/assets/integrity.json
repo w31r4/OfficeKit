@@ -114,6 +114,12 @@
       "kind": "file",
       "sha256": "ab15a064bf134b4c8409a08669b9308c5c9ba25d7d66dae74e99f30ccb7c606b"
     },
+    "pdf/tables/regional-revenue.pdf": {
+      "bytes": 5794,
+      "description": "Three-page self-authored Regional Revenue table with merged title, repeated headers, rotated label, coordinates, and parenthesized negatives.",
+      "kind": "file",
+      "sha256": "f06f948511f60df356ddfc7bcb82e87428a358bbe0c523e070c6acf38c458d74"
+    },
     "pdf/xfa/dynamic-dependents.pdf": {
       "bytes": 2312,
       "description": "Dynamic-XFA-shaped template/datasets packet with repeat and FormCalc markers.",

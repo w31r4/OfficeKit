@@ -88,6 +88,7 @@ import {
   gradeMergeStampEvidence,
   gradeOverflowRefusalEvidence,
   gradeMultichannelRedactionEvidence,
+  gradeRegionalRevenueTableEvidence,
   gradeQpdfRepairEvidence,
   gradeSourceBoundHighlightEvidence,
   summarizeCaseScore,
@@ -115,12 +116,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 35 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 36 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 18);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 19);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 5);
@@ -173,8 +174,8 @@ try {
 }
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /18 ready PDF cases include ten locked corpus signature\/boundary\/repair\/redaction fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 6 asset-required cases/i);
+assert.match(runnerHelp.stdout, /19 ready PDF cases include eleven locked corpus signature\/boundary\/repair\/redaction\/table fixtures/i);
+assert.match(runnerHelp.stdout, /remaining 5 asset-required cases/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 assert.match(runnerHelp.stdout, /matrix <case-id>/i);
 assert.deepEqual(matrixSubjects(undefined), ["candidate", "reference"]);
@@ -358,7 +359,7 @@ const p2OrdinaryNewlineChecks = gradeCertifiedDocMdpP2FillEvidence({
 assert.equal(p2OrdinaryNewlineChecks.find((check) => check.id === "pdf-trace:postflight-explicit-root-validation")?.passed, false, "an ordinary following line must not be joined to the post-fill verifier");
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 20, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 21, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -697,6 +698,74 @@ if (p2ProviderPython && p2PopplerAvailable) {
 } else {
   console.log("PromptBench DocMDP P=2 execution smoke skipped (set OFFICE_KIT_PYHANKO_TEST_PYTHON and provide pdftoppm)");
 }
+
+const regionalTableItem = cases.find((item) => item.id === "pdf-cross-page-table-extraction");
+const regionalTableCells = [];
+const regionalTablePages = [];
+const regionalTableHeaders = ["Region", "Segment", "FY2024 Actual", "FY2025 Forecast", "YoY"];
+for (let page = 1; page <= 3; page += 1) {
+  const pageCells = [];
+  const addRegionalCell = (text, row, column, colspan = 1) => {
+    const top = 272 + row * 24;
+    const left = colspan === 5 ? 54 : [54, 160, 264, 360, 460][column];
+    const right = colspan === 5 ? 558 : [160, 264, 360, 460, 558][column];
+    const cell = { page, text, bbox: [left, top, right, top + 24], rowspan: 1, colspan, confidence: 1, row, column };
+    pageCells.push(cell);
+    regionalTableCells.push(cell);
+  };
+  addRegionalCell("Regional Revenue (USD M)", 0, 0, 5);
+  regionalTableHeaders.forEach((header, column) => addRegionalCell(header, 1, column));
+  for (let row = 0; row < 4; row += 1) {
+    ["North", "Retail", "1,240", "1,310", "5.6%"].forEach((value, column) => addRegionalCell(`${value} ${page}-${row + 1}`, row + 2, column));
+  }
+  regionalTablePages.push({ page, rows: 6, cells: pageCells });
+}
+const regionalCsv = [
+  "page,text,bbox,rowspan,colspan,confidence",
+  ...regionalTableCells.map((cell) => `${cell.page},"${cell.text.replaceAll('"', '""')}","${cell.bbox.join(",")}",${cell.rowspan},${cell.colspan},${cell.confidence}`),
+].join("\n");
+const regionalTableEvidence = {
+  source: { sha256: "regional-table-source-sha" },
+  table: { name: "Regional Revenue", pages: regionalTablePages, cells: regionalTableCells },
+  visual: { pageCount: 3, renderer: "Poppler", pages: [1, 2, 3].map((page) => ({ page, nonBlank: true, touchesEdge: false })) },
+};
+const regionalTableAudit = {
+  status: "succeeded",
+  source: { sha256: regionalTableEvidence.source.sha256 },
+  provider: { actual: "pdfplumber", version: "0.11.9", silentFallback: false },
+  savePolicy: { strategy: "read-only" },
+  operation: { type: "extract-regional-table" },
+  outputs: { json: { sha256: "regional-json-sha" }, csv: { sha256: "regional-csv-sha" } },
+  validation: { overlay: { status: "passed", pages: [1, 2, 3], tableCount: 3 } },
+};
+const regionalTableCommands = [
+  "python .agents/skills/pdf/scripts/pdf_provider.py check --provider pdfplumber",
+  "python .agents/skills/pdf/scripts/pdf_provider.py plan --task table",
+  "python .agents/skills/pdf/scripts/pdfplumber_extract.py table inputs/source.pdf outputs/regional-revenue.json outputs/regional-revenue.csv",
+  "pdftoppm -png -r 144 inputs/source.pdf outputs/render/page",
+  "python .agents/skills/pdf/scripts/pdf_audit.py validate outputs/audit.json",
+];
+const regionalTableChecks = gradeRegionalRevenueTableEvidence({
+  evidence: regionalTableEvidence,
+  report: { table: "Regional Revenue", cells: regionalTableCells },
+  csv: regionalCsv,
+  audit: regionalTableAudit,
+  commands: regionalTableCommands,
+  item: regionalTableItem,
+  outputHashes: { json: "regional-json-sha", csv: "regional-csv-sha" },
+});
+assert.equal(regionalTableChecks.every((check) => check.passed), true, "cross-page Regional Revenue table grader synthetic success");
+assert.equal(summarizeCaseScore(regionalTableChecks, regionalTableItem.grade).rawScorePercent, 100, "cross-page Regional Revenue table grader synthetic success");
+const fabricatedRegionalChecks = gradeRegionalRevenueTableEvidence({
+  evidence: regionalTableEvidence,
+  report: { table: "Regional Revenue", cells: [...regionalTableCells, { ...regionalTableCells[0], text: "fabricated" }] },
+  csv: regionalCsv,
+  audit: regionalTableAudit,
+  commands: regionalTableCommands,
+  item: regionalTableItem,
+  outputHashes: { json: "regional-json-sha", csv: "regional-csv-sha" },
+});
+assert.equal(fabricatedRegionalChecks.find((check) => check.id === "pdf-security:no-fabricated-cells")?.passed, false, "table grader rejects fabricated cells");
 }
 
 const threadedReplyItem = cases.find((item) => item.id === "xlsx-threaded-reply-resolve");
