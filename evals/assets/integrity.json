@@ -78,6 +78,12 @@
       "kind": "file",
       "sha256": "76735f17073f101e092040626dce56b89bbede060e663c0322fced4a573fd890"
     },
+    "pdf/redaction/multichannel-secret.pdf": {
+      "bytes": 22071,
+      "description": "Four-page self-authored redaction fixture with selectable, hidden, raster/OCR, annotation, form, attachment, XMP, decoded-stream, and old-revision canaries.",
+      "kind": "file",
+      "sha256": "f162221bea256ec3c96bcf79a9ab57e447c4f292e833b2ccb3e0b3b5546c4fdc"
+    },
     "pdf/richmedia/3d-review.pdf": {
       "bytes": 3551,
       "description": "Two-page self-authored PDF with opaque 3D/RichMedia content, default view, activation, and JavaScript canaries.",

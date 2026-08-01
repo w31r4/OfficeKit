@@ -87,6 +87,7 @@ import {
   gradeCertifiedDocMdpP2FillEvidence,
   gradeMergeStampEvidence,
   gradeOverflowRefusalEvidence,
+  gradeMultichannelRedactionEvidence,
   gradeQpdfRepairEvidence,
   gradeSourceBoundHighlightEvidence,
   summarizeCaseScore,
@@ -114,12 +115,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 34 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 35 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 17);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 18);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 5);
@@ -172,8 +173,8 @@ try {
 }
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /17 ready PDF cases include nine locked corpus signature\/boundary\/repair fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 7 asset-required cases/i);
+assert.match(runnerHelp.stdout, /18 ready PDF cases include ten locked corpus signature\/boundary\/repair\/redaction fixtures/i);
+assert.match(runnerHelp.stdout, /remaining 6 asset-required cases/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 assert.match(runnerHelp.stdout, /matrix <case-id>/i);
 assert.deepEqual(matrixSubjects(undefined), ["candidate", "reference"]);
@@ -357,7 +358,7 @@ const p2OrdinaryNewlineChecks = gradeCertifiedDocMdpP2FillEvidence({
 assert.equal(p2OrdinaryNewlineChecks.find((check) => check.id === "pdf-trace:postflight-explicit-root-validation")?.passed, false, "an ordinary following line must not be joined to the post-fill verifier");
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 19, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 20, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -3016,6 +3017,85 @@ const preMutationQaChecks = gradeActiveContentSanitizeEvidence({ evidence: activ
 for (const id of ["pdf-trace:post-mutation-residue-scan", "pdf-trace:post-mutation-poppler-render", "pdf-trace:audit-byte-validation"]) {
   assert.equal(preMutationQaChecks.find((entry) => entry.id === id)?.passed, false, `${id} must require evidence after mutation`);
 }
+
+const redactionItem = cases.find((item) => item.id === "pdf-redact-multichannel-secret");
+const redactionTerms = redactionItem.grade.machine.residueTerms;
+const redactionPresentTerms = Object.fromEntries(redactionTerms.map((term) => [term, 1]));
+const redactionEmptyTerms = Object.fromEntries(redactionTerms.map((term) => [term, 0]));
+const redactionPages = [1, 2, 3, 4].map((page) => ({ page, width: 612, height: 792, rotation: 0 }));
+const redactionSourceStructure = {
+  structuralNameCounts: { "/AA": 1, "/EmbeddedFiles": 1, "/JS": 2, "/JavaScript": 1, "/Launch": 0, "/OpenAction": 1 },
+  actionTypeCounts: { "/JavaScript": 2, "/Launch": 1, "/SubmitForm": 1 },
+  attachments: [{ name: "private-review.txt" }],
+  attachmentTermCounts: redactionPresentTerms,
+  structureTermCounts: redactionPresentTerms,
+  commentAnnotations: [{ subtype: "/Text", contents: "ZXQ-PHI-9173" }],
+  populatedWidgets: [{ name: "SensitiveValue", values: { "/V": "ZXQ-PHI-9173" } }],
+  personalMetadata: { "/Author": "Private Person", "/Subject": "Internal marker ZXQ-PHI-9173" },
+};
+const redactionOutputStructure = {
+  structuralNameCounts: { "/AA": 0, "/EmbeddedFiles": 0, "/JS": 0, "/JavaScript": 0, "/Launch": 0, "/OpenAction": 0 },
+  actionTypeCounts: { "/JavaScript": 0, "/Launch": 0, "/SubmitForm": 0 },
+  attachments: [],
+  attachmentTermCounts: redactionEmptyTerms,
+  structureTermCounts: redactionEmptyTerms,
+  commentAnnotations: [],
+  populatedWidgets: [],
+  personalMetadata: {},
+};
+const redactionEvidence = {
+  source: { sha256: "redaction-source-sha", pageCount: 4, pages: redactionPages, termCounts: redactionPresentTerms, rawTermCounts: redactionPresentTerms, decodedStreamTermCounts: redactionPresentTerms, metadataTermCounts: redactionPresentTerms, decodedStreamErrors: [] },
+  output: { sha256: "redaction-output-sha", pageCount: 4, pages: redactionPages, termCounts: redactionEmptyTerms, rawTermCounts: redactionEmptyTerms, decodedStreamTermCounts: redactionEmptyTerms, metadataTermCounts: redactionEmptyTerms, decodedStreamErrors: [], startxrefCount: 1, eofCount: 1 },
+  sourceStructure: redactionSourceStructure,
+  outputStructure: redactionOutputStructure,
+  originalPrefixPreserved: false,
+  sourceRevisionCount: 2,
+  sourceEofCount: 2,
+  outputRevisionCount: 1,
+  outputEofCount: 1,
+  sourceImageCount: 1,
+  outputImageCount: 1,
+  sourceOcrLayerTermCount: 1,
+  outputOcrLayerTermCount: 0,
+  visual: {
+    renderer: "poppler-pdftoppm",
+    sourcePageCount: 4,
+    outputPageCount: 4,
+    allowedMasks: redactionItem.grade.visual.allowedMasks,
+    pages: [
+      { page: 1, sameDimensions: true, nonBlank: true, changedPixelsBBox: [100, 120, 500, 200], changedOutsideAllowedMasksBBox: null, changedOnlyWithinAllowedMasks: true },
+      { page: 2, sameDimensions: true, nonBlank: true, changedPixelsBBox: [100, 400, 900, 800], changedOutsideAllowedMasksBBox: null, changedOnlyWithinAllowedMasks: true },
+      { page: 3, sameDimensions: true, nonBlank: true, changedPixelsBBox: null, changedOutsideAllowedMasksBBox: null, changedOnlyWithinAllowedMasks: true },
+      { page: 4, sameDimensions: true, nonBlank: true, changedPixelsBBox: null, changedOutsideAllowedMasksBBox: null, changedOnlyWithinAllowedMasks: true },
+    ],
+  },
+};
+const redactionAudit = {
+  status: "succeeded",
+  source: { sha256: "redaction-source-sha" },
+  output: { sha256: "redaction-output-sha" },
+  provider: { actual: "pymupdf", version: "1.27.2.3", silentFallback: false },
+  savePolicy: { strategy: "sanitize" },
+  preflight: { probeCompleted: true, planCompleted: true },
+  operation: [{ type: "redact_text" }, { type: "redact_ocr_text" }, { type: "scrub" }],
+  validation: { residue: { ok: true }, ocr: { required: true, ok: true }, render: { pages: 4 }, singleRevision: true },
+};
+const redactionCommands = [
+  "python pymupdf_edit.py probe --accept-license agpl",
+  "python pdf_provider.py plan --task redact --provider pymupdf --strategy sanitize --invalidate-signatures",
+  "python pymupdf_edit.py edit inputs/source.pdf outputs/redacted.pdf --strategy sanitize --operations redact.json --sensitive-term ZXQ-PHI-9173 --accept-license agpl --invalidate-signatures",
+  "python residue_scan.py outputs/redacted.pdf --term ZXQ-PHI-9173 --require-ocr --require-single-revision",
+  "pdftoppm -png outputs/redacted.pdf page",
+  "python pdf_audit.py validate outputs/audit.json",
+];
+const redactionChecks = gradeMultichannelRedactionEvidence({ evidence: redactionEvidence, audit: redactionAudit, commands: redactionCommands, item: redactionItem });
+assert.equal(redactionChecks.every((entry) => entry.passed), true);
+assert.equal(summarizeCaseScore(redactionChecks, redactionItem.grade).rawScorePercent, 100);
+const missingOcrAudit = structuredClone(redactionAudit);
+missingOcrAudit.operation = [{ type: "redact_text" }, { type: "scrub" }];
+missingOcrAudit.validation.ocr = { required: false, ok: false };
+const missingOcrChecks = gradeMultichannelRedactionEvidence({ evidence: redactionEvidence, audit: missingOcrAudit, commands: redactionCommands.filter((command) => !command.includes("--require-ocr") && !command.includes("redact_ocr_text")), item: redactionItem });
+assert.equal(missingOcrChecks.find((entry) => entry.id === "pdf-security:ocr-required")?.passed, false);
 
 const traceCommands = extractCompletedCommands([
   JSON.stringify({ type: "item.started", item: { id: "one", type: "command_execution", command: "ignored-started-command" } }),
