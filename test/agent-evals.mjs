@@ -434,6 +434,26 @@ if (corpusRuntimeAvailable && spawnSync(qpdfExecutable, ["--version"], { stdio: 
   });
   assert.equal(qpdfChecks.every((check) => check.passed), true, "qpdf repair oracle and grader");
   assert.equal(summarizeCaseScore(qpdfChecks, qpdfItem.grade).rawScorePercent, 100, "qpdf repair oracle and grader");
+  const qpdfFreshInspectChecks = gradeQpdfRepairEvidence({
+    evidence: qpdfEvidence,
+    audit: {
+      ...qpdfAudit,
+      validation: {
+        qpdfFreshInspect: { status: "clean", exitCode: 0 },
+        unrecoverableControl: qpdfAudit.validation.unrecoverableControl,
+      },
+    },
+    commands: [
+      "PDF_SKILL=\"node_modules/office-kit/skills/pdf/skills/pdf\"; \"$PDF_SKILL/scripts/qpdf_provider.py\" inspect inputs/recoverable.pdf --expected-sha256 source",
+      "PDF_SKILL=\"node_modules/office-kit/skills/pdf/skills/pdf\"; \"$PDF_SKILL/scripts/qpdf_provider.py\" inspect inputs/unrecoverable.pdf",
+      "PDF_SKILL=\"node_modules/office-kit/skills/pdf/skills/pdf\"; \"$PDF_SKILL/scripts/qpdf_provider.py\" rewrite inputs/recoverable.pdf outputs/recovered.pdf --mode repair --expected-sha256 source",
+      "pdftoppm -png -r 144 outputs/recovered.pdf outputs/render/page",
+    ],
+    finalMessage: "qpdf recovery completed",
+    item: qpdfItem,
+  });
+  assert.equal(qpdfFreshInspectChecks.every((check) => check.passed), true, "qpdf fresh-inspect audit compatibility");
+  assert.equal(summarizeCaseScore(qpdfFreshInspectChecks, qpdfItem.grade).rawScorePercent, 100, "qpdf fresh-inspect audit compatibility");
 } else {
   console.log("PromptBench qpdf repair oracle smoke skipped (qpdf unavailable)");
 }
