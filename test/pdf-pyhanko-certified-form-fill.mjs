@@ -11,7 +11,6 @@ const skillRoot = path.join(repoRoot, "skills", "pdf", "skills", "pdf");
 const verifier = path.join(skillRoot, "scripts", "pyhanko_provider.py");
 const filler = path.join(skillRoot, "scripts", "pyhanko_certified_form_fill.py");
 const mupdf = path.join(skillRoot, "scripts", "mupdf.mjs");
-const evaluatorPython = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || "python3";
 
 function run(executable, args, options = {}) {
   const result = spawnSync(executable, args, {
@@ -137,7 +136,7 @@ fields.append(writer._add_object(locked))
 with source.open("wb") as handle:
     writer.write(handle)
 `, "utf8");
-  run(evaluatorPython, [sourceBuilder, tempRoot], { status: 0 });
+  runManaged([sourceBuilder, tempRoot], { status: 0 });
 
   const signerBuilder = path.join(tempRoot, "sign_source.py");
   await fs.writeFile(signerBuilder, String.raw`
@@ -261,7 +260,7 @@ with (root / "source.pdf").open("rb") as source, (root / "certified.pdf").open("
   assert.equal(outputValidation.signatures[0].modificationLevel, "form-filling");
   assert.deepEqual(outputValidation.signatures[0].changedFormFields, ["ApprovedAmount"]);
 
-  const pypdfEvidence = run(evaluatorPython, ["-c", String.raw`
+  const pypdfEvidence = runManaged(["-c", String.raw`
 from pypdf import PdfReader
 import json, sys
 reader = PdfReader(sys.argv[1], strict=True)
