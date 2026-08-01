@@ -9,6 +9,7 @@ import JSZip from "jszip";
 import { DocumentFile, FileBlob, PresentationFile, SpreadsheetFile } from "../src/index.mjs";
 import {
   DOCX_CLASSIC_COMMENT_FIXTURE,
+  DOCX_COMPLEX_TABLE_TOPOLOGY_FIXTURE,
   DOCX_FOOTER_TEXT_FIXTURE,
   DOCX_HEADER_TEXT_FIXTURE,
   DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE,
@@ -27,11 +28,13 @@ import {
 } from "../scripts/agent-eval-office-fixtures.mjs";
 import {
   gradeDocxClassicCommentEvidence,
+  gradeDocxComplexTableTopologyEvidence,
   gradeDocxFooterTextEvidence,
   gradeDocxHeaderTextEvidence,
   gradeDocxSectionPageNumberingEvidence,
   gradeDocxModernCommentReplyBoundaryEvidence,
   inspectClassicCommentDocx,
+  inspectComplexTableTopologyDocx,
   inspectFooterTextDocx,
   inspectHeaderTextDocx,
   inspectModernCommentDocx,
@@ -104,14 +107,14 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 30 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 31 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 16);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 5);
-assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 5);
+assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
 assert.equal(referenceDocumentSkill, path.join(repoRoot, "reference", "office-artifact-tool", "skills", "documents", "skills", "documents"));
@@ -163,7 +166,7 @@ try {
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /16 ready PDF cases include eight locked corpus signature\/boundary\/repair fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 11 asset-required cases/i);
+assert.match(runnerHelp.stdout, /remaining 10 asset-required cases/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 assert.match(runnerHelp.stdout, /matrix <case-id>/i);
 assert.deepEqual(matrixSubjects(undefined), ["candidate", "reference"]);
@@ -214,6 +217,7 @@ for (const relative of lockedFixturePaths) {
 }
 assert.equal(await verifiedLockedAsset("spreadsheets/reviewed-budget-nested.xlsx"), path.join(repoRoot, "evals", "assets", "spreadsheets/reviewed-budget-nested.xlsx"));
 assert.equal(await verifiedLockedAsset("documents/modern-comment-replies.docx"), path.join(repoRoot, "evals", "assets", "documents", "modern-comment-replies.docx"));
+assert.equal(await verifiedLockedAsset("documents/clinical-form.docx"), path.join(repoRoot, "evals", "assets", "documents", "clinical-form.docx"));
 const ownerCredential = await fs.readFile(path.join(repoRoot, "evals", "assets", "pdf", "encryption", "user-password.json"), "utf8");
 assert.match(ownerCredential, /fixture-user-password/);
 assert.doesNotMatch(ownerCredential, /fixture-owner-password-not-for-agent/);
@@ -1232,6 +1236,77 @@ try {
   }
 } finally {
   await fs.rm(modernCommentBoundaryRoot, { recursive: true, force: true });
+}
+
+const complexTableBoundaryItem = cases.find((item) => item.id === "docx-complex-table-topology-boundary");
+assert.ok(complexTableBoundaryItem);
+const complexTableBoundaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-docx-complex-table-boundary-"));
+try {
+  const complexInput = path.join(complexTableBoundaryRoot, "inputs", DOCX_COMPLEX_TABLE_TOPOLOGY_FIXTURE.documentName);
+  const complexRepeat = path.join(complexTableBoundaryRoot, "inputs", "clinical-form-repeat.docx");
+  const complexAuditPath = path.join(complexTableBoundaryRoot, "outputs", "audit.json");
+  await generateOfficeInput("docx-complex-table-topology-boundary", complexInput);
+  await generateOfficeInput("docx-complex-table-topology-boundary", complexRepeat);
+  const complexSourceBytes = await fs.readFile(complexInput);
+  assert.deepEqual(complexSourceBytes, await fs.readFile(complexRepeat), "complex-table fixture generation must be byte-deterministic");
+  const complexSource = await inspectComplexTableTopologyDocx(complexInput);
+  assert.equal(complexSource.topLevelTableCount, 2);
+  assert.equal(complexSource.complex.styleId, DOCX_COMPLEX_TABLE_TOPOLOGY_FIXTURE.complexTable.styleId);
+  assert.equal(complexSource.complex.nestedTableCount, 1);
+  assert.equal(complexSource.complex.trackedCellCount, 1);
+  assert.equal(complexSource.complex.contentControlCount, 1);
+  assert.ok(complexSource.complex.verticalMergeContinues >= 1);
+  await fs.mkdir(path.dirname(complexAuditPath), { recursive: true });
+  await fs.writeFile(complexAuditPath, JSON.stringify({
+    status: "failed_closed",
+    source: { sha256: crypto.createHash("sha256").update(complexSourceBytes).digest("hex") },
+    provider: { actual: "office-kit", version: "test", silentFallback: false },
+    savePolicy: { strategy: "none" },
+    operation: { type: "complex-table-topology-safe-refusal" },
+    validation: { inspected: true, modifiedArtifact: false, noFlattening: true },
+  }, null, 2));
+  const complexAudit = JSON.parse(await fs.readFile(complexAuditPath, "utf8"));
+  const complexTrace = JSON.stringify({
+    type: "item.completed",
+    item: {
+      type: "command_execution",
+      id: "docx-complex-table-boundary",
+      command: "node -e 'DocumentFile.importDocx(inputs/clinical-form.docx); DocumentFile.inspectDocx(inputs/clinical-form.docx); inspect second table topology, nested table, vMerge, revision and SDT'",
+    },
+  });
+  const complexChecks = gradeDocxComplexTableTopologyEvidence({
+    evidence: { source: complexSource, item: complexTableBoundaryItem },
+    audit: complexAudit,
+    commands: extractCompletedCommands(complexTrace),
+    finalMessage: "Safe refusal: imported complex table topology is source-bound and unsupported; no modified DOCX was produced.",
+    outputEntries: ["audit.json"],
+  });
+  assert.equal(complexChecks.every((check) => check.passed), true, complexChecks.filter((check) => !check.passed).map((check) => check.id).join(", "));
+  assert.equal(summarizeCaseScore(complexChecks, complexTableBoundaryItem.grade).rawScorePercent, 100);
+  const adversarialChecks = gradeDocxComplexTableTopologyEvidence({
+    evidence: { source: complexSource, item: complexTableBoundaryItem },
+    audit: complexAudit,
+    commands: ["node scratch/flatten-table.mjs inputs/clinical-form.docx outputs/flattened.docx"],
+    finalMessage: "completed",
+    outputEntries: ["audit.json", "flattened.docx"],
+  });
+  assert.equal(adversarialChecks.find((check) => check.id === "docx-complex-security:no-modified-artifact")?.passed, false);
+  assert.equal(adversarialChecks.find((check) => check.id === "docx-complex-trace:diagnostic-refusal")?.passed, false);
+  const nativeComplexResult = await gradeOfficeCase({
+    item: complexTableBoundaryItem,
+    workspace: complexTableBoundaryRoot,
+    evaluator: path.join(complexTableBoundaryRoot, "evaluator"),
+    finalMessage: "Safe refusal: imported complex table topology is source-bound and unsupported; no modified DOCX was produced.",
+    trace: complexTrace,
+  });
+  if (nativeComplexResult.graded) {
+    assert.equal(nativeComplexResult.rawScorePercent, 100);
+    assert.equal(nativeComplexResult.caseSpecificPassed, true);
+  } else {
+    assert.ok(nativeComplexResult.infrastructureErrors?.length);
+  }
+} finally {
+  await fs.rm(complexTableBoundaryRoot, { recursive: true, force: true });
 }
 
 const headerTextItem = cases.find((item) => item.id === "docx-header-text-edit");

@@ -168,6 +168,27 @@ export const DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE = Object.freeze({
   }),
 });
 
+// This uploaded document deliberately combines the imported table constructs
+// that the bounded table model cannot safely rewrite as one topology change:
+// vertical merges, a nested table, a custom table style, a tracked cell, and
+// a table-cell content control.  The PromptBench task must refuse before it
+// can flatten or rebuild any of those source-owned graphs.
+export const DOCX_COMPLEX_TABLE_TOPOLOGY_FIXTURE = Object.freeze({
+  documentName: "clinical-form.docx",
+  title: "Clinical medication review form",
+  leadText: "The first table is an ordinary canary; the second table is source-bound.",
+  canaryText: "Do not modify this ordinary table.",
+  complexTable: Object.freeze({
+    styleId: "ClinicalGrid",
+    headers: Object.freeze(["Medication", "Dose", "Route", "Status"]),
+    mergeRoot: "Antibiotic",
+    mergeContinuation: "Antibiotic",
+    revisedCell: "Pending review",
+    contentControl: "Reviewed by pharmacist",
+    nestedCell: "Timing: with food",
+  }),
+});
+
 // This fixture is intentionally narrow: two ordinary paragraphs share one
 // uniquely used default HeaderPart, while a PAGE footer is a canary for the
 // source-owned field boundary. The ready PromptBench task may change only the
@@ -797,6 +818,97 @@ export async function generateDocxModernCommentReplyBoundary(target) {
   return { path: target, type: DOCX_MIME };
 }
 
+export async function generateDocxComplexTableTopologyBoundary(target) {
+  const fixture = DOCX_COMPLEX_TABLE_TOPOLOGY_FIXTURE;
+  const document = DocumentModel.create({ name: fixture.title, blocks: [] });
+  document.styles.add("TableGrid", { name: "Table Grid", type: "table" });
+  document.addParagraph(fixture.title, { runs: [{ text: fixture.title, style: { bold: true, fontSize: 16 } }] });
+  document.addParagraph(fixture.leadText);
+  document.addTable({
+    name: "ordinary-canary",
+    values: [["Canary", "Value"], [fixture.canaryText, "Stable"]],
+  });
+  document.addParagraph("The following imported table intentionally combines source-owned topology.");
+  document.addTable({
+    name: "complex-source-bound",
+    values: [fixture.complexTable.headers, ["Antibiotic", "500 mg", "PO", "Pending review"]],
+  });
+  const verification = document.verify({ visualQa: true });
+  if (!verification.ok) throw new Error("Generated DOCX complex-table base failed model verification: " + verification.ndjson);
+  const exported = await DocumentFile.exportDocx(document);
+  const zip = await JSZip.loadAsync(await exported.arrayBuffer());
+  const documentXml = await zip.file("word/document.xml")?.async("text");
+  const stylesXml = await zip.file("word/styles.xml")?.async("text");
+  if (!documentXml || !stylesXml) throw new Error("complex-table fixture is missing document or styles XML");
+  const tableMatches = [...documentXml.matchAll(/<w:tbl\b[\s\S]*?<\/w:tbl>/g)];
+  if (tableMatches.length !== 2) throw new Error(`complex-table fixture expected two base tables, found ${tableMatches.length}`);
+
+  const run = (text) => `<w:r><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r>`;
+  const paragraph = (body) => `<w:p>${body}</w:p>`;
+  const cell = (body, properties = "") => `<w:tc>${properties ? `<w:tcPr>${properties}</w:tcPr>` : ""}${body}</w:tc>`;
+  const width = (value) => `<w:tcW w:w="${value}" w:type="dxa"/>`;
+  const nestedTable = `<w:tbl><w:tblPr><w:tblW w:w="1800" w:type="dxa"/></w:tblPr><w:tblGrid><w:gridCol w:w="1800"/></w:tblGrid><w:tr>${cell(paragraph(run(fixture.complexTable.nestedCell)), width(1800))}</w:tr></w:tbl>`;
+  const contentControl = `<w:sdt><w:sdtPr><w:id w:val="9001"/><w:alias w:val="Status"/></w:sdtPr><w:sdtContent>${paragraph(run(fixture.complexTable.contentControl))}</w:sdtContent></w:sdt>`;
+  const revised = `<w:ins w:id="41" w:author="Clinical reviewer" w:date="2026-07-19T09:00:00Z">${run(fixture.complexTable.revisedCell)}</w:ins>`;
+  const complexTable = [
+    `<w:tbl><w:tblPr><w:tblStyle w:val="${fixture.complexTable.styleId}"/><w:tblW w:w="0" w:type="auto"/><w:tblLayout w:type="fixed"/></w:tblPr>`,
+    "<w:tblGrid><w:gridCol w:w=\"2200\"/><w:gridCol w:w=\"1400\"/><w:gridCol w:w=\"1400\"/><w:gridCol w:w=\"2200\"/></w:tblGrid>",
+    `<w:tr>${fixture.complexTable.headers.map((header) => cell(paragraph(run(header)), width(1800))).join("")}</w:tr>`,
+    `<w:tr>${cell(paragraph(run(fixture.complexTable.mergeRoot)), `${width(2200)}<w:vMerge w:val="restart"/>`)}${cell(paragraph(run("500 mg")), width(1400))}${cell(paragraph(run("PO")), width(1400))}${cell(contentControl, width(2200))}</w:tr>`,
+    `<w:tr>${cell(paragraph(run(fixture.complexTable.mergeContinuation)), `${width(2200)}<w:vMerge/>`)}${cell(paragraph(revised), width(1400))}${cell(paragraph(run("IV")), width(1400))}${cell(`${paragraph(run("Review details"))}${nestedTable}`, width(2200))}</w:tr>`,
+    `<w:tr>${cell(paragraph(run("Dose adjustment")), `${width(2200)}<w:vMerge w:val="restart"/>`)}${cell(paragraph(run("250 mg")), width(1400))}${cell(paragraph(run("IM")), width(1400))}${cell(paragraph(run("Pending review")), width(2200))}</w:tr>`,
+    "</w:tbl>",
+  ].join("");
+  const firstTableEnd = tableMatches[1].index;
+  const firstTable = documentXml.slice(0, firstTableEnd);
+  const secondTableStart = tableMatches[1].index + tableMatches[1][0].length;
+  const patchedDocumentXml = `${firstTable}${complexTable}${documentXml.slice(secondTableStart)}`;
+  const patchedStylesXml = stylesXml.includes(`w:styleId="${fixture.complexTable.styleId}"`)
+    ? stylesXml
+    : stylesXml.replace("</w:styles>", `<w:style w:type="table" w:styleId="${fixture.complexTable.styleId}"><w:name w:val="Clinical Grid"/></w:style></w:styles>`);
+  zip.file("word/document.xml", patchedDocumentXml);
+  zip.file("word/styles.xml", patchedStylesXml);
+
+  // Canonicalize the package so the checked-in source is reproducible across
+  // runs even though the exporter allocates relationship IDs and ZIP dates.
+  const entries = [];
+  for (const name of Object.keys(zip.files).filter((entry) => !zip.files[entry].dir).sort()) {
+    const file = zip.file(name);
+    if (file) entries.push({ name, bytes: await file.async("uint8array") });
+  }
+  const relationshipIds = new Map();
+  const xmlEntries = entries.map(({ name, bytes }) => {
+    if (!/\.(?:xml|rels)$/i.test(name)) return { name, bytes, xml: null };
+    const xml = new TextDecoder().decode(bytes);
+    for (const match of xml.matchAll(/\bR[a-f0-9]{16}\b/gi)) {
+      if (!relationshipIds.has(match[0])) relationshipIds.set(match[0], `rId${relationshipIds.size + 1}`);
+    }
+    return { name, bytes, xml };
+  });
+  const canonicalZip = new JSZip();
+  const fixedDate = new Date("1980-01-01T00:00:00.000Z");
+  for (const entry of xmlEntries) {
+    const data = entry.xml === null
+      ? entry.bytes
+      : entry.xml.replace(/\bR[a-f0-9]{16}\b/gi, (id) => relationshipIds.get(id) || id);
+    canonicalZip.file(entry.name, data, {
+      date: fixedDate,
+      createFolders: false,
+      compression: "DEFLATE",
+      compressionOptions: { level: 9 },
+    });
+  }
+  const bytes = await canonicalZip.generateAsync({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 9 },
+    platform: "DOS",
+  });
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, bytes);
+  return { path: target, type: DOCX_MIME };
+}
+
 export async function generateDocxHeaderTextReview(target) {
   const fixture = DOCX_HEADER_TEXT_FIXTURE;
   const document = DocumentModel.create({
@@ -1172,6 +1284,7 @@ export async function generateOfficeInput(generator, target) {
   if (generator === "xlsx-pivot-refresh") return generateXlsxPivotRefresh(target);
   if (generator === "docx-classic-comment-review") return generateDocxClassicCommentReview(target);
   if (generator === "docx-modern-comment-reply-boundary") return generateDocxModernCommentReplyBoundary(target);
+  if (generator === "docx-complex-table-topology-boundary") return generateDocxComplexTableTopologyBoundary(target);
   if (generator === "docx-header-text-review") return generateDocxHeaderTextReview(target);
   if (generator === "docx-footer-text-review") return generateDocxFooterTextReview(target);
   if (generator === "docx-section-page-numbering-review") return generateDocxSectionPageNumberingReview(target);

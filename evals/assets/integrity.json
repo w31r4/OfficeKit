@@ -1,5 +1,11 @@
 {
   "assets": {
+    "documents/clinical-form.docx": {
+      "bytes": 2537,
+      "description": "Self-authored DOCX complex table topology with vertical merges, nested table, custom table style, tracked cell, SDT, and an ordinary-table canary.",
+      "kind": "file",
+      "sha256": "6d40a614deab54eb67e4f8cd73cb141e323ddf4b947f34795308921e177e09cd"
+    },
     "documents/modern-comment-replies.docx": {
       "bytes": 3532,
       "description": "Self-authored DOCX modern-comment identity graph with root, direct reply, reply-of-reply, commentsExtended/commentsIds/people metadata, and unresolved state.",
