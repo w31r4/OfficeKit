@@ -423,6 +423,32 @@ export const PPTX_CLOSED_LEAF_CLONE_FIXTURE = Object.freeze({
   appendixText: "Appendix: immutable evidence",
 });
 
+// This uploaded presentation deliberately combines three native graphs whose
+// joint mutation is outside the bounded source-bound profiles: a closed
+// SmartArt data/layout/style/colors set, a page-four NotesSlide, and an
+// Office 2021 modern comment root plus direct reply.  The PromptBench task is
+// therefore a refusal boundary: inspect every graph, explain that the
+// SmartArt node edit + notes edit + reply cannot be committed atomically, and
+// leave the source unchanged with no partial presentation output.
+export const PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE = Object.freeze({
+  presentationName: "strategy-review.pptx",
+  slideNames: Object.freeze(["Strategy overview", "Strategy details", "Strategy controls", "Strategy review"]),
+  smartArt: Object.freeze({
+    objectName: "Strategy SmartArt",
+    dataPart: "ppt/diagrams/strategy-data.xml",
+    nodeTexts: Object.freeze(["Frame", "Focus", "Scale candidate"]),
+    requestedText: "Scale",
+  }),
+  notes: Object.freeze({
+    slideIndex: 3,
+    text: "Review the decision evidence and retain the accountable owner.",
+  }),
+  comments: Object.freeze({
+    root: "Confirm the strategy evidence before publication.",
+    reply: "The evidence is attached to the review record.",
+  }),
+});
+
 function commentConfig(comment) {
   return {
     id: comment.id,
@@ -1173,6 +1199,113 @@ export async function generatePptxSectionBoundaryReview(target) {
   return { path: target, type: PPTX_MIME };
 }
 
+export async function generatePptxSmartArtNotesCommentsBoundary(target) {
+  const fixture = PPTX_SMARTART_NOTES_COMMENTS_BOUNDARY_FIXTURE;
+  const presentation = Presentation.create({
+    slideSize: { width: 1280, height: 720 },
+    commentFormat: "modern",
+  });
+  for (const [index, name] of fixture.slideNames.entries()) {
+    const slide = presentation.slides.add({ name });
+    slide.setBackground({ fill: ["#DBEAFE", "#DCFCE7", "#FEF3C7", "#FCE7F3"][index], mode: "solid" });
+    const title = slide.shapes.add({
+      name: `strategy-title-${index + 1}`,
+      geometry: "textbox",
+      position: { left: 72, top: 72, width: 1020, height: 88 },
+      text: name,
+      fill: "none",
+      line: { style: "solid", fill: "none", width: 0 },
+    });
+    title.text.style = { fontSize: 32, bold: true, color: "#0F172A" };
+    const supporting = slide.shapes.add({
+      name: `strategy-canary-${index + 1}`,
+      geometry: "textbox",
+      position: { left: 72, top: 194, width: 960, height: 80 },
+      text: "All non-target slide content and native package graphs must remain unchanged.",
+      fill: "none",
+      line: { style: "solid", fill: "none", width: 0 },
+    });
+    supporting.text.style = { fontSize: 18, color: "#334155" };
+    if (index === fixture.notes.slideIndex) {
+      slide.addNotes(fixture.notes.text);
+      const commentTarget = slide.shapes.add({
+        id: "strategy-comment-target",
+        name: "Strategy review anchor",
+        geometry: "rect",
+        position: { left: 72, top: 320, width: 680, height: 112 },
+        text: "Review anchor",
+        fill: "none",
+        line: { style: "solid", fill: "none", width: 0 },
+      });
+      const thread = slide.comments.addThread({
+        textMatch: { element: commentTarget, query: "Review anchor", occurrence: 0 },
+      }, fixture.comments.root, {
+        id: "{11111111-1111-4111-8111-111111111111}",
+        author: "Strategy reviewer",
+        created: "2026-07-20T04:00:00Z",
+        nativeFormat: "modern",
+        position: { x: 1_234_500, y: 2_345_600, unit: "emu" },
+        comments: [{
+          nativeId: "{11111111-1111-4111-8111-111111111111}",
+          author: "Strategy reviewer",
+          person: {
+            id: "{AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA}",
+            name: "Strategy reviewer",
+            initials: "SR",
+            userId: "strategy.reviewer@example.test",
+            providerId: "None",
+          },
+          text: fixture.comments.root,
+          created: "2026-07-20T04:00:00Z",
+          status: "active",
+        }],
+      });
+      thread.addReply(fixture.comments.reply, {
+        nativeId: "{22222222-2222-4222-8222-222222222222}",
+        author: "Evidence owner",
+        person: {
+          id: "{BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB}",
+          name: "Evidence owner",
+          initials: "EO",
+          userId: "evidence.owner@example.test",
+          providerId: "None",
+        },
+        created: "2026-07-20T04:05:00Z",
+        status: "active",
+      });
+    }
+  }
+  const verification = presentation.verify({ visualQa: true });
+  if (!verification.ok) throw new Error("Generated PPTX SmartArt boundary fixture failed model verification: " + verification.ndjson);
+  const exported = await PresentationFile.exportPptx(presentation);
+  const zip = await JSZip.loadAsync(exported.bytes);
+  const slideXml = await zip.file("ppt/slides/slide1.xml").async("text");
+  const slideRelationships = await zip.file("ppt/slides/_rels/slide1.xml.rels").async("text");
+  const smartArtFrame = '<p:graphicFrame xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:nvGraphicFramePr><p:cNvPr id="120" name="Strategy SmartArt"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="914400" y="1828800"/><a:ext cx="5486400" cy="2743200"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/diagram"><dgm:relIds xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" r:dm="rIdStrategyDiagramData" r:lo="rIdStrategyDiagramLayout" r:qs="rIdStrategyDiagramStyle" r:cs="rIdStrategyDiagramColors"/></a:graphicData></a:graphic></p:graphicFrame>';
+  const smartArtRelationships = '<Relationship Id="rIdStrategyDiagramData" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramData" Target="../diagrams/strategy-data.xml"/><Relationship Id="rIdStrategyDiagramLayout" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramLayout" Target="../diagrams/strategy-layout.xml"/><Relationship Id="rIdStrategyDiagramStyle" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramQuickStyle" Target="../diagrams/strategy-style.xml"/><Relationship Id="rIdStrategyDiagramColors" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramColors" Target="../diagrams/strategy-colors.xml"/>';
+  const smartArtData = '<dgm:dataModel xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><dgm:ptLst><dgm:pt modelId="{A1111111-1111-4111-8111-111111111111}" type="doc"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Frame</a:t></a:r></a:p></dgm:t></dgm:pt><dgm:pt modelId="{B2222222-2222-4222-8222-222222222222}" type="doc"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Focus</a:t></a:r></a:p></dgm:t></dgm:pt><dgm:pt modelId="{C3333333-3333-4333-8333-333333333333}" type="doc"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Scale candidate</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst><dgm:cxnLst/><dgm:bg/><dgm:whole/></dgm:dataModel>';
+  const smartArtLayout = '<dgm:layoutDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:office-kit:strategy-layout"><dgm:title val="Strategy"/><dgm:desc val="Strategy layout"/><dgm:catLst/><dgm:layoutNode name="root"/></dgm:layoutDef>';
+  const smartArtStyle = '<dgm:styleDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:office-kit:strategy-style"><dgm:title val="Strategy"/><dgm:desc val="Strategy style"/><dgm:catLst/><dgm:styleLbl name="node0"/></dgm:styleDef>';
+  const smartArtColors = '<dgm:colorsDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:office-kit:strategy-colors"><dgm:title val="Strategy"/><dgm:desc val="Strategy colors"/><dgm:catLst/></dgm:colorsDef>';
+  const patched = await PresentationFile.patchPptx(exported, [
+    { path: "ppt/slides/slide1.xml", xml: slideXml.replace("</p:spTree>", `${smartArtFrame}</p:spTree>`) },
+    { path: "ppt/slides/_rels/slide1.xml.rels", xml: slideRelationships.replace("</Relationships>", `${smartArtRelationships}</Relationships>`) },
+    { path: "ppt/diagrams/strategy-data.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml", xml: smartArtData },
+    { path: "ppt/diagrams/strategy-layout.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramLayout+xml", xml: smartArtLayout },
+    { path: "ppt/diagrams/strategy-style.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramStyle+xml", xml: smartArtStyle },
+    { path: "ppt/diagrams/strategy-colors.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramColors+xml", xml: smartArtColors },
+  ]);
+  const imported = await PresentationFile.importPptx(patched);
+  if (imported.slides.items.length !== fixture.slideNames.length
+      || imported.slides.getItem(fixture.notes.slideIndex).speakerNotes.text !== fixture.notes.text
+      || imported.slides.getItem(fixture.notes.slideIndex).comments.items[0]?.comments.length !== 2) {
+    throw new Error("Generated PPTX SmartArt boundary fixture did not reimport its notes/comment boundary.");
+  }
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, new Uint8Array(await patched.arrayBuffer()));
+  return { path: target, type: PPTX_MIME };
+}
+
 async function addClosedCloneOleWorkbook(exported, fixture) {
   const embeddedWorkbook = Workbook.create();
   embeddedWorkbook.worksheets.add("Evidence").getRange("A1:B3").values = [
@@ -1292,6 +1425,7 @@ export async function generateOfficeInput(generator, target) {
   if (generator === "pptx-rich-notes-review") return generatePptxRichNotesReview(target);
   if (generator === "pptx-slide-name-review") return generatePptxSlideNameReview(target);
   if (generator === "pptx-section-boundary-review") return generatePptxSectionBoundaryReview(target);
+  if (generator === "pptx-smartart-notes-comments-boundary") return generatePptxSmartArtNotesCommentsBoundary(target);
   if (generator === "pptx-closed-leaf-clone") return generatePptxClosedLeafClone(target);
   return null;
 }
