@@ -40,6 +40,7 @@ examples/officekit-end-to-end.mjs
 examples/officekit-source-text-patch-workflow.mjs
 examples/officekit-watermark-workflow.mjs
 examples/officekit-classic-comment-edit-workflow.mjs
+examples/officekit-board-review-surgical-edit-workflow.mjs
 examples/officekit-page-furniture-text-edit.mjs
 examples/officekit-header-text-edit-workflow.mjs
 examples/officekit-footer-text-edit-workflow.mjs

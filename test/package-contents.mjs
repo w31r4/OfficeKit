@@ -278,6 +278,7 @@ for (const required of [
   "skills/documents/skills/documents/artifact_tool/_source_bound_sections.mjs",
   "skills/documents/skills/documents/examples/officekit-end-to-end.mjs",
   "skills/documents/skills/documents/examples/officekit-classic-comment-edit-workflow.mjs",
+  "skills/documents/skills/documents/examples/officekit-board-review-surgical-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-page-furniture-text-edit.mjs",
   "skills/documents/skills/documents/examples/officekit-header-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs",

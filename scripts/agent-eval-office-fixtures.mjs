@@ -311,6 +311,54 @@ export const DOCX_SECTION_PAGE_NUMBERING_FIXTURE = Object.freeze({
   footer: Object.freeze({ text: "1", fieldInstruction: "PAGE" }),
 });
 
+// A self-authored source-bound board-review document.  The two requested
+// semantic edits are deliberately ordinary paragraph/table-cell patches plus
+// one classic comment text edit; tracked changes, modern comment replies,
+// content controls, TOC/REF fields, footnotes, VML watermark, mixed sections,
+// and first/even page furniture are preservation canaries.
+export const DOCX_SURGICAL_BOARD_REVIEW_FIXTURE = Object.freeze({
+  documentName: "board-review.docx",
+  title: "Board review — controlled release",
+  recommendation: Object.freeze({
+    originalText: "Recommendation: continue the pilot.",
+    replacementText: "Recommendation: approve controlled release.",
+  }),
+  riskTable: Object.freeze({
+    headers: Object.freeze(["Risk", "Status"]),
+    row: 1,
+    column: 1,
+    targetLabel: "Data migration",
+    originalStatus: "Amber",
+    replacementStatus: "Green",
+  }),
+  comment: Object.freeze({
+    author: "Audit committee",
+    initials: "AC",
+    date: "2026-07-19T09:00:00Z",
+    originalText: "Please confirm the final retention wording.",
+    replacementText: "Confirmed by the audit committee.",
+  }),
+  modernComment: Object.freeze({
+    rootParaId: "17777777",
+    directReplyParaId: "18888888",
+    nestedReplyParaId: "19999999",
+  }),
+  footnoteText: "Board packet evidence remains source-owned.",
+  watermarkText: "CONFIDENTIAL — BOARD REVIEW",
+  sectionCount: 3,
+  headerTexts: Object.freeze(["Northwind | Internal", "Northwind | First page", "Northwind | Even page"]),
+  complexTable: Object.freeze({
+    styleId: "BoardReviewGrid",
+    headers: Object.freeze(["Medication", "Dose", "Route", "Status"]),
+    mergeRoot: "Antibiotic",
+    mergeContinuation: "Antibiotic",
+    revisedCell: "Pending review",
+    contentControl: "Reviewed by pharmacist",
+    nestedCell: "Timing: with food",
+  }),
+  refBookmark: "BoardRecommendation",
+});
+
 export const PPTX_TITLE_NOTES_FIXTURE = Object.freeze({
   presentationName: "launch-review.pptx",
   targetSlideName: "Go-no-go decision",
@@ -1208,6 +1256,201 @@ export async function generateDocxComplexTableTopologyBoundary(target) {
   return { path: target, type: DOCX_MIME };
 }
 
+async function canonicalizeDocxFixtureZip(zip) {
+  const entries = [];
+  for (const name of Object.keys(zip.files).filter((entry) => !zip.files[entry].dir).sort()) {
+    const file = zip.file(name);
+    if (file) entries.push({ name, bytes: await file.async("uint8array") });
+  }
+  const relationshipIds = new Map();
+  const xmlEntries = entries.map(({ name, bytes }) => {
+    if (!/\.(?:xml|rels)$/i.test(name)) return { name, bytes, xml: null };
+    let xml = new TextDecoder().decode(bytes);
+    // OfficeKit intentionally allocates fresh classic-comment paragraph and
+    // durable IDs. The fixture contract binds those identities, so map the
+    // generated classic root to fixed values before publishing the asset.
+    if (name === "word/comments.xml") {
+      xml = xml.replace(/(w:id="0">[\s\S]*?w14:paraId=")[A-F0-9]{8}(")/i, (_match, prefix, suffix) => `${prefix}758DCE26${suffix}`);
+    } else if (name === "word/commentsExtended.xml") {
+      xml = xml.replace(/(w15:commentEx w15:paraId=")[A-F0-9]{8}(")/i, (_match, prefix, suffix) => `${prefix}758DCE26${suffix}`);
+    } else if (name === "word/commentsIds.xml") {
+      xml = xml.replace(/(w16cid:commentId w16cid:paraId=")[A-F0-9]{8}(")/i, (_match, prefix, suffix) => `${prefix}758DCE26${suffix}`);
+      xml = xml.replace(/(w16cid:commentId w16cid:paraId="758DCE26" w16cid:durableId=")[A-F0-9]{8}(")/i, (_match, prefix, suffix) => `${prefix}6A47B40A${suffix}`);
+    } else if (name === "word/commentsExtensible.xml") {
+      xml = xml.replace(/(w16cex:commentExtensible w16cex:durableId=")[A-F0-9]{8}(")/i, (_match, prefix, suffix) => `${prefix}6A47B40A${suffix}`);
+    }
+    for (const match of xml.matchAll(/\bR[a-f0-9]{16}\b/gi)) {
+      if (!relationshipIds.has(match[0])) relationshipIds.set(match[0], `rId${relationshipIds.size + 1}`);
+    }
+    return { name, bytes, xml };
+  });
+  const canonicalZip = new JSZip();
+  const fixedDate = new Date("1980-01-01T00:00:00.000Z");
+  for (const entry of xmlEntries) {
+    const data = entry.xml === null
+      ? entry.bytes
+      : entry.xml.replace(/\bR[a-f0-9]{16}\b/gi, (id) => relationshipIds.get(id) || id);
+    canonicalZip.file(entry.name, data, {
+      date: fixedDate,
+      createFolders: false,
+      compression: "DEFLATE",
+      compressionOptions: { level: 9 },
+    });
+  }
+  return canonicalZip.generateAsync({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 9 },
+    platform: "DOS",
+  });
+}
+
+export async function generateDocxSurgicalBoardReview(target) {
+  const fixture = DOCX_SURGICAL_BOARD_REVIEW_FIXTURE;
+  const document = DocumentModel.create({
+    name: fixture.title,
+    blocks: [],
+    defaultRunStyle: { fontFamily: "Aptos", fontSize: 11, color: "#172033" },
+  });
+  document.styles.add("TableGrid", { name: "Table Grid", type: "table" });
+  document.addParagraph(fixture.title, {
+    paragraphFormat: { spaceAfterTwips: 160 },
+    runs: [{ text: fixture.title, style: { bold: true, fontSize: 16, color: "#123B5D" } }],
+  });
+  const recommendation = document.addParagraph(fixture.recommendation.originalText, {
+    paragraphFormat: { spaceAfterTwips: 120 },
+    runs: [{ text: fixture.recommendation.originalText, style: { bold: true } }],
+  });
+  document.addBookmark(recommendation, fixture.refBookmark, { nativeId: 41 });
+  document.addComment(recommendation, fixture.comment.originalText, {
+    author: fixture.comment.author,
+    initials: fixture.comment.initials,
+    date: fixture.comment.date,
+  });
+  document.addFootnote(recommendation, fixture.footnoteText, {
+    id: 7,
+    author: "Board secretary",
+  });
+  document.addTable({
+    name: "risk-matrix",
+    values: [
+      fixture.riskTable.headers,
+      [fixture.riskTable.targetLabel, fixture.riskTable.originalStatus],
+      ["Security controls", "Green"],
+    ],
+  });
+  document.addParagraph("The following table and review records remain source-owned.");
+  document.addTable({
+    name: "complex-source-bound",
+    values: [fixture.complexTable.headers, ["Antibiotic", "500 mg", "PO", "Pending review"]],
+  });
+  document.addTableOfContents({ levels: "1-3", display: "Board contents" });
+  const owner = document.addParagraph("Review owner");
+  owner.addTextContentControl("Audit committee", { tag: "review-owner", alias: "Review owner" });
+  document.addInsertion("Pending revision remains in the source.", {
+    author: "Clinical reviewer",
+    date: "2026-07-19T09:00:00Z",
+    id: 41,
+  });
+  const modernAnchor = document.addParagraph("Modern review thread remains source-owned.");
+  const root = document.addComment(modernAnchor, "Please confirm the release evidence.", {
+    author: "Lead reviewer",
+    initials: "LR",
+    date: "2026-07-19T08:00:00Z",
+    resolved: false,
+    paraId: fixture.modernComment.rootParaId,
+    durableId: "17777770",
+    dateUtc: "2026-07-19T08:00:00Z",
+    person: { providerId: "provider-a", userId: "lead@example.test" },
+  });
+  document.replyToComment(root, "The evidence is attached.", {
+    author: "Release reviewer",
+    initials: "RR",
+    date: "2026-07-19T08:05:00Z",
+    resolved: false,
+    paraId: fixture.modernComment.directReplyParaId,
+    durableId: "18888880",
+    dateUtc: "2026-07-19T08:05:00Z",
+    person: { providerId: "provider-b", userId: "release@example.test" },
+  });
+  document.addSection({ breakType: "nextPage", pageNumbering: { start: 1, format: "lowerRoman" } });
+  document.addParagraph("Front matter canary — preserve the review packet.");
+  document.addSection({ breakType: "nextPage", pageNumbering: { start: 1, format: "decimal" } });
+  document.addParagraph("Body section canary — preserve pagination and fields.");
+  for (let sectionIndex = 0; sectionIndex < fixture.sectionCount; sectionIndex += 1) {
+    document.addHeader(fixture.headerTexts[0], { sectionIndex, referenceType: "default" });
+    document.addHeader(fixture.headerTexts[1], { sectionIndex, referenceType: "first" });
+    document.addHeader(fixture.headerTexts[2], { sectionIndex, referenceType: "even" });
+    document.addFooter("1", { sectionIndex, referenceType: "default", fieldInstruction: "PAGE" });
+  }
+  document.addWatermark(fixture.watermarkText, { id: "watermark/board-review" });
+  const verification = document.verify({ visualQa: true });
+  if (!verification.ok) throw new Error("Generated DOCX board-review base failed model verification: " + verification.ndjson);
+
+  const exported = await DocumentFile.exportDocx(document);
+  const zip = await JSZip.loadAsync(await exported.arrayBuffer());
+  let documentXml = await zip.file("word/document.xml")?.async("text");
+  const stylesXml = await zip.file("word/styles.xml")?.async("text");
+  if (!documentXml || !stylesXml) throw new Error("board-review fixture is missing document or styles XML");
+  const tableMatches = [...documentXml.matchAll(/<w:tbl\b[\s\S]*?<\/w:tbl>/g)];
+  if (tableMatches.length !== 2) throw new Error(`board-review fixture expected two base tables, found ${tableMatches.length}`);
+
+  const run = (text) => `<w:r><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r>`;
+  const paragraph = (body) => `<w:p>${body}</w:p>`;
+  const cell = (body, properties = "") => `<w:tc>${properties ? `<w:tcPr>${properties}</w:tcPr>` : ""}${body}</w:tc>`;
+  const width = (value) => `<w:tcW w:w="${value}" w:type="dxa"/>`;
+  const nestedTable = `<w:tbl><w:tblPr><w:tblW w:w="1800" w:type="dxa"/></w:tblPr><w:tblGrid><w:gridCol w:w="1800"/></w:tblGrid><w:tr>${cell(paragraph(run(fixture.complexTable.nestedCell)), width(1800))}</w:tr></w:tbl>`;
+  const contentControl = `<w:sdt><w:sdtPr><w:id w:val="9001"/><w:alias w:val="Status"/></w:sdtPr><w:sdtContent>${paragraph(run(fixture.complexTable.contentControl))}</w:sdtContent></w:sdt>`;
+  const revised = `<w:ins w:id="41" w:author="Clinical reviewer" w:date="2026-07-19T09:00:00Z">${run(fixture.complexTable.revisedCell)}</w:ins>`;
+  const complexTable = [
+    `<w:tbl><w:tblPr><w:tblStyle w:val="${fixture.complexTable.styleId}"/><w:tblW w:w="0" w:type="auto"/><w:tblLayout w:type="fixed"/></w:tblPr>`,
+    "<w:tblGrid><w:gridCol w:w=\"2200\"/><w:gridCol w:w=\"1400\"/><w:gridCol w:w=\"1400\"/><w:gridCol w:w=\"2200\"/></w:tblGrid>",
+    `<w:tr>${fixture.complexTable.headers.map((header) => cell(paragraph(run(header)), width(1800))).join("")}</w:tr>`,
+    `<w:tr>${cell(paragraph(run(fixture.complexTable.mergeRoot)), `${width(2200)}<w:vMerge w:val="restart"/>`)}${cell(paragraph(run("500 mg")), width(1400))}${cell(paragraph(run("PO")), width(1400))}${cell(contentControl, width(2200))}</w:tr>`,
+    `<w:tr>${cell(paragraph(run(fixture.complexTable.mergeContinuation)), `${width(2200)}<w:vMerge/>`)}${cell(paragraph(revised), width(1400))}${cell(paragraph(run("IV")), width(1400))}${cell(`${paragraph(run("Review details"))}${nestedTable}`, width(2200))}</w:tr>`,
+    `<w:tr>${cell(paragraph(run("Dose adjustment")), `${width(2200)}<w:vMerge w:val="restart"/>`)}${cell(paragraph(run("250 mg")), width(1400))}${cell(paragraph(run("IM")), width(1400))}${cell(paragraph(run("Pending review")), width(2200))}</w:tr>`,
+    "</w:tbl>",
+  ].join("");
+  const firstTableEnd = tableMatches[1].index;
+  const firstTable = documentXml.slice(0, firstTableEnd);
+  const secondTableStart = tableMatches[1].index + tableMatches[1][0].length;
+  documentXml = `${firstTable}${complexTable}${documentXml.slice(secondTableStart)}`;
+  const refField = `<w:p><w:fldSimple w:instr=" REF ${fixture.refBookmark} "><w:r><w:t>${xmlEscape(fixture.recommendation.originalText)}</w:t></w:r></w:fldSimple></w:p>`;
+  const finalSection = documentXml.lastIndexOf("<w:sectPr");
+  if (finalSection < 0) throw new Error("board-review fixture has no final section properties");
+  documentXml = documentXml.slice(0, finalSection) + refField + documentXml.slice(finalSection);
+  zip.file("word/document.xml", documentXml);
+  zip.file("word/styles.xml", stylesXml.includes(`w:styleId="${fixture.complexTable.styleId}"`)
+    ? stylesXml
+    : stylesXml.replace("</w:styles>", `<w:style w:type="table" w:styleId="${fixture.complexTable.styleId}"><w:name w:val="Board Review Grid"/></w:style></w:styles>`));
+
+  const commentXml = await zip.file("word/comments.xml")?.async("text");
+  const commentsExtendedXml = await zip.file("word/commentsExtended.xml")?.async("text");
+  const commentsIdsXml = await zip.file("word/commentsIds.xml")?.async("text");
+  const peopleXml = await zip.file("word/people.xml")?.async("text");
+  if (!commentXml || !commentsExtendedXml || !commentsIdsXml || !peopleXml) throw new Error("board-review fixture is missing modern comment identity parts");
+  zip.file("word/comments.xml", commentXml.replace(
+    "</w:comments>",
+    `<w:comment w:initials="NR" w:author="Nested reviewer" w:date="2026-07-19T08:10:00Z" w:id="3"><w:p w14:paraId="${fixture.modernComment.nestedReplyParaId}" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"><w:r><w:t>Approved after legal review.</w:t></w:r></w:p></w:comment></w:comments>`,
+  ));
+  zip.file("word/commentsExtended.xml", commentsExtendedXml.replace(
+    "</w15:commentsEx>",
+    `<w15:commentEx w15:paraId="${fixture.modernComment.nestedReplyParaId}" w15:paraIdParent="${fixture.modernComment.directReplyParaId}" w15:done="0" /></w15:commentsEx>`,
+  ));
+  zip.file("word/commentsIds.xml", commentsIdsXml.replace(
+    "</w16cid:commentsIds>",
+    `<w16cid:commentId w16cid:paraId="${fixture.modernComment.nestedReplyParaId}" w16cid:durableId="19999990" /></w16cid:commentsIds>`,
+  ));
+  zip.file("word/people.xml", peopleXml.replace(
+    "</w15:people>",
+    `<w15:person w15:author="Nested reviewer"><w15:presenceInfo w15:providerId="provider-c" w15:userId="nested@example.test" /></w15:person></w15:people>`,
+  ));
+  const bytes = await canonicalizeDocxFixtureZip(zip);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, bytes);
+  return { path: target, type: DOCX_MIME };
+}
+
 export async function generateDocxHeaderTextReview(target) {
   const fixture = DOCX_HEADER_TEXT_FIXTURE;
   const document = DocumentModel.create({
@@ -1692,6 +1935,7 @@ export async function generateOfficeInput(generator, target) {
   if (generator === "docx-classic-comment-review") return generateDocxClassicCommentReview(target);
   if (generator === "docx-modern-comment-reply-boundary") return generateDocxModernCommentReplyBoundary(target);
   if (generator === "docx-complex-table-topology-boundary") return generateDocxComplexTableTopologyBoundary(target);
+  if (generator === "docx-surgical-board-review") return generateDocxSurgicalBoardReview(target);
   if (generator === "docx-header-text-review") return generateDocxHeaderTextReview(target);
   if (generator === "docx-footer-text-review") return generateDocxFooterTextReview(target);
   if (generator === "docx-section-page-numbering-review") return generateDocxSectionPageNumberingReview(target);

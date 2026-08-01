@@ -221,18 +221,22 @@ officekit run examples/officekit-classic-comment-edit-workflow.mjs input.docx re
   "Please confirm the final retention wording." \
   "Approved after legal review."
 
-# 3) Edit one ordinary imported header paragraph. It rejects PAGE/simple fields,
+# 3) Apply the mixed-comment board-review surgical transaction
+officekit run examples/officekit-board-review-surgical-edit-workflow.mjs \
+  board-review.docx board-review-updated.docx audit.json
+
+# 4) Edit one ordinary imported header paragraph. It rejects PAGE/simple fields,
 # shared/inherited parts, rich text, topology changes, and every second edit to
 # the same HeaderPart; only one word/headerN.xml part may change.
 officekit run examples/officekit-header-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
   "Northwind | Internal" "Northwind | Reviewed" 0 default
 
-# 4) Edit one ordinary imported footer paragraph. It uses the same narrow
+# 5) Edit one ordinary imported footer paragraph. It uses the same narrow
 # source-bound transaction, but accepts only one word/footerN.xml part.
 officekit run examples/officekit-footer-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
   "Northwind | Internal" "Northwind | Reviewed" 0 default
 
-# 5) Update one recognized imported inline/floating image's reviewed alt text.
+# 6) Update one recognized imported inline/floating image's reviewed alt text.
 # It binds the block index plus exact source description; visible pixels should
 # remain unchanged, but native render QA and author-intent review remain required.
 officekit run examples/officekit-image-alt-text-edit-workflow.mjs input.docx reviewed.docx audit.json \
@@ -367,6 +371,7 @@ Examples:
 - `examples/officekit-end-to-end.mjs` — runnable public-API create → export → import → typed text/checkbox/drop-down/combo-box/date-control edit → export → import vertical slice
 - `examples/officekit-source-text-patch-workflow.mjs` — source-bound paragraph/table-cell literal replacement with same-format run-fragment support, immutable input, exact changed-part audit, no-replace publication, second import, verification, and model render evidence
 - `examples/officekit-classic-comment-edit-workflow.mjs` — imported classic-comment text-only edit with a unique text anchor, fixed comment topology, second import, model render, byte-bound audit, and atomic output
+- `examples/officekit-board-review-surgical-edit-workflow.mjs` — source-bound board-review paragraph/table/classic-comment edit that preserves mixed modern comment replies, fields, notes, sections, page furniture, and complex-table parts; it uses `DocumentFile.patchDocx` only after typed import/precondition checks and proves an exact two-part rewrite
 - `examples/officekit-header-text-edit-workflow.mjs` — one ordinary source-bound HeaderPart paragraph edit with immutable input, exact one-part and header-residual proof, no-replace publication, second import, verification, and byte-bound audit; PAGE/simple fields and all broader page furniture fail closed
 - `examples/officekit-footer-text-edit-workflow.mjs` — the symmetric ordinary source-bound FooterPart transaction with the same immutable input, exact one-part/footer-residual proof, no-replace publication, second import, verification, and byte-bound audit; it never treats PAGE/simple fields or rich/shared page furniture as text
 - `examples/officekit-note-text-edit-workflow.mjs` — one fixed imported footnote/endnote physical-paragraph text edit bound to the semantic note ID, native ID, anchor ID, index, and exact source text; it permits only the matching note part, proves the raw residual outside that text leaf, reimports, verifies, model-renders, and publishes without overwrite
@@ -411,6 +416,7 @@ This is a quick index so you can jump from a helper script to the right task gui
 ### Review lifecycle (comments / tracked changes)
 - Public `document.addInsertion(...)` / `document.addDeletion(...)` authors standalone whole-paragraph revisions, while `DocumentFile.addTrackedReplacement(...)` plus `examples/officekit-tracked-replacement-workflow.mjs` adds one exact source-bound native in-paragraph deletion/insertion pair in either a direct body paragraph or one bounded direct table-cell paragraph. `document.setSettings({ trackRevisions: true })` independently enables future-change tracking. `DocumentFile.finalizeRevisions(...)` accepts/rejects both bounded profiles; the shipped revision-finalization workflow adds richer whole-block projection checks. `add_tracked_replacements.py` and `accept_tracked_changes.py` remain explicit helpers only for broader graphs → `ooxml/tracked_changes.md`, `tasks/clean_tracked_changes.md`
 - `examples/officekit-classic-comment-edit-workflow.mjs` is the preferred public route for one uniquely located imported classic comment when only its text may change
+- `examples/officekit-board-review-surgical-edit-workflow.mjs` is the bounded route for a known board-review packet whose classic and modern comment families coexist. The modern root/direct/nested graph is source-bound; only the uniquely anchored classic comment text, one recommendation run, and one risk-table status cell may change. If comment identity, table ownership, or source values are ambiguous, refuse before writing.
 - `examples/officekit-modern-comment-thread-workflow.mjs` handles one recognized root plus one direct reply: text and root resolved state may change, while imported identity, people/durable metadata, anchors, and topology stay source-bound; nested or irregular graphs fail closed
 - `comments_add.py`, `comments_extract.py`, `comments_apply_patch.py`, `comments_strip.py` → `tasks/comments_manage.md`
 

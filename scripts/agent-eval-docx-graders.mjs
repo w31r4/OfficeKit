@@ -12,6 +12,10 @@ import {
   DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE,
 } from "./agent-eval-office-fixtures.mjs";
 import {
+  gradeDocxBoardReviewEvidence,
+  inspectBoardReviewDocx,
+} from "./agent-eval-docx-board-review-grader.mjs";
+import {
   gradeDocxSectionPageNumberingCase,
 } from "./agent-eval-docx-section-page-numbering-grader.mjs";
 export {
@@ -28,6 +32,7 @@ export const docxGradedCaseIds = new Set([
   "docx-header-text-edit",
   "docx-footer-text-edit",
   "docx-section-page-numbering-edit",
+  "docx-surgical-board-review-edit",
 ]);
 
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
@@ -962,6 +967,51 @@ async function gradeDocxFooterTextCase(options) {
   });
 }
 
+async function gradeDocxBoardReviewCase({ item, workspace, finalMessage, trace, weights = defaultWeights }) {
+  const audit = await readAudit(workspace);
+  const commands = extractCompletedCommands(trace);
+  const sourcePath = path.join(workspace, "inputs", "board-review.docx");
+  const outputPath = path.join(workspace, "outputs", "board-review-updated.docx");
+  let source;
+  let output;
+  try {
+    [source, output] = await Promise.all([
+      inspectBoardReviewDocx(sourcePath),
+      inspectBoardReviewDocx(outputPath),
+    ]);
+  } catch (error) {
+    const checks = [
+      gate("docx-board-machine:readable-output", "machine", false, { error: error.message }),
+      gate("docx-board-security:no-partial-success", "security", false, { error: error.message }),
+    ];
+    const score = summarizeCaseScore(checks, item.grade, weights, false);
+    return { supported: true, graded: true, checks, evidence: { error: error.message }, pending: [], ...score };
+  }
+  const [sourceRender, outputRender] = await Promise.all([
+    renderOfficeFile(sourcePath, "docx-board-review-source"),
+    renderOfficeFile(outputPath, "docx-board-review-output"),
+  ]);
+  const visualUnavailable = [sourceRender, outputRender].find((result) => !result.available);
+  if (visualUnavailable) {
+    return {
+      supported: true,
+      graded: false,
+      checks: [],
+      evidence: { source, output, visual: { source: sourceRender, output: outputRender }, finalMessage },
+      pending: ["native LibreOffice/Poppler document rendering"],
+      infrastructureErrors: [visualUnavailable.reason],
+    };
+  }
+  const outputEntries = (await fs.readdir(path.join(workspace, "outputs"), { withFileTypes: true }))
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .sort();
+  const evidence = { source, output, visual: { source: sourceRender, output: outputRender }, outputEntries, finalMessage };
+  const checks = gradeDocxBoardReviewEvidence({ evidence, audit, commands, item });
+  const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+  return { supported: true, graded: true, checks, evidence, pending: [], ...score };
+}
+
 export async function gradeDocxCase(options) {
   if (options.item.id === "docx-classic-comment-text-edit") return gradeDocxClassicCommentCase(options);
   if (options.item.id === "docx-modern-comment-reply-boundary") return gradeDocxModernCommentReplyBoundaryCase(options);
@@ -969,5 +1019,6 @@ export async function gradeDocxCase(options) {
   if (options.item.id === "docx-header-text-edit") return gradeDocxHeaderTextCase(options);
   if (options.item.id === "docx-footer-text-edit") return gradeDocxFooterTextCase(options);
   if (options.item.id === "docx-section-page-numbering-edit") return gradeDocxSectionPageNumberingCase(options);
+  if (options.item.id === "docx-surgical-board-review-edit") return gradeDocxBoardReviewCase(options);
   return { supported: false };
 }
