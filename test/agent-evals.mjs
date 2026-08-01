@@ -174,6 +174,10 @@ const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pd
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
 assert.doesNotMatch(highlightVisible.prompt, /oracleSha256|outputHighlights|changedWithinAllowedMask/i);
+const qpdfVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-damaged-xref-recovery"));
+assert.match(qpdfVisible.prompt, /validation\.qpdfCheckAfter/);
+assert.match(qpdfVisible.prompt, /status=clean/);
+assert.match(qpdfVisible.prompt, /不要改名为 qpdfFreshInspection/);
 
 const corpusPython = process.env.OFFICE_KIT_AGENT_EVAL_PYTHON || process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON || "python3";
 const corpusVerification = spawnSync(corpusPython, ["scripts/agent-eval-corpus-fixtures.py", "verify"], {
