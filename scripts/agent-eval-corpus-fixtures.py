@@ -550,6 +550,57 @@ def create_print_production_risk(root: Path) -> None:
     temporary.unlink(missing_ok=True)
 
 
+def create_damaged_xref(root: Path) -> None:
+    """Create one qpdf-recoverable and one deliberately unrecoverable PDF.
+
+    The recoverable fixture keeps a complete page/object graph and attachment,
+    but its xref pointer is replaced and its EOF marker is removed.  qpdf can
+    reconstruct this file with warnings; a strict independent parser cannot
+    treat the damaged source as a clean document.  The comparison fixture is
+    intentionally missing both a trailer and a page tree, so the repair route
+    must refuse it rather than rasterising or synthesising a replacement.
+    """
+
+    temporary = root / ".damaged-xref-base.pdf"
+    valid = root / ".damaged-xref-valid.pdf"
+    recoverable = root / "pdf" / "corrupt" / "recoverable.pdf"
+    unrecoverable = root / "pdf" / "corrupt" / "unrecoverable.pdf"
+    temporary.parent.mkdir(parents=True, exist_ok=True)
+    document = canvas.Canvas(str(temporary), pagesize=(612, 792), invariant=1)
+    for page_number in range(1, 3):
+        document.setFont("Helvetica-Bold", 16)
+        document.drawString(72, 720, "QPDF repair fixture")
+        document.setFont("Helvetica", 11)
+        document.drawString(72, 680, f"Recoverable page {page_number}")
+        document.drawString(72, 650, "The visible content must survive structural repair.")
+        document.showPage()
+    document.save()
+
+    reader = PdfReader(str(temporary), strict=True)
+    writer = PdfWriter(clone_from=reader)
+    writer.add_attachment("repair-canary.txt", b"QPDF-REPAIR-ATTACHMENT")
+    write_writer(writer, valid)
+
+    raw = valid.read_bytes()
+    startxref = raw.rfind(b"startxref\n")
+    if startxref < 0:
+        raise ValueError("valid qpdf recovery fixture has no startxref marker")
+    offset_end = raw.find(b"\n", startxref + len(b"startxref\n"))
+    if offset_end < 0:
+        raise ValueError("valid qpdf recovery fixture has no startxref value")
+    damaged = raw[:startxref] + b"startxref\n0" + raw[offset_end:]
+    damaged = damaged.replace(b"%%EOF", b"", 1)
+    recoverable.parent.mkdir(parents=True, exist_ok=True)
+    recoverable.write_bytes(damaged)
+    unrecoverable.write_bytes(
+        b"%PDF-1.7\n"
+        b"% deliberately unrecoverable PromptBench comparison\n"
+        b"1 0 obj\n<< /Type /Catalog >>\nendobj\n"
+    )
+    temporary.unlink(missing_ok=True)
+    valid.unlink(missing_ok=True)
+
+
 def required_signing_python(value: str | None) -> str:
     candidate = value or os.environ.get(SIGNING_PYTHON_ENV)
     if not candidate:
@@ -696,6 +747,8 @@ FIXTURES = {
     "pdf/accessibility/untagged-complex-report.pdf": "Untagged two-column report with image and table visual structure.",
     "pdf/xfa/dynamic-dependents.pdf": "Dynamic-XFA-shaped template/datasets packet with repeat and FormCalc markers.",
     "pdf/print/print-production-risk.pdf": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",
+    "pdf/corrupt/recoverable.pdf": "Two-page self-authored PDF with attachment, damaged startxref, and missing EOF; qpdf can reconstruct it with warnings.",
+    "pdf/corrupt/unrecoverable.pdf": "Deliberately unrecoverable PDF comparison with no trailer, page tree, or EOF marker.",
     "pdf/signing/docmdp-p1-final.pdf": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",
     "pdf/signing/test-pki/root.pem": "Public-only self-authored PromptBench root certificate for the DocMDP P=1 fixture.",
     "pdf/signing/docmdp-p2-form.pdf": "Real self-authored DocMDP P=2 certification with one visible empty amount field and one FieldMDP-locked reference field.",
@@ -710,6 +763,7 @@ def generate(root: Path, signing_python: str | None) -> dict:
     create_untagged_complex_report(root)
     create_dynamic_xfa(root)
     create_print_production_risk(root)
+    create_damaged_xref(root)
     managed_signing_python = required_signing_python(signing_python)
     create_docmdp_p1_final(root, managed_signing_python)
     create_docmdp_p2_form(root, managed_signing_python)
@@ -805,6 +859,19 @@ def verify_print(path: Path) -> None:
         raise ValueError("print fixture has no DeviceN/Separation/overprint resource")
     if not bool(ext["/GSPrint"].get_object().get("/OP")):
         raise ValueError("print fixture has no overprint flag")
+
+
+def verify_damaged_xref(root: Path) -> None:
+    recoverable = root / "pdf" / "corrupt" / "recoverable.pdf"
+    unrecoverable = root / "pdf" / "corrupt" / "unrecoverable.pdf"
+    recoverable_bytes = recoverable.read_bytes()
+    unrecoverable_bytes = unrecoverable.read_bytes()
+    if not recoverable_bytes.startswith(b"%PDF-") or recoverable_bytes.count(b"startxref\n") != 1:
+        raise ValueError("recoverable xref fixture is missing its PDF header or damaged startxref marker")
+    if b"%%EOF" in recoverable_bytes or b"trailer" not in recoverable_bytes:
+        raise ValueError("recoverable xref fixture must omit EOF but retain the trailer/object graph")
+    if not unrecoverable_bytes.startswith(b"%PDF-") or b"trailer" in unrecoverable_bytes or b"%%EOF" in unrecoverable_bytes:
+        raise ValueError("unrecoverable xref comparison must lack trailer and EOF markers")
 
 
 def verify_docmdp_p1(path: Path, root_certificate: Path) -> None:
@@ -920,6 +987,7 @@ def verify(root: Path) -> dict:
     verify_untagged_report(root / "pdf" / "accessibility" / "untagged-complex-report.pdf")
     verify_xfa(root / "pdf" / "xfa" / "dynamic-dependents.pdf")
     verify_print(root / "pdf" / "print" / "print-production-risk.pdf")
+    verify_damaged_xref(root)
     verify_docmdp_p1(root / "pdf" / "signing" / "docmdp-p1-final.pdf", root / "pdf" / "signing" / "test-pki" / "root.pem")
     verify_docmdp_p2(root / "pdf" / "signing" / "docmdp-p2-form.pdf", root / "pdf" / "signing" / "test-pki" / "docmdp-p2-root.pem")
     return {"ok": True, "assets": len(manifest["assets"]), "root": str(root)}
@@ -927,7 +995,7 @@ def verify(root: Path) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("generate", "refresh-docmdp", "verify"))
+    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-damaged-xref", "verify"))
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     parser.add_argument("--signing-python", help=f"managed pyHanko interpreter used only by generate (or set {SIGNING_PYTHON_ENV})")
     options = parser.parse_args()
@@ -935,6 +1003,24 @@ def main() -> None:
         print(json.dumps(generate(options.root, options.signing_python), indent=2, sort_keys=True))
     elif options.command == "refresh-docmdp":
         print(json.dumps(refresh_docmdp(options.root, required_signing_python(options.signing_python)), indent=2, sort_keys=True))
+    elif options.command == "refresh-damaged-xref":
+        manifest_path = options.root / "integrity.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("assets"), dict):
+            raise ValueError("unsupported corpus integrity schema")
+        create_damaged_xref(options.root)
+        for relative, description in FIXTURES.items():
+            if not relative.startswith("pdf/corrupt/"):
+                continue
+            asset = options.root / relative
+            manifest["assets"][relative] = {
+                "bytes": asset.stat().st_size,
+                "description": description,
+                "kind": "file",
+                "sha256": sha256(asset),
+            }
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(json.dumps({"ok": True, "assets": len(manifest["assets"]), "root": str(options.root)}, sort_keys=True))
     else:
         print(json.dumps(verify(options.root), sort_keys=True))
 

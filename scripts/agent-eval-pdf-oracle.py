@@ -1477,6 +1477,67 @@ def boundary_docmdp_p1(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def qpdf_repair(payload: dict[str, Any]) -> dict[str, Any]:
+    """Collect evidence for a qpdf recovery transaction.
+
+    The damaged source is intentionally not parsed as a clean PDF by this
+    oracle.  Poppler is allowed to render its recovered page tree, while the
+    strict pypdf checks apply only to the promoted output.  This keeps the
+    oracle independent from the qpdf provider's JSON/repair implementation
+    and makes the unrecoverable comparison a real fail-closed input.
+    """
+
+    recoverable = pathlib.Path(payload["recoverable"])
+    unrecoverable = pathlib.Path(payload["unrecoverable"])
+    output = pathlib.Path(payload["output"])
+    required_text = str(payload.get("requiredText") or "")
+    recoverable_bytes = recoverable.read_bytes()
+    unrecoverable_bytes = unrecoverable.read_bytes()
+    output_evidence = None
+    attachments: list[dict[str, Any]] = []
+    visual: dict[str, Any] = {}
+    if output.is_file():
+        reader = pypdf.PdfReader(str(output), strict=True)
+        for attachment in reader.attachment_list:
+            payload_bytes = attachment.content
+            attachments.append({
+                "name": attachment.name,
+                "bytes": len(payload_bytes),
+                "sha256": hashlib.sha256(payload_bytes).hexdigest(),
+            })
+        output_evidence = inspect_pdf(output, [required_text] if required_text else [])
+        visual = compare_rendered_pages_with_masks(
+            recoverable,
+            output,
+            pathlib.Path(payload["renderRoot"]),
+            payload["poppler"],
+            [],
+        )
+    return {
+        "kind": "qpdf-repair",
+        "recoverable": {
+            "path": str(recoverable),
+            "bytes": len(recoverable_bytes),
+            "sha256": hashlib.sha256(recoverable_bytes).hexdigest(),
+            "pdfHeader": recoverable_bytes.startswith(b"%PDF-"),
+            "startxrefCount": recoverable_bytes.count(b"startxref\n"),
+            "hasTrailer": b"trailer" in recoverable_bytes,
+            "hasEof": b"%%EOF" in recoverable_bytes,
+        },
+        "unrecoverable": {
+            "path": str(unrecoverable),
+            "bytes": len(unrecoverable_bytes),
+            "sha256": hashlib.sha256(unrecoverable_bytes).hexdigest(),
+            "pdfHeader": unrecoverable_bytes.startswith(b"%PDF-"),
+            "hasTrailer": b"trailer" in unrecoverable_bytes,
+            "hasEof": b"%%EOF" in unrecoverable_bytes,
+        },
+        "output": output_evidence,
+        "outputAttachments": attachments,
+        "visual": visual,
+    }
+
+
 def boundary_refusal(payload: dict[str, Any]) -> dict[str, Any]:
     boundary = payload.get("boundary")
     if boundary == "encrypted-owner-policy":
@@ -1509,6 +1570,8 @@ def main() -> None:
         evidence = acroform_visible(payload)
     elif kind == "certified-docmdp-p2-fill":
         evidence = certified_docmdp_p2_fill(payload)
+    elif kind == "qpdf-repair":
+        evidence = qpdf_repair(payload)
     elif kind == "attachment-quarantine":
         evidence = attachment_quarantine(payload)
     elif kind == "accessible-report":
