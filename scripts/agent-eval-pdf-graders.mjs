@@ -1555,7 +1555,8 @@ export function gradeQpdfRepairEvidence({ evidence, audit, commands, finalMessag
     || audit?.structureAfter?.check
     || audit?.qpdf?.checkAfter
     || audit?.validation?.qpdfCheckAfter
-    || audit?.validation?.qpdfCheck;
+    || audit?.validation?.qpdfCheck
+    || audit?.validation?.qpdfFreshInspect;
   return [
     check("pdf-machine:recoverable-source-is-damaged", "machine", source.pdfHeader === true && source.startxrefCount === 1 && source.hasTrailer === true && source.hasEof === false, { actual: source }),
     check("pdf-machine:unrecoverable-rejected", "machine", comparison.pdfHeader === true && comparison.hasTrailer === false && comparison.hasEof === false, { actual: comparison }),
