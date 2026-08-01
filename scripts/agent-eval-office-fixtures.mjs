@@ -123,6 +123,51 @@ export const DOCX_CLASSIC_COMMENT_FIXTURE = Object.freeze({
   }),
 });
 
+// This uploaded document deliberately extends the supported modern-comment
+// root-plus-direct-reply shape with one identity-bound reply-of-reply.  The
+// Documents contract is fail-closed for this graph until a mutation can
+// preserve every commentsExtended/commentsIds/people relationship.
+export const DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE = Object.freeze({
+  documentName: "modern-comment-replies.docx",
+  title: "Modern review reply boundary",
+  anchorText: "Decision: preserve the bounded modern review thread.",
+  root: Object.freeze({
+    paraId: "11111111",
+    durableId: "33333333",
+    id: "0",
+    author: "Lead reviewer",
+    initials: "LR",
+    date: "2026-07-19T08:00:00Z",
+    text: "Please confirm the release evidence.",
+    providerId: "provider-a",
+    userId: "lead@example.test",
+  }),
+  directReply: Object.freeze({
+    paraId: "22222222",
+    durableId: "44444444",
+    id: "1",
+    parentParaId: "11111111",
+    author: "Release reviewer",
+    initials: "RR",
+    date: "2026-07-19T08:05:00Z",
+    text: "The evidence is attached.",
+    providerId: "provider-b",
+    userId: "release@example.test",
+  }),
+  nestedReply: Object.freeze({
+    paraId: "33333333",
+    durableId: "55555555",
+    id: "2",
+    parentParaId: "22222222",
+    author: "Nested reviewer",
+    initials: "NR",
+    date: "2026-07-19T08:10:00Z",
+    text: "Approved after legal review.",
+    providerId: "provider-c",
+    userId: "nested@example.test",
+  }),
+});
+
 // This fixture is intentionally narrow: two ordinary paragraphs share one
 // uniquely used default HeaderPart, while a PAGE footer is a canary for the
 // source-owned field boundary. The ready PromptBench task may change only the
@@ -664,6 +709,94 @@ export async function generateDocxClassicCommentReview(target) {
   return { path: target, type: DOCX_MIME };
 }
 
+export async function generateDocxModernCommentReplyBoundary(target) {
+  const fixture = DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE;
+  const document = DocumentModel.create({ name: fixture.title, blocks: [] });
+  const anchor = document.addParagraph(fixture.anchorText);
+  const root = document.addComment(anchor, fixture.root.text, {
+    author: fixture.root.author,
+    initials: fixture.root.initials,
+    date: fixture.root.date,
+    resolved: false,
+    paraId: fixture.root.paraId,
+    durableId: fixture.root.durableId,
+    dateUtc: fixture.root.date,
+    person: { providerId: fixture.root.providerId, userId: fixture.root.userId },
+  });
+  document.replyToComment(root, fixture.directReply.text, {
+    author: fixture.directReply.author,
+    initials: fixture.directReply.initials,
+    date: fixture.directReply.date,
+    resolved: false,
+    paraId: fixture.directReply.paraId,
+    durableId: fixture.directReply.durableId,
+    dateUtc: fixture.directReply.date,
+    person: { providerId: fixture.directReply.providerId, userId: fixture.directReply.userId },
+  });
+  const exported = await DocumentFile.exportDocx(document);
+  const zip = await JSZip.loadAsync(await exported.arrayBuffer());
+  const nested = fixture.nestedReply;
+  const commentXml = await zip.file("word/comments.xml")?.async("text");
+  const commentsExtendedXml = await zip.file("word/commentsExtended.xml")?.async("text");
+  const commentsIdsXml = await zip.file("word/commentsIds.xml")?.async("text");
+  const peopleXml = await zip.file("word/people.xml")?.async("text");
+  if (!commentXml || !commentsExtendedXml || !commentsIdsXml || !peopleXml) {
+    throw new Error("modern comment fixture is missing a canonical identity part");
+  }
+  zip.file("word/comments.xml", commentXml.replace(
+    "</w:comments>",
+    `<w:comment w:initials="${xmlEscape(nested.initials)}" w:author="${xmlEscape(nested.author)}" w:date="${nested.date}" w:id="${nested.id}"><w:p w14:paraId="${nested.paraId}" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"><w:r><w:t>${xmlEscape(nested.text)}</w:t></w:r></w:p></w:comment></w:comments>`,
+  ));
+  zip.file("word/commentsExtended.xml", commentsExtendedXml.replace(
+    "</w15:commentsEx>",
+    `<w15:commentEx w15:paraId="${nested.paraId}" w15:paraIdParent="${nested.parentParaId}" w15:done="0" /></w15:commentsEx>`,
+  ));
+  zip.file("word/commentsIds.xml", commentsIdsXml.replace(
+    "</w16cid:commentsIds>",
+    `<w16cid:commentId w16cid:paraId="${nested.paraId}" w16cid:durableId="${nested.durableId}" /></w16cid:commentsIds>`,
+  ));
+  zip.file("word/people.xml", peopleXml.replace(
+    "</w15:people>",
+    `<w15:person w15:author="${xmlEscape(nested.author)}"><w15:presenceInfo w15:providerId="${xmlEscape(nested.providerId)}" w15:userId="${xmlEscape(nested.userId)}" /></w15:person></w15:people>`,
+  ));
+
+  // The OfficeKit exporter allocates package-local relationship IDs and ZIP
+  // timestamps dynamically.  Canonicalize both so the locked fixture can be
+  // regenerated byte-for-byte in every PromptBench trial.
+  const entries = [];
+  for (const name of Object.keys(zip.files).filter((entry) => !zip.files[entry].dir).sort()) {
+    const file = zip.file(name);
+    if (!file) continue;
+    entries.push({ name, bytes: await file.async("uint8array") });
+  }
+  const relationshipIds = new Map();
+  const xmlEntries = entries.map(({ name, bytes }) => {
+    if (!/\.(?:xml|rels)$/i.test(name)) return { name, bytes, xml: null };
+    const xml = new TextDecoder().decode(bytes);
+    for (const match of xml.matchAll(/\bR[a-f0-9]{16}\b/gi)) {
+      if (!relationshipIds.has(match[0])) relationshipIds.set(match[0], `rId${relationshipIds.size + 1}`);
+    }
+    return { name, bytes, xml };
+  });
+  const canonicalZip = new JSZip();
+  const fixedDate = new Date("1980-01-01T00:00:00.000Z");
+  for (const entry of xmlEntries) {
+    const data = entry.xml === null
+      ? entry.bytes
+      : entry.xml.replace(/\bR[a-f0-9]{16}\b/gi, (id) => relationshipIds.get(id) || id);
+    canonicalZip.file(entry.name, data, {
+      date: fixedDate,
+      createFolders: false,
+      compression: "DEFLATE",
+      compressionOptions: { level: 9 },
+    });
+  }
+  const bytes = await canonicalZip.generateAsync({ type: "nodebuffer", compression: "DEFLATE", compressionOptions: { level: 9 }, platform: "DOS" });
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, bytes);
+  return { path: target, type: DOCX_MIME };
+}
+
 export async function generateDocxHeaderTextReview(target) {
   const fixture = DOCX_HEADER_TEXT_FIXTURE;
   const document = DocumentModel.create({
@@ -1038,6 +1171,7 @@ export async function generateOfficeInput(generator, target) {
   if (generator === "xlsx-connection-refresh") return generateXlsxConnectionRefresh(target);
   if (generator === "xlsx-pivot-refresh") return generateXlsxPivotRefresh(target);
   if (generator === "docx-classic-comment-review") return generateDocxClassicCommentReview(target);
+  if (generator === "docx-modern-comment-reply-boundary") return generateDocxModernCommentReplyBoundary(target);
   if (generator === "docx-header-text-review") return generateDocxHeaderTextReview(target);
   if (generator === "docx-footer-text-review") return generateDocxFooterTextReview(target);
   if (generator === "docx-section-page-numbering-review") return generateDocxSectionPageNumberingReview(target);

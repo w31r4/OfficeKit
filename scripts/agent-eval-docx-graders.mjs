@@ -8,6 +8,7 @@ import {
   DOCX_CLASSIC_COMMENT_FIXTURE,
   DOCX_FOOTER_TEXT_FIXTURE,
   DOCX_HEADER_TEXT_FIXTURE,
+  DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE,
 } from "./agent-eval-office-fixtures.mjs";
 import {
   gradeDocxSectionPageNumberingCase,
@@ -21,6 +22,7 @@ import { extractCompletedCommands, summarizeCaseScore } from "./agent-eval-pdf-g
 
 export const docxGradedCaseIds = new Set([
   "docx-classic-comment-text-edit",
+  "docx-modern-comment-reply-boundary",
   "docx-header-text-edit",
   "docx-footer-text-edit",
   "docx-section-page-numbering-edit",
@@ -133,6 +135,78 @@ export async function inspectClassicCommentDocx(filePath) {
     peoplePaths: paths.filter((name) => /^word\/people\.xml$/i.test(name)),
     comments: parseClassicComments(commentsXml),
     paragraphs: parseParagraphs(documentXml),
+  };
+}
+
+function parseModernComments(xml = "") {
+  const comments = [];
+  for (const match of String(xml).matchAll(/<(?:[\w.-]+:)?comment\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?comment>/g)) {
+    const opening = /^<(?:[\w.-]+:)?comment\b[^>]*>/.exec(match[0])?.[0] || "";
+    const attributes = xmlAttributes(opening);
+    const paragraph = /<(?:[\w.-]+:)?p\b[^>]*>/i.exec(match[1])?.[0] || "";
+    const body = /<(?:[\w.-]+:)?p\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?p>/i.exec(match[1])?.[1] || match[1];
+    comments.push({
+      id: String(attributes.id || ""),
+      author: attributes.author || "",
+      initials: attributes.initials || "",
+      date: attributes.date || "",
+      paraId: xmlAttributes(paragraph).paraId || "",
+      text: wordText(body),
+    });
+  }
+  return comments;
+}
+
+function parseModernCommentsExtended(xml = "") {
+  return [...String(xml).matchAll(/<(?:[\w.-]+:)?commentEx\b[^>]*\/?\s*>/g)].map((match) => {
+    const attributes = xmlAttributes(match[0]);
+    return {
+      paraId: attributes.paraId || "",
+      parentParaId: attributes.paraIdParent || null,
+      done: /^(?:1|true)$/i.test(String(attributes.done || "")),
+    };
+  });
+}
+
+function parseModernCommentIds(xml = "") {
+  return [...String(xml).matchAll(/<(?:[\w.-]+:)?commentId\b[^>]*\/?\s*>/g)].map((match) => {
+    const attributes = xmlAttributes(match[0]);
+    return { paraId: attributes.paraId || "", durableId: attributes.durableId || "" };
+  });
+}
+
+function parseModernPeople(xml = "") {
+  return [...String(xml).matchAll(/<(?:[\w.-]+:)?person\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?person>/g)].map((match) => {
+    const attributes = xmlAttributes(/^<(?:[\w.-]+:)?person\b[^>]*>/.exec(match[0])?.[0] || "");
+    const presence = /<(?:[\w.-]+:)?presenceInfo\b[^>]*\/?\s*>/i.exec(match[1])?.[0] || "";
+    const presenceAttributes = xmlAttributes(presence);
+    return {
+      author: attributes.author || "",
+      providerId: presenceAttributes.providerId || "",
+      userId: presenceAttributes.userId || "",
+    };
+  });
+}
+
+export async function inspectModernCommentDocx(filePath) {
+  const bytes = await fs.readFile(filePath);
+  const zip = await JSZip.loadAsync(bytes);
+  const paths = Object.keys(zip.files).filter((name) => !zip.files[name].dir).sort();
+  const read = async (name) => zip.file(name)?.async("text") || "";
+  return {
+    bytes: bytes.length,
+    sha256: sha256(bytes),
+    paths,
+    commentsPath: paths.find((name) => /^word\/comments\.xml$/i.test(name)) || null,
+    commentsExtendedPaths: paths.filter((name) => /^word\/commentsExtended\.xml$/i.test(name)),
+    commentsIdsPaths: paths.filter((name) => /^word\/commentsIds\.xml$/i.test(name)),
+    commentsExtensiblePaths: paths.filter((name) => /^word\/commentsExtensible\.xml$/i.test(name)),
+    peoplePaths: paths.filter((name) => /^word\/people\.xml$/i.test(name)),
+    comments: parseModernComments(await read("word/comments.xml")),
+    commentsExtended: parseModernCommentsExtended(await read("word/commentsExtended.xml")),
+    commentsIds: parseModernCommentIds(await read("word/commentsIds.xml")),
+    people: parseModernPeople(await read("word/people.xml")),
+    paragraphs: parseParagraphs(await read("word/document.xml")),
   };
 }
 
@@ -356,6 +430,97 @@ export function gradeDocxClassicCommentEvidence({ evidence, audit, commands }) {
   ];
 }
 
+export function gradeDocxModernCommentReplyBoundaryEvidence({ evidence, audit, commands, finalMessage, outputEntries = [] }) {
+  const fixture = DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE;
+  const source = evidence.source;
+  const comments = source?.comments || [];
+  const commentsByPara = new Map(comments.map((comment) => [comment.paraId, comment]));
+  const extendedByPara = new Map((source?.commentsExtended || []).map((comment) => [comment.paraId, comment]));
+  const idsByPara = new Map((source?.commentsIds || []).map((comment) => [comment.paraId, comment]));
+  const people = new Map((source?.people || []).map((person) => [person.author, person]));
+  const root = commentsByPara.get(fixture.root.paraId);
+  const direct = commentsByPara.get(fixture.directReply.paraId);
+  const nested = commentsByPara.get(fixture.nestedReply.paraId);
+  const rootEx = extendedByPara.get(fixture.root.paraId);
+  const directEx = extendedByPara.get(fixture.directReply.paraId);
+  const nestedEx = extendedByPara.get(fixture.nestedReply.paraId);
+  const rootId = idsByPara.get(fixture.root.paraId);
+  const directId = idsByPara.get(fixture.directReply.paraId);
+  const nestedId = idsByPara.get(fixture.nestedReply.paraId);
+  const commandText = commands.join("\n");
+  // Reference Skills often inspect their installed API with `rg`, `sed`, or
+  // `find` commands that contain the literal `exportDocx` text. Those are not
+  // mutation attempts; only actionable runtime commands can disprove the
+  // safe-refusal no-export gate.
+  const actionableCommandText = commands
+    .filter((command) => !/\b(?:rg|grep|sed|cat|find|printf|head|tail|stat|shasum)\b/i.test(command))
+    .join("\n");
+  const diagnosticTerms = evidence.item?.grade?.machine?.diagnosticTerms || ["modern", "reply", "comment", "source-bound", "不支持"];
+  const hasDiagnostic = diagnosticTerms.some((term) => String(finalMessage || "").toLowerCase().includes(String(term).toLowerCase()));
+  const noArtifact = outputEntries.every((entry) => entry === "audit.json");
+  const auditFallbackFalse = audit === null || auditFallbackIsFalse(audit);
+  const safeAudit = audit === null || (
+    /^failed[_-]closed$/i.test(String(audit.status || ""))
+    && audit?.delivered_modified_artifact !== true
+    && audit?.delivered_modified_document !== true
+    && /^none$/i.test(auditStrategy(audit))
+    && auditFallbackFalse
+    && (!auditHash(audit, "source") || auditHash(audit, "source") === source?.sha256)
+  );
+  const canonicalParts = source?.commentsPath === "word/comments.xml"
+    && source.commentsExtendedPaths?.length === 1
+    && source.commentsIdsPaths?.length === 1
+    && source.commentsExtensiblePaths?.length === 1
+    && source.peoplePaths?.length === 1;
+  const exactRoot = root && root.id === fixture.root.id && root.author === fixture.root.author
+    && root.initials === fixture.root.initials && root.date === fixture.root.date
+    && root.text === fixture.root.text;
+  const exactDirect = direct && direct.id === fixture.directReply.id && direct.author === fixture.directReply.author
+    && direct.initials === fixture.directReply.initials && direct.date === fixture.directReply.date
+    && direct.text === fixture.directReply.text;
+  const exactNested = nested && nested.id === fixture.nestedReply.id && nested.author === fixture.nestedReply.author
+    && nested.initials === fixture.nestedReply.initials && nested.date === fixture.nestedReply.date
+    && nested.text === fixture.nestedReply.text;
+  const identityGraph = comments.length === 3
+    && exactRoot && exactDirect && exactNested
+    && rootEx?.parentParaId === null && directEx?.parentParaId === fixture.root.paraId
+    && nestedEx?.parentParaId === fixture.nestedReply.parentParaId
+    && [rootEx, directEx, nestedEx].every((entry) => entry && entry.done === false)
+    && rootId?.durableId === fixture.root.durableId
+    && directId?.durableId === fixture.directReply.durableId
+    && nestedId?.durableId === fixture.nestedReply.durableId;
+  const personIdentity = [fixture.root, fixture.directReply, fixture.nestedReply].every((expected) => {
+    const person = people.get(expected.author);
+    return person?.providerId === expected.providerId && person.userId === expected.userId;
+  });
+  return [
+    gate("docx-modern-machine:source-readable", "machine", Boolean(source?.sha256), { sourceSha256: source?.sha256 || null }),
+    gate("docx-modern-machine:canonical-identity-parts", "machine", canonicalParts, {
+      commentsPath: source?.commentsPath,
+      commentsExtendedPaths: source?.commentsExtendedPaths || [],
+      commentsIdsPaths: source?.commentsIdsPaths || [],
+      commentsExtensiblePaths: source?.commentsExtensiblePaths || [],
+      peoplePaths: source?.peoplePaths || [],
+    }),
+    check("docx-modern-machine:complete-reply-graph", "machine", identityGraph, {
+      comments,
+      commentsExtended: source?.commentsExtended || [],
+      commentsIds: source?.commentsIds || [],
+    }),
+    check("docx-modern-machine:person-identities", "machine", personIdentity, { people: source?.people || [] }),
+    check("docx-modern-machine:anchor-canary", "machine", source?.paragraphs?.some((paragraph) => paragraph.text === fixture.anchorText), {
+      paragraphs: source?.paragraphs || [],
+    }),
+    gate("docx-modern-security:no-modified-artifact", "security", noArtifact, { outputEntries }),
+    gate("docx-modern-security:failed-closed-audit", "security", safeAudit, {
+      audit: audit ? { status: audit.status, strategy: auditStrategy(audit) } : null,
+    }),
+    check("docx-modern-trace:diagnostic-refusal", "trace", hasDiagnostic, { expectedAny: diagnosticTerms, finalMessage }),
+    check("docx-modern-trace:inspected-comment-graph", "trace", /(?:importDocx|inspectDocx|modern|comment|reply|thread|resolve)/i.test(commandText), { commands }),
+    gate("docx-modern-trace:no-export-or-fallback", "trace", !/exportDocx|DocumentFile\.exportDocx|(?:silent.?fallback|fallbackUsed)\s*[:=]\s*true/i.test(actionableCommandText) && auditFallbackFalse, { commands }),
+  ];
+}
+
 function pageFurniturePartWithText(document, kind, text) {
   const parts = kind === "header" ? document.headerParts : document.footerParts;
   const matches = parts.filter((part) => part.paragraphs.filter((paragraph) => paragraph === text).length === 1);
@@ -553,6 +718,36 @@ async function gradeDocxClassicCommentCase({ item, workspace, finalMessage, trac
   return { supported: true, graded: true, checks, evidence, pending: [], ...score };
 }
 
+async function gradeDocxModernCommentReplyBoundaryCase({ item, workspace, finalMessage, trace, weights = defaultWeights }) {
+  const fixture = DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE;
+  const audit = await readAudit(workspace);
+  const commands = extractCompletedCommands(trace);
+  const sourcePath = path.join(workspace, "inputs", fixture.documentName);
+  let source;
+  try {
+    source = await inspectModernCommentDocx(sourcePath);
+  } catch (error) {
+    const checks = [
+      gate("docx-modern-machine:readable-source", "machine", false, { error: error.message }),
+      gate("docx-modern-security:no-partial-output", "security", false, { error: error.message }),
+      check("docx-modern-trace:diagnostic-refusal", "trace", false, { error: error.message }),
+    ];
+    const score = summarizeCaseScore(checks, item.grade, weights, false);
+    return { supported: true, graded: true, checks, evidence: { error: error.message }, pending: [], ...score };
+  }
+  let outputEntries = [];
+  try {
+    outputEntries = (await fs.readdir(path.join(workspace, "outputs"), { withFileTypes: true }))
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .sort();
+  } catch {}
+  const evidence = { source, item, finalMessage };
+  const checks = gradeDocxModernCommentReplyBoundaryEvidence({ evidence, audit, commands, finalMessage, outputEntries });
+  const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+  return { supported: true, graded: true, checks, evidence: { source, audit, outputEntries, finalMessage }, pending: [], ...score };
+}
+
 async function gradeDocxPageFurnitureTextCase({
   item,
   workspace,
@@ -626,6 +821,7 @@ async function gradeDocxFooterTextCase(options) {
 
 export async function gradeDocxCase(options) {
   if (options.item.id === "docx-classic-comment-text-edit") return gradeDocxClassicCommentCase(options);
+  if (options.item.id === "docx-modern-comment-reply-boundary") return gradeDocxModernCommentReplyBoundaryCase(options);
   if (options.item.id === "docx-header-text-edit") return gradeDocxHeaderTextCase(options);
   if (options.item.id === "docx-footer-text-edit") return gradeDocxFooterTextCase(options);
   if (options.item.id === "docx-section-page-numbering-edit") return gradeDocxSectionPageNumberingCase(options);

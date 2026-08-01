@@ -1,5 +1,11 @@
 {
   "assets": {
+    "documents/modern-comment-replies.docx": {
+      "bytes": 3532,
+      "description": "Self-authored DOCX modern-comment identity graph with root, direct reply, reply-of-reply, commentsExtended/commentsIds/people metadata, and unresolved state.",
+      "kind": "file",
+      "sha256": "30060ed6ba571dc81eb01394819b6107b5a050360349dd656630a3118ddab888"
+    },
     "spreadsheets/reviewed-budget-nested.xlsx": {
       "bytes": 4752,
       "description": "Self-authored XLSX threaded-comments graph with root, direct reply, reply-of-reply, person identities, and unresolved state.",
