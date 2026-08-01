@@ -84,8 +84,30 @@ const managedEnv = {
   PYTHONNOUSERSITE: "1",
 };
 
+const configuredFoundationPython = process.env.OFFICE_KIT_PDF_PROVIDER_PYTHON;
+function supportsFoundation(executable) {
+  if (!executable) return false;
+  return run(executable, ["-c", "import pypdf, reportlab"]).status === 0;
+}
+
+if (configuredPython) {
+  assert.ok(
+    configuredFoundationPython && supportsFoundation(configuredFoundationPython),
+    "OFFICE_KIT_PDF_PROVIDER_PYTHON must provide the pypdf/reportlab foundation runtime when pyHanko is enabled",
+  );
+}
+const foundationPython = configuredFoundationPython || (supportsFoundation(managedPython) ? managedPython : null);
+if (!foundationPython) {
+  console.log("pyHanko certified form fill smoke ok (real provider skipped: set OFFICE_KIT_PDF_PROVIDER_PYTHON and OFFICE_KIT_PYHANKO_TEST_PYTHON)");
+  process.exit(0);
+}
+
 function runManaged(args, options = {}) {
   return run(managedPython, args, { ...options, env: { ...managedEnv, ...options.env } });
+}
+
+function runFoundation(args, options = {}) {
+  return run(foundationPython, args, { ...options, env: { PYTHONNOUSERSITE: "1", ...options.env } });
 }
 
 const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-pyhanko-certified-form-"));
@@ -136,7 +158,7 @@ fields.append(writer._add_object(locked))
 with source.open("wb") as handle:
     writer.write(handle)
 `, "utf8");
-  runManaged([sourceBuilder, tempRoot], { status: 0 });
+  runFoundation([sourceBuilder, tempRoot], { status: 0 });
 
   const signerBuilder = path.join(tempRoot, "sign_source.py");
   await fs.writeFile(signerBuilder, String.raw`
@@ -260,7 +282,7 @@ with (root / "source.pdf").open("rb") as source, (root / "certified.pdf").open("
   assert.equal(outputValidation.signatures[0].modificationLevel, "form-filling");
   assert.deepEqual(outputValidation.signatures[0].changedFormFields, ["ApprovedAmount"]);
 
-  const pypdfEvidence = runManaged(["-c", String.raw`
+  const pypdfEvidence = runFoundation(["-c", String.raw`
 from pypdf import PdfReader
 import json, sys
 reader = PdfReader(sys.argv[1], strict=True)
