@@ -11,6 +11,7 @@ import {
   XLSX_PIVOT_REFRESH_FIXTURE,
   XLSX_NESTED_REPLY_BOUNDARY_FIXTURE,
   XLSX_THREADED_REVIEW_FIXTURE,
+  XLSX_OPAQUE_ENTERPRISE_FIXTURE,
 } from "./agent-eval-office-fixtures.mjs";
 import { renderOfficeFile } from "./agent-eval-office-native-render.mjs";
 import { extractCompletedCommands, summarizeCaseScore } from "./agent-eval-pdf-graders.mjs";
@@ -22,6 +23,7 @@ export const spreadsheetGradedCaseIds = new Set([
   "xlsx-auditable-operating-plan",
   "xlsx-connection-refresh-on-open",
   "xlsx-pivot-refresh-on-open",
+  "xlsx-opaque-enterprise-local-edit",
 ]);
 
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
@@ -30,6 +32,7 @@ const SHIPPED_THREADED_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/s
 const SHIPPED_GROWTH_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-growth-assumption-edit-workflow\.mjs(?:$|[\s"'`])/i;
 const SHIPPED_CONNECTION_REFRESH_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-connection-refresh-hardening-workflow\.mjs(?:$|[\s"'`])/i;
 const SHIPPED_PIVOT_REFRESH_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-pivot-refresh-hardening-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_OPAQUE_ENTERPRISE_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-opaque-enterprise-local-edit-workflow\.mjs(?:$|[\s"'`])/i;
 const SHIPPED_OPERATING_PLAN_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-operating-plan-workflow\.mjs(?:$|[\s"'`])/i;
 
 function check(id, category, passed, details = {}) {
@@ -325,6 +328,78 @@ export async function inspectPivotRefreshWorkbook(filePath) {
     pivotTablePath,
     cache: normalizePivotRefreshCacheDefinition(cacheXml),
     pivot: parsePivotTableDefinition(pivotXml),
+  };
+}
+
+export async function inspectOpaqueEnterpriseWorkbook(filePath) {
+  const bytes = await fs.readFile(filePath);
+  const zip = await JSZip.loadAsync(bytes);
+  const paths = Object.keys(zip.files).filter((name) => !zip.files[name].dir).sort();
+  const [workbookXml, workbookRelsXml] = await Promise.all([
+    zip.file("xl/workbook.xml")?.async("text") || "",
+    zip.file("xl/_rels/workbook.xml.rels")?.async("text") || "",
+  ]);
+  const sheets = workbookSheets(workbookXml, workbookRelsXml);
+  const byName = (name) => sheets.find((sheet) => sheet.name === name) || null;
+  const assumptions = byName(XLSX_OPAQUE_ENTERPRISE_FIXTURE.assumptionsSheetName);
+  const dashboard = byName(XLSX_OPAQUE_ENTERPRISE_FIXTURE.dashboardSheetName);
+  const data = byName(XLSX_OPAQUE_ENTERPRISE_FIXTURE.dataSheetName);
+  const [assumptionsXml, dashboardXml, dataXml, connectionsXml, queryTableXml, metadataXml, powerQueryXml, slicerXml, slicerCacheXml, comboChartXml, threadedCommentsXml, pivotTableXml, pivotCacheXml] = await Promise.all([
+    assumptions ? zip.file(assumptions.path)?.async("text") || "" : "",
+    dashboard ? zip.file(dashboard.path)?.async("text") || "" : "",
+    data ? zip.file(data.path)?.async("text") || "" : "",
+    zip.file("xl/connections.xml")?.async("text") || "",
+    zip.file("xl/queryTables/queryTable1.xml")?.async("text") || "",
+    zip.file("xl/metadata.xml")?.async("text") || "",
+    zip.file(XLSX_OPAQUE_ENTERPRISE_FIXTURE.customPowerQueryPath)?.async("text") || "",
+    zip.file(XLSX_OPAQUE_ENTERPRISE_FIXTURE.slicerPath)?.async("text") || "",
+    zip.file(XLSX_OPAQUE_ENTERPRISE_FIXTURE.slicerCachePath)?.async("text") || "",
+    zip.file(XLSX_OPAQUE_ENTERPRISE_FIXTURE.comboChartPath)?.async("text") || "",
+    zip.file("xl/threadedcomments/threadedcomment.xml")?.async("text") || "",
+    zip.file("xl/pivotTables/pivotTable.xml")?.async("text") || "",
+    zip.file("pivotCache/pivotCacheDefinition1.xml")?.async("text") || "",
+  ]);
+  const chartTitle = /<a:t>([^<]*)<\/a:t>/i.exec(dashboardXml ? await zip.file("xl/drawings/charts/chart1.xml")?.async("text") || "" : "")?.[1] || "";
+  const dynamicCell = [...dataXml.matchAll(/<[^>]*c\b([^>]*)>([\s\S]*?)<\/[^>]*c>/g)].find((match) => /\br="G2"/i.test(match[1]));
+  const dynamicAttributes = dynamicCell ? xmlAttributes(dynamicCell[1]) : {};
+  const dynamicFormula = dynamicCell ? /<(?:[\w.-]+:)?f\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?f>/i.exec(dynamicCell[2])?.[1] || "" : "";
+  const dynamicRef = dynamicCell ? /<(?:[\w.-]+:)?f\b([^>]*)>/i.exec(dynamicCell[2])?.[1] || "" : "";
+  const advanced = {
+    connections: connectionsXml,
+    queryTable: queryTableXml,
+    metadata: metadataXml,
+    powerQuery: powerQueryXml,
+    slicer: slicerXml,
+    slicerCache: slicerCacheXml,
+    comboChart: comboChartXml,
+    threadedComments: threadedCommentsXml,
+    pivotTable: pivotTableXml,
+    pivotCache: pivotCacheXml,
+  };
+  return {
+    bytes: bytes.length,
+    sha256: sha256(bytes),
+    paths,
+    partHashes: await packagePartHashes(zip, paths),
+    sheets,
+    assumptions: assumptions ? { ...assumptions, cells: parseCells(assumptionsXml) } : null,
+    dashboard: dashboard ? { ...dashboard, chartTitle } : null,
+    data: data ? { ...data, cells: parseCells(dataXml), dynamic: { attributes: dynamicAttributes, formula: decodeXml(dynamicFormula), ref: xmlAttributes(dynamicRef).ref || null } } : null,
+    connections: parseWorkbookConnections(connectionsXml),
+    queryTable: queryTableXml,
+    advanced,
+    advancedPartPaths: [
+      "xl/connections.xml",
+      "xl/queryTables/queryTable1.xml",
+      "xl/metadata.xml",
+      XLSX_OPAQUE_ENTERPRISE_FIXTURE.customPowerQueryPath,
+      XLSX_OPAQUE_ENTERPRISE_FIXTURE.slicerPath,
+      XLSX_OPAQUE_ENTERPRISE_FIXTURE.slicerCachePath,
+      XLSX_OPAQUE_ENTERPRISE_FIXTURE.comboChartPath,
+      "xl/threadedcomments/threadedcomment.xml",
+      "xl/pivotTables/pivotTable.xml",
+      "pivotCache/pivotCacheDefinition1.xml",
+    ],
   };
 }
 
@@ -1002,6 +1077,112 @@ export function gradeXlsxOperatingPlanEvidence({ evidence, audit, commands, inpu
   ];
 }
 
+function usedOpaqueEnterpriseWorkflow(commandText) {
+  return ( /SpreadsheetFile\.importXlsx/i.test(commandText)
+    && /SpreadsheetFile\.exportXlsx/i.test(commandText)
+    && /(?:chart\.title|enterprise-line-chart|Assumptions|opaque-enterprise)/i.test(commandText))
+    || SHIPPED_OPAQUE_ENTERPRISE_WORKFLOW.test(commandText);
+}
+
+function nativeOpaqueEnterpriseVisualEvidence(source, output) {
+  const available = Boolean(source?.available && output?.available);
+  const rendered = source?.ok === true && output?.ok === true
+    && source.pages?.length >= 4
+    && output.pages?.length >= 4
+    && source.pages.every((page) => page.nonWhitePixels > 0)
+    && output.pages.every((page) => page.nonWhitePixels > 0);
+  const pageCountsMatch = source?.pageCount === output?.pageCount;
+  const pageSizesStable = pageCountsMatch && source.pages.every((page, index) => page.width === output.pages[index]?.width && page.height === output.pages[index]?.height);
+  // LibreOffice can paginate the dashboard chart across two pages.  The
+  // source-bound canary starts at the first page of the Data sheet (page 4 in
+  // this fixture), so do not mistake the dashboard's continuation page for
+  // an untouched Data/Summary render.
+  const canaryPageStart = 3;
+  const canaryPagesStable = pageCountsMatch && source.pages.slice(canaryPageStart).every((page, index) => page.pixelSha256 === output.pages[index + canaryPageStart]?.pixelSha256);
+  return { available, rendered, pageCountsMatch, pageSizesStable, canaryPagesStable, pageCount: output?.pageCount || 0 };
+}
+
+export function gradeXlsxOpaqueEnterpriseEvidence({ evidence, audit, commands }) {
+  const fixture = XLSX_OPAQUE_ENTERPRISE_FIXTURE;
+  const source = evidence.source;
+  const output = evidence.output;
+  const changedPaths = packageChanges(source, output);
+  const expectedChangedPaths = ["xl/drawings/charts/chart1.xml", "xl/worksheets/sheet1.xml"];
+  const sourceAssumption = source?.assumptions?.cells?.get(fixture.assumptionAddress);
+  const outputAssumption = output?.assumptions?.cells?.get(fixture.assumptionAddress);
+  const sourceConnection = source?.connections?.find((connection) => connection.id === fixture.connectionId);
+  const outputConnection = output?.connections?.find((connection) => connection.id === fixture.connectionId);
+  const sourceAdvanced = source?.advanced || {};
+  const outputAdvanced = output?.advanced || {};
+  const advancedPartsPresent = source?.advancedPartPaths?.every((partPath) => source.partHashes?.[partPath] && output.partHashes?.[partPath]) === true;
+  const advancedPartsStable = advancedPartsPresent && source.advancedPartPaths.every((partPath) => source.partHashes[partPath] === output.partHashes[partPath]);
+  const advancedMarkers = [
+    [sourceAdvanced.powerQuery, "EnterpriseSales"],
+    [sourceAdvanced.slicer, "slicer-keep"],
+    [sourceAdvanced.slicerCache, "slicer-cache-keep"],
+    [sourceAdvanced.comboChart, "combo-chart-opaque"],
+    [sourceAdvanced.metadata, "XLDAPR"],
+    [sourceAdvanced.queryTable, fixture.queryTableName],
+    [sourceAdvanced.threadedComments, "44444444-4444-4444-8444-444444444444"],
+    [sourceAdvanced.pivotTable, fixture.pivotName],
+    [sourceAdvanced.pivotCache, "refreshOnLoad=\"1\""],
+  ].every(([xml, marker]) => String(xml || "").includes(marker));
+  const sourceRecognized = sameArray(source?.sheets?.map((sheet) => sheet.name) || [], [fixture.assumptionsSheetName, fixture.dashboardSheetName, fixture.dataSheetName, fixture.pivotSheetName])
+    && closeEnough(sourceAssumption?.value, fixture.originalAssumption, 1e-12)
+    && source?.dashboard?.chartTitle === fixture.originalChartTitle
+    && source?.data?.dynamic?.formula === "1"
+    && source?.data?.dynamic?.ref === fixture.dynamicArrayAddress
+    && sourceConnection?.name === fixture.connectionName
+    && sourceConnection?.refreshOnLoad === true
+    && sourceConnection?.command === fixture.connectionCommand
+    && source?.connections?.length === 1
+    && source?.queryTable?.includes(fixture.queryTableName)
+    && source?.queryTable?.includes('refreshOnLoad="0"')
+    && source?.data?.cells?.get(fixture.dynamicArrayAddress.split(":")[0])?.formula === "1"
+    && advancedMarkers;
+  const outputRecognized = closeEnough(outputAssumption?.value, fixture.replacementAssumption, 1e-12)
+    && output?.dashboard?.chartTitle === fixture.replacementChartTitle
+    && outputConnection?.name === fixture.connectionName
+    && outputConnection?.refreshOnLoad === true
+    && output?.data?.dynamic?.formula === source?.data?.dynamic?.formula
+    && output?.data?.dynamic?.ref === source?.data?.dynamic?.ref;
+  const visual = nativeOpaqueEnterpriseVisualEvidence(evidence.visual?.source, evidence.visual?.output);
+  const commandText = commands.join("\n");
+  const auditOperation = audit?.operation || {};
+  const auditPreservation = Array.isArray(auditOperation.preservationOnly) && auditOperation.preservationOnly.length >= 8;
+  return [
+    check("xlsx-opaque-enterprise-machine:canonical-source", "machine", sourceRecognized, {
+      sourceSheets: source?.sheets?.map((sheet) => sheet.name),
+      sourceAssumption,
+      chartTitle: source?.dashboard?.chartTitle,
+      dynamic: source?.data?.dynamic,
+      connection: sourceConnection,
+    }),
+    check("xlsx-opaque-enterprise-machine:two-target-edits", "machine", outputRecognized && auditOperation.assumption?.previous === fixture.originalAssumption && auditOperation.assumption?.value === fixture.replacementAssumption && auditOperation.chart?.previousTitle === fixture.originalChartTitle && auditOperation.chart?.title === fixture.replacementChartTitle, {
+      outputAssumption,
+      chartTitle: output?.dashboard?.chartTitle,
+      operation: auditOperation,
+    }),
+    check("xlsx-opaque-enterprise-machine:advanced-parts-preserved", "machine", advancedPartsStable && source?.connections?.length === output?.connections?.length && sameJson(source?.connections, output?.connections), {
+      advancedPartPaths: source?.advancedPartPaths,
+      advancedPartsStable,
+      sourceConnections: source?.connections,
+      outputConnections: output?.connections,
+    }),
+    check("xlsx-opaque-enterprise-machine:only-target-parts-changed", "machine", sameArray(changedPaths, expectedChangedPaths), { changedPaths, expectedChangedPaths }),
+    check("xlsx-opaque-enterprise-machine:reimport-and-verify", "machine", audit?.validation?.reimport?.ok === true && audit?.validation?.verify?.ok === true && audit?.validation?.reimport?.advancedObjectsPreserved === true, { validation: audit?.validation || null }),
+    check("xlsx-opaque-enterprise-visual:native-render", "visual", visual.available && visual.rendered && visual.pageCountsMatch && visual.pageSizesStable, { visual }),
+    check("xlsx-opaque-enterprise-visual:untouched-canary-pages", "visual", visual.canaryPagesStable, { visual }),
+    check("xlsx-opaque-enterprise-machine:audit-succeeded", "machine", /^(?:success|succeeded|completed)$/i.test(String(audit?.status || "")), { status: audit?.status || "unreported" }),
+    gate("xlsx-opaque-enterprise-security:source-and-output-provenance", "security", auditHash(audit, "source") === source?.sha256 && auditHash(audit, "output") === output?.sha256 && source?.sha256 !== output?.sha256, { source: source?.sha256, output: output?.sha256, auditSource: auditHash(audit, "source"), auditOutput: auditHash(audit, "output") }),
+    gate("xlsx-opaque-enterprise-security:no-silent-fallback", "security", auditFallbackIsFalse(audit) && auditPreservation && advancedPartsStable && sameArray(source?.paths || [], output?.paths || []), { provider: audit?.provider || null, preservationOnly: auditOperation.preservationOnly || null }),
+    check("xlsx-opaque-enterprise-trace:office-kit-provider", "trace", /office[- ]?kit/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), { provider: auditProvider(audit), version: auditVersion(audit) }),
+    check("xlsx-opaque-enterprise-trace:rewrite-policy", "trace", /^rewrite$/i.test(auditStrategy(audit)), { strategy: auditStrategy(audit) }),
+    check("xlsx-opaque-enterprise-trace:typed-operation", "trace", /opaque.*enterprise|enterprise.*local|assumption.*chart/i.test(auditOperation.type || ""), { operation: auditOperation.type || "" }),
+    check("xlsx-opaque-enterprise-trace:typed-roundtrip", "trace", usedOpaqueEnterpriseWorkflow(commandText), { expected: "published OfficeKit opaque-enterprise workflow or public SpreadsheetFile importXlsx/exportXlsx typed roundtrip" }),
+  ];
+}
+
 async function readAudit(workspace) {
   try {
     return JSON.parse(await fs.readFile(path.join(workspace, "outputs", "audit.json"), "utf8"));
@@ -1222,6 +1403,44 @@ async function gradeOperatingPlanCase({ item, workspace, finalMessage, trace, we
   return { supported: true, graded: true, checks, evidence: { output, audit, visual: evidence.visual, inputHashes, finalMessage }, pending: [], ...score };
 }
 
+async function gradeOpaqueEnterpriseCase({ item, workspace, finalMessage, trace, weights }) {
+  const audit = await readAudit(workspace);
+  const commands = extractCompletedCommands(trace);
+  const fixture = XLSX_OPAQUE_ENTERPRISE_FIXTURE;
+  let source;
+  let output;
+  try {
+    source = await inspectOpaqueEnterpriseWorkbook(path.join(workspace, "inputs", fixture.workbookName));
+    output = await inspectOpaqueEnterpriseWorkbook(path.join(workspace, "outputs", "enterprise-plan-updated.xlsx"));
+  } catch (error) {
+    const checks = [
+      gate("xlsx-opaque-enterprise-machine:readable-output", "machine", false, { error: error.message }),
+      gate("xlsx-opaque-enterprise-security:no-partial-output", "security", false, { error: error.message }),
+    ];
+    const score = summarizeCaseScore(checks, item.grade, weights, false);
+    return { supported: true, graded: true, checks, evidence: { error: error.message }, pending: [], ...score };
+  }
+  const [sourceRender, outputRender] = await Promise.all([
+    renderOfficeFile(path.join(workspace, "inputs", fixture.workbookName), "xlsx-opaque-enterprise-source"),
+    renderOfficeFile(path.join(workspace, "outputs", "enterprise-plan-updated.xlsx"), "xlsx-opaque-enterprise-output"),
+  ]);
+  const visualUnavailable = [sourceRender, outputRender].find((result) => !result.available);
+  if (visualUnavailable) {
+    return {
+      supported: true,
+      graded: false,
+      checks: [],
+      evidence: { source, output, visual: { source: sourceRender, output: outputRender }, finalMessage },
+      pending: ["native LibreOffice/Poppler spreadsheet rendering"],
+      infrastructureErrors: [visualUnavailable.reason],
+    };
+  }
+  const evidence = { source, output, visual: { source: sourceRender, output: outputRender }, finalMessage };
+  const checks = gradeXlsxOpaqueEnterpriseEvidence({ evidence, audit, commands });
+  const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+  return { supported: true, graded: true, checks, evidence, pending: [], ...score };
+}
+
 export async function gradeSpreadsheetCase({ item, workspace, finalMessage, trace, weights = defaultWeights }) {
   if (!spreadsheetGradedCaseIds.has(item.id)) return { supported: false };
   if (item.id === "xlsx-threaded-reply-resolve") return gradeThreadedReplyCase({ item, workspace, finalMessage, trace, weights });
@@ -1229,5 +1448,6 @@ export async function gradeSpreadsheetCase({ item, workspace, finalMessage, trac
   if (item.id === "xlsx-auditable-operating-plan") return gradeOperatingPlanCase({ item, workspace, finalMessage, trace, weights });
   if (item.id === "xlsx-connection-refresh-on-open") return gradeConnectionRefreshCase({ item, workspace, finalMessage, trace, weights });
   if (item.id === "xlsx-pivot-refresh-on-open") return gradePivotRefreshCase({ item, workspace, finalMessage, trace, weights });
+  if (item.id === "xlsx-opaque-enterprise-local-edit") return gradeOpaqueEnterpriseCase({ item, workspace, finalMessage, trace, weights });
   return gradeGrowthUpdateCase({ item, workspace, finalMessage, trace, weights });
 }

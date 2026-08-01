@@ -318,6 +318,7 @@ for (const required of [
   "skills/spreadsheets/skills/spreadsheets/examples/officekit-growth-assumption-edit-workflow.mjs",
   "skills/spreadsheets/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs",
   "skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-opaque-enterprise-local-edit-workflow.mjs",
   "skills/spreadsheets/skills/spreadsheets/examples/officekit-operating-plan-workflow.mjs",
   "skills/spreadsheets/skills/excel-live-control/SKILL.md",
   "skills/spreadsheets/skills/excel-live-control/agents/openai.yaml",
