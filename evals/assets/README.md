@@ -30,6 +30,11 @@ The PPTX SmartArt boundary source recipe is
 `generatePptxSmartArtNotesCommentsBoundary` in the same module; its four-part
 SmartArt graph, page-four NotesSlide, and modern root/direct-reply comment are
 all self-authored and locked for a no-partial-output refusal case.
+The XLSX operating-plan inputs under `spreadsheets/operating-plan/` are also
+self-authored and locked: `actuals.csv` contains 24 months of synthetic actuals
+and `assumptions.json` contains the three scenario profiles plus machine-check
+requirements. They are input data only; the workflow must derive every output
+metric through formulas and retain the two source hashes in its audit.
 
 Use the evaluator Python to verify it:
 

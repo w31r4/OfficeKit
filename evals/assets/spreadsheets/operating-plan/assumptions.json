@@ -1,0 +1,31 @@
+{
+  "activeScenario": "Base",
+  "scenarios": {
+    "Base": {
+      "revenueGrowth": 0.08,
+      "costGrowth": 0.06,
+      "grossMargin": 0.62,
+      "startingCash": 180000,
+      "minimumCash": 150000
+    },
+    "Upside": {
+      "revenueGrowth": 0.12,
+      "costGrowth": 0.07,
+      "grossMargin": 0.65,
+      "startingCash": 220000,
+      "minimumCash": 150000
+    },
+    "Downside": {
+      "revenueGrowth": 0.03,
+      "costGrowth": 0.08,
+      "grossMargin": 0.56,
+      "startingCash": 140000,
+      "minimumCash": 150000
+    }
+  },
+  "checks": [
+    "Derived values must remain formulas",
+    "Cash below the minimum must be highlighted",
+    "Dashboard charts must reference formula-backed cells"
+  ]
+}

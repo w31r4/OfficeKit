@@ -22,6 +22,7 @@ import {
   PPTX_TITLE_NOTES_FIXTURE,
   XLSX_CONNECTION_REFRESH_FIXTURE,
   XLSX_GROWTH_UPDATE_FIXTURE,
+  XLSX_OPERATING_PLAN_FIXTURE,
   XLSX_PIVOT_REFRESH_FIXTURE,
   XLSX_NESTED_REPLY_BOUNDARY_FIXTURE,
   XLSX_THREADED_REVIEW_FIXTURE,
@@ -45,11 +46,13 @@ import { gradeOfficeCase } from "../scripts/agent-eval-office-graders.mjs";
 import {
   gradeXlsxConnectionRefreshEvidence,
   gradeXlsxGrowthUpdateEvidence,
+  gradeXlsxOperatingPlanEvidence,
   gradeXlsxPivotRefreshEvidence,
   gradeXlsxNestedReplyBoundaryEvidence,
   gradeXlsxThreadedReplyEvidence,
   inspectConnectionRefreshWorkbook,
   inspectGrowthWorkbook,
+  inspectOperatingPlanWorkbook,
   inspectPivotRefreshWorkbook,
   inspectThreadedWorkbook,
 } from "../scripts/agent-eval-spreadsheet-graders.mjs";
@@ -72,6 +75,7 @@ import { editImportedFooterText } from "../skills/documents/skills/documents/exa
 import { editImportedSectionPageNumbering } from "../skills/documents/skills/documents/examples/officekit-section-page-numbering-edit-workflow.mjs";
 import { hardenXlsxConnectionRefreshOnOpen } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs";
 import { hardenXlsxPivotRefreshOnLoad } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs";
+import { createOperatingPlan } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-operating-plan-workflow.mjs";
 import {
   extractCompletedCommands,
   gradeAcroFormEvidence,
@@ -110,13 +114,13 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 32 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 33 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 16);
-assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 5);
+assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 5);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
@@ -169,7 +173,7 @@ try {
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /16 ready PDF cases include eight locked corpus signature\/boundary\/repair fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 9 asset-required cases/i);
+assert.match(runnerHelp.stdout, /remaining 8 asset-required cases/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 assert.match(runnerHelp.stdout, /matrix <case-id>/i);
 assert.deepEqual(matrixSubjects(undefined), ["candidate", "reference"]);
@@ -884,6 +888,68 @@ try {
   }
 } finally {
   await fs.rm(growthUpdateRoot, { recursive: true, force: true });
+}
+
+const operatingPlanItem = cases.find((item) => item.id === "xlsx-auditable-operating-plan");
+assert.ok(operatingPlanItem);
+assert.equal(operatingPlanItem.status, "ready");
+const operatingPlanRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-xlsx-operating-plan-"));
+try {
+  const actualsSource = path.join(repoRoot, "evals", "assets", XLSX_OPERATING_PLAN_FIXTURE.actualsPath);
+  const assumptionsSource = path.join(repoRoot, "evals", "assets", XLSX_OPERATING_PLAN_FIXTURE.assumptionsPath);
+  const actualsInput = path.join(operatingPlanRoot, "inputs", "actuals.csv");
+  const assumptionsInput = path.join(operatingPlanRoot, "inputs", "assumptions.json");
+  const operatingPlanOutput = path.join(operatingPlanRoot, "outputs", XLSX_OPERATING_PLAN_FIXTURE.outputName);
+  const operatingPlanAuditPath = path.join(operatingPlanRoot, "outputs", "audit.json");
+  await fs.mkdir(path.dirname(actualsInput), { recursive: true });
+  await fs.copyFile(actualsSource, actualsInput);
+  await fs.copyFile(assumptionsSource, assumptionsInput);
+  const sourceHashes = {
+    actuals: crypto.createHash("sha256").update(await fs.readFile(actualsInput)).digest("hex"),
+    assumptions: crypto.createHash("sha256").update(await fs.readFile(assumptionsInput)).digest("hex"),
+  };
+  assert.equal(sourceHashes.actuals, "b758991f9fcf6c029bd1a5c6a6af37f30e5aa6f2bf063bd878895eb270665a3e");
+  assert.equal(sourceHashes.assumptions, "dcb46836d23936b3240a55e9337f49afdf68f12561460c732e1e0d4899932d58");
+  await createOperatingPlan({
+    actualsPath: actualsInput,
+    assumptionsPath: assumptionsInput,
+    outputPath: operatingPlanOutput,
+    auditPath: operatingPlanAuditPath,
+  });
+  const output = await inspectOperatingPlanWorkbook(operatingPlanOutput);
+  const audit = JSON.parse(await fs.readFile(operatingPlanAuditPath, "utf8"));
+  const trace = JSON.stringify({
+    type: "item.completed",
+    item: {
+      type: "command_execution",
+      id: "xlsx-operating-plan",
+      command: "node .agents/skills/spreadsheets/examples/officekit-operating-plan-workflow.mjs inputs/actuals.csv inputs/assumptions.json outputs/FY27-operating-plan.xlsx outputs/audit.json; SpreadsheetFile.importXlsx; SpreadsheetFile.exportXlsx; recalculate",
+    },
+  });
+  const nativeResult = await gradeOfficeCase({
+    item: operatingPlanItem,
+    workspace: operatingPlanRoot,
+    evaluator: path.join(operatingPlanRoot, "evaluator"),
+    finalMessage: "已完成 FY27 经营计划：公式、场景校验、现金预警、评论、图表和二次导入/渲染均通过。",
+    trace,
+  });
+  if (nativeResult.graded) {
+    assert.equal(nativeResult.rawScorePercent, 100);
+    assert.equal(nativeResult.caseSpecificPassed, true);
+    const checks = gradeXlsxOperatingPlanEvidence({
+      evidence: { output, visual: nativeResult.evidence.visual, finalMessage: nativeResult.evidence.finalMessage },
+      audit,
+      commands: extractCompletedCommands(trace),
+      inputHashes: sourceHashes,
+    });
+    assert.equal(checks.every((check) => check.passed), true, checks.filter((check) => !check.passed).map((check) => check.id).join(", "));
+  } else {
+    assert.ok(nativeResult.infrastructureErrors?.length);
+  }
+  assert.equal(crypto.createHash("sha256").update(await fs.readFile(actualsInput)).digest("hex"), sourceHashes.actuals);
+  assert.equal(crypto.createHash("sha256").update(await fs.readFile(assumptionsInput)).digest("hex"), sourceHashes.assumptions);
+} finally {
+  await fs.rm(operatingPlanRoot, { recursive: true, force: true });
 }
 
 const connectionRefreshItem = cases.find((item) => item.id === "xlsx-connection-refresh-on-open");

@@ -18,6 +18,18 @@
       "kind": "file",
       "sha256": "bcb469d5b586f4fd8f562b918c8d9f04ef500cd6289728683c10ee2ced7be367"
     },
+    "spreadsheets/operating-plan/actuals.csv": {
+      "bytes": 605,
+      "description": "Self-authored 24-month actuals input for the auditable FY27 operating-plan workbook fixture.",
+      "kind": "file",
+      "sha256": "b758991f9fcf6c029bd1a5c6a6af37f30e5aa6f2bf063bd878895eb270665a3e"
+    },
+    "spreadsheets/operating-plan/assumptions.json": {
+      "bytes": 712,
+      "description": "Self-authored Base/Upside/Downside scenario assumptions and machine-check inputs for the auditable FY27 operating-plan workbook fixture.",
+      "kind": "file",
+      "sha256": "dcb46836d23936b3240a55e9337f49afdf68f12561460c732e1e0d4899932d58"
+    },
     "spreadsheets/reviewed-budget-nested.xlsx": {
       "bytes": 4752,
       "description": "Self-authored XLSX threaded-comments graph with root, direct reply, reply-of-reply, person identities, and unresolved state.",

@@ -101,6 +101,17 @@ export const XLSX_PIVOT_REFRESH_FIXTURE = Object.freeze({
   targetRange: "A1",
 });
 
+export const XLSX_OPERATING_PLAN_FIXTURE = Object.freeze({
+  actualsPath: "spreadsheets/operating-plan/actuals.csv",
+  assumptionsPath: "spreadsheets/operating-plan/assumptions.json",
+  outputName: "FY27-operating-plan.xlsx",
+  sheets: Object.freeze(["Sources", "Assumptions", "Forecast", "Dashboard", "Checks"]),
+  scenarios: Object.freeze(["Base", "Upside", "Downside"]),
+  requiredCharts: Object.freeze(["line", "pie"]),
+  minimumActualMonths: 24,
+  minimumForecastRows: 12,
+});
+
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";

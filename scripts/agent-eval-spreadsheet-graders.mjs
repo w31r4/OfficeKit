@@ -7,6 +7,7 @@ import JSZip from "jszip";
 import {
   XLSX_CONNECTION_REFRESH_FIXTURE,
   XLSX_GROWTH_UPDATE_FIXTURE,
+  XLSX_OPERATING_PLAN_FIXTURE,
   XLSX_PIVOT_REFRESH_FIXTURE,
   XLSX_NESTED_REPLY_BOUNDARY_FIXTURE,
   XLSX_THREADED_REVIEW_FIXTURE,
@@ -18,6 +19,7 @@ export const spreadsheetGradedCaseIds = new Set([
   "xlsx-threaded-reply-resolve",
   "xlsx-threaded-nested-reply-boundary",
   "xlsx-growth-assumption-update",
+  "xlsx-auditable-operating-plan",
   "xlsx-connection-refresh-on-open",
   "xlsx-pivot-refresh-on-open",
 ]);
@@ -28,6 +30,7 @@ const SHIPPED_THREADED_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/s
 const SHIPPED_GROWTH_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-growth-assumption-edit-workflow\.mjs(?:$|[\s"'`])/i;
 const SHIPPED_CONNECTION_REFRESH_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-connection-refresh-hardening-workflow\.mjs(?:$|[\s"'`])/i;
 const SHIPPED_PIVOT_REFRESH_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-pivot-refresh-hardening-workflow\.mjs(?:$|[\s"'`])/i;
+const SHIPPED_OPERATING_PLAN_WORKFLOW = /(?:^|[\s"'`])(?:\.?\/)?(?:\.agents\/skills\/spreadsheets|node_modules\/office-kit\/skills\/spreadsheets\/skills\/spreadsheets)\/examples\/officekit-operating-plan-workflow\.mjs(?:$|[\s"'`])/i;
 
 function check(id, category, passed, details = {}) {
   return { id, category, gate: false, passed: Boolean(passed), ...details };
@@ -322,6 +325,72 @@ export async function inspectPivotRefreshWorkbook(filePath) {
     pivotTablePath,
     cache: normalizePivotRefreshCacheDefinition(cacheXml),
     pivot: parsePivotTableDefinition(pivotXml),
+  };
+}
+
+function parseOperatingPlanSheet(xml = "") {
+  const cells = parseCells(xml);
+  const formulas = [...cells.values()].filter((cell) => cell.formula !== null);
+  const errors = [...cells.values()].filter((cell) => cell.type === "e" || /^#(?:REF!|VALUE!|NAME\?|DIV\/0!|N\/A|NUM!|NULL!)/i.test(String(cell.rawValue || "")));
+  const validations = [...String(xml).matchAll(/<(?:[\w.-]+:)?dataValidation\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?dataValidation>/gi)].map((match) => ({
+    attributes: xmlAttributes(match[1]),
+    body: match[2],
+    formula1: /<(?:[\w.-]+:)?formula1\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?formula1>/i.exec(match[2])?.[1] || null,
+  }));
+  return {
+    cells,
+    formulas,
+    errors,
+    formulaCount: formulas.length,
+    errorCount: errors.length,
+    validationCount: validations.length,
+    validations,
+    conditionalFormattingCount: (String(xml).match(/<(?:[\w.-]+:)?conditionalFormatting\b/gi) || []).length,
+    frozen: /<(?:[\w.-]+:)?pane\b[^>]*\bstate="frozen"/i.test(xml),
+  };
+}
+
+export async function inspectOperatingPlanWorkbook(filePath) {
+  const bytes = await fs.readFile(filePath);
+  const zip = await JSZip.loadAsync(bytes);
+  const paths = Object.keys(zip.files).filter((name) => !zip.files[name].dir).sort();
+  const [workbookXml, workbookRelsXml] = await Promise.all([
+    zip.file("xl/workbook.xml")?.async("text") || "",
+    zip.file("xl/_rels/workbook.xml.rels")?.async("text") || "",
+  ]);
+  const sheets = workbookSheets(workbookXml, workbookRelsXml);
+  const sheetFeatures = {};
+  for (const sheet of sheets) sheetFeatures[sheet.name] = parseOperatingPlanSheet(await zip.file(sheet.path)?.async("text") || "");
+  const chartPaths = paths.filter((name) => /^xl\/drawings\/charts\/chart\d+\.xml$/i.test(name));
+  const chartTypes = [];
+  for (const chartPath of chartPaths) {
+    const xml = await zip.file(chartPath).async("text");
+    for (const match of xml.matchAll(/<(?:[\w.-]+:)?(lineChart|pieChart)\b/gi)) chartTypes.push(match[1].toLowerCase());
+  }
+  const threadedPaths = paths.filter((name) => /^xl\/threadedcomments\/[^/]+\.xml$/i.test(name));
+  const personPaths = paths.filter((name) => /^xl\/persons\/[^/]+\.xml$/i.test(name));
+  const comments = [];
+  for (const partPath of threadedPaths) comments.push(...parseThreadedComments(await zip.file(partPath).async("text")));
+  const people = new Map();
+  for (const partPath of personPaths) for (const [id, person] of parsePersons(await zip.file(partPath).async("text"))) people.set(id, person);
+  return {
+    bytes: bytes.length,
+    sha256: sha256(bytes),
+    paths,
+    sheets,
+    sheetNames: sheets.map((sheet) => sheet.name),
+    sheetFeatures,
+    chartPaths,
+    chartTypes,
+    threadedPaths,
+    personPaths,
+    comments,
+    people: [...people.values()],
+    formulaCount: Object.values(sheetFeatures).reduce((total, feature) => total + feature.formulaCount, 0),
+    errorCount: Object.values(sheetFeatures).reduce((total, feature) => total + feature.errorCount, 0),
+    validationCount: Object.values(sheetFeatures).reduce((total, feature) => total + feature.validationCount, 0),
+    conditionalFormattingCount: Object.values(sheetFeatures).reduce((total, feature) => total + feature.conditionalFormattingCount, 0),
+    frozenSheetCount: Object.values(sheetFeatures).filter((feature) => feature.frozen).length,
   };
 }
 
@@ -846,6 +915,93 @@ export function gradeXlsxPivotRefreshEvidence({ evidence, audit, commands }) {
   ];
 }
 
+function usedOperatingPlanWorkflow(commandText) {
+  return (/(?:Workbook\.create|new\s+Workbook)/i.test(commandText)
+    && /SpreadsheetFile\.exportXlsx/i.test(commandText)
+    && /SpreadsheetFile\.importXlsx/i.test(commandText)
+    && /(?:recalculate|recalculate\s*\()/i.test(commandText))
+    || SHIPPED_OPERATING_PLAN_WORKFLOW.test(commandText);
+}
+
+function nativeOperatingPlanVisualEvidence(output) {
+  const available = Boolean(output?.available);
+  const rendered = output?.ok === true && output.pages?.length >= XLSX_OPERATING_PLAN_FIXTURE.sheets.length
+    && output.pages.every((page) => page.nonWhitePixels > 0);
+  const pageSizesStable = rendered && output.pages.every((page) => page.width > 0 && page.height > 0);
+  return { available, rendered, pageSizesStable, pageCount: output?.pageCount || 0 };
+}
+
+export function gradeXlsxOperatingPlanEvidence({ evidence, audit, commands, inputHashes = {} }) {
+  const output = evidence.output;
+  const forecast = output?.sheetFeatures?.Forecast;
+  const assumptions = output?.sheetFeatures?.Assumptions;
+  const dashboard = output?.sheetFeatures?.Dashboard;
+  const checks = output?.sheetFeatures?.Checks;
+  const requiredFormulaAddresses = [
+    ...["B", "C", "D", "E", "F", "G", "H", "I"].flatMap((column) => Array.from({ length: XLSX_OPERATING_PLAN_FIXTURE.minimumForecastRows }, (_, index) => `${column}${index + 4}`)),
+    ...Array.from({ length: XLSX_OPERATING_PLAN_FIXTURE.minimumForecastRows }, (_, index) => [`B${index + 2}`, `C${index + 2}`]).flat(),
+    "F2", "F3", "B2", "B3", "B4", "B5",
+  ];
+  const formulasComplete = requiredFormulaAddresses.every((address) => forecast?.cells?.get(address)?.formula || dashboard?.cells?.get(address)?.formula || checks?.cells?.get(address)?.formula);
+  const scenarioValidation = [...(assumptions?.validations || []), ...(forecast?.validations || [])].some((validation) => /Base,Upside,Downside/i.test(String(validation.formula1 || "")));
+  const chartTypes = output?.chartTypes?.map((type) => String(type).replace(/chart$/i, "").toLowerCase()) || [];
+  const chartCoverage = XLSX_OPERATING_PLAN_FIXTURE.requiredCharts.every((type) => chartTypes.includes(type));
+  const commentsBound = output?.comments?.length === 2
+    && output?.people?.length === 2
+    && output.comments.every((comment) => !comment.parentId && comment.ref);
+  const checkResults = ["B2", "B3", "B4", "B5"].every((address) => checks?.cells?.get(address)?.rawValue === "PASS");
+  const inputRecords = Array.isArray(audit?.source?.inputs) ? audit.source.inputs : [];
+  const inputHashesBound = Object.values(inputHashes).every((hash) => inputRecords.some((record) => record.sha256 === hash));
+  const commandText = commands.join("\n");
+  const visual = nativeOperatingPlanVisualEvidence(evidence.visual?.output);
+  return [
+    check("xlsx-plan-machine:five-sheet-topology", "machine", sameArray(output?.sheetNames || [], XLSX_OPERATING_PLAN_FIXTURE.sheets), { sheets: output?.sheetNames || [] }),
+    check("xlsx-plan-machine:formula-backed-derived-values", "machine", formulasComplete && output.formulaCount >= 120 && output.errorCount === 0, {
+      formulaCount: output?.formulaCount,
+      errorCount: output?.errorCount,
+      formulasComplete,
+    }),
+    check("xlsx-plan-machine:scenario-validation", "machine", scenarioValidation && output.validationCount >= 2, {
+      validationCount: output?.validationCount,
+      scenarioValidation,
+    }),
+    check("xlsx-plan-machine:cash-warning", "machine", output.conditionalFormattingCount >= 2 && forecast?.conditionalFormattingCount >= 1, {
+      conditionalFormattingCount: output?.conditionalFormattingCount,
+      forecastConditionalFormatting: forecast?.conditionalFormattingCount,
+    }),
+    check("xlsx-plan-machine:charts", "machine", chartCoverage && output.chartPaths.length === 2, {
+      chartPaths: output?.chartPaths,
+      chartTypes,
+    }),
+    check("xlsx-plan-machine:threaded-assumption-comments", "machine", commentsBound, {
+      comments: output?.comments,
+      people: output?.people,
+    }),
+    check("xlsx-plan-machine:freeze-rows-and-checks", "machine", output.frozenSheetCount === XLSX_OPERATING_PLAN_FIXTURE.sheets.length && checkResults, {
+      frozenSheetCount: output?.frozenSheetCount,
+      checkResults,
+    }),
+    check("xlsx-plan-machine:audit-succeeded", "machine", /^(?:success|succeeded|completed)$/i.test(String(audit?.status || "")), { status: audit?.status || "unreported" }),
+    check("xlsx-plan-visual:native-render-all-sheets", "visual", visual.available && visual.rendered && visual.pageSizesStable, { visual: evidence.visual }),
+    check("xlsx-plan-visual:no-empty-output", "visual", visual.rendered && visual.pageCount >= XLSX_OPERATING_PLAN_FIXTURE.sheets.length, { visual }),
+    gate("xlsx-plan-security:input-provenance", "security", inputHashesBound && auditFallbackIsFalse(audit), {
+      expected: inputHashes,
+      actual: inputRecords,
+      provider: audit?.provider || null,
+    }),
+    gate("xlsx-plan-security:output-provenance", "security", auditHash(audit, "output") === output.sha256 && output.sha256.length === 64, {
+      expected: output.sha256,
+      actual: auditHash(audit, "output"),
+    }),
+    check("xlsx-plan-trace:office-kit-provider", "trace", /office[- ]?kit/i.test(auditProvider(audit)) && Boolean(auditVersion(audit)), { provider: auditProvider(audit), version: auditVersion(audit) }),
+    gate("xlsx-plan-trace:no-silent-fallback", "trace", auditFallbackIsFalse(audit), { provider: audit?.provider || null }),
+    check("xlsx-plan-trace:rewrite-policy", "trace", /^rewrite$/i.test(auditStrategy(audit)), { strategy: auditStrategy(audit) }),
+    check("xlsx-plan-trace:typed-operating-plan", "trace", /operating[- ]plan|formula|dashboard/i.test(auditOperation(audit)), { operation: auditOperation(audit) }),
+    check("xlsx-plan-trace:typed-roundtrip", "trace", usedOperatingPlanWorkflow(commandText), { expected: "published OfficeKit operating-plan workflow or public Workbook/SpreadsheetFile roundtrip" }),
+    check("xlsx-plan-trace:second-import-and-render", "trace", audit?.validation?.reimport?.ok === true && audit?.validation?.finalRender?.ok === true, { validation: audit?.validation || null }),
+  ];
+}
+
 async function readAudit(workspace) {
   try {
     return JSON.parse(await fs.readFile(path.join(workspace, "outputs", "audit.json"), "utf8"));
@@ -1035,10 +1191,42 @@ async function gradePivotRefreshCase({ item, workspace, finalMessage, trace, wei
   return { supported: true, graded: true, checks, evidence, pending: [], ...score };
 }
 
+async function gradeOperatingPlanCase({ item, workspace, finalMessage, trace, weights }) {
+  const audit = await readAudit(workspace);
+  const commands = extractCompletedCommands(trace);
+  const fixture = XLSX_OPERATING_PLAN_FIXTURE;
+  let output;
+  try {
+    output = await inspectOperatingPlanWorkbook(path.join(workspace, "outputs", fixture.outputName));
+  } catch (error) {
+    const checks = [
+      gate("xlsx-plan-machine:readable-output", "machine", false, { error: error.message }),
+      gate("xlsx-plan-security:no-partial-success", "security", false, { error: error.message }),
+    ];
+    const score = summarizeCaseScore(checks, item.grade, weights, false);
+    return { supported: true, graded: true, checks, evidence: { error: error.message }, pending: [], ...score };
+  }
+  const actualsPath = path.join(workspace, "inputs", "actuals.csv");
+  const assumptionsPath = path.join(workspace, "inputs", "assumptions.json");
+  const inputHashes = {};
+  try {
+    inputHashes.actuals = sha256(await fs.readFile(actualsPath));
+    inputHashes.assumptions = sha256(await fs.readFile(assumptionsPath));
+  } catch (error) {
+    inputHashes.error = error.message;
+  }
+  const outputRender = await renderOfficeFile(path.join(workspace, "outputs", fixture.outputName), "xlsx-operating-plan-output");
+  const evidence = { output, visual: { output: outputRender }, finalMessage };
+  const checks = gradeXlsxOperatingPlanEvidence({ evidence, audit, commands, inputHashes });
+  const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+  return { supported: true, graded: true, checks, evidence: { output, audit, visual: evidence.visual, inputHashes, finalMessage }, pending: [], ...score };
+}
+
 export async function gradeSpreadsheetCase({ item, workspace, finalMessage, trace, weights = defaultWeights }) {
   if (!spreadsheetGradedCaseIds.has(item.id)) return { supported: false };
   if (item.id === "xlsx-threaded-reply-resolve") return gradeThreadedReplyCase({ item, workspace, finalMessage, trace, weights });
   if (item.id === "xlsx-threaded-nested-reply-boundary") return gradeNestedReplyBoundaryCase({ item, workspace, finalMessage, trace, weights });
+  if (item.id === "xlsx-auditable-operating-plan") return gradeOperatingPlanCase({ item, workspace, finalMessage, trace, weights });
   if (item.id === "xlsx-connection-refresh-on-open") return gradeConnectionRefreshCase({ item, workspace, finalMessage, trace, weights });
   if (item.id === "xlsx-pivot-refresh-on-open") return gradePivotRefreshCase({ item, workspace, finalMessage, trace, weights });
   return gradeGrowthUpdateCase({ item, workspace, finalMessage, trace, weights });
