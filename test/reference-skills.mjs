@@ -183,9 +183,11 @@ assert.match(spreadsheetSkillText, /officekit-asset-depreciation-workflow\.mjs/)
 assert.match(spreadsheetSkillText, /officekit-growth-assumption-edit-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-connection-refresh-hardening-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-pivot-refresh-hardening-workflow\.mjs/);
+assert.match(spreadsheetSkillText, /officekit-operating-plan-workflow\.mjs/);
 assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-growth-assumption-edit-workflow.mjs")));
 assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-connection-refresh-hardening-workflow.mjs")));
 assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-pivot-refresh-hardening-workflow.mjs")));
+assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-operating-plan-workflow.mjs")));
 
 const presentationApiRoot = path.join(skillsRoot, "presentations", "skills", "presentations", "artifact_tool", "api");
 const presentationApiDocs = await fs.readFile(path.join(presentationApiRoot, "API_DOCS.md"), "utf8");
