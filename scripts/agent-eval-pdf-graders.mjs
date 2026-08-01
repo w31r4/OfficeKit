@@ -25,6 +25,7 @@ const supportedCases = new Set([
   "pdf-print-production-boundary",
   "pdf-richmedia-opaque-preservation",
   "pdf-docmdp-forbidden-title-edit",
+  "pdf-pades-ltv-signature",
   "pdf-docmdp-allowed-field-fill",
   "pdf-damaged-xref-recovery",
 ]);
@@ -37,6 +38,7 @@ const boundaryRefusalCases = new Map([
   ["pdf-print-production-boundary", { boundary: "print-production", source: "inputs/source.pdf" }],
   ["pdf-richmedia-opaque-preservation", { boundary: "richmedia-opaque", source: "inputs/source.pdf" }],
   ["pdf-docmdp-forbidden-title-edit", { boundary: "docmdp-p1", source: "inputs/source.pdf" }],
+  ["pdf-pades-ltv-signature", { boundary: "pades-ltv", source: "inputs/source.pdf" }],
 ]);
 
 function check(id, category, passed, details = {}) {
@@ -286,6 +288,18 @@ function docMdpAuditValidation(audit) {
     && policy?.policyDecision === "refuse_without_mutation";
 }
 
+function padesLtvCapabilityEvidence(audit) {
+  const provider = audit?.provider && typeof audit.provider === "object" ? audit.provider : {};
+  const capabilities = audit?.capabilities
+    || audit?.providerCapabilities
+    || audit?.probe
+    || provider.capabilities
+    || {};
+  return capabilities.timestampAuthoritySupported === false
+    && capabilities.ltvEmbeddingSupported === false
+    && capabilities.padesProfileConformanceClaimed === false;
+}
+
 function boundaryRefusalTraceChecks(audit, commands, item) {
   const commandText = commands.join("\n");
   const saveRecord = auditSaveRecord(audit);
@@ -321,6 +335,11 @@ function boundaryRefusalTraceChecks(audit, commands, item) {
         expected: "pyHanko verification plus audit-bound explicit-root integrity, trust, DocMDP, and bottom-line evidence",
         actual: { command: hasDocMdpTrustValidation, audit: docMdpAuditValidation(audit) },
       })]
+      : item.id === "pdf-pades-ltv-signature"
+        ? [gate("pdf-security:pades-ltv-capability-refusal", "security", padesLtvCapabilityEvidence(audit), {
+          expected: "timestampAuthoritySupported=false, ltvEmbeddingSupported=false, and padesProfileConformanceClaimed=false",
+          actual: audit?.capabilities || audit?.providerCapabilities || audit?.probe || audit?.provider?.capabilities || "unreported",
+        })]
       : []),
     gate("pdf-trace:no-silent-fallback", "trace", auditFallback(audit) === true, { expected: false, actual: auditFallback(audit) === null ? "unreported" : !auditFallback(audit) }),
     gate("pdf-trace:no-mutation-command", "trace", !mutationPatterns.some((pattern) => pattern.test(commandText)), { forbidden: mutationPatterns.map(String) }),
@@ -988,6 +1007,15 @@ function boundaryFixtureComplete(evidence, item) {
   if (item.id === "pdf-docmdp-forbidden-title-edit") {
     return evidence.pageCount >= 1
       && evidence.metadataTitle === "Final"
+      && evidence.hasPerms === true
+      && evidence.hasDocMDP === true
+      && evidence.byteRangeValid === true
+      && evidence.cmsContentsPresent === true
+      && evidence.docMDPTransformCount === 1
+      && evidence.docMDPPermission === 1;
+  }
+  if (item.id === "pdf-pades-ltv-signature") {
+    return evidence.pageCount >= 1
       && evidence.hasPerms === true
       && evidence.hasDocMDP === true
       && evidence.byteRangeValid === true

@@ -40,9 +40,10 @@ Status meanings:
 ### PromptBench current inventory
 
 The current v1 inventory supersedes the historical count embedded in the table
-row above: 41 cases total, with 21 PDF and 20 Office; 36 are `ready` and 5
-remain `asset-required`. Nineteen ready PDF cases include eleven locked corpus
-fixtures. Seven are verified safe-refusal boundaries. The eighth is the real
+row above: 41 cases total, with 21 PDF and 20 Office; 37 are `ready` and 4
+remain `asset-required`. Twenty ready PDF cases include eleven locked corpus
+fixtures and a real signed-input PAdES/TSA/LTV capability-boundary refusal.
+Seven are verified safe-refusal boundaries. The eighth is the real
 DocMDP P=2/FieldMDP form success case: only `ApprovedAmount` may become visible
 static `12500.00`, while the signed baseline bytes, original signature contents,
 P=2 transform, exact lock, non-target fields, source/output provenance,

@@ -1625,6 +1625,21 @@ def boundary_docmdp_p1(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def boundary_pades_ltv(payload: dict[str, Any]) -> dict[str, Any]:
+    """Prove the real signed baseline before an honest PAdES-LTV refusal.
+
+    The shipped pyHanko route deliberately reports TSA/LTV as unsupported.
+    This oracle therefore proves only the existing signature/DocMDP surface;
+    it never treats an ordinary CMS signature as LTV evidence.
+    """
+    evidence = boundary_docmdp_p1(payload)
+    evidence["boundary"] = "pades-ltv"
+    evidence["timestampEvidencePresent"] = False
+    evidence["ltvEvidencePresent"] = False
+    evidence["padesUpgradePermitted"] = False
+    return evidence
+
+
 def qpdf_repair(payload: dict[str, Any]) -> dict[str, Any]:
     """Collect evidence for a qpdf recovery transaction.
 
@@ -1702,6 +1717,8 @@ def boundary_refusal(payload: dict[str, Any]) -> dict[str, Any]:
         return boundary_richmedia_opaque(payload)
     if boundary == "docmdp-p1":
         return boundary_docmdp_p1(payload)
+    if boundary == "pades-ltv":
+        return boundary_pades_ltv(payload)
     raise ValueError(f"unsupported PDF boundary-refusal oracle: {boundary}")
 
 

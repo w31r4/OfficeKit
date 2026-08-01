@@ -116,12 +116,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 36 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 37 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 19);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 20);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 5);
@@ -174,8 +174,8 @@ try {
 }
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /19 ready PDF cases include eleven locked corpus signature\/boundary\/repair\/redaction\/table fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 5 asset-required cases/i);
+assert.match(runnerHelp.stdout, /20 ready PDF cases include eleven locked corpus signature\/boundary\/repair\/redaction\/table fixtures and a PAdES\/TSA\/LTV fail-closed route/i);
+assert.match(runnerHelp.stdout, /remaining 4 asset-required cases/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 assert.match(runnerHelp.stdout, /matrix <case-id>/i);
 assert.deepEqual(matrixSubjects(undefined), ["candidate", "reference"]);
@@ -411,6 +411,7 @@ const boundaryCases = [
   { id: "pdf-dynamic-xfa-boundary", boundary: "dynamic-xfa", source: path.join(repoRoot, "evals", "assets", "pdf", "xfa", "dynamic-dependents.pdf"), diagnostic: "Dynamic XFA runtime is not supported" },
   { id: "pdf-print-production-boundary", boundary: "print-production", source: path.join(repoRoot, "evals", "assets", "pdf", "print", "print-production-risk.pdf"), diagnostic: "DeviceN and overprint need preflight" },
   { id: "pdf-docmdp-forbidden-title-edit", boundary: "docmdp-p1", source: path.join(repoRoot, "evals", "assets", "pdf", "signing", "docmdp-p1-final.pdf"), diagnostic: "DocMDP P=1 prohibits title modification", provider: "pyhanko" },
+  { id: "pdf-pades-ltv-signature", boundary: "pades-ltv", source: path.join(repoRoot, "evals", "assets", "pdf", "signing", "docmdp-p1-final.pdf"), diagnostic: "TSA/LTV capability is unsupported; fail closed", provider: "pyhanko" },
 ];
 for (const boundary of boundaryCases) {
   const item = cases.find((candidate) => candidate.id === boundary.id);
@@ -420,6 +421,13 @@ for (const boundary of boundaryCases) {
     source: { sha256: evidence.source.sha256 },
     output: null,
     provider: { actual: boundary.provider || "qpdf", version: boundary.provider ? "0.35.2" : "12.3.2-oat.2", silentFallback: false },
+    ...(boundary.id === "pdf-pades-ltv-signature" ? {
+      capabilities: {
+        timestampAuthoritySupported: false,
+        ltvEmbeddingSupported: false,
+        padesProfileConformanceClaimed: false,
+      },
+    } : {}),
     savePolicy: { strategy: "none", executed: false, sourcePreserved: true, artifactPublished: false },
     operation: { type: "inspect-and-refuse-unsupported-boundary", executed: false },
     validation: { no_partial_modified_pdf_in_outputs: true, outputDirectoryPolicy: { modifiedPdfPresent: false, partialArtifactPresent: false } },
@@ -431,7 +439,9 @@ for (const boundary of boundaryCases) {
     audit,
     commands: boundary.id === "pdf-docmdp-forbidden-title-edit"
       ? ["python .agents/skills/pdf/scripts/pyhanko_provider.py verify inputs/source.pdf --expected-sha256 deadbeef --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid --require-all-trusted --require-docmdp-compliant --require-all-bottom-line"]
-      : ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
+      : boundary.id === "pdf-pades-ltv-signature"
+        ? ["python .agents/skills/pdf/scripts/pyhanko_provider.py probe", "python .agents/skills/pdf/scripts/pyhanko_provider.py verify inputs/source.pdf --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid"]
+        : ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
     finalMessage: boundary.diagnostic,
     item,
     outputEntries: ["audit.json"],
