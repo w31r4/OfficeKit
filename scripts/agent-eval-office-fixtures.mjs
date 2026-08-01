@@ -35,6 +35,27 @@ export const XLSX_THREADED_REVIEW_FIXTURE = Object.freeze({
   requestedReply: "Approved after sensitivity review",
 });
 
+// This uploaded workbook deliberately extends the supported root-plus-direct
+// reply shape by one identity-bound reply-of-reply.  The product contract is
+// fail-closed for this graph until a mutation can preserve the complete
+// parent/person topology.
+export const XLSX_NESTED_REPLY_BOUNDARY_FIXTURE = Object.freeze({
+  workbookName: "reviewed-budget-nested.xlsx",
+  sheetName: XLSX_THREADED_REVIEW_FIXTURE.sheetName,
+  address: XLSX_THREADED_REVIEW_FIXTURE.address,
+  root: XLSX_THREADED_REVIEW_FIXTURE.root,
+  directReply: XLSX_THREADED_REVIEW_FIXTURE.priorReply,
+  nestedReply: Object.freeze({
+    id: "{33333333-3333-4333-8333-333333333333}",
+    parentId: XLSX_THREADED_REVIEW_FIXTURE.priorReply.id,
+    personId: "{CCCCCCCC-CCCC-4CCC-8CCC-CCCCCCCCCCCC}",
+    author: "Legal reviewer",
+    userId: "legal.reviewer@example.com",
+    date: "2026-07-17T10:00:00.000Z",
+    text: "Approved after sensitivity review.",
+  }),
+});
+
 export const XLSX_GROWTH_UPDATE_FIXTURE = Object.freeze({
   workbookName: "operating-plan.xlsx",
   targetSheetName: "Forecast",
@@ -397,6 +418,60 @@ export async function generateXlsxThreadedReview(target) {
   const exported = await SpreadsheetFile.exportXlsx(workbook, { recalculate: false });
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, new Uint8Array(await exported.arrayBuffer()));
+  return { path: target, type: XLSX_MIME };
+}
+
+export async function generateXlsxNestedReplyBoundary(target) {
+  const fixture = XLSX_NESTED_REPLY_BOUNDARY_FIXTURE;
+  await generateXlsxThreadedReview(target);
+  const zip = await JSZip.loadAsync(await fs.readFile(target));
+  const personPath = "xl/persons/person.xml";
+  const threadedPath = "xl/threadedcomments/threadedcomment.xml";
+  const personXml = await zip.file(personPath)?.async("text");
+  const threadedXml = await zip.file(threadedPath)?.async("text");
+  if (!personXml || !threadedXml) throw new Error("threaded review fixture is missing canonical Office parts");
+  const person = fixture.nestedReply;
+  const personFragment = `<xltc:person displayName="${xmlEscape(person.author)}" id="${person.personId}" userId="${xmlEscape(person.userId)}" providerId="None" />`;
+  const commentFragment = `<xltc:threadedComment ref="${fixture.address}" dT="${person.date.replace(/\.000Z$/, "Z")}" personId="${person.personId}" id="${person.id}" parentId="${person.parentId}" done="0"><xltc:text>${xmlEscape(person.text)}</xltc:text></xltc:threadedComment>`;
+  if (!personXml.includes("</xltc:personList>") || !threadedXml.includes("</xltc:ThreadedComments>")) {
+    throw new Error("threaded review fixture uses an unexpected Office namespace shape");
+  }
+  zip.file(personPath, personXml.replace("</xltc:personList>", `${personFragment}</xltc:personList>`));
+  zip.file(threadedPath, threadedXml.replace("</xltc:ThreadedComments>", `${commentFragment}</xltc:ThreadedComments>`));
+  // The normal model exporter intentionally allocates relationship IDs per
+  // workbook.  PromptBench assets need reproducible bytes, so canonicalize
+  // those package-local IDs and ZIP metadata before publishing the fixture.
+  const entries = [];
+  for (const name of Object.keys(zip.files).filter((entry) => !zip.files[entry].dir).sort()) {
+    const file = zip.file(name);
+    if (!file) continue;
+    entries.push({ name, bytes: await file.async("uint8array") });
+  }
+  const relationshipIds = new Map();
+  const xmlEntries = entries.map(({ name, bytes }) => {
+    if (!/\.(?:xml|rels)$/i.test(name)) return { name, bytes, xml: null };
+    const xml = new TextDecoder().decode(bytes);
+    for (const match of xml.matchAll(/\bR[a-f0-9]{16}\b/gi)) {
+      if (!relationshipIds.has(match[0])) relationshipIds.set(match[0], `rId${relationshipIds.size + 1}`);
+    }
+    return { name, bytes, xml };
+  });
+  const fixedDate = new Date("1980-01-01T00:00:00.000Z");
+  const canonicalZip = new JSZip();
+  for (const entry of xmlEntries) {
+    const data = entry.xml === null
+      ? entry.bytes
+      : entry.xml.replace(/\bR[a-f0-9]{16}\b/gi, (id) => relationshipIds.get(id) || id);
+    canonicalZip.file(entry.name, data, {
+      date: fixedDate,
+      createFolders: false,
+      compression: "DEFLATE",
+      compressionOptions: { level: 9 },
+    });
+  }
+  const bytes = await canonicalZip.generateAsync({ type: "nodebuffer", compression: "DEFLATE", compressionOptions: { level: 9 }, platform: "DOS" });
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, bytes);
   return { path: target, type: XLSX_MIME };
 }
 
@@ -958,6 +1033,7 @@ export async function generatePptxClosedLeafClone(target) {
 
 export async function generateOfficeInput(generator, target) {
   if (generator === "xlsx-threaded-review") return generateXlsxThreadedReview(target);
+  if (generator === "xlsx-nested-reply-boundary") return generateXlsxNestedReplyBoundary(target);
   if (generator === "xlsx-growth-update") return generateXlsxGrowthUpdate(target);
   if (generator === "xlsx-connection-refresh") return generateXlsxConnectionRefresh(target);
   if (generator === "xlsx-pivot-refresh") return generateXlsxPivotRefresh(target);
