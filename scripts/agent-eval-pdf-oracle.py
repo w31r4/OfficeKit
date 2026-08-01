@@ -1640,6 +1640,34 @@ def boundary_pades_ltv(payload: dict[str, Any]) -> dict[str, Any]:
     return evidence
 
 
+def boundary_mixed_scan_ocr(payload: dict[str, Any]) -> dict[str, Any]:
+    """Prove the mixed scan before an honest rotate/deskew refusal."""
+    source = pathlib.Path(payload["source"])
+    reader = pypdf.PdfReader(str(source), strict=True)
+    rotations = [int(page.get("/Rotate", 0) or 0) for page in reader.pages]
+    image_counts: list[int] = []
+    for page in reader.pages:
+        resources = resolve_pdf_value(page.get("/Resources")) or {}
+        xobjects = resolve_pdf_value(resources.get("/XObject")) if resources.get("/XObject") else {}
+        image_counts.append(sum(
+            1 for value in (xobjects or {}).values()
+            if str(resolve_pdf_value(value).get("/Subtype", "")) == "/Image"
+        ))
+    first_six_text = "\n".join((page.extract_text() or "") for page in reader.pages[:6]).strip()
+    last_two_text = "\n".join((page.extract_text() or "") for page in reader.pages[6:])
+    return {
+        "kind": "boundary-refusal",
+        "boundary": "mixed-scan-ocr",
+        "source": boundary_source_identity(source),
+        "pageCount": len(reader.pages),
+        "rotations": rotations,
+        "imageCounts": image_counts,
+        "imageOnlyPages": image_counts[:6].count(1) == 6 and not first_six_text,
+        "bornDigitalPages": image_counts[6:] == [0, 0] and "BORN-DIGITAL-KEEP-007" in last_two_text and "BORN-DIGITAL-KEEP-008" in last_two_text,
+        "mixedProfile": rotations[2:4] == [180, 90] and image_counts[:6].count(1) == 6,
+    }
+
+
 def qpdf_repair(payload: dict[str, Any]) -> dict[str, Any]:
     """Collect evidence for a qpdf recovery transaction.
 
@@ -1719,6 +1747,8 @@ def boundary_refusal(payload: dict[str, Any]) -> dict[str, Any]:
         return boundary_docmdp_p1(payload)
     if boundary == "pades-ltv":
         return boundary_pades_ltv(payload)
+    if boundary == "mixed-scan-ocr":
+        return boundary_mixed_scan_ocr(payload)
     raise ValueError(f"unsupported PDF boundary-refusal oracle: {boundary}")
 
 

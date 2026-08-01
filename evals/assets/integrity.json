@@ -72,6 +72,12 @@
       "kind": "file",
       "sha256": "c54fd09144002f7f3e34ed2a913e1c258025879c18db9e170a6f97f2916f32a9"
     },
+    "pdf/ocr/mixed-bilingual-scan.pdf": {
+      "bytes": 332180,
+      "description": "Eight-page self-authored mixed scan with six image-only rotated/skewed pages and two born-digital canaries for the unsupported OCR rotate/deskew boundary.",
+      "kind": "file",
+      "sha256": "bd9cc618bc2a83e95c207a37a8f10f177905b3852549950f5c483649128c1096"
+    },
     "pdf/print/print-production-risk.pdf": {
       "bytes": 2561,
       "description": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",

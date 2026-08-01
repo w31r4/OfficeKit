@@ -116,12 +116,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 37 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 38 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 20);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 21);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 6);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 5);
@@ -174,8 +174,8 @@ try {
 }
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /20 ready PDF cases include eleven locked corpus signature\/boundary\/repair\/redaction\/table fixtures and a PAdES\/TSA\/LTV fail-closed route/i);
-assert.match(runnerHelp.stdout, /remaining 4 asset-required cases/i);
+assert.match(runnerHelp.stdout, /21 ready PDF cases include twelve locked corpus signature\/boundary\/repair\/redaction\/table fixtures plus PAdES\/TSA\/LTV and mixed-scan OCR preprocessing fail-closed routes/i);
+assert.match(runnerHelp.stdout, /remaining 3 asset-required cases/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 assert.match(runnerHelp.stdout, /matrix <case-id>/i);
 assert.deepEqual(matrixSubjects(undefined), ["candidate", "reference"]);
@@ -220,6 +220,7 @@ const lockedFixturePaths = [
   "pdf/signing/test-pki/root.pem",
   "pdf/signing/docmdp-p2-form.pdf",
   "pdf/signing/test-pki/docmdp-p2-root.pem",
+  "pdf/ocr/mixed-bilingual-scan.pdf",
 ];
 for (const relative of lockedFixturePaths) {
   assert.equal(await verifiedLockedAsset(relative), path.join(repoRoot, "evals", "assets", relative));
@@ -359,7 +360,7 @@ const p2OrdinaryNewlineChecks = gradeCertifiedDocMdpP2FillEvidence({
 assert.equal(p2OrdinaryNewlineChecks.find((check) => check.id === "pdf-trace:postflight-explicit-root-validation")?.passed, false, "an ordinary following line must not be joined to the post-fill verifier");
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 21, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 22, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -412,6 +413,7 @@ const boundaryCases = [
   { id: "pdf-print-production-boundary", boundary: "print-production", source: path.join(repoRoot, "evals", "assets", "pdf", "print", "print-production-risk.pdf"), diagnostic: "DeviceN and overprint need preflight" },
   { id: "pdf-docmdp-forbidden-title-edit", boundary: "docmdp-p1", source: path.join(repoRoot, "evals", "assets", "pdf", "signing", "docmdp-p1-final.pdf"), diagnostic: "DocMDP P=1 prohibits title modification", provider: "pyhanko" },
   { id: "pdf-pades-ltv-signature", boundary: "pades-ltv", source: path.join(repoRoot, "evals", "assets", "pdf", "signing", "docmdp-p1-final.pdf"), diagnostic: "TSA/LTV capability is unsupported; fail closed", provider: "pyhanko" },
+  { id: "pdf-mixed-scan-ocr-boundary", boundary: "mixed-scan-ocr", source: path.join(repoRoot, "evals", "assets", "pdf", "ocr", "mixed-bilingual-scan.pdf"), diagnostic: "rotate/deskew preprocessing capability is unsupported; fail closed", provider: "ocrmypdf" },
 ];
 for (const boundary of boundaryCases) {
   const item = cases.find((candidate) => candidate.id === boundary.id);
@@ -441,6 +443,8 @@ for (const boundary of boundaryCases) {
       ? ["python .agents/skills/pdf/scripts/pyhanko_provider.py verify inputs/source.pdf --expected-sha256 deadbeef --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid --require-all-trusted --require-docmdp-compliant --require-all-bottom-line"]
       : boundary.id === "pdf-pades-ltv-signature"
         ? ["python .agents/skills/pdf/scripts/pyhanko_provider.py probe", "python .agents/skills/pdf/scripts/pyhanko_provider.py verify inputs/source.pdf --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem --require-signature --require-all-integrity-valid"]
+        : boundary.id === "pdf-mixed-scan-ocr-boundary"
+          ? ["python node_modules/office-kit/skills/pdf/skills/pdf/scripts/pdf_provider.py check --provider ocrmypdf --require", "python node_modules/office-kit/skills/pdf/skills/pdf/scripts/ocrmypdf_provider.py probe"]
         : ["python .agents/skills/pdf/scripts/pdf_provider.py check --provider qpdf"],
     finalMessage: boundary.diagnostic,
     item,

@@ -802,6 +802,82 @@ def create_multichannel_redaction(root: Path) -> None:
     writer._add_object(residual)
     write_writer(writer, target)
     append_redaction_old_revision(target)
+
+
+def create_mixed_bilingual_scan(root: Path) -> None:
+    """Create an eight-page mixed scan used to prove the OCR preprocessing boundary.
+
+    The first six pages are image-only (including rotated and lightly skewed
+    source images); the final two pages are born-digital canaries.  The fixture
+    is intentionally self-authored and contains no private or third-party
+    source material.  The shipped OCR adapter supports a bounded searchable
+    layer, but does not expose rotate/deskew preprocessing, so the PromptBench
+    case must refuse this request rather than silently rasterising or falling
+    back to an untyped provider.
+    """
+    temporary = root / ".mixed-bilingual-scan-base.pdf"
+    target = root / "pdf" / "ocr" / "mixed-bilingual-scan.pdf"
+    image_specs = [
+        ("MIXED SCAN PAGE 1", "OCR-ENG-001", 0, 0, "#102A43"),
+        ("混合扫描 PAGE 2", "OCR-CHI-002", 0, 0, "#243B53"),
+        ("UPSIDE DOWN PAGE 3", "OCR-ENG-003", 180, 0, "#334E68"),
+        ("ROTATED PAGE 4", "OCR-ENG-004", 90, 0, "#486581"),
+        ("SKEWED PAGE 5", "OCR-ENG-005", 0, 3, "#627D98"),
+        ("LOW CONTRAST TABLE PAGE 6", "OCR-ENG-006", 0, 2, "#829AB1"),
+    ]
+    document = canvas.Canvas(str(temporary), pagesize=(612, 792), invariant=1)
+    document.setTitle("Mixed bilingual scan preprocessing boundary")
+    document.setAuthor("OfficeKit PromptBench fixture generator")
+    for title, canary, rotation, skew, color in image_specs:
+        image = Image.new("RGB", (1200, 1600), "white")
+        draw = ImageDraw.Draw(image)
+        font = ImageFont.load_default(size=54)
+        small = ImageFont.load_default(size=34)
+        draw.rectangle((42, 42, 1158, 1558), outline=color, width=8)
+        draw.text((90, 180), title, fill=color, font=font)
+        draw.text((90, 310), canary, fill=color, font=font)
+        draw.text((90, 450), "Bilingual scan review / English and Chinese", fill=color, font=small)
+        draw.text((90, 520), "Preserve image geometry; do not crop or blur", fill=color, font=small)
+        if "TABLE" in title:
+            for row in range(5):
+                y = 730 + row * 120
+                draw.line((90, y, 1110, y), fill="#9FB3C8", width=3)
+            for column in range(1, 4):
+                x = 90 + column * 255
+                draw.line((x, 730, x, 1210), fill="#9FB3C8", width=3)
+            draw.text((110, 780), "North  4.2  5.1", fill=color, font=small)
+            draw.text((110, 900), "South  3.1  4.0", fill=color, font=small)
+        if skew:
+            image = image.rotate(skew, expand=True, fillcolor="white")
+        if rotation:
+            image = image.rotate(rotation, expand=True, fillcolor="white")
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG", optimize=True)
+        buffer.seek(0)
+        document.drawImage(ImageReader(buffer), 36, 36, width=540, height=720, mask="auto")
+        document.showPage()
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "BORN-DIGITAL PAGE 7")
+    document.setFillColor(HexColor("#243B53"))
+    document.setFont("Helvetica", 11)
+    document.drawString(54, 700, "BORN-DIGITAL-KEEP-007 must remain text and must not be OCR rasterised.")
+    document.drawString(54, 676, "Existing text is a canary for the mixed-document skip policy.")
+    document.showPage()
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "BORN-DIGITAL PAGE 8")
+    document.setFillColor(HexColor("#243B53"))
+    document.setFont("Helvetica", 11)
+    document.drawString(54, 700, "BORN-DIGITAL-KEEP-008 must remain text and must not be OCR rasterised.")
+    document.drawString(54, 676, "The unsupported rotate/deskew request must fail closed before output.")
+    document.showPage()
+    document.save()
+
+    writer = writer_from(temporary)
+    writer.pages[2][n("Rotate")] = NumberObject(180)
+    writer.pages[3][n("Rotate")] = NumberObject(90)
+    write_writer(writer, target)
     temporary.unlink(missing_ok=True)
 
 
@@ -1114,6 +1190,7 @@ FIXTURES = {
     "pdf/print/print-production-risk.pdf": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",
     "pdf/richmedia/3d-review.pdf": "Two-page self-authored PDF with opaque 3D/RichMedia content, default view, activation, and JavaScript canaries.",
     "pdf/redaction/multichannel-secret.pdf": "Four-page self-authored redaction fixture with selectable, hidden, raster/OCR, annotation, form, attachment, XMP, decoded-stream, and old-revision canaries.",
+    "pdf/ocr/mixed-bilingual-scan.pdf": "Eight-page self-authored mixed scan with six image-only rotated/skewed pages and two born-digital canaries for the unsupported OCR rotate/deskew boundary.",
     "pdf/tables/regional-revenue.pdf": "Three-page self-authored Regional Revenue table with merged title, repeated headers, rotated label, coordinates, and parenthesized negatives.",
     "pdf/corrupt/recoverable.pdf": "Two-page self-authored PDF with attachment, damaged startxref, and missing EOF; qpdf can reconstruct it with warnings.",
     "pdf/corrupt/unrecoverable.pdf": "Deliberately unrecoverable PDF comparison with no trailer, page tree, or EOF marker.",
@@ -1133,6 +1210,7 @@ def generate(root: Path, signing_python: str | None) -> dict:
     create_print_production_risk(root)
     create_richmedia_opaque(root)
     create_multichannel_redaction(root)
+    create_mixed_bilingual_scan(root)
     create_regional_revenue_table(root)
     create_damaged_xref(root)
     managed_signing_python = required_signing_python(signing_python)
@@ -1285,6 +1363,27 @@ def verify_multichannel_redaction(path: Path) -> None:
         raise ValueError("redaction fixture XMP canary is missing")
 
 
+def verify_mixed_bilingual_scan(path: Path) -> None:
+    """Prove the source is mixed image/text and carries the requested risk profile."""
+    reader = PdfReader(str(path), strict=True)
+    if len(reader.pages) != 8:
+        raise ValueError("mixed bilingual scan fixture must contain eight pages")
+    rotations = [int(page.get("/Rotate", 0) or 0) for page in reader.pages]
+    if rotations[2:4] != [180, 90]:
+        raise ValueError("mixed bilingual scan fixture is missing rotated page canaries")
+    image_counts: list[int] = []
+    for page in reader.pages:
+        resources = dictionary_object(page.get("/Resources"))
+        xobjects = dictionary_object(resources.get("/XObject")) if resources.get("/XObject") else {}
+        image_counts.append(sum(1 for value in xobjects.values() if str(dictionary_object(value).get("/Subtype", "")) == "/Image"))
+    if any(count < 1 for count in image_counts[:6]) or any(count != 0 for count in image_counts[6:]):
+        raise ValueError("mixed bilingual scan fixture has the wrong image-only/born-digital split")
+    first_six_text = "\n".join((page.extract_text() or "") for page in reader.pages[:6]).strip()
+    last_two_text = "\n".join((page.extract_text() or "") for page in reader.pages[6:])
+    if first_six_text or "BORN-DIGITAL-KEEP-007" not in last_two_text or "BORN-DIGITAL-KEEP-008" not in last_two_text:
+        raise ValueError("mixed bilingual scan fixture text-layer canaries are invalid")
+
+
 def verify_regional_revenue_table(path: Path) -> None:
     reader = PdfReader(str(path), strict=True)
     text = "\n".join(page.extract_text() or "" for page in reader.pages)
@@ -1425,6 +1524,7 @@ def verify(root: Path) -> dict:
     verify_print(root / "pdf" / "print" / "print-production-risk.pdf")
     verify_richmedia_opaque(root / "pdf" / "richmedia" / "3d-review.pdf")
     verify_multichannel_redaction(root / "pdf" / "redaction" / "multichannel-secret.pdf")
+    verify_mixed_bilingual_scan(root / "pdf" / "ocr" / "mixed-bilingual-scan.pdf")
     verify_regional_revenue_table(root / "pdf" / "tables" / "regional-revenue.pdf")
     verify_damaged_xref(root)
     verify_docmdp_p1(root / "pdf" / "signing" / "docmdp-p1-final.pdf", root / "pdf" / "signing" / "test-pki" / "root.pem")

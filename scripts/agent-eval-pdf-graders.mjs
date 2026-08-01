@@ -28,6 +28,7 @@ const supportedCases = new Set([
   "pdf-pades-ltv-signature",
   "pdf-docmdp-allowed-field-fill",
   "pdf-damaged-xref-recovery",
+  "pdf-mixed-scan-ocr-boundary",
 ]);
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
 const boundaryRefusalCases = new Map([
@@ -39,6 +40,7 @@ const boundaryRefusalCases = new Map([
   ["pdf-richmedia-opaque-preservation", { boundary: "richmedia-opaque", source: "inputs/source.pdf" }],
   ["pdf-docmdp-forbidden-title-edit", { boundary: "docmdp-p1", source: "inputs/source.pdf" }],
   ["pdf-pades-ltv-signature", { boundary: "pades-ltv", source: "inputs/source.pdf" }],
+  ["pdf-mixed-scan-ocr-boundary", { boundary: "mixed-scan-ocr", source: "inputs/source.pdf" }],
 ]);
 
 function check(id, category, passed, details = {}) {
@@ -1022,6 +1024,12 @@ function boundaryFixtureComplete(evidence, item) {
       && evidence.cmsContentsPresent === true
       && evidence.docMDPTransformCount === 1
       && evidence.docMDPPermission === 1;
+  }
+  if (item.id === "pdf-mixed-scan-ocr-boundary") {
+    return evidence.pageCount === 8
+      && evidence.imageOnlyPages === true
+      && evidence.bornDigitalPages === true
+      && evidence.mixedProfile === true;
   }
   return false;
 }
