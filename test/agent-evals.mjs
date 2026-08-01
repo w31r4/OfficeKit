@@ -81,6 +81,7 @@ import {
   runCodex,
   loadSuite,
   makeReadOnly,
+  matrixSubjects,
   oracleFingerprint,
   materializeInputFixture,
   prepareInputFixture,
@@ -93,6 +94,7 @@ import {
   validateSuite,
   verifiedLockedAsset,
   visibleCase,
+  summarizeMatrix,
 } from "../scripts/run-agent-evals.mjs";
 
 const { suite, cases } = await loadSuite();
@@ -158,6 +160,16 @@ assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /16 ready PDF cases include eight locked corpus signature\/boundary\/repair fixtures/i);
 assert.match(runnerHelp.stdout, /remaining 13 asset-required cases/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
+assert.match(runnerHelp.stdout, /matrix <case-id>/i);
+assert.deepEqual(matrixSubjects(undefined), ["candidate", "reference"]);
+assert.deepEqual(matrixSubjects("candidate"), ["candidate"]);
+assert.deepEqual(matrixSubjects("reference,candidate,reference"), ["reference", "candidate"]);
+assert.throws(() => matrixSubjects("candidate,unknown"), /matrix subject must be candidate or reference/);
+assert.throws(() => matrixSubjects(","), /matrix subjects must include/);
+assert.deepEqual(summarizeMatrix([
+  { exitStatus: 0, taskPassed: true, passed: true, timedOut: false },
+  { exitStatus: 124, taskPassed: false, passed: false, timedOut: true },
+]), { total: 2, completed: 1, passed: 1, failed: 1, timedOut: 1, allPassed: false });
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);

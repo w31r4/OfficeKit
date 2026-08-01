@@ -692,6 +692,114 @@ export function providerRuntimeInstruction(item, environment = process.env) {
   return `\n## Prepared provider runtime\n\nThis isolated trial supplies the authoritative PDF provider interpreter below. Export it before every PDF Python probe, plan, mutation, scan, and audit command. Do not replace it, install another environment, or fall back to system Python.\n\n\`\`\`bash\nexport OFFICE_KIT_PDF_PROVIDER_PYTHON=${JSON.stringify(interpreter)}\n\`\`\`\n`;
 }
 
+const MATRIX_SUBJECTS = new Set(["candidate", "reference"]);
+
+export function matrixSubjects(value) {
+  const raw = value === undefined || value === null || value === ""
+    ? ["candidate", "reference"]
+    : Array.isArray(value) ? value : String(value).split(",");
+  const subjects = raw.map((subject) => String(subject).trim()).filter(Boolean);
+  if (!subjects.length) fail("matrix subjects must include candidate and/or reference");
+  const unique = [...new Set(subjects)];
+  for (const subject of unique) {
+    if (!MATRIX_SUBJECTS.has(subject)) fail(`matrix subject must be candidate or reference: ${subject}`);
+  }
+  return unique;
+}
+
+function matrixIdentity(runRecord) {
+  return {
+    packageSha256: runRecord?.package?.sha256 || null,
+    inputFixture: {
+      schemaVersion: runRecord?.inputFixture?.schemaVersion ?? null,
+      inputSpecSha256: runRecord?.inputFixture?.inputSpecSha256 || null,
+      inputHashes: runRecord?.inputFixture?.inputHashes || null,
+    },
+    oracleSha256: runRecord?.oracleSha256 || null,
+  };
+}
+
+function sameMatrixIdentity(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+export function summarizeMatrix(records) {
+  const total = records.length;
+  const passed = records.filter((record) => record.passed === true).length;
+  const timedOut = records.filter((record) => record.timedOut === true).length;
+  const completed = records.filter((record) => record.exitStatus === 0).length;
+  return {
+    total,
+    completed,
+    passed,
+    failed: total - passed,
+    timedOut,
+    allPassed: total > 0 && passed === total,
+  };
+}
+
+/**
+ * Run a candidate/reference repeat matrix against one immutable fixture
+ * snapshot. Every trial is scored even after a timeout or failure so a
+ * repeat run produces a complete, auditable result instead of a first-error
+ * partial. The matrix refuses to combine trials whose package, fixture, or
+ * hidden-oracle identities differ.
+ */
+export async function runPromptBenchMatrix(suite, item, options = {}) {
+  if (item.status !== "ready") fail(`${item.id} is asset-required; add pinned files under evals/assets before preparing it`);
+  const subjects = matrixSubjects(options.subjects ?? options.subject);
+  const trials = positiveInteger(options.trials ?? item.policy?.trials ?? suite.defaultTrials, "matrix trials");
+  const runRoot = path.resolve(options.runRoot || path.join(os.tmpdir(), "office-kit-agent-evals-matrix", `${item.id}-${Date.now()}`));
+  await fs.mkdir(runRoot, { recursive: true });
+  const records = [];
+  let identity = null;
+  for (const subject of subjects) {
+    for (let trial = 1; trial <= trials; trial += 1) {
+      const prepared = await prepareCase(suite, item, { subject, trial, runRoot });
+      const runRecordPath = path.join(prepared.evaluator, "run.json");
+      const runRecord = JSON.parse(await fs.readFile(runRecordPath, "utf8"));
+      const currentIdentity = matrixIdentity(runRecord);
+      if (!identity) identity = currentIdentity;
+      else if (!sameMatrixIdentity(identity, currentIdentity)) {
+        fail(`matrix identity changed at ${subject} trial ${trial}; use one packed candidate and one immutable fixture/oracle snapshot`);
+      }
+      const exitStatus = await runCodex(prepared, {
+        model: options.model,
+        codex: options.codex,
+        timeoutMs: options.timeoutMs,
+      });
+      const report = await scorePrepared(item, prepared, { weights: suite.weights });
+      let exit = null;
+      try { exit = JSON.parse(await fs.readFile(path.join(prepared.evaluator, "exit.json"), "utf8")); } catch {}
+      records.push({
+        subject,
+        trial,
+        trialRoot: path.relative(runRoot, prepared.trialRoot),
+        exitStatus,
+        timedOut: exit?.timedOut === true,
+        reportPath: path.relative(runRoot, path.join(prepared.evaluator, "report.json")),
+        taskPassed: report.taskPassed,
+        passed: exitStatus === 0 && report.taskPassed === true,
+        rawScorePercent: report.rawScorePercent ?? null,
+      });
+    }
+  }
+  const matrix = {
+    schemaVersion: 1,
+    suite: suite.id,
+    case: item.id,
+    runRoot,
+    subjects,
+    trials,
+    identity,
+    records,
+    summary: summarizeMatrix(records),
+  };
+  const matrixPath = path.join(runRoot, "matrix.json");
+  await fs.writeFile(matrixPath, JSON.stringify(matrix, null, 2), "utf8");
+  return { matrix, matrixPath };
+}
+
 async function prepareCase(suite, item, options) {
   if (item.status !== "ready") fail(`${item.id} is asset-required; add pinned files under evals/assets before preparing it`);
   const subject = options.subject || "candidate";
@@ -1002,6 +1110,7 @@ function help() {
     "  show <case-id> [--json]",
     "  prepare <case-id> [--subject candidate|reference] [--trial 1] [--run-root <path>]",
     "  run <case-id> [prepare options] [--model <model>] [--codex <path>] [--timeout-ms <milliseconds>]",
+    "  matrix <case-id> [--subjects candidate,reference] [--trials 3] [--run-root <path>] [--model <model>] [--codex <path>] [--timeout-ms <milliseconds>]",
     "  score <case-id> --trial-root <prepared trial directory>",
     "",
     `Every run has a ${DEFAULT_CODEX_TIMEOUT_MS / 60000}-minute Codex execution deadline by default; set OFFICE_KIT_AGENT_EVAL_TIMEOUT_MS or --timeout-ms to change it. A timeout terminates the child process tree, writes timedOut:true and the deadline to evaluator/exit.json, and scores as an incomplete hard-gate failure.`,
@@ -1039,6 +1148,20 @@ export async function main(argv = process.argv.slice(2)) {
     }
     console.log(JSON.stringify({ prepared, exitStatus, report }, null, 2));
     if (command === "run" && exitStatus !== 0) process.exitCode = exitStatus || 1;
+  } else if (command === "matrix") {
+    validateSuite(suite, cases);
+    const item = cases.find((candidate) => candidate.id === positionals[0]);
+    if (!item) fail(`unknown case: ${positionals[0]}`);
+    const result = await runPromptBenchMatrix(suite, item, {
+      subjects: flags.get("subjects") ?? flags.get("subject"),
+      trials: flags.get("trials"),
+      runRoot: flags.get("run-root"),
+      model: flags.get("model"),
+      codex: flags.get("codex"),
+      timeoutMs: flags.get("timeout-ms"),
+    });
+    console.log(JSON.stringify(result, null, 2));
+    if (!result.matrix.summary.allPassed) process.exitCode = 1;
   } else if (command === "score") {
     validateSuite(suite, cases);
     const item = cases.find((candidate) => candidate.id === positionals[0]);

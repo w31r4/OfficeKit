@@ -26,6 +26,26 @@ The committed JSONL contains evaluator-only expected outcomes, sources, and grad
 
 Every `run` has a bounded Codex execution deadline of 20 minutes by default. Use `--timeout-ms` or `OFFICE_KIT_AGENT_EVAL_TIMEOUT_MS` for a deliberate override. A timeout terminates the spawned Agent process tree, writes `timedOut: true`, the selected deadline, and a stable status `124` to `evaluator/exit.json`, then continues through the ordinary scorer. It is an incomplete hard-gate failure, never a safe refusal or a passing trial; this keeps a hung model/tool invocation from blocking an entire repeat matrix.
 
+Use `matrix` for an auditable candidate/reference repeat run instead of manually
+coordinating trial directories:
+
+```sh
+npm run eval:agents -- matrix pdf-damaged-xref-recovery \
+  --subjects candidate,reference --trials 3 \
+  --run-root /tmp/officekit-promptbench-qpdf-matrix \
+  --timeout-ms 600000
+```
+
+The matrix uses one run root and therefore one immutable input fixture snapshot.
+Before the first Agent starts, every trial must bind the same package tarball
+SHA-256, input-contract/input hashes, and hidden-oracle fingerprint; a mismatch
+fails closed instead of mixing incomparable records. All requested trials run
+after a timeout or ordinary failure, and the root `matrix.json` records each
+trial's subject, exit status, timeout flag, score, and report path. The command
+exits non-zero unless every trial exits successfully and its case-specific
+grader passes. `matrix` does not make asset-required cases ready and does not
+replace the independent corpus/PKI acceptance required for those cases.
+
 ## Commands
 
 ```sh
@@ -38,6 +58,7 @@ npm run eval:agents -- prepare pdf-bounded-contract-id-replace --subject referen
 npm run eval:agents -- prepare pdf-source-bound-text-highlight --subject candidate --trial 1
 npm run eval:agents -- run pdf-source-bound-text-highlight --subject candidate --trial 1
 npm run eval:agents -- run pdf-overflow-replace-refusal --subject candidate --trial 1
+npm run eval:agents -- matrix pdf-source-bound-text-highlight --subjects candidate,reference --trials 3 --run-root /tmp/officekit-promptbench-highlight-matrix
 npm run eval:agents -- score pdf-overflow-replace-refusal --trial-root /absolute/trial/path
 npm run eval:agents -- prepare xlsx-threaded-reply-resolve --subject candidate --trial 1
 npm run eval:agents -- run xlsx-threaded-reply-resolve --subject candidate --trial 1
