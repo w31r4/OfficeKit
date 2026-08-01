@@ -6,6 +6,7 @@ import JSZip from "jszip";
 
 import {
   DOCX_CLASSIC_COMMENT_FIXTURE,
+  DOCX_COMPLEX_TABLE_TOPOLOGY_FIXTURE,
   DOCX_FOOTER_TEXT_FIXTURE,
   DOCX_HEADER_TEXT_FIXTURE,
   DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE,
@@ -23,6 +24,7 @@ import { extractCompletedCommands, summarizeCaseScore } from "./agent-eval-pdf-g
 export const docxGradedCaseIds = new Set([
   "docx-classic-comment-text-edit",
   "docx-modern-comment-reply-boundary",
+  "docx-complex-table-topology-boundary",
   "docx-header-text-edit",
   "docx-footer-text-edit",
   "docx-section-page-numbering-edit",
@@ -207,6 +209,66 @@ export async function inspectModernCommentDocx(filePath) {
     commentsIds: parseModernCommentIds(await read("word/commentsIds.xml")),
     people: parseModernPeople(await read("word/people.xml")),
     paragraphs: parseParagraphs(await read("word/document.xml")),
+  };
+}
+
+function topLevelXmlElements(xml = "", localName) {
+  const token = new RegExp(`<(?:(?:[\\w.-]+):)?${localName}\\b[^>]*>|</(?:(?:[\\w.-]+):)?${localName}\\s*>`, "gi");
+  const result = [];
+  let depth = 0;
+  let start = -1;
+  for (const match of String(xml).matchAll(token)) {
+    const value = match[0];
+    if (/^<\//.test(value)) {
+      if (depth > 0) depth -= 1;
+      if (depth === 0 && start >= 0) {
+        result.push(String(xml).slice(start, (match.index || 0) + value.length));
+        start = -1;
+      }
+      continue;
+    }
+    if (/\/\s*>$/.test(value)) continue;
+    if (depth === 0) start = match.index || 0;
+    depth += 1;
+  }
+  return result;
+}
+
+export async function inspectComplexTableTopologyDocx(filePath) {
+  const bytes = await fs.readFile(filePath);
+  const zip = await JSZip.loadAsync(bytes);
+  const paths = Object.keys(zip.files).filter((name) => !zip.files[name].dir).sort();
+  const documentXml = await zip.file("word/document.xml")?.async("text") || "";
+  const stylesXml = await zip.file("word/styles.xml")?.async("text") || "";
+  const tables = topLevelXmlElements(documentXml, "tbl");
+  const complex = tables[1] || "";
+  const rows = topLevelXmlElements(complex, "tr");
+  return {
+    bytes: bytes.length,
+    sha256: sha256(bytes),
+    paths,
+    documentPath: paths.includes("word/document.xml") ? "word/document.xml" : null,
+    stylesPath: paths.includes("word/styles.xml") ? "word/styles.xml" : null,
+    topLevelTableCount: tables.length,
+    tables: tables.map((table, index) => ({
+      index,
+      text: wordText(table),
+      rowCount: topLevelXmlElements(table, "tr").length,
+      nestedTableCount: Math.max(0, (table.match(/<(?:[\w.-]+:)?tbl\b/gi) || []).length - 1),
+    })),
+    complex: {
+      styleId: xmlAttributes(/<(?:[\w.-]+:)?tblStyle\b[^>]*>/i.exec(complex)?.[0] || "").val || null,
+      headers: DOCX_COMPLEX_TABLE_TOPOLOGY_FIXTURE.complexTable.headers.filter((header) => wordText(rows[0] || "").includes(header)),
+      rowCount: rows.length,
+      verticalMergeRestarts: (complex.match(/<(?:[\w.-]+:)?vMerge\b[^>]*w:val="restart"/gi) || []).length,
+      verticalMergeContinues: (complex.match(/<(?:[\w.-]+:)?vMerge\b[^>]*>/gi) || []).filter((tag) => !/\bw:val=/.test(tag)).length,
+      nestedTableCount: Math.max(0, (complex.match(/<(?:[\w.-]+:)?tbl\b/gi) || []).length - 1),
+      trackedCellCount: (complex.match(/<(?:[\w.-]+:)?ins\b/gi) || []).length,
+      contentControlCount: (complex.match(/<(?:[\w.-]+:)?sdt\b/gi) || []).length,
+      stylePresent: new RegExp(`<(?:(?:[\\w.-]+):)?style\\b[^>]*styleId="${DOCX_COMPLEX_TABLE_TOPOLOGY_FIXTURE.complexTable.styleId}"`, "i").test(stylesXml),
+      text: wordText(complex),
+    },
+    bodyParagraphs: parseParagraphs(documentXml),
   };
 }
 
@@ -521,6 +583,58 @@ export function gradeDocxModernCommentReplyBoundaryEvidence({ evidence, audit, c
   ];
 }
 
+export function gradeDocxComplexTableTopologyEvidence({ evidence, audit, commands, finalMessage, outputEntries = [] }) {
+  const source = evidence?.source;
+  const item = evidence?.item;
+  const commandText = commands.join("\n");
+  const actionableCommandText = commands
+    .filter((command) => !/\b(?:rg|grep|sed|cat|find|printf|head|tail|stat|shasum)\b/i.test(command))
+    .join("\n");
+  const diagnosticTerms = item?.grade?.machine?.diagnosticTerms || ["topology", "complex table", "拓扑", "不支持"];
+  const hasDiagnostic = diagnosticTerms.some((term) => String(finalMessage || "").toLowerCase().includes(String(term).toLowerCase()));
+  const noArtifact = outputEntries.every((entry) => entry === "audit.json");
+  const fallbackFalse = audit === null || auditFallbackIsFalse(audit);
+  const safeAudit = audit === null || (
+    /^failed[_-]closed$/i.test(String(audit.status || ""))
+    && audit?.delivered_modified_artifact !== true
+    && audit?.delivered_modified_document !== true
+    && /^none$/i.test(auditStrategy(audit))
+    && fallbackFalse
+    && (!auditHash(audit, "source") || auditHash(audit, "source") === source?.sha256)
+  );
+  const complex = source?.complex;
+  const expected = DOCX_COMPLEX_TABLE_TOPOLOGY_FIXTURE.complexTable;
+  const sourceShape = source?.documentPath === "word/document.xml"
+    && source?.stylesPath === "word/styles.xml"
+    && source?.topLevelTableCount === 2
+    && complex?.styleId === expected.styleId
+    && complex?.stylePresent === true
+    && JSON.stringify(complex?.headers || []) === JSON.stringify(expected.headers)
+    && complex?.rowCount === 4
+    && complex?.verticalMergeRestarts >= 2
+    && complex?.verticalMergeContinues >= 1
+    && complex?.nestedTableCount === 1
+    && complex?.trackedCellCount === 1
+    && complex?.contentControlCount === 1
+    && complex?.text?.includes(expected.mergeRoot)
+    && complex?.text?.includes(expected.revisedCell)
+    && complex?.text?.includes(expected.contentControl)
+    && complex?.text?.includes(expected.nestedCell)
+    && source?.tables?.[0]?.text?.includes(DOCX_COMPLEX_TABLE_TOPOLOGY_FIXTURE.canaryText);
+  return [
+    gate("docx-complex-machine:source-readable", "machine", Boolean(source?.sha256), { sourceSha256: source?.sha256 || null }),
+    gate("docx-complex-machine:complete-topology", "machine", sourceShape, { source }),
+    gate("docx-complex-security:no-modified-artifact", "security", noArtifact, { outputEntries }),
+    gate("docx-complex-security:failed-closed-audit", "security", safeAudit, {
+      audit: audit ? { status: audit.status, strategy: auditStrategy(audit) } : null,
+    }),
+    check("docx-complex-visual:not-applicable", "visual", true, { reason: "safe-refusal case has no output artifact to render" }),
+    check("docx-complex-trace:diagnostic-refusal", "trace", hasDiagnostic, { expectedAny: diagnosticTerms, finalMessage }),
+    check("docx-complex-trace:inspected-topology", "trace", /(?:importDocx|inspectDocx|table|topology|nested|merge|sdt|revision)/i.test(commandText), { commands }),
+    gate("docx-complex-trace:no-export-or-fallback", "trace", !/exportDocx|DocumentFile\.exportDocx|(?:silent.?fallback|fallbackUsed)\s*[:=]\s*true/i.test(actionableCommandText) && fallbackFalse, { commands }),
+  ];
+}
+
 function pageFurniturePartWithText(document, kind, text) {
   const parts = kind === "header" ? document.headerParts : document.footerParts;
   const matches = parts.filter((part) => part.paragraphs.filter((paragraph) => paragraph === text).length === 1);
@@ -748,6 +862,35 @@ async function gradeDocxModernCommentReplyBoundaryCase({ item, workspace, finalM
   return { supported: true, graded: true, checks, evidence: { source, audit, outputEntries, finalMessage }, pending: [], ...score };
 }
 
+async function gradeDocxComplexTableTopologyBoundaryCase({ item, workspace, finalMessage, trace, weights = defaultWeights }) {
+  const audit = await readAudit(workspace);
+  const commands = extractCompletedCommands(trace);
+  const sourcePath = path.join(workspace, "inputs", DOCX_COMPLEX_TABLE_TOPOLOGY_FIXTURE.documentName);
+  let source;
+  try {
+    source = await inspectComplexTableTopologyDocx(sourcePath);
+  } catch (error) {
+    const checks = [
+      gate("docx-complex-machine:readable-source", "machine", false, { error: error.message }),
+      gate("docx-complex-security:no-partial-output", "security", false, { error: error.message }),
+      check("docx-complex-trace:diagnostic-refusal", "trace", false, { error: error.message }),
+    ];
+    const score = summarizeCaseScore(checks, item, weights, false);
+    return { supported: true, graded: true, checks, evidence: { error: error.message }, pending: [], ...score };
+  }
+  let outputEntries = [];
+  try {
+    outputEntries = (await fs.readdir(path.join(workspace, "outputs"), { withFileTypes: true }))
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .sort();
+  } catch {}
+  const evidence = { source, item, finalMessage };
+  const checks = gradeDocxComplexTableTopologyEvidence({ evidence, audit, commands, finalMessage, outputEntries });
+  const score = summarizeCaseScore(checks, item, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+  return { supported: true, graded: true, checks, evidence: { source, audit, outputEntries, finalMessage }, pending: [], ...score };
+}
+
 async function gradeDocxPageFurnitureTextCase({
   item,
   workspace,
@@ -822,6 +965,7 @@ async function gradeDocxFooterTextCase(options) {
 export async function gradeDocxCase(options) {
   if (options.item.id === "docx-classic-comment-text-edit") return gradeDocxClassicCommentCase(options);
   if (options.item.id === "docx-modern-comment-reply-boundary") return gradeDocxModernCommentReplyBoundaryCase(options);
+  if (options.item.id === "docx-complex-table-topology-boundary") return gradeDocxComplexTableTopologyBoundaryCase(options);
   if (options.item.id === "docx-header-text-edit") return gradeDocxHeaderTextCase(options);
   if (options.item.id === "docx-footer-text-edit") return gradeDocxFooterTextCase(options);
   if (options.item.id === "docx-section-page-numbering-edit") return gradeDocxSectionPageNumberingCase(options);
