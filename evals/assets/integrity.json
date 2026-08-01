@@ -1,5 +1,11 @@
 {
   "assets": {
+    "documents/board-review.docx": {
+      "bytes": 9556,
+      "description": "Self-authored source-bound DOCX board-review packet with classic comment plus modern root/direct/nested replies, complex table, SDT, TOC/REF, footnote, tracked insertion, mixed sections, headers/footers, and watermark preservation canaries.",
+      "kind": "file",
+      "sha256": "251eb9bb96d98064e094a2634488bab6b2ef992446c1d869fcf33fee5da95234"
+    },
     "documents/clinical-form.docx": {
       "bytes": 2537,
       "description": "Self-authored DOCX complex table topology with vertical merges, nested table, custom table style, tracked cell, SDT, and an ordinary-table canary.",

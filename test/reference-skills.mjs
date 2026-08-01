@@ -248,6 +248,7 @@ assert.ok(documentsManifest.includes("artifact_tool/_source_bound_docx.mjs"));
 assert.ok(documentsManifest.includes("artifact_tool/_source_bound_sections.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-end-to-end.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-classic-comment-edit-workflow.mjs"));
+assert.ok(documentsManifest.includes("examples/officekit-board-review-surgical-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-image-alt-text-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-section-page-numbering-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-section-margin-edit-workflow.mjs"));

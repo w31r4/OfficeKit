@@ -14,6 +14,7 @@ import {
   DOCX_HEADER_TEXT_FIXTURE,
   DOCX_MODERN_COMMENT_REPLY_BOUNDARY_FIXTURE,
   DOCX_SECTION_PAGE_NUMBERING_FIXTURE,
+  DOCX_SURGICAL_BOARD_REVIEW_FIXTURE,
   PPTX_CLOSED_LEAF_CLONE_FIXTURE,
   PPTX_RICH_NOTES_FIXTURE,
   PPTX_SECTION_BOUNDARY_FIXTURE,
@@ -43,6 +44,7 @@ import {
   inspectModernCommentDocx,
   inspectSectionPageNumberingDocx,
 } from "../scripts/agent-eval-docx-graders.mjs";
+import { gradeDocxBoardReviewEvidence, inspectBoardReviewDocx } from "../scripts/agent-eval-docx-board-review-grader.mjs";
 import { gradeOfficeCase } from "../scripts/agent-eval-office-graders.mjs";
 import {
   gradeXlsxConnectionRefreshEvidence,
@@ -76,6 +78,7 @@ import { replacePptxSectionPartition } from "../skills/presentations/skills/pres
 import { editImportedHeaderText } from "../skills/documents/skills/documents/examples/officekit-header-text-edit-workflow.mjs";
 import { editImportedFooterText } from "../skills/documents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs";
 import { editImportedSectionPageNumbering } from "../skills/documents/skills/documents/examples/officekit-section-page-numbering-edit-workflow.mjs";
+import { editBoardReview } from "../skills/documents/skills/documents/examples/officekit-board-review-surgical-edit-workflow.mjs";
 import { hardenXlsxConnectionRefreshOnOpen } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs";
 import { hardenXlsxPivotRefreshOnLoad } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs";
 import { editXlsxOpaqueEnterprise } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-opaque-enterprise-local-edit-workflow.mjs";
@@ -120,14 +123,14 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 39 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 40 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 21);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 7);
-assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 6);
+assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 7);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 5);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
 assert.equal(referenceDocumentSkill, path.join(repoRoot, "reference", "office-artifact-tool", "skills", "documents", "skills", "documents"));
@@ -179,7 +182,7 @@ try {
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /21 ready PDF cases include twelve locked corpus signature\/boundary\/repair\/redaction\/table fixtures plus PAdES\/TSA\/LTV and mixed-scan OCR preprocessing fail-closed routes/i);
-assert.match(runnerHelp.stdout, /remaining 2 asset-required cases/i);
+assert.match(runnerHelp.stdout, /remaining 1 asset-required case/i);
 assert.match(runnerHelp.stdout, /opaque[- ]enterprise/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 assert.match(runnerHelp.stdout, /matrix <case-id>/i);
@@ -1849,6 +1852,98 @@ try {
   }
 } finally {
   await fs.rm(sectionPageNumberingRoot, { recursive: true, force: true });
+}
+
+const boardReviewItem = cases.find((item) => item.id === "docx-surgical-board-review-edit");
+assert.ok(boardReviewItem);
+const boardReviewRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-eval-docx-board-review-"));
+try {
+  const boardReviewInput = path.join(boardReviewRoot, "inputs", DOCX_SURGICAL_BOARD_REVIEW_FIXTURE.documentName);
+  const boardReviewOutput = path.join(boardReviewRoot, "outputs", "board-review-updated.docx");
+  const boardReviewAuditPath = path.join(boardReviewRoot, "outputs", "audit.json");
+  await generateOfficeInput("docx-surgical-board-review", boardReviewInput);
+  const boardReviewSourceBytes = await fs.readFile(boardReviewInput);
+  const boardReviewResult = await editBoardReview({ inputPath: boardReviewInput, outputPath: boardReviewOutput, auditPath: boardReviewAuditPath });
+  assert.equal(boardReviewResult.audit.validation.reimport.ok, true);
+  assert.deepEqual(await fs.readFile(boardReviewInput), boardReviewSourceBytes);
+  const boardReviewAudit = JSON.parse(await fs.readFile(boardReviewAuditPath, "utf8"));
+  const boardReviewEvidence = {
+    source: await inspectBoardReviewDocx(boardReviewInput),
+    output: await inspectBoardReviewDocx(boardReviewOutput),
+    outputEntries: [
+      path.basename(boardReviewResult.outputPath),
+      path.basename(boardReviewResult.auditPath),
+    ],
+    visual: {
+      source: { available: true, ok: true, pageCount: 5, pages: [
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "board-page-1-source" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "board-page-2-source" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "board-page-3-stable" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "board-page-4-stable" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "board-page-5-stable" },
+      ] },
+      output: { available: true, ok: true, pageCount: 5, pages: [
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "board-page-1-output" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "board-page-2-output" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "board-page-3-stable" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "board-page-4-stable" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "board-page-5-stable" },
+      ] },
+    },
+  };
+  const boardReviewTrace = JSON.stringify({
+    type: "item.completed",
+    item: {
+      type: "command_execution",
+      id: "docx-board-review",
+      command: "node .agents/skills/documents/examples/officekit-board-review-surgical-edit-workflow.mjs inputs/board-review.docx outputs/board-review-updated.docx outputs/audit.json; DocumentFile.importDocx(); DocumentFile.patchDocx(); DocumentFile.importDocx()",
+    },
+  });
+  const boardReviewChecks = gradeDocxBoardReviewEvidence({
+    evidence: boardReviewEvidence,
+    audit: boardReviewAudit,
+    commands: extractCompletedCommands(boardReviewTrace),
+    item: boardReviewItem,
+  });
+  assert.equal(boardReviewChecks.every((check) => check.passed), true, boardReviewChecks.filter((check) => !check.passed).map((check) => check.id).join(", "));
+  const publishedBoardWorkflowChecks = gradeDocxBoardReviewEvidence({
+    evidence: boardReviewEvidence,
+    audit: boardReviewAudit,
+    commands: ["node .agents/skills/documents/examples/officekit-board-review-surgical-edit-workflow.mjs inputs/board-review.docx outputs/board-review-updated.docx outputs/audit.json; DocumentFile.importDocx(); DocumentFile.patchDocx(); DocumentFile.importDocx()"],
+    item: boardReviewItem,
+  });
+  assert.equal(publishedBoardWorkflowChecks.find((check) => check.id === "docx-board-trace:typed-primitive")?.passed, true);
+  const untrustedBoardWorkflowChecks = gradeDocxBoardReviewEvidence({
+    evidence: boardReviewEvidence,
+    audit: boardReviewAudit,
+    commands: ["node scratch/patch-board-review.mjs inputs/board-review.docx outputs/board-review-updated.docx"],
+    item: boardReviewItem,
+  });
+  assert.equal(untrustedBoardWorkflowChecks.find((check) => check.id === "docx-board-trace:typed-primitive")?.passed, false);
+  const modernDriftEvidence = structuredClone(boardReviewEvidence);
+  modernDriftEvidence.output.modern.hashes["word/commentsIds.xml"] = "modern-graph-drift";
+  const modernDriftChecks = gradeDocxBoardReviewEvidence({
+    evidence: modernDriftEvidence,
+    audit: boardReviewAudit,
+    commands: extractCompletedCommands(boardReviewTrace),
+    item: boardReviewItem,
+  });
+  assert.equal(modernDriftChecks.find((check) => check.id === "docx-board-security:modern-graph-byte-stable")?.passed, false);
+  const nativeBoardReviewResult = await gradeOfficeCase({
+    item: boardReviewItem,
+    workspace: boardReviewRoot,
+    evaluator: path.join(boardReviewRoot, "evaluator"),
+    finalMessage: "completed",
+    trace: boardReviewTrace,
+  });
+  if (nativeBoardReviewResult.graded) {
+    assert.equal(nativeBoardReviewResult.rawScorePercent, 100);
+    assert.equal(nativeBoardReviewResult.caseSpecificPassed, true);
+  } else {
+    assert.ok(nativeBoardReviewResult.infrastructureErrors?.length);
+  }
+} finally {
+  await fs.rm(boardReviewRoot, { recursive: true, force: true });
 }
 
 const richNotesItem = cases.find((item) => item.id === "pptx-title-and-notes-edit");
