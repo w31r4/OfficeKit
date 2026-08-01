@@ -752,6 +752,7 @@ export async function runPromptBenchMatrix(suite, item, options = {}) {
   const runRoot = path.resolve(options.runRoot || path.join(os.tmpdir(), "office-kit-agent-evals-matrix", `${item.id}-${Date.now()}`));
   await fs.mkdir(runRoot, { recursive: true });
   const records = [];
+  const preparedTrials = [];
   let identity = null;
   for (const subject of subjects) {
     for (let trial = 1; trial <= trials; trial += 1) {
@@ -763,26 +764,31 @@ export async function runPromptBenchMatrix(suite, item, options = {}) {
       else if (!sameMatrixIdentity(identity, currentIdentity)) {
         fail(`matrix identity changed at ${subject} trial ${trial}; use one packed candidate and one immutable fixture/oracle snapshot`);
       }
-      const exitStatus = await runCodex(prepared, {
-        model: options.model,
-        codex: options.codex,
-        timeoutMs: options.timeoutMs,
-      });
-      const report = await scorePrepared(item, prepared, { weights: suite.weights });
-      let exit = null;
-      try { exit = JSON.parse(await fs.readFile(path.join(prepared.evaluator, "exit.json"), "utf8")); } catch {}
-      records.push({
-        subject,
-        trial,
-        trialRoot: path.relative(runRoot, prepared.trialRoot),
-        exitStatus,
-        timedOut: exit?.timedOut === true,
-        reportPath: path.relative(runRoot, path.join(prepared.evaluator, "report.json")),
-        taskPassed: report.taskPassed,
-        passed: exitStatus === 0 && report.taskPassed === true,
-        rawScorePercent: report.rawScorePercent ?? null,
-      });
+      preparedTrials.push({ prepared, subject, trial });
     }
+  }
+  // No Agent process starts until every prepared trial has passed the shared
+  // package/fixture/oracle identity check above.
+  for (const { prepared, subject, trial } of preparedTrials) {
+    const exitStatus = await runCodex(prepared, {
+      model: options.model,
+      codex: options.codex,
+      timeoutMs: options.timeoutMs,
+    });
+    const report = await scorePrepared(item, prepared, { weights: suite.weights });
+    let exit = null;
+    try { exit = JSON.parse(await fs.readFile(path.join(prepared.evaluator, "exit.json"), "utf8")); } catch {}
+    records.push({
+      subject,
+      trial,
+      trialRoot: path.relative(runRoot, prepared.trialRoot),
+      exitStatus,
+      timedOut: exit?.timedOut === true,
+      reportPath: path.relative(runRoot, path.join(prepared.evaluator, "report.json")),
+      taskPassed: report.taskPassed,
+      passed: exitStatus === 0 && report.taskPassed === true,
+      rawScorePercent: report.rawScorePercent ?? null,
+    });
   }
   const matrix = {
     schemaVersion: 1,
