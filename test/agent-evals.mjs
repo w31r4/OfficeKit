@@ -72,6 +72,7 @@ import {
   gradeCertifiedDocMdpP2FillEvidence,
   gradeMergeStampEvidence,
   gradeOverflowRefusalEvidence,
+  gradeQpdfRepairEvidence,
   gradeSourceBoundHighlightEvidence,
   summarizeCaseScore,
 } from "../scripts/agent-eval-pdf-graders.mjs";
@@ -95,12 +96,12 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 27 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 28 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
 assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escapes the workspace/);
-assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 15);
+assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 16);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 4);
 assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 4);
@@ -129,8 +130,8 @@ assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
-assert.match(runnerHelp.stdout, /15 ready PDF cases include seven locked corpus signature\/boundary fixtures/i);
-assert.match(runnerHelp.stdout, /remaining 14 asset-required cases/i);
+assert.match(runnerHelp.stdout, /16 ready PDF cases include eight locked corpus signature\/boundary\/repair fixtures/i);
+assert.match(runnerHelp.stdout, /remaining 13 asset-required cases/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-source-bound-text-highlight"));
 assert.match(highlightVisible.prompt, /add_text_highlight/);
@@ -155,6 +156,8 @@ const lockedFixturePaths = [
   "pdf/accessibility/untagged-complex-report.pdf",
   "pdf/xfa/dynamic-dependents.pdf",
   "pdf/print/print-production-risk.pdf",
+  "pdf/corrupt/recoverable.pdf",
+  "pdf/corrupt/unrecoverable.pdf",
   "pdf/signing/docmdp-p1-final.pdf",
   "pdf/signing/test-pki/root.pem",
   "pdf/signing/docmdp-p2-form.pdf",
@@ -294,7 +297,7 @@ const p2OrdinaryNewlineChecks = gradeCertifiedDocMdpP2FillEvidence({
 assert.equal(p2OrdinaryNewlineChecks.find((check) => check.id === "pdf-trace:postflight-explicit-root-validation")?.passed, false, "an ordinary following line must not be joined to the post-fill verifier");
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 10, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 12, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
@@ -373,6 +376,61 @@ for (const boundary of boundaryCases) {
   });
   assert.equal(checks.every((check) => check.passed), true, boundary.id);
   assert.equal(summarizeCaseScore(checks, item.grade).rawScorePercent, 100, boundary.id);
+}
+const qpdfItem = cases.find((item) => item.id === "pdf-damaged-xref-recovery");
+const qpdfExecutable = process.env.OFFICE_KIT_PDF_QPDF || "qpdf";
+if (corpusRuntimeAvailable && spawnSync(qpdfExecutable, ["--version"], { stdio: "ignore" }).status === 0) {
+  const qpdfTrial = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-agent-eval-qpdf-repair-"));
+  const qpdfOutput = path.join(qpdfTrial, "recovered.pdf");
+  const qpdfSource = path.join(repoRoot, "evals", "assets", "pdf", "corrupt", "recoverable.pdf");
+  const qpdfComparison = path.join(repoRoot, "evals", "assets", "pdf", "corrupt", "unrecoverable.pdf");
+  const qpdfWrite = spawnSync(qpdfExecutable, [qpdfSource, qpdfOutput], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(qpdfWrite.status, 3, `${qpdfExecutable} must repair the damaged fixture with warnings`);
+  const qpdfOracle = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: process.env,
+    input: JSON.stringify({
+      kind: "qpdf-repair",
+      recoverable: qpdfSource,
+      unrecoverable: qpdfComparison,
+      output: qpdfOutput,
+      requiredText: qpdfItem.grade.machine.requiredText,
+      renderRoot: path.join(qpdfTrial, "render"),
+      poppler: process.env.OFFICE_KIT_PDF_PDFTOPPM || "pdftoppm",
+    }),
+  });
+  assert.equal(qpdfOracle.status, 0, qpdfOracle.stderr);
+  const qpdfEvidence = JSON.parse(qpdfOracle.stdout);
+  const qpdfAudit = {
+    status: "success",
+    source: { sha256: qpdfEvidence.recoverable.sha256 },
+    output: { sha256: qpdfEvidence.output.sha256 },
+    inputs: [
+      { path: "inputs/recoverable.pdf", sha256: qpdfEvidence.recoverable.sha256 },
+      { path: "inputs/unrecoverable.pdf", sha256: qpdfEvidence.unrecoverable.sha256 },
+    ],
+    provider: { name: "qpdf", version: "12.3.2-oat.2", silentFallback: false },
+    savePolicy: { strategy: "rewrite" },
+    operation: "qpdf-rewrite",
+    checkAfter: { status: "clean" },
+  };
+  const qpdfChecks = gradeQpdfRepairEvidence({
+    evidence: qpdfEvidence,
+    audit: qpdfAudit,
+    commands: [
+      "node_modules/office-kit/skills/pdf/skills/pdf/scripts/qpdf_provider.py inspect inputs/recoverable.pdf --expected-sha256 source",
+      "node_modules/office-kit/skills/pdf/skills/pdf/scripts/qpdf_provider.py inspect inputs/unrecoverable.pdf",
+      "node_modules/office-kit/skills/pdf/skills/pdf/scripts/qpdf_provider.py rewrite inputs/recoverable.pdf outputs/recovered.pdf --mode repair --expected-sha256 source",
+      "pdftoppm -png -r 144 outputs/recovered.pdf outputs/render/page",
+    ],
+    finalMessage: "qpdf recovery completed",
+    item: qpdfItem,
+  });
+  assert.equal(qpdfChecks.every((check) => check.passed), true, "qpdf repair oracle and grader");
+  assert.equal(summarizeCaseScore(qpdfChecks, qpdfItem.grade).rawScorePercent, 100, "qpdf repair oracle and grader");
+} else {
+  console.log("PromptBench qpdf repair oracle smoke skipped (qpdf unavailable)");
 }
 const docmdpBoundary = boundaryCases.find((boundary) => boundary.id === "pdf-docmdp-forbidden-title-edit");
 const docmdpItem = cases.find((item) => item.id === docmdpBoundary.id);

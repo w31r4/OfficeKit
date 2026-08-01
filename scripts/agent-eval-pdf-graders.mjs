@@ -22,6 +22,7 @@ const supportedCases = new Set([
   "pdf-print-production-boundary",
   "pdf-docmdp-forbidden-title-edit",
   "pdf-docmdp-allowed-field-fill",
+  "pdf-damaged-xref-recovery",
 ]);
 const defaultWeights = { machine: 45, visual: 25, security: 20, trace: 10 };
 const boundaryRefusalCases = new Map([
@@ -1488,6 +1489,69 @@ function missingMergeStampChecks(audit, commands) {
   ];
 }
 
+function qpdfRepairTraceChecks(audit, commands, { requireRewrite = true } = {}) {
+  const commandText = commands.join("\n");
+  const inspect = completedPublishedPdfSkillInvocation(commands, "qpdf_provider.py", "inspect");
+  const rewrite = completedPublishedPdfSkillInvocation(commands, "qpdf_provider.py", "rewrite");
+  const repairStatement = rewrite ? commandStatementAfter(commands, rewrite) : "";
+  const afterRewrite = commandTextAfter(commands, rewrite);
+  const renderAfterRewrite = Boolean(rewrite) && /\b(?:pdftoppm|pdfinfo)\b/i.test(afterRewrite);
+  const sourceInputs = /inputs[\\/]recoverable\.pdf/i.test(commandText) && /inputs[\\/]unrecoverable\.pdf/i.test(commandText);
+  const rasterReconstruction = /(?:PdfArtifact|canvas\.Canvas|PdfWriter\s*\(|merge_page\s*\(|merge_transformed_page\s*\()/i.test(commandText);
+  return [
+    check("pdf-trace:provider", "trace", /^qpdf$/i.test(String(auditProvider(audit))), { expected: "qpdf", actual: auditProvider(audit) }),
+    check("pdf-trace:provider-version", "trace", Boolean(String(auditProviderVersion(audit)).trim()), { actual: auditProviderVersion(audit) || "unreported" }),
+    check("pdf-trace:save-policy", "trace", /^rewrite$/i.test(String(auditSaveStrategy(audit))), { expected: "rewrite", actual: auditSaveStrategy(audit) }),
+    gate("pdf-trace:no-silent-fallback", "trace", auditFallback(audit) === true, { expected: false, actual: auditFallback(audit) === null ? "unreported" : !auditFallback(audit) }),
+    check("pdf-trace:inspect-before-repair", "trace", !requireRewrite || invocationBefore(inspect, rewrite), { actual: { inspect: inspect?.commandIndex ?? -1, rewrite: rewrite?.commandIndex ?? -1 } }),
+    check("pdf-trace:typed-qpdf-repair-primitive", "trace", !requireRewrite || (Boolean(rewrite) && /--mode\s+repair\b/i.test(repairStatement) && /--expected-sha256\b/i.test(repairStatement)), { actual: repairStatement || "unreported" }),
+    check("pdf-trace:both-inputs-reviewed", "trace", sourceInputs, { expected: ["inputs/recoverable.pdf", "inputs/unrecoverable.pdf"] }),
+    check("pdf-trace:post-repair-poppler-qa", "trace", !requireRewrite || renderAfterRewrite, { actual: { rewriteObserved: Boolean(rewrite), renderObserved: renderAfterRewrite } }),
+    gate("pdf-trace:no-raster-reconstruction", "trace", !rasterReconstruction, { forbidden: "PdfArtifact/reportlab/PdfWriter/page merge reconstruction" }),
+  ];
+}
+
+export function gradeQpdfRepairEvidence({ evidence, audit, commands, finalMessage, item }) {
+  const source = evidence.recoverable || {};
+  const comparison = evidence.unrecoverable || {};
+  const output = evidence.output;
+  if (!output) {
+    const noArtifact = audit?.output == null && audit?.delivered_modified_pdf !== true;
+    const refusalText = `${finalMessage || ""} ${audit?.reason || ""} ${audit?.diagnostic || ""}`;
+    return [
+      check("pdf-machine:no-recovered-artifact", "machine", noArtifact, { expected: "no modified PDF when refusing", actual: audit?.output || null }),
+      check("pdf-machine:unrecoverable-rejected", "machine", comparison.pdfHeader === true && comparison.hasTrailer === false && comparison.hasEof === false, { actual: comparison }),
+      check("pdf-machine:failed-closed-audit", "machine", /^failed_closed$/i.test(String(audit?.status || "")), { actual: audit?.status || "unreported" }),
+      check("pdf-visual:not-claimed", "visual", true),
+      gate("pdf-security:source-preserved", "security", auditSourceHash(audit) === source.sha256 || audit?.source?.recoverableSha256 === source.sha256, { expected: source.sha256, actual: auditSourceHash(audit) || audit?.source?.recoverableSha256 || "unreported" }),
+      gate("pdf-security:no-raster-reconstruction", "security", !/PdfArtifact|canvas\.Canvas|PdfWriter\s*\(|merge_page\s*\(/i.test(commands.join("\n"))),
+      check("pdf-trace:explicit-refusal", "trace", /(?:qpdf|repair|recover|unsupported|unavailable|拒绝|失败)/i.test(refusalText), { actual: refusalText.slice(0, 500) || "unreported" }),
+      ...qpdfRepairTraceChecks(audit, commands, { requireRewrite: false }),
+    ];
+  }
+  const expectedPageCount = Number(item.grade.machine.pageCountUnchanged);
+  const expectedText = String(item.grade.machine.requiredText || "");
+  const attachmentNames = new Set((evidence.outputAttachments || []).map((attachment) => attachment.name));
+  const visualPages = evidence.visual?.pages || [];
+  const inputs = Array.isArray(audit?.inputs) ? audit.inputs : [];
+  const inputHashes = new Set(inputs.map((input) => input?.sha256).filter(Boolean));
+  return [
+    check("pdf-machine:recoverable-source-is-damaged", "machine", source.pdfHeader === true && source.startxrefCount === 1 && source.hasTrailer === true && source.hasEof === false, { actual: source }),
+    check("pdf-machine:unrecoverable-rejected", "machine", comparison.pdfHeader === true && comparison.hasTrailer === false && comparison.hasEof === false, { actual: comparison }),
+    check("pdf-machine:page-count-preserved", "machine", output.pageCount === expectedPageCount, { expected: expectedPageCount, actual: output.pageCount }),
+    check("pdf-machine:visible-text-preserved", "machine", output.termCounts?.[expectedText] === expectedPageCount, { expected: expectedPageCount, actual: output.termCounts?.[expectedText] }),
+    check("pdf-machine:recovery-output-clean", "machine", audit?.checkAfter?.status === "clean" || audit?.structureAfter?.check?.status === "clean" || audit?.qpdf?.checkAfter?.status === "clean", { actual: audit?.checkAfter || audit?.structureAfter?.check || audit?.qpdf?.checkAfter || "unreported" }),
+    check("pdf-machine:attachment-preserved", "machine", attachmentNames.has("repair-canary.txt"), { expected: ["repair-canary.txt"], actual: [...attachmentNames] }),
+    check("pdf-machine:audit-success", "machine", /^(?:success|succeeded|completed)$/i.test(String(audit?.status || "")), { actual: audit?.status || "unreported" }),
+    check("pdf-visual:all-pages-rendered", "visual", visualPages.length === expectedPageCount && visualPages.every((page) => page.sameDimensions && page.nonBlank), { renderer: evidence.visual?.renderer, pages: visualPages }),
+    check("pdf-visual:repaired-pages-pixel-stable", "visual", visualPages.length === expectedPageCount && visualPages.every((page) => page.changedPixelsBBox === null), { actual: visualPages.map(({ page, changedPixelsBBox }) => ({ page, changedPixelsBBox })) }),
+    gate("pdf-security:source-provenance", "security", auditSourceHash(audit) === source.sha256 || audit?.source?.recoverableSha256 === source.sha256, { expected: source.sha256, actual: auditSourceHash(audit) || audit?.source?.recoverableSha256 || "unreported" }),
+    gate("pdf-security:both-inputs-bound", "security", inputHashes.has(source.sha256) && inputHashes.has(comparison.sha256), { expected: [source.sha256, comparison.sha256], actual: [...inputHashes] }),
+    gate("pdf-security:no-raster-reconstruction", "security", !/PdfArtifact|canvas\.Canvas|PdfWriter\s*\(|merge_page\s*\(|pdftoppm[^\n]*(?:recoverable|unrecoverable)[^\n]*outputs/i.test(commands.join("\n"))),
+    ...qpdfRepairTraceChecks(audit, commands),
+  ];
+}
+
 function unreadableMergeStampChecks(audit, commands, oracleError) {
   return [
     check("pdf-machine:artifact-readable-by-oracle", "machine", false, { actual: oracleError }),
@@ -1712,6 +1776,26 @@ export async function gradePdfCase({ item, workspace, evaluator, finalMessage, t
     }
     if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
     checks = gradeMergeStampEvidence({ evidence: oracle.evidence, audit, commands, item });
+  } else if (item.id === "pdf-damaged-xref-recovery") {
+    oracle = invokeOracle({
+      kind: "qpdf-repair",
+      recoverable: path.join(workspace, "inputs", "recoverable.pdf"),
+      unrecoverable: path.join(workspace, "inputs", "unrecoverable.pdf"),
+      output: path.join(workspace, "outputs", "recovered.pdf"),
+      requiredText: item.grade.machine.requiredText,
+      renderRoot: path.join(evaluator, "pdf-oracle-render"),
+    }, true);
+    if (!oracle.evidence && oracle.oracleError) {
+      checks = [
+        check("pdf-machine:repair-oracle-readable", "machine", false, { actual: oracle.oracleError }),
+        gate("pdf-security:repair-oracle-readable", "security", false, { actual: oracle.oracleError }),
+        ...qpdfRepairTraceChecks(audit, commands, { requireRewrite: false }),
+      ];
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: { oracleError: oracle.oracleError }, pending: [], ...score };
+    }
+    if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
+    checks = gradeQpdfRepairEvidence({ evidence: oracle.evidence, audit, commands, finalMessage, item });
   } else {
     const output = path.join(workspace, "outputs", "public-safe.pdf");
     try { await fs.access(output); } catch {

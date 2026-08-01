@@ -12,6 +12,18 @@
       "kind": "file",
       "sha256": "049f755334f9abf1059dad74b92ae4e02cccb85e4df50efbaad8ccf90178c272"
     },
+    "pdf/corrupt/recoverable.pdf": {
+      "bytes": 2440,
+      "description": "Two-page self-authored PDF with attachment, damaged startxref, and missing EOF; qpdf can reconstruct it with warnings.",
+      "kind": "file",
+      "sha256": "83bf5cb65b6a6919583d76777aea7ee73828cdd52ee3c37a883aab0e55be3c03"
+    },
+    "pdf/corrupt/unrecoverable.pdf": {
+      "bytes": 97,
+      "description": "Deliberately unrecoverable PDF comparison with no trailer, page tree, or EOF marker.",
+      "kind": "file",
+      "sha256": "279d99a2f2d0ecf23e518a2fbfa062ec646257e13a57d0cffa9bb4447ba296ac"
+    },
     "pdf/encryption/owner-policy-aes256.pdf": {
       "bytes": 3646,
       "description": "AES-256 encrypted user/owner permission split with embedded attachment and AcroForm canaries.",
