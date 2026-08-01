@@ -24,6 +24,8 @@ The suite is evaluator-side repository infrastructure. `evals/`, the runner, loc
 
 The committed JSONL contains evaluator-only expected outcomes, sources, and grade specifications. The Agent receives only `PROMPT.md`, declared inputs, the selected Skill, the installed candidate tarball, and exact deliverable paths. When a candidate/reference or repeat matrix uses one explicit `--run-root`, the runner creates one schema-versioned, read-only, hash-validated input snapshot for that case and copies those exact bytes into every trial. `run.json` records the fixture root, input-contract hash, and source hashes; a missing, changed, or mismatched cache fails preparation rather than silently regenerating a different input.
 
+Every `run` has a bounded Codex execution deadline of 20 minutes by default. Use `--timeout-ms` or `OFFICE_KIT_AGENT_EVAL_TIMEOUT_MS` for a deliberate override. A timeout terminates the spawned Agent process tree, writes `timedOut: true`, the selected deadline, and a stable status `124` to `evaluator/exit.json`, then continues through the ordinary scorer. It is an incomplete hard-gate failure, never a safe refusal or a passing trial; this keeps a hung model/tool invocation from blocking an entire repeat matrix.
+
 ## Commands
 
 ```sh

@@ -78,6 +78,7 @@ import {
 } from "../scripts/agent-eval-pdf-graders.mjs";
 import {
   fingerprintPath,
+  runCodex,
   loadSuite,
   makeReadOnly,
   oracleFingerprint,
@@ -128,6 +129,30 @@ assert.equal(runnerHelp.status, 0, runnerHelp.stderr);
 assert.match(runnerHelp.stdout, /four PPTX cases.*section-boundary edit.*closed-leaf slide clone/i);
 assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
+const timeoutRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-agent-eval-timeout-"));
+try {
+  const timeoutWorkspace = path.join(timeoutRoot, "workspace");
+  const timeoutEvaluator = path.join(timeoutRoot, "evaluator");
+  await fs.mkdir(timeoutWorkspace, { recursive: true });
+  await fs.mkdir(timeoutEvaluator, { recursive: true });
+  await fs.writeFile(path.join(timeoutWorkspace, "PROMPT.md"), "keep running\n", "utf8");
+  await fs.writeFile(path.join(timeoutWorkspace, "exec"), "setInterval(() => {}, 1000);\n", "utf8");
+  const timeoutStatus = await runCodex({
+    promptPath: path.join(timeoutWorkspace, "PROMPT.md"),
+    workspace: timeoutWorkspace,
+    evaluator: timeoutEvaluator,
+  }, { codex: process.execPath, timeoutMs: 250 });
+  assert.equal(timeoutStatus, 124, "timed out agent execution uses a stable failure status");
+  const timeoutExit = JSON.parse(await fs.readFile(path.join(timeoutEvaluator, "exit.json"), "utf8"));
+  assert.equal(timeoutExit.status, 124);
+  assert.ok(timeoutExit.signal === "SIGTERM" || timeoutExit.signal === null);
+  assert.equal(timeoutExit.error, null);
+  assert.equal(timeoutExit.timedOut, true);
+  assert.equal(timeoutExit.outputExceeded, false);
+  assert.equal(timeoutExit.timeoutMs, 250);
+} finally {
+  await fs.rm(timeoutRoot, { recursive: true, force: true });
+}
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /16 ready PDF cases include eight locked corpus signature\/boundary\/repair fixtures/i);
