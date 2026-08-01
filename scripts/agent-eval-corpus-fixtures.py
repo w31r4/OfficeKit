@@ -20,7 +20,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from pypdf import PdfReader, PdfWriter
 from pypdf.constants import UserAccessPermissions
 from pypdf.generic import (
@@ -647,6 +647,164 @@ def create_richmedia_opaque(root: Path) -> None:
     temporary.unlink(missing_ok=True)
 
 
+def append_redaction_old_revision(path: Path) -> None:
+    """Append one valid, unreferenced revision containing the redaction canary."""
+    raw = path.read_bytes()
+    reader = PdfReader(str(path), strict=True)
+    marker = raw.rfind(b"startxref\n")
+    if marker < 0:
+        raise ValueError("redaction fixture base has no startxref")
+    value_start = marker + len(b"startxref\n")
+    value_end = raw.find(b"\n", value_start)
+    if value_end < 0:
+        raise ValueError("redaction fixture base has no xref value")
+    previous_xref = int(raw[value_start:value_end])
+    root = reader.trailer.raw_get("/Root")
+    if not hasattr(root, "idnum"):
+        raise ValueError("redaction fixture base has no indirect catalog root")
+    root_id = int(root.idnum)
+    root_generation = int(root.generation)
+    object_id = int(reader.trailer["/Size"])
+    prefix = raw if raw.endswith(b"\n") else raw + b"\n"
+    object_offset = len(prefix)
+    object_bytes = (
+        f"{object_id} 0 obj\n"
+        "<< /Type /OfficeKitOldRevision /Residual (ZXQ-PHI-9173) "
+        "/RevisionCanary (OFFICEKIT-OLD-REVISION-CANARY) >>\n"
+        "endobj\n"
+    ).encode("ascii")
+    xref_offset = object_offset + len(object_bytes)
+    xref = f"xref\n{object_id} 1\n{object_offset:010d} 00000 n \n".encode("ascii")
+    trailer = (
+        f"trailer\n<< /Size {object_id + 1} /Prev {previous_xref} "
+        f"/Root {root_id} {root_generation} R >>\n"
+        f"startxref\n{xref_offset}\n%%EOF\n"
+    ).encode("ascii")
+    path.write_bytes(prefix + object_bytes + xref + trailer)
+
+
+def create_multichannel_redaction(root: Path) -> None:
+    """Create a four-page source with selectable, raster, active, and old-revision canaries."""
+    temporary = root / ".multichannel-redaction-base.pdf"
+    target = root / "pdf" / "redaction" / "multichannel-secret.pdf"
+    canary = "ZXQ-PHI-9173"
+    document = canvas.Canvas(str(temporary), pagesize=(612, 792), invariant=1)
+    document.setTitle("Multichannel redaction fixture")
+    document.setAuthor("OfficeKit PromptBench private review")
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Private review packet")
+    document.setFillColor(HexColor("#243B53"))
+    document.setFont("Helvetica", 11)
+    document.drawString(54, 700, f"Visible sensitive marker: {canary}")
+    hidden = document.beginText(54, 670)
+    hidden.setTextRenderMode(3)
+    hidden.textLine(f"Hidden white/OCR layer marker: {canary}")
+    document.drawText(hidden)
+    document.drawString(54, 620, "The surrounding review text must remain readable after sanitize.")
+    document.showPage()
+
+    image = Image.new("RGB", (1200, 320), "white")
+    image_draw = ImageDraw.Draw(image)
+    image_font = ImageFont.load_default(size=64)
+    image_draw.text((48, 84), canary, fill="black", font=image_font)
+    image_draw.text((48, 190), "Raster evidence must be OCR-scanned", fill="#243B53", font=ImageFont.load_default(size=34))
+    image_buffer = io.BytesIO()
+    image.save(image_buffer, format="PNG")
+    image_buffer.seek(0)
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Scanned evidence")
+    document.drawImage(ImageReader(image_buffer), 54, 420, width=504, height=134, mask="auto")
+    ocr_layer = document.beginText(54, 380)
+    ocr_layer.setTextRenderMode(3)
+    ocr_layer.textLine(f"OCR layer marker: {canary}")
+    document.drawText(ocr_layer)
+    document.setFillColor(HexColor("#243B53"))
+    document.setFont("Helvetica", 11)
+    document.drawString(54, 340, "The image is the authoritative visual channel; the OCR layer is only an index.")
+    document.showPage()
+
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Review metadata")
+    document.setFillColor(HexColor("#243B53"))
+    document.setFont("Helvetica", 11)
+    document.drawString(54, 700, "The annotation, form value, attachment, and XMP copy must all be scrubbed.")
+    document.showPage()
+
+    document.setFillColor(HexColor("#102A43"))
+    document.setFont("Helvetica-Bold", 18)
+    document.drawString(54, 740, "Final page")
+    document.setFillColor(HexColor("#243B53"))
+    document.setFont("Helvetica", 11)
+    document.drawString(54, 700, "Ordinary content and page geometry must remain stable.")
+    document.showPage()
+    document.save()
+
+    writer = writer_from(temporary)
+    page = writer.pages[2]
+    annotation = DictionaryObject({
+        n("Type"): n("Annot"),
+        n("Subtype"): n("Text"),
+        n("Rect"): ArrayObject([FloatObject(500), FloatObject(660), FloatObject(520), FloatObject(680)]),
+        n("Contents"): TextStringObject(canary),
+        n("T"): TextStringObject("Private reviewer"),
+        n("NM"): TextStringObject("redaction-annotation-canary"),
+    })
+    annotation_ref = indirect(writer, annotation)
+    ensure_annots(page).append(annotation_ref)
+    widget = DictionaryObject({
+        n("Type"): n("Annot"),
+        n("Subtype"): n("Widget"),
+        n("FT"): n("Tx"),
+        n("T"): TextStringObject("SensitiveValue"),
+        n("V"): TextStringObject(canary),
+        n("Rect"): ArrayObject([FloatObject(54), FloatObject(620), FloatObject(290), FloatObject(644)]),
+        n("F"): NumberObject(4),
+    })
+    widget_ref = indirect(writer, widget)
+    ensure_annots(page).append(widget_ref)
+    acroform = dictionary_object(writer._root_object.get(n("AcroForm"))) if writer._root_object.get(n("AcroForm")) else DictionaryObject()
+    acroform[n("Fields")] = ArrayObject([widget_ref])
+    writer._root_object[n("AcroForm")] = indirect(writer, acroform)
+    writer.add_attachment("private-review.txt", canary.encode("ascii"))
+    writer.add_js("app.alert('JS-CANARY-2F61');")
+    writer._root_object[n("OpenAction")] = DictionaryObject({
+        n("S"): n("JavaScript"),
+        n("JS"): TextStringObject("app.alert('OPENACTION-CANARY-8B03');"),
+    })
+    writer._root_object[n("AA")] = DictionaryObject({
+        n("WC"): DictionaryObject({
+            n("S"): n("Launch"),
+            n("F"): TextStringObject("LAUNCH-CANARY-6C42.exe"),
+        }),
+        n("WP"): DictionaryObject({
+            n("S"): n("SubmitForm"),
+            n("F"): TextStringObject("https://invalid.example/SUBMIT-CANARY-9E18"),
+        }),
+    })
+    writer.add_metadata({
+        "/Title": "Multichannel redaction fixture",
+        "/Author": "Private Person",
+        "/Subject": f"Internal marker {canary}",
+        "/Keywords": canary,
+    })
+    xmp = stream_with_bytes(
+        f"<x:xmpmeta xmlns:x='adobe:ns:meta/'><rdf:Description officekit:secret='{canary}' "
+        "xmlns:officekit='https://officekit.dev/ns'/></x:xmpmeta>".encode("utf-8")
+    )
+    xmp[n("Type")] = n("Metadata")
+    xmp[n("Subtype")] = n("XML")
+    writer._root_object[n("Metadata")] = indirect(writer, xmp)
+    residual = stream_with_bytes(f"unreferenced-decoded-stream-{canary}".encode("ascii"))
+    residual[n("Type")] = n("OfficeKitResidual")
+    writer._add_object(residual)
+    write_writer(writer, target)
+    append_redaction_old_revision(target)
+    temporary.unlink(missing_ok=True)
+
+
 def create_damaged_xref(root: Path) -> None:
     """Create one qpdf-recoverable and one deliberately unrecoverable PDF.
 
@@ -845,6 +1003,7 @@ FIXTURES = {
     "pdf/xfa/dynamic-dependents.pdf": "Dynamic-XFA-shaped template/datasets packet with repeat and FormCalc markers.",
     "pdf/print/print-production-risk.pdf": "Structural DeviceN/Separation/overprint/OCG/OutputIntent print-risk fixture.",
     "pdf/richmedia/3d-review.pdf": "Two-page self-authored PDF with opaque 3D/RichMedia content, default view, activation, and JavaScript canaries.",
+    "pdf/redaction/multichannel-secret.pdf": "Four-page self-authored redaction fixture with selectable, hidden, raster/OCR, annotation, form, attachment, XMP, decoded-stream, and old-revision canaries.",
     "pdf/corrupt/recoverable.pdf": "Two-page self-authored PDF with attachment, damaged startxref, and missing EOF; qpdf can reconstruct it with warnings.",
     "pdf/corrupt/unrecoverable.pdf": "Deliberately unrecoverable PDF comparison with no trailer, page tree, or EOF marker.",
     "pdf/signing/docmdp-p1-final.pdf": "Real self-authored certification signature with DocMDP P=1 and a Final metadata canary.",
@@ -862,6 +1021,7 @@ def generate(root: Path, signing_python: str | None) -> dict:
     create_dynamic_xfa(root)
     create_print_production_risk(root)
     create_richmedia_opaque(root)
+    create_multichannel_redaction(root)
     create_damaged_xref(root)
     managed_signing_python = required_signing_python(signing_python)
     create_docmdp_p1_final(root, managed_signing_python)
@@ -982,6 +1142,35 @@ def verify_richmedia_opaque(path: Path) -> None:
     script = dictionary_object(script_names[1]) if isinstance(script_names, ArrayObject) and len(script_names) >= 2 else {}
     if not script_names or "richmedia-script-canary" not in str(script.get("/JS", "")):
         raise ValueError("RichMedia fixture JavaScript canary is missing")
+
+
+def verify_multichannel_redaction(path: Path) -> None:
+    reader = PdfReader(str(path), strict=True)
+    canary = b"ZXQ-PHI-9173"
+    raw = path.read_bytes()
+    if len(reader.pages) != 4 or raw.count(b"startxref\n") != 2 or raw.count(b"%%EOF") != 2:
+        raise ValueError("redaction fixture must have four pages and one old incremental revision")
+    if canary not in raw or b"OFFICEKIT-OLD-REVISION-CANARY" not in raw:
+        raise ValueError("redaction fixture raw canaries are missing")
+    first_text = reader.pages[0].extract_text() or ""
+    second_text = reader.pages[1].extract_text() or ""
+    if "ZXQ-PHI-9173" not in first_text or "ZXQ-PHI-9173" not in second_text:
+        raise ValueError("redaction fixture selectable/OCR layer canaries are missing")
+    xobjects = dictionary_object(dictionary_object(reader.pages[1]["/Resources"]).get("/XObject"))
+    if not xobjects:
+        raise ValueError("redaction fixture has no raster XObject")
+    page_three_annots = [dictionary_object(value) for value in reader.pages[2].get("/Annots", [])]
+    if not any(str(value.get("/Subtype")) == "/Text" and str(value.get("/Contents")) == "ZXQ-PHI-9173" for value in page_three_annots):
+        raise ValueError("redaction fixture annotation canary is missing")
+    widgets = [value for value in page_three_annots if str(value.get("/Subtype")) == "/Widget"]
+    if len(widgets) != 1 or str(widgets[0].get("/V")) != "ZXQ-PHI-9173":
+        raise ValueError("redaction fixture form canary is missing")
+    names = dictionary_object(root_dictionary(reader).get("/Names"))
+    if not names.get("/EmbeddedFiles"):
+        raise ValueError("redaction fixture attachment canary is missing")
+    metadata = dictionary_object(root_dictionary(reader).get("/Metadata"))
+    if not metadata or canary not in metadata.get_data():
+        raise ValueError("redaction fixture XMP canary is missing")
 
 
 def verify_damaged_xref(root: Path) -> None:
@@ -1111,6 +1300,7 @@ def verify(root: Path) -> dict:
     verify_xfa(root / "pdf" / "xfa" / "dynamic-dependents.pdf")
     verify_print(root / "pdf" / "print" / "print-production-risk.pdf")
     verify_richmedia_opaque(root / "pdf" / "richmedia" / "3d-review.pdf")
+    verify_multichannel_redaction(root / "pdf" / "redaction" / "multichannel-secret.pdf")
     verify_damaged_xref(root)
     verify_docmdp_p1(root / "pdf" / "signing" / "docmdp-p1-final.pdf", root / "pdf" / "signing" / "test-pki" / "root.pem")
     verify_docmdp_p2(root / "pdf" / "signing" / "docmdp-p2-form.pdf", root / "pdf" / "signing" / "test-pki" / "docmdp-p2-root.pem")
@@ -1119,7 +1309,7 @@ def verify(root: Path) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-richmedia", "refresh-damaged-xref", "verify"))
+    parser.add_argument("command", choices=("generate", "refresh-docmdp", "refresh-richmedia", "refresh-redaction", "refresh-damaged-xref", "verify"))
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     parser.add_argument("--signing-python", help=f"managed pyHanko interpreter used only by generate (or set {SIGNING_PYTHON_ENV})")
     options = parser.parse_args()
@@ -1134,6 +1324,22 @@ def main() -> None:
             raise ValueError("unsupported corpus integrity schema")
         create_richmedia_opaque(options.root)
         relative = "pdf/richmedia/3d-review.pdf"
+        asset = options.root / relative
+        manifest["assets"][relative] = {
+            "bytes": asset.stat().st_size,
+            "description": FIXTURES[relative],
+            "kind": "file",
+            "sha256": sha256(asset),
+        }
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(json.dumps({"ok": True, "assets": len(manifest["assets"]), "root": str(options.root)}, sort_keys=True))
+    elif options.command == "refresh-redaction":
+        manifest_path = options.root / "integrity.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("assets"), dict):
+            raise ValueError("unsupported corpus integrity schema")
+        create_multichannel_redaction(options.root)
+        relative = "pdf/redaction/multichannel-secret.pdf"
         asset = options.root / relative
         manifest["assets"][relative] = {
             "bytes": asset.stat().st_size,

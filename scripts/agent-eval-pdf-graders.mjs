@@ -13,6 +13,7 @@ const supportedCases = new Set([
   "pdf-acroform-visible-preserved",
   "pdf-attachment-quarantine-inventory",
   "pdf-active-content-public-sanitize",
+  "pdf-redact-multichannel-secret",
   "pdf-greenfield-accessible-report",
   "pdf-merge-reorder-stamp-links",
   "pdf-encrypted-owner-policy-boundary",
@@ -1308,6 +1309,22 @@ export function gradeActiveContentSanitizeEvidence({ evidence, audit, commands, 
   ];
 }
 
+export function gradeMultichannelRedactionEvidence({ evidence, audit, commands, item }) {
+  const checks = gradeActiveContentSanitizeEvidence({ evidence, audit, commands, item });
+  const commandText = commands.join("\n");
+  const operationText = JSON.stringify(audit?.operation || audit?.operations || "");
+  const validationText = JSON.stringify(audit?.validation || {});
+  checks.push(
+    check("pdf-machine:multichannel-page-count", "machine", evidence.source?.pageCount === 4 && evidence.output?.pageCount === 4, { expected: 4, actual: { source: evidence.source?.pageCount, output: evidence.output?.pageCount } }),
+    check("pdf-machine:raster-source-present", "machine", Number(evidence.sourceImageCount || 0) > 0, { actual: evidence.sourceImageCount || 0 }),
+    check("pdf-machine:ocr-layer-residue-removed", "machine", evidence.sourceOcrLayerTermCount > 0 && evidence.outputOcrLayerTermCount === 0, { actual: { source: evidence.sourceOcrLayerTermCount, output: evidence.outputOcrLayerTermCount } }),
+    gate("pdf-security:old-revision-removed", "security", evidence.sourceRevisionCount === 2 && evidence.sourceEofCount === 2 && evidence.outputRevisionCount === 1 && evidence.outputEofCount === 1, { expected: { sourceRevisionCount: 2, outputRevisionCount: 1 }, actual: { sourceRevisionCount: evidence.sourceRevisionCount, sourceEofCount: evidence.sourceEofCount, outputRevisionCount: evidence.outputRevisionCount, outputEofCount: evidence.outputEofCount } }),
+    gate("pdf-security:ocr-required", "security", /--require-ocr\b/i.test(commandText) || /redact_ocr_text/i.test(commandText) || /ocr/i.test(operationText), { expected: "explicit OCR residue scan and typed OCR redaction", actual: { commands: commandText, operation: operationText } }),
+    check("pdf-security:audit-redaction-evidence", "security", /ocr|residue|singleRevision|revision/i.test(validationText), { actual: audit?.validation || "unreported" }),
+  );
+  return checks;
+}
+
 export function summarizeCaseScore(checks, grade, weights = defaultWeights, hardGatesPassed = true) {
   const categories = ["machine", "visual", "security", "trace"];
   const categoryScores = {};
@@ -1829,6 +1846,28 @@ export async function gradePdfCase({ item, workspace, evaluator, finalMessage, t
     }
     if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
     checks = gradeQpdfRepairEvidence({ evidence: oracle.evidence, audit, commands, finalMessage, item });
+  } else if (item.id === "pdf-redact-multichannel-secret") {
+    const output = path.join(workspace, "outputs", "redacted.pdf");
+    try { await fs.access(output); } catch {
+      checks = missingActiveContentArtifactChecks(audit, commands);
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: null, pending: [], ...score };
+    }
+    oracle = invokeOracle({
+      kind: "multichannel-redaction",
+      source: path.join(workspace, "inputs", "source.pdf"),
+      output,
+      terms: item.grade.machine.residueTerms,
+      allowedMasks: item.grade.visual.allowedMasks,
+      renderRoot: path.join(evaluator, "pdf-oracle-render"),
+    }, true);
+    if (!oracle.evidence && oracle.oracleError) {
+      checks = unreadableActiveContentArtifactChecks(audit, commands, oracle.oracleError);
+      const score = summarizeCaseScore(checks, item.grade, weights, checks.filter((entry) => entry.gate).every((entry) => entry.passed));
+      return { supported: true, graded: true, checks, evidence: { oracleError: oracle.oracleError }, pending: [], ...score };
+    }
+    if (!oracle.evidence) return { supported: true, graded: false, checks: [], pending: ["PDF case grader infrastructure"], infrastructureErrors: [oracle.infrastructureError] };
+    checks = gradeMultichannelRedactionEvidence({ evidence: oracle.evidence, audit, commands, item });
   } else {
     const output = path.join(workspace, "outputs", "public-safe.pdf");
     try { await fs.access(output); } catch {

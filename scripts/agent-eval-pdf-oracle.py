@@ -790,6 +790,60 @@ def active_content_sanitize(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def multichannel_redaction(payload: dict[str, Any]) -> dict[str, Any]:
+    source = pathlib.Path(payload["source"])
+    output = pathlib.Path(payload["output"])
+    terms = list(payload.get("terms") or [])
+    source_bytes = source.read_bytes()
+    output_bytes = output.read_bytes()
+    source_reader = pypdf.PdfReader(str(source), strict=True)
+    output_reader = pypdf.PdfReader(str(output), strict=True)
+
+    def image_count(reader: pypdf.PdfReader) -> int:
+        count = 0
+        for page in reader.pages:
+            resources = resolve_pdf_value(page.get("/Resources"))
+            xobjects = resolve_pdf_value(resources.get("/XObject")) if resources else {}
+            for reference in (xobjects or {}).values():
+                item = resolve_pdf_value(reference)
+                if str(item.get("/Subtype", "")) == "/Image":
+                    count += 1
+        return count
+
+    source_evidence = inspect_pdf(source, terms)
+    output_evidence = inspect_pdf(output, terms)
+    source_structure = active_structure_evidence(source, terms)
+    output_structure = active_structure_evidence(output, terms)
+    source_page_two_text = source_reader.pages[1].extract_text() or ""
+    output_page_two_text = output_reader.pages[1].extract_text() or ""
+    return {
+        "kind": "multichannel-redaction",
+        "source": source_evidence,
+        "output": output_evidence,
+        "sourceStructure": source_structure,
+        "outputStructure": output_structure,
+        "originalPrefixPreserved": output_bytes.startswith(source_bytes),
+        "sourceRevisionCount": source_bytes.count(b"startxref\n"),
+        "outputRevisionCount": output_bytes.count(b"startxref\n"),
+        "sourceEofCount": source_bytes.count(b"%%EOF"),
+        "outputEofCount": output_bytes.count(b"%%EOF"),
+        "sourceImageCount": image_count(source_reader),
+        "outputImageCount": image_count(output_reader),
+        "sourceOcrLayerTermCount": source_page_two_text.count("ZXQ-PHI-9173"),
+        "outputOcrLayerTermCount": output_page_two_text.count("ZXQ-PHI-9173"),
+        "visual": compare_rendered_pages_with_masks(
+            source,
+            output,
+            pathlib.Path(payload["renderRoot"]),
+            payload["poppler"],
+            list(payload.get("allowedMasks") or [
+                {"page": 1, "bbox": [72, 148, 252, 172]},
+                {"page": 1, "bbox": [500, 92, 520, 112]},
+            ]),
+        ),
+    }
+
+
 def acroform_visible(payload: dict[str, Any]) -> dict[str, Any]:
     source = pathlib.Path(payload["source"])
     output = pathlib.Path(payload["output"])
@@ -1609,6 +1663,8 @@ def main() -> None:
         evidence = overflow_refusal(payload)
     elif kind == "active-content-sanitize":
         evidence = active_content_sanitize(payload)
+    elif kind == "multichannel-redaction":
+        evidence = multichannel_redaction(payload)
     elif kind == "acroform-visible":
         evidence = acroform_visible(payload)
     elif kind == "certified-docmdp-p2-fill":
