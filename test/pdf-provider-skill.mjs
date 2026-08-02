@@ -1008,6 +1008,41 @@ try {
   ], { status: 2 });
   assert.match(missingMultiInput.stderr, /2 records but 1 --input/);
 
+  const tableJsonArtifact = path.join(tempRoot, "regional-revenue.json");
+  const tableCsvArtifact = path.join(tempRoot, "regional-revenue.csv");
+  await fs.writeFile(tableJsonArtifact, JSON.stringify({ table: "Regional Revenue", cells: [] }), "utf8");
+  await fs.writeFile(tableCsvArtifact, "page,text,bbox,rowspan,colspan,confidence\n", "utf8");
+  const tableAuditPath = path.join(tempRoot, "table-audit.json");
+  const tableJsonEvidence = await evidence(tableJsonArtifact);
+  const tableCsvEvidence = await evidence(tableCsvArtifact);
+  await fs.writeFile(tableAuditPath, JSON.stringify({
+    schema: "office-kit.pdf-audit.v1",
+    status: "succeeded",
+    source: await evidence(dummyInput),
+    output: tableJsonEvidence,
+    outputs: { json: tableJsonEvidence, csv: tableCsvEvidence },
+    provider: { actual: "pdfplumber", version: "0.11.9", silentFallback: false },
+    savePolicy: { strategy: "read-only" },
+    preflight: { probeCompleted: true, planCompleted: true },
+    operation: { type: "extract-table" },
+    validation: { sourceUnchanged: true, narrativeExcluded: true },
+  }), "utf8");
+  const tableAuditValidation = parseResult(run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "validate", tableAuditPath,
+    "--source", dummyInput,
+    "--artifact-json", tableJsonArtifact,
+    "--artifact-csv", tableCsvArtifact,
+    "--require-operation", "extract-table",
+  ], { status: 0 }));
+  assert.equal(tableAuditValidation.outputs, 2);
+  const missingTableOutput = run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "validate", tableAuditPath,
+    "--source", dummyInput,
+    "--artifact-json", tableJsonArtifact,
+    "--require-operation", "extract-table",
+  ], { status: 2 });
+  assert.match(missingTableOutput.stderr, /artifact-json\/--artifact-csv/);
+
   const check = parseResult(run(python, [path.join(scriptsRoot, "pdf_provider.py"), "check", "--provider", "all"], { status: 0 }));
   assert.ok(check.providers.length >= 12);
   assert.ok(check.providers.every((provider) => typeof provider.integration === "string"));
@@ -1110,6 +1145,23 @@ try {
     run(integrationPython, [path.join(scriptsRoot, "pdfplumber_extract.py"), sourcePath, "--output", extractionPath], { status: 0 });
     const extraction = JSON.parse(await fs.readFile(extractionPath, "utf8"));
     assert.match(extraction.pages[0].text, /Customer Secret/);
+
+    const regionalFixture = path.join(repoRoot, "evals", "assets", "pdf", "tables", "regional-revenue.pdf");
+    const regionalJson = path.join(tempRoot, "regional-revenue.json");
+    const regionalCsv = path.join(tempRoot, "regional-revenue.csv");
+    const regionalTableRun = parseResult(run(integrationPython, [
+      path.join(scriptsRoot, "pdfplumber_extract.py"), "table", regionalFixture,
+      regionalJson, regionalCsv, "--table-name", "Regional Revenue",
+    ], { status: 0 }));
+    assert.equal(regionalTableRun.table, "Regional Revenue");
+    assert.equal(regionalTableRun.pages, 3);
+    assert.equal(regionalTableRun.cells, 78);
+    assert.equal(regionalTableRun.footnotes, 2);
+    const regionalReport = JSON.parse(await fs.readFile(regionalJson, "utf8"));
+    assert.equal(regionalReport.cells.length, 78);
+    assert.equal(regionalReport.footnotes.length, 2);
+    assert.equal(regionalReport.cells[0].colspan, 5);
+    assert.match(await fs.readFile(regionalCsv, "utf8"), /^page,text,bbox,rowspan,colspan,confidence\n/);
 
     const pypdfRewrite = path.join(tempRoot, "pypdf-rewrite.pdf");
     const pypdfIncremental = path.join(tempRoot, "pypdf-incremental.pdf");

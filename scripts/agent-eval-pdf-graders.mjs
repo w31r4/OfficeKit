@@ -434,6 +434,21 @@ function completedInvocation(commands, pattern) {
   return null;
 }
 
+function lastCompletedInvocation(commands, pattern) {
+  for (let commandIndex = commands.length - 1; commandIndex >= 0; commandIndex -= 1) {
+    const command = String(commands[commandIndex]);
+    const expression = new RegExp(pattern.source, pattern.flags.replace("g", "") + "g");
+    const matches = [...command.matchAll(expression)];
+    for (let matchIndex = matches.length - 1; matchIndex >= 0; matchIndex -= 1) {
+      const match = matches[matchIndex];
+      const tail = command.slice((match.index || 0) + match[0].length);
+      if (/^\s+(?:--help|-h)\b/i.test(tail)) continue;
+      return { commandIndex, offset: match.index || 0 };
+    }
+  }
+  return null;
+}
+
 const publishedPdfSkillScriptRoots = [
   ".agents/skills/pdf/scripts",
   "node_modules/office-kit/skills/pdf/skills/pdf/scripts",
@@ -1435,16 +1450,27 @@ function parseSimpleCsv(text) {
 export function gradeRegionalRevenueTableEvidence({ evidence, report, csv, audit, commands, item, outputHashes = {} }) {
   const expected = evidence?.table?.cells || [];
   const candidates = Array.isArray(report?.cells) ? report.cells : [];
-  const unmatched = new Map(expected.map((cell, index) => [regionalCellKey(cell), { cell, index }]));
+  // A page can legitimately repeat a value (for example two `North` rows or
+  // two `Retail` rows). Keep a queue per value key instead of collapsing those
+  // cells into one Map entry and comparing the second occurrence with the last
+  // expected bbox.
+  const unmatched = new Map();
+  expected.forEach((cell, index) => {
+    const key = regionalCellKey(cell);
+    const entries = unmatched.get(key) || [];
+    entries.push({ cell, index });
+    unmatched.set(key, entries);
+  });
   const candidateErrors = [];
   for (const candidate of candidates) {
     const key = regionalCellKey(candidate);
-    const expectedEntry = unmatched.get(key);
+    const expectedEntries = unmatched.get(key);
+    const expectedEntry = expectedEntries?.shift();
     if (!expectedEntry) {
       candidateErrors.push({ reason: "unexpected-cell", candidate });
       continue;
     }
-    unmatched.delete(key);
+    if (expectedEntries.length === 0) unmatched.delete(key);
     const expectedCell = expectedEntry.cell;
     const box = regionalCellBox(candidate);
     if (!sameBoundingBox(box, expectedCell.bbox, 2.5)) candidateErrors.push({ reason: "bbox", expected: expectedCell, candidate });
@@ -1458,19 +1484,48 @@ export function gradeRegionalRevenueTableEvidence({ evidence, report, csv, audit
   const expectedKeys = new Set(expected.map(regionalCellKey));
   const reportText = candidates.map((cell) => String(cell?.text || "")).join(" ");
   const narrativeLeakage = /narrative columns|parentheses denote|low-confidence cell|regional revenue is reported|table page/i.test(reportText);
-  const extract = completedInvocation(commands, /pdfplumber_extract\.py["']?\b/i) || completedInvocation(commands, /(?:table|extract)[-_ ]?(?:pdf|table)/i);
+  const extract = completedInvocation(commands, /pdfplumber_extract\.py["']?\s+table\b/i)
+    || completedInvocation(commands, /pdfplumber_extract\.py["']?\b/i)
+    || completedInvocation(commands, /(?:table|extract)[-_ ]?(?:pdf|table)/i);
   const checkProvider = completedInvocation(commands, /pdf_provider\.py["']?\s+check\b[^\n]*--provider\s+pdfplumber\b/i);
   const plan = completedInvocation(commands, /pdf_provider\.py["']?\s+plan\b[^\n]*--task\s+(?:extract|table)/i);
-  const render = completedInvocation(commands, /(?:pdftoppm|poppler_compare|render)/i);
-  const auditValidation = completedInvocation(commands, /pdf_audit\.py["']?\s+validate\b/i);
+  // Agents commonly render once while inspecting and again after extraction.
+  // The table contract requires the latter; selecting the first `pdftoppm`
+  // command made a valid post-extraction audit look out of order.
+  const render = lastCompletedInvocation(commands, /(?:pdftoppm|poppler_compare|render)/i);
+  const auditValidation = lastCompletedInvocation(commands, /pdf_audit\.py["']?\s+validate\b/i);
   const positions = Object.fromEntries(Object.entries({ checkProvider, plan, extract, render, auditValidation }).map(([name, value]) => [name, value?.commandIndex ?? -1]));
   const validation = audit?.validation || {};
-  const overlay = validation.overlay || validation.bboxOverlay || {};
+  const overlay = validation.overlay || validation.bboxOverlay || (
+    validation.poppler?.allBboxOverlaysReviewed === true
+      && Array.isArray(validation.poppler.pageChecks)
+      ? {
+        status: "passed",
+        pages: validation.poppler.pageChecks.map((page) => Number(page.page)),
+        tableCount: validation.poppler.pageChecks.length,
+      }
+      : validation.renderReview?.bboxOverlayReviewed === true
+        && Array.isArray(validation.renderReview.pages)
+        ? {
+          status: "passed",
+          pages: validation.renderReview.pages.map((page) => Number(page.page)),
+          tableCount: validation.renderReview.pages.length,
+        }
+        : Array.isArray(validation.renderReview?.pages)
+          && validation.renderReview.pages.length > 0
+          && validation.renderReview.pages.every((page) => page?.tableBboxOverlayReviewed === true && page?.result === "passed")
+          ? {
+            status: "passed",
+            pages: validation.renderReview.pages.map((page) => Number(page.page)),
+            tableCount: validation.renderReview.pages.length,
+          }
+        : {}
+  );
   const auditOutputs = audit?.outputs || {};
   return [
     check("pdf-machine:table-name", "machine", report?.table === "Regional Revenue" || report?.name === "Regional Revenue", { expected: "Regional Revenue", actual: report?.table || report?.name || "unreported" }),
     check("pdf-machine:three-table-pages", "machine", evidence?.table?.pages?.length === 3 && evidence.table.pages.every((page) => page.rows === 6 && page.cells.length === 26), { expected: "3 pages × 6 rows with a merged title", actual: evidence?.table?.pages || [] }),
-    check("pdf-machine:cell-value-f1", "machine", expected.length > 0 && unmatched.size === 0 && candidateErrors.filter((error) => error.reason === "unexpected-cell").length === 0, { expectedCells: expected.length, actualCells: candidates.length, unmatched: [...unmatched.values()].map(({ cell }) => cell), errors: candidateErrors.slice(0, 20) }),
+    check("pdf-machine:cell-value-f1", "machine", expected.length > 0 && unmatched.size === 0 && candidateErrors.filter((error) => error.reason === "unexpected-cell").length === 0, { expectedCells: expected.length, actualCells: candidates.length, unmatched: [...unmatched.values()].flatMap((entries) => entries.map(({ cell }) => cell)), errors: candidateErrors.slice(0, 20) }),
     check("pdf-machine:coordinates-and-spans", "machine", candidateErrors.every((error) => !["bbox", "rowspan", "colspan"].includes(error.reason)), { errors: candidateErrors.filter((error) => ["bbox", "rowspan", "colspan"].includes(error.reason)).slice(0, 20) }),
     check("pdf-machine:confidence-reported", "machine", candidateErrors.every((error) => error.reason !== "confidence") && candidates.length === expected.length, { expected: "0.98 <= confidence <= 1 for every cell", actualCells: candidates.length, errors: candidateErrors.filter((error) => error.reason === "confidence").slice(0, 20) }),
     check("pdf-machine:csv-complete", "machine", header.includes("page") && header.includes("text") && header.includes("bbox") && csvRows.length === expected.length && csvKeys.size === expectedKeys.size && [...expectedKeys].every((key) => csvKeys.has(key)), { expectedRows: expected.length, actualRows: csvRows.length, header, missing: [...expectedKeys].filter((key) => !csvKeys.has(key)) }),

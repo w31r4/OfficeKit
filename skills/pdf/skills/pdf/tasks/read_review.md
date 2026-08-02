@@ -26,6 +26,54 @@ python3 scripts/pdfplumber_extract.py input.pdf \
 
 Extraction is not layout fidelity. Compare extracted text/table candidates against rendered pages, especially multi-column layouts, rotated text, merged cells, OCR layers, and scanned pages.
 
+For a bounded ruled-table task, use the typed `table` primitive instead of
+turning every extracted word into a cell:
+
+```bash
+python3 scripts/pdf_provider.py check --provider pdfplumber --require
+python3 scripts/pdf_provider.py plan --task extract --provider pdfplumber \
+  --strategy read-only --input inputs/source.pdf --require-provider
+python3 scripts/pdfplumber_extract.py table inputs/source.pdf \
+  outputs/regional-revenue.json outputs/regional-revenue.csv \
+  --table-name "Regional Revenue"
+```
+
+The primitive requires exactly one `pdfplumber` table per page, preserves
+merged title geometry (`colspan`), emits one confidence value per cell, and
+keeps explicit `*`/`Note:` lines outside the ruled table in a separate
+`footnotes` array. Footnotes are never mixed into `cells` or the CSV. It is a
+bounded geometry primitive, not a general table-understanding or reading-order
+algorithm; inspect the result against Poppler renders and refuse ambiguous
+topology rather than guessing.
+
+Its JSON contains `table`, `cells`, `pages`, `footnotes`, source/provider
+evidence, and read-only strategy. The CSV contains the stable header
+`page,text,bbox,rowspan,colspan,confidence`. Record the canonical audit with
+`operation.type: "extract-table"`, mirror the JSON file in `output`, and bind
+both files under named `outputs.json`/`outputs.csv` evidence. Validate all bytes:
+
+```bash
+python3 scripts/pdf_audit.py validate outputs/audit.json \
+  --source inputs/source.pdf \
+  --artifact-json outputs/regional-revenue.json \
+  --artifact-csv outputs/regional-revenue.csv \
+  --require-operation extract-table
+```
+
+For this table workflow, `validation.renderReview` must record the Poppler
+renderer/version, the three rendered pages, and the overlay decision. Either
+set `bboxOverlayReviewed: true` at the render-review level, or set
+`tableBboxOverlayReviewed: true` and `result: "passed"` on every page entry;
+the latter is the preferred auditable form. Keep the rendered PNGs and
+overlays under `tmp/` unless the task explicitly declares them as deliverables.
+The installed package under `node_modules/` and the mounted `.agents/` Skill
+tree are read-only inputs: never patch them to work around an extraction
+failure. Stop and report the provider error instead of changing the runtime.
+
+Narrative columns, rotated labels, low-evidence OCR cells, and table-like text
+outside the ruled geometry stay out of `cells`; report them as warnings or
+separate evidence instead of fabricating coordinates.
+
 For qpdf structural evidence:
 
 ```bash
