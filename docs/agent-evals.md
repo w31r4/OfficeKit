@@ -180,6 +180,27 @@ P=3, FieldMDP, and arbitrary signed PDFs remain outside that refusal primitive
 except for the separate, explicitly constrained P=2 finalisation described
 below.
 
+At clean commit `f09a68f2596f483af311e69f944ca82166ef4cbe`, the fresh
+`pdf-pades-ltv-signature` matrix passed candidate `3/3` and copied-reference
+`3/3` at `100/100`. All six trials used the same candidate package SHA-256
+`80817445041369bbab1f3b52f1d1500ed0c0ce199108b9ccc665a2b7347c3207`, input
+specification SHA-256
+`5e6df51746f41d047cb05b7effeedccee77fe123946bf12026fba89c6002216f`, source
+SHA-256 `6ad55dd93543921c3b13d96f9cffed7a000ddea3b7da54643dae915034d19060`,
+public test-root SHA-256
+`ab15a064bf134b4c8409a08669b9308c5c9ba25d7d66dae74e99f30ccb7c606b`, and
+oracle SHA-256
+`82ce4d72b9fca9d3285c227d25c1b7a29eef71964d9df9d67700e7cd933b090b`. The
+matrix run root was
+`/tmp/officekit-promptbench-pades-f09a68f2/pdf-pades-ltv-signature`. Every
+trial performed a safe refusal: `output` was `null`, `mutationAttempted` and
+`performed` were false, the source hash was preserved, and the only delivered
+artifact was the capability-bound audit. The candidate and reference traces
+both now bind structured false values for timestamp-authority support, LTV
+evidence embedding, and complete PAdES profile conformance; this is a
+repeatable refusal-contract result, not a claim that TSA/LTV/PAdES conformance
+or signature upgrading is implemented.
+
 `pdf-docmdp-allowed-field-fill` uses a different self-authored source and
 public root: P=2 allows form filling, while a FieldMDP Include transform locks
 only `LockedAmount=LOCKED-9000`. The only success contract is to convert the

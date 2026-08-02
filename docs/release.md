@@ -24,8 +24,9 @@ table/chart/PivotTable, save, disconnect, and uninstall on Windows x64 and
 macOS Apple Silicon Excel desktop.
 
 The current development package candidate carries the compiled Add-in pages,
-manifest generator, bridge, and Skill route: 660 files, 36,157,904 compressed
-bytes, and 53,166,713 unpacked bytes. The 37,500,000-byte compressed and
+manifest generator, bridge, and Skill route: 660 files, 36,158,804 compressed
+bytes, and 53,168,959 unpacked bytes. Its npm pack shasum is
+`d92479607ce7626195008fd07dcbdc4aa677ad63`. The 37,500,000-byte compressed and
 53,500,000-byte unpacked package ceilings remain in force.
 
 ## 0.5.0 self-contained OfficeKit distributions
@@ -77,10 +78,13 @@ standalone release workflow repeats the real-archive build and installation on
 native GitHub-hosted macOS arm64, Linux x64, and Windows x64 runners before
 any asset can be attached to a release.
 
-The corresponding package candidate remains the application-developer distribution: 641
-files, 36,063,261 compressed bytes, and 52,806,854 unpacked bytes. Platform
-archives and standalone build tooling stay in the GitHub release lane rather
-than the npm tarball.
+The corresponding 0.5.0 release-freeze package candidate was the
+application-developer distribution with 641 files, 36,063,261 compressed
+bytes, and 52,806,854 unpacked bytes. The current development npm candidate
+above is newer and changes the npm payload; platform archives and standalone
+build tooling stay in the GitHub release lane rather than the npm tarball. A
+future standalone release must regenerate archive identities after freezing
+this newer payload.
 
 The specialist qpdf, Python, OCR, JRE, LibreOffice, and Poppler runtimes retain
 their project-authorized capability-pack lifecycle. They remain outside the
