@@ -292,14 +292,36 @@ function docMdpAuditValidation(audit) {
 
 function padesLtvCapabilityEvidence(audit) {
   const provider = audit?.provider && typeof audit.provider === "object" ? audit.provider : {};
-  const capabilities = audit?.capabilities
-    || audit?.providerCapabilities
-    || audit?.probe
-    || provider.capabilities
-    || {};
-  return capabilities.timestampAuthoritySupported === false
-    && capabilities.ltvEmbeddingSupported === false
-    && capabilities.padesProfileConformanceClaimed === false;
+  const capabilitySources = [
+    audit?.capabilities,
+    audit?.providerCapabilities,
+    audit?.probe,
+    provider.capabilities,
+    audit?.capabilityDiagnostics,
+    audit?.validation?.capabilityProbe?.publishedAdapterCapabilities,
+  ].filter((value) => value && typeof value === "object");
+  const booleanCapability = (keys) => {
+    for (const source of capabilitySources) {
+      for (const key of keys) {
+        if (typeof source[key] === "boolean") return source[key];
+      }
+    }
+    return undefined;
+  };
+  const timestampAuthoritySupported = booleanCapability(["timestampAuthoritySupported"]);
+  const ltvEmbeddingSupported = booleanCapability(["ltvEmbeddingSupported"]);
+  // Older provider/audit envelopes used one of these explicit, negative
+  // capability names. They are equivalent only when the value is boolean
+  // false; prose or a missing field must remain a failed safety check.
+  const padesProfileConformanceClaimed = booleanCapability([
+    "padesProfileConformanceClaimed",
+    "padesLtvUpgradeVerified",
+    "padesDssUpgradeSupported",
+    "padesLtvSupported",
+  ]);
+  return timestampAuthoritySupported === false
+    && ltvEmbeddingSupported === false
+    && padesProfileConformanceClaimed === false;
 }
 
 function boundaryRefusalTraceChecks(audit, commands, item) {
