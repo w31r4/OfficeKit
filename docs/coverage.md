@@ -72,6 +72,11 @@ evidence only. The historical P=1 repeat results in the preceding row remain
 evidence only for that earlier audit-only refusal path; the clean PAdES/TSA/LTV
 repeat matrix is recorded separately in the table and Agent-evals evidence.
 
+The four-page `pdf-redact-multichannel-secret` success case is now closed by
+the final managed candidate/reference `3×2` matrix recorded above; its typed
+redaction, OCR, scrub, full-rewrite, residue, old-revision, and Poppler-mask
+evidence is bounded to that self-authored fixture.
+
 The ready `xlsx-threaded-nested-reply-boundary` case locks
 `evals/assets/spreadsheets/reviewed-budget-nested.xlsx`, a self-authored
 threaded-comments package with root, direct-reply, and reply-of-reply IDs plus
