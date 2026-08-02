@@ -590,6 +590,7 @@
       "role": "greenfield visual/layout-oriented generation",
       "integration": "shipped-thin-script",
       "taskIds": ["create-layout"],
+      "probeTimeoutMs": 30000,
       "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
       "license": { "expression": "BSD-3-Clause", "requiresAcknowledgement": false },
       "matrixBoundary": "New documents only; it does not inherit PdfArtifact tagged/reading-order semantics."
@@ -601,6 +602,7 @@
       "role": "read-only text, word-geometry, table, line, and rectangle extraction",
       "integration": "shipped-thin-script",
       "taskIds": ["extract"],
+      "probeTimeoutMs": 30000,
       "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
       "license": { "expression": "MIT", "requiresAcknowledgement": false },
       "matrixBoundary": "Extraction is evidence, not layout fidelity or an edit representation."
@@ -612,6 +614,7 @@
       "role": "basic structure, attachment quarantine, complete-source merge/reorder/selective stamp, forms, annotations",
       "integration": "shipped-thin-script",
       "taskIds": ["extract", "extract-attachments", "inspect", "fill-form", "annotate", "merge-stamp"],
+      "probeTimeoutMs": 30000,
       "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
       "license": { "expression": "BSD-3-Clause", "requiresAcknowledgement": false },
       "matrixBoundary": "Inspect signatures and DocMDP before mutation; an incremental byte layout is not signature authorization."
@@ -625,6 +628,7 @@
       "role": "advanced imported-PDF editing, image-backed OCR redaction, and sanitize",
       "integration": "shipped-thin-script-external-python",
       "taskIds": ["extract", "inspect", "edit-content", "fill-form", "annotate", "redact", "sanitize"],
+      "probeTimeoutMs": 30000,
       "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
       "license": { "id": "agpl-or-commercial", "expression": "AGPL-3.0-or-later OR commercial", "requiresAcknowledgement": true, "acceptedValues": ["agpl", "commercial"] },
       "matrixBoundary": "Explicit advanced provider only. Sanitization is full-rewrite and residue-scanned; PyMuPDF is not the digital-signature authority."
@@ -667,6 +671,7 @@
       "role": "source-bound active and auxiliary PDF structure cleanup",
       "integration": "shipped-thin-script-external-python",
       "taskIds": ["inspect", "structure-clean"],
+      "probeTimeoutMs": 30000,
       "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
       "license": { "expression": "MPL-2.0", "requiresAcknowledgement": false },
       "matrixBoundary": "A curated fixed-profile rewrite, not redaction, metadata/form/XFA cleanup, strict sanitize, rendering, or malware isolation."
@@ -685,6 +690,7 @@
       "role": "source-bound local-PKCS#12 signing, explicit-root signature validation, and controlled DocMDP P=2 text-field finalisation",
       "integration": "shipped-thin-script-external-python",
       "taskIds": ["sign", "verify-signature", "fill-certified-form"],
+      "probeTimeoutMs": 30000,
       "managedRuntime": { "pythonPath": "bin/python3", "environment": { "OFFICE_KIT_PDF_PROVIDER_PYTHON": "bin/python3" } },
       "license": { "expression": "MIT", "requiresAcknowledgement": false },
       "matrixBoundary": "The runtime can be selected, but certificates, private keys, HSMs, and remote-signing credentials are always caller-provided and never acquired automatically."

@@ -125,6 +125,9 @@ assert.deepEqual(PDF_PROVIDER_CATALOG.packs.verapdf.releaseEvidence.verifiedPlat
 assert.equal(PDF_PROVIDER_CATALOG.packs.verapdf.license.expression, "MPL-2.0 AND GPL-3.0-or-later AND GPL-2.0-only WITH Classpath-exception-2.0");
 assert.equal(PDF_PROVIDER_CATALOG.providers.verapdf.probeTimeoutMs, 20_000);
 assert.equal(PDF_PROVIDER_CATALOG.providers.ocrmypdf.probeTimeoutMs, 20_000, "cold isolated OCR runtime probing needs the same bounded startup allowance as managed veraPDF");
+for (const providerId of ["reportlab", "pdfplumber", "pypdf", "pymupdf", "pikepdf", "pyhanko"]) {
+  assert.equal(PDF_PROVIDER_CATALOG.providers[providerId].probeTimeoutMs, 30_000, `${providerId} must allow a bounded cold managed-Python startup`);
+}
 assert.equal(PDF_PROVIDER_CATALOG.packs["poppler-qa"].state, "published");
 assert.equal(PDF_PROVIDER_CATALOG.packs["poppler-qa"].version, "24.08.0-oat.1");
 assert.deepEqual(PDF_PROVIDER_CATALOG.packs["poppler-qa"].platforms, ["win32-x64"]);
