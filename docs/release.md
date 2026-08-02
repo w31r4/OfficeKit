@@ -24,8 +24,8 @@ table/chart/PivotTable, save, disconnect, and uninstall on Windows x64 and
 macOS Apple Silicon Excel desktop.
 
 The current development package candidate carries the compiled Add-in pages,
-manifest generator, bridge, and Skill route: 660 files, 36,157,789 compressed
-bytes, and 53,166,295 unpacked bytes. The 37,500,000-byte compressed and
+manifest generator, bridge, and Skill route: 660 files, 36,157,883 compressed
+bytes, and 53,166,500 unpacked bytes. The 37,500,000-byte compressed and
 53,500,000-byte unpacked package ceilings remain in force.
 
 ## 0.5.0 self-contained OfficeKit distributions

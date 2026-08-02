@@ -117,10 +117,13 @@ function auditFallbackIsFalse(audit) {
 }
 
 function typedBoardWorkflow(commandText) {
-  return /DocumentFile\.importDocx/i.test(commandText)
+  const publishedWorkflow = /board-review-surgical-edit-workflow\.mjs/i.test(commandText)
+    && /(?:^|\s)officekit\s+run(?:\s|$)/i.test(commandText);
+  const explicitTypedRoundtrip = /DocumentFile\.importDocx/i.test(commandText)
     && /DocumentFile\.patchDocx/i.test(commandText)
-    && /DocumentFile\.importDocx/i.test(commandText)
-    && /board-review-surgical-edit-workflow\.mjs/i.test(commandText);
+    && /DocumentFile\.importDocx/i.test(commandText);
+  return /board-review-surgical-edit-workflow\.mjs/i.test(commandText)
+    && (publishedWorkflow || explicitTypedRoundtrip);
 }
 
 export async function inspectBoardReviewDocx(filePath) {

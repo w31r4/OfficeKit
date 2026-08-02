@@ -1909,7 +1909,7 @@ try {
   const publishedBoardWorkflowChecks = gradeDocxBoardReviewEvidence({
     evidence: boardReviewEvidence,
     audit: boardReviewAudit,
-    commands: ["node .agents/skills/documents/examples/officekit-board-review-surgical-edit-workflow.mjs inputs/board-review.docx outputs/board-review-updated.docx outputs/audit.json; DocumentFile.importDocx(); DocumentFile.patchDocx(); DocumentFile.importDocx()"],
+    commands: ["officekit run examples/officekit-board-review-surgical-edit-workflow.mjs inputs/board-review.docx outputs/board-review-updated.docx outputs/audit.json"],
     item: boardReviewItem,
   });
   assert.equal(publishedBoardWorkflowChecks.find((check) => check.id === "docx-board-trace:typed-primitive")?.passed, true);
