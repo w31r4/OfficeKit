@@ -1093,13 +1093,32 @@ function nativeOpaqueEnterpriseVisualEvidence(source, output) {
     && output.pages.every((page) => page.nonWhitePixels > 0);
   const pageCountsMatch = source?.pageCount === output?.pageCount;
   const pageSizesStable = pageCountsMatch && source.pages.every((page, index) => page.width === output.pages[index]?.width && page.height === output.pages[index]?.height);
-  // LibreOffice can paginate the dashboard chart across two pages.  The
-  // source-bound canary starts at the first page of the Data sheet (page 4 in
-  // this fixture), so do not mistake the dashboard's continuation page for
-  // an untouched Data/Summary render.
-  const canaryPageStart = 3;
-  const canaryPagesStable = pageCountsMatch && source.pages.slice(canaryPageStart).every((page, index) => page.pixelSha256 === output.pages[index + canaryPageStart]?.pixelSha256);
-  return { available, rendered, pageCountsMatch, pageSizesStable, canaryPagesStable, pageCount: output?.pageCount || 0 };
+  // LibreOffice paginates the dashboard chart differently across platforms:
+  // the chart may occupy two pages on macOS and three on Ubuntu.  Infer the
+  // untouched canary from the common stable suffix instead of assuming a
+  // sheet-to-page offset.  Requiring two trailing pages keeps a short or
+  // fully-changing render from passing as a canary.
+  let stableSuffixPages = 0;
+  if (pageCountsMatch && pageSizesStable) {
+    for (let index = source.pages.length - 1; index >= 0; index -= 1) {
+      const sourcePage = source.pages[index];
+      const outputPage = output.pages[index];
+      if (sourcePage?.pixelSha256 !== outputPage?.pixelSha256) break;
+      stableSuffixPages += 1;
+    }
+  }
+  const canaryPageStart = pageCountsMatch ? source.pages.length - stableSuffixPages : null;
+  const canaryPagesStable = stableSuffixPages >= 2;
+  return {
+    available,
+    rendered,
+    pageCountsMatch,
+    pageSizesStable,
+    canaryPagesStable,
+    canaryPageStart,
+    stableSuffixPages,
+    pageCount: output?.pageCount || 0,
+  };
 }
 
 export function gradeXlsxOpaqueEnterpriseEvidence({ evidence, audit, commands }) {
