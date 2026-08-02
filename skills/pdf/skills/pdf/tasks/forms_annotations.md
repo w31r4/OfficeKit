@@ -142,12 +142,31 @@ python3 scripts/pdf_provider.py plan \
 
 ## Fill form with pypdf
 
+This interactive fill is an incremental-only operation. Do not switch to
+`rewrite` or flattening: those are different delivery contracts and invalidate
+the editable-form and original-prefix guarantees below.
+
 ```bash
 python3 scripts/pypdf_edit.py fill-form input.pdf tmp/pdfs/filled.pdf \
   --strategy incremental \
   --field 'sender.city=Shanghai' \
   --field 'approved=Yes'
 ```
+
+After the fill, render and validate the exact output before handing it off:
+
+```bash
+mkdir -p tmp/pdfs/form-render
+pdftoppm -png -r 144 tmp/pdfs/filled.pdf tmp/pdfs/form-render/page
+python3 scripts/pdf_audit.py validate tmp/pdfs/audit.json \
+  --source input.pdf --artifact tmp/pdfs/filled.pdf \
+  --require-operation fill-form
+```
+
+The `pdftoppm` output is evidence for every final page, not a preview-only
+step. For this pypdf form route, a MuPDF render alone is insufficient: keep the
+Poppler render and validation commands after the typed `fill-form` invocation in
+the same audit trace; a form output without both checks is not a deliverable.
 
 The script sets `auto_regenerate=False` so the output carries explicit field state rather than asking the viewer to regenerate it. Use `--flatten` only with `rewrite`, after confirming that interactivity should be removed.
 

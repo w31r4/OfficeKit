@@ -3118,6 +3118,12 @@ const formCommands = [
 const formChecks = gradeAcroFormEvidence({ evidence: formEvidence, audit: formAudit, commands: formCommands, item: formItem });
 assert.equal(formChecks.every((entry) => entry.passed), true);
 assert.equal(summarizeCaseScore(formChecks, formItem.grade).rawScorePercent, 100);
+const quotedFormCommands = formCommands.map((command) => command
+  .replace("pypdf_edit.py", '"$S/pypdf_edit.py"')
+  .replace("pdf_provider.py", '"$S/pdf_provider.py"')
+  .replace("pdf_audit.py", '"$S/pdf_audit.py"'));
+const quotedFormChecks = gradeAcroFormEvidence({ evidence: formEvidence, audit: formAudit, commands: quotedFormCommands, item: formItem });
+assert.equal(quotedFormChecks.every((entry) => entry.passed), true, "quoted script paths must satisfy the form trace contract");
 const brokenRadioEvidence = structuredClone(formEvidence);
 brokenRadioEvidence.outputForm.widgets[5].selectedState = "/Off";
 const brokenRadioChecks = gradeAcroFormEvidence({ evidence: brokenRadioEvidence, audit: formAudit, commands: formCommands, item: formItem });

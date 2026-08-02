@@ -349,6 +349,36 @@ than product successes or evaluator waivers; no candidate result is inferred
 from them. This matrix proves the shipped fail-closed OCR boundary for the
 real scan fixture, not general rotate/deskew or OCR quality.
 
+### PDF AcroForm visible-preserved matrix
+
+The final `pdf-acroform-visible-preserved` candidate repeat used one generated,
+immutable one-page AcroForm with text, radio, checkbox, blank TIN, and blank
+signature canaries. The Agent filled only `full_name`, `company_type`,
+`address`, and `effective_date`; it kept the form interactive and used
+incremental save. Each trial reopened the result, checked widget appearance
+states and field values, rendered the final page through independent Poppler
+`pdftoppm`, and ran `pdf_audit.py validate` after the typed fill in the same
+trace. Candidate passed `3/3` at `100/100` with no timeout, source mutation,
+ad-hoc writer, or undeclared output.
+
+The matrix identity is candidate package
+`70edfe048ceb9b7e95a5ec817a23999f174285938cb76021bf08634b186fbdb9`, input
+contract `0eacb72e03ebbde263b26ebfed25052e68142f0d856f620c8b3b325f0fbd2e7c`,
+source `0ebb7bca3cd52a185ec6b68fe5b0acf52de86718af6d02322714d827caf6424e`,
+and oracle `229c62a094f720a1d24c18371fb6bafffc0d1cafa1e0cf43965a985d362fde16`.
+The candidate Skill tree is
+`ee7c34e93718838f61dad23da8d5d289a687d156514f59478ccf5891d0d2923e`; all
+three trials were prepared from commit `af02fb31133ee7a363b82ffac476ea2dbbcd7b80`
+with the same package and input identities.
+
+An earlier candidate/reference diagnostic run exposed two evaluator-facing
+reliability issues: quoted installed Script paths were not recognized by the
+trace parser, and the reference Skill selected rewrite or omitted the required
+incremental/audit envelope. The parser now accepts the normal quoted paths and
+has a regression test; the reference result remains a compatibility gap rather
+than a waived failure. This is a bounded editable-form transaction, not a
+general AcroForm hierarchy editor or signature-preserving arbitrary mutation.
+
 ## Isolation and provenance
 
 Each preparation creates a fresh trial tree outside the repository by default:

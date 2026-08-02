@@ -336,6 +336,10 @@ assert.match(formsAnnotationsText, /whole-document static-delivery operation/is)
 assert.match(formsAnnotationsText, /removes every `\/Widget`[\s\S]*root `\/AcroForm` tree/is);
 assert.match(formsAnnotationsText, /formValidation\.mode === "static"[\s\S]*allWidgetsRemoved === true[\s\S]*fieldTreeRemoved === true/is);
 assert.match(formsAnnotationsText, /never calls `reattach_fields\(\)` automatically/i);
+assert.match(formsAnnotationsText, /pdftoppm -png -r 144[\s\S]*pdf_audit\.py validate[\s\S]*--require-operation fill-form/is);
+assert.match(formsAnnotationsText, /render and validation commands after the typed `fill-form`[\s\S]*same audit trace/i);
+assert.match(formsAnnotationsText, /MuPDF render alone is insufficient/i);
+assert.match(formsAnnotationsText, /interactive fill is an incremental-only operation[\s\S]*Do not switch to[\s\S]*`rewrite` or flattening/i);
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
 assert.match(pdfPluginReadme, /office-kit\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
