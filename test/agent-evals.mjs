@@ -3524,6 +3524,11 @@ try {
   await assert.rejects(() => fs.access(path.join(temporary, "removable")), /ENOENT/);
 
   const item = cases.find((candidate) => candidate.id === "pdf-richmedia-opaque-preservation");
+  assert.equal(item.expectedOutcome, "safe-refusal");
+  assert.deepEqual(item.deliverables, []);
+  assert.match(item.prompt, /不得使用 pypdf[\s\S]*fail closed/i);
+  assert.match(item.prompt, /delivered_modified_pdf=false[\s\S]*operation=\[\{type:/i);
+  assert.match(item.prompt, /savePolicy=\{strategy:\"none\"[\s\S]*allowed_output:\"audit_only\"/i);
   const workspace = path.join(temporary, "workspace");
   const evaluator = path.join(temporary, "evaluator");
   const credentials = path.join(workspace, "inputs", "credentials");

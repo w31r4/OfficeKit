@@ -155,8 +155,12 @@ and `appearanceBbox`; re-inspect after every output.
   `rotate_page` sets an absolute right-angle `/Rotate`; neither enables content
   reflow. Delete/redaction operations cannot be incremental.
 - General Word-style reflow, arbitrary text replacement, Dynamic XFA, complex
-  JavaScript, 3D, and RichMedia are not made safe by these primitives. Preserve
-  them opaquely when the selected operation allows it, otherwise fail closed.
+  JavaScript, 3D, and RichMedia are not made safe by these primitives. Current
+  typed routes cannot prove opaque closure or runtime behavior, so inventory
+  such objects and fail closed with audit-only `save: none` unless a dedicated
+  provider and oracle prove unchanged bytes plus runtime semantics. Never route
+  around this boundary through pypdf, ReportLab, PDF.js, content-stream edits,
+  or another provider; do not publish a cover-only edit as preserved behavior.
 
 For the complete operation schemas and edge cases, read [edit existing](tasks/edit_existing.md)
 and [forms and annotations](tasks/forms_annotations.md), not this overview.

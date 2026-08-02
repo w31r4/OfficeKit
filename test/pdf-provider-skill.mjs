@@ -309,6 +309,7 @@ for (const pattern of [
   /Word-style reflow/,
   /Dynamic XFA/,
 ]) assert.match(skillText, pattern);
+assert.match(skillText, /3D[\s\S]*RichMedia[\s\S]*audit-only[\s\S]*save: none[\s\S]*pypdf[\s\S]*content-stream/i);
 assert.doesNotMatch(skillText, /brew install|apt-get|uv pip install/i);
 const providerSetupText = await fs.readFile(path.join(skillRoot, "tasks", "provider_setup.md"), "utf8");
 assert.match(providerSetupText, /PdfProviders\.resolve/);
@@ -340,6 +341,11 @@ assert.match(formsAnnotationsText, /pdftoppm -png -r 144[\s\S]*pdf_audit\.py val
 assert.match(formsAnnotationsText, /render and validation commands after the typed `fill-form`[\s\S]*same audit trace/i);
 assert.match(formsAnnotationsText, /MuPDF render alone is insufficient/i);
 assert.match(formsAnnotationsText, /interactive fill is an incremental-only operation[\s\S]*Do not switch to[\s\S]*`rewrite` or flattening/i);
+const editExistingText = await fs.readFile(path.join(skillRoot, "tasks", "edit_existing.md"), "utf8");
+assert.match(editExistingText, /Opaque RichMedia\/3D boundary/);
+assert.match(editExistingText, /status: \"failed_closed\"[\s\S]*savePolicy\.strategy: \"none\"/);
+assert.match(editExistingText, /configured provider interpreter[\s\S]*OFFICE_KIT_PDF_PROVIDER_PYTHON/);
+assert.match(editExistingText, /Do not switch to pypdf, ReportLab, PDF\.js,[\s\S]*content-stream patching/i);
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
 assert.match(pdfPluginReadme, /office-kit\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
