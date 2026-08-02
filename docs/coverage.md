@@ -40,6 +40,25 @@ Status meanings:
 | PromptBench auditable XLSX operating-plan slice | done | The ready `xlsx-auditable-operating-plan` case binds self-authored 24-month actuals (`b758991f9fcf6c029bd1a5c6a6af37f30e5aa6f2bf063bd878895eb270665a3e`) and three-scenario assumptions (`dcb46836d23936b3240a55e9337f49afdf68f12561460c732e1e0d4899932d58`). The published workflow creates five frozen sheets, formula-backed forecast chains, scenario validation, cash warnings, root threaded comments/persons, line and pie charts, second import, model/native render evidence, and a SHA-bound rewrite audit. Its independent grader requires at least 120 formulas with zero errors, complete checks and chart coverage, nonblank native pages, input/output provenance, no silent fallback, and a typed workflow trace. It is a deterministic greenfield contract, not a general imported-workbook reconstruction claim. |
 | PromptBench source-bound XLSX connection refresh slice | done | `xlsx-connection-refresh-on-open` generates a workbook with one recognized connection (`Fixture warehouse`, ID `7`) and an associated QueryTable. The public no-overwrite workflow and independent oracle prove `refreshOnLoad` goes from true to false while the command, opaque extension, and complete normalized ConnectionsPart residual remain stable, require the QueryTable and Table parts to be byte-identical, and permit only `xl/connections.xml` to change. Every other part or semantic drift fails. The grader binds source/output hashes to a no-fallback OfficeKit rewrite audit, reimports, and renders all pages. It rejects direct XML patch traces and does not claim to disable manual, macro, PivotTable, or other host-triggered refreshes. |
 
+### PromptBench AcroForm visible-preserved matrix
+
+`pdf-acroform-visible-preserved` passed candidate `3/3` at `100/100` from one
+immutable generated one-page form. The typed pypdf workflow fills only the
+requested name/company/address/date fields, preserves blank TIN/signature and
+editable widget topology, uses incremental save, reopens the output, renders
+every final page with independent Poppler `pdftoppm`, and validates the
+canonical audit after mutation. Package/input/source/oracle identities are
+`70edfe048ceb9b7e95a5ec817a23999f174285938cb76021bf08634b186fbdb9`,
+`0eacb72e03ebbde263b26ebfed25052e68142f0d856f620c8b3b325f0fbd2e7c`,
+`0ebb7bca3cd52a185ec6b68fe5b0acf52de86718af6d02322714d827caf6424e`, and
+`229c62a094f720a1d24c18371fb6bafffc0d1cafa1e0cf43965a985d362fde16`; the
+candidate Skill tree is
+`ee7c34e93718838f61dad23da8d5d289a687d156514f59478ccf5891d0d2923e`.
+Earlier reference diagnostics selected rewrite or omitted the audit envelope
+and remain compatibility gaps, not waived passes. This is a bounded
+editable-form transaction, not general AcroForm hierarchy or arbitrary
+signed-PDF editing.
+
 ### PromptBench current inventory
 
 The bounded `pdf-cross-page-table-extraction` candidate/reference repeat matrix

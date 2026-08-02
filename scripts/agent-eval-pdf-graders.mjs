@@ -628,10 +628,10 @@ function sourceBoundHighlightTraceChecks(audit, commands) {
 function acroformTraceChecks(audit, commands) {
   const commandText = commands.join("\n");
   const operation = auditOperation(audit);
-  const inspect = completedInvocation(commands, /pypdf_edit\.py\s+inspect\b/i);
-  const checkProvider = completedInvocation(commands, /pdf_provider\.py\s+check\b[^\n]*--provider\s+pypdf\b/i);
-  const plan = completedInvocation(commands, /pdf_provider\.py\s+plan\b/i);
-  const fill = completedInvocation(commands, /pypdf_edit\.py\s+fill-form\b/i);
+  const inspect = completedInvocation(commands, /pypdf_edit\.py["']?\s+inspect\b/i);
+  const checkProvider = completedInvocation(commands, /pdf_provider\.py["']?\s+check\b[^\n]*--provider\s+pypdf\b/i);
+  const plan = completedInvocation(commands, /pdf_provider\.py["']?\s+plan\b/i);
+  const fill = completedInvocation(commands, /pypdf_edit\.py["']?\s+fill-form\b/i);
   const afterFill = commandTextAfter(commands, fill);
   const bypassPatterns = [
     /\bPdfWriter\s*\(/,
@@ -648,7 +648,7 @@ function acroformTraceChecks(audit, commands) {
     check("pdf-trace:inspect-check-plan-before-mutation", "trace", invocationBefore(inspect, fill) && invocationBefore(checkProvider, fill) && invocationBefore(plan, fill), { actual: positions }),
     check("pdf-trace:typed-fill-form-primitive", "trace", Boolean(fill) && /fill[-_ ]?form/i.test(operation), { actual: operation || "unreported" }),
     check("pdf-trace:post-mutation-poppler-render", "trace", /\bpdftoppm\b/i.test(afterFill), { actual: { fillObserved: Boolean(fill), postMutationRenderObserved: /\bpdftoppm\b/i.test(afterFill) } }),
-    check("pdf-trace:audit-byte-validation", "trace", /pdf_audit\.py\s+validate\b/i.test(afterFill), { actual: { postMutationAuditValidationObserved: /pdf_audit\.py\s+validate\b/i.test(afterFill) } }),
+    check("pdf-trace:audit-byte-validation", "trace", /pdf_audit\.py["']?\s+validate\b/i.test(afterFill), { actual: { postMutationAuditValidationObserved: /pdf_audit\.py["']?\s+validate\b/i.test(afterFill) } }),
     gate("pdf-trace:no-ad-hoc-pypdf-writer", "trace", !bypassPatterns.some((pattern) => pattern.test(commandText)), { forbidden: bypassPatterns.map(String) }),
   ];
 }
