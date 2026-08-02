@@ -46,7 +46,10 @@ sparkline, array-metadata, threaded-comment, and disconnected combo-chart
 parts remain byte-identical canaries. The published workflow and independent
 OPC oracle allow only `xl/worksheets/sheet1.xml` and
 `xl/drawings/charts/chart1.xml` to change, then reimport, verify, and render
-all four sheets. This does not claim combo-chart, slicer, Power Query, or
+all four sheets. Its native visual gate infers the untouched Data/Summary
+canary from the common stable page suffix, so platform-specific chart
+continuation pages do not become false failures; at least two stable trailing
+pages are required. This does not claim combo-chart, slicer, Power Query, or
 dynamic-array authoring.
 
 The current v1 inventory supersedes the historical count embedded in the table

@@ -1302,6 +1302,36 @@ try {
     commands: extractCompletedCommands(opaqueTrace),
   });
   assert.equal(opaqueChecks.every((check) => check.passed), true, opaqueChecks.filter((check) => !check.passed).map((check) => check.id).join(", "));
+  const opaqueLinuxVisualEvidence = {
+    source: {
+      ...opaqueEvidence.visual.source,
+      pageCount: 7,
+      pages: [
+        ...opaqueEvidence.visual.source.pages.slice(0, 3),
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "dashboard-continuation-source-2" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "data-stable" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "data-stable-2" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "summary-stable" },
+      ],
+    },
+    output: {
+      ...opaqueEvidence.visual.output,
+      pageCount: 7,
+      pages: [
+        ...opaqueEvidence.visual.output.pages.slice(0, 3),
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "dashboard-continuation-output-2" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "data-stable" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "data-stable-2" },
+        { width: 1, height: 1, nonWhitePixels: 1, pixelSha256: "summary-stable" },
+      ],
+    },
+  };
+  const opaqueLinuxChecks = gradeXlsxOpaqueEnterpriseEvidence({
+    evidence: { ...opaqueEvidence, visual: opaqueLinuxVisualEvidence },
+    audit: opaqueAudit,
+    commands: extractCompletedCommands(opaqueTrace),
+  });
+  assert.equal(opaqueLinuxChecks.find((check) => check.id === "xlsx-opaque-enterprise-visual:untouched-canary-pages")?.passed, true);
   const untrustedOpaqueChecks = gradeXlsxOpaqueEnterpriseEvidence({
     evidence: opaqueEvidence,
     audit: opaqueAudit,
