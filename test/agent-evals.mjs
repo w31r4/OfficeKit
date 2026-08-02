@@ -835,6 +835,23 @@ const fabricatedRegionalChecks = gradeRegionalRevenueTableEvidence({
   outputHashes: { json: "regional-json-sha", csv: "regional-csv-sha" },
 });
 assert.equal(fabricatedRegionalChecks.find((check) => check.id === "pdf-security:no-fabricated-cells")?.passed, false, "table grader rejects fabricated cells");
+const duplicateRegionalCells = regionalTableCells.map((cell, index) => index === 6 ? { ...cell, text: regionalTableCells[5].text } : cell);
+const duplicateRegionalEvidence = structuredClone(regionalTableEvidence);
+duplicateRegionalEvidence.table.cells = duplicateRegionalCells;
+const duplicateRegionalCsv = [
+  "page,text,bbox,rowspan,colspan,confidence",
+  ...duplicateRegionalCells.map((cell) => `${cell.page},"${cell.text}","${cell.bbox.join(",")}",${cell.rowspan},${cell.colspan},${cell.confidence}`),
+].join("\n");
+const duplicateRegionalChecks = gradeRegionalRevenueTableEvidence({
+  evidence: duplicateRegionalEvidence,
+  report: { table: "Regional Revenue", cells: duplicateRegionalCells },
+  csv: duplicateRegionalCsv,
+  audit: regionalTableAudit,
+  commands: regionalTableCommands,
+  item: regionalTableItem,
+  outputHashes: { json: "regional-json-sha", csv: "regional-csv-sha" },
+});
+assert.equal(duplicateRegionalChecks.every((check) => check.passed), true, "table grader matches repeated cell values by occurrence");
 }
 
 const threadedReplyItem = cases.find((item) => item.id === "xlsx-threaded-reply-resolve");

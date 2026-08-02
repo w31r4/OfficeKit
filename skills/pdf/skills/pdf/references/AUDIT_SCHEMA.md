@@ -39,6 +39,45 @@ For a multi-source operation, keep `source` as the exact operation manifest and 
 
 For attachment quarantine, use `savePolicy.strategy: "read-only"`, `operation.type: "extract-attachments"`, and bind `output` to the delivered `attachments.json` manifest. The quarantine file hashes and contained paths remain task-specific validation evidence inside that manifest and the audit `validation` object.
 
+For a read-only operation that publishes more than one typed artifact (for
+example a table JSON report and a CSV parity export), keep the JSON evidence in
+the compatibility `output` field and add a named `outputs` object. The keys are
+stable operation names, not filenames; the `json` member is required when a
+JSON report is the primary artifact. Validate every named byte stream with the
+matching flags:
+
+```json
+{
+  "output": { "path": "/absolute/regional-revenue.json", "bytes": 123, "sha256": "..." },
+  "outputs": {
+    "json": { "path": "/absolute/regional-revenue.json", "bytes": 123, "sha256": "..." },
+    "csv": { "path": "/absolute/regional-revenue.csv", "bytes": 456, "sha256": "..." }
+  }
+}
+```
+
+```bash
+python3 scripts/pdf_audit.py validate outputs/audit.json \
+  --source inputs/source.pdf \
+  --artifact-json outputs/regional-revenue.json \
+  --artifact-csv outputs/regional-revenue.csv \
+  --require-operation extract-table
+```
+
+Do not put a list of unnamed files in `outputs`; named entries are what bind
+the audit to the exact deliverables and prevent a CSV/JSON mix-up.
+
+For geometry-table extraction, put the independent Poppler review under
+`validation.renderReview`. It must name the renderer/version and list every
+source page. A review is complete when either the object has
+`bboxOverlayReviewed: true`, or every page entry has
+`tableBboxOverlayReviewed: true` and `result: "passed"`; page-level evidence is
+preferred because it makes a missing page visible. Render and overlay files
+normally stay in `tmp/` and are not silently treated as table deliverables.
+The installed package and mounted Skill tree are read-only during a task; an
+agent must not edit `node_modules/` or `.agents/` to make a failed primitive
+appear to pass.
+
 For bounded qpdf encryption, use `savePolicy.strategy: "rewrite"` and
 `operation.type: "qpdf-encrypt-aes-256"`. Record the catalog credential
 declaration, qpdf version, AES-256/key-bit evidence, signature decision,

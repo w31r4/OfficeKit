@@ -14,6 +14,12 @@
       "items": { "$ref": "#/$defs/fileEvidence" }
     },
     "output": { "oneOf": [{ "$ref": "#/$defs/fileEvidence" }, { "type": "null" }] },
+    "outputs": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/fileEvidence" },
+      "description": "Optional named output evidence for read-only operations that publish more than one artifact. The json member is also mirrored in output for compatibility."
+    },
     "provider": {
       "type": "object",
       "required": ["actual", "version", "silentFallback"],

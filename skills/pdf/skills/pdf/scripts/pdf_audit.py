@@ -217,7 +217,14 @@ def validate_docmdp_no_changes_record(record: dict, trust_root: Path) -> None:
     validate_file_evidence(verification.get("trustRoot"), require_regular_file(trust_root, "DocMDP trust root"), "validation.signatureVerification.trustRoot")
 
 
-def validate_record(record: dict, source: Path, inputs: list[Path], artifact: Path | None, required_operation: str | None) -> dict:
+def validate_record(
+    record: dict,
+    source: Path,
+    inputs: list[Path],
+    artifact: Path | None,
+    required_operation: str | None,
+    artifacts: dict[str, Path] | None = None,
+) -> dict:
     record = require_object(record, "audit")
     if record.get("schema") != SCHEMA:
         raise AuditError(f"schema must be {SCHEMA!r}")
@@ -247,15 +254,32 @@ def validate_record(record: dict, source: Path, inputs: list[Path], artifact: Pa
         raise AuditError(f"operation.type must be {required_operation!r}")
     require_object(record.get("validation"), "validation")
 
+    output_records = record.get("outputs")
     if status == "succeeded":
         if preflight["probeCompleted"] is not True or preflight["planCompleted"] is not True:
             raise AuditError("a succeeded audit requires completed provider probe and route plan")
-        if artifact is None:
-            raise AuditError("--artifact is required for a succeeded audit")
-        validate_file_evidence(record.get("output"), artifact, "output")
+        if output_records is not None:
+            if not isinstance(output_records, dict) or not output_records:
+                raise AuditError("audit.outputs must be a non-empty object")
+            if not artifacts:
+                raise AuditError("--artifact-json/--artifact-csv are required when audit.outputs is used")
+            if set(output_records) != set(artifacts):
+                raise AuditError(
+                    f"audit.outputs keys {sorted(output_records)} do not match artifact keys {sorted(artifacts)}; provide matching --artifact-json/--artifact-csv flags"
+                )
+            for name, output_path in artifacts.items():
+                validate_file_evidence(output_records.get(name), output_path, f"outputs.{name}")
+            if artifact is not None:
+                validate_file_evidence(record.get("output"), artifact, "output")
+            elif "json" in artifacts:
+                validate_file_evidence(record.get("output"), artifacts["json"], "output")
+        else:
+            if artifact is None:
+                raise AuditError("--artifact is required for a succeeded audit")
+            validate_file_evidence(record.get("output"), artifact, "output")
     else:
-        if record.get("output") is not None:
-            raise AuditError("failed_closed audit output must be null")
+        if record.get("output") is not None or output_records is not None:
+            raise AuditError("failed_closed audit outputs must be null/absent")
         if artifact is not None and artifact.exists():
             raise AuditError("failed_closed audit must not have a partial artifact")
         if not isinstance(record.get("reason"), str) or not record["reason"].strip():
@@ -270,6 +294,7 @@ def validate_record(record: dict, source: Path, inputs: list[Path], artifact: Pa
         "savePolicy": policy["strategy"],
         "operation": operation["type"],
         "inputs": input_count,
+        "outputs": len(output_records) if isinstance(output_records, dict) else 1,
         "silentFallback": False,
     }
 
@@ -416,6 +441,8 @@ def parser() -> argparse.ArgumentParser:
     validate.add_argument("--source", type=Path, required=True)
     validate.add_argument("--input", type=Path, action="append", default=[])
     validate.add_argument("--artifact", type=Path)
+    validate.add_argument("--artifact-json", type=Path, help="validate the json member of a multi-output audit")
+    validate.add_argument("--artifact-csv", type=Path, help="validate the csv member of a multi-output audit")
     validate.add_argument("--require-operation")
     validate.add_argument("--require-docmdp-no-changes", action="store_true")
     validate.add_argument("--trust-root", type=Path)
@@ -465,7 +492,12 @@ def main() -> int:
             }, indent=2, sort_keys=True))
             return 0
         record = json.loads(args.audit.read_text("utf8"))
-        result = validate_record(record, args.source, args.input, args.artifact, args.require_operation)
+        artifacts = {
+            name: value
+            for name, value in (("json", args.artifact_json), ("csv", args.artifact_csv))
+            if value is not None
+        }
+        result = validate_record(record, args.source, args.input, args.artifact, args.require_operation, artifacts or None)
         if args.require_docmdp_no_changes:
             if args.trust_root is None:
                 raise AuditError("--require-docmdp-no-changes requires --trust-root")

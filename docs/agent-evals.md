@@ -302,6 +302,24 @@ result; it does not generalize to arbitrary hostile PDFs or fuzzy OCR intent.
 Earlier diagnostic runs are not evidence: they were discarded after the
 evaluator corrected its visual masks and trace normalization.
 
+### PDF Regional Revenue table matrix
+
+The bounded `pdf-cross-page-table-extraction` candidate repeat matrix now
+passes `3/3` at `100/100` from the current dirty candidate package. All three
+trials used one immutable fixture snapshot and the same typed workflow:
+provider check, explicit read-only table plan, the shipped
+`pdfplumber_extract.py table` primitive, Poppler page rendering/overlays, and
+canonical audit validation. The matrix identity is candidate package
+`d32bf6883e04eaccde71655571ebf0f387bde4d67f7d6967fd1ae8339481ee6d`, input
+contract `3001e80795108176f00100e0eec1ca4c340da568a869d6d09cf6b70d44fb7d66`,
+source `f06f948511f60df356ddfc7bcb82e87428a358bbe0c523e070c6acf38c458d74`,
+and oracle `793d00a276acc36c936fd7bb670580d3c0659617d17ac824cfa9ea2fbaf6d778`.
+Every trial produced 78 geometry-bound cells, three merged title spans,
+two separate footnotes, matching JSON/CSV hashes, and passed the per-page
+bbox overlay, no-narrative-leakage, source-provenance, and no-fallback gates.
+This is candidate-only evidence; the copied reference Skill has not yet been
+re-run against the strengthened typed table contract.
+
 ## Isolation and provenance
 
 Each preparation creates a fresh trial tree outside the repository by default:
@@ -346,7 +364,7 @@ Eleven ready PDF cases have complete case-specific grading:
 | --- | --- | --- | --- | --- |
 | `pdf-bounded-contract-id-replace` | Independent page/text/font/box assertions | Poppler renders all five pages; non-target pages must be pixel-identical and the page-3 diff must stay inside the source text mask | Raw, extracted, decoded-stream, and metadata residue scan; one `startxref`/`%%EOF`; canonical audit hashes must match final bytes | PyMuPDF/version, explicit `sanitize`, no fallback, shipped probe before edit, typed mutation, and no low-level stream mutation |
 | `pdf-source-bound-text-highlight` | pypdf confirms exactly one new native `/Highlight` on page 2, exact RGB/review metadata, source-text-stable geometry, and quadrilaterals bounded to the independent pdfplumber text box | Poppler/Pillow requires three nonblank same-size pages, pixel-identical non-target pages, and a page-2 diff contained in the source text mask | Exact input/output hashes, an unrotated source-page snapshot, no caller-supplied coordinates, decodable streams, and one rewrite revision | MuPDF/version, explicit `rewrite`, probe + inspect before typed `add_text_highlight`, output re-inspection/render, no fallback or direct native/object mutation |
-| `pdf-cross-page-table-extraction` | Independent pdfplumber extraction proves three pages × six rows, merged title topology, repeated headers, exact 78 cells, parenthesized negatives, page/coordinate/span/confidence fields, and JSON/CSV parity | Poppler renders all three source pages; a table-bbox overlay audit passes on pages 1–3 and rejects blank/edge-clipped pages | Source and deliverable hashes are bound in the audit; read-only extraction cannot publish a rewritten PDF or fabricated cell | pdfplumber/version, explicit `read-only`, provider check + table plan before typed extraction, Poppler overlay and audit validation after extraction, no fallback or narrative leakage |
+| `pdf-cross-page-table-extraction` | The published `pdfplumber_extract.py table` primitive proves three pages × six rows, merged title topology, repeated headers, exact 78 geometry-bound cells, parenthesized negatives, page/coordinate/span/confidence fields, and JSON/CSV parity; explicit `*`/`Note:` footnotes stay in a separate JSON field rather than becoming cells | Poppler renders all three source pages; a table-bbox overlay audit passes on pages 1–3 and rejects blank/edge-clipped pages | Source and named JSON/CSV deliverable hashes are bound in the audit; read-only extraction cannot publish a rewritten PDF or fabricated cell | pdfplumber/version, explicit `read-only`, provider check + table plan before typed extraction, Poppler overlay and audit validation after extraction, no fallback or narrative leakage |
 | `pdf-overflow-replace-refusal` | Independent ReportLab font metric plus pdfplumber 70pt-box proof and structured audit geometry | Not applicable | No partial artifact, no mutation claim, and source provenance | PyMuPDF capability evidence, no fallback, and no mutation command after failed preflight |
 | `pdf-acroform-visible-preserved` | Independent pypdf field-tree, exact value, widget-topology, `/AP`, `/V`, `/AS`, `NeedAppearances`, and editability assertions | Poppler renders every page; only the four requested widgets may change; TIN, signature, the unselected radio, and a pre-checked checkbox remain pixel-stable | Exact original-byte prefix plus one appended revision, sensitive fields blank, all streams decodable, canonical audit hashes match | pypdf/version, explicit `incremental`, inspect/check/plan before typed fill, Poppler and audit validation after mutation, no ad-hoc writer |
 | `pdf-attachment-quarantine-inventory` | Independent pypdf enumeration of document/page FileSpecs, exact raw identity/MIME/size/SHA fields, duplicate preservation, and extracted-byte equality | The immutable source remains the only PDF; no page-transform artifact is accepted | Traversal-safe regular files, exact payload set, source/manifest provenance, explicit no-open/no-execute evidence | pypdf/version, explicit `read-only`, inspect/check/plan before typed extraction, audit validation after extraction, no ad-hoc parser or payload execution |
