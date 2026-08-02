@@ -1346,7 +1346,8 @@ try {
     trace: opaqueTrace,
   });
   if (nativeOpaqueResult.graded) {
-    assert.equal(nativeOpaqueResult.rawScorePercent, 100);
+    const failedNativeOpaqueChecks = nativeOpaqueResult.checks.filter((check) => !check.passed).map((check) => ({ id: check.id, details: check.visual || check.validation || null }));
+    assert.equal(nativeOpaqueResult.rawScorePercent, 100, JSON.stringify(failedNativeOpaqueChecks));
     assert.equal(nativeOpaqueResult.caseSpecificPassed, true);
   } else {
     assert.ok(nativeOpaqueResult.infrastructureErrors?.length);
