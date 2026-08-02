@@ -41,17 +41,18 @@ Status meanings:
 
 ### PromptBench current inventory
 
-The bounded `pdf-cross-page-table-extraction` candidate repeat matrix now
-passes `3/3` at `100/100` from the current dirty candidate package. All trials
-share the immutable Regional Revenue source
+The bounded `pdf-cross-page-table-extraction` candidate/reference repeat matrix
+now passes candidate `3/3` and copied-reference `3/3` at `100/100` from one
+immutable run root. All trials share the immutable Regional Revenue source
 `f06f948511f60df356ddfc7bcb82e87428a358bbe0c523e070c6acf38c458d74`, input
 contract `3001e80795108176f00100e0eec1ca4c340da568a869d6d09cf6b70d44fb7d66`,
 candidate tarball `d32bf6883e04eaccde71655571ebf0f387bde4d67f7d6967fd1ae8339481ee6d`,
 and oracle `793d00a276acc36c936fd7bb670580d3c0659617d17ac824cfa9ea2fbaf6d778`.
 The evidence covers the typed 78-cell JSON/CSV output, separate footnotes,
 merged title spans, source/output hashes, Poppler overlays, provider
-check/plan order, and no-fallback/read-only trace. This is candidate-only
-repeat evidence; a copied-reference comparison remains open.
+check/plan order, and no-fallback/read-only trace. This is compatibility
+evidence for the bounded typed table workflow, not a claim of general PDF
+table understanding.
 
 The same dirty candidate packs as 660 files, 36,163,229 compressed bytes, and
 53,184,177 unpacked bytes (`shasum 4bb86aad421798795a87edbf708a6ef5dc746d95`);
