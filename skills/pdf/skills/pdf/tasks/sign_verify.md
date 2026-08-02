@@ -174,6 +174,27 @@ does not mean the signer approved arbitrary later revisions. Review
 `coverage`, `modificationLevel`, `docMDPCompliant`, timestamps, and every
 signature in revision order.
 
+For a requested PAdES-LTV/TSA upgrade that the shipped provider cannot prove,
+refuse without mutation and bind the capability decision as typed data. Write a
+small JSON object outside `outputs/` with explicit boolean `false` values for
+`timestampAuthoritySupported`, `ltvEmbeddingSupported`, and
+`padesProfileConformanceClaimed`, then pass it to the canonical audit writer:
+
+```bash
+"$PYTHON_BIN" scripts/pdf_audit.py failed-closed outputs/audit.json \
+  --source inputs/source.pdf \
+  --provider pyhanko --provider-version unavailable \
+  --operation upgrade-existing-signature-to-pades-ltv \
+  --reason "TSA/LTV capability is unavailable; fail closed" \
+  --capabilities-json tmp/pdfs/pades-capabilities.json \
+  --probe-completed --plan-completed --source-inspected
+```
+
+Do not replace these booleans with prose, omit the profile-conformance field,
+or hand-write a second audit shape. The resulting `provider.capabilities`
+object is part of the source-bound `office-kit.pdf-audit.v1` envelope and must
+be validated before delivery.
+
 ## Refuse a forbidden P=1 certification change
 
 For a requested content change on a fully verified DocMDP `P=1` certification,

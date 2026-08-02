@@ -190,12 +190,8 @@ retry via a different Python interpreter after a failed probe.
 
 ## Delivery gate
 
-1. Record selected provider, version, policy/receipt (if any), source hash,
-   save strategy, and no-fallback evidence in the canonical audit envelope. A
-   no-mutation refusal uses `pdf_audit.py failed-closed`; a verified DocMDP P=1
-   refusal additionally supplies its pyHanko report with
-   `--signature-verification --require-docmdp-no-changes --trust-root`. Do not
-   hand-write either audit.
+1. Record selected provider, version, policy/receipt (if any), source hash, save strategy, and no-fallback evidence in the canonical audit envelope. A no-mutation refusal uses `pdf_audit.py failed-closed`; a verified DocMDP P=1 refusal additionally supplies its pyHanko report with `--signature-verification --require-docmdp-no-changes --trust-root`. Do not hand-write either audit.
+   A refused PAdES/TSA/LTV upgrade must pass `--capabilities-json` with explicit boolean `false` values for `timestampAuthoritySupported`, `ltvEmbeddingSupported`, and `padesProfileConformanceClaimed`; prose or missing fields are not evidence.
 2. Reopen and verify the intended change; use `scripts/pdf_audit.py validate`.
 3. Run the requested specialist evidence. Sanitization must pass its residue
    and single-revision gates; signatures and PDF/UA retain their separate

@@ -818,6 +818,43 @@ try {
     "--source", dummyInput, "--require-operation", "print-production-footer",
   ], { status: 0 }));
   assert.equal(generatedRefusalValidation.status, "failed_closed");
+  const padesCapabilitiesPath = path.join(tempRoot, "pades-capabilities.json");
+  await fs.writeFile(padesCapabilitiesPath, JSON.stringify({
+    timestampAuthoritySupported: false,
+    ltvEmbeddingSupported: false,
+    padesProfileConformanceClaimed: false,
+  }), "utf8");
+  const generatedPadesRefusalPath = path.join(tempRoot, "generated-pades-refusal", "audit.json");
+  const generatedPadesRefusal = parseResult(run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "failed-closed", generatedPadesRefusalPath,
+    "--source", dummyInput,
+    "--provider", "pyhanko", "--provider-version", "unavailable",
+    "--operation", "upgrade-existing-signature-to-pades-ltv", "--reason", "TSA/LTV capability is unavailable; fail closed",
+    "--capabilities-json", padesCapabilitiesPath,
+    "--probe-completed", "--plan-completed", "--source-inspected",
+  ], { status: 0 }));
+  assert.equal(generatedPadesRefusal.status, "failed_closed");
+  const generatedPadesRecord = JSON.parse(await fs.readFile(generatedPadesRefusalPath, "utf8"));
+  assert.deepEqual(generatedPadesRecord.provider.capabilities, {
+    timestampAuthoritySupported: false,
+    ltvEmbeddingSupported: false,
+    padesProfileConformanceClaimed: false,
+  });
+  const generatedPadesValidation = parseResult(run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "validate", generatedPadesRefusalPath,
+    "--source", dummyInput, "--require-operation", "upgrade-existing-signature-to-pades-ltv",
+  ], { status: 0 }));
+  assert.equal(generatedPadesValidation.status, "failed_closed");
+  const invalidPadesCapabilitiesPath = path.join(tempRoot, "invalid-pades-capabilities.json");
+  await fs.writeFile(invalidPadesCapabilitiesPath, "[]", "utf8");
+  const invalidPadesRefusal = run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "failed-closed", path.join(tempRoot, "invalid-pades-refusal", "audit.json"),
+    "--source", dummyInput,
+    "--provider", "pyhanko", "--provider-version", "unavailable",
+    "--operation", "upgrade-existing-signature-to-pades-ltv", "--reason", "TSA/LTV capability is unavailable; fail closed",
+    "--capabilities-json", invalidPadesCapabilitiesPath,
+  ], { status: 2 });
+  assert.match(invalidPadesRefusal.stderr, /capabilities JSON must be a non-empty object/);
   const generatedRefusalOverwrite = run(python, [
     path.join(scriptsRoot, "pdf_audit.py"), "failed-closed", generatedRefusalPath,
     "--source", dummyInput,
