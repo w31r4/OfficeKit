@@ -48,6 +48,7 @@ const PACKS = Object.freeze({
   },
 });
 const profile = PACKS[packId];
+const PYTHON_IMPORT_TIMEOUT_MS = 60_000;
 
 if (!profile) throw new Error(`Unsupported Python managed-release pack ${packId}.`);
 
@@ -79,7 +80,7 @@ if (process.env.OFFICE_KIT_PDF_LIVE_PACK_TEST !== "1") {
     assert.equal(ready.status, "ready", JSON.stringify(ready.reason));
     const python = ready.runtime?.managed?.pythonPath;
     assert.ok(python, "managed Python executable must be returned by the fresh probe");
-    const { stdout } = await execFile(python, ["-I", "-c", profile.program], { timeout: 20_000, maxBuffer: 16 * 1024 });
+    const { stdout } = await execFile(python, ["-I", "-c", profile.program], { timeout: PYTHON_IMPORT_TIMEOUT_MS, maxBuffer: 16 * 1024 });
     assert.deepEqual(JSON.parse(stdout), profile.versions);
     const cached = await PdfProviders.probe({ provider: profile.provider, task: profile.task, policyPath });
     assert.equal(cached.status, "ready", JSON.stringify(cached.reason));

@@ -309,7 +309,7 @@ async function probePythonModule(provider, policy, explicitPython = undefined) {
     "print(json.dumps({'moduleFound': u.find_spec(p['module']) is not None, 'version': v(p['distribution']), 'companionFound': (not p.get('companionModule')) or u.find_spec(p['companionModule']) is not None, 'companionVersion': v(p['companionDistribution']) if p.get('companionModule') else None}))",
   ].join("\n");
   try {
-    const { stdout } = await execFile(executable, ["-c", program, JSON.stringify(payload)], { timeout: 3_000, maxBuffer: 16 * 1024, windowsHide: true });
+    const { stdout } = await execFile(executable, ["-c", program, JSON.stringify(payload)], { timeout: provider.probeTimeoutMs ?? 3_000, maxBuffer: 16 * 1024, windowsHide: true });
     const probe = JSON.parse(stdout);
     let available = probe.moduleFound === true && nonEmptyString(probe.version) && versionInRange(probe.version, provider);
     if (provider.companionModule) {
