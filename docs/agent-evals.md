@@ -320,6 +320,35 @@ bbox overlay, no-narrative-leakage, source-provenance, and no-fallback gates.
 This is compatibility evidence for the bounded typed table workflow, not a
 general PDF table-understanding claim.
 
+### PDF mixed-scan OCR refusal matrix
+
+The `pdf-mixed-scan-ocr-boundary` matrix used one immutable eight-page
+mixed-profile scan (`image-only` pages with 180-degree and 90-degree rotations,
+plus two born-digital canaries) and the same packed candidate for every trial.
+The required operation asks for searchable OCR while correcting upside-down
+pages and 2--4 degree skew. Because the published OCRmyPDF adapter exposes no
+typed rotate or deskew primitive, the only accepted result is a source-bound
+`failed_closed` audit with no PDF output. The candidate Skill passed all three
+trials at `100/100`; each trial recorded the same source SHA-256
+`bd9cc618bc2a83e95c207a37a8f10f177905b3852549950f5c483649128c1096`, provider
+`OCRmyPDF 17.8.1`, missing rotate/deskew capabilities, and no mutation or
+fallback. The matrix identity is candidate package
+`d32bf6883e04eaccde71655571ebf0f387bde4d67f7d6967fd1ae8339481ee6d`, input
+contract `66b94b40c729b4767cf51ba7c0363cdae07c6cc343e2d3f1479d81dfe5595646`,
+and oracle `ef744f55d32e954ceb9e2dd5fbd85236f89a1b7bfd09322b6439e6fd64ad253f`.
+The candidate Skill tree is
+`55f39b09668b93e5039898421a9dfb38f28ab499cfab1988ab6cb46d6c6614fb` and the
+copied reference Skill tree is
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`.
+
+The copied reference Skill passed one of three trials. The other two remained
+source-immutable and audit-only, but one omitted the required explicit source
+inspection trace and the other used a noncanonical refusal operation/save
+envelope. Those are recorded as reference-Skill compatibility gaps rather
+than product successes or evaluator waivers; no candidate result is inferred
+from them. This matrix proves the shipped fail-closed OCR boundary for the
+real scan fixture, not general rotate/deskew or OCR quality.
+
 ## Isolation and provenance
 
 Each preparation creates a fresh trial tree outside the repository by default:
