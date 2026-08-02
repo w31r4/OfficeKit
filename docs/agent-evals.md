@@ -271,6 +271,37 @@ The first stable contract trial at clean `5ad33e50a3524703ddf84d51571890a2708e3b
 
 The complete candidate/reference repeat matrix at clean `381f21d02a987f1b071e5283d2d6f441c20e2bd0` closed the remaining repetition gap: all six trials passed `100/100` (`candidate 3/3`, `reference 3/3`) with the same package, input-contract, two source, and oracle fingerprints above. The matrix used one preflighted immutable run root and started no Agent until every trial identity matched; this is a compatibility result for the bounded qpdf repair workflow, not a general PDF repair or arbitrary recovery claim.
 
+### PDF multichannel redaction matrix
+
+The final `pdf-redact-multichannel-secret` matrix was run from candidate commit
+`090194bfe381b1df2ac106b6031e03fe8b929170` after the evaluator's mask,
+structured-operation, and quoted-script-path fixes. The managed private
+capability cache supplied PyMuPDF `1.27.2.3`, Tesseract 5, and Poppler; no
+global Python runtime was used. Candidate and copied-reference Skills each
+passed `3/3` trials at `100/100` (six completed trials, no timeout or refusal).
+The matrix run root was
+`/tmp/officekit-promptbench-redact-managed-090194bf-rerun7`, with candidate
+package SHA-256
+`80817445041369bbab1f3b52f1d1500ed0c0ce199108b9ccc665a2b7347c3207`, input
+specification SHA-256
+`43267335d6780c1ca104dfc1729201feac8292d7cb1c00e4fd73dae3f1038eb1`, source
+SHA-256 `f162221bea256ec3c96bcf79a9ab57e447c4f292e833b2ccb3e0b3b5546c4fdc`,
+oracle SHA-256
+`46f282037e99b042c9b434030a3ed3b9f0a21efd53dfabccbcd63675fd104075`,
+candidate Skill tree SHA-256
+`1a6fd0363b50921a974ef989f9fcd554c1fad326d4f1e4f3284fdcfe0c322787`, and
+reference Skill tree SHA-256
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`.
+The independent oracle confirmed four pages, removal of every canary and
+residual channel (selectable/hidden text, raster/OCR image and index, active
+content, form, annotation, attachment, XMP, decoded streams, and old
+incremental revision), a full rewrite with one revision and no original-byte
+prefix, source immutability, and the declared Poppler masks. This is a
+bounded self-authored multichannel fixture and typed-operation compatibility
+result; it does not generalize to arbitrary hostile PDFs or fuzzy OCR intent.
+Earlier diagnostic runs are not evidence: they were discarded after the
+evaluator corrected its visual masks and trace normalization.
+
 ## Isolation and provenance
 
 Each preparation creates a fresh trial tree outside the repository by default:
@@ -309,7 +340,7 @@ Current generic hard gates verify:
 
 Generic gates alone do **not** constitute a passing task score. Reports for cases without a case grader continue to say `partial-generic-only` or `generic-refusal-gates` and keep their semantic, visual, security, and trace evidence in `pending`.
 
-Ten ready PDF cases have complete case-specific grading:
+Eleven ready PDF cases have complete case-specific grading:
 
 | Case | Machine | Visual | Security | Trace |
 | --- | --- | --- | --- | --- |
@@ -320,6 +351,7 @@ Ten ready PDF cases have complete case-specific grading:
 | `pdf-acroform-visible-preserved` | Independent pypdf field-tree, exact value, widget-topology, `/AP`, `/V`, `/AS`, `NeedAppearances`, and editability assertions | Poppler renders every page; only the four requested widgets may change; TIN, signature, the unselected radio, and a pre-checked checkbox remain pixel-stable | Exact original-byte prefix plus one appended revision, sensitive fields blank, all streams decodable, canonical audit hashes match | pypdf/version, explicit `incremental`, inspect/check/plan before typed fill, Poppler and audit validation after mutation, no ad-hoc writer |
 | `pdf-attachment-quarantine-inventory` | Independent pypdf enumeration of document/page FileSpecs, exact raw identity/MIME/size/SHA fields, duplicate preservation, and extracted-byte equality | The immutable source remains the only PDF; no page-transform artifact is accepted | Traversal-safe regular files, exact payload set, source/manifest provenance, explicit no-open/no-execute evidence | pypdf/version, explicit `read-only`, inspect/check/plan before typed extraction, audit validation after extraction, no ad-hoc parser or payload execution |
 | `pdf-active-content-public-sanitize` | pypdf proves the fixture contains root/additional JavaScript, Launch/SubmitForm actions, attachments, invisible text, a comment, populated form values, and personal metadata, then proves every channel is inert | Poppler renders every page and permits changes only inside the removed widget-value/comment masks | All canaries absent from object strings, streams, attachments, annotations/forms, text, and metadata; one revision; original prefix absent; canonical audit hashes match | Probe and route plan before typed scrub, then standalone inert residue scan, Poppler render, audit byte validation, no fallback or low-level mutation bypass |
+| `pdf-redact-multichannel-secret` | Independent pypdf/PyMuPDF checks prove the four-page source's selectable/hidden text, raster/OCR layer, active content, form, annotation, attachment, XMP, decoded-stream, and old-revision canaries are all removed after the requested typed redaction | Poppler renders all four pages; permitted differences are confined to the declared text, raster/OCR, annotation, and form masks, with non-target pixels stable | Full rewrite, no original-byte prefix, one revision, no residue in raw/decoded streams, metadata/XMP, attachments, forms, annotations, hidden text, or OCR extraction; source SHA and audit hashes bind the transaction | Managed PyMuPDF/version and Tesseract evidence, explicit `sanitize`/full-rewrite policy, typed `redact_text` + `redact_ocr_text` + `scrub`, probe/plan before edit, post-edit audit/render, no fallback or low-level content-stream bypass |
 | `pdf-greenfield-accessible-report` | Strict pypdf catalog and structure-tree traversal proves six pages, title/language, H1-H3, one logical Table spanning pages, Figure alt text, Link annotation/StructParent/OBJR, reading-order IDs, and running artifacts | Poppler/Pillow renders all six pages, rejects blank or edge-clipped pages, checks common geometry, and requires readable table text on both physical segments | Canonical source/output hashes, no PDF/UA overclaim, and separate modeled, veraPDF-machine, and human-review evidence | `artifact-tool`/version, explicit `rewrite`, no fallback, shipped typed report example, Poppler evidence, and no ad-hoc PDF writer |
 | `pdf-merge-reorder-stamp-links` | Independent pypdf proves exact six-page source order, preserved boxes/rotation, 20% watermark placement, six outlines, six named destinations, and six resolved internal links | Poppler/Pillow maps every output page to its source; four non-target pages must be pixel-identical and both report pages must change | Manifest plus all source/output hashes, one revision, decodable streams, navigation resolution, and watermark absence from sources | pypdf/version, `rewrite`, check/plan before typed merge, typed Poppler comparison and multi-source audit after mutation, no ad-hoc writer |
 | `pdf-docmdp-allowed-field-fill` | Independent pypdf proves the signed P=2 baseline, exact FieldMDP Include lock, one empty visible target, `12500.00` output value, static/read-only target, unchanged locked/non-target fields, original signature contents, and stable catalog references | Poppler/Pillow requires every page to remain nonblank and confines every changed pixel to the target widget; the shipped P2 smoke separately requires a native MuPDF render whose glyph pixels clear the widget borders | Original bytes must be a strict output prefix, exactly one revision is appended, the original signed range remains bound to the baseline, and the raw typed pyHanko audit binds source/output hashes, explicit root, integrity, trust, DocMDP, FieldMDP, changed field, and no-replace transaction | Published P2 probe and finalisation primitive before post-fill explicit-root verification and render; no fallback or ad-hoc form/object writer |
