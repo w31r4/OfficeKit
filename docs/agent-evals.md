@@ -304,9 +304,9 @@ evaluator corrected its visual masks and trace normalization.
 
 ### PDF Regional Revenue table matrix
 
-The bounded `pdf-cross-page-table-extraction` candidate repeat matrix now
-passes `3/3` at `100/100` from the current dirty candidate package. All three
-trials used one immutable fixture snapshot and the same typed workflow:
+The bounded `pdf-cross-page-table-extraction` candidate/reference repeat matrix
+now passes candidate `3/3` and copied-reference `3/3` at `100/100` from one
+immutable run root. All six trials used the same typed workflow:
 provider check, explicit read-only table plan, the shipped
 `pdfplumber_extract.py table` primitive, Poppler page rendering/overlays, and
 canonical audit validation. The matrix identity is candidate package
@@ -317,8 +317,8 @@ and oracle `793d00a276acc36c936fd7bb670580d3c0659617d17ac824cfa9ea2fbaf6d778`.
 Every trial produced 78 geometry-bound cells, three merged title spans,
 two separate footnotes, matching JSON/CSV hashes, and passed the per-page
 bbox overlay, no-narrative-leakage, source-provenance, and no-fallback gates.
-This is candidate-only evidence; the copied reference Skill has not yet been
-re-run against the strengthened typed table contract.
+This is compatibility evidence for the bounded typed table workflow, not a
+general PDF table-understanding claim.
 
 ## Isolation and provenance
 
