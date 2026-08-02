@@ -3422,6 +3422,29 @@ const redactionCommands = [
 const redactionChecks = gradeMultichannelRedactionEvidence({ evidence: redactionEvidence, audit: redactionAudit, commands: redactionCommands, item: redactionItem });
 assert.equal(redactionChecks.every((entry) => entry.passed), true);
 assert.equal(summarizeCaseScore(redactionChecks, redactionItem.grade).rawScorePercent, 100);
+const structuredRedactionAudit = structuredClone(redactionAudit);
+structuredRedactionAudit.operation = {
+  type: "sanitize-redact",
+  typedPrimitives: [
+    { type: "redact_text" },
+    { type: "redact_ocr_text" },
+    { type: "scrub" },
+  ],
+};
+const quotedRedactionCommands = [
+  '"$PDF_SCRIPTS/pymupdf_edit.py" probe --accept-license agpl',
+  '"$PDF_SCRIPTS/pdf_provider.py" plan --task redact --strategy sanitize',
+  '"$PDF_SCRIPTS/pymupdf_edit.py" edit inputs/source.pdf outputs/redacted.pdf --strategy sanitize',
+  '"$PDF_SCRIPTS/residue_scan.py" outputs/redacted.pdf --require-ocr',
+  'pdftoppm -png outputs/redacted.pdf page',
+  '"$PDF_SCRIPTS/pdf_audit.py" validate outputs/audit.json',
+];
+const structuredRedactionChecks = gradeMultichannelRedactionEvidence({ evidence: redactionEvidence, audit: structuredRedactionAudit, commands: quotedRedactionCommands, item: redactionItem });
+assert.equal(structuredRedactionChecks.every((entry) => entry.passed), true);
+const stringPrimitiveAudit = structuredClone(structuredRedactionAudit);
+stringPrimitiveAudit.operation.typedPrimitives = ["redact_text", "redact_ocr_text", "scrub"];
+const stringPrimitiveChecks = gradeMultichannelRedactionEvidence({ evidence: redactionEvidence, audit: stringPrimitiveAudit, commands: quotedRedactionCommands, item: redactionItem });
+assert.equal(stringPrimitiveChecks.every((entry) => entry.passed), true);
 const missingOcrAudit = structuredClone(redactionAudit);
 missingOcrAudit.operation = [{ type: "redact_text" }, { type: "scrub" }];
 missingOcrAudit.validation.ocr = { required: false, ok: false };
