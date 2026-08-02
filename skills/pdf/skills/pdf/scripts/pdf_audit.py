@@ -324,6 +324,18 @@ def create_failed_closed_record(args) -> dict:
     elif args.signature_verification is not None or args.trust_root is not None:
         raise AuditError("--signature-verification and --trust-root require --require-docmdp-no-changes")
 
+    capabilities = None
+    if args.capabilities_json is not None:
+        capabilities_path = args.capabilities_json.expanduser().resolve()
+        if not capabilities_path.is_file():
+            raise AuditError(f"capabilities JSON does not exist: {capabilities_path}")
+        try:
+            capabilities = json.loads(capabilities_path.read_text("utf8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            raise AuditError(f"capabilities JSON is not valid UTF-8 JSON: {capabilities_path}: {error}") from error
+        if not isinstance(capabilities, dict) or not capabilities:
+            raise AuditError("capabilities JSON must be a non-empty object")
+
     # A failed-closed task publishes only its audit in the delivery directory.
     # This makes the typed no-artifact assertion an observed local fact instead
     # of a prose promise. Diagnostics belong under tmp/ or another caller-owned
@@ -337,17 +349,21 @@ def create_failed_closed_record(args) -> dict:
             f"failed-closed output directory must be empty before publishing audit: {audit.parent} contains {existing_entries}"
         )
 
+    provider_record = {
+        "actual": args.provider,
+        "version": args.provider_version,
+        "silentFallback": False,
+    }
+    if capabilities is not None:
+        provider_record["capabilities"] = capabilities
+
     record = {
         "schema": SCHEMA,
         "status": "failed_closed",
         "delivered_modified_pdf": False,
         "source": absolute_file_evidence(source),
         "output": None,
-        "provider": {
-            "actual": args.provider,
-            "version": args.provider_version,
-            "silentFallback": False,
-        },
+        "provider": provider_record,
         "savePolicy": {
             "strategy": args.strategy,
             "sourceOverwrite": False,
@@ -420,6 +436,11 @@ def parser() -> argparse.ArgumentParser:
     failed_closed.add_argument("--signature-verification", type=Path)
     failed_closed.add_argument("--require-docmdp-no-changes", action="store_true")
     failed_closed.add_argument("--trust-root", type=Path)
+    failed_closed.add_argument(
+        "--capabilities-json",
+        type=Path,
+        help="read a provider capability object and bind it under provider.capabilities",
+    )
     return root
 
 
