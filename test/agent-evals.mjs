@@ -619,6 +619,53 @@ const referenceRefusalChecks = gradeBoundaryRefusalEvidence({
   outputEntries: ["audit.json"],
 });
 assert.equal(referenceRefusalChecks.every((check) => check.passed), true, "reference-style refusal audit");
+const padesBoundary = boundaryCases.find((boundary) => boundary.id === "pdf-pades-ltv-signature");
+const padesItem = cases.find((candidate) => candidate.id === padesBoundary.id);
+const padesEvidence = boundaryOracle(padesBoundary.boundary, padesBoundary.source);
+const padesAliasAudit = {
+  status: "failed_closed",
+  source: { sha256: padesEvidence.source.sha256 },
+  provider: {
+    actual: "pyhanko",
+    version: "unavailable",
+    capabilities: {
+      timestampAuthoritySupported: false,
+      ltvEmbeddingSupported: false,
+      padesDssUpgradeSupported: false,
+    },
+    silentFallback: false,
+  },
+  savePolicy: { strategy: "read-only", artifactWritten: false, publication: "audit_only" },
+  operation: { type: "upgrade-existing-signature-to-pades-ltv", mutationAttempted: false, performed: false, result: "not_attempted", executed: false },
+  validation: { sourceIdentity: { sourcePreserved: true }, artifactChecks: { modifiedPdfPresent: false, partialArtifactPresent: false } },
+  delivered_modified_pdf: false,
+  reason: "TSA/LTV capability is unsupported; fail closed",
+};
+const padesAliasChecks = gradeBoundaryRefusalEvidence({
+  evidence: padesEvidence,
+  audit: padesAliasAudit,
+  commands: ["python .agents/skills/pdf/scripts/pyhanko_provider.py probe", "python .agents/skills/pdf/scripts/pyhanko_provider.py verify inputs/source.pdf --trust-policy explicit-roots --trust-root inputs/credentials/test-root.pem"],
+  finalMessage: "TSA/LTV capability is unsupported; fail closed",
+  item: padesItem,
+  outputEntries: ["audit.json"],
+});
+assert.equal(padesAliasChecks.every((check) => check.passed), true, "PAdES capability aliases remain explicit and fail closed");
+const padesMissingClaimAudit = {
+  ...padesAliasAudit,
+  provider: {
+    ...padesAliasAudit.provider,
+    capabilities: { timestampAuthoritySupported: false, ltvEmbeddingSupported: false },
+  },
+};
+const padesMissingClaimChecks = gradeBoundaryRefusalEvidence({
+  evidence: padesEvidence,
+  audit: padesMissingClaimAudit,
+  commands: ["python .agents/skills/pdf/scripts/pyhanko_provider.py probe"],
+  finalMessage: "TSA/LTV capability is unsupported; fail closed",
+  item: padesItem,
+  outputEntries: ["audit.json"],
+});
+assert.equal(padesMissingClaimChecks.find((check) => check.id === "pdf-security:pades-ltv-capability-refusal")?.passed, false, "PAdES refusal still requires an explicit profile/conformance false claim");
 const partialOutputChecks = gradeBoundaryRefusalEvidence({
   evidence: encryptedEvidence,
   audit: candidateRefusalAudit,
