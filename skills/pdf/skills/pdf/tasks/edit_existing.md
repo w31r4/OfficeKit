@@ -20,6 +20,35 @@ officekit run scripts/mupdf.mjs edit input.pdf tmp/pdfs/edit-operations.json tmp
 
 The CLI refuses source overwrite, writes atomically, and rejects incremental redaction, page duplication, source-bound annotation/link creation or mutation (including text highlights), deletion, and signed-PDF incremental edits. A bounded source-bound single-widget form-field update may use unsigned incremental save; unsupported operations do not route elsewhere.
 
+## Opaque RichMedia/3D boundary
+
+Treat a PDF containing `/RichMedia`, `/3D`, default-view/model dictionaries, or
+associated runtime scripts as a read-only preservation boundary. The current
+typed routes can inventory these objects, but they cannot prove that a cover
+annotation or any other mutation preserves the complete opaque closure *and*
+the viewer runtime behavior. Therefore a mutation request must stop after
+inspection and write only an audit record with `status: "failed_closed"` and
+`savePolicy.strategy: "none"`; it must not write a reviewed PDF.
+
+Use the configured provider interpreter and require the explicit PyMuPDF
+capability probe before deciding the boundary:
+
+```bash
+PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
+"$PYTHON_BIN" scripts/pymupdf_edit.py probe --accept-license agpl
+"$PYTHON_BIN" scripts/pdf_provider.py plan --task edit-content --provider pymupdf \
+  --strategy incremental --input input.pdf --output tmp/pdfs/reviewed.pdf \
+  --accept-license agpl --require-provider
+```
+
+The plan/probe is evidence for the refusal, not permission to mutate this
+class of document. Record the source SHA-256, inspected RichMedia/3D closure,
+actual provider/version, missing proof, `save: none`, and the unexecuted
+operation in `outputs/audit.json`. Do not switch to pypdf, ReportLab, PDF.js,
+content-stream patching, or a different provider as a fallback. Only a future
+dedicated provider with an explicit preservation/runtime oracle may change this
+contract.
+
 ## Update one imported form field
 
 Inspect the exact input and select one `mupdfFormField` record, not a name or

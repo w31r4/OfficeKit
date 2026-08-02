@@ -320,6 +320,32 @@ bbox overlay, no-narrative-leakage, source-provenance, and no-fallback gates.
 This is compatibility evidence for the bounded typed table workflow, not a
 general PDF table-understanding claim.
 
+### PDF RichMedia/3D opaque-preservation refusal matrix
+
+The `pdf-richmedia-opaque-preservation` matrix now closes this high-risk
+boundary as an explicit safe refusal. The two-page self-authored source has a
+normal cover plus a second page containing a 3D annotation, default view/model,
+RichMedia resources, activation data, and a JavaScript canary. Current typed
+routes can inventory that opaque closure but cannot prove viewer runtime
+semantics after even a cover-only mutation. The prompt therefore requires an
+inspection/probe followed by an audit-only `failed_closed` result: no
+`reviewed.pdf`, `savePolicy.strategy: "none"`, an unchanged source hash, an
+unexecuted operation, and no provider fallback. The contract explicitly rules
+out pypdf, ReportLab, PDF.js, direct content-stream edits, and other bypasses.
+
+The v3 candidate/reference repeat matrix at
+`/tmp/officekit-promptbench-richmedia-matrix-v3` passed all six trials at
+`100/100` (candidate `3/3`, copied reference `3/3`, no timeout). Every trial
+emitted only `outputs/audit.json` with normalized `provider`, `operation`,
+`savePolicy`, source-provenance, and no-fallback evidence. The trial package,
+input contract, source, and oracle identities are respectively
+`2835ba6168e46541130c0e5c50b06acfcdd368c0306f4828dc93cbd0bfe74422`,
+`151454a783b6cae4f9c376334abaa0c2496a22704643010f96e030a3d8804432`,
+`d09e3997f0124717a9cd569899bf6ed123de7ee8a36a9a85bc149b37fa84579d`, and
+`00599100e638506a15c76b6270239e886dfd10704a6d1ab6e76a627f7f099f54`.
+This evidence is a bounded refusal contract; it does not claim 3D/RichMedia
+editing, runtime preservation, or general opaque-part authoring.
+
 ### PDF mixed-scan OCR refusal matrix
 
 The `pdf-mixed-scan-ocr-boundary` matrix used one immutable eight-page
