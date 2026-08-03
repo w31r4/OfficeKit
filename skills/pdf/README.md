@@ -49,10 +49,12 @@ acknowledgement. veraPDF/JRE `1.30.2-oat.2` is also published and carries its
 own managed JRE, so no global Java runtime is used. OCR core `17.8.1-oat.3`
 and the separately policy-authorized `eng` and `chi_sim` language packs
 `4.1.0-oat.3` are also published for all managed platforms; public live
-acceptance covers those all-platform closures. Poppler QA `24.08.0-oat.1` is
-published and attested for `win32-x64` only: an explicit managed policy can
-install its pinned `pdfinfo`, `pdftoppm`, and `pdftotext` bytes there, while
-macOS/Linux resolve as `platform-artifact-unavailable` without fallback. The OCR
+acceptance covers those all-platform closures. Poppler QA `24.08.0-oat.2` is
+published and attested for `darwin-arm64`, `linux-x64`, and `win32-x64`: an
+explicit managed policy can install its pinned `pdfinfo`, `pdftoppm`, and
+`pdftotext` bytes on each platform. The macOS/Linux assets are source-built
+relocatable closures with pinned Poppler data and declared native roots; the
+Windows asset retains its reviewed upstream closure. The OCR
 redaction primitive requires one explicit page, an exact
 expected 0/90/180/270-degree page rotation, an exact term, expected image-backed
 match count, full sanitize rewrite, rotation-aware residue scan, and render QA;

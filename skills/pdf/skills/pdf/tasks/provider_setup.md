@@ -112,12 +112,13 @@ carries isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`. The
 foundation contains isolated CPython plus ReportLab, pdfplumber, pypdf, and
 Pillow. Specialists contain PyMuPDF, pikepdf, pyHanko, and certificate
 validation and require the catalogued AGPL-or-commercial acknowledgement. The veraPDF pack carries its
-own JRE. Poppler QA `24.08.0-oat.1` is published and attested for `win32-x64`
-only. A policy-authorized Windows route can resolve as `installable` and use
-its pinned `pdfinfo`, `pdftoppm`, and `pdftotext` executables; macOS/Linux
-return `platform-artifact-unavailable` rather than selecting a fallback. Do not
-substitute a hand-written download URL or claim that `ensure` installed an
-artifact outside the catalogued platform boundary.
+own JRE. Poppler QA `24.08.0-oat.2` is published and attested for
+`darwin-arm64`, `linux-x64`, and `win32-x64`. A policy-authorized route on any
+catalogued platform can resolve as `installable` and use its pinned `pdfinfo`,
+`pdftoppm`, and `pdftotext` executables; macOS/Linux use source-built
+relocatable closures with pinned Poppler data. Do not substitute a hand-written
+download URL or claim that `ensure` installed an artifact outside the
+catalogued platform boundary.
 
 ## Existing controlled runtime: system-only
 

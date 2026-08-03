@@ -31,18 +31,18 @@ function workflowJob(source, jobName, nextJobName) {
   return source.slice(start, end);
 }
 
-for (const [jobName, nextJobName] of [
-  ["qpdf-managed-pack", "python-managed-pack"],
-  ["python-managed-pack", "ocr-managed-pack"],
-  ["ocr-managed-pack", "verapdf-managed-pack"],
-  ["verapdf-managed-pack", "poppler-managed-pack"],
-  ["poppler-managed-pack", null],
+for (const [jobName, nextJobName, platforms] of [
+  ["qpdf-managed-pack", "python-managed-pack", ["win32-x64"]],
+  ["python-managed-pack", "ocr-managed-pack", ["win32-x64"]],
+  ["ocr-managed-pack", "verapdf-managed-pack", ["win32-x64"]],
+  ["verapdf-managed-pack", "poppler-managed-pack", ["win32-x64"]],
+  ["poppler-managed-pack", null, ["linux-x64", "darwin-arm64", "win32-x64"]],
 ]) {
-  assert.match(
-    workflowJob(liveWorkflow, jobName, nextJobName),
-    /platform: win32-x64\s+runner: windows-2025/,
-    `${jobName} must exercise the public managed-install path on Windows`,
-  );
+  const job = workflowJob(liveWorkflow, jobName, nextJobName);
+  for (const platform of platforms) {
+    const runner = platform === "linux-x64" ? "ubuntu-24.04" : platform === "darwin-arm64" ? "macos-14" : "windows-2025";
+    assert.match(job, new RegExp(`platform: ${platform}\\s+runner: ${runner}`), `${jobName} must exercise ${platform}`);
+  }
 }
 
 function run(script, arguments_, { expect = 0 } = {}) {

@@ -24,9 +24,9 @@ table/chart/PivotTable, save, disconnect, and uninstall on Windows x64 and
 macOS Apple Silicon Excel desktop.
 
 The current development package candidate carries the compiled Add-in pages,
-manifest generator, bridge, and Skill route: 660 files, 36,158,804 compressed
-bytes, and 53,168,959 unpacked bytes. Its npm pack shasum is
-`d92479607ce7626195008fd07dcbdc4aa677ad63`. The 37,500,000-byte compressed and
+manifest generator, bridge, and Skill route: 662 files, 36,164,169 compressed
+bytes, and 53,188,871 unpacked bytes. Its npm pack shasum is
+`7fa5156b317dddf30daf623f9a998c1030326e08`. The 37,500,000-byte compressed and
 53,500,000-byte unpacked package ceilings remain in force.
 
 ## 0.5.0 self-contained OfficeKit distributions
@@ -914,15 +914,13 @@ a second PDF codec or putting large runtimes in the npm tarball:
   isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`, while each
   language remains separately policy-authorized.
   Redirect hops remain HTTPS-only and credential-free before final
-  byte-size/hash validation. Poppler QA `24.08.0-oat.1` is published and
-  attested for `win32-x64` only. A policy-authorized Windows route may install
-  its exact `pdfinfo`, `pdftoppm`, and `pdftotext` bytes; macOS/Linux resolve
-  as `platform-artifact-unavailable`, and no document, Skill, or API may claim
-  that `ensure` can download an artifact outside that catalogued boundary.
-  The repository now also carries a source-locked `24.08.0-oat.2` macOS/Linux
-  builder and isolated consumer probes; it remains a release candidate until
-  both native closures are published, attested, and added to the canonical
-  catalog.
+  byte-size/hash validation. Poppler QA `24.08.0-oat.2` is published and
+  attested for `darwin-arm64`, `linux-x64`, and `win32-x64`. A policy-authorized
+  route on any catalogued platform may install its exact `pdfinfo`, `pdftoppm`,
+  and `pdftotext` bytes; macOS/Linux use source-built relocatable closures with
+  pinned Poppler data and declared native roots, while Windows retains its
+  reviewed upstream closure. The three-platform release job verifies native
+  text/raster probes, SBOM/notices, and GitHub attestations before publication.
 - P12/private keys, HSM/remote-signing credentials, TSA/LTV access, and trust
   roots are never capability packs and are never acquired automatically.
 
