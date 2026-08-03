@@ -7,6 +7,11 @@ description: Create or update a reusable local Office artifact template from a W
 
 Create or update a reference-backed local template. The source Office file stays in the template so later work can clone or import it faithfully.
 
+Use `workspaceRoot`, `taskRoot`, `inputRoot`, and `assetRoot` from
+`../office-kit/references/workspace.md`. Keep the uploaded reference read-only, put
+previews and temporary renders under `taskRoot`, and report the created Skill
+directory as an absolute path.
+
 ## Routing
 
 - Manage only direct-child template skills below `${OFFICE_KIT_HOME:-~/.office-kit}/skills`.
@@ -89,7 +94,10 @@ officekit run "$SKILL_DIR/scripts/create-template-skill.mjs" \
 
 ## Response
 
-Report the created or updated template's display name, artifact kind, and local path. State that the reference and preview remain with the template, and briefly describe how to invoke the returned template skill in the active agent environment. Do not emit product-specific cards, links, or sharing directives.
+Report the created or updated template's display name, artifact kind, absolute
+path, and reference/preview hashes. State that the reference and preview remain
+with the template, and briefly describe how to invoke the returned template
+Skill. Do not emit host-specific cards, links, or sharing directives.
 
 ## Constraints
 

@@ -1,17 +1,14 @@
-# Google Slides Routing
+# Google Slides routing
 
-Read this file for every request whose target is a native Google Slides deck.
+Create and verify a local `.pptx` with the Presentations Skill first. OfficeKit
+does not upload files, create cloud decks, or operate a Google Drive. After
+the local deck passes semantic and render QA, the user or another host may
+import it into Google Slides.
 
-## Existing Native Google Slides Decks
+For an existing native Google Slides deck, obtain a local export or a user
+provided reference before editing. Preserve that input and return a distinct
+local output unless the user explicitly asks for an in-place host operation.
 
-Use the Google Drive plugin's Google Slides skill for edits to an existing native Google Slides deck. Do not round-trip it through a local PPTX unless the user asks.
-
-## Net-New Native Google Slides Decks
-
-Create and verify a local `.pptx` with the Presentations skill first. Produce the native Google Slides deliverable with the Google Drive plugin's current native-presentation import action, using its documented native Google Slides upload mode.
-
-Do not use Computer Use, Browser Use, blank-Google-Slides creation plus Google Slides write APIs, or another direct-to-Slides construction path unless the user explicitly asks for that alternate workflow.
-
-If the Google Drive plugin is unavailable, ask the user to install `google-drive@officer-curated`. If the plugin is available but presentation import is missing, ask the user to reinstall or refresh it before continuing.
-
-After successful native import, return the Google Slides link as the primary deliverable. Treat the local PPTX as a build artifact unless the user asks to receive it.
+Return the verified `.pptx` path, SHA-256, slide locators, and evidence
+envelope. If a cloud link is needed, state that import is a separate host
+step.

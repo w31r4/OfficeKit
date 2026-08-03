@@ -13,7 +13,7 @@ Use the canonical helper (`render_docx.py`). It:
 
 ```bash
 python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out
-# macOS/Codex desktop: set TMPDIR before Python starts
+# macOS desktop: set TMPDIR before Python starts
 env TMPDIR=/private/tmp python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out
 # If you're debugging a conversion failure:
 python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out --verbose

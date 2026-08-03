@@ -2537,9 +2537,9 @@ try {
   assert.match(styleGuidelinesText, /By the end, \*\*\[audience\]\*\* should \*\*\[outcome\]\*\*/);
   assert.match(styleGuidelinesText, /Never invent people, quotes, facts, data, or outcomes/);
   assert.match(styleGuidelinesText, /50 pt for deck titles/);
-  assert.match(googleSlidesRoutingText, /Existing Native Google Slides Decks/);
-  assert.match(googleSlidesRoutingText, /current native-presentation import action/);
-  assert.match(googleSlidesRoutingText, /Google Slides link as the primary deliverable/);
+  assert.match(googleSlidesRoutingText, /local `\.pptx`/);
+  assert.match(googleSlidesRoutingText, /separate host\s+step/);
+  assert.doesNotMatch(googleSlidesRoutingText, /plugin|mcp__|google-drive@/i);
   const speakerNotesReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/speaker-notes.spec.md", "utf8");
   assert.match(speakerNotesReferenceText, /sourceBound.*partPresent.*editable.*addable/is);
   assert.match(speakerNotesReferenceText, /relationship-free.*paragraph\/run/is);

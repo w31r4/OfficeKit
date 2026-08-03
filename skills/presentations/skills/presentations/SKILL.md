@@ -20,9 +20,17 @@ Use this skill as reference material when creating or editing presentation slide
 - Text layout: when there is too much text, shorten it before shrinking the font size. Inspect visually for unexpected text wrapping. NEVER allow a title/banner text box intended for one line to wrap to two lines.
 - Narrative copy must fit the chosen layout: shorten it or change layouts rather than adding density or shrinking type.
 - Visual assets:
-  - [HARD REQUIREMENT] DO NOT use Python to draw images; DO NOT use programmatic vector shapes for visuals; DO NOT use programmatic drawings of any sort. Use image search or image_gen tool instead!
-  - [HARD REQUIREMENT] Minimize the use of diagrams. Add them only when requested or when a single diagram materially improves the clarity of complex concepts. Diagram implementation rules: use native PowerPoint shapes for simple diagrams; use Graphviz for complex relational/topological/network-like diagrams; use image_gen for highly aesthetic, illustrative, or scientific infographic diagrams (e.g. chemical structures, circuit diagrams, etc.). When using native PowerPoint shapes with connectors, create connectors (arrows/edges) before creating entity nodes, so edges appear behind nodes and never cross through node shapes or labels. If this ordering is awkward during early iteration, you may create nodes first in the initial draft, then switch to connectors-first in the revised code.
-  - Before sourcing or generating visuals, be mindful of the desired aspect ratio, placement, and cropping options on the slide. For example, if you intend to place text to the left of the image containing a person, you should ask image_gen to put the person on the right side of the image.
+  - Read `../office-kit/references/capabilities.md` and determine whether the
+    active agent has `image_view` and/or `image_generate`.
+  - Use user and template assets first, then native PowerPoint shapes,
+    connectors, charts, tables, and typography. Generated images are optional
+    and must be marked for human review when they cannot be inspected.
+  - Minimize diagrams unless they clarify the request. Use native shapes for
+    simple diagrams and Graphviz for complex relational diagrams. Create
+    connectors before entity nodes when connector layering matters.
+  - If no visual input is available, run structural QA for dimensions, image
+    placement/crop, text overflow, overlap, contrast, and slide geometry, and
+    report `visualReview: "unavailable"` rather than an aesthetic judgement.
   - By default, DO NOT reuse the same image more than once (unless it's a background).
   - Prepare visuals for both the main concept and decorative support.
 - Default styling: use one composition instead of a collection of UI panels. UI-like styling typically includes card grids, pills, badges, button-like text boxes, tab or navigation patterns, repeated modular panels, dense dashboard-style layouts, and other component-library aesthetics that imply interactivity. Use stylized text boxes sparingly, favoring a flat structure on the canvas.
@@ -65,64 +73,23 @@ The shared `builtin_templates_support/scripts/create-presentation.mjs` runner ca
 
 ## Workspace
 
-Use the chat mode supplied by Codex. If the chat is not projectless, use the
-project-backed layout.
-
-Set:
-
-- `SKILL_DIR=<absolute path to this skill>`
-- `THREAD_ID=${CODEX_THREAD_ID:-manual-<timestamp-or-short-random-suffix>}`
-- `TASK_SLUG=<sanitized task/deck slug>`
-- `TOPIC_SLUG=<sanitized final deck filename slug>`
-
-Select the remaining paths:
-
-| Chat | Scratch workspace | Final PPTX |
-| --- | --- | --- |
-| Projectless | `$PWD/work/presentations/$TASK_SLUG` | User-requested path, otherwise `$PWD/outputs/$TOPIC_SLUG.pptx` |
-| Project-backed | `$SCRATCH_ROOT/codex-presentations/$THREAD_ID/$TASK_SLUG` | User-requested path, repository convention, or `<project-root>/outputs/$TOPIC_SLUG.pptx` |
-
-For project-backed chats, use an external scratch directory supplied by the
-host. If none is supplied, compute `SCRATCH_ROOT` with
-`node -p "require('node:os').tmpdir()"`; do not hardcode a platform-specific
-temp path. Project-backed scratch must remain outside the repository.
-
-An explicit user destination always wins. Set `OUTPUT_DIR` to the directory
-containing `FINAL_PPTX`. If a projectless final is outside `outputs/`, an
-optional copy under `outputs/` may be created for app surfacing, but the
-requested path remains the primary result. Do not modify Git ignore settings
-to conceal scratch files.
-
-### Common workspace layout
-
-After selecting `WORKSPACE`, set:
-
-- `TMP_DIR=$WORKSPACE/tmp`
-- `SLIDES_DIR=$TMP_DIR/slides`
-- `PREVIEW_DIR=$TMP_DIR/preview`
-- `LAYOUT_DIR=$TMP_DIR/layout`
-- `ASSET_DIR=$TMP_DIR/assets`
-- `QA_DIR=$TMP_DIR/qa`
-
-Use absolute paths in scripts and handoffs. Put every generated file under
-`$TMP_DIR` except `FINAL_PPTX` and any additional deliverables explicitly
-requested by the user. Retain `$WORKSPACE` after delivery so follow-up turns
-can inspect and reuse the prior work.
-
-Use `.txt` for every generated intermediate prose artifact in `$TMP_DIR`,
-including plans, source notes, prompt records, design notes, QA ledgers, and
-fallback reasons. Reserve `.md` for installed skill/reference files such as
-`SKILL.md`, `references/*.md`, and templates shipped with the skill. Do not
-create generated planning files such as `slide-plan.md`.
+Read `../office-kit/references/workspace.md` before authoring. Use the shared
+`workspaceRoot`, `taskRoot`, `inputRoot`, `assetRoot`, `outputRoot`, and
+`evidenceRoot` names. An explicit user destination always wins; otherwise put
+the final deck under `workspaceRoot/outputs` and keep temporary slide sources,
+previews, layout notes, and QA under `taskRoot` or `evidenceRoot`. Use
+`SKILL_DIR` only to locate bundled files. Keep `sessionId` local to OfficeKit,
+never derived from a chat or thread.
 
 ## Route the Request Before Authoring
 
 Choose the output path first:
 
-1. **Existing native Google Slides deck**: use the Google Drive plugin's Google
-   Slides skill. Do not round-trip it through a local PPTX unless the user asks.
+1. **Existing native Google Slides deck**: obtain a local export or reference
+   from the user/host, then preserve it as an input. OfficeKit does not operate
+   a cloud deck directly.
 2. **Net-new native Google Slides deck**: build and verify a local PPTX with
-   this skill, then import it as described in Google Slides-Targeted Output.
+   this skill; a user or host may import it after delivery.
 3. **PowerPoint or local deck**: build or edit the PPTX with this skill.
 
 For every deck built with this skill, choose exactly one visual route. The first
@@ -144,18 +111,9 @@ over Grid Layout.
 
 ## Google Slides-Targeted Output
 
-For a net-new native Google Slides request, first read `routing/google_slides.md`, then create and verify a local `.pptx` with this skill. Produce the native Google Slides deliverable with the Google Drive plugin's current native-presentation import action and documented native Google Slides upload mode.
-
-Do not use Computer Use, Browser Use, blank-Google-Slides creation plus Google
-Slides write APIs, or another direct-to-Slides construction path for net-new
-Google Slides unless the user explicitly asks for that alternate workflow. If
-the Google Drive plugin is unavailable, ask the user to install
-`google-drive@officer-curated`. If the plugin is available but presentation
-import is missing, ask the user to reinstall or refresh the Google Drive plugin
-before continuing with the native Google Slides deliverable.
-
-The local `.pptx` creation and native import workflow above applies only to
-net-new Google Slides deliverables.
+For a Google Slides-targeted request, first read `routing/google_slides.md`,
+then create and verify a local `.pptx`. Return the verified local artifact and
+state that any cloud import is a separate host step; do not claim a cloud link.
 
 ## Implementation
 
@@ -912,34 +870,12 @@ Return a short user-visible summary of the completed deck. Mention the sources c
 used if research informed the deck. Do not attach scratch plans, previews,
 layout JSON, or temporary assets unless the user asks for them.
 
-## Codex App final response citations
+## Result and evidence
 
-Use the inline form `:codex-file-citation{...}` and place each citation immediately after the claim it supports.
-
-For read-only Q&A, cite the source deck. For a successful edit or creation, cite the final delivered deck. For a no-op edit, cite the inspected source deck.
-
-For read-only Q&A, inspect the complete relevant slide, including callouts, the exact question or prompt, chart or table titles, displayed totals or sample sizes, and source or methodology footers. State the direct answer first and cite each distinct evidence-bearing object when exact IDs are available.
-
-Unless the user requests an in-place edit, preserve the input PPTX and export a distinct edited copy. Cite every changed slide in the final response. If no requested content is found and no output is modified, cite the inspected source deck with a plain file citation.
-
-For creation, include exactly one standalone Markdown link to the final delivered PPTX. Do not add a file, slide, or object citation.
-
-Use slide citations when slide numbers come from the latest rendered or inspected cited deck:
-
-```text
-:codex-file-citation{path="/abs/path/deck.pptx" artifact_kind="presentation" slide_number="3"}
-```
-
-Include `slide_id` only when artifact-tool inspection provides the exact stable `sl/...` ID and stable navigation matters:
-
-```text
-:codex-file-citation{path="/abs/path/deck.pptx" artifact_kind="presentation" slide_number="1" slide_id="sl/gs5z1kshq0xv"}
-```
-
-For a concrete chart, table, image, diagram, or callout, include `object_id` only when inspection provides the exact ID and you can add a useful label:
-
-```text
-:codex-file-citation{path="/abs/path/deck.pptx" artifact_kind="presentation" slide_number="1" slide_id="sl/gs5z1kshq0xv" object_id="ch/pz9t1r3ka8vn" label="ARR by segment chart"}
-```
-
-Do not cite internal previews, contact sheets, layout JSON, source notes, scratch files, builders, manifests, or QA outputs unless asked. If slide or object IDs are not reliable, cite the slide without object detail rather than guessing.
+Return the final PPTX as an absolute path with `kind: "presentation"` and its
+SHA-256. Include slide numbers and inspected object IDs only when they are
+stable, plus render/inspect/verify evidence paths when available. Report
+`visualReview: "complete"` only after the rendered slides were understood;
+use `"unavailable"` or `"requires-human"` when the capability matrix requires
+it. Do not emit a host-specific citation directive or cite temporary previews,
+builders, or QA files as the deliverable.

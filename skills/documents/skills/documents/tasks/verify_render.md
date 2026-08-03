@@ -8,7 +8,7 @@ This uses a dedicated LibreOffice profile + writable HOME and produces `page-<N>
 
 ```bash
 python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out
-# macOS/Codex desktop: start Python with a stable temp dir to avoid soffice aborts
+# macOS desktop: start Python with a stable temp dir to avoid soffice aborts
 env TMPDIR=/private/tmp python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out
 # For debugging LibreOffice failures:
 python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out --verbose
