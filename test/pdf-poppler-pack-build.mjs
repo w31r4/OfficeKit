@@ -74,6 +74,7 @@ for (const fragment of [
   "ldd",
   "patchelf",
   "LD_LIBRARY_PATH",
+  "[destination, ...roots].join(path.delimiter)",
   "DYLD_LIBRARY_PATH",
   "declared native roots",
   "contains a symlink",

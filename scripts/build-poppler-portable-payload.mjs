@@ -328,7 +328,7 @@ async function collectLinuxLibraries(targets, destination, roots) {
     const real = await fs.realpath(target);
     if (seen.has(real)) continue;
     seen.add(real);
-    const listed = await run("ldd", [target], `ldd ${target}`, { env: { ...process.env, LD_LIBRARY_PATH: destination } });
+    const listed = await run("ldd", [target], `ldd ${target}`, { env: { ...process.env, LD_LIBRARY_PATH: [destination, ...roots].join(path.delimiter) } });
     for (const dependency of parseLinuxDependencies(listed.stdout)) {
       if (hostLinuxLibrary(path.basename(dependency))) continue;
       const name = path.basename(dependency);
