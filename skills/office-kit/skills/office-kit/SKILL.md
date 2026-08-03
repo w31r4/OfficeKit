@@ -9,6 +9,12 @@ Turn one Office request into a small, explicit artifact workflow. Route each
 output to its owning Skill, load only the instructions needed for that route,
 and preserve the owning Skill's safety and QA rules.
 
+Before planning paths or a visual asset, read [the workspace and evidence
+contract](references/workspace.md) and [the visual capability matrix](references/capabilities.md).
+Use `workspaceRoot`, `taskRoot`, `inputRoot`, `assetRoot`, `outputRoot`,
+`evidenceRoot`, and a local `sessionId`; do not depend on a host chat, thread,
+plugin, or image tool.
+
 ## Respect explicit choices
 
 - If the user explicitly invokes a domain, business, or template Skill for a
@@ -88,5 +94,12 @@ then let the PDF Skill inspect and verify the final PDF.
   visual identity across outputs.
 - Return the final files, the route used, the template decision, and any
   explicit capability limits.
+
+Return each artifact as an absolute path with its type and SHA-256. Include
+page, slide, sheet, or range locators and inspect/render/verify evidence paths
+when available. Report `visualReview: "complete"`, `"unavailable"`, or
+`"requires-human"` according to the capability matrix. The active host can
+turn these paths into links; this Skill does not emit host-specific citation
+syntax.
 
 Do not describe an unverified output as complete.

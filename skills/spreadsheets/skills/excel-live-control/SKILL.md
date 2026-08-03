@@ -5,6 +5,11 @@ description: "Control a workbook already open in Microsoft Excel desktop through
 
 # Excel Live Control
 
+Use the shared `../office-kit/references/workspace.md` contract for request files
+and evidence. Keep JSON requests under `taskRoot`; the live workbook remains
+owned by Excel, and screenshots or audits belong under `evidenceRoot`. Return
+the session result and evidence without host-specific citation syntax.
+
 Use this Skill only for a workbook already open in Microsoft Excel desktop on
 Windows or macOS. It operates the open workbook through OfficeKit's local
 Add-in and a loopback bridge. It does not use a cloud relay, account, tenant,

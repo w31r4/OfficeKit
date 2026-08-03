@@ -1,14 +1,13 @@
 ## Google Sheets-targeted output
-### New Creations
 
-For a net-new Google Sheets request, create and verify a local `.xlsx` with this skill first. The native Google Sheets deliverable must then be produced by the Google Drive plugin's spreadsheet import action, `mcp__codex_apps__google_drive_import_spreadsheet`, with `upload_mode: "native_google_sheets"`.
+Create and verify a local `.xlsx` with the Spreadsheets Skill first. OfficeKit
+does not upload files, create cloud spreadsheets, or operate a Google Drive.
+After the local workbook passes semantic and render QA, the user or another
+host may import it into Google Sheets.
 
-Do not use Computer Use, Browser Use, blank-Google-Sheets creation plus Google Sheets write APIs, or another direct-to-Sheets construction path for net-new Google Sheets unless the user explicitly asks for that alternate workflow. If they do, mention first that output quality is expected to be best when a local `.xlsx` is imported through the Google Drive plugin.
+For an existing native Google Sheet, obtain the requested data or export from
+the host and operate on the resulting local file. Do not silently replace a
+live cloud edit with an unrelated workbook mutation.
 
-If the Google Drive plugin is unavailable, use the plugin-install/user-elicitation flow to ask the user to install `google-drive@officer-curated`. If the plugin is available but `_import_spreadsheet` is missing, ask the user to reinstall or refresh the Google Drive plugin before continuing with the native Google Sheets deliverable.
-
-After successful native import, the user-facing deliverable is the Google Sheets link. Treat the local `.xlsx` as a build artifact unless the user explicitly asks to keep or receive it.
-
-### Edits
-
-Use the Google Drive plugin's Google Sheets skill for edits to existing Google Sheets. The local `.xlsx` creation and native import workflow above applies only to net-new Google Sheets deliverables.
+Return the verified `.xlsx` path, SHA-256, and evidence envelope. If the user
+needs a cloud link, state that the import is a separate host step.

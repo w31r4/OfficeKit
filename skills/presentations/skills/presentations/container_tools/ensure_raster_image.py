@@ -6,9 +6,9 @@ preview image assets extracted from PowerPoint files.
 
 
 Dependencies used by this tool:
-- Codex runtime Node + sharp: SVG/SVGZ rasterization
-- Codex runtime Poppler: PDF rasterization (first page)
-- Codex runtime Pillow: TIFF/JPEG XR output bridging
+- OfficeKit runtime Node + sharp: SVG/SVGZ rasterization
+- OfficeKit runtime Poppler: PDF rasterization (first page)
+- OfficeKit runtime Pillow: TIFF/JPEG XR output bridging
 - libheif-examples: heif-convert for HEIC/HEIF -> PNG
 - jxr-tools (or libjxr-tools on older distros): JxrDecApp for JPEG XR (JXR/WDP)
 """

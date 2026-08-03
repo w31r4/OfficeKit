@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) w31r4. All rights reserved.
-"""Helpers for public container_tools scripts to resolve Codex runtime dependencies."""
+"""Helpers for public container_tools scripts to resolve OfficeKit runtimes."""
 
 from __future__ import annotations
 
@@ -19,9 +19,9 @@ def _exe_names(name: str) -> list[str]:
 def _candidate_dependency_roots() -> list[Path]:
     roots: list[Path] = []
     for env_name in (
-        "CODEX_RUNTIME_DEPENDENCIES",
-        "CODEX_WORKSPACE_DEPENDENCIES",
-        "CODEX_DEPENDENCIES",
+        "OFFICEKIT_RUNTIME_DEPENDENCIES",
+        "OFFICEKIT_WORKSPACE_DEPENDENCIES",
+        "OFFICEKIT_DEPENDENCIES",
     ):
         value = os.environ.get(env_name)
         if value:
@@ -37,7 +37,7 @@ def _candidate_dependency_roots() -> list[Path]:
             break
 
     roots.append(
-        Path.home() / ".cache" / "codex-runtimes" / "codex-primary-runtime" / "dependencies"
+        Path.home() / ".cache" / "officekit-runtimes" / "officekit-runtime" / "dependencies"
     )
 
     seen: set[Path] = set()

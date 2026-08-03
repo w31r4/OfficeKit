@@ -18,7 +18,7 @@ TWIPS_PER_INCH: int = 1440
 def _default_macos_tmpdir_for_soffice() -> None:
     """Use a stable macOS temp base for LibreOffice work.
 
-    Codex desktop can launch Python with a per-app TMPDIR that causes headless
+    Some desktop hosts launch Python with a per-app TMPDIR that causes headless
     LibreOffice to abort. Normalize the renderer process to /private/tmp so
     callers do not need to pass `env TMPDIR=/private/tmp ...`.
     """
@@ -42,6 +42,11 @@ def _default_macos_tmpdir_for_soffice() -> None:
 def _prepend_bundled_runtime_bin() -> None:
     runtime_bins: list[str] = []
 
+    for variable in ("OFFICEKIT_RUNTIME_DEPENDENCIES", "OFFICEKIT_DEPENDENCIES"):
+        value = os.environ.get(variable)
+        if value:
+            runtime_bins.append(os.path.join(os.path.expanduser(value), "bin", "override"))
+
     python_root = os.path.dirname(os.path.dirname(sys.executable))
     if os.path.basename(python_root) == "python":
         dependencies_root = os.path.dirname(python_root)
@@ -50,7 +55,7 @@ def _prepend_bundled_runtime_bin() -> None:
 
     current = os.path.dirname(os.path.realpath(__file__))
     while current and current != os.path.dirname(current):
-        if os.path.basename(current) == "codex-primary-runtime":
+        if os.path.basename(current) in {"officekit-runtime", "officekit"}:
             runtime_bins.append(os.path.join(current, "dependencies", "bin", "override"))
             break
         current = os.path.dirname(current)

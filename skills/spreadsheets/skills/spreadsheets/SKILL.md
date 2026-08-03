@@ -4,6 +4,11 @@ description: "Create, edit, analyze, and verify standalone spreadsheet files or 
 ---
 
 # Spreadsheets skill (Create • Edit • Analyze • Visualize)
+
+Use the shared `../office-kit/references/workspace.md` contract for paths and
+results. Standalone workbook work uses `workspaceRoot`, `inputRoot`,
+`assetRoot`, `outputRoot`, and `evidenceRoot`; it does not require a host
+workspace loader.
 Use this skill when you need to work with spreadsheets (.xlsx, .csv, .tsv) to do any of the following:
 - Create or modify a new workbook/sheet with proper formulas, cell/number formatting, and structured layout
 - Read or analyze tabular data (filter, aggregate, pivot, compute metrics) directly in a sheet
@@ -17,9 +22,12 @@ Use this skill when you need to work with spreadsheets (.xlsx, .csv, .tsv) to do
 Do not follow those routing instructions if irrelevant to the task. Default is to create/edit spreadsheets with artifact tool.
 
 ## Tools + Contract Requirements
-- Use `office-kit` JS library for all spreadsheet authoring, using only the executables and dependency paths provided by `load_workspace_dependencies`. Do not use system, global, or repo-local dependencies.
+- Use the public `office-kit` JS library for all spreadsheet authoring. Run
+  bundled examples with `officekit run` or the active OfficeKit installation;
+  do not assume a host-specific dependency loader.
 - If the runtime or `office-kit` is unavailable, report a blocker. Do not guess or search for paths, install packages, use resolution hacks, or import bundled internals.
-- Work in a writable, conversation-specific or tmp directory. In that working directory, create a `node_modules` symlink or Windows junction pointing to the loader-provided `node_modules` directory. Never modify the loader-provided dependency directory.
+- Work in a writable `taskRoot` or system temporary directory. Keep generated
+  sources and intermediate files out of the managed installation directory.
 - Prefer one executable `.mjs` builder and patch/rerun it. Do not use heredocs or duplicate builders.
 - Use the provided API reference. Do not inspect package internals or prototypes. If blocked, run at most one targeted `workbook.help("<api_or_feature>")` query.
 - Do not use alternate workbook creation/editing libraries such as `openpyxl`, `xlsxwriter`, or `pandas.ExcelWriter` unless the user explicitly asks.
@@ -126,7 +134,8 @@ Do not loop indefinitely on similar failures.
 Complete only when:
 - Workbook content is populated and formulas compute.
 - No obvious formula errors in key scanned ranges (no bad refs/off-by-one/circular errors).
-- `.xlsx` saved to `outputs/<unique_thread_id>/`.
+- Save final `.xlsx` files under `outputRoot` (normally
+  `workspaceRoot/outputs`) unless the user explicitly gives another path.
 - Visual render verification passes:
   - Layout is organized, legible, and aligned to request style (or default/existing formatting baseline for edits).
   - Important numbers and callouts are all visible.
@@ -190,31 +199,15 @@ await output.save(`${outputDir}/output.xlsx`);
 - For financial models, cite model-input sources in cell comments.
 - For researched row-wise data tables, include source URLs in a dedicated source column.
 
-## Final response citations
+## Result and evidence
 
-Use the inline form `:codex-file-citation{...}` and place each citation immediately after the claim it supports.
-
-For read-only Q&A, cite the source workbook. For editing, cite the final delivered workbook.
-
-For creation, include exactly one standalone Markdown link to the final delivered workbook. Do not add a file, range, or object citation.
-
-Use a plain file citation only for whole-workbook summaries:
-
-```text
-:codex-file-citation{path="/abs/path/book.xlsx"}
-```
-
-Workbook range citations require both `sheet` and `range`. Cite the narrowest range that directly contains the claimed evidence; for a discrete numeric assumption, cite its exact value cell.
-
-```text
-:codex-file-citation{path="/abs/path/book.xlsx" artifact_kind="workbook" sheet="Revenue Model" range="C27"}
-```
-
-For a concrete table, chart, image, or shape, use `sheet` plus an exact inspected `object_id`, optional `object_kind`, and a useful `label`. Do not emit sheet-only citations or guess ranges or object IDs.
-
-A calculation answer should normally cite its source assumption, operating driver, and formula or result when those are distinct cells or ranges.
-
-Do not cite previews, source notes, scratch files, generated JSON/CSV/logs, builders, or QA outputs unless asked.
+Return the final workbook as an absolute path with `kind: "workbook"` and its
+SHA-256. Include the narrowest inspected sheet/range or object locator for
+material claims, plus render/inspect/verify evidence paths when available.
+Report `visualReview: "complete"` only after the required renders were
+understood; otherwise use `"unavailable"` or `"requires-human"`. Do not emit
+a host-specific citation directive. See `../office-kit/references/workspace.md` for
+the result envelope.
 
 ## Comment Author
 - If the authenticated/user profile or env context provides a user display name, use it as the threaded comment display name unless the user requests another name. Default to `User`.

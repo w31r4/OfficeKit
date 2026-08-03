@@ -61,8 +61,8 @@ function defaultRuntimeNodeModules() {
   return path.join(
     process.env.HOME || process.cwd(),
     ".cache",
-    "codex-runtimes",
-    ["codex", "primary", "runtime"].join("-"),
+    "officekit-runtimes",
+    ["officekit", "runtime"].join("-"),
     "dependencies",
     "node",
     "node_modules",

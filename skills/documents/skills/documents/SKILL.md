@@ -5,13 +5,15 @@ description: Create, import, edit, redline, comment, and verify `.docx`, Word, a
 
 # Documents Skill (Read • Create • Edit • Redline • Comment)
 
-Use this skill when you need to create or modify `.docx`, Word, or Google
-Docs-targeted document artifacts **in this container environment** and verify
-them visually.
+Use this skill when you need to create or modify `.docx`, Word, or a
+Google-Docs-ready document and verify it visually. Read the shared
+`../office-kit/references/workspace.md` contract before choosing paths.
 
 ## Tools + Contract
 
-- Use host-provided workspace dependencies for DOCX artifact work: resolve them through the workspace dependency loader or runtime skill, then treat the returned Node/Python runtimes and package directory as authoritative. Do not use system `node`, system `python`, global npm packages, or repo-local installs.
+- Use the active OfficeKit installation for DOCX artifact work. Run bundled
+  examples with `officekit run`; do not assume a host-specific dependency
+  loader or global package.
 - For ordinary DOCX creation, import, semantic editing, inline and bounded foreground floating images, bounded whole-block bookmarks/internal links, 1-through-16-paragraph plain-text footnotes/endnotes, canonical bibliography-backed citations, canonical inline `SEQ`/`REF`/`PAGEREF` field runs plus bounded `SEQ`/`REF` cache materialization, bounded source-free header/footer literal/simple-field sequences, canonical native TOC placeholders with explicit field-refresh intent, and export, **MUST** use the public `office-kit` `DocumentModel`/`DocumentFile` surface and its bundled OfficeKit codec. Read `artifact_tool/API_QUICK_START.md`, then use `tasks/create_edit.md` for the task workflow.
 - Python and direct OOXML helpers are reserved for explicit low-level package patches, specialized audits, and render/QA operations documented by this Skill. They are never an automatic authoring fallback. If an imported construct cannot be edited through the supported model, narrow the edit or report the fail-closed boundary.
 - Run any builder or helper file from a writable workspace or temp directory, not from the managed dependency directory itself.
@@ -19,7 +21,10 @@ them visually.
 
 ## Google Docs-targeted output
 
-For a net-new Google Docs request, create and visually verify a local `.docx` with this skill first. The native Google Docs deliverable must then be produced by the Google Drive plugin's document import action, `mcp__codex_apps__google_drive_import_document`, with `upload_mode: "native_google_docs"`.
+For a net-new Google Docs request, create and visually verify a local `.docx`
+with this skill first. OfficeKit produces and verifies the local file; the
+user or another host may import it into Google Docs. OfficeKit does not upload
+files or control a cloud drive.
 
 After OfficeKit export and before rendering or importing any Google Docs-targeted DOCX, run the deterministic title sanitizer as an explicit compatibility patch:
 
@@ -28,17 +33,21 @@ python scripts/google_docs_title_sanitize.py input.docx --out sanitized.docx
 python scripts/google_docs_title_sanitize.py sanitized.docx --check
 ```
 
-Use the sanitized DOCX for render QA and native Google Docs import. This is not a style preference or prose reminder: the sanitizer removes Word `Title` paragraph-style border residue, direct title-paragraph borders, and leading title-block paragraph borders from the OOXML so Word's built-in blue title rule cannot survive into the imported Google Doc.
+Use the sanitized DOCX for render QA and any later import. This is not a style
+preference or prose reminder: the sanitizer removes Word `Title` paragraph-style
+border residue, direct title-paragraph borders, and leading title-block
+paragraph borders from the OOXML so Word's built-in blue title rule cannot
+survive into the imported Google Doc.
 
-Do not use Computer Use, Browser Use, blank-Google-Doc creation plus Google Docs write APIs, or another direct-to-Docs construction path for net-new Google Docs unless the user explicitly asks for that alternate workflow. If they do, mention first that output quality is expected to be best when a local `.docx` is imported through the Google Drive plugin.
-
-If the Google Drive plugin is unavailable, use the plugin-install/user-elicitation flow to ask the user to install `google-drive@officer-curated`. If the plugin is available but `_import_document` is missing, ask the user to reinstall or refresh the Google Drive plugin before continuing with the native Google Docs deliverable.
+Do not create a blank cloud document or claim a native Google Docs link. If a
+host offers a separate import flow, it may consume the verified local `.docx`
+after this Skill completes.
 
 ## Template Following
 
 When an attached or retained DOCX is meant to control a new document, read
 `template-distill.md` and then `template-create.md`. Keep the reference file and
-the task-local `$TMP_DIR/artifact.md` together throughout authoring. In this
+the task-local `taskRoot/artifact.md` together throughout authoring. In this
 mode, the retained reference is the design authority: do not apply a generic
 design preset, page baseline, or header pattern unless the user explicitly asks
 to depart from the template. The render gate and Google Docs import contract
@@ -546,24 +555,11 @@ Then inspect the generated `page-<N>.png` files.
 - If you need **true footnotes/endnotes**: use public `document.addFootnote(...)` / `document.addEndnote(...)` for the bounded 1-through-16 physical-paragraph plain-text profile. For one existing canonical physical paragraph, use `examples/officekit-note-text-edit-workflow.mjs` with its inspected note/anchor/native IDs and exact source text; otherwise follow `tasks/footnotes_endnotes.md` for import, audit, advanced graphs, and render QA
 - If you want reproducible fixtures for edge cases: `tasks/fixtures_edge_cases.md`
 
-## Host app final response citations
+## Result and evidence
 
-Use the inline form `:codex-file-citation{...}` and place each citation immediately after the claim it supports.
-
-For read-only Q&A, cite the source DOCX. For edits, cite the final delivered DOCX.
-
-For read-only Q&A, inspect the complete relevant page and preserve material qualifiers such as headings, question wording, table labels, footnotes, source lines, and sample sizes. Answer directly and cite every page needed to support the value and its context. Do not edit or re-export the document.
-
-For edits, cite every changed page in the final response.
-
-For creation, include exactly one standalone Markdown link to the final delivered DOCX. Do not add a file citation or a page-specific citation.
-
-Use page citations when page numbers come from the latest rendered or inspected cited document:
-
-```text
-:codex-file-citation{path="/abs/path/file.docx" artifact_kind="document" page_number="4"}
-```
-
-Document citations navigate by page only. Do not add object IDs, labels, paragraph IDs, table IDs, or cell IDs. If page numbers are not reliable, use a plain file citation or omit page-specific citations rather than guessing.
-
-Do not cite internal PNG renders, PDFs, source notes, scratch files, builders, or QA outputs unless asked.
+Return the final DOCX as an absolute path, its SHA-256, and `kind: "document"`.
+Include page locators and inspect/render/verify evidence paths when they are
+available. Report `visualReview: "complete"` only after the required page PNGs
+were understood; otherwise use `"unavailable"` or `"requires-human"`. Do not
+emit a host-specific citation directive. The shared contract in
+`../office-kit/references/workspace.md` defines the result envelope.

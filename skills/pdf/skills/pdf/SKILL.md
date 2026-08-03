@@ -4,9 +4,9 @@ description: "Create, inspect, edit, redact, sign, render, and verify PDF files 
 ---
 
 # PDF Skill
-
+Use `../office-kit/references/workspace.md` for `inputRoot`, `taskRoot`, `outputRoot`,
+`evidenceRoot`, absolute PDF paths, SHA-256, locators, and visual-review status.
 ## What this Skill does
-
 This Skill gives an agent bounded, auditable PDF primitives. PDF is independent
 from the OfficeKit DOCX/XLSX/PPTX codec: do not add a PDF protobuf/WASM codec
 or reconstruct an imported PDF through `PdfArtifact` or PDF.js and call that a
