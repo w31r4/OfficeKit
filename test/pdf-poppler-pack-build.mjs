@@ -7,11 +7,13 @@ import { spawnSync } from "node:child_process";
 const root = path.resolve(import.meta.dirname, "..");
 const inputsPath = path.join(root, "scripts", "pdf-provider-poppler-release-inputs.v1.json");
 const builderPath = path.join(root, "scripts", "build-poppler-native-payload.mjs");
+const portableBuilderPath = path.join(root, "scripts", "build-poppler-portable-payload.mjs");
 const workflowPath = path.join(root, ".github", "workflows", "pdf-poppler-capability-pack.yml");
 
-const [inputBytes, builder, workflow] = await Promise.all([
+const [inputBytes, builder, portableBuilder, workflow] = await Promise.all([
   fs.readFile(inputsPath),
   fs.readFile(builderPath, "utf8"),
+  fs.readFile(portableBuilderPath, "utf8"),
   fs.readFile(workflowPath, "utf8"),
 ]);
 const inputs = JSON.parse(inputBytes);
@@ -20,8 +22,14 @@ const native = inputs.popplerQa.nativeBuild["win32-x64"];
 assert.equal(inputs.schema, "office-kit.pdf-provider-poppler-release-inputs.v1");
 assert.equal(inputs.schemaVersion, 1);
 assert.equal(inputs.popplerQa.packId, "poppler-qa");
-assert.equal(inputs.popplerQa.version, "24.08.0-oat.1");
+assert.equal(inputs.popplerQa.version, "24.08.0-oat.2");
 assert.equal(inputs.popplerQa.license, "GPL-2.0-or-later");
+assert.deepEqual(inputs.popplerQa.source, {
+  version: "24.08.0",
+  url: "https://poppler.freedesktop.org/poppler-24.08.0.tar.xz",
+  sha256: "97453fbddf0c9a9eafa0ea45ac710d3d49bcf23a62e864585385d3c0b4403174",
+  downloadBytes: 1912592,
+});
 assert.equal(native.version, "24.08.0-0");
 assert.equal(native.root, "poppler-24.08.0");
 assert.equal(native.binRelativePath, "Library/bin");
@@ -45,14 +53,39 @@ for (const fragment of [
   "same-directory DLL closure",
   "safe archive-relative path, SHA-256, and positive byte size",
   "license material must live inside the copied data tree",
+  "pin the Poppler source archive",
 ]) assert.match(builder, new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 
 for (const fragment of [
+  "darwin-arm64 payload must be assembled on macOS",
+  "linux-x64 payload must be assembled on Linux",
+  "pdfinfo",
+  "pdftoppm",
+  "pdftotext",
+  "otool",
+  "install_name_tool",
+  "codesign",
+  "ldd",
+  "patchelf",
+  "LD_LIBRARY_PATH",
+  "DYLD_LIBRARY_PATH",
+  "declared native roots",
+  "contains a symlink",
+  "must not be hard-linked",
+  "POPPLER_DATADIR",
+]) assert.match(portableBuilder, new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
+for (const fragment of [
   "name: Poppler QA (win32-x64)",
+  "poppler-posix",
+  "ubuntu-24.04",
+  "macos-14",
   "runs-on: windows-2025",
   "Expand-Archive",
   "build-poppler-native-payload.mjs",
-  "--expected-platforms win32-x64",
+  "build-poppler-portable-payload.mjs",
+  "source_dir=\"$RUNNER_TEMP/poppler-source/poppler-$(jq",
+  "--expected-platforms darwin-arm64,linux-x64,win32-x64",
   "actions/attest@v4",
   "pdf-provider-poppler-qa-",
   "System32",
@@ -68,13 +101,17 @@ assert.equal(lock.status, 0, lock.stderr || lock.stdout);
 assert.deepEqual(JSON.parse(lock.stdout), {
   schema: inputs.schema,
   pack: "poppler-qa",
-  version: "24.08.0-oat.1",
+  version: "24.08.0-oat.2",
   platform: "win32-x64",
 });
 
 const missing = spawnSync(process.execPath, [builderPath, "--platform", "win32-x64"], { cwd: root, encoding: "utf8" });
 assert.equal(missing.status, 2);
 assert.match(missing.stderr, /--payload is required/);
+
+const missingPortable = spawnSync(process.execPath, [portableBuilderPath, "--platform", "darwin-arm64"], { cwd: root, encoding: "utf8" });
+assert.equal(missingPortable.status, 2);
+assert.match(missingPortable.stderr, /--payload is required/);
 
 assert.equal(crypto.createHash("sha256").update(inputBytes).digest("hex").length, 64);
 console.log("Poppler PDF capability-pack build smoke ok");

@@ -3,8 +3,14 @@
   "schemaVersion": 1,
   "popplerQa": {
     "packId": "poppler-qa",
-    "version": "24.08.0-oat.1",
+    "version": "24.08.0-oat.2",
     "license": "GPL-2.0-or-later",
+    "source": {
+      "version": "24.08.0",
+      "url": "https://poppler.freedesktop.org/poppler-24.08.0.tar.xz",
+      "sha256": "97453fbddf0c9a9eafa0ea45ac710d3d49bcf23a62e864585385d3c0b4403174",
+      "downloadBytes": 1912592
+    },
     "nativeBuild": {
       "win32-x64": {
         "version": "24.08.0-0",

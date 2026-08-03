@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: "Create the immutable Windows Poppler QA release after its isolated consumer probe passes"
+        description: "Create the immutable cross-platform Poppler QA release after every isolated consumer probe passes"
         required: true
         default: "false"
         type: choice
@@ -12,9 +12,9 @@ on:
           - "false"
           - "true"
 
-# This lane has one deliberately narrow initial target: the signed Windows x64
-# QA closure. A future all-platform Poppler release must use a new immutable
-# version; it must not append a different platform to this release tag.
+# The release is built from the same hash-pinned Poppler source on macOS/Linux
+# and the reviewed upstream Windows closure. Every platform is independently
+# extracted and probed before the immutable release manifest is assembled.
 # Normal npm installs, root imports, and ordinary tests never download it.
 permissions:
   contents: write
@@ -24,7 +24,7 @@ permissions:
 
 env:
   POPPLER_INPUTS: scripts/pdf-provider-poppler-release-inputs.v1.json
-  POPPLER_PACK_VERSION: 24.08.0-oat.1
+  POPPLER_PACK_VERSION: 24.08.0-oat.2
 
 jobs:
   poppler-qa:
@@ -46,7 +46,7 @@ jobs:
             .schema == "office-kit.pdf-provider-poppler-release-inputs.v1" and
             .schemaVersion == 1 and
             .popplerQa.packId == "poppler-qa" and
-            .popplerQa.version == "24.08.0-oat.1" and
+            .popplerQa.version == "24.08.0-oat.2" and
             (.popplerQa.nativeBuild["win32-x64"].sha256 | test("^[a-f0-9]{64}$")) and
             (.popplerQa.nativeBuild["win32-x64"].licenseRelativePath == "share/poppler/COPYING.gpl2") and
             (.popplerQa.nativeBuild["win32-x64"].licenseSha256 | test("^[a-f0-9]{64}$"))
@@ -148,9 +148,169 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  poppler-posix:
+    name: Poppler QA (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            runner: ubuntu-24.04
+          - platform: darwin-arm64
+            runner: macos-14
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Install pinned Poppler build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.platform }}" = "linux-x64" ]; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends \
+              cmake g++ pkg-config patchelf \
+              libfontconfig1-dev libfreetype6-dev libjpeg-dev libpng-dev \
+              libtiff-dev libopenjp2-7-dev liblcms2-dev zlib1g-dev
+          else
+            brew install cmake pkg-config fontconfig freetype jpeg-turbo libpng libtiff little-cms2 openjpeg
+          fi
+      - name: Download and verify the hash-pinned Poppler source
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_url="$(jq -r '.popplerQa.source.url' "$POPPLER_INPUTS")"
+          source_sha="$(jq -r '.popplerQa.source.sha256' "$POPPLER_INPUTS")"
+          source_bytes="$(jq -r '.popplerQa.source.downloadBytes' "$POPPLER_INPUTS")"
+          mkdir -p "$RUNNER_TEMP/poppler-source"
+          curl --fail --location --retry 3 --proto '=https' --tlsv1.2 "$source_url" --output "$RUNNER_TEMP/poppler-source/source.tar.xz"
+          test "$(wc -c < "$RUNNER_TEMP/poppler-source/source.tar.xz" | tr -d ' ')" = "$source_bytes"
+          test "$(node scripts/sha256-file.mjs "$RUNNER_TEMP/poppler-source/source.tar.xz")" = "$source_sha"
+          tar -xJf "$RUNNER_TEMP/poppler-source/source.tar.xz" -C "$RUNNER_TEMP/poppler-source"
+      - name: Build Poppler QA commands from the pinned source
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_dir="$RUNNER_TEMP/poppler-source/poppler-$(jq -r '.popplerQa.source.version' "$POPPLER_INPUTS")"
+          build_dir="$RUNNER_TEMP/poppler-build"
+          install_dir="$RUNNER_TEMP/poppler-install"
+          cmake_args=(
+            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_INSTALL_PREFIX="$install_dir"
+            -DENABLE_UTILS=ON
+            -DENABLE_CPP=OFF
+            -DENABLE_GLIB=OFF
+            -DENABLE_QT5=OFF
+            -DENABLE_QT6=OFF
+            -DENABLE_CAIRO=OFF
+            -DENABLE_LIBCURL=OFF
+            -DENABLE_GPGME=OFF
+            -DENABLE_NSS3=OFF
+            -DENABLE_BOOST=OFF
+            -DBUILD_CPP_TESTS=OFF
+            -DENABLE_LIBOPENJPEG=openjpeg2
+          )
+          if [ "${{ matrix.platform }}" = "darwin-arm64" ]; then
+            cmake_args+=(-DCMAKE_OSX_ARCHITECTURES=arm64)
+          fi
+          cmake -S "$source_dir" -B "$build_dir" "${cmake_args[@]}"
+          cmake --build "$build_dir" --parallel
+          cmake --install "$build_dir"
+          test -x "$install_dir/bin/pdfinfo"
+          test -x "$install_dir/bin/pdftoppm"
+          test -x "$install_dir/bin/pdftotext"
+          mkdir -p "$RUNNER_TEMP/poppler-payload" "$RUNNER_TEMP/poppler-notices"
+          source_url="$(jq -r '.popplerQa.source.url' "$POPPLER_INPUTS")"
+          source_sha="$(jq -r '.popplerQa.source.sha256' "$POPPLER_INPUTS")"
+          {
+            printf '%s\n\n' '# Poppler native capability-pack notices'
+            printf '%s\n\n' "Source archive: $source_url"
+            printf '%s\n\n' "Source SHA-256: $source_sha"
+            cat "$source_dir/COPYING"
+            if [ -f "$source_dir/COPYING3" ]; then cat "$source_dir/COPYING3"; fi
+          } > "$RUNNER_TEMP/poppler-notices/source.md"
+          library_args=()
+          if [ "${{ matrix.platform }}" = "darwin-arm64" ]; then
+            # The builder follows only these declared formula roots.  It then
+            # resolves the transitive closure by basename and refuses any
+            # unresolved build-machine path.
+            for dep in $(brew deps --installed --include-build fontconfig freetype jpeg-turbo libpng libtiff little-cms2 openjpeg); do
+              dep_prefix="$(brew --prefix "$dep" 2>/dev/null || true)"
+              if [ -n "$dep_prefix" ] && [ -d "$dep_prefix/lib" ]; then library_args+=(--library-root "$dep_prefix/lib"); fi
+            done
+          else
+            library_args+=(--library-root /usr/lib/x86_64-linux-gnu)
+          fi
+          node scripts/build-poppler-portable-payload.mjs \
+            --platform "${{ matrix.platform }}" \
+            --payload "$RUNNER_TEMP/poppler-payload" \
+            --pdfinfo "$install_dir/bin/pdfinfo" \
+            --pdftoppm "$install_dir/bin/pdftoppm" \
+            --pdftotext "$install_dir/bin/pdftotext" \
+            --data-root "$install_dir/share/poppler" \
+            --notices "$RUNNER_TEMP/poppler-notices/source.md" \
+            --version "$(jq -r '.popplerQa.source.version' "$POPPLER_INPUTS")" \
+            --source-url "$source_url" --source-sha256 "$source_sha" \
+            "${library_args[@]}"
+          node scripts/build-pdf-provider-pack.mjs \
+            --pack poppler-qa \
+            --version "$POPPLER_PACK_VERSION" \
+            --platform "${{ matrix.platform }}" \
+            --payload "$RUNNER_TEMP/poppler-payload" \
+            --output "$RUNNER_TEMP/poppler-qa-release" \
+            --source-url "$source_url" \
+            --source-sha256 "$source_sha" \
+            --license GPL-2.0-or-later \
+            --notices "$RUNNER_TEMP/poppler-notices/source.md"
+      - name: Verify the extracted POSIX Poppler closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/poppler-qa-release/poppler-qa-$POPPLER_PACK_VERSION-${{ matrix.platform }}.tar.gz"
+          destination="$RUNNER_TEMP/poppler-qa-consumer"
+          node scripts/verify-pdf-provider-pack.mjs \
+            --archive "$archive" \
+            --manifest "$RUNNER_TEMP/poppler-qa-release/poppler-qa-$POPPLER_PACK_VERSION-${{ matrix.platform }}.manifest.json" \
+            --destination "$destination"
+          if [ "${{ matrix.platform }}" = "darwin-arm64" ]; then
+            export DYLD_LIBRARY_PATH="$destination/lib"
+          else
+            export LD_LIBRARY_PATH="$destination/lib"
+          fi
+          export POPPLER_DATADIR="$destination/share/poppler"
+          "$destination/bin/pdfinfo" -v 2>&1 | grep -F "Poppler"
+          "$destination/bin/pdftoppm" -v 2>&1 | grep -F "Poppler"
+          "$destination/bin/pdftotext" -v 2>&1 | grep -F "Poppler"
+          if [ "${{ matrix.platform }}" = "darwin-arm64" ]; then
+            ! otool -L "$destination/bin/pdfinfo" | grep -E '/opt/homebrew/|/usr/local/'
+          else
+            ! readelf -d "$destination/bin/pdfinfo" | grep -E '/usr/local/|/opt/'
+          fi
+      - name: Attest immutable POSIX Poppler QA pack provenance
+        if: ${{ inputs.publish == 'true' }}
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ runner.temp }}/poppler-qa-release/*.tar.gz
+      - name: Attest POSIX Poppler QA pack SBOM
+        if: ${{ inputs.publish == 'true' }}
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ runner.temp }}/poppler-qa-release/poppler-qa-${{ env.POPPLER_PACK_VERSION }}-${{ matrix.platform }}.tar.gz
+          sbom-path: ${{ runner.temp }}/poppler-qa-release/poppler-qa-${{ env.POPPLER_PACK_VERSION }}-${{ matrix.platform }}.sbom.cdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: poppler-${{ matrix.platform }}
+          path: ${{ runner.temp }}/poppler-qa-release/
+          if-no-files-found: error
+          retention-days: 14
+
   release-poppler-qa:
-    name: assemble Windows Poppler QA release manifest
-    needs: poppler-qa
+    name: assemble cross-platform Poppler QA release manifest
+    needs: [poppler-qa, poppler-posix]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v5
@@ -161,9 +321,10 @@ jobs:
       - run: npm ci --ignore-scripts
       - uses: actions/download-artifact@v5
         with:
-          name: poppler-qa-win32-x64
+          pattern: poppler-*
           path: ${{ runner.temp }}/poppler-qa-platforms
-      - name: Combine audited Windows manifest
+          merge-multiple: true
+      - name: Combine audited platform manifests
         shell: bash
         run: |
           set -euo pipefail
@@ -176,9 +337,9 @@ jobs:
             --release-base-url "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/" \
             --repository "$GITHUB_REPOSITORY" \
             --workflow .github/workflows/pdf-poppler-capability-pack.yml \
-            --expected-platforms win32-x64
-          jq -e '.catalogFragment.state == "published" and (.catalogFragment.artifacts | length == 1) and .catalogFragment.artifacts[0].platform == "win32-x64"' "$RUNNER_TEMP/poppler-qa-final/poppler-qa-$POPPLER_PACK_VERSION.release-manifest.json"
-      - name: Attest Windows Poppler QA release evidence
+            --expected-platforms darwin-arm64,linux-x64,win32-x64
+          jq -e '.catalogFragment.state == "published" and (.catalogFragment.artifacts | length == 3)' "$RUNNER_TEMP/poppler-qa-final/poppler-qa-$POPPLER_PACK_VERSION.release-manifest.json"
+      - name: Attest cross-platform Poppler QA release evidence
         if: ${{ inputs.publish == 'true' }}
         uses: actions/attest@v4
         with:
@@ -189,7 +350,7 @@ jobs:
           path: ${{ runner.temp }}/poppler-qa-final/
           if-no-files-found: error
           retention-days: 14
-      - name: Publish immutable Windows Poppler QA release assets
+      - name: Publish immutable cross-platform Poppler QA release assets
         if: ${{ inputs.publish == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -201,5 +362,5 @@ jobs:
             echo "Refusing to mutate existing release $tag" >&2
             exit 2
           fi
-          gh release create "$tag" --target "$GITHUB_SHA" --title "PDF capability pack: Windows Poppler QA $POPPLER_PACK_VERSION" --notes "Hash-pinned Windows Poppler pdfinfo, pdftoppm, and pdftotext QA pack. The npm catalog does not advertise this release until a reviewed digest-pinning update and managed-platform acceptance. Verify assets with: gh attestation verify <asset> --repo $GITHUB_REPOSITORY"
+          gh release create "$tag" --target "$GITHUB_SHA" --title "PDF capability pack: Poppler QA $POPPLER_PACK_VERSION" --notes "Hash-pinned Poppler pdfinfo, pdftoppm, and pdftotext QA packs for macOS arm64, Linux x64, and Windows x64. Verify assets with: gh attestation verify <asset> --repo $GITHUB_REPOSITORY"
           gh release upload "$tag" "$RUNNER_TEMP/poppler-qa-platforms"/* "$RUNNER_TEMP/poppler-qa-final"/*

@@ -74,8 +74,13 @@ async function loadInputs() {
   }
   if (inputs.schema !== INPUT_SCHEMA || inputs.schemaVersion !== 1) fail("release input lock has an unsupported schema.");
   const pack = inputs.popplerQa;
-  if (!pack || pack.packId !== "poppler-qa" || pack.version !== "24.08.0-oat.1" || pack.license !== "GPL-2.0-or-later") {
+  if (!pack || pack.packId !== "poppler-qa" || pack.version !== "24.08.0-oat.2" || pack.license !== "GPL-2.0-or-later") {
     fail("release input lock must identify the immutable Poppler QA pack.");
+  }
+  if (!pack.source || !/^https:\/\//.test(pack.source.url || "") || !SHA256.test(pack.source.sha256 || "")
+    || !Number.isSafeInteger(pack.source.downloadBytes) || pack.source.downloadBytes <= 0
+    || pack.source.version !== "24.08.0") {
+    fail("release input lock must pin the Poppler source archive.");
   }
   const native = pack.nativeBuild?.["win32-x64"];
   if (!native || native.version !== "24.08.0-0" || !isSafeSegment(native.root)
