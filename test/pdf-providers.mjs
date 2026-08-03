@@ -129,9 +129,14 @@ for (const providerId of ["reportlab", "pdfplumber", "pypdf", "pymupdf", "pikepd
   assert.equal(PDF_PROVIDER_CATALOG.providers[providerId].probeTimeoutMs, 30_000, `${providerId} must allow a bounded cold managed-Python startup`);
 }
 assert.equal(PDF_PROVIDER_CATALOG.packs["poppler-qa"].state, "published");
-assert.equal(PDF_PROVIDER_CATALOG.packs["poppler-qa"].version, "24.08.0-oat.1");
-assert.deepEqual(PDF_PROVIDER_CATALOG.packs["poppler-qa"].platforms, ["win32-x64"]);
-assert.deepEqual(PDF_PROVIDER_CATALOG.packs["poppler-qa"].releaseEvidence.verifiedPlatforms, ["win32-x64"]);
+assert.equal(PDF_PROVIDER_CATALOG.packs["poppler-qa"].version, "24.08.0-oat.2");
+assert.deepEqual(PDF_PROVIDER_CATALOG.packs["poppler-qa"].platforms, ["darwin-arm64", "linux-x64", "win32-x64"]);
+assert.deepEqual(PDF_PROVIDER_CATALOG.packs["poppler-qa"].releaseEvidence.verifiedPlatforms, ["darwin-arm64", "linux-x64", "win32-x64"]);
+assert.deepEqual(PDF_PROVIDER_CATALOG.packs["poppler-qa"].artifacts.map(({ platform, sha256, downloadBytes }) => ({ platform, sha256, downloadBytes })), [
+  { platform: "darwin-arm64", sha256: "e15fdd9f5108f59bbf042917a19ccca5eef82b27b401974369fc4fdc6cc699dd", downloadBytes: 6923380 },
+  { platform: "linux-x64", sha256: "ae2fea42137d8a75422fc302db195596ff99eb7740318736c42a2c11ea885873", downloadBytes: 8496322 },
+  { platform: "win32-x64", sha256: "c8680e9b48042dbdd5b31bf23c4d2f015c19bdbe025cb79cf735397da4b83c37", downloadBytes: 13170963 },
+]);
 assert.ok(!("managedPack" in PDF_PROVIDER_CATALOG.providers.qpdf), "pack metadata must have one canonical top-level home");
 
 function entrypointPaths(packId, platformId) {
@@ -157,6 +162,13 @@ assert.deepEqual(entrypointPaths("poppler-qa", "win32-x64"), {
   "bin/pdftoppm": "bin/pdftoppm.exe",
   "bin/pdftotext": "bin/pdftotext.exe",
 });
+for (const platformId of ["darwin-arm64", "linux-x64"]) {
+  assert.deepEqual(entrypointPaths("poppler-qa", platformId), {
+    "bin/pdfinfo": "bin/pdfinfo",
+    "bin/pdftoppm": "bin/pdftoppm",
+    "bin/pdftotext": "bin/pdftotext",
+  });
+}
 
 const windowsPlatformCatalog = structuredClone(PDF_PROVIDER_CATALOG);
 windowsPlatformCatalog.releasePolicy.managedPlatforms = ["darwin-arm64", "linux-x64", "win32-x64"];
@@ -347,11 +359,12 @@ const managedPoppler = await PdfProviders.resolve({
     maxUnpackedBytes: 64 * 1024 * 1024,
   },
 });
-if (platform === "win32-x64") {
+if (["darwin-arm64", "linux-x64", "win32-x64"].includes(platform)) {
   assert.equal(managedPoppler.status, "installable");
   assert.equal(managedPoppler.reason.code, "managed-install-required");
   assert.deepEqual(managedPoppler.installPlan.packIds, ["poppler-qa"]);
   assert.equal(managedPoppler.installPlan.runtime.managedRuntime.commandPaths.pdfinfo, "bin/pdfinfo");
+  assert.equal(managedPoppler.installPlan.runtime.managedRuntime.commandPaths.pdftotext, "bin/pdftotext");
 } else {
   assert.equal(managedPoppler.status, "blocked");
   assert.equal(managedPoppler.reason.code, "platform-artifact-unavailable");
@@ -540,6 +553,7 @@ assert.match(liveWorkflow, /^  verapdf-managed-pack:/m);
 assert.match(liveWorkflow, /node test\/pdf-verapdf-managed-release\.mjs/);
 assert.match(liveWorkflow, /^  poppler-managed-pack:/m);
 assert.match(liveWorkflow, /node test\/pdf-poppler-managed-release\.mjs/);
+assert.match(liveWorkflow, /poppler-managed-pack:[\s\S]*platform: linux-x64[\s\S]*platform: darwin-arm64[\s\S]*platform: win32-x64/);
 
 const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-pdf-providers-"));
 try {

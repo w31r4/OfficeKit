@@ -264,7 +264,7 @@ assert.match(skillText, /office-kit\/pdf\/providers/);
 assert.match(skillText, /installPolicy: "disabled"/);
 assert.match(skillText, /installPolicy": "managed"/);
 assert.match(skillText, /system-only/);
-assert.match(skillText, /Current release-catalog state.*qpdf `12\.3\.2-oat\.2`[\s\S]*`python-foundation`\/`python-specialists` `3\.13\.14-oat\.2`[\s\S]*veraPDF\/JRE `1\.30\.2-oat\.2`[\s\S]*OCR core `17\.8\.1-oat\.3`[\s\S]*`eng`\/`chi_sim` `4\.1\.0-oat\.3`[\s\S]*Poppler QA `24\.08\.0-oat\.1`[\s\S]*`win32-x64`[\s\S]*platform-artifact-unavailable/is);
+assert.match(skillText, /Current release-catalog state.*qpdf `12\.3\.2-oat\.2`[\s\S]*`python-foundation`\/`python-specialists` `3\.13\.14-oat\.2`[\s\S]*veraPDF\/JRE `1\.30\.2-oat\.2`[\s\S]*OCR core `17\.8\.1-oat\.3`[\s\S]*`eng`\/`chi_sim` `4\.1\.0-oat\.3`[\s\S]*Poppler QA `24\.08\.0-oat\.2`[\s\S]*`darwin-arm64`[\s\S]*`linux-x64`[\s\S]*`win32-x64`/is);
 assert.match(skillText, /darwin-arm64`, `linux-x64`, and `win32-x64` assets/);
 assert.match(skillText, /hash-pinned.*versioned.*release assets/is);
 assert.match(skillText, /silent fallback/i);
@@ -317,7 +317,7 @@ assert.match(providerSetupText, /PdfProviders\.ensure/);
 assert.match(providerSetupText, /PdfProviders\.probe/);
 assert.match(providerSetupText, /symlink\/hardlink/);
 assert.match(providerSetupText, /enterprise mirror.*identical hash-pinned bytes/is);
-assert.match(providerSetupText, /Current catalog state.*qpdf `12\.3\.2-oat\.2`[\s\S]*`python-foundation`[\s\S]*`python-specialists` `3\.13\.14-oat\.2`[\s\S]*veraPDF\/JRE[\s\S]*`1\.30\.2-oat\.2`[\s\S]*OCR core[\s\S]*`17\.8\.1-oat\.3`[\s\S]*`eng`\/`chi_sim`[\s\S]*`4\.1\.0-oat\.3`[\s\S]*Poppler QA `24\.08\.0-oat\.1`[\s\S]*`win32-x64`[\s\S]*platform-artifact-unavailable/is);
+assert.match(providerSetupText, /Current catalog state.*qpdf `12\.3\.2-oat\.2`[\s\S]*`python-foundation`[\s\S]*`python-specialists` `3\.13\.14-oat\.2`[\s\S]*veraPDF\/JRE[\s\S]*`1\.30\.2-oat\.2`[\s\S]*OCR core[\s\S]*`17\.8\.1-oat\.3`[\s\S]*`eng`\/`chi_sim`[\s\S]*`4\.1\.0-oat\.3`[\s\S]*Poppler QA `24\.08\.0-oat\.2`[\s\S]*`darwin-arm64`[\s\S]*`linux-x64`[\s\S]*`win32-x64`/is);
 assert.match(providerSetupText, /darwin-arm64`, `linux-x64`,[\s\S]*`win32-x64`/);
 assert.match(providerSetupText, /OFFICE_KIT_PDF_TESSDATA_DIRS[\s\S]*private directory/is);
 assert.doesNotMatch(providerSetupText, /brew install|apt-get|uv pip install/i);
@@ -355,7 +355,7 @@ assert.match(editExistingText, /Do not switch to pypdf, ReportLab, PDF\.js,[\s\S
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
 assert.match(pdfPluginReadme, /office-kit\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
-assert.match(pdfPluginReadme, /qpdf `12\.3\.2-oat\.2`, `python-foundation`[\s\S]*`python-specialists` `3\.13\.14-oat\.2`[\s\S]*veraPDF\/JRE `1\.30\.2-oat\.2`[\s\S]*OCR core `17\.8\.1-oat\.3`[\s\S]*`eng`[\s\S]*`chi_sim`[\s\S]*`4\.1\.0-oat\.3`[\s\S]*Poppler QA `24\.08\.0-oat\.1`[\s\S]*`win32-x64`[\s\S]*platform-artifact-unavailable/is);
+assert.match(pdfPluginReadme, /qpdf `12\.3\.2-oat\.2`, `python-foundation`[\s\S]*`python-specialists` `3\.13\.14-oat\.2`[\s\S]*veraPDF\/JRE `1\.30\.2-oat\.2`[\s\S]*OCR core `17\.8\.1-oat\.3`[\s\S]*`eng`[\s\S]*`chi_sim`[\s\S]*`4\.1\.0-oat\.3`[\s\S]*Poppler QA `24\.08\.0-oat\.2`[\s\S]*`darwin-arm64`[\s\S]*`linux-x64`[\s\S]*`win32-x64`/is);
 assert.match(pdfPluginReadme, /`darwin-arm64`, `linux-x64`, and `win32-x64` assets/);
 assert.doesNotMatch(pdfPluginReadme, /remain separately installed|brew install|apt-get|uv pip install/i);
 const nativePlacementDocs = [

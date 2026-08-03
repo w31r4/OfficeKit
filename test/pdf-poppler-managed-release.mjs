@@ -16,9 +16,10 @@ function combinedOutput(result) {
 
 if (process.env.OFFICE_KIT_PDF_LIVE_PACK_TEST !== "1") {
   console.log("Poppler managed release smoke skipped (set OFFICE_KIT_PDF_LIVE_PACK_TEST=1)");
-} else if (`${process.platform}-${process.arch}` !== "win32-x64") {
-  console.log("Poppler managed release smoke skipped (the published Poppler QA pack is win32-x64 only)");
+} else if (!["darwin-arm64", "linux-x64", "win32-x64"].includes(`${process.platform}-${process.arch}`)) {
+  console.log("Poppler managed release smoke skipped (the published Poppler QA pack has no artifact for this platform)");
 } else {
+  const platform = `${process.platform}-${process.arch}`;
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-poppler-managed-release-"));
   try {
     const policyDirectory = path.join(temporary, ".office-kit");
@@ -46,7 +47,7 @@ if (process.env.OFFICE_KIT_PDF_LIVE_PACK_TEST !== "1") {
     });
     assert.equal(resolution.status, "installable", JSON.stringify(resolution.reason));
     assert.deepEqual(resolution.installPlan?.packIds, ["poppler-qa"]);
-    assert.equal(resolution.installPlan?.packs?.[0]?.artifact?.platform, "win32-x64");
+    assert.equal(resolution.installPlan?.packs?.[0]?.artifact?.platform, platform);
 
     const ready = await PdfProviders.ensure({ resolution, policyPath });
     assert.equal(ready.status, "ready", JSON.stringify(ready.reason));
@@ -56,7 +57,11 @@ if (process.env.OFFICE_KIT_PDF_LIVE_PACK_TEST !== "1") {
     const pdftotext = runtime?.commandPaths?.pdftotext;
     assert.ok(pdfinfo && pdftoppm && pdftotext, "managed Poppler must return every catalogued command path");
     for (const executable of [pdfinfo, pdftoppm, pdftotext]) {
-      assert.match(executable, /\\bin\\[^\\]+\.exe$/i, "managed Poppler must expose Windows archive paths, never ambient commands");
+      if (platform === "win32-x64") {
+        assert.match(executable, /\\bin\\[^\\]+\.exe$/i, "managed Poppler must expose Windows archive paths, never ambient commands");
+      } else {
+        assert.match(executable, /\/bin\/(?:pdfinfo|pdftoppm|pdftotext)$/, "managed Poppler must expose POSIX archive paths, never ambient commands");
+      }
       const stat = await fs.lstat(executable);
       assert.ok(stat.isFile() && !stat.isSymbolicLink(), "managed Poppler executable must be a regular private-cache file");
     }
