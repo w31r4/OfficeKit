@@ -96,6 +96,40 @@ arbitrary page selection, provider plugins, PDF/A conversion, or lossy
 optimization are exposed in this first fidelity slice. Add a separate typed
 operation if one of those transformations becomes necessary.
 
+## Mixed-document rotate/deskew refusal
+
+If the request combines `skip` OCR for existing text with automatic upside-down
+page correction or 2--4 degree deskew, inspect the source and run both provider
+checks above before deciding. The current typed adapter does not expose or prove
+either preprocessing primitive. When the probe cannot prove both capabilities,
+fail closed: do not run `ocr`, do not use `force` as a substitute, and do not
+switch to a different provider, content-stream edit, or whole-document
+rasterization. Write only `outputs/audit.json` and keep the input unchanged.
+
+The refusal audit must use this normalized envelope (actual hashes and versions
+are required; do not replace them with prose):
+
+```json
+{
+  "status": "failed_closed",
+  "source": {"path": "inputs/source.pdf", "sha256": "<actual>", "preserved_unchanged": true},
+  "provider": {"actual": "ocrmypdf", "version": "<actual-or-catalog>", "silentFallback": false,
+    "capabilities": {"rotatePreprocessingSupported": false, "deskewPreprocessingSupported": false}},
+  "operation": [{"type": "mixed-document-ocr-rotate-deskew", "executed": false,
+    "result": "refused: typed rotate/deskew capability is unavailable"}],
+  "savePolicy": {"strategy": "none", "sourcePreserved": true, "artifactWritten": false,
+    "allowed_output": "audit_only", "publication": "failed_closed"},
+  "validation": {"sourceImmutable": true,
+    "artifactChecks": {"modifiedPdfPresent": false, "partialArtifactPresent": false},
+    "outputDirectoryPolicy": {"modifiedPdfPresent": false, "partialArtifactPresent": false}},
+  "delivered_modified_pdf": false
+}
+```
+
+The trace must show `pdf_provider.py check --provider ocrmypdf --require`,
+`ocrmypdf_provider.py probe`, and source inspection before the refusal. The
+audit reason must name both missing capabilities and the forbidden fallbacks.
+
 ## Delivery gates
 
 The OCR report proves provider identity, source/output hashes, fixed flags,

@@ -153,7 +153,7 @@ and `appearanceBbox`; re-inspect after every output.
   rewrite, and requires Poppler pixel identity after reinspection.
 - `set_page_crop` is raw unrotated CropBox visibility only, not redaction.
   `rotate_page` sets an absolute right-angle `/Rotate`; neither enables content
-  reflow. Delete/redaction operations cannot be incremental.
+  reflow. Delete/redaction operations cannot be incremental. Mixed-document OCR needing automatic rotate or deskew is audit-only `failed_closed` with `savePolicy.strategy: "none"`; see [OCR](tasks/ocr.md).
 - General Word-style reflow, arbitrary text replacement, Dynamic XFA, complex
   JavaScript, 3D, and RichMedia are not made safe by these primitives. Current
   typed routes cannot prove opaque closure or runtime behavior, so inventory
