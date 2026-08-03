@@ -314,10 +314,15 @@ async function patchMacPayload(payload, libraryNames) {
   return targets.length;
 }
 
-async function collectLinuxLibraries(targets, destination) {
+async function collectLinuxLibraries(targets, destination, roots) {
   const copied = new Map();
   const queue = [...targets];
   const seen = new Set();
+  const rootPaths = await Promise.all([destination, ...roots].map((root) => fs.realpath(root)));
+  const isDeclared = (file) => rootPaths.some((root) => {
+    const relative = path.relative(root, file);
+    return !path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.sep}`);
+  });
   while (queue.length) {
     const target = queue.shift();
     const real = await fs.realpath(target);
@@ -328,7 +333,9 @@ async function collectLinuxLibraries(targets, destination) {
       if (hostLinuxLibrary(path.basename(dependency))) continue;
       const name = path.basename(dependency);
       const targetPath = path.join(destination, name);
-      await copyRegular(dependency, targetPath, "Linux dependency");
+      const actual = await fs.realpath(dependency).catch((error) => fail(`Linux dependency is unresolved: ${dependency}: ${error.message}`));
+      if (!isDeclared(actual)) fail(`Linux dependency escapes declared native roots: ${actual}`);
+      await copyRegular(actual, targetPath, "Linux dependency");
       copied.set(name, targetPath);
       queue.push(targetPath);
     }
@@ -374,7 +381,7 @@ async function build(options) {
     targetCount = await patchMacPayload(options.payload, new Set(libraries.keys()));
     libraryCount = libraries.size;
   } else {
-    const libraries = await collectLinuxLibraries(targets, lib);
+    const libraries = await collectLinuxLibraries(targets, lib, options.libraryRoots);
     targetCount = await patchLinuxPayload(options.payload);
     libraryCount = libraries.size;
   }

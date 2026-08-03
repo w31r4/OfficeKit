@@ -191,11 +191,20 @@ jobs:
           test "$(wc -c < "$RUNNER_TEMP/poppler-source/source.tar.xz" | tr -d ' ')" = "$source_bytes"
           test "$(node scripts/sha256-file.mjs "$RUNNER_TEMP/poppler-source/source.tar.xz")" = "$source_sha"
           tar -xJf "$RUNNER_TEMP/poppler-source/source.tar.xz" -C "$RUNNER_TEMP/poppler-source"
+          data_url="$(jq -r '.popplerQa.data.url' "$POPPLER_INPUTS")"
+          data_sha="$(jq -r '.popplerQa.data.sha256' "$POPPLER_INPUTS")"
+          data_bytes="$(jq -r '.popplerQa.data.downloadBytes' "$POPPLER_INPUTS")"
+          curl --fail --location --retry 3 --proto '=https' --tlsv1.2 "$data_url" --output "$RUNNER_TEMP/poppler-source/data.tar.gz"
+          test "$(wc -c < "$RUNNER_TEMP/poppler-source/data.tar.gz" | tr -d ' ')" = "$data_bytes"
+          test "$(node scripts/sha256-file.mjs "$RUNNER_TEMP/poppler-source/data.tar.gz")" = "$data_sha"
+          mkdir -p "$RUNNER_TEMP/poppler-data"
+          tar --extract --gzip --file="$RUNNER_TEMP/poppler-source/data.tar.gz" --directory="$RUNNER_TEMP/poppler-data"
       - name: Build Poppler QA commands from the pinned source
         shell: bash
         run: |
           set -euo pipefail
           source_dir="$RUNNER_TEMP/poppler-source/poppler-$(jq -r '.popplerQa.source.version' "$POPPLER_INPUTS")"
+          data_dir="$RUNNER_TEMP/poppler-data/poppler-data-$(jq -r '.popplerQa.data.version' "$POPPLER_INPUTS")"
           build_dir="$RUNNER_TEMP/poppler-build"
           install_dir="$RUNNER_TEMP/poppler-install"
           cmake_args=(
@@ -224,6 +233,7 @@ jobs:
           test -x "$install_dir/bin/pdfinfo"
           test -x "$install_dir/bin/pdftoppm"
           test -x "$install_dir/bin/pdftotext"
+          test -d "$data_dir"
           mkdir -p "$RUNNER_TEMP/poppler-payload" "$RUNNER_TEMP/poppler-notices"
           source_url="$(jq -r '.popplerQa.source.url' "$POPPLER_INPUTS")"
           source_sha="$(jq -r '.popplerQa.source.sha256' "$POPPLER_INPUTS")"
@@ -233,16 +243,24 @@ jobs:
             printf '%s\n\n' "Source SHA-256: $source_sha"
             cat "$source_dir/COPYING"
             if [ -f "$source_dir/COPYING3" ]; then cat "$source_dir/COPYING3"; fi
+            printf '\n# Poppler data notices\n\n'
+            for license in "$data_dir"/COPYING*; do
+              printf '\n## %s\n\n' "$(basename "$license")"
+              cat "$license"
+            done
           } > "$RUNNER_TEMP/poppler-notices/source.md"
-          library_args=()
+          library_args=(--library-root "$install_dir/lib")
           if [ "${{ matrix.platform }}" = "darwin-arm64" ]; then
             # The builder follows only these declared formula roots.  It then
             # resolves the transitive closure by basename and refuses any
             # unresolved build-machine path.
-            for dep in $(brew deps --installed --include-build fontconfig freetype jpeg-turbo libpng little-cms2 openjpeg); do
-              dep_prefix="$(brew --prefix "$dep" 2>/dev/null || true)"
-              if [ -n "$dep_prefix" ] && [ -d "$dep_prefix/lib" ]; then library_args+=(--library-root "$dep_prefix/lib"); fi
+            for root_formula in fontconfig freetype jpeg-turbo libpng little-cms2 openjpeg; do
+              for dep in "$root_formula" $(brew deps --installed --include-build "$root_formula" 2>/dev/null || true); do
+                dep_prefix="$(brew --prefix "$dep" 2>/dev/null || true)"
+                if [ -n "$dep_prefix" ] && [ -d "$dep_prefix/lib" ]; then library_args+=(--library-root "$dep_prefix/lib"); fi
+              done
             done
+            test "${#library_args[@]}" -gt 0
           else
             library_args+=(--library-root /usr/lib/x86_64-linux-gnu)
           fi
@@ -252,7 +270,7 @@ jobs:
             --pdfinfo "$install_dir/bin/pdfinfo" \
             --pdftoppm "$install_dir/bin/pdftoppm" \
             --pdftotext "$install_dir/bin/pdftotext" \
-            --data-root "$install_dir/share/poppler" \
+            --data-root "$data_dir" \
             --notices "$RUNNER_TEMP/poppler-notices/source.md" \
             --version "$(jq -r '.popplerQa.source.version' "$POPPLER_INPUTS")" \
             --source-url "$source_url" --source-sha256 "$source_sha" \
