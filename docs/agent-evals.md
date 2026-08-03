@@ -180,6 +180,29 @@ P=3, FieldMDP, and arbitrary signed PDFs remain outside that refusal primitive
 except for the separate, explicitly constrained P=2 finalisation described
 below.
 
+The current repeat was rerun from `3f5c1e86de284d7d898e46e33e544326e579b032`
+with the published `python-specialists` `3.13.14-oat.2` managed runtime and
+the same real signed source. The matrix at
+`/tmp/officekit-promptbench-docmdp-p1-matrix-v3` passed candidate `3/3` and
+copied-reference `3/3` at `100/100` (six completed trials, no timeout). Every
+record bound package SHA-256
+`133828263cb1f4541fa03825809eacf1055a37ff61cc9e4622c4a8bcd367447c`, input
+specification SHA-256
+`79a91a0854f6d19041611fd06c50ce18aabc269d2f1894419006189070569ef4`, source
+SHA-256 `6ad55dd93543921c3b13d96f9cffed7a000ddea3b7da54643dae915034d19060`,
+public root SHA-256
+`ab15a064bf134b4c8409a08669b9308c5c9ba25d7d66dae74e99f30ccb7c606b`, and
+oracle fingerprint
+`411607d09ad126ac7fe1abdec67c34ec8671710017cba5a242370d518e579813`.
+The candidate/reference Skill tree hashes were
+`970c046507c32b8568f8826d51ca5952c3e77007e7300eaaf6d9bc2301c9335d` and
+`0a09e468825a8be83345fd6c34e848c9c383bea66fc67e09dc36ecb5dfb2f0b1`.
+Tracked repository content was unchanged (`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`); the protected local authorization document remained untracked and was
+not part of any trial input or package. All six traces ran explicit-root
+pyHanko verification and `pdf_audit.py failed-closed --require-docmdp-no-changes`,
+binding the trusted signature, full-file coverage, P=1 policy, and no-change
+decision into the sole `audit.json` output.
+
 At clean commit `f09a68f2596f483af311e69f944ca82166ef4cbe`, the fresh
 `pdf-pades-ltv-signature` matrix passed candidate `3/3` and copied-reference
 `3/3` at `100/100`. All six trials used the same candidate package SHA-256
