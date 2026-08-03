@@ -329,6 +329,12 @@ assert.match(encryptionTaskText, /regular, non-symlink[\s\S]*0600[\s\S]*4096 byt
 assert.match(encryptionTaskText, /never appear in qpdf argv, environment variables, JSON audit output/is);
 assert.match(encryptionTaskText, /does not decrypt|never opens, decrypts/is);
 assert.match(encryptionTaskText, /permission editor/i);
+const ocrTaskText = await fs.readFile(path.join(skillRoot, "tasks", "ocr.md"), "utf8");
+assert.match(ocrTaskText, /Mixed-document rotate\/deskew refusal/);
+assert.match(ocrTaskText, /status.*failed_closed[\s\S]*savePolicy[\s\S]*strategy.*none[\s\S]*allowed_output.*audit_only/is);
+assert.match(ocrTaskText, /provider[\s\S]*silentFallback.*false[\s\S]*rotatePreprocessingSupported.*false[\s\S]*deskewPreprocessingSupported.*false/is);
+assert.match(ocrTaskText, /pdf_provider\.py check --provider ocrmypdf --require[\s\S]*ocrmypdf_provider\.py probe[\s\S]*source inspection/is);
+assert.doesNotMatch(ocrTaskText, /use `force` as a substitute[\s\S]*different provider[\s\S]*whole-document rasterization/i);
 const providerMatrixText = await fs.readFile(path.join(skillRoot, "references", "PROVIDER_MATRIX.md"), "utf8");
 assert.match(providerMatrixText, /does \*\*not\*\* duplicate.*versions.*hashes.*URLs/is);
 assert.doesNotMatch(providerMatrixText, /1\.28\.0|1\.27\.2|10\.10\.x|17\.8\.x/i);

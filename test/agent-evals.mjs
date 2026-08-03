@@ -199,6 +199,11 @@ const highlightVisible = visibleCase(suite, cases.find((item) => item.id === "pd
 assert.match(highlightVisible.prompt, /add_text_highlight/);
 assert.match(highlightVisible.prompt, /outputs\/review-highlighted\.pdf/);
 assert.doesNotMatch(highlightVisible.prompt, /oracleSha256|outputHighlights|changedWithinAllowedMask/i);
+const mixedScanVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-mixed-scan-ocr-boundary"));
+assert.match(mixedScanVisible.prompt, /status="failed_closed"[\s\S]*savePolicy=\{strategy:"none"/);
+assert.match(mixedScanVisible.prompt, /provider=\{actual:"ocrmypdf"[\s\S]*silentFallback:false/);
+assert.match(mixedScanVisible.prompt, /pdf_provider\.py check --provider ocrmypdf --require[\s\S]*ocrmypdf_provider\.py probe[\s\S]*source inspection/);
+assert.match(mixedScanVisible.prompt, /outputDirectoryPolicy:\{modifiedPdfPresent:false,partialArtifactPresent:false\}/);
 const qpdfVisible = visibleCase(suite, cases.find((item) => item.id === "pdf-damaged-xref-recovery"));
 assert.match(qpdfVisible.prompt, /validation\.qpdfCheckAfter/);
 assert.match(qpdfVisible.prompt, /status=clean/);
