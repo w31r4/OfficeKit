@@ -681,7 +681,7 @@ const nestedValidationReferenceChecks = gradeBoundaryRefusalEvidence({
   evidence: encryptedEvidence,
   audit: nestedValidationReferenceAudit,
   commands: ["from pypdf import PdfReader"],
-  finalMessage: "dynamic XFA runtime unavailable",
+  finalMessage: "owner password is unavailable",
   item: encryptedItem,
   outputEntries: ["audit.json"],
 });
