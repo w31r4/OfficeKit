@@ -85,6 +85,7 @@ for (const fragment of [
   "build-poppler-native-payload.mjs",
   "build-poppler-portable-payload.mjs",
   "source_dir=\"$RUNNER_TEMP/poppler-source/poppler-$(jq",
+  "-DENABLE_LIBTIFF=OFF",
   "--expected-platforms darwin-arm64,linux-x64,win32-x64",
   "actions/attest@v4",
   "pdf-provider-poppler-qa-",
