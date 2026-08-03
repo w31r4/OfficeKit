@@ -370,6 +370,7 @@ oracle `473de083a41eefea5370c4dc2bbb04500695ebab63dafa9e303e73be96e286e1`.
 This repeat matrix proves the shipped fail-closed OCR boundary for the real
 scan fixture and reference-Skill contract compatibility; it does not claim
 general rotate/deskew or OCR quality.
+The contract and repeat evidence were finalized in commit `97026755`.
 
 ### PDF AcroForm visible-preserved matrix
 
