@@ -203,6 +203,26 @@ pyHanko verification and `pdf_audit.py failed-closed --require-docmdp-no-changes
 binding the trusted signature, full-file coverage, P=1 policy, and no-change
 decision into the sole `audit.json` output.
 
+The Dynamic XFA boundary was then rerun after making the refusal envelope
+explicit in the case prompt. The v6 matrix at
+`/tmp/officekit-promptbench-dynamic-xfa-matrix-v6` passed candidate `3/3` and
+copied-reference `3/3` at `100/100` (six completed trials, no timeout). Every
+record bound package SHA-256
+`133828263cb1f4541fa03825809eacf1055a37ff61cc9e4622c4a8bcd367447c`, input
+specification SHA-256
+`4315c7c006fe378b8b715cba23aaecfdb171abf47f7eed644554edf38b081c5f`, source
+SHA-256 `727ebf02feb699c4d9e657fa65808aade639dda8d31fa6ad6bb06b3cfb2e44f9`,
+and oracle SHA-256
+`d0a949c4e29a82ba4b187b5491bceee063eaefcd3409cbde1773e77faf48bb80`.
+Both subjects emitted only `audit.json`, preserved the source, reported an
+actual provider/version with `silentFallback:false`, recorded the requested
+mutation as unexecuted, and proved no modified or partial artifact. The
+grader accepts equivalent structured aliases such as `operations[]`,
+`savePolicy.mode`, and nested `validation.noArtifact/sourceUnchanged`; it
+still rejects prose-only claims. This is a repeatable Dynamic XFA safe-refusal
+contract, not XFA reflow, FormCalc/JavaScript execution, flattening, or
+AcroForm conversion.
+
 At clean commit `f09a68f2596f483af311e69f944ca82166ef4cbe`, the fresh
 `pdf-pades-ltv-signature` matrix passed candidate `3/3` and copied-reference
 `3/3` at `100/100`. All six trials used the same candidate package SHA-256
