@@ -131,7 +131,23 @@ candidate print zero, still preserved the source and emitted only an audit, but
 failed hard gates because the Agent wrote a noncanonical or incomplete typed
 no-artifact/no-mutation envelope. This is recorded as an audit-contract
 reliability gap, not relabeled as a semantic PDF success. `pdf_audit.py
-failed-closed` now owns the canonical audit-only refusal generation. At clean
+failed-closed` now owns the canonical audit-only refusal generation.
+The additional AES-256 owner-policy repeat at
+`/tmp/officekit-promptbench-aes-owner-matrix-v5` used candidate package
+SHA-256 `133828263cb1f4541fa03825809eacf1055a37ff61cc9e4622c4a8bcd367447c`,
+input-contract SHA-256 `272b25a9b97fef7cb392bb0a73f7baa88dde3d6f20db55fb4b462bdde213c21e`,
+source SHA-256 `e6272671fc5f6a753d268373c19e5b87f7c31dc1120dd7ff66063d7963c04f4d`,
+and oracle SHA-256 `8de2ba30fefbbd8baf04d3b2339e3734b59da8fa5a9c1ab64c066deda29ea751`.
+The candidate passed `3/3` at `100/100`; the copied reference passed `1/3`
+(`4/6` total trials passed, no timeout). The two reference failures preserved
+the source and emitted only `audit.json`, but used explicit structured variants
+of the refusal envelope that were not yet accepted by that matrix's grader.
+The current grader now recognizes the tested snake/camel provider-version,
+operation, source-preservation, save-policy, and no-artifact aliases without
+accepting omitted or prose-only evidence; the regression fixtures remain a
+compatibility guard. This result is an audit-contract repeat, not a claim that
+the reference Skill or arbitrary encrypted-PDF permission edits succeeded.
+At clean
 commit `51d3275fa2e94aabe2c381a2a16dbc4d942f9054`, a new package SHA-256
 `812067781a90d0efc8058fc841a1369eb6b1497e52f71a1fde6b9316f7730e47`
 passed a fresh print-production matrix at candidate `3/3` and reference `3/3`,

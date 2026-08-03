@@ -77,10 +77,12 @@ function auditProvider(audit) {
     : "";
   const declared = provider?.actual
     || provider?.actualProvider
+    || provider?.actual_provider
     || provider?.actual_inspection_provider
     || provider?.selected
     || provider?.name
     || provider?.provider
+    || provider?.inspection?.name
     || audit?.actualProvider
     || audit?.providers?.inspection?.name
     || audit?.providers?.capability_matrix?.name
@@ -102,6 +104,7 @@ function auditFallback(audit) {
     provider?.fallback_used,
     provider?.providerSwitched,
     provider?.provider_switched,
+    provider?.providerSwitch,
     audit?.silentFallback,
     audit?.silent_fallback,
     audit?.fallbackUsed,
@@ -110,6 +113,12 @@ function auditFallback(audit) {
     audit?.providers?.providerSwitching === "none" ? false : undefined,
   ].filter((value) => value !== undefined);
   if (values.length) return values.every((value) => value === false || value === "false");
+  // The reference Skill records the provider-selection decision as a
+  // structured string rather than a boolean. Accept only the explicit
+  // no-fallback wording; never infer safety from an omitted field.
+  if (typeof provider?.selection === "string"
+    && /no\s+(?:fallback|silent\s+switch)/i.test(provider.selection)
+    && !/(?:fallback|provider)\s+(?:used|switched|changed)/i.test(provider.selection)) return true;
   if (audit?.validation?.provider_identity_recorded === true
     && /provider|capability.matrix/i.test(operationText)
     && !/fallback|switch(?:ed|ing)?\s+provider/i.test(operationText)) return false;
@@ -118,7 +127,7 @@ function auditFallback(audit) {
 
 function auditProviderVersion(audit) {
   const provider = audit?.provider;
-  return provider?.version || provider?.actualProviderVersion || provider?.actual_inspection_provider_version || provider?.providerVersion || audit?.providerVersion || audit?.provider_version || "";
+  return provider?.version || provider?.actualProviderVersion || provider?.actual_provider_version || provider?.actualVersion || provider?.actual_version || provider?.actual_inspection_provider_version || provider?.providerVersion || provider?.provider_version || provider?.inspection?.version || audit?.providerVersion || audit?.provider_version || "";
 }
 
 function auditSourceHash(audit) {
@@ -139,7 +148,7 @@ function auditSaveStrategy(audit) {
   const policy = auditSaveRecord(audit);
   return typeof rawPolicy === "string"
     ? rawPolicy
-    : policy.strategy || policy.mode || policy.selected || audit?.strategy || "";
+    : policy.strategy || policy.mode || policy.selected || policy.selected_policy || policy.selectedPolicy || policy.declared || policy.output_publication || audit?.strategy || "";
 }
 
 function auditOperationRecords(audit) {
@@ -174,12 +183,23 @@ function auditRefusalOperationUnexecuted(audit) {
     || operation.performed === false
     || operation.performed === "none"
     || operation.mutationAttempted === false
+    || operation.mutation_attempted === false
     || /(?:not.?executed|not.?attempted|not.?performed|no.?mutation)/i.test(String(operation.status || ""))
     || /(?:refused|not.?attempted|not.?performed|no.?mutation)/i.test(String(operation.result || ""))
   ));
   if (structured) return true;
+  // Reference Skills may keep the requested operation in `task` and record
+  // the result in a typed validation field instead of materialising an
+  // operation object. Both are explicit structured evidence.
+  if (typeof audit?.task === "string"
+    && audit.task.trim()
+    && audit?.validation?.requested_mutation_performed === false) return true;
+  if (audit?.operation && typeof audit.operation === "object" && !Array.isArray(audit.operation)
+    && typeof audit.operation.requested === "string"
+    && (audit.operation.mutation_attempted === false
+      || /(?:mutation|change|edit|permission).*(?:refus|read.?only)/i.test(String(audit.operation.performed || audit.operation.result || audit.operation.decision || "")))) return true;
   return Array.isArray(audit?.operations)
-    && audit.operations.some((operation) => typeof operation === "string" && /(?:refused|not.?attempted|not.?performed|no.?mutation)/i.test(operation));
+    && audit.operations.some((operation) => typeof operation === "string" && /(?:refus(?:e|ed|al)|not.?attempted|not.?performed|no.?mutation)/i.test(operation));
 }
 
 function auditRefusalNoArtifactClaim(audit) {
@@ -200,6 +220,16 @@ function auditRefusalNoArtifactClaim(audit) {
     || artifactChecks.modifiedPdfProduced === false
     || artifactChecks.modifiedPdfPresent === false
     || artifactChecks.outputIsNull === true
+    || audit?.validation?.modified_pdf_exists === false
+    || audit?.validation?.modifiedPdfExists === false
+    || audit?.verification?.modified_pdf_absent === true
+    || audit?.verification?.modifiedPdfAbsent === true
+    || audit?.verification?.modifiedPdfPresent === false
+    || audit?.verification?.modifiedArtifactExists === false
+    || audit?.verification?.modified_artifact_absent === true
+    || audit?.verification?.outputs_policy?.modified_artifact_absent === true
+    || audit?.final_page_render_checks?.final_artifact_exists === false
+    || audit?.finalPageRenderChecks?.applicable === false
     || artifactChecks.modifiedArtifactCreated === false
     || artifactChecks.modifiedArtifactProduced === false
     || verification.modifiedArtifactPresent === false
@@ -213,6 +243,18 @@ function auditRefusalNoArtifactClaim(audit) {
       && validation.no_artifact.modified_artifacts_found.length === 0)
     || saveRecord.modifiedArtifactWritten === false
     || saveRecord.modified_artifact_written === false
+    || saveRecord.modifiedPdfWritten === false
+    || saveRecord.modified_pdf_written === false
+    || saveRecord.unencryptedPdfWritten === false
+    || saveRecord.unencrypted_pdf_written === false
+    || saveRecord.intermediateArtifactsWritten === false
+    || saveRecord.intermediate_artifacts_written === false
+    || saveRecord.transactionalArtifactWriteAttempted === false
+    || saveRecord.transactional_artifact_write_attempted === false
+    || saveRecord.modifiedArtifactEmitted === false
+    || saveRecord.modified_artifact_emitted === false
+    || saveRecord.finalArtifactPaths?.length === 0
+    || saveRecord.final_artifact_paths?.length === 0
     || saveRecord.inputOverwrite === false
     || saveRecord.input_overwrite === false
     || saveRecord.artifactWritten === false
@@ -231,9 +273,36 @@ function auditRefusalNoArtifactClaim(audit) {
     || saveRecord.partial_results_retained === false
     || saveRecord.modifiedArtifactWritten === false
     || saveRecord.modified_artifact_written === false
+    || saveRecord.modifiedPdfWritten === false
+    || saveRecord.modified_pdf_written === false
+    || saveRecord.unencryptedPdfWritten === false
+    || saveRecord.unencrypted_pdf_written === false
+    || saveRecord.intermediateArtifactsWritten === false
+    || saveRecord.intermediate_artifacts_written === false
+    || saveRecord.transactionalArtifactWriteAttempted === false
+    || saveRecord.transactional_artifact_write_attempted === false
+    || saveRecord.modifiedArtifactEmitted === false
+    || saveRecord.modified_artifact_emitted === false
+    || saveRecord.finalArtifactPaths?.length === 0
+    || saveRecord.final_artifact_paths?.length === 0
     || saveRecord.artifactWritten === false
     || saveRecord.artifact_written === false
     || outputDirectoryPolicy.partialArtifactPresent === false
+    || audit?.validation?.modified_pdf_exists === false
+    || audit?.validation?.modifiedPdfExists === false
+    || audit?.verification?.modified_pdf_absent === true
+    || audit?.verification?.modifiedPdfAbsent === true
+    || audit?.verification?.modifiedPdfPresent === false
+    || audit?.verification?.modifiedArtifactExists === false
+    || audit?.verification?.modified_artifact_absent === true
+    || audit?.verification?.outputs_policy?.modified_artifact_absent === true
+    || audit?.verification?.partial_results_absent === true
+    || audit?.verification?.partialResultsAbsent === true
+    || audit?.verification?.partialArtifactPresent === false
+    || audit?.verification?.unencryptedPdfPresent === false
+    || (Array.isArray(audit?.artifacts) && audit.artifacts.length === 0)
+    || audit?.final_page_render_checks?.final_artifact_exists === false
+    || audit?.finalPageRenderChecks?.applicable === false
     || (validation.noArtifact?.passed === true
       && Array.isArray(validation.noArtifact.modifiedArtifactsFound)
       && validation.noArtifact.modifiedArtifactsFound.length === 0)
@@ -257,12 +326,38 @@ function auditRefusalSavePolicy(audit) {
     || saveRecord.artifact_written === false
     || saveRecord.modifiedArtifactWritten === false
     || saveRecord.modified_artifact_written === false
+    || saveRecord.modifiedPdfWritten === false
+    || saveRecord.modified_pdf_written === false
+    || saveRecord.unencryptedPdfWritten === false
+    || saveRecord.unencrypted_pdf_written === false
+    || saveRecord.intermediateArtifactsWritten === false
+    || saveRecord.intermediate_artifacts_written === false
+    || saveRecord.transactionalArtifactWriteAttempted === false
+    || saveRecord.transactional_artifact_write_attempted === false
+    || saveRecord.modifiedArtifactEmitted === false
+    || saveRecord.modified_artifact_emitted === false
+    || saveRecord.finalArtifactPaths?.length === 0
+    || saveRecord.final_artifact_paths?.length === 0
     || saveRecord.inputOverwrite === false
     || saveRecord.input_overwrite === false
+    || saveRecord.input_overwrite_allowed === false
+    || saveRecord.final_artifact_allowed === false
+    || saveRecord.decrypted_save_allowed === false
+    || saveRecord.approximation_allowed === false
     || saveRecord.partialResultsRetained === false
     || saveRecord.partial_results_retained === false
     || saveRecord.mode === "failed_closed"
     || saveRecord.mode === "fail_closed"
+    || saveRecord.mode === "no_save_fail_closed"
+    || saveRecord.mode === "no-save-fail-closed"
+    || saveRecord.mode === "failed_closed_no_artifact"
+    || saveRecord.mode === "failed-closed-no-artifact"
+    || saveRecord.inputOverwriteAllowed === false
+    || saveRecord.artifactDeliveryAllowed === false
+    || saveRecord.output_pdf === null
+    || saveRecord.modified_pdf_allowed === false
+    || saveRecord.unencrypted_output_allowed === false
+    || saveRecord.intermediate_artifacts_allowed === false
     || /^(?:none|read-only)(?:\/(?:none|read-only))?$/i.test(String(saveRecord.mode || ""))
     || saveRecord.selected === "none"
     || auditRefusalOperationUnexecuted(audit)
@@ -272,13 +367,21 @@ function auditRefusalSavePolicy(audit) {
     || audit?.source?.preserved_unchanged === true
     || audit?.source?.preserved_unmodified === true
     || audit?.source?.preserved === true
+    || audit?.verification?.sourcePreserved === true
+    || audit?.verification?.source_preserved === true
+    || audit?.verification?.sourceHashVerifiedBeforeDecision === true
+    || audit?.verification?.source_sha256_verified === true
+    || audit?.verification?.source_unchanged === true
     || audit?.validation?.source_unchanged === true
     || audit?.validation?.sourceUnchanged?.passed === true
     || audit?.validation?.source_unchanged?.passed === true
     || audit?.validation?.sourceImmutable === true
     || audit?.validation?.sourceIdentity?.sourcePreserved === true
     || audit?.validation?.sourceIntegrity?.sourceOverwritten === false;
-  return Boolean(auditSaveStrategy(audit)) && noMutation && sourcePreserved && auditRefusalNoArtifactClaim(audit);
+  const explicitNoArtifactPolicy = audit?.verification?.outputs_policy?.modified_artifact_absent === true
+    && audit?.verification?.final_artifact === null;
+  return (Boolean(auditSaveStrategy(audit)) || explicitNoArtifactPolicy)
+    && noMutation && sourcePreserved && auditRefusalNoArtifactClaim(audit);
 }
 
 export function extractCompletedCommands(trace) {
