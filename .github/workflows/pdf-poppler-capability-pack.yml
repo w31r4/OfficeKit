@@ -175,9 +175,9 @@ jobs:
             sudo apt-get install -y --no-install-recommends \
               cmake g++ pkg-config patchelf \
               libfontconfig1-dev libfreetype6-dev libjpeg-dev libpng-dev \
-              libtiff-dev libopenjp2-7-dev liblcms2-dev zlib1g-dev
+              libopenjp2-7-dev liblcms2-dev zlib1g-dev
           else
-            brew install cmake pkg-config fontconfig freetype jpeg-turbo libpng libtiff little-cms2 openjpeg
+            brew install cmake pkg-config fontconfig freetype jpeg-turbo libpng little-cms2 openjpeg
           fi
       - name: Download and verify the hash-pinned Poppler source
         shell: bash
@@ -211,6 +211,7 @@ jobs:
             -DENABLE_GPGME=OFF
             -DENABLE_NSS3=OFF
             -DENABLE_BOOST=OFF
+            -DENABLE_LIBTIFF=OFF
             -DBUILD_CPP_TESTS=OFF
             -DENABLE_LIBOPENJPEG=openjpeg2
           )
@@ -238,7 +239,7 @@ jobs:
             # The builder follows only these declared formula roots.  It then
             # resolves the transitive closure by basename and refuses any
             # unresolved build-machine path.
-            for dep in $(brew deps --installed --include-build fontconfig freetype jpeg-turbo libpng libtiff little-cms2 openjpeg); do
+            for dep in $(brew deps --installed --include-build fontconfig freetype jpeg-turbo libpng little-cms2 openjpeg); do
               dep_prefix="$(brew --prefix "$dep" 2>/dev/null || true)"
               if [ -n "$dep_prefix" ] && [ -d "$dep_prefix/lib" ]; then library_args+=(--library-root "$dep_prefix/lib"); fi
             done
