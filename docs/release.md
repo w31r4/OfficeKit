@@ -919,6 +919,10 @@ a second PDF codec or putting large runtimes in the npm tarball:
   its exact `pdfinfo`, `pdftoppm`, and `pdftotext` bytes; macOS/Linux resolve
   as `platform-artifact-unavailable`, and no document, Skill, or API may claim
   that `ensure` can download an artifact outside that catalogued boundary.
+  The repository now also carries a source-locked `24.08.0-oat.2` macOS/Linux
+  builder and isolated consumer probes; it remains a release candidate until
+  both native closures are published, attested, and added to the canonical
+  catalog.
 - P12/private keys, HSM/remote-signing credentials, TSA/LTV access, and trust
   roots are never capability packs and are never acquired automatically.
 
