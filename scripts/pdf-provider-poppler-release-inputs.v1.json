@@ -11,6 +11,12 @@
       "sha256": "97453fbddf0c9a9eafa0ea45ac710d3d49bcf23a62e864585385d3c0b4403174",
       "downloadBytes": 1912592
     },
+    "data": {
+      "version": "0.4.12",
+      "url": "https://poppler.freedesktop.org/poppler-data-0.4.12.tar.gz",
+      "sha256": "c835b640a40ce357e1b83666aabd95edffa24ddddd49b8daff63adb851cdab74",
+      "downloadBytes": 4504754
+    },
     "nativeBuild": {
       "win32-x64": {
         "version": "24.08.0-0",

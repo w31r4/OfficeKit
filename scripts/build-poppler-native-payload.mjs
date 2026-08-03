@@ -82,6 +82,10 @@ async function loadInputs() {
     || pack.source.version !== "24.08.0") {
     fail("release input lock must pin the Poppler source archive.");
   }
+  if (!pack.data || pack.data.version !== "0.4.12") {
+    fail("release input lock must pin the Poppler data archive.");
+  }
+  assertLockedAsset(pack.data, "Poppler data source");
   const native = pack.nativeBuild?.["win32-x64"];
   if (!native || native.version !== "24.08.0-0" || !isSafeSegment(native.root)
     || !isSafeRelativePath(native.binRelativePath) || !isSafeRelativePath(native.dataRelativePath)) {

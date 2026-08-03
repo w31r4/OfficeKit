@@ -30,6 +30,12 @@ assert.deepEqual(inputs.popplerQa.source, {
   sha256: "97453fbddf0c9a9eafa0ea45ac710d3d49bcf23a62e864585385d3c0b4403174",
   downloadBytes: 1912592,
 });
+assert.deepEqual(inputs.popplerQa.data, {
+  version: "0.4.12",
+  url: "https://poppler.freedesktop.org/poppler-data-0.4.12.tar.gz",
+  sha256: "c835b640a40ce357e1b83666aabd95edffa24ddddd49b8daff63adb851cdab74",
+  downloadBytes: 4504754,
+});
 assert.equal(native.version, "24.08.0-0");
 assert.equal(native.root, "poppler-24.08.0");
 assert.equal(native.binRelativePath, "Library/bin");
@@ -85,6 +91,9 @@ for (const fragment of [
   "build-poppler-native-payload.mjs",
   "build-poppler-portable-payload.mjs",
   "source_dir=\"$RUNNER_TEMP/poppler-source/poppler-$(jq",
+  "poppler-data-$(jq -r",
+  "library_args=(--library-root \"$install_dir/lib\")",
+  "brew --prefix",
   "-DENABLE_LIBTIFF=OFF",
   "--expected-platforms darwin-arm64,linux-x64,win32-x64",
   "actions/attest@v4",
