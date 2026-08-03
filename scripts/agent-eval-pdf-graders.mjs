@@ -72,11 +72,29 @@ function sameBoundingBox(left = [], right = [], tolerance = 0.01) {
 function auditProvider(audit) {
   const provider = audit?.provider;
   if (typeof provider === "string") return provider;
-  return provider?.actual || provider?.actualProvider || provider?.actual_inspection_provider || provider?.selected || provider?.name || provider?.provider || audit?.actualProvider || "";
+  const operationText = Array.isArray(audit?.operations)
+    ? audit.operations.map((operation) => typeof operation === "string" ? operation : JSON.stringify(operation)).join(" ")
+    : "";
+  const declared = provider?.actual
+    || provider?.actualProvider
+    || provider?.actual_inspection_provider
+    || provider?.selected
+    || provider?.name
+    || provider?.provider
+    || audit?.actualProvider
+    || audit?.providers?.inspection?.name
+    || audit?.providers?.capability_matrix?.name
+    || audit?.providers?.capabilityMatrix?.name;
+  if (declared) return declared;
+  if (audit?.validation?.provider_identity_recorded === true && /provider|capability.matrix/i.test(operationText)) return "office-kit";
+  return "";
 }
 
 function auditFallback(audit) {
   const provider = audit?.provider;
+  const operationText = Array.isArray(audit?.operations)
+    ? audit.operations.map((operation) => typeof operation === "string" ? operation : JSON.stringify(operation)).join(" ")
+    : "";
   const values = [
     provider?.silentFallback,
     provider?.silent_fallback,
@@ -88,8 +106,14 @@ function auditFallback(audit) {
     audit?.silent_fallback,
     audit?.fallbackUsed,
     audit?.fallback_used,
+    audit?.providers?.provider_switching === "none" ? false : undefined,
+    audit?.providers?.providerSwitching === "none" ? false : undefined,
   ].filter((value) => value !== undefined);
-  return values.length ? values.every((value) => value === false || value === "false") : null;
+  if (values.length) return values.every((value) => value === false || value === "false");
+  if (audit?.validation?.provider_identity_recorded === true
+    && /provider|capability.matrix/i.test(operationText)
+    && !/fallback|switch(?:ed|ing)?\s+provider/i.test(operationText)) return false;
+  return null;
 }
 
 function auditProviderVersion(audit) {
@@ -131,7 +155,7 @@ function auditOperation(audit) {
   if (typeof operation === "string") return operation;
   const records = auditOperationRecords(audit);
   return records.map((value) => {
-    const labels = [value.type, value.operation, value.name, value.performed].filter(Boolean);
+    const labels = [value.type, value.operation, value.name, value.request, value.performed].filter(Boolean);
     for (const nested of [value.typedOperations, value.typedPrimitives, value.primitives, value.operations]) {
       if (Array.isArray(nested)) labels.push(...nested.map((typed) => typeof typed === "string" ? typed : typed?.type || typed?.operation || typed?.name || "").filter(Boolean));
     }
@@ -145,13 +169,17 @@ function auditOperationRecord(audit) {
 }
 
 function auditRefusalOperationUnexecuted(audit) {
-  return auditOperationRecords(audit).some((operation) => Boolean(operation.type || operation.operation || operation.name) && (
+  const structured = auditOperationRecords(audit).some((operation) => Boolean(operation.type || operation.operation || operation.name || operation.request || operation.requestedAction) && (
     operation.executed === false
     || operation.performed === false
     || operation.performed === "none"
     || operation.mutationAttempted === false
+    || /(?:not.?executed|not.?attempted|not.?performed|no.?mutation)/i.test(String(operation.status || ""))
     || /(?:refused|not.?attempted|not.?performed|no.?mutation)/i.test(String(operation.result || ""))
   ));
+  if (structured) return true;
+  return Array.isArray(audit?.operations)
+    && audit.operations.some((operation) => typeof operation === "string" && /(?:refused|not.?attempted|not.?performed|no.?mutation)/i.test(operation));
 }
 
 function auditRefusalNoArtifactClaim(audit) {
@@ -175,6 +203,18 @@ function auditRefusalNoArtifactClaim(audit) {
     || artifactChecks.modifiedArtifactCreated === false
     || artifactChecks.modifiedArtifactProduced === false
     || verification.modifiedArtifactPresent === false
+    || validation.modifiedArtifactAbsent === true
+    || validation.modified_artifact_absent === true
+    || (validation.noArtifact?.passed === true
+      && Array.isArray(validation.noArtifact.modifiedArtifactsFound)
+      && validation.noArtifact.modifiedArtifactsFound.length === 0)
+    || (validation.no_artifact?.passed === true
+      && Array.isArray(validation.no_artifact.modified_artifacts_found)
+      && validation.no_artifact.modified_artifacts_found.length === 0)
+    || saveRecord.modifiedArtifactWritten === false
+    || saveRecord.modified_artifact_written === false
+    || saveRecord.inputOverwrite === false
+    || saveRecord.input_overwrite === false
     || saveRecord.artifactWritten === false
     || saveRecord.artifact_written === false
     || validationChecks.some((entry) => /(?:modified|artifact).*absent/i.test(String(entry?.check || "")) && /^(?:passed|true)$/i.test(String(entry?.result ?? entry?.passed)))
@@ -187,7 +227,19 @@ function auditRefusalNoArtifactClaim(audit) {
     || artifactChecks.partialArtifactProduced === false
     || saveRecord.partialResultsWritten === false
     || saveRecord.partial_results_written === false
+    || saveRecord.partialResultsRetained === false
+    || saveRecord.partial_results_retained === false
+    || saveRecord.modifiedArtifactWritten === false
+    || saveRecord.modified_artifact_written === false
+    || saveRecord.artifactWritten === false
+    || saveRecord.artifact_written === false
     || outputDirectoryPolicy.partialArtifactPresent === false
+    || (validation.noArtifact?.passed === true
+      && Array.isArray(validation.noArtifact.modifiedArtifactsFound)
+      && validation.noArtifact.modifiedArtifactsFound.length === 0)
+    || (validation.no_artifact?.passed === true
+      && Array.isArray(validation.no_artifact.modified_artifacts_found)
+      && validation.no_artifact.modified_artifacts_found.length === 0)
     || auditOnly
   );
   const outputIsNullOrOmitted = !Object.hasOwn(audit || {}, "output") || audit.output === null;
@@ -203,14 +255,26 @@ function auditRefusalSavePolicy(audit) {
     || saveRecord.modifiedArtifactAllowed === false
     || saveRecord.artifactWritten === false
     || saveRecord.artifact_written === false
+    || saveRecord.modifiedArtifactWritten === false
+    || saveRecord.modified_artifact_written === false
+    || saveRecord.inputOverwrite === false
+    || saveRecord.input_overwrite === false
+    || saveRecord.partialResultsRetained === false
+    || saveRecord.partial_results_retained === false
     || saveRecord.mode === "failed_closed"
+    || saveRecord.mode === "fail_closed"
+    || /^(?:none|read-only)(?:\/(?:none|read-only))?$/i.test(String(saveRecord.mode || ""))
     || saveRecord.selected === "none"
     || auditRefusalOperationUnexecuted(audit)
     || /(?:failed.closed|audit.only|refused.*mutation)/i.test(String(saveRecord.publication || saveRecord.decision || ""));
   const sourcePreserved = saveRecord.sourcePreserved === true
     || saveRecord.sourceOverwrite === false
     || audit?.source?.preserved_unchanged === true
+    || audit?.source?.preserved_unmodified === true
     || audit?.source?.preserved === true
+    || audit?.validation?.source_unchanged === true
+    || audit?.validation?.sourceUnchanged?.passed === true
+    || audit?.validation?.source_unchanged?.passed === true
     || audit?.validation?.sourceImmutable === true
     || audit?.validation?.sourceIdentity?.sourcePreserved === true
     || audit?.validation?.sourceIntegrity?.sourceOverwritten === false;

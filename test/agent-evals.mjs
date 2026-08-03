@@ -624,6 +624,68 @@ const referenceRefusalChecks = gradeBoundaryRefusalEvidence({
   outputEntries: ["audit.json"],
 });
 assert.equal(referenceRefusalChecks.every((check) => check.passed), true, "reference-style refusal audit");
+const pluralProviderReferenceAudit = {
+  status: "failed_closed",
+  source: { sha256: encryptedEvidence.source.sha256, preserved_unmodified: true },
+  providers: {
+    capability_matrix: { name: "office-kit", version: "0.5.0" },
+    inspection: { name: "pypdf", version: "6.10.0", mode: "read_only" },
+    provider_switching: "none",
+  },
+  save_policy: {
+    strategy: "no_save_failed_closed",
+    artifact_written: false,
+    modifiedArtifactAbsent: true,
+  },
+  operations: [
+    "inspected source read-only",
+    "refused mutation because the requested operation is unsupported",
+    { request: "change-copy-permission", status: "not_executed" },
+  ],
+  validation: { modifiedArtifactAbsent: true },
+  reason: "owner password is unavailable",
+};
+const pluralProviderReferenceChecks = gradeBoundaryRefusalEvidence({
+  evidence: encryptedEvidence,
+  audit: pluralProviderReferenceAudit,
+  commands: ["from pypdf import PdfReader"],
+  finalMessage: "owner password is unavailable",
+  item: encryptedItem,
+  outputEntries: ["audit.json"],
+});
+assert.equal(pluralProviderReferenceChecks.every((check) => check.passed), true, "plural-provider reference refusal audit");
+const nestedValidationReferenceAudit = {
+  status: "failed_closed",
+  provider: {
+    actual: "pypdf",
+    version: "6.10.0",
+    silentFallback: false,
+  },
+  savePolicy: {
+    mode: "none/read-only",
+    artifactWritten: false,
+    sourceOverwritten: false,
+  },
+  operations: [{
+    request: "update dynamic XFA dependent count and reflow",
+    status: "not_executed",
+  }],
+  validation: {
+    sourceUnchanged: { passed: true },
+    noArtifact: { passed: true, modifiedArtifactsFound: [] },
+  },
+  source: { sha256: encryptedEvidence.source.sha256 },
+  output: null,
+};
+const nestedValidationReferenceChecks = gradeBoundaryRefusalEvidence({
+  evidence: encryptedEvidence,
+  audit: nestedValidationReferenceAudit,
+  commands: ["from pypdf import PdfReader"],
+  finalMessage: "dynamic XFA runtime unavailable",
+  item: encryptedItem,
+  outputEntries: ["audit.json"],
+});
+assert.equal(nestedValidationReferenceChecks.every((check) => check.passed), true, "nested-validation reference refusal audit");
 const padesBoundary = boundaryCases.find((boundary) => boundary.id === "pdf-pades-ltv-signature");
 const padesItem = cases.find((candidate) => candidate.id === padesBoundary.id);
 const padesEvidence = boundaryOracle(padesBoundary.boundary, padesBoundary.source);
