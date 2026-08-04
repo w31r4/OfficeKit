@@ -8,6 +8,10 @@ Status meanings:
 - **partial**: a narrower profile is editable, or imported content is preserved but some creation/editing is intentionally rejected.
 - **unsupported**: no modeled operation is provided; Office export must fail rather than flatten the object if preservation cannot be proven.
 
+## Gate policy
+
+Daily `npm test` is the fast gate (`npm run test:fast`): it covers syntax/import, core Office/PDF model smoke, OfficeKit routing/reference/portability validators, Help, and package-content smoke without downloading external PDF providers or running full domain Skill workflows, clean-install, PromptBench, or the default-template/native matrix. `npm run test:slow` is the complete chain and is reserved for provider/runtime/native changes, PromptBench or default-template changes, release candidates, and nightly `ci-slow` runs; it is followed by `docs:api`, `test:pack`, release metadata, OfficeBridge, and OfficeKit .NET/WASM gates. Real Excel/PowerPoint desktop acceptance is a separate manually queued `.github/workflows/windows-office-live.yml` lane on a `[self-hosted, windows, office]` runner. Its evidence validator rejects macOS/mock results; GitHub-hosted Windows CLI and Add-in build smoke remain portable tests only. See [CI gate layering](ci-gates.md).
+
 ## Architecture
 
 | Surface | Status | Boundary |

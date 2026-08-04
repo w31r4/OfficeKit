@@ -1,0 +1,36 @@
+# OfficeKit 门禁分层
+
+OfficeKit 把“开发反馈速度”和“发布可信度”分开。小改动先走 fast gate；会下载外部 provider、启动 LibreOffice/Poppler、运行 PromptBench、重跑全部模板或重建 WASM 的检查，只在 slow gate、发布候选或 nightly 执行。
+
+## 三类入口
+
+| 层 | 本地入口 | Hosted 入口 | 触发 | 包含 |
+| --- | --- | --- | --- | --- |
+| Fast | `npm test`（等同 `npm run test:fast`） | `.github/workflows/ci.yml` | 每次 push/PR | JS syntax/import、核心四格式模型、OfficeKit 路由/参考插件/可移植性 validator、Help、包内容 smoke。不会下载 Python/PyMuPDF/qpdf/OCR/veraPDF，不运行三类完整域 Skill workflow、PromptBench、clean-install 或 20 套默认模板的全量原生回归。 |
+| Slow | `npm run test:slow` | `.github/workflows/ci-slow.yml` | 手动、nightly；相关 `src/native/skills/evals/test/package` 路径变更时 | 原完整测试链、provider/pack、Playwright/LibreOffice/Poppler、PromptBench candidate/reference、默认模板全量 import/export/recalc/render、examples、release/package、OfficeBridge 与 OfficeKit WASM。 |
+| Windows Office live | 见下文 | `.github/workflows/windows-office-live.yml` | 手动排队；Live host 变更或 release candidate | 真实 Windows + Microsoft Office 人工观察证据。GitHub-hosted Windows、macOS mock、Add-in build smoke 和 CLI/package smoke 都不能替代这条证据。 |
+
+`npm run test:slow:templates` 和 `npm run test:slow:promptbench` 是 slow gate 中可单独复跑的两个窄入口。它们不改变正式 slow gate 的完整范围，也不应被记录成完整发布证据。
+
+## 变更判断
+
+- 只改 JS 模型、普通 Skill 文案或不涉及 provider/runtime 的测试：先跑 `npm test`；必要时再跑受影响的单测。
+- 改动 `src/pdf/**`、`skills/pdf/**`、provider catalog/installer、`evals/**`、默认模板、`native/**`、发布脚本或 lockfile：把 `ci-slow` 作为必需检查，并在提交说明中写明触发原因与结果。
+- 发布候选：冻结版本和包后运行 `npm run test:slow`、`npm run docs:api`、`npm run test:pack`、`npm run release:check`、OfficeBridge/OfficeKit .NET tests，再生成 standalone/release pins。npm auth、tag、Windows 实机等外部阻塞仍单独记录。
+- `docs/api.md` 只有在公开 API 改变时重生成；fast gate 的 Help/API 断言不代替发布前 `docs:api` clean diff。
+
+## Windows Office live 证据
+
+`.github/workflows/windows-office-live.yml` 使用 `[self-hosted, windows, office]` runner，故没有可用实机时会保持排队，而不是把 `windows-latest` 或 macOS mock 宣称为 Office 验收。操作员在真实 Excel/PowerPoint 中完成对应工作流后，提供符合 `office-kit.windows-live-evidence.v1` 的 JSON 路径并手动触发工作流：
+
+```bash
+gh workflow run windows-office-live.yml \
+  -f ref=v0.6.0 \
+  -f evidence_path='C:\OfficeKit\evidence\windows-office-live.json'
+```
+
+`scripts/validate-windows-live-evidence.mjs` 会 fail closed 检查 Windows 平台、Excel/PowerPoint 安装与版本、观察日期、提交 SHA、两个 live workflow 的 `passed` 结果，并拒绝 `mock`/`macos` 来源。证据必须由人工在 Windows Office 主机观察产生；签名、截图、录屏和详细操作日志仍由发布负责人按组织流程保存。
+
+## 记录格式
+
+每次 slow/Windows 运行都在交接或 release 文档中记录：触发原因、commit、workflow URL、结论、跳过项及其环境原因。`npm test` 通过只代表 fast gate 通过，不得写成完整 Office/PDF fidelity 或 Windows native acceptance。

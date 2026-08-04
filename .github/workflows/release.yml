@@ -50,7 +50,8 @@ jobs:
           pdftoppm -v
           pdfinfo -v
           dotnet --version
-      - run: npm test
+      - name: Run the release slow gate
+        run: npm run test:slow
       - run: npm run docs:api
       - run: git diff --exit-code docs/api.md
       - run: npm run test:pack
@@ -58,12 +59,12 @@ jobs:
       - run: dotnet test native/OfficeKit/OfficeKit.sln --configuration Release --no-restore
       - name: Release check (dry run)
         if: ${{ inputs.publish_npm != 'true' }}
-        run: node scripts/release-check.mjs --json --skip-network
+        run: node scripts/release-check.mjs --json --skip-network --skip-commands
       - name: Release check (publish)
         if: ${{ inputs.publish_npm == 'true' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm run release:check
+        run: node scripts/release-check.mjs --json --skip-commands
       - name: Compute version
         id: version
         run: echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
