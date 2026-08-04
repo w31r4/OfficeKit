@@ -986,7 +986,13 @@ try {
     savePolicy: { strategy: "read-only" },
     preflight: { probeCompleted: true, planCompleted: true },
     operation: { type: "extract-attachments" },
-    validation: { sourceUnchanged: true, attachmentsOpenedOrExecuted: false },
+    validation: {
+      sourceUnchanged: true,
+      allHashesVerified: true,
+      allPathsContained: true,
+      duplicateNamesSeparated: true,
+      attachmentsOpenedOrExecuted: false,
+    },
   }), "utf8");
   const readOnlyAuditValidation = parseResult(run(python, [
     path.join(scriptsRoot, "pdf_audit.py"), "validate", readOnlyAuditPath,
@@ -1011,6 +1017,15 @@ try {
     "--source", dummyInput, "--artifact", readOnlyManifest, "--require-operation", "extract-attachments",
   ], { status: 2 });
   assert.match(trueAttachmentSafety.stderr, /validation\.attachmentsOpenedOrExecuted as false/);
+  const missingAttachmentEvidence = JSON.parse(await fs.readFile(readOnlyAuditPath, "utf8"));
+  delete missingAttachmentEvidence.validation.allHashesVerified;
+  const missingAttachmentEvidencePath = path.join(tempRoot, "missing-attachment-evidence-audit.json");
+  await fs.writeFile(missingAttachmentEvidencePath, JSON.stringify(missingAttachmentEvidence), "utf8");
+  const missingAttachmentEvidenceResult = run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "validate", missingAttachmentEvidencePath,
+    "--source", dummyInput, "--artifact", readOnlyManifest, "--require-operation", "extract-attachments",
+  ], { status: 2 });
+  assert.match(missingAttachmentEvidenceResult.stderr, /validation\.allHashesVerified as true/);
   const mutableAttachmentPolicy = JSON.parse(await fs.readFile(readOnlyAuditPath, "utf8"));
   mutableAttachmentPolicy.savePolicy.strategy = "rewrite";
   const mutableAttachmentPolicyPath = path.join(tempRoot, "mutable-attachment-policy-audit.json");
