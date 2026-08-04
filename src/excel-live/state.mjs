@@ -8,6 +8,10 @@ import { excelLiveError } from "./errors.mjs";
 export const EXCEL_STATE_SCHEMA = 1;
 export const EXCEL_BRIDGE_PORT = 47213;
 export const EXCEL_ADDIN_ID = "d209533c-4ca9-4aa1-b64b-467bbdd23fc0";
+// The state format is shared by the local Excel and PowerPoint hosts. Keep
+// the identifiers explicit so one host cannot accidentally open the other
+// host's state directory.
+export const POWERPOINT_ADDIN_ID = "8f3e6f45-8f0a-4f25-93a2-55a6b71f7f23";
 
 export function resolveExcelStatePaths({ env = process.env, home = os.homedir() } = {}) {
   const configuredHome = env.OFFICEKIT_EXCEL_HOME;
@@ -56,6 +60,7 @@ export async function initializeExcelConfiguration(paths, { port = EXCEL_BRIDGE_
   const config = {
     schemaVersion: EXCEL_STATE_SCHEMA,
     addinId: EXCEL_ADDIN_ID,
+    application: "excel",
     port,
     createdAt: new Date().toISOString(),
     certificate: null,
@@ -161,8 +166,16 @@ function validateConfiguration(config) {
   if (config == null || typeof config !== "object" || Array.isArray(config)) {
     throw excelLiveError("invalid-state", "Excel configuration must be an object.");
   }
-  if (config.schemaVersion !== EXCEL_STATE_SCHEMA || config.addinId !== EXCEL_ADDIN_ID) {
-    throw excelLiveError("invalid-state", "Excel configuration schema is unsupported.");
+  const supportedHost = config.addinId === EXCEL_ADDIN_ID
+    ? "excel"
+    : config.addinId === POWERPOINT_ADDIN_ID
+      ? "powerpoint"
+      : null;
+  if (config.schemaVersion !== EXCEL_STATE_SCHEMA || supportedHost == null) {
+    throw excelLiveError("invalid-state", "OfficeKit Live configuration schema is unsupported.");
+  }
+  if (config.application !== undefined && config.application !== supportedHost) {
+    throw excelLiveError("invalid-state", "OfficeKit Live configuration host does not match its add-in ID.");
   }
   if (!Number.isSafeInteger(config.port) || config.port < 1024 || config.port > 65535) {
     throw excelLiveError("invalid-state", "Excel configuration has an invalid port.");

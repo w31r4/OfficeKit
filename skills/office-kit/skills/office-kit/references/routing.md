@@ -1,7 +1,7 @@
 # OfficeKit routing
 
 Use this reference only when a request spans formats, has multiple outputs,
-targets a live Excel session, or does not have an obvious owner.
+targets a live Excel or PowerPoint session, or does not have an obvious owner.
 
 ## Installed Skill lookup
 
@@ -15,6 +15,7 @@ Check these locations in order:
    - `../spreadsheets/SKILL.md`
    - `../excel-live-control/SKILL.md`
    - `../presentations/SKILL.md`
+   - `../powerpoint-live-control/SKILL.md`
    - `../pdf/SKILL.md`
    - `../template-creator/SKILL.md`
 2. Repository plugin layout:
@@ -22,6 +23,7 @@ Check these locations in order:
    - `../../../spreadsheets/skills/spreadsheets/SKILL.md`
    - `../../../spreadsheets/skills/excel-live-control/SKILL.md`
    - `../../../presentations/skills/presentations/SKILL.md`
+   - `../../../presentations/skills/powerpoint-live-control/SKILL.md`
    - `../../../pdf/skills/pdf/SKILL.md`
    - `../../../template-creator/skills/template-creator/SKILL.md`
 
@@ -37,6 +39,7 @@ that names the missing Skill. Do not call raw package APIs as a replacement.
 | Read, create, or edit XLSX/CSV/TSV | Spreadsheets | Use file-based workflows. |
 | Operate an already-open Excel workbook | Excel Live Control | Never substitute offline XLSX editing. |
 | Read, create, or edit PPTX | Presentations | It also owns Google Slides handoff guidance. |
+| Operate an already-open PowerPoint presentation | PowerPoint Live Control | Never substitute closed-file PPTX editing. |
 | Read, create, edit, sign, redact, repair, OCR, or verify PDF | PDF | Provider routing stays inside this Skill. |
 | Register a reusable DOCX/XLSX/PPTX reference | Template Creator | This creates template metadata and retained assets, not the final business artifact. |
 
@@ -61,6 +64,8 @@ Examples:
   `PDF -> Documents`
 - Update an open Excel model and export a board deck:
   `Excel Live Control -> Presentations`
+- Update an open PowerPoint deck and deliver a PDF:
+  `PowerPoint Live Control -> PDF`
 
 Pass only the evidence required by the next step: verified values, table
 matrices, chart data, extracted text, images, citations, and provenance. Keep

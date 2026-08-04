@@ -58,7 +58,7 @@ cd your-project
 officekit init
 ```
 
-`officekit init` 会识别项目里的 Agent 配置，并让你选择将 7 个 OfficeKit Skill
+`officekit init` 会识别项目里的 Agent 配置，并让你选择将 8 个 OfficeKit Skill
 写入哪些目录。直接回车接受识别结果；需要明确指定时：
 
 ```sh
@@ -134,6 +134,25 @@ PivotTable、截图和保存操作执行任务，并在完成前读回验证。
 Excel Live Control V1 面向 Windows 和 macOS 的 Microsoft Excel 桌面版。第一次加载
 Add-in 需要访问微软的 Office.js 运行时；工作簿内容和 OfficeKit 的请求审计都留在本机。
 
+## 操作当前已经打开的 PowerPoint
+
+如果演示文稿已经在桌面版 PowerPoint 中打开，使用 Live 路径，不要把未保存的
+内容改走文件级 PPTX 流程：
+
+```sh
+officekit live install --app powerpoint --yes --json
+officekit live doctor --app powerpoint --json
+officekit live sessions --app powerpoint --json
+officekit live execute request.json --json
+```
+
+安装命令会生成 manifest。第一次在 PowerPoint 中通过 **Home > Add-ins > My Add-ins
+> Upload My Add-in** 上传它，再从 Home 功能区打开 OfficeKit 并连接目标演示文稿。
+PowerPoint Live 提供有类型的幻灯片、选区、文本、形状、图片、单页预览和显式保存
+操作；修改后会重新读取，遇到 `maybeApplied` 或 `unsupported-capability` 会明确报告，
+不会偷偷改写已关闭的文件。第一轮真实宿主验收是 Windows x64 桌面版 PowerPoint；
+macOS 当前只跑构建、mock 和打包检查。
+
 ## 一个总入口，也保留直接入口
 
 普通任务直接使用 OfficeKit。它会检查输入、确定输出格式、判断是否需要模板，
@@ -146,6 +165,7 @@ Add-in 需要访问微软的 Office.js 运行时；工作簿内容和 OfficeKit 
 | [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | 已确定要处理 Excel、CSV、公式、模型或图表。 |
 | [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | 通过本机 OfficeKit Add-in 操作 Microsoft Excel 桌面版里已经打开的工作簿。 |
 | [Presentations](skills/presentations/skills/presentations/SKILL.md) | 已确定要创建或修改 PowerPoint。 |
+| [PowerPoint Live Control](skills/presentations/skills/powerpoint-live-control/SKILL.md) | 操作桌面版 PowerPoint 中已经打开的演示文稿。 |
 | [PDF](skills/pdf/skills/pdf/SKILL.md) | 已确定要读取、创建、检查或处理 PDF。 |
 | [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | 把自己的 DOCX、XLSX 或 PPTX 保存为可复用模板。 |
 

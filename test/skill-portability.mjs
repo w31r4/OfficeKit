@@ -78,6 +78,7 @@ try {
     "spreadsheets",
     "excel-live-control",
     "presentations",
+    "powerpoint-live-control",
     "pdf",
     "template-creator",
   ]);

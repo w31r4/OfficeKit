@@ -144,6 +144,8 @@ const lazyResult = await lazySession.handleLine(JSON.stringify({ id: "lazy", cod
 assert.equal(lazyResult.ok, true);
 const lazyExcelState = await (await import("node:fs/promises")).access(path.join(lazyWorkspace, "task", "excel")).then(() => true, () => false);
 assert.equal(lazyExcelState, false);
+const lazyPowerPointState = await (await import("node:fs/promises")).access(path.join(lazyWorkspace, "task", "powerpoint")).then(() => true, () => false);
+assert.equal(lazyPowerPointState, false);
 await lazySession.close();
 
 const commandInput = [
