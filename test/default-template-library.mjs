@@ -565,6 +565,7 @@ const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-template-l
 try {
   const materialized = [];
   for (const [id, , kind, extension] of TEMPLATES) {
+    console.error(`[default-template-library] materialize ${id}`);
     const output = path.join(temporary, `${id}${extension}`);
     const audit = path.join(temporary, `${id}.audit.json`);
     const result = await materializeTemplate({ templateId: id, outputPath: output, auditPath: audit });
@@ -579,6 +580,7 @@ try {
 
   const roundTripped = [];
   for (const { id, kind, output } of materialized) {
+    console.error(`[default-template-library] roundtrip ${id}`);
     const exported = await assertPublicOfficeRoundTrip(id, kind, output);
     const roundTripOutput = path.join(temporary, `${id}-officekit${path.extname(output)}`);
     await exported.save(roundTripOutput);
@@ -587,6 +589,7 @@ try {
 
   const editedPresentations = [];
   for (const { id, kind, output } of materialized.filter((item) => item.kind === "presentation")) {
+    console.error(`[default-template-library] edit presentation ${id}`);
     const exported = await assertPublicPresentationPlaceholderTextEdit(output);
     const editedOutput = path.join(temporary, `${id}-placeholder-edit.pptx`);
     await exported.save(editedOutput);
@@ -595,6 +598,7 @@ try {
 
   const editedDocuments = [];
   for (const { id, kind, output } of materialized.filter((item) => item.kind === "document")) {
+    console.error(`[default-template-library] edit document ${id}`);
     const exported = await assertPublicDocumentTextEdit(output);
     const editedOutput = path.join(temporary, `${id}-text-edit.docx`);
     await exported.save(editedOutput);
@@ -626,6 +630,7 @@ try {
 
   if (commandAvailable("soffice")) {
     for (const spreadsheet of materialized.filter((item) => item.kind === "spreadsheet")) {
+      console.error(`[default-template-library] native recalc ${spreadsheet.id} source`);
       const roundTrip = roundTripped.find((item) => item.id === spreadsheet.id);
       assert.ok(roundTrip, `Spreadsheet template must retain its public-facade round trip: ${spreadsheet.id}`);
       await assertNativeSpreadsheetCalculation(
@@ -633,6 +638,7 @@ try {
         spreadsheet.output,
         path.join(temporary, "native-calculation", spreadsheet.id, "source"),
       );
+      console.error(`[default-template-library] native recalc ${spreadsheet.id} officekit`);
       await assertNativeSpreadsheetCalculation(
         spreadsheet.id,
         roundTrip.output,
@@ -643,10 +649,22 @@ try {
 
   if (["soffice", "pdfinfo", "pdftoppm"].every(commandAvailable)) {
     const rendered = path.join(temporary, "native-render");
-    for (const { id, output } of materialized) await assertNativeRender(output, path.join(rendered, id, "source"));
-    for (const { id, output } of roundTripped) await assertNativeRender(output, path.join(rendered, id, "officekit"));
-    for (const { id, output } of editedDocuments) await assertNativeRender(output, path.join(rendered, id, "text-edit"));
-    for (const { id, output } of editedPresentations) await assertNativeRender(output, path.join(rendered, id, "placeholder-edit"));
+    for (const { id, output } of materialized) {
+      console.error(`[default-template-library] native render ${id} source`);
+      await assertNativeRender(output, path.join(rendered, id, "source"));
+    }
+    for (const { id, output } of roundTripped) {
+      console.error(`[default-template-library] native render ${id} officekit`);
+      await assertNativeRender(output, path.join(rendered, id, "officekit"));
+    }
+    for (const { id, output } of editedDocuments) {
+      console.error(`[default-template-library] native render ${id} text-edit`);
+      await assertNativeRender(output, path.join(rendered, id, "text-edit"));
+    }
+    for (const { id, output } of editedPresentations) {
+      console.error(`[default-template-library] native render ${id} placeholder-edit`);
+      await assertNativeRender(output, path.join(rendered, id, "placeholder-edit"));
+    }
   }
 } finally {
   await fs.rm(temporary, { force: true, recursive: true });
