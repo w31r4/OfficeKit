@@ -1,5 +1,15 @@
 # Release
 
+## Unreleased: Claude Code marketplace
+
+The repository now includes a root `.claude-plugin/marketplace.json` that
+indexes the same seven canonical Skill bundles already used by OfficeKit and
+other supported Agent hosts. Claude Code can install the coordinator or a direct domain plugin from
+`w31r4/OfficeKit`; the marketplace entries use `strict: false` with explicit
+local Skill paths, so Claude does not require a second `plugin.json` or a
+second Skill copy. The root CLI initializer remains the portable path for
+Claude Code and other supported Agent tools.
+
 ## Unreleased: personal Excel Live Add-in
 
 OfficeKit now includes its own local Excel desktop adapter. `officekit excel
@@ -24,9 +34,9 @@ table/chart/PivotTable, save, disconnect, and uninstall on Windows x64 and
 macOS Apple Silicon Excel desktop.
 
 The current development package candidate carries the compiled Add-in pages,
-manifest generator, bridge, REPL runtime, and Skill route: 675 files,
-36,177,078 compressed bytes, and 53,244,895 unpacked bytes. Its npm pack
-shasum is `e59f9945e2a994bf153c6c3987d759c432b48ad8`. The 37,500,000-byte compressed and
+manifest generator, bridge, REPL runtime, Claude Code marketplace index, and Skill route: 676 files,
+36,177,979 compressed bytes, and 53,249,898 unpacked bytes. Its npm pack
+shasum is `c8b77c84facfa9331083ea5b41ab0b0fade9bd36`. The 37,500,000-byte compressed and
 53,500,000-byte unpacked package ceilings remain in force.
 
 ## 0.6.0 JSONL REPL

@@ -67,6 +67,19 @@ accept the detected targets, or name them explicitly:
 officekit init --tools claude,cursor
 ```
 
+Claude Code can also discover the same canonical Skill trees through the
+repository marketplace:
+
+```text
+/plugin marketplace add w31r4/OfficeKit
+/plugin install office-kit@officekit
+```
+
+Install the direct `documents`, `spreadsheets`, `presentations`, `pdf`, or
+`template-creator` plugin only when you want that route without the OfficeKit
+coordinator. `officekit init` remains the portable project initializer for
+Claude Code and other supported Agent tools.
+
 You can also tell your current Agent:
 
 > Set up OfficeKit in this project.

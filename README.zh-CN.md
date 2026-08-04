@@ -65,6 +65,17 @@ officekit init
 officekit init --tools claude,cursor
 ```
 
+Claude Code 也可以通过仓库里的 marketplace 发现同一套 Skill：
+
+```text
+/plugin marketplace add w31r4/OfficeKit
+/plugin install office-kit@officekit
+```
+
+如果只需要某个格式，也可以直接安装 `documents`、`spreadsheets`、
+`presentations`、`pdf` 或 `template-creator`。对于 Claude Code 和其他
+支持的 Agent，通用的项目初始化入口仍然是 `officekit init`。
+
 也可以直接对正在使用的 Agent 说：
 
 > 在这个项目安装并配置 OfficeKit。
