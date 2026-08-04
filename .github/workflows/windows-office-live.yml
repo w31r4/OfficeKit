@@ -1,0 +1,50 @@
+name: Windows Office live acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      evidence_path:
+        description: "Path on the self-hosted Office runner to the human-observed evidence JSON"
+        required: true
+        type: string
+      ref:
+        description: "OfficeKit commit or tag to build and observe"
+        required: true
+        default: main
+        type: string
+
+# This lane is intentionally queued on a self-hosted runner with real
+# Microsoft Office. The ordinary Windows CLI/package tests and macOS mock
+# Add-in tests are not evidence for this lane.
+permissions:
+  contents: read
+
+jobs:
+  windows-office-live:
+    name: Windows Office live acceptance
+    runs-on: [self-hosted, windows, office]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Build the Excel and PowerPoint Add-ins
+        run: |
+          npm run build:excel-addin
+          npm run build:powerpoint-addin
+      - name: Validate human-observed Office evidence
+        shell: pwsh
+        run: node scripts/validate-windows-live-evidence.mjs "${{ inputs.evidence_path }}" "$env:GITHUB_SHA"
+      - name: Upload the accepted evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-office-live-evidence
+          path: ${{ inputs.evidence_path }}
+          if-no-files-found: error
+          retention-days: 30

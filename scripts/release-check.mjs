@@ -186,7 +186,7 @@ if (!licenseOk) blockers.push("Third-party license policy or notices are incompl
 
 if (!skipCommands) {
   for (const [name, commandArgs] of [
-    ["npm test", ["test"]],
+    ["npm run test:slow", ["run", "test:slow"]],
     ["npm run docs:api", ["run", "docs:api"]],
     ["npm run test:pack", ["run", "test:pack"]],
   ]) {

@@ -1,5 +1,21 @@
 # Release
 
+## Gate layering (2026-08-04)
+
+Daily development uses the fast `npm test` / `npm run test:fast` gate. It
+checks syntax/imports, core Office/PDF model and routing/Skill contracts, Help,
+and package-content smoke. The complete chain is now explicit as
+`npm run test:slow`; it remains required for provider/native/runtime changes,
+PromptBench or template-library changes, release candidates, and nightly
+`ci-slow`, followed by generated API diff, `npm run test:pack`, release checks,
+OfficeBridge, and OfficeKit .NET/WASM tests. The real Windows Excel/PowerPoint
+acceptance is not folded into either automated lane: trigger
+`.github/workflows/windows-office-live.yml` only on a release candidate or Live
+host change, using a self-hosted Windows runner with Microsoft Office and a
+human-observed evidence JSON. GitHub-hosted CLI tests and macOS Office.js mocks
+remain portable smoke tests, never native acceptance. See
+[CI gate layering](ci-gates.md) for the trigger and evidence contract.
+
 ## Unreleased: Claude Code marketplace
 
 The repository now includes a root `.claude-plugin/marketplace.json` that
