@@ -24,12 +24,31 @@ table/chart/PivotTable, save, disconnect, and uninstall on Windows x64 and
 macOS Apple Silicon Excel desktop.
 
 The current development package candidate carries the compiled Add-in pages,
-manifest generator, bridge, and Skill route: 662 files, 36,164,169 compressed
-bytes, and 53,188,871 unpacked bytes. Its npm pack shasum is
-`7fa5156b317dddf30daf623f9a998c1030326e08`. The 37,500,000-byte compressed and
+manifest generator, bridge, REPL runtime, and Skill route: 667 files,
+36,175,879 compressed bytes, and 53,241,377 unpacked bytes. Its npm pack
+shasum is `c0a1c46fff7caa6ae82c040807000fa811302a84`. The 37,500,000-byte compressed and
 53,500,000-byte unpacked package ceilings remain in force.
 
-## 0.5.0 self-contained OfficeKit distributions
+## 0.6.0 JSONL REPL
+
+The `officekit repl` command provides one sequential, local JSONL task process.
+Each cell receives an explicit `ctx` with the shared workspace roots,
+`ctx.import`, `ctx.state`, `ctx.publish`, and `ctx.recordEvidence`. Published
+OfficeKit exports resolve to the installed CLI version; URLs, traversal, and
+unpublished package paths are rejected. Responses retain request IDs, bounded
+console events, result/error data, SHA-256 artifact descriptors, and
+`maybeApplied` status.
+
+The private task directory contains an append-only `session.jsonl` journal and
+an atomically replaced `checkpoint.json`. `--resume` restores JSON-safe state
+and artifact/evidence references without replaying source; live OfficeKit
+objects and functions must be reconstructed explicitly. The typed
+`ctx.excel` facade delegates to the existing local Excel protocol only when a
+cell calls it; certificate trust, add-in installation, provider setup, and
+template search remain explicit commands. The REPL protocol is version 1 and
+does not change the Office wire protocol.
+
+## 0.6.0 self-contained OfficeKit distributions
 
 OfficeKit now publishes the same `officekit` command as a versioned
 self-contained distribution for `darwin-arm64`, `linux-x64`, and `win32-x64`.
@@ -40,7 +59,7 @@ notices, a complete file-integrity manifest, and a CycloneDX 1.5 SBOM.
 
 The POSIX installer verifies the archive's exact byte count and SHA-256,
 extracts it in an isolated transaction, probes the bundled Node and OfficeKit,
-publishes it under `~/.office-kit/versions/0.5.0`, and atomically switches
+publishes it under `~/.office-kit/versions/0.6.0`, and atomically switches
 `~/.office-kit/current`. It exposes `~/.local/bin/officekit` and writes a
 small PATH entry to the normal zsh/bash profile. The PowerShell installer uses
 the same fixed identity checks, publishes under the user-local OfficeKit
@@ -78,7 +97,7 @@ standalone release workflow repeats the real-archive build and installation on
 native GitHub-hosted macOS arm64, Linux x64, and Windows x64 runners before
 any asset can be attached to a release.
 
-The corresponding 0.5.0 release-freeze package candidate was the
+The corresponding 0.6.0 release-freeze package candidate was the
 application-developer distribution with 641 files, 36,063,261 compressed
 bytes, and 52,806,854 unpacked bytes. The current development npm candidate
 above is newer and changes the npm payload; platform archives and standalone

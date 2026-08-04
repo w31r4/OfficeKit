@@ -15,10 +15,11 @@ try {
   assert.match(help.stdout, /officekit init \[path\]/);
   assert.match(help.stdout, /officekit update \[path\]/);
   assert.match(help.stdout, /officekit run <task\.mjs>/);
+  assert.match(help.stdout, /officekit repl \[options\]/);
   assert.match(help.stdout, /officekit template search/);
   assert.match(help.stdout, /officekit excel <command>/);
   assert.match(help.stdout, /Choose Agent targets and install the OfficeKit Skills/);
-  assert.equal(run(["--version"]).stdout.trim(), "0.5.0");
+  assert.equal(run(["--version"]).stdout.trim(), "0.6.0");
   const excelHelp = run(["excel", "--help"]);
   assert.match(excelHelp.stdout, /officekit excel install/);
   assert.match(excelHelp.stdout, /officekit excel execute <request\.json>/);
@@ -75,7 +76,7 @@ try {
   assert.deepEqual(manifest.tools, ["claude", "cursor"]);
   assert.equal(manifest.installations.length, 14);
   assert.equal(manifest.package.name, "office-kit");
-  assert.equal(manifest.package.version, "0.5.0");
+  assert.equal(manifest.package.version, "0.6.0");
 
   const idempotent = parseJson(run(["init", project, "--yes", "--json"]).stdout);
   assert.equal(idempotent.created, 0);

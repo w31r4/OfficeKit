@@ -90,6 +90,20 @@ officekit run task.mjs -- input.docx output.docx
 `officekit run` supplies the matching installed OfficeKit API. A task's other
 dependencies continue to resolve from the task's own project.
 
+For a task with several inspect/edit/verify steps, keep one local JavaScript
+session instead of rebuilding the object graph for every command:
+
+```sh
+officekit repl --workspace "$PWD" --task-root "$PWD/.officekit-task"
+```
+
+Send one JSON request per line, for example
+`{"id":"inspect","code":"const {PdfFile}=await ctx.import('office-kit'); return await PdfFile.inspectPdf(ctx.inputRoot + '/input.pdf');"}`.
+The session exposes `ctx.state`, `ctx.publish`, `ctx.recordEvidence`, and a
+typed `ctx.excel` facade. Checkpoints can be resumed with
+`officekit repl --resume /absolute/path/to/checkpoint.json`; resume restores
+safe state without replaying side effects.
+
 ## Work in the Excel workbook already on screen
 
 Use this route when the workbook is open in Microsoft Excel and may contain

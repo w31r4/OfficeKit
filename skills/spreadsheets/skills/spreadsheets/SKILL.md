@@ -9,6 +9,17 @@ Use the shared `../office-kit/references/workspace.md` contract for paths and
 results. Standalone workbook work uses `workspaceRoot`, `inputRoot`,
 `assetRoot`, `outputRoot`, and `evidenceRoot`; it does not require a host
 workspace loader.
+
+## Run the workbook workflow in one task
+
+For a multi-step workbook task, use `officekit repl` and the portable guidance
+in `../office-kit/references/repl.md`. Import the public API with
+`await ctx.import("office-kit")`, keep the workbook and reusable calculations
+under `ctx.state`, and use inspect → edit → recalculate → reimport/render →
+verify before `ctx.publish`. Register render or inspect files with
+`ctx.recordEvidence`; return the final absolute path, SHA-256, and
+`visualReview` status. A currently open workbook belongs to Excel Live Control,
+not this file workflow.
 Use this skill when you need to work with spreadsheets (.xlsx, .csv, .tsv) to do any of the following:
 - Create or modify a new workbook/sheet with proper formulas, cell/number formatting, and structured layout
 - Read or analyze tabular data (filter, aggregate, pivot, compute metrics) directly in a sheet

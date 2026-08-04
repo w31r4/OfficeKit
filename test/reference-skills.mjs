@@ -82,7 +82,7 @@ for (const pluginName of pluginNames) {
   const manifestPath = path.join(pluginRoot, ".codex-plugin", "plugin.json");
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
   assert.equal(manifest.name, pluginName);
-  assert.equal(manifest.version, pluginName === "office-kit" ? "0.5.0" : "0.2.0");
+  assert.equal(manifest.version, pluginName === "office-kit" ? "0.6.0" : "0.2.0");
   assert.equal(manifest.license, pluginName === "default-template-library" ? "MIT" : "AGPL-3.0-or-later");
   assert.equal(manifest.skills, "./skills/");
   assert.equal(manifest.repository, "https://github.com/w31r4/OfficeKit");

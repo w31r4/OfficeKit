@@ -30,8 +30,10 @@ The initializer detects the Agent tools used by the project and installs the
 OfficeKit entry point, Documents, Spreadsheets, Excel Live Control,
 Presentations, PDF, and Template Creator in their project-local Skill
 directories. Run `officekit update` after installing a newer OfficeKit release. Skill
-tasks use `officekit run task.mjs`, so the project does not need a local
-`office-kit` dependency.
+tasks can use `officekit run task.mjs`; multi-step artifact work can instead
+use `officekit repl` with the portable `ctx` workflow, so the project does not
+need a local `office-kit` dependency. See the installed OfficeKit Skill's
+`references/repl.md` for JSONL examples and checkpoint/resume rules.
 
 The twenty bundled templates, project templates, and locally created
 `artifact-template-*` Skills are queried with

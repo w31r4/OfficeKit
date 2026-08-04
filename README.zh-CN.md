@@ -86,6 +86,19 @@ officekit run task.mjs -- input.docx output.docx
 
 `officekit run` 使用已安装的同版本 API；任务自己的第三方依赖仍从任务所在项目解析。
 
+需要连续完成检查、编辑、复核的任务，可以保持一个本地 JavaScript 会话：
+
+```sh
+officekit repl --workspace "$PWD" --task-root "$PWD/.officekit-task"
+```
+
+每行发送一个 JSON 请求，例如
+`{"id":"inspect","code":"const {PdfFile}=await ctx.import('office-kit'); return await PdfFile.inspectPdf(ctx.inputRoot + '/input.pdf');"}`。
+会话提供 `ctx.state`、`ctx.publish`、`ctx.recordEvidence` 和有类型的
+`ctx.excel` facade。可以用
+`officekit repl --resume /absolute/path/to/checkpoint.json` 恢复；恢复只加载
+安全状态，不会重放可能产生副作用的代码。
+
 ## 直接操作当前打开的 Excel 工作簿
 
 工作簿已经在 Microsoft Excel 里打开、甚至还没有保存时，走这条路径。OfficeKit 通过

@@ -1,0 +1,3 @@
+{"id":"load","code":"const { DocumentFile } = await ctx.import('office-kit'); ctx.state.DocumentFile = DocumentFile; ctx.state.source = `${ctx.inputRoot}/input.docx`; return { input: ctx.state.source, sessionId: ctx.sessionId };"}
+{"id":"inspect","code":"const bytes = await (await ctx.import('node:fs/promises')).readFile(ctx.state.source); ctx.state.document = await ctx.state.DocumentFile.importDocx(bytes); return ctx.state.document.inspect();"}
+{"id":"publish","code":"const output = await ctx.state.DocumentFile.exportDocx(ctx.state.document); return await ctx.publish(output, { name: 'output.docx', kind: 'document', visualReview: 'unavailable' });"}

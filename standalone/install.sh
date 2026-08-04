@@ -3,7 +3,7 @@
 set -eu
 umask 077
 
-OFFICE_KIT_VERSION=0.5.0
+OFFICE_KIT_VERSION=0.6.0
 OFFICE_KIT_REPOSITORY=w31r4/OfficeKit
 
 fail() {
