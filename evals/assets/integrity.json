@@ -24,6 +24,18 @@
       "kind": "file",
       "sha256": "bcb469d5b586f4fd8f562b918c8d9f04ef500cd6289728683c10ee2ced7be367"
     },
+    "presentations/quarterly-board-template.pptx": {
+      "bytes": 22979,
+      "description": "Self-authored eight-slide branded PPTX with source-bound title/table/chart/image targets plus notes, comments, transition, SmartArt, custom show, and embedded XLSX OLE canaries.",
+      "kind": "file",
+      "sha256": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7"
+    },
+    "presentations/replacement-product.png": {
+      "bytes": 258,
+      "description": "Self-authored fixed-size PNG for the bounded branded-template image replacement transaction.",
+      "kind": "file",
+      "sha256": "d765e72a99eb58a6d81aa7a5e729cac91af8480a3f0c02b4d5dc256db4da31e3"
+    },
     "spreadsheets/operating-plan/actuals.csv": {
       "bytes": 605,
       "description": "Self-authored 24-month actuals input for the auditable FY27 operating-plan workbook fixture.",

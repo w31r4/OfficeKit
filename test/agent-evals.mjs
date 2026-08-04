@@ -123,7 +123,7 @@ import {
 
 const { suite, cases } = await loadSuite();
 const repoRoot = path.resolve(import.meta.dirname, "..");
-assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 40 });
+assert.deepEqual(validateSuite(suite, cases), { cases: 41, pdfCases: 21, ready: 41 });
 assert.equal(MINIMUM_PDF_CASE_SHARE, 0.5);
 const escapedAssetCases = structuredClone(cases);
 escapedAssetCases.find((item) => item.id === "pdf-encrypted-owner-policy-boundary").inputs[0].asset = "../outside.pdf";
@@ -131,7 +131,7 @@ assert.throws(() => validateSuite(suite, escapedAssetCases), /input\.asset escap
 assert.equal(cases.filter((item) => item.family === "pdf" && item.status === "ready").length, 21);
 assert.equal(cases.filter((item) => item.family === "spreadsheets" && item.status === "ready").length, 7);
 assert.equal(cases.filter((item) => item.family === "documents" && item.status === "ready").length, 7);
-assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 5);
+assert.equal(cases.filter((item) => item.family === "presentations" && item.status === "ready").length, 6);
 const referenceDocumentSkill = skillSource({ family: "documents", skill: "documents" }, "reference");
 assert.equal(referenceDocumentSkill, path.join(repoRoot, "reference", "office-artifact-tool", "skills", "documents", "skills", "documents"));
 assert.doesNotMatch(referenceDocumentSkill, /handoff/);
@@ -152,7 +152,7 @@ const runnerHelp = spawnSync(process.execPath, ["scripts/run-agent-evals.mjs", "
   encoding: "utf8",
 });
 assert.equal(runnerHelp.status, 0, runnerHelp.stderr);
-assert.match(runnerHelp.stdout, /five PPTX cases.*section-boundary edit.*closed-leaf slide clone.*SmartArt/i);
+assert.match(runnerHelp.stdout, /six PPTX cases.*section-boundary edit.*closed-leaf slide clone.*SmartArt.*branded-template/i);
 assert.match(runnerHelp.stdout, /connection refresh-on-open/i);
 assert.match(runnerHelp.stdout, /pivot refresh-on-open/i);
 const timeoutRoot = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-agent-eval-timeout-"));
@@ -182,7 +182,7 @@ try {
 assert.match(runnerHelp.stdout, /source-bound DOCX header text/i);
 assert.match(runnerHelp.stdout, /source-bound DOCX footer text/i);
 assert.match(runnerHelp.stdout, /21 ready PDF cases include twelve locked corpus signature\/boundary\/repair\/redaction\/table fixtures plus PAdES\/TSA\/LTV and mixed-scan OCR preprocessing fail-closed routes/i);
-assert.match(runnerHelp.stdout, /remaining 1 asset-required case/i);
+assert.match(runnerHelp.stdout, /six PPTX cases/i);
 assert.match(runnerHelp.stdout, /opaque[- ]enterprise/i);
 assert.match(runnerHelp.stdout, /same bytes into every candidate\/reference trial/i);
 assert.match(runnerHelp.stdout, /matrix <case-id>/i);
@@ -242,6 +242,8 @@ assert.equal(await verifiedLockedAsset("spreadsheets/reviewed-budget-nested.xlsx
 assert.equal(await verifiedLockedAsset("documents/modern-comment-replies.docx"), path.join(repoRoot, "evals", "assets", "documents", "modern-comment-replies.docx"));
 assert.equal(await verifiedLockedAsset("documents/clinical-form.docx"), path.join(repoRoot, "evals", "assets", "documents", "clinical-form.docx"));
 assert.equal(await verifiedLockedAsset("presentations/strategy-review.pptx"), path.join(repoRoot, "evals", "assets", "presentations", "strategy-review.pptx"));
+assert.equal(await verifiedLockedAsset("presentations/quarterly-board-template.pptx"), path.join(repoRoot, "evals", "assets", "presentations", "quarterly-board-template.pptx"));
+assert.equal(await verifiedLockedAsset("presentations/replacement-product.png"), path.join(repoRoot, "evals", "assets", "presentations", "replacement-product.png"));
 const ownerCredential = await fs.readFile(path.join(repoRoot, "evals", "assets", "pdf", "encryption", "user-password.json"), "utf8");
 assert.match(ownerCredential, /fixture-user-password/);
 assert.doesNotMatch(ownerCredential, /fixture-owner-password-not-for-agent/);

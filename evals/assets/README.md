@@ -30,6 +30,12 @@ The PPTX SmartArt boundary source recipe is
 `generatePptxSmartArtNotesCommentsBoundary` in the same module; its four-part
 SmartArt graph, page-four NotesSlide, and modern root/direct-reply comment are
 all self-authored and locked for a no-partial-output refusal case.
+The branded-template source recipe is `scripts/agent-eval-branded-template.mjs`;
+it generates the eight-slide `presentations/quarterly-board-template.pptx` and
+the fixed-size `presentations/replacement-product.png`. The template is
+self-authored and includes only synthetic text/data; its Master/Layout/theme,
+notes/comments/transition, SmartArt, custom show, and embedded XLSX OLE parts
+are preservation canaries for the bounded six-edit PromptBench transaction.
 The XLSX operating-plan inputs under `spreadsheets/operating-plan/` are also
 self-authored and locked: `actuals.csv` contains 24 months of synthetic actuals
 and `assumptions.json` contains the three scenario profiles plus machine-check
