@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "name": "spreadsheets",
+  "description": "Create, edit, analyze, render, and export local spreadsheet artifacts.",
+  "skills": ["skills/spreadsheets"],
+  "assets": {
+    "icon": "assets/icon.png",
+    "logo": "assets/logo.png"
+  },
+  "interface": {
+    "displayName": "Spreadsheets",
+    "shortDescription": "Create and edit spreadsheet artifacts"
+  }
+}

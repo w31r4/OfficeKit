@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "name": "presentations",
+  "description": "Create, edit, render, verify, and export local presentation artifacts.",
+  "skills": ["skills/presentations"],
+  "assets": {
+    "icon": "assets/icon.png",
+    "logo": "assets/logo.png"
+  },
+  "interface": {
+    "displayName": "Presentations",
+    "shortDescription": "Create and edit presentation artifacts"
+  }
+}

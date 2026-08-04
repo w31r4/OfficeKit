@@ -17,8 +17,8 @@ const recorded = JSON.parse(await fs.readFile(path.join(repoRoot, "skills", "ref
 assert.deepEqual(checked, rebuilt);
 assert.deepEqual(rebuilt, recorded);
 assert.equal(rebuilt.schemaVersion, 1);
-assert.equal(rebuilt.source.commit, "0f501d1a06d0566a90224a18b4c0d7a89671df66");
-assert.equal(rebuilt.totalFiles, 345);
+assert.equal(rebuilt.source.commit, "73c99c67ca7bbaa82cec0b158c647db583dcd970");
+assert.equal(rebuilt.totalFiles, 333);
 assert.deepEqual(Object.keys(rebuilt.bundles), REFERENCE_SKILL_BUNDLES);
 assert.equal(Object.values(rebuilt.bundles).reduce((sum, bundle) => sum + bundle.files, 0), rebuilt.totalFiles);
 assert.equal(Object.values(rebuilt.bundles).reduce((sum, bundle) => sum + bundle.bytes, 0), rebuilt.totalBytes);

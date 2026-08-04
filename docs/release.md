@@ -24,9 +24,9 @@ table/chart/PivotTable, save, disconnect, and uninstall on Windows x64 and
 macOS Apple Silicon Excel desktop.
 
 The current development package candidate carries the compiled Add-in pages,
-manifest generator, bridge, REPL runtime, and Skill route: 667 files,
-36,175,879 compressed bytes, and 53,241,377 unpacked bytes. Its npm pack
-shasum is `c0a1c46fff7caa6ae82c040807000fa811302a84`. The 37,500,000-byte compressed and
+manifest generator, bridge, REPL runtime, and Skill route: 675 files,
+36,176,662 compressed bytes, and 53,244,299 unpacked bytes. Its npm pack
+shasum is `e15193209e33169ffdf5484f3edeadcfbf00f76b`. The 37,500,000-byte compressed and
 53,500,000-byte unpacked package ceilings remain in force.
 
 ## 0.6.0 JSONL REPL
