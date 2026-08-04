@@ -219,7 +219,7 @@ PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
   --manifest outputs/attachments.json
 ```
 
-Use only the `savedPath` values in the manifest. Raw display names and internal keys are evidence, never filesystem paths. The command preserves duplicate names as separate files, confines traversal names to the quarantine directory, verifies decoded bytes and hashes, and does not open payloads. The final audit must repeat `validation.attachmentsOpenedOrExecuted: false` at the top level; `pdf_audit.py validate` rejects a missing or true value.
+Use only the `savedPath` values in the manifest. Raw display names and internal keys are evidence, never filesystem paths. The command preserves duplicate names as separate files, confines traversal names to the quarantine directory, verifies decoded bytes and hashes, and does not open payloads. The final audit must directly repeat `validation.sourceUnchanged: true`, `validation.allHashesVerified: true`, `validation.allPathsContained: true`, `validation.duplicateNamesSeparated: true`, and `validation.attachmentsOpenedOrExecuted: false`; `pdf_audit.py validate` rejects any missing or incorrect value.
 
 ## pypdf merge, reorder, and selective watermark
 

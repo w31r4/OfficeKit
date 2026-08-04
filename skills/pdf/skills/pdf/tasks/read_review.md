@@ -110,7 +110,7 @@ PYTHON_BIN="${OFFICE_KIT_PDF_PROVIDER_PYTHON:-python3}"
 
 The manifest records provider/version, immutable source hash, scope (`document` or `page`), page/annotation identity, display name, internal key, MIME and its evidence source, decoded byte size, SHA-256, sanitized saved name/path, and transaction validation. Duplicate or colliding names receive deterministic suffixes and remain separate. A malformed FileSpec, unreadable stream, exceeded budget, pre-existing destination, hash mismatch, or source change fails closed and removes partial quarantine output. The primitive never opens, executes, imports, or recursively extracts an attachment.
 
-Create the canonical operation audit with `savePolicy.strategy: "read-only"`, `operation.type: "extract-attachments"`, `validation.attachmentsOpenedOrExecuted: false`, and `output` bound to the exact `attachments.json` bytes. The manifest must carry the same false value. Validate it with `pdf_audit.py validate --source input.pdf --artifact outputs/attachments.json --require-operation extract-attachments`; a missing or true top-level value fails closed.
+Create the canonical operation audit with `savePolicy.strategy: "read-only"`, `operation.type: "extract-attachments"`, direct `validation.sourceUnchanged: true`, `validation.allHashesVerified: true`, `validation.allPathsContained: true`, `validation.duplicateNamesSeparated: true`, `validation.attachmentsOpenedOrExecuted: false`, and `output` bound to the exact `attachments.json` bytes. The manifest must carry the same facts. Validate it with `pdf_audit.py validate --source input.pdf --artifact outputs/attachments.json --require-operation extract-attachments`; any missing or incorrect value fails closed.
 
 ## Review output
 

@@ -78,8 +78,9 @@
     },
     {
       "if": {
-        "required": ["operation"],
+        "required": ["status", "operation"],
         "properties": {
+          "status": { "const": "succeeded" },
           "operation": {
             "required": ["type"],
             "properties": { "type": { "const": "extract-attachments" } }
@@ -92,8 +93,20 @@
             "properties": { "strategy": { "const": "read-only" } }
           },
           "validation": {
-            "required": ["attachmentsOpenedOrExecuted"],
-            "properties": { "attachmentsOpenedOrExecuted": { "const": false } }
+            "required": [
+              "sourceUnchanged",
+              "allHashesVerified",
+              "allPathsContained",
+              "duplicateNamesSeparated",
+              "attachmentsOpenedOrExecuted"
+            ],
+            "properties": {
+              "sourceUnchanged": { "const": true },
+              "allHashesVerified": { "const": true },
+              "allPathsContained": { "const": true },
+              "duplicateNamesSeparated": { "const": true },
+              "attachmentsOpenedOrExecuted": { "const": false }
+            }
           }
         }
       }
