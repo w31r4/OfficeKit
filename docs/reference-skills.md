@@ -1,5 +1,11 @@
 # Reference Skill compatibility
 
+The repository also publishes a root `.claude-plugin/marketplace.json`. It is
+a thin Claude Code distribution index over the same canonical Skill trees; it
+does not duplicate their contents or add a second runtime. Each entry uses
+`strict: false` and an explicit `skills/` path so Claude can install one
+domain plugin or the OfficeKit coordinator directly.
+
 The 0.4 source tree publishes the reference file-type layout, the project-native OfficeKit router, a local template utility, and a retained MIT template library as seven native plugin bundles, not as the earlier flat project-specific Skills:
 
 ```text
@@ -25,7 +31,7 @@ and are excluded from the npm package.
 
 | Surface | Status | Evidence and remaining boundary |
 | --- | --- | --- |
-| Plugin manifests and discovery | done | All seven distributed native manifests are validated. OfficeKit retains valid interface and Agent metadata; the template-library manifest, its 20 nested Skills, source `agent.yaml` metadata, retained MIT license, canonical file inventory, and integrity record are checked structurally, and every declared path resolves inside its plugin bundle. |
+| Plugin manifests and discovery | done | All seven distributed native manifests are validated. OfficeKit retains valid interface and Agent metadata; the root Claude marketplace index exposes the same seven bundles with explicit source and Skill paths; the template-library manifest, its 20 nested Skills, source `agent.yaml` metadata, retained MIT license, canonical file inventory, and integrity record are checked structurally, and every declared path resolves inside its plugin bundle. |
 | Global CLI and project initialization | done | The packed package exposes `officekit init`, `update`, `run`, `template search`, and the lazily loaded `excel` subcommand. A real global-prefix install detects supported Agent project markers or accepts `--tools`, installs the seven workflow Skills into each selected project-local root, and records path ownership plus exact tree hashes in `.office-kit/skills.json`. `officekit run` binds package imports to that global version while leaving other dependencies project-relative. The clean-install probe runs DOCX, XLSX, PPTX, and PDF tasks from a project without a local `office-kit`, verifies all public subpaths, then confirms template search sees the 20 bundled defaults without copying them during init. |
 | Reference source synchronization | done | [`skills/reference-sync.json`](../skills/reference-sync.json) records the pinned `73c99c6` source commit plus deterministic file count, byte count, and tree SHA-256 for each of the six reference plugin bundles: 333 files in total. The repository-only checker fails if that source changes without review or if any reference path is missing from this project's compatibility superset, except the two explicitly enumerated retired Excel host-connector files (`spreadsheets/.app.json` and `excel-live-control/officejs.md`). The synced source metadata includes four neutral `manifest.json` files and native `agents/agent.yaml` entries; OfficeKit retains its local `.codex-plugin` discovery, Excel Live Add-in protocol, and richer branded workflows as deliberate adapters. Adapted files may add public OfficeKit workflows and honest fail-closed boundaries; the gate does not confuse path completeness with byte identity. Canonical template binaries keep their stricter independent byte-comparison gate. |
 | Published PNG identity and package budget | done | All 40 PNGs required by the four npm file-type plugins remain published. The 39 paths shared with the pinned reference plus the Excel live-control compatibility icon retain byte-identical inflated scanline streams and byte-identical non-IDAT chunks; only their IDAT zlib representation is deterministically recompressed. The repository gate validates PNG CRC/structure, source identity, idempotence, the exact 40-file inventory, and a 3,550,000-byte category ceiling. This recovers 848,504 unpacked bytes without changing pixels, EXIF/XMP/ICC, density, plugin paths, or the separately byte-identical repository-only template assets. |

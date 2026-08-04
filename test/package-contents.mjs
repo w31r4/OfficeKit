@@ -157,6 +157,7 @@ const maxSkillPngBytes = 3_550_000;
 
 for (const required of [
   "LICENSE",
+  ".claude-plugin/marketplace.json",
   "apps/excel-addin/dist/taskpane.html",
   "apps/excel-addin/dist/taskpane.js",
   "apps/excel-addin/dist/taskpane.css",
