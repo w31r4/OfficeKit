@@ -626,13 +626,28 @@ graph. The independent raw OPC inspector proves the third SmartArt node,
 all four diagram parts, the page-four notes text, and the reply topology before
 grading. The requested three-way mutation is intentionally outside one
 source-bound transaction, so the accepted result is a `failed_closed` audit
-with `save: none`, no PPTX or flattened image, explicit OfficeKit inspection,
-and a diagnostic naming SmartArt, speaker notes, and the comment reply. The
-grader rejects partial output, SmartArt flattening, untyped XML writes, and
-silent fallback. Fixture SHA-256 is
-`bcb469d5b586f4fd8f562b918c8d9f04ef500cd6289728683c10ee2ced7be367`; this
-repository smoke proves the refusal contract, not general SmartArt authoring
-or a reference/candidate repeat matrix.
+with `save: none`, no PPTX or flattened image, explicit
+`PresentationFile.importPptx`/`PresentationFile.inspectPptx` shell inspection,
+and a top-level diagnostic naming SmartArt, speaker notes, comment reply, and
+the source-bound/fail-closed boundary. The audit must use the canonical
+`provider.actual`/`provider.silentFallback`, `savePolicy.strategy`, source
+hash, `validation.sourceUnchanged`/`noArtifact`, and three unexecuted
+operations fields; aliases or prose-only explanations do not pass. The grader
+rejects partial output, SmartArt flattening, untyped XML writes, and silent
+fallback. Fixture SHA-256 is
+`bcb469d5b586f4fd8f562b918c8d9f04ef500cd6289728683c10ee2ced7be367`. The
+isolated snapshot matrix based on `d020cf0643411646cfc470f113dab59749356d8a`
+used package `5857b4fe284dcb2778a2f5420eecfb130d7352b3e58b2fc95854fb99ed3f4891`,
+input contract `97e88636595f5cb7e75aa716395aa19e7cf6b962c6f83a2bef2259e8a4b69c0c`,
+and oracle `ff38a67ab2d424df453ba82cb07f9f25e88d4e7ec280e2f66c0b8694577bd4ba`.
+The OfficeKit Skill passed candidate `3/3` at `100/100`; the copied reference
+Skill passed `1/3` at `100/100` and scored `86.67` in its two other completed
+trials, with no timeout. Candidate/reference Skill hashes were
+`7950017fe932fe6276ae5221cc6f2ca87b44519eb5438b60981dfd47d7588f70` and
+`fa9f6badd10fc4957b489ce10c9ccc2d4edc6357cf2396df38c447de6e7d0506`.
+The reference misses were limited to its diagnostic wording and do not waive
+the candidate contract. This is a safe-refusal and compatibility result, not
+general SmartArt authoring.
 
 The ready `docx-complex-table-topology-boundary` case locks
 `evals/assets/documents/clinical-form.docx`, a self-authored DOCX whose second

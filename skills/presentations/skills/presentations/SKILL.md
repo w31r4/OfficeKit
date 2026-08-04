@@ -787,6 +787,48 @@ topology, relationships, and source hashes remain fixed. Reactions/task fields,
 nested replies, unknown/nested anchors, connected comment parts, and mixed
 legacy/modern graphs remain opaque/source-bound and fail closed.
 
+When one request combines an imported SmartArt node-text change, speaker-notes
+editing, and a new reply in an imported modern comment thread, treat the request
+as one atomic transaction. The current bounded contract cannot author that
+combination: SmartArt is editable only for the separately documented canonical
+plain-node profile, notes are editable only in the fixed-topology workflow, and
+an imported modern thread cannot gain a new reply. Inspect before refusing:
+
+```js
+const presentation = await PresentationFile.importPptx(inputPath);
+const evidence = presentation.inspectPptx();
+```
+
+Then write only `audit.json` with `status: "failed_closed"`,
+`provider: { actual: "office-kit", version, silentFallback: false }`,
+`savePolicy: { strategy: "none", sourceOverwriteAllowed: false,
+modifiedArtifactPublished: false }`, the source path and SHA-256, an explicit
+unexecuted operation for each requested edit, and
+`validation: { sourceUnchanged: true, noArtifact: true }`. Include a top-level
+`diagnostic` string (not only nested operation reasons) that names all four
+parts of the decision: `SmartArt`, `speaker notes`, `comment reply`, and the
+`source-bound`/`fail-closed` boundary. The audit must say which
+SmartArt/notes/comment-reply capability caused the atomic refusal. Do not use
+a custom save-policy label such as `fail-closed-no-artifact`; `none` is the
+canonical strategy for a refusal. The command trace must contain both the
+OfficeKit import and inspection calls plus the SmartArt, speaker-notes, and
+modern-comment-reply decision. At least one actually executed shell command
+must contain the literal typed calls `PresentationFile.importPptx` and
+`PresentationFile.inspectPptx` (for example, an
+`node --input-type=module -e '...'` command that imports the source and prints
+the inspection result); mentioning those calls only in `audit.json` is not
+evidence. Never flatten SmartArt, rebuild XML, edit only the supported subset,
+overwrite the input, or publish a partial presentation.
+
+Before delivery, run a local JSON assertion and repair the audit until it
+passes: `status` must be `failed_closed`; `provider.actual` must be
+`office-kit`; `provider.silentFallback` must be the boolean `false` (do not
+substitute `fallbackUsed`); `savePolicy.strategy` must be the string `none`;
+`source.sha256` must match the input; `validation.sourceUnchanged` and
+`validation.noArtifact` must both be boolean `true`; and `operations` must
+contain exactly three entries with `executed: false`. Missing any of these
+fields is an invalid refusal, even when the prose explanation is correct.
+
 ## Template Following
 
 Use template-following mode only when a user-provided source PPTX supplies the
