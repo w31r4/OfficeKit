@@ -66,6 +66,17 @@ signed-PDF editing.
 
 ### PromptBench current inventory
 
+The current-main `pptx-closed-leaf-slide-clone` repeat at
+`/tmp/officekit-promptbench-closed-leaf-matrix-fae5327-v1` also passed all six
+candidate/reference trials at `100/100` (candidate `3/3`, reference `3/3`).
+The immutable matrix identity is package
+`4220ca5f7801ef1a3a3a3ce05a463cd5ce2463e1de7a53d5578cecc41ebe542e`, input
+contract `17289d9f3877ffdf7302fc610c8dbf3190d58888774224dc8dd04607d9370c5d`,
+fixture `03a28ad9f8c5cbba5ca70d43b7f3bc5c79e2e7a0dc8c3565b25ce782d9246253`,
+and oracle `a7c86f6e426448cf5aa745ef3b81f00ee21211524365afdb5a82584d2330e174`.
+The protected authorization file was outside the candidate tarball and is
+retained only in the runner's source-tree status evidence.
+
 The bounded `pdf-cross-page-table-extraction` candidate/reference repeat matrix
 now passes candidate `3/3` and copied-reference `3/3` at `100/100` from one
 immutable run root. All trials share the immutable Regional Revenue source
