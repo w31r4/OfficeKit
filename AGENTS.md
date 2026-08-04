@@ -19,8 +19,11 @@ to use those capabilities.
 - `skills/<plugin>/` is the canonical plugin source. `.codex-plugin` manifests
   describe the Codex package surface; the root `.claude-plugin/marketplace.json`
   is a thin Claude marketplace index over the same Skill trees.
-- `apps/excel-addin/` is the local Excel Live host adapter. It is not a second
-  Office file codec and must remain lazy from root imports.
+- `apps/excel-addin/` and `apps/powerpoint-addin/` are local Live host
+  adapters. They are not Office file codecs and must remain lazy from root
+  imports. Excel keeps its compatibility commands; PowerPoint uses the common
+  Live bridge and typed `officekit live` operations. Word Live is only a future
+  adapter contract.
 - `openspec/` contains change proposals, specs, designs, and task checklists.
 - `test/` contains gates and artifact fixtures. `tmp/` is disposable QA output
   and must never become a package or source reference.

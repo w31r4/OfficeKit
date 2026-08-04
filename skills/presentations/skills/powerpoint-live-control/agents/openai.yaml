@@ -1,0 +1,7 @@
+interface:
+  display_name: "PowerPoint Live Control"
+  short_description: "Control an open PowerPoint deck"
+  icon_small: "assets/icon.svg"
+  icon_large: "assets/icon.svg"
+  brand_color: "#C43E1C"
+  default_prompt: "Use $powerpoint-live-control to update and verify my open PowerPoint presentation."

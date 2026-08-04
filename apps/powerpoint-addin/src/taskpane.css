@@ -1,0 +1,11 @@
+:root { color-scheme: light; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body { margin: 0; background: #f7f7f8; color: #202124; }
+main { padding: 16px; }
+header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+header h1 { margin: 0; font-size: 18px; }
+header p { margin: 2px 0 0; color: #5f6368; }
+.card { background: white; border: 1px solid #dadce0; border-radius: 8px; padding: 12px; margin: 10px 0; }
+dl { margin: 0; } dt { color: #5f6368; font-size: 12px; } dd { margin: 0 0 8px; overflow-wrap: anywhere; }
+button { border: 0; border-radius: 5px; background: #c43e1c; color: white; padding: 8px 12px; cursor: pointer; }
+button:disabled { opacity: .55; cursor: default; } .buttons { display: flex; gap: 8px; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; max-height: 180px; overflow: auto; }

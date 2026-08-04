@@ -42,7 +42,7 @@ const defaultTemplateSkills = [
 const expectedSkills = new Map([
   ["documents", ["documents"]],
   ["spreadsheets", ["excel-live-control", "spreadsheets"]],
-  ["presentations", ["presentations"]],
+  ["presentations", ["powerpoint-live-control", "presentations"]],
   ["pdf", ["pdf"]],
   ["office-kit", ["office-kit"]],
   ["template-creator", ["template-creator"]],
@@ -53,6 +53,7 @@ const expectedDeclaredSkillNames = new Map([
   ["excel-live-control", "excel-live-control"],
   ["spreadsheets", "Spreadsheets"],
   ["presentations", "Presentations"],
+  ["powerpoint-live-control", "powerpoint-live-control"],
   ["pdf", "pdf"],
   ["office-kit", "office-kit"],
   ["template-creator", "template-creator"],
@@ -93,7 +94,12 @@ for (const pluginName of pluginNames) {
     );
     assert.equal(neutralManifest.schemaVersion, 1);
     assert.equal(neutralManifest.name, pluginName);
-    assert.deepEqual(neutralManifest.skills, [`skills/${pluginName}`]);
+    assert.deepEqual(
+      neutralManifest.skills,
+      pluginName === "presentations"
+        ? ["skills/presentations", "skills/powerpoint-live-control"]
+        : [`skills/${pluginName}`],
+    );
     assert.ok(await exists(path.join(pluginRoot, neutralManifest.assets.icon)));
     assert.ok(await exists(path.join(pluginRoot, neutralManifest.assets.logo)));
     assert.ok(neutralManifest.interface?.displayName);

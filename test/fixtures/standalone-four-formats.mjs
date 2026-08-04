@@ -13,6 +13,10 @@ import {
 
 const publicSpecifiers = [
   "office-kit",
+  "office-kit/live",
+  "office-kit/live/protocol",
+  "office-kit/live/adapters/powerpoint",
+  "office-kit/powerpoint-live",
   "office-kit/presentation-jsx",
   "office-kit/presentation-jsx/jsx-runtime",
   "office-kit/presentation-jsx/jsx-dev-runtime",

@@ -25,6 +25,7 @@ const SKILLS = Object.freeze([
   ["spreadsheets", "skills/spreadsheets/skills/spreadsheets"],
   ["excel-live-control", "skills/spreadsheets/skills/excel-live-control"],
   ["presentations", "skills/presentations/skills/presentations"],
+  ["powerpoint-live-control", "skills/presentations/skills/powerpoint-live-control"],
   ["pdf", "skills/pdf/skills/pdf"],
   ["template-creator", "skills/template-creator/skills/template-creator"],
 ].map(([id, source]) => Object.freeze({ id, source })));
@@ -116,6 +117,11 @@ export async function runOfficeKitCli(
   if (command === "excel") {
     const { runExcelCommand } = await import("../excel-live/cli.mjs");
     await runExcelCommand(commandArguments, { input, output });
+    return;
+  }
+  if (command === "live") {
+    const { runLiveCommand } = await import("../live/cli.mjs");
+    await runLiveCommand(commandArguments, { input, output });
     return;
   }
 
@@ -341,7 +347,7 @@ async function promptForTools({ detected, input, output }) {
   output.write(
     detected.length > 0
       ? `Detected Agent tools: ${detected.join(", ")}\n`
-      : "Choose where OfficeKit should install its seven project Skills.\n",
+      : "Choose where OfficeKit should install its eight project Skills.\n",
   );
   output.write(`Available: ${TOOLS.map((tool) => tool.id).join(", ")}\n`);
   const prompt = createInterface({ input, output });
@@ -706,6 +712,7 @@ Usage:
   officekit repl [options]
   officekit template search [search options] [--json]
   officekit excel <command> [options]
+  officekit live <command> --app <excel|powerpoint> [options]
   officekit --version
 
 Commands:
@@ -715,6 +722,7 @@ Commands:
   repl       Run a persistent JSONL JavaScript task session
   template   Search the bundled and project template catalogs
   excel      Connect an open Microsoft Excel workbook to local OfficeKit control
+  live       Connect a supported open Office document to local OfficeKit control
 
 Options:
   --tools <ids>  Comma-separated Agent tool IDs, or "all"
@@ -735,5 +743,7 @@ Examples:
   officekit template search --kind presentation --purpose "quarterly business review"
   officekit excel install
   officekit excel sessions --json
+  officekit live install --app powerpoint
+  officekit live sessions --app powerpoint --json
 `;
 }

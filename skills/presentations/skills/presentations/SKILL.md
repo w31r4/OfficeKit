@@ -7,6 +7,12 @@ description: Read, create, or edit PowerPoint or Google Slides decks. Use for pr
 
 Use this skill as reference material when creating or editing presentation slide decks.
 
+If the user explicitly targets a presentation already open in desktop PowerPoint,
+use the sibling `powerpoint-live-control` Skill instead. It operates the live,
+possibly unsaved deck through typed Office.js operations and never switches to a
+closed-file edit behind the user's back. This Skill remains the route for local
+PPTX files and for creating a new deck.
+
 ## Run the deck workflow in one task
 
 For a multi-step deck task, use `officekit repl` and the portable contract in

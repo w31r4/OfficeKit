@@ -107,6 +107,26 @@ choice to Excel and the user. V1 is limited to Microsoft Excel desktop on
 Windows and macOS; browser/mobile Excel, VBA/COM, and enterprise deployment
 are outside this adapter.
 
+### PowerPoint Live Control
+
+PowerPoint Live reuses the same loopback HTTPS transport, certificate pairing,
+session queue, idempotency, timeout, bounded payloads, and content-free audit
+records through `officekit live --app powerpoint`. Its Add-in has a separate
+Presentation manifest and typed Office.js executor. V1 covers deck, slide, and
+selection summaries; existing text, basic shape and image edits; slide
+creation; bounded slide PNG previews; expected-snapshot checks; and explicit
+save. The bridge never accepts raw Office.js, a filesystem export path, or a
+closed-file fallback. Master/Layout graphs, SmartArt, animation, transitions,
+complex comments, OLE, and unverified chart graphs remain read-only or return
+`unsupported-capability`.
+
+The first authenticated host evidence is Windows x64 desktop PowerPoint:
+manifest upload, pairing, two-deck isolation, unsaved mutation, selection,
+image review, save, reconnect, disconnect, and failure behavior. macOS is
+build/mock/package-only until its separate desktop matrix is completed. Word
+Live remains a future adapter contract over this bridge rather than a second
+transport or codec.
+
 ### Skill routing
 
 OfficeKit is a project-native coordination Skill, not another artifact model or
@@ -202,9 +222,10 @@ The npm package contains:
 - `runtime/office-kit` WASM/runtime assets;
 - integrity manifest, SBOM, and license notices;
 - the optional `native/OfficeBridge/src` project, without its repository-only solution or tests;
-- seven npm-distributed native plugin bundles: six provide the seven initialized
-  workflow Skills (the four file-type routes, `excel-live-control`, the
-  `office-kit` coordinator, and `template-creator`); the seventh is the
+- seven npm-distributed native plugin bundles: six provide the eight initialized
+  workflow Skills (the four file-type routes, `excel-live-control`,
+  `powerpoint-live-control`, the `office-kit` coordinator, and
+  `template-creator`); the seventh is the
   MIT-licensed `default-template-library` with twenty retained
   DOCX/PPTX/XLSX template Skills. The installed OfficeKit runtime keeps the
   template assets in one place, and `officekit init` does not copy them into
@@ -236,7 +257,7 @@ The shared OOXML package phase moved JSZip loading, decompression limits, safe p
 1. Protocol generation/lint and protocol-version checks.
 2. C# unit tests for each codec and opaque/failure profiles.
 3. JavaScript facade roundtrips and strict option rejection.
-4. Native plugin validation plus audited Documents, Spreadsheets, Excel live-control bridge/mock-Office.js, Presentations, and PDF Skill workflows.
+4. Native plugin validation plus audited Documents, Spreadsheets, Excel and PowerPoint Live bridge/mock-Office.js, Presentations, and PDF Skill workflows.
 5. Semantic inspect/verify and render/visual QA.
 6. Open XML SDK package validation plus optional LibreOffice/native Office checks.
 7. Clean-install probes with `dotnet` absent from `PATH`.

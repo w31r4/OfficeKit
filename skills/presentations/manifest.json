@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "name": "presentations",
   "description": "Create, edit, render, verify, and export local presentation artifacts.",
-  "skills": ["skills/presentations"],
+  "skills": ["skills/presentations", "skills/powerpoint-live-control"],
   "assets": {
     "icon": "assets/icon.png",
     "logo": "assets/logo.png"

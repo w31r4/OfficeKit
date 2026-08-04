@@ -6,20 +6,15 @@ import { fileURLToPath } from "node:url";
 
 import { appendAuditRecord } from "./state.mjs";
 import { excelLiveError, toExcelLiveFailure } from "./errors.mjs";
+import { createExcelLiveAdapter } from "../live/adapters/excel.mjs";
 import {
-  createExcelFailure,
-  createExcelSuccess,
   EXCEL_LIVE_PROTOCOL,
   MAX_IMAGE_BYTES,
   MAX_REQUEST_BYTES,
-  protocolReference,
-  validateExcelRequest,
 } from "./protocol.mjs";
 
 const PACKAGE_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const DEFAULT_STATIC_ROOT = path.join(PACKAGE_ROOT, "apps", "excel-addin", "dist");
-const BROWSER_COOKIE = "officekit_excel_browser";
-const BROWSER_PANE_HEADER = "x-officekit-pane";
 const BROWSER_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const POLL_TIMEOUT_MS = 24_000;
 const EXECUTION_TIMEOUT_MS = 30_000;
@@ -35,23 +30,25 @@ export async function startExcelBridge({
   certificate,
   packageVersion = "0.0.0",
   staticRoot = DEFAULT_STATIC_ROOT,
+  adapter = createExcelLiveAdapter({ staticRoot }),
 } = {}) {
   if (!paths || !config || typeof secret !== "string" || !certificate?.leaf?.private || !certificate?.leaf?.cert) {
-    throw excelLiveError("invalid-state", "Excel bridge requires initialized state and certificates.");
+    throw adapter.error("invalid-state", `${adapter.targetLabel ?? adapter.host} bridge requires initialized state and certificates.`);
   }
-  const bridge = new ExcelBridge({ paths, config, secret, certificate, packageVersion, staticRoot });
+  const bridge = new ExcelBridge({ paths, config, secret, certificate, packageVersion, staticRoot, adapter });
   await bridge.start();
   return bridge;
 }
 
 export class ExcelBridge {
-  constructor({ paths, config, secret, certificate, packageVersion, staticRoot }) {
+  constructor({ paths, config, secret, certificate, packageVersion, staticRoot, adapter = createExcelLiveAdapter({ staticRoot }) }) {
     this.paths = paths;
     this.config = config;
     this.secret = secret;
     this.certificate = certificate;
     this.packageVersion = packageVersion;
-    this.staticRoot = staticRoot;
+    this.adapter = adapter;
+    this.staticRoot = adapter.staticRoot ?? staticRoot;
     this.origin = `https://localhost:${config.port}`;
     this.sessions = new Map();
     this.sessionByPane = new Map();
@@ -60,7 +57,7 @@ export class ExcelBridge {
   }
 
   async start() {
-    await assertStaticAssets(this.staticRoot);
+    await assertStaticAssets(this.staticRoot, this.adapter);
     const handler = (request, response) => {
       void this.handle(request, response).catch((error) => this.writeError(response, error));
     };
@@ -74,7 +71,7 @@ export class ExcelBridge {
       this.servers.push(ipv6);
     } catch (error) {
       ipv6.close();
-      if (error?.code !== "EADDRNOTAVAIL" && error?.code !== "EAFNOSUPPORT") throw bridgeListenError(error);
+      if (error?.code !== "EADDRNOTAVAIL" && error?.code !== "EAFNOSUPPORT") throw bridgeListenError(error, this.adapter);
     }
     const ipv4 = createServer(credentials, handler);
     try {
@@ -83,7 +80,7 @@ export class ExcelBridge {
     } catch (error) {
       ipv4.close();
       await this.close();
-      throw bridgeListenError(error);
+      throw bridgeListenError(error, this.adapter);
     }
   }
 
@@ -106,7 +103,7 @@ export class ExcelBridge {
     this.lastActivity = Date.now();
     this.pruneStaleSessions(this.lastActivity);
     const url = new URL(request.url || "/", this.origin);
-    if (request.method === "GET" && STATIC_PATHS.has(url.pathname)) {
+    if (request.method === "GET" && this.adapter.staticPaths.has(url.pathname)) {
       await this.serveStatic(url.pathname, request, response);
       return;
     }
@@ -114,19 +111,19 @@ export class ExcelBridge {
       this.assertBrowserOrigin(request);
       this.ensureBrowser(request, response);
       this.writeJson(response, 200, {
-        protocol: EXCEL_LIVE_PROTOCOL,
+        protocol: this.adapter.protocol().protocol ?? EXCEL_LIVE_PROTOCOL,
         bridge: "ready",
         origin: this.origin,
-        limits: protocolReference().limits,
+        limits: this.adapter.protocol().limits,
       });
       return;
     }
     if (url.pathname === "/v1/cli/health" && request.method === "GET") {
       this.requireCli(request);
-      this.writeJson(response, 200, createExcelSuccess({
+      this.writeJson(response, 200, this.adapter.success({
         result: {
           bridge: "ready",
-          protocol: EXCEL_LIVE_PROTOCOL,
+          protocol: this.adapter.protocol().protocol ?? EXCEL_LIVE_PROTOCOL,
           certificate: this.certificate.certificate,
         },
       }));
@@ -134,28 +131,28 @@ export class ExcelBridge {
     }
     if (url.pathname === "/v1/cli/sessions" && request.method === "GET") {
       this.requireCli(request);
-      this.writeJson(response, 200, createExcelSuccess({ result: { sessions: this.listSessions() } }));
+      this.writeJson(response, 200, this.adapter.success({ result: { sessions: this.listSessions() } }));
       return;
     }
     if (url.pathname === "/v1/cli/doctor" && request.method === "GET") {
       this.requireCli(request);
-      this.writeJson(response, 200, createExcelSuccess({
+      this.writeJson(response, 200, this.adapter.success({
         result: {
           bridge: "ready",
           origin: this.origin,
           trusted: Boolean(this.config.trusted),
           sessions: this.listSessions(),
-          protocol: protocolReference(),
+          protocol: this.adapter.protocol(),
         },
       }));
       return;
     }
     if (url.pathname === "/v1/cli/execute" && request.method === "POST") {
       this.requireCli(request);
-      const body = await readJsonBody(request);
+      const body = await readJsonBody(request, this.requestLimit(), this.adapter);
       const requestedTimeout = body.timeoutMs ?? EXECUTION_TIMEOUT_MS;
       if (!Number.isSafeInteger(requestedTimeout) || requestedTimeout < 1_000 || requestedTimeout > MAX_EXECUTION_TIMEOUT_MS) {
-        throw excelLiveError("invalid-request", `timeoutMs must be from 1000 through ${MAX_EXECUTION_TIMEOUT_MS}.`);
+        throw this.adapter.error("invalid-request", `timeoutMs must be from 1000 through ${MAX_EXECUTION_TIMEOUT_MS}.`);
       }
       const result = await this.execute(body.request, requestedTimeout);
       this.writeJson(response, 200, result);
@@ -163,15 +160,15 @@ export class ExcelBridge {
     }
     if (url.pathname === "/v1/cli/disconnect" && request.method === "POST") {
       this.requireCli(request);
-      const body = await readJsonBody(request);
+      const body = await readJsonBody(request, this.requestLimit(), this.adapter);
       const session = this.requireSession(body.sessionId);
       this.disconnectSession(session, "cli-disconnect");
-      this.writeJson(response, 200, createExcelSuccess({ result: { disconnected: body.sessionId } }));
+      this.writeJson(response, 200, this.adapter.success({ result: { disconnected: body.sessionId } }));
       return;
     }
     if (url.pathname === "/v1/cli/shutdown" && request.method === "POST") {
       this.requireCli(request);
-      this.writeJson(response, 200, createExcelSuccess({ result: { shuttingDown: true } }));
+      this.writeJson(response, 200, this.adapter.success({ result: { shuttingDown: true } }));
       const timer = setTimeout(() => { void this.close(); }, 10);
       timer.unref();
       return;
@@ -183,12 +180,15 @@ export class ExcelBridge {
     const match = /^\/v1\/browser\/sessions\/([^/]+)(?:\/(status|refresh|next|results|disconnect))?$/u.exec(url.pathname);
     if (url.pathname === "/v1/browser/sessions" && request.method === "POST") {
       const browser = this.requireBrowser(request);
-      const body = await readJsonBody(request);
-      const client = validateBrowserClient(body.client);
+      const body = await readJsonBody(request, this.requestLimit(), this.adapter);
+      const client = this.adapter.validateClient(body.client);
       const browserKey = hash(browser);
       const existing = this.sessionByPane.get(browserPaneKey(browserKey, client.paneId));
       if (existing != null && this.sessions.has(existing)) {
         const session = this.sessions.get(existing);
+        if (typeof this.adapter.sameTarget === "function" && !this.adapter.sameTarget(session.client, client)) {
+          throw this.adapter.error("target-changed", `This task pane is already paired with another ${this.adapter.targetLabel}. Disconnect it before connecting a different document.`);
+        }
         session.client = client;
         session.lastSeen = Date.now();
         this.writeJson(response, 200, { session: this.publicSession(session) });
@@ -198,7 +198,7 @@ export class ExcelBridge {
       this.writeJson(response, 201, { session: this.publicSession(session) });
       return;
     }
-    if (match == null) throw excelLiveError("not-found", "Excel bridge route was not found.");
+    if (match == null) throw this.adapter.error("not-found", this.adapter.routeNotFoundMessage);
     const browser = this.requireBrowser(request);
     const session = this.requireBrowserSession(decodeURIComponent(match[1]), browser, request);
     const action = match[2] ?? "";
@@ -207,8 +207,8 @@ export class ExcelBridge {
       return;
     }
     if (action === "refresh" && request.method === "POST") {
-      const body = await readJsonBody(request);
-      session.client = validateBrowserClient(body.client);
+      const body = await readJsonBody(request, this.requestLimit(), this.adapter);
+      session.client = this.adapter.validateClient(body.client);
       session.lastSeen = Date.now();
       this.writeJson(response, 200, { session: this.publicSession(session) });
       return;
@@ -218,7 +218,7 @@ export class ExcelBridge {
       return;
     }
     if (action === "results" && request.method === "POST") {
-      const body = await readJsonBody(request, MAX_IMAGE_BYTES + MAX_REQUEST_BYTES);
+      const body = await readJsonBody(request, this.responseLimit(), this.adapter);
       const completion = await this.completeRequest(session, body);
       this.writeJson(response, 200, { accepted: true, completion });
       return;
@@ -228,24 +228,24 @@ export class ExcelBridge {
       this.writeJson(response, 200, { disconnected: true });
       return;
     }
-    throw excelLiveError("not-found", "Excel browser route was not found.");
+    throw this.adapter.error("not-found", this.adapter.routeNotFoundMessage);
   }
 
   async execute(requestValue, timeoutMs) {
-    const request = validateExcelRequest(requestValue);
+    const request = this.adapter.validateRequest(requestValue);
     const session = this.requireSession(request.sessionId);
     const existing = session.byIdempotency.get(request.idempotencyKey);
     const record = existing ?? this.enqueue(session, request);
     try {
-      return await waitForResult(record, timeoutMs);
+      return await waitForResult(record, timeoutMs, this.adapter);
     } catch (error) {
-      return createExcelFailure(error, { audit: auditSummary(record) });
+      return this.adapter.failure(error, { audit: auditSummary(record) });
     }
   }
 
   enqueue(session, request) {
     if (session.queue.length + session.inFlight.size >= 32) {
-      throw excelLiveError("session-busy", "Excel session queue is full.", { retryable: true });
+      throw this.adapter.error("session-busy", `${this.adapter.targetLabel} session queue is full.`, { retryable: true });
     }
     const record = {
       requestId: randomUUID(),
@@ -269,9 +269,9 @@ export class ExcelBridge {
     // continuing the long poll. Do not confuse an empty poll with inactivity.
     session.lastSeen = Date.now();
     if (session.inFlight.size > 0) {
-      throw excelLiveError(
+      throw this.adapter.error(
         "session-busy",
-        "Excel session already has an operation in progress.",
+        `${this.adapter.targetLabel} session already has an operation in progress.`,
         { retryable: true },
       );
     }
@@ -292,7 +292,7 @@ export class ExcelBridge {
 
   waitForNext(session, request, response) {
     if (session.waiter != null) {
-      throw excelLiveError("session-busy", "Excel session already has an active long-poll request.", { retryable: true });
+      throw this.adapter.error("session-busy", `${this.adapter.targetLabel} session already has an active long-poll request.`, { retryable: true });
     }
     return new Promise((resolve) => {
       let timer;
@@ -322,22 +322,22 @@ export class ExcelBridge {
 
   async completeRequest(session, body) {
     if (body == null || typeof body !== "object" || Array.isArray(body) || typeof body.requestId !== "string") {
-      throw excelLiveError("invalid-result", "Excel add-in result has an invalid shape.");
+      throw this.adapter.error("invalid-result", `${this.adapter.targetLabel} add-in result has an invalid shape.`);
     }
     const record = session.inFlight.get(body.requestId);
-    if (record == null) throw excelLiveError("unknown-request", "Excel add-in returned an unknown request ID.");
+    if (record == null) throw this.adapter.error("unknown-request", `${this.adapter.targetLabel} add-in returned an unknown request ID.`);
     session.inFlight.delete(record.requestId);
     session.lastSeen = Date.now();
     if (body.ok === true) {
-      record.response = createExcelSuccess({ result: body.result ?? {}, audit: auditSummary(record) });
+      record.response = this.adapter.success({ result: body.result ?? {}, audit: auditSummary(record) });
     } else if (body.ok === false && body.error && typeof body.error === "object") {
-      record.response = createExcelFailure(excelLiveError(
+      record.response = this.adapter.failure(this.adapter.error(
         typeof body.error.code === "string" ? body.error.code : "office-operation-failed",
-        typeof body.error.message === "string" ? body.error.message : "Excel operation failed.",
+        typeof body.error.message === "string" ? body.error.message : this.adapter.operationFailureMessage,
         { retryable: Boolean(body.error.retryable), maybeApplied: true },
       ), { audit: auditSummary(record) });
     } else {
-      throw excelLiveError("invalid-result", "Excel add-in result must contain ok and a result or error.");
+      throw this.adapter.error("invalid-result", `${this.adapter.targetLabel} add-in result must contain ok and a result or error.`);
     }
     record.completed = true;
     record.resolve(record.response);
@@ -357,11 +357,7 @@ export class ExcelBridge {
       await appendAuditRecord(this.paths, {
         timestamp: new Date().toISOString(),
         sessionId: session.id,
-        workbook: session.client.workbook.name,
-        operation: record.request.operation,
-        range: rangeSummary(record.request.args),
-        requestHash: audit.requestHash,
-        status: record.response?.ok ? "ok" : "error",
+        ...this.adapter.audit({ session, record, summary: audit }),
       });
     } catch {
       // Auditing must not change a completed Excel operation into a failed one.
@@ -370,7 +366,7 @@ export class ExcelBridge {
 
   createSession(browserKey, client) {
     const session = {
-      id: randomUUID(),
+      id: this.adapter.sessionIdPrefix ? `${this.adapter.sessionIdPrefix}-${randomUUID()}` : randomUUID(),
       browserKey,
       paneId: client.paneId,
       client,
@@ -396,9 +392,9 @@ export class ExcelBridge {
     for (const record of records) {
       if (record.completed) continue;
       record.completed = true;
-      record.response = createExcelFailure(excelLiveError(
+      record.response = this.adapter.failure(this.adapter.error(
         "session-disconnected",
-        `Excel session disconnected: ${reason}.`,
+        this.adapter.disconnectedMessage(reason),
         { retryable: true, maybeApplied: record.dispatched },
       ), { audit: auditSummary(record) });
       record.resolve(record.response);
@@ -411,16 +407,16 @@ export class ExcelBridge {
   }
 
   requireSession(id) {
-    if (typeof id !== "string") throw excelLiveError("invalid-request", "sessionId is required.");
+    if (typeof id !== "string") throw this.adapter.error("invalid-request", "sessionId is required.");
     const session = this.sessions.get(id);
-    if (session == null) throw excelLiveError("session-unavailable", "Excel session is unavailable. Open OfficeKit in the target workbook and connect it.", { retryable: true });
+    if (session == null) throw this.adapter.error("session-unavailable", this.adapter.unavailableMessage, { retryable: true });
     return session;
   }
 
   requireBrowserSession(id, browser, request) {
     const session = this.requireSession(id);
-    if (session.browserKey !== hash(browser) || session.paneId !== browserPaneId(request)) {
-      throw excelLiveError("forbidden", "This browser session cannot access the requested Excel session.");
+    if (session.browserKey !== hash(browser) || session.paneId !== browserPaneId(request, this.adapter)) {
+      throw this.adapter.error("forbidden", `This browser session cannot access the requested ${this.adapter.targetLabel}.`);
     }
     return session;
   }
@@ -431,15 +427,15 @@ export class ExcelBridge {
       ? authorization.slice("Bearer ".length)
       : "";
     if (!safeEqual(token, this.secret)) {
-      throw excelLiveError("unauthorized", "OfficeKit Excel CLI credentials are invalid.");
+      throw this.adapter.error("unauthorized", `OfficeKit ${this.adapter.targetLabel} CLI credentials are invalid.`);
     }
   }
 
   requireBrowser(request) {
     this.assertBrowserOrigin(request);
-    const token = parseCookies(request.headers.cookie)[BROWSER_COOKIE];
+    const token = parseCookies(request.headers.cookie)[this.adapter.browserCookie];
     if (typeof token !== "string" || !verifyBrowserToken(token, this.secret)) {
-      throw excelLiveError("browser-not-paired", "Open the OfficeKit task pane and connect this workbook.");
+      throw this.adapter.error("browser-not-paired", `Open the OfficeKit task pane and connect this ${this.adapter.targetLabel}.`);
     }
     return token;
   }
@@ -447,28 +443,28 @@ export class ExcelBridge {
   assertBrowserOrigin(request) {
     const origin = request.headers.origin;
     if (origin != null && origin !== this.origin) {
-      throw excelLiveError("forbidden-origin", "Excel bridge rejected a request from another origin.");
+      throw this.adapter.error("forbidden-origin", `${this.adapter.targetLabel} bridge rejected a request from another origin.`);
     }
   }
 
   ensureBrowser(request, response) {
-    const existing = parseCookies(request.headers.cookie)[BROWSER_COOKIE];
+    const existing = parseCookies(request.headers.cookie)[this.adapter.browserCookie];
     if (typeof existing === "string" && verifyBrowserToken(existing, this.secret)) return existing;
     const token = createBrowserToken(this.secret);
-    response.setHeader("Set-Cookie", `${BROWSER_COOKIE}=${token}; Max-Age=${BROWSER_COOKIE_MAX_AGE_SECONDS}; Path=/v1/browser; Secure; HttpOnly; SameSite=Strict`);
+    response.setHeader("Set-Cookie", `${this.adapter.browserCookie}=${token}; Max-Age=${BROWSER_COOKIE_MAX_AGE_SECONDS}; Path=/v1/browser; Secure; HttpOnly; SameSite=Strict`);
     return token;
   }
 
   async serveStatic(pathname, request, response) {
-    const relative = STATIC_PATHS.get(pathname);
+    const relative = this.adapter.staticPaths.get(pathname);
     const content = await readFile(path.join(this.staticRoot, relative));
-    if (pathname === "/taskpane.html") this.ensureBrowser(request, response);
+    if (relative === "taskpane.html") this.ensureBrowser(request, response);
     response.statusCode = 200;
     response.setHeader("Content-Type", contentType(relative));
     response.setHeader("Cache-Control", relative.endsWith(".png") ? "public, max-age=86400" : "no-store");
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("Referrer-Policy", "no-referrer");
-    if (pathname === "/taskpane.html") {
+    if (relative === "taskpane.html") {
       response.setHeader(
         "Content-Security-Policy",
         "default-src 'self' https://appsforoffice.microsoft.com; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self' https://appsforoffice.microsoft.com",
@@ -479,8 +475,8 @@ export class ExcelBridge {
 
   writeJson(response, status, value) {
     const body = JSON.stringify(value);
-    if (Buffer.byteLength(body) > MAX_IMAGE_BYTES + MAX_REQUEST_BYTES) {
-      throw excelLiveError("response-too-large", "Excel bridge response exceeds the safety limit.");
+    if (Buffer.byteLength(body) > this.responseLimit()) {
+      throw this.adapter.error("response-too-large", `${this.adapter.targetLabel} bridge response exceeds the safety limit.`);
     }
     response.statusCode = status;
     response.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -491,13 +487,13 @@ export class ExcelBridge {
 
   writeError(response, error) {
     if (response.writableEnded) return;
-    const normalized = toExcelLiveFailure(error);
+    const normalized = error?.code ? error : toExcelLiveFailure(error);
     const status = statusForError(normalized.code);
     try {
-      this.writeJson(response, status, createExcelFailure(error));
+      this.writeJson(response, status, this.adapter.failure(error));
     } catch {
       response.statusCode = 500;
-      response.end("{\"ok\":false,\"error\":{\"code\":\"internal-error\",\"message\":\"Excel bridge failed.\"}}");
+      response.end(`{"ok":false,"error":{"code":"internal-error","message":"${this.adapter.targetLabel} bridge failed."}}`);
     }
   }
 
@@ -509,9 +505,8 @@ export class ExcelBridge {
   publicSession(session) {
     return {
       id: session.id,
-      workbook: session.client.workbook,
-      capabilities: session.client.capabilities,
-      host: session.client.host,
+      application: this.adapter.host,
+      ...this.adapter.describeClient(session.client),
       connectedAt: session.createdAt,
       lastSeenAt: new Date(session.lastSeen).toISOString(),
       queued: session.queue.length + session.inFlight.size,
@@ -523,24 +518,22 @@ export class ExcelBridge {
       if (now - session.lastSeen > STALE_SESSION_MS) this.disconnectSession(session, "session-stale");
     }
   }
+
+  requestLimit() {
+    return this.adapter.protocol().limits?.maxRequestBytes ?? MAX_REQUEST_BYTES;
+  }
+
+  responseLimit() {
+    return this.adapter.protocol().limits?.maxResponseBytes ?? (MAX_IMAGE_BYTES + MAX_REQUEST_BYTES);
+  }
 }
 
-const STATIC_PATHS = new Map([
-  ["/", "taskpane.html"],
-  ["/taskpane.html", "taskpane.html"],
-  ["/taskpane.js", "taskpane.js"],
-  ["/taskpane.css", "taskpane.css"],
-  ["/support.html", "support.html"],
-  ["/assets/officekit-excel-32.png", "assets/officekit-excel-32.png"],
-  ["/assets/officekit-excel-80.png", "assets/officekit-excel-80.png"],
-]);
-
-async function assertStaticAssets(staticRoot) {
-  for (const relative of STATIC_PATHS.values()) {
+async function assertStaticAssets(staticRoot, adapter = createExcelLiveAdapter({ staticRoot })) {
+  for (const relative of adapter.staticPaths.values()) {
     try {
       await readFile(path.join(staticRoot, relative));
     } catch {
-      throw excelLiveError("addin-assets-missing", "Excel add-in assets are missing. Reinstall OfficeKit or run its package build.");
+      throw adapter.error("addin-assets-missing", adapter.assetErrorMessage);
     }
   }
 }
@@ -561,68 +554,34 @@ function listen(server, port, host) {
   });
 }
 
-function bridgeListenError(error) {
+function bridgeListenError(error, adapter = createExcelLiveAdapter()) {
   if (error?.code === "EADDRINUSE") {
-    return excelLiveError("bridge-port-in-use", "OfficeKit Excel bridge port is already in use by another process.");
+    return adapter.error("bridge-port-in-use", `OfficeKit ${adapter.targetLabel} bridge port is already in use by another process.`);
   }
-  return excelLiveError("bridge-start-failed", `OfficeKit Excel bridge could not listen: ${error?.message ?? error}`);
+  return adapter.error("bridge-start-failed", `OfficeKit ${adapter.targetLabel} bridge could not listen: ${error?.message ?? error}`);
 }
 
-async function readJsonBody(request, maximum = MAX_REQUEST_BYTES) {
+async function readJsonBody(request, maximum = MAX_REQUEST_BYTES, adapter = createExcelLiveAdapter()) {
   const chunks = [];
   let size = 0;
   for await (const chunk of request) {
     const bytes = Buffer.from(chunk);
     size += bytes.length;
-    if (size > maximum) throw excelLiveError("request-too-large", `Excel bridge request exceeds ${maximum} bytes.`);
+    if (size > maximum) throw adapter.error("request-too-large", `${adapter.targetLabel} bridge request exceeds ${maximum} bytes.`);
     chunks.push(bytes);
   }
   try {
     return JSON.parse(Buffer.concat(chunks, size).toString("utf8"));
   } catch (error) {
-    throw excelLiveError("invalid-request", `Excel bridge request is not JSON: ${error.message}`);
+    throw adapter.error("invalid-request", `${adapter.targetLabel} bridge request is not JSON: ${error.message}`);
   }
 }
 
-function validateBrowserClient(value) {
-  if (value == null || typeof value !== "object" || Array.isArray(value)) {
-    throw excelLiveError("invalid-session", "Excel add-in client descriptor must be an object.");
-  }
-  const paneId = value.paneId;
-  if (typeof paneId !== "string" || !/^[A-Za-z0-9_-]{16,128}$/u.test(paneId)) {
-    throw excelLiveError("invalid-session", "Excel add-in did not provide a valid task-pane identity.");
-  }
-  const workbook = value.workbook;
-  if (
-    workbook == null || typeof workbook !== "object" ||
-    typeof workbook.name !== "string" || workbook.name.length === 0 || workbook.name.length > 512 ||
-    typeof workbook.activeSheet !== "string" || workbook.activeSheet.length === 0 || workbook.activeSheet.length > 255
-  ) {
-    throw excelLiveError("invalid-session", "Excel add-in did not report a valid workbook target.");
-  }
-  const capabilities = value.capabilities != null && typeof value.capabilities === "object" && !Array.isArray(value.capabilities)
-    ? Object.fromEntries(Object.entries(value.capabilities).filter(([, capability]) => typeof capability === "boolean"))
-    : {};
-  const host = value.host != null && typeof value.host === "object" && !Array.isArray(value.host)
-    ? {
-      platform: typeof value.host.platform === "string" ? value.host.platform.slice(0, 128) : "unknown",
-      version: typeof value.host.version === "string" ? value.host.version.slice(0, 128) : "unknown",
-      webView: typeof value.host.webView === "string" ? value.host.webView.slice(0, 128) : "unknown",
-    }
-    : { platform: "unknown", version: "unknown", webView: "unknown" };
-  return {
-    paneId,
-    workbook: { name: workbook.name, activeSheet: workbook.activeSheet },
-    capabilities,
-    host,
-  };
-}
-
-function browserPaneId(request) {
-  const candidate = request.headers[BROWSER_PANE_HEADER];
+function browserPaneId(request, adapter = createExcelLiveAdapter()) {
+  const candidate = request.headers[adapter.browserPaneHeader ?? "x-officekit-pane"];
   const paneId = Array.isArray(candidate) ? candidate[0] : candidate;
   if (typeof paneId !== "string" || !/^[A-Za-z0-9_-]{16,128}$/u.test(paneId)) {
-    throw excelLiveError("forbidden", "Excel bridge rejected a request without the paired task-pane identity.");
+    throw adapter.error("forbidden", `${adapter.targetLabel} bridge rejected a request without the paired task-pane identity.`);
   }
   return paneId;
 }
@@ -631,12 +590,12 @@ function browserPaneKey(browserKey, paneId) {
   return `${browserKey}:${paneId}`;
 }
 
-function waitForResult(record, timeoutMs) {
+function waitForResult(record, timeoutMs, adapter = createExcelLiveAdapter()) {
   if (record.completed) return Promise.resolve(record.response);
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(excelLiveError(
         "operation-timeout",
-        "Excel did not finish the operation before the timeout. Re-read the target before retrying.",
+        `${adapter.targetLabel} did not finish the operation before the timeout. Re-read the target before retrying.`,
         { retryable: true, maybeApplied: record.dispatched },
       )), timeoutMs);
     timer.unref();
@@ -664,14 +623,6 @@ function auditSummary(record) {
       args: record.request.args,
     })),
   };
-}
-
-function rangeSummary(args) {
-  const values = [];
-  for (const candidate of [args, args?.source, args?.destination]) {
-    if (candidate?.sheet && candidate?.range) values.push(`${candidate.sheet}!${candidate.range}`);
-  }
-  return values.join(",") || undefined;
 }
 
 function createBrowserToken(secret) {
@@ -729,7 +680,7 @@ function statusForError(code) {
   if (["unauthorized", "browser-not-paired"].includes(code)) return 401;
   if (["forbidden", "forbidden-origin"].includes(code)) return 403;
   if (["not-found", "session-unavailable"].includes(code)) return 404;
-  if (["session-busy", "bridge-port-in-use"].includes(code)) return 409;
+  if (["session-busy", "bridge-port-in-use", "target-changed"].includes(code)) return 409;
   if (["request-too-large", "response-too-large"].includes(code)) return 413;
   if (["operation-timeout"].includes(code)) return 504;
   return 400;

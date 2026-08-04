@@ -9,6 +9,7 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const cli = path.join(repoRoot, "bin", "officekit.mjs");
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "officekit-cli-"));
 const lazyExcelHome = path.join(temporary, "lazy-excel-state");
+const lazyPowerPointHome = path.join(temporary, "lazy-powerpoint-state");
 
 try {
   const help = run(["--help"]);
@@ -18,14 +19,18 @@ try {
   assert.match(help.stdout, /officekit repl \[options\]/);
   assert.match(help.stdout, /officekit template search/);
   assert.match(help.stdout, /officekit excel <command>/);
+  assert.match(help.stdout, /officekit live <command> --app <excel\|powerpoint>/);
   assert.match(help.stdout, /Choose Agent targets and install the OfficeKit Skills/);
   assert.equal(run(["--version"]).stdout.trim(), "0.6.0");
   const excelHelp = run(["excel", "--help"]);
   assert.match(excelHelp.stdout, /officekit excel install/);
   assert.match(excelHelp.stdout, /officekit excel execute <request\.json>/);
+  const liveHelp = run(["live", "--help"]);
+  assert.match(liveHelp.stdout, /officekit live install --app powerpoint/);
+  assert.match(liveHelp.stdout, /officekit live execute <request\.json>/);
 
   const lazyProject = path.join(temporary, "lazy-excel-project");
-  const lazyEnvironment = { OFFICEKIT_EXCEL_HOME: lazyExcelHome };
+  const lazyEnvironment = { OFFICEKIT_EXCEL_HOME: lazyExcelHome, OFFICEKIT_POWERPOINT_HOME: lazyPowerPointHome };
   parseJson(run(["init", lazyProject, "--tools", "agents", "--json"], { environment: lazyEnvironment }).stdout);
   parseJson(run([
     "template",
@@ -41,6 +46,11 @@ try {
     false,
     "root CLI initialization and template search must not initialize the Excel bridge or state",
   );
+  assert.equal(
+    fs.existsSync(lazyPowerPointHome),
+    false,
+    "root CLI initialization and template search must not initialize the PowerPoint bridge or state",
+  );
 
   const project = path.join(temporary, "detected-project");
   fs.mkdirSync(path.join(project, ".claude"), { recursive: true });
@@ -48,7 +58,7 @@ try {
   const initialized = parseJson(run(["init", project, "--yes", "--json"]).stdout);
   assert.equal(initialized.ok, true);
   assert.deepEqual(initialized.tools.map((tool) => tool.id), ["claude", "cursor"]);
-  assert.equal(initialized.created, 14);
+  assert.equal(initialized.created, 16);
   assert.equal(initialized.updated, 0);
   assert.equal(initialized.unchanged, 0);
   for (const toolRoot of [".claude", ".cursor"]) {
@@ -58,6 +68,7 @@ try {
       "spreadsheets",
       "excel-live-control",
       "presentations",
+      "powerpoint-live-control",
       "pdf",
       "template-creator",
     ]) {
@@ -74,14 +85,14 @@ try {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   assert.equal(manifest.schemaVersion, 1);
   assert.deepEqual(manifest.tools, ["claude", "cursor"]);
-  assert.equal(manifest.installations.length, 14);
+  assert.equal(manifest.installations.length, 16);
   assert.equal(manifest.package.name, "office-kit");
   assert.equal(manifest.package.version, "0.6.0");
 
   const idempotent = parseJson(run(["init", project, "--yes", "--json"]).stdout);
   assert.equal(idempotent.created, 0);
   assert.equal(idempotent.updated, 0);
-  assert.equal(idempotent.unchanged, 14);
+  assert.equal(idempotent.unchanged, 16);
 
   const managedSkill = path.join(project, ".claude", "skills", "office-kit", "SKILL.md");
   const sourceSkill = path.join(
@@ -101,7 +112,7 @@ try {
     run(["update", project, "--force", "--json"]).stdout,
   );
   assert.equal(restored.updated, 1);
-  assert.equal(restored.unchanged, 13);
+  assert.equal(restored.unchanged, 15);
   assert.equal(
     sha256(fs.readFileSync(managedSkill)),
     sha256(fs.readFileSync(sourceSkill)),

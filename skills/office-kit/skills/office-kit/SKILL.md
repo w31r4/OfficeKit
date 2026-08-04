@@ -42,11 +42,13 @@ plugin, or image tool.
    - XLSX, CSV, TSV, or Google Sheets handoff: Spreadsheets
    - an already-open Excel workbook: Excel Live Control
    - PPTX or Google Slides handoff: Presentations
+   - an already-open PowerPoint presentation: PowerPoint Live Control
    - PDF: PDF
 4. For multiple outputs, order the owners as a dependency graph. Pass facts,
    tables, images, and structured content between steps; never let two Skills
    mutate the same file.
 5. Read [routing.md](references/routing.md) for cross-format work, live Excel,
+   live PowerPoint,
    missing Skills, or an ambiguous owner.
 
 ## Load only the selected Skill

@@ -34,6 +34,12 @@ assert.equal(
   packageMetadata.scripts["test:excel-live"],
   "node scripts/build-excel-addin.mjs && node test/excel-live.mjs",
 );
+assert.equal(packageMetadata.scripts["build:powerpoint-addin"], "node scripts/build-powerpoint-addin.mjs");
+assert.equal(packageMetadata.scripts["test:powerpoint-live"], "node scripts/build-powerpoint-addin.mjs && node test/powerpoint-live.mjs");
+assert.equal(packageMetadata.exports["./live"], "./src/live/bridge.mjs");
+assert.equal(packageMetadata.exports["./live/protocol"], "./src/live/protocol.mjs");
+assert.equal(packageMetadata.exports["./live/adapters/powerpoint"], "./src/live/adapters/powerpoint.mjs");
+assert.equal(packageMetadata.exports["./powerpoint-live"], "./src/powerpoint-live/repl.mjs");
 assert.equal(
   packageMetadata.scripts["test:standalone"],
   "node test/standalone-distribution.mjs",
@@ -164,6 +170,12 @@ for (const required of [
   "apps/excel-addin/dist/support.html",
   "apps/excel-addin/dist/assets/officekit-excel-32.png",
   "apps/excel-addin/dist/assets/officekit-excel-80.png",
+  "apps/powerpoint-addin/dist/taskpane.html",
+  "apps/powerpoint-addin/dist/taskpane.js",
+  "apps/powerpoint-addin/dist/taskpane.css",
+  "apps/powerpoint-addin/dist/support.html",
+  "apps/powerpoint-addin/dist/assets/officekit-powerpoint-32.png",
+  "apps/powerpoint-addin/dist/assets/officekit-powerpoint-80.png",
   "README.md",
   "README.zh-CN.md",
   "THIRD_PARTY_NOTICES.md",
@@ -224,6 +236,18 @@ for (const required of [
   "src/excel-live/protocol.mjs",
   "src/excel-live/state.mjs",
   "src/excel-live/repl.mjs",
+  "src/live/bridge.mjs",
+  "src/live/errors.mjs",
+  "src/live/protocol.mjs",
+  "src/live/adapters/index.mjs",
+  "src/live/adapters/excel.mjs",
+  "src/live/adapters/powerpoint.mjs",
+  "src/live/cli.mjs",
+  "src/powerpoint-live/bridge-server.mjs",
+  "src/powerpoint-live/client.mjs",
+  "src/powerpoint-live/manifest.mjs",
+  "src/powerpoint-live/repl.mjs",
+  "src/powerpoint-live/state.mjs",
   "src/templates/search.mjs",
   "src/help/index.mjs",
   "src/index.mjs",
@@ -341,6 +365,10 @@ for (const required of [
   "skills/presentations/skills/presentations/SKILL.md",
   "skills/presentations/skills/presentations/agents/openai.yaml",
   "skills/presentations/skills/presentations/agents/agent.yaml",
+  "skills/presentations/skills/powerpoint-live-control/SKILL.md",
+  "skills/presentations/skills/powerpoint-live-control/agents/openai.yaml",
+  "skills/presentations/skills/powerpoint-live-control/assets/icon.svg",
+  "skills/presentations/skills/powerpoint-live-control/references/live-protocol.md",
   "skills/presentations/skills/presentations/style_guidelines.md",
   "skills/presentations/skills/presentations/routing/google_slides.md",
   "skills/presentations/skills/presentations/artifact_tool/API_QUICK_START.md",

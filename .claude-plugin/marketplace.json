@@ -8,7 +8,7 @@
     "url": "https://github.com/w31r4/OfficeKit"
   },
   "metadata": {
-    "description": "OfficeKit Skills for Word, Excel, PowerPoint, PDF, templates, and local Excel control.",
+    "description": "OfficeKit Skills for Word, Excel, PowerPoint, PDF, templates, and local Office Live control.",
     "version": "0.6.0"
   },
   "plugins": [

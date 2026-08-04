@@ -60,7 +60,7 @@ officekit init
 ```
 
 `officekit init` finds the Agent configurations in the project and lets you
-choose which directories receive the seven OfficeKit Skills. Press Enter to
+choose which directories receive the eight OfficeKit Skills. Press Enter to
 accept the detected targets, or name them explicitly:
 
 ```sh
@@ -144,6 +144,27 @@ Excel Live Control V1 targets Microsoft Excel desktop on Windows and macOS.
 The first Add-in load uses Microsoft's Office.js runtime; the workbook and
 OfficeKit's request audit remain on the local machine.
 
+## Work in the PowerPoint deck already on screen
+
+For a presentation that is open in desktop PowerPoint, use the companion live
+route rather than the file-level PPTX workflow:
+
+```sh
+officekit live install --app powerpoint --yes --json
+officekit live doctor --app powerpoint --json
+officekit live sessions --app powerpoint --json
+officekit live execute request.json --json
+```
+
+Upload the printed manifest once through **Home > Add-ins > My Add-ins > Upload
+My Add-in**, open OfficeKit from the Home ribbon, and connect the intended deck.
+PowerPoint Live uses typed slide, selection, text, shape, image, slide-preview,
+and explicit-save operations. It can work with unsaved changes, rereads after
+mutations, and reports `maybeApplied` or `unsupported-capability` instead of
+editing a closed file behind the user's back. The first real host acceptance
+matrix is Windows x64 desktop PowerPoint; macOS currently has build, mock, and
+package checks only.
+
 ## One front door, with direct routes when you want them
 
 For ordinary work, start with OfficeKit. It inspects the inputs, decides the
@@ -156,6 +177,7 @@ output route, considers templates, and hands each file to its owning Skill.
 | [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | Excel, CSV, formulas, models, data preparation, and charts. |
 | [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | Working with a workbook already open in Microsoft Excel desktop through the local OfficeKit Add-in. |
 | [Presentations](skills/presentations/skills/presentations/SKILL.md) | Creating or changing a PowerPoint presentation. |
+| [PowerPoint Live Control](skills/presentations/skills/powerpoint-live-control/SKILL.md) | Working with a presentation already open in desktop PowerPoint through the local OfficeKit bridge. |
 | [PDF](skills/pdf/skills/pdf/SKILL.md) | Reading, creating, inspecting, or processing a PDF. |
 | [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | Saving your own DOCX, XLSX, or PPTX reference as a reusable template. |
 
