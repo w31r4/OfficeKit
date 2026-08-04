@@ -37,7 +37,7 @@ For a multi-source operation, keep `source` as the exact operation manifest and 
 }
 ```
 
-For attachment quarantine, use `savePolicy.strategy: "read-only"`, `operation.type: "extract-attachments"`, and bind `output` to the delivered `attachments.json` manifest. The quarantine file hashes and contained paths remain task-specific validation evidence inside that manifest and the audit `validation` object.
+For attachment quarantine, use `savePolicy.strategy: "read-only"`, `operation.type: "extract-attachments"`, and bind `output` to the delivered `attachments.json` manifest. The audit envelope must also contain the exact boolean `validation.attachmentsOpenedOrExecuted: false`; the manifest carries the same fact for the extracted payloads. The quarantine file hashes and contained paths remain task-specific validation evidence inside that manifest and the audit `validation` object. The validator rejects a missing or true value, so a workflow cannot pass while leaving this security fact only in prose or in the manifest.
 
 For a read-only operation that publishes more than one typed artifact (for
 example a table JSON report and a CSV parity export), keep the JSON evidence in

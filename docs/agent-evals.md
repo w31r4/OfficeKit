@@ -335,6 +335,13 @@ A current-main repeat at `6f470aede64f48c67445e54b767599ba5cd64bfc` reran the sa
 
 The next current-main attachment-quarantine repeat at `/tmp/officekit-promptbench-attachment-quarantine-matrix-20260804` completed all six trials without timeout. It bound candidate package SHA-256 `219901d759cde85fd73919bf04fe26f2ef5e53b513b5bca1031d8fd059257a1d`, input-contract SHA-256 `1c0d5682acb4b729815844863db22cb253d5674d951e812241d763f1a890de79`, source `7e02892e252150d257ce41660f0c303a647792a57ba2c0ba22fe5988bc79feb4`, and oracle `05e50ad50b9aeb7d3b0a5c75e4a2b2151d540da6445f274b637ec2354b905ddb`. The candidate was semantically and visually correct in all three trials (six payloads, duplicate and traversal-safe quarantine, byte/hash checks, immutable source, no open/execute, and final-page review) but scored `80/100` each because the canonical audit did not expose `validation.attachmentsOpenedOrExecuted: false` at the envelope level even though the manifest and operation reported the same fact. The copied reference Skill scored `0/100`, `80/100`, and `80/100`; the zero trial also omitted one duplicate payload and the canonical pypdf/provider/audit trace. This is a current audit-envelope/Skill-discipline gap, not an attachment extraction or source-safety failure; the earlier fixed candidate `3/3` result remains historical evidence and is not silently merged with this repeat.
 
+The shipped validator now closes this contract gap for future runs: when
+`operation.type` is `extract-attachments`, the top-level audit must contain
+the exact boolean `validation.attachmentsOpenedOrExecuted: false`. Missing or
+true values fail closed, while the manifest-level copy remains required as
+payload evidence. The historical matrix above stays partial until a fresh
+candidate/reference repeat is recorded against the hardened package.
+
 ### PDF multichannel redaction matrix
 
 The final `pdf-redact-multichannel-secret` matrix was run from candidate commit

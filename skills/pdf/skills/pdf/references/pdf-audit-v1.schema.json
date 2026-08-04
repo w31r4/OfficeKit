@@ -75,6 +75,28 @@
     {
       "if": { "properties": { "status": { "const": "failed_closed" } } },
       "then": { "required": ["reason"], "properties": { "output": { "type": "null" } } }
+    },
+    {
+      "if": {
+        "required": ["operation"],
+        "properties": {
+          "operation": {
+            "required": ["type"],
+            "properties": { "type": { "const": "extract-attachments" } }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "savePolicy": {
+            "properties": { "strategy": { "const": "read-only" } }
+          },
+          "validation": {
+            "required": ["attachmentsOpenedOrExecuted"],
+            "properties": { "attachmentsOpenedOrExecuted": { "const": false } }
+          }
+        }
+      }
     }
   ],
   "$defs": {
