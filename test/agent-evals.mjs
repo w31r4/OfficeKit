@@ -375,7 +375,7 @@ const p2OrdinaryNewlineChecks = gradeCertifiedDocMdpP2FillEvidence({
 assert.equal(p2OrdinaryNewlineChecks.find((check) => check.id === "pdf-trace:postflight-explicit-root-validation")?.passed, false, "an ordinary following line must not be joined to the post-fill verifier");
 
 if (corpusRuntimeAvailable) {
-assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 24, ok: true, root: path.join(repoRoot, "evals", "assets") });
+assert.deepEqual(JSON.parse(corpusVerification.stdout), { assets: 26, ok: true, root: path.join(repoRoot, "evals", "assets") });
 function boundaryOracle(boundary, source, userPassword) {
   const result = spawnSync(corpusPython, ["scripts/agent-eval-pdf-oracle.py"], {
     cwd: repoRoot,
