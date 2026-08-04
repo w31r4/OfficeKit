@@ -252,7 +252,14 @@ def validate_record(
         raise AuditError("operation.type must be a non-empty string")
     if required_operation and operation["type"] != required_operation:
         raise AuditError(f"operation.type must be {required_operation!r}")
-    require_object(record.get("validation"), "validation")
+    validation = require_object(record.get("validation"), "validation")
+    if operation["type"] == "extract-attachments":
+        if policy.get("strategy") != "read-only":
+            raise AuditError("extract-attachments audits must use savePolicy.strategy read-only")
+        if validation.get("attachmentsOpenedOrExecuted") is not False:
+            raise AuditError(
+                "extract-attachments audits must record validation.attachmentsOpenedOrExecuted as false"
+            )
 
     output_records = record.get("outputs")
     if status == "succeeded":

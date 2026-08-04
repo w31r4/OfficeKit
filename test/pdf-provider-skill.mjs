@@ -993,6 +993,33 @@ try {
     "--source", dummyInput, "--artifact", readOnlyManifest, "--require-operation", "extract-attachments",
   ], { status: 0 }));
   assert.equal(readOnlyAuditValidation.savePolicy, "read-only");
+  const missingAttachmentSafetyField = JSON.parse(await fs.readFile(readOnlyAuditPath, "utf8"));
+  delete missingAttachmentSafetyField.validation.attachmentsOpenedOrExecuted;
+  const missingAttachmentSafetyPath = path.join(tempRoot, "missing-attachment-safety-audit.json");
+  await fs.writeFile(missingAttachmentSafetyPath, JSON.stringify(missingAttachmentSafetyField), "utf8");
+  const missingAttachmentSafety = run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "validate", missingAttachmentSafetyPath,
+    "--source", dummyInput, "--artifact", readOnlyManifest, "--require-operation", "extract-attachments",
+  ], { status: 2 });
+  assert.match(missingAttachmentSafety.stderr, /validation\.attachmentsOpenedOrExecuted as false/);
+  const trueAttachmentSafetyField = JSON.parse(await fs.readFile(readOnlyAuditPath, "utf8"));
+  trueAttachmentSafetyField.validation.attachmentsOpenedOrExecuted = true;
+  const trueAttachmentSafetyPath = path.join(tempRoot, "true-attachment-safety-audit.json");
+  await fs.writeFile(trueAttachmentSafetyPath, JSON.stringify(trueAttachmentSafetyField), "utf8");
+  const trueAttachmentSafety = run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "validate", trueAttachmentSafetyPath,
+    "--source", dummyInput, "--artifact", readOnlyManifest, "--require-operation", "extract-attachments",
+  ], { status: 2 });
+  assert.match(trueAttachmentSafety.stderr, /validation\.attachmentsOpenedOrExecuted as false/);
+  const mutableAttachmentPolicy = JSON.parse(await fs.readFile(readOnlyAuditPath, "utf8"));
+  mutableAttachmentPolicy.savePolicy.strategy = "rewrite";
+  const mutableAttachmentPolicyPath = path.join(tempRoot, "mutable-attachment-policy-audit.json");
+  await fs.writeFile(mutableAttachmentPolicyPath, JSON.stringify(mutableAttachmentPolicy), "utf8");
+  const mutableAttachmentPolicyResult = run(python, [
+    path.join(scriptsRoot, "pdf_audit.py"), "validate", mutableAttachmentPolicyPath,
+    "--source", dummyInput, "--artifact", readOnlyManifest, "--require-operation", "extract-attachments",
+  ], { status: 2 });
+  assert.match(mutableAttachmentPolicyResult.stderr, /savePolicy\.strategy read-only/);
   const secondInput = path.join(tempRoot, "second-input.pdf");
   const mergeManifest = path.join(tempRoot, "merge-manifest.json");
   const mergeArtifact = path.join(tempRoot, "merge-artifact.pdf");
