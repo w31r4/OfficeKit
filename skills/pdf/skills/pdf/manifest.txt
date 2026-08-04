@@ -13,6 +13,7 @@ tasks/encryption.md
 tasks/ocr.md
 tasks/structure_clean.md
 manifest.txt
+agents/agent.yaml
 references/PROVIDER_MATRIX.md
 references/SAVE_POLICIES.md
 references/SECURITY_CHECKLIST.md

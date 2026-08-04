@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "name": "pdf",
+  "description": "Read, create, inspect, render, and verify local PDF artifacts.",
+  "skills": ["skills/pdf"],
+  "assets": {
+    "icon": "assets/icon.png",
+    "logo": "assets/logo.png"
+  },
+  "interface": {
+    "displayName": "PDF",
+    "shortDescription": "Read, create, and verify PDF artifacts"
+  }
+}

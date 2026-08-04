@@ -87,6 +87,26 @@ for (const pluginName of pluginNames) {
   assert.equal(manifest.skills, "./skills/");
   assert.equal(manifest.repository, "https://github.com/w31r4/OfficeKit");
   assert.ok(await exists(path.join(pluginRoot, "README.md")));
+  if (["documents", "spreadsheets", "presentations", "pdf"].includes(pluginName)) {
+    const neutralManifest = JSON.parse(
+      await fs.readFile(path.join(pluginRoot, "manifest.json"), "utf8"),
+    );
+    assert.equal(neutralManifest.schemaVersion, 1);
+    assert.equal(neutralManifest.name, pluginName);
+    assert.deepEqual(neutralManifest.skills, [`skills/${pluginName}`]);
+    assert.ok(await exists(path.join(pluginRoot, neutralManifest.assets.icon)));
+    assert.ok(await exists(path.join(pluginRoot, neutralManifest.assets.logo)));
+    assert.ok(neutralManifest.interface?.displayName);
+    const nativeAgent = await fs.readFile(
+      path.join(pluginRoot, "skills", pluginName, "agents", "agent.yaml"),
+      "utf8",
+    );
+    assert.equal(
+      yamlValue(nativeAgent, "display_name"),
+      neutralManifest.interface.displayName,
+    );
+    assert.ok(yamlValue(nativeAgent, "default_prompt"));
+  }
   for (const iconKey of pluginName === "office-kit" ? [] : ["composerIcon", "logo"]) {
     assert.ok(await exists(path.resolve(pluginRoot, manifest.interface[iconKey])), `${pluginName} ${iconKey} must resolve inside the plugin`);
   }

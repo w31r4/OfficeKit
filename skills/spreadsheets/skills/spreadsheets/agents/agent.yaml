@@ -1,0 +1,7 @@
+interface:
+  display_name: "Spreadsheets"
+  short_description: "Create and edit spreadsheet artifacts"
+  icon_small: "./assets/file-spreadsheet.png"
+  icon_large: "./assets/file-spreadsheet.png"
+  brand_color: "#107C41"
+  default_prompt: "Use $spreadsheets to create, edit, render, or review a workbook."

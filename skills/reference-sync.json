@@ -1,41 +1,41 @@
 {
   "schemaVersion": 1,
   "source": {
-    "commit": "0f501d1a06d0566a90224a18b4c0d7a89671df66",
+    "commit": "73c99c67ca7bbaa82cec0b158c647db583dcd970",
     "root": "reference/office-artifact-tool/skills"
   },
-  "totalFiles": 345,
-  "totalBytes": 33203999,
+  "totalFiles": 333,
+  "totalBytes": 32994912,
   "bundles": {
     "documents": {
       "files": 82,
-      "bytes": 663064,
-      "sha256": "bfb35ac6a8be69c4c3ea887d015a777e540afb87bef52ba3d2c96d9c5faf703d"
+      "bytes": 661007,
+      "sha256": "9f132bca6735d043b7202a63352a5fa1f1f25034d8f05920b105bf43419524cf"
     },
     "spreadsheets": {
-      "files": 27,
-      "bytes": 426708,
-      "sha256": "c8fb67266a5bcad412e88112f832a41d48b429a0f1d9f04df0dd50c437d4aa80"
+      "files": 16,
+      "bytes": 343262,
+      "sha256": "24d9f0033dc50c82d3273acbda248480590b8974a0b24170ae0d69d2209c3109"
     },
     "presentations": {
-      "files": 118,
-      "bytes": 4969060,
-      "sha256": "913d5d43e0ce0851b20f695024562ae2ef490b808ffe127aab2b44c06b5bfc54"
+      "files": 117,
+      "bytes": 4963904,
+      "sha256": "ca846484b9466de0a199091d2c73a2b0dba4c02815b0be42526c86efff735ff6"
     },
     "pdf": {
       "files": 8,
-      "bytes": 28294,
-      "sha256": "04d39b6d463e60f11b52feb77f127557f8134a4d15245bfc7a82e27867e51f8b"
+      "bytes": 26770,
+      "sha256": "a8f17058578e433b1e716c0acb6bce0ade24bf85ae74690d07699627b9307b58"
     },
     "template-creator": {
       "files": 7,
-      "bytes": 33385,
-      "sha256": "6b5a2348f465f5f4e309b3749e9bfd8598dd467d48b0435f949e86b1c25bac8a"
+      "bytes": 35644,
+      "sha256": "309473ca1e4f4e1fd9fb2c2971f7e449cefc82a200e3864aaa6796b886970208"
     },
     "default-template-library": {
       "files": 103,
-      "bytes": 27083488,
-      "sha256": "4f76667e63cf54478b1a56e9f240cd85201abd8bb646bbf9bbcbfee4362df7a4"
+      "bytes": 26964325,
+      "sha256": "1d02f60564114b792ad83e22a4b7e9dd812fd0beb0355f778a4427bd1ce8dc48"
     }
   }
 }

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "name": "documents",
+  "description": "Create, edit, inspect, render, verify, and export local document artifacts.",
+  "skills": ["skills/documents"],
+  "assets": {
+    "icon": "assets/icon.png",
+    "logo": "assets/logo.png"
+  },
+  "interface": {
+    "displayName": "Documents",
+    "shortDescription": "Create and edit document artifacts"
+  }
+}
