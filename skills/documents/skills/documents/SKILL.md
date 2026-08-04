@@ -9,6 +9,17 @@ Use this skill when you need to create or modify `.docx`, Word, or a
 Google-Docs-ready document and verify it visually. Read the shared
 `../office-kit/references/workspace.md` contract before choosing paths.
 
+## Run the document workflow in one task
+
+For a multi-step document task, start `officekit repl` and read
+`../office-kit/references/repl.md`. Import the public API with
+`await ctx.import("office-kit")`, keep the inspected `DocumentModel` or
+bounded helper in `ctx.state`, and follow inspect → edit → export → reimport →
+render/verify before `ctx.publish`. Use `ctx.recordEvidence` for page renders
+and return the final absolute path, SHA-256, and `visualReview` status. A
+failed mutation is uncertain until the target is reread; do not replay a
+checkpointed cell automatically.
+
 ## Tools + Contract
 
 - Use the active OfficeKit installation for DOCX artifact work. Run bundled

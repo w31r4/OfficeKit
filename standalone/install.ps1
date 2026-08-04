@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
-$OfficeKitVersion = "0.5.0"
+$OfficeKitVersion = "0.6.0"
 $OfficeKitRepository = "w31r4/OfficeKit"
 
 function Fail([string] $Message) {

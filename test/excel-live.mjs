@@ -58,7 +58,7 @@ try {
   const manifest = renderExcelManifest({
     addinId: "d209533c-4ca9-4aa1-b64b-467bbdd23fc0",
     port: 47213,
-    packageVersion: "0.5.0",
+    packageVersion: "0.6.0",
   });
   assert.match(manifest, /https:\/\/localhost:47213\/taskpane\.html/);
   assert.match(manifest, /ReadWriteDocument/);
@@ -149,7 +149,7 @@ try {
     paths,
     ...state,
     certificate: certificates,
-    packageVersion: "0.5.0",
+    packageVersion: "0.6.0",
   });
 
   const page = await browserRequest(state, "GET", "/taskpane.html");
@@ -304,7 +304,7 @@ try {
   const installPaths = resolveExcelStatePaths({ env: { OFFICEKIT_EXCEL_HOME: path.join(temporary, "install") } });
   const installation = await installExcel({
     statePaths: installPaths,
-    packageVersion: "0.5.0",
+    packageVersion: "0.6.0",
     confirmed: true,
     trust: async (candidatePaths, config) => (await updateExcelConfiguration(candidatePaths, (current) => ({ ...current, trusted: true }))).config,
     ensureBridge: async () => {},
@@ -319,7 +319,7 @@ try {
   await rm(recoveryPaths.leafCertificate, { force: true });
   await installExcel({
     statePaths: recoveryPaths,
-    packageVersion: "0.5.0",
+    packageVersion: "0.6.0",
     confirmed: true,
     trust: async (candidatePaths) => (await updateExcelConfiguration(candidatePaths, (current) => ({ ...current, trusted: true }))).config,
     ensureBridge: async () => {},

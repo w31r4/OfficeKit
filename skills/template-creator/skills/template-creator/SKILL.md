@@ -7,6 +7,17 @@ description: Create or update a reusable local Office artifact template from a W
 
 Create or update a reference-backed local template. The source Office file stays in the template so later work can clone or import it faithfully.
 
+## Run template creation in one task
+
+For preview, metadata, and packaging steps that span several commands, use
+`officekit repl` and `../office-kit/references/repl.md`. Keep the reference
+path, preview path, and schema-v2 metadata in `ctx.state`; do not publish the
+template until the reference and preview hashes, ZIP structure, and selection
+card have been checked. Use `ctx.recordEvidence` for preview or validation
+reports and return the created Skill directory as an absolute path. The
+creator's deterministic helper command remains explicit; a REPL cell does not
+silently download or install a template provider.
+
 Use `workspaceRoot`, `taskRoot`, `inputRoot`, and `assetRoot` from
 `../office-kit/references/workspace.md`. Keep the uploaded reference read-only, put
 previews and temporary renders under `taskRoot`, and report the created Skill

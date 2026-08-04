@@ -10,6 +10,18 @@ and evidence. Keep JSON requests under `taskRoot`; the live workbook remains
 owned by Excel, and screenshots or audits belong under `evidenceRoot`. Return
 the session result and evidence without host-specific citation syntax.
 
+## REPL route for an open workbook
+
+For a multi-step live task, launch `officekit repl` and read
+`../office-kit/references/repl.md`. Run `await ctx.excel.doctor()` and
+`await ctx.excel.sessions()` before a mutation, then pass the same typed JSON
+request to `await ctx.excel.execute(request)`. Read the changed range again
+after every write; if the response says `maybeApplied: true`, inspect before
+retrying. Call `await ctx.excel.disconnect(sessionId)` when the task is done.
+This facade does not install the add-in or certificate: keep
+`officekit excel install` and `officekit excel uninstall` as explicit control
+plane commands.
+
 Use this Skill only for a workbook already open in Microsoft Excel desktop on
 Windows or macOS. It operates the open workbook through OfficeKit's local
 Add-in and a loopback bridge. It does not use a cloud relay, account, tenant,

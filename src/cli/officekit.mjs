@@ -104,6 +104,11 @@ export async function runOfficeKitCli(
     await runTaskCommand(commandArguments, { output });
     return;
   }
+  if (command === "repl") {
+    const { runReplCommand } = await import("./repl.mjs");
+    await runReplCommand(commandArguments, { input, output, errorOutput });
+    return;
+  }
   if (command === "template") {
     await runTemplateCommand(commandArguments, { output });
     return;
@@ -698,6 +703,7 @@ Usage:
   officekit init [path] [--tools <ids>] [--yes] [--json]
   officekit update [path] [--tools <ids>] [--force] [--json]
   officekit run <task.mjs> [-- <task arguments>]
+  officekit repl [options]
   officekit template search [search options] [--json]
   officekit excel <command> [options]
   officekit --version
@@ -706,6 +712,7 @@ Commands:
   init       Choose Agent targets and install the OfficeKit Skills
   update     Refresh Skills already managed by OfficeKit
   run        Run a task with this OfficeKit installation
+  repl       Run a persistent JSONL JavaScript task session
   template   Search the bundled and project template catalogs
   excel      Connect an open Microsoft Excel workbook to local OfficeKit control
 

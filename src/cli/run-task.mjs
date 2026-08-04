@@ -1,10 +1,13 @@
-import { lstat, readFile, realpath } from "node:fs/promises";
-import Module, { registerHooks } from "node:module";
+import { lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
+import {
+  createOfficeKitResolver,
+  installOfficeKitModuleHooks,
+  readOfficeKitPackageMetadata,
+} from "./officekit-resolver.mjs";
 
-const PACKAGE_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const TASK_EXTENSIONS = new Set([".js", ".mjs"]);
 
 export const RUN_TASK_USAGE = [
@@ -45,46 +48,10 @@ export async function runTaskCommand(args, { output = process.stdout } = {}) {
 
   const [canonicalScript, packageMetadata] = await Promise.all([
     realpath(absoluteScript),
-    readPackageMetadata(),
+    readOfficeKitPackageMetadata(),
   ]);
-  const exportTargets = exportedOfficeKitTargets(packageMetadata);
-  const commonJsTargets = new Map(
-    [...exportTargets].map(([specifier, target]) => [
-      specifier,
-      fileURLToPath(target),
-    ]),
-  );
-  const unpublishedSubpathError = (specifier) =>
-    new Error(`OfficeKit task requested unpublished package subpath "${specifier}".`);
-  const isOfficeKitSpecifier = (specifier) =>
-    specifier === packageMetadata.name ||
-    specifier.startsWith(`${packageMetadata.name}/`);
-  const hooks = registerHooks({
-    resolve(specifier, context, nextResolve) {
-      const target = exportTargets.get(specifier);
-      if (target != null) return { shortCircuit: true, url: target };
-      if (isOfficeKitSpecifier(specifier)) throw unpublishedSubpathError(specifier);
-      return nextResolve(specifier, context);
-    },
-  });
-  const originalCommonJsResolve = Module._resolveFilename;
-  const commonJsResolve = function resolveOfficeKitFromCli(
-    specifier,
-    parent,
-    isMain,
-    options,
-  ) {
-    const target = commonJsTargets.get(specifier);
-    if (target != null) return target;
-    if (isOfficeKitSpecifier(specifier)) throw unpublishedSubpathError(specifier);
-    return Reflect.apply(originalCommonJsResolve, this, [
-      specifier,
-      parent,
-      isMain,
-      options,
-    ]);
-  };
-  Module._resolveFilename = commonJsResolve;
+  const resolver = createOfficeKitResolver(packageMetadata);
+  const deregisterHooks = installOfficeKitModuleHooks(resolver);
 
   const originalArgv = process.argv;
   process.argv = [process.execPath, canonicalScript, ...taskArguments];
@@ -100,50 +67,6 @@ export async function runTaskCommand(args, { output = process.stdout } = {}) {
     throw error;
   } finally {
     process.argv = originalArgv;
-    Module._resolveFilename = originalCommonJsResolve;
-    hooks.deregister();
+    deregisterHooks();
   }
-}
-
-async function readPackageMetadata() {
-  const metadata = JSON.parse(
-    await readFile(path.join(PACKAGE_ROOT, "package.json"), "utf8"),
-  );
-  if (
-    typeof metadata.name !== "string" ||
-    metadata.exports == null ||
-    typeof metadata.exports !== "object" ||
-    Array.isArray(metadata.exports)
-  ) {
-    throw new Error("OfficeKit package metadata does not expose a valid exports map.");
-  }
-  return metadata;
-}
-
-function exportedOfficeKitTargets(metadata) {
-  const result = new Map();
-  for (const [subpath, target] of Object.entries(metadata.exports)) {
-    if (
-      (subpath !== "." && !subpath.startsWith("./")) ||
-      typeof target !== "string" ||
-      !target.startsWith("./")
-    ) {
-      continue;
-    }
-    const specifier = subpath === "."
-      ? metadata.name
-      : `${metadata.name}/${subpath.slice(2)}`;
-    const absoluteTarget = path.resolve(PACKAGE_ROOT, target);
-    const relative = path.relative(PACKAGE_ROOT, absoluteTarget);
-    if (
-      relative === "" ||
-      relative === ".." ||
-      relative.startsWith(`..${path.sep}`) ||
-      path.isAbsolute(relative)
-    ) {
-      throw new Error(`OfficeKit export "${subpath}" escapes the package root.`);
-    }
-    result.set(specifier, pathToFileURL(absoluteTarget).href);
-  }
-  return result;
 }

@@ -49,6 +49,7 @@ const forbidden = [
   [/\bimage_gen\b/iu, "named image tools"],
   [/google-drive@/iu, "plugin installation instructions"],
   [/\bCodex\b/iu, "host product names"],
+  [/ctx\.import\(\s*["'][a-z][a-z0-9+.-]*:\/\//iu, "remote REPL imports"],
 ];
 
 for (const file of files) {
@@ -86,6 +87,7 @@ try {
     for (const [pattern, label] of forbidden) {
       assert.doesNotMatch(text, pattern, `installed ${label}: ${skillId}`);
     }
+    assert.match(text, /officekit repl|references\/repl\.md/i, `installed REPL guidance: ${skillId}`);
   }
 } finally {
   await fs.rm(installRoot, { recursive: true, force: true });
@@ -94,6 +96,7 @@ try {
 const officeKitRoot = path.join(repoRoot, "skills", "office-kit", "skills", "office-kit");
 const workspace = await fs.readFile(path.join(officeKitRoot, "references", "workspace.md"), "utf8");
 const capabilities = await fs.readFile(path.join(officeKitRoot, "references", "capabilities.md"), "utf8");
+const repl = await fs.readFile(path.join(officeKitRoot, "references", "repl.md"), "utf8");
 const officeKitSkill = await fs.readFile(path.join(officeKitRoot, "SKILL.md"), "utf8");
 const presentationSkill = await fs.readFile(path.join(repoRoot, "skills", "presentations", "skills", "presentations", "SKILL.md"), "utf8");
 
@@ -120,6 +123,11 @@ assert.match(capabilities, /\| no \| no \|[\s\S]*ask for an asset/i);
 assert.match(officeKitSkill, /references\/workspace\.md/);
 assert.match(officeKitSkill, /references\/capabilities\.md/);
 assert.match(officeKitSkill, /absolute path.*SHA-256/is);
+assert.match(repl, /ctx\.state/);
+assert.match(repl, /ctx\.publish/);
+assert.match(repl, /maybeApplied/);
+assert.match(repl, /not.*replay/is);
+assert.match(repl, /process-local/);
 assert.match(presentationSkill, /image_view/);
 assert.match(presentationSkill, /image_generate/);
 assert.match(presentationSkill, /native PowerPoint shapes/i);
@@ -145,6 +153,7 @@ for (const [name, relative] of [
   const skillPath = path.join(repoRoot, "skills", ...relative);
   const text = await fs.readFile(skillPath, "utf8");
   assert.match(text, /\.\.\/office-kit\/references\/workspace\.md/, `${name} must use the shared contract`);
+  assert.match(text, /officekit repl|\.\.\/office-kit\/references\/repl\.md/i, `${name} must use the portable REPL contract`);
 }
 
 console.log(`Skill portability ok: ${files.length} host-neutral files checked`);

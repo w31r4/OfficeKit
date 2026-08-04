@@ -5,7 +5,7 @@ import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const packageMetadata = JSON.parse(await fs.readFile(path.join(repoRoot, "package.json"), "utf8"));
-assert.equal(packageMetadata.version, "0.5.0");
+assert.equal(packageMetadata.version, "0.6.0");
 assert.equal(packageMetadata.license, "AGPL-3.0-or-later");
 assert.equal(packageMetadata.dependencies.mupdf, "1.28.0");
 assert.equal(packageMetadata.dependencies.selfsigned, "^5.5.0");
@@ -74,13 +74,13 @@ const standaloneInstaller = await fs.readFile(
   path.join(repoRoot, "standalone", "install.sh"),
   "utf8",
 );
-assert.match(standaloneInstaller, /OFFICE_KIT_VERSION=0\.5\.0/);
+assert.match(standaloneInstaller, /OFFICE_KIT_VERSION=0\.6\.0/);
 assert.doesNotMatch(standaloneInstaller, /FINALIZE_/);
 const windowsStandaloneInstaller = await fs.readFile(
   path.join(repoRoot, "standalone", "install.ps1"),
   "utf8",
 );
-assert.match(windowsStandaloneInstaller, /\$OfficeKitVersion = "0\.5\.0"/);
+assert.match(windowsStandaloneInstaller, /\$OfficeKitVersion = "0\.6\.0"/);
 assert.match(windowsStandaloneInstaller, /win32-x64/);
 assert.doesNotMatch(windowsStandaloneInstaller, /RELEASE_(?:SHA256|SIZE)/);
 const pdfFacadeSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "index.mjs"), "utf8");
@@ -92,6 +92,7 @@ const officeKitCliSource = await fs.readFile(path.join(repoRoot, "src", "cli", "
 assert.doesNotMatch(officeKitCliSource, /node:child_process|https?:\/\/|\bfetch\s*\(/, "officekit init must remain a local Skill installer");
 assert.doesNotMatch(officeKitCliSource, /pdf\/providers|from\s+["']mupdf["']/, "officekit init must not initialize PDF runtimes or capability packs");
 assert.match(officeKitCliSource, /await import\("\.\.\/excel-live\/cli\.mjs"\)/, "Excel Live Control must load only for the excel subcommand");
+assert.match(officeKitCliSource, /await import\("\.\/repl\.mjs"\)/, "REPL must load only for the repl subcommand");
 assert.doesNotMatch(officeKitCliSource, /from\s+["']\.\.\/excel-live\//, "root CLI import must not start the Excel bridge");
 const templateSearchSource = await fs.readFile(path.join(repoRoot, "src", "templates", "search.mjs"), "utf8");
 assert.doesNotMatch(templateSearchSource, /pdf\/providers|from\s+["']mupdf["']|runtime\/office-kit/, "template search must not initialize Office or PDF runtimes");
@@ -120,9 +121,9 @@ assert.equal(result.status, 0, `npm pack manifest failed\nSTDOUT:\n${result.stdo
 const report = JSON.parse(result.stdout)[0];
 const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
-// and hosted gates. The 0.4.0 global CLI deliberately ships the twenty audited
+// and hosted gates. The 0.6.0 global CLI deliberately ships the twenty audited
 // default DOCX/XLSX/PPTX templates once inside the package. Keep narrow
-// cross-platform headroom over the measured 36,052,917-byte archive.
+// cross-platform headroom over the measured 36,175,810-byte archive.
 const maxPackedBytes = 37_500_000;
 // The bundled OfficeKit runtime is an audited product payload, not an
 // optional download. Keep its unpacked budget tight while allowing the
@@ -210,6 +211,8 @@ for (const required of [
   "src/document/index.mjs",
   "src/cli/officekit.mjs",
   "src/cli/run-task.mjs",
+  "src/cli/officekit-resolver.mjs",
+  "src/cli/repl.mjs",
   "src/excel-live/bridge.mjs",
   "src/excel-live/bridge-server.mjs",
   "src/excel-live/certificates.mjs",
@@ -219,9 +222,11 @@ for (const required of [
   "src/excel-live/manifest.mjs",
   "src/excel-live/protocol.mjs",
   "src/excel-live/state.mjs",
+  "src/excel-live/repl.mjs",
   "src/templates/search.mjs",
   "src/help/index.mjs",
   "src/index.mjs",
+  "examples/officekit-repl-cells.jsonl",
   "src/ooxml/docx-source-references.mjs",
   "src/ooxml/docx-settings.mjs",
   "src/ooxml/pptx-package-semantics.mjs",
@@ -365,6 +370,7 @@ for (const required of [
   "skills/office-kit/skills/office-kit/agents/openai.yaml",
   "skills/office-kit/skills/office-kit/references/routing.md",
   "skills/office-kit/skills/office-kit/references/template-selection.md",
+  "skills/office-kit/skills/office-kit/references/repl.md",
   "skills/template-creator/.codex-plugin/plugin.json",
   "skills/template-creator/manifest.json",
   "skills/template-creator/README.md",

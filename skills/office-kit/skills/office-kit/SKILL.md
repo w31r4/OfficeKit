@@ -9,6 +9,13 @@ Turn one Office request into a small, explicit artifact workflow. Route each
 output to its owning Skill, load only the instructions needed for that route,
 and preserve the owning Skill's safety and QA rules.
 
+For a multi-step task, use the portable [REPL workflow](references/repl.md).
+Start one `officekit repl` process, import only the selected domain API with
+`ctx.import`, keep reusable helpers or live objects in `ctx.state`, and publish
+only after the owning Skill's inspect/edit/verify loop completes. Setup commands
+such as template search, provider installation, and Excel add-in installation
+remain explicit; they are not hidden inside a cell.
+
 Before planning paths or a visual asset, read [the workspace and evidence
 contract](references/workspace.md) and [the visual capability matrix](references/capabilities.md).
 Use `workspaceRoot`, `taskRoot`, `inputRoot`, `assetRoot`, `outputRoot`,

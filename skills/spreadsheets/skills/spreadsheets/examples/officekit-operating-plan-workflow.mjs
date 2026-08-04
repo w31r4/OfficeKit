@@ -67,7 +67,7 @@ async function packageVersion() {
     const packagePath = path.join(path.dirname(path.dirname(entry)), "package.json");
     return JSON.parse(await fs.readFile(packagePath, "utf8")).version;
   } catch {
-    return "0.5.0";
+    return "0.6.0";
   }
 }
 

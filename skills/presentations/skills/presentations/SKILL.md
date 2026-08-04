@@ -7,6 +7,18 @@ description: Read, create, or edit PowerPoint or Google Slides decks. Use for pr
 
 Use this skill as reference material when creating or editing presentation slide decks.
 
+## Run the deck workflow in one task
+
+For a multi-step deck task, use `officekit repl` and the portable contract in
+`../office-kit/references/repl.md`. Import the public API with
+`await ctx.import("office-kit")`, keep the deck and reusable layout helpers in
+`ctx.state`, and follow inspect → compose/edit → render → structural or visual
+review → verify before `ctx.publish`. Register previews and QA reports with
+`ctx.recordEvidence`, and report the final absolute path, SHA-256, and
+`visualReview` status. Use the image capability matrix below to choose user or
+template assets and native Office shapes when visual generation or inspection
+is unavailable.
+
 ## Important Instructions
 
 - [HARD REQUIREMENT] Content quality and storytelling: before planning the deck, read and follow [Content Quality and Narrative Rules](references/content-rules.md) and [Presentation Style Guidelines](style_guidelines.md). Ensure the deck covers everything the user requested and forms a coherent, audience-appropriate narrative rather than a collection of disconnected facts.
