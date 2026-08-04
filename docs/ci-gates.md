@@ -12,6 +12,8 @@ OfficeKit 把“开发反馈速度”和“发布可信度”分开。小改动�
 
 `npm run test:slow:templates` 和 `npm run test:slow:promptbench` 是 slow gate 中可单独复跑的两个窄入口。它们不改变正式 slow gate 的完整范围，也不应被记录成完整发布证据。
 
+模板库 slow 输出会标记每个模板的 materialize、roundtrip、native recalc 和 render 阶段；若 hosted runner 取消或超时，交接记录应保留最后一个模板/阶段标记，不得把整组矩阵写成“未执行”。
+
 ## 变更判断
 
 - 只改 JS 模型、普通 Skill 文案或不涉及 provider/runtime 的测试：先跑 `npm test`；必要时再跑受影响的单测。
