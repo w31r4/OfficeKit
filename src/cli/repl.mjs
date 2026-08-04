@@ -280,6 +280,7 @@ export async function createReplSession(options = {}) {
       updatedAt: new Date().toISOString(),
     };
     await writeCheckpoint(snapshot);
+    maybeInterruptForTest("checkpoint-after-rename");
     await appendJournal({
       protocol: REPL_PROTOCOL_VERSION,
       type: "request.terminal",
@@ -650,10 +651,20 @@ async function atomicWriteJson(target, value) {
   }
   const temporary = path.join(path.dirname(target), `.${path.basename(target)}.${randomUUID()}.tmp`);
   await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  maybeInterruptForTest("checkpoint-before-rename");
   try {
     await rename(temporary, target);
   } finally {
     await rm(temporary, { force: true });
+  }
+}
+
+function maybeInterruptForTest(point) {
+  if (process.env.NODE_ENV === "test" && process.env.OFFICE_KIT_REPL_TEST_INTERRUPT_AT === point) {
+    // Deliberately bypass finally blocks to model a process termination at the
+    // exact point where a real host could be interrupted. The test-only guard
+    // keeps this fault injector out of normal CLI behavior.
+    process.exit(86);
   }
 }
 

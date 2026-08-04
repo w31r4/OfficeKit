@@ -25,8 +25,8 @@ macOS Apple Silicon Excel desktop.
 
 The current development package candidate carries the compiled Add-in pages,
 manifest generator, bridge, REPL runtime, and Skill route: 675 files,
-36,176,662 compressed bytes, and 53,244,299 unpacked bytes. Its npm pack
-shasum is `e15193209e33169ffdf5484f3edeadcfbf00f76b`. The 37,500,000-byte compressed and
+36,177,078 compressed bytes, and 53,244,895 unpacked bytes. Its npm pack
+shasum is `e59f9945e2a994bf153c6c3987d759c432b48ad8`. The 37,500,000-byte compressed and
 53,500,000-byte unpacked package ceilings remain in force.
 
 ## 0.6.0 JSONL REPL
@@ -47,6 +47,14 @@ objects and functions must be reconstructed explicitly. The typed
 cell calls it; certificate trust, add-in installation, provider setup, and
 template search remain explicit commands. The REPL protocol is version 1 and
 does not change the Office wire protocol.
+
+The interruption gate runs the same session on Linux and Windows child
+processes, terminating it once while a checkpoint temporary is written and
+once after the checkpoint rename but before the journal terminal record. Resume
+always keeps the last authoritative JSON state, reports the unmatched request
+as `maybeApplied`, and accepts a subsequent terminal record without replaying
+source. A pre-rename temporary is treated as an isolated orphan rather than a
+checkpoint; no path or journal fallback is used.
 
 ## 0.6.0 self-contained OfficeKit distributions
 
