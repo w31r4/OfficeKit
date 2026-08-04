@@ -40,7 +40,6 @@ const fastSteps = [
   nodeStep("test/office-kit-skill.mjs"),
   nodeStep("test/officekit-cli.mjs"),
   nodeStep("test/reference-skill-sync.mjs"),
-  nodeStep("test/reference-skills.mjs"),
   nodeStep("test/claude-plugin.mjs"),
   nodeStep("test/gate-policy.mjs"),
   nodeStep("test/windows-live-gate.mjs"),

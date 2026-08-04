@@ -1,12 +1,12 @@
 # OfficeKit 门禁分层
 
-OfficeKit 把“开发反馈速度”和“发布可信度”分开。小改动先走 fast gate；会下载外部 provider、启动 LibreOffice/Poppler、运行 PromptBench、重跑全部模板或重建 WASM 的检查，只在 slow gate、发布候选或 nightly 执行。
+OfficeKit 把“开发反馈速度”和“发布可信度”分开。小改动先走 fast gate；会下载外部 provider、启动 LibreOffice/Poppler、运行 PromptBench、渲染完整 reference Skill 矩阵、重跑全部模板或重建 WASM 的检查，只在 slow gate、发布候选或 nightly 执行。
 
 ## 三类入口
 
 | 层 | 本地入口 | Hosted 入口 | 触发 | 包含 |
 | --- | --- | --- | --- | --- |
-| Fast | `npm test`（等同 `npm run test:fast`） | `.github/workflows/ci.yml` | 每次 push/PR | JS syntax/import、核心四格式模型、OfficeKit 路由/参考插件/可移植性 validator、Help、包内容 smoke。不会下载 Python/PyMuPDF/qpdf/OCR/veraPDF，不运行三类完整域 Skill workflow、PromptBench、clean-install 或 20 套默认模板的全量原生回归。 |
+| Fast | `npm test`（等同 `npm run test:fast`） | `.github/workflows/ci.yml` | 每次 push/PR | JS syntax/import、核心四格式模型、OfficeKit 路由/参考插件路径同步/可移植性 validator、Help、包内容 smoke。不会下载 Python/PyMuPDF/qpdf/OCR/veraPDF，不运行完整域 Skill 或 reference Skill render/matrix、PromptBench、clean-install 或 20 套默认模板的全量原生回归。 |
 | Slow | `npm run test:slow` | `.github/workflows/ci-slow.yml` | 手动、nightly；相关 `src/native/skills/evals/test/package` 路径变更时 | 原完整测试链、provider/pack、Playwright/LibreOffice/Poppler、PromptBench candidate/reference、默认模板全量 import/export/recalc/render、examples、release/package、OfficeBridge 与 OfficeKit WASM。 |
 | Windows Office live | 见下文 | `.github/workflows/windows-office-live.yml` | 手动排队；Live host 变更或 release candidate | 真实 Windows + Microsoft Office 人工观察证据。GitHub-hosted Windows、macOS mock、Add-in build smoke 和 CLI/package smoke 都不能替代这条证据。 |
 
