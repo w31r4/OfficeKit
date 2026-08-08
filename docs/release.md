@@ -1,5 +1,15 @@
 # Release
 
+## Unreleased: bounded text transformation formulas
+
+The formula evaluator now supports bounded scalar `EXACT`, `REPT`, `REPLACE`,
+and `SUBSTITUTE` cleanup operations. They reject multi-cell/computed matrix
+inputs and formula errors before evaluation, keep matching literal and
+case-sensitive where applicable, validate integer/position arguments, and
+enforce a 32,767-character result budget. Spreadsheet smoke coverage includes
+negative cases and OfficeKit XLSX export/import round trips; this remains a
+deterministic text profile rather than full locale-aware Excel coercion.
+
 ## Unreleased: bounded TEXTSPLIT formula
 
 The formula evaluator now supports bounded scalar `TEXTSPLIT` output. It can

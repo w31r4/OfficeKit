@@ -1775,6 +1775,106 @@ function evaluateFormulaTextBoundary(sheet, fnName, args, context = {}) {
   return fnName === "TEXTBEFORE" ? text.slice(0, occurrence.start) : text.slice(occurrence.end);
 }
 
+const FORMULA_TEXT_RESULT_MAX_LENGTH = 32_767;
+
+function formulaTextInteger(value, { minimum = 0, maximum = FORMULA_TEXT_RESULT_MAX_LENGTH } = {}) {
+  const error = formulaErrorCode(value);
+  if (error) return error;
+  if (value == null || value === "") return "#VALUE!";
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= minimum && number <= maximum ? number : "#VALUE!";
+}
+
+function boundedFormulaText(value) {
+  const text = formulaText(value);
+  return text.length <= FORMULA_TEXT_RESULT_MAX_LENGTH ? text : undefined;
+}
+
+function evaluateFormulaTextTransform(sheet, fnName, args, context = {}) {
+  const read = (index, options = { required: true }) => readBoundedScalarArgument(sheet, args[index], context, options);
+  const textPart = read(0);
+  if (textPart.error) return textPart.error;
+  const text = boundedFormulaText(textPart.value);
+  if (text === undefined) return "#VALUE!";
+
+  if (fnName === "EXACT") {
+    if (args.length !== 2) return "#VALUE!";
+    const otherPart = read(1);
+    if (otherPart.error) return otherPart.error;
+    const other = boundedFormulaText(otherPart.value);
+    return other === undefined ? "#VALUE!" : text === other;
+  }
+
+  if (fnName === "REPT") {
+    if (args.length !== 2) return "#VALUE!";
+    const countPart = read(1);
+    if (countPart.error) return countPart.error;
+    const count = formulaTextInteger(countPart.value);
+    if (formulaErrorCode(count)) return count;
+    if (text.length && count > Math.floor(FORMULA_TEXT_RESULT_MAX_LENGTH / text.length)) return "#VALUE!";
+    return text.repeat(count);
+  }
+
+  if (fnName === "REPLACE") {
+    if (args.length !== 4) return "#VALUE!";
+    const startPart = read(1);
+    const lengthPart = read(2);
+    const replacementPart = read(3);
+    if (startPart.error) return startPart.error;
+    if (lengthPart.error) return lengthPart.error;
+    if (replacementPart.error) return replacementPart.error;
+    const start = formulaTextInteger(startPart.value, { minimum: 1 });
+    const count = formulaTextInteger(lengthPart.value);
+    if (formulaErrorCode(start)) return start;
+    if (formulaErrorCode(count)) return count;
+    const replacement = boundedFormulaText(replacementPart.value);
+    if (replacement === undefined) return "#VALUE!";
+    const characters = Array.from(text);
+    const offset = Math.min(start - 1, characters.length);
+    const result = `${characters.slice(0, offset).join("")}${replacement}${characters.slice(offset + count).join("")}`;
+    return result.length <= FORMULA_TEXT_RESULT_MAX_LENGTH ? result : "#VALUE!";
+  }
+
+  if (fnName === "SUBSTITUTE") {
+    if (args.length < 3 || args.length > 4) return "#VALUE!";
+    const oldPart = read(1);
+    const newPart = read(2);
+    if (oldPart.error) return oldPart.error;
+    if (newPart.error) return newPart.error;
+    const oldText = boundedFormulaText(oldPart.value);
+    const newText = boundedFormulaText(newPart.value);
+    if (oldText === undefined || newText === undefined || oldText.length === 0) return "#VALUE!";
+    let instance;
+    if (args.length === 4) {
+      const instancePart = read(3);
+      if (instancePart.error) return instancePart.error;
+      instance = formulaTextInteger(instancePart.value, { minimum: 1 });
+      if (formulaErrorCode(instance)) return instance;
+    }
+    if (instance === undefined) {
+      const result = text.split(oldText).join(newText);
+      return result.length <= FORMULA_TEXT_RESULT_MAX_LENGTH ? result : "#VALUE!";
+    }
+    let cursor = 0;
+    let occurrence = 0;
+    let result = "";
+    while (cursor <= text.length) {
+      const index = text.indexOf(oldText, cursor);
+      if (index < 0) {
+        result += text.slice(cursor);
+        break;
+      }
+      occurrence += 1;
+      result += text.slice(cursor, index);
+      result += occurrence === instance ? newText : oldText;
+      cursor = index + oldText.length;
+    }
+    return result.length <= FORMULA_TEXT_RESULT_MAX_LENGTH ? result : "#VALUE!";
+  }
+
+  return "#VALUE!";
+}
+
 function splitBoundedText(text, delimiter, { ignoreEmpty, matchMode }) {
   const source = matchMode === 1 ? text.toLocaleLowerCase() : text;
   const needle = matchMode === 1 ? delimiter.toLocaleLowerCase() : delimiter;
@@ -2406,6 +2506,10 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "TEXTBEFORE":
     case "TEXTAFTER": return evaluateFormulaTextBoundary(sheet, fnName, args, context);
     case "TEXTSPLIT": return evaluateFormulaTextSplit(sheet, args, context);
+    case "EXACT":
+    case "REPT":
+    case "REPLACE":
+    case "SUBSTITUTE": return evaluateFormulaTextTransform(sheet, fnName, args, context);
     case "VALUE": {
       if (args.length !== 1) return "#VALUE!";
       const value = scalar(0);

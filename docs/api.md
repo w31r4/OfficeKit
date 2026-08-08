@@ -3288,6 +3288,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.EDATE` | formula | Shift a serial date by whole months and clamp the day to the target month end. |
 | `fx.EOMONTH` | formula | Return the final date serial of a month offset from a start date. |
 | `fx.EVEN` | formula | Round a finite number away from zero to the next even integer. |
+| `fx.EXACT` | formula | Compare two bounded scalar text values with case-sensitive equality; multi-cell sources and overlong values fail closed. |
 | `fx.EXP` | formula | Return e raised to a finite number; overflow fails as #NUM! instead of leaking Infinity. |
 | `fx.EXPAND` | formula | Expand an array to requested row and column dimensions with optional padding. |
 | `fx.FACT` | formula | Return the factorial of a non-negative integer through the finite 170! boundary. |
@@ -3356,6 +3357,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.RADIANS` | formula | Convert finite degrees to radians with an explicit non-finite-result guard. |
 | `fx.RANK.EQ` | formula | Return a number's equal rank in a numeric range, descending by default or ascending when order is nonzero. |
 | `fx.RATE` | formula | Solve a bounded periodic interest rate from an integer payment term, payment, present value, optional future value, payment timing, and optional guess. |
+| `fx.REPLACE` | formula | Replace a bounded scalar text span using 1-based character and non-negative length arguments; invalid positions, matrices, and overlong results fail closed. |
+| `fx.REPT` | formula | Repeat one bounded scalar text value an integer number of times, with a 32,767-character result budget. |
 | `fx.RIGHT` | formula | Return characters from the end of a text value. |
 | `fx.ROUND` | formula | Round a numeric value to decimal places or, with negative digits, positions left of the decimal point. |
 | `fx.ROUNDDOWN` | formula | Round a numeric value toward zero at the requested positive or negative digit position. |
@@ -3371,6 +3374,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.SMALL` | formula | Return the k-th smallest numeric value in an array or range. |
 | `fx.SORT` | formula | Sort a range by a 1-based column index and spill the sorted rows. |
 | `fx.SQRT` | formula | Return the non-negative square root of a finite number; negative inputs return #NUM!. |
+| `fx.SUBSTITUTE` | formula | Replace all or one 1-based occurrence of a literal substring in bounded scalar text; matching is case-sensitive and empty search text fails closed. |
 | `fx.SUM` | formula | Sum numeric values across arguments and ranges. |
 | `fx.SUMIF` | formula | Sum corresponding values using case-insensitive numeric/text criteria and Excel ?, *, and ~ wildcards. |
 | `fx.SUMIFS` | formula | Sum values where all supplied criteria ranges have the same size and match case-insensitive comparison or wildcard criteria. |
@@ -4211,6 +4215,23 @@ Round a finite number away from zero to the next even integer.
 **Schema returns:**
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.EXACT`
+
+Compare two bounded scalar text values with case-sensitive equality; multi-cell sources and overlong values fail closed.
+
+**Examples:**
+
+- =EXACT(A1,"Approved")
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =EXACT(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.EXP`
 
@@ -5418,6 +5439,40 @@ Solve a bounded periodic interest rate from an integer payment term, payment, pr
 
 - The evaluator accepts an integer term from 1 through 9,999, type 0 or 1, and a finite guess greater than -1 (default 0.1). It finds a converged rate greater than -1 nearest the guess or returns #NUM! rather than inventing a rate.
 
+#### `fx.REPLACE`
+
+Replace a bounded scalar text span using 1-based character and non-negative length arguments; invalid positions, matrices, and overlong results fail closed.
+
+**Examples:**
+
+- =REPLACE(A1,1,5,"Draft")
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =REPLACE(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (string) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.REPT`
+
+Repeat one bounded scalar text value an integer number of times, with a 32,767-character result budget.
+
+**Examples:**
+
+- =REPT("-",10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =REPT(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (string) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.RIGHT`
 
 Return characters from the end of a text value.
@@ -5677,6 +5732,24 @@ Return the non-negative square root of a finite number; negative inputs return #
 **Schema returns:**
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.SUBSTITUTE`
+
+Replace all or one 1-based occurrence of a literal substring in bounded scalar text; matching is case-sensitive and empty search text fails closed.
+
+**Examples:**
+
+- =SUBSTITUTE(A1,"-","/")
+- =SUBSTITUTE(A1,"-","/",2)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =SUBSTITUTE(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (string) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.SUM`
 
