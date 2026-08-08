@@ -2316,7 +2316,9 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
       const matched = averageRange.filter((_, index) => matchesFormulaCriteria(range[index], criteria));
       const error = matched.map(formulaErrorCode).find(Boolean);
       if (error) return error;
-      const numbers = matched.filter((value) => value !== "" && value != null && Number.isFinite(Number(value))).map(Number);
+      // Excel ignores text, logicals, blanks, and errors in average_range;
+      // numeric text must not be silently coerced into a numeric observation.
+      const numbers = matched.filter((value) => typeof value === "number" && Number.isFinite(value));
       return numbers.length ? numbers.reduce((sum, value) => sum + value, 0) / numbers.length : "#DIV/0!";
     }
     case "AVERAGEIFS": {
@@ -2328,7 +2330,10 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
       const matched = averageRange.values.filter((_, index) => pairs.every((pair) => matchesFormulaCriteria(pair.range.values[index], pair.criteria)));
       const error = matched.map(formulaErrorCode).find(Boolean);
       if (error) return error;
-      const numbers = matched.filter((value) => value !== "" && value != null && Number.isFinite(Number(value))).map(Number);
+      // Keep AVERAGEIFS aligned with AVERAGEIF: only actual numeric cells in
+      // the average range contribute; text that happens to look numeric does
+      // not become a value merely because JavaScript can coerce it.
+      const numbers = matched.filter((value) => typeof value === "number" && Number.isFinite(value));
       return numbers.length ? numbers.reduce((sum, value) => sum + value, 0) / numbers.length : "#DIV/0!";
     }
     case "MINIFS":

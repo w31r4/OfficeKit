@@ -1127,6 +1127,27 @@ const importedIfsFormulaWorkbook = await SpreadsheetFile.importXlsx(ifsFormulaXl
 assert.deepEqual(importedIfsFormulaWorkbook.worksheets.getItem("Criteria").getRange("E1:E4").formulas, ifsFormulaSheet.getRange("E1:E4").formulas);
 assert.deepEqual(importedIfsFormulaWorkbook.worksheets.getItem("Criteria").getRange("G1:G7").formulas, ifsFormulaSheet.getRange("G1:G7").formulas);
 
+const averageIfWorkbook = Workbook.create();
+const averageIfSheet = averageIfWorkbook.worksheets.add("AVERAGEIF bounds");
+averageIfSheet.getRange("A1:B5").values = [
+  ["East", 10],
+  ["East", "20"],
+  ["West", true],
+  ["East", null],
+  ["East", 30],
+];
+averageIfSheet.getRange("D1:D4").formulas = [
+  ['=AVERAGEIF(A1:A5,"East",B1:B5)'],
+  ['=AVERAGEIF(A1:A5,"West",B1:B5)'],
+  ['=AVERAGEIFS(B1:B5,A1:A5,"East")'],
+  ['=AVERAGEIFS(B1:B5,A1:A4,"East")'],
+];
+assert.deepEqual(averageIfSheet.getRange("D1:D4").values, [[20], ["#DIV/0!"], [20], ["#VALUE!"]]);
+const averageIfXlsx = await SpreadsheetFile.exportXlsx(averageIfWorkbook);
+const importedAverageIfWorkbook = await SpreadsheetFile.importXlsx(averageIfXlsx);
+assert.deepEqual(importedAverageIfWorkbook.worksheets.getItem("AVERAGEIF bounds").getRange("D1:D4").formulas, averageIfSheet.getRange("D1:D4").formulas);
+assert.deepEqual(importedAverageIfWorkbook.worksheets.getItem("AVERAGEIF bounds").getRange("D1:D4").values, [[20], ["#DIV/0!"], [20], ["#VALUE!"]]);
+
 const templateFormulaWorkbook = Workbook.create();
 const templateFormulaSheet = templateFormulaWorkbook.worksheets.add("Template formulas");
 templateFormulaSheet.getRange("A1:A7").values = [[1], [null], [false], ["text"], [0], ["#DIV/0!"], [null]];
