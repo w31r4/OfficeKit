@@ -106,6 +106,16 @@ assert.match(officeKitCliSource, /await import\("\.\/repl\.mjs"\)/, "REPL must l
 assert.doesNotMatch(officeKitCliSource, /from\s+["']\.\.\/excel-live\//, "root CLI import must not start the Excel bridge");
 const templateSearchSource = await fs.readFile(path.join(repoRoot, "src", "templates", "search.mjs"), "utf8");
 assert.doesNotMatch(templateSearchSource, /pdf\/providers|from\s+["']mupdf["']|runtime\/office-kit/, "template search must not initialize Office or PDF runtimes");
+const documentFacadeSource = await fs.readFile(path.join(repoRoot, "src", "document", "index.mjs"), "utf8");
+const documentCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-document-codec.mjs"), "utf8");
+assert.match(documentFacadeSource, /await import\("\.\.\/codecs\/office-kit-document-codec\.mjs"\)/, "Document file I/O must load the format-specific codec adapter");
+assert.doesNotMatch(documentFacadeSource, /await import\("\.\.\/codecs\/office-kit\.mjs"\)/, "Document file I/O must not load the aggregate codec");
+assert.match(documentCodecSource, /from "\.\.\/document\/index\.mjs";/, "the Document codec must depend on the Document leaf module");
+assert.match(documentCodecSource, /from "\.\/office-kit-runtime\.mjs";/, "the Document codec must use the shared runtime boundary");
+assert.match(documentCodecSource, /from "\.\/office-kit-source-state\.mjs";/, "the Document codec must use the shared source-state invariant");
+assert.doesNotMatch(documentCodecSource, /from "\.\/office-kit\.mjs";/, "the Document codec must not load the aggregate codec");
+assert.doesNotMatch(documentCodecSource, /\.\.\/(?:presentation|spreadsheet)\/index\.mjs/, "the Document codec must not load another artifact model");
+assert.doesNotMatch(documentCodecSource, /from "\.\.\/index\.mjs";/, "the Document codec must not create a back-edge to the root entry");
 const presentationCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-presentation.mjs"), "utf8");
 assert.match(presentationCodecSource, /from "\.\.\/presentation\/index\.mjs";/, "the Presentation codec must depend on the Presentation leaf module");
 assert.match(presentationCodecSource, /from "\.\/office-kit-presentation-charts\.mjs";/, "the Presentation codec must delegate chart wire semantics to the chart leaf module");
@@ -136,9 +146,10 @@ assert.doesNotMatch(spreadsheetCodecSource, /from "\.\/office-kit\.mjs";/, "the 
 assert.doesNotMatch(spreadsheetCodecSource, /\.\.\/(?:document|presentation)\/index\.mjs/, "the Spreadsheet codec must not load another artifact model");
 assert.doesNotMatch(spreadsheetCodecSource, /from "\.\.\/index\.mjs";/, "the Spreadsheet codec must not create a back-edge to the root entry");
 assert.doesNotMatch(sourceStateSource, /office-kit-runtime|\.\.\/(?:document|presentation|spreadsheet)\/index\.mjs/, "the source-state invariant must remain transport- and artifact-neutral");
+assert.match(officeKitAggregateSource, /export \{\s+addDocxTrackedReplacementWithOfficeKit,\s+exportDocxWithOfficeKit,\s+finalizeDocxRevisionsWithOfficeKit,\s+importDocxWithOfficeKit,\s+\} from "\.\/office-kit-document-codec\.mjs";/, "the aggregate codec must preserve exact DOCX compatibility bindings");
 assert.match(officeKitAggregateSource, /export \{ exportXlsxWithOfficeKit, importXlsxWithOfficeKit \} from "\.\/office-kit-spreadsheet-codec\.mjs";/, "the aggregate codec must preserve exact XLSX compatibility bindings");
-assert.match(officeKitAggregateSource, /from "\.\.\/document\/index\.mjs";/, "the aggregate codec must retain the remaining Document mapper");
-assert.doesNotMatch(officeKitAggregateSource, /from "\.\.\/spreadsheet\/index\.mjs";/, "the aggregate codec must not retain the Spreadsheet mapper");
+assert.doesNotMatch(officeKitAggregateSource, /^import\s/m, "the aggregate codec must remain a pure compatibility re-export facade");
+assert.doesNotMatch(officeKitAggregateSource, /\.\.\/(?:document|presentation|spreadsheet)\/index\.mjs/, "the aggregate codec must not retain an artifact mapper");
 const spreadsheetLeafSource = spreadsheetFacadeSource;
 const formulaEngineSource = await fs.readFile(path.join(repoRoot, "src", "spreadsheet", "formula-engine.mjs"), "utf8");
 assert.match(spreadsheetLeafSource, /from "\.\/formula-engine\.mjs";/, "the Spreadsheet leaf must own the formula-engine dependency boundary");
@@ -217,6 +228,7 @@ for (const required of [
   "proto/office_kit/artifact/v1/office_artifact.proto",
   "src/generated/office_kit/artifact/v1/office_artifact_pb.js",
   "src/codecs/office-kit.mjs",
+  "src/codecs/office-kit-document-codec.mjs",
   "src/codecs/office-kit-error.mjs",
   "src/codecs/office-kit-runtime.mjs",
   "src/codecs/office-kit-source-state.mjs",

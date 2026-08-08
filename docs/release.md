@@ -2,11 +2,26 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-`npm run test:pack` passed after the format-local Spreadsheet codec change. The
-clean dry-run package contains 706 files, 36,234,210 compressed bytes, and
-53,511,924 unpacked bytes; its shasum is
-`58bf3ff24ad1124c8989a0c9ce64e8aed3c587d1`. This is package evidence, not an
+The package dry-run passed after the format-local Document codec change. The
+clean candidate contains 707 files, 36,234,226 compressed bytes, and
+53,512,168 unpacked bytes; its measured shasum is
+`0200dfcb339425f02eca76e91d4c6e40f8c5f165`. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: format-local Document codec loading
+
+The complete DOCX JS-model/wire mapper now lives in
+`src/codecs/office-kit-document-codec.mjs`. `DocumentFile.importDocx()`,
+`exportDocx()`, `addTrackedReplacement()`, and `finalizeRevisions()` load that
+format-specific adapter directly, so ordinary Document I/O and source-bound
+revision operations no longer initialize the aggregate codec facade.
+
+The published `office-kit/codec` surface remains unchanged and re-exports the
+exact same DOCX function bindings. The aggregate `office-kit.mjs` module is now
+a pure compatibility facade over the Document, Presentation, Spreadsheet, and
+runtime leaves; it owns no artifact-model dependency or runtime state.
+Source-graph, binding-identity, package-content, missing-source-snapshot,
+aggregate OfficeKit, Document, and DOCX round-trip tests guard this boundary.
 
 ## Unreleased: format-local Presentation codec loading
 
@@ -27,7 +42,8 @@ round-trip, and aggregate OfficeKit tests guard this boundary.
 The complete XLSX JS-model/wire mapper now lives in
 `src/codecs/office-kit-spreadsheet-codec.mjs`. `SpreadsheetFile.importXlsx()`
 and `SpreadsheetFile.exportXlsx()` load that adapter directly, so ordinary
-workbook I/O no longer initializes the aggregate Document mapper. The
+workbook I/O no longer initializes the aggregate compatibility facade or the
+Document mapper. The
 artifact-neutral `office-kit-source-state.mjs` leaf owns the one shared
 source-package hash/snapshot trust invariant used by XLSX and DOCX exports;
 format-specific state remains inside its mapper.
@@ -35,8 +51,8 @@ format-specific state remains inside its mapper.
 The published `office-kit/codec` surface keeps exact XLSX function identity
 through compatibility re-exports. Source-graph, binding-identity,
 package-content, aggregate OfficeKit, Spreadsheet, and XLSX round-trip tests
-guard the split. Document mapping is now the only artifact mapper left in the
-aggregate module pending its own format-local extraction.
+guard the split. The subsequent format-local Document extraction leaves the
+aggregate module as a pure compatibility facade.
 
 ## Unreleased: bounded OOXML package input budgets
 

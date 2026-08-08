@@ -2219,22 +2219,22 @@ export class DocumentFile {
   }
 
   static async exportDocx(document, options = {}) {
-    const { exportDocxWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    const { exportDocxWithOfficeKit } = await import("../codecs/office-kit-document-codec.mjs");
     return exportDocxWithOfficeKit(document, options);
   }
 
   static async importDocx(blobOrBuffer, options = {}) {
-    const { importDocxWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    const { importDocxWithOfficeKit } = await import("../codecs/office-kit-document-codec.mjs");
     return importDocxWithOfficeKit(blobOrBuffer, options);
   }
 
   static async addTrackedReplacement(blobOrBuffer, options = {}) {
-    const { addDocxTrackedReplacementWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    const { addDocxTrackedReplacementWithOfficeKit } = await import("../codecs/office-kit-document-codec.mjs");
     return addDocxTrackedReplacementWithOfficeKit(blobOrBuffer, options);
   }
 
   static async finalizeRevisions(blobOrBuffer, options = {}) {
-    const { finalizeDocxRevisionsWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    const { finalizeDocxRevisionsWithOfficeKit } = await import("../codecs/office-kit-document-codec.mjs");
     return finalizeDocxRevisionsWithOfficeKit(blobOrBuffer, options);
   }
 }
