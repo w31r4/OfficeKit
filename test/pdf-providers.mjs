@@ -110,6 +110,9 @@ assert.equal(PdfProviders.resolve, resolvePdfCapability);
 assert.deepEqual(Object.keys(PdfProviders).sort(), ["ensure", "probe", "resolve"]);
 assert.equal(PDF_PROVIDER_CATALOG.providers.qpdf.packId, "qpdf");
 assert.equal(PDF_PROVIDER_CATALOG.providers.qpdf.taskMinimumVersions.encrypt, "11.7.0");
+assert.deepEqual(PDF_PROVIDER_CATALOG.tasks.redact.providers, ["pymupdf"]);
+assert.equal(PDF_PROVIDER_CATALOG.tasks.redact.defaultProvider, undefined);
+assert.equal(PDF_PROVIDER_CATALOG.providers["mupdf-js"].taskIds.includes("redact"), false);
 assert.equal(PDF_PROVIDER_CATALOG.packs.qpdf.state, "published");
 assert.equal(PDF_PROVIDER_CATALOG.packs.qpdf.version, "12.3.2-oat.2");
 assert.deepEqual(PDF_PROVIDER_CATALOG.packs.qpdf.releaseEvidence.verifiedPlatforms, ["darwin-arm64", "linux-x64", "win32-x64"]);
@@ -403,6 +406,26 @@ assert.equal(managedPymupdf.status, "installable");
 assert.equal(managedPymupdf.reason.code, "managed-install-required");
 assert.deepEqual(managedPymupdf.installPlan.packIds, ["qpdf", "python-specialists"]);
 assert.equal(managedPymupdf.installPlan.runtime.managedRuntime.pythonPath, "bin/python3");
+
+const managedRedact = await PdfProviders.resolve({
+  task: "redact",
+  savePolicy: "sanitize",
+  inspection: inspectedPdf,
+  mutationAuthorized: true,
+  invalidateSignaturesAuthorized: true,
+  policy: {
+    installPolicy: "managed",
+    allowedProviders: ["pymupdf"],
+    allowedPacks: ["python-specialists", "qpdf"],
+    acceptedLicenses: ["agpl"],
+    maxDownloadBytes: 128_000_000,
+    maxUnpackedBytes: 300_000_000,
+  },
+});
+assert.equal(managedRedact.providerId, "pymupdf");
+assert.equal(managedRedact.status, "installable");
+assert.equal(managedRedact.reason.code, "managed-install-required");
+assert.deepEqual(managedRedact.installPlan.packIds, ["qpdf", "python-specialists"]);
 
 const encryptWithoutCredentialDeclaration = await PdfProviders.resolve({
   task: "encrypt",
