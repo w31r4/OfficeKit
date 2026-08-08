@@ -2,11 +2,30 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after adding the bounded PPTX literal `arcTo`
-custom-path primitive. The clean candidate contains 706 files, 36,135,202
-compressed bytes, and 53,048,188 unpacked bytes; its measured shasum is
-`5356412da13943cc3ec688a3d382f86c769ff459`. This is package evidence, not an
+The package dry-run passed after adding presence-aware PPTX literal custom-path
+paint metadata. The clean candidate contains 706 files, 36,137,893 compressed
+bytes, and 53,056,120 unpacked bytes; its measured shasum is
+`e5002a40a5f25618381a89efa8aff8de37878f9b`. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: PPTX literal custom-path paint and presence
+
+The bounded literal custom-geometry profile now owns each `a:path` element's
+presence-aware `fill`, `stroke`, and `extrusionOk` attributes. The public model
+uses `fillMode: "normal" | "none"`, optional `stroke`, and optional
+`extrusionAllowed`; omission remains omission across JS, protobuf, C#, native
+XML, import, edit, and second import. `extrusionAllowed` is retained eligibility
+metadata, not 3D authoring. Static SVG honors no-fill/no-stroke without creating
+a second color source.
+
+The additive wire change appends one nested enum and three fields to
+`PresentationCustomGeometryPath`. The codec recognizes only native `norm` and
+`none`; relative `lighten`, `lightenLess`, `darken`, and `darkenLess` fills stay
+opaque, export unchanged, and reject semantic mutation. Tests cover explicit
+true/false values, omitted presence, source-bound edits, unsupported-fill
+preservation, mutable-model validation, and Open XML SDK Office 2021 validation.
+The deterministic runtime remains 38 files and grows by 3,584 bytes from the
+arc milestone to 15,216,796 bytes.
 
 ## Unreleased: generated API evidence outside the npm runtime payload
 

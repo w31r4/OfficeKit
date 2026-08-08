@@ -5,6 +5,8 @@ const ANGLE_UNITS_PER_DEGREE = 60_000;
 const HALF_TURN_ANGLE = 180 * ANGLE_UNITS_PER_DEGREE;
 const FULL_TURN_ANGLE = 360 * ANGLE_UNITS_PER_DEGREE;
 const ARC_FIELDS = Object.freeze(["widthRadius", "heightRadius", "startAngle", "sweepAngle"]);
+const PATH_FIELDS = new Set(["width", "height", "commands", "fillMode", "stroke", "extrusionAllowed"]);
+const PATH_FILL_MODES = new Set(["normal", "none"]);
 const CURVE_FIELDS = Object.freeze({
   quadraticBezTo: Object.freeze(["x1", "y1", "x", "y"]),
   cubicBezTo: Object.freeze(["x1", "y1", "x2", "y2", "x", "y"]),
@@ -81,7 +83,7 @@ export function normalizePresentationCustomPaths(value) {
   let commandCount = 0;
   return value.map((path, pathIndex) => {
     if (!path || typeof path !== "object" || Array.isArray(path)) throw new TypeError(`Presentation custom path ${pathIndex + 1} must be an object.`);
-    const unknown = Object.keys(path).filter((key) => !new Set(["width", "height", "commands"]).has(key));
+    const unknown = Object.keys(path).filter((key) => !PATH_FIELDS.has(key));
     if (unknown.length) throw new TypeError(`Presentation custom path ${pathIndex + 1} has unsupported fields: ${unknown.join(", ")}.`);
     const width = coordinate(path.width, `Presentation custom path ${pathIndex + 1}.width`);
     const height = coordinate(path.height, `Presentation custom path ${pathIndex + 1}.height`);
@@ -105,7 +107,17 @@ export function normalizePresentationCustomPaths(value) {
       }
       return normalized;
     });
-    return { width, height, commands };
+    const normalized = { width, height, commands };
+    if (Object.hasOwn(path, "fillMode")) {
+      if (!PATH_FILL_MODES.has(path.fillMode)) throw new TypeError(`Presentation custom path ${pathIndex + 1}.fillMode must be normal or none.`);
+      normalized.fillMode = path.fillMode;
+    }
+    for (const field of ["stroke", "extrusionAllowed"]) {
+      if (!Object.hasOwn(path, field)) continue;
+      if (typeof path[field] !== "boolean") throw new TypeError(`Presentation custom path ${pathIndex + 1}.${field} must be a boolean.`);
+      normalized[field] = path[field];
+    }
+    return normalized;
   });
 }
 
@@ -173,6 +185,10 @@ export function presentationCustomPathsSvg(paths, frame, { escape = String } = {
       }
     }
     const commands = chunks.join(" ");
-    return `<path d="${escape(commands)}" transform="translate(${frame.left} ${frame.top}) scale(${frame.width / path.width} ${frame.height / path.height})"/>`;
+    const paint = [
+      path.fillMode === "none" ? ' fill="none"' : "",
+      path.stroke === false ? ' stroke="none"' : "",
+    ].join("");
+    return `<path d="${escape(commands)}" transform="translate(${frame.left} ${frame.top}) scale(${frame.width / path.width} ${frame.height / path.height})"${paint}/>`;
   }).join("");
 }

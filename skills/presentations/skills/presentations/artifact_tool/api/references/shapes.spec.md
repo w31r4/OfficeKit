@@ -138,6 +138,9 @@ const custom = slide.shapes.add({
     {
       width,
       height,
+      fillMode: "none",
+      stroke: false,
+      extrusionAllowed: false,
       commands,
     },
   ],
@@ -149,6 +152,16 @@ Custom path coordinates are signed 32-bit integer units in the path's own
 An arc keeps DrawingML's native radii and 1/60000-degree angles; it requires a
 current point and accepts a non-zero clockwise or counter-clockwise sweep of at
 most one full turn. Formula-valued native geometry remains opaque.
+
+`fillMode` is optional and accepts only `"normal"` or `"none"`. Omitting it
+preserves an omitted native `fill` attribute (whose DrawingML default is
+`norm`); `"normal"` writes an explicit `fill="norm"`, while `"none"` disables
+the path fill. Optional `stroke` writes the native path-stroke boolean, whose
+omitted default is true. Optional `extrusionAllowed` preserves the native
+`extrusionOk` eligibility flag; it does not author a 3D scene or promise a 3D
+preview. Relative `lighten`, `lightenLess`, `darken`, and `darkenLess` path
+fills remain opaque because the static preview does not implement their native
+paint transform.
 
 ```ts
 const ellipsePath = {
@@ -177,6 +190,9 @@ type CustomShapeConfig = Omit<PresetShapeConfig, "geometry"> & {
   customPaths: Array<{
     width: number;
     height: number;
+    fillMode?: "normal" | "none";
+    stroke?: boolean;
+    extrusionAllowed?: boolean;
     commands: Array<
       | { moveTo: { x: number; y: number } }
       | { lineTo: { x: number; y: number } }

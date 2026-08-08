@@ -2,6 +2,7 @@ import { create, toBinary } from "@bufbuild/protobuf";
 import { ChartElement, GroupShape, ImageElement, Presentation, Shape, Slide, TableElement } from "../presentation/index.mjs";
 import {
   ArtifactFamily,
+  PresentationCustomGeometryPath_FillMode,
   PresentationDiagramTextNodeSchema,
   PresentationModernCommentAnchor_Kind,
   PresentationSlideSchema,
@@ -1588,6 +1589,13 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const customPaths = normalizedCustomPaths.map((path) => ({
     width: BigInt(path.width),
     height: BigInt(path.height),
+    fillMode: path.fillMode === "normal"
+      ? PresentationCustomGeometryPath_FillMode.NORMAL
+      : path.fillMode === "none"
+        ? PresentationCustomGeometryPath_FillMode.NONE
+        : PresentationCustomGeometryPath_FillMode.UNSPECIFIED,
+    ...(Object.hasOwn(path, "stroke") ? { stroke: path.stroke } : {}),
+    ...(Object.hasOwn(path, "extrusionAllowed") ? { extrusionAllowed: path.extrusionAllowed } : {}),
     commands: path.commands.map((command) => {
       if (command.moveTo) return { command: { case: "moveTo", value: { x: BigInt(command.moveTo.x), y: BigInt(command.moveTo.y) } } };
       if (command.lineTo) return { command: { case: "lineTo", value: { x: BigInt(command.lineTo.x), y: BigInt(command.lineTo.y) } } };
@@ -2681,41 +2689,51 @@ function modelPresentationTransform(frame) {
 }
 
 function modelCustomGeometryPaths(shape) {
-  return (shape.customPaths || []).map((path) => ({
-    width: Number(path.width),
-    height: Number(path.height),
-    commands: path.commands.map((command) => {
-      if (command.command.case === "moveTo") return { moveTo: { x: Number(command.command.value.x), y: Number(command.command.value.y) } };
-      if (command.command.case === "lineTo") return { lineTo: { x: Number(command.command.value.x), y: Number(command.command.value.y) } };
-      if (command.command.case === "quadraticBezierTo") return {
-        quadraticBezTo: {
-          x1: Number(command.command.value.control.x),
-          y1: Number(command.command.value.control.y),
-          x: Number(command.command.value.end.x),
-          y: Number(command.command.value.end.y),
-        },
-      };
-      if (command.command.case === "arcTo") return {
-        arcTo: {
-          widthRadius: Number(command.command.value.widthRadius),
-          heightRadius: Number(command.command.value.heightRadius),
-          startAngle: command.command.value.startAngle,
-          sweepAngle: command.command.value.sweepAngle,
-        },
-      };
-      if (command.command.case === "cubicBezierTo") return {
-        cubicBezTo: {
-          x1: Number(command.command.value.control1.x),
-          y1: Number(command.command.value.control1.y),
-          x2: Number(command.command.value.control2.x),
-          y2: Number(command.command.value.control2.y),
-          x: Number(command.command.value.end.x),
-          y: Number(command.command.value.end.y),
-        },
-      };
-      return { close: {} };
-    }),
-  }));
+  return (shape.customPaths || []).map((path, pathIndex) => {
+    const modeled = {
+      width: Number(path.width),
+      height: Number(path.height),
+      commands: path.commands.map((command) => {
+        if (command.command.case === "moveTo") return { moveTo: { x: Number(command.command.value.x), y: Number(command.command.value.y) } };
+        if (command.command.case === "lineTo") return { lineTo: { x: Number(command.command.value.x), y: Number(command.command.value.y) } };
+        if (command.command.case === "quadraticBezierTo") return {
+          quadraticBezTo: {
+            x1: Number(command.command.value.control.x),
+            y1: Number(command.command.value.control.y),
+            x: Number(command.command.value.end.x),
+            y: Number(command.command.value.end.y),
+          },
+        };
+        if (command.command.case === "arcTo") return {
+          arcTo: {
+            widthRadius: Number(command.command.value.widthRadius),
+            heightRadius: Number(command.command.value.heightRadius),
+            startAngle: command.command.value.startAngle,
+            sweepAngle: command.command.value.sweepAngle,
+          },
+        };
+        if (command.command.case === "cubicBezierTo") return {
+          cubicBezTo: {
+            x1: Number(command.command.value.control1.x),
+            y1: Number(command.command.value.control1.y),
+            x2: Number(command.command.value.control2.x),
+            y2: Number(command.command.value.control2.y),
+            x: Number(command.command.value.end.x),
+            y: Number(command.command.value.end.y),
+          },
+        };
+        return { close: {} };
+      }),
+    };
+    if (path.fillMode === PresentationCustomGeometryPath_FillMode.NORMAL) modeled.fillMode = "normal";
+    else if (path.fillMode === PresentationCustomGeometryPath_FillMode.NONE) modeled.fillMode = "none";
+    else if (path.fillMode !== PresentationCustomGeometryPath_FillMode.UNSPECIFIED) {
+      throw new OfficeKitCodecError(`Presentation custom path ${pathIndex + 1} uses an unsupported fill mode.`, [], { code: "unsupported_presentation_features" });
+    }
+    if (path.stroke !== undefined) modeled.stroke = path.stroke;
+    if (path.extrusionAllowed !== undefined) modeled.extrusionAllowed = path.extrusionAllowed;
+    return modeled;
+  });
 }
 
 function modelPlaceholderTransform(frame) {

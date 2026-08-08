@@ -649,6 +649,9 @@ const customGeometryShape = customGeometrySlide.shapes.add({
   customPaths: [{
     width: 21_600,
     height: 21_600,
+    fillMode: "normal",
+    stroke: true,
+    extrusionAllowed: false,
     commands: [
       { moveTo: { x: 1_000, y: 2_000 } },
       { lineTo: { x: 20_000, y: 2_000 } },
@@ -657,17 +660,61 @@ const customGeometryShape = customGeometrySlide.shapes.add({
       { arcTo: { widthRadius: 3_000, heightRadius: 4_000, startAngle: 5_400_000, sweepAngle: 21_600_000 } },
       { close: {} },
     ],
+  }, {
+    width: 21_600,
+    height: 21_600,
+    fillMode: "none",
+    stroke: false,
+    extrusionAllowed: true,
+    commands: [
+      { moveTo: { x: 4_000, y: 4_000 } },
+      { lineTo: { x: 17_600, y: 4_000 } },
+      { lineTo: { x: 10_800, y: 17_600 } },
+      { close: {} },
+    ],
+  }, {
+    width: 21_600,
+    height: 21_600,
+    commands: [
+      { moveTo: { x: 2_000, y: 19_600 } },
+      { lineTo: { x: 19_600, y: 19_600 } },
+    ],
   }],
 });
 assert.equal(customGeometryShape.customPaths[0].commands.length, 6);
-assert.match(await (await customGeometrySlide.export()).text(), /A 3000 4000 0 0 1 10800 12000 A 3000 4000 0 0 1 10800 20000 Z/);
+const customGeometrySvg = await (await customGeometrySlide.export()).text();
+assert.match(customGeometrySvg, /A 3000 4000 0 0 1 10800 12000 A 3000 4000 0 0 1 10800 20000 Z/);
+assert.match(customGeometrySvg, /fill="none" stroke="none"/);
 const customGeometryPptx = await PresentationFile.exportPptx(customGeometryPresentation);
 const customGeometryZip = await JSZip.loadAsync(customGeometryPptx.bytes);
 const customGeometryXml = await customGeometryZip.file("ppt/slides/slide1.xml").async("text");
 assert.match(customGeometryXml, /<a:quadBezTo><a:pt x="21000" y="6000"\s*\/><a:pt x="18000" y="12000"\s*\/><\/a:quadBezTo>/);
 assert.match(customGeometryXml, /<a:arcTo wR="3000" hR="4000" stAng="5400000" swAng="21600000"\s*\/>/);
+assert.match(customGeometryXml, /<a:path\b(?=[^>]*\bfill="norm")(?=[^>]*\bstroke="(?:1|true)")(?=[^>]*\bextrusionOk="(?:0|false)")[^>]*>/);
+assert.match(customGeometryXml, /<a:path\b(?=[^>]*\bfill="none")(?=[^>]*\bstroke="(?:0|false)")(?=[^>]*\bextrusionOk="(?:1|true)")[^>]*>/);
+assert.match(customGeometryXml, /<a:path w="21600" h="21600"><a:moveTo><a:pt x="2000" y="19600"\s*\/><\/a:moveTo>/);
 const importedCustomGeometry = await PresentationFile.importPptx(customGeometryPptx);
 const importedCustomGeometryShape = importedCustomGeometry.slides.getItem(0).shapes.items[0];
+assert.equal(importedCustomGeometryShape.customPaths.length, 3);
+assert.deepEqual(
+  {
+    fillMode: importedCustomGeometryShape.customPaths[0].fillMode,
+    stroke: importedCustomGeometryShape.customPaths[0].stroke,
+    extrusionAllowed: importedCustomGeometryShape.customPaths[0].extrusionAllowed,
+  },
+  { fillMode: "normal", stroke: true, extrusionAllowed: false },
+);
+assert.deepEqual(
+  {
+    fillMode: importedCustomGeometryShape.customPaths[1].fillMode,
+    stroke: importedCustomGeometryShape.customPaths[1].stroke,
+    extrusionAllowed: importedCustomGeometryShape.customPaths[1].extrusionAllowed,
+  },
+  { fillMode: "none", stroke: false, extrusionAllowed: true },
+);
+assert.equal(Object.hasOwn(importedCustomGeometryShape.customPaths[2], "fillMode"), false);
+assert.equal(Object.hasOwn(importedCustomGeometryShape.customPaths[2], "stroke"), false);
+assert.equal(Object.hasOwn(importedCustomGeometryShape.customPaths[2], "extrusionAllowed"), false);
 assert.deepEqual(importedCustomGeometryShape.customPaths[0].commands[2], {
   quadraticBezTo: { x1: 21_000, y1: 6_000, x: 18_000, y: 12_000 },
 });
@@ -676,10 +723,52 @@ assert.deepEqual(importedCustomGeometryShape.customPaths[0].commands[4], {
 });
 importedCustomGeometryShape.customPaths[0].commands[2].quadraticBezTo.x1 = 20_500;
 importedCustomGeometryShape.customPaths[0].commands[4].arcTo.sweepAngle = -10_800_000;
+importedCustomGeometryShape.customPaths[0].fillMode = "none";
+delete importedCustomGeometryShape.customPaths[0].stroke;
+importedCustomGeometryShape.customPaths[0].extrusionAllowed = true;
+importedCustomGeometryShape.customPaths[1].fillMode = "normal";
+importedCustomGeometryShape.customPaths[1].stroke = true;
+delete importedCustomGeometryShape.customPaths[1].extrusionAllowed;
 const editedCustomGeometry = await PresentationFile.importPptx(await PresentationFile.exportPptx(importedCustomGeometry));
 assert.equal(editedCustomGeometry.slides.getItem(0).shapes.items[0].customPaths[0].commands[2].quadraticBezTo.x1, 20_500);
 assert.equal(editedCustomGeometry.slides.getItem(0).shapes.items[0].customPaths[0].commands[4].arcTo.sweepAngle, -10_800_000);
+assert.deepEqual(
+  editedCustomGeometry.slides.getItem(0).shapes.items[0].customPaths.map((path) => ({
+    fillMode: path.fillMode,
+    strokePresent: Object.hasOwn(path, "stroke"),
+    stroke: path.stroke,
+    extrusionAllowedPresent: Object.hasOwn(path, "extrusionAllowed"),
+    extrusionAllowed: path.extrusionAllowed,
+  })),
+  [
+    { fillMode: "none", strokePresent: false, stroke: undefined, extrusionAllowedPresent: true, extrusionAllowed: true },
+    { fillMode: "normal", strokePresent: true, stroke: true, extrusionAllowedPresent: false, extrusionAllowed: undefined },
+    { fillMode: undefined, strokePresent: false, stroke: undefined, extrusionAllowedPresent: false, extrusionAllowed: undefined },
+  ],
+);
 assert.match(await (await editedCustomGeometry.slides.getItem(0).export()).text(), /A 3000 4000 0 0 0 10800 12000 Z/);
+const shadedCustomGeometryXml = customGeometryXml.replace('fill="norm"', 'fill="lighten"');
+assert.notEqual(shadedCustomGeometryXml, customGeometryXml);
+const shadedCustomGeometryFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: shadedCustomGeometryXml }]);
+const shadedCustomGeometry = await PresentationFile.importPptx(shadedCustomGeometryFile);
+const opaqueShadedGeometry = itemByName(shadedCustomGeometry.slides.getItem(0).shapes.items, "literal-custom-path");
+assert.equal(opaqueShadedGeometry.customPaths.length, 0);
+const preservedShadedGeometry = await PresentationFile.exportPptx(shadedCustomGeometry);
+const preservedShadedGeometryZip = await JSZip.loadAsync(preservedShadedGeometry.bytes);
+assert.match(await preservedShadedGeometryZip.file("ppt/slides/slide1.xml").async("text"), /<a:path\b[^>]*\bfill="lighten"/);
+opaqueShadedGeometry.name = "unsafe-shaded-geometry-edit";
+await assert.rejects(
+  () => PresentationFile.exportPptx(shadedCustomGeometry),
+  (error) => error?.code === "unsupported_presentation_edit",
+);
+const invalidStrokeCustomGeometryXml = customGeometryXml.replace(/stroke="(?:1|true)"/, 'stroke="maybe"');
+assert.notEqual(invalidStrokeCustomGeometryXml, customGeometryXml);
+const invalidStrokeCustomGeometryFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: invalidStrokeCustomGeometryXml }]);
+const invalidStrokeCustomGeometry = await PresentationFile.importPptx(invalidStrokeCustomGeometryFile);
+assert.equal(itemByName(invalidStrokeCustomGeometry.slides.getItem(0).shapes.items, "literal-custom-path").customPaths.length, 0);
+const preservedInvalidStroke = await PresentationFile.exportPptx(invalidStrokeCustomGeometry);
+const preservedInvalidStrokeZip = await JSZip.loadAsync(preservedInvalidStroke.bytes);
+assert.match(await preservedInvalidStrokeZip.file("ppt/slides/slide1.xml").async("text"), /<a:path\b[^>]*\bstroke="maybe"/);
 const formulaCustomGeometryXml = customGeometryXml.replace('wR="3000"', 'wR="wd2"');
 assert.notEqual(formulaCustomGeometryXml, customGeometryXml);
 const formulaCustomGeometryFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: formulaCustomGeometryXml }]);
@@ -748,6 +837,18 @@ assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 0, height: 100, commands: [{ close: true }] }] }),
   /width and height must be positive/,
 );
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, fillMode: "lighten", commands: [{ close: true }] }] }),
+  /fillMode must be normal or none/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, stroke: "false", commands: [{ close: true }] }] }),
+  /stroke must be a boolean/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, extrusionAllowed: 1, commands: [{ close: true }] }] }),
+  /extrusionAllowed must be a boolean/,
+);
 const mutatedArcPresentation = Presentation.create({ slideSize: { width: 200, height: 120 } });
 const mutatedArcSlide = mutatedArcPresentation.slides.add({ name: "Mutated arc" });
 const mutatedArcShape = mutatedArcSlide.shapes.add({
@@ -765,6 +866,21 @@ const mutatedArcShape = mutatedArcSlide.shapes.add({
 mutatedArcShape.customPaths[0].commands.shift();
 await assert.rejects(() => mutatedArcSlide.export(), /arcTo requires an established current point/);
 await assert.rejects(() => PresentationFile.exportPptx(mutatedArcPresentation), /arcTo requires an established current point/);
+const mutatedPaintPresentation = Presentation.create({ slideSize: { width: 200, height: 120 } });
+const mutatedPaintSlide = mutatedPaintPresentation.slides.add({ name: "Mutated path paint" });
+const mutatedPaintShape = mutatedPaintSlide.shapes.add({
+  geometry: "custom",
+  position: { left: 10, top: 10, width: 100, height: 80 },
+  customPaths: [{
+    width: 100,
+    height: 100,
+    fillMode: "none",
+    commands: [{ moveTo: { x: 10, y: 10 } }, { lineTo: { x: 90, y: 90 } }],
+  }],
+});
+mutatedPaintShape.customPaths[0].stroke = "false";
+await assert.rejects(() => mutatedPaintSlide.export(), /stroke must be a boolean/);
+await assert.rejects(() => PresentationFile.exportPptx(mutatedPaintPresentation), /stroke must be a boolean/);
 
 // Groups are a recursive DrawingML ownership boundary, not flattened children
 // with synthetic parent IDs. The public model keeps child coordinates local and

@@ -7,8 +7,8 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace OfficeKit.Codec;
 
 // Bounded literal DrawingML custom paths used by source-built presentation
-// templates. Guides, handles, connection sites, text rectangles, and per-path
-// paint overrides stay outside this slice.
+// templates. Guides, handles, connection sites, text rectangles, and relative
+// lighten/darken path fills stay outside this slice.
 internal static class PptxCustomGeometryCodec
 {
     private const int MaxPaths = 64;
@@ -38,6 +38,12 @@ internal static class PptxCustomGeometryCodec
                 Width = checked((long)nativePath.Width!.Value),
                 Height = checked((long)nativePath.Height!.Value),
             };
+            if (nativePath.Fill?.HasValue == true)
+                path.FillMode = nativePath.Fill.Value == A.PathFillModeValues.None
+                    ? PresentationCustomGeometryPath.Types.FillMode.None
+                    : PresentationCustomGeometryPath.Types.FillMode.Normal;
+            if (nativePath.Stroke?.HasValue == true) path.Stroke = nativePath.Stroke.Value;
+            if (nativePath.ExtrusionOk?.HasValue == true) path.ExtrusionAllowed = nativePath.ExtrusionOk.Value;
             foreach (var nativeCommand in nativePath.ChildElements)
             {
                 var command = nativeCommand switch
@@ -71,6 +77,9 @@ internal static class PptxCustomGeometryCodec
         {
             if (path.Width is <= 0 or > MaxCoordinate || path.Height is <= 0 or > MaxCoordinate || path.Commands.Count == 0)
                 throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an invalid custom path extent or empty command list.");
+            if (path.FillMode is not (PresentationCustomGeometryPath.Types.FillMode.Unspecified or
+                PresentationCustomGeometryPath.Types.FillMode.Normal or PresentationCustomGeometryPath.Types.FillMode.None))
+                throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an unsupported custom path fill mode.");
             commandCount += path.Commands.Count;
             if (commandCount > MaxCommands)
                 throw new CodecException("presentation_item_budget_exceeded", $"Presentation shape {shapeId} custom geometry exceeds the {MaxCommands}-command budget.");
@@ -133,6 +142,10 @@ internal static class PptxCustomGeometryCodec
         foreach (var source in shape.CustomPaths)
         {
             var path = new A.Path { Width = source.Width, Height = source.Height };
+            if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.Normal) path.Fill = A.PathFillModeValues.Norm;
+            else if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.None) path.Fill = A.PathFillModeValues.None;
+            if (source.HasStroke) path.Stroke = source.Stroke;
+            if (source.HasExtrusionAllowed) path.ExtrusionOk = source.ExtrusionAllowed;
             foreach (var command in source.Commands)
             {
                 path.Append(command.CommandCase switch
@@ -160,7 +173,8 @@ internal static class PptxCustomGeometryCodec
     {
         if (path.Width?.Value is not { } width || width is 0 or > MaxCoordinate ||
             path.Height?.Value is not { } height || height is 0 or > MaxCoordinate ||
-            !HasOnlyAttributes(path, "w", "h") || path.ChildElements.Count == 0)
+            !HasOnlyAttributes(path, "w", "h", "fill", "stroke", "extrusionOk") || !SupportsPathProperties(path) ||
+            path.ChildElements.Count == 0)
             return false;
         commandCount += path.ChildElements.Count;
         if (commandCount > MaxCommands) return false;
@@ -196,6 +210,17 @@ internal static class PptxCustomGeometryCodec
             }
         }
         return true;
+    }
+
+    private static bool SupportsPathProperties(A.Path path)
+    {
+        if (path.Fill is not null)
+        {
+            if (path.Fill.HasValue != true) return false;
+            var fill = path.Fill.Value;
+            if (fill != A.PathFillModeValues.Norm && fill != A.PathFillModeValues.None) return false;
+        }
+        return path.Stroke is not { HasValue: false } && path.ExtrusionOk is not { HasValue: false };
     }
 
     private static bool SupportsPointContainer(OpenXmlCompositeElement container, A.Point? point, int childCount) =>

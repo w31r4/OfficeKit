@@ -1789,9 +1789,19 @@ message PresentationShape {
 }
 
 message PresentationCustomGeometryPath {
+  enum FillMode {
+    FILL_MODE_UNSPECIFIED = 0;
+    FILL_MODE_NORMAL = 1;
+    FILL_MODE_NONE = 2;
+  }
   int64 width = 1;
   int64 height = 2;
   repeated PresentationCustomGeometryCommand commands = 3;
+  // Presence is intentional: UNSPECIFIED preserves an omitted native fill
+  // attribute, while NORMAL and NONE author explicit norm/none values.
+  FillMode fill_mode = 4;
+  optional bool stroke = 5;
+  optional bool extrusion_allowed = 6;
 }
 
 message PresentationCustomGeometryCommand {

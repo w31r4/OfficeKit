@@ -1242,7 +1242,14 @@ public sealed class PptxCodecTests
         var request = ExportRequest();
         var shape = request.Artifact.Presentation.Slides[0].Elements[0].Shape;
         shape.Geometry = "custom";
-        var path = new PresentationCustomGeometryPath { Width = 21_600, Height = 21_600 };
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = 21_600,
+            Height = 21_600,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+            Stroke = true,
+            ExtrusionAllowed = false,
+        };
         path.Commands.Add(new PresentationCustomGeometryCommand
         {
             MoveTo = new PresentationCustomGeometryPoint { X = 1_000, Y = 2_000 },
@@ -1280,6 +1287,16 @@ public sealed class PptxCodecTests
         });
         path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
         shape.CustomPaths.Add(path);
+        var unfilledPath = path.Clone();
+        unfilledPath.FillMode = PresentationCustomGeometryPath.Types.FillMode.None;
+        unfilledPath.Stroke = false;
+        unfilledPath.ExtrusionAllowed = true;
+        shape.CustomPaths.Add(unfilledPath);
+        var defaultPath = path.Clone();
+        defaultPath.FillMode = PresentationCustomGeometryPath.Types.FillMode.Unspecified;
+        defaultPath.ClearStroke();
+        defaultPath.ClearExtrusionAllowed();
+        shape.CustomPaths.Add(defaultPath);
 
         var authored = Invoke(request);
         Assert.True(authored.Ok, Diagnostics(authored));
@@ -1290,23 +1307,41 @@ public sealed class PptxCodecTests
             var properties = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.Shape>().Single().ShapeProperties!;
             Assert.Null(properties.GetFirstChild<A.PresetGeometry>());
             var geometry = properties.GetFirstChild<A.CustomGeometry>()!;
-            var nativePath = Assert.Single(geometry.GetFirstChild<A.PathList>()!.Elements<A.Path>());
-            Assert.Equal(21_600U, nativePath.Width!.Value);
-            Assert.Equal(21_600U, nativePath.Height!.Value);
-            Assert.Collection(nativePath.ChildElements,
-                command => Assert.IsType<A.MoveTo>(command),
-                command => Assert.IsType<A.LineTo>(command),
-                command => Assert.IsType<A.QuadraticBezierCurveTo>(command),
-                command => Assert.IsType<A.CubicBezierCurveTo>(command),
-                command =>
+            Assert.Collection(geometry.GetFirstChild<A.PathList>()!.Elements<A.Path>(),
+                nativePath =>
                 {
-                    var arc = Assert.IsType<A.ArcTo>(command);
-                    Assert.Equal("3000", arc.WidthRadius!.Value);
-                    Assert.Equal("4000", arc.HeightRadius!.Value);
-                    Assert.Equal("5400000", arc.StartAngle!.Value);
-                    Assert.Equal("21600000", arc.SwingAngle!.Value);
+                    Assert.Equal(21_600U, nativePath.Width!.Value);
+                    Assert.Equal(21_600U, nativePath.Height!.Value);
+                    Assert.Equal(A.PathFillModeValues.Norm, nativePath.Fill!.Value);
+                    Assert.True(nativePath.Stroke!.Value);
+                    Assert.False(nativePath.ExtrusionOk!.Value);
+                    Assert.Collection(nativePath.ChildElements,
+                        command => Assert.IsType<A.MoveTo>(command),
+                        command => Assert.IsType<A.LineTo>(command),
+                        command => Assert.IsType<A.QuadraticBezierCurveTo>(command),
+                        command => Assert.IsType<A.CubicBezierCurveTo>(command),
+                        command =>
+                        {
+                            var arc = Assert.IsType<A.ArcTo>(command);
+                            Assert.Equal("3000", arc.WidthRadius!.Value);
+                            Assert.Equal("4000", arc.HeightRadius!.Value);
+                            Assert.Equal("5400000", arc.StartAngle!.Value);
+                            Assert.Equal("21600000", arc.SwingAngle!.Value);
+                        },
+                        command => Assert.IsType<A.CloseShapePath>(command));
                 },
-                command => Assert.IsType<A.CloseShapePath>(command));
+                nativePath =>
+                {
+                    Assert.Equal(A.PathFillModeValues.None, nativePath.Fill!.Value);
+                    Assert.False(nativePath.Stroke!.Value);
+                    Assert.True(nativePath.ExtrusionOk!.Value);
+                },
+                nativePath =>
+                {
+                    Assert.Null(nativePath.Fill);
+                    Assert.Null(nativePath.Stroke);
+                    Assert.Null(nativePath.ExtrusionOk);
+                });
         }
 
         var imported = Import(authored.File.ToByteArray());
@@ -1314,7 +1349,23 @@ public sealed class PptxCodecTests
         var importedElement = Assert.Single(Assert.Single(imported.Artifact.Presentation.Slides).Elements);
         Assert.True(importedElement.Source.Editable);
         Assert.Equal("custom", importedElement.Shape.Geometry);
-        var importedPath = Assert.Single(importedElement.Shape.CustomPaths);
+        Assert.Equal(3, importedElement.Shape.CustomPaths.Count);
+        var importedPath = importedElement.Shape.CustomPaths[0];
+        var importedUnfilledPath = importedElement.Shape.CustomPaths[1];
+        var importedDefaultPath = importedElement.Shape.CustomPaths[2];
+        Assert.Equal(PresentationCustomGeometryPath.Types.FillMode.Normal, importedPath.FillMode);
+        Assert.True(importedPath.HasStroke);
+        Assert.True(importedPath.Stroke);
+        Assert.True(importedPath.HasExtrusionAllowed);
+        Assert.False(importedPath.ExtrusionAllowed);
+        Assert.Equal(PresentationCustomGeometryPath.Types.FillMode.None, importedUnfilledPath.FillMode);
+        Assert.True(importedUnfilledPath.HasStroke);
+        Assert.False(importedUnfilledPath.Stroke);
+        Assert.True(importedUnfilledPath.HasExtrusionAllowed);
+        Assert.True(importedUnfilledPath.ExtrusionAllowed);
+        Assert.Equal(PresentationCustomGeometryPath.Types.FillMode.Unspecified, importedDefaultPath.FillMode);
+        Assert.False(importedDefaultPath.HasStroke);
+        Assert.False(importedDefaultPath.HasExtrusionAllowed);
         Assert.Equal(6, importedPath.Commands.Count);
         Assert.Equal(20_000, importedPath.Commands[1].LineTo.X);
         Assert.Equal(21_000, importedPath.Commands[2].QuadraticBezierTo.Control.X);
@@ -1322,13 +1373,48 @@ public sealed class PptxCodecTests
 
         importedPath.Commands[2].QuadraticBezierTo.Control.X = 20_500;
         importedPath.Commands[4].ArcTo.SweepAngle = -10_800_000;
+        importedPath.FillMode = PresentationCustomGeometryPath.Types.FillMode.None;
+        importedPath.ClearStroke();
+        importedPath.ExtrusionAllowed = true;
+        importedUnfilledPath.FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal;
+        importedUnfilledPath.Stroke = true;
+        importedUnfilledPath.ClearExtrusionAllowed();
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTrip = Import(edited.File.ToByteArray());
         Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
-        var roundTripPath = Assert.Single(Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements).Shape.CustomPaths);
+        var roundTripPaths = Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements).Shape.CustomPaths;
+        Assert.Equal(3, roundTripPaths.Count);
+        var roundTripPath = roundTripPaths[0];
         Assert.Equal(20_500, roundTripPath.Commands[2].QuadraticBezierTo.Control.X);
         Assert.Equal(-10_800_000, roundTripPath.Commands[4].ArcTo.SweepAngle);
+        Assert.Equal(PresentationCustomGeometryPath.Types.FillMode.None, roundTripPath.FillMode);
+        Assert.False(roundTripPath.HasStroke);
+        Assert.True(roundTripPath.HasExtrusionAllowed);
+        Assert.True(roundTripPath.ExtrusionAllowed);
+        Assert.Equal(PresentationCustomGeometryPath.Types.FillMode.Normal, roundTripPaths[1].FillMode);
+        Assert.True(roundTripPaths[1].HasStroke);
+        Assert.True(roundTripPaths[1].Stroke);
+        Assert.False(roundTripPaths[1].HasExtrusionAllowed);
+        Assert.Equal(PresentationCustomGeometryPath.Types.FillMode.Unspecified, roundTripPaths[2].FillMode);
+        Assert.False(roundTripPaths[2].HasStroke);
+        Assert.False(roundTripPaths[2].HasExtrusionAllowed);
+
+        var shaded = Import(SetFirstCustomPathFill(authored.File.ToByteArray(), A.PathFillModeValues.Lighten));
+        Assert.True(shaded.Ok, Diagnostics(shaded));
+        var shadedElement = Assert.Single(Assert.Single(shaded.Artifact.Presentation.Slides).Elements);
+        Assert.False(shadedElement.Source.Editable);
+        Assert.Empty(shadedElement.Shape.CustomPaths);
+        var preservedShaded = Export(shaded.Artifact);
+        Assert.True(preservedShaded.Ok, Diagnostics(preservedShaded));
+        using (var stream = new MemoryStream(preservedShaded.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Equal(A.PathFillModeValues.Lighten, package.PresentationPart!.SlideParts.Single().Slide!
+                .Descendants<A.Path>().First().Fill!.Value);
+        shadedElement.Name = "unsafe-shaded-edit";
+        var rejectedShaded = Export(shaded.Artifact);
+        Assert.False(rejectedShaded.Ok);
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(rejectedShaded.Diagnostics).Code);
 
         var missingPaths = ExportRequest();
         missingPaths.Artifact.Presentation.Slides[0].Elements[0].Shape.Geometry = "custom";
@@ -1361,6 +1447,16 @@ public sealed class PptxCodecTests
         var excessiveArcResponse = Invoke(excessiveArc);
         Assert.False(excessiveArcResponse.Ok);
         Assert.Equal("invalid_presentation_geometry", Assert.Single(excessiveArcResponse.Diagnostics).Code);
+
+        var unknownFill = ExportRequest();
+        var unknownFillShape = unknownFill.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        unknownFillShape.Geometry = "custom";
+        var unknownFillPath = path.Clone();
+        unknownFillPath.FillMode = (PresentationCustomGeometryPath.Types.FillMode)99;
+        unknownFillShape.CustomPaths.Add(unknownFillPath);
+        var unknownFillResponse = Invoke(unknownFill);
+        Assert.False(unknownFillResponse.Ok);
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(unknownFillResponse.Diagnostics).Code);
     }
 
     [Fact]
@@ -6808,6 +6904,16 @@ public sealed class PptxCodecTests
             common.AddChild(new P.Background(
                 new P.BackgroundProperties(new A.NoFill(), new A.EffectList())), true);
         }
+        return stream.ToArray();
+    }
+
+    private static byte[] SetFirstCustomPathFill(byte[] bytes, A.PathFillModeValues fill)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var package = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+            package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Path>().First().Fill = fill;
         return stream.ToArray();
     }
 
