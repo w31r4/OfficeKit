@@ -1837,6 +1837,26 @@ function evaluateFormulaTextExtract(sheet, fnName, args, context = {}) {
   return "#VALUE!";
 }
 
+function evaluateFormulaUnicode(sheet, fnName, args, context = {}) {
+  if (args.length !== 1) return "#VALUE!";
+  const part = readBoundedScalarArgument(sheet, args[0], context, { required: true });
+  if (part.error) return part.error;
+
+  if (fnName === "UNICODE") {
+    const text = boundedFormulaText(part.value);
+    if (text === undefined) return "#VALUE!";
+    const first = Array.from(text)[0];
+    return first === undefined ? "#VALUE!" : first.codePointAt(0);
+  }
+
+  const codePoint = formulaTextInteger(part.value, { minimum: 1, maximum: 0x10FFFF });
+  if (formulaErrorCode(codePoint)) return codePoint;
+  // Unicode scalar values exclude the surrogate range. Returning a lone
+  // surrogate would create text that cannot round-trip through Office XML.
+  if (codePoint >= 0xD800 && codePoint <= 0xDFFF) return "#VALUE!";
+  return String.fromCodePoint(codePoint);
+}
+
 function evaluateFormulaTextTransform(sheet, fnName, args, context = {}) {
   const read = (index, options = { required: true }) => readBoundedScalarArgument(sheet, args[index], context, options);
   const textPart = read(0);
@@ -2541,6 +2561,8 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "RIGHT":
     case "MID":
     case "LEN": return evaluateFormulaTextExtract(sheet, fnName, args, context);
+    case "UNICODE":
+    case "UNICHAR": return evaluateFormulaUnicode(sheet, fnName, args, context);
     case "SEARCH": {
       if (args.length < 2 || args.length > 3) return "#VALUE!";
       return formulaTextSearchPosition(scalar(0), scalar(1), scalar(2, 1), { wildcard: true });

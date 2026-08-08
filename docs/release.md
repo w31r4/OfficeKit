@@ -1,5 +1,15 @@
 # Release
 
+## Unreleased: bounded Unicode code-point conversion formulas
+
+`UNICODE` now returns the first code point from one bounded scalar text value,
+and `UNICHAR` creates one Unicode scalar character from an integer code point.
+Empty, overlong, error, or multi-cell text; non-integer or out-of-range values;
+and UTF-16 surrogate values fail closed as `#VALUE!`. Emoji, non-BMP text,
+numeric text, formula errors, Help/API entries, and XLSX export/import are
+covered. This is a deterministic code-point profile, not locale-aware text
+coercion or arbitrary array evaluation.
+
 ## Unreleased: bounded Unicode text extraction formulas
 
 `LEFT`, `RIGHT`, `MID`, and `LEN` now share the bounded scalar text boundary
