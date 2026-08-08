@@ -599,7 +599,7 @@
       "exactVersion": "1.28.0",
       "role": "default arbitrary-PDF inspect, render, and bounded direct-original edit",
       "integration": "shipped-js-api-runtime-lazy",
-      "taskIds": ["extract", "inspect", "edit-content", "fill-form", "annotate", "redact", "render"],
+      "taskIds": ["extract", "inspect", "edit-content", "fill-form", "annotate", "render"],
       "license": { "expression": "AGPL-3.0-or-later", "requiresAcknowledgement": false },
       "matrixBoundary": "This is the required lazy default. Its bounded direct-original operations are not Word-style reflow, full sanitize, or a signature authority."
     },
@@ -798,7 +798,7 @@
     "verify-signature": { "providers": ["pyhanko"], "strategies": ["read-only"], "input": "existing" },
     "fill-certified-form": { "providers": ["pyhanko"], "strategies": ["incremental"], "input": "existing", "mutation": true, "credentials": ["caller-supplied-trust-root"] },
     "validate-conformance": { "providers": ["verapdf"], "strategies": ["read-only"], "input": "existing" },
-    "redact": { "providers": ["mupdf-js", "pymupdf"], "defaultProvider": "mupdf-js", "strategies": ["sanitize"], "input": "existing", "mutation": true, "invalidateSignatures": true },
+    "redact": { "providers": ["pymupdf"], "strategies": ["sanitize"], "input": "existing", "mutation": true, "invalidateSignatures": true },
     "sanitize": { "providers": ["pymupdf"], "strategies": ["sanitize"], "input": "existing", "mutation": true, "invalidateSignatures": true },
     "render": { "providers": ["mupdf-js", "poppler"], "defaultProvider": "mupdf-js", "strategies": ["read-only"], "input": "existing" }
   }

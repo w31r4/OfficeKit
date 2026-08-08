@@ -4,26 +4,21 @@ description: "Create, inspect, edit, redact, sign, render, and verify PDF files 
 ---
 
 # PDF Skill
-Use `../office-kit/references/workspace.md` for `inputRoot`, `taskRoot`, `outputRoot`,
-`evidenceRoot`, absolute PDF paths, SHA-256, locators, and visual-review status.
+Use `../office-kit/references/workspace.md` for `inputRoot`, `taskRoot`, `outputRoot`, `evidenceRoot`, absolute PDF paths, SHA-256, locators, and visual-review status.
 For multi-step PDF work use `officekit repl` and `../office-kit/references/repl.md`; import through `ctx.import`, keep summaries in `ctx.state`, publish with `ctx.publish`, register QA with `ctx.recordEvidence`, and inspect before retrying `maybeApplied` mutations. Provider setup, OCR, signing, repair, and conformance remain explicit commands.
 After the final PDF is reopened, follow `../office-kit/references/review.md`.
-The optional text reading view (`contentView: "anydoc"`) is a bounded reading
-view powered by AnyDoc; it is not OCR, signature evidence,
+The optional text reading view (`contentView: "anydoc"`) is a bounded reading view powered by AnyDoc; it is not OCR, signature evidence,
 redaction residue evidence, PDF/UA validation, or visual QA.
 This Skill gives an agent bounded, auditable PDF primitives. PDF is independent
-from the OfficeKit DOCX/XLSX/PPTX codec: do not add a PDF protobuf/WASM codec
-or reconstruct an imported PDF through `PdfArtifact` or PDF.js and call that a
+from the OfficeKit DOCX/XLSX/PPTX codec: do not add a PDF protobuf/WASM codec or
+reconstruct an imported PDF through `PdfArtifact` or PDF.js and call that a
 fidelity-preserving edit.
 
 `PdfArtifact` is for new semantic/tagged documents. `PdfFile` plus required,
-runtime-lazy MuPDF.js is the default for arbitrary PDF inspect, render, and
-bounded direct-original edits. Every specialist route is explicit. A failed
+runtime-lazy MuPDF.js is the default for arbitrary PDF inspect, render, and bounded direct-original edits. Every specialist route is explicit. A failed
 provider is an error, never a silent fallback.
 
-Use `createPdfjsParser()` only as an optional read-only PDF.js adapter for page
-geometry, positioned text, heuristic tables, and bounded image evidence; it is
-never an imported-PDF edit representation.
+Use `createPdfjsParser()` only as an optional read-only PDF.js adapter for page geometry, positioned text, heuristic tables, and bounded image evidence; it is never an imported-PDF edit representation.
 
 ## Route every job first
 
@@ -55,8 +50,7 @@ if (resolution.status !== "ready") throw new Error(resolution.reason.message);
 
 The public resolver returns only `ready`, `installable`, or `blocked`, with the
 selected provider/pack, platform, pinned version/artifact information, download
-and unpack estimates, licence acknowledgement, runtime paths, prerequisites,
-and operation boundary. It never selects an alternate provider.
+and unpack estimates, licence acknowledgement, runtime paths, prerequisites, and operation boundary. It never selects an alternate provider.
 `PdfProviders.ensure({ resolution })` never acquires P12/private keys,
 HSM/remote-signing credentials, TSA/LTV access, or other secrets.
 `PdfProviders.probe({ provider })` checks exactly that provider without a
