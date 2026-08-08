@@ -3320,6 +3320,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.LCM` | formula | Return the least common multiple of bounded integer arguments and ranges; zero inputs return zero and unsafe overflow returns #NUM!. |
 | `fx.LEFT` | formula | Return characters from the start of a text value. |
 | `fx.LEN` | formula | Return the length of a text value. |
+| `fx.LET` | formula | Bind up to 16 scalar local names from left to right and evaluate a final scalar expression; invalid names, array-valued bindings, and missing arguments fail closed as #VALUE!. |
 | `fx.LN` | formula | Return the natural logarithm of a positive finite number; non-positive inputs fail as #NUM!. |
 | `fx.LOG` | formula | Return a logarithm for a positive number and positive base other than one; the base defaults to 10 and invalid domains fail as #NUM!. |
 | `fx.LOG10` | formula | Return the base-10 logarithm of a positive finite number. |
@@ -4766,6 +4767,23 @@ Return the length of a text value.
 **Schema returns:**
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.LET`
+
+Bind up to 16 scalar local names from left to right and evaluate a final scalar expression; invalid names, array-valued bindings, and missing arguments fail closed as #VALUE!.
+
+**Examples:**
+
+- =LET(rate,0.1,principal,1000,principal*(1+rate))
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =LET(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.LN`
 

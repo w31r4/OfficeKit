@@ -1136,6 +1136,26 @@ const importedIfsFormulaWorkbook = await SpreadsheetFile.importXlsx(ifsFormulaXl
 assert.deepEqual(importedIfsFormulaWorkbook.worksheets.getItem("Criteria").getRange("E1:E4").formulas, ifsFormulaSheet.getRange("E1:E4").formulas);
 assert.deepEqual(importedIfsFormulaWorkbook.worksheets.getItem("Criteria").getRange("G1:G7").formulas, ifsFormulaSheet.getRange("G1:G7").formulas);
 
+const letFormulaWorkbook = Workbook.create();
+const letFormulaSheet = letFormulaWorkbook.worksheets.add("LET bounds");
+letFormulaSheet.getRange("A1").values = [[100]];
+letFormulaSheet.getRange("C1:C9").formulas = [
+  ["=LET(rate,0.1,principal,1000,principal*(1+rate))"],
+  ["=LET(base,A1,bonus,5,base+bonus)"],
+  ["=LET(x,2,LET(x,3,x)+x)"],
+  ["=LET(x,2,IF(x>1,\"selected\",\"wrong\"))"],
+  ["=LET(A1,1,A1)"],
+  ["=LET(x,SEQUENCE(2),x)"],
+  ["=LET(x,1)"],
+  ["=LET(x,1,#N/A)"],
+  ["=LET(x,A1:A2,x)"],
+];
+assert.deepEqual(letFormulaSheet.getRange("C1:C9").values, [[1100], [105], [5], ["selected"], ["#VALUE!"], ["#VALUE!"], ["#VALUE!"], ["#N/A"], ["#VALUE!"]]);
+const letFormulaXlsx = await SpreadsheetFile.exportXlsx(letFormulaWorkbook);
+const importedLetFormulaWorkbook = await SpreadsheetFile.importXlsx(letFormulaXlsx);
+assert.deepEqual(importedLetFormulaWorkbook.worksheets.getItem("LET bounds").getRange("C1:C9").formulas, letFormulaSheet.getRange("C1:C9").formulas);
+assert.deepEqual(importedLetFormulaWorkbook.worksheets.getItem("LET bounds").getRange("C1:C9").values, letFormulaSheet.getRange("C1:C9").values);
+
 const averageIfWorkbook = Workbook.create();
 const averageIfSheet = averageIfWorkbook.worksheets.add("AVERAGEIF bounds");
 averageIfSheet.getRange("A1:B5").values = [
