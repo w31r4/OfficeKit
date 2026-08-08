@@ -3258,6 +3258,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.CHOOSECOLS` | formula | Select and reorder one or more 1-based or negative column indexes from an array. |
 | `fx.CHOOSEROWS` | formula | Select and reorder one or more 1-based or negative row indexes from an array. |
 | `fx.COLUMNS` | formula | Return the column count of one bounded rectangular reference or dynamic spill. |
+| `fx.COMBIN` | formula | Return the number of combinations for two non-negative bounded integer arguments. |
+| `fx.COMBINA` | formula | Return combinations with repetition for two non-negative bounded integer arguments. |
 | `fx.CONCAT` | formula | Concatenate text values and ranges. |
 | `fx.COUNT` | formula | Count numeric values across arguments and ranges. |
 | `fx.COUNTA` | formula | Count non-empty values across arguments and ranges, including text, logical values, errors, and empty-text formula results. |
@@ -3276,11 +3278,15 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.DROP` | formula | Drop rows and optional columns from the start or end of an array and spill the remainder. |
 | `fx.EDATE` | formula | Shift a serial date by whole months and clamp the day to the target month end. |
 | `fx.EOMONTH` | formula | Return the final date serial of a month offset from a start date. |
+| `fx.EVEN` | formula | Round a finite number away from zero to the next even integer. |
 | `fx.EXPAND` | formula | Expand an array to requested row and column dimensions with optional padding. |
+| `fx.FACT` | formula | Return the factorial of a non-negative integer through the finite 170! boundary. |
+| `fx.FACTDOUBLE` | formula | Return the double factorial of a non-negative integer through the bounded finite range. |
 | `fx.FILTER` | formula | Filter rows from a source range with a boolean or comparison include array and spill the matching rows. |
 | `fx.FIND` | formula | Return the 1-based position of a case-sensitive literal text sequence. |
 | `fx.FLOOR` | formula | Round a number down to the nearest significance. |
 | `fx.FV` | formula | Calculate the future value of a finite constant-payment stream from rate, term, payment, optional present value, and payment timing. |
+| `fx.GCD` | formula | Return the greatest common divisor of bounded integer arguments and ranges; unsafe integer results fail closed as #NUM!. |
 | `fx.HLOOKUP` | formula | Look up one scalar in the first row of a nonempty rectangular range of at most 10,000 cells; FALSE/0 performs an exact, wildcard-aware lookup, while TRUE/1 or omission requires a proven ascending homogeneous numeric or text key row and returns the greatest matching-or-lower key. Invalid table/mode/index inputs and unproven ordering return #VALUE!, while an out-of-range return-row index returns #REF!. |
 | `fx.HOUR` | formula | Return the 0 through 23 hour component from a nonnegative serial or supported time text. |
 | `fx.HSTACK` | formula | Append arrays horizontally, padding shorter arrays with #N/A to the maximum row count. |
@@ -3301,6 +3307,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.ISNUMBER` | formula | Return TRUE when a value is numeric. |
 | `fx.ISTEXT` | formula | Return TRUE when a value is text and not a formula error. |
 | `fx.LARGE` | formula | Return the k-th largest numeric value in an array or range. |
+| `fx.LCM` | formula | Return the least common multiple of bounded integer arguments and ranges; zero inputs return zero and unsafe overflow returns #NUM!. |
 | `fx.LEFT` | formula | Return characters from the start of a text value. |
 | `fx.LEN` | formula | Return the length of a text value. |
 | `fx.LOWER` | formula | Convert text to lowercase. |
@@ -3316,12 +3323,14 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.MOD` | formula | Return the remainder after division, preserving the divisor sign and returning #DIV/0! for a zero divisor. |
 | `fx.MODE.SNGL` | formula | Return the most frequently occurring numeric value, or #N/A when no value repeats. |
 | `fx.MONTH` | formula | Return the month component of a serial in the workbook's 1900 or 1904 date system. |
+| `fx.MROUND` | formula | Round a finite number to the nearest multiple with explicit zero-multiple and sign checks. |
 | `fx.NA` | formula | Return the #N/A error value to mark unavailable data explicitly. |
 | `fx.NETWORKDAYS` | formula | Count Monday-through-Friday dates inclusively between two serial dates, excluding optional holidays. |
 | `fx.NETWORKDAYS.INTL` | formula | Count inclusive workdays with a numbered or Monday-first seven-character custom weekend and optional holidays. |
 | `fx.NOT` | formula | Reverse the truth value of a condition. |
 | `fx.NPER` | formula | Solve the finite payment-period count from rate, payment, present value, optional future value, and payment timing. |
 | `fx.NPV` | formula | Discount a finite periodic cash-flow vector beginning one period after the present value date. |
+| `fx.ODD` | formula | Round a finite number away from zero to the next odd integer. |
 | `fx.OR` | formula | Return TRUE when any condition is true. |
 | `fx.PI` | formula | Return the deterministic mathematical constant π; arguments are rejected rather than ignored. |
 | `fx.PMT` | formula | Calculate a constant-period loan payment from finite rate, term, present value, optional future value, and payment-timing inputs. |
@@ -3654,6 +3663,40 @@ Return the column count of one bounded rectangular reference or dynamic spill.
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.COMBIN`
+
+Return the number of combinations for two non-negative bounded integer arguments.
+
+**Examples:**
+
+- =COMBIN(10,3)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =COMBIN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.COMBINA`
+
+Return combinations with repetition for two non-negative bounded integer arguments.
+
+**Examples:**
+
+- =COMBINA(5,2)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =COMBINA(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.CONCAT`
 
 Concatenate text values and ranges.
@@ -3978,6 +4021,23 @@ Return the final date serial of a month offset from a start date.
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.EVEN`
+
+Round a finite number away from zero to the next even integer.
+
+**Examples:**
+
+- =EVEN(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =EVEN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.EXPAND`
 
 Expand an array to requested row and column dimensions with optional padding.
@@ -3994,6 +4054,40 @@ Expand an array to requested row and column dimensions with optional padding.
 **Schema returns:**
 
 - `value` (unknown[][]) — Spilled two-dimensional formula result.
+
+#### `fx.FACT`
+
+Return the factorial of a non-negative integer through the finite 170! boundary.
+
+**Examples:**
+
+- =FACT(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =FACT(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.FACTDOUBLE`
+
+Return the double factorial of a non-negative integer through the bounded finite range.
+
+**Examples:**
+
+- =FACTDOUBLE(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =FACTDOUBLE(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.FILTER`
 
@@ -4067,6 +4161,23 @@ Calculate the future value of a finite constant-payment stream from rate, term, 
 **Notes:**
 
 - The bounded evaluator requires rate > -1, a positive finite term, and payment type 0 or 1. It uses the same cash-flow equation as PMT and PV, including the zero-rate case.
+
+#### `fx.GCD`
+
+Return the greatest common divisor of bounded integer arguments and ranges; unsafe integer results fail closed as #NUM!.
+
+**Examples:**
+
+- =GCD(A1:A3)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =GCD(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.HLOOKUP`
 
@@ -4418,6 +4529,23 @@ Return the k-th largest numeric value in an array or range.
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.LCM`
+
+Return the least common multiple of bounded integer arguments and ranges; zero inputs return zero and unsafe overflow returns #NUM!.
+
+**Examples:**
+
+- =LCM(A1:A3)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =LCM(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.LEFT`
 
 Return characters from the start of a text value.
@@ -4677,6 +4805,23 @@ Return the month component of a serial in the workbook's 1900 or 1904 date syste
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.MROUND`
+
+Round a finite number to the nearest multiple with explicit zero-multiple and sign checks.
+
+**Examples:**
+
+- =MROUND(A1,5)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =MROUND(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.NA`
 
 Return the #N/A error value to mark unavailable data explicitly.
@@ -4788,6 +4933,23 @@ Discount a finite periodic cash-flow vector beginning one period after the prese
 **Notes:**
 
 - Rate must be finite and greater than -1. The bounded evaluator accepts at most 10,000 finite numeric cash flows and returns #VALUE! or #NUM! rather than coercing malformed inputs.
+
+#### `fx.ODD`
+
+Round a finite number away from zero to the next odd integer.
+
+**Examples:**
+
+- =ODD(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ODD(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.OR`
 

@@ -1160,7 +1160,7 @@ assert.deepEqual(importedAverageIfWorkbook.worksheets.getItem("AVERAGEIF bounds"
 const mathFormulaWorkbook = Workbook.create();
 const mathFormulaSheet = mathFormulaWorkbook.worksheets.add("Math primitives");
 mathFormulaSheet.getRange("A1:A3").values = [[2], [3], [-4]];
-mathFormulaSheet.getRange("D1:D31").formulas = [
+mathFormulaSheet.getRange("D1:D56").formulas = [
   ["=PRODUCT(A1:A3)"],
   ["=PRODUCT(2,3,4)"],
   ["=PRODUCT()"],
@@ -1192,6 +1192,31 @@ mathFormulaSheet.getRange("D1:D31").formulas = [
   ["=RADIANS()"],
   ["=DEGREES()"],
   ["=SUMSQ(1E308,1E308)"],
+  ["=GCD(24,36,48)"],
+  ["=GCD(A1:A3)"],
+  ["=GCD()"],
+  ["=GCD(1E20,2)"],
+  ["=LCM(4,6,8)"],
+  ["=LCM(0,6)"],
+  ["=LCM()"],
+  ["=FACT(5)"],
+  ["=FACT(0)"],
+  ["=FACT(171)"],
+  ["=FACT(-1)"],
+  ["=FACTDOUBLE(7)"],
+  ["=FACTDOUBLE(0)"],
+  ["=COMBIN(5,2)"],
+  ["=COMBIN(5,6)"],
+  ["=COMBINA(3,2)"],
+  ["=COMBINA(0,0)"],
+  ["=MROUND(10,3)"],
+  ["=MROUND(-10,-3)"],
+  ["=MROUND(10,-3)"],
+  ["=MROUND(10,0)"],
+  ["=EVEN(-3.2)"],
+  ["=ODD(4.1)"],
+  ["=EVEN()"],
+  ["=ODD(1E20)"],
 ];
 const mathFormulaValues = mathFormulaSheet.getRange("D1:D16").values;
 assert.deepEqual(mathFormulaValues.slice(0, 15), [[-24], [24], ["#VALUE!"], ["#DIV/0!"], [1], [-1], ["#DIV/0!"], [256], ["#NUM!"], [9], ["#NUM!"], [-1], [0], [1], [Math.PI]]);
@@ -1200,11 +1225,12 @@ assert.deepEqual(mathFormulaSheet.getRange("D17").values, [["#NUM!"]]);
 assert.deepEqual(mathFormulaSheet.getRange("D18:D26").values, [[29], [29], ["#VALUE!"], [-2], [-2], ["#DIV/0!"], [-123.45], [120], ["#VALUE!"]]);
 assert.deepEqual(mathFormulaSheet.getRange("D27:D30").values, [[Math.PI], [180], ["#VALUE!"], ["#VALUE!"]]);
 assert.deepEqual(mathFormulaSheet.getRange("D31").values, [["#NUM!"]]);
+assert.deepEqual(mathFormulaSheet.getRange("D32:D56").values, [[12], [1], ["#VALUE!"], ["#NUM!"], [24], [0], ["#VALUE!"], [120], [1], ["#NUM!"], ["#NUM!"], [105], [1], [10], ["#NUM!"], [6], [1], [9], [-9], ["#NUM!"], ["#DIV/0!"], [-4], [5], ["#VALUE!"], ["#NUM!"]]);
 const mathFormulaXlsx = await SpreadsheetFile.exportXlsx(mathFormulaWorkbook);
 const importedMathFormulaWorkbook = await SpreadsheetFile.importXlsx(mathFormulaXlsx);
 const importedMathFormulaSheet = importedMathFormulaWorkbook.worksheets.getItem("Math primitives");
-assert.deepEqual(importedMathFormulaSheet.getRange("D1:D31").formulas, mathFormulaSheet.getRange("D1:D31").formulas);
-const importedMathFormulaValues = importedMathFormulaSheet.getRange("D1:D31").values;
+assert.deepEqual(importedMathFormulaSheet.getRange("D1:D56").formulas, mathFormulaSheet.getRange("D1:D56").formulas);
+const importedMathFormulaValues = importedMathFormulaSheet.getRange("D1:D56").values;
 assert.deepEqual(importedMathFormulaValues.slice(0, 14), mathFormulaValues.slice(0, 14));
 assert.ok(Math.abs(importedMathFormulaValues[14][0] - Math.PI) < Number.EPSILON);
 assert.deepEqual(importedMathFormulaValues[15], ["#VALUE!"]);
@@ -1213,6 +1239,7 @@ assert.deepEqual(importedMathFormulaValues.slice(17, 26), [[29], [29], ["#VALUE!
 assert.ok(Math.abs(importedMathFormulaValues[26][0] - Math.PI) < Number.EPSILON);
 assert.deepEqual(importedMathFormulaValues[27], [180]);
 assert.deepEqual(importedMathFormulaValues.slice(28, 31), [["#VALUE!"], ["#VALUE!"], ["#NUM!"]]);
+assert.deepEqual(importedMathFormulaValues.slice(31), [[12], [1], ["#VALUE!"], ["#NUM!"], [24], [0], ["#VALUE!"], [120], [1], ["#NUM!"], ["#NUM!"], [105], [1], [10], ["#NUM!"], [6], [1], [9], [-9], ["#NUM!"], ["#DIV/0!"], [-4], [5], ["#VALUE!"], ["#NUM!"]]);
 
 const formulaIntrospectionWorkbook = Workbook.create();
 const formulaIntrospectionSheet = formulaIntrospectionWorkbook.worksheets.add("Formula introspection");
