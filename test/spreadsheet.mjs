@@ -1838,7 +1838,7 @@ assert.deepEqual(importedTextBoundaryWorkbook.worksheets.getItem("Text boundary"
 
 const textTransformWorkbook = Workbook.create();
 const textTransformSheet = textTransformWorkbook.worksheets.add("Text transforms");
-textTransformSheet.getRange("A1:A2").values = [["Alpha"], ["Beta"]];
+textTransformSheet.getRange("A1:A4").values = [["Alpha"], ["Beta"], ["A\tB\nC\rD\u007F\u0085😀"], ["x".repeat(32_768)]];
 textTransformSheet.getRange("B1:B16").formulas = [
   ['=EXACT("Office","office")'],
   ['=EXACT("Office","Office")'],
@@ -1875,10 +1875,30 @@ assert.deepEqual(textTransformSheet.getRange("B1:B16").values, [
   ["#VALUE!"],
   ["#VALUE!"],
 ]);
+textTransformSheet.getRange("B17:B23").formulas = [
+  ["=CLEAN(A3)"],
+  ["=CLEAN(UNICHAR(9)&\"A\"&UNICHAR(10)&\"B\")"],
+  ["=CLEAN(UNICHAR(127)&\"😀\")"],
+  ["=CLEAN(\"\")"],
+  ["=CLEAN(A1:A2)"],
+  ["=CLEAN(A4)"],
+  ["=CLEAN(1/0)"],
+];
+assert.deepEqual(textTransformSheet.getRange("B17:B23").values, [
+  ["ABCD\u007F\u0085😀"],
+  ["AB"],
+  ["\u007F😀"],
+  [""],
+  ["#VALUE!"],
+  ["#VALUE!"],
+  ["#DIV/0!"],
+]);
 const textTransformXlsx = await SpreadsheetFile.exportXlsx(textTransformWorkbook);
 const importedTextTransformWorkbook = await SpreadsheetFile.importXlsx(textTransformXlsx);
 assert.deepEqual(importedTextTransformWorkbook.worksheets.getItem("Text transforms").getRange("B1:B16").formulas, textTransformSheet.getRange("B1:B16").formulas);
 assert.deepEqual(importedTextTransformWorkbook.worksheets.getItem("Text transforms").getRange("B1:B16").values, textTransformSheet.getRange("B1:B16").values);
+assert.deepEqual(importedTextTransformWorkbook.worksheets.getItem("Text transforms").getRange("B17:B23").formulas, textTransformSheet.getRange("B17:B23").formulas);
+assert.deepEqual(importedTextTransformWorkbook.worksheets.getItem("Text transforms").getRange("B17:B23").values, textTransformSheet.getRange("B17:B23").values);
 
 const textExtractWorkbook = Workbook.create();
 const textExtractSheet = textExtractWorkbook.worksheets.add("Text extract");

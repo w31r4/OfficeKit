@@ -3264,6 +3264,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.CHOOSE` | formula | Select one scalar result from up to 254 ordered choices using a truncated 1-based index; invalid indexes and unsupported arity return #VALUE!. |
 | `fx.CHOOSECOLS` | formula | Select and reorder one or more 1-based or negative column indexes from an array. |
 | `fx.CHOOSEROWS` | formula | Select and reorder one or more 1-based or negative row indexes from an array. |
+| `fx.CLEAN` | formula | Remove ASCII C0 control characters from one bounded scalar text value while preserving Unicode text and other controls; overlong, error, or multi-cell inputs fail closed. |
 | `fx.COLUMNS` | formula | Return the column count of one bounded rectangular reference or dynamic spill. |
 | `fx.COMBIN` | formula | Return the number of combinations for two non-negative bounded integer arguments. |
 | `fx.COMBINA` | formula | Return combinations with repetition for two non-negative bounded integer arguments. |
@@ -3791,6 +3792,23 @@ Select and reorder one or more 1-based or negative row indexes from an array.
 **Schema returns:**
 
 - `value` (unknown[][]) — Spilled two-dimensional formula result.
+
+#### `fx.CLEAN`
+
+Remove ASCII C0 control characters from one bounded scalar text value while preserving Unicode text and other controls; overlong, error, or multi-cell inputs fail closed.
+
+**Examples:**
+
+- =CLEAN(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =CLEAN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (string) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.COLUMNS`
 
