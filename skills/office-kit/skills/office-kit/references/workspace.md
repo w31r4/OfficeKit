@@ -54,6 +54,8 @@ Every completed artifact task returns, in the user's language, at least:
       "locator": { "page": 1 }
     }
   ],
+  "reviewVerdict": "passed-with-limitations",
+  "contentView": "anydoc",
   "visualReview": "complete"
 }
 ```
@@ -63,6 +65,11 @@ may use `page`, `slide`, `sheet`, `range`, or another domain-specific address.
 Use `visualReview: "unavailable"` when no visual input capability exists, and
 `visualReview: "requires-human"` when the result needs human visual approval.
 Never claim visual review from a structural report alone.
+
+`reviewVerdict` is the machine review result from `reviewArtifact()` when that
+facade is used. `contentView` is optional and may be `"anydoc"` only when the
+Agent requested the lazy Markdown reading view. Neither field replaces the
+owning Skill's domain checks or proves a visual review.
 
 The host may turn an absolute artifact path into a link or citation. Skills do
 not emit a host-specific message directive.

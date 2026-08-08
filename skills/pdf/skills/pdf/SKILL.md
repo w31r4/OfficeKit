@@ -7,6 +7,9 @@ description: "Create, inspect, edit, redact, sign, render, and verify PDF files 
 Use `../office-kit/references/workspace.md` for `inputRoot`, `taskRoot`, `outputRoot`,
 `evidenceRoot`, absolute PDF paths, SHA-256, locators, and visual-review status.
 For multi-step PDF work use `officekit repl` and `../office-kit/references/repl.md`; import through `ctx.import`, keep summaries in `ctx.state`, publish with `ctx.publish`, register QA with `ctx.recordEvidence`, and inspect before retrying `maybeApplied` mutations. Provider setup, OCR, signing, repair, and conformance remain explicit commands.
+After the final PDF is reopened, follow `../office-kit/references/review.md`.
+AnyDoc is an optional bounded reading view; it is not OCR, signature evidence,
+redaction residue evidence, PDF/UA validation, or visual QA.
 This Skill gives an agent bounded, auditable PDF primitives. PDF is independent
 from the OfficeKit DOCX/XLSX/PPTX codec: do not add a PDF protobuf/WASM codec
 or reconstruct an imported PDF through `PdfArtifact` or PDF.js and call that a
@@ -202,7 +205,9 @@ retry via a different Python interpreter after a failed probe.
    validation/human boundaries.
 4. Render every final page with MuPDF.js or independently with Poppler and
    inspect clipping, overlaps, glyphs, images, fields, annotations, signatures,
-   redactions, and page geometry before delivery.
+   redactions, and page geometry when visual input is available. Without it,
+   retain the renders, run structural/page-geometry checks, optionally request
+   the AnyDoc content view, and mark visually material results for human review.
 
 The project and its required MuPDF.js dependency are GNU AGPL-3.0-or-later.
 Managed and system providers retain their own licences; the resolver exposes

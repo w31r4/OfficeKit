@@ -7,6 +7,7 @@ import {
   PdfFile,
   Presentation,
   PresentationFile,
+  reviewArtifact,
   SpreadsheetFile,
   Workbook,
 } from "office-kit";
@@ -39,6 +40,18 @@ const docx = await DocumentFile.exportDocx(document);
 await docx.save("standalone.docx");
 if ((await DocumentFile.importDocx(docx)).blocks[0].text !== "standalone DOCX") {
   process.exit(11);
+}
+const documentReview = await reviewArtifact("standalone.docx", {
+  contentView: "anydoc",
+  layout: false,
+  visualReview: "unavailable",
+});
+if (
+  documentReview.contentView.status !== "ready" ||
+  documentReview.contentView.providerVersion !== "0.1.3" ||
+  !documentReview.contentView.markdown.includes("standalone DOCX")
+) {
+  process.exit(16);
 }
 
 const workbook = Workbook.create();
@@ -92,5 +105,6 @@ console.log(
     argv: process.argv.slice(2),
     cwd: process.cwd(),
     publicSubpaths: publicSpecifiers.length,
+    anydoc: documentReview.contentView.status,
   }),
 );

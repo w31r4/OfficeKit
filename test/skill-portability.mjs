@@ -97,6 +97,7 @@ try {
 const officeKitRoot = path.join(repoRoot, "skills", "office-kit", "skills", "office-kit");
 const workspace = await fs.readFile(path.join(officeKitRoot, "references", "workspace.md"), "utf8");
 const capabilities = await fs.readFile(path.join(officeKitRoot, "references", "capabilities.md"), "utf8");
+const review = await fs.readFile(path.join(officeKitRoot, "references", "review.md"), "utf8");
 const repl = await fs.readFile(path.join(officeKitRoot, "references", "repl.md"), "utf8");
 const officeKitSkill = await fs.readFile(path.join(officeKitRoot, "SKILL.md"), "utf8");
 const presentationSkill = await fs.readFile(path.join(repoRoot, "skills", "presentations", "skills", "presentations", "SKILL.md"), "utf8");
@@ -123,7 +124,15 @@ assert.match(capabilities, /\| no \| yes \|[\s\S]*low-risk/i);
 assert.match(capabilities, /\| no \| no \|[\s\S]*ask for an asset/i);
 assert.match(officeKitSkill, /references\/workspace\.md/);
 assert.match(officeKitSkill, /references\/capabilities\.md/);
+assert.match(officeKitSkill, /references\/review\.md/);
 assert.match(officeKitSkill, /absolute path.*SHA-256/is);
+for (const [number, label] of [[6, "Semantic"], [7, "Structural"], [8, "Layout"], [9, "Optional content"], [10, "Visual"], [11, "Delivery"]]) {
+  assert.match(review, new RegExp(`${number}\\.\\s+\\*{0,2}${label}`, "i"), `review contract: ${number}. ${label}`);
+}
+assert.match(review, /contentView: "anydoc"/);
+assert.match(review, /do not run AnyDoc merely because\s+it is installed/i);
+assert.match(review, /not OCR.*not a substitute for render review/is);
+assert.match(review, /visualReview: "requires-human"/);
 assert.match(repl, /ctx\.state/);
 assert.match(repl, /ctx\.publish/);
 assert.match(repl, /maybeApplied/);
@@ -155,6 +164,17 @@ for (const [name, relative] of [
   const text = await fs.readFile(skillPath, "utf8");
   assert.match(text, /\.\.\/office-kit\/references\/workspace\.md/, `${name} must use the shared contract`);
   assert.match(text, /officekit repl|\.\.\/office-kit\/references\/repl\.md/i, `${name} must use the portable REPL contract`);
+}
+
+for (const [name, relative] of [
+  ["documents", ["documents", "skills", "documents", "SKILL.md"]],
+  ["spreadsheets", ["spreadsheets", "skills", "spreadsheets", "SKILL.md"]],
+  ["presentations", ["presentations", "skills", "presentations", "SKILL.md"]],
+  ["pdf", ["pdf", "skills", "pdf", "SKILL.md"]],
+]) {
+  const text = await fs.readFile(path.join(repoRoot, "skills", ...relative), "utf8");
+  assert.match(text, /\.\.\/office-kit\/references\/review\.md/, `${name} must use the shared review contract`);
+  assert.match(text, /AnyDoc/i, `${name} must describe the optional content view`);
 }
 
 console.log(`Skill portability ok: ${files.length} host-neutral files checked`);

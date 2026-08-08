@@ -13,12 +13,13 @@ const skillRoot = path.join(pluginRoot, "skills", "office-kit");
 const templateRoot = path.join(repoRoot, "skills", "default-template-library", "skills");
 const officeKitCli = path.join(repoRoot, "bin", "officekit.mjs");
 
-const [plugin, skillText, agentText, routingText, templateSelectionText] = await Promise.all([
+const [plugin, skillText, agentText, routingText, templateSelectionText, reviewText] = await Promise.all([
   readJson(path.join(pluginRoot, ".codex-plugin", "plugin.json")),
   fs.readFile(path.join(skillRoot, "SKILL.md"), "utf8"),
   fs.readFile(path.join(skillRoot, "agents", "openai.yaml"), "utf8"),
   fs.readFile(path.join(skillRoot, "references", "routing.md"), "utf8"),
   fs.readFile(path.join(skillRoot, "references", "template-selection.md"), "utf8"),
+  fs.readFile(path.join(skillRoot, "references", "review.md"), "utf8"),
 ]);
 
 assert.equal(plugin.name, "office-kit");
@@ -36,7 +37,17 @@ assert.match(skillText, /Do not send the user away to repeat the request/);
 assert.match(skillText, /PDF-only task/);
 assert.match(skillText, /officekit template search \.\.\. --json/);
 assert.match(skillText, /English search terms/);
+assert.match(skillText, /post-edit review\s+contract/i);
+assert.match(skillText, /AnyDoc content view only when it helps/i);
 assert.doesNotMatch(skillText, /query-templates\.mjs/);
+assert.match(reviewText, /Semantic review/);
+assert.match(reviewText, /Structural review/);
+assert.match(reviewText, /Layout\/render review/);
+assert.match(reviewText, /Optional content view/);
+assert.match(reviewText, /Visual or human review/);
+assert.match(reviewText, /Delivery review/);
+assert.match(reviewText, /AnyDoc is not OCR/i);
+assert.match(reviewText, /do not run AnyDoc merely because\s+it is installed/i);
 assert.match(agentText, /display_name: "OfficeKit"/);
 assert.match(agentText, /default_prompt: "Use \$office-kit /);
 assert.match(routingText, /\.\.\/documents\/SKILL\.md/);
