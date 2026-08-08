@@ -35,7 +35,7 @@ back to editing a closed PPTX.
 The `powerpoint-live-control` Skill is installed with `officekit init` and is
 selected only when the user asks for the currently open presentation. Ordinary
 PPTX creation and editing continue to use the Presentations Skill and the
-OfficeKit/OpenChestnut file path.
+canonical OfficeKit Codec file path.
 
 ## Acceptance boundary
 

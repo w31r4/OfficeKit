@@ -41,7 +41,7 @@
 
 - [x] 6.1 Add unit tests for JSONL parsing, top-level await, request ordering, console capture, validation errors, result serialization, and output-channel integrity.
 - [x] 6.2 Add integration tests for state/helper reuse, FileBlob publication, source protection, evidence registration, checkpoints, explicit resume, and interrupted requests.
-- [x] 6.3 Add clean-install tests proving REPL startup and state-only tasks do not initialize MuPDF, OpenChestnut, Excel bridge, or providers.
+- [x] 6.3 Add clean-install tests proving REPL startup and state-only tasks do not initialize MuPDF, the OfficeKit Codec, Excel bridge, or providers.
 - [x] 6.4 Add mocked Excel bridge tests for lazy facade loading, session discovery, typed execution, disconnect, unavailable sessions, and error uncertainty.
 - [x] 6.5 Extend CLI, Skill, package-contents, release, and deterministic-build gates for the new command, protocol docs, and checkpoint behavior.
 - [x] 6.6 Bump package/CLI metadata to `0.6.0`, update English-first README/API/release documentation, and record the REPL protocol version without changing Office wire protocol.

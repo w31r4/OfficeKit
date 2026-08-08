@@ -29,7 +29,7 @@ contain a non-empty `id` and a string `code`; code SHALL support top-level
 
 Every request SHALL execute with a `ctx` containing the workspace roots,
 `sessionId`, a state object, `import(specifier)`, artifact publication, and
-evidence registration. OfficeKit, MuPDF, OpenChestnut, Excel bridge, and
+evidence registration. OfficeKit, MuPDF, the OfficeKit Codec, Excel bridge, and
 provider modules SHALL NOT initialize before the code explicitly imports or
 uses them.
 

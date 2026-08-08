@@ -66,7 +66,7 @@ It rejects URLs, absolute paths, traversal, and unpublished package subpaths.
 The resolver returns module namespaces through dynamic import. It never imports
 the root package while constructing a session. The existing OfficeKit modules
 remain responsible for their own deeper lazy imports, so a state-only cell does
-not initialize MuPDF, OpenChestnut, Excel, or a provider.
+not initialize MuPDF, the OfficeKit Codec, Excel, or a provider.
 
 The alternative of an implicit `ctx.officekit` proxy was rejected because it
 obscures import boundaries and makes runtime initialization harder to audit.
