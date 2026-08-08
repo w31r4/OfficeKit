@@ -1916,6 +1916,36 @@ assert.deepEqual(textExtractSheet.getRange("B1:B12").values, [
 ]);
 assert.equal(textExtractSheet.getRange("B13").values[0][0].length, 32_767);
 assert.deepEqual(textExtractSheet.getRange("B14:B15").values, [["#VALUE!"], ["#VALUE!"]]);
+textExtractSheet.getRange("C1:C13").formulas = [
+  ["=UNICODE(A1)"],
+  ["=UNICODE(\"𐐷\")"],
+  ["=UNICODE(\"\")"],
+  ["=UNICODE(A1:A2)"],
+  ["=UNICODE(\"x\"&\"😀\")"],
+  ["=UNICODE(A4)"],
+  ["=UNICHAR(128512)"],
+  ["=UNICHAR(66615)"],
+  ["=UNICHAR(\"65\")"],
+  ["=UNICHAR(0)"],
+  ["=UNICHAR(55296)"],
+  ["=UNICHAR(1114112)"],
+  ["=UNICHAR(1/0)"],
+];
+assert.deepEqual(textExtractSheet.getRange("C1:C13").values, [
+  [128512],
+  [66615],
+  ["#VALUE!"],
+  ["#VALUE!"],
+  [120],
+  ["#VALUE!"],
+  ["😀"],
+  ["𐐷"],
+  ["A"],
+  ["#VALUE!"],
+  ["#VALUE!"],
+  ["#VALUE!"],
+  ["#DIV/0!"],
+]);
 const textExtractXlsx = await SpreadsheetFile.exportXlsx(textExtractWorkbook);
 const importedTextExtractWorkbook = await SpreadsheetFile.importXlsx(textExtractXlsx);
 const importedTextExtractSheet = importedTextExtractWorkbook.worksheets.getItem("Text extract");
@@ -1923,6 +1953,8 @@ assert.deepEqual(importedTextExtractSheet.getRange("B1:B15").formulas, textExtra
 assert.deepEqual(importedTextExtractSheet.getRange("B1:B12").values, textExtractSheet.getRange("B1:B12").values);
 assert.equal(importedTextExtractSheet.getRange("B13").values[0][0].length, 32_767);
 assert.deepEqual(importedTextExtractSheet.getRange("B14:B15").values, [["#VALUE!"], ["#VALUE!"]]);
+assert.deepEqual(importedTextExtractSheet.getRange("C1:C13").formulas, textExtractSheet.getRange("C1:C13").formulas);
+assert.deepEqual(importedTextExtractSheet.getRange("C1:C13").values, textExtractSheet.getRange("C1:C13").values);
 
 const textSplitWorkbook = Workbook.create();
 const textSplitSheet = textSplitWorkbook.worksheets.add("Text split");

@@ -3396,6 +3396,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.TRANSPOSE` | formula | Transpose a source range into a spilled dynamic array with spillRange/spillValues inspect metadata. |
 | `fx.TRIM` | formula | Trim leading/trailing whitespace and collapse internal whitespace. |
 | `fx.TRUNC` | formula | Truncate a finite number toward zero at an optional decimal position without rounding. |
+| `fx.UNICHAR` | formula | Return one Unicode scalar character for an integer from 1 through 1,114,111; surrogate values, invalid ranges, errors, and multi-cell inputs fail closed. |
+| `fx.UNICODE` | formula | Return the Unicode code point of the first character in one bounded scalar text value; empty, overlong, error, or multi-cell inputs fail closed. |
 | `fx.UNIQUE` | formula | Return unique rows from a range as a spilled dynamic array. |
 | `fx.UPPER` | formula | Convert text to uppercase. |
 | `fx.VALUE` | formula | Convert deterministic ASCII numeric text with optional grouping, scientific notation, accounting parentheses, or percent suffix to a number. |
@@ -6112,6 +6114,40 @@ Truncate a finite number toward zero at an optional decimal position without rou
 **Schema returns:**
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.UNICHAR`
+
+Return one Unicode scalar character for an integer from 1 through 1,114,111; surrogate values, invalid ranges, errors, and multi-cell inputs fail closed.
+
+**Examples:**
+
+- =UNICHAR(128512)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =UNICHAR(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (string) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.UNICODE`
+
+Return the Unicode code point of the first character in one bounded scalar text value; empty, overlong, error, or multi-cell inputs fail closed.
+
+**Examples:**
+
+- =UNICODE(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =UNICODE(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (string) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.UNIQUE`
 
