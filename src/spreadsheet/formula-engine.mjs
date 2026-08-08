@@ -68,6 +68,7 @@ const FORMULA_SPILL_RANGE_FUNCTIONS = new Set([
   "CONCAT", "CONCATENATE", "TEXTJOIN", "COUNTIF", "COUNTIFS",
   "TRANSPOSE", "FILTER", "UNIQUE", "SORT", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "TOCOL", "TOROW", "WRAPROWS", "WRAPCOLS", "HSTACK", "VSTACK", "EXPAND",
   "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "MINIFS", "MAXIFS", "SUMPRODUCT", "INDEX", "MATCH", "XMATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP", "ROWS", "COLUMNS",
+  "TYPE", "ISREF",
 ]);
 
 class FormulaInputBudgetError extends Error {
@@ -587,6 +588,25 @@ function formulaErrorCode(value) {
   return /^#(NULL!|DIV\/0!|VALUE!|REF!|NAME\?|NUM!|N\/A|GETTING_DATA|SPILL!|CALC!|CYCLE!|FIELD!|DATA!|CONNECT!|BLOCKED!|UNKNOWN!|BUSY!)/.test(text)
     ? text.match(/^#[A-Z0-9\/?!_]+/)?.[0]
     : undefined;
+}
+
+function formulaTypeCode(value) {
+  if (isFormulaMatrix(value)) return 64;
+  if (formulaErrorCode(value)) return 16;
+  if (typeof value === "string") return 2;
+  if (typeof value === "boolean") return 4;
+  // Blank cells use the numeric/zero profile in this bounded evaluator,
+  // matching the scalar value that N() and the arithmetic layer observe.
+  return 1;
+}
+
+function formulaReferenceIsArray(sheet, expression, context = {}) {
+  const text = String(expression ?? "").trim();
+  const reference = formulaRefParts(text) || formulaDefinedNameRange(sheet, text);
+  if (!reference) return false;
+  if (reference.spill) return true;
+  const cells = formulaReferenceExpressionCellCount(sheet, text, context);
+  return Number.isSafeInteger(cells) && cells > 1;
 }
 
 function publicFormulaNode(node) {
@@ -2563,6 +2583,37 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "XOR": {
       if (args.length < 1 || args.length > 255 || (args.length === 1 && args[0] === "")) return "#VALUE!";
       return args.reduce((parity, arg) => parity !== evaluateFormulaCondition(sheet, arg, context), false);
+    }
+    case "N": {
+      if (args.length !== 1 || hasEmptyArgument() || formulaReferenceIsArray(sheet, args[0], context)) return "#VALUE!";
+      const value = scalar(0);
+      if (isFormulaMatrix(value)) return "#VALUE!";
+      const error = formulaErrorCode(value);
+      if (error) return error;
+      if (value instanceof Date) {
+        if (!Number.isFinite(value.getTime())) return "#VALUE!";
+        return excelGregorianSerial(value.getUTCFullYear(), value.getUTCMonth() + 1, value.getUTCDate(), dateSystem);
+      }
+      if (typeof value === "number") return Number.isFinite(value) ? value : "#VALUE!";
+      if (typeof value === "boolean") return value ? 1 : 0;
+      return 0;
+    }
+    case "T": {
+      if (args.length !== 1 || hasEmptyArgument() || formulaReferenceIsArray(sheet, args[0], context)) return "#VALUE!";
+      const value = scalar(0);
+      if (isFormulaMatrix(value)) return "#VALUE!";
+      const error = formulaErrorCode(value);
+      if (error) return error;
+      return typeof value === "string" ? value : "";
+    }
+    case "TYPE": {
+      if (args.length !== 1 || hasEmptyArgument()) return "#VALUE!";
+      if (formulaReferenceIsArray(sheet, args[0], context)) return 64;
+      return formulaTypeCode(scalar(0));
+    }
+    case "ISREF": {
+      if (args.length !== 1 || hasEmptyArgument()) return "#VALUE!";
+      return Boolean(formulaRefParts(args[0]) || formulaDefinedNameRange(sheet, args[0]));
     }
     case "ISLOGICAL": {
       if (args.length !== 1) return "#VALUE!";

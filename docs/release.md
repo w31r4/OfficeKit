@@ -2,10 +2,10 @@
 
 ## Current 0.6.0 package evidence (2026-08-08)
 
-`npm run test:pack` passed after the bounded percentile formula change. The clean
-dry-run package contains 702 files, 36,229,958 compressed bytes, and
-53,487,290 unpacked bytes; its shasum is
-`3b69ee052d449c02efa567fd7e803287b0b287fd`. This is package evidence, not an
+`npm run test:pack` passed after the bounded type/reference formula change. The clean
+dry-run package contains 702 files, 36,231,382 compressed bytes, and
+53,494,615 unpacked bytes; its shasum is
+`23b5329df0e5ea141afd9bd648eccba5b209a140`. This is package evidence, not an
 npm registry publication or tagged release.
 
 ## Unreleased: bounded CLEAN text formula
@@ -26,6 +26,20 @@ errors propagate; invalid `k`/quartile indexes and empty numeric sets fail
 closed as `#NUM!`, while invalid arity fails as `#VALUE!`. Spreadsheet smoke
 coverage includes the interpolation endpoints, ignored nonnumeric values,
 error propagation, invalid indexes, and XLSX export/import.
+
+## Unreleased: bounded type and reference formulas
+
+`N`, `T`, `TYPE`, and `ISREF` now provide a small, explicit information and
+reference profile for formula audits. `N` preserves finite numbers and date
+serials, maps logicals to 1/0, maps text/blank to 0, and propagates errors;
+`T` preserves text, maps other scalars to empty text, and propagates errors.
+Both reject multi-cell or computed matrices as `#VALUE!`. `TYPE` reports
+Excel-compatible 1/2/4/16/64 codes for number-or-blank/text/logical/error/
+array-or-multi-cell-reference, while `ISREF` recognizes only direct A1,
+defined-name, or spill reference expressions. Invalid arity and unsupported
+input fail closed. Spreadsheet smoke coverage includes negative cases and an
+XLSX export/import round trip; this is not general array coercion or a
+persistent-reference identity protocol.
 
 ## Unreleased: bounded Unicode code-point conversion formulas
 
