@@ -2,10 +2,10 @@
 
 ## Current 0.6.0 package evidence (2026-08-08)
 
-`npm run test:pack` passed after the bounded type/reference formula change. The clean
-dry-run package contains 702 files, 36,231,382 compressed bytes, and
-53,494,615 unpacked bytes; its shasum is
-`23b5329df0e5ea141afd9bd648eccba5b209a140`. This is package evidence, not an
+`npm run test:pack` passed after the bounded formula position/source introspection change. The clean
+dry-run package contains 702 files, 36,232,090 compressed bytes, and
+53,501,917 unpacked bytes; its shasum is
+`6073ba6d83704ac63e6496982bc741f3174b1c4d`. This is package evidence, not an
 npm registry publication or tagged release.
 
 ## Unreleased: bounded CLEAN text formula
@@ -40,6 +40,16 @@ defined-name, or spill reference expressions. Invalid arity and unsupported
 input fail closed. Spreadsheet smoke coverage includes negative cases and an
 XLSX export/import round trip; this is not general array coercion or a
 persistent-reference identity protocol.
+
+## Unreleased: bounded formula position/source introspection
+
+`ROW` and `COLUMN` now return 1-based coordinates for the current formula cell
+or one explicit single-cell reference. `ISFORMULA` reports whether that cell
+stores a formula, and `FORMULATEXT` returns the stored formula or `#N/A` when
+the cell is not formula-backed. Ranges, spills, computed matrices, and invalid
+input fail closed as `#VALUE!`; the Spreadsheet fixture covers positive and
+negative cases plus an XLSX export/import round trip. This is an auditable
+single-cell source profile, not general array metadata or formula rewriting.
 
 ## Unreleased: bounded Unicode code-point conversion formulas
 
@@ -186,7 +196,7 @@ The current development package candidate carries the compiled Add-in pages,
 manifest generator, bridge, REPL runtime, Claude Code marketplace index, and Skill route: 677 files,
 36,179,800 compressed bytes, and 53,258,774 unpacked bytes. Its npm pack
 shasum is `07fec351606b91d77fbc8ea2fc83e868eae2198b`. The 37,500,000-byte compressed and
-53,500,000-byte unpacked package ceilings remain in force.
+53,510,000-byte unpacked package ceilings remain in force.
 
 ## 0.6.0 JSONL REPL
 
@@ -305,7 +315,7 @@ Template Creator emits one English canonical search profile with at least one
 
 The current dry-run candidate contains 640 files, 36,052,917 compressed bytes,
 and 52,754,087 unpacked bytes. Package gates cap it at 37,500,000 compressed
-and 53,500,000 unpacked bytes. The clean-install test installs the actual
+and 53,510,000 unpacked bytes. The clean-install test installs the actual
 tarball into a global prefix, initializes and updates an empty project, finds
 all twenty templates, imports every public subpath, and creates/reimports
 DOCX, XLSX, PPTX, and PDF from a project without a local OfficeKit dependency.

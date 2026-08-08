@@ -157,8 +157,11 @@ const maxPackedBytes = 37_500_000;
 // source-bound section line-numbering, column-profile, break-type, fixed-table
 // column-width, direct-formatting, repeat-header-row, and image-alt-text
 // transactions add protobuf, audited WASM, public Help, and native guidance;
-// retain measured headroom instead of hiding that product surface.
-const maxUnpackedBytes = 53_500_000;
+// retain measured headroom instead of hiding that product surface. The
+// source-aware formula introspection slice adds Help/API evidence to the
+// shipped package, so the bounded ceiling moves by 10 KB rather than silently
+// allowing an unbounded payload increase.
+const maxUnpackedBytes = 53_510_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
