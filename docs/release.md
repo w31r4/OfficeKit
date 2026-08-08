@@ -1,5 +1,16 @@
 # Release
 
+## Unreleased: bounded TEXTBEFORE/TEXTAFTER formulas
+
+The formula evaluator now supports bounded scalar `TEXTBEFORE` and
+`TEXTAFTER`. Both functions accept positive or negative delimiter instances,
+case-sensitive or case-insensitive matching, optional end-as-delimiter
+behavior, and an explicit not-found value. Empty delimiters, zero or invalid
+instance/mode values, multi-cell sources, and computed matrices fail closed as
+`#VALUE!`. Help/API generation, Spreadsheet export/import round-trip tests,
+negative cases, and coverage documentation are included; this does not add
+general array-valued text splitting.
+
 ## Unreleased: bounded Spreadsheet LET formulas
 
 The formula evaluator now supports a bounded scalar `LET` profile. It accepts

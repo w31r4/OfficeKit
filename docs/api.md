@@ -3381,6 +3381,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.TAN` | formula | Return the tangent of a finite radian value. |
 | `fx.TANH` | formula | Return the hyperbolic tangent of a finite number. |
 | `fx.TEXT` | formula | Format an Excel serial date as text with the bounded yyyy, yy, m/mm/mmm/mmmm, and d/dd token profile and literal separators. |
+| `fx.TEXTAFTER` | formula | Return the text after a delimiter occurrence, with bounded positive/negative instance selection, case mode, end matching, and an explicit not-found result. |
+| `fx.TEXTBEFORE` | formula | Return the text before a delimiter occurrence, with bounded positive/negative instance selection, case mode, end matching, and an explicit not-found result. |
 | `fx.TEXTJOIN` | formula | Join text values with a delimiter and optional empty-value skipping. |
 | `fx.TIME` | formula | Return a time fraction from hour, minute, and second values from 0 through 32767, carrying overflow and wrapping at 24 hours. |
 | `fx.TIMEVALUE` | formula | Convert deterministic 12-hour or 24-hour time text, optionally following date text, to a fraction of one day. |
@@ -5841,6 +5843,42 @@ Format an Excel serial date as text with the bounded yyyy, yy, m/mm/mmm/mmmm, an
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =TEXT(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (string) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.TEXTAFTER`
+
+Return the text after a delimiter occurrence, with bounded positive/negative instance selection, case mode, end matching, and an explicit not-found result.
+
+**Examples:**
+
+- =TEXTAFTER(A1,"::")
+- =TEXTAFTER(A1,"/",-1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =TEXTAFTER(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (string) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.TEXTBEFORE`
+
+Return the text before a delimiter occurrence, with bounded positive/negative instance selection, case mode, end matching, and an explicit not-found result.
+
+**Examples:**
+
+- =TEXTBEFORE(A1,"::")
+- =TEXTBEFORE(A1,"/",-1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =TEXTBEFORE(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**

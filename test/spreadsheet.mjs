@@ -1791,6 +1791,51 @@ const containsTextStyles = textPositionWorkbook.inspect({ kind: "computedStyle",
   .map((line) => JSON.parse(line));
 assert.deepEqual(containsTextStyles.map((record) => [record.address, record.style.fill]), [["C1", "#DBEAFE"], ["C2", "#DBEAFE"]]);
 
+const textBoundaryWorkbook = Workbook.create();
+const textBoundarySheet = textBoundaryWorkbook.worksheets.add("Text boundary");
+textBoundarySheet.getRange("A1:A4").values = [
+  ["alpha::beta::Gamma"],
+  ["ALPHA::beta"],
+  ["no delimiter"],
+  ["alpha::beta::"],
+];
+textBoundarySheet.getRange("B1:B14").formulas = [
+  ["=TEXTBEFORE(A1,\"::\")"],
+  ["=TEXTAFTER(A1,\"::\")"],
+  ["=TEXTBEFORE(A1,\"::\",2)"],
+  ["=TEXTAFTER(A1,\"::\",-1)"],
+  ["=TEXTBEFORE(A1,\"::\",-1)"],
+  ["=TEXTAFTER(A2,\"BETA\",1,1)"],
+  ["=TEXTBEFORE(A3,\"::\",1,0,1)"],
+  ["=TEXTAFTER(A3,\"::\",1,0,1)"],
+  ["=TEXTBEFORE(A3,\"::\",1,0,0,\"missing\")"],
+  ["=TEXTAFTER(A4,\"::\",-1)"],
+  ["=TEXTAFTER(A1,\"\")"],
+  ["=TEXTBEFORE(A1,\"::\",0)"],
+  ["=TEXTBEFORE(A1:A2,\"::\")"],
+  ["=TEXTAFTER(SEQUENCE(2),\"::\")"],
+];
+assert.deepEqual(textBoundarySheet.getRange("B1:B14").values, [
+  ["alpha"],
+  ["beta::Gamma"],
+  ["alpha::beta"],
+  ["Gamma"],
+  ["alpha::beta"],
+  [""],
+  ["no delimiter"],
+  [""],
+  ["missing"],
+  [""],
+  ["#VALUE!"],
+  ["#VALUE!"],
+  ["#VALUE!"],
+  ["#VALUE!"],
+]);
+const textBoundaryXlsx = await SpreadsheetFile.exportXlsx(textBoundaryWorkbook);
+const importedTextBoundaryWorkbook = await SpreadsheetFile.importXlsx(textBoundaryXlsx);
+assert.deepEqual(importedTextBoundaryWorkbook.worksheets.getItem("Text boundary").getRange("B1:B14").formulas, textBoundarySheet.getRange("B1:B14").formulas);
+assert.deepEqual(importedTextBoundaryWorkbook.worksheets.getItem("Text boundary").getRange("B1:B14").values, textBoundarySheet.getRange("B1:B14").values);
+
 const importedWithoutSourceSnapshot = await SpreadsheetFile.importXlsx(firstXlsx);
 const workbookState = importedWithoutSourceSnapshot[Symbol.for("office-kit.workbook-state")];
 workbookState.opaqueOpc.sourcePackage = undefined;
