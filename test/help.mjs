@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 403);
+assert.equal(HELP_CATALOG.length, 408);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -233,6 +233,7 @@ assert.ok(HELP_CATALOG.some((item) => item.name === "range.format"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.formulaGraph"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.AVERAGE"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.PRODUCT"));
+assert.ok(HELP_CATALOG.some((item) => item.name === "fx.SUMSQ"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.COUNTA"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.COUNTBLANK"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.XLOOKUP"));
@@ -252,6 +253,10 @@ assert.ok(HELP_CATALOG.some((item) => item.name === "fx.POWER"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.SQRT"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.SIGN"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.PI"));
+assert.ok(HELP_CATALOG.some((item) => item.name === "fx.QUOTIENT"));
+assert.ok(HELP_CATALOG.some((item) => item.name === "fx.TRUNC"));
+assert.ok(HELP_CATALOG.some((item) => item.name === "fx.RADIANS"));
+assert.ok(HELP_CATALOG.some((item) => item.name === "fx.DEGREES"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.HLOOKUP"));
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.VLOOKUP")?.summary || "", /first column.*10,000.*FALSE\/0.*TRUE\/1.*#REF!/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.HLOOKUP")?.summary || "", /first row.*10,000.*FALSE\/0.*TRUE\/1.*#REF!/i);
@@ -353,7 +358,7 @@ assert.ok(HELP_CATALOG.find((item) => item.name === "PdfFile.importPdf")?.schema
 assert.ok(HELP_CATALOG.find((item) => item.name === "renderArtifact")?.returns?.includes("FileBlob"));
 assert.ok(HELP_CATALOG.find((item) => item.name === "visualQaArtifact")?.examples?.some((example) => example.includes("pixelDiff")));
 const formulaCatalog = HELP_CATALOG.filter((item) => item.name.startsWith("fx."));
-assert.equal(formulaCatalog.length, 125);
+assert.equal(formulaCatalog.length, 130);
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.formula?.required));
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.arguments?.type === "unknown[]"));
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.AND")?.schema?.returns?.value?.type, "boolean");
@@ -567,7 +572,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /absolute uri.*slideId.*relative action/);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /customShow.*survives the bounded slide clone.*without adding the clone to show membership/i);
 const workbookCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "workbook");
-assert.equal(workbookCatalog.length, 215);
+assert.equal(workbookCatalog.length, 220);
 assert.ok(workbookCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "workbook.trace")?.schema?.parameters?.reference?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "Workbook.create")?.schema?.parameters?.dateSystem?.type, "string");
@@ -691,6 +696,7 @@ assert.match(workbook.help("table.setQueryRefreshPolicy").ndjson, /one-way autom
 assert.match(workbook.help("range.formulaInfos").ndjson, /projected/);
 assert.match(workbook.help("fx.AVERAGE").ndjson, /Average numeric values/);
 assert.match(workbook.help("fx.PRODUCT").ndjson, /Multiply numeric values/);
+assert.match(workbook.help("fx.SUMSQ").ndjson, /squares/);
 assert.match(workbook.help("fx.COUNTA").ndjson, /non-empty values/);
 assert.match(workbook.help("fx.COUNTBLANK").ndjson, /formula results that are empty text/);
 assert.match(workbook.help("fx.XLOOKUP").ndjson, /lookup/);
@@ -705,6 +711,10 @@ assert.match(workbook.help("fx.POWER").ndjson, /finite base/);
 assert.match(workbook.help("fx.SQRT").ndjson, /square root/);
 assert.match(workbook.help("fx.SIGN").ndjson, /-1, 0, or 1/);
 assert.match(workbook.help("fx.PI").ndjson, /mathematical constant/);
+assert.match(workbook.help("fx.QUOTIENT").ndjson, /integer portion/);
+assert.match(workbook.help("fx.TRUNC").ndjson, /Truncate/);
+assert.match(workbook.help("fx.RADIANS").ndjson, /degrees to radians/);
+assert.match(workbook.help("fx.DEGREES").ndjson, /radians to degrees/);
 assert.match(workbook.help("fx.HLOOKUP").ndjson, /first row/);
 assert.match(workbook.help("fx.INDEX").ndjson, /rectangular range.*10,000/);
 assert.match(workbook.help("fx.IFERROR").ndjson, /formula error/);
