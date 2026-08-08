@@ -3256,6 +3256,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.CEILING` | formula | Round a number up to the nearest significance. |
 | `fx.CHOOSECOLS` | formula | Select and reorder one or more 1-based or negative column indexes from an array. |
 | `fx.CHOOSEROWS` | formula | Select and reorder one or more 1-based or negative row indexes from an array. |
+| `fx.COLUMNS` | formula | Return the column count of one bounded rectangular reference or dynamic spill. |
 | `fx.CONCAT` | formula | Concatenate text values and ranges. |
 | `fx.COUNT` | formula | Count numeric values across arguments and ranges. |
 | `fx.COUNTA` | formula | Count non-empty values across arguments and ranges, including text, logical values, errors, and empty-text formula results. |
@@ -3292,7 +3293,9 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.ISBLANK` | formula | Return TRUE when a referenced value is empty. |
 | `fx.ISERR` | formula | Return TRUE for recognized formula errors other than #N/A. |
 | `fx.ISERROR` | formula | Return TRUE when a value is any recognized formula error. |
+| `fx.ISLOGICAL` | formula | Return TRUE when a value is a logical TRUE or FALSE. |
 | `fx.ISNA` | formula | Return TRUE only when a value is the #N/A error. |
+| `fx.ISNONTEXT` | formula | Return TRUE when a value is not text, including blank, logical, numeric, and error values. |
 | `fx.ISNUMBER` | formula | Return TRUE when a value is numeric. |
 | `fx.ISTEXT` | formula | Return TRUE when a value is text and not a formula error. |
 | `fx.LARGE` | formula | Return the k-th largest numeric value in an array or range. |
@@ -3326,6 +3329,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.ROUND` | formula | Round a numeric value to decimal places or, with negative digits, positions left of the decimal point. |
 | `fx.ROUNDDOWN` | formula | Round a numeric value toward zero at the requested positive or negative digit position. |
 | `fx.ROUNDUP` | formula | Round a numeric value away from zero at the requested positive or negative digit position. |
+| `fx.ROWS` | formula | Return the row count of one bounded rectangular reference or dynamic spill. |
 | `fx.SEARCH` | formula | Return the 1-based position of case-insensitive text, supporting Excel ?, *, and ~ wildcard syntax. |
 | `fx.SECOND` | formula | Return the 0 through 59 second component from a nonnegative serial or supported time text. |
 | `fx.SEQUENCE` | formula | Return a dynamic array sequence that spills into neighboring cells in the clean-room formula engine. |
@@ -3602,6 +3606,23 @@ Select and reorder one or more 1-based or negative row indexes from an array.
 **Schema returns:**
 
 - `value` (unknown[][]) — Spilled two-dimensional formula result.
+
+#### `fx.COLUMNS`
+
+Return the column count of one bounded rectangular reference or dynamic spill.
+
+**Examples:**
+
+- =COLUMNS(A1:C10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =COLUMNS(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.CONCAT`
 
@@ -4248,6 +4269,23 @@ Return TRUE when a value is any recognized formula error.
 
 - `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.ISLOGICAL`
+
+Return TRUE when a value is a logical TRUE or FALSE.
+
+**Examples:**
+
+- =ISLOGICAL(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ISLOGICAL(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.ISNA`
 
 Return TRUE only when a value is the #N/A error.
@@ -4259,6 +4297,23 @@ Return TRUE only when a value is the #N/A error.
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =ISNA(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.ISNONTEXT`
+
+Return TRUE when a value is not text, including blank, logical, numeric, and error values.
+
+**Examples:**
+
+- =ISNONTEXT(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ISNONTEXT(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**
@@ -4854,6 +4909,23 @@ Round a numeric value away from zero at the requested positive or negative digit
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =ROUNDUP(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.ROWS`
+
+Return the row count of one bounded rectangular reference or dynamic spill.
+
+**Examples:**
+
+- =ROWS(A1:C10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ROWS(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**

@@ -1148,6 +1148,36 @@ const importedAverageIfWorkbook = await SpreadsheetFile.importXlsx(averageIfXlsx
 assert.deepEqual(importedAverageIfWorkbook.worksheets.getItem("AVERAGEIF bounds").getRange("D1:D4").formulas, averageIfSheet.getRange("D1:D4").formulas);
 assert.deepEqual(importedAverageIfWorkbook.worksheets.getItem("AVERAGEIF bounds").getRange("D1:D4").values, [[20], ["#DIV/0!"], [20], ["#VALUE!"]]);
 
+const formulaIntrospectionWorkbook = Workbook.create();
+const formulaIntrospectionSheet = formulaIntrospectionWorkbook.worksheets.add("Formula introspection");
+formulaIntrospectionSheet.getRange("A1:C3").values = [[true, "text", 10], [false, null, 20], [null, "", 30]];
+formulaIntrospectionSheet.getRange("A3").formulas = [["=1/0"]];
+formulaIntrospectionSheet.getRange("E1:E12").formulas = [
+  ["=ROWS(A1:C3)"],
+  ["=COLUMNS(A1:C3)"],
+  ["=ROWS(B2)"],
+  ["=COLUMNS(B2)"],
+  ["=ISLOGICAL(A1)"],
+  ["=ISLOGICAL(B1)"],
+  ["=ISNONTEXT(B1)"],
+  ["=ISNONTEXT(A2)"],
+  ["=ISNONTEXT(A3)"],
+  ["=ROWS(A1:A10001)"],
+  ["=ROWS(A1)"],
+  ["=COLUMNS(A1,B1)"],
+];
+assert.deepEqual(formulaIntrospectionSheet.getRange("E1:E12").values, [[3], [3], [1], [1], [true], [false], [false], [true], [true], ["#VALUE!"], [1], ["#VALUE!"]]);
+const formulaIntrospectionXlsx = await SpreadsheetFile.exportXlsx(formulaIntrospectionWorkbook);
+const importedFormulaIntrospectionWorkbook = await SpreadsheetFile.importXlsx(formulaIntrospectionXlsx);
+assert.deepEqual(importedFormulaIntrospectionWorkbook.worksheets.getItem("Formula introspection").getRange("E1:E12").formulas, formulaIntrospectionSheet.getRange("E1:E12").formulas);
+assert.deepEqual(importedFormulaIntrospectionWorkbook.worksheets.getItem("Formula introspection").getRange("E1:E12").values, formulaIntrospectionSheet.getRange("E1:E12").values);
+
+const dynamicIntrospectionWorkbook = Workbook.create();
+const dynamicIntrospectionSheet = dynamicIntrospectionWorkbook.worksheets.add("Dynamic introspection");
+dynamicIntrospectionSheet.getRange("A1").formulas = [["=SEQUENCE(2,3)"]];
+dynamicIntrospectionSheet.getRange("E1:E2").formulas = [["=ROWS(A1#)"], ["=COLUMNS(A1#)"]];
+assert.deepEqual(dynamicIntrospectionSheet.getRange("E1:E2").values, [[2], [3]]);
+
 const templateFormulaWorkbook = Workbook.create();
 const templateFormulaSheet = templateFormulaWorkbook.worksheets.add("Template formulas");
 templateFormulaSheet.getRange("A1:A7").values = [[1], [null], [false], ["text"], [0], ["#DIV/0!"], [null]];

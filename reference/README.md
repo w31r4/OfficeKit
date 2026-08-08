@@ -12,11 +12,11 @@ This directory contains project-internal reference material for building `office
 Use this submodule to observe the reference package's public package shape, exported API surface, smoke tests, examples, and observable behavior.
 
 The currently pinned reference revision is
-`0f501d1a06d0566a90224a18b4c0d7a89671df66`, the remotely reachable
-`origin/main` commit **Refresh Office skill guidance**. Its package manifest is
-`office-artifact-tool@2.8.31`; it includes updated public PDF AcroForm
-guidance, Presentation style/routing references, and Template Creator package
-admission checks.
+`73c99c67ca7bbaa82cec0b158c647db583dcd970`, the remotely reachable
+`origin/main` commit **Sync Office artifact runtime to 2.8.36**. Its package
+manifest is `office-artifact-tool@2.8.36`; it keeps the reference-native
+Documents, Spreadsheets, Presentations, PDF, Template Creator, and Default
+Template Library trees in sync with the current public runtime payload.
 
 The MIT-licensed, repository-only Default Template Library introduced at
 `256cb31` remains unchanged in this revision: 20 retained Office template Skills

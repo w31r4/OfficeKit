@@ -64,7 +64,7 @@ const FORMULA_SPILL_RANGE_FUNCTIONS = new Set([
   "NPV", "MIRR", "XNPV", "IRR", "XIRR", "NETWORKDAYS", "WORKDAY", "NETWORKDAYS.INTL", "WORKDAY.INTL",
   "CONCAT", "CONCATENATE", "TEXTJOIN", "COUNTIF", "COUNTIFS",
   "TRANSPOSE", "FILTER", "UNIQUE", "SORT", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "TOCOL", "TOROW", "WRAPROWS", "WRAPCOLS", "HSTACK", "VSTACK", "EXPAND",
-  "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "MINIFS", "MAXIFS", "SUMPRODUCT", "INDEX", "MATCH", "XMATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP",
+  "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "MINIFS", "MAXIFS", "SUMPRODUCT", "INDEX", "MATCH", "XMATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP", "ROWS", "COLUMNS",
 ]);
 
 class FormulaInputBudgetError extends Error {
@@ -2081,6 +2081,15 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "AND": return args.every((arg) => evaluateFormulaCondition(sheet, arg, context));
     case "OR": return args.some((arg) => evaluateFormulaCondition(sheet, arg, context));
     case "NOT": return !evaluateFormulaCondition(sheet, args[0], context);
+    case "ISLOGICAL": {
+      if (args.length !== 1) return "#VALUE!";
+      return typeof scalar(0) === "boolean";
+    }
+    case "ISNONTEXT": {
+      if (args.length !== 1) return "#VALUE!";
+      const value = scalar(0);
+      return Boolean(formulaErrorCode(value)) || typeof value !== "string";
+    }
     case "ISNUMBER": { const value = scalar(0); return typeof value === "number" && Number.isFinite(value); }
     case "ISTEXT": { const value = scalar(0); return typeof value === "string" && !formulaErrorCode(value); }
     case "ISBLANK": { const value = scalar(0); return value == null; }
@@ -2088,6 +2097,16 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "ISNA": return formulaErrorCode(scalar(0)) === "#N/A";
     case "ISERR": { const error = formulaErrorCode(scalar(0)); return Boolean(error && error !== "#N/A"); }
     case "NA": return "#N/A";
+    case "ROWS": {
+      if (args.length !== 1) return "#VALUE!";
+      const source = formulaBoundedReferenceMatrix(sheet, args[0], context);
+      return source.error || source.rows;
+    }
+    case "COLUMNS": {
+      if (args.length !== 1) return "#VALUE!";
+      const source = formulaBoundedReferenceMatrix(sheet, args[0], context);
+      return source.error || source.cols;
+    }
     case "CONCAT":
     case "CONCATENATE": return values().map(formulaText).join("");
     case "TEXTJOIN": {
