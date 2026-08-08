@@ -2,10 +2,10 @@
 
 ## Current 0.6.0 package evidence (2026-08-08)
 
-`npm run test:pack` passed after the bounded `CLEAN` formula change. The clean
-dry-run package contains 702 files, 36,228,984 compressed bytes, and
-53,482,654 unpacked bytes; its shasum is
-`e8f6b630d3ae031e7c32364d7148de54bf3c1963`. This is package evidence, not an
+`npm run test:pack` passed after the bounded percentile formula change. The clean
+dry-run package contains 702 files, 36,229,958 compressed bytes, and
+53,487,290 unpacked bytes; its shasum is
+`3b69ee052d449c02efa567fd7e803287b0b287fd`. This is package evidence, not an
 npm registry publication or tagged release.
 
 ## Unreleased: bounded CLEAN text formula
@@ -16,6 +16,16 @@ and C1 controls, and fails closed for overlong, formula-error, multi-cell, or
 invalid-arity inputs. Spreadsheet smoke coverage includes tab/newline/
 carriage-return removal and XLSX export/import; this remains a deterministic
 text profile rather than locale-specific normalization.
+
+## Unreleased: bounded inclusive percentile formulas
+
+`PERCENTILE.INC` and `QUARTILE.INC` now calculate inclusive percentile and
+quartile values from bounded numeric arrays or ranges with linear
+interpolation. Reference text, logicals, and blanks are ignored; formula
+errors propagate; invalid `k`/quartile indexes and empty numeric sets fail
+closed as `#NUM!`, while invalid arity fails as `#VALUE!`. Spreadsheet smoke
+coverage includes the interpolation endpoints, ignored nonnumeric values,
+error propagation, invalid indexes, and XLSX export/import.
 
 ## Unreleased: bounded Unicode code-point conversion formulas
 

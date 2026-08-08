@@ -3348,12 +3348,14 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.NPV` | formula | Discount a finite periodic cash-flow vector beginning one period after the present value date. |
 | `fx.ODD` | formula | Round a finite number away from zero to the next odd integer. |
 | `fx.OR` | formula | Return TRUE when any condition is true. |
+| `fx.PERCENTILE.INC` | formula | Return an inclusive percentile from a bounded array or range; k must be from 0 through 1 and the result uses linear interpolation, while nonnumeric reference values are ignored, formula errors propagate, and an empty numeric set fails as #NUM!. |
 | `fx.PI` | formula | Return the deterministic mathematical constant π; arguments are rejected rather than ignored. |
 | `fx.PMT` | formula | Calculate a constant-period loan payment from finite rate, term, present value, optional future value, and payment-timing inputs. |
 | `fx.POWER` | formula | Raise a finite base to a finite exponent; non-finite results fail as #NUM! rather than leaking JavaScript Infinity or NaN. |
 | `fx.PPMT` | formula | Calculate the principal component of one constant-payment loan period using the same bounded inputs as IPMT. |
 | `fx.PRODUCT` | formula | Multiply numeric values across arguments and bounded ranges; formula errors propagate and empty invocation returns #VALUE!. |
 | `fx.PV` | formula | Calculate the present value of a finite constant-payment stream from rate, term, payment, optional future value, and payment timing. |
+| `fx.QUARTILE.INC` | formula | Return an inclusive quartile from a bounded array or range; the quartile index must be an integer from 0 through 4 and the result uses linear interpolation, while nonnumeric reference values are ignored, formula errors propagate, and an empty numeric set fails as #NUM!. |
 | `fx.QUOTIENT` | formula | Return the integer portion of a division result, truncating toward zero and returning #DIV/0! for a zero divisor. |
 | `fx.RADIANS` | formula | Convert finite degrees to radians with an explicit non-finite-result guard. |
 | `fx.RANK.EQ` | formula | Return a number's equal rank in a numeric range, descending by default or ascending when order is nonzero. |
@@ -5269,6 +5271,23 @@ Return TRUE when any condition is true.
 
 - `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.PERCENTILE.INC`
+
+Return an inclusive percentile from a bounded array or range; k must be from 0 through 1 and the result uses linear interpolation, while nonnumeric reference values are ignored, formula errors propagate, and an empty numeric set fails as #NUM!.
+
+**Examples:**
+
+- =PERCENTILE.INC(A1:A10,0.9)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =PERCENTILE.INC(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.PI`
 
 Return the deterministic mathematical constant π; arguments are rejected rather than ignored.
@@ -5385,6 +5404,23 @@ Calculate the present value of a finite constant-payment stream from rate, term,
 **Notes:**
 
 - The bounded evaluator requires rate > -1, a positive finite term, and payment type 0 or 1. It preserves standard cash-flow signs and returns #VALUE! or #NUM! for invalid inputs rather than coercing them.
+
+#### `fx.QUARTILE.INC`
+
+Return an inclusive quartile from a bounded array or range; the quartile index must be an integer from 0 through 4 and the result uses linear interpolation, while nonnumeric reference values are ignored, formula errors propagate, and an empty numeric set fails as #NUM!.
+
+**Examples:**
+
+- =QUARTILE.INC(A1:A10,3)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =QUARTILE.INC(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.QUOTIENT`
 

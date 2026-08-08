@@ -1177,6 +1177,36 @@ const importedAverageIfWorkbook = await SpreadsheetFile.importXlsx(averageIfXlsx
 assert.deepEqual(importedAverageIfWorkbook.worksheets.getItem("AVERAGEIF bounds").getRange("D1:D4").formulas, averageIfSheet.getRange("D1:D4").formulas);
 assert.deepEqual(importedAverageIfWorkbook.worksheets.getItem("AVERAGEIF bounds").getRange("D1:D4").values, [[20], ["#DIV/0!"], [20], ["#VALUE!"]]);
 
+const percentileWorkbook = Workbook.create();
+const percentileSheet = percentileWorkbook.worksheets.add("Percentile bounds");
+percentileSheet.getRange("A1:A5").values = [[1], [2], [3], [4], [5]];
+percentileSheet.getRange("B1:B5").values = [[10], ["20"], [true], [null], [30]];
+percentileSheet.getRange("C1:C2").values = [[1], ["#DIV/0!"]];
+percentileSheet.getRange("D1:D3").values = [["10"], [true], [null]];
+percentileSheet.getRange("E1:E14").formulas = [
+  ["=PERCENTILE.INC(A1:A5,0)"],
+  ["=PERCENTILE.INC(A1:A5,0.25)"],
+  ["=PERCENTILE.INC(A1:A5,0.5)"],
+  ["=PERCENTILE.INC(A1:A5,0.75)"],
+  ["=PERCENTILE.INC(A1:A5,1)"],
+  ["=QUARTILE.INC(A1:A5,1)"],
+  ["=QUARTILE.INC(A1:A5,3)"],
+  ["=PERCENTILE.INC(B1:B5,0.5)"],
+  ["=PERCENTILE.INC(C1:C2,0.5)"],
+  ["=PERCENTILE.INC(A1:A5,-0.1)"],
+  ["=QUARTILE.INC(A1:A5,1.5)"],
+  ["=PERCENTILE.INC(A1:A5)"],
+  ["=QUARTILE.INC(A1:A5,5)"],
+  ["=PERCENTILE.INC(D1:D3,0.5)"],
+];
+assert.deepEqual(percentileSheet.getRange("E1:E14").values, [
+  [1], [2], [3], [4], [5], [2], [4], [20], ["#DIV/0!"], ["#NUM!"], ["#NUM!"], ["#VALUE!"], ["#NUM!"], ["#NUM!"],
+]);
+const percentileXlsx = await SpreadsheetFile.exportXlsx(percentileWorkbook);
+const importedPercentileWorkbook = await SpreadsheetFile.importXlsx(percentileXlsx);
+assert.deepEqual(importedPercentileWorkbook.worksheets.getItem("Percentile bounds").getRange("E1:E14").formulas, percentileSheet.getRange("E1:E14").formulas);
+assert.deepEqual(importedPercentileWorkbook.worksheets.getItem("Percentile bounds").getRange("E1:E14").values, percentileSheet.getRange("E1:E14").values);
+
 const mathFormulaWorkbook = Workbook.create();
 const mathFormulaSheet = mathFormulaWorkbook.worksheets.add("Math primitives");
 mathFormulaSheet.getRange("A1:A3").values = [[2], [3], [-4]];

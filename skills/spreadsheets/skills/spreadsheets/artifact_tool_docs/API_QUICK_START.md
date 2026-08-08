@@ -56,6 +56,7 @@ await output.save(`${outputDir}/output.xlsx`);
 - When rebuilding dashboards, delete drawings first with `sheet.deleteAllDrawings()`. `range.clear()` does not remove charts, shapes, or images.
 - Verify with `await workbook.inspect(...)`; use `workbook.help(...)` only when the quick surface below is insufficient.
 - For Unicode-safe text formulas, `LEFT`/`RIGHT`/`MID`/`LEN` count code points; `UNICODE` reads the first code point and `UNICHAR` accepts one valid Unicode scalar value. `CLEAN` removes only ASCII C0 controls (`U+0000`–`U+001F`) and preserves other Unicode/control characters. Empty, overlong, multi-cell, surrogate, or invalid inputs fail closed instead of being coerced.
+- For bounded statistics, `PERCENTILE.INC` and `QUARTILE.INC` use inclusive linear interpolation over numeric values from a range; reference text, logicals, and blanks are ignored, while formula errors and invalid indexes fail closed. Keep the source range bounded and use `workbook.help("fx.PERCENTILE.INC")` for the exact contract.
 
 ## Conventions
 - Use camelCase API names and option keys.
