@@ -682,11 +682,16 @@ assert.match(HELP_CATALOG.find((item) => item.name === "table.merge")?.schema?.r
 assert.equal(HELP_CATALOG.find((item) => item.name === "officeKitStatus")?.schema?.returns?.status?.type, "object");
 assert.equal(HELP_CATALOG.find((item) => item.name === "invokeOfficeKit")?.schema?.parameters?.request?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.inspectXlsx")?.schema?.parameters?.maxTotalBytes?.type, "number");
+assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.inspectXlsx")?.schema?.parameters?.maxInputBytes?.type, "number");
+assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.inspectXlsx")?.schema?.parameters?.maxCompressionRatio?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.inspectXlsx")?.schema?.parameters?.verifyCrc32?.type, "boolean");
 assert.equal(HELP_CATALOG.find((item) => item.name === "PresentationFile.inspectPptx")?.schema?.parameters?.verifyCrc32?.type, "boolean");
 assert.equal(HELP_CATALOG.find((item) => item.name === "DocumentFile.inspectDocx")?.schema?.parameters?.verifyCrc32?.type, "boolean");
+assert.equal(HELP_CATALOG.find((item) => item.name === "PresentationFile.inspectPptx")?.schema?.parameters?.maxInputBytes?.type, "number");
+assert.equal(HELP_CATALOG.find((item) => item.name === "DocumentFile.inspectDocx")?.schema?.parameters?.maxInputBytes?.type, "number");
 assert.match(HELP_CATALOG.find((item) => item.name === "DocumentFile.inspectDocx")?.summary || "", /root officeDocument relationship.*CRC/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.patchXlsx")?.schema?.parameters?.validateResult?.type, "boolean");
+assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.patchXlsx")?.schema?.parameters?.maxCompressionRatio?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.patchXlsx")?.schema?.parameters?.syncSourceReferences?.type, "boolean");
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.patchXlsx")?.schema?.parameters?.recipe?.type, "string|object");
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.importDelimited")?.schema?.parameters?.maxRows?.type, "number");

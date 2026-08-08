@@ -53,7 +53,7 @@ Generated from `HELP_CATALOG` in `src/help/index.mjs`.
 | `DocumentFile.exportDocx` | api | Export DocumentModel to DOCX through the single bundled OfficeKit codec. Only limits is accepted; legacy codec and lossy-fallback options fail explicitly. |
 | `DocumentFile.finalizeRevisions` | api | Accept or reject bounded direct whole-paragraph one-run revisions and exact adjacent in-paragraph w:del + w:ins pairs from source bytes, including same-format fragmented deletions in direct body paragraphs or bounded table-cell paragraphs. Mandatory SHA-256 binding, decompression budgets, exact changed-part audit, and fail-closed graph checks prevent silent model reconstruction or broad package mutation. |
 | `DocumentFile.importDocx` | api | Import relationship-driven core DOCX semantics through the single bundled OfficeKit codec. An imported header/footer advertises editable only for one direct unformatted text paragraph in a uniquely used source part; recognized ordered literal/simple-field page furniture is exposed as segments but remains source-bound/read-only and no-op preserved. PAGE/simple fields, rich, shared, inherited, and irregular page furniture stay read-only. Recognized inline controls, fields, revisions, notes, citations, simple tables, and exclusive canonical VML text-watermark paragraphs are fixed-topology editable; a canonical BIBLIOGRAPHY output field permits only its cached display text to change. Otherwise read-only paragraphs and complex table cells separately advertise textPatchable when at least one direct ordinary native text node can participate in a bounded literal patch. A unique literal may span adjacent same-format runs without rebuilding the surrounding graph. |
-| `DocumentFile.inspectDocx` | api | Inspect bounded DOCX parts, content types, the required main-document/root officeDocument relationship, and namespace-aware source XML r:id/r:embed/r:link references under decompression budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
+| `DocumentFile.inspectDocx` | api | Inspect bounded DOCX parts, content types, the required main-document/root officeDocument relationship, and namespace-aware source XML r:id/r:embed/r:link references after raw-input, part-count, decompression, and optional compression-ratio budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `DocumentFile.patchDocx` | api | Apply DOCX part patches with path traversal validation for settings, classic-comment anchors, commentsExtended/commentsIds/commentsExtensible/people parts, and numbering assignments; atomically reject dangling packages and invalid comment graphs. |
 | `documentHeaderFooter.setSegments` | api | Atomically replace one source-free header/footer's ordered literal/simple-field sequence. The derived visible text must remain the concatenated segment displays; imported page furniture cannot use this mutation profile. |
 | `DocumentModel.create` | api | Create a document with paragraph/character styles, formatted paragraphs/runs including canonical solid paragraph shading and bounded solid paragraph borders, canonical inline and one-paragraph table-cell plain-text, checkbox, drop-down, combo-box, and ISO/Gregorian date content controls, one-paragraph block plain-text controls, canonical inline SEQ/REF/PAGEREF fields, sections, headers/footers, canonical VML text watermarks, lists, TableGrid fixed-geometry tables, links, bounded whole-block bookmarks, 1-through-16-paragraph plain-text footnotes/endnotes, canonical bibliography-backed citations plus one source-free switch-free BIBLIOGRAPHY output placeholder, simple fields, a canonical complex TOC placeholder, bounded whole-paragraph tracked insertions/deletions, classic comments, bounded modern root/direct-reply threads, and PNG/JPEG images. Nested/irregular modern threads, rich comment bodies, multi-paragraph/rich/inline-within-cell/nested/data-bound/locked/placeholder table-cell SDTs, other nested/data-bound/locked/placeholder SDTs, irregular lists, localized dates, custom checkbox symbols, image/DrawingML/irregular VML watermarks, other complex field graphs, arbitrary table-style graphs, complex bookmark/note/revision graphs, and advanced settings remain unsupported or source-bound. |
@@ -826,16 +826,18 @@ Import relationship-driven core DOCX semantics through the single bundled Office
 
 #### `DocumentFile.inspectDocx`
 
-Inspect bounded DOCX parts, content types, the required main-document/root officeDocument relationship, and namespace-aware source XML r:id/r:embed/r:link references under decompression budgets; verifyCrc32 additionally checks ZIP entry CRCs.
+Inspect bounded DOCX parts, content types, the required main-document/root officeDocument relationship, and namespace-aware source XML r:id/r:embed/r:link references after raw-input, part-count, decompression, and optional compression-ratio budgets; verifyCrc32 additionally checks ZIP entry CRCs.
 
 **Schema parameters:**
 
 - `docx` (FileBlob|Uint8Array) required — DOCX package bytes.
 - `includeText` (boolean) — Include bounded XML/JSON/relationship previews.
 - `maxPreviewChars` (number) — Maximum preview characters per textual part.
+- `maxInputBytes` (number) — Maximum compressed input bytes checked before JSZip parses the package.
 - `maxParts` (number) — Maximum package part count.
 - `maxPartBytes` (number) — Maximum uncompressed bytes per part.
 - `maxTotalBytes` (number) — Maximum total uncompressed package bytes.
+- `maxCompressionRatio` (number) — Optional maximum declared uncompressed/compressed ZIP-entry ratio; zero or omitted disables this extra check.
 - `verifyCrc32` (boolean) — Verify every ZIP entry CRC32 before inspecting package structure; use for untrusted retained inputs.
 - `maxChars` (number) — Maximum bounded NDJSON output size.
 
@@ -855,8 +857,12 @@ Apply DOCX part patches with path traversal validation for settings, classic-com
 
 - `docx` (FileBlob|Uint8Array) required — DOCX package bytes.
 - `patches` (array|object) required — Path-validated package part edits with text/xml/json/bytes/remove.
+- `maxInputBytes` (number) — Maximum compressed input bytes checked before JSZip parses the package.
 - `maxPatchBytes` (number) — Per-part patch size limit.
-- `maxParts` (number) — Maximum resulting package part count.
+- `maxParts` (number) — Maximum resulting package part count; the source part count is checked before inflation.
+- `maxPartBytes` (number) — Maximum uncompressed bytes per source or resulting part.
+- `maxTotalBytes` (number) — Maximum total uncompressed source or resulting package bytes.
+- `maxCompressionRatio` (number) — Optional maximum declared uncompressed/compressed ZIP-entry ratio; zero or omitted disables this extra check.
 - `syncContentTypes` (boolean) — Synchronize inferred or explicit content-type declarations; defaults to true.
 - `syncRelationships` (boolean) — Remove relationships to deleted parts and apply relationship recipes; defaults to true.
 - `syncSourceReferences` (boolean) — Apply opt-in standard sourceReference XML mutations for supported semantic recipes; defaults to true.
@@ -1795,7 +1801,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `presentation.view.setSourceProperties` | api | Change already-present imported grid spacing, snap flags, and existing guide positions only when view.capability.editable is true. It cannot create viewProps.xml, add/remove/reorient guides, write showGuides, or reconstruct extensions/relationships; unsupported profiles fail closed. |
 | `PresentationFile.exportPptx` | api | Serialize PPTX through the single bundled OfficeKit codec. Only limits is accepted; legacy codec and lossy-fallback options fail explicitly. |
 | `PresentationFile.importPptx` | api | Import PPTX through the single bundled OfficeKit codec with source-bound opaque preservation, speaker-notes edit/add capability evidence, bounded text-only edits for recognized local SlidePart placeholders and canonical SmartArt plain document nodes, eligible OLE XLSX payload access/replacement plus uniquely bound DOCX Office-package access/replacement, and fail-closed unsupported edits. |
-| `PresentationFile.inspectPptx` | api | Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics under decompression budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
+| `PresentationFile.inspectPptx` | api | Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics after raw-input, part-count, decompression, and optional compression-ratio budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `PresentationFile.patchPptx` | api | Apply path-validated PPTX part patches, including safe slide/master/layout ID lists and slide image/chart DrawingML mutations, and atomically reject dangling package references or invalid notes/comments semantics. |
 | `shape.text.set` | api | Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export. |
 | `shape.useBackgroundFill` | api | Read the presence-aware imported PresentationML p:sp useBgFill flag. It affects preview paint but remains source-bound and read-only; source-free authoring or wire mutation fails closed. |
@@ -2432,7 +2438,7 @@ Import PPTX through the single bundled OfficeKit codec with source-bound opaque 
 
 #### `PresentationFile.inspectPptx`
 
-Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics under decompression budgets; verifyCrc32 additionally checks ZIP entry CRCs.
+Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics after raw-input, part-count, decompression, and optional compression-ratio budgets; verifyCrc32 additionally checks ZIP entry CRCs.
 
 **Examples:**
 
@@ -2443,9 +2449,11 @@ Inspect bounded PPTX parts, content types, the required presentation/root office
 - `pptx` (FileBlob|Uint8Array) required — PPTX package bytes.
 - `includeText` (boolean) — Include bounded XML, relationship, and JSON text previews.
 - `maxPreviewChars` (number) — Maximum preview characters per textual package part.
+- `maxInputBytes` (number) — Maximum compressed input bytes checked before JSZip parses the package.
 - `maxParts` (number) — Maximum package part count.
 - `maxPartBytes` (number) — Maximum uncompressed bytes per part.
 - `maxTotalBytes` (number) — Maximum total uncompressed package bytes.
+- `maxCompressionRatio` (number) — Optional maximum declared uncompressed/compressed ZIP-entry ratio; zero or omitted disables this extra check.
 - `verifyCrc32` (boolean) — Verify every ZIP entry CRC32 before inspecting package structure; use for untrusted retained inputs.
 - `maxChars` (number) — Maximum bounded NDJSON output size.
 
@@ -2461,8 +2469,12 @@ Apply path-validated PPTX part patches, including safe slide/master/layout ID li
 
 - `pptx` (FileBlob|Uint8Array) required — PPTX package bytes.
 - `patches` (array|object) required — Safe part edits with text, xml, json, bytes, content, remove, or delete.
+- `maxInputBytes` (number) — Maximum compressed input bytes checked before JSZip parses the package.
 - `maxPatchBytes` (number) — Maximum bytes per replacement part.
 - `maxParts` (number) — Maximum resulting package part count.
+- `maxPartBytes` (number) — Maximum uncompressed bytes per source or resulting part.
+- `maxTotalBytes` (number) — Maximum total uncompressed source or resulting package bytes.
+- `maxCompressionRatio` (number) — Optional maximum declared uncompressed/compressed ZIP-entry ratio; zero or omitted disables this extra check.
 - `syncContentTypes` (boolean) — Synchronize inferred or explicit content-type declarations; defaults to true.
 - `syncRelationships` (boolean) — Remove relationships to deleted parts and apply relationship recipes; defaults to true.
 - `syncSourceReferences` (boolean) — Apply opt-in standard sourceReference XML mutations for supported semantic recipes; defaults to true.
@@ -3471,7 +3483,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `SpreadsheetFile.importTsv` | api | Import UTF-8 tab-separated bytes into an editable Workbook through the bounded delimited parser. |
 | `SpreadsheetFile.importXlsx` | api | Load XLSX through the single bundled OfficeKit codec into an editable Workbook facade. |
 | `SpreadsheetFile.inspectDelimited` | api | Inspect bounded CSV/TSV bytes as file/row records with dimensions, delimiter, quoting, and formula-like cell evidence. |
-| `SpreadsheetFile.inspectXlsx` | api | Inspect bounded XLSX parts, content types, the required workbook/root officeDocument relationship, and namespace-aware source XML r:id/r:embed/r:link references under decompression budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
+| `SpreadsheetFile.inspectXlsx` | api | Inspect bounded XLSX parts, content types, the required workbook/root officeDocument relationship, and namespace-aware source XML r:id/r:embed/r:link references after raw-input, part-count, decompression, and optional compression-ratio budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `SpreadsheetFile.patchXlsx` | api | Apply path-validated XLSX part patches, build worksheet/table/drawing/image/chart/pivot source references, and atomically reject dangling content types or relationships. |
 | `table.setQueryRefreshPolicy` | api | On one recognized imported QueryTable, monotonically disable automatic refresh without changing its connection, command, fields, sort, refresh history, or topology. |
 | `thread.addReply` | api | Append a direct reply to an Office threaded-comment root with independent author/person/date/done metadata. Nested or branched reply graphs and mentions fail closed. |
@@ -7298,16 +7310,18 @@ Inspect bounded CSV/TSV bytes as file/row records with dimensions, delimiter, qu
 
 #### `SpreadsheetFile.inspectXlsx`
 
-Inspect bounded XLSX parts, content types, the required workbook/root officeDocument relationship, and namespace-aware source XML r:id/r:embed/r:link references under decompression budgets; verifyCrc32 additionally checks ZIP entry CRCs.
+Inspect bounded XLSX parts, content types, the required workbook/root officeDocument relationship, and namespace-aware source XML r:id/r:embed/r:link references after raw-input, part-count, decompression, and optional compression-ratio budgets; verifyCrc32 additionally checks ZIP entry CRCs.
 
 **Schema parameters:**
 
 - `xlsx` (FileBlob|Uint8Array) required — XLSX package bytes.
 - `includeText` (boolean) — Include bounded XML/JSON/relationship previews.
 - `maxPreviewChars` (number) — Maximum preview characters per textual part.
+- `maxInputBytes` (number) — Maximum compressed input bytes checked before JSZip parses the package.
 - `maxParts` (number) — Maximum package part count.
 - `maxPartBytes` (number) — Maximum uncompressed bytes per part.
 - `maxTotalBytes` (number) — Maximum total uncompressed package bytes.
+- `maxCompressionRatio` (number) — Optional maximum declared uncompressed/compressed ZIP-entry ratio; zero or omitted disables this extra check.
 - `verifyCrc32` (boolean) — Verify every ZIP entry CRC32 before inspecting package structure; use for untrusted retained inputs.
 - `maxChars` (number) — Maximum bounded NDJSON output size.
 
@@ -7323,8 +7337,12 @@ Apply path-validated XLSX part patches, build worksheet/table/drawing/image/char
 
 - `xlsx` (FileBlob|Uint8Array) required — XLSX package bytes.
 - `patches` (array|object) required — Safe part edits with text, xml, json, bytes, content, remove, or delete.
+- `maxInputBytes` (number) — Maximum compressed input bytes checked before JSZip parses the package.
 - `maxPatchBytes` (number) — Maximum bytes per replacement part.
 - `maxParts` (number) — Maximum resulting package part count.
+- `maxPartBytes` (number) — Maximum uncompressed bytes per source or resulting part.
+- `maxTotalBytes` (number) — Maximum total uncompressed source or resulting package bytes.
+- `maxCompressionRatio` (number) — Optional maximum declared uncompressed/compressed ZIP-entry ratio; zero or omitted disables this extra check.
 - `syncContentTypes` (boolean) — Synchronize inferred or explicit content-type declarations; defaults to true.
 - `syncRelationships` (boolean) — Remove relationships to deleted parts and apply relationship recipes; defaults to true.
 - `syncSourceReferences` (boolean) — Apply opt-in standard sourceReference XML mutations for supported semantic recipes; defaults to true.

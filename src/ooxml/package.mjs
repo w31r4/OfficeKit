@@ -31,6 +31,77 @@ import { imageContentTypeFromExtension } from "../shared/images.mjs";
 import { ndjson } from "../shared/inspection.mjs";
 import { attrEscape } from "../shared/xml.mjs";
 
+const OOXML_DEFAULT_MAX_INPUT_BYTES = 256 * 1024 * 1024;
+const OOXML_DEFAULT_MAX_PARTS = 5_000;
+const OOXML_DEFAULT_MAX_PART_BYTES = 64 * 1024 * 1024;
+const OOXML_DEFAULT_MAX_TOTAL_BYTES = 256 * 1024 * 1024;
+
+function ooxmlPositiveLimit(value, fallback) {
+  const number = Number(value ?? fallback);
+  return Number.isSafeInteger(number) && number > 0 ? number : fallback;
+}
+
+function ooxmlZipLimits(options = {}) {
+  const maxCompressionRatio = Number(options.maxCompressionRatio ?? 0);
+  return {
+    maxInputBytes: ooxmlPositiveLimit(options.maxInputBytes, OOXML_DEFAULT_MAX_INPUT_BYTES),
+    maxParts: ooxmlPositiveLimit(options.maxParts, OOXML_DEFAULT_MAX_PARTS),
+    maxPartBytes: ooxmlPositiveLimit(options.maxPartBytes, OOXML_DEFAULT_MAX_PART_BYTES),
+    maxTotalBytes: ooxmlPositiveLimit(options.maxTotalBytes, OOXML_DEFAULT_MAX_TOTAL_BYTES),
+    maxCompressionRatio: Number.isSafeInteger(maxCompressionRatio) && maxCompressionRatio > 0 ? maxCompressionRatio : 0,
+  };
+}
+
+async function ooxmlInputBytes(blobOrBuffer) {
+  return blobOrBuffer instanceof FileBlob
+    ? new Uint8Array(await blobOrBuffer.arrayBuffer())
+    : toUint8Array(blobOrBuffer);
+}
+
+// JSZip must parse the central directory before it can expose entry metadata,
+// so the raw input budget is checked first. Declared entry sizes and the part
+// count are then checked before any entry is inflated. `ooxmlPackageRecords`
+// repeats the actual-size checks after inflation; this helper closes the patch
+// path that used to mutate a ZIP before those checks ran.
+async function loadOoxmlZipWithinBudget(bytes, options = {}, family = "OOXML") {
+  const limits = ooxmlZipLimits(options);
+  if (bytes.byteLength > limits.maxInputBytes) {
+    throw new Error(`${family} input has ${bytes.byteLength} bytes and exceeds maxInputBytes (${limits.maxInputBytes}).`);
+  }
+  let zip;
+  try {
+    zip = await JSZip.loadAsync(bytes, { createFolders: false });
+  } catch (error) {
+    throw new Error(`${family} package is not a readable ZIP package: ${error.message}`);
+  }
+  const files = Object.values(zip.files).filter((file) => !file.dir);
+  if (files.length > limits.maxParts) {
+    throw new Error(`${family} package has ${files.length} parts; maxParts is ${limits.maxParts}.`);
+  }
+  let declaredTotalBytes = 0;
+  for (const file of files) {
+    const partPath = ooxmlSafePartPath(file.name, family);
+    const declaredSize = Number(file._data?.uncompressedSize);
+    if (Number.isSafeInteger(declaredSize) && declaredSize >= 0) {
+      if (declaredSize > limits.maxPartBytes) {
+        throw new Error(`${family} part ${partPath} exceeds maxPartBytes (${limits.maxPartBytes}).`);
+      }
+      declaredTotalBytes += declaredSize;
+      if (!Number.isSafeInteger(declaredTotalBytes) || declaredTotalBytes > limits.maxTotalBytes) {
+        throw new Error(`${family} package exceeds maxTotalBytes (${limits.maxTotalBytes}).`);
+      }
+      if (limits.maxCompressionRatio > 0 && declaredSize > 0) {
+        const compressedSize = Number(file._data?.compressedSize);
+        const ratio = compressedSize > 0 ? declaredSize / compressedSize : Infinity;
+        if (!Number.isFinite(ratio) || ratio > limits.maxCompressionRatio) {
+          throw new Error(`${family} part ${partPath} exceeds maxCompressionRatio (${limits.maxCompressionRatio}).`);
+        }
+      }
+    }
+  }
+  return zip;
+}
+
 function decodeXml(value) {
   return String(value ?? "")
     .replaceAll("&lt;", "<")
@@ -331,9 +402,7 @@ async function ooxmlPackageRecords(zip, options = {}, config = {}) {
   const maxPreviewChars = Math.max(0, Number(options.maxPreviewChars ?? 400) || 0);
   const files = Object.values(zip.files).filter((file) => !file.dir).sort((a, b) => a.name.localeCompare(b.name));
   const family = config.family || "OOXML";
-  const maxParts = Math.max(1, Number(options.maxParts ?? 5000) || 5000);
-  const maxPartBytes = Math.max(1, Number(options.maxPartBytes ?? 64 * 1024 * 1024) || 64 * 1024 * 1024);
-  const maxTotalBytes = Math.max(1, Number(options.maxTotalBytes ?? 256 * 1024 * 1024) || 256 * 1024 * 1024);
+  const { maxParts, maxPartBytes, maxTotalBytes } = ooxmlZipLimits(options);
   if (files.length > maxParts) throw new Error(`${family} package has ${files.length} parts; maxParts is ${maxParts}.`);
   const safePaths = new Map();
   let declaredTotalBytes = 0;
@@ -563,8 +632,8 @@ async function syncOoxmlSourceReferences(zip, normalizedPatches, options, family
 }
 
 export async function inspectOoxmlPackage(blobOrBuffer, options = {}, config = {}) {
-  const bytes = blobOrBuffer instanceof FileBlob ? new Uint8Array(await blobOrBuffer.arrayBuffer()) : toUint8Array(blobOrBuffer);
-  const zip = await JSZip.loadAsync(bytes);
+  const bytes = await ooxmlInputBytes(blobOrBuffer);
+  const zip = await loadOoxmlZipWithinBudget(bytes, options, config.family || "OOXML");
   const records = await ooxmlPackageRecords(zip, options, config);
   // JSZip's eager CRC option inflates every entry before this module can apply
   // its declared and actual decompression budgets. Re-open only after the
@@ -578,8 +647,8 @@ export async function inspectOoxmlPackage(blobOrBuffer, options = {}, config = {
 
 export async function patchOoxmlPackage(blobOrBuffer, patches = [], options = {}, config = {}) {
   const family = config.family || "OOXML";
-  const bytes = blobOrBuffer instanceof FileBlob ? new Uint8Array(await blobOrBuffer.arrayBuffer()) : toUint8Array(blobOrBuffer);
-  const zip = await JSZip.loadAsync(bytes);
+  const bytes = await ooxmlInputBytes(blobOrBuffer);
+  const zip = await loadOoxmlZipWithinBudget(bytes, options, family);
   const list = Array.isArray(patches) ? patches : Object.entries(patches || {}).map(([partPath, content]) => (
     content && typeof content === "object" && !(content instanceof Uint8Array) && !(content instanceof ArrayBuffer) && !ArrayBuffer.isView(content)
       ? { path: partPath, ...content }

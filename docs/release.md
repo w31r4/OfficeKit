@@ -2,11 +2,21 @@
 
 ## Current 0.6.0 package evidence (2026-08-08)
 
-`npm run test:pack` passed after the bounded formula position/source introspection change. The clean
-dry-run package contains 702 files, 36,232,090 compressed bytes, and
-53,501,917 unpacked bytes; its shasum is
-`6073ba6d83704ac63e6496982bc741f3174b1c4d`. This is package evidence, not an
+`npm run test:pack` passed after the bounded OOXML package input-budget change. The clean
+dry-run package contains 702 files, 36,233,357 compressed bytes, and
+53,510,111 unpacked bytes; its shasum is
+`7f2a112d11fae29904c1fa204e95f171c8dc9c60`. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: bounded OOXML package input budgets
+
+The shared low-level DOCX/XLSX/PPTX inspect and patch path now checks the raw
+compressed input size, source part count, declared and actual per-part/total
+decompression, safe package paths, and an optional declared compression-ratio
+ceiling before patch mutation. This closes the previous difference where a
+low-level patch could hand an untrusted ZIP to JSZip before applying the same
+budgets used by inspection. CRC verification remains explicit via
+`verifyCrc32`; these budgets do not make unsupported OOXML topology editable.
 
 ## Unreleased: bounded CLEAN text formula
 
