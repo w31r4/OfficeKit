@@ -2362,7 +2362,7 @@ for (const item of HELP_CATALOG) {
     const returnType = item.category === "dynamic-array"
       ? "unknown[][]"
       : item.category === "logical" || item.category === "information"
-        ? (functionName === "IF" || functionName === "IFERROR" ? "unknown" : "boolean")
+        ? (functionName === "IF" || functionName === "IFERROR" || functionName === "LET" ? "unknown" : "boolean")
         : item.category === "text"
           ? (["LEN", "VALUE", "SEARCH", "FIND"].includes(functionName) ? "number" : "string")
           : functionName === "CHOOSE" || functionName === "XLOOKUP" || functionName === "INDEX" || functionName === "VLOOKUP" || functionName === "HLOOKUP"
