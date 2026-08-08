@@ -45,6 +45,7 @@ const fastSteps = [
   nodeStep("test/gate-policy.mjs"),
   nodeStep("test/windows-live-gate.mjs"),
   nodeStep("test/verify.mjs"),
+  nodeStep("test/review.mjs"),
   nodeStep("test/help.mjs"),
   nodeStep("test/package-contents.mjs"),
 ];
@@ -108,6 +109,7 @@ const slowSteps = [
   nodeStep("test/agent-evals.mjs"),
   nodeStep("test/agent-eval-branded-template.mjs"),
   nodeStep("test/verify.mjs"),
+  nodeStep("test/review.mjs"),
   nodeStep("test/render.mjs"),
   nodeStep("test/visual-baselines.mjs"),
   nodeStep("test/renderer-adapters.mjs"),

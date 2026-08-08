@@ -8,6 +8,7 @@ const packageMetadata = JSON.parse(await fs.readFile(path.join(repoRoot, "packag
 assert.equal(packageMetadata.version, "0.6.0");
 assert.equal(packageMetadata.license, "AGPL-3.0-or-later");
 assert.equal(packageMetadata.dependencies.mupdf, "1.28.0");
+assert.equal(packageMetadata.dependencies["@firecrawl/anydoc"], "0.1.3");
 assert.equal(packageMetadata.dependencies.selfsigned, "^5.5.0");
 assert.equal(packageMetadata.exports["./pdf/mupdf"], "./src/pdf/mupdf.mjs");
 assert.equal(packageMetadata.exports["./pdf/providers"], "./src/pdf/providers/index.mjs");
@@ -94,6 +95,9 @@ assert.match(pdfFacadeSource, /await import\("\.\/mupdf\.mjs"\)/, "MuPDF must lo
 assert.doesNotMatch(pdfFacadeSource, /from\s+["']mupdf["']/, "the root PDF facade must not initialize MuPDF eagerly");
 const pdfProvidersSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "providers", "index.mjs"), "utf8");
 assert.doesNotMatch(pdfProvidersSource, /from\s+["']mupdf["']/, "the explicit provider subpath must not initialize MuPDF eagerly");
+const reviewSource = await fs.readFile(path.join(repoRoot, "src", "review", "index.mjs"), "utf8");
+assert.match(reviewSource, /await import\("@firecrawl\/anydoc"\)/, "AnyDoc must load only for an explicitly requested content view");
+assert.doesNotMatch(reviewSource, /from\s+["']@firecrawl\/anydoc["']/, "the review facade must not initialize AnyDoc eagerly");
 const officeKitCliSource = await fs.readFile(path.join(repoRoot, "src", "cli", "officekit.mjs"), "utf8");
 assert.doesNotMatch(officeKitCliSource, /node:child_process|https?:\/\/|\bfetch\s*\(/, "officekit init must remain a local Skill installer");
 assert.doesNotMatch(officeKitCliSource, /pdf\/providers|from\s+["']mupdf["']/, "officekit init must not initialize PDF runtimes or capability packs");
@@ -216,6 +220,8 @@ for (const required of [
   "src/pdf/accessibility.mjs",
   "src/pdf/index.mjs",
   "src/pdf/mupdf.mjs",
+  "src/review/index.mjs",
+  "skills/office-kit/skills/office-kit/references/review.md",
   "src/pdf/providers/catalog.mjs",
   "src/pdf/providers/index.mjs",
   "src/pdf/providers/installer.mjs",
@@ -406,6 +412,7 @@ for (const required of [
   "skills/office-kit/skills/office-kit/references/routing.md",
   "skills/office-kit/skills/office-kit/references/template-selection.md",
   "skills/office-kit/skills/office-kit/references/repl.md",
+  "skills/office-kit/skills/office-kit/references/review.md",
   "skills/template-creator/.codex-plugin/plugin.json",
   "skills/template-creator/manifest.json",
   "skills/template-creator/README.md",

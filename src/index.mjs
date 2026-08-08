@@ -7,6 +7,7 @@ import { createArtifactVisualQaApi } from "./qa/artifact-visual.mjs";
 import { ndjson, verificationIssue, verificationResult } from "./shared/inspection.mjs";
 
 export { FileBlob } from "./shared/file-blob.mjs";
+export { reviewArtifact } from "./review/index.mjs";
 export {
   clearOfficeFontDesignMetrics,
   registerScopedOfficeFontDesignMetrics,

@@ -400,6 +400,7 @@ export const HELP_CATALOG = [
   },
 
   { artifactKind: "shared", kind: "api", name: "verifyArtifact", summary: "Run an artifact's verify() method and return a bounded NDJSON QA report." },
+  { artifactKind: "shared", kind: "api", name: "reviewArtifact", summary: "Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report covering modeled semantics, package structure, representative render evidence, optional lazy AnyDoc Markdown, visual-review status, and delivery identity." },
   { artifactKind: "shared", kind: "api", name: "visualQaArtifact", summary: "Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline render, optionally register small translations, and return a configurable aligned PNG diff heatmap." },
   { artifactKind: "shared", kind: "api", name: "renderArtifact", summary: "Render an artifact through its render/export method, attach normalized FileBlob metadata, and optionally pass SVG output through a caller-provided renderer adapter for PNG/WebP/JPEG/PDF output." },
   { artifactKind: "shared", kind: "api", name: "createPlaywrightRenderer", summary: "Create an optional Playwright renderer adapter from office-kit/renderers/playwright for deterministic SVG/HTML to PNG, WebP, JPEG, or PDF conversion with network blocked by default." },
@@ -521,6 +522,34 @@ const HELP_DETAIL_OVERRIDES = {
         maxChars: { type: "number", description: "Maximum bounded NDJSON output size." },
       },
       returns: { report: { type: "object", description: "Semantic QA result with artifactKind, ok, issues, ndjson, and truncated." } },
+    },
+  },
+  reviewArtifact: {
+    examples: ["await reviewArtifact('/absolute/path/output.pptx', { source: '/absolute/path/input.pptx', contentView: 'anydoc', visualReview: 'unavailable' })"],
+    options: ["format/kind", "outputPath", "source", "contentView", "visualReview", "layout", "renderOptions", "maxBytes", "maxContentChars", "maxInspectChars", "maxSummaryChars"],
+    returns: "{ verdict, semantic, structural, layout, contentView, visualReview, delivery, summary }",
+    notes: [
+      "AnyDoc is a runtime-lazy, optional content-reading view. It is not a structural authority, render validator, OCR route, or substitute for direct pixel/aesthetic review.",
+      "Omit contentView for ordinary native review. Use contentView='anydoc' when the Agent cannot directly understand renders or needs a compact cross-format text view.",
+    ],
+    schema: {
+      parameters: {
+        input: { type: "string|FileBlob|Uint8Array|Blob|Workbook|Presentation|DocumentModel|PdfArtifact", required: true, description: "Final artifact path, bytes, or model. Modeled input is exported and reopened before review." },
+        format: { type: "string", description: "Required only when raw bytes do not carry a supported MIME type; docx, xlsx, pptx, or pdf." },
+        source: { type: "string|FileBlob|Uint8Array|Blob", description: "Optional read-only source used for SHA-256 and canonical input/output collision evidence." },
+        outputPath: { type: "string", description: "Absolute or working-directory-relative final path when reviewing an in-memory model." },
+        contentView: { type: "string|boolean", description: "Set to anydoc or true to lazily create bounded Markdown. Omitted, none, or false does not initialize AnyDoc." },
+        visualReview: { type: "string", description: "Caller-attested complete, unavailable, or requires-human. AnyDoc/OCR output never qualifies as complete." },
+        layout: { type: "boolean", description: "Set false only when a separate render review is already recorded; otherwise a representative render check runs." },
+        renderOptions: { type: "object", description: "Existing visualQaArtifact render/baseline options. PDF defaults to one native MuPDF PNG page." },
+        maxBytes: { type: "number", description: "Positive input/source byte budget checked before parser work." },
+        maxContentChars: { type: "number", description: "Positive AnyDoc Markdown character budget." },
+        maxInspectChars: { type: "number", description: "Positive semantic/structural/layout evidence character budget." },
+        maxSummaryChars: { type: "number", description: "Positive combined review-summary character budget." },
+      },
+      returns: {
+        report: { type: "object", description: "Schema-v1 post-edit report. Verdict is passed, passed-with-limitations, or failed; each review stage retains its own status and evidence." },
+      },
     },
   },
   "workbook.definedNames.add": {
