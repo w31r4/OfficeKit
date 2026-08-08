@@ -9,8 +9,8 @@ Use the shared `../office-kit/references/workspace.md` contract for paths and
 results. Standalone workbook work uses `workspaceRoot`, `inputRoot`,
 `assetRoot`, `outputRoot`, and `evidenceRoot`; it does not require a host
 workspace loader. After the final workbook is reopened, follow
-`../office-kit/references/review.md`; use AnyDoc only as an optional compact
-reading view for sheet values and tables, never as proof of formulas, chart
+`../office-kit/references/review.md`; use the optional text reading view
+(`contentView: "anydoc"`) for sheet values and tables, never as proof of formulas, chart
 appearance, cell formatting, or layout.
 
 ## Run the workbook workflow in one task
@@ -226,7 +226,8 @@ understood; otherwise use `"unavailable"` or `"requires-human"`. Do not emit
 a host-specific citation directive. See `../office-kit/references/workspace.md` for
 the result envelope. Semantic review must cover the requested ranges, formulas,
 errors, tables, charts, and sheet identities; structural review must reopen the
-actual XLSX. AnyDoc may reduce reading cost for a large workbook, but it cannot
+actual XLSX. The text reading view may reduce reading cost for a large workbook,
+but it cannot
 validate formula topology or rendered workbook geometry.
 
 ## Comment Author

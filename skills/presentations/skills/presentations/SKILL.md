@@ -920,9 +920,11 @@ options.
 Before delivery, render every final slide and inspect each slide individually
 at full size when visual input is available. Use a contact sheet only to review
 deck-level flow and consistency, not as a substitute for full-size layout QA.
-Without visual input, run the structured checks for every slide and use AnyDoc
-only when a compact text/table view helps semantic review; mark image-led or
-design-sensitive results `visualReview: "requires-human"`. AnyDoc cannot judge
+Without visual input, run the structured checks for every slide and use the
+optional text reading view (`contentView: "anydoc"`) only when a compact
+text/table view helps semantic review; mark image-led or
+design-sensitive results `visualReview: "requires-human"`. The text reading view
+cannot judge
 composition, hierarchy, crop, contrast, typography, or chart appearance. Fix
 unintended overlap, clipping, wrapping, broken connectors, unresolved
 placeholders, inconsistent footers/page markers, and chart/data mismatches

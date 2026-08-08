@@ -2861,7 +2861,7 @@ Merge one inclusive rectangular table range, retain the upper-left value, clear 
 | `renderArtifact` | api | Render an artifact through its render/export method, attach normalized FileBlob metadata, and optionally pass SVG output through a caller-provided renderer adapter for PNG/WebP/JPEG/PDF output. |
 | `renderFileWithNativeOffice` | api | Render or convert a DOCX/XLSX/PPTX/PDF FileBlob through a configured native Office bridge command, returning a FileBlob for PDF/PNG/WebP or other requested output. |
 | `resolveOfficeFontDesignMetrics` | api | Resolve the requested primary family, style, and nearest numeric weight from scoped then process-level font design metrics without silently skipping to later family fallbacks. |
-| `reviewArtifact` | api | Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report covering modeled semantics, package structure, representative render evidence, optional lazy AnyDoc Markdown, visual-review status, and delivery identity. |
+| `reviewArtifact` | api | Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report covering modeled semantics, package structure, representative render evidence, an optional compact text reading view powered by AnyDoc, visual-review status, and delivery identity. |
 | `setOfficeFontDesignMetrics` | api | Replace the process-level Office font design-metric registry with normalized public metric records used by deterministic layout integrations. |
 | `skiaPaintBaselineCompensationPx` | api | Return the signed subpixel residual between a finite paint baseline and its nearest integer pixel, or zero for non-finite input. |
 | `verifyArtifact` | api | Run an artifact's verify() method and return a bounded NDJSON QA report. |
@@ -3100,7 +3100,7 @@ Resolve the requested primary family, style, and nearest numeric weight from sco
 
 #### `reviewArtifact`
 
-Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report covering modeled semantics, package structure, representative render evidence, optional lazy AnyDoc Markdown, visual-review status, and delivery identity.
+Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report covering modeled semantics, package structure, representative render evidence, an optional compact text reading view powered by AnyDoc, visual-review status, and delivery identity.
 
 **Examples:**
 
@@ -3126,12 +3126,12 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 - `format` (string) — Required only when raw bytes do not carry a supported MIME type; docx, xlsx, pptx, or pdf.
 - `source` (string|FileBlob|Uint8Array|Blob) — Optional read-only source used for SHA-256 and canonical input/output collision evidence.
 - `outputPath` (string) — Absolute or working-directory-relative final path when reviewing an in-memory model.
-- `contentView` (string|boolean) — Set to anydoc or true to lazily create bounded Markdown. Omitted, none, or false does not initialize AnyDoc.
-- `visualReview` (string) — Caller-attested complete, unavailable, or requires-human. AnyDoc/OCR output never qualifies as complete.
+- `contentView` (string|boolean) — Set to anydoc or true to request the bounded text reading view. Omitted, none, or false does not initialize its AnyDoc parser.
+- `visualReview` (string) — Caller-attested complete, unavailable, or requires-human. Text reading/OCR output never qualifies as complete.
 - `layout` (boolean) — Set false only when a separate render review is already recorded; otherwise a representative render check runs.
 - `renderOptions` (object) — Existing visualQaArtifact render/baseline options. PDF defaults to one native MuPDF PNG page.
 - `maxBytes` (number) — Positive input/source byte budget checked before parser work.
-- `maxContentChars` (number) — Positive AnyDoc Markdown character budget.
+- `maxContentChars` (number) — Positive character budget for the text reading view's Markdown.
 - `maxInspectChars` (number) — Positive semantic/structural/layout evidence character budget.
 - `maxSummaryChars` (number) — Positive combined review-summary character budget.
 
@@ -3145,8 +3145,8 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 
 **Notes:**
 
-- AnyDoc is a runtime-lazy, optional content-reading view. It is not a structural authority, render validator, OCR route, or substitute for direct pixel/aesthetic review.
-- Omit contentView for ordinary native review. Use contentView='anydoc' when the Agent cannot directly understand renders or needs a compact cross-format text view.
+- The text reading view is runtime-lazy and optional; AnyDoc is its parser backend. It is not a structural authority, render validator, OCR route, or substitute for direct pixel/aesthetic review.
+- Omit contentView for ordinary native review. Use contentView='anydoc' to request the text reading view when the Agent cannot directly understand renders or needs a compact cross-format text view.
 
 #### `setOfficeFontDesignMetrics`
 

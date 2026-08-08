@@ -8,7 +8,8 @@ Use `../office-kit/references/workspace.md` for `inputRoot`, `taskRoot`, `output
 `evidenceRoot`, absolute PDF paths, SHA-256, locators, and visual-review status.
 For multi-step PDF work use `officekit repl` and `../office-kit/references/repl.md`; import through `ctx.import`, keep summaries in `ctx.state`, publish with `ctx.publish`, register QA with `ctx.recordEvidence`, and inspect before retrying `maybeApplied` mutations. Provider setup, OCR, signing, repair, and conformance remain explicit commands.
 After the final PDF is reopened, follow `../office-kit/references/review.md`.
-AnyDoc is an optional bounded reading view; it is not OCR, signature evidence,
+The optional text reading view (`contentView: "anydoc"`) is a bounded reading
+view powered by AnyDoc; it is not OCR, signature evidence,
 redaction residue evidence, PDF/UA validation, or visual QA.
 This Skill gives an agent bounded, auditable PDF primitives. PDF is independent
 from the OfficeKit DOCX/XLSX/PPTX codec: do not add a PDF protobuf/WASM codec

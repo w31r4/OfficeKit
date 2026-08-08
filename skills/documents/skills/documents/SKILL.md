@@ -523,8 +523,9 @@ python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out --emit_pdf
 
 Then inspect the generated `page-<N>.png` files when visual input is available.
 Without it, use the shared post-edit review contract and optionally request
-AnyDoc for a bounded Markdown view of headings, paragraphs, and tables. AnyDoc
-does not validate pagination, typography, images, or layout.
+the text reading view (`contentView: "anydoc"`) for a bounded Markdown view of
+headings, paragraphs, and tables. AnyDoc does not validate pagination,
+typography, images, or layout.
 
 **Success criteria (render + visual QA):**
 - PNGs exist for each page
