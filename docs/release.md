@@ -1,5 +1,15 @@
 # Release
 
+## Unreleased: bounded Unicode text extraction formulas
+
+`LEFT`, `RIGHT`, `MID`, and `LEN` now share the bounded scalar text boundary
+used by the other text transforms. They count and slice Unicode code points,
+reject multi-cell/computed matrices and formula errors, validate arity and
+non-negative integer counts, and refuse source or result text beyond 32,767
+characters. The Spreadsheet fixture covers default, zero, Unicode, invalid,
+maximum-count, and overlong cases through export/import; this remains a
+bounded deterministic profile rather than full locale-aware Excel coercion.
+
 ## Unreleased: bounded text transformation formulas
 
 The formula evaluator now supports bounded scalar `EXACT`, `REPT`, `REPLACE`,

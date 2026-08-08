@@ -3319,8 +3319,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.ISTEXT` | formula | Return TRUE when a value is text and not a formula error. |
 | `fx.LARGE` | formula | Return the k-th largest numeric value in an array or range. |
 | `fx.LCM` | formula | Return the least common multiple of bounded integer arguments and ranges; zero inputs return zero and unsafe overflow returns #NUM!. |
-| `fx.LEFT` | formula | Return characters from the start of a text value. |
-| `fx.LEN` | formula | Return the length of a text value. |
+| `fx.LEFT` | formula | Return up to 32,767 Unicode characters from the start of one bounded scalar text value; num_chars defaults to 1 and invalid or multi-cell inputs fail closed. |
+| `fx.LEN` | formula | Return the Unicode code-point length of one bounded scalar text value; overlong, error, or multi-cell inputs fail closed. |
 | `fx.LET` | formula | Bind up to 16 scalar local names from left to right and evaluate a final scalar expression; invalid names, array-valued bindings, and missing arguments fail closed as #VALUE!. |
 | `fx.LN` | formula | Return the natural logarithm of a positive finite number; non-positive inputs fail as #NUM!. |
 | `fx.LOG` | formula | Return a logarithm for a positive number and positive base other than one; the base defaults to 10 and invalid domains fail as #NUM!. |
@@ -3330,7 +3330,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.MAX` | formula | Return the maximum numeric value across arguments and ranges. |
 | `fx.MAXIFS` | formula | Return the largest numeric value where all supplied criteria ranges have the same size and match case-insensitive comparison or wildcard criteria. |
 | `fx.MEDIAN` | formula | Return the middle numeric value, or the average of the two middle values, across arguments and ranges. |
-| `fx.MID` | formula | Return characters from the middle of a text value. |
+| `fx.MID` | formula | Return a bounded Unicode slice from one scalar text value using a 1-based start and non-negative character count; invalid or multi-cell inputs fail closed. |
 | `fx.MIN` | formula | Return the minimum numeric value across arguments and ranges. |
 | `fx.MINIFS` | formula | Return the smallest numeric value where all supplied criteria ranges have the same size and match case-insensitive comparison or wildcard criteria. |
 | `fx.MINUTE` | formula | Return the 0 through 59 minute component from a nonnegative serial or supported time text. |
@@ -3359,7 +3359,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.RATE` | formula | Solve a bounded periodic interest rate from an integer payment term, payment, present value, optional future value, payment timing, and optional guess. |
 | `fx.REPLACE` | formula | Replace a bounded scalar text span using 1-based character and non-negative length arguments; invalid positions, matrices, and overlong results fail closed. |
 | `fx.REPT` | formula | Repeat one bounded scalar text value an integer number of times, with a 32,767-character result budget. |
-| `fx.RIGHT` | formula | Return characters from the end of a text value. |
+| `fx.RIGHT` | formula | Return up to 32,767 Unicode characters from the end of one bounded scalar text value; num_chars defaults to 1 and invalid or multi-cell inputs fail closed. |
 | `fx.ROUND` | formula | Round a numeric value to decimal places or, with negative digits, positions left of the decimal point. |
 | `fx.ROUNDDOWN` | formula | Round a numeric value toward zero at the requested positive or negative digit position. |
 | `fx.ROUNDUP` | formula | Round a numeric value away from zero at the requested positive or negative digit position. |
@@ -4760,7 +4760,7 @@ Return the least common multiple of bounded integer arguments and ranges; zero i
 
 #### `fx.LEFT`
 
-Return characters from the start of a text value.
+Return up to 32,767 Unicode characters from the start of one bounded scalar text value; num_chars defaults to 1 and invalid or multi-cell inputs fail closed.
 
 **Examples:**
 
@@ -4777,7 +4777,7 @@ Return characters from the start of a text value.
 
 #### `fx.LEN`
 
-Return the length of a text value.
+Return the Unicode code-point length of one bounded scalar text value; overlong, error, or multi-cell inputs fail closed.
 
 **Examples:**
 
@@ -4948,7 +4948,7 @@ Return the middle numeric value, or the average of the two middle values, across
 
 #### `fx.MID`
 
-Return characters from the middle of a text value.
+Return a bounded Unicode slice from one scalar text value using a 1-based start and non-negative character count; invalid or multi-cell inputs fail closed.
 
 **Examples:**
 
@@ -5475,7 +5475,7 @@ Repeat one bounded scalar text value an integer number of times, with a 32,767-c
 
 #### `fx.RIGHT`
 
-Return characters from the end of a text value.
+Return up to 32,767 Unicode characters from the end of one bounded scalar text value; num_chars defaults to 1 and invalid or multi-cell inputs fail closed.
 
 **Examples:**
 

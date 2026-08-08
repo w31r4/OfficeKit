@@ -1880,6 +1880,50 @@ const importedTextTransformWorkbook = await SpreadsheetFile.importXlsx(textTrans
 assert.deepEqual(importedTextTransformWorkbook.worksheets.getItem("Text transforms").getRange("B1:B16").formulas, textTransformSheet.getRange("B1:B16").formulas);
 assert.deepEqual(importedTextTransformWorkbook.worksheets.getItem("Text transforms").getRange("B1:B16").values, textTransformSheet.getRange("B1:B16").values);
 
+const textExtractWorkbook = Workbook.create();
+const textExtractSheet = textExtractWorkbook.worksheets.add("Text extract");
+textExtractSheet.getRange("A1:A4").values = [["😀bc"], ["abc"], ["x".repeat(32_767)], ["x".repeat(32_768)]];
+textExtractSheet.getRange("B1:B15").formulas = [
+  ["=LEFT(A1)"],
+  ["=LEFT(A1,0)"],
+  ["=LEFT(A1,2)"],
+  ["=RIGHT(A1,2)"],
+  ["=RIGHT(A1,0)"],
+  ["=MID(A1,2,1)"],
+  ["=MID(A1,99,1)"],
+  ["=MID(A1,0,1)"],
+  ["=MID(A1,2,-1)"],
+  ["=LEN(A1)"],
+  ["=LEFT(A1:A2,1)"],
+  ["=LEFT(A1,1,2)"],
+  ["=LEFT(A3,32767)"],
+  ["=LEFT(A3,32768)"],
+  ["=LEN(A4)"],
+];
+assert.deepEqual(textExtractSheet.getRange("B1:B12").values, [
+  ["😀"],
+  [""],
+  ["😀b"],
+  ["bc"],
+  [""],
+  ["b"],
+  [""],
+  ["#VALUE!"],
+  ["#VALUE!"],
+  [3],
+  ["#VALUE!"],
+  ["#VALUE!"],
+]);
+assert.equal(textExtractSheet.getRange("B13").values[0][0].length, 32_767);
+assert.deepEqual(textExtractSheet.getRange("B14:B15").values, [["#VALUE!"], ["#VALUE!"]]);
+const textExtractXlsx = await SpreadsheetFile.exportXlsx(textExtractWorkbook);
+const importedTextExtractWorkbook = await SpreadsheetFile.importXlsx(textExtractXlsx);
+const importedTextExtractSheet = importedTextExtractWorkbook.worksheets.getItem("Text extract");
+assert.deepEqual(importedTextExtractSheet.getRange("B1:B15").formulas, textExtractSheet.getRange("B1:B15").formulas);
+assert.deepEqual(importedTextExtractSheet.getRange("B1:B12").values, textExtractSheet.getRange("B1:B12").values);
+assert.equal(importedTextExtractSheet.getRange("B13").values[0][0].length, 32_767);
+assert.deepEqual(importedTextExtractSheet.getRange("B14:B15").values, [["#VALUE!"], ["#VALUE!"]]);
+
 const textSplitWorkbook = Workbook.create();
 const textSplitSheet = textSplitWorkbook.worksheets.add("Text split");
 textSplitSheet.getRange("A1:A5").values = [["North|West|South"], ["A||C"], ["a::b\nc"], ["||"], [Array.from({ length: 10_001 }, (_, index) => String(index)).join("|")]];
