@@ -2076,11 +2076,23 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
       }
       return hasDefault ? scalar(args.length - 1) : "#N/A";
     }
+    case "CHOOSE": {
+      if (args.length < 2 || args.length > 255) return "#VALUE!";
+      const indexValue = scalar(0);
+      const indexError = formulaErrorCode(indexValue);
+      if (indexError) return indexError;
+      const index = Math.trunc(formulaNumber(indexValue));
+      return index >= 1 && index < args.length ? scalar(index) : "#VALUE!";
+    }
     case "IFERROR": { const value = scalar(0); return formulaErrorCode(value) ? scalar(1, "") : value; }
     case "IFNA": { const value = scalar(0); return formulaErrorCode(value) === "#N/A" ? scalar(1, "") : value; }
     case "AND": return args.every((arg) => evaluateFormulaCondition(sheet, arg, context));
     case "OR": return args.some((arg) => evaluateFormulaCondition(sheet, arg, context));
     case "NOT": return !evaluateFormulaCondition(sheet, args[0], context);
+    case "XOR": {
+      if (args.length < 1 || args.length > 255 || (args.length === 1 && args[0] === "")) return "#VALUE!";
+      return args.reduce((parity, arg) => parity !== evaluateFormulaCondition(sheet, arg, context), false);
+    }
     case "ISLOGICAL": {
       if (args.length !== 1) return "#VALUE!";
       return typeof scalar(0) === "boolean";

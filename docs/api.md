@@ -3254,6 +3254,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.AVERAGEIF` | formula | Average values whose corresponding entries match case-insensitive comparison or wildcard criteria. |
 | `fx.AVERAGEIFS` | formula | Average values where all supplied criteria ranges have the same size and match case-insensitive comparison or wildcard criteria. |
 | `fx.CEILING` | formula | Round a number up to the nearest significance. |
+| `fx.CHOOSE` | formula | Select one scalar result from up to 254 ordered choices using a truncated 1-based index; invalid indexes and unsupported arity return #VALUE!. |
 | `fx.CHOOSECOLS` | formula | Select and reorder one or more 1-based or negative column indexes from an array. |
 | `fx.CHOOSEROWS` | formula | Select and reorder one or more 1-based or negative row indexes from an array. |
 | `fx.COLUMNS` | formula | Return the column count of one bounded rectangular reference or dynamic spill. |
@@ -3364,6 +3365,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.XLOOKUP` | formula | Look up one scalar in same-shaped one-dimensional row or column vectors of 1 through 10,000 cells; exact, next-smaller, next-larger, wildcard, and first/last linear search modes are modeled, while binary-search modes and mismatched or two-dimensional ranges fail as #VALUE!. |
 | `fx.XMATCH` | formula | Return a 1-based lookup position in one row or column vector of 1 through 10,000 cells, with exact, next-smaller, next-larger, wildcard, and forward or reverse linear search modes; two-dimensional, oversized, and binary-search inputs fail as #VALUE!. |
 | `fx.XNPV` | formula | Discount date-aligned finite cash flows by actual day offsets from the first date using a 365-day year. |
+| `fx.XOR` | formula | Return TRUE when an odd number of up to 255 scalar conditions are true; array-valued logical arguments remain outside the bounded evaluator. |
 | `fx.YEAR` | formula | Return the year component of a serial in the workbook's 1900 or 1904 date system. |
 | `importXlsxWithOfficeKit` | api | Import XLSX bytes through OfficeKit with editable core cells, formulas, styles, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, and bounded numeric-X/Y/positive-Size bubble charts. Imported data-table topology is source-bound and read-only. A recognized source-bound QueryTable can only disable automatic refresh through table.setQueryRefreshPolicy; a recognized connection can only disable an explicit on-load refresh through workbook.disableConnectionRefreshOnLoad; a recognized uniquely owned Pivot cache can only disable an explicit on-load refresh through pivot.disableRefreshOnLoad; commands, fields, sorts, topology, non-marker scatter styles, noncanonical bubble profiles, nested/branched replies, mentions, dynamic-array topology, other Pivot configuration/data/output, non-reversible sparkline graphs, and other advanced package content remain source-bound and read-only. |
 | `invokeOfficeKit` | api | Advanced experimental byte-boundary API for invoking the public OfficeKit codec protocol with generated wire-message objects. |
@@ -3572,6 +3574,23 @@ Round a number up to the nearest significance.
 **Schema returns:**
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.CHOOSE`
+
+Select one scalar result from up to 254 ordered choices using a truncated 1-based index; invalid indexes and unsupported arity return #VALUE!.
+
+**Examples:**
+
+- =CHOOSE(A1,"Low","Medium","High")
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =CHOOSE(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (unknown) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.CHOOSECOLS`
 
@@ -5526,6 +5545,23 @@ Discount date-aligned finite cash flows by actual day offsets from the first dat
 **Notes:**
 
 - Values and dates must have the same nonzero count; each date must be valid in the workbook date system. Rate must be greater than -1 and the vector is bounded to 10,000 entries.
+
+#### `fx.XOR`
+
+Return TRUE when an odd number of up to 255 scalar conditions are true; array-valued logical arguments remain outside the bounded evaluator.
+
+**Examples:**
+
+- =XOR(A1>0,B1>0,C1>0)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =XOR(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.YEAR`
 
