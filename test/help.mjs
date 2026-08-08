@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 435);
+assert.equal(HELP_CATALOG.length, 437);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -249,6 +249,8 @@ assert.match(HELP_CATALOG.find((item) => item.name === "fx.XMATCH")?.summary || 
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.MATCH")?.summary || "", /one row or column.*10,000.*default\/1.*ascending.*-1.*descending.*#VALUE!/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.INDEX")?.summary || "", /rectangular range.*10,000.*2- or 3-argument.*#VALUE!.*#REF!/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.TEXTJOIN"));
+assert.ok(HELP_CATALOG.some((item) => item.name === "fx.TEXTBEFORE"));
+assert.ok(HELP_CATALOG.some((item) => item.name === "fx.TEXTAFTER"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.TEXT"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.SEARCH"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.FIND"));
@@ -372,13 +374,15 @@ assert.ok(HELP_CATALOG.find((item) => item.name === "PdfFile.importPdf")?.schema
 assert.ok(HELP_CATALOG.find((item) => item.name === "renderArtifact")?.returns?.includes("FileBlob"));
 assert.ok(HELP_CATALOG.find((item) => item.name === "visualQaArtifact")?.examples?.some((example) => example.includes("pixelDiff")));
 const formulaCatalog = HELP_CATALOG.filter((item) => item.name.startsWith("fx."));
-assert.equal(formulaCatalog.length, 157);
+assert.equal(formulaCatalog.length, 159);
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.formula?.required));
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.arguments?.type === "unknown[]"));
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.AND")?.schema?.returns?.value?.type, "boolean");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.LET")?.schema?.returns?.value?.type, "unknown");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.FILTER")?.schema?.returns?.value?.type, "unknown[][]");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.TEXTJOIN")?.schema?.returns?.value?.type, "string");
+assert.equal(HELP_CATALOG.find((item) => item.name === "fx.TEXTBEFORE")?.schema?.returns?.value?.type, "string");
+assert.equal(HELP_CATALOG.find((item) => item.name === "fx.TEXTAFTER")?.schema?.returns?.value?.type, "string");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.TEXT")?.schema?.returns?.value?.type, "string");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.COUNTA")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.COUNTBLANK")?.schema?.returns?.value?.type, "number");
@@ -587,7 +591,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /absolute uri.*slideId.*relative action/);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /customShow.*survives the bounded slide clone.*without adding the clone to show membership/i);
 const workbookCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "workbook");
-assert.equal(workbookCatalog.length, 247);
+assert.equal(workbookCatalog.length, 249);
 assert.ok(workbookCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "workbook.trace")?.schema?.parameters?.reference?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "Workbook.create")?.schema?.parameters?.dateSystem?.type, "string");
@@ -717,6 +721,8 @@ assert.match(workbook.help("fx.COUNTBLANK").ndjson, /formula results that are em
 assert.match(workbook.help("fx.XLOOKUP").ndjson, /lookup/);
 assert.match(workbook.help("fx.MATCH").ndjson, /ascending/);
 assert.match(workbook.help("fx.TEXTJOIN").ndjson, /delimiter/);
+assert.match(workbook.help("fx.TEXTBEFORE").ndjson, /delimiter occurrence/);
+assert.match(workbook.help("fx.TEXTAFTER").ndjson, /delimiter occurrence/);
 assert.match(workbook.help("fx.TEXT").ndjson, /bounded yyyy/);
 assert.match(workbook.help("fx.SEARCH").ndjson, /case-insensitive text/);
 assert.match(workbook.help("fx.FIND").ndjson, /case-sensitive literal/);
