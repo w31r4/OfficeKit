@@ -58,6 +58,36 @@ function formulaRoundToParity(number, parity) {
   return number < 0 ? -rounded : rounded;
 }
 
+function evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, operation) {
+  if (args.length !== 1 || hasEmptyArgument()) return "#VALUE!";
+  const number = strictFormulaNumber(scalar(0), formulaErrorCode);
+  if (formulaErrorCode(number)) return number;
+  const result = operation(number);
+  return Number.isFinite(result) ? result : "#NUM!";
+}
+
+function evaluateLogFormula(args, scalar, hasEmptyArgument, formulaErrorCode) {
+  if (args.length < 1 || args.length > 2 || hasEmptyArgument()) return "#VALUE!";
+  const number = strictFormulaNumber(scalar(0), formulaErrorCode);
+  const base = strictFormulaNumber(scalar(1, 10), formulaErrorCode);
+  if (formulaErrorCode(number)) return number;
+  if (formulaErrorCode(base)) return base;
+  if (number <= 0 || base <= 0 || base === 1) return "#NUM!";
+  const result = Math.log(number) / Math.log(base);
+  return Number.isFinite(result) ? result : "#NUM!";
+}
+
+function evaluateAtan2Formula(args, scalar, hasEmptyArgument, formulaErrorCode) {
+  if (args.length !== 2 || hasEmptyArgument()) return "#VALUE!";
+  const x = strictFormulaNumber(scalar(0), formulaErrorCode);
+  const y = strictFormulaNumber(scalar(1), formulaErrorCode);
+  if (formulaErrorCode(x)) return x;
+  if (formulaErrorCode(y)) return y;
+  if (x === 0 && y === 0) return "#DIV/0!";
+  const result = Math.atan2(y, x);
+  return Number.isFinite(result) ? result : "#NUM!";
+}
+
 function evaluateMathFormula(fnName, args, { scalar, values, hasEmptyArgument, formulaErrorCode }) {
   switch (fnName) {
     case "GCD":
@@ -124,6 +154,23 @@ function evaluateMathFormula(fnName, args, { scalar, values, hasEmptyArgument, f
       const result = formulaRoundToParity(number, fnName === "EVEN" ? 0 : 1);
       return Number.isSafeInteger(result) ? result : "#NUM!";
     }
+    case "EXP": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, Math.exp);
+    case "LN": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, (number) => number > 0 ? Math.log(number) : NaN);
+    case "LOG": return evaluateLogFormula(args, scalar, hasEmptyArgument, formulaErrorCode);
+    case "LOG10": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, (number) => number > 0 ? Math.log10(number) : NaN);
+    case "SIN": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, Math.sin);
+    case "COS": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, Math.cos);
+    case "TAN": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, Math.tan);
+    case "ASIN": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, (number) => number >= -1 && number <= 1 ? Math.asin(number) : NaN);
+    case "ACOS": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, (number) => number >= -1 && number <= 1 ? Math.acos(number) : NaN);
+    case "ATAN": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, Math.atan);
+    case "ATAN2": return evaluateAtan2Formula(args, scalar, hasEmptyArgument, formulaErrorCode);
+    case "SINH": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, Math.sinh);
+    case "COSH": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, Math.cosh);
+    case "TANH": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, Math.tanh);
+    case "ASINH": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, Math.asinh);
+    case "ACOSH": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, (number) => number >= 1 ? Math.acosh(number) : NaN);
+    case "ATANH": return evaluateFiniteUnaryMath(args, scalar, hasEmptyArgument, formulaErrorCode, (number) => number > -1 && number < 1 ? Math.atanh(number) : NaN);
     default:
       return undefined;
   }

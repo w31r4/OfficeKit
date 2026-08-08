@@ -1160,7 +1160,7 @@ assert.deepEqual(importedAverageIfWorkbook.worksheets.getItem("AVERAGEIF bounds"
 const mathFormulaWorkbook = Workbook.create();
 const mathFormulaSheet = mathFormulaWorkbook.worksheets.add("Math primitives");
 mathFormulaSheet.getRange("A1:A3").values = [[2], [3], [-4]];
-mathFormulaSheet.getRange("D1:D56").formulas = [
+mathFormulaSheet.getRange("D1:D82").formulas = [
   ["=PRODUCT(A1:A3)"],
   ["=PRODUCT(2,3,4)"],
   ["=PRODUCT()"],
@@ -1217,6 +1217,32 @@ mathFormulaSheet.getRange("D1:D56").formulas = [
   ["=ODD(4.1)"],
   ["=EVEN()"],
   ["=ODD(1E20)"],
+  ["=EXP(1)"],
+  ["=EXP(1000)"],
+  ["=LN(EXP(2))"],
+  ["=LN(0)"],
+  ["=LOG(1000)"],
+  ["=LOG(8,2)"],
+  ["=LOG(8,1)"],
+  ["=LOG10(1000)"],
+  ["=SIN(PI()/2)"],
+  ["=COS(PI())"],
+  ["=TAN(0)"],
+  ["=ASIN(1)"],
+  ["=ACOS(-1)"],
+  ["=ATAN(1)"],
+  ["=ATAN2(1,1)"],
+  ["=ATAN2(0,0)"],
+  ["=SINH(0.5)"],
+  ["=COSH(0)"],
+  ["=TANH(0)"],
+  ["=ASINH(1)"],
+  ["=ACOSH(0)"],
+  ["=ATANH(1)"],
+  ["=LN()"],
+  ["=LOG(8,2,3)"],
+  ["=ASIN(2)"],
+  ["=ATAN2(1)"],
 ];
 const mathFormulaValues = mathFormulaSheet.getRange("D1:D16").values;
 assert.deepEqual(mathFormulaValues.slice(0, 15), [[-24], [24], ["#VALUE!"], ["#DIV/0!"], [1], [-1], ["#DIV/0!"], [256], ["#NUM!"], [9], ["#NUM!"], [-1], [0], [1], [Math.PI]]);
@@ -1226,11 +1252,28 @@ assert.deepEqual(mathFormulaSheet.getRange("D18:D26").values, [[29], [29], ["#VA
 assert.deepEqual(mathFormulaSheet.getRange("D27:D30").values, [[Math.PI], [180], ["#VALUE!"], ["#VALUE!"]]);
 assert.deepEqual(mathFormulaSheet.getRange("D31").values, [["#NUM!"]]);
 assert.deepEqual(mathFormulaSheet.getRange("D32:D56").values, [[12], [1], ["#VALUE!"], ["#NUM!"], [24], [0], ["#VALUE!"], [120], [1], ["#NUM!"], ["#NUM!"], [105], [1], [10], ["#NUM!"], [6], [1], [9], [-9], ["#NUM!"], ["#DIV/0!"], [-4], [5], ["#VALUE!"], ["#NUM!"]]);
+assert.equal(mathFormulaSheet.getRange("D57").values[0][0], Math.E);
+assert.deepEqual(mathFormulaSheet.getRange("D58:D60").values, [["#NUM!"], [2], ["#NUM!"]]);
+assert.ok(Math.abs(mathFormulaSheet.getRange("D61").values[0][0] - 3) < 1e-12);
+assert.deepEqual(mathFormulaSheet.getRange("D62:D64").values, [[3], ["#NUM!"], [3]]);
+assert.ok(Math.abs(mathFormulaSheet.getRange("D65").values[0][0] - 1) < 1e-12);
+assert.ok(Math.abs(mathFormulaSheet.getRange("D66").values[0][0] + 1) < 1e-12);
+assert.deepEqual(mathFormulaSheet.getRange("D67").values, [[0]]);
+assert.ok(Math.abs(mathFormulaSheet.getRange("D68").values[0][0] - Math.PI / 2) < 1e-12);
+assert.ok(Math.abs(mathFormulaSheet.getRange("D69").values[0][0] - Math.PI) < 1e-12);
+assert.ok(Math.abs(mathFormulaSheet.getRange("D70:D71").values[0][0] - Math.PI / 4) < 1e-12);
+assert.ok(Math.abs(mathFormulaSheet.getRange("D70:D71").values[1][0] - Math.PI / 4) < 1e-12);
+assert.deepEqual(mathFormulaSheet.getRange("D72").values, [["#DIV/0!"]]);
+assert.ok(Math.abs(mathFormulaSheet.getRange("D73").values[0][0] - Math.sinh(0.5)) < 1e-12);
+assert.deepEqual(mathFormulaSheet.getRange("D74:D75").values, [[1], [0]]);
+assert.ok(Math.abs(mathFormulaSheet.getRange("D76").values[0][0] - Math.asinh(1)) < 1e-12);
+assert.deepEqual(mathFormulaSheet.getRange("D77:D78").values, [["#NUM!"], ["#NUM!"]]);
+assert.deepEqual(mathFormulaSheet.getRange("D79:D82").values, [["#VALUE!"], ["#VALUE!"], ["#NUM!"], ["#VALUE!"]]);
 const mathFormulaXlsx = await SpreadsheetFile.exportXlsx(mathFormulaWorkbook);
 const importedMathFormulaWorkbook = await SpreadsheetFile.importXlsx(mathFormulaXlsx);
 const importedMathFormulaSheet = importedMathFormulaWorkbook.worksheets.getItem("Math primitives");
-assert.deepEqual(importedMathFormulaSheet.getRange("D1:D56").formulas, mathFormulaSheet.getRange("D1:D56").formulas);
-const importedMathFormulaValues = importedMathFormulaSheet.getRange("D1:D56").values;
+assert.deepEqual(importedMathFormulaSheet.getRange("D1:D82").formulas, mathFormulaSheet.getRange("D1:D82").formulas);
+const importedMathFormulaValues = importedMathFormulaSheet.getRange("D1:D82").values;
 assert.deepEqual(importedMathFormulaValues.slice(0, 14), mathFormulaValues.slice(0, 14));
 assert.ok(Math.abs(importedMathFormulaValues[14][0] - Math.PI) < Number.EPSILON);
 assert.deepEqual(importedMathFormulaValues[15], ["#VALUE!"]);
@@ -1239,7 +1282,22 @@ assert.deepEqual(importedMathFormulaValues.slice(17, 26), [[29], [29], ["#VALUE!
 assert.ok(Math.abs(importedMathFormulaValues[26][0] - Math.PI) < Number.EPSILON);
 assert.deepEqual(importedMathFormulaValues[27], [180]);
 assert.deepEqual(importedMathFormulaValues.slice(28, 31), [["#VALUE!"], ["#VALUE!"], ["#NUM!"]]);
-assert.deepEqual(importedMathFormulaValues.slice(31), [[12], [1], ["#VALUE!"], ["#NUM!"], [24], [0], ["#VALUE!"], [120], [1], ["#NUM!"], ["#NUM!"], [105], [1], [10], ["#NUM!"], [6], [1], [9], [-9], ["#NUM!"], ["#DIV/0!"], [-4], [5], ["#VALUE!"], ["#NUM!"]]);
+assert.deepEqual(importedMathFormulaValues.slice(31, 56), [[12], [1], ["#VALUE!"], ["#NUM!"], [24], [0], ["#VALUE!"], [120], [1], ["#NUM!"], ["#NUM!"], [105], [1], [10], ["#NUM!"], [6], [1], [9], [-9], ["#NUM!"], ["#DIV/0!"], [-4], [5], ["#VALUE!"], ["#NUM!"]]);
+assert.equal(importedMathFormulaValues[56][0], Math.E);
+assert.deepEqual(importedMathFormulaValues.slice(57, 60), [["#NUM!"], [2], ["#NUM!"]]);
+assert.ok(Math.abs(importedMathFormulaValues[60][0] - 3) < 1e-12);
+assert.deepEqual(importedMathFormulaValues.slice(61, 64), [[3], ["#NUM!"], [3]]);
+assert.ok(Math.abs(importedMathFormulaValues[64][0] - 1) < 1e-12);
+assert.ok(Math.abs(importedMathFormulaValues[65][0] + 1) < 1e-12);
+assert.deepEqual(importedMathFormulaValues[66], [0]);
+assert.ok(Math.abs(importedMathFormulaValues[67][0] - Math.PI / 2) < 1e-12);
+assert.ok(Math.abs(importedMathFormulaValues[68][0] - Math.PI) < 1e-12);
+assert.ok(Math.abs(importedMathFormulaValues[69][0] - Math.PI / 4) < 1e-12);
+assert.ok(Math.abs(importedMathFormulaValues[70][0] - Math.PI / 4) < 1e-12);
+assert.deepEqual(importedMathFormulaValues.slice(71, 73), [["#DIV/0!"], [Math.sinh(0.5)]]);
+assert.deepEqual(importedMathFormulaValues.slice(73, 75), [[1], [0]]);
+assert.ok(Math.abs(importedMathFormulaValues[75][0] - Math.asinh(1)) < 1e-12);
+assert.deepEqual(importedMathFormulaValues.slice(76, 82), [["#NUM!"], ["#NUM!"], ["#VALUE!"], ["#VALUE!"], ["#NUM!"], ["#VALUE!"]]);
 
 const formulaIntrospectionWorkbook = Workbook.create();
 const formulaIntrospectionSheet = formulaIntrospectionWorkbook.worksheets.add("Formula introspection");
@@ -1296,7 +1354,8 @@ const spillControlWorkbook = Workbook.create();
 const spillControlSheet = spillControlWorkbook.worksheets.add("Spill controls");
 spillControlSheet.getRange("A1").formulas = [["=SEQUENCE(2)"]];
 spillControlSheet.getRange("C1:C2").formulas = [["=CHOOSE(1,A1#,\"selected\")"], ["=XOR(A1#)"]];
-assert.deepEqual(spillControlSheet.getRange("C1:C2").values, [["#VALUE!"], ["#VALUE!"]]);
+spillControlSheet.getRange("C3").formulas = [["=SIN(A1#)"]];
+assert.deepEqual(spillControlSheet.getRange("C1:C3").values, [["#VALUE!"], ["#VALUE!"], ["#VALUE!"]]);
 
 const templateFormulaWorkbook = Workbook.create();
 const templateFormulaSheet = templateFormulaWorkbook.worksheets.add("Template formulas");
@@ -1626,7 +1685,7 @@ expressionSheet.getRange("A1:A12").formulas = [
 ];
 assert.deepEqual(expressionSheet.getRange("A1:A6").values, [[6], ["2026-07-02"], ["pass"], ["Source: North"], [512], [4]]);
 assert.equal(expressionSheet.getRange("A7").values[0][0], 1.0000001);
-assert.deepEqual(expressionSheet.getRange("A8:A12").values, [["fallback"], ["#NAME?"], [true], [true], ["A&BNorth"]]);
+assert.deepEqual(expressionSheet.getRange("A8:A12").values, [["fallback"], [1 + Math.sin(1)], [true], [true], ["A&BNorth"]]);
 expressionSheet.getRange("A13:A21").formulas = [
   ["=50%"],
   ["=50%*2"],
