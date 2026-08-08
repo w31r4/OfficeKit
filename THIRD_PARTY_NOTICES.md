@@ -7,6 +7,7 @@ The npm package declares or optionally integrates the following public libraries
 | Component | Role | License |
 | --- | --- | --- |
 | Buf Protobuf (`@bufbuild/protobuf`) | Public protobuf wire-schema runtime for JavaScript | Apache-2.0 AND BSD-3-Clause |
+| Firecrawl AnyDoc (`@firecrawl/anydoc`) | Runtime-lazy, optional DOCX/XLSX/PPTX/PDF-to-Markdown content view for Agent review; platform-native bindings remain in their npm packages | MIT |
 | JSZip | OOXML ZIP package reading/writing | MIT option from `(MIT OR GPL-3.0-or-later)` |
 | selfsigned | User-local OfficeKit Excel root and localhost TLS certificate generation | MIT; its PKI dependency notices remain in the installed dependency closure |
 | pako | Pinned, repository-only deterministic PNG IDAT recompression tool | MIT AND Zlib |

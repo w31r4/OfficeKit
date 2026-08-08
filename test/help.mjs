@@ -27,7 +27,7 @@ assert.deepEqual(Object.keys(rootApi).sort(), [
   "clearOfficeFontDesignMetrics", "helpArtifact", "image", "layers", "node", "paragraph",
   "registerScopedOfficeFontDesignMetrics", "renderArtifact", "resolveOfficeFontDesignMetrics",
   "row", "rule", "run", "setOfficeFontDesignMetrics", "shape", "skiaPaintBaselineCompensationPx",
-  "table", "text", "verifyArtifact", "visualQaArtifact",
+  "table", "text", "verifyArtifact", "visualQaArtifact", "reviewArtifact",
 ].sort(), "root public export contract changed");
 assert.strictEqual(HELP_CATALOG, LEAF_HELP_CATALOG, "root must re-export the help catalog binding");
 assert.strictEqual(node, leafNode, "root must re-export the Compose binding");
@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 390);
+assert.equal(HELP_CATALOG.length, 391);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -374,7 +374,7 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "fx.SLN")?.schema?.return
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.DB")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.DDB")?.schema?.returns?.value?.type, "number");
 const sharedCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "shared");
-assert.equal(sharedCatalog.length, 15);
+assert.equal(sharedCatalog.length, 16);
 assert.ok(sharedCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "setOfficeFontDesignMetrics")?.schema?.parameters?.entries?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "registerScopedOfficeFontDesignMetrics")?.schema?.returns?.dispose?.type, "function");
@@ -387,6 +387,8 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "visualQaArtifact")?.sche
 assert.equal(HELP_CATALOG.find((item) => item.name === "visualQaArtifact")?.schema?.parameters?.diffPalette?.type, "object");
 assert.equal(HELP_CATALOG.find((item) => item.name === "visualQaArtifact")?.schema?.parameters?.diffAlignment?.type, "string");
 assert.equal(HELP_CATALOG.find((item) => item.name === "visualQaArtifact")?.schema?.parameters?.pixelRegistration?.type, "boolean|number|object");
+assert.equal(HELP_CATALOG.find((item) => item.name === "reviewArtifact")?.schema?.parameters?.contentView?.type, "string|boolean");
+assert.match(HELP_CATALOG.find((item) => item.name === "reviewArtifact")?.notes?.join("\n") || "", /not.*substitute.*pixel|does not count.*pixel/is);
 const pdfCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "pdf");
 assert.equal(pdfCatalog.length, 25);
 assert.ok(pdfCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
@@ -771,6 +773,7 @@ assert.match(pdf.help("PdfProviders.ensure").ndjson, /catalog digest.*policy fin
 assert.match(pdf.help("PdfProviders.probe").ndjson, /no network request.*cache write.*provider fallback/is);
 assert.match(helpArtifact("*", "renderArtifact").ndjson, /FileBlob metadata/);
 assert.match(helpArtifact("shared", "visualQaArtifact").ndjson, /baseline render/);
+assert.match(helpArtifact("shared", "reviewArtifact").ndjson, /optional lazy AnyDoc Markdown/);
 assert.match(helpArtifact("shared", "createPlaywrightRenderer").ndjson, /Playwright renderer adapter/);
 assert.match(helpArtifact("shared", "createSharpRenderer").ndjson, /sharp renderer adapter/);
 assert.match(helpArtifact("shared", "createPopplerRenderer").ndjson, /Poppler CLI renderer adapter/);
@@ -803,6 +806,7 @@ assert.match(apiDocs, /bounded-convergence annualized return rate/);
 assert.match(apiDocs, /#### `createPopplerRenderer`/);
 assert.match(apiDocs, /`dpi` \(number\)/);
 assert.match(apiDocs, /#### `visualQaArtifact`/);
+assert.match(apiDocs, /#### `reviewArtifact`/);
 assert.match(apiDocs, /#### `pdf\.addPage`/);
 assert.match(apiDocs, /#### `pdf\.addTable`/);
 assert.match(apiDocs, /#### `document\.resolve`/);

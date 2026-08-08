@@ -18,9 +18,16 @@ remain explicit; they are not hidden inside a cell.
 
 Before planning paths or a visual asset, read [the workspace and evidence
 contract](references/workspace.md) and [the visual capability matrix](references/capabilities.md).
+Before delivering an edited artifact, follow the shared [post-edit review
+contract](references/review.md).
 Use `workspaceRoot`, `taskRoot`, `inputRoot`, `assetRoot`, `outputRoot`,
 `evidenceRoot`, and a local `sessionId`; do not depend on a host chat, thread,
 plugin, or image tool.
+
+After an artifact is exported, use the [post-edit review contract](references/review.md)
+to reopen it and separate semantic, structural, layout, optional AnyDoc text,
+visual/human, and delivery evidence. AnyDoc is an explicit content view, never
+a replacement for native OfficeKit inspection or pixel review.
 
 ## Respect explicit choices
 
@@ -98,7 +105,10 @@ then let the PDF Skill inspect and verify the final PDF.
 - Protect every input and retained template from overwrite.
 - Complete each artifact under its owner's workflow.
 - Reopen or reimport the result when the owner requires it.
-- Run the owner's semantic and visual QA.
+- Run the owner's semantic, structural, layout/render, and delivery checks in
+  the order defined by the post-edit review contract.
+- Request the lazy AnyDoc content view only when it helps the Agent read or
+  compare content; it is not a visual-review result.
 - For a multi-artifact task, verify shared facts, numbers, names, dates, and
   visual identity across outputs.
 - Return the final files, the route used, the template decision, and any

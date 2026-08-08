@@ -126,6 +126,7 @@
     "test:skill:reference": "node test/reference-skills.mjs",
     "test:claude-plugin": "node test/claude-plugin.mjs",
     "test:verify": "node test/verify.mjs",
+    "test:review": "node test/review.mjs",
     "test:render": "node test/render.mjs",
     "test:visual-baselines": "node test/visual-baselines.mjs",
     "test:renderer-adapters": "node test/renderer-adapters.mjs",
@@ -140,6 +141,7 @@
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.12.1",
+    "@firecrawl/anydoc": "0.1.3",
     "jszip": "^3.10.1",
     "mupdf": "1.28.0",
     "selfsigned": "^5.5.0"
