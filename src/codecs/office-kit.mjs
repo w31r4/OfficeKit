@@ -1,6 +1,5 @@
-import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
+import { create } from "@bufbuild/protobuf";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
 import { Workbook } from "../spreadsheet/index.mjs";
 import { DocumentModel } from "../document/index.mjs";
 import { FileBlob } from "../shared/file-blob.mjs";
@@ -13,8 +12,6 @@ import {
   ArtifactFamily,
   CellFormulaKind,
   CodecOperation,
-  CodecRequestSchema,
-  CodecResponseSchema,
   DocumentChangeType,
   DocumentContentControlType,
   DocumentHeaderFooterReference,
@@ -38,7 +35,14 @@ import {
   WorkbookDateSystem,
 } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
-import { presentationEnvelope, presentationFromEnvelope } from "./office-kit-presentation.mjs";
+import {
+  assertCodecOptions,
+  codecLimits,
+  inputBytes,
+  invokeOfficeKit,
+  OFFICE_KIT_PROTOCOL_VERSION,
+  uint32,
+} from "./office-kit-runtime.mjs";
 import { spreadsheetChartFromWire, spreadsheetChartSnapshot, wireWorksheetCharts } from "./office-kit-spreadsheet-charts.mjs";
 import { spreadsheetImageFromWire, spreadsheetImageSnapshot, wireWorksheetImages } from "./office-kit-spreadsheet-images.mjs";
 import { spreadsheetSparklineFromWire, spreadsheetSparklineSnapshot, wireWorksheetSparklines } from "./office-kit-spreadsheet-sparklines.mjs";
@@ -47,14 +51,11 @@ import { hydrateWorkbookPivots, wireWorksheetPivots } from "./office-kit-spreads
 import { publicWorksheetProtectionFromWire, wireWorksheetProtection, worksheetProtectionPublicSnapshot } from "./office-kit-spreadsheet-protection.mjs";
 
 export { OfficeKitCodecError } from "./office-kit-error.mjs";
-
-export const OFFICE_KIT_PROTOCOL_VERSION = 2;
+export { exportPptxWithOfficeKit, importPptxWithOfficeKit } from "./office-kit-presentation-codec.mjs";
+export { invokeOfficeKit, officeKitStatus, OFFICE_KIT_PROTOCOL_VERSION } from "./office-kit-runtime.mjs";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-const RUNTIME_URL = new URL("../../runtime/office-kit/main.mjs", import.meta.url);
-const MANIFEST_URL = new URL("../../runtime/office-kit/manifest.json", import.meta.url);
 const WORKBOOK_STATE = Symbol.for("office-kit.workbook-state");
 const TABLE_STATE = Symbol.for("office-kit.table-state");
 const DOCUMENT_STATE = Symbol.for("office-kit.document-state");
@@ -83,47 +84,6 @@ const XLSX_THEME_WIRE_FIELDS = [
   ["accent4", "accent4Rgb"], ["accent5", "accent5Rgb"], ["accent6", "accent6Rgb"],
   ["hlink", "hlinkRgb"], ["folHlink", "folHlinkRgb"],
 ];
-
-let runtimePromise;
-
-async function runtime() {
-  if (!runtimePromise) {
-    runtimePromise = import(RUNTIME_URL.href)
-      .then((module) => module.loadOfficeKit())
-      .catch((error) => {
-        runtimePromise = undefined;
-        throw new OfficeKitCodecError("Bundled OfficeKit runtime could not be loaded.", [], { code: "runtime_unavailable", cause: error });
-      });
-  }
-  return runtimePromise;
-}
-
-function uint64(value, name) {
-  if (value == null) return 0n;
-  if (typeof value === "bigint") {
-    if (value < 0n) throw new TypeError(`${name} must be a non-negative integer.`);
-    return value;
-  }
-  if (!Number.isSafeInteger(value) || value < 0) throw new TypeError(`${name} must be a non-negative safe integer or bigint.`);
-  return BigInt(value);
-}
-
-function uint32(value, name) {
-  if (value == null) return 0;
-  if (!Number.isInteger(value) || value < 0 || value > 0xffff_ffff) throw new TypeError(`${name} must be an unsigned 32-bit integer.`);
-  return value;
-}
-
-function codecLimits(limits = {}) {
-  return {
-    maxInputBytes: uint64(limits.maxInputBytes, "maxInputBytes"),
-    maxUncompressedBytes: uint64(limits.maxUncompressedBytes, "maxUncompressedBytes"),
-    maxParts: uint32(limits.maxParts, "maxParts"),
-    maxSheets: uint32(limits.maxSheets, "maxSheets"),
-    maxCells: uint64(limits.maxCells, "maxCells"),
-    maxCompressionRatio: uint32(limits.maxCompressionRatio, "maxCompressionRatio"),
-  };
-}
 
 function publicWorksheetVisibility(value) {
   if (value === SpreadsheetWorksheetVisibility.HIDDEN) return "hidden";
@@ -183,43 +143,6 @@ function wireWorkbookViews(workbook, state) {
     return { ...snapshot, source: slot?.wire.source };
   });
   return { view: views[0], additionalViews: views.slice(1) };
-}
-
-function bytesFrom(value) {
-  if (value instanceof Uint8Array) return value;
-  if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
-  if (value instanceof ArrayBuffer) return new Uint8Array(value);
-  throw new TypeError("Expected FileBlob, Uint8Array, ArrayBuffer, or ArrayBuffer view.");
-}
-
-async function inputBytes(value) {
-  if (value instanceof FileBlob) return new Uint8Array(await value.arrayBuffer());
-  return bytesFrom(value);
-}
-
-function responseFailure(response) {
-  const message = response.diagnostics.length
-    ? response.diagnostics.map((item) => `${item.code}: ${item.message}`).join("\n")
-    : "OfficeKit codec returned an unspecified failure.";
-  return new OfficeKitCodecError(message, response.diagnostics);
-}
-
-export async function invokeOfficeKit(request) {
-  if (Object.hasOwn(request || {}, "allowLossy") || Object.hasOwn(request || {}, "allow_lossy")) {
-    throw new TypeError("invokeOfficeKit no longer accepts allowLossy/allow_lossy; opaque Office content without a validated source package always fails closed.");
-  }
-  const loaded = await runtime();
-  const wireRequest = create(CodecRequestSchema, request);
-  const wireResponse = bytesFrom(loaded.invoke(toBinary(CodecRequestSchema, wireRequest)));
-  const response = fromBinary(CodecResponseSchema, wireResponse);
-  if (!response.ok) throw responseFailure(response);
-  return response;
-}
-
-function assertCodecOptions(options, allowed, apiName) {
-  if (options == null || typeof options !== "object" || Array.isArray(options)) throw new TypeError(`${apiName} options must be an object.`);
-  const unsupported = Object.keys(options).filter((key) => !allowed.has(key));
-  if (unsupported.length) throw new TypeError(`${apiName} does not accept option${unsupported.length === 1 ? "" : "s"} ${unsupported.join(", ")}. OfficeKit is the only Office codec and lossy fallback is unavailable.`);
 }
 
 function cellCoordinates(address) {
@@ -4637,37 +4560,4 @@ export async function importDocxWithOfficeKit(input, options = {}) {
     limits: codecLimits(options.limits),
   });
   return documentFromEnvelope(response.artifact);
-}
-
-export async function exportPptxWithOfficeKit(presentation, options = {}) {
-  assertCodecOptions(options, new Set(["limits"]), "exportPptxWithOfficeKit");
-  const response = await invokeOfficeKit({
-    protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
-    operation: CodecOperation.EXPORT_PPTX,
-    family: ArtifactFamily.PRESENTATION,
-    artifact: presentationEnvelope(presentation, OFFICE_KIT_PROTOCOL_VERSION),
-    limits: codecLimits(options.limits),
-  });
-  return new FileBlob(response.file, {
-    type: PPTX_MIME,
-    metadata: { artifactKind: "presentation", codec: "office-kit", diagnostics: response.diagnostics },
-  });
-}
-
-export async function importPptxWithOfficeKit(input, options = {}) {
-  assertCodecOptions(options, new Set(["limits"]), "importPptxWithOfficeKit");
-  const response = await invokeOfficeKit({
-    protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
-    operation: CodecOperation.IMPORT_PPTX,
-    family: ArtifactFamily.PRESENTATION,
-    file: await inputBytes(input),
-    limits: codecLimits(options.limits),
-  });
-  return presentationFromEnvelope(response.artifact);
-}
-
-export async function officeKitStatus() {
-  const [loaded, manifestText] = await Promise.all([runtime(), readFile(MANIFEST_URL, "utf8")]);
-  const manifest = JSON.parse(manifestText);
-  return { available: true, protocolVersion: OFFICE_KIT_PROTOCOL_VERSION, assemblyName: loaded.assemblyName, manifest };
 }

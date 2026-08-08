@@ -1981,12 +1981,12 @@ export class PresentationFile {
   }
 
   static async exportPptx(presentation, options = {}) {
-    const { exportPptxWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    const { exportPptxWithOfficeKit } = await import("../codecs/office-kit-presentation-codec.mjs");
     return exportPptxWithOfficeKit(presentation, options);
   }
 
   static async importPptx(blobOrBuffer, options = {}) {
-    const { importPptxWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    const { importPptxWithOfficeKit } = await import("../codecs/office-kit-presentation-codec.mjs");
     return importPptxWithOfficeKit(blobOrBuffer, options);
   }
 }

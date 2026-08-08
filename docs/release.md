@@ -2,11 +2,27 @@
 
 ## Current 0.6.0 package evidence (2026-08-08)
 
-`npm run test:pack` passed after the bounded OOXML package input-budget change. The clean
-dry-run package contains 702 files, 36,233,370 compressed bytes, and
-53,510,165 unpacked bytes; its shasum is
-`a273c6b9c3285dfdd337e04ea6e115c65f041cb7`. This is package evidence, not an
+`npm run test:pack` passed after the format-local Presentation codec change. The clean
+dry-run package contains 704 files, 36,233,703 compressed bytes, and
+53,511,145 unpacked bytes; its shasum is
+`4987ab9b9e6b07654bba44b952f05f6cc9e10012`. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: format-local Presentation codec loading
+
+The OfficeKit runtime lifecycle, protobuf request/response boundary, byte-input
+normalization, and common wire limit/option validation now live in the
+artifact-neutral `src/codecs/office-kit-runtime.mjs` leaf. The new
+`office-kit-presentation-codec.mjs` adapter combines that transport with only
+the Presentation wire mapper.
+
+`PresentationFile.importPptx()` and `PresentationFile.exportPptx()` now load the
+format-specific adapter rather than the aggregate codec that also owns the
+Document and Spreadsheet mappers. The published `office-kit/codec` surface is
+unchanged and re-exports the exact same PPTX function bindings. Source-graph,
+binding-identity, package-content, PPTX round-trip, and aggregate OfficeKit
+tests guard this boundary. Spreadsheet and Document mapping remain in the
+aggregate module until each has an equally explicit format-local extraction.
 
 ## Unreleased: bounded OOXML package input budgets
 
