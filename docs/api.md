@@ -3312,6 +3312,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.MINIFS` | formula | Return the smallest numeric value where all supplied criteria ranges have the same size and match case-insensitive comparison or wildcard criteria. |
 | `fx.MINUTE` | formula | Return the 0 through 59 minute component from a nonnegative serial or supported time text. |
 | `fx.MIRR` | formula | Calculate a modified periodic internal rate of return using distinct finance and reinvestment rates for a finite cash-flow vector. |
+| `fx.MOD` | formula | Return the remainder after division, preserving the divisor sign and returning #DIV/0! for a zero divisor. |
 | `fx.MODE.SNGL` | formula | Return the most frequently occurring numeric value, or #N/A when no value repeats. |
 | `fx.MONTH` | formula | Return the month component of a serial in the workbook's 1900 or 1904 date system. |
 | `fx.NA` | formula | Return the #N/A error value to mark unavailable data explicitly. |
@@ -3321,8 +3322,11 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.NPER` | formula | Solve the finite payment-period count from rate, payment, present value, optional future value, and payment timing. |
 | `fx.NPV` | formula | Discount a finite periodic cash-flow vector beginning one period after the present value date. |
 | `fx.OR` | formula | Return TRUE when any condition is true. |
+| `fx.PI` | formula | Return the deterministic mathematical constant π; arguments are rejected rather than ignored. |
 | `fx.PMT` | formula | Calculate a constant-period loan payment from finite rate, term, present value, optional future value, and payment-timing inputs. |
+| `fx.POWER` | formula | Raise a finite base to a finite exponent; non-finite results fail as #NUM! rather than leaking JavaScript Infinity or NaN. |
 | `fx.PPMT` | formula | Calculate the principal component of one constant-payment loan period using the same bounded inputs as IPMT. |
+| `fx.PRODUCT` | formula | Multiply numeric values across arguments and bounded ranges; formula errors propagate and empty invocation returns #VALUE!. |
 | `fx.PV` | formula | Calculate the present value of a finite constant-payment stream from rate, term, payment, optional future value, and payment timing. |
 | `fx.RANK.EQ` | formula | Return a number's equal rank in a numeric range, descending by default or ascending when order is nonzero. |
 | `fx.RATE` | formula | Solve a bounded periodic interest rate from an integer payment term, payment, present value, optional future value, payment timing, and optional guess. |
@@ -3334,9 +3338,11 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.SEARCH` | formula | Return the 1-based position of case-insensitive text, supporting Excel ?, *, and ~ wildcard syntax. |
 | `fx.SECOND` | formula | Return the 0 through 59 second component from a nonnegative serial or supported time text. |
 | `fx.SEQUENCE` | formula | Return a dynamic array sequence that spills into neighboring cells in the clean-room formula engine. |
+| `fx.SIGN` | formula | Return -1, 0, or 1 according to the sign of a finite numeric value. |
 | `fx.SLN` | formula | Calculate straight-line depreciation from cost, salvage value, and useful life. |
 | `fx.SMALL` | formula | Return the k-th smallest numeric value in an array or range. |
 | `fx.SORT` | formula | Sort a range by a 1-based column index and spill the sorted rows. |
+| `fx.SQRT` | formula | Return the non-negative square root of a finite number; negative inputs return #NUM!. |
 | `fx.SUM` | formula | Sum numeric values across arguments and ranges. |
 | `fx.SUMIF` | formula | Sum corresponding values using case-insensitive numeric/text criteria and Excel ?, *, and ~ wildcards. |
 | `fx.SUMIFS` | formula | Sum values where all supplied criteria ranges have the same size and match case-insensitive comparison or wildcard criteria. |
@@ -4598,6 +4604,23 @@ Calculate a modified periodic internal rate of return using distinct finance and
 
 - The bounded evaluator accepts 2 through 10,000 finite cash flows containing both signs. Finance and reinvestment rates must be greater than -1; negative flows are discounted at the finance rate, positive flows compound at the reinvestment rate, and invalid profiles return #VALUE! or #NUM! rather than choosing an implied rate.
 
+#### `fx.MOD`
+
+Return the remainder after division, preserving the divisor sign and returning #DIV/0! for a zero divisor.
+
+**Examples:**
+
+- =MOD(A1,7)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =MOD(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.MODE.SNGL`
 
 Return the most frequently occurring numeric value, or #N/A when no value repeats.
@@ -4761,6 +4784,23 @@ Return TRUE when any condition is true.
 
 - `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.PI`
+
+Return the deterministic mathematical constant π; arguments are rejected rather than ignored.
+
+**Examples:**
+
+- =PI()
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =PI(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.PMT`
 
 Calculate a constant-period loan payment from finite rate, term, present value, optional future value, and payment-timing inputs.
@@ -4783,6 +4823,23 @@ Calculate a constant-period loan payment from finite rate, term, present value, 
 
 - The bounded evaluator requires rate > -1, a positive term, and payment type 0 or 1. Invalid numeric inputs return #VALUE! or #NUM!.
 
+#### `fx.POWER`
+
+Raise a finite base to a finite exponent; non-finite results fail as #NUM! rather than leaking JavaScript Infinity or NaN.
+
+**Examples:**
+
+- =POWER(A1,2)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =POWER(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.PPMT`
 
 Calculate the principal component of one constant-payment loan period using the same bounded inputs as IPMT.
@@ -4804,6 +4861,23 @@ Calculate the principal component of one constant-payment loan period using the 
 **Notes:**
 
 - For every supported period, PMT equals IPMT plus PPMT. The evaluator rejects an out-of-range or non-integer period and invalid payment timing with #NUM! rather than coercing them.
+
+#### `fx.PRODUCT`
+
+Multiply numeric values across arguments and bounded ranges; formula errors propagate and empty invocation returns #VALUE!.
+
+**Examples:**
+
+- =PRODUCT(A1:A10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =PRODUCT(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.PV`
 
@@ -5003,6 +5077,23 @@ Return a dynamic array sequence that spills into neighboring cells in the clean-
 
 - `value` (unknown[][]) — Spilled two-dimensional formula result.
 
+#### `fx.SIGN`
+
+Return -1, 0, or 1 according to the sign of a finite numeric value.
+
+**Examples:**
+
+- =SIGN(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =SIGN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.SLN`
 
 Calculate straight-line depreciation from cost, salvage value, and useful life.
@@ -5057,6 +5148,23 @@ Sort a range by a 1-based column index and spill the sorted rows.
 **Schema returns:**
 
 - `value` (unknown[][]) — Spilled two-dimensional formula result.
+
+#### `fx.SQRT`
+
+Return the non-negative square root of a finite number; negative inputs return #NUM!.
+
+**Examples:**
+
+- =SQRT(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =SQRT(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.SUM`
 

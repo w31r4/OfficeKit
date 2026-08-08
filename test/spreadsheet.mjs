@@ -1157,6 +1157,42 @@ const importedAverageIfWorkbook = await SpreadsheetFile.importXlsx(averageIfXlsx
 assert.deepEqual(importedAverageIfWorkbook.worksheets.getItem("AVERAGEIF bounds").getRange("D1:D4").formulas, averageIfSheet.getRange("D1:D4").formulas);
 assert.deepEqual(importedAverageIfWorkbook.worksheets.getItem("AVERAGEIF bounds").getRange("D1:D4").values, [[20], ["#DIV/0!"], [20], ["#VALUE!"]]);
 
+const mathFormulaWorkbook = Workbook.create();
+const mathFormulaSheet = mathFormulaWorkbook.worksheets.add("Math primitives");
+mathFormulaSheet.getRange("A1:A3").values = [[2], [3], [-4]];
+mathFormulaSheet.getRange("D1:D17").formulas = [
+  ["=PRODUCT(A1:A3)"],
+  ["=PRODUCT(2,3,4)"],
+  ["=PRODUCT()"],
+  ["=PRODUCT(2,1/0)"],
+  ["=MOD(-3,2)"],
+  ["=MOD(3,-2)"],
+  ["=MOD(3,0)"],
+  ["=POWER(2,8)"],
+  ["=POWER(-1,0.5)"],
+  ["=SQRT(81)"],
+  ["=SQRT(-1)"],
+  ["=SIGN(-4)"],
+  ["=SIGN(0)"],
+  ["=SIGN(4)"],
+  ["=PI()"],
+  ["=PI(1)"],
+  ["=PRODUCT(1E308,1E308)"],
+];
+const mathFormulaValues = mathFormulaSheet.getRange("D1:D16").values;
+assert.deepEqual(mathFormulaValues.slice(0, 15), [[-24], [24], ["#VALUE!"], ["#DIV/0!"], [1], [-1], ["#DIV/0!"], [256], ["#NUM!"], [9], ["#NUM!"], [-1], [0], [1], [Math.PI]]);
+assert.deepEqual(mathFormulaValues[15], ["#VALUE!"]);
+assert.deepEqual(mathFormulaSheet.getRange("D17").values, [["#NUM!"]]);
+const mathFormulaXlsx = await SpreadsheetFile.exportXlsx(mathFormulaWorkbook);
+const importedMathFormulaWorkbook = await SpreadsheetFile.importXlsx(mathFormulaXlsx);
+const importedMathFormulaSheet = importedMathFormulaWorkbook.worksheets.getItem("Math primitives");
+assert.deepEqual(importedMathFormulaSheet.getRange("D1:D17").formulas, mathFormulaSheet.getRange("D1:D17").formulas);
+const importedMathFormulaValues = importedMathFormulaSheet.getRange("D1:D17").values;
+assert.deepEqual(importedMathFormulaValues.slice(0, 14), mathFormulaValues.slice(0, 14));
+assert.ok(Math.abs(importedMathFormulaValues[14][0] - Math.PI) < Number.EPSILON);
+assert.deepEqual(importedMathFormulaValues[15], ["#VALUE!"]);
+assert.deepEqual(importedMathFormulaValues[16], ["#NUM!"]);
+
 const formulaIntrospectionWorkbook = Workbook.create();
 const formulaIntrospectionSheet = formulaIntrospectionWorkbook.worksheets.add("Formula introspection");
 formulaIntrospectionSheet.getRange("A1:C3").values = [[true, "text", 10], [false, null, 20], [null, "", 30]];
