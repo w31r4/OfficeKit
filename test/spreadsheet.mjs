@@ -1199,6 +1199,12 @@ const importedControlFormulaWorkbook = await SpreadsheetFile.importXlsx(controlF
 assert.deepEqual(importedControlFormulaWorkbook.worksheets.getItem("Formula controls").getRange("C1:C10").formulas, controlFormulaSheet.getRange("C1:C10").formulas);
 assert.deepEqual(importedControlFormulaWorkbook.worksheets.getItem("Formula controls").getRange("C1:C10").values, controlFormulaSheet.getRange("C1:C10").values);
 
+const spillControlWorkbook = Workbook.create();
+const spillControlSheet = spillControlWorkbook.worksheets.add("Spill controls");
+spillControlSheet.getRange("A1").formulas = [["=SEQUENCE(2)"]];
+spillControlSheet.getRange("C1:C2").formulas = [["=CHOOSE(1,A1#,\"selected\")"], ["=XOR(A1#)"]];
+assert.deepEqual(spillControlSheet.getRange("C1:C2").values, [["#VALUE!"], ["#VALUE!"]]);
+
 const templateFormulaWorkbook = Workbook.create();
 const templateFormulaSheet = templateFormulaWorkbook.worksheets.add("Template formulas");
 templateFormulaSheet.getRange("A1:A7").values = [[1], [null], [false], ["text"], [0], ["#DIV/0!"], [null]];
