@@ -73,6 +73,29 @@ const document = DocumentModel.create({ blocks: [] });
 document.addParagraph("Patch this DOCX");
 const baseDocx = await DocumentFile.exportDocx(document);
 assert.equal((await DocumentFile.inspectDocx(baseDocx, { verifyCrc32: true })).ok, true);
+await assert.rejects(
+  () => DocumentFile.inspectDocx(baseDocx, { maxInputBytes: baseDocx.bytes.byteLength - 1 }),
+  /maxInputBytes/i,
+);
+await assert.rejects(
+  () => DocumentFile.patchDocx(baseDocx, [], { maxPartBytes: 1 }),
+  /maxPartBytes/i,
+);
+await assert.rejects(
+  () => DocumentFile.patchDocx(baseDocx, [], { maxParts: 1 }),
+  /maxParts/i,
+);
+await assert.rejects(
+  () => DocumentFile.patchDocx(baseDocx, [], { maxTotalBytes: 1 }),
+  /maxTotalBytes/i,
+);
+const highRatioZip = new JSZip();
+highRatioZip.file("payload.xml", "A".repeat(10_000));
+const highRatioBytes = await highRatioZip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+await assert.rejects(
+  () => inspectOoxmlPackage(highRatioBytes, { maxCompressionRatio: 2 }, { family: "DOCX" }),
+  /maxCompressionRatio/i,
+);
 
 const missingMainPartZip = await zipOf(baseDocx);
 missingMainPartZip.remove("word/document.xml");
