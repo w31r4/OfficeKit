@@ -2948,12 +2948,12 @@ export class SpreadsheetFile {
   }
 
   static async exportXlsx(workbook, options = {}) {
-    const { exportXlsxWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    const { exportXlsxWithOfficeKit } = await import("../codecs/office-kit-spreadsheet-codec.mjs");
     return exportXlsxWithOfficeKit(workbook, options);
   }
 
   static async importXlsx(blobOrBuffer, options = {}) {
-    const { importXlsxWithOfficeKit } = await import("../codecs/office-kit.mjs");
+    const { importXlsxWithOfficeKit } = await import("../codecs/office-kit-spreadsheet-codec.mjs");
     return importXlsxWithOfficeKit(blobOrBuffer, options);
   }
 }

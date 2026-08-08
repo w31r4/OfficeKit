@@ -123,10 +123,23 @@ assert.doesNotMatch(officeKitRuntimeSource, /from "\.\/office-kit\.mjs";/, "the 
 assert.doesNotMatch(officeKitRuntimeSource, /\.\.\/(?:document|presentation|spreadsheet)\/index\.mjs/, "the runtime boundary must not own an artifact model");
 const presentationChartCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-presentation-charts.mjs"), "utf8");
 assert.doesNotMatch(presentationChartCodecSource, /from "\.\.\/index\.mjs";/, "the Presentation chart codec must not create a back-edge to the root entry");
-const spreadsheetCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit.mjs"), "utf8");
+const spreadsheetFacadeSource = await fs.readFile(path.join(repoRoot, "src", "spreadsheet", "index.mjs"), "utf8");
+const spreadsheetCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-spreadsheet-codec.mjs"), "utf8");
+const sourceStateSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-source-state.mjs"), "utf8");
+const officeKitAggregateSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit.mjs"), "utf8");
+assert.match(spreadsheetFacadeSource, /await import\("\.\.\/codecs\/office-kit-spreadsheet-codec\.mjs"\)/, "Spreadsheet file I/O must load the format-specific codec adapter");
+assert.doesNotMatch(spreadsheetFacadeSource, /await import\("\.\.\/codecs\/office-kit\.mjs"\)/, "Spreadsheet file I/O must not load the aggregate Document codec");
 assert.match(spreadsheetCodecSource, /from "\.\.\/spreadsheet\/index\.mjs";/, "the Spreadsheet codec must depend on the Spreadsheet leaf module");
+assert.match(spreadsheetCodecSource, /from "\.\/office-kit-runtime\.mjs";/, "the Spreadsheet codec must use the shared runtime boundary");
+assert.match(spreadsheetCodecSource, /from "\.\/office-kit-source-state\.mjs";/, "the Spreadsheet codec must use the shared source-state invariant");
+assert.doesNotMatch(spreadsheetCodecSource, /from "\.\/office-kit\.mjs";/, "the Spreadsheet codec must not load the aggregate codec");
+assert.doesNotMatch(spreadsheetCodecSource, /\.\.\/(?:document|presentation)\/index\.mjs/, "the Spreadsheet codec must not load another artifact model");
 assert.doesNotMatch(spreadsheetCodecSource, /from "\.\.\/index\.mjs";/, "the Spreadsheet codec must not create a back-edge to the root entry");
-const spreadsheetLeafSource = await fs.readFile(path.join(repoRoot, "src", "spreadsheet", "index.mjs"), "utf8");
+assert.doesNotMatch(sourceStateSource, /office-kit-runtime|\.\.\/(?:document|presentation|spreadsheet)\/index\.mjs/, "the source-state invariant must remain transport- and artifact-neutral");
+assert.match(officeKitAggregateSource, /export \{ exportXlsxWithOfficeKit, importXlsxWithOfficeKit \} from "\.\/office-kit-spreadsheet-codec\.mjs";/, "the aggregate codec must preserve exact XLSX compatibility bindings");
+assert.match(officeKitAggregateSource, /from "\.\.\/document\/index\.mjs";/, "the aggregate codec must retain the remaining Document mapper");
+assert.doesNotMatch(officeKitAggregateSource, /from "\.\.\/spreadsheet\/index\.mjs";/, "the aggregate codec must not retain the Spreadsheet mapper");
+const spreadsheetLeafSource = spreadsheetFacadeSource;
 const formulaEngineSource = await fs.readFile(path.join(repoRoot, "src", "spreadsheet", "formula-engine.mjs"), "utf8");
 assert.match(spreadsheetLeafSource, /from "\.\/formula-engine\.mjs";/, "the Spreadsheet leaf must own the formula-engine dependency boundary");
 assert.doesNotMatch(formulaEngineSource, /from\s+["']\.\/index\.mjs["']/, "the formula engine must operate on workbook data shape without a Spreadsheet-model back-edge");
@@ -206,10 +219,12 @@ for (const required of [
   "src/codecs/office-kit.mjs",
   "src/codecs/office-kit-error.mjs",
   "src/codecs/office-kit-runtime.mjs",
+  "src/codecs/office-kit-source-state.mjs",
   "src/codecs/office-kit-assets.mjs",
   "src/codecs/office-kit-presentation-codec.mjs",
   "src/codecs/office-kit-presentation.mjs",
   "src/codecs/office-kit-presentation-charts.mjs",
+  "src/codecs/office-kit-spreadsheet-codec.mjs",
   "src/codecs/office-kit-spreadsheet-pivots.mjs",
   "runtime/office-kit/main.mjs",
   "runtime/office-kit/manifest.json",
