@@ -23,7 +23,7 @@ import { planPresentationSections, PresentationSectionCollection } from "./ooxml
 import { SlideTransition } from "./ooxml-transitions.mjs";
 import { inheritPresentationParagraphs, normalizePresentationParagraphs, normalizePresentationParagraphStyles, presentationParagraphsNeedSerialization, presentationParagraphsSvg, presentationParagraphsText, replacePresentationParagraphText } from "./text-paragraphs.mjs";
 import { normalizePresentationTextBodyProperties } from "./text-body-properties.mjs";
-import { normalizePresentationCustomPaths, presentationCustomPathsSvg } from "./custom-geometry.mjs";
+import { normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle, presentationCustomPathsSvg, presentationCustomTextRectangleFrame } from "./custom-geometry.mjs";
 import { normalizePresentationImageCrop, normalizePresentationImageFit, presentationImageCropViewport } from "./image-crop.mjs";
 import { planPresentationModernComments } from "./ooxml-modern-comments.mjs";
 
@@ -817,20 +817,24 @@ function overlapArea(a, b) {
   return Math.max(0, right - left) * Math.max(0, bottom - top);
 }
 
-function textOverflowIssue(slide, element, frame) {
+function textOverflowIssue(slide, element, frame, measurementFrame = frame) {
   const text = element.text?.value || "";
   if (!text) return undefined;
+  const textFrame = typeof element.textFrame === "function" ? element.textFrame(measurementFrame) : measurementFrame;
+  const displayTextFrame = measurementFrame === frame || typeof element.textFrame !== "function" ? textFrame : element.textFrame(frame);
   const paragraphs = typeof element.text.effectiveParagraphs === "function" ? element.text.effectiveParagraphs() : normalizePresentationParagraphs(text);
   const requiredHeight = paragraphs.reduce((height, paragraph) => {
     const paragraphFontSize = Math.max(element.text.style.fontSize || 24, ...paragraph.runs.map((run) => run.style?.fontSize || 0));
-    const availableWidth = Math.max(1, frame.width - 18 - Math.max(0, paragraph.marginLeft || paragraph.level * 24));
+    const availableWidth = Math.max(1, textFrame.width - 18 - Math.max(0, paragraph.marginLeft || paragraph.level * 24));
     const charsPerLine = Math.max(1, Math.floor(availableWidth / (paragraphFontSize * 0.55)));
     const requiredLines = presentationParagraphsText([paragraph]).split("\n").reduce((lines, line) => lines + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
     const spacing = paragraph.lineSpacing || element.text.style.lineSpacing || 1.2;
     const lineHeight = spacing > 10 ? spacing : paragraphFontSize * spacing;
     return height + (paragraph.spaceBefore ?? paragraphFontSize * (paragraph.spaceBeforePercent || 0)) + requiredLines * lineHeight + (paragraph.spaceAfter ?? paragraphFontSize * (paragraph.spaceAfterPercent || 0));
   }, 12);
-  if (requiredHeight <= frame.height) return undefined;
+  if (requiredHeight <= textFrame.height) return undefined;
+  const scaleY = measurementFrame === frame || !(textFrame.height > 0) ? 1 : displayTextFrame.height / textFrame.height;
+  const renderedRequiredHeight = requiredHeight * scaleY;
   return {
     kind: "layoutIssue",
     type: "textOverflow",
@@ -838,9 +842,9 @@ function textOverflowIssue(slide, element, frame) {
     slide: slide.index + 1,
     id: element.id,
     name: element.name || undefined,
-    bbox: [frame.left, frame.top, frame.width, frame.height],
-    requiredHeight: Math.round(requiredHeight),
-    message: `Text may overflow ${elementLabel(element)}: estimated ${Math.round(requiredHeight)}px required for ${Math.round(frame.height)}px frame.`,
+    bbox: [displayTextFrame.left, displayTextFrame.top, displayTextFrame.width, displayTextFrame.height],
+    requiredHeight: Math.round(renderedRequiredHeight),
+    message: `Text may overflow ${elementLabel(element)}: estimated ${Math.round(renderedRequiredHeight)}px required for ${Math.round(displayTextFrame.height)}px frame.`,
   };
 }
 
@@ -1030,7 +1034,11 @@ const GroupShape = createPresentationGroupShapeClass({
   isImage: (element) => element instanceof ImageElement,
   isNativeObject: (element) => element instanceof NativePresentationObject,
   elementKind: (element) => presentationElementKind(element),
-  validateChildLayout: (element, frame) => element instanceof TableElement ? tableOverflowIssues(element.slide, element, frame) : [],
+  validateChildLayout: (element, frame) => element instanceof TableElement
+    ? tableOverflowIssues(element.slide, element, frame)
+    : element instanceof Shape
+      ? [textOverflowIssue(element.slide, element, frame, element.position)].filter(Boolean)
+      : [],
   createTextRange: (element, id) => createTextRange(element, id, { parentKind: "shape" }),
   textRangeRecord,
   elementLabel,
@@ -1360,6 +1368,8 @@ export class Shape {
     this.creationId = config.creationId;
     this.geometry = config.geometry || "rect";
     this.customPaths = normalizePresentationCustomPaths(config.customPaths);
+    this.textRectangle = normalizePresentationCustomTextRectangle(config.textRectangle);
+    if (this.textRectangle && this.geometry !== "custom") throw new TypeError("Presentation textRectangle is available only for custom geometry shapes.");
     this.name = config.name || "";
     this.position = config.position || { left: 0, top: 0, width: 160, height: 80 };
     this.transform = config.transform == null ? undefined : normalizePresentationPlaceholderTransform(config.transform, `Presentation shape ${this.name || this.id} transform`);
@@ -1377,16 +1387,27 @@ export class Shape {
   set text(value) { this._text.set(value); }
   get useBackgroundFill() { return importedShapeBackgroundFill.get(this); }
 
+  #normalizedTextRectangle() {
+    const rectangle = normalizePresentationCustomTextRectangle(this.textRectangle);
+    if (rectangle && this.geometry !== "custom") throw new TypeError("Presentation textRectangle is available only for custom geometry shapes.");
+    return rectangle;
+  }
+
   inspectRecord(kind = "shape") {
     const p = this.position;
     const paragraphs = this.text.effectiveParagraphs();
-    return { kind, id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, text: this.text.value || undefined, textPreview: this.text.value || undefined, textChars: this.text.value.length || undefined, textLines: this.text.value ? this.text.value.split("\n").length : undefined, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, customPathCount: this.customPaths.length || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", transform: this.transform, shadow: this.shadow, placeholder: this.placeholder || undefined, useBackgroundFill: this.useBackgroundFill };
+    return { kind, id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, text: this.text.value || undefined, textPreview: this.text.value || undefined, textChars: this.text.value.length || undefined, textLines: this.text.value ? this.text.value.split("\n").length : undefined, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, customPathCount: this.customPaths.length || undefined, textRectangle: this.#normalizedTextRectangle(), bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", transform: this.transform, shadow: this.shadow, placeholder: this.placeholder || undefined, useBackgroundFill: this.useBackgroundFill };
   }
 
-  layoutJson() { const paragraphs = this.text.effectiveParagraphs(); return { kind: this.text.value ? "textbox" : "shape", id: this.id, name: this.name, geometry: this.geometry, customPaths: this.customPaths.length ? this.customPaths : undefined, frame: this.position, transform: this.transform, text: this.text.value, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, placeholder: this.placeholder, style: { fill: this.fill, line: this.line, borderRadius: this.borderRadius, shadow: this.shadow, text: this.text.style, useBackgroundFill: this.useBackgroundFill } }; }
+  layoutJson() { const paragraphs = this.text.effectiveParagraphs(); return { kind: this.text.value ? "textbox" : "shape", id: this.id, name: this.name, geometry: this.geometry, customPaths: this.customPaths.length ? this.customPaths : undefined, textRectangle: this.#normalizedTextRectangle(), frame: this.position, transform: this.transform, text: this.text.value, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, placeholder: this.placeholder, style: { fill: this.fill, line: this.line, borderRadius: this.borderRadius, shadow: this.shadow, text: this.text.style, useBackgroundFill: this.useBackgroundFill } }; }
+
+  textFrame(frame = this.position) {
+    return presentationCustomTextRectangleFrame(this.#normalizedTextRectangle(), frame, this.position);
+  }
 
   toSvg() {
     const p = this.position;
+    const textFrame = this.textFrame(p);
     const fill = this.useBackgroundFill === true
       ? resolvePresentationBackgroundColor(this.slide.effectiveBackground(), this.slide.effectiveTheme())
       : typeof this.fill === "string" ? resolveColorToken(this.fill, this.fill) : this.fill?.color || "transparent";
@@ -1397,7 +1418,7 @@ export class Shape {
       : this.geometry === "ellipse"
       ? `<ellipse cx="${p.left + p.width / 2}" cy="${p.top + p.height / 2}" rx="${p.width / 2}" ry="${p.height / 2}" fill="${xmlEscape(fill)}" stroke="${xmlEscape(stroke)}" stroke-width="${sw}"/>`
       : `<rect x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" rx="${this.borderRadius ? 12 : 0}" fill="${xmlEscape(fill)}" stroke="${xmlEscape(stroke)}" stroke-width="${sw}"/>`;
-    const text = this.text.value ? presentationParagraphsSvg(this.text.effectiveParagraphs(), p, this.text.style, { escape: xmlEscape }) : "";
+    const text = this.text.value ? presentationParagraphsSvg(this.text.effectiveParagraphs(), textFrame, this.text.style, { escape: xmlEscape }) : "";
     if (!this.transform) return visual + text;
     const cx = p.left + p.width / 2;
     const cy = p.top + p.height / 2;

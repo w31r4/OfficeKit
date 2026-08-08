@@ -1144,7 +1144,8 @@ internal static class PptxCodec
         };
         if (shape.UseBackgroundFill?.HasValue == true)
             result.UseBackgroundFill = shape.UseBackgroundFill.Value;
-        result.CustomPaths.Add(PptxCustomGeometryCodec.Read(properties?.GetFirstChild<A.CustomGeometry>()));
+        result.CustomPaths.Add(PptxCustomGeometryCodec.Read(properties?.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height));
+        result.TextRectangle = PptxCustomGeometryCodec.ReadTextRectangle(properties?.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height);
         return result;
     }
 
@@ -1157,7 +1158,11 @@ internal static class PptxCodec
         if (properties is null || properties.Elements<A.Transform2D>().Count() != 1 || !PptxShapeTransformCodec.Supports(transform)) return false;
         var geometry = Geometry(shape);
         if (geometry is not ("rect" or "ellipse" or "roundRect" or "textbox" or "custom")) return false;
-        if (geometry == "custom" && !PptxCustomGeometryCodec.Supports(properties.GetFirstChild<A.CustomGeometry>())) return false;
+        if (geometry == "custom")
+        {
+            var frame = ReadFrame(shape);
+            if (!PptxCustomGeometryCodec.Supports(properties.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height)) return false;
+        }
         if (!SimpleFill(properties)) return false;
         var outline = properties.GetFirstChild<A.Outline>();
         if (outline is not null && !SimpleFill(outline)) return false;

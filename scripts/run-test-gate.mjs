@@ -73,6 +73,7 @@ const slowSteps = [
   nodeStep("test/spreadsheet-range-compat.mjs"),
   nodeStep("test/spreadsheet-sparkline.mjs"),
   nodeStep("test/presentation.mjs"),
+  nodeStep("test/presentation-custom-geometry-render.mjs"),
   nodeStep("test/presentation-jsx.mjs"),
   nodeStep("test/presentation-skill.mjs"),
   nodeStep("test/template-library.mjs"),
@@ -139,15 +140,15 @@ const slowSteps = [
 
 const slowSegments = Object.freeze({
   foundation: Object.freeze({ start: 0, end: 11 }),
-  presentation: Object.freeze({ start: 11, end: 14 }),
-  templates: Object.freeze({ start: 14, end: 21 }),
-  officekit: Object.freeze({ start: 21, end: 26 }),
-  documents: Object.freeze({ start: 26, end: 35 }),
-  "pdf-packs": Object.freeze({ start: 35, end: 44 }),
-  "pdf-providers": Object.freeze({ start: 44, end: 53 }),
-  "pdf-specialists": Object.freeze({ start: 53, end: 62 }),
-  qa: Object.freeze({ start: 62, end: 69 }),
-  release: Object.freeze({ start: 69, end: 74 }),
+  presentation: Object.freeze({ start: 11, end: 15 }),
+  templates: Object.freeze({ start: 15, end: 22 }),
+  officekit: Object.freeze({ start: 22, end: 27 }),
+  documents: Object.freeze({ start: 27, end: 36 }),
+  "pdf-packs": Object.freeze({ start: 36, end: 45 }),
+  "pdf-providers": Object.freeze({ start: 45, end: 54 }),
+  "pdf-specialists": Object.freeze({ start: 54, end: 63 }),
+  qa: Object.freeze({ start: 63, end: 70 }),
+  release: Object.freeze({ start: 70, end: 75 }),
 });
 
 const segmentRanges = Object.values(slowSegments);

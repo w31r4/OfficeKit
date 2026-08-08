@@ -1778,14 +1778,19 @@ message PresentationShape {
   PresentationShapeTransform transform = 13;
   PresentationShadow shadow = 14;
   // Source-free custom DrawingML geometry. The bounded profile intentionally owns
-  // only literal path coordinates and move/line/quadratic/cubic/arc/close
-  // commands. Guides, handles, connection sites, and per-path fill or stroke
-  // overrides remain source-bound.
+  // literal path coordinates, move/line/quadratic/cubic/arc/close commands,
+  // and presence-aware path paint metadata. Formula geometry, guides, handles,
+  // and connection sites remain source-bound.
   repeated PresentationCustomGeometryPath custom_paths = 15;
   // Presence-aware imported p:sp/@useBgFill. This affects preview paint but is
   // read-only and source-bound: source-free authoring and value/presence edits
   // fail closed rather than flattening slide-background inheritance.
   optional bool use_background_fill = 16;
+  // Optional semantic text rectangle for a custom shape. Absence retains
+  // DrawingML's full-shape default. Coordinates are native shape-local EMUs;
+  // the codec reads numeric a:rect values and its exact four scaling guides,
+  // while all other formula-valued rectangles remain opaque.
+  PresentationCustomGeometryTextRectangle text_rectangle = 17;
 }
 
 message PresentationCustomGeometryPath {
@@ -3417,4 +3422,13 @@ message PresentationCustomGeometryArc {
   int64 height_radius = 2;
   int32 start_angle = 3;
   int32 sweep_angle = 4;
+}
+
+// Appended to preserve every pre-existing generated descriptor index while
+// PresentationShape field 17 references this protocol-2 semantic text box.
+message PresentationCustomGeometryTextRectangle {
+  int64 left_emu = 1;
+  int64 top_emu = 2;
+  int64 right_emu = 3;
+  int64 bottom_emu = 4;
 }

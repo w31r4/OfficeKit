@@ -2,11 +2,35 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after adding presence-aware PPTX literal custom-path
-paint metadata. The clean candidate contains 706 files, 36,137,893 compressed
-bytes, and 53,056,120 unpacked bytes; its measured shasum is
-`e5002a40a5f25618381a89efa8aff8de37878f9b`. This is package evidence, not an
+The package dry-run passed after adding PPTX literal custom-geometry text
+rectangles. The clean candidate contains 706 files, 36,140,813 compressed
+bytes, and 53,072,397 unpacked bytes; its measured shasum is
+`4722c9af86e79525ca413c1c67215315fdd62e7a`. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: PPTX literal custom-geometry text rectangles
+
+Custom shapes now expose one optional shape-level `textRectangle` with pixel
+`left`, `top`, `right`, and `bottom` coordinates relative to the shape frame.
+The JS model keeps that single semantic state for inspect/layout, SVG text
+origin, and overflow QA; the versioned wire converts it to shape-local EMUs.
+The C# codec reads native numeric rectangles and authors one deterministic
+four-guide DrawingML `a:rect` profile so PowerPoint and LibreOffice resolve the
+same bounds. Absence remains absence and therefore retains DrawingML's
+full-shape default.
+
+The additive protocol change uses `PresentationShape.text_rectangle` field 17
+and appends `PresentationCustomGeometryTextRectangle` after every existing
+descriptor. Source-free authoring, native XML, import, source-bound edit,
+second import, grouped mapping, Open XML SDK validation, and an explicit
+LibreOffice-to-PDF/Poppler selectable-text position test share the same
+contract. Formula-valued coordinates outside OfficeKit's exact four-guide
+profile, missing/extra attributes, child-bearing rectangles, inverted bounds,
+and out-of-range values remain opaque or fail closed rather than entering a
+partial formula model. The rebuilt runtime stays at 38 files and is currently
+15,224,476 bytes. The 706-file npm candidate is 36,140,813 compressed bytes and
+53,072,397 unpacked bytes (`shasum
+4722c9af86e79525ca413c1c67215315fdd62e7a`).
 
 ## Unreleased: PPTX literal custom-path paint and presence
 

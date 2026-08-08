@@ -646,6 +646,8 @@ const customGeometryShape = customGeometrySlide.shapes.add({
   position: { left: 20, top: 20, width: 180, height: 120 },
   fill: "#DBEAFE",
   line: { fill: "#2563EB", width: 2 },
+  text: "Inset label",
+  textRectangle: { left: 24, top: 18, right: 156, bottom: 96 },
   customPaths: [{
     width: 21_600,
     height: 21_600,
@@ -682,20 +684,38 @@ const customGeometryShape = customGeometrySlide.shapes.add({
   }],
 });
 assert.equal(customGeometryShape.customPaths[0].commands.length, 6);
+assert.deepEqual(customGeometryShape.textRectangle, { left: 24, top: 18, right: 156, bottom: 96 });
+assert.deepEqual(customGeometryShape.inspectRecord().textRectangle, customGeometryShape.textRectangle);
+assert.deepEqual(customGeometryShape.layoutJson().textRectangle, customGeometryShape.textRectangle);
 const customGeometrySvg = await (await customGeometrySlide.export()).text();
 assert.match(customGeometrySvg, /A 3000 4000 0 0 1 10800 12000 A 3000 4000 0 0 1 10800 20000 Z/);
 assert.match(customGeometrySvg, /fill="none" stroke="none"/);
+assert.match(customGeometrySvg, /<text x="56" y="70"[^>]*>Inset label<\/text>/);
+customGeometryShape.textRectangle.bottom = 30;
+const customTextOverflow = customGeometrySlide.validateLayout().issues.find((issue) => issue.id === customGeometryShape.id && issue.type === "textOverflow");
+assert.deepEqual(customTextOverflow?.bbox, [44, 38, 132, 12]);
+customGeometryShape.textRectangle.bottom = 96;
 const customGeometryPptx = await PresentationFile.exportPptx(customGeometryPresentation);
 const customGeometryZip = await JSZip.loadAsync(customGeometryPptx.bytes);
 const customGeometryXml = await customGeometryZip.file("ppt/slides/slide1.xml").async("text");
 assert.match(customGeometryXml, /<a:quadBezTo><a:pt x="21000" y="6000"\s*\/><a:pt x="18000" y="12000"\s*\/><\/a:quadBezTo>/);
 assert.match(customGeometryXml, /<a:arcTo wR="3000" hR="4000" stAng="5400000" swAng="21600000"\s*\/>/);
+assert.match(customGeometryXml, /<a:gd name="officeKitTextLeft" fmla="\*\/ 228600 w 1714500"\s*\/>/);
+assert.match(customGeometryXml, /<a:gd name="officeKitTextTop" fmla="\*\/ 171450 h 1143000"\s*\/>/);
+assert.match(customGeometryXml, /<a:gd name="officeKitTextRight" fmla="\*\/ 1485900 w 1714500"\s*\/>/);
+assert.match(customGeometryXml, /<a:gd name="officeKitTextBottom" fmla="\*\/ 914400 h 1143000"\s*\/>/);
+assert.match(customGeometryXml, /<a:rect l="officeKitTextLeft" t="officeKitTextTop" r="officeKitTextRight" b="officeKitTextBottom"\s*\/>/);
 assert.match(customGeometryXml, /<a:path\b(?=[^>]*\bfill="norm")(?=[^>]*\bstroke="(?:1|true)")(?=[^>]*\bextrusionOk="(?:0|false)")[^>]*>/);
 assert.match(customGeometryXml, /<a:path\b(?=[^>]*\bfill="none")(?=[^>]*\bstroke="(?:0|false)")(?=[^>]*\bextrusionOk="(?:1|true)")[^>]*>/);
 assert.match(customGeometryXml, /<a:path w="21600" h="21600"><a:moveTo><a:pt x="2000" y="19600"\s*\/><\/a:moveTo>/);
 const importedCustomGeometry = await PresentationFile.importPptx(customGeometryPptx);
 const importedCustomGeometryShape = importedCustomGeometry.slides.getItem(0).shapes.items[0];
 assert.equal(importedCustomGeometryShape.customPaths.length, 3);
+assert.deepEqual(importedCustomGeometryShape.textRectangle, { left: 24, top: 18, right: 156, bottom: 96 });
+const clonedCustomGeometry = await PresentationFile.importPptx(customGeometryPptx);
+clonedCustomGeometry.slides.getItem(0).duplicate();
+const clonedCustomGeometryRoundTrip = await PresentationFile.importPptx(await PresentationFile.exportPptx(clonedCustomGeometry));
+assert.deepEqual(clonedCustomGeometryRoundTrip.slides.getItem(1).shapes.items[0].textRectangle, { left: 24, top: 18, right: 156, bottom: 96 });
 assert.deepEqual(
   {
     fillMode: importedCustomGeometryShape.customPaths[0].fillMode,
@@ -729,9 +749,12 @@ importedCustomGeometryShape.customPaths[0].extrusionAllowed = true;
 importedCustomGeometryShape.customPaths[1].fillMode = "normal";
 importedCustomGeometryShape.customPaths[1].stroke = true;
 delete importedCustomGeometryShape.customPaths[1].extrusionAllowed;
+importedCustomGeometryShape.textRectangle.right = 160;
+importedCustomGeometryShape.textRectangle.bottom = 100;
 const editedCustomGeometry = await PresentationFile.importPptx(await PresentationFile.exportPptx(importedCustomGeometry));
 assert.equal(editedCustomGeometry.slides.getItem(0).shapes.items[0].customPaths[0].commands[2].quadraticBezTo.x1, 20_500);
 assert.equal(editedCustomGeometry.slides.getItem(0).shapes.items[0].customPaths[0].commands[4].arcTo.sweepAngle, -10_800_000);
+assert.deepEqual(editedCustomGeometry.slides.getItem(0).shapes.items[0].textRectangle, { left: 24, top: 18, right: 160, bottom: 100 });
 assert.deepEqual(
   editedCustomGeometry.slides.getItem(0).shapes.items[0].customPaths.map((path) => ({
     fillMode: path.fillMode,
@@ -747,6 +770,28 @@ assert.deepEqual(
   ],
 );
 assert.match(await (await editedCustomGeometry.slides.getItem(0).export()).text(), /A 3000 4000 0 0 0 10800 12000 Z/);
+const defaultTextRectanglePresentation = Presentation.create({ slideSize: { width: 160, height: 100 } });
+const defaultTextRectangleSlide = defaultTextRectanglePresentation.slides.add({ name: "Default custom text bounds" });
+defaultTextRectangleSlide.shapes.add({
+  geometry: "custom",
+  position: { left: 10, top: 10, width: 120, height: 70 },
+  text: "Full shape bounds",
+  customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }, { lineTo: { x: 100, y: 100 } }] }],
+});
+const defaultTextRectanglePptx = await PresentationFile.exportPptx(defaultTextRectanglePresentation);
+const defaultTextRectangleZip = await JSZip.loadAsync(defaultTextRectanglePptx.bytes);
+assert.doesNotMatch(await defaultTextRectangleZip.file("ppt/slides/slide1.xml").async("text"), /<a:rect\b/);
+const importedDefaultTextRectangle = await PresentationFile.importPptx(defaultTextRectanglePptx);
+const importedDefaultTextRectangleShape = importedDefaultTextRectangle.slides.getItem(0).shapes.items[0];
+assert.equal(importedDefaultTextRectangleShape.textRectangle, undefined);
+importedDefaultTextRectangleShape.textRectangle = { left: -4, top: 5, right: 124, bottom: 64 };
+const addedTextRectangle = await PresentationFile.importPptx(await PresentationFile.exportPptx(importedDefaultTextRectangle));
+assert.deepEqual(addedTextRectangle.slides.getItem(0).shapes.items[0].textRectangle, { left: -4, top: 5, right: 124, bottom: 64 });
+addedTextRectangle.slides.getItem(0).shapes.items[0].textRectangle = undefined;
+const removedTextRectangleFile = await PresentationFile.exportPptx(addedTextRectangle);
+const removedTextRectangleZip = await JSZip.loadAsync(removedTextRectangleFile.bytes);
+assert.doesNotMatch(await removedTextRectangleZip.file("ppt/slides/slide1.xml").async("text"), /<a:rect\b/);
+assert.equal((await PresentationFile.importPptx(removedTextRectangleFile)).slides.getItem(0).shapes.items[0].textRectangle, undefined);
 const shadedCustomGeometryXml = customGeometryXml.replace('fill="norm"', 'fill="lighten"');
 assert.notEqual(shadedCustomGeometryXml, customGeometryXml);
 const shadedCustomGeometryFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: shadedCustomGeometryXml }]);
@@ -784,6 +829,86 @@ await assert.rejects(
   () => PresentationFile.exportPptx(formulaCustomGeometry),
   (error) => error?.code === "unsupported_presentation_edit",
 );
+const officeKitTextGuideList = /<a:gdLst><a:gd name="officeKitTextLeft"[\s\S]*?<\/a:gdLst>/;
+assert.match(customGeometryXml, officeKitTextGuideList);
+const literalTextRectangleXml = customGeometryXml
+  .replace(officeKitTextGuideList, "")
+  .replace(
+    '<a:rect l="officeKitTextLeft" t="officeKitTextTop" r="officeKitTextRight" b="officeKitTextBottom" />',
+    '<a:rect l="228600" t="171450" r="1485900" b="914400" />',
+  );
+assert.notEqual(literalTextRectangleXml, customGeometryXml);
+const literalTextRectangleFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: literalTextRectangleXml }]);
+const literalTextRectanglePresentation = await PresentationFile.importPptx(literalTextRectangleFile);
+const importedLiteralTextRectangle = itemByName(literalTextRectanglePresentation.slides.getItem(0).shapes.items, "literal-custom-path");
+assert.deepEqual(importedLiteralTextRectangle.textRectangle, { left: 24, top: 18, right: 156, bottom: 96 });
+const preservedLiteralTextRectangle = await PresentationFile.exportPptx(literalTextRectanglePresentation);
+const preservedLiteralTextRectangleZip = await JSZip.loadAsync(preservedLiteralTextRectangle.bytes);
+assert.match(await preservedLiteralTextRectangleZip.file("ppt/slides/slide1.xml").async("text"), /<a:rect l="228600" t="171450" r="1485900" b="914400"\s*\/>/);
+importedLiteralTextRectangle.textRectangle.right = 157;
+const editedLiteralTextRectangle = await PresentationFile.exportPptx(literalTextRectanglePresentation);
+const editedLiteralTextRectangleZip = await JSZip.loadAsync(editedLiteralTextRectangle.bytes);
+assert.match(await editedLiteralTextRectangleZip.file("ppt/slides/slide1.xml").async("text"), /<a:gd name="officeKitTextRight" fmla="\*\/ 1495425 w 1714500"\s*\/>/);
+assert.deepEqual((await PresentationFile.importPptx(editedLiteralTextRectangle)).slides.getItem(0).shapes.items[0].textRectangle, { left: 24, top: 18, right: 157, bottom: 96 });
+const formulaTextRectangleXml = customGeometryXml.replace('fmla="*/ 228600 w 1714500"', 'fmla="wd4"');
+assert.notEqual(formulaTextRectangleXml, customGeometryXml);
+const formulaTextRectangleFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: formulaTextRectangleXml }]);
+const formulaTextRectanglePresentation = await PresentationFile.importPptx(formulaTextRectangleFile);
+const opaqueFormulaTextRectangle = itemByName(formulaTextRectanglePresentation.slides.getItem(0).shapes.items, "literal-custom-path");
+assert.equal(opaqueFormulaTextRectangle.customPaths.length, 0);
+assert.equal(opaqueFormulaTextRectangle.textRectangle, undefined);
+const preservedFormulaTextRectangle = await PresentationFile.exportPptx(formulaTextRectanglePresentation);
+const preservedFormulaTextRectangleZip = await JSZip.loadAsync(preservedFormulaTextRectangle.bytes);
+assert.match(await preservedFormulaTextRectangleZip.file("ppt/slides/slide1.xml").async("text"), /<a:gd name="officeKitTextLeft" fmla="wd4"\s*\/>/);
+assert.match(await preservedFormulaTextRectangleZip.file("ppt/slides/slide1.xml").async("text"), /<a:rect l="officeKitTextLeft" t="officeKitTextTop" r="officeKitTextRight" b="officeKitTextBottom"\s*\/>/);
+opaqueFormulaTextRectangle.textRectangle = { left: 24, top: 18, right: 156, bottom: 96 };
+await assert.rejects(
+  () => PresentationFile.exportPptx(formulaTextRectanglePresentation),
+  (error) => error?.code === "unsupported_presentation_edit",
+);
+const mismatchedGuideTextRectangleXml = customGeometryXml.replace('fmla="*/ 228600 w 1714500"', 'fmla="*/ 228600 w 1714499"');
+assert.notEqual(mismatchedGuideTextRectangleXml, customGeometryXml);
+const mismatchedGuideTextRectangleFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: mismatchedGuideTextRectangleXml }]);
+const mismatchedGuideTextRectanglePresentation = await PresentationFile.importPptx(mismatchedGuideTextRectangleFile);
+const opaqueMismatchedGuideTextRectangle = itemByName(mismatchedGuideTextRectanglePresentation.slides.getItem(0).shapes.items, "literal-custom-path");
+assert.equal(opaqueMismatchedGuideTextRectangle.customPaths.length, 0);
+assert.equal(opaqueMismatchedGuideTextRectangle.textRectangle, undefined);
+const preservedMismatchedGuideTextRectangle = await PresentationFile.exportPptx(mismatchedGuideTextRectanglePresentation);
+const preservedMismatchedGuideTextRectangleZip = await JSZip.loadAsync(preservedMismatchedGuideTextRectangle.bytes);
+assert.match(await preservedMismatchedGuideTextRectangleZip.file("ppt/slides/slide1.xml").async("text"), /<a:gd name="officeKitTextLeft" fmla="\*\/ 228600 w 1714499"\s*\/>/);
+const childBearingTextRectangleXml = customGeometryXml.replace(
+  '<a:rect l="officeKitTextLeft" t="officeKitTextTop" r="officeKitTextRight" b="officeKitTextBottom" />',
+  '<a:rect l="officeKitTextLeft" t="officeKitTextTop" r="officeKitTextRight" b="officeKitTextBottom"><a:extLst /></a:rect>',
+);
+assert.notEqual(childBearingTextRectangleXml, customGeometryXml);
+const childBearingTextRectangleFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: childBearingTextRectangleXml }]);
+const childBearingTextRectanglePresentation = await PresentationFile.importPptx(childBearingTextRectangleFile);
+const opaqueChildBearingTextRectangle = itemByName(childBearingTextRectanglePresentation.slides.getItem(0).shapes.items, "literal-custom-path");
+assert.equal(opaqueChildBearingTextRectangle.customPaths.length, 0);
+assert.equal(opaqueChildBearingTextRectangle.textRectangle, undefined);
+const preservedChildBearingTextRectangle = await PresentationFile.exportPptx(childBearingTextRectanglePresentation);
+const preservedChildBearingTextRectangleZip = await JSZip.loadAsync(preservedChildBearingTextRectangle.bytes);
+assert.match(await preservedChildBearingTextRectangleZip.file("ppt/slides/slide1.xml").async("text"), /<a:rect l="officeKitTextLeft" t="officeKitTextTop" r="officeKitTextRight" b="officeKitTextBottom"><a:extLst\s*\/><\/a:rect>/);
+const extraAttributeTextRectangleXml = customGeometryXml.replace('b="officeKitTextBottom"', 'b="officeKitTextBottom" data="unexpected"');
+assert.notEqual(extraAttributeTextRectangleXml, customGeometryXml);
+const extraAttributeTextRectangleFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: extraAttributeTextRectangleXml }]);
+const extraAttributeTextRectanglePresentation = await PresentationFile.importPptx(extraAttributeTextRectangleFile);
+const opaqueExtraAttributeTextRectangle = itemByName(extraAttributeTextRectanglePresentation.slides.getItem(0).shapes.items, "literal-custom-path");
+assert.equal(opaqueExtraAttributeTextRectangle.customPaths.length, 0);
+assert.equal(opaqueExtraAttributeTextRectangle.textRectangle, undefined);
+const preservedExtraAttributeTextRectangle = await PresentationFile.exportPptx(extraAttributeTextRectanglePresentation);
+const preservedExtraAttributeTextRectangleZip = await JSZip.loadAsync(preservedExtraAttributeTextRectangle.bytes);
+assert.match(await preservedExtraAttributeTextRectangleZip.file("ppt/slides/slide1.xml").async("text"), /<a:rect\b[^>]*\bdata="unexpected"/);
+const missingEdgeTextRectangleXml = customGeometryXml.replace(' b="officeKitTextBottom"', "");
+assert.notEqual(missingEdgeTextRectangleXml, customGeometryXml);
+const missingEdgeTextRectangleFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: missingEdgeTextRectangleXml }]);
+const missingEdgeTextRectanglePresentation = await PresentationFile.importPptx(missingEdgeTextRectangleFile);
+const opaqueMissingEdgeTextRectangle = itemByName(missingEdgeTextRectanglePresentation.slides.getItem(0).shapes.items, "literal-custom-path");
+assert.equal(opaqueMissingEdgeTextRectangle.customPaths.length, 0);
+assert.equal(opaqueMissingEdgeTextRectangle.textRectangle, undefined);
+const preservedMissingEdgeTextRectangle = await PresentationFile.exportPptx(missingEdgeTextRectanglePresentation);
+const preservedMissingEdgeTextRectangleZip = await JSZip.loadAsync(preservedMissingEdgeTextRectangle.bytes);
+assert.match(await preservedMissingEdgeTextRectangleZip.file("ppt/slides/slide1.xml").async("text"), /<a:rect l="officeKitTextLeft" t="officeKitTextTop" r="officeKitTextRight"\s*\/>/);
 const childBearingArcXml = customGeometryXml.replace(
   '<a:arcTo wR="3000" hR="4000" stAng="5400000" swAng="21600000" />',
   '<a:arcTo wR="3000" hR="4000" stAng="5400000" swAng="21600000"><a:extLst /></a:arcTo>',
@@ -849,6 +974,18 @@ assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, extrusionAllowed: 1, commands: [{ close: true }] }] }),
   /extrusionAllowed must be a boolean/,
 );
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "rect", textRectangle: { left: 0, top: 0, right: 10, bottom: 10 } }),
+  /only for custom geometry shapes/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "custom", textRectangle: { left: 0, top: 0, right: 10, bottom: 10, width: 10 }, customPaths: [{ width: 100, height: 100, commands: [{ close: true }] }] }),
+  /textRectangle has unsupported fields: width/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "custom", textRectangle: { left: 10, top: 0, right: 10, bottom: 10 }, customPaths: [{ width: 100, height: 100, commands: [{ close: true }] }] }),
+  /right must be greater than left/,
+);
 const mutatedArcPresentation = Presentation.create({ slideSize: { width: 200, height: 120 } });
 const mutatedArcSlide = mutatedArcPresentation.slides.add({ name: "Mutated arc" });
 const mutatedArcShape = mutatedArcSlide.shapes.add({
@@ -881,6 +1018,19 @@ const mutatedPaintShape = mutatedPaintSlide.shapes.add({
 mutatedPaintShape.customPaths[0].stroke = "false";
 await assert.rejects(() => mutatedPaintSlide.export(), /stroke must be a boolean/);
 await assert.rejects(() => PresentationFile.exportPptx(mutatedPaintPresentation), /stroke must be a boolean/);
+const mutatedTextRectanglePresentation = Presentation.create({ slideSize: { width: 200, height: 120 } });
+const mutatedTextRectangleSlide = mutatedTextRectanglePresentation.slides.add({ name: "Mutated text rectangle" });
+const mutatedTextRectangleShape = mutatedTextRectangleSlide.shapes.add({
+  geometry: "custom",
+  position: { left: 10, top: 10, width: 100, height: 80 },
+  textRectangle: { left: 10, top: 10, right: 90, bottom: 70 },
+  customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 10, y: 10 } }, { lineTo: { x: 90, y: 90 } }] }],
+});
+mutatedTextRectangleShape.textRectangle.right = 10;
+assert.throws(() => mutatedTextRectangleShape.inspectRecord(), /right must be greater than left/);
+assert.throws(() => mutatedTextRectangleShape.layoutJson(), /right must be greater than left/);
+await assert.rejects(() => mutatedTextRectangleSlide.export(), /right must be greater than left/);
+await assert.rejects(() => PresentationFile.exportPptx(mutatedTextRectanglePresentation), /right must be greater than left/);
 
 // Groups are a recursive DrawingML ownership boundary, not flattened children
 // with synthetic parent IDs. The public model keeps child coordinates local and
@@ -955,19 +1105,37 @@ const nestedGroup = authoredGroup.groups.add({
   position: { left: 850, top: 300, width: 250, height: 220 },
   childFrame: { left: 0, top: 0, width: 250, height: 220 },
 });
-nestedGroup.shapes.add({
+const nestedCustomShape = nestedGroup.shapes.add({
   name: "nested-shape",
-  geometry: "rect",
+  geometry: "custom",
   position: { left: 20, top: 30, width: 200, height: 120 },
   fill: "#FCE7F3",
   line: { fill: "#BE185D", width: 1 },
   text: "Nested",
+  textRectangle: { left: 30, top: 20, right: 170, bottom: 100 },
+  customPaths: [{
+    width: 100,
+    height: 100,
+    commands: [
+      { moveTo: { x: 50, y: 0 } },
+      { lineTo: { x: 100, y: 50 } },
+      { lineTo: { x: 50, y: 100 } },
+      { lineTo: { x: 0, y: 50 } },
+      { close: {} },
+    ],
+  }],
 });
 assert.equal(groupedPresentation.resolve(groupedBefore.id), groupedBefore);
 assert.match(groupedPresentation.inspect({ kind: "groupShape,shape,connector,table,chart,image", maxChars: 20_000 }).ndjson, /Agent evidence group/);
 assert.match(authoredGroup.toSvg(), /translate\(100 80\) scale\(0\.5 0\.5\) translate\(100 -50\)/);
-assert.equal(groupedPresentation.verify().ok, true);
-assert.equal(groupedPresentation.validateLayout().ok, true);
+nestedCustomShape.textRectangle.bottom = 21;
+const groupedCustomTextOverflow = groupedPresentation.validateLayout().issues.find((issue) => issue.id === nestedCustomShape.id && issue.type === "textOverflow");
+assert.deepEqual(groupedCustomTextOverflow?.bbox, [600, 230, 70, 0.5]);
+nestedCustomShape.textRectangle.bottom = 100;
+const groupedVerification = groupedPresentation.verify();
+assert.equal(groupedVerification.ok, true, JSON.stringify(groupedVerification.issues));
+const groupedLayoutValidation = groupedPresentation.validateLayout();
+assert.equal(groupedLayoutValidation.ok, true, JSON.stringify(groupedLayoutValidation.issues));
 
 const groupedFirstExport = await PresentationFile.exportPptx(groupedPresentation);
 const groupedFirstZip = await JSZip.loadAsync(new Uint8Array(await groupedFirstExport.arrayBuffer()));
@@ -998,8 +1166,11 @@ importedGroupedChart.series[0].values = [8, 10];
 importedGroupedChart.series[1].values = [6, 9];
 importedGroupedChart.axes.secondary.value.max = 12;
 const importedNestedGroup = itemByName(importedGroup.groups.items, "nested-group");
+assert.deepEqual(itemByName(importedNestedGroup.shapes.items, "nested-shape").textRectangle, { left: 30, top: 20, right: 170, bottom: 100 });
 importedNestedGroup.position.top = 320;
-itemByName(importedNestedGroup.shapes.items, "nested-shape").fill = "#FDE68A";
+const importedNestedShape = itemByName(importedNestedGroup.shapes.items, "nested-shape");
+importedNestedShape.fill = "#FDE68A";
+importedNestedShape.textRectangle.left = 40;
 
 const groupedSecondExport = await PresentationFile.exportPptx(groupedImported);
 const groupedRoundTrip = await PresentationFile.importPptx(groupedSecondExport);
@@ -1016,6 +1187,7 @@ assert.deepEqual(itemByName(roundTripGroup.charts.items, "grouped-chart").series
 assert.equal(itemByName(roundTripGroup.charts.items, "grouped-chart").series[1].axisGroup, "secondary");
 assert.equal(itemByName(roundTripGroup.charts.items, "grouped-chart").axes.secondary.value.max, 12);
 assert.equal(itemByName(itemByName(roundTripGroup.groups.items, "nested-group").shapes.items, "nested-shape").fill, "#FDE68A");
+assert.deepEqual(itemByName(itemByName(roundTripGroup.groups.items, "nested-group").shapes.items, "nested-shape").textRectangle, { left: 40, top: 20, right: 170, bottom: 100 });
 
 const removedGroupedChild = roundTripGroup.children.pop();
 await assert.rejects(

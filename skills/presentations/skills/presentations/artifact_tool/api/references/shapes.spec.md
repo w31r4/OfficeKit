@@ -134,6 +134,7 @@ const custom = slide.shapes.add({
   position,
   fill,
   line,
+  textRectangle: { left: 24, top: 18, right: 156, bottom: 96 },
   customPaths: [
     {
       width,
@@ -163,6 +164,16 @@ preview. Relative `lighten`, `lightenLess`, `darken`, and `darkenLess` path
 fills remain opaque because the static preview does not implement their native
 paint transform.
 
+`textRectangle` is optional and belongs to the custom shape, not to an
+individual path. Its `left`, `top`, `right`, and `bottom` values are pixels
+relative to the shape frame; the rectangle may inset or extend the native text
+box. OfficeKit reads native numeric rectangles and writes one deterministic
+four-guide DrawingML `a:rect` profile so PowerPoint and LibreOffice resolve the
+same shape-local EMUs. The same state drives inspect, static text origin, and
+overflow QA and survives source-bound edits. Omit the field for DrawingML's
+full-shape default. Every other formula-valued native rectangle remains opaque
+and rejects semantic mutation rather than exposing a partial formula model.
+
 ```ts
 const ellipsePath = {
   width: 21_600,
@@ -187,6 +198,7 @@ const ellipsePath = {
 ```ts
 type CustomShapeConfig = Omit<PresetShapeConfig, "geometry"> & {
   geometry: "custom";
+  textRectangle?: { left: number; top: number; right: number; bottom: number };
   customPaths: Array<{
     width: number;
     height: number;

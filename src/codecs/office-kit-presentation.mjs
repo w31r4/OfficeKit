@@ -16,7 +16,7 @@ import { deterministicPresentationGuid } from "../presentation/ooxml-modern-comm
 import { normalizePresentationThemeConfig } from "../presentation/ooxml-theme.mjs";
 import { normalizePresentationTextBodyProperties } from "../presentation/text-body-properties.mjs";
 import { effectivePresentationImageCrop, presentationImageCropFromWire, presentationImageCropToWire } from "../presentation/image-crop.mjs";
-import { normalizePresentationCustomPaths } from "../presentation/custom-geometry.mjs";
+import { normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle } from "../presentation/custom-geometry.mjs";
 import { isPresentationAutoNumberType, normalizePresentationParagraphs, normalizePresentationParagraphStyles } from "../presentation/text-paragraphs.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { createPresentationAssetCatalog, validatePictureBulletUri } from "./office-kit-assets.mjs";
@@ -204,6 +204,7 @@ function cloneImportedPresentationShape(container, source, context) {
     name: source.name,
     geometry: source.geometry,
     ...(source.customPaths?.length ? { customPaths: clonedPresentationValue(source.customPaths) } : {}),
+    ...(source.textRectangle ? { textRectangle: clonedPresentationValue(source.textRectangle) } : {}),
     position: clonedPresentationValue(source.position),
     ...(source.transform ? { transform: clonedPresentationValue(source.transform) } : {}),
     fill: clonedPresentationValue(source.fill),
@@ -1583,8 +1584,9 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} uses unsupported geometry ${shape.geometry}.`, [], { code: "unsupported_presentation_features" });
   }
   const normalizedCustomPaths = shape.customPaths?.length ? normalizePresentationCustomPaths(shape.customPaths) : [];
-  if (shape.geometry !== "custom" && normalizedCustomPaths.length) {
-    throw new OfficeKitCodecError(`Presentation shape ${shape.id} has custom paths without custom geometry.`, [], { code: "invalid_presentation_geometry" });
+  const textRectangle = normalizePresentationCustomTextRectangle(shape.textRectangle);
+  if (shape.geometry !== "custom" && (normalizedCustomPaths.length || textRectangle)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shape.id} has custom geometry data without custom geometry.`, [], { code: "invalid_presentation_geometry" });
   }
   const customPaths = normalizedCustomPaths.map((path) => ({
     width: BigInt(path.width),
@@ -1667,6 +1669,12 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         ...(placeholder || shape.transform == null ? {} : { transform: wirePresentationTransform(shape.transform, `shape ${shape.id}`) }),
         ...(shadow ? { shadow } : {}),
         ...(customPaths.length ? { customPaths } : {}),
+        ...(textRectangle ? { textRectangle: {
+          leftEmu: BigInt(Math.round(textRectangle.left * EMU_PER_PIXEL)),
+          topEmu: BigInt(Math.round(textRectangle.top * EMU_PER_PIXEL)),
+          rightEmu: BigInt(Math.round(textRectangle.right * EMU_PER_PIXEL)),
+          bottomEmu: BigInt(Math.round(textRectangle.bottom * EMU_PER_PIXEL)),
+        } } : {}),
         ...(shape.useBackgroundFill === undefined ? {} : { useBackgroundFill: shape.useBackgroundFill }),
       },
     },
@@ -2736,6 +2744,17 @@ function modelCustomGeometryPaths(shape) {
   });
 }
 
+function modelCustomGeometryTextRectangle(shape) {
+  const rectangle = shape.textRectangle;
+  if (!rectangle) return undefined;
+  return {
+    left: Number(rectangle.leftEmu) / EMU_PER_PIXEL,
+    top: Number(rectangle.topEmu) / EMU_PER_PIXEL,
+    right: Number(rectangle.rightEmu) / EMU_PER_PIXEL,
+    bottom: Number(rectangle.bottomEmu) / EMU_PER_PIXEL,
+  };
+}
+
 function modelPlaceholderTransform(frame) {
   return modelPresentationTransform(frame);
 }
@@ -2857,6 +2876,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       ...common,
       geometry: shape.geometry || "rect",
       ...(shape.customPaths?.length ? { customPaths: modelCustomGeometryPaths(shape) } : {}),
+      ...(shape.textRectangle ? { textRectangle: modelCustomGeometryTextRectangle(shape) } : {}),
       position: {
         left: Number(shape.leftEmu) / EMU_PER_PIXEL,
         top: Number(shape.topEmu) / EMU_PER_PIXEL,
@@ -3084,6 +3104,7 @@ export async function presentationFromEnvelope(envelope) {
           name: element.name || inheritedPlaceholder?.name,
           geometry: shape.geometry || "rect",
           ...(shape.customPaths?.length ? { customPaths: modelCustomGeometryPaths(shape) } : {}),
+          ...(shape.textRectangle ? { textRectangle: modelCustomGeometryTextRectangle(shape) } : {}),
           position: { ...effectiveFrame },
           ...(effectiveTransform && Object.keys(effectiveTransform).length ? { transform: effectiveTransform } : {}),
           ...(placeholderIdentity ? { placeholder: {

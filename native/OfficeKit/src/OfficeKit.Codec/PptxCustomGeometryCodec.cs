@@ -7,30 +7,38 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace OfficeKit.Codec;
 
 // Bounded literal DrawingML custom paths used by source-built presentation
-// templates. Guides, handles, connection sites, text rectangles, and relative
-// lighten/darken path fills stay outside this slice.
+// templates. Shape-local text bounds accept native numeric rectangles and the
+// exact four scaling guides emitted below for cross-host rendering. Every other
+// formula geometry, guide, handle, connection site, and relative lighten/darken
+// path fill stays outside this slice.
 internal static class PptxCustomGeometryCodec
 {
     private const int MaxPaths = 64;
     private const int MaxCommands = 16_384;
     private const long MaxCoordinate = int.MaxValue;
     private const int FullTurnAngle = 21_600_000;
+    private const string TextLeftGuide = "officeKitTextLeft";
+    private const string TextTopGuide = "officeKitTextTop";
+    private const string TextRightGuide = "officeKitTextRight";
+    private const string TextBottomGuide = "officeKitTextBottom";
 
-    internal static bool Supports(A.CustomGeometry? geometry)
+    internal static bool Supports(A.CustomGeometry? geometry, long widthEmu, long heightEmu)
     {
-        if (geometry is null || geometry.ChildElements.Count != 2 ||
+        if (geometry is null || geometry.HasAttributes || geometry.ChildElements.Count is < 2 or > 4 ||
             geometry.ChildElements[0] is not A.AdjustValueList adjustValues || adjustValues.HasChildren || adjustValues.HasAttributes ||
-            geometry.ChildElements[1] is not A.PathList pathList || pathList.HasAttributes)
+            geometry.ChildElements[^1] is not A.PathList pathList || pathList.HasAttributes)
             return false;
+        var hasRectangle = TryReadTextRectangle(geometry, widthEmu, heightEmu, out _);
+        if (geometry.ChildElements.Count == 2 ? hasRectangle : !hasRectangle) return false;
         var paths = pathList.Elements<A.Path>().ToArray();
         if (paths.Length is < 1 or > MaxPaths || pathList.ChildElements.Count != paths.Length) return false;
         var commandCount = 0;
         return paths.All(path => Supports(path, ref commandCount));
     }
 
-    internal static IEnumerable<PresentationCustomGeometryPath> Read(A.CustomGeometry? geometry)
+    internal static IEnumerable<PresentationCustomGeometryPath> Read(A.CustomGeometry? geometry, long widthEmu, long heightEmu)
     {
-        if (!Supports(geometry)) yield break;
+        if (!Supports(geometry, widthEmu, heightEmu)) yield break;
         foreach (var nativePath in geometry!.GetFirstChild<A.PathList>()!.Elements<A.Path>())
         {
             var path = new PresentationCustomGeometryPath
@@ -62,16 +70,24 @@ internal static class PptxCustomGeometryCodec
         }
     }
 
+    internal static PresentationCustomGeometryTextRectangle? ReadTextRectangle(A.CustomGeometry? geometry, long widthEmu, long heightEmu)
+    {
+        return Supports(geometry, widthEmu, heightEmu) && TryReadTextRectangle(geometry!, widthEmu, heightEmu, out var rectangle)
+            ? rectangle
+            : null;
+    }
+
     internal static void Validate(PresentationShape shape, string shapeId)
     {
         if (shape.Geometry != "custom")
         {
-            if (shape.CustomPaths.Count > 0)
-                throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has custom paths without custom geometry.");
+            if (shape.CustomPaths.Count > 0 || shape.TextRectangle is not null)
+                throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has custom geometry data without custom geometry.");
             return;
         }
         if (shape.CustomPaths.Count is < 1 or > MaxPaths)
             throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} custom geometry must contain 1 through {MaxPaths} paths.");
+        Validate(shape.TextRectangle, shapeId);
         var commandCount = 0;
         foreach (var path in shape.CustomPaths)
         {
@@ -130,13 +146,15 @@ internal static class PptxCustomGeometryCodec
         }
         properties.GetFirstChild<A.PresetGeometry>()?.Remove();
         properties.GetFirstChild<A.CustomGeometry>()?.Remove();
-        OpenXmlElement geometry = Build(shape);
         var transform = properties.GetFirstChild<A.Transform2D>();
+        var widthEmu = transform?.Extents?.Cx?.Value ?? shape.WidthEmu;
+        var heightEmu = transform?.Extents?.Cy?.Value ?? shape.HeightEmu;
+        OpenXmlElement geometry = Build(shape, widthEmu, heightEmu);
         if (transform is null) properties.PrependChild(geometry);
         else properties.InsertAfter(geometry, transform);
     }
 
-    private static A.CustomGeometry Build(PresentationShape shape)
+    private static A.CustomGeometry Build(PresentationShape shape, long widthEmu, long heightEmu)
     {
         var paths = new A.PathList();
         foreach (var source in shape.CustomPaths)
@@ -166,7 +184,14 @@ internal static class PptxCustomGeometryCodec
             }
             paths.Append(path);
         }
-        return new A.CustomGeometry(new A.AdjustValueList(), paths);
+        var geometry = new A.CustomGeometry(new A.AdjustValueList());
+        if (shape.TextRectangle is not null)
+        {
+            geometry.Append(TextRectangleGuides(shape.TextRectangle, widthEmu, heightEmu));
+            geometry.Append(TextRectangle());
+        }
+        geometry.Append(paths);
+        return geometry;
     }
 
     private static bool Supports(A.Path path, ref int commandCount)
@@ -210,6 +235,62 @@ internal static class PptxCustomGeometryCodec
             }
         }
         return true;
+    }
+
+    private static bool SupportsLiteralTextRectangle(A.Rectangle rectangle) =>
+        HasNoInnerXml(rectangle) && HasOnlyAttributes(rectangle, "l", "t", "r", "b") &&
+        TryCoordinate(rectangle.Left?.Value, out var left) &&
+        TryCoordinate(rectangle.Top?.Value, out var top) &&
+        TryCoordinate(rectangle.Right?.Value, out var right) &&
+        TryCoordinate(rectangle.Bottom?.Value, out var bottom) &&
+        left < right && top < bottom;
+
+    private static bool TryReadTextRectangle(
+        A.CustomGeometry geometry,
+        long widthEmu,
+        long heightEmu,
+        out PresentationCustomGeometryTextRectangle rectangle)
+    {
+        rectangle = new PresentationCustomGeometryTextRectangle();
+        if (geometry.GetFirstChild<A.Rectangle>() is not { } nativeRectangle) return false;
+        if (geometry.GetFirstChild<A.ShapeGuideList>() is not { } guides)
+        {
+            if (geometry.ChildElements.Count != 3 || geometry.ChildElements[1] != nativeRectangle || !SupportsLiteralTextRectangle(nativeRectangle)) return false;
+            rectangle.LeftEmu = ParseCoordinate(nativeRectangle.Left!.Value!);
+            rectangle.TopEmu = ParseCoordinate(nativeRectangle.Top!.Value!);
+            rectangle.RightEmu = ParseCoordinate(nativeRectangle.Right!.Value!);
+            rectangle.BottomEmu = ParseCoordinate(nativeRectangle.Bottom!.Value!);
+            return true;
+        }
+        if (geometry.ChildElements.Count != 4 || geometry.ChildElements[1] != guides || geometry.ChildElements[2] != nativeRectangle ||
+            guides.HasAttributes || guides.ChildElements.Count != 4 ||
+            !HasOnlyAttributes(nativeRectangle, "l", "t", "r", "b") || !HasNoInnerXml(nativeRectangle) ||
+            nativeRectangle.Left?.Value != TextLeftGuide || nativeRectangle.Top?.Value != TextTopGuide ||
+            nativeRectangle.Right?.Value != TextRightGuide || nativeRectangle.Bottom?.Value != TextBottomGuide)
+            return false;
+        var source = guides.Elements<A.ShapeGuide>().ToArray();
+        if (source.Length != 4 ||
+            !TryScaledGuide(source[0], TextLeftGuide, "w", widthEmu, out var left) ||
+            !TryScaledGuide(source[1], TextTopGuide, "h", heightEmu, out var top) ||
+            !TryScaledGuide(source[2], TextRightGuide, "w", widthEmu, out var right) ||
+            !TryScaledGuide(source[3], TextBottomGuide, "h", heightEmu, out var bottom) ||
+            left >= right || top >= bottom)
+            return false;
+        rectangle.LeftEmu = left;
+        rectangle.TopEmu = top;
+        rectangle.RightEmu = right;
+        rectangle.BottomEmu = bottom;
+        return true;
+    }
+
+    private static bool TryScaledGuide(A.ShapeGuide guide, string name, string axis, long extentEmu, out long coordinate)
+    {
+        coordinate = 0;
+        if (!HasNoInnerXml(guide) || !HasOnlyAttributes(guide, "name", "fmla") || guide.Name?.Value != name || extentEmu <= 0) return false;
+        var tokens = (guide.Formula?.Value ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        return tokens.Length == 4 && tokens[0] == "*/" && tokens[2] == axis &&
+            TryCoordinate(tokens[1], out coordinate) &&
+            long.TryParse(tokens[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out var denominator) && denominator == extentEmu;
     }
 
     private static bool SupportsPathProperties(A.Path path)
@@ -300,6 +381,26 @@ internal static class PptxCustomGeometryCodec
         SwingAngle = source.SweepAngle.ToString(CultureInfo.InvariantCulture),
     };
 
+    private static A.ShapeGuideList TextRectangleGuides(PresentationCustomGeometryTextRectangle source, long widthEmu, long heightEmu) => new(
+        ScaledGuide(TextLeftGuide, source.LeftEmu, "w", widthEmu),
+        ScaledGuide(TextTopGuide, source.TopEmu, "h", heightEmu),
+        ScaledGuide(TextRightGuide, source.RightEmu, "w", widthEmu),
+        ScaledGuide(TextBottomGuide, source.BottomEmu, "h", heightEmu));
+
+    private static A.ShapeGuide ScaledGuide(string name, long coordinate, string axis, long extentEmu) => new()
+    {
+        Name = name,
+        Formula = $"*/ {coordinate.ToString(CultureInfo.InvariantCulture)} {axis} {extentEmu.ToString(CultureInfo.InvariantCulture)}",
+    };
+
+    private static A.Rectangle TextRectangle() => new()
+    {
+        Left = TextLeftGuide,
+        Top = TextTopGuide,
+        Right = TextRightGuide,
+        Bottom = TextBottomGuide,
+    };
+
     private static void Validate(PresentationCustomGeometryCommand command, string shapeId, bool hasCurrentPoint)
     {
         switch (command.CommandCase)
@@ -344,6 +445,17 @@ internal static class PptxCustomGeometryCodec
             throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has a custom path point outside the signed 32-bit coordinate range.");
     }
 
+    private static void Validate(PresentationCustomGeometryTextRectangle? rectangle, string shapeId)
+    {
+        if (rectangle is null) return;
+        if (rectangle.LeftEmu < -MaxCoordinate || rectangle.LeftEmu > MaxCoordinate ||
+            rectangle.TopEmu < -MaxCoordinate || rectangle.TopEmu > MaxCoordinate ||
+            rectangle.RightEmu < -MaxCoordinate || rectangle.RightEmu > MaxCoordinate ||
+            rectangle.BottomEmu < -MaxCoordinate || rectangle.BottomEmu > MaxCoordinate ||
+            rectangle.LeftEmu >= rectangle.RightEmu || rectangle.TopEmu >= rectangle.BottomEmu)
+            throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an invalid literal custom-geometry text rectangle.");
+    }
+
     private static bool TryCoordinate(string? value, out long coordinate) =>
         long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out coordinate) &&
         coordinate >= -MaxCoordinate && coordinate <= MaxCoordinate;
@@ -362,6 +474,6 @@ internal static class PptxCustomGeometryCodec
     private static bool HasOnlyAttributes(OpenXmlElement element, params string[] names)
     {
         var allowed = names.ToHashSet(StringComparer.Ordinal);
-        return element.GetAttributes().All(attribute => allowed.Contains(attribute.LocalName));
+        return element.GetAttributes().All(attribute => string.IsNullOrEmpty(attribute.NamespaceUri) && allowed.Contains(attribute.LocalName));
     }
 }

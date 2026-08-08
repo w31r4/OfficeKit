@@ -1242,6 +1242,13 @@ public sealed class PptxCodecTests
         var request = ExportRequest();
         var shape = request.Artifact.Presentation.Slides[0].Elements[0].Shape;
         shape.Geometry = "custom";
+        shape.TextRectangle = new PresentationCustomGeometryTextRectangle
+        {
+            LeftEmu = 228_600,
+            TopEmu = 171_450,
+            RightEmu = 1_485_900,
+            BottomEmu = 914_400,
+        };
         var path = new PresentationCustomGeometryPath
         {
             Width = 21_600,
@@ -1307,6 +1314,32 @@ public sealed class PptxCodecTests
             var properties = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.Shape>().Single().ShapeProperties!;
             Assert.Null(properties.GetFirstChild<A.PresetGeometry>());
             var geometry = properties.GetFirstChild<A.CustomGeometry>()!;
+            Assert.Collection(geometry.GetFirstChild<A.ShapeGuideList>()!.Elements<A.ShapeGuide>(),
+                guide =>
+                {
+                    Assert.Equal("officeKitTextLeft", guide.Name!.Value);
+                    Assert.Equal($"*/ 228600 w {shape.WidthEmu}", guide.Formula!.Value);
+                },
+                guide =>
+                {
+                    Assert.Equal("officeKitTextTop", guide.Name!.Value);
+                    Assert.Equal($"*/ 171450 h {shape.HeightEmu}", guide.Formula!.Value);
+                },
+                guide =>
+                {
+                    Assert.Equal("officeKitTextRight", guide.Name!.Value);
+                    Assert.Equal($"*/ 1485900 w {shape.WidthEmu}", guide.Formula!.Value);
+                },
+                guide =>
+                {
+                    Assert.Equal("officeKitTextBottom", guide.Name!.Value);
+                    Assert.Equal($"*/ 914400 h {shape.HeightEmu}", guide.Formula!.Value);
+                });
+            var textRectangle = geometry.GetFirstChild<A.Rectangle>()!;
+            Assert.Equal("officeKitTextLeft", textRectangle.Left!.Value);
+            Assert.Equal("officeKitTextTop", textRectangle.Top!.Value);
+            Assert.Equal("officeKitTextRight", textRectangle.Right!.Value);
+            Assert.Equal("officeKitTextBottom", textRectangle.Bottom!.Value);
             Assert.Collection(geometry.GetFirstChild<A.PathList>()!.Elements<A.Path>(),
                 nativePath =>
                 {
@@ -1349,6 +1382,10 @@ public sealed class PptxCodecTests
         var importedElement = Assert.Single(Assert.Single(imported.Artifact.Presentation.Slides).Elements);
         Assert.True(importedElement.Source.Editable);
         Assert.Equal("custom", importedElement.Shape.Geometry);
+        Assert.Equal(228_600, importedElement.Shape.TextRectangle.LeftEmu);
+        Assert.Equal(171_450, importedElement.Shape.TextRectangle.TopEmu);
+        Assert.Equal(1_485_900, importedElement.Shape.TextRectangle.RightEmu);
+        Assert.Equal(914_400, importedElement.Shape.TextRectangle.BottomEmu);
         Assert.Equal(3, importedElement.Shape.CustomPaths.Count);
         var importedPath = importedElement.Shape.CustomPaths[0];
         var importedUnfilledPath = importedElement.Shape.CustomPaths[1];
@@ -1379,11 +1416,16 @@ public sealed class PptxCodecTests
         importedUnfilledPath.FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal;
         importedUnfilledPath.Stroke = true;
         importedUnfilledPath.ClearExtrusionAllowed();
+        importedElement.Shape.TextRectangle.RightEmu = 1_524_000;
+        importedElement.Shape.TextRectangle.BottomEmu = 952_500;
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTrip = Import(edited.File.ToByteArray());
         Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
         var roundTripPaths = Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements).Shape.CustomPaths;
+        var roundTripTextRectangle = Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements).Shape.TextRectangle;
+        Assert.Equal(1_524_000, roundTripTextRectangle.RightEmu);
+        Assert.Equal(952_500, roundTripTextRectangle.BottomEmu);
         Assert.Equal(3, roundTripPaths.Count);
         var roundTripPath = roundTripPaths[0];
         Assert.Equal(20_500, roundTripPath.Commands[2].QuadraticBezierTo.Control.X);
@@ -1427,6 +1469,27 @@ public sealed class PptxCodecTests
         var misplacedPathsResponse = Invoke(misplacedPaths);
         Assert.False(misplacedPathsResponse.Ok);
         Assert.Equal("invalid_presentation_geometry", Assert.Single(misplacedPathsResponse.Diagnostics).Code);
+
+        var misplacedTextRectangle = ExportRequest();
+        misplacedTextRectangle.Artifact.Presentation.Slides[0].Elements[0].Shape.TextRectangle = shape.TextRectangle.Clone();
+        var misplacedTextRectangleResponse = Invoke(misplacedTextRectangle);
+        Assert.False(misplacedTextRectangleResponse.Ok);
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(misplacedTextRectangleResponse.Diagnostics).Code);
+
+        var invertedTextRectangle = ExportRequest();
+        var invertedTextRectangleShape = invertedTextRectangle.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        invertedTextRectangleShape.Geometry = "custom";
+        invertedTextRectangleShape.CustomPaths.Add(path.Clone());
+        invertedTextRectangleShape.TextRectangle = new PresentationCustomGeometryTextRectangle
+        {
+            LeftEmu = 100,
+            TopEmu = 0,
+            RightEmu = 100,
+            BottomEmu = 100,
+        };
+        var invertedTextRectangleResponse = Invoke(invertedTextRectangle);
+        Assert.False(invertedTextRectangleResponse.Ok);
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(invertedTextRectangleResponse.Diagnostics).Code);
 
         var arcWithoutCurrentPoint = ExportRequest();
         var arcWithoutCurrentPointShape = arcWithoutCurrentPoint.Artifact.Presentation.Slides[0].Elements[0].Shape;

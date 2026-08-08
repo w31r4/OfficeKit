@@ -1,12 +1,15 @@
 const MAX_PATHS = 64;
 const MAX_COMMANDS = 16_384;
 const MAX_COORDINATE = 2_147_483_647;
+const EMU_PER_PIXEL = 9_525;
 const ANGLE_UNITS_PER_DEGREE = 60_000;
 const HALF_TURN_ANGLE = 180 * ANGLE_UNITS_PER_DEGREE;
 const FULL_TURN_ANGLE = 360 * ANGLE_UNITS_PER_DEGREE;
 const ARC_FIELDS = Object.freeze(["widthRadius", "heightRadius", "startAngle", "sweepAngle"]);
 const PATH_FIELDS = new Set(["width", "height", "commands", "fillMode", "stroke", "extrusionAllowed"]);
 const PATH_FILL_MODES = new Set(["normal", "none"]);
+const TEXT_RECTANGLE_FIELDS = Object.freeze(["left", "top", "right", "bottom"]);
+const TEXT_RECTANGLE_FIELD_SET = new Set(TEXT_RECTANGLE_FIELDS);
 const CURVE_FIELDS = Object.freeze({
   quadraticBezTo: Object.freeze(["x1", "y1", "x", "y"]),
   cubicBezTo: Object.freeze(["x1", "y1", "x2", "y2", "x", "y"]),
@@ -18,6 +21,52 @@ function coordinate(value, label) {
     throw new RangeError(`${label} must be a safe integer within the DrawingML signed 32-bit coordinate range.`);
   }
   return number;
+}
+
+function textRectangleCoordinate(value, label) {
+  const number = Number(value);
+  const emu = Math.round(number * EMU_PER_PIXEL);
+  if (!Number.isFinite(number) || !Number.isSafeInteger(emu) || emu < -MAX_COORDINATE || emu > MAX_COORDINATE) {
+    throw new RangeError(`${label} must be a finite pixel coordinate representable in the DrawingML signed 32-bit EMU range.`);
+  }
+  return number;
+}
+
+export function normalizePresentationCustomTextRectangle(value) {
+  if (value == null) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) throw new TypeError("Presentation custom geometry textRectangle must be an object.");
+  const unknown = Object.keys(value).filter((key) => !TEXT_RECTANGLE_FIELD_SET.has(key));
+  if (unknown.length) throw new TypeError(`Presentation custom geometry textRectangle has unsupported fields: ${unknown.join(", ")}.`);
+  const rectangle = Object.fromEntries(TEXT_RECTANGLE_FIELDS.map((field) => [field, textRectangleCoordinate(value[field], `Presentation custom geometry textRectangle.${field}`)]));
+  if (Math.round(rectangle.left * EMU_PER_PIXEL) >= Math.round(rectangle.right * EMU_PER_PIXEL)) {
+    throw new RangeError("Presentation custom geometry textRectangle.right must be greater than left at native EMU precision.");
+  }
+  if (Math.round(rectangle.top * EMU_PER_PIXEL) >= Math.round(rectangle.bottom * EMU_PER_PIXEL)) {
+    throw new RangeError("Presentation custom geometry textRectangle.bottom must be greater than top at native EMU precision.");
+  }
+  return rectangle;
+}
+
+export function presentationCustomTextRectangleFrame(value, frame, sourceFrame = frame) {
+  const rectangle = normalizePresentationCustomTextRectangle(value);
+  if (!rectangle) return { ...frame };
+  const sourceWidth = Number(sourceFrame?.width);
+  const sourceHeight = Number(sourceFrame?.height);
+  const left = Number(frame?.left);
+  const top = Number(frame?.top);
+  const width = Number(frame?.width);
+  const height = Number(frame?.height);
+  if (![sourceWidth, sourceHeight, left, top, width, height].every(Number.isFinite) || sourceWidth <= 0 || sourceHeight <= 0 || width <= 0 || height <= 0) {
+    throw new RangeError("Presentation custom geometry textRectangle requires positive source and rendered shape frames.");
+  }
+  const scaleX = width / sourceWidth;
+  const scaleY = height / sourceHeight;
+  return {
+    left: left + rectangle.left * scaleX,
+    top: top + rectangle.top * scaleY,
+    width: (rectangle.right - rectangle.left) * scaleX,
+    height: (rectangle.bottom - rectangle.top) * scaleY,
+  };
 }
 
 function angle(value, label) {
