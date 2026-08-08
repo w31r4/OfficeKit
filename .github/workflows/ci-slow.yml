@@ -125,10 +125,28 @@ jobs:
           "$OFFICE_KIT_PDF_VERAPDF" --version
           "$OFFICE_KIT_PDF_VERAPDF" --list
           dotnet --version
-      - name: Run the full slow gate
-        env:
-          OFFICE_TEMPLATE_SOURCE_ROOT: reference/office-artifact-tool/skills/default-template-library
-        run: npm run test:slow
+      # Keep each invocation below the hosted runner's single-command limit.
+      # The local `npm run test:slow` entry remains the complete serial gate.
+      - name: Run slow foundation segment
+        run: npm run test:slow -- --segment foundation
+      - name: Run slow presentation segment
+        run: npm run test:slow -- --segment presentation
+      - name: Run slow templates segment
+        run: npm run test:slow -- --segment templates
+      - name: Run slow officekit segment
+        run: npm run test:slow -- --segment officekit
+      - name: Run slow documents segment
+        run: npm run test:slow -- --segment documents
+      - name: Run slow pdf-packs segment
+        run: npm run test:slow -- --segment pdf-packs
+      - name: Run slow pdf-providers segment
+        run: npm run test:slow -- --segment pdf-providers
+      - name: Run slow pdf-specialists segment
+        run: npm run test:slow -- --segment pdf-specialists
+      - name: Run slow qa segment
+        run: npm run test:slow -- --segment qa
+      - name: Run slow release segment
+        run: npm run test:slow -- --segment release
       - run: npm run docs:api
       - run: node scripts/release-check.mjs --json --skip-network --skip-commands
       - run: git diff --exit-code docs/api.md

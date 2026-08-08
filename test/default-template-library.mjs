@@ -45,6 +45,39 @@ const TEMPLATES = [
   ["artifact-template-three-statement-forecast", "Three-Statement Forecast", "spreadsheet", ".xlsx"],
 ];
 
+const templateArgs = process.argv.slice(2);
+let templateShard;
+if (templateArgs.length > 0) {
+  if (templateArgs.length !== 2 || templateArgs[0] !== "--shard" || !templateArgs[1]) {
+    console.error(`invalid template options ${JSON.stringify(templateArgs)}; expected --shard <name>`);
+    process.exit(2);
+  }
+  templateShard = templateArgs[1];
+}
+const templateShardRanges = Object.freeze({
+  "documents-a": Object.freeze({ start: 0, end: 4 }),
+  "documents-b": Object.freeze({ start: 4, end: 7 }),
+  "presentations-a": Object.freeze({ start: 7, end: 11 }),
+  "presentations-b": Object.freeze({ start: 11, end: 14 }),
+  "spreadsheets-a": Object.freeze({ start: 14, end: 17 }),
+  "spreadsheets-b": Object.freeze({ start: 17, end: 20 }),
+});
+const shardTemplateIds = Object.values(templateShardRanges)
+  .flatMap(({ start, end }) => TEMPLATES.slice(start, end).map(([id]) => id));
+assert.deepEqual(
+  shardTemplateIds,
+  TEMPLATES.map(([id]) => id),
+  "default template shards must form one contiguous cover of the canonical template list",
+);
+const templateShardRange = templateShard ? templateShardRanges[templateShard] : null;
+if (templateShard && !templateShardRange) {
+  console.error(`unknown template shard ${JSON.stringify(templateShard)}; expected one of ${Object.keys(templateShardRanges).join(", ")}`);
+  process.exit(2);
+}
+const WORK_TEMPLATES = templateShardRange
+  ? TEMPLATES.slice(templateShardRange.start, templateShardRange.end)
+  : TEMPLATES;
+
 const SPREADSHEET_RECALCULATION_SENTINELS = new Map([
   ["artifact-template-analytics-dashboard", { sheet: "Dashboard", address: "B4" }],
   ["artifact-template-financial-budget", { sheet: "Summary", address: "E8" }],
@@ -553,18 +586,25 @@ assert.ok(integrity.assets.filter((asset) => asset.role === "reference").every((
 const actualFiles = (await walkFiles(libraryRoot)).map((file) => path.relative(libraryRoot, file).split(path.sep).join("/"));
 assert.deepEqual(actualFiles, [...expectedFiles].sort(), "template library canonical file inventory");
 
+// Source comparison is opt-in: the caller must provide a tree that matches
+// integrity.source.commit. The hosted gate relies on the pinned target hashes
+// instead of assuming that an unrelated reference checkout is byte-identical.
 const sourceRoot = process.env.OFFICE_TEMPLATE_SOURCE_ROOT;
 if (sourceRoot) {
   for (const asset of integrity.assets) {
     const [sourceBytes, targetBytes] = await Promise.all([fs.readFile(path.join(sourceRoot, asset.path)), fs.readFile(path.join(libraryRoot, asset.path))]);
-    assert.deepEqual(targetBytes, sourceBytes, `source byte match: ${asset.path}`);
+    assert.equal(
+      sha256(targetBytes),
+      sha256(sourceBytes),
+      `source byte match: ${asset.path} (source ${sourceBytes.length} bytes, target ${targetBytes.length} bytes)`,
+    );
   }
 }
 
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-template-library-"));
 try {
   const materialized = [];
-  for (const [id, , kind, extension] of TEMPLATES) {
+  for (const [id, , kind, extension] of WORK_TEMPLATES) {
     console.error(`[default-template-library] materialize ${id}`);
     const output = path.join(temporary, `${id}${extension}`);
     const audit = path.join(temporary, `${id}.audit.json`);
@@ -606,27 +646,29 @@ try {
   }
 
   const structuredPresentation = materialized.find((item) => item.id === "artifact-template-market-trends-report");
-  assert.ok(structuredPresentation, "Market Trends retained template must be materialized");
-  const topologyProbe = await PresentationFile.importPptx(await FileBlob.load(structuredPresentation.output));
-  const topologyTarget = topologyProbe.slides.items.flatMap((slide) => slide.shapes.items)
-    .find((shape) => shape.placeholder && shape.text.value.includes("\n"));
-  assert.ok(topologyTarget, "Market Trends template must retain a multi-line placeholder title");
-  topologyTarget.text.set(topologyTarget.text.value.replace("\n", " "));
-  await assert.rejects(
-    () => PresentationFile.exportPptx(topologyProbe),
-    (error) => error?.code === "presentation_text_topology_changed",
-    "imported placeholder text.set must fail closed when it changes the source line-break topology",
-  );
+  if (structuredPresentation) {
+    const topologyProbe = await PresentationFile.importPptx(await FileBlob.load(structuredPresentation.output));
+    const topologyTarget = topologyProbe.slides.items.flatMap((slide) => slide.shapes.items)
+      .find((shape) => shape.placeholder && shape.text.value.includes("\n"));
+    assert.ok(topologyTarget, "Market Trends template must retain a multi-line placeholder title");
+    topologyTarget.text.set(topologyTarget.text.value.replace("\n", " "));
+    await assert.rejects(
+      () => PresentationFile.exportPptx(topologyProbe),
+      (error) => error?.code === "presentation_text_topology_changed",
+      "imported placeholder text.set must fail closed when it changes the source line-break topology",
+    );
+  }
 
   const financialBudget = materialized.find((item) => item.id === "artifact-template-financial-budget");
-  assert.ok(financialBudget, "Financial Budget retained template must be materialized");
-  const partialSharedFormulaWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(financialBudget.output));
-  partialSharedFormulaWorkbook.worksheets.getItem("Op Build").getRange("C24").values = [[42]];
-  await assert.rejects(
-    () => SpreadsheetFile.exportXlsx(partialSharedFormulaWorkbook, { recalculate: false }),
-    (error) => error?.code === "unsupported_cell_formula_edit",
-    "partial native shared-formula edits must fail closed through the public facade",
-  );
+  if (financialBudget) {
+    const partialSharedFormulaWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(financialBudget.output));
+    partialSharedFormulaWorkbook.worksheets.getItem("Op Build").getRange("C24").values = [[42]];
+    await assert.rejects(
+      () => SpreadsheetFile.exportXlsx(partialSharedFormulaWorkbook, { recalculate: false }),
+      (error) => error?.code === "unsupported_cell_formula_edit",
+      "partial native shared-formula edits must fail closed through the public facade",
+    );
+  }
 
   if (commandAvailable("soffice")) {
     for (const spreadsheet of materialized.filter((item) => item.kind === "spreadsheet")) {

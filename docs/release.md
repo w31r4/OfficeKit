@@ -65,6 +65,19 @@ human-observed evidence JSON. GitHub-hosted CLI tests and macOS Office.js mocks
 remain portable smoke tests, never native acceptance. See
 [CI gate layering](ci-gates.md) for the trigger and evidence contract.
 
+Hosted slow and release jobs run the complete slow step table as ten named
+contiguous segments (`foundation`, `presentation`, `templates`, `officekit`,
+`documents`, `pdf-packs`, `pdf-providers`, `pdf-specialists`, `qa`, and
+`release`). This is only a scheduling boundary for the hosted runner's
+single-command limit; the
+local `npm run test:slow` command remains the canonical full serial gate and
+the post-segment API, package, release, OfficeBridge, and OfficeKit .NET gates
+remain unchanged.
+The default-template matrix inside `templates` is itself split
+into six ordered shards (`documents-a/b`, `presentations-a/b`, and
+`spreadsheets-a/b`) so each native round-trip/render command remains bounded;
+the no-argument local template test still covers all 20 templates together.
+
 ## Unreleased: Claude Code marketplace
 
 The repository now includes a root `.claude-plugin/marketplace.json` that
