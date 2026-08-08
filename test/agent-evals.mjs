@@ -3594,6 +3594,22 @@ const activeCommands = [
 const activeChecks = gradeActiveContentSanitizeEvidence({ evidence: activeEvidence, audit: activeAudit, commands: activeCommands, item: activeItem });
 assert.equal(activeChecks.every((entry) => entry.passed), true);
 assert.equal(summarizeCaseScore(activeChecks, activeItem.grade).rawScorePercent, 100);
+const publicSanitizeAliasAudit = structuredClone(activeAudit);
+publicSanitizeAliasAudit.operation = [{ type: "sanitize-public-copy" }];
+const publicSanitizeAliasChecks = gradeActiveContentSanitizeEvidence({
+  evidence: activeEvidence,
+  audit: publicSanitizeAliasAudit,
+  commands: [...activeCommands.slice(0, 2), "python pymupdf_edit.py edit input.pdf output.pdf --strategy sanitize --operations tmp/pdfs/scrub.json", ...activeCommands.slice(3)],
+  item: activeItem,
+});
+assert.equal(publicSanitizeAliasChecks.find((entry) => entry.id === "pdf-trace:typed-scrub-primitive")?.passed, true);
+const publicSanitizeAliasWithoutTypedEdit = gradeActiveContentSanitizeEvidence({
+  evidence: activeEvidence,
+  audit: publicSanitizeAliasAudit,
+  commands: [...activeCommands.slice(0, 2), "python custom_sanitize.py input.pdf output.pdf", ...activeCommands.slice(3)],
+  item: activeItem,
+});
+assert.equal(publicSanitizeAliasWithoutTypedEdit.find((entry) => entry.id === "pdf-trace:typed-scrub-primitive")?.passed, false);
 const helpBeforeMutationChecks = gradeActiveContentSanitizeEvidence({
   evidence: activeEvidence,
   audit: activeAudit,
