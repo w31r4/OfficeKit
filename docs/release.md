@@ -1,5 +1,22 @@
 # Release
 
+## Current 0.6.0 package evidence (2026-08-08)
+
+`npm run test:pack` passed after the bounded `CLEAN` formula change. The clean
+dry-run package contains 702 files, 36,228,984 compressed bytes, and
+53,482,654 unpacked bytes; its shasum is
+`e8f6b630d3ae031e7c32364d7148de54bf3c1963`. This is package evidence, not an
+npm registry publication or tagged release.
+
+## Unreleased: bounded CLEAN text formula
+
+`CLEAN` now removes only the ASCII C0 control range (`U+0000` through
+`U+001F`) from one bounded scalar text value. It preserves Unicode text, DEL
+and C1 controls, and fails closed for overlong, formula-error, multi-cell, or
+invalid-arity inputs. Spreadsheet smoke coverage includes tab/newline/
+carriage-return removal and XLSX export/import; this remains a deterministic
+text profile rather than locale-specific normalization.
+
 ## Unreleased: bounded Unicode code-point conversion formulas
 
 `UNICODE` now returns the first code point from one bounded scalar text value,

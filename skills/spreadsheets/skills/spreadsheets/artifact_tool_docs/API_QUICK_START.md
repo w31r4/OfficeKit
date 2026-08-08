@@ -55,7 +55,7 @@ await output.save(`${outputDir}/output.xlsx`);
 - Create every worksheet referenced by formulas before writing any cross-sheet formulas.
 - When rebuilding dashboards, delete drawings first with `sheet.deleteAllDrawings()`. `range.clear()` does not remove charts, shapes, or images.
 - Verify with `await workbook.inspect(...)`; use `workbook.help(...)` only when the quick surface below is insufficient.
-- For Unicode-safe text formulas, `LEFT`/`RIGHT`/`MID`/`LEN` count code points; `UNICODE` reads the first code point and `UNICHAR` accepts one valid Unicode scalar value. Empty, overlong, multi-cell, surrogate, or invalid inputs fail closed instead of being coerced.
+- For Unicode-safe text formulas, `LEFT`/`RIGHT`/`MID`/`LEN` count code points; `UNICODE` reads the first code point and `UNICHAR` accepts one valid Unicode scalar value. `CLEAN` removes only ASCII C0 controls (`U+0000`–`U+001F`) and preserves other Unicode/control characters. Empty, overlong, multi-cell, surrogate, or invalid inputs fail closed instead of being coerced.
 
 ## Conventions
 - Use camelCase API names and option keys.

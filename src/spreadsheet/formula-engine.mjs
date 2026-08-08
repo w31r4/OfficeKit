@@ -1941,6 +1941,18 @@ function evaluateFormulaTextTransform(sheet, fnName, args, context = {}) {
     return boundedFormulaText(result) ?? "#VALUE!";
   }
 
+  if (fnName === "CLEAN") {
+    if (args.length !== 1) return "#VALUE!";
+    // Excel's CLEAN profile removes the ASCII C0 control range only. Keep
+    // DEL, C1 controls, and every other Unicode scalar untouched so this
+    // deterministic evaluator does not silently apply a locale-specific
+    // transliteration or normalization policy.
+    const result = Array.from(text)
+      .filter((character) => character.codePointAt(0) > 0x1F)
+      .join("");
+    return boundedFormulaText(result) ?? "#VALUE!";
+  }
+
   return "#VALUE!";
 }
 
@@ -2580,7 +2592,8 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "EXACT":
     case "REPT":
     case "REPLACE":
-    case "SUBSTITUTE": return evaluateFormulaTextTransform(sheet, fnName, args, context);
+    case "SUBSTITUTE":
+    case "CLEAN": return evaluateFormulaTextTransform(sheet, fnName, args, context);
     case "VALUE": {
       if (args.length !== 1) return "#VALUE!";
       const value = scalar(0);
