@@ -9,14 +9,22 @@ import {
   Workbook,
 } from "../src/index.mjs";
 import {
+  addDocxTrackedReplacementWithOfficeKit,
   exportDocxWithOfficeKit,
   exportPptxWithOfficeKit,
   exportXlsxWithOfficeKit,
+  finalizeDocxRevisionsWithOfficeKit,
   importDocxWithOfficeKit,
   importPptxWithOfficeKit,
   importXlsxWithOfficeKit,
   officeKitStatus,
 } from "../src/codecs/office-kit.mjs";
+import {
+  addDocxTrackedReplacementWithOfficeKit as addDocxTrackedReplacementWithOfficeKitLeaf,
+  exportDocxWithOfficeKit as exportDocxWithOfficeKitLeaf,
+  finalizeDocxRevisionsWithOfficeKit as finalizeDocxRevisionsWithOfficeKitLeaf,
+  importDocxWithOfficeKit as importDocxWithOfficeKitLeaf,
+} from "../src/codecs/office-kit-document-codec.mjs";
 import {
   exportPptxWithOfficeKit as exportPptxWithOfficeKitLeaf,
   importPptxWithOfficeKit as importPptxWithOfficeKitLeaf,
@@ -26,6 +34,10 @@ import {
   importXlsxWithOfficeKit as importXlsxWithOfficeKitLeaf,
 } from "../src/codecs/office-kit-spreadsheet-codec.mjs";
 
+assert.equal(addDocxTrackedReplacementWithOfficeKit, addDocxTrackedReplacementWithOfficeKitLeaf);
+assert.equal(exportDocxWithOfficeKit, exportDocxWithOfficeKitLeaf);
+assert.equal(finalizeDocxRevisionsWithOfficeKit, finalizeDocxRevisionsWithOfficeKitLeaf);
+assert.equal(importDocxWithOfficeKit, importDocxWithOfficeKitLeaf);
 assert.equal(exportPptxWithOfficeKit, exportPptxWithOfficeKitLeaf);
 assert.equal(importPptxWithOfficeKit, importPptxWithOfficeKitLeaf);
 assert.equal(exportXlsxWithOfficeKit, exportXlsxWithOfficeKitLeaf);
