@@ -2007,6 +2007,23 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "MROUND":
     case "EVEN":
     case "ODD":
+    case "EXP":
+    case "LN":
+    case "LOG":
+    case "LOG10":
+    case "SIN":
+    case "COS":
+    case "TAN":
+    case "ASIN":
+    case "ACOS":
+    case "ATAN":
+    case "ATAN2":
+    case "SINH":
+    case "COSH":
+    case "TANH":
+    case "ASINH":
+    case "ACOSH":
+    case "ATANH":
       return evaluateMathFormula(fnName, args, { scalar, values, hasEmptyArgument, formulaErrorCode });
     case "ROUND": return roundFormulaNumber(scalar(0, 0), scalar(1, 0));
     case "ROUNDUP": return roundFormulaNumber(scalar(0, 0), scalar(1, 0), "up");

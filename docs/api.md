@@ -3249,7 +3249,14 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | --- | --- | --- |
 | `exportXlsxWithOfficeKit` | api | Export the bounded Workbook model through the bundled C# Open XML SDK WebAssembly codec: cells, formulas, styles, merges, dimensions, freezes, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, bounded numeric-X/Y/positive-Size bubble charts, standard Office 2010 line/column/stacked sparklines, canonical one-variable or two-variable What-If data tables, and one source-free XLDAPR dynamic-array metadata profile. Imported QueryTables permit only source-bound one-way refresh hardening through table.setQueryRefreshPolicy; an imported connection may only change explicit refreshOnLoad=true to false through workbook.disableConnectionRefreshOnLoad; a uniquely owned imported Pivot cache may make that same one-way change through pivot.disableRefreshOnLoad; imported dynamic-array topology, commands, fields, sorts, other Pivot configuration/data/output, and unsupported extension graphs are preservation-only or fail closed. |
 | `fx.ABS` | formula | Return the absolute value of a number. |
+| `fx.ACOS` | formula | Return the inverse cosine for a finite input in the closed interval [-1,1]; other inputs fail as #NUM!. |
+| `fx.ACOSH` | formula | Return the inverse hyperbolic cosine for finite inputs at least one; smaller inputs fail as #NUM!. |
 | `fx.AND` | formula | Return TRUE when all conditions are true. |
+| `fx.ASIN` | formula | Return the inverse sine for a finite input in the closed interval [-1,1]; other inputs fail as #NUM!. |
+| `fx.ASINH` | formula | Return the inverse hyperbolic sine of a finite number. |
+| `fx.ATAN` | formula | Return the inverse tangent of a finite number. |
+| `fx.ATAN2` | formula | Return the quadrant-aware angle for x and y coordinates; the origin returns #DIV/0!. |
+| `fx.ATANH` | formula | Return the inverse hyperbolic tangent for finite inputs strictly between -1 and 1; boundary values fail as #NUM!. |
 | `fx.AVERAGE` | formula | Average numeric values across arguments and ranges in the clean-room formula engine. |
 | `fx.AVERAGEIF` | formula | Average values whose corresponding entries match case-insensitive comparison or wildcard criteria. |
 | `fx.AVERAGEIFS` | formula | Average values where all supplied criteria ranges have the same size and match case-insensitive comparison or wildcard criteria. |
@@ -3261,6 +3268,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.COMBIN` | formula | Return the number of combinations for two non-negative bounded integer arguments. |
 | `fx.COMBINA` | formula | Return combinations with repetition for two non-negative bounded integer arguments. |
 | `fx.CONCAT` | formula | Concatenate text values and ranges. |
+| `fx.COS` | formula | Return the cosine of a finite radian value. |
+| `fx.COSH` | formula | Return the hyperbolic cosine of a finite number; overflow fails as #NUM!. |
 | `fx.COUNT` | formula | Count numeric values across arguments and ranges. |
 | `fx.COUNTA` | formula | Count non-empty values across arguments and ranges, including text, logical values, errors, and empty-text formula results. |
 | `fx.COUNTBLANK` | formula | Count blank cells and formula results that are empty text in one range. |
@@ -3279,6 +3288,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.EDATE` | formula | Shift a serial date by whole months and clamp the day to the target month end. |
 | `fx.EOMONTH` | formula | Return the final date serial of a month offset from a start date. |
 | `fx.EVEN` | formula | Round a finite number away from zero to the next even integer. |
+| `fx.EXP` | formula | Return e raised to a finite number; overflow fails as #NUM! instead of leaking Infinity. |
 | `fx.EXPAND` | formula | Expand an array to requested row and column dimensions with optional padding. |
 | `fx.FACT` | formula | Return the factorial of a non-negative integer through the finite 170! boundary. |
 | `fx.FACTDOUBLE` | formula | Return the double factorial of a non-negative integer through the bounded finite range. |
@@ -3310,6 +3320,9 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.LCM` | formula | Return the least common multiple of bounded integer arguments and ranges; zero inputs return zero and unsafe overflow returns #NUM!. |
 | `fx.LEFT` | formula | Return characters from the start of a text value. |
 | `fx.LEN` | formula | Return the length of a text value. |
+| `fx.LN` | formula | Return the natural logarithm of a positive finite number; non-positive inputs fail as #NUM!. |
+| `fx.LOG` | formula | Return a logarithm for a positive number and positive base other than one; the base defaults to 10 and invalid domains fail as #NUM!. |
+| `fx.LOG10` | formula | Return the base-10 logarithm of a positive finite number. |
 | `fx.LOWER` | formula | Convert text to lowercase. |
 | `fx.MATCH` | formula | Return a 1-based lookup position in one row or column vector of 1 through 10,000 cells. Exact 0 matching is wildcard-aware; default/1 approximate matching requires a proven ascending homogeneous numeric or text vector and returns the greatest matching-or-lower key, while -1 requires proven descending order and returns the smallest matching-or-higher key. Two-dimensional, oversized, mixed, unordered, or invalid-mode inputs return #VALUE!. |
 | `fx.MAX` | formula | Return the maximum numeric value across arguments and ranges. |
@@ -3351,6 +3364,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.SECOND` | formula | Return the 0 through 59 second component from a nonnegative serial or supported time text. |
 | `fx.SEQUENCE` | formula | Return a dynamic array sequence that spills into neighboring cells in the clean-room formula engine. |
 | `fx.SIGN` | formula | Return -1, 0, or 1 according to the sign of a finite numeric value. |
+| `fx.SIN` | formula | Return the sine of a finite radian value. |
+| `fx.SINH` | formula | Return the hyperbolic sine of a finite number; overflow fails as #NUM!. |
 | `fx.SLN` | formula | Calculate straight-line depreciation from cost, salvage value, and useful life. |
 | `fx.SMALL` | formula | Return the k-th smallest numeric value in an array or range. |
 | `fx.SORT` | formula | Sort a range by a 1-based column index and spill the sorted rows. |
@@ -3362,6 +3377,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.SUMSQ` | formula | Sum the squares of numeric values across arguments and bounded ranges; overflow returns #NUM! and formula errors propagate. |
 | `fx.SWITCH` | formula | Match an expression against ordered value/result pairs and return an optional default or #N/A when no value matches. |
 | `fx.TAKE` | formula | Take rows and optional columns from the start or end of an array and spill the result. |
+| `fx.TAN` | formula | Return the tangent of a finite radian value. |
+| `fx.TANH` | formula | Return the hyperbolic tangent of a finite number. |
 | `fx.TEXT` | formula | Format an Excel serial date as text with the bounded yyyy, yy, m/mm/mmm/mmmm, and d/dd token profile and literal separators. |
 | `fx.TEXTJOIN` | formula | Join text values with a delimiter and optional empty-value skipping. |
 | `fx.TIME` | formula | Return a time fraction from hour, minute, and second values from 0 through 32767, carrying overflow and wrapping at 24 hours. |
@@ -3510,6 +3527,40 @@ Return the absolute value of a number.
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.ACOS`
+
+Return the inverse cosine for a finite input in the closed interval [-1,1]; other inputs fail as #NUM!.
+
+**Examples:**
+
+- =ACOS(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ACOS(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.ACOSH`
+
+Return the inverse hyperbolic cosine for finite inputs at least one; smaller inputs fail as #NUM!.
+
+**Examples:**
+
+- =ACOSH(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ACOSH(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.AND`
 
 Return TRUE when all conditions are true.
@@ -3526,6 +3577,91 @@ Return TRUE when all conditions are true.
 **Schema returns:**
 
 - `value` (boolean) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.ASIN`
+
+Return the inverse sine for a finite input in the closed interval [-1,1]; other inputs fail as #NUM!.
+
+**Examples:**
+
+- =ASIN(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ASIN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.ASINH`
+
+Return the inverse hyperbolic sine of a finite number.
+
+**Examples:**
+
+- =ASINH(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ASINH(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.ATAN`
+
+Return the inverse tangent of a finite number.
+
+**Examples:**
+
+- =ATAN(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ATAN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.ATAN2`
+
+Return the quadrant-aware angle for x and y coordinates; the origin returns #DIV/0!.
+
+**Examples:**
+
+- =ATAN2(A1,B1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ATAN2(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.ATANH`
+
+Return the inverse hyperbolic tangent for finite inputs strictly between -1 and 1; boundary values fail as #NUM!.
+
+**Examples:**
+
+- =ATANH(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ATANH(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.AVERAGE`
 
@@ -3713,6 +3849,40 @@ Concatenate text values and ranges.
 **Schema returns:**
 
 - `value` (string) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.COS`
+
+Return the cosine of a finite radian value.
+
+**Examples:**
+
+- =COS(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =COS(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.COSH`
+
+Return the hyperbolic cosine of a finite number; overflow fails as #NUM!.
+
+**Examples:**
+
+- =COSH(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =COSH(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.COUNT`
 
@@ -4032,6 +4202,23 @@ Round a finite number away from zero to the next even integer.
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =EVEN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.EXP`
+
+Return e raised to a finite number; overflow fails as #NUM! instead of leaking Infinity.
+
+**Examples:**
+
+- =EXP(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =EXP(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**
@@ -4574,6 +4761,58 @@ Return the length of a text value.
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =LEN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.LN`
+
+Return the natural logarithm of a positive finite number; non-positive inputs fail as #NUM!.
+
+**Examples:**
+
+- =LN(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =LN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.LOG`
+
+Return a logarithm for a positive number and positive base other than one; the base defaults to 10 and invalid domains fail as #NUM!.
+
+**Examples:**
+
+- =LOG(A1)
+- =LOG(A1,2)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =LOG(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.LOG10`
+
+Return the base-10 logarithm of a positive finite number.
+
+**Examples:**
+
+- =LOG10(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =LOG10(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**
@@ -5312,6 +5551,40 @@ Return -1, 0, or 1 according to the sign of a finite numeric value.
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.SIN`
+
+Return the sine of a finite radian value.
+
+**Examples:**
+
+- =SIN(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =SIN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.SINH`
+
+Return the hyperbolic sine of a finite number; overflow fails as #NUM!.
+
+**Examples:**
+
+- =SINH(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =SINH(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.SLN`
 
 Calculate straight-line depreciation from cost, salvage value, and useful life.
@@ -5503,6 +5776,40 @@ Take rows and optional columns from the start or end of an array and spill the r
 **Schema returns:**
 
 - `value` (unknown[][]) — Spilled two-dimensional formula result.
+
+#### `fx.TAN`
+
+Return the tangent of a finite radian value.
+
+**Examples:**
+
+- =TAN(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =TAN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.TANH`
+
+Return the hyperbolic tangent of a finite number.
+
+**Examples:**
+
+- =TANH(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =TANH(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.TEXT`
 
