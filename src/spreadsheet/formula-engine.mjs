@@ -60,7 +60,7 @@ const FORMULA_MAX_OPERATORS = 512;
 // set explicit so unsupported scalar/vector functions fail closed instead of
 // accidentally consuming the upper-left spilled value.
 const FORMULA_SPILL_RANGE_FUNCTIONS = new Set([
-  "SUM", "AVERAGE", "MIN", "MAX", "COUNT", "COUNTA", "COUNTBLANK", "MEDIAN", "LARGE", "SMALL", "RANK", "RANK.EQ", "MODE", "MODE.SNGL",
+  "SUM", "PRODUCT", "AVERAGE", "MIN", "MAX", "COUNT", "COUNTA", "COUNTBLANK", "MEDIAN", "LARGE", "SMALL", "RANK", "RANK.EQ", "MODE", "MODE.SNGL",
   "NPV", "MIRR", "XNPV", "IRR", "XIRR", "NETWORKDAYS", "WORKDAY", "NETWORKDAYS.INTL", "WORKDAY.INTL",
   "CONCAT", "CONCATENATE", "TEXTJOIN", "COUNTIF", "COUNTIFS",
   "TRANSPOSE", "FILTER", "UNIQUE", "SORT", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "TOCOL", "TOROW", "WRAPROWS", "WRAPCOLS", "HSTACK", "VSTACK", "EXPAND",
@@ -1895,10 +1895,23 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
   const sameCriteriaShape = (left, right) => left.rectangular && right.rectangular && left.rows === right.rows && left.columns === right.columns;
   switch (fnName) {
     case "SUM":
+    case "PRODUCT":
     case "AVERAGE":
     case "MIN":
     case "MAX":
     case "COUNT":
+      if (fnName === "PRODUCT") {
+        if (args.length === 0 || (args.length === 1 && args[0] === "")) return "#VALUE!";
+        const productValues = values();
+        const error = productValues.map(formulaErrorCode).find(Boolean);
+        if (error) return error;
+        let product = 1;
+        for (const value of productValues) {
+          product *= formulaNumber(value);
+          if (!Number.isFinite(product)) return "#NUM!";
+        }
+        return product;
+      }
       return aggregateFormulaValues(values(), fnName);
     case "COUNTA": return values().filter((value) => value !== null && value !== undefined).length;
     case "COUNTBLANK": {
@@ -1908,6 +1921,38 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
       return matrix.flat().filter((value) => value == null || value === "").length;
     }
     case "ABS": return Math.abs(formulaNumber(scalar(0, 0)));
+    case "MOD": {
+      if (args.length !== 2) return "#VALUE!";
+      const number = formulaNumber(scalar(0));
+      const divisor = formulaNumber(scalar(1));
+      if (formulaErrorCode(number)) return number;
+      if (formulaErrorCode(divisor)) return divisor;
+      if (divisor === 0) return "#DIV/0!";
+      const result = number - divisor * Math.floor(number / divisor);
+      return Number.isFinite(result) ? result : "#NUM!";
+    }
+    case "POWER": {
+      if (args.length !== 2) return "#VALUE!";
+      const base = formulaNumber(scalar(0));
+      const exponent = formulaNumber(scalar(1));
+      if (formulaErrorCode(base)) return base;
+      if (formulaErrorCode(exponent)) return exponent;
+      const result = base ** exponent;
+      return Number.isFinite(result) ? result : "#NUM!";
+    }
+    case "SQRT": {
+      if (args.length !== 1) return "#VALUE!";
+      const number = formulaNumber(scalar(0));
+      if (formulaErrorCode(number)) return number;
+      return number < 0 ? "#NUM!" : Math.sqrt(number);
+    }
+    case "SIGN": {
+      if (args.length !== 1) return "#VALUE!";
+      const number = formulaNumber(scalar(0));
+      if (formulaErrorCode(number)) return number;
+      return number === 0 ? 0 : number < 0 ? -1 : 1;
+    }
+    case "PI": return args.length === 0 || (args.length === 1 && args[0] === "") ? Math.PI : "#VALUE!";
     case "ROUND": return roundFormulaNumber(scalar(0, 0), scalar(1, 0));
     case "ROUNDUP": return roundFormulaNumber(scalar(0, 0), scalar(1, 0), "up");
     case "ROUNDDOWN": return roundFormulaNumber(scalar(0, 0), scalar(1, 0), "down");
