@@ -7,8 +7,10 @@ namespace OfficeKit.Codec;
 
 // Dynamic arrays use the same worksheet <f t="array"> shape as legacy array
 // formulas, with distinguishing state in the workbook CellMetadataPart.
-// OfficeKit recognizes this graph for import and byte-preserving export but
-// deliberately does not author, detach, or edit it.
+// OfficeKit owns one deliberately small source-free authoring profile: each
+// requested anchor gets one XLDAPR metadata record and the exact range stays
+// bound to the formula cell. Imported graphs remain byte-preserving and
+// source-bound; this codec never edits or detaches their metadata.
 internal sealed class XlsxDynamicArrayCodec
 {
     private const string MetadataName = "XLDAPR";
@@ -17,6 +19,7 @@ internal sealed class XlsxDynamicArrayCodec
 
     private readonly WorkbookPart _workbookPart;
     private readonly HashSet<uint> _dynamicIndexes = [];
+    private readonly List<Cell> _sourceFreeCells = [];
 
     internal XlsxDynamicArrayCodec(WorkbookPart workbookPart)
     {
@@ -33,11 +36,72 @@ internal sealed class XlsxDynamicArrayCodec
     internal void ConfigureNewCell(Cell cell, CellArtifact source, bool sourceBound)
     {
         if (source.FormulaMetadata?.Kind != CellFormulaKind.DynamicArray) return;
-        throw Unsupported(
-            source,
-            sourceBound
-                ? "cannot add a dynamic array to a source-bound workbook because imported dynamic arrays are read-only"
-                : "cannot author a source-free dynamic array because the XLDAPR metadata graph is read-only");
+        if (sourceBound)
+            throw Unsupported(source, "cannot add a dynamic array to a source-bound workbook because imported dynamic arrays are read-only");
+        ConfigureNewSourceFreeCell(cell, source);
+    }
+
+    internal void ConfigureNewSourceFreeCell(Cell cell, CellArtifact source)
+    {
+        if (source.FormulaMetadata?.Kind != CellFormulaKind.DynamicArray) return;
+        if (cell.CellFormula?.FormulaType?.Value != CellFormulaValues.Array)
+            throw Unsupported(source, "dynamic array requires an array worksheet formula");
+        if (cell.CellMetaIndex is not null)
+            throw Unsupported(source, "source-free dynamic array must not carry an existing cell metadata index");
+        _sourceFreeCells.Add(cell);
+    }
+
+    internal void FinalizeSourceFree()
+    {
+        if (_sourceFreeCells.Count == 0) return;
+        if (_workbookPart.CellMetadataPart is not null)
+            throw new CodecException("invalid_cell_metadata", "Source-free dynamic-array authoring cannot replace an existing CellMetadataPart.");
+
+        var metadataType = new MetadataType
+        {
+            Name = MetadataName,
+            MinSupportedVersion = 120_000U,
+            Copy = true,
+            PasteAll = true,
+            PasteValues = true,
+            Merge = true,
+            SplitFirst = true,
+            RowColumnShift = true,
+            ClearFormats = true,
+            ClearComments = true,
+            Assign = true,
+            Coerce = true,
+            CellMeta = true,
+        };
+        var extension = new SpreadsheetExtension(
+            new DocumentFormat.OpenXml.Office2019.Excel.DynamicArray.DynamicArrayProperties
+            {
+                FDynamic = true,
+                FCollapsed = false,
+            })
+        {
+            Uri = ExtensionUri,
+        };
+        var future = new FutureMetadata(new FutureMetadataBlock(new ExtensionList(extension)))
+        {
+            Name = MetadataName,
+            Count = 1U,
+        };
+        var cellMetadata = new CellMetadata { Count = checked((uint)_sourceFreeCells.Count) };
+        for (var index = 0; index < _sourceFreeCells.Count; index++)
+        {
+            // CellMetaIndex is one-based while MetadataRecord.Val points to
+            // the zero-based future-metadata block that describes the kind.
+            _sourceFreeCells[index].CellMetaIndex = checked((uint)index + 1);
+            cellMetadata.Append(new MetadataBlock(new MetadataRecord { TypeIndex = 1U, Val = 0U }));
+        }
+
+        var part = _workbookPart.AddNewPart<CellMetadataPart>();
+        part.Metadata = new Metadata(
+            new MetadataTypes(metadataType) { Count = 1U },
+            future,
+            cellMetadata);
+        part.Metadata.Save();
     }
 
     internal void ApplyFormulaMetadata(Cell cell, CellArtifact desired, bool sourceBound)

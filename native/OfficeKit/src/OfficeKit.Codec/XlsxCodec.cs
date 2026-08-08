@@ -78,6 +78,9 @@ internal static class XlsxCodec
                 sheets.Append(XlsxWorksheetMetadataCodec.Create(source, checked((uint)index), workbookPart.GetIdOfPart(worksheetPart)));
                 worksheetBindings.Add((worksheetPart, source));
             }
+            dynamicArrays.FinalizeSourceFree();
+            foreach (var (worksheetPart, _) in worksheetBindings)
+                worksheetPart.Worksheet!.Save();
             new XlsxPivotTableCodec(workbookPart).Apply(worksheetBindings, sourceBound: false);
             worksheetFeatures.ApplyThreadedComments(workbookPart, worksheetBindings, sourceBound: false);
             var workbookView = new XlsxWorkbookViewCodec(workbookPart, envelope.Workbook.Worksheets);

@@ -36,12 +36,14 @@ async function runFixture(name) {
 }
 
 try {
-  assert.throws(
-    () => createWorkbookFromFixture({
-      sheets: [{ name: "Dynamic", ranges: [{ range: "A1:A2", formulas: [["=SEQUENCE(2)"], [null]], formulaMetadata: { kind: "dynamicArray", reference: "A1:A2" } }] }],
-    }),
-    /must be shared or array.*dynamic arrays are import-only and read-only/i,
-  );
+  const dynamicFixtureWorkbook = createWorkbookFromFixture({
+    sheets: [{ name: "Dynamic", ranges: [{ range: "A1:A2", formulas: [["=SEQUENCE(2)"], [null]], formulaMetadata: { kind: "dynamicArray", reference: "A1:A2" } }] }],
+  });
+  const dynamicFixtureXlsx = await SpreadsheetFile.exportXlsx(dynamicFixtureWorkbook);
+  const dynamicFixtureImport = await SpreadsheetFile.importXlsx(dynamicFixtureXlsx);
+  const dynamicFixtureCell = dynamicFixtureImport.worksheets.getItem("Dynamic").store.get("A1");
+  assert.equal(dynamicFixtureCell.formulaType, "dynamicArray");
+  assert.equal(dynamicFixtureCell.dynamicArrayRef, "A1:A2");
   const formulaResult = await runFixture("formula-summary");
   const formulaBlob = await FileBlob.load(formulaResult.workbookPath);
   const formulaWorkbook = await SpreadsheetFile.importXlsx(formulaBlob);

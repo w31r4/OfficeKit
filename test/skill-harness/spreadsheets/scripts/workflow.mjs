@@ -158,7 +158,12 @@ function applyFormulaMetadata(sheet, range, metadata = {}) {
     Object.assign(sheet.store.get(fixtureCellAddress(range.bounds.top, range.bounds.left)), { formulaType: "array", arrayRef: reference });
     return;
   }
-  throw new Error(`Spreadsheet fixture ${sheet.name}!${rangeAddress} formulaMetadata.kind must be shared or array; dynamic arrays are import-only and read-only.`);
+  if (kind === "dynamicArray") {
+    if (!reference) throw new Error(`Spreadsheet fixture ${sheet.name}!${rangeAddress} dynamic array metadata requires reference.`);
+    Object.assign(sheet.store.get(fixtureCellAddress(range.bounds.top, range.bounds.left)), { formulaType: "dynamicArray", dynamicArrayRef: reference });
+    return;
+  }
+  throw new Error(`Spreadsheet fixture ${sheet.name}!${rangeAddress} formulaMetadata.kind must be shared, array, or dynamicArray.`);
 }
 
 function pdfPageCount(pdfPath) {
