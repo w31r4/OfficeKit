@@ -21,9 +21,15 @@ import {
   exportPptxWithOfficeKit as exportPptxWithOfficeKitLeaf,
   importPptxWithOfficeKit as importPptxWithOfficeKitLeaf,
 } from "../src/codecs/office-kit-presentation-codec.mjs";
+import {
+  exportXlsxWithOfficeKit as exportXlsxWithOfficeKitLeaf,
+  importXlsxWithOfficeKit as importXlsxWithOfficeKitLeaf,
+} from "../src/codecs/office-kit-spreadsheet-codec.mjs";
 
 assert.equal(exportPptxWithOfficeKit, exportPptxWithOfficeKitLeaf);
 assert.equal(importPptxWithOfficeKit, importPptxWithOfficeKitLeaf);
+assert.equal(exportXlsxWithOfficeKit, exportXlsxWithOfficeKitLeaf);
+assert.equal(importXlsxWithOfficeKit, importXlsxWithOfficeKitLeaf);
 
 const status = await officeKitStatus();
 assert.equal(status.available, true);
