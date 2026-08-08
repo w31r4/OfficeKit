@@ -3,9 +3,9 @@
 ## Current 0.6.0 package evidence (2026-08-08)
 
 `npm run test:pack` passed after the bounded OOXML package input-budget change. The clean
-dry-run package contains 702 files, 36,233,367 compressed bytes, and
-53,510,170 unpacked bytes; its shasum is
-`101fd3174291623b821f1815345a2470f95c1583`. This is package evidence, not an
+dry-run package contains 702 files, 36,233,370 compressed bytes, and
+53,510,165 unpacked bytes; its shasum is
+`a273c6b9c3285dfdd337e04ea6e115c65f041cb7`. This is package evidence, not an
 npm registry publication or tagged release.
 
 ## Unreleased: bounded OOXML package input budgets
@@ -17,6 +17,9 @@ ceiling before patch mutation. This closes the previous difference where a
 low-level patch could hand an untrusted ZIP to JSZip before applying the same
 budgets used by inspection. CRC verification remains explicit via
 `verifyCrc32`; these budgets do not make unsupported OOXML topology editable.
+The compression-ratio option accepts any finite positive number, including
+fractional ceilings, and invalid/non-positive values leave that optional guard
+disabled rather than changing the byte budgets.
 
 Presentation native-object materialization now uses the same bounded ZIP loader
 for the selected opaque-part closure returned by the OfficeKit codec. It no

@@ -48,7 +48,7 @@ function ooxmlZipLimits(options = {}) {
     maxParts: ooxmlPositiveLimit(options.maxParts, OOXML_DEFAULT_MAX_PARTS),
     maxPartBytes: ooxmlPositiveLimit(options.maxPartBytes, OOXML_DEFAULT_MAX_PART_BYTES),
     maxTotalBytes: ooxmlPositiveLimit(options.maxTotalBytes, OOXML_DEFAULT_MAX_TOTAL_BYTES),
-    maxCompressionRatio: Number.isSafeInteger(maxCompressionRatio) && maxCompressionRatio > 0 ? maxCompressionRatio : 0,
+    maxCompressionRatio: Number.isFinite(maxCompressionRatio) && maxCompressionRatio > 0 ? maxCompressionRatio : 0,
   };
 }
 

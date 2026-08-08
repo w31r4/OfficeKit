@@ -44,7 +44,7 @@ await assert.rejects(
       parts: [{ path: "ppt/native.bin", contentType: "application/octet-stream" }],
       sourcePackage: { data: boundedNativeBytes },
     },
-  }, { maxCompressionRatio: 2 }),
+  }, { maxCompressionRatio: 1.5 }),
   /maxCompressionRatio/,
   "native source-package materialization must reject a hostile compression ratio before inflation",
 );
