@@ -2777,7 +2777,7 @@ Add a shape/textbox with preset or bounded literal custom geometry, position, op
 
 - `name` (string) — Inspectable shape name.
 - `geometry` (string) — rect, ellipse, roundRect, textbox, or custom. Custom requires customPaths.
-- `customPaths` (object[]) — For geometry custom, 1-64 literal DrawingML paths with positive integer width/height and bounded moveTo, lineTo, cubicBezTo, and close commands. Guides, handles, connection sites, arcs, quadratic curves, text rectangles, and path-specific paint overrides are not authored.
+- `customPaths` (object[]) — For geometry custom, 1-64 literal DrawingML paths with positive integer width/height and bounded moveTo, lineTo, quadraticBezTo, cubicBezTo, and close commands. Guides, handles, connection sites, arcs, text rectangles, and path-specific paint overrides are not authored.
 - `position` (object) — Pixel left/top/width/height frame.
 - `transform` (object) — Optional { rotationDegrees, flipHorizontal, flipVertical } center transform. Rotation is bounded to -360 through 360 degrees and flip booleans retain explicit false. OfficeKit authors/imports this direct DrawingML transform on supported shapes; complex or unknown native transform graphs remain read-only.
 - `text` (string|string[]|object|object[]) — Plain text or structured paragraphs accepted by shape.text.set, including ordered text/field/line-break inlines, paragraph tab stops, styles, and relationship-backed hyperlinks.

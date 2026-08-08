@@ -1253,6 +1253,14 @@ public sealed class PptxCodecTests
         });
         path.Commands.Add(new PresentationCustomGeometryCommand
         {
+            QuadraticBezierTo = new PresentationCustomGeometryQuadraticBezier
+            {
+                Control = new PresentationCustomGeometryPoint { X = 21_000, Y = 6_000 },
+                End = new PresentationCustomGeometryPoint { X = 18_000, Y = 12_000 },
+            },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
             CubicBezierTo = new PresentationCustomGeometryCubicBezier
             {
                 Control1 = new PresentationCustomGeometryPoint { X = 21_000, Y = 6_000 },
@@ -1278,6 +1286,7 @@ public sealed class PptxCodecTests
             Assert.Collection(nativePath.ChildElements,
                 command => Assert.IsType<A.MoveTo>(command),
                 command => Assert.IsType<A.LineTo>(command),
+                command => Assert.IsType<A.QuadraticBezierCurveTo>(command),
                 command => Assert.IsType<A.CubicBezierCurveTo>(command),
                 command => Assert.IsType<A.CloseShapePath>(command));
         }
@@ -1288,15 +1297,16 @@ public sealed class PptxCodecTests
         Assert.True(importedElement.Source.Editable);
         Assert.Equal("custom", importedElement.Shape.Geometry);
         var importedPath = Assert.Single(importedElement.Shape.CustomPaths);
-        Assert.Equal(4, importedPath.Commands.Count);
+        Assert.Equal(5, importedPath.Commands.Count);
         Assert.Equal(20_000, importedPath.Commands[1].LineTo.X);
+        Assert.Equal(21_000, importedPath.Commands[2].QuadraticBezierTo.Control.X);
 
-        importedPath.Commands[1].LineTo.X = 19_500;
+        importedPath.Commands[2].QuadraticBezierTo.Control.X = 20_500;
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTrip = Import(edited.File.ToByteArray());
         Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
-        Assert.Equal(19_500, Assert.Single(Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements).Shape.CustomPaths).Commands[1].LineTo.X);
+        Assert.Equal(20_500, Assert.Single(Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements).Shape.CustomPaths).Commands[2].QuadraticBezierTo.Control.X);
 
         var missingPaths = ExportRequest();
         missingPaths.Artifact.Presentation.Slides[0].Elements[0].Shape.Geometry = "custom";

@@ -144,7 +144,8 @@ const custom = slide.shapes.add({
 });
 ```
 
-Custom path coordinates use pixels in the path viewport.
+Custom path coordinates are signed 32-bit integer units in the path's own
+`width`/`height` viewport. OfficeKit scales that viewport to the shape frame.
 
 ## Custom Path Inline Type
 
@@ -158,6 +159,8 @@ type CustomShapeConfig = Omit<PresetShapeConfig, "geometry"> & {
     commands: Array<
       | { moveTo: { x: number; y: number } }
       | { lineTo: { x: number; y: number } }
+      | { quadraticBezTo: { x1: number; y1: number; x: number; y: number } }
+      | { cubicBezTo: { x1: number; y1: number; x2: number; y2: number; x: number; y: number } }
       | { close: Record<string, never> }
     >;
   }>;

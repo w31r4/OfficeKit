@@ -1589,6 +1589,15 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
     commands: path.commands.map((command) => {
       if (command.moveTo) return { command: { case: "moveTo", value: { x: BigInt(command.moveTo.x), y: BigInt(command.moveTo.y) } } };
       if (command.lineTo) return { command: { case: "lineTo", value: { x: BigInt(command.lineTo.x), y: BigInt(command.lineTo.y) } } };
+      if (command.quadraticBezTo) return {
+        command: {
+          case: "quadraticBezierTo",
+          value: {
+            control: { x: BigInt(command.quadraticBezTo.x1), y: BigInt(command.quadraticBezTo.y1) },
+            end: { x: BigInt(command.quadraticBezTo.x), y: BigInt(command.quadraticBezTo.y) },
+          },
+        },
+      };
       if (command.cubicBezTo) return {
         command: {
           case: "cubicBezierTo",
@@ -2665,6 +2674,14 @@ function modelCustomGeometryPaths(shape) {
     commands: path.commands.map((command) => {
       if (command.command.case === "moveTo") return { moveTo: { x: Number(command.command.value.x), y: Number(command.command.value.y) } };
       if (command.command.case === "lineTo") return { lineTo: { x: Number(command.command.value.x), y: Number(command.command.value.y) } };
+      if (command.command.case === "quadraticBezierTo") return {
+        quadraticBezTo: {
+          x1: Number(command.command.value.control.x),
+          y1: Number(command.command.value.control.y),
+          x: Number(command.command.value.end.x),
+          y: Number(command.command.value.end.y),
+        },
+      };
       if (command.command.case === "cubicBezierTo") return {
         cubicBezTo: {
           x1: Number(command.command.value.control1.x),

@@ -2,10 +2,10 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after separating generated repository evidence from
-the consumer runtime payload. The clean candidate contains 706 files,
-36,130,097 compressed bytes, and 53,028,115 unpacked bytes; its measured shasum
-is `9fe25ab8032e7af06573501234bbd6f411fba68f`. This is package evidence, not an
+The package dry-run passed after adding the bounded PPTX quadratic custom-path
+primitive. The clean candidate contains 706 files, 36,131,857 compressed bytes,
+and 53,034,411 unpacked bytes; its measured shasum is
+`0ad5d101b12283290ca37b781901fa6d0e4e1aa6`. This is package evidence, not an
 npm registry publication or tagged release.
 
 ## Unreleased: generated API evidence outside the npm runtime payload
@@ -20,9 +20,30 @@ packaged English and Chinese READMEs link to the canonical GitHub document;
 The package-content gate now rejects a tarball that reintroduces the generated
 Markdown, while continuing to require the codec/runtime, public wire schema,
 Skills, templates, provider policy, and consumer guidance. The unpacked ceiling
-was tightened from 53,520,000 to 53,200,000 bytes. The measured candidate is
-487,049 bytes smaller unpacked and retains 171,885 bytes of bounded product
-headroom without deleting a runtime capability.
+was tightened from 53,520,000 to 53,200,000 bytes. The current candidate retains
+165,589 bytes of bounded product headroom without deleting a runtime capability.
+
+## Unreleased: PPTX quadratic custom-path geometry
+
+The bounded literal DrawingML custom-geometry profile now recognizes, authors,
+edits, imports, exports, and previews quadratic Bézier path segments. The JS
+model uses `quadraticBezTo: { x1, y1, x, y }`; the versioned wire adds one
+backward-compatible `quadratic_bezier_to` oneof field; and the C# codec maps it
+to the Open XML SDK `QuadraticBezierCurveTo` element. The new wire message was
+appended rather than inserted beside the older path messages, so every existing
+generated descriptor index remains unchanged.
+
+The real PPTX round trip covers source-free authoring, native
+`a:quadBezTo` XML, recognized import, source-bound control-point mutation,
+second import, and static SVG `Q` output. Open XML SDK Office 2021 validation
+and negative JS validation cover malformed commands. Formula coordinates and
+mixed/non-point curve children remain opaque and round-trip unchanged instead
+of entering the semantic reader; their mutation fails closed. Arcs, guides,
+handles, connection sites, text rectangles, and per-path paint remain
+source-bound. The deterministic bundled runtime remains 38 files and grows by
+4,096 bytes to 15,207,068 bytes. The current npm dry-run contains 706 files,
+36,131,857 compressed bytes, and 53,034,411 unpacked bytes (shasum
+`0ad5d101b12283290ca37b781901fa6d0e4e1aa6`).
 
 ## Unreleased: format-local Document codec loading
 

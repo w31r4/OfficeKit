@@ -7,8 +7,8 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace OfficeKit.Codec;
 
 // Bounded literal DrawingML custom paths used by source-built presentation
-// templates. Guides, handles, connection sites, text rectangles, arcs,
-// quadratic curves, and per-path paint overrides stay outside this slice.
+// templates. Guides, handles, connection sites, text rectangles, arcs, and
+// per-path paint overrides stay outside this slice.
 internal static class PptxCustomGeometryCodec
 {
     private const int MaxPaths = 64;
@@ -43,6 +43,7 @@ internal static class PptxCustomGeometryCodec
                 {
                     A.MoveTo move => new PresentationCustomGeometryCommand { MoveTo = ReadPoint(move.Point!) },
                     A.LineTo line => new PresentationCustomGeometryCommand { LineTo = ReadPoint(line.Point!) },
+                    A.QuadraticBezierCurveTo quadratic => ReadQuadratic(quadratic),
                     A.CubicBezierCurveTo cubic => ReadCubic(cubic),
                     A.CloseShapePath => new PresentationCustomGeometryCommand { Close = true },
                     _ => throw new InvalidOperationException("Unsupported custom geometry command passed the recognition gate."),
@@ -116,6 +117,9 @@ internal static class PptxCustomGeometryCodec
                 {
                     PresentationCustomGeometryCommand.CommandOneofCase.MoveTo => new A.MoveTo(Point(command.MoveTo)),
                     PresentationCustomGeometryCommand.CommandOneofCase.LineTo => new A.LineTo(Point(command.LineTo)),
+                    PresentationCustomGeometryCommand.CommandOneofCase.QuadraticBezierTo => new A.QuadraticBezierCurveTo(
+                        Point(command.QuadraticBezierTo.Control),
+                        Point(command.QuadraticBezierTo.End)),
                     PresentationCustomGeometryCommand.CommandOneofCase.CubicBezierTo => new A.CubicBezierCurveTo(
                         Point(command.CubicBezierTo.Control1),
                         Point(command.CubicBezierTo.Control2),
@@ -141,7 +145,8 @@ internal static class PptxCustomGeometryCodec
         {
             A.MoveTo move => SupportsPointContainer(move, move.Point, 1),
             A.LineTo line => SupportsPointContainer(line, line.Point, 1),
-            A.CubicBezierCurveTo cubic => !cubic.HasAttributes && cubic.ChildElements.Count == 3 && cubic.Elements<A.Point>().All(SupportsPoint),
+            A.QuadraticBezierCurveTo quadratic => SupportsPointSequence(quadratic, 2),
+            A.CubicBezierCurveTo cubic => SupportsPointSequence(cubic, 3),
             A.CloseShapePath close => !close.HasAttributes && !close.HasChildren,
             _ => false,
         });
@@ -149,6 +154,10 @@ internal static class PptxCustomGeometryCodec
 
     private static bool SupportsPointContainer(OpenXmlCompositeElement container, A.Point? point, int childCount) =>
         !container.HasAttributes && container.ChildElements.Count == childCount && point is not null && SupportsPoint(point);
+
+    private static bool SupportsPointSequence(OpenXmlCompositeElement container, int childCount) =>
+        !container.HasAttributes && container.ChildElements.Count == childCount &&
+        container.ChildElements.All(child => child is A.Point point && SupportsPoint(point));
 
     private static bool SupportsPoint(A.Point point) =>
         !point.HasChildren && HasOnlyAttributes(point, "x", "y") &&
@@ -174,6 +183,19 @@ internal static class PptxCustomGeometryCodec
         };
     }
 
+    private static PresentationCustomGeometryCommand ReadQuadratic(A.QuadraticBezierCurveTo source)
+    {
+        var points = source.Elements<A.Point>().ToArray();
+        return new PresentationCustomGeometryCommand
+        {
+            QuadraticBezierTo = new PresentationCustomGeometryQuadraticBezier
+            {
+                Control = ReadPoint(points[0]),
+                End = ReadPoint(points[1]),
+            },
+        };
+    }
+
     private static A.Point Point(PresentationCustomGeometryPoint source) => new()
     {
         X = source.X.ToString(CultureInfo.InvariantCulture),
@@ -189,6 +211,12 @@ internal static class PptxCustomGeometryCodec
                 break;
             case PresentationCustomGeometryCommand.CommandOneofCase.LineTo:
                 Validate(command.LineTo, shapeId);
+                break;
+            case PresentationCustomGeometryCommand.CommandOneofCase.QuadraticBezierTo:
+                if (command.QuadraticBezierTo.Control is null || command.QuadraticBezierTo.End is null)
+                    throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an incomplete quadratic Bézier command.");
+                Validate(command.QuadraticBezierTo.Control, shapeId);
+                Validate(command.QuadraticBezierTo.End, shapeId);
                 break;
             case PresentationCustomGeometryCommand.CommandOneofCase.CubicBezierTo:
                 if (command.CubicBezierTo.Control1 is null || command.CubicBezierTo.Control2 is null || command.CubicBezierTo.End is null)

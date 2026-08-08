@@ -652,16 +652,61 @@ const customGeometryShape = customGeometrySlide.shapes.add({
     commands: [
       { moveTo: { x: 1_000, y: 2_000 } },
       { lineTo: { x: 20_000, y: 2_000 } },
+      { quadraticBezTo: { x1: 21_000, y1: 6_000, x: 18_000, y: 12_000 } },
       { cubicBezTo: { x1: 21_000, y1: 6_000, x2: 18_000, y2: 19_000, x: 10_800, y: 20_000 } },
       { close: {} },
     ],
   }],
 });
-assert.equal(customGeometryShape.customPaths[0].commands.length, 4);
-assert.match(await (await customGeometrySlide.export()).text(), /<path d="M 1000 2000 L 20000 2000 C /);
+assert.equal(customGeometryShape.customPaths[0].commands.length, 5);
+assert.match(await (await customGeometrySlide.export()).text(), /<path d="M 1000 2000 L 20000 2000 Q 21000 6000 18000 12000 C /);
+const customGeometryPptx = await PresentationFile.exportPptx(customGeometryPresentation);
+const customGeometryZip = await JSZip.loadAsync(customGeometryPptx.bytes);
+const customGeometryXml = await customGeometryZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(customGeometryXml, /<a:quadBezTo><a:pt x="21000" y="6000"\s*\/><a:pt x="18000" y="12000"\s*\/><\/a:quadBezTo>/);
+const importedCustomGeometry = await PresentationFile.importPptx(customGeometryPptx);
+const importedCustomGeometryShape = importedCustomGeometry.slides.getItem(0).shapes.items[0];
+assert.deepEqual(importedCustomGeometryShape.customPaths[0].commands[2], {
+  quadraticBezTo: { x1: 21_000, y1: 6_000, x: 18_000, y: 12_000 },
+});
+importedCustomGeometryShape.customPaths[0].commands[2].quadraticBezTo.x1 = 20_500;
+const editedCustomGeometry = await PresentationFile.importPptx(await PresentationFile.exportPptx(importedCustomGeometry));
+assert.equal(editedCustomGeometry.slides.getItem(0).shapes.items[0].customPaths[0].commands[2].quadraticBezTo.x1, 20_500);
+const formulaCustomGeometryXml = customGeometryXml.replace('<a:pt x="21000" y="6000" />', '<a:pt x="wd2" y="6000" />');
+assert.notEqual(formulaCustomGeometryXml, customGeometryXml);
+const formulaCustomGeometryFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: formulaCustomGeometryXml }]);
+const formulaCustomGeometry = await PresentationFile.importPptx(formulaCustomGeometryFile);
+assert.equal(formulaCustomGeometry.slides.getItem(0).shapes.items.length, 1);
+const opaqueFormulaGeometry = itemByName(formulaCustomGeometry.slides.getItem(0).shapes.items, "literal-custom-path");
+assert.equal(opaqueFormulaGeometry.customPaths.length, 0);
+const preservedFormulaGeometry = await PresentationFile.exportPptx(formulaCustomGeometry);
+const preservedFormulaGeometryZip = await JSZip.loadAsync(preservedFormulaGeometry.bytes);
+assert.match(await preservedFormulaGeometryZip.file("ppt/slides/slide1.xml").async("text"), /<a:pt x="wd2" y="6000"\s*\/>/);
+opaqueFormulaGeometry.name = "unsafe-formula-geometry-edit";
+await assert.rejects(
+  () => PresentationFile.exportPptx(formulaCustomGeometry),
+  (error) => error?.code === "unsupported_presentation_edit",
+);
+const mixedQuadraticChildXml = customGeometryXml.replace('<a:pt x="18000" y="12000" />', '<a:extLst />');
+assert.notEqual(mixedQuadraticChildXml, customGeometryXml);
+const mixedQuadraticChildFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: mixedQuadraticChildXml }]);
+const mixedQuadraticChildGeometry = await PresentationFile.importPptx(mixedQuadraticChildFile);
+const opaqueMixedQuadraticChild = itemByName(mixedQuadraticChildGeometry.slides.getItem(0).shapes.items, "literal-custom-path");
+assert.equal(opaqueMixedQuadraticChild.customPaths.length, 0);
+const preservedMixedQuadraticChild = await PresentationFile.exportPptx(mixedQuadraticChildGeometry);
+const preservedMixedQuadraticChildZip = await JSZip.loadAsync(preservedMixedQuadraticChild.bytes);
+assert.match(await preservedMixedQuadraticChildZip.file("ppt/slides/slide1.xml").async("text"), /<a:quadBezTo><a:pt x="21000" y="6000"\s*\/><a:extLst\s*\/><\/a:quadBezTo>/);
 assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, commands: [{ arcTo: {} }] }] }),
   /unsupported command arcTo/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, commands: [{ toString: {} }] }] }),
+  /unsupported command toString/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, commands: [{ quadraticBezTo: { y1: 10, x: 20, y: 30 } }] }] }),
+  /quadraticBezTo\.x1 must be a safe integer/,
 );
 assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 0, height: 100, commands: [{ close: true }] }] }),
