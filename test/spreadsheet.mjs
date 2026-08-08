@@ -1817,6 +1817,33 @@ const importedTypeFormulaSheet = importedTypeFormulaWorkbook.worksheets.getItem(
 assert.deepEqual(importedTypeFormulaSheet.getRange("B1:E7").values, typeFormulaSheet.getRange("B1:E7").values);
 assert.deepEqual(importedTypeFormulaSheet.getRange("B1:E7").formulas, typeFormulaSheet.getRange("B1:E7").formulas);
 
+const referenceFormulaWorkbook = Workbook.create();
+const referenceFormulaSheet = referenceFormulaWorkbook.worksheets.add("Formula references");
+referenceFormulaSheet.getRange("A1").values = [[42]];
+referenceFormulaSheet.getRange("A2").formulas = [["=1+1"]];
+referenceFormulaSheet.getRange("A3").values = [["plain"]];
+referenceFormulaSheet.getRange("A5").formulas = [["=1/0"]];
+referenceFormulaSheet.getRange("B1:B7").formulas = [
+  ["=ROW()"], ["=COLUMN()"], ["=ROW(A1)"], ["=COLUMN(C5)"],
+  ["=ROW(A1:A2)"], ["=COLUMN(SEQUENCE(2))"], ["=ROW()"],
+];
+assert.deepEqual(referenceFormulaSheet.getRange("B1:B7").values, [[1], [2], [1], [3], ["#VALUE!"], ["#VALUE!"], [7]]);
+referenceFormulaSheet.getRange("C1:C5").formulas = [
+  ["=ISFORMULA(A1)"], ["=ISFORMULA(A2)"], ["=ISFORMULA(A1:A2)"],
+  ["=ISFORMULA(SEQUENCE(2))"], ["=ISFORMULA()"],
+];
+assert.deepEqual(referenceFormulaSheet.getRange("C1:C5").values, [[false], [true], ["#VALUE!"], ["#VALUE!"], ["#VALUE!"]]);
+referenceFormulaSheet.getRange("D1:D6").formulas = [
+  ["=FORMULATEXT(A1)"], ["=FORMULATEXT(A2)"], ["=FORMULATEXT(A5)"],
+  ["=FORMULATEXT(A1:A2)"], ["=FORMULATEXT(SEQUENCE(2))"], ["=FORMULATEXT()"],
+];
+assert.deepEqual(referenceFormulaSheet.getRange("D1:D6").values, [["#N/A"], ["=1+1"], ["=1/0"], ["#VALUE!"], ["#VALUE!"], ["#VALUE!"]]);
+const referenceFormulaXlsx = await SpreadsheetFile.exportXlsx(referenceFormulaWorkbook);
+const importedReferenceFormulaWorkbook = await SpreadsheetFile.importXlsx(referenceFormulaXlsx);
+const importedReferenceFormulaSheet = importedReferenceFormulaWorkbook.worksheets.getItem("Formula references");
+assert.deepEqual(importedReferenceFormulaSheet.getRange("B1:D6").values, referenceFormulaSheet.getRange("B1:D6").values);
+assert.deepEqual(importedReferenceFormulaSheet.getRange("B1:D6").formulas, referenceFormulaSheet.getRange("B1:D6").formulas);
+
 const sumproductMaskWorkbook = Workbook.create();
 const sumproductMaskSheet = sumproductMaskWorkbook.worksheets.add("SUMPRODUCT masks");
 sumproductMaskSheet.getRange("A1:A4").values = [[100], [200], [300], [400]];

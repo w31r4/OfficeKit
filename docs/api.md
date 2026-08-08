@@ -3265,6 +3265,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.CHOOSECOLS` | formula | Select and reorder one or more 1-based or negative column indexes from an array. |
 | `fx.CHOOSEROWS` | formula | Select and reorder one or more 1-based or negative row indexes from an array. |
 | `fx.CLEAN` | formula | Remove ASCII C0 control characters from one bounded scalar text value while preserving Unicode text and other controls; overlong, error, or multi-cell inputs fail closed. |
+| `fx.COLUMN` | formula | Return the 1-based column of the current formula cell or one explicit single-cell reference; ranges, spills, computed matrices, and invalid arity fail closed as #VALUE!. |
 | `fx.COLUMNS` | formula | Return the column count of one bounded rectangular reference or dynamic spill. |
 | `fx.COMBIN` | formula | Return the number of combinations for two non-negative bounded integer arguments. |
 | `fx.COMBINA` | formula | Return combinations with repetition for two non-negative bounded integer arguments. |
@@ -3297,6 +3298,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.FILTER` | formula | Filter rows from a source range with a boolean or comparison include array and spill the matching rows. |
 | `fx.FIND` | formula | Return the 1-based position of a case-sensitive literal text sequence. |
 | `fx.FLOOR` | formula | Round a number down to the nearest significance. |
+| `fx.FORMULATEXT` | formula | Return the stored formula text for one explicit single-cell reference, #N/A when that cell has no formula, and #VALUE! for ranges, computed matrices, spills, or invalid input. |
 | `fx.FV` | formula | Calculate the future value of a finite constant-payment stream from rate, term, payment, optional present value, and payment timing. |
 | `fx.GCD` | formula | Return the greatest common divisor of bounded integer arguments and ranges; unsafe integer results fail closed as #NUM!. |
 | `fx.HLOOKUP` | formula | Look up one scalar in the first row of a nonempty rectangular range of at most 10,000 cells; FALSE/0 performs an exact, wildcard-aware lookup, while TRUE/1 or omission requires a proven ascending homogeneous numeric or text key row and returns the greatest matching-or-lower key. Invalid table/mode/index inputs and unproven ordering return #VALUE!, while an out-of-range return-row index returns #REF!. |
@@ -3313,6 +3315,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.ISBLANK` | formula | Return TRUE when a referenced value is empty. |
 | `fx.ISERR` | formula | Return TRUE for recognized formula errors other than #N/A. |
 | `fx.ISERROR` | formula | Return TRUE when a value is any recognized formula error. |
+| `fx.ISFORMULA` | formula | Return TRUE when one explicit single-cell reference contains a formula, FALSE when the cell is not formula-backed, and #VALUE! for ranges, computed matrices, spills, or invalid input. |
 | `fx.ISLOGICAL` | formula | Return TRUE when a value is a logical TRUE or FALSE. |
 | `fx.ISNA` | formula | Return TRUE only when a value is the #N/A error. |
 | `fx.ISNONTEXT` | formula | Return TRUE when a value is not text, including blank, logical, numeric, and error values. |
@@ -3368,6 +3371,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.ROUND` | formula | Round a numeric value to decimal places or, with negative digits, positions left of the decimal point. |
 | `fx.ROUNDDOWN` | formula | Round a numeric value toward zero at the requested positive or negative digit position. |
 | `fx.ROUNDUP` | formula | Round a numeric value away from zero at the requested positive or negative digit position. |
+| `fx.ROW` | formula | Return the 1-based row of the current formula cell or one explicit single-cell reference; ranges, spills, computed matrices, and invalid arity fail closed as #VALUE!. |
 | `fx.ROWS` | formula | Return the row count of one bounded rectangular reference or dynamic spill. |
 | `fx.SEARCH` | formula | Return the 1-based position of case-insensitive text, supporting Excel ?, *, and ~ wildcard syntax. |
 | `fx.SECOND` | formula | Return the 0 through 59 second component from a nonnegative serial or supported time text. |
@@ -3815,6 +3819,24 @@ Remove ASCII C0 control characters from one bounded scalar text value while pres
 **Schema returns:**
 
 - `value` (string) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.COLUMN`
+
+Return the 1-based column of the current formula cell or one explicit single-cell reference; ranges, spills, computed matrices, and invalid arity fail closed as #VALUE!.
+
+**Examples:**
+
+- =COLUMN()
+- =COLUMN(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =COLUMN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.COLUMNS`
 
@@ -4378,6 +4400,23 @@ Round a number down to the nearest significance.
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.FORMULATEXT`
+
+Return the stored formula text for one explicit single-cell reference, #N/A when that cell has no formula, and #VALUE! for ranges, computed matrices, spills, or invalid input.
+
+**Examples:**
+
+- =FORMULATEXT(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =FORMULATEXT(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.FV`
 
 Calculate the future value of a finite constant-payment stream from rate, term, payment, optional present value, and payment timing.
@@ -4659,6 +4698,23 @@ Return TRUE when a value is any recognized formula error.
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =ISERROR(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.ISFORMULA`
+
+Return TRUE when one explicit single-cell reference contains a formula, FALSE when the cell is not formula-backed, and #VALUE! for ranges, computed matrices, spills, or invalid input.
+
+**Examples:**
+
+- =ISFORMULA(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ISFORMULA(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**
@@ -5629,6 +5685,24 @@ Round a numeric value away from zero at the requested positive or negative digit
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =ROUNDUP(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.ROW`
+
+Return the 1-based row of the current formula cell or one explicit single-cell reference; ranges, spills, computed matrices, and invalid arity fail closed as #VALUE!.
+
+**Examples:**
+
+- =ROW()
+- =ROW(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ROW(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**

@@ -609,6 +609,26 @@ function formulaReferenceIsArray(sheet, expression, context = {}) {
   return Number.isSafeInteger(cells) && cells > 1;
 }
 
+function formulaSingleCellReference(sheet, expression) {
+  const text = String(expression ?? "").trim();
+  const reference = formulaRefParts(text) || formulaDefinedNameRange(sheet, text);
+  if (!reference || reference.missing || reference.spill || !reference.start || reference.start !== reference.end) return undefined;
+  const targetSheet = reference.sheetName ? sheet.workbook?.worksheets.getItem(reference.sheetName) : sheet;
+  if (!targetSheet) return undefined;
+  return { reference, sheet: targetSheet, address: reference.start, cell: targetSheet.store.get(reference.start) };
+}
+
+function formulaCurrentCell(sheet, context = {}) {
+  const address = String(context.formulaAddress ?? "").replaceAll("$", "").trim().toUpperCase();
+  if (!address) return undefined;
+  try {
+    const parsed = parseCellAddress(address);
+    return { sheet, address, row: parsed.row + 1, col: parsed.col + 1, cell: sheet.store.get(address) };
+  } catch {
+    return undefined;
+  }
+}
+
 function publicFormulaNode(node) {
   return {
     kind: "formulaNode",
@@ -2614,6 +2634,31 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "ISREF": {
       if (args.length !== 1 || hasEmptyArgument()) return "#VALUE!";
       return Boolean(formulaRefParts(args[0]) || formulaDefinedNameRange(sheet, args[0]));
+    }
+    case "ROW": {
+      const noArgument = args.length === 1 && String(args[0] ?? "").trim() === "";
+      if (noArgument) return formulaCurrentCell(sheet, context)?.row ?? "#VALUE!";
+      if (args.length !== 1 || hasEmptyArgument()) return "#VALUE!";
+      const reference = formulaSingleCellReference(sheet, args[0]);
+      return reference ? parseCellAddress(reference.address).row + 1 : "#VALUE!";
+    }
+    case "COLUMN": {
+      const noArgument = args.length === 1 && String(args[0] ?? "").trim() === "";
+      if (noArgument) return formulaCurrentCell(sheet, context)?.col ?? "#VALUE!";
+      if (args.length !== 1 || hasEmptyArgument()) return "#VALUE!";
+      const reference = formulaSingleCellReference(sheet, args[0]);
+      return reference ? parseCellAddress(reference.address).col + 1 : "#VALUE!";
+    }
+    case "ISFORMULA": {
+      if (args.length !== 1 || hasEmptyArgument()) return "#VALUE!";
+      const reference = formulaSingleCellReference(sheet, args[0]);
+      return reference ? Boolean(reference.cell?.formula) : "#VALUE!";
+    }
+    case "FORMULATEXT": {
+      if (args.length !== 1 || hasEmptyArgument()) return "#VALUE!";
+      const reference = formulaSingleCellReference(sheet, args[0]);
+      if (!reference) return "#VALUE!";
+      return reference.cell?.formula || "#N/A";
     }
     case "ISLOGICAL": {
       if (args.length !== 1) return "#VALUE!";
