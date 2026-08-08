@@ -393,6 +393,10 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "fx.SUBSTITUTE")?.schema?
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.COUNTA")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.COUNTBLANK")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.LEN")?.schema?.returns?.value?.type, "number");
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.LEFT")?.summary || "", /32,767 Unicode characters.*multi-cell/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.RIGHT")?.summary || "", /32,767 Unicode characters.*multi-cell/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.LEN")?.summary || "", /Unicode code-point length.*overlong/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.MID")?.summary || "", /Unicode slice.*1-based start/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.SEARCH")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.FIND")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.VALUE")?.schema?.returns?.value?.type, "number");

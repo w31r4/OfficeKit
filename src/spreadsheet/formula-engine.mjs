@@ -1785,9 +1785,56 @@ function formulaTextInteger(value, { minimum = 0, maximum = FORMULA_TEXT_RESULT_
   return Number.isSafeInteger(number) && number >= minimum && number <= maximum ? number : "#VALUE!";
 }
 
+function boundedTextLength(text, limit = FORMULA_TEXT_RESULT_MAX_LENGTH) {
+  let length = 0;
+  for (const _character of text) {
+    length += 1;
+    if (length > limit) return undefined;
+  }
+  return length;
+}
+
 function boundedFormulaText(value) {
   const text = formulaText(value);
-  return text.length <= FORMULA_TEXT_RESULT_MAX_LENGTH ? text : undefined;
+  return boundedTextLength(text) === undefined ? undefined : text;
+}
+
+function evaluateFormulaTextExtract(sheet, fnName, args, context = {}) {
+  const read = (index, options = { required: true }) => readBoundedScalarArgument(sheet, args[index], context, options);
+  const textPart = read(0);
+  if (textPart.error) return textPart.error;
+  const text = boundedFormulaText(textPart.value);
+  if (text === undefined) return "#VALUE!";
+  const characters = Array.from(text);
+
+  if (fnName === "LEN") return args.length === 1 ? characters.length : "#VALUE!";
+
+  if (fnName === "LEFT" || fnName === "RIGHT") {
+    if (args.length < 1 || args.length > 2) return "#VALUE!";
+    const countPart = args.length === 2 ? read(1) : { value: 1 };
+    if (countPart.error) return countPart.error;
+    const count = formulaTextInteger(countPart.value);
+    if (formulaErrorCode(count)) return count;
+    const result = fnName === "LEFT"
+      ? characters.slice(0, count).join("")
+      : characters.slice(Math.max(0, characters.length - count)).join("");
+    return boundedFormulaText(result) ?? "#VALUE!";
+  }
+
+  if (fnName === "MID") {
+    if (args.length !== 3) return "#VALUE!";
+    const startPart = read(1);
+    const countPart = read(2);
+    if (startPart.error) return startPart.error;
+    if (countPart.error) return countPart.error;
+    const start = formulaTextInteger(startPart.value, { minimum: 1 });
+    const count = formulaTextInteger(countPart.value);
+    if (formulaErrorCode(start)) return start;
+    if (formulaErrorCode(count)) return count;
+    return boundedFormulaText(characters.slice(start - 1, start - 1 + count).join("")) ?? "#VALUE!";
+  }
+
+  return "#VALUE!";
 }
 
 function evaluateFormulaTextTransform(sheet, fnName, args, context = {}) {
@@ -1811,7 +1858,9 @@ function evaluateFormulaTextTransform(sheet, fnName, args, context = {}) {
     if (countPart.error) return countPart.error;
     const count = formulaTextInteger(countPart.value);
     if (formulaErrorCode(count)) return count;
-    if (text.length && count > Math.floor(FORMULA_TEXT_RESULT_MAX_LENGTH / text.length)) return "#VALUE!";
+    const textLength = boundedTextLength(text);
+    if (textLength === undefined) return "#VALUE!";
+    if (textLength && count > Math.floor(FORMULA_TEXT_RESULT_MAX_LENGTH / textLength)) return "#VALUE!";
     return text.repeat(count);
   }
 
@@ -1832,7 +1881,7 @@ function evaluateFormulaTextTransform(sheet, fnName, args, context = {}) {
     const characters = Array.from(text);
     const offset = Math.min(start - 1, characters.length);
     const result = `${characters.slice(0, offset).join("")}${replacement}${characters.slice(offset + count).join("")}`;
-    return result.length <= FORMULA_TEXT_RESULT_MAX_LENGTH ? result : "#VALUE!";
+    return boundedFormulaText(result) ?? "#VALUE!";
   }
 
   if (fnName === "SUBSTITUTE") {
@@ -1853,7 +1902,7 @@ function evaluateFormulaTextTransform(sheet, fnName, args, context = {}) {
     }
     if (instance === undefined) {
       const result = text.split(oldText).join(newText);
-      return result.length <= FORMULA_TEXT_RESULT_MAX_LENGTH ? result : "#VALUE!";
+      return boundedFormulaText(result) ?? "#VALUE!";
     }
     let cursor = 0;
     let occurrence = 0;
@@ -1869,7 +1918,7 @@ function evaluateFormulaTextTransform(sheet, fnName, args, context = {}) {
       result += occurrence === instance ? newText : oldText;
       cursor = index + oldText.length;
     }
-    return result.length <= FORMULA_TEXT_RESULT_MAX_LENGTH ? result : "#VALUE!";
+    return boundedFormulaText(result) ?? "#VALUE!";
   }
 
   return "#VALUE!";
@@ -2488,10 +2537,10 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
       const joined = values(args.slice(2)).map(formulaText).filter((value) => !ignoreEmpty || value !== "");
       return joined.join(delimiter);
     }
-    case "LEFT": return formulaText(scalar(0, "")).slice(0, Number(scalar(1, 1)) || 1);
-    case "RIGHT": { const text = formulaText(scalar(0, "")); const count = Number(scalar(1, 1)) || 1; return text.slice(Math.max(0, text.length - count)); }
-    case "MID": { const text = formulaText(scalar(0, "")); const start = Math.max(1, Number(scalar(1, 1)) || 1); const count = Math.max(0, Number(scalar(2, 1)) || 1); return text.slice(start - 1, start - 1 + count); }
-    case "LEN": return formulaText(scalar(0, "")).length;
+    case "LEFT":
+    case "RIGHT":
+    case "MID":
+    case "LEN": return evaluateFormulaTextExtract(sheet, fnName, args, context);
     case "SEARCH": {
       if (args.length < 2 || args.length > 3) return "#VALUE!";
       return formulaTextSearchPosition(scalar(0), scalar(1), scalar(2, 1), { wildcard: true });
