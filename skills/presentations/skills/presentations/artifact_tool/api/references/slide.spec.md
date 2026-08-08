@@ -57,7 +57,7 @@ slide.clearTransition();
 ```
 
 The direct transition profile is a separate leaf from background/layout state:
-it supports only `fade` and directional `push`, bounded speed/click/timer
+it supports only `fade` and directional `push`/`wipe`, bounded speed/click/timer
 metadata, and one canonical `p:transition`. For an imported slide, inspect and
 resolve `${slide.id}/transition` first. A canonical existing graph may be
 replaced or removed. An absent transition may be added only when

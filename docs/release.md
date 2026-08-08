@@ -4627,6 +4627,44 @@ OfficeBridge `5/5`, and OfficeKit `375/375`. The deterministic runtime has
 under the existing 25,300,000-byte ceiling. No npm publish, tag, or release
 operation was attempted.
 
+### PPTX directional Wipe transition profile
+
+On 2026-08-09, the bounded direct-transition profile added the standard
+PresentationML `p:wipe/@dir` effect for `left`, `up`, `right`, and `down`.
+Source-free authoring, canonical import, source-bound replacement/addition,
+clear, inspect/resolve, strict slide clone, and second import now treat Wipe
+with the same speed/click/timer contract as directional Push. Timing trees,
+sound actions, `p14:dur`, extension-bearing graphs, malformed attributes, and
+every other effect remain opaque-preserved and fail closed on mutation.
+
+The JS model and shipped Agent transaction describe effect behavior with one
+small profile table. The C# codec likewise maps semantic effect, Open XML SDK
+element type, direction requirement, and builder in one table, so Wipe did not
+add separate validation/read/write branches. The public protobuf field shape
+and protocol version remain unchanged; only the documented open string
+vocabulary widened. Native tests validate the resulting package with the Open
+XML SDK Office 2021 validator and retain an unsupported canonical `p:cut`
+graph byte-for-byte as the negative preservation oracle.
+
+The local candidate passed `npm test` (26/26), `npm run test:slow` (74/74),
+`npm run docs:api`, `npm run proto:check`, deterministic
+`npm run verify:office-kit-build` (39 audited files), `npm run test:pack`,
+OfficeKit `388/388`, and OfficeBridge `5/5`. The Presentations Skill forward
+test completed a real fade-to-wipe source-bound transaction with immutable
+input, exactly one changed SlidePart, second import, unchanged non-transition
+semantics, and unchanged model/native static render evidence. LibreOffice
+template recalculation and Playwright renderer gates ran locally. Managed
+provider live-downloads plus external pikepdf/pyHanko/veraPDF/OCRmyPDF/Python
+provider executions remained explicitly skipped because their opt-in
+environment variables were not supplied.
+
+The deterministic OfficeKit runtime has 38 files and 15,202,972 bytes. The
+clean-install candidate has 707 files, 36,235,546 compressed bytes, and
+53,515,164 unpacked bytes (`shasum
+78fb0a968992d11231ba69d3f528fea8162b6a83`). npm authentication is still
+unavailable, `office-kit` is not present in the registry, current HEAD is not
+tagged, and no publish, tag, or release operation was attempted.
+
 ## Publishing
 
 Before publishing:

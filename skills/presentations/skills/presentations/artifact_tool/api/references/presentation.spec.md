@@ -194,8 +194,8 @@ slide.setTransition({ effect: "fade", speed: "medium", advanceOnClick: true });
 slide.clearTransition();
 ```
 
-The direct transition profile owns only `fade` and directional `push`, explicit
-slow/medium/fast speed, click advancement, and an optional bounded timer.
+The direct transition profile owns only `fade` and directional `push`/`wipe`,
+explicit slow/medium/fast speed, click advancement, and an optional bounded timer.
 Inspect/resolve the stable `${slide.id}/transition` facade before changing an
 imported deck. Only one existing canonical direct `p:transition` is editable;
 an absent transition may be added only when `transition.capability.addable`

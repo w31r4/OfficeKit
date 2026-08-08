@@ -19,7 +19,7 @@ const fade = presentation.slides.add({
 
 const decision = presentation.slides.add({ name: "Decision" });
 decision.setTransition({
-  effect: "push",
+  effect: "wipe",
   direction: "left",
   speed: "fast",
   advanceOnClick: false,
@@ -30,16 +30,16 @@ Only these semantic shapes are authored:
 
 | Field | Supported values | Default |
 | --- | --- | --- |
-| `effect` | `"fade"` or `"push"` | required |
-| `direction` | `"left"`, `"up"`, `"right"`, `"down"` for `push` only | `"left"` |
+| `effect` | `"fade"`, `"push"`, or `"wipe"` | required |
+| `direction` | `"left"`, `"up"`, `"right"`, `"down"` for `push` and `wipe` | `"left"` |
 | `speed` | `"slow"`, `"medium"`, `"fast"` | `"medium"` |
 | `advanceOnClick` | boolean | `true` |
 | `advanceAfterMs` | integer `0..86400000` | omitted |
 
-`fade` rejects `direction`. The codec writes one direct `p:transition` with
-explicit `spd` and `advClick`, an optional numeric `advTm`, and exactly one
-empty `p:fade` or `p:push/@dir` child. `clearTransition()` removes that direct
-element.
+`fade` rejects `direction`; `push` and `wipe` default it to `left`. The codec
+writes one direct `p:transition` with explicit `spd` and `advClick`, an optional
+numeric `advTm`, and exactly one empty `p:fade`, `p:push/@dir`, or `p:wipe/@dir`
+child. `clearTransition()` removes that direct element.
 
 ## Inspect, Resolve, And Edit
 
@@ -48,7 +48,7 @@ const inspection = await presentation.inspect({ kind: "slide,transition" });
 const transition = presentation.resolve(`${fade.id}/transition`);
 
 if (transition.capability.editable) {
-  transition.set({ effect: "push", direction: "right", speed: "slow" });
+  transition.set({ effect: "wipe", direction: "right", speed: "slow" });
 }
 ```
 
@@ -98,7 +98,7 @@ officekit run examples/officekit-transition-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Decision" \
   '{"effect":"fade","speed":"medium","advanceOnClick":true}' \
-  '{"effect":"push","direction":"right","speed":"fast","advanceOnClick":false,"advanceAfterMs":2000}'
+  '{"effect":"wipe","direction":"right","speed":"fast","advanceOnClick":false,"advanceAfterMs":2000}'
 ```
 
 The fourth argument is one unique imported slide name. The two JSON objects are

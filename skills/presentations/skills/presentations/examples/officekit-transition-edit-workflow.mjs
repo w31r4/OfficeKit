@@ -10,7 +10,11 @@ import { FileBlob, PresentationFile } from "office-kit";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const MAX_ADVANCE_AFTER_MS = 86_400_000;
-const EFFECTS = new Set(["fade", "push"]);
+const EFFECTS = Object.freeze({
+  fade: Object.freeze({ directional: false }),
+  push: Object.freeze({ directional: true, defaultDirection: "left" }),
+  wipe: Object.freeze({ directional: true, defaultDirection: "left" }),
+});
 const SPEEDS = new Set(["slow", "medium", "fast"]);
 const DIRECTIONS = new Set(["left", "up", "right", "down"]);
 const TRANSITION_KEYS = new Set(["effect", "direction", "speed", "advanceOnClick", "advanceAfterMs"]);
@@ -45,16 +49,17 @@ function canonicalTransition(value, label) {
   const unsupported = Object.keys(value).filter((key) => !TRANSITION_KEYS.has(key));
   if (unsupported.length) throw new TypeError(label + " has unsupported fields: " + unsupported.join(", ") + ".");
   const effect = String(value.effect || "").trim().toLowerCase();
-  if (!EFFECTS.has(effect)) throw new TypeError(label + ".effect must be fade or push.");
+  if (!Object.hasOwn(EFFECTS, effect)) throw new TypeError(label + ".effect must be fade, push, or wipe.");
+  const profile = EFFECTS[effect];
   const speed = String(value.speed ?? "medium").trim().toLowerCase();
   if (!SPEEDS.has(speed)) throw new TypeError(label + ".speed must be slow, medium, or fast.");
   const transition = { effect, speed };
-  if (effect === "push") {
-    const direction = String(value.direction ?? "left").trim().toLowerCase();
-    if (!DIRECTIONS.has(direction)) throw new TypeError(label + ".direction must be left, up, right, or down for push.");
+  if (profile.directional) {
+    const direction = String(value.direction ?? profile.defaultDirection).trim().toLowerCase();
+    if (!DIRECTIONS.has(direction)) throw new TypeError(label + ".direction must be left, up, right, or down for " + effect + ".");
     transition.direction = direction;
   } else if (own(value, "direction") && value.direction != null) {
-    throw new TypeError(label + ".direction is not valid for fade.");
+    throw new TypeError(label + ".direction is not valid for " + effect + ".");
   }
   if (own(value, "advanceOnClick") && typeof value.advanceOnClick !== "boolean") {
     throw new TypeError(label + ".advanceOnClick must be a boolean.");
@@ -230,7 +235,7 @@ export async function editPptxTransition({ inputPath, outputPath, auditPath, sli
   const targetIndex = presentation.slides.items.indexOf(target);
   const capability = target.transition.capability;
   if (!capability.sourceBound || !capability.partPresent || !capability.editable) {
-    throw new Error("Selected imported slide transition does not satisfy the editable canonical direct fade/push profile.");
+    throw new Error("Selected imported slide transition does not satisfy the editable canonical direct fade/push/wipe profile.");
   }
   const sourceTransition = canonicalTransition(target.transition.toJSON(), "imported transition");
   if (!sameJson(sourceTransition, expected)) {

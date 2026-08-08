@@ -1,4 +1,8 @@
-const TRANSITION_EFFECTS = new Set(["fade", "push"]);
+const TRANSITION_EFFECTS = Object.freeze({
+  fade: Object.freeze({ directional: false }),
+  push: Object.freeze({ directional: true, defaultDirection: "left" }),
+  wipe: Object.freeze({ directional: true, defaultDirection: "left" }),
+});
 const TRANSITION_SPEEDS = new Set(["slow", "medium", "fast"]);
 const TRANSITION_DIRECTIONS = new Set(["left", "up", "right", "down"]);
 const TRANSITION_KEYS = new Set(["effect", "direction", "speed", "advanceOnClick", "advanceAfterMs"]);
@@ -12,8 +16,8 @@ function own(object, key) {
 
 function normalizeEffect(value) {
   const effect = String(value || "").trim().toLowerCase();
-  if (!TRANSITION_EFFECTS.has(effect)) {
-    throw new TypeError("Presentation transition effect must be fade or push.");
+  if (!Object.hasOwn(TRANSITION_EFFECTS, effect)) {
+    throw new TypeError("Presentation transition effect must be fade, push, or wipe.");
   }
   return effect;
 }
@@ -43,16 +47,17 @@ export function normalizePresentationTransition(config) {
     throw new TypeError(`Presentation transition has unsupported fields: ${unsupported.join(", ")}.`);
   }
   const effect = normalizeEffect(config.effect);
+  const profile = TRANSITION_EFFECTS[effect];
   const speed = normalizeSpeed(config.speed);
   const transition = { effect, speed };
-  if (effect === "push") {
-    const direction = String(config.direction ?? "left").trim().toLowerCase();
+  if (profile.directional) {
+    const direction = String(config.direction ?? profile.defaultDirection).trim().toLowerCase();
     if (!TRANSITION_DIRECTIONS.has(direction)) {
-      throw new TypeError("Presentation push transition direction must be left, up, right, or down.");
+      throw new TypeError(`Presentation ${effect} transition direction must be left, up, right, or down.`);
     }
     transition.direction = direction;
   } else if (own(config, "direction") && config.direction != null) {
-    throw new TypeError("Presentation fade transition does not accept direction.");
+    throw new TypeError(`Presentation ${effect} transition does not accept direction.`);
   }
   if (own(config, "advanceOnClick") && typeof config.advanceOnClick !== "boolean") {
     throw new TypeError("Presentation transition advanceOnClick must be a boolean.");

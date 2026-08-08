@@ -557,7 +557,7 @@ the file form has a 32 MiB input budget.
 
 Use direct `p:transition` metadata only for an intentional between-slide
 movement. The public profile is deliberately small: `fade` or directional
-`push`, `slow`/`medium`/`fast`, click advancement, and an optional bounded
+`push`/`wipe`, `slow`/`medium`/`fast`, click advancement, and an optional bounded
 timer. It is not an animation/timing/sound authoring surface:
 
 ```js
@@ -572,8 +572,8 @@ slide.setTransition({
 
 For an imported deck, inspect `slide,transition`, resolve
 `${slide.id}/transition`, and read `transition.capability` before calling
-`set(...)` or `clear()`. Only one existing canonical direct fade/push graph is
-editable. A source-bound slide with no transition may be set only when
+`set(...)` or `clear()`. Only one existing canonical direct fade/push/wipe
+graph is editable. A source-bound slide with no transition may be set only when
 `addable: true`, which proves the Slide root contains only `p:cSld` plus
 optional `p:clrMapOvr` and no transition, timing, or extension leaf. Unknown
 effects, timing trees, sound actions, `p14` duration, or extension graphs stay
@@ -598,7 +598,7 @@ bytes immutable, permits exactly the selected SlidePart to differ, reimports,
 and verifies non-transition semantics and static model renders remain stable
 before it publishes a source/output-bound audit. It does not add or clear a
 transition, treat an unconfigured slide as a replacement target, widen the
-canonical fade/push profile, or certify native slideshow playback.
+canonical fade/push/wipe profile, or certify native slideshow playback.
 
 Always export, reimport, and inspect the transition again. Static
 LibreOffice/Poppler review can prove the visible slide content is stable, not

@@ -1431,8 +1431,9 @@ message PresentationSlide {
   repeated PresentationModernCommentThread modern_comments = 10;
   // One bounded direct p:transition leaf. The public profile deliberately
   // separates slide advancement from p:timing animation graphs: only fade
-  // and four-direction push effects with explicit speed/click/timer settings
-  // are semantic. Other native transition children remain source-owned.
+  // plus four-direction push and wipe effects with explicit speed/click/timer
+  // settings are semantic. Other native transition children remain
+  // source-owned.
   PresentationTransition transition = 11;
 }
 
@@ -1552,9 +1553,9 @@ message PresentationSlideSourceBinding {
   // when no supported transition is exposed. The raw SlidePart hash remains
   // the authority for an opaque transition graph.
   string transition_semantic_sha256 = 12;
-  // True only for one canonical direct fade or push transition with explicit
-  // bounded attributes. Arbitrary effects, sound actions, extensions, and
-  // timing graphs remain source-owned.
+  // True only for one canonical direct fade, push, or wipe transition with
+  // explicit bounded attributes. Arbitrary effects, sound actions,
+  // extensions, and timing graphs remain source-owned.
   bool transition_editable = 13;
   // Distinguishes an absent transition from a retained opaque native one for
   // Agent-facing inspect/capability reporting.
@@ -1562,7 +1563,7 @@ message PresentationSlideSourceBinding {
   // True only when this SlidePart has no p:transition, p:timing, or extension
   // leaf and contains only its ordinary p:cSld plus optional p:clrMapOvr
   // structure. Export re-proves that narrow shape before adding one canonical
-  // direct fade or push transition.
+  // direct fade, push, or wipe transition.
   bool transition_addable = 15;
 }
 
@@ -3326,9 +3327,9 @@ enum DocumentSectionLineNumberRestart {
 // A presentation transition applies when this slide enters during a slideshow;
 // it is not an animation timeline, sound action, or Office-version extension.
 message PresentationTransition {
-  // fade or push.
+  // fade, push, or wipe.
   string effect = 1;
-  // Required only for push: left, up, right, or down.
+  // Required for push and wipe: left, up, right, or down.
   string direction = 2;
   // slow, medium, or fast. The codec maps medium to native spd="med".
   string speed = 3;

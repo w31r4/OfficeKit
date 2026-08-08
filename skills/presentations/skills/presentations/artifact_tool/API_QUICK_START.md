@@ -506,7 +506,7 @@ accepted and file input is bounded to 32 MiB before parsing.
 
 ## Bounded Slide Transitions
 
-For source-free slides, use one direct `fade` or directional `push` transition:
+For source-free slides, use one direct `fade` or directional `push`/`wipe` transition:
 
 ```ts
 slide.setTransition({
@@ -517,8 +517,9 @@ slide.setTransition({
 });
 ```
 
-`push` accepts `direction: "left" | "up" | "right" | "down"`; fade rejects a
-direction. Speed defaults to `medium`, click advancement to `true`, and the
+`push` and `wipe` accept `direction: "left" | "up" | "right" | "down"`; fade
+rejects a direction. Directional effects default to `left`, speed to `medium`,
+click advancement to `true`, and the
 optional timer is an integer from `0` through `86400000` milliseconds. Inspect
 an imported deck with `kind: "transition"`, resolve `${slide.id}/transition`,
 then use `transition.set(...)` or `transition.clear()` when its capability

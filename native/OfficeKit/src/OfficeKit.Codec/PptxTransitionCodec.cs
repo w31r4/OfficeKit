@@ -16,6 +16,22 @@ internal static class PptxTransitionCodec
 {
     internal const uint MaxAdvanceAfterMilliseconds = 86_400_000;
 
+    private sealed record TransitionEffectProfile(
+        string Name,
+        Type ElementType,
+        bool Directional,
+        Func<string, OpenXmlElement> Build);
+
+    private static readonly TransitionEffectProfile[] EffectProfiles =
+    [
+        new("fade", typeof(P.FadeTransition), false, static _ => new P.FadeTransition()),
+        new("push", typeof(P.PushTransition), true, static direction => new P.PushTransition { Direction = Direction(direction) }),
+        new("wipe", typeof(P.WipeTransition), true, static direction => new P.WipeTransition { Direction = Direction(direction) }),
+    ];
+
+    private static readonly IReadOnlyDictionary<string, TransitionEffectProfile> EffectProfilesByName =
+        EffectProfiles.ToDictionary(profile => profile.Name, StringComparer.Ordinal);
+
     internal static PresentationTransition? Read(P.Slide source)
     {
         var transitions = source.Elements<P.Transition>().ToArray();
@@ -48,19 +64,16 @@ internal static class PptxTransitionCodec
             throw Invalid($"Presentation transition advance_after_ms must not exceed {MaxAdvanceAfterMilliseconds}.");
         if (!IsSpeed(source.Speed))
             throw Invalid("Presentation transition speed must be slow, medium, or fast.");
-        switch (source.Effect)
+        if (!EffectProfilesByName.TryGetValue(source.Effect, out var profile))
+            throw Invalid("Presentation transition effect must be fade, push, or wipe.");
+        if (profile.Directional)
         {
-            case "fade" when string.IsNullOrEmpty(source.Direction):
-                return;
-            case "push" when IsDirection(source.Direction):
-                return;
-            case "fade":
-                throw Invalid("Presentation fade transition must not carry direction.");
-            case "push":
-                throw Invalid("Presentation push transition direction must be left, up, right, or down.");
-            default:
-                throw Invalid("Presentation transition effect must be fade or push.");
+            if (!IsDirection(source.Direction))
+                throw Invalid($"Presentation {profile.Name} transition direction must be left, up, right, or down.");
+            return;
         }
+        if (!string.IsNullOrEmpty(source.Direction))
+            throw Invalid($"Presentation {profile.Name} transition must not carry direction.");
     }
 
     internal static void Build(P.Slide target, PresentationTransition? source)
@@ -118,18 +131,14 @@ internal static class PptxTransitionCodec
             if (advanceAfter > MaxAdvanceAfterMilliseconds) return false;
             semantic.AdvanceAfterMs = advanceAfter;
         }
-        switch (source.FirstChild)
-        {
-            case P.FadeTransition fade when IsEmpty(fade):
-                semantic.Effect = "fade";
-                return true;
-            case P.PushTransition push when IsPush(push, out var direction):
-                semantic.Effect = "push";
-                semantic.Direction = direction;
-                return true;
-            default:
-                return false;
-        }
+        var child = source.FirstChild;
+        var profile = EffectProfiles.FirstOrDefault(candidate => child?.GetType() == candidate.ElementType);
+        if (profile is null || child is null) return false;
+        semantic.Effect = profile.Name;
+        if (!profile.Directional) return IsEmpty(child);
+        if (!IsDirectional(child, out var direction)) return false;
+        semantic.Direction = direction;
+        return true;
     }
 
     private static P.Transition BuildElement(PresentationTransition source)
@@ -141,24 +150,19 @@ internal static class PptxTransitionCodec
             AdvanceOnClick = source.AdvanceOnClick,
         };
         if (source.HasAdvanceAfterMs) transition.AdvanceAfterTime = source.AdvanceAfterMs.ToString(CultureInfo.InvariantCulture);
-        transition.Append(source.Effect switch
-        {
-            "fade" => new P.FadeTransition(),
-            "push" => new P.PushTransition { Direction = Direction(source.Direction) },
-            _ => throw Invalid("Presentation transition effect is invalid."),
-        });
+        transition.Append(EffectProfilesByName[source.Effect].Build(source.Direction));
         return transition;
     }
 
     private static bool IsEmpty(OpenXmlElement source) =>
         !source.ExtendedAttributes.Any() && source.GetAttributes().Count == 0 && source.ChildElements.Count == 0;
 
-    private static bool IsPush(P.PushTransition source, out string direction)
+    private static bool IsDirectional(OpenXmlElement source, out string direction)
     {
         direction = string.Empty;
-        if (source.ExtendedAttributes.Any() || !HasOnlyAttributes(source, "dir") || source.ChildElements.Count != 0 || source.Direction?.Value is not { } value)
+        if (source.ExtendedAttributes.Any() || !HasOnlyAttributes(source, "dir") || source.ChildElements.Count != 0)
             return false;
-        return TryDirection(value, out direction);
+        return TryDirectionToken(source.GetAttribute("dir", string.Empty).Value ?? string.Empty, out direction);
     }
 
     private static bool HasOnlyAttributes(OpenXmlElement source, params string[] names)
@@ -202,15 +206,15 @@ internal static class PptxTransitionCodec
         _ => throw Invalid("Presentation transition speed is invalid."),
     };
 
-    private static bool TryDirection(P.TransitionSlideDirectionValues value, out string name)
+    private static bool TryDirectionToken(string value, out string name)
     {
-        name = value.Equals(P.TransitionSlideDirectionValues.Left)
+        name = value == "l"
             ? "left"
-            : value.Equals(P.TransitionSlideDirectionValues.Up)
+            : value == "u"
                 ? "up"
-                : value.Equals(P.TransitionSlideDirectionValues.Right)
+                : value == "r"
                     ? "right"
-                    : value.Equals(P.TransitionSlideDirectionValues.Down)
+                    : value == "d"
                         ? "down"
                         : string.Empty;
         return name.Length > 0;
@@ -222,7 +226,7 @@ internal static class PptxTransitionCodec
         "up" => P.TransitionSlideDirectionValues.Up,
         "right" => P.TransitionSlideDirectionValues.Right,
         "down" => P.TransitionSlideDirectionValues.Down,
-        _ => throw Invalid("Presentation push transition direction is invalid."),
+        _ => throw Invalid("Presentation directional transition direction is invalid."),
     };
 
     private static bool IsSpeed(string value) => value is "slow" or "medium" or "fast";
