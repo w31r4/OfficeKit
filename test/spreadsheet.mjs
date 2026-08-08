@@ -1763,6 +1763,60 @@ const expressionStyles = expressionFormulaWorkbook.inspect({ kind: "computedStyl
   .map((line) => JSON.parse(line));
 assert.deepEqual(expressionStyles.map((record) => [record.address, record.style.fill]), [["B1", "#DCFCE7"]]);
 
+const typeFormulaWorkbook = Workbook.create();
+const typeFormulaSheet = typeFormulaWorkbook.worksheets.add("Formula types");
+typeFormulaSheet.getRange("A1:A6").values = [[42], ["hello"], [true], [null], ["#N/A"], ["A1"]];
+typeFormulaSheet.getRange("A7").formulas = [["=SEQUENCE(2)"]];
+typeFormulaSheet.getRange("B1:B8").formulas = [
+  ["=N(A1)"],
+  ["=N(A2)"],
+  ["=N(A3)"],
+  ["=N(A4)"],
+  ["=N(A5)"],
+  ["=N(1/0)"],
+  ["=N(A1:A2)"],
+  ["=N(SEQUENCE(2))"],
+];
+assert.deepEqual(typeFormulaSheet.getRange("B1:B8").values, [[42], [0], [1], [0], ["#N/A"], ["#DIV/0!"], ["#VALUE!"], ["#VALUE!"]]);
+typeFormulaSheet.getRange("C1:C7").formulas = [
+  ["=T(A1)"],
+  ["=T(A2)"],
+  ["=T(A3)"],
+  ["=T(A4)"],
+  ["=T(A5)"],
+  ["=T(1/0)"],
+  ["=T(A1:A2)"],
+];
+assert.deepEqual(typeFormulaSheet.getRange("C1:C7").values, [[""], ["hello"], [""], [""], ["#N/A"], ["#DIV/0!"], ["#VALUE!"]]);
+typeFormulaSheet.getRange("D1:D10").formulas = [
+  ["=TYPE(A1)"],
+  ["=TYPE(A2)"],
+  ["=TYPE(A3)"],
+  ["=TYPE(A4)"],
+  ["=TYPE(A5)"],
+  ["=TYPE(1/0)"],
+  ["=TYPE(A1:A2)"],
+  ["=TYPE(A7#)"],
+  ["=TYPE(SEQUENCE(2))"],
+  ["=TYPE()"],
+];
+assert.deepEqual(typeFormulaSheet.getRange("D1:D10").values, [[1], [2], [4], [1], [16], [16], [64], [64], [64], ["#VALUE!"]]);
+typeFormulaSheet.getRange("E1:E7").formulas = [
+  ["=ISREF(A1)"],
+  ["=ISREF(A1:A2)"],
+  ["=ISREF(A7#)"],
+  ["=ISREF(1)"],
+  ["=ISREF(\"A1\")"],
+  ["=ISREF(SEQUENCE(2))"],
+  ["=ISREF()"],
+];
+assert.deepEqual(typeFormulaSheet.getRange("E1:E7").values, [[true], [true], [true], [false], [false], [false], ["#VALUE!"]]);
+const typeFormulaXlsx = await SpreadsheetFile.exportXlsx(typeFormulaWorkbook);
+const importedTypeFormulaWorkbook = await SpreadsheetFile.importXlsx(typeFormulaXlsx);
+const importedTypeFormulaSheet = importedTypeFormulaWorkbook.worksheets.getItem("Formula types");
+assert.deepEqual(importedTypeFormulaSheet.getRange("B1:E7").values, typeFormulaSheet.getRange("B1:E7").values);
+assert.deepEqual(importedTypeFormulaSheet.getRange("B1:E7").formulas, typeFormulaSheet.getRange("B1:E7").formulas);
+
 const sumproductMaskWorkbook = Workbook.create();
 const sumproductMaskSheet = sumproductMaskWorkbook.worksheets.add("SUMPRODUCT masks");
 sumproductMaskSheet.getRange("A1:A4").values = [[100], [200], [300], [400]];

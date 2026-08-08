@@ -57,6 +57,7 @@ await output.save(`${outputDir}/output.xlsx`);
 - Verify with `await workbook.inspect(...)`; use `workbook.help(...)` only when the quick surface below is insufficient.
 - For Unicode-safe text formulas, `LEFT`/`RIGHT`/`MID`/`LEN` count code points; `UNICODE` reads the first code point and `UNICHAR` accepts one valid Unicode scalar value. `CLEAN` removes only ASCII C0 controls (`U+0000`–`U+001F`) and preserves other Unicode/control characters. Empty, overlong, multi-cell, surrogate, or invalid inputs fail closed instead of being coerced.
 - For bounded statistics, `PERCENTILE.INC` and `QUARTILE.INC` use inclusive linear interpolation over numeric values from a range; reference text, logicals, and blanks are ignored, while formula errors and invalid indexes fail closed. Keep the source range bounded and use `workbook.help("fx.PERCENTILE.INC")` for the exact contract.
+- For formula audits, `N` and `T` are scalar-only: `N` keeps finite numbers/date serials, maps logicals to 1/0 and text/blank to 0; `T` keeps text and returns empty text for other scalars. Both propagate formula errors and reject multi-cell/matrix inputs as `#VALUE!`. `TYPE` reports 1/2/4/16/64 for number-or-blank/text/logical/error/array-or-multi-cell-reference, while `ISREF` is true only for direct A1, defined-name, or spill reference expressions. Use `workbook.help("fx.TYPE")` or `workbook.help("fx.ISREF")` for the bounded contract; these helpers do not provide general array coercion or persistent IDs.
 
 ## Conventions
 - Use camelCase API names and option keys.

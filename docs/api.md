@@ -3317,6 +3317,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.ISNA` | formula | Return TRUE only when a value is the #N/A error. |
 | `fx.ISNONTEXT` | formula | Return TRUE when a value is not text, including blank, logical, numeric, and error values. |
 | `fx.ISNUMBER` | formula | Return TRUE when a value is numeric. |
+| `fx.ISREF` | formula | Return TRUE only for a direct A1, defined-name, or spill reference expression; computed values and functions return FALSE, while invalid arity fails closed as #VALUE!. |
 | `fx.ISTEXT` | formula | Return TRUE when a value is text and not a formula error. |
 | `fx.LARGE` | formula | Return the k-th largest numeric value in an array or range. |
 | `fx.LCM` | formula | Return the least common multiple of bounded integer arguments and ranges; zero inputs return zero and unsafe overflow returns #NUM!. |
@@ -3340,6 +3341,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.MODE.SNGL` | formula | Return the most frequently occurring numeric value, or #N/A when no value repeats. |
 | `fx.MONTH` | formula | Return the month component of a serial in the workbook's 1900 or 1904 date system. |
 | `fx.MROUND` | formula | Round a finite number to the nearest multiple with explicit zero-multiple and sign checks. |
+| `fx.N` | formula | Return a bounded numeric coercion: numbers and date serials unchanged, TRUE/FALSE as 1/0, text or blank as 0, and formula errors propagated; multi-cell or matrix input fails closed as #VALUE!. |
 | `fx.NA` | formula | Return the #N/A error value to mark unavailable data explicitly. |
 | `fx.NETWORKDAYS` | formula | Count Monday-through-Friday dates inclusively between two serial dates, excluding optional holidays. |
 | `fx.NETWORKDAYS.INTL` | formula | Count inclusive workdays with a numbered or Monday-first seven-character custom weekend and optional holidays. |
@@ -3384,6 +3386,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.SUMPRODUCT` | formula | Multiply corresponding numeric values in equally sized arrays and return the sum of those products; bounded same-shape direct-range predicate factors support comparisons, unary signs, and scalar arithmetic within SUMPRODUCT. |
 | `fx.SUMSQ` | formula | Sum the squares of numeric values across arguments and bounded ranges; overflow returns #NUM! and formula errors propagate. |
 | `fx.SWITCH` | formula | Match an expression against ordered value/result pairs and return an optional default or #N/A when no value matches. |
+| `fx.T` | formula | Return text unchanged, convert non-text scalars to empty text, and propagate formula errors; multi-cell or matrix input fails closed as #VALUE!. |
 | `fx.TAKE` | formula | Take rows and optional columns from the start or end of an array and spill the result. |
 | `fx.TAN` | formula | Return the tangent of a finite radian value. |
 | `fx.TANH` | formula | Return the hyperbolic tangent of a finite number. |
@@ -3399,6 +3402,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.TRANSPOSE` | formula | Transpose a source range into a spilled dynamic array with spillRange/spillValues inspect metadata. |
 | `fx.TRIM` | formula | Trim leading/trailing whitespace and collapse internal whitespace. |
 | `fx.TRUNC` | formula | Truncate a finite number toward zero at an optional decimal position without rounding. |
+| `fx.TYPE` | formula | Return Excel type codes 1 for numbers or blank, 2 for text, 4 for logical, 16 for errors, or 64 for arrays and multi-cell references; bounded spill/reference detection is explicit and invalid arity fails closed. |
 | `fx.UNICHAR` | formula | Return one Unicode scalar character for an integer from 1 through 1,114,111; surrogate values, invalid ranges, errors, and multi-cell inputs fail closed. |
 | `fx.UNICODE` | formula | Return the Unicode code point of the first character in one bounded scalar text value; empty, overlong, error, or multi-cell inputs fail closed. |
 | `fx.UNIQUE` | formula | Return unique rows from a range as a spilled dynamic array. |
@@ -4729,6 +4733,23 @@ Return TRUE when a value is numeric.
 
 - `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.ISREF`
+
+Return TRUE only for a direct A1, defined-name, or spill reference expression; computed values and functions return FALSE, while invalid arity fails closed as #VALUE!.
+
+**Examples:**
+
+- =ISREF(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ISREF(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.ISTEXT`
 
 Return TRUE when a value is text and not a formula error.
@@ -5124,6 +5145,23 @@ Round a finite number to the nearest multiple with explicit zero-multiple and si
 **Schema returns:**
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.N`
+
+Return a bounded numeric coercion: numbers and date serials unchanged, TRUE/FALSE as 1/0, text or blank as 0, and formula errors propagated; multi-cell or matrix input fails closed as #VALUE!.
+
+**Examples:**
+
+- =N(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =N(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.NA`
 
@@ -5910,6 +5948,23 @@ Match an expression against ordered value/result pairs and return an optional de
 
 - `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.T`
+
+Return text unchanged, convert non-text scalars to empty text, and propagate formula errors; multi-cell or matrix input fails closed as #VALUE!.
+
+**Examples:**
+
+- =T(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =T(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.TAKE`
 
 Take rows and optional columns from the start or end of an array and spill the result.
@@ -6168,6 +6223,23 @@ Truncate a finite number toward zero at an optional decimal position without rou
 **Schema returns:**
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.TYPE`
+
+Return Excel type codes 1 for numbers or blank, 2 for text, 4 for logical, 16 for errors, or 64 for arrays and multi-cell references; bounded spill/reference detection is explicit and invalid arity fails closed.
+
+**Examples:**
+
+- =TYPE(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =TYPE(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.UNICHAR`
 
