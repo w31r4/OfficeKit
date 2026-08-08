@@ -3384,6 +3384,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.TEXTAFTER` | formula | Return the text after a delimiter occurrence, with bounded positive/negative instance selection, case mode, end matching, and an explicit not-found result. |
 | `fx.TEXTBEFORE` | formula | Return the text before a delimiter occurrence, with bounded positive/negative instance selection, case mode, end matching, and an explicit not-found result. |
 | `fx.TEXTJOIN` | formula | Join text values with a delimiter and optional empty-value skipping. |
+| `fx.TEXTSPLIT` | formula | Split one scalar text value into a bounded spilled matrix by column and optional row delimiters, with empty-item skipping, case mode, and padding; multi-cell sources, empty delimiters, and oversized results fail closed. |
 | `fx.TIME` | formula | Return a time fraction from hour, minute, and second values from 0 through 32767, carrying overflow and wrapping at 24 hours. |
 | `fx.TIMEVALUE` | formula | Convert deterministic 12-hour or 24-hour time text, optionally following date text, to a fraction of one day. |
 | `fx.TOCOL` | formula | Flatten an array into one spilled column, optionally ignoring blanks or errors and scanning by column. |
@@ -5901,6 +5902,24 @@ Join text values with a delimiter and optional empty-value skipping.
 **Schema returns:**
 
 - `value` (string) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.TEXTSPLIT`
+
+Split one scalar text value into a bounded spilled matrix by column and optional row delimiters, with empty-item skipping, case mode, and padding; multi-cell sources, empty delimiters, and oversized results fail closed.
+
+**Examples:**
+
+- =TEXTSPLIT(A1,"|")
+- =TEXTSPLIT(A1,"=",";",TRUE)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =TEXTSPLIT(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (unknown[][]) — Spilled two-dimensional formula result.
 
 #### `fx.TIME`
 

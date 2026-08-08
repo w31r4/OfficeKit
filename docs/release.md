@@ -1,5 +1,13 @@
 # Release
 
+## Unreleased: bounded TEXTSPLIT formula
+
+The formula evaluator now supports bounded scalar `TEXTSPLIT` output. It can
+split by column and optional row delimiters, skip empty pieces, select case
+mode, pad ragged rows, and publish a source-free dynamic spill through the
+canonical XLDAPR profile. Multi-cell or computed-matrix inputs, empty
+delimiters, and outputs over 10,000 cells fail closed.
+
 ## Unreleased: bounded TEXTBEFORE/TEXTAFTER formulas
 
 The formula evaluator now supports bounded scalar `TEXTBEFORE` and
@@ -9,7 +17,7 @@ behavior, and an explicit not-found value. Empty delimiters, zero or invalid
 instance/mode values, multi-cell sources, and computed matrices fail closed as
 `#VALUE!`. Help/API generation, Spreadsheet export/import round-trip tests,
 negative cases, and coverage documentation are included; this does not add
-general array-valued text splitting.
+arbitrary array-valued coercion to the scalar boundary functions.
 
 ## Unreleased: bounded Spreadsheet LET formulas
 
