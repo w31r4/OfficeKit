@@ -7,6 +7,7 @@
  * model-to-engine back-edge while preserving the public Spreadsheet API.
  */
 import { matchesFormulaCriteria } from "./formula-criteria.mjs";
+import { evaluateMathFormula, MATH_SPILL_RANGE_FUNCTIONS } from "./formula-math.mjs";
 import {
   formulaTimeParts,
   formulaTimeSerial,
@@ -61,7 +62,7 @@ const FORMULA_MAX_OPERATORS = 512;
 // accidentally consuming the upper-left spilled value.
 const FORMULA_SPILL_RANGE_FUNCTIONS = new Set([
   "SUM", "PRODUCT", "SUMSQ", "AVERAGE", "MIN", "MAX", "COUNT", "COUNTA", "COUNTBLANK", "MEDIAN", "LARGE", "SMALL", "RANK", "RANK.EQ", "MODE", "MODE.SNGL",
-  "GCD", "LCM",
+  ...MATH_SPILL_RANGE_FUNCTIONS,
   "NPV", "MIRR", "XNPV", "IRR", "XIRR", "NETWORKDAYS", "WORKDAY", "NETWORKDAYS.INTL", "WORKDAY.INTL",
   "CONCAT", "CONCATENATE", "TEXTJOIN", "COUNTIF", "COUNTIFS",
   "TRANSPOSE", "FILTER", "UNIQUE", "SORT", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "TOCOL", "TOROW", "WRAPROWS", "WRAPCOLS", "HSTACK", "VSTACK", "EXPAND",
@@ -1388,60 +1389,6 @@ function roundFormulaNumber(value, digits = 0, mode = "nearest") {
   return Object.is(number, -0) || number < 0 ? -result : result;
 }
 
-function strictFormulaNumber(value) {
-  const error = formulaErrorCode(value);
-  if (error) return error;
-  if (value == null || (typeof value === "string" && value.trim() === "")) return "#VALUE!";
-  const number = Number(value);
-  if (Number.isNaN(number)) return "#VALUE!";
-  return Number.isFinite(number) ? number : "#NUM!";
-}
-
-function strictFormulaInteger(value) {
-  const number = strictFormulaNumber(value);
-  if (formulaErrorCode(number)) return number;
-  const integer = Math.trunc(number);
-  return Number.isSafeInteger(integer) ? integer : "#NUM!";
-}
-
-function formulaGcd(left, right) {
-  let a = Math.abs(left);
-  let b = Math.abs(right);
-  while (b !== 0) {
-    const remainder = a % b;
-    a = b;
-    b = remainder;
-  }
-  return a;
-}
-
-function formulaBinomial(n, k) {
-  if (k < 0 || k > n) return "#NUM!";
-  let result = 1;
-  const reduced = Math.min(k, n - k);
-  for (let index = 1; index <= reduced; index += 1) {
-    result = result * (n - reduced + index) / index;
-    if (!Number.isFinite(result)) return "#NUM!";
-  }
-  return Math.round(result);
-}
-
-function formulaFactorial(number, step = 1) {
-  if (number < 0 || number > 170) return "#NUM!";
-  let result = 1;
-  for (let value = number; value > 1; value -= step) {
-    result *= value;
-    if (!Number.isFinite(result)) return "#NUM!";
-  }
-  return result;
-}
-
-function formulaRoundToParity(number, parity) {
-  const magnitude = Math.ceil(Math.abs(number));
-  const rounded = magnitude % 2 === parity ? magnitude : magnitude + 1;
-  return number < 0 ? -rounded : rounded;
-}
-
 const EXCEL_1900_DATE_EPOCH_UTC = Date.UTC(1899, 11, 31);
 const EXCEL_1904_DATE_EPOCH_UTC = Date.UTC(1904, 0, 1);
 const EXCEL_MAX_DATE_SERIALS = { "1900": 2_958_465, "1904": 2_957_003 };
@@ -2052,69 +1999,15 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
       return Number.isFinite(result) ? result : "#NUM!";
     }
     case "GCD":
-    case "LCM": {
-      if (args.length === 0 || args.length > 255 || hasEmptyArgument()) return "#VALUE!";
-      const integers = values().flatMap((value) => value == null || value === "" ? [] : [strictFormulaInteger(value)]);
-      const error = integers.map(formulaErrorCode).find(Boolean);
-      if (error) return error;
-      if (integers.length === 0) return 0;
-      let result = Math.abs(integers[0]);
-      for (const integer of integers.slice(1)) {
-        const divisor = Math.abs(integer);
-        if (fnName === "GCD") {
-          result = formulaGcd(result, divisor);
-          continue;
-        }
-        if (result === 0 || divisor === 0) {
-          result = 0;
-          continue;
-        }
-        const next = result / formulaGcd(result, divisor) * divisor;
-        if (!Number.isSafeInteger(next)) return "#NUM!";
-        result = next;
-      }
-      return result;
-    }
+    case "LCM":
     case "FACT":
-    case "FACTDOUBLE": {
-      if (args.length !== 1 || hasEmptyArgument()) return "#VALUE!";
-      const number = strictFormulaInteger(scalar(0));
-      if (formulaErrorCode(number)) return number;
-      return formulaFactorial(number, fnName === "FACTDOUBLE" ? 2 : 1);
-    }
+    case "FACTDOUBLE":
     case "COMBIN":
-    case "COMBINA": {
-      if (args.length !== 2 || hasEmptyArgument()) return "#VALUE!";
-      const number = strictFormulaInteger(scalar(0));
-      const chosen = strictFormulaInteger(scalar(1));
-      if (formulaErrorCode(number)) return number;
-      if (formulaErrorCode(chosen)) return chosen;
-      if (number < 0 || chosen < 0) return "#NUM!";
-      if (fnName === "COMBINA" && chosen === 0) return 1;
-      const population = fnName === "COMBINA" ? number + chosen - 1 : number;
-      return formulaBinomial(population, chosen);
-    }
-    case "MROUND": {
-      if (args.length !== 2 || hasEmptyArgument()) return "#VALUE!";
-      const number = strictFormulaNumber(scalar(0));
-      const multiple = strictFormulaNumber(scalar(1));
-      if (formulaErrorCode(number)) return number;
-      if (formulaErrorCode(multiple)) return multiple;
-      if (multiple === 0) return "#DIV/0!";
-      if (number !== 0 && Math.sign(number) !== Math.sign(multiple)) return "#NUM!";
-      const quotient = number / multiple;
-      if (!Number.isFinite(quotient)) return "#NUM!";
-      const rounded = Math.floor(Math.abs(quotient) + 0.5) * Math.abs(multiple);
-      return Number.isFinite(rounded) ? (number < 0 ? -rounded : rounded) : "#NUM!";
-    }
+    case "COMBINA":
+    case "MROUND":
     case "EVEN":
-    case "ODD": {
-      if (args.length !== 1 || hasEmptyArgument()) return "#VALUE!";
-      const number = strictFormulaNumber(scalar(0));
-      if (formulaErrorCode(number)) return number;
-      const result = formulaRoundToParity(number, fnName === "EVEN" ? 0 : 1);
-      return Number.isSafeInteger(result) ? result : "#NUM!";
-    }
+    case "ODD":
+      return evaluateMathFormula(fnName, args, { scalar, values, hasEmptyArgument, formulaErrorCode });
     case "ROUND": return roundFormulaNumber(scalar(0, 0), scalar(1, 0));
     case "ROUNDUP": return roundFormulaNumber(scalar(0, 0), scalar(1, 0), "up");
     case "ROUNDDOWN": return roundFormulaNumber(scalar(0, 0), scalar(1, 0), "down");
