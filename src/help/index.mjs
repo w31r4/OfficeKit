@@ -177,6 +177,10 @@ export const HELP_CATALOG = [
   { artifactKind: "workbook", kind: "formula", name: "fx.TEXTBEFORE", category: "text", summary: "Return the text before a delimiter occurrence, with bounded positive/negative instance selection, case mode, end matching, and an explicit not-found result.", examples: ["=TEXTBEFORE(A1,\"::\")", "=TEXTBEFORE(A1,\"/\",-1)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.TEXTAFTER", category: "text", summary: "Return the text after a delimiter occurrence, with bounded positive/negative instance selection, case mode, end matching, and an explicit not-found result.", examples: ["=TEXTAFTER(A1,\"::\")", "=TEXTAFTER(A1,\"/\",-1)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.TEXT", category: "text", summary: "Format an Excel serial date as text with the bounded yyyy, yy, m/mm/mmm/mmmm, and d/dd token profile and literal separators.", examples: ["=TEXT(DATE(2026,7,12),\"yyyymmdd\")", "=TEXT(A1,\"mmm yyyy\")"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.EXACT", category: "text", summary: "Compare two bounded scalar text values with case-sensitive equality; multi-cell sources and overlong values fail closed.", examples: ["=EXACT(A1,\"Approved\")"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.REPT", category: "text", summary: "Repeat one bounded scalar text value an integer number of times, with a 32,767-character result budget.", examples: ["=REPT(\"-\",10)"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.REPLACE", category: "text", summary: "Replace a bounded scalar text span using 1-based character and non-negative length arguments; invalid positions, matrices, and overlong results fail closed.", examples: ["=REPLACE(A1,1,5,\"Draft\")"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.SUBSTITUTE", category: "text", summary: "Replace all or one 1-based occurrence of a literal substring in bounded scalar text; matching is case-sensitive and empty search text fails closed.", examples: ["=SUBSTITUTE(A1,\"-\",\"/\")", "=SUBSTITUTE(A1,\"-\",\"/\",2)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.LEFT", category: "text", summary: "Return characters from the start of a text value.", examples: ["=LEFT(A1,3)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.RIGHT", category: "text", summary: "Return characters from the end of a text value.", examples: ["=RIGHT(A1,3)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.LEN", category: "text", summary: "Return the length of a text value.", examples: ["=LEN(A1)"] },
@@ -2367,7 +2371,7 @@ for (const item of HELP_CATALOG) {
       : item.category === "logical" || item.category === "information"
         ? (functionName === "IF" || functionName === "IFERROR" || functionName === "LET" ? "unknown" : "boolean")
         : item.category === "text"
-          ? (["LEN", "VALUE", "SEARCH", "FIND"].includes(functionName) ? "number" : "string")
+          ? (["LEN", "VALUE", "SEARCH", "FIND"].includes(functionName) ? "number" : functionName === "EXACT" ? "boolean" : "string")
           : functionName === "CHOOSE" || functionName === "XLOOKUP" || functionName === "INDEX" || functionName === "VLOOKUP" || functionName === "HLOOKUP"
             ? "unknown"
             : "number";

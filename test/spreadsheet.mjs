@@ -1836,6 +1836,50 @@ const importedTextBoundaryWorkbook = await SpreadsheetFile.importXlsx(textBounda
 assert.deepEqual(importedTextBoundaryWorkbook.worksheets.getItem("Text boundary").getRange("B1:B14").formulas, textBoundarySheet.getRange("B1:B14").formulas);
 assert.deepEqual(importedTextBoundaryWorkbook.worksheets.getItem("Text boundary").getRange("B1:B14").values, textBoundarySheet.getRange("B1:B14").values);
 
+const textTransformWorkbook = Workbook.create();
+const textTransformSheet = textTransformWorkbook.worksheets.add("Text transforms");
+textTransformSheet.getRange("A1:A2").values = [["Alpha"], ["Beta"]];
+textTransformSheet.getRange("B1:B16").formulas = [
+  ['=EXACT("Office","office")'],
+  ['=EXACT("Office","Office")'],
+  ['=EXACT(A1:A2,"x")'],
+  ['=REPT("ab",3)'],
+  ['=REPT("ab",0)'],
+  ['=REPT("ab",-1)'],
+  ['=REPT("abc",10923)'],
+  ['=REPLACE("abcdef",2,3,"Z")'],
+  ['=REPLACE("😀bc",2,1,"X")'],
+  ['=REPLACE("abc",99,1,"Z")'],
+  ['=REPLACE("abc",0,1,"Z")'],
+  ['=SUBSTITUTE("a-b-a","-","/")'],
+  ['=SUBSTITUTE("a-b-a","-","/",2)'],
+  ['=SUBSTITUTE("a-b","-","/",0)'],
+  ['=SUBSTITUTE("a-b","","/")'],
+  ['=SUBSTITUTE(A1:A2,"-","/")'],
+];
+assert.deepEqual(textTransformSheet.getRange("B1:B16").values, [
+  [false],
+  [true],
+  ["#VALUE!"],
+  ["ababab"],
+  [""],
+  ["#VALUE!"],
+  ["#VALUE!"],
+  ["aZef"],
+  ["😀Xc"],
+  ["abcZ"],
+  ["#VALUE!"],
+  ["a/b/a"],
+  ["a-b/a"],
+  ["#VALUE!"],
+  ["#VALUE!"],
+  ["#VALUE!"],
+]);
+const textTransformXlsx = await SpreadsheetFile.exportXlsx(textTransformWorkbook);
+const importedTextTransformWorkbook = await SpreadsheetFile.importXlsx(textTransformXlsx);
+assert.deepEqual(importedTextTransformWorkbook.worksheets.getItem("Text transforms").getRange("B1:B16").formulas, textTransformSheet.getRange("B1:B16").formulas);
+assert.deepEqual(importedTextTransformWorkbook.worksheets.getItem("Text transforms").getRange("B1:B16").values, textTransformSheet.getRange("B1:B16").values);
+
 const textSplitWorkbook = Workbook.create();
 const textSplitSheet = textSplitWorkbook.worksheets.add("Text split");
 textSplitSheet.getRange("A1:A5").values = [["North|West|South"], ["A||C"], ["a::b\nc"], ["||"], [Array.from({ length: 10_001 }, (_, index) => String(index)).join("|")]];
