@@ -94,7 +94,7 @@ const highRatioZip = new JSZip();
 highRatioZip.file("payload.xml", "A".repeat(10_000));
 const highRatioBytes = await highRatioZip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
 await assert.rejects(
-  () => inspectOoxmlPackage(highRatioBytes, { maxCompressionRatio: 2 }, { family: "DOCX" }),
+  () => inspectOoxmlPackage(highRatioBytes, { maxCompressionRatio: 1.5 }, { family: "DOCX" }),
   /maxCompressionRatio/i,
 );
 
