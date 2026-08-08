@@ -3272,6 +3272,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.DAYS` | formula | Return the whole-day difference between two Excel date serials. |
 | `fx.DB` | formula | Calculate one fixed-declining-balance depreciation period with an optional first-year month count. |
 | `fx.DDB` | formula | Calculate one double-declining-balance depreciation period with an optional positive factor. |
+| `fx.DEGREES` | formula | Convert finite radians to degrees with an explicit non-finite-result guard. |
 | `fx.DROP` | formula | Drop rows and optional columns from the start or end of an array and spill the remainder. |
 | `fx.EDATE` | formula | Shift a serial date by whole months and clamp the day to the target month end. |
 | `fx.EOMONTH` | formula | Return the final date serial of a month offset from a start date. |
@@ -3328,6 +3329,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.PPMT` | formula | Calculate the principal component of one constant-payment loan period using the same bounded inputs as IPMT. |
 | `fx.PRODUCT` | formula | Multiply numeric values across arguments and bounded ranges; formula errors propagate and empty invocation returns #VALUE!. |
 | `fx.PV` | formula | Calculate the present value of a finite constant-payment stream from rate, term, payment, optional future value, and payment timing. |
+| `fx.QUOTIENT` | formula | Return the integer portion of a division result, truncating toward zero and returning #DIV/0! for a zero divisor. |
+| `fx.RADIANS` | formula | Convert finite degrees to radians with an explicit non-finite-result guard. |
 | `fx.RANK.EQ` | formula | Return a number's equal rank in a numeric range, descending by default or ascending when order is nonzero. |
 | `fx.RATE` | formula | Solve a bounded periodic interest rate from an integer payment term, payment, present value, optional future value, payment timing, and optional guess. |
 | `fx.RIGHT` | formula | Return characters from the end of a text value. |
@@ -3347,6 +3350,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.SUMIF` | formula | Sum corresponding values using case-insensitive numeric/text criteria and Excel ?, *, and ~ wildcards. |
 | `fx.SUMIFS` | formula | Sum values where all supplied criteria ranges have the same size and match case-insensitive comparison or wildcard criteria. |
 | `fx.SUMPRODUCT` | formula | Multiply corresponding numeric values in equally sized arrays and return the sum of those products; bounded same-shape direct-range predicate factors support comparisons, unary signs, and scalar arithmetic within SUMPRODUCT. |
+| `fx.SUMSQ` | formula | Sum the squares of numeric values across arguments and bounded ranges; overflow returns #NUM! and formula errors propagate. |
 | `fx.SWITCH` | formula | Match an expression against ordered value/result pairs and return an optional default or #N/A when no value matches. |
 | `fx.TAKE` | formula | Take rows and optional columns from the start or end of an array and spill the result. |
 | `fx.TEXT` | formula | Format an Excel serial date as text with the bounded yyyy, yy, m/mm/mmm/mmmm, and d/dd token profile and literal separators. |
@@ -3357,6 +3361,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.TOROW` | formula | Flatten an array into one spilled row, optionally ignoring blanks or errors and scanning by column. |
 | `fx.TRANSPOSE` | formula | Transpose a source range into a spilled dynamic array with spillRange/spillValues inspect metadata. |
 | `fx.TRIM` | formula | Trim leading/trailing whitespace and collapse internal whitespace. |
+| `fx.TRUNC` | formula | Truncate a finite number toward zero at an optional decimal position without rounding. |
 | `fx.UNIQUE` | formula | Return unique rows from a range as a spilled dynamic array. |
 | `fx.UPPER` | formula | Convert text to uppercase. |
 | `fx.VALUE` | formula | Convert deterministic ASCII numeric text with optional grouping, scientific notation, accounting parentheses, or percent suffix to a number. |
@@ -3904,6 +3909,23 @@ Calculate one double-declining-balance depreciation period with an optional posi
 **Notes:**
 
 - The bounded evaluator requires nonnegative cost and salvage, salvage no greater than cost, and integer life and period from 1 through 9,999. The factor defaults to 2, must be positive, and depreciation is capped at the remaining amount above salvage without a silent straight-line switch.
+
+#### `fx.DEGREES`
+
+Convert finite radians to degrees with an explicit non-finite-result guard.
+
+**Examples:**
+
+- =DEGREES(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =DEGREES(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.DROP`
 
@@ -4901,6 +4923,40 @@ Calculate the present value of a finite constant-payment stream from rate, term,
 
 - The bounded evaluator requires rate > -1, a positive finite term, and payment type 0 or 1. It preserves standard cash-flow signs and returns #VALUE! or #NUM! for invalid inputs rather than coercing them.
 
+#### `fx.QUOTIENT`
+
+Return the integer portion of a division result, truncating toward zero and returning #DIV/0! for a zero divisor.
+
+**Examples:**
+
+- =QUOTIENT(A1,7)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =QUOTIENT(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.RADIANS`
+
+Convert finite degrees to radians with an explicit non-finite-result guard.
+
+**Examples:**
+
+- =RADIANS(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =RADIANS(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.RANK.EQ`
 
 Return a number's equal rank in a numeric range, descending by default or ascending when order is nonzero.
@@ -5235,6 +5291,23 @@ Multiply corresponding numeric values in equally sized arrays and return the sum
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.SUMSQ`
+
+Sum the squares of numeric values across arguments and bounded ranges; overflow returns #NUM! and formula errors propagate.
+
+**Examples:**
+
+- =SUMSQ(A1:A10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =SUMSQ(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.SWITCH`
 
 Match an expression against ordered value/result pairs and return an optional default or #N/A when no value matches.
@@ -5405,6 +5478,23 @@ Trim leading/trailing whitespace and collapse internal whitespace.
 **Schema returns:**
 
 - `value` (string) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.TRUNC`
+
+Truncate a finite number toward zero at an optional decimal position without rounding.
+
+**Examples:**
+
+- =TRUNC(A1,2)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =TRUNC(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.UNIQUE`
 
