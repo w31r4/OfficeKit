@@ -606,7 +606,7 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "exportPptxWithOfficeKit"
 assert.equal(HELP_CATALOG.find((item) => item.name === "importPptxWithOfficeKit")?.schema?.returns?.presentation?.type, "Presentation");
 assert.equal(HELP_CATALOG.find((item) => item.name === "importXlsxWithOfficeKit")?.schema?.parameters?.limits?.type, "object");
 assert.match(HELP_CATALOG.find((item) => item.name === "importXlsxWithOfficeKit")?.schema?.returns?.workbook?.description || "", /canonical Office 2010 sparkline groups.*non-reversible sparkline graphs.*preserved unchanged/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "workbook.sharedArrayFormulas")?.summary || "", /dynamic-array anchors.*source-bound and read-only/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "workbook.sharedArrayFormulas")?.summary || "", /source-free XLDAPR.*imported dynamic-array anchors.*source-bound and read-only/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "workbook.comments.addThread")?.schema?.returns?.thread?.description || "", /direct replies.*OfficeKit export\/import.*nested\/branched.*fail closed/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "thread.addReply")?.schema?.parameters?.text?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "thread.addReply")?.schema?.returns?.thread?.description || "", /direct reply.*nested graph.*fail closed/i);

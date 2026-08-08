@@ -1090,10 +1090,19 @@ const dynamicCell = dynamicSheet.store.get("A1");
 dynamicCell.formula = "=SEQUENCE(2)";
 dynamicCell.formulaType = "dynamicArray";
 dynamicCell.dynamicArrayRef = "A1:A2";
-await assert.rejects(
-  () => SpreadsheetFile.exportXlsx(dynamicWorkbook),
-  (error) => error?.code === "unsupported_workbook_features" && /source-free dynamic array/i.test(error.message),
-);
+const dynamicXlsx = await SpreadsheetFile.exportXlsx(dynamicWorkbook);
+const dynamicZip = await JSZip.loadAsync(new Uint8Array(await dynamicXlsx.arrayBuffer()));
+const dynamicMetadataPath = Object.keys(dynamicZip.files).find((name) => /(?:^|\/)metadata(?:[0-9]+)?\.xml$/i.test(name));
+assert.ok(dynamicMetadataPath, "source-free dynamic array export must contain a workbook metadata part");
+const dynamicMetadataXml = await dynamicZip.file(dynamicMetadataPath).async("text");
+assert.match(dynamicMetadataXml, /XLDAPR/);
+assert.match(dynamicMetadataXml, /dynamicArrayProperties/);
+assert.match(dynamicMetadataXml, /fDynamic="1"/);
+const importedDynamicWorkbook = await SpreadsheetFile.importXlsx(dynamicXlsx);
+const importedDynamicCell = importedDynamicWorkbook.worksheets.getItem("Main").store.get("A1");
+assert.equal(importedDynamicCell.formula, "=SEQUENCE(2)");
+assert.equal(importedDynamicCell.formulaType, "dynamicArray");
+assert.equal(importedDynamicCell.dynamicArrayRef, "A1:A2");
 
 const ifsFormulaWorkbook = Workbook.create();
 const ifsFormulaSheet = ifsFormulaWorkbook.worksheets.add("Criteria");

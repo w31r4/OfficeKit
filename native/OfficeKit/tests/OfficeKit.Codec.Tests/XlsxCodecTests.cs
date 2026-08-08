@@ -3131,7 +3131,7 @@ public sealed class XlsxCodecTests
     }
 
     [Fact]
-    public void ProtocolRejectsSourceFreeAndPreservesImportedDynamicArrayMetadataReadOnly()
+    public void ProtocolAuthorsSourceFreeAndPreservesImportedDynamicArrayMetadataReadOnly()
     {
         var request = FormulaExportRequest();
         request.Artifact.Workbook.Worksheets[0].Cells.Add(new CellArtifact
@@ -3145,10 +3145,47 @@ public sealed class XlsxCodecTests
         request.Artifact.Workbook.Worksheets[0].Cells.Add(new CellArtifact { Row = 0, Column = 7, NumberValue = 2 });
         request.Artifact.Workbook.Worksheets[0].Cells.Add(new CellArtifact { Row = 1, Column = 6, NumberValue = 3 });
         request.Artifact.Workbook.Worksheets[0].Cells.Add(new CellArtifact { Row = 1, Column = 7, NumberValue = 4 });
+        request.Artifact.Workbook.Worksheets[0].Cells.Add(new CellArtifact
+        {
+            Row = 0,
+            Column = 9,
+            Formula = "=SEQUENCE(2,2,10,1)",
+            NumberValue = 10,
+            FormulaMetadata = new CellFormulaMetadata { Kind = CellFormulaKind.DynamicArray, Reference = "J1:K2" },
+        });
+        request.Artifact.Workbook.Worksheets[0].Cells.Add(new CellArtifact { Row = 0, Column = 10, NumberValue = 11 });
+        request.Artifact.Workbook.Worksheets[0].Cells.Add(new CellArtifact { Row = 1, Column = 9, NumberValue = 12 });
+        request.Artifact.Workbook.Worksheets[0].Cells.Add(new CellArtifact { Row = 1, Column = 10, NumberValue = 13 });
 
-        var rejected = CodecResponse.Parser.ParseFrom(CodecProtocol.Invoke(request.ToByteArray()));
-        Assert.False(rejected.Ok);
-        Assert.Equal("unsupported_dynamic_array_edit", Assert.Single(rejected.Diagnostics).Code);
+        var sourceFree = CodecResponse.Parser.ParseFrom(CodecProtocol.Invoke(request.ToByteArray()));
+        Assert.True(sourceFree.Ok, string.Join("\n", sourceFree.Diagnostics.Select(item => $"{item.Code}: {item.Message}")));
+        AssertOffice2021Valid(sourceFree.File.ToByteArray());
+        using (var stream = new MemoryStream(sourceFree.File.ToByteArray()))
+        using (var document = SpreadsheetDocument.Open(stream, false))
+        {
+            var metadata = document.WorkbookPart!.CellMetadataPart?.Metadata;
+            Assert.NotNull(metadata);
+            Assert.Contains("XLDAPR", metadata!.OuterXml);
+            Assert.Contains("dynamicArrayProperties", metadata.OuterXml);
+            Assert.Contains("fDynamic=\"1\"", metadata.OuterXml);
+            Assert.Equal(2U, metadata.GetFirstChild<CellMetadata>()!.Count!.Value);
+            var cells = document.WorkbookPart.WorksheetParts.Single().Worksheet!.Descendants<Cell>().ToDictionary(item => item.CellReference!.Value!);
+            Assert.Equal(1U, cells["G1"].CellMetaIndex!.Value);
+            Assert.Equal(CellFormulaValues.Array, cells["G1"].CellFormula!.FormulaType!.Value);
+            Assert.Equal("G1:H2", cells["G1"].CellFormula!.Reference!.Value);
+            Assert.Equal(2U, cells["J1"].CellMetaIndex!.Value);
+            Assert.Equal(CellFormulaValues.Array, cells["J1"].CellFormula!.FormulaType!.Value);
+            Assert.Equal("J1:K2", cells["J1"].CellFormula!.Reference!.Value);
+        }
+
+        var sourceFreeImport = Import(sourceFree.File.ToByteArray());
+        Assert.True(sourceFreeImport.Ok, string.Join("\n", sourceFreeImport.Diagnostics.Select(item => $"{item.Code}: {item.Message}")));
+        var sourceFreeDynamic = sourceFreeImport.Artifact.Workbook.Worksheets[0].Cells.Single(cell => cell.Row == 0 && cell.Column == 6);
+        Assert.Equal(CellFormulaKind.DynamicArray, sourceFreeDynamic.FormulaMetadata.Kind);
+        Assert.Equal("G1:H2", sourceFreeDynamic.FormulaMetadata.Reference);
+        var secondSourceFreeDynamic = sourceFreeImport.Artifact.Workbook.Worksheets[0].Cells.Single(cell => cell.Row == 0 && cell.Column == 9);
+        Assert.Equal(CellFormulaKind.DynamicArray, secondSourceFreeDynamic.FormulaMetadata.Kind);
+        Assert.Equal("J1:K2", secondSourceFreeDynamic.FormulaMetadata.Reference);
 
         var authored = CodecResponse.Parser.ParseFrom(CodecProtocol.Invoke(FormulaExportRequest().ToByteArray()));
         Assert.True(authored.Ok, string.Join("\n", authored.Diagnostics.Select(item => $"{item.Code}: {item.Message}")));
@@ -3182,6 +3219,7 @@ public sealed class XlsxCodecTests
         Assert.True(preserved.Ok, string.Join("\n", preserved.Diagnostics.Select(item => $"{item.Code}: {item.Message}")));
         Assert.Equal(metadataBefore, ReadEntry(preserved.File.ToByteArray(), metadataPartPath));
 
+        CodecResponse rejected;
         dynamic.Formula = "=SEQUENCE(2)";
         rejected = Export(imported.Artifact);
         Assert.False(rejected.Ok);

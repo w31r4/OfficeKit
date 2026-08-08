@@ -612,11 +612,6 @@ function sourceBoundFormulaCellSnapshot(cell) {
   };
 }
 
-function isDynamicArrayCell(cell) {
-  return cell?.formulaType === "dynamicArray" || cell?.dynamicArrayRef != null ||
-    (Boolean(cell?.formula) && cell?.spillRange != null && !cell?.spillError);
-}
-
 function unsupportedWorkbookFeatures(workbook, state) {
   const unsupported = [];
   if (workbook.indexedColors?.length) unsupported.push("custom indexed colors");
@@ -625,8 +620,6 @@ function unsupportedWorkbookFeatures(workbook, state) {
     const prefix = `worksheet ${sheet.name}`;
     if (sheet.shapes?.length) unsupported.push(`${prefix} shapes`);
     for (const [address, cell] of sheet.store?.entries?.() || []) {
-      const dynamicSlot = state?.dynamicArraySlotsBySheet?.get(sheet.id)?.get(address);
-      if (isDynamicArrayCell(cell) && !dynamicSlot) unsupported.push(`${prefix} source-free dynamic array at ${address}`);
       if (cell.style && Object.keys(cell.style).some((key) => cell.style[key] != null)) wireCellStyle(cell.style, `${sheet.name}!${address}`);
       const metadata = Object.keys(cell).filter((key) => !["value", "formula", "style"].includes(key) && !XLSX_FORMULA_METADATA_KEYS.has(key));
       if (metadata.length) unsupported.push(`${prefix} advanced formula metadata at ${address}`);
