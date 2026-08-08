@@ -20,6 +20,7 @@ import {
 const packageModule = await import("../src/ooxml/package.mjs");
 assert.deepEqual(Object.keys(packageModule).sort(), [
   "inspectOoxmlPackage",
+  "loadOoxmlZipWithinBudget",
   "ooxmlResolveRelationshipTarget",
   "ooxmlSafePartPath",
   "patchOoxmlPackage",

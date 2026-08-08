@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
-import JSZip from "jszip";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
+import { loadOoxmlZipWithinBudget } from "../ooxml/package.mjs";
 
 function fail(code, message) {
   throw new OfficeKitCodecError(message, [], { code });
@@ -39,7 +39,7 @@ function sha256(bytes) {
 // complete source package remains canonical in opaque_opc; byte extraction is
 // needed solely so the ordinary JS presentation model can retain the same
 // read-only native object until its next canonical OfficeKit export.
-export async function materializePresentationNativeGraphs(envelope) {
+export async function materializePresentationNativeGraphs(envelope, options = {}) {
   const opaqueOpc = envelope.opaqueOpc;
   const opaqueElements = envelope.payload?.case === "presentation"
     ? envelope.payload.value.slides.flatMap((slide) => slide.elements
@@ -62,7 +62,7 @@ export async function materializePresentationNativeGraphs(envelope) {
   if ([...requestedPaths].some((partPath) => !(partsByPath.get(partPath)?.data?.length))) {
     if (!sourceBytes?.length) fail("missing_source_package", "OfficeKit native-object graph cannot be materialized because its source package snapshot is missing.");
     try {
-      zip = await JSZip.loadAsync(sourceBytes, { createFolders: false });
+      zip = await loadOoxmlZipWithinBudget(sourceBytes, options, "PPTX");
     } catch (error) {
       fail("invalid_opc_package", `OfficeKit source package snapshot is not a readable ZIP package: ${error.message}`);
     }
