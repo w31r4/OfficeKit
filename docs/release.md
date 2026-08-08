@@ -2,11 +2,27 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after the format-local Document codec change. The
-clean candidate contains 707 files, 36,234,226 compressed bytes, and
-53,512,168 unpacked bytes; its measured shasum is
-`0200dfcb339425f02eca76e91d4c6e40f8c5f165`. This is package evidence, not an
+The package dry-run passed after separating generated repository evidence from
+the consumer runtime payload. The clean candidate contains 706 files,
+36,130,097 compressed bytes, and 53,028,115 unpacked bytes; its measured shasum
+is `9fe25ab8032e7af06573501234bbd6f411fba68f`. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: generated API evidence outside the npm runtime payload
+
+`docs/api.md` remains generated from the public Help catalog by
+`npm run docs:api`, committed to GitHub, and checked for a clean diff in hosted
+release gates. It is repository release evidence rather than executable or
+offline Skill runtime, so it is no longer duplicated in the npm tarball. The
+packaged English and Chinese READMEs link to the canonical GitHub document;
+`src/help/index.mjs` remains the shipped offline API contract.
+
+The package-content gate now rejects a tarball that reintroduces the generated
+Markdown, while continuing to require the codec/runtime, public wire schema,
+Skills, templates, provider policy, and consumer guidance. The unpacked ceiling
+was tightened from 53,520,000 to 53,200,000 bytes. The measured candidate is
+487,049 bytes smaller unpacked and retains 171,885 bytes of bounded product
+headroom without deleting a runtime capability.
 
 ## Unreleased: format-local Document codec loading
 

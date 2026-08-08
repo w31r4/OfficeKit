@@ -279,10 +279,10 @@ Generated wire types are available from `office-kit/codec/wire`.
 
 ## Documentation and development
 
-- [API reference](docs/api.md)
-- [Reference Skill compatibility](docs/reference-skills.md)
-- [Complete capability boundary](docs/coverage.md)
-- [Release status](docs/release.md)
+- [API reference](https://github.com/w31r4/OfficeKit/blob/main/docs/api.md)
+- [Reference Skill compatibility](https://github.com/w31r4/OfficeKit/blob/main/docs/reference-skills.md)
+- [Complete capability boundary](https://github.com/w31r4/OfficeKit/blob/main/docs/coverage.md)
+- [Release status](https://github.com/w31r4/OfficeKit/blob/main/docs/release.md)
 
 ```sh
 npm test

@@ -259,10 +259,10 @@ await file.save("summary.xlsx");
 
 ## 文档与开发
 
-- [API 参考](docs/api.md)
-- [参考 Skill 兼容性](docs/reference-skills.md)
-- [全部能力边界](docs/coverage.md)
-- [发布状态](docs/release.md)
+- [API 参考](https://github.com/w31r4/OfficeKit/blob/main/docs/api.md)
+- [参考 Skill 兼容性](https://github.com/w31r4/OfficeKit/blob/main/docs/reference-skills.md)
+- [全部能力边界](https://github.com/w31r4/OfficeKit/blob/main/docs/coverage.md)
+- [发布状态](https://github.com/w31r4/OfficeKit/blob/main/docs/release.md)
 
 ```sh
 npm test

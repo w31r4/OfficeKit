@@ -170,33 +170,12 @@ const files = report.files.map((item) => item.path);
 // default DOCX/XLSX/PPTX templates once inside the package. Keep narrow
 // cross-platform headroom over the measured 36,175,810-byte archive.
 const maxPackedBytes = 37_500_000;
-// The bundled OfficeKit runtime is an audited product payload, not an
-// optional download. Keep its unpacked budget tight while allowing the
-// audited PDF provider/docs growth plus the bounded Office codecs and runnable
-// workflows. The managed-capability resolver distributes only catalog, policy,
-// and installer source -- never specialist binaries. Keep bounded headroom for
-// its Skill/API contract without concealing a runtime bundle in the npm tarball.
-// The MIT Default Template Library is a deliberate consumer payload: init
-// references it in place and never copies it into a project. Its twenty
-// retained Office files, previews, metadata cards, and Skill instructions
-// account for the 0.4.0 budget increase. PowerPoint sections plus the bounded transition and rich
-// speaker-notes leaves, the public formula catalog, bounded formula expression
-// parser, SUMPRODUCT range-mask profile, source-bound DOCX header/footer,
-// source-bound PowerPoint section-name and complete-boundary transactions, and
-// source-free structured page-furniture fields and source-bound PPTX
-// view-properties mutation,
-// the compact OfficeKit routing Skill plus its local BM25F template retrieval,
-// XLSX connection-refresh and imported-Pivot refresh-on-load transactions,
-// formula-input syntax guard, and source-bound embedded-DOCX OLE package
-// replacement, plus the canonical DOCX 1-through-16-paragraph note body and
-// source-bound section line-numbering, column-profile, break-type, fixed-table
-// column-width, direct-formatting, repeat-header-row, and image-alt-text
-// transactions add protobuf, audited WASM, public Help, and native guidance;
-// retain measured headroom instead of hiding that product surface. The
-// Source-aware formula introspection and OOXML input-budget Help/API evidence
-// add a small measured payload; the bounded ceiling moves by 10 KiB rather
-// than silently allowing an unbounded package increase.
-const maxUnpackedBytes = 53_520_000;
+// The npm payload owns executable runtime, public schemas, Skills, templates,
+// and offline consumer guidance. Repository-generated evidence such as the API
+// Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
+// Keep measured headroom for bounded codec/Skill growth without concealing
+// specialist binaries or generated repository evidence in the tarball.
+const maxUnpackedBytes = 53_200_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -222,7 +201,6 @@ for (const required of [
   "README.zh-CN.md",
   "THIRD_PARTY_NOTICES.md",
   "bin/officekit.mjs",
-  "docs/api.md",
   "docs/reference-skills.md",
   "docs/template-library-provenance.md",
   "proto/office_kit/artifact/v1/office_artifact.proto",
@@ -560,7 +538,14 @@ assert.ok(
   "npm runtime package must not contain platform-specific standalone release assets",
 );
 assert.ok(files.every((file) => !file.startsWith("evals/") && file !== "docs/agent-evals.md"), "npm runtime package must exclude the evaluator-side PromptBench and its oracle documentation");
-assert.ok(!files.includes("docs/coverage.md") && !files.includes("docs/release.md") && !files.includes("docs/reference-runtime-architecture.md") && !files.includes("native/OfficeKit/README.md"), "npm runtime package must exclude repository-only coverage, release history, and subsystem implementation notes");
+assert.ok(
+  !files.includes("docs/api.md")
+    && !files.includes("docs/coverage.md")
+    && !files.includes("docs/release.md")
+    && !files.includes("docs/reference-runtime-architecture.md")
+    && !files.includes("native/OfficeKit/README.md"),
+  "npm runtime package must exclude generated/repository-only API, coverage, release, and subsystem notes",
+);
 const skillPngs = report.files.filter(({ path: filename }) => /^skills\/(?:documents|spreadsheets|presentations|pdf)\/.*\.png$/.test(filename));
 const skillPngBytes = skillPngs.reduce((total, { size }) => total + size, 0);
 assert.equal(skillPngs.length, 40, "npm package must retain all 40 public Skill PNG assets");
