@@ -7,9 +7,19 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const mode = process.argv[2] || "fast";
+const gateArgs = process.argv.slice(3);
+
+let segment;
+if (gateArgs.length > 0) {
+  if (gateArgs.length !== 2 || gateArgs[0] !== "--segment" || !gateArgs[1]) {
+    console.error(`invalid gate options ${JSON.stringify(gateArgs)}; expected --segment <name> for the slow gate`);
+    process.exit(2);
+  }
+  segment = gateArgs[1];
+}
 
 const nodeStep = (script, ...args) => ({
-  label: `node ${script}`,
+  label: `node ${script}${args.length ? ` ${args.join(" ")}` : ""}`,
   command: process.execPath,
   args: [script, ...args],
 });
@@ -66,7 +76,12 @@ const slowSteps = [
   nodeStep("test/presentation-jsx.mjs"),
   nodeStep("test/presentation-skill.mjs"),
   nodeStep("test/template-library.mjs"),
-  nodeStep("test/default-template-library.mjs"),
+  nodeStep("test/default-template-library.mjs", "--shard", "documents-a"),
+  nodeStep("test/default-template-library.mjs", "--shard", "documents-b"),
+  nodeStep("test/default-template-library.mjs", "--shard", "presentations-a"),
+  nodeStep("test/default-template-library.mjs", "--shard", "presentations-b"),
+  nodeStep("test/default-template-library.mjs", "--shard", "spreadsheets-a"),
+  nodeStep("test/default-template-library.mjs", "--shard", "spreadsheets-b"),
   nodeStep("test/template-creator.mjs"),
   nodeStep("test/office-kit-skill.mjs"),
   nodeStep("test/officekit-cli.mjs"),
@@ -122,14 +137,54 @@ const slowSteps = [
   nodeStep("test/help.mjs"),
 ];
 
-const steps = mode === "fast" ? fastSteps : mode === "slow" ? slowSteps : null;
+const slowSegments = Object.freeze({
+  foundation: Object.freeze({ start: 0, end: 11 }),
+  presentation: Object.freeze({ start: 11, end: 14 }),
+  templates: Object.freeze({ start: 14, end: 21 }),
+  officekit: Object.freeze({ start: 21, end: 26 }),
+  documents: Object.freeze({ start: 26, end: 35 }),
+  "pdf-packs": Object.freeze({ start: 35, end: 44 }),
+  "pdf-providers": Object.freeze({ start: 44, end: 53 }),
+  "pdf-specialists": Object.freeze({ start: 53, end: 62 }),
+  qa: Object.freeze({ start: 62, end: 69 }),
+  release: Object.freeze({ start: 69, end: 74 }),
+});
+
+const segmentRanges = Object.values(slowSegments);
+if (
+  segmentRanges[0]?.start !== 0
+  || segmentRanges.at(-1)?.end !== slowSteps.length
+  || segmentRanges.some((range, index) => index > 0 && range.start !== segmentRanges[index - 1].end)
+) {
+  throw new Error("slow gate segments must form one contiguous cover of slowSteps");
+}
+
+if (segment && mode !== "slow") {
+  console.error(`test gate segments are only available for slow; received ${JSON.stringify(mode)}`);
+  process.exit(2);
+}
+
+const selectedSlowRange = segment ? slowSegments[segment] : null;
+if (segment && !selectedSlowRange) {
+  console.error(`unknown slow gate segment ${JSON.stringify(segment)}; expected one of ${Object.keys(slowSegments).join(", ")}`);
+  process.exit(2);
+}
+
+const steps = mode === "fast"
+  ? fastSteps
+  : mode === "slow"
+    ? selectedSlowRange
+      ? slowSteps.slice(selectedSlowRange.start, selectedSlowRange.end)
+      : slowSteps
+    : null;
 if (!steps) {
   console.error(`unknown test gate ${JSON.stringify(mode)}; expected fast or slow`);
   process.exit(2);
 }
 
+const gateLabel = segment ? `${mode}/${segment}` : mode;
 for (const [index, step] of steps.entries()) {
-  console.error(`[${mode} gate ${index + 1}/${steps.length}] ${step.label}`);
+  console.error(`[${gateLabel} gate ${index + 1}/${steps.length}] ${step.label}`);
   const result = spawnSync(step.command, step.args, {
     cwd: repoRoot,
     env: process.env,
@@ -137,13 +192,13 @@ for (const [index, step] of steps.entries()) {
     shell: step.shell ?? false,
   });
   if (result.error) {
-    console.error(`[${mode} gate] failed to start ${step.label}: ${result.error.message}`);
+    console.error(`[${gateLabel} gate] failed to start ${step.label}: ${result.error.message}`);
     process.exit(1);
   }
   if (result.status !== 0) {
-    if (result.signal) console.error(`[${mode} gate] ${step.label} terminated by ${result.signal}`);
+    if (result.signal) console.error(`[${gateLabel} gate] ${step.label} terminated by ${result.signal}`);
     process.exit(result.status ?? 1);
   }
 }
 
-console.error(`${mode} gate passed (${steps.length} steps)`);
+console.error(`${gateLabel} gate passed (${steps.length} steps)`);

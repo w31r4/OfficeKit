@@ -7,6 +7,7 @@ const packageJson = JSON.parse(await fs.readFile(path.join(repoRoot, "package.js
 const gateRunner = await fs.readFile(path.join(repoRoot, "scripts", "run-test-gate.mjs"), "utf8");
 const ci = await fs.readFile(path.join(repoRoot, ".github", "workflows", "ci.yml"), "utf8");
 const slow = await fs.readFile(path.join(repoRoot, ".github", "workflows", "ci-slow.yml"), "utf8");
+const release = await fs.readFile(path.join(repoRoot, ".github", "workflows", "release.yml"), "utf8");
 const windows = await fs.readFile(path.join(repoRoot, ".github", "workflows", "windows-office-live.yml"), "utf8");
 
 assert.equal(packageJson.scripts.test, "node scripts/run-test-gate.mjs fast");
@@ -25,6 +26,30 @@ assert.doesNotMatch(fastSource, /default-template-library|agent-evals|pdf-provid
 assert.match(slowSource, /default-template-library/);
 assert.match(slowSource, /agent-evals/);
 assert.match(slowSource, /pdf-provider-pack-build/);
+const slowSegments = [
+  "foundation",
+  "presentation",
+  "templates",
+  "officekit",
+  "documents",
+  "pdf-packs",
+  "pdf-providers",
+  "pdf-specialists",
+  "qa",
+  "release",
+];
+const templateShards = ["documents-a", "documents-b", "presentations-a", "presentations-b", "spreadsheets-a", "spreadsheets-b"];
+assert.match(slowSource, /const slowSegments = Object\.freeze/);
+for (const shard of templateShards) assert.match(slowSource, new RegExp(`"--shard", "${shard}"`));
+for (const segment of slowSegments) {
+  assert.match(slowSource, new RegExp(`${segment.replaceAll("-", "\\-")}:?`));
+  assert.match(slow, new RegExp(`npm run test:slow -- --segment ${segment}`));
+  assert.match(release, new RegExp(`npm run test:slow -- --segment ${segment}`));
+}
+assert.doesNotMatch(slow, /run:\s*npm run test:slow\s*$/m);
+assert.doesNotMatch(release, /run:\s*npm run test:slow\s*$/m);
+assert.doesNotMatch(slow, /OFFICE_TEMPLATE_SOURCE_ROOT:/);
+assert.doesNotMatch(release, /OFFICE_TEMPLATE_SOURCE_ROOT:/);
 
 assert.match(ci, /name:\s*Fast gate/);
 assert.match(ci, /npm test/);

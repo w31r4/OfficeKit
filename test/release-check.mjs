@@ -38,6 +38,27 @@ assert.match(ciWorkflow, /npm test/);
 assert.doesNotMatch(ciWorkflow, /playwright install|libreoffice-writer|setup-dotnet/);
 assert.match(slowWorkflow, /workflow_dispatch/);
 assert.match(slowWorkflow, /npm run test:slow/);
+const slowSegments = [
+  "foundation",
+  "presentation",
+  "templates",
+  "officekit",
+  "documents",
+  "pdf-packs",
+  "pdf-providers",
+  "pdf-specialists",
+  "qa",
+  "release",
+];
+for (const segment of slowSegments) {
+  assert.match(slowWorkflow, new RegExp(`npm run test:slow -- --segment ${segment}`));
+  assert.match(releaseWorkflow, new RegExp(`npm run test:slow -- --segment ${segment}`));
+}
+assert.doesNotMatch(slowWorkflow, /run:\s*npm run test:slow\s*$/m);
+assert.doesNotMatch(releaseWorkflow, /run:\s*npm run test:slow\s*$/m);
+assert.doesNotMatch(slowWorkflow, /OFFICE_TEMPLATE_SOURCE_ROOT:/);
+assert.doesNotMatch(releaseWorkflow, /OFFICE_TEMPLATE_SOURCE_ROOT:/);
+assert.match(releaseWorkflow, /submodules:\s*true/);
 assert.match(windowsLiveWorkflow, /self-hosted/);
 assert.match(windowsLiveWorkflow, /validate-windows-live-evidence/);
 assert.match(standaloneWorkflow, /node-version:\s*24\.18\.0/);
