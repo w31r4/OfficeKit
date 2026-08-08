@@ -57,6 +57,7 @@ const FORMULA_REFERENCE_TOTAL_MAX_CELLS = 20_000;
 const FORMULA_MAX_CHARACTERS = 8_192;
 const FORMULA_MAX_NESTING = 64;
 const FORMULA_MAX_OPERATORS = 512;
+const FORMULA_LET_MAX_BINDINGS = 16;
 // Direct spill references are ranges, not scalar coercions. Keep the finite
 // set explicit so unsupported scalar/vector functions fail closed instead of
 // accidentally consuming the upper-left spilled value.
@@ -864,10 +865,22 @@ function formulaReferenceValues(sheet, refText, context = {}) {
 }
 
 const FORMULA_NUMERIC_LITERAL = /^-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+const FORMULA_LET_NAME = /^[A-Za-z_][A-Za-z0-9_.]*$/;
+
+function formulaLetBindingName(value) {
+  const name = String(value ?? "").trim();
+  if (!FORMULA_LET_NAME.test(name) || /^(?:R|C)$/i.test(name) || formulaRefParts(name)) return undefined;
+  return name.toUpperCase();
+}
 
 function formulaAtomicScalar(sheet, expr, context = {}) {
   const text = String(expr ?? "").trim();
   if (text === "") return undefined;
+  const bindings = context.formulaBindings;
+  if (bindings instanceof Map && bindings.has(text.toUpperCase())) {
+    const value = bindings.get(text.toUpperCase());
+    return isFormulaMatrix(value) ? "#VALUE!" : value;
+  }
   const quoted = formulaUnquote(text);
   if (quoted !== undefined) return quoted;
   const error = formulaErrorCode(text);
@@ -1873,6 +1886,28 @@ function evaluateFormulaFunction(sheet, fnName, args, context = {}) {
   }
 }
 
+function evaluateFormulaLet(sheet, args, context = {}) {
+  if (args.length < 3 || args.length % 2 === 0 || ((args.length - 1) / 2) > FORMULA_LET_MAX_BINDINGS) return "#VALUE!";
+  const bindings = new Map(context.formulaBindings instanceof Map ? context.formulaBindings : []);
+  const evaluationContext = { ...context, formulaBindings: bindings };
+  for (let index = 0; index < args.length - 1; index += 2) {
+    const name = formulaLetBindingName(args[index]);
+    if (!name) return "#VALUE!";
+    const bindingExpression = String(args[index + 1] ?? "").trim();
+    const bindingIsLocal = bindings.has(bindingExpression.toUpperCase());
+    const bindingReference = bindingIsLocal ? undefined : formulaRefParts(bindingExpression) || formulaDefinedNameRange(sheet, bindingExpression);
+    if (!bindingIsLocal && (bindingReference?.spill || (formulaReferenceExpressionCellCount(sheet, bindingExpression, evaluationContext) || 0) > 1)) return "#VALUE!";
+    const value = formulaScalar(sheet, args[index + 1], evaluationContext);
+    if (value === undefined || isFormulaMatrix(value)) return "#VALUE!";
+    const error = formulaErrorCode(value);
+    if (error) return error;
+    bindings.set(name, value);
+  }
+  const result = formulaScalar(sheet, args.at(-1), evaluationContext);
+  if (result === undefined || isFormulaMatrix(result)) return "#VALUE!";
+  return result;
+}
+
 function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
   const values = (parts = args) => parts.flatMap((part) => formulaReferenceValues(sheet, part, context));
   const dateSystem = excelFormulaDateSystem(sheet);
@@ -2171,6 +2206,7 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "NETWORKDAYS.INTL": return excelNetworkDays(scalar(0, 0), scalar(1, 0), args[3] == null ? [] : values([args[3]]), dateSystem, scalar(2, 1), true);
     case "WORKDAY.INTL": return excelWorkday(scalar(0, 0), scalar(1, 0), args[3] == null ? [] : values([args[3]]), dateSystem, scalar(2, 1));
     case "IF": return evaluateFormulaCondition(sheet, args[0], context) ? scalar(1, true) : scalar(2, false);
+    case "LET": return evaluateFormulaLet(sheet, args, context);
     case "IFS": {
       if (args.length < 2 || args.length % 2 !== 0) return "#VALUE!";
       for (let index = 0; index < args.length; index += 2) {
