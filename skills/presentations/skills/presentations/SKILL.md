@@ -23,7 +23,8 @@ review → verify before `ctx.publish`. Register previews and QA reports with
 `ctx.recordEvidence`, and report the final absolute path, SHA-256, and
 `visualReview` status. Use the image capability matrix below to choose user or
 template assets and native Office shapes when visual generation or inspection
-is unavailable.
+is unavailable. After reopening the final PPTX, follow
+`../office-kit/references/review.md`.
 
 ## Important Instructions
 
@@ -917,12 +918,16 @@ options.
 ## QA Reminder
 
 Before delivery, render every final slide and inspect each slide individually
-at full size. Use a contact sheet only to review deck-level flow and consistency,
-not as a substitute for full-size layout QA. Fix unintended overlap, clipping,
-wrapping, broken connectors, unresolved placeholders, inconsistent footers/page
-markers, and chart/data
-mismatches before exporting. Verify that researched claims and sourced assets
-are traceable, and cite sources if research was used.
+at full size when visual input is available. Use a contact sheet only to review
+deck-level flow and consistency, not as a substitute for full-size layout QA.
+Without visual input, run the structured checks for every slide and use AnyDoc
+only when a compact text/table view helps semantic review; mark image-led or
+design-sensitive results `visualReview: "requires-human"`. AnyDoc cannot judge
+composition, hierarchy, crop, contrast, typography, or chart appearance. Fix
+unintended overlap, clipping, wrapping, broken connectors, unresolved
+placeholders, inconsistent footers/page markers, and chart/data mismatches
+before exporting. Verify that researched claims and sourced assets are
+traceable, and cite sources if research was used.
 
 ## Final Response
 

@@ -8,7 +8,10 @@ description: "Create, edit, analyze, and verify standalone spreadsheet files or 
 Use the shared `../office-kit/references/workspace.md` contract for paths and
 results. Standalone workbook work uses `workspaceRoot`, `inputRoot`,
 `assetRoot`, `outputRoot`, and `evidenceRoot`; it does not require a host
-workspace loader.
+workspace loader. After the final workbook is reopened, follow
+`../office-kit/references/review.md`; use AnyDoc only as an optional compact
+reading view for sheet values and tables, never as proof of formulas, chart
+appearance, cell formatting, or layout.
 
 ## Run the workbook workflow in one task
 
@@ -82,7 +85,10 @@ You must read these domain rules when the request clearly relates to the domain,
 Instruction precedence for workbook content, layout, and formatting is: user request > reference/template > domain and formatting defaults.
 
 ## Making edits on a spreadsheet or using an uploaded reference or template.
-- Before modifying: ALWAYS study and match the existing format, style and conventions when making edits by rendering and viewing the image. Read related values and formulas.
+- Before modifying, study and match the existing format, style, conventions,
+  related values, and formulas. Render the relevant sheets. Inspect those
+  images when visual input is available; otherwise use structural evidence and
+  report the visual-review limitation.
 - For visual fix requests, start with the smallest plausible local change. Do not apply sheet-wide autofit, wrapping, or restyling unless requested.
 - Ensure existing formulas, layouts, structures, and patterns are consistent. For example, if asked to add another column or row to a table and there is conditional formatting applied to the whole table, it should extend to the new column or rows as well.
 - Keep edits targeted unless a broader change is clearly necessary. Exceptions are when there's dependencies, e.g. a dynamic chart that is based on the range of values in a table and a new row is added, the chart should also update.
@@ -218,7 +224,10 @@ material claims, plus render/inspect/verify evidence paths when available.
 Report `visualReview: "complete"` only after the required renders were
 understood; otherwise use `"unavailable"` or `"requires-human"`. Do not emit
 a host-specific citation directive. See `../office-kit/references/workspace.md` for
-the result envelope.
+the result envelope. Semantic review must cover the requested ranges, formulas,
+errors, tables, charts, and sheet identities; structural review must reopen the
+actual XLSX. AnyDoc may reduce reading cost for a large workbook, but it cannot
+validate formula topology or rendered workbook geometry.
 
 ## Comment Author
 - If the authenticated/user profile or env context provides a user display name, use it as the threaded comment display name unless the user requests another name. Default to `User`.

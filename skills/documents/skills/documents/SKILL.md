@@ -7,7 +7,8 @@ description: Create, import, edit, redline, comment, and verify `.docx`, Word, a
 
 Use this skill when you need to create or modify `.docx`, Word, or a
 Google-Docs-ready document and verify it visually. Read the shared
-`../office-kit/references/workspace.md` contract before choosing paths.
+`../office-kit/references/workspace.md` contract before choosing paths, and
+follow `../office-kit/references/review.md` after the final DOCX is reopened.
 
 ## Run the document workflow in one task
 
@@ -65,15 +66,22 @@ to depart from the template. The render gate and Google Docs import contract
 still apply. For a Google Docs-targeted result, record any change made by the
 required title sanitizer as an intentional fidelity deviation.
 
-## Non-negotiable: render → inspect PNGs → iterate
+## Non-negotiable: render → review evidence → iterate
 
-**You do not “know” a DOCX is satisfactory until you’ve rendered it and visually inspected page images.**
-DOCX text extraction (or reading XML) will miss layout defects: clipping, overlap, missing glyphs, broken tables, spacing drift, and header/footer issues.
+DOCX text extraction or OOXML inspection alone misses layout defects such as
+clipping, overlap, missing glyphs, broken tables, spacing drift, and misplaced
+headers or footers. Always render the final document. When the Agent can
+understand images, inspect every page image; otherwise run the full structured
+layout checks, request the AnyDoc reading view when it helps semantic review,
+and report the visual limitation.
 
 **Shipping gate:** before delivering any DOCX, you must:
 - Run `render_docx.py` to produce `page-<N>.png` images (optionally also a PDF with `--emit_pdf`)
-- Open the PNGs (100% zoom) and confirm every page is clean
-- If anything looks off, fix the DOCX and **re-render** (repeat until flawless)
+- Run semantic and structural checks on the reopened DOCX.
+- Inspect all PNGs at 100% zoom when visual input is available; if it is not,
+  use structured page evidence and mark `visualReview` as `"requires-human"`
+  when layout or aesthetics are material, otherwise `"unavailable"`.
+- Fix every detected defect and **re-render**.
 
 The packaged renderer uses only the Python standard library plus the existing
 `soffice`, `pdfinfo`, and `pdftoppm` executables. It never asks the Agent to
@@ -487,17 +495,20 @@ This is a quick index so you can jump from a helper script to the right task gui
 
 ## Default workflow (80/20)
 
-**Rule of thumb:** every meaningful edit batch must end with a render + PNG review. No exceptions.
+**Rule of thumb:** every meaningful edit batch ends with a render and review;
+only direct pixel understanding counts as visual review.
 "80/20" here means: follow the simplest workflow that covers *most* DOCX tasks reliably.
 
 **Golden path (don’t mix-and-match unless debugging):**
 1. **Author or import/edit with `DocumentModel` and `DocumentFile`** from `office-kit`.
 2. **Export through OfficeKit, re-import, and run semantic `verify()`/`inspect()` assertions** for the requested content.
-3. **Render → inspect PNGs immediately** (DOCX → PNGs). Treat this as your feedback loop.
-4. **Fix and repeat** until the PNGs are visually perfect.
+3. **Render immediately** (DOCX → PNGs), then inspect the pixels when that
+   capability exists or record structured evidence and the visual limitation.
+4. **Fix and repeat** until all available checks pass.
 5. **Only when explicitly required by an unsupported advanced package feature**: run the narrow OOXML patch documented for that feature. Never silently substitute Python authoring.
 6. **Re-import or structurally inspect, then re-render** after *any* package patch or layout-sensitive change.
-7. **Deliver only after the latest semantic and PNG reviews pass** (all pages, 100% zoom).
+7. **Deliver only after semantic, structural, render, and delivery checks pass.**
+   If pixels could not be understood, do not claim that the PNG review passed.
 
 ## Visual review (recommended)
 Use the packaged renderer (dedicated LibreOffice profile + writable HOME):
@@ -510,7 +521,10 @@ python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out --verbose
 python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out --emit_pdf
 ```
 
-Then inspect the generated `page-<N>.png` files.
+Then inspect the generated `page-<N>.png` files when visual input is available.
+Without it, use the shared post-edit review contract and optionally request
+AnyDoc for a bounded Markdown view of headings, paragraphs, and tables. AnyDoc
+does not validate pagination, typography, images, or layout.
 
 **Success criteria (render + visual QA):**
 - PNGs exist for each page

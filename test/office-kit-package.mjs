@@ -34,7 +34,7 @@ try {
     import { pathToFileURL } from "node:url";
 
     import {
-      DocumentFile, DocumentModel, FileBlob, PdfArtifact, PdfFile,
+      DocumentFile, DocumentModel, FileBlob, PdfArtifact, PdfFile, reviewArtifact,
       Presentation, PresentationFile, SpreadsheetFile, Workbook,
     } from "office-kit";
 
@@ -117,6 +117,16 @@ try {
     if (docx.metadata.codec !== "office-kit" || docx.bytes[0] !== 0x50 || docx.bytes[1] !== 0x4b) process.exit(10);
     const importedDocument = await DocumentFile.importDocx(docx);
     if (importedDocument.blocks[0].text !== "clean install DOCX") process.exit(11);
+    const documentReview = await reviewArtifact(docx, {
+      contentView: "anydoc",
+      layout: false,
+      visualReview: "unavailable",
+    });
+    if (
+      documentReview.contentView.status !== "ready" ||
+      documentReview.contentView.providerVersion !== "0.1.3" ||
+      !documentReview.contentView.markdown.includes("clean install DOCX")
+    ) process.exit(96);
     if (importedDocument.settings.documentProtection?.edit !== "comments") process.exit(42);
     if (importedDocument.watermarks.length !== 1 || importedDocument.watermarks[0].text !== "PACKAGED DRAFT") process.exit(46);
     const importedImage = importedDocument.blocks.find((block) => block.kind === "image");

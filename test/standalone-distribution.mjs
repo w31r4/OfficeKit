@@ -25,6 +25,11 @@ const target =
         ? "win32-x64"
       : null;
 const windows = target === "win32-x64";
+const anydocNativePackage = {
+  "darwin-arm64": "@firecrawl/anydoc-darwin-arm64",
+  "linux-x64": "@firecrawl/anydoc-linux-x64-gnu",
+  "win32-x64": "@firecrawl/anydoc-win32-x64-msvc",
+}[target];
 const installer = path.join(
   repositoryRoot,
   "standalone",
@@ -307,6 +312,8 @@ try {
   assert.ok(sbom.components.some((component) => component.name === "Node.js"));
   assert.ok(sbom.components.some((component) => component.name === "office-kit"));
   assert.ok(sbom.components.some((component) => component.name === "mupdf"));
+  assert.ok(sbom.components.some((component) => component.name === "@firecrawl/anydoc"));
+  assert.ok(sbom.components.some((component) => component.name === anydocNativePackage));
   await fs.access(path.join(activeRoot, "licenses", "OFFICEKIT-LICENSE.txt"));
   await fs.access(path.join(activeRoot, "licenses", "NODE-LICENSE.txt"));
   assert.equal(await countTemplateCards(installedPackage), 20);
@@ -374,6 +381,7 @@ try {
   assert.deepEqual(taskResult.argv, ["alpha"]);
   assert.equal(await fs.realpath(taskResult.cwd), await fs.realpath(project));
   assert.equal(taskResult.publicSubpaths, Object.keys(packageMetadata.exports).length);
+  assert.equal(taskResult.anydoc, "ready");
   for (const extension of ["docx", "xlsx", "pptx", "pdf"]) {
     assert.ok((await fs.stat(path.join(project, `standalone.${extension}`))).size > 100);
   }

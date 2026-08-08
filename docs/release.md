@@ -1,5 +1,22 @@
 # Release
 
+## Unreleased: portable post-edit review
+
+The public `reviewArtifact()` facade now reopens DOCX, XLSX, PPTX, and PDF
+outputs and returns one bounded report for semantic, structural,
+layout/render, optional content-view, visual/human, and delivery review. Native
+OfficeKit inspection remains authoritative. Source/output paths and hashes are
+reported explicitly, input collisions fail closed, and corrupt structures
+block downstream content parsing.
+
+`@firecrawl/anydoc@0.1.3` and its platform parser are part of the production
+dependency closure but load only when the caller requests
+`contentView: "anydoc"`. The view provides bounded Markdown for semantic
+reading; it is not OCR, package validation, render evidence, or a visual
+quality claim. The shared Skill contract directs Agents to request it when
+screenshots cannot be understood, a large artifact would consume excessive
+context, or an independent text view helps investigate a mismatch.
+
 ## Gate layering (2026-08-04)
 
 Daily development uses the fast `npm test` / `npm run test:fast` gate. It
