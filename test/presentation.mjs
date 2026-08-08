@@ -654,25 +654,33 @@ const customGeometryShape = customGeometrySlide.shapes.add({
       { lineTo: { x: 20_000, y: 2_000 } },
       { quadraticBezTo: { x1: 21_000, y1: 6_000, x: 18_000, y: 12_000 } },
       { cubicBezTo: { x1: 21_000, y1: 6_000, x2: 18_000, y2: 19_000, x: 10_800, y: 20_000 } },
+      { arcTo: { widthRadius: 3_000, heightRadius: 4_000, startAngle: 5_400_000, sweepAngle: 21_600_000 } },
       { close: {} },
     ],
   }],
 });
-assert.equal(customGeometryShape.customPaths[0].commands.length, 5);
-assert.match(await (await customGeometrySlide.export()).text(), /<path d="M 1000 2000 L 20000 2000 Q 21000 6000 18000 12000 C /);
+assert.equal(customGeometryShape.customPaths[0].commands.length, 6);
+assert.match(await (await customGeometrySlide.export()).text(), /A 3000 4000 0 0 1 10800 12000 A 3000 4000 0 0 1 10800 20000 Z/);
 const customGeometryPptx = await PresentationFile.exportPptx(customGeometryPresentation);
 const customGeometryZip = await JSZip.loadAsync(customGeometryPptx.bytes);
 const customGeometryXml = await customGeometryZip.file("ppt/slides/slide1.xml").async("text");
 assert.match(customGeometryXml, /<a:quadBezTo><a:pt x="21000" y="6000"\s*\/><a:pt x="18000" y="12000"\s*\/><\/a:quadBezTo>/);
+assert.match(customGeometryXml, /<a:arcTo wR="3000" hR="4000" stAng="5400000" swAng="21600000"\s*\/>/);
 const importedCustomGeometry = await PresentationFile.importPptx(customGeometryPptx);
 const importedCustomGeometryShape = importedCustomGeometry.slides.getItem(0).shapes.items[0];
 assert.deepEqual(importedCustomGeometryShape.customPaths[0].commands[2], {
   quadraticBezTo: { x1: 21_000, y1: 6_000, x: 18_000, y: 12_000 },
 });
+assert.deepEqual(importedCustomGeometryShape.customPaths[0].commands[4], {
+  arcTo: { widthRadius: 3_000, heightRadius: 4_000, startAngle: 5_400_000, sweepAngle: 21_600_000 },
+});
 importedCustomGeometryShape.customPaths[0].commands[2].quadraticBezTo.x1 = 20_500;
+importedCustomGeometryShape.customPaths[0].commands[4].arcTo.sweepAngle = -10_800_000;
 const editedCustomGeometry = await PresentationFile.importPptx(await PresentationFile.exportPptx(importedCustomGeometry));
 assert.equal(editedCustomGeometry.slides.getItem(0).shapes.items[0].customPaths[0].commands[2].quadraticBezTo.x1, 20_500);
-const formulaCustomGeometryXml = customGeometryXml.replace('<a:pt x="21000" y="6000" />', '<a:pt x="wd2" y="6000" />');
+assert.equal(editedCustomGeometry.slides.getItem(0).shapes.items[0].customPaths[0].commands[4].arcTo.sweepAngle, -10_800_000);
+assert.match(await (await editedCustomGeometry.slides.getItem(0).export()).text(), /A 3000 4000 0 0 0 10800 12000 Z/);
+const formulaCustomGeometryXml = customGeometryXml.replace('wR="3000"', 'wR="wd2"');
 assert.notEqual(formulaCustomGeometryXml, customGeometryXml);
 const formulaCustomGeometryFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: formulaCustomGeometryXml }]);
 const formulaCustomGeometry = await PresentationFile.importPptx(formulaCustomGeometryFile);
@@ -681,12 +689,24 @@ const opaqueFormulaGeometry = itemByName(formulaCustomGeometry.slides.getItem(0)
 assert.equal(opaqueFormulaGeometry.customPaths.length, 0);
 const preservedFormulaGeometry = await PresentationFile.exportPptx(formulaCustomGeometry);
 const preservedFormulaGeometryZip = await JSZip.loadAsync(preservedFormulaGeometry.bytes);
-assert.match(await preservedFormulaGeometryZip.file("ppt/slides/slide1.xml").async("text"), /<a:pt x="wd2" y="6000"\s*\/>/);
+assert.match(await preservedFormulaGeometryZip.file("ppt/slides/slide1.xml").async("text"), /<a:arcTo wR="wd2" hR="4000" stAng="5400000" swAng="21600000"\s*\/>/);
 opaqueFormulaGeometry.name = "unsafe-formula-geometry-edit";
 await assert.rejects(
   () => PresentationFile.exportPptx(formulaCustomGeometry),
   (error) => error?.code === "unsupported_presentation_edit",
 );
+const childBearingArcXml = customGeometryXml.replace(
+  '<a:arcTo wR="3000" hR="4000" stAng="5400000" swAng="21600000" />',
+  '<a:arcTo wR="3000" hR="4000" stAng="5400000" swAng="21600000"><a:extLst /></a:arcTo>',
+);
+assert.notEqual(childBearingArcXml, customGeometryXml);
+const childBearingArcFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: childBearingArcXml }]);
+const childBearingArcGeometry = await PresentationFile.importPptx(childBearingArcFile);
+const opaqueChildBearingArc = itemByName(childBearingArcGeometry.slides.getItem(0).shapes.items, "literal-custom-path");
+assert.equal(opaqueChildBearingArc.customPaths.length, 0);
+const preservedChildBearingArc = await PresentationFile.exportPptx(childBearingArcGeometry);
+const preservedChildBearingArcZip = await JSZip.loadAsync(preservedChildBearingArc.bytes);
+assert.match(await preservedChildBearingArcZip.file("ppt/slides/slide1.xml").async("text"), /<a:arcTo wR="3000" hR="4000" stAng="5400000" swAng="21600000"><a:extLst\s*\/><\/a:arcTo>/);
 const mixedQuadraticChildXml = customGeometryXml.replace('<a:pt x="18000" y="12000" />', '<a:extLst />');
 assert.notEqual(mixedQuadraticChildXml, customGeometryXml);
 const mixedQuadraticChildFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: mixedQuadraticChildXml }]);
@@ -698,7 +718,23 @@ const preservedMixedQuadraticChildZip = await JSZip.loadAsync(preservedMixedQuad
 assert.match(await preservedMixedQuadraticChildZip.file("ppt/slides/slide1.xml").async("text"), /<a:quadBezTo><a:pt x="21000" y="6000"\s*\/><a:extLst\s*\/><\/a:quadBezTo>/);
 assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, commands: [{ arcTo: {} }] }] }),
-  /unsupported command arcTo/,
+  /arcTo\.widthRadius must be a safe integer/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, commands: [{ arcTo: { widthRadius: 10, heightRadius: 10, startAngle: 0, sweepAngle: 5_400_000 } }] }] }),
+  /arcTo requires an established current point/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 10, y: 10 } }, { arcTo: { widthRadius: 0, heightRadius: 10, startAngle: 0, sweepAngle: 5_400_000 } }] }] }),
+  /arcTo radii must be positive/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 10, y: 10 } }, { arcTo: { widthRadius: 10, heightRadius: 10, startAngle: 0, sweepAngle: 21_600_001 } }] }] }),
+  /no greater than one full DrawingML turn/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 10, y: 10 } }, { arcTo: { widthRadius: 10, heightRadius: 10, startAngle: 0, sweepAngle: 0 } }] }] }),
+  /sweepAngle must be non-zero/,
 );
 assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, commands: [{ toString: {} }] }] }),
@@ -712,6 +748,23 @@ assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 0, height: 100, commands: [{ close: true }] }] }),
   /width and height must be positive/,
 );
+const mutatedArcPresentation = Presentation.create({ slideSize: { width: 200, height: 120 } });
+const mutatedArcSlide = mutatedArcPresentation.slides.add({ name: "Mutated arc" });
+const mutatedArcShape = mutatedArcSlide.shapes.add({
+  geometry: "custom",
+  position: { left: 10, top: 10, width: 100, height: 80 },
+  customPaths: [{
+    width: 100,
+    height: 100,
+    commands: [
+      { moveTo: { x: 50, y: 90 } },
+      { arcTo: { widthRadius: 30, heightRadius: 40, startAngle: 5_400_000, sweepAngle: 10_800_000 } },
+    ],
+  }],
+});
+mutatedArcShape.customPaths[0].commands.shift();
+await assert.rejects(() => mutatedArcSlide.export(), /arcTo requires an established current point/);
+await assert.rejects(() => PresentationFile.exportPptx(mutatedArcPresentation), /arcTo requires an established current point/);
 
 // Groups are a recursive DrawingML ownership boundary, not flattened children
 // with synthetic parent IDs. The public model keeps child coordinates local and

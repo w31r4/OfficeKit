@@ -1,6 +1,10 @@
 const MAX_PATHS = 64;
 const MAX_COMMANDS = 16_384;
 const MAX_COORDINATE = 2_147_483_647;
+const ANGLE_UNITS_PER_DEGREE = 60_000;
+const HALF_TURN_ANGLE = 180 * ANGLE_UNITS_PER_DEGREE;
+const FULL_TURN_ANGLE = 360 * ANGLE_UNITS_PER_DEGREE;
+const ARC_FIELDS = Object.freeze(["widthRadius", "heightRadius", "startAngle", "sweepAngle"]);
 const CURVE_FIELDS = Object.freeze({
   quadraticBezTo: Object.freeze(["x1", "y1", "x", "y"]),
   cubicBezTo: Object.freeze(["x1", "y1", "x2", "y2", "x", "y"]),
@@ -10,6 +14,14 @@ function coordinate(value, label) {
   const number = Number(value);
   if (!Number.isSafeInteger(number) || number < -MAX_COORDINATE || number > MAX_COORDINATE) {
     throw new RangeError(`${label} must be a safe integer within the DrawingML signed 32-bit coordinate range.`);
+  }
+  return number;
+}
+
+function angle(value, label) {
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < -MAX_COORDINATE || number > MAX_COORDINATE) {
+    throw new RangeError(`${label} must be a safe integer within the DrawingML signed 32-bit angle range.`);
   }
   return number;
 }
@@ -29,12 +41,29 @@ function curve(value, label, fields) {
   return Object.fromEntries(fields.map((field) => [field, coordinate(value[field], `${label}.${field}`)]));
 }
 
+function arc(value, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`${label} must be an object.`);
+  const allowed = new Set(ARC_FIELDS);
+  const unknown = Object.keys(value).filter((key) => !allowed.has(key));
+  if (unknown.length) throw new TypeError(`${label} has unsupported fields: ${unknown.join(", ")}.`);
+  const widthRadius = coordinate(value.widthRadius, `${label}.widthRadius`);
+  const heightRadius = coordinate(value.heightRadius, `${label}.heightRadius`);
+  if (widthRadius <= 0 || heightRadius <= 0) throw new RangeError(`${label} radii must be positive.`);
+  const startAngle = angle(value.startAngle, `${label}.startAngle`);
+  const sweepAngle = angle(value.sweepAngle, `${label}.sweepAngle`);
+  if (sweepAngle === 0 || Math.abs(sweepAngle) > FULL_TURN_ANGLE) {
+    throw new RangeError(`${label}.sweepAngle must be non-zero and no greater than one full DrawingML turn (${FULL_TURN_ANGLE}).`);
+  }
+  return { widthRadius, heightRadius, startAngle, sweepAngle };
+}
+
 function command(value, pathIndex, commandIndex) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`Presentation custom path ${pathIndex + 1} command ${commandIndex + 1} must be an object.`);
   const keys = Object.keys(value);
   if (keys.length !== 1) throw new TypeError(`Presentation custom path ${pathIndex + 1} command ${commandIndex + 1} must contain exactly one command.`);
   const label = `Presentation custom path ${pathIndex + 1} command ${commandIndex + 1}`;
   if (keys[0] === "moveTo" || keys[0] === "lineTo") return { [keys[0]]: point(value[keys[0]], `${label}.${keys[0]}`) };
+  if (keys[0] === "arcTo") return { arcTo: arc(value.arcTo, `${label}.arcTo`) };
   const curveFields = Object.hasOwn(CURVE_FIELDS, keys[0]) ? CURVE_FIELDS[keys[0]] : undefined;
   if (curveFields) return { [keys[0]]: curve(value[keys[0]], `${label}.${keys[0]}`, curveFields) };
   if (keys[0] === "close") {
@@ -46,7 +75,7 @@ function command(value, pathIndex, commandIndex) {
   throw new TypeError(`${label} uses unsupported command ${keys[0]}.`);
 }
 
-export function normalizePresentationCustomPaths(value, { geometry } = {}) {
+export function normalizePresentationCustomPaths(value) {
   if (value == null) return [];
   if (!Array.isArray(value) || value.length === 0 || value.length > MAX_PATHS) throw new RangeError(`Presentation custom geometry must contain 1 through ${MAX_PATHS} paths.`);
   let commandCount = 0;
@@ -60,19 +89,90 @@ export function normalizePresentationCustomPaths(value, { geometry } = {}) {
     if (!Array.isArray(path.commands) || path.commands.length === 0) throw new TypeError(`Presentation custom path ${pathIndex + 1} requires commands.`);
     commandCount += path.commands.length;
     if (commandCount > MAX_COMMANDS) throw new RangeError(`Presentation custom geometry exceeds the ${MAX_COMMANDS}-command budget.`);
-    return { width, height, commands: path.commands.map((item, commandIndex) => command(item, pathIndex, commandIndex)) };
+    let hasCurrentPoint = false;
+    let hasSubpathStart = false;
+    const commands = path.commands.map((item, commandIndex) => {
+      const normalized = command(item, pathIndex, commandIndex);
+      const label = `Presentation custom path ${pathIndex + 1} command ${commandIndex + 1}`;
+      if (normalized.arcTo && !hasCurrentPoint) throw new RangeError(`${label}.arcTo requires an established current point.`);
+      if (normalized.moveTo) {
+        hasCurrentPoint = true;
+        hasSubpathStart = true;
+      } else if (normalized.lineTo || normalized.quadraticBezTo || normalized.cubicBezTo) {
+        hasCurrentPoint = true;
+      } else if (normalized.close) {
+        hasCurrentPoint = hasSubpathStart;
+      }
+      return normalized;
+    });
+    return { width, height, commands };
   });
 }
 
+function svgNumber(value) {
+  const rounded = Number(value.toFixed(9));
+  return Object.is(rounded, -0) ? "0" : String(rounded);
+}
+
+function angleRadians(value) {
+  const normalized = ((value % FULL_TURN_ANGLE) + FULL_TURN_ANGLE) % FULL_TURN_ANGLE;
+  return normalized / ANGLE_UNITS_PER_DEGREE * Math.PI / 180;
+}
+
+function svgArcCommands(arcTo, currentPoint) {
+  const start = angleRadians(arcTo.startAngle);
+  const center = {
+    x: currentPoint.x - arcTo.widthRadius * Math.cos(start),
+    y: currentPoint.y - arcTo.heightRadius * Math.sin(start),
+  };
+  const commands = [];
+  let angleValue = arcTo.startAngle;
+  let remaining = arcTo.sweepAngle;
+  let end = currentPoint;
+  while (remaining !== 0) {
+    const magnitude = Math.min(Math.abs(remaining), HALF_TURN_ANGLE);
+    const segment = Math.sign(remaining) * magnitude;
+    angleValue += segment;
+    const radians = angleRadians(angleValue);
+    end = {
+      x: center.x + arcTo.widthRadius * Math.cos(radians),
+      y: center.y + arcTo.heightRadius * Math.sin(radians),
+    };
+    commands.push(`A ${arcTo.widthRadius} ${arcTo.heightRadius} 0 0 ${segment > 0 ? 1 : 0} ${svgNumber(end.x)} ${svgNumber(end.y)}`);
+    remaining -= segment;
+  }
+  return { commands, end };
+}
+
 export function presentationCustomPathsSvg(paths, frame, { escape = String } = {}) {
-  return paths.map((path) => {
-    const commands = path.commands.map((item) => {
-      if (item.moveTo) return `M ${item.moveTo.x} ${item.moveTo.y}`;
-      if (item.lineTo) return `L ${item.lineTo.x} ${item.lineTo.y}`;
-      if (item.quadraticBezTo) return `Q ${item.quadraticBezTo.x1} ${item.quadraticBezTo.y1} ${item.quadraticBezTo.x} ${item.quadraticBezTo.y}`;
-      if (item.cubicBezTo) return `C ${item.cubicBezTo.x1} ${item.cubicBezTo.y1} ${item.cubicBezTo.x2} ${item.cubicBezTo.y2} ${item.cubicBezTo.x} ${item.cubicBezTo.y}`;
-      return "Z";
-    }).join(" ");
+  return normalizePresentationCustomPaths(paths).map((path) => {
+    const chunks = [];
+    let currentPoint;
+    let subpathStart;
+    for (const item of path.commands) {
+      if (item.moveTo) {
+        chunks.push(`M ${item.moveTo.x} ${item.moveTo.y}`);
+        currentPoint = { ...item.moveTo };
+        subpathStart = { ...item.moveTo };
+      } else if (item.lineTo) {
+        chunks.push(`L ${item.lineTo.x} ${item.lineTo.y}`);
+        currentPoint = { ...item.lineTo };
+      } else if (item.quadraticBezTo) {
+        chunks.push(`Q ${item.quadraticBezTo.x1} ${item.quadraticBezTo.y1} ${item.quadraticBezTo.x} ${item.quadraticBezTo.y}`);
+        currentPoint = { x: item.quadraticBezTo.x, y: item.quadraticBezTo.y };
+      } else if (item.cubicBezTo) {
+        chunks.push(`C ${item.cubicBezTo.x1} ${item.cubicBezTo.y1} ${item.cubicBezTo.x2} ${item.cubicBezTo.y2} ${item.cubicBezTo.x} ${item.cubicBezTo.y}`);
+        currentPoint = { x: item.cubicBezTo.x, y: item.cubicBezTo.y };
+      } else if (item.arcTo) {
+        const arc = svgArcCommands(item.arcTo, currentPoint);
+        chunks.push(...arc.commands);
+        currentPoint = arc.end;
+      } else {
+        chunks.push("Z");
+        currentPoint = subpathStart ? { ...subpathStart } : undefined;
+      }
+    }
+    const commands = chunks.join(" ");
     return `<path d="${escape(commands)}" transform="translate(${frame.left} ${frame.top}) scale(${frame.width / path.width} ${frame.height / path.height})"/>`;
   }).join("");
 }

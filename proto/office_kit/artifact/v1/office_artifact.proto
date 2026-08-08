@@ -1778,8 +1778,8 @@ message PresentationShape {
   PresentationShapeTransform transform = 13;
   PresentationShadow shadow = 14;
   // Source-free custom DrawingML geometry. The bounded profile intentionally owns
-  // only literal path coordinates and move/line/quadratic/cubic/close commands.
-  // Guides, handles, connection sites, arcs, and per-path fill or stroke
+  // only literal path coordinates and move/line/quadratic/cubic/arc/close
+  // commands. Guides, handles, connection sites, and per-path fill or stroke
   // overrides remain source-bound.
   repeated PresentationCustomGeometryPath custom_paths = 15;
   // Presence-aware imported p:sp/@useBgFill. This affects preview paint but is
@@ -1801,6 +1801,7 @@ message PresentationCustomGeometryCommand {
     PresentationCustomGeometryCubicBezier cubic_bezier_to = 3;
     bool close = 4;
     PresentationCustomGeometryQuadraticBezier quadratic_bezier_to = 5;
+    PresentationCustomGeometryArc arc_to = 6;
   }
 }
 
@@ -3396,4 +3397,14 @@ enum DocumentTableHorizontalAlignment {
 message PresentationCustomGeometryQuadraticBezier {
   PresentationCustomGeometryPoint control = 1;
   PresentationCustomGeometryPoint end = 2;
+}
+
+// Appended to preserve every pre-existing generated descriptor index while
+// PresentationCustomGeometryCommand references this additive protocol-2 path
+// primitive from oneof field 6. Angles use DrawingML 1/60000-degree units.
+message PresentationCustomGeometryArc {
+  int64 width_radius = 1;
+  int64 height_radius = 2;
+  int32 start_angle = 3;
+  int32 sweep_angle = 4;
 }

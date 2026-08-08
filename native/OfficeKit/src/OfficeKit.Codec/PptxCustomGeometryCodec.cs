@@ -7,13 +7,14 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace OfficeKit.Codec;
 
 // Bounded literal DrawingML custom paths used by source-built presentation
-// templates. Guides, handles, connection sites, text rectangles, arcs, and
-// per-path paint overrides stay outside this slice.
+// templates. Guides, handles, connection sites, text rectangles, and per-path
+// paint overrides stay outside this slice.
 internal static class PptxCustomGeometryCodec
 {
     private const int MaxPaths = 64;
     private const int MaxCommands = 16_384;
     private const long MaxCoordinate = int.MaxValue;
+    private const int FullTurnAngle = 21_600_000;
 
     internal static bool Supports(A.CustomGeometry? geometry)
     {
@@ -45,6 +46,7 @@ internal static class PptxCustomGeometryCodec
                     A.LineTo line => new PresentationCustomGeometryCommand { LineTo = ReadPoint(line.Point!) },
                     A.QuadraticBezierCurveTo quadratic => ReadQuadratic(quadratic),
                     A.CubicBezierCurveTo cubic => ReadCubic(cubic),
+                    A.ArcTo arc => ReadArc(arc),
                     A.CloseShapePath => new PresentationCustomGeometryCommand { Close = true },
                     _ => throw new InvalidOperationException("Unsupported custom geometry command passed the recognition gate."),
                 };
@@ -72,7 +74,27 @@ internal static class PptxCustomGeometryCodec
             commandCount += path.Commands.Count;
             if (commandCount > MaxCommands)
                 throw new CodecException("presentation_item_budget_exceeded", $"Presentation shape {shapeId} custom geometry exceeds the {MaxCommands}-command budget.");
-            foreach (var command in path.Commands) Validate(command, shapeId);
+            var hasCurrentPoint = false;
+            var hasSubpathStart = false;
+            foreach (var command in path.Commands)
+            {
+                Validate(command, shapeId, hasCurrentPoint);
+                switch (command.CommandCase)
+                {
+                    case PresentationCustomGeometryCommand.CommandOneofCase.MoveTo:
+                        hasCurrentPoint = true;
+                        hasSubpathStart = true;
+                        break;
+                    case PresentationCustomGeometryCommand.CommandOneofCase.LineTo:
+                    case PresentationCustomGeometryCommand.CommandOneofCase.QuadraticBezierTo:
+                    case PresentationCustomGeometryCommand.CommandOneofCase.CubicBezierTo:
+                        hasCurrentPoint = true;
+                        break;
+                    case PresentationCustomGeometryCommand.CommandOneofCase.Close:
+                        hasCurrentPoint = hasSubpathStart;
+                        break;
+                }
+            }
         }
     }
 
@@ -124,6 +146,7 @@ internal static class PptxCustomGeometryCodec
                         Point(command.CubicBezierTo.Control1),
                         Point(command.CubicBezierTo.Control2),
                         Point(command.CubicBezierTo.End)),
+                    PresentationCustomGeometryCommand.CommandOneofCase.ArcTo => Arc(command.ArcTo),
                     PresentationCustomGeometryCommand.CommandOneofCase.Close => new A.CloseShapePath(),
                     _ => throw new CodecException("invalid_presentation_geometry", "Presentation custom geometry contains an empty command."),
                 });
@@ -141,15 +164,38 @@ internal static class PptxCustomGeometryCodec
             return false;
         commandCount += path.ChildElements.Count;
         if (commandCount > MaxCommands) return false;
-        return path.ChildElements.All(command => command switch
+        var hasCurrentPoint = false;
+        var hasSubpathStart = false;
+        foreach (var command in path.ChildElements)
         {
-            A.MoveTo move => SupportsPointContainer(move, move.Point, 1),
-            A.LineTo line => SupportsPointContainer(line, line.Point, 1),
-            A.QuadraticBezierCurveTo quadratic => SupportsPointSequence(quadratic, 2),
-            A.CubicBezierCurveTo cubic => SupportsPointSequence(cubic, 3),
-            A.CloseShapePath close => !close.HasAttributes && !close.HasChildren,
-            _ => false,
-        });
+            var supported = command switch
+            {
+                A.MoveTo move => SupportsPointContainer(move, move.Point, 1),
+                A.LineTo line => SupportsPointContainer(line, line.Point, 1),
+                A.QuadraticBezierCurveTo quadratic => SupportsPointSequence(quadratic, 2),
+                A.CubicBezierCurveTo cubic => SupportsPointSequence(cubic, 3),
+                A.ArcTo arc => hasCurrentPoint && SupportsArc(arc),
+                A.CloseShapePath close => !close.HasAttributes && HasNoInnerXml(close),
+                _ => false,
+            };
+            if (!supported) return false;
+            switch (command)
+            {
+                case A.MoveTo:
+                    hasCurrentPoint = true;
+                    hasSubpathStart = true;
+                    break;
+                case A.LineTo:
+                case A.QuadraticBezierCurveTo:
+                case A.CubicBezierCurveTo:
+                    hasCurrentPoint = true;
+                    break;
+                case A.CloseShapePath:
+                    hasCurrentPoint = hasSubpathStart;
+                    break;
+            }
+        }
+        return true;
     }
 
     private static bool SupportsPointContainer(OpenXmlCompositeElement container, A.Point? point, int childCount) =>
@@ -160,8 +206,16 @@ internal static class PptxCustomGeometryCodec
         container.ChildElements.All(child => child is A.Point point && SupportsPoint(point));
 
     private static bool SupportsPoint(A.Point point) =>
-        !point.HasChildren && HasOnlyAttributes(point, "x", "y") &&
+        HasNoInnerXml(point) && HasOnlyAttributes(point, "x", "y") &&
         TryCoordinate(point.X?.Value, out _) && TryCoordinate(point.Y?.Value, out _);
+
+    private static bool SupportsArc(A.ArcTo arc) =>
+        HasNoInnerXml(arc) && HasOnlyAttributes(arc, "wR", "hR", "stAng", "swAng") &&
+        TryCoordinate(arc.WidthRadius?.Value, out var widthRadius) && widthRadius > 0 &&
+        TryCoordinate(arc.HeightRadius?.Value, out var heightRadius) && heightRadius > 0 &&
+        TryAngle(arc.StartAngle?.Value, out _) &&
+        TryAngle(arc.SwingAngle?.Value, out var sweepAngle) &&
+        sweepAngle != 0 && Math.Abs((long)sweepAngle) <= FullTurnAngle;
 
     private static PresentationCustomGeometryPoint ReadPoint(A.Point point) => new()
     {
@@ -196,13 +250,32 @@ internal static class PptxCustomGeometryCodec
         };
     }
 
+    private static PresentationCustomGeometryCommand ReadArc(A.ArcTo source) => new()
+    {
+        ArcTo = new PresentationCustomGeometryArc
+        {
+            WidthRadius = ParseCoordinate(source.WidthRadius!.Value!),
+            HeightRadius = ParseCoordinate(source.HeightRadius!.Value!),
+            StartAngle = ParseAngle(source.StartAngle!.Value!),
+            SweepAngle = ParseAngle(source.SwingAngle!.Value!),
+        },
+    };
+
     private static A.Point Point(PresentationCustomGeometryPoint source) => new()
     {
         X = source.X.ToString(CultureInfo.InvariantCulture),
         Y = source.Y.ToString(CultureInfo.InvariantCulture),
     };
 
-    private static void Validate(PresentationCustomGeometryCommand command, string shapeId)
+    private static A.ArcTo Arc(PresentationCustomGeometryArc source) => new()
+    {
+        WidthRadius = source.WidthRadius.ToString(CultureInfo.InvariantCulture),
+        HeightRadius = source.HeightRadius.ToString(CultureInfo.InvariantCulture),
+        StartAngle = source.StartAngle.ToString(CultureInfo.InvariantCulture),
+        SwingAngle = source.SweepAngle.ToString(CultureInfo.InvariantCulture),
+    };
+
+    private static void Validate(PresentationCustomGeometryCommand command, string shapeId, bool hasCurrentPoint)
     {
         switch (command.CommandCase)
         {
@@ -225,6 +298,13 @@ internal static class PptxCustomGeometryCodec
                 Validate(command.CubicBezierTo.Control2, shapeId);
                 Validate(command.CubicBezierTo.End, shapeId);
                 break;
+            case PresentationCustomGeometryCommand.CommandOneofCase.ArcTo:
+                if (!hasCurrentPoint)
+                    throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an arc command without an established current point.");
+                if (command.ArcTo is null || command.ArcTo.WidthRadius is <= 0 or > MaxCoordinate || command.ArcTo.HeightRadius is <= 0 or > MaxCoordinate ||
+                    command.ArcTo.SweepAngle == 0 || Math.Abs((long)command.ArcTo.SweepAngle) > FullTurnAngle)
+                    throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an invalid bounded literal arc command.");
+                break;
             case PresentationCustomGeometryCommand.CommandOneofCase.Close:
                 if (!command.Close) throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an invalid close command.");
                 break;
@@ -243,7 +323,16 @@ internal static class PptxCustomGeometryCodec
         long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out coordinate) &&
         coordinate >= -MaxCoordinate && coordinate <= MaxCoordinate;
 
+    private static bool TryAngle(string? value, out int angle) =>
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out angle);
+
     private static long ParseCoordinate(string value) => long.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
+
+    private static int ParseAngle(string value) => int.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
+
+    // OpenXmlLeafElement.HasChildren is always false even when malformed source
+    // XML is retained in its shadow element. InnerXml is the actual lexical gate.
+    private static bool HasNoInnerXml(OpenXmlElement element) => string.IsNullOrEmpty(element.InnerXml);
 
     private static bool HasOnlyAttributes(OpenXmlElement element, params string[] names)
     {

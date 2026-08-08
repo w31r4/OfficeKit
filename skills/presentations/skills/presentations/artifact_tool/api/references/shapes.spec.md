@@ -146,6 +146,28 @@ const custom = slide.shapes.add({
 
 Custom path coordinates are signed 32-bit integer units in the path's own
 `width`/`height` viewport. OfficeKit scales that viewport to the shape frame.
+An arc keeps DrawingML's native radii and 1/60000-degree angles; it requires a
+current point and accepts a non-zero clockwise or counter-clockwise sweep of at
+most one full turn. Formula-valued native geometry remains opaque.
+
+```ts
+const ellipsePath = {
+  width: 21_600,
+  height: 21_600,
+  commands: [
+    { moveTo: { x: 10_800, y: 20_000 } },
+    {
+      arcTo: {
+        widthRadius: 3_000,
+        heightRadius: 4_000,
+        startAngle: 5_400_000,
+        sweepAngle: 21_600_000,
+      },
+    },
+    { close: {} },
+  ],
+};
+```
 
 ## Custom Path Inline Type
 
@@ -153,7 +175,6 @@ Custom path coordinates are signed 32-bit integer units in the path's own
 type CustomShapeConfig = Omit<PresetShapeConfig, "geometry"> & {
   geometry: "custom";
   customPaths: Array<{
-    id?: string;
     width: number;
     height: number;
     commands: Array<
@@ -161,6 +182,7 @@ type CustomShapeConfig = Omit<PresetShapeConfig, "geometry"> & {
       | { lineTo: { x: number; y: number } }
       | { quadraticBezTo: { x1: number; y1: number; x: number; y: number } }
       | { cubicBezTo: { x1: number; y1: number; x2: number; y2: number; x: number; y: number } }
+      | { arcTo: { widthRadius: number; heightRadius: number; startAngle: number; sweepAngle: number } }
       | { close: Record<string, never> }
     >;
   }>;

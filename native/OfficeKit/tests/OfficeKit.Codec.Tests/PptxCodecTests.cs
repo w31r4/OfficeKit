@@ -1268,6 +1268,16 @@ public sealed class PptxCodecTests
                 End = new PresentationCustomGeometryPoint { X = 10_800, Y = 20_000 },
             },
         });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            ArcTo = new PresentationCustomGeometryArc
+            {
+                WidthRadius = 3_000,
+                HeightRadius = 4_000,
+                StartAngle = 5_400_000,
+                SweepAngle = 21_600_000,
+            },
+        });
         path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
         shape.CustomPaths.Add(path);
 
@@ -1288,6 +1298,14 @@ public sealed class PptxCodecTests
                 command => Assert.IsType<A.LineTo>(command),
                 command => Assert.IsType<A.QuadraticBezierCurveTo>(command),
                 command => Assert.IsType<A.CubicBezierCurveTo>(command),
+                command =>
+                {
+                    var arc = Assert.IsType<A.ArcTo>(command);
+                    Assert.Equal("3000", arc.WidthRadius!.Value);
+                    Assert.Equal("4000", arc.HeightRadius!.Value);
+                    Assert.Equal("5400000", arc.StartAngle!.Value);
+                    Assert.Equal("21600000", arc.SwingAngle!.Value);
+                },
                 command => Assert.IsType<A.CloseShapePath>(command));
         }
 
@@ -1297,16 +1315,20 @@ public sealed class PptxCodecTests
         Assert.True(importedElement.Source.Editable);
         Assert.Equal("custom", importedElement.Shape.Geometry);
         var importedPath = Assert.Single(importedElement.Shape.CustomPaths);
-        Assert.Equal(5, importedPath.Commands.Count);
+        Assert.Equal(6, importedPath.Commands.Count);
         Assert.Equal(20_000, importedPath.Commands[1].LineTo.X);
         Assert.Equal(21_000, importedPath.Commands[2].QuadraticBezierTo.Control.X);
+        Assert.Equal(21_600_000, importedPath.Commands[4].ArcTo.SweepAngle);
 
         importedPath.Commands[2].QuadraticBezierTo.Control.X = 20_500;
+        importedPath.Commands[4].ArcTo.SweepAngle = -10_800_000;
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTrip = Import(edited.File.ToByteArray());
         Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
-        Assert.Equal(20_500, Assert.Single(Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements).Shape.CustomPaths).Commands[2].QuadraticBezierTo.Control.X);
+        var roundTripPath = Assert.Single(Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements).Shape.CustomPaths);
+        Assert.Equal(20_500, roundTripPath.Commands[2].QuadraticBezierTo.Control.X);
+        Assert.Equal(-10_800_000, roundTripPath.Commands[4].ArcTo.SweepAngle);
 
         var missingPaths = ExportRequest();
         missingPaths.Artifact.Presentation.Slides[0].Elements[0].Shape.Geometry = "custom";
@@ -1319,6 +1341,26 @@ public sealed class PptxCodecTests
         var misplacedPathsResponse = Invoke(misplacedPaths);
         Assert.False(misplacedPathsResponse.Ok);
         Assert.Equal("invalid_presentation_geometry", Assert.Single(misplacedPathsResponse.Diagnostics).Code);
+
+        var arcWithoutCurrentPoint = ExportRequest();
+        var arcWithoutCurrentPointShape = arcWithoutCurrentPoint.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        arcWithoutCurrentPointShape.Geometry = "custom";
+        var arcWithoutCurrentPointPath = new PresentationCustomGeometryPath { Width = 21_600, Height = 21_600 };
+        arcWithoutCurrentPointPath.Commands.Add(path.Commands[4].Clone());
+        arcWithoutCurrentPointShape.CustomPaths.Add(arcWithoutCurrentPointPath);
+        var arcWithoutCurrentPointResponse = Invoke(arcWithoutCurrentPoint);
+        Assert.False(arcWithoutCurrentPointResponse.Ok);
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(arcWithoutCurrentPointResponse.Diagnostics).Code);
+
+        var excessiveArc = ExportRequest();
+        var excessiveArcShape = excessiveArc.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        excessiveArcShape.Geometry = "custom";
+        var excessiveArcPath = path.Clone();
+        excessiveArcPath.Commands[4].ArcTo.SweepAngle = 21_600_001;
+        excessiveArcShape.CustomPaths.Add(excessiveArcPath);
+        var excessiveArcResponse = Invoke(excessiveArc);
+        Assert.False(excessiveArcResponse.Ok);
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(excessiveArcResponse.Diagnostics).Code);
     }
 
     [Fact]

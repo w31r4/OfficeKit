@@ -1359,7 +1359,7 @@ export class Shape {
     this.nativeId = config.nativeId;
     this.creationId = config.creationId;
     this.geometry = config.geometry || "rect";
-    this.customPaths = normalizePresentationCustomPaths(config.customPaths, { geometry: this.geometry });
+    this.customPaths = normalizePresentationCustomPaths(config.customPaths);
     this.name = config.name || "";
     this.position = config.position || { left: 0, top: 0, width: 160, height: 80 };
     this.transform = config.transform == null ? undefined : normalizePresentationPlaceholderTransform(config.transform, `Presentation shape ${this.name || this.id} transform`);

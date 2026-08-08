@@ -15,6 +15,7 @@ import { deterministicPresentationGuid } from "../presentation/ooxml-modern-comm
 import { normalizePresentationThemeConfig } from "../presentation/ooxml-theme.mjs";
 import { normalizePresentationTextBodyProperties } from "../presentation/text-body-properties.mjs";
 import { effectivePresentationImageCrop, presentationImageCropFromWire, presentationImageCropToWire } from "../presentation/image-crop.mjs";
+import { normalizePresentationCustomPaths } from "../presentation/custom-geometry.mjs";
 import { isPresentationAutoNumberType, normalizePresentationParagraphs, normalizePresentationParagraphStyles } from "../presentation/text-paragraphs.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { createPresentationAssetCatalog, validatePictureBulletUri } from "./office-kit-assets.mjs";
@@ -1580,10 +1581,11 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   if (!new Set(["rect", "ellipse", "roundRect", "textbox", "custom"]).has(shape.geometry)) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} uses unsupported geometry ${shape.geometry}.`, [], { code: "unsupported_presentation_features" });
   }
-  if (shape.geometry !== "custom" && shape.customPaths?.length) {
+  const normalizedCustomPaths = shape.customPaths?.length ? normalizePresentationCustomPaths(shape.customPaths) : [];
+  if (shape.geometry !== "custom" && normalizedCustomPaths.length) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} has custom paths without custom geometry.`, [], { code: "invalid_presentation_geometry" });
   }
-  const customPaths = (shape.customPaths || []).map((path) => ({
+  const customPaths = normalizedCustomPaths.map((path) => ({
     width: BigInt(path.width),
     height: BigInt(path.height),
     commands: path.commands.map((command) => {
@@ -1595,6 +1597,17 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
           value: {
             control: { x: BigInt(command.quadraticBezTo.x1), y: BigInt(command.quadraticBezTo.y1) },
             end: { x: BigInt(command.quadraticBezTo.x), y: BigInt(command.quadraticBezTo.y) },
+          },
+        },
+      };
+      if (command.arcTo) return {
+        command: {
+          case: "arcTo",
+          value: {
+            widthRadius: BigInt(command.arcTo.widthRadius),
+            heightRadius: BigInt(command.arcTo.heightRadius),
+            startAngle: command.arcTo.startAngle,
+            sweepAngle: command.arcTo.sweepAngle,
           },
         },
       };
@@ -2680,6 +2693,14 @@ function modelCustomGeometryPaths(shape) {
           y1: Number(command.command.value.control.y),
           x: Number(command.command.value.end.x),
           y: Number(command.command.value.end.y),
+        },
+      };
+      if (command.command.case === "arcTo") return {
+        arcTo: {
+          widthRadius: Number(command.command.value.widthRadius),
+          heightRadius: Number(command.command.value.heightRadius),
+          startAngle: command.command.value.startAngle,
+          sweepAngle: command.command.value.sweepAngle,
         },
       };
       if (command.command.case === "cubicBezierTo") return {

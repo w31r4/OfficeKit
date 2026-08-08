@@ -2,10 +2,10 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after adding the bounded PPTX quadratic custom-path
-primitive. The clean candidate contains 706 files, 36,131,857 compressed bytes,
-and 53,034,411 unpacked bytes; its measured shasum is
-`0ad5d101b12283290ca37b781901fa6d0e4e1aa6`. This is package evidence, not an
+The package dry-run passed after adding the bounded PPTX literal `arcTo`
+custom-path primitive. The clean candidate contains 706 files, 36,135,202
+compressed bytes, and 53,048,188 unpacked bytes; its measured shasum is
+`5356412da13943cc3ec688a3d382f86c769ff459`. This is package evidence, not an
 npm registry publication or tagged release.
 
 ## Unreleased: generated API evidence outside the npm runtime payload
@@ -39,11 +39,42 @@ second import, and static SVG `Q` output. Open XML SDK Office 2021 validation
 and negative JS validation cover malformed commands. Formula coordinates and
 mixed/non-point curve children remain opaque and round-trip unchanged instead
 of entering the semantic reader; their mutation fails closed. Arcs, guides,
-handles, connection sites, text rectangles, and per-path paint remain
-source-bound. The deterministic bundled runtime remains 38 files and grows by
+handles, connection sites, text rectangles, and per-path paint remained
+source-bound at that milestone; the following arc slice narrows that boundary.
+The deterministic bundled runtime remains 38 files and grows by
 4,096 bytes to 15,207,068 bytes. The current npm dry-run contains 706 files,
 36,131,857 compressed bytes, and 53,034,411 unpacked bytes (shasum
 `0ad5d101b12283290ca37b781901fa6d0e4e1aa6`).
+
+## Unreleased: PPTX literal custom-path arcs
+
+The same bounded DrawingML custom-geometry profile now recognizes, authors,
+edits, imports, exports, and previews literal `a:arcTo` segments. The JS model
+uses `{ widthRadius, heightRadius, startAngle, sweepAngle }`; radii are positive
+signed-32-bit coordinates, angles retain native 1/60000-degree integers, and a
+non-zero sweep is bounded to one full turn. The versioned wire adds one
+backward-compatible `arc_to` oneof field and appends its message after every
+existing descriptor. The C# codec remains the OOXML authority and writes the
+Open XML SDK `ArcTo` leaf with exact `wR`, `hR`, `stAng`, and `swAng` values.
+
+The object model stores no redundant center or endpoint. SVG preview derives
+both from the current point and native parameters, splitting a full circle into
+two half-circle commands so the endpoint-equality case remains visible. An arc
+without an established current point, non-positive radius, zero or over-full
+sweep, missing field, formula value, extra child, or unexpected attribute is
+rejected or retained as opaque source content rather than flattened. Round-trip
+coverage includes positive full-circle authoring, negative source-bound sweep
+editing, second import, exact native XML, Office 2021 validation, and formula or
+child-bearing preservation. Recognition checks lexical `InnerXml` because the
+Open XML SDK intentionally reports `HasChildren=false` for every typed leaf even
+when malformed source children live in its shadow element; the same guard now
+protects literal points and close commands. Export and SVG preview also
+re-normalize mutable path data at the consumption boundary. The deterministic
+runtime remains 38 files and grows by 6,144 bytes from the quadratic milestone
+to 15,213,212 bytes. The clean npm candidate remains 706 files at 36,135,202
+compressed bytes and 53,048,188 unpacked bytes (shasum
+`5356412da13943cc3ec688a3d382f86c769ff459`), leaving 151,812 bytes below the
+existing unpacked ceiling.
 
 ## Unreleased: format-local Document codec loading
 
