@@ -20,11 +20,34 @@ import {
   effectivePresentationImageCrop,
   presentationImageDataUrlDimensions,
 } from "../src/presentation/image-crop.mjs";
+import { materializePresentationNativeGraphs } from "../src/codecs/office-kit-presentation-native.mjs";
 
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 const JPEG = "data:image/jpeg;base64,/9j/2Q==";
 const WIDE_SVG = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200" viewBox="0 0 400 200"><rect width="200" height="200" fill="#2563eb"/><rect x="200" width="200" height="200" fill="#f97316"/></svg>').toString("base64")}`;
 const TALL_SVG = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 400"><rect width="200" height="200" fill="#2563eb"/><rect y="200" width="200" height="200" fill="#f97316"/></svg>').toString("base64")}`;
+
+// Native-object materialization must share the bounded OOXML ZIP loader. A
+// selected opaque part is enough to force source-package extraction, while a
+// deliberately high declared compression ratio must fail before JSZip inflates
+// the source snapshot.
+const boundedNativeZip = new JSZip();
+boundedNativeZip.file("ppt/native.bin", "A".repeat(10_000));
+const boundedNativeBytes = await boundedNativeZip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+await assert.rejects(
+  materializePresentationNativeGraphs({
+    payload: {
+      case: "presentation",
+      value: { slides: [{ elements: [{ content: { case: "opaque", value: { preservedPartPaths: ["ppt/native.bin"] } } }] }] },
+    },
+    opaqueOpc: {
+      parts: [{ path: "ppt/native.bin", contentType: "application/octet-stream" }],
+      sourcePackage: { data: boundedNativeBytes },
+    },
+  }, { maxCompressionRatio: 2 }),
+  /maxCompressionRatio/,
+  "native source-package materialization must reject a hostile compression ratio before inflation",
+);
 
 function itemByName(items, name) {
   const item = items.find((candidate) => candidate.name === name);

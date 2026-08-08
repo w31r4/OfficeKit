@@ -63,7 +63,7 @@ async function ooxmlInputBytes(blobOrBuffer) {
 // count are then checked before any entry is inflated. `ooxmlPackageRecords`
 // repeats the actual-size checks after inflation; this helper closes the patch
 // path that used to mutate a ZIP before those checks ran.
-async function loadOoxmlZipWithinBudget(bytes, options = {}, family = "OOXML") {
+export async function loadOoxmlZipWithinBudget(bytes, options = {}, family = "OOXML") {
   const limits = ooxmlZipLimits(options);
   if (bytes.byteLength > limits.maxInputBytes) {
     throw new Error(`${family} input has ${bytes.byteLength} bytes and exceeds maxInputBytes (${limits.maxInputBytes}).`);
