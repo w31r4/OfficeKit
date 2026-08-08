@@ -559,6 +559,12 @@ function activeContentTraceChecks(audit, commands) {
   const residueAfterEdit = /residue_scan\.py\b/i.test(afterEdit);
   const renderAfterEdit = /\bpdftoppm\b/i.test(afterEdit);
   const auditAfterEdit = /pdf_audit\.py["']?\s+validate\b/i.test(afterEdit);
+  // The operation label describes the requested public-copy intent, while the
+  // command trace proves which typed primitive actually ran.  Keep those
+  // dimensions separate: a workflow may call the same scrub primitive
+  // `sanitize-public-copy`, but a label alone must never satisfy this gate.
+  const typedEdit = /pymupdf_edit\.py["']?\s+edit\b/i.test(commandText);
+  const scrubOperation = /scrub|active[_ -]?content|sanitize[_ -]?public[_ -]?copy/i.test(operation);
   const bypassPatterns = [
     /\bupdate_stream\s*\(/i,
     /\bset_contents\s*\(/i,
@@ -580,7 +586,7 @@ function activeContentTraceChecks(audit, commands) {
         editCommandIndex: editIndex,
       },
     }),
-    check("pdf-trace:typed-scrub-primitive", "trace", /pymupdf_edit\.py["']?\s+edit\b/i.test(commandText) && /scrub|active[_ -]?content/i.test(operation), { actual: operation || "unreported" }),
+    check("pdf-trace:typed-scrub-primitive", "trace", typedEdit && scrubOperation, { expected: "pymupdf_edit.py edit with scrub/public-sanitize operation", actual: operation || "unreported" }),
     check("pdf-trace:post-mutation-residue-scan", "trace", residueAfterEdit, { actual: { editObserved: editIndex >= 0, postMutationResidueScanObserved: residueAfterEdit } }),
     check("pdf-trace:post-mutation-poppler-render", "trace", renderAfterEdit, { actual: { editObserved: editIndex >= 0, postMutationRenderObserved: renderAfterEdit } }),
     check("pdf-trace:audit-byte-validation", "trace", auditAfterEdit, { actual: { postMutationAuditValidationObserved: auditAfterEdit } }),
