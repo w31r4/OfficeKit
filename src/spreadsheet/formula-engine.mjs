@@ -1717,20 +1717,22 @@ function formulaTextSearchPosition(findValue, withinValue, startValue = 1, { cas
   return index < 0 ? "#VALUE!" : start + Array.from(tail.slice(0, index)).length;
 }
 
+function readBoundedScalarArgument(sheet, expression, context = {}, { required = false, fallback } = {}) {
+  const text = String(expression ?? "").trim();
+  if (text === "") return required ? { error: "#VALUE!" } : { value: fallback };
+  // Scalar text functions must never turn a multi-cell source into its
+  // upper-left value. Count source-backed ranges before formulaScalar does
+  // the ordinary cell lookup, then reject any computed matrix as well.
+  if ((formulaReferenceExpressionCellCount(sheet, text, context) || 0) > 1) return { error: "#VALUE!" };
+  const value = formulaScalar(sheet, text, context);
+  if (isFormulaMatrix(value)) return { error: "#VALUE!" };
+  const error = formulaErrorCode(value);
+  return error ? { error } : { value };
+}
+
 function evaluateFormulaTextBoundary(sheet, fnName, args, context = {}) {
   if (args.length < 2 || args.length > 6) return "#VALUE!";
-  const read = (index, { required = false, fallback } = {}) => {
-    const expression = String(args[index] ?? "").trim();
-    if (expression === "") return required ? { error: "#VALUE!" } : { value: fallback };
-    // A scalar text function must never turn a multi-cell source into its
-    // upper-left value. Count source-backed ranges before formulaScalar does
-    // the ordinary cell lookup, then reject any computed matrix as well.
-    if ((formulaReferenceExpressionCellCount(sheet, expression, context) || 0) > 1) return { error: "#VALUE!" };
-    const value = formulaScalar(sheet, expression, context);
-    if (isFormulaMatrix(value)) return { error: "#VALUE!" };
-    const error = formulaErrorCode(value);
-    return error ? { error } : { value };
-  };
+  const read = (index, options) => readBoundedScalarArgument(sheet, args[index], context, options);
   const textPart = read(0, { required: true });
   if (textPart.error) return textPart.error;
   const delimiterPart = read(1, { required: true });
@@ -1771,6 +1773,56 @@ function evaluateFormulaTextBoundary(sheet, fnName, args, context = {}) {
   const occurrence = occurrences[occurrenceIndex];
   if (!occurrence) return notFoundPart.value;
   return fnName === "TEXTBEFORE" ? text.slice(0, occurrence.start) : text.slice(occurrence.end);
+}
+
+function splitBoundedText(text, delimiter, { ignoreEmpty, matchMode }) {
+  const source = matchMode === 1 ? text.toLocaleLowerCase() : text;
+  const needle = matchMode === 1 ? delimiter.toLocaleLowerCase() : delimiter;
+  const pieces = [];
+  let cursor = 0;
+  while (cursor <= source.length - needle.length) {
+    const index = source.indexOf(needle, cursor);
+    if (index < 0) break;
+    const piece = text.slice(cursor, index);
+    if (!ignoreEmpty || piece !== "") pieces.push(piece);
+    cursor = index + needle.length;
+  }
+  const tail = text.slice(cursor);
+  if (!ignoreEmpty || tail !== "") pieces.push(tail);
+  return pieces;
+}
+
+function evaluateFormulaTextSplit(sheet, args, context = {}) {
+  if (args.length < 2 || args.length > 6) return "#VALUE!";
+  const read = (index, options) => readBoundedScalarArgument(sheet, args[index], context, options);
+  const textPart = read(0, { required: true });
+  if (textPart.error) return textPart.error;
+  const columnDelimiterPart = read(1, { required: true });
+  if (columnDelimiterPart.error) return columnDelimiterPart.error;
+  const text = formulaText(textPart.value);
+  const columnDelimiter = formulaText(columnDelimiterPart.value);
+  if (columnDelimiter.length === 0) return "#VALUE!";
+  const rowDelimiterPart = read(2, { fallback: undefined });
+  if (rowDelimiterPart.error) return rowDelimiterPart.error;
+  const rowDelimiter = rowDelimiterPart.value == null ? "" : formulaText(rowDelimiterPart.value);
+  if (args[2] !== undefined && String(args[2]).trim() !== "" && rowDelimiter.length === 0) return "#VALUE!";
+  const ignoreEmptyPart = read(3, { fallback: false });
+  if (ignoreEmptyPart.error) return ignoreEmptyPart.error;
+  const ignoreEmpty = formulaTruthy(ignoreEmptyPart.value);
+  const matchModePart = read(4, { fallback: 0 });
+  if (matchModePart.error) return matchModePart.error;
+  const matchMode = Number(matchModePart.value);
+  if (!Number.isInteger(matchMode) || ![0, 1].includes(matchMode)) return "#VALUE!";
+  const padWithPart = args.length >= 6 ? read(5, { fallback: "#N/A" }) : { value: "#N/A" };
+  if (padWithPart.error) return padWithPart.error;
+  const rowParts = rowDelimiter.length === 0
+    ? [text]
+    : splitBoundedText(text, rowDelimiter, { ignoreEmpty, matchMode });
+  const rows = rowParts.map((row) => splitBoundedText(row, columnDelimiter, { ignoreEmpty, matchMode }));
+  const columns = Math.max(0, ...rows.map((row) => row.length));
+  if (columns === 0) return "#CALC!";
+  if (!formulaMatrixWithinBudget(rows.length, columns)) return "#VALUE!";
+  return rows.map((row) => Array.from({ length: columns }, (_, index) => row[index] ?? padWithPart.value));
 }
 
 function formulaXmatchIndex(lookup, lookupValues = [], matchMode = 0, searchMode = 1) {
@@ -2353,6 +2405,7 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "TRIM": return formulaText(scalar(0, "")).trim().replace(/\s+/g, " ");
     case "TEXTBEFORE":
     case "TEXTAFTER": return evaluateFormulaTextBoundary(sheet, fnName, args, context);
+    case "TEXTSPLIT": return evaluateFormulaTextSplit(sheet, args, context);
     case "VALUE": {
       if (args.length !== 1) return "#VALUE!";
       const value = scalar(0);

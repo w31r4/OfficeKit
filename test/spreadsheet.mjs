@@ -1836,6 +1836,34 @@ const importedTextBoundaryWorkbook = await SpreadsheetFile.importXlsx(textBounda
 assert.deepEqual(importedTextBoundaryWorkbook.worksheets.getItem("Text boundary").getRange("B1:B14").formulas, textBoundarySheet.getRange("B1:B14").formulas);
 assert.deepEqual(importedTextBoundaryWorkbook.worksheets.getItem("Text boundary").getRange("B1:B14").values, textBoundarySheet.getRange("B1:B14").values);
 
+const textSplitWorkbook = Workbook.create();
+const textSplitSheet = textSplitWorkbook.worksheets.add("Text split");
+textSplitSheet.getRange("A1:A5").values = [["North|West|South"], ["A||C"], ["a::b\nc"], ["||"], [Array.from({ length: 10_001 }, (_, index) => String(index)).join("|")]];
+textSplitSheet.getRange("B1").formulas = [["=TEXTSPLIT(A1,\"|\")"]];
+textSplitSheet.getRange("B3").formulas = [["=TEXTSPLIT(A2,\"|\",,TRUE)"]];
+textSplitSheet.getRange("B5").formulas = [["=TEXTSPLIT(\"a=1;b=2\",\"=\",\";\")"]];
+textSplitSheet.getRange("E1").formulas = [["=TEXTSPLIT(\"aXbxC\",\"x\",,FALSE,1)"]];
+textSplitSheet.getRange("E3").formulas = [["=TEXTSPLIT(\"a=1;b=2;c\",\"=\",\";\",FALSE,0,\"missing\")"]];
+textSplitSheet.getRange("H1:H5").formulas = [
+  ["=TEXTSPLIT(A1,\"\")"],
+  ["=TEXTSPLIT(A1:A2,\"|\")"],
+  ["=TEXTSPLIT(SEQUENCE(2),\"|\")"],
+  ["=TEXTSPLIT(\"||\",\"|\",,TRUE)"],
+  ["=TEXTSPLIT(A5,\"|\")"],
+];
+assert.deepEqual(textSplitSheet.getRange("B1:D1").values, [["North", "West", "South"]]);
+assert.deepEqual(textSplitSheet.getRange("B3:C3").values, [["A", "C"]]);
+assert.deepEqual(textSplitSheet.getRange("B5:C6").values, [["a", "1"], ["b", "2"]]);
+assert.deepEqual(textSplitSheet.getRange("E1:G1").values, [["a", "b", "C"]]);
+assert.deepEqual(textSplitSheet.getRange("E3:F5").values, [["a", "1"], ["b", "2"], ["c", "missing"]]);
+assert.deepEqual(textSplitSheet.getRange("H1:H5").values, [["#VALUE!"], ["#VALUE!"], ["#VALUE!"], ["#CALC!"], ["#VALUE!"]]);
+const textSplitXlsx = await SpreadsheetFile.exportXlsx(textSplitWorkbook);
+const importedTextSplitWorkbook = await SpreadsheetFile.importXlsx(textSplitXlsx);
+const importedTextSplitSheet = importedTextSplitWorkbook.worksheets.getItem("Text split");
+assert.equal(importedTextSplitSheet.getRange("B1").formulas[0][0], "=TEXTSPLIT(A1,\"|\")");
+assert.equal(importedTextSplitSheet.getRange("B5").formulas[0][0], "=TEXTSPLIT(\"a=1;b=2\",\"=\",\";\")");
+assert.deepEqual(importedTextSplitSheet.getRange("B5:C6").values, [["a", "1"], ["b", "2"]]);
+
 const importedWithoutSourceSnapshot = await SpreadsheetFile.importXlsx(firstXlsx);
 const workbookState = importedWithoutSourceSnapshot[Symbol.for("office-kit.workbook-state")];
 workbookState.opaqueOpc.sourcePackage = undefined;
