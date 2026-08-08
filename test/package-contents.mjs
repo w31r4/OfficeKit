@@ -110,6 +110,17 @@ const presentationCodecSource = await fs.readFile(path.join(repoRoot, "src", "co
 assert.match(presentationCodecSource, /from "\.\.\/presentation\/index\.mjs";/, "the Presentation codec must depend on the Presentation leaf module");
 assert.match(presentationCodecSource, /from "\.\/office-kit-presentation-charts\.mjs";/, "the Presentation codec must delegate chart wire semantics to the chart leaf module");
 assert.doesNotMatch(presentationCodecSource, /from "\.\.\/index\.mjs";/, "the Presentation codec must not create a back-edge to the root entry");
+const presentationFacadeSource = await fs.readFile(path.join(repoRoot, "src", "presentation", "index.mjs"), "utf8");
+const presentationCodecAdapterSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-presentation-codec.mjs"), "utf8");
+const officeKitRuntimeSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-runtime.mjs"), "utf8");
+assert.match(presentationFacadeSource, /await import\("\.\.\/codecs\/office-kit-presentation-codec\.mjs"\)/, "Presentation file I/O must load the format-specific codec adapter");
+assert.doesNotMatch(presentationFacadeSource, /await import\("\.\.\/codecs\/office-kit\.mjs"\)/, "Presentation file I/O must not load the aggregate Document/Spreadsheet codec");
+assert.match(presentationCodecAdapterSource, /from "\.\/office-kit-runtime\.mjs";/, "the Presentation adapter must use the shared runtime boundary");
+assert.match(presentationCodecAdapterSource, /from "\.\/office-kit-presentation\.mjs";/, "the Presentation adapter must use the Presentation wire mapper");
+assert.doesNotMatch(presentationCodecAdapterSource, /from "\.\/office-kit\.mjs";/, "the Presentation adapter must not load the aggregate codec");
+assert.doesNotMatch(presentationCodecAdapterSource, /\.\.\/(?:document|spreadsheet)\/index\.mjs/, "the Presentation adapter must not load another artifact model");
+assert.doesNotMatch(officeKitRuntimeSource, /from "\.\/office-kit\.mjs";/, "the runtime boundary must not load the aggregate codec");
+assert.doesNotMatch(officeKitRuntimeSource, /\.\.\/(?:document|presentation|spreadsheet)\/index\.mjs/, "the runtime boundary must not own an artifact model");
 const presentationChartCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-presentation-charts.mjs"), "utf8");
 assert.doesNotMatch(presentationChartCodecSource, /from "\.\.\/index\.mjs";/, "the Presentation chart codec must not create a back-edge to the root entry");
 const spreadsheetCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit.mjs"), "utf8");
@@ -194,7 +205,9 @@ for (const required of [
   "src/generated/office_kit/artifact/v1/office_artifact_pb.js",
   "src/codecs/office-kit.mjs",
   "src/codecs/office-kit-error.mjs",
+  "src/codecs/office-kit-runtime.mjs",
   "src/codecs/office-kit-assets.mjs",
+  "src/codecs/office-kit-presentation-codec.mjs",
   "src/codecs/office-kit-presentation.mjs",
   "src/codecs/office-kit-presentation-charts.mjs",
   "src/codecs/office-kit-spreadsheet-pivots.mjs",

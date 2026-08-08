@@ -17,6 +17,13 @@ import {
   importXlsxWithOfficeKit,
   officeKitStatus,
 } from "../src/codecs/office-kit.mjs";
+import {
+  exportPptxWithOfficeKit as exportPptxWithOfficeKitLeaf,
+  importPptxWithOfficeKit as importPptxWithOfficeKitLeaf,
+} from "../src/codecs/office-kit-presentation-codec.mjs";
+
+assert.equal(exportPptxWithOfficeKit, exportPptxWithOfficeKitLeaf);
+assert.equal(importPptxWithOfficeKit, importPptxWithOfficeKitLeaf);
 
 const status = await officeKitStatus();
 assert.equal(status.available, true);
