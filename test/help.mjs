@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 395);
+assert.equal(HELP_CATALOG.length, 397);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -85,6 +85,8 @@ assert.ok(HELP_CATALOG.some((item) => item.name === "fx.ROWS"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.COLUMNS"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.ISLOGICAL"));
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.ISNONTEXT")?.summary || "", /blank.*logical.*numeric.*error/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.CHOOSE")?.summary || "", /scalar.*254.*1-based.*#VALUE!/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.XOR")?.summary || "", /odd number.*255.*array-valued/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.worksheets.add"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.worksheets.setActiveWorksheet"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.worksheets.setSelectedWorksheets"));
@@ -345,7 +347,7 @@ assert.ok(HELP_CATALOG.find((item) => item.name === "PdfFile.importPdf")?.schema
 assert.ok(HELP_CATALOG.find((item) => item.name === "renderArtifact")?.returns?.includes("FileBlob"));
 assert.ok(HELP_CATALOG.find((item) => item.name === "visualQaArtifact")?.examples?.some((example) => example.includes("pixelDiff")));
 const formulaCatalog = HELP_CATALOG.filter((item) => item.name.startsWith("fx."));
-assert.equal(formulaCatalog.length, 117);
+assert.equal(formulaCatalog.length, 119);
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.formula?.required));
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.arguments?.type === "unknown[]"));
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.AND")?.schema?.returns?.value?.type, "boolean");
@@ -559,7 +561,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /absolute uri.*slideId.*relative action/);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /customShow.*survives the bounded slide clone.*without adding the clone to show membership/i);
 const workbookCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "workbook");
-assert.equal(workbookCatalog.length, 207);
+assert.equal(workbookCatalog.length, 209);
 assert.ok(workbookCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "workbook.trace")?.schema?.parameters?.reference?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "Workbook.create")?.schema?.parameters?.dateSystem?.type, "string");

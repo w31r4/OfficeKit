@@ -111,9 +111,11 @@ export const HELP_CATALOG = [
   { artifactKind: "workbook", kind: "formula", name: "fx.IF", category: "logical", summary: "Return one value when a condition is true and another when false.", examples: ["=IF(A1>0,\"ok\",\"bad\")"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.IFS", category: "logical", summary: "Evaluate condition/value pairs in order and return the first matching value, or #N/A when no condition matches.", examples: ["=IFS(A1>=90,\"A\",A1>=80,\"B\",TRUE,\"C\")"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.SWITCH", category: "logical", summary: "Match an expression against ordered value/result pairs and return an optional default or #N/A when no value matches.", examples: ["=SWITCH(A1,\"East\",1,\"West\",2,0)"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.CHOOSE", category: "lookup-reference", summary: "Select one scalar result from up to 254 ordered choices using a truncated 1-based index; invalid indexes and unsupported arity return #VALUE!.", examples: ["=CHOOSE(A1,\"Low\",\"Medium\",\"High\")"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.AND", category: "logical", summary: "Return TRUE when all conditions are true.", examples: ["=AND(A1>0,B1>0)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.OR", category: "logical", summary: "Return TRUE when any condition is true.", examples: ["=OR(A1>0,B1>0)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.NOT", category: "logical", summary: "Reverse the truth value of a condition.", examples: ["=NOT(A1>0)"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.XOR", category: "logical", summary: "Return TRUE when an odd number of up to 255 scalar conditions are true; array-valued logical arguments remain outside the bounded evaluator.", examples: ["=XOR(A1>0,B1>0,C1>0)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.ROUND", category: "math-trig", summary: "Round a numeric value to decimal places or, with negative digits, positions left of the decimal point.", examples: ["=ROUND(A1,2)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.ROUNDUP", category: "math-trig", summary: "Round a numeric value away from zero at the requested positive or negative digit position.", examples: ["=ROUNDUP(A1,2)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.ROUNDDOWN", category: "math-trig", summary: "Round a numeric value toward zero at the requested positive or negative digit position.", examples: ["=ROUNDDOWN(A1,2)"] },
@@ -2325,7 +2327,7 @@ for (const item of HELP_CATALOG) {
         ? (functionName === "IF" || functionName === "IFERROR" ? "unknown" : "boolean")
         : item.category === "text"
           ? (["LEN", "VALUE", "SEARCH", "FIND"].includes(functionName) ? "number" : "string")
-          : functionName === "XLOOKUP" || functionName === "INDEX" || functionName === "VLOOKUP" || functionName === "HLOOKUP"
+          : functionName === "CHOOSE" || functionName === "XLOOKUP" || functionName === "INDEX" || functionName === "VLOOKUP" || functionName === "HLOOKUP"
             ? "unknown"
             : "number";
     item.schema = {

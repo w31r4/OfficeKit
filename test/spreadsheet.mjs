@@ -1178,6 +1178,27 @@ dynamicIntrospectionSheet.getRange("A1").formulas = [["=SEQUENCE(2,3)"]];
 dynamicIntrospectionSheet.getRange("E1:E2").formulas = [["=ROWS(A1#)"], ["=COLUMNS(A1#)"]];
 assert.deepEqual(dynamicIntrospectionSheet.getRange("E1:E2").values, [[2], [3]]);
 
+const controlFormulaWorkbook = Workbook.create();
+const controlFormulaSheet = controlFormulaWorkbook.worksheets.add("Formula controls");
+controlFormulaSheet.getRange("A1:A4").values = [[1], [2], [3], [4]];
+controlFormulaSheet.getRange("C1:C10").formulas = [
+  ["=CHOOSE(1,\"low\",\"medium\",\"high\")"],
+  ["=CHOOSE(2.9,\"low\",\"medium\",\"high\")"],
+  ["=CHOOSE(A1,\"low\",\"medium\",\"high\")"],
+  ["=CHOOSE(0,\"low\",\"medium\")"],
+  ["=CHOOSE(4,\"low\",\"medium\")"],
+  ["=XOR(TRUE,FALSE,TRUE)"],
+  ["=XOR(TRUE,FALSE,FALSE)"],
+  ["=XOR(A1>0,A2>0,A3>0,A4>0)"],
+  ["=XOR()"],
+  ["=CHOOSE(1,1/0,\"selected\")"],
+];
+assert.deepEqual(controlFormulaSheet.getRange("C1:C10").values, [["low"], ["medium"], ["low"], ["#VALUE!"], ["#VALUE!"], [false], [true], [false], ["#VALUE!"], ["#DIV/0!"]]);
+const controlFormulaXlsx = await SpreadsheetFile.exportXlsx(controlFormulaWorkbook);
+const importedControlFormulaWorkbook = await SpreadsheetFile.importXlsx(controlFormulaXlsx);
+assert.deepEqual(importedControlFormulaWorkbook.worksheets.getItem("Formula controls").getRange("C1:C10").formulas, controlFormulaSheet.getRange("C1:C10").formulas);
+assert.deepEqual(importedControlFormulaWorkbook.worksheets.getItem("Formula controls").getRange("C1:C10").values, controlFormulaSheet.getRange("C1:C10").values);
+
 const templateFormulaWorkbook = Workbook.create();
 const templateFormulaSheet = templateFormulaWorkbook.worksheets.add("Template formulas");
 templateFormulaSheet.getRange("A1:A7").values = [[1], [null], [false], ["text"], [0], ["#DIV/0!"], [null]];
