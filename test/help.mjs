@@ -773,7 +773,7 @@ assert.match(pdf.help("PdfProviders.ensure").ndjson, /catalog digest.*policy fin
 assert.match(pdf.help("PdfProviders.probe").ndjson, /no network request.*cache write.*provider fallback/is);
 assert.match(helpArtifact("*", "renderArtifact").ndjson, /FileBlob metadata/);
 assert.match(helpArtifact("shared", "visualQaArtifact").ndjson, /baseline render/);
-assert.match(helpArtifact("shared", "reviewArtifact").ndjson, /optional lazy AnyDoc Markdown/);
+assert.match(helpArtifact("shared", "reviewArtifact").ndjson, /optional compact text reading view.*AnyDoc/is);
 assert.match(helpArtifact("shared", "createPlaywrightRenderer").ndjson, /Playwright renderer adapter/);
 assert.match(helpArtifact("shared", "createSharpRenderer").ndjson, /sharp renderer adapter/);
 assert.match(helpArtifact("shared", "createPopplerRenderer").ndjson, /Poppler CLI renderer adapter/);

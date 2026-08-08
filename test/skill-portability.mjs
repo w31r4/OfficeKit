@@ -126,11 +126,12 @@ assert.match(officeKitSkill, /references\/workspace\.md/);
 assert.match(officeKitSkill, /references\/capabilities\.md/);
 assert.match(officeKitSkill, /references\/review\.md/);
 assert.match(officeKitSkill, /absolute path.*SHA-256/is);
-for (const [number, label] of [[6, "Semantic"], [7, "Structural"], [8, "Layout"], [9, "Optional content"], [10, "Visual"], [11, "Delivery"]]) {
+for (const [number, label] of [[6, "Semantic"], [7, "Structural"], [8, "Layout"], [9, "Optional text reading"], [10, "Visual"], [11, "Delivery"]]) {
   assert.match(review, new RegExp(`${number}\\.\\s+\\*{0,2}${label}`, "i"), `review contract: ${number}. ${label}`);
 }
+assert.match(review, /text reading view/i);
 assert.match(review, /contentView: "anydoc"/);
-assert.match(review, /do not run AnyDoc merely because\s+it is installed/i);
+assert.match(review, /do not run the text reading view\s+merely because\s+it is installed/i);
 assert.match(review, /not OCR.*not a substitute for render review/is);
 assert.match(review, /visualReview: "requires-human"/);
 assert.match(repl, /ctx\.state/);
@@ -174,7 +175,7 @@ for (const [name, relative] of [
 ]) {
   const text = await fs.readFile(path.join(repoRoot, "skills", ...relative), "utf8");
   assert.match(text, /\.\.\/office-kit\/references\/review\.md/, `${name} must use the shared review contract`);
-  assert.match(text, /AnyDoc/i, `${name} must describe the optional content view`);
+  assert.match(text, /text reading view/i, `${name} must describe the optional content view`);
 }
 
 console.log(`Skill portability ok: ${files.length} host-neutral files checked`);

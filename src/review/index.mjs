@@ -301,14 +301,14 @@ function createReviewMarkdown(report, maxChars) {
     `Status: ${report.layout.status}${report.layout.scope ? `; scope: ${report.layout.scope}` : ""}.`,
     ...summarizeIssues(layoutIssues),
     "",
-    "## 9. AnyDoc text view",
+    "## 9. Text reading view (optional)",
     "",
     `Status: ${report.contentView.status}; provider: anydoc@${ANYDOC_VERSION}.`,
   ].join("\n");
   const suffix = [
     "## 10. Visual/human review",
     "",
-    `Status: ${report.visualReview}. AnyDoc/OCR text does not count as pixel or aesthetic review.`,
+    `Status: ${report.visualReview}. Text reading/OCR output does not count as pixel or aesthetic review.`,
     "",
     "## 11. Delivery review",
     "",

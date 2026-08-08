@@ -2,7 +2,9 @@
 
 Use this contract only after the final file has been exported and reopened.
 Native OfficeKit inspection remains the authority for package, model, source,
-and render facts. AnyDoc is an optional reading view.
+and render facts. The optional text reading view is a compact Markdown
+representation of the artifact; AnyDoc is its parser backend, not the name of
+the review decision.
 
 ## Review order
 
@@ -15,20 +17,21 @@ and render facts. AnyDoc is an optional reading view.
 8. **Layout/render review:** run deterministic layout and render checks for
    blank output, invalid geometry, clipping, overflow, overlap, crop, and
    baseline differences supported by the owning Skill.
-9. **Optional content view:** request AnyDoc Markdown only when it materially
-   improves review.
+9. **Optional text reading view:** request a compact Markdown view only when it
+   materially improves content review.
 10. **Visual or human review:** understand the rendered pixels when that
     capability exists. Otherwise report the limitation honestly.
 11. **Delivery review:** prove the final absolute path, type, SHA-256, distinct
     source/output paths, and evidence locations.
 
-## Decide whether to use AnyDoc
+## Decide whether to use the text reading view
 
-AnyDoc overlaps with visual review only in confirming that some text or table
-content exists. It does not preserve exact placement, typography, crop,
-contrast, visual hierarchy, chart appearance, or slide composition.
+The text reading view overlaps with visual review only in confirming that some
+text or table content exists. It does not preserve exact placement, typography,
+crop, contrast, visual hierarchy, chart appearance, or slide composition.
 
-Use `contentView: "anydoc"` when any of these is true:
+Use `contentView: "anydoc"` to request the text reading view when any of these
+is true:
 
 - the Agent cannot directly understand rendered images;
 - a long document, workbook, deck, or PDF would be expensive to read through
@@ -37,10 +40,10 @@ Use `contentView: "anydoc"` when any of these is true:
 - an independent parser view is useful for a suspicious content mismatch.
 
 Omit `contentView` for a small targeted edit when native inspect evidence and a
-direct visual review already answer the task. Do not run AnyDoc merely because
-it is installed.
+direct visual review already answer the task. Do not run the text reading view
+merely because it is installed.
 
-AnyDoc is not OCR and is not a substitute for render review. A host-supplied
+The text reading view is not OCR and is not a substitute for render review. A host-supplied
 OCR result or image description is also derived text evidence, not direct
 pixel review. If imagery, layout, or aesthetics are material and the Agent
 cannot understand the render, use `visualReview: "requires-human"`; otherwise
@@ -53,7 +56,7 @@ const { reviewArtifact } = await ctx.import("office-kit");
 
 const review = await reviewArtifact(outputPath, {
   source: inputPath,
-  contentView: "anydoc", // omit when the text view is unnecessary
+  contentView: "anydoc", // request the text reading view; omit when unnecessary
   visualReview: "unavailable",
   maxContentChars: 40_000,
 });
@@ -64,6 +67,6 @@ const review = await reviewArtifact(outputPath, {
 is `passed`, `passed-with-limitations`, or `failed` for the machine review. Read
 the summary and compare it with the request before delivery.
 
-AnyDoc loads only after `contentView: "anydoc"`. If that explicit view is
-unavailable or unsupported, record the reason and continue the native review;
-do not silently choose OCR, another parser, or another editing engine.
+The AnyDoc parser loads only after `contentView: "anydoc"`. If the text reading
+view is unavailable or unsupported, record the reason and continue the native
+review; do not silently choose OCR, another parser, or another editing engine.

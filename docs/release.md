@@ -11,8 +11,9 @@ block downstream content parsing.
 
 `@firecrawl/anydoc@0.1.3` and its platform parser are part of the production
 dependency closure but load only when the caller requests
-`contentView: "anydoc"`. The view provides bounded Markdown for semantic
-reading; it is not OCR, package validation, render evidence, or a visual
+`contentView: "anydoc"`. This option means “request the compact text reading
+view”; AnyDoc is the parser backend. The view provides bounded Markdown for
+semantic reading; it is not OCR, package validation, render evidence, or a visual
 quality claim. The shared Skill contract directs Agents to request it when
 screenshots cannot be understood, a large artifact would consume excessive
 context, or an independent text view helps investigate a mismatch.

@@ -25,9 +25,9 @@ Use `workspaceRoot`, `taskRoot`, `inputRoot`, `assetRoot`, `outputRoot`,
 plugin, or image tool.
 
 After an artifact is exported, use the [post-edit review contract](references/review.md)
-to reopen it and separate semantic, structural, layout, optional AnyDoc text,
-visual/human, and delivery evidence. AnyDoc is an explicit content view, never
-a replacement for native OfficeKit inspection or pixel review.
+to reopen it and separate semantic, structural, layout, optional text-reading,
+visual/human, and delivery evidence. AnyDoc is the parser behind that optional
+view, never a replacement for native OfficeKit inspection or pixel review.
 
 ## Respect explicit choices
 
@@ -107,8 +107,8 @@ then let the PDF Skill inspect and verify the final PDF.
 - Reopen or reimport the result when the owner requires it.
 - Run the owner's semantic, structural, layout/render, and delivery checks in
   the order defined by the post-edit review contract.
-- Request the lazy AnyDoc content view only when it helps the Agent read or
-  compare content; it is not a visual-review result.
+- Request the lazy text reading view (`contentView: "anydoc"`) only when it
+  helps the Agent read or compare content; it is not a visual-review result.
 - For a multi-artifact task, verify shared facts, numbers, names, dates, and
   visual identity across outputs.
 - Return the final files, the route used, the template decision, and any

@@ -54,7 +54,7 @@ try {
     assert.equal(report.contentView.providerVersion, "0.1.3");
     assert.equal(report.contentView.sourceSha256, report.delivery.sha256);
     assert.match(report.contentView.markdown, new RegExp(expectedText, "i"));
-    for (const step of ["6. Semantic", "7. Structural", "8. Layout", "9. AnyDoc", "10. Visual", "11. Delivery"]) {
+    for (const step of ["6. Semantic", "7. Structural", "8. Layout", "9. Text reading", "10. Visual", "11. Delivery"]) {
       assert.match(report.summary.markdown, new RegExp(step.replace(".", "\\.")));
     }
   }

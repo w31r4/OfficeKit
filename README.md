@@ -41,11 +41,12 @@ Use OfficeKit to inspect the forms, signatures, and accessibility of report.pdf 
 Every final file is reopened and checked through its native OfficeKit model,
 package structure, render pipeline, and delivery hash. An Agent that can inspect
 images reviews the rendered pages or slides directly. An Agent without image
-understanding can request the bundled AnyDoc reading view: compact Markdown for
-checking headings, paragraphs, tables, and cross-format content without loading
-every screenshot into context.
+understanding can request the bundled compact text reading view, powered by
+AnyDoc: Markdown for checking headings, paragraphs, tables, and cross-format
+content without loading every screenshot into context.
 
-AnyDoc is loaded only when the task benefits from it. It does not judge
+The AnyDoc parser is loaded only when the task benefits from the text reading
+view. It does not judge
 typography, crop, contrast, chart appearance, or composition, so design-sensitive
 work that cannot be viewed is clearly marked for human review.
 
