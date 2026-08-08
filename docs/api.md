@@ -4783,7 +4783,7 @@ Bind up to 16 scalar local names from left to right and evaluate a final scalar 
 
 **Schema returns:**
 
-- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
+- `value` (unknown) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.LN`
 

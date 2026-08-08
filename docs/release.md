@@ -1,5 +1,17 @@
 # Release
 
+## Unreleased: bounded Spreadsheet LET formulas
+
+The formula evaluator now supports a bounded scalar `LET` profile. It accepts
+up to 16 left-to-right local bindings, lets later expressions reference earlier
+bindings, and permits lexical shadowing in nested `LET` calls. Invalid names,
+array-valued or spill bindings, missing arguments, and direct multi-cell range
+bindings return `#VALUE!` rather than silently coercing an array to its upper
+left cell. The slice includes Help/API generation, Spreadsheet export/import
+round-trip tests, negative cases, and coverage documentation. It does not add
+general array-valued local variables or extend the evaluator beyond its current
+bounded formula grammar.
+
 ## Unreleased: portable post-edit review
 
 The public `reviewArtifact()` facade now reopens DOCX, XLSX, PPTX, and PDF

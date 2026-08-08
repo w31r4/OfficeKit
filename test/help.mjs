@@ -376,6 +376,7 @@ assert.equal(formulaCatalog.length, 157);
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.formula?.required));
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.arguments?.type === "unknown[]"));
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.AND")?.schema?.returns?.value?.type, "boolean");
+assert.equal(HELP_CATALOG.find((item) => item.name === "fx.LET")?.schema?.returns?.value?.type, "unknown");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.FILTER")?.schema?.returns?.value?.type, "unknown[][]");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.TEXTJOIN")?.schema?.returns?.value?.type, "string");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.TEXT")?.schema?.returns?.value?.type, "string");
