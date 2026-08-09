@@ -25,7 +25,7 @@ import { planPresentationSections, PresentationSectionCollection } from "./ooxml
 import { SlideTransition } from "./ooxml-transitions.mjs";
 import { inheritPresentationParagraphs, normalizePresentationParagraphs, normalizePresentationParagraphStyles, presentationParagraphsNeedSerialization, presentationParagraphsSvg, presentationParagraphsText, replacePresentationParagraphText } from "./text-paragraphs.mjs";
 import { normalizePresentationTextBodyProperties } from "./text-body-properties.mjs";
-import { normalizePresentationCustomConnectionSites, normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle, presentationCustomPathsSvg, presentationCustomTextRectangleFrame } from "./custom-geometry.mjs";
+import { normalizePresentationCustomAdjustmentHandles, normalizePresentationCustomConnectionSites, normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle, presentationCustomPathsSvg, presentationCustomTextRectangleFrame } from "./custom-geometry.mjs";
 import { normalizePresentationCustomGeometryFormulaGraph } from "./custom-geometry-formulas.mjs";
 import { normalizePresentationImageCrop, normalizePresentationImageFit, presentationImageCropViewport } from "./image-crop.mjs";
 import { planPresentationModernComments } from "./ooxml-modern-comments.mjs";
@@ -1367,9 +1367,14 @@ export class Shape {
       widthEmu: Math.round(Number(this.position.width) * EMU_PER_PIXEL),
       heightEmu: Math.round(Number(this.position.height) * EMU_PER_PIXEL),
     });
+    this.customAdjustmentHandles = normalizePresentationCustomAdjustmentHandles(config.customAdjustmentHandles, {
+      ...formulaGraph,
+      widthEmu: Math.round(Number(this.position.width) * EMU_PER_PIXEL),
+      heightEmu: Math.round(Number(this.position.height) * EMU_PER_PIXEL),
+    });
     this.textRectangle = normalizePresentationCustomTextRectangle(config.textRectangle);
-    if (this.geometry !== "custom" && (this.customPaths.length || this.customConnectionSites.length || this.customAdjustments.length || this.customGuides.length || this.textRectangle)) {
-      throw new TypeError("Presentation customPaths, customConnectionSites, customAdjustments, customGuides, and textRectangle are available only for custom geometry shapes.");
+    if (this.geometry !== "custom" && (this.customPaths.length || this.customConnectionSites.length || this.customAdjustmentHandles.length || this.customAdjustments.length || this.customGuides.length || this.textRectangle)) {
+      throw new TypeError("Presentation customPaths, customConnectionSites, customAdjustmentHandles, customAdjustments, customGuides, and textRectangle are available only for custom geometry shapes.");
     }
     this.transform = config.transform == null ? undefined : normalizePresentationPlaceholderTransform(config.transform, `Presentation shape ${this.name || this.id} transform`);
     this.fill = config.fill || "transparent";
@@ -1404,21 +1409,26 @@ export class Shape {
       widthEmu: Math.round(Number(this.position?.width) * EMU_PER_PIXEL),
       heightEmu: Math.round(Number(this.position?.height) * EMU_PER_PIXEL),
     });
+    const adjustmentHandles = normalizePresentationCustomAdjustmentHandles(this.customAdjustmentHandles, {
+      ...graph,
+      widthEmu: Math.round(Number(this.position?.width) * EMU_PER_PIXEL),
+      heightEmu: Math.round(Number(this.position?.height) * EMU_PER_PIXEL),
+    });
     const textRectangle = this.#normalizedTextRectangle();
-    if (this.geometry !== "custom" && (paths.length || connectionSites.length || graph.adjustments.length || graph.guides.length || textRectangle)) {
-      throw new TypeError("Presentation custom paths, connectionSites, adjustments, guides, and textRectangle are available only for custom geometry shapes.");
+    if (this.geometry !== "custom" && (paths.length || connectionSites.length || adjustmentHandles.length || graph.adjustments.length || graph.guides.length || textRectangle)) {
+      throw new TypeError("Presentation custom paths, connectionSites, adjustmentHandles, adjustments, guides, and textRectangle are available only for custom geometry shapes.");
     }
-    return { ...graph, paths, connectionSites, textRectangle };
+    return { ...graph, paths, connectionSites, adjustmentHandles, textRectangle };
   }
 
   inspectRecord(kind = "shape") {
     const p = this.position;
     const paragraphs = this.text.effectiveParagraphs();
     const custom = this.#normalizedCustomGeometry();
-    return { kind, id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, text: this.text.value || undefined, textPreview: this.text.value || undefined, textChars: this.text.value.length || undefined, textLines: this.text.value ? this.text.value.split("\n").length : undefined, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, customPathCount: custom.paths.length || undefined, customAdjustmentCount: custom.adjustments.length || undefined, customGuideCount: custom.guides.length || undefined, customConnectionSiteCount: custom.connectionSites.length || undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, textRectangle: custom.textRectangle, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", transform: this.transform, shadow: this.shadow, placeholder: this.placeholder || undefined, useBackgroundFill: this.useBackgroundFill };
+    return { kind, id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, text: this.text.value || undefined, textPreview: this.text.value || undefined, textChars: this.text.value.length || undefined, textLines: this.text.value ? this.text.value.split("\n").length : undefined, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, customPathCount: custom.paths.length || undefined, customAdjustmentCount: custom.adjustments.length || undefined, customGuideCount: custom.guides.length || undefined, customConnectionSiteCount: custom.connectionSites.length || undefined, customAdjustmentHandleCount: custom.adjustmentHandles.length || undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, textRectangle: custom.textRectangle, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", transform: this.transform, shadow: this.shadow, placeholder: this.placeholder || undefined, useBackgroundFill: this.useBackgroundFill };
   }
 
-  layoutJson() { const paragraphs = this.text.effectiveParagraphs(); const custom = this.#normalizedCustomGeometry(); return { kind: this.text.value ? "textbox" : "shape", id: this.id, name: this.name, geometry: this.geometry, customAdjustments: custom.adjustments.length ? custom.adjustments : undefined, customGuides: custom.guides.length ? custom.guides : undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customPaths: custom.paths.length ? custom.paths : undefined, textRectangle: custom.textRectangle, frame: this.position, transform: this.transform, text: this.text.value, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, placeholder: this.placeholder, style: { fill: this.fill, line: this.line, borderRadius: this.borderRadius, shadow: this.shadow, text: this.text.style, useBackgroundFill: this.useBackgroundFill } }; }
+  layoutJson() { const paragraphs = this.text.effectiveParagraphs(); const custom = this.#normalizedCustomGeometry(); return { kind: this.text.value ? "textbox" : "shape", id: this.id, name: this.name, geometry: this.geometry, customAdjustments: custom.adjustments.length ? custom.adjustments : undefined, customGuides: custom.guides.length ? custom.guides : undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, customPaths: custom.paths.length ? custom.paths : undefined, textRectangle: custom.textRectangle, frame: this.position, transform: this.transform, text: this.text.value, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, placeholder: this.placeholder, style: { fill: this.fill, line: this.line, borderRadius: this.borderRadius, shadow: this.shadow, text: this.text.style, useBackgroundFill: this.useBackgroundFill } }; }
 
   textFrame(frame = this.position) {
     return presentationCustomTextRectangleFrame(this.#normalizedTextRectangle(), frame, this.position);

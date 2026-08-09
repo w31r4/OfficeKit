@@ -45,6 +45,16 @@
           "name": "verify-card",
           "geometry": "custom",
           "position": { "left": 476, "top": 154, "width": 300, "height": 130 },
+          "customAdjustments": [
+            { "name": "adjX", "formula": "val 25000" },
+            { "name": "adjY", "formula": "val 50000" },
+            { "name": "adjRadius", "formula": "val 250000" },
+            { "name": "adjAngle", "formula": "val 10800000" }
+          ],
+          "customAdjustmentHandles": [
+            { "kind": "xy", "xAdjustment": "adjX", "minX": 0, "maxX": 100000, "yAdjustment": "adjY", "minY": 0, "maxY": 100000, "x": 150, "y": 65 },
+            { "kind": "polar", "radialAdjustment": "adjRadius", "minRadius": 0, "maxRadius": 500000, "angleAdjustment": "adjAngle", "minAngle": 0, "maxAngle": 360, "x": 300, "y": 65 }
+          ],
           "customConnectionSites": [
             { "angle": -90, "x": 150, "y": 0 },
             { "angle": 180, "x": 0, "y": 65 },

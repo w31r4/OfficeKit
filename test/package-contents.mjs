@@ -201,7 +201,6 @@ for (const required of [
   "README.zh-CN.md",
   "THIRD_PARTY_NOTICES.md",
   "bin/officekit.mjs",
-  "docs/reference-skills.md",
   "docs/template-library-provenance.md",
   "proto/office_kit/artifact/v1/office_artifact.proto",
   "src/generated/office_kit/artifact/v1/office_artifact_pb.js",

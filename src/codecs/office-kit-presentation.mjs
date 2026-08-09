@@ -16,7 +16,7 @@ import { deterministicPresentationGuid } from "../presentation/ooxml-modern-comm
 import { normalizePresentationThemeConfig } from "../presentation/ooxml-theme.mjs";
 import { normalizePresentationTextBodyProperties } from "../presentation/text-body-properties.mjs";
 import { effectivePresentationImageCrop, presentationImageCropFromWire, presentationImageCropToWire } from "../presentation/image-crop.mjs";
-import { normalizePresentationCustomConnectionSites, normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle } from "../presentation/custom-geometry.mjs";
+import { normalizePresentationCustomAdjustmentHandles, normalizePresentationCustomConnectionSites, normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle } from "../presentation/custom-geometry.mjs";
 import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation/custom-geometry-formulas.mjs";
 import { isPresentationAutoNumberType, normalizePresentationParagraphs, normalizePresentationParagraphStyles } from "../presentation/text-paragraphs.mjs";
 import { normalizePresentationLineStyle, presentationLineColor } from "../presentation/line-styles.mjs";
@@ -208,6 +208,7 @@ function cloneImportedPresentationShape(container, source, context) {
     ...(source.customAdjustments?.length ? { customAdjustments: clonedPresentationValue(source.customAdjustments) } : {}),
     ...(source.customGuides?.length ? { customGuides: clonedPresentationValue(source.customGuides) } : {}),
     ...(source.customConnectionSites?.length ? { customConnectionSites: clonedPresentationValue(source.customConnectionSites) } : {}),
+    ...(source.customAdjustmentHandles?.length ? { customAdjustmentHandles: clonedPresentationValue(source.customAdjustmentHandles) } : {}),
     ...(source.customPaths?.length ? { customPaths: clonedPresentationValue(source.customPaths) } : {}),
     ...(source.textRectangle ? { textRectangle: clonedPresentationValue(source.textRectangle) } : {}),
     position: clonedPresentationValue(source.position),
@@ -1660,6 +1661,58 @@ function presentationCustomGeometryConnectionSiteToWire(site) {
   };
 }
 
+function presentationCustomGeometryHandleBoundToWire(value, literalField, referenceField, literal) {
+  if (value === undefined) return {};
+  return typeof value === "string"
+    ? { [referenceField]: value }
+    : { [literalField]: literal(value) };
+}
+
+function presentationCustomGeometryAdjustmentHandleToWire(handle) {
+  const position = {
+    ...(typeof handle.x === "string" ? { xReference: handle.x } : { x: BigInt(Math.round(handle.x * EMU_PER_PIXEL)) }),
+    ...(typeof handle.y === "string" ? { yReference: handle.y } : { y: BigInt(Math.round(handle.y * EMU_PER_PIXEL)) }),
+  };
+  if (handle.kind === "xy") return {
+    handle: {
+      case: "xy",
+      value: {
+        xAdjustment: handle.xAdjustment || "",
+        ...presentationCustomGeometryHandleBoundToWire(handle.minX, "minX", "minXReference", BigInt),
+        ...presentationCustomGeometryHandleBoundToWire(handle.maxX, "maxX", "maxXReference", BigInt),
+        yAdjustment: handle.yAdjustment || "",
+        ...presentationCustomGeometryHandleBoundToWire(handle.minY, "minY", "minYReference", BigInt),
+        ...presentationCustomGeometryHandleBoundToWire(handle.maxY, "maxY", "maxYReference", BigInt),
+        position,
+      },
+    },
+  };
+  return {
+    handle: {
+      case: "polar",
+      value: {
+        radialAdjustment: handle.radialAdjustment || "",
+        ...presentationCustomGeometryHandleBoundToWire(handle.minRadius, "minRadius", "minRadiusReference", BigInt),
+        ...presentationCustomGeometryHandleBoundToWire(handle.maxRadius, "maxRadius", "maxRadiusReference", BigInt),
+        angleAdjustment: handle.angleAdjustment || "",
+        ...presentationCustomGeometryHandleBoundToWire(handle.minAngle, "minAngle60000", "minAngleReference", (value) => Math.round(value * ROTATION_UNITS_PER_DEGREE)),
+        ...presentationCustomGeometryHandleBoundToWire(handle.maxAngle, "maxAngle60000", "maxAngleReference", (value) => Math.round(value * ROTATION_UNITS_PER_DEGREE)),
+        position,
+      },
+    },
+  };
+}
+
+function presentationCustomGeometryAdjustmentHandleIdentity(handle) {
+  if (handle?.handle?.case === "xy") {
+    return ["xy", handle.handle.value.xAdjustment || "", handle.handle.value.yAdjustment || ""].join("\0");
+  }
+  if (handle?.handle?.case === "polar") {
+    return ["polar", handle.handle.value.radialAdjustment || "", handle.handle.value.angleAdjustment || ""].join("\0");
+  }
+  return "invalid";
+}
+
 function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const originalShape = original?.content?.case === "shape" ? original.content.value : original;
   if (!new Set(["rect", "ellipse", "roundRect", "textbox", "line", "custom"]).has(shape.geometry)) {
@@ -1677,12 +1730,27 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
     widthEmu: Math.round(Number(position.width) * EMU_PER_PIXEL),
     heightEmu: Math.round(Number(position.height) * EMU_PER_PIXEL),
   });
+  const customAdjustmentHandles = normalizePresentationCustomAdjustmentHandles(shape.customAdjustmentHandles, {
+    ...formulaGraph,
+    widthEmu: Math.round(Number(position.width) * EMU_PER_PIXEL),
+    heightEmu: Math.round(Number(position.height) * EMU_PER_PIXEL),
+  });
+  const wireCustomAdjustmentHandles = customAdjustmentHandles.map(presentationCustomGeometryAdjustmentHandleToWire);
   const textRectangle = normalizePresentationCustomTextRectangle(shape.textRectangle);
-  if (shape.geometry !== "custom" && (normalizedCustomPaths.length || customConnectionSites.length || formulaGraph.adjustments.length || formulaGraph.guides.length || textRectangle)) {
+  if (shape.geometry !== "custom" && (normalizedCustomPaths.length || customConnectionSites.length || customAdjustmentHandles.length || formulaGraph.adjustments.length || formulaGraph.guides.length || textRectangle)) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} has custom geometry data without custom geometry.`, [], { code: "invalid_presentation_geometry" });
   }
   if (originalShape?.geometry === "custom" && (originalShape.customConnectionSites?.length || 0) !== customConnectionSites.length) {
     throw new OfficeKitCodecError(`Source-preserving PPTX export requires custom shape ${shape.id}'s original connection-site list length; each existing index is the native identity.`, [], { code: "unsupported_presentation_edit" });
+  }
+  if (originalShape?.geometry === "custom") {
+    const originalHandles = originalShape.customAdjustmentHandles || [];
+    const changedHandleTopology = originalHandles.length !== wireCustomAdjustmentHandles.length || originalHandles.some(
+      (handle, index) => presentationCustomGeometryAdjustmentHandleIdentity(handle) !== presentationCustomGeometryAdjustmentHandleIdentity(wireCustomAdjustmentHandles[index]),
+    );
+    if (changedHandleTopology) {
+      throw new OfficeKitCodecError(`Source-preserving PPTX export requires custom shape ${shape.id}'s original adjustment-handle order, kind, and controlled adjustment identity.`, [], { code: "unsupported_presentation_edit" });
+    }
   }
   const customPaths = normalizedCustomPaths.map((path) => ({
     width: BigInt(path.width),
@@ -1785,6 +1853,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         ...(formulaGraph.adjustments.length ? { customAdjustments: formulaGraph.adjustments } : {}),
         ...(formulaGraph.guides.length ? { customGuides: formulaGraph.guides } : {}),
         ...(customConnectionSites.length ? { customConnectionSites: customConnectionSites.map(presentationCustomGeometryConnectionSiteToWire) } : {}),
+        ...(wireCustomAdjustmentHandles.length ? { customAdjustmentHandles: wireCustomAdjustmentHandles } : {}),
         ...(customPaths.length ? { customPaths } : {}),
         ...(textRectangle ? { textRectangle: {
           leftEmu: BigInt(Math.round(textRectangle.left * EMU_PER_PIXEL)),
@@ -2844,6 +2913,50 @@ function modelCustomGeometryConnectionSites(shape) {
   }));
 }
 
+function modelCustomGeometryHandleBound(source, literalField, referenceField, divisor = 1) {
+  if (source[referenceField] !== undefined) return source[referenceField];
+  if (source[literalField] !== undefined) return Number(source[literalField]) / divisor;
+  return undefined;
+}
+
+function modelCustomGeometryAdjustmentHandles(shape) {
+  return (shape.customAdjustmentHandles || []).map((entry) => {
+    const handle = entry.handle?.value;
+    const kind = entry.handle?.case;
+    if (!handle || (kind !== "xy" && kind !== "polar")) {
+      throw new OfficeKitCodecError("OfficeKit Codec returned an invalid custom geometry adjustment handle.", [], { code: "invalid_presentation_geometry" });
+    }
+    const modeled = {
+      kind,
+      x: handle.position?.xReference ?? Number(handle.position?.x || 0n) / EMU_PER_PIXEL,
+      y: handle.position?.yReference ?? Number(handle.position?.y || 0n) / EMU_PER_PIXEL,
+    };
+    if (kind === "xy") {
+      if (handle.xAdjustment) modeled.xAdjustment = handle.xAdjustment;
+      if (handle.yAdjustment) modeled.yAdjustment = handle.yAdjustment;
+      for (const [field, literalField, referenceField] of [
+        ["minX", "minX", "minXReference"], ["maxX", "maxX", "maxXReference"],
+        ["minY", "minY", "minYReference"], ["maxY", "maxY", "maxYReference"],
+      ]) {
+        const value = modelCustomGeometryHandleBound(handle, literalField, referenceField);
+        if (value !== undefined) modeled[field] = value;
+      }
+    } else {
+      if (handle.radialAdjustment) modeled.radialAdjustment = handle.radialAdjustment;
+      if (handle.angleAdjustment) modeled.angleAdjustment = handle.angleAdjustment;
+      for (const [field, literalField, referenceField, divisor] of [
+        ["minRadius", "minRadius", "minRadiusReference", 1], ["maxRadius", "maxRadius", "maxRadiusReference", 1],
+        ["minAngle", "minAngle60000", "minAngleReference", ROTATION_UNITS_PER_DEGREE],
+        ["maxAngle", "maxAngle60000", "maxAngleReference", ROTATION_UNITS_PER_DEGREE],
+      ]) {
+        const value = modelCustomGeometryHandleBound(handle, literalField, referenceField, divisor);
+        if (value !== undefined) modeled[field] = value;
+      }
+    }
+    return modeled;
+  });
+}
+
 function modelCustomGeometryPaths(shape) {
   return (shape.customPaths || []).map((path, pathIndex) => {
     const modeled = {
@@ -3041,6 +3154,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       ...(shape.customAdjustments?.length ? { customAdjustments: modelCustomGeometryGuides(shape.customAdjustments) } : {}),
       ...(shape.customGuides?.length ? { customGuides: modelCustomGeometryGuides(shape.customGuides) } : {}),
       ...(shape.customConnectionSites?.length ? { customConnectionSites: modelCustomGeometryConnectionSites(shape) } : {}),
+      ...(shape.customAdjustmentHandles?.length ? { customAdjustmentHandles: modelCustomGeometryAdjustmentHandles(shape) } : {}),
       ...(shape.customPaths?.length ? { customPaths: modelCustomGeometryPaths(shape) } : {}),
       ...(shape.textRectangle ? { textRectangle: modelCustomGeometryTextRectangle(shape) } : {}),
       position: {
@@ -3280,6 +3394,7 @@ export async function presentationFromEnvelope(envelope) {
           ...(shape.customAdjustments?.length ? { customAdjustments: modelCustomGeometryGuides(shape.customAdjustments) } : {}),
           ...(shape.customGuides?.length ? { customGuides: modelCustomGeometryGuides(shape.customGuides) } : {}),
           ...(shape.customConnectionSites?.length ? { customConnectionSites: modelCustomGeometryConnectionSites(shape) } : {}),
+          ...(shape.customAdjustmentHandles?.length ? { customAdjustmentHandles: modelCustomGeometryAdjustmentHandles(shape) } : {}),
           ...(shape.customPaths?.length ? { customPaths: modelCustomGeometryPaths(shape) } : {}),
           ...(shape.textRectangle ? { textRectangle: modelCustomGeometryTextRectangle(shape) } : {}),
           position: { ...effectiveFrame },

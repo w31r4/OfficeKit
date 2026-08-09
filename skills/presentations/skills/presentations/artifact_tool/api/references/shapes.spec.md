@@ -171,6 +171,14 @@ const formulaTriangle = slide.shapes.add({
     { angle: -90, x: "siteX", y: 0 },
     { angle: 90, x: "siteX", y: 280 },
   ],
+  customAdjustmentHandles: [{
+    kind: "xy",
+    xAdjustment: "adjX",
+    minX: 0,
+    maxX: 100000,
+    x: "siteX",
+    y: 140,
+  }],
   customPaths: [{
     width: 100000,
     height: 100000,
@@ -209,9 +217,27 @@ geometry references, and a path's
 `width`/`height` stay positive literals. Keep formula output in that path's
 coordinate system: when a formula uses shape-derived `w`/`h`, either use the
 shape's EMU extents for the path viewport or scale explicitly. Unsupported
-formula syntax, non-empty adjust handles, and formula-valued
-text rectangles outside OfficeKit's exact private profile keep an imported
-shape opaque and source-bound.
+formula syntax, handle topology outside the bounded profile below, and
+formula-valued text rectangles outside OfficeKit's exact private profile keep
+an imported shape opaque and source-bound.
+
+`customAdjustmentHandles` is the ordered native `a:ahLst` table, with at most
+1,024 entries. An `xy` handle controls at least one declared
+`xAdjustment`/`yAdjustment`; a `polar` handle controls at least one declared
+`radialAdjustment`/`angleAdjustment`. Every controlled dimension either omits
+its bounds or supplies its min/max pair. Coordinate and radius bounds are
+signed DrawingML adjustment units, radial bounds must evaluate non-negative,
+and numeric angle bounds are degrees. Bounds may instead name a declared
+adjustment/guide. Numeric handle x/y positions are shape-local pixels and may
+also be declared references. The formula graph must place the current
+adjustment inside every supplied range and the resolved handle position inside
+the shape frame.
+
+Array order is native identity. On a recognized import, an edit may change
+paired bounds and position, but it cannot add/remove/reorder a handle, change
+`xy` to `polar`, or retarget the controlled adjustment names. Unknown children,
+attributes, missing range pairs, and broader handle topology make the whole
+custom shape opaque; OfficeKit never drops them to make an edit succeed.
 
 `customConnectionSites` is the ordered native `a:cxnLst` table, with at most
 1,024 `{ angle, x, y }` entries. Numeric angles are degrees; numeric x/y values
@@ -279,6 +305,30 @@ type CustomShapeConfig = Omit<PresetShapeConfig, "geometry"> & {
     x: number | string;
     y: number | string;
   }>;
+  customAdjustmentHandles?: Array<
+    | {
+        kind: "xy";
+        xAdjustment?: string;
+        minX?: number | string;
+        maxX?: number | string;
+        yAdjustment?: string;
+        minY?: number | string;
+        maxY?: number | string;
+        x: number | string;
+        y: number | string;
+      }
+    | {
+        kind: "polar";
+        radialAdjustment?: string;
+        minRadius?: number | string;
+        maxRadius?: number | string;
+        angleAdjustment?: string;
+        minAngle?: number | string;
+        maxAngle?: number | string;
+        x: number | string;
+        y: number | string;
+      }
+  >;
   textRectangle?: { left: number; top: number; right: number; bottom: number };
   customPaths: Array<{
     width: number;

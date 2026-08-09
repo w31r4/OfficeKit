@@ -1822,6 +1822,10 @@ message PresentationShape {
   // imported shapes keep the list length fixed while values at each index may
   // change.
   repeated PresentationCustomGeometryConnectionSite custom_connection_sites = 29;
+  // Ordered bounded a:ahLst entries. Recognized imported shapes keep the
+  // handle kind and controlled adjustment-guide identity at each array index;
+  // positions and paired min/max bounds remain editable.
+  repeated PresentationCustomGeometryAdjustmentHandle custom_adjustment_handles = 30;
 }
 
 message PresentationCustomGeometryPath {
@@ -3615,4 +3619,42 @@ message PresentationCustomGeometryConnectionSite {
   int64 y_emu = 4;
   optional string x_reference = 5;
   optional string y_reference = 6;
+}
+
+// Appended after every existing descriptor so PresentationShape field 30 can
+// model the two standard DrawingML adjustment-handle kinds without changing
+// any older generated descriptor index.
+message PresentationCustomGeometryAdjustmentHandle {
+  oneof handle {
+    PresentationCustomGeometryXyAdjustmentHandle xy = 1;
+    PresentationCustomGeometryPolarAdjustmentHandle polar = 2;
+  }
+}
+
+message PresentationCustomGeometryXyAdjustmentHandle {
+  string x_adjustment = 1;
+  optional int64 min_x = 2;
+  optional string min_x_reference = 3;
+  optional int64 max_x = 4;
+  optional string max_x_reference = 5;
+  string y_adjustment = 6;
+  optional int64 min_y = 7;
+  optional string min_y_reference = 8;
+  optional int64 max_y = 9;
+  optional string max_y_reference = 10;
+  PresentationCustomGeometryPoint position = 11;
+}
+
+message PresentationCustomGeometryPolarAdjustmentHandle {
+  string radial_adjustment = 1;
+  optional int64 min_radius = 2;
+  optional string min_radius_reference = 3;
+  optional int64 max_radius = 4;
+  optional string max_radius_reference = 5;
+  string angle_adjustment = 6;
+  optional int32 min_angle_60000 = 7;
+  optional string min_angle_reference = 8;
+  optional int32 max_angle_60000 = 9;
+  optional string max_angle_reference = 10;
+  PresentationCustomGeometryPoint position = 11;
 }

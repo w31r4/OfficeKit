@@ -123,6 +123,9 @@ try {
   assert.equal(verifyCard.customConnectionSites.length, 4);
   assert.deepEqual(verifyCard.customConnectionSites[3], { angle: 0, x: 300, y: 65 });
   assert.equal(verifyCard.inspectRecord().customConnectionSiteCount, 4);
+  assert.equal(verifyCard.customAdjustmentHandles.length, 2);
+  assert.deepEqual(verifyCard.customAdjustmentHandles[0], { kind: "xy", xAdjustment: "adjX", minX: 0, maxX: 100000, yAdjustment: "adjY", minY: 0, maxY: 100000, x: 150, y: 65 });
+  assert.equal(verifyCard.inspectRecord().customAdjustmentHandleCount, 2);
   assert.equal(itemByName(workflowSlide.shapes.items, "workflow-title").geometry, "textbox");
   const workflowDivider = itemByName(workflowSlide.shapes.items, "free-workflow-divider");
   assert.equal(workflowDivider.geometry, "line");
@@ -169,6 +172,7 @@ try {
   assert.match(firstSlideXml, /<a:srgbClr val="F1F5F9"/);
   assert.match(firstSlideXml, /<a:prstGeom prst="roundRect"[^>]*>/);
   assert.match(firstSlideXml, /<a:custGeom\b/);
+  assert.match(firstSlideXml, /<a:ahLst><a:ahXY gdRefX="adjX" minX="0" maxX="100000" gdRefY="adjY" minY="0" maxY="100000"><a:pos x="1428750" y="619125"\s*\/><\/a:ahXY><a:ahPolar gdRefR="adjRadius" minR="0" maxR="500000" gdRefAng="adjAngle" minAng="0" maxAng="21600000"><a:pos x="2857500" y="619125"\s*\/><\/a:ahPolar><\/a:ahLst>/);
   assert.match(firstSlideXml, /<a:cxnLst><a:cxn ang="-5400000"><a:pos x="1428750" y="0"\s*\/>/);
   assert.match(firstSlideXml, /<a:cxn ang="0"><a:pos x="2857500" y="619125"\s*\/><\/a:cxn><\/a:cxnLst>/);
   assert.match(firstSlideXml, /<a:prstGeom\b[^>]*\bprst="line"/);

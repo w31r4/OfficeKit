@@ -1,14 +1,43 @@
 # Release
 
-## Current 0.6.0 package evidence (2026-08-09)
+## Current 0.6.0 package evidence (2026-08-10)
 
 The package dry-run passed with the bounded Presentation custom-geometry
-connection-site profile and rebuilt OfficeKit Codec runtime. The candidate
-contains 714 files, 36,226,073 compressed bytes, and 53,376,100 unpacked bytes;
-its measured shasum is `fb47fe29bead3290ef032d447251fa6900a3ea9c`. It
-remains below the 53,400,000-byte ceiling with 23,900 bytes of measured
+adjustment-handle profile and rebuilt OfficeKit Codec runtime. The candidate
+contains 713 files, 36,219,874 compressed bytes, and 53,372,869 unpacked bytes;
+its measured shasum is `97e15979f30ab5ccef023bae4ea71e13df757ccb`. It
+remains below the 53,400,000-byte ceiling with 27,131 bytes of measured
 headroom. This is package evidence, not an npm registry publication or tagged
 release.
+
+## Unreleased: Presentation custom-geometry adjustment handles
+
+Custom DrawingML shapes now expose an ordered `customAdjustmentHandles` table
+for the bounded standard `a:ahXY` and `a:ahPolar` forms. Each handle controls at
+least one declared `customAdjustments` name. XY coordinate bounds, polar radial
+bounds, and polar degree-angle bounds are optional in matched min/max pairs;
+their formula references and current adjustment values are evaluated before
+export. Literal handle positions use shape-local pixels and may instead name a
+declared adjustment/guide.
+
+Protocol-v2 `PresentationShape` appends field 30 plus appended handle messages,
+without renumbering existing descriptors. The source-built OfficeKit Codec
+writes and recognizes native `a:ahLst`, validates Open XML plus the bounded
+formula/range/frame contract, and preserves array order, handle kind, and
+controlled adjustment names as source-bound identity. Bounds and positions may
+change at existing indexes. Adding/removing/reordering/retargeting a recognized
+handle, malformed leaves, partial ranges, or broader topology stays opaque and
+fails closed rather than being flattened.
+
+The JavaScript model exposes handles through layout/inspect, the Presentation
+Skill documents both kinds, and its runnable readiness fixture authors XY and
+polar handles beside exact connector sites. JavaScript and .NET tests cover
+source-free and grouped authoring, native markup, import/edit/second import,
+Open XML SDK validation, identity refusal, budget/range/frame failures, and
+opaque preservation. The complete runnable Skill trees remain in the npm
+payload; the detailed reference-Skill compatibility audit is repository-only
+release evidence. Final package and hosted-CI evidence for this slice is
+recorded only after the complete release gates pass.
 
 ## Unreleased: Presentation custom-geometry connection sites
 

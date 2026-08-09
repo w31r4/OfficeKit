@@ -118,12 +118,13 @@ assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.sche
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.schema?.parameters?.crop?.description || "", /-1\.\.1.*Positive.*negative.*Manual crop/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.master")?.schema?.parameters?.placeholders?.description || "", /Source-free direct-frame.*title\/body.*imported placeholders.*read-only/i);
 const shapeAddHelp = HELP_CATALOG.find((item) => item.name === "slide.shapes.add");
-assert.match(shapeAddHelp?.summary || "", /ordered adjustment\/guide formulas and connection sites/i);
+assert.match(shapeAddHelp?.summary || "", /ordered adjustment\/guide formulas.*XY\/polar adjustment handles.*connection sites/i);
 assert.match(shapeAddHelp?.schema?.parameters?.geometry?.description || "", /connector.*from.*to.*fromIdx.*toIdx/i);
 assert.match(shapeAddHelp?.schema?.parameters?.customAdjustments?.description || "", /256.*17 ECMA-376 operators.*built-ins.*Forward references.*fail closed/i);
 assert.match(shapeAddHelp?.schema?.parameters?.customGuides?.description || "", /1,024.*earlier adjustment\/guide.*declared names.*not implicit path guides/i);
 assert.match(shapeAddHelp?.schema?.parameters?.customConnectionSites?.description || "", /1,024.*angle.*shape-local pixels.*declared adjustment\/guide.*existing indexes.*list length fixed.*explicit fromIdx\/toIdx/i);
-assert.match(shapeAddHelp?.schema?.parameters?.customPaths?.description || "", /positive literal integer width\/height.*Point coordinates and arc radii\/angles.*declared customAdjustments\/customGuides.*evaluate positive.*Non-empty handles.*opaque/i);
+assert.match(shapeAddHelp?.schema?.parameters?.customAdjustmentHandles?.description || "", /1,024.*a:ahLst.*xy or polar.*paired min\/max.*shape-local pixels.*kind and controlled adjustment names fixed.*fails? closed/i);
+assert.match(shapeAddHelp?.schema?.parameters?.customPaths?.description || "", /positive literal integer width\/height.*Point coordinates and arc radii\/angles.*declared customAdjustments\/customGuides.*evaluate positive.*Unsupported handle topology.*opaque/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view")?.summary || "", /local editor gridline\/guide visibility.*grid spacing.*fixed-topology.*viewProps\.xml/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view")?.schema?.returns?.view?.description || "", /show\/hide\/toggle.*capability-aware.*field presence.*guide count\/order\/orientation/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view.capability")?.schema?.returns?.capability?.description || "", /sourceBound.*partPresent.*editable.*preflight.*residual XML/i);

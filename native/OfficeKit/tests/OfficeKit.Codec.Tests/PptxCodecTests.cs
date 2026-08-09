@@ -1536,6 +1536,8 @@ public sealed class PptxCodecTests
             BottomEmu = shape.HeightEmu - 80_000,
         };
         shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjX", Formula = "val 25000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjY", Formula = "val 50000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjRadius", Formula = "val 250000" });
         shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjSweep", Formula = "val 10800000" });
         shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "x1", Formula = "*/ w adjX 100000" });
         shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "y1", Formula = "*/ h 1 2" });
@@ -1560,6 +1562,32 @@ public sealed class PptxCodecTests
             Angle60000 = 10_800_000,
             XReference = "x1",
             YReference = "y1",
+        });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Xy = new PresentationCustomGeometryXyAdjustmentHandle
+            {
+                XAdjustment = "adjX",
+                MinX = 0,
+                MaxX = 100_000,
+                YAdjustment = "adjY",
+                MinY = 0,
+                MaxY = 100_000,
+                Position = new PresentationCustomGeometryPoint { XReference = "x1", YReference = "y1" },
+            },
+        });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Polar = new PresentationCustomGeometryPolarAdjustmentHandle
+            {
+                RadialAdjustment = "adjRadius",
+                MinRadius = 0,
+                MaxRadius = 500_000,
+                AngleAdjustment = "adjSweep",
+                MinAngle60000 = 0,
+                MaxAngle60000 = 21_600_000,
+                Position = new PresentationCustomGeometryPoint { XReference = "x2", YReference = "y1" },
+            },
         });
         shape.CustomConnectionSites.Add(new PresentationCustomGeometryConnectionSite
         {
@@ -1598,11 +1626,28 @@ public sealed class PptxCodecTests
             var geometry = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.CustomGeometry>().Single();
             Assert.Collection(geometry.GetFirstChild<A.AdjustValueList>()!.Elements<A.ShapeGuide>(),
                 guide => Assert.Equal(("adjX", "val 25000"), (guide.Name!.Value, guide.Formula!.Value)),
+                guide => Assert.Equal(("adjY", "val 50000"), (guide.Name!.Value, guide.Formula!.Value)),
+                guide => Assert.Equal(("adjRadius", "val 250000"), (guide.Name!.Value, guide.Formula!.Value)),
                 guide => Assert.Equal(("adjSweep", "val 10800000"), (guide.Name!.Value, guide.Formula!.Value)));
             var nativeGuides = geometry.GetFirstChild<A.ShapeGuideList>()!.Elements<A.ShapeGuide>().ToArray();
             Assert.Equal(22, nativeGuides.Length);
             Assert.Equal(("x1", "*/ w adjX 100000"), (nativeGuides[0].Name!.Value, nativeGuides[0].Formula!.Value));
             Assert.Equal("officeKitTextLeft", nativeGuides[^4].Name!.Value);
+            Assert.Collection(geometry.GetFirstChild<A.AdjustHandleList>()!.ChildElements,
+                native =>
+                {
+                    var handle = Assert.IsType<A.AdjustHandleXY>(native);
+                    Assert.Equal(("adjX", "0", "100000"), (handle.XAdjustmentGuide!.Value, handle.MinX!.Value, handle.MaxX!.Value));
+                    Assert.Equal(("adjY", "0", "100000"), (handle.YAdjustmentGuide!.Value, handle.MinY!.Value, handle.MaxY!.Value));
+                    Assert.Equal(("x1", "y1"), (handle.Position!.X!.Value, handle.Position.Y!.Value));
+                },
+                native =>
+                {
+                    var handle = Assert.IsType<A.AdjustHandlePolar>(native);
+                    Assert.Equal(("adjRadius", "0", "500000"), (handle.RadialAdjustmentGuide!.Value, handle.MinRadial!.Value, handle.MaxRadial!.Value));
+                    Assert.Equal(("adjSweep", "0", "21600000"), (handle.AngleAdjustmentGuide!.Value, handle.MinAngle!.Value, handle.MaxAngle!.Value));
+                    Assert.Equal(("x2", "y1"), (handle.Position!.X!.Value, handle.Position.Y!.Value));
+                });
             Assert.Collection(geometry.GetFirstChild<A.ConnectionSiteList>()!.Elements<A.ConnectionSite>(),
                 site =>
                 {
@@ -1627,20 +1672,39 @@ public sealed class PptxCodecTests
         var imported = Import(authored.File.ToByteArray());
         Assert.True(imported.Ok, Diagnostics(imported));
         var importedShape = Assert.Single(Assert.Single(imported.Artifact.Presentation.Slides).Elements).Shape;
-        Assert.Equal(2, importedShape.CustomAdjustments.Count);
+        Assert.Equal(4, importedShape.CustomAdjustments.Count);
         Assert.Equal(18, importedShape.CustomGuides.Count);
         Assert.Collection(importedShape.CustomConnectionSites,
             site => Assert.Equal((10_800_000, "x1", "y1"), (site.Angle60000, site.XReference, site.YReference)),
             site => Assert.Equal(("zeroAngle", "x2", "y1"), (site.AngleReference, site.XReference, site.YReference)));
+        Assert.Collection(importedShape.CustomAdjustmentHandles,
+            entry =>
+            {
+                Assert.Equal(PresentationCustomGeometryAdjustmentHandle.HandleOneofCase.Xy, entry.HandleCase);
+                Assert.Equal(("adjX", 0L, 100_000L, "adjY", 0L, 100_000L),
+                    (entry.Xy.XAdjustment, entry.Xy.MinX, entry.Xy.MaxX, entry.Xy.YAdjustment, entry.Xy.MinY, entry.Xy.MaxY));
+                Assert.Equal(("x1", "y1"), (entry.Xy.Position.XReference, entry.Xy.Position.YReference));
+            },
+            entry =>
+            {
+                Assert.Equal(PresentationCustomGeometryAdjustmentHandle.HandleOneofCase.Polar, entry.HandleCase);
+                Assert.Equal(("adjRadius", 0L, 500_000L, "adjSweep", 0, 21_600_000),
+                    (entry.Polar.RadialAdjustment, entry.Polar.MinRadius, entry.Polar.MaxRadius, entry.Polar.AngleAdjustment, entry.Polar.MinAngle60000, entry.Polar.MaxAngle60000));
+                Assert.Equal(("x2", "y1"), (entry.Polar.Position.XReference, entry.Polar.Position.YReference));
+            });
         Assert.Equal("x1", importedShape.CustomPaths[0].Commands[0].MoveTo.XReference);
         Assert.Equal("radius", importedShape.CustomPaths[0].Commands[2].ArcTo.WidthRadiusReference);
         importedShape.CustomAdjustments[0].Formula = "val 30000";
         importedShape.CustomConnectionSites[0].Angle60000 = 5_400_000;
+        importedShape.CustomAdjustmentHandles[0].Xy.MaxX = 90_000;
+        importedShape.CustomAdjustmentHandles[1].Polar.Position.XReference = "x1";
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTripShape = Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements).Shape;
         Assert.Equal("val 30000", roundTripShape.CustomAdjustments[0].Formula);
         Assert.Equal(5_400_000, roundTripShape.CustomConnectionSites[0].Angle60000);
+        Assert.Equal(90_000, roundTripShape.CustomAdjustmentHandles[0].Xy.MaxX);
+        Assert.Equal("x1", roundTripShape.CustomAdjustmentHandles[1].Polar.Position.XReference);
         Assert.Equal("x1", roundTripShape.CustomPaths[0].Commands[0].MoveTo.XReference);
 
         var changedConnectionSiteTopology = Import(authored.File.ToByteArray());
@@ -1649,8 +1713,15 @@ public sealed class PptxCodecTests
         Assert.False(changedConnectionSiteTopologyResponse.Ok);
         Assert.Equal("unsupported_presentation_edit", Assert.Single(changedConnectionSiteTopologyResponse.Diagnostics).Code);
 
+        var changedAdjustmentHandleTopology = Import(authored.File.ToByteArray());
+        changedAdjustmentHandleTopology.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomAdjustmentHandles[0].Xy.XAdjustment = "adjY";
+        var changedAdjustmentHandleTopologyResponse = Export(changedAdjustmentHandleTopology.Artifact);
+        Assert.False(changedAdjustmentHandleTopologyResponse.Ok);
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(changedAdjustmentHandleTopologyResponse.Diagnostics).Code);
+
         var emptyTopologyRequest = request.Clone();
         emptyTopologyRequest.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomConnectionSites.Clear();
+        emptyTopologyRequest.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomAdjustmentHandles.Clear();
         var emptyTopologyAuthored = Invoke(emptyTopologyRequest);
         Assert.True(emptyTopologyAuthored.Ok, Diagnostics(emptyTopologyAuthored));
         var withEmptyTopology = emptyTopologyAuthored.File.ToByteArray();
@@ -1670,6 +1741,32 @@ public sealed class PptxCodecTests
         var importedEmptyTopology = Import(withEmptyTopology);
         Assert.True(importedEmptyTopology.Ok, Diagnostics(importedEmptyTopology));
         Assert.True(Assert.Single(Assert.Single(importedEmptyTopology.Artifact.Presentation.Slides).Elements).Source.Editable);
+
+        byte[] malformedHandleSource;
+        using (var stream = new MemoryStream())
+        {
+            stream.Write(authored.File.Span);
+            stream.Position = 0;
+            using (var package = PresentationDocument.Open(stream, true))
+            {
+                var handle = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.AdjustHandleXY>().Single();
+                handle.SetAttribute(new OpenXmlAttribute("fixture", "opaque", "urn:office-kit:custom-handle", "kept"));
+            }
+            malformedHandleSource = stream.ToArray();
+        }
+        var malformedHandleImport = Import(malformedHandleSource);
+        Assert.True(malformedHandleImport.Ok, Diagnostics(malformedHandleImport));
+        var opaqueHandleElement = Assert.Single(Assert.Single(malformedHandleImport.Artifact.Presentation.Slides).Elements);
+        Assert.False(opaqueHandleElement.Source.Editable);
+        Assert.Empty(opaqueHandleElement.Shape.CustomAdjustmentHandles);
+        var preservedMalformedHandle = Export(malformedHandleImport.Artifact);
+        Assert.True(preservedMalformedHandle.Ok, Diagnostics(preservedMalformedHandle));
+        using (var stream = new MemoryStream(preservedMalformedHandle.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var handle = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.AdjustHandleXY>().Single();
+            Assert.Equal("kept", handle.GetAttribute("opaque", "urn:office-kit:custom-handle").Value);
+        }
 
         var forwardReference = request.Clone();
         forwardReference.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomGuides[0].Formula = "val later";
@@ -1701,6 +1798,35 @@ public sealed class PptxCodecTests
         for (var index = 0; index < 1_025; index++)
             overBudgetShape.CustomConnectionSites.Add(new PresentationCustomGeometryConnectionSite());
         Assert.Equal("presentation_item_budget_exceeded", Assert.Single(Invoke(overBudgetConnectionSites).Diagnostics).Code);
+
+        var incompleteHandleRange = request.Clone();
+        incompleteHandleRange.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomAdjustmentHandles[0].Xy.ClearMaxX();
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(incompleteHandleRange).Diagnostics).Code);
+
+        var outOfRangeHandle = request.Clone();
+        outOfRangeHandle.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomAdjustmentHandles[0].Xy.MaxX = 20_000;
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(outOfRangeHandle).Diagnostics).Code);
+
+        var negativeUnboundedRadius = request.Clone();
+        var negativeRadiusShape = negativeUnboundedRadius.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        negativeRadiusShape.CustomAdjustments[2].Formula = "val -1";
+        negativeRadiusShape.CustomAdjustmentHandles[1].Polar.ClearMinRadius();
+        negativeRadiusShape.CustomAdjustmentHandles[1].Polar.ClearMaxRadius();
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(negativeUnboundedRadius).Diagnostics).Code);
+
+        var unboundedAngleBeyondTurn = request.Clone();
+        var unboundedAngleShape = unboundedAngleBeyondTurn.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        unboundedAngleShape.CustomAdjustments[3].Formula = "val 21600001";
+        unboundedAngleShape.CustomAdjustmentHandles[1].Polar.ClearMinAngle60000();
+        unboundedAngleShape.CustomAdjustmentHandles[1].Polar.ClearMaxAngle60000();
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(unboundedAngleBeyondTurn).Diagnostics).Code);
+
+        var overBudgetAdjustmentHandles = request.Clone();
+        var overBudgetHandleShape = overBudgetAdjustmentHandles.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        overBudgetHandleShape.CustomAdjustmentHandles.Clear();
+        for (var index = 0; index < 1_025; index++)
+            overBudgetHandleShape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle());
+        Assert.Equal("presentation_item_budget_exceeded", Assert.Single(Invoke(overBudgetAdjustmentHandles).Diagnostics).Code);
 
         var undeclaredBuiltinCoordinate = request.Clone();
         undeclaredBuiltinCoordinate.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomPaths[0].Commands[0].MoveTo.XReference = "wd2";

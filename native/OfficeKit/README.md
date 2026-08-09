@@ -57,6 +57,11 @@ authoring, import, fixed-topology edit, export, and second import. Up to 1,024
 ordered `a:cxnLst` entries may use literal or declared-guide angle/x/y values;
 site positions stay inside the shape frame, imported list length remains fixed,
 and each connector index is the native site identity.
+Up to 1,024 ordered `a:ahLst` entries expose the bounded standard `a:ahXY` and
+`a:ahPolar` forms. They bind only declared adjustment guides, require paired
+coordinate/radius/angle bounds when bounds are present, evaluate the current
+value against those ranges, and keep handle order, kind, and controlled guide
+names source-bound while permitting range/position edits.
 
 The profile also preserves the presence of each `a:path` `fill`, `stroke`, and
 `extrusionOk` attribute. It owns explicit `norm`/`none` fill modes and booleans;
@@ -64,8 +69,8 @@ omitted attributes remain omitted. One optional shape-local text rectangle
 carries the custom shape's text bounds. The codec reads native numeric `a:rect`
 coordinates and emits one exact four-guide scaling profile so PowerPoint and
 LibreOffice resolve the same EMUs; absence retains the full-shape default.
-Unknown formula syntax, non-empty handles, every other
-formula-valued text rectangle, and child-bearing leaves keep the entire shape
+Unknown formula syntax, handle topology outside that bounded profile, every
+other formula-valued text rectangle, and child-bearing leaves keep the entire shape
 opaque. Relative lighten/darken fills and actual 3D geometry remain opaque or
 fail closed. `extrusionOk` is eligibility metadata, not a 3D authoring or
 preview claim.

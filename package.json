@@ -58,7 +58,6 @@
     "apps/powerpoint-addin/dist/**",
     "bin/**",
     "src/**",
-    "docs/reference-skills.md",
     "docs/template-library-provenance.md",
     "examples/**",
     "skills/documents/**",

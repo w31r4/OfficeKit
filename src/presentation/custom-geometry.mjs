@@ -9,6 +9,7 @@ import {
 const MAX_PATHS = 64;
 const MAX_COMMANDS = 16_384;
 const MAX_CONNECTION_SITES = 1_024;
+const MAX_ADJUSTMENT_HANDLES = 1_024;
 const MAX_COORDINATE = 2_147_483_647;
 const EMU_PER_PIXEL = 9_525;
 const ANGLE_UNITS_PER_DEGREE = 60_000;
@@ -24,6 +25,12 @@ const CURVE_FIELDS = Object.freeze({
   cubicBezTo: Object.freeze(["x1", "y1", "x2", "y2", "x", "y"]),
 });
 const CONNECTION_SITE_FIELDS = new Set(["angle", "x", "y"]);
+const XY_ADJUSTMENT_HANDLE_FIELDS = new Set([
+  "kind", "xAdjustment", "minX", "maxX", "yAdjustment", "minY", "maxY", "x", "y",
+]);
+const POLAR_ADJUSTMENT_HANDLE_FIELDS = new Set([
+  "kind", "radialAdjustment", "minRadius", "maxRadius", "angleAdjustment", "minAngle", "maxAngle", "x", "y",
+]);
 
 function coordinate(value, label, references) {
   if (typeof value === "string") return normalizePresentationCustomGeometryReference(value, references, label);
@@ -138,6 +145,117 @@ export function normalizePresentationCustomConnectionSites(value, { adjustments,
       x: connectionSiteCoordinate(site.x, `${label}.x`, references, values, widthEmu),
       y: connectionSiteCoordinate(site.y, `${label}.y`, references, values, heightEmu),
     };
+  });
+}
+
+function adjustmentHandleGuide(value, label, adjustmentNames) {
+  if (typeof value !== "string" || !adjustmentNames.has(value)) {
+    throw new ReferenceError(`${label} must name one declared custom adjustment.`);
+  }
+  return value;
+}
+
+function handleCoordinateBound(value, label, references, values) {
+  const normalized = coordinate(value, label, references);
+  return { normalized, resolved: resolvePresentationCustomGeometryReference(normalized, values, label) };
+}
+
+function handleAngleBound(value, label, references, values) {
+  const normalized = connectionSiteAngle(value, label, references, values);
+  const resolved = typeof normalized === "string"
+    ? resolvePresentationCustomGeometryReference(normalized, values, label)
+    : normalized * ANGLE_UNITS_PER_DEGREE;
+  return { normalized, resolved };
+}
+
+function adjustmentHandleRange(handle, output, {
+  adjustmentField,
+  minimumField,
+  maximumField,
+  label,
+  adjustmentNames,
+  references,
+  values,
+  normalizeBound,
+  requireNonNegative = false,
+  maximumAbsolute,
+}) {
+  const hasAdjustment = Object.hasOwn(handle, adjustmentField) && handle[adjustmentField] != null;
+  const hasMinimum = Object.hasOwn(handle, minimumField) && handle[minimumField] != null;
+  const hasMaximum = Object.hasOwn(handle, maximumField) && handle[maximumField] != null;
+  if (!hasAdjustment) {
+    if (hasMinimum || hasMaximum) throw new TypeError(`${label} bounds require ${adjustmentField}.`);
+    return false;
+  }
+  const adjustment = adjustmentHandleGuide(handle[adjustmentField], `${label}.${adjustmentField}`, adjustmentNames);
+  output[adjustmentField] = adjustment;
+  const current = resolvePresentationCustomGeometryReference(adjustment, values, `${label}.${adjustmentField}`);
+  if (requireNonNegative && current < 0) throw new RangeError(`${label}.${adjustmentField} must evaluate to a non-negative value.`);
+  if (maximumAbsolute !== undefined && Math.abs(current) > maximumAbsolute) {
+    throw new RangeError(`${label}.${adjustmentField} must evaluate within one full DrawingML turn.`);
+  }
+  if (hasMinimum !== hasMaximum) {
+    throw new TypeError(`${label}.${minimumField} and ${maximumField} must be supplied together.`);
+  }
+  if (!hasMinimum) return true;
+  const minimum = normalizeBound(handle[minimumField], `${label}.${minimumField}`, references, values);
+  const maximum = normalizeBound(handle[maximumField], `${label}.${maximumField}`, references, values);
+  if (requireNonNegative && (minimum.resolved < 0 || maximum.resolved < 0)) {
+    throw new RangeError(`${label}.${minimumField} and ${maximumField} must evaluate to non-negative values.`);
+  }
+  if (minimum.resolved > maximum.resolved) {
+    throw new RangeError(`${label}.${maximumField} must evaluate greater than or equal to ${minimumField}.`);
+  }
+  if (current < minimum.resolved || current > maximum.resolved) {
+    throw new RangeError(`${label}.${adjustmentField} must evaluate inside its ${minimumField}/${maximumField} range.`);
+  }
+  output[minimumField] = minimum.normalized;
+  output[maximumField] = maximum.normalized;
+  return true;
+}
+
+export function normalizePresentationCustomAdjustmentHandles(value, { adjustments, guides, widthEmu, heightEmu } = {}) {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > MAX_ADJUSTMENT_HANDLES) {
+    throw new RangeError(`Presentation custom geometry customAdjustmentHandles must contain at most ${MAX_ADJUSTMENT_HANDLES} entries.`);
+  }
+  if (value.length === 0) return [];
+  const graph = normalizePresentationCustomGeometryFormulaGraph({ adjustments, guides });
+  const references = presentationCustomGeometryReferenceNames(graph);
+  const adjustmentNames = new Set(graph.adjustments.map((adjustment) => adjustment.name));
+  const values = evaluatePresentationCustomGeometryFormulaGraph(graph, { widthEmu, heightEmu });
+  return value.map((handle, index) => {
+    const label = `Presentation custom geometry adjustment handle ${index + 1}`;
+    if (!handle || typeof handle !== "object" || Array.isArray(handle)) throw new TypeError(`${label} must be an object.`);
+    if (handle.kind !== "xy" && handle.kind !== "polar") throw new TypeError(`${label}.kind must be xy or polar.`);
+    const allowed = handle.kind === "xy" ? XY_ADJUSTMENT_HANDLE_FIELDS : POLAR_ADJUSTMENT_HANDLE_FIELDS;
+    const unknown = Object.keys(handle).filter((key) => !allowed.has(key));
+    if (unknown.length) throw new TypeError(`${label} has unsupported fields: ${unknown.join(", ")}.`);
+    const normalized = { kind: handle.kind };
+    let controlled = false;
+    if (handle.kind === "xy") {
+      controlled = adjustmentHandleRange(handle, normalized, {
+        adjustmentField: "xAdjustment", minimumField: "minX", maximumField: "maxX", label,
+        adjustmentNames, references, values, normalizeBound: handleCoordinateBound,
+      }) || controlled;
+      controlled = adjustmentHandleRange(handle, normalized, {
+        adjustmentField: "yAdjustment", minimumField: "minY", maximumField: "maxY", label,
+        adjustmentNames, references, values, normalizeBound: handleCoordinateBound,
+      }) || controlled;
+    } else {
+      controlled = adjustmentHandleRange(handle, normalized, {
+        adjustmentField: "radialAdjustment", minimumField: "minRadius", maximumField: "maxRadius", label,
+        adjustmentNames, references, values, normalizeBound: handleCoordinateBound, requireNonNegative: true,
+      }) || controlled;
+      controlled = adjustmentHandleRange(handle, normalized, {
+        adjustmentField: "angleAdjustment", minimumField: "minAngle", maximumField: "maxAngle", label,
+        adjustmentNames, references, values, normalizeBound: handleAngleBound, maximumAbsolute: FULL_TURN_ANGLE,
+      }) || controlled;
+    }
+    if (!controlled) throw new TypeError(`${label} must control at least one declared custom adjustment.`);
+    normalized.x = connectionSiteCoordinate(handle.x, `${label}.x`, references, values, widthEmu);
+    normalized.y = connectionSiteCoordinate(handle.y, `${label}.y`, references, values, heightEmu);
+    return normalized;
   });
 }
 

@@ -10,9 +10,11 @@ namespace OfficeKit.Codec;
 // Coordinates and arc values may reference one ordered adjustment/guide graph;
 // formula parsing and evaluation stay in PptxCustomGeometryFormulaCodec. Shape-
 // local text bounds retain the exact four private scaling guides emitted below.
-// Non-empty handles, formula text rectangles, 3D, and relative lighten/darken
-// path fill remain opaque and fail closed. A connection site's array index is
-// native identity, so recognized imports keep the list length fixed.
+// XY/polar adjustment handles, literal text rectangles, and connection sites
+// share the same evaluated graph. Formula text rectangles, 3D, and relative
+// lighten/darken path fill remain opaque and fail closed. Connection-site and
+// handle array positions are native identity; handle kind and controlled guide
+// references are identity too.
 internal static class PptxCustomGeometryCodec
 {
     private const int MaxPaths = 64;
@@ -30,6 +32,7 @@ internal static class PptxCustomGeometryCodec
         internal required A.PathList Paths { get; init; }
         internal required PptxCustomGeometryFormulaCodec.Graph Formulas { get; init; }
         internal required IReadOnlyList<PresentationCustomGeometryConnectionSite> ConnectionSites { get; init; }
+        internal required IReadOnlyList<PresentationCustomGeometryAdjustmentHandle> AdjustmentHandles { get; init; }
         internal PresentationCustomGeometryTextRectangle? TextRectangle { get; init; }
     }
 
@@ -44,6 +47,7 @@ internal static class PptxCustomGeometryCodec
         target.CustomAdjustments.Add(profile.Formulas.Adjustments);
         target.CustomGuides.Add(profile.Formulas.Guides);
         target.CustomConnectionSites.Add(profile.ConnectionSites);
+        target.CustomAdjustmentHandles.Add(profile.AdjustmentHandles);
         target.TextRectangle = profile.TextRectangle;
         foreach (var nativePath in profile.Paths.Elements<A.Path>())
         {
@@ -90,9 +94,10 @@ internal static class PptxCustomGeometryCodec
             guideList = sourceGuides;
             index++;
         }
+        A.AdjustHandleList? nativeAdjustmentHandles = null;
         if (index < geometry.ChildElements.Count && geometry.ChildElements[index] is A.AdjustHandleList handles)
         {
-            if (handles.HasAttributes || handles.ChildElements.Count != 0) return false;
+            nativeAdjustmentHandles = handles;
             index++;
         }
         A.ConnectionSiteList? nativeConnectionSites = null;
@@ -115,13 +120,15 @@ internal static class PptxCustomGeometryCodec
             return false;
         if (!PptxCustomGeometryFormulaCodec.TryRead(adjustments, allGuides.Take(userGuideCount), widthEmu, heightEmu, out var formulas))
             return false;
+        if (!PptxCustomGeometryHandleCodec.TryRead(nativeAdjustmentHandles, formulas, widthEmu, heightEmu, out var adjustmentHandles))
+            return false;
         if (!TryReadConnectionSites(nativeConnectionSites, formulas, widthEmu, heightEmu, out var connectionSites))
             return false;
         var paths = pathList.Elements<A.Path>().ToArray();
         if (paths.Length is < 1 or > MaxPaths || pathList.ChildElements.Count != paths.Length) return false;
         var commandCount = 0;
         if (!paths.All(path => Supports(path, formulas, ref commandCount))) return false;
-        profile = new Profile { Paths = pathList, Formulas = formulas, ConnectionSites = connectionSites, TextRectangle = textRectangle };
+        profile = new Profile { Paths = pathList, Formulas = formulas, ConnectionSites = connectionSites, AdjustmentHandles = adjustmentHandles, TextRectangle = textRectangle };
         return true;
     }
 
@@ -129,13 +136,14 @@ internal static class PptxCustomGeometryCodec
     {
         if (shape.Geometry != "custom")
         {
-            if (shape.CustomPaths.Count > 0 || shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 || shape.CustomConnectionSites.Count > 0 || shape.TextRectangle is not null)
+            if (shape.CustomPaths.Count > 0 || shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 || shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0 || shape.TextRectangle is not null)
                 throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has custom geometry data without custom geometry.");
             return;
         }
         if (shape.CustomPaths.Count is < 1 or > MaxPaths)
             throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} custom geometry must contain 1 through {MaxPaths} paths.");
         var formulas = PptxCustomGeometryFormulaCodec.Validate(shape, shapeId);
+        PptxCustomGeometryHandleCodec.Validate(shape, shapeId, formulas);
         ValidateConnectionSites(shape, shapeId, formulas);
         Validate(shape.TextRectangle, shapeId);
         var commandCount = 0;
@@ -199,9 +207,13 @@ internal static class PptxCustomGeometryCodec
         var widthEmu = transform?.Extents?.Cx?.Value ?? shape.WidthEmu;
         var heightEmu = transform?.Extents?.Cy?.Value ?? shape.HeightEmu;
         var existingGeometry = properties.GetFirstChild<A.CustomGeometry>();
-        if (existingGeometry is not null && TryProfile(existingGeometry, widthEmu, heightEmu, out var existingProfile) &&
-            existingProfile.ConnectionSites.Count != shape.CustomConnectionSites.Count)
-            throw new CodecException("unsupported_presentation_edit", $"Source-preserving PPTX export requires custom shape connection-site list length to remain fixed at {existingProfile.ConnectionSites.Count}; each existing index is the native identity.");
+        if (existingGeometry is not null && TryProfile(existingGeometry, widthEmu, heightEmu, out var existingProfile))
+        {
+            if (existingProfile.ConnectionSites.Count != shape.CustomConnectionSites.Count)
+                throw new CodecException("unsupported_presentation_edit", $"Source-preserving PPTX export requires custom shape connection-site list length to remain fixed at {existingProfile.ConnectionSites.Count}; each existing index is the native identity.");
+            if (!PptxCustomGeometryHandleCodec.TopologyEquals(existingProfile.AdjustmentHandles, shape.CustomAdjustmentHandles))
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export requires the original custom-shape adjustment-handle order, kind, and controlled adjustment identity.");
+        }
         properties.GetFirstChild<A.PresetGeometry>()?.Remove();
         existingGeometry?.Remove();
         OpenXmlElement geometry = Build(shape, widthEmu, heightEmu);
@@ -249,6 +261,8 @@ internal static class PptxCustomGeometryCodec
                 guides.Append(TextRectangleGuides(shape.TextRectangle, widthEmu, heightEmu));
             geometry.Append(guides);
         }
+        if (shape.CustomAdjustmentHandles.Count > 0)
+            geometry.Append(PptxCustomGeometryHandleCodec.Build(shape.CustomAdjustmentHandles));
         if (shape.CustomConnectionSites.Count > 0)
             geometry.Append(new A.ConnectionSiteList(shape.CustomConnectionSites.Select(ConnectionSite)));
         if (shape.TextRectangle is not null)

@@ -1208,6 +1208,8 @@ const formulaGeometryConfig = (name, position) => ({
   textRectangle: { left: 12, top: 10, right: position.width - 12, bottom: position.height - 10 },
   customAdjustments: [
     { name: "adjX", formula: "val 25000" },
+    { name: "adjY", formula: "val 50000" },
+    { name: "adjRadius", formula: "val 250000" },
     { name: "adjSweep", formula: "val 10800000" },
   ],
   customGuides: [
@@ -1233,6 +1235,10 @@ const formulaGeometryConfig = (name, position) => ({
   customConnectionSites: [
     { angle: 180, x: "x1", y: "y1" },
     { angle: "zeroAngle", x: "x2", y: "y1" },
+  ],
+  customAdjustmentHandles: [
+    { kind: "xy", xAdjustment: "adjX", minX: 0, maxX: 100000, yAdjustment: "adjY", minY: 0, maxY: 100000, x: "x1", y: "y1" },
+    { kind: "polar", radialAdjustment: "adjRadius", minRadius: 0, maxRadius: 500000, angleAdjustment: "adjSweep", minAngle: 0, maxAngle: 360, x: "x2", y: "y1" },
   ],
   customPaths: [{
     width: Math.round(position.width * 9_525),
@@ -1260,12 +1266,17 @@ formulaGeometryGroup.shapes.add(formulaGeometryConfig(
   "grouped-formula-custom-path",
   { left: 20, top: 20, width: 160, height: 100 },
 ));
-assert.deepEqual(formulaGeometryShape.inspectRecord().customAdjustmentCount, 2);
+assert.deepEqual(formulaGeometryShape.inspectRecord().customAdjustmentCount, 4);
 assert.deepEqual(formulaGeometryShape.inspectRecord().customGuideCount, 18);
 assert.deepEqual(formulaGeometryShape.inspectRecord().customConnectionSiteCount, 2);
+assert.deepEqual(formulaGeometryShape.inspectRecord().customAdjustmentHandleCount, 2);
 assert.deepEqual(formulaGeometryShape.layoutJson().customConnectionSites, [
   { angle: 180, x: "x1", y: "y1" },
   { angle: "zeroAngle", x: "x2", y: "y1" },
+]);
+assert.deepEqual(formulaGeometryShape.layoutJson().customAdjustmentHandles, [
+  { kind: "xy", xAdjustment: "adjX", minX: 0, maxX: 100000, yAdjustment: "adjY", minY: 0, maxY: 100000, x: "x1", y: "y1" },
+  { kind: "polar", radialAdjustment: "adjRadius", minRadius: 0, maxRadius: 500000, angleAdjustment: "adjSweep", minAngle: 0, maxAngle: 360, x: "x2", y: "y1" },
 ]);
 assert.throws(
   () => formulaGeometrySlide.shapes.getConnectionSiteIndex(formulaGeometryShape, "right"),
@@ -1276,39 +1287,45 @@ assert.deepEqual(formulaGeometryShape.layoutJson().customGuides[0], { name: "x1"
 const formulaGeometryPptx = await PresentationFile.exportPptx(formulaGeometryPresentation);
 const formulaGeometryZip = await JSZip.loadAsync(formulaGeometryPptx.bytes);
 const formulaGeometryXml = await formulaGeometryZip.file("ppt/slides/slide1.xml").async("text");
-assert.match(formulaGeometryXml, /<a:avLst><a:gd name="adjX" fmla="val 25000"\s*\/><a:gd name="adjSweep" fmla="val 10800000"\s*\/><\/a:avLst>/);
+assert.match(formulaGeometryXml, /<a:avLst><a:gd name="adjX" fmla="val 25000"\s*\/><a:gd name="adjY" fmla="val 50000"\s*\/><a:gd name="adjRadius" fmla="val 250000"\s*\/><a:gd name="adjSweep" fmla="val 10800000"\s*\/><\/a:avLst>/);
 assert.match(formulaGeometryXml, /<a:gd name="x1" fmla="\*\/ w adjX 100000"\s*\/>/);
 assert.match(formulaGeometryXml, /<a:gd name="tangent" fmla="tan 100 cd8"\s*\/>/);
+assert.match(formulaGeometryXml, /<a:ahLst><a:ahXY gdRefX="adjX" minX="0" maxX="100000" gdRefY="adjY" minY="0" maxY="100000"><a:pos x="x1" y="y1"\s*\/><\/a:ahXY><a:ahPolar gdRefR="adjRadius" minR="0" maxR="500000" gdRefAng="adjSweep" minAng="0" maxAng="21600000"><a:pos x="x2" y="y1"\s*\/><\/a:ahPolar><\/a:ahLst>/);
 assert.match(formulaGeometryXml, /<a:cxnLst><a:cxn ang="10800000"><a:pos x="x1" y="y1"\s*\/><\/a:cxn><a:cxn ang="zeroAngle"><a:pos x="x2" y="y1"\s*\/><\/a:cxn><\/a:cxnLst>/);
 assert.match(formulaGeometryXml, /<a:pt x="x1" y="y1"\s*\/>/);
 assert.match(formulaGeometryXml, /<a:arcTo wR="radius" hR="radius" stAng="zeroAngle" swAng="adjSweep"\s*\/>/);
 const importedFormulaGeometry = await PresentationFile.importPptx(formulaGeometryPptx);
 const importedFormulaShape = importedFormulaGeometry.slides.getItem(0).shapes.items[0];
-assert.equal(importedFormulaShape.customAdjustments.length, 2);
+assert.equal(importedFormulaShape.customAdjustments.length, 4);
 assert.equal(importedFormulaShape.customGuides.length, 18);
 assert.deepEqual(importedFormulaShape.customConnectionSites, [
   { angle: 180, x: "x1", y: "y1" },
   { angle: "zeroAngle", x: "x2", y: "y1" },
 ]);
+assert.deepEqual(importedFormulaShape.customAdjustmentHandles, [
+  { kind: "xy", xAdjustment: "adjX", minX: 0, maxX: 100000, yAdjustment: "adjY", minY: 0, maxY: 100000, x: "x1", y: "y1" },
+  { kind: "polar", radialAdjustment: "adjRadius", minRadius: 0, maxRadius: 500000, angleAdjustment: "adjSweep", minAngle: 0, maxAngle: 360, x: "x2", y: "y1" },
+]);
 assert.equal(importedFormulaShape.customPaths[0].commands[0].moveTo.x, "x1");
 assert.equal(importedFormulaShape.customPaths[0].commands[2].arcTo.widthRadius, "radius");
 assert.equal(importedFormulaGeometry.slides.getItem(0).groups.items[0].shapes.items[0].customGuides.length, 18);
 assert.equal(importedFormulaGeometry.slides.getItem(0).groups.items[0].shapes.items[0].customConnectionSites.length, 2);
+assert.equal(importedFormulaGeometry.slides.getItem(0).groups.items[0].shapes.items[0].customAdjustmentHandles.length, 2);
 const emptyFormulaTopologyXml = customGeometryXml.replace("</a:gdLst><a:rect", "</a:gdLst><a:ahLst /><a:cxnLst /><a:rect");
 assert.notEqual(emptyFormulaTopologyXml, customGeometryXml);
 const emptyFormulaTopologyFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: emptyFormulaTopologyXml }]);
 const importedEmptyFormulaTopology = await PresentationFile.importPptx(emptyFormulaTopologyFile);
 assert.equal(importedEmptyFormulaTopology.slides.getItem(0).shapes.items[0].customPaths.length, 3);
-const handleFormulaTopologyXml = formulaGeometryXml.replace("</a:gdLst><a:cxnLst", "</a:gdLst><a:ahLst><a:ahXY /></a:ahLst><a:cxnLst");
-assert.notEqual(handleFormulaTopologyXml, formulaGeometryXml);
-const handleFormulaTopologyFile = await PresentationFile.patchPptx(formulaGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: handleFormulaTopologyXml }]);
-const importedHandleFormulaTopology = await PresentationFile.importPptx(handleFormulaTopologyFile);
-const opaqueHandleFormulaShape = itemByName(importedHandleFormulaTopology.slides.getItem(0).shapes.items, "formula-custom-path");
+const invalidHandleFormulaTopologyXml = formulaGeometryXml.replace('<a:pos x="x1" y="y1" />', '<a:pos x="x1" y="y1" data="unexpected" />');
+assert.notEqual(invalidHandleFormulaTopologyXml, formulaGeometryXml);
+const invalidHandleFormulaTopologyFile = await PresentationFile.patchPptx(formulaGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: invalidHandleFormulaTopologyXml }]);
+const importedInvalidHandleFormulaTopology = await PresentationFile.importPptx(invalidHandleFormulaTopologyFile);
+const opaqueHandleFormulaShape = itemByName(importedInvalidHandleFormulaTopology.slides.getItem(0).shapes.items, "formula-custom-path");
 assert.equal(opaqueHandleFormulaShape.customPaths.length, 0);
-assert.equal(opaqueHandleFormulaShape.customGuides.length, 0);
-const preservedHandleFormulaTopology = await PresentationFile.exportPptx(importedHandleFormulaTopology);
-const preservedHandleFormulaZip = await JSZip.loadAsync(preservedHandleFormulaTopology.bytes);
-assert.match(await preservedHandleFormulaZip.file("ppt/slides/slide1.xml").async("text"), /<a:ahLst><a:ahXY\s*\/><\/a:ahLst>/);
+assert.equal(opaqueHandleFormulaShape.customAdjustmentHandles.length, 0);
+const preservedInvalidHandleFormulaTopology = await PresentationFile.exportPptx(importedInvalidHandleFormulaTopology);
+const preservedInvalidHandleFormulaZip = await JSZip.loadAsync(preservedInvalidHandleFormulaTopology.bytes);
+assert.match(await preservedInvalidHandleFormulaZip.file("ppt/slides/slide1.xml").async("text"), /<a:pos x="x1" y="y1" data="unexpected"\s*\/>/);
 const invalidConnectionSiteXml = formulaGeometryXml.replace(
   '<a:pos x="x1" y="y1" />',
   '<a:pos x="x1" y="y1" data="unexpected" />',
@@ -1325,15 +1342,25 @@ assert.match(await preservedInvalidConnectionSiteZip.file("ppt/slides/slide1.xml
 importedFormulaShape.customAdjustments[0].formula = "val 30000";
 assert.match(importedFormulaShape.toSvg(), /M 571500 476250 L 1333500 476250/);
 importedFormulaShape.customConnectionSites[0].angle = 90;
+importedFormulaShape.customAdjustmentHandles[0].maxX = 90000;
+importedFormulaShape.customAdjustmentHandles[1].x = "x1";
 const editedFormulaGeometry = await PresentationFile.importPptx(await PresentationFile.exportPptx(importedFormulaGeometry));
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customAdjustments[0].formula, "val 30000");
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customConnectionSites[0].angle, 90);
+assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customAdjustmentHandles[0].maxX, 90000);
+assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customAdjustmentHandles[1].x, "x1");
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customPaths[0].commands[0].moveTo.x, "x1");
 const changedConnectionSiteTopology = await PresentationFile.importPptx(formulaGeometryPptx);
 changedConnectionSiteTopology.slides.getItem(0).shapes.items[0].customConnectionSites.pop();
 await assert.rejects(
   () => PresentationFile.exportPptx(changedConnectionSiteTopology),
   (error) => error?.code === "unsupported_presentation_edit" && /connection-site list length/i.test(error.message),
+);
+const changedAdjustmentHandleTopology = await PresentationFile.importPptx(formulaGeometryPptx);
+changedAdjustmentHandleTopology.slides.getItem(0).shapes.items[0].customAdjustmentHandles[0].xAdjustment = "adjY";
+await assert.rejects(
+  () => PresentationFile.exportPptx(changedAdjustmentHandleTopology),
+  (error) => error?.code === "unsupported_presentation_edit" && /adjustment-handle order, kind, and controlled adjustment identity/i.test(error.message),
 );
 
 const customSiteConnectorDeck = Presentation.create({ slideSize: { width: 500, height: 300 } });
@@ -1573,6 +1600,90 @@ assert.throws(
 assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "rect", customConnectionSites: [{ angle: 0, x: 10, y: 10 }] }),
   /only for custom geometry shapes/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "rect", customAdjustmentHandles: [{ kind: "xy", xAdjustment: "adj", x: 10, y: 10 }] }),
+  /declared custom adjustment/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customAdjustments: [{ name: "adj", formula: "val 50" }],
+    customAdjustmentHandles: Array.from({ length: 1_025 }, () => ({ kind: "xy", xAdjustment: "adj", x: 10, y: 10 })),
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /at most 1024 entries/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customAdjustments: [{ name: "adj", formula: "val 50" }],
+    customAdjustmentHandles: [{ kind: "xy", xAdjustment: "missing", minX: 0, maxX: 100, x: 10, y: 10 }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /declared custom adjustment/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customAdjustments: [{ name: "adj", formula: "val 50" }],
+    customAdjustmentHandles: [{ kind: "xy", xAdjustment: "adj", minX: 0, x: 10, y: 10 }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /minX and maxX must be supplied together/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customAdjustments: [{ name: "adj", formula: "val 150" }],
+    customAdjustmentHandles: [{ kind: "xy", xAdjustment: "adj", minX: 0, maxX: 100, x: 10, y: 10 }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /must evaluate inside its minX\/maxX range/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customAdjustments: [{ name: "adj", formula: "val 50" }],
+    customAdjustmentHandles: [{ kind: "xy", xAdjustment: "adj", minX: 0, maxX: 100, x: 101, y: 10 }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /inside the custom shape frame/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customAdjustments: [{ name: "adj", formula: "val 50" }],
+    customAdjustmentHandles: [{ kind: "polar", radialAdjustment: "adj", minRadius: -1, maxRadius: 100, x: 10, y: 10 }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /must evaluate to non-negative values/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customAdjustments: [{ name: "adj", formula: "val -1" }],
+    customAdjustmentHandles: [{ kind: "polar", radialAdjustment: "adj", x: 10, y: 10 }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /radialAdjustment must evaluate to a non-negative value/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customAdjustments: [{ name: "adj", formula: "val 21600001" }],
+    customAdjustmentHandles: [{ kind: "polar", angleAdjustment: "adj", x: 10, y: 10 }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /angleAdjustment must evaluate within one full DrawingML turn/,
 );
 assert.throws(
   () => customGeometrySlide.shapes.add({
