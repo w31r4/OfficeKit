@@ -28,6 +28,7 @@ import { normalizePresentationCustomPaths, normalizePresentationCustomTextRectan
 import { normalizePresentationCustomGeometryFormulaGraph } from "./custom-geometry-formulas.mjs";
 import { normalizePresentationImageCrop, normalizePresentationImageFit, presentationImageCropViewport } from "./image-crop.mjs";
 import { planPresentationModernComments } from "./ooxml-modern-comments.mjs";
+import { presentationFreeLineSvg, presentationShapeLineSvgAttributes } from "./shape-lines.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const EMU_PER_PIXEL = 9_525;
@@ -1419,13 +1420,14 @@ export class Shape {
     const fill = this.useBackgroundFill === true
       ? resolvePresentationBackgroundColor(this.slide.effectiveBackground(), this.slide.effectiveTheme())
       : typeof this.fill === "string" ? resolveColorToken(this.fill, this.fill) : this.fill?.color || "transparent";
-    const stroke = resolveColorToken(this.line?.fill || this.line?.color || "#334155", "#334155");
-    const sw = this.line?.width ?? 1;
+    const outline = presentationShapeLineSvgAttributes(this.line, `Presentation shape ${this.name || this.id} line`);
     const visual = this.geometry === "custom"
-      ? `<g fill="${xmlEscape(fill)}" stroke="${xmlEscape(stroke)}" stroke-width="${sw}">${presentationCustomPathsSvg(custom.paths, p, { escape: xmlEscape, adjustments: custom.adjustments, guides: custom.guides, sourceFrame: this.position })}</g>`
+      ? `<g fill="${xmlEscape(fill)}" ${outline}>${presentationCustomPathsSvg(custom.paths, p, { escape: xmlEscape, adjustments: custom.adjustments, guides: custom.guides, sourceFrame: this.position })}</g>`
+      : this.geometry === "line"
+      ? presentationFreeLineSvg(this.line, p, `Presentation shape ${this.name || this.id}`)
       : this.geometry === "ellipse"
-      ? `<ellipse cx="${p.left + p.width / 2}" cy="${p.top + p.height / 2}" rx="${p.width / 2}" ry="${p.height / 2}" fill="${xmlEscape(fill)}" stroke="${xmlEscape(stroke)}" stroke-width="${sw}"/>`
-      : `<rect x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" rx="${this.borderRadius ? 12 : 0}" fill="${xmlEscape(fill)}" stroke="${xmlEscape(stroke)}" stroke-width="${sw}"/>`;
+      ? `<ellipse cx="${p.left + p.width / 2}" cy="${p.top + p.height / 2}" rx="${p.width / 2}" ry="${p.height / 2}" fill="${xmlEscape(fill)}" ${outline}/>`
+      : `<rect x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" rx="${this.borderRadius ? 12 : 0}" fill="${xmlEscape(fill)}" ${outline}/>`;
     const text = this.text.value ? presentationParagraphsSvg(this.text.effectiveParagraphs(), textFrame, this.text.style, { escape: xmlEscape }) : "";
     if (!this.transform) return visual + text;
     const cx = p.left + p.width / 2;

@@ -27,7 +27,7 @@ shape.text.style = {
 shape.position = nextPosition;
 ```
 
-`geometry` is a string preset shape name, `"textbox"`, `"connector"`, or `"custom"`.
+`geometry` is a string preset shape name, `"textbox"`, `"line"`, `"connector"`, or `"custom"`.
 
 ## Resolved From Inspect
 
@@ -299,6 +299,37 @@ direct `geometry: "connector"` creation, arrowheads, and endpoint edits.
 | Free-positioned line | `slide.shapes.add({ geometry: "line", position, fill: "none", line })` |
 | Arrow connected to shapes | `slide.shapes.connect(fromShape, toShape, { line, head })` |
 | Border around a surface | shape or box `line={{ style: "solid", fill: "slate-200", width: 1 }}` |
+
+A free-positioned line is an ordinary shape, not a connector:
+
+```js
+const divider = slide.shapes.add({
+  name: "section-divider",
+  geometry: "line",
+  position: { left: 72, top: 122, width: 1108, height: 0 },
+  fill: "none",
+  line: { style: "dashed", fill: "slate-500", width: 1.5 },
+});
+```
+
+For `geometry: "line"`, `position.left/top` is the start point and
+`position.width/height` is the non-negative delta to the endpoint. Horizontal
+and vertical lines therefore use one zero extent; both extents zero fail
+closed. OfficeKit writes this as `p:sp` with `a:prstGeom prst="line"`. It has no
+target shape or connection-site index.
+
+The bounded outline styles are `solid`, `dashed`, `dotted`, `dash-dot`,
+`dash-dot-dot`, and `none`. The input aliases `dash`, `dot`, `dashDot`, and
+`longDashDotDot` normalize to those canonical names. Unknown styles fail
+closed. Arrowheads, caps, joins, and endpoint rerouting require a real
+`slide.shapes.connect(...)` connector; they are not silently attached to a free
+line.
+
+Canonical free lines support authoring, import, source-bound style/frame edits,
+slide duplication, export, and second import. Imported theme colors, custom
+dash graphs, arrowheads, caps, joins, compound lines, or otherwise complex
+`a:ln` content stay source-bound: unchanged export preserves the package, while
+semantic mutation fails closed instead of flattening the outline.
 
 ## Shadows
 

@@ -182,6 +182,7 @@ internal static class PptxCustomGeometryCodec
             {
                 "ellipse" => A.ShapeTypeValues.Ellipse,
                 "roundRect" => A.ShapeTypeValues.RoundRectangle,
+                "line" => A.ShapeTypeValues.Line,
                 _ => A.ShapeTypeValues.Rectangle,
             };
             return;

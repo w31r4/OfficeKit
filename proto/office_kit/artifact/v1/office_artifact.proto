@@ -1794,6 +1794,10 @@ message PresentationShape {
   PresentationCustomGeometryTextRectangle text_rectangle = 17;
   repeated PresentationCustomGeometryGuide custom_adjustments = 18;
   repeated PresentationCustomGeometryGuide custom_guides = 19;
+  // Bounded direct a:ln profile. Empty remains backward-compatible with the
+  // legacy wire and is interpreted from line_rgb as solid or none. New
+  // writers use solid, dashed, dotted, dash-dot, dash-dot-dot, or none.
+  string line_style = 20;
 }
 
 message PresentationCustomGeometryPath {

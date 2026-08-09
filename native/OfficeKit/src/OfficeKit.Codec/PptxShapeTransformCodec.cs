@@ -12,14 +12,17 @@ internal static class PptxShapeTransformCodec
 {
     private const int MaxRotationAngle60000 = 360 * 60_000;
 
-    internal static bool Supports(A.Transform2D? transform)
+    internal static bool Supports(A.Transform2D? transform, bool allowSingleZeroExtent = false)
     {
         if (transform is null || transform.ChildElements.Count != 2 ||
             transform.ChildElements[0] is not A.Offset offset ||
             transform.ChildElements[1] is not A.Extents extents ||
             offset.X is null || offset.Y is null || extents.Cx is null || extents.Cy is null)
             return false;
-        if (offset.X.Value < 0 || offset.Y.Value < 0 || extents.Cx.Value <= 0 || extents.Cy.Value <= 0)
+        if (offset.X.Value < 0 || offset.Y.Value < 0 || extents.Cx.Value < 0 || extents.Cy.Value < 0 ||
+            (allowSingleZeroExtent
+                ? extents.Cx.Value == 0 && extents.Cy.Value == 0
+                : extents.Cx.Value == 0 || extents.Cy.Value == 0))
             return false;
         if (!HasOnlyAttributes(transform, "rot", "flipH", "flipV") ||
             !HasOnlyAttributes(offset, "x", "y") ||

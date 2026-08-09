@@ -4867,6 +4867,52 @@ clean-install candidate has 707 files, 36,235,546 compressed bytes, and
 unavailable, `office-kit` is not present in the registry, current HEAD is not
 tagged, and no publish, tag, or release operation was attempted.
 
+### PPTX free-positioned line shapes
+
+On 2026-08-09, the Presentation model added a bounded target-free line
+primitive. `slide.shapes.add({ geometry: "line" })` is represented as an
+ordinary `p:sp`, not a `p:cxnSp`: left/top is its start point and non-negative
+width/height is the endpoint delta. One extent may be zero for horizontal or
+vertical lines, while a zero-by-zero line fails closed. Target and connection-
+site identity remains exclusive to connectors.
+
+The JavaScript model, SVG preview, protobuf wire, C# Open XML SDK codec, and
+bundled WASM share one direct-outline profile: RGB or no-fill, point width, and
+solid, dashed, dotted, dash-dot, dash-dot-dot, or none preset styles. Public
+aliases normalize before crossing the wire, object-valued colors render and
+export through the same helper, and unknown Shape-line properties such as
+arrowheads fail before export. The additive `PresentationShape.line_style`
+field remains backward-compatible with older protocol-v2 payloads, where an
+empty value is inferred from `line_rgb`. Arrowheads, caps, joins, compound and
+theme lines, custom dashes, extension content, and other complex native
+outlines do not silently degrade. Because ISO/IEC 29500 leaves an existing
+`a:ln` with no line-fill child undefined, that case also remains source-bound.
+An imported shape carrying any of these profiles is byte-exactly preserved when
+unchanged and rejects mutation.
+
+The model/native matrix authors horizontal, vertical, diagonal, dash-dot-dot,
+and hidden lines, proves that no connector relationship was created, validates
+the package with the Office 2021 Open XML SDK validator, imports canonical
+styles, preserves an unchanged SlidePart byte-for-byte, edits and imports a
+second time, clones the slide, and retains an unsupported native `lgDash`
+outline as the fail-closed oracle. The runnable Presentation Skill fixture adds
+a dashed workflow divider and carries it through inspect, model preview, PPTX
+import/export, and native LibreOffice/Poppler QA.
+
+The local candidate passed `npm test` (26/26), `npm run test:slow` (75/75),
+`npm run docs:api`, deterministic `npm run verify:office-kit-build` (39 audited
+files), OfficeKit `391/391`, OfficeBridge `5/5`, and clean-install
+`npm run test:pack`. The deterministic runtime contains 38 files and
+15,263,979 bytes. The npm candidate contains 709 files, 36,173,703 compressed
+bytes, and 53,181,159 unpacked bytes (`shasum
+b13c2f3b70f589635200a4ef9ab725b94a7b58eb`). Real qpdf, LibreOffice, Poppler,
+and Playwright gates ran locally. Managed provider downloads and separately
+configured pikepdf, pyHanko, veraPDF, OCRmyPDF, and managed-Python PromptBench
+execution remained explicit environment skips. npm authentication is still
+unavailable, `office-kit` is not present in the registry, current HEAD is not
+tagged, Windows Office acceptance remains outstanding, and no publish, tag, or
+release operation was attempted.
+
 ## Publishing
 
 Before publishing:

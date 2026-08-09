@@ -119,6 +119,143 @@ await assert.rejects(
   /presentation theme customization/i,
 );
 
+// A free-positioned line is a p:sp whose frame defines its two endpoints. It
+// has no target/site identity and therefore stays separate from p:cxnSp.
+const freeLineDeck = Presentation.create({ slideSize: { width: 960, height: 540 } });
+const freeLineSlide = freeLineDeck.slides.add({ name: "Free line profiles" });
+const horizontalFreeLine = freeLineSlide.shapes.add({
+  name: "horizontal-free-line",
+  geometry: "line",
+  position: { left: 80, top: 90, width: 360, height: 0 },
+  fill: "none",
+  line: { style: "dash", fill: "#2563EB", width: 2 },
+});
+const verticalFreeLine = freeLineSlide.shapes.add({
+  name: "vertical-free-line",
+  geometry: "line",
+  position: { left: 480, top: 80, width: 0, height: 220 },
+  fill: "none",
+  line: { style: "dot", fill: "#16A34A", width: 1.5 },
+});
+const diagonalFreeLine = freeLineSlide.shapes.add({
+  name: "diagonal-free-line",
+  geometry: "line",
+  position: { left: 120, top: 180, width: 260, height: 160 },
+  fill: "none",
+  line: { style: "dashDot", fill: { color: "#F97316" }, width: 2.25 },
+});
+const evidenceFreeLine = freeLineSlide.shapes.add({
+  name: "evidence-free-line",
+  geometry: "line",
+  position: { left: 520, top: 320, width: 240, height: 100 },
+  fill: "none",
+  line: { style: "longDashDotDot", fill: "#7C3AED", width: 2 },
+});
+const hiddenFreeLine = freeLineSlide.shapes.add({
+  name: "hidden-free-line",
+  geometry: "line",
+  position: { left: 80, top: 450, width: 220, height: 0 },
+  fill: "none",
+  line: { style: "none", fill: "#DC2626", width: 1 },
+});
+assert.match(horizontalFreeLine.toSvg(), /<line\b[^>]*x1="80"[^>]*y1="90"[^>]*x2="440"[^>]*y2="90"/);
+assert.match(horizontalFreeLine.toSvg(), /stroke-dasharray="8 6"/);
+assert.match(verticalFreeLine.toSvg(), /stroke-dasharray="2 4"/);
+assert.match(diagonalFreeLine.toSvg(), /stroke-dasharray="8 4 2 4"/);
+assert.match(diagonalFreeLine.toSvg(), /stroke="#F97316"/);
+assert.match(evidenceFreeLine.toSvg(), /stroke-dasharray="8 3 2 3 2 3"/);
+assert.match(hiddenFreeLine.toSvg(), /stroke="none"/);
+assert.equal(freeLineSlide.connectors.items.length, 0);
+
+const invalidFreeLineStyle = Presentation.create();
+invalidFreeLineStyle.slides.add().shapes.add({
+  geometry: "line",
+  position: { left: 10, top: 10, width: 100, height: 0 },
+  line: { style: "long-dash", fill: "#000000", width: 1 },
+});
+assert.throws(() => invalidFreeLineStyle.slides.getItem(0).shapes.items[0].toSvg(), /line style long-dash is unsupported/);
+await assert.rejects(() => PresentationFile.exportPptx(invalidFreeLineStyle), /line style long-dash is unsupported/);
+const zeroExtentFreeLine = Presentation.create();
+zeroExtentFreeLine.slides.add().shapes.add({ geometry: "line", position: { left: 10, top: 10, width: 0, height: 0 } });
+assert.throws(() => zeroExtentFreeLine.slides.getItem(0).shapes.items[0].toSvg(), /at least one positive extent/);
+await assert.rejects(() => PresentationFile.exportPptx(zeroExtentFreeLine), /at least one positive extent/);
+const placeholderFreeLine = Presentation.create();
+placeholderFreeLine.slides.add().shapes.add({
+  geometry: "line",
+  position: { left: 10, top: 10, width: 100, height: 0 },
+  placeholder: { type: "body", index: 1 },
+});
+await assert.rejects(() => PresentationFile.exportPptx(placeholderFreeLine), /free line.*cannot be a placeholder/i);
+const arrowFreeLine = Presentation.create();
+arrowFreeLine.slides.add().shapes.add({
+  geometry: "line",
+  position: { left: 10, top: 10, width: 100, height: 0 },
+  line: { fill: "#000000", width: 1, endArrow: "triangle" },
+});
+assert.throws(() => arrowFreeLine.slides.getItem(0).shapes.items[0].toSvg(), /unsupported properties: endArrow/);
+await assert.rejects(() => PresentationFile.exportPptx(arrowFreeLine), /unsupported properties: endArrow/);
+
+const freeLineFirstExport = await PresentationFile.exportPptx(freeLineDeck);
+const freeLineFirstZip = await JSZip.loadAsync(freeLineFirstExport.bytes);
+const freeLineFirstXml = await freeLineFirstZip.file("ppt/slides/slide1.xml").async("text");
+assert.equal([...freeLineFirstXml.matchAll(/<p:sp>/g)].length, 5);
+assert.doesNotMatch(freeLineFirstXml, /<p:cxnSp>/);
+assert.equal([...freeLineFirstXml.matchAll(/<a:prstGeom\b[^>]*\bprst="line"/g)].length, 5);
+assert.match(freeLineFirstXml, /<a:ext\b[^>]*\bcx="3429000"[^>]*\bcy="0"/);
+assert.match(freeLineFirstXml, /<a:ext\b[^>]*\bcx="0"[^>]*\bcy="2095500"/);
+for (const dash of ["dash", "dot", "dashDot", "lgDashDotDot"]) {
+  assert.match(freeLineFirstXml, new RegExp(`<a:prstDash val="${dash}"`));
+}
+
+const freeLineImported = await PresentationFile.importPptx(freeLineFirstExport);
+const importedFreeLineSlide = freeLineImported.slides.getItem(0);
+assert.equal(importedFreeLineSlide.connectors.items.length, 0);
+assert.deepEqual(
+  importedFreeLineSlide.shapes.items.map((shape) => [shape.name, shape.geometry, shape.line.style]),
+  [
+    ["horizontal-free-line", "line", "dashed"],
+    ["vertical-free-line", "line", "dotted"],
+    ["diagonal-free-line", "line", "dash-dot"],
+    ["evidence-free-line", "line", "dash-dot-dot"],
+    ["hidden-free-line", "line", "none"],
+  ],
+);
+assert.deepEqual(itemByName(importedFreeLineSlide.shapes.items, "horizontal-free-line").position, { left: 80, top: 90, width: 360, height: 0 });
+const freeLineNoOpExport = await PresentationFile.exportPptx(freeLineImported);
+const freeLineNoOpZip = await JSZip.loadAsync(freeLineNoOpExport.bytes);
+assert.deepEqual(
+  await freeLineNoOpZip.file("ppt/slides/slide1.xml").async("uint8array"),
+  await freeLineFirstZip.file("ppt/slides/slide1.xml").async("uint8array"),
+);
+
+const freeLineEditDeck = await PresentationFile.importPptx(freeLineFirstExport);
+const freeLineToEdit = itemByName(freeLineEditDeck.slides.getItem(0).shapes.items, "horizontal-free-line");
+freeLineToEdit.position.height = 48;
+freeLineToEdit.line = { style: "dotted", fill: "#0F172A", width: 3 };
+const freeLineEditedRoundTrip = await PresentationFile.importPptx(await PresentationFile.exportPptx(freeLineEditDeck));
+const editedFreeLine = itemByName(freeLineEditedRoundTrip.slides.getItem(0).shapes.items, "horizontal-free-line");
+assert.equal(editedFreeLine.position.height, 48);
+assert.deepEqual(editedFreeLine.line, { style: "dotted", fill: "#0F172A", width: 3 });
+
+const freeLineCloneDeck = await PresentationFile.importPptx(freeLineFirstExport);
+freeLineCloneDeck.slides.getItem(0).duplicate();
+const freeLineCloneRoundTrip = await PresentationFile.importPptx(await PresentationFile.exportPptx(freeLineCloneDeck));
+assert.equal(freeLineCloneRoundTrip.slides.count, 2);
+assert.deepEqual(
+  freeLineCloneRoundTrip.slides.getItem(1).shapes.items.map((shape) => [shape.geometry, shape.line.style]),
+  freeLineCloneRoundTrip.slides.getItem(0).shapes.items.map((shape) => [shape.geometry, shape.line.style]),
+);
+
+const unsupportedFreeLineZip = await JSZip.loadAsync(freeLineFirstExport.bytes);
+unsupportedFreeLineZip.file("ppt/slides/slide1.xml", freeLineFirstXml.replace(/<a:prstDash val="dash"\s*\/>/, '<a:prstDash val="lgDash" />'));
+const unsupportedFreeLineFile = new FileBlob(await unsupportedFreeLineZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }), { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });
+const unsupportedFreeLineImported = await PresentationFile.importPptx(unsupportedFreeLineFile);
+const unsupportedFreeLinePreserved = await PresentationFile.exportPptx(unsupportedFreeLineImported);
+const unsupportedFreeLinePreservedZip = await JSZip.loadAsync(unsupportedFreeLinePreserved.bytes);
+assert.match(await unsupportedFreeLinePreservedZip.file("ppt/slides/slide1.xml").async("text"), /<a:prstDash val="lgDash"\s*\/>/);
+itemByName(unsupportedFreeLineImported.slides.getItem(0).shapes.items, "horizontal-free-line").name = "Forbidden mutation";
+await assert.rejects(() => PresentationFile.exportPptx(unsupportedFreeLineImported), /source-bound|read-only|unsupported/i);
+
 // A connector endpoint is identified by both its target shape and its
 // DrawingML connection-site index. The JS model keeps that pair together,
 // reroutes when a modeled target moves, and preserves it through the wire and

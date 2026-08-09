@@ -1123,9 +1123,10 @@ internal static class PptxCodec
         var textBody = PptxTextCodec.Read(shape.TextBody, slideContext);
         var placeholder = PptxPlaceholderCodec.ReadIdentity(shape);
         var transform = properties?.Transform2D;
+        var geometry = Geometry(shape);
         var result = new PresentationShape
         {
-            Geometry = Geometry(shape),
+            Geometry = geometry,
             LeftEmu = frame.Left,
             TopEmu = frame.Top,
             WidthEmu = frame.Width,
@@ -1133,15 +1134,14 @@ internal static class PptxCodec
             Text = PptxTextCodec.Flatten(textBody),
             TextBody = textBody,
             FillRgb = PptxColor.SolidRgb(properties?.GetFirstChild<A.SolidFill>()),
-            LineRgb = PptxColor.SolidRgb(properties?.GetFirstChild<A.Outline>()?.GetFirstChild<A.SolidFill>()),
-            LineWidthEmu = properties?.GetFirstChild<A.Outline>()?.Width?.Value ?? 0,
             Placeholder = placeholder,
             DirectFrame = placeholder is null ? null : PptxPlaceholderCodec.ReadDirectFrame(shape),
-            Transform = placeholder is null && PptxShapeTransformCodec.Supports(transform)
+            Transform = placeholder is null && PptxShapeTransformCodec.Supports(transform, allowSingleZeroExtent: geometry == "line")
                 ? PptxShapeTransformCodec.Read(transform!)
                 : null,
             Shadow = ReadShadow(properties),
         };
+        PptxShapeLineCodec.ReadForProjection(properties?.GetFirstChild<A.Outline>(), result);
         if (shape.UseBackgroundFill?.HasValue == true)
             result.UseBackgroundFill = shape.UseBackgroundFill.Value;
         PptxCustomGeometryCodec.Read(properties?.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height, result);
@@ -1154,9 +1154,10 @@ internal static class PptxCodec
         if (shape.ShapeStyle is not null) return false;
         var properties = shape.ShapeProperties;
         var transform = properties?.Transform2D;
-        if (properties is null || properties.Elements<A.Transform2D>().Count() != 1 || !PptxShapeTransformCodec.Supports(transform)) return false;
         var geometry = Geometry(shape);
-        if (geometry is not ("rect" or "ellipse" or "roundRect" or "textbox" or "custom")) return false;
+        if (properties is null || properties.Elements<A.Transform2D>().Count() != 1 ||
+            !PptxShapeTransformCodec.Supports(transform, allowSingleZeroExtent: geometry == "line")) return false;
+        if (geometry is not ("rect" or "ellipse" or "roundRect" or "textbox" or "line" or "custom")) return false;
         if (geometry == "custom")
         {
             var frame = ReadFrame(shape);
@@ -1164,7 +1165,7 @@ internal static class PptxCodec
         }
         if (!SimpleFill(properties)) return false;
         var outline = properties.GetFirstChild<A.Outline>();
-        if (outline is not null && !SimpleFill(outline)) return false;
+        if (!PptxShapeLineCodec.TryRead(outline, out _)) return false;
         if (!SupportsShadow(properties)) return false;
         if (properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.CustomGeometry and not A.NoFill and not A.SolidFill and not A.Outline and not A.EffectList)) return false;
         return PptxTextCodec.SupportsEditing(shape.TextBody);
@@ -1252,17 +1253,7 @@ internal static class PptxCodec
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties)
             drawingProperties.TextBox = semantic.Geometry == "textbox" ? true : null;
         if (!FillMatches(properties, semantic.FillRgb)) ReplaceFill(properties, semantic.FillRgb);
-        var outline = properties.GetFirstChild<A.Outline>();
-        if (outline is null && (semantic.LineWidthEmu > 0 || !string.IsNullOrWhiteSpace(semantic.LineRgb)))
-        {
-            outline = new A.Outline();
-            properties.Append(outline);
-        }
-        if (outline is not null)
-        {
-            outline.Width = checked((int)semantic.LineWidthEmu);
-            if (!FillMatches(outline, semantic.LineRgb)) ReplaceFill(outline, semantic.LineRgb);
-        }
+        PptxShapeLineCodec.Apply(properties, semantic);
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
             nonVisual.Name = source.Name;
         ApplyShadow(properties, semantic.Shadow);
@@ -1634,11 +1625,7 @@ internal static class PptxCodec
         properties.Append(string.IsNullOrWhiteSpace(semantic.FillRgb)
             ? new A.NoFill()
             : new A.SolidFill(new A.RgbColorModelHex { Val = PptxColor.Normalize(semantic.FillRgb) }));
-        var outline = new A.Outline { Width = checked((int)semantic.LineWidthEmu) };
-        outline.Append(string.IsNullOrWhiteSpace(semantic.LineRgb)
-            ? new A.NoFill()
-            : new A.SolidFill(new A.RgbColorModelHex { Val = PptxColor.Normalize(semantic.LineRgb) }));
-        properties.Append(outline);
+        properties.Append(PptxShapeLineCodec.Build(semantic));
         ApplyShadow(properties, semantic.Shadow);
         var applicationProperties = new P.ApplicationNonVisualDrawingProperties();
         if (semantic.Placeholder is not null)
@@ -1873,6 +1860,7 @@ internal static class PptxCodec
         if (value is null) return "rect";
         return value.Equals(A.ShapeTypeValues.Ellipse) ? "ellipse" :
             value.Equals(A.ShapeTypeValues.RoundRectangle) ? "roundRect" :
+            value.Equals(A.ShapeTypeValues.Line) ? "line" :
             value.Equals(A.ShapeTypeValues.Rectangle) ? "rect" : value.ToString() ?? "rect";
     }
 
@@ -2078,20 +2066,31 @@ internal static class PptxCodec
                 throw new CodecException("invalid_presentation_transform", $"Presentation placeholder shape {element.Id} cannot carry an ordinary shape transform.");
             var inheritedPlaceholderGeometry = element.Shape.Placeholder?.InheritsGeometry == true &&
                 element.Shape.DirectFrame is null && element.Source?.Editable == false;
-            if ((!inheritedPlaceholderGeometry && (element.Shape.LeftEmu < 0 || element.Shape.TopEmu < 0 || element.Shape.WidthEmu <= 0 || element.Shape.HeightEmu <= 0)) ||
+            var freeLine = element.Shape.Geometry == "line";
+            var invalidExtent = freeLine
+                ? element.Shape.WidthEmu == 0 && element.Shape.HeightEmu == 0
+                : element.Shape.WidthEmu == 0 || element.Shape.HeightEmu == 0;
+            if ((!inheritedPlaceholderGeometry && (element.Shape.LeftEmu < 0 || element.Shape.TopEmu < 0 ||
+                    element.Shape.WidthEmu < 0 || element.Shape.HeightEmu < 0 ||
+                    invalidExtent)) ||
                 element.Shape.LineWidthEmu < 0 || element.Shape.LineWidthEmu > int.MaxValue)
-                throw new CodecException("invalid_presentation_frame", $"Presentation shape {element.Id} has an invalid frame.");
+                throw new CodecException(
+                    "invalid_presentation_frame",
+                    $"Presentation shape {element.Id} has an invalid {element.Shape.Geometry} frame " +
+                    $"({element.Shape.LeftEmu},{element.Shape.TopEmu},{element.Shape.WidthEmu},{element.Shape.HeightEmu}).");
             if (element.Shape.DirectFrame is not null)
             {
                 if (element.Shape.Placeholder is null || element.Shape.Placeholder.InheritsGeometry)
                     throw new CodecException("invalid_presentation_placeholder", $"Presentation shape {element.Id} has inconsistent direct placeholder geometry.");
                 PptxPlaceholderCodec.ValidateDirectFrame(element.Shape.DirectFrame, element.Id);
             }
-            if (element.Shape.Geometry is not ("rect" or "ellipse" or "roundRect" or "textbox" or "custom"))
+            if (element.Shape.Geometry is not ("rect" or "ellipse" or "roundRect" or "textbox" or "line" or "custom"))
                 throw new CodecException("unsupported_presentation_geometry", $"Presentation shape {element.Id} uses unsupported geometry {element.Shape.Geometry}.");
+            if (freeLine && element.Shape.Placeholder is not null)
+                throw new CodecException("unsupported_presentation_geometry", $"Presentation free line {element.Id} cannot be a placeholder.");
             PptxCustomGeometryCodec.Validate(element.Shape, element.Id);
             if (!string.IsNullOrWhiteSpace(element.Shape.FillRgb)) PptxColor.Normalize(element.Shape.FillRgb);
-            if (!string.IsNullOrWhiteSpace(element.Shape.LineRgb)) PptxColor.Normalize(element.Shape.LineRgb);
+            PptxShapeLineCodec.Validate(element.Shape, element.Id);
             PptxShapeTransformCodec.Validate(element.Shape.Transform, element.Id);
             ValidateShadow(element.Shape.Shadow, element.Id);
             PptxTextCodec.Validate(element.Shape);
@@ -4542,10 +4541,7 @@ internal static class PptxCodec
             properties.GetFirstChild<A.EffectList>()?.Remove();
             foreach (var fill in properties.ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray()) fill.Remove();
             if (properties.GetFirstChild<A.Outline>() is { } outline)
-            {
-                outline.Width = 0;
-                foreach (var fill in outline.ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray()) fill.Remove();
-            }
+                PptxShapeLineCodec.ScrubModeledContent(outline);
         }
         PptxTextCodec.ScrubModeledContent(shape.TextBody, slideContext);
         return HashElement(shape);

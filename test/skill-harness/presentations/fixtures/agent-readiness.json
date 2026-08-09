@@ -17,6 +17,13 @@
           "textStyle": { "fontFamily": "Arial", "fontSize": 38, "bold": true, "color": "#0F172A" }
         },
         {
+          "name": "free-workflow-divider",
+          "geometry": "line",
+          "position": { "left": 72, "top": 122, "width": 1108, "height": 0 },
+          "fill": "none",
+          "line": { "style": "dashed", "fill": "#64748B", "width": 1.5 }
+        },
+        {
           "name": "author-card",
           "geometry": "roundRect",
           "position": { "left": 72, "top": 154, "width": 300, "height": 130 },
@@ -227,6 +234,7 @@
   ],
   "expectInspect": [
     { "kind": "shape", "pattern": "OfficeKit closes the presentation loop" },
+    { "kind": "shape", "pattern": "free-workflow-divider" },
     { "kind": "table", "pattern": "workflow-matrix" },
     { "kind": "connector", "pattern": "verify-to-deliver" },
     { "kind": "chart", "pattern": "Coverage mix" },

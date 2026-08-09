@@ -19,6 +19,7 @@ import { effectivePresentationImageCrop, presentationImageCropFromWire, presenta
 import { normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle } from "../presentation/custom-geometry.mjs";
 import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation/custom-geometry-formulas.mjs";
 import { isPresentationAutoNumberType, normalizePresentationParagraphs, normalizePresentationParagraphStyles } from "../presentation/text-paragraphs.mjs";
+import { normalizePresentationShapeLine, presentationShapeLineColor } from "../presentation/shape-lines.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { createPresentationAssetCatalog, validatePictureBulletUri } from "./office-kit-assets.mjs";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
@@ -1649,7 +1650,7 @@ function presentationCustomGeometryArcToWire(arc) {
 
 function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const originalShape = original?.content?.case === "shape" ? original.content.value : original;
-  if (!new Set(["rect", "ellipse", "roundRect", "textbox", "custom"]).has(shape.geometry)) {
+  if (!new Set(["rect", "ellipse", "roundRect", "textbox", "line", "custom"]).has(shape.geometry)) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} uses unsupported geometry ${shape.geometry}.`, [], { code: "unsupported_presentation_features" });
   }
   const formulaGraph = normalizePresentationCustomGeometryFormulaGraph({ adjustments: shape.customAdjustments, guides: shape.customGuides });
@@ -1712,8 +1713,20 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   if (shape.geometry === "custom" && customPaths.length === 0 && !opaqueSourceBoundCustomGeometry) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} requires custom paths.`, [], { code: "invalid_presentation_geometry" });
   }
-  const lineWidth = Number(shape.line?.width ?? 1);
-  if (!Number.isFinite(lineWidth) || lineWidth < 0) throw new OfficeKitCodecError(`Presentation shape ${shape.id} has an invalid line width.`, [], { code: "invalid_presentation_frame" });
+  const line = normalizePresentationShapeLine(shape.line, `Presentation shape ${shape.id} line`);
+  const lineWidth = line.width;
+  const widthEmu = emuFromPixels(position.width, `${shape.id}.position.width`);
+  const heightEmu = emuFromPixels(position.height, `${shape.id}.position.height`);
+  if (shape.geometry === "line" && widthEmu === 0n && heightEmu === 0n) {
+    throw new OfficeKitCodecError(`Presentation free line ${shape.id} requires at least one positive extent.`, [], { code: "invalid_presentation_frame" });
+  }
+  if (shape.geometry === "line" && shape.placeholder) {
+    throw new OfficeKitCodecError(`Presentation free line ${shape.id} cannot be a placeholder.`, [], { code: "unsupported_presentation_features" });
+  }
+  const requestedLineRgb = line.style === "none"
+    ? ""
+    : presentationRgb(presentationShapeLineColor(line, lineWidth > 0 ? "#334155" : "transparent"), `${shape.id}.line.fill`);
+  const lineStyle = requestedLineRgb ? line.style : "none";
   const placeholder = !original && shape.placeholder ? sourceFreeSlidePlaceholder(shape) : undefined;
   const textBody = presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
   const shadow = presentationShadow(shape.shadow, shape.id);
@@ -1727,13 +1740,14 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         geometry: shape.geometry,
         leftEmu: sourceBoundFrameEmuFromPixels(position.left, `${shape.id}.position.left`, original),
         topEmu: sourceBoundFrameEmuFromPixels(position.top, `${shape.id}.position.top`, original),
-        widthEmu: emuFromPixels(position.width, `${shape.id}.position.width`),
-        heightEmu: emuFromPixels(position.height, `${shape.id}.position.height`),
+        widthEmu,
+        heightEmu,
         text: shape.text?.value || "",
         textBody,
         fillRgb: presentationRgb(shape.fill, `${shape.id}.fill`),
-        lineRgb: presentationRgb(shape.line?.fill || shape.line?.color || (lineWidth > 0 ? "#334155" : "transparent"), `${shape.id}.line.fill`),
+        lineRgb: requestedLineRgb,
         lineWidthEmu: BigInt(Math.round(lineWidth * EMU_PER_POINT)),
+        lineStyle,
         ...(placeholder || {}),
         ...(placeholder || shape.transform == null ? {} : { transform: wirePresentationTransform(shape.transform, `shape ${shape.id}`) }),
         ...(shadow ? { shadow } : {}),
@@ -2976,7 +2990,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       },
       ...(shape.transform ? { transform: modelPresentationTransform(shape.transform) } : {}),
       fill: shape.fillRgb ? `#${shape.fillRgb}` : "transparent",
-      line: { fill: shape.lineRgb ? `#${shape.lineRgb}` : "transparent", width: Number(shape.lineWidthEmu) / EMU_PER_POINT },
+      line: { fill: shape.lineRgb ? `#${shape.lineRgb}` : "transparent", width: Number(shape.lineWidthEmu) / EMU_PER_POINT, style: shape.lineStyle || (shape.lineRgb ? "solid" : "none") },
       ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
       ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
       text: modelText(shape, assetCatalog, customShowLinks),
@@ -3216,7 +3230,7 @@ export async function presentationFromEnvelope(envelope) {
             textEditable: element.source?.textEditable === true,
           } } : {}),
           fill: shape.fillRgb ? `#${shape.fillRgb}` : "transparent",
-          line: { fill: shape.lineRgb ? `#${shape.lineRgb}` : "transparent", width: Number(shape.lineWidthEmu) / EMU_PER_POINT },
+          line: { fill: shape.lineRgb ? `#${shape.lineRgb}` : "transparent", width: Number(shape.lineWidthEmu) / EMU_PER_POINT, style: shape.lineStyle || (shape.lineRgb ? "solid" : "none") },
           ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
           ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
           text: modelText(shape, assetCatalog, customShowLinks),

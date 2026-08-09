@@ -119,6 +119,11 @@ try {
   assert.equal(authoredCard.geometry, "roundRect");
   assert.deepEqual(authoredCard.shadow, { color: "#000000", blurRadius: 10, distance: 5, direction: 45, opacity: 0.2 });
   assert.equal(itemByName(workflowSlide.shapes.items, "workflow-title").geometry, "textbox");
+  const workflowDivider = itemByName(workflowSlide.shapes.items, "free-workflow-divider");
+  assert.equal(workflowDivider.geometry, "line");
+  assert.deepEqual(workflowDivider.position, { left: 72, top: 122, width: 1108, height: 0 });
+  assert.equal(workflowDivider.line.style, "dashed");
+  assert.match(workflowDivider.toSvg(), /<line\b[^>]*stroke-dasharray="8 6"/);
   assert.equal(itemByName(workflowSlide.tables.items, "workflow-matrix").values[1][1], "Pass");
   const curved = itemByName(workflowSlide.connectors.items, "create-to-verify");
   assert.equal(curved.connectorType, "curved");
@@ -144,6 +149,7 @@ try {
   assert.equal(itemByName(nativeGroup.groups.items, "nested-qa-group").shapes.items[0].text.value, "Render + verify");
   assert.equal(itemByName(nativeGroup.connectors.items, "grouped-flow").line.endArrow, "triangle");
   assert.match(readiness.qa.inspect.ndjson, /OfficeKit closes the presentation loop/);
+  assert.match(readiness.qa.inspect.ndjson, /free-workflow-divider/);
   assert.match(readiness.qa.inspect.ndjson, /Coverage mix/);
   assert.match(readiness.qa.inspect.ndjson, /native-agent-group/);
 
@@ -151,6 +157,8 @@ try {
   const firstSlideXml = await readinessZip.file("ppt/slides/slide1.xml").async("text");
   assert.match(firstSlideXml, /<a:srgbClr val="F1F5F9"/);
   assert.match(firstSlideXml, /<a:prstGeom prst="roundRect"[^>]*>/);
+  assert.match(firstSlideXml, /<a:prstGeom\b[^>]*\bprst="line"/);
+  assert.match(firstSlideXml, /<a:ext\b[^>]*\bcx="10553700"[^>]*\bcy="0"/);
   assert.match(firstSlideXml, /<p:cNvSpPr txBox="1"\s*\/>/);
   assert.match(firstSlideXml, /<p:cxnSp>/);
   assert.match(firstSlideXml, /<a:stCxn\b[^>]*idx="3"/);

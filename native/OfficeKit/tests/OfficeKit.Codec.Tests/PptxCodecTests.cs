@@ -1787,6 +1787,150 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void FreePositionedLinesAuthorImportEditAndFailClosed()
+    {
+        var request = ExportRequest();
+        var slide = request.Artifact.Presentation.Slides[0];
+        slide.Elements.Clear();
+        var profiles = new[]
+        {
+            (Id: "horizontal", Width: 4_000_000L, Height: 0L, Style: "dashed", Rgb: "2563EB"),
+            (Id: "vertical", Width: 0L, Height: 2_000_000L, Style: "dotted", Rgb: "16A34A"),
+            (Id: "diagonal", Width: 2_400_000L, Height: 1_300_000L, Style: "dash-dot", Rgb: "F97316"),
+            (Id: "evidence", Width: 2_400_000L, Height: 900_000L, Style: "dash-dot-dot", Rgb: "7C3AED"),
+            (Id: "hidden", Width: 1_800_000L, Height: 0L, Style: "none", Rgb: ""),
+        };
+        for (var index = 0; index < profiles.Length; index++)
+        {
+            var profile = profiles[index];
+            slide.Elements.Add(new PresentationElement
+            {
+                Id = $"presentation/slide/1/line/{profile.Id}",
+                Name = $"{profile.Id} free line",
+                Shape = new PresentationShape
+                {
+                    Geometry = "line",
+                    LeftEmu = 400_000 + index * 600_000L,
+                    TopEmu = 500_000 + index * 700_000L,
+                    WidthEmu = profile.Width,
+                    HeightEmu = profile.Height,
+                    FillRgb = string.Empty,
+                    LineRgb = profile.Rgb,
+                    LineWidthEmu = 25_400,
+                    LineStyle = profile.Style,
+                },
+            });
+        }
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var nativeSlide = package.PresentationPart!.SlideParts.Single().Slide!;
+            Assert.Empty(nativeSlide.Descendants<P.ConnectionShape>());
+            var lines = nativeSlide.Descendants<P.Shape>().ToArray();
+            Assert.Equal(5, lines.Length);
+            Assert.All(lines, line => Assert.Equal(A.ShapeTypeValues.Line,
+                line.ShapeProperties!.GetFirstChild<A.PresetGeometry>()!.Preset!.Value));
+            Assert.Equal(0L, lines[0].ShapeProperties!.Transform2D!.Extents!.Cy!.Value);
+            Assert.Equal(0L, lines[1].ShapeProperties!.Transform2D!.Extents!.Cx!.Value);
+            Assert.Equal(A.PresetLineDashValues.Dash, lines[0].ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.PresetDash>()!.Val!.Value);
+            Assert.Equal(A.PresetLineDashValues.Dot, lines[1].ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.PresetDash>()!.Val!.Value);
+            Assert.Equal(A.PresetLineDashValues.DashDot, lines[2].ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.PresetDash>()!.Val!.Value);
+            Assert.Equal(A.PresetLineDashValues.LargeDashDotDot, lines[3].ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.PresetDash>()!.Val!.Value);
+            Assert.NotNull(lines[4].ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.NoFill>());
+            Assert.Null(lines[4].ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.PresetDash>());
+        }
+
+        var imported = Import(authored.File.ToByteArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedLines = Assert.Single(imported.Artifact.Presentation.Slides).Elements;
+        Assert.Equal(5, importedLines.Count);
+        Assert.All(importedLines, element =>
+        {
+            Assert.Equal(PresentationElement.ContentOneofCase.Shape, element.ContentCase);
+            Assert.True(element.Source.Editable);
+            Assert.Equal("line", element.Shape.Geometry);
+        });
+        Assert.Equal(profiles.Select(profile => profile.Style), importedLines.Select(element => element.Shape.LineStyle));
+
+        var originalSlideXml = ZipBytes(authored.File.ToByteArray(), "ppt/slides/slide1.xml");
+        var unchanged = Export(imported.Artifact);
+        Assert.True(unchanged.Ok, Diagnostics(unchanged));
+        Assert.Equal(originalSlideXml, ZipBytes(unchanged.File.ToByteArray(), "ppt/slides/slide1.xml"));
+
+        var editedLine = importedLines[0].Shape;
+        editedLine.HeightEmu = 450_000;
+        editedLine.LineRgb = "0F172A";
+        editedLine.LineStyle = "dotted";
+        var edited = Export(imported.Artifact);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var reimported = Import(edited.File.ToByteArray());
+        Assert.True(reimported.Ok, Diagnostics(reimported));
+        var roundTrip = Assert.Single(reimported.Artifact.Presentation.Slides).Elements[0].Shape;
+        Assert.Equal("line", roundTrip.Geometry);
+        Assert.Equal(450_000, roundTrip.HeightEmu);
+        Assert.Equal("0F172A", roundTrip.LineRgb);
+        Assert.Equal("dotted", roundTrip.LineStyle);
+
+        var zeroExtent = request.Clone();
+        zeroExtent.Artifact.Presentation.Slides[0].Elements[0].Shape.WidthEmu = 0;
+        zeroExtent.Artifact.Presentation.Slides[0].Elements[0].Shape.HeightEmu = 0;
+        Assert.Equal("invalid_presentation_frame", Assert.Single(Invoke(zeroExtent).Diagnostics).Code);
+
+        var unknownStyle = request.Clone();
+        unknownStyle.Artifact.Presentation.Slides[0].Elements[0].Shape.LineStyle = "long-dash";
+        Assert.Equal("unsupported_presentation_line", Assert.Single(Invoke(unknownStyle).Diagnostics).Code);
+
+        var inconsistentNone = request.Clone();
+        inconsistentNone.Artifact.Presentation.Slides[0].Elements[0].Shape.LineStyle = "none";
+        Assert.Equal("invalid_presentation_line", Assert.Single(Invoke(inconsistentNone).Diagnostics).Code);
+
+        using var unsupportedStream = new MemoryStream();
+        unsupportedStream.Write(authored.File.Span);
+        unsupportedStream.Position = 0;
+        using (var package = PresentationDocument.Open(unsupportedStream, true, new OpenSettings { AutoSave = true }))
+        {
+            package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.Shape>().First()
+                .ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.PresetDash>()!.Val = A.PresetLineDashValues.LargeDash;
+        }
+        var unsupportedBytes = unsupportedStream.ToArray();
+        var unsupportedImport = Import(unsupportedBytes);
+        Assert.True(unsupportedImport.Ok, Diagnostics(unsupportedImport));
+        var sourceBound = Assert.Single(unsupportedImport.Artifact.Presentation.Slides).Elements[0];
+        Assert.Equal(PresentationElement.ContentOneofCase.Shape, sourceBound.ContentCase);
+        Assert.False(sourceBound.Source.Editable);
+        var preserved = Export(unsupportedImport.Artifact);
+        Assert.True(preserved.Ok, Diagnostics(preserved));
+        Assert.Equal(ZipBytes(unsupportedBytes, "ppt/slides/slide1.xml"), ZipBytes(preserved.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        sourceBound.Name = "Forbidden mutation";
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(Export(unsupportedImport.Artifact).Diagnostics).Code);
+
+        using var unspecifiedFillStream = new MemoryStream();
+        unspecifiedFillStream.Write(authored.File.Span);
+        unspecifiedFillStream.Position = 0;
+        using (var package = PresentationDocument.Open(unspecifiedFillStream, true, new OpenSettings { AutoSave = true }))
+        {
+            package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.Shape>().First()
+                .ShapeProperties!.GetFirstChild<A.Outline>()!.RemoveAllChildren();
+        }
+        var unspecifiedFillBytes = unspecifiedFillStream.ToArray();
+        var unspecifiedFillImport = Import(unspecifiedFillBytes);
+        Assert.True(unspecifiedFillImport.Ok, Diagnostics(unspecifiedFillImport));
+        var unspecifiedFillShape = Assert.Single(unspecifiedFillImport.Artifact.Presentation.Slides).Elements[0];
+        Assert.False(unspecifiedFillShape.Source.Editable);
+        var unspecifiedFillPreserved = Export(unspecifiedFillImport.Artifact);
+        Assert.True(unspecifiedFillPreserved.Ok, Diagnostics(unspecifiedFillPreserved));
+        Assert.Equal(
+            ZipBytes(unspecifiedFillBytes, "ppt/slides/slide1.xml"),
+            ZipBytes(unspecifiedFillPreserved.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        unspecifiedFillShape.Name = "Forbidden unspecified-fill mutation";
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(Export(unspecifiedFillImport.Artifact).Diagnostics).Code);
+    }
+
+    [Fact]
     public void ConnectorConnectionSitesAndLineProfileRoundTripAndFailClosed()
     {
         var request = ExportRequest();

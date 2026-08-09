@@ -692,6 +692,13 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.sche
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.description || "", /xValues.*bubbleSizes.*Markers.*combo.*axisGroup: secondary.*mixed primary\/secondary line plots fail closed/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.axes?.description || "", /scatter and bubble.*two numeric value axes.*pie and doughnut reject axes.*axes\.secondary\.category.*top\/right.*secondary bars/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.dataLabels?.description || "", /showPercent.*pie\/doughnut/i);
+assert.match(shapeAddHelp?.summary || "", /free-positioned p:sp line.*connector.*target-plus-site identity/i);
+assert.match(shapeAddHelp?.schema?.parameters?.geometry?.description || "", /line.*free-positioned p:sp.*without targets.*connector.*p:cxnSp/i);
+assert.match(shapeAddHelp?.schema?.parameters?.position?.description || "", /left\/top.*start point.*width\/height.*endpoint delta.*one extent may be zero.*both zero fail closed/i);
+assert.match(shapeAddHelp?.schema?.parameters?.line?.description || "", /solid\|dashed\|dotted\|dash-dot\|dash-dot-dot\|none.*dash\/dot\/dashDot\/longDashDotDot.*Arrowheads.*connectors.*not free lines/i);
+assert.match(shapeAddHelp?.schema?.returns?.shape?.description || "", /free-positioned p:sp line.*exact-site p:cxnSp connector.*Unknown line profiles.*fail closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "exportPptxWithOfficeKit")?.summary || "", /free-positioned p:sp lines.*solid\/dashed\/dotted\/dash-dot\/dash-dot-dot\/none.*p:cxnSp connectors/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "importPptxWithOfficeKit")?.summary || "", /free-positioned p:sp lines.*target-bound p:cxnSp connectors.*Free-line arrowheads.*custom-dash outlines.*source-bound and read-only/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "table.merge")?.schema?.parameters?.range?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "table.merge")?.schema?.returns?.table?.description || "", /upper-left value.*covered cells read-only.*topology remains source-bound/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "officeKitStatus")?.schema?.returns?.status?.type, "object");
