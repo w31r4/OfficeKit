@@ -10,12 +10,14 @@ namespace OfficeKit.Codec;
 // Coordinates and arc values may reference one ordered adjustment/guide graph;
 // formula parsing and evaluation stay in PptxCustomGeometryFormulaCodec. Shape-
 // local text bounds retain the exact four private scaling guides emitted below.
-// Non-empty handles, connection sites, formula text rectangles, 3D, and relative
-// lighten/darken path fill remain opaque and fail closed.
+// Non-empty handles, formula text rectangles, 3D, and relative lighten/darken
+// path fill remain opaque and fail closed. A connection site's array index is
+// native identity, so recognized imports keep the list length fixed.
 internal static class PptxCustomGeometryCodec
 {
     private const int MaxPaths = 64;
     private const int MaxCommands = 16_384;
+    private const int MaxConnectionSites = 1_024;
     private const long MaxCoordinate = int.MaxValue;
     private const int FullTurnAngle = 21_600_000;
     private const string TextLeftGuide = "officeKitTextLeft";
@@ -27,6 +29,7 @@ internal static class PptxCustomGeometryCodec
     {
         internal required A.PathList Paths { get; init; }
         internal required PptxCustomGeometryFormulaCodec.Graph Formulas { get; init; }
+        internal required IReadOnlyList<PresentationCustomGeometryConnectionSite> ConnectionSites { get; init; }
         internal PresentationCustomGeometryTextRectangle? TextRectangle { get; init; }
     }
 
@@ -40,6 +43,7 @@ internal static class PptxCustomGeometryCodec
         if (!TryProfile(geometry, widthEmu, heightEmu, out var profile)) return;
         target.CustomAdjustments.Add(profile.Formulas.Adjustments);
         target.CustomGuides.Add(profile.Formulas.Guides);
+        target.CustomConnectionSites.Add(profile.ConnectionSites);
         target.TextRectangle = profile.TextRectangle;
         foreach (var nativePath in profile.Paths.Elements<A.Path>())
         {
@@ -91,9 +95,10 @@ internal static class PptxCustomGeometryCodec
             if (handles.HasAttributes || handles.ChildElements.Count != 0) return false;
             index++;
         }
+        A.ConnectionSiteList? nativeConnectionSites = null;
         if (index < geometry.ChildElements.Count && geometry.ChildElements[index] is A.ConnectionSiteList connections)
         {
-            if (connections.HasAttributes || connections.ChildElements.Count != 0) return false;
+            nativeConnectionSites = connections;
             index++;
         }
         A.Rectangle? nativeRectangle = null;
@@ -110,11 +115,13 @@ internal static class PptxCustomGeometryCodec
             return false;
         if (!PptxCustomGeometryFormulaCodec.TryRead(adjustments, allGuides.Take(userGuideCount), widthEmu, heightEmu, out var formulas))
             return false;
+        if (!TryReadConnectionSites(nativeConnectionSites, formulas, widthEmu, heightEmu, out var connectionSites))
+            return false;
         var paths = pathList.Elements<A.Path>().ToArray();
         if (paths.Length is < 1 or > MaxPaths || pathList.ChildElements.Count != paths.Length) return false;
         var commandCount = 0;
         if (!paths.All(path => Supports(path, formulas, ref commandCount))) return false;
-        profile = new Profile { Paths = pathList, Formulas = formulas, TextRectangle = textRectangle };
+        profile = new Profile { Paths = pathList, Formulas = formulas, ConnectionSites = connectionSites, TextRectangle = textRectangle };
         return true;
     }
 
@@ -122,13 +129,14 @@ internal static class PptxCustomGeometryCodec
     {
         if (shape.Geometry != "custom")
         {
-            if (shape.CustomPaths.Count > 0 || shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 || shape.TextRectangle is not null)
+            if (shape.CustomPaths.Count > 0 || shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 || shape.CustomConnectionSites.Count > 0 || shape.TextRectangle is not null)
                 throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has custom geometry data without custom geometry.");
             return;
         }
         if (shape.CustomPaths.Count is < 1 or > MaxPaths)
             throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} custom geometry must contain 1 through {MaxPaths} paths.");
         var formulas = PptxCustomGeometryFormulaCodec.Validate(shape, shapeId);
+        ValidateConnectionSites(shape, shapeId, formulas);
         Validate(shape.TextRectangle, shapeId);
         var commandCount = 0;
         foreach (var path in shape.CustomPaths)
@@ -187,11 +195,15 @@ internal static class PptxCustomGeometryCodec
             };
             return;
         }
-        properties.GetFirstChild<A.PresetGeometry>()?.Remove();
-        properties.GetFirstChild<A.CustomGeometry>()?.Remove();
         var transform = properties.GetFirstChild<A.Transform2D>();
         var widthEmu = transform?.Extents?.Cx?.Value ?? shape.WidthEmu;
         var heightEmu = transform?.Extents?.Cy?.Value ?? shape.HeightEmu;
+        var existingGeometry = properties.GetFirstChild<A.CustomGeometry>();
+        if (existingGeometry is not null && TryProfile(existingGeometry, widthEmu, heightEmu, out var existingProfile) &&
+            existingProfile.ConnectionSites.Count != shape.CustomConnectionSites.Count)
+            throw new CodecException("unsupported_presentation_edit", $"Source-preserving PPTX export requires custom shape connection-site list length to remain fixed at {existingProfile.ConnectionSites.Count}; each existing index is the native identity.");
+        properties.GetFirstChild<A.PresetGeometry>()?.Remove();
+        existingGeometry?.Remove();
         OpenXmlElement geometry = Build(shape, widthEmu, heightEmu);
         if (transform is null) properties.PrependChild(geometry);
         else properties.InsertAfter(geometry, transform);
@@ -237,6 +249,8 @@ internal static class PptxCustomGeometryCodec
                 guides.Append(TextRectangleGuides(shape.TextRectangle, widthEmu, heightEmu));
             geometry.Append(guides);
         }
+        if (shape.CustomConnectionSites.Count > 0)
+            geometry.Append(new A.ConnectionSiteList(shape.CustomConnectionSites.Select(ConnectionSite)));
         if (shape.TextRectangle is not null)
             geometry.Append(TextRectangle());
         geometry.Append(paths);
@@ -283,6 +297,41 @@ internal static class PptxCustomGeometryCodec
                     break;
             }
         }
+        return true;
+    }
+
+    private static bool TryReadConnectionSites(
+        A.ConnectionSiteList? source,
+        PptxCustomGeometryFormulaCodec.Graph formulas,
+        long widthEmu,
+        long heightEmu,
+        out IReadOnlyList<PresentationCustomGeometryConnectionSite> connectionSites)
+    {
+        connectionSites = [];
+        if (source is null) return true;
+        var nativeSites = source.Elements<A.ConnectionSite>().ToArray();
+        if (source.HasAttributes || source.ChildElements.Count != nativeSites.Length || nativeSites.Length > MaxConnectionSites)
+            return false;
+        var result = new List<PresentationCustomGeometryConnectionSite>(nativeSites.Length);
+        foreach (var nativeSite in nativeSites)
+        {
+            if (!HasOnlyAttributes(nativeSite, "ang") || nativeSite.ChildElements.Count != 1 ||
+                nativeSite.ChildElements[0] is not A.Position position ||
+                !HasOnlyAttributes(position, "x", "y") || !HasNoInnerXml(position) ||
+                !TryValue(nativeSite.Angle?.Value, formulas, out var angle) || Math.Abs(angle) > FullTurnAngle ||
+                !TryValue(position.X?.Value, formulas, out var x) || x < 0 || x > widthEmu ||
+                !TryValue(position.Y?.Value, formulas, out var y) || y < 0 || y > heightEmu)
+                return false;
+            var site = new PresentationCustomGeometryConnectionSite();
+            if (TryAngle(nativeSite.Angle?.Value, out var literalAngle)) site.Angle60000 = literalAngle;
+            else site.AngleReference = nativeSite.Angle!.Value!;
+            if (TryCoordinate(position.X?.Value, out var literalX)) site.XEmu = literalX;
+            else site.XReference = position.X!.Value!;
+            if (TryCoordinate(position.Y?.Value, out var literalY)) site.YEmu = literalY;
+            else site.YReference = position.Y!.Value!;
+            result.Add(site);
+        }
+        connectionSites = result;
         return true;
     }
 
@@ -442,6 +491,16 @@ internal static class PptxCustomGeometryCodec
         SwingAngle = source.HasSweepAngleReference ? source.SweepAngleReference : source.SweepAngle.ToString(CultureInfo.InvariantCulture),
     };
 
+    private static A.ConnectionSite ConnectionSite(PresentationCustomGeometryConnectionSite source) => new(
+        new A.Position
+        {
+            X = source.HasXReference ? source.XReference : source.XEmu.ToString(CultureInfo.InvariantCulture),
+            Y = source.HasYReference ? source.YReference : source.YEmu.ToString(CultureInfo.InvariantCulture),
+        })
+    {
+        Angle = source.HasAngleReference ? source.AngleReference : source.Angle60000.ToString(CultureInfo.InvariantCulture),
+    };
+
     private static IEnumerable<A.ShapeGuide> TextRectangleGuides(PresentationCustomGeometryTextRectangle source, long widthEmu, long heightEmu) => [
         ScaledGuide(TextLeftGuide, source.LeftEmu, "w", widthEmu),
         ScaledGuide(TextTopGuide, source.TopEmu, "h", heightEmu),
@@ -514,6 +573,23 @@ internal static class PptxCustomGeometryCodec
             !TryWireValue(point.HasXReference, point.XReference, point.X, formulas, out _) ||
             !TryWireValue(point.HasYReference, point.YReference, point.Y, formulas, out _))
             throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an invalid custom path point or formula reference.");
+    }
+
+    private static void ValidateConnectionSites(
+        PresentationShape shape,
+        string shapeId,
+        PptxCustomGeometryFormulaCodec.Graph formulas)
+    {
+        if (shape.CustomConnectionSites.Count > MaxConnectionSites)
+            throw new CodecException("presentation_item_budget_exceeded", $"Presentation shape {shapeId} custom geometry exceeds the {MaxConnectionSites}-connection-site budget.");
+        foreach (var site in shape.CustomConnectionSites)
+        {
+            if (!TryWireValue(site.HasAngleReference, site.AngleReference, site.Angle60000, formulas, out var angle) ||
+                Math.Abs(angle) > FullTurnAngle ||
+                !TryWireValue(site.HasXReference, site.XReference, site.XEmu, formulas, out var x) || x < 0 || x > shape.WidthEmu ||
+                !TryWireValue(site.HasYReference, site.YReference, site.YEmu, formulas, out var y) || y < 0 || y > shape.HeightEmu)
+                throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an invalid bounded custom connection site or formula reference.");
+        }
     }
 
     private static bool TryWireValue(

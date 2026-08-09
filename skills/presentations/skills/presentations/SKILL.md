@@ -146,8 +146,10 @@ Read the local docs before coding:
 For parameterized DrawingML custom shapes, read
 `artifact_tool/api/references/shapes.spec.md`. Use the ordered
 `customAdjustments`/`customGuides` graph and declared guide references rather
-than embedding formulas in path fields; keep unsupported imported handles,
-connection sites, and formula text rectangles opaque and fail closed.
+than embedding formulas in path fields. Use ordered `customConnectionSites`
+when an Agent-authored diagram needs exact native connector anchors; bind those
+shapes with explicit site indexes. Keep unsupported imported handles and
+formula text rectangles opaque and fail closed.
 
 For native charts, read `artifact_tool/api/references/charts.spec.md` before
 authoring or editing. Canonical OfficeKit output covers literal bar, line,

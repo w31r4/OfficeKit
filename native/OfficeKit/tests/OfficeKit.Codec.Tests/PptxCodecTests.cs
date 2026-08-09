@@ -1555,6 +1555,18 @@ public sealed class PptxCodecTests
         shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "sine", Formula = "sin 100 cd4" });
         shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "squareRoot", Formula = "sqrt 144" });
         shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "tangent", Formula = "tan 100 cd8" });
+        shape.CustomConnectionSites.Add(new PresentationCustomGeometryConnectionSite
+        {
+            Angle60000 = 10_800_000,
+            XReference = "x1",
+            YReference = "y1",
+        });
+        shape.CustomConnectionSites.Add(new PresentationCustomGeometryConnectionSite
+        {
+            AngleReference = "zeroAngle",
+            XReference = "x2",
+            YReference = "y1",
+        });
         var path = new PresentationCustomGeometryPath { Width = shape.WidthEmu, Height = shape.HeightEmu };
         path.Commands.Add(new PresentationCustomGeometryCommand
         {
@@ -1591,6 +1603,17 @@ public sealed class PptxCodecTests
             Assert.Equal(22, nativeGuides.Length);
             Assert.Equal(("x1", "*/ w adjX 100000"), (nativeGuides[0].Name!.Value, nativeGuides[0].Formula!.Value));
             Assert.Equal("officeKitTextLeft", nativeGuides[^4].Name!.Value);
+            Assert.Collection(geometry.GetFirstChild<A.ConnectionSiteList>()!.Elements<A.ConnectionSite>(),
+                site =>
+                {
+                    Assert.Equal("10800000", site.Angle!.Value);
+                    Assert.Equal(("x1", "y1"), (site.Position!.X!.Value, site.Position.Y!.Value));
+                },
+                site =>
+                {
+                    Assert.Equal("zeroAngle", site.Angle!.Value);
+                    Assert.Equal(("x2", "y1"), (site.Position!.X!.Value, site.Position.Y!.Value));
+                });
             var nativePath = geometry.GetFirstChild<A.PathList>()!.Elements<A.Path>().Single();
             var move = Assert.IsType<A.MoveTo>(nativePath.ChildElements[0]);
             Assert.Equal("x1", move.Point!.X!.Value);
@@ -1606,16 +1629,31 @@ public sealed class PptxCodecTests
         var importedShape = Assert.Single(Assert.Single(imported.Artifact.Presentation.Slides).Elements).Shape;
         Assert.Equal(2, importedShape.CustomAdjustments.Count);
         Assert.Equal(18, importedShape.CustomGuides.Count);
+        Assert.Collection(importedShape.CustomConnectionSites,
+            site => Assert.Equal((10_800_000, "x1", "y1"), (site.Angle60000, site.XReference, site.YReference)),
+            site => Assert.Equal(("zeroAngle", "x2", "y1"), (site.AngleReference, site.XReference, site.YReference)));
         Assert.Equal("x1", importedShape.CustomPaths[0].Commands[0].MoveTo.XReference);
         Assert.Equal("radius", importedShape.CustomPaths[0].Commands[2].ArcTo.WidthRadiusReference);
         importedShape.CustomAdjustments[0].Formula = "val 30000";
+        importedShape.CustomConnectionSites[0].Angle60000 = 5_400_000;
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTripShape = Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements).Shape;
         Assert.Equal("val 30000", roundTripShape.CustomAdjustments[0].Formula);
+        Assert.Equal(5_400_000, roundTripShape.CustomConnectionSites[0].Angle60000);
         Assert.Equal("x1", roundTripShape.CustomPaths[0].Commands[0].MoveTo.XReference);
 
-        var withEmptyTopology = authored.File.ToByteArray();
+        var changedConnectionSiteTopology = Import(authored.File.ToByteArray());
+        changedConnectionSiteTopology.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomConnectionSites.RemoveAt(1);
+        var changedConnectionSiteTopologyResponse = Export(changedConnectionSiteTopology.Artifact);
+        Assert.False(changedConnectionSiteTopologyResponse.Ok);
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(changedConnectionSiteTopologyResponse.Diagnostics).Code);
+
+        var emptyTopologyRequest = request.Clone();
+        emptyTopologyRequest.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomConnectionSites.Clear();
+        var emptyTopologyAuthored = Invoke(emptyTopologyRequest);
+        Assert.True(emptyTopologyAuthored.Ok, Diagnostics(emptyTopologyAuthored));
+        var withEmptyTopology = emptyTopologyAuthored.File.ToByteArray();
         using (var stream = new MemoryStream())
         {
             stream.Write(withEmptyTopology);
@@ -1646,6 +1684,23 @@ public sealed class PptxCodecTests
         var ambiguousCoordinate = request.Clone();
         ambiguousCoordinate.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomPaths[0].Commands[0].MoveTo.X = 1;
         Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(ambiguousCoordinate).Diagnostics).Code);
+
+        var ambiguousConnectionSite = request.Clone();
+        ambiguousConnectionSite.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomConnectionSites[0].XEmu = 1;
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(ambiguousConnectionSite).Diagnostics).Code);
+
+        var outOfBoundsConnectionSite = request.Clone();
+        var outOfBoundsSite = outOfBoundsConnectionSite.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomConnectionSites[0];
+        outOfBoundsSite.ClearXReference();
+        outOfBoundsSite.XEmu = shape.WidthEmu + 1;
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(outOfBoundsConnectionSite).Diagnostics).Code);
+
+        var overBudgetConnectionSites = request.Clone();
+        var overBudgetShape = overBudgetConnectionSites.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        overBudgetShape.CustomConnectionSites.Clear();
+        for (var index = 0; index < 1_025; index++)
+            overBudgetShape.CustomConnectionSites.Add(new PresentationCustomGeometryConnectionSite());
+        Assert.Equal("presentation_item_budget_exceeded", Assert.Single(Invoke(overBudgetConnectionSites).Diagnostics).Code);
 
         var undeclaredBuiltinCoordinate = request.Clone();
         undeclaredBuiltinCoordinate.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomPaths[0].Commands[0].MoveTo.XReference = "wd2";

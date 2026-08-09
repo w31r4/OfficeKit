@@ -2,12 +2,53 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after unifying the bounded Presentation line-style
-profile across ordinary shapes and connectors. The candidate contains 714
-files, 36,220,692 compressed bytes, and 53,354,823 unpacked bytes; its measured
-shasum is `4eda5d2847e868a46869e4d062fa5c0ecc4511fd`. It remains below the
-53,400,000-byte ceiling with 45,177 bytes of measured headroom. This is package
-evidence, not an npm registry publication or tagged release.
+The package dry-run passed with the bounded Presentation custom-geometry
+connection-site profile and rebuilt OfficeKit Codec runtime. The candidate
+contains 714 files, 36,226,073 compressed bytes, and 53,376,100 unpacked bytes;
+its measured shasum is `fb47fe29bead3290ef032d447251fa6900a3ea9c`. It
+remains below the 53,400,000-byte ceiling with 23,900 bytes of measured
+headroom. This is package evidence, not an npm registry publication or tagged
+release.
+
+## Unreleased: Presentation custom-geometry connection sites
+
+Custom DrawingML shapes now expose an ordered `customConnectionSites` table.
+Each `{ angle, x, y }` entry accepts degree/pixel literals or names from the
+shape's declared adjustment/guide graph. The JavaScript model evaluates and
+bounds each site, routes connectors through the resulting transformed point,
+and invalidates cached endpoints when the frame, transform, formulas, or site
+values change. Side aliases stay limited to preset shapes; custom shapes
+require explicit `fromIdx`/`toIdx` so an Agent never receives a guessed anchor.
+
+Protocol-v2 `PresentationShape` appends field 29 and an appended
+`PresentationCustomGeometryConnectionSite` message without renumbering an
+existing field. The source-built OfficeKit Codec writes and recognizes native
+`a:cxnLst/a:cxn/a:pos`, validates values against the formula graph and shape
+frame, and preserves array position as native connector identity. A recognized
+import may edit values at existing indexes but cannot change the site-list
+length. Malformed attributes, children, references, bounds, or broader geometry
+keep the shape opaque and fail closed on mutation.
+
+The JavaScript and C# corpus covers literal/guide-valued sites, grouped shapes,
+Open XML SDK validation, edit and second import, fixed-topology rejection,
+connector rerouting, and opaque preservation. The runnable Presentation Skill
+readiness fixture now authors a four-site custom shape and binds both adjacent
+connectors by exact index through export/import and native package inspection.
+
+Local gates passed: fast tests 26/26, slow tests 75/75, OfficeKit Codec .NET
+tests 397/397, OfficeBridge tests 5/5, generated Help/API docs, protobuf
+lint/regeneration, deterministic WASM rebuild, reference Skill
+sync/portability, Playwright, LibreOffice/Poppler-backed custom-geometry and
+template QA, standalone distribution, clean-install package smoke, and
+`test:pack`. The deterministic runtime contains 38 audited files and 15,353,067
+bytes; both builds matched across 39 outputs. The real local qpdf adapter ran.
+Managed provider downloads and separately configured pypdf, pikepdf, pyHanko,
+veraPDF, OCRmyPDF, and PromptBench Python environments remained explicit
+environment skips; their offline contracts ran.
+
+A fresh registry check returned `ENEEDAUTH` from `npm whoami` and `E404` from
+`npm view office-kit version`; no publish command was run. Tagging and Windows
+Office host acceptance remain separate external gates.
 
 ## Unreleased: shared Presentation line-style profile
 
@@ -301,7 +342,7 @@ semantic import, fixed-topology source-bound edit, second import, Help/API,
 SVG preview, and Open XML SDK Office 2021 validation use the same contract.
 Forward or unknown references, duplicate or reserved names, division by zero,
 negative square roots, out-of-range results, invalid resolved arcs, and
-non-empty handles or connection sites fail closed. Unsupported topology stays
+non-empty handles and, at that milestone, connection sites failed closed. Unsupported topology stays
 opaque instead of being flattened.
 
 The semantic render gate rasterizes two adjustment variants from the model SVG

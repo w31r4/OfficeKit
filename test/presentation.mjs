@@ -1230,6 +1230,10 @@ const formulaGeometryConfig = (name, position) => ({
     { name: "squareRoot", formula: "sqrt 144" },
     { name: "tangent", formula: "tan 100 cd8" },
   ],
+  customConnectionSites: [
+    { angle: 180, x: "x1", y: "y1" },
+    { angle: "zeroAngle", x: "x2", y: "y1" },
+  ],
   customPaths: [{
     width: Math.round(position.width * 9_525),
     height: Math.round(position.height * 9_525),
@@ -1258,6 +1262,15 @@ formulaGeometryGroup.shapes.add(formulaGeometryConfig(
 ));
 assert.deepEqual(formulaGeometryShape.inspectRecord().customAdjustmentCount, 2);
 assert.deepEqual(formulaGeometryShape.inspectRecord().customGuideCount, 18);
+assert.deepEqual(formulaGeometryShape.inspectRecord().customConnectionSiteCount, 2);
+assert.deepEqual(formulaGeometryShape.layoutJson().customConnectionSites, [
+  { angle: 180, x: "x1", y: "y1" },
+  { angle: "zeroAngle", x: "x2", y: "y1" },
+]);
+assert.throws(
+  () => formulaGeometrySlide.shapes.getConnectionSiteIndex(formulaGeometryShape, "right"),
+  /requires an explicit connection-site index/,
+);
 assert.match(formulaGeometryShape.toSvg(), /M 476250 476250 L 1428750 476250 A 238125 238125/);
 assert.deepEqual(formulaGeometryShape.layoutJson().customGuides[0], { name: "x1", formula: "*/ w adjX 100000" });
 const formulaGeometryPptx = await PresentationFile.exportPptx(formulaGeometryPresentation);
@@ -1266,21 +1279,27 @@ const formulaGeometryXml = await formulaGeometryZip.file("ppt/slides/slide1.xml"
 assert.match(formulaGeometryXml, /<a:avLst><a:gd name="adjX" fmla="val 25000"\s*\/><a:gd name="adjSweep" fmla="val 10800000"\s*\/><\/a:avLst>/);
 assert.match(formulaGeometryXml, /<a:gd name="x1" fmla="\*\/ w adjX 100000"\s*\/>/);
 assert.match(formulaGeometryXml, /<a:gd name="tangent" fmla="tan 100 cd8"\s*\/>/);
+assert.match(formulaGeometryXml, /<a:cxnLst><a:cxn ang="10800000"><a:pos x="x1" y="y1"\s*\/><\/a:cxn><a:cxn ang="zeroAngle"><a:pos x="x2" y="y1"\s*\/><\/a:cxn><\/a:cxnLst>/);
 assert.match(formulaGeometryXml, /<a:pt x="x1" y="y1"\s*\/>/);
 assert.match(formulaGeometryXml, /<a:arcTo wR="radius" hR="radius" stAng="zeroAngle" swAng="adjSweep"\s*\/>/);
 const importedFormulaGeometry = await PresentationFile.importPptx(formulaGeometryPptx);
 const importedFormulaShape = importedFormulaGeometry.slides.getItem(0).shapes.items[0];
 assert.equal(importedFormulaShape.customAdjustments.length, 2);
 assert.equal(importedFormulaShape.customGuides.length, 18);
+assert.deepEqual(importedFormulaShape.customConnectionSites, [
+  { angle: 180, x: "x1", y: "y1" },
+  { angle: "zeroAngle", x: "x2", y: "y1" },
+]);
 assert.equal(importedFormulaShape.customPaths[0].commands[0].moveTo.x, "x1");
 assert.equal(importedFormulaShape.customPaths[0].commands[2].arcTo.widthRadius, "radius");
 assert.equal(importedFormulaGeometry.slides.getItem(0).groups.items[0].shapes.items[0].customGuides.length, 18);
-const emptyFormulaTopologyXml = formulaGeometryXml.replace("</a:gdLst><a:rect", "</a:gdLst><a:ahLst /><a:cxnLst /><a:rect");
-assert.notEqual(emptyFormulaTopologyXml, formulaGeometryXml);
-const emptyFormulaTopologyFile = await PresentationFile.patchPptx(formulaGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: emptyFormulaTopologyXml }]);
+assert.equal(importedFormulaGeometry.slides.getItem(0).groups.items[0].shapes.items[0].customConnectionSites.length, 2);
+const emptyFormulaTopologyXml = customGeometryXml.replace("</a:gdLst><a:rect", "</a:gdLst><a:ahLst /><a:cxnLst /><a:rect");
+assert.notEqual(emptyFormulaTopologyXml, customGeometryXml);
+const emptyFormulaTopologyFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: emptyFormulaTopologyXml }]);
 const importedEmptyFormulaTopology = await PresentationFile.importPptx(emptyFormulaTopologyFile);
-assert.equal(importedEmptyFormulaTopology.slides.getItem(0).shapes.items[0].customGuides.length, 18);
-const handleFormulaTopologyXml = formulaGeometryXml.replace("</a:gdLst><a:rect", "</a:gdLst><a:ahLst><a:ahXY /></a:ahLst><a:rect");
+assert.equal(importedEmptyFormulaTopology.slides.getItem(0).shapes.items[0].customPaths.length, 3);
+const handleFormulaTopologyXml = formulaGeometryXml.replace("</a:gdLst><a:cxnLst", "</a:gdLst><a:ahLst><a:ahXY /></a:ahLst><a:cxnLst");
 assert.notEqual(handleFormulaTopologyXml, formulaGeometryXml);
 const handleFormulaTopologyFile = await PresentationFile.patchPptx(formulaGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: handleFormulaTopologyXml }]);
 const importedHandleFormulaTopology = await PresentationFile.importPptx(handleFormulaTopologyFile);
@@ -1290,11 +1309,58 @@ assert.equal(opaqueHandleFormulaShape.customGuides.length, 0);
 const preservedHandleFormulaTopology = await PresentationFile.exportPptx(importedHandleFormulaTopology);
 const preservedHandleFormulaZip = await JSZip.loadAsync(preservedHandleFormulaTopology.bytes);
 assert.match(await preservedHandleFormulaZip.file("ppt/slides/slide1.xml").async("text"), /<a:ahLst><a:ahXY\s*\/><\/a:ahLst>/);
+const invalidConnectionSiteXml = formulaGeometryXml.replace(
+  '<a:pos x="x1" y="y1" />',
+  '<a:pos x="x1" y="y1" data="unexpected" />',
+);
+assert.notEqual(invalidConnectionSiteXml, formulaGeometryXml);
+const invalidConnectionSiteFile = await PresentationFile.patchPptx(formulaGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: invalidConnectionSiteXml }]);
+const invalidConnectionSitePresentation = await PresentationFile.importPptx(invalidConnectionSiteFile);
+const opaqueConnectionSiteShape = itemByName(invalidConnectionSitePresentation.slides.getItem(0).shapes.items, "formula-custom-path");
+assert.equal(opaqueConnectionSiteShape.customPaths.length, 0);
+assert.equal(opaqueConnectionSiteShape.customConnectionSites.length, 0);
+const preservedInvalidConnectionSite = await PresentationFile.exportPptx(invalidConnectionSitePresentation);
+const preservedInvalidConnectionSiteZip = await JSZip.loadAsync(preservedInvalidConnectionSite.bytes);
+assert.match(await preservedInvalidConnectionSiteZip.file("ppt/slides/slide1.xml").async("text"), /<a:pos x="x1" y="y1" data="unexpected"\s*\/>/);
 importedFormulaShape.customAdjustments[0].formula = "val 30000";
 assert.match(importedFormulaShape.toSvg(), /M 571500 476250 L 1333500 476250/);
+importedFormulaShape.customConnectionSites[0].angle = 90;
 const editedFormulaGeometry = await PresentationFile.importPptx(await PresentationFile.exportPptx(importedFormulaGeometry));
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customAdjustments[0].formula, "val 30000");
+assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customConnectionSites[0].angle, 90);
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customPaths[0].commands[0].moveTo.x, "x1");
+const changedConnectionSiteTopology = await PresentationFile.importPptx(formulaGeometryPptx);
+changedConnectionSiteTopology.slides.getItem(0).shapes.items[0].customConnectionSites.pop();
+await assert.rejects(
+  () => PresentationFile.exportPptx(changedConnectionSiteTopology),
+  (error) => error?.code === "unsupported_presentation_edit" && /connection-site list length/i.test(error.message),
+);
+
+const customSiteConnectorDeck = Presentation.create({ slideSize: { width: 500, height: 300 } });
+const customSiteConnectorSlide = customSiteConnectorDeck.slides.add({ name: "Custom connection sites" });
+const customSiteConnectorSource = customSiteConnectorSlide.shapes.add(formulaGeometryConfig(
+  "custom-site-source",
+  { left: 20, top: 20, width: 200, height: 100 },
+));
+const customSiteConnectorTarget = customSiteConnectorSlide.shapes.add({
+  name: "custom-site-target",
+  geometry: "rect",
+  position: { left: 300, top: 210, width: 140, height: 60 },
+  text: "Target",
+});
+const customSiteConnector = customSiteConnectorSlide.shapes.connect(customSiteConnectorSource, customSiteConnectorTarget, {
+  name: "formula-site-connector",
+  fromIdx: 1,
+  toIdx: 1,
+});
+assert.deepEqual(customSiteConnector.start, { x: 170, y: 70 });
+customSiteConnectorSource.customAdjustments[0].formula = "val 30000";
+assert.deepEqual(customSiteConnector.start, { x: 160, y: 70 });
+const customSiteConnectorRoundTrip = await PresentationFile.importPptx(await PresentationFile.exportPptx(customSiteConnectorDeck));
+const roundTripCustomSiteConnector = itemByName(customSiteConnectorRoundTrip.slides.getItem(0).connectors.items, "formula-site-connector");
+assert.equal(roundTripCustomSiteConnector.startSiteIndex, 1);
+assert.equal(roundTripCustomSiteConnector.endSiteIndex, 1);
+assert.deepEqual(roundTripCustomSiteConnector.start, { x: 160, y: 70 });
 
 const defaultTextRectanglePresentation = Presentation.create({ slideSize: { width: 160, height: 100 } });
 const defaultTextRectangleSlide = defaultTextRectanglePresentation.slides.add({ name: "Default custom text bounds" });
@@ -1503,6 +1569,46 @@ assert.throws(
 assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "rect", textRectangle: { left: 0, top: 0, right: 10, bottom: 10 } }),
   /only for custom geometry shapes/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({ geometry: "rect", customConnectionSites: [{ angle: 0, x: 10, y: 10 }] }),
+  /only for custom geometry shapes/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customConnectionSites: Array.from({ length: 1_025 }, () => ({ angle: 0, x: 10, y: 10 })),
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /at most 1024 entries/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customConnectionSites: [{ angle: 361, x: 10, y: 10 }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /degree value from -360 through 360/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customConnectionSites: [{ angle: 0, x: 101, y: 10 }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /inside the custom shape frame/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customConnectionSites: [{ angle: 0, x: "missingGuide", y: 10 }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /declared DrawingML guide reference/,
 );
 assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", textRectangle: { left: 0, top: 0, right: 10, bottom: 10, width: 10 }, customPaths: [{ width: 100, height: 100, commands: [{ close: true }] }] }),

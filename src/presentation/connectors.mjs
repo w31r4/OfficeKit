@@ -4,6 +4,10 @@ import {
   normalizePresentationLineStyle,
   presentationLineSvgStyle,
 } from "./line-styles.mjs";
+import {
+  normalizePresentationCustomConnectionSites,
+  presentationCustomConnectionSitePoint,
+} from "./custom-geometry.mjs";
 
 const CONNECTOR_TYPE_ALIASES = new Map([
   ["straight", "straight"],
@@ -14,6 +18,7 @@ const CONNECTOR_TYPE_ALIASES = new Map([
   ["elbow5", "elbow"],
   ["curved", "curved"],
 ]);
+const EMU_PER_PIXEL = 9_525;
 
 const CARDINAL_SITE_INDEXES = new Map([
   ["rect", Object.freeze({ top: 0, left: 1, bottom: 2, right: 3 })],
@@ -73,10 +78,23 @@ function siteIndexes(shape) {
   return CARDINAL_SITE_INDEXES.get(shape.geometry);
 }
 
+function customSiteCount(shape) {
+  if (shape.geometry !== "custom") return undefined;
+  return normalizePresentationCustomConnectionSites(shape.customConnectionSites, {
+    adjustments: shape.customAdjustments,
+    guides: shape.customGuides,
+    widthEmu: Math.round(Number(shape.position?.width) * EMU_PER_PIXEL),
+    heightEmu: Math.round(Number(shape.position?.height) * EMU_PER_PIXEL),
+  }).length;
+}
+
 export function presentationConnectionSiteIndex(slide, owner, target, side) {
   const shape = presentationShapeTarget(slide, owner, target, "Presentation connector target");
   const indexes = siteIndexes(shape);
   if (!indexes) {
+    if (shape.geometry === "custom" && customSiteCount(shape) > 0) {
+      throw new RangeError(`Presentation custom shape ${shape.id} requires an explicit connection-site index; cardinal side aliases are unavailable.`);
+    }
     throw new RangeError(`Presentation shape ${shape.id} geometry ${shape.geometry} has no modeled connection-site map.`);
   }
   return indexes[normalizedSide(side, "Presentation connector side")];
@@ -84,6 +102,12 @@ export function presentationConnectionSiteIndex(slide, owner, target, side) {
 
 function validateSiteIndex(shape, index, name) {
   const normalized = normalizePresentationConnectionSiteIndex(index, name);
+  const customCount = customSiteCount(shape);
+  if (customCount !== undefined) {
+    if (customCount === 0) throw new RangeError(`Presentation custom shape ${shape.id} has no modeled connection sites.`);
+    if (normalized >= customCount) throw new RangeError(`${name} ${normalized} is outside the modeled custom connection-site range 0..${customCount - 1}.`);
+    return normalized;
+  }
   const indexes = siteIndexes(shape);
   if (!indexes) {
     throw new RangeError(`Presentation shape ${shape.id} geometry ${shape.geometry} has no modeled connection-site map.`);
@@ -125,7 +149,12 @@ export function presentationConnectionSitePoint(shape, index, name = "Presentati
     throw new RangeError(`Presentation shape ${shape.id} has an invalid frame for connector routing.`);
   }
   let point;
-  if (shape.geometry === "ellipse") {
+  if (shape.geometry === "custom") {
+    point = presentationCustomConnectionSitePoint(shape.customConnectionSites, site, frame, {
+      adjustments: shape.customAdjustments,
+      guides: shape.customGuides,
+    });
+  } else if (shape.geometry === "ellipse") {
     const angles = [-90, -135, 180, 135, 90, 45, 0, -45];
     const radians = angles[site] * Math.PI / 180;
     point = {
@@ -145,7 +174,17 @@ export function presentationConnectionSitePoint(shape, index, name = "Presentati
 
 function shapeFingerprint(shape) {
   if (!shape) return undefined;
-  return JSON.stringify({ id: shape.id, geometry: shape.geometry, position: shape.position, transform: shape.transform });
+  return JSON.stringify({
+    id: shape.id,
+    geometry: shape.geometry,
+    position: shape.position,
+    transform: shape.transform,
+    ...(shape.geometry === "custom" ? {
+      customAdjustments: shape.customAdjustments,
+      customGuides: shape.customGuides,
+      customConnectionSites: shape.customConnectionSites,
+    } : {}),
+  });
 }
 
 function endpointFingerprint(shape, index, explicitSite) {

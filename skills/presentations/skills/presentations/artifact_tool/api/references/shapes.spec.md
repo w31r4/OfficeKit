@@ -163,7 +163,14 @@ const formulaTriangle = slide.shapes.add({
   position: { left: 40, top: 40, width: 560, height: 280 },
   fill: "#16A34A",
   customAdjustments: [{ name: "adjX", formula: "val 25000" }],
-  customGuides: [{ name: "apexX", formula: "*/ 100000 adjX 100000" }],
+  customGuides: [
+    { name: "apexX", formula: "*/ 100000 adjX 100000" },
+    { name: "siteX", formula: "*/ w adjX 100000" },
+  ],
+  customConnectionSites: [
+    { angle: -90, x: "siteX", y: 0 },
+    { angle: 90, x: "siteX", y: 280 },
+  ],
   customPaths: [{
     width: 100000,
     height: 100000,
@@ -196,14 +203,24 @@ strictly in declaration order; forward/unknown references, duplicate names,
 division by zero, negative square roots, non-finite results, and results
 outside the signed 32-bit profile fail closed.
 
-A string in a path field is only the exact name of a declared adjustment or
-guide. Built-ins are formula operands, not implicit path guides, and a path's
+A string in a path or connection-site field is only the exact name of a
+declared adjustment or guide. Built-ins are formula operands, not implicit
+geometry references, and a path's
 `width`/`height` stay positive literals. Keep formula output in that path's
 coordinate system: when a formula uses shape-derived `w`/`h`, either use the
 shape's EMU extents for the path viewport or scale explicitly. Unsupported
-formula syntax, non-empty adjust handles/connection sites, and formula-valued
+formula syntax, non-empty adjust handles, and formula-valued
 text rectangles outside OfficeKit's exact private profile keep an imported
 shape opaque and source-bound.
+
+`customConnectionSites` is the ordered native `a:cxnLst` table, with at most
+1,024 `{ angle, x, y }` entries. Numeric angles are degrees; numeric x/y values
+are pixels relative to the shape frame. Any field may instead name a declared
+adjustment/guide. Resolved positions must remain inside the shape and angles
+within one turn. The array index is the native connector identity: a recognized
+import may edit values at existing indexes but cannot change the list length. Connectors targeting a
+custom shape must use explicit `fromIdx`/`toIdx`; side aliases are intentionally
+limited to preset geometries.
 
 OfficeKit's SVG/sharp render gate evaluates the formula graph. The currently
 bundled LibreOfficeDev 26.8 alpha opens and renders these PPTX paths but does
@@ -257,6 +274,11 @@ type CustomShapeConfig = Omit<PresetShapeConfig, "geometry"> & {
   geometry: "custom";
   customAdjustments?: Array<{ name: string; formula: string }>;
   customGuides?: Array<{ name: string; formula: string }>;
+  customConnectionSites?: Array<{
+    angle: number | string;
+    x: number | string;
+    y: number | string;
+  }>;
   textRectangle?: { left: number; top: number; right: number; bottom: number };
   customPaths: Array<{
     width: number;
@@ -291,6 +313,10 @@ const connector = slide.shapes.connect(sourceShape, targetShape, {
 Use [`connectors.md`](./connectors.md) when endpoints must retain target-shape
 and connection-site identity, including routing, side anchors, direct
 `geometry: "connector"` creation, and endpoint edits.
+
+For `geometry: "custom"`, pass `fromIdx` or `toIdx` explicitly. The index
+addresses that shape's ordered `customConnectionSites`; `fromSide`/`toSide`
+exist only for the bounded preset site maps.
 
 ## Line Primitive Decision
 

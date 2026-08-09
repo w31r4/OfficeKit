@@ -1788,8 +1788,8 @@ message PresentationShape {
   // Source-free custom DrawingML geometry. The bounded profile owns literal or
   // guide-referenced path coordinates, move/line/quadratic/cubic/arc/close
   // commands, and presence-aware path paint metadata. Ordered adjustment and
-  // guide formulas use the closed ECMA-376 operator grammar; handles and
-  // connection sites remain source-bound.
+  // guide formulas use the closed ECMA-376 operator grammar; handles remain
+  // source-bound.
   repeated PresentationCustomGeometryPath custom_paths = 15;
   // Presence-aware imported p:sp/@useBgFill. This affects preview paint but is
   // read-only and source-bound: source-free authoring and value/presence edits
@@ -1817,6 +1817,11 @@ message PresentationShape {
   string end_arrow_length = 26;
   string line_cap = 27;
   string line_join = 28;
+  // Ordered a:cxnLst entries. Array position is the native connection-site
+  // identity consumed by PresentationConnector target indices, so recognized
+  // imported shapes keep the list length fixed while values at each index may
+  // change.
+  repeated PresentationCustomGeometryConnectionSite custom_connection_sites = 29;
 }
 
 message PresentationCustomGeometryPath {
@@ -3597,4 +3602,17 @@ message SpreadsheetPivotDateFilterArtifact {
   string value1_iso = 3;
   string value2_iso = 4;
   optional bool use_whole_day = 5;
+}
+
+// Appended after every existing message so PresentationShape field 29 adds one
+// bounded a:cxnLst entry without renumbering a pre-existing descriptor.
+// Literal positions are shape-local EMUs and literal angles use 1/60000-degree
+// units; each value may instead name a declared adjustment or guide.
+message PresentationCustomGeometryConnectionSite {
+  int32 angle_60000 = 1;
+  optional string angle_reference = 2;
+  int64 x_emu = 3;
+  int64 y_emu = 4;
+  optional string x_reference = 5;
+  optional string y_reference = 6;
 }

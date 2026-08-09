@@ -118,6 +118,11 @@ try {
   const authoredCard = itemByName(workflowSlide.shapes.items, "author-card");
   assert.equal(authoredCard.geometry, "roundRect");
   assert.deepEqual(authoredCard.shadow, { color: "#000000", blurRadius: 10, distance: 5, direction: 45, opacity: 0.2 });
+  const verifyCard = itemByName(workflowSlide.shapes.items, "verify-card");
+  assert.equal(verifyCard.geometry, "custom");
+  assert.equal(verifyCard.customConnectionSites.length, 4);
+  assert.deepEqual(verifyCard.customConnectionSites[3], { angle: 0, x: 300, y: 65 });
+  assert.equal(verifyCard.inspectRecord().customConnectionSiteCount, 4);
   assert.equal(itemByName(workflowSlide.shapes.items, "workflow-title").geometry, "textbox");
   const workflowDivider = itemByName(workflowSlide.shapes.items, "free-workflow-divider");
   assert.equal(workflowDivider.geometry, "line");
@@ -163,6 +168,9 @@ try {
   const firstSlideXml = await readinessZip.file("ppt/slides/slide1.xml").async("text");
   assert.match(firstSlideXml, /<a:srgbClr val="F1F5F9"/);
   assert.match(firstSlideXml, /<a:prstGeom prst="roundRect"[^>]*>/);
+  assert.match(firstSlideXml, /<a:custGeom\b/);
+  assert.match(firstSlideXml, /<a:cxnLst><a:cxn ang="-5400000"><a:pos x="1428750" y="0"\s*\/>/);
+  assert.match(firstSlideXml, /<a:cxn ang="0"><a:pos x="2857500" y="619125"\s*\/><\/a:cxn><\/a:cxnLst>/);
   assert.match(firstSlideXml, /<a:prstGeom\b[^>]*\bprst="line"/);
   assert.match(firstSlideXml, /<a:ext\b[^>]*\bcx="10553700"[^>]*\bcy="0"/);
   assert.match(firstSlideXml, /<a:ln\b[^>]*cap="rnd"/);

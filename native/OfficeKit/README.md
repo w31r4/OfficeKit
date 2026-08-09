@@ -53,7 +53,10 @@ literal or one declared adjustment/guide name. Forward references, reserved or
 duplicate names, undefined path references, invalid arithmetic, and invalid
 evaluated arc bounds fail closed. Path `w`/`h` remain positive literals. The
 same graph crosses the public protobuf wire and survives top-level/grouped
-authoring, import, fixed-topology edit, export, and second import.
+authoring, import, fixed-topology edit, export, and second import. Up to 1,024
+ordered `a:cxnLst` entries may use literal or declared-guide angle/x/y values;
+site positions stay inside the shape frame, imported list length remains fixed,
+and each connector index is the native site identity.
 
 The profile also preserves the presence of each `a:path` `fill`, `stroke`, and
 `extrusionOk` attribute. It owns explicit `norm`/`none` fill modes and booleans;
@@ -61,7 +64,7 @@ omitted attributes remain omitted. One optional shape-local text rectangle
 carries the custom shape's text bounds. The codec reads native numeric `a:rect`
 coordinates and emits one exact four-guide scaling profile so PowerPoint and
 LibreOffice resolve the same EMUs; absence retains the full-shape default.
-Unknown formula syntax, non-empty handles/connection sites, every other
+Unknown formula syntax, non-empty handles, every other
 formula-valued text rectangle, and child-bearing leaves keep the entire shape
 opaque. Relative lighten/darken fills and actual 3D geometry remain opaque or
 fail closed. `extrusionOk` is eligibility metadata, not a 3D authoring or

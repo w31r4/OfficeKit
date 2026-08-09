@@ -16,7 +16,7 @@ import { deterministicPresentationGuid } from "../presentation/ooxml-modern-comm
 import { normalizePresentationThemeConfig } from "../presentation/ooxml-theme.mjs";
 import { normalizePresentationTextBodyProperties } from "../presentation/text-body-properties.mjs";
 import { effectivePresentationImageCrop, presentationImageCropFromWire, presentationImageCropToWire } from "../presentation/image-crop.mjs";
-import { normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle } from "../presentation/custom-geometry.mjs";
+import { normalizePresentationCustomConnectionSites, normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle } from "../presentation/custom-geometry.mjs";
 import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation/custom-geometry-formulas.mjs";
 import { isPresentationAutoNumberType, normalizePresentationParagraphs, normalizePresentationParagraphStyles } from "../presentation/text-paragraphs.mjs";
 import { normalizePresentationLineStyle, presentationLineColor } from "../presentation/line-styles.mjs";
@@ -207,6 +207,7 @@ function cloneImportedPresentationShape(container, source, context) {
     geometry: source.geometry,
     ...(source.customAdjustments?.length ? { customAdjustments: clonedPresentationValue(source.customAdjustments) } : {}),
     ...(source.customGuides?.length ? { customGuides: clonedPresentationValue(source.customGuides) } : {}),
+    ...(source.customConnectionSites?.length ? { customConnectionSites: clonedPresentationValue(source.customConnectionSites) } : {}),
     ...(source.customPaths?.length ? { customPaths: clonedPresentationValue(source.customPaths) } : {}),
     ...(source.textRectangle ? { textRectangle: clonedPresentationValue(source.textRectangle) } : {}),
     position: clonedPresentationValue(source.position),
@@ -1645,6 +1646,20 @@ function presentationCustomGeometryArcToWire(arc) {
   };
 }
 
+function presentationCustomGeometryConnectionSiteToWire(site) {
+  return {
+    ...(typeof site.angle === "string"
+      ? { angleReference: site.angle }
+      : { angle60000: Math.round(site.angle * ROTATION_UNITS_PER_DEGREE) }),
+    ...(typeof site.x === "string"
+      ? { xReference: site.x }
+      : { xEmu: BigInt(Math.round(site.x * EMU_PER_PIXEL)) }),
+    ...(typeof site.y === "string"
+      ? { yReference: site.y }
+      : { yEmu: BigInt(Math.round(site.y * EMU_PER_PIXEL)) }),
+  };
+}
+
 function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const originalShape = original?.content?.case === "shape" ? original.content.value : original;
   if (!new Set(["rect", "ellipse", "roundRect", "textbox", "line", "custom"]).has(shape.geometry)) {
@@ -1657,9 +1672,17 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
     widthEmu: Math.round(Number(position.width) * EMU_PER_PIXEL),
     heightEmu: Math.round(Number(position.height) * EMU_PER_PIXEL),
   }) : [];
+  const customConnectionSites = normalizePresentationCustomConnectionSites(shape.customConnectionSites, {
+    ...formulaGraph,
+    widthEmu: Math.round(Number(position.width) * EMU_PER_PIXEL),
+    heightEmu: Math.round(Number(position.height) * EMU_PER_PIXEL),
+  });
   const textRectangle = normalizePresentationCustomTextRectangle(shape.textRectangle);
-  if (shape.geometry !== "custom" && (normalizedCustomPaths.length || formulaGraph.adjustments.length || formulaGraph.guides.length || textRectangle)) {
+  if (shape.geometry !== "custom" && (normalizedCustomPaths.length || customConnectionSites.length || formulaGraph.adjustments.length || formulaGraph.guides.length || textRectangle)) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} has custom geometry data without custom geometry.`, [], { code: "invalid_presentation_geometry" });
+  }
+  if (originalShape?.geometry === "custom" && (originalShape.customConnectionSites?.length || 0) !== customConnectionSites.length) {
+    throw new OfficeKitCodecError(`Source-preserving PPTX export requires custom shape ${shape.id}'s original connection-site list length; each existing index is the native identity.`, [], { code: "unsupported_presentation_edit" });
   }
   const customPaths = normalizedCustomPaths.map((path) => ({
     width: BigInt(path.width),
@@ -1761,6 +1784,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         ...(shadow ? { shadow } : {}),
         ...(formulaGraph.adjustments.length ? { customAdjustments: formulaGraph.adjustments } : {}),
         ...(formulaGraph.guides.length ? { customGuides: formulaGraph.guides } : {}),
+        ...(customConnectionSites.length ? { customConnectionSites: customConnectionSites.map(presentationCustomGeometryConnectionSiteToWire) } : {}),
         ...(customPaths.length ? { customPaths } : {}),
         ...(textRectangle ? { textRectangle: {
           leftEmu: BigInt(Math.round(textRectangle.left * EMU_PER_PIXEL)),
@@ -2812,6 +2836,14 @@ function modelCustomGeometryArc(arc) {
   };
 }
 
+function modelCustomGeometryConnectionSites(shape) {
+  return (shape.customConnectionSites || []).map((site) => ({
+    angle: site.angleReference ?? Number(site.angle60000) / ROTATION_UNITS_PER_DEGREE,
+    x: site.xReference ?? Number(site.xEmu) / EMU_PER_PIXEL,
+    y: site.yReference ?? Number(site.yEmu) / EMU_PER_PIXEL,
+  }));
+}
+
 function modelCustomGeometryPaths(shape) {
   return (shape.customPaths || []).map((path, pathIndex) => {
     const modeled = {
@@ -3008,6 +3040,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       geometry: shape.geometry || "rect",
       ...(shape.customAdjustments?.length ? { customAdjustments: modelCustomGeometryGuides(shape.customAdjustments) } : {}),
       ...(shape.customGuides?.length ? { customGuides: modelCustomGeometryGuides(shape.customGuides) } : {}),
+      ...(shape.customConnectionSites?.length ? { customConnectionSites: modelCustomGeometryConnectionSites(shape) } : {}),
       ...(shape.customPaths?.length ? { customPaths: modelCustomGeometryPaths(shape) } : {}),
       ...(shape.textRectangle ? { textRectangle: modelCustomGeometryTextRectangle(shape) } : {}),
       position: {
@@ -3246,6 +3279,7 @@ export async function presentationFromEnvelope(envelope) {
           geometry: shape.geometry || "rect",
           ...(shape.customAdjustments?.length ? { customAdjustments: modelCustomGeometryGuides(shape.customAdjustments) } : {}),
           ...(shape.customGuides?.length ? { customGuides: modelCustomGeometryGuides(shape.customGuides) } : {}),
+          ...(shape.customConnectionSites?.length ? { customConnectionSites: modelCustomGeometryConnectionSites(shape) } : {}),
           ...(shape.customPaths?.length ? { customPaths: modelCustomGeometryPaths(shape) } : {}),
           ...(shape.textRectangle ? { textRectangle: modelCustomGeometryTextRectangle(shape) } : {}),
           position: { ...effectiveFrame },

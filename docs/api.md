@@ -1828,9 +1828,9 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.setBackground` | api | Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited. |
 | `slide.setLayout` | api | Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export. |
 | `slide.setTransition` | api | Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension, and irregular source graphs fail closed. |
-| `slide.shapes.add` | api | Add a shape/textbox, a free-positioned p:sp line with bounded dash/line-end/cap/join styling, bounded DrawingML custom geometry with ordered adjustment/guide formulas, or an exact-site p:cxnSp connector. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity. |
-| `slide.shapes.connect` | api | Connect two modeled shapes in the same slide/group tree by side or exact DrawingML connection-site index. The target-plus-site pair survives import, edit, clone, and second import; moved modeled targets reroute before render/export. |
-| `slide.shapes.getConnectionSiteIndex` | api | Resolve top/left/bottom/right to a stable bounded preset connection-site index for rect, roundRect, textbox, or ellipse. Unmodeled geometries fail closed. |
+| `slide.shapes.add` | api | Add a shape/textbox, a free-positioned p:sp line with bounded dash/line-end/cap/join styling, bounded DrawingML custom geometry with ordered adjustment/guide formulas and connection sites, or an exact-site p:cxnSp connector. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity. |
+| `slide.shapes.connect` | api | Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export. |
+| `slide.shapes.getConnectionSiteIndex` | api | Resolve top/left/bottom/right to a stable bounded preset connection-site index for rect, roundRect, textbox, or ellipse. Custom shapes expose an ordered site table but require its explicit numeric index; other geometries fail closed. |
 | `slide.speakerNotes.capability` | api | Return defensive sourceBound, partPresent, editable, and addable evidence. addable identifies an imported notes-absent slide whose source NotesMaster/SlideMaster Theme graph can safely receive a canonical NotesSlide. Export independently re-proves the package graph, so mutating model or wire data cannot grant authority. |
 | `slide.tables.add` | api | Add an inspectable table facade with rows, columns, values, cells, rectangular merges, layout JSON, SVG preview, and canonical OfficeKit plain-text PPTX output. |
 | `slideCommentThread.addReply` | api | Append a direct reply to a source-free Office 2021 modern comment thread. Imported reply topology is fixed: existing reply text/status may change, but adding or removing replies fails closed. |
@@ -2819,7 +2819,7 @@ Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary
 
 #### `slide.shapes.add`
 
-Add a shape/textbox, a free-positioned p:sp line with bounded dash/line-end/cap/join styling, bounded DrawingML custom geometry with ordered adjustment/guide formulas, or an exact-site p:cxnSp connector. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity.
+Add a shape/textbox, a free-positioned p:sp line with bounded dash/line-end/cap/join styling, bounded DrawingML custom geometry with ordered adjustment/guide formulas and connection sites, or an exact-site p:cxnSp connector. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity.
 
 **Schema parameters:**
 
@@ -2836,7 +2836,8 @@ Add a shape/textbox, a free-positioned p:sp line with bounded dash/line-end/cap/
 - `join` (string) — For connector geometry: round, bevel, or miter.
 - `customAdjustments` (object[]) — For geometry custom, up to 256 ordered { name, formula } adjustment guides written to a:avLst. Names are bounded ASCII identifiers; formulas use the 17 ECMA-376 operators and may reference integer literals, DrawingML built-ins, or an earlier adjustment. Forward references, duplicate/reserved names, invalid arithmetic, and unsupported grammar fail closed.
 - `customGuides` (object[]) — For geometry custom, up to 1,024 ordered { name, formula } calculated guides written to a:gdLst after customAdjustments. Each formula may reference integer literals, DrawingML built-ins, or any earlier adjustment/guide. Path fields may reference these declared names; built-in names are formula operands, not implicit path guides.
-- `customPaths` (object[]) — For geometry custom, 1-64 DrawingML paths with positive literal integer width/height and bounded moveTo, lineTo, quadraticBezTo, cubicBezTo, arcTo, and close commands. Point coordinates and arc radii/angles accept a literal or one declared customAdjustments/customGuides name. Each path may carry presence-aware fillMode (normal or none), stroke, and extrusionAllowed; omission preserves native defaults and extrusionAllowed is metadata rather than 3D authoring. arcTo radii must evaluate positive, requires a current point, and limits its evaluated non-zero sweep to one full turn. Non-empty handles/connection sites and lighten/darken path-fill modes remain opaque.
+- `customConnectionSites` (object[]) — For geometry custom, up to 1,024 ordered { angle, x, y } native a:cxnLst entries. Numeric angle is degrees; numeric x/y are shape-local pixels. Each value may instead reference one declared adjustment/guide and must evaluate within one turn or the shape frame. Array index is connector identity: source-free shapes author it, recognized imports may edit values at existing indexes but keep the list length fixed, and connectors to custom shapes require explicit fromIdx/toIdx.
+- `customPaths` (object[]) — For geometry custom, 1-64 DrawingML paths with positive literal integer width/height and bounded moveTo, lineTo, quadraticBezTo, cubicBezTo, arcTo, and close commands. Point coordinates and arc radii/angles accept a literal or one declared customAdjustments/customGuides name. Each path may carry presence-aware fillMode (normal or none), stroke, and extrusionAllowed; omission preserves native defaults and extrusionAllowed is metadata rather than 3D authoring. arcTo radii must evaluate positive, requires a current point, and limits its evaluated non-zero sweep to one full turn. Non-empty handles and lighten/darken path-fill modes remain opaque.
 - `textRectangle` (object) — Optional { left, top, right, bottom } pixel rectangle relative to a custom shape frame. It may inset or extend beyond the shape, drives inspect/SVG-origin/overflow QA, and requires right > left plus bottom > top at native EMU precision. The codec reads native numeric rectangles and writes one deterministic four-guide a:rect profile for PowerPoint/LibreOffice compatibility. Omission keeps the full-shape default; every other formula-valued native rectangle remains opaque.
 - `position` (object) — Pixel left/top/width/height frame. For geometry line, left/top is the start point and width/height is the non-negative endpoint delta; one extent may be zero, but both zero fail closed.
 - `transform` (object) — Optional { rotationDegrees, flipHorizontal, flipVertical } center transform. Rotation is bounded to -360 through 360 degrees and flip booleans retain explicit false. OfficeKit authors/imports this direct DrawingML transform on supported shapes; complex or unknown native transform graphs remain read-only.
@@ -2852,17 +2853,17 @@ Add a shape/textbox, a free-positioned p:sp line with bounded dash/line-end/cap/
 
 #### `slide.shapes.connect`
 
-Connect two modeled shapes in the same slide/group tree by side or exact DrawingML connection-site index. The target-plus-site pair survives import, edit, clone, and second import; moved modeled targets reroute before render/export.
+Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export.
 
 **Schema parameters:**
 
 - `from` (Shape|string) required — Start shape facade or stable ID in this same slide/group tree.
 - `to` (Shape|string) required — End shape facade or stable ID in this same slide/group tree.
 - `kind` (string) — straight, elbow/elbow2..5, or curved; defaults to elbow.
-- `fromSide` (string) — top, left, bottom, or right. Mutually exclusive with fromIdx.
-- `toSide` (string) — top, left, bottom, or right. Mutually exclusive with toIdx.
-- `fromIdx` (number) — Exact unsigned DrawingML start connection-site index.
-- `toIdx` (number) — Exact unsigned DrawingML end connection-site index.
+- `fromSide` (string) — Preset rect/roundRect/textbox/ellipse top, left, bottom, or right. Mutually exclusive with fromIdx; custom shapes require fromIdx.
+- `toSide` (string) — Preset rect/roundRect/textbox/ellipse top, left, bottom, or right. Mutually exclusive with toIdx; custom shapes require toIdx.
+- `fromIdx` (number) — Exact unsigned DrawingML start connection-site index, including an index into a custom shape's ordered customConnectionSites.
+- `toIdx` (number) — Exact unsigned DrawingML end connection-site index, including an index into a custom shape's ordered customConnectionSites.
 - `line` (object) — { style: solid|dashed|none, fill, width } plus compatibility startArrow/endArrow fields.
 - `head` (object) — Optional start line end { type: none|triangle|stealth|diamond|oval|arrow, width?: sm|med|lg, length?: sm|med|lg }.
 - `tail` (object) — Optional end line end using the same bounded type/size union.
@@ -2875,7 +2876,7 @@ Connect two modeled shapes in the same slide/group tree by side or exact Drawing
 
 #### `slide.shapes.getConnectionSiteIndex`
 
-Resolve top/left/bottom/right to a stable bounded preset connection-site index for rect, roundRect, textbox, or ellipse. Unmodeled geometries fail closed.
+Resolve top/left/bottom/right to a stable bounded preset connection-site index for rect, roundRect, textbox, or ellipse. Custom shapes expose an ordered site table but require its explicit numeric index; other geometries fail closed.
 
 **Schema parameters:**
 
@@ -2884,7 +2885,7 @@ Resolve top/left/bottom/right to a stable bounded preset connection-site index f
 
 **Schema returns:**
 
-- `siteIndex` (number) — The bounded preset connection-site index. Unsupported geometry fails closed rather than guessing.
+- `siteIndex` (number) — The bounded preset connection-site index. Custom shapes require an explicit customConnectionSites index; unsupported geometry fails closed rather than guessing.
 
 #### `slide.speakerNotes.capability`
 

@@ -8,6 +8,7 @@ import {
 
 const MAX_PATHS = 64;
 const MAX_COMMANDS = 16_384;
+const MAX_CONNECTION_SITES = 1_024;
 const MAX_COORDINATE = 2_147_483_647;
 const EMU_PER_PIXEL = 9_525;
 const ANGLE_UNITS_PER_DEGREE = 60_000;
@@ -22,6 +23,7 @@ const CURVE_FIELDS = Object.freeze({
   quadraticBezTo: Object.freeze(["x1", "y1", "x", "y"]),
   cubicBezTo: Object.freeze(["x1", "y1", "x2", "y2", "x", "y"]),
 });
+const CONNECTION_SITE_FIELDS = new Set(["angle", "x", "y"]);
 
 function coordinate(value, label, references) {
   if (typeof value === "string") return normalizePresentationCustomGeometryReference(value, references, label);
@@ -85,6 +87,79 @@ function angle(value, label, references) {
     throw new RangeError(`${label} must be a safe integer within the DrawingML signed 32-bit angle range.`);
   }
   return number;
+}
+
+function connectionSiteAngle(value, label, references, values) {
+  if (typeof value === "string") {
+    const reference = normalizePresentationCustomGeometryReference(value, references, label);
+    const resolved = resolvePresentationCustomGeometryReference(reference, values, label);
+    if (Math.abs(resolved) > FULL_TURN_ANGLE) throw new RangeError(`${label} must evaluate within one full DrawingML turn.`);
+    return reference;
+  }
+  const degrees = Number(value);
+  const native = Math.round(degrees * ANGLE_UNITS_PER_DEGREE);
+  if (!Number.isFinite(degrees) || !Number.isSafeInteger(native) || Math.abs(native) > FULL_TURN_ANGLE) {
+    throw new RangeError(`${label} must be a finite degree value from -360 through 360.`);
+  }
+  return native / ANGLE_UNITS_PER_DEGREE;
+}
+
+function connectionSiteCoordinate(value, label, references, values, maximumEmu) {
+  if (typeof value === "string") {
+    const reference = normalizePresentationCustomGeometryReference(value, references, label);
+    const resolved = resolvePresentationCustomGeometryReference(reference, values, label);
+    if (resolved < 0 || resolved > maximumEmu) throw new RangeError(`${label} must evaluate inside the custom shape frame.`);
+    return reference;
+  }
+  const pixels = Number(value);
+  const emu = Math.round(pixels * EMU_PER_PIXEL);
+  if (!Number.isFinite(pixels) || !Number.isSafeInteger(emu) || emu < 0 || emu > maximumEmu) {
+    throw new RangeError(`${label} must be a finite pixel coordinate inside the custom shape frame.`);
+  }
+  return emu / EMU_PER_PIXEL;
+}
+
+export function normalizePresentationCustomConnectionSites(value, { adjustments, guides, widthEmu, heightEmu } = {}) {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > MAX_CONNECTION_SITES) {
+    throw new RangeError(`Presentation custom geometry customConnectionSites must contain at most ${MAX_CONNECTION_SITES} entries.`);
+  }
+  if (value.length === 0) return [];
+  const graph = normalizePresentationCustomGeometryFormulaGraph({ adjustments, guides });
+  const references = presentationCustomGeometryReferenceNames(graph);
+  const values = evaluatePresentationCustomGeometryFormulaGraph(graph, { widthEmu, heightEmu });
+  return value.map((site, index) => {
+    const label = `Presentation custom geometry connection site ${index + 1}`;
+    if (!site || typeof site !== "object" || Array.isArray(site)) throw new TypeError(`${label} must be an object.`);
+    const unknown = Object.keys(site).filter((key) => !CONNECTION_SITE_FIELDS.has(key));
+    if (unknown.length) throw new TypeError(`${label} has unsupported fields: ${unknown.join(", ")}.`);
+    return {
+      angle: connectionSiteAngle(site.angle, `${label}.angle`, references, values),
+      x: connectionSiteCoordinate(site.x, `${label}.x`, references, values, widthEmu),
+      y: connectionSiteCoordinate(site.y, `${label}.y`, references, values, heightEmu),
+    };
+  });
+}
+
+export function presentationCustomConnectionSitePoint(connectionSites, index, frame, { adjustments, guides } = {}) {
+  const left = Number(frame?.left);
+  const top = Number(frame?.top);
+  const width = Number(frame?.width);
+  const height = Number(frame?.height);
+  if (![left, top, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
+    throw new RangeError("Presentation custom geometry connection-site routing requires a positive finite shape frame.");
+  }
+  const widthEmu = Math.round(width * EMU_PER_PIXEL);
+  const heightEmu = Math.round(height * EMU_PER_PIXEL);
+  const sites = normalizePresentationCustomConnectionSites(connectionSites, { adjustments, guides, widthEmu, heightEmu });
+  if (!Number.isInteger(index) || index < 0 || index >= sites.length) {
+    throw new RangeError(`Presentation custom geometry connection-site index ${index} is outside the modeled range 0..${Math.max(0, sites.length - 1)}.`);
+  }
+  const values = evaluatePresentationCustomGeometryFormulaGraph({ adjustments, guides }, { widthEmu, heightEmu });
+  const site = sites[index];
+  const x = typeof site.x === "string" ? resolvePresentationCustomGeometryReference(site.x, values, `Presentation custom geometry connection site ${index + 1}.x`) / EMU_PER_PIXEL : site.x;
+  const y = typeof site.y === "string" ? resolvePresentationCustomGeometryReference(site.y, values, `Presentation custom geometry connection site ${index + 1}.y`) / EMU_PER_PIXEL : site.y;
+  return { x: left + x, y: top + y };
 }
 
 function point(value, label, references) {
