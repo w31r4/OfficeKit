@@ -6,18 +6,9 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import JSZip from "jszip";
-import { FileBlob, PresentationFile } from "office-kit";
+import { FileBlob, Presentation, PresentationFile } from "office-kit";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-const MAX_ADVANCE_AFTER_MS = 86_400_000;
-const EFFECTS = Object.freeze({
-  fade: Object.freeze({ directional: false }),
-  push: Object.freeze({ directional: true, defaultDirection: "left" }),
-  wipe: Object.freeze({ directional: true, defaultDirection: "left" }),
-});
-const SPEEDS = new Set(["slow", "medium", "fast"]);
-const DIRECTIONS = new Set(["left", "up", "right", "down"]);
-const TRANSITION_KEYS = new Set(["effect", "direction", "speed", "advanceOnClick", "advanceAfterMs"]);
 const require = createRequire(import.meta.url);
 
 function sha256(bytes) {
@@ -35,44 +26,19 @@ function requiredText(value, label) {
   return value.trim();
 }
 
-function own(object, key) {
-  return Object.prototype.hasOwnProperty.call(object, key);
-}
-
-// Keep the workflow input on the same deliberately small public contract as
-// SlideTransition. The explicit expected value is a source precondition, not
-// a request to interpret an arbitrary native p:transition graph.
+// Delegate canonicalization to the public model instead of maintaining a
+// second transition schema inside the workflow. The explicit expected value
+// remains a source precondition, not permission to interpret an arbitrary
+// native p:transition graph.
 function canonicalTransition(value, label) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new TypeError(label + " must be one transition object.");
+  try {
+    const probe = Presentation.create();
+    const slide = probe.slides.add();
+    slide.setTransition(value);
+    return slide.transition.toJSON();
+  } catch (error) {
+    throw new TypeError(label + " is invalid: " + error.message, { cause: error });
   }
-  const unsupported = Object.keys(value).filter((key) => !TRANSITION_KEYS.has(key));
-  if (unsupported.length) throw new TypeError(label + " has unsupported fields: " + unsupported.join(", ") + ".");
-  const effect = String(value.effect || "").trim().toLowerCase();
-  if (!Object.hasOwn(EFFECTS, effect)) throw new TypeError(label + ".effect must be fade, push, or wipe.");
-  const profile = EFFECTS[effect];
-  const speed = String(value.speed ?? "medium").trim().toLowerCase();
-  if (!SPEEDS.has(speed)) throw new TypeError(label + ".speed must be slow, medium, or fast.");
-  const transition = { effect, speed };
-  if (profile.directional) {
-    const direction = String(value.direction ?? profile.defaultDirection).trim().toLowerCase();
-    if (!DIRECTIONS.has(direction)) throw new TypeError(label + ".direction must be left, up, right, or down for " + effect + ".");
-    transition.direction = direction;
-  } else if (own(value, "direction") && value.direction != null) {
-    throw new TypeError(label + ".direction is not valid for " + effect + ".");
-  }
-  if (own(value, "advanceOnClick") && typeof value.advanceOnClick !== "boolean") {
-    throw new TypeError(label + ".advanceOnClick must be a boolean.");
-  }
-  transition.advanceOnClick = value.advanceOnClick ?? true;
-  if (own(value, "advanceAfterMs") && value.advanceAfterMs != null) {
-    const advanceAfterMs = Number(value.advanceAfterMs);
-    if (!Number.isSafeInteger(advanceAfterMs) || advanceAfterMs < 0 || advanceAfterMs > MAX_ADVANCE_AFTER_MS) {
-      throw new RangeError(label + ".advanceAfterMs must be an integer from 0 through " + MAX_ADVANCE_AFTER_MS + ".");
-    }
-    transition.advanceAfterMs = advanceAfterMs;
-  }
-  return transition;
 }
 
 function sameJson(left, right) {
@@ -235,7 +201,7 @@ export async function editPptxTransition({ inputPath, outputPath, auditPath, sli
   const targetIndex = presentation.slides.items.indexOf(target);
   const capability = target.transition.capability;
   if (!capability.sourceBound || !capability.partPresent || !capability.editable) {
-    throw new Error("Selected imported slide transition does not satisfy the editable canonical direct fade/push/wipe profile.");
+    throw new Error("Selected imported slide transition does not satisfy the editable canonical direct base-transition profile.");
   }
   const sourceTransition = canonicalTransition(target.transition.toJSON(), "imported transition");
   if (!sameJson(sourceTransition, expected)) {

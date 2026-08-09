@@ -2,11 +2,53 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after adding native PivotTable absolute-date
-filters. The candidate contains 714 files, 36,211,355 compressed bytes, and
-53,331,458 unpacked bytes; its measured shasum is
-`a939b1f48cb43bb76e53d989aebe967a1ab26a36`. This is package evidence, not an
+The package dry-run passed after completing the ECMA-376 base slide-transition
+vocabulary. The candidate contains 714 files, 36,215,575 compressed bytes, and
+53,343,937 unpacked bytes; its measured shasum is
+`b395f80dc9506a6303ca4a6d6baec6e18b3b220e`. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: complete ECMA-376 base slide transitions
+
+Presentation authoring and canonical source-bound edits now cover all 21
+base-namespace `p:transition` effects. One data-driven profile table owns each
+effect's cardinal, corner, in/out, or orientation values; optional cut/fade
+`throughBlack`; wheel `spokes: 1..8`; defaults; and rejection of irrelevant
+fields. The protocol-v2 transition message appends orientation,
+presence-aware through-black, and presence-aware spokes fields without
+renumbering existing fields or changing the wire version.
+
+The C# OfficeKit Codec maps the same profiles to the Microsoft Open XML SDK,
+validates source-free output with the Office 2021 validator, and recognizes
+only exact canonical imported leaves. A transition with an extra attribute,
+timing/sound graph, `p14` duration, Office-version extension effect, malformed
+attribute, or broader animation graph remains opaque and fails closed on
+mutation. The 21-effect JS and C# corpus authors, imports, exports, and imports
+again. The strict slide-clone path may carry one unchanged recognized base
+transition.
+
+The shipped source-bound transaction now delegates normalization to the public
+Presentation model instead of maintaining a second three-effect schema. Its
+forward test replaces a through-black Fade with a horizontal Split-in, retains
+an untouched eight-spoke Wheel, permits only the selected SlidePart to differ,
+reimports exact semantics, and proves non-transition model/static-render
+stability. Static rendering remains evidence about visible slide content, not
+native slideshow playback.
+
+Local gates passed: fast tests 26/26, slow tests 75/75, OfficeKit Codec .NET
+tests 397/397, OfficeBridge tests 5/5, generated Help/API docs, protobuf
+generation, deterministic WASM rebuild, reference Skill sync/portability,
+Playwright, LibreOffice/Poppler-backed presentation/template QA,
+clean-install package smoke, and `test:pack`. Managed provider downloads and
+separately configured pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench
+Python environments remained explicit environment skips; their offline
+contracts ran.
+
+The deterministic runtime contains 38 files and 15,340,267 bytes; both builds
+matched across 39 audited outputs. The npm candidate grew by 12,479 unpacked
+bytes from the preceding candidate and remains below the 53,400,000-byte
+ceiling with 56,063 bytes of measured headroom. Registry authentication,
+tagging, and Windows Office host acceptance remain separate external gates.
 
 ## Unreleased: native PivotTable absolute-date filters
 

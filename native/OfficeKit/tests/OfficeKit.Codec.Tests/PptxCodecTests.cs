@@ -6936,13 +6936,17 @@ public sealed class PptxCodecTests
         Assert.Equal("unsupported_presentation_edit", Assert.Single(Export(timedExisting.Artifact).Diagnostics).Code);
 
         byte[] opaqueBytes;
-        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var stream = new MemoryStream())
         {
+            stream.Write(authored.File.Span);
+            stream.Position = 0;
             using (var package = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
             {
                 var sourceSlide = package.PresentationPart!.SlideParts.Single();
+                var opaqueCut = new P.CutTransition();
+                opaqueCut.SetAttribute(new OpenXmlAttribute("fixture", "opaque", "urn:office-kit:test", "kept"));
                 sourceSlide.Slide!.Transition = new P.Transition(
-                    new P.CutTransition())
+                    opaqueCut)
                 {
                     Speed = P.TransitionSpeedValues.Medium,
                     AdvanceOnClick = true,
@@ -6996,6 +7000,102 @@ public sealed class PptxCodecTests
             AdvanceOnClick = true,
         };
         Assert.Equal("invalid_presentation_transition", Assert.Single(Invoke(invalid).Diagnostics).Code);
+        invalid = ExportRequest();
+        invalid.Artifact.Presentation.Slides[0].Transition = new PresentationTransition
+        {
+            Effect = "wheel",
+            Speed = "medium",
+            AdvanceOnClick = true,
+        };
+        Assert.Equal("invalid_presentation_transition", Assert.Single(Invoke(invalid).Diagnostics).Code);
+        invalid = ExportRequest();
+        invalid.Artifact.Presentation.Slides[0].Transition = new PresentationTransition
+        {
+            Effect = "circle",
+            Orientation = "horizontal",
+            Speed = "medium",
+            AdvanceOnClick = true,
+        };
+        Assert.Equal("invalid_presentation_transition", Assert.Single(Invoke(invalid).Diagnostics).Code);
+    }
+
+    [Fact]
+    public void BaseSlideTransitionVocabularyAuthorsImportsAndValidates()
+    {
+        var transitions = new[]
+        {
+            new PresentationTransition { Effect = "blinds", Orientation = "vertical", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "checker", Orientation = "horizontal", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "circle", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "comb", Orientation = "vertical", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "cover", Direction = "rightUp", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "cut", ThroughBlack = true, Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "diamond", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "dissolve", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "fade", ThroughBlack = false, Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "newsflash", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "plus", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "pull", Direction = "leftDown", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "push", Direction = "up", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "random", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "randomBar", Orientation = "vertical", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "split", Orientation = "horizontal", Direction = "in", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "strips", Direction = "rightDown", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "wedge", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "wheel", Spokes = 8, Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "wipe", Direction = "down", Speed = "medium", AdvanceOnClick = true },
+            new PresentationTransition { Effect = "zoom", Direction = "out", Speed = "medium", AdvanceOnClick = true },
+        };
+        var expectedNativeTypes = new[]
+        {
+            nameof(P.BlindsTransition), nameof(P.CheckerTransition), nameof(P.CircleTransition), nameof(P.CombTransition),
+            nameof(P.CoverTransition), nameof(P.CutTransition), nameof(P.DiamondTransition), nameof(P.DissolveTransition),
+            nameof(P.FadeTransition), nameof(P.NewsflashTransition), nameof(P.PlusTransition), nameof(P.PullTransition),
+            nameof(P.PushTransition), nameof(P.RandomTransition), nameof(P.RandomBarTransition), nameof(P.SplitTransition),
+            nameof(P.StripsTransition), nameof(P.WedgeTransition), nameof(P.WheelTransition), nameof(P.WipeTransition),
+            nameof(P.ZoomTransition),
+        };
+
+        var request = ExportRequest();
+        var slideTemplate = request.Artifact.Presentation.Slides[0].Clone();
+        request.Artifact.Presentation.Slides.Clear();
+        for (var index = 0; index < transitions.Length; index++)
+        {
+            var slide = slideTemplate.Clone();
+            slide.Id = $"presentation/slide/{index + 1}";
+            slide.Name = $"Transition {transitions[index].Effect}";
+            slide.Transition = transitions[index].Clone();
+            request.Artifact.Presentation.Slides.Add(slide);
+        }
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            Assert.Equal(
+                expectedNativeTypes.OrderBy(item => item, StringComparer.Ordinal),
+                package.PresentationPart!.SlideParts
+                    .Select(part => Assert.Single(part.Slide!.Transition!.ChildElements).GetType().Name)
+                    .OrderBy(item => item, StringComparer.Ordinal));
+        }
+
+        var imported = Import(authored.File.ToByteArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        Assert.Equal(transitions.Length, imported.Artifact.Presentation.Slides.Count);
+        for (var index = 0; index < transitions.Length; index++)
+        {
+            Assert.Equal(transitions[index], imported.Artifact.Presentation.Slides[index].Transition);
+            Assert.True(imported.Artifact.Presentation.Slides[index].Source!.TransitionEditable);
+        }
+
+        var secondExport = Export(imported.Artifact);
+        Assert.True(secondExport.Ok, Diagnostics(secondExport));
+        var secondImport = Import(secondExport.File.ToByteArray());
+        Assert.True(secondImport.Ok, Diagnostics(secondImport));
+        for (var index = 0; index < transitions.Length; index++)
+            Assert.Equal(transitions[index], secondImport.Artifact.Presentation.Slides[index].Transition);
     }
 
     private static CodecResponse Invoke(CodecRequest request) =>

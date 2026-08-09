@@ -567,14 +567,15 @@ the file form has a 32 MiB input budget.
 ### Bounded Slide Transitions
 
 Use direct `p:transition` metadata only for an intentional between-slide
-movement. The public profile is deliberately small: `fade` or directional
-`push`/`wipe`, `slow`/`medium`/`fast`, click advancement, and an optional bounded
-timer. It is not an animation/timing/sound authoring surface:
+movement. The public profile covers the complete ECMA-376 base transition vocabulary,
+plus `slow`/`medium`/`fast`, click advancement, and an optional
+bounded timer. It is not an animation/timing/sound authoring surface:
 
 ```js
 slide.setTransition({
-  effect: "push",
-  direction: "left",
+  effect: "split",
+  orientation: "horizontal",
+  direction: "in",
   speed: "fast",
   advanceOnClick: false,
   advanceAfterMs: 4_000,
@@ -583,11 +584,11 @@ slide.setTransition({
 
 For an imported deck, inspect `slide,transition`, resolve
 `${slide.id}/transition`, and read `transition.capability` before calling
-`set(...)` or `clear()`. Only one existing canonical direct fade/push/wipe
-graph is editable. A source-bound slide with no transition may be set only when
+`set(...)` or `clear()`. Only one existing canonical direct base-transition profile
+is editable. A source-bound slide with no transition may be set only when
 `addable: true`, which proves the Slide root contains only `p:cSld` plus
 optional `p:clrMapOvr` and no transition, timing, or extension leaf. Unknown
-effects, timing trees, sound actions, `p14` duration, or extension graphs stay
+or extension effects, timing trees, sound actions, `p14` duration, or extension graphs stay
 opaque-preserved and fail closed on mutation. The strict slide
 clone profile may carry one unchanged canonical direct transition, but never a
 timing or sound graph.
@@ -599,8 +600,8 @@ rather than a raw SlidePart patch:
 officekit run examples/officekit-transition-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Decision slide" \
-  '{"effect":"fade","speed":"medium","advanceOnClick":true,"advanceAfterMs":1200}' \
-  '{"effect":"push","direction":"down","speed":"slow","advanceOnClick":false}'
+  '{"effect":"fade","throughBlack":true,"speed":"medium","advanceOnClick":true,"advanceAfterMs":1200}' \
+  '{"effect":"split","orientation":"horizontal","direction":"in","speed":"slow","advanceOnClick":false}'
 ```
 
 It binds a unique imported slide name and the complete expected transition
@@ -609,7 +610,7 @@ bytes immutable, permits exactly the selected SlidePart to differ, reimports,
 and verifies non-transition semantics and static model renders remain stable
 before it publishes a source/output-bound audit. It does not add or clear a
 transition, treat an unconfigured slide as a replacement target, widen the
-canonical fade/push/wipe profile, or certify native slideshow playback.
+canonical base-transition profile, or certify native slideshow playback.
 
 Always export, reimport, and inspect the transition again. Static
 LibreOffice/Poppler review can prove the visible slide content is stable, not

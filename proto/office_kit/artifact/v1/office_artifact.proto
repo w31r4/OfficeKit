@@ -1439,10 +1439,9 @@ message PresentationSlide {
   // bindings remain hash-proven source evidence.
   repeated PresentationModernCommentThread modern_comments = 10;
   // One bounded direct p:transition leaf. The public profile deliberately
-  // separates slide advancement from p:timing animation graphs: only fade
-  // plus four-direction push and wipe effects with explicit speed/click/timer
-  // settings are semantic. Other native transition children remain
-  // source-owned.
+  // separates slide advancement from p:timing animation graphs and covers the
+  // complete ECMA-376 base-namespace effect vocabulary. Office-version
+  // extensions and other native transition children remain source-owned.
   PresentationTransition transition = 11;
 }
 
@@ -1562,9 +1561,9 @@ message PresentationSlideSourceBinding {
   // when no supported transition is exposed. The raw SlidePart hash remains
   // the authority for an opaque transition graph.
   string transition_semantic_sha256 = 12;
-  // True only for one canonical direct fade, push, or wipe transition with
-  // explicit bounded attributes. Arbitrary effects, sound actions,
-  // extensions, and timing graphs remain source-owned.
+  // True only for one canonical direct base-namespace transition with explicit
+  // bounded attributes. Extension effects, sound actions, and timing graphs
+  // remain source-owned.
   bool transition_editable = 13;
   // Distinguishes an absent transition from a retained opaque native one for
   // Agent-facing inspect/capability reporting.
@@ -1572,7 +1571,7 @@ message PresentationSlideSourceBinding {
   // True only when this SlidePart has no p:transition, p:timing, or extension
   // leaf and contains only its ordinary p:cSld plus optional p:clrMapOvr
   // structure. Export re-proves that narrow shape before adding one canonical
-  // direct fade, push, or wipe transition.
+  // direct base-namespace transition.
   bool transition_addable = 15;
 }
 
@@ -3377,9 +3376,12 @@ enum DocumentSectionLineNumberRestart {
 // A presentation transition applies when this slide enters during a slideshow;
 // it is not an animation timeline, sound action, or Office-version extension.
 message PresentationTransition {
-  // fade, push, or wipe.
+  // One ECMA-376 base-namespace transition token: blinds, checker, circle,
+  // comb, cover, cut, diamond, dissolve, fade, newsflash, plus, pull, push,
+  // random, randomBar, split, strips, wedge, wheel, wipe, or zoom.
   string effect = 1;
-  // Required for push and wipe: left, up, right, or down.
+  // Effect-specific direction. Cardinal, corner, or in/out values are accepted
+  // only by the effects whose native element defines that attribute.
   string direction = 2;
   // slow, medium, or fast. The codec maps medium to native spd="med".
   string speed = 3;
@@ -3388,6 +3390,12 @@ message PresentationTransition {
   optional bool advance_on_click = 4;
   // Optional native advTm milliseconds. Zero is a valid explicit value.
   optional uint32 advance_after_ms = 5;
+  // horizontal or vertical for blinds/checker/comb/randomBar/split.
+  string orientation = 6;
+  // Optional explicit p:cut/p:fade thruBlk value; absence remains distinct.
+  optional bool through_black = 7;
+  // Required 1-through-8 p:wheel spoke count.
+  optional uint32 spokes = 8;
 }
 
 // Appended to preserve every pre-existing generated descriptor index. This is

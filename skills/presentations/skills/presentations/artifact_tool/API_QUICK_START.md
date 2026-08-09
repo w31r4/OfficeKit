@@ -581,27 +581,30 @@ accepted and file input is bounded to 32 MiB before parsing.
 
 ## Bounded Slide Transitions
 
-For source-free slides, use one direct `fade` or directional `push`/`wipe` transition:
+For source-free slides, use one direct effect from the complete ECMA-376 base
+transition vocabulary:
 
 ```ts
 slide.setTransition({
-  effect: "fade",
+  effect: "split",
+  orientation: "horizontal",
+  direction: "in",
   speed: "medium",
   advanceOnClick: true,
   advanceAfterMs: 4_000,
 });
 ```
 
-`push` and `wipe` accept `direction: "left" | "up" | "right" | "down"`; fade
-rejects a direction. Directional effects default to `left`, speed to `medium`,
-click advancement to `true`, and the
-optional timer is an integer from `0` through `86400000` milliseconds. Inspect
+The 21 effects have effect-specific direction, orientation, `throughBlack`, or
+`spokes` fields and defaults; the complete table is in the reference below.
+Speed defaults to `medium`, click advancement to `true`, and the optional timer
+is an integer from `0` through `86400000` milliseconds. Inspect
 an imported deck with `kind: "transition"`, resolve `${slide.id}/transition`,
 then use `transition.set(...)` or `transition.clear()` when its capability
 reports `editable: true`. A transition-absent imported slide may use
 `transition.set(...)` only when `addable: true`: that proves the SlidePart has
 only `p:cSld` plus optional `p:clrMapOvr`, with no transition, timing, or
-extension leaf. Timing/sound/extension/other-effect graphs stay opaque and
+extension leaf. Timing/sound/Office-extension graphs stay opaque and
 fail closed rather than being reconstructed. Reimport after export. Static
 render QA proves visible slide content only; use a PowerPoint/native-host lane
 for playback QA. For an Agent-facing existing-transition edit, use

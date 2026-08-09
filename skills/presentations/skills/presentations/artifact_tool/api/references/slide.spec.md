@@ -52,18 +52,18 @@ a simple solid and describe that as a faithful edit.
 ## Transition
 
 ```ts
-slide.setTransition({ effect: "fade", speed: "medium", advanceOnClick: true });
+slide.setTransition({ effect: "wheel", spokes: 6, speed: "medium", advanceOnClick: true });
 slide.clearTransition();
 ```
 
 The direct transition profile is a separate leaf from background/layout state:
-it supports only `fade` and directional `push`/`wipe`, bounded speed/click/timer
-metadata, and one canonical `p:transition`. For an imported slide, inspect and
+it supports the complete ECMA-376 base effect vocabulary, bounded
+speed/click/timer metadata, and one canonical `p:transition`. For an imported slide, inspect and
 resolve `${slide.id}/transition` first. A canonical existing graph may be
 replaced or removed. An absent transition may be added only when
 `transition.capability.addable` is true: that proves the root contains only
 `p:cSld` plus optional `p:clrMapOvr`, with no transition, timing, or extension
-leaf. Timing, sound, extension, or other-effect graphs remain opaque-preserved
+leaf. Timing, sound, Office-extension, or irregular graphs remain opaque-preserved
 and reject mutation.
 See [`transitions.spec.md`](./transitions.spec.md).
 

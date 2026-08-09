@@ -1302,6 +1302,9 @@ function wirePresentationTransition(transition) {
   return {
     effect: value.effect,
     ...(value.direction ? { direction: value.direction } : {}),
+    ...(value.orientation ? { orientation: value.orientation } : {}),
+    ...(value.throughBlack === undefined ? {} : { throughBlack: value.throughBlack }),
+    ...(value.spokes === undefined ? {} : { spokes: value.spokes }),
     speed: value.speed,
     advanceOnClick: value.advanceOnClick,
     ...(value.advanceAfterMs === undefined ? {} : { advanceAfterMs: value.advanceAfterMs }),
@@ -1317,6 +1320,9 @@ function modelPresentationTransition(source, slideIndex) {
     return normalizePresentationTransition({
       effect: source.effect,
       ...(source.direction ? { direction: source.direction } : {}),
+      ...(source.orientation ? { orientation: source.orientation } : {}),
+      ...(source.throughBlack === undefined ? {} : { throughBlack: source.throughBlack }),
+      ...(source.spokes === undefined ? {} : { spokes: Number(source.spokes) }),
       speed: source.speed,
       advanceOnClick: source.advanceOnClick,
       ...(source.advanceAfterMs === undefined ? {} : { advanceAfterMs: Number(source.advanceAfterMs) }),

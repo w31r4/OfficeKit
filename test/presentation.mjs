@@ -691,8 +691,8 @@ await assert.rejects(
 );
 
 // Slide transitions are a direct p:transition leaf, deliberately distinct
-// from animation/timing graphs. The bounded profile owns fade plus four-way
-// push/wipe, explicit speed/click behavior, and an optional auto-advance timer.
+// from animation/timing graphs. The profile owns the complete ECMA-376 base
+// effect vocabulary, explicit speed/click behavior, and an optional timer.
 const transitionDeck = Presentation.create({ slideSize: { width: 1280, height: 720 } });
 const transitionFade = transitionDeck.slides.add({ name: "Fade" });
 transitionFade.shapes.add({ name: "transition-fade-title", position: { left: 80, top: 80, width: 800, height: 80 }, text: "Fade" });
@@ -709,7 +709,7 @@ assert.match(transitionDeck.inspect({ kind: "transition", maxChars: 4000 }).ndjs
 assert.throws(() => transitionFade.setTransition({ effect: "fade", direction: "left" }), /does not accept direction/);
 assert.throws(() => transitionPush.setTransition({ effect: "push", direction: "diagonal" }), /left, up, right, or down/);
 assert.throws(() => transitionWipe.setTransition({ effect: "wipe", direction: "diagonal" }), /left, up, right, or down/);
-assert.throws(() => transitionPush.setTransition({ effect: "split" }), /fade, push, or wipe/);
+assert.throws(() => transitionPush.setTransition({ effect: "split", direction: "diagonal" }), /in or out/);
 const transitionFirstExport = await PresentationFile.exportPptx(transitionDeck);
 const transitionFirstZip = await JSZip.loadAsync(transitionFirstExport.bytes);
 const transitionFadeXml = await transitionFirstZip.file("ppt/slides/slide1.xml").async("string");
@@ -723,6 +723,62 @@ assert.deepEqual(transitionImported.slides.items[0].transition.toJSON(), { effec
 assert.deepEqual(transitionImported.slides.items[1].transition.toJSON(), { effect: "push", direction: "right", speed: "fast", advanceOnClick: false, advanceAfterMs: 0 });
 assert.deepEqual(transitionImported.slides.items[2].transition.toJSON(), { effect: "wipe", direction: "left", speed: "slow", advanceOnClick: true });
 assert.deepEqual(transitionImported.slides.items[0].transition.capability, { sourceBound: true, partPresent: true, editable: true, addable: false });
+
+const transitionVocabularyCases = [
+  [{ effect: "blinds", orientation: "vertical" }, /<p:blinds\s+dir="vert"\s*\/>/],
+  [{ effect: "checker" }, /<p:checker\s+dir="horz"\s*\/>/],
+  [{ effect: "circle" }, /<p:circle\s*\/>/],
+  [{ effect: "comb", orientation: "vertical" }, /<p:comb\s+dir="vert"\s*\/>/],
+  [{ effect: "cover", direction: "rightUp" }, /<p:cover\s+dir="ru"\s*\/>/],
+  [{ effect: "cut", throughBlack: true }, /<p:cut\s+thruBlk="1"\s*\/>/],
+  [{ effect: "diamond" }, /<p:diamond\s*\/>/],
+  [{ effect: "dissolve" }, /<p:dissolve\s*\/>/],
+  [{ effect: "fade", throughBlack: false }, /<p:fade\s+thruBlk="0"\s*\/>/],
+  [{ effect: "newsflash" }, /<p:newsflash\s*\/>/],
+  [{ effect: "plus" }, /<p:plus\s*\/>/],
+  [{ effect: "pull", direction: "leftDown" }, /<p:pull\s+dir="ld"\s*\/>/],
+  [{ effect: "push", direction: "up" }, /<p:push\s+dir="u"\s*\/>/],
+  [{ effect: "random" }, /<p:random\s*\/>/],
+  [{ effect: "randomBar", orientation: "vertical" }, /<p:randomBar\s+dir="vert"\s*\/>/],
+  [{ effect: "split", orientation: "horizontal", direction: "in" }, /<p:split\s+orient="horz"\s+dir="in"\s*\/>/],
+  [{ effect: "strips", direction: "rightDown" }, /<p:strips\s+dir="rd"\s*\/>/],
+  [{ effect: "wedge" }, /<p:wedge\s*\/>/],
+  [{ effect: "wheel", spokes: 8 }, /<p:wheel\s+spokes="8"\s*\/>/],
+  [{ effect: "wipe", direction: "down" }, /<p:wipe\s+dir="d"\s*\/>/],
+  [{ effect: "zoom", direction: "out" }, /<p:zoom\s+dir="out"\s*\/>/],
+];
+const transitionVocabularyDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+for (const [config] of transitionVocabularyCases) {
+  const slide = transitionVocabularyDeck.slides.add({ name: `Transition ${config.effect}` });
+  slide.shapes.add({ name: `${config.effect}-title`, text: config.effect });
+  slide.setTransition(config);
+}
+const transitionVocabularyExpected = transitionVocabularyDeck.slides.items.map((slide) => slide.transition.toJSON());
+const transitionVocabularyExport = await PresentationFile.exportPptx(transitionVocabularyDeck);
+const transitionVocabularyZip = await JSZip.loadAsync(transitionVocabularyExport.bytes);
+for (const [index, [, nativeEffect]] of transitionVocabularyCases.entries()) {
+  assert.match(await transitionVocabularyZip.file(`ppt/slides/slide${index + 1}.xml`).async("string"), nativeEffect);
+}
+const transitionVocabularyImported = await PresentationFile.importPptx(transitionVocabularyExport);
+assert.deepEqual(
+  transitionVocabularyImported.slides.items.map((slide) => slide.transition.toJSON()),
+  transitionVocabularyExpected,
+);
+assert.ok(transitionVocabularyImported.slides.items.every((slide) => slide.transition.capability.editable));
+const transitionVocabularySecondImport = await PresentationFile.importPptx(
+  await PresentationFile.exportPptx(transitionVocabularyImported),
+);
+assert.deepEqual(
+  transitionVocabularySecondImport.slides.items.map((slide) => slide.transition.toJSON()),
+  transitionVocabularyExpected,
+);
+assert.throws(() => transitionFade.setTransition({ effect: "circle", orientation: "horizontal" }), /does not accept orientation/);
+assert.throws(() => transitionFade.setTransition({ effect: "dissolve", throughBlack: true }), /does not accept throughBlack/);
+assert.throws(() => transitionFade.setTransition({ effect: "wheel", spokes: 0 }), /1 through 8/);
+assert.throws(() => transitionFade.setTransition({ effect: "wheel", spokes: 9 }), /1 through 8/);
+assert.throws(() => transitionFade.setTransition({ effect: "wheel", direction: "in" }), /does not accept direction/);
+assert.throws(() => transitionFade.setTransition({ effect: "cover", direction: "diagonal" }), /leftUp.*rightDown/);
+assert.throws(() => transitionFade.setTransition({ effect: "split", orientation: "diagonal" }), /horizontal or vertical/);
 transitionImported.slides.items[0].setTransition({ effect: "wipe", direction: "down", speed: "slow", advanceOnClick: true });
 const transitionEditedExport = await PresentationFile.exportPptx(transitionImported);
 const transitionEdited = await PresentationFile.importPptx(transitionEditedExport);
@@ -774,7 +830,10 @@ assert.throws(
 );
 
 const opaqueTransitionZip = await JSZip.loadAsync(transitionFirstExport.bytes);
-opaqueTransitionZip.file("ppt/slides/slide1.xml", transitionFadeXml.replace(/<p:fade\s*\/>/, "<p:cut/>"));
+opaqueTransitionZip.file(
+  "ppt/slides/slide1.xml",
+  transitionFadeXml.replace(/<p:fade\s*\/>/, '<p:cut xmlns:fixture="urn:office-kit:test" fixture:opaque="kept"/>'),
+);
 const opaqueTransitionBytes = await opaqueTransitionZip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
 const opaqueTransitionFile = new FileBlob(opaqueTransitionBytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });
 const opaqueTransitionImported = await PresentationFile.importPptx(opaqueTransitionFile);
@@ -786,7 +845,7 @@ assert.throws(
 );
 const opaqueTransitionPreserved = await PresentationFile.exportPptx(opaqueTransitionImported);
 const opaqueTransitionPreservedZip = await JSZip.loadAsync(opaqueTransitionPreserved.bytes);
-assert.match(await opaqueTransitionPreservedZip.file("ppt/slides/slide1.xml").async("string"), /<p:cut\/>/);
+assert.match(await opaqueTransitionPreservedZip.file("ppt/slides/slide1.xml").async("string"), /<p:cut\s+xmlns:fixture="urn:office-kit:test"\s+fixture:opaque="kept"\s*\/>/);
 // Negative DrawingML offsets are retained only for an imported opaque,
 // source-bound element. New authoring still rejects them instead of widening
 // the public source-free layout profile.
