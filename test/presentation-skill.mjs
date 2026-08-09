@@ -120,6 +120,13 @@ try {
   assert.deepEqual(authoredCard.shadow, { color: "#000000", blurRadius: 10, distance: 5, direction: 45, opacity: 0.2 });
   assert.equal(itemByName(workflowSlide.shapes.items, "workflow-title").geometry, "textbox");
   assert.equal(itemByName(workflowSlide.tables.items, "workflow-matrix").values[1][1], "Pass");
+  const curved = itemByName(workflowSlide.connectors.items, "create-to-verify");
+  assert.equal(curved.connectorType, "curved");
+  assert.equal(curved.startSiteIndex, 3);
+  assert.equal(curved.endSiteIndex, 1);
+  assert.deepEqual(curved.head, { type: "arrow", width: "lg", length: "sm" });
+  assert.deepEqual(curved.tail, { type: "diamond", width: "sm", length: "lg" });
+  assert.equal(curved.line.style, "dashed");
   const elbow = itemByName(workflowSlide.connectors.items, "verify-to-deliver");
   assert.equal(elbow.connectorType, "elbow");
   assert.equal(elbow.line.startArrow, "triangle");
@@ -133,7 +140,7 @@ try {
   const groupedWorkflowSlide = readiness.qa.presentation.slides.getItem(2);
   const nativeGroup = itemByName(groupedWorkflowSlide.groups.items, "native-agent-group");
   assert.deepEqual(nativeGroup.childFrame, { left: -80, top: 40, width: 1280, height: 540 });
-  assert.deepEqual(nativeGroup.children.map((child) => child.layoutJson().kind), ["textbox", "textbox", "textbox", "groupShape", "connector"]);
+  assert.deepEqual(nativeGroup.children.map((child) => child.layoutJson().kind), ["connector", "textbox", "textbox", "textbox", "groupShape"]);
   assert.equal(itemByName(nativeGroup.groups.items, "nested-qa-group").shapes.items[0].text.value, "Render + verify");
   assert.equal(itemByName(nativeGroup.connectors.items, "grouped-flow").line.endArrow, "triangle");
   assert.match(readiness.qa.inspect.ndjson, /OfficeKit closes the presentation loop/);
@@ -146,6 +153,10 @@ try {
   assert.match(firstSlideXml, /<a:prstGeom prst="roundRect"[^>]*>/);
   assert.match(firstSlideXml, /<p:cNvSpPr txBox="1"\s*\/>/);
   assert.match(firstSlideXml, /<p:cxnSp>/);
+  assert.match(firstSlideXml, /<a:stCxn\b[^>]*idx="3"/);
+  assert.match(firstSlideXml, /<a:endCxn\b[^>]*idx="1"/);
+  assert.match(firstSlideXml, /prst="curvedConnector3"/);
+  assert.match(firstSlideXml, /<a:prstDash val="dash"/);
   const groupedSlideXml = await readinessZip.file("ppt/slides/slide3.xml").async("text");
   assert.equal((groupedSlideXml.match(/<p:grpSp>/g) || []).length, 2);
   assert.match(groupedSlideXml, /<a:chOff x="-762000" y="381000"\s*\/>/);
@@ -2517,7 +2528,7 @@ try {
   assert.match(skillText, /transition\.capability.*canonical direct fade\/push\/wipe.*no transition.*addable: true.*p:cSld.*p:clrMapOvr.*no transition, timing, or extension leaf.*timing.*sound.*p14.*extension.*opaque-preserved.*fail closed/is);
   assert.match(skillText, /slide\.moveTo\(existingZeroBasedIndex\).*retained source.*p:sldIdLst.*slide\.delete\(\).*isolated.*layout relationship/is);
   assert.match(skillText, /starter-deck command below still needs a\s+broad imported-slide graph clone and broad graph delete semantics/is);
-  assert.match(skillText, /slide\.duplicate\(\).*canonical shapes.*canonical inline fixed-grid tables.*recognized closed\s+literal-data charts.*eligible top-level embedded-XLSX OLE frames.*canonical\s+embedded rectangular images.*bounded canonical\s+straight\/elbow connectors.*new `SlidePart`.*every present\s+connector endpoint.*same copied `SlidePart`.*export plus reimport/is);
+  assert.match(skillText, /slide\.duplicate\(\).*canonical shapes.*canonical inline fixed-grid tables.*recognized closed\s+literal-data charts.*eligible top-level embedded-XLSX OLE frames.*canonical\s+embedded rectangular images.*bounded canonical\s+straight\/elbow\/curved connectors.*new `SlidePart`.*every present\s+connector endpoint.*connection-site index.*same copied `SlidePart`.*export plus reimport/is);
   assert.match(skillText, /recognized closed\s+literal-data charts.*unique internal relationship.*numbered `ChartPart`.*byte-copies.*distinct clone-local ChartPart.*ChartParts are independent.*advertises the ordinary fixed-topology\s+edit capability/is);
   assert.match(skillText, /accepted OLE frame.*uniquely inbound XLSX.*no child relationship graph.*preview `ImagePart`.*distinct clone-local\s+package.*sharing the immutable\s+preview.*replaceEmbeddedWorkbook/is);
   assert.match(skillText, /accepted InkML object.*top-level `p:contentPart`.*internal `customXml` relationship.*`application\/inkml\+xml`.*distinct SDK-typed clone part.*source-bound preservation.*fail closed/is);

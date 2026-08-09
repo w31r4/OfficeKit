@@ -188,7 +188,7 @@ literal-data charts, eligible top-level embedded-XLSX OLE frames, canonical
 top-level four-part SmartArt frames, canonical top-level closed InkML
 `p:contentPart` objects, canonical top-level closed embedded-MP4 media pictures,
 canonical embedded rectangular images, bounded canonical
-straight/elbow connectors, plus recursively canonical groups whose descendants
+straight/elbow/curved connectors, plus recursively canonical groups whose descendants
 contain only the non-native-graph leaf kinds, exactly one
 internal layout relationship, picture-bound image relationships, canonical
 run-level click hyperlinks, and optionally
@@ -201,9 +201,10 @@ SlideComments XML byte-for-byte and points only the preserved notes
 back-reference at the clone. The comments part and author catalog must have no
 connected relationship graph. Accepted tables are inline-only: table fills,
 links, and every other package edge remain outside this profile. Every present
-connector endpoint must resolve to an element in the same copied `SlidePart`
-tree; accepted connectors add no relationship, and their pending clone targets
-resolve to fresh clone-local elements. Accepted groups add no relationship
+connector endpoint retains its connection-site index and must resolve to an
+element in the same copied `SlidePart` tree; accepted connectors add no
+relationship, and their pending clone targets resolve to fresh clone-local
+elements. Accepted groups add no relationship
 themselves, and every nested picture must consume one exact verified image
 relationship. It preserves the origin part and requires export plus reimport before the clone, its notes, or its comments may be edited;
 after that boundary an individually re-proven closed legacy comments leaf may

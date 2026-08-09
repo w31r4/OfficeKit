@@ -1859,6 +1859,19 @@ message PresentationConnector {
   string end_arrow = 9;
   string start_target_id = 10;
   string end_target_id = 11;
+  // DrawingML connection-site identity is target ID plus index. Index zero is
+  // valid; an index without its corresponding target ID is invalid.
+  uint32 start_connection_site_index = 12;
+  uint32 end_connection_site_index = 13;
+  // Enum-like strings are bounded by the public connector contract so future
+  // wire revisions can add values without renumbering this message.
+  string line_style = 14;
+  string start_arrow_width = 15;
+  string start_arrow_length = 16;
+  string end_arrow_width = 17;
+  string end_arrow_length = 18;
+  string line_cap = 19;
+  string line_join = 20;
 }
 
 message PresentationChart {

@@ -96,7 +96,7 @@ imported shape/inline-table/closed-literal-chart/closed-SmartArt/closed-InkML/cl
 recursive-group layout-leaf profile. Its unchanged graph may contain canonical
 simple shapes, canonical inline fixed-grid tables, recognized literal-data
 charts, eligible top-level embedded-XLSX OLE frames, canonical embedded
-rectangular images, bounded straight/elbow
+rectangular images, bounded straight/elbow/curved
 connectors, canonical top-level SmartArt frames whose exact `dm/lo/qs/cs`
 relationships bind four closed standard diagram parts,
 canonical top-level `p:contentPart` objects whose one `customXml` relationship

@@ -518,7 +518,14 @@ function cloneImportedPresentationConnector(container, source, context) {
     connectorType: source.connectorType,
     start: clonedPresentationValue(source.start),
     end: clonedPresentationValue(source.end),
+    startSiteIndex: source.startSiteIndex,
+    endSiteIndex: source.endSiteIndex,
     line: clonedPresentationValue(source.line),
+    head: clonedPresentationValue(source.head),
+    tail: clonedPresentationValue(source.tail),
+    cap: source.cap,
+    join: source.join,
+    _officeKitSourceBound: true,
   });
   registerPresentationCloneElement(context, source, clone);
   context.pendingConnectors.push({ source, clone });
@@ -610,7 +617,13 @@ function bindPresentationCloneConnectorTargets(context) {
     };
     clone.startTargetId = targetId(source.startTargetId, "start");
     clone.endTargetId = targetId(source.endTargetId, "end");
+    clone.captureAttachedEndpointState?.();
   }
+}
+
+function capturePresentationConnectorEndpointState(element) {
+  if (isPresentationConnectorElement(element)) element.captureAttachedEndpointState?.();
+  if (element instanceof GroupShape) for (const child of element.children) capturePresentationConnectorEndpointState(child);
 }
 
 // A legacy comment has no JavaScript object identity that may be shared with
@@ -1544,20 +1557,46 @@ function sourceBoundCloneConnectorTargetId(value, sourceIdByCloneId, connector, 
 
 function presentationConnector(connector, original, sourceIdByCloneId) {
   const type = String(connector.connectorType || "straight");
-  if (!new Set(["straight", "elbow"]).has(type)) {
+  if (!new Set(["straight", "elbow", "curved"]).has(type)) {
     throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses unsupported type ${type}.`, [], { code: "unsupported_presentation_features" });
   }
   const line = connector.line || {};
-  if (line.style != null && !new Set(["solid", "none"]).has(String(line.style))) {
+  if (line.style != null && !new Set(["solid", "dashed", "none"]).has(String(line.style))) {
     throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses an unsupported line style.`, [], { code: "unsupported_presentation_features" });
   }
   const width = Number(line.width ?? 2);
   if (!Number.isFinite(width) || width < 0) throw new OfficeKitCodecError(`Presentation connector ${connector.id} has an invalid line width.`, [], { code: "invalid_presentation_connector" });
-  const arrow = (value, name) => {
-    if (value == null || value === false || value === "none") return "";
-    if (value === true || value === "triangle") return "triangle";
-    throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses unsupported ${name} ${value}.`, [], { code: "unsupported_presentation_features" });
+  const lineEnd = (value, legacy, name) => {
+    const source = value ?? (legacy == null ? undefined : { type: legacy });
+    if (source == null || source === false || source === "none" || source.type === "none") return {};
+    const normalized = source === true ? { type: "triangle" } : typeof source === "string" ? { type: source } : source;
+    if (!normalized || !new Set(["triangle", "stealth", "diamond", "oval", "arrow"]).has(String(normalized.type))) {
+      throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses unsupported ${name} ${normalized?.type ?? normalized}.`, [], { code: "unsupported_presentation_features" });
+    }
+    for (const key of ["width", "length"]) if (normalized[key] != null && !new Set(["sm", "med", "lg"]).has(String(normalized[key]))) {
+      throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses unsupported ${name} ${key} ${normalized[key]}.`, [], { code: "unsupported_presentation_features" });
+    }
+    return { type: String(normalized.type), width: normalized.width == null ? "" : String(normalized.width), length: normalized.length == null ? "" : String(normalized.length) };
   };
+  const head = lineEnd(connector.head, line.startArrow ?? connector.startArrow, "head");
+  const tail = lineEnd(connector.tail, line.endArrow ?? connector.endArrow, "tail");
+  const cap = connector.cap ?? line.cap;
+  const join = connector.join ?? line.join;
+  if (cap != null && !new Set(["flat", "round", "square"]).has(String(cap))) throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses unsupported cap ${cap}.`, [], { code: "unsupported_presentation_features" });
+  if (join != null && !new Set(["round", "bevel", "miter"]).has(String(join))) throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses unsupported join ${join}.`, [], { code: "unsupported_presentation_features" });
+  const startSiteIndex = Number(connector.startSiteIndex ?? 0);
+  const endSiteIndex = Number(connector.endSiteIndex ?? 0);
+  if (![startSiteIndex, endSiteIndex].every((value) => Number.isInteger(value) && value >= 0 && value <= 0xffff_ffff)) {
+    throw new OfficeKitCodecError(`Presentation connector ${connector.id} has an invalid connection-site index.`, [], { code: "invalid_presentation_connector" });
+  }
+  const endpoints = typeof connector.resolvedEndpoints === "function"
+    ? connector.resolvedEndpoints({ strict: true })
+    : { start: connector.start, end: connector.end };
+  const startTargetId = sourceBoundCloneConnectorTargetId(connector.startTargetId, sourceIdByCloneId, connector, "start");
+  const endTargetId = sourceBoundCloneConnectorTargetId(connector.endTargetId, sourceIdByCloneId, connector, "end");
+  if ((!startTargetId && startSiteIndex !== 0) || (!endTargetId && endSiteIndex !== 0)) {
+    throw new OfficeKitCodecError(`Presentation connector ${connector.id} cannot define a connection-site index without its target.`, [], { code: "invalid_presentation_connector" });
+  }
   return {
     id: original?.id || connector.id,
     name: connector.name || original?.name || "",
@@ -1566,16 +1605,27 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
       case: "connector",
       value: {
         connectorType: type,
-        startXEmu: sourceBoundFrameEmuFromPixels(connector.start?.x, `${connector.id}.start.x`, original),
-        startYEmu: sourceBoundFrameEmuFromPixels(connector.start?.y, `${connector.id}.start.y`, original),
-        endXEmu: sourceBoundFrameEmuFromPixels(connector.end?.x, `${connector.id}.end.x`, original),
-        endYEmu: sourceBoundFrameEmuFromPixels(connector.end?.y, `${connector.id}.end.y`, original),
-        lineRgb: presentationRgb(line.fill || line.color || (width > 0 ? "#334155" : "transparent"), `${connector.id}.line.fill`),
+        startXEmu: sourceBoundFrameEmuFromPixels(endpoints.start?.x, `${connector.id}.start.x`, original),
+        startYEmu: sourceBoundFrameEmuFromPixels(endpoints.start?.y, `${connector.id}.start.y`, original),
+        endXEmu: sourceBoundFrameEmuFromPixels(endpoints.end?.x, `${connector.id}.end.x`, original),
+        endYEmu: sourceBoundFrameEmuFromPixels(endpoints.end?.y, `${connector.id}.end.y`, original),
+        lineRgb: String(line.style || "solid") === "none"
+          ? ""
+          : presentationRgb(line.fill || line.color || (width > 0 ? "#334155" : "transparent"), `${connector.id}.line.fill`),
         lineWidthEmu: BigInt(Math.round(width * EMU_PER_POINT)),
-        startArrow: arrow(line.startArrow ?? connector.startArrow, "start arrow"),
-        endArrow: arrow(line.endArrow ?? connector.endArrow, "end arrow"),
-        startTargetId: sourceBoundCloneConnectorTargetId(connector.startTargetId, sourceIdByCloneId, connector, "start"),
-        endTargetId: sourceBoundCloneConnectorTargetId(connector.endTargetId, sourceIdByCloneId, connector, "end"),
+        startArrow: head.type || "",
+        endArrow: tail.type || "",
+        startTargetId,
+        endTargetId,
+        startConnectionSiteIndex: startSiteIndex,
+        endConnectionSiteIndex: endSiteIndex,
+        lineStyle: String(line.style || "solid"),
+        startArrowWidth: head.width || "",
+        startArrowLength: head.length || "",
+        endArrowWidth: tail.width || "",
+        endArrowLength: tail.length || "",
+        lineCap: cap == null ? "" : String(cap),
+        lineJoin: join == null ? "" : String(join),
       },
     },
   };
@@ -1881,14 +1931,17 @@ function presentationGroup(group, original, assetCatalog, sourceIdByCloneId, cus
 }
 
 function directSlideElements(slide) {
+  const backgroundConnectors = slide.connectors.items.filter((connector) => !connector.isForeground);
+  const foregroundConnectors = slide.connectors.items.filter((connector) => connector.isForeground);
   return [
+    ...backgroundConnectors,
     ...slide.shapes.items,
     ...slide.tables.items,
     ...slide.charts.items,
     ...slide.images.items,
-    ...slide.connectors.items,
     ...slide.groups.items,
     ...slide.nativeObjects.items,
+    ...foregroundConnectors,
   ];
 }
 
@@ -2976,12 +3029,20 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       end: { x: Number(connector.endXEmu) / EMU_PER_PIXEL, y: Number(connector.endYEmu) / EMU_PER_PIXEL },
       startTargetId: connector.startTargetId || undefined,
       endTargetId: connector.endTargetId || undefined,
+      startSiteIndex: Number(connector.startConnectionSiteIndex || 0),
+      endSiteIndex: Number(connector.endConnectionSiteIndex || 0),
       line: {
         fill: connector.lineRgb ? `#${connector.lineRgb}` : "transparent",
         width: Number(connector.lineWidthEmu) / EMU_PER_POINT,
+        style: connector.lineStyle || "solid",
         ...(connector.startArrow ? { startArrow: connector.startArrow } : {}),
         ...(connector.endArrow ? { endArrow: connector.endArrow } : {}),
       },
+      ...(connector.startArrow ? { head: { type: connector.startArrow, ...(connector.startArrowWidth ? { width: connector.startArrowWidth } : {}), ...(connector.startArrowLength ? { length: connector.startArrowLength } : {}) } } : {}),
+      ...(connector.endArrow ? { tail: { type: connector.endArrow, ...(connector.endArrowWidth ? { width: connector.endArrowWidth } : {}), ...(connector.endArrowLength ? { length: connector.endArrowLength } : {}) } } : {}),
+      ...(connector.lineCap ? { cap: connector.lineCap } : {}),
+      ...(connector.lineJoin ? { join: connector.lineJoin } : {}),
+      _officeKitSourceBound: Boolean(element.source),
     };
   }
   if (element.content.case === "chart") return { kind: "chart", ...common, ...modelPresentationChart(element.content.value) };
@@ -3215,12 +3276,20 @@ export async function presentationFromEnvelope(envelope) {
           end: { x: Number(connector.endXEmu) / EMU_PER_PIXEL, y: Number(connector.endYEmu) / EMU_PER_PIXEL },
           startTargetId: connector.startTargetId || undefined,
           endTargetId: connector.endTargetId || undefined,
+          startSiteIndex: Number(connector.startConnectionSiteIndex || 0),
+          endSiteIndex: Number(connector.endConnectionSiteIndex || 0),
           line: {
             fill: connector.lineRgb ? `#${connector.lineRgb}` : "transparent",
             width: Number(connector.lineWidthEmu) / EMU_PER_POINT,
+            style: connector.lineStyle || "solid",
             ...(connector.startArrow ? { startArrow: connector.startArrow } : {}),
             ...(connector.endArrow ? { endArrow: connector.endArrow } : {}),
           },
+          ...(connector.startArrow ? { head: { type: connector.startArrow, ...(connector.startArrowWidth ? { width: connector.startArrowWidth } : {}), ...(connector.startArrowLength ? { length: connector.startArrowLength } : {}) } } : {}),
+          ...(connector.endArrow ? { tail: { type: connector.endArrow, ...(connector.endArrowWidth ? { width: connector.endArrowWidth } : {}), ...(connector.endArrowLength ? { length: connector.endArrowLength } : {}) } } : {}),
+          ...(connector.lineCap ? { cap: connector.lineCap } : {}),
+          ...(connector.lineJoin ? { join: connector.lineJoin } : {}),
+          _officeKitSourceBound: Boolean(element.source),
         });
       } else if (element.content.case === "chart") {
         const chart = modelPresentationChart(element.content.value);
@@ -3287,6 +3356,7 @@ export async function presentationFromEnvelope(envelope) {
             : undefined,
       });
     }
+    for (const entry of entries) capturePresentationConnectorEndpointState(entry.model);
     for (const sourceThread of sourceSlide.modernComments || []) {
       presentation.commentFormat = "modern";
       const moniker = sourceThread.anchor?.monikers?.[0];

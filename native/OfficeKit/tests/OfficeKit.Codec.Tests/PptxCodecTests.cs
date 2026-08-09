@@ -1787,6 +1787,145 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void ConnectorConnectionSitesAndLineProfileRoundTripAndFailClosed()
+    {
+        var request = ExportRequest();
+        var slide = request.Artifact.Presentation.Slides[0];
+        var source = slide.Elements[0];
+        var target = new PresentationElement
+        {
+            Id = "presentation/slide/1/connector-target",
+            Name = "Ellipse target",
+            Shape = new PresentationShape
+            {
+                Geometry = "ellipse",
+                LeftEmu = 7_000_000,
+                TopEmu = 1_200_000,
+                WidthEmu = 2_000_000,
+                HeightEmu = 1_000_000,
+                Text = "Target",
+                FillRgb = "FFFFFF",
+                LineRgb = "64748B",
+                LineWidthEmu = 12_700,
+            },
+        };
+        slide.Elements.Add(target);
+        slide.Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/site-connector",
+            Name = "Curved evidence route",
+            Connector = new PresentationConnector
+            {
+                ConnectorType = "curved",
+                StartXEmu = 8_763_000,
+                StartYEmu = 714_375,
+                EndXEmu = 7_000_000,
+                EndYEmu = 1_700_000,
+                LineRgb = "2563EB",
+                LineWidthEmu = 31_750,
+                StartArrow = "arrow",
+                EndArrow = "diamond",
+                StartTargetId = source.Id,
+                EndTargetId = target.Id,
+                StartConnectionSiteIndex = 3,
+                EndConnectionSiteIndex = 2,
+                LineStyle = "dashed",
+                StartArrowWidth = "lg",
+                StartArrowLength = "sm",
+                EndArrowWidth = "sm",
+                EndArrowLength = "lg",
+                LineCap = "round",
+                LineJoin = "bevel",
+            },
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var nativeConnector = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.ConnectionShape>().Single();
+            var nativeConnections = nativeConnector.NonVisualConnectionShapeProperties!.NonVisualConnectorShapeDrawingProperties!;
+            Assert.Equal(3U, nativeConnections.GetFirstChild<A.StartConnection>()!.Index!.Value);
+            Assert.Equal(2U, nativeConnections.GetFirstChild<A.EndConnection>()!.Index!.Value);
+            Assert.Equal(A.ShapeTypeValues.CurvedConnector3, nativeConnector.ShapeProperties!.GetFirstChild<A.PresetGeometry>()!.Preset!.Value);
+            var outline = nativeConnector.ShapeProperties.GetFirstChild<A.Outline>()!;
+            Assert.Equal(A.PresetLineDashValues.Dash, outline.GetFirstChild<A.PresetDash>()!.Val!.Value);
+            Assert.Equal(A.LineCapValues.Round, outline.CapType!.Value);
+            Assert.NotNull(outline.GetFirstChild<A.LineJoinBevel>());
+            var head = outline.GetFirstChild<A.HeadEnd>()!;
+            Assert.Equal(A.LineEndValues.Arrow, head.Type!.Value);
+            Assert.Equal(A.LineEndWidthValues.Large, head.Width!.Value);
+            Assert.Equal(A.LineEndLengthValues.Small, head.Length!.Value);
+            var tail = outline.GetFirstChild<A.TailEnd>()!;
+            Assert.Equal(A.LineEndValues.Diamond, tail.Type!.Value);
+            Assert.Equal(A.LineEndWidthValues.Small, tail.Width!.Value);
+            Assert.Equal(A.LineEndLengthValues.Large, tail.Length!.Value);
+        }
+
+        var imported = Import(authored.File.ToByteArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedConnector = Assert.Single(
+            Assert.Single(imported.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Connector).Connector;
+        Assert.Equal("curved", importedConnector.ConnectorType);
+        Assert.Equal(3U, importedConnector.StartConnectionSiteIndex);
+        Assert.Equal(2U, importedConnector.EndConnectionSiteIndex);
+        Assert.Equal("dashed", importedConnector.LineStyle);
+        Assert.Equal("arrow", importedConnector.StartArrow);
+        Assert.Equal("lg", importedConnector.StartArrowWidth);
+        Assert.Equal("sm", importedConnector.StartArrowLength);
+        Assert.Equal("diamond", importedConnector.EndArrow);
+        Assert.Equal("sm", importedConnector.EndArrowWidth);
+        Assert.Equal("lg", importedConnector.EndArrowLength);
+        Assert.Equal("round", importedConnector.LineCap);
+        Assert.Equal("bevel", importedConnector.LineJoin);
+
+        importedConnector.LineStyle = "none";
+        importedConnector.LineRgb = string.Empty;
+        var edited = Export(imported.Artifact);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        using (var stream = new MemoryStream(edited.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            Assert.NotNull(package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.ConnectionShape>().Single()
+                .ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.NoFill>());
+        }
+        var editedRoundTrip = Import(edited.File.ToByteArray());
+        Assert.True(editedRoundTrip.Ok, Diagnostics(editedRoundTrip));
+        Assert.Equal("none", Assert.Single(
+            Assert.Single(editedRoundTrip.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Connector).Connector.LineStyle);
+
+        var invalidEndpoint = request.Clone();
+        var invalidEndpointConnector = invalidEndpoint.Artifact.Presentation.Slides[0].Elements
+            .Single(element => element.ContentCase == PresentationElement.ContentOneofCase.Connector).Connector;
+        invalidEndpointConnector.StartTargetId = string.Empty;
+        Assert.Equal("invalid_presentation_connector", Assert.Single(Invoke(invalidEndpoint).Diagnostics).Code);
+
+        var unsupportedLine = request.Clone();
+        unsupportedLine.Artifact.Presentation.Slides[0].Elements
+            .Single(element => element.ContentCase == PresentationElement.ContentOneofCase.Connector).Connector.LineStyle = "dot";
+        Assert.Equal("unsupported_presentation_connector", Assert.Single(Invoke(unsupportedLine).Diagnostics).Code);
+
+        using var malformedStream = new MemoryStream();
+        malformedStream.Write(authored.File.Span);
+        malformedStream.Position = 0;
+        using (var package = PresentationDocument.Open(malformedStream, true, new OpenSettings { AutoSave = true }))
+        {
+            var start = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.StartConnection>().Single();
+            start.Index = null;
+        }
+        var malformedImport = Import(malformedStream.ToArray());
+        Assert.True(malformedImport.Ok, Diagnostics(malformedImport));
+        var malformedElements = Assert.Single(malformedImport.Artifact.Presentation.Slides).Elements;
+        Assert.DoesNotContain(malformedElements, element => element.ContentCase == PresentationElement.ContentOneofCase.Connector);
+        Assert.Contains(malformedElements, element => element.ContentCase == PresentationElement.ContentOneofCase.Opaque);
+    }
+
+    [Fact]
     public void LiteralAreaDoughnutScatterAndBubbleChartsAuthorImportAndEdit()
     {
         var request = ExportRequest();

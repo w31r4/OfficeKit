@@ -2,11 +2,59 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after adding PPTX custom-geometry guide formulas.
-The clean candidate contains 707 files, 36,150,980 compressed bytes, and
-53,116,348 unpacked bytes; its measured shasum is
-`d79033c11e8636de8d4b7d6c3206fec72a284270`. This is package evidence, not an
+The package dry-run passed after adding PPTX connector target-site fidelity.
+The clean candidate contains 708 files, 36,169,099 compressed bytes, and
+53,168,082 unpacked bytes; its measured shasum is
+`fbf0c31d8383c4448caa65cd0c8099f5d69fff58`. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: PPTX connector target-site identity
+
+Presentation connectors now treat each attached endpoint as one semantic pair:
+the target element ID plus the DrawingML connection-site index. The additive
+protocol-v2 fields retain both `a:stCxn/@idx` and `a:endCxn/@idx` instead of
+hard-coding site zero. The extracted `src/presentation/connectors.mjs` module
+owns bounded side maps, target movement detection, connector routing, line-end
+normalization, SVG rendering, and source-free z-order; the extracted C#
+`PptxConnectorCodec` owns native connection nodes, transforms, geometry, and
+outline XML. This keeps connector policy out of the already large Presentation
+model and native package orchestrator.
+
+The reference-compatible surface now includes `slide.shapes.connect(...)`,
+`getConnectionSiteIndex(...)`, direct `geometry: "connector"`, and atomic
+`setConnectorFrom/To(...)`. Rectangles, rounded rectangles, and text boxes use
+cardinal sites 0/1/2/3; ellipses use 0/2/4/6 and accept exact sites 0-7.
+Straight, normalized elbow, and curved connectors retain solid/dashed/no-line
+paint, cap/join, five native line-end families and their dimensions. Modeled
+target movement reroutes before render/export. Source-free connectors may move
+front/back and start behind nodes; imported z-order remains source-bound.
+
+JS, C#, and the runnable Presentation Skill prove native site indexes, curved
+geometry, line styling, grouped ordering, unchanged imported SlidePart bytes,
+bounded imported edits, curved connector cloning with fresh targets and retained
+sites, second import, SVG preview, and Open XML SDK Office 2021 validation.
+Missing IDs/indexes, duplicate connection leaves, unsupported native geometry or
+outline graphs, cross-tree targets, unmodeled target movement, incomplete state,
+and direct coordinate mutation of a site-bound endpoint fail closed or remain
+opaque. Imported or unmodeled targets never fall back to a center point or a
+lossy replacement line; the separately documented legacy source-free
+`slide.connectors.add(...)` point/target-center API remains explicit.
+
+Local gates passed: fast tests 26/26, slow tests 75/75, OfficeKit Codec .NET
+tests 390/390, OfficeBridge tests 5/5, protobuf lint/regeneration, Help/API
+generation, reference Skill sync and portability, deterministic WASM rebuild,
+clean-install package smoke, and the 708-file package dry-run. The rebuilt
+OfficeKit runtime contains 38
+files and 15,258,347 bytes. Environment-gated managed-provider downloads and
+real specialist-Python provider tests were not enabled; the control-plane and
+contract tests still ran. npm publication, a product tagged release, and real
+Windows PowerPoint acceptance have not occurred.
+
+The clean-commit `release:check --skip-commands` metadata audit also passed the
+AGPL project license, 105-package third-party policy, package metadata, and all
+three standalone-release target pins. It stopped only on npm authentication:
+`npm whoami` returned `ENEEDAUTH`, while the registry lookup for `office-kit`
+returned `E404`. No publish command was run.
 
 ## Unreleased: PPTX custom-geometry guide formulas
 

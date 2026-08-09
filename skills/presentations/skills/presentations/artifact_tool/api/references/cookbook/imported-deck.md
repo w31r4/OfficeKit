@@ -106,8 +106,9 @@ is 0-based. Prefer resolving the `sl/...` anchor from inspect.
 ## Source-Bound Duplicate
 
 Use `slide.duplicate()` only for the explicit closed clone profile; it is not a
-generic “copy this slide” shortcut. A present straight/elbow connector endpoint
-must remain inside the copied source SlidePart tree. Pending clone IDs are new
+generic “copy this slide” shortcut. A present straight/elbow/curved connector
+endpoint and its connection-site index must remain inside the copied source
+SlidePart tree. Pending clone IDs are new
 model IDs, and the clone must export and reimport before any edit.
 Recognized literal-data charts may travel only when every frame owns one unique
 internal relationship to a closed numbered ChartPart. Export creates a

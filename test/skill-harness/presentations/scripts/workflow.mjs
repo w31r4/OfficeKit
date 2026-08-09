@@ -46,6 +46,15 @@ function addGroupShape(slide, group, config = {}) {
   return shape;
 }
 
+function addFixtureConnector(owner, connector, byName) {
+  const from = byName.get(connector.fromName) || connector.from || connector.start;
+  const to = byName.get(connector.toName) || connector.to || connector.end;
+  const usesModeledSites = ["fromSide", "toSide", "fromIdx", "toIdx"].some((field) => connector[field] != null);
+  return usesModeledSites
+    ? owner.shapes.connect(from, to, connector)
+    : owner.connectors.add({ ...connector, from, to });
+}
+
 function addFixtureGroup(slide, owner, config, byName, remember) {
   const { shapes = [], tables = [], charts = [], images = [], groups = [], connectors = [], children, nativeObjects, ...groupConfig } = config;
   if (children != null || nativeObjects != null) throw new Error(`Presentation fixture group ${config.name || "group"} uses unsupported raw children or nativeObjects.`);
@@ -56,9 +65,7 @@ function addFixtureGroup(slide, owner, config, byName, remember) {
   for (const image of images) remember(group.images.add(image), image.name);
   for (const nested of groups) addFixtureGroup(slide, group, nested, byName, remember);
   for (const connector of connectors) {
-    const from = byName.get(connector.fromName) || connector.from || connector.start;
-    const to = byName.get(connector.toName) || connector.to || connector.end;
-    remember(group.connectors.add({ ...connector, from, to }), connector.name);
+    remember(addFixtureConnector(group, connector, byName), connector.name);
   }
   return group;
 }
@@ -78,9 +85,7 @@ async function addFixtureSlide(presentation, config = {}) {
   for (const image of config.images || []) remember(slide.images.add(image), image.name);
   for (const group of config.groups || []) addFixtureGroup(slide, slide, group, byName, remember);
   for (const connector of config.connectors || []) {
-    const from = byName.get(connector.fromName) || connector.from || connector.start;
-    const to = byName.get(connector.toName) || connector.to || connector.end;
-    remember(slide.connectors.add({ ...connector, from, to }), connector.name);
+    remember(addFixtureConnector(slide, connector, byName), connector.name);
   }
   for (const comment of config.legacyComments || []) {
     const allowed = new Set(["text", "author", "created", "position"]);

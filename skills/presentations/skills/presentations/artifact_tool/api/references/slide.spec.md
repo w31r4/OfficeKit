@@ -117,7 +117,7 @@ eligible top-level embedded-XLSX OLE frames, canonical top-level four-part
 SmartArt frames, canonical top-level closed InkML content parts, canonical
 top-level closed embedded-MP4 media pictures, canonical embedded rectangular
 images,
-bounded straight/elbow connectors, plus recursively canonical groups whose
+bounded straight/elbow/curved connectors, plus recursively canonical groups whose
 descendants contain only the non-native-graph leaf kinds, exactly one internal
 `SlidePart -> SlideLayoutPart` relationship, and image relationships bound only
 by those pictures. Canonical run-level clicks may use an external absolute URI,

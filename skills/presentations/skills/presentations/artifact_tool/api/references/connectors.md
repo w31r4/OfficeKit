@@ -1,8 +1,9 @@
 # Connectors
 
-`slide.shapes.connect` creates connector lines that stay attached to slide
-shapes. Use it for arrows, flow links, callouts, dependency lines, and other
-relationships between positioned shapes.
+`slide.shapes.connect` creates connector lines whose endpoints retain both the
+target shape ID and the DrawingML connection-site index. Use it for arrows,
+flow links, callouts, dependency lines, and other relationships between
+modeled positioned shapes in one slide or group shape tree.
 
 Use direct `geometry: "connector"` creation only when you need exact connection
 site indexes.
@@ -23,6 +24,16 @@ Endpoints accept shape facades or shape ids. `fromSide` and `toSide` accept
 `"top"`, `"left"`, `"bottom"`, or `"right"` and resolve to the nearest
 connection site for that shape geometry. When you omit side and index options,
 the API chooses a connection pair from the relative shape positions.
+
+The current side map is deliberately bounded:
+
+| Geometry | top | left | bottom | right | Exact accepted indexes |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `rect`, `roundRect`, `textbox` | 0 | 1 | 2 | 3 | 0-3 |
+| `ellipse` | 0 | 2 | 4 | 6 | 0-7 |
+
+Other geometries do not receive a guessed site map. `getConnectionSiteIndex`,
+new attachment, or rerouting against one of them fails closed.
 
 `kind` defaults to `"elbow"` for `slide.shapes.connect(...)`.
 
@@ -85,9 +96,9 @@ slide.shapes.connect(sourceShape.id, targetShape.id, {
 });
 ```
 
-Connection site indexes are PowerPoint preset geometry connection points. Side
-anchors map to the closest useful preset site for rectangles, ellipses, and
-other shapes.
+Connection site indexes are PowerPoint preset-geometry connection points. A
+connector's endpoint identity is the pair `(target shape, site index)`, not the
+target alone. Keep the index when cloning, editing, or auditing a connector.
 
 ## Direct Connector Shape
 
@@ -149,22 +160,46 @@ const nextToIdx = slide.shapes.getConnectionSiteIndex(nextTargetShape, "left");
 connector.setConnectorFrom(nextSourceShape, nextFromIdx);
 connector.setConnectorTo(nextTargetShape.id, nextToIdx);
 connector.line = { style: "solid", fill: "slate-800", width: 2 };
-connector.bringToFront();
 ```
 
-Use `presentation.inspect({ kind: "shape", search })` to find connector anchor
+Use `presentation.inspect({ kind: "connector", search })` to find connector anchor
 ids. Connector facades expose `connector`, `connectorLineStyle`,
 `connectorHead`, and `connectorTail` for readback.
+
+For a site-bound connector, do not assign `start` or `end` coordinates directly;
+use `setConnectorFrom` or `setConnectorTo` so target and site change atomically.
+The low-level `slide.connectors.add(...)` point/center API remains available for
+legacy source-free workflows that intentionally have no exact site identity.
 
 ## Routing And Ordering
 
 New connectors are sent behind shapes by default so boxes and labels remain
 readable. Call `connector.bringToFront()` when the connector should sit above
-other elements.
+other elements, or `connector.sendToBack()` to restore the default. Those
+z-order methods are source-free operations. Imported connector z-order remains
+source-bound and rejects instead of reordering an unmodeled SlidePart tree.
 
-Connected routes update when an endpoint shape moves or previews a move. Render
-and export paths recompute the connector bounds and route from the current
-endpoint geometry.
+Connected routes update when a modeled endpoint shape moves. Render and export
+paths recompute the connector bounds and route from the current endpoint
+geometry. An unchanged imported connector may preserve a connection to an
+unmodeled target, but moving or rewiring that target fails closed rather than
+substituting its center.
+
+## Native and imported boundary
+
+OfficeKit reads and writes `straightConnector1`, `bentConnector3`, and
+`curvedConnector3`; `elbow2` through `elbow5` normalize to the bounded elbow
+model. It retains `a:stCxn/@id+@idx` and `a:endCxn/@id+@idx`, solid/dashed/no
+line paint, flat/round/square caps, round/bevel/miter joins, and bounded
+triangle/stealth/diamond/oval/arrow ends with small/medium/large dimensions.
+
+A recognized imported connector can change its bounded endpoints or line
+profile while the surrounding element topology stays fixed. Source-bound
+z-order is not editable. Missing connection IDs/indexes, duplicate connection
+nodes, unsupported connector presets, custom adjustment graphs, theme/effect
+outlines, or other unmodeled XML remain opaque/read-only and an attempted
+semantic edit fails closed. No fallback rebuild substitutes a visually similar
+line.
 
 ## Cookbook
 

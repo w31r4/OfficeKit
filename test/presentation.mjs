@@ -119,6 +119,180 @@ await assert.rejects(
   /presentation theme customization/i,
 );
 
+// A connector endpoint is identified by both its target shape and its
+// DrawingML connection-site index. The JS model keeps that pair together,
+// reroutes when a modeled target moves, and preserves it through the wire and
+// native package instead of silently falling back to site zero.
+const connectorDeck = Presentation.create({ slideSize: { width: 960, height: 540 } });
+const connectorSlide = connectorDeck.slides.add({ name: "Connector sites" });
+const connectorSource = connectorSlide.shapes.add({
+  name: "connector-source",
+  geometry: "rect",
+  position: { left: 100, top: 100, width: 200, height: 100 },
+  text: "Source",
+});
+const connectorTarget = connectorSlide.shapes.add({
+  name: "connector-target",
+  geometry: "ellipse",
+  position: { left: 500, top: 100, width: 200, height: 100 },
+  text: "Target",
+});
+assert.equal(connectorSlide.shapes.getConnectionSiteIndex(connectorSource, "right"), 3);
+assert.equal(connectorSlide.shapes.getConnectionSiteIndex(connectorTarget, "left"), 2);
+const curvedConnector = connectorSlide.shapes.connect(connectorSource, connectorTarget, {
+  name: "curved-site-connector",
+  kind: "curved",
+  fromSide: "right",
+  toSide: "left",
+  line: { style: "dashed", fill: "#2563EB", width: 2.5 },
+  head: { type: "arrow", width: "lg", length: "sm" },
+  tail: { type: "diamond", width: "sm", length: "lg" },
+  cap: "round",
+  join: "bevel",
+});
+assert.deepEqual(curvedConnector.connector, {
+  fromElementId: connectorSource.id,
+  fromIdx: 3,
+  toElementId: connectorTarget.id,
+  toIdx: 2,
+});
+assert.deepEqual(curvedConnector.start, { x: 300, y: 150 });
+assert.deepEqual(curvedConnector.end, { x: 500, y: 150 });
+connectorTarget.position.left = 560;
+assert.deepEqual(curvedConnector.end, { x: 560, y: 150 });
+assert.equal(curvedConnector.setConnectorTo(connectorTarget, 6), curvedConnector);
+assert.deepEqual(curvedConnector.end, { x: 760, y: 150 });
+assert.equal(curvedConnector.setConnectorTo(connectorTarget, 2), curvedConnector);
+assert.match(curvedConnector.toSvg(), / C /);
+assert.match(curvedConnector.toSvg(), /stroke-dasharray="8 6"/);
+assert.match(curvedConnector.toSvg(), /marker-start=/);
+assert.match(curvedConnector.toSvg(), /marker-end=/);
+assert.match(curvedConnector.toSvg(), /stroke-linecap="round"/);
+assert.match(curvedConnector.toSvg(), /stroke-linejoin="bevel"/);
+assert.throws(
+  () => { curvedConnector.start = { x: 0, y: 0 }; },
+  /must be changed with setConnectorFrom/,
+);
+curvedConnector.startSiteIndex = 4;
+await assert.rejects(
+  () => PresentationFile.exportPptx(connectorDeck),
+  /outside the modeled rect connection-site range/,
+);
+curvedConnector.startSiteIndex = 3;
+
+const hiddenConnector = connectorSlide.shapes.add({
+  geometry: "connector",
+  name: "hidden-site-connector",
+  from: connectorSource,
+  to: connectorTarget,
+  fromIdx: 0,
+  toIdx: 4,
+  line: { style: "none", fill: "#FF0000", width: 1 },
+  head: { type: "none" },
+  tail: { type: "none" },
+});
+assert.equal(hiddenConnector.line.style, "none");
+assert.match(hiddenConnector.toSvg(), /stroke="none"/);
+assert.doesNotMatch(hiddenConnector.toSvg(), /marker-(?:start|end)=/);
+assert.equal(curvedConnector.isForeground, false);
+assert.equal(curvedConnector.bringToFront(), curvedConnector);
+assert.equal(curvedConnector.isForeground, true);
+assert.equal(connectorSlide.connectors.items.at(-1), curvedConnector);
+assert.equal(curvedConnector.sendToBack(), curvedConnector);
+assert.equal(connectorSlide.connectors.items[0], curvedConnector);
+
+const connectorBoundaryDeck = Presentation.create();
+const connectorBoundarySlide = connectorBoundaryDeck.slides.add();
+const boundaryRect = connectorBoundarySlide.shapes.add({ geometry: "rect", position: { left: 10, top: 10, width: 100, height: 50 }, text: "A" });
+const boundaryEllipse = connectorBoundarySlide.shapes.add({ geometry: "ellipse", position: { left: 200, top: 10, width: 100, height: 50 }, text: "B" });
+assert.throws(
+  () => connectorBoundarySlide.shapes.add({ geometry: "connector", from: boundaryRect, to: boundaryEllipse }),
+  /requires fromIdx and toIdx/,
+);
+assert.throws(
+  () => connectorBoundarySlide.shapes.add({ geometry: "connector", from: boundaryRect, to: boundaryEllipse, fromIdx: 4, toIdx: 2 }),
+  /outside the modeled rect connection-site range/,
+);
+const unsupportedSiteShape = connectorBoundarySlide.shapes.add({ geometry: "custom", position: { left: 10, top: 100, width: 100, height: 50 }, text: "Custom" });
+assert.throws(
+  () => connectorBoundarySlide.shapes.getConnectionSiteIndex(unsupportedSiteShape, "right"),
+  /no modeled connection-site map/,
+);
+const connectorGroup = connectorBoundarySlide.groups.add({
+  name: "connector-group",
+  position: { left: 300, top: 100, width: 300, height: 150 },
+  childFrame: { left: 0, top: 0, width: 300, height: 150 },
+});
+const groupFrom = connectorGroup.shapes.add({ geometry: "rect", position: { left: 0, top: 0, width: 80, height: 50 }, text: "From" });
+const groupTo = connectorGroup.shapes.add({ geometry: "roundRect", position: { left: 180, top: 0, width: 80, height: 50 }, text: "To" });
+assert.throws(
+  () => connectorBoundarySlide.shapes.connect(boundaryRect, groupFrom),
+  /same slide or group shape tree/,
+);
+const groupConnector = connectorGroup.shapes.connect(groupFrom, groupTo, { fromSide: "right", toSide: "left" });
+assert.equal(connectorGroup.children[0], groupConnector);
+assert.equal(groupConnector.bringToFront(), groupConnector);
+assert.equal(connectorGroup.children.at(-1), groupConnector);
+assert.equal(groupConnector.sendToBack(), groupConnector);
+assert.equal(connectorGroup.children[0], groupConnector);
+
+const connectorFirstExport = await PresentationFile.exportPptx(connectorDeck);
+const connectorFirstZip = await JSZip.loadAsync(connectorFirstExport.bytes);
+const connectorFirstXml = await connectorFirstZip.file("ppt/slides/slide1.xml").async("text");
+assert.ok(connectorFirstXml.indexOf("<p:cxnSp>") < connectorFirstXml.indexOf("<p:sp>"));
+assert.match(connectorFirstXml, /<a:stCxn\b[^>]*idx="3"/);
+assert.match(connectorFirstXml, /<a:endCxn\b[^>]*idx="2"/);
+assert.match(connectorFirstXml, /prst="curvedConnector3"/);
+assert.match(connectorFirstXml, /<a:prstDash val="dash"/);
+assert.match(connectorFirstXml, /<a:ln\b[^>]*cap="rnd"/);
+assert.match(connectorFirstXml, /<a:bevel\s*\/>/);
+assert.match(connectorFirstXml, /<a:headEnd\b[^>]*type="arrow"[^>]*w="lg"[^>]*len="sm"/);
+assert.match(connectorFirstXml, /<a:tailEnd\b[^>]*type="diamond"[^>]*w="sm"[^>]*len="lg"/);
+assert.match(connectorFirstXml, /<a:noFill\s*\/>/);
+
+const connectorImported = await PresentationFile.importPptx(connectorFirstExport);
+const importedConnectorSlide = connectorImported.slides.getItem(0);
+const importedCurvedConnector = itemByName(importedConnectorSlide.connectors.items, "curved-site-connector");
+assert.equal(importedCurvedConnector.connectorType, "curved");
+assert.equal(importedCurvedConnector.startSiteIndex, 3);
+assert.equal(importedCurvedConnector.endSiteIndex, 2);
+assert.deepEqual(importedCurvedConnector.head, { type: "arrow", width: "lg", length: "sm" });
+assert.deepEqual(importedCurvedConnector.tail, { type: "diamond", width: "sm", length: "lg" });
+assert.equal(importedCurvedConnector.line.style, "dashed");
+assert.equal(importedCurvedConnector.cap, "round");
+assert.equal(importedCurvedConnector.join, "bevel");
+assert.equal(itemByName(importedConnectorSlide.connectors.items, "hidden-site-connector").line.style, "none");
+assert.throws(() => importedCurvedConnector.bringToFront(), /z-order is source-bound/);
+const connectorNoOpExport = await PresentationFile.exportPptx(connectorImported);
+const connectorNoOpZip = await JSZip.loadAsync(connectorNoOpExport.bytes);
+assert.deepEqual(
+  await connectorNoOpZip.file("ppt/slides/slide1.xml").async("uint8array"),
+  await connectorFirstZip.file("ppt/slides/slide1.xml").async("uint8array"),
+);
+
+const connectorCloneDeck = await PresentationFile.importPptx(connectorFirstExport);
+const connectorCloneSlide = connectorCloneDeck.slides.getItem(0).duplicate();
+const clonedCurvedConnector = itemByName(connectorCloneSlide.connectors.items, "curved-site-connector");
+assert.equal(clonedCurvedConnector.startSiteIndex, 3);
+assert.equal(clonedCurvedConnector.endSiteIndex, 2);
+const connectorCloneExport = await PresentationFile.exportPptx(connectorCloneDeck);
+const connectorCloneRoundTrip = await PresentationFile.importPptx(connectorCloneExport);
+const roundTripClonedConnector = itemByName(connectorCloneRoundTrip.slides.getItem(1).connectors.items, "curved-site-connector");
+assert.equal(roundTripClonedConnector.startSiteIndex, 3);
+assert.equal(roundTripClonedConnector.endSiteIndex, 2);
+
+const connectorEditDeck = await PresentationFile.importPptx(connectorFirstExport);
+const connectorEditSlide = connectorEditDeck.slides.getItem(0);
+const connectorEditTarget = itemByName(connectorEditSlide.shapes.items, "connector-target");
+const connectorToEdit = itemByName(connectorEditSlide.connectors.items, "curved-site-connector");
+connectorEditTarget.position.left += 40;
+connectorToEdit.setConnectorTo(connectorEditTarget, 6);
+const connectorEditedExport = await PresentationFile.exportPptx(connectorEditDeck);
+const connectorEditedRoundTrip = await PresentationFile.importPptx(connectorEditedExport);
+const editedConnector = itemByName(connectorEditedRoundTrip.slides.getItem(0).connectors.items, "curved-site-connector");
+assert.equal(editedConnector.endSiteIndex, 6);
+assert.equal(editedConnector.end.x, 800);
+
 // Custom shows are a real inline PresentationML graph. Source-free decks own
 // the complete list; canonical imports may edit only names and ordered slide
 // membership while show topology/native identity remain source-bound.
@@ -3505,7 +3679,7 @@ assert.match(secondSlideXml, /<a:srcRect[^>]*t="-50000"/);
 assert.match(secondSlideXml, /<a:srcRect[^>]*b="-50000"/);
 assert.match(secondSlideXml, /prst="roundRect"/);
 assert.match(secondSlideXml, /txBox="1"/);
-assert.match(secondSlideXml, /prst="line"/);
+assert.match(secondSlideXml, /prst="straightConnector1"/);
 assert.match(secondSlideXml, /prst="bentConnector3"/);
 assert.match(secondSlideXml, /<a:headEnd type="triangle"/);
 assert.match(secondSlideXml, /<a:tailEnd type="triangle"/);

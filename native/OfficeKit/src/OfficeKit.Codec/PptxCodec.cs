@@ -816,9 +816,9 @@ internal static class PptxCodec
                     }
                     else if (sourceElement is P.ConnectionShape sourceConnector &&
                              requested.ContentCase == PresentationElement.ContentOneofCase.Connector &&
-                             TryReadConnector(sourceConnector, elementIdsByNativeId, out _))
+                             PptxConnectorCodec.TryRead(sourceConnector, elementIdsByNativeId, out _))
                     {
-                        ApplyConnector(sourceConnector, requested, nativeIdsByElementId);
+                        PptxConnectorCodec.Apply(sourceConnector, requested, nativeIdsByElementId);
                         changed = true;
                     }
                     else if (sourceElement is P.GraphicFrame sourceChart &&
@@ -1020,7 +1020,7 @@ internal static class PptxCodec
             P.Shape shape => IsSimpleShape(shape),
             P.Picture picture when !nativeMediaPicture => PptxPictureCodec.TryRead(picture, slideContext, out _),
             P.GraphicFrame graphicFrame => PptxTableCodec.TryRead(graphicFrame, out _),
-            P.ConnectionShape connector => TryReadConnector(connector, elementIdsByNativeId, out _),
+            P.ConnectionShape connector => PptxConnectorCodec.TryRead(connector, elementIdsByNativeId, out _),
             P.GroupShape group => TryReadGroup(group, element.Id, slideContext, elementIdsByNativeId, out _),
             _ => false,
         };
@@ -1031,7 +1031,7 @@ internal static class PptxCodec
             element.Image = image;
         else if (source is P.GraphicFrame sourceTable && PptxTableCodec.TryRead(sourceTable, out var table))
             element.Table = table;
-        else if (source is P.ConnectionShape sourceConnector && TryReadConnector(sourceConnector, elementIdsByNativeId, out var connector))
+        else if (source is P.ConnectionShape sourceConnector && PptxConnectorCodec.TryRead(sourceConnector, elementIdsByNativeId, out var connector))
             element.Connector = connector;
         else if (source is P.GraphicFrame sourceChart && PptxChartCodec.TryRead(sourceChart, slideContext, out var chart, out _))
             element.Chart = chart;
@@ -1584,7 +1584,7 @@ internal static class PptxCodec
             PresentationElement.ContentOneofCase.Shape => BuildShape(element, nativeIdsByElementId[element.Id], slideContext),
             PresentationElement.ContentOneofCase.Image => PptxPictureCodec.Build(element, nativeIdsByElementId[element.Id], slideContext),
             PresentationElement.ContentOneofCase.Table => PptxTableCodec.Build(element, nativeIdsByElementId[element.Id]),
-            PresentationElement.ContentOneofCase.Connector => BuildConnector(element, nativeIdsByElementId[element.Id], nativeIdsByElementId),
+            PresentationElement.ContentOneofCase.Connector => PptxConnectorCodec.Build(element, nativeIdsByElementId[element.Id], nativeIdsByElementId),
             PresentationElement.ContentOneofCase.Chart => PptxChartCodec.Build(element, nativeIdsByElementId[element.Id], slidePart),
             PresentationElement.ContentOneofCase.Group => BuildGroup(element, nativeIdsByElementId, slideContext, slidePart),
             _ => throw new CodecException("unsupported_presentation_element", $"Opaque presentation element {element.Id} requires its validated source package and cannot be authored from scratch."),
@@ -1654,81 +1654,6 @@ internal static class PptxCodec
                 applicationProperties),
             properties,
             PptxTextCodec.Build(semantic, slideContext));
-    }
-
-    private static bool TryReadConnector(P.ConnectionShape source, IReadOnlyDictionary<uint, string>? elementIdsByNativeId, out PresentationConnector connector)
-    {
-        connector = new PresentationConnector();
-        var properties = source.ShapeProperties;
-        var transform = properties?.Transform2D;
-        var geometry = properties?.GetFirstChild<A.PresetGeometry>()?.Preset?.Value;
-        var outline = properties?.GetFirstChild<A.Outline>();
-        if (properties is null || transform?.Offset?.X?.Value is null || transform.Offset.Y?.Value is null ||
-            transform.Extents?.Cx?.Value is null or < 0 || transform.Extents.Cy?.Value is null or < 0 ||
-            geometry is null || (!geometry.Equals(A.ShapeTypeValues.Line) && !geometry.Equals(A.ShapeTypeValues.BentConnector3)) ||
-            outline is null || !SimpleFill(outline) ||
-            outline.ChildElements.Any(child => child is not A.NoFill and not A.SolidFill and not A.HeadEnd and not A.TailEnd) ||
-            properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.Outline)) return false;
-        var head = outline.GetFirstChild<A.HeadEnd>();
-        var tail = outline.GetFirstChild<A.TailEnd>();
-        if (!TryArrow(head?.Type?.Value, out var startArrow) || !TryArrow(tail?.Type?.Value, out var endArrow)) return false;
-        var nonVisual = source.NonVisualConnectionShapeProperties?.NonVisualConnectorShapeDrawingProperties;
-        if (!TryConnectionTarget(nonVisual?.StartConnection, elementIdsByNativeId, out var startTargetId) ||
-            !TryConnectionTarget(nonVisual?.EndConnection, elementIdsByNativeId, out var endTargetId)) return false;
-        var left = transform.Offset.X.Value;
-        var top = transform.Offset.Y.Value;
-        var width = transform.Extents.Cx.Value;
-        var height = transform.Extents.Cy.Value;
-        var flipH = transform.HorizontalFlip?.Value == true;
-        var flipV = transform.VerticalFlip?.Value == true;
-        connector = new PresentationConnector
-        {
-            ConnectorType = geometry.Equals(A.ShapeTypeValues.BentConnector3) ? "elbow" : "straight",
-            StartXEmu = flipH ? left + width : left,
-            StartYEmu = flipV ? top + height : top,
-            EndXEmu = flipH ? left : left + width,
-            EndYEmu = flipV ? top : top + height,
-            LineRgb = PptxColor.SolidRgb(outline.GetFirstChild<A.SolidFill>()),
-            LineWidthEmu = outline.Width?.Value ?? 0,
-            StartArrow = startArrow,
-            EndArrow = endArrow,
-            StartTargetId = startTargetId,
-            EndTargetId = endTargetId,
-        };
-        return true;
-    }
-
-    private static P.ConnectionShape BuildConnector(PresentationElement source, uint nativeId, IReadOnlyDictionary<string, uint> nativeIdsByElementId)
-    {
-        ValidateConnector(source.Connector, source.Id, source.Name, nativeIdsByElementId);
-        var semantic = source.Connector;
-        var drawingProperties = new P.NonVisualConnectorShapeDrawingProperties();
-        ApplyConnectionTargets(drawingProperties, semantic, nativeIdsByElementId);
-        var properties = new P.ShapeProperties();
-        properties.Append(ConnectorTransform(semantic));
-        properties.Append(new A.PresetGeometry(new A.AdjustValueList()) { Preset = semantic.ConnectorType == "elbow" ? A.ShapeTypeValues.BentConnector3 : A.ShapeTypeValues.Line });
-        properties.Append(ConnectorOutline(semantic));
-        return new P.ConnectionShape(
-            new P.NonVisualConnectionShapeProperties(
-                new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name },
-                drawingProperties,
-                new P.ApplicationNonVisualDrawingProperties()),
-            properties);
-    }
-
-    private static void ApplyConnector(P.ConnectionShape source, PresentationElement requested, IReadOnlyDictionary<string, uint> nativeIdsByElementId)
-    {
-        ValidateConnector(requested.Connector, requested.Id, requested.Name, nativeIdsByElementId);
-        source.NonVisualConnectionShapeProperties!.NonVisualDrawingProperties!.Name = requested.Name;
-        var drawingProperties = source.NonVisualConnectionShapeProperties.NonVisualConnectorShapeDrawingProperties ??= new P.NonVisualConnectorShapeDrawingProperties();
-        ApplyConnectionTargets(drawingProperties, requested.Connector, nativeIdsByElementId);
-        var properties = source.ShapeProperties ??= new P.ShapeProperties();
-        properties.RemoveAllChildren<A.Transform2D>();
-        properties.PrependChild(ConnectorTransform(requested.Connector));
-        var geometry = properties.GetFirstChild<A.PresetGeometry>() ?? properties.InsertAfter(new A.PresetGeometry(new A.AdjustValueList()), properties.Transform2D);
-        geometry.Preset = requested.Connector.ConnectorType == "elbow" ? A.ShapeTypeValues.BentConnector3 : A.ShapeTypeValues.Line;
-        properties.GetFirstChild<A.Outline>()?.Remove();
-        properties.Append(ConnectorOutline(requested.Connector));
     }
 
     private static bool ApplyGroup(
@@ -1815,8 +1740,8 @@ internal static class PptxCodec
             PptxPictureCodec.Apply(picture, requested, slideContext);
         else if (source is P.GraphicFrame table && requested.ContentCase == PresentationElement.ContentOneofCase.Table && PptxTableCodec.TryRead(table, out _))
             PptxTableCodec.Apply(table, requested);
-        else if (source is P.ConnectionShape connector && requested.ContentCase == PresentationElement.ContentOneofCase.Connector && TryReadConnector(connector, elementIdsByNativeId, out _))
-            ApplyConnector(connector, requested, nativeIdsByElementId);
+        else if (source is P.ConnectionShape connector && requested.ContentCase == PresentationElement.ContentOneofCase.Connector && PptxConnectorCodec.TryRead(connector, elementIdsByNativeId, out _))
+            PptxConnectorCodec.Apply(connector, requested, nativeIdsByElementId);
         else if (source is P.GraphicFrame chart && requested.ContentCase == PresentationElement.ContentOneofCase.Chart && PptxChartCodec.TryRead(chart, slideContext, out _, out var chartEditable) && chartEditable)
         {
             var replacement = PptxChartCodec.Apply(chart, requested, slideContext);
@@ -1827,76 +1752,6 @@ internal static class PptxCodec
             _ = ApplyGroup(group, original, requested, slideContext, elementIdsByNativeId, nativeIdsByElementId, changedParts, replacedOpaquePartHashes, slideIndex, location);
         else
             throw new CodecException("unsupported_presentation_edit", $"Presentation slide {slideIndex + 1} {location} changed outside the bounded group-child profile.", PartPath(slideContext.Owner));
-    }
-
-    private static A.Transform2D ConnectorTransform(PresentationConnector source)
-    {
-        var left = Math.Min(source.StartXEmu, source.EndXEmu);
-        var top = Math.Min(source.StartYEmu, source.EndYEmu);
-        return new A.Transform2D(
-            new A.Offset { X = left, Y = top },
-            new A.Extents { Cx = Math.Abs(source.EndXEmu - source.StartXEmu), Cy = Math.Abs(source.EndYEmu - source.StartYEmu) })
-        {
-            HorizontalFlip = source.EndXEmu < source.StartXEmu,
-            VerticalFlip = source.EndYEmu < source.StartYEmu,
-        };
-    }
-
-    private static A.Outline ConnectorOutline(PresentationConnector source)
-    {
-        var outline = new A.Outline { Width = checked((int)source.LineWidthEmu) };
-        outline.Append(string.IsNullOrWhiteSpace(source.LineRgb) ? new A.NoFill() : new A.SolidFill(new A.RgbColorModelHex { Val = PptxColor.Normalize(source.LineRgb) }));
-        if (source.StartArrow.Length > 0) outline.Append(new A.HeadEnd { Type = A.LineEndValues.Triangle });
-        if (source.EndArrow.Length > 0) outline.Append(new A.TailEnd { Type = A.LineEndValues.Triangle });
-        return outline;
-    }
-
-    private static void ValidateConnector(PresentationConnector? source, string elementId, string name, IReadOnlyDictionary<string, uint>? nativeIdsByElementId = null)
-    {
-        if (source is null) throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} payload is missing.");
-        if (name.Length > 1_024) throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} name exceeds 1024 characters.");
-        if (source.ConnectorType is not ("straight" or "elbow")) throw new CodecException("unsupported_presentation_connector", $"Presentation connector {elementId} uses unsupported type {source.ConnectorType}.");
-        if (source.StartXEmu < 0 || source.StartYEmu < 0 || source.EndXEmu < 0 || source.EndYEmu < 0 ||
-            source.LineWidthEmu < 0 || source.LineWidthEmu > int.MaxValue)
-            throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} has invalid endpoints or line width.");
-        if (!string.IsNullOrWhiteSpace(source.LineRgb)) PptxColor.Normalize(source.LineRgb);
-        if (source.StartArrow is not ("" or "triangle") || source.EndArrow is not ("" or "triangle"))
-            throw new CodecException("unsupported_presentation_connector", $"Presentation connector {elementId} uses an unsupported arrowhead.");
-        if (nativeIdsByElementId is not null)
-        {
-            if (source.StartTargetId.Length > 0 && !nativeIdsByElementId.ContainsKey(source.StartTargetId)) throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} references missing start target {source.StartTargetId}.");
-            if (source.EndTargetId.Length > 0 && !nativeIdsByElementId.ContainsKey(source.EndTargetId)) throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} references missing end target {source.EndTargetId}.");
-        }
-    }
-
-    private static bool TryArrow(A.LineEndValues? source, out string arrow)
-    {
-        arrow = string.Empty;
-        if (source is null || source.Value == A.LineEndValues.None) return true;
-        if (source.Value != A.LineEndValues.Triangle) return false;
-        arrow = "triangle";
-        return true;
-    }
-
-    private static bool TryConnectionTarget(A.StartConnection? source, IReadOnlyDictionary<uint, string>? ids, out string targetId) =>
-        TryConnectionTarget(source?.Id?.Value, ids, out targetId);
-
-    private static bool TryConnectionTarget(A.EndConnection? source, IReadOnlyDictionary<uint, string>? ids, out string targetId) =>
-        TryConnectionTarget(source?.Id?.Value, ids, out targetId);
-
-    private static bool TryConnectionTarget(uint? nativeId, IReadOnlyDictionary<uint, string>? ids, out string targetId)
-    {
-        targetId = string.Empty;
-        if (nativeId is null) return true;
-        return ids is not null && ids.TryGetValue(nativeId.Value, out targetId!);
-    }
-
-    private static void ApplyConnectionTargets(P.NonVisualConnectorShapeDrawingProperties properties, PresentationConnector source, IReadOnlyDictionary<string, uint> nativeIdsByElementId)
-    {
-        properties.RemoveAllChildren<A.StartConnection>();
-        properties.RemoveAllChildren<A.EndConnection>();
-        if (source.StartTargetId.Length > 0) properties.Append(new A.StartConnection { Id = nativeIdsByElementId[source.StartTargetId], Index = 0U });
-        if (source.EndTargetId.Length > 0) properties.Append(new A.EndConnection { Id = nativeIdsByElementId[source.EndTargetId], Index = 0U });
     }
 
     private static P.ShapeTree BasicShapeTree() => new(
@@ -2255,7 +2110,7 @@ internal static class PptxCodec
                 throw new CodecException("presentation_item_budget_exceeded", $"Presentation exceeds max_cells semantic-item budget ({limits.MaxCells}).");
         }
         else if (element.ContentCase == PresentationElement.ContentOneofCase.Connector)
-            ValidateConnector(element.Connector, element.Id, element.Name);
+            PptxConnectorCodec.Validate(element.Connector, element.Id, element.Name);
         else if (element.ContentCase == PresentationElement.ContentOneofCase.Chart)
         {
             PptxChartCodec.Validate(element.Chart, element.Id, element.Name);
@@ -4084,7 +3939,7 @@ internal static class PptxCodec
         // cloned SlidePart, so it adds no OPC edge beyond the already-proved
         // layout/image/notes/comments graph.
         if (element is P.ConnectionShape connector)
-            return !HasHyperlinkMarkup(connector) && TryReadConnector(connector, elementIdsByNativeId, out _);
+            return !HasHyperlinkMarkup(connector) && PptxConnectorCodec.TryRead(connector, elementIdsByNativeId, out _);
         if (element is not P.GroupShape group) return false;
 
         var groupId = $"{ownerId}/element/{elementIndex + 1}";

@@ -86,20 +86,24 @@
       "connectors": [
         {
           "name": "create-to-verify",
-          "connectorType": "straight",
+          "kind": "curved",
           "fromName": "author-card",
           "toName": "verify-card",
-          "start": { "x": 372, "y": 219 },
-          "end": { "x": 476, "y": 219 },
-          "line": { "fill": "#475569", "width": 2, "endArrow": "triangle" }
+          "fromSide": "right",
+          "toSide": "left",
+          "line": { "style": "dashed", "fill": "#475569", "width": 2 },
+          "head": { "type": "arrow", "width": "lg", "length": "sm" },
+          "tail": { "type": "diamond", "width": "sm", "length": "lg" },
+          "cap": "round",
+          "join": "bevel"
         },
         {
           "name": "verify-to-deliver",
-          "connectorType": "elbow",
+          "kind": "elbow",
           "fromName": "verify-card",
           "toName": "deliver-card",
-          "start": { "x": 776, "y": 219 },
-          "end": { "x": 880, "y": 235 },
+          "fromSide": "right",
+          "toSide": "left",
           "line": { "fill": "#475569", "width": 2, "startArrow": "triangle", "endArrow": "triangle" }
         }
       ]
@@ -209,11 +213,11 @@
           "connectors": [
             {
               "name": "grouped-flow",
-              "connectorType": "straight",
+              "kind": "straight",
               "fromName": "group-model-card",
               "toName": "group-native-card",
-              "start": { "x": 300, "y": 270 },
-              "end": { "x": 450, "y": 270 },
+              "fromSide": "right",
+              "toSide": "left",
               "line": { "fill": "#475569", "width": 2, "endArrow": "triangle" }
             }
           ]

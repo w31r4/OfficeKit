@@ -567,7 +567,7 @@ quick-style/colors parts, canonical top-level `p:contentPart` objects whose one
 internal `customXml` relationship binds a closed standard InkML part, canonical
 top-level embedded-MP4 pictures whose paired video/media relationships uniquely
 bind one closed `video/mp4` payload plus one poster ImagePart, and
-straight/elbow connectors whose present endpoints
+straight/elbow/curved connectors whose present endpoints and connection-site indexes
 resolve inside the source slide tree and canonical run-level clicks to an
 external absolute URI, a retained internal SlidePart, or a supported relative
 slide action, plus a relationship-free custom-show action whose native ID must

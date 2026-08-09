@@ -14,6 +14,7 @@ import { materializeComposeNode } from "./compose.mjs";
 import { normalizePresentationThemeConfig } from "./ooxml-theme.mjs";
 import { mergePresentationPlaceholders, normalizePresentationBackground, resolvePresentationBackgroundColor } from "./ooxml-masters.mjs";
 import { createPresentationGroupShapeClass } from "./group-shapes.mjs";
+import { connectedPresentationShapeConfig, presentationConnectionSiteIndex, PresentationConnectorElement as ConnectorElement } from "./connectors.mjs";
 import { createNativePresentationObjectClass } from "./native-objects.mjs";
 import { normalizePresentationChartAxisGroup, normalizePresentationChartDataLabels, normalizePresentationChartErrorBars, normalizePresentationChartSeriesStyle, normalizePresentationChartStyle, normalizePresentationChartTrendlines } from "./ooxml-charts.mjs";
 import { normalizePresentationChartExternalData, presentationChartUsesFormulaReferences } from "./ooxml-chart-data.mjs";
@@ -775,7 +776,25 @@ export class Presentation {
 
 class ShapeCollection {
   constructor(slide, owner) { this.slide = slide; this.owner = owner; this.items = []; }
-  add(config = {}) { const shape = new Shape(this.slide, config); shape.parentGroup = this.owner; this.items.push(shape); this.owner?._rememberChild?.(shape); return shape; }
+  add(config = {}) {
+    if (config?.geometry === "connector") {
+      const connector = connectedPresentationShapeConfig(this.slide, this.owner, config.from, config.to, config, { requireExplicitSites: true });
+      return (this.owner?.connectors || this.slide.connectors).add(connector).sendToBack();
+    }
+    const shape = new Shape(this.slide, config);
+    shape.parentGroup = this.owner;
+    this.items.push(shape);
+    this.owner?._rememberChild?.(shape);
+    return shape;
+  }
+  connect(from, to, options = {}) {
+    const connector = connectedPresentationShapeConfig(this.slide, this.owner, from, to, options);
+    return (this.owner?.connectors || this.slide.connectors).add(connector).sendToBack();
+  }
+  getConnectionSiteIndex(target, side) { return presentationConnectionSiteIndex(this.slide, this.owner, target, side); }
+  getItem(idOrName) { return this.items.find((shape) => shape.id === idOrName || shape.name === idOrName); }
+  getItemAt(index) { return this.items[index]; }
+  get count() { return this.items.length; }
   [Symbol.iterator]() { return this.items[Symbol.iterator](); }
 }
 
@@ -878,21 +897,6 @@ function tableOverflowIssues(slide, tableElement, frame = tableElement.position)
   return issues;
 }
 
-function pointFromElement(element, fallback = { x: 0, y: 0 }) {
-  const frame = elementFrame(element);
-  return frame ? { x: frame.left + frame.width / 2, y: frame.top + frame.height / 2 } : fallback;
-}
-
-function connectorPoint(slide, pointOrTarget, fallback = { x: 0, y: 0 }) {
-  if (!pointOrTarget) return fallback;
-  if (typeof pointOrTarget === "string") return pointFromElement(slide.resolve(pointOrTarget), fallback);
-  if (pointOrTarget.id) return pointFromElement(slide.resolve(pointOrTarget.id) || pointOrTarget, fallback);
-  if (pointOrTarget.element) return pointFromElement(pointOrTarget.element, fallback);
-  if (pointOrTarget.targetId) return pointFromElement(slide.resolve(pointOrTarget.targetId), fallback);
-  if (Number.isFinite(pointOrTarget.x) && Number.isFinite(pointOrTarget.y)) return { x: Number(pointOrTarget.x), y: Number(pointOrTarget.y) };
-  return fallback;
-}
-
 function normalizedSlideCommentTarget(slide, target) {
   if (target == null) return { targetId: undefined };
   if (typeof target === "string") return { targetId: target };
@@ -979,44 +983,6 @@ class SlideCommentCollection {
   [Symbol.iterator]() { return this.items[Symbol.iterator](); }
 }
 
-class ConnectorElement {
-  constructor(slide, config = {}) {
-    this.slide = slide;
-    this.kind = "connector";
-    this.id = config.id || aid("cx");
-    this.nativeId = config.nativeId;
-    this.creationId = config.creationId;
-    this.name = config.name || "";
-    this.connectorType = config.connectorType || config.type || "straight";
-    this.startTargetId = typeof config.from === "string" ? config.from : config.from?.id || config.startTargetId;
-    this.endTargetId = typeof config.to === "string" ? config.to : config.to?.id || config.endTargetId;
-    this.start = config.start || connectorPoint(slide, config.from || config.startTargetId, { x: 0, y: 0 });
-    this.end = config.end || connectorPoint(slide, config.to || config.endTargetId, { x: 160, y: 0 });
-    this.line = config.line || { fill: "#334155", width: 2, endArrow: config.endArrow || "triangle" };
-  }
-
-  get position() {
-    const left = Math.min(this.start.x, this.end.x);
-    const top = Math.min(this.start.y, this.end.y);
-    return { left, top, width: Math.abs(this.end.x - this.start.x), height: Math.abs(this.end.y - this.start.y) };
-  }
-
-  inspectRecord() {
-    return { kind: "connector", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, connectorType: this.connectorType, start: this.start, end: this.end, startTargetId: this.startTargetId, endTargetId: this.endTargetId, line: this.line };
-  }
-
-  layoutJson() { return { kind: "connector", id: this.id, name: this.name, connectorType: this.connectorType, start: this.start, end: this.end, startTargetId: this.startTargetId, endTargetId: this.endTargetId, line: this.line, frame: this.position }; }
-
-  toSvg() {
-    const stroke = resolveColorToken(this.line?.fill || this.line?.color || "#334155", "#334155");
-    const width = this.line?.width ?? 2;
-    const markerId = `${this.id.replace(/[^A-Za-z0-9_-]/g, "")}-arrow`;
-    const marker = this.line?.endArrow ? `<defs><marker id="${markerId}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${xmlEscape(stroke)}"/></marker></defs>` : "";
-    return `${marker}<line x1="${this.start.x}" y1="${this.start.y}" x2="${this.end.x}" y2="${this.end.y}" stroke="${xmlEscape(stroke)}" stroke-width="${width}" marker-end="${this.line?.endArrow ? `url(#${markerId})` : ""}"/>`;
-  }
-
-}
-
 const NativePresentationObject = createNativePresentationObjectClass({ normalizeFrame });
 
 const GroupShape = createPresentationGroupShapeClass({
@@ -1086,6 +1052,21 @@ class SpeakerNotes {
   setText(value) { this.textFrame.set(value); return this; }
   append(value) { this.textFrame.set(`${this.text}${String(value ?? "")}`); return this; }
   clear() { this.textFrame.set(""); return this; }
+}
+
+function orderedSlideModelElements(slide) {
+  const backgroundConnectors = slide.connectors.items.filter((connector) => !connector.isForeground);
+  const foregroundConnectors = slide.connectors.items.filter((connector) => connector.isForeground);
+  return [
+    ...backgroundConnectors,
+    ...slide.shapes.items,
+    ...slide.tables.items,
+    ...slide.charts.items,
+    ...slide.images.items,
+    ...slide.groups.items,
+    ...slide.nativeObjects.items,
+    ...foregroundConnectors,
+  ];
 }
 
 export class Slide {
@@ -1275,7 +1256,7 @@ export class Slide {
   }
 
   layoutJson(options = {}) {
-    const elements = [...this.shapes.items, ...this.tables.items, ...this.charts.items, ...this.images.items, ...this.connectors.items, ...this.groups.items, ...this.nativeObjects.items].map((element) => {
+    const elements = orderedSlideModelElements(this).map((element) => {
       const record = element.layoutJson();
       const comments = this.comments.items.filter((comment) => comment.targetId === element.id);
       return {
@@ -1296,11 +1277,11 @@ export class Slide {
 
   toSvg() {
     const { width, height } = this.presentation.slideSize;
-    const elements = [...this.connectors.items, ...this.shapes.items, ...this.tables.items, ...this.charts.items, ...this.images.items, ...this.groups.items, ...this.nativeObjects.items].map((element) => element.toSvg()).join("");
+    const elements = orderedSlideModelElements(this).map((element) => element.toSvg()).join("");
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="${xmlEscape(resolvePresentationBackgroundColor(this.effectiveBackground(), this.effectiveTheme()))}"/>${elements}</svg>`;
   }
 
-  toProto() { return { id: this.id, layoutId: this.layoutId, background: this.background.fill ? this.background : undefined, transition: this.transition.toJSON(), notes: this.speakerNotes.text || undefined, comments: this.comments.items.map((comment) => comment.toJSON()), elements: [...this.shapes.items, ...this.tables.items, ...this.charts.items, ...this.images.items, ...this.connectors.items, ...this.nativeObjects.items].map((element) => element.layoutJson()), groups: this.groups.items.map((group) => group.toProto()) }; }
+  toProto() { return { id: this.id, layoutId: this.layoutId, background: this.background.fill ? this.background : undefined, transition: this.transition.toJSON(), notes: this.speakerNotes.text || undefined, comments: this.comments.items.map((comment) => comment.toJSON()), elements: orderedSlideModelElements(this).filter((element) => !(element instanceof GroupShape)).map((element) => element.layoutJson()), groups: this.groups.items.map((group) => group.toProto()) }; }
 
   compose(composeNode, options = {}) {
     const frame = options.frame || { left: 72, top: 64, width: this.presentation.slideSize.width - 144, height: this.presentation.slideSize.height - 128 };
