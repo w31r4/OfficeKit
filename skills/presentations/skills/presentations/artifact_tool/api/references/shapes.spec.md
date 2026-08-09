@@ -148,8 +148,10 @@ const custom = slide.shapes.add({
 });
 ```
 
-Custom path coordinates are signed 32-bit integer units in the path's own
-`width`/`height` viewport. OfficeKit scales that viewport to the shape frame.
+Custom path coordinates are signed 32-bit integer units. Positive
+`width`/`height` values define an explicit path viewport that OfficeKit scales
+to the shape frame. Omit either axis (or pass its native default `0`) to use the
+shape's EMU coordinate system for that axis.
 An arc keeps DrawingML's native radii and 1/60000-degree angles; it requires a
 current point and accepts a non-zero clockwise or counter-clockwise sweep of at
 most one full turn.
@@ -164,31 +166,28 @@ const formulaTriangle = slide.shapes.add({
   fill: "#16A34A",
   customAdjustments: [{ name: "adjX", formula: "val 25000" }],
   customGuides: [
-    { name: "apexX", formula: "*/ 100000 adjX 100000" },
-    { name: "siteX", formula: "*/ w adjX 100000" },
+    { name: "apexX", formula: "*/ w adjX 100000" },
     { name: "textLeft", formula: "*/ w 1 10" },
     { name: "textRight", formula: "*/ w 9 10" },
   ],
   textRectangle: { left: "textLeft", top: "t", right: "textRight", bottom: "b" },
   customConnectionSites: [
-    { angle: -90, x: "siteX", y: 0 },
-    { angle: 90, x: "siteX", y: 280 },
+    { angle: "3cd4", x: "hc", y: "t" },
+    { angle: "cd4", x: "hc", y: "b" },
   ],
   customAdjustmentHandles: [{
     kind: "xy",
     xAdjustment: "adjX",
-    minX: 0,
-    maxX: 100000,
-    x: "siteX",
-    y: 140,
+    minX: "l",
+    maxX: "r",
+    x: "apexX",
+    y: "vc",
   }],
   customPaths: [{
-    width: 100000,
-    height: 100000,
     commands: [
-      { moveTo: { x: 0, y: 100000 } },
-      { lineTo: { x: "apexX", y: 0 } },
-      { lineTo: { x: 100000, y: 100000 } },
+      { moveTo: { x: "l", y: "b" } },
+      { lineTo: { x: "apexX", y: "t" } },
+      { lineTo: { x: "r", y: "b" } },
       { close: {} },
     ],
   }],
@@ -214,13 +213,12 @@ strictly in declaration order; forward/unknown references, duplicate names,
 division by zero, negative square roots, non-finite results, and results
 outside the signed 32-bit profile fail closed.
 
-A string in a path or connection-site field is only the exact name of a
-declared adjustment or guide. Built-ins are formula operands, not implicit
-geometry references, and a path's
-`width`/`height` stay positive literals. Keep formula output in that path's
-coordinate system: when a formula uses shape-derived `w`/`h`, either use the
-shape's EMU extents for the path viewport or scale explicitly. Unsupported
-formula syntax and handle topology outside the bounded profile below keep an
+A string in a path, connection-site, handle-bound, handle-position, or text-
+rectangle field may name a supported DrawingML built-in or the exact name of a
+declared adjustment/guide. An explicit path `width`/`height` remains a positive
+literal; omission uses the shape-coordinate default and is the most direct fit
+for shape-derived `w`/`h` guides. Unknown/forward references, unsupported
+formula syntax, and handle topology outside the bounded profile keep an
 imported shape opaque and source-bound.
 
 `customAdjustmentHandles` is the ordered native `a:ahLst` table, with at most
@@ -229,9 +227,9 @@ imported shape opaque and source-bound.
 `radialAdjustment`/`angleAdjustment`. Every controlled dimension either omits
 its bounds or supplies its min/max pair. Coordinate and radius bounds are
 signed DrawingML adjustment units, radial bounds must evaluate non-negative,
-and numeric angle bounds are degrees. Bounds may instead name a declared
-adjustment/guide. Numeric handle x/y positions are shape-local pixels and may
-also be declared references. The formula graph must place the current
+and numeric angle bounds are degrees. Bounds may instead name a built-in or
+declared adjustment/guide. Numeric handle x/y positions are shape-local pixels
+and may also use those references. The formula graph must place the current
 adjustment inside every supplied range and the resolved handle position inside
 the shape frame.
 
@@ -243,18 +241,19 @@ custom shape opaque; OfficeKit never drops them to make an edit succeed.
 
 `customConnectionSites` is the ordered native `a:cxnLst` table, with at most
 1,024 `{ angle, x, y }` entries. Numeric angles are degrees; numeric x/y values
-are pixels relative to the shape frame. Any field may instead name a declared
-adjustment/guide. Resolved positions must remain inside the shape and angles
-within one turn. The array index is the native connector identity: a recognized
-import may edit values at existing indexes but cannot change the list length. Connectors targeting a
-custom shape must use explicit `fromIdx`/`toIdx`; side aliases are intentionally
-limited to preset geometries.
+are pixels relative to the shape frame. Any field may instead name a built-in
+or declared adjustment/guide. Resolved positions must remain inside the shape
+and angles within one turn. The array index is the native connector identity:
+a recognized import may edit values at existing indexes but cannot change the
+list length. Connectors targeting a custom shape must use explicit
+`fromIdx`/`toIdx`; side aliases are intentionally limited to preset geometries.
 
-OfficeKit's SVG/sharp render gate evaluates the formula graph. The currently
-bundled LibreOfficeDev 26.8 alpha opens and renders these PPTX paths but does
-not reliably resolve guide-valued `a:path` coordinates, so it is not a formula
-semantic oracle; require a Microsoft PowerPoint/native-host review when exact
-cross-host formula rendering is release-critical.
+OfficeKit's SVG/sharp render gate evaluates the formula graph. A bounded
+LibreOffice/Poppler regression also proves that changing one adjustment moves
+the native-rendered built-in/default-extent path in the same direction. This is
+a compatibility smoke rather than a universal formula oracle; require a
+Microsoft PowerPoint/native-host review when exact cross-host formula rendering
+is release-critical.
 
 `fillMode` is optional and accepts only `"normal"` or `"none"`. Omitting it
 preserves an omitted native `fill` attribute (whose DrawingML default is
@@ -336,8 +335,8 @@ type CustomShapeConfig = Omit<PresetShapeConfig, "geometry"> & {
   >;
   textRectangle?: { left: number | string; top: number | string; right: number | string; bottom: number | string };
   customPaths: Array<{
-    width: number;
-    height: number;
+    width?: number;
+    height?: number;
     fillMode?: "normal" | "none";
     stroke?: boolean;
     extrusionAllowed?: boolean;

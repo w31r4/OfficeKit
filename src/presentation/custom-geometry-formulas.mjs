@@ -101,10 +101,10 @@ export function normalizePresentationCustomGeometryFormulaGraph(value = {}) {
   return { adjustments, guides };
 }
 
-export function presentationCustomGeometryReferenceNames(graph = {}, { includeBuiltins = false } = {}) {
+export function presentationCustomGeometryReferenceNames(graph = {}) {
   const normalized = normalizePresentationCustomGeometryFormulaGraph(graph);
   return new Set([
-    ...(includeBuiltins ? BUILTIN_NAMES : []),
+    ...BUILTIN_NAMES,
     ...normalized.adjustments.map((item) => item.name),
     ...normalized.guides.map((item) => item.name),
   ]);
@@ -112,7 +112,7 @@ export function presentationCustomGeometryReferenceNames(graph = {}, { includeBu
 
 export function normalizePresentationCustomGeometryReference(value, references, label) {
   if (typeof value !== "string" || INTEGER_TOKEN.test(value) || !references.has(value)) {
-    throw new TypeError(`${label} must be a number or a declared DrawingML guide reference.`);
+    throw new TypeError(`${label} must be a number or a DrawingML built-in or declared guide reference.`);
   }
   return value;
 }

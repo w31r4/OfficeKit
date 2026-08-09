@@ -1266,6 +1266,49 @@ formulaGeometryGroup.shapes.add(formulaGeometryConfig(
   "grouped-formula-custom-path",
   { left: 20, top: 20, width: 160, height: 100 },
 ));
+const builtinGeometryShape = formulaGeometrySlide.shapes.add({
+  name: "builtin-guide-default-path",
+  geometry: "custom",
+  position: { left: 20, top: 170, width: 200, height: 100 },
+  fill: "#FDE68A",
+  line: { fill: "#B45309", width: 2 },
+  text: "Built-in guides",
+  textRectangle: { left: "l", top: "t", right: "r", bottom: "b" },
+  customAdjustments: [
+    { name: "adjX", formula: "val 25000" },
+    { name: "adjY", formula: "val 50000" },
+    { name: "adjRadius", formula: "val 250000" },
+    { name: "adjSweep", formula: "val 10800000" },
+  ],
+  customConnectionSites: [
+    { angle: "3cd4", x: "hc", y: "t" },
+    { angle: "cd2", x: "l", y: "vc" },
+    { angle: "cd4", x: "hc", y: "b" },
+    { angle: 0, x: "r", y: "vc" },
+  ],
+  customAdjustmentHandles: [
+    { kind: "xy", xAdjustment: "adjX", minX: "l", maxX: "r", yAdjustment: "adjY", minY: "t", maxY: "b", x: "hc", y: "vc" },
+    { kind: "polar", radialAdjustment: "adjRadius", minRadius: "l", maxRadius: "ss", angleAdjustment: "adjSweep", minAngle: "t", maxAngle: "cd2", x: "r", y: "vc" },
+  ],
+  customPaths: [{
+    commands: [
+      { moveTo: { x: "l", y: "vc" } },
+      { lineTo: { x: "hc", y: "t" } },
+      { arcTo: { widthRadius: "wd4", heightRadius: "hd4", startAngle: "3cd4", sweepAngle: "cd2" } },
+      { lineTo: { x: "r", y: "vc" } },
+      { lineTo: { x: "hc", y: "b" } },
+      { close: {} },
+    ],
+  }, {
+    width: 100,
+    fillMode: "none",
+    stroke: false,
+    commands: [
+      { moveTo: { x: 0, y: 0 } },
+      { lineTo: { x: 100, y: 0 } },
+    ],
+  }],
+});
 assert.deepEqual(formulaGeometryShape.inspectRecord().customAdjustmentCount, 4);
 assert.deepEqual(formulaGeometryShape.inspectRecord().customGuideCount, 18);
 assert.deepEqual(formulaGeometryShape.inspectRecord().customConnectionSiteCount, 2);
@@ -1285,6 +1328,11 @@ assert.throws(
   /requires an explicit connection-site index/,
 );
 assert.match(formulaGeometryShape.toSvg(), /M 476250 476250 L 1428750 476250 A 238125 238125/);
+assert.match(builtinGeometryShape.toSvg(), /M 0 476250 L 952500 0 A 476250 238125/);
+assert.equal(Object.hasOwn(builtinGeometryShape.customPaths[0], "width"), false);
+assert.equal(Object.hasOwn(builtinGeometryShape.customPaths[0], "height"), false);
+assert.equal(builtinGeometryShape.customPaths[1].width, 100);
+assert.equal(Object.hasOwn(builtinGeometryShape.customPaths[1], "height"), false);
 assert.deepEqual(formulaGeometryShape.layoutJson().customGuides[0], { name: "x1", formula: "*/ w adjX 100000" });
 const formulaGeometryPptx = await PresentationFile.exportPptx(formulaGeometryPresentation);
 const formulaGeometryZip = await JSZip.loadAsync(formulaGeometryPptx.bytes);
@@ -1297,9 +1345,15 @@ assert.match(formulaGeometryXml, /<a:cxnLst><a:cxn ang="10800000"><a:pos x="x1" 
 assert.match(formulaGeometryXml, /<a:pt x="x1" y="y1"\s*\/>/);
 assert.match(formulaGeometryXml, /<a:arcTo wR="radius" hR="radius" stAng="zeroAngle" swAng="adjSweep"\s*\/>/);
 assert.match(formulaGeometryXml, /<a:rect l="x1" t="t" r="x2" b="b"\s*\/>/);
+assert.match(formulaGeometryXml, /<a:ahXY gdRefX="adjX" minX="l" maxX="r" gdRefY="adjY" minY="t" maxY="b"><a:pos x="hc" y="vc"\s*\/>/);
+assert.match(formulaGeometryXml, /<a:cxn ang="3cd4"><a:pos x="hc" y="t"\s*\/>/);
+assert.match(formulaGeometryXml, /<a:path><a:moveTo><a:pt x="l" y="vc"\s*\/>/);
+assert.match(formulaGeometryXml, /<a:arcTo wR="wd4" hR="hd4" stAng="3cd4" swAng="cd2"\s*\/>/);
+assert.match(formulaGeometryXml, /<a:path w="100" fill="none" stroke="0"><a:moveTo>/);
 assert.doesNotMatch(formulaGeometryXml, /officeKitText(?:Left|Top|Right|Bottom)/);
 const importedFormulaGeometry = await PresentationFile.importPptx(formulaGeometryPptx);
 const importedFormulaShape = importedFormulaGeometry.slides.getItem(0).shapes.items[0];
+const importedBuiltinGeometryShape = itemByName(importedFormulaGeometry.slides.getItem(0).shapes.items, "builtin-guide-default-path");
 assert.equal(importedFormulaShape.customAdjustments.length, 4);
 assert.equal(importedFormulaShape.customGuides.length, 18);
 assert.deepEqual(importedFormulaShape.customConnectionSites, [
@@ -1313,6 +1367,16 @@ assert.deepEqual(importedFormulaShape.customAdjustmentHandles, [
 assert.deepEqual(importedFormulaShape.textRectangle, { left: "x1", top: "t", right: "x2", bottom: "b" });
 assert.equal(importedFormulaShape.customPaths[0].commands[0].moveTo.x, "x1");
 assert.equal(importedFormulaShape.customPaths[0].commands[2].arcTo.widthRadius, "radius");
+assert.equal(Object.hasOwn(importedBuiltinGeometryShape.customPaths[0], "width"), false);
+assert.equal(Object.hasOwn(importedBuiltinGeometryShape.customPaths[0], "height"), false);
+assert.equal(importedBuiltinGeometryShape.customPaths[1].width, 100);
+assert.equal(Object.hasOwn(importedBuiltinGeometryShape.customPaths[1], "height"), false);
+assert.deepEqual(importedBuiltinGeometryShape.customConnectionSites[0], { angle: "3cd4", x: "hc", y: "t" });
+assert.deepEqual(importedBuiltinGeometryShape.customAdjustmentHandles[0], {
+  kind: "xy", xAdjustment: "adjX", minX: "l", maxX: "r", yAdjustment: "adjY", minY: "t", maxY: "b", x: "hc", y: "vc",
+});
+assert.equal(importedBuiltinGeometryShape.customPaths[0].commands[2].arcTo.widthRadius, "wd4");
+importedBuiltinGeometryShape.customPaths[0].commands[1].lineTo.x = "r";
 assert.equal(importedFormulaGeometry.slides.getItem(0).groups.items[0].shapes.items[0].customGuides.length, 18);
 assert.equal(importedFormulaGeometry.slides.getItem(0).groups.items[0].shapes.items[0].customConnectionSites.length, 2);
 assert.equal(importedFormulaGeometry.slides.getItem(0).groups.items[0].shapes.items[0].customAdjustmentHandles.length, 2);
@@ -1371,6 +1435,12 @@ assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customConne
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customAdjustmentHandles[0].maxX, 90000);
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customAdjustmentHandles[1].x, "x1");
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customPaths[0].commands[0].moveTo.x, "x1");
+const editedBuiltinGeometryShape = itemByName(editedFormulaGeometry.slides.getItem(0).shapes.items, "builtin-guide-default-path");
+assert.equal(editedBuiltinGeometryShape.customPaths[0].commands[1].lineTo.x, "r");
+assert.equal(Object.hasOwn(editedBuiltinGeometryShape.customPaths[0], "width"), false);
+assert.equal(Object.hasOwn(editedBuiltinGeometryShape.customPaths[0], "height"), false);
+assert.equal(editedBuiltinGeometryShape.customPaths[1].width, 100);
+assert.equal(Object.hasOwn(editedBuiltinGeometryShape.customPaths[1], "height"), false);
 assert.deepEqual(editedFormulaGeometry.slides.getItem(0).shapes.items[0].textRectangle, { left: "x1", top: "t", right: 180, bottom: "b" });
 const editedFormulaGeometryZip = await JSZip.loadAsync((await PresentationFile.exportPptx(importedFormulaGeometry)).bytes);
 const editedFormulaGeometryXml = await editedFormulaGeometryZip.file("ppt/slides/slide1.xml").async("text");
@@ -1459,19 +1529,27 @@ assert.equal(itemByName(invalidStrokeCustomGeometry.slides.getItem(0).shapes.ite
 const preservedInvalidStroke = await PresentationFile.exportPptx(invalidStrokeCustomGeometry);
 const preservedInvalidStrokeZip = await JSZip.loadAsync(preservedInvalidStroke.bytes);
 assert.match(await preservedInvalidStrokeZip.file("ppt/slides/slide1.xml").async("text"), /<a:path\b[^>]*\bstroke="maybe"/);
-const formulaCustomGeometryXml = customGeometryXml.replace('wR="3000"', 'wR="wd2"');
-assert.notEqual(formulaCustomGeometryXml, customGeometryXml);
-const formulaCustomGeometryFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: formulaCustomGeometryXml }]);
-const formulaCustomGeometry = await PresentationFile.importPptx(formulaCustomGeometryFile);
-assert.equal(formulaCustomGeometry.slides.getItem(0).shapes.items.length, 1);
-const opaqueFormulaGeometry = itemByName(formulaCustomGeometry.slides.getItem(0).shapes.items, "literal-custom-path");
+const builtinFormulaCustomGeometryXml = customGeometryXml.replace('wR="3000"', 'wR="wd2"');
+assert.notEqual(builtinFormulaCustomGeometryXml, customGeometryXml);
+const builtinFormulaCustomGeometryFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: builtinFormulaCustomGeometryXml }]);
+const builtinFormulaCustomGeometry = await PresentationFile.importPptx(builtinFormulaCustomGeometryFile);
+const builtinFormulaCustomGeometryShape = itemByName(builtinFormulaCustomGeometry.slides.getItem(0).shapes.items, "literal-custom-path");
+assert.equal(builtinFormulaCustomGeometryShape.customPaths.length, 3);
+assert.equal(builtinFormulaCustomGeometryShape.customPaths[0].commands[4].arcTo.widthRadius, "wd2");
+const preservedBuiltinFormulaGeometry = await PresentationFile.exportPptx(builtinFormulaCustomGeometry);
+const preservedBuiltinFormulaGeometryZip = await JSZip.loadAsync(preservedBuiltinFormulaGeometry.bytes);
+assert.match(await preservedBuiltinFormulaGeometryZip.file("ppt/slides/slide1.xml").async("text"), /<a:arcTo wR="wd2" hR="4000" stAng="5400000" swAng="21600000"\s*\/>/);
+const unknownFormulaCustomGeometryXml = customGeometryXml.replace('wR="3000"', 'wR="missingGuide"');
+const unknownFormulaCustomGeometryFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: unknownFormulaCustomGeometryXml }]);
+const unknownFormulaCustomGeometry = await PresentationFile.importPptx(unknownFormulaCustomGeometryFile);
+const opaqueFormulaGeometry = itemByName(unknownFormulaCustomGeometry.slides.getItem(0).shapes.items, "literal-custom-path");
 assert.equal(opaqueFormulaGeometry.customPaths.length, 0);
-const preservedFormulaGeometry = await PresentationFile.exportPptx(formulaCustomGeometry);
-const preservedFormulaGeometryZip = await JSZip.loadAsync(preservedFormulaGeometry.bytes);
-assert.match(await preservedFormulaGeometryZip.file("ppt/slides/slide1.xml").async("text"), /<a:arcTo wR="wd2" hR="4000" stAng="5400000" swAng="21600000"\s*\/>/);
+const preservedUnknownFormulaGeometry = await PresentationFile.exportPptx(unknownFormulaCustomGeometry);
+const preservedUnknownFormulaGeometryZip = await JSZip.loadAsync(preservedUnknownFormulaGeometry.bytes);
+assert.match(await preservedUnknownFormulaGeometryZip.file("ppt/slides/slide1.xml").async("text"), /<a:arcTo wR="missingGuide" hR="4000" stAng="5400000" swAng="21600000"\s*\/>/);
 opaqueFormulaGeometry.name = "unsafe-formula-geometry-edit";
 await assert.rejects(
-  () => PresentationFile.exportPptx(formulaCustomGeometry),
+  () => PresentationFile.exportPptx(unknownFormulaCustomGeometry),
   (error) => error?.code === "unsupported_presentation_edit",
 );
 const officeKitTextGuideList = /<a:gdLst><a:gd name="officeKitTextLeft"[\s\S]*?<\/a:gdLst>/;
@@ -1604,8 +1682,8 @@ assert.throws(
   /quadraticBezTo\.x1 must be a safe integer/,
 );
 assert.throws(
-  () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 0, height: 100, commands: [{ close: true }] }] }),
-  /width and height must be positive/,
+  () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: -1, height: 100, commands: [{ close: true }] }] }),
+  /width must be positive when supplied/,
 );
 assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, fillMode: "lighten", commands: [{ close: true }] }] }),
@@ -1745,7 +1823,7 @@ assert.throws(
     customConnectionSites: [{ angle: 0, x: "missingGuide", y: 10 }],
     customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
   }),
-  /declared DrawingML guide reference/,
+  /DrawingML built-in or declared guide reference/,
 );
 assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", textRectangle: { left: 0, top: 0, right: 10, bottom: 10, width: 10 }, customPaths: [{ width: 100, height: 100, commands: [{ close: true }] }] }),
@@ -1762,7 +1840,7 @@ assert.throws(
     textRectangle: { left: "missingRectGuide", top: "t", right: "r", bottom: "b" },
     customPaths: [{ width: 100, height: 100, commands: [{ close: true }] }],
   }),
-  /declared DrawingML guide reference/,
+  /DrawingML built-in or declared guide reference/,
 );
 assert.throws(
   () => customGeometrySlide.shapes.add({
@@ -1795,14 +1873,7 @@ assert.throws(
     geometry: "custom",
     customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: "missingGuide", y: 0 } }] }],
   }),
-  /must be a number or a declared DrawingML guide reference/,
-);
-assert.throws(
-  () => customGeometrySlide.shapes.add({
-    geometry: "custom",
-    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: "wd2", y: 0 } }] }],
-  }),
-  /must be a number or a declared DrawingML guide reference/,
+  /must be a number or a DrawingML built-in or declared guide reference/,
 );
 assert.throws(
   () => customGeometrySlide.shapes.add({

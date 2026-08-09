@@ -7,7 +7,8 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace OfficeKit.Codec;
 
 // Bounded DrawingML custom paths used by source-built presentation templates.
-// Coordinates and arc values may reference one ordered adjustment/guide graph;
+// Coordinates and arc values may reference DrawingML built-ins or one ordered
+// adjustment/guide graph;
 // formula parsing and evaluation stay in PptxCustomGeometryFormulaCodec. Shape-
 // local text bounds are delegated to a leaf that retains the private numeric
 // scaling profile while accepting standard literal/reference edges. XY/polar
@@ -48,8 +49,8 @@ internal static class PptxCustomGeometryCodec
         {
             var path = new PresentationCustomGeometryPath
             {
-                Width = checked((long)nativePath.Width!.Value),
-                Height = checked((long)nativePath.Height!.Value),
+                Width = checked((long)(nativePath.Width?.Value ?? 0)),
+                Height = checked((long)(nativePath.Height?.Value ?? 0)),
             };
             if (nativePath.Fill?.HasValue == true)
                 path.FillMode = nativePath.Fill.Value == A.PathFillModeValues.None
@@ -146,7 +147,7 @@ internal static class PptxCustomGeometryCodec
         var commandCount = 0;
         foreach (var path in shape.CustomPaths)
         {
-            if (path.Width is <= 0 or > MaxCoordinate || path.Height is <= 0 or > MaxCoordinate || path.Commands.Count == 0)
+            if (path.Width is < 0 or > MaxCoordinate || path.Height is < 0 or > MaxCoordinate || path.Commands.Count == 0)
                 throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an invalid custom path extent or empty command list.");
             if (path.FillMode is not (PresentationCustomGeometryPath.Types.FillMode.Unspecified or
                 PresentationCustomGeometryPath.Types.FillMode.Normal or PresentationCustomGeometryPath.Types.FillMode.None))
@@ -223,7 +224,9 @@ internal static class PptxCustomGeometryCodec
         var paths = new A.PathList();
         foreach (var source in shape.CustomPaths)
         {
-            var path = new A.Path { Width = source.Width, Height = source.Height };
+            var path = new A.Path();
+            if (source.Width > 0) path.Width = source.Width;
+            if (source.Height > 0) path.Height = source.Height;
             if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.Normal) path.Fill = A.PathFillModeValues.Norm;
             else if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.None) path.Fill = A.PathFillModeValues.None;
             if (source.HasStroke) path.Stroke = source.Stroke;
@@ -272,8 +275,8 @@ internal static class PptxCustomGeometryCodec
 
     private static bool Supports(A.Path path, PptxCustomGeometryFormulaCodec.Graph formulas, ref int commandCount)
     {
-        if (path.Width?.Value is not { } width || width is 0 or > MaxCoordinate ||
-            path.Height?.Value is not { } height || height is 0 or > MaxCoordinate ||
+        if (path.Width is { HasValue: false } || path.Width?.Value > MaxCoordinate ||
+            path.Height is { HasValue: false } || path.Height?.Value > MaxCoordinate ||
             !HasOnlyAttributes(path, "w", "h", "fill", "stroke", "extrusionOk") || !SupportsPathProperties(path) ||
             path.ChildElements.Count == 0)
             return false;

@@ -57,7 +57,7 @@ export function normalizePresentationCustomTextRectangle(value, { adjustments, g
   const unknown = Object.keys(value).filter((key) => !TEXT_RECTANGLE_FIELD_SET.has(key));
   if (unknown.length) throw new TypeError(`Presentation custom geometry textRectangle has unsupported fields: ${unknown.join(", ")}.`);
   const graph = normalizePresentationCustomGeometryFormulaGraph({ adjustments, guides });
-  const references = presentationCustomGeometryReferenceNames(graph, { includeBuiltins: true });
+  const references = presentationCustomGeometryReferenceNames(graph);
   const rectangle = Object.fromEntries(TEXT_RECTANGLE_FIELDS.map((field) => [
     field,
     textRectangleCoordinate(value[field], `Presentation custom geometry textRectangle.${field}`, references),
@@ -371,10 +371,16 @@ export function normalizePresentationCustomPaths(value, { adjustments, guides, w
     if (!path || typeof path !== "object" || Array.isArray(path)) throw new TypeError(`Presentation custom path ${pathIndex + 1} must be an object.`);
     const unknown = Object.keys(path).filter((key) => !PATH_FIELDS.has(key));
     if (unknown.length) throw new TypeError(`Presentation custom path ${pathIndex + 1} has unsupported fields: ${unknown.join(", ")}.`);
-    const width = coordinate(path.width, `Presentation custom path ${pathIndex + 1}.width`, references);
-    const height = coordinate(path.height, `Presentation custom path ${pathIndex + 1}.height`, references);
-    if (typeof width !== "number" || typeof height !== "number") throw new TypeError(`Presentation custom path ${pathIndex + 1} width and height must be literal coordinates.`);
-    if (width <= 0 || height <= 0) throw new RangeError(`Presentation custom path ${pathIndex + 1} width and height must be positive.`);
+    const pathExtent = (field) => {
+      const source = path[field];
+      if (source == null || source === 0) return undefined;
+      const normalized = coordinate(source, `Presentation custom path ${pathIndex + 1}.${field}`, references);
+      if (typeof normalized !== "number") throw new TypeError(`Presentation custom path ${pathIndex + 1}.${field} must be a literal coordinate.`);
+      if (normalized <= 0) throw new RangeError(`Presentation custom path ${pathIndex + 1}.${field} must be positive when supplied.`);
+      return normalized;
+    };
+    const width = pathExtent("width");
+    const height = pathExtent("height");
     if (!Array.isArray(path.commands) || path.commands.length === 0) throw new TypeError(`Presentation custom path ${pathIndex + 1} requires commands.`);
     commandCount += path.commands.length;
     if (commandCount > MAX_COMMANDS) throw new RangeError(`Presentation custom geometry exceeds the ${MAX_COMMANDS}-command budget.`);
@@ -394,7 +400,11 @@ export function normalizePresentationCustomPaths(value, { adjustments, guides, w
       }
       return normalized;
     });
-    const normalized = { width, height, commands };
+    const normalized = {
+      ...(width === undefined ? {} : { width }),
+      ...(height === undefined ? {} : { height }),
+      commands,
+    };
     if (Object.hasOwn(path, "fillMode")) {
       if (!PATH_FILL_MODES.has(path.fillMode)) throw new TypeError(`Presentation custom path ${pathIndex + 1}.fillMode must be normal or none.`);
       normalized.fillMode = path.fillMode;
@@ -496,6 +506,8 @@ export function presentationCustomPathsSvg(paths, frame, { escape = String, adju
       path.fillMode === "none" ? ' fill="none"' : "",
       path.stroke === false ? ' stroke="none"' : "",
     ].join("");
-    return `<path d="${escape(commands)}" transform="translate(${frame.left} ${frame.top}) scale(${frame.width / path.width} ${frame.height / path.height})"${paint}/>`;
+    const pathWidth = path.width ?? widthEmu;
+    const pathHeight = path.height ?? heightEmu;
+    return `<path d="${escape(commands)}" transform="translate(${frame.left} ${frame.top}) scale(${frame.width / pathWidth} ${frame.height / pathHeight})"${paint}/>`;
   }).join("");
 }

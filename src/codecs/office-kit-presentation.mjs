@@ -1771,8 +1771,8 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
     }
   }
   const customPaths = normalizedCustomPaths.map((path) => ({
-    width: BigInt(path.width),
-    height: BigInt(path.height),
+    width: BigInt(path.width ?? 0),
+    height: BigInt(path.height ?? 0),
     fillMode: path.fillMode === "normal"
       ? PresentationCustomGeometryPath_FillMode.NORMAL
       : path.fillMode === "none"
@@ -2973,8 +2973,6 @@ function modelCustomGeometryAdjustmentHandles(shape) {
 function modelCustomGeometryPaths(shape) {
   return (shape.customPaths || []).map((path, pathIndex) => {
     const modeled = {
-      width: Number(path.width),
-      height: Number(path.height),
       commands: path.commands.map((command) => {
         if (command.command.case === "moveTo") return { moveTo: modelCustomGeometryPoint(command.command.value) };
         if (command.command.case === "lineTo") return { lineTo: modelCustomGeometryPoint(command.command.value) };
@@ -3002,6 +3000,8 @@ function modelCustomGeometryPaths(shape) {
         return { close: {} };
       }),
     };
+    if (Number(path.width) > 0) modeled.width = Number(path.width);
+    if (Number(path.height) > 0) modeled.height = Number(path.height);
     if (path.fillMode === PresentationCustomGeometryPath_FillMode.NORMAL) modeled.fillMode = "normal";
     else if (path.fillMode === PresentationCustomGeometryPath_FillMode.NONE) modeled.fillMode = "none";
     else if (path.fillMode !== PresentationCustomGeometryPath_FillMode.UNSPECIFIED) {

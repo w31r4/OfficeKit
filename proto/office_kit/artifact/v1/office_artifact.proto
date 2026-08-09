@@ -1834,6 +1834,8 @@ message PresentationCustomGeometryPath {
     FILL_MODE_NORMAL = 1;
     FILL_MODE_NONE = 2;
   }
+  // Zero means the native a:path attribute is omitted and that axis uses the
+  // shape coordinate system; a positive value authors an explicit viewport.
   int64 width = 1;
   int64 height = 2;
   repeated PresentationCustomGeometryCommand commands = 3;
@@ -1858,9 +1860,9 @@ message PresentationCustomGeometryCommand {
 message PresentationCustomGeometryPoint {
   int64 x = 1;
   int64 y = 2;
-  // Mutually exclusive with the corresponding literal field by contract. The
-  // referenced adjustment or ordinary guide must be declared in graph order;
-  // DrawingML built-ins are formula operands rather than implicit path guides.
+  // Mutually exclusive with the corresponding literal field by contract.
+  // References may name a DrawingML built-in or an adjustment/guide declared
+  // in graph order.
   optional string x_reference = 3;
   optional string y_reference = 4;
 }
@@ -3617,7 +3619,8 @@ message SpreadsheetPivotDateFilterArtifact {
 // Appended after every existing message so PresentationShape field 29 adds one
 // bounded a:cxnLst entry without renumbering a pre-existing descriptor.
 // Literal positions are shape-local EMUs and literal angles use 1/60000-degree
-// units; each value may instead name a declared adjustment or guide.
+// units; each value may instead name a DrawingML built-in or a declared
+// adjustment/guide.
 message PresentationCustomGeometryConnectionSite {
   int32 angle_60000 = 1;
   optional string angle_reference = 2;

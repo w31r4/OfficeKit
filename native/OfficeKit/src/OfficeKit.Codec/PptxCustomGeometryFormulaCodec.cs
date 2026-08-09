@@ -40,31 +40,22 @@ internal static partial class PptxCustomGeometryFormulaCodec
     internal sealed class Graph(
         IReadOnlyList<PresentationCustomGeometryGuide> adjustments,
         IReadOnlyList<PresentationCustomGeometryGuide> guides,
-        IReadOnlyDictionary<string, double> pathValues,
-        IReadOnlyDictionary<string, double> allValues)
+        IReadOnlyDictionary<string, double> values)
     {
         internal IReadOnlyList<PresentationCustomGeometryGuide> Adjustments { get; } = adjustments;
         internal IReadOnlyList<PresentationCustomGeometryGuide> Guides { get; } = guides;
-        private IReadOnlyDictionary<string, double> PathValues { get; } = pathValues;
-        private IReadOnlyDictionary<string, double> AllValues { get; } = allValues;
+        private IReadOnlyDictionary<string, double> Values { get; } = values;
 
         internal bool TryResolve(string? reference, long literal, out double value)
         {
-            if (reference is not null) return PathValues.TryGetValue(reference, out value);
+            if (reference is not null) return Values.TryGetValue(reference, out value);
             value = literal;
             return literal is >= -MaxCoordinate and <= MaxCoordinate;
         }
 
         internal bool TryResolveReference(string? reference, out double value)
         {
-            if (reference is not null) return PathValues.TryGetValue(reference, out value);
-            value = 0;
-            return false;
-        }
-
-        internal bool TryResolveAnyReference(string? reference, out double value)
-        {
-            if (reference is not null) return AllValues.TryGetValue(reference, out value);
+            if (reference is not null) return Values.TryGetValue(reference, out value);
             value = 0;
             return false;
         }
@@ -134,9 +125,7 @@ internal static partial class PptxCustomGeometryFormulaCodec
         var values = Builtins(widthEmu, heightEmu);
         var normalizedAdjustments = Normalize(adjustments, "adjustment", values);
         var normalizedGuides = Normalize(guides, "guide", values);
-        var pathValues = normalizedAdjustments.Concat(normalizedGuides)
-            .ToDictionary(item => item.Name, item => values[item.Name], StringComparer.Ordinal);
-        return new Graph(normalizedAdjustments, normalizedGuides, pathValues, values);
+        return new Graph(normalizedAdjustments, normalizedGuides, values);
     }
 
     private static IReadOnlyList<PresentationCustomGeometryGuide> Normalize(

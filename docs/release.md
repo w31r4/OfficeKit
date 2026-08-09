@@ -4,11 +4,32 @@
 
 The package dry-run passed with guide-valued Presentation custom-geometry text
 rectangles and the rebuilt OfficeKit Codec runtime. The candidate contains 713
-files, 36,222,584 compressed bytes, and 53,387,471 unpacked bytes; its measured
-shasum is `c769cbf2ac72cd2c54bf7b57250dd8b5b0a7333f`. It remains below the
-53,400,000-byte ceiling with 12,529 bytes of measured headroom. The runtime
-manifest covers 38 files and 15,397,099 bytes. This is package evidence, not an
+files, 36,222,707 compressed bytes, and 53,387,788 unpacked bytes; its measured
+shasum is `3507ae38534b9627f4154c99df2a1b85f25b456b`. It remains below the
+53,400,000-byte ceiling with 12,212 bytes of measured headroom. The runtime
+manifest covers 38 files and 15,396,587 bytes. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: standard custom-geometry guide coordinates
+
+Presentation custom geometry now uses one DrawingML reference namespace across
+path points/arcs, connection sites, adjustment-handle bounds/positions, and
+text rectangles. Each field accepts a supported built-in or an ordered declared
+adjustment/guide; unknown and forward references still fail closed. The C#
+formula graph no longer keeps a special declared-only dictionary beside its
+full value dictionary, and the JS model no longer opts individual fields into
+built-ins.
+
+Each custom-path axis may also omit its positive viewport extent. Protocol-v2
+uses zero for that native default, the C# codec reads and writes an absent
+`a:path/@w` or `@h`, and the JS model exposes absence rather than a synthetic
+zero. SVG preview evaluates omitted axes in the shape EMU coordinate system.
+The authored/imported/edit/second-import corpus covers direct built-ins in
+points, arcs, sites, both handle kinds, and text bounds; unknown references
+remain opaque/source-bound on import. Open XML SDK validation, the runnable
+Presentation Skill fixture, and SVG/sharp plus LibreOffice/Poppler centroid
+checks cover the bounded default-extent path. Exact cross-host release claims
+still require the PowerPoint/native-host lane.
 
 ## Unreleased: Presentation guide-valued text rectangles
 
@@ -389,8 +410,9 @@ Custom shapes now carry ordered `customAdjustments` and `customGuides` graphs.
 The JS model and OfficeKit Codec implement the same closed 17-operator
 ECMA-376 formula grammar, declaration-order references, DrawingML built-in
 operands, arithmetic and signed-32-bit result checks, and explicit graph
-budgets. Custom-path point and arc fields may reference one declared
-adjustment or guide; path dimensions remain positive literals. The graph lives
+budgets. At that milestone, custom-path point and arc fields referenced one
+declared adjustment/guide and path dimensions remained positive literals; the
+standard-coordinate milestone above supersedes both restrictions. The graph lives
 in one format-local formula module on each side of the wire so formula changes
 do not spread across the object model, adapter, SVG renderer, and XML codec.
 
@@ -404,13 +426,12 @@ negative square roots, out-of-range results, invalid resolved arcs, and
 non-empty handles and, at that milestone, connection sites failed closed. Unsupported topology stays
 opaque instead of being flattened.
 
-The semantic render gate rasterizes two adjustment variants from the model SVG
-with sharp and proves their geometry changes. LibreOfficeDev 26.8 alpha plus
-Poppler proves that both generated packages and pages render, but that host
-currently resolves guide-valued `a:path` coordinates as zero; this is recorded
-as a host-compatibility limitation, not counted as a formula semantic pass.
-PowerPoint/native-host acceptance therefore remains release-critical evidence
-for this slice.
+The semantic render gate rasterized two adjustment variants from the model SVG
+with sharp and proved their geometry changed. At that milestone the explicit-
+viewport LibreOfficeDev/Poppler result was not counted as a formula semantic
+pass. The standard built-in/default-extent centroid regression above now adds a
+bounded native semantic check; PowerPoint/native-host acceptance remains
+release-critical evidence for broad cross-host fidelity.
 
 Local gates passed: fast tests 26/26, slow tests 75/75, OfficeKit Codec .NET
 tests 389/389, OfficeBridge tests 5/5, protobuf lint/regeneration, deterministic

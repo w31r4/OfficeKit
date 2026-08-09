@@ -98,7 +98,7 @@ internal static class PptxCustomGeometryTextRectangleCodec
                 edge.SetLiteral(result, coordinate);
                 resolved[index] = coordinate;
             }
-            else if (formulas.TryResolveAnyReference(value, out var evaluated))
+            else if (formulas.TryResolveReference(value, out var evaluated))
             {
                 edge.SetReference(result, value);
                 resolved[index] = evaluated;
@@ -127,7 +127,7 @@ internal static class PptxCustomGeometryTextRectangleCodec
             var literal = edge.Literal(rectangle);
             if (hasReference && literal != 0 ||
                 !(hasReference
-                    ? formulas.TryResolveAnyReference(edge.Reference(rectangle), out resolved[index])
+                    ? formulas.TryResolveReference(edge.Reference(rectangle), out resolved[index])
                     : TryLiteral(literal, out resolved[index])))
                 throw Invalid(shapeId);
         }

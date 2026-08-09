@@ -115,8 +115,6 @@ try {
     const slide = presentation.slides.add({ name });
     formulaSlides.push(slide);
     const position = { left: 40, top: 40, width: 560, height: 280 };
-    const pathWidth = Math.round(position.width * 9_525);
-    const pathHeight = Math.round(position.height * 9_525);
     slide.shapes.add({
       name: `formula-probe-${slide.index + 1}`,
       geometry: "custom",
@@ -126,12 +124,10 @@ try {
       customAdjustments: [{ name: "adjX", formula: `val ${adjustment}` }],
       customGuides: [{ name: "apexX", formula: "*/ w adjX 100000" }],
       customPaths: [{
-        width: pathWidth,
-        height: pathHeight,
         commands: [
-          { moveTo: { x: 0, y: pathHeight } },
-          { lineTo: { x: "apexX", y: 0 } },
-          { lineTo: { x: pathWidth, y: pathHeight } },
+          { moveTo: { x: "l", y: "b" } },
+          { lineTo: { x: "apexX", y: "t" } },
+          { lineTo: { x: "r", y: "b" } },
           { close: {} },
         ],
       }],
@@ -172,6 +168,7 @@ try {
     await greenCentroid(path.join(work, "formula-4.png")),
     await greenCentroid(path.join(work, "formula-5.png")),
   ];
+  assert.ok(nativeFormulaCentroids[1] - nativeFormulaCentroids[0] > 35, `Guide adjustment must move the native-rendered formula-path centroid right: ${JSON.stringify(nativeFormulaCentroids)}`);
   console.log(`presentation custom geometry render ok ${JSON.stringify({ positions, modelFormulaCentroids, nativeFormulaCentroids })}`);
 } finally {
   if (process.env.OFFICEKIT_KEEP_QA === "1") {

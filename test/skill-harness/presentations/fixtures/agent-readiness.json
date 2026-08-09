@@ -52,24 +52,22 @@
             { "name": "adjAngle", "formula": "val 10800000" }
           ],
           "customAdjustmentHandles": [
-            { "kind": "xy", "xAdjustment": "adjX", "minX": 0, "maxX": 100000, "yAdjustment": "adjY", "minY": 0, "maxY": 100000, "x": 150, "y": 65 },
-            { "kind": "polar", "radialAdjustment": "adjRadius", "minRadius": 0, "maxRadius": 500000, "angleAdjustment": "adjAngle", "minAngle": 0, "maxAngle": 360, "x": 300, "y": 65 }
+            { "kind": "xy", "xAdjustment": "adjX", "minX": "l", "maxX": "r", "yAdjustment": "adjY", "minY": "t", "maxY": "b", "x": "hc", "y": "vc" },
+            { "kind": "polar", "radialAdjustment": "adjRadius", "minRadius": "l", "maxRadius": "ss", "angleAdjustment": "adjAngle", "minAngle": "t", "maxAngle": "cd2", "x": "r", "y": "vc" }
           ],
           "customConnectionSites": [
-            { "angle": -90, "x": 150, "y": 0 },
-            { "angle": 180, "x": 0, "y": 65 },
-            { "angle": 90, "x": 150, "y": 130 },
-            { "angle": 0, "x": 300, "y": 65 }
+            { "angle": "3cd4", "x": "hc", "y": "t" },
+            { "angle": "cd2", "x": "l", "y": "vc" },
+            { "angle": "cd4", "x": "hc", "y": "b" },
+            { "angle": 0, "x": "r", "y": "vc" }
           ],
           "textRectangle": { "left": "l", "top": "t", "right": "r", "bottom": "b" },
           "customPaths": [{
-            "width": 2857500,
-            "height": 1238250,
             "commands": [
-              { "moveTo": { "x": 0, "y": 0 } },
-              { "lineTo": { "x": 2857500, "y": 0 } },
-              { "lineTo": { "x": 2857500, "y": 1238250 } },
-              { "lineTo": { "x": 0, "y": 1238250 } },
+              { "moveTo": { "x": "l", "y": "t" } },
+              { "lineTo": { "x": "r", "y": "t" } },
+              { "lineTo": { "x": "r", "y": "b" } },
+              { "lineTo": { "x": "l", "y": "b" } },
               { "close": {} }
             ]
           }],

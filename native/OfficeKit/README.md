@@ -48,20 +48,24 @@ The bounded PPTX custom-geometry profile supports literal paths plus one
 ordered `a:avLst`/`a:gdLst` graph. Its source-built formula module validates and
 evaluates all 17 ECMA-376 guide operators under fixed name/count/length and
 signed-32-bit budgets. Formula operands may use integer literals, DrawingML
-built-ins, or earlier guides; path points and arc radii/angles may use only a
-literal or one declared adjustment/guide name. Forward references, reserved or
+built-ins, or earlier guides; path points, arc radii/angles, connection sites,
+handle bounds/positions, and text rectangles may use a literal or one built-in
+or declared adjustment/guide name. Forward references, reserved or
 duplicate names, undefined path references, invalid arithmetic, and invalid
-evaluated arc bounds fail closed. Path `w`/`h` remain positive literals. The
+evaluated arc bounds fail closed. Positive path `w`/`h` values author explicit
+viewports; zero/absence uses the shape-coordinate default for that axis. The
 same graph crosses the public protobuf wire and survives top-level/grouped
 authoring, import, fixed-topology edit, export, and second import. Up to 1,024
-ordered `a:cxnLst` entries may use literal or declared-guide angle/x/y values;
+ordered `a:cxnLst` entries may use literal or built-in/declared-guide angle/x/y
+values;
 site positions stay inside the shape frame, imported list length remains fixed,
 and each connector index is the native site identity.
 Up to 1,024 ordered `a:ahLst` entries expose the bounded standard `a:ahXY` and
 `a:ahPolar` forms. They bind only declared adjustment guides, require paired
-coordinate/radius/angle bounds when bounds are present, evaluate the current
-value against those ranges, and keep handle order, kind, and controlled guide
-names source-bound while permitting range/position edits.
+coordinate/radius/angle bounds using literals or built-in/declared guides when
+bounds are present, evaluate the current value against those ranges, and keep
+handle order, kind, and controlled guide names source-bound while permitting
+range/position edits.
 
 The profile also preserves the presence of each `a:path` `fill`, `stroke`, and
 `extrusionOk` attribute. It owns explicit `norm`/`none` fill modes and booleans;

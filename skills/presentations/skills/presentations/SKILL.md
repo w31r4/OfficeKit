@@ -145,13 +145,17 @@ Read the local docs before coding:
 
 For parameterized DrawingML custom shapes, read
 `artifact_tool/api/references/shapes.spec.md`. Use the ordered
-`customAdjustments`/`customGuides` graph and declared guide references rather
-than embedding formulas in path fields. Use ordered `customConnectionSites`
-when an Agent-authored diagram needs exact native connector anchors; bind those
+`customAdjustments`/`customGuides` graph and DrawingML built-in or declared
+guide references rather than embedding formulas in path fields. Omit custom
+path `width`/`height` to use the shape-coordinate default; provide positive
+literal extents only for an explicit viewport. Use ordered
+`customConnectionSites` when an Agent-authored diagram needs exact native
+connector anchors; bind those
 shapes with explicit site indexes. Use `customAdjustmentHandles` only for the
 documented bounded `xy`/`polar` handle profile, with declared adjustment names,
-paired ranges, and shape-local positions. Keep unsupported imported handle
-topology opaque and fail closed. A custom shape `textRectangle` may use pixel
+paired built-in/literal/guide ranges, and shape-local positions. Keep
+unsupported imported handle topology opaque and fail closed. A custom shape
+`textRectangle` may use pixel
 edges or DrawingML built-in/declared guide names; do not invent missing guides
 or bypass a failed resolved-bounds check.
 

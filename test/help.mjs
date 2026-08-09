@@ -121,10 +121,10 @@ const shapeAddHelp = HELP_CATALOG.find((item) => item.name === "slide.shapes.add
 assert.match(shapeAddHelp?.summary || "", /ordered adjustment\/guide formulas.*XY\/polar adjustment handles.*connection sites/i);
 assert.match(shapeAddHelp?.schema?.parameters?.geometry?.description || "", /connector.*from.*to.*fromIdx.*toIdx/i);
 assert.match(shapeAddHelp?.schema?.parameters?.customAdjustments?.description || "", /256.*17 ECMA-376 operators.*built-ins.*Forward references.*fail closed/i);
-assert.match(shapeAddHelp?.schema?.parameters?.customGuides?.description || "", /1,024.*earlier adjustment\/guide.*declared names.*not implicit path guides/i);
-assert.match(shapeAddHelp?.schema?.parameters?.customConnectionSites?.description || "", /1,024.*angle.*shape-local pixels.*declared adjustment\/guide.*existing indexes.*list length fixed.*explicit fromIdx\/toIdx/i);
-assert.match(shapeAddHelp?.schema?.parameters?.customAdjustmentHandles?.description || "", /1,024.*a:ahLst.*xy or polar.*paired min\/max.*shape-local pixels.*kind and controlled adjustment names fixed.*fails? closed/i);
-assert.match(shapeAddHelp?.schema?.parameters?.customPaths?.description || "", /positive literal integer width\/height.*Point coordinates and arc radii\/angles.*declared customAdjustments\/customGuides.*evaluate positive.*Unsupported handle topology.*opaque/i);
+assert.match(shapeAddHelp?.schema?.parameters?.customGuides?.description || "", /1,024.*earlier adjustment\/guide.*built-in-plus-declared reference namespace/i);
+assert.match(shapeAddHelp?.schema?.parameters?.customConnectionSites?.description || "", /1,024.*angle.*shape-local pixels.*DrawingML built-in or declared adjustment\/guide.*existing indexes.*list length fixed.*explicit fromIdx\/toIdx/i);
+assert.match(shapeAddHelp?.schema?.parameters?.customAdjustmentHandles?.description || "", /1,024.*a:ahLst.*xy or polar.*paired min\/max.*built-in\/declared guide references.*kind and controlled adjustment names fixed.*fails? closed/i);
+assert.match(shapeAddHelp?.schema?.parameters?.customPaths?.description || "", /optional positive literal integer width\/height.*Omitted or zero extents.*shape-coordinate default.*DrawingML built-in or declared custom adjustment\/guide.*evaluate positive.*Unknown references.*opaque or fail closed/i);
 assert.match(shapeAddHelp?.schema?.parameters?.textRectangle?.description || "", /pixel coordinate.*built-in\/declared adjustment\/guide.*resolved right\/bottom.*private scaling-guide.*ST_AdjCoordinate.*mixed rectangles.*fail closed/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view")?.summary || "", /local editor gridline\/guide visibility.*grid spacing.*fixed-topology.*viewProps\.xml/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view")?.schema?.returns?.view?.description || "", /show\/hide\/toggle.*capability-aware.*field presence.*guide count\/order\/orientation/i);
