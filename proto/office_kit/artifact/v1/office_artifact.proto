@@ -1777,10 +1777,11 @@ message PresentationShape {
   // structurally complex native transforms remain source-bound and read-only.
   PresentationShapeTransform transform = 13;
   PresentationShadow shadow = 14;
-  // Source-free custom DrawingML geometry. The bounded profile intentionally owns
-  // literal path coordinates, move/line/quadratic/cubic/arc/close commands,
-  // and presence-aware path paint metadata. Formula geometry, guides, handles,
-  // and connection sites remain source-bound.
+  // Source-free custom DrawingML geometry. The bounded profile owns literal or
+  // guide-referenced path coordinates, move/line/quadratic/cubic/arc/close
+  // commands, and presence-aware path paint metadata. Ordered adjustment and
+  // guide formulas use the closed ECMA-376 operator grammar; handles and
+  // connection sites remain source-bound.
   repeated PresentationCustomGeometryPath custom_paths = 15;
   // Presence-aware imported p:sp/@useBgFill. This affects preview paint but is
   // read-only and source-bound: source-free authoring and value/presence edits
@@ -1791,6 +1792,8 @@ message PresentationShape {
   // the codec reads numeric a:rect values and its exact four scaling guides,
   // while all other formula-valued rectangles remain opaque.
   PresentationCustomGeometryTextRectangle text_rectangle = 17;
+  repeated PresentationCustomGeometryGuide custom_adjustments = 18;
+  repeated PresentationCustomGeometryGuide custom_guides = 19;
 }
 
 message PresentationCustomGeometryPath {
@@ -1823,6 +1826,11 @@ message PresentationCustomGeometryCommand {
 message PresentationCustomGeometryPoint {
   int64 x = 1;
   int64 y = 2;
+  // Mutually exclusive with the corresponding literal field by contract. The
+  // referenced adjustment or ordinary guide must be declared in graph order;
+  // DrawingML built-ins are formula operands rather than implicit path guides.
+  optional string x_reference = 3;
+  optional string y_reference = 4;
 }
 
 message PresentationCustomGeometryCubicBezier {
@@ -3422,6 +3430,10 @@ message PresentationCustomGeometryArc {
   int64 height_radius = 2;
   int32 start_angle = 3;
   int32 sweep_angle = 4;
+  optional string width_radius_reference = 5;
+  optional string height_radius_reference = 6;
+  optional string start_angle_reference = 7;
+  optional string sweep_angle_reference = 8;
 }
 
 // Appended to preserve every pre-existing generated descriptor index while
@@ -3431,4 +3443,13 @@ message PresentationCustomGeometryTextRectangle {
   int64 top_emu = 2;
   int64 right_emu = 3;
   int64 bottom_emu = 4;
+}
+
+// Appended to preserve every pre-existing generated descriptor index while
+// PresentationShape fields 18-19 reference the ordered ECMA-376 guide graph.
+// Formula operands may reference built-ins, prior adjustments, and prior
+// ordinary guides only; forward references and reserved OfficeKit names fail.
+message PresentationCustomGeometryGuide {
+  string name = 1;
+  string formula = 2;
 }

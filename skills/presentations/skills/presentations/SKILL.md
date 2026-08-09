@@ -143,6 +143,12 @@ Read the local docs before coding:
 - `artifact_tool/API_QUICK_START.md`
 - `artifact_tool/api/API_DOCS.md`
 
+For parameterized DrawingML custom shapes, read
+`artifact_tool/api/references/shapes.spec.md`. Use the ordered
+`customAdjustments`/`customGuides` graph and declared guide references rather
+than embedding formulas in path fields; keep unsupported imported handles,
+connection sites, and formula text rectangles opaque and fail closed.
+
 For native charts, read `artifact_tool/api/references/charts.spec.md` before
 authoring or editing. Canonical OfficeKit output covers literal bar, line,
 pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D

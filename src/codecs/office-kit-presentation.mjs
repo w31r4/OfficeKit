@@ -17,6 +17,7 @@ import { normalizePresentationThemeConfig } from "../presentation/ooxml-theme.mj
 import { normalizePresentationTextBodyProperties } from "../presentation/text-body-properties.mjs";
 import { effectivePresentationImageCrop, presentationImageCropFromWire, presentationImageCropToWire } from "../presentation/image-crop.mjs";
 import { normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle } from "../presentation/custom-geometry.mjs";
+import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation/custom-geometry-formulas.mjs";
 import { isPresentationAutoNumberType, normalizePresentationParagraphs, normalizePresentationParagraphStyles } from "../presentation/text-paragraphs.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { createPresentationAssetCatalog, validatePictureBulletUri } from "./office-kit-assets.mjs";
@@ -203,6 +204,8 @@ function cloneImportedPresentationShape(container, source, context) {
   const clone = container.shapes.add({
     name: source.name,
     geometry: source.geometry,
+    ...(source.customAdjustments?.length ? { customAdjustments: clonedPresentationValue(source.customAdjustments) } : {}),
+    ...(source.customGuides?.length ? { customGuides: clonedPresentationValue(source.customGuides) } : {}),
     ...(source.customPaths?.length ? { customPaths: clonedPresentationValue(source.customPaths) } : {}),
     ...(source.textRectangle ? { textRectangle: clonedPresentationValue(source.textRectangle) } : {}),
     position: clonedPresentationValue(source.position),
@@ -1578,14 +1581,36 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
   };
 }
 
+function presentationCustomGeometryPointToWire(point) {
+  return {
+    ...(typeof point.x === "string" ? { xReference: point.x } : { x: BigInt(point.x) }),
+    ...(typeof point.y === "string" ? { yReference: point.y } : { y: BigInt(point.y) }),
+  };
+}
+
+function presentationCustomGeometryArcToWire(arc) {
+  return {
+    ...(typeof arc.widthRadius === "string" ? { widthRadiusReference: arc.widthRadius } : { widthRadius: BigInt(arc.widthRadius) }),
+    ...(typeof arc.heightRadius === "string" ? { heightRadiusReference: arc.heightRadius } : { heightRadius: BigInt(arc.heightRadius) }),
+    ...(typeof arc.startAngle === "string" ? { startAngleReference: arc.startAngle } : { startAngle: arc.startAngle }),
+    ...(typeof arc.sweepAngle === "string" ? { sweepAngleReference: arc.sweepAngle } : { sweepAngle: arc.sweepAngle }),
+  };
+}
+
 function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const originalShape = original?.content?.case === "shape" ? original.content.value : original;
   if (!new Set(["rect", "ellipse", "roundRect", "textbox", "custom"]).has(shape.geometry)) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} uses unsupported geometry ${shape.geometry}.`, [], { code: "unsupported_presentation_features" });
   }
-  const normalizedCustomPaths = shape.customPaths?.length ? normalizePresentationCustomPaths(shape.customPaths) : [];
+  const formulaGraph = normalizePresentationCustomGeometryFormulaGraph({ adjustments: shape.customAdjustments, guides: shape.customGuides });
+  const position = shape.position || {};
+  const normalizedCustomPaths = shape.customPaths?.length ? normalizePresentationCustomPaths(shape.customPaths, {
+    ...formulaGraph,
+    widthEmu: Math.round(Number(position.width) * EMU_PER_PIXEL),
+    heightEmu: Math.round(Number(position.height) * EMU_PER_PIXEL),
+  }) : [];
   const textRectangle = normalizePresentationCustomTextRectangle(shape.textRectangle);
-  if (shape.geometry !== "custom" && (normalizedCustomPaths.length || textRectangle)) {
+  if (shape.geometry !== "custom" && (normalizedCustomPaths.length || formulaGraph.adjustments.length || formulaGraph.guides.length || textRectangle)) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} has custom geometry data without custom geometry.`, [], { code: "invalid_presentation_geometry" });
   }
   const customPaths = normalizedCustomPaths.map((path) => ({
@@ -1599,35 +1624,30 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
     ...(Object.hasOwn(path, "stroke") ? { stroke: path.stroke } : {}),
     ...(Object.hasOwn(path, "extrusionAllowed") ? { extrusionAllowed: path.extrusionAllowed } : {}),
     commands: path.commands.map((command) => {
-      if (command.moveTo) return { command: { case: "moveTo", value: { x: BigInt(command.moveTo.x), y: BigInt(command.moveTo.y) } } };
-      if (command.lineTo) return { command: { case: "lineTo", value: { x: BigInt(command.lineTo.x), y: BigInt(command.lineTo.y) } } };
+      if (command.moveTo) return { command: { case: "moveTo", value: presentationCustomGeometryPointToWire(command.moveTo) } };
+      if (command.lineTo) return { command: { case: "lineTo", value: presentationCustomGeometryPointToWire(command.lineTo) } };
       if (command.quadraticBezTo) return {
         command: {
           case: "quadraticBezierTo",
           value: {
-            control: { x: BigInt(command.quadraticBezTo.x1), y: BigInt(command.quadraticBezTo.y1) },
-            end: { x: BigInt(command.quadraticBezTo.x), y: BigInt(command.quadraticBezTo.y) },
+            control: presentationCustomGeometryPointToWire({ x: command.quadraticBezTo.x1, y: command.quadraticBezTo.y1 }),
+            end: presentationCustomGeometryPointToWire(command.quadraticBezTo),
           },
         },
       };
       if (command.arcTo) return {
         command: {
           case: "arcTo",
-          value: {
-            widthRadius: BigInt(command.arcTo.widthRadius),
-            heightRadius: BigInt(command.arcTo.heightRadius),
-            startAngle: command.arcTo.startAngle,
-            sweepAngle: command.arcTo.sweepAngle,
-          },
+          value: presentationCustomGeometryArcToWire(command.arcTo),
         },
       };
       if (command.cubicBezTo) return {
         command: {
           case: "cubicBezierTo",
           value: {
-            control1: { x: BigInt(command.cubicBezTo.x1), y: BigInt(command.cubicBezTo.y1) },
-            control2: { x: BigInt(command.cubicBezTo.x2), y: BigInt(command.cubicBezTo.y2) },
-            end: { x: BigInt(command.cubicBezTo.x), y: BigInt(command.cubicBezTo.y) },
+            control1: presentationCustomGeometryPointToWire({ x: command.cubicBezTo.x1, y: command.cubicBezTo.y1 }),
+            control2: presentationCustomGeometryPointToWire({ x: command.cubicBezTo.x2, y: command.cubicBezTo.y2 }),
+            end: presentationCustomGeometryPointToWire(command.cubicBezTo),
           },
         },
       };
@@ -1642,7 +1662,6 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   if (shape.geometry === "custom" && customPaths.length === 0 && !opaqueSourceBoundCustomGeometry) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} requires custom paths.`, [], { code: "invalid_presentation_geometry" });
   }
-  const position = shape.position || {};
   const lineWidth = Number(shape.line?.width ?? 1);
   if (!Number.isFinite(lineWidth) || lineWidth < 0) throw new OfficeKitCodecError(`Presentation shape ${shape.id} has an invalid line width.`, [], { code: "invalid_presentation_frame" });
   const placeholder = !original && shape.placeholder ? sourceFreeSlidePlaceholder(shape) : undefined;
@@ -1668,6 +1687,8 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         ...(placeholder || {}),
         ...(placeholder || shape.transform == null ? {} : { transform: wirePresentationTransform(shape.transform, `shape ${shape.id}`) }),
         ...(shadow ? { shadow } : {}),
+        ...(formulaGraph.adjustments.length ? { customAdjustments: formulaGraph.adjustments } : {}),
+        ...(formulaGraph.guides.length ? { customGuides: formulaGraph.guides } : {}),
         ...(customPaths.length ? { customPaths } : {}),
         ...(textRectangle ? { textRectangle: {
           leftEmu: BigInt(Math.round(textRectangle.left * EMU_PER_PIXEL)),
@@ -2696,38 +2717,53 @@ function modelPresentationTransform(frame) {
   return transform;
 }
 
+function modelCustomGeometryGuides(guides) {
+  return (guides || []).map((guide) => ({ name: guide.name, formula: guide.formula }));
+}
+
+function modelCustomGeometryPoint(point) {
+  return {
+    x: point.xReference ?? Number(point.x),
+    y: point.yReference ?? Number(point.y),
+  };
+}
+
+function modelCustomGeometryArc(arc) {
+  return {
+    widthRadius: arc.widthRadiusReference ?? Number(arc.widthRadius),
+    heightRadius: arc.heightRadiusReference ?? Number(arc.heightRadius),
+    startAngle: arc.startAngleReference ?? arc.startAngle,
+    sweepAngle: arc.sweepAngleReference ?? arc.sweepAngle,
+  };
+}
+
 function modelCustomGeometryPaths(shape) {
   return (shape.customPaths || []).map((path, pathIndex) => {
     const modeled = {
       width: Number(path.width),
       height: Number(path.height),
       commands: path.commands.map((command) => {
-        if (command.command.case === "moveTo") return { moveTo: { x: Number(command.command.value.x), y: Number(command.command.value.y) } };
-        if (command.command.case === "lineTo") return { lineTo: { x: Number(command.command.value.x), y: Number(command.command.value.y) } };
+        if (command.command.case === "moveTo") return { moveTo: modelCustomGeometryPoint(command.command.value) };
+        if (command.command.case === "lineTo") return { lineTo: modelCustomGeometryPoint(command.command.value) };
         if (command.command.case === "quadraticBezierTo") return {
           quadraticBezTo: {
-            x1: Number(command.command.value.control.x),
-            y1: Number(command.command.value.control.y),
-            x: Number(command.command.value.end.x),
-            y: Number(command.command.value.end.y),
+            x1: modelCustomGeometryPoint(command.command.value.control).x,
+            y1: modelCustomGeometryPoint(command.command.value.control).y,
+            x: modelCustomGeometryPoint(command.command.value.end).x,
+            y: modelCustomGeometryPoint(command.command.value.end).y,
           },
         };
         if (command.command.case === "arcTo") return {
-          arcTo: {
-            widthRadius: Number(command.command.value.widthRadius),
-            heightRadius: Number(command.command.value.heightRadius),
-            startAngle: command.command.value.startAngle,
-            sweepAngle: command.command.value.sweepAngle,
-          },
+          arcTo: modelCustomGeometryArc(command.command.value),
         };
         if (command.command.case === "cubicBezierTo") return {
           cubicBezTo: {
-            x1: Number(command.command.value.control1.x),
-            y1: Number(command.command.value.control1.y),
-            x2: Number(command.command.value.control2.x),
-            y2: Number(command.command.value.control2.y),
-            x: Number(command.command.value.end.x),
-            y: Number(command.command.value.end.y),
+            x1: modelCustomGeometryPoint(command.command.value.control1).x,
+            y1: modelCustomGeometryPoint(command.command.value.control1).y,
+            x2: modelCustomGeometryPoint(command.command.value.control2).x,
+            y2: modelCustomGeometryPoint(command.command.value.control2).y,
+            x: modelCustomGeometryPoint(command.command.value.end).x,
+            y: modelCustomGeometryPoint(command.command.value.end).y,
           },
         };
         return { close: {} };
@@ -2875,6 +2911,8 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       kind: "shape",
       ...common,
       geometry: shape.geometry || "rect",
+      ...(shape.customAdjustments?.length ? { customAdjustments: modelCustomGeometryGuides(shape.customAdjustments) } : {}),
+      ...(shape.customGuides?.length ? { customGuides: modelCustomGeometryGuides(shape.customGuides) } : {}),
       ...(shape.customPaths?.length ? { customPaths: modelCustomGeometryPaths(shape) } : {}),
       ...(shape.textRectangle ? { textRectangle: modelCustomGeometryTextRectangle(shape) } : {}),
       position: {
@@ -3103,6 +3141,8 @@ export async function presentationFromEnvelope(envelope) {
           id: element.id,
           name: element.name || inheritedPlaceholder?.name,
           geometry: shape.geometry || "rect",
+          ...(shape.customAdjustments?.length ? { customAdjustments: modelCustomGeometryGuides(shape.customAdjustments) } : {}),
+          ...(shape.customGuides?.length ? { customGuides: modelCustomGeometryGuides(shape.customGuides) } : {}),
           ...(shape.customPaths?.length ? { customPaths: modelCustomGeometryPaths(shape) } : {}),
           ...(shape.textRectangle ? { textRectangle: modelCustomGeometryTextRectangle(shape) } : {}),
           position: { ...effectiveFrame },

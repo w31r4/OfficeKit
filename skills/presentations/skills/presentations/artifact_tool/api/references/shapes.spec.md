@@ -152,7 +152,64 @@ Custom path coordinates are signed 32-bit integer units in the path's own
 `width`/`height` viewport. OfficeKit scales that viewport to the shape frame.
 An arc keeps DrawingML's native radii and 1/60000-degree angles; it requires a
 current point and accepts a non-zero clockwise or counter-clockwise sweep of at
-most one full turn. Formula-valued native geometry remains opaque.
+most one full turn.
+
+An ordered DrawingML formula graph can parameterize point coordinates and arc
+radii/angles:
+
+```ts
+const formulaTriangle = slide.shapes.add({
+  geometry: "custom",
+  position: { left: 40, top: 40, width: 560, height: 280 },
+  fill: "#16A34A",
+  customAdjustments: [{ name: "adjX", formula: "val 25000" }],
+  customGuides: [{ name: "apexX", formula: "*/ 100000 adjX 100000" }],
+  customPaths: [{
+    width: 100000,
+    height: 100000,
+    commands: [
+      { moveTo: { x: 0, y: 100000 } },
+      { lineTo: { x: "apexX", y: 0 } },
+      { lineTo: { x: 100000, y: 100000 } },
+      { close: {} },
+    ],
+  }],
+});
+```
+
+`customAdjustments` is the ordered native `a:avLst` (at most 256 entries),
+followed by `customGuides` as `a:gdLst` (at most 1,024 entries). Each entry is
+`{ name, formula }`; names are bounded ASCII identifiers and the `officeKit`
+prefix is reserved for codec-owned text-rectangle guides. Formulas are at most
+256 characters and use exactly one of DrawingML's 17 operations:
+
+```text
+*/  +-  +/  ?:  abs  at2  cat2  cos  max  min  mod  pin  sat2  sin  sqrt  tan  val
+```
+
+Operands may be signed integer literals, an earlier adjustment/guide, or one
+of the supported DrawingML built-ins (`3cd4`, `3cd8`, `5cd8`, `7cd8`, `b`,
+`cd2`, `cd4`, `cd8`, `h`, `hc`, `hd2`, `hd3`, `hd4`, `hd5`, `hd6`, `hd8`,
+`l`, `ls`, `r`, `ss`, `ssd2`, `ssd4`, `ssd6`, `ssd8`, `ssd16`, `ssd32`, `t`,
+`vc`, `w`, `wd2`, `wd3`, `wd4`, `wd5`, `wd6`, `wd8`, `wd10`). Evaluation is
+strictly in declaration order; forward/unknown references, duplicate names,
+division by zero, negative square roots, non-finite results, and results
+outside the signed 32-bit profile fail closed.
+
+A string in a path field is only the exact name of a declared adjustment or
+guide. Built-ins are formula operands, not implicit path guides, and a path's
+`width`/`height` stay positive literals. Keep formula output in that path's
+coordinate system: when a formula uses shape-derived `w`/`h`, either use the
+shape's EMU extents for the path viewport or scale explicitly. Unsupported
+formula syntax, non-empty adjust handles/connection sites, and formula-valued
+text rectangles outside OfficeKit's exact private profile keep an imported
+shape opaque and source-bound.
+
+OfficeKit's SVG/sharp render gate evaluates the formula graph. The currently
+bundled LibreOfficeDev 26.8 alpha opens and renders these PPTX paths but does
+not reliably resolve guide-valued `a:path` coordinates, so it is not a formula
+semantic oracle; require a Microsoft PowerPoint/native-host review when exact
+cross-host formula rendering is release-critical.
 
 `fillMode` is optional and accepts only `"normal"` or `"none"`. Omitting it
 preserves an omitted native `fill` attribute (whose DrawingML default is
@@ -198,6 +255,8 @@ const ellipsePath = {
 ```ts
 type CustomShapeConfig = Omit<PresetShapeConfig, "geometry"> & {
   geometry: "custom";
+  customAdjustments?: Array<{ name: string; formula: string }>;
+  customGuides?: Array<{ name: string; formula: string }>;
   textRectangle?: { left: number; top: number; right: number; bottom: number };
   customPaths: Array<{
     width: number;
@@ -206,11 +265,11 @@ type CustomShapeConfig = Omit<PresetShapeConfig, "geometry"> & {
     stroke?: boolean;
     extrusionAllowed?: boolean;
     commands: Array<
-      | { moveTo: { x: number; y: number } }
-      | { lineTo: { x: number; y: number } }
-      | { quadraticBezTo: { x1: number; y1: number; x: number; y: number } }
-      | { cubicBezTo: { x1: number; y1: number; x2: number; y2: number; x: number; y: number } }
-      | { arcTo: { widthRadius: number; heightRadius: number; startAngle: number; sweepAngle: number } }
+      | { moveTo: { x: number | string; y: number | string } }
+      | { lineTo: { x: number | string; y: number | string } }
+      | { quadraticBezTo: { x1: number | string; y1: number | string; x: number | string; y: number | string } }
+      | { cubicBezTo: { x1: number | string; y1: number | string; x2: number | string; y2: number | string; x: number | string; y: number | string } }
+      | { arcTo: { widthRadius: number | string; heightRadius: number | string; startAngle: number | string; sweepAngle: number | string } }
       | { close: Record<string, never> }
     >;
   }>;

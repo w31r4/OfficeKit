@@ -1,3 +1,11 @@
+import {
+  evaluatePresentationCustomGeometryFormulaGraph,
+  normalizePresentationCustomGeometryFormulaGraph,
+  normalizePresentationCustomGeometryReference,
+  presentationCustomGeometryReferenceNames,
+  resolvePresentationCustomGeometryReference,
+} from "./custom-geometry-formulas.mjs";
+
 const MAX_PATHS = 64;
 const MAX_COMMANDS = 16_384;
 const MAX_COORDINATE = 2_147_483_647;
@@ -15,7 +23,8 @@ const CURVE_FIELDS = Object.freeze({
   cubicBezTo: Object.freeze(["x1", "y1", "x2", "y2", "x", "y"]),
 });
 
-function coordinate(value, label) {
+function coordinate(value, label, references) {
+  if (typeof value === "string") return normalizePresentationCustomGeometryReference(value, references, label);
   const number = Number(value);
   if (!Number.isSafeInteger(number) || number < -MAX_COORDINATE || number > MAX_COORDINATE) {
     throw new RangeError(`${label} must be a safe integer within the DrawingML signed 32-bit coordinate range.`);
@@ -69,7 +78,8 @@ export function presentationCustomTextRectangleFrame(value, frame, sourceFrame =
   };
 }
 
-function angle(value, label) {
+function angle(value, label, references) {
+  if (typeof value === "string") return normalizePresentationCustomGeometryReference(value, references, label);
   const number = Number(value);
   if (!Number.isSafeInteger(number) || number < -MAX_COORDINATE || number > MAX_COORDINATE) {
     throw new RangeError(`${label} must be a safe integer within the DrawingML signed 32-bit angle range.`);
@@ -77,46 +87,49 @@ function angle(value, label) {
   return number;
 }
 
-function point(value, label) {
+function point(value, label, references) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`${label} must be an object.`);
   const unknown = Object.keys(value).filter((key) => key !== "x" && key !== "y");
   if (unknown.length) throw new TypeError(`${label} has unsupported fields: ${unknown.join(", ")}.`);
-  return { x: coordinate(value.x, `${label}.x`), y: coordinate(value.y, `${label}.y`) };
+  return { x: coordinate(value.x, `${label}.x`, references), y: coordinate(value.y, `${label}.y`, references) };
 }
 
-function curve(value, label, fields) {
+function curve(value, label, fields, references) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`${label} must be an object.`);
   const allowed = new Set(fields);
   const unknown = Object.keys(value).filter((key) => !allowed.has(key));
   if (unknown.length) throw new TypeError(`${label} has unsupported fields: ${unknown.join(", ")}.`);
-  return Object.fromEntries(fields.map((field) => [field, coordinate(value[field], `${label}.${field}`)]));
+  return Object.fromEntries(fields.map((field) => [field, coordinate(value[field], `${label}.${field}`, references)]));
 }
 
-function arc(value, label) {
+function arc(value, label, references, values) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`${label} must be an object.`);
   const allowed = new Set(ARC_FIELDS);
   const unknown = Object.keys(value).filter((key) => !allowed.has(key));
   if (unknown.length) throw new TypeError(`${label} has unsupported fields: ${unknown.join(", ")}.`);
-  const widthRadius = coordinate(value.widthRadius, `${label}.widthRadius`);
-  const heightRadius = coordinate(value.heightRadius, `${label}.heightRadius`);
-  if (widthRadius <= 0 || heightRadius <= 0) throw new RangeError(`${label} radii must be positive.`);
-  const startAngle = angle(value.startAngle, `${label}.startAngle`);
-  const sweepAngle = angle(value.sweepAngle, `${label}.sweepAngle`);
-  if (sweepAngle === 0 || Math.abs(sweepAngle) > FULL_TURN_ANGLE) {
+  const widthRadius = coordinate(value.widthRadius, `${label}.widthRadius`, references);
+  const heightRadius = coordinate(value.heightRadius, `${label}.heightRadius`, references);
+  const startAngle = angle(value.startAngle, `${label}.startAngle`, references);
+  const sweepAngle = angle(value.sweepAngle, `${label}.sweepAngle`, references);
+  const resolvedWidth = resolvePresentationCustomGeometryReference(widthRadius, values, `${label}.widthRadius`);
+  const resolvedHeight = resolvePresentationCustomGeometryReference(heightRadius, values, `${label}.heightRadius`);
+  const resolvedSweep = resolvePresentationCustomGeometryReference(sweepAngle, values, `${label}.sweepAngle`);
+  if (resolvedWidth <= 0 || resolvedHeight <= 0) throw new RangeError(`${label} radii must evaluate to positive values.`);
+  if (resolvedSweep === 0 || Math.abs(resolvedSweep) > FULL_TURN_ANGLE) {
     throw new RangeError(`${label}.sweepAngle must be non-zero and no greater than one full DrawingML turn (${FULL_TURN_ANGLE}).`);
   }
   return { widthRadius, heightRadius, startAngle, sweepAngle };
 }
 
-function command(value, pathIndex, commandIndex) {
+function command(value, pathIndex, commandIndex, references, values) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`Presentation custom path ${pathIndex + 1} command ${commandIndex + 1} must be an object.`);
   const keys = Object.keys(value);
   if (keys.length !== 1) throw new TypeError(`Presentation custom path ${pathIndex + 1} command ${commandIndex + 1} must contain exactly one command.`);
   const label = `Presentation custom path ${pathIndex + 1} command ${commandIndex + 1}`;
-  if (keys[0] === "moveTo" || keys[0] === "lineTo") return { [keys[0]]: point(value[keys[0]], `${label}.${keys[0]}`) };
-  if (keys[0] === "arcTo") return { arcTo: arc(value.arcTo, `${label}.arcTo`) };
+  if (keys[0] === "moveTo" || keys[0] === "lineTo") return { [keys[0]]: point(value[keys[0]], `${label}.${keys[0]}`, references) };
+  if (keys[0] === "arcTo") return { arcTo: arc(value.arcTo, `${label}.arcTo`, references, values) };
   const curveFields = Object.hasOwn(CURVE_FIELDS, keys[0]) ? CURVE_FIELDS[keys[0]] : undefined;
-  if (curveFields) return { [keys[0]]: curve(value[keys[0]], `${label}.${keys[0]}`, curveFields) };
+  if (curveFields) return { [keys[0]]: curve(value[keys[0]], `${label}.${keys[0]}`, curveFields, references) };
   if (keys[0] === "close") {
     if (value.close !== true && (typeof value.close !== "object" || value.close == null || Array.isArray(value.close) || Object.keys(value.close).length)) {
       throw new TypeError(`${label}.close must be true or an empty object.`);
@@ -126,16 +139,20 @@ function command(value, pathIndex, commandIndex) {
   throw new TypeError(`${label} uses unsupported command ${keys[0]}.`);
 }
 
-export function normalizePresentationCustomPaths(value) {
+export function normalizePresentationCustomPaths(value, { adjustments, guides, widthEmu = 1, heightEmu = 1 } = {}) {
   if (value == null) return [];
   if (!Array.isArray(value) || value.length === 0 || value.length > MAX_PATHS) throw new RangeError(`Presentation custom geometry must contain 1 through ${MAX_PATHS} paths.`);
+  const graph = normalizePresentationCustomGeometryFormulaGraph({ adjustments, guides });
+  const references = presentationCustomGeometryReferenceNames(graph);
+  const values = evaluatePresentationCustomGeometryFormulaGraph(graph, { widthEmu, heightEmu });
   let commandCount = 0;
   return value.map((path, pathIndex) => {
     if (!path || typeof path !== "object" || Array.isArray(path)) throw new TypeError(`Presentation custom path ${pathIndex + 1} must be an object.`);
     const unknown = Object.keys(path).filter((key) => !PATH_FIELDS.has(key));
     if (unknown.length) throw new TypeError(`Presentation custom path ${pathIndex + 1} has unsupported fields: ${unknown.join(", ")}.`);
-    const width = coordinate(path.width, `Presentation custom path ${pathIndex + 1}.width`);
-    const height = coordinate(path.height, `Presentation custom path ${pathIndex + 1}.height`);
+    const width = coordinate(path.width, `Presentation custom path ${pathIndex + 1}.width`, references);
+    const height = coordinate(path.height, `Presentation custom path ${pathIndex + 1}.height`, references);
+    if (typeof width !== "number" || typeof height !== "number") throw new TypeError(`Presentation custom path ${pathIndex + 1} width and height must be literal coordinates.`);
     if (width <= 0 || height <= 0) throw new RangeError(`Presentation custom path ${pathIndex + 1} width and height must be positive.`);
     if (!Array.isArray(path.commands) || path.commands.length === 0) throw new TypeError(`Presentation custom path ${pathIndex + 1} requires commands.`);
     commandCount += path.commands.length;
@@ -143,7 +160,7 @@ export function normalizePresentationCustomPaths(value) {
     let hasCurrentPoint = false;
     let hasSubpathStart = false;
     const commands = path.commands.map((item, commandIndex) => {
-      const normalized = command(item, pathIndex, commandIndex);
+      const normalized = command(item, pathIndex, commandIndex, references, values);
       const label = `Presentation custom path ${pathIndex + 1} command ${commandIndex + 1}`;
       if (normalized.arcTo && !hasCurrentPoint) throw new RangeError(`${label}.arcTo requires an established current point.`);
       if (normalized.moveTo) {
@@ -205,27 +222,47 @@ function svgArcCommands(arcTo, currentPoint) {
   return { commands, end };
 }
 
-export function presentationCustomPathsSvg(paths, frame, { escape = String } = {}) {
-  return normalizePresentationCustomPaths(paths).map((path) => {
+export function presentationCustomPathsSvg(paths, frame, { escape = String, adjustments, guides, sourceFrame = frame } = {}) {
+  const widthEmu = Math.round(Number(sourceFrame?.width) * EMU_PER_PIXEL);
+  const heightEmu = Math.round(Number(sourceFrame?.height) * EMU_PER_PIXEL);
+  const graph = normalizePresentationCustomGeometryFormulaGraph({ adjustments, guides });
+  const values = evaluatePresentationCustomGeometryFormulaGraph(graph, { widthEmu, heightEmu });
+  const resolvedPoint = (value, label) => ({
+    x: resolvePresentationCustomGeometryReference(value.x, values, `${label}.x`),
+    y: resolvePresentationCustomGeometryReference(value.y, values, `${label}.y`),
+  });
+  return normalizePresentationCustomPaths(paths, { ...graph, widthEmu, heightEmu }).map((path, pathIndex) => {
     const chunks = [];
     let currentPoint;
     let subpathStart;
     for (const item of path.commands) {
       if (item.moveTo) {
-        chunks.push(`M ${item.moveTo.x} ${item.moveTo.y}`);
-        currentPoint = { ...item.moveTo };
-        subpathStart = { ...item.moveTo };
+        const point = resolvedPoint(item.moveTo, `Presentation custom path ${pathIndex + 1} moveTo`);
+        chunks.push(`M ${svgNumber(point.x)} ${svgNumber(point.y)}`);
+        currentPoint = point;
+        subpathStart = point;
       } else if (item.lineTo) {
-        chunks.push(`L ${item.lineTo.x} ${item.lineTo.y}`);
-        currentPoint = { ...item.lineTo };
+        const point = resolvedPoint(item.lineTo, `Presentation custom path ${pathIndex + 1} lineTo`);
+        chunks.push(`L ${svgNumber(point.x)} ${svgNumber(point.y)}`);
+        currentPoint = point;
       } else if (item.quadraticBezTo) {
-        chunks.push(`Q ${item.quadraticBezTo.x1} ${item.quadraticBezTo.y1} ${item.quadraticBezTo.x} ${item.quadraticBezTo.y}`);
-        currentPoint = { x: item.quadraticBezTo.x, y: item.quadraticBezTo.y };
+        const control = resolvedPoint({ x: item.quadraticBezTo.x1, y: item.quadraticBezTo.y1 }, `Presentation custom path ${pathIndex + 1} quadratic control`);
+        const end = resolvedPoint(item.quadraticBezTo, `Presentation custom path ${pathIndex + 1} quadratic end`);
+        chunks.push(`Q ${svgNumber(control.x)} ${svgNumber(control.y)} ${svgNumber(end.x)} ${svgNumber(end.y)}`);
+        currentPoint = end;
       } else if (item.cubicBezTo) {
-        chunks.push(`C ${item.cubicBezTo.x1} ${item.cubicBezTo.y1} ${item.cubicBezTo.x2} ${item.cubicBezTo.y2} ${item.cubicBezTo.x} ${item.cubicBezTo.y}`);
-        currentPoint = { x: item.cubicBezTo.x, y: item.cubicBezTo.y };
+        const control1 = resolvedPoint({ x: item.cubicBezTo.x1, y: item.cubicBezTo.y1 }, `Presentation custom path ${pathIndex + 1} cubic control 1`);
+        const control2 = resolvedPoint({ x: item.cubicBezTo.x2, y: item.cubicBezTo.y2 }, `Presentation custom path ${pathIndex + 1} cubic control 2`);
+        const end = resolvedPoint(item.cubicBezTo, `Presentation custom path ${pathIndex + 1} cubic end`);
+        chunks.push(`C ${svgNumber(control1.x)} ${svgNumber(control1.y)} ${svgNumber(control2.x)} ${svgNumber(control2.y)} ${svgNumber(end.x)} ${svgNumber(end.y)}`);
+        currentPoint = end;
       } else if (item.arcTo) {
-        const arc = svgArcCommands(item.arcTo, currentPoint);
+        const arc = svgArcCommands({
+          widthRadius: resolvePresentationCustomGeometryReference(item.arcTo.widthRadius, values, `Presentation custom path ${pathIndex + 1} arcTo.widthRadius`),
+          heightRadius: resolvePresentationCustomGeometryReference(item.arcTo.heightRadius, values, `Presentation custom path ${pathIndex + 1} arcTo.heightRadius`),
+          startAngle: resolvePresentationCustomGeometryReference(item.arcTo.startAngle, values, `Presentation custom path ${pathIndex + 1} arcTo.startAngle`),
+          sweepAngle: resolvePresentationCustomGeometryReference(item.arcTo.sweepAngle, values, `Presentation custom path ${pathIndex + 1} arcTo.sweepAngle`),
+        }, currentPoint);
         chunks.push(...arc.commands);
         currentPoint = arc.end;
       } else {

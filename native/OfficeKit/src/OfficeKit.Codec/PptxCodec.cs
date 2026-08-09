@@ -1144,8 +1144,7 @@ internal static class PptxCodec
         };
         if (shape.UseBackgroundFill?.HasValue == true)
             result.UseBackgroundFill = shape.UseBackgroundFill.Value;
-        result.CustomPaths.Add(PptxCustomGeometryCodec.Read(properties?.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height));
-        result.TextRectangle = PptxCustomGeometryCodec.ReadTextRectangle(properties?.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height);
+        PptxCustomGeometryCodec.Read(properties?.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height, result);
         return result;
     }
 

@@ -2,11 +2,54 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after adding PPTX literal custom-geometry text
-rectangles. The clean candidate contains 706 files, 36,140,813 compressed
-bytes, and 53,072,397 unpacked bytes; its measured shasum is
-`4722c9af86e79525ca413c1c67215315fdd62e7a`. This is package evidence, not an
+The package dry-run passed after adding PPTX custom-geometry guide formulas.
+The clean candidate contains 707 files, 36,150,980 compressed bytes, and
+53,116,348 unpacked bytes; its measured shasum is
+`d79033c11e8636de8d4b7d6c3206fec72a284270`. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: PPTX custom-geometry guide formulas
+
+Custom shapes now carry ordered `customAdjustments` and `customGuides` graphs.
+The JS model and OfficeKit Codec implement the same closed 17-operator
+ECMA-376 formula grammar, declaration-order references, DrawingML built-in
+operands, arithmetic and signed-32-bit result checks, and explicit graph
+budgets. Custom-path point and arc fields may reference one declared
+adjustment or guide; path dimensions remain positive literals. The graph lives
+in one format-local formula module on each side of the wire so formula changes
+do not spread across the object model, adapter, SVG renderer, and XML codec.
+
+The protocol-v2 change is additive: `PresentationShape` fields 18 and 19 carry
+the two guide lists, and optional point/arc reference fields preserve the
+existing literal fields. Source-free and grouped authoring, native XML,
+semantic import, fixed-topology source-bound edit, second import, Help/API,
+SVG preview, and Open XML SDK Office 2021 validation use the same contract.
+Forward or unknown references, duplicate or reserved names, division by zero,
+negative square roots, out-of-range results, invalid resolved arcs, and
+non-empty handles or connection sites fail closed. Unsupported topology stays
+opaque instead of being flattened.
+
+The semantic render gate rasterizes two adjustment variants from the model SVG
+with sharp and proves their geometry changes. LibreOfficeDev 26.8 alpha plus
+Poppler proves that both generated packages and pages render, but that host
+currently resolves guide-valued `a:path` coordinates as zero; this is recorded
+as a host-compatibility limitation, not counted as a formula semantic pass.
+PowerPoint/native-host acceptance therefore remains release-critical evidence
+for this slice.
+
+Local gates passed: fast tests 26/26, slow tests 75/75, OfficeKit Codec .NET
+tests 389/389, OfficeBridge tests 5/5, protobuf lint/regeneration, deterministic
+WASM rebuild, generated API, and clean-install package smoke. Environment-gated
+live provider downloads and real pypdf, PyMuPDF, pikepdf, pyHanko, veraPDF,
+OCRmyPDF, and managed-Python PromptBench structural-oracle runs were not
+enabled; the remaining slow tests, including Agent evals, still ran. The
+rebuilt runtime contains 38 files and 15,245,035 bytes. The 707-file npm
+candidate is 36,150,980 compressed bytes and 53,116,348 unpacked bytes
+(`shasum d79033c11e8636de8d4b7d6c3206fec72a284270`). npm publication, a product
+tagged release, and Windows PowerPoint acceptance have not occurred.
+`npm run release:check` independently reran the slow, generated-API, package,
+OfficeBridge, and OfficeKit .NET gates successfully; its expected remaining
+failures were the uncommitted milestone worktree and unavailable npm auth.
 
 ## Unreleased: PPTX literal custom-geometry text rectangles
 

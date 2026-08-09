@@ -770,6 +770,105 @@ assert.deepEqual(
   ],
 );
 assert.match(await (await editedCustomGeometry.slides.getItem(0).export()).text(), /A 3000 4000 0 0 0 10800 12000 Z/);
+
+const formulaGeometryConfig = (name, position) => ({
+  name,
+  geometry: "custom",
+  position,
+  fill: "#DCFCE7",
+  line: { fill: "#15803D", width: 2 },
+  text: "Formula shape",
+  textRectangle: { left: 12, top: 10, right: position.width - 12, bottom: position.height - 10 },
+  customAdjustments: [
+    { name: "adjX", formula: "val 25000" },
+    { name: "adjSweep", formula: "val 10800000" },
+  ],
+  customGuides: [
+    { name: "x1", formula: "*/ w adjX 100000" },
+    { name: "y1", formula: "*/ h 1 2" },
+    { name: "x2", formula: "+- r 0 x1" },
+    { name: "radius", formula: "min wd4 hd4" },
+    { name: "zeroAngle", formula: "+- cd4 0 cd4" },
+    { name: "addDiv", formula: "+/ w 0 2" },
+    { name: "conditional", formula: "?: adjX w h" },
+    { name: "absolute", formula: "abs -5" },
+    { name: "arcTangent", formula: "at2 1 1" },
+    { name: "cosArcTangent", formula: "cat2 100 1 1" },
+    { name: "cosine", formula: "cos 100 cd4" },
+    { name: "maximum", formula: "max w h" },
+    { name: "modulus", formula: "mod 3 4 12" },
+    { name: "pinned", formula: "pin 0 adjX 100000" },
+    { name: "sinArcTangent", formula: "sat2 100 1 1" },
+    { name: "sine", formula: "sin 100 cd4" },
+    { name: "squareRoot", formula: "sqrt 144" },
+    { name: "tangent", formula: "tan 100 cd8" },
+  ],
+  customPaths: [{
+    width: Math.round(position.width * 9_525),
+    height: Math.round(position.height * 9_525),
+    commands: [
+      { moveTo: { x: "x1", y: "y1" } },
+      { lineTo: { x: "x2", y: "y1" } },
+      { arcTo: { widthRadius: "radius", heightRadius: "radius", startAngle: "zeroAngle", sweepAngle: "adjSweep" } },
+      { close: {} },
+    ],
+  }],
+});
+const formulaGeometryPresentation = Presentation.create({ slideSize: { width: 500, height: 300 } });
+const formulaGeometrySlide = formulaGeometryPresentation.slides.add({ name: "Formula custom geometry" });
+const formulaGeometryShape = formulaGeometrySlide.shapes.add(formulaGeometryConfig(
+  "formula-custom-path",
+  { left: 20, top: 20, width: 200, height: 100 },
+));
+const formulaGeometryGroup = formulaGeometrySlide.groups.add({
+  name: "Formula group",
+  position: { left: 260, top: 20, width: 200, height: 140 },
+  childFrame: { left: 0, top: 0, width: 200, height: 140 },
+});
+formulaGeometryGroup.shapes.add(formulaGeometryConfig(
+  "grouped-formula-custom-path",
+  { left: 20, top: 20, width: 160, height: 100 },
+));
+assert.deepEqual(formulaGeometryShape.inspectRecord().customAdjustmentCount, 2);
+assert.deepEqual(formulaGeometryShape.inspectRecord().customGuideCount, 18);
+assert.match(formulaGeometryShape.toSvg(), /M 476250 476250 L 1428750 476250 A 238125 238125/);
+assert.deepEqual(formulaGeometryShape.layoutJson().customGuides[0], { name: "x1", formula: "*/ w adjX 100000" });
+const formulaGeometryPptx = await PresentationFile.exportPptx(formulaGeometryPresentation);
+const formulaGeometryZip = await JSZip.loadAsync(formulaGeometryPptx.bytes);
+const formulaGeometryXml = await formulaGeometryZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(formulaGeometryXml, /<a:avLst><a:gd name="adjX" fmla="val 25000"\s*\/><a:gd name="adjSweep" fmla="val 10800000"\s*\/><\/a:avLst>/);
+assert.match(formulaGeometryXml, /<a:gd name="x1" fmla="\*\/ w adjX 100000"\s*\/>/);
+assert.match(formulaGeometryXml, /<a:gd name="tangent" fmla="tan 100 cd8"\s*\/>/);
+assert.match(formulaGeometryXml, /<a:pt x="x1" y="y1"\s*\/>/);
+assert.match(formulaGeometryXml, /<a:arcTo wR="radius" hR="radius" stAng="zeroAngle" swAng="adjSweep"\s*\/>/);
+const importedFormulaGeometry = await PresentationFile.importPptx(formulaGeometryPptx);
+const importedFormulaShape = importedFormulaGeometry.slides.getItem(0).shapes.items[0];
+assert.equal(importedFormulaShape.customAdjustments.length, 2);
+assert.equal(importedFormulaShape.customGuides.length, 18);
+assert.equal(importedFormulaShape.customPaths[0].commands[0].moveTo.x, "x1");
+assert.equal(importedFormulaShape.customPaths[0].commands[2].arcTo.widthRadius, "radius");
+assert.equal(importedFormulaGeometry.slides.getItem(0).groups.items[0].shapes.items[0].customGuides.length, 18);
+const emptyFormulaTopologyXml = formulaGeometryXml.replace("</a:gdLst><a:rect", "</a:gdLst><a:ahLst /><a:cxnLst /><a:rect");
+assert.notEqual(emptyFormulaTopologyXml, formulaGeometryXml);
+const emptyFormulaTopologyFile = await PresentationFile.patchPptx(formulaGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: emptyFormulaTopologyXml }]);
+const importedEmptyFormulaTopology = await PresentationFile.importPptx(emptyFormulaTopologyFile);
+assert.equal(importedEmptyFormulaTopology.slides.getItem(0).shapes.items[0].customGuides.length, 18);
+const handleFormulaTopologyXml = formulaGeometryXml.replace("</a:gdLst><a:rect", "</a:gdLst><a:ahLst><a:ahXY /></a:ahLst><a:rect");
+assert.notEqual(handleFormulaTopologyXml, formulaGeometryXml);
+const handleFormulaTopologyFile = await PresentationFile.patchPptx(formulaGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: handleFormulaTopologyXml }]);
+const importedHandleFormulaTopology = await PresentationFile.importPptx(handleFormulaTopologyFile);
+const opaqueHandleFormulaShape = itemByName(importedHandleFormulaTopology.slides.getItem(0).shapes.items, "formula-custom-path");
+assert.equal(opaqueHandleFormulaShape.customPaths.length, 0);
+assert.equal(opaqueHandleFormulaShape.customGuides.length, 0);
+const preservedHandleFormulaTopology = await PresentationFile.exportPptx(importedHandleFormulaTopology);
+const preservedHandleFormulaZip = await JSZip.loadAsync(preservedHandleFormulaTopology.bytes);
+assert.match(await preservedHandleFormulaZip.file("ppt/slides/slide1.xml").async("text"), /<a:ahLst><a:ahXY\s*\/><\/a:ahLst>/);
+importedFormulaShape.customAdjustments[0].formula = "val 30000";
+assert.match(importedFormulaShape.toSvg(), /M 571500 476250 L 1333500 476250/);
+const editedFormulaGeometry = await PresentationFile.importPptx(await PresentationFile.exportPptx(importedFormulaGeometry));
+assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customAdjustments[0].formula, "val 30000");
+assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customPaths[0].commands[0].moveTo.x, "x1");
+
 const defaultTextRectanglePresentation = Presentation.create({ slideSize: { width: 160, height: 100 } });
 const defaultTextRectangleSlide = defaultTextRectanglePresentation.slides.add({ name: "Default custom text bounds" });
 defaultTextRectangleSlide.shapes.add({
@@ -940,7 +1039,7 @@ assert.throws(
 );
 assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 10, y: 10 } }, { arcTo: { widthRadius: 0, heightRadius: 10, startAngle: 0, sweepAngle: 5_400_000 } }] }] }),
-  /arcTo radii must be positive/,
+  /arcTo radii must evaluate to positive values/,
 );
 assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 10, y: 10 } }, { arcTo: { widthRadius: 10, heightRadius: 10, startAngle: 0, sweepAngle: 21_600_001 } }] }] }),
@@ -986,6 +1085,64 @@ assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", textRectangle: { left: 10, top: 0, right: 10, bottom: 10 }, customPaths: [{ width: 100, height: 100, commands: [{ close: true }] }] }),
   /right must be greater than left/,
 );
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    customGuides: [{ name: "first", formula: "val later" }, { name: "later", formula: "val 1" }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /unknown or forward guide later/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    customGuides: [{ name: "officeKitCollision", formula: "val 1" }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /reserved officeKit prefix/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: "missingGuide", y: 0 } }] }],
+  }),
+  /must be a number or a declared DrawingML guide reference/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: "wd2", y: 0 } }] }],
+  }),
+  /must be a number or a declared DrawingML guide reference/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    customGuides: [{ name: "bad", formula: "*/ w 1 0" }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /divides by zero/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    customGuides: [{ name: "bad", formula: "max w" }],
+    customPaths: [{ width: 100, height: 100, commands: [{ moveTo: { x: 0, y: 0 } }] }],
+  }),
+  /operator max requires 2 operands/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "rect",
+    customAdjustments: [{ name: "adj", formula: "val 1" }],
+  }),
+  /available only for custom geometry shapes/,
+);
+const originalFormulaGuide = formulaGeometryShape.customGuides[0].formula;
+formulaGeometryShape.customGuides[0].formula = "*/ w 1 0";
+assert.throws(() => formulaGeometryShape.inspectRecord(), /divides by zero/);
+await assert.rejects(() => PresentationFile.exportPptx(formulaGeometryPresentation), /divides by zero/);
+formulaGeometryShape.customGuides[0].formula = originalFormulaGuide;
 const mutatedArcPresentation = Presentation.create({ slideSize: { width: 200, height: 120 } });
 const mutatedArcSlide = mutatedArcPresentation.slides.add({ name: "Mutated arc" });
 const mutatedArcShape = mutatedArcSlide.shapes.add({

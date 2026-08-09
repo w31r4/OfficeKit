@@ -6,11 +6,12 @@ using P = DocumentFormat.OpenXml.Presentation;
 
 namespace OfficeKit.Codec;
 
-// Bounded literal DrawingML custom paths used by source-built presentation
-// templates. Shape-local text bounds accept native numeric rectangles and the
-// exact four scaling guides emitted below for cross-host rendering. Every other
-// formula geometry, guide, handle, connection site, and relative lighten/darken
-// path fill stays outside this slice.
+// Bounded DrawingML custom paths used by source-built presentation templates.
+// Coordinates and arc values may reference one ordered adjustment/guide graph;
+// formula parsing and evaluation stay in PptxCustomGeometryFormulaCodec. Shape-
+// local text bounds retain the exact four private scaling guides emitted below.
+// Non-empty handles, connection sites, formula text rectangles, 3D, and relative
+// lighten/darken path fill remain opaque and fail closed.
 internal static class PptxCustomGeometryCodec
 {
     private const int MaxPaths = 64;
@@ -22,24 +23,25 @@ internal static class PptxCustomGeometryCodec
     private const string TextRightGuide = "officeKitTextRight";
     private const string TextBottomGuide = "officeKitTextBottom";
 
-    internal static bool Supports(A.CustomGeometry? geometry, long widthEmu, long heightEmu)
+    private sealed class Profile
     {
-        if (geometry is null || geometry.HasAttributes || geometry.ChildElements.Count is < 2 or > 4 ||
-            geometry.ChildElements[0] is not A.AdjustValueList adjustValues || adjustValues.HasChildren || adjustValues.HasAttributes ||
-            geometry.ChildElements[^1] is not A.PathList pathList || pathList.HasAttributes)
-            return false;
-        var hasRectangle = TryReadTextRectangle(geometry, widthEmu, heightEmu, out _);
-        if (geometry.ChildElements.Count == 2 ? hasRectangle : !hasRectangle) return false;
-        var paths = pathList.Elements<A.Path>().ToArray();
-        if (paths.Length is < 1 or > MaxPaths || pathList.ChildElements.Count != paths.Length) return false;
-        var commandCount = 0;
-        return paths.All(path => Supports(path, ref commandCount));
+        internal required A.PathList Paths { get; init; }
+        internal required PptxCustomGeometryFormulaCodec.Graph Formulas { get; init; }
+        internal PresentationCustomGeometryTextRectangle? TextRectangle { get; init; }
     }
 
-    internal static IEnumerable<PresentationCustomGeometryPath> Read(A.CustomGeometry? geometry, long widthEmu, long heightEmu)
+    internal static bool Supports(A.CustomGeometry? geometry, long widthEmu, long heightEmu)
     {
-        if (!Supports(geometry, widthEmu, heightEmu)) yield break;
-        foreach (var nativePath in geometry!.GetFirstChild<A.PathList>()!.Elements<A.Path>())
+        return TryProfile(geometry, widthEmu, heightEmu, out _);
+    }
+
+    internal static void Read(A.CustomGeometry? geometry, long widthEmu, long heightEmu, PresentationShape target)
+    {
+        if (!TryProfile(geometry, widthEmu, heightEmu, out var profile)) return;
+        target.CustomAdjustments.Add(profile.Formulas.Adjustments);
+        target.CustomGuides.Add(profile.Formulas.Guides);
+        target.TextRectangle = profile.TextRectangle;
+        foreach (var nativePath in profile.Paths.Elements<A.Path>())
         {
             var path = new PresentationCustomGeometryPath
             {
@@ -66,27 +68,67 @@ internal static class PptxCustomGeometryCodec
                 };
                 path.Commands.Add(command);
             }
-            yield return path;
+            target.CustomPaths.Add(path);
         }
     }
 
-    internal static PresentationCustomGeometryTextRectangle? ReadTextRectangle(A.CustomGeometry? geometry, long widthEmu, long heightEmu)
+    private static bool TryProfile(A.CustomGeometry? geometry, long widthEmu, long heightEmu, out Profile profile)
     {
-        return Supports(geometry, widthEmu, heightEmu) && TryReadTextRectangle(geometry!, widthEmu, heightEmu, out var rectangle)
-            ? rectangle
-            : null;
+        profile = null!;
+        if (geometry is null || geometry.HasAttributes || geometry.ChildElements.Count < 2 ||
+            geometry.ChildElements[0] is not A.AdjustValueList adjustments)
+            return false;
+        var index = 1;
+        A.ShapeGuideList? guideList = null;
+        if (index < geometry.ChildElements.Count && geometry.ChildElements[index] is A.ShapeGuideList sourceGuides)
+        {
+            if (sourceGuides.HasAttributes) return false;
+            guideList = sourceGuides;
+            index++;
+        }
+        if (index < geometry.ChildElements.Count && geometry.ChildElements[index] is A.AdjustHandleList handles)
+        {
+            if (handles.HasAttributes || handles.ChildElements.Count != 0) return false;
+            index++;
+        }
+        if (index < geometry.ChildElements.Count && geometry.ChildElements[index] is A.ConnectionSiteList connections)
+        {
+            if (connections.HasAttributes || connections.ChildElements.Count != 0) return false;
+            index++;
+        }
+        A.Rectangle? nativeRectangle = null;
+        if (index < geometry.ChildElements.Count && geometry.ChildElements[index] is A.Rectangle rectangle)
+        {
+            nativeRectangle = rectangle;
+            index++;
+        }
+        if (index != geometry.ChildElements.Count - 1 || geometry.ChildElements[index] is not A.PathList pathList || pathList.HasAttributes)
+            return false;
+        var allGuides = guideList?.Elements<A.ShapeGuide>().ToArray() ?? [];
+        if (guideList is not null && guideList.ChildElements.Count != allGuides.Length) return false;
+        if (!TryReadTextRectangle(nativeRectangle, allGuides, widthEmu, heightEmu, out var textRectangle, out var userGuideCount))
+            return false;
+        if (!PptxCustomGeometryFormulaCodec.TryRead(adjustments, allGuides.Take(userGuideCount), widthEmu, heightEmu, out var formulas))
+            return false;
+        var paths = pathList.Elements<A.Path>().ToArray();
+        if (paths.Length is < 1 or > MaxPaths || pathList.ChildElements.Count != paths.Length) return false;
+        var commandCount = 0;
+        if (!paths.All(path => Supports(path, formulas, ref commandCount))) return false;
+        profile = new Profile { Paths = pathList, Formulas = formulas, TextRectangle = textRectangle };
+        return true;
     }
 
     internal static void Validate(PresentationShape shape, string shapeId)
     {
         if (shape.Geometry != "custom")
         {
-            if (shape.CustomPaths.Count > 0 || shape.TextRectangle is not null)
+            if (shape.CustomPaths.Count > 0 || shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 || shape.TextRectangle is not null)
                 throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has custom geometry data without custom geometry.");
             return;
         }
         if (shape.CustomPaths.Count is < 1 or > MaxPaths)
             throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} custom geometry must contain 1 through {MaxPaths} paths.");
+        var formulas = PptxCustomGeometryFormulaCodec.Validate(shape, shapeId);
         Validate(shape.TextRectangle, shapeId);
         var commandCount = 0;
         foreach (var path in shape.CustomPaths)
@@ -103,7 +145,7 @@ internal static class PptxCustomGeometryCodec
             var hasSubpathStart = false;
             foreach (var command in path.Commands)
             {
-                Validate(command, shapeId, hasCurrentPoint);
+                Validate(command, shapeId, hasCurrentPoint, formulas);
                 switch (command.CommandCase)
                 {
                     case PresentationCustomGeometryCommand.CommandOneofCase.MoveTo:
@@ -184,17 +226,23 @@ internal static class PptxCustomGeometryCodec
             }
             paths.Append(path);
         }
-        var geometry = new A.CustomGeometry(new A.AdjustValueList());
-        if (shape.TextRectangle is not null)
+        var adjustments = new A.AdjustValueList(shape.CustomAdjustments.Select(PptxCustomGeometryFormulaCodec.Write));
+        var geometry = new A.CustomGeometry(adjustments);
+        A.ShapeGuideList? guides = null;
+        if (shape.CustomGuides.Count > 0 || shape.TextRectangle is not null)
         {
-            geometry.Append(TextRectangleGuides(shape.TextRectangle, widthEmu, heightEmu));
-            geometry.Append(TextRectangle());
+            guides = new A.ShapeGuideList(shape.CustomGuides.Select(PptxCustomGeometryFormulaCodec.Write));
+            if (shape.TextRectangle is not null)
+                guides.Append(TextRectangleGuides(shape.TextRectangle, widthEmu, heightEmu));
+            geometry.Append(guides);
         }
+        if (shape.TextRectangle is not null)
+            geometry.Append(TextRectangle());
         geometry.Append(paths);
         return geometry;
     }
 
-    private static bool Supports(A.Path path, ref int commandCount)
+    private static bool Supports(A.Path path, PptxCustomGeometryFormulaCodec.Graph formulas, ref int commandCount)
     {
         if (path.Width?.Value is not { } width || width is 0 or > MaxCoordinate ||
             path.Height?.Value is not { } height || height is 0 or > MaxCoordinate ||
@@ -209,11 +257,11 @@ internal static class PptxCustomGeometryCodec
         {
             var supported = command switch
             {
-                A.MoveTo move => SupportsPointContainer(move, move.Point, 1),
-                A.LineTo line => SupportsPointContainer(line, line.Point, 1),
-                A.QuadraticBezierCurveTo quadratic => SupportsPointSequence(quadratic, 2),
-                A.CubicBezierCurveTo cubic => SupportsPointSequence(cubic, 3),
-                A.ArcTo arc => hasCurrentPoint && SupportsArc(arc),
+                A.MoveTo move => SupportsPointContainer(move, move.Point, 1, formulas),
+                A.LineTo line => SupportsPointContainer(line, line.Point, 1, formulas),
+                A.QuadraticBezierCurveTo quadratic => SupportsPointSequence(quadratic, 2, formulas),
+                A.CubicBezierCurveTo cubic => SupportsPointSequence(cubic, 3, formulas),
+                A.ArcTo arc => hasCurrentPoint && SupportsArc(arc, formulas),
                 A.CloseShapePath close => !close.HasAttributes && HasNoInnerXml(close),
                 _ => false,
             };
@@ -246,40 +294,45 @@ internal static class PptxCustomGeometryCodec
         left < right && top < bottom;
 
     private static bool TryReadTextRectangle(
-        A.CustomGeometry geometry,
+        A.Rectangle? nativeRectangle,
+        IReadOnlyList<A.ShapeGuide> guides,
         long widthEmu,
         long heightEmu,
-        out PresentationCustomGeometryTextRectangle rectangle)
+        out PresentationCustomGeometryTextRectangle? rectangle,
+        out int userGuideCount)
     {
-        rectangle = new PresentationCustomGeometryTextRectangle();
-        if (geometry.GetFirstChild<A.Rectangle>() is not { } nativeRectangle) return false;
-        if (geometry.GetFirstChild<A.ShapeGuideList>() is not { } guides)
+        rectangle = null;
+        userGuideCount = guides.Count;
+        if (nativeRectangle is null) return true;
+        if (SupportsLiteralTextRectangle(nativeRectangle))
         {
-            if (geometry.ChildElements.Count != 3 || geometry.ChildElements[1] != nativeRectangle || !SupportsLiteralTextRectangle(nativeRectangle)) return false;
-            rectangle.LeftEmu = ParseCoordinate(nativeRectangle.Left!.Value!);
-            rectangle.TopEmu = ParseCoordinate(nativeRectangle.Top!.Value!);
-            rectangle.RightEmu = ParseCoordinate(nativeRectangle.Right!.Value!);
-            rectangle.BottomEmu = ParseCoordinate(nativeRectangle.Bottom!.Value!);
+            rectangle = new PresentationCustomGeometryTextRectangle
+            {
+                LeftEmu = ParseCoordinate(nativeRectangle.Left!.Value!),
+                TopEmu = ParseCoordinate(nativeRectangle.Top!.Value!),
+                RightEmu = ParseCoordinate(nativeRectangle.Right!.Value!),
+                BottomEmu = ParseCoordinate(nativeRectangle.Bottom!.Value!),
+            };
             return true;
         }
-        if (geometry.ChildElements.Count != 4 || geometry.ChildElements[1] != guides || geometry.ChildElements[2] != nativeRectangle ||
-            guides.HasAttributes || guides.ChildElements.Count != 4 ||
-            !HasOnlyAttributes(nativeRectangle, "l", "t", "r", "b") || !HasNoInnerXml(nativeRectangle) ||
+        if (guides.Count < 4 || !HasOnlyAttributes(nativeRectangle, "l", "t", "r", "b") || !HasNoInnerXml(nativeRectangle) ||
             nativeRectangle.Left?.Value != TextLeftGuide || nativeRectangle.Top?.Value != TextTopGuide ||
             nativeRectangle.Right?.Value != TextRightGuide || nativeRectangle.Bottom?.Value != TextBottomGuide)
             return false;
-        var source = guides.Elements<A.ShapeGuide>().ToArray();
-        if (source.Length != 4 ||
-            !TryScaledGuide(source[0], TextLeftGuide, "w", widthEmu, out var left) ||
-            !TryScaledGuide(source[1], TextTopGuide, "h", heightEmu, out var top) ||
-            !TryScaledGuide(source[2], TextRightGuide, "w", widthEmu, out var right) ||
-            !TryScaledGuide(source[3], TextBottomGuide, "h", heightEmu, out var bottom) ||
+        userGuideCount = guides.Count - 4;
+        if (!TryScaledGuide(guides[userGuideCount], TextLeftGuide, "w", widthEmu, out var left) ||
+            !TryScaledGuide(guides[userGuideCount + 1], TextTopGuide, "h", heightEmu, out var top) ||
+            !TryScaledGuide(guides[userGuideCount + 2], TextRightGuide, "w", widthEmu, out var right) ||
+            !TryScaledGuide(guides[userGuideCount + 3], TextBottomGuide, "h", heightEmu, out var bottom) ||
             left >= right || top >= bottom)
             return false;
-        rectangle.LeftEmu = left;
-        rectangle.TopEmu = top;
-        rectangle.RightEmu = right;
-        rectangle.BottomEmu = bottom;
+        rectangle = new PresentationCustomGeometryTextRectangle
+        {
+            LeftEmu = left,
+            TopEmu = top,
+            RightEmu = right,
+            BottomEmu = bottom,
+        };
         return true;
     }
 
@@ -304,30 +357,34 @@ internal static class PptxCustomGeometryCodec
         return path.Stroke is not { HasValue: false } && path.ExtrusionOk is not { HasValue: false };
     }
 
-    private static bool SupportsPointContainer(OpenXmlCompositeElement container, A.Point? point, int childCount) =>
-        !container.HasAttributes && container.ChildElements.Count == childCount && point is not null && SupportsPoint(point);
+    private static bool SupportsPointContainer(OpenXmlCompositeElement container, A.Point? point, int childCount, PptxCustomGeometryFormulaCodec.Graph formulas) =>
+        !container.HasAttributes && container.ChildElements.Count == childCount && point is not null && SupportsPoint(point, formulas);
 
-    private static bool SupportsPointSequence(OpenXmlCompositeElement container, int childCount) =>
+    private static bool SupportsPointSequence(OpenXmlCompositeElement container, int childCount, PptxCustomGeometryFormulaCodec.Graph formulas) =>
         !container.HasAttributes && container.ChildElements.Count == childCount &&
-        container.ChildElements.All(child => child is A.Point point && SupportsPoint(point));
+        container.ChildElements.All(child => child is A.Point point && SupportsPoint(point, formulas));
 
-    private static bool SupportsPoint(A.Point point) =>
+    private static bool SupportsPoint(A.Point point, PptxCustomGeometryFormulaCodec.Graph formulas) =>
         HasNoInnerXml(point) && HasOnlyAttributes(point, "x", "y") &&
-        TryCoordinate(point.X?.Value, out _) && TryCoordinate(point.Y?.Value, out _);
+        TryValue(point.X?.Value, formulas, out _) && TryValue(point.Y?.Value, formulas, out _);
 
-    private static bool SupportsArc(A.ArcTo arc) =>
+    private static bool SupportsArc(A.ArcTo arc, PptxCustomGeometryFormulaCodec.Graph formulas) =>
         HasNoInnerXml(arc) && HasOnlyAttributes(arc, "wR", "hR", "stAng", "swAng") &&
-        TryCoordinate(arc.WidthRadius?.Value, out var widthRadius) && widthRadius > 0 &&
-        TryCoordinate(arc.HeightRadius?.Value, out var heightRadius) && heightRadius > 0 &&
-        TryAngle(arc.StartAngle?.Value, out _) &&
-        TryAngle(arc.SwingAngle?.Value, out var sweepAngle) &&
-        sweepAngle != 0 && Math.Abs((long)sweepAngle) <= FullTurnAngle;
+        TryValue(arc.WidthRadius?.Value, formulas, out var widthRadius) && widthRadius > 0 &&
+        TryValue(arc.HeightRadius?.Value, formulas, out var heightRadius) && heightRadius > 0 &&
+        TryValue(arc.StartAngle?.Value, formulas, out _) &&
+        TryValue(arc.SwingAngle?.Value, formulas, out var sweepAngle) &&
+        sweepAngle != 0 && Math.Abs(sweepAngle) <= FullTurnAngle;
 
-    private static PresentationCustomGeometryPoint ReadPoint(A.Point point) => new()
+    private static PresentationCustomGeometryPoint ReadPoint(A.Point point)
     {
-        X = ParseCoordinate(point.X!.Value!),
-        Y = ParseCoordinate(point.Y!.Value!),
-    };
+        var result = new PresentationCustomGeometryPoint();
+        if (TryCoordinate(point.X?.Value, out var x)) result.X = x;
+        else result.XReference = point.X!.Value!;
+        if (TryCoordinate(point.Y?.Value, out var y)) result.Y = y;
+        else result.YReference = point.Y!.Value!;
+        return result;
+    }
 
     private static PresentationCustomGeometryCommand ReadCubic(A.CubicBezierCurveTo source)
     {
@@ -356,36 +413,39 @@ internal static class PptxCustomGeometryCodec
         };
     }
 
-    private static PresentationCustomGeometryCommand ReadArc(A.ArcTo source) => new()
+    private static PresentationCustomGeometryCommand ReadArc(A.ArcTo source)
     {
-        ArcTo = new PresentationCustomGeometryArc
-        {
-            WidthRadius = ParseCoordinate(source.WidthRadius!.Value!),
-            HeightRadius = ParseCoordinate(source.HeightRadius!.Value!),
-            StartAngle = ParseAngle(source.StartAngle!.Value!),
-            SweepAngle = ParseAngle(source.SwingAngle!.Value!),
-        },
-    };
+        var arc = new PresentationCustomGeometryArc();
+        if (TryCoordinate(source.WidthRadius?.Value, out var widthRadius)) arc.WidthRadius = widthRadius;
+        else arc.WidthRadiusReference = source.WidthRadius!.Value!;
+        if (TryCoordinate(source.HeightRadius?.Value, out var heightRadius)) arc.HeightRadius = heightRadius;
+        else arc.HeightRadiusReference = source.HeightRadius!.Value!;
+        if (TryAngle(source.StartAngle?.Value, out var startAngle)) arc.StartAngle = startAngle;
+        else arc.StartAngleReference = source.StartAngle!.Value!;
+        if (TryAngle(source.SwingAngle?.Value, out var sweepAngle)) arc.SweepAngle = sweepAngle;
+        else arc.SweepAngleReference = source.SwingAngle!.Value!;
+        return new PresentationCustomGeometryCommand { ArcTo = arc };
+    }
 
     private static A.Point Point(PresentationCustomGeometryPoint source) => new()
     {
-        X = source.X.ToString(CultureInfo.InvariantCulture),
-        Y = source.Y.ToString(CultureInfo.InvariantCulture),
+        X = source.HasXReference ? source.XReference : source.X.ToString(CultureInfo.InvariantCulture),
+        Y = source.HasYReference ? source.YReference : source.Y.ToString(CultureInfo.InvariantCulture),
     };
 
     private static A.ArcTo Arc(PresentationCustomGeometryArc source) => new()
     {
-        WidthRadius = source.WidthRadius.ToString(CultureInfo.InvariantCulture),
-        HeightRadius = source.HeightRadius.ToString(CultureInfo.InvariantCulture),
-        StartAngle = source.StartAngle.ToString(CultureInfo.InvariantCulture),
-        SwingAngle = source.SweepAngle.ToString(CultureInfo.InvariantCulture),
+        WidthRadius = source.HasWidthRadiusReference ? source.WidthRadiusReference : source.WidthRadius.ToString(CultureInfo.InvariantCulture),
+        HeightRadius = source.HasHeightRadiusReference ? source.HeightRadiusReference : source.HeightRadius.ToString(CultureInfo.InvariantCulture),
+        StartAngle = source.HasStartAngleReference ? source.StartAngleReference : source.StartAngle.ToString(CultureInfo.InvariantCulture),
+        SwingAngle = source.HasSweepAngleReference ? source.SweepAngleReference : source.SweepAngle.ToString(CultureInfo.InvariantCulture),
     };
 
-    private static A.ShapeGuideList TextRectangleGuides(PresentationCustomGeometryTextRectangle source, long widthEmu, long heightEmu) => new(
+    private static IEnumerable<A.ShapeGuide> TextRectangleGuides(PresentationCustomGeometryTextRectangle source, long widthEmu, long heightEmu) => [
         ScaledGuide(TextLeftGuide, source.LeftEmu, "w", widthEmu),
         ScaledGuide(TextTopGuide, source.TopEmu, "h", heightEmu),
         ScaledGuide(TextRightGuide, source.RightEmu, "w", widthEmu),
-        ScaledGuide(TextBottomGuide, source.BottomEmu, "h", heightEmu));
+        ScaledGuide(TextBottomGuide, source.BottomEmu, "h", heightEmu)];
 
     private static A.ShapeGuide ScaledGuide(string name, long coordinate, string axis, long extentEmu) => new()
     {
@@ -401,35 +461,43 @@ internal static class PptxCustomGeometryCodec
         Bottom = TextBottomGuide,
     };
 
-    private static void Validate(PresentationCustomGeometryCommand command, string shapeId, bool hasCurrentPoint)
+    private static void Validate(
+        PresentationCustomGeometryCommand command,
+        string shapeId,
+        bool hasCurrentPoint,
+        PptxCustomGeometryFormulaCodec.Graph formulas)
     {
         switch (command.CommandCase)
         {
             case PresentationCustomGeometryCommand.CommandOneofCase.MoveTo:
-                Validate(command.MoveTo, shapeId);
+                Validate(command.MoveTo, shapeId, formulas);
                 break;
             case PresentationCustomGeometryCommand.CommandOneofCase.LineTo:
-                Validate(command.LineTo, shapeId);
+                Validate(command.LineTo, shapeId, formulas);
                 break;
             case PresentationCustomGeometryCommand.CommandOneofCase.QuadraticBezierTo:
                 if (command.QuadraticBezierTo.Control is null || command.QuadraticBezierTo.End is null)
                     throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an incomplete quadratic Bézier command.");
-                Validate(command.QuadraticBezierTo.Control, shapeId);
-                Validate(command.QuadraticBezierTo.End, shapeId);
+                Validate(command.QuadraticBezierTo.Control, shapeId, formulas);
+                Validate(command.QuadraticBezierTo.End, shapeId, formulas);
                 break;
             case PresentationCustomGeometryCommand.CommandOneofCase.CubicBezierTo:
                 if (command.CubicBezierTo.Control1 is null || command.CubicBezierTo.Control2 is null || command.CubicBezierTo.End is null)
                     throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an incomplete cubic Bézier command.");
-                Validate(command.CubicBezierTo.Control1, shapeId);
-                Validate(command.CubicBezierTo.Control2, shapeId);
-                Validate(command.CubicBezierTo.End, shapeId);
+                Validate(command.CubicBezierTo.Control1, shapeId, formulas);
+                Validate(command.CubicBezierTo.Control2, shapeId, formulas);
+                Validate(command.CubicBezierTo.End, shapeId, formulas);
                 break;
             case PresentationCustomGeometryCommand.CommandOneofCase.ArcTo:
                 if (!hasCurrentPoint)
                     throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an arc command without an established current point.");
-                if (command.ArcTo is null || command.ArcTo.WidthRadius is <= 0 or > MaxCoordinate || command.ArcTo.HeightRadius is <= 0 or > MaxCoordinate ||
-                    command.ArcTo.SweepAngle == 0 || Math.Abs((long)command.ArcTo.SweepAngle) > FullTurnAngle)
-                    throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an invalid bounded literal arc command.");
+                if (command.ArcTo is null ||
+                    !TryWireValue(command.ArcTo.HasWidthRadiusReference, command.ArcTo.WidthRadiusReference, command.ArcTo.WidthRadius, formulas, out var widthRadius) ||
+                    !TryWireValue(command.ArcTo.HasHeightRadiusReference, command.ArcTo.HeightRadiusReference, command.ArcTo.HeightRadius, formulas, out var heightRadius) ||
+                    !TryWireValue(command.ArcTo.HasStartAngleReference, command.ArcTo.StartAngleReference, command.ArcTo.StartAngle, formulas, out _) ||
+                    !TryWireValue(command.ArcTo.HasSweepAngleReference, command.ArcTo.SweepAngleReference, command.ArcTo.SweepAngle, formulas, out var sweepAngle) ||
+                    widthRadius <= 0 || heightRadius <= 0 || sweepAngle == 0 || Math.Abs(sweepAngle) > FullTurnAngle)
+                    throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an invalid bounded custom arc command or formula reference.");
                 break;
             case PresentationCustomGeometryCommand.CommandOneofCase.Close:
                 if (!command.Close) throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an invalid close command.");
@@ -439,10 +507,24 @@ internal static class PptxCustomGeometryCodec
         }
     }
 
-    private static void Validate(PresentationCustomGeometryPoint? point, string shapeId)
+    private static void Validate(PresentationCustomGeometryPoint? point, string shapeId, PptxCustomGeometryFormulaCodec.Graph formulas)
     {
-        if (point is null || point.X < -MaxCoordinate || point.X > MaxCoordinate || point.Y < -MaxCoordinate || point.Y > MaxCoordinate)
-            throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has a custom path point outside the signed 32-bit coordinate range.");
+        if (point is null ||
+            !TryWireValue(point.HasXReference, point.XReference, point.X, formulas, out _) ||
+            !TryWireValue(point.HasYReference, point.YReference, point.Y, formulas, out _))
+            throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an invalid custom path point or formula reference.");
+    }
+
+    private static bool TryWireValue(
+        bool hasReference,
+        string reference,
+        long literal,
+        PptxCustomGeometryFormulaCodec.Graph formulas,
+        out double value)
+    {
+        value = 0;
+        if (hasReference && literal != 0) return false;
+        return formulas.TryResolve(hasReference ? reference : null, literal, out value);
     }
 
     private static void Validate(PresentationCustomGeometryTextRectangle? rectangle, string shapeId)
@@ -462,6 +544,16 @@ internal static class PptxCustomGeometryCodec
 
     private static bool TryAngle(string? value, out int angle) =>
         int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out angle);
+
+    private static bool TryValue(string? source, PptxCustomGeometryFormulaCodec.Graph formulas, out double value)
+    {
+        if (TryCoordinate(source, out var coordinate))
+        {
+            value = coordinate;
+            return true;
+        }
+        return formulas.TryResolveReference(source, out value);
+    }
 
     private static long ParseCoordinate(string value) => long.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
 

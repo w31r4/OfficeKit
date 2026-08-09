@@ -117,6 +117,11 @@ assert.match(HELP_CATALOG.find((item) => item.name === "sheet.images.add")?.sche
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.schema?.parameters?.fit?.description || "", /contain.*cover.*stretch.*srcRect.*no fit keyword/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.schema?.parameters?.crop?.description || "", /-1\.\.1.*Positive.*negative.*Manual crop/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.master")?.schema?.parameters?.placeholders?.description || "", /Source-free direct-frame.*title\/body.*imported placeholders.*read-only/i);
+const shapeAddHelp = HELP_CATALOG.find((item) => item.name === "slide.shapes.add");
+assert.match(shapeAddHelp?.summary || "", /ordered adjustment\/guide formulas/i);
+assert.match(shapeAddHelp?.schema?.parameters?.customAdjustments?.description || "", /256.*17 ECMA-376 operators.*built-ins.*Forward references.*fail closed/i);
+assert.match(shapeAddHelp?.schema?.parameters?.customGuides?.description || "", /1,024.*earlier adjustment\/guide.*declared names.*not implicit path guides/i);
+assert.match(shapeAddHelp?.schema?.parameters?.customPaths?.description || "", /positive literal integer width\/height.*Point coordinates and arc radii\/angles.*declared customAdjustments\/customGuides.*evaluate positive.*Non-empty handles\/connection sites.*opaque/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view")?.summary || "", /local editor gridline\/guide visibility.*grid spacing.*fixed-topology.*viewProps\.xml/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view")?.schema?.returns?.view?.description || "", /show\/hide\/toggle.*capability-aware.*field presence.*guide count\/order\/orientation/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view.capability")?.schema?.returns?.capability?.description || "", /sourceBound.*partPresent.*editable.*preflight.*residual XML/i);

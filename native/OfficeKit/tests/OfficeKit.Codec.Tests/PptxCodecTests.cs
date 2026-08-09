@@ -1523,6 +1523,140 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void FormulaCustomGeometryAuthorsImportsEditsAndRejectsInvalidGraphs()
+    {
+        var request = ExportRequest();
+        var shape = request.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.TextRectangle = new PresentationCustomGeometryTextRectangle
+        {
+            LeftEmu = 100_000,
+            TopEmu = 80_000,
+            RightEmu = shape.WidthEmu - 100_000,
+            BottomEmu = shape.HeightEmu - 80_000,
+        };
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjX", Formula = "val 25000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjSweep", Formula = "val 10800000" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "x1", Formula = "*/ w adjX 100000" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "y1", Formula = "*/ h 1 2" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "x2", Formula = "+- r 0 x1" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "radius", Formula = "min wd4 hd4" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "zeroAngle", Formula = "+- cd4 0 cd4" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "addDiv", Formula = "+/ w 0 2" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "conditional", Formula = "?: adjX w h" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "absolute", Formula = "abs -5" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "arcTangent", Formula = "at2 1 1" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "cosArcTangent", Formula = "cat2 100 1 1" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "cosine", Formula = "cos 100 cd4" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "maximum", Formula = "max w h" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "modulus", Formula = "mod 3 4 12" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "pinned", Formula = "pin 0 adjX 100000" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "sinArcTangent", Formula = "sat2 100 1 1" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "sine", Formula = "sin 100 cd4" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "squareRoot", Formula = "sqrt 144" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "tangent", Formula = "tan 100 cd8" });
+        var path = new PresentationCustomGeometryPath { Width = shape.WidthEmu, Height = shape.HeightEmu };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "x1", YReference = "y1" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "x2", YReference = "y1" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            ArcTo = new PresentationCustomGeometryArc
+            {
+                WidthRadiusReference = "radius",
+                HeightRadiusReference = "radius",
+                StartAngleReference = "zeroAngle",
+                SweepAngleReference = "adjSweep",
+            },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var geometry = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.CustomGeometry>().Single();
+            Assert.Collection(geometry.GetFirstChild<A.AdjustValueList>()!.Elements<A.ShapeGuide>(),
+                guide => Assert.Equal(("adjX", "val 25000"), (guide.Name!.Value, guide.Formula!.Value)),
+                guide => Assert.Equal(("adjSweep", "val 10800000"), (guide.Name!.Value, guide.Formula!.Value)));
+            var nativeGuides = geometry.GetFirstChild<A.ShapeGuideList>()!.Elements<A.ShapeGuide>().ToArray();
+            Assert.Equal(22, nativeGuides.Length);
+            Assert.Equal(("x1", "*/ w adjX 100000"), (nativeGuides[0].Name!.Value, nativeGuides[0].Formula!.Value));
+            Assert.Equal("officeKitTextLeft", nativeGuides[^4].Name!.Value);
+            var nativePath = geometry.GetFirstChild<A.PathList>()!.Elements<A.Path>().Single();
+            var move = Assert.IsType<A.MoveTo>(nativePath.ChildElements[0]);
+            Assert.Equal("x1", move.Point!.X!.Value);
+            Assert.Equal("y1", move.Point.Y!.Value);
+            var arc = Assert.IsType<A.ArcTo>(nativePath.ChildElements[2]);
+            Assert.Equal("radius", arc.WidthRadius!.Value);
+            Assert.Equal("zeroAngle", arc.StartAngle!.Value);
+            Assert.Equal("adjSweep", arc.SwingAngle!.Value);
+        }
+
+        var imported = Import(authored.File.ToByteArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedShape = Assert.Single(Assert.Single(imported.Artifact.Presentation.Slides).Elements).Shape;
+        Assert.Equal(2, importedShape.CustomAdjustments.Count);
+        Assert.Equal(18, importedShape.CustomGuides.Count);
+        Assert.Equal("x1", importedShape.CustomPaths[0].Commands[0].MoveTo.XReference);
+        Assert.Equal("radius", importedShape.CustomPaths[0].Commands[2].ArcTo.WidthRadiusReference);
+        importedShape.CustomAdjustments[0].Formula = "val 30000";
+        var edited = Export(imported.Artifact);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var roundTripShape = Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements).Shape;
+        Assert.Equal("val 30000", roundTripShape.CustomAdjustments[0].Formula);
+        Assert.Equal("x1", roundTripShape.CustomPaths[0].Commands[0].MoveTo.XReference);
+
+        var withEmptyTopology = authored.File.ToByteArray();
+        using (var stream = new MemoryStream())
+        {
+            stream.Write(withEmptyTopology);
+            stream.Position = 0;
+            using (var package = PresentationDocument.Open(stream, true))
+            {
+                var geometry = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.CustomGeometry>().Single();
+                var guideList = geometry.GetFirstChild<A.ShapeGuideList>()!;
+                var handles = geometry.InsertAfter(new A.AdjustHandleList(), guideList)!;
+                geometry.InsertAfter(new A.ConnectionSiteList(), handles);
+            }
+            withEmptyTopology = stream.ToArray();
+        }
+        var importedEmptyTopology = Import(withEmptyTopology);
+        Assert.True(importedEmptyTopology.Ok, Diagnostics(importedEmptyTopology));
+        Assert.True(Assert.Single(Assert.Single(importedEmptyTopology.Artifact.Presentation.Slides).Elements).Source.Editable);
+
+        var forwardReference = request.Clone();
+        forwardReference.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomGuides[0].Formula = "val later";
+        forwardReference.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomGuides.Add(
+            new PresentationCustomGeometryGuide { Name = "later", Formula = "val 1" });
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(forwardReference).Diagnostics).Code);
+
+        var reservedName = request.Clone();
+        reservedName.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomGuides[0].Name = "officeKitCollision";
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(reservedName).Diagnostics).Code);
+
+        var ambiguousCoordinate = request.Clone();
+        ambiguousCoordinate.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomPaths[0].Commands[0].MoveTo.X = 1;
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(ambiguousCoordinate).Diagnostics).Code);
+
+        var undeclaredBuiltinCoordinate = request.Clone();
+        undeclaredBuiltinCoordinate.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomPaths[0].Commands[0].MoveTo.XReference = "wd2";
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(undeclaredBuiltinCoordinate).Diagnostics).Code);
+
+        var divisionByZero = request.Clone();
+        divisionByZero.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomGuides[0].Formula = "*/ w 1 0";
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(divisionByZero).Diagnostics).Code);
+    }
+
+    [Fact]
     public void CoreShapesConnectorsAndLiteralChartsAuthorImportAndEdit()
     {
         var request = ExportRequest();

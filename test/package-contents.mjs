@@ -290,6 +290,7 @@ for (const required of [
   "src/presentation/native-objects.mjs",
   "src/presentation/compose.mjs",
   "src/presentation/custom-geometry.mjs",
+  "src/presentation/custom-geometry-formulas.mjs",
   "src/presentation/text-paragraphs.mjs",
   "src/presentation/ooxml-masters.mjs",
   "src/presentation/ooxml-modern-comments.mjs",
