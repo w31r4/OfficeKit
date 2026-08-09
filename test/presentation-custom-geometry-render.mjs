@@ -70,7 +70,21 @@ if (!commandAvailable("soffice") || !commandAvailable("pdftotext", ["-v"]) || !c
 const work = await fs.mkdtemp(path.join(os.tmpdir(), "officekit-custom-text-rectangle-"));
 try {
   const presentation = Presentation.create({ slideSize: { width: 640, height: 360 } });
-  for (const [name, textRectangle] of [["Default text bounds", undefined], ["Inset text bounds", { left: 180, top: 90, right: 520, bottom: 240 }]]) {
+  const textRectangleCases = [
+    { name: "Default text bounds" },
+    { name: "Inset text bounds", textRectangle: { left: 180, top: 90, right: 520, bottom: 240 } },
+    {
+      name: "Guide text bounds",
+      textRectangle: { left: "rectLeft", top: "rectTop", right: "rectRight", bottom: "rectBottom" },
+      customGuides: [
+        { name: "rectLeft", formula: "*/ w 180 560" },
+        { name: "rectTop", formula: "*/ h 90 280" },
+        { name: "rectRight", formula: "*/ w 520 560" },
+        { name: "rectBottom", formula: "*/ h 240 280" },
+      ],
+    },
+  ];
+  for (const { name, textRectangle, customGuides } of textRectangleCases) {
     const slide = presentation.slides.add({ name });
     slide.shapes.add({
       name: `probe-${slide.index + 1}`,
@@ -80,6 +94,7 @@ try {
       line: { fill: "#2563EB", width: 2 },
       text: "RECTPROBE",
       textRectangle,
+      customGuides,
       textStyle: { fontFamily: "Liberation Sans", fontSize: 24, color: "#0F172A" },
       textBodyProperties: { anchor: "top", insets: { left: 0, top: 0, right: 0, bottom: 0 } },
       customPaths: [{
@@ -145,15 +160,17 @@ try {
   const pdfPath = path.join(work, "custom-text-rectangle.pdf");
   const bboxPath = path.join(work, "custom-text-rectangle.html");
   assert.ok((await fs.stat(pdfPath)).size > 0, "LibreOffice must produce a non-empty PDF.");
-  run("pdftotext", ["-f", "1", "-l", "2", "-bbox-layout", pdfPath, bboxPath]);
+  run("pdftotext", ["-f", "1", "-l", "3", "-bbox-layout", pdfPath, bboxPath]);
   const positions = probePositions(await fs.readFile(bboxPath, "utf8"));
-  assert.equal(positions.length, 2, "Native PDF must retain both presentation slides.");
+  assert.equal(positions.length, 3, "Native PDF must retain all text-rectangle slides.");
   assert.ok(positions[1].x - positions[0].x > 80, `Inset text must move right in native output: ${JSON.stringify(positions)}`);
   assert.ok(positions[1].y - positions[0].y > 35, `Inset text must move down in native output: ${JSON.stringify(positions)}`);
-  run("pdftoppm", ["-f", "3", "-l", "4", "-r", "72", "-png", pdfPath, path.join(work, "formula")]);
+  assert.ok(Math.abs(positions[2].x - positions[1].x) < 2, `Guide and numeric text rectangles must align horizontally: ${JSON.stringify(positions)}`);
+  assert.ok(Math.abs(positions[2].y - positions[1].y) < 2, `Guide and numeric text rectangles must align vertically: ${JSON.stringify(positions)}`);
+  run("pdftoppm", ["-f", "4", "-l", "5", "-r", "72", "-png", pdfPath, path.join(work, "formula")]);
   const nativeFormulaCentroids = [
-    await greenCentroid(path.join(work, "formula-3.png")),
     await greenCentroid(path.join(work, "formula-4.png")),
+    await greenCentroid(path.join(work, "formula-5.png")),
   ];
   console.log(`presentation custom geometry render ok ${JSON.stringify({ positions, modelFormulaCentroids, nativeFormulaCentroids })}`);
 } finally {

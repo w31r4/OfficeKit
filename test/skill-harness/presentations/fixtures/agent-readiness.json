@@ -61,6 +61,7 @@
             { "angle": 90, "x": 150, "y": 130 },
             { "angle": 0, "x": 300, "y": 65 }
           ],
+          "textRectangle": { "left": "l", "top": "t", "right": "r", "bottom": "b" },
           "customPaths": [{
             "width": 2857500,
             "height": 1238250,

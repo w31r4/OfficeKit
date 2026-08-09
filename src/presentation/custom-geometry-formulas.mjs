@@ -101,9 +101,13 @@ export function normalizePresentationCustomGeometryFormulaGraph(value = {}) {
   return { adjustments, guides };
 }
 
-export function presentationCustomGeometryReferenceNames(graph = {}) {
+export function presentationCustomGeometryReferenceNames(graph = {}, { includeBuiltins = false } = {}) {
   const normalized = normalizePresentationCustomGeometryFormulaGraph(graph);
-  return new Set([...normalized.adjustments.map((item) => item.name), ...normalized.guides.map((item) => item.name)]);
+  return new Set([
+    ...(includeBuiltins ? BUILTIN_NAMES : []),
+    ...normalized.adjustments.map((item) => item.name),
+    ...normalized.guides.map((item) => item.name),
+  ]);
 }
 
 export function normalizePresentationCustomGeometryReference(value, references, label) {

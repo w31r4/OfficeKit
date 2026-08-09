@@ -41,7 +41,8 @@ function coordinate(value, label, references) {
   return number;
 }
 
-function textRectangleCoordinate(value, label) {
+function textRectangleCoordinate(value, label, references) {
+  if (typeof value === "string") return normalizePresentationCustomGeometryReference(value, references, label);
   const number = Number(value);
   const emu = Math.round(number * EMU_PER_PIXEL);
   if (!Number.isFinite(number) || !Number.isSafeInteger(emu) || emu < -MAX_COORDINATE || emu > MAX_COORDINATE) {
@@ -50,26 +51,46 @@ function textRectangleCoordinate(value, label) {
   return number;
 }
 
-export function normalizePresentationCustomTextRectangle(value) {
+export function normalizePresentationCustomTextRectangle(value, { adjustments, guides, widthEmu, heightEmu } = {}) {
   if (value == null) return undefined;
   if (typeof value !== "object" || Array.isArray(value)) throw new TypeError("Presentation custom geometry textRectangle must be an object.");
   const unknown = Object.keys(value).filter((key) => !TEXT_RECTANGLE_FIELD_SET.has(key));
   if (unknown.length) throw new TypeError(`Presentation custom geometry textRectangle has unsupported fields: ${unknown.join(", ")}.`);
-  const rectangle = Object.fromEntries(TEXT_RECTANGLE_FIELDS.map((field) => [field, textRectangleCoordinate(value[field], `Presentation custom geometry textRectangle.${field}`)]));
-  if (Math.round(rectangle.left * EMU_PER_PIXEL) >= Math.round(rectangle.right * EMU_PER_PIXEL)) {
+  const graph = normalizePresentationCustomGeometryFormulaGraph({ adjustments, guides });
+  const references = presentationCustomGeometryReferenceNames(graph, { includeBuiltins: true });
+  const rectangle = Object.fromEntries(TEXT_RECTANGLE_FIELDS.map((field) => [
+    field,
+    textRectangleCoordinate(value[field], `Presentation custom geometry textRectangle.${field}`, references),
+  ]));
+  const hasReferences = TEXT_RECTANGLE_FIELDS.some((field) => typeof rectangle[field] === "string");
+  const values = hasReferences
+    ? evaluatePresentationCustomGeometryFormulaGraph(graph, { widthEmu, heightEmu })
+    : undefined;
+  const resolved = Object.fromEntries(TEXT_RECTANGLE_FIELDS.map((field) => [
+    field,
+    typeof rectangle[field] === "string"
+      ? resolvePresentationCustomGeometryReference(rectangle[field], values, `Presentation custom geometry textRectangle.${field}`)
+      : Math.round(rectangle[field] * EMU_PER_PIXEL),
+  ]));
+  if (resolved.left >= resolved.right) {
     throw new RangeError("Presentation custom geometry textRectangle.right must be greater than left at native EMU precision.");
   }
-  if (Math.round(rectangle.top * EMU_PER_PIXEL) >= Math.round(rectangle.bottom * EMU_PER_PIXEL)) {
+  if (resolved.top >= resolved.bottom) {
     throw new RangeError("Presentation custom geometry textRectangle.bottom must be greater than top at native EMU precision.");
   }
   return rectangle;
 }
 
-export function presentationCustomTextRectangleFrame(value, frame, sourceFrame = frame) {
-  const rectangle = normalizePresentationCustomTextRectangle(value);
-  if (!rectangle) return { ...frame };
+export function presentationCustomTextRectangleFrame(value, frame, sourceFrame = frame, graph = {}) {
   const sourceWidth = Number(sourceFrame?.width);
   const sourceHeight = Number(sourceFrame?.height);
+  const formulaContext = {
+    ...graph,
+    widthEmu: Math.round(sourceWidth * EMU_PER_PIXEL),
+    heightEmu: Math.round(sourceHeight * EMU_PER_PIXEL),
+  };
+  const rectangle = normalizePresentationCustomTextRectangle(value, formulaContext);
+  if (!rectangle) return { ...frame };
   const left = Number(frame?.left);
   const top = Number(frame?.top);
   const width = Number(frame?.width);
@@ -77,13 +98,20 @@ export function presentationCustomTextRectangleFrame(value, frame, sourceFrame =
   if (![sourceWidth, sourceHeight, left, top, width, height].every(Number.isFinite) || sourceWidth <= 0 || sourceHeight <= 0 || width <= 0 || height <= 0) {
     throw new RangeError("Presentation custom geometry textRectangle requires positive source and rendered shape frames.");
   }
+  const values = evaluatePresentationCustomGeometryFormulaGraph(graph, formulaContext);
+  const resolved = Object.fromEntries(TEXT_RECTANGLE_FIELDS.map((field) => [
+    field,
+    typeof rectangle[field] === "string"
+      ? resolvePresentationCustomGeometryReference(rectangle[field], values, `Presentation custom geometry textRectangle.${field}`) / EMU_PER_PIXEL
+      : rectangle[field],
+  ]));
   const scaleX = width / sourceWidth;
   const scaleY = height / sourceHeight;
   return {
-    left: left + rectangle.left * scaleX,
-    top: top + rectangle.top * scaleY,
-    width: (rectangle.right - rectangle.left) * scaleX,
-    height: (rectangle.bottom - rectangle.top) * scaleY,
+    left: left + resolved.left * scaleX,
+    top: top + resolved.top * scaleY,
+    width: (resolved.right - resolved.left) * scaleX,
+    height: (resolved.bottom - resolved.top) * scaleY,
   };
 }
 

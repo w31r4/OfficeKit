@@ -1355,24 +1355,17 @@ export class Shape {
     this.position = config.position || { left: 0, top: 0, width: 160, height: 80 };
     this.geometry = config.geometry || "rect";
     const formulaGraph = normalizePresentationCustomGeometryFormulaGraph({ adjustments: config.customAdjustments, guides: config.customGuides });
+    const customGeometryContext = {
+      ...formulaGraph,
+      widthEmu: Math.round(Number(this.position.width) * EMU_PER_PIXEL),
+      heightEmu: Math.round(Number(this.position.height) * EMU_PER_PIXEL),
+    };
     this.customAdjustments = formulaGraph.adjustments;
     this.customGuides = formulaGraph.guides;
-    this.customPaths = normalizePresentationCustomPaths(config.customPaths, {
-      ...formulaGraph,
-      widthEmu: Math.round(Number(this.position.width) * EMU_PER_PIXEL),
-      heightEmu: Math.round(Number(this.position.height) * EMU_PER_PIXEL),
-    });
-    this.customConnectionSites = normalizePresentationCustomConnectionSites(config.customConnectionSites, {
-      ...formulaGraph,
-      widthEmu: Math.round(Number(this.position.width) * EMU_PER_PIXEL),
-      heightEmu: Math.round(Number(this.position.height) * EMU_PER_PIXEL),
-    });
-    this.customAdjustmentHandles = normalizePresentationCustomAdjustmentHandles(config.customAdjustmentHandles, {
-      ...formulaGraph,
-      widthEmu: Math.round(Number(this.position.width) * EMU_PER_PIXEL),
-      heightEmu: Math.round(Number(this.position.height) * EMU_PER_PIXEL),
-    });
-    this.textRectangle = normalizePresentationCustomTextRectangle(config.textRectangle);
+    this.customPaths = normalizePresentationCustomPaths(config.customPaths, customGeometryContext);
+    this.customConnectionSites = normalizePresentationCustomConnectionSites(config.customConnectionSites, customGeometryContext);
+    this.customAdjustmentHandles = normalizePresentationCustomAdjustmentHandles(config.customAdjustmentHandles, customGeometryContext);
+    this.textRectangle = normalizePresentationCustomTextRectangle(config.textRectangle, customGeometryContext);
     if (this.geometry !== "custom" && (this.customPaths.length || this.customConnectionSites.length || this.customAdjustmentHandles.length || this.customAdjustments.length || this.customGuides.length || this.textRectangle)) {
       throw new TypeError("Presentation customPaths, customConnectionSites, customAdjustmentHandles, customAdjustments, customGuides, and textRectangle are available only for custom geometry shapes.");
     }
@@ -1391,8 +1384,12 @@ export class Shape {
   set text(value) { this._text.set(value); }
   get useBackgroundFill() { return importedShapeBackgroundFill.get(this); }
 
-  #normalizedTextRectangle() {
-    const rectangle = normalizePresentationCustomTextRectangle(this.textRectangle);
+  #normalizedTextRectangle(formulaGraph = normalizePresentationCustomGeometryFormulaGraph({ adjustments: this.customAdjustments, guides: this.customGuides })) {
+    const rectangle = normalizePresentationCustomTextRectangle(this.textRectangle, {
+      ...formulaGraph,
+      widthEmu: Math.round(Number(this.position?.width) * EMU_PER_PIXEL),
+      heightEmu: Math.round(Number(this.position?.height) * EMU_PER_PIXEL),
+    });
     if (rectangle && this.geometry !== "custom") throw new TypeError("Presentation textRectangle is available only for custom geometry shapes.");
     return rectangle;
   }
@@ -1414,7 +1411,7 @@ export class Shape {
       widthEmu: Math.round(Number(this.position?.width) * EMU_PER_PIXEL),
       heightEmu: Math.round(Number(this.position?.height) * EMU_PER_PIXEL),
     });
-    const textRectangle = this.#normalizedTextRectangle();
+    const textRectangle = this.#normalizedTextRectangle(graph);
     if (this.geometry !== "custom" && (paths.length || connectionSites.length || adjustmentHandles.length || graph.adjustments.length || graph.guides.length || textRectangle)) {
       throw new TypeError("Presentation custom paths, connectionSites, adjustmentHandles, adjustments, guides, and textRectangle are available only for custom geometry shapes.");
     }
@@ -1431,7 +1428,8 @@ export class Shape {
   layoutJson() { const paragraphs = this.text.effectiveParagraphs(); const custom = this.#normalizedCustomGeometry(); return { kind: this.text.value ? "textbox" : "shape", id: this.id, name: this.name, geometry: this.geometry, customAdjustments: custom.adjustments.length ? custom.adjustments : undefined, customGuides: custom.guides.length ? custom.guides : undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, customPaths: custom.paths.length ? custom.paths : undefined, textRectangle: custom.textRectangle, frame: this.position, transform: this.transform, text: this.text.value, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, placeholder: this.placeholder, style: { fill: this.fill, line: this.line, borderRadius: this.borderRadius, shadow: this.shadow, text: this.text.style, useBackgroundFill: this.useBackgroundFill } }; }
 
   textFrame(frame = this.position) {
-    return presentationCustomTextRectangleFrame(this.#normalizedTextRectangle(), frame, this.position);
+    const graph = normalizePresentationCustomGeometryFormulaGraph({ adjustments: this.customAdjustments, guides: this.customGuides });
+    return presentationCustomTextRectangleFrame(this.#normalizedTextRectangle(graph), frame, this.position, graph);
   }
 
   toSvg() {

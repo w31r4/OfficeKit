@@ -58,6 +58,12 @@ const SOURCE_FREE_TEXT_PLACEHOLDER_TYPES = new Set(["title", "body", "ctrTitle",
 const DEFAULT_PRESENTATION_THEME = JSON.stringify(normalizePresentationThemeConfig({}));
 const RUN_STYLE_KEYS = new Set(["bold", "italic", "fontSize", "fontFamily", "color"]);
 const TEXT_FRAME_PARAGRAPH_KEYS = new Set(["alignment", "tabStops", "marginLeft", "indent", "lineSpacing", "spaceBefore", "spaceBeforePercent", "spaceAfter", "spaceAfterPercent"]);
+const CUSTOM_TEXT_RECTANGLE_FIELDS = Object.freeze([
+  Object.freeze(["left", "leftEmu", "leftReference"]),
+  Object.freeze(["top", "topEmu", "topReference"]),
+  Object.freeze(["right", "rightEmu", "rightReference"]),
+  Object.freeze(["bottom", "bottomEmu", "bottomReference"]),
+]);
 const PARAGRAPH_KEYS = new Set([
   "runs", "level", "alignment", "style", "bulletCharacter", "autoNumber", "bulletImage", "bulletNone",
   "bulletFont", "bulletFontFollowText", "bulletColor", "bulletColorFollowText",
@@ -1713,6 +1719,14 @@ function presentationCustomGeometryAdjustmentHandleIdentity(handle) {
   return "invalid";
 }
 
+function presentationCustomGeometryTextRectangleToWire(rectangle) {
+  return Object.fromEntries(CUSTOM_TEXT_RECTANGLE_FIELDS.map(([field, literalField, referenceField]) => (
+    typeof rectangle[field] === "string"
+      ? [referenceField, rectangle[field]]
+      : [literalField, BigInt(Math.round(rectangle[field] * EMU_PER_PIXEL))]
+  )));
+}
+
 function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const originalShape = original?.content?.case === "shape" ? original.content.value : original;
   if (!new Set(["rect", "ellipse", "roundRect", "textbox", "line", "custom"]).has(shape.geometry)) {
@@ -1736,7 +1750,11 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
     heightEmu: Math.round(Number(position.height) * EMU_PER_PIXEL),
   });
   const wireCustomAdjustmentHandles = customAdjustmentHandles.map(presentationCustomGeometryAdjustmentHandleToWire);
-  const textRectangle = normalizePresentationCustomTextRectangle(shape.textRectangle);
+  const textRectangle = normalizePresentationCustomTextRectangle(shape.textRectangle, {
+    ...formulaGraph,
+    widthEmu: Math.round(Number(position.width) * EMU_PER_PIXEL),
+    heightEmu: Math.round(Number(position.height) * EMU_PER_PIXEL),
+  });
   if (shape.geometry !== "custom" && (normalizedCustomPaths.length || customConnectionSites.length || customAdjustmentHandles.length || formulaGraph.adjustments.length || formulaGraph.guides.length || textRectangle)) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} has custom geometry data without custom geometry.`, [], { code: "invalid_presentation_geometry" });
   }
@@ -1855,12 +1873,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         ...(customConnectionSites.length ? { customConnectionSites: customConnectionSites.map(presentationCustomGeometryConnectionSiteToWire) } : {}),
         ...(wireCustomAdjustmentHandles.length ? { customAdjustmentHandles: wireCustomAdjustmentHandles } : {}),
         ...(customPaths.length ? { customPaths } : {}),
-        ...(textRectangle ? { textRectangle: {
-          leftEmu: BigInt(Math.round(textRectangle.left * EMU_PER_PIXEL)),
-          topEmu: BigInt(Math.round(textRectangle.top * EMU_PER_PIXEL)),
-          rightEmu: BigInt(Math.round(textRectangle.right * EMU_PER_PIXEL)),
-          bottomEmu: BigInt(Math.round(textRectangle.bottom * EMU_PER_PIXEL)),
-        } } : {}),
+        ...(textRectangle ? { textRectangle: presentationCustomGeometryTextRectangleToWire(textRectangle) } : {}),
         ...(shape.useBackgroundFill === undefined ? {} : { useBackgroundFill: shape.useBackgroundFill }),
       },
     },
@@ -3003,12 +3016,10 @@ function modelCustomGeometryPaths(shape) {
 function modelCustomGeometryTextRectangle(shape) {
   const rectangle = shape.textRectangle;
   if (!rectangle) return undefined;
-  return {
-    left: Number(rectangle.leftEmu) / EMU_PER_PIXEL,
-    top: Number(rectangle.topEmu) / EMU_PER_PIXEL,
-    right: Number(rectangle.rightEmu) / EMU_PER_PIXEL,
-    bottom: Number(rectangle.bottomEmu) / EMU_PER_PIXEL,
-  };
+  return Object.fromEntries(CUSTOM_TEXT_RECTANGLE_FIELDS.map(([field, literalField, referenceField]) => [
+    field,
+    rectangle[referenceField] ?? Number(rectangle[literalField]) / EMU_PER_PIXEL,
+  ]));
 }
 
 function modelPlaceholderTransform(frame) {

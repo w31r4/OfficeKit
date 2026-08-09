@@ -9,10 +9,10 @@ namespace OfficeKit.Codec;
 // Bounded DrawingML custom paths used by source-built presentation templates.
 // Coordinates and arc values may reference one ordered adjustment/guide graph;
 // formula parsing and evaluation stay in PptxCustomGeometryFormulaCodec. Shape-
-// local text bounds retain the exact four private scaling guides emitted below.
-// XY/polar adjustment handles, literal text rectangles, and connection sites
-// share the same evaluated graph. Formula text rectangles, 3D, and relative
-// lighten/darken path fill remain opaque and fail closed. Connection-site and
+// local text bounds are delegated to a leaf that retains the private numeric
+// scaling profile while accepting standard literal/reference edges. XY/polar
+// adjustment handles and connection sites share the same evaluated graph. 3D
+// and relative lighten/darken path fill remain opaque and fail closed. Connection-site and
 // handle array positions are native identity; handle kind and controlled guide
 // references are identity too.
 internal static class PptxCustomGeometryCodec
@@ -22,11 +22,6 @@ internal static class PptxCustomGeometryCodec
     private const int MaxConnectionSites = 1_024;
     private const long MaxCoordinate = int.MaxValue;
     private const int FullTurnAngle = 21_600_000;
-    private const string TextLeftGuide = "officeKitTextLeft";
-    private const string TextTopGuide = "officeKitTextTop";
-    private const string TextRightGuide = "officeKitTextRight";
-    private const string TextBottomGuide = "officeKitTextBottom";
-
     private sealed class Profile
     {
         internal required A.PathList Paths { get; init; }
@@ -116,9 +111,11 @@ internal static class PptxCustomGeometryCodec
             return false;
         var allGuides = guideList?.Elements<A.ShapeGuide>().ToArray() ?? [];
         if (guideList is not null && guideList.ChildElements.Count != allGuides.Length) return false;
-        if (!TryReadTextRectangle(nativeRectangle, allGuides, widthEmu, heightEmu, out var textRectangle, out var userGuideCount))
+        if (!PptxCustomGeometryTextRectangleCodec.TryPrepare(nativeRectangle, allGuides, widthEmu, heightEmu, out var textRectangleProfile, out var userGuideCount))
             return false;
         if (!PptxCustomGeometryFormulaCodec.TryRead(adjustments, allGuides.Take(userGuideCount), widthEmu, heightEmu, out var formulas))
+            return false;
+        if (!PptxCustomGeometryTextRectangleCodec.TryRead(textRectangleProfile, formulas, out var textRectangle))
             return false;
         if (!PptxCustomGeometryHandleCodec.TryRead(nativeAdjustmentHandles, formulas, widthEmu, heightEmu, out var adjustmentHandles))
             return false;
@@ -145,7 +142,7 @@ internal static class PptxCustomGeometryCodec
         var formulas = PptxCustomGeometryFormulaCodec.Validate(shape, shapeId);
         PptxCustomGeometryHandleCodec.Validate(shape, shapeId, formulas);
         ValidateConnectionSites(shape, shapeId, formulas);
-        Validate(shape.TextRectangle, shapeId);
+        PptxCustomGeometryTextRectangleCodec.Validate(shape.TextRectangle, shapeId, formulas);
         var commandCount = 0;
         foreach (var path in shape.CustomPaths)
         {
@@ -181,7 +178,7 @@ internal static class PptxCustomGeometryCodec
         }
     }
 
-    internal static void Apply(P.ShapeProperties properties, PresentationShape shape)
+    internal static void Apply(P.ShapeProperties properties, PresentationShape shape, string shapeId)
     {
         if (shape.Geometry != "custom")
         {
@@ -216,12 +213,12 @@ internal static class PptxCustomGeometryCodec
         }
         properties.GetFirstChild<A.PresetGeometry>()?.Remove();
         existingGeometry?.Remove();
-        OpenXmlElement geometry = Build(shape, widthEmu, heightEmu);
+        OpenXmlElement geometry = Build(shape, widthEmu, heightEmu, shapeId);
         if (transform is null) properties.PrependChild(geometry);
         else properties.InsertAfter(geometry, transform);
     }
 
-    private static A.CustomGeometry Build(PresentationShape shape, long widthEmu, long heightEmu)
+    private static A.CustomGeometry Build(PresentationShape shape, long widthEmu, long heightEmu, string shapeId)
     {
         var paths = new A.PathList();
         foreach (var source in shape.CustomPaths)
@@ -253,20 +250,22 @@ internal static class PptxCustomGeometryCodec
         }
         var adjustments = new A.AdjustValueList(shape.CustomAdjustments.Select(PptxCustomGeometryFormulaCodec.Write));
         var geometry = new A.CustomGeometry(adjustments);
+        var formulaGraph = PptxCustomGeometryFormulaCodec.Validate(shape, shapeId);
+        var textRectangle = shape.TextRectangle is null
+            ? null
+            : PptxCustomGeometryTextRectangleCodec.Build(shape.TextRectangle, widthEmu, heightEmu, formulaGraph, shapeId);
         A.ShapeGuideList? guides = null;
-        if (shape.CustomGuides.Count > 0 || shape.TextRectangle is not null)
+        if (shape.CustomGuides.Count > 0 || textRectangle?.Guides.Count > 0)
         {
             guides = new A.ShapeGuideList(shape.CustomGuides.Select(PptxCustomGeometryFormulaCodec.Write));
-            if (shape.TextRectangle is not null)
-                guides.Append(TextRectangleGuides(shape.TextRectangle, widthEmu, heightEmu));
+            if (textRectangle is not null) guides.Append(textRectangle.Guides);
             geometry.Append(guides);
         }
         if (shape.CustomAdjustmentHandles.Count > 0)
             geometry.Append(PptxCustomGeometryHandleCodec.Build(shape.CustomAdjustmentHandles));
         if (shape.CustomConnectionSites.Count > 0)
             geometry.Append(new A.ConnectionSiteList(shape.CustomConnectionSites.Select(ConnectionSite)));
-        if (shape.TextRectangle is not null)
-            geometry.Append(TextRectangle());
+        if (textRectangle is not null) geometry.Append(textRectangle.Rectangle);
         geometry.Append(paths);
         return geometry;
     }
@@ -347,67 +346,6 @@ internal static class PptxCustomGeometryCodec
         }
         connectionSites = result;
         return true;
-    }
-
-    private static bool SupportsLiteralTextRectangle(A.Rectangle rectangle) =>
-        HasNoInnerXml(rectangle) && HasOnlyAttributes(rectangle, "l", "t", "r", "b") &&
-        TryCoordinate(rectangle.Left?.Value, out var left) &&
-        TryCoordinate(rectangle.Top?.Value, out var top) &&
-        TryCoordinate(rectangle.Right?.Value, out var right) &&
-        TryCoordinate(rectangle.Bottom?.Value, out var bottom) &&
-        left < right && top < bottom;
-
-    private static bool TryReadTextRectangle(
-        A.Rectangle? nativeRectangle,
-        IReadOnlyList<A.ShapeGuide> guides,
-        long widthEmu,
-        long heightEmu,
-        out PresentationCustomGeometryTextRectangle? rectangle,
-        out int userGuideCount)
-    {
-        rectangle = null;
-        userGuideCount = guides.Count;
-        if (nativeRectangle is null) return true;
-        if (SupportsLiteralTextRectangle(nativeRectangle))
-        {
-            rectangle = new PresentationCustomGeometryTextRectangle
-            {
-                LeftEmu = ParseCoordinate(nativeRectangle.Left!.Value!),
-                TopEmu = ParseCoordinate(nativeRectangle.Top!.Value!),
-                RightEmu = ParseCoordinate(nativeRectangle.Right!.Value!),
-                BottomEmu = ParseCoordinate(nativeRectangle.Bottom!.Value!),
-            };
-            return true;
-        }
-        if (guides.Count < 4 || !HasOnlyAttributes(nativeRectangle, "l", "t", "r", "b") || !HasNoInnerXml(nativeRectangle) ||
-            nativeRectangle.Left?.Value != TextLeftGuide || nativeRectangle.Top?.Value != TextTopGuide ||
-            nativeRectangle.Right?.Value != TextRightGuide || nativeRectangle.Bottom?.Value != TextBottomGuide)
-            return false;
-        userGuideCount = guides.Count - 4;
-        if (!TryScaledGuide(guides[userGuideCount], TextLeftGuide, "w", widthEmu, out var left) ||
-            !TryScaledGuide(guides[userGuideCount + 1], TextTopGuide, "h", heightEmu, out var top) ||
-            !TryScaledGuide(guides[userGuideCount + 2], TextRightGuide, "w", widthEmu, out var right) ||
-            !TryScaledGuide(guides[userGuideCount + 3], TextBottomGuide, "h", heightEmu, out var bottom) ||
-            left >= right || top >= bottom)
-            return false;
-        rectangle = new PresentationCustomGeometryTextRectangle
-        {
-            LeftEmu = left,
-            TopEmu = top,
-            RightEmu = right,
-            BottomEmu = bottom,
-        };
-        return true;
-    }
-
-    private static bool TryScaledGuide(A.ShapeGuide guide, string name, string axis, long extentEmu, out long coordinate)
-    {
-        coordinate = 0;
-        if (!HasNoInnerXml(guide) || !HasOnlyAttributes(guide, "name", "fmla") || guide.Name?.Value != name || extentEmu <= 0) return false;
-        var tokens = (guide.Formula?.Value ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-        return tokens.Length == 4 && tokens[0] == "*/" && tokens[2] == axis &&
-            TryCoordinate(tokens[1], out coordinate) &&
-            long.TryParse(tokens[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out var denominator) && denominator == extentEmu;
     }
 
     private static bool SupportsPathProperties(A.Path path)
@@ -515,26 +453,6 @@ internal static class PptxCustomGeometryCodec
         Angle = source.HasAngleReference ? source.AngleReference : source.Angle60000.ToString(CultureInfo.InvariantCulture),
     };
 
-    private static IEnumerable<A.ShapeGuide> TextRectangleGuides(PresentationCustomGeometryTextRectangle source, long widthEmu, long heightEmu) => [
-        ScaledGuide(TextLeftGuide, source.LeftEmu, "w", widthEmu),
-        ScaledGuide(TextTopGuide, source.TopEmu, "h", heightEmu),
-        ScaledGuide(TextRightGuide, source.RightEmu, "w", widthEmu),
-        ScaledGuide(TextBottomGuide, source.BottomEmu, "h", heightEmu)];
-
-    private static A.ShapeGuide ScaledGuide(string name, long coordinate, string axis, long extentEmu) => new()
-    {
-        Name = name,
-        Formula = $"*/ {coordinate.ToString(CultureInfo.InvariantCulture)} {axis} {extentEmu.ToString(CultureInfo.InvariantCulture)}",
-    };
-
-    private static A.Rectangle TextRectangle() => new()
-    {
-        Left = TextLeftGuide,
-        Top = TextTopGuide,
-        Right = TextRightGuide,
-        Bottom = TextBottomGuide,
-    };
-
     private static void Validate(
         PresentationCustomGeometryCommand command,
         string shapeId,
@@ -618,17 +536,6 @@ internal static class PptxCustomGeometryCodec
         return formulas.TryResolve(hasReference ? reference : null, literal, out value);
     }
 
-    private static void Validate(PresentationCustomGeometryTextRectangle? rectangle, string shapeId)
-    {
-        if (rectangle is null) return;
-        if (rectangle.LeftEmu < -MaxCoordinate || rectangle.LeftEmu > MaxCoordinate ||
-            rectangle.TopEmu < -MaxCoordinate || rectangle.TopEmu > MaxCoordinate ||
-            rectangle.RightEmu < -MaxCoordinate || rectangle.RightEmu > MaxCoordinate ||
-            rectangle.BottomEmu < -MaxCoordinate || rectangle.BottomEmu > MaxCoordinate ||
-            rectangle.LeftEmu >= rectangle.RightEmu || rectangle.TopEmu >= rectangle.BottomEmu)
-            throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has an invalid literal custom-geometry text rectangle.");
-    }
-
     private static bool TryCoordinate(string? value, out long coordinate) =>
         long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out coordinate) &&
         coordinate >= -MaxCoordinate && coordinate <= MaxCoordinate;
@@ -645,8 +552,6 @@ internal static class PptxCustomGeometryCodec
         }
         return formulas.TryResolveReference(source, out value);
     }
-
-    private static long ParseCoordinate(string value) => long.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
 
     private static int ParseAngle(string value) => int.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
 

@@ -1205,7 +1205,7 @@ const formulaGeometryConfig = (name, position) => ({
   fill: "#DCFCE7",
   line: { fill: "#15803D", width: 2 },
   text: "Formula shape",
-  textRectangle: { left: 12, top: 10, right: position.width - 12, bottom: position.height - 10 },
+  textRectangle: { left: "x1", top: "t", right: "x2", bottom: "b" },
   customAdjustments: [
     { name: "adjX", formula: "val 25000" },
     { name: "adjY", formula: "val 50000" },
@@ -1278,6 +1278,8 @@ assert.deepEqual(formulaGeometryShape.layoutJson().customAdjustmentHandles, [
   { kind: "xy", xAdjustment: "adjX", minX: 0, maxX: 100000, yAdjustment: "adjY", minY: 0, maxY: 100000, x: "x1", y: "y1" },
   { kind: "polar", radialAdjustment: "adjRadius", minRadius: 0, maxRadius: 500000, angleAdjustment: "adjSweep", minAngle: 0, maxAngle: 360, x: "x2", y: "y1" },
 ]);
+assert.deepEqual(formulaGeometryShape.textRectangle, { left: "x1", top: "t", right: "x2", bottom: "b" });
+assert.deepEqual(formulaGeometryShape.textFrame(), { left: 70, top: 20, width: 100, height: 100 });
 assert.throws(
   () => formulaGeometrySlide.shapes.getConnectionSiteIndex(formulaGeometryShape, "right"),
   /requires an explicit connection-site index/,
@@ -1294,6 +1296,8 @@ assert.match(formulaGeometryXml, /<a:ahLst><a:ahXY gdRefX="adjX" minX="0" maxX="
 assert.match(formulaGeometryXml, /<a:cxnLst><a:cxn ang="10800000"><a:pos x="x1" y="y1"\s*\/><\/a:cxn><a:cxn ang="zeroAngle"><a:pos x="x2" y="y1"\s*\/><\/a:cxn><\/a:cxnLst>/);
 assert.match(formulaGeometryXml, /<a:pt x="x1" y="y1"\s*\/>/);
 assert.match(formulaGeometryXml, /<a:arcTo wR="radius" hR="radius" stAng="zeroAngle" swAng="adjSweep"\s*\/>/);
+assert.match(formulaGeometryXml, /<a:rect l="x1" t="t" r="x2" b="b"\s*\/>/);
+assert.doesNotMatch(formulaGeometryXml, /officeKitText(?:Left|Top|Right|Bottom)/);
 const importedFormulaGeometry = await PresentationFile.importPptx(formulaGeometryPptx);
 const importedFormulaShape = importedFormulaGeometry.slides.getItem(0).shapes.items[0];
 assert.equal(importedFormulaShape.customAdjustments.length, 4);
@@ -1306,11 +1310,27 @@ assert.deepEqual(importedFormulaShape.customAdjustmentHandles, [
   { kind: "xy", xAdjustment: "adjX", minX: 0, maxX: 100000, yAdjustment: "adjY", minY: 0, maxY: 100000, x: "x1", y: "y1" },
   { kind: "polar", radialAdjustment: "adjRadius", minRadius: 0, maxRadius: 500000, angleAdjustment: "adjSweep", minAngle: 0, maxAngle: 360, x: "x2", y: "y1" },
 ]);
+assert.deepEqual(importedFormulaShape.textRectangle, { left: "x1", top: "t", right: "x2", bottom: "b" });
 assert.equal(importedFormulaShape.customPaths[0].commands[0].moveTo.x, "x1");
 assert.equal(importedFormulaShape.customPaths[0].commands[2].arcTo.widthRadius, "radius");
 assert.equal(importedFormulaGeometry.slides.getItem(0).groups.items[0].shapes.items[0].customGuides.length, 18);
 assert.equal(importedFormulaGeometry.slides.getItem(0).groups.items[0].shapes.items[0].customConnectionSites.length, 2);
 assert.equal(importedFormulaGeometry.slides.getItem(0).groups.items[0].shapes.items[0].customAdjustmentHandles.length, 2);
+const unknownTextRectangleGuideXml = formulaGeometryXml.replace('r="x2"', 'r="missingRectGuide"');
+assert.notEqual(unknownTextRectangleGuideXml, formulaGeometryXml);
+const unknownTextRectangleGuideFile = await PresentationFile.patchPptx(formulaGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: unknownTextRectangleGuideXml }]);
+const unknownTextRectangleGuidePresentation = await PresentationFile.importPptx(unknownTextRectangleGuideFile);
+const opaqueUnknownTextRectangleGuide = itemByName(unknownTextRectangleGuidePresentation.slides.getItem(0).shapes.items, "formula-custom-path");
+assert.equal(opaqueUnknownTextRectangleGuide.customPaths.length, 0);
+assert.equal(opaqueUnknownTextRectangleGuide.textRectangle, undefined);
+const preservedUnknownTextRectangleGuide = await PresentationFile.exportPptx(unknownTextRectangleGuidePresentation);
+const preservedUnknownTextRectangleGuideZip = await JSZip.loadAsync(preservedUnknownTextRectangleGuide.bytes);
+assert.match(await preservedUnknownTextRectangleGuideZip.file("ppt/slides/slide1.xml").async("text"), /<a:rect l="x1" t="t" r="missingRectGuide" b="b"\s*\/>/);
+const invertedTextRectangleGuideXml = formulaGeometryXml.replace('<a:rect l="x1" t="t" r="x2" b="b" />', '<a:rect l="x2" t="t" r="x1" b="b" />');
+assert.notEqual(invertedTextRectangleGuideXml, formulaGeometryXml);
+const invertedTextRectangleGuideFile = await PresentationFile.patchPptx(formulaGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: invertedTextRectangleGuideXml }]);
+const invertedTextRectangleGuidePresentation = await PresentationFile.importPptx(invertedTextRectangleGuideFile);
+assert.equal(itemByName(invertedTextRectangleGuidePresentation.slides.getItem(0).shapes.items, "formula-custom-path").customPaths.length, 0);
 const emptyFormulaTopologyXml = customGeometryXml.replace("</a:gdLst><a:rect", "</a:gdLst><a:ahLst /><a:cxnLst /><a:rect");
 assert.notEqual(emptyFormulaTopologyXml, customGeometryXml);
 const emptyFormulaTopologyFile = await PresentationFile.patchPptx(customGeometryPptx, [{ path: "ppt/slides/slide1.xml", xml: emptyFormulaTopologyXml }]);
@@ -1344,12 +1364,18 @@ assert.match(importedFormulaShape.toSvg(), /M 571500 476250 L 1333500 476250/);
 importedFormulaShape.customConnectionSites[0].angle = 90;
 importedFormulaShape.customAdjustmentHandles[0].maxX = 90000;
 importedFormulaShape.customAdjustmentHandles[1].x = "x1";
+importedFormulaShape.textRectangle.right = 180;
 const editedFormulaGeometry = await PresentationFile.importPptx(await PresentationFile.exportPptx(importedFormulaGeometry));
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customAdjustments[0].formula, "val 30000");
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customConnectionSites[0].angle, 90);
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customAdjustmentHandles[0].maxX, 90000);
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customAdjustmentHandles[1].x, "x1");
 assert.equal(editedFormulaGeometry.slides.getItem(0).shapes.items[0].customPaths[0].commands[0].moveTo.x, "x1");
+assert.deepEqual(editedFormulaGeometry.slides.getItem(0).shapes.items[0].textRectangle, { left: "x1", top: "t", right: 180, bottom: "b" });
+const editedFormulaGeometryZip = await JSZip.loadAsync((await PresentationFile.exportPptx(importedFormulaGeometry)).bytes);
+const editedFormulaGeometryXml = await editedFormulaGeometryZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(editedFormulaGeometryXml, /<a:gd name="officeKitTextRight" fmla="\*\/ 1714500 w 1905000"\s*\/>/);
+assert.match(editedFormulaGeometryXml, /<a:rect l="x1" t="t" r="officeKitTextRight" b="b"\s*\/>/);
 const changedConnectionSiteTopology = await PresentationFile.importPptx(formulaGeometryPptx);
 changedConnectionSiteTopology.slides.getItem(0).shapes.items[0].customConnectionSites.pop();
 await assert.rejects(
@@ -1727,6 +1753,25 @@ assert.throws(
 );
 assert.throws(
   () => customGeometrySlide.shapes.add({ geometry: "custom", textRectangle: { left: 10, top: 0, right: 10, bottom: 10 }, customPaths: [{ width: 100, height: 100, commands: [{ close: true }] }] }),
+  /right must be greater than left/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    textRectangle: { left: "missingRectGuide", top: "t", right: "r", bottom: "b" },
+    customPaths: [{ width: 100, height: 100, commands: [{ close: true }] }],
+  }),
+  /declared DrawingML guide reference/,
+);
+assert.throws(
+  () => customGeometrySlide.shapes.add({
+    geometry: "custom",
+    position: { left: 0, top: 0, width: 100, height: 100 },
+    customGuides: [{ name: "near", formula: "val 80" }, { name: "far", formula: "val 20" }],
+    textRectangle: { left: "near", top: "t", right: "far", bottom: "b" },
+    customPaths: [{ width: 100, height: 100, commands: [{ close: true }] }],
+  }),
   /right must be greater than left/,
 );
 assert.throws(

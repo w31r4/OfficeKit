@@ -66,14 +66,16 @@ names source-bound while permitting range/position edits.
 The profile also preserves the presence of each `a:path` `fill`, `stroke`, and
 `extrusionOk` attribute. It owns explicit `norm`/`none` fill modes and booleans;
 omitted attributes remain omitted. One optional shape-local text rectangle
-carries the custom shape's text bounds. The codec reads native numeric `a:rect`
-coordinates and emits one exact four-guide scaling profile so PowerPoint and
-LibreOffice resolve the same EMUs; absence retains the full-shape default.
-Unknown formula syntax, handle topology outside that bounded profile, every
-other formula-valued text rectangle, and child-bearing leaves keep the entire shape
-opaque. Relative lighten/darken fills and actual 3D geometry remain opaque or
-fail closed. `extrusionOk` is eligibility metadata, not a 3D authoring or
-preview claim.
+carries the custom shape's text bounds. Each `a:rect` edge may be a literal or
+a standard `ST_AdjCoordinate` reference to a DrawingML built-in or declared
+guide. Numeric edges retain the exact private four-guide scaling profile used
+by existing OfficeKit output; reference edges stay references, including in a
+mixed rectangle. The resolved rectangle must remain ordered, and absence keeps
+the full-shape default. Unknown references, malformed private profiles,
+unsupported formula syntax, handle topology outside the bounded profile, and
+child-bearing leaves keep the entire shape opaque. Relative lighten/darken
+fills and actual 3D geometry remain opaque or fail closed. `extrusionOk` is
+eligibility metadata, not a 3D authoring or preview claim.
 
 - PPTX legacy comment source edit: a recognized existing closed legacy `SlideCommentsPart` may be source-bound text-editable only when its presentation has exactly one relationship-free `CommentAuthorsPart`, the concrete comments leaf is relationship-free, and every comment's author, timestamp, coordinate, native author/index, order, and count re-proves. Export changes only existing `p:cm/p:text` values; all metadata, relationships, and other package parts remain fixed. This is the sole exception to legacy comments' otherwise source-bound read-only treatment; mixed, connected, rich, or otherwise irregular graphs remain opaque and fail closed.
 - PPTX PowerPoint sections: source-free export writes one canonical Office 2010 presentation extension with URI `{521415D9-36F7-43E2-AB2F-B90AF26B5E84}` and one `p14:sectionLst`. Each named section owns a unique brace-delimited GUID plus one or more native `p:sldId/@id` values, and the complete list must partition the current deck in order. Canonical imports surface fixed section identities and permit only name and boundary edits that retain the same count/order/GUIDs and complete partition; the codec rewrites only `ppt/presentation.xml`, re-reads its output, and verifies the profile. Missing/duplicate/unknown extension nodes, invalid names or GUIDs, unresolved/empty/repeated/out-of-order memberships, section topology mutation, and combinations with pending clone/delete stay opaque or fail closed rather than being reconstructed.

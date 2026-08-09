@@ -151,7 +151,9 @@ when an Agent-authored diagram needs exact native connector anchors; bind those
 shapes with explicit site indexes. Use `customAdjustmentHandles` only for the
 documented bounded `xy`/`polar` handle profile, with declared adjustment names,
 paired ranges, and shape-local positions. Keep unsupported imported handle
-topology and formula text rectangles opaque and fail closed.
+topology opaque and fail closed. A custom shape `textRectangle` may use pixel
+edges or DrawingML built-in/declared guide names; do not invent missing guides
+or bypass a failed resolved-bounds check.
 
 For native charts, read `artifact_tool/api/references/charts.spec.md` before
 authoring or editing. Canonical OfficeKit output covers literal bar, line,

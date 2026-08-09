@@ -166,7 +166,10 @@ const formulaTriangle = slide.shapes.add({
   customGuides: [
     { name: "apexX", formula: "*/ 100000 adjX 100000" },
     { name: "siteX", formula: "*/ w adjX 100000" },
+    { name: "textLeft", formula: "*/ w 1 10" },
+    { name: "textRight", formula: "*/ w 9 10" },
   ],
+  textRectangle: { left: "textLeft", top: "t", right: "textRight", bottom: "b" },
   customConnectionSites: [
     { angle: -90, x: "siteX", y: 0 },
     { angle: 90, x: "siteX", y: 280 },
@@ -217,9 +220,8 @@ geometry references, and a path's
 `width`/`height` stay positive literals. Keep formula output in that path's
 coordinate system: when a formula uses shape-derived `w`/`h`, either use the
 shape's EMU extents for the path viewport or scale explicitly. Unsupported
-formula syntax, handle topology outside the bounded profile below, and
-formula-valued text rectangles outside OfficeKit's exact private profile keep
-an imported shape opaque and source-bound.
+formula syntax and handle topology outside the bounded profile below keep an
+imported shape opaque and source-bound.
 
 `customAdjustmentHandles` is the ordered native `a:ahLst` table, with at most
 1,024 entries. An `xy` handle controls at least one declared
@@ -265,14 +267,17 @@ fills remain opaque because the static preview does not implement their native
 paint transform.
 
 `textRectangle` is optional and belongs to the custom shape, not to an
-individual path. Its `left`, `top`, `right`, and `bottom` values are pixels
-relative to the shape frame; the rectangle may inset or extend the native text
-box. OfficeKit reads native numeric rectangles and writes one deterministic
-four-guide DrawingML `a:rect` profile so PowerPoint and LibreOffice resolve the
-same shape-local EMUs. The same state drives inspect, static text origin, and
-overflow QA and survives source-bound edits. Omit the field for DrawingML's
-full-shape default. Every other formula-valued native rectangle remains opaque
-and rejects semantic mutation rather than exposing a partial formula model.
+individual path. Each `left`, `top`, `right`, and `bottom` value is either a
+pixel coordinate or a DrawingML built-in/declared adjustment/guide name. The
+resolved rectangle may inset or extend the native text box, but right and
+bottom must remain greater than left and top. OfficeKit retains its
+deterministic four-guide scaling profile for numeric edges and writes reference
+edges directly as standard `a:rect` `ST_AdjCoordinate` values; mixed rectangles
+round-trip through the same model. The state drives inspect, static text
+origin, and overflow QA and survives source-bound edits. Omit the field for
+DrawingML's full-shape default. Unknown references, malformed leaves, or
+invalid resolved bounds preserve an imported shape as opaque and reject
+semantic mutation.
 
 ```ts
 const ellipsePath = {
@@ -329,7 +334,7 @@ type CustomShapeConfig = Omit<PresetShapeConfig, "geometry"> & {
         y: number | string;
       }
   >;
-  textRectangle?: { left: number; top: number; right: number; bottom: number };
+  textRectangle?: { left: number | string; top: number | string; right: number | string; bottom: number | string };
   customPaths: Array<{
     width: number;
     height: number;

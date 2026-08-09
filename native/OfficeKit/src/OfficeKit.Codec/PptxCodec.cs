@@ -1259,7 +1259,7 @@ internal static class PptxCodec
         extents.Cx = semantic.WidthEmu;
         extents.Cy = semantic.HeightEmu;
         PptxShapeTransformCodec.Apply(transform, semantic.Transform);
-        PptxCustomGeometryCodec.Apply(properties, semantic);
+        PptxCustomGeometryCodec.Apply(properties, semantic, source.Id);
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties)
             drawingProperties.TextBox = semantic.Geometry == "textbox" ? true : null;
         if (!FillMatches(properties, semantic.FillRgb)) ReplaceFill(properties, semantic.FillRgb);
@@ -1631,7 +1631,7 @@ internal static class PptxCodec
             PptxShapeTransformCodec.Apply(transform, semantic.Transform);
         }
         var properties = new P.ShapeProperties(transform);
-        PptxCustomGeometryCodec.Apply(properties, semantic);
+        PptxCustomGeometryCodec.Apply(properties, semantic, source.Id);
         properties.Append(string.IsNullOrWhiteSpace(semantic.FillRgb)
             ? new A.NoFill()
             : new A.SolidFill(new A.RgbColorModelHex { Val = PptxColor.Normalize(semantic.FillRgb) }));

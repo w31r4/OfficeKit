@@ -2,13 +2,43 @@
 
 ## Current 0.6.0 package evidence (2026-08-10)
 
-The package dry-run passed with the bounded Presentation custom-geometry
-adjustment-handle profile and rebuilt OfficeKit Codec runtime. The candidate
-contains 713 files, 36,219,874 compressed bytes, and 53,372,869 unpacked bytes;
-its measured shasum is `97e15979f30ab5ccef023bae4ea71e13df757ccb`. It
-remains below the 53,400,000-byte ceiling with 27,131 bytes of measured
-headroom. This is package evidence, not an npm registry publication or tagged
-release.
+The package dry-run passed with guide-valued Presentation custom-geometry text
+rectangles and the rebuilt OfficeKit Codec runtime. The candidate contains 713
+files, 36,222,584 compressed bytes, and 53,387,471 unpacked bytes; its measured
+shasum is `c769cbf2ac72cd2c54bf7b57250dd8b5b0a7333f`. It remains below the
+53,400,000-byte ceiling with 12,529 bytes of measured headroom. The runtime
+manifest covers 38 files and 15,397,099 bytes. This is package evidence, not an
+npm registry publication or tagged release.
+
+## Unreleased: Presentation guide-valued text rectangles
+
+Custom DrawingML shapes now expose each `textRectangle` edge as either a pixel
+coordinate or a DrawingML built-in/declared adjustment/guide name. The JS
+model evaluates the shared formula graph before layout, inspect, overflow QA,
+or export. The source-built OfficeKit Codec recognizes standard literal and
+reference-valued `a:rect` leaves, retains reference identity, and supports a
+mixed rectangle without replacing it with a lossy numeric snapshot.
+
+Protocol-v2 appends four optional reference fields to
+`PresentationCustomGeometryTextRectangle`; existing EMU fields and descriptor
+numbers are unchanged. Existing all-numeric output remains byte-structurally
+compatible: numeric edges still use the deterministic private four-guide
+scaling profile. All-reference rectangles write direct `ST_AdjCoordinate`
+values; mixed rectangles use the private profile only for numeric edges. The
+new C# leaf owns recognition, private-guide stripping, resolved-order
+validation, and canonical output while the parent codec retains only
+`custGeom` child ordering.
+
+JavaScript, C#, runnable Presentation Skill, SVG/layout, Open XML SDK, and
+LibreOffice/Poppler tests cover built-ins, declared guides, mixed edits, second
+import, and native selectable-text placement. Unknown or inverted references,
+dual literal/reference claims, malformed private tails, extra attributes, and
+child-bearing leaves remain opaque or fail closed. The local candidate passed
+the 26-step fast gate, 75-step slow gate, OfficeKit Codec 397/397 tests,
+OfficeBridge 5/5 tests, deterministic 39-output WASM verification, generated
+API documentation, and the clean-install/package gate. Hosted-CI evidence is
+recorded after the candidate commit; npm authentication and the actual
+publication/tag remain external release actions.
 
 ## Unreleased: Presentation custom-geometry adjustment handles
 
@@ -412,10 +442,11 @@ and appends `PresentationCustomGeometryTextRectangle` after every existing
 descriptor. Source-free authoring, native XML, import, source-bound edit,
 second import, grouped mapping, Open XML SDK validation, and an explicit
 LibreOffice-to-PDF/Poppler selectable-text position test share the same
-contract. Formula-valued coordinates outside OfficeKit's exact four-guide
-profile, missing/extra attributes, child-bearing rectangles, inverted bounds,
-and out-of-range values remain opaque or fail closed rather than entering a
-partial formula model. The rebuilt runtime stays at 38 files and is currently
+contract. This original milestone accepted only literals and the exact private
+profile; the guide-valued milestone above supersedes that restriction while
+missing/extra attributes, child-bearing rectangles, invalid references,
+inverted bounds, and out-of-range values still remain opaque or fail closed.
+The rebuilt runtime stays at 38 files and is currently
 15,224,476 bytes. The 706-file npm candidate is 36,140,813 compressed bytes and
 53,072,397 unpacked bytes (`shasum
 4722c9af86e79525ca413c1c67215315fdd62e7a`).

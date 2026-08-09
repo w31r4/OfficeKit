@@ -3491,11 +3491,17 @@ message PresentationCustomGeometryArc {
 
 // Appended to preserve every pre-existing generated descriptor index while
 // PresentationShape field 17 references this protocol-2 semantic text box.
+// Each edge is either its original EMU field or the additive optional reference
+// field; references name a DrawingML built-in, adjustment, or calculated guide.
 message PresentationCustomGeometryTextRectangle {
   int64 left_emu = 1;
   int64 top_emu = 2;
   int64 right_emu = 3;
   int64 bottom_emu = 4;
+  optional string left_reference = 5;
+  optional string top_reference = 6;
+  optional string right_reference = 7;
+  optional string bottom_reference = 8;
 }
 
 // Appended to preserve every pre-existing generated descriptor index while

@@ -1530,10 +1530,10 @@ public sealed class PptxCodecTests
         shape.Geometry = "custom";
         shape.TextRectangle = new PresentationCustomGeometryTextRectangle
         {
-            LeftEmu = 100_000,
-            TopEmu = 80_000,
-            RightEmu = shape.WidthEmu - 100_000,
-            BottomEmu = shape.HeightEmu - 80_000,
+            LeftReference = "x1",
+            TopReference = "t",
+            RightReference = "x2",
+            BottomReference = "b",
         };
         shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjX", Formula = "val 25000" });
         shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjY", Formula = "val 50000" });
@@ -1630,9 +1630,12 @@ public sealed class PptxCodecTests
                 guide => Assert.Equal(("adjRadius", "val 250000"), (guide.Name!.Value, guide.Formula!.Value)),
                 guide => Assert.Equal(("adjSweep", "val 10800000"), (guide.Name!.Value, guide.Formula!.Value)));
             var nativeGuides = geometry.GetFirstChild<A.ShapeGuideList>()!.Elements<A.ShapeGuide>().ToArray();
-            Assert.Equal(22, nativeGuides.Length);
+            Assert.Equal(18, nativeGuides.Length);
             Assert.Equal(("x1", "*/ w adjX 100000"), (nativeGuides[0].Name!.Value, nativeGuides[0].Formula!.Value));
-            Assert.Equal("officeKitTextLeft", nativeGuides[^4].Name!.Value);
+            Assert.DoesNotContain(nativeGuides, guide => guide.Name?.Value?.StartsWith("officeKitText", StringComparison.Ordinal) == true);
+            var textRectangle = geometry.GetFirstChild<A.Rectangle>()!;
+            Assert.Equal(("x1", "t", "x2", "b"),
+                (textRectangle.Left!.Value, textRectangle.Top!.Value, textRectangle.Right!.Value, textRectangle.Bottom!.Value));
             Assert.Collection(geometry.GetFirstChild<A.AdjustHandleList>()!.ChildElements,
                 native =>
                 {
@@ -1674,6 +1677,9 @@ public sealed class PptxCodecTests
         var importedShape = Assert.Single(Assert.Single(imported.Artifact.Presentation.Slides).Elements).Shape;
         Assert.Equal(4, importedShape.CustomAdjustments.Count);
         Assert.Equal(18, importedShape.CustomGuides.Count);
+        Assert.Equal(("x1", "t", "x2", "b"),
+            (importedShape.TextRectangle.LeftReference, importedShape.TextRectangle.TopReference,
+                importedShape.TextRectangle.RightReference, importedShape.TextRectangle.BottomReference));
         Assert.Collection(importedShape.CustomConnectionSites,
             site => Assert.Equal((10_800_000, "x1", "y1"), (site.Angle60000, site.XReference, site.YReference)),
             site => Assert.Equal(("zeroAngle", "x2", "y1"), (site.AngleReference, site.XReference, site.YReference)));
@@ -1698,6 +1704,8 @@ public sealed class PptxCodecTests
         importedShape.CustomConnectionSites[0].Angle60000 = 5_400_000;
         importedShape.CustomAdjustmentHandles[0].Xy.MaxX = 90_000;
         importedShape.CustomAdjustmentHandles[1].Polar.Position.XReference = "x1";
+        importedShape.TextRectangle.ClearRightReference();
+        importedShape.TextRectangle.RightEmu = shape.WidthEmu - 200_000;
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTripShape = Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements).Shape;
@@ -1706,6 +1714,19 @@ public sealed class PptxCodecTests
         Assert.Equal(90_000, roundTripShape.CustomAdjustmentHandles[0].Xy.MaxX);
         Assert.Equal("x1", roundTripShape.CustomAdjustmentHandles[1].Polar.Position.XReference);
         Assert.Equal("x1", roundTripShape.CustomPaths[0].Commands[0].MoveTo.XReference);
+        Assert.Equal("x1", roundTripShape.TextRectangle.LeftReference);
+        Assert.Equal("t", roundTripShape.TextRectangle.TopReference);
+        Assert.Equal(shape.WidthEmu - 200_000, roundTripShape.TextRectangle.RightEmu);
+        Assert.Equal("b", roundTripShape.TextRectangle.BottomReference);
+        using (var stream = new MemoryStream(edited.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var geometry = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.CustomGeometry>().Single();
+            var nativeRectangle = geometry.GetFirstChild<A.Rectangle>()!;
+            Assert.Equal(("x1", "t", "officeKitTextRight", "b"),
+                (nativeRectangle.Left!.Value, nativeRectangle.Top!.Value, nativeRectangle.Right!.Value, nativeRectangle.Bottom!.Value));
+            Assert.Equal(22, geometry.GetFirstChild<A.ShapeGuideList>()!.Elements<A.ShapeGuide>().Count());
+        }
 
         var changedConnectionSiteTopology = Import(authored.File.ToByteArray());
         changedConnectionSiteTopology.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomConnectionSites.RemoveAt(1);
@@ -1785,6 +1806,19 @@ public sealed class PptxCodecTests
         var ambiguousConnectionSite = request.Clone();
         ambiguousConnectionSite.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomConnectionSites[0].XEmu = 1;
         Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(ambiguousConnectionSite).Diagnostics).Code);
+
+        var ambiguousTextRectangle = request.Clone();
+        ambiguousTextRectangle.Artifact.Presentation.Slides[0].Elements[0].Shape.TextRectangle.LeftEmu = 1;
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(ambiguousTextRectangle).Diagnostics).Code);
+
+        var unknownTextRectangleGuide = request.Clone();
+        unknownTextRectangleGuide.Artifact.Presentation.Slides[0].Elements[0].Shape.TextRectangle.RightReference = "missingRectGuide";
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(unknownTextRectangleGuide).Diagnostics).Code);
+
+        var invertedTextRectangleGuides = request.Clone();
+        invertedTextRectangleGuides.Artifact.Presentation.Slides[0].Elements[0].Shape.TextRectangle.LeftReference = "x2";
+        invertedTextRectangleGuides.Artifact.Presentation.Slides[0].Elements[0].Shape.TextRectangle.RightReference = "x1";
+        Assert.Equal("invalid_presentation_geometry", Assert.Single(Invoke(invertedTextRectangleGuides).Diagnostics).Code);
 
         var outOfBoundsConnectionSite = request.Clone();
         var outOfBoundsSite = outOfBoundsConnectionSite.Artifact.Presentation.Slides[0].Elements[0].Shape.CustomConnectionSites[0];
