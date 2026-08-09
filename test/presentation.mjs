@@ -1821,6 +1821,20 @@ chartSlide.charts.add("line", {
     color: "#16A34A",
     line: { fill: "#16A34A", width: 2, style: "dash" },
     marker: { symbol: "circle", size: 7, fill: "#16A34A" },
+    trendlines: [
+      {
+        type: "linear",
+        name: "Pass projection",
+        forward: 0.5,
+        backward: 0.5,
+        intercept: 0,
+        displayEquation: true,
+        displayRSquared: true,
+        line: { fill: "#7C3AED", width: 1.5, style: "dash" },
+      },
+      { type: "movingAverage", name: "Pass moving average", period: 2 },
+      { type: "polynomial", name: "Pass curve", order: 2 },
+    ],
   }],
   legend: false,
 });
@@ -1849,12 +1863,17 @@ comboSlide.charts.add("combo", {
       color: "#16A34A",
       line: { fill: "#16A34A", width: 2 },
       marker: { symbol: "circle", size: 7, fill: "#16A34A" },
+      trendlines: [{ type: "exp", name: "Margin projection", forward: 0.5, line: { fill: "#F97316", width: 1.5, style: "dot" } }],
     },
   ],
   legend: true,
   axes: { category: { title: "Quarter" }, value: { title: "Percent" } },
   dataLabels: { showValue: true, position: "top" },
 });
+assert.match(chartSlide.toSvg(), /data-trendline-type="linear"/);
+assert.match(chartSlide.toSvg(), /data-trendline-type="movingAvg"/);
+assert.match(chartSlide.toSvg(), /data-trendline-type="poly"/);
+assert.match(comboSlide.toSvg(), /data-trendline-type="exp"/);
 const secondaryAxisCombo = Presentation.create({ slideSize: { width: 640, height: 360 } });
 const secondaryAxisSlide = secondaryAxisCombo.slides.add({ name: "Secondary-axis combo" });
 secondaryAxisSlide.charts.add("combo", {
@@ -1977,6 +1996,9 @@ assert.throws(() => chartFamilySlide.charts.add("scatter", { categories: ["A"], 
 assert.throws(() => chartFamilySlide.charts.add("bubble", { series: [{ name: "Invalid", xValues: [1], values: [2], bubbleSizes: [0] }] }), /positive bubbleSize/i);
 assert.throws(() => chartFamilySlide.charts.add("doughnut", { categories: ["A"], series: [{ name: "Invalid", values: [1] }], xAxis: { title: "Invalid" } }), /cannot carry axes/i);
 assert.throws(() => chartFamilySlide.charts.add("area", { categories: ["A"], series: [{ name: "Invalid marker", values: [1], marker: { symbol: "circle" } }] }), /area series 1 cannot carry a marker/i);
+assert.throws(() => chartFamilySlide.charts.add("area", { categories: ["A", "B"], series: [{ name: "Invalid trendline", values: [1, 2], trendlines: [{ type: "linear" }] }] }), /trendlines are supported only for bar and line series/i);
+assert.throws(() => chartFamilySlide.charts.add("line", { categories: ["A", "B"], series: [{ name: "Short average", values: [1, 2], trendlines: [{ type: "movingAvg", period: 2 }] }] }), /require at least three series values/i);
+assert.throws(() => chartFamilySlide.charts.add("line", { categories: ["A", "B", "C"], series: [{ name: "Fractional forecast", values: [1, 2, 3], trendlines: [{ type: "linear", forward: 0.25 }] }] }), /must use 0\.5 increments/i);
 const scatterLineDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
 scatterLineDeck.slides.add().charts.add("scatter", { series: [{ name: "Invalid line", xValues: [1, 2], values: [2, 3], line: { fill: "#000000", width: 1 } }] });
 await assert.rejects(PresentationFile.exportPptx(scatterLineDeck), /marker-scatter.*cannot carry a series line/i);
@@ -2017,6 +2039,12 @@ assert.equal(coreSlide.speakerNotes.append("").text, "Lead with the customer out
 const firstExport = await PresentationFile.exportPptx(deck);
 assert.equal(firstExport.metadata.codec, "office-kit");
 assert.equal((await PresentationFile.inspectPptx(firstExport)).ok, true);
+const changedPresentationTrendlineTopology = await PresentationFile.importPptx(firstExport);
+itemByName(changedPresentationTrendlineTopology.slides.getItem(1).charts.items, "line-chart").series[0].trendlines.pop();
+await assert.rejects(
+  () => PresentationFile.exportPptx(changedPresentationTrendlineTopology),
+  (error) => error?.code === "presentation_chart_topology_changed" && /cannot change its imported trendline count/i.test(error.message),
+);
 
 // Speaker notes use the same paragraph/run model as visible slide text, but
 // retain a deliberately narrower relationship-free contract. This proves the
@@ -2868,15 +2896,40 @@ const firstZip = await JSZip.loadAsync(new Uint8Array(await firstExport.arrayBuf
 const firstSlideXml = await firstZip.file("ppt/slides/slide1.xml").async("text");
 assert.match(firstSlideXml, /<a:srcRect[^>]*l="25000"/);
 assert.match(firstSlideXml, /<a:srcRect[^>]*r="25000"/);
-const authoredChartXml = await Promise.all(Object.keys(firstZip.files)
+const authoredChartEntries = await Promise.all(Object.keys(firstZip.files)
   .filter((name) => /\/charts\/chart\d+\.xml$/.test(name))
-  .map((name) => firstZip.file(name).async("text")));
+  .map(async (name) => ({ name, xml: await firstZip.file(name).async("text") })));
+const authoredChartXml = authoredChartEntries.map((entry) => entry.xml);
+const lineChartEntry = authoredChartEntries.find((entry) => entry.xml.includes("Trend"));
+assert.ok(lineChartEntry);
+assert.equal((lineChartEntry.xml.match(/<c:trendline>/g) || []).length, 3);
+assert.deepEqual([...lineChartEntry.xml.matchAll(/<c:trendlineType val="([^"]+)"\s*\/>/g)].map((match) => match[1]), ["linear", "movingAvg", "poly"]);
+assert.match(lineChartEntry.xml, /<c:forward val="0\.5"\s*\/>/);
+assert.match(lineChartEntry.xml, /<c:dispEq val="1"\s*\/>/);
 const comboChartXml = authoredChartXml.find((xml) => xml.includes("Revenue and margin"));
 assert.ok(comboChartXml);
 assert.match(comboChartXml, /<c:barChart>/);
 assert.match(comboChartXml, /<c:lineChart>/);
+assert.match(comboChartXml, /<c:trendlineType val="exp"\s*\/>/);
 assert.match(comboChartXml, /<c:barChart>[\s\S]*?<c:axId val="1"\s*\/><c:axId val="2"\s*\/><\/c:barChart>/);
 assert.match(comboChartXml, /<c:lineChart>[\s\S]*?<c:axId val="1"\s*\/><c:axId val="2"\s*\/><\/c:lineChart>/);
+
+const unsupportedTrendlineLabelXml = lineChartEntry.xml.replace("</c:trendline>", "<c:trendlineLbl/></c:trendline>");
+assert.notEqual(unsupportedTrendlineLabelXml, lineChartEntry.xml);
+const unsupportedTrendlineLabelSource = await PresentationFile.patchPptx(firstExport, [
+  { path: lineChartEntry.name, xml: unsupportedTrendlineLabelXml },
+]);
+const preservedTrendlineLabelDeck = await PresentationFile.importPptx(unsupportedTrendlineLabelSource);
+const preservedTrendlineLabelChart = itemByName(preservedTrendlineLabelDeck.slides.getItem(1).charts.items, "line-chart");
+assert.equal(preservedTrendlineLabelChart.series[0].trendlines, undefined);
+const preservedTrendlineLabelOutput = await PresentationFile.exportPptx(preservedTrendlineLabelDeck);
+const preservedTrendlineLabelZip = await JSZip.loadAsync(preservedTrendlineLabelOutput.bytes);
+assert.equal(await preservedTrendlineLabelZip.file(lineChartEntry.name).async("text"), unsupportedTrendlineLabelXml);
+preservedTrendlineLabelChart.title = "Forbidden trendline-label edit";
+await assert.rejects(
+  () => PresentationFile.exportPptx(preservedTrendlineLabelDeck),
+  (error) => error?.code === "unsupported_presentation_edit" && /preserved but not safely editable/i.test(error.message),
+);
 
 // Reference 2.8.24 exposes imported PowerPoint grid spacing, snap settings,
 // and guides through presentation.view. The project retains those local
@@ -3772,11 +3825,17 @@ assert.deepEqual(importedRich.text.paragraphs[0].runs[1].link, {
 const importedCharts = imported.slides.getItem(1).charts.items;
 assert.deepEqual(importedCharts.map((chart) => chart.chartType), ["bar", "line", "pie"]);
 assert.equal(importedCharts[1].series[0].marker.symbol, "circle");
+assert.deepEqual(importedCharts[1].series[0].trendlines.map((trendline) => trendline.type), ["linear", "movingAvg", "poly"]);
+assert.equal(importedCharts[1].series[0].trendlines[0].name, "Pass projection");
+assert.equal(importedCharts[1].series[0].trendlines[0].displayRSquared, true);
+assert.equal(importedCharts[1].series[0].trendlines[0].line.fill, "#7C3AED");
 assert.equal(importedCharts[2].dataLabels.showCategoryName, true);
 const importedCombo = itemByName(imported.slides.getItem(2).charts.items, "revenue-margin-combo");
 assert.equal(importedCombo.chartType, "combo");
 assert.deepEqual(importedCombo.series.map((series) => series.chartType), ["bar", "line"]);
 assert.equal(importedCombo.series[1].marker.symbol, "circle");
+assert.equal(importedCombo.series[1].trendlines[0].type, "exp");
+assert.equal(importedCombo.series[1].trendlines[0].name, "Margin projection");
 assert.equal(importedCombo.dataLabels.showValue, true);
 assert.equal(importedCombo.dataLabels.position, "t");
 
@@ -3796,8 +3855,12 @@ importedRich.text.paragraphs = editedParagraphs;
 const importedBar = itemByName(importedCharts, "bar-chart");
 importedBar.title = "Updated readiness";
 importedBar.series[0].values = [80, 94, 88];
+importedCharts[1].series[0].trendlines[0].name = "Edited pass projection";
+importedCharts[1].series[0].trendlines[0].forward = 1.5;
+importedCharts[1].series[0].trendlines[0].line.fill = "#0EA5E9";
 importedCombo.title = "Updated revenue and margin";
 importedCombo.series[1].values = [12, 16, 18];
+importedCombo.series[1].trendlines[0].name = "Edited margin projection";
 
 const secondExport = await PresentationFile.exportPptx(imported);
 assert.equal(secondExport.metadata.codec, "office-kit");
@@ -3823,6 +3886,11 @@ assert.match(secondSlideXml, /<a:tailEnd type="triangle"/);
 assert.ok(Object.keys(secondZip.files).some((name) => /\/media\/.+\.png$/.test(name)));
 assert.ok(Object.keys(secondZip.files).some((name) => /\/media\/.+\.jpe?g$/.test(name)));
 assert.equal(Object.keys(secondZip.files).filter((name) => /\/charts\/chart\d+\.xml$/.test(name)).length, 4);
+const secondChartXml = await Promise.all(Object.keys(secondZip.files)
+  .filter((name) => /\/charts\/chart\d+\.xml$/.test(name))
+  .map((name) => secondZip.file(name).async("text")));
+assert.ok(secondChartXml.some((xml) => xml.includes("Edited pass projection") && /<c:forward val="1\.5"\s*\/>/.test(xml)));
+assert.ok(secondChartXml.some((xml) => xml.includes("Edited margin projection") && /<c:trendlineType val="exp"\s*\/>/.test(xml)));
 assert.match(await secondZip.file("ppt/notesSlides/notesSlide1.xml").async("text"), /Lead with evidence/);
 assert.equal(Object.keys(secondZip.files).filter((name) => /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(name)).length, 2);
 assert.ok((await Promise.all(
@@ -3857,10 +3925,15 @@ assert.equal(itemByName(roundTripCore.shapes.items, "rich-copy").text.paragraphs
 const roundTripBar = itemByName(roundTrip.slides.getItem(1).charts.items, "bar-chart");
 assert.equal(roundTripBar.title, "Updated readiness");
 assert.deepEqual(roundTripBar.series[0].values, [80, 94, 88]);
+const roundTripLine = itemByName(roundTrip.slides.getItem(1).charts.items, "line-chart");
+assert.equal(roundTripLine.series[0].trendlines[0].name, "Edited pass projection");
+assert.equal(roundTripLine.series[0].trendlines[0].forward, 1.5);
+assert.equal(roundTripLine.series[0].trendlines[0].line.fill, "#0EA5E9");
 const roundTripCombo = itemByName(roundTrip.slides.getItem(2).charts.items, "revenue-margin-combo");
 assert.equal(roundTripCombo.title, "Updated revenue and margin");
 assert.deepEqual(roundTripCombo.series.map((series) => series.chartType), ["bar", "line"]);
 assert.deepEqual(roundTripCombo.series[1].values, [12, 16, 18]);
+assert.equal(roundTripCombo.series[1].trendlines[0].name, "Edited margin projection");
 assert.equal(roundTrip.verify().ok, true);
 
 assert.equal(roundTripCore.clearBackground(), roundTripCore);

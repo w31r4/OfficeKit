@@ -3500,6 +3500,7 @@ public sealed class XlsxCodecTests
     public void ProtocolAuthorsImportsAndSourcePreservesWorksheetChartsBesidePictures()
     {
         var request = ChartExportRequest();
+        request.Artifact.Workbook.Worksheets[0].Charts[0].Series[0].Trendlines.Add(RevenueProjectionTrendline());
         var authored = CodecResponse.Parser.ParseFrom(CodecProtocol.Invoke(request.ToByteArray()));
         Assert.True(authored.Ok, string.Join("\n", authored.Diagnostics.Select(item => $"{item.Code}: {item.Message}")));
         AssertOffice2021Valid(authored.File.ToByteArray());
@@ -3519,7 +3520,13 @@ public sealed class XlsxCodecTests
             Assert.Single(drawingPart.WorksheetDrawing!.Descendants<Xdr.Picture>());
             Assert.Single(drawingPart.WorksheetDrawing.Descendants<Xdr.GraphicFrame>());
             Assert.Single(drawingPart.ChartParts);
-            Assert.Contains("Quarter trend", ReadPartText(drawingPart.ChartParts.Single()), StringComparison.Ordinal);
+            var chartXml = XDocument.Load(drawingPart.ChartParts.Single().GetStream(FileMode.Open, FileAccess.Read));
+            XNamespace c = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+            Assert.Contains("Quarter trend", chartXml.ToString(), StringComparison.Ordinal);
+            var nativeTrendline = Assert.Single(chartXml.Descendants(c + "trendline"));
+            Assert.Equal("linear", nativeTrendline.Element(c + "trendlineType")!.Attribute("val")!.Value);
+            Assert.Equal("0.5", nativeTrendline.Element(c + "forward")!.Attribute("val")!.Value);
+            Assert.NotNull(nativeTrendline.Element(c + "dispEq"));
         }
 
         var source = AddChartResidual(authored.File.ToByteArray());
@@ -3547,6 +3554,13 @@ public sealed class XlsxCodecTests
         Assert.Equal("BE123C", chart.Series[0].Marker.Line.Color.Rgb);
         Assert.Equal(SpreadsheetChartLineDashStyle.Dotted, chart.Series[0].Marker.Line.DashStyle);
         Assert.Equal(1.5, chart.Series[0].Marker.Line.WidthPoints);
+        var trendline = Assert.Single(chart.Series[0].Trendlines);
+        Assert.Equal(SpreadsheetChartTrendlineType.Linear, trendline.Type);
+        Assert.Equal("Revenue projection", trendline.Name);
+        Assert.True(trendline.HasForward);
+        Assert.Equal(0.5, trendline.Forward);
+        Assert.True(trendline.DisplayEquation);
+        Assert.Equal("7C3AED", trendline.Line.Color.Rgb);
         Assert.True(chart.LineOptions.HasGrouping);
         Assert.Equal(SpreadsheetChartLineGrouping.Stacked, chart.LineOptions.Grouping);
         Assert.True(chart.LineOptions.VaryColors);
@@ -3597,6 +3611,10 @@ public sealed class XlsxCodecTests
         chart.Series[0].Marker.Line.Color.Rgb = "166534";
         chart.Series[0].Marker.Line.DashStyle = SpreadsheetChartLineDashStyle.Dashed;
         chart.Series[0].Marker.Line.WidthPoints = 2;
+        trendline.Name = "Edited revenue projection";
+        trendline.Forward = 1.5;
+        trendline.DisplayRSquared = true;
+        trendline.Line.Color.Rgb = "0EA5E9";
         chart.LineOptions.Grouping = SpreadsheetChartLineGrouping.PercentStacked;
         chart.LineOptions.VaryColors = false;
         chart.LineOptions.Smooth = false;
@@ -3637,8 +3655,16 @@ public sealed class XlsxCodecTests
             Assert.Contains("Q2 actual", xml, StringComparison.Ordinal);
             Assert.Contains(">90<", xml, StringComparison.Ordinal);
             Assert.Contains("preserve-me", xml, StringComparison.Ordinal);
+            Assert.Contains("Edited revenue projection", xml, StringComparison.Ordinal);
+            Assert.Contains("<c:forward val=\"1.5\"", xml, StringComparison.Ordinal);
+            Assert.Contains("<c:dispRSqr val=\"1\"", xml, StringComparison.Ordinal);
             Assert.DoesNotContain("<c:legend>", xml, StringComparison.Ordinal);
         }
+        var preservedTrendline = Assert.Single(Assert.Single(Import(preserved.File.ToByteArray()).Artifact.Workbook.Worksheets[0].Charts).Series[0].Trendlines);
+        Assert.Equal("Edited revenue projection", preservedTrendline.Name);
+        Assert.Equal(1.5, preservedTrendline.Forward);
+        Assert.True(preservedTrendline.DisplayRSquared);
+        Assert.Equal("0EA5E9", preservedTrendline.Line.Color.Rgb);
 
         var removedFill = Import(preserved.File.ToByteArray());
         removedFill.Artifact.Workbook.Worksheets[0].Charts[0].Series[0].Fill = null;
@@ -5639,6 +5665,20 @@ public sealed class XlsxCodecTests
         request.Artifact.Workbook.Worksheets[0].Charts.Add(chart);
         return request;
     }
+
+    private static SpreadsheetChartTrendlineArtifact RevenueProjectionTrendline() => new()
+    {
+        Type = SpreadsheetChartTrendlineType.Linear,
+        Name = "Revenue projection",
+        Forward = 0.5,
+        DisplayEquation = true,
+        Line = new SpreadsheetChartLineStyleArtifact
+        {
+            Color = new SpreadsheetColor { Rgb = "7C3AED" },
+            DashStyle = SpreadsheetChartLineDashStyle.Dashed,
+            WidthPoints = 1.5,
+        },
+    };
 
     private static CodecRequest TwoCellPictureExportRequest()
     {

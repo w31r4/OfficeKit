@@ -2,7 +2,9 @@ import { normalizeSpreadsheetChartDataLabels, spreadsheetChartDataLabelSvgPlacem
 import { normalizeSpreadsheetChartLineOptions, spreadsheetChartSmoothLinePath } from "./chart-line-options.mjs";
 import { normalizeSpreadsheetChartSeriesLine, spreadsheetChartLineDashArray } from "./chart-line-style.mjs";
 import { normalizeSpreadsheetChartSeriesMarker, spreadsheetChartMarkerSvg } from "./chart-marker-style.mjs";
+import { normalizeSpreadsheetChartTrendlines } from "./chart-trendlines.mjs";
 import { resolvedWorksheetChartCategories, resolvedWorksheetChartSeriesBubbleSizes, resolvedWorksheetChartSeriesValues, resolvedWorksheetChartSeriesXValues } from "./chart-source-data.mjs";
+import { sampleChartTrendline } from "../shared/chart-trendlines.mjs";
 import { xmlEscape } from "../shared/xml.mjs";
 
 const PREVIEW_PALETTE = ["#38BDF8", "#F97316", "#22C55E", "#A855F7", "#E11D48", "#0F766E"];
@@ -83,6 +85,40 @@ function areaMarks(seriesItems, plot, geometry) {
     const points = seriesValues.map((value, index) => ({ x: plot.left + (index + 0.5) * plot.width / Math.max(1, seriesValues.length), y: geometry.y(value) }));
     const path = [`M ${points[0].x} ${geometry.baseline}`, ...points.map((point) => `L ${point.x} ${point.y}`), `L ${points.at(-1).x} ${geometry.baseline}`, "Z"].join(" ");
     return `<path d="${path}" fill="${style.fill}" fill-opacity="0.32"${style.attributes} data-series-index="${seriesIndex}"/>`;
+  }).join("");
+}
+
+function trendlineMarks(chart, seriesItems, plot, geometry) {
+  if (!["bar", "line"].includes(chart.type)) return "";
+  return seriesItems.map((series, seriesIndex) => {
+    const trendlines = normalizeSpreadsheetChartTrendlines(series.trendlines, series.values?.length, chart.type);
+    return trendlines.map((trendline) => {
+      const fallback = lineAttributes(series, seriesIndex).stroke;
+      const line = trendline.line || { fill: fallback, width: 1.5, style: "dashed" };
+      const attributes = lineAttributes({ fill: fallback, line }, seriesIndex, 1.5).attributes;
+      return sampleChartTrendline(series.values || [], trendline, { categoryCount: series.values?.length })
+        .flatMap(({ domain, points }) => {
+          const axisDomain = { start: domain.start - 0.5, end: domain.end + 0.5 };
+          const width = axisDomain.end - axisDomain.start;
+          const segments = [];
+          let current = [];
+          for (const point of points) {
+            const visible = width > 0 && Number.isFinite(point.y) && point.y >= geometry.minimum && point.y <= geometry.maximum;
+            if (visible) current.push({
+              x: plot.left + (point.x - axisDomain.start) / width * plot.width,
+              y: geometry.y(point.y),
+            });
+            else if (current.length) {
+              if (current.length > 1) segments.push(current);
+              current = [];
+            }
+          }
+          if (current.length > 1) segments.push(current);
+          return segments;
+        })
+        .map((points) => `<polyline data-trendline-type="${trendline.type}" data-trendline-series="${seriesIndex}" points="${points.map((point) => `${point.x},${point.y}`).join(" ")}" fill="none"${attributes}/>`)
+        .join("");
+    }).join("");
   }).join("");
 }
 
@@ -209,6 +245,7 @@ export function renderWorksheetChartSvg(chart) {
       : chart.type === "area"
         ? areaMarks(seriesItems, plot, geometry)
         : barMarks(chart, categories, seriesItems, dataLabels, plot, geometry);
+  const trendlines = trendlineMarks(chart, seriesItems, plot, geometry);
   const pointCount = seriesItems[0]?.values?.length || 0;
   const xTickSize = Number(chart.xAxis?.textStyle?.fontSize);
   const xTicks = !circular && Number.isFinite(xTickSize) && xTickSize > 0
@@ -221,5 +258,5 @@ export function renderWorksheetChartSvg(chart) {
   const xTitle = !circular && chart.xAxis?.title?.text ? `<text x="${plot.left + plot.width / 2}" y="${frame.top + frame.height - 6}" text-anchor="middle" font-family="Arial" font-size="10" fill="#475569">${xmlEscape(chart.xAxis.title.text)}</text>` : "";
   const yTitle = !circular && chart.yAxis?.title?.text ? `<text x="${frame.left + 10}" y="${plot.top + plot.height / 2}" text-anchor="middle" transform="rotate(-90 ${frame.left + 10} ${plot.top + plot.height / 2})" font-family="Arial" font-size="10" fill="#475569">${xmlEscape(chart.yAxis.title.text)}</text>` : "";
   const titleSize = Number.isFinite(Number(chart.titleTextStyle?.fontSize)) && Number(chart.titleTextStyle.fontSize) > 0 ? Number(chart.titleTextStyle.fontSize) : 13;
-  return `<rect x="${frame.left}" y="${frame.top}" width="${frame.width}" height="${frame.height}" fill="#ffffff" stroke="#94a3b8"/><text x="${frame.left + 8}" y="${frame.top + 22}" font-family="Arial" font-size="${titleSize}" font-weight="700" fill="#0f172a">${xmlEscape(chart.title || chart.name)}</text>${marks}${xTicks}${yTicks}${xTitle}${yTitle}`;
+  return `<rect x="${frame.left}" y="${frame.top}" width="${frame.width}" height="${frame.height}" fill="#ffffff" stroke="#94a3b8"/><text x="${frame.left + 8}" y="${frame.top + 22}" font-family="Arial" font-size="${titleSize}" font-weight="700" fill="#0f172a">${xmlEscape(chart.title || chart.name)}</text>${marks}${trendlines}${xTicks}${yTicks}${xTitle}${yTitle}`;
 }

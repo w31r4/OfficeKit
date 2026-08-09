@@ -57,7 +57,7 @@ Other documents:
 - `artifact_tool_docs/API_QUICK_START.md`: REQUIRED API documentation for `artifact_tool` JS library, which exposes methods to read, manipulate, edit, recalculate, render, import and save spreadsheets. You must read it entirely to get started.
 - `features/charts.md`: Read when creating or editing charts.
 - `features/pivot-tables.md`: Read when creating, importing, or verifying native PivotTables.
-- `examples/officekit-range-workflow.mjs`: Run or adapt this public-package example for R1C1 formulas, block writes, range navigation, formula inspection, OfficeKit roundtrip, and SVG verification.
+- `examples/officekit-range-workflow.mjs`: Run or adapt this public-package example for R1C1 formulas, block writes, range navigation, formula inspection, bounded native line-chart trendlines, OfficeKit roundtrip, and SVG verification.
 - `examples/officekit-sparkline-workflow.mjs`: Run or adapt this canonical example for line/column sparkline authoring, Range aliases, inspect/render/verify, and source-bound OfficeKit edits.
 - `examples/officekit-data-table-workflow.mjs`: Run or adapt this canonical example for one-variable and two-variable What-If data-table authoring, inspect, OfficeKit roundtrip, and source-bound imported topology.
 - `examples/officekit-data-validation-workflow.mjs`: Run or adapt this canonical example for list/whole/custom validation authoring, input prompts, error alerts, blank policy, intuitive drop-down visibility, OfficeKit roundtrip, fixed-range edits, and native render QA.

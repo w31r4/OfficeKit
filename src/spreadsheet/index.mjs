@@ -4,6 +4,7 @@ import { normalizeSpreadsheetChartSeriesLine } from "./chart-line-style.mjs";
 import { normalizeSpreadsheetChartLineOptions } from "./chart-line-options.mjs";
 import { normalizeSpreadsheetChartSeriesMarker } from "./chart-marker-style.mjs";
 import { normalizeSpreadsheetChartDataLabels } from "./chart-data-labels.mjs";
+import { normalizeSpreadsheetChartTrendlines } from "./chart-trendlines.mjs";
 import { resolvedWorksheetChartCategories, resolvedWorksheetChartSeriesBubbleSizes, resolvedWorksheetChartSeriesValues, resolvedWorksheetChartSeriesXValues } from "./chart-source-data.mjs";
 import { renderWorksheetChartSvg } from "./chart-preview.mjs";
 import { WorksheetDataTableCollection } from "./data-tables.mjs";
@@ -670,14 +671,15 @@ const WORKSHEET_NUMERIC_X_CHART_TYPES = new Set(["scatter", "bubble"]);
 
 class WorksheetChartSeriesCollection {
   constructor(chart) { this.chart = chart; this.items = []; }
-  add(name, values = []) { const series = { name, values, xValues: undefined, bubbleSizes: undefined, categoryFormula: undefined, xFormula: undefined, formula: undefined, bubbleSizeFormula: undefined, fill: undefined }; this.items.push(series); return series; }
+  add(name, values = []) { const series = { name, values, xValues: undefined, bubbleSizes: undefined, categoryFormula: undefined, xFormula: undefined, formula: undefined, bubbleSizeFormula: undefined, fill: undefined, trendlines: undefined }; this.items.push(series); return series; }
   getItemAt(index) { return this.items[index]; }
   toJSON() {
     return this.items.map((item) => {
-      const { line: _line, stroke: _stroke, marker: _marker, ...rest } = item;
+      const { line: _line, stroke: _stroke, marker: _marker, trendlines: _trendlines, ...rest } = item;
       const line = normalizeSpreadsheetChartSeriesLine(item);
       const marker = normalizeSpreadsheetChartSeriesMarker(item.marker);
-      return { ...rest, ...(line == null ? {} : { line }), ...(marker == null ? {} : { marker }) };
+      const trendlines = normalizeSpreadsheetChartTrendlines(item.trendlines, item.values?.length, this.chart.type);
+      return { ...rest, ...(line == null ? {} : { line }), ...(marker == null ? {} : { marker }), ...(item.trendlines == null ? {} : { trendlines }) };
     });
   }
 }
@@ -733,6 +735,7 @@ class WorksheetChart {
       ...(series.line == null ? {} : { line: series.line }),
       ...(series.stroke == null ? {} : { stroke: series.stroke }),
       ...(series.marker == null ? {} : { marker: series.marker }),
+      ...(series.trendlines == null ? {} : { trendlines: series.trendlines }),
     }));
     if (sourceOrConfig instanceof Range) this.setData(sourceOrConfig);
     else if (sourceOrConfig && sourceOrConfig.worksheet instanceof Worksheet) this.setData(sourceOrConfig);
@@ -1616,6 +1619,8 @@ export class Workbook {
             const marker = normalizeSpreadsheetChartSeriesMarker(series.marker);
             if (marker != null && chart.type !== "line" && chart.type !== "scatter") issues.push(verificationIssue("workbook", "invalidChartSeriesMarker", `Chart ${chart.name} series markers require a line or scatter chart.`, { sheet: sheet.name, id: chart.id, series: series.name, marker }));
           } catch (error) { issues.push(verificationIssue("workbook", "invalidChartSeriesMarker", String(error?.message || error), { sheet: sheet.name, id: chart.id, series: series.name, marker: series.marker })); }
+          try { normalizeSpreadsheetChartTrendlines(series.trendlines, series.values?.length, chart.type); }
+          catch (error) { issues.push(verificationIssue("workbook", "invalidChartTrendline", String(error?.message || error), { sheet: sheet.name, id: chart.id, series: series.name, trendlines: series.trendlines })); }
         }
       }
       for (const image of sheet.images.items) {

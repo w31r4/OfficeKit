@@ -1730,6 +1730,22 @@ public sealed class PptxCodecTests
                 Marker = type == SpreadsheetChartType.Line ? new SpreadsheetChartMarkerArtifact { Symbol = SpreadsheetChartMarkerSymbol.Circle, Size = 6 } : null,
             });
             chart.Series[0].Values.Add([3, 5]);
+            if (type == SpreadsheetChartType.Line)
+            {
+                chart.Series[0].Trendlines.Add(new SpreadsheetChartTrendlineArtifact
+                {
+                    Type = SpreadsheetChartTrendlineType.Linear,
+                    Name = "Coverage projection",
+                    Forward = 0.5,
+                    DisplayEquation = true,
+                    Line = new SpreadsheetChartLineStyleArtifact
+                    {
+                        Color = new SpreadsheetColor { Rgb = "7C3AED" },
+                        DashStyle = SpreadsheetChartLineDashStyle.Dashed,
+                        WidthPoints = 1.5,
+                    },
+                });
+            }
             if (type != SpreadsheetChartType.Pie)
             {
                 chart.XAxis = new SpreadsheetChartAxisArtifact { Title = "Category" };
@@ -1755,6 +1771,12 @@ public sealed class PptxCodecTests
             Assert.Equal(3, nativeSlide.Descendants<C.ChartReference>().Count());
             Assert.Equal(3, package.PresentationPart.SlideParts.Single().ChartParts.Count());
             Assert.NotNull(nativeSlide.Descendants<A.OuterShadow>().Single());
+            XNamespace c = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+            var trendlineXml = package.PresentationPart.SlideParts.Single().ChartParts
+                .Select(part => XDocument.Load(part.GetStream(FileMode.Open, FileAccess.Read)))
+                .Single(document => document.Descendants(c + "lineChart").Any());
+            Assert.Equal("linear", trendlineXml.Descendants(c + "trendlineType").Single().Attribute("val")!.Value);
+            Assert.Equal("0.5", trendlineXml.Descendants(c + "forward").Single().Attribute("val")!.Value);
         }
 
         var imported = Import(authored.File.ToByteArray());
@@ -1769,11 +1791,17 @@ public sealed class PptxCodecTests
         var charts = elements.Where(item => item.ContentCase == PresentationElement.ContentOneofCase.Chart).ToArray();
         Assert.Equal([SpreadsheetChartType.Bar, SpreadsheetChartType.Line, SpreadsheetChartType.Pie], charts.Select(item => item.Chart.Type));
         Assert.All(charts, item => Assert.True(item.Source.Editable));
+        var importedTrendline = Assert.Single(charts[1].Chart.Series[0].Trendlines);
+        Assert.Equal("Coverage projection", importedTrendline.Name);
+        Assert.True(importedTrendline.DisplayEquation);
 
         elements[0].Shape.Shadow.OpacityThousandthPercent = 35_000;
         connector.Connector.EndArrow = string.Empty;
         charts[0].Chart.Title = "Edited evidence";
         charts[0].Chart.Series[0].Values[1] = 8;
+        importedTrendline.Name = "Edited coverage projection";
+        importedTrendline.Forward = 1.5;
+        importedTrendline.DisplayRSquared = true;
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTrip = Import(edited.File.ToByteArray());
@@ -1784,6 +1812,11 @@ public sealed class PptxCodecTests
         var roundTripChart = roundTripElements.First(item => item.ContentCase == PresentationElement.ContentOneofCase.Chart).Chart;
         Assert.Equal("Edited evidence", roundTripChart.Title);
         Assert.Equal(8, roundTripChart.Series[0].Values[1]);
+        var roundTripLine = roundTripElements.Where(item => item.ContentCase == PresentationElement.ContentOneofCase.Chart).Single(item => item.Chart.Type == SpreadsheetChartType.Line).Chart;
+        var roundTripTrendline = Assert.Single(roundTripLine.Series[0].Trendlines);
+        Assert.Equal("Edited coverage projection", roundTripTrendline.Name);
+        Assert.Equal(1.5, roundTripTrendline.Forward);
+        Assert.True(roundTripTrendline.DisplayRSquared);
     }
 
     [Fact]

@@ -1,3 +1,5 @@
+import { normalizeChartTrendlines } from "../shared/chart-trendlines.mjs";
+
 const BAR_GROUPINGS = new Set(["clustered", "stacked", "percentStacked"]);
 const LINE_GROUPINGS = new Set(["standard", "stacked", "percentStacked"]);
 const MARKER_SYMBOLS = new Set(["auto", "circle", "dash", "diamond", "dot", "none", "plus", "square", "star", "triangle", "x"]);
@@ -5,11 +7,6 @@ const DATA_LABEL_POSITIONS = new Set(["bestFit", "b", "ctr", "inBase", "inEnd", 
 const DATA_LABEL_POSITION_ALIASES = new Map([
   ["bottom", "b"], ["center", "ctr"], ["insideBase", "inBase"], ["insideEnd", "inEnd"],
   ["left", "l"], ["outsideEnd", "outEnd"], ["right", "r"], ["top", "t"],
-]);
-const TRENDLINE_TYPES = new Set(["exp", "linear", "log", "movingAvg", "poly", "power"]);
-const TRENDLINE_TYPE_ALIASES = new Map([
-  ["exponential", "exp"], ["logarithmic", "log"], ["movingAverage", "movingAvg"],
-  ["polynomial", "poly"],
 ]);
 const ERROR_BAR_DIRECTIONS = new Set(["x", "y"]);
 const ERROR_BAR_TYPES = new Set(["both", "minus", "plus"]);
@@ -142,52 +139,12 @@ export function normalizePresentationChartDataLabels(value) {
   };
 }
 
-function normalizePresentationChartTrendline(value, valueCount) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError("chart trendlines must be objects.");
-  const rawType = value.type || "linear";
-  const type = TRENDLINE_TYPE_ALIASES.get(rawType) || rawType;
-  if (!TRENDLINE_TYPES.has(type)) throw new TypeError(`chart trendline type must be one of: ${[...TRENDLINE_TYPES].join(", ")}.`);
-  if (value.order != null && type !== "poly") throw new TypeError("chart trendline order is supported only for polynomial trendlines.");
-  if (value.period != null && type !== "movingAvg") throw new TypeError("chart trendline period is supported only for moving-average trendlines.");
-  const order = type === "poly"
-    ? boundedInteger(value.order, { name: "polynomial chart trendline order", min: 2, max: 6, fallback: 2 })
-    : undefined;
-  const periodMax = valueCount == null ? 255 : Math.min(255, valueCount - 1);
-  if (type === "movingAvg" && periodMax < 2) throw new RangeError("moving-average chart trendlines require at least three series values.");
-  const period = type === "movingAvg"
-    ? boundedInteger(value.period, { name: "moving-average chart trendline period", min: 2, max: periodMax, fallback: 2 })
-    : undefined;
-  const normalizeExtension = (candidate, name) => {
-    const normalized = boundedNumber(candidate, { name, min: 0, max: 1_000_000, optional: true });
-    if (normalized != null && normalized * 2 !== Math.round(normalized * 2)) throw new RangeError(`${name} must use 0.5 increments for category charts.`);
-    return normalized;
-  };
-  const forward = normalizeExtension(value.forward, "chart trendline forward");
-  const backward = normalizeExtension(value.backward, "chart trendline backward");
-  const intercept = boundedNumber(value.intercept, { name: "chart trendline intercept", min: -Number.MAX_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER, optional: true });
-  const name = value.name == null ? undefined : String(value.name);
-  if (name != null && (name.length < 1 || name.length > 255)) throw new RangeError("chart trendline name must contain 1 to 255 characters.");
-  const line = normalizePresentationChartLine(value.line ?? value.stroke);
-  return {
-    type,
-    ...(name ? { name } : {}),
-    ...(order == null ? {} : { order }),
-    ...(period == null ? {} : { period }),
-    ...(forward == null ? {} : { forward }),
-    ...(backward == null ? {} : { backward }),
-    ...(intercept == null ? {} : { intercept }),
-    displayEquation: Boolean(value.displayEquation ?? value.showEquation),
-    displayRSquared: Boolean(value.displayRSquared ?? value.showRSquared),
-    ...(line ? { line } : {}),
-  };
-}
-
 export function normalizePresentationChartTrendlines(value, valueCount, chartType) {
-  if (value == null || value === false) return [];
-  const items = Array.isArray(value) ? value : [value];
-  if (items.length > 0 && chartType === "pie") throw new TypeError("chart trendlines are supported only for bar and line series.");
-  if (items.length > 16) throw new RangeError("chart series support at most 16 trendlines.");
-  return items.map((item) => normalizePresentationChartTrendline(item, valueCount));
+  return normalizeChartTrendlines(value, {
+    valueCount,
+    chartType,
+    normalizeLine: normalizePresentationChartLine,
+  });
 }
 
 function normalizePresentationErrorBarValues(values, valueCount, name) {

@@ -175,7 +175,7 @@ const maxPackedBytes = 37_500_000;
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
 // Keep measured headroom for bounded codec/Skill growth without concealing
 // specialist binaries or generated repository evidence in the tarball.
-const maxUnpackedBytes = 53_200_000;
+const maxUnpackedBytes = 53_300_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -231,6 +231,7 @@ for (const required of [
   "src/presentation/index.mjs",
   "src/presentation/ooxml-chart-data.mjs",
   "src/presentation/ooxml-charts.mjs",
+  "src/shared/chart-trendlines.mjs",
   "src/presentation/ooxml-hyperlinks.mjs",
   "src/presentation/ooxml-custom-shows.mjs",
   "src/ooxml/docx-links.mjs",
@@ -312,6 +313,7 @@ for (const required of [
   "src/codecs/office-kit-spreadsheet-data-tables.mjs",
   "src/spreadsheet/formula-coercion.mjs",
   "src/spreadsheet/chart-source-data.mjs",
+  "src/spreadsheet/chart-trendlines.mjs",
   "src/spreadsheet/ooxml-styles.mjs",
   "src/spreadsheet/ooxml-threaded-comments.mjs",
   "src/spreadsheet/pivot-dates.mjs",
@@ -401,6 +403,7 @@ for (const required of [
   "skills/presentations/skills/presentations/routing/google_slides.md",
   "skills/presentations/skills/presentations/artifact_tool/API_QUICK_START.md",
   "skills/presentations/skills/presentations/examples/officekit-chart-families-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-chart-trendline-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-legacy-comment-add-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-legacy-comment-edit-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-speaker-notes-add-workflow.mjs",

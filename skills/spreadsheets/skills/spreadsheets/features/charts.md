@@ -25,6 +25,16 @@ For marker-only scatter, do not set the series-level `line` or `stroke` fields:
 OfficeKit emits an explicit native no-fill series outline so Office hosts do
 not connect the points. Style the point border through `series.marker.line`.
 
+Bar and line series may carry up to 16 native trendlines. The bounded profile
+supports `linear`, `exp`, `log`, `power`, `poly` (order 2-6), and `movingAvg`
+(period 2 through one less than the point count), plus an optional name,
+0.5-category forward/backward forecasts, intercept, equation/R-squared flags,
+and simple RGB line styling. Treat a trendline as analytical evidence: disclose
+the method and do not imply causality. Imported trendline count is fixed;
+native labels, extensions, theme/complex line graphs, or other unmodeled
+children remain source-owned and make the chart read-only instead of being
+flattened.
+
 1. Choose the takeaway and most suitable chart type for the data.
 Examples below are guidance, not hard rules:
 - For category comparison or ranking, consider a sorted bar/column chart.
@@ -59,6 +69,7 @@ Prefer the chart that makes the intended takeaway easiest to see, even if it dif
 - Shorten long category labels with formula-backed helper labels; keep full labels in the source table.
 - Use data labels only when exact values matter or the axis is hard to read.
 - Do not label every point in dense line charts.
+- If a fitted trendline is useful, keep the observed series visible, name the fit, and render-check that extrapolation does not dominate or clip the plot.
 - Prefer direct series labels for a few series; use legends only when needed and place them where they do not crowd the plot.
 
 5. Use restrained chart design

@@ -3,9 +3,11 @@ import {
   SpreadsheetChartDataLabelPosition,
   SpreadsheetChartLineDashStyle,
   SpreadsheetChartMarkerSymbol,
+  SpreadsheetChartTrendlineType,
   SpreadsheetChartType,
 } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
+import { normalizePresentationChartTrendlines } from "../presentation/ooxml-charts.mjs";
 
 const MAX_PRESENTATION_CHART_POINTS = 1_048_576;
 const PRESENTATION_CHART_TYPES_TO_WIRE = new Map([
@@ -59,6 +61,15 @@ const PRESENTATION_CHART_MARKERS_TO_WIRE = new Map([
   ["dash", SpreadsheetChartMarkerSymbol.DASH],
 ]);
 const PRESENTATION_CHART_MARKERS_FROM_WIRE = new Map([...PRESENTATION_CHART_MARKERS_TO_WIRE].map(([name, value]) => [value, name]));
+const PRESENTATION_CHART_TRENDLINES_TO_WIRE = new Map([
+  ["exp", SpreadsheetChartTrendlineType.EXPONENTIAL],
+  ["linear", SpreadsheetChartTrendlineType.LINEAR],
+  ["log", SpreadsheetChartTrendlineType.LOGARITHMIC],
+  ["movingAvg", SpreadsheetChartTrendlineType.MOVING_AVERAGE],
+  ["poly", SpreadsheetChartTrendlineType.POLYNOMIAL],
+  ["power", SpreadsheetChartTrendlineType.POWER],
+]);
+const PRESENTATION_CHART_TRENDLINES_FROM_WIRE = new Map([...PRESENTATION_CHART_TRENDLINES_TO_WIRE].map(([name, value]) => [value, name]));
 
 function chartColor(value, chart, field, rgb) {
   if (value == null || value === "") return undefined;
@@ -94,6 +105,26 @@ function chartMarker(marker, chart, field, rgb) {
     ...(marker.fill ? { fill: chartColor(marker.fill, chart, `${field}.fill`, rgb) } : {}),
     ...(marker.line || marker.stroke ? { line: chartLine(marker.line || marker.stroke, chart, `${field}.line`, rgb) } : {}),
   };
+}
+
+function chartTrendlines(value, valueCount, effectiveType, chart, field, rgb) {
+  let trendlines;
+  try { trendlines = normalizePresentationChartTrendlines(value, valueCount, effectiveType); }
+  catch (error) {
+    throw new OfficeKitCodecError(`Presentation chart ${chart.id} ${field} ${String(error?.message || error)}`, [], { code: "invalid_presentation_chart" });
+  }
+  return trendlines.map((trendline) => ({
+    type: PRESENTATION_CHART_TRENDLINES_TO_WIRE.get(trendline.type),
+    name: trendline.name || "",
+    polynomialOrder: trendline.order,
+    period: trendline.period,
+    forward: trendline.forward,
+    backward: trendline.backward,
+    intercept: trendline.intercept,
+    displayEquation: trendline.displayEquation,
+    displayRSquared: trendline.displayRSquared,
+    ...(trendline.line ? { line: chartLine(trendline.line, chart, `${field}.line`, rgb) } : {}),
+  }));
 }
 
 function chartAxis(axis, chart, field, original) {
@@ -165,10 +196,11 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
     const seriesType = combo ? PRESENTATION_CHART_TYPES_TO_WIRE.get(String(item.chartType || "")) : undefined;
     if (combo && seriesType !== SpreadsheetChartType.BAR && seriesType !== SpreadsheetChartType.LINE) throw new OfficeKitCodecError(`Presentation combo chart ${chart.id} series ${index + 1} must be bar or line.`, [], { code: "unsupported_presentation_features" });
     const axisGroup = item.axisGroup === "secondary" ? "secondary" : "primary";
-    if ((!combo && (axisGroup === "secondary" || item.chartType)) || item.points?.length || item.trendlines?.length || item.errorBars || item.dataLabels || item.smooth != null) {
+    if ((!combo && (axisGroup === "secondary" || item.chartType)) || item.points?.length || item.errorBars || item.dataLabels || item.smooth != null) {
       throw new OfficeKitCodecError(`Presentation chart ${chart.id} series ${index + 1} uses semantics outside the bounded native chart slice.`, [], { code: "unsupported_presentation_features" });
     }
     const effectiveType = combo ? String(item.chartType || "") : String(chart.chartType || "");
+    const trendlines = chartTrendlines(item.trendlines, values.length, effectiveType, chart, `series[${index}].trendlines`, rgb);
     if (item.marker && !["line", "scatter"].includes(effectiveType)) throw new OfficeKitCodecError(`Presentation ${effectiveType} chart ${chart.id} series ${index + 1} cannot carry a marker.`, [], { code: "unsupported_presentation_features" });
     if (type === SpreadsheetChartType.SCATTER && (item.line || item.stroke)) throw new OfficeKitCodecError(`Presentation marker-scatter chart ${chart.id} series ${index + 1} cannot carry a series line; use marker.line for marker borders.`, [], { code: "unsupported_presentation_features" });
     return {
@@ -179,6 +211,7 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
       ...(item.fill || item.color ? { fill: chartColor(item.fill || item.color, chart, `series[${index}].fill`, rgb) } : {}),
       ...(item.line || item.stroke ? { line: chartLine(item.line || item.stroke, chart, `series[${index}].line`, rgb) } : {}),
       ...(item.marker ? { marker: chartMarker(item.marker, chart, `series[${index}].marker`, rgb) } : {}),
+      ...(trendlines.length ? { trendlines } : {}),
       ...(seriesType == null ? {} : { _comboType: seriesType, _comboAxisGroup: PRESENTATION_CHART_AXIS_GROUPS_TO_WIRE.get(axisGroup) }),
     };
   });
@@ -192,6 +225,10 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
     item.type !== series[index]?._comboType ||
     (item.axisGroup === PresentationChartAxisGroup.SECONDARY ? PresentationChartAxisGroup.SECONDARY : PresentationChartAxisGroup.PRIMARY) !== series[index]?._comboAxisGroup,
   )) throw new OfficeKitCodecError(`Presentation chart ${chart.id} cannot change an imported combo series type or axis group.`, [], { code: "presentation_chart_topology_changed" });
+  if (originalChart && originalSeries.some((item, index) => {
+    const originalPayload = combo ? item.series : item;
+    return (originalPayload?.trendlines?.length || 0) !== (series[index]?.trendlines?.length || 0);
+  })) throw new OfficeKitCodecError(`Presentation chart ${chart.id} cannot change its imported trendline count.`, [], { code: "presentation_chart_topology_changed" });
   const nativeSeries = series.map(({ _comboType, _comboAxisGroup, ...item }) => item);
   let xAxis = circular ? undefined : chartAxis(chart.axes?.category, chart, "xAxis", originalChart?.xAxis);
   let yAxis = circular ? undefined : chartAxis(chart.axes?.value, chart, "yAxis", originalChart?.yAxis);
@@ -259,6 +296,23 @@ function modelChartMarker(marker) {
     ...(marker.size === undefined ? {} : { size: marker.size }),
     ...(marker.fill ? { fill: modelChartColor(marker.fill) } : {}),
     ...(marker.line ? { line: modelChartLine(marker.line) } : {}),
+  };
+}
+
+function modelChartTrendline(trendline) {
+  const type = PRESENTATION_CHART_TRENDLINES_FROM_WIRE.get(trendline.type);
+  if (!type) throw new OfficeKitCodecError("Presentation chart contains an unsupported trendline type.", [], { code: "invalid_presentation_chart" });
+  return {
+    type,
+    ...(trendline.name ? { name: trendline.name } : {}),
+    ...(trendline.polynomialOrder === undefined ? {} : { order: trendline.polynomialOrder }),
+    ...(trendline.period === undefined ? {} : { period: trendline.period }),
+    ...(trendline.forward === undefined ? {} : { forward: trendline.forward }),
+    ...(trendline.backward === undefined ? {} : { backward: trendline.backward }),
+    ...(trendline.intercept === undefined ? {} : { intercept: trendline.intercept }),
+    displayEquation: Boolean(trendline.displayEquation),
+    displayRSquared: Boolean(trendline.displayRSquared),
+    ...(trendline.line ? { line: modelChartLine(trendline.line) } : {}),
   };
 }
 
@@ -335,6 +389,7 @@ export function modelPresentationChartFromWire(source, emuPerPixel) {
         ...(series.fill ? { fill: modelChartColor(series.fill) } : {}),
         ...(series.line ? { line: modelChartLine(series.line) } : {}),
         ...(series.marker ? { marker: modelChartMarker(series.marker) } : {}),
+        ...((series.trendlines || []).length ? { trendlines: series.trendlines.map(modelChartTrendline) } : {}),
         ...(seriesType ? { chartType: seriesType } : {}),
         ...(combo && comboAxisGroup(entry) === "secondary" ? { axisGroup: "secondary" } : {}),
       };

@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import JSZip from "jszip";
 import { SpreadsheetFile, Workbook } from "office-kit";
 
 export function buildWorkbook() {
@@ -46,6 +47,18 @@ export function buildWorkbook() {
   chart.name = "Revenue trend";
   chart.title = "Revenue trend";
   chart.hasLegend = false;
+  chart.series.items[0].trendlines = [
+    {
+      type: "linear",
+      name: "Revenue projection",
+      forward: 0.5,
+      displayEquation: true,
+      displayRSquared: true,
+      line: { fill: "#7C3AED", style: "dashed", width: 1.5 },
+    },
+    { type: "movingAvg", name: "Two-month moving average", period: 2 },
+    { type: "poly", name: "Revenue curve", order: 2 },
+  ];
   chart.setPosition("F1", "M14");
   return workbook;
 }
@@ -65,8 +78,14 @@ export async function createWorkbook(outputPath) {
   assert.equal(verification.ok, true, verification.ndjson);
   const preview = await workbook.render({ sheetName: "Forecast", autoCrop: "all", format: "svg" });
   assert.match(await preview.text(), /Revenue trend/);
+  assert.match(await preview.text(), /data-trendline-type="linear"/);
 
   const first = await SpreadsheetFile.exportXlsx(workbook);
+  const firstZip = await JSZip.loadAsync(first.bytes);
+  const chartPath = Object.keys(firstZip.files).find((entry) => /\/charts\/chart\d+\.xml$/i.test(entry));
+  assert.ok(chartPath);
+  const chartXml = await firstZip.file(chartPath).async("text");
+  assert.deepEqual([...chartXml.matchAll(/<c:trendlineType val="([^"]+)"\s*\/>/g)].map((match) => match[1]), ["linear", "movingAvg", "poly"]);
   const imported = await SpreadsheetFile.importXlsx(first);
   const importedForecast = imported.worksheets.getItem("Forecast");
   assert.deepEqual(importedForecast.getRange("B3:B5").formulas, [
@@ -74,10 +93,16 @@ export async function createWorkbook(outputPath) {
     ["=B3*(1+'Assumptions'!$B$2)"],
     ["=B4*(1+'Assumptions'!$B$2)"],
   ]);
+  const importedTrendlines = importedForecast.charts.items[0].series.items[0].trendlines;
+  assert.deepEqual(importedTrendlines.map((trendline) => trendline.type), ["linear", "movingAvg", "poly"]);
+  importedTrendlines[0].name = "Updated revenue projection";
+  importedTrendlines[0].forward = 1.5;
   importedForecast.getRange("A1:D5").getColumn(3).setNumberFormat("0.00%");
   const final = await SpreadsheetFile.exportXlsx(imported);
   const roundTrip = await SpreadsheetFile.importXlsx(final);
   assert.equal(roundTrip.worksheets.getItem("Forecast").getRange("D3").format.numberFormat, "0.00%");
+  assert.equal(roundTrip.worksheets.getItem("Forecast").charts.items[0].series.items[0].trendlines[0].name, "Updated revenue projection");
+  assert.equal(roundTrip.worksheets.getItem("Forecast").charts.items[0].series.items[0].trendlines[0].forward, 1.5);
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await final.save(outputPath);

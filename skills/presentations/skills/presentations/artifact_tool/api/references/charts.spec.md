@@ -26,14 +26,16 @@ OfficeKit PPTX creation/import/edit is deliberately narrower:
   pair at the top and right of the chart.
 - These profiles permit title, legend, basic fill/line styling, markers only on
   line and scatter series, chart-level data labels, and bounded primary axes
-  where the family has axes. Their plot/series/point topology is fixed after
-  import.
+  where the family has axes. Bar and line series, including combo members,
+  additionally permit the bounded trendline profile below. Their
+  plot/series/point/trendline-count topology is fixed after import.
 - PPTX charts are literal-data ChartParts. Formula references, external or
   embedded workbooks, stacked area, non-50% doughnut geometry, connected or
   smooth scatter, bubble 3D/negative/custom-scale semantics, mixed
   primary/secondary combo line groups, secondary bars, point overrides,
-  per-series data labels, trendlines, error bars, and other chart families fail
-  closed or remain source-bound. Do not re-create an irregular imported chart
+  per-series data labels, trendline labels/extensions/complex line graphs,
+  error bars, and other chart families fail closed or remain source-bound. Do
+  not re-create an irregular imported chart
   from its visible values and claim it was preserved.
 
 Use `inspect` before editing an imported chart, make the smallest supported
@@ -48,6 +50,42 @@ The runnable
 scatter, and bubble charts, inventories their native ChartParts, imports and
 edits one semantic field in each family, exports and imports a second time, and
 writes a real Playwright PNG plus a source/output-bound audit.
+
+`examples/officekit-chart-trendline-workflow.mjs` performs the same audited
+author/import/edit/reimport/render loop for line and combo trendlines.
+
+### Bounded bar/line trendlines
+
+Each bar or line series accepts at most 16 trendlines. `type` is one of
+`linear`, `exp`, `log`, `power`, `poly`, or `movingAvg`. Polynomial `order` is
+2 through 6; moving-average `period` is 2 through
+`min(255, values.length - 1)`. `forward` and `backward` are 0 through 1,000,000
+in 0.5-category increments. `intercept` must be finite and within JavaScript's
+safe-integer magnitude. `displayEquation`, `displayRSquared`, `name`, and the
+same simple RGB `line` profile are optional.
+
+```ts
+const chart = slide.charts.add("line", {
+  categories: ["Q1", "Q2", "Q3", "Q4"],
+  series: [{
+    name: "Pipeline",
+    values: [42, 51, 63, 78],
+    trendlines: [{
+      type: "linear",
+      name: "Pipeline projection",
+      forward: 0.5,
+      displayEquation: true,
+      displayRSquared: true,
+      line: { fill: "#7C3AED", width: 1.5, style: "dash" },
+    }],
+  }],
+});
+```
+
+Do not add or remove trendlines after import. If a native trendline contains a
+label, extension, unknown child, non-RGB/theme color, or complex line graph,
+OfficeKit retains the original ChartPart but does not expose a lossy editable
+projection.
 
 ### Canonical secondary-line combo
 
@@ -216,7 +254,18 @@ type ChartSeriesConfig = {
   marker?: { symbol?: "circle" | "diamond" | "dot" | "none" | "plus" | "square" | "star" | "triangle" | "x"; size?: number; fill?: FillConfig; line?: LineConfig };
   points?: Array<{ idx: number; fill?: FillConfig; line?: LineConfig; stroke?: LineConfig }>;
   dataLabelOverrides?: Array<{ idx: number; text?: string; position?: string; fill?: FillConfig; line?: LineConfig; stroke?: LineConfig; showValue?: boolean; showSeriesName?: boolean; showCategoryName?: boolean; showPercent?: boolean; textStyle?: ChartTextStyleConfig }>;
-  trendlines?: Array<{ type: string; name?: string }>;
+  trendlines?: Array<{
+    type: "linear" | "exp" | "log" | "power" | "poly" | "movingAvg";
+    name?: string;
+    order?: number;
+    period?: number;
+    forward?: number;
+    backward?: number;
+    intercept?: number;
+    displayEquation?: boolean;
+    displayRSquared?: boolean;
+    line?: LineConfig;
+  }>;
   errorBars?: { type?: "standardError" | "percentage" | "standardDeviation" | "none"; value?: number; endStyle?: "cap" | "noCap"; line?: LineConfig };
   valuesFormatCode?: string;
   xValuesFormatCode?: string;

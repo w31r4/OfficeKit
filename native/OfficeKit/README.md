@@ -90,9 +90,12 @@ The PPTX combo profile is intentionally small: literal clustered bars plus liter
 lines, globally ordered series, duplicated chart-level data labels, and either
 one shared primary category/value axis pair or one canonical secondary top/right
 pair for every line. Bars stay primary; all lines must share one axis group.
-External data, mixed line groups, secondary bars, per-series labels/point
-overrides, smooth lines, trendlines, error bars, and irregular mixed plots remain
-opaque-preserved or fail closed.
+Bar and line members share the same bounded native trendline codec as ordinary
+PPTX and XLSX ChartSpace series: six fit types, fixed imported count, bounded
+forecasts/flags/RGB line, and opaque preservation of labels, extensions, unknown
+children, or complex line graphs. External data, mixed line groups, secondary
+bars, per-series labels/point overrides, smooth lines, error bars, and irregular
+mixed plots remain opaque-preserved or fail closed.
 
 The other canonical PPTX chart families are equally bounded. Bar, line, pie,
 standard area, and 50%-hole doughnut use literal categories and finite caches;

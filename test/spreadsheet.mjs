@@ -166,7 +166,24 @@ bar.setPosition("H1", "L10");
 const line = sheet.charts.add("line", sheet.getRange("A1:C4"));
 line.name = "Line chart";
 line.title = "Revenue trend";
+line.series.items[0].trendlines = [
+  {
+    type: "linear",
+    name: "Revenue projection",
+    forward: 0.5,
+    backward: 0.5,
+    intercept: 0,
+    displayEquation: true,
+    displayRSquared: true,
+    line: { fill: "#7C3AED", style: "dashed", width: 1.5 },
+  },
+  { type: "movingAverage", name: "Revenue moving average", period: 2 },
+  { type: "polynomial", name: "Revenue curve", order: 2 },
+];
 line.setPosition("M1", "Q10");
+assert.match(line.toSvg(), /data-trendline-type="linear"/);
+assert.match(line.toSvg(), /data-trendline-type="movingAvg"/);
+assert.match(line.toSvg(), /data-trendline-type="poly"/);
 const pie = sheet.charts.add("pie", sheet.getRange("A1:B4"));
 pie.name = "Pie chart";
 pie.title = "Revenue share";
@@ -274,6 +291,13 @@ const firstChartXml = await Promise.all(firstChartPaths.map((name) => firstZip.f
 assert.equal(firstChartXml.filter((xml) => /<c:scatterChart>/.test(xml)).length, 1);
 assert.match(firstChartXml.find((xml) => /<c:scatterChart>/.test(xml)), /<c:xVal>[\s\S]*<c:yVal>/);
 assert.match(firstChartXml.find((xml) => /<c:doughnutChart>/.test(xml)), /<c:showPercent val="1"\s*\/>/);
+const firstLineChartIndex = firstChartXml.findIndex((xml) => /<c:lineChart>/.test(xml));
+assert.notEqual(firstLineChartIndex, -1);
+const firstLineChartXml = firstChartXml[firstLineChartIndex];
+assert.equal((firstLineChartXml.match(/<c:trendline>/g) || []).length, 3);
+assert.deepEqual([...firstLineChartXml.matchAll(/<c:trendlineType val="([^"]+)"\s*\/>/g)].map((match) => match[1]), ["linear", "movingAvg", "poly"]);
+assert.match(firstLineChartXml, /<c:forward val="0\.5"\s*\/>/);
+assert.match(firstLineChartXml, /<c:dispRSqr val="1"\s*\/>/);
 assert.equal(Object.keys(firstZip.files).filter((name) => /^xl\/media\//i.test(name)).length, 1);
 assert.equal(Object.keys(firstZip.files).filter((name) => /^xl\/threadedcomments\/[^/]+\.xml$/i.test(name)).length, 1);
 assert.equal(Object.keys(firstZip.files).filter((name) => /^xl\/persons\/[^/]+\.xml$/i.test(name)).length, 1);
@@ -326,6 +350,14 @@ assert.deepEqual(importedSheet.protection, {
 assert.equal(importedSheet.tables.items[0].name, "SummaryTable");
 assert.equal(importedSheet.images.items[0].alt, "Green status marker");
 assert.deepEqual(importedSheet.charts.items.map((chart) => chart.type), ["bar", "line", "pie", "area", "doughnut", "scatter"]);
+const importedLine = importedSheet.charts.items[1];
+assert.deepEqual(importedLine.series.items[0].trendlines.map((trendline) => trendline.type), ["linear", "movingAvg", "poly"]);
+assert.equal(importedLine.series.items[0].trendlines[0].name, "Revenue projection");
+assert.equal(importedLine.series.items[0].trendlines[0].forward, 0.5);
+assert.equal(importedLine.series.items[0].trendlines[0].displayEquation, true);
+assert.equal(importedLine.series.items[0].trendlines[0].displayRSquared, true);
+assert.deepEqual(importedLine.series.items[0].trendlines[0].line, { fill: "#7C3AED", style: "dashed", width: 1.5 });
+assert.match(importedLine.toSvg(), /data-trendline-type="linear"/);
 assert.match(importedSheet.charts.items[3].toSvg(), /data-series-index="0"/);
 assert.match(importedSheet.charts.items[4].toSvg(), /data-point-index="0"/);
 assert.equal(importedSheet.charts.items[4].dataLabels.showPercent, true);
@@ -389,6 +421,9 @@ importedSheet.protection = { allow: ["selectUnlockedCells", "formatCells"] };
 importedSheet.tables.items[0].style = "TableStyleMedium9";
 importedSheet.images.items[0].alt = "Edited green status marker";
 importedSheet.charts.items[1].title = "Edited revenue trend";
+importedLine.series.items[0].trendlines[0].name = "Edited revenue projection";
+importedLine.series.items[0].trendlines[0].forward = 1.5;
+importedLine.series.items[0].trendlines[0].line.fill = "#0EA5E9";
 importedScatter.title = "Edited price relationship";
 importedScatter.series.items[0].xValues[1] = 22;
 importedScatter.series.items[0].values[1] = 60;
@@ -424,6 +459,9 @@ assert.deepEqual(secondSheet.protection, { enabled: true, allow: ["selectUnlocke
 assert.equal(secondSheet.tables.items[0].style, "TableStyleMedium9");
 assert.equal(secondSheet.images.items[0].alt, "Edited green status marker");
 assert.equal(secondSheet.charts.items[1].title, "Edited revenue trend");
+assert.equal(secondSheet.charts.items[1].series.items[0].trendlines[0].name, "Edited revenue projection");
+assert.equal(secondSheet.charts.items[1].series.items[0].trendlines[0].forward, 1.5);
+assert.equal(secondSheet.charts.items[1].series.items[0].trendlines[0].line.fill, "#0EA5E9");
 assert.equal(secondSheet.charts.items[4].dataLabels.showPercent, true);
 assert.equal(secondSheet.charts.items[5].title, "Edited price relationship");
 assert.deepEqual(secondSheet.charts.items[5].series.items[0].xValues, [10, 22, 30]);
@@ -525,6 +563,55 @@ invalidAreaLineOptions.chart.lineOptions = { grouping: "standard" };
 await assert.rejects(
   () => SpreadsheetFile.exportXlsx(invalidAreaLineOptions.candidate),
   (error) => error?.code === "unsupported_spreadsheet_chart" && /lineOptions require a line chart/i.test(error.message),
+);
+
+const invalidAreaTrendline = chartBoundaryWorkbook("area");
+invalidAreaTrendline.chart.series.items[0].trendlines = [{ type: "linear" }];
+await assert.rejects(
+  () => SpreadsheetFile.exportXlsx(invalidAreaTrendline.candidate),
+  (error) => error?.code === "unsupported_spreadsheet_chart" && /supported only for bar and line/i.test(error.message),
+);
+
+const invalidMovingAverage = chartBoundaryWorkbook("line");
+invalidMovingAverage.chart.series.items[0].trendlines = [{ type: "movingAvg", period: 2 }];
+await assert.rejects(
+  () => SpreadsheetFile.exportXlsx(invalidMovingAverage.candidate),
+  (error) => error?.code === "invalid_spreadsheet_chart" && /require at least three series values/i.test(error.message),
+);
+
+const invalidPolynomial = chartBoundaryWorkbook("line");
+invalidPolynomial.chart.series.items[0].trendlines = [{ type: "poly", order: 7 }];
+await assert.rejects(
+  () => SpreadsheetFile.exportXlsx(invalidPolynomial.candidate),
+  (error) => error?.code === "invalid_spreadsheet_chart" && /order must be an integer from 2 to 6/i.test(error.message),
+);
+
+const changedTrendlineTopology = await SpreadsheetFile.importXlsx(firstXlsx);
+changedTrendlineTopology.worksheets.getItem("Summary").charts.items[1].series.items[0].trendlines.pop();
+await assert.rejects(
+  () => SpreadsheetFile.exportXlsx(changedTrendlineTopology),
+  (error) => error?.code === "unsupported_spreadsheet_chart_edit" && /cannot change imported trendline count/i.test(error.message),
+);
+
+const unsupportedTrendlineZip = await JSZip.loadAsync(new Uint8Array(await firstXlsx.arrayBuffer()));
+const unsupportedTrendlinePath = firstChartPaths[firstLineChartIndex];
+const unsupportedTrendlineXml = firstLineChartXml.replace("</c:trendline>", "<c:trendlineLbl/></c:trendline>");
+assert.notEqual(unsupportedTrendlineXml, firstLineChartXml);
+unsupportedTrendlineZip.file(unsupportedTrendlinePath, unsupportedTrendlineXml);
+const unsupportedTrendlineSource = new FileBlob(
+  await unsupportedTrendlineZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", name: "unsupported-trendline-label.xlsx" },
+);
+const preservedUnsupportedTrendline = await SpreadsheetFile.importXlsx(unsupportedTrendlineSource);
+const preservedUnsupportedChart = preservedUnsupportedTrendline.worksheets.getItem("Summary").charts.items[1];
+assert.equal(preservedUnsupportedChart.series.items[0].trendlines, undefined);
+const preservedUnsupportedOutput = await SpreadsheetFile.exportXlsx(preservedUnsupportedTrendline);
+const preservedUnsupportedZip = await JSZip.loadAsync(new Uint8Array(await preservedUnsupportedOutput.arrayBuffer()));
+assert.equal(await preservedUnsupportedZip.file(unsupportedTrendlinePath).async("text"), unsupportedTrendlineXml);
+preservedUnsupportedChart.title = "Forbidden trendline-label edit";
+await assert.rejects(
+  () => SpreadsheetFile.exportXlsx(preservedUnsupportedTrendline),
+  (error) => error?.code === "unsupported_spreadsheet_chart_edit" && /read-only/i.test(error.message),
 );
 
 const invalidScatter = chartBoundaryWorkbook("scatter");

@@ -1,8 +1,9 @@
-import { SpreadsheetChartDataLabelPosition, SpreadsheetChartLineDashStyle, SpreadsheetChartLineGrouping, SpreadsheetChartMarkerSymbol, SpreadsheetChartType } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
+import { SpreadsheetChartDataLabelPosition, SpreadsheetChartLineDashStyle, SpreadsheetChartLineGrouping, SpreadsheetChartMarkerSymbol, SpreadsheetChartTrendlineType, SpreadsheetChartType } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { normalizeSpreadsheetChartLineOptions } from "../spreadsheet/chart-line-options.mjs";
 import { normalizeSpreadsheetChartSeriesLine, SPREADSHEET_CHART_LINE_MAX_WIDTH_POINTS } from "../spreadsheet/chart-line-style.mjs";
 import { normalizeSpreadsheetChartSeriesMarker } from "../spreadsheet/chart-marker-style.mjs";
 import { normalizeSpreadsheetChartDataLabels } from "../spreadsheet/chart-data-labels.mjs";
+import { normalizeSpreadsheetChartTrendlines } from "../spreadsheet/chart-trendlines.mjs";
 import { resolvedWorksheetChartCategories, resolvedWorksheetChartSeriesBubbleSizes, resolvedWorksheetChartSeriesValues, resolvedWorksheetChartSeriesXValues } from "../spreadsheet/chart-source-data.mjs";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
 
@@ -63,6 +64,15 @@ const MARKER_SYMBOLS_TO_WIRE = new Map([
   ["dash", SpreadsheetChartMarkerSymbol.DASH],
 ]);
 const MARKER_SYMBOLS_FROM_WIRE = new Map([...MARKER_SYMBOLS_TO_WIRE].map(([name, value]) => [value, name]));
+const TRENDLINE_TYPES_TO_WIRE = new Map([
+  ["exp", SpreadsheetChartTrendlineType.EXPONENTIAL],
+  ["linear", SpreadsheetChartTrendlineType.LINEAR],
+  ["log", SpreadsheetChartTrendlineType.LOGARITHMIC],
+  ["movingAvg", SpreadsheetChartTrendlineType.MOVING_AVERAGE],
+  ["poly", SpreadsheetChartTrendlineType.POLYNOMIAL],
+  ["power", SpreadsheetChartTrendlineType.POWER],
+]);
+const TRENDLINE_TYPES_FROM_WIRE = new Map([...TRENDLINE_TYPES_TO_WIRE].map(([name, value]) => [value, name]));
 
 function fail(chart, message, code = "invalid_spreadsheet_chart") {
   throw new OfficeKitCodecError(`Worksheet chart ${chart?.name || chart?.id || "(unnamed)"} ${message}`, [], { code });
@@ -133,6 +143,47 @@ function seriesLineFromWire(value, name, chart) {
   return output;
 }
 
+function seriesLineToWire(line) {
+  if (line == null) return undefined;
+  return {
+    color: line.fill == null ? undefined : { source: { case: "rgb", value: line.fill.slice(1) } },
+    dashStyle: line.style == null ? SpreadsheetChartLineDashStyle.UNSPECIFIED : LINE_STYLES_TO_WIRE.get(line.style),
+    widthPoints: line.width == null ? undefined : line.width,
+  };
+}
+
+function trendlineToWire(trendline) {
+  return {
+    type: TRENDLINE_TYPES_TO_WIRE.get(trendline.type),
+    name: trendline.name || "",
+    polynomialOrder: trendline.order,
+    period: trendline.period,
+    forward: trendline.forward,
+    backward: trendline.backward,
+    intercept: trendline.intercept,
+    displayEquation: trendline.displayEquation,
+    displayRSquared: trendline.displayRSquared,
+    line: seriesLineToWire(trendline.line),
+  };
+}
+
+function trendlineFromWire(value, name, chart) {
+  const type = TRENDLINE_TYPES_FROM_WIRE.get(value.type);
+  if (!type) fail(chart, `${name} has unsupported type ${value.type}.`, "unsupported_spreadsheet_chart");
+  return {
+    type,
+    ...(value.name ? { name: value.name } : {}),
+    ...(value.polynomialOrder == null ? {} : { order: value.polynomialOrder }),
+    ...(value.period == null ? {} : { period: value.period }),
+    ...(value.forward == null ? {} : { forward: value.forward }),
+    ...(value.backward == null ? {} : { backward: value.backward }),
+    ...(value.intercept == null ? {} : { intercept: value.intercept }),
+    displayEquation: value.displayEquation === true,
+    displayRSquared: value.displayRSquared === true,
+    ...(value.line == null ? {} : { line: seriesLineFromWire(value.line, `${name}.line`, chart) }),
+  };
+}
+
 function seriesMarkerSnapshot(value, chart) {
   try {
     return normalizeSpreadsheetChartSeriesMarker(value);
@@ -171,6 +222,15 @@ function dataLabelsSnapshot(value, chart) {
   catch (error) {
     const message = String(error?.message || error).replace(/^Worksheet chart\s+/, "");
     fail(chart, message, /supports only/i.test(message) ? "unsupported_spreadsheet_chart" : "invalid_spreadsheet_chart");
+  }
+}
+
+function trendlinesSnapshot(value, valueCount, chartType, chart) {
+  try { return normalizeSpreadsheetChartTrendlines(value, valueCount, chartType); }
+  catch (error) {
+    const message = String(error?.message || error).replace(/^Worksheet chart\s+/, "");
+    const unsupported = /supported only for bar and line|supports only/i.test(message);
+    fail(chart, message, unsupported ? "unsupported_spreadsheet_chart" : "invalid_spreadsheet_chart");
   }
 }
 
@@ -232,19 +292,23 @@ export function spreadsheetChartSnapshot(chart, options = {}) {
       width: Number(position.width ?? 360),
       height: Number(position.height ?? 220),
     },
-    series: chartSeries(chart).map((series) => ({
-      name: String(series?.name || ""),
-      xValues: options.resolveSourceData ? resolvedWorksheetChartSeriesXValues(chart, series) : [...(series?.xValues || [])].map(Number),
-      values: options.resolveSourceData ? resolvedWorksheetChartSeriesValues(chart, series) : [...(series?.values || [])].map(Number),
-      bubbleSizes: options.resolveSourceData ? resolvedWorksheetChartSeriesBubbleSizes(chart, series) : [...(series?.bubbleSizes || [])].map(Number),
-      categoryFormula: series?.categoryFormula == null ? "" : String(series.categoryFormula),
-      xFormula: series?.xFormula == null ? "" : String(series.xFormula),
-      formula: series?.formula == null ? "" : String(series.formula),
-      bubbleSizeFormula: series?.bubbleSizeFormula == null ? "" : String(series.bubbleSizeFormula),
-      fill: series?.fill == null ? null : String(series.fill),
-      line: seriesLineSnapshot(series, chart),
-      marker: seriesMarkerSnapshot(series?.marker, chart),
-    })),
+    series: chartSeries(chart).map((series) => {
+      const values = options.resolveSourceData ? resolvedWorksheetChartSeriesValues(chart, series) : [...(series?.values || [])].map(Number);
+      return {
+        name: String(series?.name || ""),
+        xValues: options.resolveSourceData ? resolvedWorksheetChartSeriesXValues(chart, series) : [...(series?.xValues || [])].map(Number),
+        values,
+        bubbleSizes: options.resolveSourceData ? resolvedWorksheetChartSeriesBubbleSizes(chart, series) : [...(series?.bubbleSizes || [])].map(Number),
+        categoryFormula: series?.categoryFormula == null ? "" : String(series.categoryFormula),
+        xFormula: series?.xFormula == null ? "" : String(series.xFormula),
+        formula: series?.formula == null ? "" : String(series.formula),
+        bubbleSizeFormula: series?.bubbleSizeFormula == null ? "" : String(series.bubbleSizeFormula),
+        fill: series?.fill == null ? null : String(series.fill),
+        line: seriesLineSnapshot(series, chart),
+        marker: seriesMarkerSnapshot(series?.marker, chart),
+        trendlines: trendlinesSnapshot(series?.trendlines, values.length, type, chart),
+      };
+    }),
   };
 }
 
@@ -342,6 +406,9 @@ function wireAxis(axis) {
 function wireChart(chart, original) {
   const snapshot = spreadsheetChartSnapshot(chart, { resolveSourceData: original == null });
   const type = validateSnapshot(snapshot, chart);
+  if (original && snapshot.series.some((series, index) => series.trendlines.length !== (original.series?.[index]?.trendlines?.length || 0))) {
+    fail(chart, "cannot change imported trendline count in the bounded OfficeKit slice.", "unsupported_spreadsheet_chart_edit");
+  }
   const output = {
     id: snapshot.id,
     name: snapshot.name,
@@ -374,11 +441,7 @@ function wireChart(chart, original) {
       valueFormula: series.formula,
       bubbleSizeFormula: series.bubbleSizeFormula,
       fill: series.fill == null ? undefined : { source: { case: "rgb", value: series.fill.slice(1) } },
-      line: series.line == null ? undefined : {
-        color: series.line.fill == null ? undefined : { source: { case: "rgb", value: series.line.fill.slice(1) } },
-        dashStyle: series.line.style == null ? SpreadsheetChartLineDashStyle.UNSPECIFIED : LINE_STYLES_TO_WIRE.get(series.line.style),
-        widthPoints: series.line.width == null ? undefined : series.line.width,
-      },
+      line: seriesLineToWire(series.line),
       marker: series.marker == null ? undefined : {
         symbol: series.marker.symbol == null ? SpreadsheetChartMarkerSymbol.UNSPECIFIED : MARKER_SYMBOLS_TO_WIRE.get(series.marker.symbol),
         size: series.marker.size == null ? undefined : series.marker.size,
@@ -389,6 +452,7 @@ function wireChart(chart, original) {
           widthPoints: series.marker.line.width == null ? undefined : series.marker.line.width,
         },
       },
+      trendlines: series.trendlines.map(trendlineToWire),
     })),
     source: original?.source,
   };
@@ -501,6 +565,12 @@ export function spreadsheetChartFromWire(sheet, source) {
   const importedFills = sourceSeries.map((series, index) => seriesFillFromWire(series.fill, `series ${index + 1} fill`, source));
   const importedLines = sourceSeries.map((series, index) => seriesLineFromWire(series.line, `series ${index + 1} line`, source));
   const importedMarkers = sourceSeries.map((series, index) => seriesMarkerFromWire(series.marker, `series ${index + 1} marker`, source));
+  const importedTrendlines = sourceSeries.map((series, index) => trendlinesSnapshot(
+    (series.trendlines || []).map((trendline, trendlineIndex) => trendlineFromWire(trendline, `series ${index + 1} trendline ${trendlineIndex + 1}`, source)),
+    series.values?.length,
+    type,
+    source,
+  ));
   if (type !== "line" && type !== "scatter" && importedMarkers.some((marker) => marker != null)) fail(source, "series markers require a line or scatter chart.", "unsupported_spreadsheet_chart");
   const titleTextStyle = textStyleFromWire(source.titleTextStyle, "titleTextStyle", source);
   let lineOptionsInput = null;
@@ -552,6 +622,7 @@ export function spreadsheetChartFromWire(sheet, source) {
         ...(importedFills[index] == null ? {} : { fill: importedFills[index] }),
         ...(importedLines[index] == null ? {} : { line: importedLines[index] }),
         ...(importedMarkers[index] == null ? {} : { marker: importedMarkers[index] }),
+        ...(importedTrendlines[index].length === 0 ? {} : { trendlines: importedTrendlines[index] }),
       };
     }),
   });
@@ -564,6 +635,7 @@ export function spreadsheetChartFromWire(sheet, source) {
     fill: importedFills[index],
     ...(importedLines[index] == null ? {} : { line: importedLines[index] }),
     ...(importedMarkers[index] == null ? {} : { marker: importedMarkers[index] }),
+    ...(importedTrendlines[index].length === 0 ? {} : { trendlines: importedTrendlines[index] }),
   }));
   return chart;
 }

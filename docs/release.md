@@ -2,11 +2,60 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after adding PPTX connector target-site fidelity.
-The clean candidate contains 708 files, 36,169,099 compressed bytes, and
-53,168,082 unpacked bytes; its measured shasum is
-`fbf0c31d8383c4448caa65cd0c8099f5d69fff58`. This is package evidence, not an
+The package dry-run passed after adding the shared XLSX/PPTX native trendline
+profile. The clean candidate contains 712 files, 36,186,313 compressed bytes,
+and 53,232,488 unpacked bytes; its measured shasum is
+`55f45073c6cb39206685cb359491fcf8da9ca9b5`. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: shared XLSX/PPTX native trendlines
+
+OfficeKit now models one bounded DrawingML `c:trendline` contract for both
+Spreadsheet and Presentation ChartSpace series. Bar and line series, including
+the canonical PPTX bar+line combo members, accept up to 16 linear,
+exponential, logarithmic, power, polynomial, or moving-average fits. The
+contract retains optional names, polynomial order 2-6, bounded moving-average
+period, half-category forward/backward forecasts, a finite intercept,
+equation/R-squared flags, and simple RGB line styling.
+
+The protocol-v2 change appends `SpreadsheetChartSeriesArtifact.trendlines`, one
+enum, and one message without changing the wire version or existing field
+numbers. `src/shared/chart-trendlines.mjs` owns JS normalization and sampled
+preview math. `OpenXmlChartTrendlineCodec` owns the package-independent native
+XML projection used by XLSX and PPTX. Their format adapters map only their
+local model and source identity, so fit semantics are not duplicated across
+two public object models or two native ChartPart implementations.
+
+Source-free authoring, semantic import, fixed-count source-bound edits, second
+import, model SVG, native XML inventory, Open XML SDK Office 2021 validation,
+and real runnable Spreadsheet and Presentation Skill workflows are covered.
+The Presentation workflow also renders a Playwright PNG and emits a
+source/output-bound audit. Imported trendline count remains fixed. A native
+label, extension, unknown child, or complex/theme line graph leaves the whole
+chart source-owned; no adapter silently drops it or rebuilds the chart from
+visible caches.
+
+Local gates passed: fast tests 26/26, slow tests 75/75, OfficeKit Codec .NET
+tests 393/393, OfficeBridge tests 5/5, protobuf lint/regeneration, generated
+Help/API docs, reference Skill sync/portability, deterministic WASM rebuild,
+clean-install package smoke, and `test:pack`. The rebuilt runtime contains 38
+files and 15,283,435 bytes; reproducibility compared 39 build outputs. Managed
+provider live downloads and explicitly configured real pypdf, pikepdf,
+pyHanko, veraPDF, and OCRmyPDF environments were not enabled; their offline
+control-plane/contract tests ran and the environment-gated paths reported
+skips. npm publication, a product tagged release, and real Windows Excel or
+PowerPoint acceptance have not occurred.
+
+The offline `release:check --skip-commands` metadata audit also passed the AGPL
+project license, 105-package third-party policy, package metadata, and all three
+standalone-release target pins. A fresh registry check still found no publish
+authority: `npm whoami` returned `ENEEDAUTH`, while `npm view office-kit`
+returned `E404`. No publish command was run.
+
+The new wire/runtime modules and published Skill workflow add 64,406 unpacked
+bytes over the preceding candidate. The enforced ceiling therefore moves
+narrowly from 53,200,000 to 53,300,000 bytes, leaving 67,512 measured bytes of
+headroom without deleting runtime, provenance, or runnable-workflow evidence.
 
 ## Unreleased: PPTX connector target-site identity
 

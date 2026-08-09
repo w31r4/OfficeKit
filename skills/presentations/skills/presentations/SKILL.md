@@ -152,9 +152,11 @@ connection sites, and formula text rectangles opaque and fail closed.
 For native charts, read `artifact_tool/api/references/charts.spec.md` before
 authoring or editing. Canonical OfficeKit output covers literal bar, line,
 pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D
-bubble, and the documented clustered bar+line combo. Use
-`examples/officekit-chart-families-workflow.mjs` as the Agent-facing
-create/import/edit/reimport/render/audit pattern. Inspect an imported ChartPart
+bubble, the documented clustered bar+line combo, and bounded trendlines on
+bar/line series. Use `examples/officekit-chart-families-workflow.mjs` as the
+Agent-facing chart-family pattern and
+`examples/officekit-chart-trendline-workflow.mjs` for trendline
+author/import/edit/reimport/render/audit. Inspect an imported ChartPart
 before mutation, keep its supported topology fixed, render the final slide, and
 let formula-backed, external-workbook, connected, or advanced chart graphs fail
 closed instead of rebuilding them from visible caches.

@@ -807,6 +807,10 @@ message SpreadsheetChartSeriesArtifact {
   // have identical point counts in the bounded profile.
   repeated double bubble_sizes = 10;
   string bubble_size_formula = 11;
+  // Bounded DrawingML trendlines shared by XLSX and PPTX ChartSpace series.
+  // The first profile supports bar/line series only. Native labels, extension
+  // graphs, and complex line formatting remain source-owned.
+  repeated SpreadsheetChartTrendlineArtifact trendlines = 12;
 }
 
 // Bounded primary-axis semantics for category/value worksheet charts. The x
@@ -3469,4 +3473,33 @@ message PresentationCustomGeometryTextRectangle {
 message PresentationCustomGeometryGuide {
   string name = 1;
   string formula = 2;
+}
+
+// Appended to preserve every pre-existing generated descriptor index while
+// SpreadsheetChartSeriesArtifact field 12 references the shared protocol-2
+// DrawingML trendline contract.
+enum SpreadsheetChartTrendlineType {
+  SPREADSHEET_CHART_TRENDLINE_TYPE_UNSPECIFIED = 0;
+  SPREADSHEET_CHART_TRENDLINE_TYPE_EXPONENTIAL = 1;
+  SPREADSHEET_CHART_TRENDLINE_TYPE_LINEAR = 2;
+  SPREADSHEET_CHART_TRENDLINE_TYPE_LOGARITHMIC = 3;
+  SPREADSHEET_CHART_TRENDLINE_TYPE_MOVING_AVERAGE = 4;
+  SPREADSHEET_CHART_TRENDLINE_TYPE_POLYNOMIAL = 5;
+  SPREADSHEET_CHART_TRENDLINE_TYPE_POWER = 6;
+}
+
+// One bounded c:trendline projection. Optional scalar presence preserves the
+// distinction between an omitted native child and an explicit zero. Polynomial
+// order and moving-average period are required only for their matching types.
+message SpreadsheetChartTrendlineArtifact {
+  SpreadsheetChartTrendlineType type = 1;
+  string name = 2;
+  optional uint32 polynomial_order = 3;
+  optional uint32 period = 4;
+  optional double forward = 5;
+  optional double backward = 6;
+  optional double intercept = 7;
+  bool display_equation = 8;
+  bool display_r_squared = 9;
+  SpreadsheetChartLineStyleArtifact line = 10;
 }

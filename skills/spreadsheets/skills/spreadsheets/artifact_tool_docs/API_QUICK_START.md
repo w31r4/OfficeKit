@@ -534,6 +534,17 @@ sheet.getRange("F4:H7").values = [
   ["Mar", 130, 22],
 ];
 const chart = sheet.charts.add("line", sheet.getRange("F4:H7"));
+chart.series.items[0].trendlines = [
+  {
+    type: "linear",
+    name: "Revenue projection",
+    forward: 0.5,
+    displayEquation: true,
+    displayRSquared: true,
+    line: { fill: "#7C3AED", style: "dashed", width: 1.5 },
+  },
+  { type: "movingAvg", name: "Two-period average", period: 2 },
+];
 ```
 Setting a range will auto-populate series information with A1 range-reference strings internally. Category charts use the first column as shared categories and set `series.categoryFormula`; scatter charts require a numeric first column, copy it into each series' `xValues`, and set `series.xFormula`. Remaining columns become Y/value series with `series.formula`. Bubble has an intentionally narrower exact-three-column shortcut: `X | Y | Size` creates one series with `xValues/xFormula`, Y `values/formula`, and positive `bubbleSizes/bubbleSizeFormula`; use explicit series configuration for multiple bubble series. The first row is treated as headers.
 - For advanced chart creation where you might want to define each series, you can do the following:
@@ -588,6 +599,17 @@ const bubble = sheet.charts.add("bubble", {
 as `xValues` and `values`; the bounded OfficeKit profile uses two numeric
 value axes and area-based sizing. `bubble3D`, negative bubbles, custom scale,
 and non-area sizing remain source-bound/read-only rather than being rewritten.
+- Bar and line series support up to 16 bounded native trendlines. Types are
+  `linear`, `exp`, `log`, `power`, `poly`, and `movingAvg`; aliases
+  `exponential`, `logarithmic`, `polynomial`, and `movingAverage` normalize to
+  the native names. `poly` accepts `order: 2..6`; `movingAvg` accepts
+  `period: 2..min(255, pointCount - 1)`. Optional fields are `name`,
+  `forward`, `backward`, `intercept`, `displayEquation`, `displayRSquared`, and
+  `line`. Category forecasts use 0.5 increments. After import, edit fields in
+  place but do not add/remove trendlines. A native trendline label, extension,
+  or complex/theme line graph is preserved as opaque and makes that chart
+  read-only. Run `examples/officekit-range-workflow.mjs` for author/import/edit,
+  second-import, native XML, and SVG evidence.
 - For internal A1 range formulas, inspect, SVG render, and OfficeKit export resolve the current category/value caches from the referenced cells. This makes the formula-only series pattern above runnable; external-workbook references or invalid ranges are not silently substituted.
 - After creating a chart with data, specify position, title, axis via the following:
 ```js

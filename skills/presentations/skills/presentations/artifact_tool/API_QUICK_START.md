@@ -206,6 +206,47 @@ inspect/verify, and produces a real PNG through `renderArtifact` with the
 explicit Playwright renderer. See `api/references/charts.spec.md` for the full
 bounded contract.
 
+## Bounded Native Trendlines
+
+Bar and line series, including the bar/line members of a combo chart, may carry
+up to 16 native trendlines. Supported types are `linear`, `exp`, `log`,
+`power`, `poly` (order 2-6), and `movingAvg` (period 2 through one less than the
+point count). Optional fields include a name, 0.5-category forward/backward
+forecasts, intercept, equation/R-squared flags, and a simple RGB line.
+
+```ts
+slide.charts.add("line", {
+  categories: ["Q1", "Q2", "Q3", "Q4"],
+  series: [{
+    name: "Pipeline",
+    values: [42, 51, 63, 78],
+    trendlines: [
+      {
+        type: "linear",
+        name: "Pipeline projection",
+        forward: 0.5,
+        displayEquation: true,
+        displayRSquared: true,
+        line: { fill: "#7C3AED", width: 1.5, style: "dash" },
+      },
+      { type: "movingAvg", name: "Two-quarter average", period: 2 },
+      { type: "poly", name: "Pipeline curve", order: 2 },
+    ],
+  }],
+});
+```
+
+Imported trendline count is fixed. Native trendline labels, extension graphs,
+and theme/complex line formatting are preserved as source-owned and make the
+chart read-only rather than being flattened. Run the complete Agent workflow:
+
+```sh
+officekit run examples/officekit-chart-trendline-workflow.mjs \
+  output/chart-trendlines.pptx \
+  output/chart-trendlines.png \
+  output/chart-trendlines.audit.json
+```
+
 ## Bounded Native Combo Chart
 
 `combo` is native PPTX output only for one intentionally narrow profile: literal
@@ -250,7 +291,7 @@ slide.charts.add("combo", {
 Do not mix primary and secondary line series, put a bar on `axisGroup:
 "secondary"`, omit either secondary axis when using secondary lines, or use
 external/embedded workbook data, smooth lines, point overrides, per-series
-labels, trendlines, or error bars. Those combinations fail closed rather than
+labels, or error bars. Those combinations fail closed rather than
 being flattened or silently rebuilt.
 
 ## JSX Compose Equivalent

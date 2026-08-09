@@ -225,6 +225,48 @@ try {
   assert.equal(chartFamiliesQa.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
   if (nativeStatus.available) assert.equal(chartFamiliesQa.nativeRender.pageCount, 1);
 
+  const chartTrendlineDir = path.join(root, "chart-trendline-workflow");
+  const chartTrendlineOutput = path.join(chartTrendlineDir, "chart-trendlines.pptx");
+  const chartTrendlinePreview = path.join(chartTrendlineDir, "chart-trendlines.png");
+  const chartTrendlineAudit = path.join(chartTrendlineDir, "audit.json");
+  const { createAndEditTrendlineDeck } = await import(
+    "../skills/presentations/skills/presentations/examples/officekit-chart-trendline-workflow.mjs"
+  );
+  const chartTrendlineResult = await createAndEditTrendlineDeck({
+    outputPath: chartTrendlineOutput,
+    previewPath: chartTrendlinePreview,
+    auditPath: chartTrendlineAudit,
+  });
+  assert.equal(chartTrendlineResult.audit.provider.actual, "office-kit");
+  assert.equal(chartTrendlineResult.audit.provider.silentFallback, false);
+  assert.equal(chartTrendlineResult.audit.operation.type, "greenfield-native-chart-trendline-author-edit");
+  assert.deepEqual(chartTrendlineResult.audit.operation.trendlineTypes, ["linear", "movingAvg", "poly", "exp"]);
+  assert.equal(chartTrendlineResult.audit.validation.verify.ok, true);
+  assert.equal((await fs.readFile(chartTrendlinePreview)).subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  const chartTrendlineRoundTrip = await PresentationFile.importPptx(new FileBlob(await fs.readFile(chartTrendlineOutput), {
+    type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    name: "chart-trendlines.pptx",
+  }));
+  const pipelineTrend = itemByName(chartTrendlineRoundTrip.slides.getItem(0).charts.items, "pipeline-trend");
+  const marginTrend = itemByName(chartTrendlineRoundTrip.slides.getItem(0).charts.items, "revenue-margin-trend");
+  assert.deepEqual(pipelineTrend.series[0].trendlines.map((trendline) => trendline.type), ["linear", "movingAvg", "poly"]);
+  assert.equal(pipelineTrend.series[0].trendlines[0].name, "Updated pipeline projection");
+  assert.equal(pipelineTrend.series[0].trendlines[0].forward, 1.5);
+  assert.equal(marginTrend.series[1].trendlines[0].name, "Updated margin projection");
+  const chartTrendlineZip = await JSZip.loadAsync(await fs.readFile(chartTrendlineOutput));
+  const chartTrendlineXml = await Promise.all(Object.keys(chartTrendlineZip.files)
+    .filter((name) => /\/charts\/chart\d+\.xml$/.test(name))
+    .map((name) => chartTrendlineZip.file(name).async("text")));
+  assert.deepEqual(chartTrendlineXml.map((xml) => [...xml.matchAll(/<c:trendlineType val="([^"]+)"\s*\/>/g)].map((match) => match[1])), [["linear", "movingAvg", "poly"], ["exp"]]);
+  const chartTrendlineQa = await verifyPresentationFile(chartTrendlineOutput, {
+    outputDir: path.join(chartTrendlineDir, "qa"),
+    nativeRender,
+  });
+  assert.equal(chartTrendlineQa.verify.ok, true);
+  assert.equal(chartTrendlineQa.modelRender.slides.length, 1);
+  assert.equal(chartTrendlineQa.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
+  if (nativeStatus.available) assert.equal(chartTrendlineQa.nativeRender.pageCount, 1);
+
   const roundtrip = await runPresentationFixture(path.join(fixtureDir, "office-kit-preservation.json"), {
     outputDir: path.join(root, "roundtrip"),
     nativeRender,

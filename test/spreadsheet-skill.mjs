@@ -364,6 +364,22 @@ try {
   assert.equal(chartXml.filter((xml) => /<c:areaChart>/.test(xml)).length, 1);
   assert.equal(chartXml.filter((xml) => /<c:doughnutChart>/.test(xml)).length, 1);
 
+  const { createWorkbook: createTrendlineWorkbook } = await import(
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-range-workflow.mjs"
+  );
+  const trendlinePath = path.join(outputDir, "officekit-range-workflow.xlsx");
+  const trendlineResult = await createTrendlineWorkbook(trendlinePath);
+  assert.equal(trendlineResult.verification.ok, true);
+  const trendlineWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(trendlinePath));
+  const trendlineChart = trendlineWorkbook.worksheets.getItem("Forecast").charts.items[0];
+  assert.deepEqual(trendlineChart.series.items[0].trendlines.map((trendline) => trendline.type), ["linear", "movingAvg", "poly"]);
+  assert.equal(trendlineChart.series.items[0].trendlines[0].name, "Updated revenue projection");
+  assert.equal(trendlineChart.series.items[0].trendlines[0].forward, 1.5);
+  const trendlineZip = await JSZip.loadAsync(await fs.readFile(trendlinePath));
+  const trendlineChartPath = Object.keys(trendlineZip.files).find((name) => /\/charts\/chart\d+\.xml$/i.test(name));
+  assert.ok(trendlineChartPath);
+  assert.equal((await trendlineZip.file(trendlineChartPath).async("text")).match(/<c:trendline>/g)?.length, 3);
+
   const sparklineResult = await runFixture("office-kit-sparklines");
   const sparklineWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(sparklineResult.workbookPath));
   const trends = sparklineWorkbook.worksheets.getItem("Trends");
