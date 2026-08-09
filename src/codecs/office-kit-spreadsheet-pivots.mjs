@@ -1,6 +1,10 @@
-import { SpreadsheetPivotAggregation, SpreadsheetPivotItemFilterMode } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
+import {
+  SpreadsheetPivotAggregation,
+  SpreadsheetPivotDateFilterType,
+  SpreadsheetPivotItemFilterMode,
+} from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
-import { pivotItemVisible } from "../spreadsheet/pivot-filters.mjs";
+import { PIVOT_ABSOLUTE_DATE_FILTER_TYPES, pivotItemVisible } from "../spreadsheet/pivot-filters.mjs";
 import { setPivotSourceCapabilities } from "../spreadsheet/pivots.mjs";
 
 const A1_RANGE = /^\$?([A-Z]{1,3})\$?([1-9]\d*)(?::\$?([A-Z]{1,3})\$?([1-9]\d*))?$/i;
@@ -16,6 +20,18 @@ const TO_WIRE_AGGREGATION = new Map([
   ["max", SpreadsheetPivotAggregation.MAX],
 ]);
 const FROM_WIRE_AGGREGATION = new Map([...TO_WIRE_AGGREGATION].map(([name, value]) => [value, name]));
+const TO_WIRE_DATE_FILTER_TYPE = new Map([
+  ["dateEqual", SpreadsheetPivotDateFilterType.DATE_EQUAL],
+  ["dateNotEqual", SpreadsheetPivotDateFilterType.DATE_NOT_EQUAL],
+  ["dateOlderThan", SpreadsheetPivotDateFilterType.DATE_OLDER_THAN],
+  ["dateOlderThanOrEqual", SpreadsheetPivotDateFilterType.DATE_OLDER_THAN_OR_EQUAL],
+  ["dateNewerThan", SpreadsheetPivotDateFilterType.DATE_NEWER_THAN],
+  ["dateNewerThanOrEqual", SpreadsheetPivotDateFilterType.DATE_NEWER_THAN_OR_EQUAL],
+  ["dateBetween", SpreadsheetPivotDateFilterType.DATE_BETWEEN],
+  ["dateNotBetween", SpreadsheetPivotDateFilterType.DATE_NOT_BETWEEN],
+]);
+const FROM_WIRE_DATE_FILTER_TYPE = new Map([...TO_WIRE_DATE_FILTER_TYPE].map(([name, value]) => [value, name]));
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 function wireFilterItem(value, label) {
   if (value === null) return { value: { case: "blankValue", value: true } };
@@ -34,7 +50,7 @@ function publicFilterItem(item, label) {
 }
 
 function wireItemFilters(pivot) {
-  return pivot.filters.map((filter) => {
+  return pivot.filters.filter((filter) => !filter.type).map((filter) => {
     const mode = filter.include ? "include" : "exclude";
     const items = filter[mode];
     if (!items?.length || items.length > MAX_NATIVE_FILTER_ITEMS) {
@@ -45,6 +61,53 @@ function wireItemFilters(pivot) {
       mode: mode === "include" ? SpreadsheetPivotItemFilterMode.INCLUDE : SpreadsheetPivotItemFilterMode.EXCLUDE,
       items: items.map((item, index) => wireFilterItem(item, `PivotTable ${pivot.name} filter ${filter.field} item ${index}`)),
     };
+  });
+}
+
+function canonicalWireDate(value, label) {
+  const text = String(value || "");
+  const match = ISO_DATE.exec(text);
+  if (!match) throw invalid(`${label} must be an ISO calendar date.`, "unsupported_spreadsheet_pivot_filter");
+  const instant = new Date(`${text}T00:00:00Z`);
+  if (Number.isNaN(instant.valueOf()) || instant.toISOString().slice(0, 10) !== text) {
+    throw invalid(`${label} must be a valid ISO calendar date.`, "unsupported_spreadsheet_pivot_filter");
+  }
+  return text;
+}
+
+function wireDateFilters(pivot) {
+  return pivot.filters.filter((filter) => filter.type).map((filter) => {
+    const type = TO_WIRE_DATE_FILTER_TYPE.get(filter.type);
+    if (!type || filter.useWholeDay !== true) {
+      throw invalid(`PivotTable ${pivot.name} supports only absolute whole-day date filters in the native profile; relative and sub-day filters remain model-only.`, "unsupported_spreadsheet_pivot_filter");
+    }
+    const between = filter.type === "dateBetween" || filter.type === "dateNotBetween";
+    return {
+      field: filter.field,
+      type,
+      value1Iso: canonicalWireDate(filter.value1, `PivotTable ${pivot.name} filter ${filter.field} value1`),
+      value2Iso: between ? canonicalWireDate(filter.value2, `PivotTable ${pivot.name} filter ${filter.field} value2`) : "",
+      useWholeDay: true,
+    };
+  });
+}
+
+function publicDateFilters(filters = [], pivotName = "PivotTable") {
+  if (filters.length > MAX_NATIVE_AXIS_FIELDS) throw invalid(`${pivotName} exceeds the ${MAX_NATIVE_AXIS_FIELDS}-axis date-filter budget.`, "unsupported_spreadsheet_pivot_filter");
+  const seen = new Set();
+  return filters.map((filter, filterIndex) => {
+    const field = String(filter?.field || "").trim();
+    const type = FROM_WIRE_DATE_FILTER_TYPE.get(filter?.type);
+    if (!field || seen.has(field) || !type || filter.useWholeDay !== true) {
+      throw invalid(`${pivotName} date filter ${filterIndex} is outside the bounded native profile.`, "unsupported_spreadsheet_pivot_filter");
+    }
+    seen.add(field);
+    const between = type === "dateBetween" || type === "dateNotBetween";
+    const value1 = canonicalWireDate(filter.value1Iso, `${pivotName} filter ${field} value1`);
+    const value2 = between ? canonicalWireDate(filter.value2Iso, `${pivotName} filter ${field} value2`) : undefined;
+    if (!between && filter.value2Iso) throw invalid(`${pivotName} filter ${field} has an unexpected second bound.`, "unsupported_spreadsheet_pivot_filter");
+    if (between && value1 > value2) throw invalid(`${pivotName} filter ${field} has reversed date bounds.`, "unsupported_spreadsheet_pivot_filter");
+    return { field, type, value1, ...(between ? { value2 } : {}), useWholeDay: true };
   });
 }
 
@@ -179,8 +242,11 @@ function assertBoundedProfile(workbook, targetSheet, pivot) {
   if (pivot.groupFields.length || pivot.calculatedFields.length) {
     throw invalid(`PivotTable ${pivot.name} grouping and calculated fields remain model/preview-only and cannot yet be authored as native SpreadsheetML.`, "unsupported_spreadsheet_pivot_profile");
   }
-  if (pivot.filters.length > pivot.rowFields.length + pivot.columnFields.length || pivot.filters.some((filter) => filter.type)) {
-    throw invalid(`PivotTable ${pivot.name} supports only exact include/exclude item filters on its native row or column axis.`, "unsupported_spreadsheet_pivot_filter");
+  if (pivot.filters.length > pivot.rowFields.length + pivot.columnFields.length) {
+    throw invalid(`PivotTable ${pivot.name} supports at most one filter per native row or column axis.`, "unsupported_spreadsheet_pivot_filter");
+  }
+  if (pivot.filters.some((filter) => filter.type && (!PIVOT_ABSOLUTE_DATE_FILTER_TYPES.has(filter.type) || filter.useWholeDay !== true))) {
+    throw invalid(`PivotTable ${pivot.name} supports exact include/exclude item filters and absolute whole-day date filters; relative and sub-day filters remain model-only.`, "unsupported_spreadsheet_pivot_filter");
   }
   for (const value of pivot.valueFields) {
     if (!TO_WIRE_AGGREGATION.has(value.summarizeBy)) throw invalid(`PivotTable ${pivot.name} uses unsupported aggregation ${value.summarizeBy}.`, "unsupported_spreadsheet_pivot_profile");
@@ -189,9 +255,10 @@ function assertBoundedProfile(workbook, targetSheet, pivot) {
     if (!headers.includes(field)) throw invalid(`PivotTable ${pivot.name} field ${field} is not present in its source headers.`);
   }
   wireItemFilters(pivot);
+  wireDateFilters(pivot);
   const headerIndexes = new Map(headers.map((header, index) => [header, index]));
   if (pivot.filters.length && !matrix.slice(1).some((row) => pivot.filters.every((filter) => pivotItemVisible(pivot.filters, filter.field, row[headerIndexes.get(filter.field)])))) {
-    throw invalid(`PivotTable ${pivot.name} item filters hide every source row.`, "unsupported_spreadsheet_pivot_filter");
+    throw invalid(`PivotTable ${pivot.name} filters hide every source row.`, "unsupported_spreadsheet_pivot_filter");
   }
   return { sourceSheet, sourceBounds, matrix };
 }
@@ -220,16 +287,28 @@ function publicRefreshPolicy(policy = {}) {
   };
 }
 
-function pivotCell(row, column, value) {
-  const wireValue = typeof value === "number"
+function pivotDateSerial(value, dateSystem) {
+  const milliseconds = value.getTime();
+  if (!Number.isFinite(milliseconds)) throw invalid("PivotTable cached output contains an invalid Date.");
+  const dayMilliseconds = 86_400_000;
+  if (dateSystem === "1904") return (milliseconds - Date.UTC(1904, 0, 1)) / dayMilliseconds;
+  const serial = (milliseconds - Date.UTC(1899, 11, 31)) / dayMilliseconds;
+  return milliseconds >= Date.UTC(1900, 2, 1) ? serial + 1 : serial;
+}
+
+function pivotCell(row, column, value, dateSystem) {
+  const isDate = value instanceof Date;
+  const wireValue = isDate
+    ? { case: "numberValue", value: pivotDateSerial(value, dateSystem) }
+    : typeof value === "number"
     ? { case: "numberValue", value }
     : typeof value === "boolean"
       ? { case: "boolValue", value }
       : { case: "stringValue", value: String(value ?? "") };
-  return { row, column, formula: "", numberFormatCode: "", style: {}, value: wireValue };
+  return { row, column, formula: "", numberFormatCode: isDate ? "yyyy-mm-dd hh:mm:ss" : "", style: {}, value: wireValue };
 }
 
-function appendCachedOutput(cells, pivot, reference, values) {
+function appendCachedOutput(cells, pivot, reference, values, dateSystem) {
   const bounds = parseRange(reference, `PivotTable ${pivot.name} cached output`);
   const existing = new Map(cells.map((cell) => [`${cell.row}:${cell.column}`, cell]));
   for (let rowOffset = 0; rowOffset < values.length; rowOffset++) {
@@ -237,7 +316,7 @@ function appendCachedOutput(cells, pivot, reference, values) {
       const row = bounds.top + rowOffset;
       const column = bounds.left + columnOffset;
       const key = `${row}:${column}`;
-      const cached = pivotCell(row, column, values[rowOffset][columnOffset]);
+      const cached = pivotCell(row, column, values[rowOffset][columnOffset], dateSystem);
       if (existing.has(key)) {
         const target = existing.get(key);
         if (target.formula || target.value?.case) throw invalid(`PivotTable ${pivot.name} cached output overlaps existing worksheet cell ${columnLabel(column)}${row + 1}.`, "spreadsheet_pivot_output_collision");
@@ -254,7 +333,7 @@ function wireSourceFreePivot(workbook, sheet, pivot, cells) {
   const { sourceSheet } = assertBoundedProfile(workbook, sheet, pivot);
   const values = pivot.computedValues();
   const target = targetReference(pivot, values);
-  appendCachedOutput(cells, pivot, target, values);
+  appendCachedOutput(cells, pivot, target, values, workbook.dateSystem);
   return {
     id: pivot.id,
     name: pivot.name,
@@ -272,6 +351,7 @@ function wireSourceFreePivot(workbook, sheet, pivot, cells) {
     columnGrandTotals: Boolean(pivot.columnGrandTotals),
     refreshPolicy: wireRefreshPolicy(pivot.refreshPolicy),
     itemFilters: wireItemFilters(pivot),
+    dateFilters: wireDateFilters(pivot),
   };
 }
 
@@ -335,7 +415,14 @@ export function hydrateWorkbookPivots(workbook, sourceWorksheets) {
       }));
       let filters;
       try {
-        filters = publicItemFilters(wire.itemFilters, `PivotTable ${wire.name || wire.id || "unknown"}`);
+        const pivotName = `PivotTable ${wire.name || wire.id || "unknown"}`;
+        filters = [
+          ...publicItemFilters(wire.itemFilters, pivotName),
+          ...publicDateFilters(wire.dateFilters, pivotName),
+        ];
+        if (new Set(filters.map((filter) => filter.field)).size !== filters.length) {
+          throw invalid(`${pivotName} contains duplicate item/date filter fields.`, "unsupported_spreadsheet_pivot_filter");
+        }
       } catch {
         slots.push({ wire });
         continue;

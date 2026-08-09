@@ -679,6 +679,7 @@ message SpreadsheetPivotTableArtifact {
   SpreadsheetPivotRefreshPolicyArtifact refresh_policy = 11;
   SpreadsheetPivotTableSourceBinding source = 12;
   repeated SpreadsheetPivotItemFilterArtifact item_filters = 13;
+  repeated SpreadsheetPivotDateFilterArtifact date_filters = 14;
 }
 
 // Hash-bound locator for one recognized worksheet PivotTable and its cache
@@ -3253,8 +3254,7 @@ enum SpreadsheetPivotItemFilterMode {
 
 // One exact cached axis item used by a bounded manual PivotTable filter.
 // Presence-aware blank_value distinguishes an actual blank item from an
-// omitted oneof. Dates remain numeric cache values plus worksheet formatting;
-// formula/date-condition filters are intentionally outside this contract.
+// omitted oneof. Date conditions use the separate, typed date-filter contract.
 message SpreadsheetPivotItemArtifact {
   oneof value {
     string string_value = 1;
@@ -3550,4 +3550,32 @@ message SpreadsheetChartErrorBarsArtifact {
   SpreadsheetChartErrorBarDataArtifact plus = 6;
   SpreadsheetChartErrorBarDataArtifact minus = 7;
   SpreadsheetChartLineStyleArtifact line = 8;
+}
+
+// Appended after every existing descriptor so the additive protocol-2
+// PivotTable date-filter profile does not renumber older generated messages or
+// enums. Relative filters remain outside this contract because their result is
+// host-clock-dependent rather than stable under a deterministic export.
+enum SpreadsheetPivotDateFilterType {
+  SPREADSHEET_PIVOT_DATE_FILTER_TYPE_UNSPECIFIED = 0;
+  SPREADSHEET_PIVOT_DATE_FILTER_TYPE_DATE_EQUAL = 1;
+  SPREADSHEET_PIVOT_DATE_FILTER_TYPE_DATE_NOT_EQUAL = 2;
+  SPREADSHEET_PIVOT_DATE_FILTER_TYPE_DATE_OLDER_THAN = 3;
+  SPREADSHEET_PIVOT_DATE_FILTER_TYPE_DATE_OLDER_THAN_OR_EQUAL = 4;
+  SPREADSHEET_PIVOT_DATE_FILTER_TYPE_DATE_NEWER_THAN = 5;
+  SPREADSHEET_PIVOT_DATE_FILTER_TYPE_DATE_NEWER_THAN_OR_EQUAL = 6;
+  SPREADSHEET_PIVOT_DATE_FILTER_TYPE_DATE_BETWEEN = 7;
+  SPREADSHEET_PIVOT_DATE_FILTER_TYPE_DATE_NOT_BETWEEN = 8;
+}
+
+// One schema-native advanced date filter on a row or column axis. ISO bounds
+// are calendar dates (yyyy-mm-dd). Presence-aware use_whole_day reserves a
+// compatible path for a future sub-day extension without treating proto3's
+// default false as an authored choice; the current codec requires true.
+message SpreadsheetPivotDateFilterArtifact {
+  string field = 1;
+  SpreadsheetPivotDateFilterType type = 2;
+  string value1_iso = 3;
+  string value2_iso = 4;
+  optional bool use_whole_day = 5;
 }

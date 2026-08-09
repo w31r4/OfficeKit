@@ -15,10 +15,11 @@ The current source-free native profile supports:
 - 1 through 32 value fields, each using `sum`, `count`, `average`, `min`, or
   `max`; multiple values use the native SpreadsheetML data-layout axis;
 - optional row and column grand totals;
-- zero through nine exact item filters, with at most one on each configured
-  row/column field.
-  Each uses one non-empty `include` or `exclude` list with at most 1024 string,
-  finite-number, boolean, or `null` items;
+- at most one filter on each configured row/column field: either one exact
+  non-empty `include`/`exclude` list with at most 1024 string, finite-number,
+  boolean, or `null` items, or one absolute whole-day `dateEqual`,
+  `dateNotEqual`, `dateOlderThan`, `dateOlderThanOrEqual`, `dateNewerThan`,
+  `dateNewerThanOrEqual`, `dateBetween`, or `dateNotBetween` condition;
 - `refreshOnLoad`, `saveData`, `enableRefresh`, `invalid`,
   `missingItemsLimit`, `refreshedBy`, and `refreshedDateIso` cache policy;
 - cached worksheet values plus native cache records when `saveData` is true;
@@ -41,6 +42,32 @@ const pivot = summary.pivotTables.add({
   columnGrandTotals: true,
 });
 ```
+
+For an absolute calendar window, the filtered source field must also be a row
+or column field and its date cells must carry a real date number format:
+
+```js
+summary.pivotTables.add({
+  name: "July revenue by date",
+  sourceRange: "Data!A1:F100",
+  targetRange: "A1",
+  rowFields: ["Order date"],
+  valueFields: [{ field: "Revenue", summarizeBy: "sum" }],
+  filters: [{
+    field: "Order date",
+    type: "dateBetween",
+    value1: "2026-07-01",
+    value2: "2026-07-31",
+  }],
+  columnGrandTotals: true,
+});
+```
+
+OfficeKit writes schema-valid `x:filters` plus date-typed Pivot cache items and
+reimports the semantic bounds. Relative filters such as `today` depend on the
+opening host's clock, while `useWholeDay=false` requires a separate extension
+profile; both remain explicit model/preview-only operations instead of silently
+changing meaning during native export.
 
 `targetRange` may be one anchor cell or the exact cached-output rectangle.
 Styling empty target cells before export is supported; any pre-existing value or
@@ -101,10 +128,10 @@ or a data refresh operation.
 
 ## Fail-closed boundaries
 
-Grouping, calculated fields, date/condition filters, filters on fields outside
-the native axes, more than 8 row fields, more than one column field, compact or
-subtotal-bearing multi-row layouts, more than 32 value fields, and source-free
-edits inside an imported workbook are not silently flattened.
+Grouping, calculated fields, relative/sub-day/other condition filters, filters
+on fields outside the native axes, more than 8 row fields, more than one column
+field, compact or subtotal-bearing multi-row layouts, more than 32 value fields,
+and source-free edits inside an imported workbook are not silently flattened.
 They remain useful in the JavaScript calculation/preview facade, but native XLSX
 export rejects them with an explicit unsupported-profile/filter diagnostic.
 An exact filter that names an unknown source item, exceeds the item budget, or
@@ -128,6 +155,13 @@ missing/duplicate data-layout field remains opaque and unchanged.
 Exact native filters use standard `pivotField/items/item@h` visibility. A host
 may normalize an `include` list to the equivalent complementary `exclude` list;
 import reports the same visible item set rather than promising preservation of
-the caller's original syntactic mode. The shipped workflow is resaved through
-LibreOffice and must retain both the semantic filter and cached totals before a
-byte-preserving second export.
+the caller's original syntactic mode. Absolute whole-day filters use native
+`filters/filter` nodes with required empty `autoFilter` children; malformed,
+relative-clock, extension-bearing, or mixed item/date conditions remain opaque.
+The shipped workflow authors both filter families, round-trips them through
+OfficeKit twice, validates the native graph, and renders every sheet.
+LibreOffice can render the date-filtered result, but its XLSX resave removes
+this advanced filter and recalculates that Pivot unfiltered. The workflow tests
+and reports that host boundary explicitly; do not use a LibreOffice resave when
+the date-filter semantics must remain intact. OfficeKit preserves the actual
+resaved host graph byte-for-byte on its next unchanged source-bound export.

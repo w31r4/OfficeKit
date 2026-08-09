@@ -2,11 +2,57 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after adding the shared XLSX/PPTX native error-bar
-profile. The clean candidate contains 714 files, 36,199,581 compressed bytes,
-and 53,293,717 unpacked bytes; its measured shasum is
-`f78b111b23734ac7b7fdfbf8e8865c696048d85c`. This is package evidence, not an
+The package dry-run passed after adding native PivotTable absolute-date
+filters. The candidate contains 714 files, 36,211,355 compressed bytes, and
+53,331,458 unpacked bytes; its measured shasum is
+`a939b1f48cb43bb76e53d989aebe967a1ab26a36`. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: native PivotTable absolute-date filters
+
+The bounded XLSX PivotTable path now authors and imports all eight absolute
+whole-day SpreadsheetML date conditions: equal/not-equal, older/newer with
+strict or inclusive bounds, and between/not-between. The additive protocol-v2
+field carries a separate typed date-filter message without changing existing
+field numbers or the wire version. JavaScript keeps relative-clock and sub-day
+conditions model-only; the native adapter accepts canonical calendar dates,
+and the C# codec converts genuinely date-formatted numeric source cells under
+both the 1900 and 1904 workbook systems.
+
+The codec writes date-typed shared cache items and schema-valid native
+`filters/filter` nodes with the required `autoFilter` child, derives active
+cache rows independently, and imports only the same canonical profile.
+Malformed, extension-bearing, relative, mixed item/date, non-date-cache, empty,
+or source-bound mutation cases remain opaque or fail closed. Direct OfficeKit
+export/import, unchanged second export, Open XML SDK Office 2021 validation,
+all eight conditions, both date systems, and the runnable Spreadsheet Skill
+are covered. LibreOffice/Poppler renders the authored filtered workbook; its
+XLSX resave drops the advanced date filter and recalculates that Pivot
+unfiltered. The Skill test records this host limitation and preserves the
+resaved graph instead of claiming the date condition survived.
+
+The rebuilt runtime contains 38 files and 15,332,075 bytes; deterministic
+rebuild compares all 39 outputs. The npm candidate grew by 37,741 unpacked
+bytes over the preceding package. The unpacked ceiling therefore moves
+narrowly from 53,300,000 to 53,400,000 bytes, leaving 68,542 measured bytes of
+headroom while retaining the codec, wire, and runnable Skill evidence.
+
+Local gates passed: fast tests 26/26, slow tests 75/75, OfficeKit Codec .NET
+tests 396/396, OfficeBridge tests 5/5, generated Help/API docs, deterministic
+WASM rebuild, reference Skill portability, real LibreOffice/Poppler rendering,
+clean-install package smoke, and `test:pack`. The real local qpdf adapter ran;
+managed provider downloads and explicitly configured pikepdf, pyHanko,
+veraPDF, OCRmyPDF, and Agent-eval Python environments were not enabled, so
+their environment-gated live paths reported skips while their offline
+contracts ran.
+
+The offline release metadata audit passed the AGPL project license,
+105-package third-party policy, package metadata, and all three standalone
+target pins; before commit it stopped only at the expected dirty-worktree
+guard. A fresh registry check still found no publication authority:
+`npm whoami` returned `ENEEDAUTH`, while `npm view office-kit version` returned
+`E404`. No publish command was run. Real Windows Excel/PowerPoint host
+acceptance remains a separate external gate.
 
 ## Unreleased: shared XLSX/PPTX native error bars
 

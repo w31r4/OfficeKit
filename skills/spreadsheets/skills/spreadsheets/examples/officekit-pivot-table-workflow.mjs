@@ -9,25 +9,27 @@ import { SpreadsheetFile, Workbook } from "office-kit";
 export function buildPivotTableWorkbook() {
   const workbook = Workbook.create();
   const data = workbook.worksheets.add("Data");
-  data.getRange("A1:E13").write([
-    ["Region", "Channel", "Product", "Revenue", "Units"],
-    ["East", "Direct", "Alpha", 70, 7],
-    ["East", "Direct", "Beta", 50, 5],
-    ["East", "Partner", "Alpha", 45, 4],
-    ["East", "Partner", "Beta", 35, 4],
-    ["West", "Direct", "Alpha", 90, 9],
-    ["West", "Direct", "Beta", 60, 6],
-    ["West", "Partner", "Alpha", 55, 5],
-    ["West", "Partner", "Beta", 35, 4],
-    ["North", "Direct", "Alpha", 60, 6],
-    ["North", "Direct", "Beta", 50, 5],
-    ["North", "Partner", "Alpha", 40, 4],
-    ["North", "Partner", "Beta", 30, 3],
+  data.getRange("A1:F13").write([
+    ["Region", "Channel", "Product", "Revenue", "Units", "Order date"],
+    ["East", "Direct", "Alpha", 70, 7, new Date("2026-07-01T00:00:00Z")],
+    ["East", "Direct", "Beta", 50, 5, new Date("2026-07-01T00:00:00Z")],
+    ["East", "Partner", "Alpha", 45, 4, new Date("2026-07-15T00:00:00Z")],
+    ["East", "Partner", "Beta", 35, 4, new Date("2026-07-15T00:00:00Z")],
+    ["West", "Direct", "Alpha", 90, 9, new Date("2026-07-01T00:00:00Z")],
+    ["West", "Direct", "Beta", 60, 6, new Date("2026-07-01T00:00:00Z")],
+    ["West", "Partner", "Alpha", 55, 5, new Date("2026-07-15T00:00:00Z")],
+    ["West", "Partner", "Beta", 35, 4, new Date("2026-07-15T00:00:00Z")],
+    ["North", "Direct", "Alpha", 60, 6, new Date("2026-08-01T00:00:00Z")],
+    ["North", "Direct", "Beta", 50, 5, new Date("2026-08-01T00:00:00Z")],
+    ["North", "Partner", "Alpha", 40, 4, new Date("2026-08-01T00:00:00Z")],
+    ["North", "Partner", "Beta", 30, 3, new Date("2026-08-01T00:00:00Z")],
   ]);
-  data.getRange("A1:E1").format = { fill: "#0F172A", font: { bold: true, color: "#FFFFFF" } };
+  data.getRange("A1:F1").format = { fill: "#0F172A", font: { bold: true, color: "#FFFFFF" } };
   data.getRange("D2:D13").setNumberFormat("$#,##0");
   data.getRange("E2:E13").setNumberFormat("#,##0");
-  data.getRange("A1:E13").format.autofitColumns();
+  data.getRange("F2:F13").setNumberFormat("yyyy-mm-dd");
+  data.getRange("A1:F13").format.autofitColumns();
+  data.getRange("F1:F13").format.columnWidthPx = 72;
   data.freezePanes.freezeRows(1);
   data.showGridLines = false;
 
@@ -63,6 +65,24 @@ export function buildPivotTableWorkbook() {
     columnGrandTotals: true,
     refreshPolicy: { refreshOnLoad: true, saveData: true, enableRefresh: true },
   });
+
+  const dateSummary = workbook.worksheets.add("Date Summary");
+  dateSummary.getRange("A1:B4").format = { border: { bottom: { style: "thin", color: "#CBD5E1" } } };
+  dateSummary.getRange("A1:B1").format = { fill: "#DCFCE7", font: { bold: true, color: "#14532D" } };
+  dateSummary.getRange("A2:A3").setNumberFormat("yyyy-mm-dd");
+  dateSummary.getRange("B2:B4").setNumberFormat("$#,##0");
+  dateSummary.getRange("A1:B4").format.autofitColumns();
+  dateSummary.showGridLines = false;
+  dateSummary.pivotTables.add({
+    name: "July revenue by date",
+    sourceRange: "Data!A1:F13",
+    targetRange: "A1",
+    rowFields: ["Order date"],
+    valueFields: [{ field: "Revenue", summarizeBy: "sum", name: "Revenue" }],
+    filters: [{ field: "Order date", type: "dateBetween", value1: "2026-07-01", value2: "2026-07-31" }],
+    columnGrandTotals: true,
+    refreshPolicy: { refreshOnLoad: false, saveData: true, enableRefresh: true },
+  });
   return workbook;
 }
 
@@ -70,6 +90,7 @@ export async function createPivotTableWorkbook(outputPath) {
   const workbook = buildPivotTableWorkbook();
   const summary = workbook.worksheets.getItem("Pivot Summary");
   const pivot = summary.pivotTables.items[0];
+  const datePivot = workbook.worksheets.getItem("Date Summary").pivotTables.items[0];
   assert.deepEqual(pivot.computedValues(), [
     ["Region", "Channel", "Alpha — Revenue", "Alpha — Units", "Beta — Revenue", "Beta — Units", "Grand Total — Revenue", "Grand Total — Units"],
     ["East", "Direct", 70, 7, 50, 5, 120, 12],
@@ -77,6 +98,12 @@ export async function createPivotTableWorkbook(outputPath) {
     ["West", "Direct", 90, 9, 60, 6, 150, 15],
     ["West", "Partner", 55, 5, 35, 4, 90, 9],
     ["Grand Total", "", 260, 25, 180, 19, 440, 44],
+  ]);
+  assert.deepEqual(datePivot.computedValues(), [
+    ["Order date", "Revenue"],
+    [new Date("2026-07-01T00:00:00Z"), 270],
+    [new Date("2026-07-15T00:00:00Z"), 170],
+    ["Grand Total", 440],
   ]);
 
   const inspection = workbook.inspect({ kind: "sheet,pivotTable,style", sheetName: summary.name, range: "A1:H6", maxChars: 16_000 });
@@ -90,8 +117,16 @@ export async function createPivotTableWorkbook(outputPath) {
   const firstZip = await JSZip.loadAsync(new Uint8Array(await first.arrayBuffer()));
   const imported = await SpreadsheetFile.importXlsx(first);
   const importedPivot = imported.worksheets.getItem(summary.name).pivotTables.items[0];
+  const importedDatePivot = imported.worksheets.getItem("Date Summary").pivotTables.items[0];
   assert.deepEqual(importedPivot.computedValues(), pivot.computedValues());
   assert.deepEqual(importedPivot.filters, [{ field: "Region", exclude: ["North"] }]);
+  assert.deepEqual(importedDatePivot.filters, [{ field: "Order date", type: "dateBetween", value1: "2026-07-01", value2: "2026-07-31", useWholeDay: true }]);
+  assert.deepEqual(importedDatePivot.computedValues(), [
+    ["Order date", "Revenue"],
+    [46_204, 270],
+    [46_218, 170],
+    ["Grand Total", 440],
+  ]);
   assert.deepEqual(importedPivot.sourceCapabilities, { sourceBound: true, refreshOnLoadHardenable: true });
   importedPivot.disableRefreshOnLoad();
   assert.equal(importedPivot.refreshPolicy.refreshOnLoad, false);
@@ -116,9 +151,11 @@ export async function createPivotTableWorkbook(outputPath) {
   }
   const roundTrip = await SpreadsheetFile.importXlsx(final);
   const roundTripPivot = roundTrip.worksheets.getItem(summary.name).pivotTables.items[0];
+  const roundTripDatePivot = roundTrip.worksheets.getItem("Date Summary").pivotTables.items[0];
   assert.deepEqual(roundTripPivot.computedValues(), pivot.computedValues());
   assert.equal(roundTripPivot.refreshPolicy.refreshOnLoad, false);
   assert.deepEqual(roundTripPivot.sourceCapabilities, { sourceBound: true, refreshOnLoadHardenable: false });
+  assert.deepEqual(roundTripDatePivot.filters, importedDatePivot.filters);
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await final.save(outputPath);

@@ -5240,6 +5240,126 @@ public sealed class XlsxCodecTests
     }
 
     [Fact]
+    public void ProtocolAuthorsImportsAndSourcePreservesAbsolutePivotDateFilter()
+    {
+        var request = PivotExportRequest();
+        var data = request.Artifact.Workbook.Worksheets.Single(sheet => sheet.Name == "Data");
+        data.Cells.Clear();
+        var source = new object?[][]
+        {
+            ["Order date", "Sales"],
+            [46203D, 5D],
+            [46204D, 10D],
+            [46218D, 20D],
+            [46235D, 40D],
+        };
+        for (var row = 0; row < source.Length; row++)
+            for (var column = 0; column < source[row].Length; column++)
+            {
+                var cell = new CellArtifact { Row = checked((uint)row), Column = checked((uint)column) };
+                if (source[row][column] is string text) cell.StringValue = text;
+                else cell.NumberValue = Convert.ToDouble(source[row][column], CultureInfo.InvariantCulture);
+                if (row > 0 && column == 0) cell.NumberFormatCode = "yyyy-mm-dd";
+                data.Cells.Add(cell);
+            }
+
+        var summary = request.Artifact.Workbook.Worksheets.Single(sheet => sheet.Name == "Summary");
+        summary.Cells.Clear();
+        var output = new object?[][]
+        {
+            ["Order date", "Sales"],
+            [46204D, 10D],
+            [46218D, 20D],
+            ["Grand Total", 30D],
+        };
+        for (var row = 0; row < output.Length; row++)
+            for (var column = 0; column < output[row].Length; column++)
+            {
+                var cell = new CellArtifact { Row = checked((uint)row), Column = checked((uint)column) };
+                if (output[row][column] is string text) cell.StringValue = text;
+                else cell.NumberValue = Convert.ToDouble(output[row][column], CultureInfo.InvariantCulture);
+                summary.Cells.Add(cell);
+            }
+        var pivot = Assert.Single(summary.PivotTables);
+        pivot.Name = "July sales";
+        pivot.SourceReference = "A1:B5";
+        pivot.TargetReference = "A1:B4";
+        pivot.RowFields.Clear();
+        pivot.RowFields.Add("Order date");
+        pivot.ColumnFields.Clear();
+        pivot.ValueFields.Clear();
+        pivot.ValueFields.Add(new SpreadsheetPivotValueFieldArtifact { Field = "Sales", Aggregation = SpreadsheetPivotAggregation.Sum });
+        pivot.DateFilters.Add(new SpreadsheetPivotDateFilterArtifact
+        {
+            Field = "Order date",
+            Type = SpreadsheetPivotDateFilterType.DateBetween,
+            Value1Iso = "2026-07-01",
+            Value2Iso = "2026-07-31",
+            UseWholeDay = true,
+        });
+
+        var authored = CodecResponse.Parser.ParseFrom(CodecProtocol.Invoke(request.ToByteArray()));
+        Assert.True(authored.Ok, Diagnostics(authored));
+        AssertOffice2021Valid(authored.File.ToByteArray());
+        string pivotPath;
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var document = SpreadsheetDocument.Open(stream, false))
+        {
+            var pivotPart = Assert.Single(document.WorkbookPart!.WorksheetParts.SelectMany(part => part.PivotTableParts));
+            pivotPath = pivotPart.Uri.OriginalString.TrimStart('/');
+            var pivotXml = XDocument.Parse(pivotPart.PivotTableDefinition!.OuterXml);
+            var ns = pivotXml.Root!.Name.Namespace;
+            var filter = Assert.Single(pivotXml.Root.Element(ns + "filters")!.Elements(ns + "filter"));
+            Assert.Equal("0", filter.Attribute("fld")!.Value);
+            Assert.Equal("dateBetween", filter.Attribute("type")!.Value);
+            Assert.Equal("1", filter.Attribute("id")!.Value);
+            Assert.Equal("2026-07-01T00:00:00", filter.Attribute("stringValue1")!.Value);
+            Assert.Equal("2026-07-31T00:00:00", filter.Attribute("stringValue2")!.Value);
+            var autoFilter = Assert.Single(filter.Elements(ns + "autoFilter"));
+            Assert.False(autoFilter.HasAttributes);
+            Assert.False(autoFilter.HasElements);
+
+            var cacheXml = XDocument.Parse(Assert.Single(document.WorkbookPart.PivotTableCacheDefinitionParts).PivotCacheDefinition!.OuterXml);
+            var sharedItems = cacheXml.Root!.Element(ns + "cacheFields")!.Elements(ns + "cacheField").First().Element(ns + "sharedItems")!;
+            Assert.Equal("1", sharedItems.Attribute("containsDate")!.Value);
+            Assert.Equal("2026-06-30T00:00:00", sharedItems.Attribute("minDate")!.Value);
+            Assert.Equal("2026-08-01T00:00:00", sharedItems.Attribute("maxDate")!.Value);
+            Assert.Equal(4, sharedItems.Elements(ns + "d").Count());
+        }
+
+        var imported = Import(authored.File.ToByteArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedPivot = Assert.Single(imported.Artifact.Workbook.Worksheets.Single(sheet => sheet.Name == "Summary").PivotTables);
+        Assert.Empty(importedPivot.ItemFilters);
+        var importedFilter = Assert.Single(importedPivot.DateFilters);
+        Assert.Equal("Order date", importedFilter.Field);
+        Assert.Equal(SpreadsheetPivotDateFilterType.DateBetween, importedFilter.Type);
+        Assert.Equal("2026-07-01", importedFilter.Value1Iso);
+        Assert.Equal("2026-07-31", importedFilter.Value2Iso);
+        Assert.True(importedFilter.HasUseWholeDay);
+        Assert.True(importedFilter.UseWholeDay);
+        var preserved = Export(imported.Artifact);
+        Assert.True(preserved.Ok, Diagnostics(preserved));
+        Assert.Equal(ReadEntry(authored.File.ToByteArray(), pivotPath), ReadEntry(preserved.File.ToByteArray(), pivotPath));
+
+        importedFilter.Value2Iso = "2026-08-31";
+        var rejected = Export(imported.Artifact);
+        Assert.False(rejected.Ok);
+        Assert.Equal("unsupported_spreadsheet_pivot_edit", Assert.Single(rejected.Diagnostics).Code);
+
+        var relative = RewriteEntry(authored.File.ToByteArray(), pivotPath, xml => xml
+            .Replace("type=\"dateBetween\"", "type=\"today\"")
+            .Replace(" stringValue1=\"2026-07-01T00:00:00\"", "")
+            .Replace(" stringValue2=\"2026-07-31T00:00:00\"", ""));
+        var opaque = Import(relative);
+        Assert.True(opaque.Ok, Diagnostics(opaque));
+        Assert.Empty(opaque.Artifact.Workbook.Worksheets.Single(sheet => sheet.Name == "Summary").PivotTables);
+        var opaquePreserved = Export(opaque.Artifact);
+        Assert.True(opaquePreserved.Ok, Diagnostics(opaquePreserved));
+        Assert.Equal(ReadEntry(relative, pivotPath), ReadEntry(opaquePreserved.File.ToByteArray(), pivotPath));
+    }
+
+    [Fact]
     public void ProtocolImportsHostNormalizedMultiplePivotValuesWithoutAxisItems()
     {
         var authored = CodecResponse.Parser.ParseFrom(CodecProtocol.Invoke(MultiValuePivotExportRequest().ToByteArray()));

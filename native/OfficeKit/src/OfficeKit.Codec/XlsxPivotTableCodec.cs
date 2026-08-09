@@ -25,6 +25,12 @@ internal sealed class XlsxPivotTableCodec
     private static readonly Regex A1Range = new(
         "^\\$?(?<firstColumn>[A-Za-z]{1,3})\\$?(?<firstRow>[1-9][0-9]*)(?::\\$?(?<lastColumn>[A-Za-z]{1,3})\\$?(?<lastRow>[1-9][0-9]*))?$",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex NumberFormatDecorations = new(
+        "\"(?:[^\"]|\"\")*\"|\\[[^\\]]*\\]|\\\\.|_.|\\*.",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex WholeDayDateBound = new(
+        "^(?<date>[0-9]{4}-[0-9]{2}-[0-9]{2})(?:T00:00:00(?:\\.0{1,7})?)?$",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     private readonly WorkbookPart _workbookPart;
 
@@ -113,22 +119,29 @@ internal sealed class XlsxPivotTableCodec
         var valueIndexes = pivot.ValueFields.Select(value => Array.IndexOf(headers, value.Field)).ToArray();
         if (rowIndexes.Any(index => index < 0) || (pivot.ColumnFields.Count > 0 && columnIndex < 0) || valueIndexes.Any(index => index < 0))
             throw Invalid($"PivotTable {pivot.Name} contains a field outside its source headers.");
+        var dateFilters = ResolveDateFilters(pivot, headers);
+        var date1904 = _workbookPart.Workbook?.WorkbookProperties?.Date1904?.Value == true;
 
         var rows = new List<CacheValue[]>();
         for (var row = sourceRange.Top + 1; row <= sourceRange.Bottom; row++)
         {
             var values = new CacheValue[sourceRange.ColumnCount];
             for (var offset = 0; offset < sourceRange.ColumnCount; offset++)
-                values[offset] = CacheValue.FromCell(sourceCells.GetValueOrDefault((row, checked((uint)(sourceRange.Left + offset)))));
+                values[offset] = CacheValue.FromCell(
+                    sourceCells.GetValueOrDefault((row, checked((uint)(sourceRange.Left + offset)))),
+                    dateFilters.ContainsKey(offset),
+                    date1904);
             rows.Add(values);
         }
         var shared = Enumerable.Range(0, sourceRange.ColumnCount)
             .Select(column => DistinctValues(rows.Select(row => row[column])))
             .ToArray();
 
-        var filters = ResolveItemFilters(pivot, headers, shared);
-        var activeRows = rows.Where(row => filters.All(filter => filter.Value.Visible(row[filter.Key]))).ToArray();
-        if (activeRows.Length == 0) throw new CodecException("unsupported_spreadsheet_pivot_filter", $"PivotTable {pivot.Name} item filters hide every source row.");
+        var itemFilters = ResolveItemFilters(pivot, headers, shared);
+        var activeRows = rows.Where(row =>
+            itemFilters.All(filter => filter.Value.Visible(row[filter.Key])) &&
+            dateFilters.All(filter => filter.Value.Visible(row[filter.Key]))).ToArray();
+        if (activeRows.Length == 0) throw new CodecException("unsupported_spreadsheet_pivot_filter", $"PivotTable {pivot.Name} filters hide every source row.");
         var rowItemIndexes = ActiveItemTuples(activeRows, rowIndexes, shared);
         var columnItemIndexes = columnIndex >= 0 ? ActiveItemIndexes(activeRows, columnIndex, shared[columnIndex]) : [];
 
@@ -157,7 +170,7 @@ internal sealed class XlsxPivotTableCodec
         var pivotPart = target.Part.AddNewPart<PivotTablePart>();
         pivotPart.AddPart(cachePart);
         pivotPart.PivotTableDefinition = new PivotTableDefinition(BuildPivotTableDefinition(
-            pivot, headers, shared, rowIndexes, columnIndex, valueIndexes, filters,
+            pivot, headers, shared, rowIndexes, columnIndex, valueIndexes, itemFilters, dateFilters,
             rowItemIndexes, columnItemIndexes, cacheId, targetRange));
 
         var pivotCaches = _workbookPart.Workbook!.GetFirstChild<PivotCaches>();
@@ -353,11 +366,18 @@ internal sealed class XlsxPivotTableCodec
         }
         var headers = cacheFields.Select(field => field.Attribute("name")?.Value ?? "").ToArray();
         if (headers.Any(string.IsNullOrWhiteSpace) || headers.Distinct(StringComparer.Ordinal).Count() != headers.Length) return false;
+        var axisIndexes = (columnIndex >= 0 ? rowIndexes.Append(columnIndex) : rowIndexes).ToHashSet();
+        if (!TryReadDateFilters(root, headers, axisIndexes, out var dateFilters)) return false;
+        var dateFilterFields = dateFilters.Select(filter => filter.Field).ToHashSet(StringComparer.Ordinal);
         var itemFilters = new List<SpreadsheetPivotItemFilterArtifact>();
-        foreach (var fieldIndex in columnIndex >= 0 ? rowIndexes.Append(columnIndex) : rowIndexes)
+        foreach (var fieldIndex in axisIndexes)
         {
             if (!TryReadItemFilter(pivotFields[fieldIndex], cacheFields[fieldIndex], headers[fieldIndex], out var filter)) return false;
-            if (filter is not null) itemFilters.Add(filter);
+            if (filter is not null)
+            {
+                if (dateFilterFields.Contains(filter.Field)) return false;
+                itemFilters.Add(filter);
+            }
         }
         var sourceSheetName = worksheetSource.Attribute("sheet")?.Value;
         var sourceWorksheet = _workbookPart.Workbook?.Sheets?.Elements<Sheet>().SingleOrDefault(sheet => string.Equals(sheet.Name?.Value, sourceSheetName, StringComparison.Ordinal));
@@ -393,6 +413,7 @@ internal sealed class XlsxPivotTableCodec
             Aggregation = value.Aggregation,
         }));
         artifact.ItemFilters.Add(itemFilters);
+        artifact.DateFilters.Add(dateFilters);
         try
         {
             ValidateSemantic(artifact);
@@ -460,8 +481,67 @@ internal sealed class XlsxPivotTableCodec
             selected = hidden.OrderBy(index => index).ToArray();
         }
         if (selected.Count is < 1 or > MaxFilterItems) return false;
+        if (selected.Any(index => shared[index].Kind == CacheValueKind.Date)) return false;
         filter = new SpreadsheetPivotItemFilterArtifact { Field = field, Mode = mode };
         filter.Items.Add(selected.Select(index => FilterItem(shared[index])));
+        return true;
+    }
+
+    private static bool TryReadDateFilters(
+        XElement pivotRoot,
+        IReadOnlyList<string> headers,
+        IReadOnlySet<int> axisIndexes,
+        out IReadOnlyList<SpreadsheetPivotDateFilterArtifact> filters)
+    {
+        filters = [];
+        var containers = pivotRoot.Elements(Main + "filters").ToArray();
+        if (containers.Length == 0) return true;
+        if (containers.Length != 1 || containers[0].Attributes().Any(attribute =>
+                !attribute.IsNamespaceDeclaration && (attribute.Name.NamespaceName.Length > 0 || attribute.Name.LocalName != "count"))) return false;
+        var elements = containers[0].Elements().ToArray();
+        if (elements.Any(element => element.Name != Main + "filter")) return false;
+        if (containers[0].Attribute("count") is { } countAttribute &&
+            (!uint.TryParse(countAttribute.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var count) || count != elements.Length)) return false;
+
+        var allowedAttributes = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "fld", "type", "evalOrder", "id", "name", "description", "stringValue1", "stringValue2",
+        };
+        var output = new List<SpreadsheetPivotDateFilterArtifact>();
+        var fields = new HashSet<int>();
+        var ids = new HashSet<uint>();
+        foreach (var element in elements)
+        {
+            var children = element.Elements().ToArray();
+            if (children.Length != 1 || children[0].Name != Main + "autoFilter" || children[0].HasAttributes || children[0].HasElements ||
+                element.Attributes().Any(attribute =>
+                    !attribute.IsNamespaceDeclaration && (attribute.Name.NamespaceName.Length > 0 || !allowedAttributes.Contains(attribute.Name.LocalName)))) return false;
+            if (!int.TryParse(element.Attribute("fld")?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var fieldIndex) ||
+                fieldIndex < 0 || fieldIndex >= headers.Count || !axisIndexes.Contains(fieldIndex) || !fields.Add(fieldIndex) ||
+                !uint.TryParse(element.Attribute("id")?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var id) || !ids.Add(id) ||
+                !TryDateFilterType(element.Attribute("type")?.Value, out var type) ||
+                !TryCanonicalWholeDayDate(element.Attribute("stringValue1")?.Value, out var value1)) return false;
+            if (element.Attribute("evalOrder") is { } evaluationOrder &&
+                !int.TryParse(evaluationOrder.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)) return false;
+            var between = IsBetweenDateFilter(type);
+            var value2Attribute = element.Attribute("stringValue2");
+            var value2 = "";
+            if (between)
+            {
+                if (value2Attribute is null || !TryCanonicalWholeDayDate(value2Attribute.Value, out value2)) return false;
+            }
+            else if (value2Attribute is not null) return false;
+            if (between && string.CompareOrdinal(value1, value2) > 0) return false;
+            output.Add(new SpreadsheetPivotDateFilterArtifact
+            {
+                Field = headers[fieldIndex],
+                Type = type,
+                Value1Iso = value1,
+                Value2Iso = value2,
+                UseWholeDay = true,
+            });
+        }
+        filters = output;
         return true;
     }
 
@@ -479,6 +559,7 @@ internal sealed class XlsxPivotTableCodec
                 output.Add(new CacheValue(CacheValueKind.Number, "", number, false));
             else if (item.Name == Main + "b" && value is "0" or "1") output.Add(new CacheValue(CacheValueKind.Boolean, "", 0, value == "1"));
             else if (item.Name == Main + "e" && !string.IsNullOrEmpty(value)) output.Add(new CacheValue(CacheValueKind.Error, value, 0, false));
+            else if (item.Name == Main + "d" && TryNormalizeCacheDate(value, out var date)) output.Add(new CacheValue(CacheValueKind.Date, date, 0, false));
             else if (item.Name == Main + "m") output.Add(new CacheValue(CacheValueKind.Blank, "", 0, false));
             else return false;
         }
@@ -532,16 +613,23 @@ internal sealed class XlsxPivotTableCodec
     private static XElement BuildSharedItems(IReadOnlyList<CacheValue> values)
     {
         var numbers = values.Where(value => value.Kind == CacheValueKind.Number).Select(value => value.Number).ToArray();
+        var dates = values.Where(value => value.Kind == CacheValueKind.Date).Select(value => value.Text).ToArray();
         var root = new XElement(Main + "sharedItems",
             new XAttribute("count", values.Count),
             new XAttribute("containsBlank", values.Any(value => value.Kind == CacheValueKind.Blank) ? "1" : "0"),
             new XAttribute("containsString", values.Any(value => value.Kind is CacheValueKind.String or CacheValueKind.Error) ? "1" : "0"),
             new XAttribute("containsNumber", numbers.Length > 0 ? "1" : "0"),
+            new XAttribute("containsDate", dates.Length > 0 ? "1" : "0"),
             new XAttribute("containsInteger", numbers.Length > 0 && numbers.All(number => number == Math.Truncate(number)) ? "1" : "0"));
         if (numbers.Length > 0)
         {
             root.Add(new XAttribute("minValue", numbers.Min().ToString("R", CultureInfo.InvariantCulture)));
             root.Add(new XAttribute("maxValue", numbers.Max().ToString("R", CultureInfo.InvariantCulture)));
+        }
+        if (dates.Length > 0)
+        {
+            root.Add(new XAttribute("minDate", dates.Min(StringComparer.Ordinal)!));
+            root.Add(new XAttribute("maxDate", dates.Max(StringComparer.Ordinal)!));
         }
         root.Add(values.Select(CacheItem));
         return root;
@@ -563,7 +651,8 @@ internal sealed class XlsxPivotTableCodec
         IReadOnlyList<int> rowIndexes,
         int columnIndex,
         IReadOnlyList<int> valueIndexes,
-        IReadOnlyDictionary<int, ResolvedItemFilter> filters,
+        IReadOnlyDictionary<int, ResolvedItemFilter> itemFilters,
+        IReadOnlyDictionary<int, ResolvedDateFilter> dateFilters,
         IReadOnlyList<IReadOnlyList<int>> rowItemIndexes,
         IReadOnlyList<int> columnItemIndexes,
         uint cacheId,
@@ -587,8 +676,8 @@ internal sealed class XlsxPivotTableCodec
         root.Add(new XElement(Main + "location", new XAttribute("ref", RangeAddress(targetRange)), new XAttribute("firstHeaderRow", 0), new XAttribute("firstDataRow", 1), new XAttribute("firstDataCol", rowIndexes.Count)));
         root.Add(new XElement(Main + "pivotFields", new XAttribute("count", headers.Count), headers.Select((header, index) =>
         {
-            filters.TryGetValue(index, out var filter);
-            var field = new XElement(Main + "pivotField", new XAttribute("name", header), new XAttribute("dataField", valueIndexSet.Contains(index) ? "1" : "0"), new XAttribute("subtotalTop", "1"), new XAttribute("showAll", filters.Count > 0 && axisIndexSet.Contains(index) ? "0" : "1"));
+            itemFilters.TryGetValue(index, out var itemFilter);
+            var field = new XElement(Main + "pivotField", new XAttribute("name", header), new XAttribute("dataField", valueIndexSet.Contains(index) ? "1" : "0"), new XAttribute("subtotalTop", "1"), new XAttribute("showAll", (itemFilters.Count > 0 || dateFilters.Count > 0) && axisIndexSet.Contains(index) ? "0" : "1"));
             if (rowIndexSet.Contains(index)) field.Add(new XAttribute("axis", "axisRow"));
             else if (index == columnIndex) field.Add(new XAttribute("axis", "axisCol"));
             if (multipleRowFields && rowIndexSet.Contains(index))
@@ -597,16 +686,16 @@ internal sealed class XlsxPivotTableCodec
                 field.Add(new XAttribute("outline", "0"));
                 field.Add(new XAttribute("defaultSubtotal", "0"));
             }
-            if (filter is not null)
+            if (itemFilter is not null)
             {
                 field.Add(new XAttribute("multipleItemSelectionAllowed", "1"));
-                field.Add(new XAttribute("includeNewItemsInFilter", filter.Mode == SpreadsheetPivotItemFilterMode.Exclude ? "1" : "0"));
+                field.Add(new XAttribute("includeNewItemsInFilter", itemFilter.Mode == SpreadsheetPivotItemFilterMode.Exclude ? "1" : "0"));
             }
             if (axisIndexSet.Contains(index))
                 field.Add(new XElement(Main + "items", new XAttribute("count", shared[index].Count), shared[index].Select((item, itemIndex) =>
                 {
                     var element = new XElement(Main + "item", new XAttribute("x", itemIndex));
-                    if (filter is not null && !filter.Visible(item)) element.Add(new XAttribute("h", "1"));
+                    if (itemFilter is not null && !itemFilter.Visible(item)) element.Add(new XAttribute("h", "1"));
                     return element;
                 })));
             return field;
@@ -657,6 +746,19 @@ internal sealed class XlsxPivotTableCodec
                 new XAttribute("name", string.IsNullOrEmpty(value.Name) ? $"{AggregationLabel(value.Aggregation)} of {value.Field}" : value.Name),
                 new XAttribute("fld", valueIndexes[index]), new XAttribute("subtotal", AggregationName(value.Aggregation))))));
         root.Add(new XElement(Main + "pivotTableStyleInfo", new XAttribute("showRowHeaders", "1"), new XAttribute("showColHeaders", "1"), new XAttribute("showRowStripes", "0"), new XAttribute("showColStripes", "0"), new XAttribute("showLastColumn", "0")));
+        if (dateFilters.Count > 0)
+            root.Add(new XElement(Main + "filters", new XAttribute("count", dateFilters.Count), dateFilters.OrderBy(filter => filter.Key).Select((entry, index) =>
+            {
+                var filter = entry.Value.Filter;
+                var element = new XElement(Main + "filter",
+                    new XAttribute("fld", entry.Key),
+                    new XAttribute("type", DateFilterTypeToken(filter.Type)),
+                    new XAttribute("id", index + 1),
+                    new XAttribute("stringValue1", DateFilterBound(filter.Value1Iso)));
+                if (IsBetweenDateFilter(filter.Type)) element.Add(new XAttribute("stringValue2", DateFilterBound(filter.Value2Iso)));
+                element.Add(new XElement(Main + "autoFilter"));
+                return element;
+            })));
         return root.ToString(SaveOptions.DisableFormatting);
     }
 
@@ -670,16 +772,28 @@ internal sealed class XlsxPivotTableCodec
             throw Invalid($"PivotTable {pivot.Name} axis fields must be non-empty, unique, and cannot appear on both axes.");
         if (pivot.ValueFields.Any(value => !Enum.IsDefined(value.Aggregation) || value.Aggregation == SpreadsheetPivotAggregation.Unspecified))
             throw Invalid($"PivotTable {pivot.Name} has an unsupported aggregation.");
-        if (pivot.ItemFilters.Count > axisFields.Length || pivot.ItemFilters.Select(filter => filter.Field).Distinct(StringComparer.Ordinal).Count() != pivot.ItemFilters.Count)
-            throw new CodecException("unsupported_spreadsheet_pivot_filter", $"PivotTable {pivot.Name} requires at most one item filter per native axis field.");
+        if (pivot.ItemFilters.Count + pivot.DateFilters.Count > axisFields.Length)
+            throw new CodecException("unsupported_spreadsheet_pivot_filter", $"PivotTable {pivot.Name} requires at most one filter per native axis field.");
         var axisFieldSet = axisFields.ToHashSet(StringComparer.Ordinal);
+        var filteredFields = new HashSet<string>(StringComparer.Ordinal);
         foreach (var filter in pivot.ItemFilters)
         {
-            if (!axisFieldSet.Contains(filter.Field) || filter.Mode is not (SpreadsheetPivotItemFilterMode.Include or SpreadsheetPivotItemFilterMode.Exclude) ||
+            if (!axisFieldSet.Contains(filter.Field) || !filteredFields.Add(filter.Field) ||
+                filter.Mode is not (SpreadsheetPivotItemFilterMode.Include or SpreadsheetPivotItemFilterMode.Exclude) ||
                 filter.Items.Count is < 1 or > MaxFilterItems)
                 throw new CodecException("unsupported_spreadsheet_pivot_filter", $"PivotTable {pivot.Name} item filter {filter.Field} is outside the bounded native profile.");
             if (filter.Items.Select(FilterItemKey).Distinct(StringComparer.Ordinal).Count() != filter.Items.Count)
                 throw Invalid($"PivotTable {pivot.Name} item filter {filter.Field} contains duplicate items.");
+        }
+        foreach (var filter in pivot.DateFilters)
+        {
+            if (!axisFieldSet.Contains(filter.Field) || !filteredFields.Add(filter.Field) || !Enum.IsDefined(filter.Type) ||
+                filter.Type == SpreadsheetPivotDateFilterType.Unspecified || !filter.HasUseWholeDay || !filter.UseWholeDay ||
+                !TryCanonicalWholeDayDate(filter.Value1Iso, out var value1) ||
+                (IsBetweenDateFilter(filter.Type)
+                    ? !TryCanonicalWholeDayDate(filter.Value2Iso, out var value2) || string.CompareOrdinal(value1, value2) > 0
+                    : !string.IsNullOrEmpty(filter.Value2Iso)))
+                throw new CodecException("unsupported_spreadsheet_pivot_filter", $"PivotTable {pivot.Name} date filter {filter.Field} is outside the absolute whole-day native profile.");
         }
         if (string.IsNullOrWhiteSpace(pivot.SourceWorksheetId) || string.IsNullOrWhiteSpace(pivot.SourceReference) || string.IsNullOrWhiteSpace(pivot.TargetReference)) throw Invalid($"PivotTable {pivot.Name} requires source and target references.");
     }
@@ -707,6 +821,26 @@ internal sealed class XlsxPivotTableCodec
             if (!shared[fieldIndex].Any(resolved.Visible))
                 throw new CodecException("unsupported_spreadsheet_pivot_filter", $"PivotTable {pivot.Name} item filter {filter.Field} hides every field item.");
             output.Add(fieldIndex, resolved);
+        }
+        return output;
+    }
+
+    private static IReadOnlyDictionary<int, ResolvedDateFilter> ResolveDateFilters(
+        SpreadsheetPivotTableArtifact pivot,
+        IReadOnlyList<string> headers)
+    {
+        var output = new Dictionary<int, ResolvedDateFilter>();
+        foreach (var filter in pivot.DateFilters)
+        {
+            var fieldIndex = -1;
+            for (var index = 0; index < headers.Count; index++)
+                if (string.Equals(headers[index], filter.Field, StringComparison.Ordinal))
+                {
+                    fieldIndex = index;
+                    break;
+                }
+            if (fieldIndex < 0) throw Invalid($"PivotTable {pivot.Name} date filter field {filter.Field} is absent from its source headers.");
+            output.Add(fieldIndex, new ResolvedDateFilter(filter));
         }
         return output;
     }
@@ -753,6 +887,96 @@ internal sealed class XlsxPivotTableCodec
         _ => throw new CodecException("unsupported_spreadsheet_pivot_filter", "PivotTable item filter contains an unsupported cached value."),
     };
 
+    private static bool IsBetweenDateFilter(SpreadsheetPivotDateFilterType type) =>
+        type is SpreadsheetPivotDateFilterType.DateBetween or SpreadsheetPivotDateFilterType.DateNotBetween;
+
+    private static string DateFilterTypeToken(SpreadsheetPivotDateFilterType type) => type switch
+    {
+        SpreadsheetPivotDateFilterType.DateEqual => "dateEqual",
+        SpreadsheetPivotDateFilterType.DateNotEqual => "dateNotEqual",
+        SpreadsheetPivotDateFilterType.DateOlderThan => "dateOlderThan",
+        SpreadsheetPivotDateFilterType.DateOlderThanOrEqual => "dateOlderThanOrEqual",
+        SpreadsheetPivotDateFilterType.DateNewerThan => "dateNewerThan",
+        SpreadsheetPivotDateFilterType.DateNewerThanOrEqual => "dateNewerThanOrEqual",
+        SpreadsheetPivotDateFilterType.DateBetween => "dateBetween",
+        SpreadsheetPivotDateFilterType.DateNotBetween => "dateNotBetween",
+        _ => throw new CodecException("unsupported_spreadsheet_pivot_filter", "PivotTable date filter type is unsupported."),
+    };
+
+    private static bool TryDateFilterType(string? token, out SpreadsheetPivotDateFilterType type)
+    {
+        type = token switch
+        {
+            "dateEqual" => SpreadsheetPivotDateFilterType.DateEqual,
+            "dateNotEqual" => SpreadsheetPivotDateFilterType.DateNotEqual,
+            "dateOlderThan" => SpreadsheetPivotDateFilterType.DateOlderThan,
+            "dateOlderThanOrEqual" => SpreadsheetPivotDateFilterType.DateOlderThanOrEqual,
+            "dateNewerThan" => SpreadsheetPivotDateFilterType.DateNewerThan,
+            "dateNewerThanOrEqual" => SpreadsheetPivotDateFilterType.DateNewerThanOrEqual,
+            "dateBetween" => SpreadsheetPivotDateFilterType.DateBetween,
+            "dateNotBetween" => SpreadsheetPivotDateFilterType.DateNotBetween,
+            _ => SpreadsheetPivotDateFilterType.Unspecified,
+        };
+        return type != SpreadsheetPivotDateFilterType.Unspecified;
+    }
+
+    private static string DateFilterBound(string isoDate) => $"{isoDate}T00:00:00";
+
+    private static bool TryCanonicalWholeDayDate(string? value, out string canonical)
+    {
+        canonical = "";
+        var match = WholeDayDateBound.Match(value ?? "");
+        if (!match.Success || !DateOnly.TryParseExact(match.Groups["date"].Value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) return false;
+        canonical = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return true;
+    }
+
+    private static bool TryNormalizeCacheDate(string value, out string normalized)
+    {
+        normalized = "";
+        var formats = new[] { "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF" };
+        if (!DateTime.TryParseExact(value, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) return false;
+        normalized = FormatCacheDate(date);
+        return true;
+    }
+
+    private static string FormatCacheDate(DateTime value) =>
+        value.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff", CultureInfo.InvariantCulture).TrimEnd('0').TrimEnd('.');
+
+    private static bool LooksLikeDateNumberFormat(string formatCode)
+    {
+        if (string.IsNullOrWhiteSpace(formatCode)) return false;
+        var semantic = NumberFormatDecorations.Replace(formatCode, "").ToLowerInvariant();
+        var components = (semantic.Contains('y') ? 1 : 0) + (semantic.Contains('m') ? 1 : 0) + (semantic.Contains('d') ? 1 : 0);
+        return components >= 2;
+    }
+
+    private static bool TryExcelSerialDate(double serial, bool date1904, out string date)
+    {
+        date = "";
+        if (!double.IsFinite(serial) || serial < 0) return false;
+        var wholeDays = Math.Floor(serial);
+        if (!date1904 && wholeDays == 60) return false;
+        var adjusted = date1904 ? serial : serial - (wholeDays > 60 ? 1 : 0);
+        try
+        {
+            var epoch = date1904
+                ? new DateTime(1904, 1, 1, 0, 0, 0, DateTimeKind.Unspecified)
+                : new DateTime(1899, 12, 31, 0, 0, 0, DateTimeKind.Unspecified);
+            var ticks = checked((long)Math.Round(adjusted * TimeSpan.TicksPerDay, MidpointRounding.AwayFromZero));
+            date = FormatCacheDate(epoch.AddTicks(ticks));
+            return true;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return false;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
     private static IReadOnlyList<CacheValue> DistinctValues(IEnumerable<CacheValue> values)
     {
         var output = new List<CacheValue>();
@@ -765,6 +989,7 @@ internal sealed class XlsxPivotTableCodec
     {
         CacheValueKind.Blank => new XElement(Main + "m"),
         CacheValueKind.Number => new XElement(Main + "n", new XAttribute("v", value.Number.ToString("R", CultureInfo.InvariantCulture))),
+        CacheValueKind.Date => new XElement(Main + "d", new XAttribute("v", value.Text)),
         CacheValueKind.Boolean => new XElement(Main + "b", new XAttribute("v", value.Boolean ? "1" : "0")),
         CacheValueKind.Error => new XElement(Main + "e", new XAttribute("v", value.Text)),
         _ => new XElement(Main + "s", new XAttribute("v", value.Text)),
@@ -909,6 +1134,7 @@ internal sealed class XlsxPivotTableCodec
             string.Join("\u001e", pivot.RowFields), string.Join("\u001e", pivot.ColumnFields),
             string.Join("\u001d", pivot.ValueFields.Select(value => string.Join("\u001c", value.Field, value.Name, (int)value.Aggregation))),
             string.Join("\u001d", pivot.ItemFilters.Select(filter => string.Join("\u001c", filter.Field, (int)filter.Mode, string.Join("\u001b", filter.Items.Select(FilterItemKey))))),
+            string.Join("\u001d", pivot.DateFilters.Select(filter => string.Join("\u001c", filter.Field, (int)filter.Type, filter.Value1Iso, filter.Value2Iso, filter.HasUseWholeDay, filter.UseWholeDay))),
             pivot.RowGrandTotals, pivot.ColumnGrandTotals, policy.RefreshOnLoad, policy.SaveData, policy.EnableRefresh, policy.Invalid,
             policy.MissingItemsLimit, policy.RefreshedBy, policy.RefreshedDateIso));
     }
@@ -934,32 +1160,61 @@ internal sealed class XlsxPivotTableCodec
             : !Keys.Contains(value.Key);
     }
 
+    private sealed record ResolvedDateFilter(SpreadsheetPivotDateFilterArtifact Filter)
+    {
+        internal bool Visible(CacheValue value)
+        {
+            if (value.Kind != CacheValueKind.Date || value.Text.Length < 10) return false;
+            var current = value.Text[..10];
+            var first = string.CompareOrdinal(current, Filter.Value1Iso);
+            return Filter.Type switch
+            {
+                SpreadsheetPivotDateFilterType.DateEqual => first == 0,
+                SpreadsheetPivotDateFilterType.DateNotEqual => first != 0,
+                SpreadsheetPivotDateFilterType.DateOlderThan => first < 0,
+                SpreadsheetPivotDateFilterType.DateOlderThanOrEqual => first <= 0,
+                SpreadsheetPivotDateFilterType.DateNewerThan => first > 0,
+                SpreadsheetPivotDateFilterType.DateNewerThanOrEqual => first >= 0,
+                SpreadsheetPivotDateFilterType.DateBetween => first >= 0 && string.CompareOrdinal(current, Filter.Value2Iso) <= 0,
+                SpreadsheetPivotDateFilterType.DateNotBetween => first < 0 || string.CompareOrdinal(current, Filter.Value2Iso) > 0,
+                _ => false,
+            };
+        }
+    }
+
     private readonly record struct RangeBounds(uint Top, uint Left, uint Bottom, uint Right)
     {
         internal int RowCount => checked((int)(Bottom - Top + 1));
         internal int ColumnCount => checked((int)(Right - Left + 1));
     }
 
-    private enum CacheValueKind { Blank, String, Number, Boolean, Error }
+    private enum CacheValueKind { Blank, String, Number, Date, Boolean, Error }
 
     private readonly record struct CacheValue(CacheValueKind Kind, string Text, double Number, bool Boolean)
     {
         internal string Key => Kind switch
         {
             CacheValueKind.Number => $"n:{Number.ToString("R", CultureInfo.InvariantCulture)}",
+            CacheValueKind.Date => $"d:{Text}",
             CacheValueKind.Boolean => Boolean ? "b:1" : "b:0",
             CacheValueKind.Blank => "m:",
             CacheValueKind.Error => $"e:{Text}",
             _ => $"s:{Text}",
         };
 
-        internal static CacheValue FromCell(CellArtifact? cell) => cell?.ValueCase switch
+        internal static CacheValue FromCell(CellArtifact? cell, bool dateField, bool date1904)
         {
-            CellArtifact.ValueOneofCase.StringValue => new(CacheValueKind.String, cell.StringValue, 0, false),
-            CellArtifact.ValueOneofCase.NumberValue when double.IsFinite(cell.NumberValue) => new(CacheValueKind.Number, "", cell.NumberValue, false),
-            CellArtifact.ValueOneofCase.BoolValue => new(CacheValueKind.Boolean, "", 0, cell.BoolValue),
-            CellArtifact.ValueOneofCase.ErrorValue => new(CacheValueKind.Error, cell.ErrorValue, 0, false),
-            _ => new(CacheValueKind.Blank, "", 0, false),
-        };
+            if (cell?.ValueCase == CellArtifact.ValueOneofCase.NumberValue && double.IsFinite(cell.NumberValue) &&
+                dateField && LooksLikeDateNumberFormat(cell.NumberFormatCode) && TryExcelSerialDate(cell.NumberValue, date1904, out var date))
+                return new CacheValue(CacheValueKind.Date, date, 0, false);
+            return cell?.ValueCase switch
+            {
+                CellArtifact.ValueOneofCase.StringValue => new(CacheValueKind.String, cell.StringValue, 0, false),
+                CellArtifact.ValueOneofCase.NumberValue when double.IsFinite(cell.NumberValue) => new(CacheValueKind.Number, "", cell.NumberValue, false),
+                CellArtifact.ValueOneofCase.BoolValue => new(CacheValueKind.Boolean, "", 0, cell.BoolValue),
+                CellArtifact.ValueOneofCase.ErrorValue => new(CacheValueKind.Error, cell.ErrorValue, 0, false),
+                _ => new(CacheValueKind.Blank, "", 0, false),
+            };
+        }
     }
 }

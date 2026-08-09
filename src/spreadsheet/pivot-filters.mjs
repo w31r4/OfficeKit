@@ -54,7 +54,7 @@ function dateFilter(filter, field) {
   const between = type === "dateBetween" || type === "dateNotBetween";
   const value2 = between ? canonicalDate(filter.value2 ?? filter.end, `PivotTable date filter ${field} value2`, useWholeDay) : undefined;
   if (between && value1 > value2) throw new RangeError(`PivotTable date filter ${field} value1 must not be after value2.`);
-  return { field, type, value1, value2, useWholeDay };
+  return { field, type, value1, ...(between ? { value2 } : {}), useWholeDay };
 }
 
 function dateKey(date) {

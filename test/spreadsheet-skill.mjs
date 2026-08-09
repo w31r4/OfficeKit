@@ -511,9 +511,27 @@ try {
     sourceBound: true,
     refreshOnLoadHardenable: false,
   });
+  const datePivotTable = pivotTableWorkbook.worksheets.getItem("Date Summary").pivotTables.items[0];
+  assert.deepEqual(datePivotTable.filters, [{
+    field: "Order date",
+    type: "dateBetween",
+    value1: "2026-07-01",
+    value2: "2026-07-31",
+    useWholeDay: true,
+  }]);
+  assert.deepEqual(datePivotTable.computedValues(), [
+    ["Order date", "Revenue"],
+    [46_204, 270],
+    [46_218, 170],
+    ["Grand Total", 440],
+  ]);
   const pivotTableZip = await JSZip.loadAsync(await fs.readFile(pivotTablePath));
-  assert.equal(Object.keys(pivotTableZip.files).filter((name) => /pivotTables\/pivotTable.*\.xml$/i.test(name)).length, 1);
-  assert.equal(Object.keys(pivotTableZip.files).filter((name) => /pivotCache\/pivotCacheRecords.*\.xml$/i.test(name)).length, 1);
+  assert.equal(Object.keys(pivotTableZip.files).filter((name) => /pivotTables\/pivotTable.*\.xml$/i.test(name)).length, 2);
+  assert.equal(Object.keys(pivotTableZip.files).filter((name) => /pivotCache\/pivotCacheRecords.*\.xml$/i.test(name)).length, 2);
+  assert.match(
+    await pivotTableZip.file(Object.keys(pivotTableZip.files).find((name) => /pivotTables\/pivotTable2\.xml$/i.test(name))).async("text"),
+    /type="dateBetween"[\s\S]*stringValue1="2026-07-01T00:00:00"[\s\S]*<autoFilter \/>/,
+  );
   const pivotNativeStatus = nativeSpreadsheetRenderStatus();
   const pivotQa = await verifyWorkbookFile(pivotTablePath, {
     outputDir: path.join(outputDir, "pivot-native-qa"),
@@ -524,7 +542,7 @@ try {
   });
   if (pivotNativeStatus.available) {
     assert.equal(pivotQa.summary.nativeRender.status, "passed");
-    assert.equal(pivotQa.summary.nativeRender.pageCount, 2, "the Data and Pivot Summary sheets must each fit on one native-rendered page");
+    assert.equal(pivotQa.summary.nativeRender.pageCount, 3, "the Data and two Pivot summary sheets must each fit on one native-rendered page");
 
     const libreOfficeDir = path.join(outputDir, "pivot-libreoffice-resave");
     const libreOfficeProfile = path.join(outputDir, "pivot-libreoffice-profile");
@@ -553,11 +571,24 @@ try {
     assert.deepEqual(libreOfficePivot.rowFields, ["Region", "Channel"]);
     assert.deepEqual(libreOfficePivot.filters, [{ field: "Region", exclude: ["North"] }]);
     assert.deepEqual(libreOfficePivot.computedValues().at(-1), ["Grand Total", "", 260, 25, 180, 19, 440, 44]);
+    const libreOfficeDatePivot = libreOfficeWorkbook.worksheets.getItem("Date Summary").pivotTables.items[0];
+    assert.ok(libreOfficeDatePivot, "LibreOffice-resaved date PivotTable must remain semantically recognized");
+    assert.deepEqual(libreOfficeDatePivot.filters, [], "LibreOffice drops the advanced absolute-date filter on XLSX resave");
+    assert.deepEqual(libreOfficeDatePivot.computedValues(), [
+      ["Order date", "Revenue"],
+      [46_204, 270],
+      [46_218, 170],
+      [46_235, 180],
+      ["Grand Total", 620],
+    ], "LibreOffice recalculates the PivotTable without the dropped filter rather than retaining a stale filtered cache");
     const libreOfficeZip = await JSZip.loadAsync(libreOfficeBytes);
-    const libreOfficePivotPart = Object.keys(libreOfficeZip.files).find((name) => /pivotTables\/pivotTable.*\.xml$/i.test(name));
+    const libreOfficePivotParts = Object.keys(libreOfficeZip.files).filter((name) => /pivotTables\/pivotTable.*\.xml$/i.test(name));
+    assert.equal(libreOfficePivotParts.length, 2);
     const preservedLibreOffice = await SpreadsheetFile.exportXlsx(libreOfficeWorkbook, { recalculate: false });
     const preservedLibreOfficeZip = await JSZip.loadAsync(new Uint8Array(await preservedLibreOffice.arrayBuffer()));
-    assert.equal(await preservedLibreOfficeZip.file(libreOfficePivotPart).async("text"), await libreOfficeZip.file(libreOfficePivotPart).async("text"));
+    for (const libreOfficePivotPart of libreOfficePivotParts) {
+      assert.equal(await preservedLibreOfficeZip.file(libreOfficePivotPart).async("text"), await libreOfficeZip.file(libreOfficePivotPart).async("text"));
+    }
   }
 
   const { createFinancialReturnsWorkbook } = await import(

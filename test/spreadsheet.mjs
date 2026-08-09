@@ -956,18 +956,163 @@ await assert.rejects(
 );
 
 const dateFilteredPivotWorkbook = Workbook.create();
-const dateFilteredPivotSheet = dateFilteredPivotWorkbook.worksheets.add("Data");
-dateFilteredPivotSheet.getRange("A1:B3").values = [["Region", "Sales"], ["East", 10], ["West", 20]];
-dateFilteredPivotSheet.pivotTables.add({
+const dateFilteredPivotData = dateFilteredPivotWorkbook.worksheets.add("Data");
+dateFilteredPivotData.getRange("A1:B5").values = [
+  ["Order date", "Sales"],
+  [new Date("2026-06-30T00:00:00Z"), 5],
+  [new Date("2026-07-01T00:00:00Z"), 10],
+  [new Date("2026-07-15T00:00:00Z"), 20],
+  [new Date("2026-08-01T00:00:00Z"), 40],
+];
+const dateFilteredPivotSummary = dateFilteredPivotWorkbook.worksheets.add("Summary");
+const dateFilteredPivot = dateFilteredPivotSummary.pivotTables.add({
+  name: "July sales",
+  sourceRange: "Data!A1:B5",
+  targetRange: "A1",
+  rowFields: ["Order date"],
+  valueFields: [{ field: "Sales" }],
+  filters: [{ field: "Order date", type: "dateBetween", value1: "2026-07-01", value2: "2026-07-31" }],
+  columnGrandTotals: true,
+});
+assert.deepEqual(dateFilteredPivot.computedValues(), [
+  ["Order date", "sum of Sales"],
+  [new Date("2026-07-01T00:00:00Z"), 10],
+  [new Date("2026-07-15T00:00:00Z"), 20],
+  ["Grand Total", 30],
+]);
+const dateFilteredPivotXlsx = await SpreadsheetFile.exportXlsx(dateFilteredPivotWorkbook);
+const dateFilteredPivotZip = await JSZip.loadAsync(new Uint8Array(await dateFilteredPivotXlsx.arrayBuffer()));
+const dateFilteredPivotPart = Object.keys(dateFilteredPivotZip.files).find((name) => /xl\/pivotTables\/pivotTable.*\.xml$/i.test(name));
+const dateFilteredPivotCache = Object.keys(dateFilteredPivotZip.files).find((name) => /pivotCache\/pivotCacheDefinition.*\.xml$/i.test(name));
+const dateFilteredPivotXml = await dateFilteredPivotZip.file(dateFilteredPivotPart).async("text");
+const dateFilteredPivotCacheXml = await dateFilteredPivotZip.file(dateFilteredPivotCache).async("text");
+assert.match(dateFilteredPivotXml, /<filters count="1"><filter fld="0" type="dateBetween" id="1" stringValue1="2026-07-01T00:00:00" stringValue2="2026-07-31T00:00:00"><autoFilter \/><\/filter><\/filters>/);
+assert.match(dateFilteredPivotCacheXml, /containsDate="1"[^>]*minDate="2026-06-30T00:00:00"[^>]*maxDate="2026-08-01T00:00:00"[\s\S]*<d v="2026-07-01T00:00:00"/);
+const importedDateFilteredPivotWorkbook = await SpreadsheetFile.importXlsx(dateFilteredPivotXlsx);
+const importedDateFilteredPivot = importedDateFilteredPivotWorkbook.worksheets.getItem("Summary").pivotTables.items[0];
+assert.deepEqual(importedDateFilteredPivot.filters, [{
+  field: "Order date",
+  type: "dateBetween",
+  value1: "2026-07-01",
+  value2: "2026-07-31",
+  useWholeDay: true,
+}]);
+assert.deepEqual(importedDateFilteredPivot.computedValues(), [
+  ["Order date", "Sum of Sales"],
+  [46_204, 10],
+  [46_218, 20],
+  ["Grand Total", 30],
+]);
+const secondDateFilteredPivotXlsx = await SpreadsheetFile.exportXlsx(importedDateFilteredPivotWorkbook);
+const secondDateFilteredPivotZip = await JSZip.loadAsync(new Uint8Array(await secondDateFilteredPivotXlsx.arrayBuffer()));
+assert.equal(await secondDateFilteredPivotZip.file(dateFilteredPivotPart).async("text"), dateFilteredPivotXml);
+importedDateFilteredPivot.filters[0].value2 = "2026-08-31";
+await assert.rejects(
+  () => SpreadsheetFile.exportXlsx(importedDateFilteredPivotWorkbook),
+  (error) => error?.code === "unsupported_spreadsheet_pivot_edit" && /read-only/i.test(error.message),
+);
+
+const relativeDateFilteredPivotWorkbook = Workbook.create();
+const relativeDateFilteredPivotData = relativeDateFilteredPivotWorkbook.worksheets.add("Data");
+relativeDateFilteredPivotData.getRange("A1:B3").values = [["Order date", "Sales"], [new Date("2026-07-19T00:00:00Z"), 10], [new Date("2026-07-20T00:00:00Z"), 20]];
+relativeDateFilteredPivotData.pivotTables.add({
   sourceRange: "A1:B3",
   targetRange: "D1",
-  rowFields: ["Region"],
+  rowFields: ["Order date"],
   valueFields: [{ field: "Sales" }],
-  filters: [{ field: "Region", type: "today", asOf: "2026-07-19" }],
+  filters: [{ field: "Order date", type: "today", asOf: "2026-07-19" }],
 });
 await assert.rejects(
-  () => SpreadsheetFile.exportXlsx(dateFilteredPivotWorkbook),
-  (error) => error?.code === "unsupported_spreadsheet_pivot_filter" && /exact include\/exclude/i.test(error.message),
+  () => SpreadsheetFile.exportXlsx(relativeDateFilteredPivotWorkbook),
+  (error) => error?.code === "unsupported_spreadsheet_pivot_filter" && /relative and sub-day filters remain model-only/i.test(error.message),
+);
+
+const date1904PivotWorkbook = Workbook.create({ dateSystem: "1904" });
+const date1904PivotSheet = date1904PivotWorkbook.worksheets.add("Data");
+date1904PivotSheet.getRange("A1:B2").values = [["Order date", "Sales"], [new Date("2026-07-15T00:00:00Z"), 20]];
+date1904PivotSheet.pivotTables.add({
+  sourceRange: "A1:B2",
+  targetRange: "D1",
+  rowFields: ["Order date"],
+  valueFields: [{ field: "Sales" }],
+  filters: [{ field: "Order date", type: "dateEqual", value: "2026-07-15" }],
+});
+const date1904PivotXlsx = await SpreadsheetFile.exportXlsx(date1904PivotWorkbook);
+const date1904PivotZip = await JSZip.loadAsync(new Uint8Array(await date1904PivotXlsx.arrayBuffer()));
+const date1904PivotCache = Object.keys(date1904PivotZip.files).find((name) => /pivotCache\/pivotCacheDefinition.*\.xml$/i.test(name));
+assert.match(await date1904PivotZip.file(date1904PivotCache).async("text"), /containsDate="1"[\s\S]*<d v="2026-07-15T00:00:00"/);
+assert.deepEqual((await SpreadsheetFile.importXlsx(date1904PivotXlsx)).worksheets.getItem("Data").pivotTables.items[0].filters, [{
+  field: "Order date",
+  type: "dateEqual",
+  value1: "2026-07-15",
+  useWholeDay: true,
+}]);
+
+for (const filter of [
+  { type: "dateNotEqual", value: "2026-07-15" },
+  { type: "dateOlderThan", value: "2026-07-15" },
+  { type: "dateOlderThanOrEqual", value: "2026-07-15" },
+  { type: "dateNewerThan", value: "2026-07-15" },
+  { type: "dateNewerThanOrEqual", value: "2026-07-15" },
+  { type: "dateNotBetween", value1: "2026-07-01", value2: "2026-07-31" },
+]) {
+  const conditionWorkbook = Workbook.create();
+  const conditionSheet = conditionWorkbook.worksheets.add("Data");
+  conditionSheet.getRange("A1:B5").values = [
+    ["Order date", "Sales"],
+    [new Date("2026-06-30T00:00:00Z"), 5],
+    [new Date("2026-07-01T00:00:00Z"), 10],
+    [new Date("2026-07-15T00:00:00Z"), 20],
+    [new Date("2026-08-01T00:00:00Z"), 40],
+  ];
+  const conditionPivot = conditionSheet.pivotTables.add({
+    name: `${filter.type} sales`,
+    sourceRange: "A1:B5",
+    targetRange: "D1",
+    rowFields: ["Order date"],
+    valueFields: [{ field: "Sales" }],
+    filters: [{ field: "Order date", ...filter }],
+    columnGrandTotals: true,
+  });
+  const conditionXlsx = await SpreadsheetFile.exportXlsx(conditionWorkbook);
+  const conditionZip = await JSZip.loadAsync(new Uint8Array(await conditionXlsx.arrayBuffer()));
+  const conditionPivotPart = Object.keys(conditionZip.files).find((name) => /xl\/pivotTables\/pivotTable.*\.xml$/i.test(name));
+  assert.match(await conditionZip.file(conditionPivotPart).async("text"), new RegExp(`type="${filter.type}"`));
+  const importedConditionPivot = (await SpreadsheetFile.importXlsx(conditionXlsx)).worksheets.getItem("Data").pivotTables.items[0];
+  assert.equal(importedConditionPivot.filters[0].type, filter.type);
+  assert.equal(importedConditionPivot.filters[0].value1, filter.value1 || filter.value);
+  assert.equal(importedConditionPivot.filters[0].value2, filter.value2);
+  assert.equal(importedConditionPivot.computedValues().at(-1).at(-1), conditionPivot.computedValues().at(-1).at(-1));
+}
+
+const subDayDateFilteredPivotWorkbook = Workbook.create();
+const subDayDateFilteredPivotSheet = subDayDateFilteredPivotWorkbook.worksheets.add("Data");
+subDayDateFilteredPivotSheet.getRange("A1:B2").values = [["Order date", "Sales"], [new Date("2026-07-15T12:00:00Z"), 20]];
+subDayDateFilteredPivotSheet.pivotTables.add({
+  sourceRange: "A1:B2",
+  targetRange: "D1",
+  rowFields: ["Order date"],
+  valueFields: [{ field: "Sales" }],
+  filters: [{ field: "Order date", type: "dateEqual", value: "2026-07-15T12:00:00Z", useWholeDay: false }],
+});
+await assert.rejects(
+  () => SpreadsheetFile.exportXlsx(subDayDateFilteredPivotWorkbook),
+  (error) => error?.code === "unsupported_spreadsheet_pivot_filter" && /relative and sub-day filters remain model-only/i.test(error.message),
+);
+
+const textDateFilteredPivotWorkbook = Workbook.create();
+const textDateFilteredPivotSheet = textDateFilteredPivotWorkbook.worksheets.add("Data");
+textDateFilteredPivotSheet.getRange("A1:B2").values = [["Order date", "Sales"], ["2026-07-15", 20]];
+textDateFilteredPivotSheet.pivotTables.add({
+  sourceRange: "A1:B2",
+  targetRange: "D1",
+  rowFields: ["Order date"],
+  valueFields: [{ field: "Sales" }],
+  filters: [{ field: "Order date", type: "dateEqual", value: "2026-07-15" }],
+});
+await assert.rejects(
+  () => SpreadsheetFile.exportXlsx(textDateFilteredPivotWorkbook),
+  (error) => error?.code === "unsupported_spreadsheet_pivot_filter" && /filter/i.test(error.message),
 );
 
 const multiValuePivotWorkbook = Workbook.create();
