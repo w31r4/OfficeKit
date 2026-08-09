@@ -545,6 +545,12 @@ chart.series.items[0].trendlines = [
   },
   { type: "movingAvg", name: "Two-period average", period: 2 },
 ];
+chart.series.items[0].errorBars = {
+  type: "percentage", // reference-style alias for valueType: "percentage"
+  value: 8,
+  endStyle: "noCap",
+  line: { fill: "#DC2626", style: "dotted", width: 1.25 },
+};
 ```
 Setting a range will auto-populate series information with A1 range-reference strings internally. Category charts use the first column as shared categories and set `series.categoryFormula`; scatter charts require a numeric first column, copy it into each series' `xValues`, and set `series.xFormula`. Remaining columns become Y/value series with `series.formula`. Bubble has an intentionally narrower exact-three-column shortcut: `X | Y | Size` creates one series with `xValues/xFormula`, Y `values/formula`, and positive `bubbleSizes/bubbleSizeFormula`; use explicit series configuration for multiple bubble series. The first row is treated as headers.
 - For advanced chart creation where you might want to define each series, you can do the following:
@@ -610,6 +616,21 @@ and non-area sizing remain source-bound/read-only rather than being rewritten.
   or complex/theme line graph is preserved as opaque and makes that chart
   read-only. Run `examples/officekit-range-workflow.mjs` for author/import/edit,
   second-import, native XML, and SVG evidence.
+- Bar and line series accept one bounded native error-bar projection. The
+  canonical fields are `direction: "x" | "y"`, `type: "both" | "minus" |
+  "plus"`, and `valueType: "fixedVal" | "percentage" | "stdDev" | "stdErr" |
+  "cust"`, plus `noEndCap` and a bounded RGB `line`. The reference-shaped
+  aliases `type: "standardError" | "percentage" | "standardDeviation" |
+  "none"`, `value`, and `endStyle: "cap" | "noCap"` remain accepted. Fixed,
+  percentage, and standard-deviation modes use a non-negative `value`;
+  standard error does not. Custom mode uses side-specific `plusValues` /
+  `minusValues` and may also retain an XLSX `plusFormula` / `minusFormula`
+  without a leading `=` plus an exact-count numeric cache. A side excluded by
+  `type` must not carry data. Imported error-bar presence is fixed: edit its
+  fields in place, but do not add or remove it. Duplicate/native extension
+  graphs, unknown children, malformed caches, and complex line styling keep the
+  whole chart source-owned/read-only. The range workflow above exercises
+  author/import/edit/reimport, native XML, and SVG evidence for this profile.
 - For internal A1 range formulas, inspect, SVG render, and OfficeKit export resolve the current category/value caches from the referenced cells. This makes the formula-only series pattern above runnable; external-workbook references or invalid ranges are not silently substituted.
 - After creating a chart with data, specify position, title, axis via the following:
 ```js

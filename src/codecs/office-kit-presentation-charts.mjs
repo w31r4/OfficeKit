@@ -1,13 +1,16 @@
 import {
   PresentationChartAxisGroup,
   SpreadsheetChartDataLabelPosition,
+  SpreadsheetChartErrorBarDirection,
+  SpreadsheetChartErrorBarType,
+  SpreadsheetChartErrorBarValueType,
   SpreadsheetChartLineDashStyle,
   SpreadsheetChartMarkerSymbol,
   SpreadsheetChartTrendlineType,
   SpreadsheetChartType,
 } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
-import { normalizePresentationChartTrendlines } from "../presentation/ooxml-charts.mjs";
+import { normalizePresentationChartErrorBars, normalizePresentationChartTrendlines } from "../presentation/ooxml-charts.mjs";
 
 const MAX_PRESENTATION_CHART_POINTS = 1_048_576;
 const PRESENTATION_CHART_TYPES_TO_WIRE = new Map([
@@ -70,6 +73,25 @@ const PRESENTATION_CHART_TRENDLINES_TO_WIRE = new Map([
   ["power", SpreadsheetChartTrendlineType.POWER],
 ]);
 const PRESENTATION_CHART_TRENDLINES_FROM_WIRE = new Map([...PRESENTATION_CHART_TRENDLINES_TO_WIRE].map(([name, value]) => [value, name]));
+const PRESENTATION_CHART_ERROR_BAR_DIRECTIONS_TO_WIRE = new Map([
+  ["x", SpreadsheetChartErrorBarDirection.X],
+  ["y", SpreadsheetChartErrorBarDirection.Y],
+]);
+const PRESENTATION_CHART_ERROR_BAR_DIRECTIONS_FROM_WIRE = new Map([...PRESENTATION_CHART_ERROR_BAR_DIRECTIONS_TO_WIRE].map(([name, value]) => [value, name]));
+const PRESENTATION_CHART_ERROR_BAR_TYPES_TO_WIRE = new Map([
+  ["both", SpreadsheetChartErrorBarType.BOTH],
+  ["minus", SpreadsheetChartErrorBarType.MINUS],
+  ["plus", SpreadsheetChartErrorBarType.PLUS],
+]);
+const PRESENTATION_CHART_ERROR_BAR_TYPES_FROM_WIRE = new Map([...PRESENTATION_CHART_ERROR_BAR_TYPES_TO_WIRE].map(([name, value]) => [value, name]));
+const PRESENTATION_CHART_ERROR_BAR_VALUE_TYPES_TO_WIRE = new Map([
+  ["cust", SpreadsheetChartErrorBarValueType.CUSTOM],
+  ["fixedVal", SpreadsheetChartErrorBarValueType.FIXED_VALUE],
+  ["percentage", SpreadsheetChartErrorBarValueType.PERCENTAGE],
+  ["stdDev", SpreadsheetChartErrorBarValueType.STANDARD_DEVIATION],
+  ["stdErr", SpreadsheetChartErrorBarValueType.STANDARD_ERROR],
+]);
+const PRESENTATION_CHART_ERROR_BAR_VALUE_TYPES_FROM_WIRE = new Map([...PRESENTATION_CHART_ERROR_BAR_VALUE_TYPES_TO_WIRE].map(([name, value]) => [value, name]));
 
 function chartColor(value, chart, field, rgb) {
   if (value == null || value === "") return undefined;
@@ -127,6 +149,32 @@ function chartTrendlines(value, valueCount, effectiveType, chart, field, rgb) {
   }));
 }
 
+function chartErrorBarData(errorBars, side) {
+  const values = errorBars[`${side}Values`];
+  const formatCode = errorBars[`${side}FormatCode`];
+  if (values == null && formatCode == null) return undefined;
+  return { values: values || [], formula: "", formatCode: formatCode || "" };
+}
+
+function chartErrorBars(value, valueCount, effectiveType, chart, field, rgb) {
+  let errorBars;
+  try { errorBars = normalizePresentationChartErrorBars(value, effectiveType, valueCount); }
+  catch (error) {
+    throw new OfficeKitCodecError(`Presentation chart ${chart.id} ${field} ${String(error?.message || error)}`, [], { code: "invalid_presentation_chart" });
+  }
+  if (!errorBars) return undefined;
+  return {
+    direction: PRESENTATION_CHART_ERROR_BAR_DIRECTIONS_TO_WIRE.get(errorBars.direction),
+    type: PRESENTATION_CHART_ERROR_BAR_TYPES_TO_WIRE.get(errorBars.type),
+    valueType: PRESENTATION_CHART_ERROR_BAR_VALUE_TYPES_TO_WIRE.get(errorBars.valueType),
+    value: errorBars.value,
+    noEndCap: errorBars.noEndCap,
+    plus: chartErrorBarData(errorBars, "plus"),
+    minus: chartErrorBarData(errorBars, "minus"),
+    ...(errorBars.line ? { line: chartLine(errorBars.line, chart, `${field}.line`, rgb) } : {}),
+  };
+}
+
 function chartAxis(axis, chart, field, original) {
   const title = typeof axis?.title === "object" ? axis.title.text : axis?.title;
   const result = {
@@ -168,6 +216,15 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
   const combo = type === SpreadsheetChartType.COMBO;
   const numericX = PRESENTATION_NUMERIC_X_CHART_TYPES.has(type);
   const circular = PRESENTATION_CIRCULAR_CHART_TYPES.has(type);
+  const formulaErrorBarSeries = chart.series.findIndex((series) => series.errorBars?.plusFormula || series.errorBars?.minusFormula);
+  if (formulaErrorBarSeries >= 0) {
+    const side = chart.series[formulaErrorBarSeries].errorBars.plusFormula ? "plus" : "minus";
+    throw new OfficeKitCodecError(
+      `Presentation chart ${chart.id} series[${formulaErrorBarSeries}].errorBars.${side}Formula requires an embedded workbook path outside the bounded native chart profile.`,
+      [],
+      { code: "unsupported_presentation_features" },
+    );
+  }
   if (chart.externalData || chart.series.some((series) => series.categoryFormula || series.valueFormula || series.categoriesFormula || series.valuesFormula || series.xValueFormula || series.bubbleSizeFormula)) {
     throw new OfficeKitCodecError(`Presentation chart ${chart.id} must use literal categories and values.`, [], { code: "unsupported_presentation_features" });
   }
@@ -196,11 +253,12 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
     const seriesType = combo ? PRESENTATION_CHART_TYPES_TO_WIRE.get(String(item.chartType || "")) : undefined;
     if (combo && seriesType !== SpreadsheetChartType.BAR && seriesType !== SpreadsheetChartType.LINE) throw new OfficeKitCodecError(`Presentation combo chart ${chart.id} series ${index + 1} must be bar or line.`, [], { code: "unsupported_presentation_features" });
     const axisGroup = item.axisGroup === "secondary" ? "secondary" : "primary";
-    if ((!combo && (axisGroup === "secondary" || item.chartType)) || item.points?.length || item.errorBars || item.dataLabels || item.smooth != null) {
+    if ((!combo && (axisGroup === "secondary" || item.chartType)) || item.points?.length || item.dataLabels || item.smooth != null) {
       throw new OfficeKitCodecError(`Presentation chart ${chart.id} series ${index + 1} uses semantics outside the bounded native chart slice.`, [], { code: "unsupported_presentation_features" });
     }
     const effectiveType = combo ? String(item.chartType || "") : String(chart.chartType || "");
     const trendlines = chartTrendlines(item.trendlines, values.length, effectiveType, chart, `series[${index}].trendlines`, rgb);
+    const errorBars = chartErrorBars(item.errorBars, values.length, effectiveType, chart, `series[${index}].errorBars`, rgb);
     if (item.marker && !["line", "scatter"].includes(effectiveType)) throw new OfficeKitCodecError(`Presentation ${effectiveType} chart ${chart.id} series ${index + 1} cannot carry a marker.`, [], { code: "unsupported_presentation_features" });
     if (type === SpreadsheetChartType.SCATTER && (item.line || item.stroke)) throw new OfficeKitCodecError(`Presentation marker-scatter chart ${chart.id} series ${index + 1} cannot carry a series line; use marker.line for marker borders.`, [], { code: "unsupported_presentation_features" });
     return {
@@ -212,6 +270,7 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
       ...(item.line || item.stroke ? { line: chartLine(item.line || item.stroke, chart, `series[${index}].line`, rgb) } : {}),
       ...(item.marker ? { marker: chartMarker(item.marker, chart, `series[${index}].marker`, rgb) } : {}),
       ...(trendlines.length ? { trendlines } : {}),
+      ...(errorBars ? { errorBars } : {}),
       ...(seriesType == null ? {} : { _comboType: seriesType, _comboAxisGroup: PRESENTATION_CHART_AXIS_GROUPS_TO_WIRE.get(axisGroup) }),
     };
   });
@@ -229,6 +288,10 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
     const originalPayload = combo ? item.series : item;
     return (originalPayload?.trendlines?.length || 0) !== (series[index]?.trendlines?.length || 0);
   })) throw new OfficeKitCodecError(`Presentation chart ${chart.id} cannot change its imported trendline count.`, [], { code: "presentation_chart_topology_changed" });
+  if (originalChart && originalSeries.some((item, index) => {
+    const originalPayload = combo ? item.series : item;
+    return Boolean(originalPayload?.errorBars) !== Boolean(series[index]?.errorBars);
+  })) throw new OfficeKitCodecError(`Presentation chart ${chart.id} cannot add or remove imported error bars.`, [], { code: "presentation_chart_topology_changed" });
   const nativeSeries = series.map(({ _comboType, _comboAxisGroup, ...item }) => item);
   let xAxis = circular ? undefined : chartAxis(chart.axes?.category, chart, "xAxis", originalChart?.xAxis);
   let yAxis = circular ? undefined : chartAxis(chart.axes?.value, chart, "yAxis", originalChart?.yAxis);
@@ -316,6 +379,33 @@ function modelChartTrendline(trendline) {
   };
 }
 
+function modelChartErrorBarData(data, side) {
+  if (!data) return {};
+  return {
+    ...(data.values?.length ? { [`${side}Values`]: [...data.values] } : {}),
+    ...(data.formula ? { [`${side}Formula`]: data.formula } : {}),
+    ...(data.formatCode ? { [`${side}FormatCode`]: data.formatCode } : {}),
+  };
+}
+
+function modelChartErrorBars(errorBars) {
+  if (!errorBars) return undefined;
+  const direction = PRESENTATION_CHART_ERROR_BAR_DIRECTIONS_FROM_WIRE.get(errorBars.direction);
+  const type = PRESENTATION_CHART_ERROR_BAR_TYPES_FROM_WIRE.get(errorBars.type);
+  const valueType = PRESENTATION_CHART_ERROR_BAR_VALUE_TYPES_FROM_WIRE.get(errorBars.valueType);
+  if (!direction || !type || !valueType) throw new OfficeKitCodecError("Presentation chart contains an unsupported error-bar direction, type, or value type.", [], { code: "invalid_presentation_chart" });
+  return {
+    direction,
+    type,
+    valueType,
+    ...(errorBars.value === undefined ? {} : { value: errorBars.value }),
+    ...modelChartErrorBarData(errorBars.plus, "plus"),
+    ...modelChartErrorBarData(errorBars.minus, "minus"),
+    noEndCap: Boolean(errorBars.noEndCap),
+    ...(errorBars.line ? { line: modelChartLine(errorBars.line) } : {}),
+  };
+}
+
 function modelChartAxis(axis, category) {
   if (!axis) return undefined;
   return {
@@ -390,6 +480,7 @@ export function modelPresentationChartFromWire(source, emuPerPixel) {
         ...(series.line ? { line: modelChartLine(series.line) } : {}),
         ...(series.marker ? { marker: modelChartMarker(series.marker) } : {}),
         ...((series.trendlines || []).length ? { trendlines: series.trendlines.map(modelChartTrendline) } : {}),
+        ...(series.errorBars ? { errorBars: modelChartErrorBars(series.errorBars) } : {}),
         ...(seriesType ? { chartType: seriesType } : {}),
         ...(combo && comboAxisGroup(entry) === "secondary" ? { axisGroup: "secondary" } : {}),
       };

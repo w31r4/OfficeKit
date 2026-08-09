@@ -247,6 +247,39 @@ officekit run examples/officekit-chart-trendline-workflow.mjs \
   output/chart-trendlines.audit.json
 ```
 
+The same workflow also authors, inventories, imports, edits, reimports, and
+renders bounded native error bars. Use the reference shorthand for the common
+cases:
+
+```js
+series.errorBars = {
+  type: "standardDeviation", // or standardError / percentage / none
+  value: 1.5,
+  endStyle: "noCap",
+  line: { fill: "#DC2626", width: 1.25, style: "dot" },
+};
+```
+
+For one-/two-sided or custom literal error bars use the canonical form:
+
+```js
+series.errorBars = {
+  direction: "y",
+  type: "minus",             // both / minus / plus
+  valueType: "cust",         // fixedVal / percentage / stdDev / stdErr / cust
+  minusValues: [1, 2, 1, 2], // exact series point count
+  noEndCap: false,
+};
+```
+
+`stdErr` and `cust` do not accept a scalar `value`. Custom values must be
+non-negative and count-aligned. Formula-backed custom data is not accepted by
+the literal PPTX codec unless a separately supported embedded-workbook route
+exists; OfficeKit does not invent that relationship. Imported error-bar
+presence is fixed. Extensions, unknown children, malformed caches, and
+complex/theme line graphs preserve the original ChartPart and make it
+read-only.
+
 ## Bounded Native Combo Chart
 
 `combo` is native PPTX output only for one intentionally narrow profile: literal
@@ -291,8 +324,9 @@ slide.charts.add("combo", {
 Do not mix primary and secondary line series, put a bar on `axisGroup:
 "secondary"`, omit either secondary axis when using secondary lines, or use
 external/embedded workbook data, smooth lines, point overrides, per-series
-labels, or error bars. Those combinations fail closed rather than
-being flattened or silently rebuilt.
+labels, or irregular error-bar graphs. Those combinations fail closed rather
+than being flattened or silently rebuilt. Bounded literal error bars on either
+the bar or line member are supported under the profile above.
 
 ## JSX Compose Equivalent
 

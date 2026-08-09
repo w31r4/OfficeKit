@@ -811,6 +811,10 @@ message SpreadsheetChartSeriesArtifact {
   // The first profile supports bar/line series only. Native labels, extension
   // graphs, and complex line formatting remain source-owned.
   repeated SpreadsheetChartTrendlineArtifact trendlines = 12;
+  // One bounded DrawingML c:errBars projection shared by XLSX and PPTX
+  // ChartSpace series. Presence is fixed after import; unsupported native
+  // child graphs leave the containing chart source-owned.
+  SpreadsheetChartErrorBarsArtifact error_bars = 13;
 }
 
 // Bounded primary-axis semantics for category/value worksheet charts. The x
@@ -3502,4 +3506,48 @@ message SpreadsheetChartTrendlineArtifact {
   bool display_equation = 8;
   bool display_r_squared = 9;
   SpreadsheetChartLineStyleArtifact line = 10;
+}
+
+// Appended after every existing descriptor so the additive protocol-2 error
+// bar profile does not renumber older generated message or enum descriptors.
+enum SpreadsheetChartErrorBarDirection {
+  SPREADSHEET_CHART_ERROR_BAR_DIRECTION_UNSPECIFIED = 0;
+  SPREADSHEET_CHART_ERROR_BAR_DIRECTION_X = 1;
+  SPREADSHEET_CHART_ERROR_BAR_DIRECTION_Y = 2;
+}
+
+enum SpreadsheetChartErrorBarType {
+  SPREADSHEET_CHART_ERROR_BAR_TYPE_UNSPECIFIED = 0;
+  SPREADSHEET_CHART_ERROR_BAR_TYPE_BOTH = 1;
+  SPREADSHEET_CHART_ERROR_BAR_TYPE_MINUS = 2;
+  SPREADSHEET_CHART_ERROR_BAR_TYPE_PLUS = 3;
+}
+
+enum SpreadsheetChartErrorBarValueType {
+  SPREADSHEET_CHART_ERROR_BAR_VALUE_TYPE_UNSPECIFIED = 0;
+  SPREADSHEET_CHART_ERROR_BAR_VALUE_TYPE_CUSTOM = 1;
+  SPREADSHEET_CHART_ERROR_BAR_VALUE_TYPE_FIXED_VALUE = 2;
+  SPREADSHEET_CHART_ERROR_BAR_VALUE_TYPE_PERCENTAGE = 3;
+  SPREADSHEET_CHART_ERROR_BAR_VALUE_TYPE_STANDARD_DEVIATION = 4;
+  SPREADSHEET_CHART_ERROR_BAR_VALUE_TYPE_STANDARD_ERROR = 5;
+}
+
+// One custom plus/minus numeric source. A formula is stored without a leading
+// equals sign and may carry a same-length literal cache. Formula-free sources
+// require a literal cache. Format code is meaningful only with cached values.
+message SpreadsheetChartErrorBarDataArtifact {
+  repeated double values = 1;
+  string formula = 2;
+  string format_code = 3;
+}
+
+message SpreadsheetChartErrorBarsArtifact {
+  SpreadsheetChartErrorBarDirection direction = 1;
+  SpreadsheetChartErrorBarType type = 2;
+  SpreadsheetChartErrorBarValueType value_type = 3;
+  optional double value = 4;
+  bool no_end_cap = 5;
+  SpreadsheetChartErrorBarDataArtifact plus = 6;
+  SpreadsheetChartErrorBarDataArtifact minus = 7;
+  SpreadsheetChartLineStyleArtifact line = 8;
 }

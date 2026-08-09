@@ -115,7 +115,7 @@ internal static partial class PptxChartCodec
             return;
         }
         if (chart.ComboSeries.Count != 0) throw Invalid(elementId, "must not carry combo_series unless type is combo");
-        if (chart.Series.Any(series => !string.IsNullOrWhiteSpace(series.CategoryFormula) || !string.IsNullOrWhiteSpace(series.XValueFormula) || !string.IsNullOrWhiteSpace(series.ValueFormula) || !string.IsNullOrWhiteSpace(series.BubbleSizeFormula)))
+        if (chart.Series.Any(series => !string.IsNullOrWhiteSpace(series.CategoryFormula) || !string.IsNullOrWhiteSpace(series.XValueFormula) || !string.IsNullOrWhiteSpace(series.ValueFormula) || !string.IsNullOrWhiteSpace(series.BubbleSizeFormula) || ErrorBarsUseFormula(series)))
             throw Invalid(elementId, "must use literal categories and values without workbook formulas");
         var spreadsheet = ToSpreadsheet(chart, elementId, name);
         try
@@ -127,6 +127,10 @@ internal static partial class PptxChartCodec
             throw Invalid(elementId, error.Message);
         }
     }
+
+    private static bool ErrorBarsUseFormula(SpreadsheetChartSeriesArtifact series) =>
+        !string.IsNullOrWhiteSpace(series.ErrorBars?.Plus?.Formula) ||
+        !string.IsNullOrWhiteSpace(series.ErrorBars?.Minus?.Formula);
 
     internal static void ScrubFrame(P.GraphicFrame source)
     {

@@ -33,7 +33,8 @@ internal static partial class PptxChartCodec
             if (requested.ComboSeries.Count != 0 || original.ComboSeries.Count != 0 || requested.Series.Count != original.Series.Count) return false;
             return requested.Series.Zip(original.Series).All(pair =>
                 pair.First.Values.Count == pair.Second.Values.Count &&
-                pair.First.Trendlines.Count == pair.Second.Trendlines.Count);
+                pair.First.Trendlines.Count == pair.Second.Trendlines.Count &&
+                (pair.First.ErrorBars is null) == (pair.Second.ErrorBars is null));
         }
         if (requested.Series.Count != 0 || original.Series.Count != 0 || requested.ComboSeries.Count != original.ComboSeries.Count) return false;
         if ((requested.SecondaryXAxis is null) != (original.SecondaryXAxis is null) || (requested.SecondaryYAxis is null) != (original.SecondaryYAxis is null)) return false;
@@ -42,7 +43,8 @@ internal static partial class PptxChartCodec
             ComboAxisGroup(pair.First) == ComboAxisGroup(pair.Second) &&
             pair.First.Series is not null && pair.Second.Series is not null &&
             pair.First.Series.Values.Count == pair.Second.Series.Values.Count &&
-            pair.First.Series.Trendlines.Count == pair.Second.Series.Trendlines.Count);
+            pair.First.Series.Trendlines.Count == pair.Second.Series.Trendlines.Count &&
+            (pair.First.Series.ErrorBars is null) == (pair.Second.Series.ErrorBars is null));
     }
 
     private static void ValidateComboChart(PresentationChart chart, string elementId, string name)
@@ -70,7 +72,7 @@ internal static partial class PptxChartCodec
             }
             else throw Invalid(elementId, "combo series type must be bar or line");
             if (!string.IsNullOrWhiteSpace(entry.Series.CategoryFormula) || !string.IsNullOrWhiteSpace(entry.Series.ValueFormula) ||
-                !string.IsNullOrWhiteSpace(entry.Series.XValueFormula) || !string.IsNullOrWhiteSpace(entry.Series.BubbleSizeFormula))
+                !string.IsNullOrWhiteSpace(entry.Series.XValueFormula) || !string.IsNullOrWhiteSpace(entry.Series.BubbleSizeFormula) || ErrorBarsUseFormula(entry.Series))
                 throw Invalid(elementId, "must use literal categories and values without workbook formulas");
         }
         if (bar.Count == 0 || line.Count == 0) throw Invalid(elementId, "must contain at least one bar series and one line series");

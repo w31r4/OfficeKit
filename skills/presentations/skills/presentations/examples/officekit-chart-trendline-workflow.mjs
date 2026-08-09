@@ -35,6 +35,8 @@ async function trendlineInventory(bytes) {
       title: /<c:title>[\s\S]*?<a:t>([^<]+)<\/a:t>/.exec(xml)?.[1] || "",
       types: [...xml.matchAll(/<c:trendlineType val="([^"]+)"\s*\/>/g)].map((match) => match[1]),
       names: [...xml.matchAll(/<c:name>([^<]+)<\/c:name>/g)].map((match) => match[1]),
+      errorBarTypes: [...xml.matchAll(/<c:errBarType val="([^"]+)"\s*\/>/g)].map((match) => match[1]),
+      errorBarValueTypes: [...xml.matchAll(/<c:errValType val="([^"]+)"\s*\/>/g)].map((match) => match[1]),
       sha256: sha256(Buffer.from(xml)),
     };
   }));
@@ -65,6 +67,7 @@ function createTrendlineDeck() {
         { type: "movingAvg", name: "Two-quarter average", period: 2 },
         { type: "poly", name: "Pipeline curve", order: 2 },
       ],
+      errorBars: { type: "standardDeviation", value: 1.5, endStyle: "noCap", line: { fill: "#DC2626", width: 1.25, style: "dot" } },
     }],
     xAxis: { title: "Quarter" },
     yAxis: { title: "Pipeline ($M)", min: 0, max: 100, majorUnit: 20 },
@@ -85,6 +88,7 @@ function createTrendlineDeck() {
         line: { fill: "#16A34A", width: 2 },
         marker: { symbol: "diamond", size: 7, fill: "#16A34A" },
         trendlines: [{ type: "exp", name: "Margin projection", forward: 0.5, line: { fill: "#F97316", width: 1.5, style: "dot" } }],
+        errorBars: { type: "minus", valueType: "custom", minusValues: [1, 2, 1, 2], line: { fill: "#EA580C", width: 1 } },
       },
     ],
     axes: {
@@ -112,6 +116,7 @@ export async function createAndEditTrendlineDeck({ outputPath, previewPath, audi
     const firstBytes = new Uint8Array(await first.arrayBuffer());
     const firstInventory = await trendlineInventory(firstBytes);
     assert.deepEqual(firstInventory.map((entry) => entry.types), [["linear", "movingAvg", "poly"], ["exp"]]);
+    assert.deepEqual(firstInventory.map((entry) => entry.errorBarValueTypes), [["stdDev"], ["cust"]]);
 
     const imported = await PresentationFile.importPptx(new FileBlob(firstBytes, { type: PPTX_MIME, name: "trendline-source.pptx" }));
     const pipeline = chartByName(imported, "pipeline-trend");
@@ -119,22 +124,31 @@ export async function createAndEditTrendlineDeck({ outputPath, previewPath, audi
     pipeline.series[0].trendlines[0].name = "Updated pipeline projection";
     pipeline.series[0].trendlines[0].forward = 1.5;
     pipeline.series[0].trendlines[0].line.fill = "#0EA5E9";
+    pipeline.series[0].errorBars.value = 2;
+    pipeline.series[0].errorBars.line.fill = "#BE123C";
     margin.series[1].trendlines[0].name = "Updated margin projection";
+    margin.series[1].errorBars.minusValues[1] = 3;
     const final = await PresentationFile.exportPptx(imported);
     await final.save(temporary[0]);
     const outputBytes = await fs.readFile(temporary[0]);
     const outputInventory = await trendlineInventory(outputBytes);
     assert.ok(outputInventory[0].names.includes("Updated pipeline projection"));
     assert.ok(outputInventory[1].names.includes("Updated margin projection"));
+    assert.deepEqual(outputInventory.map((entry) => entry.errorBarTypes), [["both"], ["minus"]]);
 
     const roundTrip = await PresentationFile.importPptx(new FileBlob(outputBytes, { type: PPTX_MIME, name: path.basename(output) }));
     assert.equal(chartByName(roundTrip, "pipeline-trend").series[0].trendlines[0].forward, 1.5);
     assert.equal(chartByName(roundTrip, "pipeline-trend").series[0].trendlines[0].line.fill, "#0EA5E9");
+    assert.equal(chartByName(roundTrip, "pipeline-trend").series[0].errorBars.value, 2);
+    assert.equal(chartByName(roundTrip, "pipeline-trend").series[0].errorBars.line.fill, "#BE123C");
     assert.equal(chartByName(roundTrip, "revenue-margin-trend").series[1].trendlines[0].name, "Updated margin projection");
+    assert.deepEqual(chartByName(roundTrip, "revenue-margin-trend").series[1].errorBars.minusValues, [1, 3, 1, 2]);
     const verification = roundTrip.verify({ visualQa: true });
     assert.equal(verification.ok, true, verification.ndjson);
     const inspect = roundTrip.inspect({ kind: "slide,chart", maxChars: 20_000 });
     assert.match(inspect.ndjson, /pipeline-trend/);
+    assert.match(roundTrip.slides.getItem(0).toSvg(), /data-error-bars-series="0"/);
+    assert.match(roundTrip.slides.getItem(0).toSvg(), /data-error-bars-series="1"/);
 
     const rendered = await renderArtifact(roundTrip, {
       slide: roundTrip.slides.getItem(0),
@@ -151,12 +165,12 @@ export async function createAndEditTrendlineDeck({ outputPath, previewPath, audi
       status: "succeeded",
       provider: { actual: "office-kit", silentFallback: false },
       savePolicy: { strategy: "rewrite" },
-      operation: { type: "greenfield-native-chart-trendline-author-edit", chartTypes: ["line", "combo"], trendlineTypes: ["linear", "movingAvg", "poly", "exp"] },
+      operation: { type: "greenfield-native-chart-trendline-author-edit", chartTypes: ["line", "combo"], trendlineTypes: ["linear", "movingAvg", "poly", "exp"], errorBarValueTypes: ["stdDev", "cust"] },
       source: { kind: "in-memory-presentation", firstExportSha256: sha256(firstBytes), bytes: firstBytes.byteLength },
       output: { path: output, sha256: sha256(outputBytes), bytes: outputBytes.byteLength },
       preview: { path: preview, sha256: sha256(previewBytes), bytes: previewBytes.byteLength, renderer: "model-svg+playwright" },
       validation: { verify: { ok: true }, inspect: { ok: true, chartCount: 2 }, package: { ok: true, charts: outputInventory }, reimport: { ok: true } },
-      warnings: ["Trendline labels and complex native line graphs remain source-owned and fail closed on edit."],
+      warnings: ["Trendline labels, error-bar extensions, formula-backed PPTX custom error bars without an explicit embedded-workbook route, and complex native line graphs remain source-owned and fail closed on edit."],
     };
     await fs.writeFile(temporary[2], JSON.stringify(audit, null, 2));
     await fs.rename(temporary[0], output);

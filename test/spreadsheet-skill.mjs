@@ -375,6 +375,9 @@ try {
   assert.deepEqual(trendlineChart.series.items[0].trendlines.map((trendline) => trendline.type), ["linear", "movingAvg", "poly"]);
   assert.equal(trendlineChart.series.items[0].trendlines[0].name, "Updated revenue projection");
   assert.equal(trendlineChart.series.items[0].trendlines[0].forward, 1.5);
+  assert.equal(trendlineChart.series.items[0].errorBars.valueType, "percentage");
+  assert.equal(trendlineChart.series.items[0].errorBars.value, 12);
+  assert.equal(trendlineChart.series.items[0].errorBars.line.fill, "#BE123C");
   const trendlineZip = await JSZip.loadAsync(await fs.readFile(trendlinePath));
   const trendlineChartPath = Object.keys(trendlineZip.files).find((name) => /\/charts\/chart\d+\.xml$/i.test(name));
   assert.ok(trendlineChartPath);

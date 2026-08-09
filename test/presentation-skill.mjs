@@ -241,6 +241,7 @@ try {
   assert.equal(chartTrendlineResult.audit.provider.silentFallback, false);
   assert.equal(chartTrendlineResult.audit.operation.type, "greenfield-native-chart-trendline-author-edit");
   assert.deepEqual(chartTrendlineResult.audit.operation.trendlineTypes, ["linear", "movingAvg", "poly", "exp"]);
+  assert.deepEqual(chartTrendlineResult.audit.operation.errorBarValueTypes, ["stdDev", "cust"]);
   assert.equal(chartTrendlineResult.audit.validation.verify.ok, true);
   assert.equal((await fs.readFile(chartTrendlinePreview)).subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
   const chartTrendlineRoundTrip = await PresentationFile.importPptx(new FileBlob(await fs.readFile(chartTrendlineOutput), {
@@ -252,12 +253,16 @@ try {
   assert.deepEqual(pipelineTrend.series[0].trendlines.map((trendline) => trendline.type), ["linear", "movingAvg", "poly"]);
   assert.equal(pipelineTrend.series[0].trendlines[0].name, "Updated pipeline projection");
   assert.equal(pipelineTrend.series[0].trendlines[0].forward, 1.5);
+  assert.equal(pipelineTrend.series[0].errorBars.value, 2);
+  assert.equal(pipelineTrend.series[0].errorBars.line.fill, "#BE123C");
   assert.equal(marginTrend.series[1].trendlines[0].name, "Updated margin projection");
+  assert.deepEqual(marginTrend.series[1].errorBars.minusValues, [1, 3, 1, 2]);
   const chartTrendlineZip = await JSZip.loadAsync(await fs.readFile(chartTrendlineOutput));
   const chartTrendlineXml = await Promise.all(Object.keys(chartTrendlineZip.files)
     .filter((name) => /\/charts\/chart\d+\.xml$/.test(name))
     .map((name) => chartTrendlineZip.file(name).async("text")));
   assert.deepEqual(chartTrendlineXml.map((xml) => [...xml.matchAll(/<c:trendlineType val="([^"]+)"\s*\/>/g)].map((match) => match[1])), [["linear", "movingAvg", "poly"], ["exp"]]);
+  assert.deepEqual(chartTrendlineXml.map((xml) => [...xml.matchAll(/<c:errValType val="([^"]+)"\s*\/>/g)].map((match) => match[1])), [["stdDev"], ["cust"]]);
   const chartTrendlineQa = await verifyPresentationFile(chartTrendlineOutput, {
     outputDir: path.join(chartTrendlineDir, "qa"),
     nativeRender,

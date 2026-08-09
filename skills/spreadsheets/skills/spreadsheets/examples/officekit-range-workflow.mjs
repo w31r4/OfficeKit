@@ -59,6 +59,12 @@ export function buildWorkbook() {
     { type: "movingAvg", name: "Two-month moving average", period: 2 },
     { type: "poly", name: "Revenue curve", order: 2 },
   ];
+  chart.series.items[0].errorBars = {
+    type: "percentage",
+    value: 8,
+    endStyle: "noCap",
+    line: { fill: "#DC2626", style: "dotted", width: 1.25 },
+  };
   chart.setPosition("F1", "M14");
   return workbook;
 }
@@ -79,6 +85,7 @@ export async function createWorkbook(outputPath) {
   const preview = await workbook.render({ sheetName: "Forecast", autoCrop: "all", format: "svg" });
   assert.match(await preview.text(), /Revenue trend/);
   assert.match(await preview.text(), /data-trendline-type="linear"/);
+  assert.match(await preview.text(), /data-error-bars-series="0"/);
 
   const first = await SpreadsheetFile.exportXlsx(workbook);
   const firstZip = await JSZip.loadAsync(first.bytes);
@@ -86,6 +93,7 @@ export async function createWorkbook(outputPath) {
   assert.ok(chartPath);
   const chartXml = await firstZip.file(chartPath).async("text");
   assert.deepEqual([...chartXml.matchAll(/<c:trendlineType val="([^"]+)"\s*\/>/g)].map((match) => match[1]), ["linear", "movingAvg", "poly"]);
+  assert.match(chartXml, /<c:errValType val="percentage"\s*\/>[\s\S]*?<c:val val="8"\s*\/>/);
   const imported = await SpreadsheetFile.importXlsx(first);
   const importedForecast = imported.worksheets.getItem("Forecast");
   assert.deepEqual(importedForecast.getRange("B3:B5").formulas, [
@@ -94,15 +102,28 @@ export async function createWorkbook(outputPath) {
     ["=B4*(1+'Assumptions'!$B$2)"],
   ]);
   const importedTrendlines = importedForecast.charts.items[0].series.items[0].trendlines;
+  const importedErrorBars = importedForecast.charts.items[0].series.items[0].errorBars;
   assert.deepEqual(importedTrendlines.map((trendline) => trendline.type), ["linear", "movingAvg", "poly"]);
+  assert.deepEqual(importedErrorBars, {
+    direction: "y",
+    type: "both",
+    valueType: "percentage",
+    value: 8,
+    noEndCap: true,
+    line: { fill: "#DC2626", style: "dotted", width: 1.25 },
+  });
   importedTrendlines[0].name = "Updated revenue projection";
   importedTrendlines[0].forward = 1.5;
+  importedErrorBars.value = 12;
+  importedErrorBars.line.fill = "#BE123C";
   importedForecast.getRange("A1:D5").getColumn(3).setNumberFormat("0.00%");
   const final = await SpreadsheetFile.exportXlsx(imported);
   const roundTrip = await SpreadsheetFile.importXlsx(final);
   assert.equal(roundTrip.worksheets.getItem("Forecast").getRange("D3").format.numberFormat, "0.00%");
   assert.equal(roundTrip.worksheets.getItem("Forecast").charts.items[0].series.items[0].trendlines[0].name, "Updated revenue projection");
   assert.equal(roundTrip.worksheets.getItem("Forecast").charts.items[0].series.items[0].trendlines[0].forward, 1.5);
+  assert.equal(roundTrip.worksheets.getItem("Forecast").charts.items[0].series.items[0].errorBars.value, 12);
+  assert.equal(roundTrip.worksheets.getItem("Forecast").charts.items[0].series.items[0].errorBars.line.fill, "#BE123C");
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await final.save(outputPath);

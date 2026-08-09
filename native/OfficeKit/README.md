@@ -93,9 +93,15 @@ pair for every line. Bars stay primary; all lines must share one axis group.
 Bar and line members share the same bounded native trendline codec as ordinary
 PPTX and XLSX ChartSpace series: six fit types, fixed imported count, bounded
 forecasts/flags/RGB line, and opaque preservation of labels, extensions, unknown
-children, or complex line graphs. External data, mixed line groups, secondary
-bars, per-series labels/point overrides, smooth lines, error bars, and irregular
-mixed plots remain opaque-preserved or fail closed.
+children, or complex line graphs. They also share one bounded native `c:errBars`
+codec: X/Y direction, both/minus/plus sides, fixed/percentage/standard-
+deviation/standard-error/custom value semantics, cap presence, literal or XLSX
+formula/cache data, and a simple RGB line. Imported error-bar presence is fixed;
+duplicate/extension/unknown/complex graphs remain opaque. PPTX rejects
+formula-backed custom error bars unless an explicit embedded-workbook route is
+modeled. Other external data, mixed line groups, secondary bars, per-series
+labels/point overrides, smooth lines, and irregular mixed plots remain
+opaque-preserved or fail closed.
 
 The other canonical PPTX chart families are equally bounded. Bar, line, pie,
 standard area, and 50%-hole doughnut use literal categories and finite caches;

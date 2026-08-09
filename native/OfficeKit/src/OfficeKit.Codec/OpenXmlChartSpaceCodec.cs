@@ -169,6 +169,7 @@ internal static class OpenXmlChartSpaceCodec
         editable &= XlsxChartSeriesLineStyleCodec.TryRead(source, series, chartType);
         editable &= XlsxChartSeriesMarkerCodec.TryRead(source, series, chartType);
         editable &= OpenXmlChartTrendlineCodec.TryRead(source, series, chartType);
+        editable &= OpenXmlChartErrorBarsCodec.TryRead(source, series, chartType);
         return true;
     }
 
@@ -180,7 +181,8 @@ internal static class OpenXmlChartSpaceCodec
             new XElement(ChartNs + "tx", new XElement(ChartNs + "v", series.Name)),
             XlsxChartSeriesStyleCodec.PropertiesElement(series, markerOnly: chartType == SpreadsheetChartType.Scatter),
             XlsxChartSeriesMarkerCodec.Element(series.Marker),
-            OpenXmlChartTrendlineCodec.Elements(series.Trendlines));
+            OpenXmlChartTrendlineCodec.Elements(series.Trendlines),
+            OpenXmlChartErrorBarsCodec.Element(series.ErrorBars));
         if (UsesNumericXAxis(chartType))
         {
             output.Add(new XElement(ChartNs + "xVal", NumericData(series.XValues, series.XValueFormula)), new XElement(ChartNs + "yVal", NumericData(series.Values, series.ValueFormula)));
@@ -222,6 +224,7 @@ internal static class OpenXmlChartSpaceCodec
         XlsxChartSeriesLineStyleCodec.Patch(native, target, markerOnly: chartType == SpreadsheetChartType.Scatter);
         XlsxChartSeriesMarkerCodec.Patch(native, target);
         OpenXmlChartTrendlineCodec.Patch(native, target, errorCode, subject);
+        OpenXmlChartErrorBarsCodec.Patch(native, target, errorCode, subject);
         if (UsesNumericXAxis(chartType))
         {
             PatchNumericData(native.Element(ChartNs + "xVal"), target.XValues, target.XValueFormula, errorCode, subject);

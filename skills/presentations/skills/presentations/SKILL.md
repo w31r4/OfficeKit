@@ -153,13 +153,15 @@ For native charts, read `artifact_tool/api/references/charts.spec.md` before
 authoring or editing. Canonical OfficeKit output covers literal bar, line,
 pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D
 bubble, the documented clustered bar+line combo, and bounded trendlines on
-bar/line series. Use `examples/officekit-chart-families-workflow.mjs` as the
+bar/line series plus one bounded native error-bar projection per bar/line
+series. Use `examples/officekit-chart-families-workflow.mjs` as the
 Agent-facing chart-family pattern and
-`examples/officekit-chart-trendline-workflow.mjs` for trendline
+`examples/officekit-chart-trendline-workflow.mjs` for trendline/error-bar
 author/import/edit/reimport/render/audit. Inspect an imported ChartPart
 before mutation, keep its supported topology fixed, render the final slide, and
-let formula-backed, external-workbook, connected, or advanced chart graphs fail
-closed instead of rebuilding them from visible caches.
+let formula-backed custom error bars without an explicit embedded-workbook
+route, external-workbook, connected, or advanced chart graphs fail closed
+instead of rebuilding them from visible caches.
 
 For slide backgrounds, use the typed `slide.setBackground(...)` and
 `slide.clearBackground()` primitives documented in

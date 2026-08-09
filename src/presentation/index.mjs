@@ -19,6 +19,7 @@ import { createNativePresentationObjectClass } from "./native-objects.mjs";
 import { normalizePresentationChartAxisGroup, normalizePresentationChartDataLabels, normalizePresentationChartErrorBars, normalizePresentationChartSeriesStyle, normalizePresentationChartStyle, normalizePresentationChartTrendlines } from "./ooxml-charts.mjs";
 import { normalizePresentationChartExternalData, presentationChartUsesFormulaReferences } from "./ooxml-chart-data.mjs";
 import { presentationChartLineSvgAttributes, presentationChartTrendlinesSvg } from "./chart-trendline-svg.mjs";
+import { chartErrorBarMagnitudes } from "../shared/chart-error-bars.mjs";
 import { planPresentationCustomShows, PresentationCustomShowCollection } from "./ooxml-custom-shows.mjs";
 import { planPresentationSections, PresentationSectionCollection } from "./ooxml-sections.mjs";
 import { SlideTransition } from "./ooxml-transitions.mjs";
@@ -1692,23 +1693,21 @@ function presentationChartDataLabelText(dataLabels, category, value, context = {
   ].filter((item) => item != null && item !== "").map(String).join(": ");
 }
 
-function presentationChartErrorBarsSvg(series, points, plot, max) {
+function presentationChartErrorBarsSvg(series, points, plot, max, seriesIndex = 0, magnitudeDivisors, xValueAxis = false) {
   const errorBars = series.errorBars;
   if (!errorBars || !points.length) return "";
-  const numericValues = (series.values || []).map(Number).filter(Number.isFinite);
-  const mean = numericValues.reduce((sum, value) => sum + value, 0) / Math.max(1, numericValues.length);
-  const deviation = Math.sqrt(numericValues.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(1, numericValues.length));
-  const magnitudeFor = (value, index, side) => errorBars.valueType === "cust" ? Number(errorBars[`${side}Values`]?.[index]) || 0
-    : errorBars.valueType === "percentage" ? Math.abs(Number(value) || 0) * (errorBars.value || 0) / 100
-    : errorBars.valueType === "stdDev" ? deviation * (errorBars.value || 1)
-      : errorBars.valueType === "stdErr" ? deviation / Math.sqrt(Math.max(1, numericValues.length))
-        : errorBars.value || 0;
+  const magnitudes = chartErrorBarMagnitudes(series.values || [], errorBars);
   const attributes = presentationChartLineSvgAttributes(errorBars.line || { fill: series.color || "#475569", width: 1, style: "solid" });
   return points.map((point, index) => {
     const pointIndex = point.index ?? index;
-    const scale = (errorBars.direction === "x" ? plot.width : plot.height) / Math.max(1, max);
-    const minus = errorBars.type !== "plus" ? magnitudeFor(series.values?.[pointIndex], pointIndex, "minus") * scale : 0;
-    const plus = errorBars.type !== "minus" ? magnitudeFor(series.values?.[pointIndex], pointIndex, "plus") * scale : 0;
+    const scale = errorBars.direction === "x"
+      ? xValueAxis
+        ? plot.width / Math.max(1, max)
+        : plot.width / Math.max(1, series.values?.length || 0)
+      : plot.height / Math.max(1, max);
+    const divisor = Number(magnitudeDivisors?.[pointIndex]) || 1;
+    const minus = (magnitudes[pointIndex]?.minus || 0) / divisor * scale;
+    const plus = (magnitudes[pointIndex]?.plus || 0) / divisor * scale;
     const x1 = errorBars.direction === "x" ? point.x - minus : point.x;
     const x2 = errorBars.direction === "x" ? point.x + plus : point.x;
     const y1 = errorBars.direction === "y" ? point.y + minus : point.y;
@@ -1716,7 +1715,7 @@ function presentationChartErrorBarsSvg(series, points, plot, max) {
     const caps = errorBars.noEndCap ? "" : errorBars.direction === "x"
       ? `${minus > 0 ? `<line x1="${x1}" y1="${point.y - 4}" x2="${x1}" y2="${point.y + 4}"${attributes}/>` : ""}${plus > 0 ? `<line x1="${x2}" y1="${point.y - 4}" x2="${x2}" y2="${point.y + 4}"${attributes}/>` : ""}`
       : `${minus > 0 ? `<line x1="${point.x - 4}" y1="${y1}" x2="${point.x + 4}" y2="${y1}"${attributes}/>` : ""}${plus > 0 ? `<line x1="${point.x - 4}" y1="${y2}" x2="${point.x + 4}" y2="${y2}"${attributes}/>` : ""}`;
-    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${attributes}/>${caps}`;
+    return `<line data-error-bars-series="${seriesIndex}" data-error-bars-index="${pointIndex}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${attributes}/>${caps}`;
   }).join("");
 }
 
@@ -1772,6 +1771,7 @@ export class ChartElement {
     const lineSeries = this.chartType === "combo" ? this.series.filter((series) => series.chartType === "line") : this.chartType === "line" ? this.series : [];
     const stackedBars = barSeries.length > 0 && this.barOptions.grouping !== "clustered";
     const stackedLines = lineSeries.length > 0 && this.lineOptions.grouping !== "standard";
+    const horizontal = barSeries.length > 0 && this.barOptions.direction === "bar";
     const forAxisGroup = (series, axisGroup) => series.filter((item) => (item.axisGroup || "primary") === axisGroup);
     const stackedTotals = (series) => categories.map((_, categoryIndex) => series.reduce((sum, item) => sum + Math.max(0, Number(item.values?.[categoryIndex]) || 0), 0));
     const barByAxis = { primary: forAxisGroup(barSeries, "primary"), secondary: forAxisGroup(barSeries, "secondary") };
@@ -1781,6 +1781,20 @@ export class ChartElement {
     const groupMax = (series, stacked, stackedValues, percentStacked) => percentStacked
       ? 1
       : Math.max(0, ...(stacked ? stackedValues : series.flatMap((item) => item.values || []).map((value) => Math.max(0, Number(value) || 0))));
+    const groupErrorBarMax = (series, stacked, percentStacked, numericDirection) => {
+      const totals = stackedTotals(series);
+      return Math.max(0, ...series.flatMap((item, seriesIndex) => {
+        if (item.errorBars?.direction !== numericDirection) return [];
+        const magnitudes = chartErrorBarMagnitudes(item.values || [], item.errorBars);
+        return (item.values || []).map((rawValue, pointIndex) => {
+          const base = stacked
+            ? series.slice(0, seriesIndex + 1).reduce((sum, candidate) => sum + Math.max(0, Number(candidate.values?.[pointIndex]) || 0), 0)
+            : Math.max(0, Number(rawValue) || 0);
+          const divisor = percentStacked ? totals[pointIndex] || 1 : 1;
+          return (base + (magnitudes[pointIndex]?.plus || 0)) / divisor;
+        });
+      }));
+    };
     const barMax = {
       primary: groupMax(barByAxis.primary, stackedBars, barStackedMax.primary, this.barOptions?.grouping === "percentStacked"),
       secondary: groupMax(barByAxis.secondary, stackedBars, barStackedMax.secondary, this.barOptions?.grouping === "percentStacked"),
@@ -1789,11 +1803,21 @@ export class ChartElement {
       primary: groupMax(lineByAxis.primary, stackedLines, lineStackedMax.primary, this.lineOptions?.grouping === "percentStacked"),
       secondary: groupMax(lineByAxis.secondary, stackedLines, lineStackedMax.secondary, this.lineOptions?.grouping === "percentStacked"),
     };
-    const maxForAxisGroup = (axisGroup) => Math.max(
-      1,
-      barMax[axisGroup],
-      lineMax[axisGroup],
-    );
+    const errorBarMax = {
+      primary: Math.max(
+        groupErrorBarMax(barByAxis.primary, stackedBars, this.barOptions?.grouping === "percentStacked", horizontal ? "x" : "y"),
+        groupErrorBarMax(lineByAxis.primary, stackedLines, this.lineOptions?.grouping === "percentStacked", "y"),
+      ),
+      secondary: Math.max(
+        groupErrorBarMax(barByAxis.secondary, stackedBars, this.barOptions?.grouping === "percentStacked", horizontal ? "x" : "y"),
+        groupErrorBarMax(lineByAxis.secondary, stackedLines, this.lineOptions?.grouping === "percentStacked", "y"),
+      ),
+    };
+    const maxForAxisGroup = (axisGroup) => {
+      const dataMaximum = Math.max(1, barMax[axisGroup], lineMax[axisGroup]);
+      const errorMaximum = errorBarMax[axisGroup];
+      return errorMaximum > dataMaximum ? errorMaximum * 1.08 : dataMaximum;
+    };
     const primaryMax = maxForAxisGroup("primary");
     const secondaryMax = maxForAxisGroup("secondary");
     const hasSecondary = this.series.some((series) => series.axisGroup === "secondary");
@@ -1893,9 +1917,8 @@ export class ChartElement {
           const label = presentationChartDataLabelText(effectiveLabels, categories[index], series.values?.[index]);
           return label ? `<text x="${point.x + 4}" y="${point.y - 4}" font-family="Arial" font-size="9" fill="#334155">${xmlEscape(label)}</text>` : "";
         }).join("");
-        return `${line}${presentationChartErrorBarsSvg(series, points, plot, seriesMax)}${points.map((point, index) => presentationChartMarkerSvg(marker, point.x, point.y, resolveColorToken(series.points?.find((item) => item.idx === index)?.fill || color, color))).join("")}${labels}`;
+        return `${line}${presentationChartErrorBarsSvg(series, points, plot, seriesMax, this.series.indexOf(series), this.lineOptions.grouping === "percentStacked" ? lineStackedMax[axisGroup] : undefined)}${points.map((point, index) => presentationChartMarkerSvg(marker, point.x, point.y, resolveColorToken(series.points?.find((item) => item.idx === index)?.fill || color, color))).join("")}${labels}`;
       }).join("");
-    const horizontal = barSeries.length > 0 && this.barOptions.direction === "bar";
     const barBody = (() => {
       const groupExtent = categories.length ? (horizontal ? plot.height : plot.width) / categories.length : 0;
       const gapRatio = Math.max(0.12, 100 / (100 + this.barOptions.gapWidth));
@@ -1918,14 +1941,14 @@ export class ChartElement {
           const x = plot.left + (stackedBars ? plot.width * offset : 0);
           const y = plot.top + categoryIndex * groupExtent + (stackedBars ? (groupExtent - barExtent) / 2 : (groupExtent - barExtent * barSeries.length) / 2 + seriesIndex * barExtent);
           const label = labelText ? `<text x="${x + width + 3}" y="${y + barExtent - 2}" font-family="Arial" font-size="9" fill="#334155">${xmlEscape(labelText)}</text>` : "";
-          const errorBars = presentationChartErrorBarsSvg(series, [{ x: x + width, y: y + Math.max(1, barExtent - 2) / 2, index: categoryIndex }], plot, seriesMax);
+          const errorBars = presentationChartErrorBarsSvg(series, [{ x: x + width, y: y + Math.max(1, barExtent - 2) / 2, index: categoryIndex }], plot, seriesMax, this.series.indexOf(series), this.barOptions.grouping === "percentStacked" ? barStackedMax[axisGroup] : undefined, true);
           return `<rect x="${x}" y="${y}" width="${width}" height="${Math.max(1, barExtent - 2)}" fill="${color}"${stroke}/>${errorBars}${label}`;
         }
         const height = plot.height * ratio;
         const x = plot.left + categoryIndex * groupExtent + (stackedBars ? (groupExtent - barExtent) / 2 : (groupExtent - barExtent * barSeries.length) / 2 + seriesIndex * barExtent);
         const y = plot.top + plot.height - height - (stackedBars ? plot.height * offset : 0);
         const label = labelText ? `<text x="${x}" y="${y - 4}" font-family="Arial" font-size="9" fill="#334155">${xmlEscape(labelText)}</text>` : "";
-        const errorBars = presentationChartErrorBarsSvg(series, [{ x: x + Math.max(1, barExtent - 2) / 2, y, index: categoryIndex }], plot, seriesMax);
+        const errorBars = presentationChartErrorBarsSvg(series, [{ x: x + Math.max(1, barExtent - 2) / 2, y, index: categoryIndex }], plot, seriesMax, this.series.indexOf(series), this.barOptions.grouping === "percentStacked" ? barStackedMax[axisGroup] : undefined);
         return `<rect x="${x}" y="${y}" width="${Math.max(1, barExtent - 2)}" height="${height}" fill="${color}"${stroke}/>${errorBars}${label}`;
       })).join("");
     })();

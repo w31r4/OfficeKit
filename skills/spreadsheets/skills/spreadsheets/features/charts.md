@@ -35,6 +35,18 @@ native labels, extensions, theme/complex line graphs, or other unmodeled
 children remain source-owned and make the chart read-only instead of being
 flattened.
 
+Bar and line series may also carry one native error-bar projection. Use the
+reference-shaped `type: "standardError" | "percentage" |
+"standardDeviation" | "none"` form for simple work, or the canonical
+`direction`, `type: "both" | "minus" | "plus"`, and `valueType` fields when
+you need fixed, percentage, standard-deviation, standard-error, or custom
+one-/two-sided semantics. Custom XLSX error bars may bind a formula and an
+exact-count non-negative cache for each active side. Imported presence is
+fixed; extensions, unknown children, malformed caches, and complex line graphs
+make the chart read-only. State what the error bars measure, and render-check
+that they remain legible and are not confused with confidence intervals unless
+that is actually what the data represents.
+
 1. Choose the takeaway and most suitable chart type for the data.
 Examples below are guidance, not hard rules:
 - For category comparison or ranking, consider a sorted bar/column chart.
@@ -70,6 +82,7 @@ Prefer the chart that makes the intended takeaway easiest to see, even if it dif
 - Use data labels only when exact values matter or the axis is hard to read.
 - Do not label every point in dense line charts.
 - If a fitted trendline is useful, keep the observed series visible, name the fit, and render-check that extrapolation does not dominate or clip the plot.
+- If error bars are useful, disclose whether they represent a fixed amount, percentage, standard deviation, standard error, or explicit custom values; do not relabel one mode as another.
 - Prefer direct series labels for a few series; use legends only when needed and place them where they do not crowd the plot.
 
 5. Use restrained chart design

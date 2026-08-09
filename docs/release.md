@@ -2,11 +2,56 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after adding the shared XLSX/PPTX native trendline
-profile. The clean candidate contains 712 files, 36,186,313 compressed bytes,
-and 53,232,488 unpacked bytes; its measured shasum is
-`55f45073c6cb39206685cb359491fcf8da9ca9b5`. This is package evidence, not an
+The package dry-run passed after adding the shared XLSX/PPTX native error-bar
+profile. The clean candidate contains 714 files, 36,199,581 compressed bytes,
+and 53,293,717 unpacked bytes; its measured shasum is
+`f78b111b23734ac7b7fdfbf8e8865c696048d85c`. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: shared XLSX/PPTX native error bars
+
+OfficeKit now models one bounded DrawingML `c:errBars` contract for bar and
+line series in both Spreadsheet and Presentation ChartParts, including the
+canonical PPTX combo members. The contract preserves X/Y direction,
+both/minus/plus sides, fixed-value, percentage, standard-deviation,
+standard-error, or custom semantics, end-cap policy, exact custom caches, and
+a bounded RGB line. Reference-shaped `standardError`, `percentage`,
+`standardDeviation`, `none`, and `cap`/`noCap` inputs normalize into that one
+canonical state.
+
+The additive protocol-v2 change appends
+`SpreadsheetChartSeriesArtifact.error_bars` plus three enums and two messages
+without changing the wire version or any existing field number.
+`src/shared/chart-error-bars.mjs` owns validation and preview magnitudes;
+`OpenXmlChartErrorBarsCodec` owns package-independent native XML used by XLSX
+and PPTX. Spreadsheet may retain a custom formula plus exact numeric cache.
+Presentation accepts custom literals but rejects formula-backed sides unless a
+separately modeled embedded-workbook route exists.
+
+Source-free authoring, semantic import, fixed-presence source-bound edits,
+second import, error-bar-aware SVG, native XML inventory, Open XML SDK Office
+2021 validation, and the runnable Spreadsheet and Presentation workflows share
+the same contract. The Presentation renderer includes error-bar extents in the
+axis scale and emits stable series/point locators for Agent QA. Duplicate
+nodes, extensions, unknown children, malformed caches, or complex/theme line
+graphs leave the entire imported chart source-owned; no adapter drops them or
+reconstructs the ChartPart from visible values.
+
+Local gates passed: fast tests 26/26, slow tests 75/75, OfficeKit Codec .NET
+tests 395/395, OfficeBridge tests 5/5, protobuf lint/regeneration,
+generated Help/API docs, reference Skill sync/portability, deterministic WASM
+rebuild, clean-install package smoke, and `test:pack`. The rebuilt runtime
+contains 38 files and 15,308,011 bytes; reproducibility compared 39 build
+outputs. Managed provider live downloads and explicitly configured real
+pypdf, pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python environments
+were not enabled; their offline control-plane/contract tests ran and the
+environment-gated paths reported skips.
+
+The offline `release:check --skip-commands --skip-network` metadata audit also
+passed the AGPL project license, 105-package third-party policy, package
+metadata, and all three standalone-release target pins. The fresh registry
+check still found no publish authority: `npm whoami` returned `ENEEDAUTH`, while
+`npm view office-kit` returned `E404`. No publish command was run.
 
 ## Unreleased: shared XLSX/PPTX native trendlines
 

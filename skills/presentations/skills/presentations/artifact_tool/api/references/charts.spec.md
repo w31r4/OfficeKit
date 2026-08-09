@@ -27,15 +27,17 @@ OfficeKit PPTX creation/import/edit is deliberately narrower:
 - These profiles permit title, legend, basic fill/line styling, markers only on
   line and scatter series, chart-level data labels, and bounded primary axes
   where the family has axes. Bar and line series, including combo members,
-  additionally permit the bounded trendline profile below. Their
-  plot/series/point/trendline-count topology is fixed after import.
+  additionally permit the bounded trendline and error-bar profiles below.
+  Their plot/series/point/trendline-count/error-bar-presence topology is fixed
+  after import.
 - PPTX charts are literal-data ChartParts. Formula references, external or
   embedded workbooks, stacked area, non-50% doughnut geometry, connected or
   smooth scatter, bubble 3D/negative/custom-scale semantics, mixed
   primary/secondary combo line groups, secondary bars, point overrides,
   per-series data labels, trendline labels/extensions/complex line graphs,
-  error bars, and other chart families fail closed or remain source-bound. Do
-  not re-create an irregular imported chart
+  formula-backed custom error bars without an explicit embedded-workbook route,
+  error-bar extensions/complex line graphs, and other chart families fail
+  closed or remain source-bound. Do not re-create an irregular imported chart
   from its visible values and claim it was preserved.
 
 Use `inspect` before editing an imported chart, make the smallest supported
@@ -52,7 +54,8 @@ edits one semantic field in each family, exports and imports a second time, and
 writes a real Playwright PNG plus a source/output-bound audit.
 
 `examples/officekit-chart-trendline-workflow.mjs` performs the same audited
-author/import/edit/reimport/render loop for line and combo trendlines.
+author/import/edit/reimport/render loop for line/combo trendlines and bounded
+standard-deviation/custom-literal error bars.
 
 ### Bounded bar/line trendlines
 
@@ -86,6 +89,44 @@ Do not add or remove trendlines after import. If a native trendline contains a
 label, extension, unknown child, non-RGB/theme color, or complex line graph,
 OfficeKit retains the original ChartPart but does not expose a lossy editable
 projection.
+
+### Bounded bar/line error bars
+
+Each bar or line series, including a combo member, accepts at most one native
+`c:errBars` projection. The reference-compatible shorthand is:
+
+```ts
+errorBars: {
+  type: "standardError" | "percentage" | "standardDeviation" | "none";
+  value?: number;
+  endStyle?: "cap" | "noCap";
+  line?: LineConfig;
+}
+```
+
+The compatibility-superset form exposes the underlying bounded semantics:
+
+```ts
+errorBars: {
+  direction?: "x" | "y";                 // default y
+  type?: "both" | "minus" | "plus";     // default both
+  valueType?: "fixedVal" | "percentage" | "stdDev" | "stdErr" | "cust";
+  value?: number;                         // not valid for stdErr or cust
+  noEndCap?: boolean;
+  plusValues?: number[];
+  minusValues?: number[];
+  line?: LineConfig;
+}
+```
+
+Custom literal arrays must be non-negative and exactly match the series point
+count; provide only the sides admitted by `type`. PPTX formula-backed
+`plusFormula`/`minusFormula` data is rejected by the native literal ChartPart
+path because OfficeKit does not invent an embedded workbook relationship.
+Imported error-bar presence is fixed, but its bounded value, cap, side-cache,
+and line fields can be edited in place. Duplicate nodes, extensions, unknown
+children, malformed caches, or theme/complex line graphs preserve the original
+ChartPart and make it read-only rather than being partially projected.
 
 ### Canonical secondary-line combo
 
@@ -266,7 +307,18 @@ type ChartSeriesConfig = {
     displayRSquared?: boolean;
     line?: LineConfig;
   }>;
-  errorBars?: { type?: "standardError" | "percentage" | "standardDeviation" | "none"; value?: number; endStyle?: "cap" | "noCap"; line?: LineConfig };
+  errorBars?: {
+    direction?: "x" | "y";
+    type?: "both" | "minus" | "plus" | "standardError" | "percentage" | "standardDeviation" | "none";
+    errorBarType?: "both" | "minus" | "plus";
+    valueType?: "fixedVal" | "percentage" | "stdDev" | "stdErr" | "cust";
+    value?: number;
+    noEndCap?: boolean;
+    endStyle?: "cap" | "noCap";
+    plusValues?: number[];
+    minusValues?: number[];
+    line?: LineConfig;
+  };
   valuesFormatCode?: string;
   xValuesFormatCode?: string;
 };

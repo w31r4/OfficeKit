@@ -1835,6 +1835,12 @@ chartSlide.charts.add("line", {
       { type: "movingAverage", name: "Pass moving average", period: 2 },
       { type: "polynomial", name: "Pass curve", order: 2 },
     ],
+    errorBars: {
+      type: "standardDeviation",
+      value: 1.5,
+      endStyle: "noCap",
+      line: { fill: "#DC2626", width: 1.25, style: "dot" },
+    },
   }],
   legend: false,
 });
@@ -1864,6 +1870,7 @@ comboSlide.charts.add("combo", {
       line: { fill: "#16A34A", width: 2 },
       marker: { symbol: "circle", size: 7, fill: "#16A34A" },
       trendlines: [{ type: "exp", name: "Margin projection", forward: 0.5, line: { fill: "#F97316", width: 1.5, style: "dot" } }],
+      errorBars: { type: "minus", valueType: "custom", minusValues: [1, 2, 1], line: { fill: "#EA580C", width: 1 } },
     },
   ],
   legend: true,
@@ -1874,6 +1881,8 @@ assert.match(chartSlide.toSvg(), /data-trendline-type="linear"/);
 assert.match(chartSlide.toSvg(), /data-trendline-type="movingAvg"/);
 assert.match(chartSlide.toSvg(), /data-trendline-type="poly"/);
 assert.match(comboSlide.toSvg(), /data-trendline-type="exp"/);
+assert.match(chartSlide.toSvg(), /data-error-bars-series="0"/);
+assert.match(comboSlide.toSvg(), /data-error-bars-series="1"/);
 const secondaryAxisCombo = Presentation.create({ slideSize: { width: 640, height: 360 } });
 const secondaryAxisSlide = secondaryAxisCombo.slides.add({ name: "Secondary-axis combo" });
 secondaryAxisSlide.charts.add("combo", {
@@ -1997,8 +2006,39 @@ assert.throws(() => chartFamilySlide.charts.add("bubble", { series: [{ name: "In
 assert.throws(() => chartFamilySlide.charts.add("doughnut", { categories: ["A"], series: [{ name: "Invalid", values: [1] }], xAxis: { title: "Invalid" } }), /cannot carry axes/i);
 assert.throws(() => chartFamilySlide.charts.add("area", { categories: ["A"], series: [{ name: "Invalid marker", values: [1], marker: { symbol: "circle" } }] }), /area series 1 cannot carry a marker/i);
 assert.throws(() => chartFamilySlide.charts.add("area", { categories: ["A", "B"], series: [{ name: "Invalid trendline", values: [1, 2], trendlines: [{ type: "linear" }] }] }), /trendlines are supported only for bar and line series/i);
+assert.throws(() => chartFamilySlide.charts.add("area", { categories: ["A", "B"], series: [{ name: "Invalid error bars", values: [1, 2], errorBars: { type: "percentage", value: 5 } }] }), /errorBars are supported only for bar and line series/i);
+assert.throws(() => chartFamilySlide.charts.add("line", { categories: ["A", "B"], series: [{ name: "Invalid custom error bars", values: [1, 2], errorBars: { valueType: "custom", plusValues: [1, 2] } }] }), /minus requires literal values or a formula/i);
+assert.throws(() => chartFamilySlide.charts.add("line", { categories: ["A", "B"], series: [{ name: "Unknown error-bar field", values: [1, 2], errorBars: { type: "percentage", value: 5, confidence: 0.95 } }] }), /unsupported fields: confidence/i);
 assert.throws(() => chartFamilySlide.charts.add("line", { categories: ["A", "B"], series: [{ name: "Short average", values: [1, 2], trendlines: [{ type: "movingAvg", period: 2 }] }] }), /require at least three series values/i);
 assert.throws(() => chartFamilySlide.charts.add("line", { categories: ["A", "B", "C"], series: [{ name: "Fractional forecast", values: [1, 2, 3], trendlines: [{ type: "linear", forward: 0.25 }] }] }), /must use 0\.5 increments/i);
+const formulaErrorBarDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+formulaErrorBarDeck.slides.add().charts.add("line", {
+  categories: ["A", "B"],
+  externalData: new Uint8Array([0x50, 0x4b, 0x03, 0x04]),
+  series: [{
+    name: "Formula-backed uncertainty",
+    values: [1, 2],
+    errorBars: {
+      valueType: "custom",
+      plusFormula: "Sheet1!$A$1:$A$2",
+      minusValues: [0.5, 0.5],
+    },
+  }],
+});
+await assert.rejects(
+  PresentationFile.exportPptx(formulaErrorBarDeck),
+  /series\[0\]\.errorBars\.plusFormula requires an embedded workbook path/i,
+);
+const horizontalErrorBarDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const horizontalErrorBarChart = horizontalErrorBarDeck.slides.add().charts.add("bar", {
+  categories: ["A", "B"],
+  barOptions: { direction: "horizontal" },
+  series: [{ name: "Horizontal uncertainty", values: [40, 60], errorBars: { direction: "x", valueType: "fixedVal", value: 10 } }],
+});
+const horizontalErrorBarMark = /<line data-error-bars-series="0" data-error-bars-index="0" x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="([^"]+)"/.exec(horizontalErrorBarChart.toSvg());
+assert.ok(horizontalErrorBarMark);
+assert.notEqual(horizontalErrorBarMark[1], horizontalErrorBarMark[3]);
+assert.equal(horizontalErrorBarMark[2], horizontalErrorBarMark[4]);
 const scatterLineDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
 scatterLineDeck.slides.add().charts.add("scatter", { series: [{ name: "Invalid line", xValues: [1, 2], values: [2, 3], line: { fill: "#000000", width: 1 } }] });
 await assert.rejects(PresentationFile.exportPptx(scatterLineDeck), /marker-scatter.*cannot carry a series line/i);
@@ -2044,6 +2084,13 @@ itemByName(changedPresentationTrendlineTopology.slides.getItem(1).charts.items, 
 await assert.rejects(
   () => PresentationFile.exportPptx(changedPresentationTrendlineTopology),
   (error) => error?.code === "presentation_chart_topology_changed" && /cannot change its imported trendline count/i.test(error.message),
+);
+
+const changedPresentationErrorBarTopology = await PresentationFile.importPptx(firstExport);
+itemByName(changedPresentationErrorBarTopology.slides.getItem(1).charts.items, "line-chart").series[0].errorBars = undefined;
+await assert.rejects(
+  () => PresentationFile.exportPptx(changedPresentationErrorBarTopology),
+  (error) => error?.code === "presentation_chart_topology_changed" && /cannot add or remove imported error bars/i.test(error.message),
 );
 
 // Speaker notes use the same paragraph/run model as visible slide text, but
@@ -2906,11 +2953,14 @@ assert.equal((lineChartEntry.xml.match(/<c:trendline>/g) || []).length, 3);
 assert.deepEqual([...lineChartEntry.xml.matchAll(/<c:trendlineType val="([^"]+)"\s*\/>/g)].map((match) => match[1]), ["linear", "movingAvg", "poly"]);
 assert.match(lineChartEntry.xml, /<c:forward val="0\.5"\s*\/>/);
 assert.match(lineChartEntry.xml, /<c:dispEq val="1"\s*\/>/);
+assert.match(lineChartEntry.xml, /<c:errValType val="stdDev"\s*\/>[\s\S]*?<c:val val="1\.5"\s*\/>/);
+assert.match(lineChartEntry.xml, /<c:noEndCap val="1"\s*\/>/);
 const comboChartXml = authoredChartXml.find((xml) => xml.includes("Revenue and margin"));
 assert.ok(comboChartXml);
 assert.match(comboChartXml, /<c:barChart>/);
 assert.match(comboChartXml, /<c:lineChart>/);
 assert.match(comboChartXml, /<c:trendlineType val="exp"\s*\/>/);
+assert.match(comboChartXml, /<c:errBarType val="minus"\s*\/>[\s\S]*?<c:errValType val="cust"\s*\/>[\s\S]*?<c:minus><c:numLit>/);
 assert.match(comboChartXml, /<c:barChart>[\s\S]*?<c:axId val="1"\s*\/><c:axId val="2"\s*\/><\/c:barChart>/);
 assert.match(comboChartXml, /<c:lineChart>[\s\S]*?<c:axId val="1"\s*\/><c:axId val="2"\s*\/><\/c:lineChart>/);
 
@@ -2928,6 +2978,23 @@ assert.equal(await preservedTrendlineLabelZip.file(lineChartEntry.name).async("t
 preservedTrendlineLabelChart.title = "Forbidden trendline-label edit";
 await assert.rejects(
   () => PresentationFile.exportPptx(preservedTrendlineLabelDeck),
+  (error) => error?.code === "unsupported_presentation_edit" && /preserved but not safely editable/i.test(error.message),
+);
+
+const unsupportedErrorBarsXml = lineChartEntry.xml.replace("</c:errBars>", "<c:extLst/></c:errBars>");
+assert.notEqual(unsupportedErrorBarsXml, lineChartEntry.xml);
+const unsupportedErrorBarsSource = await PresentationFile.patchPptx(firstExport, [
+  { path: lineChartEntry.name, xml: unsupportedErrorBarsXml },
+]);
+const preservedErrorBarsDeck = await PresentationFile.importPptx(unsupportedErrorBarsSource);
+const preservedErrorBarsChart = itemByName(preservedErrorBarsDeck.slides.getItem(1).charts.items, "line-chart");
+assert.equal(preservedErrorBarsChart.series[0].errorBars, undefined);
+const preservedErrorBarsOutput = await PresentationFile.exportPptx(preservedErrorBarsDeck);
+const preservedErrorBarsZip = await JSZip.loadAsync(preservedErrorBarsOutput.bytes);
+assert.equal(await preservedErrorBarsZip.file(lineChartEntry.name).async("text"), unsupportedErrorBarsXml);
+preservedErrorBarsChart.title = "Forbidden error-bar extension edit";
+await assert.rejects(
+  () => PresentationFile.exportPptx(preservedErrorBarsDeck),
   (error) => error?.code === "unsupported_presentation_edit" && /preserved but not safely editable/i.test(error.message),
 );
 
@@ -3829,6 +3896,14 @@ assert.deepEqual(importedCharts[1].series[0].trendlines.map((trendline) => trend
 assert.equal(importedCharts[1].series[0].trendlines[0].name, "Pass projection");
 assert.equal(importedCharts[1].series[0].trendlines[0].displayRSquared, true);
 assert.equal(importedCharts[1].series[0].trendlines[0].line.fill, "#7C3AED");
+assert.deepEqual(importedCharts[1].series[0].errorBars, {
+  direction: "y",
+  type: "both",
+  valueType: "stdDev",
+  value: 1.5,
+  noEndCap: true,
+  line: { fill: "#DC2626", style: "dot", width: 1.25 },
+});
 assert.equal(importedCharts[2].dataLabels.showCategoryName, true);
 const importedCombo = itemByName(imported.slides.getItem(2).charts.items, "revenue-margin-combo");
 assert.equal(importedCombo.chartType, "combo");
@@ -3836,6 +3911,14 @@ assert.deepEqual(importedCombo.series.map((series) => series.chartType), ["bar",
 assert.equal(importedCombo.series[1].marker.symbol, "circle");
 assert.equal(importedCombo.series[1].trendlines[0].type, "exp");
 assert.equal(importedCombo.series[1].trendlines[0].name, "Margin projection");
+assert.deepEqual(importedCombo.series[1].errorBars, {
+  direction: "y",
+  type: "minus",
+  valueType: "cust",
+  minusValues: [1, 2, 1],
+  noEndCap: false,
+  line: { fill: "#EA580C", style: "solid", width: 1 },
+});
 assert.equal(importedCombo.dataLabels.showValue, true);
 assert.equal(importedCombo.dataLabels.position, "t");
 
@@ -3858,9 +3941,12 @@ importedBar.series[0].values = [80, 94, 88];
 importedCharts[1].series[0].trendlines[0].name = "Edited pass projection";
 importedCharts[1].series[0].trendlines[0].forward = 1.5;
 importedCharts[1].series[0].trendlines[0].line.fill = "#0EA5E9";
+importedCharts[1].series[0].errorBars.value = 2;
+importedCharts[1].series[0].errorBars.line.fill = "#BE123C";
 importedCombo.title = "Updated revenue and margin";
 importedCombo.series[1].values = [12, 16, 18];
 importedCombo.series[1].trendlines[0].name = "Edited margin projection";
+importedCombo.series[1].errorBars.minusValues[1] = 3;
 
 const secondExport = await PresentationFile.exportPptx(imported);
 assert.equal(secondExport.metadata.codec, "office-kit");
@@ -3891,6 +3977,8 @@ const secondChartXml = await Promise.all(Object.keys(secondZip.files)
   .map((name) => secondZip.file(name).async("text")));
 assert.ok(secondChartXml.some((xml) => xml.includes("Edited pass projection") && /<c:forward val="1\.5"\s*\/>/.test(xml)));
 assert.ok(secondChartXml.some((xml) => xml.includes("Edited margin projection") && /<c:trendlineType val="exp"\s*\/>/.test(xml)));
+assert.ok(secondChartXml.some((xml) => /<c:errValType val="stdDev"\s*\/>/.test(xml) && /<c:val val="2"\s*\/>/.test(xml)));
+assert.ok(secondChartXml.some((xml) => /<c:errBarType val="minus"\s*\/>/.test(xml) && />3<\//.test(xml)));
 assert.match(await secondZip.file("ppt/notesSlides/notesSlide1.xml").async("text"), /Lead with evidence/);
 assert.equal(Object.keys(secondZip.files).filter((name) => /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(name)).length, 2);
 assert.ok((await Promise.all(
@@ -3929,11 +4017,14 @@ const roundTripLine = itemByName(roundTrip.slides.getItem(1).charts.items, "line
 assert.equal(roundTripLine.series[0].trendlines[0].name, "Edited pass projection");
 assert.equal(roundTripLine.series[0].trendlines[0].forward, 1.5);
 assert.equal(roundTripLine.series[0].trendlines[0].line.fill, "#0EA5E9");
+assert.equal(roundTripLine.series[0].errorBars.value, 2);
+assert.equal(roundTripLine.series[0].errorBars.line.fill, "#BE123C");
 const roundTripCombo = itemByName(roundTrip.slides.getItem(2).charts.items, "revenue-margin-combo");
 assert.equal(roundTripCombo.title, "Updated revenue and margin");
 assert.deepEqual(roundTripCombo.series.map((series) => series.chartType), ["bar", "line"]);
 assert.deepEqual(roundTripCombo.series[1].values, [12, 16, 18]);
 assert.equal(roundTripCombo.series[1].trendlines[0].name, "Edited margin projection");
+assert.deepEqual(roundTripCombo.series[1].errorBars.minusValues, [1, 3, 1]);
 assert.equal(roundTrip.verify().ok, true);
 
 assert.equal(roundTripCore.clearBackground(), roundTripCore);

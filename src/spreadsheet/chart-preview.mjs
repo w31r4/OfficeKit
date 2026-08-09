@@ -3,8 +3,10 @@ import { normalizeSpreadsheetChartLineOptions, spreadsheetChartSmoothLinePath } 
 import { normalizeSpreadsheetChartSeriesLine, spreadsheetChartLineDashArray } from "./chart-line-style.mjs";
 import { normalizeSpreadsheetChartSeriesMarker, spreadsheetChartMarkerSvg } from "./chart-marker-style.mjs";
 import { normalizeSpreadsheetChartTrendlines } from "./chart-trendlines.mjs";
+import { normalizeSpreadsheetChartErrorBars } from "./chart-error-bars.mjs";
 import { resolvedWorksheetChartCategories, resolvedWorksheetChartSeriesBubbleSizes, resolvedWorksheetChartSeriesValues, resolvedWorksheetChartSeriesXValues } from "./chart-source-data.mjs";
 import { sampleChartTrendline } from "../shared/chart-trendlines.mjs";
+import { chartErrorBarMagnitudes } from "../shared/chart-error-bars.mjs";
 import { xmlEscape } from "../shared/xml.mjs";
 
 const PREVIEW_PALETTE = ["#38BDF8", "#F97316", "#22C55E", "#A855F7", "#E11D48", "#0F766E"];
@@ -26,6 +28,32 @@ function lineAttributes(series, index, fallbackWidth = 2) {
   return { fill, stroke, width, attributes: ` stroke="${stroke}" stroke-width="${width}"${dash ? ` stroke-dasharray="${dash}"` : ""}` };
 }
 
+function errorBarMarks(chart, series, points, plot, geometry, seriesIndex) {
+  const errorBars = normalizeSpreadsheetChartErrorBars(series?.errorBars, series?.values?.length, chart.type);
+  if (!errorBars || points.length === 0) return "";
+  const magnitudes = chartErrorBarMagnitudes(series.values || [], errorBars);
+  const span = Math.max(1e-12, geometry.maximum - geometry.minimum);
+  const scale = errorBars.direction === "x"
+    ? plot.width / Math.max(1, series.values?.length || 0)
+    : plot.height / span;
+  const fallback = lineAttributes(series, seriesIndex).stroke;
+  const line = errorBars.line || { fill: fallback, width: 1, style: "solid" };
+  const attributes = lineAttributes({ fill: fallback, line }, seriesIndex, 1).attributes;
+  return points.map((point, index) => {
+    const pointIndex = point.index ?? index;
+    const minus = (magnitudes[pointIndex]?.minus || 0) * scale;
+    const plus = (magnitudes[pointIndex]?.plus || 0) * scale;
+    const x1 = errorBars.direction === "x" ? point.x - minus : point.x;
+    const x2 = errorBars.direction === "x" ? point.x + plus : point.x;
+    const y1 = errorBars.direction === "y" ? point.y + minus : point.y;
+    const y2 = errorBars.direction === "y" ? point.y - plus : point.y;
+    const caps = errorBars.noEndCap ? "" : errorBars.direction === "x"
+      ? `${minus > 0 ? `<line x1="${x1}" y1="${point.y - 4}" x2="${x1}" y2="${point.y + 4}"${attributes}/>` : ""}${plus > 0 ? `<line x1="${x2}" y1="${point.y - 4}" x2="${x2}" y2="${point.y + 4}"${attributes}/>` : ""}`
+      : `${minus > 0 ? `<line x1="${point.x - 4}" y1="${y1}" x2="${point.x + 4}" y2="${y1}"${attributes}/>` : ""}${plus > 0 ? `<line x1="${point.x - 4}" y1="${y2}" x2="${point.x + 4}" y2="${y2}"${attributes}/>` : ""}`;
+    return `<line data-error-bars-series="${seriesIndex}" data-error-bars-index="${pointIndex}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${attributes}/>${caps}`;
+  }).join("");
+}
+
 function cartesianGeometry(chart, seriesItems, plot) {
   const lineOptions = normalizeSpreadsheetChartLineOptions(chart.lineOptions);
   const grouping = lineOptions?.grouping || "standard";
@@ -37,7 +65,13 @@ function cartesianGeometry(chart, seriesItems, plot) {
     const stacked = seriesItems.slice(0, seriesIndex + 1).reduce((total, item) => total + (Number(item.values?.[pointIndex]) || 0), 0);
     return grouping === "percentStacked" ? (totals[pointIndex] === 0 ? 0 : stacked / totals[pointIndex]) : stacked;
   }));
-  const allValues = values.flat();
+  const errorExtents = values.flatMap((seriesValues, seriesIndex) => {
+    const errorBars = normalizeSpreadsheetChartErrorBars(seriesItems[seriesIndex]?.errorBars, seriesItems[seriesIndex]?.values?.length, chart.type);
+    if (errorBars?.direction !== "y") return [];
+    const magnitudes = chartErrorBarMagnitudes(seriesItems[seriesIndex]?.values || [], errorBars);
+    return seriesValues.flatMap((value, pointIndex) => [value - (magnitudes[pointIndex]?.minus || 0), value + (magnitudes[pointIndex]?.plus || 0)]);
+  });
+  const allValues = [...values.flat(), ...errorExtents];
   const minimum = Math.min(0, ...allValues);
   const maximum = Math.max(1, ...allValues);
   const span = Math.max(1, maximum - minimum);
@@ -57,7 +91,8 @@ function barMarks(chart, categories, seriesItems, dataLabels, plot, geometry) {
     const height = Math.abs(geometry.baseline - valueY);
     const label = spreadsheetChartDataLabelText(dataLabels, categories[index], value, { seriesName: seriesItems[0]?.name });
     const placement = spreadsheetChartDataLabelSvgPlacement(dataLabels, { x, y, width: barWidth, height, baseY: geometry.baseline, plotTop: plot.top });
-    return `<rect x="${x}" y="${y}" width="${barWidth}" height="${height}" fill="${style.fill}"${normalizeSpreadsheetChartSeriesLine(seriesItems[0]) == null ? "" : style.attributes}/>${label ? `<text x="${placement.x}" y="${placement.y}" text-anchor="${placement.textAnchor}" font-family="Arial" font-size="10" fill="#334155" data-chart-label-position="${placement.position}" data-chart-label-index="${index}">${xmlEscape(label)}</text>` : ""}`;
+    const errorBars = errorBarMarks(chart, seriesItems[0], [{ x: x + barWidth / 2, y: valueY, index }], plot, geometry, 0);
+    return `<rect x="${x}" y="${y}" width="${barWidth}" height="${height}" fill="${style.fill}"${normalizeSpreadsheetChartSeriesLine(seriesItems[0]) == null ? "" : style.attributes}/>${errorBars}${label ? `<text x="${placement.x}" y="${placement.y}" text-anchor="${placement.textAnchor}" font-family="Arial" font-size="10" fill="#334155" data-chart-label-position="${placement.position}" data-chart-label-index="${index}">${xmlEscape(label)}</text>` : ""}`;
   }).join("");
 }
 
@@ -74,7 +109,7 @@ function lineMarks(chart, categories, seriesItems, dataLabels, plot, geometry) {
       const placement = spreadsheetChartDataLabelSvgPlacement(dataLabels, { x: point.x, y: point.y, kind: "point", plotTop: plot.top });
       return label ? `<text x="${placement.x}" y="${placement.y}" text-anchor="${placement.textAnchor}" font-family="Arial" font-size="10" fill="#334155" data-chart-label-position="${placement.position}" data-chart-label-series="${seriesIndex}" data-chart-label-index="${index}">${xmlEscape(label)}</text>` : "";
     }).join("");
-    return `${mark}${points.map((point) => spreadsheetChartMarkerSvg(series?.marker, point.x, point.y, style.stroke)).join("")}${labels}`;
+    return `${mark}${errorBarMarks(chart, series, points.map((point, index) => ({ ...point, index })), plot, geometry, seriesIndex)}${points.map((point) => spreadsheetChartMarkerSvg(series?.marker, point.x, point.y, style.stroke)).join("")}${labels}`;
   }).join("");
 }
 

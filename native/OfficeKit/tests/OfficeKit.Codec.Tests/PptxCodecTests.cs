@@ -1745,6 +1745,20 @@ public sealed class PptxCodecTests
                         WidthPoints = 1.5,
                     },
                 });
+                chart.Series[0].ErrorBars = new SpreadsheetChartErrorBarsArtifact
+                {
+                    Direction = SpreadsheetChartErrorBarDirection.Y,
+                    Type = SpreadsheetChartErrorBarType.Both,
+                    ValueType = SpreadsheetChartErrorBarValueType.Percentage,
+                    Value = 10,
+                    NoEndCap = true,
+                    Line = new SpreadsheetChartLineStyleArtifact
+                    {
+                        Color = new SpreadsheetColor { Rgb = "DC2626" },
+                        DashStyle = SpreadsheetChartLineDashStyle.Dotted,
+                        WidthPoints = 1.25,
+                    },
+                };
             }
             if (type != SpreadsheetChartType.Pie)
             {
@@ -1777,6 +1791,10 @@ public sealed class PptxCodecTests
                 .Single(document => document.Descendants(c + "lineChart").Any());
             Assert.Equal("linear", trendlineXml.Descendants(c + "trendlineType").Single().Attribute("val")!.Value);
             Assert.Equal("0.5", trendlineXml.Descendants(c + "forward").Single().Attribute("val")!.Value);
+            var nativeErrorBars = Assert.Single(trendlineXml.Descendants(c + "errBars"));
+            Assert.Equal("percentage", nativeErrorBars.Element(c + "errValType")!.Attribute("val")!.Value);
+            Assert.Equal("10", nativeErrorBars.Element(c + "val")!.Attribute("val")!.Value);
+            Assert.Equal("1", nativeErrorBars.Element(c + "noEndCap")!.Attribute("val")!.Value);
         }
 
         var imported = Import(authored.File.ToByteArray());
@@ -1794,6 +1812,11 @@ public sealed class PptxCodecTests
         var importedTrendline = Assert.Single(charts[1].Chart.Series[0].Trendlines);
         Assert.Equal("Coverage projection", importedTrendline.Name);
         Assert.True(importedTrendline.DisplayEquation);
+        var importedErrorBars = charts[1].Chart.Series[0].ErrorBars;
+        Assert.Equal(SpreadsheetChartErrorBarValueType.Percentage, importedErrorBars.ValueType);
+        Assert.Equal(10, importedErrorBars.Value);
+        Assert.True(importedErrorBars.NoEndCap);
+        Assert.Equal("DC2626", importedErrorBars.Line.Color.Rgb);
 
         elements[0].Shape.Shadow.OpacityThousandthPercent = 35_000;
         connector.Connector.EndArrow = string.Empty;
@@ -1802,6 +1825,9 @@ public sealed class PptxCodecTests
         importedTrendline.Name = "Edited coverage projection";
         importedTrendline.Forward = 1.5;
         importedTrendline.DisplayRSquared = true;
+        importedErrorBars.Value = 15;
+        importedErrorBars.NoEndCap = false;
+        importedErrorBars.Line.Color.Rgb = "EA580C";
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTrip = Import(edited.File.ToByteArray());
@@ -1817,6 +1843,17 @@ public sealed class PptxCodecTests
         Assert.Equal("Edited coverage projection", roundTripTrendline.Name);
         Assert.Equal(1.5, roundTripTrendline.Forward);
         Assert.True(roundTripTrendline.DisplayRSquared);
+        Assert.Equal(15, roundTripLine.Series[0].ErrorBars.Value);
+        Assert.False(roundTripLine.Series[0].ErrorBars.NoEndCap);
+        Assert.Equal("EA580C", roundTripLine.Series[0].ErrorBars.Line.Color.Rgb);
+
+        var removedErrorBars = Import(edited.File.ToByteArray());
+        removedErrorBars.Artifact.Presentation.Slides[0].Elements
+            .Single(item => item.ContentCase == PresentationElement.ContentOneofCase.Chart && item.Chart.Type == SpreadsheetChartType.Line)
+            .Chart.Series[0].ErrorBars = null;
+        var rejectedErrorBarTopology = Export(removedErrorBars.Artifact);
+        Assert.False(rejectedErrorBarTopology.Ok);
+        Assert.Equal("presentation_chart_topology_changed", Assert.Single(rejectedErrorBarTopology.Diagnostics).Code);
     }
 
     [Fact]

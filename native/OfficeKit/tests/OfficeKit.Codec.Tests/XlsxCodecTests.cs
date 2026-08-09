@@ -3501,6 +3501,7 @@ public sealed class XlsxCodecTests
     {
         var request = ChartExportRequest();
         request.Artifact.Workbook.Worksheets[0].Charts[0].Series[0].Trendlines.Add(RevenueProjectionTrendline());
+        request.Artifact.Workbook.Worksheets[0].Charts[0].Series[0].ErrorBars = RevenueErrorBars();
         var authored = CodecResponse.Parser.ParseFrom(CodecProtocol.Invoke(request.ToByteArray()));
         Assert.True(authored.Ok, string.Join("\n", authored.Diagnostics.Select(item => $"{item.Code}: {item.Message}")));
         AssertOffice2021Valid(authored.File.ToByteArray());
@@ -3527,6 +3528,11 @@ public sealed class XlsxCodecTests
             Assert.Equal("linear", nativeTrendline.Element(c + "trendlineType")!.Attribute("val")!.Value);
             Assert.Equal("0.5", nativeTrendline.Element(c + "forward")!.Attribute("val")!.Value);
             Assert.NotNull(nativeTrendline.Element(c + "dispEq"));
+            var nativeErrorBars = Assert.Single(chartXml.Descendants(c + "errBars"));
+            Assert.Equal("cust", nativeErrorBars.Element(c + "errValType")!.Attribute("val")!.Value);
+            Assert.Equal("'Summary'!$C$1:$C$2", nativeErrorBars.Element(c + "plus")!.Descendants(c + "f").Single().Value);
+            Assert.Equal(["4.25", "8.5"], nativeErrorBars.Element(c + "plus")!.Descendants(c + "pt").Select(point => point.Element(c + "v")!.Value));
+            Assert.Equal(["2", "3"], nativeErrorBars.Element(c + "minus")!.Descendants(c + "pt").Select(point => point.Element(c + "v")!.Value));
         }
 
         var source = AddChartResidual(authored.File.ToByteArray());
@@ -3561,6 +3567,15 @@ public sealed class XlsxCodecTests
         Assert.Equal(0.5, trendline.Forward);
         Assert.True(trendline.DisplayEquation);
         Assert.Equal("7C3AED", trendline.Line.Color.Rgb);
+        var errorBars = chart.Series[0].ErrorBars;
+        Assert.Equal(SpreadsheetChartErrorBarDirection.Y, errorBars.Direction);
+        Assert.Equal(SpreadsheetChartErrorBarType.Both, errorBars.Type);
+        Assert.Equal(SpreadsheetChartErrorBarValueType.Custom, errorBars.ValueType);
+        Assert.Equal("'Summary'!$C$1:$C$2", errorBars.Plus.Formula);
+        Assert.Equal([4.25, 8.5], errorBars.Plus.Values);
+        Assert.Equal([2D, 3D], errorBars.Minus.Values);
+        Assert.True(errorBars.NoEndCap);
+        Assert.Equal("A855F7", errorBars.Line.Color.Rgb);
         Assert.True(chart.LineOptions.HasGrouping);
         Assert.Equal(SpreadsheetChartLineGrouping.Stacked, chart.LineOptions.Grouping);
         Assert.True(chart.LineOptions.VaryColors);
@@ -3615,6 +3630,9 @@ public sealed class XlsxCodecTests
         trendline.Forward = 1.5;
         trendline.DisplayRSquared = true;
         trendline.Line.Color.Rgb = "0EA5E9";
+        errorBars.Plus.Values[1] = 9;
+        errorBars.Minus.Values[0] = 1.5;
+        errorBars.Line.Color.Rgb = "DC2626";
         chart.LineOptions.Grouping = SpreadsheetChartLineGrouping.PercentStacked;
         chart.LineOptions.VaryColors = false;
         chart.LineOptions.Smooth = false;
@@ -3658,6 +3676,10 @@ public sealed class XlsxCodecTests
             Assert.Contains("Edited revenue projection", xml, StringComparison.Ordinal);
             Assert.Contains("<c:forward val=\"1.5\"", xml, StringComparison.Ordinal);
             Assert.Contains("<c:dispRSqr val=\"1\"", xml, StringComparison.Ordinal);
+            Assert.Contains("<c:errValType val=\"cust\"", xml, StringComparison.Ordinal);
+            Assert.Contains("'Summary'!$C$1:$C$2", xml, StringComparison.Ordinal);
+            Assert.Contains(">9<", xml, StringComparison.Ordinal);
+            Assert.Contains(">1.5<", xml, StringComparison.Ordinal);
             Assert.DoesNotContain("<c:legend>", xml, StringComparison.Ordinal);
         }
         var preservedTrendline = Assert.Single(Assert.Single(Import(preserved.File.ToByteArray()).Artifact.Workbook.Worksheets[0].Charts).Series[0].Trendlines);
@@ -3665,6 +3687,16 @@ public sealed class XlsxCodecTests
         Assert.Equal(1.5, preservedTrendline.Forward);
         Assert.True(preservedTrendline.DisplayRSquared);
         Assert.Equal("0EA5E9", preservedTrendline.Line.Color.Rgb);
+        var preservedErrorBars = Assert.Single(Import(preserved.File.ToByteArray()).Artifact.Workbook.Worksheets[0].Charts).Series[0].ErrorBars;
+        Assert.Equal([4.25, 9D], preservedErrorBars.Plus.Values);
+        Assert.Equal([1.5, 3D], preservedErrorBars.Minus.Values);
+        Assert.Equal("DC2626", preservedErrorBars.Line.Color.Rgb);
+
+        var removedErrorBars = Import(preserved.File.ToByteArray());
+        removedErrorBars.Artifact.Workbook.Worksheets[0].Charts[0].Series[0].ErrorBars = null;
+        var rejectedErrorBarTopology = Export(removedErrorBars.Artifact);
+        Assert.False(rejectedErrorBarTopology.Ok);
+        Assert.Equal("unsupported_spreadsheet_chart_edit", Assert.Single(rejectedErrorBarTopology.Diagnostics).Code);
 
         var removedFill = Import(preserved.File.ToByteArray());
         removedFill.Artifact.Workbook.Worksheets[0].Charts[0].Series[0].Fill = null;
@@ -5677,6 +5709,27 @@ public sealed class XlsxCodecTests
             Color = new SpreadsheetColor { Rgb = "7C3AED" },
             DashStyle = SpreadsheetChartLineDashStyle.Dashed,
             WidthPoints = 1.5,
+        },
+    };
+
+    private static SpreadsheetChartErrorBarsArtifact RevenueErrorBars() => new()
+    {
+        Direction = SpreadsheetChartErrorBarDirection.Y,
+        Type = SpreadsheetChartErrorBarType.Both,
+        ValueType = SpreadsheetChartErrorBarValueType.Custom,
+        NoEndCap = true,
+        Plus = new SpreadsheetChartErrorBarDataArtifact
+        {
+            Formula = "'Summary'!$C$1:$C$2",
+            Values = { 4.25, 8.5 },
+            FormatCode = "0.00",
+        },
+        Minus = new SpreadsheetChartErrorBarDataArtifact { Values = { 2, 3 } },
+        Line = new SpreadsheetChartLineStyleArtifact
+        {
+            Color = new SpreadsheetColor { Rgb = "A855F7" },
+            DashStyle = SpreadsheetChartLineDashStyle.Dotted,
+            WidthPoints = 1.25,
         },
     };
 
