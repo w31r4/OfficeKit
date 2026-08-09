@@ -1141,7 +1141,15 @@ internal static class PptxCodec
                 : null,
             Shadow = ReadShadow(properties),
         };
-        PptxShapeLineCodec.ReadForProjection(properties?.GetFirstChild<A.Outline>(), result);
+        PptxLineStyleCodec.ReadForProjection(properties?.GetFirstChild<A.Outline>(), result);
+        if (!string.Equals(geometry, "line", StringComparison.Ordinal))
+        {
+            // Non-line arrowheads remain source-bound. Keep the historic
+            // ordinary-shape preview projection valid without implying that
+            // those endpoint semantics are editable.
+            result.StartArrow = result.EndArrow = result.StartArrowWidth = result.StartArrowLength =
+                result.EndArrowWidth = result.EndArrowLength = string.Empty;
+        }
         if (shape.UseBackgroundFill?.HasValue == true)
             result.UseBackgroundFill = shape.UseBackgroundFill.Value;
         PptxCustomGeometryCodec.Read(properties?.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height, result);
@@ -1165,7 +1173,9 @@ internal static class PptxCodec
         }
         if (!SimpleFill(properties)) return false;
         var outline = properties.GetFirstChild<A.Outline>();
-        if (!PptxShapeLineCodec.TryRead(outline, out _)) return false;
+        if (!PptxLineStyleCodec.TryRead(outline, out var lineStyle)) return false;
+        if (!string.Equals(geometry, "line", StringComparison.Ordinal) &&
+            (lineStyle.StartArrow.Length > 0 || lineStyle.EndArrow.Length > 0)) return false;
         if (!SupportsShadow(properties)) return false;
         if (properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.CustomGeometry and not A.NoFill and not A.SolidFill and not A.Outline and not A.EffectList)) return false;
         return PptxTextCodec.SupportsEditing(shape.TextBody);
@@ -1253,7 +1263,7 @@ internal static class PptxCodec
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties)
             drawingProperties.TextBox = semantic.Geometry == "textbox" ? true : null;
         if (!FillMatches(properties, semantic.FillRgb)) ReplaceFill(properties, semantic.FillRgb);
-        PptxShapeLineCodec.Apply(properties, semantic);
+        PptxLineStyleCodec.Apply(properties, semantic);
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
             nonVisual.Name = source.Name;
         ApplyShadow(properties, semantic.Shadow);
@@ -1625,7 +1635,7 @@ internal static class PptxCodec
         properties.Append(string.IsNullOrWhiteSpace(semantic.FillRgb)
             ? new A.NoFill()
             : new A.SolidFill(new A.RgbColorModelHex { Val = PptxColor.Normalize(semantic.FillRgb) }));
-        properties.Append(PptxShapeLineCodec.Build(semantic));
+        properties.Append(PptxLineStyleCodec.Build(semantic));
         ApplyShadow(properties, semantic.Shadow);
         var applicationProperties = new P.ApplicationNonVisualDrawingProperties();
         if (semantic.Placeholder is not null)
@@ -2090,7 +2100,7 @@ internal static class PptxCodec
                 throw new CodecException("unsupported_presentation_geometry", $"Presentation free line {element.Id} cannot be a placeholder.");
             PptxCustomGeometryCodec.Validate(element.Shape, element.Id);
             if (!string.IsNullOrWhiteSpace(element.Shape.FillRgb)) PptxColor.Normalize(element.Shape.FillRgb);
-            PptxShapeLineCodec.Validate(element.Shape, element.Id);
+            PptxLineStyleCodec.Validate(element.Shape, element.Id);
             PptxShapeTransformCodec.Validate(element.Shape.Transform, element.Id);
             ValidateShadow(element.Shape.Shadow, element.Id);
             PptxTextCodec.Validate(element.Shape);
@@ -4541,7 +4551,7 @@ internal static class PptxCodec
             properties.GetFirstChild<A.EffectList>()?.Remove();
             foreach (var fill in properties.ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray()) fill.Remove();
             if (properties.GetFirstChild<A.Outline>() is { } outline)
-                PptxShapeLineCodec.ScrubModeledContent(outline);
+                PptxLineStyleCodec.ScrubModeledContent(outline);
         }
         PptxTextCodec.ScrubModeledContent(shape.TextBody, slideContext);
         return HashElement(shape);

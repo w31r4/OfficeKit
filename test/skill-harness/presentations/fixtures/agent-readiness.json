@@ -21,7 +21,15 @@
           "geometry": "line",
           "position": { "left": 72, "top": 122, "width": 1108, "height": 0 },
           "fill": "none",
-          "line": { "style": "dashed", "fill": "#64748B", "width": 1.5 }
+          "line": {
+            "style": "dash-dot",
+            "fill": "#64748B",
+            "width": 1.5,
+            "head": { "type": "oval", "width": "sm", "length": "med" },
+            "tail": { "type": "arrow", "width": "lg", "length": "sm" },
+            "cap": "round",
+            "join": "bevel"
+          }
         },
         {
           "name": "author-card",

@@ -2,11 +2,56 @@
 
 ## Current 0.6.0 package evidence (2026-08-09)
 
-The package dry-run passed after completing the ECMA-376 base slide-transition
-vocabulary. The candidate contains 714 files, 36,215,575 compressed bytes, and
-53,343,937 unpacked bytes; its measured shasum is
-`b395f80dc9506a6303ca4a6d6baec6e18b3b220e`. This is package evidence, not an
-npm registry publication or tagged release.
+The package dry-run passed after unifying the bounded Presentation line-style
+profile across ordinary shapes and connectors. The candidate contains 714
+files, 36,220,692 compressed bytes, and 53,354,823 unpacked bytes; its measured
+shasum is `4eda5d2847e868a46869e4d062fa5c0ecc4511fd`. It remains below the
+53,400,000-byte ceiling with 45,177 bytes of measured headroom. This is package
+evidence, not an npm registry publication or tagged release.
+
+## Unreleased: shared Presentation line-style profile
+
+One JavaScript leaf and one C# codec now own the bounded direct DrawingML
+`a:ln` profile for both ordinary `p:sp` outlines and `p:cxnSp` connectors.
+Geometry, connector targets, routing, transforms, and z-order remain with their
+element codecs. This removes four divergent normalization/read/write paths
+without turning line styling into a second Presentation object model.
+
+The shared profile covers explicit RGB/no-fill, point width, six preset dash
+styles, flat/round/square caps, round/bevel/miter joins, and
+triangle/stealth/diamond/oval/arrow ends with independent small/medium/large
+dimensions. Free-positioned `geometry: "line"` shapes now author, render,
+import, edit, export, and import again with those ends/caps/joins. Other
+ordinary shapes accept caps and joins but reject arrowheads. Dash aliases and
+non-conflicting nested/flat line-end aliases normalize before crossing the
+wire; incomplete, conflicting, unknown, compound, theme, custom-dash, effect,
+extension, and ambiguous-fill profiles preserve unchanged source bytes or fail
+closed on mutation.
+
+Protocol-v2 `PresentationShape` appends fields 21 through 28 for start/end
+arrow type and dimensions plus line cap/join, without renumbering existing
+fields or changing the wire version. The OfficeKit Codec writes and recognizes
+the same canonical XML for shapes and connectors, validates authored packages
+with the Open XML SDK Office 2021 validator, and keeps target/site identity
+exclusive to connectors. The runnable Presentation Skill fixture carries a
+dash-dot free line with oval/arrow ends, round cap, and bevel join through SVG
+marker preview, native PPTX import/export/second import, and real
+LibreOffice/Poppler QA.
+
+Local gates passed: fast tests 26/26, slow tests 75/75, OfficeKit Codec .NET
+tests 397/397, OfficeBridge tests 5/5, generated Help/API docs, protobuf
+lint/regeneration, deterministic WASM rebuild, reference Skill
+sync/portability, Playwright, LibreOffice/Poppler-backed Presentation/template
+QA, clean-install package smoke, and `test:pack`. The deterministic runtime
+contains 38 audited files and 15,345,387 bytes; both builds matched across 39
+outputs. The real local qpdf adapter ran. Managed provider downloads and
+separately configured pypdf, pikepdf, pyHanko, veraPDF, OCRmyPDF, and
+PromptBench Python environments remained explicit environment skips; their
+offline contracts ran. The offline AGPL/license/standalone metadata audit
+passed all required checks. A fresh registry check returned `ENEEDAUTH` from
+`npm whoami` and `E404` from `npm view office-kit version`; no publish command
+was run. Tagging and Windows Office host acceptance remain separate external
+gates.
 
 ## Unreleased: complete ECMA-376 base slide transitions
 

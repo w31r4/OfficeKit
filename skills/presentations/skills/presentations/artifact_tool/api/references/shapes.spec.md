@@ -288,8 +288,9 @@ const connector = slide.shapes.connect(sourceShape, targetShape, {
 });
 ```
 
-Use [`connectors.md`](./connectors.md) for connector routing, side anchors,
-direct `geometry: "connector"` creation, arrowheads, and endpoint edits.
+Use [`connectors.md`](./connectors.md) when endpoints must retain target-shape
+and connection-site identity, including routing, side anchors, direct
+`geometry: "connector"` creation, and endpoint edits.
 
 ## Line Primitive Decision
 
@@ -297,6 +298,7 @@ direct `geometry: "connector"` creation, arrowheads, and endpoint edits.
 | --- | --- |
 | Divider inside compose JSX | `<rule stroke="slate-200" weight={1} />` |
 | Free-positioned line | `slide.shapes.add({ geometry: "line", position, fill: "none", line })` |
+| Free-positioned arrow | `slide.shapes.add({ geometry: "line", position, line: { ...line, tail } })` |
 | Arrow connected to shapes | `slide.shapes.connect(fromShape, toShape, { line, head })` |
 | Border around a surface | shape or box `line={{ style: "solid", fill: "slate-200", width: 1 }}` |
 
@@ -308,7 +310,15 @@ const divider = slide.shapes.add({
   geometry: "line",
   position: { left: 72, top: 122, width: 1108, height: 0 },
   fill: "none",
-  line: { style: "dashed", fill: "slate-500", width: 1.5 },
+  line: {
+    style: "dash-dot",
+    fill: "slate-500",
+    width: 1.5,
+    head: { type: "oval", width: "sm", length: "med" },
+    tail: { type: "arrow", width: "lg", length: "sm" },
+    cap: "round",
+    join: "bevel",
+  },
 });
 ```
 
@@ -321,15 +331,35 @@ target shape or connection-site index.
 The bounded outline styles are `solid`, `dashed`, `dotted`, `dash-dot`,
 `dash-dot-dot`, and `none`. The input aliases `dash`, `dot`, `dashDot`, and
 `longDashDotDot` normalize to those canonical names. Unknown styles fail
-closed. Arrowheads, caps, joins, and endpoint rerouting require a real
-`slide.shapes.connect(...)` connector; they are not silently attached to a free
-line.
+closed. Free lines also accept `head` and `tail` with
+`triangle|stealth|diamond|oval|arrow`, independent `sm|med|lg` width/length,
+plus `flat|round|square` cap and `round|bevel|miter` join. The legacy flat
+`startArrow*`/`endArrow*` aliases remain accepted when they do not conflict with
+the nested values. Arrowheads on non-line shapes fail closed; caps and joins
+may style other ordinary shape outlines. Target attachment and rerouting still
+require a real `slide.shapes.connect(...)` connector.
+
+```ts
+type ShapeLineEnd = {
+  type: "triangle" | "stealth" | "diamond" | "oval" | "arrow";
+  width?: "sm" | "med" | "lg";
+  length?: "sm" | "med" | "lg";
+};
+
+type ShapeLineConfig = LineConfig & {
+  head?: ShapeLineEnd | "none" | false;
+  tail?: ShapeLineEnd | "none" | false;
+  cap?: "flat" | "round" | "square";
+  join?: "round" | "bevel" | "miter";
+};
+```
 
 Canonical free lines support authoring, import, source-bound style/frame edits,
 slide duplication, export, and second import. Imported theme colors, custom
-dash graphs, arrowheads, caps, joins, compound lines, or otherwise complex
-`a:ln` content stay source-bound: unchanged export preserves the package, while
-semantic mutation fails closed instead of flattening the outline.
+dash graphs, compound lines, effects, extension content, missing/ambiguous line
+fills, or otherwise complex `a:ln` content stay source-bound: unchanged export
+preserves the package, while semantic mutation fails closed instead of
+flattening the outline.
 
 ## Shadows
 

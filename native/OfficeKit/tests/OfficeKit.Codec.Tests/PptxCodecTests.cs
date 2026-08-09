@@ -1891,6 +1891,15 @@ public sealed class PptxCodecTests
                 },
             });
         }
+        var decoratedLine = slide.Elements[0].Shape;
+        decoratedLine.StartArrow = "oval";
+        decoratedLine.StartArrowWidth = "sm";
+        decoratedLine.StartArrowLength = "med";
+        decoratedLine.EndArrow = "arrow";
+        decoratedLine.EndArrowWidth = "lg";
+        decoratedLine.EndArrowLength = "sm";
+        decoratedLine.LineCap = "round";
+        decoratedLine.LineJoin = "bevel";
 
         var authored = Invoke(request);
         Assert.True(authored.Ok, Diagnostics(authored));
@@ -1907,6 +1916,17 @@ public sealed class PptxCodecTests
             Assert.Equal(0L, lines[0].ShapeProperties!.Transform2D!.Extents!.Cy!.Value);
             Assert.Equal(0L, lines[1].ShapeProperties!.Transform2D!.Extents!.Cx!.Value);
             Assert.Equal(A.PresetLineDashValues.Dash, lines[0].ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.PresetDash>()!.Val!.Value);
+            var decoratedOutline = lines[0].ShapeProperties!.GetFirstChild<A.Outline>()!;
+            Assert.Equal(A.LineCapValues.Round, decoratedOutline.CapType!.Value);
+            Assert.NotNull(decoratedOutline.GetFirstChild<A.LineJoinBevel>());
+            var decoratedHead = decoratedOutline.GetFirstChild<A.HeadEnd>()!;
+            Assert.Equal(A.LineEndValues.Oval, decoratedHead.Type!.Value);
+            Assert.Equal(A.LineEndWidthValues.Small, decoratedHead.Width!.Value);
+            Assert.Equal(A.LineEndLengthValues.Medium, decoratedHead.Length!.Value);
+            var decoratedTail = decoratedOutline.GetFirstChild<A.TailEnd>()!;
+            Assert.Equal(A.LineEndValues.Arrow, decoratedTail.Type!.Value);
+            Assert.Equal(A.LineEndWidthValues.Large, decoratedTail.Width!.Value);
+            Assert.Equal(A.LineEndLengthValues.Small, decoratedTail.Length!.Value);
             Assert.Equal(A.PresetLineDashValues.Dot, lines[1].ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.PresetDash>()!.Val!.Value);
             Assert.Equal(A.PresetLineDashValues.DashDot, lines[2].ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.PresetDash>()!.Val!.Value);
             Assert.Equal(A.PresetLineDashValues.LargeDashDotDot, lines[3].ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.PresetDash>()!.Val!.Value);
@@ -1925,6 +1945,14 @@ public sealed class PptxCodecTests
             Assert.Equal("line", element.Shape.Geometry);
         });
         Assert.Equal(profiles.Select(profile => profile.Style), importedLines.Select(element => element.Shape.LineStyle));
+        Assert.Equal("oval", importedLines[0].Shape.StartArrow);
+        Assert.Equal("sm", importedLines[0].Shape.StartArrowWidth);
+        Assert.Equal("med", importedLines[0].Shape.StartArrowLength);
+        Assert.Equal("arrow", importedLines[0].Shape.EndArrow);
+        Assert.Equal("lg", importedLines[0].Shape.EndArrowWidth);
+        Assert.Equal("sm", importedLines[0].Shape.EndArrowLength);
+        Assert.Equal("round", importedLines[0].Shape.LineCap);
+        Assert.Equal("bevel", importedLines[0].Shape.LineJoin);
 
         var originalSlideXml = ZipBytes(authored.File.ToByteArray(), "ppt/slides/slide1.xml");
         var unchanged = Export(imported.Artifact);
@@ -1935,6 +1963,14 @@ public sealed class PptxCodecTests
         editedLine.HeightEmu = 450_000;
         editedLine.LineRgb = "0F172A";
         editedLine.LineStyle = "dotted";
+        editedLine.StartArrow = "diamond";
+        editedLine.StartArrowWidth = "lg";
+        editedLine.StartArrowLength = "lg";
+        editedLine.EndArrow = "stealth";
+        editedLine.EndArrowWidth = "sm";
+        editedLine.EndArrowLength = "med";
+        editedLine.LineCap = "square";
+        editedLine.LineJoin = "miter";
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var reimported = Import(edited.File.ToByteArray());
@@ -1944,6 +1980,14 @@ public sealed class PptxCodecTests
         Assert.Equal(450_000, roundTrip.HeightEmu);
         Assert.Equal("0F172A", roundTrip.LineRgb);
         Assert.Equal("dotted", roundTrip.LineStyle);
+        Assert.Equal("diamond", roundTrip.StartArrow);
+        Assert.Equal("lg", roundTrip.StartArrowWidth);
+        Assert.Equal("lg", roundTrip.StartArrowLength);
+        Assert.Equal("stealth", roundTrip.EndArrow);
+        Assert.Equal("sm", roundTrip.EndArrowWidth);
+        Assert.Equal("med", roundTrip.EndArrowLength);
+        Assert.Equal("square", roundTrip.LineCap);
+        Assert.Equal("miter", roundTrip.LineJoin);
 
         var zeroExtent = request.Clone();
         zeroExtent.Artifact.Presentation.Slides[0].Elements[0].Shape.WidthEmu = 0;
@@ -1957,6 +2001,19 @@ public sealed class PptxCodecTests
         var inconsistentNone = request.Clone();
         inconsistentNone.Artifact.Presentation.Slides[0].Elements[0].Shape.LineStyle = "none";
         Assert.Equal("invalid_presentation_line", Assert.Single(Invoke(inconsistentNone).Diagnostics).Code);
+
+        var incompleteLineEnd = request.Clone();
+        incompleteLineEnd.Artifact.Presentation.Slides[0].Elements[1].Shape.StartArrowWidth = "lg";
+        Assert.Equal("invalid_presentation_line", Assert.Single(Invoke(incompleteLineEnd).Diagnostics).Code);
+
+        var invalidCap = request.Clone();
+        invalidCap.Artifact.Presentation.Slides[0].Elements[0].Shape.LineCap = "projecting";
+        Assert.Equal("unsupported_presentation_line", Assert.Single(Invoke(invalidCap).Diagnostics).Code);
+
+        var nonLineArrow = request.Clone();
+        nonLineArrow.Artifact.Presentation.Slides[0].Elements[0].Shape.Geometry = "rect";
+        nonLineArrow.Artifact.Presentation.Slides[0].Elements[0].Shape.HeightEmu = 500_000;
+        Assert.Equal("unsupported_presentation_line", Assert.Single(Invoke(nonLineArrow).Diagnostics).Code);
 
         using var unsupportedStream = new MemoryStream();
         unsupportedStream.Write(authored.File.Span);
@@ -2043,7 +2100,7 @@ public sealed class PptxCodecTests
                 EndTargetId = target.Id,
                 StartConnectionSiteIndex = 3,
                 EndConnectionSiteIndex = 2,
-                LineStyle = "dashed",
+                LineStyle = "dash-dot",
                 StartArrowWidth = "lg",
                 StartArrowLength = "sm",
                 EndArrowWidth = "sm",
@@ -2065,7 +2122,7 @@ public sealed class PptxCodecTests
             Assert.Equal(2U, nativeConnections.GetFirstChild<A.EndConnection>()!.Index!.Value);
             Assert.Equal(A.ShapeTypeValues.CurvedConnector3, nativeConnector.ShapeProperties!.GetFirstChild<A.PresetGeometry>()!.Preset!.Value);
             var outline = nativeConnector.ShapeProperties.GetFirstChild<A.Outline>()!;
-            Assert.Equal(A.PresetLineDashValues.Dash, outline.GetFirstChild<A.PresetDash>()!.Val!.Value);
+            Assert.Equal(A.PresetLineDashValues.DashDot, outline.GetFirstChild<A.PresetDash>()!.Val!.Value);
             Assert.Equal(A.LineCapValues.Round, outline.CapType!.Value);
             Assert.NotNull(outline.GetFirstChild<A.LineJoinBevel>());
             var head = outline.GetFirstChild<A.HeadEnd>()!;
@@ -2086,7 +2143,7 @@ public sealed class PptxCodecTests
         Assert.Equal("curved", importedConnector.ConnectorType);
         Assert.Equal(3U, importedConnector.StartConnectionSiteIndex);
         Assert.Equal(2U, importedConnector.EndConnectionSiteIndex);
-        Assert.Equal("dashed", importedConnector.LineStyle);
+        Assert.Equal("dash-dot", importedConnector.LineStyle);
         Assert.Equal("arrow", importedConnector.StartArrow);
         Assert.Equal("lg", importedConnector.StartArrowWidth);
         Assert.Equal("sm", importedConnector.StartArrowLength);
@@ -2121,7 +2178,7 @@ public sealed class PptxCodecTests
 
         var unsupportedLine = request.Clone();
         unsupportedLine.Artifact.Presentation.Slides[0].Elements
-            .Single(element => element.ContentCase == PresentationElement.ContentOneofCase.Connector).Connector.LineStyle = "dot";
+            .Single(element => element.ContentCase == PresentationElement.ContentOneofCase.Connector).Connector.LineStyle = "long-dash";
         Assert.Equal("unsupported_presentation_connector", Assert.Single(Invoke(unsupportedLine).Diagnostics).Code);
 
         using var malformedStream = new MemoryStream();

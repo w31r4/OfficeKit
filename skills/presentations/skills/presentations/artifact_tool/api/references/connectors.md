@@ -189,9 +189,12 @@ substituting its center.
 
 OfficeKit reads and writes `straightConnector1`, `bentConnector3`, and
 `curvedConnector3`; `elbow2` through `elbow5` normalize to the bounded elbow
-model. It retains `a:stCxn/@id+@idx` and `a:endCxn/@id+@idx`, solid/dashed/no
-line paint, flat/round/square caps, round/bevel/miter joins, and bounded
+model. It retains `a:stCxn/@id+@idx` and `a:endCxn/@id+@idx`,
+solid/dashed/dotted/dash-dot/dash-dot-dot/no-line paint,
+flat/round/square caps, round/bevel/miter joins, and bounded
 triangle/stealth/diamond/oval/arrow ends with small/medium/large dimensions.
+`dash`, `dot`, `dashDot`, and `longDashDotDot` normalize through the same line
+profile used by ordinary shape outlines.
 
 A recognized imported connector can change its bounded endpoints or line
 profile while the surrounding element topology stays fixed. Source-bound

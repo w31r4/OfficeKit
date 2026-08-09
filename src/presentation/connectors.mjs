@@ -1,6 +1,9 @@
-import { resolveColorToken } from "../shared/colors.mjs";
 import { aid } from "../shared/ids.mjs";
-import { xmlEscape } from "../shared/xml.mjs";
+import {
+  normalizePresentationLineEnd,
+  normalizePresentationLineStyle,
+  presentationLineSvgStyle,
+} from "./line-styles.mjs";
 
 const CONNECTOR_TYPE_ALIASES = new Map([
   ["straight", "straight"],
@@ -18,11 +21,6 @@ const CARDINAL_SITE_INDEXES = new Map([
   ["textbox", Object.freeze({ top: 0, left: 1, bottom: 2, right: 3 })],
   ["ellipse", Object.freeze({ top: 0, left: 2, bottom: 4, right: 6 })],
 ]);
-
-const LINE_END_TYPES = new Set(["triangle", "stealth", "diamond", "oval", "arrow"]);
-const LINE_END_SIZES = new Set(["sm", "med", "lg"]);
-const LINE_CAPS = new Set(["flat", "round", "square"]);
-const LINE_JOINS = new Set(["round", "bevel", "miter"]);
 
 function finitePoint(value, name) {
   if (!value || !Number.isFinite(Number(value.x)) || !Number.isFinite(Number(value.y))) {
@@ -214,42 +212,24 @@ export function connectedPresentationShapeConfig(slide, owner, from, to, options
   };
 }
 
-function normalizedLineEnd(value, name) {
-  if (value == null || value === false || value === "none" || value?.type === "none") return undefined;
-  const source = value === true ? { type: "triangle" } : typeof value === "string" ? { type: value } : value;
-  if (!source || typeof source !== "object" || Array.isArray(source) || !LINE_END_TYPES.has(String(source.type))) {
-    throw new RangeError(`${name}.type must be none, triangle, stealth, diamond, oval, or arrow.`);
-  }
-  const output = { type: String(source.type) };
-  for (const key of ["width", "length"]) {
-    if (source[key] == null) continue;
-    if (!LINE_END_SIZES.has(String(source[key]))) throw new RangeError(`${name}.${key} must be sm, med, or lg.`);
-    output[key] = String(source[key]);
-  }
-  return output;
-}
-
-function normalizedChoice(value, choices, name) {
-  if (value == null || value === "") return undefined;
-  const normalized = String(value);
-  if (!choices.has(normalized)) throw new RangeError(`${name} ${normalized} is unsupported.`);
-  return normalized;
-}
-
 function normalizeConnectorStyle(config) {
   const source = config.line == null ? {} : config.line;
   if (typeof source !== "object" || Array.isArray(source)) throw new TypeError("Presentation connector line must be an object.");
-  const style = String(source.style || "solid");
-  if (!new Set(["solid", "dashed", "none"]).has(style)) throw new RangeError(`Presentation connector line style ${style} is unsupported.`);
-  const width = Number(source.width ?? 2);
-  if (!Number.isFinite(width) || width < 0) throw new RangeError("Presentation connector line width must be a non-negative finite number.");
-  const head = normalizedLineEnd(config.head ?? source.head ?? source.startArrow ?? config.startArrow, "Presentation connector head");
-  const tail = normalizedLineEnd(config.tail ?? source.tail ?? source.endArrow ?? config.endArrow, "Presentation connector tail");
+  const requested = {
+    ...source,
+    ...(config.head == null ? (source.head == null && source.startArrow == null && config.startArrow != null ? { head: config.startArrow } : {}) : { head: config.head }),
+    ...(config.tail == null ? (source.tail == null && source.endArrow == null && config.endArrow != null ? { tail: config.endArrow } : {}) : { tail: config.tail }),
+    ...(config.cap == null ? {} : { cap: config.cap }),
+    ...(config.join == null ? {} : { join: config.join }),
+  };
+  const normalized = normalizePresentationLineStyle(requested, {
+    name: "Presentation connector line",
+    defaultWidth: 2,
+  });
+  const { head, tail, cap, join, ...paint } = normalized;
   return {
     line: {
-      ...source,
-      style,
-      width,
+      ...paint,
       startArrow: head?.type,
       startArrowWidth: head?.width,
       startArrowLength: head?.length,
@@ -259,24 +239,9 @@ function normalizeConnectorStyle(config) {
     },
     head,
     tail,
-    cap: normalizedChoice(config.cap ?? source.cap, LINE_CAPS, "Presentation connector cap"),
-    join: normalizedChoice(config.join ?? source.join, LINE_JOINS, "Presentation connector join"),
+    cap,
+    join,
   };
-}
-
-function markerShape(type, stroke) {
-  if (type === "diamond") return `<path d="M 0 5 L 5 0 L 10 5 L 5 10 z" fill="${xmlEscape(stroke)}"/>`;
-  if (type === "oval") return `<ellipse cx="5" cy="5" rx="4" ry="3" fill="${xmlEscape(stroke)}"/>`;
-  if (type === "stealth") return `<path d="M 0 0 L 10 5 L 0 10 L 3 5 z" fill="${xmlEscape(stroke)}"/>`;
-  if (type === "arrow") return `<path d="M 0 1 L 10 5 L 0 9 L 3 5 z" fill="${xmlEscape(stroke)}"/>`;
-  return `<path d="M 0 0 L 10 5 L 0 10 z" fill="${xmlEscape(stroke)}"/>`;
-}
-
-function markerDefinition(id, end, stroke) {
-  if (!end) return "";
-  const scale = { sm: 4, med: 6, lg: 8 }[end.width || "med"];
-  const length = { sm: 0.8, med: 1, lg: 1.25 }[end.length || "med"];
-  return `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="${scale * length}" markerHeight="${scale}" orient="auto-start-reverse">${markerShape(end.type, stroke)}</marker>`;
 }
 
 export class PresentationConnectorElement {
@@ -377,7 +342,7 @@ export class PresentationConnectorElement {
     return { type: this.line.startArrow, ...(this.line.startArrowWidth ? { width: this.line.startArrowWidth } : {}), ...(this.line.startArrowLength ? { length: this.line.startArrowLength } : {}) };
   }
   set head(value) {
-    const end = normalizedLineEnd(value, "Presentation connector head");
+    const end = normalizePresentationLineEnd(value, "Presentation connector head");
     for (const key of ["startArrow", "startArrowWidth", "startArrowLength"]) delete this.line[key];
     if (end) Object.assign(this.line, { startArrow: end.type, ...(end.width ? { startArrowWidth: end.width } : {}), ...(end.length ? { startArrowLength: end.length } : {}) });
   }
@@ -386,7 +351,7 @@ export class PresentationConnectorElement {
     return { type: this.line.endArrow, ...(this.line.endArrowWidth ? { width: this.line.endArrowWidth } : {}), ...(this.line.endArrowLength ? { length: this.line.endArrowLength } : {}) };
   }
   set tail(value) {
-    const end = normalizedLineEnd(value, "Presentation connector tail");
+    const end = normalizePresentationLineEnd(value, "Presentation connector tail");
     for (const key of ["endArrow", "endArrowWidth", "endArrowLength"]) delete this.line[key];
     if (end) Object.assign(this.line, { endArrow: end.type, ...(end.width ? { endArrowWidth: end.width } : {}), ...(end.length ? { endArrowLength: end.length } : {}) });
   }
@@ -466,19 +431,18 @@ export class PresentationConnectorElement {
 
   toSvg() {
     const { start, end } = this.resolvedEndpoints();
-    const hidden = this.line?.style === "none";
-    const stroke = resolveColorToken(this.line?.fill || this.line?.color || "#334155", "#334155");
-    const width = this.line?.width ?? 2;
-    const baseId = this.id.replace(/[^A-Za-z0-9_-]/g, "");
-    const headId = `${baseId}-head`;
-    const tailId = `${baseId}-tail`;
-    const definitions = hidden ? "" : `${markerDefinition(headId, this.head, stroke)}${markerDefinition(tailId, this.tail, stroke)}`;
-    const markerStart = !hidden && this.head ? ` marker-start="url(#${headId})"` : "";
-    const markerEnd = !hidden && this.tail ? ` marker-end="url(#${tailId})"` : "";
-    const dash = this.line?.style === "dashed" ? " stroke-dasharray=\"8 6\"" : "";
-    const cap = this.cap ? ` stroke-linecap="${this.cap === "flat" ? "butt" : this.cap}"` : "";
-    const join = this.join ? ` stroke-linejoin="${this.join}"` : "";
-    const paint = `fill="none" stroke="${hidden ? "none" : xmlEscape(stroke)}" stroke-width="${width}"${dash}${cap}${join}${markerStart}${markerEnd}`;
+    const style = presentationLineSvgStyle({
+      ...this.line,
+      ...(this.head ? { head: this.head } : {}),
+      ...(this.tail ? { tail: this.tail } : {}),
+      ...(this.cap ? { cap: this.cap } : {}),
+      ...(this.join ? { join: this.join } : {}),
+    }, {
+      name: `Presentation connector ${this.name || this.id} line`,
+      defaultWidth: 2,
+      markerBase: this.id,
+    });
+    const paint = `fill="none" ${style.attributes}`;
     let line;
     if (this.connectorType === "elbow") {
       const middleX = (start.x + end.x) / 2;
@@ -489,6 +453,6 @@ export class PresentationConnectorElement {
     } else {
       line = `<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" ${paint}/>`;
     }
-    return `${definitions ? `<defs>${definitions}</defs>` : ""}${line}`;
+    return `${style.definitions ? `<defs>${style.definitions}</defs>` : ""}${line}`;
   }
 }

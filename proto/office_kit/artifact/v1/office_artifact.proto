@@ -1806,6 +1806,17 @@ message PresentationShape {
   // legacy wire and is interpreted from line_rgb as solid or none. New
   // writers use solid, dashed, dotted, dash-dot, dash-dot-dot, or none.
   string line_style = 20;
+  // The same bounded direct a:ln endpoint/cap/join vocabulary used by
+  // PresentationConnector. Arrowheads are valid only when geometry is line;
+  // caps and joins remain valid for other ordinary shape outlines.
+  string start_arrow = 21;
+  string end_arrow = 22;
+  string start_arrow_width = 23;
+  string start_arrow_length = 24;
+  string end_arrow_width = 25;
+  string end_arrow_length = 26;
+  string line_cap = 27;
+  string line_join = 28;
 }
 
 message PresentationCustomGeometryPath {

@@ -19,7 +19,7 @@ import { effectivePresentationImageCrop, presentationImageCropFromWire, presenta
 import { normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle } from "../presentation/custom-geometry.mjs";
 import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation/custom-geometry-formulas.mjs";
 import { isPresentationAutoNumberType, normalizePresentationParagraphs, normalizePresentationParagraphStyles } from "../presentation/text-paragraphs.mjs";
-import { normalizePresentationShapeLine, presentationShapeLineColor } from "../presentation/shape-lines.mjs";
+import { normalizePresentationLineStyle, presentationLineColor } from "../presentation/line-styles.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { createPresentationAssetCatalog, validatePictureBulletUri } from "./office-kit-assets.mjs";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
@@ -1567,30 +1567,20 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
   if (!new Set(["straight", "elbow", "curved"]).has(type)) {
     throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses unsupported type ${type}.`, [], { code: "unsupported_presentation_features" });
   }
-  const line = connector.line || {};
-  if (line.style != null && !new Set(["solid", "dashed", "none"]).has(String(line.style))) {
-    throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses an unsupported line style.`, [], { code: "unsupported_presentation_features" });
-  }
-  const width = Number(line.width ?? 2);
-  if (!Number.isFinite(width) || width < 0) throw new OfficeKitCodecError(`Presentation connector ${connector.id} has an invalid line width.`, [], { code: "invalid_presentation_connector" });
-  const lineEnd = (value, legacy, name) => {
-    const source = value ?? (legacy == null ? undefined : { type: legacy });
-    if (source == null || source === false || source === "none" || source.type === "none") return {};
-    const normalized = source === true ? { type: "triangle" } : typeof source === "string" ? { type: source } : source;
-    if (!normalized || !new Set(["triangle", "stealth", "diamond", "oval", "arrow"]).has(String(normalized.type))) {
-      throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses unsupported ${name} ${normalized?.type ?? normalized}.`, [], { code: "unsupported_presentation_features" });
-    }
-    for (const key of ["width", "length"]) if (normalized[key] != null && !new Set(["sm", "med", "lg"]).has(String(normalized[key]))) {
-      throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses unsupported ${name} ${key} ${normalized[key]}.`, [], { code: "unsupported_presentation_features" });
-    }
-    return { type: String(normalized.type), width: normalized.width == null ? "" : String(normalized.width), length: normalized.length == null ? "" : String(normalized.length) };
-  };
-  const head = lineEnd(connector.head, line.startArrow ?? connector.startArrow, "head");
-  const tail = lineEnd(connector.tail, line.endArrow ?? connector.endArrow, "tail");
-  const cap = connector.cap ?? line.cap;
-  const join = connector.join ?? line.join;
-  if (cap != null && !new Set(["flat", "round", "square"]).has(String(cap))) throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses unsupported cap ${cap}.`, [], { code: "unsupported_presentation_features" });
-  if (join != null && !new Set(["round", "bevel", "miter"]).has(String(join))) throw new OfficeKitCodecError(`Presentation connector ${connector.id} uses unsupported join ${join}.`, [], { code: "unsupported_presentation_features" });
+  const sourceLine = connector.line || {};
+  const line = normalizePresentationLineStyle({
+    ...sourceLine,
+    ...(connector.head == null ? {} : { head: connector.head }),
+    ...(connector.tail == null ? {} : { tail: connector.tail }),
+    ...(connector.cap == null ? {} : { cap: connector.cap }),
+    ...(connector.join == null ? {} : { join: connector.join }),
+  }, {
+    name: `Presentation connector ${connector.id} line`,
+    defaultWidth: 2,
+  });
+  const width = line.width;
+  const head = line.head || {};
+  const tail = line.tail || {};
   const startSiteIndex = Number(connector.startSiteIndex ?? 0);
   const endSiteIndex = Number(connector.endSiteIndex ?? 0);
   if (![startSiteIndex, endSiteIndex].every((value) => Number.isInteger(value) && value >= 0 && value <= 0xffff_ffff)) {
@@ -1604,6 +1594,9 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
   if ((!startTargetId && startSiteIndex !== 0) || (!endTargetId && endSiteIndex !== 0)) {
     throw new OfficeKitCodecError(`Presentation connector ${connector.id} cannot define a connection-site index without its target.`, [], { code: "invalid_presentation_connector" });
   }
+  const lineRgb = line.style === "none"
+    ? ""
+    : presentationRgb(presentationLineColor(line, width > 0 ? "#334155" : "transparent"), `${connector.id}.line.fill`);
   return {
     id: original?.id || connector.id,
     name: connector.name || original?.name || "",
@@ -1616,9 +1609,7 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
         startYEmu: sourceBoundFrameEmuFromPixels(endpoints.start?.y, `${connector.id}.start.y`, original),
         endXEmu: sourceBoundFrameEmuFromPixels(endpoints.end?.x, `${connector.id}.end.x`, original),
         endYEmu: sourceBoundFrameEmuFromPixels(endpoints.end?.y, `${connector.id}.end.y`, original),
-        lineRgb: String(line.style || "solid") === "none"
-          ? ""
-          : presentationRgb(line.fill || line.color || (width > 0 ? "#334155" : "transparent"), `${connector.id}.line.fill`),
+        lineRgb,
         lineWidthEmu: BigInt(Math.round(width * EMU_PER_POINT)),
         startArrow: head.type || "",
         endArrow: tail.type || "",
@@ -1626,13 +1617,13 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
         endTargetId,
         startConnectionSiteIndex: startSiteIndex,
         endConnectionSiteIndex: endSiteIndex,
-        lineStyle: String(line.style || "solid"),
+        lineStyle: lineRgb ? line.style : "none",
         startArrowWidth: head.width || "",
         startArrowLength: head.length || "",
         endArrowWidth: tail.width || "",
         endArrowLength: tail.length || "",
-        lineCap: cap == null ? "" : String(cap),
-        lineJoin: join == null ? "" : String(join),
+        lineCap: line.cap || "",
+        lineJoin: line.join || "",
       },
     },
   };
@@ -1719,7 +1710,10 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   if (shape.geometry === "custom" && customPaths.length === 0 && !opaqueSourceBoundCustomGeometry) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} requires custom paths.`, [], { code: "invalid_presentation_geometry" });
   }
-  const line = normalizePresentationShapeLine(shape.line, `Presentation shape ${shape.id} line`);
+  const line = normalizePresentationLineStyle(shape.line, { name: `Presentation shape ${shape.id} line` });
+  if (shape.geometry !== "line" && (line.head || line.tail)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shape.id} arrowheads require geometry line.`, [], { code: "unsupported_presentation_line" });
+  }
   const lineWidth = line.width;
   const widthEmu = emuFromPixels(position.width, `${shape.id}.position.width`);
   const heightEmu = emuFromPixels(position.height, `${shape.id}.position.height`);
@@ -1731,7 +1725,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   }
   const requestedLineRgb = line.style === "none"
     ? ""
-    : presentationRgb(presentationShapeLineColor(line, lineWidth > 0 ? "#334155" : "transparent"), `${shape.id}.line.fill`);
+    : presentationRgb(presentationLineColor(line, lineWidth > 0 ? "#334155" : "transparent"), `${shape.id}.line.fill`);
   const lineStyle = requestedLineRgb ? line.style : "none";
   const placeholder = !original && shape.placeholder ? sourceFreeSlidePlaceholder(shape) : undefined;
   const textBody = presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
@@ -1754,6 +1748,14 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         lineRgb: requestedLineRgb,
         lineWidthEmu: BigInt(Math.round(lineWidth * EMU_PER_POINT)),
         lineStyle,
+        startArrow: line.head?.type || "",
+        endArrow: line.tail?.type || "",
+        startArrowWidth: line.head?.width || "",
+        startArrowLength: line.head?.length || "",
+        endArrowWidth: line.tail?.width || "",
+        endArrowLength: line.tail?.length || "",
+        lineCap: line.cap || "",
+        lineJoin: line.join || "",
         ...(placeholder || {}),
         ...(placeholder || shape.transform == null ? {} : { transform: wirePresentationTransform(shape.transform, `shape ${shape.id}`) }),
         ...(shadow ? { shadow } : {}),
@@ -2975,6 +2977,26 @@ function presentationSlidePlaceholder(shape, original, originalState, assetCatal
   return requested;
 }
 
+function modelPresentationShapeLine(shape) {
+  return {
+    fill: shape.lineRgb ? `#${shape.lineRgb}` : "transparent",
+    width: Number(shape.lineWidthEmu) / EMU_PER_POINT,
+    style: shape.lineStyle || (shape.lineRgb ? "solid" : "none"),
+    ...(shape.startArrow ? { head: {
+      type: shape.startArrow,
+      ...(shape.startArrowWidth ? { width: shape.startArrowWidth } : {}),
+      ...(shape.startArrowLength ? { length: shape.startArrowLength } : {}),
+    } } : {}),
+    ...(shape.endArrow ? { tail: {
+      type: shape.endArrow,
+      ...(shape.endArrowWidth ? { width: shape.endArrowWidth } : {}),
+      ...(shape.endArrowLength ? { length: shape.endArrowLength } : {}),
+    } } : {}),
+    ...(shape.lineCap ? { cap: shape.lineCap } : {}),
+    ...(shape.lineJoin ? { join: shape.lineJoin } : {}),
+  };
+}
+
 function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
   const common = { id: element.id, name: element.name };
   if (element.content.case === "shape") {
@@ -2996,7 +3018,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       },
       ...(shape.transform ? { transform: modelPresentationTransform(shape.transform) } : {}),
       fill: shape.fillRgb ? `#${shape.fillRgb}` : "transparent",
-      line: { fill: shape.lineRgb ? `#${shape.lineRgb}` : "transparent", width: Number(shape.lineWidthEmu) / EMU_PER_POINT, style: shape.lineStyle || (shape.lineRgb ? "solid" : "none") },
+      line: modelPresentationShapeLine(shape),
       ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
       ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
       text: modelText(shape, assetCatalog, customShowLinks),
@@ -3236,7 +3258,7 @@ export async function presentationFromEnvelope(envelope) {
             textEditable: element.source?.textEditable === true,
           } } : {}),
           fill: shape.fillRgb ? `#${shape.fillRgb}` : "transparent",
-          line: { fill: shape.lineRgb ? `#${shape.lineRgb}` : "transparent", width: Number(shape.lineWidthEmu) / EMU_PER_POINT, style: shape.lineStyle || (shape.lineRgb ? "solid" : "none") },
+          line: modelPresentationShapeLine(shape),
           ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
           ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
           text: modelText(shape, assetCatalog, customShowLinks),

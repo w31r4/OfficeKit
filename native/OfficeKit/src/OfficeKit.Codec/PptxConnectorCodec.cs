@@ -9,11 +9,6 @@ internal static class PptxConnectorCodec
 {
     private const int RotationUnitsPerDegree = 60_000;
     private static readonly IReadOnlySet<string> ConnectorTypes = new HashSet<string>(StringComparer.Ordinal) { "straight", "elbow", "curved" };
-    private static readonly IReadOnlySet<string> LineStyles = new HashSet<string>(StringComparer.Ordinal) { "", "solid", "dashed", "none" };
-    private static readonly IReadOnlySet<string> ArrowTypes = new HashSet<string>(StringComparer.Ordinal) { "", "triangle", "stealth", "diamond", "oval", "arrow" };
-    private static readonly IReadOnlySet<string> EndSizes = new HashSet<string>(StringComparer.Ordinal) { "", "sm", "med", "lg" };
-    private static readonly IReadOnlySet<string> LineCaps = new HashSet<string>(StringComparer.Ordinal) { "", "flat", "round", "square" };
-    private static readonly IReadOnlySet<string> LineJoins = new HashSet<string>(StringComparer.Ordinal) { "", "round", "bevel", "miter" };
 
     internal static bool TryRead(
         P.ConnectionShape source,
@@ -28,9 +23,7 @@ internal static class PptxConnectorCodec
         if (properties is null || transform is null || geometry is null || outline is null ||
             !TryGeometryType(geometry, out var connectorType) ||
             !TryTransformEndpoints(transform, out var startX, out var startY, out var endX, out var endY) ||
-            !TryOutline(outline, out var lineRgb, out var lineWidth, out var lineStyle, out var cap, out var join,
-                out var startArrow, out var startArrowWidth, out var startArrowLength,
-                out var endArrow, out var endArrowWidth, out var endArrowLength) ||
+            !PptxLineStyleCodec.TryRead(outline, out var lineStyle) ||
             properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.Outline)) return false;
 
         var nonVisual = source.NonVisualConnectionShapeProperties?.NonVisualConnectorShapeDrawingProperties;
@@ -46,22 +39,12 @@ internal static class PptxConnectorCodec
             StartYEmu = startY,
             EndXEmu = endX,
             EndYEmu = endY,
-            LineRgb = lineRgb,
-            LineWidthEmu = lineWidth,
-            StartArrow = startArrow,
-            EndArrow = endArrow,
             StartTargetId = startTargetId,
             EndTargetId = endTargetId,
             StartConnectionSiteIndex = startSiteIndex,
             EndConnectionSiteIndex = endSiteIndex,
-            LineStyle = lineStyle,
-            StartArrowWidth = startArrowWidth,
-            StartArrowLength = startArrowLength,
-            EndArrowWidth = endArrowWidth,
-            EndArrowLength = endArrowLength,
-            LineCap = cap,
-            LineJoin = join,
         };
+        PptxLineStyleCodec.CopyTo(lineStyle, connector);
         return true;
     }
 
@@ -77,7 +60,7 @@ internal static class PptxConnectorCodec
         var properties = new P.ShapeProperties(
             ConnectorTransform(semantic),
             CanonicalGeometry(semantic.ConnectorType),
-            ConnectorOutline(semantic));
+            PptxLineStyleCodec.Build(semantic));
         return new P.ConnectionShape(
             new P.NonVisualConnectionShapeProperties(
                 new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name },
@@ -106,7 +89,7 @@ internal static class PptxConnectorCodec
             properties.InsertAfter(CanonicalGeometry(requested.Connector.ConnectorType), properties.Transform2D);
         }
         properties.GetFirstChild<A.Outline>()?.Remove();
-        properties.Append(ConnectorOutline(requested.Connector));
+        properties.Append(PptxLineStyleCodec.Build(requested.Connector));
     }
 
     internal static void Validate(
@@ -118,20 +101,12 @@ internal static class PptxConnectorCodec
         if (source is null) throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} payload is missing.");
         if (name.Length > 1_024) throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} name exceeds 1024 characters.");
         if (!ConnectorTypes.Contains(source.ConnectorType)) throw new CodecException("unsupported_presentation_connector", $"Presentation connector {elementId} uses unsupported type {source.ConnectorType}.");
-        if (source.StartXEmu < 0 || source.StartYEmu < 0 || source.EndXEmu < 0 || source.EndYEmu < 0 ||
-            source.LineWidthEmu < 0 || source.LineWidthEmu > int.MaxValue)
-            throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} has invalid endpoints or line width.");
-        if (!string.IsNullOrWhiteSpace(source.LineRgb)) PptxColor.Normalize(source.LineRgb);
-        if (!LineStyles.Contains(source.LineStyle) || !ArrowTypes.Contains(source.StartArrow) || !ArrowTypes.Contains(source.EndArrow) ||
-            !EndSizes.Contains(source.StartArrowWidth) || !EndSizes.Contains(source.StartArrowLength) ||
-            !EndSizes.Contains(source.EndArrowWidth) || !EndSizes.Contains(source.EndArrowLength) ||
-            !LineCaps.Contains(source.LineCap) || !LineJoins.Contains(source.LineJoin))
-            throw new CodecException("unsupported_presentation_connector", $"Presentation connector {elementId} uses unsupported line styling.");
-        if (source.StartArrow.Length == 0 && (source.StartArrowWidth.Length > 0 || source.StartArrowLength.Length > 0) ||
-            source.EndArrow.Length == 0 && (source.EndArrowWidth.Length > 0 || source.EndArrowLength.Length > 0) ||
-            source.StartTargetId.Length == 0 && source.StartConnectionSiteIndex != 0 ||
+        if (source.StartXEmu < 0 || source.StartYEmu < 0 || source.EndXEmu < 0 || source.EndYEmu < 0)
+            throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} has invalid endpoints.");
+        PptxLineStyleCodec.Validate(source, elementId);
+        if (source.StartTargetId.Length == 0 && source.StartConnectionSiteIndex != 0 ||
             source.EndTargetId.Length == 0 && source.EndConnectionSiteIndex != 0)
-            throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} has incomplete endpoint or line-end state.");
+            throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} has incomplete connection-target state.");
         if (nativeIdsByElementId is null) return;
         if (source.StartTargetId.Length > 0 && !nativeIdsByElementId.ContainsKey(source.StartTargetId))
             throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} references missing start target {source.StartTargetId}.");
@@ -202,149 +177,6 @@ internal static class PptxConnectorCodec
         return (
             checked((long)Math.Round(centerX + dx * Math.Cos(radians) - dy * Math.Sin(radians))),
             checked((long)Math.Round(centerY + dx * Math.Sin(radians) + dy * Math.Cos(radians))));
-    }
-
-    private static bool TryOutline(
-        A.Outline outline,
-        out string lineRgb,
-        out long lineWidth,
-        out string lineStyle,
-        out string cap,
-        out string join,
-        out string startArrow,
-        out string startArrowWidth,
-        out string startArrowLength,
-        out string endArrow,
-        out string endArrowWidth,
-        out string endArrowLength)
-    {
-        lineRgb = lineStyle = cap = join = startArrow = startArrowWidth = startArrowLength = endArrow = endArrowWidth = endArrowLength = string.Empty;
-        lineWidth = outline.Width?.Value ?? 0;
-        if (lineWidth < 0 || lineWidth > int.MaxValue || outline.ExtendedAttributes.Any() ||
-            outline.CompoundLineType is not null || outline.Alignment is not null) return false;
-
-        var noFills = outline.Elements<A.NoFill>().ToArray();
-        var solidFills = outline.Elements<A.SolidFill>().ToArray();
-        if (noFills.Length + solidFills.Length != 1) return false;
-        if (solidFills.Length == 1)
-        {
-            var fill = solidFills[0];
-            var rgb = fill.GetFirstChild<A.RgbColorModelHex>();
-            if (rgb?.Val?.Value is not string value || value.Length != 6 || fill.ChildElements.Count != 1 || fill.ExtendedAttributes.Any() || rgb.ChildElements.Any() || rgb.ExtendedAttributes.Any()) return false;
-            lineRgb = value.ToUpperInvariant();
-        }
-
-        var dashes = outline.Elements<A.PresetDash>().ToArray();
-        if (dashes.Length > 1 || dashes.SingleOrDefault()?.ChildElements.Any() == true || dashes.SingleOrDefault()?.ExtendedAttributes.Any() == true) return false;
-        var dash = dashes.SingleOrDefault()?.Val?.Value;
-        if (noFills.Length == 1)
-        {
-            if (dash is not null) return false;
-            lineStyle = "none";
-        }
-        else if (dash is null || dash.Value.Equals(A.PresetLineDashValues.Solid)) lineStyle = "solid";
-        else if (dash.Value.Equals(A.PresetLineDashValues.Dash)) lineStyle = "dashed";
-        else return false;
-
-        if (!TryCap(outline.CapType?.Value, out cap) || !TryJoin(outline, out join)) return false;
-        var heads = outline.Elements<A.HeadEnd>().ToArray();
-        var tails = outline.Elements<A.TailEnd>().ToArray();
-        if (heads.Length > 1 || tails.Length > 1 ||
-            !TryLineEnd(heads.SingleOrDefault(), out startArrow, out startArrowWidth, out startArrowLength) ||
-            !TryLineEnd(tails.SingleOrDefault(), out endArrow, out endArrowWidth, out endArrowLength)) return false;
-
-        return outline.ChildElements.All(child => child is A.NoFill or A.SolidFill or A.PresetDash or A.Round or A.LineJoinBevel or A.Miter or A.HeadEnd or A.TailEnd);
-    }
-
-    private static bool TryCap(A.LineCapValues? value, out string cap)
-    {
-        cap = string.Empty;
-        if (value is null) return true;
-        if (value.Value.Equals(A.LineCapValues.Flat)) cap = "flat";
-        else if (value.Value.Equals(A.LineCapValues.Round)) cap = "round";
-        else if (value.Value.Equals(A.LineCapValues.Square)) cap = "square";
-        else return false;
-        return true;
-    }
-
-    private static bool TryJoin(A.Outline outline, out string join)
-    {
-        join = string.Empty;
-        var joins = outline.ChildElements.Where(child => child is A.Round or A.LineJoinBevel or A.Miter).ToArray();
-        if (joins.Length > 1) return false;
-        if (joins.SingleOrDefault() is A.Round round)
-        {
-            if (round.ChildElements.Any() || round.ExtendedAttributes.Any()) return false;
-            join = "round";
-        }
-        else if (joins.SingleOrDefault() is A.LineJoinBevel bevel)
-        {
-            if (bevel.ChildElements.Any() || bevel.ExtendedAttributes.Any()) return false;
-            join = "bevel";
-        }
-        else if (joins.SingleOrDefault() is A.Miter miter)
-        {
-            if (miter.ChildElements.Any() || miter.ExtendedAttributes.Any() || miter.Limit is not null) return false;
-            join = "miter";
-        }
-        return true;
-    }
-
-    private static bool TryLineEnd(A.HeadEnd? source, out string type, out string width, out string length) =>
-        TryLineEnd(source, source?.Type?.Value, source?.Width?.Value, source?.Length?.Value, out type, out width, out length);
-
-    private static bool TryLineEnd(A.TailEnd? source, out string type, out string width, out string length) =>
-        TryLineEnd(source, source?.Type?.Value, source?.Width?.Value, source?.Length?.Value, out type, out width, out length);
-
-    private static bool TryLineEnd(
-        OpenXmlElement? source,
-        A.LineEndValues? sourceType,
-        A.LineEndWidthValues? sourceWidth,
-        A.LineEndLengthValues? sourceLength,
-        out string type,
-        out string width,
-        out string length)
-    {
-        type = width = length = string.Empty;
-        if (source is null) return true;
-        if (source.ChildElements.Any() || source.ExtendedAttributes.Any() || !TryArrow(sourceType, out type) ||
-            !TryEndWidth(sourceWidth, out width) || !TryEndLength(sourceLength, out length)) return false;
-        return type.Length > 0 || width.Length == 0 && length.Length == 0;
-    }
-
-    private static bool TryArrow(A.LineEndValues? source, out string arrow)
-    {
-        arrow = string.Empty;
-        if (source is null || source.Value.Equals(A.LineEndValues.None)) return true;
-        if (source.Value.Equals(A.LineEndValues.Triangle)) arrow = "triangle";
-        else if (source.Value.Equals(A.LineEndValues.Stealth)) arrow = "stealth";
-        else if (source.Value.Equals(A.LineEndValues.Diamond)) arrow = "diamond";
-        else if (source.Value.Equals(A.LineEndValues.Oval)) arrow = "oval";
-        else if (source.Value.Equals(A.LineEndValues.Arrow)) arrow = "arrow";
-        else return false;
-        return true;
-    }
-
-    private static bool TryEndWidth(A.LineEndWidthValues? source, out string width)
-    {
-        width = string.Empty;
-        if (source is null) return true;
-        if (source.Value.Equals(A.LineEndWidthValues.Small)) width = "sm";
-        else if (source.Value.Equals(A.LineEndWidthValues.Medium)) width = "med";
-        else if (source.Value.Equals(A.LineEndWidthValues.Large)) width = "lg";
-        else return false;
-        return true;
-    }
-
-    private static bool TryEndLength(A.LineEndLengthValues? source, out string length)
-    {
-        length = string.Empty;
-        if (source is null) return true;
-        if (source.Value.Equals(A.LineEndLengthValues.Small)) length = "sm";
-        else if (source.Value.Equals(A.LineEndLengthValues.Medium)) length = "med";
-        else if (source.Value.Equals(A.LineEndLengthValues.Large)) length = "lg";
-        else return false;
-        return true;
     }
 
     private static bool TryConnectionTargets(
@@ -418,66 +250,4 @@ internal static class PptxConnectorCodec
         };
     }
 
-    private static A.Outline ConnectorOutline(PresentationConnector source)
-    {
-        var outline = new A.Outline { Width = checked((int)source.LineWidthEmu) };
-        if (source.LineCap.Length > 0) outline.CapType = source.LineCap switch
-        {
-            "round" => A.LineCapValues.Round,
-            "square" => A.LineCapValues.Square,
-            _ => A.LineCapValues.Flat,
-        };
-        outline.Append(string.IsNullOrWhiteSpace(source.LineRgb) || source.LineStyle == "none"
-            ? new A.NoFill()
-            : new A.SolidFill(new A.RgbColorModelHex { Val = PptxColor.Normalize(source.LineRgb) }));
-        if (source.LineStyle == "dashed") outline.Append(new A.PresetDash { Val = A.PresetLineDashValues.Dash });
-        if (source.LineJoin.Length > 0) outline.Append(source.LineJoin switch
-        {
-            "round" => new A.Round(),
-            "bevel" => new A.LineJoinBevel(),
-            _ => new A.Miter(),
-        });
-        if (source.StartArrow.Length > 0) outline.Append(HeadEnd(source.StartArrow, source.StartArrowWidth, source.StartArrowLength));
-        if (source.EndArrow.Length > 0) outline.Append(TailEnd(source.EndArrow, source.EndArrowWidth, source.EndArrowLength));
-        return outline;
-    }
-
-    private static A.HeadEnd HeadEnd(string type, string width, string length)
-    {
-        var output = new A.HeadEnd { Type = LineEndType(type) };
-        if (width.Length > 0) output.Width = LineEndWidth(width);
-        if (length.Length > 0) output.Length = LineEndLength(length);
-        return output;
-    }
-
-    private static A.TailEnd TailEnd(string type, string width, string length)
-    {
-        var output = new A.TailEnd { Type = LineEndType(type) };
-        if (width.Length > 0) output.Width = LineEndWidth(width);
-        if (length.Length > 0) output.Length = LineEndLength(length);
-        return output;
-    }
-
-    private static A.LineEndValues LineEndType(string type) => type switch
-    {
-        "stealth" => A.LineEndValues.Stealth,
-        "diamond" => A.LineEndValues.Diamond,
-        "oval" => A.LineEndValues.Oval,
-        "arrow" => A.LineEndValues.Arrow,
-        _ => A.LineEndValues.Triangle,
-    };
-
-    private static A.LineEndWidthValues LineEndWidth(string width) => width switch
-    {
-        "sm" => A.LineEndWidthValues.Small,
-        "lg" => A.LineEndWidthValues.Large,
-        _ => A.LineEndWidthValues.Medium,
-    };
-
-    private static A.LineEndLengthValues LineEndLength(string length) => length switch
-    {
-        "sm" => A.LineEndLengthValues.Small,
-        "lg" => A.LineEndLengthValues.Large,
-        _ => A.LineEndLengthValues.Medium,
-    };
 }

@@ -128,7 +128,15 @@ const horizontalFreeLine = freeLineSlide.shapes.add({
   geometry: "line",
   position: { left: 80, top: 90, width: 360, height: 0 },
   fill: "none",
-  line: { style: "dash", fill: "#2563EB", width: 2 },
+  line: {
+    style: "dash",
+    fill: "#2563EB",
+    width: 2,
+    head: { type: "oval", width: "sm", length: "med" },
+    tail: { type: "arrow", width: "lg", length: "sm" },
+    cap: "round",
+    join: "bevel",
+  },
 });
 const verticalFreeLine = freeLineSlide.shapes.add({
   name: "vertical-free-line",
@@ -160,6 +168,10 @@ const hiddenFreeLine = freeLineSlide.shapes.add({
 });
 assert.match(horizontalFreeLine.toSvg(), /<line\b[^>]*x1="80"[^>]*y1="90"[^>]*x2="440"[^>]*y2="90"/);
 assert.match(horizontalFreeLine.toSvg(), /stroke-dasharray="8 6"/);
+assert.match(horizontalFreeLine.toSvg(), /marker-start=/);
+assert.match(horizontalFreeLine.toSvg(), /marker-end=/);
+assert.match(horizontalFreeLine.toSvg(), /stroke-linecap="round"/);
+assert.match(horizontalFreeLine.toSvg(), /stroke-linejoin="bevel"/);
 assert.match(verticalFreeLine.toSvg(), /stroke-dasharray="2 4"/);
 assert.match(diagonalFreeLine.toSvg(), /stroke-dasharray="8 4 2 4"/);
 assert.match(diagonalFreeLine.toSvg(), /stroke="#F97316"/);
@@ -186,14 +198,30 @@ placeholderFreeLine.slides.add().shapes.add({
   placeholder: { type: "body", index: 1 },
 });
 await assert.rejects(() => PresentationFile.exportPptx(placeholderFreeLine), /free line.*cannot be a placeholder/i);
-const arrowFreeLine = Presentation.create();
-arrowFreeLine.slides.add().shapes.add({
-  geometry: "line",
-  position: { left: 10, top: 10, width: 100, height: 0 },
+const nonLineArrow = Presentation.create();
+nonLineArrow.slides.add().shapes.add({
+  geometry: "rect",
+  position: { left: 10, top: 10, width: 100, height: 40 },
   line: { fill: "#000000", width: 1, endArrow: "triangle" },
 });
-assert.throws(() => arrowFreeLine.slides.getItem(0).shapes.items[0].toSvg(), /unsupported properties: endArrow/);
-await assert.rejects(() => PresentationFile.exportPptx(arrowFreeLine), /unsupported properties: endArrow/);
+assert.throws(() => nonLineArrow.slides.getItem(0).shapes.items[0].toSvg(), /arrowheads require geometry line/);
+await assert.rejects(() => PresentationFile.exportPptx(nonLineArrow), /arrowheads require geometry line/);
+const incompleteLineEnd = Presentation.create();
+incompleteLineEnd.slides.add().shapes.add({
+  geometry: "line",
+  position: { left: 10, top: 10, width: 100, height: 0 },
+  line: { fill: "#000000", width: 1, endArrowWidth: "lg" },
+});
+assert.throws(() => incompleteLineEnd.slides.getItem(0).shapes.items[0].toSvg(), /requires endArrow/);
+await assert.rejects(() => PresentationFile.exportPptx(incompleteLineEnd), /requires endArrow/);
+const conflictingLineEnd = Presentation.create();
+conflictingLineEnd.slides.add().shapes.add({
+  geometry: "line",
+  position: { left: 10, top: 10, width: 100, height: 0 },
+  line: { fill: "#000000", width: 1, tail: "oval", endArrow: "triangle" },
+});
+assert.throws(() => conflictingLineEnd.slides.getItem(0).shapes.items[0].toSvg(), /conflicting tail and endArrow/);
+await assert.rejects(() => PresentationFile.exportPptx(conflictingLineEnd), /conflicting tail and endArrow/);
 
 const freeLineFirstExport = await PresentationFile.exportPptx(freeLineDeck);
 const freeLineFirstZip = await JSZip.loadAsync(freeLineFirstExport.bytes);
@@ -203,6 +231,10 @@ assert.doesNotMatch(freeLineFirstXml, /<p:cxnSp>/);
 assert.equal([...freeLineFirstXml.matchAll(/<a:prstGeom\b[^>]*\bprst="line"/g)].length, 5);
 assert.match(freeLineFirstXml, /<a:ext\b[^>]*\bcx="3429000"[^>]*\bcy="0"/);
 assert.match(freeLineFirstXml, /<a:ext\b[^>]*\bcx="0"[^>]*\bcy="2095500"/);
+assert.match(freeLineFirstXml, /<a:ln\b[^>]*cap="rnd"/);
+assert.match(freeLineFirstXml, /<a:bevel\s*\/>/);
+assert.match(freeLineFirstXml, /<a:headEnd\b[^>]*type="oval"[^>]*w="sm"[^>]*len="med"/);
+assert.match(freeLineFirstXml, /<a:tailEnd\b[^>]*type="arrow"[^>]*w="lg"[^>]*len="sm"/);
 for (const dash of ["dash", "dot", "dashDot", "lgDashDotDot"]) {
   assert.match(freeLineFirstXml, new RegExp(`<a:prstDash val="${dash}"`));
 }
@@ -221,6 +253,15 @@ assert.deepEqual(
   ],
 );
 assert.deepEqual(itemByName(importedFreeLineSlide.shapes.items, "horizontal-free-line").position, { left: 80, top: 90, width: 360, height: 0 });
+assert.deepEqual(itemByName(importedFreeLineSlide.shapes.items, "horizontal-free-line").line, {
+  fill: "#2563EB",
+  width: 2,
+  style: "dashed",
+  head: { type: "oval", width: "sm", length: "med" },
+  tail: { type: "arrow", width: "lg", length: "sm" },
+  cap: "round",
+  join: "bevel",
+});
 const freeLineNoOpExport = await PresentationFile.exportPptx(freeLineImported);
 const freeLineNoOpZip = await JSZip.loadAsync(freeLineNoOpExport.bytes);
 assert.deepEqual(
@@ -231,11 +272,27 @@ assert.deepEqual(
 const freeLineEditDeck = await PresentationFile.importPptx(freeLineFirstExport);
 const freeLineToEdit = itemByName(freeLineEditDeck.slides.getItem(0).shapes.items, "horizontal-free-line");
 freeLineToEdit.position.height = 48;
-freeLineToEdit.line = { style: "dotted", fill: "#0F172A", width: 3 };
+freeLineToEdit.line = {
+  style: "dotted",
+  fill: "#0F172A",
+  width: 3,
+  head: { type: "diamond", width: "lg", length: "lg" },
+  tail: { type: "stealth", width: "sm", length: "med" },
+  cap: "square",
+  join: "miter",
+};
 const freeLineEditedRoundTrip = await PresentationFile.importPptx(await PresentationFile.exportPptx(freeLineEditDeck));
 const editedFreeLine = itemByName(freeLineEditedRoundTrip.slides.getItem(0).shapes.items, "horizontal-free-line");
 assert.equal(editedFreeLine.position.height, 48);
-assert.deepEqual(editedFreeLine.line, { style: "dotted", fill: "#0F172A", width: 3 });
+assert.deepEqual(editedFreeLine.line, {
+  fill: "#0F172A",
+  width: 3,
+  style: "dotted",
+  head: { type: "diamond", width: "lg", length: "lg" },
+  tail: { type: "stealth", width: "sm", length: "med" },
+  cap: "square",
+  join: "miter",
+});
 
 const freeLineCloneDeck = await PresentationFile.importPptx(freeLineFirstExport);
 freeLineCloneDeck.slides.getItem(0).duplicate();
@@ -281,7 +338,7 @@ const curvedConnector = connectorSlide.shapes.connect(connectorSource, connector
   kind: "curved",
   fromSide: "right",
   toSide: "left",
-  line: { style: "dashed", fill: "#2563EB", width: 2.5 },
+  line: { style: "dashDot", fill: "#2563EB", width: 2.5 },
   head: { type: "arrow", width: "lg", length: "sm" },
   tail: { type: "diamond", width: "sm", length: "lg" },
   cap: "round",
@@ -301,7 +358,7 @@ assert.equal(curvedConnector.setConnectorTo(connectorTarget, 6), curvedConnector
 assert.deepEqual(curvedConnector.end, { x: 760, y: 150 });
 assert.equal(curvedConnector.setConnectorTo(connectorTarget, 2), curvedConnector);
 assert.match(curvedConnector.toSvg(), / C /);
-assert.match(curvedConnector.toSvg(), /stroke-dasharray="8 6"/);
+assert.match(curvedConnector.toSvg(), /stroke-dasharray="8 4 2 4"/);
 assert.match(curvedConnector.toSvg(), /marker-start=/);
 assert.match(curvedConnector.toSvg(), /marker-end=/);
 assert.match(curvedConnector.toSvg(), /stroke-linecap="round"/);
@@ -380,7 +437,7 @@ assert.ok(connectorFirstXml.indexOf("<p:cxnSp>") < connectorFirstXml.indexOf("<p
 assert.match(connectorFirstXml, /<a:stCxn\b[^>]*idx="3"/);
 assert.match(connectorFirstXml, /<a:endCxn\b[^>]*idx="2"/);
 assert.match(connectorFirstXml, /prst="curvedConnector3"/);
-assert.match(connectorFirstXml, /<a:prstDash val="dash"/);
+assert.match(connectorFirstXml, /<a:prstDash val="dashDot"/);
 assert.match(connectorFirstXml, /<a:ln\b[^>]*cap="rnd"/);
 assert.match(connectorFirstXml, /<a:bevel\s*\/>/);
 assert.match(connectorFirstXml, /<a:headEnd\b[^>]*type="arrow"[^>]*w="lg"[^>]*len="sm"/);
@@ -395,7 +452,7 @@ assert.equal(importedCurvedConnector.startSiteIndex, 3);
 assert.equal(importedCurvedConnector.endSiteIndex, 2);
 assert.deepEqual(importedCurvedConnector.head, { type: "arrow", width: "lg", length: "sm" });
 assert.deepEqual(importedCurvedConnector.tail, { type: "diamond", width: "sm", length: "lg" });
-assert.equal(importedCurvedConnector.line.style, "dashed");
+assert.equal(importedCurvedConnector.line.style, "dash-dot");
 assert.equal(importedCurvedConnector.cap, "round");
 assert.equal(importedCurvedConnector.join, "bevel");
 assert.equal(itemByName(importedConnectorSlide.connectors.items, "hidden-site-connector").line.style, "none");

@@ -695,10 +695,10 @@ assert.match(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.sche
 assert.match(shapeAddHelp?.summary || "", /free-positioned p:sp line.*connector.*target-plus-site identity/i);
 assert.match(shapeAddHelp?.schema?.parameters?.geometry?.description || "", /line.*free-positioned p:sp.*without targets.*connector.*p:cxnSp/i);
 assert.match(shapeAddHelp?.schema?.parameters?.position?.description || "", /left\/top.*start point.*width\/height.*endpoint delta.*one extent may be zero.*both zero fail closed/i);
-assert.match(shapeAddHelp?.schema?.parameters?.line?.description || "", /solid\|dashed\|dotted\|dash-dot\|dash-dot-dot\|none.*dash\/dot\/dashDot\/longDashDotDot.*Arrowheads.*connectors.*not free lines/i);
+assert.match(shapeAddHelp?.schema?.parameters?.line?.description || "", /solid\|dashed\|dotted\|dash-dot\|dash-dot-dot\|none.*Line ends.*triangle\|stealth\|diamond\|oval\|arrow.*only geometry line accepts ends.*dash\/dot\/dashDot\/longDashDotDot/i);
 assert.match(shapeAddHelp?.schema?.returns?.shape?.description || "", /free-positioned p:sp line.*exact-site p:cxnSp connector.*Unknown line profiles.*fail closed/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "exportPptxWithOfficeKit")?.summary || "", /free-positioned p:sp lines.*solid\/dashed\/dotted\/dash-dot\/dash-dot-dot\/none.*p:cxnSp connectors/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "importPptxWithOfficeKit")?.summary || "", /free-positioned p:sp lines.*target-bound p:cxnSp connectors.*Free-line arrowheads.*custom-dash outlines.*source-bound and read-only/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "exportPptxWithOfficeKit")?.summary || "", /free-positioned p:sp lines.*shared six-style\/line-end\/cap\/join outline profile.*p:cxnSp connectors.*same line profile/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "importPptxWithOfficeKit")?.summary || "", /free-positioned p:sp lines.*line ends\/caps\/joins.*target-bound p:cxnSp connectors.*Compound\/theme\/custom-dash\/effect\/extension outlines.*source-bound and read-only/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "table.merge")?.schema?.parameters?.range?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "table.merge")?.schema?.returns?.table?.description || "", /upper-left value.*covered cells read-only.*topology remains source-bound/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "officeKitStatus")?.schema?.returns?.status?.type, "object");

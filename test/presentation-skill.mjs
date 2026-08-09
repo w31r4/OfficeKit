@@ -122,8 +122,14 @@ try {
   const workflowDivider = itemByName(workflowSlide.shapes.items, "free-workflow-divider");
   assert.equal(workflowDivider.geometry, "line");
   assert.deepEqual(workflowDivider.position, { left: 72, top: 122, width: 1108, height: 0 });
-  assert.equal(workflowDivider.line.style, "dashed");
-  assert.match(workflowDivider.toSvg(), /<line\b[^>]*stroke-dasharray="8 6"/);
+  assert.equal(workflowDivider.line.style, "dash-dot");
+  assert.deepEqual(workflowDivider.line.head, { type: "oval", width: "sm", length: "med" });
+  assert.deepEqual(workflowDivider.line.tail, { type: "arrow", width: "lg", length: "sm" });
+  assert.equal(workflowDivider.line.cap, "round");
+  assert.equal(workflowDivider.line.join, "bevel");
+  assert.match(workflowDivider.toSvg(), /<line\b[^>]*stroke-dasharray="8 4 2 4"/);
+  assert.match(workflowDivider.toSvg(), /marker-start=/);
+  assert.match(workflowDivider.toSvg(), /marker-end=/);
   assert.equal(itemByName(workflowSlide.tables.items, "workflow-matrix").values[1][1], "Pass");
   const curved = itemByName(workflowSlide.connectors.items, "create-to-verify");
   assert.equal(curved.connectorType, "curved");
@@ -159,6 +165,9 @@ try {
   assert.match(firstSlideXml, /<a:prstGeom prst="roundRect"[^>]*>/);
   assert.match(firstSlideXml, /<a:prstGeom\b[^>]*\bprst="line"/);
   assert.match(firstSlideXml, /<a:ext\b[^>]*\bcx="10553700"[^>]*\bcy="0"/);
+  assert.match(firstSlideXml, /<a:ln\b[^>]*cap="rnd"/);
+  assert.match(firstSlideXml, /<a:headEnd\b[^>]*type="oval"[^>]*w="sm"[^>]*len="med"/);
+  assert.match(firstSlideXml, /<a:tailEnd\b[^>]*type="arrow"[^>]*w="lg"[^>]*len="sm"/);
   assert.match(firstSlideXml, /<p:cNvSpPr txBox="1"\s*\/>/);
   assert.match(firstSlideXml, /<p:cxnSp>/);
   assert.match(firstSlideXml, /<a:stCxn\b[^>]*idx="3"/);

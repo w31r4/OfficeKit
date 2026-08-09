@@ -29,7 +29,7 @@ import { normalizePresentationCustomPaths, normalizePresentationCustomTextRectan
 import { normalizePresentationCustomGeometryFormulaGraph } from "./custom-geometry-formulas.mjs";
 import { normalizePresentationImageCrop, normalizePresentationImageFit, presentationImageCropViewport } from "./image-crop.mjs";
 import { planPresentationModernComments } from "./ooxml-modern-comments.mjs";
-import { presentationFreeLineSvg, presentationShapeLineSvgAttributes } from "./shape-lines.mjs";
+import { presentationFreeLineSvg, presentationShapeLineSvgAttributes } from "./line-styles.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const EMU_PER_PIXEL = 9_525;
@@ -1421,11 +1421,13 @@ export class Shape {
     const fill = this.useBackgroundFill === true
       ? resolvePresentationBackgroundColor(this.slide.effectiveBackground(), this.slide.effectiveTheme())
       : typeof this.fill === "string" ? resolveColorToken(this.fill, this.fill) : this.fill?.color || "transparent";
-    const outline = presentationShapeLineSvgAttributes(this.line, `Presentation shape ${this.name || this.id} line`);
+    const outline = this.geometry === "line"
+      ? ""
+      : presentationShapeLineSvgAttributes(this.line, `Presentation shape ${this.name || this.id} line`);
     const visual = this.geometry === "custom"
       ? `<g fill="${xmlEscape(fill)}" ${outline}>${presentationCustomPathsSvg(custom.paths, p, { escape: xmlEscape, adjustments: custom.adjustments, guides: custom.guides, sourceFrame: this.position })}</g>`
       : this.geometry === "line"
-      ? presentationFreeLineSvg(this.line, p, `Presentation shape ${this.name || this.id}`)
+      ? presentationFreeLineSvg(this.line, p, `Presentation shape ${this.name || this.id}`, this.id)
       : this.geometry === "ellipse"
       ? `<ellipse cx="${p.left + p.width / 2}" cy="${p.top + p.height / 2}" rx="${p.width / 2}" ry="${p.height / 2}" fill="${xmlEscape(fill)}" ${outline}/>`
       : `<rect x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" rx="${this.borderRadius ? 12 : 0}" fill="${xmlEscape(fill)}" ${outline}/>`;
