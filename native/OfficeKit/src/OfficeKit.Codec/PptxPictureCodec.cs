@@ -7,8 +7,9 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace OfficeKit.Codec;
 
 // Owns the deliberately small top-level p:pic contract. Everything outside
-// the embedded blip, rectangular stretch frame, alt text, and direct visual
-// transform remains opaque and must survive the residual hash unchanged.
+// the embedded blip, rectangular stretch frame, non-visible title/description,
+// and direct visual transform remains opaque and must survive the residual hash
+// unchanged.
 internal static class PptxPictureCodec
 {
     private const int MaxTextLength = 1_024;
@@ -28,6 +29,8 @@ internal static class PptxPictureCodec
             {
                 AssetId = asset.Id,
                 AltText = nonVisual.Description?.Value ?? string.Empty,
+                AccessibilityTitle = nonVisual.GetAttributes()
+                    .FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "title").Value ?? string.Empty,
                 LeftEmu = offset.X?.Value ?? 0,
                 TopEmu = offset.Y?.Value ?? 0,
                 WidthEmu = extents.Cx?.Value ?? 0,
@@ -36,8 +39,9 @@ internal static class PptxPictureCodec
             if (crop is not null) image.Crop = ReadCrop(crop);
             var visual = ReadTransform(transform);
             if (visual is not null) image.Transform = visual;
+            PptxNonVisualAccessibilityCodec.Validate(Accessibility(image), "source", "image");
             return image.LeftEmu >= 0 && image.TopEmu >= 0 && image.WidthEmu > 0 && image.HeightEmu > 0 &&
-                   (nonVisual.Name?.Value?.Length ?? 0) <= MaxTextLength && image.AltText.Length <= MaxTextLength;
+                   (nonVisual.Name?.Value?.Length ?? 0) <= MaxTextLength;
         }
         catch (CodecException)
         {
@@ -53,8 +57,7 @@ internal static class PptxPictureCodec
         if (string.IsNullOrWhiteSpace(image.AssetId) || image.AssetId.Length > 512)
             throw Invalid(elementId, "asset ID must contain 1 through 512 characters");
         _ = assets.Get(image.AssetId);
-        if (image.AltText.Length > MaxTextLength)
-            throw Invalid(elementId, $"alternative text exceeds {MaxTextLength} characters");
+        PptxNonVisualAccessibilityCodec.Validate(Accessibility(image), elementId, "image");
         if (image.LeftEmu < 0 || image.TopEmu < 0 || image.WidthEmu <= 0 || image.HeightEmu <= 0)
             throw Invalid(elementId, "frame must use non-negative coordinates and positive extents");
         if (image.Crop is not null && !CropValuesValid(image.Crop))
@@ -72,14 +75,11 @@ internal static class PptxPictureCodec
         var fill = new P.BlipFill(new A.Blip { Embed = context.AddEmbeddedPicture(image.AssetId) });
         if (image.Crop is not null) fill.Append(BuildCrop(image.Crop));
         fill.Append(new A.Stretch(new A.FillRectangle()));
+        var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name };
+        PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, Accessibility(image));
         return new P.Picture(
             new P.NonVisualPictureProperties(
-                new P.NonVisualDrawingProperties
-                {
-                    Id = nativeId,
-                    Name = source.Name,
-                    Description = image.AltText,
-                },
+                nonVisual,
                 new P.NonVisualPictureDrawingProperties(),
                 new P.ApplicationNonVisualDrawingProperties()),
             fill,
@@ -90,7 +90,8 @@ internal static class PptxPictureCodec
 
     internal static void Apply(P.Picture source, PresentationElement requested, PptxPartContext context)
     {
-        if (!TryParts(source, out var nonVisual, out var blip, out var transform, out _))
+        if (!TryRead(source, context, out var currentImage) ||
+            !TryParts(source, out var nonVisual, out var blip, out var transform, out _))
             throw new CodecException("unsupported_presentation_edit", $"Presentation image {requested.Id} no longer matches the editable picture profile.");
         var current = context.ReadEmbeddedPicture(blip.Embed?.Value ?? string.Empty);
         var replacement = context.Assets?.Get(requested.Image.AssetId) ??
@@ -102,7 +103,14 @@ internal static class PptxPictureCodec
             blip.Embed = context.AddEmbeddedPicture(replacement.Id);
         }
         nonVisual.Name = requested.Name;
-        nonVisual.Description = requested.Image.AltText;
+        if (!currentImage.AccessibilityTitle.Equals(requested.Image.AccessibilityTitle, StringComparison.Ordinal))
+        {
+            nonVisual.RemoveAttribute("title", string.Empty);
+            if (requested.Image.AccessibilityTitle.Length > 0)
+                nonVisual.SetAttribute(new OpenXmlAttribute("title", string.Empty, requested.Image.AccessibilityTitle));
+        }
+        if (!currentImage.AltText.Equals(requested.Image.AltText, StringComparison.Ordinal))
+            nonVisual.Description = requested.Image.AltText.Length > 0 ? requested.Image.AltText : null;
         transform.Offset!.X = requested.Image.LeftEmu;
         transform.Offset.Y = requested.Image.TopEmu;
         transform.Extents!.Cx = requested.Image.WidthEmu;
@@ -116,6 +124,7 @@ internal static class PptxPictureCodec
         if (source.NonVisualPictureProperties?.NonVisualDrawingProperties is { } nonVisual)
         {
             nonVisual.Name = string.Empty;
+            nonVisual.RemoveAttribute("title", string.Empty);
             nonVisual.Description = string.Empty;
         }
         if (source.BlipFill?.GetFirstChild<A.Blip>() is { } blip) blip.Embed = string.Empty;
@@ -171,6 +180,15 @@ internal static class PptxPictureCodec
         blip = embedded;
         transform = xfrm;
         return true;
+    }
+
+    private static PresentationNonVisualAccessibility? Accessibility(PresentationImage image)
+    {
+        if (image.AccessibilityTitle.Length == 0 && image.AltText.Length == 0) return null;
+        var value = new PresentationNonVisualAccessibility();
+        if (image.AccessibilityTitle.Length > 0) value.Title = image.AccessibilityTitle;
+        if (image.AltText.Length > 0) value.Description = image.AltText;
+        return value;
     }
 
     private static bool CropSupported(A.SourceRectangle source)

@@ -2,15 +2,53 @@
 
 ## Current 0.6.0 package evidence (2026-08-10)
 
-The package dry-run passed with shape/connector/group/table/chart alternative
-text and the rebuilt OfficeKit Codec runtime. The candidate contains 714 files,
-36,230,832 compressed bytes, and 53,417,857 unpacked bytes; its measured shasum
-is `f2010dc8eaaf1e37d73adc222f89d0dd3074d271`. The cumulative accessibility
-deltas remain within the audited 53,420,000-byte unpacked ceiling with 2,143
-bytes of measured headroom; the
+The package dry-run passed with shape/connector/group/image/table/chart
+alternative text and the rebuilt OfficeKit Codec runtime. The candidate
+contains 714 files, 36,232,466 compressed bytes, and 53,425,502 unpacked bytes;
+its measured shasum is `925c0f57b008a0f0a99c849ac0a51c5c454aba57`.
+The picture wire/runtime/Skill slice advances the audited unpacked ceiling by
+only 10,000 bytes to 53,430,000, leaving 4,498 bytes of measured headroom; the
 37,500,000-byte compressed ceiling is unchanged. The runtime manifest covers
-38 files and 15,406,827 bytes. This is package evidence, not an npm registry
+38 files and 15,407,339 bytes. This is package evidence, not an npm registry
 publication or tagged release.
+
+## Unreleased: Presentation picture alternative text
+
+Presentation images now use the same public non-visible metadata vocabulary as
+other meaningful slide objects. `image.accessibility` is the canonical
+`{ title?, description? }` state, `image.accessibilityCapability` provides a
+fresh edit preflight, and `image.setAccessibilityMetadata(...)` adds, changes,
+or clears either field. The existing `image.alt` property remains compatible
+but is only an alias for `accessibility.description`; conflicting constructor or
+replacement values fail closed instead of creating two descriptions.
+
+Protocol v2 appends `PresentationImage.accessibility_title` field 9 and keeps
+the existing `alt_text` field as the single description value. The OfficeKit
+Codec writes standard `p:nvPicPr/p:cNvPr/@title` and `@descr`, imports them into
+the JS model, and re-proves the source-bound picture profile during export.
+Unlike the stricter shared child-free leaf used by shapes and graphic frames,
+recognized pictures keep their existing residual contract: unknown `cNvPr`
+attributes and children survive while a bounded metadata edit changes only
+`title`/`descr`.
+
+JavaScript, C#/.NET, bundled-WASM, Help, and runnable Presentation Skill tests
+cover source-free authoring, legacy alias identity, import, edit, clear,
+conflict rejection, exact no-op, second import, native attributes, source
+capability, irregular-child preservation, unchanged SVG, package validation,
+and model/native render review. Decorative state, reading order, automatic
+description generation, and whole-deck accessibility conformance remain
+separate contracts.
+
+Local gates passed: fast 26/26, slow 75/75, OfficeKit Codec 400/400,
+OfficeBridge 5/5, generated Help/API docs, protocol lint/regeneration,
+deterministic WASM verification across 39 outputs, Presentation Skill
+model/native rendering, reference Skill sync/portability, Playwright,
+LibreOffice/Poppler template rendering, real qpdf, clean-install, standalone
+distribution, and `test:pack`. Managed pack downloads and separately
+configured pypdf, pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python
+environments remained explicit skips; their offline contracts passed. npm
+publication, a tagged release, and Windows Microsoft Office host acceptance
+remain external blockers.
 
 ## Unreleased: Presentation group and connector alternative text
 

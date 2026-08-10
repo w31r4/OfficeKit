@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 471);
+assert.equal(HELP_CATALOG.length, 473);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -116,6 +116,10 @@ assert.match(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.importXl
 assert.match(HELP_CATALOG.find((item) => item.name === "sheet.images.add")?.schema?.parameters?.transform?.description || "", /rotationDegrees.*flipHorizontal.*flipVertical/);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.schema?.parameters?.fit?.description || "", /contain.*cover.*stretch.*srcRect.*no fit keyword/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.schema?.parameters?.crop?.description || "", /-1\.\.1.*Positive.*negative.*Manual crop/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.schema?.parameters?.accessibility?.description || "", /title.*description.*p:nvPicPr\/p:cNvPr.*object name.*visible pixels/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.schema?.parameters?.alt?.description || "", /alias.*accessibility\.description.*same state.*empty string clears/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "image.accessibilityCapability")?.schema?.returns?.capability?.description || "", /sourceBound.*editable.*addable.*picture title\/description/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "image.setAccessibilityMetadata")?.schema?.returns?.image?.description || "", /legacy alt.*description alias.*residual-protected unknown cNvPr children.*preserved/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.master")?.schema?.parameters?.placeholders?.description || "", /Source-free direct-frame.*title\/body.*imported placeholders.*read-only/i);
 const shapeAddHelp = HELP_CATALOG.find((item) => item.name === "slide.shapes.add");
 assert.match(shapeAddHelp?.summary || "", /ordered adjustment\/guide formulas.*XY\/polar adjustment handles.*connection sites/i);
@@ -620,7 +624,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.setDateContentC
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.schema?.parameters?.dryRun?.type, "boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.summary || "", /SEQ counters.*REF cached results.*PAGEREF.*pagination host/i);
 const presentationCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
-assert.equal(presentationCatalog.length, 91);
+assert.equal(presentationCatalog.length, 93);
 assert.ok(presentationCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slides.insert")?.schema?.parameters?.after?.type, "Slide|number|null");

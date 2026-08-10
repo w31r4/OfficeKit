@@ -1060,15 +1060,17 @@ internal static class PptxCodec
             ElementSha256 = HashElement(source),
             Editable = editable,
             TextEditable = source is P.Shape placeholderShape && PptxPlaceholderCodec.SupportsSlideTextEditing(placeholderShape),
-            AccessibilityEditable = editable && PptxNonVisualAccessibilityCodec.Supports(source switch
-            {
-                P.Shape accessibilityShape => accessibilityShape.NonVisualShapeProperties?.NonVisualDrawingProperties,
-                P.ConnectionShape accessibilityConnector => accessibilityConnector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties,
-                P.GroupShape accessibilityGroup => accessibilityGroup.NonVisualGroupShapeProperties?.NonVisualDrawingProperties,
-                P.GraphicFrame accessibilityFrame when element.ContentCase is PresentationElement.ContentOneofCase.Table or PresentationElement.ContentOneofCase.Chart =>
-                    accessibilityFrame.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties,
-                _ => null,
-            }),
+            AccessibilityEditable = editable && (
+                (source is P.Picture && element.ContentCase == PresentationElement.ContentOneofCase.Image) ||
+                PptxNonVisualAccessibilityCodec.Supports(source switch
+                {
+                    P.Shape accessibilityShape => accessibilityShape.NonVisualShapeProperties?.NonVisualDrawingProperties,
+                    P.ConnectionShape accessibilityConnector => accessibilityConnector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties,
+                    P.GroupShape accessibilityGroup => accessibilityGroup.NonVisualGroupShapeProperties?.NonVisualDrawingProperties,
+                    P.GraphicFrame accessibilityFrame when element.ContentCase is PresentationElement.ContentOneofCase.Table or PresentationElement.ContentOneofCase.Chart =>
+                        accessibilityFrame.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties,
+                    _ => null,
+                })),
         };
         element.Source.SemanticSha256 = SemanticHash(element);
         return element;

@@ -1739,8 +1739,9 @@ message PresentationElementSourceBinding {
   // Source evidence only: true when the modeled Presentation element owns the
   // bounded cNvPr profile whose non-visible title/description may be added,
   // changed, or cleared without rewriting hyperlinks, extensions, or unknown
-  // metadata. Current semantic owners are ordinary p:sp, p:cxnSp, p:grpSp,
-  // and table/chart p:graphicFrame elements.
+  // metadata. Current semantic owners are ordinary p:sp, p:pic, p:cxnSp,
+  // p:grpSp, and table/chart p:graphicFrame elements. Pictures retain their
+  // older alt_text wire field as the description compatibility surface.
   bool accessibility_editable = 7;
 }
 
@@ -1979,10 +1980,13 @@ message PresentationShapeTransform {
 
 // Bounded top-level p:pic projection. The asset is content-addressed in the
 // envelope; relationship IDs and OPC part names remain package-local. This
-// slice owns only an embedded PNG/JPEG/GIF/safe-SVG source, alternative text,
-// a rectangular stretch frame, a bounded native source rectangle, and direct
-// rotation/flips. Effects, external links, transformed blips, and
-// non-rectangular geometry remain source-bound opaque content.
+// slice owns only an embedded PNG/JPEG/GIF/safe-SVG source, non-visible
+// title/description metadata, a rectangular stretch frame, a bounded native
+// source rectangle, and direct rotation/flips. The legacy alt_text field is
+// the canonical description field for wire compatibility; accessibility_title
+// appends the independent p:cNvPr title without duplicating description state.
+// Effects, external links, transformed blips, and non-rectangular geometry
+// remain source-bound opaque content.
 message PresentationImage {
   string asset_id = 1;
   string alt_text = 2;
@@ -1992,6 +1996,7 @@ message PresentationImage {
   int64 height_emu = 6;
   PresentationImageTransform transform = 7;
   PresentationImageCrop crop = 8;
+  string accessibility_title = 9;
 }
 
 message PresentationImageTransform {

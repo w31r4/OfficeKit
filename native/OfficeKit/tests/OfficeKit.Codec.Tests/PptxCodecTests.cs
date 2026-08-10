@@ -4217,6 +4217,7 @@ public sealed class PptxCodecTests
             {
                 AssetId = authoredAssetId,
                 AltText = "Authored image evidence",
+                AccessibilityTitle = "Authored evidence image",
                 LeftEmu = 500_000,
                 TopEmu = 1_250_000,
                 WidthEmu = 1_500_000,
@@ -4239,6 +4240,8 @@ public sealed class PptxCodecTests
         var authoredRoundTrip = Import(authored.File.ToByteArray());
         Assert.True(authoredRoundTrip.Ok, Diagnostics(authoredRoundTrip));
         var authoredImage = Assert.Single(Assert.Single(authoredRoundTrip.Artifact.Presentation.Slides).Elements, item => item.ContentCase == PresentationElement.ContentOneofCase.Image);
+        Assert.True(authoredImage.Source.AccessibilityEditable);
+        Assert.Equal("Authored evidence image", authoredImage.Image.AccessibilityTitle);
         Assert.Equal("Authored image evidence", authoredImage.Image.AltText);
         Assert.Equal(25_000, authoredImage.Image.Crop.LeftThousandthPercent);
         Assert.Equal(25_000, authoredImage.Image.Crop.RightThousandthPercent);
@@ -4255,6 +4258,7 @@ public sealed class PptxCodecTests
         Assert.Equal(2, slide.Elements.Count);
         Assert.True(slide.Elements[0].Source.Editable);
         Assert.True(slide.Elements[1].Source.Editable);
+        Assert.True(slide.Elements[1].Source.AccessibilityEditable);
         Assert.Equal(PresentationElement.ContentOneofCase.Image, slide.Elements[1].ContentCase);
         Assert.Equal("Opaque package evidence", slide.Elements[1].Image.AltText);
         Assert.All(imported.Artifact.OpaqueOpc.Parts, part => Assert.False(string.IsNullOrWhiteSpace(part.ContentType)));
@@ -4268,6 +4272,7 @@ public sealed class PptxCodecTests
         var replacement = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nGQAAAAASUVORK5CYII=");
         var replacementId = AddPictureAsset(imported.Artifact, replacement, "image/png");
         slide.Elements[1].Name = "Edited picture";
+        slide.Elements[1].Image.AccessibilityTitle = "Edited picture evidence";
         slide.Elements[1].Image.AltText = "Edited alternative text";
         slide.Elements[1].Image.LeftEmu = 750_000;
         slide.Elements[1].Image.WidthEmu = 2_000_000;
@@ -4296,6 +4301,7 @@ public sealed class PptxCodecTests
             Assert.Equal(2, slidePart.ImageParts.Count());
             var picture = Assert.Single(slidePart.Slide!.Descendants<P.Picture>());
             Assert.Equal("Edited picture", picture.NonVisualPictureProperties!.NonVisualDrawingProperties!.Name!.Value);
+            Assert.Equal("Edited picture evidence", picture.NonVisualPictureProperties.NonVisualDrawingProperties.GetAttribute("title", string.Empty).Value);
             Assert.Equal("Edited alternative text", picture.NonVisualPictureProperties.NonVisualDrawingProperties.Description!.Value);
             Assert.Equal(-360_000, picture.ShapeProperties!.Transform2D!.Rotation!.Value);
             Assert.True(picture.ShapeProperties.Transform2D.HorizontalFlip!.Value);
@@ -4317,6 +4323,7 @@ public sealed class PptxCodecTests
         Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
         var roundTripImage = Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements, item => item.ContentCase == PresentationElement.ContentOneofCase.Image);
         Assert.Equal("Edited picture", roundTripImage.Name);
+        Assert.Equal("Edited picture evidence", roundTripImage.Image.AccessibilityTitle);
         Assert.Equal("Edited alternative text", roundTripImage.Image.AltText);
         Assert.Equal(750_000L, roundTripImage.Image.LeftEmu);
         Assert.Equal(2_000_000L, roundTripImage.Image.WidthEmu);
@@ -4338,6 +4345,33 @@ public sealed class PptxCodecTests
         Assert.False(invalidCrop.Ok);
         Assert.Equal("invalid_presentation_image", Assert.Single(invalidCrop.Diagnostics).Code);
         roundTripImage.Image.Crop = null;
+
+        var residualMetadataSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+            Regex.Replace(
+                xml,
+                "(<p:cNvPr\\b[^>]*name=\"Preserved picture\"[^>]*)/>",
+                "$1 xmlns:fixture=\"urn:office-kit:image-accessibility\"><a:extLst><a:ext uri=\"{B0A9F838-8A5A-4E24-B521-0C9AA5407A54}\"><fixture:opaque value=\"kept\"/></a:ext></a:extLst></p:cNvPr>",
+                RegexOptions.CultureInvariant,
+                TimeSpan.FromSeconds(1)));
+        var residualMetadataImported = Import(residualMetadataSource);
+        Assert.True(residualMetadataImported.Ok, Diagnostics(residualMetadataImported));
+        var residualMetadataImage = Assert.Single(
+            Assert.Single(residualMetadataImported.Artifact.Presentation.Slides).Elements,
+            item => item.ContentCase == PresentationElement.ContentOneofCase.Image);
+        Assert.True(residualMetadataImage.Source.AccessibilityEditable);
+        residualMetadataImage.Image.AccessibilityTitle = "Reviewed opaque image metadata";
+        var residualMetadataEdited = Export(residualMetadataImported.Artifact);
+        Assert.True(residualMetadataEdited.Ok, Diagnostics(residualMetadataEdited));
+        var residualMetadataXml = Encoding.UTF8.GetString(ZipBytes(residualMetadataEdited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("fixture:opaque value=\"kept\"", residualMetadataXml, StringComparison.Ordinal);
+        Assert.Contains("title=\"Reviewed opaque image metadata\"", residualMetadataXml, StringComparison.Ordinal);
+        var residualMetadataRoundTrip = Import(residualMetadataEdited.File.ToByteArray());
+        Assert.True(residualMetadataRoundTrip.Ok, Diagnostics(residualMetadataRoundTrip));
+        Assert.Equal(
+            "Reviewed opaque image metadata",
+            Assert.Single(
+                Assert.Single(residualMetadataRoundTrip.Artifact.Presentation.Slides).Elements,
+                item => item.ContentCase == PresentationElement.ContentOneofCase.Image).Image.AccessibilityTitle);
 
         var jpegId = AddPictureAsset(roundTrip.Artifact, [0xff, 0xd8, 0xff, 0xd9], "image/jpeg");
         roundTripImage.Image.AssetId = jpegId;

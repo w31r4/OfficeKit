@@ -244,7 +244,8 @@ function cloneImportedPresentationImage(container, source, context) {
   const clone = container.images.add({
     name: source.name,
     position: clonedPresentationValue(source.position),
-    alt: source.alt,
+    ...(source.accessibility ? { accessibility: clonedPresentationValue(source.accessibility) } : {}),
+    _officeKitAccessibilityEditable: source.accessibilityCapability.editable,
     dataUrl: source.dataUrl,
     fit: source.fit,
     ...(source.crop ? { crop: clonedPresentationValue(source.crop) } : {}),
@@ -1587,6 +1588,13 @@ function modelPresentationAccessibility(value, owner = "Imported Presentation sh
   return accessibility ? { accessibility } : {};
 }
 
+function modelPresentationImageAccessibility(image) {
+  return modelPresentationAccessibility({
+    ...(image.accessibilityTitle ? { title: image.accessibilityTitle } : {}),
+    ...(image.altText ? { description: image.altText } : {}),
+  }, "Imported Presentation image");
+}
+
 function sourceBoundCloneConnectorTargetId(value, sourceIdByCloneId, connector, side) {
   const targetId = String(value || "");
   if (!targetId || !sourceIdByCloneId) return targetId;
@@ -1919,6 +1927,7 @@ function presentationImage(image, original, assetCatalog) {
   if (image.uri || image.geometry !== "rect" || image.borderRadius != null) {
     throw new OfficeKitCodecError(`Presentation image ${image.id} uses external, geometry, or mask semantics outside the bounded PPTX image slice.`, [], { code: "unsupported_presentation_features" });
   }
+  const accessibility = normalizePresentationAccessibility(image.accessibility, `Presentation image ${image.id}`);
   const crop = effectivePresentationImageCrop({ crop: image.crop, fit: image.fit, dataUrl: image.dataUrl, frame: position });
   return {
     id: original?.id || image.id,
@@ -1928,13 +1937,14 @@ function presentationImage(image, original, assetCatalog) {
       case: "image",
       value: {
         assetId: assetCatalog.addDataUrl(image.dataUrl),
-        altText: image.alt || image.prompt || "",
+        altText: accessibility?.description || image.prompt || "",
         leftEmu: sourceBoundFrameEmuFromPixels(position.left, `${image.id}.position.left`, original),
         topEmu: sourceBoundFrameEmuFromPixels(position.top, `${image.id}.position.top`, original),
         widthEmu: emuFromPixels(position.width, `${image.id}.position.width`),
         heightEmu: emuFromPixels(position.height, `${image.id}.position.height`),
         ...(crop ? { crop: presentationImageCropToWire(crop) } : {}),
         ...(image.transform == null ? {} : { transform: wirePresentationTransform(image.transform, `image ${image.id}`) }),
+        ...(accessibility?.title ? { accessibilityTitle: accessibility.title } : {}),
       },
     },
   };
@@ -3231,7 +3241,8 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
         width: Number(image.widthEmu) / EMU_PER_PIXEL,
         height: Number(image.heightEmu) / EMU_PER_PIXEL,
       },
-      alt: image.altText,
+      ...modelPresentationImageAccessibility(image),
+      _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
       dataUrl: assetCatalog.dataUrl(image.assetId),
       fit: "stretch",
       ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
@@ -3481,7 +3492,8 @@ export async function presentationFromEnvelope(envelope) {
             width: Number(image.widthEmu) / EMU_PER_PIXEL,
             height: Number(image.heightEmu) / EMU_PER_PIXEL,
           },
-          alt: image.altText,
+          ...modelPresentationImageAccessibility(image),
+          _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
           dataUrl: assetCatalog.dataUrl(image.assetId),
           fit: "stretch",
           ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),

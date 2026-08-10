@@ -120,6 +120,18 @@
           ]
         }
       ],
+      "images": [
+        {
+          "name": "workflow-evidence-image",
+          "position": { "left": 1132, "top": 608, "width": 48, "height": 48 },
+          "fit": "stretch",
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+          "accessibility": {
+            "title": "Workflow evidence image",
+            "description": "Status image confirming the OfficeKit workflow evidence."
+          }
+        }
+      ],
       "tables": [
         {
           "name": "workflow-matrix",
@@ -297,6 +309,7 @@
   "expectInspect": [
     { "kind": "shape", "pattern": "OfficeKit closes the presentation loop" },
     { "kind": "shape", "pattern": "free-workflow-divider" },
+    { "kind": "image", "pattern": "workflow-evidence-image" },
     { "kind": "table", "pattern": "workflow-matrix" },
     { "kind": "connector", "pattern": "verify-to-deliver" },
     { "kind": "chart", "pattern": "Coverage mix" },
@@ -305,7 +318,7 @@
   ],
   "qa": {
     "nativeRender": "auto",
-    "inspectKind": "deck,slide,textbox,shape,groupShape,table,chart,connector,textRange",
+    "inspectKind": "deck,slide,textbox,shape,groupShape,image,table,chart,connector,textRange",
     "maxChars": 24000
   }
 }

@@ -140,6 +140,16 @@ shapeAccessibilitySlide.shapes.add({
   text: "Unnamed",
   accessibility: { description: "An intentionally unnamed ordinary shape." },
 });
+const shapeAccessibilityImage = shapeAccessibilitySlide.images.add({
+  name: "decision-evidence",
+  position: { left: 440, top: 72, width: 120, height: 88 },
+  dataUrl: PNG,
+  fit: "stretch",
+  accessibility: {
+    title: "Decision evidence image",
+    description: "Blue evidence image supporting the controlled rollout decision.",
+  },
+});
 const shapeAccessibilityConnector = shapeAccessibilitySlide.shapes.add({
   name: "decision-flow",
   geometry: "connector",
@@ -151,24 +161,35 @@ const shapeAccessibilityConnector = shapeAccessibilitySlide.shapes.add({
 });
 assert.deepEqual(shapeAccessibilityShape.accessibilityCapability, { sourceBound: false, editable: true, addable: true });
 assert.deepEqual(shapeAccessibilityConnector.accessibilityCapability, { sourceBound: false, editable: true, addable: true });
+assert.deepEqual(shapeAccessibilityImage.accessibilityCapability, { sourceBound: false, editable: true, addable: true });
+assert.equal(shapeAccessibilityImage.alt, shapeAccessibilityImage.accessibility.description, "legacy image.alt must alias accessibility.description");
 assert.match(shapeAccessibilityDeck.inspect({ kind: "shape", maxChars: 4_000 }).ndjson, /Controlled rollout decision/);
+assert.match(shapeAccessibilityDeck.inspect({ kind: "image", maxChars: 4_000 }).ndjson, /Decision evidence image/);
 assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({}), /requires title and\/or description/i);
 assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({ title: "" }), /1 through 1024 XML-safe characters/i);
 assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({ alt: "Not a cNvPr field" }), /does not support alt/i);
+assert.throws(() => shapeAccessibilityImage.setAccessibilityMetadata({ description: "" }), /1 through 1024 XML-safe characters/i);
+assert.throws(() => shapeAccessibilitySlide.images.add({ dataUrl: PNG, alt: "One description", accessibility: { description: "Another description" } }), /must match when both are provided/i);
+assert.throws(() => shapeAccessibilityImage.replace({ name: "must-not-stick", alt: "One description", accessibility: { description: "Another description" } }), /must match when both are provided/i);
+assert.equal(shapeAccessibilityImage.name, "decision-evidence", "a rejected image accessibility replacement must not partially mutate other fields");
 
 const shapeAccessibilitySource = await PresentationFile.exportPptx(shapeAccessibilityDeck);
 const shapeAccessibilitySourceZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
 const shapeAccessibilitySourceXml = await shapeAccessibilitySourceZip.file("ppt/slides/slide1.xml").async("text");
 assert.match(shapeAccessibilitySourceXml, /<p:cNvPr\b(?=[^>]*\bname="decision-status")(?=[^>]*\btitle="Controlled rollout decision")(?=[^>]*\bdescr="Status box explaining that the rollout is controlled\.")[^>]*\/>/);
 assert.match(shapeAccessibilitySourceXml, /<p:cNvPr\b(?=[^>]*\bname="decision-flow")(?=[^>]*\btitle="Decision flow")(?=[^>]*\bdescr="Connector from the rollout decision to its review context\.")[^>]*\/>/);
+assert.match(shapeAccessibilitySourceXml, /<p:cNvPr\b(?=[^>]*\bname="decision-evidence")(?=[^>]*\btitle="Decision evidence image")(?=[^>]*\bdescr="Blue evidence image supporting the controlled rollout decision\.")[^>]*\/>/);
 
 const shapeAccessibilityImported = await PresentationFile.importPptx(shapeAccessibilitySource);
 const importedAccessibilityShape = itemByName(shapeAccessibilityImported.slides.getItem(0).shapes.items, "decision-status");
 const importedAccessibilityConnector = itemByName(shapeAccessibilityImported.slides.getItem(0).connectors.items, "decision-flow");
+const importedAccessibilityImage = itemByName(shapeAccessibilityImported.slides.getItem(0).images.items, "decision-evidence");
 assert.deepEqual(importedAccessibilityShape.accessibility, shapeAccessibilityShape.accessibility);
 assert.deepEqual(importedAccessibilityConnector.accessibility, shapeAccessibilityConnector.accessibility);
+assert.deepEqual(importedAccessibilityImage.accessibility, shapeAccessibilityImage.accessibility);
 assert.deepEqual(importedAccessibilityShape.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
 assert.deepEqual(importedAccessibilityConnector.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+assert.deepEqual(importedAccessibilityImage.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
 assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].name, "");
 assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].accessibilityCapability.editable, true);
 const shapeAccessibilityNoOp = await PresentationFile.exportPptx(shapeAccessibilityImported);
@@ -177,6 +198,9 @@ assert.deepEqual(shapeAccessibilityNoOp.bytes, shapeAccessibilitySource.bytes, "
 const sourceAccessibilitySvg = await shapeAccessibilityImported.slides.getItem(0).export({ format: "svg" });
 importedAccessibilityShape.setAccessibilityMetadata({ title: "Go decision: controlled rollout", description: null });
 importedAccessibilityConnector.setAccessibilityMetadata({ title: null, description: "Reviewed connector from the rollout decision to context." });
+importedAccessibilityImage.alt = "Reviewed evidence image for the controlled rollout decision.";
+assert.equal(importedAccessibilityImage.accessibility.description, importedAccessibilityImage.alt);
+importedAccessibilityImage.setAccessibilityMetadata({ title: "Reviewed decision evidence" });
 const shapeAccessibilityEdited = await PresentationFile.exportPptx(shapeAccessibilityImported);
 const shapeAccessibilityEditedZip = await JSZip.loadAsync(shapeAccessibilityEdited.bytes);
 const shapeAccessibilityEditedXml = await shapeAccessibilityEditedZip.file("ppt/slides/slide1.xml").async("text");
@@ -184,6 +208,7 @@ assert.match(shapeAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="decision-st
 assert.doesNotMatch(shapeAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="decision-status")[^>]*\bdescr=/);
 assert.match(shapeAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="decision-flow")(?=[^>]*\bdescr="Reviewed connector from the rollout decision to context\.")[^>]*\/>/);
 assert.doesNotMatch(shapeAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="decision-flow")[^>]*\btitle=/);
+assert.match(shapeAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="decision-evidence")(?=[^>]*\btitle="Reviewed decision evidence")(?=[^>]*\bdescr="Reviewed evidence image for the controlled rollout decision\.")[^>]*\/>/);
 for (const [partPath, entry] of Object.entries(shapeAccessibilitySourceZip.files)) {
   if (entry.dir || partPath === "ppt/slides/slide1.xml") continue;
   assert.deepEqual(
@@ -195,6 +220,12 @@ for (const [partPath, entry] of Object.entries(shapeAccessibilitySourceZip.files
 const shapeAccessibilityRoundTrip = await PresentationFile.importPptx(shapeAccessibilityEdited);
 assert.deepEqual(itemByName(shapeAccessibilityRoundTrip.slides.getItem(0).shapes.items, "decision-status").accessibility, { title: "Go decision: controlled rollout" });
 assert.deepEqual(itemByName(shapeAccessibilityRoundTrip.slides.getItem(0).connectors.items, "decision-flow").accessibility, { description: "Reviewed connector from the rollout decision to context." });
+const roundTripAccessibilityImage = itemByName(shapeAccessibilityRoundTrip.slides.getItem(0).images.items, "decision-evidence");
+assert.deepEqual(roundTripAccessibilityImage.accessibility, {
+  title: "Reviewed decision evidence",
+  description: "Reviewed evidence image for the controlled rollout decision.",
+});
+assert.equal(roundTripAccessibilityImage.alt, roundTripAccessibilityImage.accessibility.description);
 const outputAccessibilitySvg = await shapeAccessibilityRoundTrip.slides.getItem(0).export({ format: "svg" });
 assert.deepEqual(outputAccessibilitySvg.bytes, sourceAccessibilitySvg.bytes, "shape accessibility edits must not alter model SVG output");
 
@@ -218,6 +249,29 @@ assert.match(irregularOtherEditXml, /fixture:opaque="kept"/);
 assert.match(irregularOtherEditXml, /title="Controlled rollout decision"/);
 irregularAccessibilityShape.accessibility = { title: "Bypass attempt" };
 await assert.rejects(() => PresentationFile.exportPptx(irregularShapeAccessibilityImported), (error) => error?.code === "unsupported_presentation_edit");
+
+// Pictures retain the older direct-alt compatibility surface. Their residual
+// hash makes title/description attribute edits safe even when cNvPr carries an
+// unknown child that must remain byte-owned by the source.
+const irregularImageAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const irregularImageAccessibilityXml = (await irregularImageAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(
+    /(<p:cNvPr\b[^>]*\bname="decision-evidence"[^>]*)\/>/,
+    '$1 xmlns:fixture="urn:office-kit:image-accessibility"><fixture:opaque value="kept"/></p:cNvPr>',
+  );
+irregularImageAccessibilityZip.file("ppt/slides/slide1.xml", irregularImageAccessibilityXml);
+const irregularImageAccessibilityFile = new FileBlob(
+  await irregularImageAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const irregularImageAccessibilityImported = await PresentationFile.importPptx(irregularImageAccessibilityFile);
+const irregularAccessibilityImage = itemByName(irregularImageAccessibilityImported.slides.getItem(0).images.items, "decision-evidence");
+assert.deepEqual(irregularAccessibilityImage.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+irregularAccessibilityImage.setAccessibilityMetadata({ title: "Reviewed opaque image metadata" });
+const irregularImageAccessibilityEdited = await PresentationFile.exportPptx(irregularImageAccessibilityImported);
+const irregularImageAccessibilityEditedXml = await (await JSZip.loadAsync(irregularImageAccessibilityEdited.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(irregularImageAccessibilityEditedXml, /fixture:opaque value="kept"/);
+assert.match(irregularImageAccessibilityEditedXml, /title="Reviewed opaque image metadata"/);
 
 // Tables and charts share the same p:nvGraphicFramePr/p:cNvPr owner. Their
 // alternative text is independent from visible cell/chart content and from a

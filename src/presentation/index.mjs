@@ -2013,7 +2013,22 @@ export class ImageElement {
     this.creationId = config.creationId;
     this.name = config.name || "";
     this.position = normalizeFrame(config, { left: 0, top: 0, width: 320, height: 180 });
-    this.alt = config.alt || "";
+    const hasLegacyAlt = Object.hasOwn(config, "alt");
+    const legacyAlt = config.alt == null ? "" : config.alt;
+    if (hasLegacyAlt && config.accessibility?.description != null && config.accessibility.description !== legacyAlt) {
+      throw new TypeError(`Presentation image ${this.id} alt and accessibility.description must match when both are provided.`);
+    }
+    const accessibility = hasLegacyAlt
+      ? {
+          ...(config.accessibility || {}),
+          ...(legacyAlt === "" ? {} : { description: legacyAlt }),
+        }
+      : config.accessibility;
+    this.accessibility = initializePresentationAccessibility(
+      this,
+      { ...config, accessibility },
+      `Presentation image ${this.id}`,
+    );
     this.prompt = config.prompt;
     this.uri = config.uri;
     this.dataUrl = config.dataUrl;
@@ -2027,18 +2042,55 @@ export class ImageElement {
 
   get frame() { return this.position; }
   set frame(value) { this.position = normalizeFrame(value, this.position); }
+  get alt() { return this.accessibility?.description || ""; }
+  set alt(value) {
+    const next = value == null ? "" : value;
+    if (next === this.alt) return;
+    this.accessibility = setPresentationAccessibilityMetadata(
+      this,
+      this.accessibility,
+      { description: next === "" ? null : next },
+      `Presentation image ${this.id}`,
+    );
+  }
+  get accessibilityCapability() { return presentationAccessibilityCapability(this); }
   get fit() { return this._fit; }
   set fit(value) { this._fit = normalizePresentationImageFit(value); }
   get crop() { return this._crop; }
   set crop(value) { this._crop = normalizePresentationImageCrop(value); }
-  replace(config = {}) { Object.assign(this, config); }
+  setAccessibilityMetadata(update) {
+    this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation image ${this.id}`);
+  }
+  replace(config = {}) {
+    const { alt, accessibility, ...rest } = config;
+    let nextAccessibility = this.accessibility;
+    if (accessibility !== undefined) {
+      if (Object.hasOwn(config, "alt") && accessibility?.description != null && accessibility.description !== (alt == null ? "" : alt)) {
+        throw new TypeError(`Presentation image ${this.id} alt and accessibility.description must match when both are provided.`);
+      }
+      nextAccessibility = setPresentationAccessibilityMetadata(this, nextAccessibility, accessibility, `Presentation image ${this.id}`);
+    }
+    if (Object.hasOwn(config, "alt")) {
+      const nextAlt = alt == null ? "" : alt;
+      if (nextAlt !== (nextAccessibility?.description || "")) {
+        nextAccessibility = setPresentationAccessibilityMetadata(
+          this,
+          nextAccessibility,
+          { description: nextAlt === "" ? null : nextAlt },
+          `Presentation image ${this.id}`,
+        );
+      }
+    }
+    Object.assign(this, rest);
+    this.accessibility = nextAccessibility;
+  }
 
   inspectRecord() {
     const p = this.position;
-    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, alt: this.alt || undefined, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
+    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
   }
 
-  layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, prompt: this.prompt, uri: this.uri, dataUrl: this.dataUrl, fit: this.fit, crop: this.crop, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }
+  layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, dataUrl: this.dataUrl, fit: this.fit, crop: this.crop, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }
 
   toSvg() {
     const p = this.position;

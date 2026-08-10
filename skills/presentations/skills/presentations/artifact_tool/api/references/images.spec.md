@@ -11,7 +11,10 @@ For embedded image output, use `blob={imageBytes}` with `contentType`. Use
 const image = slide.images.add({
   blob: imageBytes,
   contentType: "image/png",
-  alt: "Product screenshot",
+  accessibility: {
+    title: "Product overview",
+    description: "Screenshot of the product overview dashboard.",
+  },
   fit: "cover",
   position: { left: 72, top: 120, width: 520, height: 320 },
   crop: { left: 0.02, top: 0, right: 0.04, bottom: 0 },
@@ -33,7 +36,8 @@ type ImageSource =
   | { prompt: string };
 
 type ImageAddOptions = ImageSource & {
-  alt?: string;
+  accessibility?: { title?: string; description?: string };
+  alt?: string; // compatibility alias for accessibility.description
   fit?: "contain" | "cover" | "stretch";
   contentType?: string;
   position?: { left?: number; top?: number; width?: number; height?: number };
@@ -54,7 +58,7 @@ const image = presentation.resolve("im/c3d4e5f6");
 const oldFrame = image.frame;
 const oldCrop = image.crop;
 const oldFit = image.fit;
-const oldAlt = image.alt;
+const oldAccessibility = image.accessibility;
 const oldPrompt = image.prompt;
 const oldGeometry = image.geometry;
 const oldBorderRadius = image.borderRadius;
@@ -66,7 +70,7 @@ const oldLockAspectRatio = image.lockAspectRatio;
 image.replace({
   blob: nextBytes,
   contentType: "image/png",
-  alt: oldAlt ?? "Updated screenshot",
+  accessibility: oldAccessibility,
   ...(oldFit ? { fit: oldFit } : {}),
   ...(oldPrompt ? { prompt: oldPrompt } : {}),
 });
@@ -86,6 +90,13 @@ unless the edit explicitly changes them.
 Concrete source replacements produce concrete images; pass `prompt` when it
 should remain available as regeneration metadata.
 
+`image.accessibility` is a fresh `{ title?, description? }` snapshot.
+`image.alt` reads and writes the same `description`; supplying both on add or
+replace is accepted only when their descriptions agree. For imported images,
+preflight `image.accessibilityCapability.editable` before calling
+`image.setAccessibilityMetadata({ title, description })`. An empty `alt`
+clears only the description.
+
 ## Edit Placement And Fit
 
 ```ts
@@ -102,6 +113,14 @@ image.lockAspectRatio = true;
 image.width = 320;
 image.height = 180;
 image.alt = altText;
+const accessibilityCapability = image.accessibilityCapability;
+if (!accessibilityCapability.editable) {
+  throw new Error("Imported picture metadata is source-bound.");
+}
+image.setAccessibilityMetadata({
+  title: "Updated product overview",
+  description: "Updated screenshot of the product overview dashboard.",
+});
 ```
 
 `crop` uses signed normalized source edges in `-1..1`. Positive values crop;
@@ -116,6 +135,15 @@ PNG, JPEG, GIF, or safe SVG data with bounded intrinsic dimensions.
 so import normalizes a recognized source rectangle to `fit="stretch"` plus the
 explicit signed crop. Recognized source-bound rectangular pictures can add,
 edit, or remove that crop without rebuilding the rest of the package.
+
+Source-free and recognized imported pictures map `accessibility.title` and
+`accessibility.description` to native `p:nvPicPr/p:cNvPr/@title` and `@descr`.
+OfficeKit retains legacy wire `alt_text` as the one description field and
+appends only a title field, so JS never maintains two competing descriptions.
+Unknown `cNvPr` attributes or children remain residual-protected during other
+bounded picture edits; a metadata edit changes only `title`/`descr` and keeps
+those unknown bytes instead of rebuilding the leaf. Decorative state, reading
+order, and whole-deck accessibility are separate contracts.
 
 External images, non-rectangular masks, `borderRadius`, and pictures with blip
 effects or unsupported transforms remain outside this bounded native slice.
@@ -147,7 +175,8 @@ radius on the image facade itself.
 ```ts
 type ImageReplaceOptions =
   {
-    alt?: string;
+    accessibility?: { title?: string; description?: string };
+    alt?: string; // compatibility alias for accessibility.description
     fit?: "contain" | "cover" | "stretch";
     contentType?: string;
     blob?: ArrayBuffer | Uint8Array;
