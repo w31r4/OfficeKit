@@ -3,6 +3,16 @@
 Use this workflow for ordinary document authoring and semantic edits. Read
 `../artifact_tool/API_QUICK_START.md` before implementing the builder.
 
+## Choose the authoring mode first
+
+If the user supplied a DOCX, format sample, or explicit formatting rules that
+control the result, stop this ordinary create flow. Run `../template-distill.md`
+and then `../template-create.md`; do not choose a design preset. Resume only
+after the task-local `artifact.md` records the controlling page geometry, font
+family, font size, color, paragraph spacing, line spacing, and margins for that
+deliverable and no controlling value remains unresolved. Keep multiple
+reference roles separate.
+
 ## Default tool: DocumentModel + OfficeKit
 
 Use the public `office-kit` package for:
@@ -18,13 +28,14 @@ Use the public `office-kit` package for:
 bundled OfficeKit C# WebAssembly codec. Do not pass codec selectors, lossy
 options, or a Python authoring fallback.
 
-## Create
+## Create without a controlling reference
 
 1. Resolve Node.js and the package directory with the workspace dependency
    loader.
 2. Create a writable task directory and an ES module builder.
-3. Choose a design preset from `../references/design_presets.md` and translate
-   it into explicit `DocumentModel` styles and geometry.
+3. With no controlling reference or explicit format specification, choose a
+   design preset from `../references/design_presets.md` and translate it into
+   explicit `DocumentModel` styles and geometry.
 4. Build semantic paragraphs, lists, and tables. Do not fake lists with text
    markers or use tables as prose layout containers.
 5. Export through `DocumentFile.exportDocx(...)`, re-import the resulting DOCX,

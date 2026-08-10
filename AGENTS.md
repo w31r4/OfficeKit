@@ -32,16 +32,19 @@ to use those capabilities.
 
 1. Preserve source files and user-provided references. Never overwrite an input
    artifact or silently switch to a different authoring engine.
-2. Unsupported imported topology must remain opaque or fail closed. Do not
+2. For artifact work in this repository, import the public `office-kit` package
+   and run task scripts with `officekit run`. Do not substitute a host-bundled
+   `@oai/artifact-tool` runtime or attribute its output to OfficeKit.
+3. Unsupported imported topology must remain opaque or fail closed. Do not
    flatten it merely to make an edit succeed.
-3. Keep Skills host-neutral: no Codex-only tools, thread identifiers, MCP
+4. Keep Skills host-neutral: no Codex-only tools, thread identifiers, MCP
    names, or required image-generation tools. Describe capabilities and
    evidence, not a particular host's message syntax.
-4. Keep provider packs explicit and lazy. No lifecycle download, network fetch,
+5. Keep provider packs explicit and lazy. No lifecycle download, network fetch,
    or large specialist runtime belongs in a root import or ordinary smoke test.
-5. Add a test, update the relevant Skill/docs/coverage entry, and run the
+6. Add a test, update the relevant Skill/docs/coverage entry, and run the
    narrowest affected gates before a full `npm test`.
-6. Generated API docs, protobuf bindings, WASM, manifests, SBOMs, and package
+7. Generated API docs, protobuf bindings, WASM, manifests, SBOMs, and package
    inventories are release evidence. Regenerate them with their scripts and
    review the resulting diff.
 

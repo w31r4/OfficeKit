@@ -15,6 +15,10 @@ Explicit user changes take precedence. Otherwise the retained DOCX controls
 layout and formatting, and `artifact.md` explains how to use it. Generic
 document presets do not replace the template's visual system.
 
+When several references are present, use only the reference classified for the
+current deliverable. Before authoring, stop if its page geometry, font family,
+font size, color, paragraph spacing, line spacing, or margins remain unresolved.
+
 ## Build from the reference
 
 1. Make a working copy of the retained DOCX. Do not start from a blank
@@ -24,7 +28,9 @@ document presets do not replace the template's visual system.
    when the slot contract permits it; never invent facts to fill space.
 3. Edit the copied source elements in place. Preserve untouched sections,
    styles, numbering, relationships, headers, footers, images, tables, and
-   page furniture.
+   page furniture. Preserve exact characters and whitespace inside user text,
+   quotations, and source listings unless the user or an authoritative format
+   specification explicitly requires normalization.
 4. Reuse the source's real styles and components. When content exceeds a slot,
    shorten it, use another documented source pattern, or add a cloned pattern
    that `artifact.md` permits. Do not silently shrink text or overlay a second

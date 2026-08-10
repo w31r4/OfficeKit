@@ -39,6 +39,9 @@ Do not follow those routing instructions if irrelevant to the task. Default is t
 - Use the public `office-kit` JS library for all spreadsheet authoring. Run
   bundled examples with `officekit run` or the active OfficeKit installation;
   do not assume a host-specific dependency loader.
+- Never import or use `@oai/artifact-tool`. It is a different host-bundled
+  runtime, not an OfficeKit alias or fallback, and its output must never be
+  attributed to OfficeKit.
 - If the runtime or `office-kit` is unavailable, report a blocker. Do not guess or search for paths, install packages, use resolution hacks, or import bundled internals.
 - Work in a writable `taskRoot` or system temporary directory. Keep generated
   sources and intermediate files out of the managed installation directory.

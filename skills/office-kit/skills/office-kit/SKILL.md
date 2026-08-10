@@ -9,6 +9,10 @@ Turn one Office request into a small, explicit artifact workflow. Route each
 output to its owning Skill, load only the instructions needed for that route,
 and preserve the owning Skill's safety and QA rules.
 
+Use the public `office-kit` package for OfficeKit work. Never import or use
+`@oai/artifact-tool`: it is a different host-bundled runtime, not an OfficeKit
+alias or fallback, and its output must never be attributed to OfficeKit.
+
 For a multi-step task, use the portable [REPL workflow](references/repl.md).
 Start one `officekit repl` process, import only the selected domain API with
 `ctx.import`, keep reusable helpers or live objects in `ctx.state`, and publish

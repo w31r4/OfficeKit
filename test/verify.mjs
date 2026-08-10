@@ -86,9 +86,21 @@ const visualDoc = DocumentModel.create({ paragraphs: ["Visual QA"] });
 visualDoc.addTable({ name: "tall-table", values: Array.from({ length: 40 }, (_, index) => ["Row", String(index + 1)]) });
 assert.match(visualDoc.verify({ visualQa: true, maxChars: 8000 }).ndjson, /layoutElementTooTall/);
 
-const pdf = PdfArtifact.create({ pages: [{ text: "This uses an en dash – bad", tables: [{ values: [[]], bbox: [0, 0, 0, 10] }] }] });
+const unicodeDashPdf = PdfArtifact.create({
+  pages: Array.from({ length: 5 }, (_, index) => ({ text: `// page ${index + 1} — preserve source comment` })),
+});
+const unicodeDashReport = verifyArtifact(unicodeDashPdf, { maxChars: 8000 });
+assert.equal(unicodeDashReport.ok, true);
+assert.doesNotMatch(unicodeDashReport.ndjson, /unicodeDash/);
+assert.equal(unicodeDashPdf.pages.every((page) => page.text.includes("—")), true);
+
+const controlCharacterPdf = PdfArtifact.create({ pages: [{ text: "invalid\u0001text" }] });
+const controlCharacterReport = verifyArtifact(controlCharacterPdf, { maxChars: 8000 });
+assert.equal(controlCharacterReport.ok, false);
+assert.match(controlCharacterReport.ndjson, /textExtractionControlChars/);
+
+const pdf = PdfArtifact.create({ pages: [{ text: "Malformed table", tables: [{ values: [[]], bbox: [0, 0, 0, 10] }] }] });
 const pdfIssues = verifyArtifact(pdf, { maxChars: 8000 }).ndjson;
-assert.match(pdfIssues, /unicodeDash/);
 assert.match(pdfIssues, /emptyTable|tableOutOfBounds/);
 
 const unsupported = verifyArtifact({});

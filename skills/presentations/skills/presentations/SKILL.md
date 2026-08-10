@@ -28,6 +28,10 @@ is unavailable. After reopening the final PPTX, follow
 
 ## Important Instructions
 
+- [HARD REQUIREMENT] Use the public `office-kit` package for presentation
+  artifact work. Never import or use `@oai/artifact-tool`: it is a different
+  host-bundled runtime, not an OfficeKit alias or fallback, and its output must
+  never be attributed to OfficeKit.
 - [HARD REQUIREMENT] Content quality and storytelling: before planning the deck, read and follow [Content Quality and Narrative Rules](references/content-rules.md) and [Presentation Style Guidelines](style_guidelines.md). Ensure the deck covers everything the user requested and forms a coherent, audience-appropriate narrative rather than a collection of disconnected facts.
 - [HARD REQUIREMENT] Audience-facing copy: visible slide content must be written for the intended audience, not for the person or model producing the deck. Do not expose planning notes, timing scaffolds, talk tracks, content-selection commentary, or other internal process language unless the user explicitly requests it.
 

@@ -48,4 +48,25 @@ assert.ok(await fs.stat(path.join(repoRoot, "native", "OfficeKit")));
 assert.ok(await fs.stat(path.join(repoRoot, "runtime", "office-kit")));
 assert.ok(await fs.stat(path.join(repoRoot, "proto", "office_kit", "artifact", "v1")));
 
+const taskFacingIdentityFiles = [
+  "AGENTS.md",
+  "skills/office-kit/skills/office-kit/SKILL.md",
+  "skills/documents/skills/documents/SKILL.md",
+  "skills/spreadsheets/skills/spreadsheets/SKILL.md",
+  "skills/presentations/skills/presentations/SKILL.md",
+  "skills/pdf/skills/pdf/SKILL.md",
+];
+for (const relativePath of taskFacingIdentityFiles) {
+  const text = await fs.readFile(path.join(repoRoot, relativePath), "utf8");
+  if (relativePath === "AGENTS.md") {
+    assert.match(text, /import the public `office-kit` package[\s\S]*Do not substitute[\s\S]*`@oai\/artifact-tool`/);
+  } else {
+    assert.match(text, /Never import or use[\s\S]*`@oai\/artifact-tool`[\s\S]*must\s+never\s+be\s+attributed to OfficeKit/,
+      `${relativePath} must explicitly reject the host-bundled runtime`);
+    const withoutGuard = text.replace(/Never import or use[\s\S]{0,240}?must\s+never\s+be\s+attributed to OfficeKit\./, "");
+    assert.doesNotMatch(withoutGuard, /@oai\/artifact-tool/,
+      `${relativePath} must mention the host-bundled runtime only in its rejection guard`);
+  }
+}
+
 console.log(`OfficeKit identity gate passed (${files.length} text files scanned)`);

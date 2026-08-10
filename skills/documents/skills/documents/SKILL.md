@@ -26,6 +26,9 @@ checkpointed cell automatically.
 - Use the active OfficeKit installation for DOCX artifact work. Run bundled
   examples with `officekit run`; do not assume a host-specific dependency
   loader or global package.
+- Never import or use `@oai/artifact-tool`. It is a different host-bundled
+  runtime, not an OfficeKit alias or fallback, and its output must never be
+  attributed to OfficeKit.
 - For ordinary DOCX creation, import, semantic editing, inline and bounded foreground floating images, bounded whole-block bookmarks/internal links, 1-through-16-paragraph plain-text footnotes/endnotes, canonical bibliography-backed citations, canonical inline `SEQ`/`REF`/`PAGEREF` field runs plus bounded `SEQ`/`REF` cache materialization, bounded source-free header/footer literal/simple-field sequences, canonical native TOC placeholders with explicit field-refresh intent, and export, **MUST** use the public `office-kit` `DocumentModel`/`DocumentFile` surface and its bundled OfficeKit codec. Read `artifact_tool/API_QUICK_START.md`, then use `tasks/create_edit.md` for the task workflow.
 - Python and direct OOXML helpers are reserved for explicit low-level package patches, specialized audits, and render/QA operations documented by this Skill. They are never an automatic authoring fallback. If an imported construct cannot be edited through the supported model, narrow the edit or report the fail-closed boundary.
 - Run any builder or helper file from a writable workspace or temp directory, not from the managed dependency directory itself.
@@ -62,9 +65,14 @@ When an attached or retained DOCX is meant to control a new document, read
 the task-local `taskRoot/artifact.md` together throughout authoring. In this
 mode, the retained reference is the design authority: do not apply a generic
 design preset, page baseline, or header pattern unless the user explicitly asks
-to depart from the template. The render gate and Google Docs import contract
-still apply. For a Google Docs-targeted result, record any change made by the
-required title sanitizer as an intentional fidelity deviation.
+to depart from the template. Classify multiple references by deliverable and do
+not mix formatting from a manual, form, source listing, or other document role.
+Do not start the builder until `artifact.md` records exact page geometry, font
+family, font size, color, paragraph spacing, line spacing, and margins, with any
+unknown value marked unresolved; stop while a controlling value remains
+unresolved. The render gate and Google Docs import contract still apply. For a
+Google Docs-targeted result, record any change made by the required title
+sanitizer as an intentional fidelity deviation.
 
 ## Non-negotiable: render → review evidence → iterate
 
@@ -543,7 +551,11 @@ typography, images, or layout.
 ## Quality reminders
 - Don’t ship visible defects (clipped/overlapping text, broken tables, unreadable glyphs).
 - Don’t leak tool citation tokens into the DOCX (convert them to normal human citations).
-- Prefer ASCII punctuation (avoid exotic Unicode hyphens/dashes that render inconsistently).
+- Preserve punctuation and whitespace in user text, quotations, templates, and
+  source listings. For newly authored technical prose with no language or
+  format constraint, prefer ordinary ASCII punctuation when typography is not
+  meaningful. Treat an actual missing glyph as a render defect; do not rewrite
+  valid Unicode only to silence a generic QA check.
 
 ## Where to go next
 - If the task is **reading/reviewing**: `tasks/read_review.md`

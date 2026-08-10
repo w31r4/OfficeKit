@@ -2453,6 +2453,8 @@ try {
   assert.ok(!packageJson.files.includes("skills/**"));
   assert.ok(packageJson.files.includes("skills/default-template-library/**"));
   const skillText = await fs.readFile(path.join(repoRoot, "skills", "documents", "skills", "documents", "SKILL.md"), "utf8");
+  const createEditGuide = await fs.readFile(path.join(repoRoot, "skills", "documents", "skills", "documents", "tasks", "create_edit.md"), "utf8");
+  const templateCreateGuide = await fs.readFile(path.join(repoRoot, "skills", "documents", "skills", "documents", "template-create.md"), "utf8");
   const pluginReadme = await fs.readFile(path.join(repoRoot, "skills", "documents", "README.md"), "utf8");
   assert.match(pluginReadme, /office-kit/);
   assert.match(pluginReadme, /OfficeKit/);
@@ -2461,6 +2463,17 @@ try {
   assert.match(skillText, /DocumentFile/);
   assert.match(skillText, /OfficeKit/);
   assert.match(skillText, /artifact_tool\/API_QUICK_START\.md/);
+  assert.match(skillText, /Classify multiple references by deliverable/);
+  assert.match(skillText, /font\s+family, font size, color, paragraph spacing, line spacing, and margins/);
+  assert.match(skillText, /stop while a controlling value remains[\s\S]*unresolved/);
+  assert.match(skillText, /Preserve punctuation and whitespace in user text, quotations, templates, and[\s\S]*source listings/);
+  assert.doesNotMatch(skillText, /Prefer ASCII punctuation/);
+  assert.match(createEditGuide, /If the user supplied a DOCX, format sample, or explicit formatting rules[\s\S]*stop this ordinary create flow/);
+  assert.ok(createEditGuide.toLowerCase().indexOf("template-distill.md") < createEditGuide.toLowerCase().indexOf("choose a design preset"));
+  assert.match(createEditGuide, /no controlling value remains unresolved/);
+  assert.match(createEditGuide, /With no controlling reference or explicit format specification/);
+  assert.match(templateCreateGuide, /stop if its page geometry, font family,[\s\S]*margins remain unresolved/);
+  assert.match(templateCreateGuide, /Preserve exact characters and whitespace inside user text,[\s\S]*source listings/);
   assert.match(skillText, /document\.addInsertion/);
   assert.match(skillText, /document\.addDeletion/);
   assert.match(skillText, /paragraph\.addTextContentControl/);
