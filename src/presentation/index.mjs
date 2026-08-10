@@ -781,9 +781,6 @@ class ShapeCollection {
   constructor(slide, owner) { this.slide = slide; this.owner = owner; this.items = []; }
   add(config = {}) {
     if (config?.geometry === "connector") {
-      if (Object.hasOwn(config, "accessibility")) {
-        throw new TypeError("Presentation connector accessibility metadata is not supported; use an ordinary shape or the connector's visible context.");
-      }
       const connector = connectedPresentationShapeConfig(this.slide, this.owner, config.from, config.to, config, { requireExplicitSites: true });
       return (this.owner?.connectors || this.slide.connectors).add(connector).sendToBack();
     }

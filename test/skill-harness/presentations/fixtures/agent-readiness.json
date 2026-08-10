@@ -144,7 +144,11 @@
           "head": { "type": "arrow", "width": "lg", "length": "sm" },
           "tail": { "type": "diamond", "width": "sm", "length": "lg" },
           "cap": "round",
-          "join": "bevel"
+          "join": "bevel",
+          "accessibility": {
+            "title": "Create to verify flow",
+            "description": "Connector showing that authored content advances to semantic verification."
+          }
         },
         {
           "name": "verify-to-deliver",
@@ -214,6 +218,10 @@
       "groups": [
         {
           "name": "native-agent-group",
+          "accessibility": {
+            "title": "Native grouped workflow",
+            "description": "Group containing the model, OfficeKit format, and render verification stages."
+          },
           "position": { "left": 120, "top": 110, "width": 1040, "height": 430 },
           "childFrame": { "left": -80, "top": 40, "width": 1280, "height": 540 },
           "shapes": [
@@ -248,6 +256,10 @@
           "groups": [
             {
               "name": "nested-qa-group",
+              "accessibility": {
+                "title": "Nested render verification",
+                "description": "Nested group for render and verification evidence."
+              },
               "position": { "left": 900, "top": 180, "width": 300, "height": 220 },
               "childFrame": { "left": 0, "top": 0, "width": 300, "height": 220 },
               "shapes": [
@@ -271,7 +283,11 @@
               "toName": "group-native-card",
               "fromSide": "right",
               "toSide": "left",
-              "line": { "fill": "#475569", "width": 2, "endArrow": "triangle" }
+              "line": { "fill": "#475569", "width": 2, "endArrow": "triangle" },
+              "accessibility": {
+                "title": "Model to OfficeKit flow",
+                "description": "Connector from the JavaScript model stage to the OfficeKit format stage."
+              }
             }
           ]
         }

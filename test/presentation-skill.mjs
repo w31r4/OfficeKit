@@ -173,6 +173,11 @@ try {
   assert.deepEqual(curved.head, { type: "arrow", width: "lg", length: "sm" });
   assert.deepEqual(curved.tail, { type: "diamond", width: "sm", length: "lg" });
   assert.equal(curved.line.style, "dashed");
+  assert.deepEqual(curved.accessibility, {
+    title: "Create to verify flow",
+    description: "Connector showing that authored content advances to semantic verification.",
+  });
+  assert.deepEqual(curved.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
   const elbow = itemByName(workflowSlide.connectors.items, "verify-to-deliver");
   assert.equal(elbow.connectorType, "elbow");
   assert.equal(elbow.line.startArrow, "triangle");
@@ -186,9 +191,24 @@ try {
   const groupedWorkflowSlide = readiness.qa.presentation.slides.getItem(2);
   const nativeGroup = itemByName(groupedWorkflowSlide.groups.items, "native-agent-group");
   assert.deepEqual(nativeGroup.childFrame, { left: -80, top: 40, width: 1280, height: 540 });
+  assert.deepEqual(nativeGroup.accessibility, {
+    title: "Native grouped workflow",
+    description: "Group containing the model, OfficeKit format, and render verification stages.",
+  });
+  assert.deepEqual(nativeGroup.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
   assert.deepEqual(nativeGroup.children.map((child) => child.layoutJson().kind), ["connector", "textbox", "textbox", "textbox", "groupShape"]);
-  assert.equal(itemByName(nativeGroup.groups.items, "nested-qa-group").shapes.items[0].text.value, "Render + verify");
-  assert.equal(itemByName(nativeGroup.connectors.items, "grouped-flow").line.endArrow, "triangle");
+  const nestedQaGroup = itemByName(nativeGroup.groups.items, "nested-qa-group");
+  assert.equal(nestedQaGroup.shapes.items[0].text.value, "Render + verify");
+  assert.deepEqual(nestedQaGroup.accessibility, {
+    title: "Nested render verification",
+    description: "Nested group for render and verification evidence.",
+  });
+  const groupedFlow = itemByName(nativeGroup.connectors.items, "grouped-flow");
+  assert.equal(groupedFlow.line.endArrow, "triangle");
+  assert.deepEqual(groupedFlow.accessibility, {
+    title: "Model to OfficeKit flow",
+    description: "Connector from the JavaScript model stage to the OfficeKit format stage.",
+  });
   assert.match(readiness.qa.inspect.ndjson, /OfficeKit closes the presentation loop/);
   assert.match(readiness.qa.inspect.ndjson, /free-workflow-divider/);
   assert.match(readiness.qa.inspect.ndjson, /Coverage mix/);
@@ -211,6 +231,7 @@ try {
   assert.match(firstSlideXml, /<a:tailEnd\b[^>]*type="arrow"[^>]*w="lg"[^>]*len="sm"/);
   assert.match(firstSlideXml, /<p:cNvSpPr txBox="1"\s*\/>/);
   assert.match(firstSlideXml, /<p:cxnSp>/);
+  assert.match(firstSlideXml, /<p:cNvPr\b(?=[^>]*\bname="create-to-verify")(?=[^>]*\btitle="Create to verify flow")(?=[^>]*\bdescr="Connector showing that authored content advances to semantic verification\.")[^>]*\/>/);
   assert.match(firstSlideXml, /<a:stCxn\b[^>]*idx="3"/);
   assert.match(firstSlideXml, /<a:endCxn\b[^>]*idx="1"/);
   assert.match(firstSlideXml, /prst="curvedConnector3"/);
@@ -218,6 +239,9 @@ try {
   const groupedSlideXml = await readinessZip.file("ppt/slides/slide3.xml").async("text");
   assert.equal((groupedSlideXml.match(/<p:grpSp>/g) || []).length, 2);
   assert.match(groupedSlideXml, /<a:chOff x="-762000" y="381000"\s*\/>/);
+  assert.match(groupedSlideXml, /<p:cNvPr\b(?=[^>]*\bname="native-agent-group")(?=[^>]*\btitle="Native grouped workflow")(?=[^>]*\bdescr="Group containing the model, OfficeKit format, and render verification stages\.")[^>]*\/>/);
+  assert.match(groupedSlideXml, /<p:cNvPr\b(?=[^>]*\bname="nested-qa-group")(?=[^>]*\btitle="Nested render verification")(?=[^>]*\bdescr="Nested group for render and verification evidence\.")[^>]*\/>/);
+  assert.match(groupedSlideXml, /<p:cNvPr\b(?=[^>]*\bname="grouped-flow")(?=[^>]*\btitle="Model to OfficeKit flow")(?=[^>]*\bdescr="Connector from the JavaScript model stage to the OfficeKit format stage\.")[^>]*\/>/);
   assert.equal(Object.keys(readinessZip.files).filter((name) => /^ppt\/(?:slides\/)?charts\/chart\d+\.xml$/.test(name)).length, 3);
 
   const compared = await verifyPresentationFile(readiness.pptxPath, {

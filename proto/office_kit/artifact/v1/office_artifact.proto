@@ -1739,8 +1739,8 @@ message PresentationElementSourceBinding {
   // Source evidence only: true when the modeled Presentation element owns the
   // bounded cNvPr profile whose non-visible title/description may be added,
   // changed, or cleared without rewriting hyperlinks, extensions, or unknown
-  // metadata. Current semantic owners are ordinary p:sp and table/chart
-  // p:graphicFrame elements.
+  // metadata. Current semantic owners are ordinary p:sp, p:cxnSp, p:grpSp,
+  // and table/chart p:graphicFrame elements.
   bool accessibility_editable = 7;
 }
 
@@ -1759,6 +1759,9 @@ message PresentationGroup {
   int64 child_width_emu = 7;
   int64 child_height_emu = 8;
   repeated PresentationElement children = 9;
+  // Non-visible alternative text stored on p:nvGrpSpPr/p:cNvPr. It describes
+  // the group as a whole without changing child text, geometry, or rendering.
+  PresentationNonVisualAccessibility accessibility = 10;
 }
 
 message PresentationShape {
@@ -1916,6 +1919,9 @@ message PresentationConnector {
   string end_arrow_length = 18;
   string line_cap = 19;
   string line_join = 20;
+  // Non-visible alternative text stored on p:nvCxnSpPr/p:cNvPr. This is
+  // independent of the connector name, endpoints, and visible line styling.
+  PresentationNonVisualAccessibility accessibility = 21;
 }
 
 message PresentationChart {

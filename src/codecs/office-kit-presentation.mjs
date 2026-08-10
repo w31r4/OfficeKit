@@ -541,6 +541,8 @@ function cloneImportedPresentationConnector(container, source, context) {
     tail: clonedPresentationValue(source.tail),
     cap: source.cap,
     join: source.join,
+    ...(source.accessibility ? { accessibility: clonedPresentationValue(source.accessibility) } : {}),
+    _officeKitAccessibilityEditable: source.accessibilityCapability.editable,
     _officeKitSourceBound: true,
   });
   registerPresentationCloneElement(context, source, clone);
@@ -560,6 +562,8 @@ function cloneImportedPresentationGroup(container, source, context) {
     name: source.name,
     position: clonedPresentationValue(source.position),
     childFrame: clonedPresentationValue(source.childFrame),
+    ...(source.accessibility ? { accessibility: clonedPresentationValue(source.accessibility) } : {}),
+    _officeKitAccessibilityEditable: source.accessibilityCapability.editable,
   });
   registerPresentationCloneElement(context, source, clone);
   for (const child of source.children) cloneImportedPresentationElement(clone, child, context);
@@ -1628,6 +1632,7 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
   const lineRgb = line.style === "none"
     ? ""
     : presentationRgb(presentationLineColor(line, width > 0 ? "#334155" : "transparent"), `${connector.id}.line.fill`);
+  const accessibility = normalizePresentationAccessibility(connector.accessibility, `Presentation connector ${connector.id}`);
   return {
     id: original?.id || connector.id,
     name: connector.name || original?.name || "",
@@ -1655,6 +1660,7 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
         endArrowLength: tail.length || "",
         lineCap: line.cap || "",
         lineJoin: line.join || "",
+        ...(accessibility ? { accessibility } : {}),
       },
     },
   };
@@ -2064,6 +2070,7 @@ function presentationGroup(group, original, assetCatalog, sourceIdByCloneId, cus
   if (widthEmu < 1n || heightEmu < 1n || childWidthEmu < 1n || childHeightEmu < 1n) {
     throw new OfficeKitCodecError(`Presentation group ${group.id} requires positive outer and child extents.`, [], { code: "invalid_presentation_group" });
   }
+  const accessibility = normalizePresentationAccessibility(group.accessibility, `Presentation group ${group.id}`);
   return {
     id: original?.id || group.id,
     name: String(group.name || original?.name || ""),
@@ -2080,6 +2087,7 @@ function presentationGroup(group, original, assetCatalog, sourceIdByCloneId, cus
         childWidthEmu,
         childHeightEmu,
         children: group.children.map((child, index) => presentationElement(child, originalGroup?.children[index], assetCatalog, sourceIdByCloneId, customShowLinks)),
+        ...(accessibility ? { accessibility } : {}),
       },
     },
   };
@@ -3273,6 +3281,8 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       ...(connector.endArrow ? { tail: { type: connector.endArrow, ...(connector.endArrowWidth ? { width: connector.endArrowWidth } : {}), ...(connector.endArrowLength ? { length: connector.endArrowLength } : {}) } } : {}),
       ...(connector.lineCap ? { cap: connector.lineCap } : {}),
       ...(connector.lineJoin ? { join: connector.lineJoin } : {}),
+      ...modelPresentationAccessibility(connector.accessibility, "Imported Presentation connector"),
+      _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
       _officeKitSourceBound: Boolean(element.source),
     };
   }
@@ -3298,6 +3308,8 @@ function modelPresentationGroup(element, assetCatalog, customShowLinks) {
       width: Number(group.childWidthEmu) / EMU_PER_PIXEL,
       height: Number(group.childHeightEmu) / EMU_PER_PIXEL,
     },
+    ...modelPresentationAccessibility(group.accessibility, "Imported Presentation group"),
+    _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
     children: group.children.map((child) => modelPresentationGroupChild(child, assetCatalog, customShowLinks)),
   };
 }
@@ -3526,6 +3538,8 @@ export async function presentationFromEnvelope(envelope) {
           ...(connector.endArrow ? { tail: { type: connector.endArrow, ...(connector.endArrowWidth ? { width: connector.endArrowWidth } : {}), ...(connector.endArrowLength ? { length: connector.endArrowLength } : {}) } } : {}),
           ...(connector.lineCap ? { cap: connector.lineCap } : {}),
           ...(connector.lineJoin ? { join: connector.lineJoin } : {}),
+          ...modelPresentationAccessibility(connector.accessibility, "Imported Presentation connector"),
+          _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
           _officeKitSourceBound: Boolean(element.source),
         });
       } else if (element.content.case === "chart") {

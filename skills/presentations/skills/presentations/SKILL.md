@@ -36,7 +36,7 @@ is unavailable. After reopening the final PPTX, follow
 - Layout: keep things clean and simple. Avoid low-quality visuals, but also avoid excessive white space. By default, use equal left and right margins on each slide.
 - [HARD REQUIREMENT] Overlap: always pay attention to programmatic overlap warnings. Do not assume that overlapping elements in diagrams are intentional, and do not ignore overlap warnings without inspecting them. You MUST fix all unintended overlap errors before delivering the slides. This is critical.
 - [HARD REQUIREMENT] Font size: when a template is provided, match its font sizes. When no template or style guidance is given, you MUST use at least 50pt for deck titles, 35pt for slide titles, 24pt for mid-level text such as subheadings, callout headers, and text-box titles, and 16pt for body text.
-- [HARD REQUIREMENT] Object accessibility: give meaningful ordinary shapes, tables, and charts a concise non-visible `accessibility.title` and, when needed, `accessibility.description`. For imported objects, check `object.accessibilityCapability.editable` before calling `object.setAccessibilityMetadata(...)`; preserve or reject irregular native metadata instead of rebuilding it. Chart metadata is distinct from its visible chart title. This does not establish reading order or make the whole deck accessible by itself.
+- [HARD REQUIREMENT] Object accessibility: give meaningful ordinary shapes, connectors, groups, tables, and charts a concise non-visible `accessibility.title` and, when needed, `accessibility.description`. For imported objects, check `object.accessibilityCapability.editable` before calling `object.setAccessibilityMetadata(...)`; preserve or reject irregular native metadata instead of rebuilding it. Chart metadata is distinct from its visible chart title. This does not establish reading order or make the whole deck accessible by itself.
 - Text layout: when there is too much text, shorten it before shrinking the font size. Inspect visually for unexpected text wrapping. NEVER allow a title/banner text box intended for one line to wrap to two lines.
 - Narrative copy must fit the chosen layout: shorten it or change layouts rather than adding density or shrinking type.
 - Visual assets:
@@ -160,7 +160,7 @@ unsupported imported handle topology opaque and fail closed. A custom shape
 edges or DrawingML built-in/declared guide names; do not invent missing guides
 or bypass a failed resolved-bounds check.
 
-Use the shape, table, and chart references for non-visible PowerPoint
+Use the shape, connector, grouping, table, and chart references for non-visible PowerPoint
 title/description metadata. Keep it distinct from visible text, visible chart
 titles, and inspectable object names; preflight imported objects with their
 `accessibilityCapability`.

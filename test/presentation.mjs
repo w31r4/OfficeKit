@@ -140,15 +140,17 @@ shapeAccessibilitySlide.shapes.add({
   text: "Unnamed",
   accessibility: { description: "An intentionally unnamed ordinary shape." },
 });
-assert.throws(() => shapeAccessibilitySlide.shapes.add({
+const shapeAccessibilityConnector = shapeAccessibilitySlide.shapes.add({
+  name: "decision-flow",
   geometry: "connector",
   from: shapeAccessibilityShape,
   to: shapeAccessibilitySlide.shapes.items[1],
   fromIdx: 3,
   toIdx: 1,
-  accessibility: { title: "Unsupported connector metadata" },
-}), /connector accessibility metadata is not supported/i);
+  accessibility: { title: "Decision flow", description: "Connector from the rollout decision to its review context." },
+});
 assert.deepEqual(shapeAccessibilityShape.accessibilityCapability, { sourceBound: false, editable: true, addable: true });
+assert.deepEqual(shapeAccessibilityConnector.accessibilityCapability, { sourceBound: false, editable: true, addable: true });
 assert.match(shapeAccessibilityDeck.inspect({ kind: "shape", maxChars: 4_000 }).ndjson, /Controlled rollout decision/);
 assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({}), /requires title and\/or description/i);
 assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({ title: "" }), /1 through 1024 XML-safe characters/i);
@@ -158,11 +160,15 @@ const shapeAccessibilitySource = await PresentationFile.exportPptx(shapeAccessib
 const shapeAccessibilitySourceZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
 const shapeAccessibilitySourceXml = await shapeAccessibilitySourceZip.file("ppt/slides/slide1.xml").async("text");
 assert.match(shapeAccessibilitySourceXml, /<p:cNvPr\b(?=[^>]*\bname="decision-status")(?=[^>]*\btitle="Controlled rollout decision")(?=[^>]*\bdescr="Status box explaining that the rollout is controlled\.")[^>]*\/>/);
+assert.match(shapeAccessibilitySourceXml, /<p:cNvPr\b(?=[^>]*\bname="decision-flow")(?=[^>]*\btitle="Decision flow")(?=[^>]*\bdescr="Connector from the rollout decision to its review context\.")[^>]*\/>/);
 
 const shapeAccessibilityImported = await PresentationFile.importPptx(shapeAccessibilitySource);
 const importedAccessibilityShape = itemByName(shapeAccessibilityImported.slides.getItem(0).shapes.items, "decision-status");
+const importedAccessibilityConnector = itemByName(shapeAccessibilityImported.slides.getItem(0).connectors.items, "decision-flow");
 assert.deepEqual(importedAccessibilityShape.accessibility, shapeAccessibilityShape.accessibility);
+assert.deepEqual(importedAccessibilityConnector.accessibility, shapeAccessibilityConnector.accessibility);
 assert.deepEqual(importedAccessibilityShape.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+assert.deepEqual(importedAccessibilityConnector.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
 assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].name, "");
 assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].accessibilityCapability.editable, true);
 const shapeAccessibilityNoOp = await PresentationFile.exportPptx(shapeAccessibilityImported);
@@ -170,11 +176,14 @@ assert.deepEqual(shapeAccessibilityNoOp.bytes, shapeAccessibilitySource.bytes, "
 
 const sourceAccessibilitySvg = await shapeAccessibilityImported.slides.getItem(0).export({ format: "svg" });
 importedAccessibilityShape.setAccessibilityMetadata({ title: "Go decision: controlled rollout", description: null });
+importedAccessibilityConnector.setAccessibilityMetadata({ title: null, description: "Reviewed connector from the rollout decision to context." });
 const shapeAccessibilityEdited = await PresentationFile.exportPptx(shapeAccessibilityImported);
 const shapeAccessibilityEditedZip = await JSZip.loadAsync(shapeAccessibilityEdited.bytes);
 const shapeAccessibilityEditedXml = await shapeAccessibilityEditedZip.file("ppt/slides/slide1.xml").async("text");
 assert.match(shapeAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="decision-status")(?=[^>]*\btitle="Go decision: controlled rollout")[^>]*\/>/);
 assert.doesNotMatch(shapeAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="decision-status")[^>]*\bdescr=/);
+assert.match(shapeAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="decision-flow")(?=[^>]*\bdescr="Reviewed connector from the rollout decision to context\.")[^>]*\/>/);
+assert.doesNotMatch(shapeAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="decision-flow")[^>]*\btitle=/);
 for (const [partPath, entry] of Object.entries(shapeAccessibilitySourceZip.files)) {
   if (entry.dir || partPath === "ppt/slides/slide1.xml") continue;
   assert.deepEqual(
@@ -185,6 +194,7 @@ for (const [partPath, entry] of Object.entries(shapeAccessibilitySourceZip.files
 }
 const shapeAccessibilityRoundTrip = await PresentationFile.importPptx(shapeAccessibilityEdited);
 assert.deepEqual(itemByName(shapeAccessibilityRoundTrip.slides.getItem(0).shapes.items, "decision-status").accessibility, { title: "Go decision: controlled rollout" });
+assert.deepEqual(itemByName(shapeAccessibilityRoundTrip.slides.getItem(0).connectors.items, "decision-flow").accessibility, { description: "Reviewed connector from the rollout decision to context." });
 const outputAccessibilitySvg = await shapeAccessibilityRoundTrip.slides.getItem(0).export({ format: "svg" });
 assert.deepEqual(outputAccessibilitySvg.bytes, sourceAccessibilitySvg.bytes, "shape accessibility edits must not alter model SVG output");
 
@@ -2151,6 +2161,7 @@ const authoredGroup = groupedSlide.groups.add({
   name: "Agent evidence group",
   position: { left: 100, top: 80, width: 600, height: 320 },
   childFrame: { left: -100, top: 50, width: 1200, height: 640 },
+  accessibility: { title: "Agent evidence flow", description: "Grouped visual containing before, target, evidence, table, and chart objects." },
 });
 const groupedBefore = authoredGroup.shapes.add({
   name: "grouped-before",
@@ -2168,7 +2179,7 @@ const groupedTarget = authoredGroup.shapes.add({
   line: { fill: "#16A34A", width: 2 },
   text: "Target",
 });
-authoredGroup.connectors.add({
+const groupedConnector = authoredGroup.connectors.add({
   name: "grouped-connector",
   connectorType: "straight",
   from: groupedBefore,
@@ -2176,6 +2187,7 @@ authoredGroup.connectors.add({
   start: { x: 300, y: 160 },
   end: { x: 450, y: 160 },
   line: { fill: "#334155", width: 2, endArrow: "triangle" },
+  accessibility: { title: "Before-to-target direction", description: "Arrow connecting the before state to the target state." },
 });
 authoredGroup.images.add({
   name: "grouped-image",
@@ -2216,6 +2228,7 @@ const nestedGroup = authoredGroup.groups.add({
   name: "nested-group",
   position: { left: 850, top: 300, width: 250, height: 220 },
   childFrame: { left: 0, top: 0, width: 250, height: 220 },
+  accessibility: { description: "Nested custom-shape evidence." },
 });
 const nestedCustomShape = nestedGroup.shapes.add({
   name: "nested-shape",
@@ -2257,12 +2270,35 @@ assert.match(groupedFirstXml, /<a:chOff x="-952500" y="476250"\s*\/>/);
 assert.match(groupedFirstXml, /<a:chExt cx="11430000" cy="6096000"\s*\/>/);
 assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="grouped-table")(?=[^>]*\btitle="Grouped gate table")/);
 assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="grouped-chart")(?=[^>]*\btitle="Grouped readiness chart")/);
+assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="Agent evidence group")(?=[^>]*\btitle="Agent evidence flow")(?=[^>]*\bdescr="Grouped visual containing before, target, evidence, table, and chart objects\.")/);
+assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="grouped-connector")(?=[^>]*\btitle="Before-to-target direction")(?=[^>]*\bdescr="Arrow connecting the before state to the target state\.")/);
+assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="nested-group")(?=[^>]*\bdescr="Nested custom-shape evidence\.")/);
 
-const groupedImported = await PresentationFile.importPptx(groupedFirstExport);
-const importedGroup = itemByName(groupedImported.slides.getItem(0).groups.items, "Agent evidence group");
+let groupedImported = await PresentationFile.importPptx(groupedFirstExport);
+let importedGroup = itemByName(groupedImported.slides.getItem(0).groups.items, "Agent evidence group");
 assert.deepEqual(importedGroup.children.map((child) => child.layoutJson().kind), ["textbox", "textbox", "connector", "image", "table", "chart", "groupShape"]);
 assert.deepEqual(importedGroup.childFrame, { left: -100, top: 50, width: 1200, height: 640 });
 assert.equal(groupedImported.resolve(itemByName(importedGroup.shapes.items, "grouped-before").id).text.value, "Before");
+assert.deepEqual(importedGroup.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+assert.deepEqual(itemByName(importedGroup.connectors.items, "grouped-connector").accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+assert.deepEqual(itemByName(importedGroup.groups.items, "nested-group").accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+assert.deepEqual(importedGroup.accessibility, authoredGroup.accessibility);
+assert.deepEqual(itemByName(importedGroup.connectors.items, "grouped-connector").accessibility, groupedConnector.accessibility);
+assert.deepEqual(itemByName(importedGroup.groups.items, "nested-group").accessibility, nestedGroup.accessibility);
+const groupedNoOp = await PresentationFile.exportPptx(groupedImported);
+assert.deepEqual(groupedNoOp.bytes, groupedFirstExport.bytes, "unchanged imported group accessibility metadata must return the exact source package");
+const groupedAccessibilitySourceSvg = await groupedImported.slides.getItem(0).export({ format: "svg" });
+importedGroup.setAccessibilityMetadata({ title: "Reviewed agent evidence flow", description: null });
+itemByName(importedGroup.connectors.items, "grouped-connector").setAccessibilityMetadata({ title: null, description: "Reviewed arrow from before to target." });
+itemByName(importedGroup.groups.items, "nested-group").setAccessibilityMetadata({ title: "Nested evidence" });
+const groupedAccessibilityOnlyExport = await PresentationFile.exportPptx(groupedImported);
+groupedImported = await PresentationFile.importPptx(groupedAccessibilityOnlyExport);
+const groupedAccessibilityOutputSvg = await groupedImported.slides.getItem(0).export({ format: "svg" });
+assert.deepEqual(groupedAccessibilityOutputSvg.bytes, groupedAccessibilitySourceSvg.bytes, "group and connector accessibility edits must not alter model SVG output");
+importedGroup = itemByName(groupedImported.slides.getItem(0).groups.items, "Agent evidence group");
+assert.deepEqual(importedGroup.accessibility, { title: "Reviewed agent evidence flow" });
+assert.deepEqual(itemByName(importedGroup.connectors.items, "grouped-connector").accessibility, { description: "Reviewed arrow from before to target." });
+assert.deepEqual(itemByName(importedGroup.groups.items, "nested-group").accessibility, { title: "Nested evidence", description: "Nested custom-shape evidence." });
 
 importedGroup.name = "Edited agent evidence group";
 importedGroup.position.left = 120;
@@ -2298,8 +2334,10 @@ const groupedRoundTrip = await PresentationFile.importPptx(groupedSecondExport);
 const roundTripGroup = itemByName(groupedRoundTrip.slides.getItem(0).groups.items, "Edited agent evidence group");
 assert.equal(roundTripGroup.position.left, 120);
 assert.equal(roundTripGroup.childFrame.left, -50);
+assert.deepEqual(roundTripGroup.accessibility, { title: "Reviewed agent evidence flow" });
 assert.equal(itemByName(roundTripGroup.shapes.items, "grouped-before").text.value, "After");
 assert.equal(itemByName(roundTripGroup.connectors.items, "grouped-connector").line.endArrow, undefined);
+assert.deepEqual(itemByName(roundTripGroup.connectors.items, "grouped-connector").accessibility, { description: "Reviewed arrow from before to target." });
 assert.equal(itemByName(roundTripGroup.images.items, "grouped-image").alt, "Edited grouped image evidence");
 assert.equal(itemByName(roundTripGroup.tables.items, "grouped-table").values[1][1], "After");
 assert.deepEqual(itemByName(roundTripGroup.tables.items, "grouped-table").accessibility, {
@@ -2313,6 +2351,7 @@ assert.deepEqual(itemByName(roundTripGroup.charts.items, "grouped-chart").series
 assert.equal(itemByName(roundTripGroup.charts.items, "grouped-chart").series[1].axisGroup, "secondary");
 assert.equal(itemByName(roundTripGroup.charts.items, "grouped-chart").axes.secondary.value.max, 12);
 assert.equal(itemByName(itemByName(roundTripGroup.groups.items, "nested-group").shapes.items, "nested-shape").fill, "#FDE68A");
+assert.deepEqual(itemByName(roundTripGroup.groups.items, "nested-group").accessibility, { title: "Nested evidence", description: "Nested custom-shape evidence." });
 assert.deepEqual(itemByName(itemByName(roundTripGroup.groups.items, "nested-group").shapes.items, "nested-shape").textRectangle, { left: 40, top: 20, right: 170, bottom: 100 });
 
 const removedGroupedChild = roundTripGroup.children.pop();
@@ -2321,6 +2360,38 @@ await assert.rejects(
   (error) => error?.code === "presentation_group_topology_changed",
 );
 roundTripGroup.children.push(removedGroupedChild);
+
+// An irregular cNvPr leaf is source-owned independently of an otherwise
+// canonical group or connector. Geometry/line edits preserve it byte-for-byte,
+// while both the public setter and direct-state bypass fail closed.
+const irregularGroupAccessibilityXml = groupedFirstXml
+  .replace(/(<p:cNvPr\b[^>]*\bname="Agent evidence group")/, '$1 xmlns:fixture="urn:office-kit:group-connector-accessibility" fixture:group="kept"')
+  .replace(/(<p:cNvPr\b[^>]*\bname="grouped-connector")/, '$1 xmlns:fixture="urn:office-kit:group-connector-accessibility" fixture:connector="kept"');
+assert.notEqual(irregularGroupAccessibilityXml, groupedFirstXml);
+const irregularGroupAccessibilityFile = await PresentationFile.patchPptx(groupedFirstExport, [{ path: "ppt/slides/slide1.xml", xml: irregularGroupAccessibilityXml }]);
+const irregularGroupAccessibilityPresentation = await PresentationFile.importPptx(irregularGroupAccessibilityFile);
+const irregularAccessibleGroup = itemByName(irregularGroupAccessibilityPresentation.slides.getItem(0).groups.items, "Agent evidence group");
+const irregularAccessibleConnector = itemByName(irregularAccessibleGroup.connectors.items, "grouped-connector");
+assert.equal(irregularAccessibleGroup.accessibility, undefined);
+assert.equal(irregularAccessibleConnector.accessibility, undefined);
+assert.deepEqual(irregularAccessibleGroup.accessibilityCapability, { sourceBound: true, editable: false, addable: false });
+assert.deepEqual(irregularAccessibleConnector.accessibilityCapability, { sourceBound: true, editable: false, addable: false });
+assert.throws(() => irregularAccessibleGroup.setAccessibilityMetadata({ title: "Do not flatten group metadata" }), /source-bound.*editable p:cNvPr profile/i);
+assert.throws(() => irregularAccessibleConnector.setAccessibilityMetadata({ title: "Do not flatten connector metadata" }), /source-bound.*editable p:cNvPr profile/i);
+irregularAccessibleGroup.position.left += 10;
+irregularAccessibleConnector.line.width += 0.5;
+const irregularGroupAccessibilityOtherEdit = await PresentationFile.exportPptx(irregularGroupAccessibilityPresentation);
+const irregularGroupAccessibilityOtherXml = await (await JSZip.loadAsync(irregularGroupAccessibilityOtherEdit.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(irregularGroupAccessibilityOtherXml, /fixture:group="kept"/);
+assert.match(irregularGroupAccessibilityOtherXml, /fixture:connector="kept"/);
+assert.match(irregularGroupAccessibilityOtherXml, /title="Agent evidence flow"/);
+assert.match(irregularGroupAccessibilityOtherXml, /title="Before-to-target direction"/);
+const irregularGroupAccessibilityBypass = await PresentationFile.importPptx(irregularGroupAccessibilityFile);
+itemByName(irregularGroupAccessibilityBypass.slides.getItem(0).groups.items, "Agent evidence group").accessibility = { title: "Bypass group" };
+await assert.rejects(() => PresentationFile.exportPptx(irregularGroupAccessibilityBypass), (error) => error?.code === "unsupported_presentation_edit");
+const irregularConnectorAccessibilityBypass = await PresentationFile.importPptx(irregularGroupAccessibilityFile);
+itemByName(itemByName(irregularConnectorAccessibilityBypass.slides.getItem(0).groups.items, "Agent evidence group").connectors.items, "grouped-connector").accessibility = { title: "Bypass connector" };
+await assert.rejects(() => PresentationFile.exportPptx(irregularConnectorAccessibilityBypass), (error) => error?.code === "unsupported_presentation_edit");
 
 const irregularGroupXml = groupedFirstXml.replace(
   /(<p:grpSp><p:nvGrpSpPr><p:cNvPr\b[^>]*name="Agent evidence group"[^>]*\/>[\s\S]*?<p:grpSpPr)(>)/,

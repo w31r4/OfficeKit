@@ -1063,6 +1063,8 @@ internal static class PptxCodec
             AccessibilityEditable = editable && PptxNonVisualAccessibilityCodec.Supports(source switch
             {
                 P.Shape accessibilityShape => accessibilityShape.NonVisualShapeProperties?.NonVisualDrawingProperties,
+                P.ConnectionShape accessibilityConnector => accessibilityConnector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties,
+                P.GroupShape accessibilityGroup => accessibilityGroup.NonVisualGroupShapeProperties?.NonVisualDrawingProperties,
                 P.GraphicFrame accessibilityFrame when element.ContentCase is PresentationElement.ContentOneofCase.Table or PresentationElement.ContentOneofCase.Chart =>
                     accessibilityFrame.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties,
                 _ => null,
@@ -1090,8 +1092,9 @@ internal static class PptxCodec
             nonVisual.ChildElements[0] is not P.NonVisualDrawingProperties drawing ||
             nonVisual.ChildElements[1] is not P.NonVisualGroupShapeDrawingProperties groupDrawing ||
             nonVisual.ChildElements[2] is not P.ApplicationNonVisualDrawingProperties application ||
-            drawing.ChildElements.Count != 0 || groupDrawing.ChildElements.Count != 0 || application.ChildElements.Count != 0 ||
-            !HasOnlyAttributes(drawing, "id", "name") || !HasOnlyAttributes(groupDrawing) || !HasOnlyAttributes(application) ||
+            groupDrawing.ChildElements.Count != 0 || application.ChildElements.Count != 0 ||
+            drawing.Id?.Value is null or 0 || drawing.Name?.Value is not { Length: <= 1_024 } ||
+            !HasOnlyAttributes(groupDrawing) || !HasOnlyAttributes(application) ||
             properties.ChildElements.Count != 1 || properties.FirstChild != transform || !HasOnlyAttributes(properties) ||
             !HasOnlyAttributes(transform) || transform.ChildElements.Count != 4 ||
             transform.ChildElements[0] is not A.Offset offset ||
@@ -1112,6 +1115,7 @@ internal static class PptxCodec
         group.ChildTopEmu = childOffset.Y?.Value ?? 0;
         group.ChildWidthEmu = childExtents.Cx?.Value ?? 0;
         group.ChildHeightEmu = childExtents.Cy?.Value ?? 0;
+        group.Accessibility = PptxNonVisualAccessibilityCodec.Read(drawing);
         var children = GroupElements(source);
         if (children.Length == 0) return false;
         for (var index = 0; index < children.Length; index++)
@@ -1608,9 +1612,11 @@ internal static class PptxCodec
         SlidePart slidePart)
     {
         var group = element.Group;
+        var nonVisual = new P.NonVisualDrawingProperties { Id = nativeIdsByElementId[element.Id], Name = element.Name };
+        PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, group.Accessibility);
         var output = new P.GroupShape(
             new P.NonVisualGroupShapeProperties(
-                new P.NonVisualDrawingProperties { Id = nativeIdsByElementId[element.Id], Name = element.Name },
+                nonVisual,
                 new P.NonVisualGroupShapeDrawingProperties(),
                 new P.ApplicationNonVisualDrawingProperties()),
             new P.GroupShapeProperties(new A.TransformGroup(
@@ -1683,7 +1689,11 @@ internal static class PptxCodec
         if (sourceChildren.Length != original.Group.Children.Count || sourceChildren.Length != requested.Group.Children.Count)
             throw new CodecException("presentation_group_topology_changed", $"Presentation slide {slideIndex + 1} {location} changed its fixed group topology.", PartPath(slideContext.Owner));
 
-        var changed = false;
+        var changed = !Equals(original.Group.Accessibility, requested.Group.Accessibility);
+        PptxNonVisualAccessibilityCodec.ApplyBound(
+            source.NonVisualGroupShapeProperties?.NonVisualDrawingProperties,
+            requested.Group.Accessibility,
+            "group");
         if (requested.Name != original.Name ||
             requested.Group.LeftEmu != original.Group.LeftEmu || requested.Group.TopEmu != original.Group.TopEmu ||
             requested.Group.WidthEmu != original.Group.WidthEmu || requested.Group.HeightEmu != original.Group.HeightEmu ||
@@ -2146,6 +2156,7 @@ internal static class PptxCodec
         else if (element.ContentCase == PresentationElement.ContentOneofCase.Group)
         {
             var group = element.Group;
+            PptxNonVisualAccessibilityCodec.Validate(group.Accessibility, element.Id, "group");
             if (group.LeftEmu < 0 || group.TopEmu < 0 || group.WidthEmu <= 0 || group.HeightEmu <= 0 ||
                 group.ChildWidthEmu <= 0 || group.ChildHeightEmu <= 0 || group.Children.Count == 0)
                 throw new CodecException("invalid_presentation_group", $"Presentation group {element.Id} requires positive outer/child extents and at least one child.");
@@ -3009,7 +3020,11 @@ internal static class PptxCodec
     {
         var clone = (P.GroupShape)source.CloneNode(true);
         foreach (var child in GroupElements(clone)) child.Remove();
-        if (clone.NonVisualGroupShapeProperties?.NonVisualDrawingProperties is { } nonVisual) nonVisual.Name = string.Empty;
+        if (clone.NonVisualGroupShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
+        {
+            PptxNonVisualAccessibilityCodec.ScrubModeledContent(nonVisual);
+            nonVisual.Name = string.Empty;
+        }
         if (clone.GroupShapeProperties?.GetFirstChild<A.TransformGroup>() is { } transform)
         {
             transform.Offset!.X = 0L;
@@ -4577,7 +4592,11 @@ internal static class PptxCodec
     private static string ConnectorResidualHash(P.ConnectionShape source)
     {
         var connector = (P.ConnectionShape)source.CloneNode(true);
-        if (connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties is { } nonVisual) nonVisual.Name = string.Empty;
+        if (connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
+        {
+            PptxNonVisualAccessibilityCodec.ScrubModeledContent(nonVisual);
+            nonVisual.Name = string.Empty;
+        }
         if (connector.NonVisualConnectionShapeProperties?.NonVisualConnectorShapeDrawingProperties is { } drawingProperties)
             drawingProperties.RemoveAllChildren();
         connector.ShapeProperties?.RemoveAllChildren();

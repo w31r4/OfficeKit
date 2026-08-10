@@ -290,6 +290,152 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void GroupAndConnectorAccessibilityAuthorImportEditAndKeepIrregularMetadataSourceOwned()
+    {
+        var request = ExportRequest();
+        var connector = new PresentationElement
+        {
+            Id = "presentation/slide/1/group/connector",
+            Name = "Approval flow connector",
+            Connector = new PresentationConnector
+            {
+                ConnectorType = "straight",
+                StartXEmu = 800_000,
+                StartYEmu = 900_000,
+                EndXEmu = 2_200_000,
+                EndYEmu = 900_000,
+                LineRgb = "334155",
+                LineWidthEmu = 19_050,
+                LineStyle = "solid",
+                Accessibility = new PresentationNonVisualAccessibility
+                {
+                    Title = "Approval direction",
+                    Description = "Arrow from intake to final approval.",
+                },
+            },
+        };
+        var group = new PresentationGroup
+        {
+            LeftEmu = 400_000,
+            TopEmu = 600_000,
+            WidthEmu = 3_200_000,
+            HeightEmu = 1_400_000,
+            ChildLeftEmu = 0,
+            ChildTopEmu = 0,
+            ChildWidthEmu = 3_200_000,
+            ChildHeightEmu = 1_400_000,
+            Accessibility = new PresentationNonVisualAccessibility
+            {
+                Title = "Approval flow",
+                Description = "Grouped visual showing the direction of the approval process.",
+            },
+        };
+        group.Children.Add(connector);
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/group/accessibility",
+            Name = "Accessible approval group",
+            Group = group,
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var nativeGroup = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.GroupShape>()
+                .Single(item => item.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name == "Accessible approval group");
+            var groupNonVisual = nativeGroup.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!;
+            var connectorNonVisual = Assert.Single(nativeGroup.Elements<P.ConnectionShape>())
+                .NonVisualConnectionShapeProperties!.NonVisualDrawingProperties!;
+            Assert.Equal("Approval flow", groupNonVisual.Title!.Value);
+            Assert.Equal("Grouped visual showing the direction of the approval process.", groupNonVisual.Description!.Value);
+            Assert.Equal("Approval direction", connectorNonVisual.Title!.Value);
+            Assert.Equal("Arrow from intake to final approval.", connectorNonVisual.Description!.Value);
+        }
+
+        var imported = Import(authored.File.ToByteArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedGroupElement = Assert.Single(Assert.Single(imported.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Group);
+        var importedConnector = Assert.Single(importedGroupElement.Group.Children).Connector;
+        Assert.True(importedGroupElement.Source.AccessibilityEditable);
+        Assert.True(Assert.Single(importedGroupElement.Group.Children).Source.AccessibilityEditable);
+        Assert.Equal("Approval flow", importedGroupElement.Group.Accessibility.Title);
+        Assert.Equal("Approval direction", importedConnector.Accessibility.Title);
+
+        importedGroupElement.Group.Accessibility.Title = "Reviewed approval flow";
+        importedGroupElement.Group.Accessibility.ClearDescription();
+        importedConnector.Accessibility.ClearTitle();
+        importedConnector.Accessibility.Description = "Reviewed direction from intake to approval.";
+        var edited = Export(imported.Artifact);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var roundTrip = Import(edited.File.ToByteArray());
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        var roundTripGroup = Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Group).Group;
+        Assert.Equal("Reviewed approval flow", roundTripGroup.Accessibility.Title);
+        Assert.False(roundTripGroup.Accessibility.HasDescription);
+        Assert.False(Assert.Single(roundTripGroup.Children).Connector.Accessibility.HasTitle);
+        Assert.Equal("Reviewed direction from intake to approval.", Assert.Single(roundTripGroup.Children).Connector.Accessibility.Description);
+
+        var invalidGroup = request.Clone();
+        Assert.Single(Assert.Single(invalidGroup.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Group).Group.Accessibility = new PresentationNonVisualAccessibility();
+        Assert.Equal("invalid_presentation_group", Assert.Single(Invoke(invalidGroup).Diagnostics).Code);
+        var invalidConnector = request.Clone();
+        Assert.Single(Assert.Single(Assert.Single(invalidConnector.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Group).Group.Children)
+            .Connector.Accessibility = new PresentationNonVisualAccessibility();
+        Assert.Equal("invalid_presentation_connector", Assert.Single(Invoke(invalidConnector).Diagnostics).Code);
+
+        var irregularBytes = ReplaceZipText(authored.File.ToByteArray(), "ppt/slides/slide1.xml", xml => xml
+            .Replace("name=\"Accessible approval group\"", "name=\"Accessible approval group\" xmlns:fixture=\"urn:office-kit:group-connector-accessibility\" fixture:group=\"kept\"", StringComparison.Ordinal)
+            .Replace("name=\"Approval flow connector\"", "name=\"Approval flow connector\" xmlns:fixture=\"urn:office-kit:group-connector-accessibility\" fixture:connector=\"kept\"", StringComparison.Ordinal));
+        var irregular = Import(irregularBytes);
+        Assert.True(irregular.Ok, Diagnostics(irregular));
+        var irregularGroupElement = Assert.Single(Assert.Single(irregular.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Group);
+        var irregularConnectorElement = Assert.Single(irregularGroupElement.Group.Children);
+        Assert.True(irregularGroupElement.Source.Editable);
+        Assert.True(irregularConnectorElement.Source.Editable);
+        Assert.False(irregularGroupElement.Source.AccessibilityEditable);
+        Assert.False(irregularConnectorElement.Source.AccessibilityEditable);
+        Assert.Null(irregularGroupElement.Group.Accessibility);
+        Assert.Null(irregularConnectorElement.Connector.Accessibility);
+
+        irregularGroupElement.Group.LeftEmu += 20_000;
+        irregularConnectorElement.Connector.LineWidthEmu += 9_525;
+        var otherEdit = Export(irregular.Artifact);
+        Assert.True(otherEdit.Ok, Diagnostics(otherEdit));
+        using (var stream = new MemoryStream(otherEdit.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var nativeGroup = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.GroupShape>()
+                .Single(item => item.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name == "Accessible approval group");
+            var groupNonVisual = nativeGroup.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!;
+            var connectorNonVisual = Assert.Single(nativeGroup.Elements<P.ConnectionShape>())
+                .NonVisualConnectionShapeProperties!.NonVisualDrawingProperties!;
+            Assert.Equal("kept", Assert.Single(groupNonVisual.ExtendedAttributes).Value);
+            Assert.Equal("kept", Assert.Single(connectorNonVisual.ExtendedAttributes).Value);
+            Assert.Equal("Approval flow", groupNonVisual.Title!.Value);
+            Assert.Equal("Approval direction", connectorNonVisual.Title!.Value);
+        }
+
+        var groupBypass = Import(irregularBytes);
+        Assert.Single(Assert.Single(groupBypass.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Group)
+            .Group.Accessibility = new PresentationNonVisualAccessibility { Title = "Must reject group" };
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(Export(groupBypass.Artifact).Diagnostics).Code);
+        var connectorBypass = Import(irregularBytes);
+        Assert.Single(Assert.Single(Assert.Single(connectorBypass.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Group).Group.Children)
+            .Connector.Accessibility = new PresentationNonVisualAccessibility { Title = "Must reject connector" };
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(Export(connectorBypass.Artifact).Diagnostics).Code);
+    }
+
+    [Fact]
     public void CustomShowsAuthorImportAndEditWithinFixedTopology()
     {
         var request = ExportRequest();

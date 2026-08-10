@@ -2,15 +2,50 @@
 
 ## Current 0.6.0 package evidence (2026-08-10)
 
-The package dry-run passed with shape/table/chart alternative text and the
-rebuilt OfficeKit Codec runtime. The candidate contains 714 files, 36,228,929
-compressed bytes, and 53,408,765 unpacked bytes; its measured shasum is
-`74eb189c668dc6838539798f7a26c45aef2f33b9`. The exact feature delta crossed
-the former 53,400,000-byte ceiling, so the audited unpacked ceiling moves
-narrowly to 53,420,000 bytes with 11,235 bytes of measured headroom; the
+The package dry-run passed with shape/connector/group/table/chart alternative
+text and the rebuilt OfficeKit Codec runtime. The candidate contains 714 files,
+36,230,832 compressed bytes, and 53,417,857 unpacked bytes; its measured shasum
+is `f2010dc8eaaf1e37d73adc222f89d0dd3074d271`. The cumulative accessibility
+deltas remain within the audited 53,420,000-byte unpacked ceiling with 2,143
+bytes of measured headroom; the
 37,500,000-byte compressed ceiling is unchanged. The runtime manifest covers
-38 files and 15,405,291 bytes. This is package evidence, not an npm registry
+38 files and 15,406,827 bytes. This is package evidence, not an npm registry
 publication or tagged release.
+
+## Unreleased: Presentation group and connector alternative text
+
+Presentation groups and connectors now use the same non-visible metadata
+contract as ordinary shapes and graphic frames. Source-free `p:grpSp` and
+`p:cxnSp` objects accept optional `{ title?, description? }`, expose a fresh
+`accessibilityCapability`, and add, change, or clear either field through
+`setAccessibilityMetadata(...)`. The metadata is independent of connector
+routing, group topology, object names, visible content, and rendering.
+
+Protocol v2 appends `PresentationGroup.accessibility` field 10 and
+`PresentationConnector.accessibility` field 21 without changing earlier field
+numbers or the wire version. The OfficeKit Codec reads and writes each native
+owner's `p:cNvPr`, including nested groups and connectors. A source-bound edit
+must re-prove the canonical shared leaf. Unknown attributes or children remain
+source-owned during unrelated supported geometry, line, or group edits;
+metadata mutation then fails closed instead of rebuilding the leaf.
+
+JavaScript, bundled-WASM, and .NET coverage includes source-free authoring,
+top-level and recursive import, add/change/clear, invalid values, no-op bytes,
+second import, capability tampering, irregular-source preservation, unchanged
+SVG, and Open XML SDK validation. The runnable Presentation Skill readiness
+fixture supplies group and connector metadata and exercises model/native render
+QA. Picture alt text, decorative state, reading order, and whole-deck
+accessibility conformance remain separate contracts.
+
+Local gates passed: fast 26/26, slow 75/75, OfficeKit Codec 400/400,
+OfficeBridge 5/5, generated Help/API docs, protocol lint/regeneration,
+deterministic WASM verification across 39 outputs, Presentation Skill
+model/native rendering, reference Skill sync/portability, clean-install,
+standalone distribution, and `test:pack`. Real qpdf ran locally. Managed pack
+downloads and separately configured pypdf, pikepdf, pyHanko, veraPDF,
+OCRmyPDF, and PromptBench Python environments remained explicit skips; their
+offline contracts passed. npm publication, a tagged release, and Windows
+Microsoft Office host acceptance remain external blockers.
 
 ## Unreleased: Presentation table and chart alternative text
 

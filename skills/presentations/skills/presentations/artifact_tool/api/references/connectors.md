@@ -17,6 +17,10 @@ const connector = slide.shapes.connect(sourceShape, targetShape, {
   toSide: "left",
   line: { style: "solid", fill: "slate-500", width: 2 },
   head: { type: "arrow", width: "med", length: "med" },
+  accessibility: {
+    title: "Source to target flow",
+    description: "Connector from the source card to the target card.",
+  },
 });
 ```
 
@@ -60,6 +64,7 @@ type ShapeConnectOptions = {
   tail?: LineEndConfig;
   cap?: "flat" | "round" | "square";
   join?: "round" | "bevel" | "miter";
+  accessibility?: { title?: string; description?: string };
 };
 
 type LineEndConfig = {
@@ -141,6 +146,7 @@ type ConnectorConfig = {
   tail?: LineEndConfig;
   cap?: "flat" | "round" | "square";
   join?: "round" | "bevel" | "miter";
+  accessibility?: { title?: string; description?: string };
 };
 ```
 
@@ -160,11 +166,16 @@ const nextToIdx = slide.shapes.getConnectionSiteIndex(nextTargetShape, "left");
 connector.setConnectorFrom(nextSourceShape, nextFromIdx);
 connector.setConnectorTo(nextTargetShape.id, nextToIdx);
 connector.line = { style: "solid", fill: "slate-800", width: 2 };
+if (connector.accessibilityCapability.editable) {
+  connector.setAccessibilityMetadata({ description: "Updated dependency flow." });
+}
 ```
 
 Use `presentation.inspect({ kind: "connector", search })` to find connector anchor
 ids. Connector facades expose `connector`, `connectorLineStyle`,
-`connectorHead`, and `connectorTail` for readback.
+`connectorHead`, `connectorTail`, `accessibility`, and
+`accessibilityCapability` for readback. Non-visible metadata maps to
+`p:nvCxnSpPr/p:cNvPr` and remains independent of the line name and geometry.
 
 For a site-bound connector, do not assign `start` or `end` coordinates directly;
 use `setConnectorFrom` or `setConnectorTo` so target and site change atomically.
@@ -178,6 +189,9 @@ readable. Call `connector.bringToFront()` when the connector should sit above
 other elements, or `connector.sendToBack()` to restore the default. Those
 z-order methods are source-free operations. Imported connector z-order remains
 source-bound and rejects instead of reordering an unmodeled SlidePart tree.
+An imported connector with irregular `p:cNvPr` attributes or children keeps
+those source bytes during unrelated supported endpoint/line edits, while a
+metadata edit fails closed.
 
 Connected routes update when a modeled endpoint shape moves. Render and export
 paths recompute the connector bounds and route from the current endpoint

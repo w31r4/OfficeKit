@@ -27,6 +27,10 @@ explicit IDs and endpoints for stable targeting:
 const group = slide.groups.add({
   id: "workflow-group",
   name: "workflow-group",
+  accessibility: {
+    title: "Workflow stages",
+    description: "Grouped model, codec, and verification stages.",
+  },
   position: { left: 120, top: 110, width: 1040, height: 430 },
   childFrame: { left: -80, top: 40, width: 1280, height: 540 },
   children: [
@@ -39,6 +43,7 @@ const group = slide.groups.add({
       start: { x: 300, y: 270 },
       end: { x: 450, y: 270 },
       line: { fill: "#475569", width: 2, endArrow: "triangle" },
+      accessibility: { title: "Model to codec flow" },
     },
     {
       kind: "shape",
@@ -64,6 +69,7 @@ const group = slide.groups.add({
       kind: "groupShape",
       id: "qa-group",
       name: "qa-group",
+      accessibility: { title: "Verification stage" },
       position: { left: 900, top: 180, width: 300, height: 220 },
       childFrame: { left: 0, top: 0, width: 300, height: 220 },
       shapes: [{
@@ -95,13 +101,19 @@ const snapshot = presentation.inspect({
 });
 
 const importedGroup = presentation.resolve(groupIdFromInspect);
+if (!importedGroup.accessibilityCapability.editable) {
+  throw new Error("The imported group accessibility metadata is source-bound.");
+}
+importedGroup.setAccessibilityMetadata({ description: "Updated workflow stages." });
 importedGroup.position.left += 24;
 importedGroup.childFrame.left = -40;
 presentation.resolve("model-node").text.set("Updated model");
 ```
 
 For a canonical imported group, OfficeKit permits bounded semantic edits to
-the group name, outer frame, child frame, and supported descendants. The child
+the group name, non-visible title/description, outer frame, child frame, and
+supported descendants. `accessibility` maps to `p:nvGrpSpPr/p:cNvPr`; it is
+independent of visible child content and the inspectable group name. The child
 tree topology is fixed: do not add, remove, reorder, or change the native kind
 of an imported child. Export rejects with
 `presentation_group_topology_changed` instead of rebuilding or flattening the
@@ -112,6 +124,8 @@ group.
 An imported group remains one opaque, read-only native object when its group
 shell uses unmodeled fill/effect/lock/rotation/flip/extension semantics, or when
 any descendant cannot be modeled safely. Inspect and preserve it unchanged.
+An irregular group `p:cNvPr` remains source-owned during unrelated supported
+group edits, and `setAccessibilityMetadata(...)` fails closed.
 Do not extract and re-add only the understood descendants; that would destroy
 the original ownership, z-order, coordinate transform, and unknown graph.
 

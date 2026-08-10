@@ -42,13 +42,13 @@
     },
     {
       "path": "_framework/OfficeKit.Codec.wasm",
-      "bytes": 2882329,
-      "sha256": "3f6d7a3eb818e45a2eb391de46da277251fc1f55237e5488eef290ee66eae58d"
+      "bytes": 2883865,
+      "sha256": "77baba540e77ae3f2cdbc947ca5f32fce1f344fc2cc757f38cfb8bc05ff383ab"
     },
     {
       "path": "_framework/OfficeKit.Runtime.wasm",
       "bytes": 5909,
-      "sha256": "ba1d968a0c924b266aa593ed9a7d3299aa37fa7d7e726e07e90c39efbb951d2d"
+      "sha256": "c699c6badc8d5c12a90e17c1f7e700bdcb6c97258e5338c25356232b90fcddbe"
     },
     {
       "path": "_framework/System.Collections.Concurrent.wasm",
@@ -158,7 +158,7 @@
     {
       "path": "_framework/blazor.boot.json",
       "bytes": 3131,
-      "sha256": "1820442f29ee30062e5c2cac91dcc7652a79a379857a4c613cc29ad867c77f16"
+      "sha256": "22ca6777b56cbc88b0e7c752a3f7eb6d2a801bff76a741749e4dea9a3a6edb6b"
     },
     {
       "path": "_framework/dotnet.js",
@@ -201,5 +201,5 @@
       "sha256": "06b54e5aefb412f17866912ddedaaa109eba4530e09eab3223e12523e2574e91"
     }
   ],
-  "totalBytes": 15405291
+  "totalBytes": 15406827
 }

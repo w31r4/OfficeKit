@@ -44,6 +44,8 @@ internal static class PptxConnectorCodec
             StartConnectionSiteIndex = startSiteIndex,
             EndConnectionSiteIndex = endSiteIndex,
         };
+        connector.Accessibility = PptxNonVisualAccessibilityCodec.Read(
+            source.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties);
         PptxLineStyleCodec.CopyTo(lineStyle, connector);
         return true;
     }
@@ -61,9 +63,11 @@ internal static class PptxConnectorCodec
             ConnectorTransform(semantic),
             CanonicalGeometry(semantic.ConnectorType),
             PptxLineStyleCodec.Build(semantic));
+        var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name };
+        PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, semantic.Accessibility);
         return new P.ConnectionShape(
             new P.NonVisualConnectionShapeProperties(
-                new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name },
+                nonVisual,
                 drawingProperties,
                 new P.ApplicationNonVisualDrawingProperties()),
             properties);
@@ -75,7 +79,9 @@ internal static class PptxConnectorCodec
         IReadOnlyDictionary<string, uint> nativeIdsByElementId)
     {
         Validate(requested.Connector, requested.Id, requested.Name, nativeIdsByElementId);
-        source.NonVisualConnectionShapeProperties!.NonVisualDrawingProperties!.Name = requested.Name;
+        var nonVisual = source.NonVisualConnectionShapeProperties!.NonVisualDrawingProperties!;
+        nonVisual.Name = requested.Name;
+        PptxNonVisualAccessibilityCodec.ApplyBound(nonVisual, requested.Connector.Accessibility, "connector");
         var drawingProperties = source.NonVisualConnectionShapeProperties.NonVisualConnectorShapeDrawingProperties ??= new P.NonVisualConnectorShapeDrawingProperties();
         ApplyConnectionTargets(drawingProperties, requested.Connector, nativeIdsByElementId);
 
@@ -103,6 +109,7 @@ internal static class PptxConnectorCodec
         if (!ConnectorTypes.Contains(source.ConnectorType)) throw new CodecException("unsupported_presentation_connector", $"Presentation connector {elementId} uses unsupported type {source.ConnectorType}.");
         if (source.StartXEmu < 0 || source.StartYEmu < 0 || source.EndXEmu < 0 || source.EndYEmu < 0)
             throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} has invalid endpoints.");
+        PptxNonVisualAccessibilityCodec.Validate(source.Accessibility, elementId, "connector");
         PptxLineStyleCodec.Validate(source, elementId);
         if (source.StartTargetId.Length == 0 && source.StartConnectionSiteIndex != 0 ||
             source.EndTargetId.Length == 0 && source.EndConnectionSiteIndex != 0)

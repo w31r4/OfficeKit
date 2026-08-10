@@ -1,4 +1,9 @@
 import { attrEscape } from "../ooxml/source-reference-xml.mjs";
+import {
+  initializePresentationAccessibility,
+  presentationAccessibilityCapability,
+  setPresentationAccessibilityMetadata,
+} from "./accessibility.mjs";
 
 function localName(tag = "") {
   return /^<\/?(?:[A-Za-z_][\w.-]*:)?([A-Za-z_][\w.-]*)\b/.exec(tag)?.[1];
@@ -88,6 +93,7 @@ export function createPresentationGroupShapeClass(adapters) {
       this.nativeId = config.nativeId;
       this.creationId = config.creationId;
       this.name = config.name || "";
+      this.accessibility = initializePresentationAccessibility(this, config, `Presentation group ${this.id}`);
       const geometry = normalizeGroupGeometry(config.position || config.frame, config.childFrame || config.childrenFrame);
       this.position = geometry.frame;
       this.childFrame = geometry.childFrame;
@@ -143,9 +149,16 @@ export function createPresentationGroupShapeClass(adapters) {
       return [this, ...this.children.flatMap((child) => adapters.isGroup(child) ? child.allElements() : [child])];
     }
 
+    get accessibilityCapability() { return presentationAccessibilityCapability(this); }
+
+    setAccessibilityMetadata(update) {
+      this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation group ${this.id}`);
+      return this;
+    }
+
     inspectRecord() {
       const frame = this.absoluteFrame();
-      return { kind: "groupShape", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, children: this.children.length, childIds: this.children.map((child) => child.id), bbox: [frame.left, frame.top, frame.width, frame.height], bboxUnit: "px", childFrame: this.childFrame };
+      return { kind: "groupShape", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, children: this.children.length, childIds: this.children.map((child) => child.id), accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, bbox: [frame.left, frame.top, frame.width, frame.height], bboxUnit: "px", childFrame: this.childFrame };
     }
 
     inspectRecords(kinds) {
@@ -174,7 +187,7 @@ export function createPresentationGroupShapeClass(adapters) {
         const record = child.layoutJson();
         return { ...record, localFrame: record.frame || child.position, frame: this.absoluteChildFrame(child), parentGroupId: this.id };
       });
-      return { kind: "groupShape", id: this.id, name: this.name, frame: this.absoluteFrame(), localFrame: this.position, childFrame: this.childFrame, children };
+      return { kind: "groupShape", id: this.id, name: this.name, frame: this.absoluteFrame(), localFrame: this.position, childFrame: this.childFrame, accessibility: this.accessibility ? { ...this.accessibility } : undefined, children };
     }
 
     toSvg() {
@@ -194,7 +207,7 @@ export function createPresentationGroupShapeClass(adapters) {
     }
 
     toProto() {
-      return { kind: "groupShape", id: this.id, name: this.name, position: this.position, childFrame: this.childFrame, children: this.children.map((child) => adapters.isGroup(child) ? child.toProto() : { ...child.layoutJson(), kind: adapters.elementKind(child) }) };
+      return { kind: "groupShape", id: this.id, name: this.name, position: this.position, childFrame: this.childFrame, accessibility: this.accessibility ? { ...this.accessibility } : undefined, children: this.children.map((child) => adapters.isGroup(child) ? child.toProto() : { ...child.layoutJson(), kind: adapters.elementKind(child) }) };
     }
   };
 }

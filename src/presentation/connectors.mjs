@@ -8,6 +8,11 @@ import {
   normalizePresentationCustomConnectionSites,
   presentationCustomConnectionSitePoint,
 } from "./custom-geometry.mjs";
+import {
+  initializePresentationAccessibility,
+  presentationAccessibilityCapability,
+  setPresentationAccessibilityMetadata,
+} from "./accessibility.mjs";
 
 const CONNECTOR_TYPE_ALIASES = new Map([
   ["straight", "straight"],
@@ -291,6 +296,7 @@ export class PresentationConnectorElement {
     this.nativeId = config.nativeId;
     this.creationId = config.creationId;
     this.name = config.name || "";
+    this.accessibility = initializePresentationAccessibility(this, config, `Presentation connector ${this.id}`);
     this.connectorType = normalizePresentationConnectorType(config.connectorType || config.kind || config.type || "straight");
     this.startTargetId = typeof config.from === "string" ? config.from : config.from?.id || config.startTargetId;
     this.endTargetId = typeof config.to === "string" ? config.to : config.to?.id || config.endTargetId;
@@ -397,6 +403,12 @@ export class PresentationConnectorElement {
   get connectorHead() { return this.head ? { ...this.head } : undefined; }
   get connectorTail() { return this.tail ? { ...this.tail } : undefined; }
   get isForeground() { return this._zPlacement === "front"; }
+  get accessibilityCapability() { return presentationAccessibilityCapability(this); }
+
+  setAccessibilityMetadata(update) {
+    this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation connector ${this.id}`);
+    return this;
+  }
 
   #setEndpoint(side, target, index) {
     const shape = presentationShapeTarget(this.slide, this.parentGroup, target, `Presentation connector ${side} endpoint`);
@@ -460,12 +472,12 @@ export class PresentationConnectorElement {
 
   inspectRecord() {
     const { start, end } = this.resolvedEndpoints();
-    return { kind: "connector", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, connectorType: this.connectorType, start, end, startTargetId: this.startTargetId, endTargetId: this.endTargetId, startSiteIndex: this.startSiteIndex, endSiteIndex: this.endSiteIndex, line: this.line, head: this.connectorHead, tail: this.connectorTail, cap: this.cap, join: this.join };
+    return { kind: "connector", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, connectorType: this.connectorType, start, end, startTargetId: this.startTargetId, endTargetId: this.endTargetId, startSiteIndex: this.startSiteIndex, endSiteIndex: this.endSiteIndex, line: this.line, head: this.connectorHead, tail: this.connectorTail, cap: this.cap, join: this.join, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability };
   }
 
   layoutJson() {
     const { start, end } = this.resolvedEndpoints();
-    return { kind: "connector", id: this.id, name: this.name, connectorType: this.connectorType, start, end, startTargetId: this.startTargetId, endTargetId: this.endTargetId, startSiteIndex: this.startSiteIndex, endSiteIndex: this.endSiteIndex, line: this.line, head: this.connectorHead, tail: this.connectorTail, cap: this.cap, join: this.join, frame: this.position };
+    return { kind: "connector", id: this.id, name: this.name, connectorType: this.connectorType, start, end, startTargetId: this.startTargetId, endTargetId: this.endTargetId, startSiteIndex: this.startSiteIndex, endSiteIndex: this.endSiteIndex, line: this.line, head: this.connectorHead, tail: this.connectorTail, cap: this.cap, join: this.join, accessibility: this.accessibility ? { ...this.accessibility } : undefined, frame: this.position };
   }
 
   toSvg() {

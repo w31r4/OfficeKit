@@ -1761,11 +1761,15 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `compose.column` | api | Create a vertical compose container. Use width/height fill, hug, or fixed pixels; gap and padding are in pixels. |
 | `compose.paragraph` | api | Create an editable text block with name, className/style text tokens, and stable inspect output. |
 | `compose.text` | api | Create the same editable paragraph node through the reference-template-compatible children-first text(children, props) helper. |
+| `connector.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for connector p:cNvPr title/description; export re-proves it. |
 | `connector.bringToFront` | api | Move a source-free connector above modeled slide/group elements. Imported z-order is source-bound and rejects. |
 | `connector.sendToBack` | api | Move a source-free connector behind modeled slide/group elements. New shape-connected connectors start behind their nodes; imported z-order rejects. |
+| `connector.setAccessibilityMetadata` | api | Add, change, or clear non-visible connector title/description. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits. |
 | `connector.setConnectorFrom` | api | Atomically bind a connector start to a modeled same-tree shape and explicit connection-site index. |
 | `connector.setConnectorTo` | api | Atomically bind a connector end to a modeled same-tree shape and explicit connection-site index. |
 | `exportPptxWithOfficeKit` | api | Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse shapes, free-positioned p:sp lines with the shared six-style/line-end/cap/join outline profile, rich text and lists, basic fills/lines/shadows, straight/elbow/curved p:cxnSp connectors with target connection sites through that same line profile, embedded pictures with native crop/contain/cover semantics, fixed-grid plain-text tables, recursive native p:grpSp trees, relationship-free rich speaker notes, legacy annotations, Office 2021 modern root/direct-reply threads, source-free bar/line/pie charts, the bounded literal clustered bar+line combo profile with either shared primary axes or a canonical secondary line pair, validated payload-only replacement for eligible imported OLE XLSX workbooks plus the uniquely bound DOCX Office-package profile, and bounded source-bound text updates for canonical SmartArt document nodes. Recognized imported modern threads allow only existing text/status edits; their identity, author/date metadata, anchor/range, position, topology, relationships, and source hashes remain fixed. Inherited or complex graphs remain preserved and fail closed on unsupported mutation. |
+| `group.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/description; export re-proves it. |
+| `group.setAccessibilityMetadata` | api | Add, change, or clear non-visible group-frame title/description. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits. |
 | `importPptxWithOfficeKit` | api | Import PPTX bytes with editable bounded direct slide backgrounds, shapes, free-positioned p:sp lines including bounded line ends/caps/joins, rich text, recognized owner-local SlidePart placeholder text, rectangular pictures and native source rectangles, tables, target-bound p:cxnSp connectors, recursive canonical p:grpSp groups, bar/line/pie charts, the canonical literal clustered bar+line combo profile with either shared primary axes or a secondary line pair, legacy text-only speaker notes plus fixed-topology relationship-free rich notes and a re-proven addable capability for eligible notes-absent slides, unchanged-only legacy comments, fixed-topology modern comment text/status edits, defensive payload access for eligible OLE XLSX workbooks plus one uniquely bound DOCX Office-package profile, and a source-bound SmartArt plain-node text capability only for the canonical closed four-part one-paragraph/one-run DiagramDataPart profile. Compound/theme/custom-dash/effect/extension outlines and all other unsupported content remain source-bound and read-only rather than being flattened. |
 | `nativeObject.getEmbeddedOfficePackage` | api | Read a defensive FileBlob copy from an eligible source-bound top-level OLE package. It is compatible with the legacy XLSX workbook profile and currently adds one uniquely bound DOCX profile; it never exposes arbitrary OLE or native-part mutation. |
 | `nativeObject.getEmbeddedWorkbook` | api | Read a defensive FileBlob copy of the XLSX payload from an eligible source-bound top-level OLE object without exposing arbitrary native-part mutation. |
@@ -1825,14 +1829,14 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.connectors.add` | api | Legacy low-level connector authoring from explicit points or target centers. Prefer slide.shapes.connect or geometry: connector when DrawingML target-plus-site identity matters. |
 | `slide.delete` | api | Remove this slide. Source-free decks may remove any non-final slide. An imported PPTX performs a real OPC deletion only for an isolated slide with exactly its layout relationship and no inbound/package-identity references; media, notes, comments, charts, OLE, hyperlinks, custom shows, sections, extensions, and all clone requests fail closed. |
 | `slide.duplicate` | api | Clone one original imported PPTX slide only when its unchanged graph contains canonical shapes, canonical inline fixed-grid tables with bounded rectangular merges, recognized closed literal-data charts, eligible top-level embedded-XLSX OLE frames, canonical top-level four-part SmartArt frames, canonical top-level closed InkML content parts, canonical top-level embedded-MP4 media pictures, embedded rectangular images, bounded canonical straight/elbow/curved connectors, and recursively canonical groups containing only the non-native-graph leaf kinds, exactly one layout relationship, picture-bound image relationships, canonical run-level external/internal/relative-action links plus relationship-free custom-show links bound to an existing stable native show ID, and optional closed NotesSlide-to-NotesMaster/back-to-slide plus bounded legacy-comments leaves. Relationship-backed links keep exact IDs and targets; custom-show actions add no relationship and the clone is never inserted into show membership. Every accepted chart frame uniquely consumes one internal relationship to a numbered ChartPart whose child, external, hyperlink, and data relationship sets are empty. Every accepted OLE frame uniquely consumes one internal package relationship to a closed, uniquely inbound XLSX EmbeddedPackagePart and one internal preview ImagePart relationship. Every accepted SmartArt frame owns exactly one internal dm/lo/qs/cs relationship set to closed relationship-free diagram data, layout, quick-style, and colors parts. Every accepted media picture owns one canonical video/media relationship pair to a uniquely inbound, non-empty, relationship-free video/mp4 part plus one poster ImagePart. Every present connector endpoint must resolve to an element in the same copied SlidePart tree. Accepted tables are inline-only and cannot add a fill, link, or another package edge; accepted groups and connectors add no relationship themselves, and every nested picture must consume one exact verified ImagePart relationship. The pending clone resolves connector targets to fresh clone-local elements, while export privately preserves the source-bound target-plus-site identities. Export creates a distinct SlidePart and presentation relationship, allocates distinct byte-identical ChartPart, EmbeddedPackagePart, four typed diagram parts, and SDK MediaDataPart payloads for the accepted closed leaves, shares the verified layout, immutable ordinary/OLE-preview/media-poster ImageParts, NotesMaster, and presentation-wide CommentAuthorsPart, copies accepted NotesSlide and SlideComments XML byte-for-byte, and repoints only the notes back-reference at the clone while retaining the origin. The clone must remain untouched until export and reimport; its ChartParts, OLE workbook packages, SmartArt parts, InkML parts, and MP4 parts are then independent. Supported chart or OLE-workbook edits on the clone cannot affect the origin; a separately recognized canonical plain-node SmartArt diagram exposes only source-bound node-text replacement, while other SmartArt, InkML, and media remain source-bound/read-only after reimport. Malformed, shared, external, non-XLSX, nested, relationship-bearing, or replacement-pending OLE graphs, nested/noncanonical/connected SmartArt, InkML, or media graphs, malformed/relationship-bearing/dangling custom-show actions, unsupported connector forms or targets, formula/external-data/embedded-workbook/connected/orphan chart graphs, shape-level/hover/unknown/orphan hyperlinks, external or irregular images, and other complex graphs fail closed. |
-| `slide.groups.add` | api | Author recursive native DrawingML p:grpSp trees with outer off/ext and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, extensions, or unsupported descendants remain opaque and read-only. |
+| `slide.groups.add` | api | Author recursive native DrawingML p:grpSp trees with optional non-visible group title/description, outer off/ext, and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, extensions, or unsupported descendants remain opaque and read-only. |
 | `slide.images.add` | api | Add an inspectable image facade with alt text, embedded data, contain/cover/stretch fitting, explicit crop, frame, direct rotation/flips, layout JSON, crop-aware SVG preview, and PPTX output. OfficeKit maps the bounded rectangular profile to native DrawingML a:srcRect. |
 | `slide.moveTo` | api | Move this slide to an existing 0-based deck index. On an imported PPTX, OfficeKit rewrites only the retained source SlidePart order in the presentation slide-ID list; unrelated topology changes and broad graph clones remain fail-closed. |
 | `slide.placeholders.getItem` | api | Resolve a slide placeholder shape by stable ID, name, placeholder type, or numeric index. Imported placeholder.textEditable reports a verified local SlidePart text capability; identity, geometry, formatting, layout binding, and inherited Master/Layout graphs remain source-bound. |
 | `slide.setBackground` | api | Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited. |
 | `slide.setLayout` | api | Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export. |
 | `slide.setTransition` | api | Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension, and irregular source graphs fail closed. |
-| `slide.shapes.add` | api | Add a shape/textbox with optional non-visible title/description metadata, a free-positioned p:sp line with bounded dash/line-end/cap/join styling, bounded DrawingML custom geometry with ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites, or an exact-site p:cxnSp connector. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity. |
+| `slide.shapes.add` | api | Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with optional non-visible title/description metadata. Lines support bounded dash/line-end/cap/join styling; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity. |
 | `slide.shapes.connect` | api | Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export. |
 | `slide.shapes.getConnectionSiteIndex` | api | Resolve top/left/bottom/right to a stable bounded preset connection-site index for rect, roundRect, textbox, or ellipse. Custom shapes expose an ordered site table but require its explicit numeric index; other geometries fail closed. |
 | `slide.speakerNotes.capability` | api | Return defensive sourceBound, partPresent, editable, and addable evidence. addable identifies an imported notes-absent slide whose source NotesMaster/SlideMaster Theme graph can safely receive a canonical NotesSlide. Export independently re-proves the package graph, so mutating model or wire data cannot grant authority. |
@@ -1910,6 +1914,14 @@ Create the same editable paragraph node through the reference-template-compatibl
 
 - `node` (object) — Reference-template-compatible alias that returns the same paragraph compose node.
 
+#### `connector.accessibilityCapability`
+
+Report sourceBound/editable/addable preflight for connector p:cNvPr title/description; export re-proves it.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates the connector p:nvCxnSpPr/p:cNvPr.
+
 #### `connector.bringToFront`
 
 Move a source-free connector above modeled slide/group elements. Imported z-order is source-bound and rejects.
@@ -1925,6 +1937,18 @@ Move a source-free connector behind modeled slide/group elements. New shape-conn
 **Schema returns:**
 
 - `connector` (ConnectorElement) — Move a source-free connector behind modeled elements. Imported connector z-order is source-bound and rejects.
+
+#### `connector.setAccessibilityMetadata`
+
+Add, change, or clear non-visible connector title/description. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits.
+
+**Schema parameters:**
+
+- `update` (object) required — { title?, description? }; null clears, strings require 1-1,024 XML-safe characters.
+
+**Schema returns:**
+
+- `connector` (ConnectorElement) — Same ConnectorElement. Source-free and canonical imported metadata is editable; unsupported connector p:cNvPr profiles fail closed without disabling unrelated supported connector edits.
 
 #### `connector.setConnectorFrom`
 
@@ -1964,6 +1988,26 @@ Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse sha
 **Schema returns:**
 
 - `blob` (FileBlob) — PPTX bytes produced by the bundled Open XML SDK WebAssembly codec, including bounded embedded-picture, fixed-grid plain-text-table, and recursive native-group profiles, with codec diagnostics in metadata.
+
+#### `group.accessibilityCapability`
+
+Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/description; export re-proves it.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates the group p:nvGrpSpPr/p:cNvPr.
+
+#### `group.setAccessibilityMetadata`
+
+Add, change, or clear non-visible group-frame title/description. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits.
+
+**Schema parameters:**
+
+- `update` (object) required — { title?, description? }; null clears, strings require 1-1,024 XML-safe characters.
+
+**Schema returns:**
+
+- `group` (GroupShape) — Same GroupShape. Source-free and canonical imported metadata is editable; unsupported group p:cNvPr profiles fail closed without disabling unrelated supported fixed-topology group edits.
 
 #### `importPptxWithOfficeKit`
 
@@ -2738,6 +2782,7 @@ Legacy low-level connector authoring from explicit points or target centers. Pre
 - `end` (object) — Explicit end point {x,y}.
 - `connectorType` (string) — straight, elbow, or curved; defaults to straight.
 - `line` (object) — Line color, width, solid/dashed/none style, and compatibility arrow metadata.
+- `accessibility` (object) — Optional non-visible connector { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvCxnSpPr/p:cNvPr.
 
 **Schema returns:**
 
@@ -2766,11 +2811,12 @@ Clone one original imported PPTX slide only when its unchanged graph contains ca
 
 #### `slide.groups.add`
 
-Author recursive native DrawingML p:grpSp trees with outer off/ext and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, extensions, or unsupported descendants remain opaque and read-only.
+Author recursive native DrawingML p:grpSp trees with optional non-visible group title/description, outer off/ext, and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, extensions, or unsupported descendants remain opaque and read-only.
 
 **Schema parameters:**
 
 - `name` (string) — Inspectable group name.
+- `accessibility` (object) — Optional non-visible group { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvGrpSpPr/p:cNvPr.
 - `position` (object) required — Group frame in parent or slide pixel coordinates.
 - `childFrame` (object) — Local child coordinate rectangle mapped through DrawingML chOff/chExt; defaults to the group width/height from 0,0.
 - `shapes` (object[]) — Initial child shape/textbox definitions in local coordinates.
@@ -2866,7 +2912,7 @@ Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary
 
 #### `slide.shapes.add`
 
-Add a shape/textbox with optional non-visible title/description metadata, a free-positioned p:sp line with bounded dash/line-end/cap/join styling, bounded DrawingML custom geometry with ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites, or an exact-site p:cxnSp connector. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity.
+Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with optional non-visible title/description metadata. Lines support bounded dash/line-end/cap/join styling; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity.
 
 **Schema parameters:**
 
@@ -2889,7 +2935,7 @@ Add a shape/textbox with optional non-visible title/description metadata, a free
 - `textRectangle` (object) — Optional { left, top, right, bottom } rectangle relative to a custom shape frame. Each edge is a finite pixel coordinate or a DrawingML built-in/declared adjustment/guide name; resolved right/bottom must exceed left/top. Numeric edges retain the deterministic private scaling-guide profile, reference edges write standard a:rect ST_AdjCoordinate values directly, and mixed rectangles round-trip. The state drives inspect, SVG origin, and overflow QA. Omission keeps the full-shape default; unknown references, malformed leaves, and invalid resolved bounds fail closed.
 - `position` (object) — Pixel left/top/width/height frame. For geometry line, left/top is the start point and width/height is the non-negative endpoint delta; one extent may be zero, but both zero fail closed.
 - `transform` (object) — Optional { rotationDegrees, flipHorizontal, flipVertical } center transform. Rotation is bounded to -360 through 360 degrees and flip booleans retain explicit false. OfficeKit authors/imports this direct DrawingML transform on supported shapes; complex or unknown native transform graphs remain read-only.
-- `accessibility` (object) — Ordinary p:sp only: non-visible { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvSpPr/p:cNvPr. It is independent of visible text/name. Connectors reject it; irregular imports stay source-bound.
+- `accessibility` (object) — Non-visible { title?, description? }, each 1-1,024 XML-safe characters, mapped to the native p:cNvPr of an ordinary p:sp or exact-site p:cxnSp connector. It is independent of visible text/name; irregular imports stay source-bound.
 - `text` (string|string[]|object|object[]) — Plain text or structured paragraphs accepted by shape.text.set, including ordered text/field/line-break inlines, paragraph tab stops, styles, and relationship-backed hyperlinks.
 - `textBodyProperties` (object) — DrawingML text-frame layout: pixel insets; anchor/wrap/AutoFit; -360..360 degree rotation; horizontal/vertical/vertical270 text; horizontal/vertical overflow; 1-16 columns with pixel spacing and RTL flow; and upright text.
 - `fill` (string|object) — Shape fill.
@@ -2918,6 +2964,7 @@ Connect two modeled shapes in the same slide/group tree by preset side or exact 
 - `tail` (object) — Optional end line end using the same bounded type/size union.
 - `cap` (string) — flat, round, or square.
 - `join` (string) — round, bevel, or miter.
+- `accessibility` (object) — Optional non-visible connector { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvCxnSpPr/p:cNvPr.
 
 **Schema returns:**
 
