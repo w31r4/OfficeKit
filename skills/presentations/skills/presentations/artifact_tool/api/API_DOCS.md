@@ -27,6 +27,7 @@ Use the presentation facades to create PowerPoint-style decks in TypeScript.
 - Duplicate one canonical top-level embedded MP4 without sharing mutable media bytes: [`references/embedded-video-clone.spec.md`](./references/embedded-video-clone.spec.md).
 - Author or safely adjust native PowerPoint sections as an ordered full-deck partition, including separate source-bound name and complete-boundary transactions: [`references/sections.spec.md`](./references/sections.spec.md).
 - Author or safely edit one direct bounded ECMA-376 base slide transition: [`references/transitions.spec.md`](./references/transitions.spec.md).
+- Author or source-safely edit ordinary-shape non-visible title/description metadata: [`references/shapes.spec.md`](./references/shapes.spec.md#non-visible-title-and-description).
 
 ## Quick start
 
@@ -55,6 +56,10 @@ const shape = slide.shapes.add({
   fill: "white",
   line: { style: "solid", fill: "slate-200", width: 1 },
   borderRadius: "rounded-2xl",
+  accessibility: {
+    title: "Summary panel",
+    description: "A blank panel reserved for the quarterly summary.",
+  },
 });
 
 const previewBlob = await presentation.export({ slide, format: "png", scale: 2 });
@@ -143,6 +148,7 @@ tags default `width` to `"fill"` when you omit it.
 - Discover a layout before filling it with `layout.placeholders.summary()`. It returns a fresh copied snapshot of placeholder identity/type/index/direct-frame evidence and never grants mutation of an imported template graph.
 - Use `slide.compose(nodeOrJsx, { frame, baseUnit })` for compose-first layouts. JSX lowers into the same compose runtime as the helper-based API.
 - Author content with config-first calls: `slide.shapes.add({ geometry, position, fill, line })`, `slide.images.add({ ... })`, `slide.tables.add({ ... })`, and `slide.charts.add(chartType, { ... })`.
+- Put non-visible PowerPoint title/description on meaningful ordinary shapes with `accessibility`; for imported shapes, require `shape.accessibilityCapability.editable` before `shape.setAccessibilityMetadata(...)`.
 - Format whole-shape text with grouped configs such as `shape.text.style = { fontSize, bold, color, alignment }`.
 - Edit imported decks with `presentation.inspect({ kind, search, maxChars })`, `presentation.resolve(anchorId)`, and focused facade edits.
 - Export previews with `presentation.export({ slide, format, scale })`.

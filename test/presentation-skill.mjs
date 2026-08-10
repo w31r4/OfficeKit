@@ -117,7 +117,14 @@ try {
   assert.deepEqual(readiness.qa.presentation.slides.getItem(1).background, { fill: "#fff7ed", mode: "solid" });
   const authoredCard = itemByName(workflowSlide.shapes.items, "author-card");
   assert.equal(authoredCard.geometry, "roundRect");
+  assert.deepEqual(authoredCard.accessibility, {
+    title: "Create stage",
+    description: "First stage of the workflow, where the presentation is authored.",
+  });
+  assert.deepEqual(authoredCard.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
   assert.deepEqual(authoredCard.shadow, { color: "#000000", blurRadius: 10, distance: 5, direction: 45, opacity: 0.2 });
+  const readinessXml = await (await JSZip.loadAsync(await fs.readFile(readiness.pptxPath))).file("ppt/slides/slide1.xml").async("text");
+  assert.match(readinessXml, /<p:cNvPr\b(?=[^>]*\bname="author-card")(?=[^>]*\btitle="Create stage")(?=[^>]*\bdescr="First stage of the workflow, where the presentation is authored\.")[^>]*\/>/);
   const verifyCard = itemByName(workflowSlide.shapes.items, "verify-card");
   assert.equal(verifyCard.geometry, "custom");
   assert.equal(verifyCard.customConnectionSites.length, 4);

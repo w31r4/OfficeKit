@@ -20,6 +20,7 @@ import { normalizePresentationCustomAdjustmentHandles, normalizePresentationCust
 import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation/custom-geometry-formulas.mjs";
 import { isPresentationAutoNumberType, normalizePresentationParagraphs, normalizePresentationParagraphStyles } from "../presentation/text-paragraphs.mjs";
 import { normalizePresentationLineStyle, presentationLineColor } from "../presentation/line-styles.mjs";
+import { normalizePresentationAccessibility } from "../presentation/accessibility.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { createPresentationAssetCatalog, validatePictureBulletUri } from "./office-kit-assets.mjs";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
@@ -224,6 +225,8 @@ function cloneImportedPresentationShape(container, source, context) {
     ...(source.borderRadius === undefined ? {} : { borderRadius: source.borderRadius }),
     ...(source.shadow ? { shadow: clonedPresentationValue(source.shadow) } : {}),
     ...(source.placeholder ? { placeholder: clonedPresentationValue(source.placeholder) } : {}),
+    ...(source.accessibility ? { accessibility: clonedPresentationValue(source.accessibility) } : {}),
+    _officeKitAccessibilityEditable: source.accessibilityCapability.editable,
     ...(source.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: source.useBackgroundFill }),
     text: clonedPresentationValue(source.text.paragraphs),
     textBodyProperties: clonedPresentationValue(source.text.bodyProperties),
@@ -1560,6 +1563,15 @@ function modelPresentationShadow(shadow) {
   };
 }
 
+function modelPresentationAccessibility(value) {
+  if (!value) return {};
+  const accessibility = normalizePresentationAccessibility({
+    ...(value.title === undefined ? {} : { title: value.title }),
+    ...(value.description === undefined ? {} : { description: value.description }),
+  }, "Imported Presentation shape");
+  return accessibility ? { accessibility } : {};
+}
+
 function sourceBoundCloneConnectorTargetId(value, sourceIdByCloneId, connector, side) {
   const targetId = String(value || "");
   if (!targetId || !sourceIdByCloneId) return targetId;
@@ -1839,6 +1851,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const placeholder = !original && shape.placeholder ? sourceFreeSlidePlaceholder(shape) : undefined;
   const textBody = presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
   const shadow = presentationShadow(shape.shadow, shape.id);
+  const accessibility = normalizePresentationAccessibility(shape.accessibility, `Presentation shape ${shape.id}`);
   return {
     id: original?.id || shape.id,
     name: shape.name || original?.name || "",
@@ -1875,6 +1888,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         ...(customPaths.length ? { customPaths } : {}),
         ...(textRectangle ? { textRectangle: presentationCustomGeometryTextRectangleToWire(textRectangle) } : {}),
         ...(shape.useBackgroundFill === undefined ? {} : { useBackgroundFill: shape.useBackgroundFill }),
+        ...(accessibility ? { accessibility } : {}),
       },
     },
   };
@@ -3179,6 +3193,8 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       line: modelPresentationShapeLine(shape),
       ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
       ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
+      ...modelPresentationAccessibility(shape.accessibility),
+      _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
       text: modelText(shape, assetCatalog, customShowLinks),
       textBodyProperties: modelTextBodyProperties(shape),
     };
@@ -3421,6 +3437,8 @@ export async function presentationFromEnvelope(envelope) {
           line: modelPresentationShapeLine(shape),
           ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
           ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
+          ...modelPresentationAccessibility(shape.accessibility),
+          _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
           text: modelText(shape, assetCatalog, customShowLinks),
           textBodyProperties: modelTextBodyProperties(shape),
         });

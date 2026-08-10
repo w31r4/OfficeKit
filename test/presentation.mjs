@@ -119,6 +119,96 @@ await assert.rejects(
   /presentation theme customization/i,
 );
 
+// Shape alternative text is a non-visual p:cNvPr concern. It must survive the
+// full model/wire/OfficeKit path without changing visible rendering, and an
+// unrecognized cNvPr graph must preserve its bytes while refusing this one
+// semantic mutation rather than making the whole shape unusable.
+const shapeAccessibilityDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const shapeAccessibilitySlide = shapeAccessibilityDeck.slides.add({ name: "Accessibility metadata" });
+const shapeAccessibilityShape = shapeAccessibilitySlide.shapes.add({
+  name: "decision-status",
+  position: { left: 48, top: 72, width: 360, height: 88 },
+  fill: "#DBEAFE",
+  text: "Decision: controlled rollout",
+  accessibility: {
+    title: "Controlled rollout decision",
+    description: "Status box explaining that the rollout is controlled.",
+  },
+});
+shapeAccessibilitySlide.shapes.add({
+  position: { left: 48, top: 184, width: 120, height: 48 },
+  text: "Unnamed",
+  accessibility: { description: "An intentionally unnamed ordinary shape." },
+});
+assert.throws(() => shapeAccessibilitySlide.shapes.add({
+  geometry: "connector",
+  from: shapeAccessibilityShape,
+  to: shapeAccessibilitySlide.shapes.items[1],
+  fromIdx: 3,
+  toIdx: 1,
+  accessibility: { title: "Unsupported connector metadata" },
+}), /connector accessibility metadata is not supported/i);
+assert.deepEqual(shapeAccessibilityShape.accessibilityCapability, { sourceBound: false, editable: true, addable: true });
+assert.match(shapeAccessibilityDeck.inspect({ kind: "shape", maxChars: 4_000 }).ndjson, /Controlled rollout decision/);
+assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({}), /requires title and\/or description/i);
+assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({ title: "" }), /1 through 1024 XML-safe characters/i);
+assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({ alt: "Not a cNvPr field" }), /does not support alt/i);
+
+const shapeAccessibilitySource = await PresentationFile.exportPptx(shapeAccessibilityDeck);
+const shapeAccessibilitySourceZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const shapeAccessibilitySourceXml = await shapeAccessibilitySourceZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(shapeAccessibilitySourceXml, /<p:cNvPr\b(?=[^>]*\bname="decision-status")(?=[^>]*\btitle="Controlled rollout decision")(?=[^>]*\bdescr="Status box explaining that the rollout is controlled\.")[^>]*\/>/);
+
+const shapeAccessibilityImported = await PresentationFile.importPptx(shapeAccessibilitySource);
+const importedAccessibilityShape = itemByName(shapeAccessibilityImported.slides.getItem(0).shapes.items, "decision-status");
+assert.deepEqual(importedAccessibilityShape.accessibility, shapeAccessibilityShape.accessibility);
+assert.deepEqual(importedAccessibilityShape.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].name, "");
+assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].accessibilityCapability.editable, true);
+const shapeAccessibilityNoOp = await PresentationFile.exportPptx(shapeAccessibilityImported);
+assert.deepEqual(shapeAccessibilityNoOp.bytes, shapeAccessibilitySource.bytes, "unchanged imported accessibility metadata must return the exact source package");
+
+const sourceAccessibilitySvg = await shapeAccessibilityImported.slides.getItem(0).export({ format: "svg" });
+importedAccessibilityShape.setAccessibilityMetadata({ title: "Go decision: controlled rollout", description: null });
+const shapeAccessibilityEdited = await PresentationFile.exportPptx(shapeAccessibilityImported);
+const shapeAccessibilityEditedZip = await JSZip.loadAsync(shapeAccessibilityEdited.bytes);
+const shapeAccessibilityEditedXml = await shapeAccessibilityEditedZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(shapeAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="decision-status")(?=[^>]*\btitle="Go decision: controlled rollout")[^>]*\/>/);
+assert.doesNotMatch(shapeAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="decision-status")[^>]*\bdescr=/);
+for (const [partPath, entry] of Object.entries(shapeAccessibilitySourceZip.files)) {
+  if (entry.dir || partPath === "ppt/slides/slide1.xml") continue;
+  assert.deepEqual(
+    await shapeAccessibilityEditedZip.file(partPath).async("uint8array"),
+    await shapeAccessibilitySourceZip.file(partPath).async("uint8array"),
+    `shape accessibility edit changed non-target part ${partPath}`,
+  );
+}
+const shapeAccessibilityRoundTrip = await PresentationFile.importPptx(shapeAccessibilityEdited);
+assert.deepEqual(itemByName(shapeAccessibilityRoundTrip.slides.getItem(0).shapes.items, "decision-status").accessibility, { title: "Go decision: controlled rollout" });
+const outputAccessibilitySvg = await shapeAccessibilityRoundTrip.slides.getItem(0).export({ format: "svg" });
+assert.deepEqual(outputAccessibilitySvg.bytes, sourceAccessibilitySvg.bytes, "shape accessibility edits must not alter model SVG output");
+
+const irregularShapeAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const irregularShapeAccessibilityXml = (await irregularShapeAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(/(<p:cNvPr\b[^>]*\bname="decision-status")/, '$1 xmlns:fixture="urn:office-kit:shape-accessibility" fixture:opaque="kept"');
+irregularShapeAccessibilityZip.file("ppt/slides/slide1.xml", irregularShapeAccessibilityXml);
+const irregularShapeAccessibilityFile = new FileBlob(
+  await irregularShapeAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const irregularShapeAccessibilityImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
+const irregularAccessibilityShape = itemByName(irregularShapeAccessibilityImported.slides.getItem(0).shapes.items, "decision-status");
+assert.equal(irregularAccessibilityShape.accessibility, undefined);
+assert.deepEqual(irregularAccessibilityShape.accessibilityCapability, { sourceBound: true, editable: false, addable: false });
+assert.throws(() => irregularAccessibilityShape.setAccessibilityMetadata({ title: "Do not rewrite unmodeled cNvPr" }), /source-bound.*editable p:cNvPr profile/i);
+irregularAccessibilityShape.text.set("Decision: reviewed rollout");
+const irregularOtherEdit = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);
+const irregularOtherEditXml = await (await JSZip.loadAsync(irregularOtherEdit.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(irregularOtherEditXml, /fixture:opaque="kept"/);
+assert.match(irregularOtherEditXml, /title="Controlled rollout decision"/);
+irregularAccessibilityShape.accessibility = { title: "Bypass attempt" };
+await assert.rejects(() => PresentationFile.exportPptx(irregularShapeAccessibilityImported), (error) => error?.code === "unsupported_presentation_edit");
+
 // A free-positioned line is a p:sp whose frame defines its two endpoints. It
 // has no target/site identity and therefore stays separate from p:cxnSp.
 const freeLineDeck = Presentation.create({ slideSize: { width: 960, height: 540 } });

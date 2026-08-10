@@ -1736,6 +1736,10 @@ message PresentationElementSourceBinding {
   // recognized and may change its textual content without granting edit
   // permission to the surrounding shape, placeholder identity, or geometry.
   bool text_editable = 6;
+  // Source evidence only: true when an ordinary p:sp owns the bounded cNvPr
+  // profile whose non-visible title/description may be added, changed, or
+  // cleared without rewriting hyperlinks, extensions, or unknown metadata.
+  bool accessibility_editable = 7;
 }
 
 // Bounded recursive p:grpSp projection. The outer frame maps the local child
@@ -1826,6 +1830,10 @@ message PresentationShape {
   // handle kind and controlled adjustment-guide identity at each array index;
   // positions and paired min/max bounds remain editable.
   repeated PresentationCustomGeometryAdjustmentHandle custom_adjustment_handles = 30;
+  // Non-visible alternative text stored on p:nvSpPr/p:cNvPr. This remains
+  // independent of visible text, geometry, object name, and drawing order.
+  // Imported values are editable only for the bounded cNvPr profile.
+  PresentationNonVisualAccessibility accessibility = 31;
 }
 
 message PresentationCustomGeometryPath {
@@ -3666,4 +3674,13 @@ message PresentationCustomGeometryPolarAdjustmentHandle {
   optional int32 max_angle_60000 = 9;
   optional string max_angle_reference = 10;
   PresentationCustomGeometryPoint position = 11;
+}
+
+// Appended after every existing descriptor so PresentationShape field 31 can
+// reuse one bounded non-visual metadata contract without renumbering older
+// messages. Additional Presentation element kinds may reference this message
+// later without creating another title/description model.
+message PresentationNonVisualAccessibility {
+  optional string title = 1;
+  optional string description = 2;
 }

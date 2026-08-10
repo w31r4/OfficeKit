@@ -400,11 +400,13 @@ export function createSlideContext(artifact, options = {}) {
         fill = transparent,
         line = { style: "solid", fill: transparent, width: 0 },
         name,
+        accessibility,
         ...frameOptions
       } = optionsForShape;
       const shape = slide.shapes.add({
         geometry,
         name,
+        accessibility,
         position: normalizeFrame(frameOptions),
         fill,
         line,

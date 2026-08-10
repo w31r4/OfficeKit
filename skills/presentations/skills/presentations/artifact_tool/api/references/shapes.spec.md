@@ -11,6 +11,7 @@ const shape = slide.shapes.add({
   position,
   fill,
   line,
+  accessibility,
   adjustmentList,
   borderRadius,
   shadow,
@@ -43,6 +44,37 @@ shape.shadow = "shadow-sm";
 Use `presentation.inspect({ kind: "shape,textbox", search })` to find the
 `sh/...` anchor id. Keep the resolved facade type-aware; do not rebuild an
 imported shape unless the task requires a new object.
+
+## Non-visible title and description
+
+Ordinary shapes may carry PowerPoint alternative-text metadata independently
+of their visible text and inspectable object name:
+
+```ts
+const status = slide.shapes.add({
+  name: "rollout-status",
+  geometry: "roundRect",
+  position: { left: 72, top: 144, width: 360, height: 120 },
+  accessibility: {
+    title: "Controlled rollout status",
+    description: "The rollout is approved for two pilot regions.",
+  },
+});
+
+if (status.accessibilityCapability.editable) {
+  status.setAccessibilityMetadata({
+    title: "Pilot rollout status",
+    description: null,
+  });
+}
+```
+
+Each present string contains 1–1,024 XML-safe characters. `null` clears one
+field. Canonical imported `p:nvSpPr/p:cNvPr` title/description is source-bound
+editable; children, hyperlinks, extensions, unknown attributes, and malformed
+metadata remain byte-preserved but fail closed on semantic mutation. This
+bounded metadata does not model slide reading order or a decorative-object
+flag. Images have their separate alternative-text contract.
 
 ## Imported Background Fill
 
@@ -77,6 +109,7 @@ type PresetShapeConfig = {
   position?: PositionConfig;
   fill?: FillConfig;
   line?: LineConfig;
+  accessibility?: { title?: string; description?: string };
   adjustmentList?: Array<{ name: string; formula: string }>;
   borderRadius?: number | string; // number = pixels; string = supported rounded-* token
   shadow?: string; // shadow token, "shadow-none", or custom "2px 7px 19px #000000/17"

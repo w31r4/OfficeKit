@@ -1807,6 +1807,8 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `PresentationFile.importPptx` | api | Import PPTX through the single bundled OfficeKit codec with bounded free-positioned p:sp lines including direct line ends/caps/joins, source-bound opaque preservation, speaker-notes edit/add capability evidence, bounded text-only edits for recognized local SlidePart placeholders and canonical SmartArt plain document nodes, eligible OLE XLSX payload access/replacement plus uniquely bound DOCX Office-package access/replacement, and fail-closed unsupported edits. |
 | `PresentationFile.inspectPptx` | api | Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics after raw-input, part-count, decompression, and optional compression-ratio budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `PresentationFile.patchPptx` | api | Apply path-validated PPTX part patches, including safe slide/master/layout ID lists and slide image/chart DrawingML mutations, and atomically reject dangling package references or invalid notes/comments semantics. |
+| `shape.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/description; export re-proves it. |
+| `shape.setAccessibilityMetadata` | api | Add, change, or clear non-visible ordinary-shape title/description. Imported irregular p:cNvPr graphs fail closed. |
 | `shape.text.set` | api | Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export. |
 | `shape.useBackgroundFill` | api | Read the presence-aware imported PresentationML p:sp useBgFill flag. It affects preview paint but remains source-bound and read-only; source-free authoring or wire mutation fails closed. |
 | `slide.addNotes` | api | Set speaker notes as text or relationship-free paragraph/run data for inspect, preview, and canonical PPTX output. OfficeKit authors source-free notes, preserves the legacy text-only edit path, and edits a fixed imported rich paragraph/run topology; fields, hyperlinks, picture bullets, notes-body list styles/layout, and unsafe NotesMaster graphs remain source-bound and fail closed. |
@@ -1828,7 +1830,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.setBackground` | api | Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited. |
 | `slide.setLayout` | api | Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export. |
 | `slide.setTransition` | api | Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension, and irregular source graphs fail closed. |
-| `slide.shapes.add` | api | Add a shape/textbox, a free-positioned p:sp line with bounded dash/line-end/cap/join styling, bounded DrawingML custom geometry with ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites, or an exact-site p:cxnSp connector. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity. |
+| `slide.shapes.add` | api | Add a shape/textbox with optional non-visible title/description metadata, a free-positioned p:sp line with bounded dash/line-end/cap/join styling, bounded DrawingML custom geometry with ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites, or an exact-site p:cxnSp connector. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity. |
 | `slide.shapes.connect` | api | Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export. |
 | `slide.shapes.getConnectionSiteIndex` | api | Resolve top/left/bottom/right to a stable bounded preset connection-site index for rect, roundRect, textbox, or ellipse. Custom shapes expose an ordered site table but require its explicit numeric index; other geometries fail closed. |
 | `slide.speakerNotes.capability` | api | Return defensive sourceBound, partPresent, editable, and addable evidence. addable identifies an imported notes-absent slide whose source NotesMaster/SlideMaster Theme graph can safely receive a canonical NotesSlide. Export independently re-proves the package graph, so mutating model or wire data cannot grant authority. |
@@ -2535,6 +2537,26 @@ Apply path-validated PPTX part patches, including safe slide/master/layout ID li
 
 - `blob` (FileBlob) — Patched PPTX FileBlob with part/relationship/content-type/source-reference update counts and validation metadata.
 
+#### `shape.accessibilityCapability`
+
+Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/description; export re-proves it.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates p:cNvPr.
+
+#### `shape.setAccessibilityMetadata`
+
+Add, change, or clear non-visible ordinary-shape title/description. Imported irregular p:cNvPr graphs fail closed.
+
+**Schema parameters:**
+
+- `update` (object) required — { title?, description? }; null clears, strings require 1-1,024 XML-safe characters.
+
+**Schema returns:**
+
+- `shape` (Shape) — Same Shape. Source-free and canonical imported metadata is editable; unsupported p:cNvPr profiles fail closed.
+
 #### `shape.text.set`
 
 Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export.
@@ -2819,7 +2841,7 @@ Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary
 
 #### `slide.shapes.add`
 
-Add a shape/textbox, a free-positioned p:sp line with bounded dash/line-end/cap/join styling, bounded DrawingML custom geometry with ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites, or an exact-site p:cxnSp connector. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity.
+Add a shape/textbox with optional non-visible title/description metadata, a free-positioned p:sp line with bounded dash/line-end/cap/join styling, bounded DrawingML custom geometry with ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites, or an exact-site p:cxnSp connector. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity.
 
 **Schema parameters:**
 
@@ -2842,6 +2864,7 @@ Add a shape/textbox, a free-positioned p:sp line with bounded dash/line-end/cap/
 - `textRectangle` (object) — Optional { left, top, right, bottom } rectangle relative to a custom shape frame. Each edge is a finite pixel coordinate or a DrawingML built-in/declared adjustment/guide name; resolved right/bottom must exceed left/top. Numeric edges retain the deterministic private scaling-guide profile, reference edges write standard a:rect ST_AdjCoordinate values directly, and mixed rectangles round-trip. The state drives inspect, SVG origin, and overflow QA. Omission keeps the full-shape default; unknown references, malformed leaves, and invalid resolved bounds fail closed.
 - `position` (object) — Pixel left/top/width/height frame. For geometry line, left/top is the start point and width/height is the non-negative endpoint delta; one extent may be zero, but both zero fail closed.
 - `transform` (object) — Optional { rotationDegrees, flipHorizontal, flipVertical } center transform. Rotation is bounded to -360 through 360 degrees and flip booleans retain explicit false. OfficeKit authors/imports this direct DrawingML transform on supported shapes; complex or unknown native transform graphs remain read-only.
+- `accessibility` (object) — Ordinary p:sp only: non-visible { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvSpPr/p:cNvPr. It is independent of visible text/name. Connectors reject it; irregular imports stay source-bound.
 - `text` (string|string[]|object|object[]) — Plain text or structured paragraphs accepted by shape.text.set, including ordered text/field/line-break inlines, paragraph tab stops, styles, and relationship-backed hyperlinks.
 - `textBodyProperties` (object) — DrawingML text-frame layout: pixel insets; anchor/wrap/AutoFit; -360..360 degree rotation; horizontal/vertical/vertical270 text; horizontal/vertical overflow; 1-16 columns with pixel spacing and RTL flow; and upright text.
 - `fill` (string|object) — Shape fill.

@@ -757,7 +757,8 @@ internal static class PptxCodec
                             throw new CodecException("presentation_item_budget_exceeded", $"PPTX presentation exceeds max_cells semantic-item budget ({limits.MaxCells}).", PartPath(slidePart));
                     }
                     if (elementBinding.Editable != original.Source.Editable ||
-                        elementBinding.TextEditable != original.Source.TextEditable)
+                        elementBinding.TextEditable != original.Source.TextEditable ||
+                        elementBinding.AccessibilityEditable != original.Source.AccessibilityEditable)
                         throw new CodecException(
                             "presentation_element_binding_mismatch",
                             $"Presentation slide {slideIndex + 1} element {elementIndex + 1} changed its source editability contract.",
@@ -1059,6 +1060,8 @@ internal static class PptxCodec
             ElementSha256 = HashElement(source),
             Editable = editable,
             TextEditable = source is P.Shape placeholderShape && PptxPlaceholderCodec.SupportsSlideTextEditing(placeholderShape),
+            AccessibilityEditable = editable && source is P.Shape accessibilityShape &&
+                PptxNonVisualAccessibilityCodec.Supports(accessibilityShape.NonVisualShapeProperties?.NonVisualDrawingProperties),
         };
         element.Source.SemanticSha256 = SemanticHash(element);
         return element;
@@ -1153,6 +1156,7 @@ internal static class PptxCodec
         if (shape.UseBackgroundFill?.HasValue == true)
             result.UseBackgroundFill = shape.UseBackgroundFill.Value;
         PptxCustomGeometryCodec.Read(properties?.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height, result);
+        result.Accessibility = PptxNonVisualAccessibilityCodec.Read(shape.NonVisualShapeProperties?.NonVisualDrawingProperties);
         return result;
     }
 
@@ -1260,6 +1264,7 @@ internal static class PptxCodec
         extents.Cy = semantic.HeightEmu;
         PptxShapeTransformCodec.Apply(transform, semantic.Transform);
         PptxCustomGeometryCodec.Apply(properties, semantic, source.Id);
+        PptxNonVisualAccessibilityCodec.ApplyBound(shape.NonVisualShapeProperties?.NonVisualDrawingProperties, semantic.Accessibility);
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties)
             drawingProperties.TextBox = semantic.Geometry == "textbox" ? true : null;
         if (!FillMatches(properties, semantic.FillRgb)) ReplaceFill(properties, semantic.FillRgb);
@@ -1644,9 +1649,11 @@ internal static class PptxCodec
             nativePlaceholder.SetAttribute(new OpenXmlAttribute("type", string.Empty, semantic.Placeholder.Type));
             applicationProperties.Append(nativePlaceholder);
         }
+        var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name };
+        PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, semantic.Accessibility);
         return new P.Shape(
             new P.NonVisualShapeProperties(
-                new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name },
+                nonVisual,
                 new P.NonVisualShapeDrawingProperties { TextBox = semantic.Geometry == "textbox" ? true : null },
                 applicationProperties),
             properties,
@@ -1704,6 +1711,7 @@ internal static class PptxCodec
                 !binding.ElementSha256.Equals(HashElement(sourceChild), StringComparison.OrdinalIgnoreCase) ||
                 binding.Editable != originalChild.Source?.Editable ||
                 binding.TextEditable != originalChild.Source?.TextEditable ||
+                binding.AccessibilityEditable != originalChild.Source?.AccessibilityEditable ||
                 !binding.SemanticSha256.Equals(originalChild.Source?.SemanticSha256 ?? string.Empty, StringComparison.OrdinalIgnoreCase) ||
                 !SemanticHash(originalChild).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException(
@@ -2103,6 +2111,7 @@ internal static class PptxCodec
             PptxLineStyleCodec.Validate(element.Shape, element.Id);
             PptxShapeTransformCodec.Validate(element.Shape.Transform, element.Id);
             ValidateShadow(element.Shape.Shadow, element.Id);
+            PptxNonVisualAccessibilityCodec.Validate(element.Shape.Accessibility, element.Id);
             PptxTextCodec.Validate(element.Shape);
             foreach (var paragraph in element.Shape.TextBody?.Paragraphs ?? [])
                 if (paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.PictureBullet &&
@@ -3812,6 +3821,7 @@ internal static class PptxCodec
                 !binding.ElementSha256.Equals(HashElement(sourceElements[elementIndex]), StringComparison.OrdinalIgnoreCase) ||
                 binding.Editable != original.Source?.Editable ||
                 binding.TextEditable != original.Source?.TextEditable ||
+                binding.AccessibilityEditable != original.Source?.AccessibilityEditable ||
                 !binding.SemanticSha256.Equals(original.Source?.SemanticSha256 ?? string.Empty, StringComparison.OrdinalIgnoreCase) ||
                 !SemanticHash(original).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase) ||
                 !SemanticHash(requested).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
@@ -4484,6 +4494,7 @@ internal static class PptxCodec
                 binding.Editable != sourceBinding.Editable ||
                 binding.DirectFramePresenceEditable != sourceBinding.DirectFramePresenceEditable ||
                 binding.TextEditable != sourceBinding.TextEditable ||
+                binding.AccessibilityEditable != sourceBinding.AccessibilityEditable ||
                 !binding.ElementSha256.Equals(PptxPlaceholderCodec.ElementHash(sourceShape), StringComparison.OrdinalIgnoreCase))
                 throw new CodecException(
                     "presentation_placeholder_binding_mismatch",
@@ -4535,6 +4546,7 @@ internal static class PptxCodec
     private static string ShapeResidualHash(P.Shape source, PptxPartContext slideContext)
     {
         var shape = (P.Shape)source.CloneNode(true);
+        PptxNonVisualAccessibilityCodec.ScrubModeledContent(shape.NonVisualShapeProperties?.NonVisualDrawingProperties);
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual) nonVisual.Name = string.Empty;
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties) drawingProperties.TextBox = null;
         if (shape.ShapeProperties is { } properties)

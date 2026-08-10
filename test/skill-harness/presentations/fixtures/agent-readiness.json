@@ -37,6 +37,10 @@
           "position": { "left": 72, "top": 154, "width": 300, "height": 130 },
           "fill": "#DBEAFE",
           "line": { "fill": "#2563EB", "width": 2 },
+          "accessibility": {
+            "title": "Create stage",
+            "description": "First stage of the workflow, where the presentation is authored."
+          },
           "shadow": { "color": "#000000", "blurRadius": 10, "distance": 5, "direction": 45, "opacity": 0.2 },
           "text": "Create",
           "textStyle": { "fontFamily": "Arial", "fontSize": 28, "bold": true, "color": "#1E3A8A" }

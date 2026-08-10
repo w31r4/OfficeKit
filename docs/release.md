@@ -2,13 +2,45 @@
 
 ## Current 0.6.0 package evidence (2026-08-10)
 
-The package dry-run passed with guide-valued Presentation custom-geometry text
-rectangles and the rebuilt OfficeKit Codec runtime. The candidate contains 713
-files, 36,222,707 compressed bytes, and 53,387,788 unpacked bytes; its measured
-shasum is `3507ae38534b9627f4154c99df2a1b85f25b456b`. It remains below the
-53,400,000-byte ceiling with 12,212 bytes of measured headroom. The runtime
-manifest covers 38 files and 15,396,587 bytes. This is package evidence, not an
+The package dry-run passed with ordinary-shape alternative text and the rebuilt
+OfficeKit Codec runtime. The candidate contains 714 files, 36,225,937
+compressed bytes, and 53,398,944 unpacked bytes; its measured shasum is
+`3e7c3db5c40de3d2446ac76f222f864943a12c02`. It remains below the
+53,400,000-byte ceiling with 1,056 bytes of measured headroom. The runtime
+manifest covers 38 files and 15,403,755 bytes. This is package evidence, not an
 npm registry publication or tagged release.
+
+## Unreleased: Presentation ordinary-shape alternative text
+
+Ordinary source-free shapes now accept optional non-visible `title` and
+`description` metadata, and expose a presence-aware setter plus defensive
+source-bound capability evidence. The values cross protocol-v2 through a new
+appended `PresentationShape` field and are written by the source-built
+OfficeKit Codec as standard `p:cNvPr/@title` and `@descr`; visible text, object
+name, geometry, drawing order, and render output stay independent.
+
+Canonical imported `cNvPr` metadata can be added, changed, or cleared only
+after the codec proves the bounded child-free profile. Unknown attributes or
+children, hyperlinks, extensions, and malformed values remain source-owned:
+unrelated supported shape edits retain them, while an accessibility mutation
+fails closed. JavaScript and .NET corpus tests cover authoring, import,
+capability preflight, edit/clear, second import, source/no-op identity,
+non-target package stability, bypass refusal, Open XML SDK validation, and
+render invariance. The runnable Presentation readiness fixture and shipped
+Shape reference carry the same contract. This slice does not claim decorative
+state, reading order, other Presentation element kinds, or whole-deck
+accessibility conformance.
+
+The C# reader uses one allocation-light attribute scan, and the Presentation
+Skill Help reference now delegates catalog records to the shipped runtime
+instead of retaining a static copy that could drift. Local gates passed:
+fast 26/26, slow 75/75, OfficeKit Codec 398/398, OfficeBridge 5/5,
+Presentation model and runnable-Skill native render, Playwright, generated API
+docs, protocol lint/regeneration, deterministic WASM verification across 39
+outputs, clean-install, standalone distribution, and `test:pack`. The real
+local qpdf adapter ran. Managed provider release downloads and separately
+configured pypdf, pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python
+environments remained explicit skips; their offline contracts passed.
 
 ## Unreleased: standard custom-geometry guide coordinates
 

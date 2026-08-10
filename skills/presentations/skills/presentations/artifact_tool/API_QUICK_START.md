@@ -93,6 +93,10 @@ async function main(): Promise<void> {
     line: { style: "solid", fill: "slate-200", width: 1 },
     borderRadius: "rounded-2xl",
     shadow: "shadow-sm",
+    accessibility: {
+      title: "Coverage chart panel",
+      description: "Panel containing a bar chart for rows, grid, and tokens.",
+    },
   });
 
   slide.charts.add("bar", {

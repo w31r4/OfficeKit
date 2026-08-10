@@ -30,10 +30,12 @@ import { normalizePresentationCustomGeometryFormulaGraph } from "./custom-geomet
 import { normalizePresentationImageCrop, normalizePresentationImageFit, presentationImageCropViewport } from "./image-crop.mjs";
 import { planPresentationModernComments } from "./ooxml-modern-comments.mjs";
 import { presentationFreeLineSvg, presentationShapeLineSvgAttributes } from "./line-styles.mjs";
+import { normalizePresentationAccessibility, updatePresentationAccessibility } from "./accessibility.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const EMU_PER_PIXEL = 9_525;
 const importedShapeBackgroundFill = new WeakMap();
+const importedShapeAccessibilityEditable = new WeakMap();
 const PRESENTATION_SLIDE_DUPLICATOR = Symbol.for("office-kit.presentation-duplicate");
 const PRESENTATION_SPEAKER_NOTES_CAPABILITY = Symbol.for("office-kit.speaker-notes-capability");
 const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("office-kit.legacy-comments-capability");
@@ -780,6 +782,9 @@ class ShapeCollection {
   constructor(slide, owner) { this.slide = slide; this.owner = owner; this.items = []; }
   add(config = {}) {
     if (config?.geometry === "connector") {
+      if (Object.hasOwn(config, "accessibility")) {
+        throw new TypeError("Presentation connector accessibility metadata is not supported; use an ordinary shape or the connector's visible context.");
+      }
       const connector = connectedPresentationShapeConfig(this.slide, this.owner, config.from, config.to, config, { requireExplicitSites: true });
       return (this.owner?.connectors || this.slide.connectors).add(connector).sendToBack();
     }
@@ -1375,7 +1380,9 @@ export class Shape {
     this.borderRadius = config.borderRadius;
     this.shadow = config.shadow ? { ...config.shadow } : undefined;
     this.placeholder = config.placeholder;
+    this.accessibility = normalizePresentationAccessibility(config.accessibility, `Presentation shape ${this.id}`);
     if (config._officeKitUseBackgroundFill !== undefined) importedShapeBackgroundFill.set(this, Boolean(config._officeKitUseBackgroundFill));
+    if (config._officeKitAccessibilityEditable !== undefined) importedShapeAccessibilityEditable.set(this, Boolean(config._officeKitAccessibilityEditable));
     this._text = new TextFrame(config.text ?? "", config.textBodyProperties, { defaultBodyProperties: config.textBodyProperties === undefined });
     this._text.style = { ...(config.textStyle || config.style?.text || {}) };
   }
@@ -1383,6 +1390,19 @@ export class Shape {
   get text() { return this._text; }
   set text(value) { this._text.set(value); }
   get useBackgroundFill() { return importedShapeBackgroundFill.get(this); }
+  get accessibilityCapability() {
+    const sourceBound = importedShapeAccessibilityEditable.has(this);
+    const editable = !sourceBound || importedShapeAccessibilityEditable.get(this) === true;
+    return { sourceBound, editable, addable: editable };
+  }
+
+  setAccessibilityMetadata(update) {
+    if (!this.accessibilityCapability.editable) {
+      throw new Error(`Presentation shape ${this.id} accessibility metadata is source-bound and does not match the editable p:cNvPr profile.`);
+    }
+    this.accessibility = updatePresentationAccessibility(this.accessibility, update, `Presentation shape ${this.id}`);
+    return this;
+  }
 
   #normalizedTextRectangle(formulaGraph = normalizePresentationCustomGeometryFormulaGraph({ adjustments: this.customAdjustments, guides: this.customGuides })) {
     const rectangle = normalizePresentationCustomTextRectangle(this.textRectangle, {
@@ -1422,10 +1442,10 @@ export class Shape {
     const p = this.position;
     const paragraphs = this.text.effectiveParagraphs();
     const custom = this.#normalizedCustomGeometry();
-    return { kind, id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, text: this.text.value || undefined, textPreview: this.text.value || undefined, textChars: this.text.value.length || undefined, textLines: this.text.value ? this.text.value.split("\n").length : undefined, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, customPathCount: custom.paths.length || undefined, customAdjustmentCount: custom.adjustments.length || undefined, customGuideCount: custom.guides.length || undefined, customConnectionSiteCount: custom.connectionSites.length || undefined, customAdjustmentHandleCount: custom.adjustmentHandles.length || undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, textRectangle: custom.textRectangle, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", transform: this.transform, shadow: this.shadow, placeholder: this.placeholder || undefined, useBackgroundFill: this.useBackgroundFill };
+    return { kind, id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, text: this.text.value || undefined, textPreview: this.text.value || undefined, textChars: this.text.value.length || undefined, textLines: this.text.value ? this.text.value.split("\n").length : undefined, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, customPathCount: custom.paths.length || undefined, customAdjustmentCount: custom.adjustments.length || undefined, customGuideCount: custom.guides.length || undefined, customConnectionSiteCount: custom.connectionSites.length || undefined, customAdjustmentHandleCount: custom.adjustmentHandles.length || undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, textRectangle: custom.textRectangle, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", transform: this.transform, shadow: this.shadow, placeholder: this.placeholder || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, useBackgroundFill: this.useBackgroundFill };
   }
 
-  layoutJson() { const paragraphs = this.text.effectiveParagraphs(); const custom = this.#normalizedCustomGeometry(); return { kind: this.text.value ? "textbox" : "shape", id: this.id, name: this.name, geometry: this.geometry, customAdjustments: custom.adjustments.length ? custom.adjustments : undefined, customGuides: custom.guides.length ? custom.guides : undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, customPaths: custom.paths.length ? custom.paths : undefined, textRectangle: custom.textRectangle, frame: this.position, transform: this.transform, text: this.text.value, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, placeholder: this.placeholder, style: { fill: this.fill, line: this.line, borderRadius: this.borderRadius, shadow: this.shadow, text: this.text.style, useBackgroundFill: this.useBackgroundFill } }; }
+  layoutJson() { const paragraphs = this.text.effectiveParagraphs(); const custom = this.#normalizedCustomGeometry(); return { kind: this.text.value ? "textbox" : "shape", id: this.id, name: this.name, geometry: this.geometry, customAdjustments: custom.adjustments.length ? custom.adjustments : undefined, customGuides: custom.guides.length ? custom.guides : undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, customPaths: custom.paths.length ? custom.paths : undefined, textRectangle: custom.textRectangle, frame: this.position, transform: this.transform, text: this.text.value, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, placeholder: this.placeholder, accessibility: this.accessibility ? { ...this.accessibility } : undefined, style: { fill: this.fill, line: this.line, borderRadius: this.borderRadius, shadow: this.shadow, text: this.text.style, useBackgroundFill: this.useBackgroundFill } }; }
 
   textFrame(frame = this.position) {
     const graph = normalizePresentationCustomGeometryFormulaGraph({ adjustments: this.customAdjustments, guides: this.customGuides });
