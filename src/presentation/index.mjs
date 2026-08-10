@@ -30,12 +30,11 @@ import { normalizePresentationCustomGeometryFormulaGraph } from "./custom-geomet
 import { normalizePresentationImageCrop, normalizePresentationImageFit, presentationImageCropViewport } from "./image-crop.mjs";
 import { planPresentationModernComments } from "./ooxml-modern-comments.mjs";
 import { presentationFreeLineSvg, presentationShapeLineSvgAttributes } from "./line-styles.mjs";
-import { normalizePresentationAccessibility, updatePresentationAccessibility } from "./accessibility.mjs";
+import { initializePresentationAccessibility, presentationAccessibilityCapability, setPresentationAccessibilityMetadata } from "./accessibility.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const EMU_PER_PIXEL = 9_525;
 const importedShapeBackgroundFill = new WeakMap();
-const importedShapeAccessibilityEditable = new WeakMap();
 const PRESENTATION_SLIDE_DUPLICATOR = Symbol.for("office-kit.presentation-duplicate");
 const PRESENTATION_SPEAKER_NOTES_CAPABILITY = Symbol.for("office-kit.speaker-notes-capability");
 const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("office-kit.legacy-comments-capability");
@@ -1380,9 +1379,8 @@ export class Shape {
     this.borderRadius = config.borderRadius;
     this.shadow = config.shadow ? { ...config.shadow } : undefined;
     this.placeholder = config.placeholder;
-    this.accessibility = normalizePresentationAccessibility(config.accessibility, `Presentation shape ${this.id}`);
+    this.accessibility = initializePresentationAccessibility(this, config, `Presentation shape ${this.id}`);
     if (config._officeKitUseBackgroundFill !== undefined) importedShapeBackgroundFill.set(this, Boolean(config._officeKitUseBackgroundFill));
-    if (config._officeKitAccessibilityEditable !== undefined) importedShapeAccessibilityEditable.set(this, Boolean(config._officeKitAccessibilityEditable));
     this._text = new TextFrame(config.text ?? "", config.textBodyProperties, { defaultBodyProperties: config.textBodyProperties === undefined });
     this._text.style = { ...(config.textStyle || config.style?.text || {}) };
   }
@@ -1390,17 +1388,10 @@ export class Shape {
   get text() { return this._text; }
   set text(value) { this._text.set(value); }
   get useBackgroundFill() { return importedShapeBackgroundFill.get(this); }
-  get accessibilityCapability() {
-    const sourceBound = importedShapeAccessibilityEditable.has(this);
-    const editable = !sourceBound || importedShapeAccessibilityEditable.get(this) === true;
-    return { sourceBound, editable, addable: editable };
-  }
+  get accessibilityCapability() { return presentationAccessibilityCapability(this); }
 
   setAccessibilityMetadata(update) {
-    if (!this.accessibilityCapability.editable) {
-      throw new Error(`Presentation shape ${this.id} accessibility metadata is source-bound and does not match the editable p:cNvPr profile.`);
-    }
-    this.accessibility = updatePresentationAccessibility(this.accessibility, update, `Presentation shape ${this.id}`);
+    this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation shape ${this.id}`);
     return this;
   }
 
@@ -1547,6 +1538,7 @@ export class TableElement {
     this.values = Array.from({ length: this.rows }, (_, r) => Array.from({ length: this.columns }, (_, c) => config.values?.[r]?.[c] ?? ""));
     this.style = config.style;
     this.styleOptions = config.styleOptions || {};
+    this.accessibility = initializePresentationAccessibility(this, config, `Presentation table ${this.id}`);
     this._mergeRanges = [];
     for (const range of config.mergeRanges || (config.mergeRange ? [config.mergeRange] : [])) this._appendMergeRange(range);
     this.cells = { set: (row, column, value) => { this.getCell(row, column).value = value; }, block: (range) => ({ table: this, range }) };
@@ -1582,13 +1574,19 @@ export class TableElement {
   }
   getCell(row, column) { this._assertCell(row, column); return new TableCellFacade(this, row, column); }
   merge(range) { this._appendMergeRange(range); return this; }
+  get accessibilityCapability() { return presentationAccessibilityCapability(this); }
+
+  setAccessibilityMetadata(update) {
+    this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation table ${this.id}`);
+    return this;
+  }
 
   inspectRecord() {
     const p = this.position;
-    return { kind: "table", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, rows: this.rows, cols: this.columns, mergeRanges: this.mergeRanges.length ? this.mergeRanges : undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", values: this.values };
+    return { kind: "table", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, rows: this.rows, cols: this.columns, mergeRanges: this.mergeRanges.length ? this.mergeRanges : undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", values: this.values };
   }
 
-  layoutJson() { return { kind: "table", id: this.id, name: this.name, frame: this.position, rows: this.rows, columns: this.columns, values: this.values, mergeRanges: this.mergeRanges.length ? this.mergeRanges : undefined, style: this.style, styleOptions: this.styleOptions }; }
+  layoutJson() { return { kind: "table", id: this.id, name: this.name, frame: this.position, rows: this.rows, columns: this.columns, values: this.values, mergeRanges: this.mergeRanges.length ? this.mergeRanges : undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, style: this.style, styleOptions: this.styleOptions }; }
 
   toSvg() {
     const p = this.position;
@@ -1792,17 +1790,25 @@ export class ChartElement {
     this.legend = normalizeChartLegend(config, this.series.length);
     this.hasLegend = this.legend.visible;
     this.dataLabels = normalizeChartDataLabels(config);
+    this.accessibility = initializePresentationAccessibility(this, config, `Presentation chart ${this.id}`);
     if (this.dataLabels.showPercent && !PRESENTATION_CIRCULAR_CHART_TYPES.has(this.chartType)) throw new TypeError("Presentation percentage data labels require a pie or doughnut chart.");
     if (PRESENTATION_CIRCULAR_CHART_TYPES.has(this.chartType) && (config.axes || config.xAxis || config.yAxis || config.axisTitles || config.categoryAxisTitle || config.valueAxisTitle || config.xAxisTitle || config.yAxisTitle)) throw new TypeError(`Presentation ${this.chartType} charts cannot carry axes.`);
     Object.assign(this, normalizePresentationChartStyle(this.chartType, config));
   }
 
-  inspectRecord() {
-    const p = this.position;
-    return { kind: "chart", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, chartType: this.chartType, title: this.title, categories: this.categories, series: this.series.length, seriesDetails: this.series, axes: PRESENTATION_CIRCULAR_CHART_TYPES.has(this.chartType) ? undefined : this.axes, legend: this.legend, dataLabels: this.dataLabels, externalData: this.externalData ? { embedded: Boolean(this.externalData.bytes), uri: this.externalData.uri, autoUpdate: this.externalData.autoUpdate, bytes: this.externalData.bytes?.byteLength } : undefined, styleId: this.styleId, varyColors: this.varyColors, barOptions: ["bar", "combo"].includes(this.chartType) ? this.barOptions : undefined, lineOptions: ["line", "combo"].includes(this.chartType) ? this.lineOptions : undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px" };
+  get accessibilityCapability() { return presentationAccessibilityCapability(this); }
+
+  setAccessibilityMetadata(update) {
+    this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation chart ${this.id}`);
+    return this;
   }
 
-  layoutJson() { return { kind: "chart", id: this.id, name: this.name, chartType: this.chartType, title: this.title, frame: this.position, categories: this.categories, series: this.series, axes: PRESENTATION_CIRCULAR_CHART_TYPES.has(this.chartType) ? undefined : this.axes, legend: this.legend, dataLabels: this.dataLabels, externalData: this.externalData ? { embedded: Boolean(this.externalData.bytes), uri: this.externalData.uri, autoUpdate: this.externalData.autoUpdate, bytes: this.externalData.bytes?.byteLength } : undefined, styleId: this.styleId, varyColors: this.varyColors, barOptions: ["bar", "combo"].includes(this.chartType) ? this.barOptions : undefined, lineOptions: ["line", "combo"].includes(this.chartType) ? this.lineOptions : undefined }; }
+  inspectRecord() {
+    const p = this.position;
+    return { kind: "chart", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, chartType: this.chartType, title: this.title, categories: this.categories, series: this.series.length, seriesDetails: this.series, axes: PRESENTATION_CIRCULAR_CHART_TYPES.has(this.chartType) ? undefined : this.axes, legend: this.legend, dataLabels: this.dataLabels, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, externalData: this.externalData ? { embedded: Boolean(this.externalData.bytes), uri: this.externalData.uri, autoUpdate: this.externalData.autoUpdate, bytes: this.externalData.bytes?.byteLength } : undefined, styleId: this.styleId, varyColors: this.varyColors, barOptions: ["bar", "combo"].includes(this.chartType) ? this.barOptions : undefined, lineOptions: ["line", "combo"].includes(this.chartType) ? this.lineOptions : undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px" };
+  }
+
+  layoutJson() { return { kind: "chart", id: this.id, name: this.name, chartType: this.chartType, title: this.title, frame: this.position, categories: this.categories, series: this.series, axes: PRESENTATION_CIRCULAR_CHART_TYPES.has(this.chartType) ? undefined : this.axes, legend: this.legend, dataLabels: this.dataLabels, accessibility: this.accessibility ? { ...this.accessibility } : undefined, externalData: this.externalData ? { embedded: Boolean(this.externalData.bytes), uri: this.externalData.uri, autoUpdate: this.externalData.autoUpdate, bytes: this.externalData.bytes?.byteLength } : undefined, styleId: this.styleId, varyColors: this.varyColors, barOptions: ["bar", "combo"].includes(this.chartType) ? this.barOptions : undefined, lineOptions: ["line", "combo"].includes(this.chartType) ? this.lineOptions : undefined }; }
 
   toSvg() {
     const p = this.position;

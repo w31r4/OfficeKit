@@ -7,8 +7,8 @@ namespace OfficeKit.Codec;
 
 // Owns one deliberately narrow DrawingML table profile. Table topology,
 // rectangular merge ranges, and cell formatting remain fixed after import;
-// name, complete outer frame, and the single plain-text run in each visible
-// origin cell are the only source-bound edits.
+// name, complete outer frame, non-visible title/description, and the single
+// plain-text run in each visible origin cell are the only source-bound edits.
 internal static class PptxTableCodec
 {
     private const string TableGraphicDataUri = "http://schemas.openxmlformats.org/drawingml/2006/table";
@@ -74,6 +74,7 @@ internal static class PptxTableCodec
                 TopEmu = top,
                 WidthEmu = width,
                 HeightEmu = height,
+                Accessibility = PptxNonVisualAccessibilityCodec.Read(source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties),
             };
             result.ColumnWidthsEmu.Add(columns.Select(column => column.Width!.Value));
             if (properties.FirstRow is not null) result.FirstRow = properties.FirstRow.Value;
@@ -143,9 +144,11 @@ internal static class PptxTableCodec
             }
             nativeTable.Append(row);
         }
+        var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = element.Name };
+        PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, table.Accessibility);
         return new P.GraphicFrame(
             new P.NonVisualGraphicFrameProperties(
-                new P.NonVisualDrawingProperties { Id = nativeId, Name = element.Name },
+                nonVisual,
                 new P.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoGrouping = true }),
                 new P.ApplicationNonVisualDrawingProperties()),
             new P.Transform(
@@ -160,6 +163,10 @@ internal static class PptxTableCodec
             throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} no longer matches the editable table profile.");
         ValidateRequest(original, requested);
         var table = requested.Table;
+        PptxNonVisualAccessibilityCodec.ApplyBound(
+            source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties,
+            table.Accessibility,
+            "table");
         source.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Name = requested.Name;
         SetFrame(source.Transform!, table);
         var nativeTable = source.Graphic!.GraphicData!.GetFirstChild<A.Table>()!;
@@ -190,12 +197,17 @@ internal static class PptxTableCodec
         foreach (var cell in table.Rows.SelectMany(row => row.Cells))
             if (cell.Text.Length > MaxCellTextLength || cell.Text.Any(character => char.IsControl(character) && character is not '\t' and not '\n' and not '\r'))
                 throw Invalid(elementId, $"cell text must contain at most {MaxCellTextLength} characters and no unsupported controls");
+        PptxNonVisualAccessibilityCodec.Validate(table.Accessibility, elementId, "table");
         _ = CreateMergePlan(table, elementId);
     }
 
     internal static void ScrubModeledContent(P.GraphicFrame source)
     {
-        if (source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties is { } nonVisual) nonVisual.Name = string.Empty;
+        if (source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties is { } nonVisual)
+        {
+            PptxNonVisualAccessibilityCodec.ScrubModeledContent(nonVisual);
+            nonVisual.Name = string.Empty;
+        }
         if (source.Transform is { } transform)
         {
             transform.Offset!.X = 0L;
@@ -224,6 +236,7 @@ internal static class PptxTableCodec
         allowed.HeightEmu = requested.Table.HeightEmu;
         allowed.ColumnWidthsEmu.Clear();
         allowed.ColumnWidthsEmu.Add(requested.Table.ColumnWidthsEmu);
+        allowed.Accessibility = requested.Table.Accessibility?.Clone();
         for (var rowIndex = 0; rowIndex < allowed.Rows.Count; rowIndex++)
         {
             allowed.Rows[rowIndex].HeightEmu = requested.Table.Rows[rowIndex].HeightEmu;
@@ -231,7 +244,7 @@ internal static class PptxTableCodec
                 allowed.Rows[rowIndex].Cells[columnIndex].Text = requested.Table.Rows[rowIndex].Cells[columnIndex].Text;
         }
         if (!allowed.Equals(requested.Table))
-            throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} may edit only its name, complete frame, and fixed-topology plain cell text.");
+            throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} may edit only its name, complete frame, alternative text, and fixed-topology plain cell text.");
     }
 
     private static bool TryReadFrame(P.Transform transform, out long left, out long top, out long width, out long height)

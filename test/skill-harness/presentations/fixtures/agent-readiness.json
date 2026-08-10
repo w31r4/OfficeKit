@@ -125,7 +125,11 @@
           "name": "workflow-matrix",
           "position": { "left": 840, "top": 350, "width": 340, "height": 220 },
           "values": [["Gate", "State"], ["Semantic", "Pass"], ["Visual", "Review"]],
-          "styleOptions": { "headerRow": true, "bandedRows": true }
+          "styleOptions": { "headerRow": true, "bandedRows": true },
+          "accessibility": {
+            "title": "Workflow verification matrix",
+            "description": "Table listing semantic and visual review gates with their current states."
+          }
         }
       ],
       "connectors": [
@@ -177,7 +181,11 @@
           "series": [{ "name": "Score", "values": [78, 92, 85], "color": "#2563EB" }],
           "legend": false,
           "dataLabels": { "showValue": true, "position": "outsideEnd" },
-          "axes": { "category": { "title": "Gate" }, "value": { "title": "Score", "min": 0, "max": 100, "majorUnit": 20 } }
+          "axes": { "category": { "title": "Gate" }, "value": { "title": "Score", "min": 0, "max": 100, "majorUnit": 20 } },
+          "accessibility": {
+            "title": "Readiness scores by gate",
+            "description": "Bar chart showing Create at 78, Inspect at 92, and Render at 85."
+          }
         },
         {
           "name": "trend-line",

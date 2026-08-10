@@ -2,6 +2,7 @@ import { isXmlSafeText } from "../shared/xml.mjs";
 
 const ACCESSIBILITY_FIELDS = ["title", "description"];
 const MAX_ACCESSIBILITY_TEXT_LENGTH = 1_024;
+const importedAccessibilityEditable = new WeakMap();
 
 function normalizeText(value, owner, field) {
   if (typeof value !== "string" || !value.length || value.length > MAX_ACCESSIBILITY_TEXT_LENGTH || !isXmlSafeText(value)) {
@@ -17,6 +18,26 @@ export function normalizePresentationAccessibility(value, owner = "Presentation 
 
 export function updatePresentationAccessibility(current, update, owner = "Presentation object") {
   return applyAccessibility(current, update, owner, true);
+}
+
+export function initializePresentationAccessibility(target, config, owner = "Presentation object") {
+  if (config?._officeKitAccessibilityEditable !== undefined) {
+    importedAccessibilityEditable.set(target, Boolean(config._officeKitAccessibilityEditable));
+  }
+  return normalizePresentationAccessibility(config?.accessibility, owner);
+}
+
+export function presentationAccessibilityCapability(target) {
+  const sourceBound = importedAccessibilityEditable.has(target);
+  const editable = !sourceBound || importedAccessibilityEditable.get(target) === true;
+  return { sourceBound, editable, addable: editable };
+}
+
+export function setPresentationAccessibilityMetadata(target, current, update, owner = "Presentation object") {
+  if (!presentationAccessibilityCapability(target).editable) {
+    throw new Error(`${owner} accessibility metadata is source-bound and does not match the editable p:cNvPr profile.`);
+  }
+  return updatePresentationAccessibility(current, update, owner);
 }
 
 function applyAccessibility(current, update, owner, partial) {

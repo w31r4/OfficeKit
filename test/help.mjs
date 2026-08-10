@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 463);
+assert.equal(HELP_CATALOG.length, 467);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -172,6 +172,13 @@ assert.match(HELP_CATALOG.find((item) => item.name === "shape.accessibilityCapab
 assert.equal(HELP_CATALOG.find((item) => item.name === "shape.setAccessibilityMetadata")?.schema?.parameters?.update?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.setAccessibilityMetadata")?.schema?.parameters?.update?.description || "", /null clears.*1-1,024 XML-safe/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.setAccessibilityMetadata")?.schema?.returns?.shape?.description || "", /Source-free.*imported.*fail closed/i);
+for (const kind of ["table", "chart"]) {
+  assert.deepEqual(Object.keys(HELP_CATALOG.find((item) => item.name === `${kind}.accessibilityCapability`)?.schema?.parameters || {}), []);
+  assert.match(HELP_CATALOG.find((item) => item.name === `${kind}.accessibilityCapability`)?.schema?.returns?.capability?.description || "", /sourceBound.*editable.*addable.*revalidates/i);
+  assert.equal(HELP_CATALOG.find((item) => item.name === `${kind}.setAccessibilityMetadata`)?.schema?.parameters?.update?.required, true);
+  assert.match(HELP_CATALOG.find((item) => item.name === `${kind}.setAccessibilityMetadata`)?.schema?.parameters?.update?.description || "", /null clears.*1-1,024 XML-safe/i);
+  assert.match(HELP_CATALOG.find((item) => item.name === `${kind}.setAccessibilityMetadata`)?.schema?.returns?.[kind]?.description || "", /Source-free.*imported.*fail closed/i);
+}
 assert.ok(HELP_CATALOG.some((item) => item.name === "slide.groups.add"));
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.groups.add")?.summary || "", /native DrawingML p:grpSp.*chOff\/chExt.*fixed-topology semantic edits.*opaque and read-only/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.groups.add")?.schema?.returns?.group?.description || "", /native p:grpSp export.*without changing child topology.*opaque read-only object/i);
@@ -610,7 +617,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.setDateContentC
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.schema?.parameters?.dryRun?.type, "boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.summary || "", /SEQ counters.*REF cached results.*PAGEREF.*pagination host/i);
 const presentationCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
-assert.equal(presentationCatalog.length, 83);
+assert.equal(presentationCatalog.length, 87);
 assert.ok(presentationCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slides.insert")?.schema?.parameters?.after?.type, "Slide|number|null");

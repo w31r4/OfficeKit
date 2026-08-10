@@ -1736,9 +1736,11 @@ message PresentationElementSourceBinding {
   // recognized and may change its textual content without granting edit
   // permission to the surrounding shape, placeholder identity, or geometry.
   bool text_editable = 6;
-  // Source evidence only: true when an ordinary p:sp owns the bounded cNvPr
-  // profile whose non-visible title/description may be added, changed, or
-  // cleared without rewriting hyperlinks, extensions, or unknown metadata.
+  // Source evidence only: true when the modeled Presentation element owns the
+  // bounded cNvPr profile whose non-visible title/description may be added,
+  // changed, or cleared without rewriting hyperlinks, extensions, or unknown
+  // metadata. Current semantic owners are ordinary p:sp and table/chart
+  // p:graphicFrame elements.
   bool accessibility_editable = 7;
 }
 
@@ -1938,6 +1940,9 @@ message PresentationChart {
   // pair for its line plot. These fields are unset for primary-axis combos.
   SpreadsheetChartAxisArtifact secondary_x_axis = 14;
   SpreadsheetChartAxisArtifact secondary_y_axis = 15;
+  // Non-visible alternative text stored on p:nvGraphicFramePr/p:cNvPr. The
+  // visible chart title remains field 6 and has independent semantics.
+  PresentationNonVisualAccessibility accessibility = 16;
 }
 
 // PresentationML plot/axis ownership is intentionally separate from
@@ -2017,6 +2022,9 @@ message PresentationTable {
   optional bool first_row = 7;
   optional bool banded_rows = 8;
   repeated PresentationTableMergeRange merge_ranges = 9;
+  // Non-visible alternative text stored on p:nvGraphicFramePr/p:cNvPr. This
+  // does not add a visible caption or change the table grid/layout.
+  PresentationNonVisualAccessibility accessibility = 10;
 }
 
 message PresentationTableRow {
@@ -3676,10 +3684,9 @@ message PresentationCustomGeometryPolarAdjustmentHandle {
   PresentationCustomGeometryPoint position = 11;
 }
 
-// Appended after every existing descriptor so PresentationShape field 31 can
-// reuse one bounded non-visual metadata contract without renumbering older
-// messages. Additional Presentation element kinds may reference this message
-// later without creating another title/description model.
+// Appended after every existing descriptor so Presentation element messages
+// can reuse one bounded non-visual metadata contract without renumbering older
+// messages or creating parallel title/description models.
 message PresentationNonVisualAccessibility {
   optional string title = 1;
   optional string description = 2;

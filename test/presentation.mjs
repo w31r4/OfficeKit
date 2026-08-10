@@ -209,6 +209,109 @@ assert.match(irregularOtherEditXml, /title="Controlled rollout decision"/);
 irregularAccessibilityShape.accessibility = { title: "Bypass attempt" };
 await assert.rejects(() => PresentationFile.exportPptx(irregularShapeAccessibilityImported), (error) => error?.code === "unsupported_presentation_edit");
 
+// Tables and charts share the same p:nvGraphicFramePr/p:cNvPr owner. Their
+// alternative text is independent from visible cell/chart content and from a
+// chart's visible title, while malformed native metadata remains source-owned.
+const graphicFrameAccessibilityDeck = Presentation.create({ slideSize: { width: 960, height: 540 } });
+const graphicFrameAccessibilitySlide = graphicFrameAccessibilityDeck.slides.add({ name: "Graphic-frame accessibility" });
+const accessibleTable = graphicFrameAccessibilitySlide.tables.add({
+  name: "delivery-gates",
+  position: { left: 48, top: 80, width: 360, height: 160 },
+  values: [["Gate", "State"], ["QA", "Pass"]],
+  styleOptions: { headerRow: true },
+  accessibility: {
+    title: "Delivery gate table",
+    description: "Two-column table listing each release gate and its current state.",
+  },
+});
+const accessibleChart = graphicFrameAccessibilitySlide.charts.add("bar", {
+  name: "regional-revenue",
+  position: { left: 456, top: 80, width: 420, height: 260 },
+  title: "Regional revenue",
+  categories: ["North", "South"],
+  series: [{ name: "Revenue", values: [42, 37] }],
+  accessibility: {
+    title: "Regional revenue chart",
+    description: "Bar chart comparing North and South regional revenue.",
+  },
+});
+assert.deepEqual(accessibleTable.accessibilityCapability, { sourceBound: false, editable: true, addable: true });
+assert.deepEqual(accessibleChart.accessibilityCapability, { sourceBound: false, editable: true, addable: true });
+assert.match(graphicFrameAccessibilityDeck.inspect({ kind: "table,chart", maxChars: 8_000 }).ndjson, /Delivery gate table/);
+assert.match(graphicFrameAccessibilityDeck.inspect({ kind: "table,chart", maxChars: 8_000 }).ndjson, /Regional revenue chart/);
+assert.throws(() => accessibleTable.setAccessibilityMetadata({ description: "" }), /1 through 1024 XML-safe characters/i);
+assert.throws(() => accessibleChart.setAccessibilityMetadata({ decorative: true }), /does not support decorative/i);
+
+const graphicFrameAccessibilitySource = await PresentationFile.exportPptx(graphicFrameAccessibilityDeck);
+const graphicFrameAccessibilitySourceZip = await JSZip.loadAsync(graphicFrameAccessibilitySource.bytes);
+const graphicFrameAccessibilitySourceXml = await graphicFrameAccessibilitySourceZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(graphicFrameAccessibilitySourceXml, /<p:cNvPr\b(?=[^>]*\bname="delivery-gates")(?=[^>]*\btitle="Delivery gate table")(?=[^>]*\bdescr="Two-column table listing each release gate and its current state\.")[^>]*\/>/);
+assert.match(graphicFrameAccessibilitySourceXml, /<p:cNvPr\b(?=[^>]*\bname="regional-revenue")(?=[^>]*\btitle="Regional revenue chart")(?=[^>]*\bdescr="Bar chart comparing North and South regional revenue\.")[^>]*\/>/);
+
+const graphicFrameAccessibilityImported = await PresentationFile.importPptx(graphicFrameAccessibilitySource);
+const importedAccessibleTable = itemByName(graphicFrameAccessibilityImported.slides.getItem(0).tables.items, "delivery-gates");
+const importedAccessibleChart = itemByName(graphicFrameAccessibilityImported.slides.getItem(0).charts.items, "regional-revenue");
+assert.deepEqual(importedAccessibleTable.accessibility, accessibleTable.accessibility);
+assert.deepEqual(importedAccessibleChart.accessibility, accessibleChart.accessibility);
+assert.deepEqual(importedAccessibleTable.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+assert.deepEqual(importedAccessibleChart.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+const graphicFrameAccessibilityNoOp = await PresentationFile.exportPptx(graphicFrameAccessibilityImported);
+assert.deepEqual(graphicFrameAccessibilityNoOp.bytes, graphicFrameAccessibilitySource.bytes, "unchanged graphic-frame accessibility metadata must return the exact source package");
+
+const graphicFrameAccessibilitySourceSvg = await graphicFrameAccessibilityImported.slides.getItem(0).export({ format: "svg" });
+importedAccessibleTable.setAccessibilityMetadata({ title: "Release gate table", description: null });
+importedAccessibleChart.setAccessibilityMetadata({ title: null, description: "North leads South by five units." });
+const graphicFrameAccessibilityEdited = await PresentationFile.exportPptx(graphicFrameAccessibilityImported);
+const graphicFrameAccessibilityEditedZip = await JSZip.loadAsync(graphicFrameAccessibilityEdited.bytes);
+const graphicFrameAccessibilityEditedXml = await graphicFrameAccessibilityEditedZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(graphicFrameAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="delivery-gates")(?=[^>]*\btitle="Release gate table")[^>]*\/>/);
+assert.doesNotMatch(graphicFrameAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="delivery-gates")[^>]*\bdescr=/);
+assert.match(graphicFrameAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="regional-revenue")(?=[^>]*\bdescr="North leads South by five units\.")[^>]*\/>/);
+assert.doesNotMatch(graphicFrameAccessibilityEditedXml, /<p:cNvPr\b(?=[^>]*\bname="regional-revenue")[^>]*\btitle=/);
+for (const [partPath, entry] of Object.entries(graphicFrameAccessibilitySourceZip.files)) {
+  if (entry.dir || partPath === "ppt/slides/slide1.xml") continue;
+  assert.deepEqual(
+    await graphicFrameAccessibilityEditedZip.file(partPath).async("uint8array"),
+    await graphicFrameAccessibilitySourceZip.file(partPath).async("uint8array"),
+    `graphic-frame accessibility edit changed non-target part ${partPath}`,
+  );
+}
+const graphicFrameAccessibilityRoundTrip = await PresentationFile.importPptx(graphicFrameAccessibilityEdited);
+assert.deepEqual(itemByName(graphicFrameAccessibilityRoundTrip.slides.getItem(0).tables.items, "delivery-gates").accessibility, { title: "Release gate table" });
+assert.deepEqual(itemByName(graphicFrameAccessibilityRoundTrip.slides.getItem(0).charts.items, "regional-revenue").accessibility, { description: "North leads South by five units." });
+const graphicFrameAccessibilityOutputSvg = await graphicFrameAccessibilityRoundTrip.slides.getItem(0).export({ format: "svg" });
+assert.deepEqual(graphicFrameAccessibilityOutputSvg.bytes, graphicFrameAccessibilitySourceSvg.bytes, "graphic-frame accessibility edits must not alter model SVG output");
+
+const irregularGraphicFrameAccessibilityZip = await JSZip.loadAsync(graphicFrameAccessibilitySource.bytes);
+const irregularGraphicFrameAccessibilityXml = (await irregularGraphicFrameAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(/(<p:cNvPr\b[^>]*\bname="delivery-gates")/, '$1 xmlns:fixture="urn:office-kit:graphic-frame-accessibility" fixture:table="kept"')
+  .replace(/(<p:cNvPr\b[^>]*\bname="regional-revenue")/, '$1 xmlns:fixture="urn:office-kit:graphic-frame-accessibility" fixture:chart="kept"');
+irregularGraphicFrameAccessibilityZip.file("ppt/slides/slide1.xml", irregularGraphicFrameAccessibilityXml);
+const irregularGraphicFrameAccessibilityFile = new FileBlob(
+  await irregularGraphicFrameAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const irregularGraphicFrameAccessibilityImported = await PresentationFile.importPptx(irregularGraphicFrameAccessibilityFile);
+const irregularAccessibleTable = itemByName(irregularGraphicFrameAccessibilityImported.slides.getItem(0).tables.items, "delivery-gates");
+const irregularAccessibleChart = itemByName(irregularGraphicFrameAccessibilityImported.slides.getItem(0).charts.items, "regional-revenue");
+assert.equal(irregularAccessibleTable.accessibility, undefined);
+assert.equal(irregularAccessibleChart.accessibility, undefined);
+assert.deepEqual(irregularAccessibleTable.accessibilityCapability, { sourceBound: true, editable: false, addable: false });
+assert.deepEqual(irregularAccessibleChart.accessibilityCapability, { sourceBound: true, editable: false, addable: false });
+assert.throws(() => irregularAccessibleTable.setAccessibilityMetadata({ title: "Do not flatten table metadata" }), /source-bound.*editable p:cNvPr profile/i);
+assert.throws(() => irregularAccessibleChart.setAccessibilityMetadata({ title: "Do not flatten chart metadata" }), /source-bound.*editable p:cNvPr profile/i);
+irregularAccessibleTable.cells.set(1, 1, "Reviewed");
+irregularAccessibleChart.title = "Reviewed regional revenue";
+const irregularGraphicFrameOtherEdit = await PresentationFile.exportPptx(irregularGraphicFrameAccessibilityImported);
+const irregularGraphicFrameOtherEditXml = await (await JSZip.loadAsync(irregularGraphicFrameOtherEdit.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(irregularGraphicFrameOtherEditXml, /fixture:table="kept"/);
+assert.match(irregularGraphicFrameOtherEditXml, /fixture:chart="kept"/);
+assert.match(irregularGraphicFrameOtherEditXml, /title="Delivery gate table"/);
+assert.match(irregularGraphicFrameOtherEditXml, /title="Regional revenue chart"/);
+const irregularGraphicFrameBypass = await PresentationFile.importPptx(irregularGraphicFrameAccessibilityFile);
+itemByName(irregularGraphicFrameBypass.slides.getItem(0).charts.items, "regional-revenue").accessibility = { title: "Bypass attempt" };
+await assert.rejects(() => PresentationFile.exportPptx(irregularGraphicFrameBypass), (error) => error?.code === "unsupported_presentation_edit");
+
 // A free-positioned line is a p:sp whose frame defines its two endpoints. It
 // has no target/site identity and therefore stays separate from p:cxnSp.
 const freeLineDeck = Presentation.create({ slideSize: { width: 960, height: 540 } });
@@ -2086,10 +2189,12 @@ authoredGroup.tables.add({
   position: { left: 0, top: 300, width: 400, height: 180 },
   values: [["Gate", "State"], ["Import", "Before"]],
   styleOptions: { headerRow: true, bandedRows: true },
+  accessibility: { title: "Grouped gate table", description: "Import gate state inside the evidence group." },
 });
 authoredGroup.charts.add("combo", {
   name: "grouped-chart",
   title: "Grouped readiness",
+  accessibility: { title: "Grouped readiness chart", description: "Create and edit readiness scores inside the evidence group." },
   position: { left: 450, top: 300, width: 350, height: 200 },
   categories: ["Create", "Edit"],
   series: [
@@ -2150,6 +2255,8 @@ const groupedFirstXml = await groupedFirstZip.file("ppt/slides/slide1.xml").asyn
 assert.equal((groupedFirstXml.match(/<p:grpSp>/g) || []).length, 2);
 assert.match(groupedFirstXml, /<a:chOff x="-952500" y="476250"\s*\/>/);
 assert.match(groupedFirstXml, /<a:chExt cx="11430000" cy="6096000"\s*\/>/);
+assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="grouped-table")(?=[^>]*\btitle="Grouped gate table")/);
+assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="grouped-chart")(?=[^>]*\btitle="Grouped readiness chart")/);
 
 const groupedImported = await PresentationFile.importPptx(groupedFirstExport);
 const importedGroup = itemByName(groupedImported.slides.getItem(0).groups.items, "Agent evidence group");
@@ -2163,11 +2270,18 @@ importedGroup.childFrame.left = -50;
 itemByName(importedGroup.shapes.items, "grouped-before").text.set("After");
 delete itemByName(importedGroup.connectors.items, "grouped-connector").line.endArrow;
 itemByName(importedGroup.images.items, "grouped-image").alt = "Edited grouped image evidence";
-itemByName(importedGroup.tables.items, "grouped-table").cells.set(1, 1, "After");
+const importedGroupedTable = itemByName(importedGroup.tables.items, "grouped-table");
+assert.deepEqual(importedGroupedTable.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+assert.equal(importedGroupedTable.accessibility.title, "Grouped gate table");
+importedGroupedTable.cells.set(1, 1, "After");
+importedGroupedTable.setAccessibilityMetadata({ description: "Edited import gate state inside the evidence group." });
 const importedGroupedChart = itemByName(importedGroup.charts.items, "grouped-chart");
 assert.equal(importedGroupedChart.chartType, "combo");
+assert.deepEqual(importedGroupedChart.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+assert.equal(importedGroupedChart.accessibility.title, "Grouped readiness chart");
 assert.deepEqual(importedGroupedChart.series.map((series) => [series.chartType, series.axisGroup || "primary"]), [["bar", "primary"], ["line", "secondary"]]);
 assert.equal(importedGroupedChart.axes.secondary.value.max, 10);
+importedGroupedChart.setAccessibilityMetadata({ title: "Edited grouped readiness chart" });
 importedGroupedChart.title = "Edited grouped readiness";
 importedGroupedChart.series[0].values = [8, 10];
 importedGroupedChart.series[1].values = [6, 9];
@@ -2188,7 +2302,12 @@ assert.equal(itemByName(roundTripGroup.shapes.items, "grouped-before").text.valu
 assert.equal(itemByName(roundTripGroup.connectors.items, "grouped-connector").line.endArrow, undefined);
 assert.equal(itemByName(roundTripGroup.images.items, "grouped-image").alt, "Edited grouped image evidence");
 assert.equal(itemByName(roundTripGroup.tables.items, "grouped-table").values[1][1], "After");
+assert.deepEqual(itemByName(roundTripGroup.tables.items, "grouped-table").accessibility, {
+  title: "Grouped gate table",
+  description: "Edited import gate state inside the evidence group.",
+});
 assert.equal(itemByName(roundTripGroup.charts.items, "grouped-chart").chartType, "combo");
+assert.equal(itemByName(roundTripGroup.charts.items, "grouped-chart").accessibility.title, "Edited grouped readiness chart");
 assert.deepEqual(itemByName(roundTripGroup.charts.items, "grouped-chart").series[0].values, [8, 10]);
 assert.deepEqual(itemByName(roundTripGroup.charts.items, "grouped-chart").series[1].values, [6, 9]);
 assert.equal(itemByName(roundTripGroup.charts.items, "grouped-chart").series[1].axisGroup, "secondary");

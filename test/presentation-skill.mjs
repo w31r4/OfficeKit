@@ -122,9 +122,24 @@ try {
     description: "First stage of the workflow, where the presentation is authored.",
   });
   assert.deepEqual(authoredCard.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+  const workflowMatrix = itemByName(workflowSlide.tables.items, "workflow-matrix");
+  assert.deepEqual(workflowMatrix.accessibility, {
+    title: "Workflow verification matrix",
+    description: "Table listing semantic and visual review gates with their current states.",
+  });
+  assert.deepEqual(workflowMatrix.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+  const readinessBar = itemByName(readiness.qa.presentation.slides.getItem(1).charts.items, "readiness-bar");
+  assert.deepEqual(readinessBar.accessibility, {
+    title: "Readiness scores by gate",
+    description: "Bar chart showing Create at 78, Inspect at 92, and Render at 85.",
+  });
+  assert.deepEqual(readinessBar.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
   assert.deepEqual(authoredCard.shadow, { color: "#000000", blurRadius: 10, distance: 5, direction: 45, opacity: 0.2 });
   const readinessXml = await (await JSZip.loadAsync(await fs.readFile(readiness.pptxPath))).file("ppt/slides/slide1.xml").async("text");
   assert.match(readinessXml, /<p:cNvPr\b(?=[^>]*\bname="author-card")(?=[^>]*\btitle="Create stage")(?=[^>]*\bdescr="First stage of the workflow, where the presentation is authored\.")[^>]*\/>/);
+  assert.match(readinessXml, /<p:cNvPr\b(?=[^>]*\bname="workflow-matrix")(?=[^>]*\btitle="Workflow verification matrix")(?=[^>]*\bdescr="Table listing semantic and visual review gates with their current states\.")[^>]*\/>/);
+  const readinessChartXml = await (await JSZip.loadAsync(await fs.readFile(readiness.pptxPath))).file("ppt/slides/slide2.xml").async("text");
+  assert.match(readinessChartXml, /<p:cNvPr\b(?=[^>]*\bname="readiness-bar")(?=[^>]*\btitle="Readiness scores by gate")(?=[^>]*\bdescr="Bar chart showing Create at 78, Inspect at 92, and Render at 85\.")[^>]*\/>/);
   const verifyCard = itemByName(workflowSlide.shapes.items, "verify-card");
   assert.equal(verifyCard.geometry, "custom");
   assert.equal(verifyCard.customConnectionSites.length, 4);

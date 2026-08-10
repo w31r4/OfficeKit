@@ -16,13 +16,13 @@ internal static class PptxNonVisualAccessibilityCodec
     internal static PresentationNonVisualAccessibility? Read(P.NonVisualDrawingProperties? source) =>
         TryRead(source, out var value) ? value : null;
 
-    internal static void Validate(PresentationNonVisualAccessibility? value, string elementId)
+    internal static void Validate(PresentationNonVisualAccessibility? value, string elementId, string elementKind = "shape")
     {
         if (value is null) return;
         if (!value.HasTitle && !value.HasDescription)
-            throw Invalid(elementId, "must contain title and/or description");
-        if (value.HasTitle && !IsValidValue(value.Title)) throw Invalid(elementId, "title must contain 1 through 1024 XML-safe characters");
-        if (value.HasDescription && !IsValidValue(value.Description)) throw Invalid(elementId, "description must contain 1 through 1024 XML-safe characters");
+            throw Invalid(elementId, elementKind, "must contain title and/or description");
+        if (value.HasTitle && !IsValidValue(value.Title)) throw Invalid(elementId, elementKind, "title must contain 1 through 1024 XML-safe characters");
+        if (value.HasDescription && !IsValidValue(value.Description)) throw Invalid(elementId, elementKind, "description must contain 1 through 1024 XML-safe characters");
     }
 
     internal static void ApplyAuthored(P.NonVisualDrawingProperties target, PresentationNonVisualAccessibility? value)
@@ -33,16 +33,16 @@ internal static class PptxNonVisualAccessibilityCodec
         if (value?.HasDescription == true) target.SetAttribute(new OpenXmlAttribute("descr", string.Empty, value.Description));
     }
 
-    internal static void ApplyBound(P.NonVisualDrawingProperties? source, PresentationNonVisualAccessibility? requested)
+    internal static void ApplyBound(P.NonVisualDrawingProperties? source, PresentationNonVisualAccessibility? requested, string elementKind = "shape")
     {
         if (!TryRead(source, out _))
         {
             if (requested is null) return;
-            throw new CodecException("unsupported_presentation_edit", "Source shape alternative text is not a canonical p:cNvPr profile.");
+            throw new CodecException("unsupported_presentation_edit", $"Source {elementKind} alternative text is not a canonical p:cNvPr profile.");
         }
         ApplyAuthored(source!, requested);
         if (!TryRead(source, out var actual) || !Equal(actual, requested))
-            throw new CodecException("unsupported_presentation_edit", "Source shape alternative text did not round trip.");
+            throw new CodecException("unsupported_presentation_edit", $"Source {elementKind} alternative text did not round trip.");
     }
 
     internal static void ScrubModeledContent(P.NonVisualDrawingProperties? source)
@@ -114,6 +114,6 @@ internal static class PptxNonVisualAccessibilityCodec
         left?.HasTitle == right?.HasTitle && left?.Title == right?.Title &&
         left?.HasDescription == right?.HasDescription && left?.Description == right?.Description;
 
-    private static CodecException Invalid(string elementId, string message) =>
-        new("invalid_presentation_shape", $"Presentation shape {elementId} accessibility {message}.");
+    private static CodecException Invalid(string elementId, string elementKind, string message) =>
+        new($"invalid_presentation_{elementKind}", $"Presentation {elementKind} {elementId} accessibility {message}.");
 }

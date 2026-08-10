@@ -1756,6 +1756,8 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 
 | Name | Kind | Summary |
 | --- | --- | --- |
+| `chart.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for a chart graphic-frame p:cNvPr title/description; export re-proves it. |
+| `chart.setAccessibilityMetadata` | api | Add, change, or clear non-visible chart title/description independently of its visible chart title. Imported irregular graphic-frame p:cNvPr graphs fail closed. |
 | `compose.column` | api | Create a vertical compose container. Use width/height fill, hug, or fixed pixels; gap and padding are in pixels. |
 | `compose.paragraph` | api | Create an editable text block with name, className/style text tokens, and stable inspect output. |
 | `compose.text` | api | Create the same editable paragraph node through the reference-template-compatible children-first text(children, props) helper. |
@@ -1838,9 +1840,31 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slideCommentThread.addReply` | api | Append a direct reply to a source-free Office 2021 modern comment thread. Imported reply topology is fixed: existing reply text/status may change, but adding or removing replies fails closed. |
 | `slideCommentThread.reopen` | api | Set the modern root comment status back to active while preserving fixed imported identity, anchor, position, and reply topology. |
 | `slideCommentThread.resolve` | api | Set the modern root comment status to resolved. Imported export re-proves author/date/anchor/position/topology and source-part hashes before changing only status. |
+| `table.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for a table graphic-frame p:cNvPr title/description; export re-proves it. |
 | `table.merge` | api | Merge one inclusive rectangular table range, retain the upper-left value, clear and lock covered cells, and emit canonical DrawingML merge topology. |
+| `table.setAccessibilityMetadata` | api | Add, change, or clear non-visible table title/description. Imported irregular graphic-frame p:cNvPr graphs fail closed. |
 
 ### presentation details
+
+#### `chart.accessibilityCapability`
+
+Report sourceBound/editable/addable preflight for a chart graphic-frame p:cNvPr title/description; export re-proves it.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates the chart graphic-frame p:cNvPr.
+
+#### `chart.setAccessibilityMetadata`
+
+Add, change, or clear non-visible chart title/description independently of its visible chart title. Imported irregular graphic-frame p:cNvPr graphs fail closed.
+
+**Schema parameters:**
+
+- `update` (object) required — { title?, description? }; null clears, strings require 1-1,024 XML-safe characters.
+
+**Schema returns:**
+
+- `chart` (ChartElement) — Same chart. Source-free and canonical imported metadata is editable; unsupported graphic-frame p:cNvPr profiles fail closed without disabling unrelated supported chart edits.
 
 #### `compose.column`
 
@@ -2640,6 +2664,7 @@ Add a source-free literal bar, line, pie, standard area, fixed 50%-hole doughnut
 - `varyColors` (boolean) — Model-only varied-color preference outside the bounded OfficeKit chart wire.
 - `barOptions` (object) — Model-only advanced bar layout options outside the bounded OfficeKit chart wire.
 - `lineOptions` (object) — Model-only advanced line grouping/smoothing options; direct per-series marker formatting remains supported.
+- `accessibility` (object) — Non-visible { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvGraphicFramePr/p:cNvPr independently of the visible chart title and the object name.
 
 **Schema returns:**
 
@@ -2930,6 +2955,7 @@ Add an inspectable table facade with rows, columns, values, cells, rectangular m
 - `position` (object) — Pixel left/top/width/height frame.
 - `style` (object) — Table/cell fill, margins, borders, and text style.
 - `styleOptions` (object) — Optional headerRow and bandedRows booleans plus model-rendering font options. OfficeKit authors the two native flags, but keeps them immutable after source-bound import.
+- `accessibility` (object) — Non-visible { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvGraphicFramePr/p:cNvPr independently of visible cell text and the object name.
 
 **Schema returns:**
 
@@ -2967,6 +2993,14 @@ Set the modern root comment status to resolved. Imported export re-proves author
 
 - `thread` (SlideCommentThread) — Set resolved=true and the modern root status to resolved. Legacy comments cannot encode this state.
 
+#### `table.accessibilityCapability`
+
+Report sourceBound/editable/addable preflight for a table graphic-frame p:cNvPr title/description; export re-proves it.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates the table graphic-frame p:cNvPr.
+
 #### `table.merge`
 
 Merge one inclusive rectangular table range, retain the upper-left value, clear and lock covered cells, and emit canonical DrawingML merge topology.
@@ -2978,6 +3012,18 @@ Merge one inclusive rectangular table range, retain the upper-left value, clear 
 **Schema returns:**
 
 - `table` (TableElement) — The same table after preserving the upper-left value, clearing covered values, and making covered cells read-only. Imported merge topology remains source-bound and cannot be changed.
+
+#### `table.setAccessibilityMetadata`
+
+Add, change, or clear non-visible table title/description. Imported irregular graphic-frame p:cNvPr graphs fail closed.
+
+**Schema parameters:**
+
+- `update` (object) required — { title?, description? }; null clears, strings require 1-1,024 XML-safe characters.
+
+**Schema returns:**
+
+- `table` (TableElement) — Same table. Source-free and canonical imported metadata is editable; unsupported graphic-frame p:cNvPr profiles fail closed without disabling unrelated supported table edits.
 
 ## shared
 

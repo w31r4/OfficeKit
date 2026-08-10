@@ -53,10 +53,12 @@ internal static partial class PptxChartCodec
                 chart.TopEmu = top;
                 chart.WidthEmu = width;
                 chart.HeightEmu = height;
+                chart.Accessibility = PptxNonVisualAccessibilityCodec.Read(source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties);
                 return true;
             }
             if (!TryReadChart(xml, out var semantic, out _, out editable)) return false;
             chart = FromSpreadsheet(semantic, left, top, width, height);
+            chart.Accessibility = PptxNonVisualAccessibilityCodec.Read(source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties);
             return true;
         }
         catch (Exception error) when (error is InvalidOperationException or OverflowException or XmlException)
@@ -73,9 +75,11 @@ internal static partial class PptxChartCodec
         var chartPart = slidePart.AddNewPart<ChartPart>();
         WriteXml(chartPart, BuildPresentationChartDocument(element.Chart, element.Id, element.Name));
         var relationshipId = slidePart.GetIdOfPart(chartPart);
+        var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = element.Name };
+        PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, element.Chart.Accessibility);
         return new P.GraphicFrame(
             new P.NonVisualGraphicFrameProperties(
-                new P.NonVisualDrawingProperties { Id = nativeId, Name = element.Name },
+                nonVisual,
                 new P.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoGrouping = true }),
                 new P.ApplicationNonVisualDrawingProperties()),
             new P.Transform(
@@ -97,6 +101,10 @@ internal static partial class PptxChartCodec
         var document = XDocument.Parse(ReadXml(part), LoadOptions.PreserveWhitespace);
         PatchPresentationChart(document, requested.Chart, requested.Id, requested.Name);
         WriteXml(part, document);
+        PptxNonVisualAccessibilityCodec.ApplyBound(
+            source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties,
+            requested.Chart.Accessibility,
+            "chart");
         source.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Name = requested.Name;
         SetFrame(source.Transform!, requested.Chart);
         var bytes = ReadBytes(part);
@@ -109,6 +117,7 @@ internal static partial class PptxChartCodec
         if (string.IsNullOrWhiteSpace(name) || name.Length > 255 || HasControls(name)) throw Invalid(elementId, "name must contain 1 through 255 characters without controls");
         if (chart.LeftEmu < 0 || chart.TopEmu < 0 || chart.WidthEmu <= 0 || chart.HeightEmu <= 0)
             throw Invalid(elementId, "frame must have non-negative coordinates and positive dimensions");
+        PptxNonVisualAccessibilityCodec.Validate(chart.Accessibility, elementId, "chart");
         if (chart.Type == SpreadsheetChartType.Combo)
         {
             ValidateComboChart(chart, elementId, name);
@@ -134,7 +143,11 @@ internal static partial class PptxChartCodec
 
     internal static void ScrubFrame(P.GraphicFrame source)
     {
-        if (source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties is { } nonVisual) nonVisual.Name = string.Empty;
+        if (source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties is { } nonVisual)
+        {
+            PptxNonVisualAccessibilityCodec.ScrubModeledContent(nonVisual);
+            nonVisual.Name = string.Empty;
+        }
         if (source.Transform is { } transform)
         {
             transform.Offset!.X = 0L;

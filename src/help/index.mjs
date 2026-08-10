@@ -320,7 +320,11 @@ export const HELP_CATALOG = [
   { artifactKind: "presentation", kind: "api", name: "slide.autoLayout", summary: "Place existing shapes inside a frame using horizontal or vertical flow, gap, padding, and alignment options." },
   { artifactKind: "presentation", kind: "api", name: "slide.tables.add", summary: "Add an inspectable table facade with rows, columns, values, cells, rectangular merges, layout JSON, SVG preview, and canonical OfficeKit plain-text PPTX output." },
   { artifactKind: "presentation", kind: "api", name: "table.merge", summary: "Merge one inclusive rectangular table range, retain the upper-left value, clear and lock covered cells, and emit canonical DrawingML merge topology." },
+  { artifactKind: "presentation", kind: "api", name: "table.accessibilityCapability", summary: "Report sourceBound/editable/addable preflight for a table graphic-frame p:cNvPr title/description; export re-proves it." },
+  { artifactKind: "presentation", kind: "api", name: "table.setAccessibilityMetadata", summary: "Add, change, or clear non-visible table title/description. Imported irregular graphic-frame p:cNvPr graphs fail closed." },
   { artifactKind: "presentation", kind: "api", name: "slide.charts.add", summary: "Add a source-free literal bar, line, pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D bubble, or clustered bar+line combo chart. Category families use shared literal categories; scatter and bubble use aligned per-series numeric X/Y values, with positive area-based bubble sizes. Bar and line series, including combo members, accept up to 16 bounded native linear, exponential, logarithmic, power, polynomial, or moving-average trendlines plus one fixed/percentage/standard-deviation/standard-error/custom-literal errorBars projection. Imported trendline count and error-bar presence are fixed; unsupported labels/extensions/unknown children/complex lines remain source-owned. Supported variants retain title, legend, bounded axes, basic series styling, chart-level data labels, layout JSON, error-bar-aware SVG preview, and native ChartPart output across import/edit/re-export. Formula-backed custom error bars without an explicit embedded-workbook route, other formula/external data, advanced family geometry, topology changes, and unsupported styling fail closed rather than being flattened." },
+  { artifactKind: "presentation", kind: "api", name: "chart.accessibilityCapability", summary: "Report sourceBound/editable/addable preflight for a chart graphic-frame p:cNvPr title/description; export re-proves it." },
+  { artifactKind: "presentation", kind: "api", name: "chart.setAccessibilityMetadata", summary: "Add, change, or clear non-visible chart title/description independently of its visible chart title. Imported irregular graphic-frame p:cNvPr graphs fail closed." },
   { artifactKind: "presentation", kind: "api", name: "slide.images.add", summary: "Add an inspectable image facade with alt text, embedded data, contain/cover/stretch fitting, explicit crop, frame, direct rotation/flips, layout JSON, crop-aware SVG preview, and PPTX output. OfficeKit maps the bounded rectangular profile to native DrawingML a:srcRect." },
   { artifactKind: "presentation", kind: "api", name: "presentation.theme", summary: "Inspect the model theme and theme inheritance. Custom source-free themes are not authored by OfficeKit 0.2, and imported themes are source-bound and read-only." },
   { artifactKind: "presentation", kind: "api", name: "presentation.master", summary: "Access the one canonical source-free Slide Master. It may author a direct background, bounded text styles, and direct-frame title/body/ctrTitle/subTitle placeholders; imported Master graphs remain source-bound and read-only." },
@@ -1839,10 +1843,15 @@ const PRESENTATION_HELP_SCHEMAS = {
     position: { type: "object", description: "Pixel left/top/width/height frame." },
     style: { type: "object", description: "Table/cell fill, margins, borders, and text style." },
     styleOptions: { type: "object", description: "Optional headerRow and bandedRows booleans plus model-rendering font options. OfficeKit authors the two native flags, but keeps them immutable after source-bound import." },
+    accessibility: { type: "object", description: "Non-visible { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvGraphicFramePr/p:cNvPr independently of visible cell text and the object name." },
   }, "table", "TableElement", "Appended editable table facade. OfficeKit accepts a non-empty rectangular 1-256-column by 1-2048-row plain-text grid with non-overlapping rectangular merges; recognized imports may change name, complete frame, and visible origin/unmerged cell text without changing merge topology or native style flags."),
   "table.merge": helpSchema({
     range: { type: "object", required: true, description: "Inclusive zero-based { startRow, endRow, startColumn, endColumn } rectangle. It must span at least two in-bounds cells and cannot overlap an existing merge." },
   }, "table", "TableElement", "The same table after preserving the upper-left value, clearing covered values, and making covered cells read-only. Imported merge topology remains source-bound and cannot be changed."),
+  "table.accessibilityCapability": helpSchema({}, "capability", "object", "Fresh { sourceBound, editable, addable } preflight; export revalidates the table graphic-frame p:cNvPr."),
+  "table.setAccessibilityMetadata": helpSchema({
+    update: { type: "object", required: true, description: "{ title?, description? }; null clears, strings require 1-1,024 XML-safe characters." },
+  }, "table", "TableElement", "Same table. Source-free and canonical imported metadata is editable; unsupported graphic-frame p:cNvPr profiles fail closed without disabling unrelated supported table edits."),
   "slide.charts.add": helpSchema({
     chartType: { type: "string", description: "bar, line, pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D bubble, or combo for canonical OfficeKit export. combo is the literal clustered bar+line profile described by series; unsupported or advanced family variants fail closed." },
     title: { type: "string", description: "Chart title." },
@@ -1858,7 +1867,12 @@ const PRESENTATION_HELP_SCHEMAS = {
     varyColors: { type: "boolean", description: "Model-only varied-color preference outside the bounded OfficeKit chart wire." },
     barOptions: { type: "object", description: "Model-only advanced bar layout options outside the bounded OfficeKit chart wire." },
     lineOptions: { type: "object", description: "Model-only advanced line grouping/smoothing options; direct per-series marker formatting remains supported." },
+    accessibility: { type: "object", description: "Non-visible { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvGraphicFramePr/p:cNvPr independently of the visible chart title and the object name." },
   }, "chart", "ChartElement", "Appended editable native-chart facade."),
+  "chart.accessibilityCapability": helpSchema({}, "capability", "object", "Fresh { sourceBound, editable, addable } preflight; export revalidates the chart graphic-frame p:cNvPr."),
+  "chart.setAccessibilityMetadata": helpSchema({
+    update: { type: "object", required: true, description: "{ title?, description? }; null clears, strings require 1-1,024 XML-safe characters." },
+  }, "chart", "ChartElement", "Same chart. Source-free and canonical imported metadata is editable; unsupported graphic-frame p:cNvPr profiles fail closed without disabling unrelated supported chart edits."),
   "slide.images.add": helpSchema({
     dataUrl: { type: "string", description: "Embedded image data URL." },
     uri: { type: "string", description: "External image URI metadata." },

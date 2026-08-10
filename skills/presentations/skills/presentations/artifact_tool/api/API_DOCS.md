@@ -148,7 +148,7 @@ tags default `width` to `"fill"` when you omit it.
 - Discover a layout before filling it with `layout.placeholders.summary()`. It returns a fresh copied snapshot of placeholder identity/type/index/direct-frame evidence and never grants mutation of an imported template graph.
 - Use `slide.compose(nodeOrJsx, { frame, baseUnit })` for compose-first layouts. JSX lowers into the same compose runtime as the helper-based API.
 - Author content with config-first calls: `slide.shapes.add({ geometry, position, fill, line })`, `slide.images.add({ ... })`, `slide.tables.add({ ... })`, and `slide.charts.add(chartType, { ... })`.
-- Put non-visible PowerPoint title/description on meaningful ordinary shapes with `accessibility`; for imported shapes, require `shape.accessibilityCapability.editable` before `shape.setAccessibilityMetadata(...)`.
+- Put non-visible PowerPoint title/description on meaningful ordinary shapes, tables, and charts with `accessibility`; for imports, require the object's `accessibilityCapability.editable` before `setAccessibilityMetadata(...)`. A chart's visible title is separate.
 - Format whole-shape text with grouped configs such as `shape.text.style = { fontSize, bold, color, alignment }`.
 - Edit imported decks with `presentation.inspect({ kind, search, maxChars })`, `presentation.resolve(anchorId)`, and focused facade edits.
 - Export previews with `presentation.export({ slide, format, scale })`.

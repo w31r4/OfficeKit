@@ -141,6 +141,155 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void GraphicFrameAccessibilityAuthorsImportsEditsAndKeepsIrregularMetadataSourceOwned()
+    {
+        var request = ExportRequest();
+        var table = new PresentationTable
+        {
+            LeftEmu = 500_000,
+            TopEmu = 1_300_000,
+            WidthEmu = 3_000_000,
+            HeightEmu = 1_000_000,
+            Accessibility = new PresentationNonVisualAccessibility
+            {
+                Title = "Delivery gate table",
+                Description = "Two-column table listing each release gate and its current state.",
+            },
+        };
+        table.ColumnWidthsEmu.Add([1_500_000, 1_500_000]);
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 500_000,
+            Cells = { new PresentationTableCell { Text = "Gate" }, new PresentationTableCell { Text = "State" } },
+        });
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 500_000,
+            Cells = { new PresentationTableCell { Text = "QA" }, new PresentationTableCell { Text = "Pass" } },
+        });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/table/accessibility",
+            Name = "Accessible table",
+            Table = table,
+        });
+
+        var chart = new PresentationChart
+        {
+            LeftEmu = 3_800_000,
+            TopEmu = 1_300_000,
+            WidthEmu = 3_000_000,
+            HeightEmu = 1_700_000,
+            Type = SpreadsheetChartType.Bar,
+            Title = "Regional revenue",
+            HasLegend = false,
+            Accessibility = new PresentationNonVisualAccessibility
+            {
+                Title = "Regional revenue chart",
+                Description = "Bar chart comparing North and South regional revenue.",
+            },
+        };
+        chart.Categories.Add(["North", "South"]);
+        chart.Series.Add(new SpreadsheetChartSeriesArtifact { Name = "Revenue", Values = { 42, 37 } });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/chart/accessibility",
+            Name = "Accessible chart",
+            Chart = chart,
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var frames = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.GraphicFrame>().ToArray();
+            var tableNonVisual = Assert.Single(frames, frame => frame.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Name == "Accessible table")
+                .NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!;
+            var chartNonVisual = Assert.Single(frames, frame => frame.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Name == "Accessible chart")
+                .NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!;
+            Assert.Equal("Delivery gate table", tableNonVisual.Title!.Value);
+            Assert.Equal("Two-column table listing each release gate and its current state.", tableNonVisual.Description!.Value);
+            Assert.Equal("Regional revenue chart", chartNonVisual.Title!.Value);
+            Assert.Equal("Bar chart comparing North and South regional revenue.", chartNonVisual.Description!.Value);
+        }
+
+        var imported = Import(authored.File.ToByteArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedElements = Assert.Single(imported.Artifact.Presentation.Slides).Elements;
+        var importedTable = Assert.Single(importedElements, element => element.ContentCase == PresentationElement.ContentOneofCase.Table);
+        var importedChart = Assert.Single(importedElements, element => element.ContentCase == PresentationElement.ContentOneofCase.Chart);
+        Assert.True(importedTable.Source.AccessibilityEditable);
+        Assert.True(importedChart.Source.AccessibilityEditable);
+        Assert.Equal("Delivery gate table", importedTable.Table.Accessibility.Title);
+        Assert.Equal("Regional revenue chart", importedChart.Chart.Accessibility.Title);
+
+        importedTable.Table.Accessibility.Title = "Release gate table";
+        importedTable.Table.Accessibility.ClearDescription();
+        importedChart.Chart.Accessibility.ClearTitle();
+        importedChart.Chart.Accessibility.Description = "North leads South by five units.";
+        var edited = Export(imported.Artifact);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var roundTrip = Import(edited.File.ToByteArray());
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        var roundTripElements = Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements;
+        var roundTripTable = Assert.Single(roundTripElements, element => element.ContentCase == PresentationElement.ContentOneofCase.Table);
+        var roundTripChart = Assert.Single(roundTripElements, element => element.ContentCase == PresentationElement.ContentOneofCase.Chart);
+        Assert.Equal("Release gate table", roundTripTable.Table.Accessibility.Title);
+        Assert.False(roundTripTable.Table.Accessibility.HasDescription);
+        Assert.False(roundTripChart.Chart.Accessibility.HasTitle);
+        Assert.Equal("North leads South by five units.", roundTripChart.Chart.Accessibility.Description);
+
+        var invalid = request.Clone();
+        Assert.Single(invalid.Artifact.Presentation.Slides[0].Elements, element => element.ContentCase == PresentationElement.ContentOneofCase.Table)
+            .Table.Accessibility = new PresentationNonVisualAccessibility();
+        Assert.Equal("invalid_presentation_table", Assert.Single(Invoke(invalid).Diagnostics).Code);
+
+        var irregularBytes = ReplaceZipText(authored.File.ToByteArray(), "ppt/slides/slide1.xml", xml => xml
+            .Replace("name=\"Accessible table\"", "name=\"Accessible table\" xmlns:fixture=\"urn:office-kit:graphic-frame-accessibility\" fixture:table=\"kept\"", StringComparison.Ordinal)
+            .Replace("name=\"Accessible chart\"", "name=\"Accessible chart\" xmlns:fixture=\"urn:office-kit:graphic-frame-accessibility\" fixture:chart=\"kept\"", StringComparison.Ordinal));
+        var irregular = Import(irregularBytes);
+        Assert.True(irregular.Ok, Diagnostics(irregular));
+        var irregularElements = Assert.Single(irregular.Artifact.Presentation.Slides).Elements;
+        var irregularTable = Assert.Single(irregularElements, element => element.ContentCase == PresentationElement.ContentOneofCase.Table);
+        var irregularChart = Assert.Single(irregularElements, element => element.ContentCase == PresentationElement.ContentOneofCase.Chart);
+        Assert.True(irregularTable.Source.Editable);
+        Assert.True(irregularChart.Source.Editable);
+        Assert.False(irregularTable.Source.AccessibilityEditable);
+        Assert.False(irregularChart.Source.AccessibilityEditable);
+        Assert.Null(irregularTable.Table.Accessibility);
+        Assert.Null(irregularChart.Chart.Accessibility);
+
+        irregularTable.Table.Rows[1].Cells[1].Text = "Reviewed";
+        irregularChart.Chart.Title = "Reviewed regional revenue";
+        var otherEdit = Export(irregular.Artifact);
+        Assert.True(otherEdit.Ok, Diagnostics(otherEdit));
+        using (var stream = new MemoryStream(otherEdit.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var frames = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.GraphicFrame>().ToArray();
+            var tableNonVisual = Assert.Single(frames, frame => frame.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Name == "Accessible table")
+                .NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!;
+            var chartNonVisual = Assert.Single(frames, frame => frame.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Name == "Accessible chart")
+                .NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!;
+            Assert.Equal("kept", Assert.Single(tableNonVisual.ExtendedAttributes).Value);
+            Assert.Equal("kept", Assert.Single(chartNonVisual.ExtendedAttributes).Value);
+            Assert.Equal("Delivery gate table", tableNonVisual.Title!.Value);
+            Assert.Equal("Regional revenue chart", chartNonVisual.Title!.Value);
+        }
+
+        var tableBypass = Import(irregularBytes);
+        Assert.Single(Assert.Single(tableBypass.Artifact.Presentation.Slides).Elements, element => element.ContentCase == PresentationElement.ContentOneofCase.Table)
+            .Table.Accessibility = new PresentationNonVisualAccessibility { Title = "Must reject table" };
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(Export(tableBypass.Artifact).Diagnostics).Code);
+        var chartBypass = Import(irregularBytes);
+        Assert.Single(Assert.Single(chartBypass.Artifact.Presentation.Slides).Elements, element => element.ContentCase == PresentationElement.ContentOneofCase.Chart)
+            .Chart.Accessibility = new PresentationNonVisualAccessibility { Title = "Must reject chart" };
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(Export(chartBypass.Artifact).Diagnostics).Code);
+    }
+
+    [Fact]
     public void CustomShowsAuthorImportAndEditWithinFixedTopology()
     {
         var request = ExportRequest();

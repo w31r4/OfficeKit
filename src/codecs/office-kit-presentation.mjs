@@ -267,6 +267,8 @@ function cloneImportedPresentationTable(container, source, context) {
     ...(source.style === undefined ? {} : { style: clonedPresentationValue(source.style) }),
     ...(source.styleOptions === undefined ? {} : { styleOptions: clonedPresentationValue(source.styleOptions) }),
     mergeRanges: clonedPresentationValue(source.mergeRanges),
+    ...(source.accessibility ? { accessibility: clonedPresentationValue(source.accessibility) } : {}),
+    _officeKitAccessibilityEditable: source.accessibilityCapability.editable,
   });
   if (source.border !== undefined) clone.border = clonedPresentationValue(source.border);
   return registerPresentationCloneElement(context, source, clone);
@@ -289,6 +291,8 @@ function cloneImportedPresentationChart(container, source, context) {
     axes: clonedPresentationValue(source.axes),
     legend: clonedPresentationValue(source.legend),
     dataLabels: clonedPresentationValue(source.dataLabels),
+    ...(source.accessibility ? { accessibility: clonedPresentationValue(source.accessibility) } : {}),
+    _officeKitAccessibilityEditable: source.accessibilityCapability.editable,
     ...(source.styleId === undefined ? {} : { styleId: source.styleId }),
     varyColors: source.varyColors,
     barOptions: clonedPresentationValue(source.barOptions),
@@ -763,15 +767,22 @@ function presentationRgb(value, name) {
 }
 
 function presentationChart(chart, original) {
-  return presentationChartToWire(chart, original, {
+  const result = presentationChartToWire(chart, original, {
     emuFromPixels,
     rgb: presentationRgb,
     sourceBoundFrameEmuFromPixels,
   });
+  const accessibility = normalizePresentationAccessibility(chart.accessibility, `Presentation chart ${chart.id}`);
+  if (accessibility) result.content.value.accessibility = accessibility;
+  return result;
 }
 
-function modelPresentationChart(source) {
-  return modelPresentationChartFromWire(source, EMU_PER_PIXEL);
+function modelPresentationChart(source, accessibilityEditable) {
+  return {
+    ...modelPresentationChartFromWire(source, EMU_PER_PIXEL),
+    ...modelPresentationAccessibility(source.accessibility, "Imported Presentation chart"),
+    ...(accessibilityEditable === undefined ? {} : { _officeKitAccessibilityEditable: accessibilityEditable === true }),
+  };
 }
 
 function unsupportedStyleFields(style = {}) {
@@ -1563,12 +1574,12 @@ function modelPresentationShadow(shadow) {
   };
 }
 
-function modelPresentationAccessibility(value) {
+function modelPresentationAccessibility(value, owner = "Imported Presentation shape") {
   if (!value) return {};
   const accessibility = normalizePresentationAccessibility({
     ...(value.title === undefined ? {} : { title: value.title }),
     ...(value.description === undefined ? {} : { description: value.description }),
-  }, "Imported Presentation shape");
+  }, owner);
   return accessibility ? { accessibility } : {};
 }
 
@@ -1983,6 +1994,7 @@ function presentationTable(table, original) {
   const rowHeightsEmu = originalTable
     ? scalePresentationTableSize(originalTable.rows.map((row) => row.heightEmu), heightEmu, `${table.id} rows`)
     : distributePresentationTableSize(heightEmu, rows, `${table.id} rows`);
+  const accessibility = normalizePresentationAccessibility(table.accessibility, `Presentation table ${table.id}`);
   return {
     id: original?.id || table.id,
     name: String(table.name || original?.name || ""),
@@ -2007,6 +2019,7 @@ function presentationTable(table, original) {
         })),
         ...(originalTable?.firstRow === undefined ? { firstRow: Boolean(table.styleOptions?.headerRow) } : { firstRow: originalTable.firstRow }),
         ...(originalTable?.bandedRows === undefined ? { bandedRows: Boolean(table.styleOptions?.bandedRows) } : { bandedRows: originalTable.bandedRows }),
+        ...(accessibility ? { accessibility } : {}),
       },
     },
   };
@@ -3233,6 +3246,8 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       rows: table.rows.length,
       columns: table.columnWidthsEmu.length,
       styleOptions: { headerRow: table.firstRow === true, bandedRows: table.bandedRows === true },
+      ...modelPresentationAccessibility(table.accessibility, "Imported Presentation table"),
+      _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
     };
   }
   if (element.content.case === "connector") {
@@ -3261,7 +3276,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       _officeKitSourceBound: Boolean(element.source),
     };
   }
-  if (element.content.case === "chart") return { kind: "chart", ...common, ...modelPresentationChart(element.content.value) };
+  if (element.content.case === "chart") return { kind: "chart", ...common, ...modelPresentationChart(element.content.value, element.source?.accessibilityEditable) };
   if (element.content.case === "group") return { kind: "groupShape", ...modelPresentationGroup(element, assetCatalog, customShowLinks) };
   throw new OfficeKitCodecError(`Presentation group child ${element.id} has unsupported wire content ${element.content.case || "none"}.`, [], { code: "invalid_presentation_group" });
 }
@@ -3479,6 +3494,8 @@ export async function presentationFromEnvelope(envelope) {
             headerRow: table.firstRow === true,
             bandedRows: table.bandedRows === true,
           },
+          ...modelPresentationAccessibility(table.accessibility, "Imported Presentation table"),
+          _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
           mergeRanges: table.mergeRanges.map((range) => ({
             startRow: Number(range.startRow),
             endRow: Number(range.endRow),
@@ -3512,7 +3529,7 @@ export async function presentationFromEnvelope(envelope) {
           _officeKitSourceBound: Boolean(element.source),
         });
       } else if (element.content.case === "chart") {
-        const chart = modelPresentationChart(element.content.value);
+        const chart = modelPresentationChart(element.content.value, element.source?.accessibilityEditable);
         model = slide.charts.add(chart.chartType, {
           id: element.id,
           name: element.name,

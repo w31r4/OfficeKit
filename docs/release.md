@@ -2,13 +2,53 @@
 
 ## Current 0.6.0 package evidence (2026-08-10)
 
-The package dry-run passed with ordinary-shape alternative text and the rebuilt
-OfficeKit Codec runtime. The candidate contains 714 files, 36,225,937
-compressed bytes, and 53,398,944 unpacked bytes; its measured shasum is
-`3e7c3db5c40de3d2446ac76f222f864943a12c02`. It remains below the
-53,400,000-byte ceiling with 1,056 bytes of measured headroom. The runtime
-manifest covers 38 files and 15,403,755 bytes. This is package evidence, not an
-npm registry publication or tagged release.
+The package dry-run passed with shape/table/chart alternative text and the
+rebuilt OfficeKit Codec runtime. The candidate contains 714 files, 36,228,929
+compressed bytes, and 53,408,765 unpacked bytes; its measured shasum is
+`74eb189c668dc6838539798f7a26c45aef2f33b9`. The exact feature delta crossed
+the former 53,400,000-byte ceiling, so the audited unpacked ceiling moves
+narrowly to 53,420,000 bytes with 11,235 bytes of measured headroom; the
+37,500,000-byte compressed ceiling is unchanged. The runtime manifest covers
+38 files and 15,405,291 bytes. This is package evidence, not an npm registry
+publication or tagged release.
+
+## Unreleased: Presentation table and chart alternative text
+
+Presentation tables and charts now share the ordinary-shape accessibility
+contract: source-free objects accept optional non-visible `{ title?,
+description? }`, expose a fresh `accessibilityCapability`, and can add, change,
+or clear either field through `setAccessibilityMetadata(...)`. A chart's
+non-visible metadata remains independent of its visible chart title. The public
+Help catalog and runnable Presentation Skill document the same typed surface.
+
+Protocol v2 appends `PresentationTable.accessibility` field 10 and
+`PresentationChart.accessibility` field 16 without changing prior numbers or
+the wire version. The source-built OfficeKit Codec uses the existing shared
+non-visual leaf to read and write `p:nvGraphicFramePr/p:cNvPr` for top-level or
+nested modeled table/chart objects. Canonical source-bound metadata is editable
+only after export re-proves the bounded child-free profile. Unknown attributes
+or children, hyperlinks, extensions, and malformed values remain byte-owned by
+the source: unrelated supported cell/chart edits preserve them, while a direct
+or bypassed metadata mutation fails closed.
+
+JavaScript and .NET tests cover source-free authoring, import, add/change/clear,
+second import, exact no-op packages, exact non-slide-part stability, nested
+table/chart paths, invalid values, capability tampering, irregular-source
+preservation, and Open XML SDK validation. The runnable readiness fixture
+proves the native attributes through bundled WASM and model/native render QA.
+This bounded slice does not claim group-frame or picture metadata, decorative
+state, reading order, generated chart descriptions, or whole-deck accessibility
+conformance.
+
+Local gates passed: fast 26/26, slow 75/75, OfficeKit Codec 399/399,
+OfficeBridge 5/5, generated Help/API docs, protocol lint/regeneration,
+deterministic WASM verification across 39 outputs, reference Skill
+sync/portability, Playwright, LibreOffice/Poppler Presentation and template
+rendering, real qpdf, clean-install, standalone distribution, and `test:pack`.
+Managed provider downloads and separately configured pypdf, pikepdf, pyHanko,
+veraPDF, OCRmyPDF, and PromptBench Python environments remained explicit skips;
+their offline contracts passed. npm authentication, an actual tagged/npm
+release, and Windows Microsoft Office host acceptance remain external blockers.
 
 ## Unreleased: Presentation ordinary-shape alternative text
 
@@ -28,7 +68,7 @@ capability preflight, edit/clear, second import, source/no-op identity,
 non-target package stability, bypass refusal, Open XML SDK validation, and
 render invariance. The runnable Presentation readiness fixture and shipped
 Shape reference carry the same contract. This slice does not claim decorative
-state, reading order, other Presentation element kinds, or whole-deck
+state, reading order, group-frame/picture/connector metadata, or whole-deck
 accessibility conformance.
 
 The C# reader uses one allocation-light attribute scan, and the Presentation
