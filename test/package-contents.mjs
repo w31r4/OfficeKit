@@ -175,9 +175,9 @@ const maxPackedBytes = 37_500_000;
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
 // Keep measured headroom for bounded codec/Skill growth without concealing
 // specialist binaries or generated repository evidence in the tarball. The
-// decorative-classification wire/runtime/Skill slice measured 53,435,772 bytes,
-// so its audited ceiling advances by only another 10,000 bytes.
-const maxUnpackedBytes = 53_440_000;
+// The read-only Presentation accessibility audit slice measured 53,454,754
+// bytes, so its audited ceiling retains only about 15 KiB of headroom.
+const maxUnpackedBytes = 53_470_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -405,6 +405,8 @@ for (const required of [
   "skills/presentations/skills/presentations/style_guidelines.md",
   "skills/presentations/skills/presentations/routing/google_slides.md",
   "skills/presentations/skills/presentations/artifact_tool/API_QUICK_START.md",
+  "skills/presentations/skills/presentations/artifact_tool/api/references/accessibility.spec.md",
+  "skills/presentations/skills/presentations/examples/officekit-accessibility-audit-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-chart-families-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-chart-trendline-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-legacy-comment-add-workflow.mjs",

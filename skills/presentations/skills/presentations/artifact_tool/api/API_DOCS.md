@@ -232,6 +232,7 @@ Open these references as needed:
 - [`references/presentation.spec.md`](./references/presentation.spec.md) — `Presentation` facade, slide collection, view controls, export/toProto, scripts.
 - [`references/custom-shows.spec.md`](./references/custom-shows.spec.md) — native custom-show authoring, fixed-topology imported edits, opaque preservation, and audited workflow.
 - [`references/sections.spec.md`](./references/sections.spec.md) — native PowerPoint section authoring, fixed-topology imported edits, separate source-bound name and complete-boundary transactions, opaque preservation, and verification.
+- [`references/accessibility.spec.md`](./references/accessibility.spec.md) — object classification/alternative-text audit, read-only source provenance, and explicit manual reading-order/native-object review.
 - [`references/slide.spec.md`](./references/slide.spec.md) — `Slide` API, backgrounds, placeholders, notes, export, auto-layout.
 - [`references/grouping.spec.md`](./references/grouping.spec.md) — recursive native `p:grpSp` authoring, local child coordinates, fixed-topology imported edits, and opaque fail-closed boundaries.
 - [`references/inspect.md`](./references/inspect.md) — grep-first snapshot (`inspect → rg → resolve/edit → re-inspect`) for loaded presentation data and templates.

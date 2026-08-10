@@ -7,11 +7,8 @@ description: "Create, inspect, edit, redact, sign, render, and verify PDF files 
 Use `../office-kit/references/workspace.md` for `inputRoot`, `taskRoot`, `outputRoot`, `evidenceRoot`, absolute PDF paths, SHA-256, locators, and visual-review status.
 For multi-step PDF work use `officekit repl` and `../office-kit/references/repl.md`; import through `ctx.import`, keep summaries in `ctx.state`, publish with `ctx.publish`, register QA with `ctx.recordEvidence`, and inspect before retrying `maybeApplied` mutations. Provider setup, OCR, signing, repair, and conformance remain explicit commands.
 After the final PDF is reopened, follow `../office-kit/references/review.md`.
-The optional text reading view (`contentView: "anydoc"`) is a bounded reading view powered by AnyDoc; it is not OCR, signature evidence,
-redaction residue evidence, PDF/UA validation, or visual QA.
-Use the public `office-kit` package for OfficeKit PDF work. Never import or use
-`@oai/artifact-tool`: it is a different host-bundled runtime, not an OfficeKit
-alias or fallback, and its output must never be attributed to OfficeKit.
+The optional AnyDoc text reading view (`contentView: "anydoc"`) is bounded, not OCR, signature/redaction evidence, PDF/UA validation, or visual QA.
+Use the public `office-kit` package for OfficeKit PDF work. Never import or use `@oai/artifact-tool`: it is a different host runtime, not an OfficeKit alias or fallback, and its output must never be attributed to OfficeKit.
 This Skill gives an agent bounded, auditable PDF primitives. PDF is independent
 from the OfficeKit DOCX/XLSX/PPTX codec: do not add a PDF protobuf/WASM codec or
 reconstruct an imported PDF through `PdfArtifact` or PDF.js and call that a

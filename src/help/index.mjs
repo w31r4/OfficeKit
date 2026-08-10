@@ -297,6 +297,7 @@ export const HELP_CATALOG = [
   { artifactKind: "presentation", kind: "api", name: "presentation.resolve", summary: "Map stable inspect anchor IDs back to facade objects, including custom shows, PowerPoint sections, and slide transitions; imported advanced package objects may be read-only." },
   { artifactKind: "presentation", kind: "api", name: "presentation.export", summary: "Export a slide SVG preview, deck SVG montage via { format: 'montage' }, or target/search-sliced layout JSON." },
   { artifactKind: "presentation", kind: "api", name: "presentation.validateLayout", summary: "Detect layout QA issues across slides, including off-canvas elements, geometry overlaps, and basic text overflow." },
+  { artifactKind: "presentation", kind: "api", name: "presentation.auditAccessibility", summary: "Audit modeled slide objects for explicit meaningful/decorative classification and non-visible title/description coverage, while separating native-object and reading-order checks that still require manual host review. It never claims whole-deck accessibility conformance." },
   { artifactKind: "presentation", kind: "api", name: "presentation.verify", summary: "Return QA issues for layout validation, missing master/layout references, placeholder fidelity, chart/data consistency, table shape, image data, and dangling comments." },
   { artifactKind: "presentation", kind: "api", name: "slide.shapes.add", summary: "Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with optional non-visible title/description/decorative metadata. Lines support bounded dash/line-end/cap/join styling; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity." },
   { artifactKind: "presentation", kind: "api", name: "shape.accessibilityCapability", summary: "Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/description/decorative metadata; export re-proves it." },
@@ -1719,6 +1720,9 @@ const PRESENTATION_HELP_SCHEMAS = {
     boundsPadding: { type: "number", description: "Allowed padding outside the slide bounds." },
     maxChars: { type: "number", description: "Maximum bounded NDJSON issue output size." },
   }, "report", "object", "Layout QA result with ok, issues, ndjson, and truncated."),
+  "presentation.auditAccessibility": helpSchema({
+    maxChars: { type: "number", description: "Maximum bounded NDJSON size across machine issues and manual-review records." },
+  }, "report", "object", "A host-neutral report with machineCheckPassed, conformanceClaimed: false, manualReviewRequired, counts, machine issues, and separate manual checks. Unclassified modeled objects and explicit meaningful objects without title/description fail the machine check. Opaque native objects and multi-object slide reading order remain manual checks; the audit does not mutate shape-tree order or claim PowerPoint/PDF accessibility conformance."),
   "presentation.verify": helpSchema({
     minOverlapArea: { type: "number", description: "Minimum overlap area for layout QA." },
     boundsPadding: { type: "number", description: "Allowed padding outside slide bounds." },

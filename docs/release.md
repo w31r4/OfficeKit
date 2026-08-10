@@ -1,6 +1,42 @@
 # Release
 
-## Current 0.6.0 package evidence (2026-08-10)
+## Current 0.6.0 package evidence (2026-08-10): Presentation accessibility audit
+
+`presentation.auditAccessibility()` now gives Agents one bounded, host-neutral
+review primitive over modeled slide objects. It counts every slide, including
+empty slides; reports meaningful, decorative, unclassified, missing-text, and
+opaque-native states; and returns stable slide/object locators. Machine issues
+remain separate from `readingOrder` and `opaqueObjectAccessibility` manual
+checks. `conformanceClaimed` is always false: this is not PowerPoint
+Accessibility Checker, WCAG, PDF/UA, or whole-deck certification.
+
+The Presentation Skill ships a read-only existing-PPTX workflow and a focused
+reference page. The workflow binds the source path, bytes, and SHA-256, imports
+through OfficeKit Codec, records provider/package version and `savePolicy:
+none`, re-hashes the source, and publishes only a private-then-no-replace JSON
+report. It fails closed on invalid input, invalid output limits, source
+mutation, and report collision. OfficeKit never changes `p:spTree` to pretend
+that reading order is independently editable, because doing so would also
+change visual z-order.
+
+The audited npm dry-run contains 717 files, 36,242,770 compressed bytes, and
+53,454,754 unpacked bytes (`shasum
+5ff4cae06934e0e53ae1f5f25aeffd0010a91cd2`). The unpacked regression ceiling
+moves narrowly to 53,470,000 bytes, leaving 15,246 bytes of headroom.
+
+Local gates passed: fast 26/26, slow 75/75, OfficeKit Codec 400/400,
+OfficeBridge 5/5, protocol lint/regeneration/idempotence, deterministic WASM
+verification across 39 outputs, runnable Presentation Skill model/native
+rendering, reference Skill sync/portability, Playwright, LibreOffice/Poppler
+template rendering, real qpdf, clean install, standalone distribution,
+generated Help/API docs, and `test:pack`. The deterministic runtime contains 38
+files at 15,412,459 bytes. Managed provider-pack downloads and separately
+configured pypdf, pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python
+environments remained explicit skips; their offline contracts passed. npm
+publication, a tagged release, and Windows Microsoft Office host acceptance
+remain external blockers.
+
+## Prior 0.6.0 package evidence: decorative classification
 
 The package dry-run passed with shape/connector/group/image/table/chart
 accessibility classification and the rebuilt OfficeKit Codec runtime. The

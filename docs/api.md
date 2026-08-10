@@ -1780,6 +1780,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `nativeObject.setDiagramNodeText` | api | Replace text in one existing source-bound SmartArt document node only when its top-level four-part graph and DiagramDataPart prove the canonical one-paragraph/one-run plain-text profile. Node IDs, graph topology, layout/style/colors, geometry, and every non-data part remain fixed; unsupported diagrams reject without fallback. |
 | `nativeObject.setName` | api | Native OLE, SmartArt/diagram, contentPart, and media objects imported through OfficeKit are source-bound and read-only for names; setName rejects instead of mutating the preserved package graph. A separate bounded SmartArt plain-node text capability is exposed only as nativeObject.setDiagramNodeText. |
 | `nativeObject.setPosition` | api | Native OLE, SmartArt/diagram, contentPart, and media objects imported through OfficeKit are source-bound and read-only; setPosition rejects instead of rewriting their geometry or payload graph. |
+| `presentation.auditAccessibility` | api | Audit modeled slide objects for explicit meaningful/decorative classification and non-visible title/description coverage, while separating native-object and reading-order checks that still require manual host review. It never claims whole-deck accessibility conformance. |
 | `Presentation.create` | api | Create a deck model whose canonical OfficeKit export supports ordinary slides, the complete ECMA-376 base slide-transition vocabulary, direct solid/style-reference slide backgrounds, shapes, rich text, tables, images, connectors, recursive native p:grpSp groups, plain-text speaker notes, native custom shows with canonical run links, literal bar/line/pie/standard-area/fixed-doughnut/marker-scatter/2D-bubble charts, and a bounded literal clustered bar+line combo profile. Combo bars stay on the primary pair; all lines share either that pair or the canonical secondary top/right pair. Formula/external chart data, custom themes, Master/Layout authoring, comments, custom-show topology mutation, advanced plot geometry, mixed line groups, secondary bars, irregular combo graphs, and other package-level features remain outside the source-free PPTX boundary. |
 | `presentation.customShows.add` | api | Define an ordered native p:custShowLst playback route for source-free OfficeKit export. Text runs may target a show by exact name with optional returnToSlide. Canonical imported shows may change only their name and ordered retained-slide membership; fixed native identity keeps existing run links bound across a rename, while irregular graphs stay opaque. |
 | `presentation.customShows.getItem` | api | Resolve a source-free or canonical imported custom show by zero-based index, stable facade ID, or exact name. |
@@ -2120,6 +2121,18 @@ Native OLE, SmartArt/diagram, contentPart, and media objects imported through Of
 **Schema returns:**
 
 - `nativeObject` (NativePresentationObject) — No mutation is performed; native geometry and payload graphs remain source-bound and read-only.
+
+#### `presentation.auditAccessibility`
+
+Audit modeled slide objects for explicit meaningful/decorative classification and non-visible title/description coverage, while separating native-object and reading-order checks that still require manual host review. It never claims whole-deck accessibility conformance.
+
+**Schema parameters:**
+
+- `maxChars` (number) — Maximum bounded NDJSON size across machine issues and manual-review records.
+
+**Schema returns:**
+
+- `report` (object) — A host-neutral report with machineCheckPassed, conformanceClaimed: false, manualReviewRequired, counts, machine issues, and separate manual checks. Unclassified modeled objects and explicit meaningful objects without title/description fail the machine check. Opaque native objects and multi-object slide reading order remain manual checks; the audit does not mutate shape-tree order or claim PowerPoint/PDF accessibility conformance.
 
 #### `Presentation.create`
 

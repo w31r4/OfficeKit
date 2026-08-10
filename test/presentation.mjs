@@ -2509,11 +2509,13 @@ const decorativeFrom = decorativeGroup.shapes.add({
   name: "decorative-from",
   position: { left: 10, top: 40, width: 120, height: 60 },
   text: "A",
+  accessibility: { title: "Workflow source node", decorative: false },
 });
 const decorativeTo = decorativeGroup.shapes.add({
   name: "decorative-to",
   position: { left: 290, top: 40, width: 120, height: 60 },
   text: "B",
+  accessibility: { title: "Workflow destination node", decorative: false },
 });
 const decorativeConnector = decorativeGroup.connectors.add({
   name: "decorative-connector",
@@ -2532,14 +2534,30 @@ assert.throws(
 );
 assert.deepEqual(classifiedShape.accessibility, { title: "Meaningful status", decorative: false });
 assert.throws(() => decorativeImage.setAccessibilityMetadata({ decorative: "true" }), /decorative must be a boolean/i);
+const decorativeAudit = decorativePresentation.auditAccessibility({ maxChars: 20_000 });
+assert.equal(decorativeAudit.machineCheckPassed, true);
+assert.equal(decorativeAudit.conformanceClaimed, false);
+assert.equal(decorativeAudit.manualReviewRequired, true);
+assert.deepEqual(decorativeAudit.summary, {
+  slides: 1,
+  modeledObjects: 8,
+  meaningfulObjects: 3,
+  decorativeObjects: 5,
+  unclassifiedObjects: 0,
+  missingTextObjects: 0,
+  opaqueNativeObjects: 0,
+});
+assert.deepEqual(decorativeAudit.issues, []);
+assert.deepEqual(decorativeAudit.manualChecks.map((check) => check.type), ["readingOrder"]);
+assert.doesNotMatch(decorativeAudit.ndjson, /"conformanceClaimed"/u, "accessibility audit NDJSON must remain record-only rather than inventing a conformance result");
 
 const decorativeSource = await PresentationFile.exportPptx(decorativePresentation);
 const decorativeSourceZip = await JSZip.loadAsync(decorativeSource.bytes);
 const decorativeSourceXml = await decorativeSourceZip.file("ppt/slides/slide1.xml").async("text");
-assert.equal((decorativeSourceXml.match(/<adec:decorative\b/g) || []).length, 6);
+assert.equal((decorativeSourceXml.match(/<adec:decorative\b/g) || []).length, 8);
 assert.equal((decorativeSourceXml.match(/<adec:decorative\b[^>]*\bval="(?:1|true)"/g) || []).length, 5);
-assert.equal((decorativeSourceXml.match(/<adec:decorative\b[^>]*\bval="(?:0|false)"/g) || []).length, 1);
-assert.equal((decorativeSourceXml.match(/uri="\{C183D7F6-B498-43B3-948B-1728B52AA6E4\}"/g) || []).length, 6);
+assert.equal((decorativeSourceXml.match(/<adec:decorative\b[^>]*\bval="(?:0|false)"/g) || []).length, 3);
+assert.equal((decorativeSourceXml.match(/uri="\{C183D7F6-B498-43B3-948B-1728B52AA6E4\}"/g) || []).length, 8);
 
 const decorativeImported = await PresentationFile.importPptx(decorativeSource);
 const decorativeImportedSlide = decorativeImported.slides.getItem(0);
@@ -2556,6 +2574,7 @@ for (const object of [importedDecorativeImage, importedDecorativeTable, imported
 }
 assert.equal(importedDecorativeImage.alt, "");
 assert.match(decorativeImported.inspect({ kind: "shape,image,table,chart,group,connector", maxChars: 20_000 }).ndjson, /"decorative":true/);
+assert.deepEqual(decorativeImported.auditAccessibility().summary, decorativeAudit.summary);
 const decorativeNoOp = await PresentationFile.exportPptx(decorativeImported);
 assert.deepEqual(decorativeNoOp.bytes, decorativeSource.bytes, "unchanged decorative metadata must return the exact source package");
 
@@ -2579,6 +2598,44 @@ assert.deepEqual(decorativeRoundTripGroup.accessibility, { title: "Decorative cl
 assert.deepEqual(itemByName(decorativeRoundTripGroup.connectors.items, "decorative-connector").accessibility, { decorative: true });
 const decorativeOutputSvg = await decorativeRoundTripSlide.export({ format: "svg" });
 assert.deepEqual(decorativeOutputSvg.bytes, decorativeSourceSvg.bytes, "decorative classification must not change model rendering");
+
+const incompleteAccessibilityDeck = Presentation.create();
+const incompleteAccessibilitySlide = incompleteAccessibilityDeck.slides.add({ name: "Accessibility audit boundaries" });
+incompleteAccessibilityDeck.slides.add({ name: "Empty slide still counted" });
+incompleteAccessibilitySlide.shapes.add({
+  name: "unclassified-shape",
+  position: { left: 20, top: 20, width: 120, height: 60 },
+  text: "Needs classification",
+});
+incompleteAccessibilitySlide.images.add({
+  name: "meaningful-without-text",
+  position: { left: 180, top: 20, width: 80, height: 60 },
+  dataUrl: PNG,
+  accessibility: { decorative: false },
+});
+incompleteAccessibilitySlide.nativeObjects.add({
+  name: "opaque-diagram",
+  nativeKind: "diagram",
+  rawXml: "<p:graphicFrame xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"/>",
+  position: { left: 300, top: 20, width: 120, height: 60 },
+});
+const incompleteAccessibilityAudit = incompleteAccessibilityDeck.auditAccessibility({ maxChars: 4_000 });
+assert.equal(incompleteAccessibilityAudit.machineCheckPassed, false);
+assert.equal(incompleteAccessibilityAudit.conformanceClaimed, false);
+assert.equal(incompleteAccessibilityAudit.manualReviewRequired, true);
+assert.deepEqual(incompleteAccessibilityAudit.issues.map((issue) => issue.type), ["unclassifiedObject", "meaningfulObjectTextMissing"]);
+assert.deepEqual(incompleteAccessibilityAudit.manualChecks.map((check) => check.type), ["opaqueObjectAccessibility", "readingOrder"]);
+assert.deepEqual(incompleteAccessibilityAudit.summary, {
+  slides: 2,
+  modeledObjects: 2,
+  meaningfulObjects: 1,
+  decorativeObjects: 0,
+  unclassifiedObjects: 1,
+  missingTextObjects: 1,
+  opaqueNativeObjects: 1,
+});
+assert.match(incompleteAccessibilityAudit.ndjson, /shape-tree order would also change visual z-order/u);
+assert.throws(() => incompleteAccessibilityDeck.auditAccessibility([]), /options must be an object/i);
 
 // The canonical file facade always crosses the OfficeKit C# WASM layer.
 const deck = Presentation.create({ slideSize: { width: 1280, height: 720 } });

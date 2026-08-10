@@ -286,6 +286,50 @@ try {
     assert.ok(compared.nativeRender.pages.every((slide) => slide.baselineCompared && slide.pixelDiff?.changed === false && slide.ok));
   }
 
+  const accessibilityAuditDir = path.join(root, "accessibility-audit");
+  const accessibilityReportPath = path.join(accessibilityAuditDir, "report.json");
+  const readinessSourceBeforeAudit = await fs.readFile(readiness.pptxPath);
+  const { auditPptxAccessibility } = await import(
+    "../skills/presentations/skills/presentations/examples/officekit-accessibility-audit-workflow.mjs"
+  );
+  const accessibilityResult = await auditPptxAccessibility({
+    inputPath: readiness.pptxPath,
+    reportPath: accessibilityReportPath,
+    maxChars: 100_000,
+  });
+  assert.equal(accessibilityResult.report.schema, "office-kit.pptx-accessibility-audit.v1");
+  assert.equal(accessibilityResult.report.provider.requested, "office-kit");
+  assert.equal(accessibilityResult.report.provider.actual, "office-kit");
+  assert.equal(accessibilityResult.report.provider.silentFallback, false);
+  assert.deepEqual(accessibilityResult.report.savePolicy, {
+    strategy: "none",
+    sourceMutation: false,
+    artifactProduced: false,
+  });
+  assert.equal(accessibilityResult.report.operation.type, "presentation-accessibility-audit");
+  assert.equal(accessibilityResult.report.accessibility.conformanceClaimed, false);
+  assert.equal(accessibilityResult.report.accessibility.manualReviewRequired, true);
+  assert.equal(accessibilityResult.report.accessibility.summary.slides, 3);
+  assert.equal(accessibilityResult.report.validation.sourceUnchanged, true);
+  assert.equal(accessibilityResult.report.validation.presentationVerify.ok, true);
+  assert.equal(accessibilityResult.report.boundaries.readingOrder, "manual-native-host-review");
+  assert.deepEqual(JSON.parse(await fs.readFile(accessibilityReportPath, "utf8")), accessibilityResult.report);
+  assert.deepEqual(await fs.readFile(readiness.pptxPath), readinessSourceBeforeAudit);
+  assert.deepEqual(await fs.readdir(accessibilityAuditDir), ["report.json"]);
+  await assert.rejects(
+    () => auditPptxAccessibility({ inputPath: readiness.pptxPath, reportPath: accessibilityReportPath }),
+    /already exists; refusing to overwrite/,
+  );
+  await assert.rejects(
+    () => auditPptxAccessibility({
+      inputPath: readiness.pptxPath,
+      reportPath: path.join(accessibilityAuditDir, "invalid-limit.json"),
+      maxChars: 0,
+    }),
+    /maxChars must be an integer from 1 through 2000000/,
+  );
+  assert.equal(await fs.access(path.join(accessibilityAuditDir, "invalid-limit.json")).then(() => true, () => false), false);
+
   const chartFamiliesDir = path.join(root, "chart-families-workflow");
   const chartFamiliesOutput = path.join(chartFamiliesDir, "chart-families.pptx");
   const chartFamiliesPreview = path.join(chartFamiliesDir, "chart-families.png");
@@ -2663,6 +2707,9 @@ try {
   assert.match(skillText, /officekit-slide-name-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-transition-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-slide-duplicate-workflow\.mjs/);
+  assert.match(skillText, /presentation\.auditAccessibility\(\)/);
+  assert.match(skillText, /officekit-accessibility-audit-workflow\.mjs/);
+  assert.match(skillText, /machineCheckPassed: true.*whole-deck conformance/is);
   assert.match(skillText, /--allow-closed-leaves/);
   assert.match(quickStartText, /PresentationFile\.exportPptx/);
   assert.match(quickStartText, /addPptxSpeakerNotes/);
@@ -2753,6 +2800,12 @@ try {
   assert.match(imageReferenceText, /DrawingML `a:srcRect`/);
   assert.match(imageReferenceText, /PPTX has no native fit keyword/i);
   assert.match(imageReferenceText, /unsafe edits fail\s+closed/i);
+  const accessibilityReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/accessibility.spec.md", "utf8");
+  assert.match(accessibilityReferenceText, /meaningful ordinary shapes, connectors, groups, images, tables, and charts/i);
+  assert.match(accessibilityReferenceText, /conformanceClaimed: false/);
+  assert.match(accessibilityReferenceText, /shape tree would also change\s+visual z-order/i);
+  assert.match(accessibilityReferenceText, /officekit-accessibility-audit-workflow\.mjs/);
+  assert.match(accessibilityReferenceText, /source mutation.*fail(?:s)? closed/is);
   const groupingReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/grouping.spec.md", "utf8");
   assert.match(skillText, /artifact_tool\/api\/references\/grouping\.spec\.md/);
   assert.match(groupingReferenceText, /real `p:grpSp`/);

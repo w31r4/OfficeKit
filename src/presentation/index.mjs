@@ -31,6 +31,7 @@ import { normalizePresentationImageCrop, normalizePresentationImageFit, presenta
 import { planPresentationModernComments } from "./ooxml-modern-comments.mjs";
 import { presentationFreeLineSvg, presentationShapeLineSvgAttributes } from "./line-styles.mjs";
 import { initializePresentationAccessibility, presentationAccessibilityCapability, setPresentationAccessibilityMetadata } from "./accessibility.mjs";
+import { auditPresentationAccessibility } from "./accessibility-audit.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const EMU_PER_PIXEL = 9_525;
@@ -666,6 +667,22 @@ export class Presentation {
   validateLayout(options = {}) {
     const issues = this.slides.items.flatMap((slide) => slide.validateLayout(options).issues);
     return { ok: issues.length === 0, issues, ...ndjson(issues, options.maxChars ?? Infinity) };
+  }
+
+  auditAccessibility(options = {}) {
+    if (!options || typeof options !== "object" || Array.isArray(options)) {
+      throw new TypeError("Presentation accessibility audit options must be an object.");
+    }
+    const records = this.slides.items.flatMap((slide) => presentationSlideElements(slide).map((element) => ({
+      slide: slide.index + 1,
+      id: element.id,
+      name: element.name || undefined,
+      kind: presentationElementKind(element),
+      nativeKind: element instanceof NativePresentationObject ? element.nativeKind : undefined,
+      parentGroupId: element.parentGroup?.id,
+      accessibility: element.accessibility ? { ...element.accessibility } : undefined,
+    })));
+    return auditPresentationAccessibility(records, { ...options, slideCount: this.slides.count });
   }
 
   verify(options = {}) {
