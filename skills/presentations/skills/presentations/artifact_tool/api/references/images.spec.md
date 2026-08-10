@@ -36,7 +36,7 @@ type ImageSource =
   | { prompt: string };
 
 type ImageAddOptions = ImageSource & {
-  accessibility?: { title?: string; description?: string };
+  accessibility?: { title?: string; description?: string; decorative?: boolean };
   alt?: string; // compatibility alias for accessibility.description
   fit?: "contain" | "cover" | "stretch";
   contentType?: string;
@@ -90,12 +90,16 @@ unless the edit explicitly changes them.
 Concrete source replacements produce concrete images; pass `prompt` when it
 should remain available as regeneration metadata.
 
-`image.accessibility` is a fresh `{ title?, description? }` snapshot.
+`image.accessibility` is a fresh
+`{ title?, description?, decorative?: boolean }` snapshot.
 `image.alt` reads and writes the same `description`; supplying both on add or
 replace is accepted only when their descriptions agree. For imported images,
 preflight `image.accessibilityCapability.editable` before calling
-`image.setAccessibilityMetadata({ title, description })`. An empty `alt`
-clears only the description.
+`image.setAccessibilityMetadata({ title, description, decorative })`. An empty
+`alt` clears only the description. A purely decorative picture uses only
+`{ decorative: true }`; `true` cannot coexist with title/description, and an
+explicit accessibility object prevents generation `prompt` text from becoming
+alternative text. Change classification and clear/add text in the same call.
 
 ## Edit Placement And Fit
 
@@ -137,13 +141,18 @@ explicit signed crop. Recognized source-bound rectangular pictures can add,
 edit, or remove that crop without rebuilding the rest of the package.
 
 Source-free and recognized imported pictures map `accessibility.title` and
-`accessibility.description` to native `p:nvPicPr/p:cNvPr/@title` and `@descr`.
+`accessibility.description` to native `p:nvPicPr/p:cNvPr/@title` and `@descr`;
+presence-aware `accessibility.decorative` maps to the Office 2019+
+`a:extLst/a:ext/adec:decorative@val` contract. Explicit `false` is retained and
+is distinct from an omitted classification.
 OfficeKit retains legacy wire `alt_text` as the one description field and
-appends only a title field, so JS never maintains two competing descriptions.
+appends title and decorative fields, so JS never maintains two competing
+descriptions.
 Unknown `cNvPr` attributes or children remain residual-protected during other
-bounded picture edits; a metadata edit changes only `title`/`descr` and keeps
-those unknown bytes instead of rebuilding the leaf. Decorative state, reading
-order, and whole-deck accessibility are separate contracts.
+bounded picture edits; a metadata edit changes only the three modeled leaves
+and keeps unknown bytes instead of rebuilding the leaf. Duplicate or malformed
+known decorative extensions fail closed. Reading order and whole-deck
+accessibility remain separate contracts.
 
 External images, non-rectangular masks, `borderRadius`, and pictures with blip
 effects or unsupported transforms remain outside this bounded native slice.
@@ -175,7 +184,7 @@ radius on the image facade itself.
 ```ts
 type ImageReplaceOptions =
   {
-    accessibility?: { title?: string; description?: string };
+    accessibility?: { title?: string; description?: string; decorative?: boolean };
     alt?: string; // compatibility alias for accessibility.description
     fit?: "contain" | "cover" | "stretch";
     contentType?: string;

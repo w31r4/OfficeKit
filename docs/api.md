@@ -1756,22 +1756,22 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 
 | Name | Kind | Summary |
 | --- | --- | --- |
-| `chart.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for a chart graphic-frame p:cNvPr title/description; export re-proves it. |
-| `chart.setAccessibilityMetadata` | api | Add, change, or clear non-visible chart title/description independently of its visible chart title. Imported irregular graphic-frame p:cNvPr graphs fail closed. |
+| `chart.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for chart graphic-frame p:cNvPr title/description/decorative metadata; export re-proves it. |
+| `chart.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible chart title/description/decorative metadata independently of its visible chart title. Imported irregular graphic-frame p:cNvPr graphs fail closed. |
 | `compose.column` | api | Create a vertical compose container. Use width/height fill, hug, or fixed pixels; gap and padding are in pixels. |
 | `compose.paragraph` | api | Create an editable text block with name, className/style text tokens, and stable inspect output. |
 | `compose.text` | api | Create the same editable paragraph node through the reference-template-compatible children-first text(children, props) helper. |
-| `connector.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for connector p:cNvPr title/description; export re-proves it. |
+| `connector.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for connector p:cNvPr title/description/decorative metadata; export re-proves it. |
 | `connector.bringToFront` | api | Move a source-free connector above modeled slide/group elements. Imported z-order is source-bound and rejects. |
 | `connector.sendToBack` | api | Move a source-free connector behind modeled slide/group elements. New shape-connected connectors start behind their nodes; imported z-order rejects. |
-| `connector.setAccessibilityMetadata` | api | Add, change, or clear non-visible connector title/description. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits. |
+| `connector.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible connector title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits. |
 | `connector.setConnectorFrom` | api | Atomically bind a connector start to a modeled same-tree shape and explicit connection-site index. |
 | `connector.setConnectorTo` | api | Atomically bind a connector end to a modeled same-tree shape and explicit connection-site index. |
 | `exportPptxWithOfficeKit` | api | Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse shapes, free-positioned p:sp lines with the shared six-style/line-end/cap/join outline profile, rich text and lists, basic fills/lines/shadows, straight/elbow/curved p:cxnSp connectors with target connection sites through that same line profile, embedded pictures with native crop/contain/cover semantics, fixed-grid plain-text tables, recursive native p:grpSp trees, relationship-free rich speaker notes, legacy annotations, Office 2021 modern root/direct-reply threads, source-free bar/line/pie charts, the bounded literal clustered bar+line combo profile with either shared primary axes or a canonical secondary line pair, validated payload-only replacement for eligible imported OLE XLSX workbooks plus the uniquely bound DOCX Office-package profile, and bounded source-bound text updates for canonical SmartArt document nodes. Recognized imported modern threads allow only existing text/status edits; their identity, author/date metadata, anchor/range, position, topology, relationships, and source hashes remain fixed. Inherited or complex graphs remain preserved and fail closed on unsupported mutation. |
-| `group.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/description; export re-proves it. |
-| `group.setAccessibilityMetadata` | api | Add, change, or clear non-visible group-frame title/description. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits. |
-| `image.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for picture p:cNvPr title/description; export re-proves the residual-protected picture profile. |
-| `image.setAccessibilityMetadata` | api | Add, change, or clear a picture's non-visible title/description. The legacy image.alt property reads and writes the same description state rather than creating a second metadata source. |
+| `group.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/description/decorative metadata; export re-proves it. |
+| `group.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible group-frame title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits. |
+| `image.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for picture p:cNvPr title/description/decorative metadata; export re-proves the residual-protected picture profile. |
+| `image.setAccessibilityMetadata` | api | Transactionally add, change, or clear a picture's non-visible title/description/decorative metadata. The legacy image.alt property reads and writes the same description state rather than creating a second metadata source. |
 | `importPptxWithOfficeKit` | api | Import PPTX bytes with editable bounded direct slide backgrounds, shapes, free-positioned p:sp lines including bounded line ends/caps/joins, rich text, recognized owner-local SlidePart placeholder text, rectangular pictures and native source rectangles, tables, target-bound p:cxnSp connectors, recursive canonical p:grpSp groups, bar/line/pie charts, the canonical literal clustered bar+line combo profile with either shared primary axes or a secondary line pair, legacy text-only speaker notes plus fixed-topology relationship-free rich notes and a re-proven addable capability for eligible notes-absent slides, unchanged-only legacy comments, fixed-topology modern comment text/status edits, defensive payload access for eligible OLE XLSX workbooks plus one uniquely bound DOCX Office-package profile, and a source-bound SmartArt plain-node text capability only for the canonical closed four-part one-paragraph/one-run DiagramDataPart profile. Compound/theme/custom-dash/effect/extension outlines and all other unsupported content remain source-bound and read-only rather than being flattened. |
 | `nativeObject.getEmbeddedOfficePackage` | api | Read a defensive FileBlob copy from an eligible source-bound top-level OLE package. It is compatible with the legacy XLSX workbook profile and currently adds one uniquely bound DOCX profile; it never exposes arbitrary OLE or native-part mutation. |
 | `nativeObject.getEmbeddedWorkbook` | api | Read a defensive FileBlob copy of the XLSX payload from an eligible source-bound top-level OLE object without exposing arbitrary native-part mutation. |
@@ -1815,8 +1815,8 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `PresentationFile.importPptx` | api | Import PPTX through the single bundled OfficeKit codec with bounded free-positioned p:sp lines including direct line ends/caps/joins, source-bound opaque preservation, speaker-notes edit/add capability evidence, bounded text-only edits for recognized local SlidePart placeholders and canonical SmartArt plain document nodes, eligible OLE XLSX payload access/replacement plus uniquely bound DOCX Office-package access/replacement, and fail-closed unsupported edits. |
 | `PresentationFile.inspectPptx` | api | Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics after raw-input, part-count, decompression, and optional compression-ratio budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `PresentationFile.patchPptx` | api | Apply path-validated PPTX part patches, including safe slide/master/layout ID lists and slide image/chart DrawingML mutations, and atomically reject dangling package references or invalid notes/comments semantics. |
-| `shape.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/description; export re-proves it. |
-| `shape.setAccessibilityMetadata` | api | Add, change, or clear non-visible ordinary-shape title/description. Imported irregular p:cNvPr graphs fail closed. |
+| `shape.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/description/decorative metadata; export re-proves it. |
+| `shape.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible ordinary-shape title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed. |
 | `shape.text.set` | api | Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export. |
 | `shape.useBackgroundFill` | api | Read the presence-aware imported PresentationML p:sp useBgFill flag. It affects preview paint but remains source-bound and read-only; source-free authoring or wire mutation fails closed. |
 | `slide.addNotes` | api | Set speaker notes as text or relationship-free paragraph/run data for inspect, preview, and canonical PPTX output. OfficeKit authors source-free notes, preserves the legacy text-only edit path, and edits a fixed imported rich paragraph/run topology; fields, hyperlinks, picture bullets, notes-body list styles/layout, and unsafe NotesMaster graphs remain source-bound and fail closed. |
@@ -1831,14 +1831,14 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.connectors.add` | api | Legacy low-level connector authoring from explicit points or target centers. Prefer slide.shapes.connect or geometry: connector when DrawingML target-plus-site identity matters. |
 | `slide.delete` | api | Remove this slide. Source-free decks may remove any non-final slide. An imported PPTX performs a real OPC deletion only for an isolated slide with exactly its layout relationship and no inbound/package-identity references; media, notes, comments, charts, OLE, hyperlinks, custom shows, sections, extensions, and all clone requests fail closed. |
 | `slide.duplicate` | api | Clone one original imported PPTX slide only when its unchanged graph contains canonical shapes, canonical inline fixed-grid tables with bounded rectangular merges, recognized closed literal-data charts, eligible top-level embedded-XLSX OLE frames, canonical top-level four-part SmartArt frames, canonical top-level closed InkML content parts, canonical top-level embedded-MP4 media pictures, embedded rectangular images, bounded canonical straight/elbow/curved connectors, and recursively canonical groups containing only the non-native-graph leaf kinds, exactly one layout relationship, picture-bound image relationships, canonical run-level external/internal/relative-action links plus relationship-free custom-show links bound to an existing stable native show ID, and optional closed NotesSlide-to-NotesMaster/back-to-slide plus bounded legacy-comments leaves. Relationship-backed links keep exact IDs and targets; custom-show actions add no relationship and the clone is never inserted into show membership. Every accepted chart frame uniquely consumes one internal relationship to a numbered ChartPart whose child, external, hyperlink, and data relationship sets are empty. Every accepted OLE frame uniquely consumes one internal package relationship to a closed, uniquely inbound XLSX EmbeddedPackagePart and one internal preview ImagePart relationship. Every accepted SmartArt frame owns exactly one internal dm/lo/qs/cs relationship set to closed relationship-free diagram data, layout, quick-style, and colors parts. Every accepted media picture owns one canonical video/media relationship pair to a uniquely inbound, non-empty, relationship-free video/mp4 part plus one poster ImagePart. Every present connector endpoint must resolve to an element in the same copied SlidePart tree. Accepted tables are inline-only and cannot add a fill, link, or another package edge; accepted groups and connectors add no relationship themselves, and every nested picture must consume one exact verified ImagePart relationship. The pending clone resolves connector targets to fresh clone-local elements, while export privately preserves the source-bound target-plus-site identities. Export creates a distinct SlidePart and presentation relationship, allocates distinct byte-identical ChartPart, EmbeddedPackagePart, four typed diagram parts, and SDK MediaDataPart payloads for the accepted closed leaves, shares the verified layout, immutable ordinary/OLE-preview/media-poster ImageParts, NotesMaster, and presentation-wide CommentAuthorsPart, copies accepted NotesSlide and SlideComments XML byte-for-byte, and repoints only the notes back-reference at the clone while retaining the origin. The clone must remain untouched until export and reimport; its ChartParts, OLE workbook packages, SmartArt parts, InkML parts, and MP4 parts are then independent. Supported chart or OLE-workbook edits on the clone cannot affect the origin; a separately recognized canonical plain-node SmartArt diagram exposes only source-bound node-text replacement, while other SmartArt, InkML, and media remain source-bound/read-only after reimport. Malformed, shared, external, non-XLSX, nested, relationship-bearing, or replacement-pending OLE graphs, nested/noncanonical/connected SmartArt, InkML, or media graphs, malformed/relationship-bearing/dangling custom-show actions, unsupported connector forms or targets, formula/external-data/embedded-workbook/connected/orphan chart graphs, shape-level/hover/unknown/orphan hyperlinks, external or irregular images, and other complex graphs fail closed. |
-| `slide.groups.add` | api | Author recursive native DrawingML p:grpSp trees with optional non-visible group title/description, outer off/ext, and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, extensions, or unsupported descendants remain opaque and read-only. |
-| `slide.images.add` | api | Add an inspectable image facade with non-visible title/description metadata, the compatible alt description alias, embedded data, contain/cover/stretch fitting, explicit crop, frame, direct rotation/flips, layout JSON, crop-aware SVG preview, and PPTX output. OfficeKit maps the bounded rectangular profile to native DrawingML p:cNvPr and a:srcRect. |
+| `slide.groups.add` | api | Author recursive native DrawingML p:grpSp trees with optional non-visible group title/description/decorative metadata, outer off/ext, and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, unknown extensions, or unsupported descendants remain opaque and read-only. |
+| `slide.images.add` | api | Add an inspectable image facade with non-visible title/description/decorative metadata, the compatible alt description alias, embedded data, contain/cover/stretch fitting, explicit crop, frame, direct rotation/flips, layout JSON, crop-aware SVG preview, and PPTX output. OfficeKit maps the bounded rectangular profile to native DrawingML p:cNvPr, the Office 2019+ decorative extension, and a:srcRect. |
 | `slide.moveTo` | api | Move this slide to an existing 0-based deck index. On an imported PPTX, OfficeKit rewrites only the retained source SlidePart order in the presentation slide-ID list; unrelated topology changes and broad graph clones remain fail-closed. |
 | `slide.placeholders.getItem` | api | Resolve a slide placeholder shape by stable ID, name, placeholder type, or numeric index. Imported placeholder.textEditable reports a verified local SlidePart text capability; identity, geometry, formatting, layout binding, and inherited Master/Layout graphs remain source-bound. |
 | `slide.setBackground` | api | Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited. |
 | `slide.setLayout` | api | Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export. |
 | `slide.setTransition` | api | Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension, and irregular source graphs fail closed. |
-| `slide.shapes.add` | api | Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with optional non-visible title/description metadata. Lines support bounded dash/line-end/cap/join styling; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity. |
+| `slide.shapes.add` | api | Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with optional non-visible title/description/decorative metadata. Lines support bounded dash/line-end/cap/join styling; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity. |
 | `slide.shapes.connect` | api | Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export. |
 | `slide.shapes.getConnectionSiteIndex` | api | Resolve top/left/bottom/right to a stable bounded preset connection-site index for rect, roundRect, textbox, or ellipse. Custom shapes expose an ordered site table but require its explicit numeric index; other geometries fail closed. |
 | `slide.speakerNotes.capability` | api | Return defensive sourceBound, partPresent, editable, and addable evidence. addable identifies an imported notes-absent slide whose source NotesMaster/SlideMaster Theme graph can safely receive a canonical NotesSlide. Export independently re-proves the package graph, so mutating model or wire data cannot grant authority. |
@@ -1846,15 +1846,15 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slideCommentThread.addReply` | api | Append a direct reply to a source-free Office 2021 modern comment thread. Imported reply topology is fixed: existing reply text/status may change, but adding or removing replies fails closed. |
 | `slideCommentThread.reopen` | api | Set the modern root comment status back to active while preserving fixed imported identity, anchor, position, and reply topology. |
 | `slideCommentThread.resolve` | api | Set the modern root comment status to resolved. Imported export re-proves author/date/anchor/position/topology and source-part hashes before changing only status. |
-| `table.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for a table graphic-frame p:cNvPr title/description; export re-proves it. |
+| `table.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for table graphic-frame p:cNvPr title/description/decorative metadata; export re-proves it. |
 | `table.merge` | api | Merge one inclusive rectangular table range, retain the upper-left value, clear and lock covered cells, and emit canonical DrawingML merge topology. |
-| `table.setAccessibilityMetadata` | api | Add, change, or clear non-visible table title/description. Imported irregular graphic-frame p:cNvPr graphs fail closed. |
+| `table.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible table title/description/decorative metadata. Imported irregular graphic-frame p:cNvPr graphs fail closed. |
 
 ### presentation details
 
 #### `chart.accessibilityCapability`
 
-Report sourceBound/editable/addable preflight for a chart graphic-frame p:cNvPr title/description; export re-proves it.
+Report sourceBound/editable/addable preflight for chart graphic-frame p:cNvPr title/description/decorative metadata; export re-proves it.
 
 **Schema returns:**
 
@@ -1862,11 +1862,11 @@ Report sourceBound/editable/addable preflight for a chart graphic-frame p:cNvPr 
 
 #### `chart.setAccessibilityMetadata`
 
-Add, change, or clear non-visible chart title/description independently of its visible chart title. Imported irregular graphic-frame p:cNvPr graphs fail closed.
+Transactionally add, change, or clear non-visible chart title/description/decorative metadata independently of its visible chart title. Imported irregular graphic-frame p:cNvPr graphs fail closed.
 
 **Schema parameters:**
 
-- `update` (object) required — { title?, description? }; null clears, strings require 1-1,024 XML-safe characters.
+- `update` (object) required — { title?, description?, decorative? }; null clears a field, strings require 1-1,024 XML-safe characters, decorative requires a boolean, and a classification change plus its text clears/additions must be one transaction.
 
 **Schema returns:**
 
@@ -1918,7 +1918,7 @@ Create the same editable paragraph node through the reference-template-compatibl
 
 #### `connector.accessibilityCapability`
 
-Report sourceBound/editable/addable preflight for connector p:cNvPr title/description; export re-proves it.
+Report sourceBound/editable/addable preflight for connector p:cNvPr title/description/decorative metadata; export re-proves it.
 
 **Schema returns:**
 
@@ -1942,11 +1942,11 @@ Move a source-free connector behind modeled slide/group elements. New shape-conn
 
 #### `connector.setAccessibilityMetadata`
 
-Add, change, or clear non-visible connector title/description. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits.
+Transactionally add, change, or clear non-visible connector title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits.
 
 **Schema parameters:**
 
-- `update` (object) required — { title?, description? }; null clears, strings require 1-1,024 XML-safe characters.
+- `update` (object) required — { title?, description?, decorative? }; null clears a field, strings require 1-1,024 XML-safe characters, decorative requires a boolean, and a classification change plus its text clears/additions must be one transaction.
 
 **Schema returns:**
 
@@ -1993,7 +1993,7 @@ Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse sha
 
 #### `group.accessibilityCapability`
 
-Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/description; export re-proves it.
+Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/description/decorative metadata; export re-proves it.
 
 **Schema returns:**
 
@@ -2001,11 +2001,11 @@ Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/desc
 
 #### `group.setAccessibilityMetadata`
 
-Add, change, or clear non-visible group-frame title/description. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits.
+Transactionally add, change, or clear non-visible group-frame title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits.
 
 **Schema parameters:**
 
-- `update` (object) required — { title?, description? }; null clears, strings require 1-1,024 XML-safe characters.
+- `update` (object) required — { title?, description?, decorative? }; null clears a field, strings require 1-1,024 XML-safe characters, decorative requires a boolean, and a classification change plus its text clears/additions must be one transaction.
 
 **Schema returns:**
 
@@ -2013,19 +2013,19 @@ Add, change, or clear non-visible group-frame title/description. Imported irregu
 
 #### `image.accessibilityCapability`
 
-Report sourceBound/editable/addable preflight for picture p:cNvPr title/description; export re-proves the residual-protected picture profile.
+Report sourceBound/editable/addable preflight for picture p:cNvPr title/description/decorative metadata; export re-proves the residual-protected picture profile.
 
 **Schema returns:**
 
-- `capability` (object) — Fresh { sourceBound, editable, addable } preflight for picture title/description metadata.
+- `capability` (object) — Fresh { sourceBound, editable, addable } preflight for picture title/description/decorative metadata.
 
 #### `image.setAccessibilityMetadata`
 
-Add, change, or clear a picture's non-visible title/description. The legacy image.alt property reads and writes the same description state rather than creating a second metadata source.
+Transactionally add, change, or clear a picture's non-visible title/description/decorative metadata. The legacy image.alt property reads and writes the same description state rather than creating a second metadata source.
 
 **Schema parameters:**
 
-- `update` (object) required — { title?, description? }; null clears, strings require 1-1,024 XML-safe characters.
+- `update` (object) required — { title?, description?, decorative? }; null clears a field, strings require 1-1,024 XML-safe characters, decorative requires a boolean, and a classification change plus its text clears/additions must be one transaction.
 
 **Schema returns:**
 
@@ -2629,7 +2629,7 @@ Apply path-validated PPTX part patches, including safe slide/master/layout ID li
 
 #### `shape.accessibilityCapability`
 
-Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/description; export re-proves it.
+Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/description/decorative metadata; export re-proves it.
 
 **Schema returns:**
 
@@ -2637,15 +2637,15 @@ Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/d
 
 #### `shape.setAccessibilityMetadata`
 
-Add, change, or clear non-visible ordinary-shape title/description. Imported irregular p:cNvPr graphs fail closed.
+Transactionally add, change, or clear non-visible ordinary-shape title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed.
 
 **Schema parameters:**
 
-- `update` (object) required — { title?, description? }; null clears, strings require 1-1,024 XML-safe characters.
+- `update` (object) required — { title?, description?, decorative? }; null clears a field, strings require 1-1,024 XML-safe characters, decorative requires a boolean, and a classification change plus its text clears/additions must be one transaction.
 
 **Schema returns:**
 
-- `shape` (Shape) — Same Shape. Source-free and canonical imported metadata is editable; unsupported p:cNvPr profiles fail closed.
+- `shape` (Shape) — Same Shape. Source-free and canonical imported metadata is editable; unknown, duplicate, or malformed decorative extension graphs fail closed.
 
 #### `shape.text.set`
 
@@ -2730,7 +2730,7 @@ Add a source-free literal bar, line, pie, standard area, fixed 50%-hole doughnut
 - `varyColors` (boolean) — Model-only varied-color preference outside the bounded OfficeKit chart wire.
 - `barOptions` (object) — Model-only advanced bar layout options outside the bounded OfficeKit chart wire.
 - `lineOptions` (object) — Model-only advanced line grouping/smoothing options; direct per-series marker formatting remains supported.
-- `accessibility` (object) — Non-visible { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvGraphicFramePr/p:cNvPr independently of the visible chart title and the object name.
+- `accessibility` (object) — Non-visible { title?, description?, decorative? }. Strings require 1-1,024 XML-safe characters. decorative is a presence-aware boolean: true is mutually exclusive with title/description, explicit false differs from omission, and the Office 2019+ value maps through the canonical adec:decorative extension. Maps to p:nvGraphicFramePr/p:cNvPr independently of the visible chart title and object name.
 
 **Schema returns:**
 
@@ -2804,7 +2804,7 @@ Legacy low-level connector authoring from explicit points or target centers. Pre
 - `end` (object) — Explicit end point {x,y}.
 - `connectorType` (string) — straight, elbow, or curved; defaults to straight.
 - `line` (object) — Line color, width, solid/dashed/none style, and compatibility arrow metadata.
-- `accessibility` (object) — Optional non-visible connector { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvCxnSpPr/p:cNvPr.
+- `accessibility` (object) — Non-visible { title?, description?, decorative? }. Strings require 1-1,024 XML-safe characters. decorative is a presence-aware boolean: true is mutually exclusive with title/description, explicit false differs from omission, and the Office 2019+ value maps through the canonical adec:decorative extension. Maps to p:nvCxnSpPr/p:cNvPr.
 
 **Schema returns:**
 
@@ -2833,12 +2833,12 @@ Clone one original imported PPTX slide only when its unchanged graph contains ca
 
 #### `slide.groups.add`
 
-Author recursive native DrawingML p:grpSp trees with optional non-visible group title/description, outer off/ext, and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, extensions, or unsupported descendants remain opaque and read-only.
+Author recursive native DrawingML p:grpSp trees with optional non-visible group title/description/decorative metadata, outer off/ext, and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, unknown extensions, or unsupported descendants remain opaque and read-only.
 
 **Schema parameters:**
 
 - `name` (string) — Inspectable group name.
-- `accessibility` (object) — Optional non-visible group { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvGrpSpPr/p:cNvPr.
+- `accessibility` (object) — Non-visible { title?, description?, decorative? }. Strings require 1-1,024 XML-safe characters. decorative is a presence-aware boolean: true is mutually exclusive with title/description, explicit false differs from omission, and the Office 2019+ value maps through the canonical adec:decorative extension. Maps to p:nvGrpSpPr/p:cNvPr.
 - `position` (object) required — Group frame in parent or slide pixel coordinates.
 - `childFrame` (object) — Local child coordinate rectangle mapped through DrawingML chOff/chExt; defaults to the group width/height from 0,0.
 - `shapes` (object[]) — Initial child shape/textbox definitions in local coordinates.
@@ -2855,7 +2855,7 @@ Author recursive native DrawingML p:grpSp trees with optional non-visible group 
 
 #### `slide.images.add`
 
-Add an inspectable image facade with non-visible title/description metadata, the compatible alt description alias, embedded data, contain/cover/stretch fitting, explicit crop, frame, direct rotation/flips, layout JSON, crop-aware SVG preview, and PPTX output. OfficeKit maps the bounded rectangular profile to native DrawingML p:cNvPr and a:srcRect.
+Add an inspectable image facade with non-visible title/description/decorative metadata, the compatible alt description alias, embedded data, contain/cover/stretch fitting, explicit crop, frame, direct rotation/flips, layout JSON, crop-aware SVG preview, and PPTX output. OfficeKit maps the bounded rectangular profile to native DrawingML p:cNvPr, the Office 2019+ decorative extension, and a:srcRect.
 
 **Schema parameters:**
 
@@ -2863,7 +2863,7 @@ Add an inspectable image facade with non-visible title/description metadata, the
 - `uri` (string) — External image URI metadata.
 - `prompt` (string) — Generation/source prompt metadata.
 - `alt` (string) — Compatibility alias for accessibility.description. Reading or writing alt reads or writes the same state; an empty string clears description.
-- `accessibility` (object) — Non-visible { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvPicPr/p:cNvPr independently of the object name and visible pixels.
+- `accessibility` (object) — Non-visible { title?, description?, decorative? }. Strings require 1-1,024 XML-safe characters. decorative is a presence-aware boolean: true is mutually exclusive with title/description, explicit false differs from omission, and the Office 2019+ value maps through the canonical adec:decorative extension. Maps to p:nvPicPr/p:cNvPr independently of the object name and visible pixels. When this object is supplied, prompt metadata is never synthesized as alt text.
 - `fit` (string) — contain, cover, or stretch. For embedded images, OfficeKit computes a bounded native a:srcRect from intrinsic dimensions; imported native source rectangles normalize to fit stretch plus explicit crop because PPTX has no fit keyword.
 - `crop` (object) — Optional normalized { left, top, right, bottom } source edges in -1..1 with opposing sums below 1. Positive values crop; negative values expand for contain/letterbox semantics. Manual crop is applied before contain/cover fitting.
 - `position` (object) — Pixel left/top/width/height frame.
@@ -2871,7 +2871,7 @@ Add an inspectable image facade with non-visible title/description metadata, the
 
 **Schema returns:**
 
-- `image` (ImageElement) — Appended editable image facade. OfficeKit authors/imports embedded PNG/JPEG/GIF/safe-SVG rectangular pictures and permits native source-rectangle add/edit/remove plus same-format byte, name/title/description, frame, and direct-transform edits; unmodeled cNvPr children remain residual-protected, while effects, external sources, complex blips, and non-rectangular geometry remain opaque.
+- `image` (ImageElement) — Appended editable image facade. OfficeKit authors/imports embedded PNG/JPEG/GIF/safe-SVG rectangular pictures and permits native source-rectangle add/edit/remove plus same-format byte, name/title/description/decorative metadata, frame, and direct-transform edits; unmodeled cNvPr children remain residual-protected, while effects, external sources, complex blips, and non-rectangular geometry remain opaque.
 
 #### `slide.moveTo`
 
@@ -2935,7 +2935,7 @@ Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary
 
 #### `slide.shapes.add`
 
-Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with optional non-visible title/description metadata. Lines support bounded dash/line-end/cap/join styling; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity.
+Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with optional non-visible title/description/decorative metadata. Lines support bounded dash/line-end/cap/join styling; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity.
 
 **Schema parameters:**
 
@@ -2958,7 +2958,7 @@ Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector 
 - `textRectangle` (object) — Optional { left, top, right, bottom } rectangle relative to a custom shape frame. Each edge is a finite pixel coordinate or a DrawingML built-in/declared adjustment/guide name; resolved right/bottom must exceed left/top. Numeric edges retain the deterministic private scaling-guide profile, reference edges write standard a:rect ST_AdjCoordinate values directly, and mixed rectangles round-trip. The state drives inspect, SVG origin, and overflow QA. Omission keeps the full-shape default; unknown references, malformed leaves, and invalid resolved bounds fail closed.
 - `position` (object) — Pixel left/top/width/height frame. For geometry line, left/top is the start point and width/height is the non-negative endpoint delta; one extent may be zero, but both zero fail closed.
 - `transform` (object) — Optional { rotationDegrees, flipHorizontal, flipVertical } center transform. Rotation is bounded to -360 through 360 degrees and flip booleans retain explicit false. OfficeKit authors/imports this direct DrawingML transform on supported shapes; complex or unknown native transform graphs remain read-only.
-- `accessibility` (object) — Non-visible { title?, description? }, each 1-1,024 XML-safe characters, mapped to the native p:cNvPr of an ordinary p:sp or exact-site p:cxnSp connector. It is independent of visible text/name; irregular imports stay source-bound.
+- `accessibility` (object) — Non-visible { title?, description?, decorative? }. Strings require 1-1,024 XML-safe characters. decorative is a presence-aware boolean: true is mutually exclusive with title/description, explicit false differs from omission, and the Office 2019+ value maps through the canonical adec:decorative extension. Maps to the native p:cNvPr of an ordinary p:sp or exact-site p:cxnSp connector and remains independent of visible text/name; irregular imports stay source-bound.
 - `text` (string|string[]|object|object[]) — Plain text or structured paragraphs accepted by shape.text.set, including ordered text/field/line-break inlines, paragraph tab stops, styles, and relationship-backed hyperlinks.
 - `textBodyProperties` (object) — DrawingML text-frame layout: pixel insets; anchor/wrap/AutoFit; -360..360 degree rotation; horizontal/vertical/vertical270 text; horizontal/vertical overflow; 1-16 columns with pixel spacing and RTL flow; and upright text.
 - `fill` (string|object) — Shape fill.
@@ -2987,7 +2987,7 @@ Connect two modeled shapes in the same slide/group tree by preset side or exact 
 - `tail` (object) — Optional end line end using the same bounded type/size union.
 - `cap` (string) — flat, round, or square.
 - `join` (string) — round, bevel, or miter.
-- `accessibility` (object) — Optional non-visible connector { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvCxnSpPr/p:cNvPr.
+- `accessibility` (object) — Non-visible { title?, description?, decorative? }. Strings require 1-1,024 XML-safe characters. decorative is a presence-aware boolean: true is mutually exclusive with title/description, explicit false differs from omission, and the Office 2019+ value maps through the canonical adec:decorative extension. Maps to p:nvCxnSpPr/p:cNvPr.
 
 **Schema returns:**
 
@@ -3025,7 +3025,7 @@ Add an inspectable table facade with rows, columns, values, cells, rectangular m
 - `position` (object) — Pixel left/top/width/height frame.
 - `style` (object) — Table/cell fill, margins, borders, and text style.
 - `styleOptions` (object) — Optional headerRow and bandedRows booleans plus model-rendering font options. OfficeKit authors the two native flags, but keeps them immutable after source-bound import.
-- `accessibility` (object) — Non-visible { title?, description? }, each 1-1,024 XML-safe characters, mapped to p:nvGraphicFramePr/p:cNvPr independently of visible cell text and the object name.
+- `accessibility` (object) — Non-visible { title?, description?, decorative? }. Strings require 1-1,024 XML-safe characters. decorative is a presence-aware boolean: true is mutually exclusive with title/description, explicit false differs from omission, and the Office 2019+ value maps through the canonical adec:decorative extension. Maps to p:nvGraphicFramePr/p:cNvPr independently of visible cell text and the object name.
 
 **Schema returns:**
 
@@ -3065,7 +3065,7 @@ Set the modern root comment status to resolved. Imported export re-proves author
 
 #### `table.accessibilityCapability`
 
-Report sourceBound/editable/addable preflight for a table graphic-frame p:cNvPr title/description; export re-proves it.
+Report sourceBound/editable/addable preflight for table graphic-frame p:cNvPr title/description/decorative metadata; export re-proves it.
 
 **Schema returns:**
 
@@ -3085,11 +3085,11 @@ Merge one inclusive rectangular table range, retain the upper-left value, clear 
 
 #### `table.setAccessibilityMetadata`
 
-Add, change, or clear non-visible table title/description. Imported irregular graphic-frame p:cNvPr graphs fail closed.
+Transactionally add, change, or clear non-visible table title/description/decorative metadata. Imported irregular graphic-frame p:cNvPr graphs fail closed.
 
 **Schema parameters:**
 
-- `update` (object) required — { title?, description? }; null clears, strings require 1-1,024 XML-safe characters.
+- `update` (object) required — { title?, description?, decorative? }; null clears a field, strings require 1-1,024 XML-safe characters, decorative requires a boolean, and a classification change plus its text clears/additions must be one transaction.
 
 **Schema returns:**
 

@@ -39,7 +39,8 @@
           "line": { "fill": "#2563EB", "width": 2 },
           "accessibility": {
             "title": "Create stage",
-            "description": "First stage of the workflow, where the presentation is authored."
+            "description": "First stage of the workflow, where the presentation is authored.",
+            "decorative": false
           },
           "shadow": { "color": "#000000", "blurRadius": 10, "distance": 5, "direction": 45, "opacity": 0.2 },
           "text": "Create",
@@ -169,7 +170,8 @@
           "toName": "deliver-card",
           "fromIdx": 3,
           "toSide": "left",
-          "line": { "fill": "#475569", "width": 2, "startArrow": "triangle", "endArrow": "triangle" }
+          "line": { "fill": "#475569", "width": 2, "startArrow": "triangle", "endArrow": "triangle" },
+          "accessibility": { "decorative": true }
         }
       ]
     },

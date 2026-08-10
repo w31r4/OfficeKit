@@ -1981,7 +1981,7 @@ message PresentationShapeTransform {
 // Bounded top-level p:pic projection. The asset is content-addressed in the
 // envelope; relationship IDs and OPC part names remain package-local. This
 // slice owns only an embedded PNG/JPEG/GIF/safe-SVG source, non-visible
-// title/description metadata, a rectangular stretch frame, a bounded native
+// title/description/decorative metadata, a rectangular stretch frame, a bounded native
 // source rectangle, and direct rotation/flips. The legacy alt_text field is
 // the canonical description field for wire compatibility; accessibility_title
 // appends the independent p:cNvPr title without duplicating description state.
@@ -1997,6 +1997,10 @@ message PresentationImage {
   PresentationImageTransform transform = 7;
   PresentationImageCrop crop = 8;
   string accessibility_title = 9;
+  // Presence distinguishes an explicit Office 2019+ decorative classification
+  // from an object that has not been classified. `true` cannot coexist with
+  // accessibility_title or alt_text.
+  optional bool accessibility_decorative = 10;
 }
 
 message PresentationImageTransform {
@@ -3701,4 +3705,8 @@ message PresentationCustomGeometryPolarAdjustmentHandle {
 message PresentationNonVisualAccessibility {
   optional string title = 1;
   optional string description = 2;
+  // Office 2019+ adec:decorative. Presence is retained so explicit false is
+  // distinct from an object that has not been classified. True is mutually
+  // exclusive with title and description.
+  optional bool decorative = 3;
 }

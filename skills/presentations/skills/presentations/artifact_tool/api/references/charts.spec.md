@@ -165,10 +165,10 @@ Use `presentation.inspect({ kind: "chart", search })` to find the `ch/...`
 anchor id. If an imported chart resolves as an image, preserve it as an image or
 rebuild it as a native chart intentionally.
 
-## Non-visible title and description
+## Non-visible accessibility metadata
 
-The visible chart title and PowerPoint's non-visible title/description metadata
-are separate:
+The visible chart title and PowerPoint's non-visible accessibility metadata are
+separate:
 
 ```ts
 const chart = slide.charts.add("bar", {
@@ -178,6 +178,7 @@ const chart = slide.charts.add("bar", {
   accessibility: {
     title: "Release readiness bar chart",
     description: "Four bars compare completed checks across workstreams.",
+    decorative: false,
   },
 });
 
@@ -187,11 +188,15 @@ if (chart.accessibilityCapability.editable) {
 ```
 
 Each present string contains 1–1,024 XML-safe characters; `null` clears one
-field. Canonical imported `p:nvGraphicFramePr/p:cNvPr` metadata is editable.
-Unknown attributes/children, hyperlinks, extensions, and malformed values stay
-source-owned and reject this mutation without disabling unrelated supported
-chart edits. This contract does not infer a description from plotted data,
-establish reading order, or claim whole-deck accessibility.
+field. `decorative` is a presence-aware boolean; `true` cannot coexist with
+title/description, and classification plus text clears/additions must be one
+transaction. Canonical imported `p:nvGraphicFramePr/p:cNvPr` metadata,
+including the Office 2019+ decorative extension, is editable. Unknown
+attributes/children, hyperlinks/extensions, duplicate known extensions, and
+malformed values stay source-owned and reject this mutation without disabling
+unrelated chart edits. This contract does not infer a description or decorative
+classification from plotted data, establish reading order, or claim whole-deck
+accessibility.
 
 ## Add Chart
 

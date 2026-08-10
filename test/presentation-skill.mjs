@@ -40,6 +40,14 @@ function itemByName(items, name) {
   return item;
 }
 
+function nativeNonVisualProperties(xml, name) {
+  const record = [...xml.matchAll(/<p:cNvPr\b[^>]*(?:\/>|>[\s\S]*?<\/p:cNvPr>)/g)]
+    .map((match) => match[0])
+    .find((candidate) => candidate.includes(`name="${name}"`));
+  assert.ok(record, `Missing native p:cNvPr for ${name}`);
+  return record;
+}
+
 try {
   const readiness = await runPresentationFixture(path.join(fixtureDir, "agent-readiness.json"), {
     outputDir: path.join(root, "agent-readiness"),
@@ -120,6 +128,7 @@ try {
   assert.deepEqual(authoredCard.accessibility, {
     title: "Create stage",
     description: "First stage of the workflow, where the presentation is authored.",
+    decorative: false,
   });
   assert.deepEqual(authoredCard.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
   const workflowMatrix = itemByName(workflowSlide.tables.items, "workflow-matrix");
@@ -143,7 +152,11 @@ try {
   assert.deepEqual(workflowEvidenceImage.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
   assert.deepEqual(authoredCard.shadow, { color: "#000000", blurRadius: 10, distance: 5, direction: 45, opacity: 0.2 });
   const readinessXml = await (await JSZip.loadAsync(await fs.readFile(readiness.pptxPath))).file("ppt/slides/slide1.xml").async("text");
-  assert.match(readinessXml, /<p:cNvPr\b(?=[^>]*\bname="author-card")(?=[^>]*\btitle="Create stage")(?=[^>]*\bdescr="First stage of the workflow, where the presentation is authored\.")[^>]*\/>/);
+  const authoredCardNative = nativeNonVisualProperties(readinessXml, "author-card");
+  assert.match(authoredCardNative, /\btitle="Create stage"/);
+  assert.match(authoredCardNative, /\bdescr="First stage of the workflow, where the presentation is authored\."/);
+  assert.match(authoredCardNative, /\{C183D7F6-B498-43B3-948B-1728B52AA6E4\}/);
+  assert.match(authoredCardNative, /<adec:decorative\b[^>]*\bval="0"/);
   assert.match(readinessXml, /<p:cNvPr\b(?=[^>]*\bname="workflow-matrix")(?=[^>]*\btitle="Workflow verification matrix")(?=[^>]*\bdescr="Table listing semantic and visual review gates with their current states\.")[^>]*\/>/);
   assert.match(readinessXml, /<p:cNvPr\b(?=[^>]*\bname="workflow-evidence-image")(?=[^>]*\btitle="Workflow evidence image")(?=[^>]*\bdescr="Status image confirming the OfficeKit workflow evidence\.")[^>]*\/>/);
   const readinessChartXml = await (await JSZip.loadAsync(await fs.readFile(readiness.pptxPath))).file("ppt/slides/slide2.xml").async("text");
@@ -191,6 +204,12 @@ try {
   assert.equal(elbow.line.startArrow, "triangle");
   assert.equal(elbow.line.endArrow, "triangle");
   assert.ok(elbow.startTargetId && elbow.endTargetId);
+  assert.deepEqual(elbow.accessibility, { decorative: true });
+  assert.deepEqual(elbow.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+  const decorativeConnectorNative = nativeNonVisualProperties(readinessXml, "verify-to-deliver");
+  assert.doesNotMatch(decorativeConnectorNative, /\b(?:title|descr)=/);
+  assert.match(decorativeConnectorNative, /\{C183D7F6-B498-43B3-948B-1728B52AA6E4\}/);
+  assert.match(decorativeConnectorNative, /<adec:decorative\b[^>]*\bval="1"/);
   const charts = readiness.qa.presentation.slides.getItem(1).charts.items;
   assert.deepEqual(charts.map((chart) => chart.chartType), ["bar", "line", "pie"]);
   assert.equal(charts[0].dataLabels.showValue, true);

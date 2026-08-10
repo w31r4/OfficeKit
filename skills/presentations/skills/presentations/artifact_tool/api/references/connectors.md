@@ -64,7 +64,7 @@ type ShapeConnectOptions = {
   tail?: LineEndConfig;
   cap?: "flat" | "round" | "square";
   join?: "round" | "bevel" | "miter";
-  accessibility?: { title?: string; description?: string };
+  accessibility?: { title?: string; description?: string; decorative?: boolean };
 };
 
 type LineEndConfig = {
@@ -146,7 +146,7 @@ type ConnectorConfig = {
   tail?: LineEndConfig;
   cap?: "flat" | "round" | "square";
   join?: "round" | "bevel" | "miter";
-  accessibility?: { title?: string; description?: string };
+  accessibility?: { title?: string; description?: string; decorative?: boolean };
 };
 ```
 
@@ -176,6 +176,10 @@ ids. Connector facades expose `connector`, `connectorLineStyle`,
 `connectorHead`, `connectorTail`, `accessibility`, and
 `accessibilityCapability` for readback. Non-visible metadata maps to
 `p:nvCxnSpPr/p:cNvPr` and remains independent of the line name and geometry.
+Its presence-aware `decorative` boolean uses the Office 2019+ extension;
+`true` cannot coexist with title/description. Classification and corresponding
+text clears/additions must be one transaction. Unknown or duplicate native
+extension topology remains source-owned and fails closed on this mutation.
 
 For a site-bound connector, do not assign `start` or `end` coordinates directly;
 use `setConnectorFrom` or `setConnectorTo` so target and site change atomically.

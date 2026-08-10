@@ -175,9 +175,9 @@ const maxPackedBytes = 37_500_000;
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
 // Keep measured headroom for bounded codec/Skill growth without concealing
 // specialist binaries or generated repository evidence in the tarball. The
-// picture-accessibility wire/runtime/Skill slice measured 53,425,502 bytes, so
-// its audited ceiling advances by only 10,000 bytes.
-const maxUnpackedBytes = 53_430_000;
+// decorative-classification wire/runtime/Skill slice measured 53,435,772 bytes,
+// so its audited ceiling advances by only another 10,000 bytes.
+const maxUnpackedBytes = 53_440_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from

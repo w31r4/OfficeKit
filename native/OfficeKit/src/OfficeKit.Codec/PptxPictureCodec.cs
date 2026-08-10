@@ -1,4 +1,3 @@
-using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
@@ -7,9 +6,9 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace OfficeKit.Codec;
 
 // Owns the deliberately small top-level p:pic contract. Everything outside
-// the embedded blip, rectangular stretch frame, non-visible title/description,
-// and direct visual transform remains opaque and must survive the residual hash
-// unchanged.
+// the embedded blip, rectangular stretch frame, non-visible accessibility
+// metadata, and direct visual transform remains opaque and must survive the
+// residual hash unchanged.
 internal static class PptxPictureCodec
 {
     private const int MaxTextLength = 1_024;
@@ -18,6 +17,11 @@ internal static class PptxPictureCodec
     {
         image = new PresentationImage();
         if (!TryParts(source, out var nonVisual, out var blip, out var transform, out var crop)) return false;
+        // Accessibility is a leaf capability, not ownership of the whole
+        // picture. An ambiguous known extension hides the modeled metadata and
+        // disables only that setter; unrelated picture edits remain residual-
+        // preserving and source-bound.
+        _ = PptxNonVisualAccessibilityCodec.TryReadResidual(nonVisual, out var accessibility);
         var relationshipId = blip.Embed?.Value ?? string.Empty;
         if (relationshipId.Length == 0) return false;
         try
@@ -28,14 +32,14 @@ internal static class PptxPictureCodec
             image = new PresentationImage
             {
                 AssetId = asset.Id,
-                AltText = nonVisual.Description?.Value ?? string.Empty,
-                AccessibilityTitle = nonVisual.GetAttributes()
-                    .FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "title").Value ?? string.Empty,
+                AltText = accessibility?.HasDescription == true ? accessibility.Description : string.Empty,
+                AccessibilityTitle = accessibility?.HasTitle == true ? accessibility.Title : string.Empty,
                 LeftEmu = offset.X?.Value ?? 0,
                 TopEmu = offset.Y?.Value ?? 0,
                 WidthEmu = extents.Cx?.Value ?? 0,
                 HeightEmu = extents.Cy?.Value ?? 0,
             };
+            if (accessibility?.HasDecorative == true) image.AccessibilityDecorative = accessibility.Decorative;
             if (crop is not null) image.Crop = ReadCrop(crop);
             var visual = ReadTransform(transform);
             if (visual is not null) image.Transform = visual;
@@ -103,14 +107,8 @@ internal static class PptxPictureCodec
             blip.Embed = context.AddEmbeddedPicture(replacement.Id);
         }
         nonVisual.Name = requested.Name;
-        if (!currentImage.AccessibilityTitle.Equals(requested.Image.AccessibilityTitle, StringComparison.Ordinal))
-        {
-            nonVisual.RemoveAttribute("title", string.Empty);
-            if (requested.Image.AccessibilityTitle.Length > 0)
-                nonVisual.SetAttribute(new OpenXmlAttribute("title", string.Empty, requested.Image.AccessibilityTitle));
-        }
-        if (!currentImage.AltText.Equals(requested.Image.AltText, StringComparison.Ordinal))
-            nonVisual.Description = requested.Image.AltText.Length > 0 ? requested.Image.AltText : null;
+        if (!AccessibilityEqual(currentImage, requested.Image))
+            PptxNonVisualAccessibilityCodec.ApplyResidualBound(nonVisual, Accessibility(requested.Image), "image");
         transform.Offset!.X = requested.Image.LeftEmu;
         transform.Offset.Y = requested.Image.TopEmu;
         transform.Extents!.Cx = requested.Image.WidthEmu;
@@ -124,7 +122,7 @@ internal static class PptxPictureCodec
         if (source.NonVisualPictureProperties?.NonVisualDrawingProperties is { } nonVisual)
         {
             nonVisual.Name = string.Empty;
-            nonVisual.RemoveAttribute("title", string.Empty);
+            PptxNonVisualAccessibilityCodec.ScrubResidualModeledContent(nonVisual);
             nonVisual.Description = string.Empty;
         }
         if (source.BlipFill?.GetFirstChild<A.Blip>() is { } blip) blip.Embed = string.Empty;
@@ -184,12 +182,19 @@ internal static class PptxPictureCodec
 
     private static PresentationNonVisualAccessibility? Accessibility(PresentationImage image)
     {
-        if (image.AccessibilityTitle.Length == 0 && image.AltText.Length == 0) return null;
+        if (image.AccessibilityTitle.Length == 0 && image.AltText.Length == 0 && !image.HasAccessibilityDecorative) return null;
         var value = new PresentationNonVisualAccessibility();
         if (image.AccessibilityTitle.Length > 0) value.Title = image.AccessibilityTitle;
         if (image.AltText.Length > 0) value.Description = image.AltText;
+        if (image.HasAccessibilityDecorative) value.Decorative = image.AccessibilityDecorative;
         return value;
     }
+
+    private static bool AccessibilityEqual(PresentationImage left, PresentationImage right) =>
+        left.AccessibilityTitle.Equals(right.AccessibilityTitle, StringComparison.Ordinal) &&
+        left.AltText.Equals(right.AltText, StringComparison.Ordinal) &&
+        left.HasAccessibilityDecorative == right.HasAccessibilityDecorative &&
+        left.AccessibilityDecorative == right.AccessibilityDecorative;
 
     private static bool CropSupported(A.SourceRectangle source)
     {

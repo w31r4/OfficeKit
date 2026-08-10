@@ -1,12 +1,19 @@
 import { isXmlSafeText } from "../shared/xml.mjs";
 
-const ACCESSIBILITY_FIELDS = ["title", "description"];
+const ACCESSIBILITY_FIELDS = ["title", "description", "decorative"];
 const MAX_ACCESSIBILITY_TEXT_LENGTH = 1_024;
 const importedAccessibilityEditable = new WeakMap();
 
 function normalizeText(value, owner, field) {
   if (typeof value !== "string" || !value.length || value.length > MAX_ACCESSIBILITY_TEXT_LENGTH || !isXmlSafeText(value)) {
     throw new TypeError(`${owner} accessibility.${field} must contain 1 through ${MAX_ACCESSIBILITY_TEXT_LENGTH} XML-safe characters.`);
+  }
+  return value;
+}
+
+function normalizeDecorative(value, owner) {
+  if (typeof value !== "boolean") {
+    throw new TypeError(`${owner} accessibility.decorative must be a boolean.`);
   }
   return value;
 }
@@ -42,12 +49,12 @@ export function setPresentationAccessibilityMetadata(target, current, update, ow
 
 function applyAccessibility(current, update, owner, partial) {
   if (!update || typeof update !== "object" || Array.isArray(update)) {
-    throw new TypeError(`${owner} accessibility${partial ? " metadata update" : ""} must be an object with title and/or description.`);
+    throw new TypeError(`${owner} accessibility${partial ? " metadata update" : ""} must be an object with title, description, and/or decorative.`);
   }
   const unsupported = Object.keys(update).filter((field) => !ACCESSIBILITY_FIELDS.includes(field));
   if (unsupported.length) throw new TypeError(`${owner} accessibility${partial ? " metadata" : ""} does not support ${unsupported.join(", ")}.`);
   if (partial && !ACCESSIBILITY_FIELDS.some((field) => Object.hasOwn(update, field))) {
-    throw new TypeError(`${owner} accessibility metadata update requires title and/or description.`);
+    throw new TypeError(`${owner} accessibility metadata update requires title, description, and/or decorative.`);
   }
   const result = { ...(current || {}) };
   for (const field of ACCESSIBILITY_FIELDS) {
@@ -55,7 +62,12 @@ function applyAccessibility(current, update, owner, partial) {
     if (update[field] == null) {
       if (partial) delete result[field];
     }
-    else result[field] = normalizeText(update[field], owner, field);
+    else result[field] = field === "decorative"
+      ? normalizeDecorative(update[field], owner)
+      : normalizeText(update[field], owner, field);
+  }
+  if (result.decorative === true && (result.title !== undefined || result.description !== undefined)) {
+    throw new TypeError(`${owner} accessibility cannot combine decorative: true with title or description.`);
   }
   return Object.keys(result).length ? result : undefined;
 }

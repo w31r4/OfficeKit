@@ -3,41 +3,85 @@
 ## Current 0.6.0 package evidence (2026-08-10)
 
 The package dry-run passed with shape/connector/group/image/table/chart
-alternative text and the rebuilt OfficeKit Codec runtime. The candidate
-contains 714 files, 36,232,466 compressed bytes, and 53,425,502 unpacked bytes;
-its measured shasum is `925c0f57b008a0f0a99c849ac0a51c5c454aba57`.
-The picture wire/runtime/Skill slice advances the audited unpacked ceiling by
-only 10,000 bytes to 53,430,000, leaving 4,498 bytes of measured headroom; the
+accessibility classification and the rebuilt OfficeKit Codec runtime. The
+candidate contains 714 files, 36,235,562 compressed bytes, and 53,435,772
+unpacked bytes; its measured shasum is
+`eb45767dcfea3ad9c28a6c78fc13067a0cca71b3`.
+The decorative wire/runtime/Skill slice advances the audited unpacked ceiling
+by only another 10,000 bytes to 53,440,000, leaving 4,228 bytes of measured headroom; the
 37,500,000-byte compressed ceiling is unchanged. The runtime manifest covers
-38 files and 15,407,339 bytes. This is package evidence, not an npm registry
+38 files and 15,412,459 bytes. This is package evidence, not an npm registry
 publication or tagged release.
+
+## Unreleased: Presentation decorative object classification
+
+Ordinary shapes, connectors, recursive groups, images, tables, and charts now
+share one presence-aware `accessibility` state. `decorative: false` is retained
+as an explicit meaningful-object classification, omission remains unclassified,
+and `decorative: true` is valid only without title/description. The public
+setter applies classification and text clears/additions as one transaction;
+contradictory or partial intermediate states reject before mutation. The image
+`alt` alias still owns only description, and an explicit image accessibility
+object prevents prompt metadata from being synthesized into alt text.
+
+Protocol v2 appends `PresentationNonVisualAccessibility.decorative` field 3
+for shapes/connectors/groups/table/chart graphic frames and
+`PresentationImage.accessibility_decorative` field 10 for pictures; earlier
+field numbers and the wire version are unchanged. The source-built OfficeKit
+Codec reads and writes the standard Office 2019+
+`a:extLst/a:ext[@uri='{C183D7F6-B498-43B3-948B-1728B52AA6E4}']/adec:decorative`
+leaf. The shared strict profile accepts no other child topology. Pictures keep
+their residual-protected profile, preserve unrelated attributes/children and
+unknown extensions, and fail closed for duplicate or malformed known
+decorative extensions.
+
+JavaScript, wire, .NET, bundled-WASM, Help, and runnable Presentation Skill
+coverage exercises all six object kinds, true/false/omitted presence,
+contradiction and invalid-value rejection, source-bound add/change/remove,
+capability tampering, exact no-op and non-target stability, second import, Open
+XML SDK validation, and unchanged model/native rendering. This remains an
+object-classification slice; reading order, author intent, and whole-deck
+accessibility conformance still require separate evidence.
+
+Local gates passed: fast 26/26, slow 75/75, OfficeKit Codec 400/400,
+OfficeBridge 5/5, protocol lint/regeneration/idempotence, deterministic WASM
+verification across 39 outputs, runnable Presentation Skill model/native
+rendering, reference Skill sync/portability, Playwright, LibreOffice/Poppler
+template rendering, real qpdf, clean install, standalone distribution, generated
+Help/API docs, and `test:pack`. Managed provider-pack downloads and separately
+configured pypdf, pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python
+environments remained explicit skips; their offline contracts passed. npm
+publication, a tagged release, and Windows Microsoft Office host acceptance
+remain external blockers.
 
 ## Unreleased: Presentation picture alternative text
 
 Presentation images now use the same public non-visible metadata vocabulary as
 other meaningful slide objects. `image.accessibility` is the canonical
-`{ title?, description? }` state, `image.accessibilityCapability` provides a
+`{ title?, description?, decorative? }` state, `image.accessibilityCapability` provides a
 fresh edit preflight, and `image.setAccessibilityMetadata(...)` adds, changes,
-or clears either field. The existing `image.alt` property remains compatible
+or clears modeled fields transactionally. The existing `image.alt` property remains compatible
 but is only an alias for `accessibility.description`; conflicting constructor or
 replacement values fail closed instead of creating two descriptions.
 
-Protocol v2 appends `PresentationImage.accessibility_title` field 9 and keeps
-the existing `alt_text` field as the single description value. The OfficeKit
-Codec writes standard `p:nvPicPr/p:cNvPr/@title` and `@descr`, imports them into
-the JS model, and re-proves the source-bound picture profile during export.
-Unlike the stricter shared child-free leaf used by shapes and graphic frames,
+Protocol v2 appends `PresentationImage.accessibility_title` field 9 and
+`accessibility_decorative` field 10 while keeping the existing `alt_text` field
+as the single description value. The OfficeKit Codec writes standard
+`p:nvPicPr/p:cNvPr/@title`, `@descr`, and the known decorative extension,
+imports them into the JS model, and re-proves the source-bound picture profile
+during export.
+Unlike the stricter shared canonical leaf used by shapes and graphic frames,
 recognized pictures keep their existing residual contract: unknown `cNvPr`
-attributes and children survive while a bounded metadata edit changes only
-`title`/`descr`.
+attributes, children, and unrelated extensions survive while a bounded metadata
+edit changes only title/description/decorative state.
 
 JavaScript, C#/.NET, bundled-WASM, Help, and runnable Presentation Skill tests
 cover source-free authoring, legacy alias identity, import, edit, clear,
 conflict rejection, exact no-op, second import, native attributes, source
 capability, irregular-child preservation, unchanged SVG, package validation,
-and model/native render review. Decorative state, reading order, automatic
-description generation, and whole-deck accessibility conformance remain
-separate contracts.
+decorative classification, and model/native render review. Reading order,
+automatic description generation, and whole-deck accessibility conformance
+remain separate contracts.
 
 Local gates passed: fast 26/26, slow 75/75, OfficeKit Codec 400/400,
 OfficeBridge 5/5, generated Help/API docs, protocol lint/regeneration,
@@ -54,8 +98,8 @@ remain external blockers.
 
 Presentation groups and connectors now use the same non-visible metadata
 contract as ordinary shapes and graphic frames. Source-free `p:grpSp` and
-`p:cxnSp` objects accept optional `{ title?, description? }`, expose a fresh
-`accessibilityCapability`, and add, change, or clear either field through
+`p:cxnSp` objects accept optional `{ title?, description?, decorative? }`, expose a fresh
+`accessibilityCapability`, and add, change, or clear modeled fields through
 `setAccessibilityMetadata(...)`. The metadata is independent of connector
 routing, group topology, object names, visible content, and rendering.
 
@@ -72,8 +116,8 @@ top-level and recursive import, add/change/clear, invalid values, no-op bytes,
 second import, capability tampering, irregular-source preservation, unchanged
 SVG, and Open XML SDK validation. The runnable Presentation Skill readiness
 fixture supplies group and connector metadata and exercises model/native render
-QA. Picture alt text, decorative state, reading order, and whole-deck
-accessibility conformance remain separate contracts.
+QA. Picture metadata now shares the classification contract; reading order and
+whole-deck accessibility conformance remain separate.
 
 Local gates passed: fast 26/26, slow 75/75, OfficeKit Codec 400/400,
 OfficeBridge 5/5, generated Help/API docs, protocol lint/regeneration,
@@ -89,8 +133,8 @@ Microsoft Office host acceptance remain external blockers.
 
 Presentation tables and charts now share the ordinary-shape accessibility
 contract: source-free objects accept optional non-visible `{ title?,
-description? }`, expose a fresh `accessibilityCapability`, and can add, change,
-or clear either field through `setAccessibilityMetadata(...)`. A chart's
+description?, decorative? }`, expose a fresh `accessibilityCapability`, and can add, change,
+or clear modeled fields through `setAccessibilityMetadata(...)`. A chart's
 non-visible metadata remains independent of its visible chart title. The public
 Help catalog and runnable Presentation Skill document the same typed surface.
 
@@ -109,9 +153,9 @@ second import, exact no-op packages, exact non-slide-part stability, nested
 table/chart paths, invalid values, capability tampering, irregular-source
 preservation, and Open XML SDK validation. The runnable readiness fixture
 proves the native attributes through bundled WASM and model/native render QA.
-This bounded slice does not claim group-frame or picture metadata, decorative
-state, reading order, generated chart descriptions, or whole-deck accessibility
-conformance.
+Group-frame, picture, and decorative metadata are now covered cumulatively;
+reading order, generated chart descriptions, and whole-deck accessibility
+conformance remain separate.
 
 Local gates passed: fast 26/26, slow 75/75, OfficeKit Codec 399/399,
 OfficeBridge 5/5, generated Help/API docs, protocol lint/regeneration,
@@ -125,8 +169,8 @@ release, and Windows Microsoft Office host acceptance remain external blockers.
 
 ## Unreleased: Presentation ordinary-shape alternative text
 
-Ordinary source-free shapes now accept optional non-visible `title` and
-`description` metadata, and expose a presence-aware setter plus defensive
+Ordinary source-free shapes now accept optional non-visible `title`,
+`description`, and `decorative` metadata, and expose a presence-aware setter plus defensive
 source-bound capability evidence. The values cross protocol-v2 through a new
 appended `PresentationShape` field and are written by the source-built
 OfficeKit Codec as standard `p:cNvPr/@title` and `@descr`; visible text, object
@@ -140,9 +184,9 @@ fails closed. JavaScript and .NET corpus tests cover authoring, import,
 capability preflight, edit/clear, second import, source/no-op identity,
 non-target package stability, bypass refusal, Open XML SDK validation, and
 render invariance. The runnable Presentation readiness fixture and shipped
-Shape reference carry the same contract. This slice does not claim decorative
-state, reading order, group-frame/picture/connector metadata, or whole-deck
-accessibility conformance.
+Shape reference carry the same contract. Group-frame/picture/connector and
+decorative metadata are now covered cumulatively; reading order and whole-deck
+accessibility conformance remain separate.
 
 The C# reader uses one allocation-light attribute scan, and the Presentation
 Skill Help reference now delegates catalog records to the shipped runtime

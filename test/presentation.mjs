@@ -165,7 +165,7 @@ assert.deepEqual(shapeAccessibilityImage.accessibilityCapability, { sourceBound:
 assert.equal(shapeAccessibilityImage.alt, shapeAccessibilityImage.accessibility.description, "legacy image.alt must alias accessibility.description");
 assert.match(shapeAccessibilityDeck.inspect({ kind: "shape", maxChars: 4_000 }).ndjson, /Controlled rollout decision/);
 assert.match(shapeAccessibilityDeck.inspect({ kind: "image", maxChars: 4_000 }).ndjson, /Decision evidence image/);
-assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({}), /requires title and\/or description/i);
+assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({}), /requires title, description, and\/or decorative/i);
 assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({ title: "" }), /1 through 1024 XML-safe characters/i);
 assert.throws(() => shapeAccessibilityShape.setAccessibilityMetadata({ alt: "Not a cNvPr field" }), /does not support alt/i);
 assert.throws(() => shapeAccessibilityImage.setAccessibilityMetadata({ description: "" }), /1 through 1024 XML-safe characters/i);
@@ -304,7 +304,7 @@ assert.deepEqual(accessibleChart.accessibilityCapability, { sourceBound: false, 
 assert.match(graphicFrameAccessibilityDeck.inspect({ kind: "table,chart", maxChars: 8_000 }).ndjson, /Delivery gate table/);
 assert.match(graphicFrameAccessibilityDeck.inspect({ kind: "table,chart", maxChars: 8_000 }).ndjson, /Regional revenue chart/);
 assert.throws(() => accessibleTable.setAccessibilityMetadata({ description: "" }), /1 through 1024 XML-safe characters/i);
-assert.throws(() => accessibleChart.setAccessibilityMetadata({ decorative: true }), /does not support decorative/i);
+assert.throws(() => accessibleChart.setAccessibilityMetadata({ decorative: true }), /cannot combine decorative: true with title or description/i);
 
 const graphicFrameAccessibilitySource = await PresentationFile.exportPptx(graphicFrameAccessibilityDeck);
 const graphicFrameAccessibilitySourceZip = await JSZip.loadAsync(graphicFrameAccessibilitySource.bytes);
@@ -2465,6 +2465,120 @@ await assert.rejects(
   () => PresentationFile.exportPptx(irregularGroupPresentation),
   (error) => error?.code === "unsupported_presentation_edit",
 );
+
+// Office 2019+ decorative classification is one presence-aware accessibility
+// value across every modeled drawing object. Explicit false remains distinct
+// from absence, and true cannot coexist with title/description.
+const decorativePresentation = Presentation.create({ slideSize: { width: 960, height: 540 } });
+const decorativeSlide = decorativePresentation.slides.add({ name: "Decorative object semantics" });
+const classifiedShape = decorativeSlide.shapes.add({
+  name: "classified-shape",
+  position: { left: 40, top: 40, width: 180, height: 64 },
+  text: "Meaningful status",
+  accessibility: { title: "Meaningful status", decorative: false },
+});
+const decorativeImage = decorativeSlide.images.add({
+  name: "decorative-image",
+  position: { left: 250, top: 40, width: 96, height: 64 },
+  dataUrl: PNG,
+  fit: "stretch",
+  prompt: "Generation prompt must not become alternative text",
+  accessibility: { decorative: true },
+});
+const decorativeTable = decorativeSlide.tables.add({
+  name: "decorative-table",
+  position: { left: 380, top: 40, width: 160, height: 64 },
+  values: [["Visual key"]],
+  accessibility: { decorative: true },
+});
+const decorativeChart = decorativeSlide.charts.add("bar", {
+  name: "decorative-chart",
+  position: { left: 580, top: 40, width: 300, height: 180 },
+  categories: ["Ready"],
+  series: [{ name: "State", values: [1] }],
+  legend: false,
+  accessibility: { decorative: true },
+});
+const decorativeGroup = decorativeSlide.groups.add({
+  name: "decorative-group",
+  position: { left: 80, top: 280, width: 420, height: 140 },
+  childFrame: { left: 0, top: 0, width: 420, height: 140 },
+  accessibility: { decorative: true },
+});
+const decorativeFrom = decorativeGroup.shapes.add({
+  name: "decorative-from",
+  position: { left: 10, top: 40, width: 120, height: 60 },
+  text: "A",
+});
+const decorativeTo = decorativeGroup.shapes.add({
+  name: "decorative-to",
+  position: { left: 290, top: 40, width: 120, height: 60 },
+  text: "B",
+});
+const decorativeConnector = decorativeGroup.connectors.add({
+  name: "decorative-connector",
+  connectorType: "straight",
+  from: decorativeFrom,
+  to: decorativeTo,
+  start: { x: 130, y: 70 },
+  end: { x: 290, y: 70 },
+  line: { fill: "#94A3B8", width: 1 },
+  accessibility: { decorative: true },
+});
+assert.equal(decorativeImage.alt, "", "a decorative image must not derive alternative text from its generation prompt");
+assert.throws(
+  () => classifiedShape.setAccessibilityMetadata({ decorative: true }),
+  /cannot combine decorative: true with title or description/i,
+);
+assert.deepEqual(classifiedShape.accessibility, { title: "Meaningful status", decorative: false });
+assert.throws(() => decorativeImage.setAccessibilityMetadata({ decorative: "true" }), /decorative must be a boolean/i);
+
+const decorativeSource = await PresentationFile.exportPptx(decorativePresentation);
+const decorativeSourceZip = await JSZip.loadAsync(decorativeSource.bytes);
+const decorativeSourceXml = await decorativeSourceZip.file("ppt/slides/slide1.xml").async("text");
+assert.equal((decorativeSourceXml.match(/<adec:decorative\b/g) || []).length, 6);
+assert.equal((decorativeSourceXml.match(/<adec:decorative\b[^>]*\bval="(?:1|true)"/g) || []).length, 5);
+assert.equal((decorativeSourceXml.match(/<adec:decorative\b[^>]*\bval="(?:0|false)"/g) || []).length, 1);
+assert.equal((decorativeSourceXml.match(/uri="\{C183D7F6-B498-43B3-948B-1728B52AA6E4\}"/g) || []).length, 6);
+
+const decorativeImported = await PresentationFile.importPptx(decorativeSource);
+const decorativeImportedSlide = decorativeImported.slides.getItem(0);
+const importedClassifiedShape = itemByName(decorativeImportedSlide.shapes.items, "classified-shape");
+const importedDecorativeImage = itemByName(decorativeImportedSlide.images.items, "decorative-image");
+const importedDecorativeTable = itemByName(decorativeImportedSlide.tables.items, "decorative-table");
+const importedDecorativeChart = itemByName(decorativeImportedSlide.charts.items, "decorative-chart");
+const importedDecorativeGroup = itemByName(decorativeImportedSlide.groups.items, "decorative-group");
+const importedDecorativeConnector = itemByName(importedDecorativeGroup.connectors.items, "decorative-connector");
+assert.deepEqual(importedClassifiedShape.accessibility, { title: "Meaningful status", decorative: false });
+for (const object of [importedDecorativeImage, importedDecorativeTable, importedDecorativeChart, importedDecorativeGroup, importedDecorativeConnector]) {
+  assert.deepEqual(object.accessibility, { decorative: true });
+  assert.deepEqual(object.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+}
+assert.equal(importedDecorativeImage.alt, "");
+assert.match(decorativeImported.inspect({ kind: "shape,image,table,chart,group,connector", maxChars: 20_000 }).ndjson, /"decorative":true/);
+const decorativeNoOp = await PresentationFile.exportPptx(decorativeImported);
+assert.deepEqual(decorativeNoOp.bytes, decorativeSource.bytes, "unchanged decorative metadata must return the exact source package");
+
+const decorativeSourceSvg = await decorativeImportedSlide.export({ format: "svg" });
+importedClassifiedShape.setAccessibilityMetadata({ title: null, decorative: true });
+assert.throws(() => importedDecorativeImage.setAccessibilityMetadata({ title: "Contradictory image" }), /cannot combine decorative: true/i);
+assert.deepEqual(importedDecorativeImage.accessibility, { decorative: true }, "a rejected decorative edit must be transactional");
+importedDecorativeImage.setAccessibilityMetadata({ decorative: false, title: "Evidence image" });
+importedDecorativeTable.setAccessibilityMetadata({ decorative: null, title: "Visual layout key" });
+importedDecorativeChart.setAccessibilityMetadata({ decorative: false });
+importedDecorativeGroup.setAccessibilityMetadata({ decorative: false, title: "Decorative cluster" });
+const decorativeEdited = await PresentationFile.exportPptx(decorativeImported);
+const decorativeRoundTrip = await PresentationFile.importPptx(decorativeEdited);
+const decorativeRoundTripSlide = decorativeRoundTrip.slides.getItem(0);
+assert.deepEqual(itemByName(decorativeRoundTripSlide.shapes.items, "classified-shape").accessibility, { decorative: true });
+assert.deepEqual(itemByName(decorativeRoundTripSlide.images.items, "decorative-image").accessibility, { title: "Evidence image", decorative: false });
+assert.deepEqual(itemByName(decorativeRoundTripSlide.tables.items, "decorative-table").accessibility, { title: "Visual layout key" });
+assert.deepEqual(itemByName(decorativeRoundTripSlide.charts.items, "decorative-chart").accessibility, { decorative: false });
+const decorativeRoundTripGroup = itemByName(decorativeRoundTripSlide.groups.items, "decorative-group");
+assert.deepEqual(decorativeRoundTripGroup.accessibility, { title: "Decorative cluster", decorative: false });
+assert.deepEqual(itemByName(decorativeRoundTripGroup.connectors.items, "decorative-connector").accessibility, { decorative: true });
+const decorativeOutputSvg = await decorativeRoundTripSlide.export({ format: "svg" });
+assert.deepEqual(decorativeOutputSvg.bytes, decorativeSourceSvg.bytes, "decorative classification must not change model rendering");
 
 // The canonical file facade always crosses the OfficeKit C# WASM layer.
 const deck = Presentation.create({ slideSize: { width: 1280, height: 720 } });

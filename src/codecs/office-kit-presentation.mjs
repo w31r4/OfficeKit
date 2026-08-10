@@ -1584,6 +1584,7 @@ function modelPresentationAccessibility(value, owner = "Imported Presentation sh
   const accessibility = normalizePresentationAccessibility({
     ...(value.title === undefined ? {} : { title: value.title }),
     ...(value.description === undefined ? {} : { description: value.description }),
+    ...(value.decorative === undefined ? {} : { decorative: value.decorative }),
   }, owner);
   return accessibility ? { accessibility } : {};
 }
@@ -1592,6 +1593,7 @@ function modelPresentationImageAccessibility(image) {
   return modelPresentationAccessibility({
     ...(image.accessibilityTitle ? { title: image.accessibilityTitle } : {}),
     ...(image.altText ? { description: image.altText } : {}),
+    ...(image.accessibilityDecorative === undefined ? {} : { decorative: image.accessibilityDecorative }),
   }, "Imported Presentation image");
 }
 
@@ -1937,7 +1939,7 @@ function presentationImage(image, original, assetCatalog) {
       case: "image",
       value: {
         assetId: assetCatalog.addDataUrl(image.dataUrl),
-        altText: accessibility?.description || image.prompt || "",
+        altText: accessibility?.description ?? (accessibility ? "" : image.prompt || ""),
         leftEmu: sourceBoundFrameEmuFromPixels(position.left, `${image.id}.position.left`, original),
         topEmu: sourceBoundFrameEmuFromPixels(position.top, `${image.id}.position.top`, original),
         widthEmu: emuFromPixels(position.width, `${image.id}.position.width`),
@@ -1945,6 +1947,7 @@ function presentationImage(image, original, assetCatalog) {
         ...(crop ? { crop: presentationImageCropToWire(crop) } : {}),
         ...(image.transform == null ? {} : { transform: wirePresentationTransform(image.transform, `image ${image.id}`) }),
         ...(accessibility?.title ? { accessibilityTitle: accessibility.title } : {}),
+        ...(accessibility?.decorative === undefined ? {} : { accessibilityDecorative: accessibility.decorative }),
       },
     },
   };

@@ -1061,7 +1061,8 @@ internal static class PptxCodec
             Editable = editable,
             TextEditable = source is P.Shape placeholderShape && PptxPlaceholderCodec.SupportsSlideTextEditing(placeholderShape),
             AccessibilityEditable = editable && (
-                (source is P.Picture && element.ContentCase == PresentationElement.ContentOneofCase.Image) ||
+                (source is P.Picture accessibilityPicture && element.ContentCase == PresentationElement.ContentOneofCase.Image &&
+                 PptxNonVisualAccessibilityCodec.SupportsResidual(accessibilityPicture.NonVisualPictureProperties?.NonVisualDrawingProperties)) ||
                 PptxNonVisualAccessibilityCodec.Supports(source switch
                 {
                     P.Shape accessibilityShape => accessibilityShape.NonVisualShapeProperties?.NonVisualDrawingProperties,

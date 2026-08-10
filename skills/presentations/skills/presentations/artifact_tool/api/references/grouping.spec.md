@@ -111,11 +111,14 @@ presentation.resolve("model-node").text.set("Updated model");
 ```
 
 For a canonical imported group, OfficeKit permits bounded semantic edits to
-the group name, non-visible title/description, outer frame, child frame, and
-supported descendants. `accessibility` maps to `p:nvGrpSpPr/p:cNvPr`; it is
-independent of visible child content and the inspectable group name. The child
-tree topology is fixed: do not add, remove, reorder, or change the native kind
-of an imported child. Export rejects with
+the group name, non-visible title/description/decorative state, outer frame,
+child frame, and supported descendants. `accessibility` maps to
+`p:nvGrpSpPr/p:cNvPr`; its presence-aware `decorative` boolean uses the Office
+2019+ extension, `true` cannot coexist with title/description, and a
+classification change must be one transaction. It is independent of visible
+child content and the inspectable group name. The child tree topology is fixed:
+do not add, remove, reorder, or change the native kind of an imported child.
+Export rejects with
 `presentation_group_topology_changed` instead of rebuilding or flattening the
 group.
 
@@ -125,7 +128,8 @@ An imported group remains one opaque, read-only native object when its group
 shell uses unmodeled fill/effect/lock/rotation/flip/extension semantics, or when
 any descendant cannot be modeled safely. Inspect and preserve it unchanged.
 An irregular group `p:cNvPr` remains source-owned during unrelated supported
-group edits, and `setAccessibilityMetadata(...)` fails closed.
+group edits; unknown or duplicate decorative extension topology makes
+`setAccessibilityMetadata(...)` fail closed.
 Do not extract and re-add only the understood descendants; that would destroy
 the original ownership, z-order, coordinate transform, and unknown graph.
 

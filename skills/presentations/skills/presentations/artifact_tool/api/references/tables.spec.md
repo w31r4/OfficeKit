@@ -30,8 +30,8 @@ const table = slide.tables.add({
 });
 ```
 
-Use non-visible title/description metadata for a meaningful table independently
-of its cell content and inspectable name:
+Use non-visible accessibility metadata for a meaningful table independently of
+its cell content and inspectable name:
 
 ```ts
 const table = slide.tables.add({
@@ -40,6 +40,7 @@ const table = slide.tables.add({
   accessibility: {
     title: "Release readiness matrix",
     description: "Rows compare owner, readiness, and remaining release risk.",
+    decorative: false,
   },
 });
 
@@ -49,10 +50,14 @@ if (table.accessibilityCapability.editable) {
 ```
 
 Each present string contains 1–1,024 XML-safe characters; `null` clears one
-field. Canonical imported `p:nvGraphicFramePr/p:cNvPr` metadata is editable.
-Unknown attributes/children, hyperlinks, extensions, and malformed values stay
-source-owned and reject this mutation without disabling unrelated supported
-table edits. This does not establish reading order or replace useful cell text.
+field. `decorative` is presence-aware, and `true` cannot coexist with title or
+description. A classification change and its text clears/additions belong in
+one `setAccessibilityMetadata(...)` call. Canonical imported
+`p:nvGraphicFramePr/p:cNvPr` metadata, including the Office 2019+ decorative
+extension, is editable. Unknown attributes/children, hyperlinks/extensions,
+duplicate known extensions, and malformed values stay source-owned and reject
+this mutation without disabling unrelated table edits. This does not establish
+reading order or replace useful cell text.
 
 Primitive matrices and structured text runs are accepted for `values`. Use `columnTracks` with `fr(...)` and `fixed(...)` when a table should fill its frame with proportional columns. Use `columnWidths` only for explicit pixel widths.
 

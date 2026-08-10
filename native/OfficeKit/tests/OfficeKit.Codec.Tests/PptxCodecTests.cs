@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
+using AD = DocumentFormat.OpenXml.Office2019.Drawing;
 using C = DocumentFormat.OpenXml.Drawing.Charts;
 using P = DocumentFormat.OpenXml.Presentation;
 using P14 = DocumentFormat.OpenXml.Office2010.PowerPoint;
@@ -73,6 +74,7 @@ public sealed class PptxCodecTests
         {
             Title = "Quarterly delivery decision",
             Description = "A single-slide release decision with the current owner and status.",
+            Decorative = false,
         };
 
         var authored = Invoke(request);
@@ -85,6 +87,7 @@ public sealed class PptxCodecTests
                 .NonVisualShapeProperties!.NonVisualDrawingProperties!;
             Assert.Equal("Quarterly delivery decision", nonVisual.Title!.Value);
             Assert.Equal("A single-slide release decision with the current owner and status.", nonVisual.Description!.Value);
+            Assert.False(Assert.Single(nonVisual.Descendants<AD.Decorative>()).Val!.Value);
         }
 
         var imported = Import(authored.File.ToByteArray());
@@ -93,16 +96,21 @@ public sealed class PptxCodecTests
         Assert.True(importedElement.Source.AccessibilityEditable);
         Assert.Equal("Quarterly delivery decision", importedElement.Shape.Accessibility.Title);
         Assert.Equal("A single-slide release decision with the current owner and status.", importedElement.Shape.Accessibility.Description);
+        Assert.True(importedElement.Shape.Accessibility.HasDecorative);
+        Assert.False(importedElement.Shape.Accessibility.Decorative);
 
-        importedElement.Shape.Accessibility.Title = "Release decision";
+        importedElement.Shape.Accessibility.ClearTitle();
         importedElement.Shape.Accessibility.ClearDescription();
+        importedElement.Shape.Accessibility.Decorative = true;
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTrip = Import(edited.File.ToByteArray());
         Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
         var roundTripShape = Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements).Shape;
-        Assert.Equal("Release decision", roundTripShape.Accessibility.Title);
+        Assert.False(roundTripShape.Accessibility.HasTitle);
         Assert.False(roundTripShape.Accessibility.HasDescription);
+        Assert.True(roundTripShape.Accessibility.HasDecorative);
+        Assert.True(roundTripShape.Accessibility.Decorative);
 
         var invalid = ExportRequest();
         invalid.Artifact.Presentation.Slides[0].Elements[0].Shape.Accessibility = new PresentationNonVisualAccessibility
@@ -113,6 +121,13 @@ public sealed class PptxCodecTests
         var empty = ExportRequest();
         empty.Artifact.Presentation.Slides[0].Elements[0].Shape.Accessibility = new PresentationNonVisualAccessibility();
         Assert.Equal("invalid_presentation_shape", Assert.Single(Invoke(empty).Diagnostics).Code);
+        var contradictory = ExportRequest();
+        contradictory.Artifact.Presentation.Slides[0].Elements[0].Shape.Accessibility = new PresentationNonVisualAccessibility
+        {
+            Title = "Meaningful",
+            Decorative = true,
+        };
+        Assert.Equal("invalid_presentation_shape", Assert.Single(Invoke(contradictory).Diagnostics).Code);
 
         var irregularBytes = ReplaceZipText(authored.File.ToByteArray(), "ppt/slides/slide1.xml", xml =>
             xml.Replace("name=\"Title\"", "name=\"Title\" xmlns:fixture=\"urn:office-kit:shape-accessibility\" fixture:opaque=\"kept\"", StringComparison.Ordinal));
@@ -138,6 +153,20 @@ public sealed class PptxCodecTests
 
         irregularElement.Shape.Accessibility = new PresentationNonVisualAccessibility { Title = "Must reject" };
         Assert.Equal("unsupported_presentation_edit", Assert.Single(Export(irregular.Artifact).Diagnostics).Code);
+
+        var duplicateDecorativeBytes = ReplaceZipText(authored.File.ToByteArray(), "ppt/slides/slide1.xml", xml =>
+            xml.Replace(
+                "</a:extLst>",
+                "<a:ext uri=\"{C183D7F6-B498-43B3-948B-1728B52AA6E4}\"><adec:decorative xmlns:adec=\"http://schemas.microsoft.com/office/drawing/2017/decorative\" val=\"0\"/></a:ext></a:extLst>",
+                StringComparison.Ordinal));
+        var duplicateDecorative = Import(duplicateDecorativeBytes);
+        Assert.True(duplicateDecorative.Ok, Diagnostics(duplicateDecorative));
+        var duplicateDecorativeShape = Assert.Single(Assert.Single(duplicateDecorative.Artifact.Presentation.Slides).Elements);
+        Assert.True(duplicateDecorativeShape.Source.Editable);
+        Assert.False(duplicateDecorativeShape.Source.AccessibilityEditable);
+        Assert.Null(duplicateDecorativeShape.Shape.Accessibility);
+        duplicateDecorativeShape.Shape.Accessibility = new PresentationNonVisualAccessibility { Decorative = true };
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(Export(duplicateDecorative.Artifact).Diagnostics).Code);
     }
 
     [Fact]
@@ -154,6 +183,7 @@ public sealed class PptxCodecTests
             {
                 Title = "Delivery gate table",
                 Description = "Two-column table listing each release gate and its current state.",
+                Decorative = false,
             },
         };
         table.ColumnWidthsEmu.Add([1_500_000, 1_500_000]);
@@ -187,6 +217,7 @@ public sealed class PptxCodecTests
             {
                 Title = "Regional revenue chart",
                 Description = "Bar chart comparing North and South regional revenue.",
+                Decorative = false,
             },
         };
         chart.Categories.Add(["North", "South"]);
@@ -211,8 +242,10 @@ public sealed class PptxCodecTests
                 .NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!;
             Assert.Equal("Delivery gate table", tableNonVisual.Title!.Value);
             Assert.Equal("Two-column table listing each release gate and its current state.", tableNonVisual.Description!.Value);
+            Assert.False(Assert.Single(tableNonVisual.Descendants<AD.Decorative>()).Val!.Value);
             Assert.Equal("Regional revenue chart", chartNonVisual.Title!.Value);
             Assert.Equal("Bar chart comparing North and South regional revenue.", chartNonVisual.Description!.Value);
+            Assert.False(Assert.Single(chartNonVisual.Descendants<AD.Decorative>()).Val!.Value);
         }
 
         var imported = Import(authored.File.ToByteArray());
@@ -224,11 +257,14 @@ public sealed class PptxCodecTests
         Assert.True(importedChart.Source.AccessibilityEditable);
         Assert.Equal("Delivery gate table", importedTable.Table.Accessibility.Title);
         Assert.Equal("Regional revenue chart", importedChart.Chart.Accessibility.Title);
+        Assert.False(importedTable.Table.Accessibility.Decorative);
+        Assert.False(importedChart.Chart.Accessibility.Decorative);
 
         importedTable.Table.Accessibility.Title = "Release gate table";
         importedTable.Table.Accessibility.ClearDescription();
         importedChart.Chart.Accessibility.ClearTitle();
-        importedChart.Chart.Accessibility.Description = "North leads South by five units.";
+        importedChart.Chart.Accessibility.ClearDescription();
+        importedChart.Chart.Accessibility.Decorative = true;
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTrip = Import(edited.File.ToByteArray());
@@ -239,7 +275,8 @@ public sealed class PptxCodecTests
         Assert.Equal("Release gate table", roundTripTable.Table.Accessibility.Title);
         Assert.False(roundTripTable.Table.Accessibility.HasDescription);
         Assert.False(roundTripChart.Chart.Accessibility.HasTitle);
-        Assert.Equal("North leads South by five units.", roundTripChart.Chart.Accessibility.Description);
+        Assert.False(roundTripChart.Chart.Accessibility.HasDescription);
+        Assert.True(roundTripChart.Chart.Accessibility.Decorative);
 
         var invalid = request.Clone();
         Assert.Single(invalid.Artifact.Presentation.Slides[0].Elements, element => element.ContentCase == PresentationElement.ContentOneofCase.Table)
@@ -311,6 +348,7 @@ public sealed class PptxCodecTests
                 {
                     Title = "Approval direction",
                     Description = "Arrow from intake to final approval.",
+                    Decorative = false,
                 },
             },
         };
@@ -328,6 +366,7 @@ public sealed class PptxCodecTests
             {
                 Title = "Approval flow",
                 Description = "Grouped visual showing the direction of the approval process.",
+                Decorative = false,
             },
         };
         group.Children.Add(connector);
@@ -351,8 +390,10 @@ public sealed class PptxCodecTests
                 .NonVisualConnectionShapeProperties!.NonVisualDrawingProperties!;
             Assert.Equal("Approval flow", groupNonVisual.Title!.Value);
             Assert.Equal("Grouped visual showing the direction of the approval process.", groupNonVisual.Description!.Value);
+            Assert.False(Assert.Single(groupNonVisual.Descendants<AD.Decorative>()).Val!.Value);
             Assert.Equal("Approval direction", connectorNonVisual.Title!.Value);
             Assert.Equal("Arrow from intake to final approval.", connectorNonVisual.Description!.Value);
+            Assert.False(Assert.Single(connectorNonVisual.Descendants<AD.Decorative>()).Val!.Value);
         }
 
         var imported = Import(authored.File.ToByteArray());
@@ -364,9 +405,12 @@ public sealed class PptxCodecTests
         Assert.True(Assert.Single(importedGroupElement.Group.Children).Source.AccessibilityEditable);
         Assert.Equal("Approval flow", importedGroupElement.Group.Accessibility.Title);
         Assert.Equal("Approval direction", importedConnector.Accessibility.Title);
+        Assert.False(importedGroupElement.Group.Accessibility.Decorative);
+        Assert.False(importedConnector.Accessibility.Decorative);
 
-        importedGroupElement.Group.Accessibility.Title = "Reviewed approval flow";
+        importedGroupElement.Group.Accessibility.ClearTitle();
         importedGroupElement.Group.Accessibility.ClearDescription();
+        importedGroupElement.Group.Accessibility.Decorative = true;
         importedConnector.Accessibility.ClearTitle();
         importedConnector.Accessibility.Description = "Reviewed direction from intake to approval.";
         var edited = Export(imported.Artifact);
@@ -375,10 +419,12 @@ public sealed class PptxCodecTests
         Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
         var roundTripGroup = Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements,
             element => element.ContentCase == PresentationElement.ContentOneofCase.Group).Group;
-        Assert.Equal("Reviewed approval flow", roundTripGroup.Accessibility.Title);
+        Assert.False(roundTripGroup.Accessibility.HasTitle);
         Assert.False(roundTripGroup.Accessibility.HasDescription);
+        Assert.True(roundTripGroup.Accessibility.Decorative);
         Assert.False(Assert.Single(roundTripGroup.Children).Connector.Accessibility.HasTitle);
         Assert.Equal("Reviewed direction from intake to approval.", Assert.Single(roundTripGroup.Children).Connector.Accessibility.Description);
+        Assert.False(Assert.Single(roundTripGroup.Children).Connector.Accessibility.Decorative);
 
         var invalidGroup = request.Clone();
         Assert.Single(Assert.Single(invalidGroup.Artifact.Presentation.Slides).Elements,
@@ -4218,6 +4264,7 @@ public sealed class PptxCodecTests
                 AssetId = authoredAssetId,
                 AltText = "Authored image evidence",
                 AccessibilityTitle = "Authored evidence image",
+                AccessibilityDecorative = false,
                 LeftEmu = 500_000,
                 TopEmu = 1_250_000,
                 WidthEmu = 1_500_000,
@@ -4243,6 +4290,8 @@ public sealed class PptxCodecTests
         Assert.True(authoredImage.Source.AccessibilityEditable);
         Assert.Equal("Authored evidence image", authoredImage.Image.AccessibilityTitle);
         Assert.Equal("Authored image evidence", authoredImage.Image.AltText);
+        Assert.True(authoredImage.Image.HasAccessibilityDecorative);
+        Assert.False(authoredImage.Image.AccessibilityDecorative);
         Assert.Equal(25_000, authoredImage.Image.Crop.LeftThousandthPercent);
         Assert.Equal(25_000, authoredImage.Image.Crop.RightThousandthPercent);
         Assert.Equal(180_000, authoredImage.Image.Transform.RotationAngle60000);
@@ -4325,6 +4374,7 @@ public sealed class PptxCodecTests
         Assert.Equal("Edited picture", roundTripImage.Name);
         Assert.Equal("Edited picture evidence", roundTripImage.Image.AccessibilityTitle);
         Assert.Equal("Edited alternative text", roundTripImage.Image.AltText);
+        Assert.False(roundTripImage.Image.HasAccessibilityDecorative);
         Assert.Equal(750_000L, roundTripImage.Image.LeftEmu);
         Assert.Equal(2_000_000L, roundTripImage.Image.WidthEmu);
         Assert.Equal(replacementId, roundTripImage.Image.AssetId);
@@ -4332,6 +4382,33 @@ public sealed class PptxCodecTests
         Assert.Equal(2_000, roundTripImage.Image.Crop.TopThousandthPercent);
         Assert.Equal(5_000, roundTripImage.Image.Crop.RightThousandthPercent);
         Assert.Equal(3_000, roundTripImage.Image.Crop.BottomThousandthPercent);
+
+        var decorativeArtifact = roundTrip.Artifact.Clone();
+        var decorativeImage = Assert.Single(Assert.Single(decorativeArtifact.Presentation.Slides).Elements,
+            item => item.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
+        decorativeImage.AccessibilityTitle = string.Empty;
+        decorativeImage.AltText = string.Empty;
+        decorativeImage.AccessibilityDecorative = true;
+        var decorativeExport = Export(decorativeArtifact);
+        Assert.True(decorativeExport.Ok, Diagnostics(decorativeExport));
+        using (var stream = new MemoryStream(decorativeExport.File.ToByteArray()))
+        using (var presentation = PresentationDocument.Open(stream, false))
+        {
+            var nonVisual = Assert.Single(presentation.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.Picture>())
+                .NonVisualPictureProperties!.NonVisualDrawingProperties!;
+            Assert.Null(nonVisual.Title);
+            Assert.Null(nonVisual.Description);
+            Assert.True(Assert.Single(nonVisual.Descendants<AD.Decorative>()).Val!.Value);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(presentation));
+        }
+        var decorativeRoundTrip = Import(decorativeExport.File.ToByteArray());
+        Assert.True(decorativeRoundTrip.Ok, Diagnostics(decorativeRoundTrip));
+        var roundTripDecorativeImage = Assert.Single(Assert.Single(decorativeRoundTrip.Artifact.Presentation.Slides).Elements,
+            item => item.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
+        Assert.True(roundTripDecorativeImage.HasAccessibilityDecorative);
+        Assert.True(roundTripDecorativeImage.AccessibilityDecorative);
+        Assert.Empty(roundTripDecorativeImage.AccessibilityTitle);
+        Assert.Empty(roundTripDecorativeImage.AltText);
 
         roundTripImage.Image.Crop = null;
         var uncropped = Export(roundTrip.Artifact);
@@ -4372,6 +4449,48 @@ public sealed class PptxCodecTests
             Assert.Single(
                 Assert.Single(residualMetadataRoundTrip.Artifact.Presentation.Slides).Elements,
                 item => item.ContentCase == PresentationElement.ContentOneofCase.Image).Image.AccessibilityTitle);
+
+        var duplicateDecorativeSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+            Regex.Replace(
+                xml,
+                "(<p:cNvPr\\b[^>]*name=\"Preserved picture\"[^>]*)/>",
+                "$1><a:extLst>" +
+                "<a:ext uri=\"{C183D7F6-B498-43B3-948B-1728B52AA6E4}\"><adec:decorative xmlns:adec=\"http://schemas.microsoft.com/office/drawing/2017/decorative\" val=\"1\"/></a:ext>" +
+                "<a:ext uri=\"{C183D7F6-B498-43B3-948B-1728B52AA6E4}\"><adec:decorative xmlns:adec=\"http://schemas.microsoft.com/office/drawing/2017/decorative\" val=\"0\"/></a:ext>" +
+                "</a:extLst></p:cNvPr>",
+                RegexOptions.CultureInvariant,
+                TimeSpan.FromSeconds(1)));
+        var duplicateDecorativeImported = Import(duplicateDecorativeSource);
+        Assert.True(duplicateDecorativeImported.Ok, Diagnostics(duplicateDecorativeImported));
+        var duplicateDecorativePicture = Assert.Single(
+            Assert.Single(duplicateDecorativeImported.Artifact.Presentation.Slides).Elements,
+            item => item.ContentCase == PresentationElement.ContentOneofCase.Image);
+        Assert.True(duplicateDecorativePicture.Source.Editable);
+        Assert.False(duplicateDecorativePicture.Source.AccessibilityEditable);
+        Assert.Empty(duplicateDecorativePicture.Image.AccessibilityTitle);
+        Assert.Empty(duplicateDecorativePicture.Image.AltText);
+        Assert.False(duplicateDecorativePicture.Image.HasAccessibilityDecorative);
+        var duplicateDecorativeNoOp = Export(duplicateDecorativeImported.Artifact);
+        Assert.True(duplicateDecorativeNoOp.Ok, Diagnostics(duplicateDecorativeNoOp));
+        Assert.Equal(duplicateDecorativeSource, duplicateDecorativeNoOp.File.ToByteArray());
+        duplicateDecorativePicture.Image.AccessibilityDecorative = true;
+        var duplicateDecorativeRejected = Export(duplicateDecorativeImported.Artifact);
+        Assert.False(duplicateDecorativeRejected.Ok);
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(duplicateDecorativeRejected.Diagnostics).Code);
+
+        var emptyTitleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+            xml.Replace("name=\"Preserved picture\"", "name=\"Preserved picture\" title=\"\"", StringComparison.Ordinal));
+        var emptyTitleImported = Import(emptyTitleSource);
+        Assert.True(emptyTitleImported.Ok, Diagnostics(emptyTitleImported));
+        var emptyTitlePicture = Assert.Single(
+            Assert.Single(emptyTitleImported.Artifact.Presentation.Slides).Elements,
+            item => item.ContentCase == PresentationElement.ContentOneofCase.Image);
+        Assert.True(emptyTitlePicture.Source.Editable);
+        Assert.False(emptyTitlePicture.Source.AccessibilityEditable);
+        emptyTitlePicture.Image.AccessibilityTitle = "Unsafe bypass";
+        var emptyTitleRejected = Export(emptyTitleImported.Artifact);
+        Assert.False(emptyTitleRejected.Ok);
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(emptyTitleRejected.Diagnostics).Code);
 
         var jpegId = AddPictureAsset(roundTrip.Artifact, [0xff, 0xd8, 0xff, 0xd9], "image/jpeg");
         roundTripImage.Image.AssetId = jpegId;

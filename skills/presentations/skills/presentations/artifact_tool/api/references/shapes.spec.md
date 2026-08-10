@@ -45,7 +45,7 @@ Use `presentation.inspect({ kind: "shape,textbox", search })` to find the
 `sh/...` anchor id. Keep the resolved facade type-aware; do not rebuild an
 imported shape unless the task requires a new object.
 
-## Non-visible title and description
+## Non-visible accessibility metadata
 
 Ordinary shapes may carry PowerPoint alternative-text metadata independently
 of their visible text and inspectable object name:
@@ -58,6 +58,7 @@ const status = slide.shapes.add({
   accessibility: {
     title: "Controlled rollout status",
     description: "The rollout is approved for two pilot regions.",
+    decorative: false,
   },
 });
 
@@ -70,11 +71,16 @@ if (status.accessibilityCapability.editable) {
 ```
 
 Each present string contains 1–1,024 XML-safe characters. `null` clears one
-field. Canonical imported `p:nvSpPr/p:cNvPr` title/description is source-bound
-editable; children, hyperlinks, extensions, unknown attributes, and malformed
-metadata remain byte-preserved but fail closed on semantic mutation. This
-bounded metadata does not model slide reading order or a decorative-object
-flag. Images have their separate alternative-text contract.
+field. `decorative` is a presence-aware boolean: `false` is distinct from an
+omitted classification, while `true` cannot coexist with title or description.
+Switching classifications is one transaction, for example
+`{ title: null, description: null, decorative: true }`. Canonical imported
+`p:nvSpPr/p:cNvPr` metadata is source-bound editable; the Office 2019+
+classification maps through the standard decorative extension. Hyperlinks,
+unknown extensions/attributes/children, duplicate decorative extensions, and
+malformed values remain byte-preserved but fail closed on semantic mutation.
+This bounded metadata does not establish slide reading order or whole-deck
+accessibility. Images have their separate residual-protected contract.
 
 ## Imported Background Fill
 
@@ -109,7 +115,7 @@ type PresetShapeConfig = {
   position?: PositionConfig;
   fill?: FillConfig;
   line?: LineConfig;
-  accessibility?: { title?: string; description?: string };
+  accessibility?: { title?: string; description?: string; decorative?: boolean };
   adjustmentList?: Array<{ name: string; formula: string }>;
   borderRadius?: number | string; // number = pixels; string = supported rounded-* token
   shadow?: string; // shadow token, "shadow-none", or custom "2px 7px 19px #000000/17"
