@@ -14,15 +14,59 @@ const PROPERTY_SHAPES = Object.freeze({
   author: { namespace: NAMESPACES.dc, localName: "creator", container: "Seq" },
   title: { namespace: NAMESPACES.dc, localName: "title", container: "Alt" },
   subject: { namespace: NAMESPACES.dc, localName: "description", container: "Alt" },
-  keywords: { namespace: NAMESPACES.pdf, localName: "Keywords" },
-  creator: { namespace: NAMESPACES.xmp, localName: "CreatorTool" },
-  producer: { namespace: NAMESPACES.pdf, localName: "Producer" },
-  creationDate: { namespace: NAMESPACES.xmp, localName: "CreateDate" },
-  modificationDate: { namespace: NAMESPACES.xmp, localName: "ModifyDate" },
+  keywords: { namespace: NAMESPACES.pdf, localName: "Keywords", attribute: true },
+  creator: { namespace: NAMESPACES.xmp, localName: "CreatorTool", attribute: true },
+  producer: { namespace: NAMESPACES.pdf, localName: "Producer", attribute: true },
+  creationDate: { namespace: NAMESPACES.xmp, localName: "CreateDate", attribute: true },
+  modificationDate: { namespace: NAMESPACES.xmp, localName: "ModifyDate", attribute: true },
 });
 
 function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function validateXmlCharacters(value) {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint === 0x9 || codePoint === 0xa || codePoint === 0xd) continue;
+    if ((codePoint >= 0x20 && codePoint <= 0xd7ff)
+      || (codePoint >= 0xe000 && codePoint <= 0xfffd)
+      || (codePoint >= 0x10000 && codePoint <= 0x10ffff)) continue;
+    throw new Error(`invalid XML character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`);
+  }
+  return value;
+}
+
+function decodeXmlText(value) {
+  const unsupportedEntity = /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/u.exec(value);
+  if (unsupportedEntity) throw new Error(`unsupported XML entity reference near offset ${unsupportedEntity.index}`);
+  const decoded = value.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);/gu, (entity) => {
+    if (entity === "&amp;") return "&";
+    if (entity === "&lt;") return "<";
+    if (entity === "&gt;") return ">";
+    if (entity === "&quot;") return "\"";
+    if (entity === "&apos;") return "'";
+    const hexadecimal = entity.startsWith("&#x");
+    const codePoint = Number.parseInt(entity.slice(hexadecimal ? 3 : 2, -1), hexadecimal ? 16 : 10);
+    if (!Number.isSafeInteger(codePoint) || codePoint < 1 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)) {
+      throw new Error(`invalid XML character reference: ${entity}`);
+    }
+    return String.fromCodePoint(codePoint);
+  });
+  return validateXmlCharacters(decoded);
+}
+
+function encodeXmlText(value) {
+  validateXmlCharacters(value);
+  return value.replace(/&/gu, "&amp;").replace(/</gu, "&lt;").replace(/>/gu, "&gt;");
+}
+
+function encodeXmlAttribute(value, quote) {
+  return encodeXmlText(value)
+    .replace(quote === "\"" ? /"/gu : /'/gu, quote === "\"" ? "&quot;" : "&apos;")
+    .replace(/\t/gu, "&#x9;")
+    .replace(/\n/gu, "&#xA;")
+    .replace(/\r/gu, "&#xD;");
 }
 
 function expandedName(qname, namespaces, attribute = false) {
@@ -47,7 +91,7 @@ function findMarkupEnd(xml, start) {
   throw new Error("unterminated XML start tag");
 }
 
-function parseAttributes(source) {
+function parseAttributes(source, sourceOffset) {
   const attributes = [];
   const names = new Set();
   let index = 0;
@@ -70,7 +114,15 @@ function parseAttributes(source) {
     const valueStart = index;
     const valueEnd = source.indexOf(quote, valueStart);
     if (valueEnd === -1) throw new Error(`XML attribute ${name} is unterminated`);
-    attributes.push({ name, value: decodeXmlText(source.slice(valueStart, valueEnd)) });
+    const rawValue = source.slice(valueStart, valueEnd);
+    if (/[\t\r\n]/u.test(rawValue)) throw new Error(`XML attribute ${name} contains non-canonical literal whitespace`);
+    attributes.push({
+      name,
+      value: decodeXmlText(rawValue),
+      quote,
+      valueStart: sourceOffset + valueStart,
+      valueEnd: sourceOffset + valueEnd,
+    });
     index = valueEnd + 1;
   }
   return attributes;
@@ -84,7 +136,8 @@ function parseOpenTag(xml, start, inheritedNamespaces) {
   const nameMatch = /^\s*([A-Za-z_][A-Za-z0-9_.:-]*)/u.exec(body);
   if (!nameMatch) throw new Error("invalid XML element name");
   const qname = nameMatch[1];
-  const attributes = parseAttributes(body.slice(nameMatch[0].length));
+  const attributeOffset = start + 1 + nameMatch[0].length;
+  const attributes = parseAttributes(body.slice(nameMatch[0].length), attributeOffset);
   const namespaces = new Map(inheritedNamespaces);
   for (const attribute of attributes) {
     if (attribute.name === "xmlns") namespaces.set("", attribute.value);
@@ -100,7 +153,7 @@ function parseOpenTag(xml, start, inheritedNamespaces) {
 
 function parseXml(xml) {
   if (xml.includes("\u0000")) throw new Error("XMP contains a NUL byte");
-  const documentNode = { children: [], text: [], namespaces: new Map([["xml", NAMESPACES.xml]]) };
+  const documentNode = { children: [], text: [], misc: [], namespaces: new Map([["xml", NAMESPACES.xml]]) };
   const stack = [documentNode];
   let index = 0;
   while (index < xml.length) {
@@ -113,20 +166,20 @@ function parseXml(xml) {
     }
     if (markup === -1) break;
     if (xml.startsWith("<?", markup)) {
-      if (stack.length > 1) throw new Error("processing instructions inside XMP elements are outside the canonical simple profile");
       const end = xml.indexOf("?>", markup + 2);
       if (end === -1) throw new Error("unterminated XML processing instruction");
+      stack.at(-1).misc.push({ start: markup, end: end + 2, kind: "processing-instruction" });
       index = end + 2;
       continue;
     }
     if (xml.startsWith("<!--", markup)) {
-      if (stack.length > 1) throw new Error("comments inside XMP elements are outside the canonical simple profile");
       const end = xml.indexOf("-->", markup + 4);
       if (end === -1) throw new Error("unterminated XML comment");
+      stack.at(-1).misc.push({ start: markup, end: end + 3, kind: "comment" });
       index = end + 3;
       continue;
     }
-    if (xml.startsWith("<!", markup)) throw new Error("XMP declarations, DTDs, and CDATA are outside the canonical simple profile");
+    if (xml.startsWith("<!", markup)) throw new Error("XMP declarations, DTDs, and CDATA are unsupported");
     if (xml.startsWith("</", markup)) {
       const end = xml.indexOf(">", markup + 2);
       if (end === -1) throw new Error("unterminated XML closing tag");
@@ -148,6 +201,7 @@ function parseXml(xml) {
       namespaces: parsed.namespaces,
       children: [],
       text: [],
+      misc: [],
       start: markup,
       openEnd: parsed.end + 1,
       closeStart: parsed.selfClosing ? parsed.end : null,
@@ -164,118 +218,141 @@ function parseXml(xml) {
   return documentNode.children[0];
 }
 
-function decodeXmlText(value) {
-  return value.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);/gu, (entity) => {
-    if (entity === "&amp;") return "&";
-    if (entity === "&lt;") return "<";
-    if (entity === "&gt;") return ">";
-    if (entity === "&quot;") return "\"";
-    if (entity === "&apos;") return "'";
-    const hexadecimal = entity.startsWith("&#x");
-    const codePoint = Number.parseInt(entity.slice(hexadecimal ? 3 : 2, -1), hexadecimal ? 16 : 10);
-    if (!Number.isSafeInteger(codePoint) || codePoint < 1 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)) {
-      throw new Error(`invalid XML character reference: ${entity}`);
-    }
-    return String.fromCodePoint(codePoint);
-  }).replace(/&[^;\s<]+;/gu, (entity) => {
-    throw new Error(`unsupported XML entity reference: ${entity}`);
-  });
-}
-
-function encodeXmlText(value) {
-  return value.replace(/&/gu, "&amp;").replace(/</gu, "&lt;").replace(/>/gu, "&gt;");
-}
-
 function elementChildren(node, namespace, localName) {
   return node.children.filter((child) => child.namespace === namespace && child.localName === localName);
 }
 
-function directTextSlot(node, label) {
-  if (node.selfClosing || node.children.length) throw new Error(`${label} must contain direct text only`);
-  const raw = node.text.map((segment) => segment.value).join("");
-  return { value: decodeXmlText(raw), start: node.openEnd, end: node.closeStart };
+function hasMixedContent(node) {
+  return node.text.some((segment) => segment.value.trim()) || node.misc.length > 0;
 }
 
-function propertyTextSlot(property, shape, label) {
-  if (!shape.container) return directTextSlot(property, label);
-  if (property.selfClosing || property.text.some((segment) => segment.value.trim())) throw new Error(`${label} has non-canonical mixed content`);
+function directTextSlot(node, label) {
+  if (node.selfClosing || node.children.length || node.misc.length) throw new Error(`${label} must contain direct text only`);
+  const raw = node.text.map((segment) => segment.value).join("");
+  return { value: decodeXmlText(raw), start: node.openEnd, end: node.closeStart, kind: "text" };
+}
+
+function structuredTextSlot(property, shape, label) {
+  if (property.attributes.length) throw new Error(`${label} property must not carry attributes`);
+  if (property.selfClosing || hasMixedContent(property)) throw new Error(`${label} has unsupported mixed content`);
   const containers = elementChildren(property, NAMESPACES.rdf, shape.container);
   if (containers.length !== 1 || property.children.length !== 1) throw new Error(`${label} must contain exactly one rdf:${shape.container}`);
   const container = containers[0];
-  if (container.selfClosing || container.text.some((segment) => segment.value.trim())) throw new Error(`${label} rdf:${shape.container} has non-canonical mixed content`);
-  const items = elementChildren(container, NAMESPACES.rdf, "li");
-  if (items.length !== 1 || container.children.length !== 1) throw new Error(`${label} must contain exactly one rdf:li`);
-  const item = items[0];
-  if (shape.container === "Alt") {
-    const language = item.attributes.filter((attribute) => attribute.namespace === NAMESPACES.xml && attribute.localName === "lang");
-    if (language.length !== 1 || language[0].value !== "x-default") throw new Error(`${label} rdf:Alt must contain one x-default rdf:li`);
-  } else if (item.attributes.length) throw new Error(`${label} rdf:Seq item must not carry attributes`);
-  return directTextSlot(item, `${label} rdf:li`);
-}
-
-function descendants(node, namespace, localName, output = []) {
-  for (const child of node.children) {
-    if (child.namespace === namespace && child.localName === localName) output.push(child);
-    descendants(child, namespace, localName, output);
+  if (container.attributes.length || container.selfClosing || hasMixedContent(container)) {
+    throw new Error(`${label} rdf:${shape.container} has unsupported attributes or mixed content`);
   }
-  return output;
+  const items = elementChildren(container, NAMESPACES.rdf, "li");
+  if (!items.length || items.length !== container.children.length) throw new Error(`${label} rdf:${shape.container} must contain only rdf:li values`);
+  if (shape.container === "Seq") {
+    if (items.length !== 1) throw new Error(`${label} rdf:Seq contains multiple values`);
+    if (items[0].attributes.length) throw new Error(`${label} rdf:Seq item must not carry attributes`);
+    return directTextSlot(items[0], `${label} rdf:li`);
+  }
+  const languages = new Set();
+  let defaultItem = null;
+  for (const item of items) {
+    const languageAttributes = item.attributes.filter((attribute) => attribute.namespace === NAMESPACES.xml && attribute.localName === "lang");
+    if (item.attributes.length !== 1 || languageAttributes.length !== 1 || !languageAttributes[0].value) {
+      throw new Error(`${label} rdf:Alt items must carry exactly one non-empty xml:lang`);
+    }
+    const language = languageAttributes[0].value.toLowerCase();
+    if (languages.has(language)) throw new Error(`${label} rdf:Alt contains duplicate language ${language}`);
+    languages.add(language);
+    directTextSlot(item, `${label} rdf:li[xml:lang=${languageAttributes[0].value}]`);
+    if (language === "x-default") defaultItem = item;
+  }
+  if (!defaultItem) throw new Error(`${label} rdf:Alt lacks x-default`);
+  return directTextSlot(defaultItem, `${label} rdf:li[xml:lang=x-default]`);
 }
 
-export function inspectCanonicalXmpMetadata(value) {
+function fieldSlot(descriptions, shape, field) {
+  const elementMatches = descriptions.flatMap((description) => elementChildren(description, shape.namespace, shape.localName));
+  const attributeMatches = descriptions.flatMap((description) => description.attributes
+    .filter((attribute) => attribute.namespace === shape.namespace && attribute.localName === shape.localName));
+  if (!elementMatches.length && !attributeMatches.length) return null;
+  if (elementMatches.length + attributeMatches.length !== 1) throw new Error(`${field} appears more than once`);
+  if (attributeMatches.length) {
+    if (!shape.attribute) throw new Error(`${field} does not support an attribute-valued representation`);
+    const attribute = attributeMatches[0];
+    return {
+      value: attribute.value,
+      start: attribute.valueStart,
+      end: attribute.valueEnd,
+      kind: "attribute",
+      quote: attribute.quote,
+    };
+  }
+  const property = elementMatches[0];
+  if (shape.container) return structuredTextSlot(property, shape, field);
+  if (property.attributes.length) throw new Error(`${field} property must not carry attributes`);
+  return directTextSlot(property, field);
+}
+
+export function inspectXmpMetadata(value) {
   const bytes = Buffer.from(value);
   const base = {
     byteLength: bytes.byteLength,
     sha256: sha256(bytes),
-    profile: "canonical-simple-v1",
+    profile: "field-safe-v1",
     values: {},
     mutableFields: [],
+    blockedFields: [],
     issues: [],
     slots: {},
   };
   if (bytes.byteLength > XMP_MAX_BYTES) return { ...base, profile: "unsupported", issues: [`xmp-stream-exceeds-${XMP_MAX_BYTES}-bytes`] };
-  let xml;
   try {
-    xml = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    const xml = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     const root = parseXml(xml);
     if (root.namespace !== "adobe:ns:meta/" || root.localName !== "xmpmeta") throw new Error("document element must be x:xmpmeta");
     const rdfRoots = elementChildren(root, NAMESPACES.rdf, "RDF");
     if (rdfRoots.length !== 1 || root.children.length !== 1) throw new Error("x:xmpmeta must contain exactly one rdf:RDF element");
     const descriptions = elementChildren(rdfRoots[0], NAMESPACES.rdf, "Description");
     if (!descriptions.length || descriptions.length !== rdfRoots[0].children.length) throw new Error("rdf:RDF must contain only one or more rdf:Description elements");
-    for (const description of descriptions) {
-      for (const attribute of description.attributes) {
-        if (Object.values(PROPERTY_SHAPES).some((shape) => shape.namespace === attribute.namespace && shape.localName === attribute.localName)) {
-          throw new Error(`${attribute.localName} uses an attribute-valued representation outside the canonical simple profile`);
-        }
-      }
-    }
     for (const [field, shape] of Object.entries(PROPERTY_SHAPES)) {
-      const matches = descriptions.flatMap((description) => elementChildren(description, shape.namespace, shape.localName));
-      if (!matches.length) continue;
-      if (matches.length !== 1) throw new Error(`${field} appears more than once`);
-      const slot = propertyTextSlot(matches[0], shape, field);
-      base.slots[field] = { start: slot.start, end: slot.end };
-      if (slot.value !== "") base.values[field] = slot.value;
-      base.mutableFields.push(field);
-    }
-    if (descendants(root, NAMESPACES.rdf, "Description").length !== descriptions.length) {
-      throw new Error("nested rdf:Description elements are outside the canonical simple profile");
+      try {
+        const slot = fieldSlot(descriptions, shape, field);
+        if (!slot) continue;
+        base.slots[field] = { start: slot.start, end: slot.end, kind: slot.kind, quote: slot.quote };
+        if (slot.value !== "") base.values[field] = slot.value;
+        base.mutableFields.push(field);
+      } catch (error) {
+        base.blockedFields.push({ field, reason: String(error?.message || error) });
+      }
     }
     return base;
   } catch (error) {
-    return { ...base, profile: "unsupported", values: {}, mutableFields: [], slots: {}, issues: [String(error?.message || error)] };
+    return {
+      ...base,
+      profile: "unsupported",
+      values: {},
+      mutableFields: [],
+      blockedFields: [],
+      slots: {},
+      issues: [String(error?.message || error)],
+    };
   }
 }
 
-export function patchCanonicalXmpMetadata(value, profile, patch) {
+export function patchXmpMetadata(value, profile, patch) {
   const bytes = Buffer.from(value);
-  if (profile.profile !== "canonical-simple-v1" || profile.issues.length) throw new Error(`XMP metadata profile is unsupported: ${profile.issues.join(", ")}`);
+  if (profile.profile !== "field-safe-v1" || profile.issues.length) throw new Error(`XMP metadata profile is unsupported: ${profile.issues.join(", ")}`);
   if (profile.sha256 !== sha256(bytes) || profile.byteLength !== bytes.byteLength) throw new Error("XMP metadata bytes no longer match the inspected profile");
   const replacements = [];
   for (const [field, requested] of Object.entries(patch)) {
     const slot = profile.slots[field];
-    if (!slot) throw new Error(`set_metadata cannot synchronize XMP field ${field} because the canonical packet does not contain that property`);
-    replacements.push({ start: slot.start, end: slot.end, value: encodeXmlText(requested ?? "") });
+    if (!slot) {
+      const blocked = profile.blockedFields.find((entry) => entry.field === field);
+      throw new Error(blocked
+        ? `set_metadata cannot synchronize XMP field ${field}: ${blocked.reason}`
+        : `set_metadata cannot synchronize XMP field ${field} because the packet does not contain an editable representation`);
+    }
+    const stringValue = requested ?? "";
+    replacements.push({
+      start: slot.start,
+      end: slot.end,
+      value: slot.kind === "attribute" ? encodeXmlAttribute(stringValue, slot.quote) : encodeXmlText(stringValue),
+    });
   }
   replacements.sort((left, right) => right.start - left.start);
   let xml = new TextDecoder("utf-8", { fatal: true }).decode(bytes);

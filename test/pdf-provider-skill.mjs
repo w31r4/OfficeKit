@@ -70,14 +70,15 @@ function xmpMetadataFixtureBytes() {
   let saved;
   try {
     document.setMetaData(mupdf.Document.META_INFO_TITLE, "Skill packet");
-    document.setMetaData(mupdf.Document.META_INFO_AUTHOR, "Skill author");
+    document.setMetaData(mupdf.Document.META_INFO_AUTHOR, "Skill author; Second author");
+    document.setMetaData(mupdf.Document.META_INFO_PRODUCER, "Skill producer");
     stream = document.addStream(new TextEncoder().encode(`<?xpacket begin='﻿' id='W5M0MpCehiHzreSzNTczkc9d'?>
 <x:xmpmeta xmlns:x='adobe:ns:meta/'>
   <rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>
-    <rdf:Description rdf:about='' xmlns:dc='http://purl.org/dc/elements/1.1/' xmlns:fixture='https://office-kit.test/xmp/fixture/'>
-      <dc:title><rdf:Alt><rdf:li xml:lang='x-default'>Skill packet</rdf:li></rdf:Alt></dc:title>
-      <dc:creator><rdf:Seq><rdf:li>Skill author</rdf:li></rdf:Seq></dc:creator>
-      <fixture:Canary>skill-xmp-canary</fixture:Canary>
+    <rdf:Description rdf:about='' xmlns:dc='http://purl.org/dc/elements/1.1/' xmlns:pdf='http://ns.adobe.com/pdf/1.3/' xmlns:fixture='https://office-kit.test/xmp/fixture/' pdf:Producer='Skill producer'>
+      <dc:title><rdf:Alt><rdf:li xml:lang='x-default'>Skill packet</rdf:li><rdf:li xml:lang='fr'>Paquet Skill</rdf:li></rdf:Alt></dc:title>
+      <dc:creator><rdf:Seq><rdf:li>Skill author</rdf:li><rdf:li>Second author</rdf:li></rdf:Seq></dc:creator>
+      <fixture:Complex><rdf:Description fixture:flag='keep'><fixture:Canary>skill-xmp-canary</fixture:Canary></rdf:Description></fixture:Complex>
     </rdf:Description>
   </rdf:RDF>
 </x:xmpmeta>
@@ -334,7 +335,7 @@ assert.match(skillText, /rotate_page/);
 assert.match(skillText, /duplicate_page.*source SHA-256.*only operation.*full\s+rewrite.*Poppler.*pixel identity/is);
 assert.match(skillText, /delete_page.*rearrange_pages.*source SHA-256.*page snapshot.*only operation.*full\s+rewrite.*re-inspect.*render/is);
 assert.match(skillText, /delete_embedded_file.*canonical catalog NameTree locator.*complete snapshot.*removes that entry only.*never claims sanitize.*payload erasure/is);
-assert.match(skillText, /set_metadata.*mupdfDocumentMetadata.*canonical-simple XMP.*same transaction.*fail closed/is);
+assert.match(skillText, /set_metadata.*mupdfDocumentMetadata.*field-safe-v1.*xmpMutableFields.*xmpBlockedFields.*same transaction.*fail closed/is);
 assert.match(skillText, /delete_annotation.*update_annotation.*delete_link.*update_link.*update_form_field/is);
 assert.match(skillText, /add_text_annotation.*visible pin.*rewrite/is);
 assert.match(skillText, /add_text_highlight.*unique native text selection.*rewrite/is);
@@ -417,8 +418,8 @@ assert.match(editExistingText, /status: \"failed_closed\"[\s\S]*savePolicy\.stra
 assert.match(editExistingText, /configured provider interpreter[\s\S]*OFFICE_KIT_PDF_PROVIDER_PYTHON/);
 assert.match(editExistingText, /Do not switch to pypdf, ReportLab, PDF\.js,[\s\S]*content-stream patching/i);
 assert.match(editExistingText, /delete_embedded_file[\s\S]*mupdfEmbeddedFile[\s\S]*complete\s+snapshot[\s\S]*display\s+filename or NameTree[\s\S]*sourceSha256[\s\S]*embeddedFileId[\s\S]*payloadErasureClaimed[\s\S]*sanitizeClaimed/is);
-assert.match(editExistingText, /Update standard Document Info and bounded canonical XMP metadata/);
-assert.match(editExistingText, /mupdfDocumentMetadata[\s\S]*metadataId[\s\S]*complete inspect record snapshot[\s\S]*xmpMutableFields[\s\S]*Info and that exact XMP text slot[\s\S]*fail closed/is);
+assert.match(editExistingText, /Update standard Document Info and bounded field-safe XMP metadata/);
+assert.match(editExistingText, /mupdfDocumentMetadata[\s\S]*metadataId[\s\S]*complete inspect record snapshot[\s\S]*xmpMutableFields[\s\S]*xmpBlockedFields[\s\S]*exact XMP text or attribute slot[\s\S]*fail closed/is);
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
 assert.match(pdfPluginReadme, /office-kit\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
@@ -449,7 +450,7 @@ assert.match(apiQuickStartText, /catalog NameTree entry only/i);
 assert.match(apiQuickStartText, /pikepdf or PyMuPDF/);
 assert.match(apiQuickStartText, /mupdfDocumentMetadata/);
 assert.match(apiQuickStartText, /metadataId: metadata\.id/);
-assert.match(apiQuickStartText, /XMP stream[\s\S]*canonical-simple-v1[\s\S]*xmpMutableFields[\s\S]*updateCapability\.supported[\s\S]*same transaction/is);
+assert.match(apiQuickStartText, /XMP stream[\s\S]*field-safe-v1[\s\S]*xmpMutableFields[\s\S]*xmpBlockedFields[\s\S]*updateCapability\.supported[\s\S]*same transaction/is);
 const redactTaskText = await fs.readFile(path.join(skillRoot, "tasks", "redact.md"), "utf8");
 assert.match(redactTaskText, /expected_rotation/);
 assert.match(redactTaskText, /temporarily clears `\/Rotate`.*restores `\/Rotate`/s);
@@ -582,7 +583,8 @@ try {
   const mupdfXmpMetadata = mupdfXmpMetadataInspection.records.find((record) => record.kind === "mupdfDocumentMetadata");
   assert.equal(mupdfXmpMetadata.updateCapability.supported, true);
   assert.equal(mupdfXmpMetadata.updateCapability.xmpSynchronized, true);
-  assert.deepEqual(mupdfXmpMetadata.snapshot.xmpMutableFields, ["author", "title"]);
+  assert.deepEqual(mupdfXmpMetadata.snapshot.xmpMutableFields, ["title", "producer"]);
+  assert.deepEqual(mupdfXmpMetadata.snapshot.xmpBlockedFields, [{ field: "author", reason: "author rdf:Seq contains multiple values" }]);
   await fs.writeFile(mupdfXmpMetadataOperations, JSON.stringify({
     savePolicy: "incremental",
     operations: [{
@@ -590,7 +592,7 @@ try {
       sourceSha256: mupdfXmpMetadataInspection.summary.sourceSha256,
       metadataId: mupdfXmpMetadata.id,
       expected: mupdfXmpMetadata.snapshot,
-      patch: { title: "Skill XMP reviewed", author: "Skill reviewer" },
+      patch: { title: "Skill XMP reviewed", producer: "Skill reviewed producer" },
     }],
   }), "utf8");
   const mupdfXmpMetadataEdited = parseResult(run(process.execPath, [mupdfCli, "edit", mupdfXmpMetadataInput, mupdfXmpMetadataOperations, mupdfXmpMetadataOutput], { status: 0 }));
@@ -599,9 +601,11 @@ try {
   const mupdfXmpMetadataReinspection = await PdfFile.inspectPdf(await fs.readFile(mupdfXmpMetadataOutput));
   const mupdfXmpMetadataReinspectionRecord = mupdfXmpMetadataReinspection.records.find((record) => record.kind === "mupdfDocumentMetadata");
   assert.equal(mupdfXmpMetadataReinspection.summary.documentInfo.title, "Skill XMP reviewed");
-  assert.equal(mupdfXmpMetadataReinspection.summary.documentInfo.author, "Skill reviewer");
+  assert.equal(mupdfXmpMetadataReinspection.summary.documentInfo.author, "Skill author; Second author");
+  assert.equal(mupdfXmpMetadataReinspection.summary.documentInfo.producer, "Skill reviewed producer");
   assert.equal(mupdfXmpMetadataReinspectionRecord.snapshot.xmpValues.title, "Skill XMP reviewed");
-  assert.equal(mupdfXmpMetadataReinspectionRecord.snapshot.xmpValues.author, "Skill reviewer");
+  assert.equal(mupdfXmpMetadataReinspectionRecord.snapshot.xmpValues.producer, "Skill reviewed producer");
+  assert.deepEqual(mupdfXmpMetadataReinspectionRecord.snapshot.xmpBlockedFields, mupdfXmpMetadata.snapshot.xmpBlockedFields);
   const mupdfLink = mupdfInspection.records.find((record) => record.kind === "mupdfLink");
   const mupdfLinkPage = mupdfInspection.records.find((record) => record.kind === "mupdfPage" && record.page === mupdfLink.page);
   assert.match(mupdfLink.id, /^mupdf-link-1-[a-f0-9]{64}$/);

@@ -89,7 +89,7 @@ export mismatch, stale snapshot, or unknown option fails closed; use the
 explicit pypdf form workflow instead. The locator is valid only for the exact
 input bytes, so inspect the output before another mutation.
 
-## Update standard Document Info and bounded canonical XMP metadata
+## Update standard Document Info and bounded field-safe XMP metadata
 
 Treat metadata as one source object, not a loose title lookup. Select the single
 `mupdfDocumentMetadata` record and copy its complete snapshot into the
@@ -119,21 +119,30 @@ mutation. A stale or partial snapshot, display-title identity, empty-string
 patch, unknown key, no-op, or legacy unbound `values`/`metadata` payload fails
 closed.
 
-For XMP-bearing input, inspect `snapshot.xmpProfile`, `xmpMutableFields`, and
-`updateCapability` before constructing the patch. The built-in provider accepts
-only `canonical-simple-v1`: one `x:xmpmeta`/`rdf:RDF` graph with direct
-`rdf:Description` properties, a single `x-default` item for `dc:title` or
-`dc:description`, a single sequence item for `dc:creator`, and direct text for
-the supported `pdf:*`/`xmp:*` properties. A requested field must already appear
-in `xmpMutableFields`. The transaction updates Info and that exact XMP text slot
-together, then proves the decoded packet equals the inspected bytes with only
-the requested slots replaced. Unknown properties therefore remain byte-exact.
+For XMP-bearing input, inspect `snapshot.xmpProfile`, `xmpMutableFields`,
+`xmpBlockedFields`, and `updateCapability` before constructing the patch. The
+built-in provider accepts `field-safe-v1`: one `x:xmpmeta`/`rdf:RDF` wrapper
+with direct `rdf:Description` document properties. `dc:title` and
+`dc:description` may contain multiple uniquely named languages when exactly one
+`x-default` value exists. A single-item `dc:creator` sequence is mutable;
+multiple creators leave `author` in `xmpBlockedFields` without blocking an
+unrelated title, subject, or scalar field. `pdf:Keywords`, `pdf:Producer`, and
+the supported `xmp:*` scalars may be direct text elements or ordinary
+description attributes.
 
-Multilingual titles/descriptions, multiple authors, property attributes,
-CDATA/DTD/entities outside the XML built-ins, nested descriptions, duplicate
-properties, a missing requested property, direct/non-XML streams, or malformed
-packets report an unsupported capability and fail closed. This is ordinary
-metadata editing, not metadata sanitization; signed-file policy still applies.
+Every requested field must appear in `xmpMutableFields`; use the structured
+reason in `xmpBlockedFields` rather than guessing around it. The transaction
+updates Info and each exact XMP text or attribute slot together, then proves
+the decoded packet equals the inspected bytes with only those slots replaced.
+Other languages, creators, nested unknown graphs, comments, qualifiers, and
+custom namespaces therefore remain byte-exact.
+
+A duplicate or irregular standard field blocks that field. A missing requested
+property also fails closed because this operation does not synthesize RDF.
+CDATA, DTDs, invalid/bare entities, malformed XML, direct/non-XML streams, or a
+packet with no mutable standard field make the whole metadata capability
+unsupported. This is ordinary metadata editing, not metadata sanitization;
+signed-file policy still applies.
 
 ## Visible page crop
 

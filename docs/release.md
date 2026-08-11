@@ -1,6 +1,56 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-12): Synchronized PDF Info/XMP editing
+## Current 0.6.0 candidate (2026-08-12): Field-safe PDF XMP metadata editing
+
+The built-in MuPDF.js route no longer treats one irregular standard XMP
+property as a reason to disable every metadata edit. Its source-bound
+`mupdfDocumentMetadata` snapshot now separates `xmpMutableFields` from
+structured `xmpBlockedFields`, while retaining the exact stream object,
+decoded-byte hash/length, standard values, and complete Document Info evidence.
+The operation contract remains one exact source, locator, complete snapshot,
+and typed patch; callers do not provide XML paths or fallback providers.
+
+The new `field-safe-v1` leaf recognizes one well-formed
+`x:xmpmeta`/`rdf:RDF` wrapper and proves each standard property independently.
+It may update the unique `x-default` entry in a multilingual `rdf:Alt`, one
+single-author `rdf:Seq`, direct scalar text, or common scalar values carried as
+`rdf:Description` attributes. Multiple authors, duplicate or irregular
+properties, and missing properties block only their own field. Unknown custom
+namespaces, other languages, creators, qualifiers, comments, and nested
+non-target graphs remain byte-exact. DTD/CDATA, invalid or bare entities,
+malformed XML, unsafe streams, and packets with no mutable standard field make
+the whole capability fail closed.
+
+Info and every requested XMP slot still change in one transaction. The provider
+re-inspects both representations, verifies requested values and non-target Info
+fingerprints, hashes the exact expected decoded XMP result, protects the input,
+and supports only unsigned rewrite or byte-prefix-verified incremental output.
+The core fixture proves multilingual title/subject and attribute-valued scalar
+updates while preserving a second author, French/German values, an unknown
+nested graph, and page pixels. The packaged Skill CLI repeats the partial-field
+route, and the checked-in veraPDF PDF/A fixture exercises real attribute-valued
+CreatorTool, Producer, and date metadata. This remains metadata editing, not
+metadata sanitization or arbitrary RDF authoring.
+
+Local candidate evidence covers the complete 26-step fast gate and all 75 slow
+steps, generated API docs, protocol validation, OfficeKit Codec 401/401,
+OfficeBridge 5/5, deterministic OfficeKit WASM (39-file comparison; runtime 38
+files / 15,422,187 bytes), clean-install package smoke, standalone distribution,
+both Live Add-in builds, the twenty-template matrix, Playwright, qpdf,
+LibreOffice, and Poppler. Managed provider-pack downloads and separately
+configured pypdf, pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python
+runtimes remain explicit local skips rather than provider-execution evidence.
+
+The isolated staged candidate excludes the user's unrelated README edits and
+packs 731 files at 36,287,840 bytes compressed and 53,666,810 bytes unpacked
+(`shasum da8a995197b819fd95c325e9afa23c217231173c`), leaving 8,190 bytes below
+the existing 53,675,000-byte ceiling. Offline release metadata checks pass for
+AGPL-3.0-or-later, `office-kit@0.6.0`, three standalone platforms, and 105
+locked packages. `npm whoami` reports `ENEEDAUTH`, so npm publication and a
+tagged release were not attempted. Hosted CI for this candidate and Windows
+Microsoft Office host acceptance remain pending external evidence.
+
+## Prior 0.6.0 candidate (2026-08-12): Synchronized PDF Info/XMP editing
 
 The built-in MuPDF.js route now emits one `mupdfDocumentMetadata` record for
 the exact inspected bytes. Its complete snapshot separates standard Document

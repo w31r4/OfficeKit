@@ -10,7 +10,7 @@ import { createPdfjsParser } from "office-kit/pdf/pdfjs";
 import { MUPDF_VERSION, createMuPdfParser, parsePdfWithMuPdf, renderPdfWithMuPdf } from "office-kit/pdf/mupdf";
 import { FileBlob, PdfArtifact, PdfFile, renderArtifact } from "../src/index.mjs";
 import { PdfArtifact as PdfArtifactModule, PdfFile as PdfFileModule } from "../src/pdf/index.mjs";
-import { inspectCanonicalXmpMetadata, patchCanonicalXmpMetadata } from "../src/pdf/xmp-metadata.mjs";
+import { inspectXmpMetadata, patchXmpMetadata } from "../src/pdf/xmp-metadata.mjs";
 import { plainPdfBytes } from "./fixtures/plain-pdf.mjs";
 
 assert.equal(PdfArtifact, PdfArtifactModule, "the root package must re-export the PDF domain class without wrapping it");
@@ -140,6 +140,34 @@ function canonicalXmpPacket() {
 <?xpacket end='w'?>`;
 }
 
+function fieldSafeXmpPacket() {
+  return `<?xpacket begin='﻿' id='W5M0MpCehiHzreSzNTczkc9d'?>
+<x:xmpmeta xmlns:x='adobe:ns:meta/'>
+  <rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>
+    <rdf:Description rdf:about=''
+      xmlns:dc='http://purl.org/dc/elements/1.1/'
+      xmlns:pdf='http://ns.adobe.com/pdf/1.3/'
+      xmlns:xmp='http://ns.adobe.com/xap/1.0/'
+      xmlns:fixture='https://office-kit.test/xmp/fixture/'
+      pdf:Keywords="Q3 &amp; review"
+      pdf:Producer='Attribute producer'
+      xmp:CreatorTool="Fixture creator">
+      <dc:title><rdf:Alt>
+        <rdf:li xml:lang='x-default'>Imported title</rdf:li>
+        <rdf:li xml:lang='fr'>Titre importé</rdf:li>
+      </rdf:Alt></dc:title>
+      <dc:description><rdf:Alt>
+        <rdf:li xml:lang='x-default'>Original subject</rdf:li>
+        <rdf:li xml:lang='de'>Ursprünglicher Betreff</rdf:li>
+      </rdf:Alt></dc:description>
+      <dc:creator><rdf:Seq><rdf:li>Original author</rdf:li><rdf:li>Second author</rdf:li></rdf:Seq></dc:creator>
+      <fixture:Complex><!--retain-comment--><rdf:Description fixture:flag='keep'><fixture:Canary>retain-field-safe-canary</fixture:Canary></rdf:Description></fixture:Complex>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end='w'?>`;
+}
+
 function sourceBoundMetadataFixture({ xmp = false } = {}) {
   const document = new mupdf.PDFDocument(plainPdfBytes([{ text: xmp ? "XMP METADATA" : "DOCUMENT INFO" }]));
   let infoReference;
@@ -149,9 +177,15 @@ function sourceBoundMetadataFixture({ xmp = false } = {}) {
   let root;
   let saved;
   try {
+    const fieldSafe = xmp === "field-safe";
     document.setMetaData(mupdf.Document.META_INFO_TITLE, "Imported title");
-    document.setMetaData(mupdf.Document.META_INFO_AUTHOR, "Original author");
-    document.setMetaData(mupdf.Document.META_INFO_PRODUCER, "Fixture producer");
+    document.setMetaData(mupdf.Document.META_INFO_AUTHOR, fieldSafe ? "Original author; Second author" : "Original author");
+    document.setMetaData(mupdf.Document.META_INFO_PRODUCER, fieldSafe ? "Attribute producer" : "Fixture producer");
+    if (fieldSafe) {
+      document.setMetaData(mupdf.Document.META_INFO_SUBJECT, "Original subject");
+      document.setMetaData(mupdf.Document.META_INFO_KEYWORDS, "Q3 & review");
+      document.setMetaData(mupdf.Document.META_INFO_CREATOR, "Fixture creator");
+    }
     infoReference = document.getTrailer().get("Info");
     info = infoReference.resolve();
     canary = document.newString("retain-this-unknown-entry");
@@ -159,7 +193,7 @@ function sourceBoundMetadataFixture({ xmp = false } = {}) {
     if (xmp) {
       const xmpPacket = xmp === "unsupported"
         ? "<x:xmpmeta xmlns:x='adobe:ns:meta/'/>"
-        : canonicalXmpPacket();
+        : fieldSafe ? fieldSafeXmpPacket() : canonicalXmpPacket();
       xmpStream = document.addStream(new TextEncoder().encode(xmpPacket), { Type: "Metadata", Subtype: "XML" });
       root = document.getTrailer().get("Root");
       root.put("Metadata", xmpStream);
@@ -211,22 +245,48 @@ function rawDocumentInfoValue(input, key) {
 }
 
 const canonicalXmpBytes = Buffer.from(canonicalXmpPacket(), "utf8");
-const canonicalXmpProfile = inspectCanonicalXmpMetadata(canonicalXmpBytes);
-assert.equal(canonicalXmpProfile.profile, "canonical-simple-v1");
+const canonicalXmpProfile = inspectXmpMetadata(canonicalXmpBytes);
+assert.equal(canonicalXmpProfile.profile, "field-safe-v1");
 assert.deepEqual(canonicalXmpProfile.mutableFields, ["author", "title", "producer"]);
-const canonicalXmpPatched = patchCanonicalXmpMetadata(canonicalXmpBytes, canonicalXmpProfile, { title: "A & B <C>" });
+assert.deepEqual(canonicalXmpProfile.blockedFields, []);
+const canonicalXmpPatched = patchXmpMetadata(canonicalXmpBytes, canonicalXmpProfile, { title: "A & B <C>" });
 assert.match(canonicalXmpPatched.toString("utf8"), /A &amp; B &lt;C&gt;/);
 assert.match(canonicalXmpPatched.toString("utf8"), /retain-xmp-canary/);
-for (const unsupportedXmp of [
-  canonicalXmpPacket().replace(
-    "<rdf:li xml:lang='x-default'>Imported title</rdf:li>",
-    "<rdf:li xml:lang='x-default'>Imported title</rdf:li><rdf:li xml:lang='fr'>Titre</rdf:li>",
-  ),
+const fieldSafeXmpBytes = Buffer.from(fieldSafeXmpPacket(), "utf8");
+const fieldSafeXmpProfile = inspectXmpMetadata(fieldSafeXmpBytes);
+assert.equal(fieldSafeXmpProfile.profile, "field-safe-v1");
+assert.deepEqual(fieldSafeXmpProfile.mutableFields, ["title", "subject", "keywords", "creator", "producer"]);
+assert.deepEqual(fieldSafeXmpProfile.blockedFields, [{ field: "author", reason: "author rdf:Seq contains multiple values" }]);
+const fieldSafeXmpPatched = patchXmpMetadata(fieldSafeXmpBytes, fieldSafeXmpProfile, {
+  title: "Reviewed title",
+  producer: "Agent's producer & <proof>",
+});
+assert.match(fieldSafeXmpPatched.toString("utf8"), /<rdf:li xml:lang='fr'>Titre importé<\/rdf:li>/);
+assert.match(fieldSafeXmpPatched.toString("utf8"), /pdf:Producer='Agent&apos;s producer &amp; &lt;proof&gt;'/);
+assert.match(fieldSafeXmpPatched.toString("utf8"), /retain-field-safe-canary/);
+assert.match(fieldSafeXmpPatched.toString("utf8"), /<!--retain-comment-->/);
+assert.throws(() => patchXmpMetadata(fieldSafeXmpBytes, fieldSafeXmpProfile, { author: "One author" }), /author rdf:Seq contains multiple values/);
+const duplicateTitleProfile = inspectXmpMetadata(Buffer.from(
   canonicalXmpPacket().replace("rdf:about=''", "rdf:about='' dc:title='Attribute title'"),
-  canonicalXmpPacket().replace("retain-xmp-canary", "&fixtureCanary;"),
-]) {
-  assert.equal(inspectCanonicalXmpMetadata(Buffer.from(unsupportedXmp, "utf8")).profile, "unsupported");
-}
+  "utf8",
+));
+assert.equal(duplicateTitleProfile.profile, "field-safe-v1");
+assert.equal(duplicateTitleProfile.mutableFields.includes("title"), false);
+assert.deepEqual(duplicateTitleProfile.blockedFields, [{ field: "title", reason: "title appears more than once" }]);
+const commentedTitleProfile = inspectXmpMetadata(Buffer.from(
+  fieldSafeXmpPacket().replace("Imported title</rdf:li>", "Imported <!--split-->title</rdf:li>"),
+  "utf8",
+));
+assert.equal(commentedTitleProfile.profile, "field-safe-v1");
+assert.equal(commentedTitleProfile.mutableFields.includes("title"), false);
+assert.match(commentedTitleProfile.blockedFields.find((entry) => entry.field === "title")?.reason || "", /direct text only/);
+assert.equal(inspectXmpMetadata(Buffer.from(canonicalXmpPacket().replace("retain-xmp-canary", "&fixtureCanary;"), "utf8")).profile, "unsupported");
+assert.equal(inspectXmpMetadata(Buffer.from(canonicalXmpPacket().replace("retain-xmp-canary", "bare & canary"), "utf8")).profile, "unsupported");
+assert.equal(inspectXmpMetadata(Buffer.from(`<!DOCTYPE x [<!ENTITY canary 'unsafe'>]>${canonicalXmpPacket()}`, "utf8")).profile, "unsupported");
+const veraPdfXmpProfile = inspectXmpMetadata(rawXmpBytes(await fs.readFile(path.join(import.meta.dirname, "fixtures", "pdf", "verapdf-pdfa1b-pass.pdf"))));
+assert.equal(veraPdfXmpProfile.profile, "field-safe-v1");
+assert.deepEqual(veraPdfXmpProfile.mutableFields, ["author", "creator", "producer", "creationDate", "modificationDate"]);
+assert.deepEqual(veraPdfXmpProfile.blockedFields, []);
 
 const pdf = PdfArtifact.create({
   pages: [
@@ -513,13 +573,14 @@ const xmpMetadataSource = sourceBoundMetadataFixture({ xmp: true });
 const xmpMetadataInspection = await PdfFile.inspectPdf(xmpMetadataSource);
 const xmpMetadataRecord = xmpMetadataInspection.records.find((record) => record.kind === "mupdfDocumentMetadata");
 assert.equal(xmpMetadataRecord.snapshot.xmpPresent, true);
-assert.equal(xmpMetadataRecord.snapshot.xmpProfile, "canonical-simple-v1");
+assert.equal(xmpMetadataRecord.snapshot.xmpProfile, "field-safe-v1");
 assert.deepEqual(xmpMetadataRecord.snapshot.xmpValues, {
   author: "Original author",
   title: "Imported title",
   producer: "Fixture producer",
 });
 assert.deepEqual(xmpMetadataRecord.snapshot.xmpMutableFields, ["author", "title", "producer"]);
+assert.deepEqual(xmpMetadataRecord.snapshot.xmpBlockedFields, []);
 assert.match(xmpMetadataRecord.snapshot.xmpSha256, /^[a-f0-9]{64}$/);
 assert.equal(xmpMetadataRecord.updateCapability.supported, true);
 assert.equal(xmpMetadataRecord.updateCapability.xmpSynchronized, true);
@@ -532,7 +593,7 @@ await assert.rejects(PdfFile.editPdf(xmpMetadataSource, {
     expected: xmpMetadataRecord.snapshot,
     patch: { subject: "Missing canonical property" },
   }],
-}), /cannot synchronize XMP field subject.*does not contain that property/);
+}), /cannot synchronize XMP field: subject \(no editable representation is present\)/);
 await assert.rejects(PdfFile.editPdf(xmpMetadataSource, {
   savePolicy: "incremental",
   operations: [{
@@ -567,7 +628,7 @@ assert.deepEqual(xmpUpdatedRecord.snapshot.xmpValues, {
   author: "Review agent",
   title: "Reviewed & approved <Q3>",
 });
-assert.equal(xmpUpdatedRecord.snapshot.xmpProfile, "canonical-simple-v1");
+assert.equal(xmpUpdatedRecord.snapshot.xmpProfile, "field-safe-v1");
 const xmpAfterBytes = rawXmpBytes(xmpMetadataUpdated);
 assert.match(xmpAfterBytes.toString("utf8"), /Reviewed &amp; approved &lt;Q3&gt;/);
 assert.match(xmpAfterBytes.toString("utf8"), /retain-xmp-canary/);
@@ -577,6 +638,75 @@ const [xmpBeforeRender, xmpAfterRender] = await Promise.all([
   PdfFile.renderPdf(xmpMetadataUpdated, { page: 1, dpi: 72 }),
 ]);
 assert.equal(Buffer.compare(Buffer.from(xmpBeforeRender.bytes), Buffer.from(xmpAfterRender.bytes)), 0, "synchronized Info/XMP edits must not change page pixels");
+
+const fieldSafeMetadataSource = sourceBoundMetadataFixture({ xmp: "field-safe" });
+const fieldSafeMetadataSourceBytes = Buffer.from(fieldSafeMetadataSource.bytes);
+const fieldSafeMetadataInspection = await PdfFile.inspectPdf(fieldSafeMetadataSource);
+const fieldSafeMetadataRecord = fieldSafeMetadataInspection.records.find((record) => record.kind === "mupdfDocumentMetadata");
+assert.equal(fieldSafeMetadataRecord.snapshot.xmpProfile, "field-safe-v1");
+assert.deepEqual(fieldSafeMetadataRecord.snapshot.xmpMutableFields, ["title", "subject", "keywords", "creator", "producer"]);
+assert.deepEqual(fieldSafeMetadataRecord.snapshot.xmpBlockedFields, [{ field: "author", reason: "author rdf:Seq contains multiple values" }]);
+assert.deepEqual(fieldSafeMetadataRecord.updateCapability.blockedFields, fieldSafeMetadataRecord.snapshot.xmpBlockedFields);
+assert.equal(fieldSafeMetadataRecord.updateCapability.supported, true);
+await assert.rejects(PdfFile.editPdf(fieldSafeMetadataSource, {
+  savePolicy: "incremental",
+  operations: [{
+    type: "set_metadata",
+    sourceSha256: fieldSafeMetadataInspection.summary.sourceSha256,
+    metadataId: fieldSafeMetadataRecord.id,
+    expected: fieldSafeMetadataRecord.snapshot,
+    patch: { author: "Collapsed author" },
+  }],
+}), /cannot synchronize XMP field: author \(author rdf:Seq contains multiple values\)/);
+await assert.rejects(PdfFile.editPdf(fieldSafeMetadataSource, {
+  savePolicy: "incremental",
+  operations: [{
+    type: "set_metadata",
+    sourceSha256: fieldSafeMetadataInspection.summary.sourceSha256,
+    metadataId: fieldSafeMetadataRecord.id,
+    expected: fieldSafeMetadataRecord.snapshot,
+    patch: { modificationDate: "2026-08-12T12:00:00+08:00" },
+  }],
+}), /cannot synchronize XMP field: modificationDate \(no editable representation is present\)/);
+const fieldSafeXmpBeforeBytes = rawXmpBytes(fieldSafeMetadataSource);
+const fieldSafeMetadataUpdated = await PdfFile.editPdf(fieldSafeMetadataSource, {
+  savePolicy: "incremental",
+  operations: [{
+    type: "set_metadata",
+    sourceSha256: fieldSafeMetadataInspection.summary.sourceSha256,
+    metadataId: fieldSafeMetadataRecord.id,
+    expected: fieldSafeMetadataRecord.snapshot,
+    patch: {
+      title: "Reviewed multilingual title",
+      subject: "Reviewed multilingual subject",
+      producer: "Agent's producer & <proof>",
+    },
+  }],
+});
+assert.equal(Buffer.from(fieldSafeMetadataSource.bytes).equals(fieldSafeMetadataSourceBytes), true);
+assert.equal(Buffer.from(fieldSafeMetadataUpdated.bytes.subarray(0, fieldSafeMetadataSourceBytes.byteLength)).equals(fieldSafeMetadataSourceBytes), true);
+const fieldSafeMetadataUpdatedInspection = await PdfFile.inspectPdf(fieldSafeMetadataUpdated);
+const fieldSafeMetadataUpdatedRecord = fieldSafeMetadataUpdatedInspection.records.find((record) => record.kind === "mupdfDocumentMetadata");
+assert.equal(fieldSafeMetadataUpdatedInspection.summary.documentInfo.title, "Reviewed multilingual title");
+assert.equal(fieldSafeMetadataUpdatedInspection.summary.documentInfo.subject, "Reviewed multilingual subject");
+assert.equal(fieldSafeMetadataUpdatedInspection.summary.documentInfo.producer, "Agent's producer & <proof>");
+assert.equal(fieldSafeMetadataUpdatedInspection.summary.documentInfo.author, "Original author; Second author");
+assert.equal(fieldSafeMetadataUpdatedRecord.snapshot.xmpValues.title, "Reviewed multilingual title");
+assert.equal(fieldSafeMetadataUpdatedRecord.snapshot.xmpValues.subject, "Reviewed multilingual subject");
+assert.equal(fieldSafeMetadataUpdatedRecord.snapshot.xmpValues.producer, "Agent's producer & <proof>");
+assert.deepEqual(fieldSafeMetadataUpdatedRecord.snapshot.xmpBlockedFields, fieldSafeMetadataRecord.snapshot.xmpBlockedFields);
+const fieldSafeXmpAfterBytes = rawXmpBytes(fieldSafeMetadataUpdated);
+assert.notEqual(fieldSafeXmpAfterBytes.equals(fieldSafeXmpBeforeBytes), true);
+assert.match(fieldSafeXmpAfterBytes.toString("utf8"), /<rdf:li xml:lang='fr'>Titre importé<\/rdf:li>/);
+assert.match(fieldSafeXmpAfterBytes.toString("utf8"), /<rdf:li xml:lang='de'>Ursprünglicher Betreff<\/rdf:li>/);
+assert.match(fieldSafeXmpAfterBytes.toString("utf8"), /<rdf:li>Original author<\/rdf:li><rdf:li>Second author<\/rdf:li>/);
+assert.match(fieldSafeXmpAfterBytes.toString("utf8"), /pdf:Producer='Agent&apos;s producer &amp; &lt;proof&gt;'/);
+assert.match(fieldSafeXmpAfterBytes.toString("utf8"), /retain-field-safe-canary/);
+const [fieldSafeBeforeRender, fieldSafeAfterRender] = await Promise.all([
+  PdfFile.renderPdf(fieldSafeMetadataSource, { page: 1, dpi: 72 }),
+  PdfFile.renderPdf(fieldSafeMetadataUpdated, { page: 1, dpi: 72 }),
+]);
+assert.equal(Buffer.compare(Buffer.from(fieldSafeBeforeRender.bytes), Buffer.from(fieldSafeAfterRender.bytes)), 0, "field-safe Info/XMP edits must not change page pixels");
 
 const unsupportedXmpSource = sourceBoundMetadataFixture({ xmp: "unsupported" });
 const unsupportedXmpInspection = await PdfFile.inspectPdf(unsupportedXmpSource);

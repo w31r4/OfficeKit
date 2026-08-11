@@ -273,13 +273,17 @@ await updatedMetadata.save("third-party-with-reviewed-metadata.pdf");
 Re-inspect and compare the complete new record. `null` clears a field; empty
 strings, unknown keys, no-op/stale/partial evidence, and legacy unbound
 `values` payloads fail closed. When a catalog XMP stream is present, proceed
-only when `snapshot.xmpProfile === "canonical-simple-v1"`, the requested keys
-are all listed in `snapshot.xmpMutableFields`, and
+only when `snapshot.xmpProfile === "field-safe-v1"`, the requested keys are all
+listed in `snapshot.xmpMutableFields`, their names do not appear in
+`snapshot.xmpBlockedFields`, and
 `updateCapability.supported === true`. The same transaction updates Document
 Info plus those existing XMP properties and proves the rest of the decoded XMP
-packet byte-identical. Multilingual/multi-author, nested, attribute-valued,
-duplicate, missing-property, malformed, or otherwise unsupported RDF graphs
-fail closed without another provider. This is not metadata sanitization.
+packet byte-identical. A unique `x-default` is editable without changing other
+languages; common scalar description attributes are editable; a multi-author
+sequence or another irregular property blocks only its own field. Missing or
+blocked requested fields, CDATA/DTD/invalid entities, malformed XML, or a
+packet with no mutable standard field fail closed without another provider.
+This is not metadata sanitization.
 
 For a canonical catalog attachment, use its current inspection record, never a
 filename:

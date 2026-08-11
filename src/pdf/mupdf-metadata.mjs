@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 
 import mupdf from "mupdf";
 
-import { inspectCanonicalXmpMetadata, patchCanonicalXmpMetadata } from "./xmp-metadata.mjs";
+import { inspectXmpMetadata, patchXmpMetadata } from "./xmp-metadata.mjs";
 
 const METADATA_KEYS = Object.freeze({
   author: mupdf.Document.META_INFO_AUTHOR,
@@ -39,6 +39,7 @@ const SNAPSHOT_FIELDS = Object.freeze([
   "xmpProfile",
   "xmpValues",
   "xmpMutableFields",
+  "xmpBlockedFields",
 ]);
 const OPERATION_FIELDS = new Set(["type", "sourceSha256", "metadataId", "expected", "patch"]);
 
@@ -68,6 +69,7 @@ function xmpStreamProfile(reference) {
     profile: "none",
     values: {},
     mutableFields: [],
+    blockedFields: [],
     issues: [],
     bytes: null,
   };
@@ -86,7 +88,7 @@ function xmpStreamProfile(reference) {
     if (issues.length) return { ...empty, profile: "unsupported", issues };
     stream = reference.readStream();
     const bytes = copyMuPdfBuffer(stream);
-    const profile = inspectCanonicalXmpMetadata(bytes);
+    const profile = inspectXmpMetadata(bytes);
     return {
       ...profile,
       bytes,
@@ -174,7 +176,10 @@ export function documentMetadataProfile(document) {
     const xmpPresent = !xmpReference.isNull();
     const xmp = xmpStreamProfile(xmpReference);
     issues.push(...xmp.issues);
-    if (xmpPresent && !xmp.mutableFields.length && !xmp.issues.length) issues.push("xmp-has-no-supported-standard-properties");
+    if (xmpPresent && !xmp.mutableFields.length && !xmp.issues.length) {
+      const blocked = xmp.blockedFields.map((entry) => `${entry.field}:${entry.reason}`).join("; ");
+      issues.push(blocked ? `xmp-has-no-mutable-standard-properties:${blocked}` : "xmp-has-no-supported-standard-properties");
+    }
 
     const snapshot = {
       values: metadataFor(document),
@@ -188,6 +193,7 @@ export function documentMetadataProfile(document) {
       xmpProfile: xmp.profile,
       xmpValues: xmp.values,
       xmpMutableFields: xmp.mutableFields,
+      xmpBlockedFields: xmp.blockedFields,
     };
     return {
       snapshot,
@@ -203,6 +209,7 @@ export function documentMetadataProfile(document) {
               savePolicies: ["rewrite", "incremental"],
               xmpSynchronized: xmpPresent,
               mutableFields: xmpPresent ? xmp.mutableFields : Object.keys(METADATA_KEYS),
+              blockedFields: xmpPresent ? xmp.blockedFields : [],
             },
       },
     };
@@ -240,7 +247,7 @@ function expectedSnapshot(value) {
   if (value.xmpSha256 !== null && !/^[a-f0-9]{64}$/u.test(String(value.xmpSha256))) {
     throw new Error("set_metadata expected.xmpSha256 must be a SHA-256 hex digest or null.");
   }
-  if (!["none", "canonical-simple-v1", "unsupported"].includes(value.xmpProfile)) {
+  if (!["none", "field-safe-v1", "unsupported"].includes(value.xmpProfile)) {
     throw new Error("set_metadata expected.xmpProfile is unsupported.");
   }
   const xmpValues = normalizedValues(value.xmpValues, "set_metadata expected.xmpValues");
@@ -253,6 +260,28 @@ function expectedSnapshot(value) {
   });
   if (new Set(xmpMutableFields).size !== xmpMutableFields.length) {
     throw new Error("set_metadata expected.xmpMutableFields must contain unique fields.");
+  }
+  if (!Array.isArray(value.xmpBlockedFields)) throw new Error("set_metadata expected.xmpBlockedFields must be an array.");
+  const blockedNames = new Set();
+  const xmpBlockedFields = value.xmpBlockedFields.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)
+      || Object.keys(entry).some((name) => name !== "field" && name !== "reason")) {
+      throw new Error(`set_metadata expected.xmpBlockedFields[${index}] must be an inspect-derived {field,reason} entry.`);
+    }
+    if (typeof entry.field !== "string" || !Object.hasOwn(METADATA_KEYS, entry.field) || blockedNames.has(entry.field)) {
+      throw new Error("set_metadata expected.xmpBlockedFields must contain unique supported metadata fields.");
+    }
+    if (typeof entry.reason !== "string" || !entry.reason) {
+      throw new Error(`set_metadata expected.xmpBlockedFields[${index}].reason must be a non-empty string.`);
+    }
+    blockedNames.add(entry.field);
+    return { field: entry.field, reason: entry.reason };
+  });
+  if (xmpMutableFields.some((field) => blockedNames.has(field))) {
+    throw new Error("set_metadata expected XMP mutable and blocked fields must be disjoint.");
+  }
+  if (Object.keys(xmpValues).some((field) => !xmpMutableFields.includes(field))) {
+    throw new Error("set_metadata expected.xmpValues may contain only mutable XMP fields.");
   }
   if (!Array.isArray(value.infoEntries)) throw new Error("set_metadata expected.infoEntries must be an array.");
   const names = new Set();
@@ -281,6 +310,7 @@ function expectedSnapshot(value) {
     xmpProfile: value.xmpProfile,
     xmpValues,
     xmpMutableFields,
+    xmpBlockedFields,
   };
 }
 
@@ -317,11 +347,11 @@ function updateXmpStream(document, snapshot, patch) {
     }
     stream = reference.readStream();
     const bytes = copyMuPdfBuffer(stream);
-    const profile = inspectCanonicalXmpMetadata(bytes);
+    const profile = inspectXmpMetadata(bytes);
     if (profile.sha256 !== snapshot.xmpSha256 || profile.byteLength !== snapshot.xmpByteLength || profile.profile !== snapshot.xmpProfile) {
       throw new Error("set_metadata XMP stream no longer matches the inspected snapshot; refusing to write.");
     }
-    const updated = patchCanonicalXmpMetadata(bytes, profile, patch);
+    const updated = patchXmpMetadata(bytes, profile, patch);
     reference.writeStream(updated);
     return updated;
   } finally {
@@ -350,7 +380,11 @@ export function applySourceBoundMetadataUpdate(document, operation, context = {}
   if (before.snapshot.xmpPresent) {
     const unsupportedFields = Object.keys(patch).filter((field) => !before.snapshot.xmpMutableFields.includes(field));
     if (unsupportedFields.length) {
-      throw new Error(`set_metadata cannot synchronize XMP field${unsupportedFields.length === 1 ? "" : "s"} ${unsupportedFields.join(", ")} because the canonical packet does not contain ${unsupportedFields.length === 1 ? "that property" : "those properties"}.`);
+      const details = unsupportedFields.map((field) => {
+        const blocked = before.snapshot.xmpBlockedFields.find((entry) => entry.field === field);
+        return blocked ? `${field} (${blocked.reason})` : `${field} (no editable representation is present)`;
+      });
+      throw new Error(`set_metadata cannot synchronize XMP field${unsupportedFields.length === 1 ? "" : "s"}: ${details.join("; ")}.`);
     }
   }
   if (!Object.entries(patch).some(([name, value]) => {
