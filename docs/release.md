@@ -1,6 +1,47 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-12): Source-bound PDF catalog attachment removal
+## Current 0.6.0 candidate (2026-08-12): Source-bound PDF Document Info editing
+
+The built-in MuPDF.js route now emits one `mupdfDocumentMetadata` record for
+the exact inspected bytes. Its complete snapshot separates standard Document
+Info values from raw entry fingerprints and records the Info object plus
+catalog XMP presence. `set_metadata` no longer accepts a loose `values` or
+`metadata` object: it requires the exact source SHA-256, the fixed metadata
+locator, that complete snapshot, and a nonempty typed patch.
+
+The operation may set or clear the eight standard Info fields. It verifies the
+requested values in-memory, proves every non-target raw Info entry unchanged,
+and requires a fresh inspection after save. Unsigned input may use an
+incremental save whose complete source-byte prefix is verified. Missing or
+stale evidence, partial snapshots, unknown or empty-string keys, no-op patches,
+and signed-input policy violations fail before publication.
+
+This bounded primitive intentionally refuses any catalog XMP `/Metadata`
+stream. It does not synchronize two metadata systems and will not create a
+Document Info/XMP contradiction. XMP-aware editing and metadata sanitization
+remain explicit provider workflows. The packaged PDF Skill documents that
+boundary and the runnable CLI now carries the inspect-derived metadata record
+directly into an atomic edit transaction.
+
+Local candidate evidence covers the complete 26-step fast gate and all 75 slow
+steps, generated API docs, protocol validation, OfficeKit Codec 401/401,
+OfficeBridge 5/5, deterministic OfficeKit WASM (39-file comparison; runtime 38
+files / 15,422,187 bytes), clean-install package smoke, standalone distribution,
+both Live Add-in builds, the twenty-template matrix, Playwright, qpdf,
+LibreOffice, and Poppler. Managed provider-pack downloads and separately
+configured pypdf, pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python
+runtimes remain explicit skips rather than provider-execution evidence.
+
+The isolated staged candidate excludes the user's unrelated README edits and
+packs 730 files at 36,279,995 bytes compressed and 53,638,623 bytes unpacked
+(`shasum 14608cdf4b6651d65265ce41e47f377c2e0d849b`), leaving 11,377 bytes below
+the narrowly advanced 53,650,000-byte ceiling. Offline release metadata checks
+pass for AGPL-3.0-or-later, `office-kit@0.6.0`, three standalone platforms, and
+105 locked packages. `npm whoami` reports `ENEEDAUTH`, so npm publication and a
+tagged release were not attempted. Hosted CI for this candidate and Windows
+Microsoft Office host acceptance remain pending external evidence.
+
+## Prior 0.6.0 candidate (2026-08-12): Source-bound PDF catalog attachment removal
 
 The built-in MuPDF.js route now inventories direct catalog
 `/EmbeddedFiles` entries as current-source `mupdfEmbeddedFile` records with a

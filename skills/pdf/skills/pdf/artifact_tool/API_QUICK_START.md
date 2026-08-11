@@ -248,6 +248,35 @@ does not synthesize outlines or named destinations. Re-inspect the output and
 use Poppler to compare every retained page plus the inserted page against its
 declared source-page mapping. Do not reuse old page numbers afterward.
 
+For standard imported Document Info, bind the one inspect-returned metadata
+record instead of treating a title string as identity:
+
+```js
+const metadata = inspection.records.find((record) =>
+  record.kind === "mupdfDocumentMetadata"
+  && record.updateCapability.supported);
+if (!metadata) throw new Error("Document Info is not safely editable.");
+
+const updatedMetadata = await PdfFile.editPdf(input, {
+  savePolicy: "incremental",
+  operations: [{
+    type: "set_metadata",
+    sourceSha256: inspection.summary.sourceSha256,
+    metadataId: metadata.id,
+    expected: metadata.snapshot,
+    patch: { title: "Reviewed board packet", author: "Finance operations" },
+  }],
+});
+await updatedMetadata.save("third-party-with-reviewed-metadata.pdf");
+```
+
+Re-inspect and compare the complete new record. `null` clears a field; empty
+strings, unknown keys, no-op/stale/partial evidence, and legacy unbound
+`values` payloads fail closed. A catalog XMP stream makes
+`updateCapability.supported` false because this primitive updates Document Info
+only and will not create contradictory metadata. Use an explicit XMP-aware
+provider for that graph. This is not metadata sanitization.
+
 For a canonical catalog attachment, use its current inspection record, never a
 filename:
 

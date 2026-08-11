@@ -539,7 +539,9 @@ assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schem
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /rearrange_pages.*changed complete.*Tagged PDFs/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /duplicate_page.*1-based insertAt.*without annotations.*adds no navigation/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.summary || "", /canonical catalog EmbeddedFiles locators/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.summary || "", /source-bound Document Info records.*XMP presence.*metadata-update capability/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /delete_embedded_file.*canonical direct unique catalog EmbeddedFiles NameTree.*sourceSha256.*mupdf-embedded-file.*complete expected snapshot.*non-target entry.*rewrite.*payloadErasureClaimed.*sanitizeClaimed.*pikepdf cleanup.*PyMuPDF sanitize/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /set_metadata.*source hash.*mupdf-document-info.*complete inspect-returned snapshot.*standard Document Info keys.*non-target entries.*XMP-bearing.*no-op/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.savePolicy?.description || "", /Incremental is forbidden for delete_page, duplicate_page, rearrange_pages/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.savePolicy?.description || "", /rearrange_pages, delete_embedded_file/);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /sourceSha256.*expectedPage.*mupdf-page-space.*add_text_annotation.*pin.*contents.*normalized rect.*appearanceBbox.*incremental/i);
@@ -555,6 +557,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.sc
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.schema?.returns?.inspection?.description || "", /Text-note and Highlight.*appearanceBbox/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.schema?.returns?.inspection?.description || "", /sourceSha256.*mupdfAnnotation.*mupdfLink/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.schema?.returns?.inspection?.description || "", /mupdfWidget.*mupdfFormField/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.schema?.returns?.inspection?.description || "", /mupdfDocumentMetadata.*fingerprints raw Info entries.*XMP-bearing.*not editable/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.importPdf")?.summary || "", /MuPDF/);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.resolve")?.summary || "", /no MuPDF initialization.*network access.*cache mutation.*automatic provider fallback/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.resolve")?.schema?.parameters?.inspection?.description || "", /Required for every existing-PDF task except inspect.*sourceSha256.*repair/i);

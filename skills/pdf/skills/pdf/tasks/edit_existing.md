@@ -11,7 +11,7 @@ officekit run scripts/mupdf.mjs probe
 officekit run scripts/mupdf.mjs inspect input.pdf
 ```
 
-Its typed operations are source-bound `add_text_annotation` and `add_text_highlight`, legacy text/choice/checkbox `fill_form`, source-bound `update_form_field`, source-bound `delete_page`, `duplicate_page`, and complete `rearrange_pages`, source-bound `delete_annotation` and `update_annotation`, visible-only `set_page_crop`, absolute-quarter-turn `rotate_page`, `set_metadata`, `delete_embedded_file`, source-bound `add_link`, `delete_link`, and `update_link`, `redact_text`, and `redact_rect`. Run with one explicit save policy:
+Its typed operations are source-bound `add_text_annotation` and `add_text_highlight`, legacy text/choice/checkbox `fill_form`, source-bound `update_form_field`, source-bound `delete_page`, `duplicate_page`, and complete `rearrange_pages`, source-bound `delete_annotation` and `update_annotation`, visible-only `set_page_crop`, absolute-quarter-turn `rotate_page`, source-bound Document Info `set_metadata`, `delete_embedded_file`, source-bound `add_link`, `delete_link`, and `update_link`, `redact_text`, and `redact_rect`. Run with one explicit save policy:
 
 ```bash
 officekit run scripts/mupdf.mjs edit input.pdf tmp/pdfs/edit-operations.json tmp/pdfs/edited.pdf \
@@ -88,6 +88,40 @@ shared-widget group, radio/list/multi-select field, password field, choice
 export mismatch, stale snapshot, or unknown option fails closed; use the
 explicit pypdf form workflow instead. The locator is valid only for the exact
 input bytes, so inspect the output before another mutation.
+
+## Update standard Document Info metadata
+
+Treat metadata as one source object, not a loose title lookup. Select the single
+`mupdfDocumentMetadata` record and copy its complete snapshot into the
+operation. `patch` accepts `author`, `title`, `subject`, `keywords`, `creator`,
+`producer`, `creationDate`, or `modificationDate`; use `null` to clear a field.
+
+```json
+{
+  "savePolicy": "incremental",
+  "operations": [{
+    "type": "set_metadata",
+    "sourceSha256": "<inspect summary sourceSha256>",
+    "metadataId": "mupdf-document-info",
+    "expected": "<complete inspect record snapshot object>",
+    "patch": {
+      "title": "Reviewed board packet",
+      "author": "Finance operations",
+      "producer": null
+    }
+  }]
+}
+```
+
+The provider fingerprints every raw Document Info entry, verifies all
+non-target entries after mutation, and re-inspection returns the new snapshot.
+A stale or partial snapshot, display-title identity, empty-string patch,
+unknown key, no-op, or legacy unbound `values`/`metadata` payload fails closed.
+If the catalog contains an XMP `/Metadata` stream, `updateCapability.supported`
+is false: this bounded primitive does not synchronize XMP and Document Info and
+will not create two contradictory metadata sources. Preserve the file or route
+explicitly to an XMP-aware provider. This is ordinary metadata editing, not
+metadata sanitization; signed-file policy still applies.
 
 ## Visible page crop
 

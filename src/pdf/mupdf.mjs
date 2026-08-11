@@ -5,6 +5,7 @@ import mupdf from "mupdf";
 
 import { toUint8Array } from "../shared/binary.mjs";
 import { FileBlob } from "../shared/file-blob.mjs";
+import { applySourceBoundMetadataUpdate, documentMetadataProfile, metadataFor } from "./mupdf-metadata.mjs";
 
 export const MUPDF_VERSION = "1.28.0";
 
@@ -20,17 +21,6 @@ const DEFAULT_LIMITS = Object.freeze({
   maxTotalImagePixels: 100_000_000,
   maxRenderPixels: 40_000_000,
   maxTotalImageBytes: 64 * 1024 * 1024,
-});
-
-const METADATA_KEYS = Object.freeze({
-  author: mupdf.Document.META_INFO_AUTHOR,
-  title: mupdf.Document.META_INFO_TITLE,
-  subject: mupdf.Document.META_INFO_SUBJECT,
-  keywords: mupdf.Document.META_INFO_KEYWORDS,
-  creator: mupdf.Document.META_INFO_CREATOR,
-  producer: mupdf.Document.META_INFO_PRODUCER,
-  creationDate: mupdf.Document.META_INFO_CREATIONDATE,
-  modificationDate: mupdf.Document.META_INFO_MODIFICATIONDATE,
 });
 
 const INCREMENTAL_DESTRUCTIVE_OPERATIONS = new Set([
@@ -217,12 +207,6 @@ function pageIndexFor(document, operation = {}, fallback = undefined) {
 function pageFor(document, operation, fallback) {
   const index = pageIndexFor(document, operation, fallback);
   return { index, page: document.loadPage(index) };
-}
-
-function metadataFor(document) {
-  return Object.fromEntries(Object.entries(METADATA_KEYS)
-    .map(([name, key]) => [name, document.getMetaData(key)])
-    .filter(([, value]) => value !== undefined && value !== ""));
 }
 
 function annotationXref(annotation) {
@@ -1457,6 +1441,7 @@ export async function inspectPdfWithMuPdf(input, options = {}) {
       }
     });
     const embeddedFiles = collectNativeEmbeddedFiles(document);
+    const documentMetadata = documentMetadataProfile(document);
     const summary = {
       kind: "mupdfDocument",
       provider: "mupdf",
@@ -1474,10 +1459,11 @@ export async function inspectPdfWithMuPdf(input, options = {}) {
       embeddedFileEntries: embeddedFiles.rawEntries,
       embeddedFileGraphCanonical: embeddedFiles.canonical,
       embeddedFileGraphIssues: embeddedFiles.issues,
+      metadataUpdateCapability: documentMetadata.record.updateCapability,
     };
     const records = pageRecords.flat();
     const formFields = collectNativeFormFields(records.filter((record) => record.kind === "mupdfWidget"));
-    return { summary, records: [summary, ...records, ...formFields, ...embeddedFiles.records] };
+    return { summary, records: [summary, documentMetadata.record, ...records, ...formFields, ...embeddedFiles.records] };
   } finally {
     document.destroy();
   }
@@ -2415,18 +2401,7 @@ function applyOperation(document, operation, context) {
     case "set_page_crop": return applyPageCrop(document, operation);
     case "rotate_page": return applyPageRotation(document, operation);
     case "rearrange_pages": return applyPageRearrangement(document, operation, context);
-    case "set_metadata": {
-      const values = operation.values || operation.metadata;
-      if (!values || typeof values !== "object" || Array.isArray(values)) throw new Error("set_metadata requires a values object.");
-      const keys = [];
-      for (const [name, value] of Object.entries(values)) {
-        const key = METADATA_KEYS[name];
-        if (!key) throw new Error(`Unsupported metadata key: ${name}.`);
-        document.setMetaData(key, String(value ?? ""));
-        keys.push(name);
-      }
-      return { type: operation.type, keys };
-    }
+    case "set_metadata": return applySourceBoundMetadataUpdate(document, operation, context);
     case "delete_embedded_file": return applyEmbeddedFileDeletion(document, operation, context);
     case "add_link": return applyLinkAddition(document, operation, context);
     case "delete_link": return applyLinkDeletion(document, operation, context);

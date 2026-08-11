@@ -303,6 +303,7 @@ assert.match(skillText, /rotate_page/);
 assert.match(skillText, /duplicate_page.*source SHA-256.*only operation.*full\s+rewrite.*Poppler.*pixel identity/is);
 assert.match(skillText, /delete_page.*rearrange_pages.*source SHA-256.*page snapshot.*only operation.*full\s+rewrite.*re-inspect.*render/is);
 assert.match(skillText, /delete_embedded_file.*canonical catalog NameTree locator.*complete snapshot.*removes that entry only.*never claims sanitize.*payload erasure/is);
+assert.match(skillText, /set_metadata.*mupdfDocumentMetadata.*XMP.*contradictory metadata/is);
 assert.match(skillText, /delete_annotation.*update_annotation.*delete_link.*update_link.*update_form_field/is);
 assert.match(skillText, /add_text_annotation.*visible pin.*rewrite/is);
 assert.match(skillText, /add_text_highlight.*unique native text selection.*rewrite/is);
@@ -385,6 +386,8 @@ assert.match(editExistingText, /status: \"failed_closed\"[\s\S]*savePolicy\.stra
 assert.match(editExistingText, /configured provider interpreter[\s\S]*OFFICE_KIT_PDF_PROVIDER_PYTHON/);
 assert.match(editExistingText, /Do not switch to pypdf, ReportLab, PDF\.js,[\s\S]*content-stream patching/i);
 assert.match(editExistingText, /delete_embedded_file[\s\S]*mupdfEmbeddedFile[\s\S]*complete\s+snapshot[\s\S]*display\s+filename or NameTree[\s\S]*sourceSha256[\s\S]*embeddedFileId[\s\S]*payloadErasureClaimed[\s\S]*sanitizeClaimed/is);
+assert.match(editExistingText, /Update standard Document Info metadata/);
+assert.match(editExistingText, /mupdfDocumentMetadata[\s\S]*metadataId[\s\S]*complete inspect record snapshot[\s\S]*XMP[\s\S]*fail closed/is);
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
 assert.match(pdfPluginReadme, /office-kit\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
@@ -413,6 +416,9 @@ assert.match(apiQuickStartText, /sourceSha256: inspection\.summary\.sourceSha256
 assert.match(apiQuickStartText, /expected: attachment\.snapshot/);
 assert.match(apiQuickStartText, /catalog NameTree entry only/i);
 assert.match(apiQuickStartText, /pikepdf or PyMuPDF/);
+assert.match(apiQuickStartText, /mupdfDocumentMetadata/);
+assert.match(apiQuickStartText, /metadataId: metadata\.id/);
+assert.match(apiQuickStartText, /XMP stream.*updateCapability\.supported.*false/is);
 const redactTaskText = await fs.readFile(path.join(skillRoot, "tasks", "redact.md"), "utf8");
 assert.match(redactTaskText, /expected_rotation/);
 assert.match(redactTaskText, /temporarily clears `\/Rotate`.*restores `\/Rotate`/s);
@@ -487,6 +493,8 @@ try {
   const mupdfCropOutput = path.join(tempRoot, "mupdf-crop-output.pdf");
   const mupdfRotationOperations = path.join(tempRoot, "mupdf-rotation-operations.json");
   const mupdfRotationOutput = path.join(tempRoot, "mupdf-rotation-output.pdf");
+  const mupdfMetadataOperations = path.join(tempRoot, "mupdf-metadata-operations.json");
+  const mupdfMetadataOutput = path.join(tempRoot, "mupdf-metadata-output.pdf");
   const mupdfDuplicateInput = path.join(tempRoot, "mupdf-duplicate-input.pdf");
   const mupdfDuplicateOperations = path.join(tempRoot, "mupdf-duplicate-operations.json");
   const mupdfDuplicateOutput = path.join(tempRoot, "mupdf-duplicate-output.pdf");
@@ -516,6 +524,25 @@ try {
   const mupdfInspection = parseResult(run(process.execPath, [mupdfCli, "inspect", mupdfInput], { status: 0 }));
   assert.equal(mupdfInspection.summary.nativeProvider, "mupdf");
   assert.equal(mupdfInspection.summary.pages, 1);
+  const mupdfMetadata = mupdfInspection.records.find((record) => record.kind === "mupdfDocumentMetadata");
+  assert.equal(mupdfMetadata.updateCapability.supported, true);
+  await fs.writeFile(mupdfMetadataOperations, JSON.stringify({
+    savePolicy: "incremental",
+    operations: [{
+      type: "set_metadata",
+      sourceSha256: mupdfInspection.summary.sourceSha256,
+      metadataId: mupdfMetadata.id,
+      expected: mupdfMetadata.snapshot,
+      patch: { title: "CLI reviewed metadata", author: "CLI reviewer" },
+    }],
+  }), "utf8");
+  const mupdfMetadataEdited = parseResult(run(process.execPath, [mupdfCli, "edit", mupdfInput, mupdfMetadataOperations, mupdfMetadataOutput], { status: 0 }));
+  assert.equal(mupdfMetadataEdited.savePolicy, "incremental");
+  assert.equal(mupdfMetadataEdited.operations[0].metadataId, mupdfMetadata.id);
+  const mupdfMetadataInspection = await PdfFile.inspectPdf(await fs.readFile(mupdfMetadataOutput));
+  assert.equal(mupdfMetadataInspection.summary.documentInfo.title, "CLI reviewed metadata");
+  assert.equal(mupdfMetadataInspection.summary.documentInfo.author, "CLI reviewer");
+  assert.equal(crypto.createHash("sha256").update(await fs.readFile(mupdfInput)).digest("hex"), mupdfInspection.summary.sourceSha256);
   const mupdfLink = mupdfInspection.records.find((record) => record.kind === "mupdfLink");
   const mupdfLinkPage = mupdfInspection.records.find((record) => record.kind === "mupdfPage" && record.page === mupdfLink.page);
   assert.match(mupdfLink.id, /^mupdf-link-1-[a-f0-9]{64}$/);

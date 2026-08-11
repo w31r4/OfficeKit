@@ -175,9 +175,10 @@ const maxPackedBytes = 37_500_000;
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
 // Keep measured headroom for bounded codec/Skill growth without concealing
 // specialist binaries or generated repository evidence in the tarball. The
-// Presentation object accessibility repair measures 53,556,147 bytes in the
-// clean candidate package; its audited ceiling retains 23,853 bytes.
-const maxUnpackedBytes = 53_625_000;
+// Source-bound PDF Document Info editing adds one shipped leaf module plus
+// runnable Skill guidance and measures 53,638,623 bytes in the isolated staged
+// package; its audited ceiling retains 11,377 bytes.
+const maxUnpackedBytes = 53_650_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from

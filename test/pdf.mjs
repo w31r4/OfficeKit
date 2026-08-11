@@ -120,6 +120,58 @@ function sourceBoundEmbeddedFileFixture({ duplicateName = false, directFileSpec 
   }
 }
 
+function sourceBoundMetadataFixture({ xmp = false } = {}) {
+  const document = new mupdf.PDFDocument(plainPdfBytes([{ text: xmp ? "XMP METADATA" : "DOCUMENT INFO" }]));
+  let infoReference;
+  let info;
+  let canary;
+  let xmpStream;
+  let root;
+  let saved;
+  try {
+    document.setMetaData(mupdf.Document.META_INFO_TITLE, "Imported title");
+    document.setMetaData(mupdf.Document.META_INFO_AUTHOR, "Original author");
+    document.setMetaData(mupdf.Document.META_INFO_PRODUCER, "Fixture producer");
+    infoReference = document.getTrailer().get("Info");
+    info = infoReference.resolve();
+    canary = document.newString("retain-this-unknown-entry");
+    info.put("CustomCanary", canary);
+    if (xmp) {
+      xmpStream = document.addStream(new TextEncoder().encode("<x:xmpmeta xmlns:x='adobe:ns:meta/'/>"), { Type: "Metadata", Subtype: "XML" });
+      root = document.getTrailer().get("Root");
+      root.put("Metadata", xmpStream);
+    }
+    saved = document.saveToBuffer("garbage=2,compress=yes");
+    return new FileBlob(new Uint8Array(saved.asUint8Array().slice()), { type: "application/pdf" });
+  } finally {
+    saved?.destroy();
+    root?.destroy();
+    xmpStream?.destroy();
+    canary?.destroy();
+    info?.destroy();
+    infoReference?.destroy();
+    document.destroy();
+  }
+}
+
+function rawDocumentInfoValue(input, key) {
+  const document = new mupdf.PDFDocument(input.bytes || input);
+  let reference;
+  let info;
+  let value;
+  try {
+    reference = document.getTrailer().get("Info");
+    info = reference.resolve();
+    value = info.get(key);
+    return value.isString() ? value.asString() : undefined;
+  } finally {
+    value?.destroy();
+    info?.destroy();
+    reference?.destroy();
+    document.destroy();
+  }
+}
+
 const pdf = PdfArtifact.create({
   pages: [
     {
@@ -326,11 +378,97 @@ assert.equal(mupdfInspect.summary.nativeProvider, "mupdf");
 assert.equal(mupdfInspect.summary.nativeProviderVersion, MUPDF_VERSION);
 assert.equal(mupdfInspect.summary.pages, 2);
 assert.equal(mupdfInspect.records.filter((record) => record.kind === "mupdfPage").length, 2);
+assert.equal(mupdfInspect.records.filter((record) => record.kind === "mupdfDocumentMetadata").length, 1);
 const mupdfPng = await PdfFile.renderPdf(arbitraryPdf, { page: 1, dpi: 72 });
 assert.equal(mupdfPng.type, "image/png");
 assert.deepEqual([...mupdfPng.bytes.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
 assert.equal(mupdfPng.metadata.provider, "mupdf");
 await assert.rejects(renderPdfWithMuPdf(arbitraryPdf.bytes, { dpi: 72, limits: { maxRenderPixels: 1 } }), /exceeds maxRenderPixels/);
+
+const metadataSource = sourceBoundMetadataFixture();
+const metadataSourceBytes = Buffer.from(metadataSource.bytes);
+const metadataInspection = await PdfFile.inspectPdf(metadataSource);
+const metadataRecord = metadataInspection.records.find((record) => record.kind === "mupdfDocumentMetadata");
+assert.equal(metadataInspection.summary.documentInfo.title, "Imported title");
+assert.equal(metadataInspection.summary.metadataUpdateCapability.supported, true);
+assert.equal(metadataRecord.id, "mupdf-document-info");
+assert.equal(metadataRecord.snapshot.values.author, "Original author");
+assert.equal(metadataRecord.snapshot.xmpPresent, false);
+assert.equal(metadataRecord.updateCapability.supported, true);
+assert.ok(metadataRecord.snapshot.infoEntries.some((entry) => entry.name === "CustomCanary"));
+const sourceBoundMetadataUpdate = {
+  type: "set_metadata",
+  sourceSha256: metadataInspection.summary.sourceSha256,
+  metadataId: metadataRecord.id,
+  expected: metadataRecord.snapshot,
+  patch: { title: "Reviewed title", author: "Review agent", producer: null },
+};
+await assert.rejects(PdfFile.editPdf(metadataSource, {
+  savePolicy: "incremental",
+  operations: [{ ...sourceBoundMetadataUpdate, sourceSha256: "0".repeat(64) }],
+}), /sourceSha256 must exactly match/);
+await assert.rejects(PdfFile.editPdf(metadataSource, {
+  savePolicy: "incremental",
+  operations: [{ ...sourceBoundMetadataUpdate, metadataId: "metadata-by-title" }],
+}), /metadataId must be mupdf-document-info/);
+await assert.rejects(PdfFile.editPdf(metadataSource, {
+  savePolicy: "incremental",
+  operations: [{ ...sourceBoundMetadataUpdate, expected: { values: metadataRecord.snapshot.values } }],
+}), /expected must include snapshot field/);
+await assert.rejects(PdfFile.editPdf(metadataSource, {
+  savePolicy: "incremental",
+  operations: [{ ...sourceBoundMetadataUpdate, expected: { ...metadataRecord.snapshot, values: { ...metadataRecord.snapshot.values, title: "Stale title" } } }],
+}), /precondition did not match/);
+await assert.rejects(PdfFile.editPdf(metadataSource, {
+  savePolicy: "incremental",
+  operations: [{ ...sourceBoundMetadataUpdate, patch: { title: "Imported title" } }],
+}), /would not change/);
+await assert.rejects(PdfFile.editPdf(metadataSource, {
+  savePolicy: "incremental",
+  operations: [{ ...sourceBoundMetadataUpdate, patch: { title: "" } }],
+}), /non-empty string or null/);
+await assert.rejects(PdfFile.editPdf(metadataSource, {
+  savePolicy: "incremental",
+  operations: [{ ...sourceBoundMetadataUpdate, values: { title: "Legacy unsafe alias" } }],
+}), /contains unsupported field: values/);
+const metadataUpdated = await PdfFile.editPdf(metadataSource, {
+  savePolicy: "incremental",
+  operations: [sourceBoundMetadataUpdate],
+});
+assert.equal(Buffer.from(metadataSource.bytes).equals(metadataSourceBytes), true);
+assert.equal(Buffer.from(metadataUpdated.bytes.subarray(0, metadataSource.bytes.byteLength)).equals(metadataSourceBytes), true);
+assert.equal(metadataUpdated.metadata.operations[0].metadataId, metadataRecord.id);
+assert.deepEqual(metadataUpdated.metadata.operations[0].patch, { author: "Review agent", title: "Reviewed title", producer: null });
+assert.deepEqual(metadataUpdated.metadata.operations[0].matched, metadataRecord.snapshot);
+const metadataUpdatedInspection = await PdfFile.inspectPdf(metadataUpdated);
+const metadataUpdatedRecord = metadataUpdatedInspection.records.find((record) => record.kind === "mupdfDocumentMetadata");
+assert.equal(metadataUpdatedInspection.summary.documentInfo.title, "Reviewed title");
+assert.equal(metadataUpdatedInspection.summary.documentInfo.author, "Review agent");
+assert.equal(Object.hasOwn(metadataUpdatedInspection.summary.documentInfo, "producer"), false);
+assert.equal(metadataUpdatedRecord.snapshot.xmpPresent, false);
+assert.equal(rawDocumentInfoValue(metadataUpdated, "CustomCanary"), "retain-this-unknown-entry");
+const [metadataBeforeRender, metadataAfterRender] = await Promise.all([
+  PdfFile.renderPdf(metadataSource, { page: 1, dpi: 72 }),
+  PdfFile.renderPdf(metadataUpdated, { page: 1, dpi: 72 }),
+]);
+assert.equal(Buffer.compare(Buffer.from(metadataBeforeRender.bytes), Buffer.from(metadataAfterRender.bytes)), 0, "Document Info edits must not change page pixels");
+
+const xmpMetadataSource = sourceBoundMetadataFixture({ xmp: true });
+const xmpMetadataInspection = await PdfFile.inspectPdf(xmpMetadataSource);
+const xmpMetadataRecord = xmpMetadataInspection.records.find((record) => record.kind === "mupdfDocumentMetadata");
+assert.equal(xmpMetadataRecord.snapshot.xmpPresent, true);
+assert.equal(xmpMetadataRecord.updateCapability.supported, false);
+assert.ok(xmpMetadataRecord.updateCapability.reasons.includes("catalog-xmp-metadata-is-present"));
+await assert.rejects(PdfFile.editPdf(xmpMetadataSource, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "set_metadata",
+    sourceSha256: xmpMetadataInspection.summary.sourceSha256,
+    metadataId: xmpMetadataRecord.id,
+    expected: xmpMetadataRecord.snapshot,
+    patch: { title: "Would diverge from XMP" },
+  }],
+}), /catalog-xmp-metadata-is-present.*XMP-aware provider/);
 const mupdfAnnotationSourcePage = mupdfInspect.records.find((record) => record.kind === "mupdfPage" && record.page === 1);
 assert.equal(mupdfAnnotationSourcePage.coordinateSpace, "mupdf-page-space");
 const sourceBoundTextHighlight = {
@@ -1046,7 +1184,7 @@ await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
 }), /page-tree operation delete_page cannot save incrementally.*fully rewritten object graph/);
 await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
   savePolicy: "rewrite",
-  operations: [deletePageOperation, { type: "set_metadata", values: { title: "Ambiguous" } }],
+  operations: [deletePageOperation, { type: "rotate_page", page: 1, rotation: 90 }],
 }), /delete_page must be the only operation.*page-tree mutation invalidates current-page locators/);
 await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
   savePolicy: "rewrite",
@@ -1121,7 +1259,7 @@ await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
 }), /page-tree operation rearrange_pages cannot save incrementally.*fully rewritten object graph/);
 await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
   savePolicy: "rewrite",
-  operations: [rearrangePageOperation, { type: "set_metadata", values: { title: "Ambiguous" } }],
+  operations: [rearrangePageOperation, { type: "rotate_page", page: 1, rotation: 90 }],
 }), /rearrange_pages must be the only operation.*page-tree mutation invalidates current-page locators/);
 await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
   savePolicy: "rewrite",

@@ -149,6 +149,7 @@ and `appearanceBbox`; re-inspect after every output.
   unique native text selection and rewrite.
 - On untagged input, `delete_page`, `duplicate_page`, and changed `rearrange_pages` require exact source SHA-256 and page snapshots, run as the only operation in a full rewrite, then require re-inspect and mapped Poppler render/pixel identity.
 - `delete_embedded_file` binds one inspect-returned canonical catalog NameTree locator and complete snapshot; rewrite removes that entry only and never claims sanitize or physical payload erasure.
+- `set_metadata` binds the exact source plus the complete `mupdfDocumentMetadata` snapshot and updates only standard Document Info fields. It rejects stale/no-op requests and any catalog XMP stream rather than creating contradictory metadata; use an explicitly selected XMP-aware provider for that graph.
 - `set_page_crop` is raw unrotated CropBox visibility only, not redaction.
   `rotate_page` sets an absolute right-angle `/Rotate`; neither enables content
   reflow. Delete/redaction operations cannot be incremental. Mixed-document OCR needing automatic rotate or deskew is audit-only `failed_closed` with `savePolicy.strategy: "none"`; see [OCR](tasks/ocr.md).
@@ -160,8 +161,7 @@ and `appearanceBbox`; re-inspect after every output.
   around this boundary through pypdf, ReportLab, PDF.js, content-stream edits,
   or another provider; do not publish a cover-only edit as preserved behavior.
 
-For the complete operation schemas and edge cases, read [edit existing](tasks/edit_existing.md)
-and [forms and annotations](tasks/forms_annotations.md), not this overview.
+For the complete operation schemas and edge cases, read [edit existing](tasks/edit_existing.md) and [forms and annotations](tasks/forms_annotations.md), not this overview.
 
 ## Specialist safety boundaries
 
