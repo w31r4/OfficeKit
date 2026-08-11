@@ -74,6 +74,16 @@ Do not send the user away to repeat the request through another Skill.
 Do not preload every Office Skill. Do not copy domain API documentation into
 this coordination layer.
 
+## Keep net-new PPT work conversational
+
+For a net-new PPTX or a broad deck redesign, load the Presentations Skill's
+`references/conversation-workflow.md`. Unless one-pass final delivery was
+requested, return the first checked deck as a guided working draft, revise the
+latest inspected draft in natural language, and publish only after acceptance.
+Read-only and narrow edits stay direct. Discuss the draft, changes, and final
+deck—not Skills, routing, CLI/parser mechanics, or QA internals—unless asked or
+blocked.
+
 ## Decide whether a template helps
 
 Make a template decision only for a new or substantially redesigned DOCX,
@@ -108,6 +118,9 @@ then let the PDF Skill inspect and verify the final PDF.
 
 - Protect every input and retained template from overwrite.
 - Complete each artifact under its owner's workflow.
+- For a conversational PPT draft, run the draft checks defined by the
+  Presentations Skill and return the working path plus draft guide. Do not call
+  it final or publish it as the delivery artifact.
 - Reopen or reimport the result when the owner requires it.
 - Run the owner's semantic, structural, layout/render, and delivery checks in
   the order defined by the post-edit review contract.
@@ -115,8 +128,9 @@ then let the PDF Skill inspect and verify the final PDF.
   helps the Agent read or compare content; it is not a visual-review result.
 - For a multi-artifact task, verify shared facts, numbers, names, dates, and
   visual identity across outputs.
-- Return the final files, the route used, the template decision, and any
-  explicit capability limits.
+- After finalization, return the final files and any explicit capability
+  limits. Keep the internal route and template decision out of the normal
+  user-facing response unless the user asks for them.
 
 Return each artifact as an absolute path with its type and SHA-256. Include
 page, slide, sheet, or range locators and inspect/render/verify evidence paths

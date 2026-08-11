@@ -19,12 +19,14 @@ For a multi-step deck task, use `officekit repl` and the portable contract in
 `../office-kit/references/repl.md`. Import the public API with
 `await ctx.import("office-kit")`, keep the deck and reusable layout helpers in
 `ctx.state`, and follow inspect → compose/edit → render → structural or visual
-review → verify before `ctx.publish`. Register previews and QA reports with
-`ctx.recordEvidence`, and report the final absolute path, SHA-256, and
-`visualReview` status. Use the image capability matrix below to choose user or
-template assets and native Office shapes when visual generation or inspection
-is unavailable. After reopening the final PPTX, follow
-`../office-kit/references/review.md`.
+review → verify. For net-new or broadly redesigned decks, follow
+[the conversational workflow](references/conversation-workflow.md), revise a
+checked working draft, and call `ctx.publish` only after acceptance; narrow
+edits stay direct. Register QA evidence with `ctx.recordEvidence`. Use the
+image capability matrix below when generation or inspection is unavailable.
+After reopening the accepted final PPTX, follow
+`../office-kit/references/review.md` and report its path, SHA-256, and
+`visualReview` status.
 
 ## Important Instructions
 
@@ -133,6 +135,11 @@ matching route wins:
 
 User-provided references and explicit visual direction always take precedence
 over Grid Layout.
+
+For net-new or broad redesign work, ask at most three questions only when
+uncertainty materially changes narrative, evidence, or visuals; otherwise
+create the guided draft. Skip the loop for read-only, narrow-edit, and explicit
+one-pass-final requests.
 
 ## Google Slides-Targeted Output
 
@@ -908,16 +915,18 @@ If a source
 slide cannot support the requested content or cannot be removed after cloning,
 report the blocker and the closest viable source-slide options.
 
-## QA Reminder
+## Draft and final QA
 
-Before delivery, render every final slide and inspect each slide individually
-at full size when visual input is available. Use a contact sheet only to review
-deck-level flow and consistency, not as a substitute for full-size layout QA.
-Without visual input, run the structured checks for every slide and use the
-optional text reading view (`contentView: "anydoc"`) only when a compact
-text/table view helps semantic review; mark image-led or
-design-sensitive results `visualReview: "requires-human"`. The text reading view
-cannot judge
+Before showing a working draft, reopen it, inspect semantics/structure, render
+every slide, and fix deterministic layout failures. Return its path, SHA-256,
+and honest visual status without claiming delivery or calling `ctx.publish`.
+
+Before delivery, rerun the complete review against the accepted draft. Inspect
+each rendered slide at full size when visual input is available. Use a contact
+sheet only for deck-level flow. Without visual input, run structured checks for
+every slide and request `contentView: "anydoc"` only when its compact text/table
+view helps; mark image-led or design-sensitive results
+`visualReview: "requires-human"`. The text reading view cannot judge
 composition, hierarchy, crop, contrast, typography, or chart appearance. Fix
 unintended overlap, clipping, wrapping, broken connectors, unresolved
 placeholders, inconsistent footers/page markers, and chart/data mismatches
@@ -926,9 +935,14 @@ traceable, and cite sources if research was used.
 
 ## Final Response
 
-Return a short user-visible summary of the completed deck. Mention the sources cited or
-used if research informed the deck. Do not attach scratch plans, previews,
-layout JSON, or temporary assets unless the user asks for them.
+For a working draft, return one-screen goal/structure/confirmation guidance,
+suggested natural-language revisions, and its path. Do not dump slides or
+expose Skill, CLI, parser, object-ID, or QA-log internals.
+
+After explicit acceptance, return a short user-visible summary of the completed
+deck. Mention the sources cited or used if research informed the deck. Do not
+attach scratch plans, previews, layout JSON, or temporary assets unless the
+user asks for them.
 
 ## Result and evidence
 

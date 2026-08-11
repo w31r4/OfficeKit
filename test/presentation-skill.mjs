@@ -2848,6 +2848,7 @@ try {
     assert.doesNotMatch(source, /\b(?:codec|initialCodec|roundtripCodec)\b/i, file + " must not expose an Office path selector");
   }
   const skillText = await fs.readFile("skills/presentations/skills/presentations/SKILL.md", "utf8");
+  const conversationWorkflowText = await fs.readFile("skills/presentations/skills/presentations/references/conversation-workflow.md", "utf8");
   const styleGuidelinesText = await fs.readFile("skills/presentations/skills/presentations/style_guidelines.md", "utf8");
   const googleSlidesRoutingText = await fs.readFile("skills/presentations/skills/presentations/routing/google_slides.md", "utf8");
   const quickStartText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/API_QUICK_START.md", "utf8");
@@ -3017,6 +3018,15 @@ try {
   assert.equal(await fs.access(blockedStarterLayout).then(() => true, () => false), false);
   assert.equal((await fs.readdir(blockedStarterRoot)).some((name) => name.startsWith(".office-kit-template-starter-")), false);
   assert.match(skillText, /office-kit/);
+  assert.match(skillText, /conversational workflow/i);
+  assert.match(skillText, /working draft.*ctx\.publish.*after acceptance/is);
+  assert.match(skillText, /ask at most three questions/i);
+  assert.match(skillText, /one-screen goal\/structure\/confirmation guidance/i);
+  assert.match(conversationWorkflowText, /net-new deck or broad redesign/i);
+  assert.match(conversationWorkflowText, /one-screen draft guide/i);
+  assert.match(conversationWorkflowText, /Never reuse a stale locator/i);
+  assert.match(conversationWorkflowText, /Explicit .* permits complete\s+post-edit review and final publication/is);
+  assert.doesNotMatch(conversationWorkflowText, /(?:invoke|use)\s+\$presentations/i);
   assert.match(skillText, /officekit-speaker-notes-add-workflow\.mjs/);
   assert.match(skillText, /officekit-rich-speaker-notes-edit-workflow\.mjs/);
   assert.match(skillText, /paragraph `0`, run `1`[\s\S]*not widen the topology/is);
