@@ -405,6 +405,7 @@ for (const required of [
   "skills/presentations/skills/presentations/SKILL.md",
   "skills/presentations/skills/presentations/agents/openai.yaml",
   "skills/presentations/skills/presentations/agents/agent.yaml",
+  "skills/presentations/skills/presentations/references/conversation-workflow.md",
   "skills/presentations/skills/powerpoint-live-control/SKILL.md",
   "skills/presentations/skills/powerpoint-live-control/agents/openai.yaml",
   "skills/presentations/skills/powerpoint-live-control/assets/icon.svg",
