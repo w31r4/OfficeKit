@@ -11,7 +11,7 @@ to retry through another route.
 | Provider | Primary role | Save policy | Important boundary |
 | --- | --- | --- | --- |
 | `PdfArtifact` | New tagged semantic authoring, reading order, inspect/verify | `rewrite` | New/trusted model only; never an imported-PDF fidelity editor. |
-| MuPDF.js / `PdfFile` | Default arbitrary-PDF parse, inspect, render, bounded direct-original edit | `read-only`, `rewrite`, explicit `incremental` | No Word-style reflow, complete sanitize, or signature authority. Source-bound edits and page evidence remain mandatory. |
+| MuPDF.js / `PdfFile` | Default arbitrary-PDF parse, inspect, render, bounded direct-original edit | `read-only`, `rewrite`, explicit `incremental` | No Word-style reflow, complete sanitize, or signature authority. Source-bound edits and page evidence remain mandatory; delete/duplicate/rearrange page-tree changes run alone as full rewrites with fresh mapped render evidence. |
 | ReportLab | New visual/layout PDF | `rewrite` | Does not inherit the `PdfArtifact` tagged/reading-order contract. |
 | pdfplumber | Read-only text, word geometry, tables, lines, rectangles | `read-only` | Extraction is evidence, not an edit representation. |
 | pypdf | Attachment quarantine, complete-source merge/reorder/stamp, complex forms/annotations | `read-only`, `rewrite`, explicit `incremental` | Inspect signatures/DocMDP first; an incremental layout is not authorization. |

@@ -190,6 +190,34 @@ await rotated.save("third-party-page-1-rotated.pdf");
 Inspect and render the result before delivery. Rotated-coordinate text/image
 editing remains an explicit specialist-provider task.
 
+For source-bound page removal or reordering, use a fresh inspection and a
+single-operation full rewrite. Deletion binds the selected page snapshot;
+reordering binds every current page snapshot in current order:
+
+```js
+const sourcePages = inspection.records
+  .filter((record) => record.kind === "mupdfPage")
+  .map(({ page, bbox, rotation }) => ({ page, bbox, rotation }));
+
+const reordered = await PdfFile.editPdf(input, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "rearrange_pages",
+    pages: [3, 1, 2],
+    sourceSha256: inspection.summary.sourceSha256,
+    expectedPages: sourcePages,
+  }],
+});
+await reordered.save("third-party-reordered.pdf");
+```
+
+`delete_page` uses the same source hash with
+`expectedPage: { bbox, rotation }` for its selected page. Both operations reject
+Tagged PDFs, incremental save, additional operations, stale/incomplete
+snapshots, and an incomplete, duplicate, or no-op permutation. Keep the input
+unchanged, re-inspect the output, and compare every retained source-page to its
+declared output page with Poppler before reusing any page locator.
+
 For a bounded same-document page copy, use `duplicate_page` with the exact
 inspection hash and page snapshot. The optional `insertAt` is a 1-based output
 position; without it the copy is inserted directly after the source page:

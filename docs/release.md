@@ -5749,6 +5749,46 @@ one source-of-truth boundary for direct versus nested Word content. The image
 workflow retains its paired `wp:docPr`/`pic:cNvPr` residual behavior and full
 regression coverage.
 
+### PDF source-bound page-tree transactions
+
+On 2026-08-11, the built-in MuPDF.js route brought `delete_page` and
+`rearrange_pages` under the same source-bound transaction rule already used by
+`duplicate_page`. Deletion now requires the exact inspected input SHA-256 plus
+the selected page bbox/rotation snapshot. Rearrangement requires that source
+hash, one complete 1-based permutation, and a complete current-order
+`{page,bbox,rotation}` snapshot. Missing, stale, duplicated, out-of-order, or
+unsupported fields fail before mutation.
+
+All three page-tree operations reject Tagged PDFs and must be the only operation
+in a full rewrite; `rearrange_pages` also rejects a no-op permutation.
+Incremental save is rejected because a page-tree mutation must publish one
+coherent object graph and invalidates every current page locator. The operation
+audit records the bound snapshots and page counts. The caller must protect the
+source, re-inspect the result, and map every retained source page to its output
+page through native rendering before a later edit. This hardens the bounded
+direct-original provider; it does not turn page numbers into persistent
+document identities or broaden specialist pypdf merge/reorder behavior.
+
+Core and packaged-Skill tests use one three-page source with distinct page
+geometry and a 90-degree page. They prove stale hash/rotation, incomplete or
+out-of-order snapshots, duplicate permutations, extra operation fields,
+multi-operation plans, and incremental policy fail closed. Positive delete and
+reorder transactions preserve source bytes, pass second MuPDF inspection,
+retain expected text/geometry/rotation, and map every retained page through
+MuPDF and available qpdf/pdfinfo/Poppler checks without pixel drift.
+
+The local candidate passed the fast gate `26/26`, slow gate `75/75`, generated
+API docs, protocol lint/generation, OfficeKit Codec `401/401`, OfficeBridge
+`5/5`, deterministic WASM comparison across 39 audited files, and clean-install
+`npm run test:pack`. The runtime remains 38 files and 15,422,187 bytes. The npm
+candidate contains 729 files, 36,273,385 compressed bytes, and 53,608,843
+unpacked bytes (`shasum eb60b98b929d99f1579755d012a85293dca9a038`),
+leaving 16,157 bytes below the audited unpacked ceiling. Real MuPDF.js, qpdf,
+Poppler, LibreOffice, and Playwright paths ran. Managed capability downloads and
+separately configured pypdf/PyMuPDF/pikepdf/pyHanko/veraPDF/OCRmyPDF provider
+repeats remained explicit environment skips. `npm whoami` returned `ENEEDAUTH`;
+no publish, tag, or release operation was attempted.
+
 ## Publishing
 
 Before publishing:

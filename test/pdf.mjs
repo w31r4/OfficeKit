@@ -976,6 +976,161 @@ const prependedDuplicate = await PdfFile.editPdf(duplicatePageSource, {
 assert.equal(prependedDuplicate.metadata.operations[0].insertedPage, 1);
 assert.equal(prependedDuplicate.metadata.operations[0].sourcePageAfterInsertion, 3);
 assert.match((await parsePdfWithMuPdf(prependedDuplicate.bytes, { includeImages: false })).pages[0].text, /ROTATED PAGE TWO/);
+const pageTreeSnapshots = duplicatePageInspection.records
+  .filter((record) => record.kind === "mupdfPage")
+  .map((record) => ({ page: record.page, bbox: record.bbox, rotation: record.rotation }));
+const deletePageOperation = {
+  type: "delete_page",
+  page: 2,
+  sourceSha256: duplicatePageInspection.summary.sourceSha256,
+  expectedPage: { bbox: pageTreeSnapshots[1].bbox, rotation: pageTreeSnapshots[1].rotation },
+};
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "incremental",
+  operations: [deletePageOperation],
+}), /page-tree operation delete_page cannot save incrementally.*fully rewritten object graph/);
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [deletePageOperation, { type: "set_metadata", values: { title: "Ambiguous" } }],
+}), /delete_page must be the only operation.*page-tree mutation invalidates current-page locators/);
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...deletePageOperation, sourceSha256: "0".repeat(64) }],
+}), /delete_page sourceSha256 must exactly match/);
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...deletePageOperation, expectedPage: { bbox: pageTreeSnapshots[1].bbox, rotation: 0 } }],
+}), /delete_page precondition page rotation did not match/);
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...deletePageOperation, preserveOutline: true }],
+}), /delete_page contains unsupported field: preserveOutline/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "delete_page",
+    page: 1,
+    sourceSha256: mupdfInspect.summary.sourceSha256,
+    expectedPage: { bbox: mupdfAnnotationSourcePage.bbox, rotation: mupdfAnnotationSourcePage.rotation },
+  }],
+}), /delete_page does not support Tagged PDFs.*structure tree/);
+const finalPageSource = new FileBlob(plainPdfBytes([{ text: "FINAL PAGE" }]), { type: "application/pdf" });
+const finalPageInspection = await PdfFile.inspectPdf(finalPageSource);
+const finalPageRecord = finalPageInspection.records.find((record) => record.kind === "mupdfPage");
+await assert.rejects(PdfFile.editPdf(finalPageSource, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "delete_page",
+    page: 1,
+    sourceSha256: finalPageInspection.summary.sourceSha256,
+    expectedPage: { bbox: finalPageRecord.bbox, rotation: finalPageRecord.rotation },
+  }],
+}), /delete_page cannot remove the final page/);
+const deletedPage = await PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [deletePageOperation],
+});
+assert.equal(Buffer.from(duplicatePageSource.bytes).equals(duplicatePageSourceBytes), true);
+assert.deepEqual(deletedPage.metadata.operations[0], {
+  type: "delete_page",
+  page: 2,
+  expectedPage: deletePageOperation.expectedPage,
+  pageCountBefore: 3,
+  pageCountAfter: 2,
+});
+const deletedPageInspection = await PdfFile.inspectPdf(deletedPage, { maxChars: 100_000 });
+assert.equal(deletedPageInspection.summary.pages, 2);
+assert.deepEqual(deletedPageInspection.records.filter((record) => record.kind === "mupdfPage").map((record) => ({ bbox: record.bbox, rotation: record.rotation })), [
+  { bbox: pageTreeSnapshots[0].bbox, rotation: pageTreeSnapshots[0].rotation },
+  { bbox: pageTreeSnapshots[2].bbox, rotation: pageTreeSnapshots[2].rotation },
+]);
+const deletedParsed = await parsePdfWithMuPdf(deletedPage.bytes, { includeImages: false });
+assert.match(deletedParsed.pages[0].text, /ORIGINAL PAGE ONE/);
+assert.match(deletedParsed.pages[1].text, /ORIGINAL PAGE THREE/);
+const [deletedOutputFirst, deletedOutputSecond] = await Promise.all([
+  PdfFile.renderPdf(deletedPage, { page: 1, dpi: 72 }),
+  PdfFile.renderPdf(deletedPage, { page: 2, dpi: 72 }),
+]);
+assert.equal(Buffer.compare(Buffer.from(duplicateSourceFirst.bytes), Buffer.from(deletedOutputFirst.bytes)), 0);
+assert.equal(Buffer.compare(Buffer.from(duplicateSourceThird.bytes), Buffer.from(deletedOutputSecond.bytes)), 0);
+
+const rearrangePageOperation = {
+  type: "rearrange_pages",
+  pages: [3, 1, 2],
+  sourceSha256: duplicatePageInspection.summary.sourceSha256,
+  expectedPages: pageTreeSnapshots,
+};
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "incremental",
+  operations: [rearrangePageOperation],
+}), /page-tree operation rearrange_pages cannot save incrementally.*fully rewritten object graph/);
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [rearrangePageOperation, { type: "set_metadata", values: { title: "Ambiguous" } }],
+}), /rearrange_pages must be the only operation.*page-tree mutation invalidates current-page locators/);
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...rearrangePageOperation, sourceSha256: "0".repeat(64) }],
+}), /rearrange_pages sourceSha256 must exactly match/);
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...rearrangePageOperation, expectedPages: pageTreeSnapshots.slice(0, 2) }],
+}), /expectedPages must contain one inspect-derived.*for each of the 3 current pages/);
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...rearrangePageOperation, expectedPages: [pageTreeSnapshots[1], pageTreeSnapshots[0], pageTreeSnapshots[2]] }],
+}), /expectedPages must identify every current 1-based page exactly once in current order/);
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...rearrangePageOperation, expectedPages: pageTreeSnapshots.map((page, index) => index === 1 ? { ...page, rotation: 0 } : page) }],
+}), /rearrange_pages precondition page 2 rotation did not match/);
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...rearrangePageOperation, pages: [3, 3, 1] }],
+}), /rearrange_pages requires each current page exactly once/);
+await assert.rejects(PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...rearrangePageOperation, pages: [1, 2, 3] }],
+}), /rearrange_pages requires a changed page order.*no-op/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "rearrange_pages",
+    pages: Array.from({ length: mupdfInspect.summary.pages }, (_, index) => mupdfInspect.summary.pages - index),
+    sourceSha256: mupdfInspect.summary.sourceSha256,
+    expectedPages: [],
+  }],
+}), /rearrange_pages does not support Tagged PDFs.*logical structure-tree order/);
+const rearrangedPages = await PdfFile.editPdf(duplicatePageSource, {
+  savePolicy: "rewrite",
+  operations: [rearrangePageOperation],
+});
+assert.equal(Buffer.from(duplicatePageSource.bytes).equals(duplicatePageSourceBytes), true);
+assert.deepEqual(rearrangedPages.metadata.operations[0], {
+  type: "rearrange_pages",
+  pages: [3, 1, 2],
+  expectedPages: pageTreeSnapshots,
+  pageCountBefore: 3,
+  pageCountAfter: 3,
+});
+const rearrangedInspection = await PdfFile.inspectPdf(rearrangedPages, { maxChars: 100_000 });
+assert.deepEqual(rearrangedInspection.records.filter((record) => record.kind === "mupdfPage").map((record) => ({ bbox: record.bbox, rotation: record.rotation })), [
+  { bbox: pageTreeSnapshots[2].bbox, rotation: pageTreeSnapshots[2].rotation },
+  { bbox: pageTreeSnapshots[0].bbox, rotation: pageTreeSnapshots[0].rotation },
+  { bbox: pageTreeSnapshots[1].bbox, rotation: pageTreeSnapshots[1].rotation },
+]);
+const rearrangedParsed = await parsePdfWithMuPdf(rearrangedPages.bytes, { includeImages: false });
+assert.match(rearrangedParsed.pages[0].text, /ORIGINAL PAGE THREE/);
+assert.match(rearrangedParsed.pages[1].text, /ORIGINAL PAGE ONE/);
+assert.match(rearrangedParsed.pages[2].text, /ROTATED PAGE TWO/);
+const [rearrangedOutputFirst, rearrangedOutputSecond, rearrangedOutputThird] = await Promise.all([
+  PdfFile.renderPdf(rearrangedPages, { page: 1, dpi: 72 }),
+  PdfFile.renderPdf(rearrangedPages, { page: 2, dpi: 72 }),
+  PdfFile.renderPdf(rearrangedPages, { page: 3, dpi: 72 }),
+]);
+assert.equal(Buffer.compare(Buffer.from(duplicateSourceThird.bytes), Buffer.from(rearrangedOutputFirst.bytes)), 0);
+assert.equal(Buffer.compare(Buffer.from(duplicateSourceFirst.bytes), Buffer.from(rearrangedOutputSecond.bytes)), 0);
+assert.equal(Buffer.compare(Buffer.from(duplicateSourceSecond.bytes), Buffer.from(rearrangedOutputThird.bytes)), 0);
 const mupdfRedacted = await PdfFile.editPdf(arbitraryPdf, {
   savePolicy: "rewrite",
   operations: [{ type: "redact_text", page: 2, term: "Second page notes" }],
@@ -983,7 +1138,7 @@ const mupdfRedacted = await PdfFile.editPdf(arbitraryPdf, {
 assert.doesNotMatch((await PdfFile.importPdf(mupdfRedacted)).extractText(), /Second page notes/);
 assert.doesNotMatch(Buffer.from(mupdfRedacted.bytes).toString("latin1"), /Second page notes/);
 await assert.rejects(PdfFile.editPdf(arbitraryPdf, { savePolicy: "incremental", operations: [{ type: "redact_text", page: 2, term: "Second page notes" }] }), /redaction cannot save incrementally.*prior revisions/is);
-await assert.rejects(PdfFile.editPdf(arbitraryPdf, { savePolicy: "incremental", operations: [{ type: "delete_page", page: 2 }] }), /destructive operation delete_page cannot save incrementally.*prior revisions/is);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, { savePolicy: "incremental", operations: [{ type: "delete_page", page: 2 }] }), /page-tree operation delete_page cannot save incrementally.*fully rewritten object graph/is);
 await assert.rejects(PdfFile.editPdf(arbitraryPdf, { operations: [{ type: "replace_text", page: 1, term: "PDF", replacement: "Document" }] }), /Unsupported MuPDF edit operation/);
 
 const sourceBoundFormPdf = sourceBoundFormFixture();

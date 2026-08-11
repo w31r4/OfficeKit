@@ -40,6 +40,7 @@ const INCREMENTAL_DESTRUCTIVE_OPERATIONS = new Set([
   "update_annotation",
   "delete_page",
   "duplicate_page",
+  "rearrange_pages",
   "delete_embedded_file",
   "add_link",
   "delete_link",
@@ -67,6 +68,9 @@ const TEXT_HIGHLIGHT_MAX_TEXT_LENGTH = 4_096;
 const TEXT_HIGHLIGHT_DEFAULT_COLOR = Object.freeze([1, 1, 0]);
 const TEXT_HIGHLIGHT_OPERATION_FIELDS = new Set(["type", "page", "pageIndex", "sourceSha256", "expectedPage", "text", "color", "contents", "author", "subject"]);
 const PAGE_DUPLICATION_OPERATION_FIELDS = new Set(["type", "page", "pageIndex", "insertAt", "sourceSha256", "expectedPage"]);
+const PAGE_DELETION_OPERATION_FIELDS = new Set(["type", "page", "pageIndex", "sourceSha256", "expectedPage"]);
+const PAGE_REARRANGEMENT_OPERATION_FIELDS = new Set(["type", "pages", "sourceSha256", "expectedPages"]);
+const PAGE_TREE_OPERATION_TYPES = new Set(["delete_page", "duplicate_page", "rearrange_pages"]);
 const PAGE_DUPLICATION_UNSUPPORTED_KEYS = Object.freeze([
   "AA",
   "AF",
@@ -484,6 +488,47 @@ function pageExpectationMismatch(actual, expected) {
   if (!pdfRectsEqual(bboxToPdfRect(actual.bbox), bboxToPdfRect(expected.bbox))) return "bbox";
   if (actual.rotation !== expected.rotation) return "rotation";
   return undefined;
+}
+
+function requireSourceSha256(operation, operationName, context) {
+  if (!/^[a-f0-9]{64}$/u.test(String(operation.sourceSha256 || "")) || operation.sourceSha256 !== context.sourceSha256) {
+    throw new Error(`${operationName} sourceSha256 must exactly match PdfFile.inspectPdf(...).summary.sourceSha256 for the current input bytes.`);
+  }
+}
+
+function validateOperationFields(operation, operationName, supportedFields) {
+  for (const name of Object.keys(operation)) {
+    if (!supportedFields.has(name)) throw new Error(`${operationName} contains unsupported field: ${name}.`);
+  }
+}
+
+function expectedCurrentPages(document, value, operationName) {
+  const pageCount = document.countPages();
+  if (!Array.isArray(value) || value.length !== pageCount) {
+    throw new Error(`${operationName} expectedPages must contain one inspect-derived {page,bbox,rotation} snapshot for each of the ${pageCount} current pages in current order.`);
+  }
+  return value.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error(`${operationName} expectedPages[${index}] must be an inspect-derived {page,bbox,rotation} snapshot.`);
+    }
+    for (const name of Object.keys(entry)) {
+      if (name !== "page" && !PAGE_EXPECTATION_FIELDS.has(name)) {
+        throw new Error(`${operationName} expectedPages[${index}] contains unsupported snapshot field: ${name}.`);
+      }
+    }
+    if (Number(entry.page) !== index + 1) {
+      throw new Error(`${operationName} expectedPages must identify every current 1-based page exactly once in current order; expected page ${index + 1} at index ${index}.`);
+    }
+    const expected = pageExpectation({ bbox: entry.bbox, rotation: entry.rotation }, operationName);
+    const page = document.loadPage(index);
+    try {
+      const mismatch = pageExpectationMismatch(nativePageSnapshot(page, operationName), expected);
+      if (mismatch) throw new Error(`${operationName} precondition page ${index + 1} ${mismatch} did not match the current source page; re-inspect the exact input bytes.`);
+    } finally {
+      page.destroy();
+    }
+    return { page: index + 1, ...expected };
+  });
 }
 
 function textAnnotationPoint(value) {
@@ -1426,15 +1471,84 @@ function pageDuplicationProfile(page) {
   }
 }
 
-function applyPageDuplication(document, operation, context = {}) {
-  for (const name of Object.keys(operation)) {
-    if (!PAGE_DUPLICATION_OPERATION_FIELDS.has(name)) {
-      throw new Error(`duplicate_page contains unsupported field: ${name}.`);
+function applyPageDeletion(document, operation, context = {}) {
+  validateOperationFields(operation, "delete_page", PAGE_DELETION_OPERATION_FIELDS);
+  requireSourceSha256(operation, "delete_page", context);
+  if (operation.page !== undefined && operation.pageIndex !== undefined) {
+    throw new Error("delete_page accepts either a 1-based page or a 0-based pageIndex, not both.");
+  }
+  if (documentHasStructureTree(document)) {
+    throw new Error("delete_page does not support Tagged PDFs because removing a page cannot safely repair the document structure tree and ParentTree; use a reviewed specialist workflow.");
+  }
+  const pageCountBefore = document.countPages();
+  if (pageCountBefore <= 1) throw new Error("delete_page cannot remove the final page.");
+  const index = pageIndexFor(document, operation);
+  const expectedPage = pageExpectation(operation.expectedPage, "delete_page");
+  const page = document.loadPage(index);
+  try {
+    const mismatch = pageExpectationMismatch(nativePageSnapshot(page, "delete_page"), expectedPage);
+    if (mismatch) throw new Error(`delete_page precondition page ${mismatch} did not match the current source page; re-inspect the exact input bytes.`);
+  } finally {
+    page.destroy();
+  }
+  document.deletePage(index);
+  if (document.countPages() !== pageCountBefore - 1) {
+    throw new Error("MuPDF did not remove exactly one page during delete_page; refusing to save an ambiguous page-tree mutation.");
+  }
+  return {
+    type: "delete_page",
+    page: index + 1,
+    expectedPage,
+    pageCountBefore,
+    pageCountAfter: document.countPages(),
+  };
+}
+
+function applyPageRearrangement(document, operation, context = {}) {
+  validateOperationFields(operation, "rearrange_pages", PAGE_REARRANGEMENT_OPERATION_FIELDS);
+  requireSourceSha256(operation, "rearrange_pages", context);
+  if (documentHasStructureTree(document)) {
+    throw new Error("rearrange_pages does not support Tagged PDFs because physical page order cannot safely infer a new logical structure-tree order; use a reviewed specialist workflow.");
+  }
+  const pageCountBefore = document.countPages();
+  const pages = operation.pages;
+  if (!Array.isArray(pages) || pages.length !== pageCountBefore) {
+    throw new Error("rearrange_pages requires a complete 1-based page permutation.");
+  }
+  const indexes = pages.map((page) => Number(page) - 1);
+  if (indexes.some((index) => !Number.isInteger(index) || index < 0 || index >= pageCountBefore) || new Set(indexes).size !== indexes.length) {
+    throw new Error("rearrange_pages requires each current page exactly once.");
+  }
+  if (indexes.every((index, position) => index === position)) {
+    throw new Error("rearrange_pages requires a changed page order; the requested permutation is a no-op.");
+  }
+  const expectedPages = expectedCurrentPages(document, operation.expectedPages, "rearrange_pages");
+  document.rearrangePages(indexes);
+  if (document.countPages() !== pageCountBefore) {
+    throw new Error("MuPDF changed the page count during rearrange_pages; refusing to save an ambiguous page-tree mutation.");
+  }
+  for (let outputIndex = 0; outputIndex < indexes.length; outputIndex += 1) {
+    const page = document.loadPage(outputIndex);
+    try {
+      const expected = expectedPages[indexes[outputIndex]];
+      const mismatch = pageExpectationMismatch(nativePageSnapshot(page, "rearrange_pages"), expected);
+      if (mismatch) throw new Error(`MuPDF did not preserve source page ${expected.page} ${mismatch} at output page ${outputIndex + 1}; refusing to save an ambiguous page-tree mutation.`);
+    } finally {
+      page.destroy();
     }
   }
-  if (!/^[a-f0-9]{64}$/u.test(String(operation.sourceSha256 || "")) || operation.sourceSha256 !== context.sourceSha256) {
-    throw new Error("duplicate_page sourceSha256 must exactly match PdfFile.inspectPdf(...).summary.sourceSha256 for the current input bytes.");
-  }
+  return {
+    type: "rearrange_pages",
+    pages: pages.map(Number),
+    expectedPages,
+    pageCountBefore,
+    pageCountAfter: document.countPages(),
+  };
+}
+
+function applyPageDuplication(document, operation, context = {}) {
+  validateOperationFields(operation, "duplicate_page", PAGE_DUPLICATION_OPERATION_FIELDS);
+  requireSourceSha256(operation, "duplicate_page", context);
   if (operation.page !== undefined && operation.pageIndex !== undefined) {
     throw new Error("duplicate_page accepts either a 1-based page or a 0-based pageIndex, not both.");
   }
@@ -1982,25 +2096,13 @@ function applyOperation(document, operation, context) {
       return { type: operation.type, field, widgets: matches };
     }
     case "update_form_field": return applySourceBoundFormFieldUpdate(document, operation, context);
-    case "delete_page": {
-      if (document.countPages() <= 1) throw new Error("delete_page cannot remove the final page.");
-      const index = pageIndexFor(document, operation);
-      document.deletePage(index);
-      return { type: operation.type, page: index + 1 };
-    }
+    case "delete_page": return applyPageDeletion(document, operation, context);
     case "duplicate_page": return applyPageDuplication(document, operation, context);
     case "delete_annotation": return applyAnnotationDeletion(document, operation, context);
     case "update_annotation": return applyAnnotationUpdate(document, operation, context);
     case "set_page_crop": return applyPageCrop(document, operation);
     case "rotate_page": return applyPageRotation(document, operation);
-    case "rearrange_pages": {
-      const pages = operation.pages;
-      if (!Array.isArray(pages) || pages.length !== document.countPages()) throw new Error("rearrange_pages requires a complete 1-based page permutation.");
-      const indexes = pages.map((page) => Number(page) - 1);
-      if (indexes.some((index) => !Number.isInteger(index) || index < 0 || index >= document.countPages()) || new Set(indexes).size !== indexes.length) throw new Error("rearrange_pages requires each current page exactly once.");
-      document.rearrangePages(indexes);
-      return { type: operation.type, pages };
-    }
+    case "rearrange_pages": return applyPageRearrangement(document, operation, context);
     case "set_metadata": {
       const values = operation.values || operation.metadata;
       if (!values || typeof values !== "object" || Array.isArray(values)) throw new Error("set_metadata requires a values object.");
@@ -2036,8 +2138,9 @@ function applyOperation(document, operation, context) {
 export async function editPdfWithMuPdf(input, options = {}) {
   const operations = options.operations;
   if (!Array.isArray(operations) || !operations.length) throw new Error("MuPDF editing requires a non-empty operations array.");
-  if (operations.some((operation) => operation?.type === "duplicate_page") && operations.length !== 1) {
-    throw new Error("duplicate_page must be the only operation in its rewrite transaction because page insertion invalidates current-page locators; re-inspect the output before another edit.");
+  const pageTreeOperation = operations.find((operation) => PAGE_TREE_OPERATION_TYPES.has(operation?.type));
+  if (pageTreeOperation && operations.length !== 1) {
+    throw new Error(`${pageTreeOperation.type} must be the only operation in its rewrite transaction because a page-tree mutation invalidates current-page locators; re-inspect the output before another edit.`);
   }
   const savePolicy = String(options.savePolicy || options.strategy || "rewrite").toLowerCase();
   if (!new Set(["rewrite", "incremental"]).has(savePolicy)) {
@@ -2047,16 +2150,16 @@ export async function editPdfWithMuPdf(input, options = {}) {
     ? operations.find((operation) => INCREMENTAL_DESTRUCTIVE_OPERATIONS.has(operation?.type))
     : undefined;
   if (destructiveIncremental) {
-    const pageDuplication = destructiveIncremental.type === "duplicate_page";
+    const pageTreeMutation = PAGE_TREE_OPERATION_TYPES.has(destructiveIncremental.type);
     const label = destructiveIncremental.type.startsWith("redact_")
       ? "redaction"
-      : pageDuplication
-        ? "page-tree operation duplicate_page"
+      : pageTreeMutation
+        ? `page-tree operation ${destructiveIncremental.type}`
         : ["add_link", "add_text_annotation", "add_text_highlight"].includes(destructiveIncremental.type)
           ? `source-bound operation ${destructiveIncremental.type}`
           : `destructive operation ${destructiveIncremental.type}`;
-    const reason = pageDuplication
-      ? "page-tree grafting must publish one fully rewritten object graph"
+    const reason = pageTreeMutation
+      ? "page-tree mutation must publish one fully rewritten object graph"
       : "prior revisions retain the original content";
     throw new Error(`MuPDF ${label} cannot save incrementally because ${reason}; use rewrite. Rewrite is still not a complete sanitize workflow.`);
   }

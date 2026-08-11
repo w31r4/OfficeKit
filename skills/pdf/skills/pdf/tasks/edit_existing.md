@@ -11,14 +11,14 @@ officekit run scripts/mupdf.mjs probe
 officekit run scripts/mupdf.mjs inspect input.pdf
 ```
 
-Its typed operations are source-bound `add_text_annotation` and `add_text_highlight`, legacy text/choice/checkbox `fill_form`, source-bound `update_form_field`, `delete_page`, source-bound `duplicate_page`, source-bound `delete_annotation` and `update_annotation`, complete `rearrange_pages`, visible-only `set_page_crop`, absolute-quarter-turn `rotate_page`, `set_metadata`, `delete_embedded_file`, source-bound `add_link`, `delete_link`, and `update_link`, `redact_text`, and `redact_rect`. Run with one explicit save policy:
+Its typed operations are source-bound `add_text_annotation` and `add_text_highlight`, legacy text/choice/checkbox `fill_form`, source-bound `update_form_field`, source-bound `delete_page`, `duplicate_page`, and complete `rearrange_pages`, source-bound `delete_annotation` and `update_annotation`, visible-only `set_page_crop`, absolute-quarter-turn `rotate_page`, `set_metadata`, `delete_embedded_file`, source-bound `add_link`, `delete_link`, and `update_link`, `redact_text`, and `redact_rect`. Run with one explicit save policy:
 
 ```bash
 officekit run scripts/mupdf.mjs edit input.pdf tmp/pdfs/edit-operations.json tmp/pdfs/edited.pdf \
   --save-policy rewrite
 ```
 
-The CLI refuses source overwrite, writes atomically, and rejects incremental redaction, page duplication, source-bound annotation/link creation or mutation (including text highlights), deletion, and signed-PDF incremental edits. A bounded source-bound single-widget form-field update may use unsigned incremental save; unsupported operations do not route elsewhere.
+The CLI refuses source overwrite, writes atomically, and rejects incremental page-tree mutation, redaction, source-bound annotation/link creation or mutation (including text highlights), deletion, and signed-PDF incremental edits. A bounded source-bound single-widget form-field update may use unsigned incremental save; unsupported operations do not route elsewhere.
 
 ## Opaque RichMedia/3D boundary
 
@@ -118,6 +118,51 @@ to retain the prior value and prove the requested orientation. This bounded
 unsigned operation may use `incremental` save, subject to the same source-prefix
 and signature refusal rules. It is not a substitute for rotated-coordinate text
 or image editing; route those tasks explicitly to the specialist provider.
+
+## Delete or reorder imported pages
+
+`delete_page` and `rearrange_pages` are source-bound page-tree transactions,
+not loose page-number commands. Start from one fresh inspection. Deletion
+requires the exact source SHA-256 and selected page bbox/rotation snapshot:
+
+```json
+{
+  "savePolicy": "rewrite",
+  "operations": [{
+    "type": "delete_page",
+    "page": 2,
+    "sourceSha256": "<inspect summary sourceSha256>",
+    "expectedPage": { "bbox": [0, 0, 792, 612], "rotation": 90 }
+  }]
+}
+```
+
+Rearrangement requires a complete permutation plus one snapshot for every
+current page in its current order:
+
+```json
+{
+  "savePolicy": "rewrite",
+  "operations": [{
+    "type": "rearrange_pages",
+    "pages": [3, 1, 2],
+    "sourceSha256": "<inspect summary sourceSha256>",
+    "expectedPages": [
+      { "page": 1, "bbox": [0, 0, 612, 792], "rotation": 0 },
+      { "page": 2, "bbox": [0, 0, 792, 612], "rotation": 90 },
+      { "page": 3, "bbox": [0, 0, 420, 600], "rotation": 0 }
+    ]
+  }]
+}
+```
+
+Each operation must be the only operation in a full rewrite. A Tagged PDF, a
+no-op reorder, or missing, stale, duplicated, or out-of-order evidence fails
+before publication; there is no incremental or silent provider fallback.
+Keep the source unchanged, re-inspect the output, prove the exact page
+count/order/geometry, and render every retained source-page to output-page
+mapping before delivery. Re-inspect again before a later edit because every
+prior page locator is invalidated.
 
 ## Duplicate one ordinary imported page
 
