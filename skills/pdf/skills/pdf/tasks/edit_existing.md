@@ -206,6 +206,39 @@ Require identical page geometry and Poppler pixels for each mapping. Re-inspect
 again before using page numbers in a later operation because insertion changes
 current-document locators.
 
+## Remove one canonical catalog attachment entry
+
+Use `delete_embedded_file` only for an inspected `mupdfEmbeddedFile` with
+`deleteCapability.supported: true`. Copy its current-source locator and complete
+snapshot; a display filename or NameTree key alone is not identity:
+
+```json
+{
+  "savePolicy": "rewrite",
+  "operations": [{
+    "type": "delete_embedded_file",
+    "sourceSha256": "<inspect summary sourceSha256>",
+    "embeddedFileId": "mupdf-embedded-file-<current-source-id>",
+    "expected": {
+      "name": "review",
+      "filename": "review.txt",
+      "legacyFilename": "review.txt",
+      "description": null,
+      "mimeType": "text/plain",
+      "declaredSize": 42,
+      "fileSpecObject": 31,
+      "embeddedStreamObject": 30
+    }
+  }]
+}
+```
+
+Only a direct, unique catalog `/EmbeddedFiles` NameTree is accepted; non-target
+entries are re-proved. Ambiguous or malformed graphs fail closed to pikepdf or
+PyMuPDF. Rewrite, re-inspect for one fewer entry, run qpdf, and compare pages
+with Poppler. `payloadErasureClaimed` and `sanitizeClaimed` stay false; full
+cleanup requires sanitize.
+
 ## Add one imported Text annotation
 
 Copy the exact inspection hash and target `mupdfPage` evidence. This is a

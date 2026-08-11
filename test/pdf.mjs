@@ -65,6 +65,61 @@ function sourceBoundFormFixture() {
   ]), { type: "application/pdf" });
 }
 
+function sourceBoundEmbeddedFileFixture({ duplicateName = false, directFileSpec = false, missingEmbeddedFileDictionary = false } = {}) {
+  const document = new mupdf.PDFDocument(plainPdfBytes([
+    { text: "ATTACHMENT PAGE ONE" },
+    { text: "ATTACHMENT PAGE TWO" },
+  ]));
+  let saved;
+  try {
+    for (const [name, filename, mimeType, contents] of [
+      ["alpha", "alpha.txt", "text/plain", "alpha payload"],
+      ["beta", "beta.json", "application/json", '{"beta":true}'],
+    ]) {
+      const fileSpec = document.addEmbeddedFile(
+        filename,
+        mimeType,
+        new TextEncoder().encode(contents),
+        new Date("2026-08-11T00:00:00Z"),
+        new Date("2026-08-11T01:00:00Z"),
+        true,
+      );
+      try { document.insertEmbeddedFile(name, fileSpec); } finally { fileSpec.destroy(); }
+    }
+    if (duplicateName) {
+      const names = document.getTrailer().get("Root", "Names", "EmbeddedFiles", "Names");
+      const firstValue = names.get(1);
+      const duplicateKey = document.newString("alpha");
+      try {
+        names.push(duplicateKey);
+        names.push(firstValue);
+      } finally {
+        duplicateKey.destroy();
+        firstValue.destroy();
+        names.destroy();
+      }
+    }
+    if (directFileSpec || missingEmbeddedFileDictionary) {
+      const names = document.getTrailer().get("Root", "Names", "EmbeddedFiles", "Names");
+      const fileSpecReference = names.get(1);
+      const fileSpec = fileSpecReference.resolve();
+      try {
+        if (missingEmbeddedFileDictionary) fileSpec.delete("EF");
+        if (directFileSpec) names.put(1, fileSpec);
+      } finally {
+        fileSpec.destroy();
+        fileSpecReference.destroy();
+        names.destroy();
+      }
+    }
+    saved = document.saveToBuffer("garbage=2,compress=yes");
+    return new FileBlob(new Uint8Array(saved.asUint8Array().slice()), { type: "application/pdf" });
+  } finally {
+    saved?.destroy();
+    document.destroy();
+  }
+}
+
 const pdf = PdfArtifact.create({
   pages: [
     {
@@ -1131,6 +1186,117 @@ const [rearrangedOutputFirst, rearrangedOutputSecond, rearrangedOutputThird] = a
 assert.equal(Buffer.compare(Buffer.from(duplicateSourceThird.bytes), Buffer.from(rearrangedOutputFirst.bytes)), 0);
 assert.equal(Buffer.compare(Buffer.from(duplicateSourceFirst.bytes), Buffer.from(rearrangedOutputSecond.bytes)), 0);
 assert.equal(Buffer.compare(Buffer.from(duplicateSourceSecond.bytes), Buffer.from(rearrangedOutputThird.bytes)), 0);
+
+const embeddedFileSource = sourceBoundEmbeddedFileFixture();
+const embeddedFileSourceBytes = Buffer.from(embeddedFileSource.bytes);
+const embeddedFileInspection = await PdfFile.inspectPdf(embeddedFileSource, { maxChars: 100_000 });
+const embeddedFileRecords = embeddedFileInspection.records.filter((record) => record.kind === "mupdfEmbeddedFile");
+assert.equal(embeddedFileInspection.summary.embeddedFiles, 2);
+assert.equal(embeddedFileInspection.summary.embeddedFileEntries, 2);
+assert.equal(embeddedFileInspection.summary.embeddedFileGraphCanonical, true);
+assert.deepEqual(embeddedFileInspection.summary.embeddedFileGraphIssues, []);
+assert.deepEqual(embeddedFileRecords.map((record) => [record.name, record.filename, record.mimeType, record.deleteCapability.supported]), [
+  ["alpha", "alpha.txt", "text/plain", true],
+  ["beta", "beta.json", "application/json", true],
+]);
+assert.ok(embeddedFileRecords.every((record) => /^mupdf-embedded-file-[a-f0-9]{24}$/u.test(record.id)));
+assert.ok(embeddedFileRecords.every((record) => record.deleteCapability.payloadErasureClaimed === false && record.deleteCapability.sanitizeClaimed === false));
+const embeddedFileTarget = embeddedFileRecords.find((record) => record.name === "alpha");
+const embeddedFileDeleteOperation = {
+  type: "delete_embedded_file",
+  sourceSha256: embeddedFileInspection.summary.sourceSha256,
+  embeddedFileId: embeddedFileTarget.id,
+  expected: embeddedFileTarget.snapshot,
+};
+await assert.rejects(PdfFile.editPdf(embeddedFileSource, {
+  savePolicy: "incremental",
+  operations: [embeddedFileDeleteOperation],
+}), /destructive operation delete_embedded_file cannot save incrementally.*prior revisions retain the original content/);
+await assert.rejects(PdfFile.editPdf(embeddedFileSource, {
+  savePolicy: "rewrite",
+  operations: [{ type: "delete_embedded_file", name: "alpha" }],
+}), /delete_embedded_file contains unsupported field: name/);
+await assert.rejects(PdfFile.editPdf(embeddedFileSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...embeddedFileDeleteOperation, sourceSha256: "0".repeat(64) }],
+}), /delete_embedded_file sourceSha256 must exactly match/);
+await assert.rejects(PdfFile.editPdf(embeddedFileSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...embeddedFileDeleteOperation, embeddedFileId: "mupdf-embedded-file-000000000000000000000000" }],
+}), /could not resolve mupdf-embedded-file-000000000000000000000000/);
+await assert.rejects(PdfFile.editPdf(embeddedFileSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...embeddedFileDeleteOperation, expected: { ...embeddedFileTarget.snapshot, filename: "stale.txt" } }],
+}), /delete_embedded_file precondition filename did not match/);
+await assert.rejects(PdfFile.editPdf(embeddedFileSource, {
+  savePolicy: "rewrite",
+  operations: [{ ...embeddedFileDeleteOperation, expected: { ...embeddedFileTarget.snapshot, unknown: true } }],
+}), /delete_embedded_file expected contains unsupported snapshot field: unknown/);
+const duplicateEmbeddedFileSource = sourceBoundEmbeddedFileFixture({ duplicateName: true });
+const duplicateEmbeddedFileInspection = await PdfFile.inspectPdf(duplicateEmbeddedFileSource, { maxChars: 100_000 });
+const duplicateEmbeddedFileRecord = duplicateEmbeddedFileInspection.records.find((record) => record.kind === "mupdfEmbeddedFile" && record.name === "alpha");
+assert.equal(duplicateEmbeddedFileInspection.summary.embeddedFileGraphCanonical, false);
+assert.ok(duplicateEmbeddedFileInspection.summary.embeddedFileGraphIssues.some((issue) => issue === "embedded-file-name-duplicate:alpha"));
+assert.equal(duplicateEmbeddedFileRecord.deleteCapability.supported, false);
+await assert.rejects(PdfFile.editPdf(duplicateEmbeddedFileSource, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "delete_embedded_file",
+    sourceSha256: duplicateEmbeddedFileInspection.summary.sourceSha256,
+    embeddedFileId: duplicateEmbeddedFileRecord.id,
+    expected: duplicateEmbeddedFileRecord.snapshot,
+  }],
+}), /refuses the current EmbeddedFiles graph:.*embedded-file-name-duplicate:alpha.*pikepdf cleanup or PyMuPDF sanitize/);
+for (const [source, issue] of [
+  [sourceBoundEmbeddedFileFixture({ directFileSpec: true }), "embedded-file-filespec-not-indirect:alpha"],
+  [sourceBoundEmbeddedFileFixture({ missingEmbeddedFileDictionary: true }), "embedded-file-dictionary-missing"],
+]) {
+  const inspection = await PdfFile.inspectPdf(source, { maxChars: 100_000 });
+  const record = inspection.records.find((entry) => entry.kind === "mupdfEmbeddedFile" && entry.name === "alpha");
+  assert.equal(inspection.summary.embeddedFileGraphCanonical, false);
+  assert.ok(record.deleteCapability.reasons.includes(issue));
+  assert.equal(record.deleteCapability.supported, false);
+  await assert.rejects(PdfFile.editPdf(source, {
+    savePolicy: "rewrite",
+    operations: [{
+      type: "delete_embedded_file",
+      sourceSha256: inspection.summary.sourceSha256,
+      embeddedFileId: record.id,
+      expected: record.snapshot,
+    }],
+  }), /delete_embedded_file refuses the current EmbeddedFiles graph/);
+}
+const embeddedFileDeleted = await PdfFile.editPdf(embeddedFileSource, {
+  savePolicy: "rewrite",
+  operations: [embeddedFileDeleteOperation],
+});
+assert.equal(Buffer.from(embeddedFileSource.bytes).equals(embeddedFileSourceBytes), true);
+assert.deepEqual(embeddedFileDeleted.metadata.operations[0], {
+  type: "delete_embedded_file",
+  embeddedFileId: embeddedFileTarget.id,
+  matched: embeddedFileTarget.snapshot,
+  embeddedFileCountBefore: 2,
+  embeddedFileCountAfter: 1,
+  nonTargetEntriesPreserved: true,
+  sourceBound: true,
+  savePolicy: "rewrite",
+  payloadErasureClaimed: false,
+  sanitizeClaimed: false,
+});
+const embeddedFileDeletedInspection = await PdfFile.inspectPdf(embeddedFileDeleted, { maxChars: 100_000 });
+assert.equal(embeddedFileDeletedInspection.summary.embeddedFiles, 1);
+assert.equal(embeddedFileDeletedInspection.summary.embeddedFileEntries, 1);
+assert.equal(embeddedFileDeletedInspection.summary.embeddedFileGraphCanonical, true);
+assert.deepEqual(embeddedFileDeletedInspection.records.filter((record) => record.kind === "mupdfEmbeddedFile").map((record) => record.name), ["beta"]);
+const [embeddedSourcePage1, embeddedSourcePage2, embeddedOutputPage1, embeddedOutputPage2] = await Promise.all([
+  PdfFile.renderPdf(embeddedFileSource, { page: 1, dpi: 72 }),
+  PdfFile.renderPdf(embeddedFileSource, { page: 2, dpi: 72 }),
+  PdfFile.renderPdf(embeddedFileDeleted, { page: 1, dpi: 72 }),
+  PdfFile.renderPdf(embeddedFileDeleted, { page: 2, dpi: 72 }),
+]);
+assert.equal(Buffer.compare(Buffer.from(embeddedSourcePage1.bytes), Buffer.from(embeddedOutputPage1.bytes)), 0);
+assert.equal(Buffer.compare(Buffer.from(embeddedSourcePage2.bytes), Buffer.from(embeddedOutputPage2.bytes)), 0);
+
 const mupdfRedacted = await PdfFile.editPdf(arbitraryPdf, {
   savePolicy: "rewrite",
   operations: [{ type: "redact_text", page: 2, term: "Second page notes" }],

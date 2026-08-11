@@ -71,6 +71,20 @@ and are excluded from the npm package.
 
 | Presentation section-boundary transaction | done | `officekit-section-boundary-edit-workflow.mjs` is the separate Agent-facing route for one or more imported PowerPoint section boundary moves. It accepts exact expected and replacement arrays containing every section's ID/name/native GUID/ordered membership; the expected array must exactly bind the current canonical source, while the replacement retains fixed section identity/name/catalog order and explicitly partitions every retained slide once in deck order. It refuses a partial update, rename, GUID/catalog change, empty/no-op group, duplicate/omitted/reordered slide, opaque/section-free source, or concurrent slide topology work. It protects the source, allows only `ppt/presentation.xml` to differ, reimports the exact target partition, proves non-section semantics and static model renders stable, calls `verify()`, and writes a no-overwrite provenance audit. Page renders do not claim to exercise the PowerPoint navigation pane. |
 
+### PDF canonical catalog attachment-entry delta
+
+OfficeKit's compatible PDF Skill now exposes one bounded direct-original
+attachment-removal primitive beyond the reference overview. Native inspection
+returns a current-source `mupdfEmbeddedFile` locator, complete NameTree/object
+snapshot, and delete capability. `delete_embedded_file` requires that locator,
+the exact source SHA-256, and the complete snapshot; accepts only a direct,
+unique canonical catalog `/EmbeddedFiles` NameTree; rewrites transactionally;
+re-inspects; preserves every non-target entry; and enters qpdf plus Poppler QA.
+Duplicate, nested, associated-file, portfolio, direct-object, stale, or
+incremental requests fail closed without another provider. The result removes
+one catalog entry only and explicitly sets both payload-erasure and sanitize
+claims to false; pikepdf/PyMuPDF remain the separate complete-cleanup routes.
+
 ### Documents canonical note bodies
 
 The runnable Documents profile now accepts a source-free or recognized

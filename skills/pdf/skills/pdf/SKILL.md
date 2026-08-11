@@ -148,6 +148,7 @@ and `appearanceBbox`; re-inspect after every output.
   `add_text_annotation` takes a visible pin and rewrite; a highlight requires a
   unique native text selection and rewrite.
 - On untagged input, `delete_page`, `duplicate_page`, and changed `rearrange_pages` require exact source SHA-256 and page snapshots, run as the only operation in a full rewrite, then require re-inspect and mapped Poppler render/pixel identity.
+- `delete_embedded_file` binds one inspect-returned canonical catalog NameTree locator and complete snapshot; rewrite removes that entry only and never claims sanitize or physical payload erasure.
 - `set_page_crop` is raw unrotated CropBox visibility only, not redaction.
   `rotate_page` sets an absolute right-angle `/Rotate`; neither enables content
   reflow. Delete/redaction operations cannot be incremental. Mixed-document OCR needing automatic rotate or deskew is audit-only `failed_closed` with `savePolicy.strategy: "none"`; see [OCR](tasks/ocr.md).

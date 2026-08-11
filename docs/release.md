@@ -1,6 +1,48 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-11): Document heading-level repair
+## Current 0.6.0 candidate (2026-08-12): Source-bound PDF catalog attachment removal
+
+The built-in MuPDF.js route now inventories direct catalog
+`/EmbeddedFiles` entries as current-source `mupdfEmbeddedFile` records with a
+stable locator for those exact bytes, complete NameTree/object snapshot, and an
+explicit delete capability. `delete_embedded_file` no longer accepts a loose
+display filename or NameTree key. It requires the exact source SHA-256, one
+inspect-returned locator, and that record's complete snapshot before mutation.
+
+The bounded operation accepts only a direct, unique canonical catalog NameTree.
+Duplicate/nested name trees, catalog associated-file or portfolio graphs,
+direct/malformed FileSpecs or streams, stale/incomplete evidence, incremental
+save, and unsupported fields fail closed without another provider. After
+MuPDF removes the selected catalog entry, OfficeKit requires the count to fall
+by exactly one and re-proves every non-target entry before rewrite output. A
+second inspection, qpdf check, and mapped Poppler pixel comparison cover the
+packaged Skill CLI path while the immutable source hash remains unchanged.
+
+This is intentionally not attachment sanitization. The operation audit always
+sets `payloadErasureClaimed: false` and `sanitizeClaimed: false`; it does not
+claim to remove alternate references, unreachable payload bytes, or prior
+revisions. Complete cleanup remains an explicit pikepdf or PyMuPDF sanitize
+workflow, while pypdf retains the separate read-only quarantine/extraction
+role.
+
+Local candidate evidence covers the complete 26-step fast gate and all 75 slow
+steps, generated API docs, protocol validation, OfficeKit Codec 401/401,
+OfficeBridge 5/5, deterministic OfficeKit WASM (39-file comparison; runtime 38
+files / 15,422,187 bytes), clean-install package smoke, standalone distribution,
+both Live Add-in builds, the twenty-template matrix, Playwright, qpdf,
+LibreOffice, and Poppler. Managed provider-pack download tests and separately
+configured pypdf, pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python
+runtimes remain explicit skips rather than provider-execution evidence.
+
+The isolated staged candidate excludes the user's unrelated README edits and
+packs 729 files at 36,276,974 bytes compressed and 53,624,597 bytes unpacked
+(`shasum 3fad4d6050dd8cc5a4b4a249e0e8f6b66ed17d24`), 403 bytes below the
+existing 53,625,000-byte unpacked ceiling; the ceiling was not advanced. `npm
+whoami` reports `ENEEDAUTH`, so npm publication and a tagged release were not
+attempted. Hosted CI for this candidate and Windows Microsoft Office host
+acceptance remain pending external evidence.
+
+## Prior 0.6.0 candidate (2026-08-11): Document heading-level repair
 
 The Documents Skill now has one official source-bound transaction for repairing
 an exact imported-DOCX `headingLevelSkipped` issue. The packaged

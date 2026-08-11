@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import mupdf from "mupdf";
 import sharp from "sharp";
 
 import { PdfArtifact, PdfFile } from "../src/index.mjs";
@@ -31,6 +32,35 @@ function parseResult(result, stream = "stdout") {
   const source = result[stream]?.trim();
   assert.ok(source, `expected JSON on ${stream}\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`);
   return JSON.parse(source);
+}
+
+function embeddedFileFixtureBytes() {
+  const document = new mupdf.PDFDocument(plainPdfBytes([
+    { text: "SKILL ATTACHMENT PAGE ONE" },
+    { text: "SKILL ATTACHMENT PAGE TWO" },
+  ]));
+  let saved;
+  try {
+    for (const [name, filename, mimeType, contents] of [
+      ["review", "review.txt", "text/plain", "review payload"],
+      ["data", "data.json", "application/json", '{"value":42}'],
+    ]) {
+      const fileSpec = document.addEmbeddedFile(
+        filename,
+        mimeType,
+        new TextEncoder().encode(contents),
+        new Date("2026-08-11T00:00:00Z"),
+        new Date("2026-08-11T01:00:00Z"),
+        true,
+      );
+      try { document.insertEmbeddedFile(name, fileSpec); } finally { fileSpec.destroy(); }
+    }
+    saved = document.saveToBuffer("garbage=2,compress=yes");
+    return new Uint8Array(saved.asUint8Array().slice());
+  } finally {
+    saved?.destroy();
+    document.destroy();
+  }
 }
 
 async function assertOcrRedactionPixelScope(source, output, operation, tempRoot, label) {
@@ -272,6 +302,7 @@ assert.match(skillText, /set_page_crop/);
 assert.match(skillText, /rotate_page/);
 assert.match(skillText, /duplicate_page.*source SHA-256.*only operation.*full\s+rewrite.*Poppler.*pixel identity/is);
 assert.match(skillText, /delete_page.*rearrange_pages.*source SHA-256.*page snapshot.*only operation.*full\s+rewrite.*re-inspect.*render/is);
+assert.match(skillText, /delete_embedded_file.*canonical catalog NameTree locator.*complete snapshot.*removes that entry only.*never claims sanitize.*payload erasure/is);
 assert.match(skillText, /delete_annotation.*update_annotation.*delete_link.*update_link.*update_form_field/is);
 assert.match(skillText, /add_text_annotation.*visible pin.*rewrite/is);
 assert.match(skillText, /add_text_highlight.*unique native text selection.*rewrite/is);
@@ -353,14 +384,19 @@ assert.match(editExistingText, /Opaque RichMedia\/3D boundary/);
 assert.match(editExistingText, /status: \"failed_closed\"[\s\S]*savePolicy\.strategy: \"none\"/);
 assert.match(editExistingText, /configured provider interpreter[\s\S]*OFFICE_KIT_PDF_PROVIDER_PYTHON/);
 assert.match(editExistingText, /Do not switch to pypdf, ReportLab, PDF\.js,[\s\S]*content-stream patching/i);
+assert.match(editExistingText, /delete_embedded_file[\s\S]*mupdfEmbeddedFile[\s\S]*complete\s+snapshot[\s\S]*display\s+filename or NameTree[\s\S]*sourceSha256[\s\S]*embeddedFileId[\s\S]*payloadErasureClaimed[\s\S]*sanitizeClaimed/is);
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
 assert.match(pdfPluginReadme, /office-kit\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
 assert.match(pdfPluginReadme, /qpdf `12\.3\.2-oat\.2`, `python-foundation`[\s\S]*`python-specialists` `3\.13\.14-oat\.2`[\s\S]*veraPDF\/JRE `1\.30\.2-oat\.2`[\s\S]*OCR core `17\.8\.1-oat\.3`[\s\S]*`eng`[\s\S]*`chi_sim`[\s\S]*`4\.1\.0-oat\.3`[\s\S]*Poppler QA `24\.08\.0-oat\.2`[\s\S]*`darwin-arm64`[\s\S]*`linux-x64`[\s\S]*`win32-x64`/is);
 assert.match(pdfPluginReadme, /`darwin-arm64`, `linux-x64`, and `win32-x64` assets/);
 assert.doesNotMatch(pdfPluginReadme, /remain separately installed|brew install|apt-get|uv pip install/i);
+const apiQuickStartText = await fs.readFile(
+  path.join(skillRoot, "artifact_tool", "API_QUICK_START.md"),
+  "utf8",
+);
 const nativePlacementDocs = [
-  await fs.readFile(path.join(skillRoot, "artifact_tool", "API_QUICK_START.md"), "utf8"),
+  apiQuickStartText,
   await fs.readFile(path.join(skillRoot, "tasks", "forms_annotations.md"), "utf8"),
   await fs.readFile(path.join(skillRoot, "tasks", "edit_existing.md"), "utf8"),
   await fs.readFile(path.join(skillRoot, "references", "PROVIDER_MATRIX.md"), "utf8"),
@@ -371,6 +407,12 @@ assert.match(nativePlacementDocs, /appearanceBbox/);
 assert.match(nativePlacementDocs, /raw (?:unrotated )?`?mediaBox`?\/`?cropBox`?.*not.*placement/is);
 assert.doesNotMatch(nativePlacementDocs, /`add_link` accepts only an unrotated/);
 assert.doesNotMatch(nativePlacementDocs, /rotated page, stale hash\/page snapshot/);
+assert.match(apiQuickStartText, /delete_embedded_file/);
+assert.match(apiQuickStartText, /deleteCapability\.supported/);
+assert.match(apiQuickStartText, /sourceSha256: inspection\.summary\.sourceSha256/);
+assert.match(apiQuickStartText, /expected: attachment\.snapshot/);
+assert.match(apiQuickStartText, /catalog NameTree entry only/i);
+assert.match(apiQuickStartText, /pikepdf or PyMuPDF/);
 const redactTaskText = await fs.readFile(path.join(skillRoot, "tasks", "redact.md"), "utf8");
 assert.match(redactTaskText, /expected_rotation/);
 assert.match(redactTaskText, /temporarily clears `\/Rotate`.*restores `\/Rotate`/s);
@@ -452,6 +494,9 @@ try {
   const mupdfDeleteOutput = path.join(tempRoot, "mupdf-delete-output.pdf");
   const mupdfRearrangeOperations = path.join(tempRoot, "mupdf-rearrange-operations.json");
   const mupdfRearrangeOutput = path.join(tempRoot, "mupdf-rearrange-output.pdf");
+  const mupdfEmbeddedFileInput = path.join(tempRoot, "mupdf-embedded-file-input.pdf");
+  const mupdfEmbeddedFileOperations = path.join(tempRoot, "mupdf-embedded-file-operations.json");
+  const mupdfEmbeddedFileOutput = path.join(tempRoot, "mupdf-embedded-file-output.pdf");
   const mupdfAnnotationUpdateOperations = path.join(tempRoot, "mupdf-annotation-update-operations.json");
   const mupdfAnnotationUpdateOutput = path.join(tempRoot, "mupdf-annotation-update-output.pdf");
   const mupdfAnnotationDeleteOperations = path.join(tempRoot, "mupdf-annotation-delete-operations.json");
@@ -749,6 +794,49 @@ try {
     { sourcePage: 1, outputPage: 2 },
     { sourcePage: 2, outputPage: 3 },
   ], tempRoot, "mupdf-rearrange-pages");
+
+  await fs.writeFile(mupdfEmbeddedFileInput, embeddedFileFixtureBytes());
+  const mupdfEmbeddedFileSourceHash = crypto.createHash("sha256").update(await fs.readFile(mupdfEmbeddedFileInput)).digest("hex");
+  const mupdfEmbeddedFileInspection = parseResult(run(process.execPath, [mupdfCli, "inspect", mupdfEmbeddedFileInput], { status: 0 }));
+  const mupdfEmbeddedFiles = mupdfEmbeddedFileInspection.records.filter((record) => record.kind === "mupdfEmbeddedFile");
+  assert.equal(mupdfEmbeddedFileInspection.summary.embeddedFiles, 2);
+  assert.equal(mupdfEmbeddedFileInspection.summary.embeddedFileGraphCanonical, true);
+  assert.equal(mupdfEmbeddedFiles.length, 2);
+  const mupdfEmbeddedFileTarget = mupdfEmbeddedFiles.find((record) => record.name === "review");
+  assert.equal(mupdfEmbeddedFileTarget.deleteCapability.supported, true);
+  await fs.writeFile(mupdfEmbeddedFileOperations, JSON.stringify({
+    savePolicy: "rewrite",
+    operations: [{
+      type: "delete_embedded_file",
+      sourceSha256: mupdfEmbeddedFileInspection.summary.sourceSha256,
+      embeddedFileId: mupdfEmbeddedFileTarget.id,
+      expected: mupdfEmbeddedFileTarget.snapshot,
+    }],
+  }), "utf8");
+  const mupdfEmbeddedFileDeleted = parseResult(run(process.execPath, [mupdfCli, "edit", mupdfEmbeddedFileInput, mupdfEmbeddedFileOperations, mupdfEmbeddedFileOutput], { status: 0 }));
+  assert.deepEqual(mupdfEmbeddedFileDeleted.operations[0], {
+    type: "delete_embedded_file",
+    embeddedFileId: mupdfEmbeddedFileTarget.id,
+    matched: mupdfEmbeddedFileTarget.snapshot,
+    embeddedFileCountBefore: 2,
+    embeddedFileCountAfter: 1,
+    nonTargetEntriesPreserved: true,
+    sourceBound: true,
+    savePolicy: "rewrite",
+    payloadErasureClaimed: false,
+    sanitizeClaimed: false,
+  });
+  assert.equal(crypto.createHash("sha256").update(await fs.readFile(mupdfEmbeddedFileInput)).digest("hex"), mupdfEmbeddedFileSourceHash);
+  const mupdfEmbeddedFileOutputInspection = parseResult(run(process.execPath, [mupdfCli, "inspect", mupdfEmbeddedFileOutput], { status: 0 }));
+  assert.equal(mupdfEmbeddedFileOutputInspection.summary.embeddedFiles, 1);
+  assert.deepEqual(mupdfEmbeddedFileOutputInspection.records.filter((record) => record.kind === "mupdfEmbeddedFile").map((record) => record.name), ["data"]);
+  if (hasQpdf) run("qpdf", ["--check", mupdfEmbeddedFileOutput], { status: 0 });
+  if (hasPdfInfo) assert.match(run("pdfinfo", [mupdfEmbeddedFileOutput], { status: 0 }).stdout, /Pages:\s+2/);
+  if (hasPoppler) await assertDuplicatePagePixelIdentity(mupdfEmbeddedFileInput, mupdfEmbeddedFileOutput, [
+    { sourcePage: 1, outputPage: 1 },
+    { sourcePage: 2, outputPage: 2 },
+  ], tempRoot, "mupdf-delete-embedded-file");
+
   for (const rotation of [90, 180, 270]) {
     const rotatedSource = rotation === 90
       ? mupdfRotationOutput

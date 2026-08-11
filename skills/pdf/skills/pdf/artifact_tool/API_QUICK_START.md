@@ -248,6 +248,32 @@ does not synthesize outlines or named destinations. Re-inspect the output and
 use Poppler to compare every retained page plus the inserted page against its
 declared source-page mapping. Do not reuse old page numbers afterward.
 
+For a canonical catalog attachment, use its current inspection record, never a
+filename:
+
+```js
+const attachment = inspection.records.find((record) =>
+  record.kind === "mupdfEmbeddedFile"
+  && record.name === "review"
+  && record.deleteCapability.supported);
+if (!attachment) throw new Error("No safely removable catalog attachment entry.");
+
+const withoutAttachmentEntry = await PdfFile.editPdf(input, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "delete_embedded_file",
+    sourceSha256: inspection.summary.sourceSha256,
+    embeddedFileId: attachment.id,
+    expected: attachment.snapshot,
+  }],
+});
+await withoutAttachmentEntry.save("third-party-without-review-entry.pdf");
+```
+
+Re-inspect for one fewer entry, run qpdf, and compare all pages. Ambiguous or
+stale graphs fail closed. This removes a catalog NameTree entry only, not its
+payload or a sanitize claim; full cleanup uses pikepdf or PyMuPDF.
+
 For a new Text review note on an imported PDF, bind the exact source hash and
 target page snapshot first. This is a pin, not a rectangle API: MuPDF owns the
 native icon's normalized size and returns its actual rectangle in the audit:

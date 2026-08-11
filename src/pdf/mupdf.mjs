@@ -71,6 +71,18 @@ const PAGE_DUPLICATION_OPERATION_FIELDS = new Set(["type", "page", "pageIndex", 
 const PAGE_DELETION_OPERATION_FIELDS = new Set(["type", "page", "pageIndex", "sourceSha256", "expectedPage"]);
 const PAGE_REARRANGEMENT_OPERATION_FIELDS = new Set(["type", "pages", "sourceSha256", "expectedPages"]);
 const PAGE_TREE_OPERATION_TYPES = new Set(["delete_page", "duplicate_page", "rearrange_pages"]);
+const EMBEDDED_FILE_ID_PREFIX = "mupdf-embedded-file";
+const EMBEDDED_FILE_DELETE_OPERATION_FIELDS = new Set(["type", "sourceSha256", "embeddedFileId", "expected"]);
+const EMBEDDED_FILE_SNAPSHOT_FIELDS = Object.freeze([
+  "name",
+  "filename",
+  "legacyFilename",
+  "description",
+  "mimeType",
+  "declaredSize",
+  "fileSpecObject",
+  "embeddedStreamObject",
+]);
 const PAGE_DUPLICATION_UNSUPPORTED_KEYS = Object.freeze([
   "AA",
   "AF",
@@ -529,6 +541,257 @@ function expectedCurrentPages(document, value, operationName) {
     }
     return { page: index + 1, ...expected };
   });
+}
+
+function destroyPdfObject(object) {
+  if (object && object !== mupdf.PDFObject.Null) object.destroy();
+}
+
+function pdfObjectString(object) {
+  return object && object !== mupdf.PDFObject.Null && object.isString() ? object.asString() : null;
+}
+
+function pdfObjectInteger(object) {
+  if (!object || object === mupdf.PDFObject.Null || !object.isInteger()) return null;
+  const value = object.asNumber();
+  return Number.isSafeInteger(value) ? value : null;
+}
+
+function pdfObjectXrefOrNull(object) {
+  if (!object || object === mupdf.PDFObject.Null || !object.isIndirect()) return null;
+  const value = object.asIndirect();
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function pdfDictionaryKeys(object) {
+  const keys = [];
+  if (!object || object === mupdf.PDFObject.Null || !object.isDictionary()) return keys;
+  object.forEach((value, key) => {
+    keys.push(String(key));
+    destroyPdfObject(value);
+  });
+  return keys;
+}
+
+function embeddedFileSnapshot(name, fileSpecReference) {
+  const issues = [];
+  const fileSpecObject = pdfObjectXrefOrNull(fileSpecReference);
+  let fileSpec;
+  let legacyFilename;
+  let unicodeFilename;
+  let description;
+  let embeddedFiles;
+  let legacyStream;
+  let unicodeStream;
+  let stream;
+  let streamDictionary;
+  let subtype;
+  let params;
+  let declaredSizeObject;
+  let embeddedStreamObject = null;
+  let legacyName = null;
+  let unicodeName = null;
+  let rawDeclaredSize = null;
+  try {
+    if (!fileSpecObject) issues.push("filespec-not-indirect");
+    fileSpec = fileSpecReference.resolve();
+    if (!fileSpec.isDictionary()) {
+      issues.push("filespec-not-dictionary");
+    } else {
+      legacyFilename = fileSpec.get("F");
+      unicodeFilename = fileSpec.get("UF");
+      description = fileSpec.get("Desc");
+      embeddedFiles = fileSpec.get("EF");
+      legacyName = pdfObjectString(legacyFilename);
+      unicodeName = pdfObjectString(unicodeFilename);
+      if (!legacyName && !unicodeName) issues.push("filespec-filename-missing");
+      if (!embeddedFiles.isDictionary()) {
+        issues.push("embedded-file-dictionary-missing");
+      } else {
+        legacyStream = embeddedFiles.get("F");
+        unicodeStream = embeddedFiles.get("UF");
+        const legacyStreamObject = pdfObjectXrefOrNull(legacyStream);
+        const unicodeStreamObject = pdfObjectXrefOrNull(unicodeStream);
+        if (legacyStreamObject && unicodeStreamObject && legacyStreamObject !== unicodeStreamObject) {
+          issues.push("filespec-streams-disagree");
+        }
+        stream = unicodeStreamObject ? unicodeStream : legacyStream;
+        embeddedStreamObject = pdfObjectXrefOrNull(stream);
+        if (!embeddedStreamObject) issues.push("embedded-stream-not-indirect");
+        if (embeddedStreamObject) {
+          if (!stream.isStream()) {
+            issues.push("embedded-stream-missing");
+          } else {
+            streamDictionary = stream.resolve();
+            subtype = streamDictionary.get("Subtype");
+            params = streamDictionary.get("Params");
+            if (params.isDictionary()) {
+              declaredSizeObject = params.get("Size");
+              rawDeclaredSize = pdfObjectInteger(declaredSizeObject);
+              if (declaredSizeObject !== mupdf.PDFObject.Null && (rawDeclaredSize === null || rawDeclaredSize < 0)) {
+                issues.push("declared-size-invalid");
+              }
+            } else if (!params.isNull()) {
+              issues.push("embedded-stream-params-invalid");
+            }
+          }
+        }
+      }
+    }
+    const snapshot = {
+      name,
+      filename: unicodeName || legacyName,
+      legacyFilename: legacyName,
+      description: pdfObjectString(description),
+      mimeType: subtype?.isName() ? subtype.asName() : null,
+      declaredSize: rawDeclaredSize === null || rawDeclaredSize < 0 ? null : rawDeclaredSize,
+      fileSpecObject,
+      embeddedStreamObject,
+    };
+    return { snapshot, issues };
+  } finally {
+    for (const object of new Set([
+      fileSpec,
+      legacyFilename,
+      unicodeFilename,
+      description,
+      embeddedFiles,
+      legacyStream,
+      unicodeStream,
+      streamDictionary,
+      subtype,
+      params,
+      declaredSizeObject,
+    ].filter(Boolean))) destroyPdfObject(object);
+  }
+}
+
+function embeddedFileNameTreeProfile(document) {
+  const issues = [];
+  let trailer;
+  let root;
+  let associatedFiles;
+  let collection;
+  let treeReference;
+  let tree;
+  let names;
+  let rawEntries = 0;
+  try {
+    trailer = document.getTrailer();
+    root = trailer.get("Root");
+    associatedFiles = root.get("AF");
+    collection = root.get("Collection");
+    if (!associatedFiles.isNull()) issues.push("catalog-associated-files-present");
+    if (!collection.isNull()) issues.push("portfolio-collection-present");
+    treeReference = root.get("Names", "EmbeddedFiles");
+    if (treeReference.isNull()) return { issues, rawEntries };
+    tree = treeReference.resolve();
+    if (!tree.isDictionary()) {
+      issues.push("embedded-file-name-tree-not-dictionary");
+      return { issues, rawEntries };
+    }
+    const treeKeys = pdfDictionaryKeys(tree);
+    const extraKeys = treeKeys.filter((key) => key !== "Names");
+    if (extraKeys.length) issues.push(`embedded-file-name-tree-extra-keys:${extraKeys.sort().join(",")}`);
+    names = tree.get("Names");
+    if (!names.isArray() || names.length % 2 !== 0) {
+      issues.push("embedded-file-name-array-invalid");
+      return { issues, rawEntries };
+    }
+    rawEntries = names.length / 2;
+    const seen = new Set();
+    for (let index = 0; index < names.length; index += 2) {
+      let key;
+      let value;
+      try {
+        key = names.get(index);
+        value = names.get(index + 1);
+        if (!key.isString()) {
+          issues.push(`embedded-file-name-key-invalid:${index / 2}`);
+          continue;
+        }
+        const name = key.asString();
+        if (seen.has(name)) issues.push(`embedded-file-name-duplicate:${name}`);
+        seen.add(name);
+        if (!value.isIndirect()) issues.push(`embedded-file-filespec-not-indirect:${name}`);
+      } finally {
+        destroyPdfObject(key);
+        destroyPdfObject(value);
+      }
+    }
+    return { issues, rawEntries };
+  } finally {
+    for (const object of new Set([trailer, root, associatedFiles, collection, treeReference, tree, names].filter(Boolean))) destroyPdfObject(object);
+  }
+}
+
+function embeddedFileId(snapshot) {
+  return `${EMBEDDED_FILE_ID_PREFIX}-${sha256(Buffer.from(JSON.stringify(snapshot))).slice(0, 24)}`;
+}
+
+function collectNativeEmbeddedFiles(document) {
+  const tree = embeddedFileNameTreeProfile(document);
+  const files = document.getEmbeddedFiles();
+  const names = Object.keys(files).sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+  const countMismatch = `embedded-file-name-count-mismatch:${tree.rawEntries}:${names.length}`;
+  if (tree.rawEntries !== names.length && !tree.issues.includes(countMismatch)) tree.issues.push(countMismatch);
+  const records = [];
+  try {
+    for (const name of names) {
+      const { snapshot, issues } = embeddedFileSnapshot(name, files[name]);
+      const reasons = [...new Set([...tree.issues, ...issues])];
+      const id = embeddedFileId(snapshot);
+      records.push({
+        kind: "mupdfEmbeddedFile",
+        id,
+        name: snapshot.name,
+        filename: snapshot.filename,
+        mimeType: snapshot.mimeType,
+        declaredSize: snapshot.declaredSize,
+        fileSpecObject: snapshot.fileSpecObject,
+        embeddedStreamObject: snapshot.embeddedStreamObject,
+        snapshot,
+        deleteCapability: reasons.length
+          ? { supported: false, reasons }
+          : { supported: true, savePolicy: "rewrite", sourceBound: true, payloadErasureClaimed: false, sanitizeClaimed: false },
+      });
+    }
+    return {
+      records,
+      count: records.length,
+      rawEntries: tree.rawEntries,
+      canonical: tree.issues.length === 0 && records.every((record) => record.deleteCapability.supported),
+      issues: [...tree.issues],
+    };
+  } finally {
+    Object.values(files).forEach((file) => destroyPdfObject(file));
+  }
+}
+
+function embeddedFileExpectation(value, operationName = "delete_embedded_file") {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${operationName} expected must be the complete snapshot from one mupdfEmbeddedFile record.`);
+  }
+  for (const field of Object.keys(value)) {
+    if (!EMBEDDED_FILE_SNAPSHOT_FIELDS.includes(field)) throw new Error(`${operationName} expected contains unsupported snapshot field: ${field}.`);
+  }
+  for (const field of EMBEDDED_FILE_SNAPSHOT_FIELDS) {
+    if (!Object.hasOwn(value, field)) throw new Error(`${operationName} expected must include snapshot field: ${field}.`);
+  }
+  if (typeof value.name !== "string" || !value.name) throw new Error(`${operationName} expected.name must be a non-empty NameTree key.`);
+  for (const field of ["filename", "legacyFilename", "description", "mimeType"]) {
+    if (value[field] !== null && typeof value[field] !== "string") throw new Error(`${operationName} expected.${field} must be a string or null.`);
+  }
+  for (const field of ["declaredSize", "fileSpecObject", "embeddedStreamObject"]) {
+    if (value[field] !== null && (!Number.isSafeInteger(value[field]) || value[field] < 0)) {
+      throw new Error(`${operationName} expected.${field} must be a non-negative safe integer or null.`);
+    }
+  }
+  return Object.fromEntries(EMBEDDED_FILE_SNAPSHOT_FIELDS.map((field) => [field, value[field]]));
+}
+
+function embeddedFileSnapshotMismatch(actual, expected) {
+  return EMBEDDED_FILE_SNAPSHOT_FIELDS.find((field) => actual[field] !== expected[field]);
 }
 
 function textAnnotationPoint(value) {
@@ -1193,7 +1456,7 @@ export async function inspectPdfWithMuPdf(input, options = {}) {
         page.destroy();
       }
     });
-    const embeddedFiles = document.getEmbeddedFiles();
+    const embeddedFiles = collectNativeEmbeddedFiles(document);
     const summary = {
       kind: "mupdfDocument",
       provider: "mupdf",
@@ -1207,12 +1470,14 @@ export async function inspectPdfWithMuPdf(input, options = {}) {
       unsavedVersions: document.countUnsavedVersions(),
       canSaveIncrementally: document.canBeSavedIncrementally(),
       metadata: metadataFor(document),
-      embeddedFiles: Object.keys(embeddedFiles).length,
+      embeddedFiles: embeddedFiles.count,
+      embeddedFileEntries: embeddedFiles.rawEntries,
+      embeddedFileGraphCanonical: embeddedFiles.canonical,
+      embeddedFileGraphIssues: embeddedFiles.issues,
     };
-    Object.values(embeddedFiles).forEach((file) => file.destroy());
     const records = pageRecords.flat();
     const formFields = collectNativeFormFields(records.filter((record) => record.kind === "mupdfWidget"));
-    return { summary, records: [summary, ...records, ...formFields] };
+    return { summary, records: [summary, ...records, ...formFields, ...embeddedFiles.records] };
   } finally {
     document.destroy();
   }
@@ -1618,6 +1883,53 @@ function applyPageDuplication(document, operation, context = {}) {
   } finally {
     insertedPage.destroy();
   }
+}
+
+function applyEmbeddedFileDeletion(document, operation, context = {}) {
+  validateOperationFields(operation, "delete_embedded_file", EMBEDDED_FILE_DELETE_OPERATION_FIELDS);
+  requireSourceSha256(operation, "delete_embedded_file", context);
+  const embeddedFileIdValue = String(operation.embeddedFileId || "");
+  if (!embeddedFileIdValue.startsWith(`${EMBEDDED_FILE_ID_PREFIX}-`)) {
+    throw new Error(`delete_embedded_file embeddedFileId must be a ${EMBEDDED_FILE_ID_PREFIX}-... locator returned by PdfFile.inspectPdf.`);
+  }
+  const expected = embeddedFileExpectation(operation.expected);
+  const before = collectNativeEmbeddedFiles(document);
+  const target = before.records.find((record) => record.id === embeddedFileIdValue);
+  if (!target) {
+    throw new Error(`delete_embedded_file could not resolve ${embeddedFileIdValue}; re-inspect the exact current source PDF before retrying.`);
+  }
+  const mismatch = embeddedFileSnapshotMismatch(target.snapshot, expected);
+  if (mismatch) {
+    throw new Error(`delete_embedded_file precondition ${mismatch} did not match ${embeddedFileIdValue}; refusing a stale or ambiguous mutation.`);
+  }
+  if (!target.deleteCapability.supported) {
+    throw new Error(`delete_embedded_file refuses the current EmbeddedFiles graph: ${target.deleteCapability.reasons.join(", ")}. Use the explicit pikepdf cleanup or PyMuPDF sanitize workflow.`);
+  }
+  document.deleteEmbeddedFile(target.name);
+  const after = collectNativeEmbeddedFiles(document);
+  if (after.count !== before.count - 1 || after.records.some((record) => record.id === target.id || record.name === target.name)) {
+    throw new Error("MuPDF did not remove exactly one source-bound catalog EmbeddedFiles entry; refusing to save an ambiguous attachment mutation.");
+  }
+  const remaining = new Map(after.records.map((record) => [record.id, record]));
+  for (const record of before.records) {
+    if (record.id === target.id) continue;
+    const retained = remaining.get(record.id);
+    if (!retained || embeddedFileSnapshotMismatch(retained.snapshot, record.snapshot)) {
+      throw new Error(`MuPDF changed non-target embedded-file entry ${record.id}; refusing to save an ambiguous attachment mutation.`);
+    }
+  }
+  return {
+    type: "delete_embedded_file",
+    embeddedFileId: target.id,
+    matched: target.snapshot,
+    embeddedFileCountBefore: before.count,
+    embeddedFileCountAfter: after.count,
+    nonTargetEntriesPreserved: true,
+    sourceBound: true,
+    savePolicy: "rewrite",
+    payloadErasureClaimed: false,
+    sanitizeClaimed: false,
+  };
 }
 
 function applyTextAnnotationAddition(document, operation, context = {}) {
@@ -2115,17 +2427,7 @@ function applyOperation(document, operation, context) {
       }
       return { type: operation.type, keys };
     }
-    case "delete_embedded_file": {
-      const name = String(operation.name || operation.filename || "");
-      const files = document.getEmbeddedFiles();
-      try {
-        if (!name || !files[name]) throw new Error(`Embedded file not found: ${name}.`);
-        document.deleteEmbeddedFile(name);
-        return { type: operation.type, name };
-      } finally {
-        Object.values(files).forEach((file) => file.destroy());
-      }
-    }
+    case "delete_embedded_file": return applyEmbeddedFileDeletion(document, operation, context);
     case "add_link": return applyLinkAddition(document, operation, context);
     case "delete_link": return applyLinkDeletion(document, operation, context);
     case "update_link": return applyLinkUpdate(document, operation, context);
