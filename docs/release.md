@@ -1,6 +1,6 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-11): Spreadsheet drawing accessibility
+## Current 0.6.0 candidate (2026-08-11): Spreadsheet drawing accessibility repair
 
 Worksheet images and charts now share an explicit non-visible accessibility
 state with title, description, and presence-aware decorative classification.
@@ -19,8 +19,25 @@ separates unclassified/textless drawing issues from reading-order and broader
 worksheet-intent manual checks. `conformanceClaimed` is always false. The
 Spreadsheets Skill adds a read-only existing-XLSX workflow with source hash
 protection, OfficeKit-only import, `savePolicy: none`, workbook verification,
-and no-overwrite JSON publication. This does not claim Excel Accessibility
-Checker, WCAG, PDF, or whole-workbook conformance.
+and no-overwrite JSON publication.
+
+The Skill now also ships one source-bound repair transaction for a uniquely
+named worksheet image or chart. It binds the complete prior accessibility
+state, stable model locator, and editable source capability; applies one typed
+metadata update; allows exactly one worksheet-drawing XML part to change; and
+proves every other package part byte-identical. It then reimports, compares the
+complete non-target drawing projection, verifies the workbook, and publishes
+the XLSX plus a byte-bound audit without overwrite. Stale state, ambiguous
+selection, no-op, unsupported topology, an unclassified result, or collision
+fails without publication.
+
+Worksheet image SVG rendering is extracted into a leaf module. Meaningful
+metadata now uses non-visible `<title>`/`<desc>` under `role="img"`, decorative
+images are `aria-hidden`, and alternative text is no longer painted as visible
+worksheet content. The repair audit records separate semantic and normalized
+visual SVG hashes and requires the visual projection to remain unchanged. This
+does not claim reading-order editing, Excel Accessibility Checker, WCAG, PDF,
+or whole-workbook conformance.
 
 Local release evidence covers the complete 26-step fast gate, all 75 slow-gate
 steps through the same ten CI segments, OfficeKit Codec 401/401, OfficeBridge
@@ -31,14 +48,11 @@ the standalone distribution ran locally. Managed specialist-provider tests
 that require explicit live-pack or provider-Python environment variables were
 reported as skips rather than treated as provider execution evidence.
 
-The clean committed candidate packs 724 files at 36,252,654 bytes compressed
-and 53,509,900 bytes unpacked (`shasum
-1db133ce2c81e6b93da38ccd5302dfb1a2c793cc`). The unpacked budget is narrowly
-advanced to 53,530,000 bytes, leaving 20,100 bytes of explicit headroom.
-
-The slow gate also exposed and closed a packaged Presentation helper regression:
-modern Python union annotations are now postponed, allowing the public Poppler
-raster path and montage importer to load under the macOS system Python 3.9.
+The clean staged candidate, measured from an isolated tree that excludes the
+user's unrelated README edits, packs 726 files at 36,259,247 bytes compressed
+and 53,531,099 bytes unpacked (`shasum
+4149e595ddb887b9447e79b018608eac60981e53`). The unpacked budget is narrowly
+advanced to 53,550,000 bytes, leaving 18,901 bytes of explicit headroom.
 
 ## Prior 0.6.0 candidate: Document accessibility audit
 

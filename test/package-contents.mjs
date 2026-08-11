@@ -175,9 +175,9 @@ const maxPackedBytes = 37_500_000;
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
 // Keep measured headroom for bounded codec/Skill growth without concealing
 // specialist binaries or generated repository evidence in the tarball. The
-// read-only Spreadsheet accessibility slice measures 53,509,900 bytes in the
-// clean candidate package; its audited ceiling retains 20,100 bytes.
-const maxUnpackedBytes = 53_530_000;
+// Spreadsheet drawing accessibility audit/repair measures 53,531,099 bytes in
+// the clean candidate package; its audited ceiling retains 18,901 bytes.
+const maxUnpackedBytes = 53_550_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -309,6 +309,7 @@ for (const required of [
   "src/shared/xml.mjs",
   "src/spreadsheet/formula-criteria.mjs",
   "src/spreadsheet/formula-engine.mjs",
+  "src/spreadsheet/image-preview.mjs",
   "src/spreadsheet/index.mjs",
   "src/spreadsheet/data-validations.mjs",
   "src/spreadsheet/data-tables.mjs",
@@ -392,6 +393,7 @@ for (const required of [
   "skills/spreadsheets/skills/spreadsheets/examples/officekit-opaque-enterprise-local-edit-workflow.mjs",
   "skills/spreadsheets/skills/spreadsheets/examples/officekit-operating-plan-workflow.mjs",
   "skills/spreadsheets/skills/spreadsheets/examples/officekit-accessibility-audit-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-drawing-accessibility-edit-workflow.mjs",
   "skills/spreadsheets/skills/excel-live-control/SKILL.md",
   "skills/spreadsheets/skills/excel-live-control/agents/openai.yaml",
   "skills/spreadsheets/skills/excel-live-control/assets/file-spreadsheet.png",

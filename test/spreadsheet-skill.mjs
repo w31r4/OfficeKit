@@ -8,6 +8,7 @@ import JSZip from "jszip";
 import { FileBlob, SpreadsheetFile } from "office-kit";
 import { XLSX_CONNECTION_REFRESH_FIXTURE, XLSX_GROWTH_UPDATE_FIXTURE, XLSX_PIVOT_REFRESH_FIXTURE, generateOfficeInput } from "../scripts/agent-eval-office-fixtures.mjs";
 import { auditXlsxAccessibility } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-accessibility-audit-workflow.mjs";
+import { editImportedDrawingAccessibility } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-drawing-accessibility-edit-workflow.mjs";
 import { hardenXlsxConnectionRefreshOnOpen } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs";
 import { hardenXlsxPivotRefreshOnLoad } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs";
 import { replyAndResolveThreadedComment } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-threaded-comment-reply-workflow.mjs";
@@ -86,6 +87,115 @@ try {
   assert.deepEqual(await fs.readFile(formulaResult.workbookPath), formulaSourceBeforeAudit);
   assert.deepEqual(JSON.parse(await fs.readFile(accessibilityReportPath, "utf8")), accessibilityResult.report);
   await assert.rejects(() => auditXlsxAccessibility({ inputPath: formulaResult.workbookPath, reportPath: accessibilityReportPath }), /already exists.*refusing to overwrite/i);
+
+  const drawingAccessibilityDir = path.join(outputDir, "drawing-accessibility-edit");
+  const imageAccessibilityOutput = path.join(drawingAccessibilityDir, "image-accessibility.xlsx");
+  const imageAccessibilityAudit = path.join(drawingAccessibilityDir, "image-accessibility-audit.json");
+  const imageAccessibilityResult = await editImportedDrawingAccessibility({
+    inputPath: formulaResult.workbookPath,
+    outputPath: imageAccessibilityOutput,
+    auditPath: imageAccessibilityAudit,
+    sheetName: "Summary",
+    objectKind: "image",
+    objectName: "Status mark",
+    expectedAccessibility: { description: "Green status marker" },
+    update: { title: "Completion status", description: "Green status symbol indicating completed work." },
+  });
+  assert.equal(imageAccessibilityResult.audit.schema, "office-kit.xlsx-drawing-accessibility-edit-audit.v1");
+  assert.equal(imageAccessibilityResult.audit.provider.actual, "office-kit");
+  assert.equal(imageAccessibilityResult.audit.provider.silentFallback, false);
+  assert.deepEqual(imageAccessibilityResult.audit.savePolicy, { strategy: "rewrite", sourceMutation: false, outputCollision: "fail" });
+  assert.deepEqual(imageAccessibilityResult.audit.validation.package.changedPaths, ["xl/drawings/drawing1.xml"]);
+  assert.equal(imageAccessibilityResult.audit.validation.package.allOtherPartsByteIdentical, true);
+  assert.equal(imageAccessibilityResult.audit.validation.model.nonTargetDrawingStatePreserved, true);
+  assert.equal(imageAccessibilityResult.audit.validation.modelRender.visuallyUnchanged, true);
+  assert.notEqual(
+    imageAccessibilityResult.audit.validation.modelRender.source[0].semanticSha256,
+    imageAccessibilityResult.audit.validation.modelRender.output[0].semanticSha256,
+  );
+  assert.equal(
+    imageAccessibilityResult.audit.validation.modelRender.source[0].visualSha256,
+    imageAccessibilityResult.audit.validation.modelRender.output[0].visualSha256,
+  );
+  assert.equal(imageAccessibilityResult.audit.boundaries.workbookAccessibilityConformance, false);
+  assert.deepEqual(await fs.readFile(formulaResult.workbookPath), formulaSourceBeforeAudit);
+  assert.deepEqual(JSON.parse(await fs.readFile(imageAccessibilityAudit, "utf8")), imageAccessibilityResult.audit);
+  const imageAccessibilityWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(imageAccessibilityOutput));
+  const imageAccessibilityTarget = imageAccessibilityWorkbook.worksheets.getItem("Summary").images.items.find((image) => image.name === "Status mark");
+  assert.deepEqual(imageAccessibilityTarget.accessibility, { title: "Completion status", description: "Green status symbol indicating completed work." });
+  assert.deepEqual(imageAccessibilityTarget.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+
+  const chartAccessibilityOutput = path.join(drawingAccessibilityDir, "chart-accessibility.xlsx");
+  const chartAccessibilityAudit = path.join(drawingAccessibilityDir, "chart-accessibility-audit.json");
+  const chartAccessibilityResult = await editImportedDrawingAccessibility({
+    inputPath: formulaResult.workbookPath,
+    outputPath: chartAccessibilityOutput,
+    auditPath: chartAccessibilityAudit,
+    sheetName: "Summary",
+    objectKind: "chart",
+    objectName: "Revenue trend",
+    expectedAccessibility: {},
+    update: { title: "Revenue trend", description: "Line chart of monthly revenue from January through March." },
+  });
+  assert.deepEqual(chartAccessibilityResult.audit.validation.package.changedPaths, ["xl/drawings/drawing1.xml"]);
+  assert.equal(chartAccessibilityResult.audit.operation.locator.objectKind, "chart");
+  assert.deepEqual(chartAccessibilityResult.audit.operation.previous, {});
+  assert.deepEqual(chartAccessibilityResult.audit.operation.result, { title: "Revenue trend", description: "Line chart of monthly revenue from January through March." });
+  const chartAccessibilityWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(chartAccessibilityOutput));
+  const chartAccessibilityTarget = chartAccessibilityWorkbook.worksheets.getItem("Summary").charts.items.find((chart) => chart.name === "Revenue trend");
+  assert.deepEqual(chartAccessibilityTarget.accessibility, { title: "Revenue trend", description: "Line chart of monthly revenue from January through March." });
+  assert.equal(chartAccessibilityWorkbook.auditAccessibility().machineCheckPassed, true);
+  const [sourceAccessibilityZip, chartAccessibilityZip] = await Promise.all([
+    JSZip.loadAsync(formulaSourceBeforeAudit),
+    JSZip.loadAsync(await fs.readFile(chartAccessibilityOutput)),
+  ]);
+  assert.deepEqual(
+    await chartAccessibilityZip.file("xl/drawings/charts/chart1.xml").async("uint8array"),
+    await sourceAccessibilityZip.file("xl/drawings/charts/chart1.xml").async("uint8array"),
+  );
+  const chartDrawingXml = await chartAccessibilityZip.file("xl/drawings/drawing1.xml").async("text");
+  const chartNonVisualProperties = chartDrawingXml.match(/<xdr:cNvPr\b[^>]*name="Revenue trend"[^>]*\/>/)?.[0] || "";
+  assert.match(chartNonVisualProperties, /title="Revenue trend"/);
+  assert.match(chartNonVisualProperties, /descr="Line chart of monthly revenue from January through March\."/);
+
+  const staleAccessibilityOutput = path.join(drawingAccessibilityDir, "stale.xlsx");
+  const staleAccessibilityAudit = path.join(drawingAccessibilityDir, "stale-audit.json");
+  await assert.rejects(() => editImportedDrawingAccessibility({
+    inputPath: formulaResult.workbookPath,
+    outputPath: staleAccessibilityOutput,
+    auditPath: staleAccessibilityAudit,
+    sheetName: "Summary",
+    objectKind: "image",
+    objectName: "Status mark",
+    expectedAccessibility: { description: "Stale alternative text" },
+    update: { description: "Replacement" },
+  }), /does not match the expected complete source state/i);
+  await assert.rejects(fs.access(staleAccessibilityOutput), { code: "ENOENT" });
+  await assert.rejects(fs.access(staleAccessibilityAudit), { code: "ENOENT" });
+  const unclassifiedAccessibilityOutput = path.join(drawingAccessibilityDir, "unclassified.xlsx");
+  const unclassifiedAccessibilityAudit = path.join(drawingAccessibilityDir, "unclassified-audit.json");
+  await assert.rejects(() => editImportedDrawingAccessibility({
+    inputPath: formulaResult.workbookPath,
+    outputPath: unclassifiedAccessibilityOutput,
+    auditPath: unclassifiedAccessibilityAudit,
+    sheetName: "Summary",
+    objectKind: "image",
+    objectName: "Status mark",
+    expectedAccessibility: { description: "Green status marker" },
+    update: { description: null },
+  }), /must leave the selected drawing explicitly decorative or with an accessibility title\/description/i);
+  await assert.rejects(fs.access(unclassifiedAccessibilityOutput), { code: "ENOENT" });
+  await assert.rejects(fs.access(unclassifiedAccessibilityAudit), { code: "ENOENT" });
+  await assert.rejects(() => editImportedDrawingAccessibility({
+    inputPath: formulaResult.workbookPath,
+    outputPath: imageAccessibilityOutput,
+    auditPath: imageAccessibilityAudit,
+    sheetName: "Summary",
+    objectKind: "image",
+    objectName: "Status mark",
+    expectedAccessibility: { description: "Green status marker" },
+    update: { decorative: true, description: null },
+  }), /already exists.*refusing to overwrite/i);
 
   const formulaZip = await JSZip.loadAsync(await fs.readFile(formulaResult.workbookPath));
   const summaryXml = await formulaZip.file("xl/worksheets/sheet1.xml").async("text");

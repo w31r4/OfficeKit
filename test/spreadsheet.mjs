@@ -250,6 +250,10 @@ const completeAccessibilityAudit = accessibilityWorkbook.auditAccessibility();
 assert.equal(completeAccessibilityAudit.machineCheckPassed, true);
 assert.equal(completeAccessibilityAudit.manualReviewRequired, true);
 assert.deepEqual(completeAccessibilityAudit.summary, { sheets: 1, drawings: 2, meaningfulDrawings: 1, decorativeDrawings: 1, unclassifiedDrawings: 0, missingTextDrawings: 0 });
+unnamedAltImage.setAccessibilityMetadata({ decorative: true, description: null });
+const decorativeImageSvg = unnamedAltImage.toSvg();
+assert.match(decorativeImageSvg, /^<g aria-hidden="true"><image\b/);
+assert.doesNotMatch(decorativeImageSvg, /<(?:title|desc)>/);
 
 workbook.comments.setSelf({ displayName: "Spreadsheet Agent" });
 const marginReviewThread = workbook.comments.addThread(
@@ -310,6 +314,8 @@ assert.equal(modelLayout.cells.find((cell) => cell.address === "C4").conditional
 const modelSvg = sheet.toSvg();
 assert.match(modelSvg, /id="data-bar-1-1-0"/);
 assert.match(modelSvg, /[▼➜▲]/);
+assert.match(modelSvg, /<g role="img"><title>Overall status<\/title><desc>Green status marker<\/desc><image\b/);
+assert.doesNotMatch(modelSvg, /<text[^>]*>Green status marker<\/text>/);
 const modelVerification = verifyArtifact(workbook);
 assert.equal(modelVerification.ok, true, modelVerification.ndjson);
 

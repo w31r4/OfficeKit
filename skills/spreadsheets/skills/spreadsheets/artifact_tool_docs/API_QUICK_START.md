@@ -45,7 +45,10 @@ Before delivery, run `workbook.auditAccessibility()`. Worksheet images and
 charts expose `accessibility`, `accessibilityCapability`, and
 `setAccessibilityMetadata(...)`; `image.alt` is the description alias and is
 never synthesized from the image name. This bounded check never claims Excel
-Accessibility Checker or WCAG conformance.
+Accessibility Checker or WCAG conformance. For an existing file, use the
+read-only audit first, then the packaged source-bound drawing edit workflow for
+one uniquely named image or chart; it binds the complete old state and proves
+that only one worksheet-drawing part changed.
 
 ## Build Patterns
 - Prefer block writes (`range.values`, `range.formulas`) over per-cell loops. Matrix shape must match the target range (for example `"D4:M4"` should be a 1x10 matrix, row x col).

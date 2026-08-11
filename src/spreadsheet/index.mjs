@@ -8,6 +8,7 @@ import { normalizeSpreadsheetChartTrendlines } from "./chart-trendlines.mjs";
 import { normalizeSpreadsheetChartErrorBars } from "./chart-error-bars.mjs";
 import { resolvedWorksheetChartCategories, resolvedWorksheetChartSeriesBubbleSizes, resolvedWorksheetChartSeriesValues, resolvedWorksheetChartSeriesXValues } from "./chart-source-data.mjs";
 import { renderWorksheetChartSvg } from "./chart-preview.mjs";
+import { renderWorksheetImageSvg } from "./image-preview.mjs";
 import { initializeSpreadsheetAccessibility, setSpreadsheetAccessibilityMetadata, spreadsheetAccessibilityCapability } from "./accessibility.mjs";
 import { auditSpreadsheetAccessibility } from "./accessibility-audit.mjs";
 import { WorksheetDataTableCollection } from "./data-tables.mjs";
@@ -916,7 +917,7 @@ class WorksheetImage {
     this.accessibility = nextAccessibility;
     return this;
   }
-  toSvg() { const p = this.position; const filters = []; if (this.effects?.grayscale === true) filters.push("grayscale(1)"); const brightness = Number(this.effects?.brightnessPercent); const contrast = Number(this.effects?.contrastPercent); const opacity = Number(this.effects?.opacityPercent); if (Number.isFinite(brightness) && brightness >= -100 && brightness <= 100) filters.push(`brightness(${1 + brightness / 100})`); if (Number.isFinite(contrast) && contrast >= -100 && contrast <= 100) filters.push(`contrast(${1 + contrast / 100})`); const degrees = Number(this.transform?.rotationDegrees); const flipH = this.transform?.flipHorizontal === true ? -1 : 1; const flipV = this.transform?.flipVertical === true ? -1 : 1; const cx = p.left + p.width / 2; const cy = p.top + p.height / 2; const drawingTransform = (Number.isFinite(degrees) || flipH < 0 || flipV < 0) ? ` transform="translate(${cx} ${cy}) rotate(${Number.isFinite(degrees) ? degrees : 0}) scale(${flipH} ${flipV}) translate(${-cx} ${-cy})"` : ""; const visual = `${filters.length ? ` style="filter:${attrEscape(filters.join(" "))}"` : ""}${Number.isFinite(opacity) && opacity >= 0 && opacity <= 100 ? ` opacity="${opacity / 100}"` : ""}${drawingTransform}`; const image = this.dataUrl ? `<image href="${attrEscape(this.dataUrl)}" x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" preserveAspectRatio="xMidYMid meet"${visual}/>` : `<rect x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" fill="#fef3c7" stroke="#f59e0b"${visual}/>`; return `${image}<text x="${p.left + 8}" y="${p.top + 20}" font-family="Arial" font-size="12" fill="#92400e">${xmlEscape(this.alt || this.prompt || this.name)}</text>`; }
+  toSvg() { return renderWorksheetImageSvg(this); }
   toJSON() { return { id: this.id, name: this.name, dataUrl: this.dataUrl, uri: this.uri, prompt: this.prompt, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, anchor: this.anchor, fit: this.fit, crop: this.crop, effects: this.effects, transform: this.transform }; }
 }
 
