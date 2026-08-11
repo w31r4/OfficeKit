@@ -64,8 +64,8 @@ officekit run scripts/mupdf.mjs inspect input.pdf
 officekit run scripts/mupdf.mjs render input.pdf tmp/pdfs/page-1.png --page 1 --dpi 144
 ```
 
-The CLI budgets input/page/object/render work, refuses source overwrite
-including symlink aliases, writes atomically, and never falls back.
+The CLI budgets work, refuses overwrite/symlink aliases, writes atomically, and
+never falls back. Source-bound outline edits are in [edit existing](tasks/edit_existing.md).
 
 ## Capability-pack policy
 

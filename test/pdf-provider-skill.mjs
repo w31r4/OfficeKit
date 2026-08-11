@@ -63,6 +63,40 @@ function embeddedFileFixtureBytes() {
   }
 }
 
+function outlineFixtureBytes() {
+  const document = new mupdf.PDFDocument(plainPdfBytes([
+    { text: "SKILL OUTLINE INTRODUCTION" },
+    { text: "SKILL OUTLINE RESULTS" },
+  ]));
+  let saved;
+  const iterator = document.outlineIterator();
+  try {
+    const uri = (page) => document.formatLinkURI({
+      type: "Fit",
+      chapter: 0,
+      page,
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      zoom: 1,
+    });
+    iterator.insert({ title: "Introduction", uri: uri(0), open: false });
+    iterator.insert({ title: "Results", uri: uri(1), open: false });
+    assert.equal(iterator.prev(), 0);
+    assert.equal(iterator.down(), 1);
+    iterator.insert({ title: "Regional detail", uri: uri(1), open: false });
+    assert.equal(iterator.up(), 0);
+    iterator.update({ ...iterator.item(), open: true });
+    saved = document.saveToBuffer("garbage=2,compress=yes");
+    return new Uint8Array(saved.asUint8Array().slice());
+  } finally {
+    iterator.destroy();
+    saved?.destroy();
+    document.destroy();
+  }
+}
+
 function xmpMetadataFixtureBytes() {
   const document = new mupdf.PDFDocument(plainPdfBytes([{ text: "SKILL XMP METADATA" }]));
   let root;
@@ -336,6 +370,7 @@ assert.match(skillText, /duplicate_page.*source SHA-256.*only operation.*full\s+
 assert.match(skillText, /delete_page.*rearrange_pages.*source SHA-256.*page snapshot.*only operation.*full\s+rewrite.*re-inspect.*render/is);
 assert.match(skillText, /delete_embedded_file.*canonical catalog NameTree locator.*complete snapshot.*removes that entry only.*never claims sanitize.*payload erasure/is);
 assert.match(skillText, /set_metadata.*mupdfDocumentMetadata.*field-safe-v1.*xmpMutableFields.*xmpBlockedFields.*same transaction.*fail closed/is);
+assert.match(skillText, /Source-bound outline edits.*\[edit existing\]\(tasks\/edit_existing\.md\)/is);
 assert.match(skillText, /delete_annotation.*update_annotation.*delete_link.*update_link.*update_form_field/is);
 assert.match(skillText, /add_text_annotation.*visible pin.*rewrite/is);
 assert.match(skillText, /add_text_highlight.*unique native text selection.*rewrite/is);
@@ -420,6 +455,7 @@ assert.match(editExistingText, /Do not switch to pypdf, ReportLab, PDF\.js,[\s\S
 assert.match(editExistingText, /delete_embedded_file[\s\S]*mupdfEmbeddedFile[\s\S]*complete\s+snapshot[\s\S]*display\s+filename or NameTree[\s\S]*sourceSha256[\s\S]*embeddedFileId[\s\S]*payloadErasureClaimed[\s\S]*sanitizeClaimed/is);
 assert.match(editExistingText, /Update standard Document Info and bounded field-safe XMP metadata/);
 assert.match(editExistingText, /mupdfDocumentMetadata[\s\S]*metadataId[\s\S]*complete inspect record snapshot[\s\S]*xmpMutableFields[\s\S]*xmpBlockedFields[\s\S]*exact XMP text or attribute slot[\s\S]*fail closed/is);
+assert.match(editExistingText, /mupdfOutline[\s\S]*path[\s\S]*complete `snapshot`[\s\S]*update_outline[\s\S]*title[\s\S]*open[\s\S]*URI\/page[\s\S]*non-target outline[\s\S]*does not add\/delete\/reparent[\s\S]*fail/is);
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
 assert.match(pdfPluginReadme, /office-kit\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
@@ -449,6 +485,7 @@ assert.match(apiQuickStartText, /expected: attachment\.snapshot/);
 assert.match(apiQuickStartText, /catalog NameTree entry only/i);
 assert.match(apiQuickStartText, /pikepdf or PyMuPDF/);
 assert.match(apiQuickStartText, /mupdfDocumentMetadata/);
+assert.match(apiQuickStartText, /mupdfOutline[\s\S]*update_outline[\s\S]*outlineId: outline\.id[\s\S]*expected: outline\.snapshot[\s\S]*URI\/page[\s\S]*topology edits fail closed/is);
 assert.match(apiQuickStartText, /metadataId: metadata\.id/);
 assert.match(apiQuickStartText, /XMP stream[\s\S]*field-safe-v1[\s\S]*xmpMutableFields[\s\S]*xmpBlockedFields[\s\S]*updateCapability\.supported[\s\S]*same transaction/is);
 const redactTaskText = await fs.readFile(path.join(skillRoot, "tasks", "redact.md"), "utf8");
@@ -530,6 +567,9 @@ try {
   const mupdfXmpMetadataInput = path.join(tempRoot, "mupdf-xmp-metadata-input.pdf");
   const mupdfXmpMetadataOperations = path.join(tempRoot, "mupdf-xmp-metadata-operations.json");
   const mupdfXmpMetadataOutput = path.join(tempRoot, "mupdf-xmp-metadata-output.pdf");
+  const mupdfOutlineInput = path.join(tempRoot, "mupdf-outline-input.pdf");
+  const mupdfOutlineOperations = path.join(tempRoot, "mupdf-outline-operations.json");
+  const mupdfOutlineOutput = path.join(tempRoot, "mupdf-outline-output.pdf");
   const mupdfDuplicateInput = path.join(tempRoot, "mupdf-duplicate-input.pdf");
   const mupdfDuplicateOperations = path.join(tempRoot, "mupdf-duplicate-operations.json");
   const mupdfDuplicateOutput = path.join(tempRoot, "mupdf-duplicate-output.pdf");
@@ -606,6 +646,33 @@ try {
   assert.equal(mupdfXmpMetadataReinspectionRecord.snapshot.xmpValues.title, "Skill XMP reviewed");
   assert.equal(mupdfXmpMetadataReinspectionRecord.snapshot.xmpValues.producer, "Skill reviewed producer");
   assert.deepEqual(mupdfXmpMetadataReinspectionRecord.snapshot.xmpBlockedFields, mupdfXmpMetadata.snapshot.xmpBlockedFields);
+  await fs.writeFile(mupdfOutlineInput, outlineFixtureBytes());
+  const mupdfOutlineInspection = parseResult(run(process.execPath, [mupdfCli, "inspect", mupdfOutlineInput], { status: 0 }));
+  assert.equal(mupdfOutlineInspection.summary.outlines, 3);
+  const mupdfOutline = mupdfOutlineInspection.records.find((record) => record.kind === "mupdfOutline" && record.title === "Results");
+  assert.ok(mupdfOutline);
+  assert.deepEqual(mupdfOutline.updateCapability.mutableFields, ["title", "open"]);
+  await fs.writeFile(mupdfOutlineOperations, JSON.stringify({
+    savePolicy: "incremental",
+    operations: [{
+      type: "update_outline",
+      sourceSha256: mupdfOutlineInspection.summary.sourceSha256,
+      outlineId: mupdfOutline.id,
+      expected: mupdfOutline.snapshot,
+      patch: { title: "Reviewed CLI results", open: false },
+    }],
+  }), "utf8");
+  const mupdfOutlineEdited = parseResult(run(process.execPath, [mupdfCli, "edit", mupdfOutlineInput, mupdfOutlineOperations, mupdfOutlineOutput], { status: 0 }));
+  assert.equal(mupdfOutlineEdited.savePolicy, "incremental");
+  assert.equal(mupdfOutlineEdited.operations[0].type, "update_outline");
+  assert.equal(mupdfOutlineEdited.operations[0].outlineId, mupdfOutline.id);
+  const mupdfOutlineReinspection = parseResult(run(process.execPath, [mupdfCli, "inspect", mupdfOutlineOutput], { status: 0 }));
+  assert.deepEqual(mupdfOutlineReinspection.records.filter((record) => record.kind === "mupdfOutline").map((record) => [record.path, record.title, record.open, record.page]), [
+    [[0], "Introduction", false, 1],
+    [[1], "Reviewed CLI results", false, 2],
+    [[1, 0], "Regional detail", false, 2],
+  ]);
+  assert.equal(crypto.createHash("sha256").update(await fs.readFile(mupdfOutlineInput)).digest("hex"), mupdfOutlineInspection.summary.sourceSha256);
   const mupdfLink = mupdfInspection.records.find((record) => record.kind === "mupdfLink");
   const mupdfLinkPage = mupdfInspection.records.find((record) => record.kind === "mupdfPage" && record.page === mupdfLink.page);
   assert.match(mupdfLink.id, /^mupdf-link-1-[a-f0-9]{64}$/);

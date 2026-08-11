@@ -1,6 +1,48 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-12): Field-safe PDF XMP metadata editing
+## Current 0.6.0 candidate (2026-08-12): Source-bound PDF outline editing
+
+The built-in MuPDF.js route now inspects native PDF outlines/bookmarks as
+bounded, ordered `mupdfOutline` records. The new leaf module walks MuPDF's
+iterator directly instead of recursively materializing the complete tree, so
+the public `maxOutlines` limit and a fixed 256-level depth limit apply during
+traversal. Each record binds its zero-based tree path, title, URI, expansion
+state, resolved one-based page, child count, complete snapshot, fingerprinted
+locator, and field-level update capability.
+
+`update_outline` requires the exact current source SHA-256, inspect-derived ID,
+and complete snapshot. It can change a non-empty title and, only for an entry
+with children, its expansion state. It cannot add, delete, reparent, retarget,
+or synthesize navigation. After mutation it re-inspects the complete tree and
+proves count, order, topology, destination evidence, and every non-target entry
+unchanged. Unsigned rewrite and byte-prefix-verified incremental saves are
+allowed; stale/partial/tampered evidence, leaf expansion, no-op or unsupported
+patches, signed incremental output, and provider fallback fail closed.
+
+The core fixture updates one parent and one child in a single incremental
+transaction, proves source immutability and source-prefix retention, rejects
+stale locators, and renders every page pixel-identically before and after. The
+packaged Skill CLI repeats inspection, update, second inspection, and immutable
+source checks. The isolated staged candidate excludes the user's unrelated
+README edits and packs 732 files at 36,291,979 bytes compressed and 53,684,257
+bytes unpacked (`shasum 7224a7b980762dca5ff3f42ea728e2246e5b33dd`),
+leaving 15,743 bytes below the 53,700,000-byte unpacked ceiling.
+
+Local candidate evidence covers the complete 26-step fast gate and all 75 slow
+steps, generated API docs, protocol validation, OfficeKit Codec 401/401,
+OfficeBridge 5/5, deterministic OfficeKit WASM (39-file comparison; runtime 38
+files / 15,422,187 bytes), clean-install package smoke, standalone
+distribution, both Live Add-in builds, the twenty-template matrix, Playwright,
+qpdf, LibreOffice, and Poppler. Managed provider-pack downloads and separately
+configured pypdf, pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python
+runtimes remain explicit local skips rather than provider-execution evidence.
+Offline release metadata checks pass for AGPL-3.0-or-later,
+`office-kit@0.6.0`, three standalone platforms, and 105 locked packages.
+`npm whoami` reports `ENEEDAUTH`, so npm publication and a tagged release were
+not attempted. Hosted CI for this candidate and Windows Microsoft Office host
+acceptance remain pending external evidence.
+
+## Prior 0.6.0 candidate (2026-08-12): Field-safe PDF XMP metadata editing
 
 The built-in MuPDF.js route no longer treats one irregular standard XMP
 property as a reason to disable every metadata edit. Its source-bound

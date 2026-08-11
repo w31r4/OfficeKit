@@ -285,6 +285,36 @@ blocked requested fields, CDATA/DTD/invalid entities, malformed XML, or a
 packet with no mutable standard field fail closed without another provider.
 This is not metadata sanitization.
 
+For one existing PDF outline/bookmark entry, use its path-bound inspection
+record rather than matching a visible title:
+
+```js
+const outline = inspection.records.find((record) =>
+  record.kind === "mupdfOutline"
+  && record.updateCapability.mutableFields.includes("title"));
+if (!outline) throw new Error("No safely editable outline entry.");
+
+const updatedOutline = await PdfFile.editPdf(input, {
+  savePolicy: "incremental",
+  operations: [{
+    type: "update_outline",
+    sourceSha256: inspection.summary.sourceSha256,
+    outlineId: outline.id,
+    expected: outline.snapshot,
+    patch: { title: "Reviewed section" },
+  }],
+});
+await updatedOutline.save("third-party-with-reviewed-outline.pdf");
+```
+
+The complete snapshot binds path, title, URI, expansion state, resolved page,
+and child count. `open` may be patched only for a parent. URI/page, ordering,
+nesting, and child count remain fixed, every non-target entry is re-proven,
+and the output must be re-inspected because the edited record receives a new
+fingerprinted ID. Missing/stale/partial evidence, leaf expansion, control
+characters, no-op patches, destination changes, and topology edits fail closed
+without another provider. Incremental history is not sanitization.
+
 For a canonical catalog attachment, use its current inspection record, never a
 filename:
 

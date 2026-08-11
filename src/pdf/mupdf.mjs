@@ -6,6 +6,7 @@ import mupdf from "mupdf";
 import { toUint8Array } from "../shared/binary.mjs";
 import { FileBlob } from "../shared/file-blob.mjs";
 import { applySourceBoundMetadataUpdate, documentMetadataProfile, metadataFor } from "./mupdf-metadata.mjs";
+import { applySourceBoundOutlineUpdate, documentOutlineProfile } from "./mupdf-outlines.mjs";
 
 export const MUPDF_VERSION = "1.28.0";
 
@@ -16,6 +17,7 @@ const DEFAULT_LIMITS = Object.freeze({
   maxObjects: 1_000_000,
   maxAnnotations: 100_000,
   maxLinks: 100_000,
+  maxOutlines: 100_000,
   maxImages: 10_000,
   maxImagePixels: 40_000_000,
   maxTotalImagePixels: 100_000_000,
@@ -1442,6 +1444,7 @@ export async function inspectPdfWithMuPdf(input, options = {}) {
     });
     const embeddedFiles = collectNativeEmbeddedFiles(document);
     const documentMetadata = documentMetadataProfile(document);
+    const outlines = documentOutlineProfile(document, limits);
     const summary = {
       kind: "mupdfDocument",
       provider: "mupdf",
@@ -1460,10 +1463,11 @@ export async function inspectPdfWithMuPdf(input, options = {}) {
       embeddedFileGraphCanonical: embeddedFiles.canonical,
       embeddedFileGraphIssues: embeddedFiles.issues,
       metadataUpdateCapability: documentMetadata.record.updateCapability,
+      outlines: outlines.count,
     };
     const records = pageRecords.flat();
     const formFields = collectNativeFormFields(records.filter((record) => record.kind === "mupdfWidget"));
-    return { summary, records: [summary, documentMetadata.record, ...records, ...formFields, ...embeddedFiles.records] };
+    return { summary, records: [summary, documentMetadata.record, ...outlines.records, ...records, ...formFields, ...embeddedFiles.records] };
   } finally {
     document.destroy();
   }
@@ -2402,6 +2406,7 @@ function applyOperation(document, operation, context) {
     case "rotate_page": return applyPageRotation(document, operation);
     case "rearrange_pages": return applyPageRearrangement(document, operation, context);
     case "set_metadata": return applySourceBoundMetadataUpdate(document, operation, context);
+    case "update_outline": return applySourceBoundOutlineUpdate(document, operation, context);
     case "delete_embedded_file": return applyEmbeddedFileDeletion(document, operation, context);
     case "add_link": return applyLinkAddition(document, operation, context);
     case "delete_link": return applyLinkDeletion(document, operation, context);

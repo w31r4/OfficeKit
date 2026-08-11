@@ -85,6 +85,20 @@ incremental requests fail closed without another provider. The result removes
 one catalog entry only and explicitly sets both payload-erasure and sanitize
 claims to false; pikepdf/PyMuPDF remain the separate complete-cleanup routes.
 
+### PDF source-bound outline delta
+
+The compatible PDF Skill now exposes bounded outline/bookmark inspection and
+fixed-topology editing through the built-in MuPDF.js provider. Inspection walks
+the native iterator without recursively materializing an unbounded tree and
+returns ordered `mupdfOutline` records with a path-based fingerprint, title,
+URI, expansion state, resolved page, child count, complete snapshot, and
+field-level capability. `update_outline` binds the exact source hash, locator,
+and snapshot; it may rename one entry or change `open` on a parent, then proves
+the complete tree and every non-target snapshot unchanged. Destination edits,
+add/delete/reparent, leaf expansion, title matching, stale evidence, and silent
+fallback remain unsupported. The packaged CLI fixture exercises incremental
+save, second inspection, source immutability, and stable page rendering.
+
 ### Documents canonical note bodies
 
 The runnable Documents profile now accepts a source-free or recognized

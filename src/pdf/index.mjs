@@ -616,6 +616,7 @@ export class PdfFile {
       embeddedFileGraphIssues: native.summary.embeddedFileGraphIssues,
       documentInfo: native.summary.metadata,
       metadataUpdateCapability: native.summary.metadataUpdateCapability,
+      outlines: native.summary.outlines,
     };
     records.push(...native.records.slice(1));
     return { records, summary: records[0], ...ndjson(records, options.maxChars ?? Infinity) };

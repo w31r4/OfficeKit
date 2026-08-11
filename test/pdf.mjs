@@ -121,6 +121,41 @@ function sourceBoundEmbeddedFileFixture({ duplicateName = false, directFileSpec 
   }
 }
 
+function sourceBoundOutlineFixture() {
+  const document = new mupdf.PDFDocument(plainPdfBytes([
+    { text: "OUTLINE INTRODUCTION" },
+    { text: "OUTLINE RESULTS" },
+    { text: "OUTLINE REGIONAL DETAIL" },
+  ]));
+  let saved;
+  const iterator = document.outlineIterator();
+  try {
+    const uri = (page) => document.formatLinkURI({
+      type: "Fit",
+      chapter: 0,
+      page,
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      zoom: 1,
+    });
+    iterator.insert({ title: "Introduction", uri: uri(0), open: false });
+    iterator.insert({ title: "Results", uri: uri(1), open: false });
+    assert.equal(iterator.prev(), 0);
+    assert.equal(iterator.down(), 1);
+    iterator.insert({ title: "Regional detail", uri: uri(2), open: false });
+    assert.equal(iterator.up(), 0);
+    iterator.update({ ...iterator.item(), open: true });
+    saved = document.saveToBuffer("garbage=2,compress=yes");
+    return new FileBlob(new Uint8Array(saved.asUint8Array().slice()), { type: "application/pdf" });
+  } finally {
+    iterator.destroy();
+    saved?.destroy();
+    document.destroy();
+  }
+}
+
 function canonicalXmpPacket() {
   return `<?xpacket begin='﻿' id='W5M0MpCehiHzreSzNTczkc9d'?>
 <x:xmpmeta xmlns:x='adobe:ns:meta/'>
@@ -493,6 +528,7 @@ const mupdfInspect = await PdfFile.inspectPdf(arbitraryPdf, { maxChars: 20_000 }
 assert.equal(mupdfInspect.summary.nativeProvider, "mupdf");
 assert.equal(mupdfInspect.summary.nativeProviderVersion, MUPDF_VERSION);
 assert.equal(mupdfInspect.summary.pages, 2);
+assert.equal(mupdfInspect.summary.outlines, 0);
 assert.equal(mupdfInspect.records.filter((record) => record.kind === "mupdfPage").length, 2);
 assert.equal(mupdfInspect.records.filter((record) => record.kind === "mupdfDocumentMetadata").length, 1);
 const mupdfPng = await PdfFile.renderPdf(arbitraryPdf, { page: 1, dpi: 72 });
@@ -500,6 +536,104 @@ assert.equal(mupdfPng.type, "image/png");
 assert.deepEqual([...mupdfPng.bytes.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
 assert.equal(mupdfPng.metadata.provider, "mupdf");
 await assert.rejects(renderPdfWithMuPdf(arbitraryPdf.bytes, { dpi: 72, limits: { maxRenderPixels: 1 } }), /exceeds maxRenderPixels/);
+
+const outlineSource = sourceBoundOutlineFixture();
+const outlineSourceBytes = Buffer.from(outlineSource.bytes);
+const outlineInspection = await PdfFile.inspectPdf(outlineSource);
+const outlineRecords = outlineInspection.records.filter((record) => record.kind === "mupdfOutline");
+assert.equal(outlineInspection.summary.outlines, 3);
+assert.deepEqual(outlineRecords.map((record) => [record.path, record.depth, record.title, record.page, record.childCount]), [
+  [[0], 0, "Introduction", 1, 0],
+  [[1], 0, "Results", 2, 1],
+  [[1, 0], 1, "Regional detail", 3, 0],
+]);
+assert.ok(outlineRecords.every((record) => /^mupdf-outline-[1-9]\d*(?:\.[1-9]\d*)*-[a-f0-9]{64}$/u.test(record.id)));
+const outlineParent = outlineRecords.find((record) => record.title === "Results");
+const outlineChild = outlineRecords.find((record) => record.title === "Regional detail");
+assert.deepEqual(outlineParent.updateCapability, { supported: true, mutableFields: ["title", "open"], blockedFields: [] });
+assert.deepEqual(outlineChild.updateCapability, {
+  supported: true,
+  mutableFields: ["title"],
+  blockedFields: [{ field: "open", reason: "leaf outline has no child expansion state" }],
+});
+await assert.rejects(PdfFile.inspectPdf(outlineSource, { limits: { maxOutlines: 2 } }), /exceeds maxOutlines \(3 > 2\)/);
+const outlineParentUpdate = {
+  type: "update_outline",
+  sourceSha256: outlineInspection.summary.sourceSha256,
+  outlineId: outlineParent.id,
+  expected: outlineParent.snapshot,
+  patch: { title: "Reviewed results", open: false },
+};
+const outlineChildUpdate = {
+  type: "update_outline",
+  sourceSha256: outlineInspection.summary.sourceSha256,
+  outlineId: outlineChild.id,
+  expected: outlineChild.snapshot,
+  patch: { title: "Reviewed regional detail" },
+};
+await assert.rejects(PdfFile.editPdf(outlineSource, {
+  savePolicy: "incremental",
+  operations: [{ ...outlineParentUpdate, sourceSha256: "0".repeat(64) }],
+}), /update_outline sourceSha256 must exactly match/);
+await assert.rejects(PdfFile.editPdf(outlineSource, {
+  savePolicy: "incremental",
+  operations: [{ ...outlineParentUpdate, outlineId: "mupdf-outline-2-tampered" }],
+}), /outlineId must exactly match the inspect-derived expected snapshot/);
+await assert.rejects(PdfFile.editPdf(outlineSource, {
+  savePolicy: "incremental",
+  operations: [{ ...outlineParentUpdate, expected: { path: outlineParent.path } }],
+}), /expected must include snapshot field/);
+await assert.rejects(PdfFile.editPdf(outlineSource, {
+  savePolicy: "incremental",
+  operations: [{ ...outlineParentUpdate, patch: { uri: "#page=3" } }],
+}), /patch contains unsupported field: uri/);
+await assert.rejects(PdfFile.editPdf(outlineSource, {
+  savePolicy: "incremental",
+  operations: [{ ...outlineChildUpdate, patch: { open: true } }],
+}), /cannot change open: leaf outline has no child expansion state/);
+await assert.rejects(PdfFile.editPdf(outlineSource, {
+  savePolicy: "incremental",
+  operations: [{ ...outlineParentUpdate, patch: { title: "Results", open: true } }],
+}), /patch would not change/);
+await assert.rejects(PdfFile.editPdf(outlineSource, {
+  savePolicy: "incremental",
+  operations: [{ ...outlineParentUpdate, patch: { title: "\n" } }],
+}), /patch.title must be a non-empty string/);
+await assert.rejects(PdfFile.editPdf(outlineSource, {
+  savePolicy: "incremental",
+  operations: [{ ...outlineParentUpdate, fallback: "pypdf" }],
+}), /update_outline contains unsupported field: fallback/);
+const outlineUpdated = await PdfFile.editPdf(outlineSource, {
+  savePolicy: "incremental",
+  operations: [outlineParentUpdate, outlineChildUpdate],
+});
+assert.equal(Buffer.from(outlineSource.bytes).equals(outlineSourceBytes), true);
+assert.equal(Buffer.from(outlineUpdated.bytes.subarray(0, outlineSourceBytes.byteLength)).equals(outlineSourceBytes), true);
+assert.deepEqual(outlineUpdated.metadata.operations.map((operation) => operation.type), ["update_outline", "update_outline"]);
+assert.deepEqual(outlineUpdated.metadata.operations[0].patch, { title: "Reviewed results", open: false });
+assert.deepEqual(outlineUpdated.metadata.operations[1].patch, { title: "Reviewed regional detail" });
+const outlineUpdatedInspection = await PdfFile.inspectPdf(outlineUpdated);
+const outlineUpdatedRecords = outlineUpdatedInspection.records.filter((record) => record.kind === "mupdfOutline");
+assert.equal(outlineUpdatedInspection.summary.outlines, 3);
+assert.deepEqual(outlineUpdatedRecords.map((record) => [record.path, record.title, record.uri, record.open, record.page, record.childCount]), [
+  [[0], "Introduction", "#page=1&view=Fit", false, 1, 0],
+  [[1], "Reviewed results", "#page=2&view=Fit", false, 2, 1],
+  [[1, 0], "Reviewed regional detail", "#page=3&view=Fit", false, 3, 0],
+]);
+assert.equal(outlineUpdatedRecords[0].id, outlineRecords[0].id);
+assert.notEqual(outlineUpdatedRecords[1].id, outlineParent.id);
+assert.notEqual(outlineUpdatedRecords[2].id, outlineChild.id);
+await assert.rejects(PdfFile.editPdf(outlineUpdated, {
+  savePolicy: "incremental",
+  operations: [{ ...outlineParentUpdate, sourceSha256: outlineUpdatedInspection.summary.sourceSha256 }],
+}), /precondition did not match/);
+for (const page of [1, 2, 3]) {
+  const [before, after] = await Promise.all([
+    PdfFile.renderPdf(outlineSource, { page, dpi: 72 }),
+    PdfFile.renderPdf(outlineUpdated, { page, dpi: 72 }),
+  ]);
+  assert.equal(Buffer.compare(Buffer.from(before.bytes), Buffer.from(after.bytes)), 0, `outline edits must not change page ${page} pixels`);
+}
 
 const metadataSource = sourceBoundMetadataFixture();
 const metadataSourceBytes = Buffer.from(metadataSource.bytes);

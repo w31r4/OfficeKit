@@ -11,14 +11,14 @@ officekit run scripts/mupdf.mjs probe
 officekit run scripts/mupdf.mjs inspect input.pdf
 ```
 
-Its typed operations are source-bound `add_text_annotation` and `add_text_highlight`, legacy text/choice/checkbox `fill_form`, source-bound `update_form_field`, source-bound `delete_page`, `duplicate_page`, and complete `rearrange_pages`, source-bound `delete_annotation` and `update_annotation`, visible-only `set_page_crop`, absolute-quarter-turn `rotate_page`, source-bound Document Info `set_metadata`, `delete_embedded_file`, source-bound `add_link`, `delete_link`, and `update_link`, `redact_text`, and `redact_rect`. Run with one explicit save policy:
+Its typed operations are source-bound `add_text_annotation` and `add_text_highlight`, legacy text/choice/checkbox `fill_form`, source-bound `update_form_field`, source-bound `delete_page`, `duplicate_page`, and complete `rearrange_pages`, source-bound `delete_annotation` and `update_annotation`, visible-only `set_page_crop`, absolute-quarter-turn `rotate_page`, source-bound Document Info `set_metadata`, fixed-topology `update_outline`, `delete_embedded_file`, source-bound `add_link`, `delete_link`, and `update_link`, `redact_text`, and `redact_rect`. Run with one explicit save policy:
 
 ```bash
 officekit run scripts/mupdf.mjs edit input.pdf tmp/pdfs/edit-operations.json tmp/pdfs/edited.pdf \
   --save-policy rewrite
 ```
 
-The CLI refuses source overwrite, writes atomically, and rejects incremental page-tree mutation, redaction, source-bound annotation/link creation or mutation (including text highlights), deletion, and signed-PDF incremental edits. A bounded source-bound single-widget form-field update may use unsigned incremental save; unsupported operations do not route elsewhere.
+The CLI refuses source overwrite, writes atomically, and rejects incremental page-tree mutation, redaction, source-bound annotation/link creation or mutation (including text highlights), deletion, and signed-PDF incremental edits. Bounded source-bound single-widget form-field, metadata, outline-title/expansion, crop, and rotation updates may use unsigned incremental save; unsupported operations do not route elsewhere.
 
 ## Opaque RichMedia/3D boundary
 
@@ -143,6 +143,42 @@ CDATA, DTDs, invalid/bare entities, malformed XML, direct/non-XML streams, or a
 packet with no mutable standard field make the whole metadata capability
 unsupported. This is ordinary metadata editing, not metadata sanitization;
 signed-file policy still applies.
+
+## Update one existing outline title or parent expansion state
+
+Treat bookmarks/table-of-contents entries as a source-bound tree, never as a
+title lookup. Inspection flattens the native tree into ordered
+`mupdfOutline` records while retaining each zero-based `path`, title, URI,
+resolved 1-based page, expansion state, child count, fingerprinted `id`, and
+complete `snapshot`. Select exactly one record and copy its evidence without
+reconstructing it:
+
+```json
+{
+  "savePolicy": "incremental",
+  "operations": [{
+    "type": "update_outline",
+    "sourceSha256": "<inspect summary sourceSha256>",
+    "outlineId": "<inspect record id>",
+    "expected": "<complete inspect record snapshot object>",
+    "patch": {
+      "title": "Reviewed results",
+      "open": false
+    }
+  }]
+}
+```
+
+`title` must be non-empty, control-free, and no longer than 4,096 UTF-16 code
+units. `open` is available only when the record has children; a leaf has no
+real expansion state and fails closed. The operation preserves URI/page,
+path, order, nesting, child count, and every non-target outline, then
+re-inspects the complete graph. It does not add/delete/reparent entries,
+change destinations, synthesize named destinations, or repair an irregular
+outline graph. A stale source hash, locator, partial/tampered snapshot,
+unsupported field, or no-op patch fails before save. Re-inspect the output
+because the edited record receives a new fingerprinted ID. Incremental output
+retains old revisions and is ordinary navigation editing, never sanitization.
 
 ## Visible page crop
 
