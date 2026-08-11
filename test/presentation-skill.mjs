@@ -16,6 +16,7 @@ import {
   runPresentationFixture,
   verifyPresentationFile,
 } from "./skill-harness/presentations/scripts/workflow.mjs";
+import { editImportedObjectAccessibility } from "../skills/presentations/skills/presentations/examples/officekit-object-accessibility-edit-workflow.mjs";
 
 const fixtureDir = path.join("test", "skill-harness", "presentations", "fixtures");
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -46,6 +47,25 @@ function nativeNonVisualProperties(xml, name) {
     .find((candidate) => candidate.includes(`name="${name}"`));
   assert.ok(record, `Missing native p:cNvPr for ${name}`);
   return record;
+}
+
+function accessibilityLocatorByName(presentation, name, objectKind) {
+  const inspection = presentation.inspect({ kind: "shape,connector,groupShape,image,table,chart", maxChars: 2_000_000 });
+  assert.equal(inspection.truncated, false);
+  const matches = inspection.ndjson
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .filter((record) => record.name === name && (record.kind === "groupShape" ? "group" : record.kind) === objectKind);
+  assert.equal(matches.length, 1, `Expected one ${objectKind} named ${name}`);
+  const [record] = matches;
+  return {
+    slide: record.slide,
+    id: record.id,
+    objectKind,
+    name: record.name,
+    ...(record.parentGroupId === undefined ? {} : { parentGroupId: record.parentGroupId }),
+  };
 }
 
 try {
@@ -150,6 +170,150 @@ try {
   });
   assert.equal(workflowEvidenceImage.alt, workflowEvidenceImage.accessibility.description);
   assert.deepEqual(workflowEvidenceImage.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+
+  const accessibilityEditDir = path.join(root, "object-accessibility-edits");
+  await fs.mkdir(accessibilityEditDir, { recursive: true });
+  const accessibilityEditCases = [
+    { key: "shape", locator: accessibilityLocatorByName(readiness.qa.presentation, "author-card", "shape"), update: { description: "Reviewed create-stage description." } },
+    { key: "connector", locator: accessibilityLocatorByName(readiness.qa.presentation, "create-to-verify", "connector"), update: { title: "Reviewed create-to-verify flow" } },
+    { key: "group", locator: accessibilityLocatorByName(readiness.qa.presentation, "nested-qa-group", "group"), update: { title: "Reviewed nested render verification" } },
+    { key: "image", locator: accessibilityLocatorByName(readiness.qa.presentation, "workflow-evidence-image", "image"), update: { description: "Reviewed status image for the OfficeKit workflow." } },
+    { key: "table", locator: accessibilityLocatorByName(readiness.qa.presentation, "workflow-matrix", "table"), update: { title: "Reviewed workflow verification matrix" } },
+    { key: "chart", locator: accessibilityLocatorByName(readiness.qa.presentation, "readiness-bar", "chart"), update: { description: "Reviewed readiness scores for Create, Inspect, and Render." } },
+  ];
+  const readinessSourceBytes = await fs.readFile(readiness.pptxPath);
+  for (const testCase of accessibilityEditCases) {
+    const sourceTarget = readiness.qa.presentation.resolve(testCase.locator.id);
+    assert.ok(sourceTarget);
+    const outputPath = path.join(accessibilityEditDir, `${testCase.key}.pptx`);
+    const auditPath = path.join(accessibilityEditDir, `${testCase.key}.json`);
+    const result = await editImportedObjectAccessibility({
+      inputPath: readiness.pptxPath,
+      outputPath,
+      auditPath,
+      locator: testCase.locator,
+      expectedAccessibility: structuredClone(sourceTarget.accessibility || {}),
+      update: testCase.update,
+    });
+    assert.equal(result.audit.schema, "office-kit.pptx-object-accessibility-edit-audit.v1");
+    assert.deepEqual(result.audit.operation.locator, testCase.locator);
+    assert.deepEqual(result.audit.validation.package.changedPaths, [`ppt/slides/slide${testCase.locator.slide}.xml`]);
+    assert.equal(result.audit.validation.package.exactlyTargetSlidePartChanged, true);
+    assert.equal(result.audit.validation.package.allOtherPartsByteIdentical, true);
+    assert.equal(result.audit.validation.model.nonTargetPresentationStatePreserved, true);
+    assert.equal(result.audit.validation.modelRender.visuallyUnchanged, true);
+    assert.equal(result.audit.validation.accessibilityAudit.targetMachineIssueAbsent, true);
+    assert.equal(result.audit.validation.accessibilityAudit.conformanceClaimed, false);
+    assert.deepEqual(JSON.parse(await fs.readFile(auditPath, "utf8")), result.audit);
+    const roundTrip = await PresentationFile.importPptx(new FileBlob(await fs.readFile(outputPath), {
+      type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      name: `${testCase.key}.pptx`,
+    }));
+    assert.deepEqual(roundTrip.resolve(testCase.locator.id).accessibility, result.audit.operation.result);
+    if (testCase.key === "image") assert.equal(roundTrip.resolve(testCase.locator.id).alt, result.audit.operation.result.description);
+    assert.deepEqual(await fs.readFile(readiness.pptxPath), readinessSourceBytes);
+  }
+
+  const shapeEditCase = accessibilityEditCases[0];
+  const shapeExpectedAccessibility = structuredClone(readiness.qa.presentation.resolve(shapeEditCase.locator.id).accessibility);
+  await assert.rejects(
+    () => editImportedObjectAccessibility({
+      inputPath: readiness.pptxPath,
+      outputPath: path.join(accessibilityEditDir, "stale.pptx"),
+      auditPath: path.join(accessibilityEditDir, "stale.json"),
+      locator: shapeEditCase.locator,
+      expectedAccessibility: { title: "Stale title" },
+      update: { title: "Replacement" },
+    }),
+    /does not match the expected complete source state/,
+  );
+  const groupEditCase = accessibilityEditCases[2];
+  await assert.rejects(
+    () => editImportedObjectAccessibility({
+      inputPath: readiness.pptxPath,
+      outputPath: path.join(accessibilityEditDir, "wrong-parent.pptx"),
+      auditPath: path.join(accessibilityEditDir, "wrong-parent.json"),
+      locator: { ...groupEditCase.locator, parentGroupId: "not-the-source-group" },
+      expectedAccessibility: structuredClone(readiness.qa.presentation.resolve(groupEditCase.locator.id).accessibility),
+      update: { title: "Replacement" },
+    }),
+    /does not match the complete audit locator/,
+  );
+  await assert.rejects(
+    () => editImportedObjectAccessibility({
+      inputPath: readiness.pptxPath,
+      outputPath: path.join(accessibilityEditDir, "no-op.pptx"),
+      auditPath: path.join(accessibilityEditDir, "no-op.json"),
+      locator: shapeEditCase.locator,
+      expectedAccessibility: shapeExpectedAccessibility,
+      update: { title: shapeExpectedAccessibility.title },
+    }),
+    /does not change the selected object accessibility state/,
+  );
+  const connectorEditCase = accessibilityEditCases[1];
+  await assert.rejects(
+    () => editImportedObjectAccessibility({
+      inputPath: readiness.pptxPath,
+      outputPath: path.join(accessibilityEditDir, "unclassified.pptx"),
+      auditPath: path.join(accessibilityEditDir, "unclassified.json"),
+      locator: connectorEditCase.locator,
+      expectedAccessibility: structuredClone(readiness.qa.presentation.resolve(connectorEditCase.locator.id).accessibility),
+      update: { title: null, description: null, decorative: null },
+    }),
+    /must leave the selected object explicitly decorative or with an accessibility title\/description/,
+  );
+  const irregularAccessibilityPath = path.join(accessibilityEditDir, "irregular-source.pptx");
+  const irregularAccessibilityZip = await JSZip.loadAsync(readinessSourceBytes);
+  const irregularAccessibilityXml = (await irregularAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+    .replace(/(<p:cNvPr\b[^>]*\bname="author-card")/, '$1 xmlns:fixture="urn:office-kit:skill-accessibility" fixture:opaque="kept"');
+  irregularAccessibilityZip.file("ppt/slides/slide1.xml", irregularAccessibilityXml);
+  await fs.writeFile(irregularAccessibilityPath, await irregularAccessibilityZip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
+  await assert.rejects(
+    () => editImportedObjectAccessibility({
+      inputPath: irregularAccessibilityPath,
+      outputPath: path.join(accessibilityEditDir, "irregular-output.pptx"),
+      auditPath: path.join(accessibilityEditDir, "irregular-audit.json"),
+      locator: shapeEditCase.locator,
+      expectedAccessibility: {},
+      update: { title: "Do not flatten opaque metadata" },
+    }),
+    /not an editable source-bound p:cNvPr profile/,
+  );
+  const collisionPath = path.join(accessibilityEditDir, "collision.pptx");
+  await fs.writeFile(collisionPath, "occupied");
+  await assert.rejects(
+    () => editImportedObjectAccessibility({
+      inputPath: readiness.pptxPath,
+      outputPath: collisionPath,
+      auditPath: path.join(accessibilityEditDir, "collision.json"),
+      locator: shapeEditCase.locator,
+      expectedAccessibility: shapeExpectedAccessibility,
+      update: { title: "Replacement" },
+    }),
+    /outputPath already exists/,
+  );
+  assert.equal(await fs.access(path.join(accessibilityEditDir, "stale.pptx")).then(() => true, () => false), false);
+  assert.equal(await fs.access(path.join(accessibilityEditDir, "wrong-parent.pptx")).then(() => true, () => false), false);
+  assert.equal(await fs.access(path.join(accessibilityEditDir, "no-op.pptx")).then(() => true, () => false), false);
+  assert.equal(await fs.access(path.join(accessibilityEditDir, "unclassified.pptx")).then(() => true, () => false), false);
+  assert.equal(await fs.access(path.join(accessibilityEditDir, "irregular-output.pptx")).then(() => true, () => false), false);
+
+  const cliOutputPath = path.join(accessibilityEditDir, "cli-shape.pptx");
+  const cliAuditPath = path.join(accessibilityEditDir, "cli-shape.json");
+  const accessibilityCli = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/examples/officekit-object-accessibility-edit-workflow.mjs",
+    readiness.pptxPath,
+    cliOutputPath,
+    cliAuditPath,
+    JSON.stringify(shapeEditCase.locator),
+    JSON.stringify(shapeExpectedAccessibility),
+    JSON.stringify({ title: "CLI-reviewed create stage" }),
+  ], { encoding: "utf8" });
+  assert.equal(accessibilityCli.status, 0, `object accessibility CLI failed\n${accessibilityCli.stdout}\n${accessibilityCli.stderr}`);
+  assert.deepEqual(JSON.parse(accessibilityCli.stdout).changedPaths, ["ppt/slides/slide1.xml"]);
+  assert.equal((await fs.stat(cliOutputPath)).isFile(), true);
+  assert.equal((await fs.stat(cliAuditPath)).isFile(), true);
+
   assert.deepEqual(authoredCard.shadow, { color: "#000000", blurRadius: 10, distance: 5, direction: 45, opacity: 0.2 });
   const readinessXml = await (await JSZip.loadAsync(await fs.readFile(readiness.pptxPath))).file("ppt/slides/slide1.xml").async("text");
   const authoredCardNative = nativeNonVisualProperties(readinessXml, "author-card");
@@ -2806,6 +2970,11 @@ try {
   assert.match(accessibilityReferenceText, /shape tree would also change\s+visual z-order/i);
   assert.match(accessibilityReferenceText, /officekit-accessibility-audit-workflow\.mjs/);
   assert.match(accessibilityReferenceText, /source mutation.*fail(?:s)? closed/is);
+  assert.match(skillText, /complete audit locator.*officekit-object-accessibility-edit-workflow\.mjs.*exactly the selected SlidePart/is);
+  assert.match(accessibilityReferenceText, /officekit-object-accessibility-edit-workflow\.mjs/);
+  assert.match(accessibilityReferenceText, /shape, connector,\s+group, image, table, or chart/is);
+  assert.match(accessibilityReferenceText, /exactly the\s+selected SlidePart to differ.*complete non-target presentation projection/is);
+  assert.match(accessibilityReferenceText, /not whole-deck\s+accessibility conformance/is);
   const groupingReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/grouping.spec.md", "utf8");
   assert.match(skillText, /artifact_tool\/api\/references\/grouping\.spec\.md/);
   assert.match(groupingReferenceText, /real `p:grpSp`/);

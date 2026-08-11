@@ -66,6 +66,41 @@ PowerPoint does not expose an independent reading-order leaf through the
 bounded OfficeKit model. Reordering the native shape tree would also change
 visual z-order, so the audit never performs that mutation as a hidden fix.
 
+## Repair one imported object
+
+Use the packaged transaction for a source-bound ordinary shape, connector,
+group, image, table, or chart. Its `locator` is the complete locator returned by
+the audit: slide number, stable ID, object kind, optional name, and optional
+parent-group ID. `expectedAccessibility` is the complete current state; use an
+empty object for an unclassified object. `update` is a partial typed change and
+uses `null` only to clear an existing field.
+
+```bash
+node examples/officekit-object-accessibility-edit-workflow.mjs \
+  input.pptx \
+  repaired.pptx \
+  repair-audit.json \
+  '{"slide":2,"id":"presentation/slide/2/element/4","objectKind":"chart","name":"readiness-bar"}' \
+  '{}' \
+  '{"title":"Readiness scores","description":"Create 78, Inspect 92, Render 85.","decorative":false}'
+```
+
+The workflow accepts only an editable source-bound `p:cNvPr` profile. It
+rejects a stale or incomplete locator, stale prior metadata, no-op update,
+unclassified result, irregular native topology, symlink source, path collision,
+or package change outside the selected slide. Before publication it runs
+bounded OPC inspection, changes one typed model state, requires exactly the
+selected SlidePart to differ, reimports the same stable object ID, compares the
+complete non-target presentation projection, verifies the deck, reruns the
+accessibility audit for the target, and compares normalized visual SVG hashes.
+The original remains immutable and the PPTX plus JSON audit are published with
+no-overwrite semantics.
+
+The transaction does not edit reading order, opaque objects, visible text,
+chart data, image bytes, geometry, z-order, or any other native part. Its
+successful audit is evidence for one bounded metadata repair, not whole-deck
+accessibility conformance.
+
 ## Audit an existing PPTX without modifying it
 
 The packaged read-only workflow protects the source, imports it through the

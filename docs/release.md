@@ -1,6 +1,49 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-11): Spreadsheet drawing accessibility repair
+## Current 0.6.0 candidate (2026-08-11): Presentation object accessibility repair
+
+The Presentation Skill now closes the gap between its read-only accessibility
+audit and the six existing typed metadata setters. The packaged
+`officekit-object-accessibility-edit-workflow.mjs` accepts one complete audit
+locator plus the complete prior accessibility state for a source-bound shape,
+connector, group, image, table, or chart. The same locator contract covers
+top-level and recursively nested group children without a second selection
+language.
+
+The transaction imports only through OfficeKit Codec, requires an editable
+source-bound `p:cNvPr`, applies one title/description/decorative update, and
+rejects stale or incomplete locators, stale prior state, no-op updates,
+unclassified results, irregular native topology, symlink inputs, and output
+collisions. Bounded package inspection precedes ZIP hashing. Exactly the
+locator's SlidePart may change; package topology, slide routing, and every
+other part must remain byte-identical.
+
+Before no-overwrite publication, the output is imported again and must retain
+the same stable object ID and requested metadata. The workflow compares the
+complete presentation projection with only that object's accessibility state
+masked, runs `verify()`, proves that the target no longer has a machine audit
+issue, and compares normalized model-SVG visual hashes for every slide. Its
+audit records source/output hashes, package/version identity, explicit rewrite
+policy, changed part, model/render evidence, and the continuing manual-review
+boundary. It does not edit reading order, opaque objects, visible slide
+content, geometry, or z-order and does not claim PowerPoint Accessibility
+Checker, WCAG, PDF/UA, or whole-deck conformance.
+
+Local release evidence covers the complete 26-step fast gate, all 75 slow-gate
+steps, OfficeKit Codec 401/401, OfficeBridge 5/5, protocol generation, generated
+API docs, deterministic OfficeKit WASM (39-file comparison), clean-install
+package smoke, standalone distribution, both Live Add-in builds, the full
+twenty-template matrix, Playwright, LibreOffice, and Poppler. Managed PDF pack
+tests requiring explicit live-pack variables and specialist Python runtimes
+remain reported skips rather than provider-execution evidence.
+
+The isolated staged candidate excludes the user's unrelated README edits and
+packs 727 files at 36,263,431 bytes compressed and 53,556,147 bytes unpacked
+(`shasum a919b69500fa72515efe2ba1e9330e2a99ca34fb`). The unpacked package
+budget is narrowly advanced to 53,580,000 bytes, leaving 23,853 bytes of
+explicit headroom.
+
+## Prior 0.6.0 candidate: Spreadsheet drawing accessibility repair
 
 Worksheet images and charts now share an explicit non-visible accessibility
 state with title, description, and presence-aware decorative classification.

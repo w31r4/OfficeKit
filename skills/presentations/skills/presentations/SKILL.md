@@ -41,7 +41,7 @@ is unavailable. After reopening the final PPTX, follow
 - [HARD REQUIREMENT] Overlap: always pay attention to programmatic overlap warnings. Do not assume that overlapping elements in diagrams are intentional, and do not ignore overlap warnings without inspecting them. You MUST fix all unintended overlap errors before delivering the slides. This is critical.
 - [HARD REQUIREMENT] Font size: when a template is provided, match its font sizes. When no template or style guidance is given, you MUST use at least 50pt for deck titles, 35pt for slide titles, 24pt for mid-level text such as subheadings, callout headers, and text-box titles, and 16pt for body text.
 - [HARD REQUIREMENT] Object accessibility: give meaningful ordinary shapes, connectors, groups, images, tables, and charts a concise non-visible `accessibility.title` and, when needed, `accessibility.description`; classify purely decorative objects with `{ accessibility: { decorative: true } }` and no title/description. Presence matters: `decorative: false` is an explicit meaningful-object classification, while omission is unclassified. `image.alt` is only a compatibility alias for `image.accessibility.description`, not a second metadata field. For imported objects, check `object.accessibilityCapability.editable` before calling `object.setAccessibilityMetadata(...)`; change classification and clear/add alternative text in one transaction, and preserve or reject irregular native metadata instead of rebuilding it. Chart metadata is distinct from its visible chart title. This does not establish reading order or make the whole deck accessible by itself.
-- [HARD REQUIREMENT] Before delivering a deck, run `presentation.auditAccessibility()`. Resolve every machine issue, then review each returned `manualChecks` record. Reading order and opaque native objects require native-host or source review; never reinterpret `machineCheckPassed: true` as whole-deck conformance. For a read-only imported-file report with immutable-source/hash/no-overwrite evidence, use `examples/officekit-accessibility-audit-workflow.mjs` and `artifact_tool/api/references/accessibility.spec.md`.
+- [HARD REQUIREMENT] Before delivering a deck, run `presentation.auditAccessibility()`. Resolve every machine issue, then review each returned `manualChecks` record. Reading order and opaque native objects require native-host or source review; never reinterpret `machineCheckPassed: true` as whole-deck conformance. For a read-only imported-file report with immutable-source/hash/no-overwrite evidence, use `examples/officekit-accessibility-audit-workflow.mjs`. For one imported shape, connector, group, image, table, or chart, pass the complete audit locator and prior metadata to `examples/officekit-object-accessibility-edit-workflow.mjs`; it fails closed unless exactly the selected SlidePart changes and the result survives reimport, verify, and visual-stability checks. Read `artifact_tool/api/references/accessibility.spec.md` for both contracts.
 - Text layout: when there is too much text, shorten it before shrinking the font size. Inspect visually for unexpected text wrapping. NEVER allow a title/banner text box intended for one line to wrap to two lines.
 - Narrative copy must fit the chosen layout: shorten it or change layouts rather than adding density or shrinking type.
 - Visual assets:
@@ -170,7 +170,11 @@ non-visible PowerPoint title/description/decorative metadata. Keep it distinct
 from visible text, visible chart titles, and inspectable object names; preflight
 imported objects with their `accessibilityCapability`. Never combine
 `decorative: true` with title/description or split that classification change
-across multiple calls.
+across multiple calls. For an existing PPTX, prefer the source-bound
+`examples/officekit-object-accessibility-edit-workflow.mjs` transaction over an
+ad hoc import/mutate/export script: it consumes the audit locator directly and
+proves package locality, source immutability, second import, and visual
+stability for all six modeled object kinds.
 
 For native charts, read `artifact_tool/api/references/charts.spec.md` before
 authoring or editing. Canonical OfficeKit output covers literal bar, line,
