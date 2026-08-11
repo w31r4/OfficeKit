@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 
 import mupdf from "mupdf";
 
+import { inspectCanonicalXmpMetadata, patchCanonicalXmpMetadata } from "./xmp-metadata.mjs";
+
 const METADATA_KEYS = Object.freeze({
   author: mupdf.Document.META_INFO_AUTHOR,
   title: mupdf.Document.META_INFO_TITLE,
@@ -32,6 +34,11 @@ const SNAPSHOT_FIELDS = Object.freeze([
   "infoEntries",
   "xmpPresent",
   "xmpObject",
+  "xmpByteLength",
+  "xmpSha256",
+  "xmpProfile",
+  "xmpValues",
+  "xmpMutableFields",
 ]);
 const OPERATION_FIELDS = new Set(["type", "sourceSha256", "metadataId", "expected", "patch"]);
 
@@ -47,6 +54,64 @@ function pdfObjectXrefOrNull(object) {
   if (!object || object === mupdf.PDFObject.Null || !object.isIndirect()) return null;
   const value = object.asIndirect();
   return Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function copyMuPdfBuffer(value) {
+  const bytes = value?.asUint8Array ? value.asUint8Array() : value;
+  return Buffer.from(bytes).subarray(0);
+}
+
+function xmpStreamProfile(reference) {
+  const empty = {
+    byteLength: null,
+    sha256: null,
+    profile: "none",
+    values: {},
+    mutableFields: [],
+    issues: [],
+    bytes: null,
+  };
+  if (!reference || reference === mupdf.PDFObject.Null || reference.isNull()) return empty;
+  const issues = [];
+  let type;
+  let subtype;
+  let stream;
+  try {
+    if (!reference.isIndirect()) issues.push("catalog-xmp-metadata-is-not-indirect");
+    if (!reference.isStream()) issues.push("catalog-xmp-metadata-is-not-a-stream");
+    type = reference.get("Type");
+    subtype = reference.get("Subtype");
+    if (!type.isName() || type.asName() !== "Metadata") issues.push("catalog-xmp-type-is-not-metadata");
+    if (!subtype.isName() || subtype.asName() !== "XML") issues.push("catalog-xmp-subtype-is-not-xml");
+    if (issues.length) return { ...empty, profile: "unsupported", issues };
+    stream = reference.readStream();
+    const bytes = copyMuPdfBuffer(stream);
+    const profile = inspectCanonicalXmpMetadata(bytes);
+    return {
+      ...profile,
+      bytes,
+      issues: profile.issues.map((issue) => `xmp-profile:${issue}`),
+    };
+  } catch (error) {
+    return { ...empty, profile: "unsupported", issues: [`xmp-read:${String(error?.message || error)}`] };
+  } finally {
+    stream?.destroy();
+    destroyPdfObject(subtype);
+    destroyPdfObject(type);
+  }
+}
+
+function currentXmpReference(document) {
+  let trailer;
+  let root;
+  try {
+    trailer = document.getTrailer();
+    root = trailer.get("Root");
+    return root.get("Metadata");
+  } finally {
+    destroyPdfObject(root);
+    destroyPdfObject(trailer);
+  }
 }
 
 export function metadataFor(document) {
@@ -107,7 +172,9 @@ export function documentMetadataProfile(document) {
     if (!root.isDictionary()) issues.push("catalog-root-is-not-a-dictionary");
     xmpReference = root.isDictionary() ? root.get("Metadata") : mupdf.PDFObject.Null;
     const xmpPresent = !xmpReference.isNull();
-    if (xmpPresent) issues.push("catalog-xmp-metadata-is-present");
+    const xmp = xmpStreamProfile(xmpReference);
+    issues.push(...xmp.issues);
+    if (xmpPresent && !xmp.mutableFields.length && !xmp.issues.length) issues.push("xmp-has-no-supported-standard-properties");
 
     const snapshot = {
       values: metadataFor(document),
@@ -116,6 +183,11 @@ export function documentMetadataProfile(document) {
       infoEntries,
       xmpPresent,
       xmpObject: pdfObjectXrefOrNull(xmpReference),
+      xmpByteLength: xmp.byteLength,
+      xmpSha256: xmp.sha256,
+      xmpProfile: xmp.profile,
+      xmpValues: xmp.values,
+      xmpMutableFields: xmp.mutableFields,
     };
     return {
       snapshot,
@@ -125,7 +197,13 @@ export function documentMetadataProfile(document) {
         snapshot,
         updateCapability: issues.length
           ? { supported: false, reasons: issues }
-          : { supported: true, sourceBound: true, savePolicies: ["rewrite", "incremental"], xmpSynchronized: false },
+          : {
+              supported: true,
+              sourceBound: true,
+              savePolicies: ["rewrite", "incremental"],
+              xmpSynchronized: xmpPresent,
+              mutableFields: xmpPresent ? xmp.mutableFields : Object.keys(METADATA_KEYS),
+            },
       },
     };
   } finally {
@@ -156,6 +234,26 @@ function expectedSnapshot(value) {
       throw new Error(`set_metadata expected.${name} must be a positive safe integer or null.`);
     }
   }
+  if (value.xmpByteLength !== null && (!Number.isSafeInteger(value.xmpByteLength) || value.xmpByteLength < 0)) {
+    throw new Error("set_metadata expected.xmpByteLength must be a nonnegative safe integer or null.");
+  }
+  if (value.xmpSha256 !== null && !/^[a-f0-9]{64}$/u.test(String(value.xmpSha256))) {
+    throw new Error("set_metadata expected.xmpSha256 must be a SHA-256 hex digest or null.");
+  }
+  if (!["none", "canonical-simple-v1", "unsupported"].includes(value.xmpProfile)) {
+    throw new Error("set_metadata expected.xmpProfile is unsupported.");
+  }
+  const xmpValues = normalizedValues(value.xmpValues, "set_metadata expected.xmpValues");
+  if (!Array.isArray(value.xmpMutableFields)) throw new Error("set_metadata expected.xmpMutableFields must be an array.");
+  const xmpMutableFields = value.xmpMutableFields.map((field, index) => {
+    if (typeof field !== "string" || !Object.hasOwn(METADATA_KEYS, field)) {
+      throw new Error(`set_metadata expected.xmpMutableFields[${index}] is unsupported.`);
+    }
+    return field;
+  });
+  if (new Set(xmpMutableFields).size !== xmpMutableFields.length) {
+    throw new Error("set_metadata expected.xmpMutableFields must contain unique fields.");
+  }
   if (!Array.isArray(value.infoEntries)) throw new Error("set_metadata expected.infoEntries must be an array.");
   const names = new Set();
   const infoEntries = value.infoEntries.map((entry, index) => {
@@ -178,6 +276,11 @@ function expectedSnapshot(value) {
     infoEntries,
     xmpPresent: value.xmpPresent,
     xmpObject: value.xmpObject,
+    xmpByteLength: value.xmpByteLength,
+    xmpSha256: value.xmpSha256,
+    xmpProfile: value.xmpProfile,
+    xmpValues,
+    xmpMutableFields,
   };
 }
 
@@ -204,6 +307,29 @@ function equal(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+function updateXmpStream(document, snapshot, patch) {
+  let reference;
+  let stream;
+  try {
+    reference = currentXmpReference(document);
+    if (reference.isNull() || !reference.isIndirect() || reference.asIndirect() !== snapshot.xmpObject || !reference.isStream()) {
+      throw new Error("set_metadata XMP stream identity changed after inspection; refusing to write.");
+    }
+    stream = reference.readStream();
+    const bytes = copyMuPdfBuffer(stream);
+    const profile = inspectCanonicalXmpMetadata(bytes);
+    if (profile.sha256 !== snapshot.xmpSha256 || profile.byteLength !== snapshot.xmpByteLength || profile.profile !== snapshot.xmpProfile) {
+      throw new Error("set_metadata XMP stream no longer matches the inspected snapshot; refusing to write.");
+    }
+    const updated = patchCanonicalXmpMetadata(bytes, profile, patch);
+    reference.writeStream(updated);
+    return updated;
+  } finally {
+    stream?.destroy();
+    destroyPdfObject(reference);
+  }
+}
+
 export function applySourceBoundMetadataUpdate(document, operation, context = {}) {
   for (const name of Object.keys(operation)) {
     if (!OPERATION_FIELDS.has(name)) throw new Error(`set_metadata contains unsupported field: ${name}.`);
@@ -217,17 +343,25 @@ export function applySourceBoundMetadataUpdate(document, operation, context = {}
   const expected = expectedSnapshot(operation.expected);
   const before = documentMetadataProfile(document);
   if (!equal(before.snapshot, expected)) {
-    throw new Error("set_metadata precondition did not match the current Document Info snapshot; re-inspect the exact input bytes.");
+    throw new Error("set_metadata precondition did not match the current Info/XMP metadata snapshot; re-inspect the exact input bytes.");
   }
-  if (!before.record.updateCapability.supported) {
-    throw new Error(`set_metadata is unsupported for this metadata graph: ${before.record.updateCapability.reasons.join(", ")}. Use an explicit XMP-aware provider or preserve the PDF unchanged.`);
-  }
+  if (!before.record.updateCapability.supported) throw new Error(`set_metadata is unsupported for this metadata graph: ${before.record.updateCapability.reasons.join(", ")}. Preserve the PDF unchanged or use an explicit provider that supports this XMP profile.`);
   const patch = metadataPatch(operation.patch);
-  if (!Object.entries(patch).some(([name, value]) => (value === null ? undefined : value) !== before.snapshot.values[name])) {
-    throw new Error("set_metadata patch would not change the inspected Document Info values.");
+  if (before.snapshot.xmpPresent) {
+    const unsupportedFields = Object.keys(patch).filter((field) => !before.snapshot.xmpMutableFields.includes(field));
+    if (unsupportedFields.length) {
+      throw new Error(`set_metadata cannot synchronize XMP field${unsupportedFields.length === 1 ? "" : "s"} ${unsupportedFields.join(", ")} because the canonical packet does not contain ${unsupportedFields.length === 1 ? "that property" : "those properties"}.`);
+    }
+  }
+  if (!Object.entries(patch).some(([name, value]) => {
+    const requested = value === null ? undefined : value;
+    return requested !== before.snapshot.values[name] || (before.snapshot.xmpPresent && requested !== before.snapshot.xmpValues[name]);
+  })) {
+    throw new Error("set_metadata patch would not change the inspected Info/XMP metadata values.");
   }
 
   for (const [name, value] of Object.entries(patch)) document.setMetaData(METADATA_KEYS[name], value ?? "");
+  const expectedXmpBytes = before.snapshot.xmpPresent ? updateXmpStream(document, before.snapshot, patch) : null;
   const after = documentMetadataProfile(document);
   if (!after.record.updateCapability.supported) throw new Error("MuPDF produced an unsupported metadata graph; refusing to save.");
 
@@ -243,5 +377,23 @@ export function applySourceBoundMetadataUpdate(document, operation, context = {}
   if (!equal(beforeResidual, afterResidual)) {
     throw new Error("MuPDF changed a non-target Document Info entry while applying set_metadata; refusing to save.");
   }
-  return { type: "set_metadata", metadataId: DOCUMENT_METADATA_ID, matched: before.snapshot, patch, updated: after.snapshot };
+  if (before.snapshot.xmpPresent) {
+    for (const [name, value] of Object.entries(patch)) {
+      const expectedValue = value ?? undefined;
+      if (after.snapshot.xmpValues[name] !== expectedValue) {
+        throw new Error(`MuPDF did not preserve the requested synchronized XMP ${name} value; refusing to save.`);
+      }
+    }
+    if (after.snapshot.xmpSha256 !== sha256(expectedXmpBytes)) {
+      throw new Error("MuPDF changed bytes outside the requested canonical XMP metadata values; refusing to save.");
+    }
+  }
+  return {
+    type: "set_metadata",
+    metadataId: DOCUMENT_METADATA_ID,
+    matched: before.snapshot,
+    patch,
+    updated: after.snapshot,
+    xmpSynchronized: before.snapshot.xmpPresent,
+  };
 }

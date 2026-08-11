@@ -89,7 +89,7 @@ export mismatch, stale snapshot, or unknown option fails closed; use the
 explicit pypdf form workflow instead. The locator is valid only for the exact
 input bytes, so inspect the output before another mutation.
 
-## Update standard Document Info metadata
+## Update standard Document Info and bounded canonical XMP metadata
 
 Treat metadata as one source object, not a loose title lookup. Select the single
 `mupdfDocumentMetadata` record and copy its complete snapshot into the
@@ -113,15 +113,27 @@ operation. `patch` accepts `author`, `title`, `subject`, `keywords`, `creator`,
 }
 ```
 
-The provider fingerprints every raw Document Info entry, verifies all
-non-target entries after mutation, and re-inspection returns the new snapshot.
-A stale or partial snapshot, display-title identity, empty-string patch,
-unknown key, no-op, or legacy unbound `values`/`metadata` payload fails closed.
-If the catalog contains an XMP `/Metadata` stream, `updateCapability.supported`
-is false: this bounded primitive does not synchronize XMP and Document Info and
-will not create two contradictory metadata sources. Preserve the file or route
-explicitly to an XMP-aware provider. This is ordinary metadata editing, not
-metadata sanitization; signed-file policy still applies.
+The provider fingerprints every raw Document Info entry and, when present, the
+complete decoded XMP stream. It verifies all non-target Info entries after the
+mutation. A stale or partial snapshot, display-title identity, empty-string
+patch, unknown key, no-op, or legacy unbound `values`/`metadata` payload fails
+closed.
+
+For XMP-bearing input, inspect `snapshot.xmpProfile`, `xmpMutableFields`, and
+`updateCapability` before constructing the patch. The built-in provider accepts
+only `canonical-simple-v1`: one `x:xmpmeta`/`rdf:RDF` graph with direct
+`rdf:Description` properties, a single `x-default` item for `dc:title` or
+`dc:description`, a single sequence item for `dc:creator`, and direct text for
+the supported `pdf:*`/`xmp:*` properties. A requested field must already appear
+in `xmpMutableFields`. The transaction updates Info and that exact XMP text slot
+together, then proves the decoded packet equals the inspected bytes with only
+the requested slots replaced. Unknown properties therefore remain byte-exact.
+
+Multilingual titles/descriptions, multiple authors, property attributes,
+CDATA/DTD/entities outside the XML built-ins, nested descriptions, duplicate
+properties, a missing requested property, direct/non-XML streams, or malformed
+packets report an unsupported capability and fail closed. This is ordinary
+metadata editing, not metadata sanitization; signed-file policy still applies.
 
 ## Visible page crop
 

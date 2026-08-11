@@ -1,27 +1,32 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-12): Source-bound PDF Document Info editing
+## Current 0.6.0 candidate (2026-08-12): Synchronized PDF Info/XMP editing
 
 The built-in MuPDF.js route now emits one `mupdfDocumentMetadata` record for
 the exact inspected bytes. Its complete snapshot separates standard Document
-Info values from raw entry fingerprints and records the Info object plus
-catalog XMP presence. `set_metadata` no longer accepts a loose `values` or
-`metadata` object: it requires the exact source SHA-256, the fixed metadata
-locator, that complete snapshot, and a nonempty typed patch.
+Info values from raw entry fingerprints and records the Info object plus a
+decoded catalog XMP fingerprint, profile, standard values, and mutable fields.
+`set_metadata` does not accept a loose `values` or `metadata` object: it
+requires the exact source SHA-256, fixed metadata locator, complete snapshot,
+and a nonempty typed patch.
 
 The operation may set or clear the eight standard Info fields. It verifies the
 requested values in-memory, proves every non-target raw Info entry unchanged,
-and requires a fresh inspection after save. Unsigned input may use an
-incremental save whose complete source-byte prefix is verified. Missing or
-stale evidence, partial snapshots, unknown or empty-string keys, no-op patches,
-and signed-input policy violations fail before publication.
+and requires a fresh inspection after save. When catalog XMP matches the
+bounded `canonical-simple-v1` profile, the same transaction changes only an
+already-present standard property's exact text slot and proves every other
+decoded XMP byte unchanged. Unsigned input may use an incremental save whose
+complete source-byte prefix is verified.
 
-This bounded primitive intentionally refuses any catalog XMP `/Metadata`
-stream. It does not synchronize two metadata systems and will not create a
-Document Info/XMP contradiction. XMP-aware editing and metadata sanitization
-remain explicit provider workflows. The packaged PDF Skill documents that
-boundary and the runnable CLI now carries the inspect-derived metadata record
-directly into an atomic edit transaction.
+The recognized profile is intentionally narrow: one `x:xmpmeta`/`rdf:RDF`
+graph, direct descriptions, one `x-default` title/description, one creator,
+and direct text values for keywords, producer, creator tool, and dates.
+Missing requested properties, multilingual or multi-author containers,
+nested or attribute-valued properties, duplicate/malformed RDF, partial or
+stale evidence, no-op patches, and signed-input policy violations fail before
+publication. The operation neither synthesizes RDF structure nor claims
+metadata sanitization. The packaged PDF Skill carries the inspect-derived
+record directly into the atomic transaction and documents the same boundary.
 
 Local candidate evidence covers the complete 26-step fast gate and all 75 slow
 steps, generated API docs, protocol validation, OfficeKit Codec 401/401,
@@ -33,9 +38,9 @@ configured pypdf, pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python
 runtimes remain explicit skips rather than provider-execution evidence.
 
 The isolated staged candidate excludes the user's unrelated README edits and
-packs 730 files at 36,279,995 bytes compressed and 53,638,623 bytes unpacked
-(`shasum 14608cdf4b6651d65265ce41e47f377c2e0d849b`), leaving 11,377 bytes below
-the narrowly advanced 53,650,000-byte ceiling. Offline release metadata checks
+packs 731 files at 36,285,563 bytes compressed and 53,660,680 bytes unpacked
+(`shasum d96d6b639bfcf5c02b3f072b58bf76478e46a5ff`), leaving 14,320 bytes below
+the narrowly advanced 53,675,000-byte ceiling. Offline release metadata checks
 pass for AGPL-3.0-or-later, `office-kit@0.6.0`, three standalone platforms, and
 105 locked packages. `npm whoami` reports `ENEEDAUTH`, so npm publication and a
 tagged release were not attempted. Hosted CI for this candidate and Windows

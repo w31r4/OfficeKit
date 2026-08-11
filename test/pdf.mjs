@@ -10,6 +10,7 @@ import { createPdfjsParser } from "office-kit/pdf/pdfjs";
 import { MUPDF_VERSION, createMuPdfParser, parsePdfWithMuPdf, renderPdfWithMuPdf } from "office-kit/pdf/mupdf";
 import { FileBlob, PdfArtifact, PdfFile, renderArtifact } from "../src/index.mjs";
 import { PdfArtifact as PdfArtifactModule, PdfFile as PdfFileModule } from "../src/pdf/index.mjs";
+import { inspectCanonicalXmpMetadata, patchCanonicalXmpMetadata } from "../src/pdf/xmp-metadata.mjs";
 import { plainPdfBytes } from "./fixtures/plain-pdf.mjs";
 
 assert.equal(PdfArtifact, PdfArtifactModule, "the root package must re-export the PDF domain class without wrapping it");
@@ -120,6 +121,25 @@ function sourceBoundEmbeddedFileFixture({ duplicateName = false, directFileSpec 
   }
 }
 
+function canonicalXmpPacket() {
+  return `<?xpacket begin='﻿' id='W5M0MpCehiHzreSzNTczkc9d'?>
+<x:xmpmeta xmlns:x='adobe:ns:meta/'>
+  <rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>
+    <rdf:Description rdf:about=''
+      xmlns:dc='http://purl.org/dc/elements/1.1/'
+      xmlns:pdf='http://ns.adobe.com/pdf/1.3/'
+      xmlns:xmp='http://ns.adobe.com/xap/1.0/'
+      xmlns:fixture='https://office-kit.test/xmp/fixture/'>
+      <dc:title><rdf:Alt><rdf:li xml:lang='x-default'>Imported title</rdf:li></rdf:Alt></dc:title>
+      <dc:creator><rdf:Seq><rdf:li>Original author</rdf:li></rdf:Seq></dc:creator>
+      <pdf:Producer>Fixture producer</pdf:Producer>
+      <fixture:Canary>retain-xmp-canary</fixture:Canary>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end='w'?>`;
+}
+
 function sourceBoundMetadataFixture({ xmp = false } = {}) {
   const document = new mupdf.PDFDocument(plainPdfBytes([{ text: xmp ? "XMP METADATA" : "DOCUMENT INFO" }]));
   let infoReference;
@@ -137,7 +157,10 @@ function sourceBoundMetadataFixture({ xmp = false } = {}) {
     canary = document.newString("retain-this-unknown-entry");
     info.put("CustomCanary", canary);
     if (xmp) {
-      xmpStream = document.addStream(new TextEncoder().encode("<x:xmpmeta xmlns:x='adobe:ns:meta/'/>"), { Type: "Metadata", Subtype: "XML" });
+      const xmpPacket = xmp === "unsupported"
+        ? "<x:xmpmeta xmlns:x='adobe:ns:meta/'/>"
+        : canonicalXmpPacket();
+      xmpStream = document.addStream(new TextEncoder().encode(xmpPacket), { Type: "Metadata", Subtype: "XML" });
       root = document.getTrailer().get("Root");
       root.put("Metadata", xmpStream);
     }
@@ -150,6 +173,21 @@ function sourceBoundMetadataFixture({ xmp = false } = {}) {
     canary?.destroy();
     info?.destroy();
     infoReference?.destroy();
+    document.destroy();
+  }
+}
+
+function rawXmpBytes(input) {
+  const document = new mupdf.PDFDocument(input.bytes || input);
+  let reference;
+  let stream;
+  try {
+    reference = document.getTrailer().get("Root", "Metadata");
+    stream = reference.readStream();
+    return Buffer.from(stream.asUint8Array());
+  } finally {
+    stream?.destroy();
+    reference?.destroy();
     document.destroy();
   }
 }
@@ -170,6 +208,24 @@ function rawDocumentInfoValue(input, key) {
     reference?.destroy();
     document.destroy();
   }
+}
+
+const canonicalXmpBytes = Buffer.from(canonicalXmpPacket(), "utf8");
+const canonicalXmpProfile = inspectCanonicalXmpMetadata(canonicalXmpBytes);
+assert.equal(canonicalXmpProfile.profile, "canonical-simple-v1");
+assert.deepEqual(canonicalXmpProfile.mutableFields, ["author", "title", "producer"]);
+const canonicalXmpPatched = patchCanonicalXmpMetadata(canonicalXmpBytes, canonicalXmpProfile, { title: "A & B <C>" });
+assert.match(canonicalXmpPatched.toString("utf8"), /A &amp; B &lt;C&gt;/);
+assert.match(canonicalXmpPatched.toString("utf8"), /retain-xmp-canary/);
+for (const unsupportedXmp of [
+  canonicalXmpPacket().replace(
+    "<rdf:li xml:lang='x-default'>Imported title</rdf:li>",
+    "<rdf:li xml:lang='x-default'>Imported title</rdf:li><rdf:li xml:lang='fr'>Titre</rdf:li>",
+  ),
+  canonicalXmpPacket().replace("rdf:about=''", "rdf:about='' dc:title='Attribute title'"),
+  canonicalXmpPacket().replace("retain-xmp-canary", "&fixtureCanary;"),
+]) {
+  assert.equal(inspectCanonicalXmpMetadata(Buffer.from(unsupportedXmp, "utf8")).profile, "unsupported");
 }
 
 const pdf = PdfArtifact.create({
@@ -457,18 +513,88 @@ const xmpMetadataSource = sourceBoundMetadataFixture({ xmp: true });
 const xmpMetadataInspection = await PdfFile.inspectPdf(xmpMetadataSource);
 const xmpMetadataRecord = xmpMetadataInspection.records.find((record) => record.kind === "mupdfDocumentMetadata");
 assert.equal(xmpMetadataRecord.snapshot.xmpPresent, true);
-assert.equal(xmpMetadataRecord.updateCapability.supported, false);
-assert.ok(xmpMetadataRecord.updateCapability.reasons.includes("catalog-xmp-metadata-is-present"));
+assert.equal(xmpMetadataRecord.snapshot.xmpProfile, "canonical-simple-v1");
+assert.deepEqual(xmpMetadataRecord.snapshot.xmpValues, {
+  author: "Original author",
+  title: "Imported title",
+  producer: "Fixture producer",
+});
+assert.deepEqual(xmpMetadataRecord.snapshot.xmpMutableFields, ["author", "title", "producer"]);
+assert.match(xmpMetadataRecord.snapshot.xmpSha256, /^[a-f0-9]{64}$/);
+assert.equal(xmpMetadataRecord.updateCapability.supported, true);
+assert.equal(xmpMetadataRecord.updateCapability.xmpSynchronized, true);
 await assert.rejects(PdfFile.editPdf(xmpMetadataSource, {
-  savePolicy: "rewrite",
+  savePolicy: "incremental",
   operations: [{
     type: "set_metadata",
     sourceSha256: xmpMetadataInspection.summary.sourceSha256,
     metadataId: xmpMetadataRecord.id,
     expected: xmpMetadataRecord.snapshot,
-    patch: { title: "Would diverge from XMP" },
+    patch: { subject: "Missing canonical property" },
   }],
-}), /catalog-xmp-metadata-is-present.*XMP-aware provider/);
+}), /cannot synchronize XMP field subject.*does not contain that property/);
+await assert.rejects(PdfFile.editPdf(xmpMetadataSource, {
+  savePolicy: "incremental",
+  operations: [{
+    type: "set_metadata",
+    sourceSha256: xmpMetadataInspection.summary.sourceSha256,
+    metadataId: xmpMetadataRecord.id,
+    expected: { ...xmpMetadataRecord.snapshot, xmpSha256: "0".repeat(64) },
+    patch: { title: "Stale XMP snapshot" },
+  }],
+}), /precondition did not match/);
+const xmpSourceBytes = Buffer.from(xmpMetadataSource.bytes);
+const xmpBeforeBytes = rawXmpBytes(xmpMetadataSource);
+const xmpMetadataUpdated = await PdfFile.editPdf(xmpMetadataSource, {
+  savePolicy: "incremental",
+  operations: [{
+    type: "set_metadata",
+    sourceSha256: xmpMetadataInspection.summary.sourceSha256,
+    metadataId: xmpMetadataRecord.id,
+    expected: xmpMetadataRecord.snapshot,
+    patch: { title: "Reviewed & approved <Q3>", author: "Review agent", producer: null },
+  }],
+});
+assert.equal(Buffer.from(xmpMetadataSource.bytes).equals(xmpSourceBytes), true);
+assert.equal(Buffer.from(xmpMetadataUpdated.bytes.subarray(0, xmpSourceBytes.byteLength)).equals(xmpSourceBytes), true);
+assert.equal(xmpMetadataUpdated.metadata.operations[0].xmpSynchronized, true);
+const xmpUpdatedInspection = await PdfFile.inspectPdf(xmpMetadataUpdated);
+const xmpUpdatedRecord = xmpUpdatedInspection.records.find((record) => record.kind === "mupdfDocumentMetadata");
+assert.equal(xmpUpdatedInspection.summary.documentInfo.title, "Reviewed & approved <Q3>");
+assert.equal(xmpUpdatedInspection.summary.documentInfo.author, "Review agent");
+assert.equal(Object.hasOwn(xmpUpdatedInspection.summary.documentInfo, "producer"), false);
+assert.deepEqual(xmpUpdatedRecord.snapshot.xmpValues, {
+  author: "Review agent",
+  title: "Reviewed & approved <Q3>",
+});
+assert.equal(xmpUpdatedRecord.snapshot.xmpProfile, "canonical-simple-v1");
+const xmpAfterBytes = rawXmpBytes(xmpMetadataUpdated);
+assert.match(xmpAfterBytes.toString("utf8"), /Reviewed &amp; approved &lt;Q3&gt;/);
+assert.match(xmpAfterBytes.toString("utf8"), /retain-xmp-canary/);
+assert.notEqual(xmpBeforeBytes.equals(xmpAfterBytes), true);
+const [xmpBeforeRender, xmpAfterRender] = await Promise.all([
+  PdfFile.renderPdf(xmpMetadataSource, { page: 1, dpi: 72 }),
+  PdfFile.renderPdf(xmpMetadataUpdated, { page: 1, dpi: 72 }),
+]);
+assert.equal(Buffer.compare(Buffer.from(xmpBeforeRender.bytes), Buffer.from(xmpAfterRender.bytes)), 0, "synchronized Info/XMP edits must not change page pixels");
+
+const unsupportedXmpSource = sourceBoundMetadataFixture({ xmp: "unsupported" });
+const unsupportedXmpInspection = await PdfFile.inspectPdf(unsupportedXmpSource);
+const unsupportedXmpRecord = unsupportedXmpInspection.records.find((record) => record.kind === "mupdfDocumentMetadata");
+assert.equal(unsupportedXmpRecord.snapshot.xmpPresent, true);
+assert.equal(unsupportedXmpRecord.snapshot.xmpProfile, "unsupported");
+assert.equal(unsupportedXmpRecord.updateCapability.supported, false);
+assert.ok(unsupportedXmpRecord.updateCapability.reasons.some((reason) => reason.startsWith("xmp-profile:")));
+await assert.rejects(PdfFile.editPdf(unsupportedXmpSource, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "set_metadata",
+    sourceSha256: unsupportedXmpInspection.summary.sourceSha256,
+    metadataId: unsupportedXmpRecord.id,
+    expected: unsupportedXmpRecord.snapshot,
+    patch: { title: "Unsupported packet" },
+  }],
+}), /unsupported for this metadata graph.*xmp-profile/);
 const mupdfAnnotationSourcePage = mupdfInspect.records.find((record) => record.kind === "mupdfPage" && record.page === 1);
 assert.equal(mupdfAnnotationSourcePage.coordinateSpace, "mupdf-page-space");
 const sourceBoundTextHighlight = {
