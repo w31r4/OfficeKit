@@ -1,6 +1,41 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-11): Document accessibility audit
+## Current 0.6.0 candidate (2026-08-11): Spreadsheet drawing accessibility
+
+Worksheet images and charts now share an explicit non-visible accessibility
+state with title, description, and presence-aware decorative classification.
+The legacy image `alt` property is the same description state; an absent value
+stays empty and is never inferred from a filename or object name. Visible chart
+titles remain independent from alternative text.
+
+The source-built OfficeKit Codec reads, writes, and source-bound patches native
+`xdr:cNvPr` title/descr plus the Office 2019+ `adec:decorative` extension.
+Accessibility editability is separate from picture geometry and ChartSpace
+editability, so an opaque chart can still permit a safe metadata leaf edit and
+an unrelated picture crop does not rewrite an ambiguous extension graph.
+
+`workbook.auditAccessibility()` returns stable sheet/object locators and
+separates unclassified/textless drawing issues from reading-order and broader
+worksheet-intent manual checks. `conformanceClaimed` is always false. The
+Spreadsheets Skill adds a read-only existing-XLSX workflow with source hash
+protection, OfficeKit-only import, `savePolicy: none`, workbook verification,
+and no-overwrite JSON publication. This does not claim Excel Accessibility
+Checker, WCAG, PDF, or whole-workbook conformance.
+
+Local release evidence covers the complete 26-step fast gate, all 75 slow-gate
+steps through the same ten CI segments, OfficeKit Codec 401/401, OfficeBridge
+5/5, deterministic OfficeKit WASM (39-file comparison), generated API docs,
+reference/Claude Skill discovery, and clean-install package smoke. Playwright,
+LibreOffice, Poppler, the twenty-template matrix, both Live Add-in builds, and
+the standalone distribution ran locally. Managed specialist-provider tests
+that require explicit live-pack or provider-Python environment variables were
+reported as skips rather than treated as provider execution evidence.
+
+The slow gate also exposed and closed a packaged Presentation helper regression:
+modern Python union annotations are now postponed, allowing the public Poppler
+raster path and montage importer to load under the macOS system Python 3.9.
+
+## Prior 0.6.0 candidate: Document accessibility audit
 
 `document.auditAccessibility()` now provides one bounded Agent-facing preflight
 for modeled Word headings, images, tables, and hyperlinks. It emits stable

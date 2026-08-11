@@ -3750,6 +3750,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `SpreadsheetFile.patchXlsx` | api | Apply path-validated XLSX part patches, build worksheet/table/drawing/image/chart/pivot source references, and atomically reject dangling content types or relationships. |
 | `table.setQueryRefreshPolicy` | api | On one recognized imported QueryTable, monotonically disable automatic refresh without changing its connection, command, fields, sort, refresh history, or topology. |
 | `thread.addReply` | api | Append a direct reply to an Office threaded-comment root with independent author/person/date/done metadata. Nested or branched reply graphs and mentions fail closed. |
+| `workbook.auditAccessibility` | api | Audit worksheet images and charts for explicit meaningful/decorative classification and non-visible xdr:cNvPr title/description coverage. Native reading order and broader worksheet semantics remain manual checks; the report never claims Excel Accessibility Checker, WCAG, or PDF conformance. |
 | `workbook.comments.addThread` | api | Create one root Office threaded comment per thread with GUID/person metadata, date, and resolved state; attach bounded direct replies with thread.addReply(). |
 | `workbook.connections` | api | Inspect bounded non-secret metadata for imported database connections. Connections are source-bound; the sole mutation is workbook.disableConnectionRefreshOnLoad(connectionId) for an explicit imported refreshOnLoad=true value. |
 | `Workbook.create` | api | Create an empty workbook with an explicit date system and optional native SpreadsheetML theme colors. |
@@ -3789,6 +3790,10 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `worksheet.sortState` | api | Get or set bounded worksheet-level row/column sorting; columnSort=true uses unique single-row conditions across the sort range. |
 | `worksheet.unmergeCells` | api | Remove every merged region intersecting an A1 range without discarding the retained upper-left content. |
 | `worksheet.visibility` | api | Read or assign native worksheet visibility as visible, hidden, or veryHidden; at least one sheet must remain visible. |
+| `worksheetChart.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for a worksheet chart graphic-frame xdr:cNvPr title/description/decorative leaf independently of ChartSpace editability. |
+| `worksheetChart.setAccessibilityMetadata` | api | Transactionally add, change, or clear a worksheet chart's non-visible title/description/decorative metadata without changing its visible chart title. Ambiguous imported extension graphs fail closed. |
+| `worksheetImage.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for worksheet picture xdr:cNvPr title/description/decorative metadata. |
+| `worksheetImage.setAccessibilityMetadata` | api | Transactionally add, change, or clear worksheet picture title/description/decorative metadata. image.alt is the same description state and is never inferred from the object or file name. |
 
 ### workbook details
 
@@ -7656,6 +7661,18 @@ Append a direct reply to an Office threaded-comment root with independent author
 
 - `thread` (CommentThread) — The same thread with one appended direct reply. Setting parentId to another reply, adding mentions, or creating a branched/nested graph makes canonical export fail closed.
 
+#### `workbook.auditAccessibility`
+
+Audit worksheet images and charts for explicit meaningful/decorative classification and non-visible xdr:cNvPr title/description coverage. Native reading order and broader worksheet semantics remain manual checks; the report never claims Excel Accessibility Checker, WCAG, or PDF conformance.
+
+**Schema parameters:**
+
+- `maxChars` (number) — Maximum bounded NDJSON size across machine issues and manual-review records.
+
+**Schema returns:**
+
+- `report` (object) — A host-neutral report with machineCheckPassed, conformanceClaimed: false, manualReviewRequired, stable sheet/object locators, drawing counts, machine issues for unclassified or textless meaningful images/charts, and separate native reading-order/worksheet-semantics checks. It never claims Excel Accessibility Checker, WCAG, or PDF conformance.
+
 #### `workbook.comments.addThread`
 
 Create one root Office threaded comment per thread with GUID/person metadata, date, and resolved state; attach bounded direct replies with thread.addReply().
@@ -8235,4 +8252,44 @@ Read or assign native worksheet visibility as visible, hidden, or veryHidden; at
 **Schema returns:**
 
 - `visibility` (string) — Normalized worksheet visibility; workbook verification/export rejects an all-hidden workbook.
+
+#### `worksheetChart.accessibilityCapability`
+
+Report sourceBound/editable/addable preflight for a worksheet chart graphic-frame xdr:cNvPr title/description/decorative leaf independently of ChartSpace editability.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, editable, addable } preflight for the chart frame xdr:cNvPr leaf; ChartSpace has an independent capability.
+
+#### `worksheetChart.setAccessibilityMetadata`
+
+Transactionally add, change, or clear a worksheet chart's non-visible title/description/decorative metadata without changing its visible chart title. Ambiguous imported extension graphs fail closed.
+
+**Schema parameters:**
+
+- `update` (object) required — Partial { title?, description?, decorative? }; null clears a field, text is 1-1,024 XML-safe characters, decorative is boolean, and decorative true excludes text.
+
+**Schema returns:**
+
+- `chart` (WorksheetChart) — The same chart after one transactional metadata update. Source-free objects are editable; imported objects require accessibilityCapability.editable and export re-proves the residual graph.
+
+#### `worksheetImage.accessibilityCapability`
+
+Report sourceBound/editable/addable preflight for worksheet picture xdr:cNvPr title/description/decorative metadata.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, editable, addable } preflight for picture xdr:cNvPr metadata.
+
+#### `worksheetImage.setAccessibilityMetadata`
+
+Transactionally add, change, or clear worksheet picture title/description/decorative metadata. image.alt is the same description state and is never inferred from the object or file name.
+
+**Schema parameters:**
+
+- `update` (object) required — Partial { title?, description?, decorative? }; null clears a field, text is 1-1,024 XML-safe characters, decorative is boolean, and decorative true excludes text.
+
+**Schema returns:**
+
+- `image` (WorksheetImage) — The same image after one transactional metadata update. The legacy alt property is the description alias; imported ambiguous xdr:cNvPr graphs fail closed without disabling unrelated picture edits.
 

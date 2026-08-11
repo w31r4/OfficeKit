@@ -75,9 +75,16 @@ internal sealed class XlsxDrawingCodec
                 throw new CodecException("unsupported_spreadsheet_image_edit", $"Worksheet image {target.Id} cannot change its source anchor kind.", Path(record.Part));
             if (!target.AssetId.Equals(record.Artifact.AssetId, StringComparison.Ordinal))
                 ReplaceAsset(record, target);
-            if (DrawingSemanticsEqual(record.Artifact, target)) continue;
-            PatchDrawing(record, target);
-            drawingDirty = true;
+            var nameChanged = !target.Name.Equals(record.Artifact.Name, StringComparison.Ordinal);
+            var accessibilityChanged = !AccessibilityEqual(target, record.Artifact);
+            var drawingChanged = !DrawingSemanticsEqual(record.Artifact, target);
+            if (accessibilityChanged && target.Source?.AccessibilityEditable != true)
+                throw new CodecException("unsupported_spreadsheet_image_edit", $"Worksheet image {target.Id} accessibility metadata is read-only because its xdr:cNvPr profile is outside the editable subset.", Path(record.Part));
+            if (nameChanged) record.NonVisual.Name = target.Name;
+            if (accessibilityChanged)
+                XlsxNonVisualAccessibilityCodec.ApplyBound(record.NonVisual, AccessibilityTitle(target), AccessibilityDescription(target), AccessibilityDecorative(target), target.Id, "image");
+            if (drawingChanged) PatchDrawing(record, target);
+            drawingDirty |= nameChanged || accessibilityChanged || drawingChanged;
         }
         if (!drawingDirty) return;
         var part = records.Select(item => item.Part).Distinct().Single();
@@ -98,8 +105,7 @@ internal sealed class XlsxDrawingCodec
             if (!ids.Add(image.Id)) throw InvalidImage(worksheetId, image.Id, "ID must be unique within its worksheet.");
             if (string.IsNullOrWhiteSpace(image.Name) || image.Name.Length > 255 || HasControls(image.Name))
                 throw InvalidImage(worksheetId, image.Id, "name must contain 1 through 255 characters without controls.");
-            if (image.AltText.Length > 32_767 || HasControls(image.AltText))
-                throw InvalidImage(worksheetId, image.Id, "alt text must contain at most 32767 characters without controls.");
+            XlsxNonVisualAccessibilityCodec.Validate(AccessibilityTitle(image), AccessibilityDescription(image), AccessibilityDecorative(image), worksheetId, image.Id, "image");
             if (string.IsNullOrWhiteSpace(image.AssetId) || image.AssetId.Length > 512 || HasControls(image.AssetId))
                 throw InvalidImage(worksheetId, image.Id, "asset ID must contain 1 through 512 characters without controls.");
             if ((image.Anchor is null ? 0 : 1) + (image.TwoCellAnchor is null ? 0 : 1) + (image.AbsoluteAnchor is null ? 0 : 1) != 1)
@@ -226,13 +232,16 @@ internal sealed class XlsxDrawingCodec
             {
                 continue;
             }
+            var accessibilityEditable = XlsxNonVisualAccessibilityCodec.TryRead(nonVisual, out var accessibility);
             var artifact = new SpreadsheetImageArtifact
             {
                 Id = $"{worksheetId}/image/{ordinal + 1}",
                 Name = nonVisual.Name?.Value ?? $"Picture {ordinal + 1}",
-                AltText = nonVisual.Description?.Value ?? string.Empty,
+                AltText = accessibility?.Description ?? string.Empty,
                 AssetId = asset.Id,
             };
+            if (accessibility?.Title is not null) artifact.AccessibilityTitle = accessibility.Title;
+            if (accessibility?.Decorative is not null) artifact.AccessibilityDecorative = accessibility.Decorative.Value;
             if (oneCellAnchor is not null) artifact.Anchor = oneCellAnchor;
             else if (twoCellAnchor is not null) artifact.TwoCellAnchor = twoCellAnchor;
             else artifact.AbsoluteAnchor = absoluteAnchor;
@@ -251,6 +260,7 @@ internal sealed class XlsxDrawingCodec
                 RelationshipId = imageRelationshipId,
                 NonVisualId = nonVisual.Id!.Value,
                 Editable = true,
+                AccessibilityEditable = accessibilityEditable,
             };
             records.Add(new PictureRecord(artifact, drawingPart, anchor, from, to, position, extent, nonVisual, blipFill, blip, shapeProperties, nativeTransform, sourceRectangle, cropEditable, effectsEditable, transformEditable, imagePart, imageRelationshipId, ordinal));
         }
@@ -259,9 +269,11 @@ internal sealed class XlsxDrawingCodec
 
     private static OpenXmlElement BuildAnchor(SpreadsheetImageArtifact source, string relationshipId, uint nonVisualId)
     {
+        var nonVisual = new Xdr.NonVisualDrawingProperties { Id = nonVisualId, Name = source.Name };
+        XlsxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, AccessibilityTitle(source), AccessibilityDescription(source), AccessibilityDecorative(source));
         var picture = new Xdr.Picture(
                 new Xdr.NonVisualPictureProperties(
-                    new Xdr.NonVisualDrawingProperties { Id = nonVisualId, Name = source.Name, Description = source.AltText },
+                    nonVisual,
                     new Xdr.NonVisualPictureDrawingProperties()),
                 BuildBlipFill(source, relationshipId),
                 BuildShapeProperties(source));
@@ -326,9 +338,7 @@ internal sealed class XlsxDrawingCodec
 
     private static bool DrawingSemanticsEqual(SpreadsheetImageArtifact source, SpreadsheetImageArtifact target)
     {
-        return source.Name.Equals(target.Name, StringComparison.Ordinal) &&
-            source.AltText.Equals(target.AltText, StringComparison.Ordinal) &&
-            AnchorSemantics(source).Equals(AnchorSemantics(target), StringComparison.Ordinal) &&
+        return AnchorSemantics(source).Equals(AnchorSemantics(target), StringComparison.Ordinal) &&
             CropSemantics(source.Crop).Equals(CropSemantics(target.Crop), StringComparison.Ordinal) &&
             EffectsSemantics(source.Effects).Equals(EffectsSemantics(target.Effects), StringComparison.Ordinal) &&
             TransformSemantics(source.Transform).Equals(TransformSemantics(target.Transform), StringComparison.Ordinal);
@@ -339,8 +349,6 @@ internal sealed class XlsxDrawingCodec
         if (!CropSemantics(record.Artifact.Crop).Equals(CropSemantics(target.Crop), StringComparison.Ordinal)) PatchCrop(record, target);
         if (!EffectsSemantics(record.Artifact.Effects).Equals(EffectsSemantics(target.Effects), StringComparison.Ordinal)) PatchEffects(record, target);
         if (!TransformSemantics(record.Artifact.Transform).Equals(TransformSemantics(target.Transform), StringComparison.Ordinal)) PatchTransform(record, target);
-        record.NonVisual.Name = target.Name;
-        record.NonVisual.Description = target.AltText;
         if (target.Anchor is { } oneCell)
         {
             PatchMarker(record.From!, oneCell.Row, oneCell.Column, oneCell.RowOffsetEmu, oneCell.ColumnOffsetEmu);
@@ -427,7 +435,8 @@ internal sealed class XlsxDrawingCodec
             !source.AnchorXmlSha256.Equals(expected.AnchorXmlSha256, StringComparison.OrdinalIgnoreCase) ||
             !source.SemanticSha256.Equals(expected.SemanticSha256, StringComparison.OrdinalIgnoreCase) ||
             !source.RelationshipId.Equals(expected.RelationshipId, StringComparison.Ordinal) ||
-            source.NonVisualId != expected.NonVisualId)
+            source.NonVisualId != expected.NonVisualId ||
+            source.AccessibilityEditable != expected.AccessibilityEditable)
             throw new CodecException("spreadsheet_image_source_binding_mismatch", $"Worksheet image {target.Id} does not match its hash-bound Drawing part source locator.", expected.PartPath);
     }
 
@@ -706,8 +715,14 @@ internal sealed class XlsxDrawingCodec
 
     private static string SemanticHash(SpreadsheetImageArtifact image)
     {
-        return Hash(string.Join('\0', image.Id, image.Name, image.AltText, image.AssetId, AnchorSemantics(image), CropSemantics(image.Crop), EffectsSemantics(image.Effects), TransformSemantics(image.Transform)));
+        return Hash(string.Join('\0', image.Id, image.Name, XlsxNonVisualAccessibilityCodec.Semantics(AccessibilityTitle(image), AccessibilityDescription(image), AccessibilityDecorative(image)), image.AssetId, AnchorSemantics(image), CropSemantics(image.Crop), EffectsSemantics(image.Effects), TransformSemantics(image.Transform)));
     }
+
+    private static string? AccessibilityTitle(SpreadsheetImageArtifact image) => string.IsNullOrEmpty(image.AccessibilityTitle) ? null : image.AccessibilityTitle;
+    private static string? AccessibilityDescription(SpreadsheetImageArtifact image) => string.IsNullOrEmpty(image.AltText) ? null : image.AltText;
+    private static bool? AccessibilityDecorative(SpreadsheetImageArtifact image) => image.HasAccessibilityDecorative ? image.AccessibilityDecorative : null;
+    private static bool AccessibilityEqual(SpreadsheetImageArtifact left, SpreadsheetImageArtifact right) =>
+        AccessibilityTitle(left) == AccessibilityTitle(right) && AccessibilityDescription(left) == AccessibilityDescription(right) && AccessibilityDecorative(left) == AccessibilityDecorative(right);
 
     private static string AnchorSemantics(SpreadsheetImageArtifact image)
     {

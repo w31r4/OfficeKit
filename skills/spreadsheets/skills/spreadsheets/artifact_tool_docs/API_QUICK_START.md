@@ -41,6 +41,12 @@ const output = await SpreadsheetFile.exportXlsx(workbook);
 await output.save(`${outputDir}/output.xlsx`);
 ```
 
+Before delivery, run `workbook.auditAccessibility()`. Worksheet images and
+charts expose `accessibility`, `accessibilityCapability`, and
+`setAccessibilityMetadata(...)`; `image.alt` is the description alias and is
+never synthesized from the image name. This bounded check never claims Excel
+Accessibility Checker or WCAG conformance.
+
 ## Build Patterns
 - Prefer block writes (`range.values`, `range.formulas`) over per-cell loops. Matrix shape must match the target range (for example `"D4:M4"` should be a 1x10 matrix, row x col).
 - Seed scalar formulas once, then `fillDown()` / `fillRight()`. For dynamic-array formulas (`SEQUENCE`, `UNIQUE`, `FILTER`, `SORT`, `TEXTSPLIT`, `VSTACK`, `HSTACK`), write only the anchor cell and let the result spill after. `TEXTSPLIT` accepts one scalar text input, bounded row/column delimiters, optional empty-item skipping, case mode, and padding; multi-cell/computed-matrix inputs and empty delimiters return `#VALUE!`.

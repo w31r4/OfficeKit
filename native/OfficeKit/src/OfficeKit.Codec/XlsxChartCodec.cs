@@ -64,15 +64,23 @@ internal sealed class XlsxChartCodec
                 throw new CodecException("invalid_spreadsheet_chart_topology", $"Worksheet {worksheetId} chart identity/order cannot change during source-bound export.");
             if (!AnchorSemantics(target).Equals(AnchorSemantics(record.Artifact), StringComparison.Ordinal))
                 throw new CodecException("unsupported_spreadsheet_chart_edit", $"Worksheet chart {target.Id} cannot change its imported anchor geometry.", Path(record.DrawingPart));
-            var changed = !SemanticHash(target).Equals(SemanticHash(record.Artifact), StringComparison.OrdinalIgnoreCase);
-            if (changed && target.Source?.Editable != true)
+            var chartSpaceChanged = !ChartSpaceSemanticHash(target).Equals(ChartSpaceSemanticHash(record.Artifact), StringComparison.OrdinalIgnoreCase);
+            var accessibilityChanged = !AccessibilityEqual(target, record.Artifact);
+            if (chartSpaceChanged && target.Source?.Editable != true)
                 throw new CodecException("unsupported_spreadsheet_chart_edit", $"Worksheet chart {target.Id} is read-only because its native ChartSpace profile is outside the editable subset.", Path(record.ChartPart));
+            if (accessibilityChanged && target.Source?.AccessibilityEditable != true)
+                throw new CodecException("unsupported_spreadsheet_chart_edit", $"Worksheet chart {target.Id} accessibility metadata is read-only because its xdr:cNvPr profile is outside the editable subset.", Path(record.DrawingPart));
             if (!target.Name.Equals(record.Artifact.Name, StringComparison.Ordinal))
             {
                 record.NonVisual.Name = target.Name;
                 drawingDirty = true;
             }
-            if (!changed) continue;
+            if (accessibilityChanged)
+            {
+                XlsxNonVisualAccessibilityCodec.ApplyBound(record.NonVisual, AccessibilityTitle(target), AccessibilityDescription(target), AccessibilityDecorative(target), target.Id, "chart");
+                drawingDirty = true;
+            }
+            if (!chartSpaceChanged) continue;
             PatchChart(record, target);
             _dirtyPartPaths.Add(Path(record.ChartPart));
         }
@@ -94,6 +102,7 @@ internal sealed class XlsxChartCodec
             if (!ids.Add(chart.Id)) throw InvalidChart(worksheetId, chart.Id, "ID must be unique within its worksheet.");
             if (string.IsNullOrWhiteSpace(chart.Name) || chart.Name.Length > 255 || HasControls(chart.Name)) throw InvalidChart(worksheetId, chart.Id, "name must contain 1 through 255 characters without controls.");
             if (chart.Title.Length > 32_767 || HasControls(chart.Title)) throw InvalidChart(worksheetId, chart.Id, "title must contain at most 32767 characters without controls.");
+            XlsxNonVisualAccessibilityCodec.Validate(AccessibilityTitle(chart), AccessibilityDescription(chart), AccessibilityDecorative(chart), worksheetId, chart.Id, "chart");
             if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Pie or SpreadsheetChartType.Area or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble)) throw InvalidChart(worksheetId, chart.Id, "type must be bar, line, pie, area, doughnut, scatter, or bubble.");
             XlsxChartAxisCodec.Validate(chart, worksheetId);
             XlsxChartTextStyleCodec.Validate(chart, worksheetId);
@@ -245,6 +254,10 @@ internal sealed class XlsxChartCodec
             if (!OpenXmlChartSpaceCodec.TryRead(chartXml, out var chart, out var document, out var editable)) continue;
             chart.Id = $"{worksheetId}/chart/{ordinal + 1}";
             chart.Name = nonVisual.Name?.Value ?? $"Chart {ordinal + 1}";
+            var accessibilityEditable = XlsxNonVisualAccessibilityCodec.TryRead(nonVisual, out var accessibility);
+            if (accessibility?.Title is not null) chart.AccessibilityTitle = accessibility.Title;
+            if (accessibility?.Description is not null) chart.AccessibilityDescription = accessibility.Description;
+            if (accessibility?.Decorative is not null) chart.AccessibilityDecorative = accessibility.Decorative.Value;
             if (oneCell is not null) chart.Anchor = oneCell;
             else if (twoCell is not null) chart.TwoCellAnchor = twoCell;
             else chart.AbsoluteAnchor = absolute;
@@ -261,6 +274,7 @@ internal sealed class XlsxChartCodec
                 RelationshipId = chartRelationshipId,
                 NonVisualId = nonVisual.Id!.Value,
                 Editable = editable,
+                AccessibilityEditable = accessibilityEditable,
             };
             output.Add(new ChartRecord(chart, drawingPart, chartPart, anchor, nonVisual, chartRelationshipId, ordinal, chartXml, document));
         }
@@ -309,9 +323,11 @@ internal sealed class XlsxChartCodec
     private static OpenXmlElement BuildAnchor(SpreadsheetChartArtifact source, string relationshipId, uint nonVisualId)
     {
         var extent = source.Anchor is { } one ? (one.WidthEmu, one.HeightEmu) : source.AbsoluteAnchor is { } absolute ? (absolute.WidthEmu, absolute.HeightEmu) : (1L, 1L);
+        var nonVisual = new Xdr.NonVisualDrawingProperties { Id = nonVisualId, Name = source.Name };
+        XlsxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, AccessibilityTitle(source), AccessibilityDescription(source), AccessibilityDecorative(source));
         var frame = new Xdr.GraphicFrame(
             new Xdr.NonVisualGraphicFrameProperties(
-                new Xdr.NonVisualDrawingProperties { Id = nonVisualId, Name = source.Name },
+                nonVisual,
                 new Xdr.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoGrouping = true })),
             new Xdr.Transform(new A.Offset { X = 0L, Y = 0L }, new A.Extents { Cx = extent.Item1, Cy = extent.Item2 }),
             new A.Graphic(new A.GraphicData(new C.ChartReference { Id = relationshipId }) { Uri = "http://schemas.openxmlformats.org/drawingml/2006/chart" }));
@@ -335,7 +351,7 @@ internal sealed class XlsxChartCodec
     {
         var source = target.Source;
         var expected = record.Artifact.Source;
-        if (source is null || !source.DrawingPartPath.Equals(expected.DrawingPartPath, StringComparison.OrdinalIgnoreCase) || !source.DrawingXmlSha256.Equals(expected.DrawingXmlSha256, StringComparison.OrdinalIgnoreCase) || source.AnchorOrdinal != expected.AnchorOrdinal || !source.AnchorXmlSha256.Equals(expected.AnchorXmlSha256, StringComparison.OrdinalIgnoreCase) || !source.ChartPartPath.Equals(expected.ChartPartPath, StringComparison.OrdinalIgnoreCase) || !source.ChartXmlSha256.Equals(expected.ChartXmlSha256, StringComparison.OrdinalIgnoreCase) || !source.SemanticSha256.Equals(expected.SemanticSha256, StringComparison.OrdinalIgnoreCase) || !source.RelationshipId.Equals(expected.RelationshipId, StringComparison.Ordinal) || source.NonVisualId != expected.NonVisualId || source.Editable != expected.Editable)
+        if (source is null || !source.DrawingPartPath.Equals(expected.DrawingPartPath, StringComparison.OrdinalIgnoreCase) || !source.DrawingXmlSha256.Equals(expected.DrawingXmlSha256, StringComparison.OrdinalIgnoreCase) || source.AnchorOrdinal != expected.AnchorOrdinal || !source.AnchorXmlSha256.Equals(expected.AnchorXmlSha256, StringComparison.OrdinalIgnoreCase) || !source.ChartPartPath.Equals(expected.ChartPartPath, StringComparison.OrdinalIgnoreCase) || !source.ChartXmlSha256.Equals(expected.ChartXmlSha256, StringComparison.OrdinalIgnoreCase) || !source.SemanticSha256.Equals(expected.SemanticSha256, StringComparison.OrdinalIgnoreCase) || !source.RelationshipId.Equals(expected.RelationshipId, StringComparison.Ordinal) || source.NonVisualId != expected.NonVisualId || source.Editable != expected.Editable || source.AccessibilityEditable != expected.AccessibilityEditable)
             throw new CodecException("spreadsheet_chart_source_binding_mismatch", $"Worksheet chart {target.Id} does not match its hash-bound Drawing/Chart part source locator.", expected.ChartPartPath);
     }
 
@@ -354,7 +370,13 @@ internal sealed class XlsxChartCodec
         WriteXml(record.ChartPart, record.ChartDocument);
     }
 
-    private static string SemanticHash(SpreadsheetChartArtifact chart) => Hash(string.Join('\0', chart.Id, chart.Name, chart.Title, XlsxChartTextStyleCodec.Semantics(chart.TitleTextStyle), XlsxChartLineOptionsCodec.Semantics(chart.LineOptions), XlsxChartDataLabelsCodec.Semantics(chart.DataLabels), ((int)chart.Type).ToString(CultureInfo.InvariantCulture), chart.HasLegend ? "1" : "0", AnchorSemantics(chart), XlsxChartAxisCodec.Semantics(chart), string.Join('\u001e', chart.Categories), string.Join('\u001d', chart.Series.Select(series => string.Join('\u001f', series.Name, series.CategoryFormula, series.XValueFormula, series.ValueFormula, series.BubbleSizeFormula, XlsxChartSeriesStyleCodec.Semantics(series), XlsxChartSeriesLineStyleCodec.Semantics(series.Line), XlsxChartSeriesMarkerCodec.Semantics(series.Marker), OpenXmlChartTrendlineCodec.Semantics(series.Trendlines), OpenXmlChartErrorBarsCodec.Semantics(series.ErrorBars), string.Join(',', series.XValues.Select(value => value.ToString("R", CultureInfo.InvariantCulture))), string.Join(',', series.Values.Select(value => value.ToString("R", CultureInfo.InvariantCulture))), string.Join(',', series.BubbleSizes.Select(value => value.ToString("R", CultureInfo.InvariantCulture))))))));
+    private static string SemanticHash(SpreadsheetChartArtifact chart) => Hash(string.Join('\0', chart.Name, XlsxNonVisualAccessibilityCodec.Semantics(AccessibilityTitle(chart), AccessibilityDescription(chart), AccessibilityDecorative(chart)), ChartSpaceSemanticHash(chart)));
+    private static string ChartSpaceSemanticHash(SpreadsheetChartArtifact chart) => Hash(string.Join('\0', chart.Id, chart.Title, XlsxChartTextStyleCodec.Semantics(chart.TitleTextStyle), XlsxChartLineOptionsCodec.Semantics(chart.LineOptions), XlsxChartDataLabelsCodec.Semantics(chart.DataLabels), ((int)chart.Type).ToString(CultureInfo.InvariantCulture), chart.HasLegend ? "1" : "0", AnchorSemantics(chart), XlsxChartAxisCodec.Semantics(chart), string.Join('\u001e', chart.Categories), string.Join('\u001d', chart.Series.Select(series => string.Join('\u001f', series.Name, series.CategoryFormula, series.XValueFormula, series.ValueFormula, series.BubbleSizeFormula, XlsxChartSeriesStyleCodec.Semantics(series), XlsxChartSeriesLineStyleCodec.Semantics(series.Line), XlsxChartSeriesMarkerCodec.Semantics(series.Marker), OpenXmlChartTrendlineCodec.Semantics(series.Trendlines), OpenXmlChartErrorBarsCodec.Semantics(series.ErrorBars), string.Join(',', series.XValues.Select(value => value.ToString("R", CultureInfo.InvariantCulture))), string.Join(',', series.Values.Select(value => value.ToString("R", CultureInfo.InvariantCulture))), string.Join(',', series.BubbleSizes.Select(value => value.ToString("R", CultureInfo.InvariantCulture))))))));
+    private static string? AccessibilityTitle(SpreadsheetChartArtifact chart) => string.IsNullOrEmpty(chart.AccessibilityTitle) ? null : chart.AccessibilityTitle;
+    private static string? AccessibilityDescription(SpreadsheetChartArtifact chart) => string.IsNullOrEmpty(chart.AccessibilityDescription) ? null : chart.AccessibilityDescription;
+    private static bool? AccessibilityDecorative(SpreadsheetChartArtifact chart) => chart.HasAccessibilityDecorative ? chart.AccessibilityDecorative : null;
+    private static bool AccessibilityEqual(SpreadsheetChartArtifact left, SpreadsheetChartArtifact right) =>
+        AccessibilityTitle(left) == AccessibilityTitle(right) && AccessibilityDescription(left) == AccessibilityDescription(right) && AccessibilityDecorative(left) == AccessibilityDecorative(right);
 
     private static bool UsesNumericXAxis(SpreadsheetChartType type) =>
         type is SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble;

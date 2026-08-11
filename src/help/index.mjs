@@ -65,6 +65,11 @@ export const HELP_CATALOG = [
   { artifactKind: "workbook", kind: "api", name: "worksheet.freezePanes.unfreeze", summary: "Remove all frozen worksheet panes and restore a single scrollable view." },
   { artifactKind: "workbook", kind: "api", name: "worksheet.protection", summary: "Author, inspect, edit, or remove one passwordless worksheet editing restriction with an intuitive allowed-operation list. Cell locked/hidden styles become effective only while protection is active. This is not encryption or access control; password/hash variants remain source-owned and fail closed on replacement." },
   { artifactKind: "workbook", kind: "api", name: "workbook.inspect", summary: "Emit bounded NDJSON records for workbook, connections, sheets, worksheet protections, tables, formulas, matches, comments, validations, conditional formats, and drawings; narrow with search/target anchors and shape fields with include/exclude." },
+  { artifactKind: "workbook", kind: "api", name: "workbook.auditAccessibility", summary: "Audit worksheet images and charts for explicit meaningful/decorative classification and non-visible xdr:cNvPr title/description coverage. Native reading order and broader worksheet semantics remain manual checks; the report never claims Excel Accessibility Checker, WCAG, or PDF conformance." },
+  { artifactKind: "workbook", kind: "api", name: "worksheetChart.accessibilityCapability", summary: "Report sourceBound/editable/addable preflight for a worksheet chart graphic-frame xdr:cNvPr title/description/decorative leaf independently of ChartSpace editability." },
+  { artifactKind: "workbook", kind: "api", name: "worksheetChart.setAccessibilityMetadata", summary: "Transactionally add, change, or clear a worksheet chart's non-visible title/description/decorative metadata without changing its visible chart title. Ambiguous imported extension graphs fail closed." },
+  { artifactKind: "workbook", kind: "api", name: "worksheetImage.accessibilityCapability", summary: "Report sourceBound/editable/addable preflight for worksheet picture xdr:cNvPr title/description/decorative metadata." },
+  { artifactKind: "workbook", kind: "api", name: "worksheetImage.setAccessibilityMetadata", summary: "Transactionally add, change, or clear worksheet picture title/description/decorative metadata. image.alt is the same description state and is never inferred from the object or file name." },
   { artifactKind: "workbook", kind: "api", name: "workbook.render", summary: "Return a lightweight SVG preview for a sheet/range or layout JSON when called with { format: 'layout' }." },
   { artifactKind: "workbook", kind: "api", name: "workbook.layoutJson", summary: "Return workbook/worksheet layout JSON with cell, table, chart, image, sparkline, rule bounding boxes, and target/search context slicing." },
   { artifactKind: "workbook", kind: "api", name: "workbook.verify", summary: "Return bounded QA issues for source-bound connections, sheets, formulas (including syntax-input and reference-budget refusals), tables, charts, and comments." },
@@ -2330,6 +2335,17 @@ const WORKBOOK_HELP_SCHEMAS = {
   "workbook.verify": helpSchema({
     maxChars: { type: "number", description: "Maximum bounded NDJSON issue output size." },
   }, "report", "object", "Workbook formula/structure/drawing/rule QA result, including syntax-input and reference-budget refusals."),
+  "workbook.auditAccessibility": helpSchema({
+    maxChars: { type: "number", description: "Maximum bounded NDJSON size across machine issues and manual-review records." },
+  }, "report", "object", "A host-neutral report with machineCheckPassed, conformanceClaimed: false, manualReviewRequired, stable sheet/object locators, drawing counts, machine issues for unclassified or textless meaningful images/charts, and separate native reading-order/worksheet-semantics checks. It never claims Excel Accessibility Checker, WCAG, or PDF conformance."),
+  "worksheetChart.accessibilityCapability": helpSchema({}, "capability", "object", "Fresh { sourceBound, editable, addable } preflight for the chart frame xdr:cNvPr leaf; ChartSpace has an independent capability."),
+  "worksheetChart.setAccessibilityMetadata": helpSchema({
+    update: { type: "object", required: true, description: "Partial { title?, description?, decorative? }; null clears a field, text is 1-1,024 XML-safe characters, decorative is boolean, and decorative true excludes text." },
+  }, "chart", "WorksheetChart", "The same chart after one transactional metadata update. Source-free objects are editable; imported objects require accessibilityCapability.editable and export re-proves the residual graph."),
+  "worksheetImage.accessibilityCapability": helpSchema({}, "capability", "object", "Fresh { sourceBound, editable, addable } preflight for picture xdr:cNvPr metadata."),
+  "worksheetImage.setAccessibilityMetadata": helpSchema({
+    update: { type: "object", required: true, description: "Partial { title?, description?, decorative? }; null clears a field, text is 1-1,024 XML-safe characters, decorative is boolean, and decorative true excludes text." },
+  }, "image", "WorksheetImage", "The same image after one transactional metadata update. The legacy alt property is the description alias; imported ambiguous xdr:cNvPr graphs fail closed without disabling unrelated picture edits."),
   "workbook.recalculate": helpSchema({}, "graph", "object", "Updated bounded formula dependency graph including cycles, errors, and syntax-input/reference-budget refusals."),
   "workbook.resolve": helpSchema({
     id: { type: "string", required: true, description: "Stable workbook, sheet, table, pivot, chart, image, sparkline, rule, comment, or defined-name ID." },

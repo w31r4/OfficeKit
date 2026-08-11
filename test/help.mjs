@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 475);
+assert.equal(HELP_CATALOG.length, 480);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -399,6 +399,14 @@ assert.ok(documentAccessibilityAuditHelp);
 assert.deepEqual(Object.keys(documentAccessibilityAuditHelp.schema.parameters), ["maxChars"]);
 assert.match(documentAccessibilityAuditHelp.summary, /Word headings.*image alternative text.*table header semantics.*hyperlink text.*manual review.*never claims.*WCAG/i);
 assert.match(documentAccessibilityAuditHelp.schema.returns.report.description, /machineCheckPassed.*conformanceClaimed: false.*manualReviewRequired.*stable block locators.*skipped heading levels.*empty image alternative text.*generic\/raw-URL.*Word Accessibility Checker.*WCAG/i);
+const workbookAccessibilityAuditHelp = HELP_CATALOG.find((item) => item.name === "workbook.auditAccessibility");
+assert.ok(workbookAccessibilityAuditHelp);
+assert.deepEqual(Object.keys(workbookAccessibilityAuditHelp.schema.parameters), ["maxChars"]);
+assert.match(workbookAccessibilityAuditHelp.summary, /worksheet images and charts.*meaningful\/decorative.*reading order.*manual.*never claims Excel Accessibility Checker.*WCAG/i);
+assert.match(workbookAccessibilityAuditHelp.schema.returns.report.description, /machineCheckPassed.*conformanceClaimed: false.*manualReviewRequired.*stable sheet\/object locators.*unclassified.*textless meaningful.*Excel Accessibility Checker.*WCAG/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "worksheetChart.accessibilityCapability")?.summary || "", /xdr:cNvPr.*independently of ChartSpace/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "worksheetChart.setAccessibilityMetadata")?.schema?.parameters?.update?.description || "", /title.*description.*decorative.*null clears.*1-1,024 XML-safe/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "worksheetImage.setAccessibilityMetadata")?.summary || "", /image\.alt.*same description.*never inferred/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /fields.*picture bullets.*customShow.*missing.*opaque.*fail closed/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "PdfFile.inspectPdf"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "createNativeOfficeRenderer"));
@@ -666,7 +674,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /absolute uri.*slideId.*relative action/);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /customShow.*survives the bounded slide clone.*without adding the clone to show membership/i);
 const workbookCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "workbook");
-assert.equal(workbookCatalog.length, 267);
+assert.equal(workbookCatalog.length, 272);
 assert.ok(workbookCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "workbook.trace")?.schema?.parameters?.reference?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "Workbook.create")?.schema?.parameters?.dateSystem?.type, "string");

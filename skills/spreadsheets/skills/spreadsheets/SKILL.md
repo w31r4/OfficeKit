@@ -76,6 +76,7 @@ Other documents:
 - `examples/officekit-growth-assumption-edit-workflow.mjs`: Run or adapt this bounded imported-workbook example when exactly one named growth assumption may change. It protects a second-sheet canary, formula topology, a separate margin assumption, sheet identity/order, source bytes, and writes a byte-bound OfficeKit rewrite audit after recalculation, second import, and all-sheet SVG review.
 - `examples/officekit-connection-refresh-hardening-workflow.mjs`: Run or adapt this source-bound transaction only to turn one imported connection's explicit `refreshOnLoad=true` request off. It refuses an absent/already-false/ambiguous connection, preserves every other modeled connection field, protects the input, publishes without overwrite, reimports, renders all sheets, and writes a byte-bound audit. It does not run external data or stop manual, macro, PivotTable, or other host-triggered refreshes.
 - `examples/officekit-operating-plan-workflow.mjs`: Run or adapt this forward workflow for a locked 24-month actuals CSV plus three-scenario assumptions JSON. It creates Sources, Assumptions, Forecast, Dashboard, and Checks sheets with formula-backed values, scenario validation, cash warnings, root threaded comments, line and pie charts, frozen headers, second import, model/native render review, and a byte-bound audit; never hard-code derived values or mutate the input files.
+- `examples/officekit-accessibility-audit-workflow.mjs`: Use this read-only existing-XLSX workflow to bind the source SHA-256, run `workbook.auditAccessibility()` plus `workbook.verify()`, and publish one no-overwrite JSON report with `savePolicy.strategy: none`. Review `artifact_tool_docs/ACCESSIBILITY_AUDIT.md`; a green modeled drawing check is not Excel Accessibility Checker or WCAG conformance.
 
 ## Domain Requirements
 You must read these domain rules when the request clearly relates to the domain, but do not load domain guidance for unrelated tasks unless asked:
@@ -163,6 +164,12 @@ Complete only when:
 
 ## Verification Rules
 Before final response, verify values/formulas and visual quality.
+
+Before delivering a workbook that contains images or charts, run
+`workbook.auditAccessibility()`. Resolve machine issues, review every manual
+check, and do not infer image descriptions from filenames or visible chart
+titles. Use the packaged read-only workflow when the request is an audit of an
+existing XLSX.
 
 1. Inspect key ranges:
 ```js

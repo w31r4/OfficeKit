@@ -175,9 +175,9 @@ const maxPackedBytes = 37_500_000;
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
 // Keep measured headroom for bounded codec/Skill growth without concealing
 // specialist binaries or generated repository evidence in the tarball. The
-// The read-only Document accessibility audit slice measured 53,472,009 bytes
-// in its clean candidate tree; its audited ceiling retains under 20 KiB.
-const maxUnpackedBytes = 53_490_000;
+// read-only Spreadsheet accessibility slice measured 53,510,098 bytes before
+// clean-candidate packaging; its audited ceiling retains under 20 KiB.
+const maxUnpackedBytes = 53_530_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -373,6 +373,7 @@ for (const required of [
   "skills/spreadsheets/skills/spreadsheets/agents/openai.yaml",
   "skills/spreadsheets/skills/spreadsheets/agents/agent.yaml",
   "skills/spreadsheets/skills/spreadsheets/artifact_tool_docs/API_QUICK_START.md",
+  "skills/spreadsheets/skills/spreadsheets/artifact_tool_docs/ACCESSIBILITY_AUDIT.md",
   "skills/spreadsheets/skills/spreadsheets/features/charts.md",
   "skills/spreadsheets/skills/spreadsheets/features/pivot-tables.md",
   "skills/spreadsheets/skills/spreadsheets/examples/officekit-range-workflow.mjs",
@@ -390,6 +391,7 @@ for (const required of [
   "skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs",
   "skills/spreadsheets/skills/spreadsheets/examples/officekit-opaque-enterprise-local-edit-workflow.mjs",
   "skills/spreadsheets/skills/spreadsheets/examples/officekit-operating-plan-workflow.mjs",
+  "skills/spreadsheets/skills/spreadsheets/examples/officekit-accessibility-audit-workflow.mjs",
   "skills/spreadsheets/skills/excel-live-control/SKILL.md",
   "skills/spreadsheets/skills/excel-live-control/agents/openai.yaml",
   "skills/spreadsheets/skills/excel-live-control/assets/file-spreadsheet.png",

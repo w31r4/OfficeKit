@@ -360,6 +360,11 @@ export function spreadsheetChartSnapshot(chart, options = {}) {
     id: String(chart?.id || ""),
     name: String(chart?.name || ""),
     title: String(chart?.title || ""),
+    accessibility: chart?.accessibility == null ? undefined : {
+      ...(chart.accessibility.title == null ? {} : { title: String(chart.accessibility.title) }),
+      ...(chart.accessibility.description == null ? {} : { description: String(chart.accessibility.description) }),
+      ...(chart.accessibility.decorative == null ? {} : { decorative: chart.accessibility.decorative }),
+    },
     titleTextStyle: textStyleSnapshot(chart?.titleTextStyle, "titleTextStyle", chart),
     lineOptions: lineOptionsSnapshot(chart?.lineOptions, chart),
     dataLabels: dataLabelsSnapshot(chart?.dataLabels, chart),
@@ -399,6 +404,12 @@ function validateSnapshot(snapshot, chart) {
   if (!snapshot.id || snapshot.id.length > 512 || /\p{Cc}/u.test(snapshot.id)) fail(chart, "id must contain 1 through 512 characters without controls.");
   if (!snapshot.name || snapshot.name.length > 255 || /\p{Cc}/u.test(snapshot.name)) fail(chart, "name must contain 1 through 255 characters without controls.");
   text(snapshot.title, "title", chart);
+  if (snapshot.accessibility != null) {
+    if (snapshot.accessibility.title != null) text(snapshot.accessibility.title, "accessibility.title", chart, 1_024);
+    if (snapshot.accessibility.description != null) text(snapshot.accessibility.description, "accessibility.description", chart, 1_024);
+    if (snapshot.accessibility.decorative != null && typeof snapshot.accessibility.decorative !== "boolean") fail(chart, "accessibility.decorative must be a boolean.");
+    if (snapshot.accessibility.decorative === true && (snapshot.accessibility.title != null || snapshot.accessibility.description != null)) fail(chart, "accessibility cannot combine decorative true with title or description.");
+  }
   if (snapshot.titleTextStyle != null && snapshot.title.length === 0) fail(chart, "titleTextStyle requires a non-empty title.");
   const type = TYPES_TO_WIRE.get(snapshot.type);
   if (type == null) fail(chart, `type must be bar, line, pie, area, doughnut, scatter, or bubble; received ${snapshot.type}.`, "unsupported_spreadsheet_chart");
@@ -499,6 +510,9 @@ function wireChart(chart, original) {
     id: snapshot.id,
     name: snapshot.name,
     title: snapshot.title,
+    accessibilityTitle: snapshot.accessibility?.title || "",
+    accessibilityDescription: snapshot.accessibility?.description || "",
+    accessibilityDecorative: snapshot.accessibility?.decorative,
     titleTextStyle: snapshot.titleTextStyle == null ? undefined : { fontSizePoints: snapshot.titleTextStyle.fontSize },
     lineOptions: snapshot.lineOptions == null ? undefined : {
       grouping: snapshot.lineOptions.grouping == null ? undefined : LINE_GROUPINGS_TO_WIRE.get(snapshot.lineOptions.grouping),
@@ -572,7 +586,11 @@ export function wireWorksheetCharts(sheet, state) {
     }
     if (JSON.stringify(current) === JSON.stringify(slot.publicSnapshot)) output.push(slot.wire);
     else {
-      if (slot.wire.source?.editable !== true) fail(slot.chart, "is read-only because its native chart profile is outside the editable subset.", "unsupported_spreadsheet_chart_edit");
+      const chartSpaceSnapshot = (value) => { const { accessibility, name, ...rest } = value; return rest; };
+      const chartSpaceChanged = JSON.stringify(chartSpaceSnapshot(current)) !== JSON.stringify(chartSpaceSnapshot(slot.publicSnapshot));
+      const accessibilityChanged = JSON.stringify(current.accessibility) !== JSON.stringify(slot.publicSnapshot.accessibility);
+      if (chartSpaceChanged && slot.wire.source?.editable !== true) fail(slot.chart, "is read-only because its native chart profile is outside the editable subset.", "unsupported_spreadsheet_chart_edit");
+      if (accessibilityChanged && slot.wire.source?.accessibilityEditable !== true) fail(slot.chart, "accessibility metadata is read-only because its xdr:cNvPr profile is outside the editable subset.", "unsupported_spreadsheet_chart_edit");
       output.push(wireChart(slot.chart, slot.wire));
     }
   }
@@ -698,6 +716,15 @@ export function spreadsheetChartFromWire(sheet, source) {
   const chart = sheet.charts.add(type, {
     name: source.name,
     title: source.title,
+    accessibility: (() => {
+      const accessibility = {
+        ...(source.accessibilityTitle ? { title: source.accessibilityTitle } : {}),
+        ...(source.accessibilityDescription ? { description: source.accessibilityDescription } : {}),
+        ...(source.accessibilityDecorative == null ? {} : { decorative: source.accessibilityDecorative }),
+      };
+      return Object.keys(accessibility).length ? accessibility : undefined;
+    })(),
+    _officeKitAccessibilityEditable: source.source?.accessibilityEditable === true,
     ...(titleTextStyle == null ? {} : { titleTextStyle }),
     ...(lineOptions == null ? {} : { lineOptions }),
     ...(dataLabels == null ? {} : { dataLabels }),

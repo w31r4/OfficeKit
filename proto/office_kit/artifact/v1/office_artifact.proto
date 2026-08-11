@@ -734,6 +734,14 @@ message SpreadsheetImageArtifact {
   SpreadsheetImageEffectsArtifact effects = 10;
   // Optional bounded rotation and mirror attributes on the picture transform.
   SpreadsheetImageTransformArtifact transform = 11;
+  // The legacy alt_text field remains the canonical description field for
+  // wire compatibility. These additive fields complete the independent
+  // xdr:cNvPr title/decorative contract without duplicating description state.
+  string accessibility_title = 12;
+  // Presence distinguishes explicit Office 2019+ decorative false from an
+  // object that has not been classified. True cannot coexist with title or
+  // alt_text.
+  optional bool accessibility_decorative = 13;
 }
 
 enum SpreadsheetChartType {
@@ -778,6 +786,11 @@ message SpreadsheetChartArtifact {
   // category-name booleans plus one optional semantic position. Per-series/
   // per-point labels, text styles, and number formats remain source-owned.
   SpreadsheetChartDataLabelsArtifact data_labels = 16;
+  // Non-visible xdr:cNvPr metadata is independent from the visible ChartSpace
+  // title and from ChartSpace editability.
+  string accessibility_title = 17;
+  string accessibility_description = 18;
+  optional bool accessibility_decorative = 19;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -848,6 +861,9 @@ message SpreadsheetChartSourceBinding {
   string relationship_id = 8;
   uint32 non_visual_id = 9;
   bool editable = 10;
+  // A residual-protected xdr:cNvPr profile can remain editable even when the
+  // native ChartSpace is outside the bounded semantic chart subset.
+  bool accessibility_editable = 11;
 }
 
 // SpreadsheetDrawingML stores one-cell geometry in English Metric Units.
@@ -942,6 +958,9 @@ message SpreadsheetImageSourceBinding {
   string relationship_id = 6;
   uint32 non_visual_id = 7;
   bool editable = 8;
+  // Accessibility metadata is capability-gated separately from picture
+  // geometry/effects because imported extension graphs may be ambiguous.
+  bool accessibility_editable = 9;
 }
 
 // A bounded projection of one worksheet-owned TableDefinitionPart. Cell data

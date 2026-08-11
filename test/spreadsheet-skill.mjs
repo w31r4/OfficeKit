@@ -7,6 +7,7 @@ import JSZip from "jszip";
 
 import { FileBlob, SpreadsheetFile } from "office-kit";
 import { XLSX_CONNECTION_REFRESH_FIXTURE, XLSX_GROWTH_UPDATE_FIXTURE, XLSX_PIVOT_REFRESH_FIXTURE, generateOfficeInput } from "../scripts/agent-eval-office-fixtures.mjs";
+import { auditXlsxAccessibility } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-accessibility-audit-workflow.mjs";
 import { hardenXlsxConnectionRefreshOnOpen } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-connection-refresh-hardening-workflow.mjs";
 import { hardenXlsxPivotRefreshOnLoad } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-pivot-refresh-hardening-workflow.mjs";
 import { replyAndResolveThreadedComment } from "../skills/spreadsheets/skills/spreadsheets/examples/officekit-threaded-comment-reply-workflow.mjs";
@@ -69,6 +70,22 @@ try {
   assert.equal(review.comments[0].text, "Check the modeled margin.");
   assert.equal(review.comments[1].text, "Confirmed against the modeled source data.");
   assert.equal(review.resolved, true);
+
+  const accessibilityReportPath = path.join(outputDir, "accessibility-audit", "report.json");
+  const formulaSourceBeforeAudit = await fs.readFile(formulaResult.workbookPath);
+  const accessibilityResult = await auditXlsxAccessibility({ inputPath: formulaResult.workbookPath, reportPath: accessibilityReportPath });
+  assert.equal(accessibilityResult.report.schema, "office-kit.xlsx-accessibility-audit.v1");
+  assert.equal(accessibilityResult.report.provider.actual, "office-kit");
+  assert.equal(accessibilityResult.report.provider.silentFallback, false);
+  assert.deepEqual(accessibilityResult.report.savePolicy, { strategy: "none", sourceMutation: false, artifactProduced: false });
+  assert.equal(accessibilityResult.report.accessibility.conformanceClaimed, false);
+  assert.equal(accessibilityResult.report.accessibility.machineCheckPassed, false);
+  assert.ok(accessibilityResult.report.accessibility.issues.some((entry) => entry.objectKind === "chart" && entry.type === "unclassifiedDrawing"));
+  assert.equal(accessibilityResult.report.validation.sourceUnchanged, true);
+  assert.equal(accessibilityResult.report.validation.workbookVerify.ok, true);
+  assert.deepEqual(await fs.readFile(formulaResult.workbookPath), formulaSourceBeforeAudit);
+  assert.deepEqual(JSON.parse(await fs.readFile(accessibilityReportPath, "utf8")), accessibilityResult.report);
+  await assert.rejects(() => auditXlsxAccessibility({ inputPath: formulaResult.workbookPath, reportPath: accessibilityReportPath }), /already exists.*refusing to overwrite/i);
 
   const formulaZip = await JSZip.loadAsync(await fs.readFile(formulaResult.workbookPath));
   const summaryXml = await formulaZip.file("xl/worksheets/sheet1.xml").async("text");

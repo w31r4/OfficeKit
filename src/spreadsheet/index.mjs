@@ -8,6 +8,8 @@ import { normalizeSpreadsheetChartTrendlines } from "./chart-trendlines.mjs";
 import { normalizeSpreadsheetChartErrorBars } from "./chart-error-bars.mjs";
 import { resolvedWorksheetChartCategories, resolvedWorksheetChartSeriesBubbleSizes, resolvedWorksheetChartSeriesValues, resolvedWorksheetChartSeriesXValues } from "./chart-source-data.mjs";
 import { renderWorksheetChartSvg } from "./chart-preview.mjs";
+import { initializeSpreadsheetAccessibility, setSpreadsheetAccessibilityMetadata, spreadsheetAccessibilityCapability } from "./accessibility.mjs";
+import { auditSpreadsheetAccessibility } from "./accessibility-audit.mjs";
 import { WorksheetDataTableCollection } from "./data-tables.mjs";
 import { normalizeSpreadsheetDataValidationRecord, spreadsheetDataValidationIssue } from "./data-validations.mjs";
 import { normalizeWorksheetProtection, publicWorksheetProtection } from "./worksheet-protection.mjs";
@@ -712,6 +714,7 @@ class WorksheetChart {
     this.type = chartType;
     this.name = sourceOrConfig.name || `Chart ${worksheet.charts.items.length + 1}`;
     this.title = sourceOrConfig.title || "";
+    this.accessibility = initializeSpreadsheetAccessibility(this, sourceOrConfig, `Worksheet chart ${this.id}`);
     if (sourceOrConfig.titleTextStyle != null && (typeof sourceOrConfig.titleTextStyle !== "object" || Array.isArray(sourceOrConfig.titleTextStyle))) throw new TypeError("Worksheet chart titleTextStyle must be an object.");
     this.titleTextStyle = { ...(sourceOrConfig.titleTextStyle || {}) };
     this.lineOptions = normalizeSpreadsheetChartLineOptions(sourceOrConfig.lineOptions) || undefined;
@@ -748,6 +751,11 @@ class WorksheetChart {
   set xAxis(value) { this._xAxis = normalizeWorksheetChartAxis(value, "x", this.type); }
   get yAxis() { return this._yAxis; }
   set yAxis(value) { this._yAxis = normalizeWorksheetChartAxis(value, "y", this.type); }
+  get accessibilityCapability() { return spreadsheetAccessibilityCapability(this); }
+  setAccessibilityMetadata(update) {
+    this.accessibility = setSpreadsheetAccessibilityMetadata(this, this.accessibility, update, `Worksheet chart ${this.id}`);
+    return this;
+  }
 
   setData(range) {
     const values = range.values;
@@ -812,12 +820,12 @@ class WorksheetChart {
       ...(this.type === "bubble" ? { bubbleSizes: resolvedWorksheetChartSeriesBubbleSizes(this, this.series.items[index]) } : {}),
       values: resolvedWorksheetChartSeriesValues(this, this.series.items[index]),
     }));
-    return { kind: "drawing", drawingType: "chart", id: this.id, sheet: this.worksheet.name, name: this.name, chartType: this.type, title: this.title, titleTextStyle: this.titleTextStyle, lineOptions: this.lineOptions, dataLabels: normalizeSpreadsheetChartDataLabels(this.dataLabels), categories, series: this.series.items.length, seriesItems, xAxis: this.xAxis, yAxis: this.yAxis, bbox: [this.position.left, this.position.top, this.position.width, this.position.height], bboxUnit: "px" };
+    return { kind: "drawing", drawingType: "chart", id: this.id, sheet: this.worksheet.name, name: this.name, chartType: this.type, title: this.title, titleTextStyle: this.titleTextStyle, lineOptions: this.lineOptions, dataLabels: normalizeSpreadsheetChartDataLabels(this.dataLabels), categories, series: this.series.items.length, seriesItems, xAxis: this.xAxis, yAxis: this.yAxis, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, bbox: [this.position.left, this.position.top, this.position.width, this.position.height], bboxUnit: "px" };
   }
 
   toSvg() { return renderWorksheetChartSvg(this); }
 
-  toJSON() { return { id: this.id, type: this.type, name: this.name, title: this.title, titleTextStyle: this.titleTextStyle, lineOptions: normalizeSpreadsheetChartLineOptions(this.lineOptions) || undefined, dataLabels: normalizeSpreadsheetChartDataLabels(this.dataLabels), hasLegend: this.hasLegend, categories: this.categories, position: this.position, series: this.series.toJSON(), xAxis: this.xAxis, yAxis: this.yAxis }; }
+  toJSON() { return { id: this.id, type: this.type, name: this.name, title: this.title, titleTextStyle: this.titleTextStyle, lineOptions: normalizeSpreadsheetChartLineOptions(this.lineOptions) || undefined, dataLabels: normalizeSpreadsheetChartDataLabels(this.dataLabels), hasLegend: this.hasLegend, categories: this.categories, position: this.position, series: this.series.toJSON(), xAxis: this.xAxis, yAxis: this.yAxis, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability }; }
 }
 
 class WorksheetChartCollection {
@@ -864,7 +872,13 @@ class WorksheetImage {
     this.dataUrl = config.dataUrl;
     this.uri = config.uri;
     this.prompt = config.prompt;
-    this.alt = config.alt || config.name || "image";
+    const hasLegacyAlt = Object.hasOwn(config, "alt");
+    const legacyAlt = config.alt == null ? "" : config.alt;
+    if (hasLegacyAlt && config.accessibility?.description != null && config.accessibility.description !== legacyAlt) {
+      throw new TypeError(`Worksheet image ${this.id} alt and accessibility.description must match when both are provided.`);
+    }
+    const accessibility = hasLegacyAlt ? { ...(config.accessibility || {}), ...(legacyAlt === "" ? {} : { description: legacyAlt }) } : config.accessibility;
+    this.accessibility = initializeSpreadsheetAccessibility(this, { ...config, accessibility }, `Worksheet image ${this.id}`);
     this.anchor = config.anchor || { from: { row: 0, col: 0 }, extent: { widthPx: 160, heightPx: 120 } };
     this.fit = config.fit || "contain";
     this.crop = config.crop;
@@ -873,10 +887,37 @@ class WorksheetImage {
   }
 
   get position() { return worksheetAnchorFrame(this.worksheet, this.anchor); }
-  inspectRecord() { const p = this.position; return { kind: "drawing", drawingType: "image", id: this.id, sheet: this.worksheet.name, name: this.name, alt: this.alt, prompt: this.prompt, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", crop: this.crop, effects: this.effects, transform: this.transform }; }
-  replace(config = {}) { Object.assign(this, config); return this; }
+  get alt() { return this.accessibility?.description || ""; }
+  set alt(value) {
+    const next = value == null ? "" : value;
+    if (next === this.alt) return;
+    this.accessibility = setSpreadsheetAccessibilityMetadata(this, this.accessibility, { description: next === "" ? null : next }, `Worksheet image ${this.id}`);
+  }
+  get accessibilityCapability() { return spreadsheetAccessibilityCapability(this); }
+  setAccessibilityMetadata(update) {
+    this.accessibility = setSpreadsheetAccessibilityMetadata(this, this.accessibility, update, `Worksheet image ${this.id}`);
+    return this;
+  }
+  inspectRecord() { const p = this.position; return { kind: "drawing", drawingType: "image", id: this.id, sheet: this.worksheet.name, name: this.name, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", crop: this.crop, effects: this.effects, transform: this.transform }; }
+  replace(config = {}) {
+    const { alt, accessibility, ...rest } = config;
+    let nextAccessibility = this.accessibility;
+    if (accessibility !== undefined) {
+      if (Object.hasOwn(config, "alt") && accessibility?.description != null && accessibility.description !== (alt == null ? "" : alt)) {
+        throw new TypeError(`Worksheet image ${this.id} alt and accessibility.description must match when both are provided.`);
+      }
+      nextAccessibility = setSpreadsheetAccessibilityMetadata(this, nextAccessibility, accessibility, `Worksheet image ${this.id}`);
+    }
+    if (Object.hasOwn(config, "alt")) {
+      const nextAlt = alt == null ? "" : alt;
+      if (nextAlt !== (nextAccessibility?.description || "")) nextAccessibility = setSpreadsheetAccessibilityMetadata(this, nextAccessibility, { description: nextAlt === "" ? null : nextAlt }, `Worksheet image ${this.id}`);
+    }
+    Object.assign(this, rest);
+    this.accessibility = nextAccessibility;
+    return this;
+  }
   toSvg() { const p = this.position; const filters = []; if (this.effects?.grayscale === true) filters.push("grayscale(1)"); const brightness = Number(this.effects?.brightnessPercent); const contrast = Number(this.effects?.contrastPercent); const opacity = Number(this.effects?.opacityPercent); if (Number.isFinite(brightness) && brightness >= -100 && brightness <= 100) filters.push(`brightness(${1 + brightness / 100})`); if (Number.isFinite(contrast) && contrast >= -100 && contrast <= 100) filters.push(`contrast(${1 + contrast / 100})`); const degrees = Number(this.transform?.rotationDegrees); const flipH = this.transform?.flipHorizontal === true ? -1 : 1; const flipV = this.transform?.flipVertical === true ? -1 : 1; const cx = p.left + p.width / 2; const cy = p.top + p.height / 2; const drawingTransform = (Number.isFinite(degrees) || flipH < 0 || flipV < 0) ? ` transform="translate(${cx} ${cy}) rotate(${Number.isFinite(degrees) ? degrees : 0}) scale(${flipH} ${flipV}) translate(${-cx} ${-cy})"` : ""; const visual = `${filters.length ? ` style="filter:${attrEscape(filters.join(" "))}"` : ""}${Number.isFinite(opacity) && opacity >= 0 && opacity <= 100 ? ` opacity="${opacity / 100}"` : ""}${drawingTransform}`; const image = this.dataUrl ? `<image href="${attrEscape(this.dataUrl)}" x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" preserveAspectRatio="xMidYMid meet"${visual}/>` : `<rect x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" fill="#fef3c7" stroke="#f59e0b"${visual}/>`; return `${image}<text x="${p.left + 8}" y="${p.top + 20}" font-family="Arial" font-size="12" fill="#92400e">${xmlEscape(this.alt || this.prompt || this.name)}</text>`; }
-  toJSON() { return { id: this.id, name: this.name, dataUrl: this.dataUrl, uri: this.uri, prompt: this.prompt, alt: this.alt, anchor: this.anchor, fit: this.fit, crop: this.crop, effects: this.effects, transform: this.transform }; }
+  toJSON() { return { id: this.id, name: this.name, dataUrl: this.dataUrl, uri: this.uri, prompt: this.prompt, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, anchor: this.anchor, fit: this.fit, crop: this.crop, effects: this.effects, transform: this.transform }; }
 }
 
 class WorksheetImageCollection {
@@ -1444,6 +1485,15 @@ export class Workbook {
       errors: graph.errors.map((error) => ({ ...error })),
       ...ndjson(records, options.maxChars ?? Infinity),
     };
+  }
+
+  auditAccessibility(options = {}) {
+    if (!options || typeof options !== "object" || Array.isArray(options)) throw new TypeError("Workbook accessibility audit options must be an object.");
+    const records = this.worksheets.items.flatMap((sheet) => [
+      ...sheet.images.items.map((image) => ({ sheet: sheet.name, id: image.id, name: image.name || undefined, kind: "image", accessibility: image.accessibility ? { ...image.accessibility } : undefined })),
+      ...sheet.charts.items.map((chart) => ({ sheet: sheet.name, id: chart.id, name: chart.name || undefined, kind: "chart", accessibility: chart.accessibility ? { ...chart.accessibility } : undefined })),
+    ]);
+    return auditSpreadsheetAccessibility(records, { ...options, sheetCount: this.worksheets.items.length });
   }
 
   inspect(options = {}) {

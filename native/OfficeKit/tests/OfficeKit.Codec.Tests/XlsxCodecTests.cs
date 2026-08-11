@@ -10,6 +10,7 @@ using System.Security.Cryptography;
 using System.Xml.Linq;
 using Xunit;
 using A = DocumentFormat.OpenXml.Drawing;
+using AD = DocumentFormat.OpenXml.Office2019.Drawing;
 using TC = DocumentFormat.OpenXml.Office2019.Excel.ThreadedComments;
 using Xdr = DocumentFormat.OpenXml.Drawing.Spreadsheet;
 
@@ -3445,6 +3446,8 @@ public sealed class XlsxCodecTests
         var image = Assert.Single(imported.Artifact.Workbook.Worksheets[0].Images);
         Assert.Equal("Quarter mark", image.Name);
         Assert.Equal("Quarterly performance", image.AltText);
+        Assert.Equal("Quarter performance image", image.AccessibilityTitle);
+        Assert.True(image.Source.AccessibilityEditable);
         Assert.Equal(asset.Id, image.AssetId);
         Assert.Equal(3U, image.Anchor.Row);
         Assert.Equal(2U, image.Anchor.Column);
@@ -3455,6 +3458,7 @@ public sealed class XlsxCodecTests
 
         image.Name = "Updated quarter mark";
         image.AltText = "Updated quarterly performance";
+        image.AccessibilityTitle = "Updated performance image";
         image.Anchor.Row = 5;
         image.Anchor.Column = 4;
         image.Anchor.WidthEmu = 1_524_000L;
@@ -3466,6 +3470,7 @@ public sealed class XlsxCodecTests
         var reimported = Import(preserved.File.ToByteArray());
         Assert.True(reimported.Ok, string.Join("\n", reimported.Diagnostics.Select(item => $"{item.Code}: {item.Message}")));
         Assert.Equal("Updated quarter mark", Assert.Single(reimported.Artifact.Workbook.Worksheets[0].Images).Name);
+        Assert.Equal("Updated performance image", Assert.Single(reimported.Artifact.Workbook.Worksheets[0].Images).AccessibilityTitle);
         Assert.Equal(asset.Data, Assert.Single(reimported.Artifact.Assets).Data);
 
         var removed = Import(source);
@@ -3494,6 +3499,35 @@ public sealed class XlsxCodecTests
         rejected = Export(tampered.Artifact);
         Assert.False(rejected.Ok);
         Assert.Equal("spreadsheet_image_source_binding_mismatch", Assert.Single(rejected.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void ProtocolAuthorsDecorativeWorksheetPictureAccessibilityAndRejectsConflictingText()
+    {
+        var request = PictureExportRequest();
+        var image = request.Artifact.Workbook.Worksheets[0].Images[0];
+        image.AltText = string.Empty;
+        image.AccessibilityTitle = string.Empty;
+        image.AccessibilityDecorative = true;
+        var authored = CodecResponse.Parser.ParseFrom(CodecProtocol.Invoke(request.ToByteArray()));
+        Assert.True(authored.Ok, string.Join("\n", authored.Diagnostics.Select(item => $"{item.Code}: {item.Message}")));
+        AssertOffice2021Valid(authored.File.ToByteArray());
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var document = SpreadsheetDocument.Open(stream, false))
+        {
+            var nonVisual = document.WorkbookPart!.WorksheetParts.Single().DrawingsPart!.WorksheetDrawing!.Descendants<Xdr.NonVisualDrawingProperties>().Single();
+            Assert.True(nonVisual.Descendants<AD.Decorative>().Single().Val!.Value);
+        }
+        var imported = Import(authored.File.ToByteArray());
+        var roundTripped = Assert.Single(imported.Artifact.Workbook.Worksheets[0].Images);
+        Assert.True(roundTripped.HasAccessibilityDecorative);
+        Assert.True(roundTripped.AccessibilityDecorative);
+        Assert.True(roundTripped.Source.AccessibilityEditable);
+
+        image.AltText = "Conflicting description";
+        var rejected = CodecResponse.Parser.ParseFrom(CodecProtocol.Invoke(request.ToByteArray()));
+        Assert.False(rejected.Ok);
+        Assert.Equal("invalid_spreadsheet_image", Assert.Single(rejected.Diagnostics).Code);
     }
 
     [Fact]
@@ -3604,12 +3638,17 @@ public sealed class XlsxCodecTests
         Assert.Equal(25, chart.YAxis.MajorUnit);
         Assert.Equal(9, chart.YAxis.TextStyle.FontSizePoints);
         Assert.True(chart.Source.Editable);
+        Assert.True(chart.Source.AccessibilityEditable);
+        Assert.Equal("Quarterly trend chart", chart.AccessibilityTitle);
+        Assert.Equal("Revenue increases from Q1 to Q2.", chart.AccessibilityDescription);
         Assert.Equal(64, chart.Source.DrawingXmlSha256.Length);
         Assert.Equal(64, chart.Source.ChartXmlSha256.Length);
         Assert.Equal(64, chart.Source.SemanticSha256.Length);
 
         sheet.Images[0].Name = "Picture edited with chart";
         chart.Name = "Edited native chart";
+        chart.AccessibilityTitle = "Edited trend chart";
+        chart.AccessibilityDescription = "Actual revenue increases to 90 in Q2.";
         chart.Title = "Edited quarter trend";
         chart.TitleTextStyle.FontSizePoints = 15;
         chart.HasLegend = false;
@@ -3668,6 +3707,9 @@ public sealed class XlsxCodecTests
             var drawingPart = document.WorkbookPart!.WorksheetParts.Single().DrawingsPart!;
             Assert.Equal("Picture edited with chart", drawingPart.WorksheetDrawing!.Descendants<Xdr.Picture>().Single().NonVisualPictureProperties!.NonVisualDrawingProperties!.Name!.Value);
             Assert.Equal("Edited native chart", drawingPart.WorksheetDrawing.Descendants<Xdr.GraphicFrame>().Single().NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Name!.Value);
+            var chartNonVisual = drawingPart.WorksheetDrawing.Descendants<Xdr.GraphicFrame>().Single().NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!;
+            Assert.Equal("Edited trend chart", chartNonVisual.GetAttribute("title", string.Empty).Value);
+            Assert.Equal("Actual revenue increases to 90 in Q2.", chartNonVisual.Description!.Value);
             var xml = ReadPartText(drawingPart.ChartParts.Single());
             Assert.Contains("Edited quarter trend", xml, StringComparison.Ordinal);
             Assert.Contains("Q2 actual", xml, StringComparison.Ordinal);
@@ -3687,6 +3729,9 @@ public sealed class XlsxCodecTests
         Assert.Equal(1.5, preservedTrendline.Forward);
         Assert.True(preservedTrendline.DisplayRSquared);
         Assert.Equal("0EA5E9", preservedTrendline.Line.Color.Rgb);
+        var preservedChart = Assert.Single(Import(preserved.File.ToByteArray()).Artifact.Workbook.Worksheets[0].Charts);
+        Assert.Equal("Edited trend chart", preservedChart.AccessibilityTitle);
+        Assert.Equal("Actual revenue increases to 90 in Q2.", preservedChart.AccessibilityDescription);
         var preservedErrorBars = Assert.Single(Import(preserved.File.ToByteArray()).Artifact.Workbook.Worksheets[0].Charts).Series[0].ErrorBars;
         Assert.Equal([4.25, 9D], preservedErrorBars.Plus.Values);
         Assert.Equal([1.5, 3D], preservedErrorBars.Minus.Values);
@@ -5750,6 +5795,7 @@ public sealed class XlsxCodecTests
             Id = "worksheet/summary/image/quarter-mark",
             Name = "Quarter mark",
             AltText = "Quarterly performance",
+            AccessibilityTitle = "Quarter performance image",
             AssetId = asset.Id,
             Anchor = new SpreadsheetOneCellAnchorArtifact
             {
@@ -5772,6 +5818,8 @@ public sealed class XlsxCodecTests
             Id = "worksheet/summary/chart/quarter-trend",
             Name = "Quarter chart",
             Title = "Quarter trend",
+            AccessibilityTitle = "Quarterly trend chart",
+            AccessibilityDescription = "Revenue increases from Q1 to Q2.",
             TitleTextStyle = new SpreadsheetChartTextStyleArtifact { FontSizePoints = 12 },
             Type = SpreadsheetChartType.Line,
             HasLegend = true,

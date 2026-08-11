@@ -13,6 +13,8 @@ Dependencies used by this tool:
 - jxr-tools (or libjxr-tools on older distros): JxrDecApp for JPEG XR (JXR/WDP)
 """
 
+from __future__ import annotations
+
 import argparse
 import gzip
 import sys

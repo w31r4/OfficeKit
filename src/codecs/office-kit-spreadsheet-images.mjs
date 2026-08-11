@@ -128,6 +128,8 @@ export function spreadsheetImageSnapshot(image) {
     id: String(image.id || ""),
     name: String(image.name || ""),
     alt: String(image.alt || ""),
+    accessibilityTitle: image.accessibility?.title == null ? undefined : String(image.accessibility.title),
+    accessibilityDecorative: image.accessibility?.decorative,
     dataUrl: String(image.dataUrl || ""),
     fit: String(image.fit || "contain"),
     anchorType: String(anchor.type || (anchor.to ? "twoCell" : "oneCell")),
@@ -193,11 +195,16 @@ function wireImage(image, assets, source) {
   if (!ANCHOR_TYPES.has(snapshot.anchorType)) fail(image, `anchor.type must be oneCell, twoCell, or absolute; received ${snapshot.anchorType}.`);
   if (!snapshot.id || snapshot.id.length > 512 || /\p{Cc}/u.test(snapshot.id)) fail(image, "id must contain 1 through 512 characters without controls.");
   if (!snapshot.name || snapshot.name.length > 255 || /\p{Cc}/u.test(snapshot.name)) fail(image, "name must contain 1 through 255 characters without controls.");
-  if (snapshot.alt.length > 32_767 || /\p{Cc}/u.test(snapshot.alt)) fail(image, "alt text must contain at most 32767 characters without controls.");
+  if (snapshot.alt.length > 1_024 || /\p{Cc}/u.test(snapshot.alt)) fail(image, "alt text must contain at most 1024 characters without controls.");
+  if (snapshot.accessibilityTitle != null && (snapshot.accessibilityTitle.length < 1 || snapshot.accessibilityTitle.length > 1_024 || /\p{Cc}/u.test(snapshot.accessibilityTitle))) fail(image, "accessibility.title must contain 1 through 1024 characters without controls.");
+  if (snapshot.accessibilityDecorative != null && typeof snapshot.accessibilityDecorative !== "boolean") fail(image, "accessibility.decorative must be a boolean.");
+  if (snapshot.accessibilityDecorative === true && (snapshot.alt || snapshot.accessibilityTitle)) fail(image, "accessibility cannot combine decorative true with title or alt text.");
   const output = {
     id: snapshot.id,
     name: snapshot.name,
     altText: snapshot.alt,
+    accessibilityTitle: snapshot.accessibilityTitle || "",
+    accessibilityDecorative: snapshot.accessibilityDecorative,
     assetId: asset.id,
     source,
   };
@@ -251,7 +258,16 @@ export function wireWorksheetImages(sheet, state, assets) {
       output.push(slot.wire);
       const asset = assetFromImage(slot.image);
       if (!assets.has(asset.id)) assets.set(asset.id, asset);
-    } else output.push(wireImage(slot.image, assets, slot.wire.source));
+    } else {
+      const current = spreadsheetImageSnapshot(slot.image);
+      const accessibilityChanged = current.alt !== slot.publicSnapshot.alt ||
+        current.accessibilityTitle !== slot.publicSnapshot.accessibilityTitle ||
+        current.accessibilityDecorative !== slot.publicSnapshot.accessibilityDecorative;
+      if (accessibilityChanged && slot.wire.source?.accessibilityEditable !== true) {
+        fail(slot.image, "accessibility metadata is read-only because its xdr:cNvPr profile is outside the editable subset.", "unsupported_spreadsheet_image_edit");
+      }
+      output.push(wireImage(slot.image, assets, slot.wire.source));
+    }
   }
   if (state && remaining.size) {
     const image = [...remaining][0];
@@ -381,7 +397,15 @@ export function spreadsheetImageFromWire(sheet, source, assets) {
   const image = sheet.images.add({
     id: source.id,
     name: source.name,
-    alt: source.altText,
+    accessibility: (() => {
+      const accessibility = {
+        ...(source.accessibilityTitle ? { title: source.accessibilityTitle } : {}),
+        ...(source.altText ? { description: source.altText } : {}),
+        ...(source.accessibilityDecorative == null ? {} : { decorative: source.accessibilityDecorative }),
+      };
+      return Object.keys(accessibility).length ? accessibility : undefined;
+    })(),
+    _officeKitAccessibilityEditable: source.source?.accessibilityEditable === true,
     dataUrl: dataUrl(assets.get(source.assetId), source),
     fit: "contain",
     anchor: publicAnchor,

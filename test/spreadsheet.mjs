@@ -162,6 +162,7 @@ assert.throws(
 const bar = sheet.charts.add("bar", sheet.getRange("A1:C4"));
 bar.name = "Bar chart";
 bar.title = "Revenue and cost";
+bar.setAccessibilityMetadata({ title: "Quarterly revenue and cost chart", description: "Revenue and cost both rise from January through March." });
 bar.setPosition("H1", "L10");
 const line = sheet.charts.add("line", sheet.getRange("A1:C4"));
 line.name = "Line chart";
@@ -221,12 +222,34 @@ scatter.xAxis = { title: { text: "Units" }, min: 0, max: 40, majorUnit: 10, numb
 scatter.yAxis = { title: { text: "Price" }, min: 0, max: 100, majorUnit: 20, numberFormatCode: "$0" };
 scatter.series.items[0].marker = { symbol: "diamond", size: 8, fill: "#38BDF8" };
 scatter.setPosition("M24", "Q34");
-sheet.images.add({
+const statusImage = sheet.images.add({
   name: "Status mark",
   alt: "Green status marker",
+  accessibility: { title: "Overall status", description: "Green status marker" },
   dataUrl: PNG_DATA_URL,
   anchor: { from: { row: 6, col: 0, rowOffsetPx: 4, colOffsetPx: 4 }, extent: { widthPx: 64, heightPx: 48 } },
 });
+assert.deepEqual(statusImage.accessibilityCapability, { sourceBound: false, editable: true, addable: true });
+
+const accessibilityWorkbook = Workbook.create();
+const accessibilitySheet = accessibilityWorkbook.worksheets.add("Audit");
+accessibilitySheet.getRange("A1:B2").values = [["Category", "Value"], ["Ready", 1]];
+const unnamedAltImage = accessibilitySheet.images.add({ name: "Internal filename.png", dataUrl: PNG_DATA_URL });
+const accessibilityChart = accessibilitySheet.charts.add("bar", accessibilitySheet.getRange("A1:B2"));
+assert.equal(unnamedAltImage.alt, "");
+const incompleteAccessibilityAudit = accessibilityWorkbook.auditAccessibility({ maxChars: 20_000 });
+assert.equal(incompleteAccessibilityAudit.conformanceClaimed, false);
+assert.equal(incompleteAccessibilityAudit.machineCheckPassed, false);
+assert.deepEqual(incompleteAccessibilityAudit.issues.map((entry) => entry.type), ["unclassifiedDrawing", "unclassifiedDrawing"]);
+assert.deepEqual(incompleteAccessibilityAudit.issues.map((entry) => entry.objectKind), ["image", "chart"]);
+assert.throws(() => accessibilityWorkbook.auditAccessibility([]), /options must be an object/i);
+assert.throws(() => unnamedAltImage.setAccessibilityMetadata({ decorative: true, description: "conflict" }), /cannot combine decorative/i);
+unnamedAltImage.setAccessibilityMetadata({ description: "A green readiness indicator." });
+accessibilityChart.setAccessibilityMetadata({ decorative: true });
+const completeAccessibilityAudit = accessibilityWorkbook.auditAccessibility();
+assert.equal(completeAccessibilityAudit.machineCheckPassed, true);
+assert.equal(completeAccessibilityAudit.manualReviewRequired, true);
+assert.deepEqual(completeAccessibilityAudit.summary, { sheets: 1, drawings: 2, meaningfulDrawings: 1, decorativeDrawings: 1, unclassifiedDrawings: 0, missingTextDrawings: 0 });
 
 workbook.comments.setSelf({ displayName: "Spreadsheet Agent" });
 const marginReviewThread = workbook.comments.addThread(
@@ -368,7 +391,11 @@ assert.deepEqual(importedSheet.protection, {
 });
 assert.equal(importedSheet.tables.items[0].name, "SummaryTable");
 assert.equal(importedSheet.images.items[0].alt, "Green status marker");
+assert.deepEqual(importedSheet.images.items[0].accessibility, { title: "Overall status", description: "Green status marker" });
+assert.deepEqual(importedSheet.images.items[0].accessibilityCapability, { sourceBound: true, editable: true, addable: true });
 assert.deepEqual(importedSheet.charts.items.map((chart) => chart.type), ["bar", "line", "pie", "area", "doughnut", "scatter"]);
+assert.deepEqual(importedSheet.charts.items[0].accessibility, { title: "Quarterly revenue and cost chart", description: "Revenue and cost both rise from January through March." });
+assert.deepEqual(importedSheet.charts.items[0].accessibilityCapability, { sourceBound: true, editable: true, addable: true });
 const importedLine = importedSheet.charts.items[1];
 assert.deepEqual(importedLine.series.items[0].trendlines.map((trendline) => trendline.type), ["linear", "movingAvg", "poly"]);
 assert.equal(importedLine.series.items[0].trendlines[0].name, "Revenue projection");
@@ -691,6 +718,13 @@ assert.equal(preservedUnsupportedChart.series.items[0].trendlines, undefined);
 const preservedUnsupportedOutput = await SpreadsheetFile.exportXlsx(preservedUnsupportedTrendline);
 const preservedUnsupportedZip = await JSZip.loadAsync(new Uint8Array(await preservedUnsupportedOutput.arrayBuffer()));
 assert.equal(await preservedUnsupportedZip.file(unsupportedTrendlinePath).async("text"), unsupportedTrendlineXml);
+assert.deepEqual(preservedUnsupportedChart.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+preservedUnsupportedChart.name = "Renamed residual chart";
+preservedUnsupportedChart.setAccessibilityMetadata({ description: "A line chart with a source-owned trendline label." });
+const accessibleUnsupportedOutput = await SpreadsheetFile.exportXlsx(preservedUnsupportedTrendline);
+const accessibleUnsupportedZip = await JSZip.loadAsync(new Uint8Array(await accessibleUnsupportedOutput.arrayBuffer()));
+assert.equal(await accessibleUnsupportedZip.file(unsupportedTrendlinePath).async("text"), unsupportedTrendlineXml);
+assert.match(await accessibleUnsupportedZip.file("xl/drawings/drawing1.xml").async("text"), /name="Renamed residual chart"[^>]*descr="A line chart with a source-owned trendline label\."/);
 preservedUnsupportedChart.title = "Forbidden trendline-label edit";
 await assert.rejects(
   () => SpreadsheetFile.exportXlsx(preservedUnsupportedTrendline),
