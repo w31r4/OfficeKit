@@ -31,6 +31,11 @@ the standalone distribution ran locally. Managed specialist-provider tests
 that require explicit live-pack or provider-Python environment variables were
 reported as skips rather than treated as provider execution evidence.
 
+The clean committed candidate packs 724 files at 36,252,654 bytes compressed
+and 53,509,900 bytes unpacked (`shasum
+1db133ce2c81e6b93da38ccd5302dfb1a2c793cc`). The unpacked budget is narrowly
+advanced to 53,530,000 bytes, leaving 20,100 bytes of explicit headroom.
+
 The slow gate also exposed and closed a packaged Presentation helper regression:
 modern Python union annotations are now postponed, allowing the public Poppler
 raster path and montage importer to load under the macOS system Python 3.9.

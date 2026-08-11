@@ -175,8 +175,8 @@ const maxPackedBytes = 37_500_000;
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
 // Keep measured headroom for bounded codec/Skill growth without concealing
 // specialist binaries or generated repository evidence in the tarball. The
-// read-only Spreadsheet accessibility slice measured 53,510,098 bytes before
-// clean-candidate packaging; its audited ceiling retains under 20 KiB.
+// read-only Spreadsheet accessibility slice measures 53,509,900 bytes in the
+// clean candidate package; its audited ceiling retains 20,100 bytes.
 const maxUnpackedBytes = 53_530_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
