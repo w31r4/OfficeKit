@@ -351,6 +351,7 @@ for (const required of [
   "skills/documents/skills/documents/examples/officekit-header-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-image-alt-text-edit-workflow.mjs",
+  "skills/documents/skills/documents/examples/officekit-hyperlink-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-section-page-numbering-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-section-margin-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-section-page-geometry-edit-workflow.mjs",

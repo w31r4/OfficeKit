@@ -6,7 +6,9 @@ import { DocumentFile, FileBlob } from "office-kit";
 import {
   DOCX_MIME,
   assertAbsent,
+  canonicalizeXmlForResidual,
   changedParts,
+  directBodyElements,
   packageVersion,
   publishNoReplace,
   readPackagePartText,
@@ -15,13 +17,6 @@ import {
 } from "../artifact_tool/_source_bound_docx.mjs";
 
 const MAX_ALT_TEXT_CHARS = 32_767;
-const MOVABLE_NAMESPACES = new Map([
-  ["xmlns:w", "http://schemas.openxmlformats.org/wordprocessingml/2006/main"],
-  ["xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"],
-  ["xmlns:wp", "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"],
-  ["xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"],
-  ["xmlns:pic", "http://schemas.openxmlformats.org/drawingml/2006/picture"],
-]);
 
 function equalJson(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
@@ -105,37 +100,6 @@ function exactlyOne(markups, label) {
   return markups[0];
 }
 
-function directBodyElements(xml, label) {
-  const source = String(xml);
-  const bodyMatch = /<w:body\b[^>]*>([\s\S]*)<\/w:body>/.exec(source);
-  if (!bodyMatch) throw new Error(`${label} has no canonical w:body container.`);
-  const bodyStart = (bodyMatch.index ?? 0) + bodyMatch[0].indexOf(">") + 1;
-  const inner = bodyMatch[1];
-  const elements = [];
-  const stack = [];
-  for (const match of inner.matchAll(/<\/?[\w:.-]+\b[^>]*>/g)) {
-    const token = match[0];
-    if (/^<\?/.test(token) || /^<!/.test(token)) throw new Error(`${label} has unsupported markup inside w:body.`);
-    const closing = /^<\/([\w:.-]+)\s*>$/.exec(token);
-    if (closing) {
-      const current = stack.pop();
-      if (!current || current.name !== closing[1]) throw new Error(`${label} has an unbalanced ${token} element.`);
-      if (!stack.length) elements.push({ name: current.name, offset: bodyStart + current.offset, xml: inner.slice(current.offset, (match.index ?? 0) + token.length) });
-      continue;
-    }
-    const opening = /^<([\w:.-]+)\b[^>]*>$/.exec(token);
-    if (!opening) throw new Error(`${label} has unsupported XML token ${token}.`);
-    const selfClosing = /\/>$/.test(token);
-    if (selfClosing) {
-      if (!stack.length) elements.push({ name: opening[1], offset: bodyStart + (match.index ?? 0), xml: token });
-      continue;
-    }
-    stack.push({ name: opening[1], offset: match.index ?? 0 });
-  }
-  if (stack.length) throw new Error(`${label} has an unclosed ${stack.at(-1).name} element.`);
-  return elements;
-}
-
 function selfClosingMatches(xml, qualifiedName) {
   return [...String(xml).matchAll(new RegExp(`<${qualifiedName}\\b[^>]*\\/>`, "g"))].map((match) => match[0]);
 }
@@ -175,33 +139,6 @@ function rawImageParagraphs(xml, label) {
     });
   }
   return images;
-}
-
-function canonicalizeImageResidual(xml, label) {
-  return String(xml).replace(/<[^>]+>/g, (tag) => {
-    if (/^<\?/.test(tag) || /^<!/.test(tag) || /^<\//.test(tag)) return tag;
-    const match = /^<([\w:.-]+)((?:\s+[:\w.-]+="[^"]*")*)\s*(\/?)>$/.exec(tag);
-    if (!match) throw new Error(`${label} contains unsupported XML markup during residual comparison.`);
-    const [, name, rawAttributes, slash] = match;
-    const attributes = [];
-    let rest = rawAttributes;
-    while (rest) {
-      const attribute = /^\s+([:\w.-]+)="([^"]*)"/.exec(rest);
-      if (!attribute) throw new Error(`${label} contains unsupported XML attributes during residual comparison.`);
-      const [, attributeName, value] = attribute;
-      if (MOVABLE_NAMESPACES.has(attributeName)) {
-        if (MOVABLE_NAMESPACES.get(attributeName) !== value) {
-          throw new Error(`${label} changes the ${attributeName} namespace binding.`);
-        }
-      } else {
-        attributes.push([attributeName, value]);
-      }
-      rest = rest.slice(attribute[0].length);
-    }
-    attributes.sort(([left], [right]) => left.localeCompare(right));
-    const suffix = attributes.length ? ` ${attributes.map(([attributeName, value]) => `${attributeName}="${value}"`).join(" ")}` : "";
-    return `<${name}${suffix}${slash}>`;
-  });
 }
 
 function imageSnapshot(block, blockIndex, imageOrdinal) {
@@ -261,7 +198,7 @@ function normalizedTargetImageXml(xml, selected, expectedImageCount, expectedAlt
     .replace(target.nonVisualMarkup, replaceCanonicalDescription(target.nonVisualMarkup, "pic:cNvPr", "officeKitAltTextMasked", `${label} pic:cNvPr`));
   return {
     placement: target.placement,
-    normalized: canonicalizeImageResidual(
+    normalized: canonicalizeXmlForResidual(
       `${xml.slice(0, target.offset)}${maskedParagraph}${xml.slice(target.offset + target.paragraph.length)}`,
       label,
     ),

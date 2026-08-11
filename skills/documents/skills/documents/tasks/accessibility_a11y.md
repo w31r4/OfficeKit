@@ -90,7 +90,26 @@ duplicate, explicit-value, extension-bearing, merged, nested, or irregular
 inputs. It does not infer header semantics from bold text or fill. The Python
 audit helper remains explicit when you deliberately want its report/fix policy.
 
-### 3) Review non-visible table alternative text
+### 4) Repair one imported hyperlink label
+When an audit finds an empty label, or a reviewer replaces generic/raw-URL text,
+bind the imported block index, complete current text, and exact destination:
+
+```bash
+officekit run examples/officekit-hyperlink-text-edit-workflow.mjs \
+  input.docx reviewed.docx hyperlink-text.audit.json 4 \
+  "https://example.com/accessibility" "" \
+  "Read the accessibility guide"
+```
+
+The workflow changes one canonical whole-paragraph hyperlink's native `w:t`
+leaf only, preserves its http(s) URL or bookmark destination, relationship ID,
+tooltip, history flag, paragraph/run formatting, and every non-document package
+part, then reimports and reruns the accessibility audit. Empty replacement
+text, stale source facts, rich/multi-run/nested/table/textbox hyperlinks,
+destination edits, output collisions, and package drift fail closed. A person
+must still judge whether the new label communicates the destination's purpose.
+
+### 5) Review non-visible table alternative text
 Table alternative text is not a visible caption. When a reviewer supplies the
 actual title and description for one imported canonical table, bind both the
 inspected block index and the complete current metadata, then use the

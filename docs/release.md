@@ -1,6 +1,49 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-11): Presentation object accessibility repair
+## Current 0.6.0 candidate (2026-08-11): Document hyperlink text repair
+
+The Documents Skill now has one official source-bound transaction for repairing
+an empty or stale visible label on a canonical imported-DOCX hyperlink. The
+packaged `officekit-hyperlink-text-edit-workflow.mjs` binds the hyperlink's
+direct-body block index, exact prior text, and exact external URL or internal
+bookmark destination before changing the single visible `w:t` leaf. Empty prior
+text is allowed; replacement text must be visible, bounded, and control-free.
+
+The transaction imports and exports only through the public `DocumentFile`
+surface and OfficeKit Codec. It protects the immutable input hash, refuses
+output or audit collisions, and permits only `word/document.xml` to change.
+Raw-package comparison masks only the target text leaf and its necessary
+`xml:space` attribute. A second import must preserve the link destination,
+relationship identity, tooltip/history metadata, formatting, sibling links,
+and the complete non-target document projection. Verification, the document
+accessibility audit, and normalized model-SVG comparison must all pass before
+the DOCX and byte-bound audit are published.
+
+Rich or multi-run links, nested/table/textbox links, field-based links,
+irregular relationship graphs, stale preconditions, and ambiguous targets fail
+closed. The workflow repairs one machine-detectable label issue; it does not
+claim Microsoft Word Accessibility Checker, WCAG, link-purpose, reading-order,
+or whole-document conformance, and it still requires native render review.
+
+Local candidate evidence covers the complete 26-step fast gate and all 75 slow
+steps, generated API docs, protocol validation, OfficeKit Codec 401/401,
+OfficeBridge 5/5, deterministic OfficeKit WASM (39-file comparison; runtime 38
+files / 15,422,187 bytes), clean-install package smoke, standalone distribution,
+both Live Add-in builds, the twenty-template matrix, Playwright, LibreOffice,
+and Poppler. Managed PDF live-pack tests and separately configured pypdf,
+pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python runtimes remain
+explicit skips rather than provider-execution evidence.
+
+The isolated staged snapshot measured immediately before this evidence record
+was refreshed excludes the user's unrelated README edits and packs 728 files
+at 36,266,583 bytes compressed and 53,575,203 bytes unpacked (`shasum
+b5cb5315f74117136d6f8749e9ba10ede7d6e5af`). The existing 53,580,000-byte
+unpacked ceiling leaves 4,797 bytes of headroom. `npm whoami` reports
+`ENEEDAUTH`, so npm publication and a tagged release were not attempted.
+Hosted CI for this candidate and Windows Microsoft Office host acceptance also
+remain pending external evidence.
+
+## Prior 0.6.0 candidate: Presentation object accessibility repair
 
 The Presentation Skill now closes the gap between its read-only accessibility
 audit and the six existing typed metadata setters. The packaged
@@ -5624,6 +5667,33 @@ execution remained explicit environment skips. npm authentication is still
 unavailable, `office-kit` is not present in the registry, current HEAD is not
 tagged, Windows Office acceptance remains outstanding, and no publish, tag, or
 release operation was attempted.
+
+### DOCX source-bound hyperlink accessibility-text transaction
+
+`officekit-hyperlink-text-edit-workflow.mjs` closes the official repair path
+for an empty, generic, or raw-URL label already reported by the document
+accessibility audit. The transaction binds one imported block index, complete
+old text (including the empty string), and exact `http`/`https` or bookmark
+destination. It changes only that canonical whole-paragraph hyperlink's
+`w:t` text and necessary `xml:space` state in `word/document.xml`.
+
+The Skill independently segments only direct `w:body` children, masks that one
+text leaf, compares a namespace-tolerant raw XML residual, requires every other
+package part byte-identical, and reimports the complete hyperlink projection.
+The destination, relationship ID, tooltip/history, paragraph/run formatting,
+and sibling links remain fixed. It then reruns document accessibility audit,
+verify, model render, and native-render review before a private/no-replace
+audit and output publication. Stale source facts, empty/no-op replacements,
+rich or multi-run links, nested/table/textbox/field-bearing links, output
+collisions, and package drift fail closed. This repairs a bounded native label;
+it does not infer author intent or claim Word Accessibility Checker, WCAG, or
+whole-document conformance.
+
+The shared direct-body XML segmentation primitive moved from the image-only
+workflow into `_source_bound_docx.mjs`, so hyperlink and image transactions use
+one source-of-truth boundary for direct versus nested Word content. The image
+workflow retains its paired `wp:docPr`/`pic:cNvPr` residual behavior and full
+regression coverage.
 
 ## Publishing
 

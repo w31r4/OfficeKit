@@ -10,6 +10,9 @@ export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordproc
 const MOVABLE_NAMESPACE_DECLARATIONS = new Map([
   ["xmlns:w", "http://schemas.openxmlformats.org/wordprocessingml/2006/main"],
   ["xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"],
+  ["xmlns:wp", "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"],
+  ["xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"],
+  ["xmlns:pic", "http://schemas.openxmlformats.org/drawingml/2006/picture"],
 ]);
 const require = createRequire(import.meta.url);
 
@@ -65,6 +68,45 @@ export async function readPackagePartText(bytes, partPath, label = "DOCX package
   const entry = zip.file(partPath);
   if (!entry) throw new Error(`${label} has no ${partPath} part.`);
   return entry.async("text");
+}
+
+// Split only the immediate children of w:body. This deliberately does not
+// pretend that nested table/textbox paragraphs are ordinary body blocks.
+export function directBodyElements(xml, label = "DOCX document.xml") {
+  const source = String(xml);
+  const bodyMatch = /<w:body\b[^>]*>([\s\S]*)<\/w:body>/.exec(source);
+  if (!bodyMatch) throw new Error(`${label} has no canonical w:body container.`);
+  const bodyStart = (bodyMatch.index ?? 0) + bodyMatch[0].indexOf(">") + 1;
+  const inner = bodyMatch[1];
+  const elements = [];
+  const stack = [];
+  for (const match of inner.matchAll(/<\/?[\w:.-]+\b[^>]*>/g)) {
+    const token = match[0];
+    if (/^<\?/.test(token) || /^<!/.test(token)) throw new Error(`${label} has unsupported markup inside w:body.`);
+    const closing = /^<\/([\w:.-]+)\s*>$/.exec(token);
+    if (closing) {
+      const current = stack.pop();
+      if (!current || current.name !== closing[1]) throw new Error(`${label} has an unbalanced ${token} element.`);
+      if (!stack.length) {
+        elements.push({
+          name: current.name,
+          offset: bodyStart + current.offset,
+          xml: inner.slice(current.offset, (match.index ?? 0) + token.length),
+        });
+      }
+      continue;
+    }
+    const opening = /^<([\w:.-]+)\b[^>]*>$/.exec(token);
+    if (!opening) throw new Error(`${label} has unsupported XML token ${token}.`);
+    const selfClosing = /\/>$/.test(token);
+    if (selfClosing) {
+      if (!stack.length) elements.push({ name: opening[1], offset: bodyStart + (match.index ?? 0), xml: token });
+      continue;
+    }
+    stack.push({ name: opening[1], offset: match.index ?? 0 });
+  }
+  if (stack.length) throw new Error(`${label} has an unclosed ${stack.at(-1).name} element.`);
+  return elements;
 }
 
 // Open XML SDK may move a relationship namespace declaration from an individual

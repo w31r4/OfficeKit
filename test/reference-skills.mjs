@@ -278,6 +278,7 @@ assert.ok(documentsManifest.includes("examples/officekit-accessibility-audit-wor
 assert.ok(documentsManifest.includes("examples/officekit-classic-comment-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-board-review-surgical-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-image-alt-text-edit-workflow.mjs"));
+assert.ok(documentsManifest.includes("examples/officekit-hyperlink-text-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-section-page-numbering-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-section-margin-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-section-page-geometry-edit-workflow.mjs"));
@@ -298,6 +299,8 @@ assert.match(documentsSkillText, /officekit-section-page-numbering-edit-workflow
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-section-page-numbering-edit-workflow.mjs")));
 assert.match(documentsSkillText, /officekit-image-alt-text-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-image-alt-text-edit-workflow.mjs")));
+assert.match(documentsSkillText, /officekit-hyperlink-text-edit-workflow\.mjs/);
+assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-hyperlink-text-edit-workflow.mjs")));
 assert.match(documentsSkillText, /officekit-section-margin-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(documentsSkillRoot, "examples", "officekit-section-margin-edit-workflow.mjs")));
 assert.match(documentsSkillText, /officekit-section-page-geometry-edit-workflow\.mjs/);

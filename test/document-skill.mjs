@@ -179,6 +179,195 @@ try {
     /reportPath must be distinct from inputPath/,
   );
 
+  const hyperlinkAccessibilitySource = DocumentModel.create({ name: "Hyperlink accessibility transaction", blocks: [] });
+  hyperlinkAccessibilitySource.addParagraph("Only the empty link label may change.");
+  hyperlinkAccessibilitySource.addHyperlink("", "https://example.com/accessibility", {
+    tooltip: "Accessibility guide",
+    history: false,
+  });
+  hyperlinkAccessibilitySource.addHyperlink("Release evidence", "https://example.com/release", {
+    tooltip: "Release evidence",
+  });
+  const hyperlinkAccessibilitySourcePath = path.join(outputDir, "hyperlink-accessibility-source.docx");
+  const hyperlinkAccessibilityOutputPath = path.join(outputDir, "hyperlink-accessibility-reviewed.docx");
+  const hyperlinkAccessibilityAuditPath = path.join(outputDir, "hyperlink-accessibility-audit.json");
+  await (await DocumentFile.exportDocx(hyperlinkAccessibilitySource)).save(hyperlinkAccessibilitySourcePath);
+  const hyperlinkAccessibilitySourceBytes = await fs.readFile(hyperlinkAccessibilitySourcePath);
+  const hyperlinkAccessibilityImported = await DocumentFile.importDocx(await FileBlob.load(hyperlinkAccessibilitySourcePath));
+  const hyperlinkBlockIndex = hyperlinkAccessibilityImported.blocks.findIndex(
+    (block) => block.kind === "hyperlink" && block.url === "https://example.com/accessibility",
+  );
+  assert.ok(hyperlinkBlockIndex >= 0);
+  assert.deepEqual(
+    hyperlinkAccessibilityImported.auditAccessibility().issues.map((entry) => [entry.type, entry.blockIndex]),
+    [["hyperlinkTextMissing", hyperlinkBlockIndex]],
+  );
+  const {
+    editImportedHyperlinkText,
+    hyperlinkTextCliOutput,
+    parseHyperlinkTextEditCli,
+  } = await import(
+    "../skills/documents/skills/documents/examples/officekit-hyperlink-text-edit-workflow.mjs"
+  );
+  const hyperlinkAccessibilityResult = await editImportedHyperlinkText({
+    inputPath: hyperlinkAccessibilitySourcePath,
+    outputPath: hyperlinkAccessibilityOutputPath,
+    auditPath: hyperlinkAccessibilityAuditPath,
+    hyperlinkBlockIndex,
+    expectedTarget: "https://example.com/accessibility",
+    expectedText: "",
+    replacementText: "Read the accessibility guide",
+  });
+  assert.equal(hyperlinkAccessibilityResult.audit.operation.type, "source-bound-hyperlink-text-edit");
+  assert.equal(hyperlinkAccessibilityResult.audit.operation.target.blockIndex, hyperlinkBlockIndex);
+  assert.equal(hyperlinkAccessibilityResult.audit.operation.target.destination, "https://example.com/accessibility");
+  assert.equal(hyperlinkAccessibilityResult.audit.provider.actual, "office-kit");
+  assert.equal(hyperlinkAccessibilityResult.audit.provider.silentFallback, false);
+  assert.deepEqual(hyperlinkAccessibilityResult.audit.savePolicy, { strategy: "rewrite", noReplace: true });
+  assert.deepEqual(hyperlinkAccessibilityResult.audit.validation.changedParts, ["word/document.xml"]);
+  assert.equal(hyperlinkAccessibilityResult.audit.validation.hyperlinkTextXmlResidual.ok, true);
+  assert.equal(hyperlinkAccessibilityResult.audit.validation.accessibility.selectedHyperlinkTextPresent, true);
+  assert.equal(hyperlinkAccessibilityResult.audit.validation.accessibility.conformanceClaimed, false);
+  assert.equal(hyperlinkAccessibilityResult.audit.validation.nativeRenderRequired, true);
+  assert.deepEqual(hyperlinkTextCliOutput(hyperlinkAccessibilityResult), {
+    outputPath: hyperlinkAccessibilityOutputPath,
+    auditPath: hyperlinkAccessibilityAuditPath,
+    outputSha256: createHash("sha256").update(await fs.readFile(hyperlinkAccessibilityOutputPath)).digest("hex"),
+    changedParts: ["word/document.xml"],
+  });
+  assert.deepEqual(await fs.readFile(hyperlinkAccessibilitySourcePath), hyperlinkAccessibilitySourceBytes);
+  assert.deepEqual(JSON.parse(await fs.readFile(hyperlinkAccessibilityAuditPath, "utf8")), hyperlinkAccessibilityResult.audit);
+  const hyperlinkAccessibilityRoundTrip = await DocumentFile.importDocx(await FileBlob.load(hyperlinkAccessibilityOutputPath));
+  assert.equal(hyperlinkAccessibilityRoundTrip.blocks[hyperlinkBlockIndex].text, "Read the accessibility guide");
+  assert.equal(hyperlinkAccessibilityRoundTrip.blocks[hyperlinkBlockIndex].url, "https://example.com/accessibility");
+  assert.equal(hyperlinkAccessibilityRoundTrip.blocks[hyperlinkBlockIndex].tooltip, "Accessibility guide");
+  assert.equal(hyperlinkAccessibilityRoundTrip.blocks[hyperlinkBlockIndex].history, false);
+  assert.equal(hyperlinkAccessibilityRoundTrip.blocks.find((block) => block.url === "https://example.com/release")?.text, "Release evidence");
+  assert.deepEqual(hyperlinkAccessibilityRoundTrip.auditAccessibility().issues, []);
+  const hyperlinkAccessibilityRender = await verifyDocumentFile(hyperlinkAccessibilityOutputPath, {
+    outputDir: path.join(outputDir, "hyperlink-accessibility-render"),
+    previewFormat: "png",
+    nativeRender: nativeStatus.available ? "required" : "auto",
+  });
+  assert.equal(hyperlinkAccessibilityRender.summary.verifyOk, true);
+  assert.equal(hyperlinkAccessibilityRender.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
+
+  const hyperlinkCliOutputPath = path.join(outputDir, "hyperlink-accessibility-cli.docx");
+  const hyperlinkCliAuditPath = path.join(outputDir, "hyperlink-accessibility-cli-audit.json");
+  assert.deepEqual(parseHyperlinkTextEditCli([
+    hyperlinkAccessibilityOutputPath,
+    hyperlinkCliOutputPath,
+    hyperlinkCliAuditPath,
+    String(hyperlinkBlockIndex),
+    "https://example.com/accessibility",
+    "Read the accessibility guide",
+    "Review the complete accessibility guide",
+  ]), {
+    inputPath: hyperlinkAccessibilityOutputPath,
+    outputPath: hyperlinkCliOutputPath,
+    auditPath: hyperlinkCliAuditPath,
+    hyperlinkBlockIndex,
+    expectedTarget: "https://example.com/accessibility",
+    expectedText: "Read the accessibility guide",
+    replacementText: "Review the complete accessibility guide",
+  });
+  const hyperlinkCliProcess = spawnSync(process.execPath, [
+    path.join(repoRoot, "skills", "documents", "skills", "documents", "examples", "officekit-hyperlink-text-edit-workflow.mjs"),
+    hyperlinkAccessibilityOutputPath,
+    hyperlinkCliOutputPath,
+    hyperlinkCliAuditPath,
+    String(hyperlinkBlockIndex),
+    "https://example.com/accessibility",
+    "Read the accessibility guide",
+    "Review the complete accessibility guide",
+  ], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(hyperlinkCliProcess.status, 0, hyperlinkCliProcess.stderr);
+  assert.deepEqual(JSON.parse(hyperlinkCliProcess.stdout), {
+    outputPath: hyperlinkCliOutputPath,
+    auditPath: hyperlinkCliAuditPath,
+    outputSha256: createHash("sha256").update(await fs.readFile(hyperlinkCliOutputPath)).digest("hex"),
+    changedParts: ["word/document.xml"],
+  });
+
+  const hyperlinkWrongTargetOutput = path.join(outputDir, "hyperlink-wrong-target.docx");
+  const hyperlinkWrongTargetAudit = path.join(outputDir, "hyperlink-wrong-target-audit.json");
+  await assert.rejects(
+    () => editImportedHyperlinkText({
+      inputPath: hyperlinkAccessibilitySourcePath,
+      outputPath: hyperlinkWrongTargetOutput,
+      auditPath: hyperlinkWrongTargetAudit,
+      hyperlinkBlockIndex,
+      expectedTarget: "https://example.com/wrong",
+      expectedText: "",
+      replacementText: "Never publish this value",
+    }),
+    /target does not match the expected source value/,
+  );
+  await assert.rejects(() => fs.stat(hyperlinkWrongTargetOutput), { code: "ENOENT" });
+  await assert.rejects(() => fs.stat(hyperlinkWrongTargetAudit), { code: "ENOENT" });
+  await assert.rejects(
+    () => editImportedHyperlinkText({
+      inputPath: hyperlinkAccessibilitySourcePath,
+      outputPath: path.join(outputDir, "hyperlink-wrong-text.docx"),
+      auditPath: path.join(outputDir, "hyperlink-wrong-text-audit.json"),
+      hyperlinkBlockIndex,
+      expectedTarget: "https://example.com/accessibility",
+      expectedText: "Stale text",
+      replacementText: "Never publish this value",
+    }),
+    /text does not match the expected source value/,
+  );
+  await assert.rejects(
+    () => editImportedHyperlinkText({
+      inputPath: hyperlinkAccessibilitySourcePath,
+      outputPath: path.join(outputDir, "hyperlink-empty-replacement.docx"),
+      auditPath: path.join(outputDir, "hyperlink-empty-replacement-audit.json"),
+      hyperlinkBlockIndex,
+      expectedTarget: "https://example.com/accessibility",
+      expectedText: "",
+      replacementText: "   ",
+    }),
+    /must contain visible non-whitespace text/,
+  );
+  const richHyperlinkZip = await JSZip.loadAsync(hyperlinkAccessibilitySourceBytes);
+  const richHyperlinkXml = await richHyperlinkZip.file("word/document.xml").async("text");
+  const splitHyperlinkXml = richHyperlinkXml.replace(
+    /<w:t\s*\/>/,
+    "<w:t>First run</w:t></w:r><w:r><w:t>Second run</w:t>",
+  );
+  assert.notEqual(splitHyperlinkXml, richHyperlinkXml, "the rich-hyperlink negative fixture must split the empty label into two runs");
+  richHyperlinkZip.file("word/document.xml", splitHyperlinkXml);
+  const richHyperlinkSourcePath = path.join(outputDir, "hyperlink-rich-source.docx");
+  await fs.writeFile(richHyperlinkSourcePath, await richHyperlinkZip.generateAsync({ type: "nodebuffer" }));
+  const richHyperlinkOutputPath = path.join(outputDir, "hyperlink-rich-output.docx");
+  const richHyperlinkAuditPath = path.join(outputDir, "hyperlink-rich-audit.json");
+  await assert.rejects(
+    () => editImportedHyperlinkText({
+      inputPath: richHyperlinkSourcePath,
+      outputPath: richHyperlinkOutputPath,
+      auditPath: richHyperlinkAuditPath,
+      hyperlinkBlockIndex,
+      expectedTarget: "https://example.com/accessibility",
+      expectedText: "First runSecond run",
+      replacementText: "Never flatten a rich source link",
+    }),
+    /requires exactly one w:t leaf/,
+  );
+  await assert.rejects(() => fs.stat(richHyperlinkOutputPath), { code: "ENOENT" });
+  await assert.rejects(() => fs.stat(richHyperlinkAuditPath), { code: "ENOENT" });
+  await assert.rejects(
+    () => editImportedHyperlinkText({
+      inputPath: hyperlinkAccessibilitySourcePath,
+      outputPath: hyperlinkAccessibilitySourcePath,
+      auditPath: path.join(outputDir, "hyperlink-overwrite-audit.json"),
+      hyperlinkBlockIndex,
+      expectedTarget: "https://example.com/accessibility",
+      expectedText: "",
+      replacementText: "Never overwrite the source",
+    }),
+    /must be distinct/,
+  );
+
   const businessZip = await JSZip.loadAsync(await fs.readFile(business.docxPath));
   for (const part of [
     "word/document.xml",

@@ -315,6 +315,31 @@ external, effect-bearing, overlapping, behind-text, nested, or irregular
 drawings. Those cases stay source-bound or require an explicit reviewed package
 route.
 
+### Repair one imported hyperlink's visible label
+
+For one recognized whole-paragraph link, inspect its block index, complete old
+text, and exact destination before changing an empty, generic, or raw-URL
+label:
+
+```bash
+officekit run examples/officekit-hyperlink-text-edit-workflow.mjs \
+  input.docx reviewed.docx hyperlink-text.audit.json 4 \
+  "https://example.com/accessibility" "" \
+  "Read the accessibility guide"
+```
+
+The transaction permits only the selected `w:t` text leaf and its necessary
+`xml:space` state to change in `word/document.xml`. It preserves the URL or
+bookmark destination, relationship identity, tooltip, history flag,
+paragraph/run formatting, all sibling links, and every other package part. It
+then reimports the complete hyperlink projection, reruns the accessibility
+audit, verifies, model-renders, and emits a no-overwrite byte-bound audit.
+
+This is not a destination editor or a purpose inference engine. Rich,
+multi-run, nested, table/textbox, field-bearing, or otherwise irregular links
+fail closed, and a native render plus human review of the label in context is
+required before delivery.
+
 ## Canonical text watermarks
 
 For a new document, add one text watermark per section/header-reference scope:
