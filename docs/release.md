@@ -1,6 +1,47 @@
 # Release
 
-## Current 0.6.0 package evidence (2026-08-10): Presentation accessibility audit
+## Current 0.6.0 candidate (2026-08-11): Document accessibility audit
+
+`document.auditAccessibility()` now provides one bounded Agent-facing preflight
+for modeled Word headings, images, tables, and hyperlinks. It emits stable
+block locators, fails the machine check on explicit heading-level skips, empty
+image alternative text, missing repeating-header semantics, or empty hyperlink
+text, and keeps table/link purpose in separate manual-review records.
+`conformanceClaimed` is always false. Opaque package content, author intent,
+Word Accessibility Checker, WCAG, and whole-document conformance remain outside
+the claim.
+
+The old source-free image behavior that synthesized alt text from an object
+name is removed. An absent image description now stays empty through JS,
+protobuf, OfficeKit C# WASM, DOCX, and second import, so the audit cannot be
+silently satisfied by a filename-like model name. Existing explicit alt text
+and the source-bound paired-description edit contract remain unchanged.
+
+The Documents Skill ships a read-only existing-DOCX workflow and focused
+reference. It binds path/bytes/SHA-256, imports only through OfficeKit Codec,
+records provider/version and `savePolicy: none`, runs document verification,
+re-hashes the input, and publishes one private temporary report without
+overwrite. Invalid input, invalid report limits, source mutation, path reuse,
+and report collisions fail closed; the Python package helper remains explicit
+rather than a fallback.
+
+The clean candidate-tree npm dry-run contains 720 files, 36,245,903 compressed
+bytes, and 53,472,009 unpacked bytes
+(`shasum b776c80da27349e3c17f81a65c69592217fac072`).
+The unpacked regression ceiling moves narrowly to 53,490,000 bytes, leaving
+17,991 bytes of headroom. Local candidate evidence is complete: the fast gate
+passes 26/26, the slow gate passes 75/75, OfficeKit Codec passes 400/400,
+OfficeBridge passes 5/5, and `proto:check`, deterministic OfficeKit WASM
+verification, `docs:api`, and the clean-install/package gate pass. The slow gate
+also exercises bundled templates, LibreOffice recalculation, Playwright,
+visual baselines, runnable Skills, and the standalone distribution. Optional
+managed-release or real-runtime tests for pikepdf, pyHanko, veraPDF, OCRmyPDF,
+and the Python foundation pack remain explicitly skipped without their pinned
+specialist environments. Hosted CI will be attached to the pushed candidate;
+npm publication, a tagged release, and Windows Microsoft Office host acceptance
+remain external blockers.
+
+## Prior 0.6.0 package evidence: Presentation accessibility audit
 
 `presentation.auditAccessibility()` now gives Agents one bounded, host-neutral
 review primitive over modeled slide objects. It counts every slide, including

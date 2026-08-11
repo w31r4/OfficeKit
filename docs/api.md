@@ -29,6 +29,7 @@ Generated from `HELP_CATALOG` in `src/help/index.mjs`.
 | `document.addTableOfContents` | api | Append one canonical one-paragraph complex TOC field with bounded heading levels/switches and enable the native updateFields-on-open hint by default. Refreshed cross-paragraph result graphs remain opaque/source-bound and read-only. |
 | `document.addWatermark` | api | Add one canonical VML text watermark to a section/header-reference scope. Recognized imported watermarks permit text-only edits or whole-object removal; adding to an imported package, changing scope, shared headers, multiple objects, DrawingML, images, and irregular VML fail closed. |
 | `document.applyDesignPreset` | api | Apply a clean-room report or memo design preset that updates named styles for consistent DOCX export and SVG/layout previews. |
+| `document.auditAccessibility` | api | Audit modeled Word headings, image alternative text, table header semantics, and hyperlink text with stable block locators. Machine-checkable defects remain separate from table-purpose and link-purpose manual review, and the result never claims Word Accessibility Checker or WCAG conformance. |
 | `document.contentControls` | api | List typed mutable handles for recognized inline or table-cell plain-text, checkbox, drop-down, combo-box, and date controls plus block plain-text controls, with explicit placement and model/native identity. |
 | `document.fillContentControls` | api | Transactionally fill every recognized block, inline, or table-cell plain-text control matching an object or Map of tag-to-string entries. Checkbox, drop-down, combo-box, and date tags do not silently accept text. |
 | `document.fontFamilies` | api | Return a fresh sorted, case-insensitively deduplicated list of document theme and explicit run/style font families. |
@@ -484,6 +485,18 @@ Apply a clean-room report or memo design preset that updates named styles for co
 **Schema returns:**
 
 - `document` (DocumentModel) — The mutated document facade.
+
+#### `document.auditAccessibility`
+
+Audit modeled Word headings, image alternative text, table header semantics, and hyperlink text with stable block locators. Machine-checkable defects remain separate from table-purpose and link-purpose manual review, and the result never claims Word Accessibility Checker or WCAG conformance.
+
+**Schema parameters:**
+
+- `maxChars` (number) — Maximum bounded NDJSON size across machine issues and manual-review records.
+
+**Schema returns:**
+
+- `report` (object) — A host-neutral report with machineCheckPassed, conformanceClaimed: false, manualReviewRequired, stable block locators, counts, machine issues, and separate manual checks. Skipped heading levels, empty image alternative text, tables without a repeating header-row prefix, and empty hyperlink text fail the machine check. Missing table descriptions plus generic/raw-URL link text remain manual author-intent checks; the audit does not claim Word Accessibility Checker or WCAG conformance.
 
 #### `document.contentControls`
 

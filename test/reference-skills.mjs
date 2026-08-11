@@ -270,9 +270,11 @@ for (const entry of documentsManifest) {
   assert.ok(await exists(path.join(documentsSkillRoot, entry)), `Documents manifest entry is missing: ${entry}`);
 }
 assert.ok(documentsManifest.includes("artifact_tool/API_QUICK_START.md"));
+assert.ok(documentsManifest.includes("artifact_tool/ACCESSIBILITY_AUDIT.md"));
 assert.ok(documentsManifest.includes("artifact_tool/_source_bound_docx.mjs"));
 assert.ok(documentsManifest.includes("artifact_tool/_source_bound_sections.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-end-to-end.mjs"));
+assert.ok(documentsManifest.includes("examples/officekit-accessibility-audit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-classic-comment-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-board-review-surgical-edit-workflow.mjs"));
 assert.ok(documentsManifest.includes("examples/officekit-image-alt-text-edit-workflow.mjs"));

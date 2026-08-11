@@ -52,6 +52,69 @@ assert.throws(
 const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 const jpeg = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAACAAIDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAABQf/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCQAHTd/9k=";
 
+const accessibilityAuditDocument = DocumentModel.create({ name: "Accessibility audit boundaries", blocks: [] });
+accessibilityAuditDocument.addParagraph("Overview", { name: "overview", styleId: "Heading1" });
+const skippedHeading = accessibilityAuditDocument.addParagraph("Deep detail", { name: "deep-detail", styleId: "Heading3" });
+const missingAltImage = accessibilityAuditDocument.addImage({
+  name: "unreviewed-chart",
+  dataUrl: png,
+  widthPx: 80,
+  heightPx: 40,
+});
+const inaccessibleTable = accessibilityAuditDocument.addTable({
+  name: "delivery-matrix",
+  values: [["Gate", "Status"], ["Codec", "Ready"]],
+});
+const genericLink = accessibilityAuditDocument.addHyperlink("Click here", "https://example.test/review", { name: "generic-link" });
+const emptyLink = accessibilityAuditDocument.addHyperlink("", "https://example.test/empty", { name: "empty-link" });
+const incompleteDocumentAudit = accessibilityAuditDocument.auditAccessibility({ maxChars: 20_000 });
+assert.equal(incompleteDocumentAudit.machineCheckPassed, false);
+assert.equal(incompleteDocumentAudit.conformanceClaimed, false);
+assert.equal(incompleteDocumentAudit.manualReviewRequired, true);
+assert.deepEqual(incompleteDocumentAudit.summary, {
+  blocks: 6,
+  headings: 2,
+  headingLevelSkips: 1,
+  images: 1,
+  imagesMissingAltText: 1,
+  tables: 1,
+  tablesWithoutHeaderRows: 1,
+  tablesWithoutAccessibilityMetadata: 1,
+  links: 2,
+  linksRequiringPurposeReview: 1,
+});
+assert.deepEqual(
+  incompleteDocumentAudit.issues.map((entry) => entry.type),
+  ["headingLevelSkipped", "imageAltTextMissing", "tableHeaderRowMissing", "hyperlinkTextMissing"],
+);
+assert.deepEqual(
+  incompleteDocumentAudit.manualChecks.map((entry) => entry.type),
+  ["tablePurposeAndDescription", "hyperlinkPurpose"],
+);
+assert.match(incompleteDocumentAudit.ndjson, /"blockIndex":1.*"headingLevel":3/u);
+assert.doesNotMatch(incompleteDocumentAudit.ndjson, /"conformanceClaimed"/u);
+assert.throws(() => accessibilityAuditDocument.auditAccessibility([]), /options must be an object/i);
+
+skippedHeading.styleId = "Heading2";
+missingAltImage.alt = "Bar chart comparing the two delivery gates.";
+inaccessibleTable.setHeaderRowCount(1).setAccessibilityMetadata({
+  title: "Delivery readiness",
+  description: "Two-column matrix listing each gate and its status.",
+});
+genericLink.text = "Review the delivery evidence";
+emptyLink.text = "Open the empty-link test target";
+const completeDocumentAudit = accessibilityAuditDocument.auditAccessibility();
+assert.equal(completeDocumentAudit.machineCheckPassed, true);
+assert.equal(completeDocumentAudit.manualReviewRequired, false);
+assert.deepEqual(completeDocumentAudit.issues, []);
+assert.deepEqual(completeDocumentAudit.manualChecks, []);
+
+const missingAltRoundTripSource = DocumentModel.create({ name: "Missing image alternative text", blocks: [] });
+missingAltRoundTripSource.addImage({ name: "unnamed-accessibility-state", dataUrl: png });
+const missingAltRoundTrip = await DocumentFile.importDocx(await DocumentFile.exportDocx(missingAltRoundTripSource));
+assert.equal(missingAltRoundTrip.blocks[0]?.alt, "");
+assert.deepEqual(missingAltRoundTrip.auditAccessibility().issues.map((entry) => entry.type), ["imageAltTextMissing"]);
+
 const floatingPlacement = {
   type: "floating",
   horizontal: { relativeTo: "margin", offsetPx: 240 },

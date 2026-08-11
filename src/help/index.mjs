@@ -425,6 +425,7 @@ export const HELP_CATALOG = [
   { artifactKind: "document", kind: "api", name: "document.applyDesignPreset", summary: "Apply a clean-room report or memo design preset that updates named styles for consistent DOCX export and SVG/layout previews." },
   { artifactKind: "document", kind: "api", name: "document.styles.effective", summary: "Resolve a named document style through basedOn inheritance so inspect/layout/render/DOCX export share the same effective style metadata." },
   { artifactKind: "document", kind: "api", name: "document.inspect", summary: "Emit bounded NDJSON for document blocks including typed block/inline plain-text and inline checkbox/list/date content controls with explicit placement, fields, tracked changes, bookmark ranges, footnotes/endnotes, bibliography sources, comments, styles, headers/footers with sourceBound/editable evidence, canonical text watermarks, and layout; narrow with search/target anchors and fields with include/exclude." },
+  { artifactKind: "document", kind: "api", name: "document.auditAccessibility", summary: "Audit modeled Word headings, image alternative text, table header semantics, and hyperlink text with stable block locators. Machine-checkable defects remain separate from table-purpose and link-purpose manual review, and the result never claims Word Accessibility Checker or WCAG conformance." },
   { artifactKind: "document", kind: "api", name: "document.resolve", summary: "Resolve stable document, block, table-cell, content-control, bookmark, footnote/endnote, bibliography source ID/tag, header/footer, watermark, comment, style, and advertised text-range IDs." },
   { artifactKind: "document", kind: "api", name: "document.textRange", summary: "Inspect or resolve stable textRange anchors such as blockId/text and tableId/cell/row/column/text. Assignment is limited to fully editable text; replace() also supports explicitly advertised source-bound literal patches." },
   { artifactKind: "document", kind: "api", name: "document.layoutJson", summary: "Return page-aware layout JSON with block bounding boxes, section/page ordinals, effective inherited header/footer selections, styles, and target/search slicing." },
@@ -1564,6 +1565,9 @@ const DOCUMENT_HELP_SCHEMAS = {
     exclude: { type: "string", description: "Comma-separated fields to omit." },
     maxChars: { type: "number", description: "Maximum bounded NDJSON output size." },
   }, "inspection", "object", "Bounded { ndjson, truncated } inspection result."),
+  "document.auditAccessibility": helpSchema({
+    maxChars: { type: "number", description: "Maximum bounded NDJSON size across machine issues and manual-review records." },
+  }, "report", "object", "A host-neutral report with machineCheckPassed, conformanceClaimed: false, manualReviewRequired, stable block locators, counts, machine issues, and separate manual checks. Skipped heading levels, empty image alternative text, tables without a repeating header-row prefix, and empty hyperlink text fail the machine check. Missing table descriptions plus generic/raw-URL link text remain manual author-intent checks; the audit does not claim Word Accessibility Checker or WCAG conformance."),
   "document.resolve": helpSchema({
     id: { type: "string", required: true, description: "Stable document, block, table-cell, header/footer, watermark, comment, style, or advertised text-range ID." },
   }, "object", "object|undefined", "Resolved editable facade/record or undefined."),

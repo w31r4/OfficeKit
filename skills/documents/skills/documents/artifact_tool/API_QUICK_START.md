@@ -17,6 +17,15 @@ import {
 Use `document.fontFamilies` when you need a fresh sorted inventory of theme and
 explicit run/style fonts before render or handoff QA.
 
+Before delivery, run `document.auditAccessibility()`. It reports modeled
+heading-level skips, empty image alternative text, missing table header-row
+semantics, and empty hyperlink text as machine issues; table purpose and
+generic/raw-URL link labels remain manual checks. For an existing-file,
+immutable-source report, use
+`examples/officekit-accessibility-audit-workflow.mjs` and read
+[`ACCESSIBILITY_AUDIT.md`](ACCESSIBILITY_AUDIT.md). A passing machine audit is
+not Word Accessibility Checker or WCAG conformance.
+
 ## Imported text: capability-routed local edits
 
 Imported paragraphs and table cells advertise separate capabilities. Use

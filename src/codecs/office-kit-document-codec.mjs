@@ -1829,7 +1829,7 @@ function documentImage(block, assets) {
   const widthEmu = Math.round(Number(block.widthPx) * 9_525);
   const heightEmu = Math.round(Number(block.heightPx) * 9_525);
   if (!Number.isSafeInteger(widthEmu) || !Number.isSafeInteger(heightEmu) || widthEmu <= 0 || heightEmu <= 0) throw new OfficeKitCodecError(`Document image ${block.id} dimensions must be positive bounded pixels.`, [], { code: "invalid_document_image" });
-  return { assetId, altText: String(block.alt || block.name || "image"), widthEmu, heightEmu, floating: wireDocumentFloatingImagePlacement(block) };
+  return { assetId, altText: String(block.alt ?? ""), widthEmu, heightEmu, floating: wireDocumentFloatingImagePlacement(block) };
 }
 
 function wireDocumentImageHorizontalReference(value) {

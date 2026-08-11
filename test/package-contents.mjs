@@ -175,9 +175,9 @@ const maxPackedBytes = 37_500_000;
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
 // Keep measured headroom for bounded codec/Skill growth without concealing
 // specialist binaries or generated repository evidence in the tarball. The
-// The read-only Presentation accessibility audit slice measured 53,454,754
-// bytes, so its audited ceiling retains only about 15 KiB of headroom.
-const maxUnpackedBytes = 53_470_000;
+// The read-only Document accessibility audit slice measured 53,472,009 bytes
+// in its clean candidate tree; its audited ceiling retains under 20 KiB.
+const maxUnpackedBytes = 53_490_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -338,10 +338,12 @@ for (const required of [
   "skills/documents/skills/documents/agents/openai.yaml",
   "skills/documents/skills/documents/agents/agent.yaml",
   "skills/documents/skills/documents/LICENSE.txt",
+  "skills/documents/skills/documents/artifact_tool/ACCESSIBILITY_AUDIT.md",
   "skills/documents/skills/documents/artifact_tool/API_QUICK_START.md",
   "skills/documents/skills/documents/artifact_tool/_source_bound_docx.mjs",
   "skills/documents/skills/documents/artifact_tool/_source_bound_sections.mjs",
   "skills/documents/skills/documents/examples/officekit-end-to-end.mjs",
+  "skills/documents/skills/documents/examples/officekit-accessibility-audit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-classic-comment-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-board-review-surgical-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-page-furniture-text-edit.mjs",

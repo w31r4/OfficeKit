@@ -10,6 +10,27 @@ This is **not** a full WCAG compliance engine. It targets the highest-ROI checks
 - Hyperlink text that is non-descriptive ("click here", raw URLs)
 
 ## Audit
+
+Use the OfficeKit audit first. It reports stable block locators, separates
+machine issues from manual author-intent checks, binds an existing source by
+SHA-256, and never edits the DOCX:
+
+```bash
+officekit run examples/officekit-accessibility-audit-workflow.mjs \
+  input.docx a11y_report.json
+```
+
+The machine check covers explicit heading-level skips, empty image alternative
+text, tables without a declared repeating-header prefix, and empty hyperlink
+text. Missing table purpose/description and generic or raw-URL link labels are
+manual checks. Opaque package content and complete heading/table/link intent
+also require source or native-host review. Read
+`../artifact_tool/ACCESSIBILITY_AUDIT.md` for the result contract.
+
+The Python helper below remains an explicit package-level audit/fix route for
+the reference-compatible quick-fix policy; it is not a fallback from the
+OfficeKit model:
+
 ```bash
 python scripts/a11y_audit.py input.docx
 ```

@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 474);
+assert.equal(HELP_CATALOG.length, 475);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -394,6 +394,11 @@ assert.ok(presentationAccessibilityAuditHelp);
 assert.deepEqual(Object.keys(presentationAccessibilityAuditHelp.schema.parameters), ["maxChars"]);
 assert.match(presentationAccessibilityAuditHelp.summary, /modeled slide objects.*meaningful\/decorative.*reading-order.*manual host review.*never claims whole-deck/i);
 assert.match(presentationAccessibilityAuditHelp.schema.returns.report.description, /machineCheckPassed.*conformanceClaimed: false.*manualReviewRequired.*opaque native objects.*shape-tree order.*PowerPoint\/PDF accessibility conformance/i);
+const documentAccessibilityAuditHelp = HELP_CATALOG.find((item) => item.name === "document.auditAccessibility");
+assert.ok(documentAccessibilityAuditHelp);
+assert.deepEqual(Object.keys(documentAccessibilityAuditHelp.schema.parameters), ["maxChars"]);
+assert.match(documentAccessibilityAuditHelp.summary, /Word headings.*image alternative text.*table header semantics.*hyperlink text.*manual review.*never claims.*WCAG/i);
+assert.match(documentAccessibilityAuditHelp.schema.returns.report.description, /machineCheckPassed.*conformanceClaimed: false.*manualReviewRequired.*stable block locators.*skipped heading levels.*empty image alternative text.*generic\/raw-URL.*Word Accessibility Checker.*WCAG/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /fields.*picture bullets.*customShow.*missing.*opaque.*fail closed/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "PdfFile.inspectPdf"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "createNativeOfficeRenderer"));
@@ -544,7 +549,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.resolve")?.
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.ensure")?.schema?.returns?.result?.description || "", /pinned catalog assets.*safe extraction.*never downloads credentials or falls back/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfProviders.probe")?.schema?.returns?.state?.description || "", /no network request.*cache write.*MuPDF import.*provider fallback/i);
 const documentCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "document");
-assert.equal(documentCatalog.length, 72);
+assert.equal(documentCatalog.length, 73);
 assert.ok(documentCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.type, "object");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.addParagraph")?.schema?.parameters?.paragraphFormat?.description || "", /keepNext.*following paragraph.*keepLinesTogether.*paragraph.*splitting across pages.*widowControl.*orphan.*widow.*pageBreakBefore.*new page.*independent.*do not calculate pages.*true or false.*false.*override.*inherited.*contextualSpacing.*true.*before.*after.*adjacent.*same style.*false.*override.*inherited.*shadingFill.*#RRGGBB.*w:shd.*borders.*nonempty object.*top\/left\/bottom\/right\/between\/bar.*w:pBdr.*outlineLevel.*0 through 9.*9 explicitly clears.*w:keepNext\/w:keepLines\/w:pageBreakBefore\/w:widowControl\/w:contextualSpacing\/w:shd\/w:pBdr\/w:outlineLvl\/w:suppressLineNumbers.*source-owned.*fails closed/i);

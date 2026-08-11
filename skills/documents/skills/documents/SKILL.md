@@ -30,6 +30,7 @@ checkpointed cell automatically.
   runtime, not an OfficeKit alias or fallback, and its output must never be
   attributed to OfficeKit.
 - For ordinary DOCX creation, import, semantic editing, inline and bounded foreground floating images, bounded whole-block bookmarks/internal links, 1-through-16-paragraph plain-text footnotes/endnotes, canonical bibliography-backed citations, canonical inline `SEQ`/`REF`/`PAGEREF` field runs plus bounded `SEQ`/`REF` cache materialization, bounded source-free header/footer literal/simple-field sequences, canonical native TOC placeholders with explicit field-refresh intent, and export, **MUST** use the public `office-kit` `DocumentModel`/`DocumentFile` surface and its bundled OfficeKit codec. Read `artifact_tool/API_QUICK_START.md`, then use `tasks/create_edit.md` for the task workflow.
+- Before delivering a DOCX, run `document.auditAccessibility()` and resolve every machine issue. Review every returned manual check; heading intent, table purpose, link purpose, and opaque package content still require author or native-host judgment. For an immutable existing-file report, use `examples/officekit-accessibility-audit-workflow.mjs` and `artifact_tool/ACCESSIBILITY_AUDIT.md`. Never present `machineCheckPassed: true` as Word Accessibility Checker or WCAG conformance.
 - Python and direct OOXML helpers are reserved for explicit low-level package patches, specialized audits, and render/QA operations documented by this Skill. They are never an automatic authoring fallback. If an imported construct cannot be edited through the supported model, narrow the edit or report the fail-closed boundary.
 - Run any builder or helper file from a writable workspace or temp directory, not from the managed dependency directory itself.
 - Final user-facing responses should describe only the requested document result. Do not link QA intermediates unless the user explicitly asks for them.
@@ -307,8 +308,8 @@ officekit run examples/officekit-revision-finalization-workflow.mjs input.docx a
 officekit run examples/officekit-revision-finalization-workflow.mjs input.docx rejected.docx audit.json reject --keep-tracking
 
 # 9) Accessibility audit (+ optional explicit package fixes)
-python scripts/a11y_audit.py input.docx
-python scripts/a11y_audit.py input.docx --out_json a11y_report.json
+officekit run examples/officekit-accessibility-audit-workflow.mjs input.docx a11y_report.json
+# Optional explicit package helper when a separately reviewed quick-fix policy is required:
 python scripts/a11y_audit.py input.docx --fix_image_alt from_filename --out a11y_fixed.docx
 
 # 10) Redact sensitive text (explicit package patch; layout-preserving by default)
@@ -328,6 +329,7 @@ Root:
 
 Artifact tool:
 - artifact_tool/API_QUICK_START.md: public `DocumentModel`/`DocumentFile` and OfficeKit workflow
+- artifact_tool/ACCESSIBILITY_AUDIT.md: modeled issue/manual-review contract and immutable existing-file workflow
 
 References:
 - references/design_presets.md: preset-first design tokens, archetype aliases, OOXML conversions, and preset audit checklist
@@ -404,6 +406,7 @@ Scripts:
 > `scripts/xlsx_to_docx_table.py` also marks header rows as repeating headers (`w:tblHeader`) to improve a11y and multi-page tables.
 
 Examples:
+- `examples/officekit-accessibility-audit-workflow.mjs` — read-only imported-DOCX audit with source SHA-256/immutability, no-overwrite JSON publication, no silent fallback, `document.verify()` evidence, and explicit non-conformance boundaries
 - `examples/officekit-end-to-end.mjs` — runnable public-API create → export → import → typed text/checkbox/drop-down/combo-box/date-control edit → export → import vertical slice
 - `examples/officekit-source-text-patch-workflow.mjs` — source-bound paragraph/table-cell literal replacement with same-format run-fragment support, immutable input, exact changed-part audit, no-replace publication, second import, verification, and model render evidence
 - `examples/officekit-classic-comment-edit-workflow.mjs` — imported classic-comment text-only edit with a unique text anchor, fixed comment topology, second import, model render, byte-bound audit, and atomic output

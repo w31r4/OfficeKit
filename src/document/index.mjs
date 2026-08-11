@@ -17,6 +17,7 @@ import {
   normalizeDocumentContentControlChoices,
   normalizeDocumentDateValue,
 } from "./content-controls.mjs";
+import { auditDocumentAccessibility } from "./accessibility-audit.mjs";
 import { FileBlob } from "../shared/file-blob.mjs";
 import { officeFontFamilies } from "../shared/font-design-metrics.mjs";
 import { aid } from "../shared/ids.mjs";
@@ -873,7 +874,7 @@ class DocumentImageBlock {
     this.dataUrl = config.dataUrl;
     this.uri = config.uri;
     this.prompt = config.prompt;
-    this.alt = config.alt || config.altText || config.name || "image";
+    this.alt = String(config.alt ?? config.altText ?? "");
     this.widthPx = Number(config.widthPx || config.width || 240);
     this.heightPx = Number(config.heightPx || config.height || 160);
     this.styleId = config.styleId || config.style || "Normal";
@@ -1506,6 +1507,10 @@ export class DocumentModel {
 
   layoutJson(options = {}) {
     return documentLayoutJson(this, options);
+  }
+
+  auditAccessibility(options = {}) {
+    return auditDocumentAccessibility(this, options);
   }
 
   addParagraph(text, config = {}) { const block = new DocumentParagraphBlock(this, text, config); this.blocks.push(block); return block; }

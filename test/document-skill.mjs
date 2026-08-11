@@ -132,6 +132,53 @@ try {
   assert.equal(document.headers.some((item) => item.referenceType === "first" && item.variantActive), true);
   assert.equal(document.footers.some((item) => item.referenceType === "even" && item.fieldInstruction === "PAGE"), true);
 
+  const accessibilityAuditDir = path.join(outputDir, "accessibility-audit");
+  const accessibilityReportPath = path.join(accessibilityAuditDir, "report.json");
+  const businessSourceBeforeAudit = await fs.readFile(business.docxPath);
+  const { auditDocxAccessibility } = await import(
+    "../skills/documents/skills/documents/examples/officekit-accessibility-audit-workflow.mjs"
+  );
+  const accessibilityResult = await auditDocxAccessibility({
+    inputPath: business.docxPath,
+    reportPath: accessibilityReportPath,
+    maxChars: 100_000,
+  });
+  assert.equal(accessibilityResult.report.schema, "office-kit.docx-accessibility-audit.v1");
+  assert.equal(accessibilityResult.report.provider.requested, "office-kit");
+  assert.equal(accessibilityResult.report.provider.actual, "office-kit");
+  assert.equal(accessibilityResult.report.provider.silentFallback, false);
+  assert.deepEqual(accessibilityResult.report.savePolicy, {
+    strategy: "none",
+    sourceMutation: false,
+    artifactProduced: false,
+  });
+  assert.equal(accessibilityResult.report.operation.type, "document-accessibility-audit");
+  assert.equal(accessibilityResult.report.accessibility.conformanceClaimed, false);
+  assert.equal(accessibilityResult.report.accessibility.machineCheckPassed, false);
+  assert.equal(accessibilityResult.report.accessibility.manualReviewRequired, true);
+  assert.deepEqual(
+    accessibilityResult.report.accessibility.issues.map((entry) => entry.type),
+    ["tableHeaderRowMissing"],
+  );
+  assert.deepEqual(
+    accessibilityResult.report.accessibility.manualChecks.map((entry) => entry.type),
+    ["tablePurposeAndDescription"],
+  );
+  assert.equal(accessibilityResult.report.validation.sourceUnchanged, true);
+  assert.equal(accessibilityResult.report.validation.documentVerify.ok, true);
+  assert.equal(accessibilityResult.report.boundaries.tableAndLinkPurpose, "manual-author-review");
+  assert.deepEqual(JSON.parse(await fs.readFile(accessibilityReportPath, "utf8")), accessibilityResult.report);
+  assert.deepEqual(await fs.readFile(business.docxPath), businessSourceBeforeAudit);
+  assert.deepEqual(await fs.readdir(accessibilityAuditDir), ["report.json"]);
+  await assert.rejects(
+    () => auditDocxAccessibility({ inputPath: business.docxPath, reportPath: accessibilityReportPath }),
+    /already exists; refusing to overwrite/,
+  );
+  await assert.rejects(
+    () => auditDocxAccessibility({ inputPath: business.docxPath, reportPath: business.docxPath }),
+    /reportPath must be distinct from inputPath/,
+  );
+
   const businessZip = await JSZip.loadAsync(await fs.readFile(business.docxPath));
   for (const part of [
     "word/document.xml",
