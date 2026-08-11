@@ -43,7 +43,30 @@ python scripts/a11y_audit.py input.docx --out_json a11y_report.json
 ```
 
 ## Apply quick fixes (optional)
-### 1) Update one identified image with reviewed alternative text
+### 1) Repair one audited heading-level skip
+Heading hierarchy is editorial, so do not renumber a style merely because its
+name contains a number. When the OfficeKit audit reports one
+`headingLevelSkipped` issue and a reviewer confirms the intended level, bind
+the direct-body block index, exact text, style ID, current direct outline state,
+and the complete reported level transition:
+
+```bash
+officekit run examples/officekit-heading-level-edit-workflow.mjs \
+  input.docx reviewed.docx heading-level.audit.json 3 \
+  "Deep detail" "Heading3" inherit 3 1 2
+```
+
+The last three numbers are current human heading level, preceding human
+heading level (`0` means no preceding heading), and replacement human heading
+level. `inherit` means the source has no direct `w:outlineLvl`; use `0` through
+`9` only when the imported paragraph already has that exact direct native
+value. The transaction retains the paragraph style, text/runs, visible model
+render, package graph, and all non-target semantics. It rejects stale facts,
+irregular or ambiguous paragraph properties, an unresolved target issue, any
+new machine accessibility issue, output collisions, and package drift. A
+native render and human review of the document hierarchy remain mandatory.
+
+### 2) Update one identified image with reviewed alternative text
 When an agent or reviewer can identify one canonical imported body image and
 write its actual description, prefer the source-bound OfficeKit transaction:
 
@@ -59,13 +82,13 @@ native description leaves, preserves the media and layout, and emits a
 no-overwrite audit. It cannot decide that a picture is decorative or invent a
 missing description. See `tasks/images_figures.md` for the complete boundary.
 
-### 2) Fill missing image alt text using filenames
+### 3) Fill missing image alt text using filenames
 This is a pragmatic baseline that is better than empty alt text.
 ```bash
 python scripts/a11y_audit.py input.docx --fix_image_alt from_filename --out a11y_fixed.docx
 ```
 
-### 3) Mark repeating table headers
+### 4) Mark repeating table headers
 Only do this when leading rows really are headers. For a new document, declare
 the native repeat-header semantics separately from the visual first-row fill:
 
@@ -90,7 +113,7 @@ duplicate, explicit-value, extension-bearing, merged, nested, or irregular
 inputs. It does not infer header semantics from bold text or fill. The Python
 audit helper remains explicit when you deliberately want its report/fix policy.
 
-### 4) Repair one imported hyperlink label
+### 5) Repair one imported hyperlink label
 When an audit finds an empty label, or a reviewer replaces generic/raw-URL text,
 bind the imported block index, complete current text, and exact destination:
 
@@ -109,7 +132,7 @@ text, stale source facts, rich/multi-run/nested/table/textbox hyperlinks,
 destination edits, output collisions, and package drift fail closed. A person
 must still judge whether the new label communicates the destination's purpose.
 
-### 5) Review non-visible table alternative text
+### 6) Review non-visible table alternative text
 Table alternative text is not a visible caption. When a reviewer supplies the
 actual title and description for one imported canonical table, bind both the
 inspected block index and the complete current metadata, then use the
@@ -139,7 +162,7 @@ python render_docx.py a11y_fixed.docx --output_dir out_a11y
 ```
 
 ## Pitfalls
-- "Fixing" headings is rarely mechanical; it usually requires editorial judgement. This tool **reports** heading issues but does not rewrite styles.
+- Heading repair requires editorial judgement. The bounded OfficeKit transaction changes only one reviewed direct outline override; it does not rename/rewrite styles, infer author intent, or claim whole-document conformance.
 - Setting table header flags can change repeated header rendering across page breaks. Always re-render and review.
 - Alt text generated from filenames is a baseline; replace it with meaningful descriptions for real accessibility.
 - A table title and description help assistive technology but do not make an arbitrary table accessible by themselves; header semantics, reading order, and real author intent still need review.

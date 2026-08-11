@@ -315,6 +315,32 @@ external, effect-bearing, overlapping, behind-text, nested, or irregular
 drawings. Those cases stay source-bound or require an explicit reviewed package
 route.
 
+### Repair one imported heading-level skip
+
+After `document.auditAccessibility()` reports one `headingLevelSkipped` issue,
+record its direct-body block index and complete source facts. With a reviewer-
+approved target level, run:
+
+```bash
+officekit run examples/officekit-heading-level-edit-workflow.mjs \
+  input.docx reviewed.docx heading-level.audit.json 3 \
+  "Deep detail" "Heading3" inherit 3 1 2
+```
+
+The selector binds exact text, style ID, direct native outline state, current
+human heading level, and preceding human heading level. The replacement uses a
+human level from 1 through 9 and becomes a direct zero-based `w:outlineLvl`
+override; the style itself remains `Heading3` in this example. Only
+`word/document.xml` may change, and raw residual, complete semantic projection,
+second import, accessibility audit, verification, and model-render stability
+must pass before no-overwrite publication.
+
+This is a hierarchy correction primitive, not a style renamer or an automatic
+outline designer. It fails closed for stale facts, irregular/duplicate native
+outline state, ambiguous direct-body mapping, a replacement that leaves the
+target issue or introduces another machine issue, and package drift. Review
+the intended hierarchy and a native Word or LibreOffice render before delivery.
+
 ### Repair one imported hyperlink's visible label
 
 For one recognized whole-paragraph link, inspect its block index, complete old

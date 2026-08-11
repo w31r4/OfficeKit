@@ -50,8 +50,10 @@ SHA-256, performs `document.verify()`, re-hashes the source, writes a private
 temporary report, and promotes it without overwrite. Its save policy is
 `none`: it produces no DOCX and never mutates the input.
 
-After review, use the narrow source-bound image-alt, table-header, or table
-accessibility workflows documented in `tasks/accessibility_a11y.md`. Do not
-invent alternative text, infer a header from bold/fill alone, or silently use
-the Python package helper as another Office authoring engine. Reopen and render
-any corrected DOCX before delivery.
+After review, use the narrow source-bound heading-level, image-alt,
+table-header, hyperlink-text, or table-accessibility workflow documented in
+`tasks/accessibility_a11y.md`. The four machine issue types each have one
+bounded repair route, but none supplies the missing author intent. Do not infer
+a hierarchy, invent alternative text, infer a header from bold/fill alone, or
+silently use the Python package helper as another Office authoring engine.
+Reopen and render any corrected DOCX before delivery.

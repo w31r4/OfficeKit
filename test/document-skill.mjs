@@ -368,6 +368,234 @@ try {
     /must be distinct/,
   );
 
+  const headingAccessibilitySource = DocumentModel.create({ name: "Heading accessibility transaction", blocks: [] });
+  headingAccessibilitySource.styles.add("Heading1", {
+    name: "Heading 1",
+    type: "paragraph",
+    basedOn: "Normal",
+    outlineLevel: 0,
+    bold: true,
+    fontSize: 18,
+  });
+  headingAccessibilitySource.styles.add("Heading3", {
+    name: "Heading 3",
+    type: "paragraph",
+    basedOn: "Normal",
+    outlineLevel: 2,
+    bold: true,
+    fontSize: 14,
+  });
+  headingAccessibilitySource.addParagraph("Overview", { styleId: "Heading1" });
+  headingAccessibilitySource.addParagraph("Deep detail", { styleId: "Heading3" });
+  headingAccessibilitySource.addParagraph("Supporting detail", { styleId: "Heading3" });
+  const headingAccessibilitySourcePath = path.join(outputDir, "heading-accessibility-source.docx");
+  const headingAccessibilityOutputPath = path.join(outputDir, "heading-accessibility-reviewed.docx");
+  const headingAccessibilityAuditPath = path.join(outputDir, "heading-accessibility-audit.json");
+  await (await DocumentFile.exportDocx(headingAccessibilitySource)).save(headingAccessibilitySourcePath);
+  const headingAccessibilitySourceBytes = await fs.readFile(headingAccessibilitySourcePath);
+  const headingAccessibilityImported = await DocumentFile.importDocx(await FileBlob.load(headingAccessibilitySourcePath));
+  const headingBlockIndex = headingAccessibilityImported.blocks.findIndex((block) => block.text === "Deep detail");
+  assert.ok(headingBlockIndex >= 0);
+  assert.deepEqual(
+    headingAccessibilityImported.auditAccessibility().issues.map((entry) => [
+      entry.type,
+      entry.blockIndex,
+      entry.previousHeadingLevel,
+      entry.headingLevel,
+    ]),
+    [["headingLevelSkipped", headingBlockIndex, 1, 3]],
+  );
+  const {
+    editImportedHeadingLevel,
+    headingLevelCliOutput,
+    parseHeadingLevelEditCli,
+  } = await import(
+    "../skills/documents/skills/documents/examples/officekit-heading-level-edit-workflow.mjs"
+  );
+  const headingAccessibilityResult = await editImportedHeadingLevel({
+    inputPath: headingAccessibilitySourcePath,
+    outputPath: headingAccessibilityOutputPath,
+    auditPath: headingAccessibilityAuditPath,
+    headingBlockIndex,
+    expectedText: "Deep detail",
+    expectedStyleId: "Heading3",
+    expectedDirectOutlineLevel: null,
+    expectedHeadingLevel: 3,
+    expectedPreviousHeadingLevel: 1,
+    replacementHeadingLevel: 2,
+  });
+  assert.equal(headingAccessibilityResult.audit.operation.type, "source-bound-heading-level-edit");
+  assert.deepEqual(headingAccessibilityResult.audit.operation.expected, {
+    text: "Deep detail",
+    styleId: "Heading3",
+    directOutlineLevel: null,
+    headingLevel: 3,
+    previousHeadingLevel: 1,
+  });
+  assert.deepEqual(headingAccessibilityResult.audit.operation.replacement, {
+    directOutlineLevel: 1,
+    headingLevel: 2,
+  });
+  assert.equal(headingAccessibilityResult.audit.provider.actual, "office-kit");
+  assert.equal(headingAccessibilityResult.audit.provider.silentFallback, false);
+  assert.deepEqual(headingAccessibilityResult.audit.savePolicy, { strategy: "rewrite", noReplace: true });
+  assert.deepEqual(headingAccessibilityResult.audit.validation.changedParts, ["word/document.xml"]);
+  assert.equal(headingAccessibilityResult.audit.validation.headingLevelXmlResidual.ok, true);
+  assert.equal(headingAccessibilityResult.audit.validation.reimport.styleId, "Heading3");
+  assert.equal(headingAccessibilityResult.audit.validation.reimport.directOutlineLevel, 1);
+  assert.equal(headingAccessibilityResult.audit.validation.accessibility.headingLevelSkipsBefore, 1);
+  assert.equal(headingAccessibilityResult.audit.validation.accessibility.headingLevelSkipsAfter, 0);
+  assert.equal(headingAccessibilityResult.audit.validation.accessibility.conformanceClaimed, false);
+  assert.equal(headingAccessibilityResult.audit.validation.modelRender.unchanged, true);
+  assert.equal(headingAccessibilityResult.audit.validation.nativeRenderRequired, true);
+  assert.deepEqual(headingLevelCliOutput(headingAccessibilityResult), {
+    outputPath: headingAccessibilityOutputPath,
+    auditPath: headingAccessibilityAuditPath,
+    outputSha256: createHash("sha256").update(await fs.readFile(headingAccessibilityOutputPath)).digest("hex"),
+    changedParts: ["word/document.xml"],
+    headingLevel: 2,
+  });
+  assert.deepEqual(await fs.readFile(headingAccessibilitySourcePath), headingAccessibilitySourceBytes);
+  assert.deepEqual(JSON.parse(await fs.readFile(headingAccessibilityAuditPath, "utf8")), headingAccessibilityResult.audit);
+  const headingAccessibilityRoundTrip = await DocumentFile.importDocx(await FileBlob.load(headingAccessibilityOutputPath));
+  assert.equal(headingAccessibilityRoundTrip.blocks[headingBlockIndex].text, "Deep detail");
+  assert.equal(headingAccessibilityRoundTrip.blocks[headingBlockIndex].styleId, "Heading3");
+  assert.equal(headingAccessibilityRoundTrip.blocks[headingBlockIndex].paragraphFormat.outlineLevel, 1);
+  assert.equal(headingAccessibilityRoundTrip.blocks[headingBlockIndex + 1].styleId, "Heading3");
+  assert.equal(headingAccessibilityRoundTrip.blocks[headingBlockIndex + 1].paragraphFormat.outlineLevel, undefined);
+  assert.deepEqual(headingAccessibilityRoundTrip.auditAccessibility().issues, []);
+  const headingSourceZip = await JSZip.loadAsync(headingAccessibilitySourceBytes);
+  const headingOutputZip = await JSZip.loadAsync(await fs.readFile(headingAccessibilityOutputPath));
+  const headingSourceXml = await headingSourceZip.file("word/document.xml").async("text");
+  const headingOutputXml = await headingOutputZip.file("word/document.xml").async("text");
+  assert.doesNotMatch(headingSourceXml, /<w:outlineLvl\b[^>]*w:val="1"[^>]*\/>/);
+  assert.equal((headingOutputXml.match(/<w:outlineLvl\b[^>]*w:val="1"[^>]*\/>/g) || []).length, 1);
+
+  const headingVisualBaselineDir = path.join(outputDir, "heading-accessibility-baseline");
+  await verifyDocumentFile(headingAccessibilitySourcePath, {
+    outputDir: path.join(outputDir, "heading-accessibility-source-render"),
+    previewFormat: "png",
+    nativeRender: nativeStatus.available ? "required" : "auto",
+    baselineDir: headingVisualBaselineDir,
+    writeBaseline: true,
+  });
+  const headingAccessibilityRender = await verifyDocumentFile(headingAccessibilityOutputPath, {
+    outputDir: path.join(outputDir, "heading-accessibility-output-render"),
+    previewFormat: "png",
+    nativeRender: nativeStatus.available ? "required" : "auto",
+    baselineDir: headingVisualBaselineDir,
+  });
+  assert.equal(headingAccessibilityRender.summary.verifyOk, true);
+  assert.equal(headingAccessibilityRender.summary.modelPixelDiff.changed, false);
+  assert.equal(headingAccessibilityRender.summary.nativeRender.status, nativeStatus.available ? "passed" : "skipped");
+  if (nativeStatus.available) {
+    assert.equal(headingAccessibilityRender.summary.nativeRender.pageCountMatches, true);
+    assert.equal(headingAccessibilityRender.summary.nativeRender.pages.every((page) => page.pixelDiff.changed === false), true);
+  }
+
+  const headingCliOutputPath = path.join(outputDir, "heading-accessibility-cli.docx");
+  const headingCliAuditPath = path.join(outputDir, "heading-accessibility-cli-audit.json");
+  assert.deepEqual(parseHeadingLevelEditCli([
+    headingAccessibilitySourcePath,
+    headingCliOutputPath,
+    headingCliAuditPath,
+    String(headingBlockIndex),
+    "Deep detail",
+    "Heading3",
+    "inherit",
+    "3",
+    "1",
+    "2",
+  ]), {
+    inputPath: headingAccessibilitySourcePath,
+    outputPath: headingCliOutputPath,
+    auditPath: headingCliAuditPath,
+    headingBlockIndex,
+    expectedText: "Deep detail",
+    expectedStyleId: "Heading3",
+    expectedDirectOutlineLevel: null,
+    expectedHeadingLevel: 3,
+    expectedPreviousHeadingLevel: 1,
+    replacementHeadingLevel: 2,
+  });
+  const headingCliProcess = spawnSync(process.execPath, [
+    path.join(repoRoot, "skills", "documents", "skills", "documents", "examples", "officekit-heading-level-edit-workflow.mjs"),
+    headingAccessibilitySourcePath,
+    headingCliOutputPath,
+    headingCliAuditPath,
+    String(headingBlockIndex),
+    "Deep detail",
+    "Heading3",
+    "inherit",
+    "3",
+    "1",
+    "2",
+  ], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(headingCliProcess.status, 0, headingCliProcess.stderr);
+  assert.deepEqual(JSON.parse(headingCliProcess.stdout), {
+    outputPath: headingCliOutputPath,
+    auditPath: headingCliAuditPath,
+    outputSha256: createHash("sha256").update(await fs.readFile(headingCliOutputPath)).digest("hex"),
+    changedParts: ["word/document.xml"],
+    headingLevel: 2,
+  });
+
+  const rejectedHeadingEdit = (name, overrides = {}) => editImportedHeadingLevel({
+    inputPath: headingAccessibilitySourcePath,
+    outputPath: path.join(outputDir, `${name}.docx`),
+    auditPath: path.join(outputDir, `${name}.json`),
+    headingBlockIndex,
+    expectedText: "Deep detail",
+    expectedStyleId: "Heading3",
+    expectedDirectOutlineLevel: null,
+    expectedHeadingLevel: 3,
+    expectedPreviousHeadingLevel: 1,
+    replacementHeadingLevel: 2,
+    ...overrides,
+  });
+  await assert.rejects(() => rejectedHeadingEdit("heading-stale-text", { expectedText: "Stale heading" }), /text does not match the expected source value/);
+  await assert.rejects(() => rejectedHeadingEdit("heading-stale-style", { expectedStyleId: "Heading2" }), /style does not match the expected source value/);
+  await assert.rejects(() => rejectedHeadingEdit("heading-stale-level", { expectedHeadingLevel: 4 }), /issue does not match the expected source levels/);
+  await assert.rejects(() => rejectedHeadingEdit("heading-invalid-level", { replacementHeadingLevel: 0 }), /replacementHeadingLevel must be an integer from 1 through 9/);
+  await assert.rejects(() => rejectedHeadingEdit("heading-new-skip", { replacementHeadingLevel: 1 }), /introduces new accessibility machine issues/);
+  await assert.rejects(
+    () => rejectedHeadingEdit("heading-overwrite", { outputPath: headingAccessibilitySourcePath }),
+    /must be distinct/,
+  );
+  for (const name of ["heading-stale-text", "heading-stale-style", "heading-stale-level", "heading-invalid-level", "heading-new-skip"]) {
+    await assert.rejects(() => fs.stat(path.join(outputDir, `${name}.docx`)), { code: "ENOENT" });
+    await assert.rejects(() => fs.stat(path.join(outputDir, `${name}.json`)), { code: "ENOENT" });
+  }
+
+  const duplicateHeadingZip = await JSZip.loadAsync(headingAccessibilitySourceBytes);
+  const duplicateHeadingXml = headingSourceXml.replace(
+    /<w:pPr><w:pStyle\s+w:val="Heading3"\s*\/><\/w:pPr>/,
+    '<w:pPr><w:pStyle w:val="Heading3"/><w:outlineLvl w:val="2"/><w:outlineLvl w:val="2"/></w:pPr>',
+  );
+  assert.notEqual(duplicateHeadingXml, headingSourceXml, "the duplicate-outline negative fixture must alter the target paragraph");
+  duplicateHeadingZip.file("word/document.xml", duplicateHeadingXml);
+  const duplicateHeadingSourcePath = path.join(outputDir, "heading-duplicate-source.docx");
+  const duplicateHeadingOutputPath = path.join(outputDir, "heading-duplicate-output.docx");
+  const duplicateHeadingAuditPath = path.join(outputDir, "heading-duplicate-audit.json");
+  await fs.writeFile(duplicateHeadingSourcePath, await duplicateHeadingZip.generateAsync({ type: "nodebuffer" }));
+  await assert.rejects(
+    () => editImportedHeadingLevel({
+      inputPath: duplicateHeadingSourcePath,
+      outputPath: duplicateHeadingOutputPath,
+      auditPath: duplicateHeadingAuditPath,
+      headingBlockIndex,
+      expectedText: "Deep detail",
+      expectedStyleId: "Heading3",
+      expectedDirectOutlineLevel: 2,
+      expectedHeadingLevel: 3,
+      expectedPreviousHeadingLevel: 1,
+      replacementHeadingLevel: 2,
+    }),
+    /not one safely editable modeled source paragraph|duplicate w:outlineLvl leaves/,
+  );
+  await assert.rejects(() => fs.stat(duplicateHeadingOutputPath), { code: "ENOENT" });
+  await assert.rejects(() => fs.stat(duplicateHeadingAuditPath), { code: "ENOENT" });
+
   const businessZip = await JSZip.loadAsync(await fs.readFile(business.docxPath));
   for (const part of [
     "word/document.xml",

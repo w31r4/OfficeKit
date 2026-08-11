@@ -46,6 +46,7 @@ examples/officekit-board-review-surgical-edit-workflow.mjs
 examples/officekit-page-furniture-text-edit.mjs
 examples/officekit-header-text-edit-workflow.mjs
 examples/officekit-footer-text-edit-workflow.mjs
+examples/officekit-heading-level-edit-workflow.mjs
 examples/officekit-hyperlink-text-edit-workflow.mjs
 examples/officekit-image-alt-text-edit-workflow.mjs
 examples/officekit-section-page-numbering-edit-workflow.mjs

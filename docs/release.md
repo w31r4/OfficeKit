@@ -1,6 +1,60 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-11): Document hyperlink text repair
+## Current 0.6.0 candidate (2026-08-11): Document heading-level repair
+
+The Documents Skill now has one official source-bound transaction for repairing
+an exact imported-DOCX `headingLevelSkipped` issue. The packaged
+`officekit-heading-level-edit-workflow.mjs` binds the direct-body block index,
+complete text, style ID, current direct outline state, and the accessibility
+audit's previous/current human heading levels before applying one reviewed
+replacement level. It deliberately keeps the named paragraph style and visible
+content intact; the replacement is one direct zero-based `w:outlineLvl`
+override, not a style rewrite.
+
+The transaction imports and exports only through `DocumentFile` and OfficeKit
+Codec, protects the immutable source hash, and refuses output/audit collisions.
+Only `word/document.xml` may change. Raw-package comparison masks only the
+target outline leaf and a necessary empty paragraph-properties container. A
+second import must preserve the complete document projection with only that
+direct outline value masked. The selected issue must disappear, the heading-
+skip count must decrease, no new machine accessibility issue may appear, and
+verification plus normalized model-SVG comparison must pass before publication.
+
+Positive, CLI, and negative evidence covers inherited native outline state,
+exact style/text/issue-level preconditions, invalid levels, source overwrite,
+duplicate native outline leaves, and a superficially valid replacement that
+would move the skip to the following heading. The source/output pair also uses
+the same LibreOffice/Poppler baseline and produces zero changed model or native
+pixels. Irregular or ambiguous direct-body mappings, stale facts, package drift,
+and any new issue fail closed without an output. Heading hierarchy remains an
+editorial decision; this workflow does not claim Word Accessibility Checker,
+WCAG, or whole-document conformance.
+
+This closes bounded official repair routes for all four current
+`document.auditAccessibility()` machine issue types: heading levels, image
+alternative text, repeating table headers, and empty hyperlink labels. Manual
+checks for purpose, descriptions, reading order, and author intent remain
+explicit.
+
+Local candidate evidence covers the complete 26-step fast gate and all 75 slow
+steps, generated API docs, protocol validation, OfficeKit Codec 401/401,
+OfficeBridge 5/5, deterministic OfficeKit WASM (39-file comparison; runtime 38
+files / 15,422,187 bytes), clean-install package smoke, standalone distribution,
+both Live Add-in builds, the twenty-template matrix, Playwright, LibreOffice,
+and Poppler. Managed PDF live-pack tests and separately configured pypdf,
+pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python runtimes remain
+explicit skips rather than provider-execution evidence.
+
+The package ceiling is narrowly advanced from 53,580,000 to 53,625,000 unpacked
+bytes for the shipped workflow and its Skill guidance. The isolated staged tree
+snapshot excludes the user's unrelated README edits and packs 729 files at
+36,271,350 bytes compressed and 53,599,824 bytes unpacked (`shasum
+a7e58e5f79c8296b0a7291c4b9130b0b0637aa7b`), leaving 25,176 bytes of explicit
+headroom. `npm whoami` reports `ENEEDAUTH`, so npm publication and a tagged
+release were not attempted. Hosted CI for the candidate and Windows Microsoft
+Office host acceptance remain pending external evidence.
+
+## Prior 0.6.0 candidate: Document hyperlink text repair
 
 The Documents Skill now has one official source-bound transaction for repairing
 an empty or stale visible label on a canonical imported-DOCX hyperlink. The

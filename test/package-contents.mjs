@@ -177,7 +177,7 @@ const maxPackedBytes = 37_500_000;
 // specialist binaries or generated repository evidence in the tarball. The
 // Presentation object accessibility repair measures 53,556,147 bytes in the
 // clean candidate package; its audited ceiling retains 23,853 bytes.
-const maxUnpackedBytes = 53_580_000;
+const maxUnpackedBytes = 53_625_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -351,6 +351,7 @@ for (const required of [
   "skills/documents/skills/documents/examples/officekit-header-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-footer-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-image-alt-text-edit-workflow.mjs",
+  "skills/documents/skills/documents/examples/officekit-heading-level-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-hyperlink-text-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-section-page-numbering-edit-workflow.mjs",
   "skills/documents/skills/documents/examples/officekit-section-margin-edit-workflow.mjs",
