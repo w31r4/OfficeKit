@@ -43,6 +43,8 @@ const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("office-kit.legacy-co
 const PRESENTATION_SLIDE_VISIBILITY_CAPABILITY = Symbol.for("office-kit.slide-visibility-capability");
 const PRESENTATION_SLIDE_DELETION_CAPABILITY = Symbol.for("office-kit.slide-deletion-capability");
 const PRESENTATION_SLIDE_CLONE_CAPABILITY = Symbol.for("office-kit.slide-clone-capability");
+const PRESENTATION_ELEMENT_DELETION_CAPABILITY = Symbol.for("office-kit.presentation-element-deletion-capability");
+const PRESENTATION_ELEMENT_DELETED = Symbol.for("office-kit.presentation-element-deleted");
 const PRESENTATION_SCHEME_COLORS = new Set([
   "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
   "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink",
@@ -2649,6 +2651,8 @@ export function presentationEnvelope(presentation, protocolVersion) {
     const sourceState = sourceStates?.sourceBySlide.get(slide);
     const cloneState = sourceStates?.cloneBySlide.get(slide);
     const bindingState = sourceState || cloneState?.source;
+    let retainedEntries = cloneState?.entries || bindingState?.entries;
+    let deletedEntries = [];
     if (bindingState) {
       if (cloneState && slide.name !== bindingState.name) throw new OfficeKitCodecError(`Source-preserving PPTX export cannot rename pending clone slide ${slideIndex + 1}.`, [], { code: "unsupported_presentation_slide_clone" });
       if ((slide.layoutId || "") !== (bindingState.wire.layoutId || "")) throw new OfficeKitCodecError(`Source-preserving PPTX export cannot change slide ${slideIndex + 1}'s layout binding.`, [], { code: cloneState ? "unsupported_presentation_slide_clone" : "presentation_slide_layout_binding_changed" });
@@ -2670,7 +2674,14 @@ export function presentationEnvelope(presentation, protocolVersion) {
       }
       const current = directSlideElements(slide);
       const entries = cloneState?.entries || bindingState.entries;
-      if (current.length !== entries.length || entries.some((entry) => !current.includes(entry.model))) {
+      retainedEntries = entries.filter((entry) => current.includes(entry.model));
+      deletedEntries = entries.filter((entry) => !current.includes(entry.model));
+      const typedDeletions = !cloneState && deletedEntries.every((entry) =>
+        entry.wire.content.case === "shape" && entry.model[PRESENTATION_ELEMENT_DELETED] === true);
+      if (current.length !== retainedEntries.length ||
+          current.some((element) => !retainedEntries.some((entry) => entry.model === element)) ||
+          (!cloneState && !typedDeletions) ||
+          (cloneState && deletedEntries.length > 0)) {
         throw new OfficeKitCodecError(`Source-preserving PPTX export requires slide ${slideIndex + 1}'s original ${entries.length}-element topology.`, [], { code: cloneState ? "unsupported_presentation_slide_clone" : "presentation_element_topology_changed" });
       }
       if (!bindingState.wire.speakerNotes && slide.speakerNotes?.text && !bindingState.wire.source?.speakerNotesAddable) {
@@ -2681,7 +2692,7 @@ export function presentationEnvelope(presentation, protocolVersion) {
       ? presentationLegacyComments(slide, Number(bindingState?.wire.source?.slideIndex ?? slideIndex))
       : [];
     const elements = bindingState
-      ? (cloneState?.entries || bindingState.entries).map((entry) => {
+      ? retainedEntries.map((entry) => {
         if (entry.wire.content.case === "shape") {
           if (entry.wire.content.value.placeholder) {
             return presentationSlidePlaceholder(entry.model, entry.wire, entry.placeholderSnapshot, assetCatalog, customShowLinks);
@@ -2729,6 +2740,12 @@ export function presentationEnvelope(presentation, protocolVersion) {
       ...(legacyComments.length ? { legacyComments } : {}),
       ...(modernComments.length ? { modernComments } : {}),
       elements,
+      ...(deletedEntries.length ? {
+        elementDeletions: deletedEntries.map((entry) => ({
+          id: entry.wire.id,
+          source: entry.wire.source,
+        })),
+      } : {}),
     };
     if (!cloneState) return requested;
     if (!presentationCloneMatches(requested, cloneState.source.wire)) {
@@ -3648,6 +3665,18 @@ export async function presentationFromEnvelope(envelope) {
       } else {
         throw new OfficeKitCodecError(`Presentation element ${element.id} has no supported wire content.`, [], { code: "invalid_presentation_artifact" });
       }
+      const elementDeletionCapability = element.source?.deletionCapability;
+      const deletionNativeId = Number(elementDeletionCapability?.nativeId || 0) || undefined;
+      if (model.nativeId === undefined && deletionNativeId !== undefined) model.nativeId = deletionNativeId;
+      Object.defineProperty(model, PRESENTATION_ELEMENT_DELETION_CAPABILITY, {
+        value: Object.freeze({
+          sourceBound: true,
+          known: Boolean(elementDeletionCapability),
+          supported: elementDeletionCapability?.supported === true,
+          blockedReason: elementDeletionCapability?.blockedReason || "",
+          nativeId: deletionNativeId,
+        }),
+      });
       entries.push({
         wire: element,
         model,

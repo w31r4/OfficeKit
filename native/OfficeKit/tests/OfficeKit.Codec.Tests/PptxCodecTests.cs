@@ -5342,6 +5342,86 @@ public sealed class PptxCodecTests
         var changed = Export(imported.Artifact);
         Assert.False(changed.Ok);
         Assert.Equal("presentation_element_topology_changed", Assert.Single(changed.Diagnostics).Code);
+
+        imported = Import(Invoke(ExportRequest()).File.ToByteArray());
+        imported.Artifact.Presentation.Slides[0].Elements[0].Source.ShapeTreeIndex = uint.MaxValue;
+        var outOfRange = Export(imported.Artifact);
+        Assert.False(outOfRange.Ok);
+        Assert.Equal("presentation_element_topology_changed", Assert.Single(outOfRange.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void SourcePreservingExportDeletesOneCapabilityProvenTopLevelShape()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = authored.File.ToByteArray();
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var removed = Assert.Single(slide.Elements);
+        Assert.Equal(PresentationElement.ContentOneofCase.Shape, removed.ContentCase);
+        Assert.NotNull(removed.Source.DeletionCapability);
+        Assert.True(removed.Source.DeletionCapability.Supported);
+        Assert.Equal(string.Empty, removed.Source.DeletionCapability.BlockedReason);
+
+        slide.ElementDeletions.Add(new PresentationElementDeletion
+        {
+            Id = removed.Id,
+            Source = removed.Source.Clone(),
+        });
+        slide.Elements.Remove(removed);
+        var deleted = Export(imported.Artifact);
+        Assert.True(deleted.Ok, Diagnostics(deleted));
+        var deletedBytes = deleted.File.ToByteArray();
+        Assert.Equal(ZipPartPaths(sourceBytes), ZipPartPaths(deletedBytes));
+        foreach (var path in ZipPartPaths(sourceBytes).Where(path => !path.Equals("ppt/slides/slide1.xml", StringComparison.OrdinalIgnoreCase)))
+            Assert.Equal(ZipBytes(sourceBytes, path), ZipBytes(deletedBytes, path));
+
+        using (var stream = new MemoryStream(deletedBytes, writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            Assert.Empty(package.PresentationPart!.SlideParts.Single().Slide!.CommonSlideData!.ShapeTree!.Elements<P.Shape>());
+        }
+        var roundTrip = Import(deletedBytes);
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.Empty(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements);
+
+        var forged = Import(sourceBytes);
+        var forgedSlide = Assert.Single(forged.Artifact.Presentation.Slides);
+        var forgedRemoved = Assert.Single(forgedSlide.Elements);
+        forgedRemoved.Source.DeletionCapability.Supported = false;
+        forgedSlide.ElementDeletions.Add(new PresentationElementDeletion { Id = forgedRemoved.Id, Source = forgedRemoved.Source.Clone() });
+        forgedSlide.Elements.Remove(forgedRemoved);
+        var rejected = Export(forged.Artifact);
+        Assert.False(rejected.Ok);
+        Assert.Equal("presentation_element_binding_mismatch", Assert.Single(rejected.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void ImportedElementDeletionCapabilityBlocksRelationshipOwningShapes()
+    {
+        var authored = Invoke(HyperlinkExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var imported = Import(authored.File.ToByteArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var relationshipShape = imported.Artifact.Presentation.Slides
+            .SelectMany(slide => slide.Elements)
+            .First(element => element.ContentCase == PresentationElement.ContentOneofCase.Shape &&
+                              element.Source.DeletionCapability.BlockedReason.Contains("relationship", StringComparison.Ordinal));
+        Assert.False(relationshipShape.Source.DeletionCapability.Supported);
+
+        var slide = imported.Artifact.Presentation.Slides.Single(candidate => candidate.Elements.Contains(relationshipShape));
+        slide.ElementDeletions.Add(new PresentationElementDeletion
+        {
+            Id = relationshipShape.Id,
+            Source = relationshipShape.Source.Clone(),
+        });
+        slide.Elements.Remove(relationshipShape);
+        var rejected = Export(imported.Artifact);
+        Assert.False(rejected.Ok);
+        Assert.Equal("unsupported_presentation_element_delete", Assert.Single(rejected.Diagnostics).Code);
     }
 
     [Fact]

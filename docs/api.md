@@ -1834,6 +1834,8 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `PresentationFile.inspectPptx` | api | Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics after raw-input, part-count, decompression, and optional compression-ratio budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `PresentationFile.patchPptx` | api | Apply path-validated PPTX part patches, including safe slide/master/layout ID lists and slide image/chart DrawingML mutations, and atomically reject dangling package references or invalid notes/comments semantics. |
 | `shape.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/description/decorative metadata; export re-proves it. |
+| `shape.delete` | api | Explicitly remove a source-free shape or one capability-proven imported top-level ordinary shape. Relationship-owning shapes, connector/comment/timing/extension identity graphs, non-shape elements, nested children, and raw collection mutation fail closed. |
+| `shape.deletionCapability` | api | Report whether one imported top-level ordinary shape is inside the bounded deletion profile, with a package-local native ID used for post-write absence proof. Export recomputes the capability from source bytes. |
 | `shape.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible ordinary-shape title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed. |
 | `shape.text.set` | api | Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export. |
 | `shape.useBackgroundFill` | api | Read the presence-aware imported PresentationML p:sp useBgFill flag. It affects preview paint but remains source-bound and read-only; source-free authoring or wire mutation fails closed. |
@@ -2672,6 +2674,22 @@ Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/d
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates p:cNvPr.
+
+#### `shape.delete`
+
+Explicitly remove a source-free shape or one capability-proven imported top-level ordinary shape. Relationship-owning shapes, connector/comment/timing/extension identity graphs, non-shape elements, nested children, and raw collection mutation fail closed.
+
+**Schema returns:**
+
+- `shape` (Shape) — The removed Shape facade. Source-free deletion checks current connector/comment references. Imported deletion additionally requires shape.deletionCapability.supported, records explicit deletion intent, and export independently re-proves the source. Pictures, tables, charts, groups, native objects, nested group children, relationship-owning shapes, and direct array splicing remain unsupported.
+
+#### `shape.deletionCapability`
+
+Report whether one imported top-level ordinary shape is inside the bounded deletion profile, with a package-local native ID used for post-write absence proof. Export recomputes the capability from source bytes.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. nativeId is package-local p:cNvPr identity evidence, not a cross-file artifact ID. Imported export ignores caller claims and re-proves the direct ShapeTree parent, element hash, unique native ID, relationship-free subtree, and absence of connector/comment/timing/extension identity consumers.
 
 #### `shape.setAccessibilityMetadata`
 

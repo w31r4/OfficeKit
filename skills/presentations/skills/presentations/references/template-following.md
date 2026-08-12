@@ -189,14 +189,22 @@ bounded operation catalog is:
 - `replace-image`: workspace-local PNG/JPEG `assetPath`, exact `assetSha256`,
   and exact embedded `expectedSourceSha256`; frame, crop, fit, and accessibility
   metadata remain inherited.
+- `delete-element`: exact `expectedName` and `expectedText` preconditions for
+  one capability-proven imported top-level ordinary shape. The imported
+  `shape.deletionCapability` must expose a unique package-local native ID and
+  report `supported: true`; export re-proves the same source binding and the
+  audit verifies that native identity is absent after reimport.
 
 `rewrite` and `fill-placeholder` accept content operations;
 `rewrite-and-reposition` requires both `set-position` and a content operation;
-`replace` currently accepts only `replace-image`. `delete`, `add`, topology
-changes, blank replacement text, duplicate target authorization, stale values,
-cross-workspace assets, and broader chart/image mutations fail closed. Remap to
-another source frame when that bounded catalog cannot express the edit; do not
-drop to array splicing, Python PPTX mutation, or raw OOXML.
+`replace` currently accepts only `replace-image`; `delete` accepts only
+`delete-element`. Relationship-owning shapes, connector/comment/timing/extension
+identity graphs, pictures, tables, charts, groups, native objects, nested group
+children, `add`, other topology changes, blank replacement text, duplicate
+target authorization, stale values, cross-workspace assets, and broader
+chart/image mutations fail closed. Remap to another source frame when that
+bounded catalog cannot express the edit; do not drop to array splicing, Python
+PPTX mutation, or raw OOXML.
 
 Apply the complete plan:
 
@@ -261,10 +269,11 @@ metadata but no text, classify it in the edit plan and handle it with
 PowerPoint can show default edit-mode prompts such as `Click to add title` even
 when slide PNG renders look clean.
 
-The automated edit transaction does not currently execute `delete`. A map that
-requires deletion therefore remains blocked unless a future public typed
-deletion primitive supports that exact imported object topology. Do not claim a
-placeholder was removed merely because it was invisible in a render.
+The automated edit transaction executes `delete` only through the bounded
+`delete-element` primitive for a capability-proven top-level ordinary shape.
+Every other object/topology remains blocked. Do not claim a placeholder was
+removed merely because it was invisible in a render, and never substitute raw
+collection mutation when the capability refuses.
 
 Do not clear text by broad text heuristics. Never run logic equivalent to
 `if (text.trim()) shape.text = ""`, and never blank every text-bearing shape on

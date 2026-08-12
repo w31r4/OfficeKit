@@ -5535,4 +5535,56 @@ await assert.rejects(
   (error) => error?.code === "invalid_presentation_modern_comment" && /explicit.*position/i.test(error.message),
 );
 
+const elementDeleteSource = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const elementDeleteSlide = elementDeleteSource.slides.add({ name: "Element deletion" });
+elementDeleteSlide.shapes.add({ name: "keep-shape", text: "Keep", position: { left: 40, top: 40, width: 180, height: 80 } });
+elementDeleteSlide.shapes.add({ name: "delete-shape", text: "Delete", position: { left: 280, top: 40, width: 180, height: 80 } });
+const elementDeleteSourceFile = await PresentationFile.exportPptx(elementDeleteSource);
+const elementDeleteImported = await PresentationFile.importPptx(elementDeleteSourceFile);
+const importedDeleteShape = elementDeleteImported.slides.getItem(0).shapes.getItem("delete-shape");
+assert.equal(importedDeleteShape.deletionCapability.sourceBound, true);
+assert.equal(importedDeleteShape.deletionCapability.known, true);
+assert.equal(importedDeleteShape.deletionCapability.supported, true);
+assert.equal(importedDeleteShape.deletionCapability.blockedReason, "");
+assert.ok(Number.isInteger(importedDeleteShape.deletionCapability.nativeId) && importedDeleteShape.deletionCapability.nativeId > 0);
+assert.equal(importedDeleteShape.inspectRecord().deletionCapability.supported, true);
+const deletedId = importedDeleteShape.id;
+assert.equal(importedDeleteShape.delete(), importedDeleteShape);
+assert.equal(elementDeleteImported.resolve(deletedId), undefined);
+const elementDeletedFile = await PresentationFile.exportPptx(elementDeleteImported);
+const elementDeleteRoundTrip = await PresentationFile.importPptx(elementDeletedFile);
+assert.deepEqual(elementDeleteRoundTrip.slides.getItem(0).shapes.items.map((shape) => shape.name), ["keep-shape"]);
+
+const [elementDeleteBeforeZip, elementDeleteAfterZip] = await Promise.all([
+  JSZip.loadAsync(new Uint8Array(await elementDeleteSourceFile.arrayBuffer())),
+  JSZip.loadAsync(new Uint8Array(await elementDeletedFile.arrayBuffer())),
+]);
+assert.deepEqual(Object.keys(elementDeleteAfterZip.files).sort(), Object.keys(elementDeleteBeforeZip.files).sort());
+for (const name of Object.keys(elementDeleteBeforeZip.files).filter((name) => name !== "ppt/slides/slide1.xml" && !elementDeleteBeforeZip.files[name].dir)) {
+  assert.deepEqual(await elementDeleteAfterZip.file(name).async("uint8array"), await elementDeleteBeforeZip.file(name).async("uint8array"), `${name} changed during shape deletion`);
+}
+
+const untypedElementDelete = await PresentationFile.importPptx(elementDeleteSourceFile);
+untypedElementDelete.slides.getItem(0).shapes.items.splice(1, 1);
+await assert.rejects(
+  () => PresentationFile.exportPptx(untypedElementDelete),
+  (error) => error?.code === "presentation_element_topology_changed",
+  "raw collection mutation must not masquerade as a capability-proven element deletion",
+);
+
+const connectedElementDeleteSource = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const connectedElementDeleteSlide = connectedElementDeleteSource.slides.add({ name: "Connected deletion" });
+const connectedFrom = connectedElementDeleteSlide.shapes.add({ name: "connected-from", position: { left: 40, top: 40, width: 140, height: 70 } });
+const connectedTo = connectedElementDeleteSlide.shapes.add({ name: "connected-to", position: { left: 360, top: 40, width: 140, height: 70 } });
+connectedElementDeleteSlide.shapes.connect(connectedFrom, connectedTo);
+const connectedElementDeleteImported = await PresentationFile.importPptx(await PresentationFile.exportPptx(connectedElementDeleteSource));
+const blockedElementDeleteShape = connectedElementDeleteImported.slides.getItem(0).shapes.getItem("connected-from");
+assert.equal(blockedElementDeleteShape.deletionCapability.supported, false);
+assert.match(blockedElementDeleteShape.deletionCapability.blockedReason, /connector topology/);
+assert.throws(
+  () => blockedElementDeleteShape.delete(),
+  (error) => error?.code === "unsupported_presentation_element_delete",
+);
+assert.equal(connectedElementDeleteImported.slides.getItem(0).shapes.count, 2);
+
 console.log("presentation smoke ok");

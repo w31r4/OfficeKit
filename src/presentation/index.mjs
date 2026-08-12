@@ -42,6 +42,9 @@ const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("office-kit.legacy-co
 const PRESENTATION_SLIDE_VISIBILITY_CAPABILITY = Symbol.for("office-kit.slide-visibility-capability");
 const PRESENTATION_SLIDE_DELETION_CAPABILITY = Symbol.for("office-kit.slide-deletion-capability");
 const PRESENTATION_SLIDE_CLONE_CAPABILITY = Symbol.for("office-kit.slide-clone-capability");
+const PRESENTATION_STATE = Symbol.for("office-kit.presentation-state");
+const PRESENTATION_ELEMENT_DELETION_CAPABILITY = Symbol.for("office-kit.presentation-element-deletion-capability");
+const PRESENTATION_ELEMENT_DELETED = Symbol.for("office-kit.presentation-element-deleted");
 
 export { SlideTransition };
 
@@ -1445,6 +1448,56 @@ export class Shape {
   set text(value) { this._text.set(value); }
   get useBackgroundFill() { return importedShapeBackgroundFill.get(this); }
   get accessibilityCapability() { return presentationAccessibilityCapability(this); }
+  get deletionCapability() {
+    const imported = this[PRESENTATION_ELEMENT_DELETION_CAPABILITY];
+    if (imported) return { ...imported };
+    if (this.slide?.presentation?.[PRESENTATION_STATE]) {
+      return {
+        sourceBound: true,
+        known: false,
+        supported: false,
+        blockedReason: "This imported element is outside the bounded top-level shape deletion profile.",
+        nativeId: undefined,
+      };
+    }
+    return { sourceBound: false, known: true, supported: true, blockedReason: "", nativeId: undefined };
+  }
+
+  delete() {
+    const owner = this.parentGroup;
+    const collection = owner?.shapes || this.slide?.shapes;
+    const index = collection?.items?.indexOf(this) ?? -1;
+    if (index < 0) throw new Error("Presentation shape must belong to its slide before it can be deleted.");
+
+    const connectors = owner?.connectors?.items || this.slide?.connectors?.items || [];
+    if (connectors.some((connector) => connector.startTargetId === this.id || connector.endTargetId === this.id)) {
+      const error = new Error(`Presentation shape ${this.id} cannot be deleted while a connector targets it.`);
+      error.code = "unsupported_presentation_element_delete";
+      throw error;
+    }
+    if ((this.slide?.comments?.items || []).some((thread) => thread.targetId === this.id)) {
+      const error = new Error(`Presentation shape ${this.id} cannot be deleted while a comment targets it.`);
+      error.code = "unsupported_presentation_element_delete";
+      throw error;
+    }
+
+    const capability = this.deletionCapability;
+    if (capability.sourceBound && (!capability.known || !capability.supported)) {
+      const detail = capability.blockedReason ? `: ${capability.blockedReason}` : ".";
+      const error = new Error(`Imported presentation shape cannot be safely deleted${detail}`);
+      error.code = "unsupported_presentation_element_delete";
+      throw error;
+    }
+    if (capability.sourceBound) {
+      Object.defineProperty(this, PRESENTATION_ELEMENT_DELETED, { value: true });
+    }
+    collection.items.splice(index, 1);
+    if (owner) {
+      const childIndex = owner.children.indexOf(this);
+      if (childIndex >= 0) owner.children.splice(childIndex, 1);
+    }
+    return this;
+  }
 
   setAccessibilityMetadata(update) {
     this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation shape ${this.id}`);
@@ -1489,7 +1542,7 @@ export class Shape {
     const p = this.position;
     const paragraphs = this.text.effectiveParagraphs();
     const custom = this.#normalizedCustomGeometry();
-    return { kind, id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, text: this.text.value || undefined, textPreview: this.text.value || undefined, textChars: this.text.value.length || undefined, textLines: this.text.value ? this.text.value.split("\n").length : undefined, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, customPathCount: custom.paths.length || undefined, customAdjustmentCount: custom.adjustments.length || undefined, customGuideCount: custom.guides.length || undefined, customConnectionSiteCount: custom.connectionSites.length || undefined, customAdjustmentHandleCount: custom.adjustmentHandles.length || undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, textRectangle: custom.textRectangle, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", transform: this.transform, shadow: this.shadow, placeholder: this.placeholder || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, useBackgroundFill: this.useBackgroundFill };
+    return { kind, id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, text: this.text.value || undefined, textPreview: this.text.value || undefined, textChars: this.text.value.length || undefined, textLines: this.text.value ? this.text.value.split("\n").length : undefined, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, customPathCount: custom.paths.length || undefined, customAdjustmentCount: custom.adjustments.length || undefined, customGuideCount: custom.guides.length || undefined, customConnectionSiteCount: custom.connectionSites.length || undefined, customAdjustmentHandleCount: custom.adjustmentHandles.length || undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, textRectangle: custom.textRectangle, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", transform: this.transform, shadow: this.shadow, placeholder: this.placeholder || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, useBackgroundFill: this.useBackgroundFill };
   }
 
   layoutJson() { const paragraphs = this.text.effectiveParagraphs(); const custom = this.#normalizedCustomGeometry(); return { kind: this.text.value ? "textbox" : "shape", id: this.id, name: this.name, geometry: this.geometry, customAdjustments: custom.adjustments.length ? custom.adjustments : undefined, customGuides: custom.guides.length ? custom.guides : undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, customPaths: custom.paths.length ? custom.paths : undefined, textRectangle: custom.textRectangle, frame: this.position, transform: this.transform, text: this.text.value, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, placeholder: this.placeholder, accessibility: this.accessibility ? { ...this.accessibility } : undefined, style: { fill: this.fill, line: this.line, borderRadius: this.borderRadius, shadow: this.shadow, text: this.text.style, useBackgroundFill: this.useBackgroundFill } }; }

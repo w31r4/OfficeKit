@@ -267,6 +267,9 @@ internal static class PptxCodec
                     if (semanticItems > limits.MaxCells)
                         throw new CodecException("presentation_item_budget_exceeded", $"PPTX presentation exceeds max_cells semantic-item budget ({limits.MaxCells}).", PartPath(slidePart));
                 }
+                SetElementDeletionCapability(
+                    importedElement,
+                    PptxElementDeletionCodec.Analyze(slidePart, elements[elementIndex], elements));
                 target.Elements.Add(importedElement);
             }
             artifact.Slides.Add(target);
@@ -690,49 +693,96 @@ internal static class PptxCodec
                 var sourceElements = ShapeElements(shapeTree);
                 var elementIdsByNativeId = NativeElementIds(sourceElements, target.Id);
                 var nativeIdsByElementId = elementIdsByNativeId.ToDictionary(item => item.Value, item => item.Key, StringComparer.Ordinal);
-                if (sourceElements.Length != target.Elements.Count)
+                if (target.Elements.Count + target.ElementDeletions.Count != sourceElements.Length)
                     throw new CodecException(
                         "presentation_element_topology_changed",
-                        $"Source-preserving PPTX export requires slide {slideIndex + 1}'s original {sourceElements.Length}-element topology; the artifact contains {target.Elements.Count} elements.",
+                        $"Source-preserving PPTX export requires slide {slideIndex + 1}'s original {sourceElements.Length}-element topology to be covered by retained elements plus explicit deletions; the artifact contains {target.Elements.Count} retained elements and {target.ElementDeletions.Count} deletions.",
                         PartPath(slidePart));
 
                 var slideContext = new PptxPartContext(slidePart, slideIdByPartPath, slidePartById, assetCatalog, customShowCatalog);
+                var requestedBySourceIndex = new Dictionary<int, PresentationElement>();
+                var previousSourceIndex = -1;
+                foreach (var requested in target.Elements)
+                {
+                    var requestedBinding = requested.Source ?? throw new CodecException(
+                        "missing_presentation_element_binding",
+                        $"Presentation slide {slideIndex + 1} retained element {requested.Id} is missing its source binding.",
+                        PartPath(slidePart));
+                    if (requestedBinding.ShapeTreeIndex >= (uint)sourceElements.Length)
+                        throw new CodecException(
+                            "presentation_element_topology_changed",
+                            $"Presentation slide {slideIndex + 1} retained element {requested.Id} identifies a source shape-tree index outside the slide.",
+                            PartPath(slidePart));
+                    var sourceIndex = (int)requestedBinding.ShapeTreeIndex;
+                    if (sourceIndex <= previousSourceIndex || !requestedBySourceIndex.TryAdd(sourceIndex, requested))
+                        throw new CodecException(
+                            "presentation_element_topology_changed",
+                            $"Presentation slide {slideIndex + 1} retained elements must preserve unique source shape-tree order.",
+                            PartPath(slidePart));
+                    previousSourceIndex = sourceIndex;
+                }
+                var deletionsBySourceIndex = new Dictionary<int, PresentationElementDeletion>();
+                foreach (var deletion in target.ElementDeletions)
+                {
+                    var deletionBinding = deletion.Source ?? throw new CodecException(
+                        "missing_presentation_element_deletion_binding",
+                        $"Presentation slide {slideIndex + 1} element deletion {deletion.Id} is missing its source binding.",
+                        PartPath(slidePart));
+                    if (deletionBinding.ShapeTreeIndex >= (uint)sourceElements.Length)
+                        throw new CodecException(
+                            "presentation_element_topology_changed",
+                            $"Presentation slide {slideIndex + 1} element deletion {deletion.Id} identifies a source shape-tree index outside the slide.",
+                            PartPath(slidePart));
+                    var sourceIndex = (int)deletionBinding.ShapeTreeIndex;
+                    if (requestedBySourceIndex.ContainsKey(sourceIndex) || !deletionsBySourceIndex.TryAdd(sourceIndex, deletion))
+                        throw new CodecException(
+                            "presentation_element_topology_changed",
+                            $"Presentation slide {slideIndex + 1} element deletion {deletion.Id} does not identify one omitted source element.",
+                            PartPath(slidePart));
+                }
+                var pendingElementDeletions = new List<(OpenXmlElement Source, PptxElementDeletionPlan Plan)>();
                 for (var elementIndex = 0; elementIndex < sourceElements.Length; elementIndex++)
                 {
                     semanticItems++;
                     if (semanticItems > limits.MaxCells)
                         throw new CodecException("presentation_item_budget_exceeded", $"PPTX presentation exceeds max_cells semantic-item budget ({limits.MaxCells}).", PartPath(slidePart));
                     var sourceElement = sourceElements[elementIndex];
-                    var requested = target.Elements[elementIndex];
-                    var elementBinding = requested.Source ?? throw new CodecException(
-                        "missing_presentation_element_binding",
-                        $"Presentation slide {slideIndex + 1} element {elementIndex + 1} is missing its source binding.",
-                        PartPath(slidePart));
-                    if (elementBinding.ShapeTreeIndex != elementIndex ||
-                        !elementBinding.ElementSha256.Equals(HashElement(sourceElement), StringComparison.OrdinalIgnoreCase))
-                        throw new CodecException(
-                            "presentation_element_binding_mismatch",
-                            $"Presentation slide {slideIndex + 1} element {elementIndex + 1} does not match its source element.",
-                            PartPath(slidePart));
-                    var original = ReadElement(sourceElement, slideIndex, elementIndex, slideContext, nativeObjects, elementIdsByNativeId);
+                    // Element identities are owned by the source-bound slide, not
+                    // by its current presentation position. A slide reorder must
+                    // therefore retain the imported owner ID while proving each
+                    // element binding against the original SlidePart.
+                    var original = ReadElement(sourceElement, target.Id, elementIndex, slideContext, nativeObjects, elementIdsByNativeId);
+                    var deletionPlan = PptxElementDeletionCodec.Analyze(slidePart, sourceElement, sourceElements);
+                    SetElementDeletionCapability(original, deletionPlan);
                     if (original.ContentCase == PresentationElement.ContentOneofCase.Table)
                     {
                         semanticItems += checked((ulong)original.Table.Rows.Sum(row => row.Cells.Count));
                         if (semanticItems > limits.MaxCells)
                             throw new CodecException("presentation_item_budget_exceeded", $"PPTX presentation exceeds max_cells semantic-item budget ({limits.MaxCells}).", PartPath(slidePart));
                     }
-                    if (elementBinding.Editable != original.Source.Editable ||
-                        elementBinding.TextEditable != original.Source.TextEditable ||
-                        elementBinding.AccessibilityEditable != original.Source.AccessibilityEditable)
-                        throw new CodecException(
-                            "presentation_element_binding_mismatch",
-                            $"Presentation slide {slideIndex + 1} element {elementIndex + 1} changed its source editability contract.",
-                            PartPath(slidePart));
-                    if (!SemanticHash(original).Equals(elementBinding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
-                        throw new CodecException(
-                            "presentation_source_semantics_mismatch",
-                            $"Presentation slide {slideIndex + 1} element {elementIndex + 1} source semantics do not match its binding.",
-                            PartPath(slidePart));
+                    if (!requestedBySourceIndex.TryGetValue(elementIndex, out var requested))
+                    {
+                        if (!deletionsBySourceIndex.TryGetValue(elementIndex, out var deletion))
+                            throw new CodecException(
+                                "presentation_element_topology_changed",
+                                $"Presentation slide {slideIndex + 1} source element {elementIndex + 1} is neither retained nor explicitly deleted.",
+                                PartPath(slidePart));
+                        AssertElementBinding(deletion.Id, deletion.Source, sourceElement, original, deletionPlan, slideIndex, elementIndex, slidePart);
+                        if (!deletion.Id.Equals(original.Id, StringComparison.Ordinal))
+                            throw new CodecException(
+                                "presentation_element_deletion_binding_mismatch",
+                                $"Presentation slide {slideIndex + 1} deletion {elementIndex + 1} changed its source element identity.",
+                                PartPath(slidePart));
+                        if (!deletionPlan.Supported)
+                            throw new CodecException(
+                                "unsupported_presentation_element_delete",
+                                $"Presentation slide {slideIndex + 1} element {elementIndex + 1} cannot be safely deleted: {deletionPlan.BlockedReason}.",
+                                PartPath(slidePart));
+                        pendingElementDeletions.Add((sourceElement, deletionPlan));
+                        continue;
+                    }
+                    var elementBinding = requested.Source!;
+                    AssertElementBinding(requested.Id, elementBinding, sourceElement, original, deletionPlan, slideIndex, elementIndex, slidePart);
                     PptxOleWorkbookReplacement? oleWorkbookReplacement = null;
                     PptxOleOfficePackageReplacement? oleOfficePackageReplacement = null;
                     PptxDiagramTextReplacement? diagramTextReplacement = null;
@@ -835,6 +885,11 @@ internal static class PptxCodec
                     {
                         throw UnsupportedPresentationEdit(slideIndex, elementIndex, slidePart);
                     }
+                }
+                foreach (var deletion in pendingElementDeletions)
+                {
+                    PptxElementDeletionCodec.Apply(deletion.Source, deletion.Plan);
+                    changed = true;
                 }
                 if (changed)
                 {
@@ -1048,6 +1103,54 @@ internal static class PptxCodec
         };
         element.Source.SemanticSha256 = SemanticHash(element);
         return element;
+    }
+
+    private static void SetElementDeletionCapability(
+        PresentationElement element,
+        PptxElementDeletionPlan plan)
+    {
+        element.Source.DeletionCapability = new PresentationElementDeletionCapability
+        {
+            Supported = plan.Supported,
+            BlockedReason = plan.BlockedReason,
+            NativeId = plan.NativeId,
+        };
+    }
+
+    private static void AssertElementBinding(
+        string requestedId,
+        PresentationElementSourceBinding binding,
+        OpenXmlElement sourceElement,
+        PresentationElement original,
+        PptxElementDeletionPlan deletionPlan,
+        int slideIndex,
+        int elementIndex,
+        SlidePart slidePart)
+    {
+        if (!requestedId.Equals(original.Id, StringComparison.Ordinal) ||
+            binding.ShapeTreeIndex != elementIndex ||
+            !binding.ElementSha256.Equals(HashElement(sourceElement), StringComparison.OrdinalIgnoreCase))
+            throw new CodecException(
+                "presentation_element_binding_mismatch",
+                $"Presentation slide {slideIndex + 1} element {elementIndex + 1} does not match its source element.",
+                PartPath(slidePart));
+        if (binding.Editable != original.Source.Editable ||
+            binding.DirectFramePresenceEditable != original.Source.DirectFramePresenceEditable ||
+            binding.TextEditable != original.Source.TextEditable ||
+            binding.AccessibilityEditable != original.Source.AccessibilityEditable ||
+            binding.DeletionCapability is null ||
+            binding.DeletionCapability.Supported != deletionPlan.Supported ||
+            binding.DeletionCapability.NativeId != deletionPlan.NativeId ||
+            !binding.DeletionCapability.BlockedReason.Equals(deletionPlan.BlockedReason, StringComparison.Ordinal))
+            throw new CodecException(
+                "presentation_element_binding_mismatch",
+                $"Presentation slide {slideIndex + 1} element {elementIndex + 1} changed its source capability contract.",
+                PartPath(slidePart));
+        if (!SemanticHash(original).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
+            throw new CodecException(
+                "presentation_source_semantics_mismatch",
+                $"Presentation slide {slideIndex + 1} element {elementIndex + 1} source semantics do not match its binding.",
+                PartPath(slidePart));
     }
 
     private static bool TryReadGroup(
@@ -2461,31 +2564,60 @@ internal static class PptxCodec
             var after = ShapeElements(outputRoot.CommonSlideData!.ShapeTree!);
             var afterIds = NativeElementIds(after, requested.Slides[slideIndex].Id);
             var elements = requested.Slides[slideIndex].Elements;
-            if (before.Length != elements.Count || after.Length != elements.Count)
+            var deletions = requested.Slides[slideIndex].ElementDeletions;
+            if (before.Length != elements.Count + deletions.Count || after.Length != elements.Count)
                 throw new CodecException("presentation_postwrite_topology_changed", $"PPTX slide {slideIndex + 1} element topology changed during source-preserving export.", PartPath(outputSlide));
+            var outputNativeIds = after.Select(PptxElementDeletionCodec.NativeId).Where(id => id is not null).Select(id => id!.Value).ToHashSet();
+            foreach (var deletion in deletions)
+            {
+                var binding = deletion.Source ?? throw new CodecException(
+                    "missing_presentation_element_deletion_binding",
+                    $"PPTX slide {slideIndex + 1} element deletion {deletion.Id} lost its source binding after export.",
+                    PartPath(outputSlide));
+                var sourceElementIndex = checked((int)binding.ShapeTreeIndex);
+                if (sourceElementIndex >= before.Length ||
+                    !binding.ElementSha256.Equals(HashElement(before[sourceElementIndex]), StringComparison.OrdinalIgnoreCase) ||
+                    PptxElementDeletionCodec.NativeId(before[sourceElementIndex]) is not { } deletedNativeId ||
+                    outputNativeIds.Contains(deletedNativeId))
+                    throw new CodecException(
+                        "presentation_postwrite_element_delete_mismatch",
+                        $"PPTX slide {slideIndex + 1} deleted element {sourceElementIndex + 1} remains or no longer matches its source binding.",
+                        PartPath(outputSlide));
+                var plan = PptxElementDeletionCodec.Analyze(sourceSlide, before[sourceElementIndex], before);
+                if (!plan.Supported)
+                    throw new CodecException(
+                        "presentation_postwrite_element_delete_mismatch",
+                        $"PPTX slide {slideIndex + 1} deleted element {sourceElementIndex + 1} no longer satisfies its source deletion proof.",
+                        PartPath(outputSlide));
+            }
             for (var elementIndex = 0; elementIndex < elements.Count; elementIndex++)
             {
                 var request = elements[elementIndex];
                 var binding = request.Source!;
+                var sourceElementIndex = checked((int)binding.ShapeTreeIndex);
+                if (sourceElementIndex >= before.Length)
+                    throw new CodecException("presentation_postwrite_topology_changed", $"PPTX slide {slideIndex + 1} retained element {elementIndex + 1} has an invalid source index.", PartPath(outputSlide));
+                var beforeElement = before[sourceElementIndex];
+                var afterElement = after[elementIndex];
                 var changed = !SemanticHash(request).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase);
                 if (!changed)
                 {
-                    if (!HashElement(before[elementIndex]).Equals(HashElement(after[elementIndex]), StringComparison.OrdinalIgnoreCase))
+                    if (!HashElement(beforeElement).Equals(HashElement(afterElement), StringComparison.OrdinalIgnoreCase))
                         throw new CodecException(
                             "presentation_unchanged_element_modified",
-                            $"PPTX slide {slideIndex + 1} unchanged element {elementIndex + 1} was modified during export.",
+                            $"PPTX slide {slideIndex + 1} unchanged retained element {sourceElementIndex + 1} was modified during export.",
                             PartPath(outputSlides[slideIndex]));
                     continue;
                 }
                 if (request.ContentCase == PresentationElement.ContentOneofCase.Opaque)
                 {
-                    if (!NativeObjectResidualHash(before[elementIndex]).Equals(NativeObjectResidualHash(after[elementIndex]), StringComparison.OrdinalIgnoreCase))
+                    if (!NativeObjectResidualHash(beforeElement).Equals(NativeObjectResidualHash(afterElement), StringComparison.OrdinalIgnoreCase))
                         throw new CodecException(
                             "presentation_unmodeled_native_content_changed",
                             $"PPTX slide {slideIndex + 1} edited native object {elementIndex + 1} changed unmodeled native content.",
                             PartPath(outputSlides[slideIndex]));
-                    var outputFrame = ReadFrame(after[elementIndex]);
-                    if (!ElementName(after[elementIndex], elementIndex).Equals(request.Name, StringComparison.Ordinal) ||
+                    var outputFrame = ReadFrame(afterElement);
+                    if (!ElementName(afterElement, elementIndex).Equals(request.Name, StringComparison.Ordinal) ||
                         outputFrame.Left != request.Opaque.LeftEmu || outputFrame.Top != request.Opaque.TopEmu ||
                         outputFrame.Width != request.Opaque.WidthEmu || outputFrame.Height != request.Opaque.HeightEmu)
                         throw new CodecException(
@@ -2495,14 +2627,14 @@ internal static class PptxCodec
                     PptxDiagramTextCodec.ValidateSourceBoundOutput(
                         sourceSlide,
                         outputSlide,
-                        before[elementIndex],
-                        after[elementIndex],
+                        beforeElement,
+                        afterElement,
                         request.Opaque);
                     continue;
                 }
                 if (request.ContentCase == PresentationElement.ContentOneofCase.Group)
                 {
-                    if (before[elementIndex] is not P.GroupShape beforeGroup || after[elementIndex] is not P.GroupShape afterGroup)
+                    if (beforeElement is not P.GroupShape beforeGroup || afterElement is not P.GroupShape afterGroup)
                         throw new CodecException("presentation_postwrite_element_mismatch", $"PPTX slide {slideIndex + 1} edited group {elementIndex + 1} changed native element type.", PartPath(outputSlides[slideIndex]));
                     ValidateGroupOutput(beforeGroup, afterGroup, request, sourceContext, outputContext, afterIds, slideIndex, $"element {elementIndex + 1}");
                     var outputGroupSemantic = ReadElement(afterGroup, slideIndex, elementIndex, outputContext, elementIdsByNativeId: afterIds);
@@ -2512,7 +2644,7 @@ internal static class PptxCodec
                 }
                 if (request.ContentCase == PresentationElement.ContentOneofCase.Image)
                 {
-                    if (before[elementIndex] is not P.Picture beforePicture || after[elementIndex] is not P.Picture afterPicture)
+                    if (beforeElement is not P.Picture beforePicture || afterElement is not P.Picture afterPicture)
                         throw new CodecException("presentation_postwrite_element_mismatch", $"PPTX slide {slideIndex + 1} edited image {elementIndex + 1} changed native element type.", PartPath(outputSlides[slideIndex]));
                     if (!PictureResidualHash(beforePicture).Equals(PictureResidualHash(afterPicture), StringComparison.OrdinalIgnoreCase))
                         throw new CodecException(
@@ -2529,7 +2661,7 @@ internal static class PptxCodec
                 }
                 if (request.ContentCase == PresentationElement.ContentOneofCase.Table)
                 {
-                    if (before[elementIndex] is not P.GraphicFrame beforeTable || after[elementIndex] is not P.GraphicFrame afterTable)
+                    if (beforeElement is not P.GraphicFrame beforeTable || afterElement is not P.GraphicFrame afterTable)
                         throw new CodecException("presentation_postwrite_element_mismatch", $"PPTX slide {slideIndex + 1} edited table {elementIndex + 1} changed native element type.", PartPath(outputSlides[slideIndex]));
                     if (!TableResidualHash(beforeTable).Equals(TableResidualHash(afterTable), StringComparison.OrdinalIgnoreCase))
                         throw new CodecException(
@@ -2546,7 +2678,7 @@ internal static class PptxCodec
                 }
                 if (request.ContentCase == PresentationElement.ContentOneofCase.Connector)
                 {
-                    if (before[elementIndex] is not P.ConnectionShape beforeConnector || after[elementIndex] is not P.ConnectionShape afterConnector)
+                    if (beforeElement is not P.ConnectionShape beforeConnector || afterElement is not P.ConnectionShape afterConnector)
                         throw new CodecException("presentation_postwrite_element_mismatch", $"PPTX slide {slideIndex + 1} edited connector {elementIndex + 1} changed native element type.", PartPath(outputSlides[slideIndex]));
                     if (!ConnectorResidualHash(beforeConnector).Equals(ConnectorResidualHash(afterConnector), StringComparison.OrdinalIgnoreCase))
                         throw new CodecException("presentation_unmodeled_connector_content_changed", $"PPTX slide {slideIndex + 1} edited connector {elementIndex + 1} changed unmodeled native content.", PartPath(outputSlides[slideIndex]));
@@ -2557,7 +2689,7 @@ internal static class PptxCodec
                 }
                 if (request.ContentCase == PresentationElement.ContentOneofCase.Chart)
                 {
-                    if (before[elementIndex] is not P.GraphicFrame beforeChart || after[elementIndex] is not P.GraphicFrame afterChart)
+                    if (beforeElement is not P.GraphicFrame beforeChart || afterElement is not P.GraphicFrame afterChart)
                         throw new CodecException("presentation_postwrite_element_mismatch", $"PPTX slide {slideIndex + 1} edited chart {elementIndex + 1} changed native element type.", PartPath(outputSlides[slideIndex]));
                     if (!ChartFrameResidualHash(beforeChart).Equals(ChartFrameResidualHash(afterChart), StringComparison.OrdinalIgnoreCase))
                         throw new CodecException("presentation_unmodeled_chart_frame_changed", $"PPTX slide {slideIndex + 1} edited chart {elementIndex + 1} changed unmodeled frame content.", PartPath(outputSlides[slideIndex]));
@@ -2566,7 +2698,7 @@ internal static class PptxCodec
                         throw new CodecException("presentation_postwrite_semantics_mismatch", $"PPTX slide {slideIndex + 1} edited chart {elementIndex + 1} does not match requested semantics after export.", PartPath(outputSlides[slideIndex]));
                     continue;
                 }
-                if (before[elementIndex] is not P.Shape beforeShape || after[elementIndex] is not P.Shape afterShape)
+                if (beforeElement is not P.Shape beforeShape || afterElement is not P.Shape afterShape)
                     throw new CodecException("presentation_postwrite_element_mismatch", $"PPTX slide {slideIndex + 1} edited element {elementIndex + 1} changed native element type.", PartPath(outputSlides[slideIndex]));
                 if (!ShapeResidualHash(beforeShape, sourceContext).Equals(ShapeResidualHash(afterShape, outputContext), StringComparison.OrdinalIgnoreCase))
                     throw new CodecException(
@@ -3132,7 +3264,7 @@ internal static class PptxCodec
             throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} legacy comments are not unchanged source comments.", PartPath(source.Part));
 
         var sourceElements = ShapeElements(tree);
-        if (sourceElements.Length != target.Target.Elements.Count)
+        if (sourceElements.Length != target.Target.Elements.Count || target.Target.ElementDeletions.Count > 0)
             throw PptxSlideCloneCodec.Unsupported(source, "the requested clone changes source element topology");
         var context = new PptxPartContext(source.Part, slideIdByPartPath, assets: assetCatalog, customShows: customShowCatalog);
         var elementIdsByNativeId = NativeElementIds(sourceElements, $"presentation/slide/{source.Index + 1}");
@@ -3142,14 +3274,10 @@ internal static class PptxCodec
             var binding = requested.Source ??
                 throw new CodecException("missing_presentation_element_binding", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} is missing its source binding.", PartPath(source.Part));
             var original = ReadElement(sourceElements[elementIndex], source.Index, elementIndex, context, nativeObjects, elementIdsByNativeId);
-            if (binding.ShapeTreeIndex != elementIndex ||
-                !binding.ElementSha256.Equals(HashElement(sourceElements[elementIndex]), StringComparison.OrdinalIgnoreCase) ||
-                binding.Editable != original.Source?.Editable ||
-                binding.TextEditable != original.Source?.TextEditable ||
-                binding.AccessibilityEditable != original.Source?.AccessibilityEditable ||
-                !binding.SemanticSha256.Equals(original.Source?.SemanticSha256 ?? string.Empty, StringComparison.OrdinalIgnoreCase) ||
-                !SemanticHash(original).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase) ||
-                !SemanticHash(requested).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
+            var deletionPlan = PptxElementDeletionCodec.Analyze(source.Part, sourceElements[elementIndex], sourceElements);
+            SetElementDeletionCapability(original, deletionPlan);
+            AssertElementBinding(requested.Id, binding, sourceElements[elementIndex], original, deletionPlan, target.TargetIndex, elementIndex, source.Part);
+            if (!SemanticHash(requested).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} is not an unchanged source element.", PartPath(source.Part));
         }
     }

@@ -40,6 +40,7 @@ const ACTION_OPERATIONS = Object.freeze({
   "fill-placeholder": new Set(["set-text", "replace-text", "set-table-cell", "set-chart-title", "set-chart-series-values"]),
   "rewrite-and-reposition": new Set(["set-text", "replace-text", "set-table-cell", "set-chart-title", "set-chart-series-values", "set-position"]),
   replace: new Set(["replace-image"]),
+  delete: new Set(["delete-element"]),
 });
 
 function usage() {
@@ -130,7 +131,7 @@ function identityShape(record) {
   return JSON.stringify({
     kind: record.kind,
     name: record.name || "",
-    nativeId: record.nativeId ?? null,
+    nativeId: record.nativeId ?? record.deletionCapability?.nativeId ?? null,
     creationId: record.creationId ?? null,
     nativeKind: record.nativeKind || "",
   });
@@ -195,7 +196,6 @@ function normalizePlan(plan, manifest, manifestBytes, starterBytes) {
     seen.add(key);
     const target = expected.get(key);
     if (!target) throw new Error(`Edit plan target ${key} is not authorized by the starter manifest.`);
-    if (target.action === "delete") throw new Error(`Edit target ${key} requests delete, which this bounded transaction does not support.`);
     const allowed = ACTION_OPERATIONS[target.action];
     if (!allowed) throw new Error(`Edit target ${key} uses unsupported frame-map action ${JSON.stringify(target.action)}.`);
     if (!Array.isArray(entry.operations)) throw new Error(`Edit plan target ${key} operations must be an array.`);
@@ -322,6 +322,32 @@ function operationHandlers(context) {
         verify: (roundTrip) => sha256(imageBytes(roundTrip?.dataUrl, `${label} round-trip image`).bytes) === expectedAssetSha256,
       };
     },
+    "delete-element": async (target, operation, label) => {
+      if (!Object.hasOwn(operation, "expectedName") || typeof operation.expectedName !== "string") {
+        throw new Error(`${label}.expectedName must be a string, including an explicit empty string when applicable.`);
+      }
+      if (!Object.hasOwn(operation, "expectedText") || typeof operation.expectedText !== "string") {
+        throw new Error(`${label}.expectedText must be a string, including an explicit empty string when applicable.`);
+      }
+      if (typeof target?.delete !== "function" || !target?.deletionCapability) {
+        throw new Error(`${label} requires a deletion-capable presentation shape.`);
+      }
+      if ((target.name || "") !== operation.expectedName || String(target.text?.value || "") !== operation.expectedText) {
+        throw new Error(`${label} name/text precondition failed.`);
+      }
+      const capability = target.deletionCapability;
+      if (!capability.sourceBound || !capability.known || !capability.supported || !Number.isInteger(capability.nativeId) || capability.nativeId <= 0) {
+        const detail = capability.blockedReason ? `: ${capability.blockedReason}` : ".";
+        throw new Error(`${label} source deletion capability is unavailable${detail}`);
+      }
+      const before = {
+        name: operation.expectedName,
+        text: operation.expectedText,
+        nativeId: capability.nativeId,
+      };
+      target.delete();
+      return { before, after: null, deleted: true };
+    },
   };
 }
 
@@ -434,6 +460,7 @@ export async function applyTemplateEditPlan(options) {
         sourceRecordIndex: recordIndex,
         sourceIdentity: identityShape(records[recordIndex]),
         verify: outcome.verify,
+        deleted: outcome.deleted === true,
         auditIndex,
       });
       auditOperations.push({
@@ -454,15 +481,24 @@ export async function applyTemplateEditPlan(options) {
   const roundTripSlides = slidesFromPresentation(roundTrip);
   if (roundTripSlides.length !== slides.length) throw new Error("Template edit changed slide topology.");
   const afterRecords = inspectRecordsBySlide(roundTrip);
+  const deletedBySlide = new Map();
+  for (const verification of verifications.filter((entry) => entry.deleted)) {
+    deletedBySlide.set(verification.outputSlide, (deletedBySlide.get(verification.outputSlide) || 0) + 1);
+  }
   for (const verification of verifications) {
     const records = afterRecords.get(verification.outputSlide) || [];
-    if (records.length !== (beforeRecords.get(verification.outputSlide) || []).length) {
-      throw new Error(`${verification.label} changed the inherited element topology.`);
+    const expectedCount = (beforeRecords.get(verification.outputSlide) || []).length - (deletedBySlide.get(verification.outputSlide) || 0);
+    if (records.length !== expectedCount) {
+      throw new Error(`${verification.label} changed element topology outside the explicit bounded deletions.`);
     }
-    const record = records[verification.sourceRecordIndex];
-    if (!record || identityShape(record) !== verification.sourceIdentity) {
-      throw new Error(`${verification.label} changed inherited element identity or ordering.`);
+    const matchingRecords = records.filter((record) => identityShape(record) === verification.sourceIdentity);
+    if (verification.deleted) {
+      if (matchingRecords.length !== 0) throw new Error(`${verification.label} deleted element remains after round-trip.`);
+      auditOperations[verification.auditIndex].finalElementId = null;
+      continue;
     }
+    if (matchingRecords.length !== 1) throw new Error(`${verification.label} changed inherited element identity or made it ambiguous.`);
+    const [record] = matchingRecords;
     const target = roundTrip.resolve(record.id);
     if (!target || !verification.verify(target)) throw new Error(`${verification.label} failed round-trip verification.`);
     auditOperations[verification.auditIndex].finalElementId = record.id;
@@ -534,6 +570,7 @@ export async function applyTemplateEditPlan(options) {
         allMappedTargetsCovered: true,
         typedOperationsOnly: true,
         noSlideTopologyChange: true,
+        boundedElementDeletions: [...deletedBySlide.values()].reduce((sum, count) => sum + count, 0),
         locatorTranslationComplete: true,
         finalExportReimported: true,
         untouchedSlideVisualsEquivalent: true,

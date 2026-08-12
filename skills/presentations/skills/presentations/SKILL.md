@@ -898,11 +898,13 @@ officekit run "$SKILL_DIR/template_following_scripts/apply_template_edit_plan.mj
 ```
 
 The command resolves only the manifest's final `starterElementIds`, applies
-bounded text/frame/table/chart/image edits, exports and imports again, verifies,
-renders, rechecks every input hash, and publishes with no overwrite. Source
+bounded text/frame/table/chart/image edits plus capability-proven top-level
+ordinary-shape deletion, exports and imports again, verifies, renders, rechecks
+every input hash, and publishes with no overwrite. Source
 inspection IDs remain provenance, not persistent identities. Unsupported
-delete/add/topology work, stale values, ambiguous targets, unsupported run
-boundaries, or any render/round-trip failure publishes nothing. If a source
+unsupported deletion/add/topology work, stale values, ambiguous targets,
+unsupported run boundaries, or any render/round-trip failure publishes nothing.
+If a source
 slide cannot support the requested content or cannot be removed after cloning,
 report the blocker and the closest viable source-slide options.
 

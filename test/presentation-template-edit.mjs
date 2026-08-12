@@ -33,8 +33,8 @@ const [skillText, referenceText] = await Promise.all([
   fs.readFile("skills/presentations/skills/presentations/references/template-following.md", "utf8"),
 ]);
 assert.match(skillText, /apply_template_edit_plan\.mjs[\s\S]*template-edit-plan\.json[\s\S]*publishes nothing/i);
-assert.match(referenceText, /office-kit\.template-edit-plan\.v1[\s\S]*set-text[\s\S]*replace-text[\s\S]*set-table-cell[\s\S]*set-chart-series-values[\s\S]*replace-image/i);
-assert.match(referenceText, /does not currently execute `delete`[\s\S]*Do not claim a\s+placeholder was removed/i);
+assert.match(referenceText, /office-kit\.template-edit-plan\.v1[\s\S]*set-text[\s\S]*replace-text[\s\S]*set-table-cell[\s\S]*set-chart-series-values[\s\S]*replace-image[\s\S]*delete-element/i);
+assert.match(referenceText, /delete-element[\s\S]*capability-proven[\s\S]*top-level/i);
 
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-template-edit-"));
 try {
@@ -64,6 +64,12 @@ try {
     name: "owner-target",
     position: { left: 40, top: 240, width: 220, height: 70 },
     text: [{ runs: [{ text: "Owner pending", style: { fontSize: 18 } }] }],
+  });
+  editSlide.shapes.add({
+    name: "remove-target",
+    position: { left: 390, top: 290, width: 180, height: 70 },
+    textStyle: { fontSize: 12 },
+    text: [{ runs: [{ text: "Remove this note", style: { fontSize: 12 } }] }],
   });
   editSlide.tables.add({
     name: "table-target",
@@ -110,6 +116,7 @@ try {
         editTargets: [
           { action: "rewrite-and-reposition", sourceElementId: byName.get("title-target") },
           { action: "rewrite", sourceElementId: byName.get("owner-target") },
+          { action: "delete", sourceElementId: byName.get("remove-target") },
           { action: "rewrite", sourceElementId: byName.get("table-target") },
           { action: "rewrite", sourceElementId: byName.get("chart-target") },
           { action: "replace", sourceElementId: byName.get("image-target") },
@@ -164,11 +171,16 @@ try {
       {
         outputSlide: 1,
         targetIndex: 2,
-        operations: [{ type: "set-table-cell", row: 1, column: 1, expectedValue: "120", value: "135" }],
+        operations: [{ type: "delete-element", expectedName: "remove-target", expectedText: "Remove this note" }],
       },
       {
         outputSlide: 1,
         targetIndex: 3,
+        operations: [{ type: "set-table-cell", row: 1, column: 1, expectedValue: "120", value: "135" }],
+      },
+      {
+        outputSlide: 1,
+        targetIndex: 4,
         operations: [
           { type: "set-chart-title", expectedTitle: "Revenue", title: "Revenue outlook" },
           { type: "set-chart-series-values", seriesIndex: 0, expectedValues: [120, 130], values: [135, 150] },
@@ -176,7 +188,7 @@ try {
       },
       {
         outputSlide: 1,
-        targetIndex: 4,
+        targetIndex: 5,
         operations: [{
           type: "replace-image",
           expectedSourceSha256: sha256(dataUrlBytes(ORIGINAL_PNG)),
@@ -203,8 +215,10 @@ try {
   });
   assert.equal(result.audit.schema, "office-kit.template-edit-audit.v1");
   assert.equal(result.audit.status, "succeeded");
-  assert.equal(result.audit.operation.count, 7);
-  assert.equal(result.audit.operation.operations.every((operation) => operation.executed && operation.finalElementId), true);
+  assert.equal(result.audit.operation.count, 8);
+  assert.equal(result.audit.operation.operations.every((operation) => operation.executed), true);
+  assert.equal(result.audit.operation.operations.filter((operation) => operation.type !== "delete-element").every((operation) => operation.finalElementId), true);
+  assert.equal(result.audit.operation.operations.find((operation) => operation.type === "delete-element").finalElementId, null);
   assert.deepEqual(result.audit.assets, [{
     path: assetPath,
     relativePath: "replacement.png",
@@ -215,6 +229,7 @@ try {
   assert.equal(result.audit.validation.finalExportReimported, true);
   assert.equal(result.audit.validation.immutableInputsRecheckedBeforePublication, true);
   assert.equal(result.audit.validation.untouchedSlideVisualsEquivalent, true);
+  assert.equal(result.audit.validation.boundedElementDeletions, 1);
   assert.deepEqual(result.audit.validation.untouchedSlides.map((entry) => entry.outputSlide), [2]);
   assert.deepEqual(await fs.readFile(sourcePath), sourceBytes);
   assert.deepEqual(await fs.readFile(starterPath), starterBytes);
@@ -238,6 +253,7 @@ try {
   assert.equal(final.resolve(finalChartId).title, "Revenue outlook");
   assert.deepEqual(final.resolve(finalChartId).series[0].values, [135, 150]);
   assert.equal(sha256(dataUrlBytes(final.resolve(finalImageId).dataUrl)), sha256(replacementBytes));
+  assert.equal(final.slides.items[0].shapes.getItem("remove-target"), undefined);
   assert.equal(final.slides.items[1].shapes.items[0].text.value, "This slide must remain unchanged.");
 
   await assert.rejects(
@@ -283,11 +299,14 @@ try {
   const deleteManifestPath = path.join(root, "delete.manifest.json");
   const deletePlanPath = path.join(root, "delete-plan.json");
   const deleteManifest = structuredClone(starterManifest);
-  targetByIndex(deleteManifest, 1, 0).action = "delete";
+  targetByIndex(deleteManifest, 1, 5).action = "delete";
   await writeJson(deleteManifestPath, deleteManifest);
   const deleteManifestBytes = await fs.readFile(deleteManifestPath);
   const deletePlan = structuredClone(plan);
   deletePlan.manifestSha256 = sha256(deleteManifestBytes);
+  deletePlan.targets.find((target) => target.outputSlide === 1 && target.targetIndex === 5).operations = [
+    { type: "delete-element", expectedName: "image-target", expectedText: "" },
+  ];
   await writeJson(deletePlanPath, deletePlan);
   await assert.rejects(
     applyTemplateEditPlan({
@@ -300,7 +319,7 @@ try {
       previewDir: path.join(root, "delete-preview"),
       layoutDir: path.join(root, "delete-layout"),
     }),
-    /requests delete.*does not support/i,
+    /requires a deletion-capable presentation shape/i,
   );
   assert.deepEqual(await fs.readFile(sourcePath), sourceBytes);
   assert.deepEqual(await fs.readFile(starterPath), starterBytes);
