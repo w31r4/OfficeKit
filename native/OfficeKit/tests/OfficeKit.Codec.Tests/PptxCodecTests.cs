@@ -5504,7 +5504,7 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
-    public void SourcePreservingExportDeletesOnlyAnIsolatedLayoutOnlySlide()
+    public void SourcePreservingExportDeletesExclusiveSlideGraphsAndRejectsInboundIdentity()
     {
         var authored = Invoke(HyperlinkExportRequest());
         Assert.True(authored.Ok, Diagnostics(authored));
@@ -5517,6 +5517,11 @@ public sealed class PptxCodecTests
         // remain untouched.
         var isolated = Import(authored.File.ToByteArray());
         Assert.True(isolated.Ok, Diagnostics(isolated));
+        Assert.True(isolated.Artifact.Presentation.Slides[0].Source.DeletionCapability.Supported);
+        Assert.False(isolated.Artifact.Presentation.Slides[1].Source.DeletionCapability.Supported);
+        Assert.Contains("referenced", isolated.Artifact.Presentation.Slides[1].Source.DeletionCapability.BlockedReason);
+        Assert.True(isolated.Artifact.Presentation.Slides[2].Source.DeletionCapability.Supported);
+        Assert.Equal(1U, isolated.Artifact.Presentation.Slides[2].Source.DeletionCapability.OwnedPartCount);
         isolated.Artifact.Presentation.Slides.RemoveAt(2);
         var deleted = Export(isolated.Artifact);
         Assert.True(deleted.Ok, Diagnostics(deleted));
@@ -5547,13 +5552,84 @@ public sealed class PptxCodecTests
         Assert.False(inboundRejected.Ok);
         Assert.Equal("unsupported_presentation_slide_delete", Assert.Single(inboundRejected.Diagnostics).Code);
 
-        // Slide one owns both an external and internal hyperlink. It is never
-        // eligible for this narrow delete profile either.
+        // Outbound external/internal hyperlinks are relationships owned by the
+        // deleted SlidePart. They disappear with that part while their retained
+        // internal target remains reachable from the presentation root.
         var outbound = Import(authored.File.ToByteArray());
         outbound.Artifact.Presentation.Slides.RemoveAt(0);
-        var outboundRejected = Export(outbound.Artifact);
-        Assert.False(outboundRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_delete", Assert.Single(outboundRejected.Diagnostics).Code);
+        var outboundDeleted = Export(outbound.Artifact);
+        Assert.True(outboundDeleted.Ok, Diagnostics(outboundDeleted));
+        Assert.Equal(["Details", "Appendix"], Import(outboundDeleted.File.ToByteArray()).Artifact.Presentation.Slides.Select(slide => slide.Name));
+    }
+
+    [Fact]
+    public void SourcePreservingExportDeletesAnArbitraryExclusiveOpcDescendantClosure()
+    {
+        var authored = Invoke(HyperlinkExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = AddExclusiveSlideDeletionGraph(authored.File.ToByteArray());
+        var imported = Import(source);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var removable = imported.Artifact.Presentation.Slides[2];
+        Assert.True(removable.Source.DeletionCapability.Supported);
+        Assert.Equal(3U, removable.Source.DeletionCapability.OwnedPartCount);
+
+        imported.Artifact.Presentation.Slides.RemoveAt(2);
+        var deleted = Export(imported.Artifact);
+        Assert.True(deleted.Ok, Diagnostics(deleted));
+        var output = deleted.File.ToByteArray();
+        using (var stream = new MemoryStream(output, writable: false))
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Read))
+        {
+            Assert.Null(archive.GetEntry("ppt/slides/slide3.xml"));
+            Assert.Null(archive.GetEntry("ppt/slides/_rels/slide3.xml.rels"));
+            Assert.Null(archive.GetEntry("ppt/customXml/delete-root.xml"));
+            Assert.Null(archive.GetEntry("ppt/customXml/_rels/delete-root.xml.rels"));
+            Assert.Null(archive.GetEntry("ppt/customXml/delete-leaf.bin"));
+            Assert.NotNull(archive.GetEntry("ppt/customXml/shared.xml"));
+        }
+        Assert.Equal(ZipBytes(source, "ppt/customXml/shared.xml"), ZipBytes(output, "ppt/customXml/shared.xml"));
+        using (var stream = new MemoryStream(output, writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        var roundTrip = Import(output);
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.Equal(["Links", "Details"], roundTrip.Artifact.Presentation.Slides.Select(slide => slide.Name));
+    }
+
+    [Fact]
+    public void SourcePreservingExportDeletesDescendantsSharedOnlyByTheRemovedSlideSet()
+    {
+        var authored = Invoke(HyperlinkExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = AddExclusiveSlideDeletionGraph(authored.File.ToByteArray());
+        var imported = Import(source);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        Assert.True(imported.Artifact.Presentation.Slides[0].Source.DeletionCapability.Supported);
+        Assert.True(imported.Artifact.Presentation.Slides[2].Source.DeletionCapability.Supported);
+
+        // shared.xml is outside each individual closure but is referenced only
+        // by the two slides removed in this one export transaction.
+        imported.Artifact.Presentation.Slides.RemoveAt(2);
+        imported.Artifact.Presentation.Slides.RemoveAt(0);
+        var deleted = Export(imported.Artifact);
+        Assert.True(deleted.Ok, Diagnostics(deleted));
+        var output = deleted.File.ToByteArray();
+        using (var stream = new MemoryStream(output, writable: false))
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Read))
+        {
+            Assert.Null(archive.GetEntry("ppt/slides/slide1.xml"));
+            Assert.Null(archive.GetEntry("ppt/slides/slide3.xml"));
+            Assert.Null(archive.GetEntry("ppt/customXml/shared.xml"));
+            Assert.Null(archive.GetEntry("ppt/customXml/delete-root.xml"));
+            Assert.Null(archive.GetEntry("ppt/customXml/delete-leaf.bin"));
+        }
+        using (var stream = new MemoryStream(output, writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        var roundTrip = Import(output);
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.Equal(["Details"], roundTrip.Artifact.Presentation.Slides.Select(slide => slide.Name));
     }
 
     [Fact]
@@ -8722,6 +8798,28 @@ public sealed class PptxCodecTests
             ReplaceZipText(archive, "[Content_Types].xml", xml => xml.Replace("</Types>", $"{contentTypes}</Types>", StringComparison.Ordinal));
             AddZipBytes(archive, "ppt/embeddings/clone-source-workbook.xlsx", CreateEmbeddedWorkbook("Original clone-safe workbook"));
             AddZipBytes(archive, "ppt/media/clone-ole-preview.png", Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddExclusiveSlideDeletionGraph(byte[] bytes)
+    {
+        const string exclusiveRelationship = "<Relationship Id=\"rIdDeleteRoot\" Type=\"urn:office-kit:test/exclusive\" Target=\"../customXml/delete-root.xml\"/>";
+        const string sharedRelationship = "<Relationship Id=\"rIdSharedLeaf\" Type=\"urn:office-kit:test/shared\" Target=\"../customXml/shared.xml\"/>";
+        const string childRelationship = "<Relationship Id=\"rIdDeleteLeaf\" Type=\"urn:office-kit:test/exclusive-child\" Target=\"delete-leaf.bin\"/>";
+        const string contentTypes = "<Override PartName=\"/ppt/customXml/delete-root.xml\" ContentType=\"application/vnd.office-kit.test+xml\"/><Override PartName=\"/ppt/customXml/delete-leaf.bin\" ContentType=\"application/vnd.office-kit.test\"/><Override PartName=\"/ppt/customXml/shared.xml\" ContentType=\"application/vnd.office-kit.shared+xml\"/>";
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            ReplaceZipText(archive, "ppt/slides/_rels/slide1.xml.rels", xml => xml.Replace("</Relationships>", $"{sharedRelationship}</Relationships>", StringComparison.Ordinal));
+            ReplaceZipText(archive, "ppt/slides/_rels/slide3.xml.rels", xml => xml.Replace("</Relationships>", $"{exclusiveRelationship}{sharedRelationship}</Relationships>", StringComparison.Ordinal));
+            ReplaceZipText(archive, "[Content_Types].xml", xml => xml.Replace("</Types>", $"{contentTypes}</Types>", StringComparison.Ordinal));
+            AddZipText(archive, "ppt/customXml/delete-root.xml", "<owned xmlns=\"urn:office-kit:test\">root</owned>");
+            AddZipText(archive, "ppt/customXml/_rels/delete-root.xml.rels", $"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">{childRelationship}</Relationships>");
+            AddZipBytes(archive, "ppt/customXml/delete-leaf.bin", [1, 2, 3, 4]);
+            AddZipText(archive, "ppt/customXml/shared.xml", "<shared xmlns=\"urn:office-kit:test\">preserve</shared>");
         }
         return stream.ToArray();
     }

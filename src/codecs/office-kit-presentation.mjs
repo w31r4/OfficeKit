@@ -41,6 +41,7 @@ const PRESENTATION_SLIDE_DUPLICATOR = Symbol.for("office-kit.presentation-duplic
 const PRESENTATION_SPEAKER_NOTES_CAPABILITY = Symbol.for("office-kit.speaker-notes-capability");
 const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("office-kit.legacy-comments-capability");
 const PRESENTATION_SLIDE_VISIBILITY_CAPABILITY = Symbol.for("office-kit.slide-visibility-capability");
+const PRESENTATION_SLIDE_DELETION_CAPABILITY = Symbol.for("office-kit.slide-deletion-capability");
 const PRESENTATION_SCHEME_COLORS = new Set([
   "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
   "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink",
@@ -3413,6 +3414,16 @@ export async function presentationFromEnvelope(envelope) {
         sourceBound: true,
         known: sourceSlide.hidden !== undefined,
         editable: sourceSlide.source?.visibilityEditable === true,
+      }),
+    });
+    const deletionCapability = sourceSlide.source?.deletionCapability;
+    Object.defineProperty(slide, PRESENTATION_SLIDE_DELETION_CAPABILITY, {
+      value: Object.freeze({
+        sourceBound: true,
+        known: Boolean(deletionCapability),
+        supported: deletionCapability?.supported === true,
+        blockedReason: deletionCapability?.blockedReason || "",
+        ownedPartCount: Number(deletionCapability?.ownedPartCount || 0),
       }),
     });
     slide.id = sourceSlide.id || slide.id;

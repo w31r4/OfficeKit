@@ -87,9 +87,11 @@ source-bound, and ambiguous topology changes fail closed.
 neither rebuilds slide parts nor copies their relationship graphs.
 
 `slide.delete()` returns `undefined`. It removes any non-final source-free
-slide. On an imported PPTX it succeeds only for an isolated layout-only source
-SlidePart with no outbound non-layout relationship, inbound relationship, or
-presentation identity reference; it then removes the actual part and relation.
+slide. On an imported PPTX, inspect `slide.deletionCapability` first. A
+supported delete removes the actual SlidePart plus every exclusively owned OPC
+descendant while retaining shared descendants. JS refuses a known-unsafe
+delete before mutation; export independently re-proves the source graph.
+Inbound slide references and custom-show/section/extension identity fail closed.
 
 `slide.duplicate()` returns a new adjacent `Slide` only under the bounded
 imported shape/inline-table/closed-literal-chart/closed-SmartArt/closed-InkML/closed-MP4/embedded-image/connector/

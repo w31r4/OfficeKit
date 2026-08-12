@@ -205,14 +205,14 @@ shells remain one opaque read-only object rather than being flattened.
 
 For imported deck order, `slide.moveTo(existingZeroBasedIndex)` changes only
 the retained source `SlidePart` order in `p:sldIdLst`; it does not copy or
-reconstruct slide graphs. `slide.delete()` is separate and intentionally much
-narrower: it performs a real OPC delete only for an isolated layout-only,
-non-final slide whose source part has exactly its layout relationship, no
-inbound relationship, and no custom-show/section/extension or presentation-level
-identity reference. It
-removes the source slide part and its relationship part while preserving every
-survivor. Media, notes, comments, charts, OLE, hyperlinks, data parts, or any
-other connected graph fail closed. `slide.duplicate()` is a separate, much
+reconstruct slide graphs. Before deleting an imported slide, inspect
+`slide.deletionCapability`: JS refuses an unsupported delete before changing
+the model, and export independently re-proves the hash-bound source. A supported
+delete removes the real SlidePart plus every exclusively owned OPC descendant,
+including closed notes/comments/chart/OLE/SmartArt/InkML/media or unknown
+leaves, while preserving shared layout/master/theme/image/media resources.
+Inbound slide links and custom-show/section/extension identity fail closed.
+`slide.duplicate()` is a separate, much
 narrower operation: only an original imported slide whose unchanged graph has
 canonical shapes, canonical inline fixed-grid tables with bounded rectangular merges, recognized closed
 literal-data charts, eligible top-level embedded-XLSX OLE frames, canonical
@@ -915,16 +915,17 @@ layout, style, or template. Read `references/template-following.md`, use
 `$TMP_DIR` from the Workspace section, and set
 `TEMPLATE_PPTX="<absolute path to the user-provided PPTX>"`.
 
-Current availability: the reference starter-deck command below still needs a
-broad imported-slide graph clone and broad graph delete semantics, so it
-deliberately fails closed in the canonical codec. The isolated layout-only
-`slide.delete()` and unchanged shape/inline-table/image/recursive-group clone profiles with closed notes and
+Current availability: source-slide deletion is no longer the blocker: the
+codec can remove an imported slide's exclusively owned OPC descendant closure.
+The reference starter-deck command below still needs a broader arbitrary
+imported-slide graph clone than the current unchanged
+shape/inline-table/image/recursive-group clone profiles with closed notes and
 legacy comments are not substitutes: the latter creates an independent part but
 cannot be edited before an export/reimport boundary, and afterward may use only
 the separate canonical root-text comment profile; it cannot carry
 arbitrary template graph edges. Do not rebuild or share slide parts to emulate
 a clone.
-Until the broader milestone exists, use this mode only for source inventory,
+Until that broader clone milestone exists, use this mode only for source inventory,
 plan validation, and render/QA evidence; report the clone limitation before
 promising a derived starter deck.
 

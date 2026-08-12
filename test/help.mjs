@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 484);
+assert.equal(HELP_CATALOG.length, 485);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -155,7 +155,9 @@ const slideDuplicateNotes = (HELP_CATALOG.find((item) => item.name === "slide.du
 assert.match(slideDuplicateNotes, /top-level p:contentPart.*relationship-free application\/inkml\+xml CustomXmlPart.*standard InkML namespace.*distinct SDK-typed clone part.*disjoint paths with equal hashes.*opaque and read-only.*fail closed/i);
 assert.match(slideDuplicateNotes, /top-level p:pic.*ppaction:\/\/media.*video and one media relationship.*video\/mp4.*distinct SDK MediaDataPart.*immutable poster.*poster, not playback.*fail closed/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.delete")?.schema?.returns?.result?.type, "undefined");
-assert.match(HELP_CATALOG.find((item) => item.name === "slide.delete")?.schema?.returns?.result?.description || "", /actual SlidePart.*only its layout relationship.*inbound relationship.*fail closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.delete")?.schema?.returns?.result?.description || "", /actual SlidePart.*exclusively owned.*shared layout.*inbound slide reference.*fails? closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.deletionCapability")?.schema?.returns?.capability?.description || "", /supported.*blockedReason.*ownedPartCount.*recomputes/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.deletionCapability")?.summary || "", /aggregates all requested slide deletions.*one ownership transaction/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "SpreadsheetFile.patchXlsx"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "presentation.masters.add"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "presentation.masters.getItem"));
@@ -658,7 +660,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.setDateContentC
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.schema?.parameters?.dryRun?.type, "boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.summary || "", /SEQ counters.*REF cached results.*PAGEREF.*pagination host/i);
 const presentationCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
-assert.equal(presentationCatalog.length, 98);
+assert.equal(presentationCatalog.length, 99);
 assert.ok(presentationCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slides.insert")?.schema?.parameters?.after?.type, "Slide|number|null");
@@ -668,7 +670,7 @@ assert.match(slideDuplicateSummary, /unchanged graph.*canonical shapes.*canonica
 assert.match(slideDuplicateSummary, /canonical top-level four-part SmartArt frames.*SmartArt frame owns exactly one internal dm\/lo\/qs\/cs relationship set.*diagram data, layout, quick-style, and colors parts.*four typed diagram parts.*SmartArt parts.*independent.*canonical plain-node SmartArt.*source-bound node-text replacement.*other SmartArt.*remain source-bound\/read-only.*nested\/noncanonical\/connected SmartArt.*fail closed/i);
 assert.match(slideDuplicateSummary, /canonical top-level embedded-MP4 media pictures.*video\/media relationship pair.*video\/mp4.*poster ImagePart.*SDK MediaDataPart.*media-poster ImageParts.*MP4 parts are then independent.*media remain source-bound\/read-only.*fail closed/i);
 assert.match(slideDuplicateSummary, /relationship-free custom-show links.*stable native show ID.*add no relationship.*never inserted into show membership/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "slide.delete")?.summary || "", /real OPC deletion.*isolated slide.*custom shows.*clone requests fail closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.delete")?.summary || "", /deletionCapability\.supported.*exclusively owned descendant.*shared parts.*inbound slide references/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.layout.placeholders.summary")?.summary || "", /defensive.*snapshot/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "PresentationFile.importPptx")?.schema?.returns?.presentation?.type, "Presentation");
 assert.equal(HELP_CATALOG.find((item) => item.name === "nativeObject.getEmbeddedWorkbook")?.schema?.returns?.workbook?.type, "FileBlob");

@@ -82,13 +82,14 @@ and opaque package content are not copied or reconstructed.
 
 `delete()` returns `undefined` and refuses to remove the final slide. For a
 source-free deck, it removes the selected slide normally. For an imported PPTX,
-it is a real OPC transaction only when the source `SlidePart` is an isolated
-layout-only leaf: it has no media, notes, comments, charts, OLE, hyperlinks,
-data parts, or other child relationship; no inbound relationship; and no
-custom-show, section, extension, or presentation-level identity reference. The
-codec removes the slide part and its relationship part, updates
-`ppt/presentation.xml` plus its relationships/content types, and keeps the
-surviving source slides byte-identical. Any other imported delete fails closed.
+inspect `slide.deletionCapability` first. `supported` means the codec proved an
+exclusive OPC descendant closure rooted at this SlidePart; `ownedPartCount`
+counts the slide plus owned OpenXml/DataParts. JS refuses an unsupported delete
+before mutating the collection, and export recomputes the plan from source
+bytes. The codec removes that real closure while retaining any descendant still
+reachable through another parent, such as a shared layout, master, theme,
+image, or media part. Inbound slide references and custom-show, section,
+extension, or presentation-level identity references fail closed.
 
 For an original imported slide, assigning `slide.name` is a separate bounded
 source-preserving edit. It changes only the existing SlidePart's native

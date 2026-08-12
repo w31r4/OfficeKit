@@ -1,5 +1,53 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-12): Imported PPTX exclusive graph deletion
+
+Imported slides now expose `slide.deletionCapability` before an Agent mutates
+the model. The OfficeKit Codec computes one data-driven OPC ownership plan: it
+starts at the concrete SlidePart, retains any descendant still reachable from
+an outside parent, and treats the remainder as the slide's exclusive closure.
+`slide.delete()` rejects a known-unsafe imported slide before changing the JS
+collection; export ignores caller claims and independently recomputes the plan
+from the hash-bound source package. When an Agent removes more than one slide
+before export, the codec plans their union as one transaction, so a resource
+shared only by the removed slide set is deleted while any retained-slide owner
+keeps the resource alive.
+
+Open XML SDK performs the actual deletion. Closed notes, comments, charts, OLE
+packages, SmartArt/InkML parts, media DataParts, and unknown exclusive leaves no
+longer require type-specific delete branches. Shared layout, master, theme,
+image, media, author, and other reachable resources remain. Inbound slide
+relationships plus custom-show/section/extension identity continue to fail
+closed. The post-write gate proves every planned ZIP part disappeared, every
+unplanned survivor stayed inside the existing source-preservation contract, and
+removed opaque relationships/parts are reported rather than called preserved.
+
+The additive protocol-v2 change appends
+`PresentationSlideSourceBinding.deletion_capability` at field 19 without
+renumbering an existing field. Native tests cover an arbitrary two-level
+unknown exclusive graph, a shared opaque leaf, inbound refusal, Open XML SDK
+validation, multi-slide aggregate ownership, and second import. The JS/WASM path covers capability inspection,
+pre-mutation refusal with unchanged slide count, a nontrivial graph deletion,
+real ZIP removal, and second import. Template Following documentation now names
+broad arbitrary slide clone—not deletion—as its remaining starter-deck blocker.
+
+Local candidate evidence covers the complete 28-step fast gate and all 77 slow
+steps, generated API docs, protocol lint plus idempotent generation, OfficeKit
+Codec 404/404, OfficeBridge 5/5, and deterministic OfficeKit WASM (39-file
+comparison; runtime 38 files / 15,440,107 bytes). Clean-install package smoke,
+standalone distribution, both Live Add-in builds, all twenty templates,
+Playwright, qpdf, LibreOffice, and Poppler also pass. Managed provider-pack
+downloads and separately configured pikepdf, pyHanko, veraPDF, OCRmyPDF, and
+PromptBench Python runtimes remain explicit local skips rather than provider-
+execution evidence.
+
+The isolated staged candidate excludes the user's unrelated README edits and
+packs 732 files at 36,297,971 bytes compressed and 53,392,249 bytes unpacked
+(`shasum 2fc22dbd33862b35ee58de9b322a509d736d5dc7`), leaving 307,751 bytes below
+the unchanged 53,700,000-byte unpacked ceiling. `npm whoami` remains
+unauthenticated, so npm publication and a tagged release are not attempted.
+Windows Microsoft Office host acceptance remains external evidence.
+
 ## Current 0.6.0 candidate (2026-08-12): Deterministic derived Skill JSON compaction
 
 The release payload no longer depends on a 2,458-byte margin below its existing

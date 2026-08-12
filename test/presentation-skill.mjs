@@ -2851,7 +2851,7 @@ try {
     "--out", starterOutput,
   ], { encoding: "utf8" });
   assert.notEqual(starterResult.status, 0);
-  assert.match(starterResult.stderr, /broad graph deletion[\s\S]*No output was written/);
+  assert.match(starterResult.stderr, /arbitrary source-preserving imported-slide duplication[\s\S]*exclusive descendant-closure deletion[\s\S]*No output was written/);
   assert.deepEqual((await fs.readdir(starterRoot)).sort(), ["template-frame-map.json"]);
   assert.match(skillText, /office-kit/);
   assert.match(skillText, /officekit-speaker-notes-add-workflow\.mjs/);
@@ -2897,8 +2897,8 @@ try {
   assert.match(skillText, /complete ECMA-376 base.*transition vocabulary/is);
   assert.match(skillText, /slide\.setTransition\(\{.*effect: "split".*orientation: "horizontal".*direction: "in".*advanceOnClick.*advanceAfterMs/is);
   assert.match(skillText, /transition\.capability.*canonical direct base-transition profile.*no transition.*addable: true.*p:cSld.*p:clrMapOvr.*no transition, timing, or extension leaf.*timing.*sound.*p14.*extension.*opaque-preserved.*fail closed/is);
-  assert.match(skillText, /slide\.moveTo\(existingZeroBasedIndex\).*retained source.*p:sldIdLst.*slide\.delete\(\).*isolated.*layout relationship/is);
-  assert.match(skillText, /starter-deck command below still needs a\s+broad imported-slide graph clone and broad graph delete semantics/is);
+  assert.match(skillText, /slide\.moveTo\(existingZeroBasedIndex\).*retained source.*p:sldIdLst.*slide\.deletionCapability.*exclusively owned OPC descendant.*shared layout\/master\/theme\/image\/media.*fail closed/is);
+  assert.match(skillText, /source-slide deletion is no longer the blocker[\s\S]*starter-deck command below still needs a broader arbitrary\s+imported-slide graph clone/is);
   assert.match(skillText, /slide\.duplicate\(\).*canonical shapes.*canonical inline fixed-grid tables.*recognized closed\s+literal-data charts.*eligible top-level embedded-XLSX OLE frames.*canonical\s+embedded rectangular images.*bounded canonical\s+straight\/elbow\/curved connectors.*new `SlidePart`.*every present\s+connector endpoint.*connection-site index.*same copied `SlidePart`.*export plus reimport/is);
   assert.match(skillText, /recognized closed\s+literal-data charts.*unique internal relationship.*numbered `ChartPart`.*byte-copies.*distinct clone-local ChartPart.*ChartParts are independent.*advertises the ordinary fixed-topology\s+edit capability/is);
   assert.match(skillText, /accepted OLE frame.*uniquely inbound XLSX.*no child relationship graph.*preview `ImagePart`.*distinct clone-local\s+package.*sharing the immutable\s+preview.*replaceEmbeddedWorkbook/is);
@@ -3021,8 +3021,8 @@ try {
   assert.match(embeddedVideoReferenceText, /poster remains equal.*do not claim media playback equivalence/is);
   assert.match(embeddedVideoReferenceText, /audio.*linked or\s+external media.*timing.*fail closed/is);
   const templateFollowingText = await fs.readFile("skills/presentations/skills/presentations/references/template-following.md", "utf8");
-  assert.match(templateFollowingText, /source-preserving reordering.*isolated[\s>]+layout-only.*slide\.delete/is);
-  assert.match(templateFollowingText, /broader OPC graph-clone milestone is unavailable/i);
+  assert.match(templateFollowingText, /deletion is no longer the limiting step[\s\S]*slide\.deletionCapability[\s\S]*exclusively owned OPC descendant closure/is);
+  assert.match(templateFollowingText, /broader arbitrary imported-[\s>]+slide duplication/is);
   assert.match(templateFollowingText, /read-only path\/input preflight[\s\S]*then fails closed[\s\S]*not kept as dead\s+code/i);
 
   console.log("presentation skill smoke ok");

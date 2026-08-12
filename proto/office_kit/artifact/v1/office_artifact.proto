@@ -1605,6 +1605,20 @@ message PresentationSlideSourceBinding {
   // value. Invalid or otherwise irregular roots remain byte-preserved and
   // fail closed on a requested visibility edit.
   bool visibility_editable = 18;
+  // Import-time preflight for removing this concrete SlidePart and the OPC
+  // descendants owned exclusively by it. Presence makes the capability known;
+  // export independently re-proves the graph from the hash-bound source bytes.
+  PresentationSlideDeletionCapability deletion_capability = 19;
+}
+
+message PresentationSlideDeletionCapability {
+  bool supported = 1;
+  // Stable human-readable explanation when supported is false. It is evidence
+  // for Agent planning, not authority to bypass the export-time graph proof.
+  string blocked_reason = 2;
+  // SlidePart plus exclusively owned OpenXml/DataPart descendants. Shared
+  // layout/master/theme/media parts are deliberately excluded.
+  uint32 owned_part_count = 3;
 }
 
 message PresentationSpeakerNotes {

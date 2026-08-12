@@ -18,7 +18,7 @@ function usage() {
     "  --scale <n>            Render scale. Defaults to 1.",
     "",
     "This command currently performs a read-only path/input preflight, then fails",
-    "closed because broad imported-slide graph clone/delete is not available.",
+    "closed because arbitrary imported-slide graph clone is not available.",
   ].join("\n");
 }
 
@@ -66,8 +66,8 @@ async function main() {
   }
 
   throw new Error(
-    "Template starter generation requires source-preserving imported-slide duplication plus broad graph deletion. " +
-    "The current OfficeKit codec has only an isolated layout-only delete profile and an unchanged shape/inline-table/image/recursive-group/closed-notes clone that requires export/reimport; it will not reconstruct or share a broad clone graph. No output was written.",
+    "Template starter generation requires arbitrary source-preserving imported-slide duplication. " +
+    "OfficeKit now supports exclusive descendant-closure deletion, but its clone surface remains deliberately bounded and will not reconstruct or share a broad clone graph. No output was written.",
   );
 }
 

@@ -3,12 +3,12 @@
 Use when the user provides an existing PPTX, asks to follow a presentation, or
 attaches a PPTX that is clearly or implicitly a template.
 
-> Current canonical codec boundary: the reference starter-deck route requires
-> imported-slide duplication and broad graph deletion. OfficeKit supports
-> source-preserving reordering (`slide.moveTo`) plus a real but isolated
-> layout-only `slide.delete()` profile: no media, notes, comments, charts, OLE,
-> hyperlinks, inbound relationships, custom-show/section/extension, or other
-> graph edge may be present. It is not a substitute for starter-deck deletion.
+> Current canonical codec boundary: deletion is no longer the limiting step.
+> `slide.deletionCapability` and export independently prove an imported slide's
+> exclusively owned OPC descendant closure, deleting that real graph while
+> retaining shared resources and rejecting inbound/identity-sensitive edges.
+> The reference starter-deck route still requires broader arbitrary imported-
+> slide duplication than the current bounded closed clone profiles.
 > Do not substitute a reconstructed or shared-part copy. If the task requires
 > `duplicate-slide`, report that the broader OPC graph-clone milestone is unavailable
 > and preserve the source deck; use the inspection/planning/QA portions of this

@@ -259,6 +259,8 @@ internal static class PptxCodec
             var elements = ShapeElements(shapeTree);
             var slideArtifactId = $"presentation/slide/{slideIndex + 1}";
             var elementIdsByNativeId = NativeElementIds(elements, slideArtifactId);
+            var sourceEntry = new PptxSourceSlideEntry(slideIndex, slideId, relationshipId, slidePart);
+            var deletionPlan = PptxSlideDeletionCodec.Analyze(presentationPart, sourceEntry, opaque);
             var target = new PresentationSlide
             {
                 Id = slideArtifactId,
@@ -287,6 +289,12 @@ internal static class PptxCodec
                     TransitionAddable = PptxTransitionCodec.CanAdd(slideRoot),
                     VisibilitySemanticSha256 = slideVisibility.SemanticSha256,
                     VisibilityEditable = slideVisibility.Editable,
+                    DeletionCapability = new PresentationSlideDeletionCapability
+                    {
+                        Supported = deletionPlan.Supported,
+                        BlockedReason = deletionPlan.BlockedReason,
+                        OwnedPartCount = deletionPlan.OwnedPartCount,
+                    },
                 },
             };
             if (slideVisibility.Hidden is { } hidden) target.Hidden = hidden;
@@ -400,7 +408,7 @@ internal static class PptxCodec
         var addedRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
         var addedPartPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var replacedOpaquePartHashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var removedSourceSlidePartPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var removedSourcePartPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using (var package = PresentationDocument.Open(stream, isEditable: true, new OpenSettings { AutoSave = false }))
         {
             var presentationPart = package.PresentationPart ??
@@ -480,7 +488,7 @@ internal static class PptxCodec
                 targetSlides,
                 envelope.OpaqueOpc,
                 changedParts,
-                removedSourceSlidePartPaths);
+                removedSourcePartPaths);
             if (ReorderSourceSlideIdList(presentationPart, targetSlides))
                 changedParts.Add(PartPath(presentationPart));
             if (ApplySourceBoundSlideSize(presentationPart, envelope.Presentation))
@@ -945,9 +953,10 @@ internal static class PptxCodec
             addedRelationshipIds.Count == 0 &&
             addedPartPaths.Count == 0 &&
             replacedOpaquePartHashes.Count == 0 &&
-            removedSourceSlidePartPaths.Count == 0;
+            removedSourcePartPaths.Count == 0;
         var bytes = noModeledChanges ? sourceBytes : stream.ToArray();
         ValidateOutputBudget(bytes, limits);
+        AssertPlannedPartsRemoved(sourceBytes, bytes, removedSourcePartPaths);
         var retainedValidationErrorCount = ValidateOffice2021AgainstSource(sourceBytes, bytes);
         AssertPackagePartsUnchangedExcept(sourceBytes, bytes, changedParts);
         ValidatePreservedSlideElements(sourceBytes, bytes, envelope.Presentation, limits);
@@ -959,12 +968,19 @@ internal static class PptxCodec
             addedRelationshipIds,
             addedPartPaths,
             replacedOpaquePartHashes,
-            removedSourceSlidePartPaths);
+            removedSourcePartPaths);
         var diagnostics = new List<Diagnostic>();
-        if (opaqueCount > 0)
+        var removedOpaqueCount = envelope.OpaqueOpc.Parts.Count(part => removedSourcePartPaths.Contains(part.Path)) +
+                                 envelope.OpaqueOpc.PackageRelationships.Count(relationship => removedSourcePartPaths.Contains(relationship.SourcePath));
+        var retainedOpaqueCount = opaqueCount - removedOpaqueCount;
+        if (retainedOpaqueCount > 0)
             diagnostics.Add(CodecProtocol.Warning(
                 "opaque_content_preserved",
-                $"Preserved {opaqueCount} opaque OPC parts or relationships while updating modeled presentation content."));
+                $"Preserved {retainedOpaqueCount} opaque OPC parts or relationships while updating modeled presentation content."));
+        if (removedOpaqueCount > 0)
+            diagnostics.Add(CodecProtocol.Warning(
+                "opaque_content_deleted_with_slide",
+                $"Removed {removedOpaqueCount} opaque OPC parts or relationships because they belonged exclusively to an explicitly deleted source slide graph."));
         if (retainedValidationErrorCount > 0)
             diagnostics.Add(CodecProtocol.Warning(
                 "source_openxml_validation_warnings_preserved",
@@ -2247,7 +2263,7 @@ internal static class PptxCodec
         IReadOnlySet<string> allowedAddedRelationshipIds,
         IReadOnlySet<string> allowedAddedPartPaths,
         IReadOnlyDictionary<string, string> allowedChangedPartHashes,
-        IReadOnlySet<string> removedSourceSlidePartPaths)
+        IReadOnlySet<string> removedSourcePartPaths)
     {
         var guarded = actual.Clone();
         var removed = new HashSet<string>(StringComparer.Ordinal);
@@ -2340,8 +2356,23 @@ internal static class PptxCodec
             expected,
             guarded,
             "opaque_content_not_preserved",
-            ignoreRelationship: relationship => removedSourceSlidePartPaths.Contains(relationship.SourcePath),
-            ignorePart: part => allowedChangedPartHashes.ContainsKey(part.Path));
+            ignoreRelationship: relationship => removedSourcePartPaths.Contains(relationship.SourcePath),
+            ignorePart: part => allowedChangedPartHashes.ContainsKey(part.Path) || removedSourcePartPaths.Contains(part.Path));
+    }
+
+    private static void AssertPlannedPartsRemoved(byte[] sourceBytes, byte[] outputBytes, IReadOnlySet<string> removedPartPaths)
+    {
+        if (removedPartPaths.Count == 0) return;
+        var before = PackagePartHashes(sourceBytes);
+        var after = PackagePartHashes(outputBytes);
+        var retained = removedPartPaths
+            .Where(path => before.ContainsKey(path) && after.ContainsKey(path))
+            .Take(8)
+            .ToArray();
+        if (retained.Length > 0)
+            throw new CodecException(
+                "presentation_slide_delete_incomplete",
+                $"Source-preserving PPTX deletion retained planned slide-owned package parts: {string.Join(", ", retained)}.");
     }
 
     private static bool IsNumberedSlidePath(string path)
@@ -3353,7 +3384,7 @@ internal static class PptxCodec
         IReadOnlyList<PptxTargetSlideEntry> targets,
         OpaqueOpcGraph opaque,
         ISet<string> changedParts,
-        ISet<string> removedSourceSlidePartPaths)
+        ISet<string> removedSourcePartPaths)
     {
         var sourceParts = ResolveSlideParts(presentationPart, sourceSlideIds);
         var retainedParts = targets.Where(target => !target.IsClone).Select(target => target.Source.Part).ToHashSet();
@@ -3367,80 +3398,32 @@ internal static class PptxCodec
             .ToArray();
         if (removed.Length == 0) return;
 
-        foreach (var source in removed)
-            AssertSourceSlideCanBeDeleted(presentationPart, source, opaque);
-
-        foreach (var source in removed)
+        var plans = removed
+            .Select(source => (Source: source, Plan: PptxSlideDeletionCodec.Analyze(presentationPart, source, opaque)))
+            .ToArray();
+        foreach (var (source, plan) in plans)
         {
-            var slidePath = PartPath(source.Part);
-            var relationshipPath = RelationshipPartPath(source.Part);
-            presentationPart.DeletePart(source.Part);
-            changedParts.Add(slidePath);
-            changedParts.Add(relationshipPath);
-            removedSourceSlidePartPaths.Add(slidePath);
+            if (!plan.Supported) throw UnsupportedSourceSlideDelete(source, plan.BlockedReason);
         }
+        var transactionPlan = PptxSlideDeletionCodec.AnalyzeTransaction(presentationPart, removed, opaque);
+        if (!transactionPlan.Supported)
+            throw UnsupportedSourceSlideDelete(removed[0], transactionPlan.BlockedReason);
+
+        foreach (var (source, _) in plans)
+        {
+            presentationPart.DeletePart(source.Part);
+        }
+        changedParts.UnionWith(transactionPlan.RemovedPackagePartPaths);
+        removedSourcePartPaths.UnionWith(transactionPlan.RemovedPackagePartPaths);
         changedParts.Add(PartPath(presentationPart));
         changedParts.Add(RelationshipPartPath(presentationPart));
         changedParts.Add("[Content_Types].xml");
     }
 
-    private static void AssertSourceSlideCanBeDeleted(
-        PresentationPart presentationPart,
-        PptxSourceSlideEntry source,
-        OpaqueOpcGraph opaque)
-    {
-        var slidePath = PartPath(source.Part);
-        var childParts = source.Part.Parts.ToArray();
-        var layoutRelationshipCount = childParts.Count(pair => pair.OpenXmlPart is SlideLayoutPart);
-        var unsafeChildren = childParts
-            .Where(pair => pair.OpenXmlPart is not SlideLayoutPart)
-            .Select(pair => pair.OpenXmlPart.RelationshipType)
-            .Distinct(StringComparer.Ordinal)
-            .Take(4)
-            .ToArray();
-        if (layoutRelationshipCount != 1 ||
-            unsafeChildren.Length > 0 ||
-            source.Part.ExternalRelationships.Any() ||
-            source.Part.HyperlinkRelationships.Any() ||
-            source.Part.DataPartReferenceRelationships.Any())
-            throw UnsupportedSourceSlideDelete(
-                source,
-                "it owns media, notes, comments, hyperlinks, data parts, or another non-layout relationship");
-
-        var inbound = opaque.PackageRelationships
-            .Where(relationship => !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase))
-            .Where(relationship => PptxNativeObjectCatalog.ResolveTarget(relationship.SourcePath, relationship.Target)
-                .Equals(slidePath, StringComparison.OrdinalIgnoreCase))
-            .Take(4)
-            .ToArray();
-        if (inbound.Length > 0)
-            throw UnsupportedSourceSlideDelete(
-                source,
-                $"it is referenced by {string.Join(", ", inbound.Select(relationship => relationship.SourcePath))}");
-
-        var root = presentationPart.Presentation ??
-            throw new CodecException("missing_presentation_root", "PPTX package has no Presentation root.", "ppt/presentation.xml");
-        if (root.ChildElements.Any(element => element.LocalName is "custShowLst" or "sectionLst" or "extLst"))
-            throw UnsupportedSourceSlideDelete(
-                source,
-                "the presentation contains custom shows, sections, or extension data that can retain slide identity");
-
-        var relationshipReferencesOutsideSlideIds = root
-            .Descendants()
-            .Where(element => element is not P.SlideId)
-            .SelectMany(element => element.GetAttributes())
-            .Any(attribute => (attribute.NamespaceUri is "http://schemas.openxmlformats.org/officeDocument/2006/relationships" or "http://purl.oclc.org/ooxml/officeDocument/relationships") &&
-                              string.Equals(attribute.Value, source.RelationshipId, StringComparison.Ordinal));
-        if (relationshipReferencesOutsideSlideIds)
-            throw UnsupportedSourceSlideDelete(
-                source,
-                "a presentation-level relationship outside p:sldIdLst still references it");
-    }
-
     private static CodecException UnsupportedSourceSlideDelete(PptxSourceSlideEntry source, string reason) =>
         new(
             "unsupported_presentation_slide_delete",
-            $"Source-preserving PPTX deletion is limited to an isolated layout-only slide; slide {source.Index + 1} cannot be deleted because {reason}. Use an explicit OPC graph delete operation for this package.",
+            $"Source-preserving PPTX deletion requires an exclusively owned OPC descendant closure; slide {source.Index + 1} cannot be deleted because {reason}.",
             PartPath(source.Part));
 
     private static void CloneRequestedSourceSlides(
