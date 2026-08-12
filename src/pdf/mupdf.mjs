@@ -25,9 +25,10 @@ const DEFAULT_LIMITS = Object.freeze({
   maxTotalImageBytes: 64 * 1024 * 1024,
 });
 
-const INCREMENTAL_DESTRUCTIVE_OPERATIONS = new Set([
+const REWRITE_ONLY_OPERATIONS = new Set([
   "add_text_annotation",
   "add_text_highlight",
+  "add_text_markup",
   "delete_annotation",
   "update_annotation",
   "delete_page",
@@ -56,9 +57,21 @@ const MUPDF_PAGE_COORDINATE_SPACE = "mupdf-page-space";
 const SAFE_NATIVE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 const TEXT_ANNOTATION_ANCHOR_SIZE = 20;
 const TEXT_ANNOTATION_OPERATION_FIELDS = new Set(["type", "page", "pageIndex", "sourceSha256", "expectedPage", "point", "contents", "author", "subject"]);
-const TEXT_HIGHLIGHT_MAX_TEXT_LENGTH = 4_096;
-const TEXT_HIGHLIGHT_DEFAULT_COLOR = Object.freeze([1, 1, 0]);
+const TEXT_MARKUP_MAX_TEXT_LENGTH = 4_096;
+const TEXT_MARKUP_TYPES = Object.freeze({
+  highlight: "Highlight",
+  underline: "Underline",
+  strikeout: "StrikeOut",
+  squiggly: "Squiggly",
+});
+const TEXT_MARKUP_DEFAULT_COLORS = Object.freeze({
+  highlight: Object.freeze([1, 1, 0]),
+  underline: Object.freeze([1, 0, 0]),
+  strikeout: Object.freeze([1, 0, 0]),
+  squiggly: Object.freeze([1, 0, 0]),
+});
 const TEXT_HIGHLIGHT_OPERATION_FIELDS = new Set(["type", "page", "pageIndex", "sourceSha256", "expectedPage", "text", "color", "contents", "author", "subject"]);
+const TEXT_MARKUP_OPERATION_FIELDS = new Set([...TEXT_HIGHLIGHT_OPERATION_FIELDS, "markup"]);
 const PAGE_DUPLICATION_OPERATION_FIELDS = new Set(["type", "page", "pageIndex", "insertAt", "sourceSha256", "expectedPage"]);
 const PAGE_DELETION_OPERATION_FIELDS = new Set(["type", "page", "pageIndex", "sourceSha256", "expectedPage"]);
 const PAGE_REARRANGEMENT_OPERATION_FIELDS = new Set(["type", "pages", "sourceSha256", "expectedPages"]);
@@ -834,37 +847,45 @@ function annotationRgb(value, label) {
   return value.map(Number);
 }
 
-function textHighlightRequest(operation) {
+function textMarkupRequest(operation, operationName) {
+  const compatibilityHighlight = operationName === "add_text_highlight";
+  const supportedFields = compatibilityHighlight ? TEXT_HIGHLIGHT_OPERATION_FIELDS : TEXT_MARKUP_OPERATION_FIELDS;
   for (const name of Object.keys(operation)) {
-    if (!TEXT_HIGHLIGHT_OPERATION_FIELDS.has(name)) {
-      throw new Error(`add_text_highlight contains unsupported field: ${name}.`);
+    if (!supportedFields.has(name)) {
+      throw new Error(`${operationName} contains unsupported field: ${name}.`);
     }
   }
   if (typeof operation.text !== "string" || !operation.text.trim()) {
-    throw new Error("add_text_highlight requires non-empty text from the inspected page.");
+    throw new Error(`${operationName} requires non-empty text from the inspected page.`);
   }
-  if (operation.text.length > TEXT_HIGHLIGHT_MAX_TEXT_LENGTH) {
-    throw new Error(`add_text_highlight text exceeds ${TEXT_HIGHLIGHT_MAX_TEXT_LENGTH} characters.`);
+  if (operation.text.length > TEXT_MARKUP_MAX_TEXT_LENGTH) {
+    throw new Error(`${operationName} text exceeds ${TEXT_MARKUP_MAX_TEXT_LENGTH} characters.`);
+  }
+  const markup = compatibilityHighlight ? "highlight" : operation.markup;
+  if (!Object.hasOwn(TEXT_MARKUP_TYPES, markup)) {
+    throw new Error(`${operationName} markup must be one of: ${Object.keys(TEXT_MARKUP_TYPES).join(", ")}.`);
   }
   const request = {
     text: operation.text,
+    markup,
+    annotationType: TEXT_MARKUP_TYPES[markup],
     color: operation.color === undefined
-      ? [...TEXT_HIGHLIGHT_DEFAULT_COLOR]
-      : annotationRgb(operation.color, "add_text_highlight color"),
+      ? [...TEXT_MARKUP_DEFAULT_COLORS[markup]]
+      : annotationRgb(operation.color, `${operationName} color`),
   };
   for (const name of ["contents", "author", "subject"]) {
     if (operation[name] === undefined) continue;
     if (typeof operation[name] !== "string" || !operation[name].trim()) {
-      throw new Error(`add_text_highlight ${name} must be a non-empty string when supplied.`);
+      throw new Error(`${operationName} ${name} must be a non-empty string when supplied.`);
     }
     request[name] = operation[name];
   }
   return request;
 }
 
-function nativeTextHighlightQuads(value) {
+function nativeTextMarkupQuads(value, operationName) {
   if (!Array.isArray(value) || !value.length || value.some((quad) => !Array.isArray(quad) || quad.length !== 8 || quad.some((coordinate) => !Number.isFinite(Number(coordinate))))) {
-    throw new Error("MuPDF did not return usable quadrilaterals for the requested text highlight.");
+    throw new Error(`MuPDF did not return usable quadrilaterals for ${operationName}.`);
   }
   return value.map((quad) => quad.map(Number));
 }
@@ -890,8 +911,8 @@ function quadPointsEqual(left, right, tolerance = 0.001) {
     && left.every((quad, index) => numericVectorsEqual(quad, right[index], tolerance));
 }
 
-function annotationAddedAtTextHighlightMismatch(actual, request) {
-  if (actual.type !== "Highlight") return "type";
+function annotationAddedAtTextMarkupMismatch(actual, request) {
+  if (actual.type !== request.annotationType) return "type";
   for (const name of ["contents", "author", "subject"]) {
     if (request[name] !== undefined && actual[name] !== request[name]) return name;
   }
@@ -2006,39 +2027,40 @@ function applyTextAnnotationAddition(document, operation, context = {}) {
   }
 }
 
-function applyTextHighlightAddition(document, operation, context = {}) {
+function applyTextMarkupAddition(document, operation, context = {}) {
+  const operationName = operation.type;
   const { index, page } = pageFor(document, operation);
   let annotations = [];
   let retained = [];
   let created;
   try {
     if (!/^[a-f0-9]{64}$/u.test(String(operation.sourceSha256 || "")) || operation.sourceSha256 !== context.sourceSha256) {
-      throw new Error("add_text_highlight sourceSha256 must exactly match PdfFile.inspectPdf(...).summary.sourceSha256 for the current input bytes.");
+      throw new Error(`${operationName} sourceSha256 must exactly match PdfFile.inspectPdf(...).summary.sourceSha256 for the current input bytes.`);
     }
-    const expectedPage = pageExpectation(operation.expectedPage, "add_text_highlight");
-    const request = textHighlightRequest(operation);
-    const actualPage = nativePageSnapshot(page, "add_text_highlight");
+    const expectedPage = pageExpectation(operation.expectedPage, operationName);
+    const request = textMarkupRequest(operation, operationName);
+    const actualPage = nativePageSnapshot(page, operationName);
     const pageMismatch = pageExpectationMismatch(actualPage, expectedPage);
     if (pageMismatch) {
-      throw new Error(`add_text_highlight precondition page ${pageMismatch} did not match page ${index + 1}; refusing stale text-selection evidence.`);
+      throw new Error(`${operationName} precondition page ${pageMismatch} did not match page ${index + 1}; refusing stale text-selection evidence.`);
     }
-    const visibleRect = bboxToPdfRect(actualPage.bbox, "add_text_highlight inspected CropBox");
+    const visibleRect = bboxToPdfRect(actualPage.bbox, `${operationName} inspected CropBox`);
     const hits = page.search(request.text, 2);
     if (!hits.length) {
-      throw new Error(`add_text_highlight text was not found on page ${index + 1}: ${JSON.stringify(request.text)}.`);
+      throw new Error(`${operationName} text was not found on page ${index + 1}: ${JSON.stringify(request.text)}.`);
     }
     if (hits.length !== 1) {
-      throw new Error(`add_text_highlight text matched multiple locations on page ${index + 1}; refine the text until native search returns exactly one selection.`);
+      throw new Error(`${operationName} text matched multiple locations on page ${index + 1}; refine the text until native search returns exactly one selection.`);
     }
-    request.quadPoints = nativeTextHighlightQuads(hits[0]);
+    request.quadPoints = nativeTextMarkupQuads(hits[0], operationName);
     if (!quadPointsInsideRect(request.quadPoints, visibleRect)) {
-      throw new Error(`add_text_highlight native text selection extends outside the inspected visible CropBox on page ${index + 1}; refusing an ambiguous highlight.`);
+      throw new Error(`${operationName} native text selection extends outside the inspected visible CropBox on page ${index + 1}; refusing ambiguous text markup.`);
     }
     annotations = page.getAnnotations();
     // MuPDF's returned annotation list is a live view: creating an annotation
     // can mutate its length in place. Snapshot the count before the mutation.
     const beforeCount = annotations.length;
-    created = page.createAnnotation("Highlight");
+    created = page.createAnnotation(request.annotationType);
     created.setQuadPoints(request.quadPoints);
     created.setColor(request.color);
     if (request.contents !== undefined) created.setContents(request.contents);
@@ -2048,35 +2070,36 @@ function applyTextHighlightAddition(document, operation, context = {}) {
     page.update();
     const immediate = nativeAnnotation(created, index + 1);
     if (!immediate.id || !immediate.xref) {
-      throw new Error("MuPDF did not create a uniquely addressable Highlight annotation; refusing an ambiguous addition.");
+      throw new Error(`MuPDF did not create a uniquely addressable ${request.annotationType} annotation; refusing an ambiguous addition.`);
     }
-    let mismatch = annotationAddedAtTextHighlightMismatch(immediate, request);
+    let mismatch = annotationAddedAtTextMarkupMismatch(immediate, request);
     if (mismatch) {
-      throw new Error(`MuPDF did not preserve add_text_highlight ${mismatch} before save; refusing an ambiguous addition.`);
+      throw new Error(`MuPDF did not preserve ${operationName} ${mismatch} before save; refusing an ambiguous addition.`);
     }
     if (!immediate.appearanceBbox || !pdfRectContains(visibleRect, bboxToPdfRect(immediate.appearanceBbox))) {
-      throw new Error("MuPDF placed the Highlight annotation appearance outside the inspected visible CropBox; refusing an ambiguous addition.");
+      throw new Error(`MuPDF placed the ${request.annotationType} annotation appearance outside the inspected visible CropBox; refusing an ambiguous addition.`);
     }
     retained = page.getAnnotations();
     const added = retained.filter((annotation) => annotationXref(annotation) === immediate.xref);
     if (retained.length !== beforeCount + 1 || added.length !== 1) {
-      throw new Error(`MuPDF did not retain exactly one uniquely addressable Highlight annotation on page ${index + 1}; refusing an ambiguous addition.`);
+      throw new Error(`MuPDF did not retain exactly one uniquely addressable ${request.annotationType} annotation on page ${index + 1}; refusing an ambiguous addition.`);
     }
     const addedRecord = nativeAnnotation(added[0], index + 1);
-    mismatch = annotationAddedAtTextHighlightMismatch(addedRecord, request);
+    mismatch = annotationAddedAtTextMarkupMismatch(addedRecord, request);
     if (mismatch) {
-      throw new Error(`MuPDF did not retain add_text_highlight ${mismatch} on page ${index + 1}; refusing an ambiguous addition.`);
+      throw new Error(`MuPDF did not retain ${operationName} ${mismatch} on page ${index + 1}; refusing an ambiguous addition.`);
     }
     if (!addedRecord.appearanceBbox || !pdfRectContains(visibleRect, bboxToPdfRect(addedRecord.appearanceBbox))) {
-      throw new Error("MuPDF retained the Highlight annotation appearance outside the inspected visible CropBox; refusing an ambiguous addition.");
+      throw new Error(`MuPDF retained the ${request.annotationType} annotation appearance outside the inspected visible CropBox; refusing an ambiguous addition.`);
     }
     return {
-      type: "add_text_highlight",
+      type: operationName,
       page: index + 1,
       expectedPage,
       coordinateSpace: MUPDF_PAGE_COORDINATE_SPACE,
       pageRotation: actualPage.rotation,
       text: request.text,
+      ...(operationName === "add_text_markup" ? { markup: request.markup } : {}),
       color: request.color,
       added: addedRecord,
       beforeCount,
@@ -2361,7 +2384,8 @@ function normalizeCheckboxValue(value, field, operationName = "fill_form") {
 function applyOperation(document, operation, context) {
   switch (operation.type) {
     case "add_text_annotation": return applyTextAnnotationAddition(document, operation, context);
-    case "add_text_highlight": return applyTextHighlightAddition(document, operation, context);
+    case "add_text_highlight":
+    case "add_text_markup": return applyTextMarkupAddition(document, operation, context);
     case "fill_form": {
       const field = String(operation.field || operation.name || "");
       if (!field) throw new Error("fill_form requires a field name.");
@@ -2428,21 +2452,24 @@ export async function editPdfWithMuPdf(input, options = {}) {
   if (!new Set(["rewrite", "incremental"]).has(savePolicy)) {
     throw new Error(`MuPDF savePolicy ${savePolicy} is unsupported; strict sanitize remains a separate audited workflow.`);
   }
-  const destructiveIncremental = savePolicy === "incremental"
-    ? operations.find((operation) => INCREMENTAL_DESTRUCTIVE_OPERATIONS.has(operation?.type))
+  const rewriteOnlyOperation = savePolicy === "incremental"
+    ? operations.find((operation) => REWRITE_ONLY_OPERATIONS.has(operation?.type))
     : undefined;
-  if (destructiveIncremental) {
-    const pageTreeMutation = PAGE_TREE_OPERATION_TYPES.has(destructiveIncremental.type);
-    const label = destructiveIncremental.type.startsWith("redact_")
+  if (rewriteOnlyOperation) {
+    const pageTreeMutation = PAGE_TREE_OPERATION_TYPES.has(rewriteOnlyOperation.type);
+    const sourceBoundPlacement = ["add_link", "add_text_annotation", "add_text_highlight", "add_text_markup"].includes(rewriteOnlyOperation.type);
+    const label = rewriteOnlyOperation.type.startsWith("redact_")
       ? "redaction"
       : pageTreeMutation
-        ? `page-tree operation ${destructiveIncremental.type}`
-        : ["add_link", "add_text_annotation", "add_text_highlight"].includes(destructiveIncremental.type)
-          ? `source-bound operation ${destructiveIncremental.type}`
-          : `destructive operation ${destructiveIncremental.type}`;
+        ? `page-tree operation ${rewriteOnlyOperation.type}`
+        : sourceBoundPlacement
+          ? `source-bound operation ${rewriteOnlyOperation.type}`
+          : `destructive operation ${rewriteOnlyOperation.type}`;
     const reason = pageTreeMutation
       ? "page-tree mutation must publish one fully rewritten object graph"
-      : "prior revisions retain the original content";
+      : sourceBoundPlacement
+        ? "source-bound placement must publish one coherent rewritten annotation or link graph"
+        : "prior revisions retain the original content";
     throw new Error(`MuPDF ${label} cannot save incrementally because ${reason}; use rewrite. Rewrite is still not a complete sanitize workflow.`);
   }
   const { document, bytes, limits } = await openPdfWithMuPdf(input, options);

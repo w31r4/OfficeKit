@@ -374,6 +374,7 @@ assert.match(skillText, /Source-bound outline edits.*\[edit existing\]\(tasks\/e
 assert.match(skillText, /delete_annotation.*update_annotation.*delete_link.*update_link.*update_form_field/is);
 assert.match(skillText, /add_text_annotation.*visible pin.*rewrite/is);
 assert.match(skillText, /add_text_highlight.*unique native text selection.*rewrite/is);
+assert.match(skillText, /add_text_markup.*Highlight\/Underline\/StrikeOut\/Squiggly.*unique native text selection.*rewrite/is);
 assert.match(skillText, /mupdf-page-space.*0\/90\/180\/270.*appearanceBbox/is);
 assert.match(skillText, /raw `mediaBox`\/`cropBox`.*unrotated PDF-space/is);
 assert.match(skillText, /sourceSha256/);
@@ -558,6 +559,8 @@ try {
   const mupdfOutput = path.join(tempRoot, "mupdf-output.pdf");
   const mupdfHighlightOperations = path.join(tempRoot, "mupdf-highlight-operations.json");
   const mupdfHighlightOutput = path.join(tempRoot, "mupdf-highlight-output.pdf");
+  const mupdfMarkupOperations = path.join(tempRoot, "mupdf-markup-operations.json");
+  const mupdfMarkupOutput = path.join(tempRoot, "mupdf-markup-output.pdf");
   const mupdfCropOperations = path.join(tempRoot, "mupdf-crop-operations.json");
   const mupdfCropOutput = path.join(tempRoot, "mupdf-crop-output.pdf");
   const mupdfRotationOperations = path.join(tempRoot, "mupdf-rotation-operations.json");
@@ -767,6 +770,28 @@ try {
   assert.ok(mupdfHighlight);
   assert.ok(mupdfHighlight.color.every((component, index) => Math.abs(component - [0.2, 0.8, 0.3][index]) < 0.001));
   assert.equal(mupdfHighlight.quadPoints.length, 1);
+  await fs.writeFile(mupdfMarkupOperations, JSON.stringify({
+    savePolicy: "rewrite",
+    operations: [{
+      type: "add_text_markup",
+      markup: "underline",
+      page: mupdfAnnotationPage.page,
+      sourceSha256: mupdfInspection.summary.sourceSha256,
+      expectedPage: { bbox: mupdfAnnotationPage.bbox, rotation: mupdfAnnotationPage.rotation },
+      text: "MuPDF Skill CLI fixture",
+      color: [0.1, 0.3, 0.9],
+      contents: "CLI underline",
+      author: "CLI reviewer",
+    }],
+  }), "utf8");
+  const mupdfMarked = parseResult(run(process.execPath, [mupdfCli, "edit", mupdfInput, mupdfMarkupOperations, mupdfMarkupOutput], { status: 0 }));
+  assert.equal(mupdfMarked.operations[0].type, "add_text_markup");
+  assert.equal(mupdfMarked.operations[0].markup, "underline");
+  assert.equal(mupdfMarked.operations[0].added.type, "Underline");
+  const mupdfMarkupInspection = await PdfFile.inspectPdf(await fs.readFile(mupdfMarkupOutput));
+  const mupdfUnderline = mupdfMarkupInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "Underline");
+  assert.equal(mupdfUnderline.contents, "CLI underline");
+  assert.equal(mupdfUnderline.quadPoints.length, 1);
   await fs.writeFile(mupdfOperations, JSON.stringify({
     savePolicy: "rewrite",
     operations: [{

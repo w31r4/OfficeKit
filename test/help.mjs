@@ -565,7 +565,9 @@ assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schem
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.savePolicy?.description || "", /Incremental is forbidden for delete_page, duplicate_page, rearrange_pages/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.savePolicy?.description || "", /rearrange_pages, delete_embedded_file/);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /sourceSha256.*expectedPage.*mupdf-page-space.*add_text_annotation.*pin.*contents.*normalized rect.*appearanceBbox.*incremental/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /add_text_highlight.*exactly once.*appearanceBbox.*right-angle rotated pages/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /add_text_markup.*exactly once.*appearanceBbox.*right-angle rotated pages/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /add_text_markup.*highlight\|underline\|strikeout\|squiggly.*quadrilaterals.*mis-cased/is);
+assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /compatibility add_text_highlight.*Highlight-only.*rejects a markup field/is);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /delete_annotation.*sourceSha256.*mupdf-annotation/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /update_annotation.*contents.*author.*subject.*rectangle.*expected/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /delete_link.*sourceSha256.*mupdf-link/i);
@@ -575,7 +577,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schem
 assert.equal(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.schema?.parameters?.maxLinks?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.schema?.parameters?.maxOutlines?.type, "number");
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.schema?.returns?.inspection?.description || "", /raw unrotated PDF-space MediaBox\/CropBox.*coordinateSpace=mupdf-page-space.*rotation/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.schema?.returns?.inspection?.description || "", /Text-note and Highlight.*appearanceBbox/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.schema?.returns?.inspection?.description || "", /Text-note and text-markup.*appearanceBbox.*Highlight, Underline, StrikeOut, and Squiggly.*quadrilateral.*RGB color/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.schema?.returns?.inspection?.description || "", /sourceSha256.*mupdfAnnotation.*mupdfLink/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.schema?.returns?.inspection?.description || "", /mupdfWidget.*mupdfFormField/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.inspectPdf")?.schema?.returns?.inspection?.description || "", /mupdfDocumentMetadata.*fingerprints raw Info entries.*XMP.*stream object\/hash\/length.*field-safe.*blocked reasons.*fail-closed/i);

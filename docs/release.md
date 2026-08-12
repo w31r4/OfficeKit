@@ -1,5 +1,38 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-13): Source-bound PDF text markup
+
+The built-in direct-original MuPDF.js route now exposes one
+`add_text_markup` operation for native Highlight, Underline, StrikeOut, and
+Squiggly review marks. The existing `add_text_highlight` operation remains a
+compatible Highlight-only entry and shares the same implementation rather than
+forking a second text-selection contract.
+
+Every markup binds the exact input SHA-256 plus the inspected page bbox and
+rotation, accepts exactly one provider text-search hit, and derives native
+quadrilaterals instead of accepting caller geometry. MuPDF must retain one
+uniquely addressable annotation with the requested native type, color, review
+metadata, quadrilaterals, and in-page appearance before the full rewrite is
+published. Missing, unknown, or mis-cased styles, stale source/page evidence,
+zero or multiple text hits, caller rectangles/quads, clipped appearance, and
+incremental save fail closed. Xrefs remain locators for the exact inspected
+bytes, not persistent annotation IDs.
+
+Local candidate evidence is complete: fast passed 28/28 steps and slow passed
+77/77; OfficeKit Codec passed 415/415 and OfficeBridge passed 5/5; protocol
+lint/generation and generated API docs are current; and two independent WASM
+builds reproduced the same 39-file audited output (38 runtime files,
+15,416,043 bytes). The isolated `HEAD + staged patch` package candidate passed
+clean-install/package verification with 736 files, 36,310,878 compressed bytes,
+53,452,336 unpacked bytes, and npm SHA-1
+`cf0b2666cfa98efb78009651930a0ed4173494c3`. Real MuPDF.js, qpdf,
+LibreOffice, Poppler, and Playwright paths ran. Managed capability downloads and
+separately configured pikepdf, pyHanko, veraPDF, OCRmyPDF, and managed-Python
+PromptBench repeats remained explicit environment skips. `npm whoami` still
+returns `ENEEDAUTH`, and the public registry still returns `E404` for
+`office-kit`; no publish, tag, or release operation was attempted. Hosted CI is
+recorded after push. Windows Office host acceptance remains external.
+
 ## Current 0.6.0 candidate (2026-08-13): Recursive PPTX group deletion
 
 Imported canonical top-level `p:grpSp` objects now join the same typed

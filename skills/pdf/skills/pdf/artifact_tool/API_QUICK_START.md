@@ -375,7 +375,7 @@ icon selection, stale evidence, clipped appearance, and incremental save are
 rejected. Re-inspect the rewrite and compare the fresh annotation
 `appearanceBbox` before relying on its current-source-only locator.
 
-For a review highlight, give the provider one requested text string instead of
+For review markup, give the provider one requested text string instead of
 trying to calculate a rectangle or character quadrilaterals. It is accepted
 only if native search finds exactly one selection on the same inspected visible
 page. The provider uses that page's rotation-aware `mupdf-page-space`:
@@ -385,30 +385,33 @@ const highlightPage = inspection.records.find((record) => record.kind === "mupdf
   && record.page === 1);
 if (!highlightPage) throw new Error("Expected one inspectable target page.");
 
-const withHighlight = await PdfFile.editPdf(input, {
+const withMarkup = await PdfFile.editPdf(input, {
   savePolicy: "rewrite",
   operations: [{
-    type: "add_text_highlight",
+    type: "add_text_markup",
+    markup: "strikeout",
     page: highlightPage.page,
     sourceSha256: inspection.summary.sourceSha256,
     expectedPage: { bbox: highlightPage.bbox, rotation: highlightPage.rotation },
     text: "Revenue assumptions remain provisional",
-    color: [1, 0.92, 0.2],
+    color: [0.9, 0.2, 0.2],
     contents: "Validate before approval.",
     author: "Reviewer",
   }],
 });
-await withHighlight.save("third-party-with-review-highlight.pdf");
+await withMarkup.save("third-party-with-review-markup.pdf");
 ```
 
-`text` is non-empty and at most 4,096 characters. The optional RGB color uses
-three `[0,1]` components (yellow by default), while optional `contents`,
-`author`, and `subject` carry non-empty review metadata. Caller quads or
-rectangles, zero/multiple native hits, stale page evidence, a native
+`markup` is exactly `highlight`, `underline`, `strikeout`, or `squiggly`;
+`add_text_highlight` remains the compatibility form of `highlight`. `text` is
+non-empty and at most 4,096 characters. The optional RGB color uses three
+`[0,1]` components (yellow for highlight, red otherwise), while optional
+`contents`, `author`, and `subject` carry non-empty review metadata. Caller
+quads or rectangles, zero/multiple native hits, stale page evidence, a native
 `appearanceBbox` beyond the visible page, and incremental save are rejected.
 Right-angle page rotation itself is supported and must match `expectedPage`.
 Re-inspect and render the rewrite before handoff; its `mupdfAnnotation` record
-returns the native Highlight quadrilaterals/color/appearance and a
+returns the native type, quadrilaterals, color, appearance, and a
 current-source-only locator.
 
 For an imported annotation, do not use its array index as identity. Inspect the

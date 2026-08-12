@@ -142,11 +142,11 @@ effective `mupdf-page-space` bbox for 0/90/180/270-degree placement. Use its
 returned `sourceSha256`, `mupdf-link`/annotation/form locators, page snapshot,
 and `appearanceBbox`; re-inspect after every output.
 
-- `add_text_annotation`, `add_text_highlight`, `add_link`, `delete_annotation`,
+- `add_text_annotation`, `add_text_markup` (Highlight/Underline/StrikeOut/Squiggly), compatibility `add_text_highlight`, `add_link`, `delete_annotation`,
   `update_annotation`, `delete_link`, `update_link`, and `update_form_field`
   are source-bound operations; placement uses the inspected page snapshot.
-  `add_text_annotation` takes a visible pin and rewrite; a highlight requires a
-  unique native text selection and rewrite.
+  `add_text_annotation` takes a visible pin and rewrite; text markup requires a
+  unique native text selection and rewrite, with no caller geometry.
 - On untagged input, `delete_page`, `duplicate_page`, and changed `rearrange_pages` require exact source SHA-256 and page snapshots, run as the only operation in a full rewrite, then require re-inspect and mapped Poppler render/pixel identity.
 - `delete_embedded_file` binds one inspect-returned canonical catalog NameTree locator and complete snapshot; rewrite removes that entry only and never claims sanitize or physical payload erasure.
 - `set_metadata` binds the exact source plus the complete `mupdfDocumentMetadata` snapshot and updates standard Document Info fields. For bounded `field-safe-v1` XMP, inspection reports separate `xmpMutableFields` and `xmpBlockedFields`; the same transaction updates only requested proven fields and leaves all other packet bytes unchanged. A unique `x-default` remains editable in a multilingual title/description, common scalar description attributes are editable, and an unrelated multi-author or irregular field blocks only that field. Missing or blocked requested fields, CDATA/DTD/invalid entities, malformed XML, stale/no-op evidence, and unsupported stream graphs fail closed without switching providers.

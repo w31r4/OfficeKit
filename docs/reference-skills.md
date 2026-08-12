@@ -102,6 +102,19 @@ add/delete/reparent, leaf expansion, title matching, stale evidence, and silent
 fallback remain unsupported. The packaged CLI fixture exercises incremental
 save, second inspection, source immutability, and stable page rendering.
 
+### PDF source-bound text-markup delta
+
+The compatible PDF Skill generalizes the reference-style review highlight into
+one typed `add_text_markup` primitive for native Highlight, Underline,
+StrikeOut, and Squiggly annotations. It binds the exact source SHA-256 and
+inspected page bbox/rotation, accepts only one native text-search hit, derives
+provider quadrilaterals instead of caller geometry, verifies native type/color/
+appearance before and after save, and requires a full rewrite plus fresh render.
+The existing `add_text_highlight` operation remains a compatible Highlight-only
+entry and rejects the new selector field. This is a bounded review-markup
+extension, not arbitrary annotation geometry, persistent annotation identity,
+or a silent provider route.
+
 ### Documents canonical note bodies
 
 The runnable Documents profile now accepts a source-free or recognized

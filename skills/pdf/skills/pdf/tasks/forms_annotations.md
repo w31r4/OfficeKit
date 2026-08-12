@@ -1,6 +1,6 @@
 # Forms and annotations
 
-Use MuPDF.js for bounded source-bound single-widget text/combo/checkbox updates, Text-note pins, and unique native text highlights. Use pypdf when radio export values, shared widgets, choice display/export mappings, appearance-state validation, flattening, or more complex AcroForm handling is required. Always open the original PDF directly.
+Use MuPDF.js for bounded source-bound single-widget text/combo/checkbox updates, Text-note pins, and unique native text markup (Highlight, Underline, StrikeOut, or Squiggly). Use pypdf when radio export values, shared widgets, choice display/export mappings, appearance-state validation, flattening, or more complex AcroForm handling is required. Always open the original PDF directly.
 
 ## Inspect first
 
@@ -95,9 +95,9 @@ incremental save fails closed. Re-inspect the rewrite and compare the fresh
 appearance before a later annotation update/deletion; the returned xref is
 current-source-only.
 
-## Highlight one unique text selection
+## Mark one unique text selection
 
-For an agent review highlight, select the requested page text from the same native
+For an Agent review mark, select the requested page text from the same native
 inspection. Do not infer character boxes or pass a viewer rectangle: MuPDF
 must find one and only one native selection on the target page.
 
@@ -106,30 +106,33 @@ const page = inspection.records.find((record) => record.kind === "mupdfPage"
   && record.page === 1);
 if (!page) throw new Error("Expected an inspectable first page.");
 
-const highlighted = await PdfFile.editPdf(input, {
+const marked = await PdfFile.editPdf(input, {
   savePolicy: "rewrite",
   operations: [{
-    type: "add_text_highlight",
+    type: "add_text_markup",
+    markup: "underline",
     page: page.page,
     sourceSha256: inspection.summary.sourceSha256,
     expectedPage: { bbox: page.bbox, rotation: page.rotation },
     text: "Revenue assumptions remain provisional",
-    color: [1, 0.92, 0.2],
+    color: [0.2, 0.35, 0.9],
     contents: "Validate before approval.",
     author: "Reviewer",
   }],
 });
 ```
 
-The text is limited to 4,096 characters. The color is optional RGB in `[0,1]`
-(yellow by default); `contents`, `author`, and `subject` are optional non-empty
-review metadata. A zero/multiple hit, caller quad/rectangle, stale source or
-page snapshot, off-page native `appearanceBbox`, or incremental save fails
-closed. Right-angle rotation itself is supported when it matches the inspected
-page snapshot. The audit and fresh `mupdfAnnotation` record expose the verified
-native Highlight quadrilaterals, color, and appearance. Render the delivered
-output as part of review; the resulting xref is valid only for those exact
-output bytes.
+`markup` is exactly `highlight`, `underline`, `strikeout`, or `squiggly`.
+`add_text_highlight` remains a compatibility alias for `highlight` and does not
+accept `markup`. Text is limited to 4,096 characters. Color is optional RGB in
+`[0,1]` (yellow for highlight, red otherwise); `contents`, `author`, and
+`subject` are optional non-empty review metadata. A zero/multiple hit, caller
+quad/rectangle, stale source or page snapshot, off-page native
+`appearanceBbox`, or incremental save fails closed. Right-angle rotation itself
+is supported when it matches the inspected page snapshot. The audit and fresh
+`mupdfAnnotation` record expose the verified native type, quadrilaterals, color,
+and appearance. Render the delivered output as part of review; the resulting
+xref is valid only for those exact output bytes.
 
 Before a pypdf mutation, probe and bind the exact route. Change `--task` to `annotate` for notes:
 

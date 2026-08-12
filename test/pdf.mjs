@@ -933,6 +933,74 @@ const [sourcePixels, highlightPixels] = await Promise.all([
 ]);
 assert.deepEqual(sourcePixels.info, highlightPixels.info);
 assert.notEqual(Buffer.compare(sourcePixels.data, highlightPixels.data), 0, "the native Highlight annotation must change rendered pixels");
+const sourceBoundTextMarkup = {
+  type: "add_text_markup",
+  page: 1,
+  sourceSha256: mupdfInspect.summary.sourceSha256,
+  expectedPage: { bbox: mupdfAnnotationSourcePage.bbox, rotation: mupdfAnnotationSourcePage.rotation },
+  text: "Section 1 summary",
+};
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "incremental",
+  operations: [{ ...sourceBoundTextMarkup, markup: "underline" }],
+}), /source-bound operation add_text_markup cannot save incrementally.*coherent rewritten annotation or link graph/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundTextMarkup, markup: "underline", sourceSha256: "0".repeat(64) }],
+}), /add_text_markup sourceSha256 must exactly match/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [sourceBoundTextMarkup],
+}), /markup must be one of: highlight, underline, strikeout, squiggly/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundTextMarkup, markup: "caret" }],
+}), /markup must be one of/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundTextMarkup, markup: "Underline" }],
+}), /markup must be one of/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundTextMarkup, markup: "underline", quadPoints: [[1, 2, 3, 4, 5, 6, 7, 8]] }],
+}), /contains unsupported field: quadPoints/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundTextHighlight, markup: "underline" }],
+}), /add_text_highlight contains unsupported field: markup/);
+const textMarkupProfiles = [
+  { markup: "highlight", annotationType: "Highlight", color: [0.95, 0.85, 0.1] },
+  { markup: "underline", annotationType: "Underline", color: [0.1, 0.3, 0.9] },
+  { markup: "strikeout", annotationType: "StrikeOut", color: [0.9, 0.2, 0.2] },
+  { markup: "squiggly", annotationType: "Squiggly", color: [0.5, 0.2, 0.8] },
+];
+const mupdfTextMarked = await PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: textMarkupProfiles.map(({ markup, color }) => ({
+    ...sourceBoundTextMarkup,
+    markup,
+    color,
+    contents: `${markup} review`,
+    author: "Agent",
+  })),
+});
+assert.deepEqual(mupdfTextMarked.metadata.operations.map(({ type, markup }) => ({ type, markup })), textMarkupProfiles.map(({ markup }) => ({
+  type: "add_text_markup",
+  markup,
+})));
+const mupdfTextMarkupInspection = await PdfFile.inspectPdf(mupdfTextMarked);
+for (const profile of textMarkupProfiles) {
+  const operation = mupdfTextMarked.metadata.operations.find((candidate) => candidate.markup === profile.markup);
+  const annotation = mupdfTextMarkupInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.contents === `${profile.markup} review`);
+  assert.equal(operation.added.type, profile.annotationType);
+  assert.equal(annotation.type, profile.annotationType);
+  assert.equal(annotation.author, "Agent");
+  assert.equal(annotation.quadPoints.length, 1);
+  assert.ok(annotation.color.every((component, index) => Math.abs(component - profile.color[index]) < 0.001));
+  assert.deepEqual(annotation.appearanceBbox, operation.added.appearanceBbox);
+}
+const mupdfTextMarkupPng = await PdfFile.renderPdf(mupdfTextMarked, { page: 1, dpi: 72 });
+assert.notEqual(Buffer.compare(Buffer.from(mupdfPng.bytes), Buffer.from(mupdfTextMarkupPng.bytes)), 0, "all four native text-markup styles must change rendered pixels");
 const sourceBoundTextAnnotation = {
   type: "add_text_annotation",
   page: 1,
@@ -1343,6 +1411,15 @@ for (const rotation of [90, 180, 270]) {
         color: [0.9, 0.7, 0.1],
       },
       {
+        type: "add_text_markup",
+        markup: "underline",
+        page: 1,
+        sourceSha256: sourceInspection.summary.sourceSha256,
+        expectedPage: { bbox: sourcePage.bbox, rotation: sourcePage.rotation },
+        text: "Section 1 summary",
+        color: [0.1, 0.3, 0.9],
+      },
+      {
         type: "add_link",
         page: 1,
         sourceSha256: sourceInspection.summary.sourceSha256,
@@ -1358,7 +1435,7 @@ for (const rotation of [90, 180, 270]) {
       coordinateSpace: operation.coordinateSpace,
       pageRotation: operation.pageRotation,
     })),
-    ["add_text_annotation", "add_text_highlight", "add_link"].map((type) => ({
+    ["add_text_annotation", "add_text_highlight", "add_text_markup", "add_link"].map((type) => ({
       type,
       coordinateSpace: "mupdf-page-space",
       pageRotation: rotation,
@@ -1374,6 +1451,7 @@ for (const rotation of [90, 180, 270]) {
   const outputPage = outputInspection.records.find((record) => record.kind === "mupdfPage" && record.page === 1);
   const note = outputInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.contents === `Rotated review ${rotation}`);
   const highlight = outputInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "Highlight");
+  const underline = outputInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "Underline");
   const link = outputInspection.records.find((record) => record.kind === "mupdfLink" && record.url === `https://example.com/rotation-${rotation}`);
   assert.equal(outputPage.rotation, rotation);
   assert.deepEqual(outputPage.bbox, sourcePage.bbox);
@@ -1383,6 +1461,9 @@ for (const rotation of [90, 180, 270]) {
   assert.equal(highlight.quadPoints.length, 1);
   assert.deepEqual(highlight.appearanceBbox, rotatedPlacements.metadata.operations[1].added.appearanceBbox);
   assert.ok(highlight.quadPoints[0].every((coordinate, index) => coordinate >= 0 && coordinate <= sourcePage.bbox[index % 2 === 0 ? 2 : 3]));
+  assert.equal(underline.quadPoints.length, 1);
+  assert.deepEqual(underline.appearanceBbox, rotatedPlacements.metadata.operations[2].added.appearanceBbox);
+  assert.ok(underline.quadPoints[0].every((coordinate, index) => coordinate >= 0 && coordinate <= sourcePage.bbox[index % 2 === 0 ? 2 : 3]));
   assert.deepEqual(link.bbox, [300, 400, 100, 18]);
   const [beforeRender, afterRender] = await Promise.all([
     PdfFile.renderPdf(source, { page: 1, dpi: 72 }),

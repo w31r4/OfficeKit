@@ -11,14 +11,14 @@ officekit run scripts/mupdf.mjs probe
 officekit run scripts/mupdf.mjs inspect input.pdf
 ```
 
-Its typed operations are source-bound `add_text_annotation` and `add_text_highlight`, legacy text/choice/checkbox `fill_form`, source-bound `update_form_field`, source-bound `delete_page`, `duplicate_page`, and complete `rearrange_pages`, source-bound `delete_annotation` and `update_annotation`, visible-only `set_page_crop`, absolute-quarter-turn `rotate_page`, source-bound Document Info `set_metadata`, fixed-topology `update_outline`, `delete_embedded_file`, source-bound `add_link`, `delete_link`, and `update_link`, `redact_text`, and `redact_rect`. Run with one explicit save policy:
+Its typed operations are source-bound `add_text_annotation`, `add_text_markup` (Highlight/Underline/StrikeOut/Squiggly), and compatibility `add_text_highlight`; legacy text/choice/checkbox `fill_form`; source-bound `update_form_field`, `delete_page`, `duplicate_page`, complete `rearrange_pages`, `delete_annotation`, `update_annotation`, `set_metadata`, `update_outline`, `delete_embedded_file`, `add_link`, `delete_link`, and `update_link`; visible-only `set_page_crop`; absolute-quarter-turn `rotate_page`; `redact_text`; and `redact_rect`. Run with one explicit save policy:
 
 ```bash
 officekit run scripts/mupdf.mjs edit input.pdf tmp/pdfs/edit-operations.json tmp/pdfs/edited.pdf \
   --save-policy rewrite
 ```
 
-The CLI refuses source overwrite, writes atomically, and rejects incremental page-tree mutation, redaction, source-bound annotation/link creation or mutation (including text highlights), deletion, and signed-PDF incremental edits. Bounded source-bound single-widget form-field, metadata, outline-title/expansion, crop, and rotation updates may use unsigned incremental save; unsupported operations do not route elsewhere.
+The CLI refuses source overwrite, writes atomically, and rejects incremental page-tree mutation, redaction, source-bound annotation/link creation or mutation (including every text-markup style), deletion, and signed-PDF incremental edits. Bounded source-bound single-widget form-field, metadata, outline-title/expansion, crop, and rotation updates may use unsigned incremental save; unsupported operations do not route elsewhere.
 
 ## Opaque RichMedia/3D boundary
 
