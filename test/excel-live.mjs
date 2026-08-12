@@ -298,6 +298,7 @@ try {
   assert.equal(mockResult.ok, true);
   assert.deepEqual(mockAddin.saveBehaviors, ["Prompt"], "an unsaved workbook must leave Save As path choice to Excel");
   assert.equal(mockAddin.requirementChecks.some(([set, version]) => set === "ExcelApi" && version === "1.11"), true);
+  await waitFor(() => /"operation": "save"/.test(mockAddin.element("audit-output").textContent), "compiled task pane audit rendering");
   assert.match(mockAddin.element("audit-output").textContent, /"operation": "save"/);
   await mockAddin.disconnect();
 

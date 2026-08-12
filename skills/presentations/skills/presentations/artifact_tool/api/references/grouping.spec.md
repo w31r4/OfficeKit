@@ -122,6 +122,16 @@ Export rejects with
 `presentation_group_topology_changed` instead of rebuilding or flattening the
 group.
 
+To remove the entire top-level group, inspect `group.deletionCapability` and
+call `group.delete()` only when `supported` is true. This is one recursive
+ownership transaction, not child-by-child mutation: OfficeKit re-proves every
+descendant native ID, requires every relationship reference to remain inside
+the group, removes its owned relationship edges, and garbage-collects only the
+multi-root OPC descendants without an outside package parent. Shared media and
+ChartParts survive. A nested group, outside connector or comment targeting any
+descendant, reused relationship, timing/extension identity, or unsupported
+group graph fails closed. Raw collection splicing is never deletion authority.
+
 ## Fail-closed boundary
 
 An imported group remains one opaque, read-only native object when its group

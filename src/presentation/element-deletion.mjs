@@ -18,18 +18,34 @@ export function presentationElementDeletionCapability(element, kind) {
   return { sourceBound: false, known: true, supported: true, blockedReason: "", nativeId: undefined };
 }
 
-export function deletePresentationElement(element, collection, kind) {
+function allSlideElements(slide) {
+  const direct = [
+    ...(slide?.shapes?.items || []),
+    ...(slide?.connectors?.items || []),
+    ...(slide?.tables?.items || []),
+    ...(slide?.charts?.items || []),
+    ...(slide?.images?.items || []),
+    ...(slide?.nativeObjects?.items || []),
+  ];
+  for (const group of slide?.groups?.items || []) direct.push(...group.allElements());
+  return direct;
+}
+
+export function deletePresentationElement(element, collection, kind, { ownedElements = [element] } = {}) {
   const index = collection?.items?.indexOf(element) ?? -1;
   if (index < 0) throw new Error(`Presentation ${kind} must belong to its slide before it can be deleted.`);
 
   const owner = element.parentGroup;
-  const connectors = owner?.connectors?.items || element.slide?.connectors?.items || [];
-  if (connectors.some((connector) => connector.startTargetId === element.id || connector.endTargetId === element.id)) {
+  const owned = new Set(ownedElements);
+  const ownedIds = new Set(ownedElements.map((item) => item?.id).filter(Boolean));
+  const targetsOwnedElement = (targetId) => ownedIds.has(targetId) || [...ownedIds].some((id) => String(targetId || "").startsWith(`${id}/`));
+  const connectors = allSlideElements(element.slide).filter((item) => item?.kind === "connector" && !owned.has(item));
+  if (connectors.some((connector) => ownedIds.has(connector.startTargetId) || ownedIds.has(connector.endTargetId))) {
     const error = new Error(`Presentation ${kind} ${element.id} cannot be deleted while a connector targets it.`);
     error.code = "unsupported_presentation_element_delete";
     throw error;
   }
-  if ((element.slide?.comments?.items || []).some((thread) => thread.targetId === element.id)) {
+  if ((element.slide?.comments?.items || []).some((thread) => targetsOwnedElement(thread.targetId))) {
     const error = new Error(`Presentation ${kind} ${element.id} cannot be deleted while a comment targets it.`);
     error.code = "unsupported_presentation_element_delete";
     throw error;

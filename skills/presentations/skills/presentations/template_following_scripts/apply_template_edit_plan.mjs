@@ -345,8 +345,11 @@ function operationHandlers(context) {
         text: operation.expectedText,
         nativeId: capability.nativeId,
       };
+      const deletedElementIds = typeof target.allElements === "function"
+        ? target.allElements().map((element) => element.id)
+        : [target.id];
       target.delete();
-      return { before, after: null, deleted: true };
+      return { before, after: null, deleted: true, deletedElementCount: deletedElementIds.length, deletedElementIds };
     },
   };
 }
@@ -452,6 +455,14 @@ export async function applyTemplateEditPlan(options) {
       if (recordIndex < 0) throw new Error(`Edit target ${key} element ${operation.elementIndex} is absent from bounded inspection.`);
       const label = `Edit target ${key} ${operation.type}`;
       const outcome = await handlers[operation.type](target, operation, label);
+      const deletedSourceIdentities = outcome.deletedElementIds
+        ? records
+          .filter((record) => outcome.deletedElementIds.includes(record.id))
+          .map(identityShape)
+        : [];
+      if (outcome.deletedElementIds && deletedSourceIdentities.length !== outcome.deletedElementIds.length) {
+        throw new Error(`${label} recursive deletion ownership did not match bounded inspection.`);
+      }
       untouchedSlides.delete(targetPlan.outputSlide);
       const auditIndex = auditOperations.length;
       verifications.push({
@@ -461,6 +472,7 @@ export async function applyTemplateEditPlan(options) {
         sourceIdentity: identityShape(records[recordIndex]),
         verify: outcome.verify,
         deleted: outcome.deleted === true,
+        deletedSourceIdentities,
         auditIndex,
       });
       auditOperations.push({
@@ -471,7 +483,7 @@ export async function applyTemplateEditPlan(options) {
         action: targetPlan.action,
         type: operation.type,
         executed: true,
-        ...Object.fromEntries(Object.entries(outcome).filter(([name]) => name !== "verify" && name !== "bytes")),
+        ...Object.fromEntries(Object.entries(outcome).filter(([name]) => !["verify", "bytes", "deletedElementIds"].includes(name))),
       });
     }
   }
@@ -483,17 +495,21 @@ export async function applyTemplateEditPlan(options) {
   const afterRecords = inspectRecordsBySlide(roundTrip);
   const deletedBySlide = new Map();
   for (const verification of verifications.filter((entry) => entry.deleted)) {
-    deletedBySlide.set(verification.outputSlide, (deletedBySlide.get(verification.outputSlide) || 0) + 1);
+    if (!deletedBySlide.has(verification.outputSlide)) deletedBySlide.set(verification.outputSlide, new Set());
+    for (const identity of verification.deletedSourceIdentities) deletedBySlide.get(verification.outputSlide).add(identity);
   }
   for (const verification of verifications) {
     const records = afterRecords.get(verification.outputSlide) || [];
-    const expectedCount = (beforeRecords.get(verification.outputSlide) || []).length - (deletedBySlide.get(verification.outputSlide) || 0);
+    const expectedCount = (beforeRecords.get(verification.outputSlide) || []).length - (deletedBySlide.get(verification.outputSlide)?.size || 0);
     if (records.length !== expectedCount) {
       throw new Error(`${verification.label} changed element topology outside the explicit bounded deletions.`);
     }
     const matchingRecords = records.filter((record) => identityShape(record) === verification.sourceIdentity);
     if (verification.deleted) {
-      if (matchingRecords.length !== 0) throw new Error(`${verification.label} deleted element remains after round-trip.`);
+      const deletedIdentities = new Set(verification.deletedSourceIdentities);
+      if (matchingRecords.length !== 0 || records.some((record) => deletedIdentities.has(identityShape(record)))) {
+        throw new Error(`${verification.label} deleted element subtree remains after round-trip.`);
+      }
       auditOperations[verification.auditIndex].finalElementId = null;
       continue;
     }
@@ -570,7 +586,7 @@ export async function applyTemplateEditPlan(options) {
         allMappedTargetsCovered: true,
         typedOperationsOnly: true,
         noSlideTopologyChange: true,
-        boundedElementDeletions: [...deletedBySlide.values()].reduce((sum, count) => sum + count, 0),
+        boundedElementDeletions: verifications.filter((entry) => entry.deleted).length,
         locatorTranslationComplete: true,
         finalExportReimported: true,
         untouchedSlideVisualsEquivalent: true,

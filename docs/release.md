@@ -1,5 +1,38 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-13): Recursive PPTX group deletion
+
+Imported canonical top-level `p:grpSp` objects now join the same typed
+`deletionCapability` / `.delete()` transaction as the five existing element
+profiles. JavaScript checks connector and comment references against the whole
+modeled descendant set; direct array removal remains invalid.
+
+OfficeKit Codec re-proves every native ID in the recursive subtree, blocks any
+outside connector/timing/comment/extension consumer, and requires every XML
+relationship reference to be exclusively contained by the group. It removes
+owned part and external-reference edges as one transaction and computes a
+multi-root OpenXmlPart/DataPart closure, retaining media and ChartParts that
+still have another package parent. Post-write validation proves every native
+descendant identity is absent. Reused relationships, inbound child connectors,
+nested-group deletion, and irregular or identity-sensitive graphs fail closed.
+
+The Template Following `delete-element` vocabulary required no type-specific
+branch. Its forward fixture now deletes a sixth target, and native/JS tests
+cover shapes, connectors, images, tables, charts, nested groups, external run
+links, second import, raw-array refusal, descendant comment protection,
+relationship reuse, inbound connector refusal, and conservative refusal in the
+presence of legacy or modern comment identity graphs.
+
+Final local evidence is complete: the fast gate passed 28/28 steps and the slow
+gate passed 77/77 steps; OfficeKit Codec passed 415/415 tests and OfficeBridge
+passed 5/5; protocol lint/generation and generated API docs are current; and two
+independent WASM builds reproduced the same 39-file audited output (38 runtime
+files, 15,416,043 bytes). The clean-install/package gate passed with 736 files,
+36,309,957 compressed bytes, 53,450,295 unpacked bytes, and npm SHA-1
+`f6697e2cdb8377861de7b244b9e6912957fb9f81`. Hosted CI is recorded after the
+commit is pushed. npm publication, tagging, and Windows Office host acceptance
+remain external blockers.
+
 ## Current 0.6.0 candidate (2026-08-12): Expanded PPTX element deletion
 
 The capability-proven imported element transaction now covers canonical

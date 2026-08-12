@@ -5663,6 +5663,55 @@ const isChartPartPath = (name) => /^ppt\/(?:slides\/)?charts\/chart\d+\.xml$/.te
 assert.ok(Object.keys(structuredBeforeZip.files).some(isChartPartPath));
 assert.equal(Object.keys(structuredAfterZip.files).some(isChartPartPath), false, "exclusive ChartPart must be removed with its frame");
 
+const groupDeleteSource = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const groupDeleteSlide = groupDeleteSource.slides.add({ name: "Group deletion" });
+groupDeleteSlide.shapes.add({ name: "keep-group-canary", text: "Keep", position: { left: 20, top: 300, width: 100, height: 40 } });
+const deleteGroup = groupDeleteSlide.groups.add({
+  name: "delete-group",
+  position: { left: 40, top: 40, width: 520, height: 220 },
+  childFrame: { left: 0, top: 0, width: 520, height: 220 },
+});
+const deleteGroupFrom = deleteGroup.shapes.add({ name: "delete-group-from", text: "From", position: { left: 10, top: 10, width: 100, height: 50 } });
+const deleteGroupTo = deleteGroup.shapes.add({ name: "delete-group-to", text: "To", position: { left: 150, top: 10, width: 100, height: 50 } });
+deleteGroup.connectors.add({ name: "delete-group-connector", from: deleteGroupFrom, to: deleteGroupTo, start: { x: 110, y: 35 }, end: { x: 150, y: 35 } });
+deleteGroup.images.add({ name: "delete-group-image", alt: "Delete group evidence", dataUrl: PNG, position: { left: 280, top: 10, width: 70, height: 70 } });
+deleteGroup.tables.add({ name: "delete-group-table", position: { left: 10, top: 100, width: 200, height: 90 }, values: [["Gate", "State"], ["QA", "Pass"]] });
+deleteGroup.charts.add("bar", { name: "delete-group-chart", position: { left: 250, top: 90, width: 240, height: 110 }, categories: ["A", "B"], series: [{ name: "Value", values: [1, 2] }] });
+deleteGroup.groups.add({ name: "delete-nested-group", position: { left: 370, top: 10, width: 120, height: 60 }, childFrame: { left: 0, top: 0, width: 120, height: 60 } })
+  .shapes.add({ name: "delete-nested-label", text: "Nested", position: { left: 0, top: 0, width: 120, height: 60 } });
+const groupDeleteSourceFile = await PresentationFile.exportPptx(groupDeleteSource);
+const groupDeleteImported = await PresentationFile.importPptx(groupDeleteSourceFile);
+const importedDeleteGroup = groupDeleteImported.slides.getItem(0).groups.items.find((group) => group.name === "delete-group");
+assert.equal(importedDeleteGroup.deletionCapability.sourceBound, true);
+assert.equal(importedDeleteGroup.deletionCapability.known, true);
+assert.equal(importedDeleteGroup.deletionCapability.supported, true, JSON.stringify(importedDeleteGroup.deletionCapability));
+assert.ok(Number.isInteger(importedDeleteGroup.deletionCapability.nativeId) && importedDeleteGroup.deletionCapability.nativeId > 0);
+assert.equal(importedDeleteGroup.inspectRecord().deletionCapability.supported, true);
+assert.equal(importedDeleteGroup.delete(), importedDeleteGroup);
+const groupDeletedFile = await PresentationFile.exportPptx(groupDeleteImported);
+const groupDeleteRoundTrip = await PresentationFile.importPptx(groupDeletedFile);
+assert.equal(groupDeleteRoundTrip.slides.getItem(0).groups.items.length, 0);
+assert.deepEqual(groupDeleteRoundTrip.slides.getItem(0).shapes.items.map((shape) => shape.name), ["keep-group-canary"]);
+
+const untypedGroupDelete = await PresentationFile.importPptx(groupDeleteSourceFile);
+untypedGroupDelete.slides.getItem(0).groups.items.splice(0, 1);
+await assert.rejects(
+  () => PresentationFile.exportPptx(untypedGroupDelete),
+  (error) => error?.code === "presentation_element_topology_changed",
+  "raw group collection mutation must not masquerade as a capability-proven recursive deletion",
+);
+
+const commentedGroupDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const commentedGroupSlide = commentedGroupDeck.slides.add({ name: "Comment-bound group" });
+const commentedGroup = commentedGroupSlide.groups.add({ name: "commented-group", position: { left: 20, top: 20, width: 200, height: 100 } });
+const commentedGroupChild = commentedGroup.shapes.add({ name: "commented-child", text: "Keep review", position: { left: 0, top: 0, width: 160, height: 60 } });
+commentedGroupSlide.comments.addThread(`${commentedGroupChild.id}/text`, "Do not drop this review anchor.");
+assert.throws(
+  () => commentedGroup.delete(),
+  (error) => error?.code === "unsupported_presentation_element_delete" && /comment targets/i.test(error.message),
+  "group deletion must account for comment targets on descendants",
+);
+
 const sharedChartRelationshipZip = await JSZip.loadAsync(new Uint8Array(await structuredElementDeleteFile.arrayBuffer()));
 const sharedChartSlideXml = await sharedChartRelationshipZip.file("ppt/slides/slide1.xml").async("text");
 const chartFrames = sharedChartSlideXml.match(/<p:graphicFrame>[\s\S]*?<\/p:graphicFrame>/g) || [];

@@ -1790,6 +1790,8 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `connector.setConnectorTo` | api | Atomically bind a connector end to a modeled same-tree shape and explicit connection-site index. |
 | `exportPptxWithOfficeKit` | api | Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse shapes, free-positioned p:sp lines with the shared six-style/line-end/cap/join outline profile, rich text and lists, basic fills/lines/shadows, straight/elbow/curved p:cxnSp connectors with target connection sites through that same line profile, embedded pictures with native crop/contain/cover semantics, fixed-grid plain-text tables, recursive native p:grpSp trees, relationship-free rich speaker notes, legacy annotations, Office 2021 modern root/direct-reply threads, source-free bar/line/pie charts, the bounded literal clustered bar+line combo profile with either shared primary axes or a canonical secondary line pair, validated payload-only replacement for eligible imported OLE XLSX workbooks plus the uniquely bound DOCX Office-package profile, and bounded source-bound text updates for canonical SmartArt document nodes. Recognized imported modern threads allow only existing text/status edits; their identity, author/date metadata, anchor/range, position, topology, relationships, and source hashes remain fixed. Inherited or complex graphs remain preserved and fail closed on unsupported mutation. |
 | `group.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/description/decorative metadata; export re-proves it. |
+| `group.delete` | api | Delete one source-free or capability-proven imported group as a complete recursive ownership tree. Shared media and ChartParts survive; nested groups, outside connector/comment targets, relationship reuse, identity-sensitive graphs, and raw collection mutation fail closed. |
+| `group.deletionCapability` | api | Report whether one imported top-level canonical recursive p:grpSp exclusively owns its complete native-ID, relationship-reference, and multi-root OPC graph. Export recomputes the source-bound capability. |
 | `group.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible group-frame title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits. |
 | `image.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for picture p:cNvPr title/description/decorative metadata; export re-proves the residual-protected picture profile. |
 | `image.delete` | api | Explicitly remove a source-free image or one capability-proven imported top-level embedded picture. The source-bound transaction removes the p:pic subtree and exact relationship, garbage-collects only exclusively owned media descendants, preserves shared media, and rejects external/ambiguous/identity-sensitive graphs or raw array mutation. |
@@ -2064,6 +2066,22 @@ Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/desc
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates the group p:nvGrpSpPr/p:cNvPr.
+
+#### `group.delete`
+
+Delete one source-free or capability-proven imported group as a complete recursive ownership tree. Shared media and ChartParts survive; nested groups, outside connector/comment targets, relationship reuse, identity-sensitive graphs, and raw collection mutation fail closed.
+
+**Schema returns:**
+
+- `group` (GroupShape) — The removed GroupShape facade. Source-free deletion checks connector and comment references to every descendant. Imported deletion requires group.deletionCapability.supported and records one recursive intent; export removes the complete p:grpSp subtree plus owned relationship edges, garbage-collects only package descendants without outside parents, preserves shared media/ChartParts, validates every native descendant ID is absent, and rejects nested, externally referenced, ambiguously shared, identity-sensitive, or raw-array deletion.
+
+#### `group.deletionCapability`
+
+Report whether one imported top-level canonical recursive p:grpSp exclusively owns its complete native-ID, relationship-reference, and multi-root OPC graph. Export recomputes the source-bound capability.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. Export ignores caller claims and re-proves one direct p:grpSp, unique native IDs for its complete descendant tree, absence of outside connector/comment/timing/extension identity consumers, exclusive relationship use, and the multi-root OPC ownership closure.
 
 #### `group.setAccessibilityMetadata`
 
@@ -2737,7 +2755,7 @@ Explicitly remove a source-free shape or one capability-proven imported top-leve
 
 **Schema returns:**
 
-- `shape` (Shape) — The removed Shape facade. Source-free deletion checks current connector/comment references. Imported deletion additionally requires shape.deletionCapability.supported, records explicit deletion intent, and export independently re-proves the source. Groups, native objects, nested group children, relationship-owning shapes, and direct array splicing remain unsupported; pictures, connectors, tables, and charts use their typed delete methods.
+- `shape` (Shape) — The removed Shape facade. Source-free deletion checks current connector/comment references. Imported deletion additionally requires shape.deletionCapability.supported, records explicit deletion intent, and export independently re-proves the source. Native objects, nested group children, relationship-owning shapes, and direct array splicing remain unsupported; groups, pictures, connectors, tables, and charts use their typed delete methods.
 
 #### `shape.deletionCapability`
 

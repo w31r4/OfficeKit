@@ -47,14 +47,15 @@ Protocol version 2 removes `allow_lossy`; the removed field name and number are 
 Imported direct ordinary `p:sp` shapes, canonical `p:cxnSp` connectors, and
 bounded DrawingML tables expose source-bound typed deletion only when
 relationship-free. Canonical embedded `p:pic` pictures and chart
-`p:graphicFrame` elements expose the same contract only when one owner-local
-relationship uniquely identifies the expected ImagePart or ChartPart. Deletion
-removes the XML subtree and exact relationship, then garbage-collects only the
-descendant closure without another package parent; media, ChartParts, and chart
-descendants shared by a retained slide survive. External or ambiguously reused
-relationships, relationship-bearing connectors/tables, inbound connectors,
-nested owners, timing/comments/extensions, and identity-sensitive graphs fail
-closed.
+`p:graphicFrame` elements require one uniquely used owner-local relationship.
+A direct canonical `p:grpSp` may instead own a recursive mixture of modeled
+children when every native ID, XML relationship reference, and OPC root is
+proven exclusive to that complete subtree. Deletion removes the XML subtree
+and owned edges, then garbage-collects only the multi-root descendant closure
+without another package parent; shared media and ChartParts survive. External
+or ambiguously reused relationships, relationship-bearing connectors/tables,
+outside connectors targeting a group child, nested owners,
+timing/comments/extensions, and other identity-sensitive graphs fail closed.
 
 Ordinary `p:sp` shapes, `p:cxnSp` connectors, `p:grpSp` group frames,
 table/chart `p:graphicFrame` owners, and recognized `p:pic` pictures expose one

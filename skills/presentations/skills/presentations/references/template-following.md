@@ -191,19 +191,20 @@ bounded operation catalog is:
   metadata remain inherited.
 - `delete-element`: exact `expectedName` and `expectedText` preconditions for
   one capability-proven imported top-level ordinary shape, embedded picture,
-  canonical connector, bounded table, or chart. Its `deletionCapability` must
+  canonical connector, bounded table, chart, or recursive group. Its `deletionCapability` must
   expose a unique package-local native ID and report `supported: true`; export
   re-proves the same source binding and the audit verifies that native identity
   is absent after reimport. Picture/chart transactions remove their exact
-  SlidePart relationship and only exclusively owned descendants; shared media
-  and ChartParts survive.
+  SlidePart relationship; group transactions prove the complete descendant-ID
+  and relationship graph. All remove only exclusively owned OPC descendants,
+  so shared media and ChartParts survive.
 
 `rewrite` and `fill-placeholder` accept content operations;
 `rewrite-and-reposition` requires both `set-position` and a content operation;
 `replace` currently accepts only `replace-image`; `delete` accepts only
 `delete-element`. Relationship-owning shapes/connectors/tables, external or
-ambiguously shared picture/chart relationships, connector/comment/timing/
-extension identity graphs, groups, native objects, nested group children, `add`, other
+ambiguously shared picture/chart/group relationships, connector/comment/timing/
+extension identity graphs, native objects, nested group children, `add`, other
 topology changes, blank replacement text, duplicate
 target authorization, stale values, cross-workspace assets, and broader
 chart/image mutations fail closed. Remap to another source frame when that
@@ -275,7 +276,7 @@ when slide PNG renders look clean.
 
 The automated edit transaction executes `delete` only through the bounded
 `delete-element` primitive for a capability-proven top-level ordinary shape,
-embedded picture, canonical connector, bounded table, or chart. Every other
+embedded picture, canonical connector, bounded table, chart, or recursive group. Every other
 object/topology remains blocked. Do not claim a placeholder was
 removed merely because it was invisible in a render, and never substitute raw
 collection mutation when the capability refuses.

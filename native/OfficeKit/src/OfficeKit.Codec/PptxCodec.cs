@@ -2600,7 +2600,7 @@ internal static class PptxCodec
             var deletions = requested.Slides[slideIndex].ElementDeletions;
             if (before.Length != elements.Count + deletions.Count || after.Length != elements.Count)
                 throw new CodecException("presentation_postwrite_topology_changed", $"PPTX slide {slideIndex + 1} element topology changed during source-preserving export.", PartPath(outputSlide));
-            var outputNativeIds = after.Select(PptxElementDeletionCodec.NativeId).Where(id => id is not null).Select(id => id!.Value).ToHashSet();
+            var outputNativeIds = after.SelectMany(PptxElementDeletionCodec.NativeIds).ToHashSet();
             foreach (var deletion in deletions)
             {
                 var binding = deletion.Source ?? throw new CodecException(
@@ -2610,8 +2610,7 @@ internal static class PptxCodec
                 var sourceElementIndex = checked((int)binding.ShapeTreeIndex);
                 if (sourceElementIndex >= before.Length ||
                     !binding.ElementSha256.Equals(HashElement(before[sourceElementIndex]), StringComparison.OrdinalIgnoreCase) ||
-                    PptxElementDeletionCodec.NativeId(before[sourceElementIndex]) is not { } deletedNativeId ||
-                    outputNativeIds.Contains(deletedNativeId))
+                    PptxElementDeletionCodec.NativeIds(before[sourceElementIndex]).Overlaps(outputNativeIds))
                     throw new CodecException(
                         "presentation_postwrite_element_delete_mismatch",
                         $"PPTX slide {slideIndex + 1} deleted element {sourceElementIndex + 1} remains or no longer matches its source binding.",

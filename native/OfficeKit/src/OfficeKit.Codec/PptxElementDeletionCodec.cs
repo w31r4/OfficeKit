@@ -11,6 +11,7 @@ internal sealed record PptxElementDeletionPlan(
     string BlockedReason,
     uint NativeId,
     IReadOnlySet<string> RelationshipIds,
+    IReadOnlySet<string> ReferenceRelationshipIds,
     IReadOnlySet<string> RemovedPackagePartPaths);
 
 // A shape-tree deletion is safe only when removing the XML subtree cannot
@@ -24,8 +25,8 @@ internal static class PptxElementDeletionCodec
         OpenXmlElement source,
         IReadOnlyList<OpenXmlElement> siblings)
     {
-        if (source is not (P.Shape or P.Picture or P.ConnectionShape or P.GraphicFrame))
-            return Blocked("only a bounded top-level PresentationML shape, picture, connector, table, or chart is in the deletion profile");
+        if (source is not (P.Shape or P.Picture or P.ConnectionShape or P.GraphicFrame or P.GroupShape))
+            return Blocked("only a bounded top-level PresentationML shape, picture, connector, table, chart, or group is in the deletion profile");
 
         var slide = slidePart.Slide;
         var common = slide?.CommonSlideData;
@@ -36,14 +37,21 @@ internal static class PptxElementDeletionCodec
         var nativeId = NativeId(source);
         if (nativeId is null)
             return Blocked("the element has no unique native drawing ID");
-        if (siblings.Count(element => NativeId(element) == nativeId) != 1)
-            return Blocked($"native drawing ID {nativeId} is ambiguous", nativeId.Value);
+        var ownedIds = NativeIds(source);
+        var slideIds = NativeIdOccurrences(common.ShapeTree);
+        if (ownedIds.Any(id => slideIds.Count(candidate => candidate == id) != 1))
+            return Blocked($"native drawing ID {nativeId} or one of its descendants is ambiguous", nativeId.Value);
         if (HasIdentitySensitiveSlideGraph(slide, common))
             return Blocked("slide timing or extension data may retain native element identity", nativeId.Value);
         if (PptxLegacyCommentsCodec.CommentPartPresent(slidePart))
             return Blocked("a slide comment graph may retain native element identity", nativeId.Value);
-        if (siblings.OfType<P.ConnectionShape>().Any(connector => References(connector, nativeId.Value)))
-            return Blocked($"connector topology references native drawing ID {nativeId}", nativeId.Value);
+        if (slidePart.Parts.Any(pair => pair.OpenXmlPart is PowerPointCommentPart))
+            return Blocked("a slide comment graph may retain native element identity", nativeId.Value);
+        var ownedElements = source.Descendants().Prepend(source).ToHashSet();
+        if (common.ShapeTree.Descendants<P.ConnectionShape>()
+                .Where(connector => !ownedElements.Contains(connector))
+                .Any(connector => ownedIds.Any(id => References(connector, id))))
+            return Blocked($"connector topology references native drawing ID {nativeId} or one of its descendants", nativeId.Value);
 
         return source switch
         {
@@ -55,6 +63,7 @@ internal static class PptxElementDeletionCodec
                 Blocked("the connector owns one or more package relationship references", nativeId.Value),
             P.ConnectionShape => Supported(nativeId.Value),
             P.GraphicFrame frame => AnalyzeGraphicFrame(slidePart, frame, nativeId.Value),
+            P.GroupShape group => AnalyzeGroup(slidePart, group, nativeId.Value),
             _ => Blocked("the element type is outside the bounded deletion profile", nativeId.Value),
         };
     }
@@ -66,12 +75,75 @@ internal static class PptxElementDeletionCodec
         source.Remove();
         foreach (var relationshipId in plan.RelationshipIds)
         {
+            if (plan.ReferenceRelationshipIds.Contains(relationshipId))
+            {
+                slidePart.DeleteReferenceRelationship(relationshipId);
+                continue;
+            }
             if (!slidePart.DeletePart(relationshipId))
                 throw new CodecException(
                     "presentation_element_delete_relationship_missing",
                     $"Presentation element deletion could not remove source relationship {relationshipId}.",
                     PartPath(slidePart));
         }
+    }
+
+    private static PptxElementDeletionPlan AnalyzeGroup(SlidePart slidePart, P.GroupShape group, uint nativeId)
+    {
+        var relationshipIds = RelationshipAttributes(group)
+            .Select(attribute => attribute.Value)
+            .Where(value => !string.IsNullOrEmpty(value))
+            .Select(value => value!)
+            .ToHashSet(StringComparer.Ordinal);
+        if (relationshipIds.Count == 0) return Supported(nativeId);
+
+        var slide = slidePart.Slide!;
+        var rootParts = new HashSet<OpenXmlPart>();
+        var referenceRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var relationshipId in relationshipIds)
+        {
+            var ownedReferences = RelationshipAttributes(group).Count(attribute =>
+                string.Equals(attribute.Value, relationshipId, StringComparison.Ordinal));
+            var slideReferences = RelationshipAttributes(slide).Count(attribute =>
+                string.Equals(attribute.Value, relationshipId, StringComparison.Ordinal));
+            if (ownedReferences == 0 || ownedReferences != slideReferences)
+                return Blocked($"group relationship {relationshipId} is referenced outside the group", nativeId);
+
+            var partEdges = slidePart.Parts.Where(pair => pair.RelationshipId.Equals(relationshipId, StringComparison.Ordinal)).ToArray();
+            var hyperlinks = slidePart.HyperlinkRelationships.Where(relationship => relationship.Id.Equals(relationshipId, StringComparison.Ordinal)).ToArray();
+            var externals = slidePart.ExternalRelationships.Where(relationship => relationship.Id.Equals(relationshipId, StringComparison.Ordinal)).ToArray();
+            var dataParts = slidePart.DataPartReferenceRelationships.Where(relationship => relationship.Id.Equals(relationshipId, StringComparison.Ordinal)).ToArray();
+            if (partEdges.Length + hyperlinks.Length + externals.Length + dataParts.Length != 1)
+                return Blocked($"group relationship {relationshipId} does not resolve uniquely", nativeId);
+            if (dataParts.Length != 0)
+                return Blocked($"group relationship {relationshipId} is an unsupported data-part reference", nativeId);
+            if (hyperlinks.Length != 0 || externals.Length != 0)
+            {
+                referenceRelationshipIds.Add(relationshipId);
+                continue;
+            }
+            rootParts.Add(partEdges[0].OpenXmlPart);
+        }
+
+        foreach (var rootPart in rootParts)
+        {
+            var ownerRelationshipIds = slidePart.Parts
+                .Where(pair => ReferenceEquals(pair.OpenXmlPart, rootPart))
+                .Select(pair => pair.RelationshipId)
+                .ToArray();
+            if (ownerRelationshipIds.Any(relationshipId => !relationshipIds.Contains(relationshipId)))
+                return Blocked("a group-owned package part has another relationship from the same slide", nativeId);
+        }
+
+        var removedParts = ExclusiveClosure(slidePart, rootParts);
+        var removedPaths = RemovedPackagePaths(removedParts);
+        return new PptxElementDeletionPlan(
+            true,
+            string.Empty,
+            nativeId,
+            relationshipIds,
+            referenceRelationshipIds,
+            removedPaths);
     }
 
     private static PptxElementDeletionPlan AnalyzePicture(SlidePart slidePart, P.Picture picture, uint nativeId)
@@ -132,7 +204,44 @@ internal static class PptxElementDeletionCodec
         if (slidePart.Parts.Count(pair => ReferenceEquals(pair.OpenXmlPart, rootPart)) != 1)
             return Blocked($"the {elementKind} {partKind} has another relationship from the same slide", nativeId);
 
-        var removedParts = ExclusiveClosure(slidePart, rootPart);
+        var removedParts = ExclusiveClosure(slidePart, new HashSet<OpenXmlPart> { rootPart });
+        var removedPaths = RemovedPackagePaths(removedParts);
+        return new PptxElementDeletionPlan(
+            true,
+            string.Empty,
+            nativeId,
+            new HashSet<string>([relationshipId], StringComparer.Ordinal),
+            new HashSet<string>(StringComparer.Ordinal),
+            removedPaths);
+    }
+
+    private static HashSet<OpenXmlPart> ExclusiveClosure(SlidePart owner, IReadOnlySet<OpenXmlPart> roots)
+    {
+        var reachable = new HashSet<OpenXmlPart>();
+        foreach (var root in roots) reachable.UnionWith(ReachableParts(root));
+        var retained = new HashSet<OpenXmlPart>();
+        var queue = new Queue<OpenXmlPart>();
+        foreach (var part in reachable)
+        {
+            var outsideParent = part.GetParentParts().Any(parent =>
+                !reachable.Contains(parent) &&
+                !(roots.Contains(part) && ReferenceEquals(parent, owner)));
+            if (!outsideParent) continue;
+            retained.Add(part);
+            queue.Enqueue(part);
+        }
+        while (queue.TryDequeue(out var retainedPart))
+        {
+            foreach (var child in retainedPart.Parts.Select(pair => pair.OpenXmlPart))
+            {
+                if (reachable.Contains(child) && retained.Add(child)) queue.Enqueue(child);
+            }
+        }
+        return reachable.Where(part => !retained.Contains(part)).ToHashSet();
+    }
+
+    private static HashSet<string> RemovedPackagePaths(IReadOnlySet<OpenXmlPart> removedParts)
+    {
         var removedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var part in removedParts)
         {
@@ -146,36 +255,7 @@ internal static class PptxElementDeletionCodec
                 relationship.Container is OpenXmlPart owner && removedParts.Contains(owner)))
             .ToArray();
         foreach (var dataPart in removedDataParts) removedPaths.Add(DataPartPath(dataPart));
-        return new PptxElementDeletionPlan(
-            true,
-            string.Empty,
-            nativeId,
-            new HashSet<string>([relationshipId], StringComparer.Ordinal),
-            removedPaths);
-    }
-
-    private static HashSet<OpenXmlPart> ExclusiveClosure(SlidePart owner, OpenXmlPart root)
-    {
-        var reachable = ReachableParts(root);
-        var retained = new HashSet<OpenXmlPart>();
-        var queue = new Queue<OpenXmlPart>();
-        foreach (var part in reachable)
-        {
-            var outsideParent = part.GetParentParts().Any(parent =>
-                !reachable.Contains(parent) &&
-                !(ReferenceEquals(part, root) && ReferenceEquals(parent, owner)));
-            if (!outsideParent) continue;
-            retained.Add(part);
-            queue.Enqueue(part);
-        }
-        while (queue.TryDequeue(out var retainedPart))
-        {
-            foreach (var child in retainedPart.Parts.Select(pair => pair.OpenXmlPart))
-            {
-                if (reachable.Contains(child) && retained.Add(child)) queue.Enqueue(child);
-            }
-        }
-        return reachable.Where(part => !retained.Contains(part)).ToHashSet();
+        return removedPaths;
     }
 
     private static HashSet<OpenXmlPart> ReachableParts(OpenXmlPart root)
@@ -222,6 +302,22 @@ internal static class PptxElementDeletionCodec
         _ => null,
     };
 
+    internal static IReadOnlySet<uint> NativeIds(OpenXmlElement source) => source
+        .Descendants()
+        .Prepend(source)
+        .Select(NativeId)
+        .Where(id => id is not null)
+        .Select(id => id!.Value)
+        .ToHashSet();
+
+    private static IReadOnlyList<uint> NativeIdOccurrences(OpenXmlElement source) => source
+        .Descendants()
+        .Prepend(source)
+        .Select(NativeId)
+        .Where(id => id is not null)
+        .Select(id => id!.Value)
+        .ToArray();
+
     private static bool References(P.ConnectionShape connector, uint nativeId) =>
         connector.Descendants<A.StartConnection>().Any(connection => connection.Id?.Value == nativeId) ||
         connector.Descendants<A.EndConnection>().Any(connection => connection.Id?.Value == nativeId);
@@ -243,12 +339,14 @@ internal static class PptxElementDeletionCodec
         string.Empty,
         nativeId,
         new HashSet<string>(StringComparer.Ordinal),
+        new HashSet<string>(StringComparer.Ordinal),
         new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 
     private static PptxElementDeletionPlan Blocked(string reason, uint nativeId = 0) => new(
         false,
         reason,
         nativeId,
+        new HashSet<string>(StringComparer.Ordinal),
         new HashSet<string>(StringComparer.Ordinal),
         new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 }

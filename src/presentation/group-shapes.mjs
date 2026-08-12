@@ -4,6 +4,7 @@ import {
   presentationAccessibilityCapability,
   setPresentationAccessibilityMetadata,
 } from "./accessibility.mjs";
+import { deletePresentationElement, presentationElementDeletionCapability } from "./element-deletion.mjs";
 
 function localName(tag = "") {
   return /^<\/?(?:[A-Za-z_][\w.-]*:)?([A-Za-z_][\w.-]*)\b/.exec(tag)?.[1];
@@ -151,6 +152,13 @@ export function createPresentationGroupShapeClass(adapters) {
 
     get accessibilityCapability() { return presentationAccessibilityCapability(this); }
 
+    get deletionCapability() { return presentationElementDeletionCapability(this, "group"); }
+
+    delete() {
+      const collection = this.parentGroup?.groups || this.slide?.groups;
+      return deletePresentationElement(this, collection, "group", { ownedElements: this.allElements() });
+    }
+
     setAccessibilityMetadata(update) {
       this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation group ${this.id}`);
       return this;
@@ -158,7 +166,7 @@ export function createPresentationGroupShapeClass(adapters) {
 
     inspectRecord() {
       const frame = this.absoluteFrame();
-      return { kind: "groupShape", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, children: this.children.length, childIds: this.children.map((child) => child.id), accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, bbox: [frame.left, frame.top, frame.width, frame.height], bboxUnit: "px", childFrame: this.childFrame };
+      return { kind: "groupShape", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, children: this.children.length, childIds: this.children.map((child) => child.id), accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, bbox: [frame.left, frame.top, frame.width, frame.height], bboxUnit: "px", childFrame: this.childFrame };
     }
 
     inspectRecords(kinds) {

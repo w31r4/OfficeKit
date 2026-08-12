@@ -1820,9 +1820,11 @@ message PresentationElementSourceBinding {
   // re-proves relationship ownership plus connector, comment, timing, and
   // extension identity constraints against the hash-bound source package.
   // The bounded profile includes relationship-free ordinary p:sp, canonical
-  // p:cxnSp and DrawingML tables, plus one-owner-relationship embedded p:pic
-  // and chart p:graphicFrame elements. Relationship-backed deletion removes
-  // only the descendant closure that has no other package parent.
+  // p:cxnSp and DrawingML tables, one-owner-relationship embedded p:pic and
+  // chart p:graphicFrame elements, plus direct canonical p:grpSp trees whose
+  // complete native-ID and relationship graph is exclusively owned. A
+  // relationship-backed deletion removes only the descendant closure that has
+  // no other package parent.
   PresentationElementDeletionCapability deletion_capability = 8;
 }
 

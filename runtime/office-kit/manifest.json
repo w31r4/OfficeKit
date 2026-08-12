@@ -42,13 +42,13 @@
     },
     {
       "path": "_framework/OfficeKit.Codec.wasm",
-      "bytes": 2892569,
-      "sha256": "6fe5243f679c2b58925c2abac3f1dfe1ff83e0f8bfb5146ed7910512c1ec7fff"
+      "bytes": 2896665,
+      "sha256": "7cb7824941e459e948ca3f937170d1122f7c1d5f9cbabd6eafc55f634e0a9b53"
     },
     {
       "path": "_framework/OfficeKit.Runtime.wasm",
       "bytes": 5909,
-      "sha256": "4e3f1e558b12a1b97bd845acb1e9cbe4a5b9684a822d2c038005ac43d5170e2c"
+      "sha256": "60a67c75c97cc34f895faf22ff211edcbbb6e0484a05e03069753f2b7804419a"
     },
     {
       "path": "_framework/System.Collections.Concurrent.wasm",
@@ -93,7 +93,7 @@
     {
       "path": "_framework/System.Linq.wasm",
       "bytes": 66837,
-      "sha256": "aeb272ff08e2bc1665ec60f3c0a14db987cd338d3c256a58d274bfc1401e6c74"
+      "sha256": "11153217c51442886579c0e07e3eca2257dbd7571e41c6e5d9a613c11e28b22e"
     },
     {
       "path": "_framework/System.Memory.wasm",
@@ -117,8 +117,8 @@
     },
     {
       "path": "_framework/System.Private.CoreLib.wasm",
-      "bytes": 1966357,
-      "sha256": "ebdba3ae0481262ece6bf4d7ac213baaeea697895b48212ada14404767e697df"
+      "bytes": 1966869,
+      "sha256": "74a6a75b85dc2af34ecd99916f438a1242e21d2036e38a20e1cef6095ca66dbc"
     },
     {
       "path": "_framework/System.Private.Uri.wasm",
@@ -158,7 +158,7 @@
     {
       "path": "_framework/blazor.boot.json",
       "bytes": 3131,
-      "sha256": "36512f88017119858f68f521fb13bf5db52d49f524846940ccc543b1c228381c"
+      "sha256": "b92d3b3412a57dfaf8a339c2556e5627100b978098f00ce038784fa8358a06d3"
     },
     {
       "path": "_framework/dotnet.js",
@@ -173,7 +173,7 @@
     {
       "path": "_framework/dotnet.native.wasm",
       "bytes": 1417269,
-      "sha256": "675cd35c0178fc44ff911581c9b15a411ccb2bf193e8ccb8a543d9aa84e63683"
+      "sha256": "194aab8d7fe819011c1cba644c632e5154623f1441c25ad58933e92c579434c8"
     },
     {
       "path": "_framework/dotnet.runtime.js",
@@ -201,5 +201,5 @@
       "sha256": "06b54e5aefb412f17866912ddedaaa109eba4530e09eab3223e12523e2574e91"
     }
   ],
-  "totalBytes": 15411435
+  "totalBytes": 15416043
 }

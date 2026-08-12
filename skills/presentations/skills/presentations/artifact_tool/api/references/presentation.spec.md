@@ -94,17 +94,21 @@ delete before mutation; export independently re-proves the source graph.
 Inbound slide references and custom-show/section/extension identity fail closed.
 
 Top-level imported ordinary shapes, embedded pictures, canonical connectors,
-bounded DrawingML tables, and chart frames expose `deletionCapability` with one
-package-local native drawing ID. `shape.delete()`, `connector.delete()`, and
-`table.delete()` require a relationship-free direct ShapeTree child.
+bounded DrawingML tables, chart frames, and canonical recursive groups expose
+`deletionCapability` with package-local native drawing identity.
+`shape.delete()`, `connector.delete()`, and `table.delete()` require a
+relationship-free direct ShapeTree child.
 `image.delete()` and `chart.delete()` each own one uniquely used SlidePart
 relationship to the expected ImagePart or ChartPart: export removes that edge
 and garbage-collects only descendants with no outside package parent, so media,
-ChartParts, and chart descendants shared by another slide survive. Every call
-records explicit intent; direct collection mutation, nested group children,
-comment/connector/timing/extension identity, external or relationship-bearing
-objects, and ambiguous owner-local relationship reuse fail closed. The Codec
-re-proves the source and native-ID absence after write.
+ChartParts, and chart descendants shared by another slide survive.
+`group.delete()` proves every native ID and relationship reference in the
+complete `p:grpSp` subtree and deletes the multi-root exclusive OPC closure;
+shared parts remain. Every call records explicit intent; direct collection
+mutation, nested group children, outside connector/comment targets,
+timing/extension identity, external or relationship-bearing leaf objects, and
+ambiguous owner-local relationship reuse fail closed. The Codec re-proves the
+source and every deleted native-ID absence after write.
 
 `slide.cloneCapability` returns defensive `{ sourceBound, known, supported, blockedReason, clonedPartCount, sharedPartCount }` evidence for an imported source SlidePart. `clonedPartCount` includes the slide root and uniquely owned OpenXmlPart descendants. `sharedPartCount` counts proven resources that the clone will rebind. This is preflight evidence only; export re-analyzes the hash-bound package.
 
