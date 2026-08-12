@@ -1,6 +1,41 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-12): Source-bound slide show visibility
+## Current 0.6.0 candidate (2026-08-12): Deterministic derived Skill JSON compaction
+
+The release payload no longer depends on a 2,458-byte margin below its existing
+unpacked-size ceiling. The two generated Presentation Compose catalogs keep
+their canonical plugin paths and exactly the same parsed JSON values and key
+order, but now use a deterministic compact representation with one terminal
+newline. The scoped compactor parses under a fixed source budget, rejects
+invalid or non-regular inputs, writes atomically, and verifies idempotence.
+It does not globally minify hand-maintained manifests, Skill guidance, or the
+default-template catalog.
+
+Fast and slow gates now both check the exact two-file inventory, valid JSON,
+Unicode preservation, deterministic representation, and a 335,000-byte
+combined budget. Existing template, Presentation Skill, reference-Skill, and
+clean-install package tests consume the compact files through their ordinary
+public paths. The transformation removes 321,827 source bytes without deleting
+a workflow, template, runtime, provider, or public asset.
+
+Local candidate evidence covers the complete 28-step fast gate and all 77 slow
+steps, generated API docs, protocol lint/generation, OfficeKit Codec 402/402,
+OfficeBridge 5/5, and deterministic OfficeKit WASM (39-file comparison;
+runtime 38 files / 15,427,307 bytes). Clean-install package smoke, standalone
+distribution, both Live Add-in builds, all twenty templates, Playwright, qpdf,
+LibreOffice, and Poppler also pass. Managed provider-pack downloads and
+separately configured pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench
+Python runtimes remain explicit local skips rather than provider-execution
+evidence.
+
+The isolated staged candidate excludes the user's unrelated README edits and
+packs 732 files at 36,292,481 bytes compressed and 53,375,790 bytes unpacked
+(`shasum e7177ea4ec8300c8a70486ae4b8e0098653d082d`), leaving 324,210 bytes below
+the unchanged 53,700,000-byte unpacked ceiling. `npm whoami` remains
+unauthenticated, so npm publication and a tagged release are not attempted.
+Windows Microsoft Office host acceptance remains external evidence.
+
+## Prior 0.6.0 candidate (2026-08-12): Source-bound slide show visibility
 
 Presentations now expose `slide.hidden`, defensive
 `slide.visibilityCapability`, and typed `setHidden`/`hide`/`show` operations.
@@ -32,9 +67,10 @@ The isolated staged candidate excludes the user's unrelated README edits and
 packs 732 files at 36,296,093 bytes compressed and 53,697,542 bytes unpacked
 (`shasum 42e420d52a602b90aca0093821fd3cd0c72c451b`), leaving 2,458 bytes below
 the 53,700,000-byte unpacked ceiling. `npm whoami` reports `ENEEDAUTH`, so npm
-publication and a tagged release were not attempted. Hosted CI for this
-candidate and Windows Microsoft Office slideshow acceptance remain pending
-external evidence.
+publication and a tagged release were not attempted. Hosted fast run
+`31549465436` and slow run `31549465430` both passed for commit
+`de994081472e10f54600215d76f8e5bda516527c`. Windows Microsoft Office slideshow
+acceptance remains pending external evidence.
 
 ## Prior 0.6.0 candidate (2026-08-12): Source-bound PDF outline editing
 

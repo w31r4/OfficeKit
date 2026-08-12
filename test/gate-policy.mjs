@@ -21,9 +21,13 @@ const slowStart = gateRunner.indexOf("const slowSteps");
 const fastSource = gateRunner.slice(fastStart, slowStart);
 const slowSource = gateRunner.slice(slowStart, gateRunner.indexOf("const steps"));
 assert.match(fastSource, /check-js-syntax/);
+assert.match(fastSource, /compact-skill-jsons/);
+assert.match(fastSource, /skill-json-assets/);
 assert.match(fastSource, /windows-live-gate/);
 assert.doesNotMatch(fastSource, /default-template-library|agent-evals|pdf-provider-pack-build|pdf-pyhanko-provider|presentation-skill|document-skill|pdf-skill|reference-skills|office-kit-package/);
 assert.match(slowSource, /default-template-library/);
+assert.match(slowSource, /compact-skill-jsons/);
+assert.match(slowSource, /skill-json-assets/);
 assert.match(slowSource, /agent-evals/);
 assert.match(slowSource, /pdf-provider-pack-build/);
 const slowSegments = [

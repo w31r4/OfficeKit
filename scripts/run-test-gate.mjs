@@ -35,6 +35,8 @@ const fastSteps = [
   nodeStep("scripts/check-js-syntax.mjs"),
   nodeStep("scripts/optimize-skill-pngs.mjs", "--check"),
   nodeStep("test/skill-png-assets.mjs"),
+  nodeStep("scripts/compact-skill-jsons.mjs", "--check"),
+  nodeStep("test/skill-json-assets.mjs"),
   nodeStep("test/skill-portability.mjs"),
   nodeStep("test/office-kit.mjs"),
   nodeStep("test/officekit-identity.mjs"),
@@ -63,6 +65,8 @@ const fastSteps = [
 const slowSteps = [
   nodeStep("scripts/optimize-skill-pngs.mjs", "--check"),
   nodeStep("test/skill-png-assets.mjs"),
+  nodeStep("scripts/compact-skill-jsons.mjs", "--check"),
+  nodeStep("test/skill-json-assets.mjs"),
   nodeStep("test/skill-portability.mjs"),
   nodeStep("test/office-kit.mjs"),
   nodeStep("test/officekit-identity.mjs"),
@@ -139,16 +143,16 @@ const slowSteps = [
 ];
 
 const slowSegments = Object.freeze({
-  foundation: Object.freeze({ start: 0, end: 11 }),
-  presentation: Object.freeze({ start: 11, end: 15 }),
-  templates: Object.freeze({ start: 15, end: 22 }),
-  officekit: Object.freeze({ start: 22, end: 27 }),
-  documents: Object.freeze({ start: 27, end: 36 }),
-  "pdf-packs": Object.freeze({ start: 36, end: 45 }),
-  "pdf-providers": Object.freeze({ start: 45, end: 54 }),
-  "pdf-specialists": Object.freeze({ start: 54, end: 63 }),
-  qa: Object.freeze({ start: 63, end: 70 }),
-  release: Object.freeze({ start: 70, end: 75 }),
+  foundation: Object.freeze({ start: 0, end: 13 }),
+  presentation: Object.freeze({ start: 13, end: 17 }),
+  templates: Object.freeze({ start: 17, end: 24 }),
+  officekit: Object.freeze({ start: 24, end: 29 }),
+  documents: Object.freeze({ start: 29, end: 38 }),
+  "pdf-packs": Object.freeze({ start: 38, end: 47 }),
+  "pdf-providers": Object.freeze({ start: 47, end: 56 }),
+  "pdf-specialists": Object.freeze({ start: 56, end: 65 }),
+  qa: Object.freeze({ start: 65, end: 72 }),
+  release: Object.freeze({ start: 72, end: 77 }),
 });
 
 const segmentRanges = Object.values(slowSegments);
