@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 490);
+assert.equal(HELP_CATALOG.length, 496);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -184,9 +184,15 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "shape.setAccessibilityMe
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.setAccessibilityMetadata")?.schema?.parameters?.update?.description || "", /title.*description.*decorative.*null clears.*1-1,024 XML-safe.*boolean.*one transaction/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.setAccessibilityMetadata")?.schema?.returns?.shape?.description || "", /Source-free.*imported.*fail closed/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.deletionCapability")?.schema?.returns?.capability?.description || "", /sourceBound.*known.*supported.*nativeId.*package-local.*direct ShapeTree.*connector.*comment.*timing.*extension/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "shape.delete")?.schema?.returns?.shape?.description || "", /removed Shape.*explicit deletion intent.*tables.*charts.*groups.*native objects.*array splicing.*unsupported.*image\.delete/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "shape.delete")?.schema?.returns?.shape?.description || "", /removed Shape.*explicit deletion intent.*groups.*native objects.*array splicing.*unsupported.*pictures.*connectors.*tables.*charts.*typed delete/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "image.deletionCapability")?.schema?.returns?.capability?.description || "", /sourceBound.*known.*supported.*nativeId.*package-local.*direct p:pic.*uniquely used embedded-image relationship.*media-part ownership.*connector.*comment.*timing.*extension/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "image.delete")?.schema?.returns?.image?.description || "", /removed ImageElement.*explicit intent.*exact p:pic.*SlidePart relationship.*media closure.*preserves shared media.*native ID.*array splicing/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "connector.deletionCapability")?.schema?.returns?.capability?.description || "", /sourceBound.*known.*supported.*nativeId.*package-local.*direct relationship-free p:cxnSp.*unique native ID.*connector.*comment.*timing.*extension/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "connector.delete")?.schema?.returns?.connector?.description || "", /removed connector.*explicit intent.*direct p:cxnSp.*endpoint shapes unchanged.*relationships.*nested.*array splicing/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "table.deletionCapability")?.schema?.returns?.capability?.description || "", /sourceBound.*known.*supported.*nativeId.*package-local.*DrawingML table p:graphicFrame.*relationship-free.*unique native ID.*connector.*comment.*timing.*extension/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "table.delete")?.schema?.returns?.table?.description || "", /removed TableElement.*explicit intent.*direct p:graphicFrame.*native-ID absence.*relationships.*irregular.*nested.*array splicing/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "chart.deletionCapability")?.schema?.returns?.capability?.description || "", /sourceBound.*known.*supported.*nativeId.*package-local.*chart p:graphicFrame.*uniquely used internal ChartPart relationship.*descendant ownership closure.*connector.*comment.*timing.*extension/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "chart.delete")?.schema?.returns?.chart?.description || "", /removed ChartElement.*explicit intent.*p:graphicFrame.*SlidePart relationship.*ChartPart descendants.*preserves shared ChartParts.*native-ID absence.*array splicing/i);
 for (const kind of ["table", "chart", "connector", "group"]) {
   assert.deepEqual(Object.keys(HELP_CATALOG.find((item) => item.name === `${kind}.accessibilityCapability`)?.schema?.parameters || {}), []);
   assert.match(HELP_CATALOG.find((item) => item.name === `${kind}.accessibilityCapability`)?.schema?.returns?.capability?.description || "", /sourceBound.*editable.*addable.*revalidates/i);
@@ -664,7 +670,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.setDateContentC
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.schema?.parameters?.dryRun?.type, "boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.summary || "", /SEQ counters.*REF cached results.*PAGEREF.*pagination host/i);
 const presentationCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
-assert.equal(presentationCatalog.length, 104);
+assert.equal(presentationCatalog.length, 110);
 assert.ok(presentationCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slides.insert")?.schema?.parameters?.after?.type, "Slide|number|null");

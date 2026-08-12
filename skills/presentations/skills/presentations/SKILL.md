@@ -219,15 +219,16 @@ delete removes the real SlidePart plus every exclusively owned OPC descendant,
 including closed notes/comments/chart/OLE/SmartArt/InkML/media or unknown
 leaves, while preserving shared layout/master/theme/image/media resources.
 Inbound slide links and custom-show/section/extension identity fail closed.
-Top-level imported ordinary shapes and embedded pictures have a narrower
-element-level contract. Inspect `shape.deletionCapability` or
-`image.deletionCapability`, then call the corresponding `.delete()` only when
-`supported` is true. Shape deletion requires a relationship-free subtree.
-Picture deletion removes its exact SlidePart relationship and only media parts
-with no other package parent, so shared media remains. Both operations bind the
-package-local native ID, reject comment/connector/timing/extension consumers,
-require an explicit typed deletion intent, and are re-proved by the Codec;
-array splicing is never deletion authority.
+Top-level imported ordinary shapes, embedded pictures, canonical connectors,
+bounded tables, and charts have a narrower element-level contract. Inspect the
+facade's `deletionCapability`, then call its `.delete()` only when `supported`
+is true. Shapes, connectors, and tables require a relationship-free subtree.
+Picture/chart deletion removes one exact SlidePart relationship and only the
+ImagePart/ChartPart descendant closure without another package parent, so
+shared media and ChartParts remain. Every operation binds the package-local
+native ID, rejects comment/connector/timing/extension consumers, requires an
+explicit typed deletion intent, and is re-proved by the Codec; array splicing
+is never deletion authority.
 `slide.duplicate()` is a separate source-bound operation. Inspect `slide.cloneCapability` before invoking it. A supported slide is copied as an OPC ownership graph: the OfficeKit Codec recursively copies the SlidePart plus every uniquely owned OpenXmlPart and DataPart, retaining exact part bytes, content types, local relationship IDs, external relationships, and shared-node topology. It rebinds only proven shared layouts, NotesMaster, images, and retained slide-jump targets. Unknown or relationship-bearing descendants are not rejected merely because OfficeKit lacks a semantic editor for their type.
 
 The pending JavaScript clone receives fresh slide and element identities, and connector endpoints resolve to clone-local targets. The slide, modeled elements, native-object snapshots, notes, and comments must remain unchanged until export and reimport. Custom-show membership is never extended implicitly. One pending clone per origin is allowed; origin deletion in the same transaction fails closed. Sections, modern comments, a descendant with a parent outside the owned closure, a jump to a removed slide, unresolved semantic elements or connector targets, pending native payload replacements, and graph-budget overflow fail before partial model mutation. Open XML SDK chooses collision-free part URIs, so never assume names such as `slide2.xml`; reimport and use object IDs or inspect/resolve.
@@ -915,7 +916,7 @@ officekit run "$SKILL_DIR/template_following_scripts/apply_template_edit_plan.mj
 
 The command resolves only the manifest's final `starterElementIds`, applies
 bounded text/frame/table/chart/image edits plus capability-proven top-level
-ordinary-shape or embedded-picture deletion, exports and imports again, verifies, renders, rechecks
+shape/picture/connector/table/chart deletion, exports and imports again, verifies, renders, rechecks
 every input hash, and publishes with no overwrite. Source
 inspection IDs remain provenance, not persistent identities. Unsupported
 deletion/add/topology work, stale values, ambiguous targets,

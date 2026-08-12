@@ -1774,12 +1774,16 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | Name | Kind | Summary |
 | --- | --- | --- |
 | `chart.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for chart graphic-frame p:cNvPr title/description/decorative metadata; export re-proves it. |
+| `chart.delete` | api | Explicitly remove a source-free chart or one capability-proven imported chart frame. The source-bound transaction removes its exact relationship and only ChartPart descendants without another package parent; external, repeated, nested, or identity-sensitive graphs fail closed. |
+| `chart.deletionCapability` | api | Report whether one imported top-level chart frame owns one uniquely used internal ChartPart relationship. Export re-proves relationship use and the exclusively owned descendant closure; shared ChartParts survive. |
 | `chart.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible chart title/description/decorative metadata independently of its visible chart title. Imported irregular graphic-frame p:cNvPr graphs fail closed. |
 | `compose.column` | api | Create a vertical compose container. Use width/height fill, hug, or fixed pixels; gap and padding are in pixels. |
 | `compose.paragraph` | api | Create an editable text block with name, className/style text tokens, and stable inspect output. |
 | `compose.text` | api | Create the same editable paragraph node through the reference-template-compatible children-first text(children, props) helper. |
 | `connector.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for connector p:cNvPr title/description/decorative metadata; export re-proves it. |
 | `connector.bringToFront` | api | Move a source-free connector above modeled slide/group elements. Imported z-order is source-bound and rejects. |
+| `connector.delete` | api | Explicitly remove a source-free connector or one capability-proven imported direct p:cxnSp. Relationship-bearing or nested connectors and connector/comment/timing/extension identity consumers fail closed; endpoint shapes remain untouched. |
+| `connector.deletionCapability` | api | Report whether one imported top-level canonical relationship-free connector can be deleted, with a package-local native ID used for post-write absence proof. Export recomputes the source-bound capability. |
 | `connector.sendToBack` | api | Move a source-free connector behind modeled slide/group elements. New shape-connected connectors start behind their nodes; imported z-order rejects. |
 | `connector.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible connector title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits. |
 | `connector.setConnectorFrom` | api | Atomically bind a connector start to a modeled same-tree shape and explicit connection-site index. |
@@ -1836,7 +1840,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `PresentationFile.inspectPptx` | api | Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics after raw-input, part-count, decompression, and optional compression-ratio budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `PresentationFile.patchPptx` | api | Apply path-validated PPTX part patches, including safe slide/master/layout ID lists and slide image/chart DrawingML mutations, and atomically reject dangling package references or invalid notes/comments semantics. |
 | `shape.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/description/decorative metadata; export re-proves it. |
-| `shape.delete` | api | Explicitly remove a source-free shape or one capability-proven imported top-level ordinary shape. Relationship-owning shapes, connector/comment/timing/extension identity graphs, nested children, and raw collection mutation fail closed; images use their relationship-owning deletion capability. |
+| `shape.delete` | api | Explicitly remove a source-free shape or one capability-proven imported top-level ordinary shape. Relationship-owning shapes, connector/comment/timing/extension identity graphs, nested children, and raw collection mutation fail closed; pictures, connectors, tables, and charts expose their own typed deletion capability. |
 | `shape.deletionCapability` | api | Report whether one imported top-level ordinary shape is inside the bounded element-deletion profile, with a package-local native ID used for post-write absence proof. Export recomputes the capability from source bytes. |
 | `shape.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible ordinary-shape title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed. |
 | `shape.text.set` | api | Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export. |
@@ -1875,6 +1879,8 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slideCommentThread.reopen` | api | Set the modern root comment status back to active while preserving fixed imported identity, anchor, position, and reply topology. |
 | `slideCommentThread.resolve` | api | Set the modern root comment status to resolved. Imported export re-proves author/date/anchor/position/topology and source-part hashes before changing only status. |
 | `table.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for table graphic-frame p:cNvPr title/description/decorative metadata; export re-proves it. |
+| `table.delete` | api | Explicitly remove a source-free table or one capability-proven imported direct table p:graphicFrame. Relationship-bearing, irregular, nested, or identity-sensitive frames and raw collection mutation fail closed. |
+| `table.deletionCapability` | api | Report whether one imported top-level bounded relationship-free DrawingML table can be deleted, with a package-local native ID used for post-write absence proof. Export recomputes the source-bound capability. |
 | `table.merge` | api | Merge one inclusive rectangular table range, retain the upper-left value, clear and lock covered cells, and emit canonical DrawingML merge topology. |
 | `table.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible table title/description/decorative metadata. Imported irregular graphic-frame p:cNvPr graphs fail closed. |
 
@@ -1887,6 +1893,22 @@ Report sourceBound/editable/addable preflight for chart graphic-frame p:cNvPr ti
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates the chart graphic-frame p:cNvPr.
+
+#### `chart.delete`
+
+Explicitly remove a source-free chart or one capability-proven imported chart frame. The source-bound transaction removes its exact relationship and only ChartPart descendants without another package parent; external, repeated, nested, or identity-sensitive graphs fail closed.
+
+**Schema returns:**
+
+- `chart` (ChartElement) — The removed ChartElement facade. Imported deletion requires chart.deletionCapability.supported and records explicit intent; export removes the exact p:graphicFrame and SlidePart relationship, garbage-collects only ChartPart descendants without outside package parents, preserves shared ChartParts, validates native-ID absence, and rejects external/repeated/nested/identity-sensitive graphs or direct array splicing.
+
+#### `chart.deletionCapability`
+
+Report whether one imported top-level chart frame owns one uniquely used internal ChartPart relationship. Export re-proves relationship use and the exclusively owned descendant closure; shared ChartParts survive.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. nativeId is package-local p:cNvPr evidence. Export ignores caller claims and re-proves one direct chart p:graphicFrame, one uniquely used internal ChartPart relationship, the descendant ownership closure, and absence of connector/comment/timing/extension identity consumers.
 
 #### `chart.setAccessibilityMetadata`
 
@@ -1959,6 +1981,22 @@ Move a source-free connector above modeled slide/group elements. Imported z-orde
 **Schema returns:**
 
 - `connector` (ConnectorElement) — Move a source-free connector above modeled elements. Imported connector z-order is source-bound and rejects.
+
+#### `connector.delete`
+
+Explicitly remove a source-free connector or one capability-proven imported direct p:cxnSp. Relationship-bearing or nested connectors and connector/comment/timing/extension identity consumers fail closed; endpoint shapes remain untouched.
+
+**Schema returns:**
+
+- `connector` (ConnectorElement) — The removed connector facade. Source-free deletion checks current comment/connector references. Imported deletion requires connector.deletionCapability.supported and records explicit intent; export removes only the direct p:cxnSp, validates native-ID absence, leaves its endpoint shapes unchanged, and rejects relationships, nested owners, identity-sensitive graphs, or direct array splicing.
+
+#### `connector.deletionCapability`
+
+Report whether one imported top-level canonical relationship-free connector can be deleted, with a package-local native ID used for post-write absence proof. Export recomputes the source-bound capability.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. nativeId is package-local p:cNvPr evidence. Export ignores caller claims and re-proves one direct relationship-free p:cxnSp, a unique native ID, and absence of connector/comment/timing/extension identity consumers.
 
 #### `connector.sendToBack`
 
@@ -2695,11 +2733,11 @@ Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/d
 
 #### `shape.delete`
 
-Explicitly remove a source-free shape or one capability-proven imported top-level ordinary shape. Relationship-owning shapes, connector/comment/timing/extension identity graphs, nested children, and raw collection mutation fail closed; images use their relationship-owning deletion capability.
+Explicitly remove a source-free shape or one capability-proven imported top-level ordinary shape. Relationship-owning shapes, connector/comment/timing/extension identity graphs, nested children, and raw collection mutation fail closed; pictures, connectors, tables, and charts expose their own typed deletion capability.
 
 **Schema returns:**
 
-- `shape` (Shape) — The removed Shape facade. Source-free deletion checks current connector/comment references. Imported deletion additionally requires shape.deletionCapability.supported, records explicit deletion intent, and export independently re-proves the source. Tables, charts, groups, native objects, nested group children, relationship-owning shapes, and direct array splicing remain unsupported; embedded pictures use image.delete instead.
+- `shape` (Shape) — The removed Shape facade. Source-free deletion checks current connector/comment references. Imported deletion additionally requires shape.deletionCapability.supported, records explicit deletion intent, and export independently re-proves the source. Groups, native objects, nested group children, relationship-owning shapes, and direct array splicing remain unsupported; pictures, connectors, tables, and charts use their typed delete methods.
 
 #### `shape.deletionCapability`
 
@@ -3196,6 +3234,22 @@ Report sourceBound/editable/addable preflight for table graphic-frame p:cNvPr ti
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates the table graphic-frame p:cNvPr.
+
+#### `table.delete`
+
+Explicitly remove a source-free table or one capability-proven imported direct table p:graphicFrame. Relationship-bearing, irregular, nested, or identity-sensitive frames and raw collection mutation fail closed.
+
+**Schema returns:**
+
+- `table` (TableElement) — The removed TableElement facade. Imported deletion requires table.deletionCapability.supported and records explicit intent; export removes only the direct p:graphicFrame, validates native-ID absence, and rejects relationships, irregular or nested tables, identity-sensitive graphs, or direct array splicing.
+
+#### `table.deletionCapability`
+
+Report whether one imported top-level bounded relationship-free DrawingML table can be deleted, with a package-local native ID used for post-write absence proof. Export recomputes the source-bound capability.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. nativeId is package-local p:cNvPr evidence. Export ignores caller claims and re-proves one direct bounded DrawingML table p:graphicFrame, a relationship-free subtree, a unique native ID, and absence of connector/comment/timing/extension identity consumers.
 
 #### `table.merge`
 

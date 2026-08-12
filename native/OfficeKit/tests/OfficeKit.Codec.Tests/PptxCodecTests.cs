@@ -5508,6 +5508,203 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void SourcePreservingExportDeletesCapabilityProvenConnectorTableAndChart()
+    {
+        var request = ExportRequest();
+        var slide = request.Artifact.Presentation.Slides[0];
+        AddCanonicalCloneTable(slide);
+        AddCanonicalCloneChart(slide);
+        slide.Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/connector/delete",
+            Name = "Delete-safe connector",
+            Connector = new PresentationConnector
+            {
+                ConnectorType = "straight",
+                StartXEmu = 500_000,
+                StartYEmu = 5_000_000,
+                EndXEmu = 8_000_000,
+                EndYEmu = 5_000_000,
+                LineRgb = "2563EB",
+                LineWidthEmu = 25_400,
+            },
+        });
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = authored.File.ToByteArray();
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedSlide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var removed = importedSlide.Elements
+            .Where(element => element.ContentCase is
+                PresentationElement.ContentOneofCase.Connector or
+                PresentationElement.ContentOneofCase.Table or
+                PresentationElement.ContentOneofCase.Chart)
+            .ToArray();
+        Assert.Equal(3, removed.Length);
+        Assert.All(removed, element =>
+        {
+            Assert.True(element.Source.DeletionCapability.Supported);
+            Assert.Equal(string.Empty, element.Source.DeletionCapability.BlockedReason);
+            importedSlide.ElementDeletions.Add(new PresentationElementDeletion
+            {
+                Id = element.Id,
+                Source = element.Source.Clone(),
+            });
+            importedSlide.Elements.Remove(element);
+        });
+
+        var deleted = Export(imported.Artifact);
+        Assert.True(deleted.Ok, Diagnostics(deleted));
+        Assert.Contains(deleted.Diagnostics, diagnostic => diagnostic.Code == "opaque_content_deleted_with_element");
+        using (var stream = new MemoryStream(deleted.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var slidePart = package.PresentationPart!.SlideParts.Single();
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            Assert.Empty(slidePart.Slide!.CommonSlideData!.ShapeTree!.Elements<P.ConnectionShape>());
+            Assert.Empty(slidePart.Slide.CommonSlideData.ShapeTree.Elements<P.GraphicFrame>());
+            Assert.Empty(slidePart.ChartParts);
+        }
+        var roundTrip = Import(deleted.File.ToByteArray());
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.Collection(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements,
+            element => Assert.Equal(PresentationElement.ContentOneofCase.Shape, element.ContentCase));
+    }
+
+    [Fact]
+    public void ImportedChartDeletionBlocksOneSlideRelationshipSharedByTwoFrames()
+    {
+        var request = ExportRequest();
+        AddCanonicalCloneChart(request.Artifact.Presentation.Slides[0]);
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = DuplicateChartWithSharedRelationship(authored.File.ToByteArray());
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var charts = Assert.Single(imported.Artifact.Presentation.Slides).Elements
+            .Where(element => element.ContentCase == PresentationElement.ContentOneofCase.Chart)
+            .ToArray();
+        Assert.Equal(2, charts.Length);
+        Assert.All(charts, chart =>
+        {
+            Assert.False(chart.Source.DeletionCapability.Supported);
+            Assert.Contains("referenced outside", chart.Source.DeletionCapability.BlockedReason, StringComparison.Ordinal);
+        });
+
+        var slide = imported.Artifact.Presentation.Slides[0];
+        slide.ElementDeletions.Add(new PresentationElementDeletion
+        {
+            Id = charts[0].Id,
+            Source = charts[0].Source.Clone(),
+        });
+        slide.Elements.Remove(charts[0]);
+        var rejected = Export(imported.Artifact);
+        Assert.False(rejected.Ok);
+        Assert.Equal("unsupported_presentation_element_delete", Assert.Single(rejected.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void SourcePreservingChartDeletionRetainsChartPartSharedByAnotherSlide()
+    {
+        var request = ExportRequest();
+        AddCanonicalCloneChart(request.Artifact.Presentation.Slides[0]);
+        var secondSlide = new PresentationSlide { Id = "presentation/slide/2", Name = "Shared chart" };
+        AddCanonicalCloneChart(secondSlide);
+        secondSlide.Elements[0].Id = "presentation/slide/2/chart/shared";
+        secondSlide.Elements[0].Name = "Shared chart canary";
+        request.Artifact.Presentation.Slides.Add(secondSlide);
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+
+        using var stream = new MemoryStream();
+        stream.Write(authored.File.Span);
+        stream.Position = 0;
+        using (var package = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var slides = OrderedSlides(package);
+            var shared = Assert.Single(slides[0].ChartParts);
+            var secondOwned = Assert.Single(slides[1].ChartParts);
+            var secondRelationshipId = slides[1].GetIdOfPart(secondOwned);
+            Assert.True(slides[1].DeletePart(secondRelationshipId));
+            slides[1].AddPart(shared, secondRelationshipId);
+        }
+
+        var imported = Import(stream.ToArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var removed = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Chart);
+        Assert.True(removed.Source.DeletionCapability.Supported);
+        imported.Artifact.Presentation.Slides[0].ElementDeletions.Add(new PresentationElementDeletion
+        {
+            Id = removed.Id,
+            Source = removed.Source.Clone(),
+        });
+        imported.Artifact.Presentation.Slides[0].Elements.Remove(removed);
+
+        var deleted = Export(imported.Artifact);
+        Assert.True(deleted.Ok, Diagnostics(deleted));
+        using var outputStream = new MemoryStream(deleted.File.ToByteArray(), writable: false);
+        using var output = PresentationDocument.Open(outputStream, false);
+        var outputSlides = OrderedSlides(output);
+        Assert.Empty(outputSlides[0].ChartParts);
+        Assert.Single(outputSlides[1].ChartParts);
+        Assert.Single(outputSlides[1].Slide!.Descendants<C.ChartReference>());
+        Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(output));
+    }
+
+    [Fact]
+    public void ImportedConnectorAndTableDeletionBlockRelationshipReferences()
+    {
+        var request = ExportRequest();
+        var slide = request.Artifact.Presentation.Slides[0];
+        AddCanonicalCloneTable(slide);
+        slide.Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/connector/relationship",
+            Name = "Relationship connector",
+            Connector = new PresentationConnector
+            {
+                ConnectorType = "straight",
+                StartXEmu = 500_000,
+                StartYEmu = 5_000_000,
+                EndXEmu = 8_000_000,
+                EndYEmu = 5_000_000,
+                LineRgb = "2563EB",
+                LineWidthEmu = 25_400,
+            },
+        });
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using var stream = new MemoryStream();
+        stream.Write(authored.File.Span);
+        stream.Position = 0;
+        using (var package = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var slidePart = package.PresentationPart!.SlideParts.Single();
+            var tableRelationship = slidePart.AddHyperlinkRelationship(new Uri("https://example.invalid/table"), true, "rIdDeleteTableLink");
+            var connectorRelationship = slidePart.AddHyperlinkRelationship(new Uri("https://example.invalid/connector"), true, "rIdDeleteConnectorLink");
+            var table = slidePart.Slide!.CommonSlideData!.ShapeTree!.Elements<P.GraphicFrame>().Single();
+            table.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Append(new A.HyperlinkOnClick { Id = tableRelationship.Id });
+            var connector = slidePart.Slide.CommonSlideData.ShapeTree.Elements<P.ConnectionShape>().Single();
+            connector.NonVisualConnectionShapeProperties!.NonVisualDrawingProperties!.Append(new A.HyperlinkOnClick { Id = connectorRelationship.Id });
+            slidePart.Slide.Save();
+        }
+
+        var imported = Import(stream.ToArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var relationshipOwners = Assert.Single(imported.Artifact.Presentation.Slides).Elements
+            .Where(element => element.ContentCase is PresentationElement.ContentOneofCase.Table or PresentationElement.ContentOneofCase.Connector)
+            .ToArray();
+        Assert.Equal(2, relationshipOwners.Length);
+        Assert.All(relationshipOwners, element =>
+        {
+            Assert.False(element.Source.DeletionCapability.Supported);
+            Assert.Contains("relationship", element.Source.DeletionCapability.BlockedReason, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
     public void ImportedPictureDeletionBlocksOneSlideRelationshipSharedByTwoPictures()
     {
         var authored = Invoke(ExportRequest());
@@ -9268,6 +9465,25 @@ public sealed class PptxCodecTests
             var duplicate = (P.Picture)source.CloneNode(true);
             duplicate.NonVisualPictureProperties!.NonVisualDrawingProperties!.Id = 4U;
             duplicate.NonVisualPictureProperties.NonVisualDrawingProperties.Name = "Shared relationship picture";
+            slide.CommonSlideData.ShapeTree.Append(duplicate);
+            slide.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] DuplicateChartWithSharedRelationship(byte[] bytes)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var presentation = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var slide = presentation.PresentationPart!.SlideParts.Single().Slide!;
+            var source = slide.CommonSlideData!.ShapeTree!.Elements<P.GraphicFrame>()
+                .Single(frame => frame.Graphic?.GraphicData?.Elements<C.ChartReference>().Any() == true);
+            var duplicate = (P.GraphicFrame)source.CloneNode(true);
+            duplicate.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Id = 999U;
+            duplicate.NonVisualGraphicFrameProperties.NonVisualDrawingProperties.Name = "Shared relationship chart";
             slide.CommonSlideData.ShapeTree.Append(duplicate);
             slide.Save();
         }

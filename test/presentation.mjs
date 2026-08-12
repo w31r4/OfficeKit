@@ -5611,6 +5611,81 @@ await assert.rejects(
   "raw image collection mutation must not masquerade as a capability-proven element deletion",
 );
 
+const structuredElementDeleteSource = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const structuredElementDeleteSlide = structuredElementDeleteSource.slides.add({ name: "Structured element deletion" });
+structuredElementDeleteSlide.tables.add({
+  name: "delete-table",
+  position: { left: 40, top: 40, width: 220, height: 100 },
+  values: [["Metric", "Value"], ["Pipeline", "42"]],
+  styleOptions: { headerRow: true },
+});
+structuredElementDeleteSlide.charts.add("bar", {
+  name: "delete-chart",
+  title: "Pipeline",
+  position: { left: 300, top: 40, width: 280, height: 180 },
+  categories: ["Q1", "Q2"],
+  series: [{ name: "Value", values: [42, 48] }],
+});
+structuredElementDeleteSlide.connectors.add({
+  name: "delete-connector",
+  start: { x: 60, y: 270 },
+  end: { x: 560, y: 270 },
+  line: { fill: "#2563eb", width: 2 },
+});
+structuredElementDeleteSlide.shapes.add({ name: "keep-structured-canary", text: "Keep", position: { left: 40, top: 300, width: 120, height: 40 } });
+const structuredElementDeleteFile = await PresentationFile.exportPptx(structuredElementDeleteSource);
+const structuredElementDeleteImported = await PresentationFile.importPptx(structuredElementDeleteFile);
+const structuredImportedSlide = structuredElementDeleteImported.slides.getItem(0);
+for (const [kind, element] of [
+  ["table", structuredImportedSlide.tables.items[0]],
+  ["chart", structuredImportedSlide.charts.items[0]],
+  ["connector", structuredImportedSlide.connectors.items[0]],
+]) {
+  assert.equal(element.deletionCapability.sourceBound, true, `${kind} deletion must remain source-bound`);
+  assert.equal(element.deletionCapability.known, true, `${kind} deletion capability must be explicit`);
+  assert.equal(element.deletionCapability.supported, true, `${kind} deletion topology must be capability-proven`);
+  assert.ok(Number.isInteger(element.deletionCapability.nativeId) && element.deletionCapability.nativeId > 0);
+  assert.equal(element.inspectRecord().deletionCapability.supported, true);
+  assert.equal(element.delete(), element);
+}
+const structuredElementDeletedFile = await PresentationFile.exportPptx(structuredElementDeleteImported);
+const structuredElementDeleteRoundTrip = await PresentationFile.importPptx(structuredElementDeletedFile);
+const structuredRoundTripSlide = structuredElementDeleteRoundTrip.slides.getItem(0);
+assert.equal(structuredRoundTripSlide.tables.items.length, 0);
+assert.equal(structuredRoundTripSlide.charts.items.length, 0);
+assert.equal(structuredRoundTripSlide.connectors.items.length, 0);
+assert.deepEqual(structuredRoundTripSlide.shapes.items.map((shape) => shape.name), ["keep-structured-canary"]);
+const [structuredBeforeZip, structuredAfterZip] = await Promise.all([
+  JSZip.loadAsync(new Uint8Array(await structuredElementDeleteFile.arrayBuffer())),
+  JSZip.loadAsync(new Uint8Array(await structuredElementDeletedFile.arrayBuffer())),
+]);
+const isChartPartPath = (name) => /^ppt\/(?:slides\/)?charts\/chart\d+\.xml$/.test(name);
+assert.ok(Object.keys(structuredBeforeZip.files).some(isChartPartPath));
+assert.equal(Object.keys(structuredAfterZip.files).some(isChartPartPath), false, "exclusive ChartPart must be removed with its frame");
+
+const sharedChartRelationshipZip = await JSZip.loadAsync(new Uint8Array(await structuredElementDeleteFile.arrayBuffer()));
+const sharedChartSlideXml = await sharedChartRelationshipZip.file("ppt/slides/slide1.xml").async("text");
+const chartFrames = sharedChartSlideXml.match(/<p:graphicFrame>[\s\S]*?<\/p:graphicFrame>/g) || [];
+const chartFrame = chartFrames.find((frame) => frame.includes('name="delete-chart"'));
+assert.ok(chartFrame, "expected one native chart frame");
+const duplicateChartFrame = chartFrame.replace(/id="(\d+)" name="delete-chart"/, 'id="999" name="shared-chart-relationship"');
+assert.notEqual(duplicateChartFrame, chartFrame);
+sharedChartRelationshipZip.file("ppt/slides/slide1.xml", sharedChartSlideXml.replace("</p:spTree>", `${duplicateChartFrame}</p:spTree>`));
+const sharedChartRelationshipFile = new FileBlob(
+  await sharedChartRelationshipZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const sharedChartRelationshipImported = await PresentationFile.importPptx(sharedChartRelationshipFile);
+const sharedRelationshipCharts = sharedChartRelationshipImported.slides.getItem(0).charts.items;
+assert.equal(sharedRelationshipCharts.length, 2);
+assert.ok(sharedRelationshipCharts.every((chart) => chart.deletionCapability.supported === false));
+assert.ok(sharedRelationshipCharts.every((chart) => /referenced outside/.test(chart.deletionCapability.blockedReason)));
+assert.throws(
+  () => sharedRelationshipCharts[0].delete(),
+  (error) => error?.code === "unsupported_presentation_element_delete",
+  "a ChartPart relationship reused by another frame must fail closed",
+);
+
 const sharedImageDeleteSource = Presentation.create({ slideSize: { width: 640, height: 360 } });
 sharedImageDeleteSource.slides.add({ name: "Delete shared image" }).images.add({ name: "shared-delete", dataUrl: PNG, position: { left: 40, top: 40, width: 120, height: 120 } });
 sharedImageDeleteSource.slides.add({ name: "Keep shared image" }).images.add({ name: "shared-keep", dataUrl: PNG, position: { left: 40, top: 40, width: 120, height: 120 } });

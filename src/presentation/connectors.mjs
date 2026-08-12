@@ -13,6 +13,7 @@ import {
   presentationAccessibilityCapability,
   setPresentationAccessibilityMetadata,
 } from "./accessibility.mjs";
+import { deletePresentationElement, presentationElementDeletionCapability } from "./element-deletion.mjs";
 
 const CONNECTOR_TYPE_ALIASES = new Map([
   ["straight", "straight"],
@@ -404,6 +405,13 @@ export class PresentationConnectorElement {
   get connectorTail() { return this.tail ? { ...this.tail } : undefined; }
   get isForeground() { return this._zPlacement === "front"; }
   get accessibilityCapability() { return presentationAccessibilityCapability(this); }
+  get deletionCapability() { return presentationElementDeletionCapability(this, "connector"); }
+
+  delete() {
+    const owner = this.parentGroup;
+    const collection = owner?.connectors || this.slide?.connectors;
+    return deletePresentationElement(this, collection, "connector");
+  }
 
   setAccessibilityMetadata(update) {
     this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation connector ${this.id}`);
@@ -472,7 +480,7 @@ export class PresentationConnectorElement {
 
   inspectRecord() {
     const { start, end } = this.resolvedEndpoints();
-    return { kind: "connector", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, connectorType: this.connectorType, start, end, startTargetId: this.startTargetId, endTargetId: this.endTargetId, startSiteIndex: this.startSiteIndex, endSiteIndex: this.endSiteIndex, line: this.line, head: this.connectorHead, tail: this.connectorTail, cap: this.cap, join: this.join, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability };
+    return { kind: "connector", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, connectorType: this.connectorType, start, end, startTargetId: this.startTargetId, endTargetId: this.endTargetId, startSiteIndex: this.startSiteIndex, endSiteIndex: this.endSiteIndex, line: this.line, head: this.connectorHead, tail: this.connectorTail, cap: this.cap, join: this.join, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability };
   }
 
   layoutJson() {

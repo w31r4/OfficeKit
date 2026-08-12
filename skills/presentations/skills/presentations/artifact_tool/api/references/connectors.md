@@ -8,6 +8,14 @@ modeled positioned shapes in one slide or group shape tree.
 Use direct `geometry: "connector"` creation only when you need exact connection
 site indexes.
 
+For a top-level imported canonical connector, inspect
+`connector.deletionCapability` before calling `connector.delete()`. The bounded
+profile requires a direct relationship-free `p:cxnSp`, a unique native drawing
+ID, no connector targeting that ID, and no comment/timing/extension identity
+consumer. Export re-proves those facts and native-ID absence. Hyperlink-bearing
+or nested connectors and raw collection splicing fail closed. A connector may
+itself target retained shapes; deleting it does not delete either endpoint.
+
 ## Connect Shapes
 
 ```ts

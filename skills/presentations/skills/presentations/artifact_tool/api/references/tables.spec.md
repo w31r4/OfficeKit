@@ -15,6 +15,14 @@ Use `presentation.inspect({ kind: "table", search })` to find the `tb/...`
 anchor id. If an imported table resolves as an image, preserve it as an image or
 rebuild it as a native table intentionally.
 
+For a top-level imported bounded DrawingML table, inspect
+`table.deletionCapability` before calling `table.delete()`. The supported
+profile is a direct relationship-free `p:graphicFrame` with a unique native
+drawing ID. Export re-proves the source hash, owner, connector/comment/timing/
+extension constraints, and native-ID absence. Hyperlink- or otherwise
+relationship-bearing frames, nested tables, irregular table topology, and raw
+collection splicing fail closed.
+
 ## Add Table
 
 ```ts

@@ -1,4 +1,5 @@
 using A = DocumentFormat.OpenXml.Drawing;
+using C = DocumentFormat.OpenXml.Drawing.Charts;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using P = DocumentFormat.OpenXml.Presentation;
@@ -23,8 +24,8 @@ internal static class PptxElementDeletionCodec
         OpenXmlElement source,
         IReadOnlyList<OpenXmlElement> siblings)
     {
-        if (source is not (P.Shape or P.Picture))
-            return Blocked("only a top-level PresentationML shape or embedded picture is in the bounded deletion profile");
+        if (source is not (P.Shape or P.Picture or P.ConnectionShape or P.GraphicFrame))
+            return Blocked("only a bounded top-level PresentationML shape, picture, connector, table, or chart is in the deletion profile");
 
         var slide = slidePart.Slide;
         var common = slide?.CommonSlideData;
@@ -50,6 +51,10 @@ internal static class PptxElementDeletionCodec
                 Blocked("the shape owns one or more package relationship references", nativeId.Value),
             P.Shape => Supported(nativeId.Value),
             P.Picture picture => AnalyzePicture(slidePart, picture, nativeId.Value),
+            P.ConnectionShape when HasRelationshipReference(source) =>
+                Blocked("the connector owns one or more package relationship references", nativeId.Value),
+            P.ConnectionShape => Supported(nativeId.Value),
+            P.GraphicFrame frame => AnalyzeGraphicFrame(slidePart, frame, nativeId.Value),
             _ => Blocked("the element type is outside the bounded deletion profile", nativeId.Value),
         };
     }
@@ -71,27 +76,63 @@ internal static class PptxElementDeletionCodec
 
     private static PptxElementDeletionPlan AnalyzePicture(SlidePart slidePart, P.Picture picture, uint nativeId)
     {
-        var relationshipAttributes = RelationshipAttributes(picture).ToArray();
         var relationshipId = picture.BlipFill?.GetFirstChild<A.Blip>()?.Embed?.Value ?? string.Empty;
-        if (relationshipId.Length == 0 || relationshipAttributes.Length != 1 ||
-            !string.Equals(relationshipAttributes[0].Value, relationshipId, StringComparison.Ordinal))
+        if (relationshipId.Length == 0)
             return Blocked("the picture is not one canonical embedded-image relationship", nativeId);
+
+        return AnalyzeOwnedPartRelationship<ImagePart>(slidePart, picture, nativeId, relationshipId, "picture", "embedded image part");
+    }
+
+    private static PptxElementDeletionPlan AnalyzeGraphicFrame(SlidePart slidePart, P.GraphicFrame frame, uint nativeId)
+    {
+        var graphicData = frame.Graphic?.GraphicData;
+        if (graphicData is null)
+            return Blocked("the graphic frame has no canonical DrawingML payload", nativeId);
+        if (string.Equals(graphicData.Uri?.Value, "http://schemas.openxmlformats.org/drawingml/2006/table", StringComparison.Ordinal))
+        {
+            if (!PptxTableCodec.TryRead(frame, out _))
+                return Blocked("the graphic frame is outside the bounded DrawingML table profile", nativeId);
+            return HasRelationshipReference(frame)
+                ? Blocked("the table owns one or more package relationship references", nativeId)
+                : Supported(nativeId);
+        }
+        if (!string.Equals(graphicData.Uri?.Value, "http://schemas.openxmlformats.org/drawingml/2006/chart", StringComparison.Ordinal))
+            return Blocked("the graphic frame is not a bounded DrawingML table or chart", nativeId);
+        var references = graphicData.Elements<C.ChartReference>().ToArray();
+        if (references.Length != 1 || references[0].Id?.Value is not { Length: > 0 } relationshipId)
+            return Blocked("the chart is not one canonical internal ChartPart relationship", nativeId);
+        return AnalyzeOwnedPartRelationship<ChartPart>(slidePart, frame, nativeId, relationshipId, "chart", "ChartPart");
+    }
+
+    private static PptxElementDeletionPlan AnalyzeOwnedPartRelationship<TPart>(
+        SlidePart slidePart,
+        OpenXmlElement source,
+        uint nativeId,
+        string relationshipId,
+        string elementKind,
+        string partKind)
+        where TPart : OpenXmlPart
+    {
+        var relationshipAttributes = RelationshipAttributes(source).ToArray();
+        if (relationshipAttributes.Length != 1 ||
+            !string.Equals(relationshipAttributes[0].Value, relationshipId, StringComparison.Ordinal))
+            return Blocked($"the {elementKind} is not one canonical internal {partKind} relationship", nativeId);
 
         var slide = slidePart.Slide;
         if (slide is null || RelationshipAttributes(slide)
                 .Where(attribute => string.Equals(attribute.Value, relationshipId, StringComparison.Ordinal))
                 .Count() != 1)
-            return Blocked($"picture relationship {relationshipId} is referenced outside the element", nativeId);
+            return Blocked($"{elementKind} relationship {relationshipId} is referenced outside the element", nativeId);
 
         var edges = slidePart.Parts
             .Where(pair => pair.RelationshipId.Equals(relationshipId, StringComparison.Ordinal))
             .ToArray();
-        if (edges.Length != 1 || edges[0].OpenXmlPart is not ImagePart imagePart)
-            return Blocked($"picture relationship {relationshipId} does not resolve uniquely to an embedded image part", nativeId);
-        if (slidePart.Parts.Count(pair => ReferenceEquals(pair.OpenXmlPart, imagePart)) != 1)
-            return Blocked("the picture image part has another relationship from the same slide", nativeId);
+        if (edges.Length != 1 || edges[0].OpenXmlPart is not TPart rootPart)
+            return Blocked($"{elementKind} relationship {relationshipId} does not resolve uniquely to an internal {partKind}", nativeId);
+        if (slidePart.Parts.Count(pair => ReferenceEquals(pair.OpenXmlPart, rootPart)) != 1)
+            return Blocked($"the {elementKind} {partKind} has another relationship from the same slide", nativeId);
 
-        var removedParts = ExclusiveClosure(slidePart, imagePart);
+        var removedParts = ExclusiveClosure(slidePart, rootPart);
         var removedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var part in removedParts)
         {

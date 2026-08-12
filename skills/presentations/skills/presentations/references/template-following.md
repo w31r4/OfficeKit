@@ -190,19 +190,20 @@ bounded operation catalog is:
   and exact embedded `expectedSourceSha256`; frame, crop, fit, and accessibility
   metadata remain inherited.
 - `delete-element`: exact `expectedName` and `expectedText` preconditions for
-  one capability-proven imported top-level ordinary shape or embedded picture.
-  The imported `shape.deletionCapability` or `image.deletionCapability` must
+  one capability-proven imported top-level ordinary shape, embedded picture,
+  canonical connector, bounded table, or chart. Its `deletionCapability` must
   expose a unique package-local native ID and report `supported: true`; export
   re-proves the same source binding and the audit verifies that native identity
-  is absent after reimport. A picture transaction removes its exact SlidePart
-  relationship and only exclusively owned media; shared media survives.
+  is absent after reimport. Picture/chart transactions remove their exact
+  SlidePart relationship and only exclusively owned descendants; shared media
+  and ChartParts survive.
 
 `rewrite` and `fill-placeholder` accept content operations;
 `rewrite-and-reposition` requires both `set-position` and a content operation;
 `replace` currently accepts only `replace-image`; `delete` accepts only
-`delete-element`. Relationship-owning shapes, external or ambiguously shared
-picture relationships, connector/comment/timing/extension identity graphs,
-tables, charts, groups, native objects, nested group children, `add`, other
+`delete-element`. Relationship-owning shapes/connectors/tables, external or
+ambiguously shared picture/chart relationships, connector/comment/timing/
+extension identity graphs, groups, native objects, nested group children, `add`, other
 topology changes, blank replacement text, duplicate
 target authorization, stale values, cross-workspace assets, and broader
 chart/image mutations fail closed. Remap to another source frame when that
@@ -273,8 +274,9 @@ PowerPoint can show default edit-mode prompts such as `Click to add title` even
 when slide PNG renders look clean.
 
 The automated edit transaction executes `delete` only through the bounded
-`delete-element` primitive for a capability-proven top-level ordinary shape or
-embedded picture. Every other object/topology remains blocked. Do not claim a placeholder was
+`delete-element` primitive for a capability-proven top-level ordinary shape,
+embedded picture, canonical connector, bounded table, or chart. Every other
+object/topology remains blocked. Do not claim a placeholder was
 removed merely because it was invisible in a render, and never substitute raw
 collection mutation when the capability refuses.
 

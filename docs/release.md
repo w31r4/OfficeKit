@@ -1,5 +1,41 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-12): Expanded PPTX element deletion
+
+The capability-proven imported element transaction now covers canonical
+top-level connectors, bounded DrawingML tables, and charts in addition to the
+existing ordinary-shape and embedded-picture profiles. All five facades expose
+the same defensive `deletionCapability` and typed `.delete()` lifecycle; raw
+collection removal still carries no authority. The JavaScript lifecycle now
+lives in one presentation leaf module rather than type-specific branches.
+
+OfficeKit Codec re-proves the concrete source subtree, package-local native ID,
+top-level owner, connector/comment/timing/extension constraints, and relationship
+ownership. Shapes, connectors, and tables must be relationship-free. Pictures
+and charts must own one exact SlidePart relationship to the expected ImagePart
+or ChartPart. Removing that edge garbage-collects only the OpenXmlPart/DataPart
+closure without another package parent, so media, ChartParts, or chart children
+shared by a retained slide survive. Repeated relationship use, hyperlinks,
+external targets, nested objects, and identity-sensitive graphs fail closed.
+
+The data-driven Template Following `delete-element` transaction needed no new
+object-type branch. Its forward test now deletes one shape, picture, connector,
+table, and chart together, then reimports, proves all five native identities
+absent, renders/verifies, and emits the existing no-overwrite audit. Native and
+JS regressions additionally cover exclusive ChartPart removal, cross-slide
+ChartPart retention, repeated chart relationship refusal, relationship-bearing
+connector/table refusal, package validation, and second import.
+
+Local candidate evidence is complete: the fast gate passed 28/28 steps, the
+slow gate passed 77/77 steps, OfficeKit Codec passed 410/410 tests, OfficeBridge
+passed 5/5 tests, protocol lint/generation stayed clean, and two independent
+WASM builds reproduced the same 39-file audited output (38 runtime files,
+15,411,435 bytes). The clean-install/package gate passed with 736 files,
+36,307,762 compressed bytes, 53,440,442 unpacked bytes, and npm SHA-1
+`3a34a3025f1fde6c57dd73f9105cf5975c86da6b`. Hosted CI is recorded after the
+commit is pushed. npm publication/tagging and Windows Office host acceptance
+remain separate external evidence.
+
 ## Current 0.6.0 candidate (2026-08-12): Imported PPTX element deletion
 
 Imported direct ordinary shapes and canonical embedded pictures now expose the

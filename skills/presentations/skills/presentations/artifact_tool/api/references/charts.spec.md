@@ -47,6 +47,15 @@ the dual value-axis tick labels for cache-only PPTX secondary-axis combos even
 though its series and right-axis title render; retain the OOXML/round-trip gate
 and use a Microsoft PowerPoint/native-host lane for release-grade placement QA.
 
+For a top-level imported chart frame, inspect `chart.deletionCapability` before
+calling `chart.delete()`. The supported profile has one canonical internal
+ChartPart relationship used by exactly that frame on its SlidePart. Export
+removes that relationship and only the ChartPart descendant closure without an
+outside package parent; a ChartPart or child shared by another slide survives.
+External, repeated, hyperlink-bearing, nested, comment/connector/timing/
+extension-sensitive, or otherwise ambiguous graphs fail closed. Deletion does
+not imply that the chart's semantic topology is editable.
+
 The runnable
 `examples/officekit-chart-families-workflow.mjs` authors area, doughnut,
 scatter, and bubble charts, inventories their native ChartParts, imports and

@@ -35,6 +35,7 @@ const [skillText, referenceText] = await Promise.all([
 assert.match(skillText, /apply_template_edit_plan\.mjs[\s\S]*template-edit-plan\.json[\s\S]*publishes nothing/i);
 assert.match(referenceText, /office-kit\.template-edit-plan\.v1[\s\S]*set-text[\s\S]*replace-text[\s\S]*set-table-cell[\s\S]*set-chart-series-values[\s\S]*replace-image[\s\S]*delete-element/i);
 assert.match(referenceText, /delete-element[\s\S]*capability-proven[\s\S]*top-level/i);
+assert.match(referenceText, /delete-element[\s\S]*ordinary shape[\s\S]*embedded picture[\s\S]*canonical connector[\s\S]*bounded table[\s\S]*chart[\s\S]*shared media[\s\S]*ChartParts survive/i);
 
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-template-edit-"));
 try {
@@ -92,6 +93,12 @@ try {
     dataUrl: ORIGINAL_PNG,
     fit: "contain",
   });
+  editSlide.connectors.add({
+    name: "connector-target",
+    start: { x: 300, y: 325 },
+    end: { x: 570, y: 325 },
+    line: { fill: "#2563eb", width: 2 },
+  });
   const preservedSlide = source.slides.add({ name: "Preserved frame" });
   preservedSlide.shapes.add({
     name: "preserve-target",
@@ -120,6 +127,7 @@ try {
           { action: "rewrite", sourceElementId: byName.get("table-target") },
           { action: "rewrite", sourceElementId: byName.get("chart-target") },
           { action: "replace", sourceElementId: byName.get("image-target") },
+          { action: "keep", sourceElementId: byName.get("connector-target") },
         ],
       },
       {
@@ -196,6 +204,7 @@ try {
           assetSha256: sha256(replacementBytes),
         }],
       },
+      { outputSlide: 1, targetIndex: 6, operations: [] },
       { outputSlide: 2, targetIndex: 0, operations: [] },
     ],
   };
@@ -299,13 +308,25 @@ try {
   const deleteManifestPath = path.join(root, "delete.manifest.json");
   const deletePlanPath = path.join(root, "delete-plan.json");
   const deleteManifest = structuredClone(starterManifest);
+  targetByIndex(deleteManifest, 1, 3).action = "delete";
+  targetByIndex(deleteManifest, 1, 4).action = "delete";
   targetByIndex(deleteManifest, 1, 5).action = "delete";
+  targetByIndex(deleteManifest, 1, 6).action = "delete";
   await writeJson(deleteManifestPath, deleteManifest);
   const deleteManifestBytes = await fs.readFile(deleteManifestPath);
   const deletePlan = structuredClone(plan);
   deletePlan.manifestSha256 = sha256(deleteManifestBytes);
+  deletePlan.targets.find((target) => target.outputSlide === 1 && target.targetIndex === 3).operations = [
+    { type: "delete-element", expectedName: "table-target", expectedText: "" },
+  ];
+  deletePlan.targets.find((target) => target.outputSlide === 1 && target.targetIndex === 4).operations = [
+    { type: "delete-element", expectedName: "chart-target", expectedText: "" },
+  ];
   deletePlan.targets.find((target) => target.outputSlide === 1 && target.targetIndex === 5).operations = [
     { type: "delete-element", expectedName: "image-target", expectedText: "" },
+  ];
+  deletePlan.targets.find((target) => target.outputSlide === 1 && target.targetIndex === 6).operations = [
+    { type: "delete-element", expectedName: "connector-target", expectedText: "" },
   ];
   await writeJson(deletePlanPath, deletePlan);
   const deleteOutputPath = path.join(root, "delete-output.pptx");
@@ -320,10 +341,13 @@ try {
     layoutDir: path.join(root, "delete-layout"),
   });
   assert.equal(deleteResult.audit.status, "succeeded");
-  assert.equal(deleteResult.audit.validation.boundedElementDeletions, 2);
+  assert.equal(deleteResult.audit.validation.boundedElementDeletions, 5);
   assert.equal(deleteResult.audit.assets.length, 0);
   const deleteRoundTrip = await PresentationFile.importPptx(await FileBlob.load(deleteOutputPath));
   assert.equal(deleteRoundTrip.slides.getItem(0).images.items.some((image) => image.name === "image-target"), false);
+  assert.equal(deleteRoundTrip.slides.getItem(0).tables.items.some((table) => table.name === "table-target"), false);
+  assert.equal(deleteRoundTrip.slides.getItem(0).charts.items.some((chart) => chart.name === "chart-target"), false);
+  assert.equal(deleteRoundTrip.slides.getItem(0).connectors.items.some((connector) => connector.name === "connector-target"), false);
   assert.equal(deleteRoundTrip.slides.getItem(0).shapes.getItem("remove-target"), undefined);
   assert.deepEqual(await fs.readFile(sourcePath), sourceBytes);
   assert.deepEqual(await fs.readFile(starterPath), starterBytes);

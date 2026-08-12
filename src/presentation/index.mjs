@@ -32,6 +32,7 @@ import { planPresentationModernComments } from "./ooxml-modern-comments.mjs";
 import { presentationFreeLineSvg, presentationShapeLineSvgAttributes } from "./line-styles.mjs";
 import { initializePresentationAccessibility, presentationAccessibilityCapability, setPresentationAccessibilityMetadata } from "./accessibility.mjs";
 import { auditPresentationAccessibility } from "./accessibility-audit.mjs";
+import { deletePresentationElement, PRESENTATION_ELEMENT_DELETED, presentationElementDeletionCapability } from "./element-deletion.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const EMU_PER_PIXEL = 9_525;
@@ -43,8 +44,6 @@ const PRESENTATION_SLIDE_VISIBILITY_CAPABILITY = Symbol.for("office-kit.slide-vi
 const PRESENTATION_SLIDE_DELETION_CAPABILITY = Symbol.for("office-kit.slide-deletion-capability");
 const PRESENTATION_SLIDE_CLONE_CAPABILITY = Symbol.for("office-kit.slide-clone-capability");
 const PRESENTATION_STATE = Symbol.for("office-kit.presentation-state");
-const PRESENTATION_ELEMENT_DELETION_CAPABILITY = Symbol.for("office-kit.presentation-element-deletion-capability");
-const PRESENTATION_ELEMENT_DELETED = Symbol.for("office-kit.presentation-element-deleted");
 
 export { SlideTransition };
 
@@ -829,54 +828,6 @@ class ElementCollection {
   add(...args) { const element = new this.ElementClass(this.slide, ...args); element.parentGroup = this.owner; this.items.push(element); this.owner?._rememberChild?.(element); return element; }
   getItemAt(index) { return this.items[index]; }
   [Symbol.iterator]() { return this.items[Symbol.iterator](); }
-}
-
-function presentationElementDeletionCapability(element, kind) {
-  const imported = element[PRESENTATION_ELEMENT_DELETION_CAPABILITY];
-  if (imported) return { ...imported };
-  if (element.slide?.presentation?.[PRESENTATION_STATE]) {
-    return {
-      sourceBound: true,
-      known: false,
-      supported: false,
-      blockedReason: `This imported ${kind} is outside the bounded top-level element deletion profile.`,
-      nativeId: undefined,
-    };
-  }
-  return { sourceBound: false, known: true, supported: true, blockedReason: "", nativeId: undefined };
-}
-
-function deletePresentationElement(element, collection, kind) {
-  const index = collection?.items?.indexOf(element) ?? -1;
-  if (index < 0) throw new Error(`Presentation ${kind} must belong to its slide before it can be deleted.`);
-
-  const owner = element.parentGroup;
-  const connectors = owner?.connectors?.items || element.slide?.connectors?.items || [];
-  if (connectors.some((connector) => connector.startTargetId === element.id || connector.endTargetId === element.id)) {
-    const error = new Error(`Presentation ${kind} ${element.id} cannot be deleted while a connector targets it.`);
-    error.code = "unsupported_presentation_element_delete";
-    throw error;
-  }
-  if ((element.slide?.comments?.items || []).some((thread) => thread.targetId === element.id)) {
-    const error = new Error(`Presentation ${kind} ${element.id} cannot be deleted while a comment targets it.`);
-    error.code = "unsupported_presentation_element_delete";
-    throw error;
-  }
-
-  const capability = element.deletionCapability;
-  if (capability.sourceBound && (!capability.known || !capability.supported)) {
-    const detail = capability.blockedReason ? `: ${capability.blockedReason}` : ".";
-    const error = new Error(`Imported presentation ${kind} cannot be safely deleted${detail}`);
-    error.code = "unsupported_presentation_element_delete";
-    throw error;
-  }
-  if (capability.sourceBound) Object.defineProperty(element, PRESENTATION_ELEMENT_DELETED, { value: true });
-  collection.items.splice(index, 1);
-  if (owner) {
-    const childIndex = owner.children.indexOf(element);
-    if (childIndex >= 0) owner.children.splice(childIndex, 1);
-  }
-  return element;
 }
 
 function normalizeFrame(config = {}, fallback = { left: 0, top: 0, width: 240, height: 160 }) {
@@ -1689,6 +1640,13 @@ export class TableElement {
   getCell(row, column) { this._assertCell(row, column); return new TableCellFacade(this, row, column); }
   merge(range) { this._appendMergeRange(range); return this; }
   get accessibilityCapability() { return presentationAccessibilityCapability(this); }
+  get deletionCapability() { return presentationElementDeletionCapability(this, "table"); }
+
+  delete() {
+    const owner = this.parentGroup;
+    const collection = owner?.tables || this.slide?.tables;
+    return deletePresentationElement(this, collection, "table");
+  }
 
   setAccessibilityMetadata(update) {
     this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation table ${this.id}`);
@@ -1697,7 +1655,7 @@ export class TableElement {
 
   inspectRecord() {
     const p = this.position;
-    return { kind: "table", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, rows: this.rows, cols: this.columns, mergeRanges: this.mergeRanges.length ? this.mergeRanges : undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", values: this.values };
+    return { kind: "table", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, rows: this.rows, cols: this.columns, mergeRanges: this.mergeRanges.length ? this.mergeRanges : undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", values: this.values };
   }
 
   layoutJson() { return { kind: "table", id: this.id, name: this.name, frame: this.position, rows: this.rows, columns: this.columns, values: this.values, mergeRanges: this.mergeRanges.length ? this.mergeRanges : undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, style: this.style, styleOptions: this.styleOptions }; }
@@ -1911,6 +1869,13 @@ export class ChartElement {
   }
 
   get accessibilityCapability() { return presentationAccessibilityCapability(this); }
+  get deletionCapability() { return presentationElementDeletionCapability(this, "chart"); }
+
+  delete() {
+    const owner = this.parentGroup;
+    const collection = owner?.charts || this.slide?.charts;
+    return deletePresentationElement(this, collection, "chart");
+  }
 
   setAccessibilityMetadata(update) {
     this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation chart ${this.id}`);
@@ -1919,7 +1884,7 @@ export class ChartElement {
 
   inspectRecord() {
     const p = this.position;
-    return { kind: "chart", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, chartType: this.chartType, title: this.title, categories: this.categories, series: this.series.length, seriesDetails: this.series, axes: PRESENTATION_CIRCULAR_CHART_TYPES.has(this.chartType) ? undefined : this.axes, legend: this.legend, dataLabels: this.dataLabels, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, externalData: this.externalData ? { embedded: Boolean(this.externalData.bytes), uri: this.externalData.uri, autoUpdate: this.externalData.autoUpdate, bytes: this.externalData.bytes?.byteLength } : undefined, styleId: this.styleId, varyColors: this.varyColors, barOptions: ["bar", "combo"].includes(this.chartType) ? this.barOptions : undefined, lineOptions: ["line", "combo"].includes(this.chartType) ? this.lineOptions : undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px" };
+    return { kind: "chart", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, chartType: this.chartType, title: this.title, categories: this.categories, series: this.series.length, seriesDetails: this.series, axes: PRESENTATION_CIRCULAR_CHART_TYPES.has(this.chartType) ? undefined : this.axes, legend: this.legend, dataLabels: this.dataLabels, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, externalData: this.externalData ? { embedded: Boolean(this.externalData.bytes), uri: this.externalData.uri, autoUpdate: this.externalData.autoUpdate, bytes: this.externalData.bytes?.byteLength } : undefined, styleId: this.styleId, varyColors: this.varyColors, barOptions: ["bar", "combo"].includes(this.chartType) ? this.barOptions : undefined, lineOptions: ["line", "combo"].includes(this.chartType) ? this.lineOptions : undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px" };
   }
 
   layoutJson() { return { kind: "chart", id: this.id, name: this.name, chartType: this.chartType, title: this.title, frame: this.position, categories: this.categories, series: this.series, axes: PRESENTATION_CIRCULAR_CHART_TYPES.has(this.chartType) ? undefined : this.axes, legend: this.legend, dataLabels: this.dataLabels, accessibility: this.accessibility ? { ...this.accessibility } : undefined, externalData: this.externalData ? { embedded: Boolean(this.externalData.bytes), uri: this.externalData.uri, autoUpdate: this.externalData.autoUpdate, bytes: this.externalData.bytes?.byteLength } : undefined, styleId: this.styleId, varyColors: this.varyColors, barOptions: ["bar", "combo"].includes(this.chartType) ? this.barOptions : undefined, lineOptions: ["line", "combo"].includes(this.chartType) ? this.lineOptions : undefined }; }

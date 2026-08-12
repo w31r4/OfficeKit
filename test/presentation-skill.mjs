@@ -3071,6 +3071,7 @@ try {
   assert.match(skillText, /slide\.setTransition\(\{.*effect: "split".*orientation: "horizontal".*direction: "in".*advanceOnClick.*advanceAfterMs/is);
   assert.match(skillText, /transition\.capability.*canonical direct base-transition profile.*no transition.*addable: true.*p:cSld.*p:clrMapOvr.*no transition, timing, or extension leaf.*timing.*sound.*p14.*extension.*opaque-preserved.*fail closed/is);
   assert.match(skillText, /slide\.moveTo\(existingZeroBasedIndex\).*retained source.*p:sldIdLst.*slide\.deletionCapability.*exclusively owned OPC descendant.*shared layout\/master\/theme\/image\/media.*fail closed/is);
+  assert.match(skillText, /Top-level imported ordinary shapes.*embedded pictures.*canonical connectors.*bounded tables.*charts.*deletionCapability.*relationship-free subtree.*ImagePart\/ChartPart descendant closure.*shared media and ChartParts remain.*array splicing/is);
   assert.match(skillText, /starter command executes a validated multi-slide frame map/is);
   assert.match(skillText, /duplicates exactly one supported source slide per export\/reimport boundary.*same source slide may be reused safely.*removes all\s+original slides.*ownership transaction/is);
   assert.match(skillText, /translates every inspected source element ID.*final starter ID.*fails closed/is);
