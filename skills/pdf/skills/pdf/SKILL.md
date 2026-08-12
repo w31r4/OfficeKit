@@ -200,9 +200,9 @@ retry via a different Python interpreter after a failed probe.
    validation/human boundaries.
 4. Render every final page with MuPDF.js or independently with Poppler and
    inspect clipping, overlaps, glyphs, images, fields, annotations, signatures,
-   redactions, and page geometry when visual input is available. Without it,
-   retain the renders, run structural/page-geometry checks, optionally request
-   the AnyDoc content view, and mark visually material results for human review.
+   redactions, and page geometry when visual input is available. Without it, retain
+   renders, run structural/page-geometry checks, and mark visually material results
+   for human review. Request AnyDoc only to close a text/table coverage gap; it is not OCR.
 
 The project and its required MuPDF.js dependency are GNU AGPL-3.0-or-later.
 Managed and system providers retain their own licences; the resolver exposes

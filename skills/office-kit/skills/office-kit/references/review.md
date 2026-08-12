@@ -30,18 +30,12 @@ The text reading view overlaps with visual review only in confirming that some
 text or table content exists. It does not preserve exact placement, typography,
 crop, contrast, visual hierarchy, chart appearance, or slide composition.
 
-Use `contentView: "anydoc"` to request the text reading view when any of these
-is true:
-
-- the Agent cannot directly understand rendered images;
-- a long document, workbook, deck, or PDF would be expensive to read through
-  page images;
-- a compact cross-format Markdown view makes semantic comparison easier;
-- an independent parser view is useful for a suspicious content mismatch.
-
-Omit `contentView` for a small targeted edit when native inspect evidence and a
-direct visual review already answer the task. Do not run the text reading view
-merely because it is installed.
+Do not run the text reading view routinely. Request `contentView: "anydoc"`
+only when it can close an identified text or table content-coverage gap. It
+does not resolve OCR, layout, image, formula, or metadata-provenance gaps. The
+absence of visual review alone is not a reason to request it. Omit
+`contentView` when native inspection and the available review evidence already
+answer the task.
 
 The text reading view is not OCR and is not a substitute for render review. A host-supplied
 OCR result or image description is also derived text evidence, not direct
@@ -56,7 +50,7 @@ const { reviewArtifact } = await ctx.import("office-kit");
 
 const review = await reviewArtifact(outputPath, {
   source: inputPath,
-  contentView: "anydoc", // request the text reading view; omit when unnecessary
+  contentView: "anydoc", // only for an identified text/table coverage gap
   visualReview: "unavailable",
   maxContentChars: 40_000,
 });

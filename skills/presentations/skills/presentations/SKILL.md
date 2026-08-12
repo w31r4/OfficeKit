@@ -933,10 +933,11 @@ and honest visual status without claiming delivery or calling `ctx.publish`.
 Before delivery, rerun the complete review against the accepted draft. Inspect
 each rendered slide at full size when visual input is available. Use a contact
 sheet only for deck-level flow. Without visual input, run structured checks for
-every slide and request `contentView: "anydoc"` only when its compact text/table
-view helps; mark image-led or design-sensitive results
-`visualReview: "requires-human"`. The text reading view cannot judge
-composition, hierarchy, crop, contrast, typography, or chart appearance. Fix
+every slide and mark image-led or design-sensitive results
+`visualReview: "requires-human"`. Request `contentView: "anydoc"` only when it
+can close an identified slide-text or table content-coverage gap. The text
+reading view cannot resolve layout, image, formula, metadata-provenance, or
+visual-design gaps. Fix
 unintended overlap, clipping, wrapping, broken connectors, unresolved
 placeholders, inconsistent footers/page markers, and chart/data mismatches
 before exporting. Verify that researched claims and sourced assets are

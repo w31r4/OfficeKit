@@ -3521,7 +3521,7 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 **Notes:**
 
 - The text reading view is runtime-lazy and optional; AnyDoc is its parser backend. It is not a structural authority, render validator, OCR route, or substitute for direct pixel/aesthetic review.
-- Omit contentView for ordinary native review. Use contentView='anydoc' to request the text reading view when the Agent cannot directly understand renders or needs a compact cross-format text view.
+- Do not request the text reading view routinely. Use contentView='anydoc' only when it can close an identified text or table content-coverage gap; it does not resolve OCR, layout, image, formula, or metadata-provenance gaps.
 
 #### `setOfficeFontDesignMetrics`
 

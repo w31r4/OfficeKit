@@ -81,8 +81,8 @@ DOCX text extraction or OOXML inspection alone misses layout defects such as
 clipping, overlap, missing glyphs, broken tables, spacing drift, and misplaced
 headers or footers. Always render the final document. When the Agent can
 understand images, inspect every page image; otherwise run the full structured
-layout checks, request the AnyDoc reading view when it helps semantic review,
-and report the visual limitation.
+layout checks and report the visual limitation. Request the AnyDoc reading view
+only when it can close an identified text or table content-coverage gap.
 
 **Shipping gate:** before delivering any DOCX, you must:
 - Run `render_docx.py` to produce `page-<N>.png` images (optionally also a PDF with `--emit_pdf`)
@@ -535,10 +535,10 @@ python render_docx.py /mnt/data/input.docx --output_dir /mnt/data/out --emit_pdf
 ```
 
 Then inspect the generated `page-<N>.png` files when visual input is available.
-Without it, use the shared post-edit review contract and optionally request
-the text reading view (`contentView: "anydoc"`) for a bounded Markdown view of
-headings, paragraphs, and tables. AnyDoc does not validate pagination,
-typography, images, or layout.
+Without it, use the shared post-edit review contract. Request the text reading
+view (`contentView: "anydoc"`) only for an identified coverage gap in headings,
+paragraphs, or tables. AnyDoc does not validate pagination, typography, images,
+or layout.
 
 **Success criteria (render + visual QA):**
 - PNGs exist for each page

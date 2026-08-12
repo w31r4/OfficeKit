@@ -124,8 +124,10 @@ then let the PDF Skill inspect and verify the final PDF.
 - Reopen or reimport the result when the owner requires it.
 - Run the owner's semantic, structural, layout/render, and delivery checks in
   the order defined by the post-edit review contract.
-- Request the lazy text reading view (`contentView: "anydoc"`) only when it
-  helps the Agent read or compare content; it is not a visual-review result.
+- Request the lazy text reading view (`contentView: "anydoc"`) only when it can
+  close an identified text or table content-coverage gap. It is not a
+  visual-review result and does not resolve OCR, layout, image, formula, or
+  metadata-provenance gaps.
 - For a multi-artifact task, verify shared facts, numbers, names, dates, and
   visual identity across outputs.
 - After finalization, return the final files and any explicit capability

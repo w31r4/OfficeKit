@@ -10,8 +10,9 @@ results. Standalone workbook work uses `workspaceRoot`, `inputRoot`,
 `assetRoot`, `outputRoot`, and `evidenceRoot`; it does not require a host
 workspace loader. After the final workbook is reopened, follow
 `../office-kit/references/review.md`; use the optional text reading view
-(`contentView: "anydoc"`) for sheet values and tables, never as proof of formulas, chart
-appearance, cell formatting, or layout.
+(`contentView: "anydoc"`) only to close an identified sheet-value or table
+coverage gap, never as proof of formulas, chart appearance, cell formatting,
+or layout.
 
 ## Run the workbook workflow in one task
 

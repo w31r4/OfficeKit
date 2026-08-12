@@ -131,7 +131,9 @@ for (const [number, label] of [[6, "Semantic"], [7, "Structural"], [8, "Layout"]
 }
 assert.match(review, /text reading view/i);
 assert.match(review, /contentView: "anydoc"/);
-assert.match(review, /do not run the text reading view\s+merely because\s+it is installed/i);
+assert.match(review, /only when it can close an identified text or table content-coverage gap/i);
+assert.match(review, /does not resolve OCR, layout, image, formula, or metadata-provenance gaps/i);
+assert.match(review, /absence of visual review alone is not a reason/i);
 assert.match(review, /not OCR.*not a substitute for render review/is);
 assert.match(review, /visualReview: "requires-human"/);
 assert.match(repl, /ctx\.state/);
@@ -175,7 +177,7 @@ for (const [name, relative] of [
 ]) {
   const text = await fs.readFile(path.join(repoRoot, "skills", ...relative), "utf8");
   assert.match(text, /\.\.\/office-kit\/references\/review\.md/, `${name} must use the shared review contract`);
-  assert.match(text, /text reading view/i, `${name} must describe the optional content view`);
+  assert.match(text, /text\s+reading\s+view/i, `${name} must describe the optional content view`);
 }
 
 console.log(`Skill portability ok: ${files.length} host-neutral files checked`);
