@@ -55,6 +55,27 @@ function itemByName(items, name) {
   return item;
 }
 
+async function orderedPptxSlidePaths(zip) {
+  const presentationXml = await zip.file("ppt/presentation.xml").async("text");
+  const relationshipsXml = await zip.file("ppt/_rels/presentation.xml.rels").async("text");
+  const relationshipTargets = new Map(
+    [...relationshipsXml.matchAll(/<Relationship\b[^>]*>/g)].map(([tag]) => [
+      /\bId="([^"]+)"/.exec(tag)?.[1],
+      /\bTarget="([^"]+)"/.exec(tag)?.[1],
+    ]),
+  );
+  return [...presentationXml.matchAll(/<(?:[A-Za-z_][\w.-]*:)?sldId\b[^>]*\br:id="([^"]+)"[^>]*\/?\s*>/g)].map(([, relationshipId]) => {
+    const target = relationshipTargets.get(relationshipId);
+    assert.ok(target, `Missing SlidePart relationship ${relationshipId}`);
+    return target.startsWith("/") ? target.replace(/^\/+/, "") : path.posix.normalize(path.posix.join("ppt", target));
+  });
+}
+
+function relationshipPartPath(partPath) {
+  const directory = path.posix.dirname(partPath);
+  return path.posix.join(directory, "_rels", `${path.posix.basename(partPath)}.rels`);
+}
+
 assert.deepEqual(presentationImageDataUrlDimensions(WIDE_SVG), { width: 400, height: 200 });
 assert.deepEqual(effectivePresentationImageCrop({ fit: "cover", dataUrl: WIDE_SVG, frame: { width: 200, height: 200 } }), { left: 0.25, top: 0, right: 0.25, bottom: 0 });
 assert.deepEqual(effectivePresentationImageCrop({ fit: "contain", dataUrl: WIDE_SVG, frame: { width: 200, height: 200 } }), { left: 0, top: -0.5, right: 0, bottom: -0.5 });
@@ -851,6 +872,7 @@ customShowCloneImport.slides.items[0].duplicate();
 customShowCloneImport.customShows.getItem("Board route").name = "Cloned executive route";
 const customShowCloneExport = await PresentationFile.exportPptx(customShowCloneImport);
 const customShowCloneZip = await JSZip.loadAsync(customShowCloneExport.bytes);
+const customShowCloneSlidePath = (await orderedPptxSlidePaths(customShowCloneZip))[1];
 assert.deepEqual(
   await customShowCloneZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await customShowFirstZip.file("ppt/slides/slide1.xml").async("uint8array"),
@@ -862,11 +884,11 @@ assert.deepEqual(
   "a relationship-free custom-show action must not rewrite the retained source relationship graph",
 );
 assert.match(
-  await customShowCloneZip.file("ppt/slides/slide4.xml").async("string"),
+  await customShowCloneZip.file(customShowCloneSlidePath).async("string"),
   /<a:hlinkClick\b[^>]*r:id=""[^>]*action="ppaction:\/\/customshow\?id=7&amp;return=true"[^>]*tooltip="Open board route"/,
 );
 assert.doesNotMatch(
-  await customShowCloneZip.file("ppt/slides/_rels/slide4.xml.rels").async("string"),
+  await customShowCloneZip.file(relationshipPartPath(customShowCloneSlidePath)).async("string"),
   /relationships\/(?:hyperlink|slide)"/,
   "custom-show run links must remain relationship-free on the cloned SlidePart",
 );
@@ -993,11 +1015,12 @@ await assert.rejects(
   (error) => error?.code === "presentation_section_topology_changed",
 );
 const sectionCloneImport = await PresentationFile.importPptx(sectionFirstExport);
-sectionCloneImport.slides.items[0].duplicate();
-await assert.rejects(
-  () => PresentationFile.exportPptx(sectionCloneImport),
+assert.equal(sectionCloneImport.slides.items[0].cloneCapability.supported, false);
+assert.throws(
+  () => sectionCloneImport.slides.items[0].duplicate(),
   (error) => error?.code === "unsupported_presentation_slide_clone",
 );
+assert.equal(sectionCloneImport.slides.items.length, 3);
 const irregularSectionZip = await JSZip.loadAsync(sectionFirstExport.bytes);
 const irregularSectionXml = (await irregularSectionZip.file("ppt/presentation.xml").async("string"))
   .replace("</p14:section>", "<p14:extLst/></p14:section>");
@@ -3320,18 +3343,74 @@ assert.throws(
 );
 const clonePptx = await PresentationFile.exportPptx(cloneImportedDeck);
 const cloneZip = await JSZip.loadAsync(clonePptx.bytes);
+const cloneSlidePath = (await orderedPptxSlidePaths(cloneZip))[1];
 assert.deepEqual(
   await cloneZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await cloneSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
   "cloning an imported slide must leave its origin SlidePart byte-for-byte intact",
 );
-assert.ok(cloneZip.file("ppt/slides/slide3.xml"), "the clone must be a new SlidePart rather than another reference to slide1");
+assert.ok(cloneZip.file(cloneSlidePath), "the clone must be a new SlidePart rather than another reference to slide1");
 const cloneRoundTrip = await PresentationFile.importPptx(clonePptx);
 assert.deepEqual(cloneRoundTrip.slides.items.map((slide) => slide.name), ["Original", "Original", "Companion"]);
 itemByName(cloneRoundTrip.slides.getItem(1).shapes.items, "clone-copy").text.set("Edited after reimport");
 const cloneEditedPptx = await PresentationFile.exportPptx(cloneRoundTrip);
 const cloneEditedRoundTrip = await PresentationFile.importPptx(cloneEditedPptx);
 assert.equal(itemByName(cloneEditedRoundTrip.slides.getItem(1).shapes.items, "clone-copy").text.value, "Edited after reimport");
+
+// Clone eligibility is now an OPC ownership proof rather than a catalog of
+// known PresentationML object types. Unknown, exclusively owned descendants
+// and their external relationships are copied exactly; a node shared by two
+// source slides is rejected before the JavaScript model is mutated.
+const cloneBaseSlide1Relationships = await cloneSourceZip.file("ppt/slides/_rels/slide1.xml.rels").async("text");
+const cloneBaseSlide2Relationships = await cloneSourceZip.file("ppt/slides/_rels/slide2.xml.rels").async("text");
+const ownedGraphSource = await PresentationFile.patchPptx(cloneSourcePptx, [
+  {
+    path: "ppt/slides/_rels/slide1.xml.rels",
+    xml: cloneBaseSlide1Relationships.replace("</Relationships>", '<Relationship Id="rIdAgentOwnedRoot" Type="urn:office-kit:test/owned-root" Target="../customXml/agent-owned-root.xml"/></Relationships>'),
+  },
+  { path: "ppt/customXml/agent-owned-root.xml", contentType: "application/vnd.office-kit.test+xml", xml: '<owned xmlns="urn:office-kit:test">agent-owned-root</owned>' },
+  {
+    path: "ppt/customXml/_rels/agent-owned-root.xml.rels",
+    xml: '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdAgentOwnedLeaf" Type="urn:office-kit:test/owned-leaf" Target="agent-owned-leaf.bin"/><Relationship Id="rIdAgentOwnedExternal" Type="urn:office-kit:test/owned-external" Target="https://example.invalid/opaque-resource" TargetMode="External"/></Relationships>',
+  },
+  { path: "ppt/customXml/agent-owned-leaf.bin", contentType: "application/vnd.office-kit.test", bytes: Uint8Array.from([9, 7, 5, 3, 1]) },
+]);
+const ownedGraphDeck = await PresentationFile.importPptx(ownedGraphSource);
+assert.deepEqual(ownedGraphDeck.slides.getItem(0).cloneCapability, {
+  sourceBound: true,
+  known: true,
+  supported: true,
+  blockedReason: "",
+  clonedPartCount: 3,
+  sharedPartCount: 1,
+});
+ownedGraphDeck.slides.getItem(0).duplicate();
+const ownedGraphOutput = await PresentationFile.exportPptx(ownedGraphDeck);
+const ownedGraphOutputZip = await JSZip.loadAsync(ownedGraphOutput.bytes);
+const ownedRootPaths = Object.keys(ownedGraphOutputZip.files).filter((partPath) => /^ppt\/customXml\/[^/]*owned-root[^/]*\.xml$/i.test(partPath));
+const ownedLeafPaths = Object.keys(ownedGraphOutputZip.files).filter((partPath) => /^ppt\/customXml\/[^/]*owned-leaf[^/]*\.bin$/i.test(partPath));
+assert.equal(ownedRootPaths.length, 2);
+assert.equal(ownedLeafPaths.length, 2);
+assert.deepEqual(await ownedGraphOutputZip.file(ownedRootPaths[0]).async("uint8array"), await ownedGraphOutputZip.file(ownedRootPaths[1]).async("uint8array"));
+assert.deepEqual(await ownedGraphOutputZip.file(ownedLeafPaths[0]).async("uint8array"), await ownedGraphOutputZip.file(ownedLeafPaths[1]).async("uint8array"));
+for (const rootPath of ownedRootPaths) assert.match(await ownedGraphOutputZip.file(relationshipPartPath(rootPath)).async("text"), /rIdAgentOwnedExternal/);
+
+const sharedGraphSource = await PresentationFile.patchPptx(cloneSourcePptx, [
+  {
+    path: "ppt/slides/_rels/slide1.xml.rels",
+    xml: cloneBaseSlide1Relationships.replace("</Relationships>", '<Relationship Id="rIdAgentShared" Type="urn:office-kit:test/shared" Target="../customXml/agent-shared.xml"/></Relationships>'),
+  },
+  {
+    path: "ppt/slides/_rels/slide2.xml.rels",
+    xml: cloneBaseSlide2Relationships.replace("</Relationships>", '<Relationship Id="rIdAgentShared" Type="urn:office-kit:test/shared" Target="../customXml/agent-shared.xml"/></Relationships>'),
+  },
+  { path: "ppt/customXml/agent-shared.xml", contentType: "application/vnd.office-kit.shared+xml", xml: '<shared xmlns="urn:office-kit:test">agent-shared</shared>' },
+]);
+const sharedGraphDeck = await PresentationFile.importPptx(sharedGraphSource);
+assert.equal(sharedGraphDeck.slides.getItem(0).cloneCapability.supported, false);
+assert.match(sharedGraphDeck.slides.getItem(0).cloneCapability.blockedReason, /also referenced/);
+assert.throws(() => sharedGraphDeck.slides.getItem(0).duplicate(), (error) => error?.code === "unsupported_presentation_slide_clone");
+assert.equal(sharedGraphDeck.slides.items.length, 2);
 
 // Canonical run hyperlinks are a modeled part of the same bounded clone leaf.
 // The clone keeps the source XML r:ids, creates equivalent external/internal
@@ -3377,6 +3456,7 @@ assert.equal(pendingRuns[1].link.slideId, hyperlinkCloneImported.slides.getItem(
 assert.equal(pendingRuns[2].link.action, "nextSlide");
 const hyperlinkClonePptx = await PresentationFile.exportPptx(hyperlinkCloneImported);
 const hyperlinkCloneZip = await JSZip.loadAsync(hyperlinkClonePptx.bytes);
+const hyperlinkCloneSlidePath = (await orderedPptxSlidePaths(hyperlinkCloneZip))[1];
 assert.deepEqual(
   await hyperlinkCloneZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await hyperlinkCloneSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
@@ -3397,7 +3477,7 @@ const modeledRunLinkRelationships = (relationships) => [...relationships.matchAl
   .filter((relationship) => /\/(?:hyperlink|slide)$/.test(relationship.type || ""))
   .sort((left, right) => left.id.localeCompare(right.id));
 assert.deepEqual(
-  modeledRunLinkRelationships(await hyperlinkCloneZip.file("ppt/slides/_rels/slide4.xml.rels").async("text")),
+  modeledRunLinkRelationships(await hyperlinkCloneZip.file(relationshipPartPath(hyperlinkCloneSlidePath)).async("text")),
   modeledRunLinkRelationships(await hyperlinkCloneZip.file("ppt/slides/_rels/slide1.xml.rels").async("text")),
   "the clone must own the same canonical external and internal run-link graph",
 );
@@ -3475,6 +3555,7 @@ assert.equal(imageClone.images.items[0].alt, "Shared immutable clone asset");
 assert.equal(imageClone.images.items[0].dataUrl, PNG);
 const imageClonePptx = await PresentationFile.exportPptx(imageCloneImportedDeck);
 const imageCloneZip = await JSZip.loadAsync(imageClonePptx.bytes);
+const imageCloneSlidePath = (await orderedPptxSlidePaths(imageCloneZip))[1];
 assert.deepEqual(
   await imageCloneZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await imageCloneSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
@@ -3485,14 +3566,14 @@ assert.deepEqual(
   await imageCloneSourceZip.file(imageCloneSourceMediaPath).async("uint8array"),
   "cloning a slide with an embedded image must retain the shared media bytes",
 );
-assert.ok(imageCloneZip.file("ppt/slides/slide2.xml"), "the image clone must own a new SlidePart");
+assert.ok(imageCloneZip.file(imageCloneSlidePath), "the image clone must own a new SlidePart");
 const imageParts = Object.keys(imageCloneZip.files).filter((path) => /^ppt\/media\/[^/]+\.(?:png|jpe?g|gif|svg)$/i.test(path));
 assert.deepEqual(imageParts, [imageCloneSourceMediaPath], "the clone must reuse the source ImagePart instead of duplicating media bytes");
 const imageRelationshipTargets = (relationships) => [...relationships.matchAll(/<Relationship\b[^>]*>/g)]
   .filter(([tag]) => /\bType="[^\"]*\/image"/.test(tag))
   .map(([tag]) => /\bTarget="([^\"]+)"/.exec(tag)?.[1]);
 const sourceImageRelationships = await imageCloneZip.file("ppt/slides/_rels/slide1.xml.rels").async("text");
-const cloneImageRelationships = await imageCloneZip.file("ppt/slides/_rels/slide2.xml.rels").async("text");
+const cloneImageRelationships = await imageCloneZip.file(relationshipPartPath(imageCloneSlidePath)).async("text");
 assert.deepEqual(
   imageRelationshipTargets(cloneImageRelationships),
   imageRelationshipTargets(sourceImageRelationships),
@@ -3565,13 +3646,14 @@ assert.deepEqual(tableClone.tables.items[0].values, tableCloneSourceTable.values
 assert.deepEqual(tableClone.tables.items[0].mergeRanges, tableCloneSourceTable.mergeRanges);
 const tableClonePptx = await PresentationFile.exportPptx(tableCloneImportedDeck);
 const tableCloneZip = await JSZip.loadAsync(tableClonePptx.bytes);
+const tableCloneSlidePath = (await orderedPptxSlidePaths(tableCloneZip))[1];
 assert.deepEqual(
   await tableCloneZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await tableCloneSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
   "cloning an inline table must retain the origin SlidePart byte-for-byte",
 );
-assert.ok(tableCloneZip.file("ppt/slides/slide2.xml"), "the table clone must own a new SlidePart");
-const tableCloneRelationships = await tableCloneZip.file("ppt/slides/_rels/slide2.xml.rels").async("text");
+assert.ok(tableCloneZip.file(tableCloneSlidePath), "the table clone must own a new SlidePart");
+const tableCloneRelationships = await tableCloneZip.file(relationshipPartPath(tableCloneSlidePath)).async("text");
 assert.match(tableCloneRelationships, /\/slideLayout/);
 assert.doesNotMatch(tableCloneRelationships, /\/(?:image|chart|hyperlink|oleObject|package)"/i, "canonical table clones must not add a table-specific OPC edge");
 const tableCloneRoundTrip = await PresentationFile.importPptx(tableClonePptx);
@@ -3637,6 +3719,7 @@ assert.deepEqual(chartClonePending.charts.items[0].categories, ["Q1", "Q2", "Q3"
 assert.deepEqual(chartClonePending.charts.items[0].series[0].values, [42, 48, 57]);
 const chartClonePptx = await PresentationFile.exportPptx(chartCloneImportedDeck);
 const chartCloneZip = await JSZip.loadAsync(chartClonePptx.bytes);
+const chartCloneSlidePath = (await orderedPptxSlidePaths(chartCloneZip))[1];
 assert.deepEqual(
   await chartCloneZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await chartCloneSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
@@ -3665,7 +3748,7 @@ const modeledChartRelationship = (xml) => {
   return relationships[0];
 };
 const sourceChartRelationship = modeledChartRelationship(await chartCloneZip.file("ppt/slides/_rels/slide1.xml.rels").async("text"));
-const cloneChartRelationship = modeledChartRelationship(await chartCloneZip.file("ppt/slides/_rels/slide2.xml.rels").async("text"));
+const cloneChartRelationship = modeledChartRelationship(await chartCloneZip.file(relationshipPartPath(chartCloneSlidePath)).async("text"));
 assert.equal(cloneChartRelationship.id, sourceChartRelationship.id, "the clone must retain the slide-local chart relationship ID");
 assert.equal(cloneChartRelationship.type, sourceChartRelationship.type);
 assert.equal(cloneChartRelationship.targetMode, undefined);
@@ -3711,11 +3794,17 @@ connectedChartCloneZip.file(
 const connectedChartCloneSource = await connectedChartCloneZip.generateAsync({ type: "uint8array" });
 const connectedChartCloneDeck = await PresentationFile.importPptx(connectedChartCloneSource);
 connectedChartCloneDeck.slides.getItem(0).duplicate();
-await assert.rejects(
-  () => PresentationFile.exportPptx(connectedChartCloneDeck),
-  (error) => error?.code === "unsupported_presentation_slide_clone",
-  "a chart with any child relationship graph must fail closed",
-);
+const connectedChartCloneOutput = await PresentationFile.exportPptx(connectedChartCloneDeck);
+const connectedChartCloneOutputZip = await JSZip.loadAsync(connectedChartCloneOutput.bytes);
+const connectedChartParts = chartPartPaths(connectedChartCloneOutputZip);
+assert.equal(connectedChartParts.length, 2);
+for (const chartPartPath of connectedChartParts) {
+  assert.match(
+    await connectedChartCloneOutputZip.file(relationshipPartPath(chartPartPath)).async("text"),
+    /rIdUnsafeChartChild/,
+    "the graph clone must retain external relationships owned by both independent ChartParts",
+  );
+}
 
 // A group is clone-safe only when every descendant is already in the narrow
 // shape/table/closed-chart/image leaf. The group and every child receive fresh
@@ -3783,6 +3872,7 @@ assert.deepEqual(groupCloneCopy.tables.items[0].values, [["Gate", "State"], ["QA
 assert.equal(groupCloneCopy.groups.items[0].shapes.items[0].text.value, "Nested");
 const groupClonePptx = await PresentationFile.exportPptx(groupCloneImportedDeck);
 const groupCloneZip = await JSZip.loadAsync(groupClonePptx.bytes);
+const groupCloneSlidePath = (await orderedPptxSlidePaths(groupCloneZip))[1];
 assert.deepEqual(
   await groupCloneZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await groupCloneSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
@@ -3794,7 +3884,7 @@ assert.deepEqual(
   "cloning a recursively canonical group must retain its shared media bytes",
 );
 assert.deepEqual(
-  imageRelationshipTargets(await groupCloneZip.file("ppt/slides/_rels/slide2.xml.rels").async("text")),
+  imageRelationshipTargets(await groupCloneZip.file(relationshipPartPath(groupCloneSlidePath)).async("text")),
   imageRelationshipTargets(await groupCloneZip.file("ppt/slides/_rels/slide1.xml.rels").async("text")),
   "nested clone images must receive the same verified relationship target as the origin",
 );
@@ -3847,12 +3937,13 @@ assert.equal(connectedGroupCloneConnector.startTargetId, connectedGroupCloneCopy
 assert.equal(connectedGroupCloneConnector.endTargetId, connectedGroupCloneCopy.shapes.items[1].id);
 const connectedGroupClonePptx = await PresentationFile.exportPptx(connectedGroupCloneImported);
 const connectedGroupCloneZip = await JSZip.loadAsync(connectedGroupClonePptx.bytes);
+const connectedGroupCloneSlidePath = (await orderedPptxSlidePaths(connectedGroupCloneZip))[1];
 assert.deepEqual(
   await connectedGroupCloneZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await connectedGroupCloneSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
   "cloning a group with bounded connectors must retain its origin SlidePart byte-for-byte",
 );
-assert.ok(connectedGroupCloneZip.file("ppt/slides/slide2.xml"), "the connector clone must own a new SlidePart");
+assert.ok(connectedGroupCloneZip.file(connectedGroupCloneSlidePath), "the connector clone must own a new SlidePart");
 const connectedGroupCloneRoundTrip = await PresentationFile.importPptx(connectedGroupClonePptx);
 const connectedGroupCloneRoundTripGroup = connectedGroupCloneRoundTrip.slides.getItem(1).groups.items[0];
 const connectedGroupCloneRoundTripConnector = connectedGroupCloneRoundTripGroup.connectors.items[0];
@@ -3906,6 +3997,7 @@ const notesClone = notesCloneImportedSource.duplicate();
 assert.equal(notesClone.speakerNotes.text, "Open with the customer outcome.\nClose with the operating decision.");
 const notesClonePptx = await PresentationFile.exportPptx(notesCloneImportedDeck);
 const notesCloneZip = await JSZip.loadAsync(notesClonePptx.bytes);
+const notesCloneSlidePath = (await orderedPptxSlidePaths(notesCloneZip))[1];
 assert.deepEqual(
   await notesCloneZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await notesCloneSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
@@ -3923,9 +4015,11 @@ assert.deepEqual(
 );
 const notesClonePaths = Object.keys(notesCloneZip.files)
   .filter((path) => /^ppt\/notesSlides\/notesSlide\d+\.xml$/i.test(path));
-assert.deepEqual(notesClonePaths, ["ppt/notesSlides/notesSlide1.xml", "ppt/notesSlides/notesSlide2.xml"]);
+assert.equal(notesClonePaths.length, 2);
+const notesCloneCopyPath = notesClonePaths.find((partPath) => partPath !== notesCloneSourceNotesPath);
+assert.ok(notesCloneCopyPath);
 assert.equal(
-  await notesCloneZip.file("ppt/notesSlides/notesSlide2.xml").async("text"),
+  await notesCloneZip.file(notesCloneCopyPath).async("text"),
   await notesCloneZip.file(notesCloneSourceNotesPath).async("text"),
   "the clone NotesSlide XML must be a verbatim copy of the source notes XML",
 );
@@ -3936,14 +4030,14 @@ const relationshipAttributeForType = (relationships, suffix, attribute) => {
   return tag && new RegExp(`\\b${attribute}="([^"]+)"`, "i").exec(tag)?.[1];
 };
 const sourceSlideRelationships = await notesCloneZip.file("ppt/slides/_rels/slide1.xml.rels").async("text");
-const cloneSlideRelationships = await notesCloneZip.file("ppt/slides/_rels/slide2.xml.rels").async("text");
+const cloneSlideRelationships = await notesCloneZip.file(relationshipPartPath(notesCloneSlidePath)).async("text");
 const sourceNotesRelationships = await notesCloneZip.file("ppt/notesSlides/_rels/notesSlide1.xml.rels").async("text");
-const cloneNotesRelationships = await notesCloneZip.file("ppt/notesSlides/_rels/notesSlide2.xml.rels").async("text");
+const cloneNotesRelationships = await notesCloneZip.file(relationshipPartPath(notesCloneCopyPath)).async("text");
 assert.equal(relationshipAttributeForType(cloneSlideRelationships, "notesSlide", "Id"), relationshipAttributeForType(sourceSlideRelationships, "notesSlide", "Id"));
 assert.equal(relationshipAttributeForType(cloneNotesRelationships, "notesMaster", "Id"), relationshipAttributeForType(sourceNotesRelationships, "notesMaster", "Id"));
 assert.equal(relationshipAttributeForType(cloneNotesRelationships, "notesMaster", "Target"), relationshipAttributeForType(sourceNotesRelationships, "notesMaster", "Target"));
 assert.equal(relationshipAttributeForType(cloneNotesRelationships, "slide", "Id"), relationshipAttributeForType(sourceNotesRelationships, "slide", "Id"));
-assert.equal(relationshipAttributeForType(cloneNotesRelationships, "slide", "Target"), "/ppt/slides/slide2.xml");
+assert.equal(relationshipAttributeForType(cloneNotesRelationships, "slide", "Target"), `/${notesCloneSlidePath}`);
 const notesCloneRoundTrip = await PresentationFile.importPptx(notesClonePptx);
 assert.deepEqual(notesCloneRoundTrip.slides.items.map((slide) => slide.speakerNotes.text), [
   "Open with the customer outcome.\nClose with the operating decision.",
@@ -4240,13 +4334,10 @@ const sharedOleObject = itemByName(sharedOlePresentation.slides.getItem(0).nativ
 assert.equal(sharedOleObject.oleWorkbook, undefined);
 assert.deepEqual(sharedOleObject.inspectRecord().editableFields, []);
 assert.throws(() => sharedOleObject.getEmbeddedWorkbook(), /has no embedded XLSX workbook/);
+assert.equal(sharedOlePresentation.slides.getItem(0).cloneCapability.supported, true);
 const sharedOleSlideCount = sharedOlePresentation.slides.items.length;
-assert.throws(
-  () => sharedOlePresentation.slides.getItem(0).duplicate(),
-  (error) => error?.code === "unsupported_presentation_slide_clone",
-  "an OLE package with more than one inbound relationship must fail clone preflight before mutating the model",
-);
-assert.equal(sharedOlePresentation.slides.items.length, sharedOleSlideCount);
+sharedOlePresentation.slides.getItem(0).duplicate();
+assert.equal((await PresentationFile.importPptx(await PresentationFile.exportPptx(sharedOlePresentation))).slides.items.length, sharedOleSlideCount + 1);
 
 // The additive Office-package capability is not a generic OLE escape hatch:
 // today it recognizes only one uniquely-bound DOCX payload. It preserves the
@@ -4358,6 +4449,7 @@ const oleCloneExport = await PresentationFile.exportPptx(oleCloneImported);
 assert.deepEqual(oleCloneSource.bytes, oleCloneSourceSnapshot);
 const oleCloneSourceZip = await JSZip.loadAsync(oleCloneSource.bytes);
 const oleCloneOutputZip = await JSZip.loadAsync(oleCloneExport.bytes);
+const oleCloneSlidePath = (await orderedPptxSlidePaths(oleCloneOutputZip))[1];
 assert.deepEqual(
   await oleCloneOutputZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await oleCloneSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
@@ -4395,7 +4487,7 @@ const resolveSlideRelationshipTarget = (target) => target.startsWith("/")
   ? target.replace(/^\/+/, "")
   : path.posix.normalize(path.posix.join("ppt/slides", target));
 const oleCloneSourceRelationships = await oleCloneOutputZip.file("ppt/slides/_rels/slide1.xml.rels").async("text");
-const oleCloneCopyRelationships = await oleCloneOutputZip.file("ppt/slides/_rels/slide3.xml.rels").async("text");
+const oleCloneCopyRelationships = await oleCloneOutputZip.file(relationshipPartPath(oleCloneSlidePath)).async("text");
 const oleCloneSourcePackageRelationship = relationshipForType(oleCloneSourceRelationships, "package");
 const oleCloneCopyPackageRelationship = relationshipForType(oleCloneCopyRelationships, "package");
 assert.equal(oleCloneCopyPackageRelationship.id, oleCloneSourcePackageRelationship.id);
@@ -4477,6 +4569,7 @@ const smartArtExport = await PresentationFile.exportPptx(smartArtImported);
 assert.deepEqual(smartArtSource.bytes, smartArtSourceSnapshot);
 const smartArtSourceZip = await JSZip.loadAsync(smartArtSource.bytes);
 const smartArtOutputZip = await JSZip.loadAsync(smartArtExport.bytes);
+const smartArtCloneSlidePath = (await orderedPptxSlidePaths(smartArtOutputZip))[1];
 assert.deepEqual(
   await smartArtOutputZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await smartArtSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
@@ -4488,7 +4581,7 @@ assert.deepEqual(
   "SmartArt cloning must retain the origin relationship part byte-for-byte",
 );
 const smartArtSourceRels = await smartArtOutputZip.file("ppt/slides/_rels/slide1.xml.rels").async("text");
-const smartArtCloneRels = await smartArtOutputZip.file("ppt/slides/_rels/slide3.xml.rels").async("text");
+const smartArtCloneRels = await smartArtOutputZip.file(relationshipPartPath(smartArtCloneSlidePath)).async("text");
 const smartArtTypeSuffixes = ["diagramData", "diagramLayout", "diagramQuickStyle", "diagramColors"];
 const smartArtClonePartPaths = [];
 for (const typeSuffix of smartArtTypeSuffixes) {
@@ -4609,13 +4702,10 @@ const connectedSmartArtSource = await PresentationFile.patchPptx(smartArtSource,
   xml: '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdUnsafeSmartArtLink" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://example.invalid/smartart" TargetMode="External"/></Relationships>',
 }]);
 const connectedSmartArt = await PresentationFile.importPptx(connectedSmartArtSource);
+assert.equal(connectedSmartArt.slides.getItem(0).cloneCapability.supported, true);
 const connectedSmartArtSlideCount = connectedSmartArt.slides.items.length;
-assert.throws(
-  () => connectedSmartArt.slides.getItem(0).duplicate(),
-  (error) => error?.code === "unsupported_presentation_slide_clone",
-  "a relationship-bearing SmartArt part must fail before mutating the model",
-);
-assert.equal(connectedSmartArt.slides.items.length, connectedSmartArtSlideCount);
+connectedSmartArt.slides.getItem(0).duplicate();
+assert.equal((await PresentationFile.importPptx(await PresentationFile.exportPptx(connectedSmartArt))).slides.items.length, connectedSmartArtSlideCount + 1);
 
 const nestedSmartArt = await PresentationFile.importPptx(smartArtSource);
 const nestedSmartArtObject = itemByName(nestedSmartArt.slides.getItem(0).nativeObjects.items, "Clone-safe SmartArt");
@@ -4627,25 +4717,6 @@ assert.throws(
   "a SmartArt graph whose source binding is not a top-level graphicFrame must fail before mutating the model",
 );
 assert.equal(nestedSmartArt.slides.items.length, nestedSmartArtSlideCount);
-
-const foreignRelationshipNamespaceSource = await PresentationFile.patchPptx(smartArtSource, [{
-  path: "ppt/slides/slide1.xml",
-  xml: (await smartArtSourceZip.file("ppt/slides/slide1.xml").async("text")).replace(
-    smartArtFrame,
-    smartArtFrame.replace(
-      "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
-      "https://example.invalid/relationships",
-    ),
-  ),
-}]);
-const foreignRelationshipNamespaceSmartArt = await PresentationFile.importPptx(foreignRelationshipNamespaceSource);
-const foreignNamespaceSlideCount = foreignRelationshipNamespaceSmartArt.slides.items.length;
-assert.throws(
-  () => foreignRelationshipNamespaceSmartArt.slides.getItem(0).duplicate(),
-  (error) => error?.code === "unsupported_presentation_slide_clone",
-  "a relationship-like but non-OOXML SmartArt namespace must fail before mutating the model",
-);
-assert.equal(foreignRelationshipNamespaceSmartArt.slides.items.length, foreignNamespaceSlideCount);
 
 // A canonical top-level p:contentPart is the PresentationML carrier for one
 // standard InkML CustomXmlPart. The clone must allocate a new InkML part under
@@ -4677,6 +4748,7 @@ const inkExport = await PresentationFile.exportPptx(inkImported);
 assert.deepEqual(inkSource.bytes, inkSourceSnapshot);
 const inkSourceZip = await JSZip.loadAsync(inkSource.bytes);
 const inkOutputZip = await JSZip.loadAsync(inkExport.bytes);
+const inkCloneSlidePath = (await orderedPptxSlidePaths(inkOutputZip))[1];
 assert.deepEqual(
   await inkOutputZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await inkSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
@@ -4688,12 +4760,12 @@ assert.deepEqual(
   "InkML cloning must retain the origin relationship part byte-for-byte",
 );
 const inkSourceRelationship = relationshipForType(await inkOutputZip.file("ppt/slides/_rels/slide1.xml.rels").async("text"), "customXml");
-const inkCloneRelationship = relationshipForType(await inkOutputZip.file("ppt/slides/_rels/slide3.xml.rels").async("text"), "customXml");
+const inkCloneRelationship = relationshipForType(await inkOutputZip.file(relationshipPartPath(inkCloneSlidePath)).async("text"), "customXml");
 const inkSourcePartPath = resolveSlideRelationshipTarget(inkSourceRelationship.target);
 const inkClonePartPath = resolveSlideRelationshipTarget(inkCloneRelationship.target);
 assert.equal(inkCloneRelationship.id, inkSourceRelationship.id);
 assert.equal(inkSourcePartPath, "ppt/customXml/agent-ink.xml");
-assert.match(inkClonePartPath, /^ppt\/customXml\/item\d+\.xml$/i);
+assert.match(inkClonePartPath, /^ppt\/customXml\/[^/]+\.xml$/i);
 assert.notEqual(inkClonePartPath, inkSourcePartPath);
 assert.deepEqual(
   await inkOutputZip.file(inkClonePartPath).async("uint8array"),
@@ -4712,13 +4784,10 @@ const connectedInkSource = await PresentationFile.patchPptx(inkSource, [{
   xml: '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdUnsafeInkLink" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://example.invalid/ink" TargetMode="External"/></Relationships>',
 }]);
 const connectedInk = await PresentationFile.importPptx(connectedInkSource);
+assert.equal(connectedInk.slides.getItem(0).cloneCapability.supported, true);
 const connectedInkSlideCount = connectedInk.slides.items.length;
-assert.throws(
-  () => connectedInk.slides.getItem(0).duplicate(),
-  (error) => error?.code === "unsupported_presentation_slide_clone",
-  "a relationship-bearing InkML part must fail before mutating the model",
-);
-assert.equal(connectedInk.slides.items.length, connectedInkSlideCount);
+connectedInk.slides.getItem(0).duplicate();
+assert.equal((await PresentationFile.importPptx(await PresentationFile.exportPptx(connectedInk))).slides.items.length, connectedInkSlideCount + 1);
 
 const nestedInk = await PresentationFile.importPptx(inkSource);
 const nestedInkObject = itemByName(nestedInk.slides.getItem(0).nativeObjects.items, "Clone-safe ink");
@@ -4763,6 +4832,7 @@ const mediaExport = await PresentationFile.exportPptx(mediaImported);
 assert.deepEqual(mediaSource.bytes, mediaSourceSnapshot);
 const mediaSourceZip = await JSZip.loadAsync(mediaSource.bytes);
 const mediaOutputZip = await JSZip.loadAsync(mediaExport.bytes);
+const mediaCloneSlidePath = (await orderedPptxSlidePaths(mediaOutputZip))[1];
 assert.deepEqual(
   await mediaOutputZip.file("ppt/slides/slide1.xml").async("uint8array"),
   await mediaSourceZip.file("ppt/slides/slide1.xml").async("uint8array"),
@@ -4774,7 +4844,7 @@ assert.deepEqual(
   "embedded-video cloning must retain the origin relationship part byte-for-byte",
 );
 const mediaSourceRels = await mediaOutputZip.file("ppt/slides/_rels/slide1.xml.rels").async("text");
-const mediaCloneRels = await mediaOutputZip.file("ppt/slides/_rels/slide3.xml.rels").async("text");
+const mediaCloneRels = await mediaOutputZip.file(relationshipPartPath(mediaCloneSlidePath)).async("text");
 const sourceVideoRelationship = relationshipForType(mediaSourceRels, "video");
 const sourceMediaRelationship = relationshipForType(mediaSourceRels, "media");
 const sourcePosterRelationship = relationshipForType(mediaSourceRels, "image");
@@ -4849,13 +4919,10 @@ const wrongTypeMediaSource = await PresentationFile.patchPptx(cloneSourcePptx, [
   { path: "ppt/media/agent-video-poster.png", bytes: embeddedPreviewBytes, contentType: "image/png" },
 ]);
 const wrongTypeMedia = await PresentationFile.importPptx(wrongTypeMediaSource);
+assert.equal(wrongTypeMedia.slides.getItem(0).cloneCapability.supported, true);
 const wrongTypeMediaSlideCount = wrongTypeMedia.slides.items.length;
-assert.throws(
-  () => wrongTypeMedia.slides.getItem(0).duplicate(),
-  (error) => error?.code === "unsupported_presentation_slide_clone",
-  "a non-MP4 media payload must fail before mutating the model",
-);
-assert.equal(wrongTypeMedia.slides.items.length, wrongTypeMediaSlideCount);
+wrongTypeMedia.slides.getItem(0).duplicate();
+assert.equal((await PresentationFile.importPptx(await PresentationFile.exportPptx(wrongTypeMedia))).slides.items.length, wrongTypeMediaSlideCount + 1);
 
 const masterPath = "ppt/slideMasters/slideMaster1.xml";
 const layoutPath = "ppt/slideLayouts/slideLayout1.xml";
@@ -5192,9 +5259,12 @@ assert.notEqual(legacyCommentClone.comments.items[0], legacyCommentCloneSource.c
 assert.equal(legacyCommentClone.comments.items[0].comments[0].text, "Confirm the source before delivery.");
 const legacyCommentCloneExport = await PresentationFile.exportPptx(legacyCommentCloneDeck);
 const legacyCommentCloneZip = await JSZip.loadAsync(new Uint8Array(await legacyCommentCloneExport.arrayBuffer()));
-assert.ok(legacyCommentCloneZip.file("ppt/comments/comment2.xml"));
+const legacyCommentClonePaths = Object.keys(legacyCommentCloneZip.files).filter((partPath) => /^ppt\/comments\/comment[^/]*\.xml$/i.test(partPath));
+assert.equal(legacyCommentClonePaths.length, 2);
+const legacyCommentClonePartPath = legacyCommentClonePaths.find((partPath) => partPath !== "ppt/comments/comment1.xml");
+assert.ok(legacyCommentClonePartPath);
 assert.deepEqual(
-  await legacyCommentCloneZip.file("ppt/comments/comment2.xml").async("uint8array"),
+  await legacyCommentCloneZip.file(legacyCommentClonePartPath).async("uint8array"),
   await legacyCommentZip.file("ppt/comments/comment1.xml").async("uint8array"),
 );
 assert.deepEqual(

@@ -1,5 +1,57 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-12): Imported PPTX ownership-graph clone
+
+Imported slides now expose `slide.cloneCapability` with a source-bound,
+supported/blocked decision and exact cloned/shared part counts. The OfficeKit
+Codec no longer dispatches clone behavior through Chart/OLE/SmartArt/InkML/
+media-specific copy branches. One `PptxSlideCloneCodec` analyzes ownership and
+uses the Open XML SDK cross-package `AddPart` graph copier for the SlidePart and
+every uniquely owned descendant. Exact bytes, content types, local relationship
+IDs, external relationships, DataParts, and repeated owned-node edges are
+validated after write. Proven shared layouts, NotesMaster, images, and retained
+slide-jump targets are rebound to their existing package identity.
+
+The additive protocol-v2 field 20 carries that defensive capability without
+renumbering prior fields. JavaScript checks it before inserting a clone, keeps
+native-object snapshots immutable, and still resolves connector targets to
+fresh clone-local element identities. Export ignores caller capability claims
+and re-analyzes the source graph. Sections, modern comments, outside-owned
+nodes, removed slide-jump targets, pending native replacements, semantic or
+connector ambiguity, repeated pending clones, origin deletion, and the
+2,048-part/512-DataPart budgets fail closed.
+
+Regression coverage includes an unknown two-level exclusive OPC graph with an
+external relationship, byte-exact independent source/clone descendants, second
+import, and an unknown shared-node negative case. Existing chart, OLE, SmartArt,
+InkML, MP4, notes, comments, links, groups, tables, and images continue through
+the same graph primitive. Tests now resolve ordered SlideParts through
+`presentation.xml` relationships because Open XML SDK collision-free URI
+allocation is legal and not a document identity contract. The old inactive
+type-specific preflight/copy/validation catalog was deleted from `PptxCodec`.
+
+Template Following is no longer blocked by the single-slide Codec primitive.
+Its checked-in starter command still fails closed because multi-slide map
+execution, export/reimport sequencing, and audited inherited-target editing are
+not implemented; documentation reports that orchestration gap explicitly.
+
+Local candidate evidence covers the complete 28-step fast gate and all 77 slow
+steps, generated API docs, protocol lint plus idempotent generation, OfficeKit
+Codec 401/401, OfficeBridge 5/5, and deterministic OfficeKit WASM (39-file
+comparison; runtime 38 files / 15,385,323 bytes). Clean-install package smoke,
+standalone distribution, both Live Add-in builds, all twenty templates,
+Playwright, qpdf, LibreOffice, and Poppler also pass. Managed provider-pack
+downloads and separately configured pypdf, pikepdf, pyHanko, veraPDF, OCRmyPDF,
+and PromptBench Python runtimes remain explicit local skips rather than
+provider-execution evidence.
+
+The isolated staged candidate excludes the user's unrelated README edits and
+packs 732 files at 36,278,691 bytes compressed and 53,326,623 bytes unpacked
+(`shasum 084eede7f1df23244dc8fb34c09213e8df995728`), leaving 373,377 bytes below
+the unchanged 53,700,000-byte unpacked ceiling. `npm whoami` remains
+unauthenticated, so npm publication and a tagged release are not attempted.
+Windows Microsoft Office host acceptance remains external evidence.
+
 ## Current 0.6.0 candidate (2026-08-12): Imported PPTX exclusive graph deletion
 
 Imported slides now expose `slide.deletionCapability` before an Agent mutates
@@ -28,8 +80,9 @@ renumbering an existing field. Native tests cover an arbitrary two-level
 unknown exclusive graph, a shared opaque leaf, inbound refusal, Open XML SDK
 validation, multi-slide aggregate ownership, and second import. The JS/WASM path covers capability inspection,
 pre-mutation refusal with unchanged slide count, a nontrivial graph deletion,
-real ZIP removal, and second import. Template Following documentation now names
-broad arbitrary slide clone—not deletion—as its remaining starter-deck blocker.
+real ZIP removal, and second import. The later ownership-graph clone milestone
+supersedes the old starter-deck clone blocker; multi-slide workflow orchestration
+is now the remaining Template Following gap.
 
 Local candidate evidence covers the complete 28-step fast gate and all 77 slow
 steps, generated API docs, protocol lint plus idempotent generation, OfficeKit

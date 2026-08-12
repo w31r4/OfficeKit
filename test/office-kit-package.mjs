@@ -479,7 +479,8 @@ try {
       allowClosedLeaves: true,
     });
     if (
-      cloneResult.audit.operation.clonePart !== "ppt/slides/slide2.xml" ||
+      !/^ppt\/slides\/slide\d+\.xml$/.test(cloneResult.audit.operation.clonePart) ||
+      cloneResult.audit.operation.clonePart === cloneResult.audit.operation.sourcePart ||
       cloneResult.audit.operation.runHyperlinks.relationshipCount !== 1 ||
       cloneResult.audit.operation.runHyperlinks.actionOnlyCount !== 2 ||
       cloneResult.audit.operation.runHyperlinks.customShowCount !== 1 ||

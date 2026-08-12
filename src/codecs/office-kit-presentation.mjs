@@ -42,6 +42,7 @@ const PRESENTATION_SPEAKER_NOTES_CAPABILITY = Symbol.for("office-kit.speaker-not
 const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("office-kit.legacy-comments-capability");
 const PRESENTATION_SLIDE_VISIBILITY_CAPABILITY = Symbol.for("office-kit.slide-visibility-capability");
 const PRESENTATION_SLIDE_DELETION_CAPABILITY = Symbol.for("office-kit.slide-deletion-capability");
+const PRESENTATION_SLIDE_CLONE_CAPABILITY = Symbol.for("office-kit.slide-clone-capability");
 const PRESENTATION_SCHEME_COLORS = new Set([
   "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
   "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink",
@@ -508,11 +509,9 @@ function cloneablePresentationMediaModel(source) {
 // a fresh JavaScript object while retaining the exact source graph snapshot;
 // C# allocates independent mutable parts during the first export.
 function cloneImportedPresentationNativeObject(container, source, context) {
-  const cloneableOle = source?.kind === "nativeObject" && source.nativeKind === "oleObject" && source.oleWorkbook &&
-    !source.oleOfficePackage && !source._embeddedWorkbookReplacementBytes?.();
-  const cloneableDiagram = cloneablePresentationDiagramModel(source) && !source?._diagramTextReplacement?.();
-  if (!cloneableOle && !cloneableDiagram && !cloneablePresentationInkContentModel(source) && !cloneablePresentationMediaModel(source)) {
-    throw new OfficeKitCodecError("The bounded imported-slide clone profile accepts only an unchanged eligible embedded-XLSX OLE object, canonical closed four-part SmartArt frame, canonical top-level closed InkML content part, or canonical top-level closed MP4 media picture.", [], { code: "unsupported_presentation_slide_clone" });
+  if (source?.kind !== "nativeObject" || source._embeddedWorkbookReplacementBytes?.() ||
+      source._embeddedOfficePackageReplacementBytes?.() || source._diagramTextReplacement?.()) {
+    throw new OfficeKitCodecError("Imported-slide graph clone requires an unchanged source-bound native object.", [], { code: "unsupported_presentation_slide_clone" });
   }
   const clone = container.nativeObjects.add({
     name: source.name,
@@ -526,6 +525,7 @@ function cloneImportedPresentationNativeObject(container, source, context) {
     rootRelationships: clonedPresentationValue(source.rootRelationships),
     parts: clonedPresentationValue(source.parts),
     oleWorkbook: clonedPresentationValue(source.oleWorkbook),
+    oleOfficePackage: clonedPresentationValue(source.oleOfficePackage),
     diagramText: clonedPresentationValue(source._diagramTextSourceBinding?.()),
   });
   return registerPresentationCloneElement(context, source, clone);
@@ -587,10 +587,7 @@ function cloneImportedPresentationElement(container, source, context) {
 function cloneSupportedPresentationContent(content, allowNativeGraphLeaf = true) {
   if (content?.case === "shape" || content?.case === "table" || content?.case === "chart" || content?.case === "image" || content?.case === "connector") return true;
   if (content?.case === "opaque") {
-    const opaque = content.value;
-    const cloneableOle = opaque?.nativeKind === "oleObject" && Boolean(opaque.oleWorkbook?.partPath) &&
-      Boolean(opaque.oleWorkbook?.sourceSha256) && !opaque.oleWorkbook?.replacementAssetId;
-    return allowNativeGraphLeaf && !opaque?.oleOfficePackage && (cloneableOle || cloneablePresentationDiagramWire(opaque) || cloneablePresentationInkContentWire(opaque) || cloneablePresentationMediaWire(opaque));
+    return allowNativeGraphLeaf && Boolean(content.value?.rawXml);
   }
   if (content?.case !== "group") return false;
   const children = content.value?.children;
@@ -598,11 +595,9 @@ function cloneSupportedPresentationContent(content, allowNativeGraphLeaf = true)
 }
 
 function collectPresentationCloneSourceIds(source, ids, allowNativeGraphLeaf = true) {
-  const cloneableOle = allowNativeGraphLeaf && source?.kind === "nativeObject" && source.nativeKind === "oleObject" && Boolean(source.oleWorkbook) && !source.oleOfficePackage && !source._embeddedWorkbookReplacementBytes?.();
-  const cloneableDiagram = allowNativeGraphLeaf && cloneablePresentationDiagramModel(source) && !source?._diagramTextReplacement?.();
-  const cloneableInkContent = allowNativeGraphLeaf && cloneablePresentationInkContentModel(source);
-  const cloneableMedia = allowNativeGraphLeaf && cloneablePresentationMediaModel(source);
-  if (!(source instanceof Shape) && !(source instanceof TableElement) && !(source instanceof ChartElement) && !(source instanceof ImageElement) && !isPresentationConnectorElement(source) && !(source instanceof GroupShape) && !cloneableOle && !cloneableDiagram && !cloneableInkContent && !cloneableMedia) {
+  const cloneableNative = allowNativeGraphLeaf && source?.kind === "nativeObject" &&
+    !source._embeddedWorkbookReplacementBytes?.() && !source._embeddedOfficePackageReplacementBytes?.() && !source._diagramTextReplacement?.();
+  if (!(source instanceof Shape) && !(source instanceof TableElement) && !(source instanceof ChartElement) && !(source instanceof ImageElement) && !isPresentationConnectorElement(source) && !(source instanceof GroupShape) && !cloneableNative) {
     throw new OfficeKitCodecError("The bounded imported-slide clone profile encountered an unsupported source element.", [], { code: "unsupported_presentation_slide_clone" });
   }
   const id = String(source.id || "");
@@ -669,8 +664,18 @@ function duplicateImportedPresentationSlide(presentation, state, slide) {
   if ((state.clones || []).some((entry) => entry.source === source)) {
     throw new OfficeKitCodecError("The bounded imported-slide clone profile permits only one pending clone per origin; export and reimport it before cloning that source again.", [], { code: "unsupported_presentation_slide_clone" });
   }
+  const capability = slide.cloneCapability;
+  if (!capability.known || !capability.supported) {
+    const detail = capability.blockedReason ? `: ${capability.blockedReason}` : ".";
+    throw new OfficeKitCodecError(`Imported presentation slide cannot be safely cloned${detail}`, [], { code: "unsupported_presentation_slide_clone" });
+  }
   if (source.entries.some((entry) => !cloneSupportedPresentationContent(entry.wire.content))) {
-    throw new OfficeKitCodecError("The bounded imported-slide clone profile supports only canonical shapes, inline tables, closed literal-data charts, embedded images, eligible embedded-XLSX OLE frames, closed four-part SmartArt frames, top-level closed InkML content parts, top-level closed embedded-MP4 media pictures, bounded connectors, and recursively canonical groups; other native objects and graph edges require a broader OPC graph clone.", [], { code: "unsupported_presentation_slide_clone" });
+    throw new OfficeKitCodecError("Imported-slide graph clone encountered an unsupported semantic element tree.", [], { code: "unsupported_presentation_slide_clone" });
+  }
+  for (const entry of source.entries) {
+    if (entry.wire.content.case === "opaque" && entry.snapshot !== opaquePresentationSnapshot(entry.model)) {
+      throw new OfficeKitCodecError("Imported-slide graph clone requires every source-bound native object to remain unchanged before its first export.", [], { code: "unsupported_presentation_slide_clone" });
+    }
   }
   const sourceIds = new Set();
   for (const entry of source.entries) collectPresentationCloneSourceIds(entry.model, sourceIds);
@@ -3424,6 +3429,17 @@ export async function presentationFromEnvelope(envelope) {
         supported: deletionCapability?.supported === true,
         blockedReason: deletionCapability?.blockedReason || "",
         ownedPartCount: Number(deletionCapability?.ownedPartCount || 0),
+      }),
+    });
+    const cloneCapability = sourceSlide.source?.cloneCapability;
+    Object.defineProperty(slide, PRESENTATION_SLIDE_CLONE_CAPABILITY, {
+      value: Object.freeze({
+        sourceBound: true,
+        known: Boolean(cloneCapability),
+        supported: cloneCapability?.supported === true,
+        blockedReason: cloneCapability?.blockedReason || "",
+        clonedPartCount: Number(cloneCapability?.clonedPartCount || 0),
+        sharedPartCount: Number(cloneCapability?.sharedPartCount || 0),
       }),
     });
     slide.id = sourceSlide.id || slide.id;

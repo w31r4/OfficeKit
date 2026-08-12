@@ -335,6 +335,9 @@ internal static class PptxSectionCodec
                 "ppt/presentation.xml");
     }
 
+    internal static bool HasSectionGraph(PresentationPart owner) =>
+        owner.Presentation is { } root && SectionExtension(root) is not null;
+
     private static P.PresentationExtension? SectionExtension(P.Presentation root) => root.PresentationExtensionList?
         .Elements<P.PresentationExtension>()
         .SingleOrDefault(extension => string.Equals(extension.Uri?.Value, ExtensionUri, StringComparison.OrdinalIgnoreCase));

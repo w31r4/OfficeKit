@@ -41,6 +41,7 @@ const PRESENTATION_SPEAKER_NOTES_CAPABILITY = Symbol.for("office-kit.speaker-not
 const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("office-kit.legacy-comments-capability");
 const PRESENTATION_SLIDE_VISIBILITY_CAPABILITY = Symbol.for("office-kit.slide-visibility-capability");
 const PRESENTATION_SLIDE_DELETION_CAPABILITY = Symbol.for("office-kit.slide-deletion-capability");
+const PRESENTATION_SLIDE_CLONE_CAPABILITY = Symbol.for("office-kit.slide-clone-capability");
 
 export { SlideTransition };
 
@@ -1126,6 +1127,12 @@ export class Slide {
       ? { ...imported }
       : { sourceBound: false, known: true, supported: true, blockedReason: "", ownedPartCount: 0 };
   }
+  get cloneCapability() {
+    const imported = this[PRESENTATION_SLIDE_CLONE_CAPABILITY];
+    return imported
+      ? { ...imported }
+      : { sourceBound: false, known: true, supported: false, blockedReason: "Source-free slides use ordinary authoring rather than source-preserving graph clone.", clonedPartCount: 0, sharedPartCount: 0 };
+  }
   setHidden(hidden) {
     if (typeof hidden !== "boolean") throw new TypeError("Presentation slide hidden must be a boolean.");
     const capability = this.visibilityCapability;
@@ -1209,7 +1216,7 @@ export class Slide {
   inspectRecords(kinds) {
     const records = [];
     if (kinds.has("layout")) { const layout = this.presentation.layouts.getItem(this.layoutId); records.push({ kind: "layout", layoutId: this.layoutId || `${this.id}/layout`, name: layout?.name || "Blank", type: layout?.type || "blank", masterId: layout?.masterId, themeId: this.effectiveTheme().id, placeholders: layout?.placeholders.length || 0 }); }
-    if (kinds.has("slide")) records.push({ kind: "slide", id: this.id, slide: this.index + 1, title: this.title(), hidden: this.hidden, visibilityCapability: this.visibilityCapability, deletionCapability: this.deletionCapability, background: this.background.fill ? this.background : undefined, effectiveBackground: this.effectiveBackground(), transition: this.transition.toJSON(), transitionCapability: this.transition.capability, textShapes: this.shapes.items.filter((s) => s.text.value).length, tables: this.tables.items.length, charts: this.charts.items.length, images: this.images.items.length, connectors: this.connectors.items.length, groups: this.groups.items.length, nativeObjects: this.nativeObjects.items.length, comments: this.comments.items.length, commentsCapability: this.comments.capability, hasNotes: Boolean(this.speakerNotes.text), notesCapability: this.speakerNotes.capability });
+    if (kinds.has("slide")) records.push({ kind: "slide", id: this.id, slide: this.index + 1, title: this.title(), hidden: this.hidden, visibilityCapability: this.visibilityCapability, deletionCapability: this.deletionCapability, cloneCapability: this.cloneCapability, background: this.background.fill ? this.background : undefined, effectiveBackground: this.effectiveBackground(), transition: this.transition.toJSON(), transitionCapability: this.transition.capability, textShapes: this.shapes.items.filter((s) => s.text.value).length, tables: this.tables.items.length, charts: this.charts.items.length, images: this.images.items.length, connectors: this.connectors.items.length, groups: this.groups.items.length, nativeObjects: this.nativeObjects.items.length, comments: this.comments.items.length, commentsCapability: this.comments.capability, hasNotes: Boolean(this.speakerNotes.text), notesCapability: this.speakerNotes.capability });
     for (const shape of this.shapes) {
       if (kinds.has("textbox") && shape.text.value) records.push(shape.inspectRecord("textbox"));
       else if (kinds.has("shape")) records.push(shape.inspectRecord("shape"));

@@ -3,16 +3,14 @@
 Use when the user provides an existing PPTX, asks to follow a presentation, or
 attaches a PPTX that is clearly or implicitly a template.
 
-> Current canonical codec boundary: deletion is no longer the limiting step.
-> `slide.deletionCapability` and export independently prove an imported slide's
-> exclusively owned OPC descendant closure, deleting that real graph while
-> retaining shared resources and rejecting inbound/identity-sensitive edges.
-> The reference starter-deck route still requires broader arbitrary imported-
-> slide duplication than the current bounded closed clone profiles.
-> Do not substitute a reconstructed or shared-part copy. If the task requires
-> `duplicate-slide`, report that the broader OPC graph-clone milestone is unavailable
-> and preserve the source deck; use the inspection/planning/QA portions of this
-> workflow only.
+> Current canonical boundary: `slide.cloneCapability` can prove and duplicate
+> one imported slide's closed, uniquely owned OPC descendant graph, including
+> unknown parts and external relationships. The remaining limitation is the
+> starter workflow itself: it does not yet execute a multi-slide frame map,
+> cross export/reimport boundaries, and apply audited inherited-target edits.
+> Do not substitute a reconstructed or shared-part copy. Until that orchestration
+> is implemented, use the inspection/planning/capability/QA portions only and
+> report that no starter artifact will be written.
 
 This is the entire template-following mode. Do not run template codegen, do not
 build or consume a reusable template registry, and do not rebuild a fresh deck
@@ -122,8 +120,7 @@ officekit run "$SKILL_DIR/template_following_scripts/prepare_template_starter_de
 Run `validate_template_plan.mjs` explicitly before the starter command. The
 starter command currently performs only a read-only path/input preflight and
 then fails closed before installing dependencies, importing the PPTX, or
-writing output; its future implementation is intentionally not kept as dead
-code. For template-following,
+writing output. This is an orchestration gap, not a Codec graph-clone gap. For template-following,
 `editTargets` must resolve to inherited source elements with `shapeId`,
 `shapeIds`, `sourceElementId`, or `sourceElementIds`.
 `action: "add"` is rejected by default because it usually creates new content

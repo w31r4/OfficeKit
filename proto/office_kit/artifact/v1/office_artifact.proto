@@ -1609,6 +1609,10 @@ message PresentationSlideSourceBinding {
   // descendants owned exclusively by it. Presence makes the capability known;
   // export independently re-proves the graph from the hash-bound source bytes.
   PresentationSlideDeletionCapability deletion_capability = 19;
+  // Import-time preflight for copying this concrete SlidePart through the
+  // graph-preserving clone path. Presence makes the capability known; export
+  // independently rebuilds the plan from the hash-bound source package.
+  PresentationSlideCloneCapability clone_capability = 20;
 }
 
 message PresentationSlideDeletionCapability {
@@ -1619,6 +1623,18 @@ message PresentationSlideDeletionCapability {
   // SlidePart plus exclusively owned OpenXml/DataPart descendants. Shared
   // layout/master/theme/media parts are deliberately excluded.
   uint32 owned_part_count = 3;
+}
+
+message PresentationSlideCloneCapability {
+  bool supported = 1;
+  // Stable planning evidence only. It never grants permission to bypass the
+  // export-time graph proof.
+  string blocked_reason = 2;
+  // SlidePart plus mutable descendants copied into independent package parts.
+  uint32 cloned_part_count = 3;
+  // Proven immutable or identity-bearing resources rebound to the original
+  // package objects, such as layout, NotesMaster, image, and slide-jump parts.
+  uint32 shared_part_count = 4;
 }
 
 message PresentationSpeakerNotes {

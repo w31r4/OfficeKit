@@ -1411,8 +1411,8 @@ async function assertClosedInkContentClonePackage(sourceZip, outputZip, sourceCo
       throw new Error("PPTX duplicate changed an InkML relationship identity, type, or content type.");
     }
     if (sourceContent.part === cloneContent.part || sourceZip.file(cloneContent.part) ||
-        !/^ppt\/customXml\/item\d+\.xml$/i.test(cloneContent.part)) {
-      throw new Error("PPTX duplicate must allocate a distinct canonical CustomXmlPart for every cloned InkML object.");
+        !/^ppt\/customXml\/[^/]+\.xml$/i.test(cloneContent.part)) {
+      throw new Error("PPTX duplicate must allocate a distinct CustomXmlPart path for every cloned InkML object.");
     }
     const [sourceBytes, cloneBytes] = await Promise.all([
       requiredZipBytes(sourceZip, sourceContent.part),

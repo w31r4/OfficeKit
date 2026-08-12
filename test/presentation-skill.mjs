@@ -41,6 +41,13 @@ function itemByName(items, name) {
   return item;
 }
 
+function relationshipPartPath(partPath) {
+  const slash = partPath.lastIndexOf("/");
+  const directory = slash < 0 ? "" : partPath.slice(0, slash + 1);
+  const fileName = slash < 0 ? partPath : partPath.slice(slash + 1);
+  return `${directory}_rels/${fileName}.rels`;
+}
+
 function nativeNonVisualProperties(xml, name) {
   const record = [...xml.matchAll(/<p:cNvPr\b[^>]*(?:\/>|>[\s\S]*?<\/p:cNvPr>)/g)]
     .map((match) => match[0])
@@ -1956,7 +1963,8 @@ try {
   assert.equal(duplicateResult.audit.provider.actual, "office-kit");
   assert.equal(duplicateResult.audit.operation.type, "source-bound-slide-duplicate");
   assert.equal(duplicateResult.audit.operation.sourcePart, "ppt/slides/slide1.xml");
-  assert.equal(duplicateResult.audit.operation.clonePart, "ppt/slides/slide3.xml");
+  assert.match(duplicateResult.audit.operation.clonePart, /^ppt\/slides\/slide\d+\.xml$/);
+  assert.notEqual(duplicateResult.audit.operation.clonePart, duplicateResult.audit.operation.sourcePart);
   assert.equal(duplicateResult.audit.operation.scope, "canonical-inline-leaves-with-closed-chart-leaves");
   assert.equal(duplicateResult.audit.validation.package.retainedSourcePartsByteIdentical, true);
   assert.deepEqual(duplicateResult.audit.operation.runHyperlinks, {
@@ -1986,10 +1994,14 @@ try {
   assert.match(duplicateChartAudit.sourcePart, /^ppt\/(?:slides\/)?charts\/chart\d+\.xml$/i);
   assert.match(duplicateChartAudit.clonePart, /^ppt\/(?:slides\/)?charts\/chart\d+\.xml$/i);
   assert.notEqual(duplicateChartAudit.sourcePart, duplicateChartAudit.clonePart);
+  const duplicateCloneRelationshipPart = duplicateResult.audit.operation.clonePart.replace(
+    /(^|\/)slide(\d+)\.xml$/,
+    "$1_rels/slide$2.xml.rels",
+  );
   assert.deepEqual(duplicateResult.audit.validation.package.newPartPaths, [
-    "ppt/slides/_rels/slide3.xml.rels",
+    duplicateCloneRelationshipPart,
     duplicateChartAudit.clonePart,
-    "ppt/slides/slide3.xml",
+    duplicateResult.audit.operation.clonePart,
   ].sort());
   assert.equal(duplicateResult.audit.validation.reimport.sourceAndCloneSemanticsEqual, true);
   assert.equal(duplicateResult.audit.validation.modelRender.visualEquivalent, true);
@@ -2102,7 +2114,7 @@ try {
   assert.equal(olePackageAudit.previewPartsShared, true);
   const [olePartAudit] = olePackageAudit.parts;
   assert.equal(olePartAudit.sourcePart, "ppt/embeddings/skill-clone-workbook.xlsx");
-  assert.match(olePartAudit.clonePart, /^ppt\/slides\/embeddings\/package\d+\.xlsx$/i);
+  assert.match(olePartAudit.clonePart, /^ppt\/embeddings\/[^/]+\.xlsx$/i);
   assert.notEqual(olePartAudit.clonePart, olePartAudit.sourcePart);
   assert.equal(olePartAudit.relationshipId, "rIdCloneWorkbook");
   assert.equal(olePartAudit.previewRelationshipId, "rIdCloneWorkbookPreview");
@@ -2110,9 +2122,9 @@ try {
   assert.equal(olePartAudit.workbookBytesByteIdentical, true);
   assert.equal(olePartAudit.previewShared, true);
   assert.deepEqual(oleDuplicateResult.audit.validation.package.newPartPaths, [
-    "ppt/slides/_rels/slide2.xml.rels",
+    relationshipPartPath(oleDuplicateResult.audit.operation.clonePart),
     olePartAudit.clonePart,
-    "ppt/slides/slide2.xml",
+    oleDuplicateResult.audit.operation.clonePart,
   ].sort());
   assert.equal(oleDuplicateResult.audit.validation.reimport.sourceAndCloneOleWorkbookBindingsIndependent, true);
   assert.deepEqual(await fs.readFile(oleDuplicateInput), oleDuplicateSourceBytes);
@@ -2287,11 +2299,11 @@ try {
   assert.equal(smartArtPackageAudit.allPayloadsByteIdentical, true);
   assert.equal(smartArtPackageAudit.parts.length, 4);
   assert.ok(smartArtPackageAudit.parts.every((part) => part.independentPart && part.diagramXmlByteIdentical && part.sourcePart !== part.clonePart));
-  assert.ok(smartArtPackageAudit.parts.every((part) => /^ppt\/graphics\/(?:data|layout|quickStyle|colors)\d+\.xml$/i.test(part.clonePart)));
+  assert.ok(smartArtPackageAudit.parts.every((part) => /^ppt\/diagrams\/[^/]+\.xml$/i.test(part.clonePart)));
   assert.deepEqual(smartArtDuplicateResult.audit.validation.package.newPartPaths, [
-    "ppt/slides/_rels/slide2.xml.rels",
+    relationshipPartPath(smartArtDuplicateResult.audit.operation.clonePart),
     ...smartArtPackageAudit.parts.map((part) => part.clonePart),
-    "ppt/slides/slide2.xml",
+    smartArtDuplicateResult.audit.operation.clonePart,
   ].sort());
   assert.equal(smartArtDuplicateResult.audit.validation.reimport.sourceAndCloneDiagramBindingsIndependent, true);
   assert.deepEqual(await fs.readFile(smartArtDuplicateInput), smartArtSourceBytes);
@@ -2372,14 +2384,14 @@ try {
   assert.equal(inkPackageAudit.allPayloadsByteIdentical, true);
   const [inkPartAudit] = inkPackageAudit.parts;
   assert.equal(inkPartAudit.sourcePart, "ppt/customXml/skill-ink.xml");
-  assert.match(inkPartAudit.clonePart, /^ppt\/customXml\/item\d+\.xml$/i);
+  assert.match(inkPartAudit.clonePart, /^ppt\/customXml\/[^/]+\.xml$/i);
   assert.equal(inkPartAudit.relationshipId, "rIdSkillInk");
   assert.equal(inkPartAudit.inkXmlByteIdentical, true);
   assert.equal(inkPartAudit.independentPart, true);
   assert.deepEqual(inkDuplicateResult.audit.validation.package.newPartPaths, [
-    "ppt/slides/_rels/slide2.xml.rels",
+    relationshipPartPath(inkDuplicateResult.audit.operation.clonePart),
     inkPartAudit.clonePart,
-    "ppt/slides/slide2.xml",
+    inkDuplicateResult.audit.operation.clonePart,
   ].sort());
   assert.equal(inkDuplicateResult.audit.validation.reimport.sourceAndCloneInkContentBindingsIndependent, true);
   assert.deepEqual(await fs.readFile(inkDuplicateInput), inkSourceBytes);
@@ -2454,8 +2466,8 @@ try {
   assert.equal(mediaPartAudit.posterShared, true);
   assert.deepEqual(mediaDuplicateResult.audit.validation.package.newPartPaths, [
     mediaPartAudit.clonePart,
-    "ppt/slides/_rels/slide2.xml.rels",
-    "ppt/slides/slide2.xml",
+    relationshipPartPath(mediaDuplicateResult.audit.operation.clonePart),
+    mediaDuplicateResult.audit.operation.clonePart,
   ].sort());
   assert.equal(mediaDuplicateResult.audit.validation.reimport.sourceAndCloneMediaBindingsIndependent, true);
   assert.deepEqual(await fs.readFile(mediaDuplicateInput), mediaSourceBytes);
@@ -2712,31 +2724,32 @@ try {
   });
   assert.equal(closedLeavesResult.audit.operation.scope, "canonical-inline-leaves-with-closed-relationship-leaves");
   assert.deepEqual(closedLeavesResult.audit.operation.closedLeaves, { speakerNotes: true, legacyComments: true });
+  const closedLeavesPackage = closedLeavesResult.audit.validation.package;
+  const closedNotesAudit = closedLeavesPackage.closedLeaves.speakerNotes;
+  const closedCommentsAudit = closedLeavesPackage.closedLeaves.legacyComments;
   assert.deepEqual(closedLeavesResult.audit.validation.package.newPartPaths, [
-    "ppt/comments/comment2.xml",
-    "ppt/notesSlides/_rels/notesSlide2.xml.rels",
-    "ppt/notesSlides/notesSlide2.xml",
-    "ppt/slides/_rels/slide2.xml.rels",
-    "ppt/slides/slide2.xml",
-  ]);
-  assert.equal(closedLeavesResult.audit.validation.package.retainedSourcePartsByteIdentical, true);
-  assert.deepEqual(closedLeavesResult.audit.validation.package.closedLeaves.speakerNotes, {
-    sourcePart: "ppt/notesSlides/notesSlide1.xml",
-    clonePart: "ppt/notesSlides/notesSlide2.xml",
-    sourceRelationshipPart: "ppt/notesSlides/_rels/notesSlide1.xml.rels",
-    cloneRelationshipPart: "ppt/notesSlides/_rels/notesSlide2.xml.rels",
-    notesMasterPart: "ppt/notesMasters/notesMaster1.xml",
-    notesXmlByteIdentical: true,
-    notesMasterShared: true,
-    cloneBackReferencePointsAtClone: true,
-  });
-  assert.deepEqual(closedLeavesResult.audit.validation.package.closedLeaves.legacyComments, {
-    sourcePart: "ppt/comments/comment1.xml",
-    clonePart: "ppt/comments/comment2.xml",
-    commentAuthorsPart: "ppt/commentAuthors.xml",
-    commentsXmlByteIdentical: true,
-    commentAuthorsShared: true,
-  });
+    closedCommentsAudit.clonePart,
+    closedNotesAudit.cloneRelationshipPart,
+    closedNotesAudit.clonePart,
+    relationshipPartPath(closedLeavesResult.audit.operation.clonePart),
+    closedLeavesResult.audit.operation.clonePart,
+  ].sort());
+  assert.equal(closedLeavesPackage.retainedSourcePartsByteIdentical, true);
+  assert.equal(closedNotesAudit.sourcePart, "ppt/notesSlides/notesSlide1.xml");
+  assert.match(closedNotesAudit.clonePart, /^ppt\/notesSlides\/[^/]+\.xml$/i);
+  assert.notEqual(closedNotesAudit.clonePart, closedNotesAudit.sourcePart);
+  assert.equal(closedNotesAudit.sourceRelationshipPart, relationshipPartPath(closedNotesAudit.sourcePart));
+  assert.equal(closedNotesAudit.cloneRelationshipPart, relationshipPartPath(closedNotesAudit.clonePart));
+  assert.equal(closedNotesAudit.notesMasterPart, "ppt/notesMasters/notesMaster1.xml");
+  assert.equal(closedNotesAudit.notesXmlByteIdentical, true);
+  assert.equal(closedNotesAudit.notesMasterShared, true);
+  assert.equal(closedNotesAudit.cloneBackReferencePointsAtClone, true);
+  assert.equal(closedCommentsAudit.sourcePart, "ppt/comments/comment1.xml");
+  assert.match(closedCommentsAudit.clonePart, /^ppt\/comments\/[^/]+\.xml$/i);
+  assert.notEqual(closedCommentsAudit.clonePart, closedCommentsAudit.sourcePart);
+  assert.equal(closedCommentsAudit.commentAuthorsPart, "ppt/commentAuthors.xml");
+  assert.equal(closedCommentsAudit.commentsXmlByteIdentical, true);
+  assert.equal(closedCommentsAudit.commentAuthorsShared, true);
   assert.equal(closedLeavesResult.audit.validation.reimport.sourceAndCloneClosedLeavesEqual, true);
   assert.deepEqual(await fs.readFile(closedLeavesInput), closedLeavesSourceBytes);
   const closedLeavesRoundTrip = await PresentationFile.importPptx(new FileBlob(await fs.readFile(closedLeavesOutput), {
@@ -2801,7 +2814,7 @@ try {
   ], { encoding: "utf8" });
   assert.equal(duplicateCli.status, 0, `slide-duplicate CLI failed\n${duplicateCli.stdout}\n${duplicateCli.stderr}`);
   const duplicateCliSummary = JSON.parse(duplicateCli.stdout);
-  assert.equal(duplicateCliSummary.clonePart, "ppt/slides/slide3.xml");
+  assert.match(duplicateCliSummary.clonePart, /^ppt\/slides\/slide\d+\.xml$/);
   assert.equal(duplicateCliSummary.customShowActionCount, 1);
   assert.equal(duplicateCliSummary.customShowCount, 1);
 
@@ -2898,13 +2911,13 @@ try {
   assert.match(skillText, /slide\.setTransition\(\{.*effect: "split".*orientation: "horizontal".*direction: "in".*advanceOnClick.*advanceAfterMs/is);
   assert.match(skillText, /transition\.capability.*canonical direct base-transition profile.*no transition.*addable: true.*p:cSld.*p:clrMapOvr.*no transition, timing, or extension leaf.*timing.*sound.*p14.*extension.*opaque-preserved.*fail closed/is);
   assert.match(skillText, /slide\.moveTo\(existingZeroBasedIndex\).*retained source.*p:sldIdLst.*slide\.deletionCapability.*exclusively owned OPC descendant.*shared layout\/master\/theme\/image\/media.*fail closed/is);
-  assert.match(skillText, /source-slide deletion is no longer the blocker[\s\S]*starter-deck command below still needs a broader arbitrary\s+imported-slide graph clone/is);
-  assert.match(skillText, /slide\.duplicate\(\).*canonical shapes.*canonical inline fixed-grid tables.*recognized closed\s+literal-data charts.*eligible top-level embedded-XLSX OLE frames.*canonical\s+embedded rectangular images.*bounded canonical\s+straight\/elbow\/curved connectors.*new `SlidePart`.*every present\s+connector endpoint.*connection-site index.*same copied `SlidePart`.*export plus reimport/is);
-  assert.match(skillText, /recognized closed\s+literal-data charts.*unique internal relationship.*numbered `ChartPart`.*byte-copies.*distinct clone-local ChartPart.*ChartParts are independent.*advertises the ordinary fixed-topology\s+edit capability/is);
-  assert.match(skillText, /accepted OLE frame.*uniquely inbound XLSX.*no child relationship graph.*preview `ImagePart`.*distinct clone-local\s+package.*sharing the immutable\s+preview.*replaceEmbeddedWorkbook/is);
-  assert.match(skillText, /accepted InkML object.*top-level `p:contentPart`.*internal `customXml` relationship.*`application\/inkml\+xml`.*distinct SDK-typed clone part.*source-bound preservation.*fail closed/is);
-  assert.match(skillText, /accepted embedded video.*top-level canonical `p:pic`.*video and media relationships.*`video\/mp4`.*distinct Open XML SDK.*shares only the immutable poster.*playback validation.*fail closed/is);
-  assert.match(skillText, /relationship-free custom-show actions.*stable native show ID.*never inserts the clone into the show's membership/is);
+  assert.match(skillText, /Current availability.*Codec can now duplicate.*cloneCapability.*closed, uniquely owned OPC descendant graph.*unknown parts and external relationships.*remaining starter-deck\s+blocker is workflow orchestration.*execute the validated map.*sequence repeated source clones transactionally.*reimport each clone boundary/is);
+  assert.match(skillText, /slide\.duplicate\(\).*slide\.cloneCapability.*OPC ownership graph.*recursively copies.*uniquely owned OpenXmlPart.*DataPart.*exact part bytes.*external relationships.*rebinds only proven shared layouts.*NotesMaster.*images.*retained slide-jump targets.*Unknown or relationship-bearing descendants.*not rejected/is);
+  assert.match(skillText, /Recognized closed ChartParts.*one unique frame relationship.*no ChartPart child graph.*distinct clone-local target.*byte-identical chart payload/is);
+  assert.match(skillText, /eligible embedded-XLSX OLE workbook.*one unique inbound package edge.*empty child graph.*same slide-local `r:id`.*distinct clone package.*shared preview\s+ImagePart/is);
+  assert.match(skillText, /accepted InkML content part.*one exact `customXml`\s+relationship.*standard content type and root namespace.*empty child\s+graph.*distinct clone-local `CustomXmlPart`.*byte-identical XML/is);
+  assert.match(skillText, /video\/media relationship pairing.*unique inbound ownership.*exact\s+`video\/mp4` bytes.*distinct clone-local `MediaDataPart`.*shared immutable\s+poster/is);
+  assert.match(skillText, /bounded clone workflow.*canonical relationship-free run action.*show membership\s+did not change/is);
   assert.match(quickStartText, /recognized literal-data charts.*no child\/external\/hyperlink\/data relationship.*distinct byte-copied ChartPart/is);
   assert.match(quickStartText, /eligible top-level OLE frames.*uniquely inbound internal XLSX package.*distinct\s+byte-copied EmbeddedPackagePart.*shares only the immutable preview/is);
   assert.match(quickStartText, /canonical top-level SmartArt frames.*data\/layout\/\s*quick-style\/colors parts.*four\s+distinct typed diagram parts/is);
@@ -3021,9 +3034,9 @@ try {
   assert.match(embeddedVideoReferenceText, /poster remains equal.*do not claim media playback equivalence/is);
   assert.match(embeddedVideoReferenceText, /audio.*linked or\s+external media.*timing.*fail closed/is);
   const templateFollowingText = await fs.readFile("skills/presentations/skills/presentations/references/template-following.md", "utf8");
-  assert.match(templateFollowingText, /deletion is no longer the limiting step[\s\S]*slide\.deletionCapability[\s\S]*exclusively owned OPC descendant closure/is);
-  assert.match(templateFollowingText, /broader arbitrary imported-[\s>]+slide duplication/is);
-  assert.match(templateFollowingText, /read-only path\/input preflight[\s\S]*then fails closed[\s\S]*not kept as dead\s+code/i);
+  assert.match(templateFollowingText, /slide\.cloneCapability.*one imported slide's closed, uniquely owned OPC descendant graph.*unknown parts and external relationships.*remaining limitation.*starter workflow.*multi-slide frame map.*export\/reimport boundaries.*audited inherited-target edits/is);
+  assert.match(templateFollowingText, /Do not substitute a reconstructed or shared-part copy.*inspection\/planning\/capability\/QA portions only.*no starter artifact will be written/is);
+  assert.match(templateFollowingText, /read-only path\/input preflight.*then fails closed.*before installing dependencies.*importing the PPTX.*writing output.*orchestration gap, not a Codec graph-clone gap/is);
 
   console.log("presentation skill smoke ok");
 } finally {

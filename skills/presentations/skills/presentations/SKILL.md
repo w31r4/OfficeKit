@@ -212,102 +212,13 @@ delete removes the real SlidePart plus every exclusively owned OPC descendant,
 including closed notes/comments/chart/OLE/SmartArt/InkML/media or unknown
 leaves, while preserving shared layout/master/theme/image/media resources.
 Inbound slide links and custom-show/section/extension identity fail closed.
-`slide.duplicate()` is a separate, much
-narrower operation: only an original imported slide whose unchanged graph has
-canonical shapes, canonical inline fixed-grid tables with bounded rectangular merges, recognized closed
-literal-data charts, eligible top-level embedded-XLSX OLE frames, canonical
-top-level four-part SmartArt frames, canonical top-level closed InkML
-`p:contentPart` objects, canonical top-level closed embedded-MP4 media pictures,
-canonical embedded rectangular images, bounded canonical
-straight/elbow/curved connectors, plus recursively canonical groups whose descendants
-contain only the non-native-graph leaf kinds, exactly one
-internal layout relationship, picture-bound image relationships, canonical
-run-level click hyperlinks, and optionally
-one closed `NotesSlide -> NotesMaster` / back-to-source-slide leaf plus one
-canonical legacy `SlideCommentsPart` leaf may receive a new `SlidePart` and
-presentation relationship. It deliberately shares the verified layout,
-immutable image Parts, NotesMaster, and presentation-wide `CommentAuthorsPart`
-through fresh clone-local relationships; it copies accepted NotesSlide and
-SlideComments XML byte-for-byte and points only the preserved notes
-back-reference at the clone. The comments part and author catalog must have no
-connected relationship graph. Accepted tables are inline-only: table fills,
-links, and every other package edge remain outside this profile. Every present
-connector endpoint retains its connection-site index and must resolve to an
-element in the same copied `SlidePart` tree; accepted connectors add no
-relationship, and their pending clone targets resolve to fresh clone-local
-elements. Accepted groups add no relationship
-themselves, and every nested picture must consume one exact verified image
-relationship. It preserves the origin part and requires export plus reimport before the clone, its notes, or its comments may be edited;
-after that boundary an individually re-proven closed legacy comments leaf may
-use only the separate text-only edit profile below.
-Each accepted chart frame must consume one unique internal relationship to a
-numbered `ChartPart`; the ChartPart may not own a child, external, hyperlink, or
-data relationship. Export byte-copies it into a distinct clone-local ChartPart
-rather than sharing mutable chart state. After export/reimport, the two
-ChartParts are independent; a chart that advertises the ordinary fixed-topology
-edit capability can use that path without affecting the origin. Formula or
-external-data charts, embedded workbooks, duplicate/orphan chart relations, and
-any connected chart graph fail closed.
-Each accepted OLE frame must bind exactly one internal, uniquely inbound XLSX
-`EmbeddedPackagePart` with no child relationship graph and exactly one internal
-preview `ImagePart`. Export byte-copies the workbook into a distinct clone-local
-package under the same slide-local relationship ID while sharing the immutable
-preview. After export/reimport, `nativeObject.replaceEmbeddedWorkbook(...)` on
-the clone changes only that independent package. Shared/external/non-XLSX,
-nested, relationship-bearing, ambiguous, or replacement-pending OLE graphs fail
-closed.
-Each accepted SmartArt frame must be a top-level `p:graphicFrame` with exactly
-one `dgm:relIds` root. Its `r:dm`, `r:lo`, `r:qs`, and `r:cs` bindings must
-resolve to internal diagram data, layout, quick-style, and colors parts with
-the exact standard content types and no child/external/hyperlink/data graph.
-Export byte-copies all four into distinct typed clone-local parts under the
-same slide-local relationship IDs. Reimport proves disjoint paths and equal
-hashes. This prevents source/clone coupling. A separately recognized canonical
-one-paragraph/one-run DiagramDataPart may expose only source-bound
-`setDiagramNodeText(modelId, text)` after import; all other SmartArt remains
-source-bound and read-only.
-Nested, incomplete, duplicated, mistyped, external, relationship-bearing, or
-otherwise noncanonical diagram graphs fail closed.
-Read `artifact_tool/api/references/smartart-clone.spec.md` before accepting a
-slide whose duplicate profile includes SmartArt.
-Each accepted InkML object must be one top-level `p:contentPart` with one exact
-internal `customXml` relationship to a non-empty, relationship-free
-`application/inkml+xml` CustomXmlPart whose document element is `ink` in the
-standard InkML namespace. Export preserves the slide-local relationship ID but
-byte-copies the payload into a distinct SDK-typed clone part; reimport proves
-disjoint paths and equal hashes. This is opaque source-bound preservation, not
-ink authoring or Custom XML editing. Nested, extension-bearing, ambiguous,
-mistyped, non-InkML-root, or connected content parts fail closed. Read
-`artifact_tool/api/references/inkml-content-part-clone.spec.md` before accepting
-a slide whose duplicate profile includes InkML.
-Each accepted embedded video must be one top-level canonical `p:pic` whose
-empty media-action sentinel, `a:videoFile`, `p14:media`, and poster blip bind
-exactly three slide-local relationships. The video and media relationships must
-share one uniquely owned, non-empty, relationship-free `video/mp4` data part;
-the third relationship must bind one internal poster ImagePart. Export keeps
-both media relationship IDs, byte-copies the MP4 into a distinct Open XML SDK
-`MediaDataPart`, and shares only the immutable poster. Reimport proves different
-MP4 paths with equal hashes and the same poster path. This is opaque
-source-bound clone preservation, not video authoring, playback validation,
-transcoding, timing/trim editing, or audio support. Nested, linked, shared,
-non-MP4, extension-bearing, multi-binding, or connected media graphs fail
-closed. Read `artifact_tool/api/references/embedded-video-clone.spec.md` before
-accepting a slide whose duplicate profile includes media.
-Accepted run links are limited to modeled external absolute URIs, internal jumps
-to a retained SlidePart, `nextSlide`/`previousSlide`/`firstSlide`/`lastSlide`/
-`endShow` actions, and relationship-free custom-show actions whose native ID
-resolves through the canonical presentation-wide show catalog. The clone keeps
-each relationship-backed link's exact `r:id` and target; internal jumps keep
-pointing to the same retained source target. A custom-show link keeps the same
-stable native show ID and optional return policy, creates no package
-relationship, and never inserts the clone into the show's membership. Every
-hyperlink relationship must be consumed by one of the other inline clicks.
-Shape-level clicks, hover links, malformed or orphan relationships, links in
-tables/pictures/connectors, unknown actions, malformed/relationship-bearing/
-dangling custom-show actions, and jumps to a removed slide fail closed.
-Imported add, repeat/mutated clone, rich/connected comments, unsupported
-connector forms or targets, and every broad graph clone remain unsupported until
-an explicit OPC graph-clone transaction is available.
+`slide.duplicate()` is a separate source-bound operation. Inspect `slide.cloneCapability` before invoking it. A supported slide is copied as an OPC ownership graph: the OfficeKit Codec recursively copies the SlidePart plus every uniquely owned OpenXmlPart and DataPart, retaining exact part bytes, content types, local relationship IDs, external relationships, and shared-node topology. It rebinds only proven shared layouts, NotesMaster, images, and retained slide-jump targets. Unknown or relationship-bearing descendants are not rejected merely because OfficeKit lacks a semantic editor for their type.
+
+The pending JavaScript clone receives fresh slide and element identities, and connector endpoints resolve to clone-local targets. The slide, modeled elements, native-object snapshots, notes, and comments must remain unchanged until export and reimport. Custom-show membership is never extended implicitly. One pending clone per origin is allowed; origin deletion in the same transaction fails closed. Sections, modern comments, a descendant with a parent outside the owned closure, a jump to a removed slide, unresolved semantic elements or connector targets, pending native payload replacements, and graph-budget overflow fail before partial model mutation. Open XML SDK chooses collision-free part URIs, so never assume names such as `slide2.xml`; reimport and use object IDs or inspect/resolve.
+
+After reimport, independently copied chart, embedded Office package, SmartArt, InkML, media, notes, and legacy-comment parts use their own feature-specific edit capabilities. A copied opaque part does not become semantically editable merely because its graph was preserved. Read the native-object references for those later edit boundaries.
+
+The shipped `officekit-slide-duplicate-workflow.mjs` remains a stricter high-assurance transaction for its locked chart/OLE/SmartArt/InkML/MP4/notes/comments corpus. It performs independent type-specific oracles and render checks; it is not the limit of the public clone API and must not be used to deny a broader slide whose `cloneCapability` is supported.
 
 For the bare agent-facing clone profile, use the shipped transaction rather
 than copying ZIP parts or rebuilding the slide:
@@ -352,6 +263,9 @@ graph, or a nested, extension-bearing, mistyped, non-InkML-root, ambiguous, or
 connected content part, or a nested, linked, shared, non-MP4, multi-binding, or
 connected media graph, is rejected before semantic import, `slide.duplicate()`,
 or publication.
+Read `artifact_tool/api/references/inkml-content-part-clone.spec.md` and
+`artifact_tool/api/references/embedded-video-clone.spec.md` before relying on
+those two high-assurance typed oracles.
 
 The default is intentionally bare. To copy only the separately supported,
 already-closed relationship leaves, opt in explicitly rather than relying on a
@@ -915,19 +829,15 @@ layout, style, or template. Read `references/template-following.md`, use
 `$TMP_DIR` from the Workspace section, and set
 `TEMPLATE_PPTX="<absolute path to the user-provided PPTX>"`.
 
-Current availability: source-slide deletion is no longer the blocker: the
-codec can remove an imported slide's exclusively owned OPC descendant closure.
-The reference starter-deck command below still needs a broader arbitrary
-imported-slide graph clone than the current unchanged
-shape/inline-table/image/recursive-group clone profiles with closed notes and
-legacy comments are not substitutes: the latter creates an independent part but
-cannot be edited before an export/reimport boundary, and afterward may use only
-the separate canonical root-text comment profile; it cannot carry
-arbitrary template graph edges. Do not rebuild or share slide parts to emulate
-a clone.
-Until that broader clone milestone exists, use this mode only for source inventory,
-plan validation, and render/QA evidence; report the clone limitation before
-promising a derived starter deck.
+Current availability: the Codec can now duplicate an imported slide whose
+`cloneCapability` proves a closed, uniquely owned OPC descendant graph,
+including unknown parts and external relationships. The remaining starter-deck
+blocker is workflow orchestration: the checked-in starter command does not yet
+execute the validated map, sequence repeated source clones transactionally,
+reimport each clone boundary, or constrain subsequent edits to audited inherited
+targets. Until that command is implemented and tested, use this mode only for
+source inventory, plan validation, capability reporting, and render/QA evidence.
+Do not rebuild slides or share mutable parts to bypass the missing orchestration.
 
 Preserve the source deck's typography, palette, spacing, layout, placeholders,
 footers, page markers, and brand chrome unless the user explicitly asks to
@@ -950,9 +860,9 @@ officekit run "$SKILL_DIR/template_following_scripts/inspect_template_deck.mjs" 
 ```
 
 Map each output slide to an inherited source slide and identify element-level
-`editTargets`. Then validate the map. The later starter-deck command is retained
-for the future broad graph-clone milestone, but currently rejects before writing
-an output deck:
+`editTargets`. Then validate the map. The starter-deck command currently rejects
+before writing an output deck because its multi-clone/edit transaction is not
+implemented, even when every selected source slide reports clone support:
 
 ```bash
 officekit run "$SKILL_DIR/template_following_scripts/validate_template_plan.mjs" \
@@ -969,8 +879,8 @@ officekit run "$SKILL_DIR/template_following_scripts/prepare_template_starter_de
   --contact-sheet "$TMP_DIR/template-starter-contact-sheet.png"
 ```
 
-When a future broad graph-clone milestone enables `template-starter.pptx`,
-import it with `office-kit` and edit only inherited slides/objects
+When the starter-deck orchestration enables `template-starter.pptx`, import it
+with `office-kit` and edit only inherited slides/objects
 unless the validated frame map explicitly allows an insertion. Today, if a
 source slide cannot support requested content without broad clone/delete or a
 parallel rebuild, report the blocker and the closest viable source-slide

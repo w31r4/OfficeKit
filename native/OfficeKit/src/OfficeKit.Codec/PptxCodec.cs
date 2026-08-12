@@ -19,45 +19,6 @@ internal sealed record PptxExportResult(byte[] File, IReadOnlyList<Diagnostic> D
 internal sealed record PptxLayoutGraphEntry(int Index, string Id, string RelationshipId, SlideLayoutPart Part);
 internal sealed record PptxMasterGraphEntry(int Index, string Id, string RelationshipId, SlideMasterPart Part, IReadOnlyList<PptxLayoutGraphEntry> Layouts);
 internal sealed record PptxSourceSlideEntry(int Index, P.SlideId SlideId, string RelationshipId, SlidePart Part);
-// Clone preflight produces this closed graph plan once. The execution path
-// consumes only this plan so adding a new supported leaf cannot create a
-// second, subtly different relationship inventory after validation.
-internal sealed record PptxCloneImageEdge(ImagePart Part, string RelationshipId);
-internal sealed record PptxCloneChartLeaf(ChartPart Part, string SlideRelationshipId);
-internal sealed record PptxCloneOlePackageLeaf(EmbeddedPackagePart Part, string SlideRelationshipId);
-internal sealed record PptxCloneDiagramPartLeaf(OpenXmlPart Part, string SlideRelationshipId);
-internal sealed record PptxCloneInkContentLeaf(CustomXmlPart Part, string SlideRelationshipId);
-internal sealed record PptxCloneMediaLeaf(MediaDataPart Part, string VideoRelationshipId, string MediaRelationshipId);
-internal sealed record PptxCloneExternalHyperlinkEdge(Uri Uri, string RelationshipId);
-internal sealed record PptxCloneSlideHyperlinkEdge(SlidePart Part, string RelationshipId);
-internal sealed record PptxCloneNotesLeaf(
-    NotesSlidePart Part,
-    string SlideRelationshipId,
-    NotesMasterPart MasterPart,
-    string MasterRelationshipId,
-    string SlideBackReferenceRelationshipId);
-// Legacy comments are a clone-local XML leaf whose author IDs resolve through
-// the presentation-wide immutable catalog. The catalog has no direct OPC edge
-// from the comment part, so keep it explicit in the preflight plan rather than
-// treating that semantic dependency as an incidental implementation detail.
-internal sealed record PptxCloneLegacyCommentsLeaf(
-    SlideCommentsPart Part,
-    string SlideRelationshipId,
-    CommentAuthorsPart AuthorsPart,
-    string AuthorsRelationshipId);
-internal sealed record PptxCloneLeaf(
-    SlideLayoutPart LayoutPart,
-    string LayoutRelationshipId,
-    IReadOnlyList<PptxCloneImageEdge> Images,
-    IReadOnlyList<PptxCloneChartLeaf> Charts,
-    IReadOnlyList<PptxCloneOlePackageLeaf> OlePackages,
-    IReadOnlyList<PptxCloneDiagramPartLeaf> DiagramParts,
-    IReadOnlyList<PptxCloneInkContentLeaf> InkContentParts,
-    IReadOnlyList<PptxCloneMediaLeaf> MediaParts,
-    IReadOnlyList<PptxCloneExternalHyperlinkEdge> ExternalHyperlinks,
-    IReadOnlyList<PptxCloneSlideHyperlinkEdge> SlideHyperlinks,
-    PptxCloneNotesLeaf? Notes,
-    PptxCloneLegacyCommentsLeaf? LegacyComments);
 internal sealed class PptxTargetSlideEntry
 {
     internal PptxTargetSlideEntry(int targetIndex, PresentationSlide target, PptxSourceSlideEntry source, bool isClone)
@@ -82,32 +43,6 @@ internal static class PptxCodec
 {
     private const long DefaultSlideWidthEmu = 12_192_000;
     private const long DefaultSlideHeightEmu = 6_858_000;
-    private const int MaxCloneChartParts = 256;
-    private const int MaxCloneOlePackageParts = 64;
-    private const int MaxCloneDiagramParts = 256;
-    private const int MaxCloneInkContentParts = 256;
-    private const int MaxCloneMediaParts = 64;
-    private const int MaxCloneHyperlinkRelationships = 4_096;
-    private const string SpreadsheetContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    private const string DiagramDataContentType = "application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml";
-    private const string DiagramLayoutContentType = "application/vnd.openxmlformats-officedocument.drawingml.diagramLayout+xml";
-    private const string DiagramStyleContentType = "application/vnd.openxmlformats-officedocument.drawingml.diagramStyle+xml";
-    private const string DiagramColorsContentType = "application/vnd.openxmlformats-officedocument.drawingml.diagramColors+xml";
-    private const string LegacyCommentAuthorsContentType = "application/vnd.openxmlformats-officedocument.presentationml.commentAuthors+xml";
-    private const string InkContentType = "application/inkml+xml";
-    private const string Mp4ContentType = "video/mp4";
-    private const string VideoRelationshipType = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/video";
-    private const string MediaRelationshipType = "http://schemas.microsoft.com/office/2007/relationships/media";
-    private const string TransitionalCustomXmlRelationship = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml";
-    private const string StrictCustomXmlRelationship = "http://purl.oclc.org/ooxml/officeDocument/relationships/customXml";
-    private static readonly (string RelationshipSuffix, string PathStem, string ContentType)[] CloneDiagramParts =
-    [
-        ("/diagramData", "data", DiagramDataContentType),
-        ("/diagramLayout", "layout", DiagramLayoutContentType),
-        ("/diagramQuickStyle", "quickStyle", DiagramStyleContentType),
-        ("/diagramColors", "colors", DiagramColorsContentType),
-    ];
-
     internal static PptxImportResult Import(byte[] bytes, EffectiveCodecLimits limits)
     {
         var opaque = PackageGuards.ValidateAndCollectOpaque(bytes, limits, OpcPackageProfile.Pptx);
@@ -261,6 +196,7 @@ internal static class PptxCodec
             var elementIdsByNativeId = NativeElementIds(elements, slideArtifactId);
             var sourceEntry = new PptxSourceSlideEntry(slideIndex, slideId, relationshipId, slidePart);
             var deletionPlan = PptxSlideDeletionCodec.Analyze(presentationPart, sourceEntry, opaque);
+            var clonePlan = PptxSlideCloneCodec.Analyze(presentationPart, sourceEntry, slideParts.ToHashSet());
             var target = new PresentationSlide
             {
                 Id = slideArtifactId,
@@ -294,6 +230,13 @@ internal static class PptxCodec
                         Supported = deletionPlan.Supported,
                         BlockedReason = deletionPlan.BlockedReason,
                         OwnedPartCount = deletionPlan.OwnedPartCount,
+                    },
+                    CloneCapability = new PresentationSlideCloneCapability
+                    {
+                        Supported = clonePlan.Supported,
+                        BlockedReason = clonePlan.BlockedReason,
+                        ClonedPartCount = clonePlan.ClonedPartCount,
+                        SharedPartCount = clonePlan.SharedPartCount,
                     },
                 },
             };
@@ -2271,61 +2214,6 @@ internal static class PptxCodec
         {
             var key = $"{relationship.SourcePath}\0{relationship.Id}";
             if (!allowedAddedRelationshipIds.Contains(key)) continue;
-            var resolvedTarget = relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase)
-                ? string.Empty
-                : PptxNativeObjectCatalog.ResolveTarget(relationship.SourcePath, relationship.Target);
-            var isExternalLink = relationship.Type.EndsWith("/hyperlink", StringComparison.Ordinal) &&
-                                 relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase);
-            var isSlideJump = relationship.Type.EndsWith("/slide", StringComparison.Ordinal) &&
-                              !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase);
-            var isImage = relationship.Type.EndsWith("/image", StringComparison.Ordinal);
-            var isChart = relationship.Type.EndsWith("/chart", StringComparison.Ordinal) &&
-                          !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
-                          IsNumberedChartPath(resolvedTarget);
-            var isEmbeddedXlsx = relationship.Type.EndsWith("/package", StringComparison.Ordinal) &&
-                                 !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
-                                 IsCloneXlsxEmbeddingPath(resolvedTarget);
-            var isDiagram = !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
-                            IsCloneDiagramRelationship(relationship.Type, resolvedTarget);
-            var isInkContent = !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
-                               IsCustomXmlRelationship(relationship.Type) &&
-                               IsNumberedCloneInkContentPath(resolvedTarget);
-            var isMp4Media = !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
-                             relationship.Type is VideoRelationshipType or MediaRelationshipType &&
-                             IsMp4MediaPath(resolvedTarget);
-            // A bounded source-preserving clone owns one new internal edge:
-            // its new SlidePart points at the original shared SlideLayoutPart.
-            // Keep that exception typed and target-checked; an arbitrary added
-            // relationship from a clone slide remains an opaque-graph breach.
-            var isSlideLayout = relationship.Type.EndsWith("/slideLayout", StringComparison.Ordinal) &&
-                                !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
-                                IsNumberedLayoutPath(resolvedTarget);
-            var isNotesSlide = relationship.Type.EndsWith("/notesSlide", StringComparison.Ordinal) &&
-                               !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
-                               IsNumberedNotesSlidePath(resolvedTarget);
-            var isNotesMaster = relationship.Type.EndsWith("/notesMaster", StringComparison.Ordinal) &&
-                                !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
-                                IsNumberedNotesMasterPath(resolvedTarget);
-            var isNotesBackReference = relationship.Type.EndsWith("/slide", StringComparison.Ordinal) &&
-                                       !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
-                                       IsNumberedSlidePath(resolvedTarget);
-            var isTheme = relationship.Type.EndsWith("/theme", StringComparison.Ordinal) &&
-                          !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
-                          IsNumberedThemePath(resolvedTarget);
-            var isLegacyComments = relationship.Type.EndsWith("/comments", StringComparison.Ordinal) &&
-                                   !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
-                                   IsNumberedCommentsPath(resolvedTarget);
-            var isLegacyCommentAuthors = relationship.Type.EndsWith("/commentAuthors", StringComparison.Ordinal) &&
-                                         !relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
-                                         IsLegacyCommentAuthorsPath(resolvedTarget);
-            var allowedFromSlide = IsNumberedSlidePath(relationship.SourcePath) && (isExternalLink || isSlideJump || isImage || isChart || isEmbeddedXlsx || isDiagram || isInkContent || isMp4Media || isSlideLayout || isNotesSlide || isLegacyComments);
-            var allowedFromMaster = IsNumberedMasterPath(relationship.SourcePath) && (isExternalLink || isSlideJump || isImage);
-            var allowedFromLayout = IsNumberedLayoutPath(relationship.SourcePath) && (isExternalLink || isSlideJump || isImage);
-            var allowedFromNotes = IsNumberedNotesSlidePath(relationship.SourcePath) && (isNotesMaster || isNotesBackReference);
-            var allowedFromPresentation = relationship.SourcePath.Equals("ppt/presentation.xml", StringComparison.OrdinalIgnoreCase) && (isNotesMaster || isLegacyCommentAuthors);
-            var allowedFromNotesMaster = IsNumberedNotesMasterPath(relationship.SourcePath) && isTheme;
-            if (!allowedFromSlide && !allowedFromMaster && !allowedFromLayout && !allowedFromNotes && !allowedFromPresentation && !allowedFromNotesMaster)
-                throw new CodecException("opaque_content_not_preserved", $"Modeled PPTX edit added unsupported relationship {relationship.Id} from {relationship.SourcePath} to {resolvedTarget}.");
             guarded.PackageRelationships.Remove(relationship);
             removed.Add(key);
         }
@@ -2335,8 +2223,6 @@ internal static class PptxCodec
         foreach (var part in guarded.Parts.ToArray())
         {
             if (!allowedAddedPartPaths.Contains(part.Path)) continue;
-            if (!IsAllowedAddedModeledPart(part))
-                throw new CodecException("opaque_content_not_preserved", $"Modeled PPTX edit added unsupported part {part.Path}.");
             guarded.Parts.Remove(part);
             removedParts.Add(part.Path);
         }
@@ -2470,117 +2356,6 @@ internal static class PptxCodec
     private static bool IsLegacyCommentAuthorsPath(string path) =>
         path.Equals("ppt/commentAuthors.xml", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsNumberedChartPath(string path)
-    {
-        const string suffix = ".xml";
-        foreach (var prefix in new[] { "ppt/charts/chart", "ppt/slides/charts/chart" })
-        {
-            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
-                path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
-                path[prefix.Length..^suffix.Length].Length > 0 &&
-                path[prefix.Length..^suffix.Length].All(char.IsAsciiDigit))
-                return true;
-        }
-        return false;
-    }
-
-    private static bool IsAllowedAddedModeledPart(OpaqueOpcPart part) =>
-        (part.Path.StartsWith("ppt/media/", StringComparison.OrdinalIgnoreCase) &&
-         part.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)) ||
-        (part.ContentType.Equals(Mp4ContentType, StringComparison.OrdinalIgnoreCase) && IsMp4MediaPath(part.Path)) ||
-        IsNumberedChartPath(part.Path) ||
-        (IsCloneXlsxEmbeddingPath(part.Path) && part.ContentType.Equals(SpreadsheetContentType, StringComparison.OrdinalIgnoreCase)) ||
-        IsCloneDiagramPart(part.Path, part.ContentType) ||
-        (IsNumberedCloneInkContentPath(part.Path) && part.ContentType.Equals(InkContentType, StringComparison.OrdinalIgnoreCase)) ||
-        IsNumberedNotesSlidePath(part.Path) ||
-        IsNumberedNotesSlideRelationshipPath(part.Path) ||
-        IsNumberedNotesMasterPath(part.Path) ||
-        IsNumberedNotesMasterRelationshipPath(part.Path) ||
-        IsNumberedCommentsPath(part.Path) ||
-        (IsLegacyCommentAuthorsPath(part.Path) && part.ContentType.Equals(LegacyCommentAuthorsContentType, StringComparison.OrdinalIgnoreCase));
-
-    private static bool IsCloneDiagramRelationship(string relationshipType, string targetPath)
-    {
-        foreach (var (suffix, pathStem, _) in CloneDiagramParts)
-            if (relationshipType.EndsWith(suffix, StringComparison.Ordinal) && IsNumberedCloneDiagramPath(targetPath, pathStem))
-                return true;
-        return false;
-    }
-
-    private static bool IsCloneDiagramPart(string path, string contentType)
-    {
-        foreach (var (_, pathStem, expectedContentType) in CloneDiagramParts)
-            if (contentType.Equals(expectedContentType, StringComparison.OrdinalIgnoreCase) && IsNumberedCloneDiagramPath(path, pathStem))
-                return true;
-        return false;
-    }
-
-    private static bool IsNumberedCloneDiagramPath(string path, string stem)
-    {
-        const string suffix = ".xml";
-        foreach (var directory in new[] { "ppt/graphics/", "ppt/diagrams/", "ppt/slides/diagrams/" })
-        {
-            var prefix = directory + stem;
-            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
-                path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
-                path[prefix.Length..^suffix.Length].Length > 0 &&
-                path[prefix.Length..^suffix.Length].All(char.IsAsciiDigit))
-                return true;
-        }
-        return false;
-    }
-
-    private static bool IsCustomXmlRelationship(string relationshipType) =>
-        relationshipType is TransitionalCustomXmlRelationship or StrictCustomXmlRelationship;
-
-    private static bool IsNumberedCloneInkContentPath(string path)
-    {
-        const string prefix = "ppt/customXml/item";
-        const string suffix = ".xml";
-        return path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
-               path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
-               path[prefix.Length..^suffix.Length].Length > 0 &&
-               path[prefix.Length..^suffix.Length].All(char.IsAsciiDigit);
-    }
-
-    private static bool IsMp4MediaPath(string path)
-    {
-        const string suffix = ".mp4";
-        foreach (var prefix in new[] { "ppt/media/", "media/" })
-        {
-            if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
-                !path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)) continue;
-            var fileName = path[prefix.Length..];
-            return fileName.Length > suffix.Length && !fileName.Contains('/') && !fileName.Contains('\\') &&
-                   fileName.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '_' or '-');
-        }
-        return false;
-    }
-
-    private static bool IsCloneXlsxEmbeddingPath(string path)
-    {
-        const string canonicalPrefix = "ppt/embeddings/";
-        if (path.StartsWith(canonicalPrefix, StringComparison.OrdinalIgnoreCase) &&
-            path.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
-        {
-            var fileName = path[canonicalPrefix.Length..];
-            return fileName.Length > ".xlsx".Length && !fileName.Contains('/') && !fileName.Contains('\\') &&
-                   fileName.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '_' or '-');
-        }
-
-        // Open XML SDK 3.x allocates an EmbeddedPackagePart added directly to
-        // a SlidePart below ppt/slides/embeddings/packageN.xlsx. The location
-        // is legal OPC and resolves only through the clone slide's verified
-        // package relationship; keep this exception restricted to that exact
-        // SDK-generated numeric leaf rather than admitting arbitrary paths.
-        const string slideLocalPrefix = "ppt/slides/embeddings/package";
-        const string suffix = ".xlsx";
-        return path.StartsWith(slideLocalPrefix, StringComparison.OrdinalIgnoreCase) &&
-               path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
-               path[slideLocalPrefix.Length..^suffix.Length].Length > 0 &&
-               path[slideLocalPrefix.Length..^suffix.Length].All(char.IsAsciiDigit);
-    }
-
     private static void ValidatePreservedSlideElements(byte[] sourceBytes, byte[] outputBytes, PresentationArtifact requested, EffectiveCodecLimits limits)
     {
         using var sourceStream = new MemoryStream(sourceBytes, writable: false);
@@ -2598,6 +2373,10 @@ internal static class PptxCodec
         var outputSlides = OrderedSlideParts(outputPackage);
         if (sourceTargets.Length != requested.Slides.Count || outputSlides.Length != requested.Slides.Count)
             throw new CodecException("presentation_postwrite_topology_changed", "PPTX slide topology changed during source-preserving export.");
+        var retainedSourceSlideParts = sourceTargets
+            .Where(target => !target.IsClone)
+            .Select(target => target.Source.Part)
+            .ToHashSet();
         for (var targetIndex = 0; targetIndex < sourceTargets.Length; targetIndex++)
         {
             var target = sourceTargets[targetIndex];
@@ -2609,11 +2388,7 @@ internal static class PptxCodec
                 if (PartPath(outputSlide).Equals(PartPath(target.Source.Part), StringComparison.OrdinalIgnoreCase) ||
                     !HashElement(target.Source.Part.Slide!).Equals(HashElement(outputSlide.Slide!), StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_postwrite_clone_mismatch", $"PPTX clone {targetIndex + 1} is not an independent exact source slide copy.", PartPath(outputSlide));
-                ValidateClonedRunHyperlinkGraph(target.Source.Part, outputSlide, targetIndex);
-                ValidateClonedOleWorkbookGraph(target.Source.Part, outputSlide, targetIndex);
-                ValidateClonedMediaGraph(target.Source.Part, outputSlide, targetIndex);
-                ValidateClonedSpeakerNotes(target.Source.Part, outputSlide, targetIndex);
-                ValidateClonedLegacyComments(sourcePresentationPart, outputPresentationPart, target.Source.Part, outputSlide, targetIndex);
+                PptxSlideCloneCodec.Validate(target.Source, outputSlide, retainedSourceSlideParts);
             }
             else
             {
@@ -2806,196 +2581,6 @@ internal static class PptxCodec
                         PartPath(outputSlides[slideIndex]));
             }
         }
-    }
-
-    private static void ValidateClonedRunHyperlinkGraph(SlidePart source, SlidePart clone, int targetIndex)
-    {
-        var sourceExternal = source.HyperlinkRelationships
-            .ToDictionary(
-                relationship => relationship.Id,
-                relationship => (relationship.Uri.OriginalString, relationship.IsExternal),
-                StringComparer.Ordinal);
-        var cloneExternal = clone.HyperlinkRelationships
-            .ToDictionary(
-                relationship => relationship.Id,
-                relationship => (relationship.Uri.OriginalString, relationship.IsExternal),
-                StringComparer.Ordinal);
-        var sourceSlides = source.Parts
-            .Where(pair => pair.OpenXmlPart is SlidePart)
-            .ToDictionary(
-                pair => pair.RelationshipId,
-                pair => PartPath(pair.OpenXmlPart),
-                StringComparer.Ordinal);
-        var cloneSlides = clone.Parts
-            .Where(pair => pair.OpenXmlPart is SlidePart)
-            .ToDictionary(
-                pair => pair.RelationshipId,
-                pair => PartPath(pair.OpenXmlPart),
-                StringComparer.Ordinal);
-
-        if (sourceExternal.Count != cloneExternal.Count ||
-            sourceExternal.Any(pair => !cloneExternal.TryGetValue(pair.Key, out var actual) || actual != pair.Value) ||
-            sourceSlides.Count != cloneSlides.Count ||
-            sourceSlides.Any(pair => !cloneSlides.TryGetValue(pair.Key, out var actual) || !actual.Equals(pair.Value, StringComparison.OrdinalIgnoreCase)) ||
-            clone.ExternalRelationships.Any())
-            throw new CodecException(
-                "presentation_postwrite_clone_hyperlink_mismatch",
-                $"PPTX clone {targetIndex + 1} does not retain the exact bounded run-hyperlink relationship graph.",
-                PartPath(clone));
-    }
-
-    private static void ValidateClonedOleWorkbookGraph(SlidePart source, SlidePart clone, int targetIndex)
-    {
-        var sourcePackages = source.Parts
-            .Where(pair => pair.OpenXmlPart is EmbeddedPackagePart)
-            .ToDictionary(pair => pair.RelationshipId, pair => (EmbeddedPackagePart)pair.OpenXmlPart, StringComparer.Ordinal);
-        var clonePackages = clone.Parts
-            .Where(pair => pair.OpenXmlPart is EmbeddedPackagePart)
-            .ToDictionary(pair => pair.RelationshipId, pair => (EmbeddedPackagePart)pair.OpenXmlPart, StringComparer.Ordinal);
-        if (sourcePackages.Count == 0)
-        {
-            if (clonePackages.Count != 0)
-                throw new CodecException("presentation_postwrite_clone_ole_mismatch", $"PPTX clone {targetIndex + 1} unexpectedly added an embedded package.", PartPath(clone));
-            return;
-        }
-        if (sourcePackages.Count != clonePackages.Count)
-            throw new CodecException("presentation_postwrite_clone_ole_mismatch", $"PPTX clone {targetIndex + 1} does not retain the exact bounded embedded-XLSX relationship graph.", PartPath(clone));
-
-        foreach (var (relationshipId, sourcePackage) in sourcePackages)
-        {
-            if (!clonePackages.TryGetValue(relationshipId, out var clonePackage) ||
-                !sourcePackage.ContentType.Equals(SpreadsheetContentType, StringComparison.OrdinalIgnoreCase) ||
-                !clonePackage.ContentType.Equals(sourcePackage.ContentType, StringComparison.OrdinalIgnoreCase) ||
-                PartPath(sourcePackage).Equals(PartPath(clonePackage), StringComparison.OrdinalIgnoreCase) ||
-                !PartBytes(sourcePackage).SequenceEqual(PartBytes(clonePackage)) ||
-                clonePackage.Parts.Any() || clonePackage.ExternalRelationships.Any() ||
-                clonePackage.HyperlinkRelationships.Any() || clonePackage.DataPartReferenceRelationships.Any())
-                throw new CodecException("presentation_postwrite_clone_ole_mismatch", $"PPTX clone {targetIndex + 1} is not an independent exact source XLSX package copy.", PartPath(clone));
-        }
-
-        // OLE preview images are immutable resources and may be shared, but
-        // the new SlidePart must reproduce the same local IDs and targets.
-        var sourceImages = source.Parts
-            .Where(pair => pair.OpenXmlPart is ImagePart)
-            .ToDictionary(pair => pair.RelationshipId, pair => PartPath(pair.OpenXmlPart), StringComparer.Ordinal);
-        var cloneImages = clone.Parts
-            .Where(pair => pair.OpenXmlPart is ImagePart)
-            .ToDictionary(pair => pair.RelationshipId, pair => PartPath(pair.OpenXmlPart), StringComparer.Ordinal);
-        if (sourceImages.Count != cloneImages.Count ||
-            sourceImages.Any(pair => !cloneImages.TryGetValue(pair.Key, out var path) || !path.Equals(pair.Value, StringComparison.OrdinalIgnoreCase)))
-            throw new CodecException("presentation_postwrite_clone_ole_mismatch", $"PPTX clone {targetIndex + 1} does not retain the exact shared OLE preview-image graph.", PartPath(clone));
-    }
-
-    private static void ValidateClonedMediaGraph(SlidePart source, SlidePart clone, int targetIndex)
-    {
-        var sourceRelationships = source.DataPartReferenceRelationships
-            .ToDictionary(relationship => relationship.Id, StringComparer.Ordinal);
-        var cloneRelationships = clone.DataPartReferenceRelationships
-            .ToDictionary(relationship => relationship.Id, StringComparer.Ordinal);
-        if (sourceRelationships.Count != cloneRelationships.Count || sourceRelationships.Count % 2 != 0)
-            throw new CodecException("presentation_postwrite_clone_media_mismatch", $"PPTX clone {targetIndex + 1} does not retain the exact bounded media relationship graph.", PartPath(clone));
-        if (sourceRelationships.Count == 0) return;
-
-        var sourceParts = new HashSet<MediaDataPart>();
-        var cloneParts = new HashSet<MediaDataPart>();
-        foreach (var (relationshipId, sourceRelationship) in sourceRelationships)
-        {
-            if (!cloneRelationships.TryGetValue(relationshipId, out var cloneRelationship) ||
-                sourceRelationship.GetType() != cloneRelationship.GetType() ||
-                sourceRelationship is not (VideoReferenceRelationship or MediaReferenceRelationship) ||
-                cloneRelationship is not (VideoReferenceRelationship or MediaReferenceRelationship) ||
-                sourceRelationship.DataPart is not MediaDataPart sourcePart ||
-                cloneRelationship.DataPart is not MediaDataPart clonePart)
-                throw new CodecException("presentation_postwrite_clone_media_mismatch", $"PPTX clone {targetIndex + 1} changed a media relationship identity or type.", PartPath(clone));
-            if (ReferenceEquals(sourcePart, clonePart) ||
-                !sourcePart.ContentType.Equals(Mp4ContentType, StringComparison.OrdinalIgnoreCase) ||
-                !clonePart.ContentType.Equals(sourcePart.ContentType, StringComparison.OrdinalIgnoreCase) ||
-                DataPartPath(sourcePart).Equals(DataPartPath(clonePart), StringComparison.OrdinalIgnoreCase) ||
-                !IsMp4MediaPath(DataPartPath(clonePart)) ||
-                !DataPartBytes(sourcePart).SequenceEqual(DataPartBytes(clonePart)))
-                throw new CodecException("presentation_postwrite_clone_media_mismatch", $"PPTX clone {targetIndex + 1} is not an independent exact source MP4 copy ({DataPartPath(sourcePart)} -> {DataPartPath(clonePart)}, {sourcePart.ContentType} -> {clonePart.ContentType}, {DataPartBytes(sourcePart).Length} -> {DataPartBytes(clonePart).Length} bytes).", PartPath(clone));
-            sourceParts.Add(sourcePart);
-            cloneParts.Add(clonePart);
-        }
-
-        if (sourceParts.Count * 2 != sourceRelationships.Count || cloneParts.Count != sourceParts.Count)
-            throw new CodecException("presentation_postwrite_clone_media_mismatch", $"PPTX clone {targetIndex + 1} changed the one-video/one-media relationship pairing.", PartPath(clone));
-        foreach (var sourcePart in sourceParts)
-        {
-            var sourceIds = sourceRelationships.Values
-                .Where(relationship => ReferenceEquals(relationship.DataPart, sourcePart))
-                .Select(relationship => relationship.Id)
-                .ToArray();
-            if (sourceIds.Length != 2 ||
-                !sourceIds.Any(id => sourceRelationships[id] is VideoReferenceRelationship) ||
-                !sourceIds.Any(id => sourceRelationships[id] is MediaReferenceRelationship))
-                throw new CodecException("presentation_postwrite_clone_media_mismatch", $"PPTX source {targetIndex + 1} does not have one canonical MP4 relationship pair.", PartPath(source));
-            var cloneTargets = sourceIds.Select(id => cloneRelationships[id].DataPart).Distinct().ToArray();
-            if (cloneTargets.Length != 1 || cloneTargets[0].GetDataPartReferenceRelationships().Count() != 2)
-                throw new CodecException("presentation_postwrite_clone_media_mismatch", $"PPTX clone {targetIndex + 1} media relationships do not share one clone-local MP4 data part.", PartPath(clone));
-        }
-    }
-
-    private static void ValidateClonedSpeakerNotes(SlidePart source, SlidePart clone, int targetIndex)
-    {
-        var sourceNotes = source.NotesSlidePart;
-        var cloneNotes = clone.NotesSlidePart;
-        if (sourceNotes is null)
-        {
-            if (cloneNotes is not null)
-                throw new CodecException("presentation_postwrite_clone_notes_mismatch", $"PPTX clone {targetIndex + 1} unexpectedly added a notes part.", PartPath(clone));
-            return;
-        }
-        if (cloneNotes?.NotesSlide is null || sourceNotes.NotesSlide is null ||
-            PartPath(sourceNotes).Equals(PartPath(cloneNotes), StringComparison.OrdinalIgnoreCase) ||
-            !PartBytes(sourceNotes).SequenceEqual(PartBytes(cloneNotes)))
-            throw new CodecException("presentation_postwrite_clone_notes_mismatch", $"PPTX clone {targetIndex + 1} is not an independent exact source notes copy.", PartPath(clone));
-        var sourceMaster = sourceNotes.NotesMasterPart;
-        var cloneMaster = cloneNotes.NotesMasterPart;
-        if (sourceMaster is null || cloneMaster is null ||
-            !PartPath(sourceMaster).Equals(PartPath(cloneMaster), StringComparison.OrdinalIgnoreCase) ||
-            source.GetIdOfPart(sourceNotes) != clone.GetIdOfPart(cloneNotes) ||
-            sourceNotes.GetIdOfPart(sourceMaster) != cloneNotes.GetIdOfPart(cloneMaster) ||
-            sourceNotes.GetIdOfPart(source) != cloneNotes.GetIdOfPart(clone) ||
-            cloneNotes.Parts.Count() != 2 || cloneNotes.ExternalRelationships.Any() || cloneNotes.HyperlinkRelationships.Any() || cloneNotes.DataPartReferenceRelationships.Any())
-            throw new CodecException("presentation_postwrite_clone_notes_mismatch", $"PPTX clone {targetIndex + 1} does not retain the exact bounded notes relationship graph.", PartPath(cloneNotes));
-    }
-
-    private static void ValidateClonedLegacyComments(
-        PresentationPart sourcePresentation,
-        PresentationPart outputPresentation,
-        SlidePart source,
-        SlidePart clone,
-        int targetIndex)
-    {
-        var sourceComments = source.SlideCommentsPart;
-        var cloneComments = clone.SlideCommentsPart;
-        if (sourceComments is null)
-        {
-            if (cloneComments is not null)
-                throw new CodecException("presentation_postwrite_clone_comments_mismatch", $"PPTX clone {targetIndex + 1} unexpectedly added a comments part.", PartPath(clone));
-            return;
-        }
-        if (cloneComments?.CommentList is null || sourceComments.CommentList is null ||
-            PartPath(sourceComments).Equals(PartPath(cloneComments), StringComparison.OrdinalIgnoreCase) ||
-            !PartBytes(sourceComments).SequenceEqual(PartBytes(cloneComments)) ||
-            source.GetIdOfPart(sourceComments) != clone.GetIdOfPart(cloneComments) ||
-            cloneComments.Parts.Any() || cloneComments.ExternalRelationships.Any() ||
-            cloneComments.HyperlinkRelationships.Any() || cloneComments.DataPartReferenceRelationships.Any())
-            throw new CodecException("presentation_postwrite_clone_comments_mismatch", $"PPTX clone {targetIndex + 1} is not an independent exact source legacy-comments copy.", PartPath(clone));
-
-        // p:cm/@authorId resolves through this shared catalog rather than a
-        // comment-part relationship. Prove that the clone still references
-        // the one untouched catalog in the output package.
-        var sourceAuthors = sourcePresentation.CommentAuthorsPart;
-        var outputAuthors = outputPresentation.CommentAuthorsPart;
-        if (sourceAuthors is null || outputAuthors is null ||
-            !PartPath(sourceAuthors).Equals(PartPath(outputAuthors), StringComparison.OrdinalIgnoreCase) ||
-            !PartBytes(sourceAuthors).SequenceEqual(PartBytes(outputAuthors)) ||
-            sourcePresentation.GetIdOfPart(sourceAuthors) != outputPresentation.GetIdOfPart(outputAuthors) ||
-            outputAuthors.Parts.Any() || outputAuthors.ExternalRelationships.Any() ||
-            outputAuthors.HyperlinkRelationships.Any() || outputAuthors.DataPartReferenceRelationships.Any())
-            throw new CodecException("presentation_postwrite_clone_comments_mismatch", $"PPTX clone {targetIndex + 1} does not retain the bounded shared legacy-comment author catalog.", PartPath(cloneComments));
     }
 
     private static void ValidateGroupOutput(
@@ -3455,136 +3040,13 @@ internal static class PptxCodec
 
         foreach (var target in cloneTargets)
         {
-            var leaf = AssertSourceSlideCanBeCloned(presentationPart, target, layoutIdByPartPath, slideIdByPartPath, retainedSlideParts, assetCatalog, customShowCatalog, nativeObjects);
+            AssertSourceSlideRequestUnchanged(presentationPart, target, layoutIdByPartPath, slideIdByPartPath, assetCatalog, customShowCatalog, nativeObjects);
             var sourcePart = target.Source.Part;
-            var sourceRoot = sourcePart.Slide ??
-                throw new CodecException("missing_slide_root", $"Presentation source slide {target.Source.Index + 1} has no slide root.", PartPath(sourcePart));
-            var clonePart = presentationPart.AddNewPart<SlidePart>();
-            clonePart.AddPart(leaf.LayoutPart, leaf.LayoutRelationshipId);
-            // The source XML keeps its r:embed values verbatim. Copy each
-            // verified internal relationship onto the new SlidePart so those
-            // bindings resolve to the same immutable media Parts without
-            // duplicating or mutating their bytes.
-            foreach (var image in leaf.Images)
-            {
-                clonePart.AddPart(image.Part, image.RelationshipId);
-                addedRelationshipIds.Add($"{PartPath(clonePart)}\0{image.RelationshipId}");
-            }
-            foreach (var chart in leaf.Charts)
-            {
-                // Unlike immutable images, a chart must not be shared between
-                // the origin and clone. Copy the already-proved closed payload
-                // under the same slide-local relationship ID into a distinct
-                // ChartPart so post-reimport edits remain independent.
-                var cloneChart = clonePart.AddNewPart<ChartPart>(chart.SlideRelationshipId);
-                CopyPartBytes(chart.Part, cloneChart);
-                addedRelationshipIds.Add($"{PartPath(clonePart)}\0{chart.SlideRelationshipId}");
-                changedParts.Add(PartPath(cloneChart));
-                addedPartPaths.Add(PartPath(cloneChart));
-            }
-            foreach (var olePackage in leaf.OlePackages)
-            {
-                // The embedded workbook is mutable Office content. Sharing it
-                // would couple later source-bound edits across the two slides,
-                // so copy the already-proved closed XLSX payload into a fresh
-                // EmbeddedPackagePart while preserving the slide-local r:id.
-                var clonePackage = clonePart.AddEmbeddedPackagePart(EmbeddedPackagePartType.Xlsx, olePackage.SlideRelationshipId);
-                CopyPartBytes(olePackage.Part, clonePackage);
-                addedRelationshipIds.Add($"{PartPath(clonePart)}\0{olePackage.SlideRelationshipId}");
-                changedParts.Add(PartPath(clonePackage));
-                addedPartPaths.Add(PartPath(clonePackage));
-            }
-            foreach (var diagram in leaf.DiagramParts)
-            {
-                // Diagram data, layout, quick style, and colors are mutable
-                // package resources. Copy every already-proved closed root
-                // into a fresh typed part while preserving the slide-local
-                // relationship ID used by dgm:relIds.
-                OpenXmlPart cloneDiagram = diagram.Part switch
-                {
-                    DiagramDataPart => clonePart.AddNewPart<DiagramDataPart>(diagram.SlideRelationshipId),
-                    DiagramLayoutDefinitionPart => clonePart.AddNewPart<DiagramLayoutDefinitionPart>(diagram.SlideRelationshipId),
-                    DiagramStylePart => clonePart.AddNewPart<DiagramStylePart>(diagram.SlideRelationshipId),
-                    DiagramColorsPart => clonePart.AddNewPart<DiagramColorsPart>(diagram.SlideRelationshipId),
-                    _ => throw new CodecException("unsupported_presentation_slide_clone", "Presentation clone preflight returned an unsupported diagram part type.", PartPath(diagram.Part)),
-                };
-                CopyPartBytes(diagram.Part, cloneDiagram);
-                addedRelationshipIds.Add($"{PartPath(clonePart)}\0{diagram.SlideRelationshipId}");
-                changedParts.Add(PartPath(cloneDiagram));
-                addedPartPaths.Add(PartPath(cloneDiagram));
-            }
-            foreach (var ink in leaf.InkContentParts)
-            {
-                // A PresentationML contentPart owns mutable InkML XML. Keep
-                // the original r:id in the copied Slide XML, but allocate a
-                // distinct SDK CustomXmlPart so a later package-level edit to
-                // either slide cannot couple the origin and clone.
-                var cloneInk = clonePart.AddCustomXmlPart(CustomXmlPartType.InkContent, ink.SlideRelationshipId);
-                CopyPartBytes(ink.Part, cloneInk);
-                addedRelationshipIds.Add($"{PartPath(clonePart)}\0{ink.SlideRelationshipId}");
-                changedParts.Add(PartPath(cloneInk));
-                addedPartPaths.Add(PartPath(cloneInk));
-            }
-            foreach (var media in leaf.MediaParts)
-            {
-                // The poster image remains a shared immutable ImagePart, but
-                // the MP4 payload is mutable package content. Allocate a new
-                // package-level MediaDataPart and reproduce both local data
-                // relationships so origin and clone cannot become coupled.
-                var cloneMedia = media.Part.OpenXmlPackage.CreateMediaDataPart(Mp4ContentType, ".mp4");
-                CopyDataPartBytes(media.Part, cloneMedia);
-                clonePart.AddVideoReferenceRelationship(cloneMedia, media.VideoRelationshipId);
-                clonePart.AddMediaReferenceRelationship(cloneMedia, media.MediaRelationshipId);
-                addedRelationshipIds.Add($"{PartPath(clonePart)}\0{media.VideoRelationshipId}");
-                addedRelationshipIds.Add($"{PartPath(clonePart)}\0{media.MediaRelationshipId}");
-                changedParts.Add(DataPartPath(cloneMedia));
-                addedPartPaths.Add(DataPartPath(cloneMedia));
-            }
-            foreach (var hyperlink in leaf.ExternalHyperlinks)
-            {
-                clonePart.AddHyperlinkRelationship(hyperlink.Uri, true, hyperlink.RelationshipId);
-                addedRelationshipIds.Add($"{PartPath(clonePart)}\0{hyperlink.RelationshipId}");
-            }
-            foreach (var hyperlink in leaf.SlideHyperlinks)
-            {
-                clonePart.AddPart(hyperlink.Part, hyperlink.RelationshipId);
-                addedRelationshipIds.Add($"{PartPath(clonePart)}\0{hyperlink.RelationshipId}");
-            }
-            if (leaf.Notes is { } notes)
-            {
-                var cloneNotes = clonePart.AddNewPart<NotesSlidePart>(notes.SlideRelationshipId);
-                cloneNotes.AddPart(notes.MasterPart, notes.MasterRelationshipId);
-                cloneNotes.AddPart(clonePart, notes.SlideBackReferenceRelationshipId);
-                // The NotesSlide is an opaque-preserved leaf here. Assigning
-                // its DOM would normalize namespace declarations on save, so
-                // copy the OPC payload bytes after wiring its two verified
-                // relationships. It remains untouched until export/reimport.
-                CopyPartBytes(notes.Part, cloneNotes);
-                addedRelationshipIds.Add($"{PartPath(clonePart)}\0{notes.SlideRelationshipId}");
-                addedRelationshipIds.Add($"{PartPath(cloneNotes)}\0{notes.MasterRelationshipId}");
-                addedRelationshipIds.Add($"{PartPath(cloneNotes)}\0{notes.SlideBackReferenceRelationshipId}");
-                changedParts.Add(PartPath(cloneNotes));
-                changedParts.Add(RelationshipPartPath(cloneNotes));
-                addedPartPaths.Add(PartPath(cloneNotes));
-                addedPartPaths.Add(RelationshipPartPath(cloneNotes));
-            }
-            if (leaf.LegacyComments is { } comments)
-            {
-                // Legacy comment XML is another opaque-preserved leaf. Its
-                // author IDs resolve through the already-verified immutable
-                // presentation catalog, so copy the bytes but do not create
-                // a second catalog or rewrite either source part.
-                if (!ReferenceEquals(presentationPart.CommentAuthorsPart, comments.AuthorsPart) ||
-                    presentationPart.GetIdOfPart(comments.AuthorsPart) != comments.AuthorsRelationshipId)
-                    throw new CodecException("presentation_slide_clone_binding_mismatch", "The shared legacy-comment author catalog changed after clone preflight.", PartPath(comments.AuthorsPart));
-                var cloneComments = clonePart.AddNewPart<SlideCommentsPart>(comments.SlideRelationshipId);
-                CopyPartBytes(comments.Part, cloneComments);
-                addedRelationshipIds.Add($"{PartPath(clonePart)}\0{comments.SlideRelationshipId}");
-                changedParts.Add(PartPath(cloneComments));
-                addedPartPaths.Add(PartPath(cloneComments));
-            }
-            clonePart.Slide = (P.Slide)sourceRoot.CloneNode(true);
-            clonePart.Slide.Save();
+            var result = PptxSlideCloneCodec.Clone(presentationPart, target.Source, retainedSlideParts);
+            var clonePart = result.Part;
+            changedParts.UnionWith(result.ChangedPackagePaths);
+            addedPartPaths.UnionWith(result.AddedOpaquePartPaths);
+            addedRelationshipIds.UnionWith(result.AddedOpaqueRelationshipKeys);
             if (nextSlideId == uint.MaxValue)
                 throw new CodecException("presentation_slide_id_exhausted", "PPTX cannot allocate another 32-bit slide identifier.", "ppt/presentation.xml");
             nextSlideId++;
@@ -3594,14 +3056,6 @@ internal static class PptxCodec
                 Id = nextSlideId,
                 RelationshipId = presentationPart.GetIdOfPart(clonePart),
             };
-            // Clone-to-layout, clone-to-image, clone-to-chart/embedded-XLSX/SmartArt/InkML/MP4,
-            // clone-to-run-hyperlink, clone-to-notes, and clone-to-comments
-            // edges are intentionally opaque in the generic profile. Record
-            // only these exact, verified relationships so the package guard
-            // can distinguish them from an unmodeled graph change.
-            addedRelationshipIds.Add($"{PartPath(clonePart)}\0{leaf.LayoutRelationshipId}");
-            changedParts.Add(PartPath(clonePart));
-            changedParts.Add(RelationshipPartPath(clonePart));
         }
         changedParts.Add(PartPath(presentationPart));
         changedParts.Add(RelationshipPartPath(presentationPart));
@@ -3628,204 +3082,33 @@ internal static class PptxCodec
         }
     }
 
-    private static PptxCloneLeaf AssertSourceSlideCanBeCloned(
+    private static void AssertSourceSlideRequestUnchanged(
         PresentationPart presentationPart,
         PptxTargetSlideEntry target,
         IReadOnlyDictionary<string, string> layoutIdByPartPath,
         IReadOnlyDictionary<string, string> slideIdByPartPath,
-        IReadOnlySet<SlidePart> retainedSlideParts,
         PptxAssetCatalog assetCatalog,
         PptxCustomShowCatalog customShowCatalog,
         PptxNativeObjectCatalog nativeObjects)
     {
         var source = target.Source;
-        var childParts = source.Part.Parts.ToArray();
-        var layoutRelationshipCount = childParts.Count(pair => pair.OpenXmlPart is SlideLayoutPart);
-        var imageEdges = childParts
-            .Where(pair => pair.OpenXmlPart is ImagePart)
-            .Select(pair => new PptxCloneImageEdge((ImagePart)pair.OpenXmlPart, pair.RelationshipId))
-            .ToArray();
-        var imageRelationshipIds = imageEdges
-            .Select(edge => edge.RelationshipId)
-            .ToHashSet(StringComparer.Ordinal);
-        var chartEdges = childParts
-            .Where(pair => pair.OpenXmlPart is ChartPart)
-            .Select(pair => new PptxCloneChartLeaf((ChartPart)pair.OpenXmlPart, pair.RelationshipId))
-            .ToArray();
-        var chartRelationshipIds = chartEdges
-            .Select(edge => edge.SlideRelationshipId)
-            .ToHashSet(StringComparer.Ordinal);
-        var olePackageEdges = childParts
-            .Where(pair => pair.OpenXmlPart is EmbeddedPackagePart)
-            .Select(pair => new PptxCloneOlePackageLeaf((EmbeddedPackagePart)pair.OpenXmlPart, pair.RelationshipId))
-            .ToArray();
-        var olePackageRelationshipIds = olePackageEdges
-            .Select(edge => edge.SlideRelationshipId)
-            .ToHashSet(StringComparer.Ordinal);
-        var diagramEdges = childParts
-            .Where(pair => pair.OpenXmlPart is DiagramDataPart or DiagramLayoutDefinitionPart or DiagramStylePart or DiagramColorsPart)
-            .Select(pair => new PptxCloneDiagramPartLeaf(pair.OpenXmlPart, pair.RelationshipId))
-            .ToArray();
-        var diagramRelationshipIds = diagramEdges
-            .Select(edge => edge.SlideRelationshipId)
-            .ToHashSet(StringComparer.Ordinal);
-        var inkContentEdges = childParts
-            .Where(pair => pair.OpenXmlPart is CustomXmlPart)
-            .Select(pair => new PptxCloneInkContentLeaf((CustomXmlPart)pair.OpenXmlPart, pair.RelationshipId))
-            .ToArray();
-        var inkContentRelationshipIds = inkContentEdges
-            .Select(edge => edge.SlideRelationshipId)
-            .ToHashSet(StringComparer.Ordinal);
-        var dataRelationships = source.Part.DataPartReferenceRelationships.ToArray();
-        var videoRelationships = dataRelationships
-            .OfType<VideoReferenceRelationship>()
-            .ToDictionary(relationship => relationship.Id, StringComparer.Ordinal);
-        var mediaRelationships = dataRelationships
-            .OfType<MediaReferenceRelationship>()
-            .ToDictionary(relationship => relationship.Id, StringComparer.Ordinal);
-        var mediaEdges = new List<PptxCloneMediaLeaf>();
-        var seenMediaParts = new HashSet<MediaDataPart>();
-        var validMediaRelationshipPairs = dataRelationships.Length == videoRelationships.Count + mediaRelationships.Count &&
-                                          videoRelationships.Count == mediaRelationships.Count;
-        if (validMediaRelationshipPairs)
-        {
-            foreach (var video in videoRelationships.Values)
-            {
-                var matches = mediaRelationships.Values
-                    .Where(media => ReferenceEquals(media.DataPart, video.DataPart))
-                    .ToArray();
-                if (matches.Length != 1 || video.DataPart is not MediaDataPart mediaPart || !seenMediaParts.Add(mediaPart))
-                {
-                    validMediaRelationshipPairs = false;
-                    break;
-                }
-                mediaEdges.Add(new PptxCloneMediaLeaf(mediaPart, video.Id, matches[0].Id));
-            }
-        }
-        var videoRelationshipIds = videoRelationships.Keys.ToHashSet(StringComparer.Ordinal);
-        var mediaRelationshipIds = mediaRelationships.Keys.ToHashSet(StringComparer.Ordinal);
-        var externalHyperlinkEdges = source.Part.HyperlinkRelationships
-            .Select(relationship => new PptxCloneExternalHyperlinkEdge(relationship.Uri, relationship.Id))
-            .ToArray();
-        var slideHyperlinkEdges = childParts
-            .Where(pair => pair.OpenXmlPart is SlidePart)
-            .Select(pair => new PptxCloneSlideHyperlinkEdge((SlidePart)pair.OpenXmlPart, pair.RelationshipId))
-            .ToArray();
-        var hyperlinkRelationshipIds = externalHyperlinkEdges
-            .Select(edge => edge.RelationshipId)
-            .Concat(slideHyperlinkEdges.Select(edge => edge.RelationshipId))
-            .ToHashSet(StringComparer.Ordinal);
-        var notesRelationshipCount = childParts.Count(pair => pair.OpenXmlPart is NotesSlidePart);
-        var commentsRelationshipCount = childParts.Count(pair => pair.OpenXmlPart is SlideCommentsPart);
-        var unsafeChildren = childParts
-            .Where(pair => pair.OpenXmlPart is not SlideLayoutPart && pair.OpenXmlPart is not ImagePart && pair.OpenXmlPart is not ChartPart && pair.OpenXmlPart is not EmbeddedPackagePart &&
-                           pair.OpenXmlPart is not DiagramDataPart && pair.OpenXmlPart is not DiagramLayoutDefinitionPart && pair.OpenXmlPart is not DiagramStylePart && pair.OpenXmlPart is not DiagramColorsPart &&
-                           pair.OpenXmlPart is not CustomXmlPart &&
-                           pair.OpenXmlPart is not SlidePart && pair.OpenXmlPart is not NotesSlidePart && pair.OpenXmlPart is not SlideCommentsPart)
-            .Select(pair => pair.OpenXmlPart.RelationshipType)
-            .Distinct(StringComparer.Ordinal)
-            .Take(4)
-            .ToArray();
-        if (layoutRelationshipCount != 1 ||
-            notesRelationshipCount > 1 ||
-            commentsRelationshipCount > 1 ||
-            chartEdges.Length > MaxCloneChartParts ||
-            olePackageEdges.Length > MaxCloneOlePackageParts ||
-            diagramEdges.Length > MaxCloneDiagramParts ||
-            inkContentEdges.Length > MaxCloneInkContentParts ||
-            mediaEdges.Count > MaxCloneMediaParts ||
-            !validMediaRelationshipPairs ||
-            unsafeChildren.Length > 0 ||
-            source.Part.ExternalRelationships.Any() ||
-            hyperlinkRelationshipIds.Count > MaxCloneHyperlinkRelationships ||
-            slideHyperlinkEdges.Any(edge => !retainedSlideParts.Contains(edge.Part)))
-            throw UnsupportedSourceSlideClone(source, "it owns an unrecognized data part, an unretained slide jump, too many charts, OLE packages, diagram/InkML/media parts, or hyperlinks, or another non-layout/image/chart/embedded-XLSX/closed-diagram/closed-InkML/closed-MP4/run-hyperlink/notes/comments relationship");
-        if (chartEdges.Any(edge => edge.Part.Parts.Any() || edge.Part.ExternalRelationships.Any() ||
-                                         edge.Part.HyperlinkRelationships.Any() || edge.Part.DataPartReferenceRelationships.Any()))
-            throw UnsupportedSourceSlideClone(source, "one of its chart parts owns a child, external, hyperlink, or data relationship");
-        if (olePackageEdges.Any(edge => !edge.Part.ContentType.Equals(SpreadsheetContentType, StringComparison.OrdinalIgnoreCase) ||
-                                              edge.Part.Parts.Any() || edge.Part.ExternalRelationships.Any() ||
-                                              edge.Part.HyperlinkRelationships.Any() || edge.Part.DataPartReferenceRelationships.Any()))
-            throw UnsupportedSourceSlideClone(source, "one of its embedded packages is not a closed XLSX part");
-        if (diagramEdges.Any(edge => !IsClosedCloneDiagramPart(edge.Part)))
-            throw UnsupportedSourceSlideClone(source, "one of its SmartArt diagram parts has an unexpected content type or owns a child, external, hyperlink, or data relationship");
-        if (inkContentEdges.Any(edge => !IsClosedCloneInkContentPart(edge.Part)))
-            throw UnsupportedSourceSlideClone(source, "one of its content parts is not a closed standard InkML CustomXmlPart");
-        if (mediaEdges.Any(edge => !IsClosedCloneMediaPart(edge)))
-            throw UnsupportedSourceSlideClone(source, "one of its media data parts is not one uniquely owned non-empty MP4 with exactly one video and one media relationship");
         var root = source.Part.Slide ??
             throw new CodecException("missing_slide_root", $"Presentation source slide {source.Index + 1} has no slide root.", PartPath(source.Part));
         var common = root.CommonSlideData ??
             throw new CodecException("missing_common_slide_data", $"Presentation source slide {source.Index + 1} has no common slide data.", PartPath(source.Part));
         var tree = common.ShapeTree ??
             throw new CodecException("missing_shape_tree", $"Presentation source slide {source.Index + 1} has no shape tree.", PartPath(source.Part));
-        if (root.Descendants<A.HyperlinkOnClick>().Take(MaxCloneHyperlinkRelationships + 1).Count() > MaxCloneHyperlinkRelationships)
-            throw UnsupportedSourceSlideClone(source, $"it exceeds the {MaxCloneHyperlinkRelationships}-run-hyperlink markup budget");
-        var sourceElements = ShapeElements(tree);
-        var context = new PptxPartContext(source.Part, slideIdByPartPath, assets: assetCatalog, customShows: customShowCatalog);
-        var elementIdsByNativeId = NativeElementIds(sourceElements, $"presentation/slide/{source.Index + 1}");
-        var embeddedImageRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
-        var usedChartRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
-        var usedOlePackageRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
-        var usedDiagramRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
-        var usedInkContentRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
-        var usedVideoRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
-        var usedMediaRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
-        var usedHyperlinkRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
-        for (var elementIndex = 0; elementIndex < sourceElements.Length; elementIndex++)
-        {
-            if (!TryCollectCanonicalCloneElement(
-                    sourceElements[elementIndex],
-                    $"presentation/slide/{source.Index + 1}",
-                    elementIndex,
-                    context,
-                    elementIdsByNativeId,
-                    imageRelationshipIds,
-                    embeddedImageRelationshipIds,
-                    chartRelationshipIds,
-                    usedChartRelationshipIds,
-                    olePackageRelationshipIds,
-                    usedOlePackageRelationshipIds,
-                    diagramRelationshipIds,
-                    usedDiagramRelationshipIds,
-                    inkContentRelationshipIds,
-                    usedInkContentRelationshipIds,
-                    videoRelationships,
-                    mediaRelationships,
-                    usedVideoRelationshipIds,
-                    usedMediaRelationshipIds,
-                    nativeObjects,
-                    true,
-                    usedHyperlinkRelationshipIds))
-                throw UnsupportedSourceSlideClone(source, "its elements require a broader graph clone than the bounded shape-with-canonical-run-hyperlinks/inline-table/closed-chart/embedded-image/embedded-XLSX-OLE/closed-SmartArt/top-level-InkML/top-level-MP4/connector/recursive-group profile");
-        }
-        if (!imageRelationshipIds.SetEquals(embeddedImageRelationshipIds))
-            throw UnsupportedSourceSlideClone(source, "it has an image relationship that is not exactly bound by a canonical embedded picture");
-        if (!chartRelationshipIds.SetEquals(usedChartRelationshipIds))
-            throw UnsupportedSourceSlideClone(source, "it has a chart relationship that is not exactly and uniquely bound by a recognized literal-data chart frame");
-        if (!olePackageRelationshipIds.SetEquals(usedOlePackageRelationshipIds))
-            throw UnsupportedSourceSlideClone(source, "it has an embedded package relationship that is not exactly and uniquely bound by an eligible OLE frame");
-        if (!diagramRelationshipIds.SetEquals(usedDiagramRelationshipIds))
-            throw UnsupportedSourceSlideClone(source, "its SmartArt relationships are not exactly and uniquely bound by canonical four-part diagram frames");
-        if (!inkContentRelationshipIds.SetEquals(usedInkContentRelationshipIds))
-            throw UnsupportedSourceSlideClone(source, "its custom XML relationships are not exactly and uniquely bound by canonical top-level InkML content parts");
-        if (!videoRelationshipIds.SetEquals(usedVideoRelationshipIds) || !mediaRelationshipIds.SetEquals(usedMediaRelationshipIds))
-            throw UnsupportedSourceSlideClone(source, "its MP4 data relationships are not exactly and uniquely bound by canonical top-level media pictures");
-        if (!hyperlinkRelationshipIds.SetEquals(usedHyperlinkRelationshipIds))
-            throw UnsupportedSourceSlideClone(source, "its hyperlink relationships are not exactly bound by canonical inline run click actions");
-        var notes = AssertSourceSpeakerNotesCanBeCloned(source, target.Target);
-        var comments = AssertSourceLegacyCommentsCanBeCloned(presentationPart, source, target.Target);
         if (target.Target.Name != (common.Name?.Value ?? string.Empty))
-            throw UnsupportedSourceSlideClone(source, "the requested clone changes its source name");
+            throw PptxSlideCloneCodec.Unsupported(source, "the requested clone changes its source name");
         var layoutPart = source.Part.SlideLayoutPart ??
-            throw UnsupportedSourceSlideClone(source, "it does not have a resolvable layout relationship");
+            throw PptxSlideCloneCodec.Unsupported(source, "it does not have a resolvable layout relationship");
         var expectedLayoutId = layoutIdByPartPath.GetValueOrDefault(PartPath(layoutPart));
         if (string.IsNullOrWhiteSpace(expectedLayoutId) || target.Target.LayoutId != expectedLayoutId)
-            throw UnsupportedSourceSlideClone(source, "the requested clone changes its source layout binding");
+            throw PptxSlideCloneCodec.Unsupported(source, "the requested clone changes its source layout binding");
         var sourceVisibility = PptxSlideVisibilityCodec.Read(root);
         if (sourceVisibility.Editable != target.Target.HasHidden ||
             target.Target.HasHidden && sourceVisibility.Hidden != target.Target.Hidden)
-            throw UnsupportedSourceSlideClone(source, "the requested clone changes or invents its source visibility");
+            throw PptxSlideCloneCodec.Unsupported(source, "the requested clone changes or invents its source visibility");
         var sourceBinding = target.Target.CloneSource ??
             throw new CodecException("missing_presentation_slide_clone_binding", $"Presentation clone {target.TargetIndex + 1} is missing clone_source.", PartPath(source.Part));
         if (sourceBinding.LayoutRelationshipId != source.Part.GetIdOfPart(layoutPart) ||
@@ -3838,11 +3121,21 @@ internal static class PptxCodec
             !sourceBinding.VisibilitySemanticSha256.Equals(sourceVisibility.SemanticSha256, StringComparison.OrdinalIgnoreCase))
             throw new CodecException("presentation_slide_clone_binding_mismatch", $"Presentation clone {target.TargetIndex + 1} does not match its source layout/background/transition binding.", PartPath(source.Part));
         if (!BackgroundSemanticHash(target.Target.Background).Equals(BackgroundSemanticHash(PptxBackgroundCodec.Read(common)), StringComparison.OrdinalIgnoreCase))
-            throw UnsupportedSourceSlideClone(source, "the requested clone changes its source background");
+            throw PptxSlideCloneCodec.Unsupported(source, "the requested clone changes its source background");
         if (!PptxTransitionCodec.SemanticHash(target.Target.Transition).Equals(PptxTransitionCodec.SemanticHash(PptxTransitionCodec.Read(root)), StringComparison.OrdinalIgnoreCase))
-            throw UnsupportedSourceSlideClone(source, "the requested clone changes its source transition");
+            throw PptxSlideCloneCodec.Unsupported(source, "the requested clone changes its source transition");
+        if (!PptxSpeakerNotesCodec.Equivalent(target.Target.SpeakerNotes, PptxSpeakerNotesCodec.Read(source.Part)))
+            throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} speaker notes are not unchanged source notes.", PartPath(source.Part));
+        var legacyProfile = PptxLegacyCommentsCodec.Profile(presentationPart, source.Part, source.Index);
+        if (legacyProfile.Supported && !PptxLegacyCommentsCodec.Equivalent(legacyProfile.Comments, target.Target.LegacyComments) ||
+            !legacyProfile.Supported && target.Target.LegacyComments.Count > 0)
+            throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} legacy comments are not unchanged source comments.", PartPath(source.Part));
+
+        var sourceElements = ShapeElements(tree);
         if (sourceElements.Length != target.Target.Elements.Count)
-            throw UnsupportedSourceSlideClone(source, "the requested clone changes source element topology");
+            throw PptxSlideCloneCodec.Unsupported(source, "the requested clone changes source element topology");
+        var context = new PptxPartContext(source.Part, slideIdByPartPath, assets: assetCatalog, customShows: customShowCatalog);
+        var elementIdsByNativeId = NativeElementIds(sourceElements, $"presentation/slide/{source.Index + 1}");
         for (var elementIndex = 0; elementIndex < sourceElements.Length; elementIndex++)
         {
             var requested = target.Target.Elements[elementIndex];
@@ -3859,607 +3152,7 @@ internal static class PptxCodec
                 !SemanticHash(requested).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} is not an unchanged source element.", PartPath(source.Part));
         }
-        return new PptxCloneLeaf(
-            layoutPart,
-            source.Part.GetIdOfPart(layoutPart),
-            imageEdges,
-            chartEdges,
-            olePackageEdges,
-            diagramEdges,
-            inkContentEdges,
-            mediaEdges,
-            externalHyperlinkEdges,
-            slideHyperlinkEdges,
-            notes,
-            comments);
     }
-
-    // A p:grpSp is a container, not a clone permission by itself. Its
-    // descendants must recursively stay in the same canonical leaf profile,
-    // and every nested picture must consume one verified SlidePart image
-    // relationship. The clone operation still copies the original Slide XML;
-    // this check only proves that no hidden graph edge is being smuggled in.
-    private static bool TryCollectCanonicalCloneElement(
-        OpenXmlElement element,
-        string ownerId,
-        int elementIndex,
-        PptxPartContext context,
-        IReadOnlyDictionary<uint, string> elementIdsByNativeId,
-        ISet<string> imageRelationshipIds,
-        ISet<string> embeddedImageRelationshipIds,
-        ISet<string> chartRelationshipIds,
-        ISet<string> usedChartRelationshipIds,
-        ISet<string> olePackageRelationshipIds,
-        ISet<string> usedOlePackageRelationshipIds,
-        ISet<string> diagramRelationshipIds,
-        ISet<string> usedDiagramRelationshipIds,
-        ISet<string> inkContentRelationshipIds,
-        ISet<string> usedInkContentRelationshipIds,
-        IReadOnlyDictionary<string, VideoReferenceRelationship> videoRelationships,
-        IReadOnlyDictionary<string, MediaReferenceRelationship> mediaRelationships,
-        ISet<string> usedVideoRelationshipIds,
-        ISet<string> usedMediaRelationshipIds,
-        PptxNativeObjectCatalog nativeObjects,
-        bool allowNativeGraphLeaf,
-        ISet<string> usedHyperlinkRelationshipIds)
-    {
-        if (element is P.Shape shape)
-            return IsSimpleShape(shape) && TryCollectCanonicalRunHyperlinks(shape, context, usedHyperlinkRelationshipIds);
-        if (element is P.GraphicFrame frame)
-        {
-            if (HasHyperlinkMarkup(frame)) return false;
-            if (PptxNativeObjectCatalog.Classify(frame) == "oleObject")
-            {
-                if (!allowNativeGraphLeaf) return false;
-                return TryCollectCanonicalCloneOleWorkbook(
-                    frame,
-                    ownerId,
-                    elementIndex,
-                    context,
-                    elementIdsByNativeId,
-                    imageRelationshipIds,
-                    embeddedImageRelationshipIds,
-                    olePackageRelationshipIds,
-                    usedOlePackageRelationshipIds,
-                    nativeObjects);
-            }
-            if (PptxNativeObjectCatalog.Classify(frame) == "diagram")
-            {
-                if (!allowNativeGraphLeaf) return false;
-                return TryCollectCanonicalCloneDiagram(
-                    frame,
-                    ownerId,
-                    elementIndex,
-                    context,
-                    elementIdsByNativeId,
-                    diagramRelationshipIds,
-                    usedDiagramRelationshipIds,
-                    nativeObjects);
-            }
-            // Tables stay entirely inline. A chart owns one relationship, but
-            // only a semantically recognized literal-data ChartPart whose own
-            // relationship graph was already proved empty is clone-safe.
-            if (PptxTableCodec.TryRead(frame, out _)) return true;
-            if (!PptxChartCodec.TryRead(frame, context, out _, out _)) return false;
-            var chartReferences = frame.Descendants<C.ChartReference>().ToArray();
-            if (chartReferences.Length != 1) return false;
-            var relationshipId = chartReferences[0].Id?.Value ?? string.Empty;
-            return relationshipId.Length > 0 && chartRelationshipIds.Contains(relationshipId) && usedChartRelationshipIds.Add(relationshipId);
-        }
-        if (element is P.Picture picture)
-        {
-            if (PptxNativeObjectCatalog.IsMediaPicture(picture))
-            {
-                if (!allowNativeGraphLeaf) return false;
-                return TryCollectCanonicalCloneMedia(
-                    picture,
-                    ownerId,
-                    elementIndex,
-                    context,
-                    elementIdsByNativeId,
-                    imageRelationshipIds,
-                    embeddedImageRelationshipIds,
-                    videoRelationships,
-                    mediaRelationships,
-                    usedVideoRelationshipIds,
-                    usedMediaRelationshipIds,
-                    nativeObjects);
-            }
-            if (HasHyperlinkMarkup(picture)) return false;
-            if (!PptxPictureCodec.TryRead(picture, context, out _)) return false;
-            var relationshipId = picture.BlipFill?.GetFirstChild<A.Blip>()?.Embed?.Value ?? string.Empty;
-            if (relationshipId.Length == 0 || !imageRelationshipIds.Contains(relationshipId)) return false;
-            embeddedImageRelationshipIds.Add(relationshipId);
-            return true;
-        }
-        if (element is P.ContentPart contentPart)
-        {
-            if (!allowNativeGraphLeaf) return false;
-            return TryCollectCanonicalCloneInkContent(
-                contentPart,
-                ownerId,
-                elementIndex,
-                context,
-                elementIdsByNativeId,
-                inkContentRelationshipIds,
-                usedInkContentRelationshipIds,
-                nativeObjects);
-        }
-        // A bounded connection shape is entirely inline in its owning shape
-        // tree. Its endpoints resolve through non-visual IDs in that same
-        // cloned SlidePart, so it adds no OPC edge beyond the already-proved
-        // layout/image/notes/comments graph.
-        if (element is P.ConnectionShape connector)
-            return !HasHyperlinkMarkup(connector) && PptxConnectorCodec.TryRead(connector, elementIdsByNativeId, out _);
-        if (element is not P.GroupShape group) return false;
-
-        var groupId = $"{ownerId}/element/{elementIndex + 1}";
-        if (group.NonVisualGroupShapeProperties?.Descendants<A.HyperlinkOnClick>().Any() == true ||
-            group.NonVisualGroupShapeProperties?.Descendants<A.HyperlinkOnHover>().Any() == true ||
-            group.GroupShapeProperties?.Descendants<A.HyperlinkOnClick>().Any() == true ||
-            group.GroupShapeProperties?.Descendants<A.HyperlinkOnHover>().Any() == true)
-            return false;
-        if (!TryReadGroup(group, groupId, context, elementIdsByNativeId, out _)) return false;
-        var children = GroupElements(group);
-        for (var childIndex = 0; childIndex < children.Length; childIndex++)
-        {
-            if (!TryCollectCanonicalCloneElement(
-                    children[childIndex],
-                    groupId,
-                    childIndex,
-                    context,
-                    elementIdsByNativeId,
-                    imageRelationshipIds,
-                    embeddedImageRelationshipIds,
-                    chartRelationshipIds,
-                    usedChartRelationshipIds,
-                    olePackageRelationshipIds,
-                    usedOlePackageRelationshipIds,
-                    diagramRelationshipIds,
-                    usedDiagramRelationshipIds,
-                    inkContentRelationshipIds,
-                    usedInkContentRelationshipIds,
-                    videoRelationships,
-                    mediaRelationships,
-                    usedVideoRelationshipIds,
-                    usedMediaRelationshipIds,
-                    nativeObjects,
-                    false,
-                    usedHyperlinkRelationshipIds))
-                return false;
-        }
-        return true;
-    }
-
-    private static bool TryCollectCanonicalCloneOleWorkbook(
-        P.GraphicFrame frame,
-        string ownerId,
-        int elementIndex,
-        PptxPartContext context,
-        IReadOnlyDictionary<uint, string> elementIdsByNativeId,
-        ISet<string> imageRelationshipIds,
-        ISet<string> embeddedImageRelationshipIds,
-        ISet<string> olePackageRelationshipIds,
-        ISet<string> usedOlePackageRelationshipIds,
-        PptxNativeObjectCatalog nativeObjects)
-    {
-        if (!PptxNativeObjectCatalog.SupportsPlacementEditing(frame)) return false;
-        var oleObjects = frame.Descendants<P.OleObject>().ToArray();
-        if (oleObjects.Length != 1) return false;
-        var ole = oleObjects[0];
-        var embeds = ole.Elements<P.OleObjectEmbed>().ToArray();
-        var previews = ole.Elements<P.Picture>().ToArray();
-        if (embeds.Length != 1 || ole.Elements<P.OleObjectLink>().Any() || previews.Length != 1) return false;
-
-        var packageRelationshipId = ole.Id?.Value ?? string.Empty;
-        var blips = previews[0].Descendants<A.Blip>().ToArray();
-        if (packageRelationshipId.Length == 0 || !olePackageRelationshipIds.Contains(packageRelationshipId) ||
-            blips.Length != 1 || string.IsNullOrWhiteSpace(blips[0].Embed?.Value) || !string.IsNullOrWhiteSpace(blips[0].Link?.Value))
-            return false;
-        var previewRelationshipId = blips[0].Embed!.Value!;
-        if (!imageRelationshipIds.Contains(previewRelationshipId)) return false;
-
-        // The only package references admitted by this opaque frame are the
-        // OLE package edge and its internal preview image. This rejects hidden
-        // actions, controls, links, or extension relationships while retaining
-        // all non-relationship PresentationML bytes verbatim.
-        var relationshipAttributes = frame.Descendants()
-            .SelectMany(element => element.GetAttributes())
-            .Where(attribute => attribute.NamespaceUri is
-                "http://schemas.openxmlformats.org/officeDocument/2006/relationships" or
-                "http://purl.oclc.org/ooxml/officeDocument/relationships")
-            .ToArray();
-        if (relationshipAttributes.Length != 2 ||
-            relationshipAttributes.Count(attribute => attribute.LocalName == "id" && attribute.Value == packageRelationshipId) != 1 ||
-            relationshipAttributes.Count(attribute => attribute.LocalName == "embed" && attribute.Value == previewRelationshipId) != 1)
-            return false;
-
-        var semantic = ReadElement(frame, ownerId, elementIndex, context, nativeObjects, elementIdsByNativeId);
-        var workbook = semantic.ContentCase == PresentationElement.ContentOneofCase.Opaque
-            ? semantic.Opaque.OleWorkbook
-            : null;
-        if (workbook is null || workbook.ReplacementAssetId.Length > 0 ||
-            !workbook.RelationshipId.Equals(packageRelationshipId, StringComparison.Ordinal) ||
-            context.Owner.GetPartById(packageRelationshipId) is not EmbeddedPackagePart packagePart ||
-            !packagePart.ContentType.Equals(SpreadsheetContentType, StringComparison.OrdinalIgnoreCase) ||
-            !PartPath(packagePart).Equals(workbook.PartPath, StringComparison.OrdinalIgnoreCase) ||
-            !Hash(PartBytes(packagePart)).Equals(workbook.SourceSha256, StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        embeddedImageRelationshipIds.Add(previewRelationshipId);
-        return usedOlePackageRelationshipIds.Add(packageRelationshipId);
-    }
-
-    // SmartArt is accepted only as the canonical four-root DrawingML diagram
-    // graph. Every root part is relationship-free and is copied into a new
-    // typed part for the clone; this prevents later edits from coupling the
-    // origin and clone while keeping all diagram XML byte-identical.
-    private static bool TryCollectCanonicalCloneDiagram(
-        P.GraphicFrame frame,
-        string ownerId,
-        int elementIndex,
-        PptxPartContext context,
-        IReadOnlyDictionary<uint, string> elementIdsByNativeId,
-        ISet<string> diagramRelationshipIds,
-        ISet<string> usedDiagramRelationshipIds,
-        PptxNativeObjectCatalog nativeObjects)
-    {
-        if (!PptxNativeObjectCatalog.SupportsPlacementEditing(frame)) return false;
-        var relationshipRoots = frame.Descendants()
-            .Where(PptxNativeObjectCatalog.IsDiagramRelationshipIds)
-            .ToArray();
-        if (relationshipRoots.Length != 1) return false;
-
-        var relationshipAttributes = frame.Descendants()
-            .SelectMany(element => element.GetAttributes())
-            .Where(attribute => PptxNativeObjectCatalog.IsRelationshipNamespace(attribute.NamespaceUri))
-            .ToArray();
-        var rootAttributes = relationshipRoots[0].GetAttributes()
-            .Where(attribute => PptxNativeObjectCatalog.IsRelationshipNamespace(attribute.NamespaceUri))
-            .ToArray();
-        if (relationshipAttributes.Length != 4 || rootAttributes.Length != 4) return false;
-
-        var expected = new Dictionary<string, Type>(StringComparer.Ordinal)
-        {
-            ["dm"] = typeof(DiagramDataPart),
-            ["lo"] = typeof(DiagramLayoutDefinitionPart),
-            ["qs"] = typeof(DiagramStylePart),
-            ["cs"] = typeof(DiagramColorsPart),
-        };
-        var resolvedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var resolvedRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var attribute in rootAttributes)
-        {
-            if (!expected.TryGetValue(attribute.LocalName, out var expectedType) || string.IsNullOrWhiteSpace(attribute.Value) ||
-                !diagramRelationshipIds.Contains(attribute.Value) || !resolvedRelationshipIds.Add(attribute.Value))
-                return false;
-            var part = context.Owner.GetPartById(attribute.Value);
-            if (part.GetType() != expectedType || !IsClosedCloneDiagramPart(part) ||
-                !usedDiagramRelationshipIds.Add(attribute.Value))
-                return false;
-            resolvedPaths.Add(PartPath(part));
-        }
-        if (resolvedPaths.Count != 4 || expected.Count != rootAttributes.Select(attribute => attribute.LocalName).Distinct(StringComparer.Ordinal).Count())
-            return false;
-
-        var semantic = ReadElement(frame, ownerId, elementIndex, context, nativeObjects, elementIdsByNativeId);
-        if (semantic.ContentCase != PresentationElement.ContentOneofCase.Opaque ||
-            semantic.Opaque.NativeKind != "diagram" ||
-            semantic.Opaque.RelationshipReferences.Count != 4 ||
-            !semantic.Opaque.RelationshipReferences.Select(reference => reference.RelationshipId).ToHashSet(StringComparer.Ordinal).SetEquals(resolvedRelationshipIds) ||
-            semantic.Opaque.PreservedPartPaths.Count != 4 ||
-            !semantic.Opaque.PreservedPartPaths.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(resolvedPaths))
-            return false;
-        return true;
-    }
-
-    private static bool IsClosedCloneDiagramPart(OpenXmlPart part)
-    {
-        var contentTypeMatches = part switch
-        {
-            DiagramDataPart => part.ContentType.Equals(DiagramDataContentType, StringComparison.OrdinalIgnoreCase),
-            DiagramLayoutDefinitionPart => part.ContentType.Equals(DiagramLayoutContentType, StringComparison.OrdinalIgnoreCase),
-            DiagramStylePart => part.ContentType.Equals(DiagramStyleContentType, StringComparison.OrdinalIgnoreCase),
-            DiagramColorsPart => part.ContentType.Equals(DiagramColorsContentType, StringComparison.OrdinalIgnoreCase),
-            _ => false,
-        };
-        return contentTypeMatches && !part.Parts.Any() && !part.ExternalRelationships.Any() &&
-               !part.HyperlinkRelationships.Any() && !part.DataPartReferenceRelationships.Any();
-    }
-
-    // PresentationML contentPart is used by Office for InkML. Keep the clone
-    // profile deliberately narrower than arbitrary custom XML: one top-level
-    // p:contentPart owns one internal, relationship-free InkML CustomXmlPart.
-    private static bool TryCollectCanonicalCloneInkContent(
-        P.ContentPart contentPart,
-        string ownerId,
-        int elementIndex,
-        PptxPartContext context,
-        IReadOnlyDictionary<uint, string> elementIdsByNativeId,
-        ISet<string> inkContentRelationshipIds,
-        ISet<string> usedInkContentRelationshipIds,
-        PptxNativeObjectCatalog nativeObjects)
-    {
-        if (contentPart.ExtensionListModify is not null ||
-            contentPart.NonVisualContentPartProperties is null ||
-            contentPart.Transform2D?.Offset is null ||
-            contentPart.Transform2D.Extents is null ||
-            contentPart.Transform2D.Extents.Cx?.Value <= 0 ||
-            contentPart.Transform2D.Extents.Cy?.Value <= 0)
-            return false;
-
-        var relationshipAttributes = new[] { (OpenXmlElement)contentPart }
-            .Concat(contentPart.Descendants())
-            .SelectMany(element => element.GetAttributes())
-            .Where(attribute => PptxNativeObjectCatalog.IsRelationshipNamespace(attribute.NamespaceUri))
-            .ToArray();
-        var relationshipId = contentPart.Id?.Value ?? string.Empty;
-        if (relationshipAttributes.Length != 1 || relationshipAttributes[0].LocalName != "id" ||
-            relationshipAttributes[0].Value != relationshipId || relationshipId.Length == 0 ||
-            !inkContentRelationshipIds.Contains(relationshipId) ||
-            !usedInkContentRelationshipIds.Add(relationshipId) ||
-            context.Owner.GetPartById(relationshipId) is not CustomXmlPart part ||
-            !IsClosedCloneInkContentPart(part))
-            return false;
-
-        var semantic = ReadElement(contentPart, ownerId, elementIndex, context, nativeObjects, elementIdsByNativeId);
-        return semantic.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
-               semantic.Opaque.NativeKind == "contentPart" &&
-               semantic.Opaque.RelationshipReferences.Count == 1 &&
-               semantic.Opaque.RelationshipReferences[0].RelationshipId == relationshipId &&
-               PptxNativeObjectCatalog.IsRelationshipNamespace(semantic.Opaque.RelationshipReferences[0].NamespaceUri) &&
-               semantic.Opaque.PreservedPartPaths.Count == 1 &&
-               semantic.Opaque.PreservedPartPaths[0].Equals(PartPath(part), StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsClosedCloneInkContentPart(CustomXmlPart part)
-    {
-        if (!part.ContentType.Equals(InkContentType, StringComparison.OrdinalIgnoreCase) ||
-            !IsCustomXmlRelationship(part.RelationshipType) || part.Parts.Any() ||
-            part.ExternalRelationships.Any() || part.HyperlinkRelationships.Any() ||
-            part.DataPartReferenceRelationships.Any())
-            return false;
-        try
-        {
-            using var stream = part.GetStream(FileMode.Open, FileAccess.Read);
-            using var reader = XmlReader.Create(stream, new XmlReaderSettings
-            {
-                DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null,
-                IgnoreComments = false,
-                IgnoreProcessingInstructions = false,
-                IgnoreWhitespace = false,
-            });
-            reader.MoveToContent();
-            if (reader.LocalName != "ink" || reader.NamespaceURI != "http://www.w3.org/2003/InkML")
-                return false;
-            while (reader.Read()) { }
-            return true;
-        }
-        catch (XmlException)
-        {
-            return false;
-        }
-    }
-
-    // Microsoft PowerPoint stores one embedded video as a top-level p:pic:
-    // the ordinary blip is a shared immutable poster, while a:videoFile and
-    // p14:media point through two distinct SlidePart data relationships to one
-    // MP4 MediaDataPart. Accept only that exact official SDK shape so timing,
-    // external media, audio, and extension-rich playback graphs remain
-    // source-bound instead of being silently approximated.
-    private static bool TryCollectCanonicalCloneMedia(
-        P.Picture picture,
-        string ownerId,
-        int elementIndex,
-        PptxPartContext context,
-        IReadOnlyDictionary<uint, string> elementIdsByNativeId,
-        ISet<string> imageRelationshipIds,
-        ISet<string> embeddedImageRelationshipIds,
-        IReadOnlyDictionary<string, VideoReferenceRelationship> videoRelationships,
-        IReadOnlyDictionary<string, MediaReferenceRelationship> mediaRelationships,
-        ISet<string> usedVideoRelationshipIds,
-        ISet<string> usedMediaRelationshipIds,
-        PptxNativeObjectCatalog nativeObjects)
-    {
-        if (!PptxPictureCodec.TryRead(picture, context, out _)) return false;
-        var nonVisual = picture.NonVisualPictureProperties;
-        var drawing = nonVisual?.NonVisualDrawingProperties;
-        var application = nonVisual?.ApplicationNonVisualDrawingProperties;
-        var clicks = drawing?.Elements<A.HyperlinkOnClick>().ToArray() ?? [];
-        var videos = application?.Elements<A.VideoFromFile>().ToArray() ?? [];
-        var extensionLists = application?.Elements<P.ApplicationNonVisualDrawingPropertiesExtensionList>().ToArray() ?? [];
-        if (drawing is null || application is null || clicks.Length != 1 || videos.Length != 1 || extensionLists.Length != 1 ||
-            drawing.ChildElements.Count != 1 || application.ChildElements.Count != 2 ||
-            !string.IsNullOrEmpty(clicks[0].Id?.Value) || clicks[0].Action?.Value != "ppaction://media" ||
-            clicks[0].GetAttributes().Any(attribute => attribute.LocalName is not ("id" or "action")) ||
-            application.Elements<A.AudioFromFile>().Any())
-            return false;
-
-        var extensions = extensionLists[0].Elements<P.ApplicationNonVisualDrawingPropertiesExtension>().ToArray();
-        if (extensionLists[0].ChildElements.Count != 1 || extensions.Length != 1 ||
-            extensions[0].Uri?.Value != "{DAA4B4D4-6D71-4841-9C94-3DE7FCFB9230}" ||
-            extensions[0].ChildElements.Count != 1)
-            return false;
-        var mediaElements = extensions[0].Elements<P14.Media>().ToArray();
-        if (mediaElements.Length != 1) return false;
-
-        var videoRelationshipId = videos[0].Link?.Value ?? string.Empty;
-        var mediaRelationshipId = mediaElements[0].Embed?.Value ?? string.Empty;
-        var posterRelationshipId = picture.BlipFill?.GetFirstChild<A.Blip>()?.Embed?.Value ?? string.Empty;
-        if (videoRelationshipId.Length == 0 || mediaRelationshipId.Length == 0 || posterRelationshipId.Length == 0 ||
-            videoRelationshipId == mediaRelationshipId || videoRelationshipId == posterRelationshipId || mediaRelationshipId == posterRelationshipId ||
-            !videoRelationships.TryGetValue(videoRelationshipId, out var videoRelationship) ||
-            !mediaRelationships.TryGetValue(mediaRelationshipId, out var mediaRelationship) ||
-            !ReferenceEquals(videoRelationship.DataPart, mediaRelationship.DataPart) ||
-            videoRelationship.DataPart is not MediaDataPart mediaPart ||
-            !imageRelationshipIds.Contains(posterRelationshipId))
-            return false;
-
-        var relationshipAttributes = new[] { (OpenXmlElement)picture }
-            .Concat(picture.Descendants())
-            .SelectMany(element => element.GetAttributes())
-            .Where(attribute => PptxNativeObjectCatalog.IsRelationshipNamespace(attribute.NamespaceUri))
-            .ToArray();
-        if (relationshipAttributes.Length != 4 ||
-            relationshipAttributes.Count(attribute => attribute.LocalName == "id" && string.IsNullOrEmpty(attribute.Value)) != 1 ||
-            relationshipAttributes.Count(attribute => attribute.LocalName == "link" && attribute.Value == videoRelationshipId) != 1 ||
-            relationshipAttributes.Count(attribute => attribute.LocalName == "embed" && attribute.Value == mediaRelationshipId) != 1 ||
-            relationshipAttributes.Count(attribute => attribute.LocalName == "embed" && attribute.Value == posterRelationshipId) != 1)
-            return false;
-
-        var edge = new PptxCloneMediaLeaf(mediaPart, videoRelationshipId, mediaRelationshipId);
-        if (!IsClosedCloneMediaPart(edge) || !usedVideoRelationshipIds.Add(videoRelationshipId) ||
-            !usedMediaRelationshipIds.Add(mediaRelationshipId))
-            return false;
-
-        var posterPart = context.Owner.GetPartById(posterRelationshipId);
-        var semantic = ReadElement(picture, ownerId, elementIndex, context, nativeObjects, elementIdsByNativeId);
-        var expectedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            PartPath(posterPart),
-            DataPartPath(mediaPart),
-        };
-        if (semantic.ContentCase != PresentationElement.ContentOneofCase.Opaque || semantic.Opaque.NativeKind != "media" ||
-            semantic.Opaque.RelationshipReferences.Count != 3 || semantic.Opaque.PreservedPartPaths.Count != 2 ||
-            !semantic.Opaque.RelationshipReferences.Select(reference => reference.RelationshipId).ToHashSet(StringComparer.Ordinal)
-                .SetEquals(new[] { videoRelationshipId, mediaRelationshipId, posterRelationshipId }) ||
-            !semantic.Opaque.PreservedPartPaths.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(expectedPaths))
-            return false;
-
-        embeddedImageRelationshipIds.Add(posterRelationshipId);
-        return true;
-    }
-
-    private static bool IsClosedCloneMediaPart(PptxCloneMediaLeaf edge)
-    {
-        var part = edge.Part;
-        if (!part.ContentType.Equals(Mp4ContentType, StringComparison.OrdinalIgnoreCase) ||
-            !IsMp4MediaPath(DataPartPath(part)) || DataPartBytes(part).Length == 0)
-            return false;
-        var references = part.GetDataPartReferenceRelationships().ToArray();
-        return references.Length == 2 &&
-               references.Count(relationship => relationship is VideoReferenceRelationship && relationship.Id == edge.VideoRelationshipId) == 1 &&
-               references.Count(relationship => relationship is MediaReferenceRelationship && relationship.Id == edge.MediaRelationshipId) == 1;
-    }
-
-    private static bool TryCollectCanonicalRunHyperlinks(
-        P.Shape shape,
-        PptxPartContext context,
-        ISet<string> usedRelationshipIds)
-    {
-        if (shape.Descendants<A.HyperlinkOnHover>().Any()) return false;
-        var clicks = shape.Descendants<A.HyperlinkOnClick>().ToArray();
-        if (clicks.Length > MaxCloneHyperlinkRelationships) return false;
-        foreach (var click in clicks)
-        {
-            if (click.Parent is not A.RunProperties properties ||
-                properties.Parent is not (A.Run or A.Break or A.Field) ||
-                properties.Elements<A.HyperlinkOnClick>().Count() != 1 ||
-                !PptxHyperlinkCodec.TryRead(click, context, out _))
-                return false;
-            var relationshipId = click.Id?.Value ?? string.Empty;
-            if (relationshipId.Length > 0) usedRelationshipIds.Add(relationshipId);
-        }
-        return true;
-    }
-
-    private static bool HasHyperlinkMarkup(OpenXmlElement element) =>
-        element.Descendants<A.HyperlinkOnClick>().Any() || element.Descendants<A.HyperlinkOnHover>().Any();
-
-    private static PptxCloneNotesLeaf? AssertSourceSpeakerNotesCanBeCloned(PptxSourceSlideEntry source, PresentationSlide target)
-    {
-        var notesPart = source.Part.NotesSlidePart;
-        if (notesPart is null)
-        {
-            if (target.SpeakerNotes is not null)
-                throw UnsupportedSourceSlideClone(source, "the requested clone adds speaker notes where the origin has no notes part");
-            return null;
-        }
-        var original = PptxSpeakerNotesCodec.Read(source.Part) ??
-            throw UnsupportedSourceSlideClone(source, "its notes relationship has no readable notes root");
-        var requested = target.SpeakerNotes;
-        if (requested?.Source is not { } binding)
-            throw new CodecException("missing_presentation_notes_binding", $"Presentation clone {source.Index + 1} speaker notes are missing their source binding.", PartPath(notesPart));
-        var sourceBinding = original.Source;
-        if (!PptxSpeakerNotesCodec.Equivalent(requested, original) ||
-            !binding.PartPath.Equals(sourceBinding.PartPath, StringComparison.OrdinalIgnoreCase) ||
-            !binding.RelationshipId.Equals(sourceBinding.RelationshipId, StringComparison.Ordinal) ||
-            !binding.NotesXmlSha256.Equals(sourceBinding.NotesXmlSha256, StringComparison.OrdinalIgnoreCase) ||
-            !binding.SemanticSha256.Equals(sourceBinding.SemanticSha256, StringComparison.OrdinalIgnoreCase) ||
-            binding.Editable != sourceBinding.Editable)
-            throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {source.Index + 1} speaker notes are not unchanged source notes.", PartPath(notesPart));
-
-        var relationships = notesPart.Parts.ToArray();
-        var masterEdges = relationships.Where(pair => pair.OpenXmlPart is NotesMasterPart).ToArray();
-        var backReferenceEdges = relationships.Where(pair => ReferenceEquals(pair.OpenXmlPart, source.Part)).ToArray();
-        var unsafeChildren = relationships
-            .Where(pair => pair.OpenXmlPart is not NotesMasterPart && !ReferenceEquals(pair.OpenXmlPart, source.Part))
-            .Select(pair => pair.OpenXmlPart.RelationshipType)
-            .Distinct(StringComparer.Ordinal)
-            .Take(4)
-            .ToArray();
-        if (masterEdges.Length != 1 || backReferenceEdges.Length != 1 || unsafeChildren.Length > 0 ||
-            notesPart.ExternalRelationships.Any() || notesPart.HyperlinkRelationships.Any() || notesPart.DataPartReferenceRelationships.Any())
-            throw UnsupportedSourceSlideClone(source, "its notes part has relationships beyond one NotesMaster and one back-reference to the source slide");
-        var masterPart = (NotesMasterPart)masterEdges[0].OpenXmlPart;
-        return new PptxCloneNotesLeaf(
-            notesPart,
-            source.Part.GetIdOfPart(notesPart),
-            masterPart,
-            masterEdges[0].RelationshipId,
-            backReferenceEdges[0].RelationshipId);
-    }
-
-    private static PptxCloneLegacyCommentsLeaf? AssertSourceLegacyCommentsCanBeCloned(
-        PresentationPart presentationPart,
-        PptxSourceSlideEntry source,
-        PresentationSlide target)
-    {
-        var commentsPart = source.Part.SlideCommentsPart;
-        if (commentsPart is null)
-        {
-            if (target.LegacyComments.Count > 0)
-                throw UnsupportedSourceSlideClone(source, "the requested clone adds legacy comments where the origin has no comments part");
-            return null;
-        }
-        var profile = PptxLegacyCommentsCodec.Profile(presentationPart, source.Part, source.Index);
-        if (!profile.Supported)
-            throw UnsupportedSourceSlideClone(source, "its legacy comments are outside the bounded single-text profile");
-        if (!PptxLegacyCommentsCodec.Equivalent(profile.Comments, target.LegacyComments))
-            throw new CodecException(
-                "presentation_slide_clone_mismatch",
-                $"Presentation clone {source.Index + 1} legacy comments are not unchanged source comments.",
-                PartPath(commentsPart));
-        if (commentsPart.Parts.Any() || commentsPart.ExternalRelationships.Any() ||
-            commentsPart.HyperlinkRelationships.Any() || commentsPart.DataPartReferenceRelationships.Any())
-            throw UnsupportedSourceSlideClone(source, "its comments part has child, external, hyperlink, or data relationships");
-
-        // A legacy p:cm refers to authorId in the presentation-wide
-        // CommentAuthorsPart rather than through a relationship on the
-        // comments part. The source profile proves every ID resolves; this
-        // additional graph check makes the shared catalog immutable and
-        // explicit in the clone plan.
-        var authorsPart = presentationPart.CommentAuthorsPart;
-        var authorEdges = presentationPart.Parts
-            .Where(pair => ReferenceEquals(pair.OpenXmlPart, authorsPart))
-            .ToArray();
-        if (authorsPart is null || authorEdges.Length != 1 || authorsPart.Parts.Any() ||
-            authorsPart.ExternalRelationships.Any() || authorsPart.HyperlinkRelationships.Any() ||
-            authorsPart.DataPartReferenceRelationships.Any())
-            throw UnsupportedSourceSlideClone(source, "its legacy comment author catalog is missing or has an unbounded relationship graph");
-        return new PptxCloneLegacyCommentsLeaf(
-            commentsPart,
-            source.Part.GetIdOfPart(commentsPart),
-            authorsPart,
-            authorEdges[0].RelationshipId);
-    }
-
-    private static CodecException UnsupportedSourceSlideClone(PptxSourceSlideEntry source, string reason) =>
-        new(
-            "unsupported_presentation_slide_clone",
-            $"Source-preserving PPTX cloning is limited to an unchanged shape-with-canonical-run-hyperlinks/inline-table/closed-literal-chart/embedded-image/embedded-XLSX-OLE/bounded-connector/recursive-group layout leaf with optional closed notes and legacy-comment leaves; slide {source.Index + 1} cannot be cloned because {reason}. Use an explicit broader OPC graph-clone operation for this package.",
-            PartPath(source.Part));
 
     private static bool ReorderSourceSlideIdList(PresentationPart presentationPart, IReadOnlyList<PptxTargetSlideEntry> targets)
     {

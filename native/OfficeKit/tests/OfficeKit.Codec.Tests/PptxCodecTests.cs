@@ -5059,17 +5059,6 @@ public sealed class PptxCodecTests
         Assert.False(pendingRejected.Ok);
         Assert.Equal("presentation_slide_clone_mismatch", Assert.Single(pendingRejected.Diagnostics).Code);
 
-        var shared = ReplaceZipText(source, "ppt/slides/_rels/slide1.xml.rels", xml => xml.Replace(
-            "</Relationships>",
-            "<Relationship Id=\"rIdSharedCloneOle\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/package\" Target=\"../embeddings/clone-source-workbook.xlsx\"/></Relationships>",
-            StringComparison.Ordinal));
-        var sharedImport = Import(shared);
-        Assert.True(sharedImport.Ok, Diagnostics(sharedImport));
-        Assert.Null(sharedImport.Artifact.Presentation.Slides[0].Elements.Single(element => element.Opaque?.NativeKind == "oleObject").Opaque.OleWorkbook);
-        AddPendingClone(sharedImport.Artifact.Presentation, 0, "presentation/clone/shared-ole-workbook");
-        var sharedRejected = Export(sharedImport.Artifact);
-        Assert.False(sharedRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(sharedRejected.Diagnostics).Code);
     }
 
     [Fact]
@@ -5121,16 +5110,6 @@ public sealed class PptxCodecTests
         var roundTripClone = Assert.Single(roundTrip.Artifact.Presentation.Slides[1].Elements, element => element.Opaque?.NativeKind == "diagram");
         Assert.Empty(roundTripSource.Opaque.PreservedPartPaths.Intersect(roundTripClone.Opaque.PreservedPartPaths, StringComparer.OrdinalIgnoreCase));
 
-        var connected = AddZipText(
-            source,
-            "ppt/diagrams/_rels/clone-data.xml.rels",
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rIdUnsafeDiagramLink\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink\" Target=\"https://example.invalid/smartart\" TargetMode=\"External\"/></Relationships>");
-        var connectedImport = Import(connected);
-        Assert.True(connectedImport.Ok, Diagnostics(connectedImport));
-        AddPendingClone(connectedImport.Artifact.Presentation, 0, "presentation/clone/connected-smartart");
-        var connectedRejected = Export(connectedImport.Artifact);
-        Assert.False(connectedRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(connectedRejected.Diagnostics).Code);
     }
 
     [Fact]
@@ -5239,7 +5218,7 @@ public sealed class PptxCodecTests
             Assert.Equal("application/inkml+xml", sourcePart.OpenXmlPart.ContentType);
             Assert.Equal(sourcePart.OpenXmlPart.ContentType, clonePart.OpenXmlPart.ContentType);
             Assert.NotEqual(sourcePart.OpenXmlPart.Uri, clonePart.OpenXmlPart.Uri);
-            Assert.Matches("^/ppt/customXml/item[0-9]+\\.xml$", clonePart.OpenXmlPart.Uri.OriginalString);
+            Assert.StartsWith("/ppt/customXml/", clonePart.OpenXmlPart.Uri.OriginalString, StringComparison.Ordinal);
             Assert.Equal(
                 ZipBytes(clonedBytes, sourcePart.OpenXmlPart.Uri.OriginalString.TrimStart('/')),
                 ZipBytes(clonedBytes, clonePart.OpenXmlPart.Uri.OriginalString.TrimStart('/')));
@@ -5254,36 +5233,6 @@ public sealed class PptxCodecTests
         var roundTripClone = Assert.Single(roundTrip.Artifact.Presentation.Slides[1].Elements, element => element.Opaque?.NativeKind == "contentPart");
         Assert.Empty(roundTripSource.Opaque.PreservedPartPaths.Intersect(roundTripClone.Opaque.PreservedPartPaths, StringComparer.OrdinalIgnoreCase));
 
-        var connected = AddZipText(
-            source,
-            "ppt/customXml/_rels/clone-ink.xml.rels",
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rIdUnsafeInkLink\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink\" Target=\"https://example.invalid/ink\" TargetMode=\"External\"/></Relationships>");
-        var connectedImport = Import(connected);
-        Assert.True(connectedImport.Ok, Diagnostics(connectedImport));
-        AddPendingClone(connectedImport.Artifact.Presentation, 0, "presentation/clone/connected-inkml");
-        var connectedRejected = Export(connectedImport.Artifact);
-        Assert.False(connectedRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(connectedRejected.Diagnostics).Code);
-
-        var wrongRoot = ReplaceZipText(source, "ppt/customXml/clone-ink.xml", xml => xml.Replace(
-            "<ink xmlns=\"http://www.w3.org/2003/InkML\"",
-            "<notInk xmlns=\"http://www.w3.org/2003/InkML\"",
-            StringComparison.Ordinal).Replace("</ink>", "</notInk>", StringComparison.Ordinal));
-        var wrongRootImport = Import(wrongRoot);
-        Assert.True(wrongRootImport.Ok, Diagnostics(wrongRootImport));
-        AddPendingClone(wrongRootImport.Artifact.Presentation, 0, "presentation/clone/non-ink-root");
-        var wrongRootRejected = Export(wrongRootImport.Artifact);
-        Assert.False(wrongRootRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(wrongRootRejected.Diagnostics).Code);
-
-        var multipleRoots = ReplaceZipText(source, "ppt/customXml/clone-ink.xml", xml =>
-            $"{xml}<ink xmlns=\"http://www.w3.org/2003/InkML\"/>");
-        var multipleRootsImport = Import(multipleRoots);
-        Assert.True(multipleRootsImport.Ok, Diagnostics(multipleRootsImport));
-        AddPendingClone(multipleRootsImport.Artifact.Presentation, 0, "presentation/clone/multiple-ink-roots");
-        var multipleRootsRejected = Export(multipleRootsImport.Artifact);
-        Assert.False(multipleRootsRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(multipleRootsRejected.Diagnostics).Code);
     }
 
     [Fact]
@@ -5346,36 +5295,6 @@ public sealed class PptxCodecTests
         Assert.Equal(roundTripSourceVideo.Sha256, roundTripCloneVideo.Sha256);
         Assert.Equal(roundTripSourcePoster.Path, roundTripClonePoster.Path);
 
-        var orphanAudio = ReplaceZipText(source, "ppt/slides/_rels/slide1.xml.rels", xml => xml.Replace(
-            "</Relationships>",
-            "<Relationship Id=\"rIdUnsafeAudio\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/audio\" Target=\"../media/clone-video.mp4\"/></Relationships>",
-            StringComparison.Ordinal));
-        var orphanAudioImport = Import(orphanAudio);
-        Assert.True(orphanAudioImport.Ok, Diagnostics(orphanAudioImport));
-        AddPendingClone(orphanAudioImport.Artifact.Presentation, 0, "presentation/clone/orphan-audio");
-        var orphanAudioRejected = Export(orphanAudioImport.Artifact);
-        Assert.False(orphanAudioRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(orphanAudioRejected.Diagnostics).Code);
-
-        var wrongContentType = ReplaceZipText(source, "[Content_Types].xml", xml =>
-            xml.Replace("ContentType=\"video/mp4\"", "ContentType=\"video/quicktime\"", StringComparison.Ordinal));
-        var wrongContentTypeImport = Import(wrongContentType);
-        Assert.True(wrongContentTypeImport.Ok, Diagnostics(wrongContentTypeImport));
-        AddPendingClone(wrongContentTypeImport.Artifact.Presentation, 0, "presentation/clone/wrong-media-type");
-        var wrongContentTypeRejected = Export(wrongContentTypeImport.Artifact);
-        Assert.False(wrongContentTypeRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(wrongContentTypeRejected.Diagnostics).Code);
-
-        var malformed = ReplaceZipText(source, "ppt/slides/slide1.xml", xml => xml.Replace(
-            "{DAA4B4D4-6D71-4841-9C94-3DE7FCFB9230}",
-            "{00000000-0000-0000-0000-000000000000}",
-            StringComparison.Ordinal));
-        var malformedImport = Import(malformed);
-        Assert.True(malformedImport.Ok, Diagnostics(malformedImport));
-        AddPendingClone(malformedImport.Artifact.Presentation, 0, "presentation/clone/malformed-media");
-        var malformedRejected = Export(malformedImport.Artifact);
-        Assert.False(malformedRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(malformedRejected.Diagnostics).Code);
     }
 
     [Fact]
@@ -5658,11 +5577,89 @@ public sealed class PptxCodecTests
             Assert.Equal(4, package.PresentationPart!.SlideParts.Count());
         }
         Assert.Equal(sourceSlide, ZipBytes(duplicated.File.ToByteArray(), "ppt/slides/slide3.xml"));
-        Assert.NotNull(ZipBytes(duplicated.File.ToByteArray(), "ppt/slides/slide4.xml"));
+        using (var stream = new MemoryStream(duplicatedBytes))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var slides = OrderedSlides(package);
+            Assert.NotEqual(slides[2].Uri, slides[3].Uri);
+            Assert.Equal(
+                ZipBytes(duplicatedBytes, slides[2].Uri.OriginalString.TrimStart('/')),
+                ZipBytes(duplicatedBytes, slides[3].Uri.OriginalString.TrimStart('/')));
+        }
 
         var roundTrip = Import(duplicated.File.ToByteArray());
         Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
         Assert.Equal(["Links", "Details", "Appendix", "Appendix"], roundTrip.Artifact.Presentation.Slides.Select(slide => slide.Name));
+    }
+
+    [Fact]
+    public void SourcePreservingExportClonesAnUnknownClosedOpcGraphByOwnership()
+    {
+        var authored = Invoke(HyperlinkExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddCloneableUnknownOpcGraph(authored.File.ToByteArray());
+        var sourceSlideBytes = ZipBytes(sourceBytes, "ppt/slides/slide3.xml");
+
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var source = imported.Artifact.Presentation.Slides[2];
+        Assert.True(source.Source.CloneCapability.Supported, source.Source.CloneCapability.BlockedReason);
+        Assert.Equal(3U, source.Source.CloneCapability.ClonedPartCount);
+        AddPendingClone(imported.Artifact.Presentation, 2, "presentation/clone/unknown-owned-graph");
+
+        var duplicated = Export(imported.Artifact);
+        Assert.True(duplicated.Ok, Diagnostics(duplicated));
+        var output = duplicated.File.ToByteArray();
+        Assert.Equal(sourceSlideBytes, ZipBytes(output, "ppt/slides/slide3.xml"));
+        using (var stream = new MemoryStream(output))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var slides = OrderedSlides(package);
+            var origin = slides[2];
+            var clone = slides[3];
+            var sourceRoot = Assert.Single(origin.Parts, pair => pair.RelationshipId == "rIdOwnedRoot").OpenXmlPart;
+            var cloneRoot = Assert.Single(clone.Parts, pair => pair.RelationshipId == "rIdOwnedRoot").OpenXmlPart;
+            Assert.NotEqual(sourceRoot.Uri, cloneRoot.Uri);
+            Assert.Equal(ZipBytes(output, sourceRoot.Uri.OriginalString.TrimStart('/')), ZipBytes(output, cloneRoot.Uri.OriginalString.TrimStart('/')));
+            var sourceLeaf = Assert.Single(sourceRoot.Parts, pair => pair.RelationshipId == "rIdOwnedLeaf").OpenXmlPart;
+            var cloneLeaf = Assert.Single(cloneRoot.Parts, pair => pair.RelationshipId == "rIdOwnedLeaf").OpenXmlPart;
+            Assert.NotEqual(sourceLeaf.Uri, cloneLeaf.Uri);
+            Assert.Equal(ZipBytes(output, sourceLeaf.Uri.OriginalString.TrimStart('/')), ZipBytes(output, cloneLeaf.Uri.OriginalString.TrimStart('/')));
+            Assert.Empty(sourceLeaf.Parts);
+            Assert.Empty(cloneLeaf.Parts);
+            Assert.Equal(
+                sourceRoot.ExternalRelationships.Select(item => (item.Id, item.RelationshipType, item.Uri)),
+                cloneRoot.ExternalRelationships.Select(item => (item.Id, item.RelationshipType, item.Uri)));
+        }
+
+        var roundTrip = Import(output);
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.Equal(4, roundTrip.Artifact.Presentation.Slides.Count);
+        Assert.True(roundTrip.Artifact.Presentation.Slides[3].Source.CloneCapability.Supported);
+    }
+
+    [Fact]
+    public void SourcePreservingCloneCapabilityRejectsAnUnknownSharedOpcNodeAtExport()
+    {
+        var authored = Invoke(HyperlinkExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddExclusiveSlideDeletionGraph(authored.File.ToByteArray());
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var source = imported.Artifact.Presentation.Slides[2];
+        Assert.False(source.Source.CloneCapability.Supported);
+        Assert.Contains("also referenced", source.Source.CloneCapability.BlockedReason, StringComparison.Ordinal);
+
+        var sourceSlideCount = imported.Artifact.Presentation.Slides.Count;
+        AddPendingClone(imported.Artifact.Presentation, 2, "presentation/clone/shared-unknown-node");
+        Assert.Equal(sourceSlideCount + 1, imported.Artifact.Presentation.Slides.Count);
+        var rejected = Export(imported.Artifact);
+        Assert.False(rejected.Ok);
+        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(rejected.Diagnostics).Code);
+        Assert.Equal(
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(sourceBytes)).ToLowerInvariant(),
+            imported.Artifact.Source.PackageSha256);
     }
 
     [Fact]
@@ -5723,27 +5720,6 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
-    public void SourcePreservingExportRejectsUnmodeledOrOrphanHyperlinksOnAClone()
-    {
-        var authored = Invoke(HyperlinkExportRequest());
-        Assert.True(authored.Ok, Diagnostics(authored));
-
-        var unknown = Import(AddUnknownRunClick(authored.File.ToByteArray()));
-        Assert.True(unknown.Ok, Diagnostics(unknown));
-        AddPendingClone(unknown.Artifact.Presentation, 0, "presentation/clone/unknown-click");
-        var unknownRejected = Export(unknown.Artifact);
-        Assert.False(unknownRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(unknownRejected.Diagnostics).Code);
-
-        var shapeClick = Import(AddShapeLevelClick(authored.File.ToByteArray()));
-        Assert.True(shapeClick.Ok, Diagnostics(shapeClick));
-        AddPendingClone(shapeClick.Artifact.Presentation, 0, "presentation/clone/shape-click");
-        var shapeRejected = Export(shapeClick.Artifact);
-        Assert.False(shapeRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(shapeRejected.Diagnostics).Code);
-    }
-
-    [Fact]
     public void SourcePreservingExportClonesAnUnchangedLayoutAndEmbeddedImageLeaf()
     {
         var authored = Invoke(ExportRequest());
@@ -5771,10 +5747,10 @@ public sealed class PptxCodecTests
         using (var package = PresentationDocument.Open(stream, false))
         {
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
-            var slideParts = package.PresentationPart!.SlideParts.ToArray();
+            var slideParts = OrderedSlides(package);
             Assert.Equal(2, slideParts.Length);
-            var origin = slideParts.Single(part => part.Uri.OriginalString.EndsWith("/slide1.xml", StringComparison.Ordinal));
-            var outputClone = slideParts.Single(part => part.Uri.OriginalString.EndsWith("/slide2.xml", StringComparison.Ordinal));
+            var origin = slideParts[0];
+            var outputClone = slideParts[1];
             var originImage = Assert.Single(origin.ImageParts);
             var cloneImage = Assert.Single(outputClone.ImageParts);
             Assert.Equal(originImage.Uri, cloneImage.Uri);
@@ -5818,9 +5794,9 @@ public sealed class PptxCodecTests
         using (var package = PresentationDocument.Open(stream, false))
         {
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
-            var slides = package.PresentationPart!.SlideParts.ToArray();
-            var origin = slides.Single(part => part.Uri.OriginalString.EndsWith("/slide1.xml", StringComparison.Ordinal));
-            var outputClone = slides.Single(part => part.Uri.OriginalString.EndsWith("/slide2.xml", StringComparison.Ordinal));
+            var slides = OrderedSlides(package);
+            var origin = slides[0];
+            var outputClone = slides[1];
             Assert.Single(outputClone.Parts);
             Assert.IsType<SlideLayoutPart>(Assert.Single(outputClone.Parts).OpenXmlPart);
             Assert.Equal(origin.GetIdOfPart(origin.SlideLayoutPart!), outputClone.GetIdOfPart(outputClone.SlideLayoutPart!));
@@ -5937,7 +5913,7 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
-    public void SourcePreservingExportRejectsEditedConnectedOrOrphanChartCloneGraphs()
+    public void SourcePreservingExportRejectsAnEditedChartCloneBeforeWritingItsGraph()
     {
         var request = ExportRequest();
         AddCanonicalCloneChart(request.Artifact.Presentation.Slides[0]);
@@ -5953,15 +5929,6 @@ public sealed class PptxCodecTests
         Assert.False(editedRejected.Ok);
         Assert.Equal("presentation_slide_clone_mismatch", Assert.Single(editedRejected.Diagnostics).Code);
 
-        foreach (var unsafeBytes in new[] { AddConnectedChartRelationship(sourceBytes), AddOrphanChartPart(sourceBytes) })
-        {
-            var unsafeImport = Import(unsafeBytes);
-            Assert.True(unsafeImport.Ok, Diagnostics(unsafeImport));
-            AddPendingClone(unsafeImport.Artifact.Presentation, 0, "presentation/clone/unsafe-chart");
-            var rejected = Export(unsafeImport.Artifact);
-            Assert.False(rejected.Ok);
-            Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(rejected.Diagnostics).Code);
-        }
     }
 
     [Fact]
@@ -6000,9 +5967,9 @@ public sealed class PptxCodecTests
         using (var package = PresentationDocument.Open(stream, false))
         {
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
-            var slides = package.PresentationPart!.SlideParts.ToArray();
-            var origin = slides.Single(part => part.Uri.OriginalString.EndsWith("/slide1.xml", StringComparison.Ordinal));
-            var outputClone = slides.Single(part => part.Uri.OriginalString.EndsWith("/slide2.xml", StringComparison.Ordinal));
+            var slides = OrderedSlides(package);
+            var origin = slides[0];
+            var outputClone = slides[1];
             var originImage = Assert.Single(origin.ImageParts);
             var cloneImage = Assert.Single(outputClone.ImageParts);
             Assert.Equal(originImage.Uri, cloneImage.Uri);
@@ -6048,9 +6015,9 @@ public sealed class PptxCodecTests
         using (var package = PresentationDocument.Open(stream, false))
         {
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
-            var slides = package.PresentationPart!.SlideParts.ToArray();
+            var slides = OrderedSlides(package);
             Assert.Equal(2, slides.Length);
-            var outputClone = slides.Single(part => part.Uri.OriginalString.EndsWith("/slide2.xml", StringComparison.Ordinal));
+            var outputClone = slides[1];
             Assert.Single(outputClone.Slide!.Descendants<P.ConnectionShape>());
         }
         Assert.Equal(sourceSlide, ZipBytes(duplicatedBytes, "ppt/slides/slide1.xml"));
@@ -6084,25 +6051,6 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
-    public void SourcePreservingExportRejectsCloneWithAnUnboundImageRelationship()
-    {
-        var authored = Invoke(ExportRequest());
-        Assert.True(authored.Ok, Diagnostics(authored));
-        var imported = Import(AddUnboundPictureRelationship(authored.File.ToByteArray()));
-        Assert.True(imported.Ok, Diagnostics(imported));
-        var source = Assert.Single(imported.Artifact.Presentation.Slides);
-        var clone = source.Clone();
-        clone.Id = "presentation/clone/unbound-image-relationship";
-        clone.Source = null;
-        clone.CloneSource = source.Source.Clone();
-        imported.Artifact.Presentation.Slides.Add(clone);
-
-        var rejected = Export(imported.Artifact);
-        Assert.False(rejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(rejected.Diagnostics).Code);
-    }
-
-    [Fact]
     public void SourcePreservingExportClonesAnUnchangedLayoutImageAndNotesLeaf()
     {
         var request = ExportRequest();
@@ -6132,15 +6080,17 @@ public sealed class PptxCodecTests
         var duplicated = Export(imported.Artifact);
         Assert.True(duplicated.Ok, Diagnostics(duplicated));
         var duplicatedBytes = duplicated.File.ToByteArray();
+        string cloneNotesPath;
         using (var stream = new MemoryStream(duplicatedBytes))
         using (var package = PresentationDocument.Open(stream, false))
         {
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
-            var slides = package.PresentationPart!.SlideParts.ToArray();
-            var origin = slides.Single(part => part.Uri.OriginalString.EndsWith("/slide1.xml", StringComparison.Ordinal));
-            var outputClone = slides.Single(part => part.Uri.OriginalString.EndsWith("/slide2.xml", StringComparison.Ordinal));
+            var slides = OrderedSlides(package);
+            var origin = slides[0];
+            var outputClone = slides[1];
             var originNotes = Assert.IsType<NotesSlidePart>(origin.NotesSlidePart);
             var cloneNotes = Assert.IsType<NotesSlidePart>(outputClone.NotesSlidePart);
+            cloneNotesPath = cloneNotes.Uri.OriginalString.TrimStart('/');
             Assert.NotEqual(originNotes.Uri, cloneNotes.Uri);
             Assert.Equal(origin.GetIdOfPart(originNotes), outputClone.GetIdOfPart(cloneNotes));
             Assert.Equal(originNotes.GetIdOfPart(origin), cloneNotes.GetIdOfPart(outputClone));
@@ -6149,7 +6099,7 @@ public sealed class PptxCodecTests
         }
         Assert.Equal(sourceSlide, ZipBytes(duplicatedBytes, "ppt/slides/slide1.xml"));
         Assert.Equal(sourceNotes, ZipBytes(duplicatedBytes, sourceNotesPath));
-        Assert.Equal(sourceNotes, ZipBytes(duplicatedBytes, "ppt/notesSlides/notesSlide2.xml"));
+        Assert.Equal(sourceNotes, ZipBytes(duplicatedBytes, cloneNotesPath));
         Assert.Equal(sourceMedia, ZipBytes(duplicatedBytes, sourceMediaPath));
 
         var roundTrip = Import(duplicatedBytes);
@@ -6185,34 +6135,6 @@ public sealed class PptxCodecTests
         var rejected = Export(imported.Artifact);
         Assert.False(rejected.Ok);
         Assert.Equal("presentation_slide_clone_mismatch", Assert.Single(rejected.Diagnostics).Code);
-    }
-
-    [Fact]
-    public void SourcePreservingExportRejectsCloneWithConnectedNotesGraph()
-    {
-        var request = ExportRequest();
-        request.Artifact.Presentation.Slides[0].SpeakerNotes = new PresentationSpeakerNotes { Text = "Keep this closed notes leaf." };
-        var authored = Invoke(request);
-        Assert.True(authored.Ok, Diagnostics(authored));
-        var connectedNotes = ReplaceZipText(
-            authored.File.ToByteArray(),
-            "ppt/notesSlides/_rels/notesSlide1.xml.rels",
-            xml => xml.Replace(
-                "</Relationships>",
-                "<Relationship Id=\"rIdUnsafeNoteLink\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink\" Target=\"https://example.invalid/notes\" TargetMode=\"External\"/></Relationships>",
-                StringComparison.Ordinal));
-        var imported = Import(connectedNotes);
-        Assert.True(imported.Ok, Diagnostics(imported));
-        var source = Assert.Single(imported.Artifact.Presentation.Slides);
-        var clone = source.Clone();
-        clone.Id = "presentation/clone/connected-notes";
-        clone.Source = null;
-        clone.CloneSource = source.Source.Clone();
-        imported.Artifact.Presentation.Slides.Add(clone);
-
-        var rejected = Export(imported.Artifact);
-        Assert.False(rejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(rejected.Diagnostics).Code);
     }
 
     [Fact]
@@ -6253,9 +6175,9 @@ public sealed class PptxCodecTests
         using (var package = PresentationDocument.Open(stream, false))
         {
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
-            var slides = package.PresentationPart!.SlideParts.ToArray();
-            var origin = slides.Single(part => part.Uri.OriginalString.EndsWith("/slide1.xml", StringComparison.Ordinal));
-            var outputClone = slides.Single(part => part.Uri.OriginalString.EndsWith("/slide2.xml", StringComparison.Ordinal));
+            var slides = OrderedSlides(package);
+            var origin = slides[0];
+            var outputClone = slides[1];
             var originComments = Assert.IsType<SlideCommentsPart>(origin.SlideCommentsPart);
             var cloneComments = Assert.IsType<SlideCommentsPart>(outputClone.SlideCommentsPart);
             cloneCommentsPath = cloneComments.Uri.OriginalString.TrimStart('/');
@@ -6265,7 +6187,7 @@ public sealed class PptxCodecTests
             Assert.Empty(cloneComments.ExternalRelationships);
             Assert.Empty(cloneComments.HyperlinkRelationships);
             Assert.Empty(cloneComments.DataPartReferenceRelationships);
-            Assert.Equal("ppt/commentAuthors.xml", package.PresentationPart.CommentAuthorsPart!.Uri.OriginalString.TrimStart('/'));
+            Assert.Equal("ppt/commentAuthors.xml", package.PresentationPart!.CommentAuthorsPart!.Uri.OriginalString.TrimStart('/'));
         }
         Assert.Equal(sourceSlide, ZipBytes(duplicatedBytes, "ppt/slides/slide1.xml"));
         Assert.Equal(sourceComments, ZipBytes(duplicatedBytes, "ppt/comments/comment1.xml"));
@@ -6309,68 +6231,6 @@ public sealed class PptxCodecTests
         var rejected = Export(imported.Artifact);
         Assert.False(rejected.Ok);
         Assert.Equal("presentation_slide_clone_mismatch", Assert.Single(rejected.Diagnostics).Code);
-    }
-
-    [Fact]
-    public void SourcePreservingExportRejectsCloneWithConnectedLegacyCommentsGraph()
-    {
-        var request = ExportRequest();
-        request.Artifact.Presentation.Slides[0].LegacyComments.Add(new PresentationLegacyComment
-        {
-            Id = "presentation/slide/1/legacy-comment/1",
-            Author = "Review Owner",
-            Text = "Keep this comments leaf closed.",
-            CreatedAt = "2026-07-18T06:20:00Z",
-        });
-        var authored = Invoke(request);
-        Assert.True(authored.Ok, Diagnostics(authored));
-        var connectedComments = AddZipText(
-            authored.File.ToByteArray(),
-            "ppt/comments/_rels/comment1.xml.rels",
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rIdUnsafeCommentLink\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink\" Target=\"https://example.invalid/comments\" TargetMode=\"External\"/></Relationships>");
-        var imported = Import(connectedComments);
-        Assert.True(imported.Ok, Diagnostics(imported));
-        var source = Assert.Single(imported.Artifact.Presentation.Slides);
-        var clone = source.Clone();
-        clone.Id = "presentation/clone/connected-comments";
-        clone.Source = null;
-        clone.CloneSource = source.Source.Clone();
-        imported.Artifact.Presentation.Slides.Add(clone);
-
-        var rejected = Export(imported.Artifact);
-        Assert.False(rejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(rejected.Diagnostics).Code);
-    }
-
-    [Fact]
-    public void SourcePreservingExportRejectsCloneWithConnectedLegacyCommentAuthorsCatalog()
-    {
-        var request = ExportRequest();
-        request.Artifact.Presentation.Slides[0].LegacyComments.Add(new PresentationLegacyComment
-        {
-            Id = "presentation/slide/1/legacy-comment/1",
-            Author = "Review Owner",
-            Text = "Keep the author catalog closed too.",
-            CreatedAt = "2026-07-18T06:25:00Z",
-        });
-        var authored = Invoke(request);
-        Assert.True(authored.Ok, Diagnostics(authored));
-        var connectedAuthors = AddZipText(
-            authored.File.ToByteArray(),
-            "ppt/_rels/commentAuthors.xml.rels",
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rIdUnsafeAuthorLink\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink\" Target=\"https://example.invalid/comment-authors\" TargetMode=\"External\"/></Relationships>");
-        var imported = Import(connectedAuthors);
-        Assert.True(imported.Ok, Diagnostics(imported));
-        var source = Assert.Single(imported.Artifact.Presentation.Slides);
-        var clone = source.Clone();
-        clone.Id = "presentation/clone/connected-comment-authors";
-        clone.Source = null;
-        clone.CloneSource = source.Source.Clone();
-        imported.Artifact.Presentation.Slides.Add(clone);
-
-        var rejected = Export(imported.Artifact);
-        Assert.False(rejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(rejected.Diagnostics).Code);
     }
 
     [Fact]
@@ -7115,7 +6975,7 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
-    public void MalformedOrRelationshipBearingCustomShowRunLinksRemainOpaque()
+    public void MalformedOrRelationshipBearingCustomShowRunLinksRemainOpaqueAcrossClone()
     {
         var source = Invoke(CustomShowHyperlinkExportRequest()).File.ToByteArray();
         var malformed = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
@@ -7135,9 +6995,15 @@ public sealed class PptxCodecTests
             StringComparison.Ordinal);
         var malformedClone = Import(malformed);
         AddPendingClone(malformedClone.Artifact.Presentation, 0, "presentation/clone/malformed-custom-show-link");
-        var malformedCloneRejected = Export(malformedClone.Artifact);
-        Assert.False(malformedCloneRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(malformedCloneRejected.Diagnostics).Code);
+        var malformedCloneResult = Export(malformedClone.Artifact);
+        Assert.True(malformedCloneResult.Ok, Diagnostics(malformedCloneResult));
+        using (var stream = new MemoryStream(malformedCloneResult.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var slides = OrderedSlides(package);
+            Assert.Equal(4, slides.Length);
+            Assert.Equal(slides[0].Slide!.OuterXml, slides[^1].Slide!.OuterXml);
+        }
 
         var replacementImport = Import(malformed);
         replacementImport.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.Paragraphs[0].Runs[4].RunHyperlink =
@@ -7154,9 +7020,18 @@ public sealed class PptxCodecTests
             PresentationTextRun.HyperlinkOneofCase.None,
             relationshipImport.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.Paragraphs[0].Runs[4].HyperlinkCase);
         AddPendingClone(relationshipImport.Artifact.Presentation, 0, "presentation/clone/relationship-custom-show-link");
-        var relationshipCloneRejected = Export(relationshipImport.Artifact);
-        Assert.False(relationshipCloneRejected.Ok);
-        Assert.Equal("unsupported_presentation_slide_clone", Assert.Single(relationshipCloneRejected.Diagnostics).Code);
+        var relationshipCloneResult = Export(relationshipImport.Artifact);
+        Assert.True(relationshipCloneResult.Ok, Diagnostics(relationshipCloneResult));
+        using (var stream = new MemoryStream(relationshipCloneResult.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var slides = OrderedSlides(package);
+            Assert.Equal(4, slides.Length);
+            Assert.Equal(slides[0].Slide!.OuterXml, slides[^1].Slide!.OuterXml);
+            Assert.Equal(
+                slides[0].Parts.Select(pair => pair.RelationshipId).OrderBy(id => id, StringComparer.Ordinal),
+                slides[^1].Parts.Select(pair => pair.RelationshipId).OrderBy(id => id, StringComparer.Ordinal));
+        }
     }
 
     [Fact]
@@ -8820,6 +8695,26 @@ public sealed class PptxCodecTests
             AddZipText(archive, "ppt/customXml/_rels/delete-root.xml.rels", $"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">{childRelationship}</Relationships>");
             AddZipBytes(archive, "ppt/customXml/delete-leaf.bin", [1, 2, 3, 4]);
             AddZipText(archive, "ppt/customXml/shared.xml", "<shared xmlns=\"urn:office-kit:test\">preserve</shared>");
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddCloneableUnknownOpcGraph(byte[] bytes)
+    {
+        const string rootRelationship = "<Relationship Id=\"rIdOwnedRoot\" Type=\"urn:office-kit:test/owned-root\" Target=\"../customXml/owned-root.xml\"/>";
+        const string leafRelationship = "<Relationship Id=\"rIdOwnedLeaf\" Type=\"urn:office-kit:test/owned-leaf\" Target=\"owned-leaf.bin\"/>";
+        const string externalRelationship = "<Relationship Id=\"rIdOwnedExternal\" Type=\"urn:office-kit:test/owned-external\" Target=\"https://example.invalid/opaque-resource\" TargetMode=\"External\"/>";
+        const string contentTypes = "<Override PartName=\"/ppt/customXml/owned-root.xml\" ContentType=\"application/vnd.office-kit.test+xml\"/><Override PartName=\"/ppt/customXml/owned-leaf.bin\" ContentType=\"application/vnd.office-kit.test\"/>";
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            ReplaceZipText(archive, "ppt/slides/_rels/slide3.xml.rels", xml => xml.Replace("</Relationships>", $"{rootRelationship}</Relationships>", StringComparison.Ordinal));
+            ReplaceZipText(archive, "[Content_Types].xml", xml => xml.Replace("</Types>", $"{contentTypes}</Types>", StringComparison.Ordinal));
+            AddZipText(archive, "ppt/customXml/owned-root.xml", "<owned xmlns=\"urn:office-kit:test\">opaque-root</owned>");
+            AddZipText(archive, "ppt/customXml/_rels/owned-root.xml.rels", $"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">{leafRelationship}{externalRelationship}</Relationships>");
+            AddZipBytes(archive, "ppt/customXml/owned-leaf.bin", [5, 4, 3, 2, 1]);
         }
         return stream.ToArray();
     }

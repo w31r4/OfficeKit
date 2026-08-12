@@ -93,61 +93,13 @@ descendant while retaining shared descendants. JS refuses a known-unsafe
 delete before mutation; export independently re-proves the source graph.
 Inbound slide references and custom-show/section/extension identity fail closed.
 
-`slide.duplicate()` returns a new adjacent `Slide` only under the bounded
-imported shape/inline-table/closed-literal-chart/closed-SmartArt/closed-InkML/closed-MP4/embedded-image/connector/
-recursive-group layout-leaf profile. Its unchanged graph may contain canonical
-simple shapes, canonical inline fixed-grid tables, recognized literal-data
-charts, eligible top-level embedded-XLSX OLE frames, canonical embedded
-rectangular images, bounded straight/elbow/curved
-connectors, canonical top-level SmartArt frames whose exact `dm/lo/qs/cs`
-relationships bind four closed standard diagram parts,
-canonical top-level `p:contentPart` objects whose one `customXml` relationship
-binds a closed standard InkML part, canonical top-level media pictures whose
-video/media relationship pair uniquely binds one closed MP4 plus one poster
-ImagePart, plus recursively
-canonical groups whose descendants contain only
-those same leaf kinds,
-exactly one layout relationship, image relationships bound only by those
-pictures, canonical run-level external/internal/relative-action click links
-whose exact relationship IDs and retained targets are copied, relationship-free
-custom-show actions resolved through the fixed native-ID catalog, and optionally one closed `NotesSlide -> NotesMaster` /
-back-to-source-slide leaf plus one canonical legacy `SlideCommentsPart` leaf.
-Each chart frame must uniquely bind one numbered ChartPart with no child,
-external, hyperlink, or data relationship. Each OLE frame must uniquely bind
-one closed internal XLSX package plus one immutable preview ImagePart. Each
-SmartArt frame must bind exactly the four closed standard diagram parts and
-must not be nested. Each InkML object must bind exactly one relationship-free
-`application/inkml+xml` CustomXmlPart whose root has the standard InkML
-namespace and must not be nested. Each media picture must bind the exact empty
-media action, one `video` and one `media` relationship to the same uniquely
-owned `video/mp4` part, and one distinct poster image relationship. It creates a distinct native
-SlidePart and presentation relationship, byte-copies each accepted chart into
-a distinct clone-local ChartPart, each OLE workbook into an independent
-EmbeddedPackagePart, and each accepted SmartArt frame into four distinct typed
-diagram parts, and each accepted InkML payload into a distinct SDK-typed
-CustomXmlPart, and each accepted MP4 into a distinct SDK `MediaDataPart`. It shares the verified layout, immutable ImageParts, NotesMaster,
-and presentation-wide
-`CommentAuthorsPart`, copies accepted NotesSlide and SlideComments XML
-byte-for-byte, and repoints only the notes leaf at the clone while preserving
-the origin part. The comments leaf and author catalog must have no child,
-external, hyperlink, or data relationship graph. Accepted tables are inline-only
-and cannot introduce a fill, link, or another package relationship. Accepted groups add no relationship themselves, and every nested picture must consume one exact verified ImagePart relationship. The clone is intentionally
-read-only until it has crossed one export/reimport boundary; it then imports as
-its own source-bound slide with independent ChartParts, OLE workbook packages,
-SmartArt parts, InkML parts, and MP4 parts. The media poster remains shared;
-native pixel equality validates that poster, not playback. A chart that advertises
-the ordinary fixed-topology edit capability can use that path without affecting
-the origin. A separately re-proven closed legacy comments leaf may change only
-existing root text after import; author/time/coordinate/native identity/order
-and topology remain fixed. Imported add,
-repeat/mutated clone, immediate clone edit, rich/connected comments, and every
-unsupported-connector/formula-or-external-data-or-embedded-workbook-or-connected-or-orphan-chart/OLE/noncanonical-or-connected-SmartArt/noncanonical-or-connected-InkML/noncanonical-or-connected-media/shape-level-or-unmodeled-hyperlink/malformed-or-dangling-custom-show/section/extension, external-or-irregular-image,
-or otherwise connected clone/delete graph fails closed.
+`slide.cloneCapability` returns defensive `{ sourceBound, known, supported, blockedReason, clonedPartCount, sharedPartCount }` evidence for an imported source SlidePart. `clonedPartCount` includes the slide root and uniquely owned OpenXmlPart descendants. `sharedPartCount` counts proven resources that the clone will rebind. This is preflight evidence only; export re-analyzes the hash-bound package.
 
-A canonical custom-show run action is copied as an inline, relationship-free
-reference to the same stable native show ID. Cloning never changes the
-presentation-wide show list or inserts the clone into membership. Custom-show
-deletion/topology changes remain outside this profile.
+`slide.duplicate()` returns a new adjacent `Slide` only when that capability is supported and the source semantic model is unchanged. The JavaScript layer allocates fresh slide/element identities and rebinds connector endpoints inside the copied element tree. The Codec copies the SlidePart as an OPC ownership graph: every uniquely owned OpenXmlPart, DataPart, relationship ID, content type, exact payload, external relationship, and repeated owned-node edge is retained in an independent graph. Proven shared SlideLayoutPart, NotesMasterPart, ImagePart, and retained SlidePart jump targets are rebound rather than duplicated. Open XML SDK assigns collision-free physical part URIs, so callers must not infer a clone path from its slide order.
+
+The pending clone must cross one export/reimport boundary before any edit. One pending clone per origin is allowed, and the origin cannot be removed in the same transaction. Custom-show catalogs and membership remain unchanged. Sections, Office 2021 modern comments, any would-be owned descendant with a parent outside the closure, jumps to removed slides, unresolved semantic elements or connector targets, pending native payload replacements, and part/DataPart budget overflow fail closed before partial model mutation. A copied opaque graph remains semantically read-only unless a separate feature capability permits an edit after reimport.
+
+The packaged duplicate workflow intentionally applies stricter chart/OLE/SmartArt/InkML/media/notes/comments oracles for its locked regression corpus. That workflow is evidence for those leaves, not a public type whitelist.
 
 ## Custom Shows
 
