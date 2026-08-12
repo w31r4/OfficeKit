@@ -878,13 +878,33 @@ officekit run "$SKILL_DIR/template_following_scripts/prepare_template_starter_de
   --contact-sheet "$TMP_DIR/template-starter-contact-sheet.png"
 ```
 
-Import `template-starter.pptx` with `office-kit`. Resolve edits through the
-starter manifest's `starterElementIds`; source inspection IDs are provenance,
-not persistent identities across export/reimport. Edit only inherited
-slides/objects unless the validated frame map explicitly allows an insertion.
-If a source slide cannot support the requested content or cannot be removed
-after cloning because another retained object still references it, report the
-blocker and the closest viable source-slide options.
+Create `$TMP_DIR/template-edit-plan.json` against the starter manifest. It must
+bind the exact starter and manifest SHA-256 values and cover every mapped target
+exactly once. Use only the typed operations documented in
+`references/template-following.md`; each operation carries its old-value or
+asset-hash precondition. Then apply the plan as one transaction:
+
+```bash
+officekit run "$SKILL_DIR/template_following_scripts/apply_template_edit_plan.mjs" \
+  --workspace "$TMP_DIR" \
+  --starter "$TMP_DIR/template-starter.pptx" \
+  --manifest "$TMP_DIR/template-starter.manifest.json" \
+  --plan "$TMP_DIR/template-edit-plan.json" \
+  --out "$FINAL_PPTX" \
+  --audit "$TMP_DIR/template-final.audit.json" \
+  --preview-dir "$TMP_DIR/template-final-preview" \
+  --layout-dir "$TMP_DIR/template-final-layout" \
+  --contact-sheet "$TMP_DIR/template-final-contact-sheet.png"
+```
+
+The command resolves only the manifest's final `starterElementIds`, applies
+bounded text/frame/table/chart/image edits, exports and imports again, verifies,
+renders, rechecks every input hash, and publishes with no overwrite. Source
+inspection IDs remain provenance, not persistent identities. Unsupported
+delete/add/topology work, stale values, ambiguous targets, unsupported run
+boundaries, or any render/round-trip failure publishes nothing. If a source
+slide cannot support the requested content or cannot be removed after cloning,
+report the blocker and the closest viable source-slide options.
 
 ## QA Reminder
 

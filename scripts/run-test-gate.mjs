@@ -79,7 +79,7 @@ const slowSteps = [
   nodeStep("test/presentation.mjs"),
   nodeStep("test/presentation-custom-geometry-render.mjs"),
   nodeStep("test/presentation-jsx.mjs"),
-  nodeStep("test/presentation-skill.mjs"),
+  npmStep("test:skill:presentations"),
   nodeStep("test/template-library.mjs"),
   nodeStep("test/default-template-library.mjs", "--shard", "documents-a"),
   nodeStep("test/default-template-library.mjs", "--shard", "documents-b"),

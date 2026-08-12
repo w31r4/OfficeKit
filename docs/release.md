@@ -1,5 +1,27 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-12): Transactional PPTX template editing
+
+Template Following now continues past starter construction through one portable,
+data-driven edit transaction. `office-kit.template-edit-plan.v1` binds the exact
+starter and manifest hashes, covers every mapped target exactly once, and
+expresses bounded text/frame/table/chart/image changes with explicit old-value
+or asset-hash preconditions. The command resolves only starter-manifest IDs,
+applies the typed operations, exports/reimports, verifies every postcondition,
+proves untouched-slide model visuals, renders all slides, rechecks immutable
+inputs, and publishes the PPTX, audit, PNG/layout evidence, and optional contact
+sheet with collision-safe rollback.
+
+Unsupported deletion/addition/topology work, ambiguous authorization, stale
+values, unsupported run boundaries, cross-workspace media, and round-trip or
+render drift fail before final publication. The operation registry replaces
+per-task slide-type branches; starter and editor also share one transaction
+utility for hashes, path containment, no-overwrite publication, rollback, model
+visuals, and contact sheets. The independent forward test covers seven successful
+operations across text, geometry, table, chart, and image targets plus an
+untouched slide, then exercises overwrite, stale-precondition, and unsupported-
+delete refusal without partial artifacts.
+
 ## Current 0.6.0 candidate (2026-08-12): Imported PPTX template starter
 
 Imported slides now expose `slide.cloneCapability` with a source-bound,
@@ -53,8 +75,8 @@ and PromptBench Python runtimes remain explicit local skips rather than
 provider-execution evidence.
 
 The isolated staged candidate excludes the user's unrelated README edits and
-packs 732 files at 36,282,751 bytes compressed and 53,348,691 bytes unpacked
-(`shasum b34ebcc5517eddf85818ee3fdc588a6c016cece8`), leaving 351,309 bytes below
+packs 734 files at 36,290,067 bytes compressed and 53,386,013 bytes unpacked
+(`shasum ff06d0041db0882ced58921724d363786da416be`), leaving 313,987 bytes below
 the unchanged 53,700,000-byte unpacked ceiling. `npm whoami` remains
 unauthenticated, so npm publication and a tagged release are not attempted.
 Windows Microsoft Office host acceptance remains external evidence.

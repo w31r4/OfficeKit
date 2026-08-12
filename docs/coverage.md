@@ -576,6 +576,30 @@ omitted source targets, sections, custom shows, modern comments, and other
 unsupported identity graphs remain explicit blockers. Content editing begins
 only after importing the starter and resolving the manifest's final IDs.
 
+### Presentation template-following edit transaction
+
+Status: **done for bounded typed edits**. The portable
+`apply_template_edit_plan.mjs` command consumes the starter and its manifest plus
+one `office-kit.template-edit-plan.v1` data file. Exact starter/manifest hashes,
+complete target coverage, non-ambiguous starter IDs, per-operation old-value or
+asset-hash preconditions, a 512-operation budget, and workspace-local bounded
+PNG/JPEG assets are validated before publication.
+
+The data-driven operation registry supports fixed-topology whole-text or
+single-run text replacement, exact frame movement, table-cell values, chart
+title and same-length numeric series values, and embedded image replacement
+while retaining the inherited frame/crop/fit/accessibility state. It exports and
+imports again, translates edited locators through ordered native identity,
+checks every postcondition, runs `verify({ visualQa: true })`, proves untouched
+slides model-visually identical, renders PNG/layout/contact-sheet evidence,
+rechecks every input hash, and publishes the PPTX/audit/evidence with no
+overwrite and rollback. Stale values, duplicated or incomplete target coverage,
+unsupported text topology, arbitrary additions/deletions, non-image replace,
+broader chart edits, cross-workspace assets, topology drift, and render failure
+produce no final or partial artifact. This closes the normal starter-to-edit
+Agent transaction for the bounded catalog; it is not general PowerPoint object
+editing or a license to bypass the public model when a typed operation refuses.
+
 ## Reference Skills
 
 The source and npm layouts contain seven native plugin bundles and twenty-seven

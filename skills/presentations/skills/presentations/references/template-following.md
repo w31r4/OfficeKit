@@ -146,14 +146,82 @@ use the manifest's starter IDs for the next inspect/resolve/edit transaction.
 The manifest also records source/map/inspection/output hashes, clone boundaries,
 the final deletion boundary, provider choice, no-overwrite policy, and QA facts.
 
-Use the starter PPTX as the authoring base. Edit copied placeholders, textboxes,
-charts, tables, and images by final starter element IDs whenever possible. Fill
-inherited component slots; do not lay a parallel custom design over the copied
-template slide.
+Use the starter PPTX as the authoring base. Turn the requested changes into one
+`office-kit.template-edit-plan.v1` file. The plan binds both the starter bytes
+and manifest bytes and covers every manifest edit target exactly once:
+
+```json
+{
+  "schema": "office-kit.template-edit-plan.v1",
+  "starterSha256": "<template-starter.pptx sha256>",
+  "manifestSha256": "<template-starter.manifest.json sha256>",
+  "targets": [
+    {
+      "outputSlide": 1,
+      "targetIndex": 0,
+      "operations": [
+        {
+          "type": "replace-text",
+          "expectedText": "Quarterly outlook pending",
+          "text": "Quarterly outlook approved"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Every `keep` target is present with `operations: []`. Non-keep targets need at
+least one operation for every mapped element. When a target maps multiple
+elements, set an explicit zero-based `elementIndex` on each operation. The
+bounded operation catalog is:
+
+- `set-text`: exact whole-text precondition plus a nonempty replacement;
+  native fixed-topology validation decides whether the imported text body can
+  preserve its formatting.
+- `replace-text`: one nonempty old substring must occur exactly once and stay
+  within a supported native run boundary.
+- `set-position`: exact `{left, top, width, height}` precondition and replacement.
+- `set-table-cell`: zero-based `row`/`column`, `expectedValue`, and `value`.
+- `set-chart-title`: `expectedTitle` and `title`.
+- `set-chart-series-values`: zero-based `seriesIndex`, same-length
+  `expectedValues`, and finite `values`.
+- `replace-image`: workspace-local PNG/JPEG `assetPath`, exact `assetSha256`,
+  and exact embedded `expectedSourceSha256`; frame, crop, fit, and accessibility
+  metadata remain inherited.
+
+`rewrite` and `fill-placeholder` accept content operations;
+`rewrite-and-reposition` requires both `set-position` and a content operation;
+`replace` currently accepts only `replace-image`. `delete`, `add`, topology
+changes, blank replacement text, duplicate target authorization, stale values,
+cross-workspace assets, and broader chart/image mutations fail closed. Remap to
+another source frame when that bounded catalog cannot express the edit; do not
+drop to array splicing, Python PPTX mutation, or raw OOXML.
+
+Apply the complete plan:
+
+```bash
+officekit run "$SKILL_DIR/template_following_scripts/apply_template_edit_plan.mjs" \
+  --workspace "$TMP_DIR" \
+  --starter "$TMP_DIR/template-starter.pptx" \
+  --manifest "$TMP_DIR/template-starter.manifest.json" \
+  --plan "$TMP_DIR/template-edit-plan.json" \
+  --out "$FINAL_PPTX" \
+  --audit "$TMP_DIR/template-final.audit.json" \
+  --preview-dir "$TMP_DIR/template-final-preview" \
+  --layout-dir "$TMP_DIR/template-final-layout" \
+  --contact-sheet "$TMP_DIR/template-final-contact-sheet.png"
+```
+
+The command resolves the manifest's starter IDs, enforces every precondition,
+exports and imports the result, translates the edited locators, runs
+`verify({ visualQa: true })`, proves untouched-slide model visuals, renders all
+slides, rechecks the starter/manifest/plan/assets, and publishes the PPTX,
+audit, PNGs, layouts, and optional contact sheet with no overwrite and rollback.
 
 For mapped source slides, do not use `presentation.slides.add()` to build a new
-slide. Import the copied/starter PPTX with artifact-tool, edit the existing
-duplicated slides, and export through `PresentationFile.exportPptx`.
+slide. Do not write a one-off mutation script for operations already covered by
+the transaction.
 
 If a copied slide cannot be edited cleanly, choose a different source slide and
 rerun the starter deck script. If no source slide can support the requested
@@ -192,6 +260,11 @@ metadata but no text, classify it in the edit plan and handle it with
 `fill-placeholder`. `keep` and `add` do not satisfy placeholder handling because
 PowerPoint can show default edit-mode prompts such as `Click to add title` even
 when slide PNG renders look clean.
+
+The automated edit transaction does not currently execute `delete`. A map that
+requires deletion therefore remains blocked unless a future public typed
+deletion primitive supports that exact imported object topology. Do not claim a
+placeholder was removed merely because it was invisible in a render.
 
 Do not clear text by broad text heuristics. Never run logic equivalent to
 `if (text.trim()) shape.text = ""`, and never blank every text-bearing shape on

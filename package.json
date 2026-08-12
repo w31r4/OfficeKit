@@ -104,7 +104,7 @@
     "test:skill:spreadsheets": "node test/spreadsheet-skill.mjs",
     "test:presentation": "node test/presentation.mjs",
     "test:presentation-jsx": "node test/presentation-jsx.mjs",
-    "test:skill:presentations": "node test/presentation-skill.mjs",
+    "test:skill:presentations": "node test/presentation-skill.mjs && node test/presentation-template-edit.mjs",
     "test:template-library": "node test/template-library.mjs",
     "test:default-template-library": "node test/default-template-library.mjs",
     "test:template-creator": "node test/template-creator.mjs",
