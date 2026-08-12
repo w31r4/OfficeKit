@@ -2677,7 +2677,7 @@ export function presentationEnvelope(presentation, protocolVersion) {
       retainedEntries = entries.filter((entry) => current.includes(entry.model));
       deletedEntries = entries.filter((entry) => !current.includes(entry.model));
       const typedDeletions = !cloneState && deletedEntries.every((entry) =>
-        entry.wire.content.case === "shape" && entry.model[PRESENTATION_ELEMENT_DELETED] === true);
+        entry.model[PRESENTATION_ELEMENT_DELETED] === true);
       if (current.length !== retainedEntries.length ||
           current.some((element) => !retainedEntries.some((entry) => entry.model === element)) ||
           (!cloneState && !typedDeletions) ||

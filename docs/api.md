@@ -1788,6 +1788,8 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `group.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/description/decorative metadata; export re-proves it. |
 | `group.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible group-frame title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits. |
 | `image.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for picture p:cNvPr title/description/decorative metadata; export re-proves the residual-protected picture profile. |
+| `image.delete` | api | Explicitly remove a source-free image or one capability-proven imported top-level embedded picture. The source-bound transaction removes the p:pic subtree and exact relationship, garbage-collects only exclusively owned media descendants, preserves shared media, and rejects external/ambiguous/identity-sensitive graphs or raw array mutation. |
+| `image.deletionCapability` | api | Report whether one imported top-level embedded picture can be deleted with its exact SlidePart relationship and exclusively owned media closure. Shared media survives; export re-proves relationship use, native identity, comments, connectors, timing, and extensions from source bytes. |
 | `image.setAccessibilityMetadata` | api | Transactionally add, change, or clear a picture's non-visible title/description/decorative metadata. The legacy image.alt property reads and writes the same description state rather than creating a second metadata source. |
 | `importPptxWithOfficeKit` | api | Import PPTX bytes with editable bounded direct slide backgrounds, shapes, free-positioned p:sp lines including bounded line ends/caps/joins, rich text, recognized owner-local SlidePart placeholder text, rectangular pictures and native source rectangles, tables, target-bound p:cxnSp connectors, recursive canonical p:grpSp groups, bar/line/pie charts, the canonical literal clustered bar+line combo profile with either shared primary axes or a secondary line pair, legacy text-only speaker notes plus fixed-topology relationship-free rich notes and a re-proven addable capability for eligible notes-absent slides, unchanged-only legacy comments, fixed-topology modern comment text/status edits, defensive payload access for eligible OLE XLSX workbooks plus one uniquely bound DOCX Office-package profile, and a source-bound SmartArt plain-node text capability only for the canonical closed four-part one-paragraph/one-run DiagramDataPart profile. Compound/theme/custom-dash/effect/extension outlines and all other unsupported content remain source-bound and read-only rather than being flattened. |
 | `nativeObject.getEmbeddedOfficePackage` | api | Read a defensive FileBlob copy from an eligible source-bound top-level OLE package. It is compatible with the legacy XLSX workbook profile and currently adds one uniquely bound DOCX profile; it never exposes arbitrary OLE or native-part mutation. |
@@ -1834,8 +1836,8 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `PresentationFile.inspectPptx` | api | Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics after raw-input, part-count, decompression, and optional compression-ratio budgets; verifyCrc32 additionally checks ZIP entry CRCs. |
 | `PresentationFile.patchPptx` | api | Apply path-validated PPTX part patches, including safe slide/master/layout ID lists and slide image/chart DrawingML mutations, and atomically reject dangling package references or invalid notes/comments semantics. |
 | `shape.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/description/decorative metadata; export re-proves it. |
-| `shape.delete` | api | Explicitly remove a source-free shape or one capability-proven imported top-level ordinary shape. Relationship-owning shapes, connector/comment/timing/extension identity graphs, non-shape elements, nested children, and raw collection mutation fail closed. |
-| `shape.deletionCapability` | api | Report whether one imported top-level ordinary shape is inside the bounded deletion profile, with a package-local native ID used for post-write absence proof. Export recomputes the capability from source bytes. |
+| `shape.delete` | api | Explicitly remove a source-free shape or one capability-proven imported top-level ordinary shape. Relationship-owning shapes, connector/comment/timing/extension identity graphs, nested children, and raw collection mutation fail closed; images use their relationship-owning deletion capability. |
+| `shape.deletionCapability` | api | Report whether one imported top-level ordinary shape is inside the bounded element-deletion profile, with a package-local native ID used for post-write absence proof. Export recomputes the capability from source bytes. |
 | `shape.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible ordinary-shape title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed. |
 | `shape.text.set` | api | Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export. |
 | `shape.useBackgroundFill` | api | Read the presence-aware imported PresentationML p:sp useBgFill flag. It affects preview paint but remains source-bound and read-only; source-free authoring or wire mutation fails closed. |
@@ -2044,6 +2046,22 @@ Report sourceBound/editable/addable preflight for picture p:cNvPr title/descript
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, editable, addable } preflight for picture title/description/decorative metadata.
+
+#### `image.delete`
+
+Explicitly remove a source-free image or one capability-proven imported top-level embedded picture. The source-bound transaction removes the p:pic subtree and exact relationship, garbage-collects only exclusively owned media descendants, preserves shared media, and rejects external/ambiguous/identity-sensitive graphs or raw array mutation.
+
+**Schema returns:**
+
+- `image` (ImageElement) — The removed ImageElement facade. Source-free deletion checks current comment/connector references. Imported deletion requires image.deletionCapability.supported and records explicit intent; export removes the exact p:pic and SlidePart relationship, deletes only the media closure without outside parents, preserves shared media, validates absence by native ID, and rejects direct array splicing.
+
+#### `image.deletionCapability`
+
+Report whether one imported top-level embedded picture can be deleted with its exact SlidePart relationship and exclusively owned media closure. Shared media survives; export re-proves relationship use, native identity, comments, connectors, timing, and extensions from source bytes.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. nativeId is package-local p:cNvPr evidence. Export ignores caller claims and re-proves one direct p:pic, one uniquely used embedded-image relationship, media-part ownership, and absence of connector/comment/timing/extension identity consumers.
 
 #### `image.setAccessibilityMetadata`
 
@@ -2677,15 +2695,15 @@ Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/d
 
 #### `shape.delete`
 
-Explicitly remove a source-free shape or one capability-proven imported top-level ordinary shape. Relationship-owning shapes, connector/comment/timing/extension identity graphs, non-shape elements, nested children, and raw collection mutation fail closed.
+Explicitly remove a source-free shape or one capability-proven imported top-level ordinary shape. Relationship-owning shapes, connector/comment/timing/extension identity graphs, nested children, and raw collection mutation fail closed; images use their relationship-owning deletion capability.
 
 **Schema returns:**
 
-- `shape` (Shape) — The removed Shape facade. Source-free deletion checks current connector/comment references. Imported deletion additionally requires shape.deletionCapability.supported, records explicit deletion intent, and export independently re-proves the source. Pictures, tables, charts, groups, native objects, nested group children, relationship-owning shapes, and direct array splicing remain unsupported.
+- `shape` (Shape) — The removed Shape facade. Source-free deletion checks current connector/comment references. Imported deletion additionally requires shape.deletionCapability.supported, records explicit deletion intent, and export independently re-proves the source. Tables, charts, groups, native objects, nested group children, relationship-owning shapes, and direct array splicing remain unsupported; embedded pictures use image.delete instead.
 
 #### `shape.deletionCapability`
 
-Report whether one imported top-level ordinary shape is inside the bounded deletion profile, with a package-local native ID used for post-write absence proof. Export recomputes the capability from source bytes.
+Report whether one imported top-level ordinary shape is inside the bounded element-deletion profile, with a package-local native ID used for post-write absence proof. Export recomputes the capability from source bytes.
 
 **Schema returns:**
 

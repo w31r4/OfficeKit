@@ -101,6 +101,17 @@ preflight `image.accessibilityCapability.editable` before calling
 explicit accessibility object prevents generation `prompt` text from becoming
 alternative text. Change classification and clear/add text in the same call.
 
+For a top-level imported embedded picture, inspect
+`image.deletionCapability` before deletion. A supported capability contains a
+package-local `nativeId`; `image.delete()` records explicit deletion intent and
+removes the facade. Export independently re-proves the direct `p:pic`, unique
+native ID, exact SlidePart relationship, comment/connector/timing/extension
+constraints, and media ownership. It removes the relationship and only the
+media closure with no outside parent, so a picture asset shared by another
+slide remains. External images, two pictures that reuse one owner-local
+relationship ID, nested group pictures, and raw `images.items.splice(...)`
+topology changes fail closed.
+
 ## Edit Placement And Fit
 
 ```ts

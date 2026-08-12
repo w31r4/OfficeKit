@@ -330,7 +330,7 @@ function operationHandlers(context) {
         throw new Error(`${label}.expectedText must be a string, including an explicit empty string when applicable.`);
       }
       if (typeof target?.delete !== "function" || !target?.deletionCapability) {
-        throw new Error(`${label} requires a deletion-capable presentation shape.`);
+        throw new Error(`${label} requires a deletion-capable presentation element.`);
       }
       if ((target.name || "") !== operation.expectedName || String(target.text?.value || "") !== operation.expectedText) {
         throw new Error(`${label} name/text precondition failed.`);

@@ -308,19 +308,23 @@ try {
     { type: "delete-element", expectedName: "image-target", expectedText: "" },
   ];
   await writeJson(deletePlanPath, deletePlan);
-  await assert.rejects(
-    applyTemplateEditPlan({
-      workspace: root,
-      starterPath,
-      manifestPath: deleteManifestPath,
-      planPath: deletePlanPath,
-      out: path.join(root, "delete-output.pptx"),
-      auditPath: path.join(root, "delete-output.audit.json"),
-      previewDir: path.join(root, "delete-preview"),
-      layoutDir: path.join(root, "delete-layout"),
-    }),
-    /requires a deletion-capable presentation shape/i,
-  );
+  const deleteOutputPath = path.join(root, "delete-output.pptx");
+  const deleteResult = await applyTemplateEditPlan({
+    workspace: root,
+    starterPath,
+    manifestPath: deleteManifestPath,
+    planPath: deletePlanPath,
+    out: deleteOutputPath,
+    auditPath: path.join(root, "delete-output.audit.json"),
+    previewDir: path.join(root, "delete-preview"),
+    layoutDir: path.join(root, "delete-layout"),
+  });
+  assert.equal(deleteResult.audit.status, "succeeded");
+  assert.equal(deleteResult.audit.validation.boundedElementDeletions, 2);
+  assert.equal(deleteResult.audit.assets.length, 0);
+  const deleteRoundTrip = await PresentationFile.importPptx(await FileBlob.load(deleteOutputPath));
+  assert.equal(deleteRoundTrip.slides.getItem(0).images.items.some((image) => image.name === "image-target"), false);
+  assert.equal(deleteRoundTrip.slides.getItem(0).shapes.getItem("remove-target"), undefined);
   assert.deepEqual(await fs.readFile(sourcePath), sourceBytes);
   assert.deepEqual(await fs.readFile(starterPath), starterBytes);
   assert.equal((await fs.readdir(root)).some((name) => name.startsWith(".office-kit-template-edit-")), false);

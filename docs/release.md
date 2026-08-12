@@ -1,5 +1,51 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-12): Imported PPTX element deletion
+
+Imported direct ordinary shapes and canonical embedded pictures now expose the
+same source-bound deletion lifecycle. JavaScript requires an explicit typed
+`.delete()` call and keeps arbitrary collection splicing invalid. The OfficeKit
+Codec independently re-proves the concrete SlidePart, native drawing ID,
+top-level owner, connector/comment/timing/extension safety, and the exact
+package delta before writing.
+
+Ordinary shapes must be relationship-free. A picture must use exactly one
+owner-local embedded-image relationship; the codec removes that relationship
+and the picture XML, then deletes only media/OpenXml/DataPart descendants with
+no surviving outside owner. A media part shared by another slide remains in the
+package. External images, ambiguous relationship reuse, identity-sensitive
+graphs, nested children, tables, charts, groups, and native objects fail closed.
+The post-write gate validates the package, proves the native ID is absent,
+audits removed opaque edges and parts, preserves non-target bytes, and supports
+second import.
+
+Template Following maps `action: delete` to the typed `delete-element`
+operation for these two profiles. Its transaction binds exact name/text
+preconditions, reimports the result, proves identity absence, renders/verifies,
+and publishes no-overwrite artifacts plus an audit. Native, JS/WASM, Help, and
+Skill regressions cover exclusive-media removal, shared-media retention,
+ambiguous relationship refusal, raw-array refusal, and both deletion profiles
+in the template transaction.
+
+Local candidate evidence covers the complete 28-step fast gate and all 77 slow
+steps, generated API docs, protocol lint plus idempotent generation, OfficeKit
+Codec 406/406, OfficeBridge 5/5, and deterministic OfficeKit WASM (39-file
+comparison; runtime 38 files / 15,408,875 bytes). Clean-install package smoke,
+standalone distribution, both Live Add-in builds, all twenty templates,
+Playwright, qpdf, LibreOffice, and Poppler also pass. Managed provider-pack
+downloads and separately configured pikepdf, pyHanko, veraPDF, OCRmyPDF, and
+PromptBench Python runtimes remain explicit local skips rather than provider-
+execution evidence.
+
+The isolated rebased candidate excludes the user's two unrelated dirty README
+files and contains 735 files at 36,305,064 compressed bytes and 53,429,684
+unpacked bytes (`shasum 51e5eff1d2a2261c98b36d46fd17bed6e8632d66`).
+It includes the preceding conversational-draft Skill workflow from
+`12a761a6221ffdd8c750153b0c69cc14f58be55e`; both that workflow and typed
+element deletion remain present after the rebase. `npm whoami` remains
+unauthenticated; npm publication and a tagged release were not attempted.
+Windows Microsoft Office host acceptance remains external evidence.
+
 ## Current 0.6.0 candidate (2026-08-12): Transactional PPTX template editing
 
 Template Following now continues past starter construction through one portable,
@@ -12,15 +58,17 @@ proves untouched-slide model visuals, renders all slides, rechecks immutable
 inputs, and publishes the PPTX, audit, PNG/layout evidence, and optional contact
 sheet with collision-safe rollback.
 
-Unsupported deletion/addition/topology work, ambiguous authorization, stale
+Unsupported addition/topology work, non-capability-proven deletion, ambiguous authorization, stale
 values, unsupported run boundaries, cross-workspace media, and round-trip or
 render drift fail before final publication. The operation registry replaces
 per-task slide-type branches; starter and editor also share one transaction
 utility for hashes, path containment, no-overwrite publication, rollback, model
-visuals, and contact sheets. The independent forward test covers seven successful
-operations across text, geometry, table, chart, and image targets plus an
-untouched slide, then exercises overwrite, stale-precondition, and unsupported-
-delete refusal without partial artifacts.
+visuals, and contact sheets. The independent forward test covers eight successful
+operations across text, geometry, table, chart, image, and a typed shape deletion
+plus an untouched slide. A second transaction replaces the image operation with
+a typed picture deletion and proves both element identities absent; overwrite,
+stale-precondition, and unsupported-topology failures publish no partial
+artifacts.
 
 ## Current 0.6.0 candidate (2026-08-12): Imported PPTX template starter
 

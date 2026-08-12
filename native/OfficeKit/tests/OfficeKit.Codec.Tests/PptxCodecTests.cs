@@ -5400,6 +5400,144 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void SourcePreservingExportDeletesOneCapabilityProvenTopLevelPictureAndItsExclusiveMedia()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddPicture(authored.File.ToByteArray());
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var removed = Assert.Single(slide.Elements, element => element.ContentCase == PresentationElement.ContentOneofCase.Image);
+        Assert.True(removed.Source.DeletionCapability.Supported);
+        Assert.Equal(string.Empty, removed.Source.DeletionCapability.BlockedReason);
+        var mediaPath = Assert.Single(imported.Artifact.OpaqueOpc.Parts,
+            part => part.ContentType.Equals("image/png", StringComparison.OrdinalIgnoreCase)).Path;
+
+        slide.ElementDeletions.Add(new PresentationElementDeletion
+        {
+            Id = removed.Id,
+            Source = removed.Source.Clone(),
+        });
+        slide.Elements.Remove(removed);
+        var deleted = Export(imported.Artifact);
+        Assert.True(deleted.Ok, Diagnostics(deleted));
+        Assert.Contains(deleted.Diagnostics, diagnostic => diagnostic.Code == "opaque_content_deleted_with_element");
+        var deletedBytes = deleted.File.ToByteArray();
+        Assert.DoesNotContain(mediaPath, ZipPartPaths(deletedBytes), StringComparer.OrdinalIgnoreCase);
+        var allowedChanges = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "[Content_Types].xml",
+            "ppt/slides/slide1.xml",
+            "ppt/slides/_rels/slide1.xml.rels",
+            mediaPath,
+        };
+        foreach (var path in ZipPartPaths(sourceBytes).Intersect(ZipPartPaths(deletedBytes), StringComparer.OrdinalIgnoreCase).Where(path => !allowedChanges.Contains(path)))
+            Assert.Equal(ZipBytes(sourceBytes, path), ZipBytes(deletedBytes, path));
+
+        using (var stream = new MemoryStream(deletedBytes, writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var slidePart = package.PresentationPart!.SlideParts.Single();
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            Assert.Empty(slidePart.Slide!.CommonSlideData!.ShapeTree!.Elements<P.Picture>());
+            Assert.Empty(slidePart.ImageParts);
+        }
+        var roundTrip = Import(deletedBytes);
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.DoesNotContain(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Image);
+    }
+
+    [Fact]
+    public void SourcePreservingPictureDeletionRetainsMediaSharedByAnotherSlide()
+    {
+        var request = ExportRequest();
+        var imageBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+        var assetId = AddPictureAsset(request.Artifact, imageBytes, "image/png");
+        for (var slideIndex = 0; slideIndex < 2; slideIndex++)
+        {
+            PresentationSlide slide;
+            if (slideIndex == 0)
+            {
+                slide = request.Artifact.Presentation.Slides[0];
+            }
+            else
+            {
+                slide = new PresentationSlide { Id = "presentation/slide/2", Name = "Shared picture" };
+                request.Artifact.Presentation.Slides.Add(slide);
+            }
+            slide.Elements.Add(new PresentationElement
+            {
+                Id = $"presentation/slide/{slideIndex + 1}/image/1",
+                Name = $"Shared image {slideIndex + 1}",
+                Image = new PresentationImage
+                {
+                    AssetId = assetId,
+                    LeftEmu = 1_000_000,
+                    TopEmu = 1_000_000,
+                    WidthEmu = 1_000_000,
+                    HeightEmu = 1_000_000,
+                },
+            });
+        }
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = authored.File.ToByteArray();
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var removed = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Image);
+        Assert.True(removed.Source.DeletionCapability.Supported);
+        imported.Artifact.Presentation.Slides[0].ElementDeletions.Add(new PresentationElementDeletion
+        {
+            Id = removed.Id,
+            Source = removed.Source.Clone(),
+        });
+        imported.Artifact.Presentation.Slides[0].Elements.Remove(removed);
+
+        var deleted = Export(imported.Artifact);
+        Assert.True(deleted.Ok, Diagnostics(deleted));
+        using var stream = new MemoryStream(deleted.File.ToByteArray(), writable: false);
+        using var package = PresentationDocument.Open(stream, false);
+        var slides = package.PresentationPart!.SlideParts.ToArray();
+        Assert.Empty(slides[0].ImageParts);
+        Assert.Single(slides[1].ImageParts);
+        Assert.Single(slides[1].Slide!.Descendants<P.Picture>());
+        Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+    }
+
+    [Fact]
+    public void ImportedPictureDeletionBlocksOneSlideRelationshipSharedByTwoPictures()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = DuplicatePictureWithSharedRelationship(AddPicture(authored.File.ToByteArray()));
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var pictures = Assert.Single(imported.Artifact.Presentation.Slides).Elements
+            .Where(element => element.ContentCase == PresentationElement.ContentOneofCase.Image)
+            .ToArray();
+        Assert.Equal(2, pictures.Length);
+        Assert.All(pictures, picture =>
+        {
+            Assert.False(picture.Source.DeletionCapability.Supported);
+            Assert.Contains("referenced outside", picture.Source.DeletionCapability.BlockedReason, StringComparison.Ordinal);
+        });
+
+        var slide = imported.Artifact.Presentation.Slides[0];
+        slide.ElementDeletions.Add(new PresentationElementDeletion
+        {
+            Id = pictures[0].Id,
+            Source = pictures[0].Source.Clone(),
+        });
+        slide.Elements.Remove(pictures[0]);
+        var rejected = Export(imported.Artifact);
+        Assert.False(rejected.Ok);
+        Assert.Equal("unsupported_presentation_element_delete", Assert.Single(rejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void ImportedElementDeletionCapabilityBlocksRelationshipOwningShapes()
     {
         var authored = Invoke(HyperlinkExportRequest());
@@ -9114,6 +9252,24 @@ public sealed class PptxCodecTests
                         new A.Extents { Cx = 1_714_500L, Cy = 1_143_000L }),
                     new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })));
             slidePart.Slide.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] DuplicatePictureWithSharedRelationship(byte[] bytes)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var presentation = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var slide = presentation.PresentationPart!.SlideParts.Single().Slide!;
+            var source = slide.CommonSlideData!.ShapeTree!.Elements<P.Picture>().Single();
+            var duplicate = (P.Picture)source.CloneNode(true);
+            duplicate.NonVisualPictureProperties!.NonVisualDrawingProperties!.Id = 4U;
+            duplicate.NonVisualPictureProperties.NonVisualDrawingProperties.Name = "Shared relationship picture";
+            slide.CommonSlideData.ShapeTree.Append(duplicate);
+            slide.Save();
         }
         return stream.ToArray();
     }

@@ -831,6 +831,54 @@ class ElementCollection {
   [Symbol.iterator]() { return this.items[Symbol.iterator](); }
 }
 
+function presentationElementDeletionCapability(element, kind) {
+  const imported = element[PRESENTATION_ELEMENT_DELETION_CAPABILITY];
+  if (imported) return { ...imported };
+  if (element.slide?.presentation?.[PRESENTATION_STATE]) {
+    return {
+      sourceBound: true,
+      known: false,
+      supported: false,
+      blockedReason: `This imported ${kind} is outside the bounded top-level element deletion profile.`,
+      nativeId: undefined,
+    };
+  }
+  return { sourceBound: false, known: true, supported: true, blockedReason: "", nativeId: undefined };
+}
+
+function deletePresentationElement(element, collection, kind) {
+  const index = collection?.items?.indexOf(element) ?? -1;
+  if (index < 0) throw new Error(`Presentation ${kind} must belong to its slide before it can be deleted.`);
+
+  const owner = element.parentGroup;
+  const connectors = owner?.connectors?.items || element.slide?.connectors?.items || [];
+  if (connectors.some((connector) => connector.startTargetId === element.id || connector.endTargetId === element.id)) {
+    const error = new Error(`Presentation ${kind} ${element.id} cannot be deleted while a connector targets it.`);
+    error.code = "unsupported_presentation_element_delete";
+    throw error;
+  }
+  if ((element.slide?.comments?.items || []).some((thread) => thread.targetId === element.id)) {
+    const error = new Error(`Presentation ${kind} ${element.id} cannot be deleted while a comment targets it.`);
+    error.code = "unsupported_presentation_element_delete";
+    throw error;
+  }
+
+  const capability = element.deletionCapability;
+  if (capability.sourceBound && (!capability.known || !capability.supported)) {
+    const detail = capability.blockedReason ? `: ${capability.blockedReason}` : ".";
+    const error = new Error(`Imported presentation ${kind} cannot be safely deleted${detail}`);
+    error.code = "unsupported_presentation_element_delete";
+    throw error;
+  }
+  if (capability.sourceBound) Object.defineProperty(element, PRESENTATION_ELEMENT_DELETED, { value: true });
+  collection.items.splice(index, 1);
+  if (owner) {
+    const childIndex = owner.children.indexOf(element);
+    if (childIndex >= 0) owner.children.splice(childIndex, 1);
+  }
+  return element;
+}
+
 function normalizeFrame(config = {}, fallback = { left: 0, top: 0, width: 240, height: 160 }) {
   const source = config.position || config.frame || config;
   return {
@@ -1448,55 +1496,12 @@ export class Shape {
   set text(value) { this._text.set(value); }
   get useBackgroundFill() { return importedShapeBackgroundFill.get(this); }
   get accessibilityCapability() { return presentationAccessibilityCapability(this); }
-  get deletionCapability() {
-    const imported = this[PRESENTATION_ELEMENT_DELETION_CAPABILITY];
-    if (imported) return { ...imported };
-    if (this.slide?.presentation?.[PRESENTATION_STATE]) {
-      return {
-        sourceBound: true,
-        known: false,
-        supported: false,
-        blockedReason: "This imported element is outside the bounded top-level shape deletion profile.",
-        nativeId: undefined,
-      };
-    }
-    return { sourceBound: false, known: true, supported: true, blockedReason: "", nativeId: undefined };
-  }
+  get deletionCapability() { return presentationElementDeletionCapability(this, "shape"); }
 
   delete() {
     const owner = this.parentGroup;
     const collection = owner?.shapes || this.slide?.shapes;
-    const index = collection?.items?.indexOf(this) ?? -1;
-    if (index < 0) throw new Error("Presentation shape must belong to its slide before it can be deleted.");
-
-    const connectors = owner?.connectors?.items || this.slide?.connectors?.items || [];
-    if (connectors.some((connector) => connector.startTargetId === this.id || connector.endTargetId === this.id)) {
-      const error = new Error(`Presentation shape ${this.id} cannot be deleted while a connector targets it.`);
-      error.code = "unsupported_presentation_element_delete";
-      throw error;
-    }
-    if ((this.slide?.comments?.items || []).some((thread) => thread.targetId === this.id)) {
-      const error = new Error(`Presentation shape ${this.id} cannot be deleted while a comment targets it.`);
-      error.code = "unsupported_presentation_element_delete";
-      throw error;
-    }
-
-    const capability = this.deletionCapability;
-    if (capability.sourceBound && (!capability.known || !capability.supported)) {
-      const detail = capability.blockedReason ? `: ${capability.blockedReason}` : ".";
-      const error = new Error(`Imported presentation shape cannot be safely deleted${detail}`);
-      error.code = "unsupported_presentation_element_delete";
-      throw error;
-    }
-    if (capability.sourceBound) {
-      Object.defineProperty(this, PRESENTATION_ELEMENT_DELETED, { value: true });
-    }
-    collection.items.splice(index, 1);
-    if (owner) {
-      const childIndex = owner.children.indexOf(this);
-      if (childIndex >= 0) owner.children.splice(childIndex, 1);
-    }
-    return this;
+    return deletePresentationElement(this, collection, "shape");
   }
 
   setAccessibilityMetadata(update) {
@@ -2166,6 +2171,12 @@ export class ImageElement {
     );
   }
   get accessibilityCapability() { return presentationAccessibilityCapability(this); }
+  get deletionCapability() { return presentationElementDeletionCapability(this, "image"); }
+  delete() {
+    const owner = this.parentGroup;
+    const collection = owner?.images || this.slide?.images;
+    return deletePresentationElement(this, collection, "image");
+  }
   get fit() { return this._fit; }
   set fit(value) { this._fit = normalizePresentationImageFit(value); }
   get crop() { return this._crop; }
@@ -2199,7 +2210,7 @@ export class ImageElement {
 
   inspectRecord() {
     const p = this.position;
-    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
+    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
   }
 
   layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, dataUrl: this.dataUrl, fit: this.fit, crop: this.crop, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }

@@ -1817,8 +1817,11 @@ message PresentationElementSourceBinding {
   bool accessibility_editable = 7;
   // Import-time preflight for deleting this concrete top-level shape-tree
   // element. Presence makes the capability known; export independently
-  // re-proves relationship, connector, comment, timing, and extension identity
-  // constraints against the hash-bound source package.
+  // re-proves relationship ownership plus connector, comment, timing, and
+  // extension identity constraints against the hash-bound source package.
+  // The bounded profile includes relationship-free ordinary p:sp and canonical
+  // embedded p:pic elements; a picture deletion removes its source relationship
+  // and only the media closure that has no other package parent.
   PresentationElementDeletionCapability deletion_capability = 8;
 }
 

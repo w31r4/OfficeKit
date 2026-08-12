@@ -93,6 +93,17 @@ descendant while retaining shared descendants. JS refuses a known-unsafe
 delete before mutation; export independently re-proves the source graph.
 Inbound slide references and custom-show/section/extension identity fail closed.
 
+Top-level imported ordinary shapes and embedded pictures expose separate
+`deletionCapability` snapshots with one package-local native drawing ID.
+`shape.delete()` is limited to a relationship-free direct `p:sp`.
+`image.delete()` owns the direct `p:pic` plus one uniquely used embedded-image
+relationship: export removes that relationship and only media descendants with
+no outside parent, so assets shared by another slide survive. Both calls record
+explicit intent; direct collection mutation, nested group children,
+comment/connector/timing/extension identity, external pictures, and ambiguous
+owner-local relationship reuse fail closed. The Codec re-proves the source and
+native-ID absence after write.
+
 `slide.cloneCapability` returns defensive `{ sourceBound, known, supported, blockedReason, clonedPartCount, sharedPartCount }` evidence for an imported source SlidePart. `clonedPartCount` includes the slide root and uniquely owned OpenXmlPart descendants. `sharedPartCount` counts proven resources that the clone will rebind. This is preflight evidence only; export re-analyzes the hash-bound package.
 
 `slide.duplicate()` returns a new adjacent `Slide` only when that capability is supported and the source semantic model is unchanged. The JavaScript layer allocates fresh slide/element identities and rebinds connector endpoints inside the copied element tree. The Codec copies the SlidePart as an OPC ownership graph: every uniquely owned OpenXmlPart, DataPart, relationship ID, content type, exact payload, external relationship, and repeated owned-node edge is retained in an independent graph. Proven shared SlideLayoutPart, NotesMasterPart, ImagePart, and retained SlidePart jump targets are rebound rather than duplicated. Open XML SDK assigns collision-free physical part URIs, so callers must not infer a clone path from its slide order.

@@ -355,6 +355,9 @@ internal static class PptxCodec
         var addedPartPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var replacedOpaquePartHashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var removedSourcePartPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var removedSourceRelationshipKeys = new HashSet<string>(StringComparer.Ordinal);
+        var removedElementPartPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var removedElementRelationshipKeys = new HashSet<string>(StringComparer.Ordinal);
         using (var package = PresentationDocument.Open(stream, isEditable: true, new OpenSettings { AutoSave = false }))
         {
             var presentationPart = package.PresentationPart ??
@@ -888,7 +891,21 @@ internal static class PptxCodec
                 }
                 foreach (var deletion in pendingElementDeletions)
                 {
-                    PptxElementDeletionCodec.Apply(deletion.Source, deletion.Plan);
+                    PptxElementDeletionCodec.Apply(slidePart, deletion.Source, deletion.Plan);
+                    foreach (var removedRelationshipId in deletion.Plan.RelationshipIds)
+                    {
+                        removedSourceRelationshipKeys.Add($"{PartPath(slidePart)}\0{removedRelationshipId}");
+                        removedElementRelationshipKeys.Add($"{PartPath(slidePart)}\0{removedRelationshipId}");
+                    }
+                    if (deletion.Plan.RelationshipIds.Count > 0)
+                        changedParts.Add(RelationshipPartPath(slidePart));
+                    if (deletion.Plan.RemovedPackagePartPaths.Count > 0)
+                    {
+                        changedParts.UnionWith(deletion.Plan.RemovedPackagePartPaths);
+                        removedSourcePartPaths.UnionWith(deletion.Plan.RemovedPackagePartPaths);
+                        removedElementPartPaths.UnionWith(deletion.Plan.RemovedPackagePartPaths);
+                        changedParts.Add("[Content_Types].xml");
+                    }
                     changed = true;
                 }
                 if (changed)
@@ -951,7 +968,8 @@ internal static class PptxCodec
             addedRelationshipIds.Count == 0 &&
             addedPartPaths.Count == 0 &&
             replacedOpaquePartHashes.Count == 0 &&
-            removedSourcePartPaths.Count == 0;
+            removedSourcePartPaths.Count == 0 &&
+            removedSourceRelationshipKeys.Count == 0;
         var bytes = noModeledChanges ? sourceBytes : stream.ToArray();
         ValidateOutputBudget(bytes, limits);
         AssertPlannedPartsRemoved(sourceBytes, bytes, removedSourcePartPaths);
@@ -966,19 +984,31 @@ internal static class PptxCodec
             addedRelationshipIds,
             addedPartPaths,
             replacedOpaquePartHashes,
-            removedSourcePartPaths);
+            removedSourcePartPaths,
+            removedSourceRelationshipKeys);
         var diagnostics = new List<Diagnostic>();
+        var removedElementOpaqueCount = envelope.OpaqueOpc.Parts.Count(part => removedElementPartPaths.Contains(part.Path)) +
+                                        envelope.OpaqueOpc.PackageRelationships.Count(relationship =>
+                                            removedElementPartPaths.Contains(relationship.SourcePath) ||
+                                            removedElementRelationshipKeys.Contains($"{relationship.SourcePath}\0{relationship.Id}"));
         var removedOpaqueCount = envelope.OpaqueOpc.Parts.Count(part => removedSourcePartPaths.Contains(part.Path)) +
-                                 envelope.OpaqueOpc.PackageRelationships.Count(relationship => removedSourcePartPaths.Contains(relationship.SourcePath));
+                                 envelope.OpaqueOpc.PackageRelationships.Count(relationship =>
+                                     removedSourcePartPaths.Contains(relationship.SourcePath) ||
+                                     removedSourceRelationshipKeys.Contains($"{relationship.SourcePath}\0{relationship.Id}"));
+        var removedSlideOpaqueCount = removedOpaqueCount - removedElementOpaqueCount;
         var retainedOpaqueCount = opaqueCount - removedOpaqueCount;
         if (retainedOpaqueCount > 0)
             diagnostics.Add(CodecProtocol.Warning(
                 "opaque_content_preserved",
                 $"Preserved {retainedOpaqueCount} opaque OPC parts or relationships while updating modeled presentation content."));
-        if (removedOpaqueCount > 0)
+        if (removedSlideOpaqueCount > 0)
             diagnostics.Add(CodecProtocol.Warning(
                 "opaque_content_deleted_with_slide",
-                $"Removed {removedOpaqueCount} opaque OPC parts or relationships because they belonged exclusively to an explicitly deleted source slide graph."));
+                $"Removed {removedSlideOpaqueCount} opaque OPC parts or relationships because they belonged exclusively to an explicitly deleted source slide graph."));
+        if (removedElementOpaqueCount > 0)
+            diagnostics.Add(CodecProtocol.Warning(
+                "opaque_content_deleted_with_element",
+                $"Removed {removedElementOpaqueCount} opaque OPC parts or relationships because they belonged exclusively to explicitly deleted source slide elements."));
         if (retainedValidationErrorCount > 0)
             diagnostics.Add(CodecProtocol.Warning(
                 "source_openxml_validation_warnings_preserved",
@@ -2309,7 +2339,8 @@ internal static class PptxCodec
         IReadOnlySet<string> allowedAddedRelationshipIds,
         IReadOnlySet<string> allowedAddedPartPaths,
         IReadOnlyDictionary<string, string> allowedChangedPartHashes,
-        IReadOnlySet<string> removedSourcePartPaths)
+        IReadOnlySet<string> removedSourcePartPaths,
+        IReadOnlySet<string> removedSourceRelationshipKeys)
     {
         var guarded = actual.Clone();
         var removed = new HashSet<string>(StringComparer.Ordinal);
@@ -2345,7 +2376,9 @@ internal static class PptxCodec
             expected,
             guarded,
             "opaque_content_not_preserved",
-            ignoreRelationship: relationship => removedSourcePartPaths.Contains(relationship.SourcePath),
+            ignoreRelationship: relationship =>
+                removedSourcePartPaths.Contains(relationship.SourcePath) ||
+                removedSourceRelationshipKeys.Contains($"{relationship.SourcePath}\0{relationship.Id}"),
             ignorePart: part => allowedChangedPartHashes.ContainsKey(part.Path) || removedSourcePartPaths.Contains(part.Path));
     }
 
@@ -2360,8 +2393,8 @@ internal static class PptxCodec
             .ToArray();
         if (retained.Length > 0)
             throw new CodecException(
-                "presentation_slide_delete_incomplete",
-                $"Source-preserving PPTX deletion retained planned slide-owned package parts: {string.Join(", ", retained)}.");
+                "presentation_delete_incomplete",
+                $"Source-preserving PPTX deletion retained planned package parts: {string.Join(", ", retained)}.");
     }
 
     private static bool IsNumberedSlidePath(string path)

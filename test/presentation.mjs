@@ -23,6 +23,7 @@ import {
 import { materializePresentationNativeGraphs } from "../src/codecs/office-kit-presentation-native.mjs";
 
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+const PNG_ALT = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nGQAAAAASUVORK5CYII=";
 const JPEG = "data:image/jpeg;base64,/9j/2Q==";
 const WIDE_SVG = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200" viewBox="0 0 400 200"><rect width="200" height="200" fill="#2563eb"/><rect x="200" width="200" height="200" fill="#f97316"/></svg>').toString("base64")}`;
 const TALL_SVG = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 400"><rect width="200" height="200" fill="#2563eb"/><rect y="200" width="200" height="200" fill="#f97316"/></svg>').toString("base64")}`;
@@ -5571,6 +5572,53 @@ await assert.rejects(
   (error) => error?.code === "presentation_element_topology_changed",
   "raw collection mutation must not masquerade as a capability-proven element deletion",
 );
+
+const imageDeleteSource = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const imageDeleteSlide = imageDeleteSource.slides.add({ name: "Image deletion" });
+imageDeleteSlide.images.add({ name: "keep-image", alt: "Keep", dataUrl: PNG, position: { left: 40, top: 40, width: 120, height: 120 } });
+imageDeleteSlide.images.add({ name: "delete-image", alt: "Delete", dataUrl: PNG_ALT, position: { left: 240, top: 40, width: 120, height: 120 } });
+const imageDeleteSourceFile = await PresentationFile.exportPptx(imageDeleteSource);
+const imageDeleteImported = await PresentationFile.importPptx(imageDeleteSourceFile);
+const importedDeleteImage = imageDeleteImported.slides.getItem(0).images.items.find((image) => image.name === "delete-image");
+assert.equal(importedDeleteImage.deletionCapability.sourceBound, true);
+assert.equal(importedDeleteImage.deletionCapability.known, true);
+assert.equal(importedDeleteImage.deletionCapability.supported, true);
+assert.ok(Number.isInteger(importedDeleteImage.deletionCapability.nativeId) && importedDeleteImage.deletionCapability.nativeId > 0);
+assert.equal(importedDeleteImage.inspectRecord().deletionCapability.supported, true);
+assert.equal(importedDeleteImage.delete(), importedDeleteImage);
+const imageDeletedFile = await PresentationFile.exportPptx(imageDeleteImported);
+const imageDeleteRoundTrip = await PresentationFile.importPptx(imageDeletedFile);
+assert.deepEqual(imageDeleteRoundTrip.slides.getItem(0).images.items.map((image) => image.name), ["keep-image"]);
+
+const [imageDeleteBeforeZip, imageDeleteAfterZip] = await Promise.all([
+  JSZip.loadAsync(new Uint8Array(await imageDeleteSourceFile.arrayBuffer())),
+  JSZip.loadAsync(new Uint8Array(await imageDeletedFile.arrayBuffer())),
+]);
+const imageDeleteBeforeParts = Object.keys(imageDeleteBeforeZip.files).filter((name) => !imageDeleteBeforeZip.files[name].dir);
+const imageDeleteAfterParts = Object.keys(imageDeleteAfterZip.files).filter((name) => !imageDeleteAfterZip.files[name].dir);
+const removedImageParts = imageDeleteBeforeParts.filter((name) => !imageDeleteAfterZip.file(name));
+assert.equal(removedImageParts.filter((name) => /^ppt\/media\//.test(name)).length, 1);
+const imageDeleteAllowedChanges = new Set(["[Content_Types].xml", "ppt/slides/slide1.xml", "ppt/slides/_rels/slide1.xml.rels", ...removedImageParts]);
+for (const name of imageDeleteBeforeParts.filter((name) => imageDeleteAfterZip.file(name) && !imageDeleteAllowedChanges.has(name))) {
+  assert.deepEqual(await imageDeleteAfterZip.file(name).async("uint8array"), await imageDeleteBeforeZip.file(name).async("uint8array"), `${name} changed during image deletion`);
+}
+
+const untypedImageDelete = await PresentationFile.importPptx(imageDeleteSourceFile);
+untypedImageDelete.slides.getItem(0).images.items.splice(1, 1);
+await assert.rejects(
+  () => PresentationFile.exportPptx(untypedImageDelete),
+  (error) => error?.code === "presentation_element_topology_changed",
+  "raw image collection mutation must not masquerade as a capability-proven element deletion",
+);
+
+const sharedImageDeleteSource = Presentation.create({ slideSize: { width: 640, height: 360 } });
+sharedImageDeleteSource.slides.add({ name: "Delete shared image" }).images.add({ name: "shared-delete", dataUrl: PNG, position: { left: 40, top: 40, width: 120, height: 120 } });
+sharedImageDeleteSource.slides.add({ name: "Keep shared image" }).images.add({ name: "shared-keep", dataUrl: PNG, position: { left: 40, top: 40, width: 120, height: 120 } });
+const sharedImageDeleteImported = await PresentationFile.importPptx(await PresentationFile.exportPptx(sharedImageDeleteSource));
+sharedImageDeleteImported.slides.getItem(0).images.items[0].delete();
+const sharedImageDeleteRoundTrip = await PresentationFile.importPptx(await PresentationFile.exportPptx(sharedImageDeleteImported));
+assert.equal(sharedImageDeleteRoundTrip.slides.getItem(0).images.items.length, 0);
+assert.equal(sharedImageDeleteRoundTrip.slides.getItem(1).images.items[0].name, "shared-keep");
 
 const connectedElementDeleteSource = Presentation.create({ slideSize: { width: 640, height: 360 } });
 const connectedElementDeleteSlide = connectedElementDeleteSource.slides.add({ name: "Connected deletion" });
