@@ -829,15 +829,16 @@ layout, style, or template. Read `references/template-following.md`, use
 `$TMP_DIR` from the Workspace section, and set
 `TEMPLATE_PPTX="<absolute path to the user-provided PPTX>"`.
 
-Current availability: the Codec can now duplicate an imported slide whose
-`cloneCapability` proves a closed, uniquely owned OPC descendant graph,
-including unknown parts and external relationships. The remaining starter-deck
-blocker is workflow orchestration: the checked-in starter command does not yet
-execute the validated map, sequence repeated source clones transactionally,
-reimport each clone boundary, or constrain subsequent edits to audited inherited
-targets. Until that command is implemented and tested, use this mode only for
-source inventory, plan validation, capability reporting, and render/QA evidence.
-Do not rebuild slides or share mutable parts to bypass the missing orchestration.
+The checked-in starter command executes a validated multi-slide frame map. It
+duplicates exactly one supported source slide per export/reimport boundary, so
+the same source slide may be reused safely, then preflights and removes all
+original slides as one source-bound ownership transaction. It renders and
+verifies the result before publishing a no-overwrite starter PPTX, preview/layout
+evidence, and a manifest that translates every inspected source element ID to
+the corresponding final starter ID. If any clone, deletion, locator translation,
+render, or verification boundary is unsupported, the command fails closed and
+publishes none of those artifacts. Do not rebuild slides or share mutable parts
+to bypass that refusal.
 
 Preserve the source deck's typography, palette, spacing, layout, placeholders,
 footers, page markers, and brand chrome unless the user explicitly asks to
@@ -860,9 +861,7 @@ officekit run "$SKILL_DIR/template_following_scripts/inspect_template_deck.mjs" 
 ```
 
 Map each output slide to an inherited source slide and identify element-level
-`editTargets`. Then validate the map. The starter-deck command currently rejects
-before writing an output deck because its multi-clone/edit transaction is not
-implemented, even when every selected source slide reports clone support:
+`editTargets`. Then validate the map and build the immutable starter:
 
 ```bash
 officekit run "$SKILL_DIR/template_following_scripts/validate_template_plan.mjs" \
@@ -879,12 +878,13 @@ officekit run "$SKILL_DIR/template_following_scripts/prepare_template_starter_de
   --contact-sheet "$TMP_DIR/template-starter-contact-sheet.png"
 ```
 
-When the starter-deck orchestration enables `template-starter.pptx`, import it
-with `office-kit` and edit only inherited slides/objects
-unless the validated frame map explicitly allows an insertion. Today, if a
-source slide cannot support requested content without broad clone/delete or a
-parallel rebuild, report the blocker and the closest viable source-slide
-options.
+Import `template-starter.pptx` with `office-kit`. Resolve edits through the
+starter manifest's `starterElementIds`; source inspection IDs are provenance,
+not persistent identities across export/reimport. Edit only inherited
+slides/objects unless the validated frame map explicitly allows an insertion.
+If a source slide cannot support the requested content or cannot be removed
+after cloning because another retained object still references it, report the
+blocker and the closest viable source-slide options.
 
 ## QA Reminder
 

@@ -2851,21 +2851,171 @@ try {
   const styleGuidelinesText = await fs.readFile("skills/presentations/skills/presentations/style_guidelines.md", "utf8");
   const googleSlidesRoutingText = await fs.readFile("skills/presentations/skills/presentations/routing/google_slides.md", "utf8");
   const quickStartText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/API_QUICK_START.md", "utf8");
-  const starterRoot = path.join(root, "starter-fail-closed");
+  const starterRoot = path.join(root, "template-starter-workflow");
+  const starterSource = path.join(starterRoot, "source.pptx");
   const starterMap = path.join(starterRoot, "template-frame-map.json");
   const starterOutput = path.join(starterRoot, "template-starter.pptx");
+  const starterManifestPath = path.join(starterRoot, "template-starter.manifest.json");
+  const starterPreviewDir = path.join(starterRoot, "preview");
+  const starterLayoutDir = path.join(starterRoot, "layout");
+  const starterContactSheet = path.join(starterRoot, "contact-sheet.png");
   await fs.mkdir(starterRoot, { recursive: true });
-  await fs.writeFile(starterMap, JSON.stringify({ outputSlides: [] }));
+  const starterFixture = Presentation.create({ slideSize: { width: 640, height: 360 } });
+  for (const [name, text] of [["Alpha", "Alpha body"], ["Beta", "Beta body"], ["Gamma", "Gamma body"]]) {
+    const slide = starterFixture.slides.add({ name });
+    slide.shapes.add({
+      name: `${name}-shape`,
+      position: { left: 40, top: 40, width: 300, height: 80 },
+      text,
+    });
+  }
+  await (await PresentationFile.exportPptx(starterFixture)).save(starterSource);
+  const starterSourceBytes = await fs.readFile(starterSource);
+  const inspectStarter = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/template_following_scripts/inspect_template_deck.mjs",
+    "--workspace", starterRoot,
+    "--pptx", starterSource,
+    "--scale", "0.25",
+  ], { encoding: "utf8" });
+  assert.equal(inspectStarter.status, 0, `template inspection failed\n${inspectStarter.stdout}\n${inspectStarter.stderr}`);
+  const starterInspectPath = path.join(starterRoot, "template-inspect", "template-inspect.ndjson");
+  const starterInspectRecords = (await fs.readFile(starterInspectPath, "utf8"))
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  const betaElementId = starterInspectRecords.find((record) => record.slide === 2 && record.kind !== "slide")?.id;
+  assert.equal(typeof betaElementId, "string");
+  await fs.writeFile(starterMap, `${JSON.stringify({
+    outputSlides: [
+      { outputSlide: 1, sourceSlide: 2, narrativeRole: "brand divider", reuseMode: "duplicate-slide", editTargets: [{ action: "keep", sourceElementId: betaElementId }] },
+      { outputSlide: 2, sourceSlide: 1, narrativeRole: "brand divider", reuseMode: "duplicate-slide", editTargets: [] },
+      { outputSlide: 3, sourceSlide: 2, narrativeRole: "brand divider", reuseMode: "duplicate-slide", editTargets: [{ action: "keep", sourceElementId: betaElementId }] },
+    ],
+    omittedSourceSlides: [{ sourceSlide: 3, reason: "not needed in the requested narrative" }],
+  }, null, 2)}\n`);
   const starterResult = spawnSync(process.execPath, [
     "skills/presentations/skills/presentations/template_following_scripts/prepare_template_starter_deck.mjs",
     "--workspace", starterRoot,
-    "--pptx", readiness.pptxPath,
+    "--pptx", starterSource,
     "--map", starterMap,
     "--out", starterOutput,
+    "--preview-dir", starterPreviewDir,
+    "--layout-dir", starterLayoutDir,
+    "--contact-sheet", starterContactSheet,
+    "--scale", "0.25",
   ], { encoding: "utf8" });
-  assert.notEqual(starterResult.status, 0);
-  assert.match(starterResult.stderr, /arbitrary source-preserving imported-slide duplication[\s\S]*exclusive descendant-closure deletion[\s\S]*No output was written/);
-  assert.deepEqual((await fs.readdir(starterRoot)).sort(), ["template-frame-map.json"]);
+  assert.equal(starterResult.status, 0, `template starter failed\n${starterResult.stdout}\n${starterResult.stderr}`);
+  assert.ok(JSON.parse(starterResult.stdout).outputSha256);
+  assert.deepEqual(await fs.readFile(starterSource), starterSourceBytes, "starter generation must not mutate the source PPTX");
+  const starterPresentation = await PresentationFile.importPptx(await FileBlob.load(starterOutput));
+  assert.deepEqual(starterPresentation.slides.items.map((slide) => slide.name), ["Beta", "Alpha", "Beta"]);
+  assert.equal(starterPresentation.verify({ visualQa: true }).ok, true);
+  const starterManifest = JSON.parse(await fs.readFile(starterManifestPath, "utf8"));
+  assert.equal(starterManifest.schema, "office-kit.template-starter.v1");
+  assert.equal(starterManifest.status, "succeeded");
+  assert.deepEqual(starterManifest.operation.cloneBoundaries.map((entry) => entry.sourceSlide), [2, 1, 2]);
+  assert.equal(starterManifest.operation.cloneBoundaries.every((entry) => entry.exportReimported === true), true);
+  assert.equal(starterManifest.validation.oneClonePerExportBoundary, true);
+  assert.equal(starterManifest.validation.finalExportReimported, true);
+  assert.equal(starterManifest.validation.locatorTranslationComplete, true);
+  assert.deepEqual(starterManifest.slides.map((entry) => entry.sourceSlide), [2, 1, 2]);
+  const firstBetaTarget = starterManifest.slides[0].editTargets[0];
+  const secondBetaTarget = starterManifest.slides[2].editTargets[0];
+  assert.deepEqual(firstBetaTarget.sourceElementIds, [betaElementId]);
+  assert.deepEqual(secondBetaTarget.sourceElementIds, [betaElementId]);
+  assert.equal(firstBetaTarget.starterElementIds.length, 1);
+  assert.equal(secondBetaTarget.starterElementIds.length, 1);
+  assert.notEqual(firstBetaTarget.starterElementIds[0], secondBetaTarget.starterElementIds[0]);
+  assert.deepEqual((await fs.readdir(starterPreviewDir)).sort(), [
+    "starter-slide-01.png",
+    "starter-slide-02.png",
+    "starter-slide-03.png",
+  ]);
+  assert.deepEqual((await fs.readdir(starterLayoutDir)).sort(), [
+    "starter-slide-01.layout.json",
+    "starter-slide-02.layout.json",
+    "starter-slide-03.layout.json",
+  ]);
+  assert.deepEqual([...await fs.readFile(starterContactSheet)].slice(0, 8), [137, 80, 78, 71, 13, 10, 26, 10]);
+
+  const starterOutputBytes = await fs.readFile(starterOutput);
+  const starterOverwrite = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/template_following_scripts/prepare_template_starter_deck.mjs",
+    "--workspace", starterRoot,
+    "--pptx", starterSource,
+    "--map", starterMap,
+    "--out", starterOutput,
+    "--preview-dir", starterPreviewDir,
+    "--layout-dir", starterLayoutDir,
+    "--contact-sheet", starterContactSheet,
+  ], { encoding: "utf8" });
+  assert.notEqual(starterOverwrite.status, 0);
+  assert.match(starterOverwrite.stderr, /already exists; refusing to overwrite/i);
+  assert.deepEqual(await fs.readFile(starterOutput), starterOutputBytes);
+  assert.deepEqual(await fs.readFile(starterSource), starterSourceBytes);
+
+  const invalidStarterRoot = path.join(root, "starter-invalid-plan");
+  const invalidStarterMap = path.join(invalidStarterRoot, "template-frame-map.json");
+  const invalidStarterOutput = path.join(invalidStarterRoot, "template-starter.pptx");
+  await fs.mkdir(invalidStarterRoot, { recursive: true });
+  await fs.writeFile(invalidStarterMap, JSON.stringify({ outputSlides: [] }));
+  const invalidStarter = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/template_following_scripts/prepare_template_starter_deck.mjs",
+    "--workspace", invalidStarterRoot,
+    "--pptx", starterSource,
+    "--map", invalidStarterMap,
+    "--out", invalidStarterOutput,
+  ], { encoding: "utf8" });
+  assert.notEqual(invalidStarter.status, 0);
+  assert.match(invalidStarter.stderr, /Missing template inspection/i);
+  assert.deepEqual((await fs.readdir(invalidStarterRoot)).sort(), ["template-frame-map.json"]);
+
+  const blockedStarterRoot = path.join(root, "starter-blocked-graph");
+  const blockedStarterSource = path.join(blockedStarterRoot, "source.pptx");
+  const blockedStarterMap = path.join(blockedStarterRoot, "template-frame-map.json");
+  const blockedStarterOutput = path.join(blockedStarterRoot, "template-starter.pptx");
+  const blockedStarterPreview = path.join(blockedStarterRoot, "preview");
+  const blockedStarterLayout = path.join(blockedStarterRoot, "layout");
+  await fs.mkdir(blockedStarterRoot, { recursive: true });
+  const linkedStarterFixture = Presentation.create({ slideSize: { width: 640, height: 360 } });
+  const linkedStarterOrigin = linkedStarterFixture.slides.add({ name: "Linked origin" });
+  const linkedStarterTarget = linkedStarterFixture.slides.add({ name: "Linked target" });
+  linkedStarterTarget.shapes.add({ name: "Target", position: { left: 40, top: 40, width: 300, height: 80 }, text: "Target" });
+  linkedStarterOrigin.shapes.add({
+    name: "Jump",
+    position: { left: 40, top: 40, width: 300, height: 80 },
+    text: [{ runs: [{ text: "Jump to target", link: { slideId: linkedStarterTarget.id } }] }],
+  });
+  await (await PresentationFile.exportPptx(linkedStarterFixture)).save(blockedStarterSource);
+  const blockedStarterSourceBytes = await fs.readFile(blockedStarterSource);
+  const blockedInspect = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/template_following_scripts/inspect_template_deck.mjs",
+    "--workspace", blockedStarterRoot,
+    "--pptx", blockedStarterSource,
+    "--scale", "0.25",
+  ], { encoding: "utf8" });
+  assert.equal(blockedInspect.status, 0, `blocked template inspection failed\n${blockedInspect.stdout}\n${blockedInspect.stderr}`);
+  await fs.writeFile(blockedStarterMap, `${JSON.stringify({
+    outputSlides: [{ outputSlide: 1, sourceSlide: 1, narrativeRole: "brand divider", reuseMode: "duplicate-slide", editTargets: [] }],
+    omittedSourceSlides: [{ sourceSlide: 2, reason: "target slide omitted" }],
+  }, null, 2)}\n`);
+  const blockedStarter = spawnSync(process.execPath, [
+    "skills/presentations/skills/presentations/template_following_scripts/prepare_template_starter_deck.mjs",
+    "--workspace", blockedStarterRoot,
+    "--pptx", blockedStarterSource,
+    "--map", blockedStarterMap,
+    "--out", blockedStarterOutput,
+    "--preview-dir", blockedStarterPreview,
+    "--layout-dir", blockedStarterLayout,
+  ], { encoding: "utf8" });
+  assert.notEqual(blockedStarter.status, 0);
+  assert.match(blockedStarter.stderr, /Cannot remove sourceSlide 2[\s\S]*referenced/i);
+  assert.deepEqual(await fs.readFile(blockedStarterSource), blockedStarterSourceBytes);
+  assert.equal(await fs.access(blockedStarterOutput).then(() => true, () => false), false);
+  assert.equal(await fs.access(path.join(blockedStarterRoot, "template-starter.manifest.json")).then(() => true, () => false), false);
+  assert.equal(await fs.access(blockedStarterPreview).then(() => true, () => false), false);
+  assert.equal(await fs.access(blockedStarterLayout).then(() => true, () => false), false);
+  assert.equal((await fs.readdir(blockedStarterRoot)).some((name) => name.startsWith(".office-kit-template-starter-")), false);
   assert.match(skillText, /office-kit/);
   assert.match(skillText, /officekit-speaker-notes-add-workflow\.mjs/);
   assert.match(skillText, /officekit-rich-speaker-notes-edit-workflow\.mjs/);
@@ -2911,7 +3061,9 @@ try {
   assert.match(skillText, /slide\.setTransition\(\{.*effect: "split".*orientation: "horizontal".*direction: "in".*advanceOnClick.*advanceAfterMs/is);
   assert.match(skillText, /transition\.capability.*canonical direct base-transition profile.*no transition.*addable: true.*p:cSld.*p:clrMapOvr.*no transition, timing, or extension leaf.*timing.*sound.*p14.*extension.*opaque-preserved.*fail closed/is);
   assert.match(skillText, /slide\.moveTo\(existingZeroBasedIndex\).*retained source.*p:sldIdLst.*slide\.deletionCapability.*exclusively owned OPC descendant.*shared layout\/master\/theme\/image\/media.*fail closed/is);
-  assert.match(skillText, /Current availability.*Codec can now duplicate.*cloneCapability.*closed, uniquely owned OPC descendant graph.*unknown parts and external relationships.*remaining starter-deck\s+blocker is workflow orchestration.*execute the validated map.*sequence repeated source clones transactionally.*reimport each clone boundary/is);
+  assert.match(skillText, /starter command executes a validated multi-slide frame map/is);
+  assert.match(skillText, /duplicates exactly one supported source slide per export\/reimport boundary.*same source slide may be reused safely.*removes all\s+original slides.*ownership transaction/is);
+  assert.match(skillText, /translates every inspected source element ID.*final starter ID.*fails closed/is);
   assert.match(skillText, /slide\.duplicate\(\).*slide\.cloneCapability.*OPC ownership graph.*recursively copies.*uniquely owned OpenXmlPart.*DataPart.*exact part bytes.*external relationships.*rebinds only proven shared layouts.*NotesMaster.*images.*retained slide-jump targets.*Unknown or relationship-bearing descendants.*not rejected/is);
   assert.match(skillText, /Recognized closed ChartParts.*one unique frame relationship.*no ChartPart child graph.*distinct clone-local target.*byte-identical chart payload/is);
   assert.match(skillText, /eligible embedded-XLSX OLE workbook.*one unique inbound package edge.*empty child graph.*same slide-local `r:id`.*distinct clone package.*shared preview\s+ImagePart/is);
@@ -3034,9 +3186,10 @@ try {
   assert.match(embeddedVideoReferenceText, /poster remains equal.*do not claim media playback equivalence/is);
   assert.match(embeddedVideoReferenceText, /audio.*linked or\s+external media.*timing.*fail closed/is);
   const templateFollowingText = await fs.readFile("skills/presentations/skills/presentations/references/template-following.md", "utf8");
-  assert.match(templateFollowingText, /slide\.cloneCapability.*one imported slide's closed, uniquely owned OPC descendant graph.*unknown parts and external relationships.*remaining limitation.*starter workflow.*multi-slide frame map.*export\/reimport boundaries.*audited inherited-target edits/is);
-  assert.match(templateFollowingText, /Do not substitute a reconstructed or shared-part copy.*inspection\/planning\/capability\/QA portions only.*no starter artifact will be written/is);
-  assert.match(templateFollowingText, /read-only path\/input preflight.*then fails closed.*before installing dependencies.*importing the PPTX.*writing output.*orchestration gap, not a Codec graph-clone gap/is);
+  assert.match(templateFollowingText, /slide\.cloneCapability.*duplicates one.*imported slide's closed, uniquely owned OPC descendant graph.*unknown parts and external relationships.*multi-slide frame map.*one clone per export\/reimport boundary.*repeated.*source slide.*deletion-capability preflight.*source-to-starter locators/is);
+  assert.match(templateFollowingText, /Do not substitute a reconstructed or shared-part copy.*Unsupported topology.*fails closed.*before any starter artifact is published/is);
+  assert.match(templateFollowingText, /independently revalidates the map.*Every clone is exported and imported.*before the next clone.*removed in reverse order.*one-pending-\s*clone contract.*no PPTX, manifest, preview,\s+layout, or contact-sheet publication/is);
+  assert.match(templateFollowingText, /template-starter\.manifest\.json.*sourceElementIds.*starterElementIds.*do not claim persistence.*source\/map\/inspection\/output hashes.*no-overwrite policy/is);
 
   console.log("presentation skill smoke ok");
 } finally {

@@ -1,6 +1,6 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-12): Imported PPTX ownership-graph clone
+## Current 0.6.0 candidate (2026-08-12): Imported PPTX template starter
 
 Imported slides now expose `slide.cloneCapability` with a source-bound,
 supported/blocked decision and exact cloned/shared part counts. The OfficeKit
@@ -30,10 +30,17 @@ the same graph primitive. Tests now resolve ordered SlideParts through
 allocation is legal and not a document identity contract. The old inactive
 type-specific preflight/copy/validation catalog was deleted from `PptxCodec`.
 
-Template Following is no longer blocked by the single-slide Codec primitive.
-Its checked-in starter command still fails closed because multi-slide map
-execution, export/reimport sequencing, and audited inherited-target editing are
-not implemented; documentation reports that orchestration gap explicitly.
+Template Following now composes the single-slide ownership primitive into one
+bounded multi-slide starter transaction. The command independently revalidates
+the frame map, clones each requested source slide through its own export/reimport
+boundary, supports repeated source reuse, then deletion-preflights and removes
+the original slide set. A final reimport, visual/model verification, locator
+translation, render, source-hash recheck, and collision-safe publication produce
+the starter PPTX, PNG/layout evidence, and a versioned manifest. Invalid maps,
+existing output paths, unsafe clone/delete graphs, or locator/render drift fail
+without a partial starter artifact. In particular, a cloned hyperlink that still
+targets an omitted source slide refuses rather than being silently retargeted or
+flattened.
 
 Local candidate evidence covers the complete 28-step fast gate and all 77 slow
 steps, generated API docs, protocol lint plus idempotent generation, OfficeKit
@@ -46,8 +53,8 @@ and PromptBench Python runtimes remain explicit local skips rather than
 provider-execution evidence.
 
 The isolated staged candidate excludes the user's unrelated README edits and
-packs 732 files at 36,278,691 bytes compressed and 53,326,623 bytes unpacked
-(`shasum 084eede7f1df23244dc8fb34c09213e8df995728`), leaving 373,377 bytes below
+packs 732 files at 36,282,751 bytes compressed and 53,348,691 bytes unpacked
+(`shasum b34ebcc5517eddf85818ee3fdc588a6c016cece8`), leaving 351,309 bytes below
 the unchanged 53,700,000-byte unpacked ceiling. `npm whoami` remains
 unauthenticated, so npm publication and a tagged release are not attempted.
 Windows Microsoft Office host acceptance remains external evidence.

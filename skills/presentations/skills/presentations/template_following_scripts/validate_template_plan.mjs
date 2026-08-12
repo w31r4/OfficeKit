@@ -223,7 +223,7 @@ async function readInspectInventory(inspectPath) {
   return { bySlide, parseErrors };
 }
 
-function targetIds(target) {
+export function templateTargetIds(target) {
   return [
     ...asArray(target.shapeId),
     ...asArray(target.shapeIds),
@@ -381,7 +381,7 @@ export async function validateTemplatePlan(options) {
         issues.push(issue("fail", "unsupported-edit-action", `Unsupported edit action "${action}".`, targetContext));
       }
 
-      const ids = targetIds(target);
+      const ids = templateTargetIds(target);
       if (ids.length === 0) {
         issues.push(
           issue(

@@ -3,14 +3,14 @@
 Use when the user provides an existing PPTX, asks to follow a presentation, or
 attaches a PPTX that is clearly or implicitly a template.
 
-> Current canonical boundary: `slide.cloneCapability` can prove and duplicate
-> one imported slide's closed, uniquely owned OPC descendant graph, including
-> unknown parts and external relationships. The remaining limitation is the
-> starter workflow itself: it does not yet execute a multi-slide frame map,
-> cross export/reimport boundaries, and apply audited inherited-target edits.
-> Do not substitute a reconstructed or shared-part copy. Until that orchestration
-> is implemented, use the inspection/planning/capability/QA portions only and
-> report that no starter artifact will be written.
+> Current canonical boundary: `slide.cloneCapability` proves and duplicates one
+> imported slide's closed, uniquely owned OPC descendant graph, including
+> unknown parts and external relationships. The starter workflow executes the
+> multi-slide frame map one clone per export/reimport boundary, supports repeated
+> use of a source slide, removes the original source slides only after a complete
+> deletion-capability preflight, and emits audited source-to-starter locators.
+> Do not substitute a reconstructed or shared-part copy. Unsupported topology
+> fails closed before any starter artifact is published.
 
 This is the entire template-following mode. Do not run template codegen, do not
 build or consume a reusable template registry, and do not rebuild a fresh deck
@@ -118,10 +118,17 @@ officekit run "$SKILL_DIR/template_following_scripts/prepare_template_starter_de
 ```
 
 Run `validate_template_plan.mjs` explicitly before the starter command. The
-starter command currently performs only a read-only path/input preflight and
-then fails closed before installing dependencies, importing the PPTX, or
-writing output. This is an orchestration gap, not a Codec graph-clone gap. For template-following,
-`editTargets` must resolve to inherited source elements with `shapeId`,
+starter command independently revalidates the map, imports the immutable source,
+and executes each mapped output in order. Every clone is exported and imported
+again before the next clone; all original slides are then deletion-preflighted,
+removed in reverse order, exported, and imported again. This deliberate sequence
+allows repeated source-slide reuse without weakening the Codec's one-pending-
+clone contract. A source slide that participates in sections, custom shows,
+modern comments, unresolved slide jumps, inbound links, or another unsupported
+ownership graph causes a fail-closed result with no PPTX, manifest, preview,
+layout, or contact-sheet publication.
+
+For template-following, `editTargets` must resolve to inherited source elements with `shapeId`,
 `shapeIds`, `sourceElementId`, or `sourceElementIds`.
 `action: "add"` is rejected by default because it usually creates new content
 over copied placeholders. It also never counts as clearing a placeholder:
@@ -131,10 +138,18 @@ filled through the inherited element or explicitly deleted. If the chosen source
 slide lacks usable inherited slots, remap to another source slide or report a
 blocker.
 
+The successful command writes `template-starter.manifest.json`. Each slide entry
+contains its source/output slide pair, complete inherited `locators`, and each
+map target's `sourceElementIds` plus final `starterElementIds`. IDs from
+`template-inspect.ndjson` do not claim persistence across package export/import;
+use the manifest's starter IDs for the next inspect/resolve/edit transaction.
+The manifest also records source/map/inspection/output hashes, clone boundaries,
+the final deletion boundary, provider choice, no-overwrite policy, and QA facts.
+
 Use the starter PPTX as the authoring base. Edit copied placeholders, textboxes,
-charts, tables, and images by placeholder or resolved element IDs from
-`template-inspect.ndjson` whenever possible. Fill inherited component slots; do
-not lay a parallel custom design over the copied template slide.
+charts, tables, and images by final starter element IDs whenever possible. Fill
+inherited component slots; do not lay a parallel custom design over the copied
+template slide.
 
 For mapped source slides, do not use `presentation.slides.add()` to build a new
 slide. Import the copied/starter PPTX with artifact-tool, edit the existing
