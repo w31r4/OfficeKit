@@ -2869,6 +2869,8 @@ try {
   assert.match(skillText, /officekit-title-notes-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-modern-comment-workflow\.mjs/);
   assert.match(skillText, /officekit-slide-name-edit-workflow\.mjs/);
+  assert.match(skillText, /Slide Show Visibility/);
+  assert.match(skillText, /visibilityCapability\.known.*visibilityCapability\.editable.*slide\.hide\(\).*slide\.show\(\).*p:sld\/@show="0".*fail closed/is);
   assert.match(skillText, /officekit-transition-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-slide-duplicate-workflow\.mjs/);
   assert.match(skillText, /presentation\.auditAccessibility\(\)/);
@@ -2884,6 +2886,7 @@ try {
   assert.match(quickStartText, /editPptxLegacyReviewComment/);
   assert.match(quickStartText, /comments\.capability.*sourceBound.*format.*partPresent.*editable.*addable.*no legacy or Office 2021 comment graph.*re-proves/is);
   assert.match(quickStartText, /editPptxSlideName/);
+  assert.match(quickStartText, /slide\.setHidden\(true\).*slide\.show\(\).*ordinary\s+slide-show playback/is);
   assert.match(quickStartText, /officekit-transition-edit-workflow\.mjs/);
   assert.match(quickStartText, /duplicatePptxSlide/);
   assert.match(quickStartText, /allowClosedLeaves:\s*true/);
@@ -2936,6 +2939,8 @@ try {
   assert.match(commentsReferenceText, /officekit-modern-comment-workflow\.mjs/);
   assert.match(commentsReferenceText, /slide\.duplicate\(\).*byte-cop(?:y|ied).*author\s+catalog/is);
   const slideReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/slide.spec.md", "utf8");
+  assert.match(slideReferenceText, /slide\.visibilityCapability.*slide\.setHidden\(true\).*slide\.hide\(\).*slide\.show\(\)/s);
+  assert.match(slideReferenceText, /p:sld\/@show="0".*invalid.*opaque.*fail/s);
   assert.match(slideReferenceText, /never flattens the\s+inherited color/i);
   assert.match(slideReferenceText, /NotesSlide.*NotesMaster.*exactly those two\s+relationships.*byte-for-byte/is);
   assert.match(slideReferenceText, /canonical inline fixed-grid tables[\s\S]*cannot introduce a fill, link/i);

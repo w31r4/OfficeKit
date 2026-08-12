@@ -1819,8 +1819,8 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `presentation.resolve` | api | Map stable inspect anchor IDs back to facade objects, including custom shows, PowerPoint sections, and slide transitions; imported advanced package objects may be read-only. |
 | `presentation.sections.add` | api | Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque. |
 | `presentation.sections.getItem` | api | Resolve a source-free or canonical imported PowerPoint section by zero-based index, stable facade ID, or exact name. |
-| `presentation.slides.add` | api | Append an editable core slide with an optional bounded source-free layout, direct ECMA-376 base transition, solid/style-reference background, and plain-text speaker notes. A supplied layout is resolved and materialized transactionally; effective imported Layout/Master inheritance is never flattened. |
-| `presentation.slides.insert` | api | Insert a source-free slide after an existing Slide or 0-based index, or at the beginning with after: null. It uses the same transactional layout materialization, direct base-transition vocabulary, and notes/background profile as slides.add; imported additions fail closed, while slide.duplicate and slide.delete each have their own narrow source-preserving OPC profiles. |
+| `presentation.slides.add` | api | Append an editable core slide with optional hidden slideshow state, a bounded source-free layout, direct ECMA-376 base transition, solid/style-reference background, and plain-text speaker notes. A supplied layout is resolved and materialized transactionally; effective imported Layout/Master inheritance is never flattened. |
+| `presentation.slides.insert` | api | Insert a source-free slide after an existing Slide or 0-based index, or at the beginning with after: null. It uses the same hidden-state, transactional layout, direct base-transition, notes, and background profile as slides.add; imported additions fail closed, while slide.duplicate and slide.delete each have their own narrow source-preserving OPC profiles. |
 | `presentation.slideSize` | api | Read or set the deck canvas in pixels. On a trusted imported PPTX, a changed size is a deliberately canvas-only source-bound operation: OfficeKit updates only ppt/presentation.xml p:sldSz, clears an old preset type, and leaves slide, layout, master, chart, and shape coordinates unchanged. It never silently rescales or reflows content; callers must make any layout edits explicitly. |
 | `presentation.textRange` | api | Inspect or resolve stable textRange anchors such as shapeId/text for editable slide text frames. |
 | `presentation.theme` | api | Inspect the model theme and theme inheritance. Custom source-free themes are not authored by OfficeKit 0.2, and imported themes are source-bound and read-only. |
@@ -1850,17 +1850,21 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.delete` | api | Remove this slide. Source-free decks may remove any non-final slide. An imported PPTX performs a real OPC deletion only for an isolated slide with exactly its layout relationship and no inbound/package-identity references; media, notes, comments, charts, OLE, hyperlinks, custom shows, sections, extensions, and all clone requests fail closed. |
 | `slide.duplicate` | api | Clone one original imported PPTX slide only when its unchanged graph contains canonical shapes, canonical inline fixed-grid tables with bounded rectangular merges, recognized closed literal-data charts, eligible top-level embedded-XLSX OLE frames, canonical top-level four-part SmartArt frames, canonical top-level closed InkML content parts, canonical top-level embedded-MP4 media pictures, embedded rectangular images, bounded canonical straight/elbow/curved connectors, and recursively canonical groups containing only the non-native-graph leaf kinds, exactly one layout relationship, picture-bound image relationships, canonical run-level external/internal/relative-action links plus relationship-free custom-show links bound to an existing stable native show ID, and optional closed NotesSlide-to-NotesMaster/back-to-slide plus bounded legacy-comments leaves. Relationship-backed links keep exact IDs and targets; custom-show actions add no relationship and the clone is never inserted into show membership. Every accepted chart frame uniquely consumes one internal relationship to a numbered ChartPart whose child, external, hyperlink, and data relationship sets are empty. Every accepted OLE frame uniquely consumes one internal package relationship to a closed, uniquely inbound XLSX EmbeddedPackagePart and one internal preview ImagePart relationship. Every accepted SmartArt frame owns exactly one internal dm/lo/qs/cs relationship set to closed relationship-free diagram data, layout, quick-style, and colors parts. Every accepted media picture owns one canonical video/media relationship pair to a uniquely inbound, non-empty, relationship-free video/mp4 part plus one poster ImagePart. Every present connector endpoint must resolve to an element in the same copied SlidePart tree. Accepted tables are inline-only and cannot add a fill, link, or another package edge; accepted groups and connectors add no relationship themselves, and every nested picture must consume one exact verified ImagePart relationship. The pending clone resolves connector targets to fresh clone-local elements, while export privately preserves the source-bound target-plus-site identities. Export creates a distinct SlidePart and presentation relationship, allocates distinct byte-identical ChartPart, EmbeddedPackagePart, four typed diagram parts, and SDK MediaDataPart payloads for the accepted closed leaves, shares the verified layout, immutable ordinary/OLE-preview/media-poster ImageParts, NotesMaster, and presentation-wide CommentAuthorsPart, copies accepted NotesSlide and SlideComments XML byte-for-byte, and repoints only the notes back-reference at the clone while retaining the origin. The clone must remain untouched until export and reimport; its ChartParts, OLE workbook packages, SmartArt parts, InkML parts, and MP4 parts are then independent. Supported chart or OLE-workbook edits on the clone cannot affect the origin; a separately recognized canonical plain-node SmartArt diagram exposes only source-bound node-text replacement, while other SmartArt, InkML, and media remain source-bound/read-only after reimport. Malformed, shared, external, non-XLSX, nested, relationship-bearing, or replacement-pending OLE graphs, nested/noncanonical/connected SmartArt, InkML, or media graphs, malformed/relationship-bearing/dangling custom-show actions, unsupported connector forms or targets, formula/external-data/embedded-workbook/connected/orphan chart graphs, shape-level/hover/unknown/orphan hyperlinks, external or irregular images, and other complex graphs fail closed. |
 | `slide.groups.add` | api | Author recursive native DrawingML p:grpSp trees with optional non-visible group title/description/decorative metadata, outer off/ext, and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, unknown extensions, or unsupported descendants remain opaque and read-only. |
+| `slide.hide` | api | Hide this slide from the ordinary slide show through the same source-bound p:sld/@show primitive as slide.setHidden(true). |
 | `slide.images.add` | api | Add an inspectable image facade with non-visible title/description/decorative metadata, the compatible alt description alias, embedded data, contain/cover/stretch fitting, explicit crop, frame, direct rotation/flips, layout JSON, crop-aware SVG preview, and PPTX output. OfficeKit maps the bounded rectangular profile to native DrawingML p:cNvPr, the Office 2019+ decorative extension, and a:srcRect. |
 | `slide.moveTo` | api | Move this slide to an existing 0-based deck index. On an imported PPTX, OfficeKit rewrites only the retained source SlidePart order in the presentation slide-ID list; unrelated topology changes and broad graph clones remain fail-closed. |
 | `slide.placeholders.getItem` | api | Resolve a slide placeholder shape by stable ID, name, placeholder type, or numeric index. Imported placeholder.textEditable reports a verified local SlidePart text capability; identity, geometry, formatting, layout binding, and inherited Master/Layout graphs remain source-bound. |
 | `slide.setBackground` | api | Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited. |
+| `slide.setHidden` | api | Set whether this slide is skipped by the ordinary slide show. OfficeKit writes only p:sld/@show, uses absence for visible and show=0 for hidden, and re-proves the source-bound SlidePart before export. |
 | `slide.setLayout` | api | Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export. |
 | `slide.setTransition` | api | Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension, and irregular source graphs fail closed. |
 | `slide.shapes.add` | api | Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with optional non-visible title/description/decorative metadata. Lines support bounded dash/line-end/cap/join styling; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. A free line is defined by its start-plus-delta frame; only a connector retains target-plus-site identity. |
 | `slide.shapes.connect` | api | Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export. |
 | `slide.shapes.getConnectionSiteIndex` | api | Resolve top/left/bottom/right to a stable bounded preset connection-site index for rect, roundRect, textbox, or ellipse. Custom shapes expose an ordered site table but require its explicit numeric index; other geometries fail closed. |
+| `slide.show` | api | Show this slide in the ordinary slide show by clearing the source-bound p:sld/@show leaf through slide.setHidden(false). |
 | `slide.speakerNotes.capability` | api | Return defensive sourceBound, partPresent, editable, and addable evidence. addable identifies an imported notes-absent slide whose source NotesMaster/SlideMaster Theme graph can safely receive a canonical NotesSlide. Export independently re-proves the package graph, so mutating model or wire data cannot grant authority. |
 | `slide.tables.add` | api | Add an inspectable table facade with rows, columns, values, cells, rectangular merges, layout JSON, SVG preview, and canonical OfficeKit plain-text PPTX output. |
+| `slide.visibilityCapability` | api | Report whether the imported p:sld/@show state is known and editable. OfficeKit exposes the inverse Agent-facing hidden boolean; invalid native lexical values stay source-owned and fail closed. |
 | `slideCommentThread.addReply` | api | Append a direct reply to a source-free Office 2021 modern comment thread. Imported reply topology is fixed: existing reply text/status may change, but adding or removing replies fails closed. |
 | `slideCommentThread.reopen` | api | Set the modern root comment status back to active while preserving fixed imported identity, anchor, position, and reply topology. |
 | `slideCommentThread.resolve` | api | Set the modern root comment status to resolved. Imported export re-proves author/date/anchor/position/topology and source-part hashes before changing only status. |
@@ -2448,11 +2452,12 @@ Resolve a source-free or canonical imported PowerPoint section by zero-based ind
 
 #### `presentation.slides.add`
 
-Append an editable core slide with an optional bounded source-free layout, direct ECMA-376 base transition, solid/style-reference background, and plain-text speaker notes. A supplied layout is resolved and materialized transactionally; effective imported Layout/Master inheritance is never flattened.
+Append an editable core slide with optional hidden slideshow state, a bounded source-free layout, direct ECMA-376 base transition, solid/style-reference background, and plain-text speaker notes. A supplied layout is resolved and materialized transactionally; effective imported Layout/Master inheritance is never flattened.
 
 **Schema parameters:**
 
 - `name` (string) — Inspectable slide name.
+- `hidden` (boolean) — Whether the slide is skipped by the ordinary slide show. Source-free hidden slides write p:sld/@show=0; visible slides omit the default-valued attribute.
 - `layout` (string|object) — Optional bounded layout name/ID/facade. slides.add resolves it transactionally and materializes its text placeholders; an unknown or cross-presentation layout leaves no slide behind.
 - `background` (string|object) — Optional direct slide background: RGB/theme color or { fill, mode: 'solid'|'reference', index? }. Gradient, pattern, image, transform, and effect-bearing backgrounds are preview-only/source-preserved and fail closed on canonical mutation.
 - `transition` (object) — Optional direct ECMA-376 base transition. effect is one of blinds/checker/circle/comb/cover/cut/diamond/dissolve/fade/newsflash/plus/pull/push/random/randomBar/split/strips/wedge/wheel/wipe/zoom. Effect-specific fields are direction, orientation, throughBlack, or spokes (1..8); common fields are slow/medium/fast speed, advanceOnClick, and advanceAfterMs 0..86400000.
@@ -2464,12 +2469,13 @@ Append an editable core slide with an optional bounded source-free layout, direc
 
 #### `presentation.slides.insert`
 
-Insert a source-free slide after an existing Slide or 0-based index, or at the beginning with after: null. It uses the same transactional layout materialization, direct base-transition vocabulary, and notes/background profile as slides.add; imported additions fail closed, while slide.duplicate and slide.delete each have their own narrow source-preserving OPC profiles.
+Insert a source-free slide after an existing Slide or 0-based index, or at the beginning with after: null. It uses the same hidden-state, transactional layout, direct base-transition, notes, and background profile as slides.add; imported additions fail closed, while slide.duplicate and slide.delete each have their own narrow source-preserving OPC profiles.
 
 **Schema parameters:**
 
 - `after` (Slide|number|null) — Existing slide facade or 0-based index to insert after; null inserts first. Omit to append.
 - `name` (string) — Inspectable slide name.
+- `hidden` (boolean) — Whether the new source-free slide is skipped by the ordinary slide show.
 - `layout` (string|object) — Optional bounded layout name/ID/facade. The new source-free slide is created and materialized transactionally.
 - `background` (string|object) — Optional direct slide background: RGB/theme color or { fill, mode: 'solid'|'reference', index? }.
 - `transition` (object) — Optional direct transition with the same complete ECMA-376 base-effect, speed, click, and timer profile as presentation.slides.add.
@@ -2883,6 +2889,14 @@ Author recursive native DrawingML p:grpSp trees with optional non-visible group 
 
 - `group` (GroupShape) — Appended recursive grouped-shape facade for resolve, inspect, layout, SVG preview, and native p:grpSp export. Canonical imported groups are source-bound and editable without changing child topology; complex group shells or unsupported descendants are preserved as one opaque read-only object.
 
+#### `slide.hide`
+
+Hide this slide from the ordinary slide show through the same source-bound p:sld/@show primitive as slide.setHidden(true).
+
+**Schema returns:**
+
+- `slide` (Slide) — The same slide after setting hidden=true through the bounded p:sld/@show source-bound primitive.
+
 #### `slide.images.add`
 
 Add an inspectable image facade with non-visible title/description/decorative metadata, the compatible alt description alias, embedded data, contain/cover/stretch fitting, explicit crop, frame, direct rotation/flips, layout JSON, crop-aware SVG preview, and PPTX output. OfficeKit maps the bounded rectangular profile to native DrawingML p:cNvPr, the Office 2019+ decorative extension, and a:srcRect.
@@ -2938,6 +2952,18 @@ Set a direct slide background to a six-digit RGB/theme color solid fill or a nat
 **Schema returns:**
 
 - `slide` (Slide) — The same slide with a normalized direct background; canonical PPTX export never flattens inherited Layout/Master backgrounds.
+
+#### `slide.setHidden`
+
+Set whether this slide is skipped by the ordinary slide show. OfficeKit writes only p:sld/@show, uses absence for visible and show=0 for hidden, and re-proves the source-bound SlidePart before export.
+
+**Schema parameters:**
+
+- `hidden` (boolean) required — true writes the canonical native show=0 state; false clears the attribute to PresentationML's visible default.
+
+**Schema returns:**
+
+- `slide` (Slide) — The same slide with updated ordinary-slide-show visibility. Only p:sld/@show changes; content, layout, relationships, transitions, notes, comments, and static slide pixels remain fixed. Unknown or irregular imported lexical values fail closed.
 
 #### `slide.setLayout`
 
@@ -3036,6 +3062,14 @@ Resolve top/left/bottom/right to a stable bounded preset connection-site index f
 
 - `siteIndex` (number) — The bounded preset connection-site index. Custom shapes require an explicit customConnectionSites index; unsupported geometry fails closed rather than guessing.
 
+#### `slide.show`
+
+Show this slide in the ordinary slide show by clearing the source-bound p:sld/@show leaf through slide.setHidden(false).
+
+**Schema returns:**
+
+- `slide` (Slide) — The same slide after setting hidden=false and clearing canonical p:sld/@show. This does not add the slide to a custom show or alter custom-show membership.
+
 #### `slide.speakerNotes.capability`
 
 Return defensive sourceBound, partPresent, editable, and addable evidence. addable identifies an imported notes-absent slide whose source NotesMaster/SlideMaster Theme graph can safely receive a canonical NotesSlide. Export independently re-proves the package graph, so mutating model or wire data cannot grant authority.
@@ -3060,6 +3094,14 @@ Add an inspectable table facade with rows, columns, values, cells, rectangular m
 **Schema returns:**
 
 - `table` (TableElement) — Appended editable table facade. OfficeKit accepts a non-empty rectangular 1-256-column by 1-2048-row plain-text grid with non-overlapping rectangular merges; recognized imports may change name, complete frame, and visible origin/unmerged cell text without changing merge topology or native style flags.
+
+#### `slide.visibilityCapability`
+
+Report whether the imported p:sld/@show state is known and editable. OfficeKit exposes the inverse Agent-facing hidden boolean; invalid native lexical values stay source-owned and fail closed.
+
+**Schema returns:**
+
+- `capability` (object) — Defensive { sourceBound, known, editable } preflight. known is false for an opaque or invalid native p:sld/@show value; editable is not mutable write authority because OfficeKit re-proves the source SlidePart and semantic hash at export.
 
 #### `slideCommentThread.addReply`
 

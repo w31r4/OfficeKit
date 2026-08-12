@@ -1,6 +1,42 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-12): Source-bound PDF outline editing
+## Current 0.6.0 candidate (2026-08-12): Source-bound slide show visibility
+
+Presentations now expose `slide.hidden`, defensive
+`slide.visibilityCapability`, and typed `setHidden`/`hide`/`show` operations.
+The Agent-facing boolean deliberately hides PresentationML's inverse contract:
+OfficeKit writes only `p:sld/@show="0"` for a hidden slide and removes the
+attribute for a visible slide. This affects ordinary slideshow playback; it is
+not slide deletion, order mutation, section editing, or custom-show routing.
+
+Protocol v2 adds one optional `PresentationSlide.hidden` field plus source
+binding evidence for the native visibility semantic. The C# codec recognizes
+only absent or XML Schema boolean `0|1|false|true` values, re-proves the full
+SlidePart and semantic hash before mutation, and fails closed for an invalid
+lexical value. Source-free export/import, source-bound hide/show, exact
+non-target-part preservation, second import, inspect/help, clone identity, and
+opaque no-op preservation have JS and .NET regression coverage. Static render
+pixels are independent of this playback leaf; native slideshow behavior still
+belongs to the PowerPoint host acceptance lane.
+
+Local candidate evidence covers the complete 26-step fast gate and all 75 slow
+steps, generated API docs, protocol lint/generation, OfficeKit Codec 402/402,
+OfficeBridge 5/5, deterministic OfficeKit WASM (39-file comparison; runtime 38
+files / 15,427,307 bytes), clean-install package smoke, standalone
+distribution, both Live Add-in builds, the twenty-template matrix, Playwright,
+qpdf, LibreOffice, and Poppler. Managed provider-pack downloads and separately
+configured pikepdf, pyHanko, veraPDF, OCRmyPDF, and PromptBench Python runtimes
+remain explicit local skips rather than provider-execution evidence.
+
+The isolated staged candidate excludes the user's unrelated README edits and
+packs 732 files at 36,296,093 bytes compressed and 53,697,542 bytes unpacked
+(`shasum 42e420d52a602b90aca0093821fd3cd0c72c451b`), leaving 2,458 bytes below
+the 53,700,000-byte unpacked ceiling. `npm whoami` reports `ENEEDAUTH`, so npm
+publication and a tagged release were not attempted. Hosted CI for this
+candidate and Windows Microsoft Office slideshow acceptance remain pending
+external evidence.
+
+## Prior 0.6.0 candidate (2026-08-12): Source-bound PDF outline editing
 
 The built-in MuPDF.js route now inspects native PDF outlines/bookmarks as
 bounded, ordered `mupdfOutline` records. The new leaf module walks MuPDF's

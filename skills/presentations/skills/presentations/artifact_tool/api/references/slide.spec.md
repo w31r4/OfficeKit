@@ -109,6 +109,30 @@ For a distinct-path, auditable transaction with package and model-render
 evidence, see
 [`officekit-slide-name-edit-workflow.mjs`](../../../examples/officekit-slide-name-edit-workflow.mjs).
 
+## Slide Show Visibility
+
+```ts
+slide.hidden;               // boolean
+slide.visibilityCapability; // { sourceBound, known, editable }
+slide.setHidden(true);
+slide.hide();
+slide.show();
+```
+
+The public boolean answers whether the slide is skipped by the ordinary slide
+show. PresentationML stores the inverse value: OfficeKit writes
+`p:sld/@show="0"` for hidden and removes the attribute for visible. Source-free
+authoring and canonical imported `0|1|false|true` lexical values are editable.
+An invalid or otherwise opaque imported lexical value remains byte-preserved,
+reports `{ known: false, editable: false }`, and rejects the typed mutation.
+
+This leaf is independent of slide order, custom-show membership, PowerPoint
+sections, content, layout, transitions, notes, comments, and relationships.
+It does not remove a slide or make it inaccessible to direct navigation. A
+source-bound export re-proves the complete SlidePart plus the visibility
+semantic, changes only `p:sld/@show`, imports again, and should use native
+render review to confirm unchanged static pixels.
+
 `duplicate()` is not a visual-only copy and never creates a second
 `p:sldId` reference to one source part. It is available only on an **original
 imported** source slide with an unchanged body of canonical simple shapes,

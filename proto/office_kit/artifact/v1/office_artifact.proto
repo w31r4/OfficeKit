@@ -1462,6 +1462,11 @@ message PresentationSlide {
   // complete ECMA-376 base-namespace effect vocabulary. Office-version
   // extensions and other native transition children remain source-owned.
   PresentationTransition transition = 11;
+  // Presence-aware projection of p:sld/@show. `true` means the slide is
+  // hidden from the ordinary slide show (`show="0"`); `false` means visible
+  // and source-free export omits the default-valued native attribute. An
+  // irregular imported lexical value remains absent and source-owned.
+  optional bool hidden = 12;
 }
 
 // One p:cm record from a legacy ppt/comments/commentN.xml part. `id` is a
@@ -1592,6 +1597,14 @@ message PresentationSlideSourceBinding {
   // structure. Export re-proves that narrow shape before adding one canonical
   // direct base-namespace transition.
   bool transition_addable = 15;
+  // Hash of the recognized p:sld/@show semantic. It is separate from the
+  // complete SlidePart hash so a caller cannot turn a stale or opaque root
+  // attribute into write authority.
+  string visibility_semantic_sha256 = 17;
+  // True only when p:sld/@show is absent or one XML Schema boolean lexical
+  // value. Invalid or otherwise irregular roots remain byte-preserved and
+  // fail closed on a requested visibility edit.
+  bool visibility_editable = 18;
 }
 
 message PresentationSpeakerNotes {

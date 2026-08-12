@@ -471,6 +471,30 @@ byte identity for that one part. It rejects fallback-only names,
 duplicate/missing target names, pending clones, and any unexpected package or
 semantic change.
 
+## Slide Show Visibility
+
+Use the Slide facade for source-free or recognized imported slideshow
+visibility. Do not patch `slide*.xml`, remove the slide, or modify a custom show
+to approximate the request:
+
+```ts
+const inspected = presentation.inspect({ kind: "slide", search: "Appendix" });
+const slide = presentation.resolve(inspected.records[0].id);
+if (!slide.visibilityCapability.known || !slide.visibilityCapability.editable) {
+  throw new Error("The imported slide visibility is opaque and read-only.");
+}
+slide.setHidden(true); // slide.hide() is the convenience form
+const output = await PresentationFile.exportPptx(presentation);
+const checked = await PresentationFile.importPptx(output);
+if (!checked.slides.getItem(slide.index).hidden) throw new Error("Visibility did not round-trip.");
+```
+
+`slide.show()` clears the hidden state. The codec maps the Agent-facing boolean
+to the inverse native `p:sld/@show` contract, changes only that Slide root
+attribute, and re-proves the source binding. Visibility affects ordinary
+slide-show playback only; slide content/order, sections, custom shows, and
+static render pixels remain independent.
+
 ## Native Custom Shows
 
 New presentations can author native playback subsets after their slides exist:

@@ -91,6 +91,14 @@ assert.throws(() => modelPresentation.master.slideGuides.push({ orientation: "ho
 assert.throws(() => Presentation.create({ master: { slideGuides: [{ orientation: "diagonal", position: 1 }] } }), /horizontal or vertical/);
 assert.throws(() => Presentation.create({ master: { slideGuides: [{ orientation: "horizontal", position: 1.5 }] } }), /signed 32-bit integer/);
 const modelSlide = modelPresentation.slides.add({ name: "Compose model" });
+assert.equal(modelSlide.hidden, false);
+assert.deepEqual(modelSlide.visibilityCapability, { sourceBound: false, known: true, editable: true });
+assert.equal(modelSlide.hide(), modelSlide);
+assert.equal(modelSlide.hidden, true);
+assert.equal(modelSlide.show(), modelSlide);
+assert.equal(modelSlide.setHidden(true), modelSlide);
+assert.throws(() => modelSlide.setHidden("yes"), /hidden must be a boolean/i);
+assert.throws(() => modelPresentation.slides.add({ hidden: 1 }), /hidden must be a boolean/i);
 const composed = modelSlide.compose(
   column({ name: "compose-root", width: "fill", height: "fill", gap: 18, padding: { x: 24, y: 20 } }, [
     paragraph({ id: "compose/headline", name: "compose-headline", className: "text-slate-950 text-4xl font-bold" }, [
@@ -1003,6 +1011,52 @@ await assert.rejects(
   () => PresentationFile.exportPptx(irregularSectionImport),
   (error) => error?.code === "unsupported_presentation_section_edit",
 );
+
+// Slide visibility is one source-bound p:sld/@show leaf. The public state is
+// intentionally inverted to `hidden`, so Agent code never needs to remember
+// that native show="0" means hidden and absence means visible.
+const visibilityDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+visibilityDeck.slides.add({ name: "Visible slide" }).shapes.add({ text: "Visible" });
+visibilityDeck.slides.add({ name: "Hidden slide", hidden: true }).shapes.add({ text: "Hidden" });
+const visibilitySource = await PresentationFile.exportPptx(visibilityDeck);
+const visibilitySourceZip = await JSZip.loadAsync(visibilitySource.bytes);
+assert.doesNotMatch(await visibilitySourceZip.file("ppt/slides/slide1.xml").async("string"), /<p:sld\b[^>]*\bshow=/);
+assert.match(await visibilitySourceZip.file("ppt/slides/slide2.xml").async("string"), /<p:sld\b[^>]*\bshow="0"/);
+const visibilityImported = await PresentationFile.importPptx(visibilitySource);
+assert.deepEqual(visibilityImported.slides.items.map((slide) => slide.hidden), [false, true]);
+assert.deepEqual(visibilityImported.slides.items[0].visibilityCapability, { sourceBound: true, known: true, editable: true });
+assert.match(visibilityImported.inspect({ kind: "slide", maxChars: 4000 }).ndjson, /"hidden":true/);
+visibilityImported.slides.items[0].hide();
+const visibilityEdited = await PresentationFile.exportPptx(visibilityImported);
+const visibilityEditedZip = await JSZip.loadAsync(visibilityEdited.bytes);
+assert.match(await visibilityEditedZip.file("ppt/slides/slide1.xml").async("string"), /<p:sld\b[^>]*\bshow="0"/);
+for (const [partPath, entry] of Object.entries(visibilitySourceZip.files)) {
+  if (entry.dir || partPath === "ppt/slides/slide1.xml") continue;
+  assert.deepEqual(
+    await visibilityEditedZip.file(partPath).async("uint8array"),
+    await visibilitySourceZip.file(partPath).async("uint8array"),
+    `slide visibility edit changed non-target part ${partPath}`,
+  );
+}
+const visibilityRoundTrip = await PresentationFile.importPptx(visibilityEdited);
+assert.deepEqual(visibilityRoundTrip.slides.items.map((slide) => slide.hidden), [true, true]);
+visibilityRoundTrip.slides.items[0].show();
+const visibilityShown = await PresentationFile.exportPptx(visibilityRoundTrip);
+const visibilityShownZip = await JSZip.loadAsync(visibilityShown.bytes);
+assert.doesNotMatch(await visibilityShownZip.file("ppt/slides/slide1.xml").async("string"), /<p:sld\b[^>]*\bshow=/);
+
+const opaqueVisibilityZip = await JSZip.loadAsync(visibilitySource.bytes);
+opaqueVisibilityZip.file(
+  "ppt/slides/slide2.xml",
+  (await opaqueVisibilityZip.file("ppt/slides/slide2.xml").async("string")).replace('show="0"', 'show="sometimes"'),
+);
+const opaqueVisibilityBytes = await opaqueVisibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+const opaqueVisibilityFile = new FileBlob(opaqueVisibilityBytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });
+const opaqueVisibilityImported = await PresentationFile.importPptx(opaqueVisibilityFile);
+assert.deepEqual(opaqueVisibilityImported.slides.items[1].visibilityCapability, { sourceBound: true, known: false, editable: false });
+assert.throws(() => opaqueVisibilityImported.slides.items[1].show(), /source-bound and not safely editable/i);
+const opaqueVisibilityPreserved = await PresentationFile.exportPptx(opaqueVisibilityImported);
+assert.deepEqual(opaqueVisibilityPreserved.bytes, opaqueVisibilityBytes);
 
 // Slide transitions are a direct p:transition leaf, deliberately distinct
 // from animation/timing graphs. The profile owns the complete ECMA-376 base

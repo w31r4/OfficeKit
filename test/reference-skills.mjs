@@ -248,6 +248,7 @@ assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "present
 assert.match(presentationSkillText, /officekit-legacy-comment-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-legacy-comment-edit-workflow.mjs")));
 assert.match(presentationSkillText, /officekit-slide-name-edit-workflow\.mjs/);
+assert.match(presentationSkillText, /visibilityCapability\.known.*visibilityCapability\.editable.*slide\.hide\(\).*slide\.show\(\)/s);
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-slide-name-edit-workflow.mjs")));
 assert.match(presentationSkillText, /officekit-view-properties-edit-workflow\.mjs/);
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-view-properties-edit-workflow.mjs")));

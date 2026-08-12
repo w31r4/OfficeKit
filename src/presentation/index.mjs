@@ -39,6 +39,7 @@ const importedShapeBackgroundFill = new WeakMap();
 const PRESENTATION_SLIDE_DUPLICATOR = Symbol.for("office-kit.presentation-duplicate");
 const PRESENTATION_SPEAKER_NOTES_CAPABILITY = Symbol.for("office-kit.speaker-notes-capability");
 const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("office-kit.legacy-comments-capability");
+const PRESENTATION_SLIDE_VISIBILITY_CAPABILITY = Symbol.for("office-kit.slide-visibility-capability");
 
 export { SlideTransition };
 
@@ -1091,6 +1092,9 @@ function orderedSlideModelElements(slide) {
 
 export class Slide {
   constructor(presentation, options = {}) {
+    if (options.hidden !== undefined && typeof options.hidden !== "boolean") {
+      throw new TypeError("Presentation slide hidden must be a boolean.");
+    }
     this.presentation = presentation;
     this.id = aid("sl");
     this.name = options.name || "";
@@ -1106,9 +1110,26 @@ export class Slide {
     this.speakerNotes = new SpeakerNotes(this, options.notes || options.speakerNotes?.text || "");
     this.background = options.background ? normalizePresentationBackground(options.background) : {};
     this.transition = new SlideTransition(this, options.transition);
+    this._hidden = options.hidden ?? false;
   }
 
   get index() { return this.presentation.slides.items.indexOf(this); }
+  get hidden() { return this._hidden; }
+  get visibilityCapability() {
+    const imported = this[PRESENTATION_SLIDE_VISIBILITY_CAPABILITY];
+    return imported ? { ...imported } : { sourceBound: false, known: true, editable: true };
+  }
+  setHidden(hidden) {
+    if (typeof hidden !== "boolean") throw new TypeError("Presentation slide hidden must be a boolean.");
+    const capability = this.visibilityCapability;
+    if (capability.sourceBound && (!capability.known || !capability.editable)) {
+      throw new Error("Imported presentation slide visibility is source-bound and not safely editable.");
+    }
+    this._hidden = hidden;
+    return this;
+  }
+  hide() { return this.setHidden(true); }
+  show() { return this.setHidden(false); }
   moveTo(index) {
     if (!Number.isInteger(index) || index < 0 || index >= this.presentation.slides.items.length) {
       throw new RangeError("Presentation slide destination must be an existing 0-based slide index.");
@@ -1174,7 +1195,7 @@ export class Slide {
   inspectRecords(kinds) {
     const records = [];
     if (kinds.has("layout")) { const layout = this.presentation.layouts.getItem(this.layoutId); records.push({ kind: "layout", layoutId: this.layoutId || `${this.id}/layout`, name: layout?.name || "Blank", type: layout?.type || "blank", masterId: layout?.masterId, themeId: this.effectiveTheme().id, placeholders: layout?.placeholders.length || 0 }); }
-    if (kinds.has("slide")) records.push({ kind: "slide", id: this.id, slide: this.index + 1, title: this.title(), background: this.background.fill ? this.background : undefined, effectiveBackground: this.effectiveBackground(), transition: this.transition.toJSON(), transitionCapability: this.transition.capability, textShapes: this.shapes.items.filter((s) => s.text.value).length, tables: this.tables.items.length, charts: this.charts.items.length, images: this.images.items.length, connectors: this.connectors.items.length, groups: this.groups.items.length, nativeObjects: this.nativeObjects.items.length, comments: this.comments.items.length, commentsCapability: this.comments.capability, hasNotes: Boolean(this.speakerNotes.text), notesCapability: this.speakerNotes.capability });
+    if (kinds.has("slide")) records.push({ kind: "slide", id: this.id, slide: this.index + 1, title: this.title(), hidden: this.hidden, visibilityCapability: this.visibilityCapability, background: this.background.fill ? this.background : undefined, effectiveBackground: this.effectiveBackground(), transition: this.transition.toJSON(), transitionCapability: this.transition.capability, textShapes: this.shapes.items.filter((s) => s.text.value).length, tables: this.tables.items.length, charts: this.charts.items.length, images: this.images.items.length, connectors: this.connectors.items.length, groups: this.groups.items.length, nativeObjects: this.nativeObjects.items.length, comments: this.comments.items.length, commentsCapability: this.comments.capability, hasNotes: Boolean(this.speakerNotes.text), notesCapability: this.speakerNotes.capability });
     for (const shape of this.shapes) {
       if (kinds.has("textbox") && shape.text.value) records.push(shape.inspectRecord("textbox"));
       else if (kinds.has("shape")) records.push(shape.inspectRecord("shape"));
@@ -1290,7 +1311,7 @@ export class Slide {
     return slideLayoutSlice(this, {
       schema: "office-kit-artifact.layout/v1",
       unit: "px",
-      slide: { id: this.id, slide: this.index + 1, frame: this.frame, background: this.effectiveBackground(), transition: this.transition.toJSON(), notes: this.speakerNotes.text || undefined },
+      slide: { id: this.id, slide: this.index + 1, frame: this.frame, hidden: this.hidden, background: this.effectiveBackground(), transition: this.transition.toJSON(), notes: this.speakerNotes.text || undefined },
       elements,
     }, options);
   }
@@ -1301,7 +1322,7 @@ export class Slide {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="${xmlEscape(resolvePresentationBackgroundColor(this.effectiveBackground(), this.effectiveTheme()))}"/>${elements}</svg>`;
   }
 
-  toProto() { return { id: this.id, layoutId: this.layoutId, background: this.background.fill ? this.background : undefined, transition: this.transition.toJSON(), notes: this.speakerNotes.text || undefined, comments: this.comments.items.map((comment) => comment.toJSON()), elements: orderedSlideModelElements(this).filter((element) => !(element instanceof GroupShape)).map((element) => element.layoutJson()), groups: this.groups.items.map((group) => group.toProto()) }; }
+  toProto() { return { id: this.id, layoutId: this.layoutId, hidden: this.hidden, background: this.background.fill ? this.background : undefined, transition: this.transition.toJSON(), notes: this.speakerNotes.text || undefined, comments: this.comments.items.map((comment) => comment.toJSON()), elements: orderedSlideModelElements(this).filter((element) => !(element instanceof GroupShape)).map((element) => element.layoutJson()), groups: this.groups.items.map((group) => group.toProto()) }; }
 
   compose(composeNode, options = {}) {
     const frame = options.frame || { left: 72, top: 64, width: this.presentation.slideSize.width - 144, height: this.presentation.slideSize.height - 128 };

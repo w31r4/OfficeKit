@@ -461,6 +461,27 @@ writes a source/output-bound audit. Duplicate/missing names, fallback-only
 native names, unexpected package changes, pending clones, and any other
 ambiguous edit fail closed. This is not a generic template metadata editor.
 
+### Slide Show Visibility
+
+Treat a hidden slide as playback metadata, not deletion or a custom-show edit.
+Inspect `kind: "slide"`, require `visibilityCapability.known` and
+`visibilityCapability.editable` for an imported PPTX, then call the typed
+primitive:
+
+```js
+const slide = presentation.resolve(slideIdFromInspect);
+slide.hide();       // equivalent to slide.setHidden(true)
+slide.show();       // equivalent to slide.setHidden(false)
+```
+
+OfficeKit exposes `slide.hidden` but owns the native inversion: hidden writes
+only `p:sld/@show="0"`, while visible clears the attribute to the schema
+default. Export and reimport, verify the requested boolean, and render every
+slide to prove static pixels did not change. This operation does not alter
+slide order, content, custom-show membership, sections, transitions, notes,
+comments, or relationships. An unknown/invalid native `@show` lexical value
+reports `known: false` and fails closed rather than being guessed.
+
 ### Bounded Imported View-Properties Edit
 
 Do not patch `ppt/viewProps.xml` or use local guide visibility as a substitute

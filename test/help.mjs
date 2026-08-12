@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 480);
+assert.equal(HELP_CATALOG.length, 484);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -138,6 +138,11 @@ assert.match(HELP_CATALOG.find((item) => item.name === "presentation.view.setSou
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.master")?.schema?.parameters?.slideGuides?.description || "", /Read-only imported PowerPoint guide definitions/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.moveTo")?.schema?.parameters?.index?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.moveTo")?.schema?.returns?.slide?.description || "", /p:sldIdLst.*retained source SlideParts.*broad graph clones.*fail closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.visibilityCapability")?.schema?.returns?.capability?.description || "", /sourceBound.*known.*editable.*not mutable write authority.*re-proves/i);
+assert.equal(HELP_CATALOG.find((item) => item.name === "slide.setHidden")?.schema?.parameters?.hidden?.required, true);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.setHidden")?.schema?.returns?.slide?.description || "", /only p:sld\/@show changes.*content.*layout.*relationships.*pixels.*fail closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.show")?.schema?.returns?.slide?.description || "", /clearing canonical p:sld\/@show.*does not add.*custom show/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "presentation.slides.add")?.schema?.parameters?.hidden?.description || "", /show=0.*visible.*omit/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.slideSize")?.summary || "", /canvas-only.*p:sldSz.*clears an old preset type.*coordinates unchanged.*never silently rescales.*explicitly/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slideSize")?.schema?.parameters?.width?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "Presentation.create")?.schema?.parameters?.slideSize?.description || "", /trusted imported PPTX.*p:sldSz.*never rescales/i);
@@ -653,7 +658,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.setDateContentC
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.schema?.parameters?.dryRun?.type, "boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.summary || "", /SEQ counters.*REF cached results.*PAGEREF.*pagination host/i);
 const presentationCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
-assert.equal(presentationCatalog.length, 94);
+assert.equal(presentationCatalog.length, 98);
 assert.ok(presentationCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slides.insert")?.schema?.parameters?.after?.type, "Slide|number|null");

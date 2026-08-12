@@ -795,6 +795,57 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void SlideVisibilityAuthorsImportsEditsAndRejectsOpaqueLexicalValues()
+    {
+        var request = ExportRequest();
+        request.Artifact.Presentation.Slides[0].Hidden = true;
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            Assert.False(Assert.Single(package.PresentationPart!.SlideParts).Slide!.Show!.Value);
+        }
+
+        var imported = Import(authored.File.ToByteArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var hidden = Assert.Single(imported.Artifact.Presentation.Slides);
+        Assert.True(hidden.HasHidden);
+        Assert.True(hidden.Hidden);
+        Assert.True(hidden.Source!.VisibilityEditable);
+        Assert.NotEmpty(hidden.Source.VisibilitySemanticSha256);
+
+        hidden.Hidden = false;
+        var shown = Export(imported.Artifact);
+        Assert.True(shown.Ok, Diagnostics(shown));
+        using (var stream = new MemoryStream(shown.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Null(Assert.Single(package.PresentationPart!.SlideParts).Slide!.Show);
+        var shownRoundTrip = Assert.Single(Import(shown.File.ToByteArray()).Artifact.Presentation.Slides);
+        Assert.True(shownRoundTrip.HasHidden);
+        Assert.False(shownRoundTrip.Hidden);
+
+        var stale = Import(authored.File.ToByteArray());
+        stale.Artifact.Presentation.Slides[0].Source!.VisibilitySemanticSha256 = new string('0', 64);
+        Assert.Equal("presentation_slide_binding_mismatch", Assert.Single(Export(stale.Artifact).Diagnostics).Code);
+
+        var opaqueBytes = ReplaceZipText(authored.File.ToByteArray(), "ppt/slides/slide1.xml", xml =>
+            xml.Replace("show=\"0\"", "show=\"sometimes\"", StringComparison.Ordinal));
+        var opaque = Import(opaqueBytes);
+        Assert.True(opaque.Ok, Diagnostics(opaque));
+        var opaqueSlide = Assert.Single(opaque.Artifact.Presentation.Slides);
+        Assert.False(opaqueSlide.HasHidden);
+        Assert.False(opaqueSlide.Source!.VisibilityEditable);
+        var preserved = Export(opaque.Artifact);
+        Assert.True(preserved.Ok, Diagnostics(preserved));
+        Assert.Equal(ZipBytes(opaqueBytes, "ppt/slides/slide1.xml"), ZipBytes(preserved.File.ToByteArray(), "ppt/slides/slide1.xml"));
+
+        opaqueSlide.Hidden = true;
+        Assert.Equal("presentation_slide_visibility_binding_mismatch", Assert.Single(Export(opaque.Artifact).Diagnostics).Code);
+    }
+
+    [Fact]
     public void LegacyCommentsAuthorImportSupportsTextOnlySourceBoundEdits()
     {
         var request = ExportRequest();

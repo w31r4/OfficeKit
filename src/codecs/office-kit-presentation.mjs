@@ -40,6 +40,7 @@ const PRESENTATION_STATE = Symbol.for("office-kit.presentation-state");
 const PRESENTATION_SLIDE_DUPLICATOR = Symbol.for("office-kit.presentation-duplicate");
 const PRESENTATION_SPEAKER_NOTES_CAPABILITY = Symbol.for("office-kit.speaker-notes-capability");
 const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("office-kit.legacy-comments-capability");
+const PRESENTATION_SLIDE_VISIBILITY_CAPABILITY = Symbol.for("office-kit.slide-visibility-capability");
 const PRESENTATION_SCHEME_COLORS = new Set([
   "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
   "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink",
@@ -676,11 +677,15 @@ function duplicateImportedPresentationSlide(presentation, state, slide) {
   const clone = presentation.slides.insert({
     after: slide,
     name: slide.name,
+    hidden: slide.hidden,
     ...(slide.background?.fill ? { background: clonedPresentationValue(slide.background) } : {}),
     ...(slide.transition?.configured ? { transition: slide.transition.toJSON() } : {}),
     ...(source.wire.speakerNotes
       ? { notes: source.wire.speakerNotes.textBody ? slide.speakerNotes?.textFrame?.paragraphs || [] : slide.speakerNotes?.text || "" }
       : {}),
+  });
+  Object.defineProperty(clone, PRESENTATION_SLIDE_VISIBILITY_CAPABILITY, {
+    value: Object.freeze({ ...slide.visibilityCapability }),
   });
   clone.layoutId = slide.layoutId;
   cloneImportedPresentationLegacyComments(clone, slide);
@@ -2710,6 +2715,7 @@ export function presentationEnvelope(presentation, protocolVersion) {
       id: sourceState?.wire.id || slide.id,
       name: slide.name,
       source: sourceState?.wire.source,
+      ...(slide.visibilityCapability.known ? { hidden: slide.hidden } : {}),
       ...(slide.layoutId ? { layoutId: slide.layoutId } : {}),
       ...(slide.background?.fill ? { background: wireBackground(slide.background, `slide ${slideIndex + 1}`) } : {}),
       ...(slide.transition?.configured ? { transition: wirePresentationTransition(slide.transition) } : {}),
@@ -3398,8 +3404,16 @@ export async function presentationFromEnvelope(envelope) {
   for (const sourceSlide of source.slides) {
     const slide = presentation.slides.add({
       name: sourceSlide.name,
+      ...(sourceSlide.hidden === undefined ? {} : { hidden: sourceSlide.hidden }),
       ...(sourceSlide.background ? { background: modelBackground(sourceSlide.background) } : {}),
       ...(sourceSlide.transition ? { transition: modelPresentationTransition(sourceSlide.transition, slideStates.length) } : {}),
+    });
+    Object.defineProperty(slide, PRESENTATION_SLIDE_VISIBILITY_CAPABILITY, {
+      value: Object.freeze({
+        sourceBound: true,
+        known: sourceSlide.hidden !== undefined,
+        editable: sourceSlide.source?.visibilityEditable === true,
+      }),
     });
     slide.id = sourceSlide.id || slide.id;
     slide.layoutId = sourceSlide.layoutId || undefined;

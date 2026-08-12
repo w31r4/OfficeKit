@@ -255,6 +255,7 @@ internal static class PptxCodec
                 throw new CodecException("missing_shape_tree", $"Presentation slide {slideIndex + 1} has no shape tree.", PartPath(slidePart));
             var slideBackground = PptxBackgroundCodec.Read(slideCommon);
             var slideTransition = PptxTransitionCodec.Read(slideRoot);
+            var slideVisibility = PptxSlideVisibilityCodec.Read(slideRoot);
             var elements = ShapeElements(shapeTree);
             var slideArtifactId = $"presentation/slide/{slideIndex + 1}";
             var elementIdsByNativeId = NativeElementIds(elements, slideArtifactId);
@@ -284,8 +285,11 @@ internal static class PptxCodec
                     TransitionEditable = PptxTransitionCodec.Supports(slideRoot),
                     TransitionPresent = PptxTransitionCodec.HasTransition(slideRoot),
                     TransitionAddable = PptxTransitionCodec.CanAdd(slideRoot),
+                    VisibilitySemanticSha256 = slideVisibility.SemanticSha256,
+                    VisibilityEditable = slideVisibility.Editable,
                 },
             };
+            if (slideVisibility.Hidden is { } hidden) target.Hidden = hidden;
             if (slideBackground is not null) target.Background = slideBackground;
             if (slideTransition is not null) target.Transition = slideTransition;
             if (PptxSpeakerNotesCodec.Read(slidePart) is { } speakerNotes)
@@ -646,6 +650,7 @@ internal static class PptxCodec
                     "missing_presentation_slide_binding",
                     $"Presentation slide {slideIndex + 1} is missing its source binding.",
                     "ppt/presentation.xml");
+                var sourceVisibility = PptxSlideVisibilityCodec.Read(slideRoot);
                 if (binding.SlideIndex != targetSlide.Source.Index ||
                     !binding.PartPath.Equals(PartPath(slidePart), StringComparison.OrdinalIgnoreCase) ||
                     !binding.RelationshipId.Equals(relationshipId, StringComparison.Ordinal) ||
@@ -657,7 +662,9 @@ internal static class PptxCodec
                     !binding.CommentFamily.Equals(PptxLegacyCommentsCodec.CommentFamily(presentationPart), StringComparison.Ordinal) ||
                     binding.TransitionEditable != PptxTransitionCodec.Supports(slideRoot) ||
                     binding.TransitionPresent != PptxTransitionCodec.HasTransition(slideRoot) ||
-                    binding.TransitionAddable != PptxTransitionCodec.CanAdd(slideRoot))
+                    binding.TransitionAddable != PptxTransitionCodec.CanAdd(slideRoot) ||
+                    binding.VisibilityEditable != sourceVisibility.Editable ||
+                    !binding.VisibilitySemanticSha256.Equals(sourceVisibility.SemanticSha256, StringComparison.OrdinalIgnoreCase))
                     throw new CodecException(
                         "presentation_slide_binding_mismatch",
                         $"Presentation slide {slideIndex + 1} does not match its hash-bound source slide.",
@@ -685,6 +692,13 @@ internal static class PptxCodec
                         $"Presentation slide {slideIndex + 1} background does not match its source binding.",
                         PartPath(slidePart));
                 var changed = false;
+                if (sourceVisibility.Editable != target.HasHidden)
+                    throw new CodecException(
+                        "presentation_slide_visibility_binding_mismatch",
+                        $"Presentation slide {slideIndex + 1} visibility no longer matches its source capability.",
+                        PartPath(slidePart));
+                if (target.HasHidden && target.Hidden != sourceVisibility.Hidden && PptxSlideVisibilityCodec.ApplySourceBound(slideRoot, target))
+                    changed = true;
                 var sourceName = slideCommon.Name?.Value ?? $"Slide {targetSlide.Source.Index + 1}";
                 if (!string.Equals(target.Name, sourceName, StringComparison.Ordinal))
                 {
@@ -1476,6 +1490,7 @@ internal static class PptxCodec
             slidePart.Slide = new P.Slide(
                 new P.CommonSlideData(BasicShapeTree()) { Name = source.Name },
                 new P.ColorMapOverride(new A.MasterColorMapping()));
+            PptxSlideVisibilityCodec.BuildSourceFree(slidePart.Slide, source);
             slideIdList.Append(new P.SlideId { Id = checked((uint)(256 + slideIndex)), RelationshipId = relationshipId });
         }
         var slideIdByPartPath = slideParts
@@ -2605,13 +2620,18 @@ internal static class PptxCodec
             var outputSlide = outputSlides[slideIndex];
             var outputRoot = outputSlide.Slide ??
                 throw new CodecException("missing_slide_root", $"PPTX output slide {slideIndex + 1} has no slide root.", PartPath(outputSlide));
+            var sourceRoot = sourceSlide.Slide!;
             var outputName = outputRoot.CommonSlideData?.Name?.Value ?? $"Slide {sourceTargets[slideIndex].Source.Index + 1}";
             if (!string.Equals(outputName, requested.Slides[slideIndex].Name, StringComparison.Ordinal))
                 throw new CodecException(
                     "presentation_postwrite_slide_name_mismatch",
                     $"PPTX slide {slideIndex + 1} name does not match the requested source-bound value.",
                     PartPath(outputSlide));
-            var sourceRoot = sourceSlide.Slide!;
+            if (!PptxSlideVisibilityCodec.Matches(requested.Slides[slideIndex], sourceRoot, outputRoot))
+                throw new CodecException(
+                    "presentation_postwrite_slide_visibility_mismatch",
+                    $"PPTX slide {slideIndex + 1} visibility does not match the requested source-bound value.",
+                    PartPath(outputSlide));
             var sourceTransition = PptxTransitionCodec.Read(sourceRoot);
             var outputTransition = PptxTransitionCodec.Read(outputRoot);
             var requestedTransition = requested.Slides[slideIndex].Transition;
@@ -3819,6 +3839,10 @@ internal static class PptxCodec
         var expectedLayoutId = layoutIdByPartPath.GetValueOrDefault(PartPath(layoutPart));
         if (string.IsNullOrWhiteSpace(expectedLayoutId) || target.Target.LayoutId != expectedLayoutId)
             throw UnsupportedSourceSlideClone(source, "the requested clone changes its source layout binding");
+        var sourceVisibility = PptxSlideVisibilityCodec.Read(root);
+        if (sourceVisibility.Editable != target.Target.HasHidden ||
+            target.Target.HasHidden && sourceVisibility.Hidden != target.Target.Hidden)
+            throw UnsupportedSourceSlideClone(source, "the requested clone changes or invents its source visibility");
         var sourceBinding = target.Target.CloneSource ??
             throw new CodecException("missing_presentation_slide_clone_binding", $"Presentation clone {target.TargetIndex + 1} is missing clone_source.", PartPath(source.Part));
         if (sourceBinding.LayoutRelationshipId != source.Part.GetIdOfPart(layoutPart) ||
@@ -3826,7 +3850,9 @@ internal static class PptxCodec
             !sourceBinding.TransitionSemanticSha256.Equals(PptxTransitionCodec.SemanticHash(PptxTransitionCodec.Read(root)), StringComparison.OrdinalIgnoreCase) ||
             sourceBinding.TransitionEditable != PptxTransitionCodec.Supports(root) ||
             sourceBinding.TransitionPresent != PptxTransitionCodec.HasTransition(root) ||
-            sourceBinding.TransitionAddable != PptxTransitionCodec.CanAdd(root))
+            sourceBinding.TransitionAddable != PptxTransitionCodec.CanAdd(root) ||
+            sourceBinding.VisibilityEditable != sourceVisibility.Editable ||
+            !sourceBinding.VisibilitySemanticSha256.Equals(sourceVisibility.SemanticSha256, StringComparison.OrdinalIgnoreCase))
             throw new CodecException("presentation_slide_clone_binding_mismatch", $"Presentation clone {target.TargetIndex + 1} does not match its source layout/background/transition binding.", PartPath(source.Part));
         if (!BackgroundSemanticHash(target.Target.Background).Equals(BackgroundSemanticHash(PptxBackgroundCodec.Read(common)), StringComparison.OrdinalIgnoreCase))
             throw UnsupportedSourceSlideClone(source, "the requested clone changes its source background");
