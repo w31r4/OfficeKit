@@ -43,6 +43,7 @@ const fastSteps = [
   nodeStep("test/font-metrics.mjs"),
   nodeStep("test/ooxml-source-reference.mjs"),
   nodeStep("test/spreadsheet.mjs"),
+  nodeStep("test/spreadsheet-statistics.mjs"),
   nodeStep("test/spreadsheet-data-table.mjs"),
   nodeStep("test/spreadsheet-range-compat.mjs"),
   nodeStep("test/spreadsheet-sparkline.mjs"),
@@ -73,6 +74,7 @@ const slowSteps = [
   nodeStep("test/font-metrics.mjs"),
   nodeStep("test/ooxml-source-reference.mjs"),
   nodeStep("test/spreadsheet.mjs"),
+  nodeStep("test/spreadsheet-statistics.mjs"),
   nodeStep("test/spreadsheet-data-table.mjs"),
   nodeStep("test/spreadsheet-range-compat.mjs"),
   nodeStep("test/spreadsheet-sparkline.mjs"),
@@ -143,16 +145,16 @@ const slowSteps = [
 ];
 
 const slowSegments = Object.freeze({
-  foundation: Object.freeze({ start: 0, end: 13 }),
-  presentation: Object.freeze({ start: 13, end: 17 }),
-  templates: Object.freeze({ start: 17, end: 24 }),
-  officekit: Object.freeze({ start: 24, end: 29 }),
-  documents: Object.freeze({ start: 29, end: 38 }),
-  "pdf-packs": Object.freeze({ start: 38, end: 47 }),
-  "pdf-providers": Object.freeze({ start: 47, end: 56 }),
-  "pdf-specialists": Object.freeze({ start: 56, end: 65 }),
-  qa: Object.freeze({ start: 65, end: 72 }),
-  release: Object.freeze({ start: 72, end: 77 }),
+  foundation: Object.freeze({ start: 0, end: 14 }),
+  presentation: Object.freeze({ start: 14, end: 18 }),
+  templates: Object.freeze({ start: 18, end: 25 }),
+  officekit: Object.freeze({ start: 25, end: 30 }),
+  documents: Object.freeze({ start: 30, end: 39 }),
+  "pdf-packs": Object.freeze({ start: 39, end: 48 }),
+  "pdf-providers": Object.freeze({ start: 48, end: 57 }),
+  "pdf-specialists": Object.freeze({ start: 57, end: 66 }),
+  qa: Object.freeze({ start: 66, end: 73 }),
+  release: Object.freeze({ start: 73, end: 78 }),
 });
 
 const segmentRanges = Object.values(slowSegments);

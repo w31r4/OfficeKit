@@ -206,6 +206,7 @@ assert.match(spreadsheetSkillText, /officekit-pivot-table-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-financial-returns-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-loan-amortization-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-asset-depreciation-workflow\.mjs/);
+assert.match(spreadsheetSkillText, /officekit-statistical-analysis-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-growth-assumption-edit-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-connection-refresh-hardening-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-pivot-refresh-hardening-workflow\.mjs/);
@@ -665,6 +666,20 @@ try {
   assert.equal(assetDepreciationRoundTrip.worksheets.getItem("Depreciation").getRange("E5").formulas[0][0], "=DDB('Inputs'!$B$5,'Inputs'!$B$6,'Inputs'!$B$7,A5,'Inputs'!$B$9)");
   assert.equal(assetDepreciationRoundTrip.worksheets.getItem("Depreciation").getRange("F9").values[0][0], 10000);
   assert.deepEqual(assetDepreciationRoundTrip.worksheets.getItem("Checks").getRange("E4:E9").values, [["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"]]);
+
+  const { createStatisticalAnalysisWorkbook } = await import(
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-statistical-analysis-workflow.mjs"
+  );
+  const statisticalAnalysisPath = path.join(tempRoot, "officekit-statistical-analysis-workflow.xlsx");
+  const authoredStatisticalAnalysis = await createStatisticalAnalysisWorkbook(statisticalAnalysisPath);
+  assert.equal(authoredStatisticalAnalysis.verification.ok, true);
+  assert.match(authoredStatisticalAnalysis.inspection.ndjson, /CORREL/);
+  assert.match(authoredStatisticalAnalysis.inspection.ndjson, /COVARIANCE\.S/);
+  const statisticalAnalysisRoundTrip = await SpreadsheetFile.importXlsx(await FileBlob.load(statisticalAnalysisPath));
+  statisticalAnalysisRoundTrip.recalculate();
+  assert.equal(statisticalAnalysisRoundTrip.worksheets.getItem("Analysis").getRange("B11").formulas[0][0], "=CORREL('Data'!$B$4:$B$9,'Data'!$C$4:$C$9)");
+  assert.ok(Math.abs(statisticalAnalysisRoundTrip.worksheets.getItem("Analysis").getRange("B12").values[0][0] - 686) < 1e-9);
+  assert.deepEqual(statisticalAnalysisRoundTrip.worksheets.getItem("Checks").getRange("E4:E7").values, [["OK"], ["OK"], ["OK"], ["OK"]]);
 
   const { createScatterWorkbook } = await import(
     "../skills/spreadsheets/skills/spreadsheets/examples/officekit-scatter-chart-workflow.mjs"

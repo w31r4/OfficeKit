@@ -8,6 +8,7 @@
  */
 import { matchesFormulaCriteria } from "./formula-criteria.mjs";
 import { evaluateMathFormula, MATH_SPILL_RANGE_FUNCTIONS } from "./formula-math.mjs";
+import { evaluateStatisticalFormula, STATISTICS_SPILL_RANGE_FUNCTIONS } from "./formula-statistics.mjs";
 import {
   formulaTimeParts,
   formulaTimeSerial,
@@ -64,6 +65,7 @@ const FORMULA_LET_MAX_BINDINGS = 16;
 const FORMULA_SPILL_RANGE_FUNCTIONS = new Set([
   "SUM", "PRODUCT", "SUMSQ", "AVERAGE", "MIN", "MAX", "COUNT", "COUNTA", "COUNTBLANK", "MEDIAN", "LARGE", "SMALL", "RANK", "RANK.EQ", "MODE", "MODE.SNGL", "PERCENTILE.INC", "QUARTILE.INC",
   ...MATH_SPILL_RANGE_FUNCTIONS,
+  ...STATISTICS_SPILL_RANGE_FUNCTIONS,
   "NPV", "MIRR", "XNPV", "IRR", "XIRR", "NETWORKDAYS", "WORKDAY", "NETWORKDAYS.INTL", "WORKDAY.INTL",
   "CONCAT", "CONCATENATE", "TEXTJOIN", "COUNTIF", "COUNTIFS",
   "TRANSPOSE", "FILTER", "UNIQUE", "SORT", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "TOCOL", "TOROW", "WRAPROWS", "WRAPCOLS", "HSTACK", "VSTACK", "EXPAND",
@@ -2270,8 +2272,38 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     return { values: matrix.flat(), rows: matrix.length, columns, rectangular: matrix.every((row) => row.length === columns) };
   };
   const hasEmptyArgument = () => args.some((arg) => String(arg ?? "").trim() === "");
+  const statisticalArgument = (index) => {
+    const matrix = formulaRangeMatrix(sheet, args[index], context);
+    if (matrix !== undefined) {
+      const normalized = normalizeFormulaMatrix(matrix);
+      return { source: "reference", values: normalized.flat() };
+    }
+    const value = formulaScalar(sheet, args[index], context);
+    return { source: "direct", values: isFormulaMatrix(value) ? ["#VALUE!"] : [value] };
+  };
   const sameCriteriaShape = (left, right) => left.rectangular && right.rectangular && left.rows === right.rows && left.columns === right.columns;
   switch (fnName) {
+    case "STDEV.S":
+    case "STDEV.P":
+    case "VAR.S":
+    case "VAR.P":
+    case "CORREL":
+    case "COVARIANCE.S":
+    case "COVARIANCE.P":
+      return evaluateStatisticalFormula(fnName, args, {
+        argument: statisticalArgument,
+        errorCode: formulaErrorCode,
+        hasEmptyArgument,
+        numberText: parseFormulaNumberText,
+        referenceNumber: (value) => {
+          if (value instanceof Date) {
+            if (!Number.isFinite(value.getTime())) return "#VALUE!";
+            return excelGregorianSerial(value.getUTCFullYear(), value.getUTCMonth() + 1, value.getUTCDate(), dateSystem);
+          }
+          if (typeof value !== "number") return undefined;
+          return Number.isFinite(value) ? value : "#NUM!";
+        },
+      });
     case "SUM":
     case "PRODUCT":
     case "SUMSQ":

@@ -1,5 +1,42 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-13): Bounded statistical formula analysis
+
+The JavaScript spreadsheet evaluator now supports `STDEV.S`, `STDEV.P`,
+`VAR.S`, `VAR.P`, `CORREL`, `COVARIANCE.S`, and `COVARIANCE.P`. Their
+source-aware semantics live in the new dependency-leaf
+`src/spreadsheet/formula-statistics.mjs`: the formula engine supplies bounded
+argument views and date-system conversion without exposing workbook/model
+state to the numerical core. Stable one-pass moments avoid the cancellation
+errors of a naive sum-of-squares implementation.
+
+Single-series functions distinguish direct arguments from references, ignore
+error-valued reference cells while preserving direct formula errors, and
+report insufficient observations as `#DIV/0!`. Pairwise
+functions preserve source alignment before filtering, return `#N/A` for
+different source lengths, and fail zero-variance correlation explicitly. The
+same direct/named/structured/spill reference budgets remain authoritative.
+Focused tests cover sample/population results, coercion, dates, large-offset
+stability, ignored pair positions, error propagation, arity, mismatched
+lengths, dynamic spills, canonical export/import, and cached-value survival.
+
+The Spreadsheet plugin adds one public `Data` / `Analysis` / `Checks` workflow
+using all seven formulas. It keeps analytical outputs and independent checks
+formula-backed, then inspects, recalculates, verifies, renders, exports, imports
+twice, and enters the existing LibreOffice/Poppler native-review gate. Runtime
+Help now exposes 184 formula records (505 total Help entries), generated API
+docs are current, and Skill portability now checks 336 host-neutral files.
+Final local evidence is complete: fast passed 29/29 steps and slow passed
+78/78; OfficeKit Codec passed 415/415 and OfficeBridge passed 5/5; protocol
+lint/generation and generated API docs are current; and two independent WASM
+builds reproduced the same 39-file audited output (38 runtime files,
+15,416,043 bytes). The isolated staged candidate excludes the user's unrelated
+README/output work and contains 738 files, 36,316,812 compressed bytes,
+53,479,561 unpacked bytes, and npm SHA-1
+`78ee6641c6a1e64bd52b5fea33721995a2fbd53c`. This slice does not claim the
+broader Excel regression, distribution, forecasting, or array-constant
+catalog. Hosted CI is recorded after the candidate is pushed.
+
 ## Current 0.6.0 candidate (2026-08-13): Source-bound PDF text-markup update
 
 The direct-original MuPDF.js route now exposes one inspect-to-update contract

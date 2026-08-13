@@ -3717,6 +3717,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.COMBIN` | formula | Return the number of combinations for two non-negative bounded integer arguments. |
 | `fx.COMBINA` | formula | Return combinations with repetition for two non-negative bounded integer arguments. |
 | `fx.CONCAT` | formula | Concatenate text values and ranges. |
+| `fx.CORREL` | formula | Return the Pearson correlation coefficient for two same-length bounded sources, ignoring positions where either value is nonnumeric; mismatched lengths return #N/A and empty or zero-variance pairs return #DIV/0!. |
 | `fx.COS` | formula | Return the cosine of a finite radian value. |
 | `fx.COSH` | formula | Return the hyperbolic cosine of a finite number; overflow fails as #NUM!. |
 | `fx.COUNT` | formula | Count numeric values across arguments and ranges. |
@@ -3724,6 +3725,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.COUNTBLANK` | formula | Count blank cells and formula results that are empty text in one range. |
 | `fx.COUNTIF` | formula | Count values using case-insensitive numeric/text criteria and Excel ?, *, and ~ wildcard semantics. |
 | `fx.COUNTIFS` | formula | Count rows where multiple criteria ranges of the same size match case-insensitive comparison or wildcard criteria. |
+| `fx.COVARIANCE.P` | formula | Calculate population covariance for two same-length bounded sources with pairwise numeric filtering; mismatched lengths return #N/A and no numeric pairs returns #DIV/0!. |
+| `fx.COVARIANCE.S` | formula | Estimate sample covariance for two same-length bounded sources with pairwise numeric filtering; mismatched lengths return #N/A and fewer than two numeric pairs returns #DIV/0!. |
 | `fx.CUMIPMT` | formula | Calculate cumulative interest paid across a bounded inclusive range of constant-payment loan periods. |
 | `fx.CUMPRINC` | formula | Calculate cumulative principal paid across a bounded inclusive range of constant-payment loan periods. |
 | `fx.DATE` | formula | Return an Excel serial in the workbook's 1900 or 1904 date system, with overflow and 1900 serial-60 compatibility. |
@@ -3830,6 +3833,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.SMALL` | formula | Return the k-th smallest numeric value in an array or range. |
 | `fx.SORT` | formula | Sort a range by a 1-based column index and spill the sorted rows. |
 | `fx.SQRT` | formula | Return the non-negative square root of a finite number; negative inputs return #NUM!. |
+| `fx.STDEV.P` | formula | Calculate population standard deviation with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and an empty numeric set returns #DIV/0!. |
+| `fx.STDEV.S` | formula | Estimate sample standard deviation with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and fewer than two numbers returns #DIV/0!. |
 | `fx.SUBSTITUTE` | formula | Replace all or one 1-based occurrence of a literal substring in bounded scalar text; matching is case-sensitive and empty search text fails closed. |
 | `fx.SUM` | formula | Sum numeric values across arguments and ranges. |
 | `fx.SUMIF` | formula | Sum corresponding values using case-insensitive numeric/text criteria and Excel ?, *, and ~ wildcards. |
@@ -3859,6 +3864,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.UNIQUE` | formula | Return unique rows from a range as a spilled dynamic array. |
 | `fx.UPPER` | formula | Convert text to uppercase. |
 | `fx.VALUE` | formula | Convert deterministic ASCII numeric text with optional grouping, scientific notation, accounting parentheses, or percent suffix to a number. |
+| `fx.VAR.P` | formula | Calculate population variance with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and an empty numeric set returns #DIV/0!. |
+| `fx.VAR.S` | formula | Estimate sample variance with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and fewer than two numbers returns #DIV/0!. |
 | `fx.VLOOKUP` | formula | Look up one scalar in the first column of a nonempty rectangular range of at most 10,000 cells; FALSE/0 performs an exact, wildcard-aware lookup, while TRUE/1 or omission requires a proven ascending homogeneous numeric or text key column and returns the greatest matching-or-lower key. Invalid table/mode/index inputs and unproven ordering return #VALUE!, while an out-of-range return-column index returns #REF!. |
 | `fx.VSTACK` | formula | Append arrays vertically, padding narrower arrays with #N/A to the maximum column count. |
 | `fx.WEEKDAY` | formula | Return a weekday number for Excel return types 1, 2, 3, and 11 through 17. |
@@ -4358,6 +4365,23 @@ Concatenate text values and ranges.
 
 - `value` (string) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.CORREL`
+
+Return the Pearson correlation coefficient for two same-length bounded sources, ignoring positions where either value is nonnumeric; mismatched lengths return #N/A and empty or zero-variance pairs return #DIV/0!.
+
+**Examples:**
+
+- =CORREL(A1:A10,B1:B10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =CORREL(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.COS`
 
 Return the cosine of a finite radian value.
@@ -4471,6 +4495,40 @@ Count rows where multiple criteria ranges of the same size match case-insensitiv
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =COUNTIFS(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.COVARIANCE.P`
+
+Calculate population covariance for two same-length bounded sources with pairwise numeric filtering; mismatched lengths return #N/A and no numeric pairs returns #DIV/0!.
+
+**Examples:**
+
+- =COVARIANCE.P(A1:A10,B1:B10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =COVARIANCE.P(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.COVARIANCE.S`
+
+Estimate sample covariance for two same-length bounded sources with pairwise numeric filtering; mismatched lengths return #N/A and fewer than two numeric pairs returns #DIV/0!.
+
+**Examples:**
+
+- =COVARIANCE.S(A1:A10,B1:B10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =COVARIANCE.S(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**
@@ -6353,6 +6411,40 @@ Return the non-negative square root of a finite number; negative inputs return #
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.STDEV.P`
+
+Calculate population standard deviation with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and an empty numeric set returns #DIV/0!.
+
+**Examples:**
+
+- =STDEV.P(A1:A10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =STDEV.P(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.STDEV.S`
+
+Estimate sample standard deviation with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and fewer than two numbers returns #DIV/0!.
+
+**Examples:**
+
+- =STDEV.S(A1:A10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =STDEV.S(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.SUBSTITUTE`
 
 Replace all or one 1-based occurrence of a literal substring in bounded scalar text; matching is case-sensitive and empty search text fails closed.
@@ -6846,6 +6938,40 @@ Convert deterministic ASCII numeric text with optional grouping, scientific nota
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =VALUE(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.VAR.P`
+
+Calculate population variance with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and an empty numeric set returns #DIV/0!.
+
+**Examples:**
+
+- =VAR.P(A1:A10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =VAR.P(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.VAR.S`
+
+Estimate sample variance with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and fewer than two numbers returns #DIV/0!.
+
+**Examples:**
+
+- =VAR.S(A1:A10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =VAR.S(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**

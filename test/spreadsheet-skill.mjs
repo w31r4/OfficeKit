@@ -819,6 +819,32 @@ try {
     assert.equal(assetDepreciationQa.summary.nativeRender.ok, true);
   }
 
+  const { createStatisticalAnalysisWorkbook } = await import(
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-statistical-analysis-workflow.mjs"
+  );
+  const statisticalAnalysisPath = path.join(outputDir, "officekit-statistical-analysis-workflow.xlsx");
+  const statisticalAnalysisResult = await createStatisticalAnalysisWorkbook(statisticalAnalysisPath);
+  assert.equal(statisticalAnalysisResult.verification.ok, true);
+  assert.match(statisticalAnalysisResult.inspection.ndjson, /CORREL/);
+  assert.match(statisticalAnalysisResult.inspection.ndjson, /COVARIANCE\.S/);
+  const statisticalAnalysisWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(statisticalAnalysisPath));
+  statisticalAnalysisWorkbook.recalculate();
+  const statisticalAnalysis = statisticalAnalysisWorkbook.worksheets.getItem("Analysis");
+  assert.equal(statisticalAnalysis.getRange("B11").formulas[0][0], "=CORREL('Data'!$B$4:$B$9,'Data'!$C$4:$C$9)");
+  assert.ok(Math.abs(statisticalAnalysis.getRange("B12").values[0][0] - 686) < 1e-9);
+  assert.deepEqual(statisticalAnalysisWorkbook.worksheets.getItem("Checks").getRange("E4:E7").values, [["OK"], ["OK"], ["OK"], ["OK"]]);
+  const statisticalAnalysisQa = await verifyWorkbookFile(statisticalAnalysisPath, {
+    outputDir: path.join(outputDir, "officekit-statistical-analysis-native-qa"),
+    sheetName: "Analysis",
+    renderFormat: "svg",
+    nativeRender: "auto",
+    allSheets: true,
+  });
+  if (nativeSpreadsheetRenderStatus().available) {
+    assert.equal(statisticalAnalysisQa.summary.nativeRender.status, "passed");
+    assert.equal(statisticalAnalysisQa.summary.nativeRender.ok, true);
+  }
+
   const { createScatterWorkbook } = await import(
     "../skills/spreadsheets/skills/spreadsheets/examples/officekit-scatter-chart-workflow.mjs"
   );
