@@ -100,7 +100,7 @@
     "test:office-kit": "node test/office-kit.mjs",
     "test:font-metrics": "node test/font-metrics.mjs",
     "test:office-kit-dotnet": "dotnet test native/OfficeKit/OfficeKit.sln --configuration Release",
-    "test:spreadsheet": "node test/spreadsheet.mjs && node test/spreadsheet-statistics.mjs && node test/spreadsheet-range-compat.mjs && node test/spreadsheet-sparkline.mjs",
+    "test:spreadsheet": "node test/spreadsheet.mjs && node test/spreadsheet-statistics.mjs && node test/spreadsheet-formula-syntax.mjs && node test/spreadsheet-range-compat.mjs && node test/spreadsheet-sparkline.mjs",
     "test:skill:spreadsheets": "node test/spreadsheet-skill.mjs",
     "test:presentation": "node test/presentation.mjs",
     "test:presentation-jsx": "node test/presentation-jsx.mjs",

@@ -44,6 +44,7 @@ const fastSteps = [
   nodeStep("test/ooxml-source-reference.mjs"),
   nodeStep("test/spreadsheet.mjs"),
   nodeStep("test/spreadsheet-statistics.mjs"),
+  nodeStep("test/spreadsheet-formula-syntax.mjs"),
   nodeStep("test/spreadsheet-data-table.mjs"),
   nodeStep("test/spreadsheet-range-compat.mjs"),
   nodeStep("test/spreadsheet-sparkline.mjs"),
@@ -76,9 +77,11 @@ const slowSteps = [
   nodeStep("test/ooxml-source-reference.mjs"),
   nodeStep("test/spreadsheet.mjs"),
   nodeStep("test/spreadsheet-statistics.mjs"),
+  nodeStep("test/spreadsheet-formula-syntax.mjs"),
   nodeStep("test/spreadsheet-data-table.mjs"),
   nodeStep("test/spreadsheet-range-compat.mjs"),
   nodeStep("test/spreadsheet-sparkline.mjs"),
+  npmStep("test:skill:spreadsheets"),
   nodeStep("test/presentation.mjs"),
   nodeStep("test/presentation-custom-geometry-render.mjs"),
   nodeStep("test/presentation-jsx.mjs"),
@@ -148,16 +151,16 @@ const slowSteps = [
 ];
 
 const slowSegments = Object.freeze({
-  foundation: Object.freeze({ start: 0, end: 14 }),
-  presentation: Object.freeze({ start: 14, end: 18 }),
-  templates: Object.freeze({ start: 18, end: 25 }),
-  officekit: Object.freeze({ start: 25, end: 32 }),
-  documents: Object.freeze({ start: 32, end: 41 }),
-  "pdf-packs": Object.freeze({ start: 41, end: 50 }),
-  "pdf-providers": Object.freeze({ start: 50, end: 59 }),
-  "pdf-specialists": Object.freeze({ start: 59, end: 68 }),
-  qa: Object.freeze({ start: 68, end: 75 }),
-  release: Object.freeze({ start: 75, end: 80 }),
+  foundation: Object.freeze({ start: 0, end: 16 }),
+  presentation: Object.freeze({ start: 16, end: 20 }),
+  templates: Object.freeze({ start: 20, end: 27 }),
+  officekit: Object.freeze({ start: 27, end: 34 }),
+  documents: Object.freeze({ start: 34, end: 43 }),
+  "pdf-packs": Object.freeze({ start: 43, end: 52 }),
+  "pdf-providers": Object.freeze({ start: 52, end: 61 }),
+  "pdf-specialists": Object.freeze({ start: 61, end: 70 }),
+  qa: Object.freeze({ start: 70, end: 77 }),
+  release: Object.freeze({ start: 77, end: 82 }),
 });
 
 const segmentRanges = Object.values(slowSegments);

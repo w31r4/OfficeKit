@@ -3971,6 +3971,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `workbook.worksheets.getSelectedWorksheets` | api | Return the visible worksheet-tab group selected in the primary workbook window, in workbook order. |
 | `workbook.worksheets.setActiveWorksheet` | api | Select the visible worksheet opened by default and used by workbook operations that omit an explicit sheet. |
 | `workbook.worksheets.setSelectedWorksheets` | api | Select one or more visible worksheet tabs in the primary workbook window while retaining exactly one active worksheet. |
+| `workbook.xlsxFormulaSyntax` | formula | Write formulas with the names and spill syntax shown in Excel, such as STDEV.S(A1:A10), FILTER(A1:A10,A1:A10>0), and SUM(E1#). OfficeKit Codec maps modeled future functions plus A1# to their required _xlfn/_xlws/ANCHORARRAY XLSX storage forms, returns public formulas without those package prefixes, and preserves an unchanged imported cell formula's original storage spelling. |
 | `workbookWindow.getActiveWorksheet` | api | Return the visible active worksheet for one workbook window. |
 | `workbookWindow.getSelectedWorksheets` | api | Return one window's visible selected worksheet tabs in workbook order. |
 | `workbookWindow.setActiveWorksheet` | api | Set one window's active worksheet and collapse that window's selected tab group to it. |
@@ -5785,7 +5786,7 @@ Return every numeric value tied for the highest frequency as an ascending vertic
 
 **Examples:**
 
-- =_xlfn.MODE.MULT(A1:A10)
+- =MODE.MULT(A1:A10)
 
 **Schema parameters:**
 
@@ -6016,7 +6017,7 @@ Return an exclusive percentile from a bounded numeric range using rank k*(n+1); 
 
 **Examples:**
 
-- =_xlfn.PERCENTILE.EXC(A1:A10,0.9)
+- =PERCENTILE.EXC(A1:A10,0.9)
 
 **Schema parameters:**
 
@@ -6167,7 +6168,7 @@ Return an exclusive first, second, or third quartile from a bounded numeric rang
 
 **Examples:**
 
-- =_xlfn.QUARTILE.EXC(A1:A10,3)
+- =QUARTILE.EXC(A1:A10,3)
 
 **Schema parameters:**
 
@@ -6235,7 +6236,7 @@ Return a number's rank in a bounded numeric range and average the occupied posit
 
 **Examples:**
 
-- =_xlfn.RANK.AVG(A1,A1:A10,0)
+- =RANK.AVG(A1,A1:A10,0)
 
 **Schema parameters:**
 
@@ -8676,6 +8677,28 @@ Select one or more visible worksheet tabs in the primary workbook window while r
 **Schema returns:**
 
 - `worksheets` (Worksheet[]) — Selected worksheet tabs in workbook order; native XLSX export writes sheetView tabSelected for workbookViewId 0.
+
+#### `workbook.xlsxFormulaSyntax`
+
+Write formulas with the names and spill syntax shown in Excel, such as STDEV.S(A1:A10), FILTER(A1:A10,A1:A10>0), and SUM(E1#). OfficeKit Codec maps modeled future functions plus A1# to their required _xlfn/_xlws/ANCHORARRAY XLSX storage forms, returns public formulas without those package prefixes, and preserves an unchanged imported cell formula's original storage spelling.
+
+**Examples:**
+
+- =STDEV.S(A1:A10)
+- =FILTER(A1:A10,A1:A10>0)
+- =SUM(E1#)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-visible formula such as =STDEV.S(A1:A10), =FILTER(A1:A10,A1:A10>0), or =SUM(E1#).
+
+**Schema returns:**
+
+- `formula` (string) — The public formula string. OfficeKit Codec maps the bounded modeled future-function and spill syntax to XLSX package spelling at export, removes that package spelling at import, and retains an unchanged imported cell formula's original storage form.
+
+**Notes:**
+
+- Author model formulas with Excel-visible names and A1# spill references. OfficeKit Codec owns the bounded XLSX package spelling (_xlfn, _xlws, and ANCHORARRAY), strips it on import, and preserves an unchanged imported cell formula's original package spelling.
 
 #### `workbookWindow.getActiveWorksheet`
 

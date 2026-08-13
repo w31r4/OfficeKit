@@ -61,15 +61,15 @@ export function buildRobustStatisticsWorkbook() {
     ["First mode", null],
   ];
   analysis.getRange("B4:B8").formulas = [
-    ["=_xlfn.RANK.AVG(2,'Data'!$B$4:$B$10,0)"],
-    ["=_xlfn.PERCENTILE.EXC('Data'!$B$4:$B$10,0.5)"],
-    ["=_xlfn.QUARTILE.EXC('Data'!$B$4:$B$10,1)"],
+    ["=RANK.AVG(2,'Data'!$B$4:$B$10,0)"],
+    ["=PERCENTILE.EXC('Data'!$B$4:$B$10,0.5)"],
+    ["=QUARTILE.EXC('Data'!$B$4:$B$10,1)"],
     ["=TRIMMEAN('Data'!$B$4:$B$10,0.3)"],
     ["=MODE.SNGL('Data'!$B$4:$B$10)"],
   ];
   styleHeader(analysis, "A3:B3");
   analysis.getRange("D3:E3").values = [["All tied modes", "Frequency"]];
-  analysis.getRange("D4").formulas = [["=_xlfn.MODE.MULT('Data'!$B$4:$B$10)"]];
+  analysis.getRange("D4").formulas = [["=MODE.MULT('Data'!$B$4:$B$10)"]];
   analysis.getRange("E4:E5").formulas = [
     ["=COUNTIF('Data'!$B$4:$B$10,D4)"],
     ["=COUNTIF('Data'!$B$4:$B$10,D5)"],

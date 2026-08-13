@@ -1,5 +1,39 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-14): Excel formula package syntax
+
+OfficeKit now separates the Agent-facing formula language from SpreadsheetML
+storage syntax. Agents write the names and spill references shown in Excel;
+the Spreadsheet Codec leaf maps the modeled MS-XLSX future-function
+intersection to `_xlfn.*`, writes `FILTER`/`SORT` as `_xlfn._xlws.*`, and
+stores direct `A1#` references as `_xlfn.ANCHORARRAY(A1)`. Import reverses
+those package spellings without rewriting quoted strings or structured table
+references. The same leaf covers recognized table formulas. Unchanged imported
+cell formulas retain their exact source spelling; an edited cell formula uses
+the canonical package form. `LET` is intentionally excluded until `_xlpm`
+parameter scope is represented by a real formula AST.
+
+The Spreadsheet Skill and runtime Help no longer require Agents to hand-write
+OOXML compatibility prefixes. A dedicated positive/negative gate covers nested
+future functions, string/structured-reference shielding, `_xlws`, spill
+translation, source-free cell/table XML, public-formula import, exact unchanged
+source spelling, canonical edited output, and second import. The bounded robust
+statistics workflow now uses only public Excel-visible formula syntax. Full
+local evidence is green: fast `31/31` and slow `82/82`, including the complete
+Spreadsheet Skill, LibreOffice/Poppler native recalculation/rendering,
+Playwright, templates, provider contracts, standalone distribution, and release
+smoke. `proto:check` produced no generated drift; OfficeBridge passed `5/5`,
+OfficeKit Codec passed `415/415`, and two OfficeKit WASM builds reproduced 39
+audited files with a 38-file, 15,416,043-byte runtime. Clean-install and npm
+dry-run package gates passed. Managed provider downloads and separately
+configured pikepdf/pyHanko/veraPDF/OCR environments retained their explicit
+skips; no claims are inferred from those skips. npm authentication remains
+unavailable, so this candidate was not published. The isolated staged tree,
+which excludes the user's unrelated README/output work, passed `test:pack` and
+contains 743 files at 36,344,296 compressed bytes and 53,597,509 unpacked bytes
+(`shasum e99288fd852cfe871a10b89d710f09bfa41baa5c`). Hosted-CI identity is
+recorded after the implementation commit.
+
 ## Current 0.6.0 candidate (2026-08-14): Bounded robust and order statistics
 
 The Spreadsheet evaluator and native Skill now provide `RANK.AVG`,
@@ -11,8 +45,9 @@ have one implementation boundary. `MODE.MULT` authors a canonical source-free
 XLDAPR vertical spill and returns `#N/A` when no value repeats; data-dependent
 legacy-array topology produced by a host remains source-bound.
 
-The packaged `Data` / `Analysis` / `Checks` workflow uses the standard
-`_xlfn.` spellings required in XLSX for post-2010 functions, performs two
+The packaged `Data` / `Analysis` / `Checks` workflow uses Excel-visible
+function names while the Codec writes the standard `_xlfn.` XLSX spellings,
+performs two
 OfficeKit Codec export/import cycles, independently reconciles every result,
 and emits inspect, verify, SVG, and native evidence. LibreOfficeDev 26.8
 recalculated the authored workbook to rank `5.5`, exclusive median `3`, first

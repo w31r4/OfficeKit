@@ -25,6 +25,7 @@ import {
 import { assertTrustedImportedState } from "./office-kit-source-state.mjs";
 import { spreadsheetChartFromWire, spreadsheetChartSnapshot, wireWorksheetCharts } from "./office-kit-spreadsheet-charts.mjs";
 import { hydrateWorksheetDataTable, wireWorksheetDataTables } from "./office-kit-spreadsheet-data-tables.mjs";
+import { modelFormulaFromXlsx, xlsxFormulaFromModel } from "./office-kit-spreadsheet-formula-syntax.mjs";
 import { spreadsheetImageFromWire, spreadsheetImageSnapshot, wireWorksheetImages } from "./office-kit-spreadsheet-images.mjs";
 import { hydrateWorkbookPivots, wireWorksheetPivots } from "./office-kit-spreadsheet-pivots.mjs";
 import { publicWorksheetProtectionFromWire, wireWorksheetProtection, worksheetProtectionPublicSnapshot } from "./office-kit-spreadsheet-protection.mjs";
@@ -960,11 +961,11 @@ function tableColumnDefinitions(table, names) {
     const column = table.columnDefinitions[index] || {};
     return {
       name,
-      calculatedColumnFormula: column.calculatedColumnFormula ? String(column.calculatedColumnFormula) : "",
+      calculatedColumnFormula: column.calculatedColumnFormula ? xlsxFormulaFromModel(column.calculatedColumnFormula) : "",
       calculatedColumnFormulaArray: Boolean(column.calculatedColumnFormulaArray),
       totalsRowFunction: column.totalsRowFunction ? String(column.totalsRowFunction) : "",
       totalsRowLabel: column.totalsRowLabel ? String(column.totalsRowLabel) : "",
-      totalsRowFormula: column.totalsRowFormula ? String(column.totalsRowFormula) : "",
+      totalsRowFormula: column.totalsRowFormula ? xlsxFormulaFromModel(column.totalsRowFormula) : "",
       totalsRowFormulaArray: Boolean(column.totalsRowFormulaArray),
     };
   });
@@ -1328,13 +1329,16 @@ function excelSerialFromDate(value, dateSystem, address) {
   return milliseconds >= Date.UTC(1900, 2, 1) ? serial + 1 : serial;
 }
 
-function wireCell(address, cell, dateSystem) {
+function wireCell(address, cell, dateSystem, formulaSyntaxSlot) {
   const coordinates = cellCoordinates(address);
   const dateValue = cell.value instanceof Date;
+  const modelFormula = cell.formula ? String(cell.formula) : "";
   const target = {
     row: coordinates.row,
     column: coordinates.column,
-    formula: cell.formula ? String(cell.formula) : "",
+    formula: formulaSyntaxSlot && modelFormula === formulaSyntaxSlot.publicFormula
+      ? formulaSyntaxSlot.sourceFormula
+      : xlsxFormulaFromModel(modelFormula),
     formulaMetadata: cellFormulaMetadata(address, cell),
     numberFormatCode: cellNumberFormatCode(cell, address) || (dateValue ? "yyyy-mm-dd hh:mm:ss" : ""),
     style: wireCellStyle(cell.style, address),
@@ -1377,6 +1381,7 @@ function workbookEnvelope(workbook) {
     const cells = (() => {
       const dynamicSlots = state?.dynamicArraySlotsBySheet?.get(sheet.id) || new Map();
       const sourceBoundFormulaSlots = state?.sourceBoundFormulaSlotsBySheet?.get(sheet.id) || new Map();
+      const formulaSyntaxSlots = state?.formulaSyntaxSlotsBySheet?.get(sheet.id) || new Map();
       const entries = sheet.store?.entries?.() || [];
       const byAddress = new Map(entries);
       const recalculatedDynamicAddresses = new Set();
@@ -1397,7 +1402,7 @@ function workbookEnvelope(workbook) {
       }
       const output = entries
         .filter(([, cell]) => cell.value != null || cell.formula || cell.formulaType || Object.keys(cell.style || {}).some((key) => cell.style[key] != null))
-        .map(([address, cell]) => sourceBoundFormulaSlots.get(address)?.wire || (dynamicSlots.has(address) && !recalculatedDynamicAddresses.has(address) ? dynamicSlots.get(address).wire : wireCell(address, cell, workbook.dateSystem)));
+        .map(([address, cell]) => sourceBoundFormulaSlots.get(address)?.wire || (dynamicSlots.has(address) && !recalculatedDynamicAddresses.has(address) ? dynamicSlots.get(address).wire : wireCell(address, cell, workbook.dateSystem, formulaSyntaxSlots.get(address))));
       wireWorksheetDataTables(sheet, state?.dataTablesBySheet?.get(sheet.id), output);
       validateFormulaTopology(output, sheet.name);
       return output;
@@ -1490,6 +1495,7 @@ function workbookFromEnvelope(envelope) {
   const dataTablesBySheet = new Map();
   const dynamicArraySlotsBySheet = new Map();
   const sourceBoundFormulaSlotsBySheet = new Map();
+  const formulaSyntaxSlotsBySheet = new Map();
   const worksheetSlots = new Map();
   const partialSharedFormulaRangesBySheetName = partialSharedFormulaRanges(envelope.diagnostics);
   const assets = new Map((envelope.assets || []).map((asset) => [asset.id, asset]));
@@ -1543,12 +1549,19 @@ function workbookFromEnvelope(envelope) {
     }
     const dynamicArraySlots = new Map();
     const sourceBoundFormulaSlots = new Map();
+    const formulaSyntaxSlots = new Map();
     const partialSharedFormulaRanges = partialSharedFormulaRangesBySheetName.get(sourceSheet.name) || [];
     const dataTableSlots = [];
     for (const sourceCell of sourceSheet.cells) {
       const address = cellAddress(sourceCell.row, sourceCell.column);
       const cell = sheet.store.get(address);
-      cell.formula = sourceCell.formula || null;
+      cell.formula = sourceCell.formula ? modelFormulaFromXlsx(sourceCell.formula) : null;
+      if (sourceCell.formula) {
+        formulaSyntaxSlots.set(address, {
+          sourceFormula: String(sourceCell.formula),
+          publicFormula: String(cell.formula),
+        });
+      }
       if (sourceCell.formulaMetadata?.kind === CellFormulaKind.SHARED) {
         cell.formulaType = "shared";
         cell.sharedIndex = sourceCell.formulaMetadata.sharedIndex;
@@ -1588,6 +1601,7 @@ function workbookFromEnvelope(envelope) {
       throw new OfficeKitCodecError(`OfficeKit reported partial shared formulas for ${sourceSheet.name} but returned no matching cells.`, [], { code: "invalid_office_kit_diagnostic" });
     }
     sourceBoundFormulaSlotsBySheet.set(sheet.id, sourceBoundFormulaSlots);
+    formulaSyntaxSlotsBySheet.set(sheet.id, formulaSyntaxSlots);
     dataTablesBySheet.set(sheet.id, { slots: dataTableSlots });
     const slots = [];
     for (const sourceTable of sourceSheet.tables || []) {
@@ -1605,7 +1619,11 @@ function workbookFromEnvelope(envelope) {
         showBandedColumns: sourceTable.showColumnStripes,
         style: sourceTable.styleName,
         columnNames: [...sourceTable.columnNames],
-        columnDefinitions: sourceTable.columns?.length ? sourceTable.columns.map((column) => ({ ...column })) : undefined,
+        columnDefinitions: sourceTable.columns?.length ? sourceTable.columns.map((column) => ({
+          ...column,
+          calculatedColumnFormula: modelFormulaFromXlsx(column.calculatedColumnFormula),
+          totalsRowFormula: modelFormulaFromXlsx(column.totalsRowFormula),
+        })) : undefined,
         filters: sourceTable.filters?.map(publicTableFilter),
         sortState: publicTableSortState(sourceTable.sortState),
         queryTable: publicTableQuery(sourceTable.queryTable),
@@ -1672,6 +1690,7 @@ function workbookFromEnvelope(envelope) {
       worksheetSlots,
       dynamicArraySlotsBySheet,
       sourceBoundFormulaSlotsBySheet,
+      formulaSyntaxSlotsBySheet,
       tablesBySheet,
       imagesBySheet,
       chartsBySheet,
