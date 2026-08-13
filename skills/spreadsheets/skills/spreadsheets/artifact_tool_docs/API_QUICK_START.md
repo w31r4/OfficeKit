@@ -735,7 +735,7 @@ Use `workbook.help(...)` primarily for obscure/advanced surfaces (for example de
 - `workbook.help("shape.add", { include: "examples,notes" }).ndjson`
 - `workbook.help("fx.RATE", { include: "index,examples,notes" }).ndjson`
 - `workbook.help("cash flow return rate", { search: "MIRR|IRR|XIRR|NPV|XNPV", include: "index,examples,notes", maxChars: 4000 }).ndjson`
-- `workbook.help("statistical relationship, LINEST diagnostics, and linear forecast", { search: "STDEV|VAR|CORREL|COVARIANCE|SLOPE|INTERCEPT|RSQ|STEYX|LINEST|FORECAST.LINEAR", include: "index,examples,notes", maxChars: 7000 }).ndjson`
+- `workbook.help("statistical relationship, LINEST diagnostics, and linear forecast", { search: "STDEV|VAR|CORREL|COVARIANCE|SLOPE|INTERCEPT|RSQ|STEYX|LINEST|TREND|FORECAST.LINEAR", include: "index,examples,notes", maxChars: 7600 }).ndjson`
 - `workbook.help("*", { search: "fill|borders|autofit", include: "index,examples,notes", maxChars: 6000 }).ndjson`
 
 ### Bounded statistical formulas
@@ -744,7 +744,8 @@ Use `STDEV.S` / `VAR.S` for samples, `STDEV.P` / `VAR.P` for complete
 populations, and `CORREL` / `COVARIANCE.S` / `COVARIANCE.P` for aligned
 numeric series. Use `SLOPE`, `INTERCEPT`, `RSQ`, and `STEYX` to inspect one
 bounded least-squares fit, `LINEST` for its dynamic-array diagnostics, then
-`FORECAST.LINEAR` for one scalar point estimate.
+`FORECAST.LINEAR` for one scalar point estimate or `TREND` for a row/column
+sequence of linear predictions.
 The evaluator keeps reference semantics explicit: text,
 logical, blank, and error cells are ignored in a referenced one-series
 calculation, while direct logical and numeric-text arguments are counted.
@@ -771,6 +772,15 @@ must be rectangular and have the same shape. Multivariable/polynomial inputs,
 array constants, seasonal models, and confidence-interval forecasting remain
 outside this profile.
 
+`TREND(known_y, [known_x], [new_x], [const])` reuses the same bounded
+single-variable fit. `known_y` and an explicit `known_x` must be equal-shaped
+row or column vectors; `new_x` must also be a row or column vector, and the
+result preserves its direction. Omitting `new_x` predicts at the known-x
+positions; omitting both x arguments uses `1..n`. `const=FALSE` forces the fit
+through zero, while a constant known-x vector is removed. Multivariable or
+arbitrary two-dimensional inputs, array constants, and nonnumeric new-x cells
+fail closed instead of being silently flattened or coerced.
+
 ```js
 sheet.getRange("A2:B6").values = [[1, 2], [2, 1], [3, 4], [4, 3], [5, 5]];
 sheet.getRange("D2:D10").formulas = [
@@ -785,6 +795,8 @@ sheet.getRange("D2:D10").formulas = [
   ["=FORECAST.LINEAR(6,B2:B6,A2:A6)"],
 ];
 sheet.getRange("F2").formulas = [["=LINEST(B2:B6,A2:A6,TRUE,TRUE)"]];
+sheet.getRange("H2:H4").values = [[6], [7], [8]];
+sheet.getRange("I2").formulas = [["=TREND(B2:B6,A2:A6,H2:H4)"]];
 workbook.recalculate();
 ```
 

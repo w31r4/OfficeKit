@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 511);
+assert.equal(HELP_CATALOG.length, 514);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -182,6 +182,10 @@ assert.match(HELP_CATALOG.find((item) => item.name === "fx.RSQ")?.summary || "",
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.STEYX")?.summary || "", /standard error.*linear regression.*fewer than three.*#DIV\/0!.*#N\/A/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.LINEST")?.summary || "", /single-variable least-squares dynamic array.*1x2.*5x2.*stats.*constant known-x is removed.*mismatched shapes.*#N\/A.*multivariable.*unsupported/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.LINEST")?.schema?.returns?.value?.type, "unknown[][]");
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.TREND")?.summary || "", /single-variable linear prediction dynamic array.*row or column shape.*new-x.*const.*zero intercept.*constant known-x.*multivariable.*fail closed/i);
+assert.equal(HELP_CATALOG.find((item) => item.name === "fx.TREND")?.schema?.returns?.value?.type, "unknown[][]");
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.TRUE")?.summary || "", /logical value TRUE.*no arguments.*#VALUE!/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.FALSE")?.summary || "", /logical value FALSE.*no arguments.*#VALUE!/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.FORECAST.LINEAR")?.summary || "", /Predict one y value.*scalar x.*stable linear fit.*#VALUE!.*#N\/A.*#DIV\/0!/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.ROUNDUP"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "slide.compose"));
@@ -476,7 +480,7 @@ assert.ok(HELP_CATALOG.find((item) => item.name === "PdfFile.importPdf")?.schema
 assert.ok(HELP_CATALOG.find((item) => item.name === "renderArtifact")?.returns?.includes("FileBlob"));
 assert.ok(HELP_CATALOG.find((item) => item.name === "visualQaArtifact")?.examples?.some((example) => example.includes("pixelDiff")));
 const formulaCatalog = HELP_CATALOG.filter((item) => item.name.startsWith("fx."));
-assert.equal(formulaCatalog.length, 190);
+assert.equal(formulaCatalog.length, 193);
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.formula?.required));
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.arguments?.type === "unknown[]"));
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.AND")?.schema?.returns?.value?.type, "boolean");
@@ -715,7 +719,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /absolute uri.*slideId.*relative action/);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /customShow.*survives the bounded slide clone.*without adding the clone to show membership/i);
 const workbookCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "workbook");
-assert.equal(workbookCatalog.length, 285);
+assert.equal(workbookCatalog.length, 288);
 assert.ok(workbookCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "workbook.trace")?.schema?.parameters?.reference?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "Workbook.create")?.schema?.parameters?.dateSystem?.type, "string");

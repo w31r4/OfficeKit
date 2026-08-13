@@ -3745,6 +3745,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.EXPAND` | formula | Expand an array to requested row and column dimensions with optional padding. |
 | `fx.FACT` | formula | Return the factorial of a non-negative integer through the finite 170! boundary. |
 | `fx.FACTDOUBLE` | formula | Return the double factorial of a non-negative integer through the bounded finite range. |
+| `fx.FALSE` | formula | Return the logical value FALSE with no arguments; supplied arguments fail as #VALUE!. |
 | `fx.FILTER` | formula | Filter rows from a source range with a boolean or comparison include array and spill the matching rows. |
 | `fx.FIND` | formula | Return the 1-based position of a case-sensitive literal text sequence. |
 | `fx.FLOOR` | formula | Round a number down to the nearest significance. |
@@ -3862,7 +3863,9 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.TOCOL` | formula | Flatten an array into one spilled column, optionally ignoring blanks or errors and scanning by column. |
 | `fx.TOROW` | formula | Flatten an array into one spilled row, optionally ignoring blanks or errors and scanning by column. |
 | `fx.TRANSPOSE` | formula | Transpose a source range into a spilled dynamic array with spillRange/spillValues inspect metadata. |
+| `fx.TREND` | formula | Return a bounded single-variable linear prediction dynamic array with the same row or column shape as new-x. Known-x and new-x may be omitted, const may force a zero intercept, and a constant known-x column is removed; multivariable or two-dimensional inputs, nonnumeric new-x positions, and mismatched known source shapes fail closed. |
 | `fx.TRIM` | formula | Trim leading/trailing whitespace and collapse internal whitespace. |
+| `fx.TRUE` | formula | Return the logical value TRUE with no arguments; supplied arguments fail as #VALUE!. |
 | `fx.TRUNC` | formula | Truncate a finite number toward zero at an optional decimal position without rounding. |
 | `fx.TYPE` | formula | Return Excel type codes 1 for numbers or blank, 2 for text, 4 for logical, 16 for errors, or 64 for arrays and multi-cell references; bounded spill/reference detection is explicit and invalid arity fails closed. |
 | `fx.UNICHAR` | formula | Return one Unicode scalar character for an integer from 1 through 1,114,111; surrogate values, invalid ranges, errors, and multi-cell inputs fail closed. |
@@ -4864,6 +4867,23 @@ Return the double factorial of a non-negative integer through the bounded finite
 **Schema returns:**
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.FALSE`
+
+Return the logical value FALSE with no arguments; supplied arguments fail as #VALUE!.
+
+**Examples:**
+
+- =FALSE()
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =FALSE(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.FILTER`
 
@@ -6916,6 +6936,23 @@ Transpose a source range into a spilled dynamic array with spillRange/spillValue
 
 - `value` (unknown[][]) — Spilled two-dimensional formula result.
 
+#### `fx.TREND`
+
+Return a bounded single-variable linear prediction dynamic array with the same row or column shape as new-x. Known-x and new-x may be omitted, const may force a zero intercept, and a constant known-x column is removed; multivariable or two-dimensional inputs, nonnumeric new-x positions, and mismatched known source shapes fail closed.
+
+**Examples:**
+
+- =TREND(B2:B10,A2:A10,D2:D4,TRUE)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =TREND(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (unknown[][]) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.TRIM`
 
 Trim leading/trailing whitespace and collapse internal whitespace.
@@ -6932,6 +6969,23 @@ Trim leading/trailing whitespace and collapse internal whitespace.
 **Schema returns:**
 
 - `value` (string) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.TRUE`
+
+Return the logical value TRUE with no arguments; supplied arguments fail as #VALUE!.
+
+**Examples:**
+
+- =TRUE()
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =TRUE(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.TRUNC`
 

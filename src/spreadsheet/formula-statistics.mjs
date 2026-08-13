@@ -10,6 +10,7 @@ const PAIRWISE_FUNCTIONS = new Set(["CORREL", "COVARIANCE.S", "COVARIANCE.P"]);
 const REGRESSION_FUNCTIONS = new Set(["SLOPE", "INTERCEPT", "RSQ", "STEYX"]);
 const FORECAST_FUNCTIONS = new Set(["FORECAST.LINEAR"]);
 const REGRESSION_ARRAY_FUNCTIONS = new Set(["LINEST"]);
+const FORECAST_ARRAY_FUNCTIONS = new Set(["TREND"]);
 
 export const STATISTICS_SPILL_RANGE_FUNCTIONS = Object.freeze([
   ...SINGLE_SERIES_FUNCTIONS,
@@ -17,6 +18,7 @@ export const STATISTICS_SPILL_RANGE_FUNCTIONS = Object.freeze([
   ...REGRESSION_FUNCTIONS,
   ...FORECAST_FUNCTIONS,
   ...REGRESSION_ARRAY_FUNCTIONS,
+  ...FORECAST_ARRAY_FUNCTIONS,
 ]);
 
 function directNumber(value, errorCode, numberText) {
@@ -231,6 +233,7 @@ function regressionSummary(pairs, { forceOrigin = false, allowConstantX = false 
     slope,
     slopeError,
     standardError,
+    predict,
   };
 }
 
@@ -245,6 +248,27 @@ function logicalArgument(argument, fallback, helpers) {
   if (typeof value === "string" && /^TRUE$/i.test(value.trim())) return { value: true };
   if (typeof value === "string" && /^FALSE$/i.test(value.trim())) return { value: false };
   return { error: "#VALUE!" };
+}
+
+function singleVariableKnownSources(args, helpers) {
+  const knownY = helpers.argument(0);
+  if (!knownY.rectangular || (knownY.rows > 1 && knownY.columns > 1)) return { error: "#VALUE!" };
+  if (args.length < 2 || String(args[1] ?? "").trim() === "") {
+    return {
+      knownY,
+      knownX: {
+        source: "reference",
+        values: Array.from({ length: knownY.values.length }, (_, index) => index + 1),
+        rows: knownY.rows,
+        columns: knownY.columns,
+        rectangular: knownY.rectangular,
+      },
+    };
+  }
+  const knownX = helpers.argument(1);
+  if (knownX.rectangular && knownX.rows > 1 && knownX.columns > 1) return { error: "#VALUE!" };
+  if (!knownX.rectangular || knownY.rows !== knownX.rows || knownY.columns !== knownX.columns) return { error: "#N/A" };
+  return { knownY, knownX };
 }
 
 export function evaluateStatisticalFormula(fnName, args, helpers) {
@@ -284,22 +308,9 @@ export function evaluateStatisticalFormula(fnName, args, helpers) {
 
   if (REGRESSION_ARRAY_FUNCTIONS.has(fnName)) {
     if (args.length < 1 || args.length > 4 || String(args[0] ?? "").trim() === "") return "#VALUE!";
-    const knownY = helpers.argument(0);
-    if (!knownY.rectangular || (knownY.rows > 1 && knownY.columns > 1)) return "#VALUE!";
-    let knownX;
-    if (args.length < 2 || String(args[1] ?? "").trim() === "") {
-      knownX = {
-        source: "reference",
-        values: Array.from({ length: knownY.values.length }, (_, index) => index + 1),
-        rows: knownY.rows,
-        columns: knownY.columns,
-        rectangular: knownY.rectangular,
-      };
-    } else {
-      knownX = helpers.argument(1);
-      if (knownX.rectangular && knownX.rows > 1 && knownX.columns > 1) return "#VALUE!";
-      if (!knownY.rectangular || !knownX.rectangular || knownY.rows !== knownX.rows || knownY.columns !== knownX.columns) return "#N/A";
-    }
+    const sources = singleVariableKnownSources(args, helpers);
+    if (sources.error) return sources.error;
+    const { knownY, knownX } = sources;
     const constFlag = logicalArgument(args.length >= 3 && String(args[2] ?? "").trim() !== "" ? helpers.argument(2) : undefined, true, helpers);
     if (constFlag.error) return constFlag.error;
     const statsFlag = logicalArgument(args.length >= 4 && String(args[3] ?? "").trim() !== "" ? helpers.argument(3) : undefined, false, helpers);
@@ -317,6 +328,41 @@ export function evaluateStatisticalFormula(fnName, args, helpers) {
       [summary.fStatistic, summary.degreesOfFreedom],
       [summary.regressionSum, summary.residual],
     ];
+  }
+
+  if (FORECAST_ARRAY_FUNCTIONS.has(fnName)) {
+    if (args.length < 1 || args.length > 4 || String(args[0] ?? "").trim() === "") return "#VALUE!";
+    const sources = singleVariableKnownSources(args, helpers);
+    if (sources.error) return sources.error;
+    const { knownY, knownX } = sources;
+    const newX = args.length < 3 || String(args[2] ?? "").trim() === ""
+      ? knownX
+      : helpers.argument(2);
+    if (!newX.rectangular || (newX.rows > 1 && newX.columns > 1)) return "#VALUE!";
+    const constFlag = logicalArgument(args.length >= 4 && String(args[3] ?? "").trim() !== "" ? helpers.argument(3) : undefined, true, helpers);
+    if (constFlag.error) return constFlag.error;
+    const collected = collectPairs(knownY, knownX, helpers);
+    if (collected.error) return collected.error;
+    if (collected.pairs.length < (constFlag.value ? 2 : 1)) return "#VALUE!";
+    const summary = regressionSummary(collected.pairs, { forceOrigin: !constFlag.value, allowConstantX: true });
+    if (summary.error) return summary.error;
+
+    const predicted = [];
+    for (const value of newX.values) {
+      const error = helpers.errorCode(value);
+      if (error) return error;
+      const numeric = newX.source === "reference"
+        ? helpers.referenceNumber(value)
+        : directNumber(value, helpers.errorCode, helpers.numberText);
+      if (numeric?.error) return numeric.error;
+      const predictor = newX.source === "reference" ? numeric : numeric.value;
+      if (helpers.errorCode(predictor)) return predictor;
+      if (predictor === undefined) return "#VALUE!";
+      const result = summary.predict(predictor);
+      if (!Number.isFinite(result)) return "#NUM!";
+      predicted.push(result);
+    }
+    return Array.from({ length: newX.rows }, (_, row) => predicted.slice(row * newX.columns, (row + 1) * newX.columns));
   }
 
   if (REGRESSION_FUNCTIONS.has(fnName) || FORECAST_FUNCTIONS.has(fnName)) {

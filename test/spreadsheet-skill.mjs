@@ -829,6 +829,7 @@ try {
   assert.match(statisticalAnalysisResult.inspection.ndjson, /COVARIANCE\.S/);
   assert.match(statisticalAnalysisResult.inspection.ndjson, /FORECAST\.LINEAR/);
   assert.match(statisticalAnalysisResult.inspection.ndjson, /LINEST/);
+  assert.match(statisticalAnalysisResult.inspection.ndjson, /TREND/);
   const statisticalAnalysisWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(statisticalAnalysisPath));
   statisticalAnalysisWorkbook.recalculate();
   const statisticalAnalysis = statisticalAnalysisWorkbook.worksheets.getItem("Analysis");
@@ -842,7 +843,10 @@ try {
   assert.ok(Math.abs(statisticalAnalysis.getRange("E16").values[0][0] - 1.96) < 1e-9);
   assert.ok(Math.abs(statisticalAnalysis.getRange("F16").values[0][0] - 1.4) < 1e-9);
   assert.ok(Math.abs(statisticalAnalysis.getRange("E18").values[0][0] - statisticalAnalysis.getRange("B18").values[0][0]) < 1e-9);
-  assert.deepEqual(statisticalAnalysisWorkbook.worksheets.getItem("Checks").getRange("E4:E15").values, Array.from({ length: 12 }, () => ["OK"]));
+  assert.equal(statisticalAnalysis.getRange("I16").formulas[0][0], "=TREND('Data'!$C$4:$C$9,'Data'!$B$4:$B$9,H16:H18)");
+  assert.equal(statisticalAnalysis.store.get("I16").dynamicArrayRef, "I16:I18");
+  assert.deepEqual(statisticalAnalysis.getRange("I16:I18").values, [[138.6], [158.2], [177.8]]);
+  assert.deepEqual(statisticalAnalysisWorkbook.worksheets.getItem("Checks").getRange("E4:E18").values, Array.from({ length: 15 }, () => ["OK"]));
   const statisticalAnalysisQa = await verifyWorkbookFile(statisticalAnalysisPath, {
     outputDir: path.join(outputDir, "officekit-statistical-analysis-native-qa"),
     sheetName: "Analysis",

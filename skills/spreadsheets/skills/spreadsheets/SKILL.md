@@ -16,14 +16,18 @@ or layout.
 
 ## Run the workbook workflow in one task
 
-For a multi-step workbook task, use `officekit repl` and the portable guidance
-in `../office-kit/references/repl.md`. Import the public API with
-`await ctx.import("office-kit")`, keep the workbook and reusable calculations
-under `ctx.state`, and use inspect → edit → recalculate → reimport/render →
-verify before `ctx.publish`. Register render or inspect files with
-`ctx.recordEvidence`; return the final absolute path, SHA-256, and
-`visualReview` status. A currently open workbook belongs to Excel Live Control,
-not this file workflow.
+For a multi-step workbook task, use `officekit tasks` to discover prior work and
+the portable guidance in `../office-kit/references/repl.md`. Create a task with
+`officekit repl --new <goal>` or open its current revision with
+`officekit repl <task-id>`. Stage source workbooks through `ctx.input`, import
+the public API with `await ctx.import("office-kit")`, and keep live workbook
+objects only in process-local `ctx.state`. Use inspect → edit → recalculate →
+reimport/render → `reviewArtifact` → `ctx.commit` → `ctx.publish`; only the
+current reviewed commit may be delivered. Register additional render or inspect
+files with `ctx.recordEvidence`, and return the final absolute path, SHA-256,
+and `visualReview` status. A new session reconstructs the workbook from the
+verified task revision rather than a JavaScript heap. A currently open workbook
+belongs to Excel Live Control, not this file workflow.
 Use this skill when you need to work with spreadsheets (.xlsx, .csv, .tsv) to do any of the following:
 - Create or modify a new workbook/sheet with proper formulas, cell/number formatting, and structured layout
 - Read or analyze tabular data (filter, aggregate, pivot, compute metrics) directly in a sheet
@@ -71,7 +75,7 @@ Other documents:
 - `examples/officekit-financial-returns-workflow.mjs`: Run or adapt this three-sheet `Inputs` / `Returns` / `Checks` example for visible finance/reinvestment assumptions, finance color conventions, NPV/XNPV/IRR/XIRR/MIRR/PMT outputs, guarded return checks, SVG review, and canonical OfficeKit roundtrip.
 - `examples/officekit-loan-amortization-workflow.mjs`: Run or adapt this three-sheet `Inputs` / `Amortization` / `Checks` example for a visible loan schedule using PMT/IPMT/PPMT plus RATE/PV/FV/NPER inverse audits and CUMIPMT/CUMPRINC schedule reconciliations, payment-timing-aware first-period checks, finance color conventions, SVG review, and canonical OfficeKit roundtrip.
 - `examples/officekit-asset-depreciation-workflow.mjs`: Run or adapt this three-sheet `Inputs` / `Depreciation` / `Checks` example for visible fixed-asset assumptions, SLN/DB/DDB schedules, salvage-floor and depreciable-basis checks, finance color conventions, SVG review, and canonical OfficeKit roundtrip.
-- `examples/officekit-statistical-analysis-workflow.mjs`: Run or adapt this `Data` / `Analysis` / `Checks` example for auditable sample/population variance and standard deviation, Pearson correlation, sample/population covariance, bounded least-squares slope/intercept/R-squared/standard-error diagnostics, the single-variable `LINEST` 5-by-2 statistics matrix, one visible-assumption linear forecast, source-linked formulas, independent reconciliations, SVG review, and canonical OfficeKit roundtrip.
+- `examples/officekit-statistical-analysis-workflow.mjs`: Run or adapt this `Data` / `Analysis` / `Checks` example for auditable sample/population variance and standard deviation, Pearson correlation, sample/population covariance, bounded least-squares slope/intercept/R-squared/standard-error diagnostics, the single-variable `LINEST` 5-by-2 statistics matrix, a visible-assumption `FORECAST.LINEAR` point estimate plus a three-point `TREND` forecast sequence, source-linked formulas, independent reconciliations, SVG review, and canonical OfficeKit roundtrip.
 - `examples/officekit-scatter-chart-workflow.mjs`: Run or adapt this canonical example for formula-backed numeric X/Y scatter series, dual value axes, marker styling, SVG verification, and fixed-topology OfficeKit edits.
 - `examples/officekit-bubble-chart-workflow.mjs`: Run or adapt this canonical example for one formula-backed numeric X/Y/Size bubble series, dual value axes, proportional SVG/native bubbles, and fixed-topology OfficeKit edits.
 - `examples/officekit-threaded-comment-reply-workflow.mjs`: Run or adapt this imported-workbook example when an existing canonical Excel threaded-comment root needs one or more direct replies plus an explicit resolve/reopen transition; it preserves existing IDs, people, dates, text, and direct-reply order, performs a second import and all-sheet SVG review, and writes a byte-bound audit. Nested/branched reply graphs remain source-bound and fail closed.

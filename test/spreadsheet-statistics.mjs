@@ -160,6 +160,7 @@ lineSheet.getRange("J1").formulas = [["=LINEST(A1:A7,B1:B7)"]];
 lineSheet.getRange("M1").formulas = [["=LINEST(A1:A7,,TRUE,FALSE)"]];
 lineSheet.getRange("P1").formulas = [["=LINEST(A1:A3,C1:C3,TRUE,TRUE)"]];
 lineSheet.getRange("S1").formulas = [["=LINEST(A1:A7,B1:B7,1,1)"]];
+lineSheet.getRange("S7:T7").formulas = [["=TRUE()", "=FALSE()"]];
 lineSheet.getRange("V1").formulas = [["=LINEST(A1:A7,B1:B7,TRUE,FALSE)"]];
 lineSheet.getRange("Y1:Y5").formulas = [
   ["=LINEST(A1:A7,B1:B6)"],
@@ -202,6 +203,7 @@ assertClose(lineSheet.getRange("J1:K1").values[0][1], 19 / 6);
 assertClose(lineSheet.getRange("V1:W1").values[0][0], 11 / 36);
 assertClose(lineSheet.getRange("V1:W1").values[0][1], 19 / 6);
 assert.deepEqual(lineSheet.getRange("S1:T5").values, lineStats);
+assert.deepEqual(lineSheet.getRange("S7:T7").values, [[true, false]]);
 
 const defaultX = lineSheet.getRange("M1:N1").values[0];
 assertClose(defaultX[0], 4 / 7);
@@ -222,6 +224,97 @@ assert.deepEqual(lineSheet.store.get("Y5").spillError, { type: "blocked", addres
 assert.equal(lineSheet.getRange("Y10").values[0][0], "#VALUE!");
 lineSheet.getRange("Y5:Z5").clear();
 
+const trendSheet = workbook.worksheets.add("TREND forecast");
+trendSheet.getRange("A1:B5").values = [[1, 3], [2, 5], [3, 7], [4, 9], [5, 11]];
+trendSheet.getRange("C1:C3").values = [[6], [7], [8]];
+trendSheet.getRange("D1").formulas = [["=TREND(B1:B5,A1:A5,C1:C3)"]];
+trendSheet.getRange("F1:H1").values = [[6, 7, 8]];
+trendSheet.getRange("F2").formulas = [["=TREND(B1:B5,A1:A5,F1:H1)"]];
+trendSheet.getRange("J1").formulas = [["=TREND(B1:B5)"]];
+trendSheet.getRange("L1").formulas = [["=TREND(B1:B5,A1:A5,,FALSE)"]];
+trendSheet.getRange("N1:O3").values = [[1, 2], [1, 4], [1, 6]];
+trendSheet.getRange("P1:P2").values = [[2], [3]];
+trendSheet.getRange("Q1").formulas = [["=TREND(O1:O3,N1:N3,P1:P2)"]];
+trendSheet.getRange("R1:R2").values = [[9], [10]];
+trendSheet.getRange("S1").formulas = [["=TREND(D1#,C1:C3,R1:R2)"]];
+trendSheet.getRange("U1:U7").formulas = [
+  ["=TREND()"],
+  ["=TREND(B1:B5,A1:A4,C1:C3)"],
+  ["=TREND(A1:B2,A1:B2,C1:C3)"],
+  ["=TREND(B1:B5,A1:A5,A1:B2)"],
+  ["=TREND(B1:B5,A1:A5,C1:C3,\"yes\")"],
+  ["=TREND(B1:B5,A1:A5,V1:V2)"],
+  ["=TREND(B1:B5,A1:A5,C1:C3,TRUE,FALSE)"],
+];
+trendSheet.getRange("V1:V2").values = [[6], ["not numeric"]];
+trendSheet.getRange("X1").formulas = [["=TREND(B1:B5,A1:A5,C1:C3)"]];
+trendSheet.getRange("X2").values = [["occupied"]];
+workbook.recalculate();
+
+assert.deepEqual(trendSheet.getRange("D1:D3").values, [[13], [15], [17]]);
+assert.deepEqual(trendSheet.getRange("F2:H2").values, [[13, 15, 17]]);
+assert.deepEqual(trendSheet.getRange("J1:J5").values, [[3], [5], [7], [9], [11]]);
+const forcedTrend = trendSheet.getRange("L1:L5").values.flat();
+for (let index = 0; index < forcedTrend.length; index += 1) assertClose(forcedTrend[index], (25 / 11) * (index + 1));
+assert.deepEqual(trendSheet.getRange("Q1:Q2").values, [[4], [4]]);
+assert.deepEqual(trendSheet.getRange("S1:S2").values, [[19], [21]]);
+assert.deepEqual(trendSheet.getRange("U1:U7").values.flat(), ["#VALUE!", "#N/A", "#VALUE!", "#VALUE!", "#VALUE!", "#VALUE!", "#VALUE!"]);
+assert.equal(trendSheet.getRange("X1").values[0][0], "#SPILL!");
+assert.deepEqual(trendSheet.store.get("X1").spillError, { type: "blocked", addresses: ["X2"] });
+assert.equal(trendSheet.store.get("D1").spillRange, "D1:D3");
+assert.equal(trendSheet.store.get("F2").spillRange, "F2:H2");
+assert.equal(trendSheet.store.get("J1").spillRange, "J1:J5");
+trendSheet.getRange("X1:X3").clear();
+
+const legacyArraySheet = workbook.worksheets.add("Legacy array interop");
+legacyArraySheet.getRange("A1:B5").values = [[1, 3], [2, 5], [3, 7], [4, 9], [5, 11]];
+legacyArraySheet.getRange("C1:C3").values = [[6], [7], [8]];
+legacyArraySheet.getRange("D1").formulas = [["=TREND(B1:B5,A1:A5,C1:C3)"]];
+legacyArraySheet.store.get("D1").formulaType = "array";
+legacyArraySheet.store.get("D1").arrayRef = "D1:D3";
+legacyArraySheet.getRange("D1:D3").values = [[13], [15], [17]];
+legacyArraySheet.store.get("D1").formula = "=TREND(B1:B5,A1:A5,C1:C3)";
+legacyArraySheet.store.get("D1").formulaType = "array";
+legacyArraySheet.store.get("D1").arrayRef = "D1:D3";
+legacyArraySheet.getRange("F1").formulas = [["=LINEST(B1:B5,A1:A5,TRUE(),TRUE())"]];
+legacyArraySheet.store.get("F1").formulaType = "array";
+legacyArraySheet.store.get("F1").arrayRef = "F1:G5";
+legacyArraySheet.getRange("F1:G5").values = Array.from({ length: 5 }, () => [0, 0]);
+legacyArraySheet.store.get("F1").formula = "=LINEST(B1:B5,A1:A5,TRUE(),TRUE())";
+legacyArraySheet.store.get("F1").formulaType = "array";
+legacyArraySheet.store.get("F1").arrayRef = "F1:G5";
+workbook.recalculate();
+assert.deepEqual(legacyArraySheet.getRange("D1:D3").values, [[13], [15], [17]]);
+assert.equal(legacyArraySheet.store.get("D1").spillRange, "D1:D3");
+assert.deepEqual(legacyArraySheet.getRange("F1:G1").values, [[2, 1]]);
+assert.equal(legacyArraySheet.store.get("F1").spillRange, "F1:G5");
+
+const opaqueLegacyWorkbook = Workbook.create();
+const opaqueLegacySheet = opaqueLegacyWorkbook.worksheets.add("Opaque");
+opaqueLegacySheet.getRange("A1:A3").values = [[1], [2], [3]];
+opaqueLegacySheet.store.get("A1").formula = "=SEQUENCE(3)";
+opaqueLegacySheet.store.get("A1").formulaType = "array";
+opaqueLegacySheet.store.get("A1").arrayRef = "A1:A3";
+opaqueLegacyWorkbook.recalculate();
+assert.equal(opaqueLegacySheet.getRange("A1").values[0][0], "#SPILL!");
+assert.equal(opaqueLegacySheet.getRange("A2").values[0][0], 2);
+assert.equal(opaqueLegacySheet.store.get("A2").spillParent, undefined);
+
+const mismatchedLegacyWorkbook = Workbook.create();
+const mismatchedLegacySheet = mismatchedLegacyWorkbook.worksheets.add("Mismatched");
+mismatchedLegacySheet.getRange("A1:B5").values = [[1, 3], [2, 5], [3, 7], [4, 9], [5, 11]];
+mismatchedLegacySheet.getRange("C1:C3").values = [[6], [7], [8]];
+mismatchedLegacySheet.getRange("D1:D2").values = [[13], [15]];
+Object.assign(mismatchedLegacySheet.store.get("D1"), {
+  formula: "=TREND(B1:B5,A1:A5,C1:C3)",
+  formulaType: "array",
+  arrayRef: "D1:D2",
+});
+mismatchedLegacyWorkbook.recalculate();
+assert.equal(mismatchedLegacySheet.getRange("D1").values[0][0], "#SPILL!");
+assert.equal(mismatchedLegacySheet.getRange("D2").values[0][0], 15);
+assert.equal(mismatchedLegacySheet.store.get("D2").spillParent, undefined);
+
 const xlsx = await SpreadsheetFile.exportXlsx(workbook);
 const imported = await SpreadsheetFile.importXlsx(xlsx);
 assert.deepEqual(imported.worksheets.getItem("Statistics").getRange("H1:H44").formulas, sheet.getRange("H1:H44").formulas);
@@ -235,7 +328,24 @@ assert.equal(importedLineSheet.store.get("D1").dynamicArrayRef, "D1:E5");
 assert.equal(importedLineSheet.store.get("D1").formula, "=LINEST(A1:A7,B1:B7,TRUE,TRUE)");
 assert.deepEqual(importedLineSheet.getRange("G1:H5").values, forcedOrigin);
 assert.deepEqual(importedLineSheet.getRange("P1:Q5").values, removedConstantX);
+const importedTrendSheet = imported.worksheets.getItem("TREND forecast");
+assert.equal(importedTrendSheet.getRange("D1").formulas[0][0], "=TREND(B1:B5,A1:A5,C1:C3)");
+assert.deepEqual(importedTrendSheet.getRange("D1:D3").values, [[13], [15], [17]]);
+assert.equal(importedTrendSheet.store.get("D1").formulaType, "dynamicArray");
+assert.equal(importedTrendSheet.store.get("D1").dynamicArrayRef, "D1:D3");
+assert.equal(importedTrendSheet.store.get("F2").dynamicArrayRef, "F2:H2");
+assert.deepEqual(importedTrendSheet.getRange("S1:S2").values, [[19], [21]]);
+const importedLegacyArraySheet = imported.worksheets.getItem("Legacy array interop");
+assert.equal(importedLegacyArraySheet.store.get("D1").formulaType, "array");
+assert.equal(importedLegacyArraySheet.store.get("D1").arrayRef, "D1:D3");
+assert.deepEqual(importedLegacyArraySheet.getRange("D1:D3").values, [[13], [15], [17]]);
+assert.equal(importedLegacyArraySheet.store.get("F1").formulaType, "array");
+assert.equal(importedLegacyArraySheet.store.get("F1").arrayRef, "F1:G5");
+imported.recalculate();
+assert.deepEqual(importedLegacyArraySheet.getRange("D1:D3").values, [[13], [15], [17]]);
+assert.deepEqual(importedLegacyArraySheet.getRange("F1:G1").values, [[2, 1]]);
 importedLineSheet.getRange("A1").values = [[4]];
+importedTrendSheet.getRange("B1").values = [[5]];
 imported.recalculate();
 const updatedLineStats = importedLineSheet.getRange("D1:E5").values;
 assert.notEqual(updatedLineStats[0][0], lineStats[0][0]);
@@ -243,5 +353,7 @@ const updatedXlsx = await SpreadsheetFile.exportXlsx(imported, { recalculate: fa
 const updatedRoundTrip = await SpreadsheetFile.importXlsx(updatedXlsx);
 assert.deepEqual(updatedRoundTrip.worksheets.getItem("LINEST statistics").getRange("D1:E5").values, updatedLineStats);
 assert.equal(updatedRoundTrip.worksheets.getItem("LINEST statistics").store.get("D1").dynamicArrayRef, "D1:E5");
+assert.deepEqual(updatedRoundTrip.worksheets.getItem("TREND forecast").getRange("D1:D3").values, importedTrendSheet.getRange("D1:D3").values);
+assert.equal(updatedRoundTrip.worksheets.getItem("TREND forecast").store.get("D1").dynamicArrayRef, "D1:D3");
 
 console.log("spreadsheet statistical formula tests passed");

@@ -72,6 +72,39 @@ const FORMULA_SPILL_RANGE_FUNCTIONS = new Set([
   "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "MINIFS", "MAXIFS", "SUMPRODUCT", "INDEX", "MATCH", "XMATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP", "ROWS", "COLUMNS",
   "TYPE", "ISREF",
 ]);
+// LibreOffice serializes dynamic-array formulas as legacy array formulas on
+// save. Only hydrate legacy arrays whose evaluator profile is known to return
+// the exact declared matrix; arbitrary imported array formulas remain opaque.
+const RECALCULABLE_LEGACY_ARRAY_FUNCTIONS = new Set(["LINEST", "TREND"]);
+
+function formulaReferenceShape(text) {
+  const reference = formulaRefParts(text);
+  if (!reference || reference.spill) return undefined;
+  const bounds = parseRangeAddress(reference.start === reference.end ? reference.start : `${reference.start}:${reference.end}`);
+  return { rows: bounds.bottom - bounds.top + 1, columns: bounds.right - bounds.left + 1 };
+}
+
+function legacyArrayShapeMatches(functionCall, reference) {
+  const declared = parseRangeAddress(reference);
+  const declaredShape = {
+    rows: declared.bottom - declared.top + 1,
+    columns: declared.right - declared.left + 1,
+  };
+  const args = splitFormulaArgs(functionCall.args);
+  if (functionCall.name === "LINEST") {
+    const stats = String(args[3] ?? "").trim().toUpperCase();
+    const rows = stats === "TRUE" || stats === "TRUE()" || stats === "1" ? 5
+      : stats === "" || stats === "FALSE" || stats === "FALSE()" || stats === "0" ? 1
+        : undefined;
+    return rows !== undefined && declaredShape.rows === rows && declaredShape.columns === 2;
+  }
+  if (functionCall.name === "TREND") {
+    const source = String(args[2] ?? "").trim() || String(args[1] ?? "").trim() || String(args[0] ?? "").trim();
+    const shape = formulaReferenceShape(source);
+    return Boolean(shape) && declaredShape.rows === shape.rows && declaredShape.columns === shape.columns;
+  }
+  return false;
+}
 
 class FormulaInputBudgetError extends Error {
   constructor({ formulaCharacters, nesting, operators }) {
@@ -1327,15 +1360,23 @@ function hydrateDeclaredDynamicArraySpills(workbook) {
   for (const sheet of workbook.worksheets) {
     const cells = sheet.store.entries();
     for (const [anchorAddress, anchorCell] of cells) {
-      if (anchorCell.formulaType !== "dynamicArray" || !anchorCell.formula || !anchorCell.dynamicArrayRef) continue;
+      const dynamic = anchorCell.formulaType === "dynamicArray" && anchorCell.dynamicArrayRef;
+      const legacyCall = anchorCell.formulaType === "array" && anchorCell.arrayRef
+        ? formulaWholeFunctionCall(String(anchorCell.formula || "").replace(/^\s*=\s*/, ""))
+        : undefined;
+      const recalculableLegacy = legacyCall
+        && RECALCULABLE_LEGACY_ARRAY_FUNCTIONS.has(legacyCall.name)
+        && legacyArrayShapeMatches(legacyCall, anchorCell.arrayRef);
+      const reference = dynamic ? anchorCell.dynamicArrayRef : recalculableLegacy ? anchorCell.arrayRef : undefined;
+      if (!anchorCell.formula || !reference) continue;
       let bounds;
       try {
-        bounds = parseRangeAddress(anchorCell.dynamicArrayRef);
+        bounds = parseRangeAddress(reference);
       } catch {
         continue;
       }
       if (makeCellAddress(bounds.top, bounds.left) !== anchorAddress) continue;
-      markDeclaredDynamicArrayChildren(sheet, anchorAddress, anchorCell.dynamicArrayRef, bounds, cells);
+      markDeclaredDynamicArrayChildren(sheet, anchorAddress, reference, bounds, cells);
     }
   }
 }
@@ -2290,6 +2331,8 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
   };
   const sameCriteriaShape = (left, right) => left.rectangular && right.rectangular && left.rows === right.rows && left.columns === right.columns;
   switch (fnName) {
+    case "TRUE": return args.length === 1 && args[0] === "" ? true : "#VALUE!";
+    case "FALSE": return args.length === 1 && args[0] === "" ? false : "#VALUE!";
     case "STDEV.S":
     case "STDEV.P":
     case "VAR.S":
@@ -2303,6 +2346,7 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "STEYX":
     case "FORECAST.LINEAR":
     case "LINEST":
+    case "TREND":
       return evaluateStatisticalFormula(fnName, args, {
         argument: statisticalArgument,
         errorCode: formulaErrorCode,

@@ -207,7 +207,7 @@ assert.match(spreadsheetSkillText, /officekit-financial-returns-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-loan-amortization-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-asset-depreciation-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-statistical-analysis-workflow\.mjs/);
-assert.match(spreadsheetSkillText, /least-squares slope\/intercept\/R-squared\/standard-error.*LINEST.*linear forecast/i);
+assert.match(spreadsheetSkillText, /least-squares slope\/intercept\/R-squared\/standard-error.*LINEST.*FORECAST\.LINEAR.*TREND.*forecast sequence/i);
 assert.match(spreadsheetSkillText, /officekit-growth-assumption-edit-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-connection-refresh-hardening-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-pivot-refresh-hardening-workflow\.mjs/);
@@ -678,6 +678,7 @@ try {
   assert.match(authoredStatisticalAnalysis.inspection.ndjson, /COVARIANCE\.S/);
   assert.match(authoredStatisticalAnalysis.inspection.ndjson, /FORECAST\.LINEAR/);
   assert.match(authoredStatisticalAnalysis.inspection.ndjson, /LINEST/);
+  assert.match(authoredStatisticalAnalysis.inspection.ndjson, /TREND/);
   const statisticalAnalysisRoundTrip = await SpreadsheetFile.importXlsx(await FileBlob.load(statisticalAnalysisPath));
   statisticalAnalysisRoundTrip.recalculate();
   assert.equal(statisticalAnalysisRoundTrip.worksheets.getItem("Analysis").getRange("B11").formulas[0][0], "=CORREL('Data'!$B$4:$B$9,'Data'!$C$4:$C$9)");
@@ -687,7 +688,10 @@ try {
   assert.equal(statisticalAnalysisRoundTrip.worksheets.getItem("Analysis").getRange("E16").formulas[0][0], "=LINEST('Data'!$C$4:$C$9,'Data'!$B$4:$B$9,TRUE,TRUE)");
   assert.equal(statisticalAnalysisRoundTrip.worksheets.getItem("Analysis").store.get("E16").dynamicArrayRef, "E16:F20");
   assert.ok(Math.abs(statisticalAnalysisRoundTrip.worksheets.getItem("Analysis").getRange("E16").values[0][0] - 1.96) < 1e-9);
-  assert.deepEqual(statisticalAnalysisRoundTrip.worksheets.getItem("Checks").getRange("E4:E15").values, Array.from({ length: 12 }, () => ["OK"]));
+  assert.equal(statisticalAnalysisRoundTrip.worksheets.getItem("Analysis").getRange("I16").formulas[0][0], "=TREND('Data'!$C$4:$C$9,'Data'!$B$4:$B$9,H16:H18)");
+  assert.equal(statisticalAnalysisRoundTrip.worksheets.getItem("Analysis").store.get("I16").dynamicArrayRef, "I16:I18");
+  assert.deepEqual(statisticalAnalysisRoundTrip.worksheets.getItem("Analysis").getRange("I16:I18").values, [[138.6], [158.2], [177.8]]);
+  assert.deepEqual(statisticalAnalysisRoundTrip.worksheets.getItem("Checks").getRange("E4:E18").values, Array.from({ length: 15 }, () => ["OK"]));
 
   const { createScatterWorkbook } = await import(
     "../skills/spreadsheets/skills/spreadsheets/examples/officekit-scatter-chart-workflow.mjs"

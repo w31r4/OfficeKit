@@ -1,36 +1,35 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-13): Bounded LINEST dynamic diagnostics
+## Current 0.6.0 candidate (2026-08-13): Bounded TREND dynamic forecasts
 
 The source-aware Spreadsheet statistics leaf now evaluates the single-variable
-`LINEST(known_y, [known_x], [const], [stats])` profile without introducing a
-second regression engine. It returns the default 1-by-2 slope/intercept row or
-the documented 5-by-2 statistics matrix, supports a generated `1..n` known-x,
-forced-zero intercepts, and constant-known-x column removal, and retains the
-existing pairwise source coercion and formula budgets. Mismatched shapes,
-invalid flags, blocked spills, multivariable topology, and array constants fail
-closed.
+`TREND(known_y, [known_x], [new_x], [const])` profile by reusing the existing
+bounded regression core. It accepts one aligned known-y/known-x row or column,
+preserves the row/column direction of a new-x vector, supports omitted x
+arguments and a forced-zero intercept, and removes a constant known-x column.
+Mismatched known sources, nonnumeric new-x positions, invalid flags, blocked
+spills, multivariable topology, and array constants fail closed.
 
-The same slice closes a dynamic-array lifecycle gap exposed by the runnable
-Skill: an imported XLDAPR formula may be exported after model recalculation
-only when the formula, declared range, complete spill values, and every child
-ownership locator form one exact proof. An untouched native cached-cell record
-is still reused; edited, partial, stale, or detached topology remains rejected.
-The statistical workflow now exposes the full matrix, reconciles
-twelve formula-backed checks, imports twice, and enters native
-LibreOffice/Poppler QA.
+The runnable Skill exposed a LibreOffice interoperability gap: a saved XLDAPR
+formula returns as a legacy array record, and Boolean flags may be normalized
+to `TRUE()` or `FALSE()`. The evaluator now hydrates only statically proven,
+exact-shape `LINEST` and `TREND` legacy arrays and evaluates those standard
+zero-argument Boolean functions. Arbitrary or shape-mismatched legacy arrays
+remain unowned and fail closed. The statistical workflow now exposes the full
+LINEST matrix, one scalar forecast, a three-point TREND sequence, fifteen
+formula-backed checks, two imports, and native LibreOffice/Poppler QA.
 
-Runtime Help now contains 190 formula records and 511 total entries. Local fast
-29/29 and slow 78/78, OfficeKit Codec 415/415, OfficeBridge 5/5, protocol
+Runtime Help now contains 193 formula records and 514 total entries. Local fast
+30/30 and slow 80/80, OfficeKit Codec 415/415, OfficeBridge 5/5, protocol
 generation/lint, generated API-doc cleanliness, and two reproducible 39-file
 OfficeKit builds (38 runtime files, 15,416,043 bytes) pass. The isolated
 staged candidate excludes the user's unrelated README/output work, passes the
-clean-install package smoke, and contains 738 files, about 36.3 MB compressed,
-53.5 MB unpacked, with npm SHA-1
-`d78d5d0a3063a38c9951d23527607cf999d74725`. This slice does not claim
-multivariable or polynomial `LINEST`, array constants, arbitrary dynamic-array
-editing, or the complete Excel statistics catalog. Hosted CI is recorded after
-the candidate is pushed.
+clean-install package smoke, and contains 740 files at 36,336,393 bytes
+compressed and 53,562,146 bytes unpacked, with npm SHA-1
+`295bf64544a9c8b9e2fa0cf320e6fe441ceafad0`. This slice does not claim
+multivariable or polynomial regression, array constants, arbitrary
+dynamic/legacy-array editing, or the complete Excel statistics catalog. Hosted
+CI is recorded after the candidate is pushed.
 
 ## Current 0.6.0 candidate (2026-08-13): Bounded linear regression and forecast
 
@@ -1944,32 +1943,43 @@ manifest generator, bridge, REPL runtime, Claude Code marketplace index, and Ski
 shasum is `07fec351606b91d77fbc8ea2fc83e868eae2198b`. The 37,500,000-byte compressed and
 53,510,000-byte unpacked package ceilings remain in force.
 
-## 0.6.0 JSONL REPL
+## 0.6.0 durable task harness
 
-The `officekit repl` command provides one sequential, local JSONL task process.
-Each cell receives an explicit `ctx` with the shared workspace roots,
-`ctx.import`, `ctx.state`, `ctx.publish`, and `ctx.recordEvidence`. Published
-OfficeKit exports resolve to the installed CLI version; URLs, traversal, and
+`officekit tasks [<task-id>] [--all|--json]` lists or inspects the durable tasks
+owned by the current workspace, returning the five most recent by default.
+Each task lives below `.office-kit/tasks/<opaque-id>`.
+`officekit repl --new <goal>` creates a task;
+`officekit repl <task-id>` starts a new sequential JSONL session on an existing
+task. Each cell receives an explicit `ctx` with shared workspace roots,
+`ctx.import`, process-local `ctx.state`, `ctx.input`, `ctx.commit`,
+`ctx.publish`, and `ctx.recordEvidence`. OfficeKit imports resolve to the
+installed CLI version; URLs, traversal, managed-state input paths, and
 unpublished package paths are rejected. Responses retain request IDs, bounded
 console events, result/error data, SHA-256 artifact descriptors, and
 `maybeApplied` status.
 
-The private task directory contains an append-only `session.jsonl` journal and
-an atomically replaced `checkpoint.json`. `--resume` restores JSON-safe state
-and artifact/evidence references without replaying source; live OfficeKit
-objects and functions must be reconstructed explicitly. The typed
-`ctx.excel` facade delegates to the existing local Excel protocol only when a
-cell calls it; certificate trust, add-in installation, provider setup, and
-template search remain explicit commands. The REPL protocol is version 1 and
-does not change the Office wire protocol.
+The required multi-step artifact flow is `tasks` → `repl` → `ctx.input` → typed
+edit → `reviewArtifact` → `ctx.commit` → `ctx.publish`. `ctx.input` copies and
+hashes an immutable source snapshot. `ctx.commit` accepts the review report for
+the exact candidate bytes; a failed, missing, or stale review cannot advance
+task HEAD. `ctx.publish` accepts only the current task's current reviewed commit,
+so an unreviewed candidate or superseded commit cannot be delivered.
 
-The interruption gate runs the same session on Linux and Windows child
-processes, terminating it once while a checkpoint temporary is written and
-once after the checkpoint rename but before the journal terminal record. Resume
-always keeps the last authoritative JSON state, reports the unmatched request
-as `maybeApplied`, and accepts a subsequent terminal record without replaying
-source. A pre-rename temporary is treated as an isolated orphan rather than a
-checkpoint; no path or journal fallback is used.
+Task manifests retain source snapshots, immutable revisions, commit history,
+review evidence, pending failures, and publication records. A later
+`officekit repl <task-id>` session verifies and exposes the complete current
+reviewed full-file revision for reconstruction; it does not restore live
+JavaScript objects or a serialized heap. The typed `ctx.excel` facade delegates
+to the existing local Excel protocol only when a cell calls it; certificate
+trust, Add-in installation, provider setup, and template search remain explicit
+commands.
+The REPL protocol is version 2 and does not change the Office wire protocol.
+
+The interruption gate runs child-process failures around transactional task
+writes on Linux and Windows, keeps incomplete temporary files isolated from
+authoritative state, reports unmatched requests as `maybeApplied`, and verifies
+that source snapshots and committed revisions remain hash-valid. No path or
+journal fallback is used.
 
 ## 0.6.0 self-contained OfficeKit distributions
 
