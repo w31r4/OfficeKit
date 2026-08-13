@@ -208,6 +208,8 @@ assert.match(spreadsheetSkillText, /officekit-loan-amortization-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-asset-depreciation-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-statistical-analysis-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /least-squares slope\/intercept\/R-squared\/standard-error.*LINEST.*FORECAST\.LINEAR.*TREND.*forecast sequence/i);
+assert.match(spreadsheetSkillText, /officekit-exponential-growth-workflow\.mjs/);
+assert.match(spreadsheetSkillText, /positive-y exponential model.*LOGEST.*GROWTH.*LN.*EXP/i);
 assert.match(spreadsheetSkillText, /officekit-growth-assumption-edit-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-connection-refresh-hardening-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-pivot-refresh-hardening-workflow\.mjs/);
@@ -216,6 +218,7 @@ assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsh
 assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-connection-refresh-hardening-workflow.mjs")));
 assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-pivot-refresh-hardening-workflow.mjs")));
 assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-operating-plan-workflow.mjs")));
+assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-exponential-growth-workflow.mjs")));
 
 const presentationApiRoot = path.join(skillsRoot, "presentations", "skills", "presentations", "artifact_tool", "api");
 const presentationApiDocs = await fs.readFile(path.join(presentationApiRoot, "API_DOCS.md"), "utf8");
@@ -692,6 +695,24 @@ try {
   assert.equal(statisticalAnalysisRoundTrip.worksheets.getItem("Analysis").store.get("I16").dynamicArrayRef, "I16:I18");
   assert.deepEqual(statisticalAnalysisRoundTrip.worksheets.getItem("Analysis").getRange("I16:I18").values, [[138.6], [158.2], [177.8]]);
   assert.deepEqual(statisticalAnalysisRoundTrip.worksheets.getItem("Checks").getRange("E4:E18").values, Array.from({ length: 15 }, () => ["OK"]));
+
+  const { createExponentialGrowthWorkbook } = await import(
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-exponential-growth-workflow.mjs"
+  );
+  const exponentialGrowthPath = path.join(tempRoot, "officekit-exponential-growth-workflow.xlsx");
+  const authoredExponentialGrowth = await createExponentialGrowthWorkbook(exponentialGrowthPath);
+  assert.equal(authoredExponentialGrowth.verification.ok, true);
+  assert.match(authoredExponentialGrowth.inspection.ndjson, /LOGEST/);
+  assert.match(authoredExponentialGrowth.inspection.ndjson, /GROWTH/);
+  const exponentialGrowthRoundTrip = await SpreadsheetFile.importXlsx(await FileBlob.load(exponentialGrowthPath));
+  exponentialGrowthRoundTrip.recalculate();
+  assert.equal(exponentialGrowthRoundTrip.worksheets.getItem("Analysis").getRange("E4").formulas[0][0], "=LOGEST('Data'!$B$4:$B$9,'Data'!$A$4:$A$9,TRUE,TRUE)");
+  assert.equal(exponentialGrowthRoundTrip.worksheets.getItem("Analysis").store.get("E4").dynamicArrayRef, "E4:F8");
+  assert.ok(Math.abs(exponentialGrowthRoundTrip.worksheets.getItem("Analysis").getRange("E4").values[0][0] - 1.71968316255041) < 1e-9);
+  assert.equal(exponentialGrowthRoundTrip.worksheets.getItem("Analysis").getRange("I4").formulas[0][0], "=GROWTH('Data'!$B$4:$B$9,'Data'!$A$4:$A$9,H4:H6)");
+  assert.equal(exponentialGrowthRoundTrip.worksheets.getItem("Analysis").store.get("I4").dynamicArrayRef, "I4:I6");
+  assert.ok(Math.abs(exponentialGrowthRoundTrip.worksheets.getItem("Analysis").getRange("I6").values[0][0] - 473.980713611783) < 1e-9);
+  assert.deepEqual(exponentialGrowthRoundTrip.worksheets.getItem("Checks").getRange("E4:E11").values, Array.from({ length: 8 }, () => ["OK"]));
 
   const { createScatterWorkbook } = await import(
     "../skills/spreadsheets/skills/spreadsheets/examples/officekit-scatter-chart-workflow.mjs"

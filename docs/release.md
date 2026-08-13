@@ -1,5 +1,41 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-13): Bounded exponential regression and forecasts
+
+The Spreadsheet statistics leaf now adds the paired single-variable
+`LOGEST`/`GROWTH` profile for `y=b*m^x`. One new exponential adapter validates
+positive known-y values, transforms them with `LN`, and delegates to the same
+stable regression summary used by `LINEST`/`TREND`; formula adapters only map
+the coefficient row back to `m,b` and predictions through `EXP`. `LOGEST`
+returns either a 1-by-2 coefficient row or the documented 5-by-2 matrix, whose
+remaining statistics describe the log-space fit. `GROWTH` preserves an
+explicit new-x row/column shape. Both support omitted x, `const=FALSE`, and
+constant known-x removal.
+
+The bounded surface rejects nonpositive known-y and numerical overflow as
+`#NUM!`, mismatched known sources as `#N/A`, and invalid flags, nonnumeric
+new-x cells, multivariable/two-dimensional sources, blocked spills, extra
+arguments, and array constants without flattening. Exact-shape LibreOffice
+legacy arrays for all four modeled regression-array functions can be safely
+rehydrated; mismatched declared matrices remain opaque and fail closed.
+
+A new public `Data` / `Analysis` / `Checks` Skill workflow publishes the full
+LOGEST matrix, a three-point GROWTH sequence, and eight independent LN/EXP
+reconciliations before inspect, verify, SVG review, two OfficeKit imports, and
+native LibreOffice/Poppler QA. Runtime Help now contains 195 formula records
+and 516 total entries. Local fast 30/30 and slow 80/80, OfficeKit Codec
+415/415, OfficeBridge 5/5, protocol generation/lint, generated API-doc
+cleanliness, two reproducible 39-file OfficeKit builds (38 runtime files,
+15,416,043 bytes), clean-install/package smoke, Playwright, and real
+LibreOffice roundtrip/recalculation pass. The isolated npm candidate excludes the user's
+unrelated README/output work and contains 741 files at 36,339,107 bytes
+compressed and 53,576,454 bytes unpacked, with npm SHA-1
+`eb024394aa1ba3269b703351de6e6f0280dae966`. Specialist PDF managed-release,
+PyMuPDF/pikepdf/pyHanko/veraPDF/OCR, and structural PromptBench probes retain
+their explicit environment-gated skips. Hosted CI is recorded after push.
+This slice does not claim multivariable/polynomial regression, seasonality,
+arbitrary nonlinear models, or the complete Excel statistics catalog.
+
 ## Current 0.6.0 candidate (2026-08-13): Bounded TREND dynamic forecasts
 
 The source-aware Spreadsheet statistics leaf now evaluates the single-variable

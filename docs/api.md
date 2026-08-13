@@ -3753,6 +3753,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.FORMULATEXT` | formula | Return the stored formula text for one explicit single-cell reference, #N/A when that cell has no formula, and #VALUE! for ranges, computed matrices, spills, or invalid input. |
 | `fx.FV` | formula | Calculate the future value of a finite constant-payment stream from rate, term, payment, optional present value, and payment timing. |
 | `fx.GCD` | formula | Return the greatest common divisor of bounded integer arguments and ranges; unsafe integer results fail closed as #NUM!. |
+| `fx.GROWTH` | formula | Return a bounded single-variable exponential prediction dynamic array for y=b*m^x with the same row or column shape as new-x. Known-y must be positive; x arguments may be omitted, const may force b=1, and constant known-x is removed. Overflow, multivariable or two-dimensional inputs, nonnumeric new-x positions, and mismatched known source shapes fail closed. |
 | `fx.HLOOKUP` | formula | Look up one scalar in the first row of a nonempty rectangular range of at most 10,000 cells; FALSE/0 performs an exact, wildcard-aware lookup, while TRUE/1 or omission requires a proven ascending homogeneous numeric or text key row and returns the greatest matching-or-lower key. Invalid table/mode/index inputs and unproven ordering return #VALUE!, while an out-of-range return-row index returns #REF!. |
 | `fx.HOUR` | formula | Return the 0 through 23 hour component from a nonnegative serial or supported time text. |
 | `fx.HSTACK` | formula | Append arrays horizontally, padding shorter arrays with #N/A to the maximum row count. |
@@ -3784,6 +3785,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.LN` | formula | Return the natural logarithm of a positive finite number; non-positive inputs fail as #NUM!. |
 | `fx.LOG` | formula | Return a logarithm for a positive number and positive base other than one; the base defaults to 10 and invalid domains fail as #NUM!. |
 | `fx.LOG10` | formula | Return the base-10 logarithm of a positive finite number. |
+| `fx.LOGEST` | formula | Return a bounded single-variable exponential regression dynamic array for y=b*m^x: 1x2 multiplier/base by default or a 5x2 matrix whose remaining diagnostics describe the natural-log regression when stats is TRUE. Known-y must be positive; known-x may be omitted, const may force b=1, and constant known-x is removed. Mismatched shapes, multivariable inputs, and array constants fail closed. |
 | `fx.LOWER` | formula | Convert text to lowercase. |
 | `fx.MATCH` | formula | Return a 1-based lookup position in one row or column vector of 1 through 10,000 cells. Exact 0 matching is wildcard-aware; default/1 approximate matching requires a proven ascending homogeneous numeric or text vector and returns the greatest matching-or-lower key, while -1 requires proven descending order and returns the smallest matching-or-higher key. Two-dimensional, oversized, mixed, unordered, or invalid-mode inputs return #VALUE!. |
 | `fx.MAX` | formula | Return the maximum numeric value across arguments and ranges. |
@@ -5009,6 +5011,23 @@ Return the greatest common divisor of bounded integer arguments and ranges; unsa
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.GROWTH`
+
+Return a bounded single-variable exponential prediction dynamic array for y=b*m^x with the same row or column shape as new-x. Known-y must be positive; x arguments may be omitted, const may force b=1, and constant known-x is removed. Overflow, multivariable or two-dimensional inputs, nonnumeric new-x positions, and mismatched known source shapes fail closed.
+
+**Examples:**
+
+- =GROWTH(B2:B10,A2:A10,D2:D4,TRUE)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =GROWTH(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (unknown[][]) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.HLOOKUP`
 
 Look up one scalar in the first row of a nonempty rectangular range of at most 10,000 cells; FALSE/0 performs an exact, wildcard-aware lookup, while TRUE/1 or omission requires a proven ascending homogeneous numeric or text key row and returns the greatest matching-or-lower key. Invalid table/mode/index inputs and unproven ordering return #VALUE!, while an out-of-range return-row index returns #REF!.
@@ -5546,6 +5565,23 @@ Return the base-10 logarithm of a positive finite number.
 **Schema returns:**
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.LOGEST`
+
+Return a bounded single-variable exponential regression dynamic array for y=b*m^x: 1x2 multiplier/base by default or a 5x2 matrix whose remaining diagnostics describe the natural-log regression when stats is TRUE. Known-y must be positive; known-x may be omitted, const may force b=1, and constant known-x is removed. Mismatched shapes, multivariable inputs, and array constants fail closed.
+
+**Examples:**
+
+- =LOGEST(B2:B10,A2:A10,TRUE,TRUE)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =LOGEST(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (unknown[][]) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.LOWER`
 

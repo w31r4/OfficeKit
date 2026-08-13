@@ -266,6 +266,80 @@ assert.equal(trendSheet.store.get("F2").spillRange, "F2:H2");
 assert.equal(trendSheet.store.get("J1").spillRange, "J1:J5");
 trendSheet.getRange("X1:X3").clear();
 
+const exponentialSheet = workbook.worksheets.add("Exponential forecast");
+exponentialSheet.getRange("A1:B6").values = [[2, 6], [3, 11], [4, 18], [5, 33], [6, 54], [7, 91]];
+exponentialSheet.getRange("C1:C3").values = [[8], [9], [10]];
+exponentialSheet.getRange("D1").formulas = [["=GROWTH(B1:B6,A1:A6,C1:C3,TRUE)"]];
+exponentialSheet.getRange("F1").formulas = [["=GROWTH(B1:B6,A1:A6,C1:C3,FALSE)"]];
+exponentialSheet.getRange("H1").formulas = [["=LOGEST(B1:B6,A1:A6,TRUE,TRUE)"]];
+exponentialSheet.getRange("K1").formulas = [["=LOGEST(B1:B6,A1:A6,FALSE,FALSE)"]];
+exponentialSheet.getRange("M1:Q2").values = [
+  [1, 2, 3, 4, 5],
+  [6, 12, 24, 48, 96],
+];
+exponentialSheet.getRange("M3:O3").values = [[6, 7, 8]];
+exponentialSheet.getRange("M4").formulas = [["=GROWTH(M2:Q2,M1:Q1,M3:O3)"]];
+exponentialSheet.getRange("S1:S3").values = [[2], [8], [32]];
+exponentialSheet.getRange("T1:T3").values = [[1], [1], [1]];
+exponentialSheet.getRange("U1:U2").values = [[2], [3]];
+exponentialSheet.getRange("V1").formulas = [["=GROWTH(S1:S3,T1:T3,U1:U2)"]];
+exponentialSheet.getRange("X1:Y1").formulas = [["=GROWTH(B1:B6)", "=LOGEST(B1:B6)"]];
+exponentialSheet.getRange("AA1:AA8").formulas = [
+  ["=GROWTH()"],
+  ["=GROWTH(B1:B6,A1:A5,C1:C3)"],
+  ["=GROWTH(A1:B2,A1:B2,C1:C3)"],
+  ["=GROWTH(B1:B6,A1:A6,A1:B2)"],
+  ["=GROWTH(B1:B6,A1:A6,C1:C3,\"yes\")"],
+  ["=GROWTH(B1:B6,A1:A6,AB1:AB2)"],
+  ["=LOGEST(AC1:AC3,AD1:AD3)"],
+  ["=LOGEST(B1:B6,A1:A6,TRUE,TRUE,FALSE)"],
+];
+exponentialSheet.getRange("AB1:AB2").values = [[8], ["not numeric"]];
+exponentialSheet.getRange("AC1:AD3").values = [[2, 1], [0, 2], [8, 3]];
+exponentialSheet.getRange("AF1").formulas = [["=GROWTH(M2:Q2,M1:Q1,AF2)"]];
+exponentialSheet.getRange("AF2").values = [[2000]];
+exponentialSheet.getRange("AH1").formulas = [["=GROWTH(B1:B6,A1:A6,C1:C3)"]];
+exponentialSheet.getRange("AH2").values = [["occupied"]];
+workbook.recalculate();
+
+const exponentialGrowth = exponentialSheet.getRange("D1:D3").values.flat();
+assertClose(exponentialGrowth[0], 160.27426439333, 1e-10);
+assertClose(exponentialGrowth[1], 275.620953867361, 1e-10);
+assertClose(exponentialGrowth[2], 473.980713611783, 1e-10);
+const forcedGrowth = exponentialSheet.getRange("F1:F3").values.flat();
+assertClose(forcedGrowth[0], 241.455433648044, 1e-10);
+assertClose(forcedGrowth[1], 479.392909170845, 1e-10);
+assertClose(forcedGrowth[2], 951.801158048399, 1e-10);
+const logestStats = exponentialSheet.getRange("H1:I5").values;
+assertClose(logestStats[0][0], 1.71968316255041, 1e-12);
+assertClose(logestStats[0][1], 2.0954450641003, 1e-12);
+assertClose(logestStats[1][0], 0.00851365404141612, 1e-14);
+assertClose(logestStats[1][1], 0.0409777183642363, 1e-14);
+assertClose(logestStats[2][0], 0.999014535947832, 1e-12);
+assertClose(logestStats[2][1], 0.0356151700809657, 1e-14);
+assertClose(logestStats[3][0], 4055.00143307963, 1e-9);
+assert.equal(logestStats[3][1], 4);
+assertClose(logestStats[4][0], 5.14352739605477, 1e-12);
+assertClose(logestStats[4][1], 0.00507376135958447, 1e-14);
+assertClose(exponentialSheet.getRange("K1").values[0][0], 1.9854301969018, 1e-12);
+assert.equal(exponentialSheet.getRange("L1").values[0][0], 1);
+const exactGrowth = exponentialSheet.getRange("M4:O4").values[0];
+assertClose(exactGrowth[0], 192);
+assertClose(exactGrowth[1], 384);
+assertClose(exactGrowth[2], 768);
+for (const value of exponentialSheet.getRange("V1:V2").values.flat()) assertClose(value, 8);
+assertClose(exponentialSheet.getRange("X1:X6").values[0][0], 6.196881018771227, 1e-12);
+assertClose(exponentialSheet.getRange("Y1:Z1").values[0][0], 1.71968316255041, 1e-12);
+assertClose(exponentialSheet.getRange("Y1:Z1").values[0][1], 3.6035015947826325, 1e-12);
+assert.deepEqual(exponentialSheet.getRange("AA1:AA8").values.flat(), ["#VALUE!", "#N/A", "#VALUE!", "#VALUE!", "#VALUE!", "#VALUE!", "#NUM!", "#VALUE!"]);
+assert.equal(exponentialSheet.getRange("AF1").values[0][0], "#NUM!");
+assert.equal(exponentialSheet.getRange("AH1").values[0][0], "#SPILL!");
+assert.deepEqual(exponentialSheet.store.get("AH1").spillError, { type: "blocked", addresses: ["AH2"] });
+assert.equal(exponentialSheet.store.get("D1").spillRange, "D1:D3");
+assert.equal(exponentialSheet.store.get("H1").spillRange, "H1:I5");
+assert.equal(exponentialSheet.store.get("M4").spillRange, "M4:O4");
+exponentialSheet.getRange("AH1:AH3").clear();
+
 const legacyArraySheet = workbook.worksheets.add("Legacy array interop");
 legacyArraySheet.getRange("A1:B5").values = [[1, 3], [2, 5], [3, 7], [4, 9], [5, 11]];
 legacyArraySheet.getRange("C1:C3").values = [[6], [7], [8]];
@@ -283,11 +357,28 @@ legacyArraySheet.getRange("F1:G5").values = Array.from({ length: 5 }, () => [0, 
 legacyArraySheet.store.get("F1").formula = "=LINEST(B1:B5,A1:A5,TRUE(),TRUE())";
 legacyArraySheet.store.get("F1").formulaType = "array";
 legacyArraySheet.store.get("F1").arrayRef = "F1:G5";
+legacyArraySheet.getRange("I1:I3").values = [[8], [9], [10]];
+legacyArraySheet.getRange("J1").formulas = [["=GROWTH(B1:B5,A1:A5,I1:I3)"]];
+legacyArraySheet.store.get("J1").formulaType = "array";
+legacyArraySheet.store.get("J1").arrayRef = "J1:J3";
+legacyArraySheet.getRange("J1:J3").values = Array.from({ length: 3 }, () => [0]);
+legacyArraySheet.store.get("J1").formula = "=GROWTH(B1:B5,A1:A5,I1:I3)";
+legacyArraySheet.store.get("J1").formulaType = "array";
+legacyArraySheet.store.get("J1").arrayRef = "J1:J3";
+legacyArraySheet.getRange("L1").formulas = [["=LOGEST(B1:B5,A1:A5,TRUE(),TRUE())"]];
+legacyArraySheet.store.get("L1").formulaType = "array";
+legacyArraySheet.store.get("L1").arrayRef = "L1:M5";
+legacyArraySheet.getRange("L1:M5").values = Array.from({ length: 5 }, () => [0, 0]);
+legacyArraySheet.store.get("L1").formula = "=LOGEST(B1:B5,A1:A5,TRUE(),TRUE())";
+legacyArraySheet.store.get("L1").formulaType = "array";
+legacyArraySheet.store.get("L1").arrayRef = "L1:M5";
 workbook.recalculate();
 assert.deepEqual(legacyArraySheet.getRange("D1:D3").values, [[13], [15], [17]]);
 assert.equal(legacyArraySheet.store.get("D1").spillRange, "D1:D3");
 assert.deepEqual(legacyArraySheet.getRange("F1:G1").values, [[2, 1]]);
 assert.equal(legacyArraySheet.store.get("F1").spillRange, "F1:G5");
+assert.equal(legacyArraySheet.store.get("J1").spillRange, "J1:J3");
+assert.equal(legacyArraySheet.store.get("L1").spillRange, "L1:M5");
 
 const opaqueLegacyWorkbook = Workbook.create();
 const opaqueLegacySheet = opaqueLegacyWorkbook.worksheets.add("Opaque");
@@ -310,10 +401,29 @@ Object.assign(mismatchedLegacySheet.store.get("D1"), {
   formulaType: "array",
   arrayRef: "D1:D2",
 });
+mismatchedLegacySheet.getRange("F1:F3").values = [[8], [9], [10]];
+mismatchedLegacySheet.getRange("G1:G2").values = [[160], [275]];
+Object.assign(mismatchedLegacySheet.store.get("G1"), {
+  formula: "=GROWTH(B1:B5,A1:A5,F1:F3)",
+  formulaType: "array",
+  arrayRef: "G1:G2",
+});
+mismatchedLegacySheet.getRange("I1:J1").values = [[2, 1]];
+Object.assign(mismatchedLegacySheet.store.get("I1"), {
+  formula: "=LOGEST(B1:B5,A1:A5,TRUE,TRUE)",
+  formulaType: "array",
+  arrayRef: "I1:J1",
+});
 mismatchedLegacyWorkbook.recalculate();
 assert.equal(mismatchedLegacySheet.getRange("D1").values[0][0], "#SPILL!");
 assert.equal(mismatchedLegacySheet.getRange("D2").values[0][0], 15);
 assert.equal(mismatchedLegacySheet.store.get("D2").spillParent, undefined);
+assert.equal(mismatchedLegacySheet.getRange("G1").values[0][0], "#SPILL!");
+assert.equal(mismatchedLegacySheet.getRange("G2").values[0][0], 275);
+assert.equal(mismatchedLegacySheet.store.get("G2").spillParent, undefined);
+assert.equal(mismatchedLegacySheet.getRange("I1").values[0][0], "#SPILL!");
+assert.equal(mismatchedLegacySheet.getRange("J1").values[0][0], 1);
+assert.equal(mismatchedLegacySheet.store.get("J1").spillParent, undefined);
 
 const xlsx = await SpreadsheetFile.exportXlsx(workbook);
 const imported = await SpreadsheetFile.importXlsx(xlsx);
@@ -335,15 +445,25 @@ assert.equal(importedTrendSheet.store.get("D1").formulaType, "dynamicArray");
 assert.equal(importedTrendSheet.store.get("D1").dynamicArrayRef, "D1:D3");
 assert.equal(importedTrendSheet.store.get("F2").dynamicArrayRef, "F2:H2");
 assert.deepEqual(importedTrendSheet.getRange("S1:S2").values, [[19], [21]]);
+const importedExponentialSheet = imported.worksheets.getItem("Exponential forecast");
+assert.deepEqual(importedExponentialSheet.getRange("D1:D3").values, exponentialSheet.getRange("D1:D3").values);
+assert.equal(importedExponentialSheet.store.get("D1").formulaType, "dynamicArray");
+assert.equal(importedExponentialSheet.store.get("D1").dynamicArrayRef, "D1:D3");
+assert.deepEqual(importedExponentialSheet.getRange("H1:I5").values, logestStats);
+assert.equal(importedExponentialSheet.store.get("H1").dynamicArrayRef, "H1:I5");
 const importedLegacyArraySheet = imported.worksheets.getItem("Legacy array interop");
 assert.equal(importedLegacyArraySheet.store.get("D1").formulaType, "array");
 assert.equal(importedLegacyArraySheet.store.get("D1").arrayRef, "D1:D3");
 assert.deepEqual(importedLegacyArraySheet.getRange("D1:D3").values, [[13], [15], [17]]);
 assert.equal(importedLegacyArraySheet.store.get("F1").formulaType, "array");
 assert.equal(importedLegacyArraySheet.store.get("F1").arrayRef, "F1:G5");
+assert.equal(importedLegacyArraySheet.store.get("J1").arrayRef, "J1:J3");
+assert.equal(importedLegacyArraySheet.store.get("L1").arrayRef, "L1:M5");
 imported.recalculate();
 assert.deepEqual(importedLegacyArraySheet.getRange("D1:D3").values, [[13], [15], [17]]);
 assert.deepEqual(importedLegacyArraySheet.getRange("F1:G1").values, [[2, 1]]);
+assert.equal(importedLegacyArraySheet.store.get("J1").spillRange, "J1:J3");
+assert.equal(importedLegacyArraySheet.store.get("L1").spillRange, "L1:M5");
 importedLineSheet.getRange("A1").values = [[4]];
 importedTrendSheet.getRange("B1").values = [[5]];
 imported.recalculate();

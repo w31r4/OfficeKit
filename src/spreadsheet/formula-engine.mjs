@@ -75,7 +75,7 @@ const FORMULA_SPILL_RANGE_FUNCTIONS = new Set([
 // LibreOffice serializes dynamic-array formulas as legacy array formulas on
 // save. Only hydrate legacy arrays whose evaluator profile is known to return
 // the exact declared matrix; arbitrary imported array formulas remain opaque.
-const RECALCULABLE_LEGACY_ARRAY_FUNCTIONS = new Set(["LINEST", "TREND"]);
+const RECALCULABLE_LEGACY_ARRAY_FUNCTIONS = new Set(["GROWTH", "LINEST", "LOGEST", "TREND"]);
 
 function formulaReferenceShape(text) {
   const reference = formulaRefParts(text);
@@ -91,14 +91,14 @@ function legacyArrayShapeMatches(functionCall, reference) {
     columns: declared.right - declared.left + 1,
   };
   const args = splitFormulaArgs(functionCall.args);
-  if (functionCall.name === "LINEST") {
+  if (functionCall.name === "LINEST" || functionCall.name === "LOGEST") {
     const stats = String(args[3] ?? "").trim().toUpperCase();
     const rows = stats === "TRUE" || stats === "TRUE()" || stats === "1" ? 5
       : stats === "" || stats === "FALSE" || stats === "FALSE()" || stats === "0" ? 1
         : undefined;
     return rows !== undefined && declaredShape.rows === rows && declaredShape.columns === 2;
   }
-  if (functionCall.name === "TREND") {
+  if (functionCall.name === "TREND" || functionCall.name === "GROWTH") {
     const source = String(args[2] ?? "").trim() || String(args[1] ?? "").trim() || String(args[0] ?? "").trim();
     const shape = formulaReferenceShape(source);
     return Boolean(shape) && declaredShape.rows === shape.rows && declaredShape.columns === shape.columns;
@@ -2346,7 +2346,9 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "STEYX":
     case "FORECAST.LINEAR":
     case "LINEST":
+    case "LOGEST":
     case "TREND":
+    case "GROWTH":
       return evaluateStatisticalFormula(fnName, args, {
         argument: statisticalArgument,
         errorCode: formulaErrorCode,

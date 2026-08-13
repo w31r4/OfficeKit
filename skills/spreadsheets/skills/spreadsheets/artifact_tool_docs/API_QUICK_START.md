@@ -735,7 +735,7 @@ Use `workbook.help(...)` primarily for obscure/advanced surfaces (for example de
 - `workbook.help("shape.add", { include: "examples,notes" }).ndjson`
 - `workbook.help("fx.RATE", { include: "index,examples,notes" }).ndjson`
 - `workbook.help("cash flow return rate", { search: "MIRR|IRR|XIRR|NPV|XNPV", include: "index,examples,notes", maxChars: 4000 }).ndjson`
-- `workbook.help("statistical relationship, LINEST diagnostics, and linear forecast", { search: "STDEV|VAR|CORREL|COVARIANCE|SLOPE|INTERCEPT|RSQ|STEYX|LINEST|TREND|FORECAST.LINEAR", include: "index,examples,notes", maxChars: 7600 }).ndjson`
+- `workbook.help("statistical relationship and bounded regression", { search: "STDEV|VAR|CORREL|COVARIANCE|SLOPE|INTERCEPT|RSQ|STEYX|LINEST|TREND|LOGEST|GROWTH|FORECAST.LINEAR", include: "index,examples,notes", maxChars: 9000 }).ndjson`
 - `workbook.help("*", { search: "fill|borders|autofit", include: "index,examples,notes", maxChars: 6000 }).ndjson`
 
 ### Bounded statistical formulas
@@ -781,6 +781,19 @@ through zero, while a constant known-x vector is removed. Multivariable or
 arbitrary two-dimensional inputs, array constants, and nonnumeric new-x cells
 fail closed instead of being silently flattened or coerced.
 
+`LOGEST(known_y, [known_x], [const], [stats])` and
+`GROWTH(known_y, [known_x], [new_x], [const])` provide the paired bounded
+single-variable exponential profile `y=b*m^x`. All retained known-y values
+must be positive. `LOGEST` returns `[m,b]`, or a 5-by-2 matrix when `stats` is
+true; its coefficient row is in exponential space while coefficient errors,
+R-squared, standard error, F/degrees-of-freedom, and sums of squares describe
+the fitted `LN(y)` regression. `GROWTH` preserves the row/column direction of
+new-x. Omitting known-x uses `1..n`; omitting new-x predicts at known-x;
+`const=FALSE` fixes `b=1`; and a constant known-x vector is removed. A zero or
+negative known-y returns `#NUM!`. Overflow, multivariable/two-dimensional
+inputs, array constants, mismatched known sources, and nonnumeric new-x cells
+fail closed.
+
 ```js
 sheet.getRange("A2:B6").values = [[1, 2], [2, 1], [3, 4], [4, 3], [5, 5]];
 sheet.getRange("D2:D10").formulas = [
@@ -797,6 +810,8 @@ sheet.getRange("D2:D10").formulas = [
 sheet.getRange("F2").formulas = [["=LINEST(B2:B6,A2:A6,TRUE,TRUE)"]];
 sheet.getRange("H2:H4").values = [[6], [7], [8]];
 sheet.getRange("I2").formulas = [["=TREND(B2:B6,A2:A6,H2:H4)"]];
+sheet.getRange("K2").formulas = [["=LOGEST(B2:B6,A2:A6,TRUE,TRUE)"]];
+sheet.getRange("N2").formulas = [["=GROWTH(B2:B6,A2:A6,H2:H4)"]];
 workbook.recalculate();
 ```
 

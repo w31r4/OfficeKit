@@ -859,6 +859,36 @@ try {
     assert.equal(statisticalAnalysisQa.summary.nativeRender.ok, true);
   }
 
+  const { createExponentialGrowthWorkbook } = await import(
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-exponential-growth-workflow.mjs"
+  );
+  const exponentialGrowthPath = path.join(outputDir, "officekit-exponential-growth-workflow.xlsx");
+  const exponentialGrowthResult = await createExponentialGrowthWorkbook(exponentialGrowthPath);
+  assert.equal(exponentialGrowthResult.verification.ok, true);
+  assert.match(exponentialGrowthResult.inspection.ndjson, /LOGEST/);
+  assert.match(exponentialGrowthResult.inspection.ndjson, /GROWTH/);
+  const exponentialGrowthWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(exponentialGrowthPath));
+  exponentialGrowthWorkbook.recalculate();
+  const exponentialGrowth = exponentialGrowthWorkbook.worksheets.getItem("Analysis");
+  assert.equal(exponentialGrowth.getRange("E4").formulas[0][0], "=LOGEST('Data'!$B$4:$B$9,'Data'!$A$4:$A$9,TRUE,TRUE)");
+  assert.equal(exponentialGrowth.store.get("E4").dynamicArrayRef, "E4:F8");
+  assert.ok(Math.abs(exponentialGrowth.getRange("E4").values[0][0] - 1.71968316255041) < 1e-9);
+  assert.equal(exponentialGrowth.getRange("I4").formulas[0][0], "=GROWTH('Data'!$B$4:$B$9,'Data'!$A$4:$A$9,H4:H6)");
+  assert.equal(exponentialGrowth.store.get("I4").dynamicArrayRef, "I4:I6");
+  assert.ok(Math.abs(exponentialGrowth.getRange("I6").values[0][0] - 473.980713611783) < 1e-9);
+  assert.deepEqual(exponentialGrowthWorkbook.worksheets.getItem("Checks").getRange("E4:E11").values, Array.from({ length: 8 }, () => ["OK"]));
+  const exponentialGrowthQa = await verifyWorkbookFile(exponentialGrowthPath, {
+    outputDir: path.join(outputDir, "officekit-exponential-growth-native-qa"),
+    sheetName: "Analysis",
+    renderFormat: "svg",
+    nativeRender: "auto",
+    allSheets: true,
+  });
+  if (nativeSpreadsheetRenderStatus().available) {
+    assert.equal(exponentialGrowthQa.summary.nativeRender.status, "passed");
+    assert.equal(exponentialGrowthQa.summary.nativeRender.ok, true);
+  }
+
   const { createScatterWorkbook } = await import(
     "../skills/spreadsheets/skills/spreadsheets/examples/officekit-scatter-chart-workflow.mjs"
   );

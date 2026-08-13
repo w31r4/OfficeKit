@@ -9,8 +9,8 @@ const SINGLE_SERIES_FUNCTIONS = new Set(["STDEV.S", "STDEV.P", "VAR.S", "VAR.P"]
 const PAIRWISE_FUNCTIONS = new Set(["CORREL", "COVARIANCE.S", "COVARIANCE.P"]);
 const REGRESSION_FUNCTIONS = new Set(["SLOPE", "INTERCEPT", "RSQ", "STEYX"]);
 const FORECAST_FUNCTIONS = new Set(["FORECAST.LINEAR"]);
-const REGRESSION_ARRAY_FUNCTIONS = new Set(["LINEST"]);
-const FORECAST_ARRAY_FUNCTIONS = new Set(["TREND"]);
+const REGRESSION_ARRAY_FUNCTIONS = new Set(["LINEST", "LOGEST"]);
+const FORECAST_ARRAY_FUNCTIONS = new Set(["TREND", "GROWTH"]);
 
 export const STATISTICS_SPILL_RANGE_FUNCTIONS = Object.freeze([
   ...SINGLE_SERIES_FUNCTIONS,
@@ -237,6 +237,27 @@ function regressionSummary(pairs, { forceOrigin = false, allowConstantX = false 
   };
 }
 
+function exponentialRegressionSummary(pairs, options) {
+  const logarithmicPairs = [];
+  for (const [knownY, knownX] of pairs) {
+    if (knownY <= 0) return { error: "#NUM!" };
+    const logarithmicY = Math.log(knownY);
+    if (!Number.isFinite(logarithmicY)) return { error: "#NUM!" };
+    logarithmicPairs.push([logarithmicY, knownX]);
+  }
+  const logarithmic = regressionSummary(logarithmicPairs, options);
+  if (logarithmic.error) return logarithmic;
+  const multiplier = Math.exp(logarithmic.slope);
+  const base = Math.exp(logarithmic.intercept);
+  if (!Number.isFinite(multiplier) || multiplier <= 0 || !Number.isFinite(base) || base <= 0) return { error: "#NUM!" };
+  return {
+    ...logarithmic,
+    multiplier,
+    base,
+    predict: (knownX) => Math.exp(logarithmic.predict(knownX)),
+  };
+}
+
 function logicalArgument(argument, fallback, helpers) {
   if (!argument) return { value: fallback };
   if (argument.values.length !== 1) return { error: "#VALUE!" };
@@ -318,11 +339,17 @@ export function evaluateStatisticalFormula(fnName, args, helpers) {
     const collected = collectPairs(knownY, knownX, helpers);
     if (collected.error) return collected.error;
     if (collected.pairs.length < (constFlag.value ? 2 : 1)) return "#VALUE!";
-    const summary = regressionSummary(collected.pairs, { forceOrigin: !constFlag.value, allowConstantX: true });
+    const exponential = fnName === "LOGEST";
+    const summary = exponential
+      ? exponentialRegressionSummary(collected.pairs, { forceOrigin: !constFlag.value, allowConstantX: true })
+      : regressionSummary(collected.pairs, { forceOrigin: !constFlag.value, allowConstantX: true });
     if (summary.error) return summary.error;
-    if (!statsFlag.value) return [[summary.slope, summary.intercept]];
+    const firstRow = exponential
+      ? [summary.multiplier, summary.base]
+      : [summary.slope, summary.intercept];
+    if (!statsFlag.value) return [firstRow];
     return [
-      [summary.slope, summary.intercept],
+      firstRow,
       [summary.slopeError, summary.interceptError],
       [summary.rSquared, summary.standardError],
       [summary.fStatistic, summary.degreesOfFreedom],
@@ -344,7 +371,9 @@ export function evaluateStatisticalFormula(fnName, args, helpers) {
     const collected = collectPairs(knownY, knownX, helpers);
     if (collected.error) return collected.error;
     if (collected.pairs.length < (constFlag.value ? 2 : 1)) return "#VALUE!";
-    const summary = regressionSummary(collected.pairs, { forceOrigin: !constFlag.value, allowConstantX: true });
+    const summary = fnName === "GROWTH"
+      ? exponentialRegressionSummary(collected.pairs, { forceOrigin: !constFlag.value, allowConstantX: true })
+      : regressionSummary(collected.pairs, { forceOrigin: !constFlag.value, allowConstantX: true });
     if (summary.error) return summary.error;
 
     const predicted = [];
