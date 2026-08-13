@@ -9,12 +9,14 @@ const SINGLE_SERIES_FUNCTIONS = new Set(["STDEV.S", "STDEV.P", "VAR.S", "VAR.P"]
 const PAIRWISE_FUNCTIONS = new Set(["CORREL", "COVARIANCE.S", "COVARIANCE.P"]);
 const REGRESSION_FUNCTIONS = new Set(["SLOPE", "INTERCEPT", "RSQ", "STEYX"]);
 const FORECAST_FUNCTIONS = new Set(["FORECAST.LINEAR"]);
+const REGRESSION_ARRAY_FUNCTIONS = new Set(["LINEST"]);
 
 export const STATISTICS_SPILL_RANGE_FUNCTIONS = Object.freeze([
   ...SINGLE_SERIES_FUNCTIONS,
   ...PAIRWISE_FUNCTIONS,
   ...REGRESSION_FUNCTIONS,
   ...FORECAST_FUNCTIONS,
+  ...REGRESSION_ARRAY_FUNCTIONS,
 ]);
 
 function directNumber(value, errorCode, numberText) {
@@ -127,6 +129,124 @@ function regression(moments) {
     : { error: "#NUM!" };
 }
 
+function compensatedSum(values) {
+  let sum = 0;
+  let correction = 0;
+  for (const value of values) {
+    const next = sum + value;
+    correction += Math.abs(sum) >= Math.abs(value)
+      ? (sum - next) + value
+      : (value - next) + sum;
+    sum = next;
+  }
+  const result = sum + correction;
+  return Number.isFinite(result) ? result : undefined;
+}
+
+function residualSumOfSquares(pairs, predict, scale) {
+  const squares = [];
+  for (const [knownY, knownX] of pairs) {
+    const residual = knownY - predict(knownX);
+    const square = residual * residual;
+    if (!Number.isFinite(square)) return undefined;
+    squares.push(square);
+  }
+  const result = compensatedSum(squares);
+  if (result === undefined) return undefined;
+  return result <= (Number.EPSILON ** 2) * Math.max(1, scale) * 64 ? 0 : Math.max(0, result);
+}
+
+function regressionSummary(pairs, { forceOrigin = false, allowConstantX = false } = {}) {
+  const moments = pairMoments(pairs);
+  if (moments.count === 0) return { error: "#N/A" };
+
+  let slope;
+  let intercept;
+  let removedConstantX = false;
+  let xScale;
+  if (forceOrigin) {
+    const sumX2 = compensatedSum(pairs.map(([, knownX]) => knownX * knownX));
+    const sumXY = compensatedSum(pairs.map(([knownY, knownX]) => knownY * knownX));
+    if (sumX2 === undefined || sumXY === undefined) return { error: "#NUM!" };
+    if (sumX2 <= 0) return { error: "#DIV/0!" };
+    slope = sumXY / sumX2;
+    intercept = 0;
+    xScale = sumX2;
+  } else if (moments.squaredDeviationRight <= 0) {
+    if (!allowConstantX) return { error: "#DIV/0!" };
+    slope = 0;
+    intercept = moments.meanLeft;
+    removedConstantX = true;
+    xScale = 0;
+  } else {
+    slope = moments.coMoment / moments.squaredDeviationRight;
+    intercept = moments.meanLeft - slope * moments.meanRight;
+    xScale = moments.squaredDeviationRight;
+  }
+  if (!Number.isFinite(slope) || !Number.isFinite(intercept)) return { error: "#NUM!" };
+
+  const total = forceOrigin
+    ? compensatedSum(pairs.map(([knownY]) => knownY * knownY))
+    : moments.squaredDeviationLeft;
+  if (total === undefined || !Number.isFinite(total)) return { error: "#NUM!" };
+  const predict = forceOrigin
+    ? (knownX) => slope * knownX
+    : (knownX) => moments.meanLeft + slope * (knownX - moments.meanRight);
+  const residual = residualSumOfSquares(pairs, predict, total);
+  if (residual === undefined) return { error: "#NUM!" };
+  const regressionDifference = total - residual;
+  const regressionSum = Math.abs(regressionDifference) <= Number.EPSILON * Math.max(1, total, residual) * 16
+    ? 0
+    : Math.max(0, regressionDifference);
+  const degreesOfFreedom = forceOrigin
+    ? moments.count - (removedConstantX ? 0 : 1)
+    : moments.count - (removedConstantX ? 1 : 2);
+  const standardError = residual === 0
+    ? 0
+    : degreesOfFreedom > 0 ? Math.sqrt(residual / degreesOfFreedom) : "#NUM!";
+  const rSquared = total <= 0
+    ? (residual === 0 ? 1 : 0)
+    : Math.min(1, Math.max(0, regressionSum / total));
+  const slopeError = removedConstantX
+    ? 0
+    : standardError === "#NUM!" ? "#NUM!" : standardError / Math.sqrt(xScale);
+  const interceptError = forceOrigin
+    ? "#N/A"
+    : standardError === "#NUM!" ? "#NUM!" : standardError * Math.sqrt((1 / moments.count) + (removedConstantX ? 0 : (moments.meanRight ** 2) / xScale));
+  const fStatistic = removedConstantX || residual === 0
+    ? "#N/A"
+    : degreesOfFreedom > 0 ? regressionSum / (residual / degreesOfFreedom) : "#NUM!";
+  if ([standardError, rSquared, slopeError, interceptError, fStatistic]
+    .some((value) => typeof value === "number" && !Number.isFinite(value))) return { error: "#NUM!" };
+
+  return {
+    count: moments.count,
+    degreesOfFreedom,
+    fStatistic,
+    intercept,
+    interceptError,
+    rSquared,
+    regressionSum,
+    residual,
+    slope,
+    slopeError,
+    standardError,
+  };
+}
+
+function logicalArgument(argument, fallback, helpers) {
+  if (!argument) return { value: fallback };
+  if (argument.values.length !== 1) return { error: "#VALUE!" };
+  const value = argument.values[0];
+  const error = helpers.errorCode(value);
+  if (error) return { error };
+  if (typeof value === "boolean") return { value };
+  if (typeof value === "number" && Number.isFinite(value)) return { value: value !== 0 };
+  if (typeof value === "string" && /^TRUE$/i.test(value.trim())) return { value: true };
+  if (typeof value === "string" && /^FALSE$/i.test(value.trim())) return { value: false };
+  return { error: "#VALUE!" };
+}
+
 export function evaluateStatisticalFormula(fnName, args, helpers) {
   if (SINGLE_SERIES_FUNCTIONS.has(fnName)) {
     if (args.length < 1 || args.length > 254 || helpers.hasEmptyArgument()) return "#VALUE!";
@@ -160,6 +280,43 @@ export function evaluateStatisticalFormula(fnName, args, helpers) {
     if (moments.squaredDeviationLeft <= 0 || moments.squaredDeviationRight <= 0) return "#DIV/0!";
     const result = moments.coMoment / Math.sqrt(moments.squaredDeviationLeft * moments.squaredDeviationRight);
     return Number.isFinite(result) ? result : "#NUM!";
+  }
+
+  if (REGRESSION_ARRAY_FUNCTIONS.has(fnName)) {
+    if (args.length < 1 || args.length > 4 || String(args[0] ?? "").trim() === "") return "#VALUE!";
+    const knownY = helpers.argument(0);
+    if (!knownY.rectangular || (knownY.rows > 1 && knownY.columns > 1)) return "#VALUE!";
+    let knownX;
+    if (args.length < 2 || String(args[1] ?? "").trim() === "") {
+      knownX = {
+        source: "reference",
+        values: Array.from({ length: knownY.values.length }, (_, index) => index + 1),
+        rows: knownY.rows,
+        columns: knownY.columns,
+        rectangular: knownY.rectangular,
+      };
+    } else {
+      knownX = helpers.argument(1);
+      if (knownX.rectangular && knownX.rows > 1 && knownX.columns > 1) return "#VALUE!";
+      if (!knownY.rectangular || !knownX.rectangular || knownY.rows !== knownX.rows || knownY.columns !== knownX.columns) return "#N/A";
+    }
+    const constFlag = logicalArgument(args.length >= 3 && String(args[2] ?? "").trim() !== "" ? helpers.argument(2) : undefined, true, helpers);
+    if (constFlag.error) return constFlag.error;
+    const statsFlag = logicalArgument(args.length >= 4 && String(args[3] ?? "").trim() !== "" ? helpers.argument(3) : undefined, false, helpers);
+    if (statsFlag.error) return statsFlag.error;
+    const collected = collectPairs(knownY, knownX, helpers);
+    if (collected.error) return collected.error;
+    if (collected.pairs.length < (constFlag.value ? 2 : 1)) return "#VALUE!";
+    const summary = regressionSummary(collected.pairs, { forceOrigin: !constFlag.value, allowConstantX: true });
+    if (summary.error) return summary.error;
+    if (!statsFlag.value) return [[summary.slope, summary.intercept]];
+    return [
+      [summary.slope, summary.intercept],
+      [summary.slopeError, summary.interceptError],
+      [summary.rSquared, summary.standardError],
+      [summary.fStatistic, summary.degreesOfFreedom],
+      [summary.regressionSum, summary.residual],
+    ];
   }
 
   if (REGRESSION_FUNCTIONS.has(fnName) || FORECAST_FUNCTIONS.has(fnName)) {

@@ -128,6 +128,7 @@ export const HELP_CATALOG = [
   { artifactKind: "workbook", kind: "formula", name: "fx.INTERCEPT", category: "statistical", summary: "Return the y-axis intercept for the same bounded source-aware linear regression profile as SLOPE; empty or mismatched sources return #N/A and zero x variance returns #DIV/0!.", examples: ["=INTERCEPT(B2:B10,A2:A10)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.RSQ", category: "statistical", summary: "Return the square of Pearson correlation for aligned known-y and known-x sources; positions are pairwise filtered, length mismatch or no pairs returns #N/A, and fewer than two or zero-variance pairs returns #DIV/0!.", examples: ["=RSQ(B2:B10,A2:A10)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.STEYX", category: "statistical", summary: "Return the standard error of predicted y values for a bounded linear regression; pairwise source semantics match SLOPE, fewer than three numeric pairs returns #DIV/0!, and mismatched source lengths return #N/A.", examples: ["=STEYX(B2:B10,A2:A10)"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.LINEST", category: "statistical", summary: "Return a bounded single-variable least-squares dynamic array: 1x2 slope/intercept by default or the documented 5x2 coefficient, error, R-squared, F/df, and regression/residual statistics matrix when stats is TRUE. Known-x may be omitted, const may force a zero intercept, constant known-x is removed, and mismatched shapes return #N/A; multivariable inputs and array constants remain unsupported.", examples: ["=LINEST(B2:B10,A2:A10,TRUE,TRUE)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.FORECAST.LINEAR", category: "statistical", summary: "Predict one y value from one bounded scalar x and aligned known-y/known-x sources using the shared stable linear fit; nonnumeric x returns #VALUE!, source mismatch or no pairs returns #N/A, and zero x variance returns #DIV/0!.", examples: ["=FORECAST.LINEAR(D2,B2:B10,A2:A10)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.IF", category: "logical", summary: "Return one value when a condition is true and another when false.", examples: ["=IF(A1>0,\"ok\",\"bad\")"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.LET", category: "logical", summary: "Bind up to 16 scalar local names from left to right and evaluate a final scalar expression; invalid names, array-valued bindings, and missing arguments fail closed as #VALUE!.", examples: ["=LET(rate,0.1,principal,1000,principal*(1+rate))"] },
@@ -2568,7 +2569,7 @@ for (const item of HELP_CATALOG) {
   if (item.artifactKind === "workbook" && !item.schema && WORKBOOK_HELP_SCHEMAS[item.name]) item.schema = WORKBOOK_HELP_SCHEMAS[item.name];
   if (item.name.startsWith("fx.") && !item.schema) {
     const functionName = item.name.slice(3);
-    const returnType = item.category === "dynamic-array"
+    const returnType = item.category === "dynamic-array" || functionName === "LINEST"
       ? "unknown[][]"
       : item.category === "logical" || item.category === "information"
         ? (functionName === "IF" || functionName === "IFERROR" || functionName === "LET" ? "unknown" : "boolean")

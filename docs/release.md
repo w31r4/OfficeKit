@@ -1,5 +1,37 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-13): Bounded LINEST dynamic diagnostics
+
+The source-aware Spreadsheet statistics leaf now evaluates the single-variable
+`LINEST(known_y, [known_x], [const], [stats])` profile without introducing a
+second regression engine. It returns the default 1-by-2 slope/intercept row or
+the documented 5-by-2 statistics matrix, supports a generated `1..n` known-x,
+forced-zero intercepts, and constant-known-x column removal, and retains the
+existing pairwise source coercion and formula budgets. Mismatched shapes,
+invalid flags, blocked spills, multivariable topology, and array constants fail
+closed.
+
+The same slice closes a dynamic-array lifecycle gap exposed by the runnable
+Skill: an imported XLDAPR formula may be exported after model recalculation
+only when the formula, declared range, complete spill values, and every child
+ownership locator form one exact proof. An untouched native cached-cell record
+is still reused; edited, partial, stale, or detached topology remains rejected.
+The statistical workflow now exposes the full matrix, reconciles
+twelve formula-backed checks, imports twice, and enters native
+LibreOffice/Poppler QA.
+
+Runtime Help now contains 190 formula records and 511 total entries. Local fast
+29/29 and slow 78/78, OfficeKit Codec 415/415, OfficeBridge 5/5, protocol
+generation/lint, generated API-doc cleanliness, and two reproducible 39-file
+OfficeKit builds (38 runtime files, 15,416,043 bytes) pass. The isolated
+staged candidate excludes the user's unrelated README/output work, passes the
+clean-install package smoke, and contains 738 files, about 36.3 MB compressed,
+53.5 MB unpacked, with npm SHA-1
+`d78d5d0a3063a38c9951d23527607cf999d74725`. This slice does not claim
+multivariable or polynomial `LINEST`, array constants, arbitrary dynamic-array
+editing, or the complete Excel statistics catalog. Hosted CI is recorded after
+the candidate is pushed.
+
 ## Current 0.6.0 candidate (2026-08-13): Bounded linear regression and forecast
 
 The source-aware Spreadsheet statistics leaf now adds `SLOPE`, `INTERCEPT`,

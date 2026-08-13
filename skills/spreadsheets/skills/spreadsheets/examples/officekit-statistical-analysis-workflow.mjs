@@ -62,7 +62,7 @@ export function buildStatisticalAnalysisWorkbook() {
   data.getRange("F1:F4").format.columnWidthPx = 110;
   data.freezePanes.freezeRows(3);
 
-  styleTitle(analysis, "A1:C1", "Statistical Relationship Analysis");
+  styleTitle(analysis, "A1:F1", "Statistical Relationship Analysis");
   analysis.getRange("A3:C3").values = [["Metric", "Spend", "Revenue"]];
   analysis.getRange("A4:C8").values = [
     ["Average", null, null],
@@ -109,17 +109,30 @@ export function buildStatisticalAnalysisWorkbook() {
     ["=FORECAST.LINEAR(B20,'Data'!$C$4:$C$9,'Data'!$B$4:$B$9)"],
   ];
   styleHeader(analysis, "A15:C15");
+  analysis.getRange("D15:F15").values = [["LINEST statistic", "Slope / model", "Intercept / residual"]];
+  analysis.getRange("D16:D20").values = [
+    ["Coefficient"],
+    ["Coefficient standard error"],
+    ["R-squared / standard error"],
+    ["F-statistic / degrees freedom"],
+    ["Regression / residual SS"],
+  ];
+  analysis.getRange("E16").formulas = [["=LINEST('Data'!$C$4:$C$9,'Data'!$B$4:$B$9,TRUE,TRUE)"]];
+  styleHeader(analysis, "D15:F15");
   analysis.getRange("B4:C8").format = { fill: "#F0FDF4", font: { bold: true, color: "#008000" }, numberFormat: NUMBER_FORMAT };
   analysis.getRange("B11:B13").format = { fill: "#F0FDF4", font: { bold: true, color: "#008000" }, numberFormat: NUMBER_FORMAT };
   analysis.getRange("B16:B21").format = { fill: "#EFF6FF", font: { bold: true, color: "#1D4ED8" }, numberFormat: NUMBER_FORMAT };
+  analysis.getRange("E16:F20").format = { fill: "#F5F3FF", font: { bold: true, color: "#6D28D9" }, numberFormat: NUMBER_FORMAT };
   analysis.getRange("A1:A21").format.columnWidthPx = 230;
   analysis.getRange("B1:B21").format.columnWidthPx = 130;
   analysis.getRange("C1:C21").format.columnWidthPx = 210;
+  analysis.getRange("D1:D21").format.columnWidthPx = 210;
+  analysis.getRange("E1:F21").format.columnWidthPx = 140;
   analysis.freezePanes.freezeRows(3);
 
   styleTitle(checks, "A1:E1", "Independent Model Checks");
   checks.getRange("A3:E3").values = [["Check", "Actual", "Expected / minimum", "Difference", "Status"]];
-  checks.getRange("A4:E12").values = [
+  checks.getRange("A4:E15").values = [
     ["Correlation is strongly positive", null, 0.99, null, null],
     ["Sample covariance", null, 686, null, null],
     ["Spend sample variance", null, 350, null, null],
@@ -129,9 +142,12 @@ export function buildStatisticalAnalysisWorkbook() {
     ["R-squared equals correlation squared", null, null, null, null],
     ["Forecast reconciles to line equation", null, null, null, null],
     ["Standard error is nonnegative", null, 0, null, null],
+    ["LINEST slope reconciles", null, null, null, null],
+    ["LINEST intercept reconciles", null, null, null, null],
+    ["LINEST R-squared reconciles", null, null, null, null],
   ];
   styleHeader(checks, "A3:E3");
-  checks.getRange("B4:B12").formulas = [
+  checks.getRange("B4:B15").formulas = [
     ["='Analysis'!$B$11"],
     ["='Analysis'!$B$12"],
     ["='Analysis'!$B$5"],
@@ -141,10 +157,14 @@ export function buildStatisticalAnalysisWorkbook() {
     ["='Analysis'!$B$18"],
     ["='Analysis'!$B$21"],
     ["='Analysis'!$B$19"],
+    ["='Analysis'!$E$16"],
+    ["='Analysis'!$F$16"],
+    ["='Analysis'!$E$18"],
   ];
   checks.getRange("C10:C11").formulas = [["='Analysis'!$B$11^2"], ["='Analysis'!$B$17+'Analysis'!$B$16*'Analysis'!$B$20"]];
-  checks.getRange("D4:D12").formulas = Array.from({ length: 9 }, (_, index) => [`=B${index + 4}-C${index + 4}`]);
-  checks.getRange("E4:E12").formulas = [
+  checks.getRange("C13:C15").formulas = [["='Analysis'!$B$16"], ["='Analysis'!$B$17"], ["='Analysis'!$B$18"]];
+  checks.getRange("D4:D15").formulas = Array.from({ length: 12 }, (_, index) => [`=B${index + 4}-C${index + 4}`]);
+  checks.getRange("E4:E15").formulas = [
     ["=IF(B4>=C4,\"OK\",\"CHECK\")"],
     ["=IF(ABS(D5)<0.000001,\"OK\",\"CHECK\")"],
     ["=IF(ABS(D6)<0.000001,\"OK\",\"CHECK\")"],
@@ -154,13 +174,16 @@ export function buildStatisticalAnalysisWorkbook() {
     ["=IF(ABS(D10)<0.000001,\"OK\",\"CHECK\")"],
     ["=IF(ABS(D11)<0.000001,\"OK\",\"CHECK\")"],
     ["=IF(B12>=C12,\"OK\",\"CHECK\")"],
+    ["=IF(ABS(D13)<0.000001,\"OK\",\"CHECK\")"],
+    ["=IF(ABS(D14)<0.000001,\"OK\",\"CHECK\")"],
+    ["=IF(ABS(D15)<0.000001,\"OK\",\"CHECK\")"],
   ];
-  checks.getRange("B4:D12").format.numberFormat = NUMBER_FORMAT;
-  checks.getRange("B4:B12").format.font = { color: "#008000" };
-  checks.getRange("E4:E12").format = { fill: "#DCFCE7", font: { bold: true, color: "#166534" }, alignment: { horizontal: "center" } };
-  checks.getRange("A1:A12").format.columnWidthPx = 260;
-  checks.getRange("B1:D12").format.columnWidthPx = 130;
-  checks.getRange("E1:E12").format.columnWidthPx = 82;
+  checks.getRange("B4:D15").format.numberFormat = NUMBER_FORMAT;
+  checks.getRange("B4:B15").format.font = { color: "#008000" };
+  checks.getRange("E4:E15").format = { fill: "#DCFCE7", font: { bold: true, color: "#166534" }, alignment: { horizontal: "center" } };
+  checks.getRange("A1:A15").format.columnWidthPx = 260;
+  checks.getRange("B1:D15").format.columnWidthPx = 130;
+  checks.getRange("E1:E15").format.columnWidthPx = 82;
   checks.freezePanes.freezeRows(3);
 
   workbook.worksheets.setActiveWorksheet("Analysis");
@@ -181,15 +204,21 @@ export async function createStatisticalAnalysisWorkbook(outputPath) {
   assertClose(analysis.getRange("B18").values[0][0], (3430 * 3430) / (1750 * 6754));
   assertClose(analysis.getRange("B19").values[0][0], 2.79284800875378);
   assertClose(analysis.getRange("B21").values[0][0], 138.6);
-  assert.deepEqual(workbook.worksheets.getItem("Checks").getRange("E4:E12").values, Array.from({ length: 9 }, () => ["OK"]));
+  assertClose(analysis.getRange("E16").values[0][0], 1.96);
+  assertClose(analysis.getRange("F16").values[0][0], 1.4);
+  assertClose(analysis.getRange("E18").values[0][0], (3430 * 3430) / (1750 * 6754));
+  assertClose(analysis.getRange("F18").values[0][0], 2.79284800875378);
+  assert.equal(analysis.store.get("E16").spillRange, "E16:F20");
+  assert.deepEqual(workbook.worksheets.getItem("Checks").getRange("E4:E15").values, Array.from({ length: 12 }, () => ["OK"]));
 
-  const inspection = workbook.inspect({ kind: "workbook,sheet,formula", sheetName: "Analysis", range: "A1:C21", maxChars: 16_000 });
+  const inspection = workbook.inspect({ kind: "workbook,sheet,formula", sheetName: "Analysis", range: "A1:F21", maxChars: 20_000 });
   assert.match(inspection.ndjson, /CORREL/);
   assert.match(inspection.ndjson, /COVARIANCE\.S/);
   assert.match(inspection.ndjson, /FORECAST\.LINEAR/);
+  assert.match(inspection.ndjson, /LINEST/);
   const verification = workbook.verify({ visualQa: true });
   assert.equal(verification.ok, true, verification.ndjson);
-  const previewSvg = await workbook.render({ sheetName: "Analysis", range: "A1:C21", autoCrop: "all", format: "svg" });
+  const previewSvg = await workbook.render({ sheetName: "Analysis", range: "A1:F21", autoCrop: "all", format: "svg" });
   assert.match(await previewSvg.text(), /Statistical Relationship Analysis/);
 
   const first = await SpreadsheetFile.exportXlsx(workbook, { recalculate: false });
@@ -197,12 +226,17 @@ export async function createStatisticalAnalysisWorkbook(outputPath) {
   imported.recalculate();
   assert.equal(imported.worksheets.getItem("Analysis").getRange("B11").formulas[0][0], "=CORREL('Data'!$B$4:$B$9,'Data'!$C$4:$C$9)");
   assert.equal(imported.worksheets.getItem("Analysis").getRange("B21").formulas[0][0], "=FORECAST.LINEAR(B20,'Data'!$C$4:$C$9,'Data'!$B$4:$B$9)");
-  assert.deepEqual(imported.worksheets.getItem("Checks").getRange("E4:E12").values, Array.from({ length: 9 }, () => ["OK"]));
+  assert.equal(imported.worksheets.getItem("Analysis").getRange("E16").formulas[0][0], "=LINEST('Data'!$C$4:$C$9,'Data'!$B$4:$B$9,TRUE,TRUE)");
+  assert.equal(imported.worksheets.getItem("Analysis").store.get("E16").formulaType, "dynamicArray");
+  assert.equal(imported.worksheets.getItem("Analysis").store.get("E16").dynamicArrayRef, "E16:F20");
+  assert.deepEqual(imported.worksheets.getItem("Checks").getRange("E4:E15").values, Array.from({ length: 12 }, () => ["OK"]));
   const final = await SpreadsheetFile.exportXlsx(imported, { recalculate: false });
   const roundTrip = await SpreadsheetFile.importXlsx(final);
   roundTrip.recalculate();
   assertClose(roundTrip.worksheets.getItem("Analysis").getRange("B12").values[0][0], 686);
   assertClose(roundTrip.worksheets.getItem("Analysis").getRange("B21").values[0][0], 138.6);
+  assertClose(roundTrip.worksheets.getItem("Analysis").getRange("E16").values[0][0], 1.96);
+  assertClose(roundTrip.worksheets.getItem("Analysis").getRange("F18").values[0][0], 2.79284800875378);
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await final.save(outputPath);

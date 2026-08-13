@@ -143,11 +143,105 @@ assertClose(spillResults[2], 2);
 assertClose(spillResults[3], Math.sqrt(10));
 assert.deepEqual(spillResults.slice(4), [2, 0, 1, 0, 12]);
 
+const lineSheet = workbook.worksheets.add("LINEST statistics");
+lineSheet.getRange("A1:B7").values = [
+  [2, 6],
+  [3, 5],
+  [9, 11],
+  [1, 7],
+  [8, 5],
+  [7, 4],
+  [5, 4],
+];
+lineSheet.getRange("C1:C3").values = [[1], [1], [1]];
+lineSheet.getRange("D1").formulas = [["=LINEST(A1:A7,B1:B7,TRUE,TRUE)"]];
+lineSheet.getRange("G1").formulas = [["=LINEST(A1:A7,B1:B7,FALSE,TRUE)"]];
+lineSheet.getRange("J1").formulas = [["=LINEST(A1:A7,B1:B7)"]];
+lineSheet.getRange("M1").formulas = [["=LINEST(A1:A7,,TRUE,FALSE)"]];
+lineSheet.getRange("P1").formulas = [["=LINEST(A1:A3,C1:C3,TRUE,TRUE)"]];
+lineSheet.getRange("S1").formulas = [["=LINEST(A1:A7,B1:B7,1,1)"]];
+lineSheet.getRange("V1").formulas = [["=LINEST(A1:A7,B1:B7,TRUE,FALSE)"]];
+lineSheet.getRange("Y1:Y5").formulas = [
+  ["=LINEST(A1:A7,B1:B6)"],
+  ["=LINEST(A1:A7,B1:G1)"],
+  ["=LINEST(A1:A7,B1:B7,\"yes\",TRUE)"],
+  ["=LINEST(A1:A7,B1:B7,TRUE,TRUE,FALSE)"],
+  ["=LINEST(A1:A7,B1:B7,TRUE,TRUE)"],
+];
+lineSheet.getRange("Y10").formulas = [["=LINEST(A1:B2,A1:B2,TRUE,TRUE)"]];
+lineSheet.getRange("Z5").values = [["occupied"]];
+workbook.recalculate();
+
+const lineStats = lineSheet.getRange("D1:E5").values;
+assertClose(lineStats[0][0], 11 / 36);
+assertClose(lineStats[0][1], 19 / 6);
+assertClose(lineStats[1][0], 0.5509531583683402);
+assertClose(lineStats[1][1], 3.533962208186286);
+assertClose(lineStats[2][0], 121 / 2088);
+assertClose(lineStats[2][1], 3.305718950210041);
+assertClose(lineStats[3][0], 0.30757498729029);
+assert.equal(lineStats[3][1], 5);
+assertClose(lineStats[4][0], 121 / 36);
+assertClose(lineStats[4][1], 1967 / 36);
+assert.equal(lineSheet.store.get("D1").spillRange, "D1:E5");
+assert.equal(lineSheet.store.get("D1").spillValues.length, 5);
+
+const forcedOrigin = lineSheet.getRange("G1:H5").values;
+assertClose(forcedOrigin[0][0], 221 / 288);
+assert.equal(forcedOrigin[0][1], 0);
+assertClose(forcedOrigin[1][0], 0.191565786320739);
+assert.equal(forcedOrigin[1][1], "#N/A");
+assertClose(forcedOrigin[2][0], 0.727840367191226);
+assertClose(forcedOrigin[2][1], 3.25097919721747);
+assertClose(forcedOrigin[3][0], 16.0458851229261);
+assert.equal(forcedOrigin[3][1], 6);
+assertClose(forcedOrigin[4][0], 169.586805555556);
+assertClose(forcedOrigin[4][1], 63.4131944444445);
+assertClose(lineSheet.getRange("J1:K1").values[0][0], 11 / 36);
+assertClose(lineSheet.getRange("J1:K1").values[0][1], 19 / 6);
+assertClose(lineSheet.getRange("V1:W1").values[0][0], 11 / 36);
+assertClose(lineSheet.getRange("V1:W1").values[0][1], 19 / 6);
+assert.deepEqual(lineSheet.getRange("S1:T5").values, lineStats);
+
+const defaultX = lineSheet.getRange("M1:N1").values[0];
+assertClose(defaultX[0], 4 / 7);
+assertClose(defaultX[1], 19 / 7);
+const removedConstantX = lineSheet.getRange("P1:Q5").values;
+assert.equal(removedConstantX[0][0], 0);
+assertClose(removedConstantX[0][1], 14 / 3);
+assertClose(removedConstantX[1][0], 0);
+assertClose(removedConstantX[1][1], Math.sqrt(43 / 9));
+assertClose(removedConstantX[2][0], 0);
+assertClose(removedConstantX[2][1], Math.sqrt(43 / 3));
+assert.deepEqual(removedConstantX[3], ["#N/A", 2]);
+assert.equal(removedConstantX[4][0], 0);
+assertClose(removedConstantX[4][1], 86 / 3);
+assert.deepEqual(lineSheet.getRange("Y1:Y4").values.flat(), ["#N/A", "#N/A", "#VALUE!", "#VALUE!"]);
+assert.equal(lineSheet.getRange("Y5").values[0][0], "#SPILL!");
+assert.deepEqual(lineSheet.store.get("Y5").spillError, { type: "blocked", addresses: ["Z5"] });
+assert.equal(lineSheet.getRange("Y10").values[0][0], "#VALUE!");
+lineSheet.getRange("Y5:Z5").clear();
+
 const xlsx = await SpreadsheetFile.exportXlsx(workbook);
 const imported = await SpreadsheetFile.importXlsx(xlsx);
 assert.deepEqual(imported.worksheets.getItem("Statistics").getRange("H1:H44").formulas, sheet.getRange("H1:H44").formulas);
 assert.deepEqual(imported.worksheets.getItem("Statistics").getRange("H1:H44").values, sheet.getRange("H1:H44").values);
 assert.deepEqual(imported.worksheets.getItem("Spill statistics").getRange("E1:E9").formulas, spillSheet.getRange("E1:E9").formulas);
 assert.deepEqual(imported.worksheets.getItem("Spill statistics").getRange("E1:E9").values, spillSheet.getRange("E1:E9").values);
+const importedLineSheet = imported.worksheets.getItem("LINEST statistics");
+assert.deepEqual(importedLineSheet.getRange("D1:E5").values, lineStats);
+assert.equal(importedLineSheet.store.get("D1").formulaType, "dynamicArray");
+assert.equal(importedLineSheet.store.get("D1").dynamicArrayRef, "D1:E5");
+assert.equal(importedLineSheet.store.get("D1").formula, "=LINEST(A1:A7,B1:B7,TRUE,TRUE)");
+assert.deepEqual(importedLineSheet.getRange("G1:H5").values, forcedOrigin);
+assert.deepEqual(importedLineSheet.getRange("P1:Q5").values, removedConstantX);
+importedLineSheet.getRange("A1").values = [[4]];
+imported.recalculate();
+const updatedLineStats = importedLineSheet.getRange("D1:E5").values;
+assert.notEqual(updatedLineStats[0][0], lineStats[0][0]);
+const updatedXlsx = await SpreadsheetFile.exportXlsx(imported, { recalculate: false });
+const updatedRoundTrip = await SpreadsheetFile.importXlsx(updatedXlsx);
+assert.deepEqual(updatedRoundTrip.worksheets.getItem("LINEST statistics").getRange("D1:E5").values, updatedLineStats);
+assert.equal(updatedRoundTrip.worksheets.getItem("LINEST statistics").store.get("D1").dynamicArrayRef, "D1:E5");
 
 console.log("spreadsheet statistical formula tests passed");

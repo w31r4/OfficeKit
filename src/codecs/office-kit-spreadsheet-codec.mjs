@@ -483,6 +483,48 @@ function dynamicArrayCellSnapshot(cell) {
   };
 }
 
+function dynamicArrayRangeSnapshot(sheet, address, reference) {
+  const bounds = formulaRangeBounds(reference, `${sheet.name}!${address}`);
+  const output = [];
+  for (let row = bounds.top; row <= bounds.bottom; row += 1) {
+    for (let column = bounds.left; column <= bounds.right; column += 1) {
+      const candidateAddress = cellAddress(row, column);
+      const cell = sheet.store.get(candidateAddress);
+      output.push({
+        address: candidateAddress,
+        value: cell.value instanceof Date ? { type: "date", value: cell.value.getTime() } : cell.value ?? null,
+        ...dynamicArrayCellSnapshot(cell),
+      });
+    }
+  }
+  return output;
+}
+
+function dynamicArrayRecalculationMatches(sheet, address, slot) {
+  const anchor = slot.cell;
+  const reference = String(slot.publicSnapshot.dynamicArrayRef || "");
+  if (!reference || String(anchor.formula || "") !== slot.publicSnapshot.formula || String(anchor.formulaType || "") !== "dynamicArray") return false;
+  if (String(anchor.dynamicArrayRef || "").toUpperCase() !== reference.toUpperCase() || String(anchor.spillRange || "").toUpperCase() !== reference.toUpperCase() || anchor.spillError) return false;
+  const bounds = formulaRangeBounds(reference, `${sheet.name}!${address}`);
+  const matrix = anchor.spillValues;
+  if (!Array.isArray(matrix) || matrix.length !== bounds.bottom - bounds.top + 1 || matrix.some((row) => !Array.isArray(row) || row.length !== bounds.right - bounds.left + 1)) return false;
+  const owner = `${String(sheet.name || "").replaceAll("'", "''")}!${address.toUpperCase()}`;
+  for (let row = bounds.top; row <= bounds.bottom; row += 1) {
+    for (let column = bounds.left; column <= bounds.right; column += 1) {
+      const candidateAddress = cellAddress(row, column);
+      const candidate = sheet.store.get(candidateAddress);
+      if (row === bounds.top && column === bounds.left) {
+        if (candidate !== anchor) return false;
+        continue;
+      }
+      if (candidate.spillParent !== owner || candidate.spillAnchor !== address || String(candidate.spillRange || "").toUpperCase() !== reference.toUpperCase()) return false;
+      if (candidate.formula) return false;
+      if (!Object.is(candidate.value ?? null, matrix[row - bounds.top]?.[column - bounds.left] ?? null)) return false;
+    }
+  }
+  return true;
+}
+
 function sourceBoundFormulaCellSnapshot(cell) {
   return {
     value: cell.value instanceof Date ? { type: "date", value: cell.value.getTime() } : cell.value ?? null,
@@ -1337,10 +1379,16 @@ function workbookEnvelope(workbook) {
       const sourceBoundFormulaSlots = state?.sourceBoundFormulaSlotsBySheet?.get(sheet.id) || new Map();
       const entries = sheet.store?.entries?.() || [];
       const byAddress = new Map(entries);
+      const recalculatedDynamicAddresses = new Set();
       for (const [address, slot] of dynamicSlots) {
-        if (byAddress.get(address) !== slot.cell || JSON.stringify(dynamicArrayCellSnapshot(slot.cell)) !== JSON.stringify(slot.publicSnapshot)) {
+        const unchanged = byAddress.get(address) === slot.cell
+          && JSON.stringify(dynamicArrayCellSnapshot(slot.cell)) === JSON.stringify(slot.publicSnapshot)
+          && JSON.stringify(dynamicArrayRangeSnapshot(sheet, address, slot.publicSnapshot.dynamicArrayRef)) === JSON.stringify(slot.publicRangeSnapshot);
+        const recalculated = byAddress.get(address) === slot.cell && dynamicArrayRecalculationMatches(sheet, address, slot);
+        if (!unchanged && !recalculated) {
           throw new OfficeKitCodecError(`Imported dynamic array ${sheet.name}!${address} is source-bound and read-only in OfficeKit 0.2.`, [], { code: "unsupported_dynamic_array_edit" });
         }
+        if (recalculated) recalculatedDynamicAddresses.add(address);
       }
       for (const [address, slot] of sourceBoundFormulaSlots) {
         if (byAddress.get(address) !== slot.cell || JSON.stringify(sourceBoundFormulaCellSnapshot(slot.cell)) !== JSON.stringify(slot.publicSnapshot)) {
@@ -1349,7 +1397,7 @@ function workbookEnvelope(workbook) {
       }
       const output = entries
         .filter(([, cell]) => cell.value != null || cell.formula || cell.formulaType || Object.keys(cell.style || {}).some((key) => cell.style[key] != null))
-        .map(([address, cell]) => sourceBoundFormulaSlots.get(address)?.wire || dynamicSlots.get(address)?.wire || wireCell(address, cell, workbook.dateSystem));
+        .map(([address, cell]) => sourceBoundFormulaSlots.get(address)?.wire || (dynamicSlots.has(address) && !recalculatedDynamicAddresses.has(address) ? dynamicSlots.get(address).wire : wireCell(address, cell, workbook.dateSystem)));
       wireWorksheetDataTables(sheet, state?.dataTablesBySheet?.get(sheet.id), output);
       validateFormulaTopology(output, sheet.name);
       return output;
@@ -1531,6 +1579,9 @@ function workbookFromEnvelope(envelope) {
       } else if (sourceCell.formulaMetadata?.kind === CellFormulaKind.DATA_TABLE) {
         dataTableSlots.push(hydrateWorksheetDataTable(sheet, sourceCell));
       }
+    }
+    for (const [address, slot] of dynamicArraySlots) {
+      slot.publicRangeSnapshot = dynamicArrayRangeSnapshot(sheet, address, slot.publicSnapshot.dynamicArrayRef);
     }
     dynamicArraySlotsBySheet.set(sheet.id, dynamicArraySlots);
     if (partialSharedFormulaRanges.length && sourceBoundFormulaSlots.size === 0) {

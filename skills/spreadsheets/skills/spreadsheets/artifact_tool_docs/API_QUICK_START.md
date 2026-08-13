@@ -735,7 +735,7 @@ Use `workbook.help(...)` primarily for obscure/advanced surfaces (for example de
 - `workbook.help("shape.add", { include: "examples,notes" }).ndjson`
 - `workbook.help("fx.RATE", { include: "index,examples,notes" }).ndjson`
 - `workbook.help("cash flow return rate", { search: "MIRR|IRR|XIRR|NPV|XNPV", include: "index,examples,notes", maxChars: 4000 }).ndjson`
-- `workbook.help("statistical relationship and linear forecast", { search: "STDEV|VAR|CORREL|COVARIANCE|SLOPE|INTERCEPT|RSQ|STEYX|FORECAST.LINEAR", include: "index,examples,notes", maxChars: 6000 }).ndjson`
+- `workbook.help("statistical relationship, LINEST diagnostics, and linear forecast", { search: "STDEV|VAR|CORREL|COVARIANCE|SLOPE|INTERCEPT|RSQ|STEYX|LINEST|FORECAST.LINEAR", include: "index,examples,notes", maxChars: 7000 }).ndjson`
 - `workbook.help("*", { search: "fill|borders|autofit", include: "index,examples,notes", maxChars: 6000 }).ndjson`
 
 ### Bounded statistical formulas
@@ -743,7 +743,8 @@ Use `workbook.help(...)` primarily for obscure/advanced surfaces (for example de
 Use `STDEV.S` / `VAR.S` for samples, `STDEV.P` / `VAR.P` for complete
 populations, and `CORREL` / `COVARIANCE.S` / `COVARIANCE.P` for aligned
 numeric series. Use `SLOPE`, `INTERCEPT`, `RSQ`, and `STEYX` to inspect one
-bounded least-squares fit, then `FORECAST.LINEAR` for one scalar point estimate.
+bounded least-squares fit, `LINEST` for its dynamic-array diagnostics, then
+`FORECAST.LINEAR` for one scalar point estimate.
 The evaluator keeps reference semantics explicit: text,
 logical, blank, and error cells are ignored in a referenced one-series
 calculation, while direct logical and numeric-text arguments are counted.
@@ -755,10 +756,20 @@ correlation is `#DIV/0!`. Direct and spill ranges remain subject to the
 
 Regression functions use the same aligned pair filtering rather than building
 separate x and y lists. Empty or different-length sources return `#N/A` for
-the fit functions; constant known-x values return `#DIV/0!`; `STEYX` requires
-at least three numeric pairs; and a nonnumeric forecast x returns `#VALUE!`.
-This is a single-variable linear profile, not `LINEST`, multivariate,
-polynomial, seasonal, or confidence-interval forecasting.
+the scalar fit functions; constant known-x values return `#DIV/0!`; `STEYX`
+requires at least three numeric pairs; and a nonnumeric forecast x returns
+`#VALUE!`.
+
+`LINEST(known_y, [known_x], [const], [stats])` is a separate bounded
+single-variable dynamic-array profile. It returns `[slope, intercept]` when
+`stats` is false or omitted, and the documented 5-by-2 coefficient/error,
+R-squared/standard-error, F/degrees-of-freedom, and
+regression/residual-sum-of-squares matrix when `stats` is true. Omitting
+`known_x` uses `1..n`; `const=FALSE` forces a zero intercept; a constant
+known-x column is removed instead of making the matrix fail. Explicit sources
+must be rectangular and have the same shape. Multivariable/polynomial inputs,
+array constants, seasonal models, and confidence-interval forecasting remain
+outside this profile.
 
 ```js
 sheet.getRange("A2:B6").values = [[1, 2], [2, 1], [3, 4], [4, 3], [5, 5]];
@@ -773,6 +784,7 @@ sheet.getRange("D2:D10").formulas = [
   ["=STEYX(B2:B6,A2:A6)"],
   ["=FORECAST.LINEAR(6,B2:B6,A2:A6)"],
 ];
+sheet.getRange("F2").formulas = [["=LINEST(B2:B6,A2:A6,TRUE,TRUE)"]];
 workbook.recalculate();
 ```
 

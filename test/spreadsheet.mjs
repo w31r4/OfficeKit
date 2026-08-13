@@ -1478,6 +1478,35 @@ const importedDynamicCell = importedDynamicWorkbook.worksheets.getItem("Main").s
 assert.equal(importedDynamicCell.formula, "=SEQUENCE(2)");
 assert.equal(importedDynamicCell.formulaType, "dynamicArray");
 assert.equal(importedDynamicCell.dynamicArrayRef, "A1:A2");
+importedDynamicWorkbook.recalculate();
+const recalculatedDynamicCell = importedDynamicWorkbook.worksheets.getItem("Main").store.get("A1");
+assert.equal(recalculatedDynamicCell.spillRange, "A1:A2");
+assert.deepEqual(importedDynamicWorkbook.worksheets.getItem("Main").getRange("A1:A2").values, [[1], [2]]);
+const preservedRecalculatedDynamic = await SpreadsheetFile.exportXlsx(importedDynamicWorkbook);
+const preservedRecalculatedImport = await SpreadsheetFile.importXlsx(preservedRecalculatedDynamic);
+assert.equal(preservedRecalculatedImport.worksheets.getItem("Main").store.get("A1").formulaType, "dynamicArray");
+assert.equal(preservedRecalculatedImport.worksheets.getItem("Main").store.get("A1").dynamicArrayRef, "A1:A2");
+
+const tamperedDynamicWorkbook = await SpreadsheetFile.importXlsx(dynamicXlsx);
+tamperedDynamicWorkbook.recalculate();
+tamperedDynamicWorkbook.worksheets.getItem("Main").store.get("A2").spillParent = "Main!B1";
+await assert.rejects(
+  () => SpreadsheetFile.exportXlsx(tamperedDynamicWorkbook, { recalculate: false }),
+  (error) => error?.code === "unsupported_dynamic_array_edit" && /source-bound and read-only/i.test(error.message),
+);
+const editedDynamicCacheWorkbook = await SpreadsheetFile.importXlsx(dynamicXlsx);
+editedDynamicCacheWorkbook.worksheets.getItem("Main").store.get("A2").value = 99;
+await assert.rejects(
+  () => SpreadsheetFile.exportXlsx(editedDynamicCacheWorkbook, { recalculate: false }),
+  (error) => error?.code === "unsupported_dynamic_array_edit" && /source-bound and read-only/i.test(error.message),
+);
+const editedDynamicWorkbook = await SpreadsheetFile.importXlsx(dynamicXlsx);
+editedDynamicWorkbook.recalculate();
+editedDynamicWorkbook.worksheets.getItem("Main").store.get("A1").formula = "=SEQUENCE(3)";
+await assert.rejects(
+  () => SpreadsheetFile.exportXlsx(editedDynamicWorkbook, { recalculate: false }),
+  (error) => error?.code === "unsupported_dynamic_array_edit" && /source-bound and read-only/i.test(error.message),
+);
 
 const ifsFormulaWorkbook = Workbook.create();
 const ifsFormulaSheet = ifsFormulaWorkbook.worksheets.add("Criteria");

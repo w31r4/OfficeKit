@@ -2276,10 +2276,17 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     const matrix = formulaRangeMatrix(sheet, args[index], context);
     if (matrix !== undefined) {
       const normalized = normalizeFormulaMatrix(matrix);
-      return { source: "reference", values: normalized.flat() };
+      const columns = Math.max(0, ...normalized.map((row) => row.length));
+      return {
+        source: "reference",
+        values: normalized.flat(),
+        rows: normalized.length,
+        columns,
+        rectangular: normalized.every((row) => row.length === columns),
+      };
     }
     const value = formulaScalar(sheet, args[index], context);
-    return { source: "direct", values: isFormulaMatrix(value) ? ["#VALUE!"] : [value] };
+    return { source: "direct", values: isFormulaMatrix(value) ? ["#VALUE!"] : [value], rows: 1, columns: 1, rectangular: true };
   };
   const sameCriteriaShape = (left, right) => left.rectangular && right.rectangular && left.rows === right.rows && left.columns === right.columns;
   switch (fnName) {
@@ -2295,6 +2302,7 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "RSQ":
     case "STEYX":
     case "FORECAST.LINEAR":
+    case "LINEST":
       return evaluateStatisticalFormula(fnName, args, {
         argument: statisticalArgument,
         errorCode: formulaErrorCode,
