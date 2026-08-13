@@ -63,7 +63,7 @@ const FORMULA_LET_MAX_BINDINGS = 16;
 // set explicit so unsupported scalar/vector functions fail closed instead of
 // accidentally consuming the upper-left spilled value.
 const FORMULA_SPILL_RANGE_FUNCTIONS = new Set([
-  "SUM", "PRODUCT", "SUMSQ", "AVERAGE", "MIN", "MAX", "COUNT", "COUNTA", "COUNTBLANK", "MEDIAN", "LARGE", "SMALL", "RANK", "RANK.EQ", "MODE", "MODE.SNGL", "PERCENTILE.INC", "QUARTILE.INC",
+  "SUM", "PRODUCT", "SUMSQ", "AVERAGE", "MIN", "MAX", "COUNT", "COUNTA", "COUNTBLANK",
   ...MATH_SPILL_RANGE_FUNCTIONS,
   ...STATISTICS_SPILL_RANGE_FUNCTIONS,
   "NPV", "MIRR", "XNPV", "IRR", "XIRR", "NETWORKDAYS", "WORKDAY", "NETWORKDAYS.INTL", "WORKDAY.INTL",
@@ -1468,23 +1468,6 @@ function aggregateFormulaValues(values, fnName) {
   return nums.reduce((acc, value) => acc + value, 0);
 }
 
-function statisticalFormulaNumbers(values) {
-  const error = values.map(formulaErrorCode).find(Boolean);
-  if (error) return { error, numbers: [] };
-  return { numbers: values.filter((value) => typeof value === "number" && Number.isFinite(value)) };
-}
-
-function inclusivePercentile(numbers, percentile) {
-  if (!numbers.length) return "#NUM!";
-  const ordered = [...numbers].sort((left, right) => left - right);
-  const position = percentile * (ordered.length - 1);
-  const lower = Math.floor(position);
-  const upper = Math.ceil(position);
-  const fraction = position - lower;
-  const result = ordered[lower] + (ordered[upper] - ordered[lower]) * fraction;
-  return Number.isFinite(result) ? result : "#NUM!";
-}
-
 function roundFormulaNumber(value, digits = 0, mode = "nearest") {
   const number = formulaNumber(value);
   if (formulaErrorCode(number)) return number;
@@ -2349,6 +2332,20 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "LOGEST":
     case "TREND":
     case "GROWTH":
+    case "MEDIAN":
+    case "LARGE":
+    case "SMALL":
+    case "RANK":
+    case "RANK.EQ":
+    case "RANK.AVG":
+    case "MODE":
+    case "MODE.SNGL":
+    case "MODE.MULT":
+    case "PERCENTILE.INC":
+    case "PERCENTILE.EXC":
+    case "QUARTILE.INC":
+    case "QUARTILE.EXC":
+    case "TRIMMEAN":
       return evaluateStatisticalFormula(fnName, args, {
         argument: statisticalArgument,
         errorCode: formulaErrorCode,
@@ -2494,61 +2491,6 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "ROUND": return roundFormulaNumber(scalar(0, 0), scalar(1, 0));
     case "ROUNDUP": return roundFormulaNumber(scalar(0, 0), scalar(1, 0), "up");
     case "ROUNDDOWN": return roundFormulaNumber(scalar(0, 0), scalar(1, 0), "down");
-    case "MEDIAN": {
-      const stats = statisticalFormulaNumbers(values());
-      if (stats.error) return stats.error;
-      if (!stats.numbers.length) return "#NUM!";
-      stats.numbers.sort((left, right) => left - right);
-      const middle = Math.floor(stats.numbers.length / 2);
-      return stats.numbers.length % 2 ? stats.numbers[middle] : (stats.numbers[middle - 1] + stats.numbers[middle]) / 2;
-    }
-    case "LARGE":
-    case "SMALL": {
-      const stats = statisticalFormulaNumbers(values([args[0]]));
-      if (stats.error) return stats.error;
-      const rank = Math.trunc(formulaNumber(scalar(1, 0)));
-      if (rank < 1 || rank > stats.numbers.length) return "#NUM!";
-      stats.numbers.sort((left, right) => fnName === "LARGE" ? right - left : left - right);
-      return stats.numbers[rank - 1];
-    }
-    case "RANK":
-    case "RANK.EQ": {
-      const number = formulaNumber(scalar(0, 0));
-      if (formulaErrorCode(number)) return number;
-      const stats = statisticalFormulaNumbers(values([args[1]]));
-      if (stats.error) return stats.error;
-      if (!stats.numbers.includes(number)) return "#N/A";
-      const ascending = formulaTruthy(scalar(2, false));
-      return 1 + stats.numbers.filter((value) => ascending ? value < number : value > number).length;
-    }
-    case "MODE":
-    case "MODE.SNGL": {
-      const stats = statisticalFormulaNumbers(values());
-      if (stats.error) return stats.error;
-      const counts = new Map();
-      for (const number of stats.numbers) counts.set(number, (counts.get(number) || 0) + 1);
-      const count = Math.max(0, ...counts.values());
-      if (count <= 1) return "#N/A";
-      return Math.min(...[...counts].filter(([, occurrences]) => occurrences === count).map(([number]) => number));
-    }
-    case "PERCENTILE.INC": {
-      if (args.length !== 2 || hasEmptyArgument()) return "#VALUE!";
-      const percentile = formulaNumber(scalar(1));
-      if (formulaErrorCode(percentile)) return percentile;
-      if (!Number.isFinite(percentile) || percentile < 0 || percentile > 1) return "#NUM!";
-      const stats = statisticalFormulaNumbers(values([args[0]]));
-      if (stats.error) return stats.error;
-      return inclusivePercentile(stats.numbers, percentile);
-    }
-    case "QUARTILE.INC": {
-      if (args.length !== 2 || hasEmptyArgument()) return "#VALUE!";
-      const quartile = formulaNumber(scalar(1));
-      if (formulaErrorCode(quartile)) return quartile;
-      if (!Number.isInteger(quartile) || quartile < 0 || quartile > 4) return "#NUM!";
-      const stats = statisticalFormulaNumbers(values([args[0]]));
-      if (stats.error) return stats.error;
-      return inclusivePercentile(stats.numbers, quartile / 4);
-    }
     case "INT": return Math.floor(formulaNumber(scalar(0, 0)));
     case "CEILING": return Math.ceil(formulaNumber(scalar(0, 0)) / Math.max(1, formulaNumber(scalar(1, 1)))) * Math.max(1, formulaNumber(scalar(1, 1)));
     case "FLOOR": return Math.floor(formulaNumber(scalar(0, 0)) / Math.max(1, formulaNumber(scalar(1, 1)))) * Math.max(1, formulaNumber(scalar(1, 1)));

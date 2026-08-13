@@ -112,11 +112,16 @@ export const HELP_CATALOG = [
   { artifactKind: "workbook", kind: "formula", name: "fx.COUNTBLANK", category: "statistical", summary: "Count blank cells and formula results that are empty text in one range.", examples: ["=COUNTBLANK(A1:A10)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.MEDIAN", category: "statistical", summary: "Return the middle numeric value, or the average of the two middle values, across arguments and ranges.", examples: ["=MEDIAN(A1:A10)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.MODE.SNGL", category: "statistical", summary: "Return the most frequently occurring numeric value, or #N/A when no value repeats.", examples: ["=MODE.SNGL(A1:A10)"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.MODE.MULT", category: "statistical", summary: "Return every numeric value tied for the highest frequency as an ascending vertical spill; if no value repeats, return #N/A instead of synthesizing modes.", examples: ["=_xlfn.MODE.MULT(A1:A10)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.LARGE", category: "statistical", summary: "Return the k-th largest numeric value in an array or range.", examples: ["=LARGE(A1:A10,2)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.SMALL", category: "statistical", summary: "Return the k-th smallest numeric value in an array or range.", examples: ["=SMALL(A1:A10,2)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.RANK.EQ", category: "statistical", summary: "Return a number's equal rank in a numeric range, descending by default or ascending when order is nonzero.", examples: ["=RANK.EQ(A1,A1:A10,0)"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.RANK.AVG", category: "statistical", summary: "Return a number's rank in a bounded numeric range and average the occupied positions when values tie; a number absent from the range returns #N/A.", examples: ["=_xlfn.RANK.AVG(A1,A1:A10,0)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.PERCENTILE.INC", category: "statistical", summary: "Return an inclusive percentile from a bounded array or range; k must be from 0 through 1 and the result uses linear interpolation, while nonnumeric reference values are ignored, formula errors propagate, and an empty numeric set fails as #NUM!.", examples: ["=PERCENTILE.INC(A1:A10,0.9)"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.PERCENTILE.EXC", category: "statistical", summary: "Return an exclusive percentile from a bounded numeric range using rank k*(n+1); k must be strictly between 0 and 1, and endpoints that cannot be interpolated return #NUM!.", examples: ["=_xlfn.PERCENTILE.EXC(A1:A10,0.9)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.QUARTILE.INC", category: "statistical", summary: "Return an inclusive quartile from a bounded array or range; the quartile index must be an integer from 0 through 4 and the result uses linear interpolation, while nonnumeric reference values are ignored, formula errors propagate, and an empty numeric set fails as #NUM!.", examples: ["=QUARTILE.INC(A1:A10,3)"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.QUARTILE.EXC", category: "statistical", summary: "Return an exclusive first, second, or third quartile from a bounded numeric range; the selector is truncated and indexes outside 1 through 3 return #NUM!.", examples: ["=_xlfn.QUARTILE.EXC(A1:A10,3)"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.TRIMMEAN", category: "statistical", summary: "Average a bounded numeric range after removing an even number of observations symmetrically from both tails; the requested percentage must be from 0 through 1.", examples: ["=TRIMMEAN(A1:A20,0.1)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.STDEV.S", category: "statistical", summary: "Estimate sample standard deviation with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and fewer than two numbers returns #DIV/0!.", examples: ["=STDEV.S(A1:A10)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.STDEV.P", category: "statistical", summary: "Calculate population standard deviation with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and an empty numeric set returns #DIV/0!.", examples: ["=STDEV.P(A1:A10)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.VAR.S", category: "statistical", summary: "Estimate sample variance with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and fewer than two numbers returns #DIV/0!.", examples: ["=VAR.S(A1:A10)"] },
@@ -2574,7 +2579,8 @@ for (const item of HELP_CATALOG) {
   if (item.artifactKind === "workbook" && !item.schema && WORKBOOK_HELP_SCHEMAS[item.name]) item.schema = WORKBOOK_HELP_SCHEMAS[item.name];
   if (item.name.startsWith("fx.") && !item.schema) {
     const functionName = item.name.slice(3);
-    const returnType = item.category === "dynamic-array" || ["GROWTH", "LINEST", "LOGEST", "TREND"].includes(functionName)
+    const arrayReturn = item.category === "dynamic-array" || ["GROWTH", "LINEST", "LOGEST", "MODE.MULT", "TREND"].includes(functionName);
+    const returnType = arrayReturn
       ? "unknown[][]"
       : item.category === "logical" || item.category === "information"
         ? (functionName === "IF" || functionName === "IFERROR" || functionName === "LET" ? "unknown" : "boolean")
@@ -2589,7 +2595,7 @@ for (const item of HELP_CATALOG) {
         arguments: { type: "unknown[]", required: true, description: "Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator." },
       },
       returns: {
-        value: { type: returnType, description: item.category === "dynamic-array" ? "Spilled two-dimensional formula result." : "Calculated cell value or an Excel-style formula error string." },
+        value: { type: returnType, description: arrayReturn ? "Spilled two-dimensional formula result or an Excel-style formula error string." : "Calculated cell value or an Excel-style formula error string." },
       },
     };
   }

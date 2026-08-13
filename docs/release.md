@@ -1,5 +1,36 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-14): Bounded robust and order statistics
+
+The Spreadsheet evaluator and native Skill now provide `RANK.AVG`,
+`PERCENTILE.EXC`, `QUARTILE.EXC`, `MODE.MULT`, and `TRIMMEAN`. The existing
+median/rank/mode/percentile/quartile implementations moved out of the central
+formula switch into the source-aware statistical deep module, so direct-value
+coercion, reference filtering, errors, interpolation, ties, and formula budgets
+have one implementation boundary. `MODE.MULT` authors a canonical source-free
+XLDAPR vertical spill and returns `#N/A` when no value repeats; data-dependent
+legacy-array topology produced by a host remains source-bound.
+
+The packaged `Data` / `Analysis` / `Checks` workflow uses the standard
+`_xlfn.` spellings required in XLSX for post-2010 functions, performs two
+OfficeKit Codec export/import cycles, independently reconciles every result,
+and emits inspect, verify, SVG, and native evidence. LibreOfficeDev 26.8
+recalculated the authored workbook to rank `5.5`, exclusive median `3`, first
+exclusive quartile `2`, 30% trimmed mean `2.8`, and modes `2` and `3`; Poppler
+accepted and rasterized the resulting five-page PDF. Invalid-boundary semantics
+follow Microsoft's Excel documentation where LibreOffice's displayed error
+class differs. Runtime Help now contains 200 formula records and 521 total
+entries; generated API documentation exposes `MODE.MULT` as a matrix-returning
+formula. Local fast 30/30 and slow 80/80 passed, including the complete
+Spreadsheet Skill and native renderer path. `proto:check` had no generated
+drift; the deterministic OfficeKit WASM check reproduced 39 audited files with
+a 38-file, 15,416,043-byte runtime; OfficeBridge passed 5/5 and OfficeKit Codec
+passed 415/415. Skill portability covered 338 host-neutral files and reference
+sync remained 333 files at `73c99c67`. The clean-install package gate and npm
+dry run passed. Managed live PDF-pack downloads and the separately configured
+pikepdf/pyHanko/veraPDF/OCR environments remained explicit skips; this
+Spreadsheet-only slice did not convert them into release claims.
+
 ## Current 0.6.0 candidate (2026-08-13): Bounded exponential regression and forecasts
 
 The Spreadsheet statistics leaf now adds the paired single-variable

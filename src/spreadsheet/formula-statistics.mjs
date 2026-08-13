@@ -6,6 +6,11 @@
  */
 
 const SINGLE_SERIES_FUNCTIONS = new Set(["STDEV.S", "STDEV.P", "VAR.S", "VAR.P"]);
+const ORDER_STATISTIC_FUNCTIONS = new Set([
+  "MEDIAN", "LARGE", "SMALL", "RANK", "RANK.EQ", "RANK.AVG",
+  "MODE", "MODE.SNGL", "MODE.MULT", "PERCENTILE.INC", "PERCENTILE.EXC",
+  "QUARTILE.INC", "QUARTILE.EXC", "TRIMMEAN",
+]);
 const PAIRWISE_FUNCTIONS = new Set(["CORREL", "COVARIANCE.S", "COVARIANCE.P"]);
 const REGRESSION_FUNCTIONS = new Set(["SLOPE", "INTERCEPT", "RSQ", "STEYX"]);
 const FORECAST_FUNCTIONS = new Set(["FORECAST.LINEAR"]);
@@ -13,6 +18,7 @@ const REGRESSION_ARRAY_FUNCTIONS = new Set(["LINEST", "LOGEST"]);
 const FORECAST_ARRAY_FUNCTIONS = new Set(["TREND", "GROWTH"]);
 
 export const STATISTICS_SPILL_RANGE_FUNCTIONS = Object.freeze([
+  ...ORDER_STATISTIC_FUNCTIONS,
   ...SINGLE_SERIES_FUNCTIONS,
   ...PAIRWISE_FUNCTIONS,
   ...REGRESSION_FUNCTIONS,
@@ -53,6 +59,154 @@ function collectSeries(arguments_, helpers) {
     }
   }
   return { numbers };
+}
+
+function collectOrderSeries(arguments_, helpers) {
+  const numbers = [];
+  for (const argument of arguments_) {
+    for (const value of argument.values) {
+      const error = helpers.errorCode(value);
+      if (error) return { error, numbers: [] };
+      if (argument.source === "reference") {
+        const number = helpers.referenceNumber(value);
+        const numberError = helpers.errorCode(number);
+        if (numberError) return { error: numberError, numbers: [] };
+        if (number !== undefined) numbers.push(number);
+        continue;
+      }
+      const direct = directNumber(value, helpers.errorCode, helpers.numberText);
+      if (direct.error) return { error: direct.error, numbers: [] };
+      numbers.push(direct.value);
+    }
+  }
+  return { numbers };
+}
+
+function scalarNumber(argument, helpers) {
+  if (!argument || argument.values.length !== 1) return { error: "#VALUE!" };
+  const value = argument.values[0];
+  const error = helpers.errorCode(value);
+  if (error) return { error };
+  if (argument.source === "reference") {
+    const number = helpers.referenceNumber(value);
+    const numberError = helpers.errorCode(number);
+    if (numberError) return { error: numberError };
+    return number === undefined ? { error: "#VALUE!" } : { value: number };
+  }
+  return directNumber(value, helpers.errorCode, helpers.numberText);
+}
+
+function orderedNumbers(arguments_, helpers) {
+  const collected = collectOrderSeries(arguments_, helpers);
+  if (collected.error) return collected;
+  collected.numbers.sort((left, right) => left - right);
+  return collected;
+}
+
+function interpolatedPercentile(ordered, percentile, exclusive = false) {
+  if (!ordered.length) return "#NUM!";
+  const position = exclusive
+    ? percentile * (ordered.length + 1) - 1
+    : percentile * (ordered.length - 1);
+  if (position < 0 || position > ordered.length - 1) return "#NUM!";
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  const fraction = position - lower;
+  const result = ordered[lower] + (ordered[upper] - ordered[lower]) * fraction;
+  return Number.isFinite(result) ? result : "#NUM!";
+}
+
+function modeValues(numbers) {
+  const counts = new Map();
+  for (const number of numbers) counts.set(number, (counts.get(number) || 0) + 1);
+  const maximum = Math.max(0, ...counts.values());
+  if (maximum <= 1) return [];
+  return [...counts]
+    .filter(([, count]) => count === maximum)
+    .map(([number]) => number)
+    .sort((left, right) => left - right);
+}
+
+function evaluateOrderStatistic(fnName, args, helpers) {
+  if (fnName === "MEDIAN" || fnName === "MODE" || fnName === "MODE.SNGL" || fnName === "MODE.MULT") {
+    if (args.length < 1 || args.length > 254 || helpers.hasEmptyArgument()) return "#VALUE!";
+    const collected = orderedNumbers(args.map((_, index) => helpers.argument(index)), helpers);
+    if (collected.error) return collected.error;
+    if (fnName === "MEDIAN") {
+      if (!collected.numbers.length) return "#NUM!";
+      const middle = Math.floor(collected.numbers.length / 2);
+      return collected.numbers.length % 2
+        ? collected.numbers[middle]
+        : (collected.numbers[middle - 1] + collected.numbers[middle]) / 2;
+    }
+    const modes = modeValues(collected.numbers);
+    if (!modes.length) return "#N/A";
+    return fnName === "MODE.MULT" ? modes.map((number) => [number]) : modes[0];
+  }
+
+  if (fnName === "LARGE" || fnName === "SMALL") {
+    if (args.length !== 2 || helpers.hasEmptyArgument()) return "#VALUE!";
+    const collected = orderedNumbers([helpers.argument(0)], helpers);
+    if (collected.error) return collected.error;
+    const rank = scalarNumber(helpers.argument(1), helpers);
+    if (rank.error) return rank.error;
+    const index = Math.trunc(rank.value);
+    if (index < 1 || index > collected.numbers.length) return "#NUM!";
+    return fnName === "LARGE"
+      ? collected.numbers[collected.numbers.length - index]
+      : collected.numbers[index - 1];
+  }
+
+  if (fnName === "RANK" || fnName === "RANK.EQ" || fnName === "RANK.AVG") {
+    if (args.length < 2 || args.length > 3 || String(args[0] ?? "").trim() === "" || String(args[1] ?? "").trim() === "") return "#VALUE!";
+    const target = scalarNumber(helpers.argument(0), helpers);
+    if (target.error) return target.error;
+    const collected = collectOrderSeries([helpers.argument(1)], helpers);
+    if (collected.error) return collected.error;
+    if (!collected.numbers.includes(target.value)) return "#N/A";
+    let ascending = false;
+    if (args.length === 3 && String(args[2] ?? "").trim() !== "") {
+      const order = scalarNumber(helpers.argument(2), helpers);
+      if (order.error) return order.error;
+      ascending = order.value !== 0;
+    }
+    const equalRank = 1 + collected.numbers.filter((number) => ascending ? number < target.value : number > target.value).length;
+    if (fnName !== "RANK.AVG") return equalRank;
+    const ties = collected.numbers.filter((number) => number === target.value).length;
+    return equalRank + (ties - 1) / 2;
+  }
+
+  if (fnName === "PERCENTILE.INC" || fnName === "PERCENTILE.EXC" || fnName === "QUARTILE.INC" || fnName === "QUARTILE.EXC") {
+    if (args.length !== 2 || helpers.hasEmptyArgument()) return "#VALUE!";
+    const collected = orderedNumbers([helpers.argument(0)], helpers);
+    if (collected.error) return collected.error;
+    const selector = scalarNumber(helpers.argument(1), helpers);
+    if (selector.error) return selector.error;
+    const exclusive = fnName.endsWith(".EXC");
+    const quartile = fnName.startsWith("QUARTILE");
+    const quartileIndex = exclusive ? Math.trunc(selector.value) : selector.value;
+    const percentile = quartile ? quartileIndex / 4 : selector.value;
+    if (quartile && (!Number.isInteger(quartileIndex) || quartileIndex < (exclusive ? 1 : 0) || quartileIndex > (exclusive ? 3 : 4))) return "#NUM!";
+    if ((!exclusive && (percentile < 0 || percentile > 1)) || (exclusive && (percentile <= 0 || percentile >= 1))) return "#NUM!";
+    return interpolatedPercentile(collected.numbers, percentile, exclusive);
+  }
+
+  if (fnName === "TRIMMEAN") {
+    if (args.length !== 2 || helpers.hasEmptyArgument()) return "#VALUE!";
+    const collected = orderedNumbers([helpers.argument(0)], helpers);
+    if (collected.error) return collected.error;
+    const percent = scalarNumber(helpers.argument(1), helpers);
+    if (percent.error) return percent.error;
+    if (percent.value < 0 || percent.value > 1) return "#NUM!";
+    const totalTrim = Math.floor(Math.floor(collected.numbers.length * percent.value) / 2) * 2;
+    const eachTail = totalTrim / 2;
+    const retained = collected.numbers.slice(eachTail, collected.numbers.length - eachTail);
+    if (!retained.length) return "#NUM!";
+    const sum = compensatedSum(retained);
+    return sum === undefined ? "#NUM!" : sum / retained.length;
+  }
+
+  return undefined;
 }
 
 function variance(numbers, sample) {
@@ -293,6 +447,8 @@ function singleVariableKnownSources(args, helpers) {
 }
 
 export function evaluateStatisticalFormula(fnName, args, helpers) {
+  if (ORDER_STATISTIC_FUNCTIONS.has(fnName)) return evaluateOrderStatistic(fnName, args, helpers);
+
   if (SINGLE_SERIES_FUNCTIONS.has(fnName)) {
     if (args.length < 1 || args.length > 254 || helpers.hasEmptyArgument()) return "#VALUE!";
     const collected = collectSeries(args.map((_, index) => helpers.argument(index)), helpers);

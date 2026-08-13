@@ -3797,6 +3797,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.MINUTE` | formula | Return the 0 through 59 minute component from a nonnegative serial or supported time text. |
 | `fx.MIRR` | formula | Calculate a modified periodic internal rate of return using distinct finance and reinvestment rates for a finite cash-flow vector. |
 | `fx.MOD` | formula | Return the remainder after division, preserving the divisor sign and returning #DIV/0! for a zero divisor. |
+| `fx.MODE.MULT` | formula | Return every numeric value tied for the highest frequency as an ascending vertical spill; if no value repeats, return #N/A instead of synthesizing modes. |
 | `fx.MODE.SNGL` | formula | Return the most frequently occurring numeric value, or #N/A when no value repeats. |
 | `fx.MONTH` | formula | Return the month component of a serial in the workbook's 1900 or 1904 date system. |
 | `fx.MROUND` | formula | Round a finite number to the nearest multiple with explicit zero-multiple and sign checks. |
@@ -3809,6 +3810,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.NPV` | formula | Discount a finite periodic cash-flow vector beginning one period after the present value date. |
 | `fx.ODD` | formula | Round a finite number away from zero to the next odd integer. |
 | `fx.OR` | formula | Return TRUE when any condition is true. |
+| `fx.PERCENTILE.EXC` | formula | Return an exclusive percentile from a bounded numeric range using rank k*(n+1); k must be strictly between 0 and 1, and endpoints that cannot be interpolated return #NUM!. |
 | `fx.PERCENTILE.INC` | formula | Return an inclusive percentile from a bounded array or range; k must be from 0 through 1 and the result uses linear interpolation, while nonnumeric reference values are ignored, formula errors propagate, and an empty numeric set fails as #NUM!. |
 | `fx.PI` | formula | Return the deterministic mathematical constant π; arguments are rejected rather than ignored. |
 | `fx.PMT` | formula | Calculate a constant-period loan payment from finite rate, term, present value, optional future value, and payment-timing inputs. |
@@ -3816,9 +3818,11 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.PPMT` | formula | Calculate the principal component of one constant-payment loan period using the same bounded inputs as IPMT. |
 | `fx.PRODUCT` | formula | Multiply numeric values across arguments and bounded ranges; formula errors propagate and empty invocation returns #VALUE!. |
 | `fx.PV` | formula | Calculate the present value of a finite constant-payment stream from rate, term, payment, optional future value, and payment timing. |
+| `fx.QUARTILE.EXC` | formula | Return an exclusive first, second, or third quartile from a bounded numeric range; the selector is truncated and indexes outside 1 through 3 return #NUM!. |
 | `fx.QUARTILE.INC` | formula | Return an inclusive quartile from a bounded array or range; the quartile index must be an integer from 0 through 4 and the result uses linear interpolation, while nonnumeric reference values are ignored, formula errors propagate, and an empty numeric set fails as #NUM!. |
 | `fx.QUOTIENT` | formula | Return the integer portion of a division result, truncating toward zero and returning #DIV/0! for a zero divisor. |
 | `fx.RADIANS` | formula | Convert finite degrees to radians with an explicit non-finite-result guard. |
+| `fx.RANK.AVG` | formula | Return a number's rank in a bounded numeric range and average the occupied positions when values tie; a number absent from the range returns #N/A. |
 | `fx.RANK.EQ` | formula | Return a number's equal rank in a numeric range, descending by default or ascending when order is nonzero. |
 | `fx.RATE` | formula | Solve a bounded periodic interest rate from an integer payment term, payment, present value, optional future value, payment timing, and optional guess. |
 | `fx.REPLACE` | formula | Replace a bounded scalar text span using 1-based character and non-negative length arguments; invalid positions, matrices, and overlong results fail closed. |
@@ -3867,6 +3871,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.TRANSPOSE` | formula | Transpose a source range into a spilled dynamic array with spillRange/spillValues inspect metadata. |
 | `fx.TREND` | formula | Return a bounded single-variable linear prediction dynamic array with the same row or column shape as new-x. Known-x and new-x may be omitted, const may force a zero intercept, and a constant known-x column is removed; multivariable or two-dimensional inputs, nonnumeric new-x positions, and mismatched known source shapes fail closed. |
 | `fx.TRIM` | formula | Trim leading/trailing whitespace and collapse internal whitespace. |
+| `fx.TRIMMEAN` | formula | Average a bounded numeric range after removing an even number of observations symmetrically from both tails; the requested percentage must be from 0 through 1. |
 | `fx.TRUE` | formula | Return the logical value TRUE with no arguments; supplied arguments fail as #VALUE!. |
 | `fx.TRUNC` | formula | Truncate a finite number toward zero at an optional decimal position without rounding. |
 | `fx.TYPE` | formula | Return Excel type codes 1 for numbers or blank, 2 for text, 4 for logical, 16 for errors, or 64 for arrays and multi-cell references; bounded spill/reference detection is explicit and invalid arity fails closed. |
@@ -4254,7 +4259,7 @@ Select and reorder one or more 1-based or negative column indexes from an array.
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.CHOOSEROWS`
 
@@ -4271,7 +4276,7 @@ Select and reorder one or more 1-based or negative row indexes from an array.
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.CLEAN`
 
@@ -4732,7 +4737,7 @@ Drop rows and optional columns from the start or end of an array and spill the r
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.EDATE`
 
@@ -4834,7 +4839,7 @@ Expand an array to requested row and column dimensions with optional padding.
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.FACT`
 
@@ -4902,7 +4907,7 @@ Filter rows from a source range with a boolean or comparison include array and s
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.FIND`
 
@@ -5026,7 +5031,7 @@ Return a bounded single-variable exponential prediction dynamic array for y=b*m^
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Calculated cell value or an Excel-style formula error string.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.HLOOKUP`
 
@@ -5077,7 +5082,7 @@ Append arrays horizontally, padding shorter arrays with #N/A to the maximum row 
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.IF`
 
@@ -5512,7 +5517,7 @@ Return a bounded single-variable least-squares dynamic array: 1x2 slope/intercep
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Calculated cell value or an Excel-style formula error string.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.LN`
 
@@ -5581,7 +5586,7 @@ Return a bounded single-variable exponential regression dynamic array for y=b*m^
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Calculated cell value or an Excel-style formula error string.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.LOWER`
 
@@ -5773,6 +5778,23 @@ Return the remainder after division, preserving the divisor sign and returning #
 **Schema returns:**
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.MODE.MULT`
+
+Return every numeric value tied for the highest frequency as an ascending vertical spill; if no value repeats, return #N/A instead of synthesizing modes.
+
+**Examples:**
+
+- =_xlfn.MODE.MULT(A1:A10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =MODE.MULT(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.MODE.SNGL`
 
@@ -5988,6 +6010,23 @@ Return TRUE when any condition is true.
 
 - `value` (boolean) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.PERCENTILE.EXC`
+
+Return an exclusive percentile from a bounded numeric range using rank k*(n+1); k must be strictly between 0 and 1, and endpoints that cannot be interpolated return #NUM!.
+
+**Examples:**
+
+- =_xlfn.PERCENTILE.EXC(A1:A10,0.9)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =PERCENTILE.EXC(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.PERCENTILE.INC`
 
 Return an inclusive percentile from a bounded array or range; k must be from 0 through 1 and the result uses linear interpolation, while nonnumeric reference values are ignored, formula errors propagate, and an empty numeric set fails as #NUM!.
@@ -6122,6 +6161,23 @@ Calculate the present value of a finite constant-payment stream from rate, term,
 
 - The bounded evaluator requires rate > -1, a positive finite term, and payment type 0 or 1. It preserves standard cash-flow signs and returns #VALUE! or #NUM! for invalid inputs rather than coercing them.
 
+#### `fx.QUARTILE.EXC`
+
+Return an exclusive first, second, or third quartile from a bounded numeric range; the selector is truncated and indexes outside 1 through 3 return #NUM!.
+
+**Examples:**
+
+- =_xlfn.QUARTILE.EXC(A1:A10,3)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =QUARTILE.EXC(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.QUARTILE.INC`
 
 Return an inclusive quartile from a bounded array or range; the quartile index must be an integer from 0 through 4 and the result uses linear interpolation, while nonnumeric reference values are ignored, formula errors propagate, and an empty numeric set fails as #NUM!.
@@ -6167,6 +6223,23 @@ Convert finite degrees to radians with an explicit non-finite-result guard.
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =RADIANS(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.RANK.AVG`
+
+Return a number's rank in a bounded numeric range and average the occupied positions when values tie; a number absent from the range returns #N/A.
+
+**Examples:**
+
+- =_xlfn.RANK.AVG(A1,A1:A10,0)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =RANK.AVG(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**
@@ -6416,7 +6489,7 @@ Return a dynamic array sequence that spills into neighboring cells in the clean-
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.SIGN`
 
@@ -6539,7 +6612,7 @@ Sort a range by a 1-based column index and spill the sorted rows.
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.SQRT`
 
@@ -6762,7 +6835,7 @@ Take rows and optional columns from the start or end of an array and spill the r
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.TAN`
 
@@ -6885,7 +6958,7 @@ Split one scalar text value into a bounded spilled matrix by column and optional
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.TIME`
 
@@ -6936,7 +7009,7 @@ Flatten an array into one spilled column, optionally ignoring blanks or errors a
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.TOROW`
 
@@ -6953,7 +7026,7 @@ Flatten an array into one spilled row, optionally ignoring blanks or errors and 
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.TRANSPOSE`
 
@@ -6970,7 +7043,7 @@ Transpose a source range into a spilled dynamic array with spillRange/spillValue
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.TREND`
 
@@ -6987,7 +7060,7 @@ Return a bounded single-variable linear prediction dynamic array with the same r
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Calculated cell value or an Excel-style formula error string.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.TRIM`
 
@@ -7005,6 +7078,23 @@ Trim leading/trailing whitespace and collapse internal whitespace.
 **Schema returns:**
 
 - `value` (string) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.TRIMMEAN`
+
+Average a bounded numeric range after removing an even number of observations symmetrically from both tails; the requested percentage must be from 0 through 1.
+
+**Examples:**
+
+- =TRIMMEAN(A1:A20,0.1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =TRIMMEAN(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.TRUE`
 
@@ -7106,7 +7196,7 @@ Return unique rows from a range as a spilled dynamic array.
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.UPPER`
 
@@ -7208,7 +7298,7 @@ Append arrays vertically, padding narrower arrays with #N/A to the maximum colum
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.WEEKDAY`
 
@@ -7277,7 +7367,7 @@ Wrap a one-dimensional vector into columns of a requested height, padding the fi
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.WRAPROWS`
 
@@ -7294,7 +7384,7 @@ Wrap a one-dimensional vector into rows of a requested width, padding the final 
 
 **Schema returns:**
 
-- `value` (unknown[][]) — Spilled two-dimensional formula result.
+- `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
 
 #### `fx.XIRR`
 

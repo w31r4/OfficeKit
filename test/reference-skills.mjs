@@ -714,6 +714,21 @@ try {
   assert.ok(Math.abs(exponentialGrowthRoundTrip.worksheets.getItem("Analysis").getRange("I6").values[0][0] - 473.980713611783) < 1e-9);
   assert.deepEqual(exponentialGrowthRoundTrip.worksheets.getItem("Checks").getRange("E4:E11").values, Array.from({ length: 8 }, () => ["OK"]));
 
+  const { createRobustStatisticsWorkbook } = await import(
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-robust-statistics-workflow.mjs"
+  );
+  const robustStatisticsPath = path.join(tempRoot, "officekit-robust-statistics-workflow.xlsx");
+  const authoredRobustStatistics = await createRobustStatisticsWorkbook(robustStatisticsPath);
+  assert.equal(authoredRobustStatistics.verification.ok, true);
+  assert.match(authoredRobustStatistics.inspection.ndjson, /RANK\.AVG/);
+  assert.match(authoredRobustStatistics.inspection.ndjson, /MODE\.MULT/);
+  const robustStatisticsRoundTrip = await SpreadsheetFile.importXlsx(await FileBlob.load(robustStatisticsPath));
+  robustStatisticsRoundTrip.recalculate();
+  assert.deepEqual(robustStatisticsRoundTrip.worksheets.getItem("Analysis").getRange("B4:B8").values.flat(), [5.5, 3, 2, 2.8, 2]);
+  assert.equal(robustStatisticsRoundTrip.worksheets.getItem("Analysis").store.get("D4").dynamicArrayRef, "D4:D5");
+  assert.deepEqual(robustStatisticsRoundTrip.worksheets.getItem("Analysis").getRange("D4:E5").values, [[2, 2], [3, 2]]);
+  assert.deepEqual(robustStatisticsRoundTrip.worksheets.getItem("Checks").getRange("E4:E10").values, Array.from({ length: 7 }, () => ["OK"]));
+
   const { createScatterWorkbook } = await import(
     "../skills/spreadsheets/skills/spreadsheets/examples/officekit-scatter-chart-workflow.mjs"
   );

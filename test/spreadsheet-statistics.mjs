@@ -143,6 +143,55 @@ assertClose(spillResults[2], 2);
 assertClose(spillResults[3], Math.sqrt(10));
 assert.deepEqual(spillResults.slice(4), [2, 0, 1, 0, 12]);
 
+const orderSheet = workbook.worksheets.add("Robust statistics");
+orderSheet.getRange("A1:A7").values = [[1], [2], [2], [3], [3], [4], [100]];
+orderSheet.getRange("B1:B23").formulas = [
+  ["=_xlfn.RANK.AVG(2,A1:A7,0)"],
+  ["=_xlfn.RANK.AVG(2,A1:A7,1)"],
+  ["=_xlfn.RANK.AVG(5,A1:A7,0)"],
+  ["=_xlfn.PERCENTILE.EXC(A1:A7,0.5)"],
+  ["=_xlfn.PERCENTILE.EXC(A1:A7,0.125)"],
+  ["=_xlfn.PERCENTILE.EXC(A1:A7,0.124)"],
+  ["=_xlfn.PERCENTILE.EXC(A1:A7,0.875)"],
+  ["=_xlfn.PERCENTILE.EXC(A1:A7,0.876)"],
+  ["=_xlfn.QUARTILE.EXC(A1:A7,1)"],
+  ["=_xlfn.QUARTILE.EXC(A1:A7,2)"],
+  ["=_xlfn.QUARTILE.EXC(A1:A7,3)"],
+  ["=_xlfn.QUARTILE.EXC(A1:A7,0)"],
+  ["=_xlfn.QUARTILE.EXC(A1:A7,4)"],
+  ["=_xlfn.QUARTILE.EXC(A1:A7,1.9)"],
+  ["=TRIMMEAN(A1:A7,0.2)"],
+  ["=TRIMMEAN(A1:A7,0.3)"],
+  ["=TRIMMEAN(A1:A7,0.99)"],
+  ["=TRIMMEAN(A1:A7,1)"],
+  ["=TRIMMEAN(A1:A7,-0.1)"],
+  ["=TRIMMEAN(A1:A7,1.1)"],
+  ["=MODE.SNGL(1,2,2,3,3)"],
+  ["=MODE.SNGL(1,2,3)"],
+  ["=MEDIAN(1,TRUE,\"5\")"],
+];
+orderSheet.getRange("D1").formulas = [["=_xlfn.MODE.MULT(A1:A7)"]];
+orderSheet.getRange("F1").formulas = [["=_xlfn.MODE.MULT(1,2,3)"]];
+const orderResults = orderSheet.getRange("B1:B23").values.flat();
+assert.deepEqual(orderResults.slice(0, 3), [5.5, 2.5, "#N/A"]);
+assert.deepEqual(orderResults.slice(3, 8), [3, 1, "#NUM!", 100, "#NUM!"]);
+assert.deepEqual(orderResults.slice(8, 14), [2, 3, 4, "#NUM!", "#NUM!", 2]);
+assertClose(orderResults[14], 115 / 7);
+assertClose(orderResults[15], 2.8);
+assert.deepEqual(orderResults.slice(16, 20), [3, 3, "#NUM!", "#NUM!"]);
+assert.deepEqual(orderResults.slice(20), [2, "#N/A", 1]);
+assert.deepEqual(orderSheet.getRange("D1:D2").values, [[2], [3]]);
+assert.equal(orderSheet.store.get("D1").spillRange, "D1:D2");
+assert.equal(orderSheet.getRange("F1").values[0][0], "#N/A");
+
+const orderXlsx = await SpreadsheetFile.exportXlsx(workbook);
+const importedOrderWorkbook = await SpreadsheetFile.importXlsx(orderXlsx);
+const importedOrderSheet = importedOrderWorkbook.worksheets.getItem("Robust statistics");
+assert.deepEqual(importedOrderSheet.getRange("B1:B23").values, orderSheet.getRange("B1:B23").values);
+assert.deepEqual(importedOrderSheet.getRange("D1:D2").values, [[2], [3]]);
+assert.equal(importedOrderSheet.store.get("D1").formula, "=_xlfn.MODE.MULT(A1:A7)");
+assert.equal(importedOrderSheet.store.get("D1").formulaType, "dynamicArray");
+
 const lineSheet = workbook.worksheets.add("LINEST statistics");
 lineSheet.getRange("A1:B7").values = [
   [2, 6],

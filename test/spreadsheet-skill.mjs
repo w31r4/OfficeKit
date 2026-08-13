@@ -889,6 +889,34 @@ try {
     assert.equal(exponentialGrowthQa.summary.nativeRender.ok, true);
   }
 
+  const { createRobustStatisticsWorkbook } = await import(
+    "../skills/spreadsheets/skills/spreadsheets/examples/officekit-robust-statistics-workflow.mjs"
+  );
+  const robustStatisticsPath = path.join(outputDir, "officekit-robust-statistics-workflow.xlsx");
+  const robustStatisticsResult = await createRobustStatisticsWorkbook(robustStatisticsPath);
+  assert.equal(robustStatisticsResult.verification.ok, true);
+  assert.match(robustStatisticsResult.inspection.ndjson, /RANK\.AVG/);
+  assert.match(robustStatisticsResult.inspection.ndjson, /MODE\.MULT/);
+  const robustStatisticsWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(robustStatisticsPath));
+  robustStatisticsWorkbook.recalculate();
+  const robustStatistics = robustStatisticsWorkbook.worksheets.getItem("Analysis");
+  assert.deepEqual(robustStatistics.getRange("B4:B8").values.flat(), [5.5, 3, 2, 2.8, 2]);
+  assert.equal(robustStatistics.getRange("D4").formulas[0][0], "=_xlfn.MODE.MULT('Data'!$B$4:$B$10)");
+  assert.equal(robustStatistics.store.get("D4").dynamicArrayRef, "D4:D5");
+  assert.deepEqual(robustStatistics.getRange("D4:E5").values, [[2, 2], [3, 2]]);
+  assert.deepEqual(robustStatisticsWorkbook.worksheets.getItem("Checks").getRange("E4:E10").values, Array.from({ length: 7 }, () => ["OK"]));
+  const robustStatisticsQa = await verifyWorkbookFile(robustStatisticsPath, {
+    outputDir: path.join(outputDir, "officekit-robust-statistics-native-qa"),
+    sheetName: "Analysis",
+    renderFormat: "svg",
+    nativeRender: "auto",
+    allSheets: true,
+  });
+  if (nativeSpreadsheetRenderStatus().available) {
+    assert.equal(robustStatisticsQa.summary.nativeRender.status, "passed");
+    assert.equal(robustStatisticsQa.summary.nativeRender.ok, true);
+  }
+
   const { createScatterWorkbook } = await import(
     "../skills/spreadsheets/skills/spreadsheets/examples/officekit-scatter-chart-workflow.mjs"
   );
