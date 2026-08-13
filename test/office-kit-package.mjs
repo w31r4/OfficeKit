@@ -52,6 +52,7 @@ try {
     const workbook = Workbook.create();
     const sheet = workbook.worksheets.add("Packaged");
     sheet.getRange("A1:B2").values = [["Label", "Value"], ["clean install", 7]];
+    sheet.getRange("C1").formulas = [["=LET(base,B2,increment,3,base+increment)"]];
     sheet.getRange("D1:E3").values = [["X", "Y"], [1, 3], [2, 8]];
     const scatter = sheet.charts.add("scatter", sheet.getRange("D1:E3"));
     scatter.title = "Packed scatter";
@@ -64,6 +65,10 @@ try {
     if (xlsx.metadata.codec !== "office-kit" || xlsx.bytes[0] !== 0x50 || xlsx.bytes[1] !== 0x4b) process.exit(1);
     const importedWorkbook = await SpreadsheetFile.importXlsx(xlsx);
     if (importedWorkbook.worksheets.getItem("Packaged").getRange("B2").values[0][0] !== 7) process.exit(2);
+    if (
+      importedWorkbook.worksheets.getItem("Packaged").getRange("C1").formulas[0][0] !== "=LET(base,B2,increment,3,base+increment)" ||
+      importedWorkbook.worksheets.getItem("Packaged").getRange("C1").values[0][0] !== 10
+    ) process.exit(97);
     const importedScatter = importedWorkbook.worksheets.getItem("Packaged").charts.items[0];
     if (importedScatter.type !== "scatter" || importedScatter.xAxis.axisType !== "valueAxis") process.exit(4);
     if (JSON.stringify(importedScatter.series.items[0].xValues) !== "[1,2]") process.exit(5);

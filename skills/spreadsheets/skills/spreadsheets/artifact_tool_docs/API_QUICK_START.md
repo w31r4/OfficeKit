@@ -53,7 +53,7 @@ that only one worksheet-drawing part changed.
 ## Build Patterns
 - Prefer block writes (`range.values`, `range.formulas`) over per-cell loops. Matrix shape must match the target range (for example `"D4:M4"` should be a 1x10 matrix, row x col).
 - Seed scalar formulas once, then `fillDown()` / `fillRight()`. For dynamic-array formulas (`SEQUENCE`, `UNIQUE`, `FILTER`, `SORT`, `TEXTSPLIT`, `VSTACK`, `HSTACK`), write only the anchor cell and let the result spill after. `TEXTSPLIT` accepts one scalar text input, bounded row/column delimiters, optional empty-item skipping, case mode, and padding; multi-cell/computed-matrix inputs and empty delimiters return `#VALUE!`.
-- To consume a current model spill, use the anchor reference with `#`: `=SUM(A1#)`, `=MATCH(12,'Source Data'!A1#,0)`, or a defined name that refers to `A1#`. The evaluator recalculates and verifies the anchor before reading it. Use only documented range consumers or a direct re-spill; ordinary scalar/general-vector coercion returns `#VALUE!`, a non-spilling anchor is `#REF!`, and imported dynamic-array package topology remains source-bound. Source-free workbooks may export one bounded canonical XLDAPR profile when the anchor formula and rectangular spill reference are valid; imported XLDAPR anchors remain read-only and topology-changing edits fail closed. Always write the public formula exactly as Excel displays it: OfficeKit Codec converts `A1#` to the XLSX `ANCHORARRAY` storage form and owns required future-function prefixes.
+- To consume a current model spill, use the anchor reference with `#`: `=SUM(A1#)`, `=MATCH(12,'Source Data'!A1#,0)`, or a defined name that refers to `A1#`. The evaluator recalculates and verifies the anchor before reading it. Use only documented range consumers or a direct re-spill; ordinary scalar/general-vector coercion returns `#VALUE!`, a non-spilling anchor is `#REF!`, and imported dynamic-array package topology remains source-bound. Source-free workbooks may export one bounded canonical XLDAPR profile when the anchor formula and rectangular spill reference are valid; imported XLDAPR anchors remain read-only and topology-changing edits fail closed. Always write the public formula exactly as Excel displays it: OfficeKit Codec converts `A1#` to the XLSX `ANCHORARRAY` storage form and owns required future-function prefixes, including scoped `_xlfn.LET`/`_xlpm` storage for the bounded public `LET(...)` profile.
 - Use `range.displayFormulas` plus `range.formulaInfos` when you need to understand a spill child or a data-table output cell.
 - You do not need to call recalculate; calculation automatically happens.
 - Date handling:
@@ -737,6 +737,17 @@ Use `workbook.help(...)` primarily for obscure/advanced surfaces (for example de
 - `workbook.help("cash flow return rate", { search: "MIRR|IRR|XIRR|NPV|XNPV", include: "index,examples,notes", maxChars: 4000 }).ndjson`
 - `workbook.help("statistical relationship and bounded regression", { search: "STDEV|VAR|CORREL|COVARIANCE|SLOPE|INTERCEPT|RSQ|STEYX|LINEST|TREND|LOGEST|GROWTH|FORECAST.LINEAR", include: "index,examples,notes", maxChars: 9000 }).ndjson`
 - `workbook.help("*", { search: "fill|borders|autofit", include: "index,examples,notes", maxChars: 6000 }).ndjson`
+
+### Bounded LET formulas
+
+Use public Excel-visible syntax such as
+`=LET(rate,0.1,principal,1000,principal*(1+rate))`; never hand-write
+`_xlfn.LET` or `_xlpm` in an Agent-authored formula. The bounded evaluator
+supports at most 16 scalar bindings, makes each name visible only after its
+value expression, and supports nested lexical shadowing. The Codec writes the
+canonical scoped package spelling and reverses it on import. Invalid names,
+array or spill bindings, missing arguments, and unsupported expression grammar
+fail closed; this is not the full 126-binding or LAMBDA profile of Excel.
 
 ### Bounded statistical formulas
 

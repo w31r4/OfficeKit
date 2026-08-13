@@ -217,6 +217,8 @@ for (const required of [
   "src/codecs/office-kit-presentation.mjs",
   "src/codecs/office-kit-presentation-charts.mjs",
   "src/codecs/office-kit-spreadsheet-codec.mjs",
+  "src/codecs/office-kit-spreadsheet-formula-syntax.mjs",
+  "src/codecs/office-kit-spreadsheet-let-syntax.mjs",
   "src/codecs/office-kit-spreadsheet-pivots.mjs",
   "runtime/office-kit/main.mjs",
   "runtime/office-kit/manifest.json",

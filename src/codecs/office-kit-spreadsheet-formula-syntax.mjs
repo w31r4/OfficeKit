@@ -1,3 +1,5 @@
+import { modelLetFormulaFromXlsx, xlsxLetFormulaFromModel } from "./office-kit-spreadsheet-let-syntax.mjs";
+
 // Intersection of OfficeKit's modeled formula catalog and the future-function
 // names in MS-XLSX section 2.2.3. Keep this package grammar out of the public
 // worksheet model: Agents use the names Excel displays, while the codec writes
@@ -125,7 +127,8 @@ function isWorksheetAddress(address) {
 }
 
 export function xlsxFormulaFromModel(formula) {
-  const packageSpills = mapFormulaCode(formula, (code) => code.replace(SPILL_REFERENCE, (_match, quotedSheet, bareSheet, address) => {
+  const packageLet = xlsxLetFormulaFromModel(formula);
+  const packageSpills = mapFormulaCode(packageLet, (code) => code.replace(SPILL_REFERENCE, (_match, quotedSheet, bareSheet, address) => {
       if (!isWorksheetAddress(address)) return _match;
       const sheet = quotedSheet != null ? `'${quotedSheet}'!` : bareSheet != null ? `${bareSheet}!` : "";
       return `_xlfn.ANCHORARRAY(${sheet}${address})`;
@@ -137,7 +140,8 @@ export function xlsxFormulaFromModel(formula) {
 
 export function modelFormulaFromXlsx(formula) {
   const modelSpills = mapFormulaCode(formula, (code) => code.replace(ANCHOR_ARRAY, "$1#"), { protectSingleQuotes: false });
-  return mapFormulaCode(modelSpills, (code) => code
+  const modelFunctions = mapFormulaCode(modelSpills, (code) => code
     .replace(PACKAGE_XLWS_FUNCTION, "$1")
     .replace(PACKAGE_FUNCTION, "$1"));
+  return modelLetFormulaFromXlsx(modelFunctions);
 }

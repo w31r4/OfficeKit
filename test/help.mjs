@@ -900,6 +900,7 @@ assert.match(workbook.help("fx.HLOOKUP").ndjson, /first row/);
 assert.match(workbook.help("fx.INDEX").ndjson, /rectangular range.*10,000/);
 assert.match(workbook.help("fx.IFERROR").ndjson, /formula error/);
 assert.match(workbook.help("fx.LET").ndjson, /16 scalar local names/);
+assert.match(workbook.help("fx.LET").ndjson, /exactly as Excel displays.*_xlfn\.LET\/_xlpm.*package spelling/i);
 assert.match(workbook.help("fx.AVERAGEIFS").ndjson, /criteria ranges/);
 assert.match(workbook.help("fx.STDEV.P").ndjson, /population standard deviation/);
 assert.match(workbook.help("fx.COVARIANCE.P").ndjson, /population covariance/);

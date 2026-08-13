@@ -210,6 +210,7 @@ assert.match(spreadsheetSkillText, /officekit-statistical-analysis-workflow\.mjs
 assert.match(spreadsheetSkillText, /least-squares slope\/intercept\/R-squared\/standard-error.*LINEST.*FORECAST\.LINEAR.*TREND.*forecast sequence/i);
 assert.match(spreadsheetSkillText, /officekit-exponential-growth-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /positive-y exponential model.*LOGEST.*GROWTH.*LN.*EXP/i);
+assert.match(spreadsheetSkillText, /bounded `LET\(\.\.\.\)`.*_xlfn.*_xlws.*_xlpm.*ANCHORARRAY/i);
 assert.match(spreadsheetSkillText, /officekit-growth-assumption-edit-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-connection-refresh-hardening-workflow\.mjs/);
 assert.match(spreadsheetSkillText, /officekit-pivot-refresh-hardening-workflow\.mjs/);

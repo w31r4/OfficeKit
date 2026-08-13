@@ -3780,7 +3780,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.LCM` | formula | Return the least common multiple of bounded integer arguments and ranges; zero inputs return zero and unsafe overflow returns #NUM!. |
 | `fx.LEFT` | formula | Return up to 32,767 Unicode characters from the start of one bounded scalar text value; num_chars defaults to 1 and invalid or multi-cell inputs fail closed. |
 | `fx.LEN` | formula | Return the Unicode code-point length of one bounded scalar text value; overlong, error, or multi-cell inputs fail closed. |
-| `fx.LET` | formula | Bind up to 16 scalar local names from left to right and evaluate a final scalar expression; invalid names, array-valued bindings, and missing arguments fail closed as #VALUE!. |
+| `fx.LET` | formula | Bind up to 16 scalar local names from left to right and evaluate a final scalar expression; write the public formula exactly as Excel displays it, while OfficeKit Codec owns scoped _xlfn.LET/_xlpm package spelling. Invalid names, array-valued bindings, and missing arguments fail closed as #VALUE!. |
 | `fx.LINEST` | formula | Return a bounded single-variable least-squares dynamic array: 1x2 slope/intercept by default or the documented 5x2 coefficient, error, R-squared, F/df, and regression/residual statistics matrix when stats is TRUE. Known-x may be omitted, const may force a zero intercept, constant known-x is removed, and mismatched shapes return #N/A; multivariable inputs and array constants remain unsupported. |
 | `fx.LN` | formula | Return the natural logarithm of a positive finite number; non-positive inputs fail as #NUM!. |
 | `fx.LOG` | formula | Return a logarithm for a positive number and positive base other than one; the base defaults to 10 and invalid domains fail as #NUM!. |
@@ -5488,7 +5488,7 @@ Return the Unicode code-point length of one bounded scalar text value; overlong,
 
 #### `fx.LET`
 
-Bind up to 16 scalar local names from left to right and evaluate a final scalar expression; invalid names, array-valued bindings, and missing arguments fail closed as #VALUE!.
+Bind up to 16 scalar local names from left to right and evaluate a final scalar expression; write the public formula exactly as Excel displays it, while OfficeKit Codec owns scoped _xlfn.LET/_xlpm package spelling. Invalid names, array-valued bindings, and missing arguments fail closed as #VALUE!.
 
 **Examples:**
 

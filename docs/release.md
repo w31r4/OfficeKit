@@ -1,6 +1,6 @@
 # Release
 
-## Current 0.6.0 candidate (2026-08-14): Excel formula package syntax
+## Current 0.6.0 candidate (2026-08-14): Scoped LET package syntax
 
 OfficeKit now separates the Agent-facing formula language from SpreadsheetML
 storage syntax. Agents write the names and spill references shown in Excel;
@@ -10,15 +10,28 @@ stores direct `A1#` references as `_xlfn.ANCHORARRAY(A1)`. Import reverses
 those package spellings without rewriting quoted strings or structured table
 references. The same leaf covers recognized table formulas. Unchanged imported
 cell formulas retain their exact source spelling; an edited cell formula uses
-the canonical package form. `LET` is intentionally excluded until `_xlpm`
-parameter scope is represented by a real formula AST.
+the canonical package form. A separate bounded LET scope module now writes
+`_xlfn.LET`, marks each declaration and proven in-scope reference with
+`_xlpm.`, and reverses those spellings on import. It follows left-to-right
+visibility and nested shadowing without rewriting strings, structured
+references, function names, worksheet-qualified names, or orphan `_xlpm`
+tokens. Malformed, over-budget, and mixed public/package LET syntax is not
+normalized as a valid LET scope. The claim is limited to OfficeKit's existing
+16-scalar-binding LET profile; it does not add LAMBDA or Excel's full
+126-binding surface.
 
 The Spreadsheet Skill and runtime Help no longer require Agents to hand-write
-OOXML compatibility prefixes. A dedicated positive/negative gate covers nested
+OOXML compatibility prefixes. A dedicated positive/negative gate covers scoped
+LET declarations and references, nested
 future functions, string/structured-reference shielding, `_xlws`, spill
 translation, source-free cell/table XML, public-formula import, exact unchanged
 source spelling, canonical edited output, and second import. The bounded robust
-statistics workflow now uses only public Excel-visible formula syntax. Full
+statistics workflow now uses only public Excel-visible formula syntax.
+Cross-host QA additionally opened, recalculated, and resaved a canonical LET
+workbook through LibreOffice 26.8: its `_xlfn.LET`/`_xlpm` XML spelling stayed
+unchanged, and OfficeKit's second import recovered the public formula plus
+value `1100`. This is independent interoperability evidence, not Windows Excel
+acceptance. Full
 local evidence is green: fast `31/31` and slow `82/82`, including the complete
 Spreadsheet Skill, LibreOffice/Poppler native recalculation/rendering,
 Playwright, templates, provider contracts, standalone distribution, and release
@@ -30,8 +43,8 @@ configured pikepdf/pyHanko/veraPDF/OCR environments retained their explicit
 skips; no claims are inferred from those skips. npm authentication remains
 unavailable, so this candidate was not published. The isolated staged tree,
 which excludes the user's unrelated README/output work, passed `test:pack` and
-contains 743 files at 36,344,296 compressed bytes and 53,597,509 unpacked bytes
-(`shasum e99288fd852cfe871a10b89d710f09bfa41baa5c`). Hosted-CI identity is
+contains 744 files at 36,346,973 compressed bytes and 53,609,334 unpacked bytes
+(`shasum a83a605d498b03c7723e7829690bdfbc2ac4293f`). Hosted-CI identity is
 recorded after the implementation commit.
 
 ## Current 0.6.0 candidate (2026-08-14): Bounded robust and order statistics
@@ -1955,9 +1968,11 @@ bindings, and permits lexical shadowing in nested `LET` calls. Invalid names,
 array-valued or spill bindings, missing arguments, and direct multi-cell range
 bindings return `#VALUE!` rather than silently coercing an array to its upper
 left cell. The slice includes Help/API generation, Spreadsheet export/import
-round-trip tests, negative cases, and coverage documentation. It does not add
-general array-valued local variables or extend the evaluator beyond its current
-bounded formula grammar.
+round-trip tests, negative cases, and coverage documentation. The current
+package-syntax candidate additionally writes and reads the scoped
+`_xlfn.LET`/`_xlpm` SpreadsheetML spelling. It does not add general
+array-valued local variables, LAMBDA, or extend the evaluator beyond its
+current bounded formula grammar.
 
 ## Unreleased: portable post-edit review
 
