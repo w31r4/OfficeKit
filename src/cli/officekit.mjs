@@ -110,6 +110,11 @@ export async function runOfficeKitCli(
     await runReplCommand(commandArguments, { input, output, errorOutput });
     return;
   }
+  if (command === "tasks") {
+    const { runTasksCommand } = await import("./tasks.mjs");
+    await runTasksCommand(commandArguments, { output });
+    return;
+  }
   if (command === "template") {
     await runTemplateCommand(commandArguments, { output });
     return;
@@ -709,7 +714,9 @@ Usage:
   officekit init [path] [--tools <ids>] [--yes] [--json]
   officekit update [path] [--tools <ids>] [--force] [--json]
   officekit run <task.mjs> [-- <task arguments>]
-  officekit repl [options]
+  officekit tasks [<task-id>] [--all] [--json]
+  officekit repl --new <goal> [--workspace <path>]
+  officekit repl <task-id> [--workspace <path>]
   officekit template search [search options] [--json]
   officekit excel <command> [options]
   officekit live <command> --app <excel|powerpoint> [options]
@@ -720,6 +727,7 @@ Commands:
   update     Refresh Skills already managed by OfficeKit
   run        Run a task with this OfficeKit installation
   repl       Run a persistent JSONL JavaScript task session
+  tasks      List or inspect durable OfficeKit tasks in this workspace
   template   Search the bundled and project template catalogs
   excel      Connect an open Microsoft Excel workbook to local OfficeKit control
   live       Connect a supported open Office document to local OfficeKit control
@@ -740,6 +748,8 @@ Examples:
   officekit init --tools claude,cursor
   officekit update
   officekit run task.mjs -- input.docx output.docx
+  officekit tasks
+  officekit repl --new "Create a quarterly business review"
   officekit template search --kind presentation --purpose "quarterly business review"
   officekit excel install
   officekit excel sessions --json

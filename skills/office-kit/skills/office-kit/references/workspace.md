@@ -7,7 +7,9 @@ ordinary local paths, not a host-specific API.
 
 - `workspaceRoot`: the user's current directory, or an explicitly supplied
   project directory.
-- `taskRoot`: a temporary directory for one task and its intermediate files.
+- `taskRoot`: the selected durable task below
+  `workspaceRoot/.office-kit/tasks/<task-id>`; it contains private inputs,
+  revisions, candidates, evidence, and session records.
 - `inputRoot`: read-only source files and imported references.
 - `assetRoot`: user-provided images, templates, fonts, and other reusable
   assets.
@@ -22,8 +24,9 @@ ordinary local paths, not a host-specific API.
 
 1. An explicit user path wins.
 2. If no project is named, use `process.cwd()` as `workspaceRoot`.
-3. Create temporary task directories with `os.tmpdir()` and keep them separate
-   from `inputRoot` and `outputRoot`.
+3. Use `officekit tasks` to find resumable work and `officekit repl --new
+   <goal>` to create a task. Use `officekit run` and `os.tmpdir()` only for
+   intentionally one-shot work.
 4. Treat inputs and retained templates as read-only. A final output must be a
    distinct path and must not overwrite an input.
 5. Put renders and intermediate QA files under `evidenceRoot`; do not cite a

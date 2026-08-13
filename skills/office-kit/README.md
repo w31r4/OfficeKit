@@ -29,11 +29,12 @@ The self-contained macOS arm64, Linux x64, and Windows x64 builds carry Node
 The initializer detects the Agent tools used by the project and installs the
 OfficeKit entry point, Documents, Spreadsheets, Excel Live Control,
 Presentations, PDF, and Template Creator in their project-local Skill
-directories. Run `officekit update` after installing a newer OfficeKit release. Skill
-tasks can use `officekit run task.mjs`; multi-step artifact work can instead
-use `officekit repl` with the portable `ctx` workflow, so the project does not
-need a local `office-kit` dependency. See the installed OfficeKit Skill's
-`references/repl.md` for JSONL examples and checkpoint/resume rules.
+directories. Run `officekit update` after installing a newer OfficeKit release.
+Skill tasks can use `officekit run task.mjs`; multi-step artifact work can list
+workspace-local tasks, open or create one task REPL, stage inputs, review and
+commit stable revisions, then publish. The project does not need a local
+`office-kit` dependency. See the installed OfficeKit Skill's
+`references/repl.md` for the JSONL and recovery contract.
 
 The twenty bundled templates, project templates, and locally created
 `artifact-template-*` Skills are queried with

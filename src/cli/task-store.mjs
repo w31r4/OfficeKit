@@ -1,0 +1,940 @@
+import { createHash, randomUUID } from "node:crypto";
+import {
+  chmod,
+  lstat,
+  mkdir,
+  open,
+  readFile,
+  readdir,
+  realpath,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
+import path from "node:path";
+import process from "node:process";
+
+export const TASK_SCHEMA_VERSION = 1;
+export const DEFAULT_TASK_LIST_LIMIT = 5;
+export const DEFAULT_MAX_TASK_MANIFEST_BYTES = 1_048_576;
+export const DEFAULT_MAX_TASK_ARTIFACT_BYTES = 536_870_912;
+export const DEFAULT_MAX_REVIEW_REPORT_BYTES = 8_388_608;
+
+const TASK_ID_PATTERN = /^t_[a-f0-9]{12}$/u;
+const ARTIFACT_ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
+const TASK_DIRECTORY = path.join(".office-kit", "tasks");
+const TASK_IGNORE = "*\n!.gitignore\n";
+const ARTIFACT_KINDS = new Set(["document", "workbook", "presentation", "pdf"]);
+const VISUAL_REVIEW_STATUSES = new Set(["complete", "unavailable", "requires-human"]);
+const RESOLVED_BY_COMMIT = new Set(["review-failed", "stale-review"]);
+
+export async function resolveTaskWorkspace({ workspaceRoot, cwd = process.cwd() } = {}) {
+  if (workspaceRoot != null) return canonicalDirectory(workspaceRoot, "workspace");
+  let current = await canonicalDirectory(cwd, "workspace");
+  let gitRoot;
+  while (true) {
+    const officeKit = path.join(current, ".office-kit");
+    const officeKitStat = await lstatIfExists(officeKit);
+    if (officeKitStat) {
+      if (officeKitStat.isSymbolicLink() || !officeKitStat.isDirectory()) {
+        throw taskError("unsafe-workspace", `.office-kit must be a regular directory: ${officeKit}`);
+      }
+      return current;
+    }
+    if (gitRoot == null) {
+      const gitMarker = await lstatIfExists(path.join(current, ".git"));
+      if (gitMarker && !gitMarker.isSymbolicLink() && (gitMarker.isDirectory() || gitMarker.isFile())) {
+        gitRoot = current;
+      }
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return gitRoot ?? canonicalDirectory(cwd, "workspace");
+}
+
+export async function createTask({ workspaceRoot, goal, now = new Date() }) {
+  const workspace = await resolveTaskWorkspace({ workspaceRoot });
+  const normalizedGoal = boundedText(goal, "Task goal", 1_024);
+  const tasksRoot = await ensureTaskStore(workspace);
+  let taskId;
+  let taskRoot;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    taskId = `t_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+    taskRoot = path.join(tasksRoot, taskId);
+    try {
+      await mkdir(taskRoot, { mode: 0o700 });
+      break;
+    } catch (error) {
+      if (error?.code !== "EEXIST" || attempt === 7) throw error;
+    }
+  }
+  await privateMode(taskRoot, 0o700);
+  for (const directory of ["inputs", "revisions", "candidates", "evidence", "sessions"]) {
+    await ensurePrivateDirectory(path.join(taskRoot, directory), taskRoot);
+  }
+  const timestamp = now.toISOString();
+  const manifest = {
+    schemaVersion: TASK_SCHEMA_VERSION,
+    id: taskId,
+    goal: normalizedGoal,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    next: null,
+    constraints: [],
+    artifacts: [],
+    commits: [],
+    head: null,
+    pending: [],
+    publications: [],
+    lastSessionId: null,
+  };
+  await writeTaskManifest(taskRoot, manifest);
+  return { workspaceRoot: workspace, taskRoot, manifest };
+}
+
+export async function openTask({ workspaceRoot, taskId }) {
+  const workspace = await resolveTaskWorkspace({ workspaceRoot });
+  const taskRoot = await resolveTaskRoot(workspace, taskId);
+  const manifest = await readTaskManifest(taskRoot, taskId);
+  return { workspaceRoot: workspace, taskRoot, manifest };
+}
+
+export async function listTasks({ workspaceRoot, all = false, limit = DEFAULT_TASK_LIST_LIMIT } = {}) {
+  const workspace = await resolveTaskWorkspace({ workspaceRoot });
+  const tasksRoot = path.join(workspace, TASK_DIRECTORY);
+  const tasksRootStat = await lstatIfExists(tasksRoot);
+  if (tasksRootStat == null) return { workspace, total: 0, shown: 0, truncated: false, tasks: [], invalid: [] };
+  if (tasksRootStat.isSymbolicLink() || !tasksRootStat.isDirectory()) {
+    throw taskError("unsafe-task-store", `Task store must be a regular directory: ${tasksRoot}`);
+  }
+  const canonicalTasksRoot = await realpath(tasksRoot);
+  const entries = await readdir(canonicalTasksRoot, { withFileTypes: true });
+  const tasks = [];
+  const invalid = [];
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (entry.name === ".gitignore") continue;
+    if (!TASK_ID_PATTERN.test(entry.name) || !entry.isDirectory() || entry.isSymbolicLink()) {
+      invalid.push({ id: entry.name, code: "invalid-task-entry" });
+      continue;
+    }
+    try {
+      const taskRoot = path.join(canonicalTasksRoot, entry.name);
+      const manifest = await readTaskManifest(taskRoot, entry.name);
+      tasks.push(summarizeTask(manifest, { detailed: false }));
+    } catch (error) {
+      invalid.push({ id: entry.name, code: error?.code || "invalid-task", message: boundedError(error) });
+    }
+  }
+  tasks.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id));
+  const visible = all ? tasks : tasks.slice(0, normalizeListLimit(limit));
+  return {
+    workspace,
+    total: tasks.length,
+    shown: visible.length,
+    truncated: visible.length < tasks.length,
+    tasks: visible,
+    invalid,
+  };
+}
+
+export async function taskDetail({ workspaceRoot, taskId }) {
+  const opened = await openTask({ workspaceRoot, taskId });
+  const summary = summarizeTask(opened.manifest, { detailed: true });
+  summary.storageBytes = await directoryBytes(opened.taskRoot);
+  return {
+    workspace: opened.workspaceRoot,
+    task: summary,
+  };
+}
+
+export async function deleteTask({ workspaceRoot, taskId }) {
+  const opened = await openTask({ workspaceRoot, taskId });
+  const lock = await lstatIfExists(path.join(opened.taskRoot, ".write.lock"));
+  if (lock) throw taskError("task-busy", `Task ${taskId} is open and cannot be deleted.`);
+  const bytes = await directoryBytes(opened.taskRoot);
+  await rm(opened.taskRoot, { recursive: true, force: false });
+  return { workspace: opened.workspaceRoot, taskId, deleted: true, bytes };
+}
+
+export async function acquireTaskLock(taskRoot, { sessionId, now = new Date() }) {
+  const target = path.join(taskRoot, ".write.lock");
+  const token = randomUUID();
+  const record = { schemaVersion: 1, pid: process.pid, sessionId, token, createdAt: now.toISOString() };
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const handle = await open(target, "wx", 0o600);
+      try { await handle.writeFile(`${JSON.stringify(record)}\n`, "utf8"); }
+      finally { await handle.close(); }
+      await privateMode(target, 0o600);
+      return Object.freeze({
+        path: target,
+        token,
+        async release() {
+          const current = await readSmallJson(target).catch(() => null);
+          if (current?.token === token) await rm(target, { force: true });
+        },
+      });
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+      const existing = await readSmallJson(target).catch(() => null);
+      if (attempt === 0 && existing && !processExists(existing.pid)) {
+        const descriptor = await lstatIfExists(target);
+        if (descriptor?.isFile() && !descriptor.isSymbolicLink()) {
+          await rm(target, { force: true });
+          continue;
+        }
+      }
+      throw taskError("task-busy", `Task is already open by session ${existing?.sessionId || "unknown"}.`);
+    }
+  }
+  throw taskError("task-busy", "Task is already open.");
+}
+
+export async function beginTaskSession(opened, { sessionId, now = new Date() }) {
+  const manifest = structuredClone(opened.manifest);
+  const parentSessionId = manifest.lastSessionId;
+  const sessionRoot = await ensurePrivateDirectory(path.join(opened.taskRoot, "sessions", sessionId), opened.taskRoot);
+  const interrupted = parentSessionId
+    ? await findInterruptedRequest(path.join(opened.taskRoot, "sessions", parentSessionId, "session.jsonl"))
+    : null;
+  if (interrupted && !manifest.pending.some((entry) => entry.type === "interrupted-request" && entry.sessionId === parentSessionId && entry.sequence === interrupted.sequence)) {
+    manifest.pending.push({
+      type: "interrupted-request",
+      sessionId: parentSessionId,
+      sequence: interrupted.sequence,
+      requestId: interrupted.id,
+      sourceSha256: interrupted.sourceSha256,
+      maybeApplied: true,
+      at: now.toISOString(),
+    });
+  }
+  await appendSourceAttention(manifest, now);
+  const headCommit = manifest.head
+    ? manifest.commits.find((commit) => commit.id === manifest.head.commitId)
+    : null;
+  const restoredArtifacts = [];
+  for (const artifact of manifest.artifacts) {
+    const revision = headCommit?.heads?.[artifact.id];
+    if (!revision) continue;
+    const revisionPath = resolveManagedFile(opened.taskRoot, revision.path, "revision");
+    const bytes = await readRegularBounded(revisionPath, DEFAULT_MAX_TASK_ARTIFACT_BYTES, "Committed revision");
+    if (sha256(bytes) !== revision.sha256) throw taskError("revision-corrupt", `Committed revision hash verification failed for ${artifact.id}.`);
+    restoredArtifacts.push({
+      artifactId: artifact.id,
+      name: artifact.name,
+      kind: artifact.kind,
+      path: revisionPath,
+      bytes: revision.bytes,
+      sha256: revision.sha256,
+      commitId: headCommit.id,
+    });
+  }
+  manifest.lastSessionId = sessionId;
+  manifest.updatedAt = now.toISOString();
+  await writeTaskManifest(opened.taskRoot, manifest);
+  return {
+    ...opened,
+    manifest,
+    parentSessionId,
+    sessionId,
+    sessionRoot,
+    ready: {
+      protocol: 2,
+      type: "session.ready",
+      task: summarizeTask(manifest, { detailed: true }),
+      resumedFrom: headCommit ? {
+        commitId: headCommit.id,
+        summary: headCommit.summary,
+        reviewVerdict: headCommit.review.verdict,
+        visualReview: headCommit.review.visualReview,
+      } : null,
+      commit: headCommit ? createCommitDescriptor(manifest, headCommit) : null,
+      artifacts: restoredArtifacts,
+      session: { id: sessionId, parentSessionId },
+    },
+  };
+}
+
+async function appendSourceAttention(manifest, now) {
+  for (const artifact of manifest.artifacts) {
+    if (!artifact.source) continue;
+    const descriptor = await lstatIfExists(artifact.source.path);
+    let type;
+    let currentSha256;
+    if (!descriptor || descriptor.isSymbolicLink() || !descriptor.isFile()) {
+      type = "source-unavailable";
+    } else if (descriptor.size > DEFAULT_MAX_TASK_ARTIFACT_BYTES) {
+      type = "source-unavailable";
+    } else {
+      const bytes = await readFile(artifact.source.path);
+      if (bytes.byteLength > DEFAULT_MAX_TASK_ARTIFACT_BYTES) {
+        type = "source-unavailable";
+      } else {
+        currentSha256 = sha256(bytes);
+      }
+      if (!type && currentSha256 !== artifact.source.sha256) type = "source-changed";
+    }
+    if (!type) continue;
+    if (manifest.pending.some((entry) => entry.type === type && entry.artifactId === artifact.id && entry.currentSha256 === currentSha256)) continue;
+    manifest.pending.push({
+      type,
+      artifactId: artifact.id,
+      summary: type === "source-changed"
+        ? `${artifact.name} changed outside OfficeKit after staging`
+        : `${artifact.name} is no longer available at its original path`,
+      sourceSha256: artifact.source.sha256,
+      currentSha256,
+      at: now.toISOString(),
+    });
+  }
+}
+
+export async function stageTaskInput(task, sourcePath, options = {}) {
+  if (typeof sourcePath !== "string" || sourcePath.trim() === "") {
+    throw taskError("invalid-input", "ctx.input requires a non-empty local path.");
+  }
+  const requested = path.resolve(task.workspaceRoot, sourcePath);
+  const sourceStat = await lstatIfExists(requested);
+  if (!sourceStat || sourceStat.isSymbolicLink() || !sourceStat.isFile()) {
+    throw taskError("unsafe-input", "Task input must be an existing regular non-symlink file.");
+  }
+  const maximum = positiveInteger(options.maxBytes, DEFAULT_MAX_TASK_ARTIFACT_BYTES, "maxBytes");
+  if (sourceStat.size > maximum) throw taskError("input-too-large", `Task input exceeds ${maximum} bytes.`);
+  const canonical = await realpath(requested);
+  assertOutsideManagedTasks(canonical, task.workspaceRoot);
+  const bytes = await readFile(canonical);
+  if (bytes.byteLength > maximum) throw taskError("input-too-large", `Task input exceeds ${maximum} bytes.`);
+  const digest = sha256(bytes);
+  const existing = task.manifest.artifacts.find((artifact) => artifact.source?.path === canonical);
+  if (existing) {
+    if (existing.source.sha256 !== digest) throw taskError("source-changed", `Task input changed after it was staged: ${canonical}`);
+    return artifactDescriptor(existing, task.taskRoot);
+  }
+  const artifactId = options.artifactId == null ? newArtifactId() : validateArtifactId(options.artifactId);
+  if (task.manifest.artifacts.some((artifact) => artifact.id === artifactId)) {
+    throw taskError("artifact-exists", `Artifact ID already exists: ${artifactId}`);
+  }
+  const kind = normalizeKind(options.kind, canonical, options.mime);
+  const extension = extensionFor(canonical, kind);
+  const relative = toPosix(path.join("inputs", artifactId, `${digest}${extension}`));
+  const destination = path.join(task.taskRoot, relative);
+  await ensurePrivateDirectory(path.dirname(destination), task.taskRoot);
+  await writeImmutable(destination, bytes, 0o400);
+  const artifact = {
+    id: artifactId,
+    name: boundedText(options.name ?? path.basename(canonical), "Artifact name", 255),
+    kind,
+    mime: options.mime || mimeForKind(kind),
+    source: { path: canonical, storedPath: relative, bytes: bytes.byteLength, sha256: digest },
+    headRevision: null,
+  };
+  task.manifest.artifacts.push(artifact);
+  task.manifest.updatedAt = new Date().toISOString();
+  await writeTaskManifest(task.taskRoot, task.manifest);
+  return artifactDescriptor(artifact, task.taskRoot);
+}
+
+export async function commitTaskArtifact(task, value, options = {}) {
+  const bytes = await readArtifactBytes(value, options.maxBytes);
+  const digest = sha256(bytes);
+  const artifactId = validateArtifactId(options.artifactId);
+  let artifact = task.manifest.artifacts.find((entry) => entry.id === artifactId);
+  const review = validateReview(options.review);
+  const summary = boundedText(options.summary, "Commit summary", 1_024);
+  const next = options.next == null ? null : boundedText(options.next, "Next action", 1_024);
+  const constraints = options.constraints == null
+    ? null
+    : normalizeConstraints(options.constraints);
+  const kind = normalizeKind(options.kind ?? review.artifactKind, options.name, options.mime);
+  if (!artifact) {
+    artifact = {
+      id: artifactId,
+      name: boundedText(options.name ?? `${artifactId}${extensionFor("", kind)}`, "Artifact name", 255),
+      kind,
+      mime: options.mime || mimeForKind(kind),
+      source: null,
+      headRevision: null,
+    };
+    task.manifest.artifacts.push(artifact);
+  } else if (artifact.kind !== kind) {
+    throw taskError("artifact-kind-mismatch", `Artifact ${artifactId} is ${artifact.kind}, not ${kind}.`);
+  }
+  if (review.delivery.sha256 !== digest) {
+    const pending = await storePendingCandidate(task, artifact, bytes, digest, options, review, "stale-review");
+    throw taskError("stale-review", "Review delivery SHA-256 does not match the candidate.", { pending });
+  }
+  if (review.verdict === "failed") {
+    const pending = await storePendingCandidate(task, artifact, bytes, digest, options, review, "review-failed");
+    throw taskError("review-failed", "A failed review cannot advance task HEAD.", { pending });
+  }
+  if (!new Set(["passed", "passed-with-limitations"]).has(review.verdict)) {
+    throw taskError("invalid-review", "Review verdict must be passed, passed-with-limitations, or failed.");
+  }
+  const commitId = `c${String(task.manifest.commits.length + 1).padStart(4, "0")}`;
+  const extension = extensionFor(artifact.name, artifact.kind);
+  const revisionRelative = toPosix(path.join("revisions", artifact.id, `${digest}${extension}`));
+  const revisionPath = path.join(task.taskRoot, revisionRelative);
+  await ensurePrivateDirectory(path.dirname(revisionPath), task.taskRoot);
+  await writeImmutable(revisionPath, bytes, 0o400, { allowIdentical: true });
+  const report = await writeReviewEvidence(task, `${commitId}-${artifact.id}`, options.review);
+  const revisionReview = reviewSummary(review, report);
+  artifact.headRevision = { sha256: digest, bytes: bytes.byteLength, path: revisionRelative, commitId, review: revisionReview };
+  const heads = Object.fromEntries(task.manifest.artifacts
+    .filter((entry) => entry.headRevision)
+    .map((entry) => [entry.id, structuredClone(entry.headRevision)]));
+  const committedAt = new Date().toISOString();
+  const commit = {
+    id: commitId,
+    artifactId: artifact.id,
+    revisionSha256: digest,
+    summary,
+    next,
+    committedAt,
+    heads,
+    review: revisionReview,
+  };
+  task.manifest.commits.push(commit);
+  task.manifest.head = { commitId, artifactId: artifact.id, revisionSha256: digest, committedAt };
+  task.manifest.next = next;
+  if (constraints) task.manifest.constraints = constraints;
+  task.manifest.updatedAt = committedAt;
+  task.manifest.pending = task.manifest.pending.filter((entry) => {
+    if (entry.type === "interrupted-request") return false;
+    return entry.artifactId !== artifact.id || !RESOLVED_BY_COMMIT.has(entry.type);
+  });
+  await writeTaskManifest(task.taskRoot, task.manifest);
+  return Object.freeze(createCommitDescriptor(task.manifest, commit));
+}
+
+export async function resolveCommittedArtifact(task, descriptor, requestedArtifactId = descriptor?.artifactId) {
+  if (descriptor?.type !== "officekit.task-commit" || descriptor.taskId !== task.manifest.id) {
+    throw taskError("unreviewed-artifact", "ctx.publish accepts only a commit from the current task.");
+  }
+  const head = task.manifest.head;
+  if (!head || head.commitId !== descriptor.commitId) {
+    throw taskError("stale-commit", "Only the current reviewed task commit can be published.");
+  }
+  validateArtifactId(requestedArtifactId);
+  const commit = task.manifest.commits.find((entry) => entry.id === descriptor.commitId);
+  if (commit?.heads?.[descriptor.artifactId]?.sha256 !== descriptor.revisionSha256) {
+    throw taskError("invalid-commit", "Commit descriptor does not match the reviewed task commit.");
+  }
+  const artifact = task.manifest.artifacts.find((entry) => entry.id === requestedArtifactId);
+  const revision = commit?.heads?.[artifact?.id];
+  if (!commit || !artifact || !revision) {
+    throw taskError("invalid-commit", "Committed artifact metadata is incomplete or inconsistent.");
+  }
+  const revisionPath = resolveManagedFile(task.taskRoot, revision.path, "revision");
+  const bytes = await readRegularBounded(revisionPath, DEFAULT_MAX_TASK_ARTIFACT_BYTES, "Committed revision");
+  if (sha256(bytes) !== revision.sha256) throw taskError("revision-corrupt", "Committed revision hash verification failed.");
+  return { artifact, commit, revision, review: revision.review ?? commit.review, bytes };
+}
+
+export async function recordTaskPublication(task, commitDescriptor, publication, artifactId = commitDescriptor?.artifactId) {
+  const committed = await resolveCommittedArtifact(task, commitDescriptor, artifactId);
+  task.manifest.publications.push({
+    commitId: committed.commit.id,
+    artifactId: committed.artifact.id,
+    path: publication.path,
+    bytes: publication.bytes,
+    sha256: publication.sha256,
+    publishedAt: new Date().toISOString(),
+  });
+  task.manifest.updatedAt = new Date().toISOString();
+  await writeTaskManifest(task.taskRoot, task.manifest);
+}
+
+export function summarizeTask(manifest, { detailed = false } = {}) {
+  validateTaskManifest(manifest, manifest.id);
+  const state = deriveTaskState(manifest);
+  const headCommit = manifest.head
+    ? manifest.commits.find((commit) => commit.id === manifest.head.commitId)
+    : null;
+  const base = {
+    id: manifest.id,
+    goal: manifest.goal,
+    head: headCommit ? {
+      id: headCommit.id,
+      summary: headCommit.summary,
+      reviewVerdict: headCommit.review.verdict,
+      visualReview: headCommit.review.visualReview,
+      committedAt: headCommit.committedAt,
+    } : null,
+    state,
+    updatedAt: manifest.updatedAt,
+  };
+  if (!detailed) return base;
+  return {
+    ...base,
+    createdAt: manifest.createdAt,
+    inputs: manifest.artifacts.filter((artifact) => artifact.source).map((artifact) => ({
+      artifactId: artifact.id,
+      name: artifact.name,
+      kind: artifact.kind,
+      path: artifact.source.path,
+      bytes: artifact.source.bytes,
+      sha256: artifact.source.sha256,
+    })),
+    artifacts: manifest.artifacts.map((artifact) => ({
+      id: artifact.id,
+      name: artifact.name,
+      kind: artifact.kind,
+      headRevision: artifact.headRevision ? structuredClone(artifact.headRevision) : null,
+    })),
+    pending: structuredClone(manifest.pending),
+    next: manifest.next,
+    constraints: structuredClone(manifest.constraints),
+    commit: headCommit ? createCommitDescriptor(manifest, headCommit) : null,
+    publication: manifest.publications.at(-1) ? structuredClone(manifest.publications.at(-1)) : null,
+    storageBytes: taskStorageBytes(manifest),
+  };
+}
+
+function createCommitDescriptor(manifest, commit) {
+  return {
+    type: "officekit.task-commit",
+    taskId: manifest.id,
+    commitId: commit.id,
+    artifactId: commit.artifactId,
+    revisionSha256: commit.revisionSha256,
+    reviewVerdict: commit.review.verdict,
+    visualReview: commit.review.visualReview,
+    artifacts: Object.entries(commit.heads).map(([artifactId, revision]) => ({ artifactId, sha256: revision.sha256 })),
+  };
+}
+
+async function ensureTaskStore(workspaceRoot) {
+  const officeKit = await ensurePrivateDirectory(path.join(workspaceRoot, ".office-kit"), workspaceRoot);
+  const tasksRoot = await ensurePrivateDirectory(path.join(officeKit, "tasks"), officeKit);
+  const ignorePath = path.join(tasksRoot, ".gitignore");
+  const existing = await lstatIfExists(ignorePath);
+  if (existing == null) await writeFile(ignorePath, TASK_IGNORE, { encoding: "utf8", mode: 0o600 });
+  else if (existing.isSymbolicLink() || !existing.isFile()) throw taskError("unsafe-task-store", "Task ignore marker must be a regular file.");
+  return tasksRoot;
+}
+
+async function resolveTaskRoot(workspaceRoot, taskId) {
+  validateTaskId(taskId);
+  const tasksRoot = path.join(workspaceRoot, TASK_DIRECTORY);
+  const tasksStat = await lstatIfExists(tasksRoot);
+  if (!tasksStat || tasksStat.isSymbolicLink() || !tasksStat.isDirectory()) {
+    throw taskError("task-not-found", `OfficeKit task does not exist: ${taskId}`);
+  }
+  const canonicalTasks = await realpath(tasksRoot);
+  const candidate = path.join(canonicalTasks, taskId);
+  const descriptor = await lstatIfExists(candidate);
+  if (!descriptor || descriptor.isSymbolicLink() || !descriptor.isDirectory()) {
+    throw taskError("task-not-found", `OfficeKit task does not exist: ${taskId}`);
+  }
+  const canonical = await realpath(candidate);
+  assertContained(canonical, canonicalTasks, "task");
+  return canonical;
+}
+
+async function readTaskManifest(taskRoot, expectedId) {
+  const manifestPath = path.join(taskRoot, "task.json");
+  const bytes = await readRegularBounded(manifestPath, DEFAULT_MAX_TASK_MANIFEST_BYTES, "Task manifest");
+  let manifest;
+  try { manifest = JSON.parse(bytes.toString("utf8")); }
+  catch (error) { throw taskError("invalid-task", `Task manifest is not valid JSON: ${error.message}`); }
+  validateTaskManifest(manifest, expectedId);
+  validateTaskPaths(manifest, taskRoot);
+  return manifest;
+}
+
+async function writeTaskManifest(taskRoot, manifest) {
+  validateTaskManifest(manifest, manifest.id);
+  const serialized = `${JSON.stringify(manifest, null, 2)}\n`;
+  if (Buffer.byteLength(serialized) > DEFAULT_MAX_TASK_MANIFEST_BYTES) throw taskError("task-too-large", "Task manifest exceeds its safety limit.");
+  await atomicWrite(path.join(taskRoot, "task.json"), Buffer.from(serialized), taskRoot, { replace: true });
+}
+
+function validateTaskManifest(manifest, expectedId) {
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest) || manifest.schemaVersion !== TASK_SCHEMA_VERSION || manifest.id !== expectedId || !TASK_ID_PATTERN.test(manifest.id)) {
+    throw taskError("invalid-task", "Task manifest schema or ID is invalid.");
+  }
+  boundedText(manifest.goal, "Task goal", 1_024);
+  for (const key of ["artifacts", "commits", "pending", "publications", "constraints"]) {
+    if (!Array.isArray(manifest[key])) throw taskError("invalid-task", `Task manifest ${key} must be an array.`);
+  }
+  normalizeConstraints(manifest.constraints);
+  if (typeof manifest.createdAt !== "string" || typeof manifest.updatedAt !== "string") throw taskError("invalid-task", "Task timestamps are invalid.");
+  const artifactIds = new Set();
+  for (const artifact of manifest.artifacts) {
+    validateArtifactId(artifact?.id);
+    if (artifactIds.has(artifact.id)) throw taskError("invalid-task", "Task artifact IDs must be unique.");
+    artifactIds.add(artifact.id);
+    if (!ARTIFACT_KINDS.has(artifact.kind) || typeof artifact.name !== "string") throw taskError("invalid-task", "Task artifact metadata is invalid.");
+    if (artifact.source) validateManagedRecord(artifact.source, "input");
+    if (artifact.headRevision) validateManagedRecord(artifact.headRevision, "revision");
+  }
+  const commitIds = new Set();
+  for (const commit of manifest.commits) {
+    if (!/^c\d{4,}$/u.test(commit?.id) || commitIds.has(commit.id) || !artifactIds.has(commit.artifactId)) throw taskError("invalid-task", "Task commit metadata is invalid.");
+    commitIds.add(commit.id);
+  }
+  if (manifest.head && (!commitIds.has(manifest.head.commitId) || !artifactIds.has(manifest.head.artifactId) || !isSha(manifest.head.revisionSha256))) {
+    throw taskError("invalid-task", "Task HEAD is invalid.");
+  }
+  return manifest;
+}
+
+function validateTaskPaths(manifest, taskRoot) {
+  const artifacts = new Map(manifest.artifacts.map((artifact) => [artifact.id, artifact]));
+  for (const artifact of manifest.artifacts) {
+    if (artifact.source) {
+      validateRelativePrefix(artifact.source.storedPath, `inputs/${artifact.id}/`, taskRoot, "input");
+      if (typeof artifact.source.path !== "string" || !path.isAbsolute(artifact.source.path)) throw taskError("invalid-task", "Task source path must be absolute.");
+    }
+    if (artifact.headRevision) validateRelativePrefix(artifact.headRevision.path, `revisions/${artifact.id}/`, taskRoot, "revision");
+  }
+  for (const commit of manifest.commits) {
+    if (!commit.heads || typeof commit.heads !== "object" || Array.isArray(commit.heads)) throw taskError("invalid-task", "Task commit heads are invalid.");
+    for (const [artifactId, revision] of Object.entries(commit.heads)) {
+      if (!artifacts.has(artifactId)) throw taskError("invalid-task", "Task commit refers to an unknown artifact.");
+      validateManagedRecord(revision, "revision");
+      validateRelativePrefix(revision.path, `revisions/${artifactId}/`, taskRoot, "revision");
+    }
+    validateRelativePrefix(commit.review?.evidence?.path, "evidence/reviews/", taskRoot, "review evidence");
+  }
+  for (const pending of manifest.pending) {
+    if (pending.path != null) validateRelativePrefix(pending.path, "candidates/", taskRoot, "candidate");
+    if (pending.review?.evidence?.path != null) validateRelativePrefix(pending.review.evidence.path, "evidence/reviews/", taskRoot, "review evidence");
+  }
+}
+
+function validateRelativePrefix(value, prefix, taskRoot, label) {
+  if (typeof value !== "string" || value === "" || path.isAbsolute(value) || !value.startsWith(prefix) || value.includes("\\")) {
+    throw taskError("invalid-task", `Task ${label} path is invalid.`);
+  }
+  resolveManagedFile(taskRoot, value, label);
+}
+
+function validateManagedRecord(record, label) {
+  if (!record || !isSha(record.sha256) || !Number.isSafeInteger(record.bytes) || record.bytes < 0 || typeof record.path !== "string" && typeof record.storedPath !== "string") {
+    throw taskError("invalid-task", `Task ${label} record is invalid.`);
+  }
+}
+
+async function storePendingCandidate(task, artifact, bytes, digest, options, review, reason) {
+  const extension = extensionFor(artifact.name, artifact.kind);
+  const nonce = randomUUID().replaceAll("-", "").slice(0, 12);
+  const relative = toPosix(path.join("candidates", artifact.id, `${Date.now()}-${nonce}-${digest}${extension}`));
+  const destination = path.join(task.taskRoot, relative);
+  await ensurePrivateDirectory(path.dirname(destination), task.taskRoot);
+  await writeImmutable(destination, bytes, 0o400);
+  const report = await writeReviewEvidence(task, `candidate-${artifact.id}-${digest.slice(0, 12)}-${nonce}`, options.review);
+  const pending = {
+    type: reason,
+    artifactId: artifact.id,
+    summary: typeof options.summary === "string" ? options.summary.slice(0, 1_024) : "Candidate did not pass review",
+    path: relative,
+    bytes: bytes.byteLength,
+    sha256: digest,
+    review: reviewSummary(review, report),
+    at: new Date().toISOString(),
+  };
+  task.manifest.pending.push(pending);
+  task.manifest.updatedAt = pending.at;
+  await writeTaskManifest(task.taskRoot, task.manifest);
+  return pending;
+}
+
+function validateReview(review) {
+  if (!review || typeof review !== "object" || Array.isArray(review) || review.schemaVersion !== 1) throw taskError("invalid-review", "Commit review must be an OfficeKit review report.");
+  if (!new Set(["passed", "passed-with-limitations", "failed"]).has(review.verdict)) throw taskError("invalid-review", "Review verdict is invalid.");
+  if (!review.delivery || !isSha(review.delivery.sha256)) throw taskError("invalid-review", "Review delivery SHA-256 is missing.");
+  if (!ARTIFACT_KINDS.has(review.artifactKind)) throw taskError("invalid-review", "Review artifact kind is invalid.");
+  if (!VISUAL_REVIEW_STATUSES.has(review.visualReview)) throw taskError("invalid-review", "Review visual status is invalid.");
+  let encoded;
+  try { encoded = JSON.stringify(review); }
+  catch (error) { throw taskError("invalid-review", `Review report is not serializable: ${boundedError(error)}`); }
+  if (Buffer.byteLength(encoded) > DEFAULT_MAX_REVIEW_REPORT_BYTES) throw taskError("review-too-large", `Review report exceeds ${DEFAULT_MAX_REVIEW_REPORT_BYTES} bytes.`);
+  return review;
+}
+
+async function writeReviewEvidence(task, name, review) {
+  const relative = toPosix(path.join("evidence", "reviews", `${safeName(name)}.json`));
+  const target = path.join(task.taskRoot, relative);
+  const bytes = Buffer.from(`${JSON.stringify(review, null, 2)}\n`);
+  await ensurePrivateDirectory(path.dirname(target), task.taskRoot);
+  await atomicWrite(target, bytes, task.taskRoot, { replace: false });
+  return { path: relative, bytes: bytes.byteLength, sha256: sha256(bytes) };
+}
+
+function reviewSummary(review, evidence) {
+  const limitations = [];
+  if (review.verdict === "passed-with-limitations") {
+    if (review.visualReview !== "complete") limitations.push(`visualReview:${review.visualReview}`);
+    if (review.contentView?.requested && review.contentView.status !== "ready") limitations.push(`contentView:${review.contentView.status}`);
+    for (const section of ["semantic", "structural", "layout", "delivery"]) {
+      const status = review[section]?.status;
+      if (status && !new Set(["passed", "ready"]).has(status)) limitations.push(`${section}:${status}`);
+    }
+  }
+  return {
+    verdict: review.verdict,
+    artifactKind: review.artifactKind,
+    format: review.format,
+    visualReview: review.visualReview,
+    contentView: review.contentView?.requested ? review.contentView.status : "not-requested",
+    deliverySha256: review.delivery.sha256,
+    limitations: [...new Set(limitations)],
+    evidence,
+  };
+}
+
+function artifactDescriptor(artifact, taskRoot) {
+  return Object.freeze({
+    artifactId: artifact.id,
+    name: artifact.name,
+    kind: artifact.kind,
+    mime: artifact.mime,
+    path: resolveManagedFile(taskRoot, artifact.source.storedPath, "input"),
+    sourcePath: artifact.source.path,
+    bytes: artifact.source.bytes,
+    sha256: artifact.source.sha256,
+  });
+}
+
+function deriveTaskState(manifest) {
+  if (manifest.pending.length > 0) return "attention";
+  if (manifest.publications.length > 0) return "published";
+  if (manifest.head) return "stable";
+  return "new";
+}
+
+function taskStorageBytes(manifest) {
+  let total = 0;
+  for (const artifact of manifest.artifacts) {
+    total += artifact.source?.bytes ?? 0;
+    total += artifact.headRevision?.bytes ?? 0;
+  }
+  for (const pending of manifest.pending) total += pending.bytes ?? 0;
+  return total;
+}
+
+async function readArtifactBytes(value, maximum = DEFAULT_MAX_TASK_ARTIFACT_BYTES) {
+  const limit = positiveInteger(maximum, DEFAULT_MAX_TASK_ARTIFACT_BYTES, "maxBytes");
+  let bytes;
+  if (typeof value === "string") bytes = await readRegularBounded(value, limit, "Artifact candidate");
+  else if (value instanceof Uint8Array) bytes = Buffer.from(value);
+  else if (value instanceof ArrayBuffer) bytes = Buffer.from(value);
+  else if (ArrayBuffer.isView(value)) bytes = Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+  else if (typeof value?.arrayBuffer === "function") bytes = Buffer.from(await value.arrayBuffer());
+  else throw taskError("invalid-artifact", "Artifact candidate must be a FileBlob, byte array, ArrayBuffer, or regular file path.");
+  if (bytes.byteLength > limit) throw taskError("artifact-too-large", `Artifact candidate exceeds ${limit} bytes.`);
+  return bytes;
+}
+
+async function readRegularBounded(target, maximum, label) {
+  const descriptor = await lstatIfExists(target);
+  if (!descriptor || descriptor.isSymbolicLink() || !descriptor.isFile()) throw taskError("unsafe-path", `${label} must be a regular non-symlink file.`);
+  if (descriptor.size > maximum) throw taskError("file-too-large", `${label} exceeds ${maximum} bytes.`);
+  return readFile(target);
+}
+
+async function findInterruptedRequest(target) {
+  const descriptor = await lstatIfExists(target);
+  if (descriptor == null) return null;
+  if (descriptor.isSymbolicLink() || !descriptor.isFile() || descriptor.size > 16_777_216) return null;
+  const started = new Map();
+  for (const line of (await readFile(target, "utf8")).split(/\r?\n/u).filter(Boolean)) {
+    let record;
+    try { record = JSON.parse(line); } catch { continue; }
+    if (record?.type === "request.started" && Number.isInteger(record.sequence)) started.set(record.sequence, record);
+    if (record?.type === "request.terminal" && Number.isInteger(record.sequence)) started.delete(record.sequence);
+  }
+  return [...started.values()].sort((a, b) => a.sequence - b.sequence).at(-1) ?? null;
+}
+
+async function ensurePrivateDirectory(target, containmentRoot) {
+  const existing = await lstatIfExists(target);
+  if (existing?.isSymbolicLink() || (existing && !existing.isDirectory())) throw taskError("unsafe-path", `Managed path must be a regular directory: ${target}`);
+  if (!existing) await mkdir(target, { recursive: false, mode: 0o700 });
+  const canonical = await realpath(target);
+  const root = await realpath(containmentRoot);
+  assertContained(canonical, root, "managed directory");
+  await privateMode(canonical, 0o700);
+  return canonical;
+}
+
+async function canonicalDirectory(target, label) {
+  const requested = path.resolve(target);
+  const descriptor = await lstatIfExists(requested);
+  if (!descriptor || descriptor.isSymbolicLink() || !descriptor.isDirectory()) throw taskError("invalid-workspace", `${label} must be an existing regular directory: ${requested}`);
+  return realpath(requested);
+}
+
+async function writeImmutable(target, bytes, mode, { allowIdentical = false } = {}) {
+  const existing = await lstatIfExists(target);
+  if (existing) {
+    if (!allowIdentical || existing.isSymbolicLink() || !existing.isFile()) throw taskError("output-exists", `Managed file already exists: ${target}`);
+    const current = await readFile(target);
+    if (sha256(current) !== sha256(bytes)) throw taskError("revision-collision", "Immutable revision path contains different bytes.");
+    return;
+  }
+  await atomicWrite(target, bytes, path.dirname(path.dirname(target)), { replace: false, mode });
+  await privateMode(target, mode);
+}
+
+async function atomicWrite(target, bytes, containmentRoot, { replace, mode = 0o600 }) {
+  const parent = await realpath(path.dirname(target));
+  const root = await realpath(containmentRoot);
+  assertContained(parent, root, "managed file parent");
+  const existing = await lstatIfExists(target);
+  if (existing?.isSymbolicLink() || (existing && !existing.isFile())) throw taskError("unsafe-path", `Managed file must be a regular file: ${target}`);
+  if (existing && !replace) throw taskError("output-exists", `Managed file already exists: ${target}`);
+  const temporary = path.join(parent, `.${path.basename(target)}.${randomUUID()}.tmp`);
+  await writeFile(temporary, bytes, { mode });
+  try { await rename(temporary, target); }
+  finally { await rm(temporary, { force: true }); }
+  await privateMode(target, mode);
+}
+
+function resolveManagedFile(taskRoot, relative, label) {
+  if (typeof relative !== "string" || relative === "" || path.isAbsolute(relative)) throw taskError("invalid-task", `Task ${label} path is invalid.`);
+  const target = path.resolve(taskRoot, relative);
+  assertContained(target, taskRoot, label);
+  return target;
+}
+
+function assertOutsideManagedTasks(candidate, workspaceRoot) {
+  const tasksRoot = path.join(workspaceRoot, TASK_DIRECTORY);
+  const relative = path.relative(tasksRoot, candidate);
+  if (relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))) {
+    throw taskError("unsafe-input", "A task input cannot be staged from managed task state.");
+  }
+}
+
+function assertContained(candidate, root, label) {
+  const relative = path.relative(root, candidate);
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw taskError("unsafe-path", `${label} escapes its managed root.`);
+}
+
+function validateTaskId(value) {
+  if (typeof value !== "string" || !TASK_ID_PATTERN.test(value)) throw taskError("invalid-task-id", "Task ID is invalid.");
+  return value;
+}
+
+function validateArtifactId(value) {
+  if (typeof value !== "string" || !ARTIFACT_ID_PATTERN.test(value)) throw taskError("invalid-artifact-id", "Artifact ID must be a lowercase safe identifier of at most 64 characters.");
+  return value;
+}
+
+function newArtifactId() {
+  return `a_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+}
+
+function normalizeKind(value, fileName = "", mime = "") {
+  if (ARTIFACT_KINDS.has(value)) return value;
+  const lowerMime = String(mime).toLowerCase();
+  if (lowerMime === "application/pdf") return "pdf";
+  const extension = path.extname(String(fileName || "")).toLowerCase();
+  if (extension === ".docx") return "document";
+  if (extension === ".xlsx") return "workbook";
+  if (extension === ".pptx") return "presentation";
+  if (extension === ".pdf") return "pdf";
+  throw taskError("invalid-artifact-kind", "Artifact kind must be document, workbook, presentation, or pdf.");
+}
+
+function extensionFor(fileName, kind) {
+  const expected = { document: ".docx", workbook: ".xlsx", presentation: ".pptx", pdf: ".pdf" }[kind];
+  return path.extname(String(fileName || "")).toLowerCase() === expected ? expected : expected;
+}
+
+function mimeForKind(kind) {
+  return {
+    document: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    workbook: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    presentation: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    pdf: "application/pdf",
+  }[kind];
+}
+
+function boundedText(value, label, maximum) {
+  if (typeof value !== "string" || value.trim() === "" || value.length > maximum || /[\u0000-\u001f\u007f]/u.test(value)) throw taskError("invalid-text", `${label} must be a non-empty bounded text value.`);
+  return value.trim();
+}
+
+function normalizeConstraints(value) {
+  if (!Array.isArray(value) || value.length > 32) throw taskError("invalid-constraints", "Commit constraints must be an array of at most 32 strings.");
+  return [...new Set(value.map((entry) => boundedText(entry, "Commit constraint", 512)))];
+}
+
+function normalizeListLimit(value) {
+  return positiveInteger(value, DEFAULT_TASK_LIST_LIMIT, "limit");
+}
+
+function positiveInteger(value, fallback, label) {
+  if (value == null) return fallback;
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number <= 0) throw taskError("invalid-limit", `${label} must be a positive safe integer.`);
+  return number;
+}
+
+function isSha(value) {
+  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function safeName(value) {
+  return String(value).replace(/[^a-zA-Z0-9._-]/gu, "-").slice(0, 160);
+}
+
+function toPosix(value) {
+  return value.split(path.sep).join("/");
+}
+
+async function lstatIfExists(target) {
+  try { return await lstat(target); }
+  catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function readSmallJson(target) {
+  const descriptor = await lstatIfExists(target);
+  if (!descriptor || descriptor.isSymbolicLink() || !descriptor.isFile() || descriptor.size > 16_384) throw taskError("unsafe-lock", "Task lock is invalid.");
+  return JSON.parse(await readFile(target, "utf8"));
+}
+
+function processExists(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return false;
+  try { process.kill(pid, 0); return true; }
+  catch (error) { return error?.code === "EPERM"; }
+}
+
+async function privateMode(target, mode) {
+  if (process.platform !== "win32") await chmod(target, mode);
+}
+
+async function directoryBytes(root) {
+  let total = 0;
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    const target = path.join(root, entry.name);
+    if (entry.isSymbolicLink()) throw taskError("unsafe-task", "Task directories cannot contain symbolic links.");
+    if (entry.isDirectory()) total += await directoryBytes(target);
+    else if (entry.isFile()) total += (await stat(target)).size;
+    else throw taskError("unsafe-task", "Task directories can contain only regular files and directories.");
+  }
+  return total;
+}
+
+function boundedError(error) {
+  return String(error?.message || error || "invalid task").replace(/[\u0000-\u001f\u007f]/gu, " ").slice(0, 500);
+}
+
+export function taskError(code, message, details = {}) {
+  const error = new Error(message);
+  error.code = code;
+  Object.assign(error, details);
+  return error;
+}

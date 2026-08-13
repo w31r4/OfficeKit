@@ -13,10 +13,13 @@ Use the public `office-kit` package for OfficeKit work. Never import or use
 `@oai/artifact-tool`: it is a different host-bundled runtime, not an OfficeKit
 alias or fallback, and its output must never be attributed to OfficeKit.
 
-For a multi-step task, use the portable [REPL workflow](references/repl.md).
-Start one `officekit repl` process, import only the selected domain API with
-`ctx.import`, keep reusable helpers or live objects in `ctx.state`, and publish
-only after the owning Skill's inspect/edit/verify loop completes. Setup commands
+For a multi-step task, use the portable [task REPL workflow](references/repl.md).
+Inspect `officekit tasks --json` before continuing prior work; open the matched
+task or create one explicitly. Import only the selected domain API with
+`ctx.import`, keep reusable helpers or live objects in `ctx.state`, and treat
+them as process-local. Stage inputs with `ctx.input`, commit only a candidate
+whose post-edit review passes, and publish only from the current reviewed
+commit. Setup commands
 such as template search, provider installation, and Excel add-in installation
 remain explicit; they are not hidden inside a cell.
 
@@ -117,6 +120,8 @@ then let the PDF Skill inspect and verify the final PDF.
 ## Execute and verify
 
 - Protect every input and retained template from overwrite.
+- For durable work, follow `tasks → repl → input → edit → review → commit →
+  publish`. A failed review remains attention and cannot replace task HEAD.
 - Complete each artifact under its owner's workflow.
 - For a conversational PPT draft, run the draft checks defined by the
   Presentations Skill and return the working path plus draft guide. Do not call

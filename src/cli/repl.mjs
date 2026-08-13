@@ -2,19 +2,16 @@ import { createHash, randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { createInterface } from "node:readline";
 import {
-  access,
   appendFile,
   chmod,
   lstat,
   mkdir,
-  mkdtemp,
   readFile,
   realpath,
   rename,
   rm,
   writeFile,
 } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -24,22 +21,34 @@ import {
   readOfficeKitPackageMetadata,
   resolveWorkspaceSpecifier,
 } from "./officekit-resolver.mjs";
+import {
+  acquireTaskLock,
+  beginTaskSession,
+  commitTaskArtifact,
+  createTask,
+  openTask,
+  recordTaskPublication,
+  resolveCommittedArtifact,
+  stageTaskInput,
+  summarizeTask,
+} from "./task-store.mjs";
 
-export const REPL_PROTOCOL_VERSION = 1;
+export const REPL_PROTOCOL_VERSION = 2;
 export const DEFAULT_MAX_REQUEST_BYTES = 1_048_576;
 export const DEFAULT_MAX_RESPONSE_BYTES = 8_388_608;
 export const DEFAULT_MAX_EVENT_BYTES = 16_384;
 export const DEFAULT_MAX_JOURNAL_BYTES = 16_777_216;
 export const REPL_USAGE = [
-  "Usage: officekit repl [options]",
+  "Usage:",
+  "  officekit repl --new <goal> [--workspace <path>] [limits]",
+  "  officekit repl <task-id> [--workspace <path>] [limits]",
   "",
   "Run a local JSONL JavaScript task with a persistent OfficeKit context.",
   "Each input line must contain {id, code}; stdout contains one JSON response per line.",
   "",
   "Options:",
-  "  --workspace <path>        Workspace root (default: current directory)",
-  "  --task-root <path>        Task directory (default: system temporary directory)",
-  "  --resume <checkpoint>     Resume a checkpoint directory or checkpoint.json",
+  "  --new <goal>              Create one durable task with a natural-language goal",
+  "  --workspace <path>        Workspace root (default: nearest .office-kit, Git root, or cwd)",
   "  --max-request-bytes <n>   Maximum request line size",
   "  --max-response-bytes <n>  Maximum serialized response size",
   "  --max-journal-bytes <n>   Maximum checkpoint journal size",
@@ -56,15 +65,17 @@ export async function runReplCommand(
     return;
   }
   const session = await createReplSession(options);
-  const reader = createInterface({ input, crlfDelay: Infinity });
+  let reader;
   try {
+    await writeJsonLine(output, session.ready, options.maxResponseBytes);
+    reader = createInterface({ input, crlfDelay: Infinity });
     for await (const line of reader) {
       if (line.trim() === "") continue;
       const response = await session.handleLine(line);
       await writeJsonLine(output, response, options.maxResponseBytes);
     }
   } finally {
-    reader.close();
+    reader?.close();
     await session.close();
     if (errorOutput && session.diagnostics.length > 0) {
       for (const diagnostic of session.diagnostics) {
@@ -78,50 +89,39 @@ export async function createReplSession(options = {}) {
   const parsed = await resolveSessionOptions(options);
   const metadata = await readOfficeKitPackageMetadata();
   const resolver = createOfficeKitResolver(metadata);
-  const resume = parsed.resumeSnapshot;
-  const sessionId = resume?.sessionId || randomUUID();
-  const taskRoot = resume?.taskRoot
-    ? await ensureDirectory(resume.taskRoot, "checkpoint task root")
-    : await ensureTaskRoot(parsed.taskRoot);
-  const workspaceRoot = await resolveWorkspaceRoot(
-    parsed.workspaceRoot ?? resume?.workspaceRoot ?? process.cwd(),
-  );
-  if (resume?.workspaceRoot && path.resolve(resume.workspaceRoot) !== workspaceRoot) {
-    throw replError(
-      "workspace-mismatch",
-      `Checkpoint workspaceRoot is ${resume.workspaceRoot}, not ${workspaceRoot}.`,
-    );
+  const sessionId = randomUUID();
+  const opened = parsed.newTaskGoal != null
+    ? await createTask({ workspaceRoot: parsed.workspaceRoot, goal: parsed.newTaskGoal })
+    : await openTask({ workspaceRoot: parsed.workspaceRoot, taskId: parsed.taskId });
+  const lock = await acquireTaskLock(opened.taskRoot, { sessionId });
+  let task;
+  let roots;
+  try {
+    task = await beginTaskSession(opened, { sessionId });
+    roots = {
+      workspaceRoot: task.workspaceRoot,
+      taskRoot: task.taskRoot,
+      inputRoot: path.join(task.taskRoot, "inputs"),
+      assetRoot: path.join(task.workspaceRoot, "assets"),
+      outputRoot: path.join(task.workspaceRoot, "outputs"),
+      evidenceRoot: path.join(task.taskRoot, "evidence"),
+    };
+    roots.outputRoot = await ensureDirectory(roots.outputRoot, "output root");
+    assertContainedCanonical(roots.outputRoot, roots.workspaceRoot, "output root");
+    roots.evidenceRoot = await ensureDirectory(roots.evidenceRoot, "evidence root");
+    assertContainedCanonical(roots.evidenceRoot, roots.taskRoot, "evidence root");
+  } catch (error) {
+    await lock.release();
+    throw error;
   }
-
-  const roots = {
-    workspaceRoot,
-    taskRoot,
-    inputRoot: path.join(workspaceRoot, "inputs"),
-    assetRoot: path.join(workspaceRoot, "assets"),
-    outputRoot: path.join(workspaceRoot, "outputs"),
-    evidenceRoot: path.join(taskRoot, "evidence"),
-  };
-  roots.outputRoot = await ensureDirectory(roots.outputRoot, "output root");
-  assertContainedCanonical(roots.outputRoot, workspaceRoot, "output root");
-  roots.evidenceRoot = await ensureDirectory(roots.evidenceRoot, "evidence root");
-  assertContainedCanonical(roots.evidenceRoot, taskRoot, "evidence root");
-  const sessionRoot = resume?.sessionRoot
-    ? await ensureDirectory(resume.sessionRoot, "checkpoint directory")
-    : path.join(taskRoot, ".officekit-repl", sessionId);
-  const canonicalSessionRoot = await ensureDirectory(sessionRoot, "checkpoint directory");
-  assertContainedCanonical(canonicalSessionRoot, taskRoot, "checkpoint directory");
-  const sessionRootPath = canonicalSessionRoot;
+  const { taskRoot, workspaceRoot } = roots;
+  const sessionRootPath = task.sessionRoot;
   const checkpointPath = path.join(sessionRootPath, "checkpoint.json");
   const journalPath = path.join(sessionRootPath, "session.jsonl");
-  const previous = resume?.snapshot || await readJsonIfRegular(checkpointPath);
-  let interruptedRequest = resume
-    ? await findInterruptedRequest(journalPath)
-    : null;
-  const restoredState = previous?.state?.safe ?? previous?.state;
-  const initialState = restoredState && isPlainObject(restoredState)
-    ? structuredClone(restoredState)
-    : Object.create(null);
-  const sequence = Number.isInteger(previous?.sequence) ? previous.sequence : 0;
+  const previous = null;
+  let interruptedRequest = task.manifest.pending.filter((entry) => entry.type === "interrupted-request").at(-1) ?? null;
+  const initialState = Object.create(null);
+  const sequence = 0;
   const diagnostics = [];
   const imports = [];
   const artifacts = Array.isArray(previous?.artifacts) ? structuredClone(previous.artifacts) : [];
@@ -138,18 +138,43 @@ export async function createReplSession(options = {}) {
     sessionId,
     ...roots,
     checkpointRoot: sessionRootPath,
+    task: Object.freeze(summarizeTask(task.manifest, { detailed: true })),
     state,
     import: async (specifier) => {
       const target = resolveWorkspaceSpecifier(resolver, specifier, { workspaceRoot });
       imports.push(specifier);
       return import(target);
     },
-    publish: async (value, publishOptions = {}) => {
-      const descriptor = await publishArtifact(value, publishOptions, {
+    input: async (sourcePath, inputOptions = {}) => {
+      const descriptor = await stageTaskInput(task, sourcePath, inputOptions);
+      ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true }));
+      return descriptor;
+    },
+    commit: async (value, commitOptions = {}) => {
+      try {
+        return await commitTaskArtifact(task, value, commitOptions);
+      } finally {
+        ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true }));
+      }
+    },
+    publish: async (commitDescriptor, publishOptions = {}) => {
+      const committed = await resolveCommittedArtifact(task, commitDescriptor, publishOptions.artifactId);
+      const descriptor = await publishArtifact(committed.bytes, {
+        ...publishOptions,
+        kind: committed.artifact.kind,
+        mime: committed.artifact.mime,
+        sourcePaths: committed.artifact.source?.path ? [committed.artifact.source.path] : [],
+        visualReview: committed.review.visualReview,
+        reviewVerdict: committed.review.verdict,
+        contentView: committed.review.contentView,
+        limitations: committed.review.limitations,
+      }, {
         roots,
         sequence: currentSequence,
         artifacts,
       });
+      await recordTaskPublication(task, commitDescriptor, descriptor, committed.artifact.id);
+      ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true }));
       return descriptor;
     },
     recordEvidence: async (target, metadata = {}) => {
@@ -174,6 +199,7 @@ export async function createReplSession(options = {}) {
   const session = {
     ctx,
     diagnostics,
+    ready: task.ready,
     async handleLine(line) {
       if (closed) return failureResponse(null, replError("session-closed", "REPL session is closed."));
       const request = parseRequestLine(line, parsed.maxRequestBytes);
@@ -238,7 +264,7 @@ export async function createReplSession(options = {}) {
       if (closed) return;
       closed = true;
       try {
-        if (currentSequence === 0 && !previous) {
+        if (currentSequence === 0) {
           await writeCheckpoint({
             protocol: REPL_PROTOCOL_VERSION,
             sessionId,
@@ -249,11 +275,13 @@ export async function createReplSession(options = {}) {
             state: snapshotState(state),
             artifacts,
             evidence,
-            resumedFrom: resume?.sessionRoot,
+            taskId: task.manifest.id,
+            parentSessionId: task.parentSessionId,
           });
         }
       } finally {
         deregisterHooks();
+        await lock.release();
       }
     },
   };
@@ -282,7 +310,8 @@ export async function createReplSession(options = {}) {
         source: typeof request?.code === "string" ? request.code : null,
         response,
       },
-      resumedFrom: resume?.sessionRoot ?? null,
+      taskId: task.manifest.id,
+      parentSessionId: task.parentSessionId,
       updatedAt: new Date().toISOString(),
     };
     await writeCheckpoint(snapshot);
@@ -316,8 +345,8 @@ async function executeCell(code, ctx, scopedConsole) {
 function parseReplArguments(args) {
   const options = {
     workspaceRoot: undefined,
-    taskRoot: undefined,
-    resume: undefined,
+    taskId: undefined,
+    newTaskGoal: undefined,
     maxRequestBytes: DEFAULT_MAX_REQUEST_BYTES,
     maxResponseBytes: DEFAULT_MAX_RESPONSE_BYTES,
     maxJournalBytes: DEFAULT_MAX_JOURNAL_BYTES,
@@ -329,10 +358,8 @@ function parseReplArguments(args) {
     if (value === "--help" || value === "-h") options.help = true;
     else if (value === "--workspace") options.workspaceRoot = requiredOption(values, value);
     else if (value.startsWith("--workspace=")) options.workspaceRoot = value.slice(12);
-    else if (value === "--task-root") options.taskRoot = requiredOption(values, value);
-    else if (value.startsWith("--task-root=")) options.taskRoot = value.slice(12);
-    else if (value === "--resume") options.resume = requiredOption(values, value);
-    else if (value.startsWith("--resume=")) options.resume = value.slice(9);
+    else if (value === "--new") options.newTaskGoal = requiredOption(values, value);
+    else if (value.startsWith("--new=")) options.newTaskGoal = value.slice(6);
     else if (value === "--max-request-bytes") options.maxRequestBytes = parsePositiveLimit(requiredOption(values, value), value);
     else if (value.startsWith("--max-request-bytes=")) options.maxRequestBytes = parsePositiveLimit(value.slice(20), "--max-request-bytes");
     else if (value === "--max-response-bytes") options.maxResponseBytes = parsePositiveLimit(requiredOption(values, value), value);
@@ -340,47 +367,27 @@ function parseReplArguments(args) {
     else if (value === "--max-journal-bytes") options.maxJournalBytes = parsePositiveLimit(requiredOption(values, value), value);
     else if (value.startsWith("--max-journal-bytes=")) options.maxJournalBytes = parsePositiveLimit(value.slice(20), "--max-journal-bytes");
     else if (value.startsWith("-")) throw replError("invalid-option", `Unknown REPL option: ${value}.`);
+    else if (options.taskId == null) options.taskId = value;
     else throw replError("invalid-argument", `Unexpected REPL argument: ${value}.`);
   }
   return options;
 }
 
 async function resolveSessionOptions(options) {
-  const resolved = { ...options };
-  if (resolved.resume != null) {
-    const resumePath = path.resolve(resolved.resume);
-    const snapshotPath = (await isRegular(resumePath))
-      ? resumePath
-      : path.join(resumePath, "checkpoint.json");
-    const snapshot = await readJson(snapshotPath, "checkpoint");
-    if (snapshot.protocol !== REPL_PROTOCOL_VERSION || typeof snapshot.sessionId !== "string") {
-      throw replError("invalid-checkpoint", "Checkpoint protocol or sessionId is invalid.");
-    }
-    resolved.resumeSnapshot = {
-      ...snapshot,
-      sessionRoot: path.dirname(snapshotPath),
-      snapshot,
-    };
+  const resolved = {
+    maxRequestBytes: DEFAULT_MAX_REQUEST_BYTES,
+    maxResponseBytes: DEFAULT_MAX_RESPONSE_BYTES,
+    maxJournalBytes: DEFAULT_MAX_JOURNAL_BYTES,
+    ...options,
+  };
+  if (resolved.help) return resolved;
+  if (resolved.newTaskGoal != null && resolved.taskId != null) {
+    throw replError("invalid-argument", "Choose --new <goal> or an existing task ID, not both.");
+  }
+  if (resolved.newTaskGoal == null && resolved.taskId == null) {
+    throw replError("missing-task", "Choose an existing task ID or create one with --new <goal>. Run officekit tasks first.");
   }
   return resolved;
-}
-
-async function resolveWorkspaceRoot(value) {
-  const requested = path.resolve(value);
-  const target = await realpath(requested).catch((error) => {
-    if (error?.code === "ENOENT") throw replError("invalid-workspace", `Workspace does not exist: ${requested}`);
-    throw error;
-  });
-  const descriptor = await lstat(target);
-  if (!descriptor.isDirectory()) throw replError("invalid-workspace", `Workspace is not a directory: ${target}`);
-  return target;
-}
-
-async function ensureTaskRoot(value) {
-  if (value == null) return mkdtemp(path.join(os.tmpdir(), "officekit-repl-"));
-  const target = path.resolve(value);
-  await mkdir(target, { recursive: true, mode: 0o700 });
-  return ensureDirectory(target, "task root");
 }
 
 async function ensureDirectory(target, label) {
@@ -553,6 +560,9 @@ async function publishArtifact(value, options, { roots, sequence, artifacts }) {
     sha256: sha256(bytes),
     locator: options.locator ?? null,
     visualReview: options.visualReview ?? "unavailable",
+    reviewVerdict: options.reviewVerdict ?? null,
+    contentView: options.contentView ?? "not-requested",
+    limitations: Array.isArray(options.limitations) ? [...options.limitations] : [],
   };
   artifacts.push(descriptor);
   return descriptor;
@@ -699,55 +709,16 @@ async function assertJournalBudget(target, maximum, additionalBytes = 0) {
   }
 }
 
-async function readJsonIfRegular(target) {
-  if (!(await isRegular(target))) return null;
-  return readJson(target, "checkpoint");
-}
-
-async function readJson(target, label) {
-  let value;
-  try { value = JSON.parse(await readFile(target, "utf8")); }
-  catch (error) { throw replError("invalid-checkpoint", `${label} is not valid JSON: ${error.message}`); }
-  return value;
-}
-
-async function isRegular(target) {
-  const descriptor = await lstat(target).catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error));
-  return Boolean(descriptor && descriptor.isFile() && !descriptor.isSymbolicLink());
-}
-
-async function findInterruptedRequest(target) {
-  const descriptor = await lstat(target).catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error));
-  if (descriptor == null) return null;
-  if (descriptor.isSymbolicLink() || !descriptor.isFile()) {
-    throw replError("unsafe-path", "REPL session journal must be a regular non-symlink file.");
-  }
-  if (descriptor.size > DEFAULT_MAX_JOURNAL_BYTES) {
-    throw replError("checkpoint-too-large", "REPL session journal exceeds the default safety limit.");
-  }
-  const started = new Map();
-  const lines = (await readFile(target, "utf8")).split(/\r?\n/u).filter(Boolean);
-  for (const line of lines) {
-    let record;
-    try { record = JSON.parse(line); } catch { continue; }
-    if (record?.type === "request.started" && Number.isInteger(record.sequence)) {
-      started.set(record.sequence, record);
-    } else if (record?.type === "request.terminal" && Number.isInteger(record.sequence)) {
-      started.delete(record.sequence);
-    }
-  }
-  const values = [...started.values()].sort((left, right) => left.sequence - right.sequence);
-  if (values.length === 0) return null;
-  const last = values.at(-1);
-  return { sequence: last.sequence, id: last.id, sourceSha256: last.sourceSha256 };
-}
-
 function executionMayHaveApplied(error) {
   return !new Set([
     "invalid-json", "invalid-request", "unsupported-protocol", "invalid-option",
     "invalid-argument", "remote-import", "unsafe-import", "unpublished-subpath",
     "invalid-artifact", "unsafe-output", "output-exists", "source-overwrite",
-    "unsafe-source", "invalid-evidence", "unsafe-evidence",
+    "unsafe-source", "invalid-evidence", "unsafe-evidence", "invalid-input",
+    "unsafe-input", "input-too-large", "source-changed", "artifact-exists",
+    "invalid-artifact-id", "invalid-artifact-kind", "artifact-kind-mismatch",
+    "invalid-review", "review-too-large", "stale-review", "review-failed", "unreviewed-artifact",
+    "stale-commit", "invalid-commit", "revision-corrupt",
   ]).has(error?.code);
 }
 

@@ -16,7 +16,9 @@ try {
   assert.match(help.stdout, /officekit init \[path\]/);
   assert.match(help.stdout, /officekit update \[path\]/);
   assert.match(help.stdout, /officekit run <task\.mjs>/);
-  assert.match(help.stdout, /officekit repl \[options\]/);
+  assert.match(help.stdout, /officekit tasks \[<task-id>\]/);
+  assert.match(help.stdout, /officekit repl --new <goal>/);
+  assert.match(help.stdout, /officekit repl <task-id>/);
   assert.match(help.stdout, /officekit template search/);
   assert.match(help.stdout, /officekit excel <command>/);
   assert.match(help.stdout, /officekit live <command> --app <excel\|powerpoint>/);
@@ -32,6 +34,14 @@ try {
   const lazyProject = path.join(temporary, "lazy-excel-project");
   const lazyEnvironment = { OFFICEKIT_EXCEL_HOME: lazyExcelHome, OFFICEKIT_POWERPOINT_HOME: lazyPowerPointHome };
   parseJson(run(["init", lazyProject, "--tools", "agents", "--json"], { environment: lazyEnvironment }).stdout);
+  const ready = parseJson(run(["repl", "--new", "CLI discovery task", "--workspace", lazyProject], { environment: lazyEnvironment }).stdout);
+  assert.equal(ready.type, "session.ready");
+  assert.equal(ready.task.goal, "CLI discovery task");
+  const tasks = parseJson(run(["tasks", "--workspace", lazyProject, "--json"], { environment: lazyEnvironment }).stdout);
+  assert.equal(tasks.total, 1);
+  assert.equal(tasks.tasks[0].id, ready.task.id);
+  const taskDetail = parseJson(run(["tasks", ready.task.id, "--workspace", lazyProject, "--json"], { environment: lazyEnvironment }).stdout);
+  assert.equal(taskDetail.task.goal, "CLI discovery task");
   parseJson(run([
     "template",
     "search",
@@ -51,6 +61,13 @@ try {
     false,
     "root CLI initialization and template search must not initialize the PowerPoint bridge or state",
   );
+  assert.match(
+    run(["tasks", "--delete", ready.task.id, "--workspace", lazyProject, "--json"], { expectFailure: true }).stderr,
+    /requires --yes/,
+  );
+  const deletedTask = parseJson(run(["tasks", "--delete", ready.task.id, "--yes", "--workspace", lazyProject, "--json"]).stdout);
+  assert.equal(deletedTask.deleted, true);
+  assert.equal(parseJson(run(["tasks", "--workspace", lazyProject, "--json"]).stdout).total, 0);
 
   const project = path.join(temporary, "detected-project");
   fs.mkdirSync(path.join(project, ".claude"), { recursive: true });

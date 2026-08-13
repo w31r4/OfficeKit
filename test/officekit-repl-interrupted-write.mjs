@@ -11,22 +11,16 @@ const replModule = new URL("../src/cli/repl.mjs", import.meta.url).href;
 
 async function runInterruptedWriteCase(point) {
   const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), `officekit-repl-interrupt-${point}-`));
-  const taskRoot = path.join(workspaceRoot, "task");
   const childSource = `
     import { createReplSession } from ${JSON.stringify(replModule)};
-    import { readdir } from "node:fs/promises";
-    import path from "node:path";
     const workspaceRoot = ${JSON.stringify(workspaceRoot)};
-    const taskRoot = ${JSON.stringify(taskRoot)};
-    const first = await createReplSession({ workspaceRoot, taskRoot });
-    await first.handleLine(JSON.stringify({ id: "stable", code: "ctx.state.value = 'stable'; return ctx.state.value;" }));
+    const first = await createReplSession({ workspaceRoot, newTaskGoal: "Interrupted task" });
+    await first.handleLine(JSON.stringify({ id: "stable", code: "ctx.state.value = 'process-only'; return ctx.state.value;" }));
+    const taskId = first.ready.task.id;
     await first.close();
-    const sessionIds = await readdir(path.join(taskRoot, ".officekit-repl"));
-    if (sessionIds.length !== 1) throw new Error("expected one checkpoint session");
-    const checkpoint = path.join(taskRoot, ".officekit-repl", sessionIds[0], "checkpoint.json");
     process.env.OFFICE_KIT_REPL_TEST_INTERRUPT_AT = ${JSON.stringify(point)};
-    const resumed = await createReplSession({ resume: checkpoint });
-    await resumed.handleLine(JSON.stringify({ id: "crash", code: "ctx.state.value = 'new'; return ctx.state.value;" }));
+    const resumed = await createReplSession({ workspaceRoot, taskId });
+    await resumed.handleLine(JSON.stringify({ id: "crash", code: "ctx.state.value = 'uncertain'; return ctx.state.value;" }));
   `;
   const child = spawn(process.execPath, ["--input-type=module", "-e", childSource], {
     cwd: repositoryRoot,
@@ -42,52 +36,51 @@ async function runInterruptedWriteCase(point) {
   });
   assert.equal(result.code, 86, `${point} child did not stop at the injected interruption: ${stderr}`);
 
-  const sessionIds = await readdir(path.join(taskRoot, ".officekit-repl"));
-  assert.equal(sessionIds.length, 1);
-  const sessionRoot = path.join(taskRoot, ".officekit-repl", sessionIds[0]);
-  const checkpointPath = path.join(sessionRoot, "checkpoint.json");
-  const checkpoint = JSON.parse(await readFile(checkpointPath, "utf8"));
-  const journal = (await readFile(path.join(sessionRoot, "session.jsonl"), "utf8"))
-    .trim()
-    .split(/\r?\n/u)
-    .map((line) => JSON.parse(line));
-  const temporaryNames = (await readdir(sessionRoot))
-    .filter((name) => name.startsWith(".checkpoint.json.") && name.endsWith(".tmp"));
+  const tasksRoot = path.join(workspaceRoot, ".office-kit", "tasks");
+  const taskIds = (await readdir(tasksRoot)).filter((name) => name.startsWith("t_"));
+  assert.equal(taskIds.length, 1);
+  const taskId = taskIds[0];
+  const taskRoot = path.join(tasksRoot, taskId);
+  const sessionIds = await readdir(path.join(taskRoot, "sessions"));
+  assert.equal(sessionIds.length, 2);
+  const sessions = await Promise.all(sessionIds.map(async (sessionId) => {
+    const sessionRoot = path.join(taskRoot, "sessions", sessionId);
+    const journal = (await readFile(path.join(sessionRoot, "session.jsonl"), "utf8"))
+      .trim().split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line));
+    return { sessionId, sessionRoot, journal };
+  }));
+  const crashed = sessions.find((session) => session.journal.at(-1)?.id === "crash");
+  assert.ok(crashed);
+  assert.equal(crashed.journal.at(-1).type, "request.started");
+  const checkpointPath = path.join(crashed.sessionRoot, "checkpoint.json");
+  const temporaryNames = (await readdir(crashed.sessionRoot)).filter((name) => name.startsWith(".checkpoint.json.") && name.endsWith(".tmp"));
   if (point === "checkpoint-before-rename") {
-    assert.equal(checkpoint.sequence, 1, "the previous checkpoint must remain authoritative");
-    assert.equal(checkpoint.state.safe.value, "stable");
-    assert.equal(temporaryNames.length, 1, "an abrupt pre-rename stop leaves only an isolated temp file");
-    const temporary = await lstat(path.join(sessionRoot, temporaryNames[0]));
+    await assert.rejects(readFile(checkpointPath), (error) => error.code === "ENOENT");
+    assert.equal(temporaryNames.length, 1);
+    const temporary = await lstat(path.join(crashed.sessionRoot, temporaryNames[0]));
     assert.equal(temporary.isFile(), true);
     assert.equal(temporary.isSymbolicLink(), false);
   } else {
-    assert.equal(checkpoint.sequence, 2, "the renamed checkpoint must be durable before journal terminal append");
-    assert.equal(checkpoint.state.safe.value, "new");
+    const checkpoint = JSON.parse(await readFile(checkpointPath, "utf8"));
+    assert.equal(checkpoint.sequence, 1);
+    assert.equal(checkpoint.state.safe.value, "uncertain");
     assert.equal(temporaryNames.length, 0);
   }
-  assert.equal(journal.at(-1).type, "request.started");
-  assert.equal(journal.at(-1).id, "crash");
 
-  const resumed = await createReplSession({ resume: checkpointPath });
-  const recovery = await resumed.handleLine(JSON.stringify({
+  const recovered = await createReplSession({ workspaceRoot, taskId });
+  assert.equal(recovered.ready.task.state, "attention");
+  assert.ok(recovered.ready.task.pending.some((entry) => entry.type === "interrupted-request" && entry.requestId === "crash" && entry.maybeApplied));
+  const recovery = await recovered.handleLine(JSON.stringify({
     id: "recovery",
-    code: "return {value: ctx.state.value, interrupted: ctx.state.value === 'stable' || ctx.state.value === 'new'};",
+    code: "return {processState: ctx.state.value ?? null, stableHead: ctx.task.head};",
   }));
   assert.equal(recovery.ok, true);
   assert.equal(recovery.audit.maybeApplied, true);
-  assert.equal(recovery.audit.interruptedRequest.id, "crash");
-  assert.equal(recovery.result.interrupted, true);
-  await resumed.close();
-
-  const finalCheckpoint = JSON.parse(await readFile(checkpointPath, "utf8"));
-  assert.equal(finalCheckpoint.last.id, "recovery");
-  const finalJournal = (await readFile(path.join(sessionRoot, "session.jsonl"), "utf8"))
-    .trim()
-    .split(/\r?\n/u)
-    .map((line) => JSON.parse(line));
-  assert.equal(finalJournal.at(-1).type, "request.terminal");
-  assert.equal(finalJournal.at(-1).id, "recovery");
-  return { point, platform: process.platform, checkpointSequence: checkpoint.sequence };
+  assert.equal(recovery.audit.interruptedRequest.requestId, "crash");
+  assert.equal(recovery.result.processState, null, "a new task session never restores the interrupted JavaScript heap");
+  assert.equal(recovery.result.stableHead, null, "an interrupted unreviewed cell never creates a stable commit");
+  await recovered.close();
+  return { point, platform: process.platform };
 }
 
 const results = [];

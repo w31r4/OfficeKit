@@ -1,81 +1,132 @@
-# OfficeKit REPL
+# OfficeKit task REPL
 
-Use one `officekit repl` process for a multi-step artifact task. It keeps the
-OfficeKit object graph and task helpers alive while keeping the transport
-machine-readable. The process reads JSONL from standard input and writes one
-JSON response per request to standard output; diagnostics belong in the
-response `events` or on standard error.
+Use a durable OfficeKit task for multi-step artifact work. A task belongs to
+one workspace and survives a new Agent context; one REPL process is only the
+current session inside that task.
+
+## Find or start the work
+
+For a request to continue, revise, or finish prior Office work, inspect the
+current workspace before creating anything:
 
 ```bash
-officekit repl --workspace /absolute/project --task-root /absolute/task
+officekit tasks --json
 ```
 
-Each line has a non-empty `id` and JavaScript `code`. `code` runs with
-top-level `await`, `ctx`, and a scoped `console`:
+The default result contains at most five recent tasks. Match by the user's
+goal, named input, and source SHA. If several tasks remain plausible, ask the
+user. Do not choose a global latest task: tasks are visible only inside the
+selected workspace.
 
-```json
-{"id":"inspect","code":"const {DocumentFile} = await ctx.import('office-kit'); ctx.state.doc = await DocumentFile.importDocx(await ctx.import('node:fs/promises').then(fs => fs.readFile(ctx.inputRoot + '/input.docx'))); return ctx.state.doc.inspect();"}
+Open a matching task or explicitly create a new one:
+
+```bash
+officekit repl t_7f2c9a31b804
+officekit repl --new "Create a promotion defense presentation"
 ```
 
-Use `return` for the value reported as `result`. Keep reusable helpers and
-live OfficeKit objects in `ctx.state`; lexical variables from an earlier line
-are not part of the persistence contract. A failed cell does not end the
-process. Its response reports `retryable` and `maybeApplied`; reread the
-affected artifact or range before retrying a mutation.
+The first JSONL response is `session.ready`. Read its task brief, current
+publishable commit descriptor, restored artifact paths, pending failures,
+constraints, and next action before sending code. A missing task ID fails; it
+never creates a new task by typo.
 
-## Context and publication
+Use `officekit run task.mjs` instead for a genuinely one-shot script that does
+not need a durable editing context.
 
-`ctx` contains `sessionId`, `workspaceRoot`, `taskRoot`, `inputRoot`,
-`assetRoot`, `outputRoot`, `evidenceRoot`, and `checkpointRoot`.
+## Execute JSONL cells
 
-- `ctx.import(specifier)` permits published `office-kit` exports, `node:`
-  built-ins, and local modules/dependencies inside the workspace. URLs,
-  absolute paths, traversal, and unpublished OfficeKit subpaths are rejected.
-- `ctx.publish(fileBlobOrPath, options)` writes an atomic, distinct output
-  under `outputRoot` and returns an absolute path, type, byte count, SHA-256,
-  locator, and `visualReview` status. It never overwrites an input.
-- `ctx.recordEvidence(path, metadata)` registers an existing regular file
-  under `evidenceRoot` with a SHA-256 and optional page/slide/sheet/range
-  locator. Evidence is not a final deliverable.
+The REPL reads `{id, code}` JSON objects from standard input and writes one JSON
+response per cell. Code supports top-level `await`, `ctx`, and a scoped
+`console`.
 
-Use the selected domain workflow for inspect → edit → re-read/verify → render
-and then publish the final artifact:
+Use `ctx.state` for process-local functions and live OfficeKit objects reused
+by later cells in the same process. A new session does not restore the JavaScript heap or
+replay prior code. It restores reviewed file revisions; explicitly import those
+files again.
+
+`ctx` contains the task brief, workspace paths, lazy domain imports, and the
+minimal artifact workflow:
+
+- `ctx.task`: current compact task state and latest reviewed head.
+- `ctx.import(specifier)`: published OfficeKit exports, `node:` built-ins, and
+  local workspace modules; URLs, traversal, and private package paths fail.
+- `ctx.input(path, options)`: copy a regular source into the task as an
+  immutable input and return its artifact ID, path, type, size, and SHA-256.
+- `ctx.commit(candidate, options)`: promote a candidate only when its OfficeKit
+  review is non-failing and its delivery SHA matches the candidate bytes.
+- `ctx.publish(commit, options)`: publish an artifact from the current reviewed
+  task commit to a distinct final output.
+- `ctx.recordEvidence(path, metadata)`: register bounded inspect, render, or QA
+  evidence already written below `evidenceRoot`.
+
+## Edit, review, commit, publish
+
+For every meaningful edit batch:
+
+```text
+input or current committed revision
+→ import and inspect
+→ bounded typed edit
+→ export a candidate
+→ reopen and review
+→ commit
+```
+
+Example shape:
 
 ```js
-const { DocumentFile } = await ctx.import("office-kit");
-ctx.state.doc ??= await DocumentFile.importDocx(`${ctx.inputRoot}/input.docx`);
-const summary = await ctx.state.doc.inspect();
-// Make a bounded edit only after inspecting the target.
-const output = await ctx.state.doc.exportDocx();
-return await ctx.publish(output, {
-  name: "output.docx",
-  kind: "document",
+const { DocumentFile, reviewArtifact } = await ctx.import("office-kit");
+const source = await ctx.input("/absolute/path/input.docx", {
+  artifactId: "main-document",
+});
+ctx.state.document ??= await DocumentFile.importDocx(source.path);
+
+// Inspect and apply one supported edit batch.
+const candidate = await ctx.state.document.exportDocx();
+const review = await reviewArtifact(candidate, {
+  source: source.path,
+  outputPath: `${ctx.taskRoot}/candidates/main-document.docx`,
   visualReview: "unavailable",
 });
+const commit = await ctx.commit(candidate, {
+  artifactId: source.artifactId,
+  summary: "Updated the requested section and preserved the remaining document",
+  review,
+  constraints: ["Keep the user template", "Do not change approved figures"],
+  next: "Review the table on page 4",
+});
+ctx.state.commit = commit;
+return commit;
 ```
 
-The Excel Live Control facade is available only when a cell explicitly uses
-`ctx.excel`. It exposes typed `doctor()`, `sessions()`, `execute(request)`,
-and `disconnect(sessionId)` methods over the existing protocol. It does not
-evaluate arbitrary Office.js. Run `officekit excel install` or
-`officekit excel uninstall` separately; starting a REPL never installs a
-certificate, trusts a root, starts a bridge, or downloads a provider.
+Run semantic, structural, layout/render, optional content-reading, and
+visual/human checks under the shared post-edit review contract. Request AnyDoc
+only for a declared content-coverage gap. A failed or stale review cannot move
+task HEAD; its candidate is reported as attention while the previous commit
+remains the recovery point.
 
-## Checkpoints and resume
+When the task is accepted, publish the current commit:
 
-After every request, OfficeKit atomically updates a private checkpoint under
-`checkpointRoot`. `checkpoint.json` contains the logical session, sequence,
-source hash/text, safe JSON state, artifact/evidence references, and the last
-response. `session.jsonl` records request starts and terminal audit records.
-
-```bash
-officekit repl --resume /absolute/task/.officekit-repl/<session-id>/checkpoint.json
+```js
+return await ctx.publish(ctx.task.commit, { name: "final.docx" });
 ```
 
-Resume restores JSON-safe state and references without replaying source. Live
-OfficeKit objects, functions, streams, and Excel sessions are process-local;
-reconstruct them explicitly and inspect before another mutation. An unmatched
-request-start record is surfaced as `maybeApplied: true` on the next response.
+For a task commit containing several artifact heads, use
+`{artifactId, name}` to publish each reviewed file. Publication never accepts
+raw candidate bytes and never overwrites an input or existing output.
 
-Template search, provider setup, rendering helpers, and Excel installation are
-explicit commands. They are not hidden inside a REPL cell.
+## Recovery and uncertainty
+
+`officekit repl <task-id>` creates a new session and returns absolute paths for
+the complete artifact snapshot in the latest reviewed commit. Pending failed
+candidates are diagnostic inputs, not current revisions.
+
+Every cell still has a private atomic checkpoint and journal for crash
+diagnosis. These are implementation details, not recovery keys. If a prior
+request lacks a terminal record, the new task is `attention` and reports
+`maybeApplied: true`; reimport and reread the affected artifact before another
+mutation.
+
+Template search, provider installation, Live Add-in setup, and rendering tools
+remain explicit. Listing or opening a task does not initialize Office WASM,
+MuPDF, providers, templates, or a Live bridge.
