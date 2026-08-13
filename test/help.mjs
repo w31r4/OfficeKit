@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 505);
+assert.equal(HELP_CATALOG.length, 510);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -176,6 +176,11 @@ assert.match(HELP_CATALOG.find((item) => item.name === "fx.STDEV.S")?.summary ||
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.VAR.P")?.summary || "", /population variance.*numerically stable.*empty numeric set.*#DIV\/0!/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.CORREL")?.summary || "", /Pearson correlation.*same-length.*nonnumeric.*#N\/A.*zero-variance.*#DIV\/0!/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.COVARIANCE.S")?.summary || "", /sample covariance.*pairwise numeric filtering.*#N\/A.*fewer than two.*#DIV\/0!/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.SLOPE")?.summary || "", /least-squares slope.*stable pair moments.*ignored together.*#N\/A.*zero x variance.*#DIV\/0!/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.INTERCEPT")?.summary || "", /y-axis intercept.*source-aware.*#N\/A.*zero x variance.*#DIV\/0!/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.RSQ")?.summary || "", /square of Pearson correlation.*pairwise filtered.*#N\/A.*fewer than two.*#DIV\/0!/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.STEYX")?.summary || "", /standard error.*linear regression.*fewer than three.*#DIV\/0!.*#N\/A/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.FORECAST.LINEAR")?.summary || "", /Predict one y value.*scalar x.*stable linear fit.*#VALUE!.*#N\/A.*#DIV\/0!/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.ROUNDUP"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "slide.compose"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "compose.text"));
@@ -469,7 +474,7 @@ assert.ok(HELP_CATALOG.find((item) => item.name === "PdfFile.importPdf")?.schema
 assert.ok(HELP_CATALOG.find((item) => item.name === "renderArtifact")?.returns?.includes("FileBlob"));
 assert.ok(HELP_CATALOG.find((item) => item.name === "visualQaArtifact")?.examples?.some((example) => example.includes("pixelDiff")));
 const formulaCatalog = HELP_CATALOG.filter((item) => item.name.startsWith("fx."));
-assert.equal(formulaCatalog.length, 184);
+assert.equal(formulaCatalog.length, 189);
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.formula?.required));
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.arguments?.type === "unknown[]"));
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.AND")?.schema?.returns?.value?.type, "boolean");
@@ -708,7 +713,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /absolute uri.*slideId.*relative action/);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /customShow.*survives the bounded slide clone.*without adding the clone to show membership/i);
 const workbookCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "workbook");
-assert.equal(workbookCatalog.length, 279);
+assert.equal(workbookCatalog.length, 284);
 assert.ok(workbookCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "workbook.trace")?.schema?.parameters?.reference?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "Workbook.create")?.schema?.parameters?.dateSystem?.type, "string");

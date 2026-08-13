@@ -2290,6 +2290,11 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "CORREL":
     case "COVARIANCE.S":
     case "COVARIANCE.P":
+    case "SLOPE":
+    case "INTERCEPT":
+    case "RSQ":
+    case "STEYX":
+    case "FORECAST.LINEAR":
       return evaluateStatisticalFormula(fnName, args, {
         argument: statisticalArgument,
         errorCode: formulaErrorCode,

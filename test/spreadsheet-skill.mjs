@@ -827,12 +827,15 @@ try {
   assert.equal(statisticalAnalysisResult.verification.ok, true);
   assert.match(statisticalAnalysisResult.inspection.ndjson, /CORREL/);
   assert.match(statisticalAnalysisResult.inspection.ndjson, /COVARIANCE\.S/);
+  assert.match(statisticalAnalysisResult.inspection.ndjson, /FORECAST\.LINEAR/);
   const statisticalAnalysisWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(statisticalAnalysisPath));
   statisticalAnalysisWorkbook.recalculate();
   const statisticalAnalysis = statisticalAnalysisWorkbook.worksheets.getItem("Analysis");
   assert.equal(statisticalAnalysis.getRange("B11").formulas[0][0], "=CORREL('Data'!$B$4:$B$9,'Data'!$C$4:$C$9)");
   assert.ok(Math.abs(statisticalAnalysis.getRange("B12").values[0][0] - 686) < 1e-9);
-  assert.deepEqual(statisticalAnalysisWorkbook.worksheets.getItem("Checks").getRange("E4:E7").values, [["OK"], ["OK"], ["OK"], ["OK"]]);
+  assert.equal(statisticalAnalysis.getRange("B21").formulas[0][0], "=FORECAST.LINEAR(B20,'Data'!$C$4:$C$9,'Data'!$B$4:$B$9)");
+  assert.ok(Math.abs(statisticalAnalysis.getRange("B21").values[0][0] - 138.6) < 1e-9);
+  assert.deepEqual(statisticalAnalysisWorkbook.worksheets.getItem("Checks").getRange("E4:E12").values, Array.from({ length: 9 }, () => ["OK"]));
   const statisticalAnalysisQa = await verifyWorkbookFile(statisticalAnalysisPath, {
     outputDir: path.join(outputDir, "officekit-statistical-analysis-native-qa"),
     sheetName: "Analysis",

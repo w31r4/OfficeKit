@@ -3748,6 +3748,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.FILTER` | formula | Filter rows from a source range with a boolean or comparison include array and spill the matching rows. |
 | `fx.FIND` | formula | Return the 1-based position of a case-sensitive literal text sequence. |
 | `fx.FLOOR` | formula | Round a number down to the nearest significance. |
+| `fx.FORECAST.LINEAR` | formula | Predict one y value from one bounded scalar x and aligned known-y/known-x sources using the shared stable linear fit; nonnumeric x returns #VALUE!, source mismatch or no pairs returns #N/A, and zero x variance returns #DIV/0!. |
 | `fx.FORMULATEXT` | formula | Return the stored formula text for one explicit single-cell reference, #N/A when that cell has no formula, and #VALUE! for ranges, computed matrices, spills, or invalid input. |
 | `fx.FV` | formula | Calculate the future value of a finite constant-payment stream from rate, term, payment, optional present value, and payment timing. |
 | `fx.GCD` | formula | Return the greatest common divisor of bounded integer arguments and ranges; unsafe integer results fail closed as #NUM!. |
@@ -3760,6 +3761,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.IFS` | formula | Evaluate condition/value pairs in order and return the first matching value, or #N/A when no condition matches. |
 | `fx.INDEX` | formula | Select one value from a nonempty rectangular range of at most 10,000 cells with host-compatible row and optional column selectors, preserving an error-valued selector such as a failed MATCH. Only the documented 2- or 3-argument array/range form is modeled; missing or extra selectors and oversized ranges return #VALUE!, while a missing or out-of-range source cell returns #REF!. |
 | `fx.INT` | formula | Round a number down to the nearest integer. |
+| `fx.INTERCEPT` | formula | Return the y-axis intercept for the same bounded source-aware linear regression profile as SLOPE; empty or mismatched sources return #N/A and zero x variance returns #DIV/0!. |
 | `fx.IPMT` | formula | Calculate the interest component of one constant-payment loan period from finite rate, period, term, present value, optional future value, and payment-timing inputs. |
 | `fx.IRR` | formula | Return a bounded-convergence periodic return rate for a finite cash-flow vector. |
 | `fx.ISBLANK` | formula | Return TRUE when a referenced value is empty. |
@@ -3823,6 +3825,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.ROUNDUP` | formula | Round a numeric value away from zero at the requested positive or negative digit position. |
 | `fx.ROW` | formula | Return the 1-based row of the current formula cell or one explicit single-cell reference; ranges, spills, computed matrices, and invalid arity fail closed as #VALUE!. |
 | `fx.ROWS` | formula | Return the row count of one bounded rectangular reference or dynamic spill. |
+| `fx.RSQ` | formula | Return the square of Pearson correlation for aligned known-y and known-x sources; positions are pairwise filtered, length mismatch or no pairs returns #N/A, and fewer than two or zero-variance pairs returns #DIV/0!. |
 | `fx.SEARCH` | formula | Return the 1-based position of case-insensitive text, supporting Excel ?, *, and ~ wildcard syntax. |
 | `fx.SECOND` | formula | Return the 0 through 59 second component from a nonnegative serial or supported time text. |
 | `fx.SEQUENCE` | formula | Return a dynamic array sequence that spills into neighboring cells in the clean-room formula engine. |
@@ -3830,11 +3833,13 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.SIN` | formula | Return the sine of a finite radian value. |
 | `fx.SINH` | formula | Return the hyperbolic sine of a finite number; overflow fails as #NUM!. |
 | `fx.SLN` | formula | Calculate straight-line depreciation from cost, salvage value, and useful life. |
+| `fx.SLOPE` | formula | Return the least-squares slope for aligned known-y and known-x sources using stable pair moments; nonnumeric reference positions are ignored together, mismatched lengths return #N/A, and zero x variance returns #DIV/0!. |
 | `fx.SMALL` | formula | Return the k-th smallest numeric value in an array or range. |
 | `fx.SORT` | formula | Sort a range by a 1-based column index and spill the sorted rows. |
 | `fx.SQRT` | formula | Return the non-negative square root of a finite number; negative inputs return #NUM!. |
 | `fx.STDEV.P` | formula | Calculate population standard deviation with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and an empty numeric set returns #DIV/0!. |
 | `fx.STDEV.S` | formula | Estimate sample standard deviation with a numerically stable bounded calculation; references ignore text, logical, blank, and error cells, while direct logical and numeric-text arguments are counted, direct errors propagate, and fewer than two numbers returns #DIV/0!. |
+| `fx.STEYX` | formula | Return the standard error of predicted y values for a bounded linear regression; pairwise source semantics match SLOPE, fewer than three numeric pairs returns #DIV/0!, and mismatched source lengths return #N/A. |
 | `fx.SUBSTITUTE` | formula | Replace all or one 1-based occurrence of a literal substring in bounded scalar text; matching is case-sensitive and empty search text fails closed. |
 | `fx.SUM` | formula | Sum numeric values across arguments and ranges. |
 | `fx.SUMIF` | formula | Sum corresponding values using case-insensitive numeric/text criteria and Excel ?, *, and ~ wildcards. |
@@ -4910,6 +4915,23 @@ Round a number down to the nearest significance.
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.FORECAST.LINEAR`
+
+Predict one y value from one bounded scalar x and aligned known-y/known-x sources using the shared stable linear fit; nonnumeric x returns #VALUE!, source mismatch or no pairs returns #N/A, and zero x variance returns #DIV/0!.
+
+**Examples:**
+
+- =FORECAST.LINEAR(D2,B2:B10,A2:A10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =FORECAST.LINEAR(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.FORMULATEXT`
 
 Return the stored formula text for one explicit single-cell reference, #N/A when that cell has no formula, and #VALUE! for ranges, computed matrices, spills, or invalid input.
@@ -5113,6 +5135,23 @@ Round a number down to the nearest integer.
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =INT(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.INTERCEPT`
+
+Return the y-axis intercept for the same bounded source-aware linear regression profile as SLOPE; empty or mismatched sources return #N/A and zero x variance returns #DIV/0!.
+
+**Examples:**
+
+- =INTERCEPT(B2:B10,A2:A10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =INTERCEPT(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**
@@ -6236,6 +6275,23 @@ Return the row count of one bounded rectangular reference or dynamic spill.
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
 
+#### `fx.RSQ`
+
+Return the square of Pearson correlation for aligned known-y and known-x sources; positions are pairwise filtered, length mismatch or no pairs returns #N/A, and fewer than two or zero-variance pairs returns #DIV/0!.
+
+**Examples:**
+
+- =RSQ(B2:B10,A2:A10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =RSQ(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.SEARCH`
 
 Return the 1-based position of case-insensitive text, supporting Excel ?, *, and ~ wildcard syntax.
@@ -6360,6 +6416,23 @@ Calculate straight-line depreciation from cost, salvage value, and useful life.
 
 - The evaluator accepts finite numeric inputs and returns #DIV/0! for zero life rather than coercing a rate. This is the direct per-period expense, not a declining-balance schedule.
 
+#### `fx.SLOPE`
+
+Return the least-squares slope for aligned known-y and known-x sources using stable pair moments; nonnumeric reference positions are ignored together, mismatched lengths return #N/A, and zero x variance returns #DIV/0!.
+
+**Examples:**
+
+- =SLOPE(B2:B10,A2:A10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =SLOPE(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
 #### `fx.SMALL`
 
 Return the k-th smallest numeric value in an array or range.
@@ -6439,6 +6512,23 @@ Estimate sample standard deviation with a numerically stable bounded calculation
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =STDEV.S(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.STEYX`
+
+Return the standard error of predicted y values for a bounded linear regression; pairwise source semantics match SLOPE, fewer than three numeric pairs returns #DIV/0!, and mismatched source lengths return #N/A.
+
+**Examples:**
+
+- =STEYX(B2:B10,A2:A10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =STEYX(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**

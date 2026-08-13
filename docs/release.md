@@ -1,5 +1,39 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-13): Bounded linear regression and forecast
+
+The source-aware Spreadsheet statistics leaf now adds `SLOPE`, `INTERCEPT`,
+`RSQ`, `STEYX`, and `FORECAST.LINEAR`. All five reuse the same bounded aligned
+pair collection and online moments as correlation/covariance; there is no
+second regression engine or workbook/model dependency. Centered prediction and
+a bounded residual pass avoid large-offset cancellation while preserving the
+public evaluator's 10,000-cell source and 20,000-cell formula budgets.
+
+Known-y/known-x positions are filtered together, length mismatch returns
+`#N/A`, zero x variance returns `#DIV/0!`, `STEYX` requires three numeric
+pairs, and a nonnumeric forecast x returns `#VALUE!`. Tests cover Microsoft's
+published examples, ignored reference positions, formula errors, mismatched
+and degenerate sources, direct/spill arguments, 10^12-offset exact fits,
+cached values, and canonical XLSX export/import.
+
+The existing public `Data` / `Analysis` / `Checks` Spreadsheet workflow now
+adds regression diagnostics and one visible-assumption forecast instead of
+creating a second overlapping Skill example. Nine formula-backed checks
+reconcile slope/intercept, correlation squared, the line equation, sample
+size, and standard error before inspect, verify, SVG review, two imports, and
+LibreOffice/Poppler QA. Runtime Help now contains 189 formula records and 510
+total entries; generated API docs and the 336-file host-neutral Skill surface
+are current.
+
+Final local evidence passed fast 29/29 and slow 78/78, OfficeKit Codec 415/415,
+OfficeBridge 5/5, protocol generation/lint, generated API-doc cleanliness, and
+two reproducible 39-file OfficeKit builds (38 runtime files, 15,416,043 bytes).
+The isolated staged candidate excludes the user's unrelated README/output work
+and contains 738 files, 36,319,863 compressed bytes, 53,489,017 unpacked bytes,
+and npm SHA-1 `1cf037f529187b3835fdb9bdfebc8c015ef4006b`. Hosted CI is recorded after
+the candidate is pushed. This slice does not claim `LINEST`, multivariate,
+polynomial, seasonal, confidence-interval, or arbitrary forecasting support.
+
 ## Current 0.6.0 candidate (2026-08-13): Bounded statistical formula analysis
 
 The JavaScript spreadsheet evaluator now supports `STDEV.S`, `STDEV.P`,

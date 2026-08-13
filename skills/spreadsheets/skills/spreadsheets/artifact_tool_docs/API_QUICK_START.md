@@ -735,14 +735,16 @@ Use `workbook.help(...)` primarily for obscure/advanced surfaces (for example de
 - `workbook.help("shape.add", { include: "examples,notes" }).ndjson`
 - `workbook.help("fx.RATE", { include: "index,examples,notes" }).ndjson`
 - `workbook.help("cash flow return rate", { search: "MIRR|IRR|XIRR|NPV|XNPV", include: "index,examples,notes", maxChars: 4000 }).ndjson`
-- `workbook.help("statistical relationship", { search: "STDEV|VAR|CORREL|COVARIANCE", include: "index,examples,notes", maxChars: 4000 }).ndjson`
+- `workbook.help("statistical relationship and linear forecast", { search: "STDEV|VAR|CORREL|COVARIANCE|SLOPE|INTERCEPT|RSQ|STEYX|FORECAST.LINEAR", include: "index,examples,notes", maxChars: 6000 }).ndjson`
 - `workbook.help("*", { search: "fill|borders|autofit", include: "index,examples,notes", maxChars: 6000 }).ndjson`
 
 ### Bounded statistical formulas
 
 Use `STDEV.S` / `VAR.S` for samples, `STDEV.P` / `VAR.P` for complete
 populations, and `CORREL` / `COVARIANCE.S` / `COVARIANCE.P` for aligned
-numeric series. The evaluator keeps reference semantics explicit: text,
+numeric series. Use `SLOPE`, `INTERCEPT`, `RSQ`, and `STEYX` to inspect one
+bounded least-squares fit, then `FORECAST.LINEAR` for one scalar point estimate.
+The evaluator keeps reference semantics explicit: text,
 logical, blank, and error cells are ignored in a referenced one-series
 calculation, while direct logical and numeric-text arguments are counted.
 Pairwise functions require equal source lengths, then ignore a position unless
@@ -751,13 +753,25 @@ propagate; length mismatch is `#N/A`, and insufficient samples or zero-variance
 correlation is `#DIV/0!`. Direct and spill ranges remain subject to the
 10,000-cell source and 20,000-cell formula budgets.
 
+Regression functions use the same aligned pair filtering rather than building
+separate x and y lists. Empty or different-length sources return `#N/A` for
+the fit functions; constant known-x values return `#DIV/0!`; `STEYX` requires
+at least three numeric pairs; and a nonnumeric forecast x returns `#VALUE!`.
+This is a single-variable linear profile, not `LINEST`, multivariate,
+polynomial, seasonal, or confidence-interval forecasting.
+
 ```js
 sheet.getRange("A2:B6").values = [[1, 2], [2, 1], [3, 4], [4, 3], [5, 5]];
-sheet.getRange("D2:D5").formulas = [
+sheet.getRange("D2:D10").formulas = [
   ["=STDEV.S(A2:A6)"],
   ["=VAR.P(A2:A6)"],
   ["=CORREL(A2:A6,B2:B6)"],
   ["=COVARIANCE.S(A2:A6,B2:B6)"],
+  ["=SLOPE(B2:B6,A2:A6)"],
+  ["=INTERCEPT(B2:B6,A2:A6)"],
+  ["=RSQ(B2:B6,A2:A6)"],
+  ["=STEYX(B2:B6,A2:A6)"],
+  ["=FORECAST.LINEAR(6,B2:B6,A2:A6)"],
 ];
 workbook.recalculate();
 ```

@@ -25,7 +25,18 @@ sheet.getRange("J1:J3").values = [[1_000_000_000_001], [1_000_000_000_002], [1_0
 sheet.getRange("K1:K3").values = [[2_000_000_000_002], [2_000_000_000_004], [2_000_000_000_006]];
 sheet.getRange("L1:L2").values = [[new Date("2026-08-12T00:00:00.000Z")], [new Date("2026-08-13T00:00:00.000Z")]];
 sheet.getRange("L1:L2").format.numberFormat = "yyyy-mm-dd";
-sheet.getRange("H1:H26").formulas = [
+sheet.getRange("M1:N8").values = [
+  [2, 6],
+  [3, 5],
+  [9, 11],
+  [1, 7],
+  [8, 5],
+  [7, 4],
+  [5, 4],
+  ["ignored", 999],
+];
+sheet.getRange("O1:P5").values = [[6, 20], [7, 28], [9, 31], [15, 38], [21, 40]];
+sheet.getRange("H1:H44").formulas = [
   ["=VAR.P(A1:A8)"],
   ["=VAR.S(A1:A8)"],
   ["=STDEV.P(A1:A8)"],
@@ -52,9 +63,27 @@ sheet.getRange("H1:H26").formulas = [
   ["=CORREL(D1:D5)"],
   ["=VAR.P(L1:L2)"],
   ["=VAR.P(1,1/0)"],
+  ["=SLOPE(M1:M7,N1:N7)"],
+  ["=INTERCEPT(M1:M7,N1:N7)"],
+  ["=RSQ(M1:M7,N1:N7)"],
+  ["=STEYX(M1:M7,N1:N7)"],
+  ["=FORECAST.LINEAR(12,M1:M7,N1:N7)"],
+  ["=FORECAST.LINEAR(30,O1:O5,P1:P5)"],
+  ["=SLOPE(M1:M7,N1:N6)"],
+  ["=SLOPE(M1:M2,F1:F2)"],
+  ["=RSQ(M1,M1)"],
+  ["=STEYX(M1:M2,N1:N2)"],
+  ["=FORECAST.LINEAR(\"not a number\",M1:M7,N1:N7)"],
+  ["=SLOPE(M1:M8,N1:N8)"],
+  ["=RSQ(J1:J3,K1:K3)"],
+  ["=SLOPE(J1:J3,K1:K3)"],
+  ["=INTERCEPT(J1:J3,K1:K3)"],
+  ["=FORECAST.LINEAR(2000000000008,J1:J3,K1:K3)"],
+  ["=STEYX(J1:J3,K1:K3)"],
+  ["=SLOPE(C1:C2,N1:N2)"],
 ];
 
-const results = sheet.getRange("H1:H26").values.flat();
+const results = sheet.getRange("H1:H44").values.flat();
 assertClose(results[0], 4);
 assertClose(results[1], 32 / 7);
 assertClose(results[2], 2);
@@ -78,27 +107,47 @@ assertClose(results[22], 2);
 assert.equal(results[23], "#VALUE!");
 assertClose(results[24], 0.25);
 assert.equal(results[25], "#DIV/0!");
+assertClose(results[26], 11 / 36);
+assertClose(results[27], 19 / 6);
+assertClose(results[28], 121 / 2088);
+assertClose(results[29], 3.305718950210041);
+assertClose(results[30], 41 / 6);
+assertClose(results[31], 10.607253086419755);
+assert.deepEqual(results.slice(32, 37), ["#N/A", "#DIV/0!", "#DIV/0!", "#DIV/0!", "#VALUE!"]);
+assertClose(results[37], 11 / 36);
+assertClose(results[38], 1);
+assertClose(results[39], 0.5);
+assertClose(results[40], 0);
+assertClose(results[41], 1_000_000_000_004);
+assertClose(results[42], 0);
+assert.equal(results[43], "#DIV/0!");
 
 const spillSheet = workbook.worksheets.add("Spill statistics");
 spillSheet.getRange("A1").formulas = [["=SEQUENCE(5)"]];
 spillSheet.getRange("C1").formulas = [["=SEQUENCE(5,1,2,2)"]];
-spillSheet.getRange("E1:E4").formulas = [
+spillSheet.getRange("E1:E9").formulas = [
   ["=CORREL(A1#,C1#)"],
   ["=COVARIANCE.P(A1#,C1#)"],
   ["=VAR.P(A1#)"],
   ["=STDEV.S(C1#)"],
+  ["=SLOPE(C1#,A1#)"],
+  ["=INTERCEPT(C1#,A1#)"],
+  ["=RSQ(C1#,A1#)"],
+  ["=STEYX(C1#,A1#)"],
+  ["=FORECAST.LINEAR(6,C1#,A1#)"],
 ];
-const spillResults = spillSheet.getRange("E1:E4").values.flat();
+const spillResults = spillSheet.getRange("E1:E9").values.flat();
 assertClose(spillResults[0], 1);
 assertClose(spillResults[1], 4);
 assertClose(spillResults[2], 2);
 assertClose(spillResults[3], Math.sqrt(10));
+assert.deepEqual(spillResults.slice(4), [2, 0, 1, 0, 12]);
 
 const xlsx = await SpreadsheetFile.exportXlsx(workbook);
 const imported = await SpreadsheetFile.importXlsx(xlsx);
-assert.deepEqual(imported.worksheets.getItem("Statistics").getRange("H1:H26").formulas, sheet.getRange("H1:H26").formulas);
-assert.deepEqual(imported.worksheets.getItem("Statistics").getRange("H1:H26").values, sheet.getRange("H1:H26").values);
-assert.deepEqual(imported.worksheets.getItem("Spill statistics").getRange("E1:E4").formulas, spillSheet.getRange("E1:E4").formulas);
-assert.deepEqual(imported.worksheets.getItem("Spill statistics").getRange("E1:E4").values, spillSheet.getRange("E1:E4").values);
+assert.deepEqual(imported.worksheets.getItem("Statistics").getRange("H1:H44").formulas, sheet.getRange("H1:H44").formulas);
+assert.deepEqual(imported.worksheets.getItem("Statistics").getRange("H1:H44").values, sheet.getRange("H1:H44").values);
+assert.deepEqual(imported.worksheets.getItem("Spill statistics").getRange("E1:E9").formulas, spillSheet.getRange("E1:E9").formulas);
+assert.deepEqual(imported.worksheets.getItem("Spill statistics").getRange("E1:E9").values, spillSheet.getRange("E1:E9").values);
 
 console.log("spreadsheet statistical formula tests passed");

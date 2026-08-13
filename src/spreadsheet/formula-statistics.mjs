@@ -7,10 +7,14 @@
 
 const SINGLE_SERIES_FUNCTIONS = new Set(["STDEV.S", "STDEV.P", "VAR.S", "VAR.P"]);
 const PAIRWISE_FUNCTIONS = new Set(["CORREL", "COVARIANCE.S", "COVARIANCE.P"]);
+const REGRESSION_FUNCTIONS = new Set(["SLOPE", "INTERCEPT", "RSQ", "STEYX"]);
+const FORECAST_FUNCTIONS = new Set(["FORECAST.LINEAR"]);
 
 export const STATISTICS_SPILL_RANGE_FUNCTIONS = Object.freeze([
   ...SINGLE_SERIES_FUNCTIONS,
   ...PAIRWISE_FUNCTIONS,
+  ...REGRESSION_FUNCTIONS,
+  ...FORECAST_FUNCTIONS,
 ]);
 
 function directNumber(value, errorCode, numberText) {
@@ -70,8 +74,15 @@ function collectPairs(left, right, helpers) {
     const rightValue = right.values[index];
     const error = helpers.errorCode(leftValue) || helpers.errorCode(rightValue);
     if (error) return { error, pairs: [] };
-    const leftNumber = helpers.referenceNumber(leftValue);
-    const rightNumber = helpers.referenceNumber(rightValue);
+    const leftDirect = left.source === "reference"
+      ? undefined
+      : directNumber(leftValue, helpers.errorCode, helpers.numberText);
+    const rightDirect = right.source === "reference"
+      ? undefined
+      : directNumber(rightValue, helpers.errorCode, helpers.numberText);
+    if (leftDirect?.error || rightDirect?.error) return { error: leftDirect?.error || rightDirect.error, pairs: [] };
+    const leftNumber = left.source === "reference" ? helpers.referenceNumber(leftValue) : leftDirect.value;
+    const rightNumber = right.source === "reference" ? helpers.referenceNumber(rightValue) : rightDirect.value;
     const numberError = helpers.errorCode(leftNumber) || helpers.errorCode(rightNumber);
     if (numberError) return { error: numberError, pairs: [] };
     if (leftNumber === undefined || rightNumber === undefined) continue;
@@ -82,22 +93,38 @@ function collectPairs(left, right, helpers) {
 
 function pairMoments(pairs) {
   let count = 0;
-  let meanX = 0;
-  let meanY = 0;
+  let meanLeft = 0;
+  let meanRight = 0;
   let coMoment = 0;
-  let squaredDeviationX = 0;
-  let squaredDeviationY = 0;
-  for (const [x, y] of pairs) {
+  let squaredDeviationLeft = 0;
+  let squaredDeviationRight = 0;
+  for (const [left, right] of pairs) {
     count += 1;
-    const deltaX = x - meanX;
-    const deltaY = y - meanY;
-    meanX += deltaX / count;
-    meanY += deltaY / count;
-    coMoment += deltaX * (y - meanY);
-    squaredDeviationX += deltaX * (x - meanX);
-    squaredDeviationY += deltaY * (y - meanY);
+    const deltaLeft = left - meanLeft;
+    const deltaRight = right - meanRight;
+    meanLeft += deltaLeft / count;
+    meanRight += deltaRight / count;
+    coMoment += deltaLeft * (right - meanRight);
+    squaredDeviationLeft += deltaLeft * (left - meanLeft);
+    squaredDeviationRight += deltaRight * (right - meanRight);
   }
-  return { count, coMoment, squaredDeviationX, squaredDeviationY };
+  return {
+    count,
+    meanLeft,
+    meanRight,
+    coMoment,
+    squaredDeviationLeft,
+    squaredDeviationRight,
+  };
+}
+
+function regression(moments) {
+  if (moments.squaredDeviationRight <= 0) return { error: "#DIV/0!" };
+  const slope = moments.coMoment / moments.squaredDeviationRight;
+  const intercept = moments.meanLeft - slope * moments.meanRight;
+  return Number.isFinite(slope) && Number.isFinite(intercept)
+    ? { slope, intercept }
+    : { error: "#NUM!" };
 }
 
 export function evaluateStatisticalFormula(fnName, args, helpers) {
@@ -130,8 +157,60 @@ export function evaluateStatisticalFormula(fnName, args, helpers) {
       const result = moments.coMoment / (moments.count - 1);
       return Number.isFinite(result) ? result : "#NUM!";
     }
-    if (moments.squaredDeviationX <= 0 || moments.squaredDeviationY <= 0) return "#DIV/0!";
-    const result = moments.coMoment / Math.sqrt(moments.squaredDeviationX * moments.squaredDeviationY);
+    if (moments.squaredDeviationLeft <= 0 || moments.squaredDeviationRight <= 0) return "#DIV/0!";
+    const result = moments.coMoment / Math.sqrt(moments.squaredDeviationLeft * moments.squaredDeviationRight);
+    return Number.isFinite(result) ? result : "#NUM!";
+  }
+
+  if (REGRESSION_FUNCTIONS.has(fnName) || FORECAST_FUNCTIONS.has(fnName)) {
+    const forecast = FORECAST_FUNCTIONS.has(fnName);
+    if (args.length !== (forecast ? 3 : 2) || helpers.hasEmptyArgument()) return "#VALUE!";
+    let predictor;
+    if (forecast) {
+      const argument = helpers.argument(0);
+      if (argument.values.length !== 1) return "#VALUE!";
+      const value = argument.values[0];
+      const error = helpers.errorCode(value);
+      if (error) return error;
+      const numeric = argument.source === "reference"
+        ? helpers.referenceNumber(value)
+        : directNumber(value, helpers.errorCode, helpers.numberText);
+      if (numeric?.error) return numeric.error;
+      const predictorNumber = argument.source === "reference" ? numeric : numeric.value;
+      if (helpers.errorCode(predictorNumber)) return predictorNumber;
+      if (predictorNumber === undefined) return "#VALUE!";
+      predictor = predictorNumber;
+    }
+    const offset = forecast ? 1 : 0;
+    const collected = collectPairs(helpers.argument(offset), helpers.argument(offset + 1), helpers);
+    if (collected.error) return collected.error;
+    const moments = pairMoments(collected.pairs);
+    if (moments.count === 0) return fnName === "STEYX" ? "#DIV/0!" : "#N/A";
+    if (fnName === "RSQ") {
+      if (moments.count < 2 || moments.squaredDeviationLeft <= 0 || moments.squaredDeviationRight <= 0) return "#DIV/0!";
+      const result = (moments.coMoment * moments.coMoment)
+        / (moments.squaredDeviationLeft * moments.squaredDeviationRight);
+      return Number.isFinite(result) ? Math.min(1, Math.max(0, result)) : "#NUM!";
+    }
+    const fitted = regression(moments);
+    if (fitted.error) return fitted.error;
+    if (fnName === "SLOPE") return fitted.slope;
+    if (fnName === "INTERCEPT") return fitted.intercept;
+    if (fnName === "STEYX") {
+      if (moments.count < 3) return "#DIV/0!";
+      let residual = 0;
+      for (const [left, right] of collected.pairs) {
+        const fittedLeft = moments.meanLeft + fitted.slope * (right - moments.meanRight);
+        const error = left - fittedLeft;
+        residual += error * error;
+      }
+      const result = Math.sqrt(residual / (moments.count - 2));
+      return Number.isFinite(result) ? result : "#NUM!";
+    }
+    // Evaluate the prediction around the observed x mean. This is algebraically
+    // identical to intercept + slope*x but avoids needlessly cancelling two
+    // large terms when the source domain has a large offset.
+    const result = moments.meanLeft + fitted.slope * (predictor - moments.meanRight);
     return Number.isFinite(result) ? result : "#NUM!";
   }
 
