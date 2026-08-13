@@ -44,8 +44,9 @@ const REWRITE_ONLY_OPERATIONS = new Set([
 
 const PAGE_ROTATIONS = new Set([0, 90, 180, 270]);
 const ANNOTATION_ID_PREFIX = "mupdf-annotation";
-const ANNOTATION_EXPECTATION_FIELDS = new Set(["type", "contents", "name", "author", "subject", "rect"]);
-const ANNOTATION_PATCH_FIELDS = new Set(["contents", "author", "subject"]);
+const ANNOTATION_SNAPSHOT_FIELDS = Object.freeze(["type", "contents", "name", "author", "subject", "rect", "appearanceBbox", "quadPoints", "color", "flags"]);
+const ANNOTATION_EXPECTATION_FIELDS = new Set(ANNOTATION_SNAPSHOT_FIELDS);
+const ANNOTATION_PATCH_FIELDS = new Set(["contents", "author", "subject", "color"]);
 const WIDGET_ID_PREFIX = "mupdf-widget";
 const FORM_FIELD_ID_PREFIX = "mupdf-form-field";
 const FORM_FIELD_EXPECTATION_FIELDS = new Set(["name", "type", "value", "readOnly", "options", "exportOptions", "widgets"]);
@@ -64,6 +65,7 @@ const TEXT_MARKUP_TYPES = Object.freeze({
   strikeout: "StrikeOut",
   squiggly: "Squiggly",
 });
+const TEXT_MARKUP_ANNOTATION_TYPES = new Set(Object.values(TEXT_MARKUP_TYPES));
 const TEXT_MARKUP_DEFAULT_COLORS = Object.freeze({
   highlight: Object.freeze([1, 1, 0]),
   underline: Object.freeze([1, 0, 0]),
@@ -319,6 +321,39 @@ function nativeAnnotation(annotation, pageNumber) {
   return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
 }
 
+function annotationSnapshot(record) {
+  return Object.fromEntries(ANNOTATION_SNAPSHOT_FIELDS
+    .filter((field) => record[field] !== undefined)
+    .map((field) => [field, structuredClone(record[field])]));
+}
+
+function annotationUpdateCapability(record) {
+  if (record.type === "Text") {
+    return { supported: true, annotationType: record.type, mutableFields: ["contents", "author", "subject"], geometryMutable: false, savePolicy: "rewrite", sourceBound: true };
+  }
+  if (TEXT_MARKUP_ANNOTATION_TYPES.has(record.type) && record.quadPoints?.length) {
+    return { supported: true, annotationType: record.type, mutableFields: ["contents", "author", "subject", "color"], geometryMutable: false, savePolicy: "rewrite", sourceBound: true };
+  }
+  return {
+    supported: false,
+    annotationType: record.type,
+    mutableFields: [],
+    geometryMutable: false,
+    savePolicy: "rewrite",
+    sourceBound: true,
+    reasons: [`annotation-type:${record.type}`],
+  };
+}
+
+function nativeAnnotationRecord(annotation, pageNumber) {
+  const record = nativeAnnotation(annotation, pageNumber);
+  return {
+    ...record,
+    snapshot: annotationSnapshot(record),
+    updateCapability: annotationUpdateCapability(record),
+  };
+}
+
 function consumeAnnotationBudget(budget, count, pageNumber) {
   budget.used += count;
   if (budget.used > budget.maxAnnotations) {
@@ -341,12 +376,19 @@ function annotationExpectation(value, operationName = "delete_annotation") {
     if (typeof value[name] !== "string") throw new Error(`${operationName} expected.${name} must be a string.`);
     expected[name] = value[name];
   }
-  if (value.rect !== undefined) {
-    bboxToPdfRect(value.rect, `${operationName} expected.rect`);
-    expected.rect = value.rect.map(Number);
+  for (const field of ["rect", "appearanceBbox"]) {
+    if (value[field] === undefined) continue;
+    bboxToPdfRect(value[field], `${operationName} expected.${field}`);
+    expected[field] = value[field].map(Number);
+  }
+  if (value.quadPoints !== undefined) expected.quadPoints = nativeTextMarkupQuads(value.quadPoints, `${operationName} expected.quadPoints`);
+  if (value.color !== undefined) expected.color = annotationRgb(value.color, `${operationName} expected.color`);
+  if (value.flags !== undefined) {
+    if (!Number.isSafeInteger(value.flags) || value.flags < 0) throw new Error(`${operationName} expected.flags must be a non-negative safe integer.`);
+    expected.flags = value.flags;
   }
   if (!Object.keys(expected).length) {
-    throw new Error(`${operationName} expected must include at least one of type, contents, name, author, subject, or rect.`);
+    throw new Error(`${operationName} expected must include at least one source snapshot field.`);
   }
   return expected;
 }
@@ -355,13 +397,24 @@ function annotationExpectationMismatch(actual, expected) {
   for (const name of ["type", "contents", "name", "author", "subject"]) {
     if (expected[name] !== undefined && actual[name] !== expected[name]) return name;
   }
-  if (expected.rect !== undefined) {
-    if (!actual.rect || !pdfRectsEqual(bboxToPdfRect(actual.rect), bboxToPdfRect(expected.rect))) return "rect";
+  for (const field of ["rect", "appearanceBbox"]) {
+    if (expected[field] === undefined) continue;
+    if (!actual[field] || !pdfRectsEqual(bboxToPdfRect(actual[field]), bboxToPdfRect(expected[field]))) return field;
   }
+  if (expected.quadPoints !== undefined && !quadPointsEqual(actual.quadPoints, expected.quadPoints)) return "quadPoints";
+  if (expected.color !== undefined && !numericVectorsEqual(actual.color, expected.color)) return "color";
+  if (expected.flags !== undefined && actual.flags !== expected.flags) return "flags";
   return undefined;
 }
 
-function annotationPatch(value) {
+function annotationSnapshotShapeMismatch(actualSnapshot, expected) {
+  const actualFields = Object.keys(actualSnapshot).sort();
+  const expectedFields = Object.keys(expected).sort();
+  return actualFields.find((field) => !expectedFields.includes(field))
+    || expectedFields.find((field) => !actualFields.includes(field));
+}
+
+function annotationPatch(value, capability) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("update_annotation patch must be an object with at least one mutable field.");
   }
@@ -378,10 +431,22 @@ function annotationPatch(value) {
     }
     patch[name] = value[name];
   }
+  if (value.color !== undefined) patch.color = annotationRgb(value.color, "update_annotation patch.color");
   if (!Object.keys(patch).length) {
-    throw new Error("update_annotation patch must include at least one of contents, author, or subject.");
+    throw new Error("update_annotation patch must include at least one mutable field.");
+  }
+  for (const field of Object.keys(patch)) {
+    if (!capability.mutableFields.includes(field)) {
+      throw new Error(`update_annotation ${field} is unsupported for native ${capability.annotationType} annotations.`);
+    }
   }
   return patch;
+}
+
+function annotationPatchChanges(record, patch) {
+  return Object.entries(patch).some(([field, value]) => field === "color"
+    ? !numericVectorsEqual(record.color, value)
+    : record[field] !== value);
 }
 
 function linkId(pageNumber, record) {
@@ -1329,7 +1394,7 @@ function structuredPage(page, pageNumber, options, imageBudget, annotationBudget
     try {
       consumeAnnotationBudget(annotationBudget, annotationObjects.length + widgetObjects.length, pageNumber);
       consumeLinkBudget(linkBudget, linkObjects.length, pageNumber);
-      const annotations = annotationObjects.map((annotation) => nativeAnnotation(annotation, pageNumber));
+      const annotations = annotationObjects.map((annotation) => nativeAnnotationRecord(annotation, pageNumber));
       const widgets = widgetObjects.map((widget) => nativeWidget(widget, pageNumber));
       const links = linkObjects.map((link) => nativeLink(link, pageNumber));
       return {
@@ -1442,7 +1507,7 @@ export async function inspectPdfWithMuPdf(input, options = {}) {
           ...annotations.map((annotation) => ({
             kind: "mupdfAnnotation",
             page: index + 1,
-            ...nativeAnnotation(annotation, index + 1),
+            ...nativeAnnotationRecord(annotation, index + 1),
           })),
           ...nativeWidgets.map((widget) => ({
             kind: "mupdfWidget",
@@ -2174,7 +2239,6 @@ function applyAnnotationUpdate(document, operation, context = {}) {
       throw new Error(`update_annotation annotationId page ${locator.page} does not match operation page ${index + 1}.`);
     }
     const expected = annotationExpectation(operation.expected, "update_annotation");
-    const patch = annotationPatch(operation.patch);
     annotations = page.getAnnotations();
     target = annotations.find((annotation) => annotationXref(annotation) === locator.xref);
     if (!target) {
@@ -2188,12 +2252,25 @@ function applyAnnotationUpdate(document, operation, context = {}) {
     if (mismatch) {
       throw new Error(`update_annotation precondition ${mismatch} did not match ${operation.annotationId}; refusing a stale or ambiguous mutation.`);
     }
-    if (matched.type !== "Text") {
-      throw new Error(`update_annotation supports only native Text annotations; ${operation.annotationId} resolves to ${matched.type}.`);
+    const capability = annotationUpdateCapability(matched);
+    if (!capability.supported) {
+      throw new Error(`update_annotation does not support native ${matched.type} annotations; preserve it unchanged or use an explicit specialist provider.`);
+    }
+    const matchedSnapshot = annotationSnapshot(matched);
+    if (TEXT_MARKUP_ANNOTATION_TYPES.has(matched.type)) {
+      const expectedShapeMismatch = annotationSnapshotShapeMismatch(matchedSnapshot, expected);
+      if (expectedShapeMismatch) {
+        throw new Error(`update_annotation expected must be the complete inspect-returned snapshot for native ${matched.type}; snapshot field ${expectedShapeMismatch} is missing or unexpected.`);
+      }
+    }
+    const patch = annotationPatch(operation.patch, capability);
+    if (!annotationPatchChanges(matched, patch)) {
+      throw new Error(`update_annotation patch is a no-op for ${operation.annotationId}; change at least one mutable field.`);
     }
     if (patch.contents !== undefined) target.setContents(patch.contents);
     if (patch.author !== undefined) target.setAuthor(patch.author);
     if (patch.subject !== undefined) target.setSubject(patch.subject);
+    if (patch.color !== undefined) target.setColor(patch.color);
     target.update();
     page.update();
     retained = page.getAnnotations();
@@ -2206,12 +2283,21 @@ function applyAnnotationUpdate(document, operation, context = {}) {
     if (patchMismatch) {
       throw new Error(`MuPDF did not preserve update_annotation patch ${patchMismatch} for ${operation.annotationId}; refusing to save an ambiguous update.`);
     }
+    const invariantExpectation = {
+      ...matchedSnapshot,
+      ...Object.fromEntries(Object.keys(patch).map((field) => [field, updated[field]])),
+    };
+    const invariantMismatch = annotationExpectationMismatch(updated, invariantExpectation);
+    if (invariantMismatch) {
+      throw new Error(`MuPDF changed update_annotation invariant ${invariantMismatch} for ${operation.annotationId}; refusing to save an ambiguous update.`);
+    }
     return {
       type: "update_annotation",
       page: index + 1,
       annotationId: matched.id,
       xref: locator.xref,
       matched,
+      capability,
       patch,
       updated,
     };

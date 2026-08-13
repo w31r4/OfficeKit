@@ -457,6 +457,7 @@ assert.match(editExistingText, /delete_embedded_file[\s\S]*mupdfEmbeddedFile[\s\
 assert.match(editExistingText, /Update standard Document Info and bounded field-safe XMP metadata/);
 assert.match(editExistingText, /mupdfDocumentMetadata[\s\S]*metadataId[\s\S]*complete inspect record snapshot[\s\S]*xmpMutableFields[\s\S]*xmpBlockedFields[\s\S]*exact XMP text or attribute slot[\s\S]*fail closed/is);
 assert.match(editExistingText, /mupdfOutline[\s\S]*path[\s\S]*complete `snapshot`[\s\S]*update_outline[\s\S]*title[\s\S]*open[\s\S]*URI\/page[\s\S]*non-target outline[\s\S]*does not add\/delete\/reparent[\s\S]*fail/is);
+assert.match(editExistingText, /Update one imported Text note or text markup[\s\S]*Highlight, Underline, StrikeOut, or Squiggly[\s\S]*complete[\s\S]*snapshot[\s\S]*updateCapability[\s\S]*RGB `color`[\s\S]*quadrilaterals[\s\S]*appearance bounds[\s\S]*flags[\s\S]*no-op[\s\S]*fail closed/is);
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
 assert.match(pdfPluginReadme, /office-kit\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
@@ -487,6 +488,7 @@ assert.match(apiQuickStartText, /catalog NameTree entry only/i);
 assert.match(apiQuickStartText, /pikepdf or PyMuPDF/);
 assert.match(apiQuickStartText, /mupdfDocumentMetadata/);
 assert.match(apiQuickStartText, /mupdfOutline[\s\S]*update_outline[\s\S]*outlineId: outline\.id[\s\S]*expected: outline\.snapshot[\s\S]*URI\/page[\s\S]*topology edits fail closed/is);
+assert.match(apiQuickStartText, /existing native Highlight, Underline, StrikeOut, or Squiggly[\s\S]*updateCapability\.supported[\s\S]*complete inspect-returned[\s\S]*annotation\.snapshot[\s\S]*patch[\s\S]*color[\s\S]*quadrilaterals[\s\S]*appearance\s+bounds[\s\S]*partial\/stale snapshot[\s\S]*fails closed/is);
 assert.match(apiQuickStartText, /metadataId: metadata\.id/);
 assert.match(apiQuickStartText, /XMP stream[\s\S]*field-safe-v1[\s\S]*xmpMutableFields[\s\S]*xmpBlockedFields[\s\S]*updateCapability\.supported[\s\S]*same transaction/is);
 const redactTaskText = await fs.readFile(path.join(skillRoot, "tasks", "redact.md"), "utf8");
@@ -792,6 +794,26 @@ try {
   const mupdfUnderline = mupdfMarkupInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "Underline");
   assert.equal(mupdfUnderline.contents, "CLI underline");
   assert.equal(mupdfUnderline.quadPoints.length, 1);
+  assert.deepEqual(mupdfUnderline.updateCapability.mutableFields, ["contents", "author", "subject", "color"]);
+  await fs.writeFile(mupdfAnnotationUpdateOperations, JSON.stringify({
+    savePolicy: "rewrite",
+    operations: [{
+      type: "update_annotation",
+      page: mupdfUnderline.page,
+      annotationId: mupdfUnderline.id,
+      sourceSha256: mupdfMarkupInspection.summary.sourceSha256,
+      expected: mupdfUnderline.snapshot,
+      patch: { contents: "CLI underline updated", subject: "Resolved", color: [0.7, 0.2, 0.1] },
+    }],
+  }), "utf8");
+  const mupdfMarkupUpdated = parseResult(run(process.execPath, [mupdfCli, "edit", mupdfMarkupOutput, mupdfAnnotationUpdateOperations, mupdfAnnotationUpdateOutput], { status: 0 }));
+  assert.equal(mupdfMarkupUpdated.operations[0].type, "update_annotation");
+  const mupdfMarkupUpdatedInspection = await PdfFile.inspectPdf(await fs.readFile(mupdfAnnotationUpdateOutput));
+  const mupdfUpdatedUnderline = mupdfMarkupUpdatedInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "Underline");
+  assert.equal(mupdfUpdatedUnderline.contents, "CLI underline updated");
+  assert.equal(mupdfUpdatedUnderline.subject, "Resolved");
+  assert.deepEqual(mupdfUpdatedUnderline.quadPoints, mupdfUnderline.quadPoints);
+  assert.ok(mupdfUpdatedUnderline.color.every((component, index) => Math.abs(component - [0.7, 0.2, 0.1][index]) < 0.001));
   await fs.writeFile(mupdfOperations, JSON.stringify({
     savePolicy: "rewrite",
     operations: [{

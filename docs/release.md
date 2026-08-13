@@ -1,5 +1,40 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-13): Source-bound PDF text-markup update
+
+The direct-original MuPDF.js route now exposes one inspect-to-update contract
+for existing native Highlight, Underline, StrikeOut, and Squiggly annotations.
+Each `mupdfAnnotation` carries a complete current-source `snapshot` plus an
+`updateCapability`; `update_annotation` binds that snapshot, the current-only
+page/xref locator, and the exact input SHA-256 before changing non-empty review
+metadata or RGB color. The compatible Text-note metadata patch remains intact.
+
+MuPDF must preserve native type, quadrilaterals, rectangle, appearance bounds,
+flags, page, and unique locator before it may publish a full rewrite. Partial or
+stale text-markup snapshots, invalid or color-equivalent/no-op patches, caller
+geometry, unsupported annotation types, and incremental save fail closed. Core
+tests exercise all four native markup types, source immutability, second
+inspection, invariant preservation, and render-visible color changes. The
+packaged Skill CLI independently creates, inspects, updates, and re-inspects an
+Underline annotation while proving its quadrilaterals unchanged.
+
+Local candidate evidence is complete: fast passed 28/28 steps and slow passed
+77/77; OfficeKit Codec passed 415/415 and OfficeBridge passed 5/5; protocol
+lint/generation and generated API docs are current; and two independent WASM
+builds reproduced the same 39-file audited output (38 runtime files,
+15,416,043 bytes). Real MuPDF.js, qpdf, LibreOffice, Poppler, Playwright,
+template round-trip/edit, Agent eval, and standalone-distribution paths ran.
+Managed capability downloads and separately configured pikepdf, pyHanko,
+veraPDF, OCRmyPDF, and managed-Python PromptBench repeats remained explicit
+environment skips. The isolated package and hosted CI are recorded after the
+candidate is frozen. The isolated `HEAD + staged patch` clean-install/package
+candidate excludes the user's unrelated README edits and contains 736 files,
+36,313,128 compressed bytes, 53,460,923 unpacked bytes, and npm SHA-1
+`dc9db23d06a1fe648afb00f8e271a0b31f0574d0`. `npm whoami` returns `ENEEDAUTH`,
+and the public registry returns `E404` for `office-kit`; no publish, tag, or
+release operation was attempted. Hosted CI is recorded after push. Windows
+Office host acceptance remains external.
+
 ## Current 0.6.0 candidate (2026-08-13): Source-bound PDF text markup
 
 The built-in direct-original MuPDF.js route now exposes one

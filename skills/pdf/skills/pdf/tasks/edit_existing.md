@@ -436,7 +436,7 @@ the inspected source bytes rather than a persistent document identity, so
 re-inspect the output before any later annotation operation. This prevents a
 rewritten PDF's xref reuse from silently targeting a different annotation.
 
-## Update one imported text annotation
+## Update one imported Text note or text markup
 
 Use the same inspect-first source binding to edit the semantic text fields of
 one native Text annotation without pretending to reflow or reposition it:
@@ -470,6 +470,15 @@ patched: MuPDF normalizes native Text annotation geometry. For a real move or
 resize, use an explicit delete-plus-add transaction with a fresh inspection, or
 route to a specialist provider. `update_annotation` is rewrite-only, and the
 output must be re-inspected before a subsequent annotation update or deletion.
+
+An inspected native Highlight, Underline, StrikeOut, or Squiggly adds a complete
+`snapshot` and `updateCapability`. Require that capability, pass the snapshot
+unchanged as `expected`, and patch only non-empty `contents`/`author`/`subject`
+or RGB `color` in `[0,1]`. The provider proves type, quadrilaterals, rectangle,
+appearance bounds, flags, page, and locator unchanged before saving. Partial or
+stale snapshots, no-op/color-equivalent patches, geometry fields, unsupported
+annotation types, and incremental output fail closed. Re-inspect and render the
+rewrite; the old locator does not identify the new byte sequence.
 
 ## Add one imported-PDF link
 

@@ -481,6 +481,44 @@ const revisedReviewNote = await PdfFile.editPdf(input, {
 await revisedReviewNote.save("third-party-review-note-updated.pdf");
 ```
 
+For an existing native Highlight, Underline, StrikeOut, or Squiggly, require
+`annotation.updateCapability.supported` and pass the complete inspect-returned
+`annotation.snapshot`. Its patch may additionally replace `color` with three
+RGB components in `[0,1]`:
+
+```js
+const markup = inspection.records.find((record) =>
+  record.kind === "mupdfAnnotation"
+  && record.type === "Underline"
+  && record.contents === "Validate before approval."
+);
+if (!markup?.updateCapability.supported) {
+  throw new Error("The target text markup is not safely mutable.");
+}
+
+const revisedMarkup = await PdfFile.editPdf(input, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: markup.page,
+    annotationId: markup.id,
+    sourceSha256: inspection.summary.sourceSha256,
+    expected: markup.snapshot,
+    patch: {
+      contents: "Reviewed and accepted.",
+      subject: "Resolved",
+      color: [0.15, 0.55, 0.25],
+    },
+  }],
+});
+await revisedMarkup.save("third-party-markup-updated.pdf");
+```
+
+Text-markup update never changes type, quadrilaterals, rectangle, appearance
+bounds, flags, page, or locator. A partial/stale snapshot, no-op or invalid RGB,
+geometry patch, unsupported annotation type, or incremental save fails closed.
+Re-inspect and render the rewrite before another operation.
+
 The rectangle can guard the source snapshot but cannot appear in `patch`.
 MuPDF normalizes native Text annotation geometry, so moving or resizing a note
 must be an explicit delete-plus-add transaction from a fresh inspection, or a

@@ -115,6 +115,17 @@ entry and rejects the new selector field. This is a bounded review-markup
 extension, not arbitrary annotation geometry, persistent annotation identity,
 or a silent provider route.
 
+The same Skill now consumes each inspected annotation's `snapshot` and
+`updateCapability` instead of reconstructing identity from display text. The
+existing `update_annotation` primitive retains its compatible Text-note metadata
+patch and additionally accepts a complete source-bound Highlight, Underline,
+StrikeOut, or Squiggly snapshot. For those four types it may change RGB color
+and non-empty review metadata only; native type, quadrilaterals, rectangle,
+appearance bounds, flags, page, and locator remain invariants. Partial/stale
+snapshots, no-op patches, geometry changes, unsupported annotation types, and
+incremental save fail closed. The packaged CLI fixture proves creation,
+inspection, update, second inspection, and quadrilateral preservation.
+
 ### Documents canonical note bodies
 
 The runnable Documents profile now accepts a source-free or recognized

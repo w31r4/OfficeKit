@@ -1001,6 +1001,106 @@ for (const profile of textMarkupProfiles) {
 }
 const mupdfTextMarkupPng = await PdfFile.renderPdf(mupdfTextMarked, { page: 1, dpi: 72 });
 assert.notEqual(Buffer.compare(Buffer.from(mupdfPng.bytes), Buffer.from(mupdfTextMarkupPng.bytes)), 0, "all four native text-markup styles must change rendered pixels");
+const sourceBoundUnderline = mupdfTextMarkupInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "Underline");
+assert.deepEqual(sourceBoundUnderline.updateCapability, {
+  supported: true,
+  annotationType: "Underline",
+  mutableFields: ["contents", "author", "subject", "color"],
+  geometryMutable: false,
+  savePolicy: "rewrite",
+  sourceBound: true,
+});
+assert.deepEqual(sourceBoundUnderline.snapshot.quadPoints, sourceBoundUnderline.quadPoints);
+assert.deepEqual(sourceBoundUnderline.snapshot.color, sourceBoundUnderline.color);
+await assert.rejects(PdfFile.editPdf(mupdfTextMarked, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: sourceBoundUnderline.page,
+    annotationId: sourceBoundUnderline.id,
+    sourceSha256: mupdfTextMarkupInspection.summary.sourceSha256,
+    expected: { type: sourceBoundUnderline.type, contents: sourceBoundUnderline.contents },
+    patch: { contents: "underline review updated" },
+  }],
+}), /expected must be the complete inspect-returned snapshot.*snapshot field/);
+await assert.rejects(PdfFile.editPdf(mupdfTextMarked, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: sourceBoundUnderline.page,
+    annotationId: sourceBoundUnderline.id,
+    sourceSha256: mupdfTextMarkupInspection.summary.sourceSha256,
+    expected: { ...sourceBoundUnderline.snapshot, color: [1, 1, 1] },
+    patch: { color: [0.15, 0.55, 0.25] },
+  }],
+}), /precondition color did not match/);
+await assert.rejects(PdfFile.editPdf(mupdfTextMarked, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: sourceBoundUnderline.page,
+    annotationId: sourceBoundUnderline.id,
+    sourceSha256: mupdfTextMarkupInspection.summary.sourceSha256,
+    expected: sourceBoundUnderline.snapshot,
+    patch: { color: sourceBoundUnderline.color },
+  }],
+}), /patch is a no-op/);
+await assert.rejects(PdfFile.editPdf(mupdfTextMarked, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: sourceBoundUnderline.page,
+    annotationId: sourceBoundUnderline.id,
+    sourceSha256: mupdfTextMarkupInspection.summary.sourceSha256,
+    expected: sourceBoundUnderline.snapshot,
+    patch: { color: [1, -0.1, 0] },
+  }],
+}), /patch\.color must be an RGB/);
+await assert.rejects(PdfFile.editPdf(mupdfTextMarked, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: sourceBoundUnderline.page,
+    annotationId: sourceBoundUnderline.id,
+    sourceSha256: mupdfTextMarkupInspection.summary.sourceSha256,
+    expected: sourceBoundUnderline.snapshot,
+    patch: { quadPoints: sourceBoundUnderline.quadPoints },
+  }],
+}), /patch contains unsupported field: quadPoints/);
+const sourceBoundMarkupBytes = Buffer.from(mupdfTextMarked.bytes);
+const markupUpdateProfiles = textMarkupProfiles.map((profile, index) => {
+  const annotation = mupdfTextMarkupInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === profile.annotationType);
+  const color = [0.15 + index * 0.1, 0.55 - index * 0.08, 0.25 + index * 0.12];
+  return { ...profile, annotation, color };
+});
+const mupdfTextMarkupUpdated = await PdfFile.editPdf(mupdfTextMarked, {
+  savePolicy: "rewrite",
+  operations: markupUpdateProfiles.map(({ markup, annotation, color }) => ({
+    type: "update_annotation",
+    page: annotation.page,
+    annotationId: annotation.id,
+    sourceSha256: mupdfTextMarkupInspection.summary.sourceSha256,
+    expected: annotation.snapshot,
+    patch: { contents: `${markup} review updated`, author: "Reviewer", subject: "Resolved", color },
+  })),
+});
+assert.equal(Buffer.from(mupdfTextMarked.bytes).equals(sourceBoundMarkupBytes), true);
+assert.equal(mupdfTextMarkupUpdated.metadata.operations.length, 4);
+const mupdfTextMarkupUpdatedInspection = await PdfFile.inspectPdf(mupdfTextMarkupUpdated);
+for (const { markup, annotation, annotationType, color } of markupUpdateProfiles) {
+  const audit = mupdfTextMarkupUpdated.metadata.operations.find((operation) => operation.annotationId === annotation.id);
+  assert.deepEqual(audit.patch, { contents: `${markup} review updated`, author: "Reviewer", subject: "Resolved", color });
+  const updated = mupdfTextMarkupUpdatedInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === annotationType);
+  assert.equal(updated.contents, `${markup} review updated`);
+  assert.equal(updated.author, "Reviewer");
+  assert.equal(updated.subject, "Resolved");
+  assert.ok(updated.color.every((component, index) => Math.abs(component - color[index]) < 0.001));
+  for (const invariant of ["type", "rect", "appearanceBbox", "quadPoints", "flags"]) {
+    assert.deepEqual(updated[invariant], annotation[invariant], `update_annotation must preserve ${annotationType} ${invariant}`);
+  }
+}
+const mupdfTextMarkupUpdatedPng = await PdfFile.renderPdf(mupdfTextMarkupUpdated, { page: 1, dpi: 72 });
+assert.notEqual(Buffer.compare(Buffer.from(mupdfTextMarkupPng.bytes), Buffer.from(mupdfTextMarkupUpdatedPng.bytes)), 0, "the updated native Underline color must change rendered pixels");
 const sourceBoundTextAnnotation = {
   type: "add_text_annotation",
   page: 1,
@@ -1211,6 +1311,17 @@ assert.equal(updatedAnnotation.author, "Reviewer");
 assert.equal(updatedAnnotation.subject, "Board");
 assert.deepEqual(updatedAnnotation.rect, removableAnnotation.rect);
 assert.notEqual(updatedAnnotationInspection.summary.sourceSha256, mupdfAnnotationInspection.summary.sourceSha256);
+await assert.rejects(PdfFile.editPdf(mupdfAnnotated, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: removableAnnotation.page,
+    annotationId: removableAnnotation.id,
+    sourceSha256: mupdfAnnotationInspection.summary.sourceSha256,
+    expected: removableAnnotation.snapshot,
+    patch: { color: [1, 0, 0] },
+  }],
+}), /color is unsupported for native Text annotations/);
 const nonTextAnnotationNativeDocument = new mupdf.PDFDocument(mupdfAnnotated.bytes);
 const nonTextAnnotationNativePage = nonTextAnnotationNativeDocument.loadPage(0);
 let nonTextAnnotationNative;
@@ -1243,7 +1354,7 @@ await assert.rejects(PdfFile.editPdf(nonTextAnnotationPdf, {
     expected: { type: nonTextAnnotation.type, contents: nonTextAnnotation.contents, rect: nonTextAnnotation.rect },
     patch: { contents: "Square review resolved" },
   }],
-}), /supports only native Text annotations/);
+}), /does not support native Square annotations/);
 const mupdfCropped = await PdfFile.editPdf(arbitraryPdf, {
   savePolicy: "incremental",
   operations: [{ type: "set_page_crop", page: 1, bbox: [72, 72, 468, 648] }],

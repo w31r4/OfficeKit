@@ -57,6 +57,37 @@ fields, mismatched export values, stale snapshots, and unsupported options fail
 closed in this path. Route them to the explicit pypdf workflow below. Signed
 PDF incremental edits are also rejected.
 
+## Update one native review mark
+
+Inspection returns a `snapshot` and `updateCapability` for native Text notes and
+for Highlight, Underline, StrikeOut, and Squiggly annotations. Keep the Text-note
+compatibility patch to non-empty `contents`, `author`, or `subject`. For a text
+markup, require `updateCapability.supported`, pass the complete snapshot, and
+patch only those review fields or RGB `color` in `[0,1]`:
+
+```js
+const mark = inspection.records.find((record) => record.kind === "mupdfAnnotation"
+  && record.type === "Highlight" && record.contents === "Check this value");
+if (!mark?.updateCapability.supported) throw new Error("Review mark is read-only.");
+
+const edited = await PdfFile.editPdf(input, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: mark.page,
+    annotationId: mark.id,
+    sourceSha256: inspection.summary.sourceSha256,
+    expected: mark.snapshot,
+    patch: { contents: "Value confirmed", subject: "Resolved", color: [0.2, 0.7, 0.3] },
+  }],
+});
+```
+
+The provider must preserve type, quadrilaterals, rectangle, appearance bounds,
+flags, page, and locator. Partial/stale snapshots, no-op or geometry patches,
+unsupported annotation types, invalid colors, and incremental save fail closed.
+Re-inspect and render the distinct output before delivery.
+
 ## Add one source-bound Text note
 
 Select the target `mupdfPage` record from the same inspection. Use its `bbox`
