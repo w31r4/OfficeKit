@@ -2265,7 +2265,7 @@ try {
     path: "ppt/diagrams/skill-data.xml",
     xml: smartArtDataXml.replace(
       "<a:r><a:t>Original SmartArt node</a:t></a:r>",
-      '<a:r><a:rPr b="1"/><a:t>Original</a:t></a:r><a:r><a:rPr i="1"/><a:t> SmartArt node</a:t></a:r>',
+      '<a:pPr algn="ctr"/><a:r><a:rPr b="1"/><a:t>Original</a:t></a:r><a:endParaRPr lang="en-US"/></a:p><a:p><a:r><a:rPr i="1"/><a:t> SmartArt node</a:t></a:r>',
     ),
   }]);
   await smartArtRunSource.save(smartArtRunInput);
@@ -2290,6 +2290,11 @@ try {
     itemByName(smartArtRunRoundTrip.slides.getItem(0).nativeObjects.items, "Closed SmartArt").diagramText.nodes[0],
     { id: "{B59B8E5A-4DF0-4A3C-A5E2-A7D7B293E601}", text: "Updated SmartArt node", runs: ["Updated", " SmartArt node"] },
   );
+  const smartArtRunOutputZip = await JSZip.loadAsync(await fs.readFile(smartArtRunOutput));
+  const smartArtRunOutputXml = await smartArtRunOutputZip.file("ppt/diagrams/skill-data.xml").async("text");
+  assert.equal((smartArtRunOutputXml.match(/<a:p(?:\s|>)/g) || []).length, 3);
+  assert.match(smartArtRunOutputXml, /<a:pPr algn="ctr"\s*\/>/);
+  assert.match(smartArtRunOutputXml, /<a:endParaRPr lang="en-US"\s*\/>/);
   await assert.rejects(
     () => editPptxSmartArtNodeText({
       inputPath: smartArtRunInput,
@@ -3228,8 +3233,8 @@ try {
   assert.match(smartArtReferenceText, /four distinct typed diagram parts.*disjoint part paths.*per-role hashes/is);
   assert.match(smartArtReferenceText, /Neither contract is SmartArt\s+authoring.*fail closed/is);
   assert.match(smartArtReferenceText, /dgm:dataModel.*dgm:ptLst.*32,767/is);
-  assert.match(smartArtReferenceText, /dgm:t > a:p.*one through 256 direct `a:r > a:t`/is);
-  assert.match(smartArtReferenceText, /setDiagramNodeRunText.*ordered `runs`.*a:rPr.*--run-index=1/is);
+  assert.match(smartArtReferenceText, /one through 256 direct `dgm:t > a:p` paragraphs.*one through 256 runs in total/is);
+  assert.match(smartArtReferenceText, /setDiagramNodeRunText.*runs.*source order.*a:pPr.*a:rPr.*a:endParaRPr.*--run-index=1/is);
   assert.match(smartArtReferenceText, /only the DiagramDataPart changed.*reimports the graph.*LibreOffice\/Poppler/is);
   const inkMlReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/inkml-content-part-clone.spec.md", "utf8");
   assert.match(skillText, /artifact_tool\/api\/references\/inkml-content-part-clone\.spec\.md/);

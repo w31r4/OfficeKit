@@ -6677,6 +6677,49 @@ OfficeBridge, and OfficeKit Codec gate. This closes hosted evidence for the
 code candidate; npm authentication/publication, a release tag, and Windows
 Microsoft Office desktop acceptance remain external release work.
 
+### PPTX source-bound SmartArt multi-paragraph run editing
+
+On 2026-08-14, the same closed four-part SmartArt text profile expanded from
+one direct paragraph to one through 256 direct paragraphs per document point,
+with at least one direct plain `a:r/a:t` run per paragraph and one through 256
+runs in total. This is a codec admission change, not a wire-version change:
+`PresentationDiagramTextNode.run_texts` remains the source-ordered flattened
+leaf projection, while DiagramDataPart XML remains the sole owner of paragraph
+boundaries and formatting.
+
+`setDiagramNodeRunText(modelId, runIndex, text)` now addresses one existing
+`a:t` by its flattened source-order index across those paragraphs. Export
+re-proves the exact source digest and fixed graph, node, paragraph, and run
+topology, then updates only that text leaf. Every `a:pPr`, `a:rPr`,
+`a:endParaRPr`, paragraph boundary, relationship, and non-data part remains
+untouched. Whole-node replacement still requires exactly one run. Empty
+paragraphs, fields, breaks, unknown child markup, connected graphs, stale
+bindings, and any paragraph/run topology mutation fail closed.
+
+Focused C# tests exercise one- and two-paragraph sources, styled runs,
+paragraph properties, end-paragraph properties, topology refusal, and second
+import. JavaScript and the packaged no-overwrite Presentation workflow use the
+rebuilt bundled WASM, edit a run in a two-paragraph node, verify the exact
+DiagramDataPart-only delta, and retain all three source paragraphs across the
+two fixture nodes.
+
+The complete local candidate passed the 31-segment fast gate and 82-segment
+slow gate, including the installed MuPDF, qpdf, LibreOffice/Poppler, and
+Playwright paths; the environment-isolated specialist-provider repetitions and
+managed Live packs remained explicit skips. OfficeKit passed 416/416 tests and
+OfficeBridge passed 5/5. Protocol generation/checking, API documentation,
+reference-Skill sync, the 338-file portability gate, package contents, and the
+clean-install pack smoke all passed. Two source builds reproduced the same 39
+audited files and the same manifest-bound 38-file, 15,427,819-byte runtime.
+
+The candidate tarball contains 744 files, is 36,355,324 bytes compressed and
+53,635,881 bytes unpacked, with SHA-1
+`c1f22fdcffbe29bf2f9737d35f7ab9ad8d7c78e7`; it remains 64,119 bytes below the
+53,700,000-byte unpacked-size ceiling. `npm whoami` returned `ENEEDAUTH`.
+Hosted results are recorded after the immutable candidate commit; no publish,
+tag, or GitHub release was attempted, and Windows Microsoft Office desktop
+acceptance remains external release work.
+
 ## Publishing
 
 Before publishing:

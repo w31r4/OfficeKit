@@ -63,18 +63,20 @@ following:
 
 - its root is `dgm:dataModel` and it has exactly one direct `dgm:ptLst`;
 - every exposed `dgm:pt` has `type="doc"`, a unique non-empty `modelId`, and
-  exactly one direct `dgm:t > a:p` with one through 256 direct `a:r > a:t`
-  runs; optional `a:bodyPr`, `a:lstStyle`, `a:pPr`, per-run `a:rPr`, and
-  `a:endParaRPr` may remain;
+  one through 256 direct `dgm:t > a:p` paragraphs, each with at least one
+  direct `a:r > a:t`, and one through 256 runs in total; optional `a:bodyPr`,
+  `a:lstStyle`, `a:pPr`, per-run `a:rPr`, and `a:endParaRPr` may remain;
 - each run and its complete node concatenation are XML-safe and the node is at
-  most 32,767 characters. Multiple paragraphs, fields, breaks, unknown child
+  most 32,767 characters. Empty paragraphs, fields, breaks, unknown child
   markup, disconnected parts, or any topology ambiguity withhold the
   capability rather than being simplified.
 
 `nativeObject.editable` remains `false`: this is a typed exception, not general
 write authority. `nativeObject.diagramText` is a defensive snapshot containing
-the source data part, eligible node IDs, concatenated text, and ordered `runs`.
-A whole-node replacement remains available only when that node has one run:
+the source data part, eligible node IDs, concatenated text, and `runs` flattened
+across direct paragraphs in exact source order. Paragraph boundaries stay in
+the source XML and are never reconstructed from this projection. A whole-node
+replacement remains available only when that node has one run:
 
 ```ts
 const diagram = presentation.slides.getItem(0).nativeObjects.items.find(
@@ -89,8 +91,9 @@ diagram.setDiagramNodeText(node.id, "After");
 const output = await PresentationFile.exportPptx(presentation);
 ```
 
-For a styled node, select one exact existing run. OfficeKit keeps every
-neighboring run and its `a:rPr` untouched:
+For a styled or multi-paragraph node, select one exact existing source-ordered
+run. OfficeKit keeps every paragraph, neighboring run, `a:pPr`, `a:rPr`, and
+`a:endParaRPr` untouched:
 
 ```ts
 const styledNode = diagram.diagramText.nodes.find((item) => item.runs?.[1] === " approval");
@@ -123,11 +126,12 @@ source/output-bound audit. Its model verification is structural evidence; run
 the normal LibreOffice/Poppler render review when a native rendering result is
 required.
 
-Node or run creation/removal/reordering, `modelId` changes, whole-node writes
-across multiple style runs, presentation of arbitrary diagram text, raw XML
-mutation, layout/style/color edits, geometry edits, cross-diagram changes,
-clone-before-export after a pending text edit, and arbitrary graph cloning
-remain unsupported. Incomplete, duplicated, mistyped, external, nested,
-relationship-bearing, field/break-bearing, multi-paragraph, or otherwise
-noncanonical SmartArt graphs fail closed. Preserve such objects unchanged or
-use a separate explicit OPC operation whose scope is independently reviewed.
+Paragraph, node, or run creation/removal/reordering, `modelId` changes,
+whole-node writes across multiple style runs, presentation of arbitrary diagram
+text, raw XML mutation, layout/style/color edits, geometry edits,
+cross-diagram changes, clone-before-export after a pending text edit, and
+arbitrary graph cloning remain unsupported. Incomplete, duplicated, mistyped,
+external, nested, relationship-bearing, field/break-bearing,
+empty-paragraph, or otherwise noncanonical SmartArt graphs fail closed.
+Preserve such objects unchanged or use a separate explicit OPC operation whose
+scope is independently reviewed.

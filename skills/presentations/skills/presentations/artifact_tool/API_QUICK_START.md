@@ -728,10 +728,12 @@ relationship, copy, poster-sharing, and playback-validation boundary.
 
 This is separate from cloning and intentionally much smaller than SmartArt
 authoring. An imported top-level SmartArt object exposes `diagramText` only
-when the closed four-part graph has a proven DiagramDataPart with one direct
-paragraph and one through 256 plain runs per document node. `editable` stays
-false; only a returned existing `modelId` or one of its run indexes can receive
-a replacement string:
+when the closed four-part graph has a proven DiagramDataPart with one or more
+direct paragraphs and one through 256 total plain runs per document node.
+`diagramText.nodes[].runs` flattens those leaves in exact source order while
+the source package retains paragraph topology. `editable` stays false; only a
+returned existing `modelId` or one of its run indexes can receive a replacement
+string:
 
 ```ts
 const diagram = presentation.slides.getItem(0).nativeObjects.items.find(
@@ -742,8 +744,9 @@ if (!diagram || !node) throw new Error("Expected canonical SmartArt node was not
 diagram.setDiagramNodeText(node.id, "After");
 ```
 
-When `node.runs.length > 1`, whole-node replacement rejects rather than
-guessing how the new text should inherit formatting. Bind one exact run:
+When `node.runs.length > 1`, including runs split across paragraphs, whole-node
+replacement rejects rather than guessing how the new text should inherit
+formatting. Bind one exact source-ordered run:
 
 ```ts
 if (node.runs[1] !== " approval") throw new Error("Stale SmartArt run target.");

@@ -16,8 +16,9 @@ internal sealed record PptxDiagramTextReplacement(string PartPath, string Sha256
 // diagram, change the graph, or reinterpret layout/style/colors. It exposes
 // text only where an imported top-level p:graphicFrame proves it owns the
 // canonical closed four-part Diagram graph and every document point has one
-// DrawingML paragraph made only of direct plain runs. Everything outside that
-// profile stays opaque.
+// or more DrawingML paragraphs made only of direct plain runs. Paragraph and
+// run topology remain owned by the source XML; the wire projects only the
+// source-ordered text leaves. Everything outside that profile stays opaque.
 internal static class PptxDiagramTextCodec
 {
     private const string DiagramDataContentType = "application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml";
@@ -269,28 +270,31 @@ internal static class PptxDiagramTextCodec
         var bodyChildren = body.Elements().ToArray();
         if (bodyChildren.Any(element => !IsDrawing(element, "bodyPr") && !IsDrawing(element, "lstStyle") && !IsDrawing(element, "p"))) return false;
         var paragraphs = bodyChildren.Where(element => IsDrawing(element, "p")).ToArray();
-        if (paragraphs.Length != 1) return false;
-        var paragraphChildren = paragraphs[0].Elements().ToArray();
-        if (paragraphChildren.Any(element => !IsDrawing(element, "pPr") && !IsDrawing(element, "r") && !IsDrawing(element, "endParaRPr"))) return false;
-        var runs = paragraphChildren.Where(element => IsDrawing(element, "r")).ToArray();
-        if (runs.Length is < 1 or > MaxNodeRunCount) return false;
-        var results = new List<DiagramRun>(runs.Length);
+        if (paragraphs.Length is < 1 or > MaxNodeRunCount) return false;
+        var results = new List<DiagramRun>();
         var combined = new StringBuilder();
-        foreach (var run in runs)
+        foreach (var paragraph in paragraphs)
         {
-            var runChildren = run.Elements().ToArray();
-            if (runChildren.Any(element => !IsDrawing(element, "rPr") && !IsDrawing(element, "t"))) return false;
-            var textElements = runChildren.Where(element => IsDrawing(element, "t")).ToArray();
-            // Replacing XElement.Value would discard comments or processing
-            // instructions nested in a:t. They are not part of the plain-text
-            // profile, so withhold the capability rather than silently erasing
-            // source-owned markup.
-            if (textElements.Length != 1 || textElements[0].HasElements || textElements[0].Nodes().Any(node => node is not XText)) return false;
-            var runText = textElements[0].Value;
-            if (!IsBoundedText(runText)) return false;
-            combined.Append(runText);
-            if (combined.Length > MaxNodeTextLength) return false;
-            results.Add(new DiagramRun(runText, textElements[0]));
+            var paragraphChildren = paragraph.Elements().ToArray();
+            if (paragraphChildren.Any(element => !IsDrawing(element, "pPr") && !IsDrawing(element, "r") && !IsDrawing(element, "endParaRPr"))) return false;
+            var runs = paragraphChildren.Where(element => IsDrawing(element, "r")).ToArray();
+            if (runs.Length < 1 || results.Count + runs.Length > MaxNodeRunCount) return false;
+            foreach (var run in runs)
+            {
+                var runChildren = run.Elements().ToArray();
+                if (runChildren.Any(element => !IsDrawing(element, "rPr") && !IsDrawing(element, "t"))) return false;
+                var textElements = runChildren.Where(element => IsDrawing(element, "t")).ToArray();
+                // Replacing XElement.Value would discard comments or processing
+                // instructions nested in a:t. They are not part of the plain-text
+                // profile, so withhold the capability rather than silently erasing
+                // source-owned markup.
+                if (textElements.Length != 1 || textElements[0].HasElements || textElements[0].Nodes().Any(node => node is not XText)) return false;
+                var runText = textElements[0].Value;
+                if (!IsBoundedText(runText)) return false;
+                combined.Append(runText);
+                if (combined.Length > MaxNodeTextLength) return false;
+                results.Add(new DiagramRun(runText, textElements[0]));
+            }
         }
         text = combined.ToString();
         resolvedRuns = results;
