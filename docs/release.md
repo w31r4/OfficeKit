@@ -29,8 +29,12 @@ API-doc comparison, and `npm run test:pack` passed. OfficeKit Codec passed
 415/415 .NET tests and OfficeBridge passed 5/5. The staged package contains 744
 files at 36,352,586 compressed bytes and 53,623,729 unpacked bytes (`shasum
 5e66ae8f409b7c387e384390371bc0cba52c1f2d`). LibreOfficeDev 26.8 and Poppler
-26.08 were available to the native/render workflows. Hosted-CI identity and npm
-authentication status are recorded after the implementation commit.
+26.08 were available to the native/render workflows. Hosted `ci` run
+[31766453508](https://github.com/w31r4/OfficeKit/actions/runs/31766453508) passed
+in 2m35s and `ci-slow` run
+[31766453483](https://github.com/w31r4/OfficeKit/actions/runs/31766453483) passed
+in 25m09s for implementation commit `f35a8975`. `npm whoami` still fails with
+`ENEEDAUTH`, so no npm publish was attempted.
 
 ## Current 0.6.0 candidate (2026-08-14): Scoped LET package syntax
 
