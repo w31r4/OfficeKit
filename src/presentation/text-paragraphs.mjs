@@ -317,7 +317,10 @@ export function replacePresentationParagraphText(paragraphs, search, replacement
     else run.text = text.replace(search, replacement);
     return paragraphs;
   }
-  return normalizePresentationParagraphs(presentationParagraphsText(paragraphs).replace(search, replacement));
+  if (presentationParagraphsText(paragraphs).includes(needle)) {
+    throw new TypeError("Presentation text.replace(...) matches across a run or paragraph boundary; edit one exact run or use text.set(...) when replacing the complete text topology.");
+  }
+  return paragraphs;
 }
 
 function autoNumberLabel(autoNumber, index) {

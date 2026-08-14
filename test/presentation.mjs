@@ -178,6 +178,15 @@ assert.throws(() => Presentation.create({ master: { slideGuides: [{ orientation:
 const modelSlide = modelPresentation.slides.add({ name: "Compose model" });
 assert.equal(modelSlide.hidden, false);
 assert.deepEqual(modelSlide.visibilityCapability, { sourceBound: false, known: true, editable: true });
+const crossRunReplaceShape = modelSlide.shapes.add({
+  name: "cross-run-replace-guard",
+  text: [{ runs: [{ text: "Alpha", style: { bold: true } }, { text: "Beta", style: { italic: true } }] }],
+});
+assert.throws(
+  () => crossRunReplaceShape.text.replace("AlphaBeta", "Reviewed"),
+  /matches across a run or paragraph boundary/i,
+);
+assert.equal(crossRunReplaceShape.text.value, "AlphaBeta");
 assert.equal(modelSlide.hide(), modelSlide);
 assert.equal(modelSlide.hidden, true);
 assert.equal(modelSlide.show(), modelSlide);
