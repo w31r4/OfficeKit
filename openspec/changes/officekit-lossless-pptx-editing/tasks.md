@@ -1,0 +1,41 @@
+## 1. Freeze and inventory the real benchmark
+
+- [ ] 1.1 Add a versioned manifest for the three external PPTX hashes, package inventories, native structure counts, editable node indices, and at least six declared edit targets.
+- [ ] 1.2 Record native renders and current Kimi/HTML/PPTD comparison evidence without making competitor availability an acceptance dependency.
+- [ ] 1.3 Add a bounded benchmark runner and independent package oracle that never packages or modifies the source assets.
+
+## 2. Establish exact no-op and text-leaf editing
+
+- [ ] 2.1 Preserve unchanged imported shape/group wire projections and prove the complete presentation is unchanged before returning exact source bytes.
+- [ ] 2.2 Add the additive wire-v2 `APPLY_PPTX_EDIT_PLAN` request/result messages and deterministic JavaScript text-leaf compiler.
+- [ ] 2.3 Implement the C# read-only structural proof and UTF-8 XML token splice with source, part, element, semantic, leaf, and old-value preconditions.
+- [ ] 2.4 Prove only declared OPC parts change, masked target XML is byte-identical, output reimports, and stale/ambiguous/scope-expanding plans fail closed.
+- [ ] 2.5 Validate the “算秩未来” title and blue-gray subtitle edits while unrelated unknown geometry remains preserved and non-blocking.
+
+## 3. Persist compiler evidence in durable tasks
+
+- [ ] 3.1 Add private `operations/` task storage and a bounded immutable Edit Plan record linked to source/output revision hashes.
+- [ ] 3.2 Persist an operation record only after a matching passed review advances task HEAD; reject corrupt, stale, escaping, or oversized records.
+- [ ] 3.3 Return prior operation evidence on resume while continuing to restore reviewed bytes and rebuild model/node indices rather than JavaScript heap state.
+
+## 4. Add controlled native-leaf editing
+
+- [ ] 4.1 Add `presentation.inspect({ includeNativeLeaves: true })` with revision-bound safe text leaf IDs and expected hashes.
+- [ ] 4.2 Add `presentation.editNativeLeaf(targetId, leafId, { expectedHash, value })` and reject raw XML, XPath, part paths, arbitrary attributes, identities, relationships, namespaces, and topology edits.
+- [ ] 4.3 Extend the capability-issued leaf registry to codec-proven color and local geometry scalars with positive and stale/cross-revision negative tests.
+
+## 5. Complete the deterministic real edit matrix
+
+- [ ] 5.1 Run ordinary and grouped text replacement three times from clean sources with identical output and footprint hashes.
+- [ ] 5.2 Run textbox move/resize, image placement/crop or same-format replacement, and supported chart title/data edits three times from clean sources.
+- [ ] 5.3 Select and validate a real SmartArt text or equivalent native leaf without relationship or topology drift.
+- [ ] 5.4 Validate multi-round REPL edit, review, commit, resume, node-index rebuild, continued edit, and publication.
+
+## 6. Independent acceptance and release gates
+
+- [ ] 6.1 Prove all three no-ops byte-identical; all non-target parts exact; all target XML masked exact; all advanced structure counts and relationships stable.
+- [ ] 6.2 Prove non-target pages pixel-identical with the unified renderer and complete Windows desktop PowerPoint open/browse/save-copy acceptance without repair prompts.
+- [ ] 6.3 Run three independent fresh-workspace Agent tasks that inspect/resolve, use typed or controlled native edits, reimport, package-diff, visually review, and preserve the source.
+- [ ] 6.4 Repeat the accepted workflow from a packed clean installation.
+- [ ] 6.5 Pass fast gates, full `npm test`, OfficeKit C#, protobuf checks, reproducible WASM, package/release gates, and hosted CI.
+- [ ] 6.6 Publish the final report with source hashes, OfficeKit evidence, available controls, limitations, and every completion-gate result before marking the persistent Goal complete.
