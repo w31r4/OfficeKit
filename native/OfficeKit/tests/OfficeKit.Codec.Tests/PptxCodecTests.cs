@@ -208,6 +208,155 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void EditPlanChangesCodecProvenColorAndGeometryLeavesWithoutReserializingTheShape()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = authored.File.ToByteArray();
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var element = Assert.Single(slide.Elements);
+        var cases = new (string Kind, string Expected, string Value)[]
+        {
+            ("fillRgb", element.Shape.FillRgb, "A1B2C3"),
+            ("lineRgb", element.Shape.LineRgb, "C3B2A1"),
+            ("leftEmu", element.Shape.LeftEmu.ToString(), "571501"),
+            ("topEmu", element.Shape.TopEmu.ToString(), "381001"),
+            ("widthEmu", element.Shape.WidthEmu.ToString(), "8191501"),
+            ("heightEmu", element.Shape.HeightEmu.ToString(), "666751"),
+        };
+        foreach (var item in cases)
+        {
+            var operation = new PresentationEditOperation
+            {
+                OperationId = $"op-{item.Kind}",
+                SlideId = slide.Id,
+                SlidePartPath = slide.Source.PartPath,
+                ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+                TargetId = element.Id,
+                ShapeTreeIndex = element.Source.ShapeTreeIndex,
+                LeafKind = item.Kind,
+                ExpectedElementSha256 = element.Source.ElementSha256,
+                ExpectedSemanticSha256 = element.Source.SemanticSha256,
+                TextLeafIndex = 0,
+                ExpectedValue = item.Expected,
+                Value = item.Value,
+                ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(item.Expected))).ToLowerInvariant(),
+            };
+            operation.ShapeTreePath.Add(element.Source.ShapeTreeIndex);
+            var edited = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ApplyPptxEditPlan,
+                Family = ArtifactFamily.Presentation,
+                File = authored.File,
+                PresentationEditPlan = new PresentationEditPlanRequest
+                {
+                    ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+                    Operations = { operation },
+                },
+            });
+            Assert.True(edited.Ok, $"{item.Kind}: {Diagnostics(edited)}");
+            var result = Assert.Single(edited.PresentationEditPlan.Operations);
+            Assert.Equal(item.Kind, result.LeafKind);
+            Assert.Equal(operation.ShapeTreePath, result.ShapeTreePath);
+            var sourceXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, operation.SlidePartPath));
+            var outputXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), operation.SlidePartPath));
+            Assert.Equal(sourceXml, outputXml.Replace(item.Value, item.Expected, StringComparison.Ordinal));
+            var reopened = Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements).Shape;
+            Assert.Equal(item.Value, item.Kind switch
+            {
+                "fillRgb" => reopened.FillRgb,
+                "lineRgb" => reopened.LineRgb,
+                "leftEmu" => reopened.LeftEmu.ToString(),
+                "topEmu" => reopened.TopEmu.ToString(),
+                "widthEmu" => reopened.WidthEmu.ToString(),
+                "heightEmu" => reopened.HeightEmu.ToString(),
+                _ => throw new InvalidOperationException(),
+            });
+        }
+
+        var lowerCaseSource = ReplaceZipText(sourceBytes, slide.Source.PartPath, xml =>
+            xml.Replace("val=\"FFFFFF\"", "val=\"ffffff\"", StringComparison.Ordinal));
+        var lowerCaseImported = Import(lowerCaseSource);
+        Assert.True(lowerCaseImported.Ok, Diagnostics(lowerCaseImported));
+        var lowerCaseSlide = Assert.Single(lowerCaseImported.Artifact.Presentation.Slides);
+        var lowerCaseElement = Assert.Single(lowerCaseSlide.Elements);
+        Assert.Equal("ffffff", lowerCaseElement.Shape.FillRgb);
+        var lowerCaseOperation = new PresentationEditOperation
+        {
+            OperationId = "op-lowercase-fill",
+            SlideId = lowerCaseSlide.Id,
+            SlidePartPath = lowerCaseSlide.Source.PartPath,
+            ExpectedSlideSha256 = lowerCaseSlide.Source.SlideXmlSha256,
+            TargetId = lowerCaseElement.Id,
+            ShapeTreeIndex = lowerCaseElement.Source.ShapeTreeIndex,
+            LeafKind = "fillRgb",
+            ExpectedElementSha256 = lowerCaseElement.Source.ElementSha256,
+            ExpectedSemanticSha256 = lowerCaseElement.Source.SemanticSha256,
+            ExpectedValue = "ffffff",
+            Value = "AABBCC",
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData("ffffff"u8.ToArray())).ToLowerInvariant(),
+        };
+        lowerCaseOperation.ShapeTreePath.Add(lowerCaseElement.Source.ShapeTreeIndex);
+        var lowerCaseEdited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(lowerCaseSource),
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = lowerCaseImported.Artifact.Source.PackageSha256,
+                Operations = { lowerCaseOperation },
+            },
+        });
+        Assert.True(lowerCaseEdited.Ok, Diagnostics(lowerCaseEdited));
+        var lowerCaseSourceXml = Encoding.UTF8.GetString(ZipBytes(lowerCaseSource, lowerCaseOperation.SlidePartPath));
+        var lowerCaseOutputXml = Encoding.UTF8.GetString(ZipBytes(lowerCaseEdited.File.ToByteArray(), lowerCaseOperation.SlidePartPath));
+        Assert.Equal(lowerCaseSourceXml, lowerCaseOutputXml.Replace("AABBCC", "ffffff", StringComparison.Ordinal));
+
+        var colorCaseNoOp = lowerCaseOperation.Clone();
+        colorCaseNoOp.Value = "FFFFFF";
+        var colorCaseRejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(lowerCaseSource),
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = lowerCaseImported.Artifact.Source.PackageSha256,
+                Operations = { colorCaseNoOp },
+            },
+        });
+        Assert.False(colorCaseRejected.Ok);
+        Assert.Equal("presentation_edit_plan_noop", Assert.Single(colorCaseRejected.Diagnostics).Code);
+
+        var invalidWidth = lowerCaseOperation.Clone();
+        invalidWidth.OperationId = "op-invalid-width";
+        invalidWidth.LeafKind = "widthEmu";
+        invalidWidth.ExpectedValue = lowerCaseElement.Shape.WidthEmu.ToString();
+        invalidWidth.Value = "0";
+        invalidWidth.ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(invalidWidth.ExpectedValue))).ToLowerInvariant();
+        var invalidWidthRejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(lowerCaseSource),
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = lowerCaseImported.Artifact.Source.PackageSha256,
+                Operations = { invalidWidth },
+            },
+        });
+        Assert.False(invalidWidthRejected.Ok);
+        Assert.Equal("invalid_presentation_edit_operation", Assert.Single(invalidWidthRejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void ShapeAccessibilityAuthorsImportsEditsAndKeepsIrregularMetadataSourceOwned()
     {
         var request = ExportRequest();

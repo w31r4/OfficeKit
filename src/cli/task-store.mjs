@@ -748,8 +748,13 @@ function validateTaskEditPlan(value, outputSha256) {
     throw taskError("invalid-edit-plan", "Artifact Edit Plan changed parts are invalid.");
   }
   const operationIds = new Set();
+  const nativeLeafKinds = new Set(["text", "fillRgb", "lineRgb", "leftEmu", "topEmu", "widthEmu", "heightEmu"]);
   for (const operation of value.operations) {
-    if (!operation || typeof operation !== "object" || Array.isArray(operation) ||
+    if (!operation || typeof operation !== "object" || Array.isArray(operation)) {
+      throw taskError("invalid-edit-plan", "Artifact Edit Plan operation is invalid.");
+    }
+    const leafKind = operation.leafKind == null || operation.leafKind === "" ? "text" : operation.leafKind;
+    if (
         typeof operation.operationId !== "string" || !operation.operationId || operation.operationId.length > 160 || operationIds.has(operation.operationId) ||
         typeof operation.slideId !== "string" || !operation.slideId || typeof operation.targetId !== "string" || !operation.targetId ||
         !safeOperationPartPath(operation.slidePartPath) || !Number.isSafeInteger(operation.shapeTreeIndex) || operation.shapeTreeIndex < 0 ||
@@ -757,6 +762,7 @@ function validateTaskEditPlan(value, outputSha256) {
         !Number.isSafeInteger(operation.textLeafIndex) || operation.textLeafIndex < 0 ||
         !isSha(operation.expectedSlideSha256) || !isSha(operation.expectedElementSha256) ||
         !isSha(operation.expectedSemanticSha256) || !isSha(operation.expectedTextSha256) ||
+        !nativeLeafKinds.has(leafKind) ||
         typeof operation.expectedValue !== "string" || typeof operation.value !== "string" || operation.expectedValue === operation.value) {
       throw taskError("invalid-edit-plan", "Artifact Edit Plan operation is invalid.");
     }
@@ -764,6 +770,7 @@ function validateTaskEditPlan(value, outputSha256) {
     if (!footprint || !isSha(footprint.sourceElementSha256) || !isSha(footprint.outputElementSha256) ||
         !isSha(footprint.oldValueSha256) || !isSha(footprint.newValueSha256) ||
         !safeOperationShapeTreePath(footprint.shapeTreePath, operation.shapeTreeIndex) ||
+        ((footprint.leafKind == null || footprint.leafKind === "" ? "text" : footprint.leafKind) !== leafKind) ||
         !decimalOffset(footprint.sourceStartOffset) || !decimalOffset(footprint.sourceEndOffset) || !decimalOffset(footprint.outputEndOffset)) {
       throw taskError("invalid-edit-plan", "Artifact Edit Plan mutation footprint is invalid.");
     }

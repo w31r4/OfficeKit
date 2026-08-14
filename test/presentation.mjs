@@ -77,6 +77,29 @@ function relationshipPartPath(partPath) {
   return path.posix.join(directory, "_rels", `${path.posix.basename(partPath)}.rels`);
 }
 
+async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation) {
+  const sourceZip = await JSZip.loadAsync(source.bytes);
+  const outputZip = await JSZip.loadAsync(output.bytes);
+  const partPath = operation.slidePartPath;
+  const sourcePart = Buffer.from(await sourceZip.file(partPath).async("uint8array"));
+  const outputPart = Buffer.from(await outputZip.file(partPath).async("uint8array"));
+  const sourceStart = Number(operation.footprint.sourceStartOffset);
+  const sourceEnd = Number(operation.footprint.sourceEndOffset);
+  const outputEnd = Number(operation.footprint.outputEndOffset);
+  assert.deepEqual(outputPart.subarray(0, sourceStart), sourcePart.subarray(0, sourceStart));
+  assert.deepEqual(outputPart.subarray(outputEnd), sourcePart.subarray(sourceEnd));
+  assert.equal(sourcePart.subarray(sourceStart, sourceEnd).toString("utf8"), operation.expectedValue);
+  assert.equal(outputPart.subarray(sourceStart, outputEnd).toString("utf8"), operation.value);
+  for (const [entryPath, entry] of Object.entries(sourceZip.files)) {
+    if (entry.dir || entryPath === partPath) continue;
+    assert.deepEqual(
+      await outputZip.file(entryPath).async("uint8array"),
+      await sourceZip.file(entryPath).async("uint8array"),
+      `Edit Plan changed non-target part ${entryPath}`,
+    );
+  }
+}
+
 assert.deepEqual(presentationImageDataUrlDimensions(WIDE_SVG), { width: 400, height: 200 });
 assert.deepEqual(effectivePresentationImageCrop({ fit: "cover", dataUrl: WIDE_SVG, frame: { width: 200, height: 200 } }), { left: 0.25, top: 0, right: 0.25, bottom: 0 });
 assert.deepEqual(effectivePresentationImageCrop({ fit: "contain", dataUrl: WIDE_SVG, frame: { width: 200, height: 200 } }), { left: 0, top: -0.5, right: 0, bottom: -0.5 });
@@ -2567,6 +2590,101 @@ const groupedNativeLeafXml = await (await JSZip.loadAsync(groupedNativeLeafOutpu
 assert.equal(groupedNativeLeafXml.replace("After native leaf", "Before"), groupedFirstXml);
 const groupedNativeLeafRoundTrip = await PresentationFile.importPptx(groupedNativeLeafOutput);
 assert.equal(groupedNativeLeafRoundTrip.resolve(groupedBeforeLeaf.targetId).text.value, "After native leaf");
+
+const groupedColorLeafImported = await PresentationFile.importPptx(groupedFirstExport);
+const groupedColorGroup = itemByName(groupedColorLeafImported.slides.getItem(0).groups.items, "Agent evidence group");
+const groupedColorShape = itemByName(groupedColorGroup.shapes.items, "grouped-before");
+const groupedScalarLeaves = groupedColorLeafImported.inspect({ includeNativeLeaves: true, target: groupedColorShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.deepEqual(new Set(groupedScalarLeaves.map((record) => record.leafKind)), new Set(["text", "fillRgb", "lineRgb"]));
+const groupedFillLeaf = groupedScalarLeaves.find((record) => record.leafKind === "fillRgb");
+assert.ok(groupedFillLeaf);
+assert.equal(groupedFillLeaf.value, "#dbeafe");
+assert.throws(
+  () => groupedColorLeafImported.editNativeLeaf(groupedFillLeaf.targetId, groupedFillLeaf.leafId, { expectedHash: groupedFillLeaf.expectedHash, value: "#DBEAFE" }),
+  (error) => error?.code === "presentation_native_leaf_noop",
+);
+assert.throws(
+  () => groupedColorLeafImported.editNativeLeaf(groupedFillLeaf.targetId, groupedFillLeaf.leafId, { expectedHash: "0".repeat(64), value: "#A1B2C3" }),
+  (error) => error?.code === "presentation_native_leaf_stale",
+);
+assert.throws(
+  () => groupedColorLeafImported.editNativeLeaf(groupedFillLeaf.targetId, groupedFillLeaf.leafId, { expectedHash: groupedFillLeaf.expectedHash, value: "theme-accent" }),
+  (error) => error?.code === "invalid_presentation_native_leaf_edit",
+);
+const groupedColorEdit = groupedColorLeafImported.editNativeLeaf(groupedFillLeaf.targetId, groupedFillLeaf.leafId, {
+  expectedHash: groupedFillLeaf.expectedHash,
+  value: "#A1B2C3",
+});
+assert.equal(groupedColorEdit.leafKind, "fillRgb");
+const groupedColorOutput = await PresentationFile.exportPptx(groupedColorLeafImported);
+const groupedColorOperation = groupedColorOutput.metadata.editPlan.operations[0];
+assert.equal(groupedColorOperation.leafKind, "fillRgb");
+assert.equal(groupedColorOperation.footprint.leafKind, "fillRgb");
+assert.equal(groupedColorOperation.shapeTreePath.length, 2);
+await assertOnlyDeclaredPptxFootprintChanged(groupedFirstExport, groupedColorOutput, groupedColorOperation);
+const groupedColorRoundTrip = await PresentationFile.importPptx(groupedColorOutput);
+assert.equal(itemByName(itemByName(groupedColorRoundTrip.slides.getItem(0).groups.items, "Agent evidence group").shapes.items, "grouped-before").fill.toLowerCase(), "#a1b2c3");
+assert.throws(
+  () => groupedColorRoundTrip.editNativeLeaf(groupedFillLeaf.targetId, groupedFillLeaf.leafId, { expectedHash: groupedFillLeaf.expectedHash, value: "#C3B2A1" }),
+  (error) => error?.code === "presentation_native_leaf_not_issued",
+);
+
+const groupedDependentEditImported = await PresentationFile.importPptx(groupedFirstExport);
+const groupedDependentGroup = itemByName(groupedDependentEditImported.slides.getItem(0).groups.items, "Agent evidence group");
+const groupedDependentShape = itemByName(groupedDependentGroup.shapes.items, "grouped-before");
+const groupedDependentFillLeaf = groupedDependentEditImported.inspect({ includeNativeLeaves: true, target: groupedDependentShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fillRgb");
+assert.ok(groupedDependentFillLeaf);
+groupedDependentEditImported.editNativeLeaf(groupedDependentFillLeaf.targetId, groupedDependentFillLeaf.leafId, {
+  expectedHash: groupedDependentFillLeaf.expectedHash,
+  value: "#ABCDEF",
+});
+groupedDependentShape.position.left += 1;
+await assert.rejects(
+  () => PresentationFile.exportPptx(groupedDependentEditImported),
+  (error) => error?.code === "unsupported_presentation_native_leaf_edit",
+  "an explicit native-leaf edit must never fall back to full presentation serialization when a dependent change escapes its Edit Plan",
+);
+
+const groupedGeometryLeafImported = await PresentationFile.importPptx(groupedFirstExport);
+const groupedGeometryGroup = itemByName(groupedGeometryLeafImported.slides.getItem(0).groups.items, "Agent evidence group");
+const groupedGeometryNestedGroup = itemByName(groupedGeometryGroup.groups.items, "nested-group");
+const groupedGeometryShape = itemByName(groupedGeometryNestedGroup.shapes.items, "nested-shape");
+const groupedGeometryLeaves = groupedGeometryLeafImported.inspect({ includeNativeLeaves: true, target: groupedGeometryShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const groupedLeftLeaf = groupedGeometryLeaves.find((record) => record.leafKind === "leftEmu");
+const groupedWidthLeaf = groupedGeometryLeaves.find((record) => record.leafKind === "widthEmu");
+assert.ok(groupedLeftLeaf);
+assert.ok(groupedWidthLeaf);
+assert.equal(groupedWidthLeaf.unit, "emu");
+assert.throws(
+  () => groupedGeometryLeafImported.editNativeLeaf(groupedWidthLeaf.targetId, groupedWidthLeaf.leafId, { expectedHash: groupedWidthLeaf.expectedHash, value: 0 }),
+  (error) => error?.code === "invalid_presentation_native_leaf_edit",
+);
+const nextLeftEmu = groupedLeftLeaf.value + 9_525;
+const groupedGeometryEdit = groupedGeometryLeafImported.editNativeLeaf(groupedLeftLeaf.targetId, groupedLeftLeaf.leafId, {
+  expectedHash: groupedLeftLeaf.expectedHash,
+  value: nextLeftEmu,
+});
+assert.equal(groupedGeometryEdit.value, nextLeftEmu);
+assert.equal(groupedGeometryEdit.unit, "emu");
+const groupedGeometryOutput = await PresentationFile.exportPptx(groupedGeometryLeafImported);
+const groupedGeometryOperation = groupedGeometryOutput.metadata.editPlan.operations[0];
+assert.equal(groupedGeometryOperation.leafKind, "leftEmu");
+assert.equal(groupedGeometryOperation.footprint.leafKind, "leftEmu");
+await assertOnlyDeclaredPptxFootprintChanged(groupedFirstExport, groupedGeometryOutput, groupedGeometryOperation);
+const groupedGeometryRoundTrip = await PresentationFile.importPptx(groupedGeometryOutput);
+assert.equal(itemByName(itemByName(itemByName(groupedGeometryRoundTrip.slides.getItem(0).groups.items, "Agent evidence group").groups.items, "nested-group").shapes.items, "nested-shape").position.left, nextLeftEmu / 9_525);
 const groupedAccessibilitySourceSvg = await groupedImported.slides.getItem(0).export({ format: "svg" });
 importedGroup.setAccessibilityMetadata({ title: "Reviewed agent evidence flow", description: null });
 itemByName(importedGroup.connectors.items, "grouped-connector").setAccessibilityMetadata({ title: null, description: "Reviewed arrow from before to target." });

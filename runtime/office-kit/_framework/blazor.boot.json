@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "OfficeKit.Runtime.dll",
   "resources": {
-    "hash": "sha256-VLZD87cP1P/ZtnNV9+Qn6mfbR10xFjo6U542Isar7hc=",
+    "hash": "sha256-t4th8LWIYqKOzFQ1G8fWk2bfZv3lwHZMKWw0W51BVwg=",
     "jsModuleNative": {
       "dotnet.native.js": "sha256-3M5CDym93zeieNAd2KEOcVjqHuLUxjPt+6MeEvdx80A="
     },
@@ -16,8 +16,8 @@
       "DocumentFormat.OpenXml.wasm": "sha256-ApwpaYxSbGBbTimWspDkVZ9/F91AjZ1JSYMK1u4GbTU=",
       "DocumentFormat.OpenXml.Framework.wasm": "sha256-PWwypPsK0Tv7nHAJ+kGdM5aWNHBv1V/mngR7w77HfZ4=",
       "Google.Protobuf.wasm": "sha256-GQnORpWt1yyUH7zdmDeIvbqO3P+BuhOEN9J5NtAoQRU=",
-      "OfficeKit.Codec.wasm": "sha256-mz44ByY1c84LELk4JhkQxOy1Xiu+dmXCVP0g7uDuamY=",
-      "OfficeKit.Runtime.wasm": "sha256-k5S4JYFXWXO+Sbiqll1x3CAZFlpdAoUW0SNMukqNvQw=",
+      "OfficeKit.Codec.wasm": "sha256-eMO5M8u7w5ruHqG4IxycoODYvI+cv3Y3gxhvWRY0zko=",
+      "OfficeKit.Runtime.wasm": "sha256-W67pWKyeAbSGwp3sa/EHUB7scIfkOIWUKe/oYu5EBcQ=",
       "System.Collections.Concurrent.wasm": "sha256-y1kVTP5aXM301h7oRROcEW7OsZJxomy/J0pI83GXkXs=",
       "System.Collections.wasm": "sha256-WMuM90eY+3oRSmSkxqcUoTXLyYPasn2YWqNND9+iiUk=",
       "System.Collections.NonGeneric.wasm": "sha256-b/yvU1wtbcaFYB93+JgQ4mmHJ6HOFRe4TOlEl5ABtr8=",

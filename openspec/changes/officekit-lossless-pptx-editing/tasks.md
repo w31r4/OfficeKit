@@ -22,7 +22,7 @@
 
 - [x] 4.1 Add `presentation.inspect({ includeNativeLeaves: true })` with revision-bound safe text leaf IDs and expected hashes.
 - [x] 4.2 Add `presentation.editNativeLeaf(targetId, leafId, { expectedHash, value })` and reject raw XML, XPath, part paths, arbitrary attributes, identities, relationships, namespaces, and topology edits.
-- [ ] 4.3 Extend the capability-issued leaf registry to codec-proven color and local geometry scalars with positive and stale/cross-revision negative tests.
+- [x] 4.3 Extend the capability-issued leaf registry to codec-proven color and local geometry scalars with positive and stale/cross-revision negative tests.
 
 ## 5. Complete the deterministic real edit matrix
 

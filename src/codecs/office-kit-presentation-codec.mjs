@@ -5,7 +5,7 @@ import {
 import { createHash } from "node:crypto";
 import { FileBlob } from "../shared/file-blob.mjs";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
-import { compilePresentationEditPlan, presentationEnvelope, presentationFromEnvelope } from "./office-kit-presentation.mjs";
+import { compilePresentationEditPlan, presentationEnvelope, presentationFromEnvelope, presentationRequiresNativeLeafEditPlan } from "./office-kit-presentation.mjs";
 import {
   assertCodecOptions,
   codecLimits,
@@ -28,7 +28,7 @@ function presentationEditPlanMetadata(editPlan, result) {
       if (!footprint) throw new OfficeKitCodecError(`OfficeKit PPTX Edit Plan result omitted operation ${operation.operationId}.`, [], { code: "presentation_edit_plan_result_mismatch" });
       if (footprint.slideId !== operation.slideId || footprint.slidePartPath !== operation.slidePartPath ||
           footprint.targetId !== operation.targetId || footprint.shapeTreeIndex !== operation.shapeTreeIndex ||
-          footprint.textLeafIndex !== operation.textLeafIndex ||
+          footprint.textLeafIndex !== operation.textLeafIndex || footprint.leafKind !== operation.leafKind ||
           JSON.stringify(footprint.shapeTreePath) !== JSON.stringify(operation.shapeTreePath)) {
         throw new OfficeKitCodecError(`OfficeKit PPTX Edit Plan result changed the binding for operation ${operation.operationId}.`, [], { code: "presentation_edit_plan_result_mismatch" });
       }
@@ -40,6 +40,7 @@ function presentationEditPlanMetadata(editPlan, result) {
         targetId: operation.targetId,
         shapeTreeIndex: operation.shapeTreeIndex,
         shapeTreePath: [...operation.shapeTreePath],
+        leafKind: operation.leafKind,
         expectedElementSha256: operation.expectedElementSha256,
         expectedSemanticSha256: operation.expectedSemanticSha256,
         textLeafIndex: operation.textLeafIndex,
@@ -55,6 +56,7 @@ function presentationEditPlanMetadata(editPlan, result) {
           sourceEndOffset: String(footprint.sourceEndOffset),
           outputEndOffset: String(footprint.outputEndOffset),
           shapeTreePath: [...footprint.shapeTreePath],
+          leafKind: footprint.leafKind,
         },
       };
     }),
@@ -64,6 +66,9 @@ function presentationEditPlanMetadata(editPlan, result) {
 export async function exportPptxWithOfficeKit(presentation, options = {}) {
   assertCodecOptions(options, new Set(["limits"]), "exportPptxWithOfficeKit");
   const editPlan = compilePresentationEditPlan(presentation, OFFICE_KIT_PROTOCOL_VERSION);
+  if (!editPlan && presentationRequiresNativeLeafEditPlan(presentation)) {
+    throw new OfficeKitCodecError("Presentation native-leaf edits must compile to a bounded source-package Edit Plan; dependent or unsupported changes fail closed.", [], { code: "unsupported_presentation_native_leaf_edit" });
+  }
   if (editPlan) {
     if (editPlan.operations.length === 0) {
       return new FileBlob(editPlan.sourceBytes, {

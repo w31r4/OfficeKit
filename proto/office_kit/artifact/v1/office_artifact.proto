@@ -142,6 +142,9 @@ message PresentationEditOperation {
   // child collections to the final p:sp. The first value must equal
   // shape_tree_index; an empty path retains the original top-level profile.
   repeated uint32 shape_tree_path = 13;
+  // Bounded compiler-issued leaf vocabulary. Empty is the legacy text leaf.
+  // v1 values: text, fillRgb, lineRgb, leftEmu, topEmu, widthEmu, heightEmu.
+  string leaf_kind = 14;
 }
 
 message PresentationEditPlanResult {
@@ -166,6 +169,7 @@ message PresentationEditOperationResult {
   uint64 source_end_offset = 12;
   uint64 output_end_offset = 13;
   repeated uint32 shape_tree_path = 14;
+  string leaf_kind = 15;
 }
 
 message DocumentRevisionFinalizationRequest {

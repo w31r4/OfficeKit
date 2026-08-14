@@ -74,6 +74,8 @@ assert.equal(presentationCommit.operation?.schema, "office-kit/task-edit-plan/v1
 const operationRecord = JSON.parse(await readFile(path.join(session.ctx.taskRoot, presentationCommit.operation.path), "utf8"));
 assert.equal(operationRecord.plan.outputSha256, presentationCommit.revisionSha256);
 assert.equal(operationRecord.plan.operations.length, 1);
+assert.equal(operationRecord.plan.operations[0].leafKind, "text");
+assert.equal(operationRecord.plan.operations[0].footprint.leafKind, "text");
 await session.close();
 
 const resumed = await createReplSession({ workspaceRoot: workspace, taskId });
