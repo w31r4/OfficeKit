@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 530);
+assert.equal(HELP_CATALOG.length, 531);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -577,8 +577,15 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "visualQaArtifact")?.sche
 assert.equal(HELP_CATALOG.find((item) => item.name === "reviewArtifact")?.schema?.parameters?.contentView?.type, "string|boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "reviewArtifact")?.notes?.join("\n") || "", /not.*substitute.*pixel|does not count.*pixel/is);
 const pdfCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "pdf");
-assert.equal(pdfCatalog.length, 25);
+assert.equal(pdfCatalog.length, 26);
 assert.ok(pdfCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
+const freeTextHelp = HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf.add_free_text_annotation");
+assert.match(freeTextHelp?.summary || "", /source- and page-snapshot-bound.*FreeText.*rewrite-only.*appearance-text verification.*clipped text.*fail closed/i);
+assert.equal(freeTextHelp?.schema?.parameters?.sourceSha256?.required, true);
+assert.equal(freeTextHelp?.schema?.parameters?.expectedPage?.required, true);
+assert.equal(freeTextHelp?.schema?.parameters?.bbox?.required, true);
+assert.match(freeTextHelp?.schema?.parameters?.contents?.description || "", /4,096.*clipped native appearance.*fail closed/i);
+assert.match(freeTextHelp?.schema?.returns?.operation?.description || "", /appearanceTextVerified=true.*FreeText updates remain unsupported/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "pdf.addText")?.schema?.parameters?.bbox?.type, "number[]");
 assert.equal(HELP_CATALOG.find((item) => item.name === "pdf.addText")?.schema?.parameters?.headingLevel?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "pdf.addText")?.schema?.parameters?.artifact?.type, "boolean");
@@ -610,6 +617,8 @@ assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schem
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.savePolicy?.description || "", /Incremental is forbidden for delete_page, duplicate_page, rearrange_pages/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.savePolicy?.description || "", /rearrange_pages, delete_embedded_file/);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /sourceSha256.*expectedPage.*mupdf-page-space.*add_text_annotation.*pin.*contents.*normalized rect.*appearanceBbox.*incremental/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /add_free_text_annotation.*visible \[x,y,width,height\].*4–72 point fixed Helvetica.*native appearance.*provider-unencodable.*incremental save/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.savePolicy?.description || "", /add_free_text_annotation.*add_text_markup/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /add_text_markup.*exactly once.*appearanceBbox.*right-angle rotated pages/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /add_text_markup.*highlight\|underline\|strikeout\|squiggly.*quadrilaterals.*mis-cased/is);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /compatibility add_text_highlight.*Highlight-only.*rejects a markup field/is);

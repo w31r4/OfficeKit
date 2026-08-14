@@ -132,6 +132,19 @@ snapshots, no-op patches, geometry changes, unsupported annotation types, and
 incremental save fail closed. The packaged CLI fixture proves creation,
 inspection, update, second inspection, and quadrilateral preservation.
 
+### PDF source-bound visible FreeText delta
+
+OfficeKit extends the compatible imported-PDF review workflow with one typed
+`add_free_text_annotation` operation for review text that must appear directly
+on the page. It binds the exact source SHA-256 and inspected page bbox/rotation,
+uses explicit `mupdf-page-space` geometry, and permits only a fixed Helvetica
+appearance with bounded size, RGB text color, alignment, and optional review
+metadata. Before publishing the rewrite, MuPDF's own annotation display list is
+read back as structured text; a box that clips or omits requested content fails
+closed. The resulting annotation is re-inspected and rendered, while arbitrary
+fonts, borders/fills, rich text, callouts, style/content updates, incremental
+save, and persistent xref identity remain outside the bounded contract.
+
 ### Documents canonical note bodies
 
 The runnable Documents profile now accepts a source-free or recognized

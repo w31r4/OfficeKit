@@ -375,6 +375,37 @@ icon selection, stale evidence, clipped appearance, and incremental save are
 rejected. Re-inspect the rewrite and compare the fresh annotation
 `appearanceBbox` before relying on its current-source-only locator.
 
+For visible review text, use the separate bounded FreeText primitive. It binds
+the same source/page evidence but takes one `[x, y, width, height]` box in
+`mupdf-page-space` and verifies that the native appearance contains all
+requested text before publication:
+
+```js
+const withVisibleReview = await PdfFile.editPdf(input, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "add_free_text_annotation",
+    page: notePage.page,
+    sourceSha256: inspection.summary.sourceSha256,
+    expectedPage: { bbox: notePage.bbox, rotation: notePage.rotation },
+    bbox: [72, 128, 260, 56],
+    contents: "Review this assumption before approval.",
+    fontSize: 12,
+    textColor: [0.1, 0.2, 0.8],
+    alignment: "left",
+    author: "Reviewer",
+  }],
+});
+await withVisibleReview.save("third-party-with-visible-review.pdf");
+```
+
+This rewrite-only profile fixes the native font resource to Helvetica,
+supports 4–72 point text and left/center/right alignment, and rejects clipped
+text, off-page appearances, borders, fills, rich text, callouts, arbitrary
+fonts, and stale evidence. Re-inspect and render the output; FreeText updates
+remain unsupported, while the generic source-bound delete route can remove the
+freshly inspected annotation.
+
 For review markup, give the provider one requested text string instead of
 trying to calculate a rectangle or character quadrilaterals. It is accepted
 only if native search finds exactly one selection on the same inspected visible

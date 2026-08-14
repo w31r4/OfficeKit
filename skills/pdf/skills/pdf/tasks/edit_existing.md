@@ -11,7 +11,7 @@ officekit run scripts/mupdf.mjs probe
 officekit run scripts/mupdf.mjs inspect input.pdf
 ```
 
-Its typed operations are source-bound `add_text_annotation`, `add_text_markup` (Highlight/Underline/StrikeOut/Squiggly), and compatibility `add_text_highlight`; legacy text/choice/checkbox `fill_form`; source-bound `update_form_field`, `delete_page`, `duplicate_page`, complete `rearrange_pages`, `delete_annotation`, `update_annotation`, `set_metadata`, `update_outline`, `delete_embedded_file`, `add_link`, `delete_link`, and `update_link`; visible-only `set_page_crop`; absolute-quarter-turn `rotate_page`; `redact_text`; and `redact_rect`. Run with one explicit save policy:
+Its typed operations are source-bound `add_text_annotation`, `add_free_text_annotation`, `add_text_markup` (Highlight/Underline/StrikeOut/Squiggly), and compatibility `add_text_highlight`; legacy text/choice/checkbox `fill_form`; source-bound `update_form_field`, `delete_page`, `duplicate_page`, complete `rearrange_pages`, `delete_annotation`, `update_annotation`, `set_metadata`, `update_outline`, `delete_embedded_file`, `add_link`, `delete_link`, and `update_link`; visible-only `set_page_crop`; absolute-quarter-turn `rotate_page`; `redact_text`; and `redact_rect`. Run with one explicit save policy:
 
 ```bash
 officekit run scripts/mupdf.mjs edit input.pdf tmp/pdfs/edit-operations.json tmp/pdfs/edited.pdf \
@@ -368,6 +368,45 @@ that covers native Text-note `NoZoom`/`NoRotate` renderer differences.
 Re-inspect the delivered bytes and compare that appearance before using its
 fresh `mupdf-annotation-<page>-<xref>` locator for a later update or deletion.
 Do not treat that xref as a persistent document identity.
+
+## Add one visible FreeText review box
+
+Use `add_free_text_annotation` when the review text itself must be visible on
+the page rather than hidden behind a Text-note pin. Bind the same exact source
+hash and `mupdfPage` snapshot, then provide `[x, y, width, height]` in the
+rotation-aware `mupdf-page-space`:
+
+```json
+[
+  {
+    "type": "add_free_text_annotation",
+    "page": 2,
+    "sourceSha256": "<inspect summary sourceSha256>",
+    "expectedPage": {
+      "bbox": [0, 0, 612, 792],
+      "rotation": 0
+    },
+    "bbox": [72, 128, 260, 56],
+    "contents": "Review this assumption before approval.",
+    "fontSize": 12,
+    "textColor": [0.1, 0.2, 0.8],
+    "alignment": "left",
+    "author": "Reviewer",
+    "subject": "Board review"
+  }
+]
+```
+
+The built-in profile fixes the native font resource to Helvetica, accepts a
+4–72 point size, RGB text color, and `left`, `center`, or `right` alignment,
+and does not expose borders, fills, rich text, callouts, or arbitrary fonts.
+Before save it reads the native annotation appearance back as structured text;
+if any requested text is clipped or omitted, the transaction fails and asks
+for a larger box or smaller type. The full appearance must remain inside the
+inspected visible page. This is rewrite-only, source-bound placement; re-open,
+inspect, and render the output before delivery. The fresh FreeText xref can be
+used by the generic source-bound deletion operation, but FreeText style/content
+updates remain unsupported rather than silently rebuilding the appearance.
 
 ## Highlight one unique imported text selection
 

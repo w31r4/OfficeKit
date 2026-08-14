@@ -373,6 +373,7 @@ assert.match(skillText, /set_metadata.*mupdfDocumentMetadata.*field-safe-v1.*xmp
 assert.match(skillText, /Source-bound outline edits.*\[edit existing\]\(tasks\/edit_existing\.md\)/is);
 assert.match(skillText, /delete_annotation.*update_annotation.*delete_link.*update_link.*update_form_field/is);
 assert.match(skillText, /add_text_annotation.*visible pin.*rewrite/is);
+assert.match(skillText, /add_free_text_annotation.*fixed-Helvetica visible text box.*appearance that omits text.*rewrite/is);
 assert.match(skillText, /add_text_highlight.*unique native text selection.*rewrite/is);
 assert.match(skillText, /add_text_markup.*Highlight\/Underline\/StrikeOut\/Squiggly.*unique native text selection.*rewrite/is);
 assert.match(skillText, /mupdf-page-space.*0\/90\/180\/270.*appearanceBbox/is);
@@ -458,6 +459,9 @@ assert.match(editExistingText, /Update standard Document Info and bounded field-
 assert.match(editExistingText, /mupdfDocumentMetadata[\s\S]*metadataId[\s\S]*complete inspect record snapshot[\s\S]*xmpMutableFields[\s\S]*xmpBlockedFields[\s\S]*exact XMP text or attribute slot[\s\S]*fail closed/is);
 assert.match(editExistingText, /mupdfOutline[\s\S]*path[\s\S]*complete `snapshot`[\s\S]*update_outline[\s\S]*title[\s\S]*open[\s\S]*URI\/page[\s\S]*non-target outline[\s\S]*does not add\/delete\/reparent[\s\S]*fail/is);
 assert.match(editExistingText, /Update one imported Text note or text markup[\s\S]*Highlight, Underline, StrikeOut, or Squiggly[\s\S]*complete[\s\S]*snapshot[\s\S]*updateCapability[\s\S]*RGB `color`[\s\S]*quadrilaterals[\s\S]*appearance bounds[\s\S]*flags[\s\S]*no-op[\s\S]*fail closed/is);
+assert.match(editExistingText, /add_free_text_annotation[\s\S]*mupdf-page-space[\s\S]*4–72[\s\S]*native annotation appearance[\s\S]*structured text[\s\S]*clipped or omitted/is);
+assert.match(editExistingText, /rewrite-only[\s\S]*FreeText style\/content[\s\S]*updates remain unsupported/is);
+assert.match(formsAnnotationsText, /visible FreeText review box[\s\S]*add_free_text_annotation[\s\S]*appearance text[\s\S]*fails closed[\s\S]*read-only.*delete route/is);
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
 assert.match(pdfPluginReadme, /office-kit\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
@@ -489,6 +493,8 @@ assert.match(apiQuickStartText, /pikepdf or PyMuPDF/);
 assert.match(apiQuickStartText, /mupdfDocumentMetadata/);
 assert.match(apiQuickStartText, /mupdfOutline[\s\S]*update_outline[\s\S]*outlineId: outline\.id[\s\S]*expected: outline\.snapshot[\s\S]*URI\/page[\s\S]*topology edits fail closed/is);
 assert.match(apiQuickStartText, /existing native Highlight, Underline, StrikeOut, or Squiggly[\s\S]*updateCapability\.supported[\s\S]*complete inspect-returned[\s\S]*annotation\.snapshot[\s\S]*patch[\s\S]*color[\s\S]*quadrilaterals[\s\S]*appearance\s+bounds[\s\S]*partial\/stale snapshot[\s\S]*fails closed/is);
+assert.match(apiQuickStartText, /bounded FreeText primitive[\s\S]*mupdf-page-space[\s\S]*appearance contains all\s+requested text/is);
+assert.match(apiQuickStartText, /add_free_text_annotation[\s\S]*4–72 point[\s\S]*clipped[\s\S]*FreeText updates\s+remain unsupported/is);
 assert.match(apiQuickStartText, /metadataId: metadata\.id/);
 assert.match(apiQuickStartText, /XMP stream[\s\S]*field-safe-v1[\s\S]*xmpMutableFields[\s\S]*xmpBlockedFields[\s\S]*updateCapability\.supported[\s\S]*same transaction/is);
 const redactTaskText = await fs.readFile(path.join(skillRoot, "tasks", "redact.md"), "utf8");
@@ -563,6 +569,8 @@ try {
   const mupdfHighlightOutput = path.join(tempRoot, "mupdf-highlight-output.pdf");
   const mupdfMarkupOperations = path.join(tempRoot, "mupdf-markup-operations.json");
   const mupdfMarkupOutput = path.join(tempRoot, "mupdf-markup-output.pdf");
+  const mupdfFreeTextOperations = path.join(tempRoot, "mupdf-free-text-operations.json");
+  const mupdfFreeTextOutput = path.join(tempRoot, "mupdf-free-text-output.pdf");
   const mupdfCropOperations = path.join(tempRoot, "mupdf-crop-operations.json");
   const mupdfCropOutput = path.join(tempRoot, "mupdf-crop-output.pdf");
   const mupdfRotationOperations = path.join(tempRoot, "mupdf-rotation-operations.json");
@@ -795,6 +803,32 @@ try {
   assert.equal(mupdfUnderline.contents, "CLI underline");
   assert.equal(mupdfUnderline.quadPoints.length, 1);
   assert.deepEqual(mupdfUnderline.updateCapability.mutableFields, ["contents", "author", "subject", "color"]);
+  await fs.writeFile(mupdfFreeTextOperations, JSON.stringify({
+    savePolicy: "rewrite",
+    operations: [{
+      type: "add_free_text_annotation",
+      page: mupdfAnnotationPage.page,
+      sourceSha256: mupdfInspection.summary.sourceSha256,
+      expectedPage: { bbox: mupdfAnnotationPage.bbox, rotation: mupdfAnnotationPage.rotation },
+      bbox: [320, 72, 220, 60],
+      contents: "CLI visible review",
+      fontSize: 13,
+      textColor: [0.1, 0.2, 0.8],
+      alignment: "right",
+      author: "CLI reviewer",
+    }],
+  }), "utf8");
+  const mupdfFreeText = parseResult(run(process.execPath, [mupdfCli, "edit", mupdfInput, mupdfFreeTextOperations, mupdfFreeTextOutput], { status: 0 }));
+  assert.equal(mupdfFreeText.operations[0].type, "add_free_text_annotation");
+  assert.equal(mupdfFreeText.operations[0].appearanceTextVerified, true);
+  assert.equal(mupdfFreeText.operations[0].alignment, "right");
+  const mupdfFreeTextInspection = await PdfFile.inspectPdf(await fs.readFile(mupdfFreeTextOutput));
+  const mupdfFreeTextAnnotation = mupdfFreeTextInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "FreeText");
+  assert.equal(mupdfFreeTextAnnotation.contents, "CLI visible review");
+  assert.equal(mupdfFreeTextAnnotation.defaultAppearance.font, "Helv");
+  assert.equal(mupdfFreeTextAnnotation.defaultAppearance.size, 13);
+  assert.equal(mupdfFreeTextAnnotation.alignment, "right");
+  assert.equal(mupdfFreeTextAnnotation.updateCapability.supported, false);
   await fs.writeFile(mupdfAnnotationUpdateOperations, JSON.stringify({
     savePolicy: "rewrite",
     operations: [{

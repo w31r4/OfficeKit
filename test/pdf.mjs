@@ -1101,6 +1101,101 @@ for (const { markup, annotation, annotationType, color } of markupUpdateProfiles
 }
 const mupdfTextMarkupUpdatedPng = await PdfFile.renderPdf(mupdfTextMarkupUpdated, { page: 1, dpi: 72 });
 assert.notEqual(Buffer.compare(Buffer.from(mupdfTextMarkupPng.bytes), Buffer.from(mupdfTextMarkupUpdatedPng.bytes)), 0, "the updated native Underline color must change rendered pixels");
+const sourceBoundFreeText = {
+  type: "add_free_text_annotation",
+  page: 1,
+  sourceSha256: mupdfInspect.summary.sourceSha256,
+  expectedPage: { bbox: mupdfAnnotationSourcePage.bbox, rotation: mupdfAnnotationSourcePage.rotation },
+  bbox: [320, 72, 220, 60],
+  contents: "Visible review\nConfirm this assumption",
+  fontSize: 14,
+  textColor: [0.1, 0.2, 0.8],
+  alignment: "center",
+  author: "Agent",
+  subject: "Board review",
+};
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "incremental",
+  operations: [sourceBoundFreeText],
+}), /source-bound operation add_free_text_annotation cannot save incrementally.*coherent rewritten annotation or link graph/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundFreeText, sourceSha256: "0".repeat(64) }],
+}), /add_free_text_annotation sourceSha256 must exactly match/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundFreeText, expectedPage: { ...sourceBoundFreeText.expectedPage, bbox: [0, 0, 100, 100] } }],
+}), /precondition page bbox did not match.*refusing stale coordinate evidence/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundFreeText, contents: "X".repeat(4_097) }],
+}), /contents exceeds 4096 characters/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundFreeText, contents: "Visible\u0000review" }],
+}), /contents contains unsupported control characters/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundFreeText, bbox: [600, 780, 20, 20] }],
+}), /bbox must fit fully inside/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundFreeText, bbox: [320, 72, 80, 20], contents: "X".repeat(1_000) }],
+}), /visible text fit.*enlarge the bbox or reduce the font size/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundFreeText, fontSize: 80 }],
+}), /fontSize must be between 4 and 72/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundFreeText, textColor: [1, -0.1, 0] }],
+}), /textColor must be an RGB/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundFreeText, alignment: "justify" }],
+}), /alignment must be left, center, or right/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundFreeText, borderColor: [1, 0, 0] }],
+}), /contains unsupported field: borderColor/);
+const freeTextSourceBytes = Buffer.from(arbitraryPdf.bytes);
+const mupdfFreeText = await PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [sourceBoundFreeText],
+});
+assert.equal(Buffer.from(arbitraryPdf.bytes).equals(freeTextSourceBytes), true);
+assert.deepEqual(mupdfFreeText.metadata.operations[0], {
+  type: "add_free_text_annotation",
+  page: 1,
+  expectedPage: { bbox: mupdfAnnotationSourcePage.bbox, rotation: mupdfAnnotationSourcePage.rotation },
+  coordinateSpace: "mupdf-page-space",
+  pageRotation: 0,
+  bbox: [320, 72, 220, 60],
+  fontSize: 14,
+  textColor: [0.1, 0.2, 0.8],
+  alignment: "center",
+  appearanceTextVerified: true,
+  added: mupdfFreeText.metadata.operations[0].added,
+  beforeCount: 0,
+  afterCount: 1,
+});
+const mupdfFreeTextInspection = await PdfFile.inspectPdf(mupdfFreeText);
+const freeTextAnnotation = mupdfFreeTextInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "FreeText");
+assert.equal(freeTextAnnotation.contents, sourceBoundFreeText.contents);
+assert.equal(freeTextAnnotation.author, "Agent");
+assert.equal(freeTextAnnotation.subject, "Board review");
+assert.deepEqual(freeTextAnnotation.rect, [320, 72, 220, 60]);
+assert.deepEqual(freeTextAnnotation.appearanceBbox, [320, 72, 220, 60]);
+assert.equal(freeTextAnnotation.defaultAppearance.font, "Helv");
+assert.equal(freeTextAnnotation.defaultAppearance.size, 14);
+assert.ok(freeTextAnnotation.defaultAppearance.color.every((component, index) => Math.abs(component - sourceBoundFreeText.textColor[index]) < 0.001));
+assert.equal(freeTextAnnotation.alignment, "center");
+assert.deepEqual(freeTextAnnotation.snapshot.defaultAppearance, freeTextAnnotation.defaultAppearance);
+assert.equal(freeTextAnnotation.updateCapability.supported, false);
+const mupdfFreeTextParsed = await parsePdfWithMuPdf(mupdfFreeText.bytes);
+assert.equal(mupdfFreeTextParsed.pages[0].native.annotations.find((annotation) => annotation.type === "FreeText").contents, sourceBoundFreeText.contents);
+const mupdfFreeTextPng = await PdfFile.renderPdf(mupdfFreeText, { page: 1, dpi: 72 });
+assert.notEqual(Buffer.compare(Buffer.from(mupdfPng.bytes), Buffer.from(mupdfFreeTextPng.bytes)), 0, "the native FreeText annotation must change rendered pixels");
 const sourceBoundTextAnnotation = {
   type: "add_text_annotation",
   page: 1,

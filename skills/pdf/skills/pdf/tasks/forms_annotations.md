@@ -126,6 +126,40 @@ incremental save fails closed. Re-inspect the rewrite and compare the fresh
 appearance before a later annotation update/deletion; the returned xref is
 current-source-only.
 
+## Add one visible FreeText review box
+
+Use FreeText when the annotation contents must appear directly on the page.
+The operation binds the exact source and page snapshot just like a Text note,
+but accepts one visible bounding box in `mupdf-page-space`:
+
+```js
+const page = inspection.records.find((record) => record.kind === "mupdfPage"
+  && record.page === 1);
+
+const annotated = await PdfFile.editPdf(input, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "add_free_text_annotation",
+    page: page.page,
+    sourceSha256: inspection.summary.sourceSha256,
+    expectedPage: { bbox: page.bbox, rotation: page.rotation },
+    bbox: [72, 128, 260, 56],
+    contents: "Review this assumption before approval.",
+    fontSize: 12,
+    textColor: [0.1, 0.2, 0.8],
+    alignment: "left",
+    author: "Reviewer",
+  }],
+});
+```
+
+The bounded native appearance uses Helvetica at 4–72 points, an optional RGB
+text color, and left/center/right alignment. OfficeKit extracts the generated
+appearance text before publication and fails closed if the box clips or omits
+requested content. It does not expose a background, border, arbitrary font,
+rich-text payload, or callout. Re-inspect and render the rewrite; imported
+FreeText remains read-only except for the generic source-bound delete route.
+
 ## Mark one unique text selection
 
 For an Agent review mark, select the requested page text from the same native

@@ -1,5 +1,34 @@
 # Release
 
+## Current 0.6.0 milestone (2026-08-14): Source-bound visible PDF review text
+
+The built-in MuPDF.js route now adds one visible native FreeText review box to
+an imported PDF through `add_free_text_annotation`. The operation binds the
+exact source SHA-256 and inspect-returned page bbox/rotation, uses explicit
+rotation-aware `mupdf-page-space` geometry, and publishes only through a full
+rewrite. Its bounded appearance fixes the native font resource to Helvetica,
+accepts a 4–72 point size, RGB text color, left/center/right alignment, and
+optional review metadata, then reads MuPDF's generated annotation display list
+back as structured text. A box that clips or omits any requested text fails
+before save rather than producing a misleading review artifact. The requested
+and native appearance boxes must also remain inside the inspected CropBox.
+
+Source immutability, multiline contents, second inspection, provider-normalized
+style evidence, rendered pixel change, stale hashes/page snapshots, overflow,
+invalid appearance options, unknown fields, and incremental-save refusal are
+covered by the PDF and packaged-Skill gates. Imported FreeText is intentionally
+read-only except for the existing source-bound generic annotation deletion
+route; arbitrary fonts, borders/fills, rich text, callouts, and style/content
+updates remain unsupported. This atomic slice uses affected tests plus the fast
+gate under the rolling release-candidate throttle. The next full candidate may
+start no earlier than 2026-08-14 17:58:14 UTC (2026-08-15 01:58:14 Beijing),
+twelve hours after the previous candidate started.
+
+Local evidence on the milestone tree: PDF core, Help, PDF Skill, real MuPDF CLI,
+338-file Skill portability, 333-file reference sync, and package-content tests
+passed; `npm test` completed all 31 fast-gate steps. No slow, pack, .NET/WASM,
+or hosted release-candidate lane was started during the rolling cooldown.
+
 ## Current 0.6.0 candidate (2026-08-14): Canonical PowerPoint Normal AutoFit parameters
 
 OfficeKit now models canonical DrawingML `a:normAutofit` parameters as part of
