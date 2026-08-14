@@ -729,11 +729,11 @@ relationship, copy, poster-sharing, and playback-validation boundary.
 This is separate from cloning and intentionally much smaller than SmartArt
 authoring. An imported top-level SmartArt object exposes `diagramText` only
 when the closed four-part graph has a proven DiagramDataPart with one or more
-direct paragraphs and one through 256 total plain runs per document node.
-`diagramText.nodes[].runs` flattens those leaves in exact source order while
-the source package retains paragraph topology. `editable` stays false; only a
-returned existing `modelId` or one of its run indexes can receive a replacement
-string:
+direct paragraphs and one through 256 total plain runs plus fixed canonical
+`a:br` leaves per document node. `diagramText.nodes[].runs` flattens only text
+leaves in exact source order while the source package retains paragraph and
+break topology. `editable` stays false; only a returned existing `modelId` or
+one of its run indexes can receive a replacement string:
 
 ```ts
 const diagram = presentation.slides.getItem(0).nativeObjects.items.find(
@@ -774,8 +774,10 @@ await editPptxSmartArtNodeText({
 The C# codec re-proves the source hash, node IDs/order, and graph before it
 rewrites only the bound DiagramDataPart. It preserves the graphic frame,
 relationship IDs, layout, quick-style, colors, geometry, and every non-data
-part. Run count/order and every `a:rPr` remain fixed. Multiple paragraphs,
-fields, breaks, connected/nested graphs, node/run topology changes,
+part. Paragraph/run/break count and order plus every `a:rPr` remain fixed.
+Canonical `a:br` leaves are preserved but are not returned as editable runs.
+Empty paragraphs, fields, noncanonical breaks, connected/nested graphs,
+node/run/break topology changes,
 layout/style/color edits, and raw XML mutation fail closed. The
 workflow's model verification is structural evidence; use LibreOffice/Poppler
 when delivery needs native render review.

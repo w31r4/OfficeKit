@@ -334,8 +334,9 @@ guessing a formatting boundary.
 
 The workflow resolves exactly one object/node/optional-run/expected-text tuple,
 preserves the source, verifies that no non-data package part changed, reimports
-the requested node/run list, and fails closed for empty-paragraph, field/break,
-connected, nested, or ambiguous SmartArt. It does not add/reorder paragraphs,
+the requested node/run list, preserves canonical fixed `a:br` line breaks, and
+fails closed for empty-paragraph, field, noncanonical-break, connected, nested,
+or ambiguous SmartArt. It does not add/reorder paragraphs or breaks,
 nodes, or runs, change existing paragraph/run formatting, change
 layout/style/colors or geometry, or claim model SVG verification is a
 native-host rendering check.

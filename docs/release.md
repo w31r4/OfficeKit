@@ -6739,6 +6739,30 @@ API/release/package checks, OfficeBridge, and OfficeKit Codec. No publish, tag,
 or GitHub release was attempted, and Windows Microsoft Office desktop
 acceptance remains external release work.
 
+### PPTX source-bound SmartArt fixed line-break preservation
+
+On 2026-08-14, the bounded SmartArt text profile admitted canonical direct
+`a:br` leaves alongside existing plain runs. A recognized break has no
+non-namespace attributes and contains at most one direct `a:rPr`; it remains
+fixed source topology and is never projected as an editable run. The codec
+limits each node to at most 256 direct run-plus-break inline leaves, still
+requires at least one ordinary run per paragraph, and continues to flatten
+only `a:r/a:t` values into the public source-ordered `runs` projection.
+
+Run-local export loads the source DiagramDataPart, re-proves its digest and
+closed graph, changes exactly one existing `a:t`, and preserves the break plus
+its formatting markup in the rewritten XML tree. Empty paragraphs, fields,
+attributed breaks, breaks with comments/processing instructions or unknown
+children, topology changes, and connected or otherwise noncanonical graphs do
+not receive the capability. This extends source fidelity without introducing
+a second paragraph/break model or a wire-version change.
+
+Focused C# and bundled-WASM JavaScript tests exercise a two-paragraph styled
+node containing a formatted break, exact DiagramDataPart-only mutation,
+second import, public workflow preservation, and fail-closed attributed-break
+input. Full local and hosted release evidence is deferred to the frozen
+Presentation milestone under the 12-hour rolling candidate policy.
+
 ## Publishing
 
 Before publishing:

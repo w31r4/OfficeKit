@@ -725,7 +725,7 @@ assert.ok(HELP_CATALOG.some((item) => item.name === "nativeObject.setDiagramNode
 assert.equal(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeText")?.schema?.parameters?.nodeId?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeText")?.schema?.parameters?.text?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeText")?.summary || "", /one-run.*top-level four-part graph.*direct-paragraph\/run.*Multi-run nodes reject.*formatting boundary/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeText")?.schema?.returns?.nativeObject?.description || "", /one-run node.*closed dm\/lo\/qs\/cs graph.*paragraph\/node\/run topology.*Multi-run nodes require setDiagramNodeRunText.*fail closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeText")?.schema?.returns?.nativeObject?.description || "", /one-run node.*closed dm\/lo\/qs\/cs graph.*paragraph\/node\/run\/break topology.*Multi-run nodes require setDiagramNodeRunText.*noncanonical breaks.*fail closed/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /character.*picture bullets.*auto-numbering.*levels.*indents.*spacing/);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /absolute uri.*slideId.*relative action/);
@@ -808,7 +808,7 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.inspectX
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.inspectXlsx")?.schema?.parameters?.verifyCrc32?.type, "boolean");
 assert.equal(HELP_CATALOG.find((item) => item.name === "PresentationFile.inspectPptx")?.schema?.parameters?.verifyCrc32?.type, "boolean");
 assert.equal(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeRunText")?.schema?.parameters?.runIndex?.type, "integer");
-assert.match(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeRunText")?.summary || "", /zero-based source-order run index.*fixed direct paragraphs.*a:pPr.*a:rPr.*a:endParaRPr.*reject/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeRunText")?.summary || "", /zero-based source-order run index.*fixed direct paragraphs.*a:pPr.*a:rPr.*a:br.*a:endParaRPr.*noncanonical breaks.*reject/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "DocumentFile.inspectDocx")?.schema?.parameters?.verifyCrc32?.type, "boolean");
 assert.equal(HELP_CATALOG.find((item) => item.name === "PresentationFile.inspectPptx")?.schema?.parameters?.maxInputBytes?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "DocumentFile.inspectDocx")?.schema?.parameters?.maxInputBytes?.type, "number");

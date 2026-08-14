@@ -4726,7 +4726,7 @@ const richSmartArtTextSource = await PresentationFile.patchPptx(smartArtTextSour
   path: "ppt/diagrams/agent-data.xml",
   xml: smartArtTextData.replace(
     "<a:r><a:t>Original node</a:t></a:r>",
-    '<a:pPr algn="ctr"/><a:r><a:rPr b="1"/><a:t>Original</a:t></a:r><a:endParaRPr lang="en-US"/></a:p><a:p><a:r><a:rPr i="1"/><a:t> node</a:t></a:r>',
+    '<a:pPr algn="ctr"/><a:r><a:rPr b="1"/><a:t>Original</a:t></a:r><a:br><a:rPr lang="fr-FR"/></a:br><a:endParaRPr lang="en-US"/></a:p><a:p><a:r><a:rPr i="1"/><a:t> node</a:t></a:r>',
   ),
 }]);
 const richSmartArtText = await PresentationFile.importPptx(richSmartArtTextSource);
@@ -4751,6 +4751,7 @@ const richSmartArtTextOutputData = await richSmartArtTextOutputZip.file("ppt/dia
 assert.equal((richSmartArtTextOutputData.match(/<a:p(?:\s|>)/g) || []).length, 3,
   "the edited two-paragraph node and untouched second node must retain all source paragraphs");
 assert.match(richSmartArtTextOutputData, /<a:pPr algn="ctr"\s*\/>/);
+assert.match(richSmartArtTextOutputData, /<a:br><a:rPr lang="fr-FR"\s*\/><\/a:br>/);
 assert.match(richSmartArtTextOutputData, /<a:endParaRPr lang="en-US"\s*\/>/);
 assert.match(richSmartArtTextOutputData, /<a:rPr b="1"\s*\/>/);
 assert.match(richSmartArtTextOutputData, /<a:rPr i="1"\s*\/>/);
@@ -4758,6 +4759,18 @@ assert.match(richSmartArtTextOutputData, /<a:t>Revised<\/a:t>/);
 assert.deepEqual(
   itemByName((await PresentationFile.importPptx(richSmartArtTextExport)).slides.getItem(0).nativeObjects.items, "Clone-safe SmartArt").diagramText.nodes[0],
   { id: "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}", text: "Revised node", runs: ["Revised", " node"] },
+);
+
+const attributedSmartArtBreakSource = await PresentationFile.patchPptx(richSmartArtTextSource, [{
+  path: "ppt/diagrams/agent-data.xml",
+  xml: (await (await JSZip.loadAsync(richSmartArtTextSource.bytes)).file("ppt/diagrams/agent-data.xml").async("text"))
+    .replace("<a:br><a:rPr", '<a:br dirty="1"><a:rPr'),
+}]);
+const attributedSmartArtBreak = await PresentationFile.importPptx(attributedSmartArtBreakSource);
+assert.equal(
+  itemByName(attributedSmartArtBreak.slides.getItem(0).nativeObjects.items, "Clone-safe SmartArt").diagramText,
+  undefined,
+  "a break with unsupported attributes must withhold the SmartArt text capability",
 );
 
 const invalidSmartArtModelIdSource = await PresentationFile.patchPptx(smartArtTextSource, [{

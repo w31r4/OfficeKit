@@ -16,15 +16,17 @@ internal sealed record PptxDiagramTextReplacement(string PartPath, string Sha256
 // diagram, change the graph, or reinterpret layout/style/colors. It exposes
 // text only where an imported top-level p:graphicFrame proves it owns the
 // canonical closed four-part Diagram graph and every document point has one
-// or more DrawingML paragraphs made only of direct plain runs. Paragraph and
-// run topology remain owned by the source XML; the wire projects only the
-// source-ordered text leaves. Everything outside that profile stays opaque.
+// or more DrawingML paragraphs made only of direct plain runs and fixed line
+// breaks. Paragraph, run, and break topology remain owned by the source XML;
+// the wire projects only the source-ordered text leaves. Everything outside
+// that profile stays opaque.
 internal static class PptxDiagramTextCodec
 {
     private const string DiagramDataContentType = "application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml";
     private const int MaxModelIdLength = 1_024;
     private const int MaxNodeTextLength = 32_767;
-    private const int MaxNodeRunCount = 256;
+    private const int MaxNodeParagraphCount = 256;
+    private const int MaxNodeInlineCount = 256;
 
     private static readonly HashSet<string> DiagramNamespaces = new(StringComparer.Ordinal)
     {
@@ -270,15 +272,19 @@ internal static class PptxDiagramTextCodec
         var bodyChildren = body.Elements().ToArray();
         if (bodyChildren.Any(element => !IsDrawing(element, "bodyPr") && !IsDrawing(element, "lstStyle") && !IsDrawing(element, "p"))) return false;
         var paragraphs = bodyChildren.Where(element => IsDrawing(element, "p")).ToArray();
-        if (paragraphs.Length is < 1 or > MaxNodeRunCount) return false;
+        if (paragraphs.Length is < 1 or > MaxNodeParagraphCount) return false;
         var results = new List<DiagramRun>();
         var combined = new StringBuilder();
+        var inlineCount = 0;
         foreach (var paragraph in paragraphs)
         {
             var paragraphChildren = paragraph.Elements().ToArray();
-            if (paragraphChildren.Any(element => !IsDrawing(element, "pPr") && !IsDrawing(element, "r") && !IsDrawing(element, "endParaRPr"))) return false;
+            if (paragraphChildren.Any(element => !IsDrawing(element, "pPr") && !IsDrawing(element, "r") && !IsDrawing(element, "br") && !IsDrawing(element, "endParaRPr"))) return false;
             var runs = paragraphChildren.Where(element => IsDrawing(element, "r")).ToArray();
-            if (runs.Length < 1 || results.Count + runs.Length > MaxNodeRunCount) return false;
+            var breaks = paragraphChildren.Where(element => IsDrawing(element, "br")).ToArray();
+            if (runs.Length < 1 || breaks.Any(element => !IsCanonicalBreak(element)) ||
+                inlineCount + runs.Length + breaks.Length > MaxNodeInlineCount) return false;
+            inlineCount += runs.Length + breaks.Length;
             foreach (var run in runs)
             {
                 var runChildren = run.Elements().ToArray();
@@ -299,6 +305,19 @@ internal static class PptxDiagramTextCodec
         text = combined.ToString();
         resolvedRuns = results;
         return true;
+    }
+
+    private static bool IsCanonicalBreak(XElement element)
+    {
+        if (element.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration)) return false;
+        var children = element.Elements().ToArray();
+        if (children.Length > 1 || children.Any(child => !IsDrawing(child, "rPr"))) return false;
+        return element.Nodes().All(node => node switch
+        {
+            XElement child => IsDrawing(child, "rPr"),
+            XText text => string.IsNullOrWhiteSpace(text.Value),
+            _ => false,
+        });
     }
 
     private static void ValidateRequestedNodes(

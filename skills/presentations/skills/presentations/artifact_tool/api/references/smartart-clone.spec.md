@@ -64,12 +64,13 @@ following:
 - its root is `dgm:dataModel` and it has exactly one direct `dgm:ptLst`;
 - every exposed `dgm:pt` has `type="doc"`, a unique non-empty `modelId`, and
   one through 256 direct `dgm:t > a:p` paragraphs, each with at least one
-  direct `a:r > a:t`, and one through 256 runs in total; optional `a:bodyPr`,
-  `a:lstStyle`, `a:pPr`, per-run `a:rPr`, and `a:endParaRPr` may remain;
+  direct `a:r > a:t`, and one through 256 runs and fixed line breaks in total;
+  optional `a:bodyPr`, `a:lstStyle`, `a:pPr`, per-run `a:rPr`, canonical
+  `a:br` with optional `a:rPr`, and `a:endParaRPr` may remain;
 - each run and its complete node concatenation are XML-safe and the node is at
-  most 32,767 characters. Empty paragraphs, fields, breaks, unknown child
-  markup, disconnected parts, or any topology ambiguity withhold the
-  capability rather than being simplified.
+  most 32,767 characters. Empty paragraphs, fields, attributed or otherwise
+  noncanonical breaks, unknown child markup, disconnected parts, or any
+  topology ambiguity withhold the capability rather than being simplified.
 
 `nativeObject.editable` remains `false`: this is a typed exception, not general
 write authority. `nativeObject.diagramText` is a defensive snapshot containing
@@ -92,8 +93,9 @@ const output = await PresentationFile.exportPptx(presentation);
 ```
 
 For a styled or multi-paragraph node, select one exact existing source-ordered
-run. OfficeKit keeps every paragraph, neighboring run, `a:pPr`, `a:rPr`, and
-`a:endParaRPr` untouched:
+run. OfficeKit keeps every paragraph, neighboring run, `a:pPr`, `a:rPr`,
+canonical `a:br`, and `a:endParaRPr` untouched. Breaks are fixed topology and
+do not appear as editable entries in `runs`:
 
 ```ts
 const styledNode = diagram.diagramText.nodes.find((item) => item.runs?.[1] === " approval");
@@ -131,7 +133,8 @@ whole-node writes across multiple style runs, presentation of arbitrary diagram
 text, raw XML mutation, layout/style/color edits, geometry edits,
 cross-diagram changes, clone-before-export after a pending text edit, and
 arbitrary graph cloning remain unsupported. Incomplete, duplicated, mistyped,
-external, nested, relationship-bearing, field/break-bearing,
-empty-paragraph, or otherwise noncanonical SmartArt graphs fail closed.
+external, nested, relationship-bearing, field-bearing, empty-paragraph,
+noncanonical-break, or otherwise noncanonical SmartArt graphs fail closed.
+Canonical fixed `a:br` leaves remain source-owned and are preserved unchanged.
 Preserve such objects unchanged or use a separate explicit OPC operation whose
 scope is independently reviewed.

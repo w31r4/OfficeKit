@@ -3496,9 +3496,10 @@ message PresentationDiagramTextNode {
   // Editable only within the closed source-bound node profile.
   string text = 2;
   // Ordered direct a:r/a:t values flattened across the node's recognized
-  // paragraphs. Paragraph and run topology remain source-owned: callers may
-  // replace values but cannot add, remove, or reorder runs. text must equal
-  // their source-order concatenation; paragraph separators are not invented.
+  // paragraphs. Paragraph, run, and non-text inline topology remain
+  // source-owned: callers may replace values but cannot add, remove, or
+  // reorder runs. text must equal their source-order concatenation; paragraph
+  // separators and fixed line breaks are not invented in this projection.
   // An empty list is accepted only as the protocol-v2 legacy spelling for a
   // one-run node.
   repeated string run_texts = 3;

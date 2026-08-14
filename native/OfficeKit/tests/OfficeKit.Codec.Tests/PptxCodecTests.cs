@@ -5193,7 +5193,7 @@ public sealed class PptxCodecTests
         var source = ReplaceZipText(
             AddCloneableDiagramGraph(Invoke(ExportRequest()).File.ToByteArray()),
             dataPath,
-            _ => "<dgm:dataModel xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><dgm:ptLst><dgm:pt modelId=\"{B31B1833-2B65-4D6B-B3D4-9B3988427B21}\" type=\"doc\"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:pPr algn=\"ctr\"/><a:r><a:rPr b=\"1\"/><a:t>Bold</a:t></a:r><a:endParaRPr lang=\"en-US\"/></a:p><a:p><a:r><a:rPr i=\"1\"/><a:t> italic</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst><dgm:cxnLst/><dgm:bg/><dgm:whole/></dgm:dataModel>");
+            _ => "<dgm:dataModel xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><dgm:ptLst><dgm:pt modelId=\"{B31B1833-2B65-4D6B-B3D4-9B3988427B21}\" type=\"doc\"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:pPr algn=\"ctr\"/><a:r><a:rPr b=\"1\"/><a:t>Bold</a:t></a:r><a:br><a:rPr lang=\"fr-FR\"/></a:br><a:endParaRPr lang=\"en-US\"/></a:p><a:p><a:r><a:rPr i=\"1\"/><a:t> italic</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst><dgm:cxnLst/><dgm:bg/><dgm:whole/></dgm:dataModel>");
         var imported = Import(source);
         Assert.True(imported.Ok, Diagnostics(imported));
         var binding = Assert.IsType<PresentationDiagramText>(Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
@@ -5211,10 +5211,14 @@ public sealed class PptxCodecTests
         var xml = Encoding.UTF8.GetString(ZipBytes(output, dataPath));
         Assert.Equal(2, Regex.Matches(xml, "<a:p(?:\\s|>)").Count);
         Assert.Contains("<a:pPr algn=\"ctr\"", xml);
+        Assert.Contains("<a:br><a:rPr lang=\"fr-FR\"", xml);
         Assert.Contains("<a:endParaRPr lang=\"en-US\"", xml);
         Assert.Contains("<a:rPr b=\"1\"", xml);
         Assert.Contains("<a:rPr i=\"1\"", xml);
         Assert.Contains("<a:t>Strong</a:t>", xml);
+        using (var stream = new MemoryStream(output))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
 
         var rebound = Assert.IsType<PresentationDiagramText>(Assert.Single(Import(output).Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
         Assert.Equal("Strong italic", Assert.Single(rebound.Nodes).Text);
@@ -5227,6 +5231,14 @@ public sealed class PptxCodecTests
         var topologyRejected = Export(imported.Artifact);
         Assert.False(topologyRejected.Ok);
         Assert.Equal("unsupported_presentation_edit", Assert.Single(topologyRejected.Diagnostics).Code);
+
+        var attributedBreakSource = ReplaceZipText(source, dataPath, xml => xml.Replace(
+            "<a:br><a:rPr lang=\"fr-FR\"/></a:br>",
+            "<a:br dirty=\"1\"><a:rPr lang=\"fr-FR\"/></a:br>",
+            StringComparison.Ordinal));
+        var attributedBreakImport = Import(attributedBreakSource);
+        Assert.True(attributedBreakImport.Ok, Diagnostics(attributedBreakImport));
+        Assert.Null(Assert.Single(attributedBreakImport.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
 
         var fieldSource = ReplaceZipText(source, dataPath, xml => xml.Replace(
             "<a:r><a:rPr i=\"1\"/><a:t> italic</a:t></a:r>",
