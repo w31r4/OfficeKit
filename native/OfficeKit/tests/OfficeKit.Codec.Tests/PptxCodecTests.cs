@@ -357,6 +357,60 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void EditPlanChangesOnePictureGeometryLeafWithoutReserializingTheSlide()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddPicture(authored.File.ToByteArray());
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var picture = Assert.Single(slide.Elements, item => item.ContentCase == PresentationElement.ContentOneofCase.Image);
+        Assert.True(picture.Source.Editable);
+        var expected = picture.Image.LeftEmu.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var value = (picture.Image.LeftEmu + 9_525).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var operation = new PresentationEditOperation
+        {
+            OperationId = "op-picture-left",
+            SlideId = slide.Id,
+            SlidePartPath = slide.Source.PartPath,
+            ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+            TargetId = picture.Id,
+            ShapeTreeIndex = picture.Source.ShapeTreeIndex,
+            LeafKind = "leftEmu",
+            ExpectedElementSha256 = picture.Source.ElementSha256,
+            ExpectedSemanticSha256 = picture.Source.SemanticSha256,
+            ExpectedValue = expected,
+            Value = value,
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(expected))).ToLowerInvariant(),
+        };
+        operation.ShapeTreePath.Add(picture.Source.ShapeTreeIndex);
+
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+                Operations = { operation },
+            },
+        });
+
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal([operation.SlidePartPath], edited.PresentationEditPlan.ChangedParts);
+        Assert.Equal("leftEmu", Assert.Single(edited.PresentationEditPlan.Operations).LeafKind);
+        var sourceXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, operation.SlidePartPath));
+        var outputXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), operation.SlidePartPath));
+        Assert.Equal(sourceXml, outputXml.Replace($"x=\"{value}\"", $"x=\"{expected}\"", StringComparison.Ordinal));
+        var reopened = Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements,
+            item => item.ContentCase == PresentationElement.ContentOneofCase.Image);
+        Assert.Equal(value, reopened.Image.LeftEmu.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
     public void ShapeAccessibilityAuthorsImportsEditsAndKeepsIrregularMetadataSourceOwned()
     {
         var request = ExportRequest();

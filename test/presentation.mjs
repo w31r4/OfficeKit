@@ -398,6 +398,28 @@ assert.throws(
   (error) => error?.code === "presentation_native_leaf_not_issued",
 );
 
+const nativeImageGeometryImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
+const nativeImageGeometry = itemByName(nativeImageGeometryImported.slides.getItem(0).images.items, "decision-evidence");
+const nativeImageGeometryLeaves = nativeImageGeometryImported.inspect({ includeNativeLeaves: true, target: nativeImageGeometry.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.deepEqual(new Set(nativeImageGeometryLeaves.map((record) => record.leafKind)), new Set(["leftEmu", "topEmu", "widthEmu", "heightEmu"]));
+const nativeImageLeftLeaf = nativeImageGeometryLeaves.find((record) => record.leafKind === "leftEmu");
+assert.ok(nativeImageLeftLeaf);
+const nativeImageNextLeft = nativeImageLeftLeaf.value + 9_525;
+nativeImageGeometryImported.editNativeLeaf(nativeImageLeftLeaf.targetId, nativeImageLeftLeaf.leafId, {
+  expectedHash: nativeImageLeftLeaf.expectedHash,
+  value: nativeImageNextLeft,
+});
+const nativeImageGeometryOutput = await PresentationFile.exportPptx(nativeImageGeometryImported);
+const nativeImageGeometryOperation = nativeImageGeometryOutput.metadata.editPlan.operations[0];
+assert.equal(nativeImageGeometryOperation.leafKind, "leftEmu");
+await assertOnlyDeclaredPptxFootprintChanged(irregularShapeAccessibilityFile, nativeImageGeometryOutput, nativeImageGeometryOperation);
+const nativeImageGeometryRoundTrip = await PresentationFile.importPptx(nativeImageGeometryOutput);
+assert.equal(nativeImageGeometryRoundTrip.resolve(nativeImageGeometry.id).position.left, nativeImageNextLeft / 9_525);
+
 irregularAccessibilityShape.text.set("Decision: reviewed rollout");
 const irregularOtherEdit = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);
 assert.equal(irregularOtherEdit.metadata.editPlan?.schema, "office-kit/pptx-edit-plan/v1");

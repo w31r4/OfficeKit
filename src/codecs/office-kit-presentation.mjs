@@ -2956,24 +2956,33 @@ function createPresentationNativeLeafCapability(presentation, state) {
       }
       return;
     }
-    if (wire.content.case !== "shape" || (wire.source?.editable !== true && wire.source?.textEditable !== true)) return;
-    for (const leaf of presentationTextLeafRuns(wire.content.value)) {
-      const value = leaf.run.content.value;
-      registerLeaf({
-        wire, model, slideState, shapeTreePath, parentGroupId, leafKind: "text", expectedValue: value, value,
-        details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
-        normalize(next) { assertNativeLeafTextValue(next); return { raw: next, publicValue: next }; },
-        apply(next) {
-          const paragraphs = model.text.paragraphs;
-          const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
-          if (!run || typeof run.text !== "string") throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation native text leaf no longer resolves to the imported text run.");
-          run.text = next;
-          model.text.paragraphs = paragraphs;
-        },
-      });
+    const isShape = wire.content.case === "shape";
+    const isImage = wire.content.case === "image";
+    if ((!isShape && !isImage) || (isShape
+      ? wire.source?.editable !== true && wire.source?.textEditable !== true
+      : wire.source?.editable !== true)) return;
+    if (isShape) {
+      for (const leaf of presentationTextLeafRuns(wire.content.value)) {
+        const value = leaf.run.content.value;
+        registerLeaf({
+          wire, model, slideState, shapeTreePath, parentGroupId, leafKind: "text", expectedValue: value, value,
+          details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+          normalize(next) { assertNativeLeafTextValue(next); return { raw: next, publicValue: next }; },
+          apply(next) {
+            const paragraphs = model.text.paragraphs;
+            const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+            if (!run || typeof run.text !== "string") throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation native text leaf no longer resolves to the imported text run.");
+            run.text = next;
+            model.text.paragraphs = paragraphs;
+          },
+        });
+      }
     }
     if (wire.source.editable !== true) return;
-    for (const [field, leafKind] of PRESENTATION_SCALAR_LEAF_FIELDS) {
+    const scalarFields = isImage
+      ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu"))
+      : PRESENTATION_SCALAR_LEAF_FIELDS;
+    for (const [field, leafKind] of scalarFields) {
       if (leafKind.endsWith("Emu") && connectedTargetIds.has(wire.id)) continue;
       const raw = String(wire.content.value[field] ?? "");
       if ((leafKind === "fillRgb" || leafKind === "lineRgb") && /^[0-9A-F]{6}$/iu.test(raw)) {
@@ -3130,18 +3139,22 @@ function restoreEquivalentPresentationScalarLeaves(original, requested) {
 }
 
 function compilePresentationScalarLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
-  if (original.content.case !== "shape" || requested.content.case !== "shape" || original.source?.editable !== true) return undefined;
-  const beforeShape = original.content.value;
-  const afterShape = requested.content.value;
-  const changed = PRESENTATION_SCALAR_LEAF_FIELDS.filter(([field]) => String(beforeShape[field] ?? "") !== String(afterShape[field] ?? ""));
+  const contentCase = original.content.case;
+  if (requested.content.case !== contentCase || !new Set(["shape", "image"]).has(contentCase) || original.source?.editable !== true) return undefined;
+  const beforeElement = original.content.value;
+  const afterElement = requested.content.value;
+  const scalarFields = contentCase === "image"
+    ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu"))
+    : PRESENTATION_SCALAR_LEAF_FIELDS;
+  const changed = scalarFields.filter(([field]) => String(beforeElement[field] ?? "") !== String(afterElement[field] ?? ""));
   if (changed.length !== 1) return undefined;
   const [[field, leafKind]] = changed;
-  const expectedValue = String(beforeShape[field] ?? "");
-  const value = String(afterShape[field] ?? "");
+  const expectedValue = String(beforeElement[field] ?? "");
+  const value = String(afterElement[field] ?? "");
   if ((leafKind === "fillRgb" || leafKind === "lineRgb") && (!/^[0-9A-F]{6}$/iu.test(expectedValue) || !/^[0-9A-F]{6}$/iu.test(value))) return undefined;
   if (leafKind.endsWith("Emu") && (!/^-?[0-9]+$/u.test(expectedValue) || !/^-?[0-9]+$/u.test(value))) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
-  restored.content.value[field] = beforeShape[field];
+  restored.content.value[field] = beforeElement[field];
   if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
   const source = original.source;
   const slideSource = sourceSlide.source;
@@ -3168,9 +3181,10 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
 function compilePresentationElementEditOperations(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
   requested = restoreEquivalentPresentationScalarLeaves(original, requested);
   if (samePresentationWire(PresentationElementSchema, original, requested)) return [];
-  if (original.content.case === "shape" && requested.content.case === "shape") {
+  if (original.content.case === requested.content.case && new Set(["shape", "image"]).has(original.content.case)) {
     const scalarOperation = compilePresentationScalarLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
     if (scalarOperation) return [scalarOperation];
+    if (original.content.case !== "shape") return undefined;
     const operation = compilePresentationTextLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
     return operation ? [operation] : undefined;
   }

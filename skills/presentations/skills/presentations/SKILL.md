@@ -190,6 +190,18 @@ ad hoc import/mutate/export script: it consumes the audit locator directly and
 proves package locality, source immutability, second import, and visual
 stability for all six modeled object kinds.
 
+For a narrow edit to a complex imported deck, inspect and resolve the exact
+target before mutation. If the ordinary typed facade would rebuild or reject
+unrelated native structure, request `includeNativeLeaves: true` and use only an
+issued revision-bound leaf through `presentation.editNativeLeaf(...)`.
+Supported leaves are existing text runs, shape RGB/local geometry, and picture
+local geometry. The resulting Edit Plan must identify one source revision and
+one mutation footprint; reimport the output, prove every non-target OPC part is
+byte-identical, mask only the declared XML token change, and render the affected
+slide plus unchanged comparison pages. Never replace a multi-run phrase as one
+text leaf: select an exact run, or use a whole-text setter only when replacing
+the complete text topology is intended.
+
 For native charts, read `artifact_tool/api/references/charts.spec.md` before
 authoring or editing. Canonical OfficeKit output covers literal bar, line,
 pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D

@@ -205,9 +205,23 @@ internal static partial class PptxEditPlanCodec
             var elementHash = HashElement(element);
             if (!elementHash.Equals(operation.ExpectedElementSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("presentation_element_binding_mismatch", $"PPTX edit operation {operation.OperationId} target element changed after planning.", operation.SlidePartPath);
-            if (element is not P.Shape shape || !PptxCodec.SupportsBoundTextLeaf(shape))
-                throw new CodecException("unsupported_presentation_edit", $"PPTX edit operation {operation.OperationId} target is not a safely editable shape.", operation.SlidePartPath);
-            ProveLeafValue(shape, operation);
+            if (element is P.Shape shape &&
+                projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
+                PptxCodec.SupportsBoundTextLeaf(shape))
+            {
+                ProveLeafValue(shape, operation);
+            }
+            else if (element is P.Picture picture &&
+                     projectedElement.ContentCase == PresentationElement.ContentOneofCase.Image &&
+                     projectedElement.Source.Editable &&
+                     IsGeometryLeaf(LeafKind(operation)))
+            {
+                ProveLeafValue(picture, operation);
+            }
+            else
+            {
+                throw new CodecException("unsupported_presentation_edit", $"PPTX edit operation {operation.OperationId} target is not a safely editable shape or picture leaf.", operation.SlidePartPath);
+            }
             proofs.Add(new PptxEditPlanProof(operation, elementHash));
         }
         return proofs;
@@ -242,13 +256,15 @@ internal static partial class PptxEditPlanCodec
                 var child = children[(int)path[depth]];
                 range = new XmlRange(range.Start + child.Start, range.Start + child.End, child.LocalName);
             }
-            if (range.LocalName != "sp")
-                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp.", operation.SlidePartPath);
+            if (range.LocalName is not ("sp" or "pic"))
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp or p:pic.", operation.SlidePartPath);
             if (LeafKind(operation) != "text")
             {
                 patches.Add(CompileScalarXmlPatch(xml, range, proof));
                 continue;
             }
+            if (range.LocalName != "sp")
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} text target is not p:sp.", operation.SlidePartPath);
             var elementXml = xml[range.Start..range.End];
             var leaves = TextLeafPattern().Matches(elementXml)
                 .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
@@ -277,9 +293,9 @@ internal static partial class PptxEditPlanCodec
         return ordered;
     }
 
-    private static void ProveLeafValue(P.Shape shape, PresentationEditOperation operation)
+    private static void ProveLeafValue(OpenXmlElement element, PresentationEditOperation operation)
     {
-        var actual = ReadLeafValue(shape, operation);
+        var actual = ReadLeafValue(element, operation);
         if (!LeafValuesEqual(actual, operation.ExpectedValue, LeafKind(operation)))
             throw new CodecException(
                 "presentation_leaf_precondition_failed",
@@ -287,17 +303,24 @@ internal static partial class PptxEditPlanCodec
                 operation.SlidePartPath);
     }
 
-    private static string ReadLeafValue(P.Shape shape, PresentationEditOperation operation)
+    private static string ReadLeafValue(OpenXmlElement element, PresentationEditOperation operation)
     {
         var kind = LeafKind(operation);
         if (kind == "text")
         {
+            if (element is not P.Shape shape)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} text target is not a shape.", operation.SlidePartPath);
             var leaves = shape.Descendants<A.Text>().ToArray();
             if (operation.TextLeafIndex >= (uint)leaves.Length)
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} text-leaf index is out of range.", operation.SlidePartPath);
             return leaves[operation.TextLeafIndex].Text;
         }
-        var properties = shape.ShapeProperties ??
+        var properties = element switch
+        {
+            P.Shape shape => shape.ShapeProperties,
+            P.Picture picture when IsGeometryLeaf(kind) => picture.ShapeProperties,
+            _ => null,
+        } ??
             throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no p:spPr.", operation.SlidePartPath);
         var transform = properties.Transform2D;
         return kind switch
@@ -321,16 +344,19 @@ internal static partial class PptxEditPlanCodec
     private static PptxXmlPatch CompileScalarXmlPatch(string xml, XmlRange elementRange, PptxEditPlanProof proof)
     {
         var operation = proof.Operation;
-        var properties = DirectChildRange(xml, elementRange, "sp", "spPr", operation);
+        var owner = elementRange.LocalName;
+        var properties = DirectChildRange(xml, elementRange, owner, "spPr", operation);
         XmlRange leaf;
         string attribute;
         switch (LeafKind(operation))
         {
             case "fillRgb":
+                if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} picture targets do not expose fillRgb.", operation.SlidePartPath);
                 leaf = DirectChildRange(xml, DirectChildRange(xml, properties, "spPr", "solidFill", operation), "solidFill", "srgbClr", operation);
                 attribute = "val";
                 break;
             case "lineRgb":
+                if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} picture targets do not expose lineRgb.", operation.SlidePartPath);
                 var outline = DirectChildRange(xml, properties, "spPr", "ln", operation);
                 leaf = DirectChildRange(xml, DirectChildRange(xml, outline, "ln", "solidFill", operation), "solidFill", "srgbClr", operation);
                 attribute = "val";
@@ -431,8 +457,9 @@ internal static partial class PptxEditPlanCodec
         {
             var tree = slideByPath[operation.SlidePartPath].Slide!.CommonSlideData!.ShapeTree!;
             var element = ResolveShapeTreeElement(tree, ShapeTreePath(operation), operation);
-            var shape = element as P.Shape ?? throw new CodecException("presentation_edit_verification_failed", "PPTX edited target is no longer a shape.", operation.SlidePartPath);
-            if (!LeafValuesEqual(ReadLeafValue(shape, operation), operation.Value, LeafKind(operation)))
+            if (element is not P.Shape && element is not P.Picture)
+                throw new CodecException("presentation_edit_verification_failed", "PPTX edited target is no longer a shape or picture.", operation.SlidePartPath);
+            if (!LeafValuesEqual(ReadLeafValue(element, operation), operation.Value, LeafKind(operation)))
                 throw new CodecException("presentation_edit_verification_failed", $"PPTX edit operation {operation.OperationId} did not survive package reopen.", operation.SlidePartPath);
             resultById[operation.OperationId].OutputElementSha256 = HashElement(element);
         }
@@ -581,6 +608,8 @@ internal static partial class PptxEditPlanCodec
         operation.ShapeTreePath.Count > 0 ? operation.ShapeTreePath : [operation.ShapeTreeIndex];
     private static string LeafKind(PresentationEditOperation operation) =>
         string.IsNullOrEmpty(operation.LeafKind) ? "text" : operation.LeafKind;
+    private static bool IsGeometryLeaf(string leafKind) =>
+        leafKind is "leftEmu" or "topEmu" or "widthEmu" or "heightEmu";
     private static bool LeafValuesEqual(string left, string right, string leafKind) =>
         leafKind is "fillRgb" or "lineRgb"
             ? PptxColor.Normalize(left) == PptxColor.Normalize(right)
