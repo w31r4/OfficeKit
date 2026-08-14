@@ -2627,7 +2627,11 @@ function presentationOpaque(object, original, snapshot, assetCatalog) {
         } } : {}),
         ...(diagramTextReplacement ? { diagramText: {
           ...originalOpaque.diagramText,
-          nodes: diagramTextReplacement.nodes.map((node) => create(PresentationDiagramTextNodeSchema, { modelId: node.id, text: node.text })),
+          nodes: diagramTextReplacement.nodes.map((node) => create(PresentationDiagramTextNodeSchema, {
+            modelId: node.id,
+            text: node.text,
+            runTexts: node.runs,
+          })),
         } } : {}),
       },
     },
@@ -3676,7 +3680,11 @@ export async function presentationFromEnvelope(envelope) {
             contentType: opaque.diagramText.contentType,
             sourceSha256: opaque.diagramText.sourceSha256,
             relationshipId: opaque.diagramText.relationshipId,
-            nodes: (opaque.diagramText.nodes || []).map((node) => ({ id: node.modelId, text: node.text })),
+            nodes: (opaque.diagramText.nodes || []).map((node) => ({
+              id: node.modelId,
+              text: node.text,
+              runs: node.runTexts?.length ? [...node.runTexts] : [node.text],
+            })),
           } } : {}),
           ...nativeGraph(opaque, sourcePart),
         });

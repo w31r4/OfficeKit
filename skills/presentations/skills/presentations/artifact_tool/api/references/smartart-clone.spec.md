@@ -5,8 +5,9 @@ OfficeKit imports SmartArt as a native `nativeObject` with
 shapes. There are two deliberately separate, source-bound contracts:
 
 1. an unchanged closed graph may travel through `slide.duplicate()`; and
-2. one narrow DiagramDataPart profile may replace text in existing document
-   nodes through `nativeObject.setDiagramNodeText()`.
+2. one narrow DiagramDataPart profile may replace text in an existing one-run
+   document node through `nativeObject.setDiagramNodeText()`, or in one
+   existing styled run through `nativeObject.setDiagramNodeRunText()`.
 
 Neither contract is SmartArt authoring, layout editing, graph editing, or raw
 XML access.
@@ -62,16 +63,18 @@ following:
 
 - its root is `dgm:dataModel` and it has exactly one direct `dgm:ptLst`;
 - every exposed `dgm:pt` has `type="doc"`, a unique non-empty `modelId`, and
-  exactly one direct `dgm:t > a:p > a:r > a:t` text chain; optional
-  `a:bodyPr`, `a:lstStyle`, `a:pPr`, `a:rPr`, and `a:endParaRPr` may remain;
-- text is XML-safe and at most 32,767 characters. Rich/multiple runs, fields,
-  breaks, unknown child markup, disconnected parts, or any topology ambiguity
-  withhold the capability rather than being simplified.
+  exactly one direct `dgm:t > a:p` with one through 256 direct `a:r > a:t`
+  runs; optional `a:bodyPr`, `a:lstStyle`, `a:pPr`, per-run `a:rPr`, and
+  `a:endParaRPr` may remain;
+- each run and its complete node concatenation are XML-safe and the node is at
+  most 32,767 characters. Multiple paragraphs, fields, breaks, unknown child
+  markup, disconnected parts, or any topology ambiguity withhold the
+  capability rather than being simplified.
 
 `nativeObject.editable` remains `false`: this is a typed exception, not general
 write authority. `nativeObject.diagramText` is a defensive snapshot containing
-the source data part and the eligible node IDs. The only mutation is one
-existing node's text:
+the source data part, eligible node IDs, concatenated text, and ordered `runs`.
+A whole-node replacement remains available only when that node has one run:
 
 ```ts
 const diagram = presentation.slides.getItem(0).nativeObjects.items.find(
@@ -84,6 +87,15 @@ if (!node) throw new Error("Expected source text is not unique.");
 diagram.setDiagramNodeText(node.id, "After");
 
 const output = await PresentationFile.exportPptx(presentation);
+```
+
+For a styled node, select one exact existing run. OfficeKit keeps every
+neighboring run and its `a:rPr` untouched:
+
+```ts
+const styledNode = diagram.diagramText.nodes.find((item) => item.runs?.[1] === " approval");
+if (!styledNode) throw new Error("Stale SmartArt run target.");
+diagram.setDiagramNodeRunText(styledNode.id, 1, " decision");
 ```
 
 Export re-proves the original graph, source digest, node IDs/order, and the
@@ -102,16 +114,20 @@ officekit run "$SKILL_DIR/examples/officekit-smartart-text-edit-workflow.mjs" \
   "Closed SmartArt" "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}" "Before" "After"
 ```
 
+Append `--run-index=1` to bind `expectedText` and `replacementText` to that
+zero-based run instead of the whole one-run node.
+
 It protects the input bytes, resolves exactly one object/node/expected text,
 checks that only the DiagramDataPart changed, reimports the graph, and writes a
 source/output-bound audit. Its model verification is structural evidence; run
 the normal LibreOffice/Poppler render review when a native rendering result is
 required.
 
-Node creation/removal/reordering, `modelId` changes, presentation of arbitrary
-diagram text, raw XML mutation, layout/style/color edits, geometry edits,
-cross-diagram changes, clone-before-export after a pending text edit, and
-arbitrary graph cloning remain unsupported. Incomplete, duplicated, mistyped,
-external, nested, relationship-bearing, rich, or otherwise noncanonical
-SmartArt graphs fail closed. Preserve such objects unchanged or use a separate
-explicit OPC operation whose scope is independently reviewed.
+Node or run creation/removal/reordering, `modelId` changes, whole-node writes
+across multiple style runs, presentation of arbitrary diagram text, raw XML
+mutation, layout/style/color edits, geometry edits, cross-diagram changes,
+clone-before-export after a pending text edit, and arbitrary graph cloning
+remain unsupported. Incomplete, duplicated, mistyped, external, nested,
+relationship-bearing, field/break-bearing, multi-paragraph, or otherwise
+noncanonical SmartArt graphs fail closed. Preserve such objects unchanged or
+use a separate explicit OPC operation whose scope is independently reviewed.

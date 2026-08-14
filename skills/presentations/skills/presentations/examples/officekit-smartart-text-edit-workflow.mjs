@@ -50,11 +50,13 @@ function nodeById(diagramText, nodeId) {
   return nodes.find((node) => node.id === nodeId);
 }
 
-function targetCandidates(presentation, objectName, nodeId, expectedText) {
+function targetCandidates(presentation, objectName, nodeId, expectedText, runIndex) {
   return presentation.slides.items.flatMap((slide, slideIndex) => slide.nativeObjects.items
     .filter((object) => object.nativeKind === "diagram" && object.name === objectName)
     .map((object) => ({ slide, slideIndex, object, node: nodeById(object.diagramText, nodeId) }))
-    .filter((candidate) => candidate.node?.text === expectedText));
+    .filter((candidate) => runIndex === undefined
+      ? candidate.node?.text === expectedText
+      : candidate.node?.runs?.[runIndex] === expectedText));
 }
 
 function graphSnapshot(object) {
@@ -71,7 +73,7 @@ function graphSnapshot(object) {
     contentType: diagram.contentType,
     sourceSha256: diagram.sourceSha256,
     relationshipId: diagram.relationshipId,
-    nodes: diagram.nodes.map((node) => ({ id: node.id, text: node.text })),
+    nodes: diagram.nodes.map((node) => ({ id: node.id, text: node.text, runs: [...node.runs] })),
     nativePartPaths: object.parts.map((part) => part.path).sort(),
     relationshipIds: object.rootRelationships.map((relationship) => relationship.id).sort(),
   };
@@ -108,6 +110,7 @@ export async function editPptxSmartArtNodeText({
   nodeId,
   expectedText,
   replacementText,
+  runIndex,
 }) {
   const sourcePath = path.resolve(requiredText(inputPath, "inputPath"));
   const finalPath = path.resolve(requiredText(outputPath, "outputPath"));
@@ -116,6 +119,10 @@ export async function editPptxSmartArtNodeText({
   const targetNodeId = requiredText(nodeId, "nodeId");
   const originalText = requiredString(expectedText, "expectedText");
   const nextText = requiredString(replacementText, "replacementText");
+  const targetRunIndex = runIndex;
+  if (targetRunIndex !== undefined && (!Number.isSafeInteger(targetRunIndex) || targetRunIndex < 0)) {
+    throw new TypeError("runIndex must be a non-negative integer when provided.");
+  }
   if (sourcePath === finalPath || sourcePath === finalAuditPath || finalPath === finalAuditPath) {
     throw new Error("inputPath, outputPath, and auditPath must be distinct so the source remains immutable.");
   }
@@ -124,13 +131,14 @@ export async function editPptxSmartArtNodeText({
 
   const source = await fs.readFile(sourcePath);
   const presentation = await PresentationFile.importPptx(new FileBlob(source, { type: PPTX_MIME, name: path.basename(sourcePath) }));
-  const candidates = targetCandidates(presentation, targetName, targetNodeId, originalText);
+  const candidates = targetCandidates(presentation, targetName, targetNodeId, originalText, targetRunIndex);
   if (candidates.length !== 1) {
     throw new Error(`Expected exactly one source-bound SmartArt ${JSON.stringify(targetName)} node ${JSON.stringify(targetNodeId)} with the requested text; found ${candidates.length}.`);
   }
   const target = candidates[0];
   const before = graphSnapshot(target.object);
-  target.object.setDiagramNodeText(targetNodeId, nextText);
+  if (targetRunIndex === undefined) target.object.setDiagramNodeText(targetNodeId, nextText);
+  else target.object.setDiagramNodeRunText(targetNodeId, targetRunIndex, nextText);
 
   const temporaryPath = `${finalPath}.tmp-${process.pid}-${Date.now()}`;
   const temporaryAuditPath = `${finalAuditPath}.tmp-${process.pid}-${Date.now()}`;
@@ -141,7 +149,7 @@ export async function editPptxSmartArtNodeText({
     const output = await fs.readFile(temporaryPath);
     const packageScope = await assertPackageScope(source, output, before.partPath);
     const reimported = await PresentationFile.importPptx(new FileBlob(output, { type: PPTX_MIME, name: path.basename(finalPath) }));
-    const rebound = targetCandidates(reimported, targetName, targetNodeId, nextText);
+    const rebound = targetCandidates(reimported, targetName, targetNodeId, nextText, targetRunIndex);
     if (rebound.length !== 1) throw new Error("Saved PPTX does not expose exactly one edited SmartArt node after reimport.");
     const after = graphSnapshot(rebound[0].object);
     if (after.partPath !== before.partPath || after.contentType !== before.contentType || after.relationshipId !== before.relationshipId ||
@@ -150,7 +158,12 @@ export async function editPptxSmartArtNodeText({
         after.sourceSha256 === before.sourceSha256) {
       throw new Error("Saved SmartArt graph did not retain its source-bound part/relationship contract.");
     }
-    const expectedNodes = before.nodes.map((node) => node.id === targetNodeId ? { ...node, text: nextText } : node);
+    const expectedNodes = before.nodes.map((node) => {
+      if (node.id !== targetNodeId) return node;
+      if (targetRunIndex === undefined) return { ...node, text: nextText, runs: [nextText] };
+      const runs = node.runs.map((text, index) => index === targetRunIndex ? nextText : text);
+      return { ...node, text: runs.join(""), runs };
+    });
     if (JSON.stringify(after.nodes) !== JSON.stringify(expectedNodes)) throw new Error("Saved SmartArt node list changed outside the requested text edit.");
     const verification = reimported.verify({ visualQa: true });
     if (!verification.ok) throw new Error(`Presentation verification failed: ${verification.ndjson}`);
@@ -162,10 +175,13 @@ export async function editPptxSmartArtNodeText({
       provider: { actual: "office-kit", version: await packageVersion(), silentFallback: false },
       savePolicy: { strategy: "rewrite" },
       operation: {
-        type: "source-bound-smartart-node-text-edit",
+        type: targetRunIndex === undefined
+          ? "source-bound-smartart-node-text-edit"
+          : "source-bound-smartart-run-text-edit",
         slideIndex: target.slideIndex,
         objectName: targetName,
         nodeId: targetNodeId,
+        ...(targetRunIndex === undefined ? {} : { runIndex: targetRunIndex }),
         expectedText: originalText,
         replacementText: nextText,
         dataPart: before.partPath,
@@ -174,7 +190,7 @@ export async function editPptxSmartArtNodeText({
       warnings: [],
       validation: {
         package: { ok: true, ...packageScope, nonTargetPartsByteIdentical: true },
-        reimport: { ok: true, graphContractPreserved: true, nodeTopologyPreserved: true },
+        reimport: { ok: true, graphContractPreserved: true, nodeTopologyPreserved: true, runTopologyPreserved: true },
         verify: { ok: verification.ok },
       },
     };
@@ -189,8 +205,12 @@ export async function editPptxSmartArtNodeText({
 }
 
 function parseCli(argv) {
-  const [inputPath, outputPath, auditPath, objectName, nodeId, expectedText, replacementText] = argv;
-  return { inputPath, outputPath, auditPath, objectName, nodeId, expectedText, replacementText };
+  const [inputPath, outputPath, auditPath, objectName, nodeId, expectedText, replacementText, runOption, ...extra] = argv;
+  if (extra.length || (runOption !== undefined && !/^--run-index=\d+$/u.test(runOption))) {
+    throw new Error("Optional eighth argument must use --run-index=<zero-based-index>.");
+  }
+  const runIndex = runOption === undefined ? undefined : Number(runOption.slice("--run-index=".length));
+  return { inputPath, outputPath, auditPath, objectName, nodeId, expectedText, replacementText, runIndex };
 }
 
 const entry = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";

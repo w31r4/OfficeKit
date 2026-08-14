@@ -6,6 +6,7 @@ import { attrEscape, xmlEscape } from "../shared/xml.mjs";
 const MAX_EMBEDDED_WORKBOOK_BYTES = 16 * 1024 * 1024;
 const MAX_EMBEDDED_OFFICE_PACKAGE_BYTES = 16 * 1024 * 1024;
 const MAX_DIAGRAM_NODE_TEXT_LENGTH = 32_767;
+const MAX_DIAGRAM_NODE_RUNS = 256;
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function normalizeOleOfficePackage(config) {
@@ -64,11 +65,17 @@ function normalizeDiagramText(config) {
   const normalizedNodes = nodes.map((node) => {
     const id = String(node?.id ?? node?.modelId ?? "");
     const text = String(node?.text ?? "");
-    if (!id || !validDiagramModelId(id) || !validDiagramNodeText(text) || seen.has(id)) {
+    const sourceRuns = node?.runs ?? node?.runTexts;
+    const runs = Array.isArray(sourceRuns) && sourceRuns.length
+      ? sourceRuns.map((value) => String(value ?? ""))
+      : [text];
+    if (!id || !validDiagramModelId(id) || !validDiagramNodeText(text) ||
+        runs.length > MAX_DIAGRAM_NODE_RUNS || runs.some((value) => !validDiagramNodeText(value)) ||
+        runs.join("") !== text || seen.has(id)) {
       throw new TypeError("SmartArt diagram text binding contains an invalid node.");
     }
     seen.add(id);
-    return Object.freeze({ id, text });
+    return Object.freeze({ id, text, runs: Object.freeze(runs) });
   });
   return Object.freeze({
     partPath,
@@ -86,7 +93,11 @@ function diagramTextRecord(binding, nodes) {
     contentType: binding.contentType,
     sourceSha256: binding.sourceSha256,
     relationshipId: binding.relationshipId,
-    nodes: Object.freeze(nodes.map((node) => Object.freeze({ id: node.id, text: node.text }))),
+    nodes: Object.freeze(nodes.map((node) => Object.freeze({
+      id: node.id,
+      text: node.text,
+      runs: Object.freeze(node.runs.map((text) => text)),
+    }))),
   });
 }
 
@@ -137,7 +148,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         configurable: false,
         enumerable: false,
         writable: false,
-        value: diagramText ? diagramText.nodes.map((node) => ({ ...node })) : undefined,
+        value: diagramText ? diagramText.nodes.map((node) => ({ ...node, runs: [...node.runs] })) : undefined,
       });
       Object.defineProperty(this, "diagramText", {
         configurable: false,
@@ -264,7 +275,35 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       }
       const node = this._diagramTextNodes.find((candidate) => candidate.id === id);
       if (!node) throw new Error(`SmartArt node ${id || "(empty)"} is not part of the source-bound diagram profile.`);
+      if (node.runs.length !== 1) {
+        throw new Error(`SmartArt node ${id} has ${node.runs.length} source-bound styled runs; use setDiagramNodeRunText() so OfficeKit does not guess a formatting boundary.`);
+      }
       node.text = text;
+      node.runs[0] = text;
+      return this;
+    }
+
+    setDiagramNodeRunText(nodeId, runIndex, value) {
+      if (!this._diagramTextBinding || !this._diagramTextNodes) {
+        throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded SmartArt diagram-text capability.`);
+      }
+      const id = String(nodeId ?? "");
+      const index = Number(runIndex);
+      const text = String(value ?? "");
+      if (!Number.isSafeInteger(index) || index < 0) throw new TypeError("SmartArt runIndex must be a non-negative integer.");
+      if (!validDiagramNodeText(text)) {
+        throw new RangeError(`SmartArt run text must contain at most ${MAX_DIAGRAM_NODE_TEXT_LENGTH} XML-safe characters.`);
+      }
+      const node = this._diagramTextNodes.find((candidate) => candidate.id === id);
+      if (!node) throw new Error(`SmartArt node ${id || "(empty)"} is not part of the source-bound diagram profile.`);
+      if (index >= node.runs.length) throw new RangeError(`SmartArt node ${id} has no source-bound run at index ${index}.`);
+      const runs = node.runs.map((current, candidate) => candidate === index ? text : current);
+      const combined = runs.join("");
+      if (!validDiagramNodeText(combined)) {
+        throw new RangeError(`SmartArt node text must contain at most ${MAX_DIAGRAM_NODE_TEXT_LENGTH} XML-safe characters across all runs.`);
+      }
+      node.runs[index] = text;
+      node.text = combined;
       return this;
     }
 
@@ -274,7 +313,9 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
 
     _diagramTextReplacement() {
       if (!this._diagramTextBinding || !this._diagramTextNodes) return undefined;
-      const changed = this._diagramTextNodes.some((node, index) => node.text !== this._diagramTextBinding.nodes[index].text);
+      const changed = this._diagramTextNodes.some((node, index) =>
+        node.text !== this._diagramTextBinding.nodes[index].text ||
+        node.runs.some((text, runIndex) => text !== this._diagramTextBinding.nodes[index].runs[runIndex]));
       return changed ? diagramTextRecord(this._diagramTextBinding, this._diagramTextNodes) : undefined;
     }
 

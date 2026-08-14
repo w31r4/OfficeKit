@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 522);
+assert.equal(HELP_CATALOG.length, 523);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -702,7 +702,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.setDateContentC
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.schema?.parameters?.dryRun?.type, "boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.summary || "", /SEQ counters.*REF cached results.*PAGEREF.*pagination host/i);
 const presentationCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
-assert.equal(presentationCatalog.length, 112);
+assert.equal(presentationCatalog.length, 113);
 assert.ok(presentationCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slides.insert")?.schema?.parameters?.after?.type, "Slide|number|null");
@@ -724,8 +724,8 @@ assert.match(HELP_CATALOG.find((item) => item.name === "nativeObject.replaceEmbe
 assert.ok(HELP_CATALOG.some((item) => item.name === "nativeObject.setDiagramNodeText"));
 assert.equal(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeText")?.schema?.parameters?.nodeId?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeText")?.schema?.parameters?.text?.required, true);
-assert.match(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeText")?.summary || "", /top-level four-part graph.*DiagramDataPart.*one-paragraph\/one-run.*Node IDs.*without fallback/i);
-assert.match(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeText")?.schema?.returns?.nativeObject?.description || "", /dgm:t > a:p > a:r > a:t.*only its bound DiagramDataPart.*Rich, multi-run.*fail closed/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeText")?.summary || "", /one-run.*top-level four-part graph.*single-paragraph.*Multi-run nodes reject.*formatting boundary/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeText")?.schema?.returns?.nativeObject?.description || "", /one-run node.*closed dm\/lo\/qs\/cs graph.*node\/run topology.*Multi-run nodes require setDiagramNodeRunText.*fail closed/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /character.*picture bullets.*auto-numbering.*levels.*indents.*spacing/);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /absolute uri.*slideId.*relative action/);
@@ -807,6 +807,8 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.inspectX
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.inspectXlsx")?.schema?.parameters?.maxCompressionRatio?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.inspectXlsx")?.schema?.parameters?.verifyCrc32?.type, "boolean");
 assert.equal(HELP_CATALOG.find((item) => item.name === "PresentationFile.inspectPptx")?.schema?.parameters?.verifyCrc32?.type, "boolean");
+assert.equal(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeRunText")?.schema?.parameters?.runIndex?.type, "integer");
+assert.match(HELP_CATALOG.find((item) => item.name === "nativeObject.setDiagramNodeRunText")?.summary || "", /zero-based run index.*a:rPr.*reject/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "DocumentFile.inspectDocx")?.schema?.parameters?.verifyCrc32?.type, "boolean");
 assert.equal(HELP_CATALOG.find((item) => item.name === "PresentationFile.inspectPptx")?.schema?.parameters?.maxInputBytes?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "DocumentFile.inspectDocx")?.schema?.parameters?.maxInputBytes?.type, "number");

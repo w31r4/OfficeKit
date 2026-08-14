@@ -4670,8 +4670,8 @@ const smartArtTextImported = await PresentationFile.importPptx(smartArtTextSourc
 const smartArtTextObject = itemByName(smartArtTextImported.slides.getItem(0).nativeObjects.items, "Clone-safe SmartArt");
 assert.equal(smartArtTextObject.editable, false);
 assert.deepEqual(smartArtTextObject.diagramText?.nodes, [
-  { id: "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}", text: "Original node" },
-  { id: "1", text: "Second node" },
+  { id: "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}", text: "Original node", runs: ["Original node"] },
+  { id: "1", text: "Second node", runs: ["Second node"] },
 ]);
 assert.deepEqual(smartArtTextObject.inspectRecord().editableFields, ["diagramText"]);
 assert.throws(
@@ -4717,18 +4717,41 @@ assert.notDeepEqual(
 const smartArtTextRoundTrip = await PresentationFile.importPptx(smartArtTextExport);
 const smartArtTextRebound = itemByName(smartArtTextRoundTrip.slides.getItem(0).nativeObjects.items, "Clone-safe SmartArt");
 assert.deepEqual(smartArtTextRebound.diagramText?.nodes, [
-  { id: "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}", text: " Revised node " },
-  { id: "1", text: "Second node" },
+  { id: "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}", text: " Revised node ", runs: [" Revised node "] },
+  { id: "1", text: "Second node", runs: ["Second node"] },
 ]);
 assert.notEqual(smartArtTextRebound.diagramText?.sourceSha256, smartArtTextObject.diagramText?.sourceSha256);
 
 const richSmartArtTextSource = await PresentationFile.patchPptx(smartArtTextSource, [{
   path: "ppt/diagrams/agent-data.xml",
-  xml: smartArtTextData.replace("<a:r><a:t>Original node</a:t></a:r>", "<a:r><a:t>Original</a:t></a:r><a:r><a:t> node</a:t></a:r>"),
+  xml: smartArtTextData.replace("<a:r><a:t>Original node</a:t></a:r>", '<a:r><a:rPr b="1"/><a:t>Original</a:t></a:r><a:r><a:rPr i="1"/><a:t> node</a:t></a:r>'),
 }]);
 const richSmartArtText = await PresentationFile.importPptx(richSmartArtTextSource);
-assert.equal(itemByName(richSmartArtText.slides.getItem(0).nativeObjects.items, "Clone-safe SmartArt").diagramText, undefined,
-  "multi-run SmartArt text must remain opaque rather than being flattened");
+const richSmartArtTextObject = itemByName(richSmartArtText.slides.getItem(0).nativeObjects.items, "Clone-safe SmartArt");
+assert.deepEqual(richSmartArtTextObject.diagramText.nodes[0], {
+  id: "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}",
+  text: "Original node",
+  runs: ["Original", " node"],
+});
+assert.throws(
+  () => richSmartArtTextObject.setDiagramNodeText("{B31B1833-2B65-4D6B-B3D4-9B3988427B21}", "Revised node"),
+  /2 source-bound styled runs.*setDiagramNodeRunText/,
+);
+assert.throws(
+  () => richSmartArtTextObject.setDiagramNodeRunText("{B31B1833-2B65-4D6B-B3D4-9B3988427B21}", 2, "missing"),
+  /no source-bound run at index 2/,
+);
+richSmartArtTextObject.setDiagramNodeRunText("{B31B1833-2B65-4D6B-B3D4-9B3988427B21}", 0, "Revised");
+const richSmartArtTextExport = await PresentationFile.exportPptx(richSmartArtText);
+const richSmartArtTextOutputZip = await JSZip.loadAsync(richSmartArtTextExport.bytes);
+const richSmartArtTextOutputData = await richSmartArtTextOutputZip.file("ppt/diagrams/agent-data.xml").async("text");
+assert.match(richSmartArtTextOutputData, /<a:rPr b="1"\s*\/>/);
+assert.match(richSmartArtTextOutputData, /<a:rPr i="1"\s*\/>/);
+assert.match(richSmartArtTextOutputData, /<a:t>Revised<\/a:t>/);
+assert.deepEqual(
+  itemByName((await PresentationFile.importPptx(richSmartArtTextExport)).slides.getItem(0).nativeObjects.items, "Clone-safe SmartArt").diagramText.nodes[0],
+  { id: "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}", text: "Revised node", runs: ["Revised", " node"] },
+);
 
 const invalidSmartArtModelIdSource = await PresentationFile.patchPptx(smartArtTextSource, [{
   path: "ppt/diagrams/agent-data.xml",

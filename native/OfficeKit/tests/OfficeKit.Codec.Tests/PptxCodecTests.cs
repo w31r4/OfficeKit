@@ -5127,6 +5127,7 @@ public sealed class PptxCodecTests
         Assert.Equal("rIdCloneDiagramData", binding.RelationshipId);
         Assert.Equal(dataPath, binding.PartPath);
         Assert.Equal([("{B31B1833-2B65-4D6B-B3D4-9B3988427B21}", "Original node"), ("1", "Second node")], binding.Nodes.Select(node => (node.ModelId, node.Text)));
+        Assert.Equal([["Original node"], ["Second node"]], binding.Nodes.Select(node => node.RunTexts.ToArray()));
 
         binding.Nodes[0].Text = " Revised node ";
         var exported = Export(imported.Artifact);
@@ -5183,6 +5184,54 @@ public sealed class PptxCodecTests
         var annotatedTextImport = Import(annotatedText);
         Assert.True(annotatedTextImport.Ok, Diagnostics(annotatedTextImport));
         Assert.Null(Assert.Single(annotatedTextImport.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
+    }
+
+    [Fact]
+    public void SourceBoundSmartArtStyledRunsCanBeEditedWithoutFlatteningFormatting()
+    {
+        const string dataPath = "ppt/diagrams/clone-data.xml";
+        var source = ReplaceZipText(
+            AddCloneableDiagramGraph(Invoke(ExportRequest()).File.ToByteArray()),
+            dataPath,
+            _ => "<dgm:dataModel xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><dgm:ptLst><dgm:pt modelId=\"{B31B1833-2B65-4D6B-B3D4-9B3988427B21}\" type=\"doc\"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr b=\"1\"/><a:t>Bold</a:t></a:r><a:r><a:rPr i=\"1\"/><a:t> italic</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst><dgm:cxnLst/><dgm:bg/><dgm:whole/></dgm:dataModel>");
+        var imported = Import(source);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var binding = Assert.IsType<PresentationDiagramText>(Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
+        var node = Assert.Single(binding.Nodes);
+        Assert.Equal("Bold italic", node.Text);
+        Assert.Equal(["Bold", " italic"], node.RunTexts);
+
+        node.RunTexts[0] = "Strong";
+        node.Text = "Strong italic";
+        var exported = Export(imported.Artifact);
+        Assert.True(exported.Ok, Diagnostics(exported));
+        var output = exported.File.ToByteArray();
+        Assert.Equal(ZipBytes(source, "ppt/slides/slide1.xml"), ZipBytes(output, "ppt/slides/slide1.xml"));
+        Assert.NotEqual(ZipBytes(source, dataPath), ZipBytes(output, dataPath));
+        var xml = Encoding.UTF8.GetString(ZipBytes(output, dataPath));
+        Assert.Contains("<a:rPr b=\"1\"", xml);
+        Assert.Contains("<a:rPr i=\"1\"", xml);
+        Assert.Contains("<a:t>Strong</a:t>", xml);
+
+        var rebound = Assert.IsType<PresentationDiagramText>(Assert.Single(Import(output).Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
+        Assert.Equal("Strong italic", Assert.Single(rebound.Nodes).Text);
+        Assert.Equal(["Strong", " italic"], Assert.Single(rebound.Nodes).RunTexts);
+
+        imported = Import(source);
+        node = Assert.Single(Assert.IsType<PresentationDiagramText>(Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText).Nodes);
+        node.RunTexts.RemoveAt(1);
+        node.Text = "Bold";
+        var topologyRejected = Export(imported.Artifact);
+        Assert.False(topologyRejected.Ok);
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(topologyRejected.Diagnostics).Code);
+
+        var fieldSource = ReplaceZipText(source, dataPath, xml => xml.Replace(
+            "<a:r><a:rPr i=\"1\"/><a:t> italic</a:t></a:r>",
+            "<a:fld id=\"{DAD748A6-978C-4A61-9D4D-EB37A70A8D2B}\" type=\"slidenum\"><a:t>1</a:t></a:fld>",
+            StringComparison.Ordinal));
+        var fieldImport = Import(fieldSource);
+        Assert.True(fieldImport.Ok, Diagnostics(fieldImport));
+        Assert.Null(Assert.Single(fieldImport.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
     }
 
     [Fact]

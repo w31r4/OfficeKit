@@ -3495,6 +3495,12 @@ message PresentationDiagramTextNode {
   string model_id = 1;
   // Editable only within the closed source-bound node profile.
   string text = 2;
+  // Ordered direct a:r/a:t values from the node's single recognized
+  // paragraph. The list is source topology: callers may replace values but
+  // cannot add, remove, or reorder runs. text must equal their concatenation.
+  // An empty list is accepted only as the protocol-v2 legacy spelling for a
+  // one-run node.
+  repeated string run_texts = 3;
 }
 
 // Appended so this additive protocol-2 DOCX section contract does not renumber

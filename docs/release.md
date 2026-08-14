@@ -6622,6 +6622,48 @@ separately configured pypdf/PyMuPDF/pikepdf/pyHanko/veraPDF/OCRmyPDF provider
 repeats remained explicit environment skips. `npm whoami` returned `ENEEDAUTH`;
 no publish, tag, or release operation was attempted.
 
+### PPTX source-bound SmartArt styled-run text editing
+
+On 2026-08-14, the canonical closed four-part SmartArt text profile expanded
+from one direct run per document node to one direct paragraph containing one
+through 256 plain `a:r/a:t` runs. The additive protocol-v2
+`PresentationDiagramTextNode.run_texts` field carries the immutable run order;
+`text` remains its concatenation and the prior one-run wire spelling remains
+accepted. This does not change the Office wire version.
+
+`nativeObject.diagramText.nodes[]` now exposes the complete ordered `runs`.
+`setDiagramNodeText(modelId, text)` remains the one-run convenience operation.
+A styled node must use `setDiagramNodeRunText(modelId, runIndex, text)` so the
+Agent selects one existing formatting owner rather than asking OfficeKit to
+guess how replacement text should cross style boundaries. Export re-proves the
+DiagramDataPart digest, node IDs/order, run count/order, complete concatenated
+text, and the closed `dm/lo/qs/cs` graph. It may rewrite only that data part and
+preserves every `a:rPr`, the graphic frame, relationships, layout, quick style,
+colors, geometry, and every non-data part. Multiple paragraphs, fields, breaks,
+run topology changes, connected graphs, stale bindings, and whole-node writes
+across styled runs fail closed.
+
+The packaged SmartArt transaction accepts an optional zero-based
+`--run-index=N`, binds the expected old run value, protects the source, writes
+no output on refusal, audits the exact changed part, and reimports the complete
+node/run projection. JavaScript and C# regressions cover single-run
+compatibility, two styled runs, retained bold/italic run properties, invalid
+indexes, run removal, fields, XML annotations, over-budget text, source
+immutability, exact non-target package bytes, and second import.
+
+The local candidate passed the fast gate `31/31`, slow gate `82/82`, generated
+API documentation, OfficeKit Codec `416/416`, OfficeBridge `5/5`, deterministic
+WASM comparison across 39 audited files, and clean-install
+`npm run test:pack`. The runtime contains 38 files and 15,427,819 bytes. The npm
+candidate contains 744 files, 36,355,155 compressed bytes, and 53,635,032
+unpacked bytes (`shasum d86f8732fd3f7ea49f389f90e1c9f498a07585a8`),
+leaving 64,968 bytes below the audited unpacked ceiling. Real MuPDF.js, qpdf,
+Poppler, LibreOffice, and Playwright paths ran. Managed provider downloads and
+separately configured pypdf/PyMuPDF/pikepdf/pyHanko/veraPDF/OCRmyPDF repeats
+remained explicit environment skips. `npm whoami` returned `ENEEDAUTH`; no
+publish, tag, or release operation was attempted. Windows Microsoft Office
+desktop acceptance remains a separate external lane.
+
 ## Publishing
 
 Before publishing:

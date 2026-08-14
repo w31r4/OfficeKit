@@ -16,12 +16,14 @@ internal sealed record PptxDiagramTextReplacement(string PartPath, string Sha256
 // diagram, change the graph, or reinterpret layout/style/colors. It exposes
 // text only where an imported top-level p:graphicFrame proves it owns the
 // canonical closed four-part Diagram graph and every document point has one
-// direct plain DrawingML run. Everything outside that profile stays opaque.
+// DrawingML paragraph made only of direct plain runs. Everything outside that
+// profile stays opaque.
 internal static class PptxDiagramTextCodec
 {
     private const string DiagramDataContentType = "application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml";
     private const int MaxModelIdLength = 1_024;
     private const int MaxNodeTextLength = 32_767;
+    private const int MaxNodeRunCount = 256;
 
     private static readonly HashSet<string> DiagramNamespaces = new(StringComparer.Ordinal)
     {
@@ -35,7 +37,8 @@ internal static class PptxDiagramTextCodec
         "http://purl.oclc.org/ooxml/drawingml/main",
     };
 
-    private sealed record DiagramNode(string ModelId, string Text, XElement TextElement);
+    private sealed record DiagramRun(string Text, XElement TextElement);
+    private sealed record DiagramNode(string ModelId, string Text, IReadOnlyList<DiagramRun> Runs);
 
     private sealed record ResolvedDiagram(
         PresentationDiagramText Binding,
@@ -77,10 +80,21 @@ internal static class PptxDiagramTextCodec
         var changed = false;
         for (var index = 0; index < resolved.Nodes.Count; index++)
         {
-            var requestedText = requested.DiagramText.Nodes[index].Text;
-            if (resolved.Nodes[index].Text == requestedText) continue;
-            SetText(resolved.Nodes[index].TextElement, requestedText);
-            changed = true;
+            var requestedRuns = RequestedRunTexts(
+                original.DiagramText.Nodes[index],
+                requested.DiagramText.Nodes[index],
+                resolved.Binding.PartPath);
+            if (!requested.DiagramText.Nodes[index].RunTexts.SequenceEqual(requestedRuns))
+            {
+                requested.DiagramText.Nodes[index].RunTexts.Clear();
+                requested.DiagramText.Nodes[index].RunTexts.Add(requestedRuns);
+            }
+            for (var runIndex = 0; runIndex < resolved.Nodes[index].Runs.Count; runIndex++)
+            {
+                if (resolved.Nodes[index].Runs[runIndex].Text == requestedRuns[runIndex]) continue;
+                SetText(resolved.Nodes[index].Runs[runIndex].TextElement, requestedRuns[runIndex]);
+                changed = true;
+            }
         }
         if (!changed) return null;
 
@@ -220,7 +234,7 @@ internal static class PptxDiagramTextCodec
             SourceSha256 = Hash(sourceBytes),
             RelationshipId = dataRelationshipId,
         };
-        binding.Nodes.Add(nodes.Select(node => new PresentationDiagramTextNode { ModelId = node.ModelId, Text = node.Text }));
+        binding.Nodes.Add(nodes.Select(ToWireNode));
         resolved = new ResolvedDiagram(binding, dataPart, document, nodes);
         return true;
     }
@@ -240,18 +254,18 @@ internal static class PptxDiagramTextCodec
             var modelId = point.Attribute("modelId")?.Value ?? string.Empty;
             if (!IsBoundedModelId(modelId) || !ids.Add(modelId)) return false;
             var textBodies = point.Elements().Where(element => IsDiagram(element, "t")).ToArray();
-            if (textBodies.Length != 1 || !TryReadPlainText(textBodies[0], out var text, out var textElement)) return false;
-            results.Add(new DiagramNode(modelId, text, textElement));
+            if (textBodies.Length != 1 || !TryReadPlainRuns(textBodies[0], out var text, out var runs)) return false;
+            results.Add(new DiagramNode(modelId, text, runs));
         }
         if (results.Count == 0) return false;
         nodes = results;
         return true;
     }
 
-    private static bool TryReadPlainText(XElement body, out string text, out XElement textElement)
+    private static bool TryReadPlainRuns(XElement body, out string text, out IReadOnlyList<DiagramRun> resolvedRuns)
     {
         text = string.Empty;
-        textElement = null!;
+        resolvedRuns = [];
         var bodyChildren = body.Elements().ToArray();
         if (bodyChildren.Any(element => !IsDrawing(element, "bodyPr") && !IsDrawing(element, "lstStyle") && !IsDrawing(element, "p"))) return false;
         var paragraphs = bodyChildren.Where(element => IsDrawing(element, "p")).ToArray();
@@ -259,18 +273,27 @@ internal static class PptxDiagramTextCodec
         var paragraphChildren = paragraphs[0].Elements().ToArray();
         if (paragraphChildren.Any(element => !IsDrawing(element, "pPr") && !IsDrawing(element, "r") && !IsDrawing(element, "endParaRPr"))) return false;
         var runs = paragraphChildren.Where(element => IsDrawing(element, "r")).ToArray();
-        if (runs.Length != 1) return false;
-        var runChildren = runs[0].Elements().ToArray();
-        if (runChildren.Any(element => !IsDrawing(element, "rPr") && !IsDrawing(element, "t"))) return false;
-        var textElements = runChildren.Where(element => IsDrawing(element, "t")).ToArray();
-        // Replacing XElement.Value would discard comments or processing
-        // instructions nested in a:t. They are not part of the plain-text
-        // profile, so withhold the capability rather than silently erasing
-        // source-owned markup.
-        if (textElements.Length != 1 || textElements[0].HasElements || textElements[0].Nodes().Any(node => node is not XText)) return false;
-        text = textElements[0].Value;
-        if (!IsBoundedText(text)) return false;
-        textElement = textElements[0];
+        if (runs.Length is < 1 or > MaxNodeRunCount) return false;
+        var results = new List<DiagramRun>(runs.Length);
+        var combined = new StringBuilder();
+        foreach (var run in runs)
+        {
+            var runChildren = run.Elements().ToArray();
+            if (runChildren.Any(element => !IsDrawing(element, "rPr") && !IsDrawing(element, "t"))) return false;
+            var textElements = runChildren.Where(element => IsDrawing(element, "t")).ToArray();
+            // Replacing XElement.Value would discard comments or processing
+            // instructions nested in a:t. They are not part of the plain-text
+            // profile, so withhold the capability rather than silently erasing
+            // source-owned markup.
+            if (textElements.Length != 1 || textElements[0].HasElements || textElements[0].Nodes().Any(node => node is not XText)) return false;
+            var runText = textElements[0].Value;
+            if (!IsBoundedText(runText)) return false;
+            combined.Append(runText);
+            if (combined.Length > MaxNodeTextLength) return false;
+            results.Add(new DiagramRun(runText, textElements[0]));
+        }
+        text = combined.ToString();
+        resolvedRuns = results;
         return true;
     }
 
@@ -285,9 +308,40 @@ internal static class PptxDiagramTextCodec
         {
             if (original[index].ModelId != requested[index].ModelId)
                 throw Unsupported("SmartArt node identifiers are source-bound and cannot be changed.", partPath);
-            if (!IsBoundedText(requested[index].Text))
-                throw Unsupported($"SmartArt node {requested[index].ModelId} text is outside the bounded plain-text profile.", partPath);
+            var requestedRuns = RequestedRunTexts(original[index], requested[index], partPath);
+            if (requestedRuns.Count != original[index].RunTexts.Count)
+                throw Unsupported("SmartArt run topology is source-bound and cannot be changed.", partPath);
+            if (requestedRuns.Any(text => !IsBoundedText(text)) ||
+                !IsBoundedText(requested[index].Text) ||
+                string.Concat(requestedRuns) != requested[index].Text)
+                throw Unsupported($"SmartArt node {requested[index].ModelId} text is outside the bounded plain-run profile.", partPath);
         }
+    }
+
+    private static IReadOnlyList<string> RequestedRunTexts(
+        PresentationDiagramTextNode original,
+        PresentationDiagramTextNode requested,
+        string partPath)
+    {
+        if (requested.RunTexts.Count > 0)
+        {
+            // Protocol-v2 callers predating run_texts mutate only text. Keep
+            // that spelling valid for the old one-run profile without letting
+            // it guess how a multi-run node should be divided.
+            if (original.RunTexts.Count == 1 && requested.RunTexts.Count == 1 &&
+                requested.RunTexts[0] == original.RunTexts[0] && requested.Text != original.Text)
+                return [requested.Text];
+            return requested.RunTexts;
+        }
+        if (original.RunTexts.Count == 1) return [requested.Text];
+        throw Unsupported("A multi-run SmartArt node must retain its complete source-bound run topology.", partPath);
+    }
+
+    private static PresentationDiagramTextNode ToWireNode(DiagramNode node)
+    {
+        var result = new PresentationDiagramTextNode { ModelId = node.ModelId, Text = node.Text };
+        result.RunTexts.Add(node.Runs.Select(run => run.Text));
+        return result;
     }
 
     private static bool SameBinding(PresentationDiagramText expected, PresentationDiagramText actual) =>
@@ -300,18 +354,30 @@ internal static class PptxDiagramTextCodec
         Google.Protobuf.Collections.RepeatedField<PresentationDiagramTextNode> expected,
         IReadOnlyList<DiagramNode> actual) =>
         expected.Count == actual.Count && expected.Select((node, index) =>
-            node.ModelId == actual[index].ModelId && node.Text == actual[index].Text).All(match => match);
+            node.ModelId == actual[index].ModelId && node.Text == actual[index].Text &&
+            SameRunTexts(node, actual[index])).All(match => match);
 
     private static bool SameNodeIds(
         Google.Protobuf.Collections.RepeatedField<PresentationDiagramTextNode> expected,
         IReadOnlyList<DiagramNode> actual) =>
-        expected.Count == actual.Count && expected.Select((node, index) => node.ModelId == actual[index].ModelId).All(match => match);
+        expected.Count == actual.Count && expected.Select((node, index) =>
+            node.ModelId == actual[index].ModelId &&
+            (node.RunTexts.Count == 0 ? actual[index].Runs.Count == 1 : node.RunTexts.Count == actual[index].Runs.Count)).All(match => match);
 
     private static bool SameRequestedText(
         Google.Protobuf.Collections.RepeatedField<PresentationDiagramTextNode> expected,
         IReadOnlyList<DiagramNode> actual) =>
         expected.Count == actual.Count && expected.Select((node, index) =>
-            node.ModelId == actual[index].ModelId && node.Text == actual[index].Text).All(match => match);
+            node.ModelId == actual[index].ModelId && node.Text == actual[index].Text &&
+            SameRunTexts(node, actual[index])).All(match => match);
+
+    private static bool SameRunTexts(PresentationDiagramTextNode expected, DiagramNode actual)
+    {
+        if (expected.RunTexts.Count == 0)
+            return actual.Runs.Count == 1 && expected.Text == actual.Runs[0].Text;
+        return expected.RunTexts.Count == actual.Runs.Count &&
+            expected.RunTexts.Select((text, index) => text == actual.Runs[index].Text).All(match => match);
+    }
 
     private static bool IsClosedDiagramPart(OpenXmlPart part) =>
         part.Parts.Any() == false && !part.ExternalRelationships.Any() && !part.HyperlinkRelationships.Any() && !part.DataPartReferenceRelationships.Any();

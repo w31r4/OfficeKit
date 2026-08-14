@@ -314,8 +314,8 @@ that exact profile still fail closed.
 
 For one imported canonical SmartArt document node, do not patch the ZIP or
 rebuild the diagram. First inspect `nativeObject.diagramText`; it is present
-only when the closed four-part graph has a direct plain
-`dgm:t > a:p > a:r > a:t` document-node profile. Then run the public
+only when the closed four-part graph has one direct paragraph with one through
+256 plain `a:r > a:t` runs per document node. Then run the public
 transaction below, which changes only the bound DiagramDataPart and writes a
 no-overwrite audit:
 
@@ -325,11 +325,17 @@ officekit run "$SKILL_DIR/examples/officekit-smartart-text-edit-workflow.mjs" \
   "Closed SmartArt" "{B31B1833-2B65-4D6B-B3D4-9B3988427B21}" "Before" "After"
 ```
 
-The workflow resolves exactly one object/node/expected-text triple, preserves
-the source, verifies that no non-data package part changed, reimports the
-requested node list, and fails closed for rich/multi-run, connected, nested, or
-ambiguous SmartArt. It does not add/reorder nodes, change layout/style/colors
-or geometry, or claim model SVG verification is a native-host rendering check.
+For a styled multi-run node, inspect `diagramText.nodes[].runs` and append
+`--run-index=<zero-based-index>`. The expected and replacement text then bind
+that one existing run; whole-node replacement deliberately rejects rather than
+guessing a formatting boundary.
+
+The workflow resolves exactly one object/node/optional-run/expected-text tuple,
+preserves the source, verifies that no non-data package part changed, reimports
+the requested node/run list, and fails closed for multi-paragraph, field/break,
+connected, nested, or ambiguous SmartArt. It does not add/reorder nodes or
+runs, change existing run formatting, change layout/style/colors or geometry,
+or claim model SVG verification is a native-host rendering check.
 Read `artifact_tool/api/references/smartart-clone.spec.md` before using either
 the clone or text-edit profile.
 

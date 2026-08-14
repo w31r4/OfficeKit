@@ -2217,10 +2217,11 @@ try {
   const smartArtDuplicateAudit = path.join(duplicateDir, "smartart-audit.json");
   const smartArtFrame = '<p:graphicFrame xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:nvGraphicFramePr><p:cNvPr id="120" name="Closed SmartArt"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="914400" y="1143000"/><a:ext cx="4572000" cy="2286000"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/diagram"><dgm:relIds xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" r:dm="rIdSkillDiagramData" r:lo="rIdSkillDiagramLayout" r:qs="rIdSkillDiagramStyle" r:cs="rIdSkillDiagramColors"/></a:graphicData></a:graphic></p:graphicFrame>';
   const smartArtRelationships = '<Relationship Id="rIdSkillDiagramData" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramData" Target="../diagrams/skill-data.xml"/><Relationship Id="rIdSkillDiagramLayout" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramLayout" Target="../diagrams/skill-layout.xml"/><Relationship Id="rIdSkillDiagramStyle" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramQuickStyle" Target="../diagrams/skill-style.xml"/><Relationship Id="rIdSkillDiagramColors" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramColors" Target="../diagrams/skill-colors.xml"/>';
+  const smartArtDataXml = '<dgm:dataModel xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><dgm:ptLst><dgm:pt modelId="{B59B8E5A-4DF0-4A3C-A5E2-A7D7B293E601}" type="doc"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Original SmartArt node</a:t></a:r></a:p></dgm:t></dgm:pt><dgm:pt modelId="{C6D16D59-0A5A-42E6-AF7F-C53A0E3D487C}" type="doc"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Second SmartArt node</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst><dgm:cxnLst/><dgm:bg/><dgm:whole/></dgm:dataModel>';
   const smartArtSource = await PresentationFile.patchPptx(oleDuplicateBase, [
     { path: "ppt/slides/slide1.xml", xml: oleDuplicateSlideXml.replace('name="OLE clone source"', 'name="SmartArt clone source"').replace("</p:spTree>", `${smartArtFrame}</p:spTree>`) },
     { path: "ppt/slides/_rels/slide1.xml.rels", xml: oleDuplicateRelationships.replace("</Relationships>", `${smartArtRelationships}</Relationships>`) },
-    { path: "ppt/diagrams/skill-data.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml", xml: '<dgm:dataModel xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><dgm:ptLst><dgm:pt modelId="{B59B8E5A-4DF0-4A3C-A5E2-A7D7B293E601}" type="doc"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Original SmartArt node</a:t></a:r></a:p></dgm:t></dgm:pt><dgm:pt modelId="{C6D16D59-0A5A-42E6-AF7F-C53A0E3D487C}" type="doc"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Second SmartArt node</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst><dgm:cxnLst/><dgm:bg/><dgm:whole/></dgm:dataModel>' },
+    { path: "ppt/diagrams/skill-data.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml", xml: smartArtDataXml },
     { path: "ppt/diagrams/skill-layout.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramLayout+xml", xml: '<dgm:layoutDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:office-kit:skill-layout"><dgm:title val="Skill"/><dgm:desc val="Skill layout"/><dgm:catLst/><dgm:layoutNode name="root"/></dgm:layoutDef>' },
     { path: "ppt/diagrams/skill-style.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramStyle+xml", xml: '<dgm:styleDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:office-kit:skill-style"><dgm:title val="Skill"/><dgm:desc val="Skill style"/><dgm:catLst/><dgm:styleLbl name="node0"/></dgm:styleDef>' },
     { path: "ppt/diagrams/skill-colors.xml", contentType: "application/vnd.openxmlformats-officedocument.drawingml.diagramColors+xml", xml: '<dgm:colorsDef xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" uniqueId="urn:office-kit:skill-colors"><dgm:title val="Skill"/><dgm:desc val="Skill colors"/><dgm:catLst/></dgm:colorsDef>' },
@@ -2254,9 +2255,54 @@ try {
     name: "smartart-text-output.pptx",
   }));
   assert.deepEqual(itemByName(smartArtTextRoundTrip.slides.getItem(0).nativeObjects.items, "Closed SmartArt").diagramText.nodes, [
-    { id: "{B59B8E5A-4DF0-4A3C-A5E2-A7D7B293E601}", text: "Updated SmartArt node" },
-    { id: "{C6D16D59-0A5A-42E6-AF7F-C53A0E3D487C}", text: "Second SmartArt node" },
+    { id: "{B59B8E5A-4DF0-4A3C-A5E2-A7D7B293E601}", text: "Updated SmartArt node", runs: ["Updated SmartArt node"] },
+    { id: "{C6D16D59-0A5A-42E6-AF7F-C53A0E3D487C}", text: "Second SmartArt node", runs: ["Second SmartArt node"] },
   ]);
+  const smartArtRunInput = path.join(duplicateDir, "smartart-run-source.pptx");
+  const smartArtRunOutput = path.join(duplicateDir, "smartart-run-output.pptx");
+  const smartArtRunAudit = path.join(duplicateDir, "smartart-run-audit.json");
+  const smartArtRunSource = await PresentationFile.patchPptx(smartArtSource, [{
+    path: "ppt/diagrams/skill-data.xml",
+    xml: smartArtDataXml.replace(
+      "<a:r><a:t>Original SmartArt node</a:t></a:r>",
+      '<a:r><a:rPr b="1"/><a:t>Original</a:t></a:r><a:r><a:rPr i="1"/><a:t> SmartArt node</a:t></a:r>',
+    ),
+  }]);
+  await smartArtRunSource.save(smartArtRunInput);
+  const smartArtRunResult = await editPptxSmartArtNodeText({
+    inputPath: smartArtRunInput,
+    outputPath: smartArtRunOutput,
+    auditPath: smartArtRunAudit,
+    objectName: "Closed SmartArt",
+    nodeId: "{B59B8E5A-4DF0-4A3C-A5E2-A7D7B293E601}",
+    runIndex: 0,
+    expectedText: "Original",
+    replacementText: "Updated",
+  });
+  assert.equal(smartArtRunResult.audit.operation.type, "source-bound-smartart-run-text-edit");
+  assert.equal(smartArtRunResult.audit.operation.runIndex, 0);
+  assert.equal(smartArtRunResult.audit.validation.reimport.runTopologyPreserved, true);
+  const smartArtRunRoundTrip = await PresentationFile.importPptx(new FileBlob(await fs.readFile(smartArtRunOutput), {
+    type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    name: "smartart-run-output.pptx",
+  }));
+  assert.deepEqual(
+    itemByName(smartArtRunRoundTrip.slides.getItem(0).nativeObjects.items, "Closed SmartArt").diagramText.nodes[0],
+    { id: "{B59B8E5A-4DF0-4A3C-A5E2-A7D7B293E601}", text: "Updated SmartArt node", runs: ["Updated", " SmartArt node"] },
+  );
+  await assert.rejects(
+    () => editPptxSmartArtNodeText({
+      inputPath: smartArtRunInput,
+      outputPath: path.join(duplicateDir, "smartart-null-run-rejected.pptx"),
+      auditPath: path.join(duplicateDir, "smartart-null-run-rejected.json"),
+      objectName: "Closed SmartArt",
+      nodeId: "{B59B8E5A-4DF0-4A3C-A5E2-A7D7B293E601}",
+      runIndex: null,
+      expectedText: "Original",
+      replacementText: "No output",
+    }),
+    /runIndex must be a non-negative integer/,
+  );
   await assert.rejects(
     () => editPptxSmartArtNodeText({
       inputPath: smartArtTextInput,
@@ -3182,7 +3228,8 @@ try {
   assert.match(smartArtReferenceText, /four distinct typed diagram parts.*disjoint part paths.*per-role hashes/is);
   assert.match(smartArtReferenceText, /Neither contract is SmartArt\s+authoring.*fail closed/is);
   assert.match(smartArtReferenceText, /dgm:dataModel.*dgm:ptLst.*32,767/is);
-  assert.match(smartArtReferenceText, /dgm:t > a:p > a:r > a:t/is);
+  assert.match(smartArtReferenceText, /dgm:t > a:p.*one through 256 direct `a:r > a:t`/is);
+  assert.match(smartArtReferenceText, /setDiagramNodeRunText.*ordered `runs`.*a:rPr.*--run-index=1/is);
   assert.match(smartArtReferenceText, /only the DiagramDataPart changed.*reimports the graph.*LibreOffice\/Poppler/is);
   const inkMlReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/inkml-content-part-clone.spec.md", "utf8");
   assert.match(skillText, /artifact_tool\/api\/references\/inkml-content-part-clone\.spec\.md/);
