@@ -314,6 +314,58 @@ assert.deepEqual(irregularAccessibilityShape.accessibilityCapability, { sourceBo
 assert.throws(() => irregularAccessibilityShape.setAccessibilityMetadata({ title: "Do not rewrite unmodeled cNvPr" }), /source-bound.*editable p:cNvPr profile/i);
 const irregularShapeNoOp = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);
 assert.deepEqual(irregularShapeNoOp.bytes, irregularShapeAccessibilityFile.bytes, "a source-bound no-op must return the exact original PPTX bytes");
+
+const nativeLeafSourceFree = Presentation.create();
+nativeLeafSourceFree.slides.add().shapes.add({ text: "Source-free" });
+assert.throws(
+  () => nativeLeafSourceFree.inspect({ includeNativeLeaves: true }),
+  (error) => error?.code === "presentation_native_leaf_source_required",
+);
+assert.throws(
+  () => nativeLeafSourceFree.editNativeLeaf("shape", "leaf", { expectedHash: "0".repeat(64), value: "No" }),
+  (error) => error?.code === "presentation_native_leaf_source_required",
+);
+
+const nativeLeafImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
+const nativeLeafRecords = nativeLeafImported.inspect({ includeNativeLeaves: true }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const controlledTextLeaf = nativeLeafRecords.find((record) => record.targetId === irregularAccessibilityShape.id && record.value === "Decision: controlled rollout");
+assert.ok(controlledTextLeaf);
+assert.match(controlledTextLeaf.id, /^nl_[a-f0-9]{32}$/u);
+assert.match(controlledTextLeaf.expectedHash, /^[a-f0-9]{64}$/u);
+assert.match(controlledTextLeaf.revisionSha256, /^[a-f0-9]{64}$/u);
+assert.equal("slidePartPath" in controlledTextLeaf, false);
+assert.equal("rawXml" in controlledTextLeaf, false);
+assert.equal("xpath" in controlledTextLeaf, false);
+assert.throws(
+  () => nativeLeafImported.editNativeLeaf(controlledTextLeaf.targetId, controlledTextLeaf.leafId, { expectedHash: "0".repeat(64), value: "Decision: hash bypass" }),
+  (error) => error?.code === "presentation_native_leaf_stale",
+);
+assert.throws(
+  () => nativeLeafImported.editNativeLeaf(`${controlledTextLeaf.targetId}-other`, controlledTextLeaf.leafId, { expectedHash: controlledTextLeaf.expectedHash, value: "Decision: cross target" }),
+  (error) => error?.code === "presentation_native_leaf_not_issued",
+);
+assert.throws(
+  () => nativeLeafImported.editNativeLeaf(controlledTextLeaf.targetId, controlledTextLeaf.leafId, { expectedHash: controlledTextLeaf.expectedHash, value: "Decision: raw bypass", rawXml: "<a:t>unsafe</a:t>" }),
+  (error) => error?.code === "invalid_presentation_native_leaf_edit",
+);
+const controlledTextEdit = nativeLeafImported.editNativeLeaf(controlledTextLeaf.targetId, controlledTextLeaf.leafId, {
+  expectedHash: controlledTextLeaf.expectedHash,
+  value: "Decision: controlled native leaf",
+});
+assert.equal(controlledTextEdit.kind, "nativeLeafEdit");
+const nativeLeafOutput = await PresentationFile.exportPptx(nativeLeafImported);
+assert.equal(nativeLeafOutput.metadata.editPlan?.schema, "office-kit/pptx-edit-plan/v1");
+const nativeLeafRoundTrip = await PresentationFile.importPptx(nativeLeafOutput);
+assert.equal(nativeLeafRoundTrip.resolve(controlledTextLeaf.targetId).text.value, "Decision: controlled native leaf");
+assert.throws(
+  () => nativeLeafRoundTrip.editNativeLeaf(controlledTextLeaf.targetId, controlledTextLeaf.leafId, { expectedHash: controlledTextLeaf.expectedHash, value: "Decision: stale revision" }),
+  (error) => error?.code === "presentation_native_leaf_not_issued",
+);
+
 irregularAccessibilityShape.text.set("Decision: reviewed rollout");
 const irregularOtherEdit = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);
 assert.equal(irregularOtherEdit.metadata.editPlan?.schema, "office-kit/pptx-edit-plan/v1");

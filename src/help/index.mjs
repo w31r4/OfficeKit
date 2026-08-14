@@ -334,7 +334,8 @@ export const HELP_CATALOG = [
   { artifactKind: "presentation", kind: "api", name: "presentation.customShows.getItem", summary: "Resolve a source-free or canonical imported custom show by zero-based index, stable facade ID, or exact name." },
   { artifactKind: "presentation", kind: "api", name: "presentation.sections.add", summary: "Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque." },
   { artifactKind: "presentation", kind: "api", name: "presentation.sections.getItem", summary: "Resolve a source-free or canonical imported PowerPoint section by zero-based index, stable facade ID, or exact name." },
-  { artifactKind: "presentation", kind: "api", name: "presentation.inspect", summary: "Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, and eligible embedded Office-package summaries; narrow with search/target anchors and shape fields with include/exclude." },
+  { artifactKind: "presentation", kind: "api", name: "presentation.inspect", summary: "Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, and eligible embedded Office-package summaries; narrow with search/target anchors and shape fields with include/exclude. On a trusted imported source, includeNativeLeaves: true also returns revision-bound safe native text leaves without exposing part paths or XML selectors." },
+  { artifactKind: "presentation", kind: "api", name: "presentation.editNativeLeaf", summary: "Change one native leaf issued by presentation.inspect({ includeNativeLeaves: true }) using its targetId, leafId, expectedHash, and a typed value. Leaf IDs are bound to the exact imported revision and target. The current profile changes one existing text leaf through the token-preserving Edit Plan compiler; stale hashes, foreign IDs, raw XML, XPath, part paths, arbitrary attributes, relationship fields, namespaces, and topology changes reject." },
   { artifactKind: "presentation", kind: "api", name: "presentation.textRange", summary: "Inspect or resolve stable textRange anchors such as shapeId/text for editable slide text frames." },
   { artifactKind: "presentation", kind: "api", name: "presentation.resolve", summary: "Map stable inspect anchor IDs back to facade objects, including custom shows, PowerPoint sections, and slide transitions; imported advanced package objects may be read-only." },
   { artifactKind: "presentation", kind: "api", name: "presentation.export", summary: "Export a slide SVG preview, deck SVG montage via { format: 'montage' }, or target/search-sliced layout JSON." },
@@ -594,9 +595,13 @@ const HELP_DETAIL_OVERRIDES = {
     },
   },
   "presentation.inspect": {
-    examples: ["presentation.inspect({ kind: 'image,comment', target: image.id, include: 'alt,bbox' })"],
-    options: ["kind", "search", "target/targetId/id/anchor", "before/after/context", "include/fields", "exclude/omit", "maxChars"],
+    examples: ["presentation.inspect({ includeNativeLeaves: true, target: shape.id })"],
+    options: ["kind", "search", "target/targetId/id/anchor", "before/after/context", "include/fields", "exclude/omit", "includeNativeLeaves", "maxChars"],
     returns: "{ ndjson, truncated } bounded NDJSON records",
+  },
+  "presentation.editNativeLeaf": {
+    examples: ["presentation.editNativeLeaf(leaf.targetId, leaf.leafId, { expectedHash: leaf.expectedHash, value: 'Reviewed title' })"],
+    returns: "immutable nativeLeafEdit receipt",
   },
   "slide.duplicate": {
     notes: [
@@ -1803,15 +1808,21 @@ const PRESENTATION_HELP_SCHEMAS = {
   }, "slide", "Slide", "The same slide with a normalized direct p:transition. Source-free slides may author it. An imported slide may replace exactly one canonical direct base transition, or add one only when transition.capability.addable proves the root contains only p:cSld plus optional p:clrMapOvr and has no transition, timing, or extension leaf. Opaque source graphs are not reconstructed."),
   "slide.clearTransition": helpSchema({}, "slide", "Slide", "The same slide with no direct p:transition. Removing an imported transition requires the same canonical editable source profile as replacement."),
   "presentation.inspect": helpSchema({
-    kind: { type: "string", description: "Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/nativeObject/contentPart/oleObject/diagram/comment/notes/customShow/section kinds." },
+    kind: { type: "string", description: "Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/nativeObject/nativeLeaf/contentPart/oleObject/diagram/comment/notes/customShow/section kinds." },
     search: { type: "string", description: "Case-insensitive record filter." },
     target: { type: "string", description: "Stable target ID/anchor." },
     before: { type: "number", description: "Context records before matches." },
     after: { type: "number", description: "Context records after matches." },
     include: { type: "string", description: "Comma-separated fields to keep." },
     exclude: { type: "string", description: "Comma-separated fields to omit." },
+    includeNativeLeaves: { type: "boolean", description: "On a trusted imported PPTX, include revision-bound safe native text leaves. Source-free presentations reject instead of inventing selectors." },
     maxChars: { type: "number", description: "Maximum bounded NDJSON output size." },
   }, "inspection", "object", "Bounded { ndjson, truncated } inspection result."),
+  "presentation.editNativeLeaf": helpSchema({
+    targetId: { type: "string", required: true, description: "Exact targetId from an issued nativeLeaf record." },
+    leafId: { type: "string", required: true, description: "Opaque revision-bound leafId from the same inspect result." },
+    update: { type: "object", required: true, description: "Exactly { expectedHash, value }; raw XML, selectors, part paths, attributes, and topology fields are rejected." },
+  }, "receipt", "object", "Immutable nativeLeafEdit receipt. Export compiles the model delta to a source-bound Edit Plan and independently re-proves it in the Codec."),
   "presentation.textRange": helpSchema({
     id: { type: "string", required: true, description: "Stable shape text-range ID ending in /text." },
   }, "textRange", "TextRange|undefined", "Editable slide text-range facade or undefined."),

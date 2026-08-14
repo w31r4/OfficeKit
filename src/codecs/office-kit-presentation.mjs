@@ -49,6 +49,7 @@ const PRESENTATION_SLIDE_DELETION_CAPABILITY = Symbol.for("office-kit.slide-dele
 const PRESENTATION_SLIDE_CLONE_CAPABILITY = Symbol.for("office-kit.slide-clone-capability");
 const PRESENTATION_ELEMENT_DELETION_CAPABILITY = Symbol.for("office-kit.presentation-element-deletion-capability");
 const PRESENTATION_ELEMENT_DELETED = Symbol.for("office-kit.presentation-element-deleted");
+const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
 const PRESENTATION_SCHEME_COLORS = new Set([
   "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
   "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink",
@@ -2882,6 +2883,114 @@ function presentationTextLeafRuns(shape) {
   return leaves;
 }
 
+function presentationNativeLeafError(code, message, details = {}) {
+  return new OfficeKitCodecError(message, [], { code, ...details });
+}
+
+function assertNativeLeafTextValue(value) {
+  if (typeof value !== "string") throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native text leaf value must be a string.");
+  if (Buffer.byteLength(value, "utf8") > 1_048_576) throw presentationNativeLeafError("presentation_native_leaf_value_too_large", "Presentation native text leaf value exceeds 1048576 UTF-8 bytes.");
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/u.test(value) || hasUnpairedUtf16Surrogate(value)) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native text leaf value contains invalid XML text characters or an unpaired UTF-16 surrogate.");
+  }
+}
+
+function hasUnpairedUtf16Surrogate(value) {
+  for (let index = 0; index < value.length; index += 1) {
+    const unit = value.charCodeAt(index);
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const low = value.charCodeAt(index + 1);
+      if (!(low >= 0xdc00 && low <= 0xdfff)) return true;
+      index += 1;
+    } else if (unit >= 0xdc00 && unit <= 0xdfff) return true;
+  }
+  return false;
+}
+
+function createPresentationNativeLeafCapability(presentation, state) {
+  const revisionSha256 = String(state.opaqueOpc?.sourcePackage?.sha256 || state.source?.packageSha256 || "").toLowerCase();
+  if (!/^[0-9a-f]{64}$/u.test(revisionSha256)) return undefined;
+  const registry = new Map();
+  const records = [];
+  for (const slideState of state.slides) {
+    for (const entry of slideState.entries) {
+      if (entry.wire.content.case !== "shape" || (entry.wire.source?.editable !== true && entry.wire.source?.textEditable !== true)) continue;
+      for (const leaf of presentationTextLeafRuns(entry.wire.content.value)) {
+        const value = leaf.run.content.value;
+        const expectedHash = createHash("sha256").update(value, "utf8").digest("hex");
+        const seed = [
+          revisionSha256,
+          slideState.wire.id,
+          entry.wire.id,
+          entry.wire.source.shapeTreeIndex,
+          entry.wire.source.elementSha256,
+          leaf.textLeafIndex,
+          expectedHash,
+        ].join("\0");
+        const leafId = `nl_${createHash("sha256").update(seed).digest("hex").slice(0, 32)}`;
+        const record = Object.freeze({
+          kind: "nativeLeaf",
+          leafKind: "text",
+          id: leafId,
+          leafId,
+          targetId: entry.wire.id,
+          slide: slideState.slide.index + 1,
+          paragraphIndex: leaf.paragraphIndex,
+          runIndex: leaf.runIndex,
+          value,
+          expectedHash,
+          revisionSha256,
+        });
+        registry.set(leafId, Object.freeze({ ...record, model: entry.model }));
+        records.push(record);
+      }
+    }
+  }
+  return Object.freeze({
+    inspect: () => records.map((record) => ({ ...record })),
+    edit(targetId, leafId, update) {
+      if (typeof targetId !== "string" || !targetId || typeof leafId !== "string" || !leafId) {
+        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native-leaf editing requires non-empty targetId and leafId strings.");
+      }
+      if (!update || typeof update !== "object" || Array.isArray(update)) {
+        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native-leaf update must be an object.");
+      }
+      const keys = Object.keys(update).sort();
+      if (keys.length !== 2 || keys[0] !== "expectedHash" || keys[1] !== "value") {
+        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native-leaf update accepts exactly expectedHash and value.");
+      }
+      const leaf = registry.get(leafId);
+      if (!leaf || leaf.targetId !== targetId) {
+        throw presentationNativeLeafError("presentation_native_leaf_not_issued", "Presentation native leaf was not issued for this target and source revision.");
+      }
+      if (update.expectedHash !== leaf.expectedHash) {
+        throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation native leaf expectedHash does not match the imported source revision.");
+      }
+      assertNativeLeafTextValue(update.value);
+      if (update.value === leaf.value) {
+        throw presentationNativeLeafError("presentation_native_leaf_noop", "Presentation native-leaf edit must change its source value.");
+      }
+      const paragraphs = leaf.model.text.paragraphs;
+      const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+      if (!run || typeof run.text !== "string") {
+        throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation native leaf no longer resolves to the imported text run.");
+      }
+      run.text = update.value;
+      leaf.model.text.paragraphs = paragraphs;
+      return Object.freeze({
+        kind: "nativeLeafEdit",
+        targetId,
+        leafId,
+        leafKind: leaf.leafKind,
+        expectedHash: leaf.expectedHash,
+        revisionSha256,
+        oldValue: leaf.value,
+        value: update.value,
+      });
+    },
+  });
+}
+
 function compilePresentationTextLeafOperation(original, requested, sourceSlide, sourceSha256) {
   if (original.content.case !== "shape" || requested.content.case !== "shape") return undefined;
   const originalLeaves = presentationTextLeafRuns(original.content.value);
@@ -4065,5 +4174,12 @@ export async function presentationFromEnvelope(envelope) {
     configurable: true,
     value: (slide) => duplicateImportedPresentationSlide(presentation, presentationState, slide),
   });
+  const nativeLeafCapability = createPresentationNativeLeafCapability(presentation, presentationState);
+  if (nativeLeafCapability) {
+    Object.defineProperty(presentation, PRESENTATION_NATIVE_LEAF_CAPABILITY, {
+      configurable: true,
+      value: nativeLeafCapability,
+    });
+  }
   return presentation;
 }

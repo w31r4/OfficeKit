@@ -44,6 +44,7 @@ const PRESENTATION_SLIDE_VISIBILITY_CAPABILITY = Symbol.for("office-kit.slide-vi
 const PRESENTATION_SLIDE_DELETION_CAPABILITY = Symbol.for("office-kit.slide-deletion-capability");
 const PRESENTATION_SLIDE_CLONE_CAPABILITY = Symbol.for("office-kit.slide-clone-capability");
 const PRESENTATION_STATE = Symbol.for("office-kit.presentation-state");
+const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
 
 export { SlideTransition };
 
@@ -666,7 +667,26 @@ export class Presentation {
     if (kinds.has("customShow")) records.push(...this.customShows.items.map((show) => show.inspectRecord()));
     if (kinds.has("section")) records.push(...this.sections.items.map((section) => section.inspectRecord()));
     for (const slide of this.slides) records.push(...slide.inspectRecords(kinds));
+    if (options.includeNativeLeaves === true || kinds.has("nativeLeaf")) {
+      const capability = this[PRESENTATION_NATIVE_LEAF_CAPABILITY];
+      if (!capability) {
+        const error = new Error("Presentation native leaves are available only for a trusted imported PPTX source revision.");
+        error.code = "presentation_native_leaf_source_required";
+        throw error;
+      }
+      records.push(...capability.inspect());
+    }
     return ndjson(filterInspectRecords(records, options), options.maxChars ?? Infinity);
+  }
+
+  editNativeLeaf(targetId, leafId, update) {
+    const capability = this[PRESENTATION_NATIVE_LEAF_CAPABILITY];
+    if (!capability) {
+      const error = new Error("Presentation native-leaf editing requires a trusted imported PPTX source revision.");
+      error.code = "presentation_native_leaf_source_required";
+      throw error;
+    }
+    return capability.edit(targetId, leafId, update);
   }
 
   validateLayout(options = {}) {
