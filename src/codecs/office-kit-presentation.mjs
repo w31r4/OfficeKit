@@ -1,12 +1,16 @@
-import { create, toBinary } from "@bufbuild/protobuf";
+import { create, fromBinary, toBinary, toJsonString } from "@bufbuild/protobuf";
+import { createHash } from "node:crypto";
 import { ChartElement, GroupShape, ImageElement, Presentation, Shape, Slide, TableElement } from "../presentation/index.mjs";
 import {
   ArtifactFamily,
   PresentationCustomGeometryPath_FillMode,
+  PresentationArtifactSchema,
   PresentationDiagramTextNodeSchema,
+  PresentationElementSchema,
   PresentationModernCommentAnchor_Kind,
   PresentationSlideSchema,
   PresentationSlideGuide_Orientation,
+  PresentationTextRunSchema,
 } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { normalizePresentationRunLink } from "../presentation/ooxml-hyperlinks.mjs";
 import { planPresentationCustomShows } from "../presentation/ooxml-custom-shows.mjs";
@@ -728,19 +732,18 @@ function duplicateImportedPresentationSlide(presentation, state, slide) {
   return clone;
 }
 
-function presentationCloneBytes(slide) {
+function presentationCloneMessage(slide) {
   const { id: _id, source: _source, cloneSource: _cloneSource, $typeName: _typeName, ...comparable } = slide;
-  // Compare protobuf wire bytes instead of JavaScript object JSON. The
-  // generated decoder intentionally materializes default nested messages;
-  // the model serializer omits them. Canonical protobuf encoding treats those
-  // forms alike while still detecting every meaningful clone mutation.
-  return toBinary(PresentationSlideSchema, create(PresentationSlideSchema, comparable));
+  return create(PresentationSlideSchema, comparable);
 }
 
 function presentationCloneMatches(requested, source) {
-  const left = presentationCloneBytes(requested);
-  const right = presentationCloneBytes(source);
-  return left.byteLength === right.byteLength && left.every((value, index) => value === right[index]);
+  // Compare the full typed protobuf projection, not its byte encoding. Buf
+  // preserves unknown fields in their original wire order, while a bounded
+  // clone reconstructs the same known fields in canonical order; byte equality
+  // would therefore reject semantically identical clones after schema growth.
+  return toJsonString(PresentationSlideSchema, presentationCloneMessage(requested)) ===
+    toJsonString(PresentationSlideSchema, presentationCloneMessage(source));
 }
 
 function emuFromPixels(value, name, { allowNegative = false } = {}) {
@@ -2087,6 +2090,44 @@ function presentationTableReadOnlySnapshot(table) {
   });
 }
 
+// Imported source-bound shapes keep their original wire projection until the
+// public model actually changes. This is more than an optimization: rebuilding
+// every imported shape forces unrelated native geometry through the authored
+// shape subset and can make a safe leaf edit fail before the target is reached.
+// The snapshot deliberately covers the complete public Shape projection plus
+// its native identity. When it differs, export still goes through the existing
+// typed validation and source-binding checks; unchanged shapes alone bypass
+// semantic re-projection and retain the codec's original source hash.
+function presentationImportedShapeSnapshot(shape) {
+  return JSON.stringify({
+    nativeId: shape.nativeId,
+    creationId: shape.creationId,
+    layout: shape.layoutJson(),
+  });
+}
+
+function presentationImportedGroupSnapshot(group) {
+  return JSON.stringify({
+    nativeId: group.nativeId,
+    creationId: group.creationId,
+    layout: group.layoutJson(),
+  });
+}
+
+function presentationImportedSlideShellSnapshot(slide) {
+  return JSON.stringify({
+    id: slide.id,
+    name: slide.name,
+    layoutId: slide.layoutId,
+    hidden: slide.hidden,
+    background: slide.background,
+    transition: slide.transition.toJSON(),
+    speakerNotes: slide.speakerNotes.text,
+    comments: slide.comments.items.map((comment) => comment.toJSON()),
+    elementIds: directSlideElements(slide).map((element) => element.id),
+  });
+}
+
 function presentationElement(element, original, assetCatalog, sourceIdByCloneId, customShowLinks) {
   if (element instanceof GroupShape) return presentationGroup(element, original, assetCatalog, sourceIdByCloneId, customShowLinks);
   if (element instanceof ImageElement) return presentationImage(element, original, assetCatalog);
@@ -2714,6 +2755,9 @@ export function presentationEnvelope(presentation, protocolVersion) {
     const elements = bindingState
       ? retainedEntries.map((entry) => {
         if (entry.wire.content.case === "shape") {
+          if (!cloneState && presentationImportedShapeSnapshot(entry.model) === entry.modelSnapshot) {
+            return entry.wire;
+          }
           if (entry.wire.content.value.placeholder) {
             return presentationSlidePlaceholder(entry.model, entry.wire, entry.placeholderSnapshot, assetCatalog, customShowLinks);
           }
@@ -2733,7 +2777,12 @@ export function presentationEnvelope(presentation, protocolVersion) {
         }
         if (entry.wire.content.case === "connector") return presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId);
         if (entry.wire.content.case === "chart") return presentationChart(entry.model, entry.wire);
-        if (entry.wire.content.case === "group") return presentationGroup(entry.model, entry.wire, assetCatalog, cloneState?.sourceIdByCloneId, customShowLinks);
+        if (entry.wire.content.case === "group") {
+          if (!cloneState && presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot) {
+            return entry.wire;
+          }
+          return presentationGroup(entry.model, entry.wire, assetCatalog, cloneState?.sourceIdByCloneId, customShowLinks);
+        }
         return presentationOpaque(entry.model, entry.wire, entry.snapshot, assetCatalog);
       })
       : directSlideElements(slide)
@@ -2798,6 +2847,127 @@ export function presentationEnvelope(presentation, protocolVersion) {
         ...(state?.sectionsOpaque ? { sectionsOpaque: true } : {}),
         ...(viewProperties ? { viewProperties } : {}),
       },
+    },
+  };
+}
+
+function presentationWireBytes(schema, value) {
+  return toBinary(schema, create(schema, value));
+}
+
+function samePresentationWire(schema, left, right) {
+  const leftBytes = presentationWireBytes(schema, left);
+  const rightBytes = presentationWireBytes(schema, right);
+  return leftBytes.length === rightBytes.length && leftBytes.every((value, index) => value === rightBytes[index]);
+}
+
+function clonePresentationWire(schema, value) {
+  return fromBinary(schema, presentationWireBytes(schema, value));
+}
+
+function presentationTextLeafRuns(shape) {
+  const leaves = [];
+  let textLeafIndex = 0;
+  for (const [paragraphIndex, paragraph] of (shape?.textBody?.paragraphs || []).entries()) {
+    for (const [runIndex, run] of (paragraph.runs || []).entries()) {
+      if (run.content?.case === "lineBreak") continue;
+      if (run.content?.case === "text") {
+        leaves.push({ paragraphIndex, runIndex, textLeafIndex, run });
+      }
+      // Native a:fld also owns one a:t and therefore consumes a leaf index,
+      // even though v1 never grants field-text editing through this plan.
+      if (run.content?.case === "text" || run.content?.case === "field") textLeafIndex += 1;
+    }
+  }
+  return leaves;
+}
+
+function compilePresentationTextLeafOperation(original, requested, sourceSlide, sourceSha256) {
+  if (original.content.case !== "shape" || requested.content.case !== "shape") return undefined;
+  const originalLeaves = presentationTextLeafRuns(original.content.value);
+  const requestedLeaves = presentationTextLeafRuns(requested.content.value);
+  if (originalLeaves.length !== requestedLeaves.length) return undefined;
+  const changed = [];
+  for (let index = 0; index < originalLeaves.length; index += 1) {
+    const before = originalLeaves[index];
+    const after = requestedLeaves[index];
+    if (before.paragraphIndex !== after.paragraphIndex || before.runIndex !== after.runIndex || before.textLeafIndex !== after.textLeafIndex) return undefined;
+    if (!samePresentationWire(PresentationTextRunSchema, before.run, after.run)) changed.push({ before, after });
+  }
+  if (changed.length !== 1) return undefined;
+  const [{ before, after }] = changed;
+  if (before.run.content?.case !== "text" || after.run.content?.case !== "text" || before.run.content.value === after.run.content.value) return undefined;
+  const restoredRun = clonePresentationWire(PresentationTextRunSchema, after.run);
+  restoredRun.content.value = before.run.content.value;
+  if (!samePresentationWire(PresentationTextRunSchema, restoredRun, before.run)) return undefined;
+  const restored = clonePresentationWire(PresentationElementSchema, requested);
+  restored.content.value.text = original.content.value.text;
+  restored.content.value.textBody.paragraphs[before.paragraphIndex].runs[before.runIndex] = before.run;
+  if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  const source = original.source;
+  const slideSource = sourceSlide.source;
+  if (!source || !slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
+  const operationSeed = [sourceSha256, slideSource.partPath, source.shapeTreeIndex, before.textLeafIndex, before.run.content.value, after.run.content.value].join("\0");
+  return {
+    operationId: `pptx-text-${createHash("sha256").update(operationSeed).digest("hex").slice(0, 20)}`,
+    slideId: sourceSlide.id,
+    slidePartPath: slideSource.partPath,
+    expectedSlideSha256: slideSource.slideXmlSha256,
+    targetId: original.id,
+    shapeTreeIndex: source.shapeTreeIndex,
+    expectedElementSha256: source.elementSha256,
+    expectedSemanticSha256: source.semanticSha256,
+    textLeafIndex: before.textLeafIndex,
+    expectedTextSha256: createHash("sha256").update(before.run.content.value, "utf8").digest("hex"),
+    expectedValue: before.run.content.value,
+    value: after.run.content.value,
+  };
+}
+
+// Compile the bounded source graph delta into the first stable Edit Plan IR.
+// Returning undefined means the change is outside this v1 leaf profile and the
+// caller must use an existing typed operation or fail closed; it never grants
+// permission to fall back to raw XML or a second Office codec.
+export function compilePresentationEditPlan(presentation, protocolVersion) {
+  if (!(presentation instanceof Presentation)) throw new TypeError("compilePresentationEditPlan expects a Presentation instance.");
+  const state = presentation[PRESENTATION_STATE];
+  if (!state || state.clones?.length || presentation.slides.items.length !== state.slides.length ||
+      state.slides.some((entry, index) => presentation.slides.items[index] !== entry.slide)) return undefined;
+  const snapshot = state.opaqueOpc?.sourcePackage;
+  const sourceSha256 = String(snapshot?.sha256 || state.source?.packageSha256 || "").toLowerCase();
+  if (!(snapshot?.data instanceof Uint8Array) || !/^[0-9a-f]{64}$/.test(sourceSha256)) return undefined;
+  if (state.slides.some((entry) => presentationImportedSlideShellSnapshot(entry.slide) !== entry.shellSnapshot)) return undefined;
+  const envelope = presentationEnvelope(presentation, protocolVersion);
+  const restoredArtifact = clonePresentationWire(PresentationArtifactSchema, envelope.payload.value);
+  const requestedSlides = restoredArtifact.slides;
+  const operations = [];
+  for (let slideIndex = 0; slideIndex < state.slides.length; slideIndex += 1) {
+    const sourceSlide = state.slides[slideIndex];
+    const requestedById = new Map(requestedSlides[slideIndex].elements.map((element, elementIndex) => [element.id, { element, elementIndex }]));
+    for (const entry of sourceSlide.entries) {
+      const requestedEntry = requestedById.get(entry.wire.id);
+      if (!requestedEntry) return undefined;
+      const { element: requested, elementIndex } = requestedEntry;
+      if (samePresentationWire(PresentationElementSchema, entry.wire, requested)) continue;
+      if (entry.wire.content.case !== "shape") return undefined;
+      const operation = compilePresentationTextLeafOperation(entry.wire, requested, sourceSlide.wire, sourceSha256);
+      if (!operation) return undefined;
+      operations.push(operation);
+      restoredArtifact.slides[slideIndex].elements[elementIndex] = entry.wire;
+    }
+  }
+  const sourceArtifact = state.sourceArtifactBytes instanceof Uint8Array
+    ? fromBinary(PresentationArtifactSchema, state.sourceArtifactBytes)
+    : undefined;
+  if (!sourceArtifact || !samePresentationWire(PresentationArtifactSchema, restoredArtifact, sourceArtifact)) return undefined;
+  return {
+    schema: "office-kit/pptx-edit-plan/v1",
+    sourceRevisionSha256: sourceSha256,
+    sourceBytes: snapshot.data,
+    operations,
+    wire: {
+      expectedSourceSha256: sourceSha256,
+      operations,
     },
   };
 }
@@ -3721,6 +3891,17 @@ export async function presentationFromEnvelope(envelope) {
       });
     }
     for (const entry of entries) capturePresentationConnectorEndpointState(entry.model);
+    // Group layout inspection can resolve attached connector endpoints and is
+    // therefore not observational until every imported connector has captured
+    // its source-bound fingerprint. Snapshot only after that boundary so the
+    // preservation optimization cannot mutate the model it is measuring.
+    for (const entry of entries) {
+      entry.modelSnapshot = entry.wire.content.case === "shape"
+        ? presentationImportedShapeSnapshot(entry.model)
+        : entry.wire.content.case === "group"
+          ? presentationImportedGroupSnapshot(entry.model)
+          : undefined;
+    }
     for (const sourceThread of sourceSlide.modernComments || []) {
       presentation.commentFormat = "modern";
       const moniker = sourceThread.anchor?.monikers?.[0];
@@ -3832,6 +4013,7 @@ export async function presentationFromEnvelope(envelope) {
       slide,
       name: slide.name,
       commentSnapshot: presentationSlideCommentSnapshot(slide),
+      shellSnapshot: presentationImportedSlideShellSnapshot(slide),
       entries,
     });
   }
@@ -3859,6 +4041,7 @@ export async function presentationFromEnvelope(envelope) {
     source: envelope.source,
     opaqueOpc: envelope.opaqueOpc,
     diagnostics: envelope.diagnostics,
+    sourceArtifactBytes: presentationWireBytes(PresentationArtifactSchema, source),
     name: source.name,
     slideWidthEmu: source.slideWidthEmu,
     slideHeightEmu: source.slideHeightEmu,

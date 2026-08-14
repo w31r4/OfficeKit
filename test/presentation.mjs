@@ -312,11 +312,30 @@ const irregularAccessibilityShape = itemByName(irregularShapeAccessibilityImport
 assert.equal(irregularAccessibilityShape.accessibility, undefined);
 assert.deepEqual(irregularAccessibilityShape.accessibilityCapability, { sourceBound: true, editable: false, addable: false });
 assert.throws(() => irregularAccessibilityShape.setAccessibilityMetadata({ title: "Do not rewrite unmodeled cNvPr" }), /source-bound.*editable p:cNvPr profile/i);
+const irregularShapeNoOp = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);
+assert.deepEqual(irregularShapeNoOp.bytes, irregularShapeAccessibilityFile.bytes, "a source-bound no-op must return the exact original PPTX bytes");
 irregularAccessibilityShape.text.set("Decision: reviewed rollout");
 const irregularOtherEdit = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);
+assert.equal(irregularOtherEdit.metadata.editPlan?.schema, "office-kit/pptx-edit-plan/v1");
+assert.equal(irregularOtherEdit.metadata.editPlan?.operations.length, 1);
+assert.deepEqual(irregularOtherEdit.metadata.editPlan?.changedParts, ["ppt/slides/slide1.xml"]);
 const irregularOtherEditXml = await (await JSZip.loadAsync(irregularOtherEdit.bytes)).file("ppt/slides/slide1.xml").async("text");
 assert.match(irregularOtherEditXml, /fixture:opaque="kept"/);
 assert.match(irregularOtherEditXml, /title="Controlled rollout decision"/);
+assert.equal(
+  irregularOtherEditXml.replace("Decision: reviewed rollout", "Decision: controlled rollout"),
+  irregularShapeAccessibilityXml,
+  "masking the declared text leaf must recover the target SlidePart byte-for-byte",
+);
+const irregularOtherEditZip = await JSZip.loadAsync(irregularOtherEdit.bytes);
+for (const [partPath, entry] of Object.entries(irregularShapeAccessibilityZip.files)) {
+  if (entry.dir || partPath === "ppt/slides/slide1.xml") continue;
+  assert.deepEqual(
+    await irregularOtherEditZip.file(partPath).async("uint8array"),
+    await irregularShapeAccessibilityZip.file(partPath).async("uint8array"),
+    `Edit Plan changed non-target part ${partPath}`,
+  );
+}
 irregularAccessibilityShape.accessibility = { title: "Bypass attempt" };
 await assert.rejects(() => PresentationFile.exportPptx(irregularShapeAccessibilityImported), (error) => error?.code === "unsupported_presentation_edit");
 

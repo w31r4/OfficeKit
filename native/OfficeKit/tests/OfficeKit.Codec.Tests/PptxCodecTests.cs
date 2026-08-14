@@ -67,6 +67,67 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void EditPlanChangesOnlyOneBoundTextLeafWithoutReserializingTheSlide()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = authored.File.ToByteArray();
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var element = Assert.Single(slide.Elements);
+        const string replacement = "Verified brief";
+        var operation = new PresentationEditOperation
+        {
+            OperationId = "op-0001",
+            SlideId = slide.Id,
+            SlidePartPath = slide.Source.PartPath,
+            ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+            TargetId = element.Id,
+            ShapeTreeIndex = element.Source.ShapeTreeIndex,
+            ExpectedElementSha256 = element.Source.ElementSha256,
+            ExpectedSemanticSha256 = element.Source.SemanticSha256,
+            TextLeafIndex = 0,
+            ExpectedValue = element.Shape.Text,
+            Value = replacement,
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(element.Shape.Text))).ToLowerInvariant(),
+        };
+        var request = new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = authored.File,
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+                Operations = { operation },
+            },
+        };
+
+        var edited = Invoke(request);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationEditPlan.ChangedParts);
+        var result = Assert.Single(edited.PresentationEditPlan.Operations);
+        Assert.Equal(operation.OperationId, result.OperationId);
+        Assert.NotEqual(result.SourceElementSha256, result.OutputElementSha256);
+        Assert.Equal(operation.ExpectedElementSha256, result.SourceElementSha256);
+        var sourceXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, operation.SlidePartPath));
+        var outputBytes = edited.File.ToByteArray();
+        var outputXml = Encoding.UTF8.GetString(ZipBytes(outputBytes, operation.SlidePartPath));
+        Assert.Equal(sourceXml, outputXml.Replace(replacement, operation.ExpectedValue, StringComparison.Ordinal));
+        Assert.DoesNotContain("xmlns:a14=", outputXml, StringComparison.Ordinal);
+        Assert.Equal(sourceBytes, authored.File.ToByteArray());
+        Assert.Equal(replacement, Assert.Single(Assert.Single(Import(outputBytes).Artifact.Presentation.Slides).Elements).Shape.Text);
+
+        var stale = request.Clone();
+        stale.PresentationEditPlan.Operations[0].ExpectedElementSha256 = new string('0', 64);
+        var rejected = Invoke(stale);
+        Assert.False(rejected.Ok);
+        Assert.Equal("presentation_element_binding_mismatch", Assert.Single(rejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void ShapeAccessibilityAuthorsImportsEditsAndKeepsIrregularMetadataSourceOwned()
     {
         var request = ExportRequest();

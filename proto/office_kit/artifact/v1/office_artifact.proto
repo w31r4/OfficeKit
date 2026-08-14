@@ -23,6 +23,7 @@ enum CodecOperation {
   CODEC_OPERATION_EXPORT_PPTX = 6;
   CODEC_OPERATION_FINALIZE_DOCX_REVISIONS = 7;
   CODEC_OPERATION_ADD_DOCX_TRACKED_REPLACEMENT = 8;
+  CODEC_OPERATION_APPLY_PPTX_EDIT_PLAN = 9;
 }
 
 enum DocumentRevisionFinalizationMode {
@@ -102,6 +103,7 @@ message CodecRequest {
   CodecLimits limits = 6;
   DocumentRevisionFinalizationRequest revision_finalization = 8;
   DocumentTrackedReplacementRequest tracked_replacement = 9;
+  PresentationEditPlanRequest presentation_edit_plan = 10;
 }
 
 message CodecResponse {
@@ -112,6 +114,53 @@ message CodecResponse {
   repeated Diagnostic diagnostics = 5;
   DocumentRevisionFinalizationResult revision_finalization = 6;
   DocumentTrackedReplacementResult tracked_replacement = 7;
+  PresentationEditPlanResult presentation_edit_plan = 8;
+}
+
+// Internal compiler IR for byte-bound source-preserving PresentationML edits.
+// Callers select only leaves returned by the imported semantic projection; the
+// codec re-proves every package, part, element, and old-value precondition.
+message PresentationEditPlanRequest {
+  string expected_source_sha256 = 1;
+  repeated PresentationEditOperation operations = 2;
+}
+
+message PresentationEditOperation {
+  string operation_id = 1;
+  string slide_id = 2;
+  string slide_part_path = 3;
+  string expected_slide_sha256 = 4;
+  string target_id = 5;
+  uint32 shape_tree_index = 6;
+  string expected_element_sha256 = 7;
+  string expected_semantic_sha256 = 8;
+  uint32 text_leaf_index = 9;
+  string expected_text_sha256 = 10;
+  string expected_value = 11;
+  string value = 12;
+}
+
+message PresentationEditPlanResult {
+  string source_sha256 = 1;
+  string output_sha256 = 2;
+  repeated string changed_parts = 3;
+  repeated PresentationEditOperationResult operations = 4;
+}
+
+message PresentationEditOperationResult {
+  string operation_id = 1;
+  string slide_id = 2;
+  string slide_part_path = 3;
+  string target_id = 4;
+  uint32 shape_tree_index = 5;
+  uint32 text_leaf_index = 6;
+  string source_element_sha256 = 7;
+  string output_element_sha256 = 8;
+  string old_value_sha256 = 9;
+  string new_value_sha256 = 10;
+  uint64 source_start_offset = 11;
+  uint64 source_end_offset = 12;
+  uint64 output_end_offset = 13;
 }
 
 message DocumentRevisionFinalizationRequest {

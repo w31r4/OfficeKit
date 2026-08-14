@@ -6,11 +6,11 @@
 
 ## 2. Establish exact no-op and text-leaf editing
 
-- [ ] 2.1 Preserve unchanged imported shape/group wire projections and prove the complete presentation is unchanged before returning exact source bytes.
-- [ ] 2.2 Add the additive wire-v2 `APPLY_PPTX_EDIT_PLAN` request/result messages and deterministic JavaScript text-leaf compiler.
-- [ ] 2.3 Implement the C# read-only structural proof and UTF-8 XML token splice with source, part, element, semantic, leaf, and old-value preconditions.
-- [ ] 2.4 Prove only declared OPC parts change, masked target XML is byte-identical, output reimports, and stale/ambiguous/scope-expanding plans fail closed.
-- [ ] 2.5 Validate the “算秩未来” title and blue-gray subtitle edits while unrelated unknown geometry remains preserved and non-blocking.
+- [x] 2.1 Preserve unchanged imported shape/group wire projections and prove the complete presentation is unchanged before returning exact source bytes.
+- [x] 2.2 Add the additive wire-v2 `APPLY_PPTX_EDIT_PLAN` request/result messages and deterministic JavaScript text-leaf compiler.
+- [x] 2.3 Implement the C# read-only structural proof and UTF-8 XML token splice with source, part, element, semantic, leaf, and old-value preconditions.
+- [x] 2.4 Prove only declared OPC parts change, masked target XML is byte-identical, output reimports, and stale/ambiguous/scope-expanding plans fail closed.
+- [x] 2.5 Validate the “算秩未来” title and blue-gray subtitle edits while unrelated unknown geometry remains preserved and non-blocking.
 
 ## 3. Persist compiler evidence in durable tasks
 

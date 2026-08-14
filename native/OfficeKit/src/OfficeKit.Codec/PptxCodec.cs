@@ -41,6 +41,18 @@ internal sealed class PptxTargetSlideEntry
 
 internal static class PptxCodec
 {
+    internal static bool SupportsBoundTextLeaf(P.Shape shape) =>
+        IsSimpleShape(shape) || PptxPlaceholderCodec.SupportsSlideTextEditing(shape);
+
+    internal static int ValidateEditPlanOutput(
+        byte[] sourceBytes,
+        byte[] outputBytes,
+        EffectiveCodecLimits limits)
+    {
+        ValidateOutputBudget(outputBytes, limits);
+        return ValidateOffice2021AgainstSource(sourceBytes, outputBytes);
+    }
+
     private const long DefaultSlideWidthEmu = 12_192_000;
     private const long DefaultSlideHeightEmu = 6_858_000;
     internal static PptxImportResult Import(byte[] bytes, EffectiveCodecLimits limits)
