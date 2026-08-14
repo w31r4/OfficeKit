@@ -96,6 +96,12 @@ that only one worksheet-drawing part changed.
 - `abs_num` selects absolute/relative row and column markers with modes `1` through `4`. `a1` selects A1 (`TRUE`, default) or R1C1 (`FALSE`) text. An optional sheet name is emitted with Excel-compatible quoting and apostrophe escaping.
 - Keep the result as text or pass it only to an explicitly supported text consumer. Do not introduce volatile `INDIRECT` to turn it into a live reference. Out-of-grid coordinates, invalid modes, nonlogical style selectors, and nontext sheet names fail closed as `#VALUE!`.
 
+### Approximate LOOKUP profile
+
+- `LOOKUP(lookup_value, lookup_vector, [result_vector])` finds the greatest ascending key less than or equal to the requested value. Use only a one-row or one-column lookup vector of at most 10,000 cells; an optional result vector must have the same cell count.
+- `LOOKUP(lookup_value, array)` is the compatibility array form. A square/tall array searches its first column and returns from its last column; a wider array searches its first row and returns from its last row.
+- Keep numeric and text key vectors homogeneous and visibly sorted ascending. OfficeKit returns `#N/A` below the first key and fails closed as `#VALUE!` when ordering, key class, vector geometry, result size, or the source budget cannot be proven. Use `XLOOKUP` for exact matching, explicit not-found values, or directional search.
+
 ### Calendar week profile
 
 - `WEEKNUM(serial_number, [return_type])` supports Excel system 1 with Sunday-first `1` (the default), Monday-first `2`/`11`, and Tuesday-through-Sunday starts `12` through `17`. Return type `21` uses ISO 8601 week numbering.

@@ -3804,6 +3804,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.LOG` | formula | Return a logarithm for a positive number and positive base other than one; the base defaults to 10 and invalid domains fail as #NUM!. |
 | `fx.LOG10` | formula | Return the base-10 logarithm of a positive finite number. |
 | `fx.LOGEST` | formula | Return a bounded single-variable exponential regression dynamic array for y=b*m^x: 1x2 multiplier/base by default or a 5x2 matrix whose remaining diagnostics describe the natural-log regression when stats is TRUE. Known-y must be positive; known-x may be omitted, const may force b=1, and constant known-x is removed. Mismatched shapes, multivariable inputs, and array constants fail closed. |
+| `fx.LOOKUP` | formula | Return the result aligned with the greatest ascending homogeneous numeric or text key less than or equal to one scalar. The bounded vector form accepts one optional same-length result vector; the array form searches its first column when square or taller and its first row when wider, then returns from the last column or row. Unproven ordering, mixed keys, mismatched vectors, two-dimensional vector arguments, and sources above 10,000 cells fail as #VALUE!. |
 | `fx.LOWER` | formula | Convert text to lowercase. |
 | `fx.MATCH` | formula | Return a 1-based lookup position in one row or column vector of 1 through 10,000 cells. Exact 0 matching is wildcard-aware; default/1 approximate matching requires a proven ascending homogeneous numeric or text vector and returns the greatest matching-or-lower key, while -1 requires proven descending order and returns the smallest matching-or-higher key. Two-dimensional, oversized, mixed, unordered, or invalid-mode inputs return #VALUE!. |
 | `fx.MAX` | formula | Return the maximum numeric value across arguments and ranges. |
@@ -5661,6 +5662,24 @@ Return a bounded single-variable exponential regression dynamic array for y=b*m^
 **Schema returns:**
 
 - `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
+
+#### `fx.LOOKUP`
+
+Return the result aligned with the greatest ascending homogeneous numeric or text key less than or equal to one scalar. The bounded vector form accepts one optional same-length result vector; the array form searches its first column when square or taller and its first row when wider, then returns from the last column or row. Unproven ordering, mixed keys, mismatched vectors, two-dimensional vector arguments, and sources above 10,000 cells fail as #VALUE!.
+
+**Examples:**
+
+- =LOOKUP(5.75,A2:A6,B2:B6)
+- =LOOKUP(25,A1:D2)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =LOOKUP(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (unknown) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.LOWER`
 

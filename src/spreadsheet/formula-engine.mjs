@@ -72,7 +72,7 @@ const FORMULA_SPILL_RANGE_FUNCTIONS = new Set([
   "NPV", "MIRR", "XNPV", "IRR", "XIRR", "NETWORKDAYS", "WORKDAY", "NETWORKDAYS.INTL", "WORKDAY.INTL",
   "CONCAT", "CONCATENATE", "TEXTJOIN", "COUNTIF", "COUNTIFS",
   "TRANSPOSE", "FILTER", "UNIQUE", "SORT", "TAKE", "DROP", "CHOOSECOLS", "CHOOSEROWS", "TOCOL", "TOROW", "WRAPROWS", "WRAPCOLS", "HSTACK", "VSTACK", "EXPAND",
-  "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "MINIFS", "MAXIFS", "SUMPRODUCT", "INDEX", "MATCH", "XMATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP", "ROWS", "COLUMNS",
+  "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "MINIFS", "MAXIFS", "SUMPRODUCT", "INDEX", "MATCH", "XMATCH", "LOOKUP", "VLOOKUP", "HLOOKUP", "XLOOKUP", "ROWS", "COLUMNS",
   "TYPE", "ISREF",
 ]);
 // LibreOffice serializes dynamic-array formulas as legacy array formulas on
@@ -3176,6 +3176,30 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
       const searchMode = formulaLookupMode(scalar(3), 1, [1, -1]);
       if (formulaErrorCode(searchMode)) return searchMode;
       return formulaXmatchIndex(lookup, lookupVector.values, matchMode, searchMode);
+    }
+    case "LOOKUP": {
+      if (args.length < 2 || args.length > 3) return "#VALUE!";
+      const lookup = scalar(0, "");
+      let lookupValues;
+      let resultValues;
+      if (args.length === 3) {
+        const lookupVector = formulaLookupVector(sheet, args[1], context, { rejectErrors: true });
+        if (lookupVector.error) return lookupVector.error;
+        const resultVector = formulaLookupVector(sheet, args[2], context);
+        if (resultVector.error) return resultVector.error;
+        if (lookupVector.values.length !== resultVector.values.length) return "#VALUE!";
+        lookupValues = lookupVector.values;
+        resultValues = resultVector.values;
+      } else {
+        const source = formulaBoundedReferenceMatrix(sheet, args[1], context);
+        if (source.error) return source.error;
+        const vertical = source.rows >= source.cols;
+        lookupValues = vertical ? source.matrix.map((row) => row[0]) : source.matrix[0];
+        resultValues = vertical ? source.matrix.map((row) => row[source.cols - 1]) : source.matrix[source.rows - 1];
+      }
+      const index = formulaApproximateLookupIndex(lookup, lookupValues);
+      if (formulaErrorCode(index)) return index;
+      return resultValues[index - 1] ?? null;
     }
     case "VLOOKUP": {
       if (args.length < 3 || args.length > 4) return "#VALUE!";

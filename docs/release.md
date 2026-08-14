@@ -6862,6 +6862,24 @@ locale-neutral package cache uses a different sheet separator, so OfficeKit
 keeps the documented Excel `!` contract. Full release-candidate and hosted-slow
 evidence remains deferred under the rolling 12-hour policy.
 
+### XLSX bounded legacy LOOKUP
+
+On 2026-08-14, the Spreadsheet formula milestone added both documented forms
+of `LOOKUP`. The vector form accepts one ascending row/column plus an optional
+same-length result vector. The compatibility array form chooses the first
+column and last column for square/tall sources, or the first row and last row
+for wider sources. Both stay inside the 10,000-cell source budget and return
+the result aligned with the greatest key less than or equal to the request.
+
+The bounded contract requires a proven homogeneous numeric or text ordering;
+unordered/mixed sources, malformed vector geometry, mismatched results,
+formula errors, and oversized sources fail explicitly. Focused tests cover
+Microsoft's four public vector examples, horizontal and vertical vectors,
+both array orientations, canonical XLSX export, and second import.
+LibreOfficeDev 26.8 independently recalculated the seven-case core fixture to
+the same values. Full release-candidate and hosted-slow evidence remains
+deferred under the rolling 12-hour policy.
+
 ## Publishing
 
 Before publishing:
