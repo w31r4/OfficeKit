@@ -7,7 +7,7 @@ OfficeKit 把“开发反馈速度”和“发布可信度”分开。小改动�
 | 层 | 本地入口 | Hosted 入口 | 触发 | 包含 |
 | --- | --- | --- | --- | --- |
 | Fast | `npm test`（等同 `npm run test:fast`） | `.github/workflows/ci.yml` | 每次 push/PR | JS syntax/import、核心四格式模型、OfficeKit 路由/参考插件路径同步/可移植性 validator、Help、包内容 smoke。不会下载 Python/PyMuPDF/qpdf/OCR/veraPDF，不运行完整域 Skill 或 reference Skill render/matrix、PromptBench、clean-install 或 20 套默认模板的全量原生回归。 |
-| Slow | `npm run test:slow` | `.github/workflows/ci-slow.yml` | 手动、nightly；相关 `src/native/skills/evals/test/package` 路径变更时 | 原完整测试链、provider/pack、Playwright/LibreOffice/Poppler、PromptBench candidate/reference、默认模板全量 import/export/recalc/render、examples、release/package、OfficeBridge 与 OfficeKit WASM。Hosted workflow 将同一条步骤表按十个职责段顺序执行，避免单个长命令被 runner 取消。 |
+| Slow | `npm run test:slow` | `.github/workflows/ci-slow.yml` | 每日定时或人工冻结 milestone；不随普通 push/PR 自动触发 | 原完整测试链、provider/pack、Playwright/LibreOffice/Poppler、PromptBench candidate/reference、默认模板全量 import/export/recalc/render、examples、release/package、OfficeBridge 与 OfficeKit WASM。Hosted workflow 将同一条步骤表按十个职责段顺序执行，避免单个长命令被 runner 取消。 |
 | Windows Office live | 见下文 | `.github/workflows/windows-office-live.yml` | 手动排队；Live host 变更或 release candidate | 真实 Windows + Microsoft Office 人工观察证据。GitHub-hosted Windows、macOS mock、Add-in build smoke 和 CLI/package smoke 都不能替代这条证据。 |
 
 `npm run test:slow:templates` 和 `npm run test:slow:promptbench` 是 slow gate 中可单独复跑的两个窄入口。它们不改变正式 slow gate 的完整范围，也不应被记录成完整发布证据。
@@ -37,9 +37,10 @@ Hosted `ci-slow` 和手动 release workflow 使用同一 runner 入口的十个�
 
 ## 变更判断
 
-- 只改 JS 模型、普通 Skill 文案或不涉及 provider/runtime 的测试：先跑 `npm test`；必要时再跑受影响的单测。
-- 改动 `src/pdf/**`、`skills/pdf/**`、provider catalog/installer、`evals/**`、默认模板、`native/**`、发布脚本或 lockfile：把 `ci-slow` 作为必需检查，并在提交说明中写明触发原因与结果。
-- 发布候选：冻结版本和包后运行 `npm run test:slow`、`npm run docs:api`、`npm run test:pack`、`npm run release:check`、OfficeBridge/OfficeKit .NET tests，再生成 standalone/release pins。npm auth、tag、Windows 实机等外部阻塞仍单独记录。
+- 每个原子提交先跑受影响的定向测试和 `npm test`；普通 Skill/JS 改动不自动升级为完整发布候选。
+- proto、C# Codec 或 bundled WASM 改动另跑最窄的 `proto:check`、对应 .NET 测试和确定性 WASM build；provider、模板、PromptBench 或 Live 改动使用各自的窄入口。窄门禁结果不能写成完整发布证据。
+- 同一领域累计 3–5 个已闭环纵切后冻结一个 milestone，再考虑完整发布候选。两次完整候选的**启动时间**必须至少相隔 12 小时；这是滚动窗口，不从上一轮结束时间重新计时。紧急安全修复或用户明确要求立即发布候选才可例外，并必须记录原因。
+- 发布候选：冻结版本和包后一次性运行 `npm run test:slow`、`npm run docs:api`、`npm run test:pack`、`npm run release:check`、OfficeBridge/OfficeKit .NET tests，再生成 standalone/release pins，并触发一次 hosted slow。npm auth、tag、Windows 实机等外部阻塞仍单独记录。
 - `docs/api.md` 只有在公开 API 改变时重生成；fast gate 的 Help/API 断言不代替发布前 `docs:api` clean diff。
 
 ## Windows Office live 证据

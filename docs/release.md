@@ -2032,12 +2032,23 @@ context, or an independent text view helps investigate a mismatch.
 
 Daily development uses the fast `npm test` / `npm run test:fast` gate. It
 checks syntax/imports, core Office/PDF model and routing/Skill contracts, Help,
-and package-content smoke. The complete chain is now explicit as
-`npm run test:slow`; it remains required for provider/native/runtime changes,
-PromptBench or template-library changes, release candidates, and nightly
-`ci-slow`, followed by generated API diff, `npm run test:pack`, release checks,
-OfficeBridge, and OfficeKit .NET/WASM tests. The real Windows Excel/PowerPoint
-acceptance is not folded into either automated lane: trigger
+and package-content smoke. Every atomic change runs affected narrow tests plus
+this fast gate. Proto/C# Codec/WASM work also runs the narrow protocol check,
+corresponding .NET tests, and deterministic WASM build; provider, template,
+PromptBench, and Live work uses its affected narrow entry rather than
+automatically promoting every commit to a release candidate.
+
+The complete chain remains explicit as `npm run test:slow`, followed by
+generated API diff, `npm run test:pack`, release checks, OfficeBridge, and
+OfficeKit .NET/WASM tests. It runs for the daily hosted lane or one frozen
+same-domain milestone of 3–5 closed slices. Complete release-candidate starts
+must be at least 12 hours apart in a rolling window measured from the previous
+start time. Only an urgent security fix or an explicit immediate-release
+request may bypass that cooldown, with the reason recorded. `ci-slow` therefore
+does not trigger on ordinary pushes or pull requests.
+
+The real Windows Excel/PowerPoint acceptance is not folded into either
+automated lane: trigger
 `.github/workflows/windows-office-live.yml` only on a release candidate or Live
 host change, using a self-hosted Windows runner with Microsoft Office and a
 human-observed evidence JSON. GitHub-hosted CLI tests and macOS Office.js mocks

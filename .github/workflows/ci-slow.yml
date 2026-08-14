@@ -4,35 +4,12 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 18 * * *"
-  push:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "native/**"
-      - "skills/pdf/**"
-      - "skills/default-template-library/**"
-      - "evals/**"
-      - "scripts/**"
-      - "test/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/ci-slow.yml"
-  pull_request:
-    paths:
-      - "src/**"
-      - "native/**"
-      - "skills/pdf/**"
-      - "skills/default-template-library/**"
-      - "evals/**"
-      - "scripts/**"
-      - "test/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/ci-slow.yml"
 
 # Slow gates are intentionally explicit: provider setup, native Office-file
 # round trips, PromptBench, full package/release checks, and reproducible WASM
-# validation are not hidden inside the fast push/PR workflow.
+# validation are not hidden inside the fast push/PR workflow. Release-candidate
+# dispatches must respect the documented 12-hour rolling cooldown; the daily
+# schedule is intentionally farther apart than that minimum.
 permissions:
   contents: read
 
