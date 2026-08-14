@@ -17,9 +17,10 @@ internal sealed record PptxDiagramTextReplacement(string PartPath, string Sha256
 // text only where an imported top-level p:graphicFrame proves it owns the
 // canonical closed four-part Diagram graph and every document point has one
 // or more DrawingML paragraphs made only of direct plain runs and fixed line
-// breaks. Paragraph, run, and break topology remain owned by the source XML;
-// the wire projects only the source-ordered text leaves. Everything outside
-// that profile stays opaque.
+// breaks. A node may retain source-owned empty paragraphs, but must contain at
+// least one text run overall. Paragraph, run, and break topology remain owned
+// by the source XML; the wire projects only the source-ordered text leaves.
+// Everything outside that profile stays opaque.
 internal static class PptxDiagramTextCodec
 {
     private const string DiagramDataContentType = "application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml";
@@ -282,7 +283,7 @@ internal static class PptxDiagramTextCodec
             if (paragraphChildren.Any(element => !IsDrawing(element, "pPr") && !IsDrawing(element, "r") && !IsDrawing(element, "br") && !IsDrawing(element, "endParaRPr"))) return false;
             var runs = paragraphChildren.Where(element => IsDrawing(element, "r")).ToArray();
             var breaks = paragraphChildren.Where(element => IsDrawing(element, "br")).ToArray();
-            if (runs.Length < 1 || breaks.Any(element => !IsCanonicalBreak(element)) ||
+            if (breaks.Any(element => !IsCanonicalBreak(element)) ||
                 inlineCount + runs.Length + breaks.Length > MaxNodeInlineCount) return false;
             inlineCount += runs.Length + breaks.Length;
             foreach (var run in runs)
@@ -302,6 +303,7 @@ internal static class PptxDiagramTextCodec
                 results.Add(new DiagramRun(runText, textElements[0]));
             }
         }
+        if (results.Count == 0) return false;
         text = combined.ToString();
         resolvedRuns = results;
         return true;

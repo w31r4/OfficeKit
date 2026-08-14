@@ -5193,7 +5193,7 @@ public sealed class PptxCodecTests
         var source = ReplaceZipText(
             AddCloneableDiagramGraph(Invoke(ExportRequest()).File.ToByteArray()),
             dataPath,
-            _ => "<dgm:dataModel xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><dgm:ptLst><dgm:pt modelId=\"{B31B1833-2B65-4D6B-B3D4-9B3988427B21}\" type=\"doc\"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:pPr algn=\"ctr\"/><a:r><a:rPr b=\"1\"/><a:t>Bold</a:t></a:r><a:br><a:rPr lang=\"fr-FR\"/></a:br><a:endParaRPr lang=\"en-US\"/></a:p><a:p><a:r><a:rPr i=\"1\"/><a:t> italic</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst><dgm:cxnLst/><dgm:bg/><dgm:whole/></dgm:dataModel>");
+            _ => "<dgm:dataModel xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><dgm:ptLst><dgm:pt modelId=\"{B31B1833-2B65-4D6B-B3D4-9B3988427B21}\" type=\"doc\"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:pPr algn=\"ctr\"/><a:r><a:rPr b=\"1\"/><a:t>Bold</a:t></a:r><a:br><a:rPr lang=\"fr-FR\"/></a:br><a:endParaRPr lang=\"en-US\"/></a:p><a:p><a:pPr marL=\"91440\"/><a:endParaRPr lang=\"de-DE\"/></a:p><a:p><a:r><a:rPr i=\"1\"/><a:t> italic</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst><dgm:cxnLst/><dgm:bg/><dgm:whole/></dgm:dataModel>");
         var imported = Import(source);
         Assert.True(imported.Ok, Diagnostics(imported));
         var binding = Assert.IsType<PresentationDiagramText>(Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
@@ -5209,10 +5209,12 @@ public sealed class PptxCodecTests
         Assert.Equal(ZipBytes(source, "ppt/slides/slide1.xml"), ZipBytes(output, "ppt/slides/slide1.xml"));
         Assert.NotEqual(ZipBytes(source, dataPath), ZipBytes(output, dataPath));
         var xml = Encoding.UTF8.GetString(ZipBytes(output, dataPath));
-        Assert.Equal(2, Regex.Matches(xml, "<a:p(?:\\s|>)").Count);
+        Assert.Equal(3, Regex.Matches(xml, "<a:p(?:\\s|>)").Count);
         Assert.Contains("<a:pPr algn=\"ctr\"", xml);
+        Assert.Contains("<a:pPr marL=\"91440\"", xml);
         Assert.Contains("<a:br><a:rPr lang=\"fr-FR\"", xml);
         Assert.Contains("<a:endParaRPr lang=\"en-US\"", xml);
+        Assert.Contains("<a:endParaRPr lang=\"de-DE\"", xml);
         Assert.Contains("<a:rPr b=\"1\"", xml);
         Assert.Contains("<a:rPr i=\"1\"", xml);
         Assert.Contains("<a:t>Strong</a:t>", xml);
@@ -5247,6 +5249,13 @@ public sealed class PptxCodecTests
         var fieldImport = Import(fieldSource);
         Assert.True(fieldImport.Ok, Diagnostics(fieldImport));
         Assert.Null(Assert.Single(fieldImport.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
+
+        var emptyNodeSource = ReplaceZipText(source, dataPath, xml => xml
+            .Replace("<a:r><a:rPr b=\"1\"/><a:t>Bold</a:t></a:r>", string.Empty, StringComparison.Ordinal)
+            .Replace("<a:r><a:rPr i=\"1\"/><a:t> italic</a:t></a:r>", string.Empty, StringComparison.Ordinal));
+        var emptyNodeImport = Import(emptyNodeSource);
+        Assert.True(emptyNodeImport.Ok, Diagnostics(emptyNodeImport));
+        Assert.Null(Assert.Single(emptyNodeImport.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
     }
 
     [Fact]

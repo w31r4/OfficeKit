@@ -6745,8 +6745,8 @@ On 2026-08-14, the bounded SmartArt text profile admitted canonical direct
 `a:br` leaves alongside existing plain runs. A recognized break has no
 non-namespace attributes and contains at most one direct `a:rPr`; it remains
 fixed source topology and is never projected as an editable run. The codec
-limits each node to at most 256 direct run-plus-break inline leaves, still
-requires at least one ordinary run per paragraph, and continues to flatten
+limits each node to at most 256 direct run-plus-break inline leaves. At that
+slice it still required one ordinary run per paragraph and continued to flatten
 only `a:r/a:t` values into the public source-ordered `runs` projection.
 
 Run-local export loads the source DiagramDataPart, re-proves its digest and
@@ -6762,6 +6762,24 @@ node containing a formatted break, exact DiagramDataPart-only mutation,
 second import, public workflow preservation, and fail-closed attributed-break
 input. Full local and hosted release evidence is deferred to the frozen
 Presentation milestone under the 12-hour rolling candidate policy.
+
+### PPTX source-bound SmartArt empty-paragraph preservation
+
+On 2026-08-14, the same profile began accepting fixed empty direct `a:p`
+paragraphs when the document point still contains at least one ordinary
+`a:r/a:t` text leaf overall. Empty paragraphs remain owned by the source
+DiagramDataPart: they are not represented as synthetic JS runs or separators,
+and their position, `a:pPr`, and `a:endParaRPr` cannot be changed. A wholly
+empty node still receives no edit capability.
+
+The C# and bundled-WASM fixtures retain a formatted empty paragraph between
+two styled text paragraphs, change one existing run, validate the PPTX with
+the Open XML SDK, reimport the exact flattened run projection, and prove that
+the empty paragraph plus its properties survived. A negative all-empty node
+withholds `diagramText`. This is a codec-admission and preservation change,
+not a wire-version or public object-model change. Full release-candidate and
+hosted-slow evidence remains deferred until the 3–5-slice Presentation
+milestone is frozen and the rolling 12-hour window permits a new candidate.
 
 ## Publishing
 

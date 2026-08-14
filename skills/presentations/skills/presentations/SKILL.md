@@ -314,10 +314,11 @@ that exact profile still fail closed.
 
 For one imported canonical SmartArt document node, do not patch the ZIP or
 rebuild the diagram. First inspect `nativeObject.diagramText`; it is present
-only when the closed four-part graph has one or more direct paragraphs with one
-through 256 total plain `a:r > a:t` runs per document node. The returned
-`runs` are flattened in exact source order; paragraph boundaries remain owned
-by the source package. Then run the public
+only when the closed four-part graph has one through 256 direct paragraphs and
+between one and 256 total plain `a:r > a:t` runs per document node. Empty
+direct paragraphs remain fixed source topology and are not projected; a wholly
+empty node is not editable. The returned `runs` are flattened in exact source
+order; paragraph boundaries remain owned by the source package. Then run the public
 transaction below, which changes only the bound DiagramDataPart and writes a
 no-overwrite audit:
 
@@ -334,9 +335,9 @@ guessing a formatting boundary.
 
 The workflow resolves exactly one object/node/optional-run/expected-text tuple,
 preserves the source, verifies that no non-data package part changed, reimports
-the requested node/run list, preserves canonical fixed `a:br` line breaks, and
-fails closed for empty-paragraph, field, noncanonical-break, connected, nested,
-or ambiguous SmartArt. It does not add/reorder paragraphs or breaks,
+the requested node/run list, and preserves empty paragraphs plus canonical
+fixed `a:br` line breaks. It fails closed for wholly empty nodes, fields,
+noncanonical breaks, connected, nested, or ambiguous SmartArt. It does not add/reorder paragraphs or breaks,
 nodes, or runs, change existing paragraph/run formatting, change
 layout/style/colors or geometry, or claim model SVG verification is a
 native-host rendering check.

@@ -4726,7 +4726,7 @@ const richSmartArtTextSource = await PresentationFile.patchPptx(smartArtTextSour
   path: "ppt/diagrams/agent-data.xml",
   xml: smartArtTextData.replace(
     "<a:r><a:t>Original node</a:t></a:r>",
-    '<a:pPr algn="ctr"/><a:r><a:rPr b="1"/><a:t>Original</a:t></a:r><a:br><a:rPr lang="fr-FR"/></a:br><a:endParaRPr lang="en-US"/></a:p><a:p><a:r><a:rPr i="1"/><a:t> node</a:t></a:r>',
+    '<a:pPr algn="ctr"/><a:r><a:rPr b="1"/><a:t>Original</a:t></a:r><a:br><a:rPr lang="fr-FR"/></a:br><a:endParaRPr lang="en-US"/></a:p><a:p><a:pPr marL="91440"/><a:endParaRPr lang="de-DE"/></a:p><a:p><a:r><a:rPr i="1"/><a:t> node</a:t></a:r>',
   ),
 }]);
 const richSmartArtText = await PresentationFile.importPptx(richSmartArtTextSource);
@@ -4748,9 +4748,10 @@ richSmartArtTextObject.setDiagramNodeRunText("{B31B1833-2B65-4D6B-B3D4-9B3988427
 const richSmartArtTextExport = await PresentationFile.exportPptx(richSmartArtText);
 const richSmartArtTextOutputZip = await JSZip.loadAsync(richSmartArtTextExport.bytes);
 const richSmartArtTextOutputData = await richSmartArtTextOutputZip.file("ppt/diagrams/agent-data.xml").async("text");
-assert.equal((richSmartArtTextOutputData.match(/<a:p(?:\s|>)/g) || []).length, 3,
-  "the edited two-paragraph node and untouched second node must retain all source paragraphs");
+assert.equal((richSmartArtTextOutputData.match(/<a:p(?:\s|>)/g) || []).length, 4,
+  "the edited three-paragraph node and untouched second node must retain all source paragraphs");
 assert.match(richSmartArtTextOutputData, /<a:pPr algn="ctr"\s*\/>/);
+assert.match(richSmartArtTextOutputData, /<a:p><a:pPr marL="91440"\s*\/><a:endParaRPr lang="de-DE"\s*\/><\/a:p>/);
 assert.match(richSmartArtTextOutputData, /<a:br><a:rPr lang="fr-FR"\s*\/><\/a:br>/);
 assert.match(richSmartArtTextOutputData, /<a:endParaRPr lang="en-US"\s*\/>/);
 assert.match(richSmartArtTextOutputData, /<a:rPr b="1"\s*\/>/);

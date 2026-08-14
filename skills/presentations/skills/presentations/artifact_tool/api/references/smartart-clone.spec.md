@@ -62,14 +62,15 @@ text capability only when its DiagramDataPart additionally proves all of the
 following:
 
 - its root is `dgm:dataModel` and it has exactly one direct `dgm:ptLst`;
-- every exposed `dgm:pt` has `type="doc"`, a unique non-empty `modelId`, and
-  one through 256 direct `dgm:t > a:p` paragraphs, each with at least one
-  direct `a:r > a:t`, and one through 256 runs and fixed line breaks in total;
+- every exposed `dgm:pt` has `type="doc"`, a unique non-empty `modelId`, one
+  through 256 direct `dgm:t > a:p` paragraphs, and between one and 256
+  direct `a:r > a:t` runs plus fixed line breaks in total;
   optional `a:bodyPr`, `a:lstStyle`, `a:pPr`, per-run `a:rPr`, canonical
   `a:br` with optional `a:rPr`, and `a:endParaRPr` may remain;
 - each run and its complete node concatenation are XML-safe and the node is at
-  most 32,767 characters. Empty paragraphs, fields, attributed or otherwise
-  noncanonical breaks, unknown child markup, disconnected parts, or any
+  most 32,767 characters. Empty direct paragraphs may remain fixed topology,
+  but a wholly empty node, fields, attributed or otherwise noncanonical
+  breaks, unknown child markup, disconnected parts, or any
   topology ambiguity withhold the capability rather than being simplified.
 
 `nativeObject.editable` remains `false`: this is a typed exception, not general
@@ -133,8 +134,8 @@ whole-node writes across multiple style runs, presentation of arbitrary diagram
 text, raw XML mutation, layout/style/color edits, geometry edits,
 cross-diagram changes, clone-before-export after a pending text edit, and
 arbitrary graph cloning remain unsupported. Incomplete, duplicated, mistyped,
-external, nested, relationship-bearing, field-bearing, empty-paragraph,
+external, nested, relationship-bearing, field-bearing, wholly-empty-node,
 noncanonical-break, or otherwise noncanonical SmartArt graphs fail closed.
-Canonical fixed `a:br` leaves remain source-owned and are preserved unchanged.
+Empty paragraphs and canonical fixed `a:br` leaves remain source-owned and are preserved unchanged.
 Preserve such objects unchanged or use a separate explicit OPC operation whose
 scope is independently reviewed.
