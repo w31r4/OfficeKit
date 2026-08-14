@@ -1488,6 +1488,12 @@ assert.equal(importedLayoutSlide.placeholders.getItem("title").text.value, "Offi
 assert.equal(importedLayoutSlide.placeholders.getItem("body").text.value, "A direct-frame body placeholder survives native export and import.");
 const authoredLayoutRoundTrip = await PresentationFile.exportPptx(authoredLayoutImported);
 assert.equal((await PresentationFile.inspectPptx(authoredLayoutRoundTrip)).ok, true);
+const importedLayoutTitle = importedLayoutSlide.placeholders.getItem("title");
+importedLayoutTitle.text.replace("OfficeKit layout title", "OfficeKit reviewed layout title");
+const authoredLayoutTextEdit = await PresentationFile.exportPptx(authoredLayoutImported);
+assert.equal(authoredLayoutTextEdit.metadata.editPlan?.schema, "office-kit/pptx-edit-plan/v1");
+const authoredLayoutTextEditImported = await PresentationFile.importPptx(authoredLayoutTextEdit);
+assert.equal(authoredLayoutTextEditImported.slides.getItem(0).placeholders.getItem("title").text.value, "OfficeKit reviewed layout title");
 
 const guardedLayoutPresentation = Presentation.create();
 const firstGuardedLayout = guardedLayoutPresentation.layouts.add({

@@ -10,6 +10,7 @@ import {
   PresentationModernCommentAnchor_Kind,
   PresentationSlideSchema,
   PresentationSlideGuide_Orientation,
+  PresentationTextBodySchema,
   PresentationTextRunSchema,
 } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { normalizePresentationRunLink } from "../presentation/ooxml-hyperlinks.mjs";
@@ -3684,7 +3685,13 @@ function presentationSlidePlaceholder(shape, original, originalState, assetCatal
   const requested = clonedPresentationValue(original);
   const originalShape = original.content.value;
   requested.content.value.text = shape.text.value;
-  requested.content.value.textBody = sourceBoundSlidePlaceholderTextBody(shape, originalShape, originalState, assetCatalog, customShowLinks);
+  // `requested` is a cloned protobuf message. Replacing one of its message
+  // fields with a plain initializer does not make Buf recursively create that
+  // child again, so canonicalize the rebuilt text body before binary proof.
+  requested.content.value.textBody = create(
+    PresentationTextBodySchema,
+    sourceBoundSlidePlaceholderTextBody(shape, originalShape, originalState, assetCatalog, customShowLinks),
+  );
   return requested;
 }
 
