@@ -238,6 +238,8 @@ export const HELP_CATALOG = [
   { artifactKind: "workbook", kind: "formula", name: "fx.ROW", category: "lookup-reference", summary: "Return the 1-based row of the current formula cell or one explicit single-cell reference; ranges, spills, computed matrices, and invalid arity fail closed as #VALUE!.", examples: ["=ROW()", "=ROW(A1)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.COLUMN", category: "lookup-reference", summary: "Return the 1-based column of the current formula cell or one explicit single-cell reference; ranges, spills, computed matrices, and invalid arity fail closed as #VALUE!.", examples: ["=COLUMN()", "=COLUMN(A1)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.ADDRESS", category: "lookup-reference", summary: "Return one bounded worksheet address as text from 1-based row and column numbers, reference mode 1 through 4, A1 or R1C1 style, and optional Excel-quoted sheet text. Coordinates outside XFD1048576, invalid modes, nonlogical style selectors, and nontext sheet names fail as #VALUE!.", examples: ["=ADDRESS(2,3)", "=ADDRESS(2,3,2,FALSE)", "=ADDRESS(2,3,1,TRUE,\"EXCEL SHEET\")"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.SHEET", category: "information", summary: "Return the 1-based OfficeKit worksheet position for the current sheet or one validated single-sheet cell/range, workbook defined name, table, or sheet-name string. Missing sheet-name strings return #N/A; invalid references, nonreference values, 3D spans, and extra arguments fail explicitly. Chart, macro, and dialog sheets are outside the OfficeKit workbook model.", examples: ["=SHEET()", "=SHEET('Source Data'!A1)", "=SHEET(\"Summary\")"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.SHEETS", category: "information", summary: "Return the total number of OfficeKit worksheets, including hidden worksheets, or 1 for one validated single-sheet cell/range, workbook defined name, table, or sheet-name string. Invalid references, nonreference values, 3D spans, and extra arguments fail explicitly; chart, macro, and dialog sheets are not modeled.", examples: ["=SHEETS()", "=SHEETS('Source Data'!A1:C10)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.ISFORMULA", category: "information", summary: "Return TRUE when one explicit single-cell reference contains a formula, FALSE when the cell is not formula-backed, and #VALUE! for ranges, computed matrices, spills, or invalid input.", examples: ["=ISFORMULA(A1)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.FORMULATEXT", category: "information", summary: "Return the stored formula text for one explicit single-cell reference, #N/A when that cell has no formula, and #VALUE! for ranges, computed matrices, spills, or invalid input.", examples: ["=FORMULATEXT(A1)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.ISNUMBER", category: "information", summary: "Return TRUE when a value is numeric.", examples: ["=ISNUMBER(A1)"] },
@@ -2601,6 +2603,8 @@ for (const item of HELP_CATALOG) {
     const arrayReturn = item.category === "dynamic-array" || ["GROWTH", "LINEST", "LOGEST", "MODE.MULT", "TREND"].includes(functionName);
     const returnType = arrayReturn
       ? "unknown[][]"
+      : functionName === "SHEET" || functionName === "SHEETS"
+        ? "number"
       : item.category === "logical" || item.category === "information"
         ? (functionName === "IF" || functionName === "IFERROR" || functionName === "LET" ? "unknown" : "boolean")
         : item.category === "text"

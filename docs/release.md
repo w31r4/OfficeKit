@@ -6880,6 +6880,25 @@ LibreOfficeDev 26.8 independently recalculated the seven-case core fixture to
 the same values. Full release-candidate and hosted-slow evidence remains
 deferred under the rolling 12-hour policy.
 
+### XLSX bounded worksheet topology formulas
+
+On 2026-08-14, the fifth and final slice in this Spreadsheet formula milestone
+added `SHEET` and `SHEETS`. `SHEET` returns the 1-based position of the current
+worksheet or one validated single-sheet cell/range, workbook defined name,
+table, or sheet-name string. `SHEETS()` counts all modeled worksheets,
+including hidden worksheets; its reference form returns `1` for the same
+single-sheet locators.
+
+The bounded model deliberately excludes chart, macro, and dialog sheets plus
+3D reference spans. Missing sheet-name strings return `#N/A`; invalid
+references, nonreference values, spans, and extra arguments fail explicitly.
+Focused tests cover current/cross-sheet/range/string/name/table resolution,
+hidden-sheet counting, error cases, canonical XLSX export, and second import.
+LibreOfficeDev 26.8 independently recalculated the seven-case core fixture to
+`3`, `2`, `1`, `2`, `3`, `1`, and `1`. Full release-candidate and hosted-slow
+evidence remains deferred until the rolling 12-hour window opens and the
+milestone remains frozen.
+
 ## Publishing
 
 Before publishing:

@@ -102,6 +102,12 @@ that only one worksheet-drawing part changed.
 - `LOOKUP(lookup_value, array)` is the compatibility array form. A square/tall array searches its first column and returns from its last column; a wider array searches its first row and returns from its last row.
 - Keep numeric and text key vectors homogeneous and visibly sorted ascending. OfficeKit returns `#N/A` below the first key and fails closed as `#VALUE!` when ordering, key class, vector geometry, result size, or the source budget cannot be proven. Use `XLOOKUP` for exact matching, explicit not-found values, or directional search.
 
+### Worksheet topology profile
+
+- `SHEET()` returns the 1-based position of the worksheet containing the formula. `SHEET(reference)` accepts one cell/range, workbook defined name, table, or quoted sheet-name string only when it resolves to one OfficeKit worksheet.
+- `SHEETS()` counts every modeled worksheet, including hidden worksheets. `SHEETS(reference)` returns `1` for the same validated single-sheet references.
+- OfficeKit does not model Excel chart, macro, or dialog sheets, and the bounded formula grammar does not resolve 3D spans. Do not use these functions to claim a complete mixed-sheet inventory or 3D reference count: unsupported spans and nonreference values fail closed, while a missing sheet-name string returns `#N/A`.
+
 ### Calendar week profile
 
 - `WEEKNUM(serial_number, [return_type])` supports Excel system 1 with Sunday-first `1` (the default), Monday-first `2`/`11`, and Tuesday-through-Sunday starts `12` through `17`. Return type `21` uses ISO 8601 week numbering.

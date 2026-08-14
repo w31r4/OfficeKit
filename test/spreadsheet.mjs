@@ -1821,6 +1821,50 @@ const importedAddressFormulaWorkbook = await SpreadsheetFile.importXlsx(addressF
 assert.deepEqual(importedAddressFormulaWorkbook.worksheets.getItem("ADDRESS bounds").getRange("A1:A23").formulas, addressFormulaSheet.getRange("A1:A23").formulas);
 assert.deepEqual(importedAddressFormulaWorkbook.worksheets.getItem("ADDRESS bounds").getRange("A1:A23").values, addressFormulaSheet.getRange("A1:A23").values);
 
+const sheetIntrospectionWorkbook = Workbook.create();
+sheetIntrospectionWorkbook.worksheets.add("Alpha");
+const sheetIntrospectionBeta = sheetIntrospectionWorkbook.worksheets.add("Beta");
+const sheetIntrospectionThird = sheetIntrospectionWorkbook.worksheets.add("Third Sheet");
+sheetIntrospectionBeta.visibility = "hidden";
+sheetIntrospectionBeta.getRange("A1:B3").values = [["Key", "Value"], [1, "one"], [2, "two"]];
+sheetIntrospectionBeta.tables.add("A1:B3", true, "SheetTable");
+sheetIntrospectionWorkbook.definedNames.add("BetaTarget", "'Beta'!$A$1");
+sheetIntrospectionThird.getRange("F1:F25").formulas = [
+  ["=SHEET()"],
+  ["=SHEET(Beta!A1)"],
+  ["=SHEET('Third Sheet'!C4)"],
+  ["=SHEET(\"Alpha\")"],
+  ["=SHEET(\"Missing\")"],
+  ["=SHEET(C1:D2)"],
+  ["=SHEET(BetaTarget)"],
+  ["=SHEET(SheetTable)"],
+  ["=SHEET(Missing!A1)"],
+  ["=SHEET(Alpha:Beta!A1)"],
+  ["=SHEET(1)"],
+  ["=SHEET(#N/A)"],
+  ["=SHEET(Beta!A1,1)"],
+  ["=SHEETS()"],
+  ["=SHEETS(Beta!A1:C3)"],
+  ["=SHEETS(C1:D2)"],
+  ["=SHEETS(\"Alpha\")"],
+  ["=SHEETS(\"Missing\")"],
+  ["=SHEETS(BetaTarget)"],
+  ["=SHEETS(SheetTable)"],
+  ["=SHEETS(Missing!A1)"],
+  ["=SHEETS(Alpha:Beta!A1)"],
+  ["=SHEETS(1)"],
+  ["=SHEETS(#N/A)"],
+  ["=SHEETS(Beta!A1,1)"],
+];
+assert.deepEqual(sheetIntrospectionThird.getRange("F1:F25").values, [
+  [3], [2], [3], [1], ["#N/A"], [3], [2], [2], ["#REF!"], ["#REF!"], ["#REF!"], ["#N/A"], ["#VALUE!"],
+  [3], [1], [1], [1], ["#N/A"], [1], [1], ["#REF!"], ["#REF!"], ["#REF!"], ["#N/A"], ["#VALUE!"],
+]);
+const sheetIntrospectionXlsx = await SpreadsheetFile.exportXlsx(sheetIntrospectionWorkbook);
+const importedSheetIntrospectionWorkbook = await SpreadsheetFile.importXlsx(sheetIntrospectionXlsx);
+assert.deepEqual(importedSheetIntrospectionWorkbook.worksheets.getItem("Third Sheet").getRange("F1:F25").formulas, sheetIntrospectionThird.getRange("F1:F25").formulas);
+assert.deepEqual(importedSheetIntrospectionWorkbook.worksheets.getItem("Third Sheet").getRange("F1:F25").values, sheetIntrospectionThird.getRange("F1:F25").values);
+
 const controlFormulaWorkbook = Workbook.create();
 const controlFormulaSheet = controlFormulaWorkbook.worksheets.add("Formula controls");
 controlFormulaSheet.getRange("A1:A4").values = [[1], [2], [3], [4]];

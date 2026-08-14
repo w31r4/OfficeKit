@@ -656,6 +656,42 @@ function formulaSingleCellReference(sheet, expression) {
   return { reference, sheet: targetSheet, address: reference.start, cell: targetSheet.store.get(reference.start) };
 }
 
+function formulaWorksheetReference(sheet, expression) {
+  const workbook = sheet?.workbook;
+  const worksheets = workbook?.worksheets?.items;
+  if (!Array.isArray(worksheets) || !worksheets.includes(sheet)) return { error: "#REF!" };
+  const text = String(expression ?? "").trim();
+  const error = formulaErrorCode(text);
+  if (error) return { error };
+  const sheetName = formulaUnquote(text);
+  if (sheetName !== undefined) {
+    const targetSheet = workbook.worksheets.getItem(sheetName);
+    return targetSheet ? { sheet: targetSheet } : { error: "#N/A" };
+  }
+  const reference = formulaRefParts(text) || formulaDefinedNameRange(sheet, text);
+  if (reference) {
+    if (reference.missing) return { error: "#REF!" };
+    const targetSheet = reference.sheetName ? workbook.worksheets.getItem(reference.sheetName) : sheet;
+    return targetSheet ? { sheet: targetSheet } : { error: "#REF!" };
+  }
+  const table = findWorkbookTable(sheet, text);
+  if (table) return { sheet: table.sheet };
+  return { error: "#REF!" };
+}
+
+function formulaSheetNumber(sheet, expression) {
+  const target = expression === undefined ? { sheet } : formulaWorksheetReference(sheet, expression);
+  if (target.error) return target.error;
+  const index = sheet.workbook.worksheets.items.indexOf(target.sheet);
+  return index >= 0 ? index + 1 : "#REF!";
+}
+
+function formulaSheetCount(sheet, expression) {
+  if (expression === undefined) return sheet?.workbook?.worksheets?.items?.length || "#REF!";
+  const target = formulaWorksheetReference(sheet, expression);
+  return target.error || 1;
+}
+
 function formulaCurrentCell(sheet, context = {}) {
   const address = String(context.formulaAddress ?? "").replaceAll("$", "").trim().toUpperCase();
   if (!address) return undefined;
@@ -2811,6 +2847,14 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
       && String(args[0] ?? "").trim() !== "" && String(args[1] ?? "").trim() !== ""
       ? excelAddress(scalar(0), scalar(1), scalar(2, 1), scalar(3, true), scalar(4))
       : "#VALUE!";
+    case "SHEET": {
+      const noArgument = args.length === 0 || (args.length === 1 && String(args[0] ?? "").trim() === "");
+      return noArgument ? formulaSheetNumber(sheet) : args.length === 1 ? formulaSheetNumber(sheet, args[0]) : "#VALUE!";
+    }
+    case "SHEETS": {
+      const noArgument = args.length === 0 || (args.length === 1 && String(args[0] ?? "").trim() === "");
+      return noArgument ? formulaSheetCount(sheet) : args.length === 1 ? formulaSheetCount(sheet, args[0]) : "#VALUE!";
+    }
     case "ISFORMULA": {
       if (args.length !== 1 || hasEmptyArgument()) return "#VALUE!";
       const reference = formulaSingleCellReference(sheet, args[0]);

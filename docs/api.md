@@ -3856,6 +3856,8 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.SEARCH` | formula | Return the 1-based position of case-insensitive text, supporting Excel ?, *, and ~ wildcard syntax. |
 | `fx.SECOND` | formula | Return the 0 through 59 second component from a nonnegative serial or supported time text. |
 | `fx.SEQUENCE` | formula | Return a dynamic array sequence that spills into neighboring cells in the clean-room formula engine. |
+| `fx.SHEET` | formula | Return the 1-based OfficeKit worksheet position for the current sheet or one validated single-sheet cell/range, workbook defined name, table, or sheet-name string. Missing sheet-name strings return #N/A; invalid references, nonreference values, 3D spans, and extra arguments fail explicitly. Chart, macro, and dialog sheets are outside the OfficeKit workbook model. |
+| `fx.SHEETS` | formula | Return the total number of OfficeKit worksheets, including hidden worksheets, or 1 for one validated single-sheet cell/range, workbook defined name, table, or sheet-name string. Invalid references, nonreference values, 3D spans, and extra arguments fail explicitly; chart, macro, and dialog sheets are not modeled. |
 | `fx.SIGN` | formula | Return -1, 0, or 1 according to the sign of a finite numeric value. |
 | `fx.SIN` | formula | Return the sine of a finite radian value. |
 | `fx.SINH` | formula | Return the hyperbolic sine of a finite number; overflow fails as #NUM!. |
@@ -6583,6 +6585,43 @@ Return a dynamic array sequence that spills into neighboring cells in the clean-
 **Schema returns:**
 
 - `value` (unknown[][]) — Spilled two-dimensional formula result or an Excel-style formula error string.
+
+#### `fx.SHEET`
+
+Return the 1-based OfficeKit worksheet position for the current sheet or one validated single-sheet cell/range, workbook defined name, table, or sheet-name string. Missing sheet-name strings return #N/A; invalid references, nonreference values, 3D spans, and extra arguments fail explicitly. Chart, macro, and dialog sheets are outside the OfficeKit workbook model.
+
+**Examples:**
+
+- =SHEET()
+- =SHEET('Source Data'!A1)
+- =SHEET("Summary")
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =SHEET(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.SHEETS`
+
+Return the total number of OfficeKit worksheets, including hidden worksheets, or 1 for one validated single-sheet cell/range, workbook defined name, table, or sheet-name string. Invalid references, nonreference values, 3D spans, and extra arguments fail explicitly; chart, macro, and dialog sheets are not modeled.
+
+**Examples:**
+
+- =SHEETS()
+- =SHEETS('Source Data'!A1:C10)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =SHEETS(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.SIGN`
 
