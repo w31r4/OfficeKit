@@ -1783,6 +1783,44 @@ dynamicIntrospectionSheet.getRange("A1").formulas = [["=SEQUENCE(2,3)"]];
 dynamicIntrospectionSheet.getRange("E1:E2").formulas = [["=ROWS(A1#)"], ["=COLUMNS(A1#)"]];
 assert.deepEqual(dynamicIntrospectionSheet.getRange("E1:E2").values, [[2], [3]]);
 
+const addressFormulaWorkbook = Workbook.create();
+const addressFormulaSheet = addressFormulaWorkbook.worksheets.add("ADDRESS bounds");
+addressFormulaSheet.getRange("A1:A23").formulas = [
+  ["=ADDRESS(2,3)"],
+  ["=ADDRESS(2,3,2)"],
+  ["=ADDRESS(2,3,2,FALSE)"],
+  ["=ADDRESS(2,3,1,FALSE,\"[Book1]Sheet1\")"],
+  ["=ADDRESS(2,3,1,FALSE,\"EXCEL SHEET\")"],
+  ["=ADDRESS(2,3,3,TRUE)"],
+  ["=ADDRESS(2,3,4,FALSE)"],
+  ["=ADDRESS(1048576,16384)"],
+  ["=ADDRESS(2.9,3.9)"],
+  ["=ADDRESS(2,3,1,TRUE,\"O'Brien\")"],
+  ["=ADDRESS(2,3,1,TRUE,\"A1\")"],
+  ["=ADDRESS(2,3,1,TRUE,\"\")"],
+  ["=ADDRESS(0,1)"],
+  ["=ADDRESS(1,0)"],
+  ["=ADDRESS(1048577,1)"],
+  ["=ADDRESS(1,16385)"],
+  ["=ADDRESS(2,3,5)"],
+  ["=ADDRESS(2,3,1,\"bad\")"],
+  ["=ADDRESS(#N/A,3)"],
+  ["=ADDRESS(2,3,1,TRUE,2)"],
+  ["=ADDRESS()"],
+  ["=ADDRESS(1)"],
+  ["=ADDRESS(1,1,1,TRUE,\"Sheet1\",1)"],
+];
+assert.deepEqual(addressFormulaSheet.getRange("A1:A23").values, [
+  ["$C$2"], ["C$2"], ["R2C[3]"], ["'[Book1]Sheet1'!R2C3"], ["'EXCEL SHEET'!R2C3"],
+  ["$C2"], ["R[2]C[3]"], ["$XFD$1048576"], ["$C$2"], ["'O''Brien'!$C$2"], ["A1!$C$2"], ["$C$2"],
+  ["#VALUE!"], ["#VALUE!"], ["#VALUE!"], ["#VALUE!"], ["#VALUE!"], ["#VALUE!"], ["#N/A"], ["#VALUE!"],
+  ["#VALUE!"], ["#VALUE!"], ["#VALUE!"],
+]);
+const addressFormulaXlsx = await SpreadsheetFile.exportXlsx(addressFormulaWorkbook);
+const importedAddressFormulaWorkbook = await SpreadsheetFile.importXlsx(addressFormulaXlsx);
+assert.deepEqual(importedAddressFormulaWorkbook.worksheets.getItem("ADDRESS bounds").getRange("A1:A23").formulas, addressFormulaSheet.getRange("A1:A23").formulas);
+assert.deepEqual(importedAddressFormulaWorkbook.worksheets.getItem("ADDRESS bounds").getRange("A1:A23").values, addressFormulaSheet.getRange("A1:A23").values);
+
 const controlFormulaWorkbook = Workbook.create();
 const controlFormulaSheet = controlFormulaWorkbook.worksheets.add("Formula controls");
 controlFormulaSheet.getRange("A1:A4").values = [[1], [2], [3], [4]];

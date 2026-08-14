@@ -6845,6 +6845,23 @@ keep the typed dates and selected accounting convention visible. Full
 release-candidate and hosted-slow evidence remains deferred under the rolling
 12-hour policy.
 
+### XLSX bounded address text
+
+On 2026-08-14, the same Spreadsheet milestone added `ADDRESS` as a bounded
+text-producing formula. It supports the four documented absolute/relative
+marker modes, A1 or R1C1 spelling, optional Excel-compatible sheet quoting,
+finite numeric truncation, and the complete XLSX grid through `XFD1048576`.
+It deliberately does not introduce volatile `INDIRECT` or imply that returned
+text is a live reference.
+
+Focused tests cover Microsoft's public examples, all marker combinations,
+maximum and invalid bounds, selector/type errors, apostrophe escaping,
+source-free XLSX export, and second import. LibreOfficeDev 26.8 independently
+recalculated the seven-case core fixture to the same address bodies; its
+locale-neutral package cache uses a different sheet separator, so OfficeKit
+keeps the documented Excel `!` contract. Full release-candidate and hosted-slow
+evidence remains deferred under the rolling 12-hour policy.
+
 ## Publishing
 
 Before publishing:

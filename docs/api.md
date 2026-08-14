@@ -3713,6 +3713,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.ABS` | formula | Return the absolute value of a number. |
 | `fx.ACOS` | formula | Return the inverse cosine for a finite input in the closed interval [-1,1]; other inputs fail as #NUM!. |
 | `fx.ACOSH` | formula | Return the inverse hyperbolic cosine for finite inputs at least one; smaller inputs fail as #NUM!. |
+| `fx.ADDRESS` | formula | Return one bounded worksheet address as text from 1-based row and column numbers, reference mode 1 through 4, A1 or R1C1 style, and optional Excel-quoted sheet text. Coordinates outside XFD1048576, invalid modes, nonlogical style selectors, and nontext sheet names fail as #VALUE!. |
 | `fx.AND` | formula | Return TRUE when all conditions are true. |
 | `fx.ASIN` | formula | Return the inverse sine for a finite input in the closed interval [-1,1]; other inputs fail as #NUM!. |
 | `fx.ASINH` | formula | Return the inverse hyperbolic sine of a finite number. |
@@ -4075,6 +4076,25 @@ Return the inverse hyperbolic cosine for finite inputs at least one; smaller inp
 **Schema returns:**
 
 - `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.ADDRESS`
+
+Return one bounded worksheet address as text from 1-based row and column numbers, reference mode 1 through 4, A1 or R1C1 style, and optional Excel-quoted sheet text. Coordinates outside XFD1048576, invalid modes, nonlogical style selectors, and nontext sheet names fail as #VALUE!.
+
+**Examples:**
+
+- =ADDRESS(2,3)
+- =ADDRESS(2,3,2,FALSE)
+- =ADDRESS(2,3,1,TRUE,"EXCEL SHEET")
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ADDRESS(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (string) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.AND`
 

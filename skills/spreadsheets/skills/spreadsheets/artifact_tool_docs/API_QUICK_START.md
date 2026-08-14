@@ -90,6 +90,12 @@ that only one worksheet-drawing part changed.
 - For intent-based lookup, use a short natural query plus a narrow `search` term or pipe-separated list of likely functions.
 - Keep `maxChars` bounded; if results are noisy, narrow `search` rather than issuing many similar queries.
 
+### Address-text profile
+
+- `ADDRESS(row_num, column_num, [abs_num], [a1], [sheet_text])` returns an address string; it does not dereference the cell. Row and column inputs are 1-based and bounded to the XLSX grid `A1:XFD1048576`.
+- `abs_num` selects absolute/relative row and column markers with modes `1` through `4`. `a1` selects A1 (`TRUE`, default) or R1C1 (`FALSE`) text. An optional sheet name is emitted with Excel-compatible quoting and apostrophe escaping.
+- Keep the result as text or pass it only to an explicitly supported text consumer. Do not introduce volatile `INDIRECT` to turn it into a live reference. Out-of-grid coordinates, invalid modes, nonlogical style selectors, and nontext sheet names fail closed as `#VALUE!`.
+
 ### Calendar week profile
 
 - `WEEKNUM(serial_number, [return_type])` supports Excel system 1 with Sunday-first `1` (the default), Monday-first `2`/`11`, and Tuesday-through-Sunday starts `12` through `17`. Return type `21` uses ISO 8601 week numbering.

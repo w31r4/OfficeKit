@@ -36,10 +36,13 @@ import {
   calculateXnpv,
 } from "./financial-formulas.mjs";
 import {
+  columnNumberToLabel,
   makeCellAddress,
   parseCellAddress,
   parseRangeAddress,
   rangeToAddress,
+  XLSX_MAX_COLUMN_INDEX,
+  XLSX_MAX_ROW_INDEX,
 } from "./range-addressing.mjs";
 import {
   parseStructuredReference,
@@ -1500,6 +1503,45 @@ function excelFormulaDateNumber(value) {
   return Number.isFinite(number) ? number : "#VALUE!";
 }
 
+function excelFormulaLogicalValue(value, blankValue = false) {
+  const error = formulaErrorCode(value);
+  if (error) return error;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value !== 0;
+  if (value == null || value === "") return blankValue;
+  return "#VALUE!";
+}
+
+function excelAddress(rowValue, columnValue, absoluteValue = 1, a1Value = true, sheetValue = undefined) {
+  const rowNumber = excelFormulaDateNumber(rowValue);
+  const columnNumber = excelFormulaDateNumber(columnValue);
+  const absoluteNumber = excelFormulaDateNumber(absoluteValue);
+  if (formulaErrorCode(rowNumber)) return rowNumber;
+  if (formulaErrorCode(columnNumber)) return columnNumber;
+  if (formulaErrorCode(absoluteNumber)) return absoluteNumber;
+  const a1 = excelFormulaLogicalValue(a1Value, true);
+  if (formulaErrorCode(a1)) return a1;
+  const sheetError = formulaErrorCode(sheetValue);
+  if (sheetError) return sheetError;
+  if (sheetValue != null && typeof sheetValue !== "string") return "#VALUE!";
+
+  const row = Math.trunc(rowNumber);
+  const column = Math.trunc(columnNumber);
+  const absolute = Math.trunc(absoluteNumber);
+  if (row < 1 || row > XLSX_MAX_ROW_INDEX + 1 || column < 1 || column > XLSX_MAX_COLUMN_INDEX + 1) return "#VALUE!";
+  if (absolute < 1 || absolute > 4) return "#VALUE!";
+  const absoluteRow = absolute === 1 || absolute === 2;
+  const absoluteColumn = absolute === 1 || absolute === 3;
+  const address = a1
+    ? `${absoluteColumn ? "$" : ""}${columnNumberToLabel(column - 1)}${absoluteRow ? "$" : ""}${row}`
+    : `${absoluteRow ? `R${row}` : `R[${row}]`}${absoluteColumn ? `C${column}` : `C[${column}]`}`;
+  const sheet = sheetValue ?? "";
+  if (!sheet) return address;
+  if (sheet.length > 255 || /[\u0000-\u001f\u007f]/u.test(sheet)) return "#VALUE!";
+  const prefix = /^[A-Za-z0-9_]+$/u.test(sheet) ? sheet : `'${sheet.replaceAll("'", "''")}'`;
+  return `${prefix}!${address}`;
+}
+
 function excelGregorianSerial(year, month, day = 1, dateSystem = "1900") {
   const date = new Date(0);
   date.setUTCHours(0, 0, 0, 0);
@@ -1676,21 +1718,13 @@ function excelWeekNumber(serialValue, returnTypeValue = 1, dateSystem = "1900") 
 function excelDays360(startValue, endValue, methodValue = false, dateSystem = "1900") {
   const startNumber = excelFormulaDateNumber(startValue);
   const endNumber = excelFormulaDateNumber(endValue);
-  const methodError = formulaErrorCode(methodValue);
   if (formulaErrorCode(startNumber)) return startNumber;
   if (formulaErrorCode(endNumber)) return endNumber;
-  if (methodError) return methodError;
   const start = excelDateParts(startNumber, dateSystem);
   const end = excelDateParts(endNumber, dateSystem);
   if (!start || !end) return "#NUM!";
-  const european = typeof methodValue === "boolean"
-    ? methodValue
-    : typeof methodValue === "number" && Number.isFinite(methodValue)
-      ? methodValue !== 0
-      : methodValue == null || methodValue === ""
-        ? false
-        : undefined;
-  if (european === undefined) return "#VALUE!";
+  const european = excelFormulaLogicalValue(methodValue, false);
+  if (formulaErrorCode(european)) return european;
 
   let startDay = start.day;
   let endDay = end.day;
@@ -2773,6 +2807,10 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
       const reference = formulaSingleCellReference(sheet, args[0]);
       return reference ? parseCellAddress(reference.address).col + 1 : "#VALUE!";
     }
+    case "ADDRESS": return args.length >= 2 && args.length <= 5
+      && String(args[0] ?? "").trim() !== "" && String(args[1] ?? "").trim() !== ""
+      ? excelAddress(scalar(0), scalar(1), scalar(2, 1), scalar(3, true), scalar(4))
+      : "#VALUE!";
     case "ISFORMULA": {
       if (args.length !== 1 || hasEmptyArgument()) return "#VALUE!";
       const reference = formulaSingleCellReference(sheet, args[0]);

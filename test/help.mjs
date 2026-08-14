@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 526);
+assert.equal(HELP_CATALOG.length, 527);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -372,9 +372,10 @@ assert.match(HELP_CATALOG.find((item) => item.name === "fx.N")?.summary || "", /
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.T")?.summary || "", /text unchanged.*non-text.*formula errors.*#VALUE!/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.TYPE")?.summary || "", /type codes 1.*2.*4.*16.*64.*multi-cell references/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.ISREF")?.summary || "", /direct A1.*defined-name.*spill.*computed values.*FALSE/i);
-for (const name of ["ROW", "COLUMN", "ISFORMULA", "FORMULATEXT"]) assert.ok(HELP_CATALOG.some((item) => item.name === `fx.${name}`));
+for (const name of ["ROW", "COLUMN", "ADDRESS", "ISFORMULA", "FORMULATEXT"]) assert.ok(HELP_CATALOG.some((item) => item.name === `fx.${name}`));
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.ROW")?.summary || "", /1-based row.*current formula cell.*single-cell reference.*ranges.*#VALUE!/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.COLUMN")?.summary || "", /1-based column.*current formula cell.*single-cell reference.*ranges.*#VALUE!/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "fx.ADDRESS")?.summary || "", /1-based row and column.*mode 1 through 4.*A1 or R1C1.*XFD1048576.*#VALUE!/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.ISFORMULA")?.summary || "", /single-cell reference.*formula.*FALSE.*#VALUE!.*ranges/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "fx.FORMULATEXT")?.summary || "", /stored formula text.*single-cell reference.*#N\/A.*#VALUE!/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "fx.ISNUMBER"));
@@ -498,7 +499,7 @@ assert.ok(HELP_CATALOG.find((item) => item.name === "PdfFile.importPdf")?.schema
 assert.ok(HELP_CATALOG.find((item) => item.name === "renderArtifact")?.returns?.includes("FileBlob"));
 assert.ok(HELP_CATALOG.find((item) => item.name === "visualQaArtifact")?.examples?.some((example) => example.includes("pixelDiff")));
 const formulaCatalog = HELP_CATALOG.filter((item) => item.name.startsWith("fx."));
-assert.equal(formulaCatalog.length, 203);
+assert.equal(formulaCatalog.length, 204);
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.formula?.required));
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.arguments?.type === "unknown[]"));
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.AND")?.schema?.returns?.value?.type, "boolean");
@@ -532,6 +533,7 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "fx.NETWORKDAYS.INTL")?.s
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.WEEKNUM")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.ISOWEEKNUM")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.DAYS360")?.schema?.returns?.value?.type, "number");
+assert.equal(HELP_CATALOG.find((item) => item.name === "fx.ADDRESS")?.schema?.returns?.value?.type, "string");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.XLOOKUP")?.schema?.returns?.value?.type, "unknown");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.ROWS")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.COLUMNS")?.schema?.returns?.value?.type, "number");
@@ -740,7 +742,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /absolute uri.*slideId.*relative action/);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /customShow.*survives the bounded slide clone.*without adding the clone to show membership/i);
 const workbookCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "workbook");
-assert.equal(workbookCatalog.length, 299);
+assert.equal(workbookCatalog.length, 300);
 assert.ok(workbookCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "workbook.trace")?.schema?.parameters?.reference?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "Workbook.create")?.schema?.parameters?.dateSystem?.type, "string");
@@ -759,6 +761,7 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "fx.NETWORKDAYS")?.catego
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.WORKDAY.INTL")?.category, "date-time");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.ISOWEEKNUM")?.category, "date-time");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.DAYS360")?.category, "date-time");
+assert.equal(HELP_CATALOG.find((item) => item.name === "fx.ADDRESS")?.category, "lookup-reference");
 assert.equal(HELP_CATALOG.find((item) => item.name === "SpreadsheetFile.exportXlsx")?.schema?.returns?.blob?.type, "FileBlob");
 for (const name of [
   "SpreadsheetFile.importXlsx",

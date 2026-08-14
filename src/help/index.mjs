@@ -236,6 +236,7 @@ export const HELP_CATALOG = [
   { artifactKind: "workbook", kind: "formula", name: "fx.ISREF", category: "information", summary: "Return TRUE only for a direct A1, defined-name, or spill reference expression; computed values and functions return FALSE, while invalid arity fails closed as #VALUE!.", examples: ["=ISREF(A1)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.ROW", category: "lookup-reference", summary: "Return the 1-based row of the current formula cell or one explicit single-cell reference; ranges, spills, computed matrices, and invalid arity fail closed as #VALUE!.", examples: ["=ROW()", "=ROW(A1)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.COLUMN", category: "lookup-reference", summary: "Return the 1-based column of the current formula cell or one explicit single-cell reference; ranges, spills, computed matrices, and invalid arity fail closed as #VALUE!.", examples: ["=COLUMN()", "=COLUMN(A1)"] },
+  { artifactKind: "workbook", kind: "formula", name: "fx.ADDRESS", category: "lookup-reference", summary: "Return one bounded worksheet address as text from 1-based row and column numbers, reference mode 1 through 4, A1 or R1C1 style, and optional Excel-quoted sheet text. Coordinates outside XFD1048576, invalid modes, nonlogical style selectors, and nontext sheet names fail as #VALUE!.", examples: ["=ADDRESS(2,3)", "=ADDRESS(2,3,2,FALSE)", "=ADDRESS(2,3,1,TRUE,\"EXCEL SHEET\")"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.ISFORMULA", category: "information", summary: "Return TRUE when one explicit single-cell reference contains a formula, FALSE when the cell is not formula-backed, and #VALUE! for ranges, computed matrices, spills, or invalid input.", examples: ["=ISFORMULA(A1)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.FORMULATEXT", category: "information", summary: "Return the stored formula text for one explicit single-cell reference, #N/A when that cell has no formula, and #VALUE! for ranges, computed matrices, spills, or invalid input.", examples: ["=FORMULATEXT(A1)"] },
   { artifactKind: "workbook", kind: "formula", name: "fx.ISNUMBER", category: "information", summary: "Return TRUE when a value is numeric.", examples: ["=ISNUMBER(A1)"] },
@@ -2603,6 +2604,8 @@ for (const item of HELP_CATALOG) {
         ? (functionName === "IF" || functionName === "IFERROR" || functionName === "LET" ? "unknown" : "boolean")
         : item.category === "text"
           ? (["LEN", "VALUE", "SEARCH", "FIND"].includes(functionName) ? "number" : functionName === "EXACT" ? "boolean" : "string")
+          : functionName === "ADDRESS"
+            ? "string"
           : functionName === "CHOOSE" || functionName === "XLOOKUP" || functionName === "INDEX" || functionName === "VLOOKUP" || functionName === "HLOOKUP"
             ? "unknown"
             : "number";
