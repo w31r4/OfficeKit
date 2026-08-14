@@ -6716,8 +6716,16 @@ The candidate tarball contains 744 files, is 36,355,324 bytes compressed and
 53,635,881 bytes unpacked, with SHA-1
 `c1f22fdcffbe29bf2f9737d35f7ab9ad8d7c78e7`; it remains 64,119 bytes below the
 53,700,000-byte unpacked-size ceiling. `npm whoami` returned `ENEEDAUTH`.
-Hosted results are recorded after the immutable candidate commit; no publish,
-tag, or GitHub release was attempted, and Windows Microsoft Office desktop
+
+The immutable code candidate is
+`321c89db7e253be703b0c5ec3c26202f35c55295`. Hosted fast run
+[`31774697910`](https://github.com/w31r4/OfficeKit/actions/runs/31774697910)
+completed successfully in 2m37s. Hosted slow run
+[`31774697916`](https://github.com/w31r4/OfficeKit/actions/runs/31774697916)
+completed successfully in 25m23s, including isolated PyMuPDF, pikepdf,
+pyHanko, OCRmyPDF, and veraPDF installation and execution, every slow segment,
+API/release/package checks, OfficeBridge, and OfficeKit Codec. No publish, tag,
+or GitHub release was attempted, and Windows Microsoft Office desktop
 acceptance remains external release work.
 
 ## Publishing
