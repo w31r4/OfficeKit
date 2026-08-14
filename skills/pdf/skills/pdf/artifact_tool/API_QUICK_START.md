@@ -461,8 +461,14 @@ Circle with a solid 0.5–12 point RGB outline and no interior color. Unknown
 fill/dash/cloud/opacity/appearance fields fail closed. The requested bbox and
 the provider-reported `appearanceBbox` must both fit inside the inspected
 rotation-aware page, so a thick stroke at the page edge is refused. Re-inspect
-and render the rewrite. Region style/geometry updates remain unsupported, but a
-fresh complete annotation snapshot may use the generic delete operation.
+and render the rewrite. A fresh record advertising
+`updateCapability.profile === "solid-no-fill-v1"` may use `update_annotation`
+with its complete `snapshot` to change only `contents`, `author`, `subject`, or
+RGB `color`. Type, rectangle, appearance bounds, border width/style, no-fill
+state, flags, page, and locator remain invariant, and the updated appearance is
+checked against the visible page again. Geometry, line width/style, fill,
+opacity, dash/cloud, and arbitrary appearance updates remain unsupported; the
+generic complete-snapshot delete route also remains available.
 
 For review markup, give the provider one requested text string instead of
 trying to calculate a rectangle or character quadrilaterals. It is accepted

@@ -404,6 +404,30 @@ function annotationUpdateCapability(record) {
       reasons: ["free-text-profile-not-fixed-helvetica-v1"],
     };
   }
+  if (AREA_ANNOTATION_TYPES.has(record.type)) {
+    const profileSupported = Array.isArray(record.rect) && record.rect.length === 4
+      && Array.isArray(record.appearanceBbox) && record.appearanceBbox.length === 4
+      && Array.isArray(record.color) && record.color.length === 3
+      && record.color.every((component) => Number.isFinite(component) && component >= 0 && component <= 1)
+      && record.interiorColor === undefined
+      && Number.isFinite(record.borderWidth)
+      && record.borderWidth >= AREA_ANNOTATION_BORDER_WIDTH_MIN
+      && record.borderWidth <= AREA_ANNOTATION_BORDER_WIDTH_MAX
+      && record.borderStyle === "Solid";
+    if (profileSupported) {
+      return { supported: true, annotationType: record.type, profile: "solid-no-fill-v1", mutableFields: ["contents", "author", "subject", "color"], geometryMutable: false, savePolicy: "rewrite", sourceBound: true };
+    }
+    return {
+      supported: false,
+      annotationType: record.type,
+      profile: "unsupported",
+      mutableFields: [],
+      geometryMutable: false,
+      savePolicy: "rewrite",
+      sourceBound: true,
+      reasons: ["area-profile-not-solid-no-fill-v1"],
+    };
+  }
   if (TEXT_MARKUP_ANNOTATION_TYPES.has(record.type) && record.quadPoints?.length) {
     return { supported: true, annotationType: record.type, mutableFields: ["contents", "author", "subject", "color"], geometryMutable: false, savePolicy: "rewrite", sourceBound: true };
   }
@@ -545,7 +569,7 @@ function annotationPatch(value, capability) {
   const patch = {};
   for (const name of ["contents", "author", "subject"]) {
     if (value[name] === undefined) continue;
-    if (capability.annotationType === "FreeText" && name === "contents") {
+    if ((capability.annotationType === "FreeText" || AREA_ANNOTATION_TYPES.has(capability.annotationType)) && name === "contents") {
       patch[name] = freeTextContents(value[name], "update_annotation patch.contents");
       continue;
     }
@@ -2634,7 +2658,7 @@ function applyAnnotationUpdate(document, operation, context = {}) {
       throw new Error(`update_annotation does not support native ${matched.type} annotations; preserve it unchanged or use an explicit specialist provider.`);
     }
     const matchedSnapshot = annotationSnapshot(matched);
-    if (TEXT_MARKUP_ANNOTATION_TYPES.has(matched.type) || matched.type === "FreeText") {
+    if (TEXT_MARKUP_ANNOTATION_TYPES.has(matched.type) || matched.type === "FreeText" || AREA_ANNOTATION_TYPES.has(matched.type)) {
       const expectedShapeMismatch = annotationSnapshotShapeMismatch(matchedSnapshot, expected);
       if (expectedShapeMismatch) {
         throw new Error(`update_annotation expected must be the complete inspect-returned snapshot for native ${matched.type}; snapshot field ${expectedShapeMismatch} is missing or unexpected.`);
@@ -2679,6 +2703,14 @@ function applyAnnotationUpdate(document, operation, context = {}) {
       }
       appearanceTextVerified = true;
     }
+    let appearanceBboxVerified;
+    if (AREA_ANNOTATION_TYPES.has(matched.type)) {
+      const visibleRect = bboxToPdfRect(nativePageSnapshot(page, "update_annotation area").bbox, "update_annotation area inspected CropBox");
+      if (!updated.appearanceBbox || !pdfRectContains(visibleRect, bboxToPdfRect(updated.appearanceBbox))) {
+        throw new Error(`MuPDF placed the updated ${matched.type} appearance outside the visible page for ${operation.annotationId}; refusing to save.`);
+      }
+      appearanceBboxVerified = true;
+    }
     return {
       type: "update_annotation",
       page: index + 1,
@@ -2689,6 +2721,7 @@ function applyAnnotationUpdate(document, operation, context = {}) {
       patch,
       updated,
       ...(appearanceTextVerified ? { appearanceTextVerified } : {}),
+      ...(appearanceBboxVerified ? { appearanceBboxVerified } : {}),
     };
   } finally {
     for (const annotation of new Set([...annotations, ...retained, target].filter(Boolean))) annotation.destroy();

@@ -155,8 +155,12 @@ unique native text selection. One exact source/page snapshot and visible
 with bounded RGB stroke width and optional review metadata. MuPDF must retain
 one native Square/Circle and report an `appearanceBbox` wholly inside the page;
 edge-clipped strokes fail before publication. Fill, dash/cloud, opacity,
-arbitrary appearance, style/geometry update, and persistent xref identity stay
-outside the profile. A fresh complete snapshot may use generic deletion.
+arbitrary appearance, geometry/border/fill update, and persistent xref identity
+stay outside the profile. A fresh `solid-no-fill-v1` record may use the existing
+complete-snapshot `update_annotation` route to change only contents, author,
+subject, or RGB stroke color while preserving type, geometry, appearance bounds,
+border width/style, no-fill state, flags, page, and locator; its updated painted
+bounds are rechecked. Generic complete-snapshot deletion remains available.
 
 ### Documents canonical note bodies
 

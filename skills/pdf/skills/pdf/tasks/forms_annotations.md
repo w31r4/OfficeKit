@@ -59,11 +59,12 @@ PDF incremental edits are also rejected.
 
 ## Update one native review mark
 
-Inspection returns a `snapshot` and `updateCapability` for native Text notes and
-for Highlight, Underline, StrikeOut, and Squiggly annotations. Keep the Text-note
-compatibility patch to non-empty `contents`, `author`, or `subject`. For a text
-markup, require `updateCapability.supported`, pass the complete snapshot, and
-patch only those review fields or RGB `color` in `[0,1]`:
+Inspection returns a `snapshot` and `updateCapability` for native Text notes,
+fixed FreeText, solid/no-fill Square/Circle marks, and Highlight, Underline,
+StrikeOut, and Squiggly annotations. Keep the Text-note compatibility patch to
+non-empty `contents`, `author`, or `subject`. For every profiled record, require
+`updateCapability.supported`; FreeText permits those three fields, while an
+area or text-markup profile also permits RGB `color` in `[0,1]`:
 
 ```js
 const mark = inspection.records.find((record) => record.kind === "mupdfAnnotation"
@@ -83,10 +84,12 @@ const edited = await PdfFile.editPdf(input, {
 });
 ```
 
-The provider must preserve type, quadrilaterals, rectangle, appearance bounds,
-flags, page, and locator. Partial/stale snapshots, no-op or geometry patches,
-unsupported annotation types, invalid colors, and incremental save fail closed.
-Re-inspect and render the distinct output before delivery.
+The provider must preserve all type-specific invariants. For a Square/Circle,
+that includes rectangle, appearance bounds, border width/style, no-fill state,
+flags, page, and locator, followed by another visible-page appearance check.
+Partial/stale snapshots, no-op, geometry/border/fill patches, unsupported
+profiles, invalid colors, and incremental save fail closed. Re-inspect and
+render the distinct output before delivery.
 
 ## Add one source-bound Text note
 
@@ -173,8 +176,10 @@ hash and inspected page bbox/rotation, a `rectangle` or `ellipse`, and one
 to 0.5–12 points, and optional contents/author/subject remain review metadata.
 No interior fill is created. The provider verifies one native Square/Circle,
 its style, and its complete `appearanceBbox`; requested or painted bounds that
-leave the visible page fail closed. Re-inspect and render the rewrite. Update is
-unsupported, while complete-snapshot source-bound deletion remains available.
+leave the visible page fail closed. Re-inspect and render the rewrite. A fresh
+`solid-no-fill-v1` record may update only contents/author/subject/RGB color with
+its complete snapshot; geometry, border width/style, fill, and arbitrary
+appearance remain fixed. Complete-snapshot source-bound deletion is available.
 
 ## Mark one unique text selection
 

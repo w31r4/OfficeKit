@@ -1418,7 +1418,15 @@ for (const [record, expected] of [[areaAnnotationRecords.find((item) => item.typ
   assert.equal(record.contents, expected.contents);
   assert.equal(record.author, expected.author);
   assert.equal(record.subject, expected.subject);
-  assert.equal(record.updateCapability.supported, false);
+  assert.deepEqual(record.updateCapability, {
+    supported: true,
+    annotationType: record.type,
+    profile: "solid-no-fill-v1",
+    mutableFields: ["contents", "author", "subject", "color"],
+    geometryMutable: false,
+    savePolicy: "rewrite",
+    sourceBound: true,
+  });
   assert.equal(record.snapshot.borderWidth, expected.borderWidth);
   assert.equal(record.snapshot.borderStyle, "Solid");
 }
@@ -1432,18 +1440,77 @@ await assert.rejects(PdfFile.editPdf(mupdfAreaAnnotations, {
     page: squareArea.page,
     sourceSha256: mupdfAreaInspection.summary.sourceSha256,
     annotationId: squareArea.id,
-    expected: squareArea.snapshot,
+    expected: Object.fromEntries(Object.entries(squareArea.snapshot).filter(([field]) => field !== "borderStyle")),
     patch: { contents: "Updated region review" },
   }],
-}), /does not support native Square annotations.*explicit specialist provider/);
-const mupdfAreaAfterDelete = await PdfFile.editPdf(mupdfAreaAnnotations, {
+}), /complete inspect-returned snapshot for native Square.*borderStyle/);
+await assert.rejects(PdfFile.editPdf(mupdfAreaAnnotations, {
   savePolicy: "rewrite",
   operations: [{
-    type: "delete_annotation",
+    type: "update_annotation",
     page: squareArea.page,
     sourceSha256: mupdfAreaInspection.summary.sourceSha256,
     annotationId: squareArea.id,
     expected: squareArea.snapshot,
+    patch: { borderWidth: 4 },
+  }],
+}), /patch contains unsupported field: borderWidth/);
+await assert.rejects(PdfFile.editPdf(mupdfAreaAnnotations, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: squareArea.page,
+    sourceSha256: mupdfAreaInspection.summary.sourceSha256,
+    annotationId: squareArea.id,
+    expected: squareArea.snapshot,
+    patch: { color: squareArea.color },
+  }],
+}), /patch is a no-op/);
+await assert.rejects(PdfFile.editPdf(mupdfAreaAnnotations, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: squareArea.page,
+    sourceSha256: mupdfAreaInspection.summary.sourceSha256,
+    annotationId: squareArea.id,
+    expected: squareArea.snapshot,
+    patch: { contents: "X".repeat(4_097) },
+  }],
+}), /patch\.contents exceeds 4096 characters/);
+const areaBeforeUpdate = Buffer.from(mupdfAreaAnnotations.bytes);
+const mupdfAreaUpdated = await PdfFile.editPdf(mupdfAreaAnnotations, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: squareArea.page,
+    sourceSha256: mupdfAreaInspection.summary.sourceSha256,
+    annotationId: squareArea.id,
+    expected: squareArea.snapshot,
+    patch: { contents: "Updated region review", author: "Second reviewer", subject: "Resolved", color: [0.15, 0.65, 0.25] },
+  }],
+});
+assert.equal(Buffer.from(mupdfAreaAnnotations.bytes).equals(areaBeforeUpdate), true);
+assert.equal(mupdfAreaUpdated.metadata.operations[0].capability.profile, "solid-no-fill-v1");
+assert.equal(mupdfAreaUpdated.metadata.operations[0].appearanceBboxVerified, true);
+const mupdfAreaUpdatedInspection = await PdfFile.inspectPdf(mupdfAreaUpdated);
+const updatedSquareArea = mupdfAreaUpdatedInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "Square");
+assert.equal(updatedSquareArea.contents, "Updated region review");
+assert.equal(updatedSquareArea.author, "Second reviewer");
+assert.equal(updatedSquareArea.subject, "Resolved");
+assert.ok(updatedSquareArea.color.every((component, index) => Math.abs(component - [0.15, 0.65, 0.25][index]) < 0.001));
+for (const invariant of ["type", "rect", "appearanceBbox", "interiorColor", "borderWidth", "borderStyle", "flags"]) {
+  assert.deepEqual(updatedSquareArea[invariant], squareArea[invariant], `update_annotation must preserve Square ${invariant}`);
+}
+const mupdfAreaUpdatedPng = await PdfFile.renderPdf(mupdfAreaUpdated, { page: 1, dpi: 72 });
+assert.notEqual(Buffer.compare(Buffer.from(mupdfAreaPng.bytes), Buffer.from(mupdfAreaUpdatedPng.bytes)), 0, "the updated native Square color must change rendered pixels");
+const mupdfAreaAfterDelete = await PdfFile.editPdf(mupdfAreaUpdated, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "delete_annotation",
+    page: updatedSquareArea.page,
+    sourceSha256: mupdfAreaUpdatedInspection.summary.sourceSha256,
+    annotationId: updatedSquareArea.id,
+    expected: updatedSquareArea.snapshot,
   }],
 });
 const mupdfAreaAfterDeleteInspection = await PdfFile.inspectPdf(mupdfAreaAfterDelete);
@@ -1678,6 +1745,7 @@ try {
   nonTextAnnotationNative = nonTextAnnotationNativePage.createAnnotation("Square");
   nonTextAnnotationNative.setRect([120, 120, 160, 160]);
   nonTextAnnotationNative.setContents("Square review");
+  nonTextAnnotationNative.setBorderStyle("Dashed");
   nonTextAnnotationNative.update();
   nonTextAnnotationNativePage.update();
   nonTextAnnotationNativeOutput = nonTextAnnotationNativeDocument.saveToBuffer("garbage=2,compress=yes");
@@ -1691,6 +1759,16 @@ try {
 const nonTextAnnotationInspection = await PdfFile.inspectPdf(nonTextAnnotationPdf);
 const nonTextAnnotation = nonTextAnnotationInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "Square");
 assert.ok(nonTextAnnotation);
+assert.deepEqual(nonTextAnnotation.updateCapability, {
+  supported: false,
+  annotationType: "Square",
+  profile: "unsupported",
+  mutableFields: [],
+  geometryMutable: false,
+  savePolicy: "rewrite",
+  sourceBound: true,
+  reasons: ["area-profile-not-solid-no-fill-v1"],
+});
 await assert.rejects(PdfFile.editPdf(nonTextAnnotationPdf, {
   savePolicy: "rewrite",
   operations: [{

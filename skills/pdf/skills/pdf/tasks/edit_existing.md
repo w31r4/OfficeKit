@@ -439,8 +439,10 @@ never fills or hides the marked content and does not expose dash, cloud, opacity
 or arbitrary appearance streams. Both the requested box and provider-reported
 `appearanceBbox` must stay inside the inspected visible page, so an edge-touching
 thick stroke fails closed and asks for an inset box. The operation is
-rewrite-only; re-inspect and render the output. Area annotations remain
-read-only except for generic source-bound deletion with their complete snapshot.
+rewrite-only; re-inspect and render the output. A fresh `solid-no-fill-v1`
+Square/Circle may update only contents/author/subject/RGB color through the
+complete-snapshot route below; geometry, border width/style, fill, and arbitrary
+appearance remain fixed. Generic source-bound deletion also remains available.
 
 ## Highlight one unique imported text selection
 
@@ -509,7 +511,7 @@ the inspected source bytes rather than a persistent document identity, so
 re-inspect the output before any later annotation operation. This prevents a
 rewritten PDF's xref reuse from silently targeting a different annotation.
 
-## Update one imported Text note, fixed FreeText, or text markup
+## Update one imported Text note, fixed FreeText, area mark, or text markup
 
 Use the same inspect-first source binding to edit the semantic text fields of
 one native Text annotation without pretending to reflow or reposition it:
@@ -553,6 +555,14 @@ and control-character limits. The provider preserves rectangle,
 and reads the rebuilt native appearance as structured text. Partial snapshots,
 font/color/alignment/geometry changes, clipped or unencodable contents, no-op
 patches, and incremental output fail closed.
+
+An inspected Square/Circle is editable only when `updateCapability` reports
+`supported: true` and `profile: "solid-no-fill-v1"`. Pass its complete snapshot,
+then patch only non-empty `contents`/`author`/`subject` or RGB `color`. The
+provider preserves type, rectangle, appearance bounds, border width/style,
+no-fill state, flags, page, and locator and rechecks that the painted appearance
+remains inside the visible page. Geometry, line width/style, fill/opacity,
+partial snapshots, no-op patches, and incremental output fail closed.
 
 An inspected native Highlight, Underline, StrikeOut, or Squiggly adds a complete
 `snapshot` and `updateCapability`. Require that capability, pass the snapshot

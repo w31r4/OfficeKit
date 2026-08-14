@@ -1,5 +1,30 @@
 # Release
 
+## Current 0.6.0 milestone (2026-08-14): Bounded area-review revision
+
+Freshly inspected native Square and Circle annotations now advertise a
+source-bound `solid-no-fill-v1` update profile when their rectangle and painted
+appearance are present, their RGB stroke and 0.5–12 point border are valid,
+their border is solid, and they have no interior fill. The existing
+`update_annotation` operation accepts the complete snapshot and changes only
+non-empty contents/author/subject or RGB stroke color in a full rewrite.
+
+The provider preserves type, rectangle, appearance bounds, border width/style,
+no-fill state, flags, page, and current-source locator, then verifies the
+updated appearance still fits inside the visible CropBox. Partial/stale
+snapshots, no-op patches, geometry/border/fill changes, invalid or overlong
+metadata, imported dash/fill/noncanonical profiles, and incremental save fail
+closed. Core and packaged-CLI tests cover create → inspect → revise → inspect →
+render → delete, source immutability, visual color change, complete-snapshot
+enforcement, and a native dashed-Square negative. This extends the existing
+annotation protocol rather than adding a second area-review model.
+
+This slice remains in the rolling release-candidate cooldown lane. PDF core,
+Help, PDF Skill, the real MuPDF CLI contract, 338-file Skill portability,
+333-file reference sync, package contents, generated API docs, and all 31 fast
+gate steps passed on the frozen tree. No slow, pack, .NET/WASM, or hosted
+release-candidate lane was started for the atomic change.
+
 ## Current 0.6.0 milestone (2026-08-14): Native non-text region review
 
 The built-in MuPDF.js route now exposes `add_area_annotation` for an Agent to
@@ -13,7 +38,7 @@ Before publishing the rewrite, OfficeKit verifies native type, rectangle,
 stroke, solid/no-fill style, unique xref and annotation count, then requires the
 provider-reported appearance bounds to remain inside the visible page. Stale
 page evidence, edge-clipped thick strokes, unknown style fields, fill/dash/
-cloud/opacity/arbitrary appearance, update, and incremental save fail closed.
+cloud/opacity/arbitrary appearance, geometry/style update, and incremental save fail closed.
 Core and packaged-CLI tests cover rectangle/ellipse creation, invalid inputs,
 source immutability, second inspection, rendered pixel change, and deletion by
 complete source-bound snapshot. This is a review primitive, not redaction or a
