@@ -1,8 +1,8 @@
 ## 1. Freeze and inventory the real benchmark
 
-- [ ] 1.1 Add a versioned manifest for the three external PPTX hashes, package inventories, native structure counts, editable node indices, and at least six declared edit targets.
+- [x] 1.1 Add a versioned manifest for the three external PPTX hashes, package inventories, native structure counts, editable node indices, and at least six declared edit targets.
 - [ ] 1.2 Record native renders and current Kimi/HTML/PPTD comparison evidence without making competitor availability an acceptance dependency.
-- [ ] 1.3 Add a bounded benchmark runner and independent package oracle that never packages or modifies the source assets.
+- [x] 1.3 Add a bounded benchmark runner and independent package oracle that never packages or modifies the source assets.
 
 ## 2. Establish exact no-op and text-leaf editing
 
