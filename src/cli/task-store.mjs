@@ -20,6 +20,7 @@ export const DEFAULT_TASK_LIST_LIMIT = 5;
 export const DEFAULT_MAX_TASK_MANIFEST_BYTES = 1_048_576;
 export const DEFAULT_MAX_TASK_ARTIFACT_BYTES = 536_870_912;
 export const DEFAULT_MAX_REVIEW_REPORT_BYTES = 8_388_608;
+export const DEFAULT_MAX_TASK_OPERATION_BYTES = 1_048_576;
 
 const TASK_ID_PATTERN = /^t_[a-f0-9]{12}$/u;
 const ARTIFACT_ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
@@ -72,7 +73,7 @@ export async function createTask({ workspaceRoot, goal, now = new Date() }) {
     }
   }
   await privateMode(taskRoot, 0o700);
-  for (const directory of ["inputs", "revisions", "candidates", "evidence", "sessions"]) {
+  for (const directory of ["inputs", "revisions", "candidates", "evidence", "operations", "sessions"]) {
     await ensurePrivateDirectory(path.join(taskRoot, directory), taskRoot);
   }
   const timestamp = now.toISOString();
@@ -215,6 +216,12 @@ export async function beginTaskSession(opened, { sessionId, now = new Date() }) 
   const headCommit = manifest.head
     ? manifest.commits.find((commit) => commit.id === manifest.head.commitId)
     : null;
+  const operations = [];
+  for (const commit of manifest.commits) {
+    if (!commit.operation) continue;
+    const record = await readTaskOperationRecord(opened.taskRoot, commit.operation);
+    operations.push({ commitId: commit.id, artifactId: commit.artifactId, ...taskOperationDescriptor(opened.taskRoot, commit.operation, record) });
+  }
   const restoredArtifacts = [];
   for (const artifact of manifest.artifacts) {
     const revision = headCommit?.heads?.[artifact.id];
@@ -252,6 +259,7 @@ export async function beginTaskSession(opened, { sessionId, now = new Date() }) 
         visualReview: headCommit.review.visualReview,
       } : null,
       commit: headCommit ? createCommitDescriptor(manifest, headCommit) : null,
+      operations,
       artifacts: restoredArtifacts,
       session: { id: sessionId, parentSessionId },
     },
@@ -340,6 +348,7 @@ export async function stageTaskInput(task, sourcePath, options = {}) {
 export async function commitTaskArtifact(task, value, options = {}) {
   const bytes = await readArtifactBytes(value, options.maxBytes);
   const digest = sha256(bytes);
+  const editPlan = validateTaskEditPlan(value?.metadata?.editPlan, digest);
   const artifactId = validateArtifactId(options.artifactId);
   let artifact = task.manifest.artifacts.find((entry) => entry.id === artifactId);
   const review = validateReview(options.review);
@@ -381,6 +390,9 @@ export async function commitTaskArtifact(task, value, options = {}) {
   await writeImmutable(revisionPath, bytes, 0o400, { allowIdentical: true });
   const report = await writeReviewEvidence(task, `${commitId}-${artifact.id}`, options.review);
   const revisionReview = reviewSummary(review, report);
+  const operation = editPlan
+    ? await writeTaskOperationRecord(task, commitId, artifact.id, editPlan)
+    : null;
   artifact.headRevision = { sha256: digest, bytes: bytes.byteLength, path: revisionRelative, commitId, review: revisionReview };
   const heads = Object.fromEntries(task.manifest.artifacts
     .filter((entry) => entry.headRevision)
@@ -395,6 +407,7 @@ export async function commitTaskArtifact(task, value, options = {}) {
     committedAt,
     heads,
     review: revisionReview,
+    ...(operation ? { operation } : {}),
   };
   task.manifest.commits.push(commit);
   task.manifest.head = { commitId, artifactId: artifact.id, revisionSha256: digest, committedAt };
@@ -502,6 +515,7 @@ function createCommitDescriptor(manifest, commit) {
     revisionSha256: commit.revisionSha256,
     reviewVerdict: commit.review.verdict,
     visualReview: commit.review.visualReview,
+    operation: commit.operation ? structuredClone(commit.operation) : null,
     artifacts: Object.entries(commit.heads).map(([artifactId, revision]) => ({ artifactId, sha256: revision.sha256 })),
   };
 }
@@ -542,6 +556,7 @@ async function readTaskManifest(taskRoot, expectedId) {
   catch (error) { throw taskError("invalid-task", `Task manifest is not valid JSON: ${error.message}`); }
   validateTaskManifest(manifest, expectedId);
   validateTaskPaths(manifest, taskRoot);
+  await validateTaskOperationFiles(manifest, taskRoot);
   return manifest;
 }
 
@@ -575,6 +590,7 @@ function validateTaskManifest(manifest, expectedId) {
   for (const commit of manifest.commits) {
     if (!/^c\d{4,}$/u.test(commit?.id) || commitIds.has(commit.id) || !artifactIds.has(commit.artifactId)) throw taskError("invalid-task", "Task commit metadata is invalid.");
     commitIds.add(commit.id);
+    if (commit.operation) validateTaskOperationSummary(commit.operation);
   }
   if (manifest.head && (!commitIds.has(manifest.head.commitId) || !artifactIds.has(manifest.head.artifactId) || !isSha(manifest.head.revisionSha256))) {
     throw taskError("invalid-task", "Task HEAD is invalid.");
@@ -599,6 +615,7 @@ function validateTaskPaths(manifest, taskRoot) {
       validateRelativePrefix(revision.path, `revisions/${artifactId}/`, taskRoot, "revision");
     }
     validateRelativePrefix(commit.review?.evidence?.path, "evidence/reviews/", taskRoot, "review evidence");
+    if (commit.operation) validateRelativePrefix(commit.operation.path, "operations/", taskRoot, "operation record");
   }
   for (const pending of manifest.pending) {
     if (pending.path != null) validateRelativePrefix(pending.path, "candidates/", taskRoot, "candidate");
@@ -714,7 +731,127 @@ function taskStorageBytes(manifest) {
     total += artifact.headRevision?.bytes ?? 0;
   }
   for (const pending of manifest.pending) total += pending.bytes ?? 0;
+  for (const commit of manifest.commits) total += commit.operation?.bytes ?? 0;
   return total;
+}
+
+function validateTaskEditPlan(value, outputSha256) {
+  if (value == null) return null;
+  if (!value || typeof value !== "object" || Array.isArray(value) || value.schema !== "office-kit/pptx-edit-plan/v1") {
+    throw taskError("invalid-edit-plan", "Artifact Edit Plan metadata is invalid.");
+  }
+  if (!Array.isArray(value.operations) || value.operations.length === 0) return null;
+  if (!isSha(value.sourceRevisionSha256) || !isSha(value.outputSha256) || value.outputSha256 !== outputSha256) {
+    throw taskError("invalid-edit-plan", "Artifact Edit Plan revisions do not match the committed candidate.");
+  }
+  if (!Array.isArray(value.changedParts) || value.changedParts.length === 0 || value.changedParts.some((partPath) => !safeOperationPartPath(partPath))) {
+    throw taskError("invalid-edit-plan", "Artifact Edit Plan changed parts are invalid.");
+  }
+  const operationIds = new Set();
+  for (const operation of value.operations) {
+    if (!operation || typeof operation !== "object" || Array.isArray(operation) ||
+        typeof operation.operationId !== "string" || !operation.operationId || operation.operationId.length > 160 || operationIds.has(operation.operationId) ||
+        typeof operation.slideId !== "string" || !operation.slideId || typeof operation.targetId !== "string" || !operation.targetId ||
+        !safeOperationPartPath(operation.slidePartPath) || !Number.isSafeInteger(operation.shapeTreeIndex) || operation.shapeTreeIndex < 0 ||
+        !Number.isSafeInteger(operation.textLeafIndex) || operation.textLeafIndex < 0 ||
+        !isSha(operation.expectedSlideSha256) || !isSha(operation.expectedElementSha256) ||
+        !isSha(operation.expectedSemanticSha256) || !isSha(operation.expectedTextSha256) ||
+        typeof operation.expectedValue !== "string" || typeof operation.value !== "string" || operation.expectedValue === operation.value) {
+      throw taskError("invalid-edit-plan", "Artifact Edit Plan operation is invalid.");
+    }
+    const footprint = operation.footprint;
+    if (!footprint || !isSha(footprint.sourceElementSha256) || !isSha(footprint.outputElementSha256) ||
+        !isSha(footprint.oldValueSha256) || !isSha(footprint.newValueSha256) ||
+        !decimalOffset(footprint.sourceStartOffset) || !decimalOffset(footprint.sourceEndOffset) || !decimalOffset(footprint.outputEndOffset)) {
+      throw taskError("invalid-edit-plan", "Artifact Edit Plan mutation footprint is invalid.");
+    }
+    operationIds.add(operation.operationId);
+  }
+  let encoded;
+  try { encoded = JSON.stringify(value); }
+  catch (error) { throw taskError("invalid-edit-plan", `Artifact Edit Plan is not serializable: ${boundedError(error)}`); }
+  if (Buffer.byteLength(encoded) > DEFAULT_MAX_TASK_OPERATION_BYTES) {
+    throw taskError("edit-plan-too-large", `Artifact Edit Plan exceeds ${DEFAULT_MAX_TASK_OPERATION_BYTES} bytes.`);
+  }
+  return structuredClone(value);
+}
+
+function safeOperationPartPath(value) {
+  return typeof value === "string" && /^ppt\/slides\/slide[1-9][0-9]*[.]xml$/iu.test(value) && !value.includes("..");
+}
+
+function decimalOffset(value) {
+  return typeof value === "string" && /^(0|[1-9][0-9]*)$/u.test(value);
+}
+
+async function writeTaskOperationRecord(task, commitId, artifactId, plan) {
+  const record = {
+    schema: "office-kit/task-edit-plan/v1",
+    taskId: task.manifest.id,
+    commitId,
+    artifactId,
+    plan,
+  };
+  const bytes = Buffer.from(`${JSON.stringify(record, null, 2)}\n`);
+  if (bytes.byteLength > DEFAULT_MAX_TASK_OPERATION_BYTES) {
+    throw taskError("edit-plan-too-large", `Task Edit Plan record exceeds ${DEFAULT_MAX_TASK_OPERATION_BYTES} bytes.`);
+  }
+  const digest = sha256(bytes);
+  const relative = toPosix(path.join("operations", `${commitId}-${artifactId}-${digest}.json`));
+  const target = path.join(task.taskRoot, relative);
+  await writeImmutable(target, bytes, 0o400, { allowIdentical: true });
+  return {
+    schema: record.schema,
+    path: relative,
+    bytes: bytes.byteLength,
+    sha256: digest,
+    sourceRevisionSha256: plan.sourceRevisionSha256,
+    outputRevisionSha256: plan.outputSha256,
+    operationCount: plan.operations.length,
+    changedParts: [...plan.changedParts],
+  };
+}
+
+function validateTaskOperationSummary(summary) {
+  if (!summary || summary.schema !== "office-kit/task-edit-plan/v1" || typeof summary.path !== "string" ||
+      !Number.isSafeInteger(summary.bytes) || summary.bytes <= 0 || summary.bytes > DEFAULT_MAX_TASK_OPERATION_BYTES ||
+      !isSha(summary.sha256) || !isSha(summary.sourceRevisionSha256) || !isSha(summary.outputRevisionSha256) ||
+      !Number.isSafeInteger(summary.operationCount) || summary.operationCount <= 0 ||
+      !Array.isArray(summary.changedParts) || summary.changedParts.length === 0 || summary.changedParts.some((partPath) => !safeOperationPartPath(partPath))) {
+    throw taskError("invalid-task", "Task operation record metadata is invalid.");
+  }
+}
+
+async function readTaskOperationRecord(taskRoot, summary) {
+  validateTaskOperationSummary(summary);
+  const target = resolveManagedFile(taskRoot, summary.path, "operation record");
+  const bytes = await readRegularBounded(target, DEFAULT_MAX_TASK_OPERATION_BYTES, "Task operation record");
+  if (bytes.byteLength !== summary.bytes || sha256(bytes) !== summary.sha256) {
+    throw taskError("operation-corrupt", "Task operation record hash verification failed.");
+  }
+  let record;
+  try { record = JSON.parse(bytes.toString("utf8")); }
+  catch (error) { throw taskError("operation-corrupt", `Task operation record is not valid JSON: ${boundedError(error)}`); }
+  if (record?.schema !== summary.schema || record?.plan?.sourceRevisionSha256 !== summary.sourceRevisionSha256 ||
+      record?.plan?.outputSha256 !== summary.outputRevisionSha256 || record?.plan?.operations?.length !== summary.operationCount) {
+    throw taskError("operation-corrupt", "Task operation record does not match its manifest binding.");
+  }
+  validateTaskEditPlan(record.plan, summary.outputRevisionSha256);
+  return record;
+}
+
+async function validateTaskOperationFiles(manifest, taskRoot) {
+  for (const commit of manifest.commits) {
+    if (commit.operation) await readTaskOperationRecord(taskRoot, commit.operation);
+  }
+}
+
+function taskOperationDescriptor(taskRoot, summary, record) {
+  return Object.freeze({
+    ...structuredClone(summary),
+    path: resolveManagedFile(taskRoot, summary.path, "operation record"),
+    operationIds: record.plan.operations.map((operation) => operation.operationId),
+  });
 }
 
 async function readArtifactBytes(value, maximum = DEFAULT_MAX_TASK_ARTIFACT_BYTES) {

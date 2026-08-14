@@ -14,9 +14,9 @@
 
 ## 3. Persist compiler evidence in durable tasks
 
-- [ ] 3.1 Add private `operations/` task storage and a bounded immutable Edit Plan record linked to source/output revision hashes.
-- [ ] 3.2 Persist an operation record only after a matching passed review advances task HEAD; reject corrupt, stale, escaping, or oversized records.
-- [ ] 3.3 Return prior operation evidence on resume while continuing to restore reviewed bytes and rebuild model/node indices rather than JavaScript heap state.
+- [x] 3.1 Add private `operations/` task storage and a bounded immutable Edit Plan record linked to source/output revision hashes.
+- [x] 3.2 Persist an operation record only after a matching passed review advances task HEAD; reject corrupt, stale, escaping, or oversized records.
+- [x] 3.3 Return prior operation evidence on resume while continuing to restore reviewed bytes and rebuild model/node indices rather than JavaScript heap state.
 
 ## 4. Add controlled native-leaf editing
 

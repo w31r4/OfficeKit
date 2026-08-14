@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -35,11 +35,16 @@ presentationModel.slides.add({ name: "Result" }).shapes.add({
   text: "Committed PPTX",
   position: { left: 20, top: 20, width: 400, height: 80 },
 });
-const presentation = await PresentationFile.exportPptx(presentationModel);
+const presentationSource = await PresentationFile.exportPptx(presentationModel);
+const importedPresentation = await PresentationFile.importPptx(presentationSource);
+importedPresentation.slides.getItem(0).shapes.getItemAt(0).text.set("Committed PPTX through an Edit Plan");
+const presentation = await PresentationFile.exportPptx(importedPresentation);
+assert.equal(presentation.metadata.editPlan?.schema, "office-kit/pptx-edit-plan/v1");
 const pdf = await PdfFile.exportPdf(PdfArtifact.create({ pages: [{ text: "Committed PDF" }] }));
 
 let head;
 let firstCommit;
+let presentationCommit;
 for (const [artifactId, kind, name, value] of [
   ["final-document", "document", "final.docx", document],
   ["final-workbook", "workbook", "final.xlsx", spreadsheet],
@@ -61,15 +66,24 @@ for (const [artifactId, kind, name, value] of [
     next: artifactId === "final-pdf" ? "Publish all four files" : "Continue creating deliverables",
   });
   firstCommit ??= head;
+  if (artifactId === "final-presentation") presentationCommit = head;
 }
 assert.equal(head.commitId, "c0004");
 assert.equal(head.artifacts.length, 4);
+assert.equal(presentationCommit.operation?.schema, "office-kit/task-edit-plan/v1");
+const operationRecord = JSON.parse(await readFile(path.join(session.ctx.taskRoot, presentationCommit.operation.path), "utf8"));
+assert.equal(operationRecord.plan.outputSha256, presentationCommit.revisionSha256);
+assert.equal(operationRecord.plan.operations.length, 1);
 await session.close();
 
 const resumed = await createReplSession({ workspaceRoot: workspace, taskId });
 assert.equal(resumed.ready.resumedFrom.commitId, "c0004");
 assert.equal(resumed.ready.commit.commitId, "c0004");
 assert.equal(resumed.ready.artifacts.length, 4);
+assert.equal(resumed.ready.operations.length, 1);
+assert.equal(resumed.ready.operations[0].commitId, presentationCommit.commitId);
+assert.equal(resumed.ready.operations[0].operationIds.length, 1);
+assert.equal(path.isAbsolute(resumed.ready.operations[0].path), true);
 assert.ok(resumed.ready.task.pending.some((entry) => entry.type === "source-changed" && entry.artifactId === staged.artifactId));
 await assert.rejects(
   resumed.ctx.publish(firstCommit, { name: "stale.docx" }),
@@ -84,6 +98,13 @@ for (const artifact of resumed.ready.artifacts) {
   assert.equal(published.reviewVerdict, "passed-with-limitations");
   assert.deepEqual(await readFile(published.path), await readFile(artifact.path));
 }
+const storedOperationPath = resumed.ready.operations[0].path;
 await resumed.close();
+await chmod(storedOperationPath, 0o600);
+await writeFile(storedOperationPath, "{}\n");
+await assert.rejects(
+  createReplSession({ workspaceRoot: workspace, taskId }),
+  (error) => error.code === "operation-corrupt",
+);
 
 console.log("OfficeKit four-format task artifact smoke ok");
