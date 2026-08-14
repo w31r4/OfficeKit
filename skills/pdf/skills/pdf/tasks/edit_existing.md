@@ -11,7 +11,7 @@ officekit run scripts/mupdf.mjs probe
 officekit run scripts/mupdf.mjs inspect input.pdf
 ```
 
-Its typed operations are source-bound `add_text_annotation`, `add_free_text_annotation`, `add_text_markup` (Highlight/Underline/StrikeOut/Squiggly), and compatibility `add_text_highlight`; legacy text/choice/checkbox `fill_form`; source-bound `update_form_field`, `delete_page`, `duplicate_page`, complete `rearrange_pages`, `delete_annotation`, `update_annotation`, `set_metadata`, `update_outline`, `delete_embedded_file`, `add_link`, `delete_link`, and `update_link`; visible-only `set_page_crop`; absolute-quarter-turn `rotate_page`; `redact_text`; and `redact_rect`. Run with one explicit save policy:
+Its typed operations are source-bound `add_text_annotation`, `add_free_text_annotation`, `add_area_annotation`, `add_text_markup` (Highlight/Underline/StrikeOut/Squiggly), and compatibility `add_text_highlight`; legacy text/choice/checkbox `fill_form`; source-bound `update_form_field`, `delete_page`, `duplicate_page`, complete `rearrange_pages`, `delete_annotation`, `update_annotation`, `set_metadata`, `update_outline`, `delete_embedded_file`, `add_link`, `delete_link`, and `update_link`; visible-only `set_page_crop`; absolute-quarter-turn `rotate_page`; `redact_text`; and `redact_rect`. Run with one explicit save policy:
 
 ```bash
 officekit run scripts/mupdf.mjs edit input.pdf tmp/pdfs/edit-operations.json tmp/pdfs/edited.pdf \
@@ -408,6 +408,39 @@ inspect, and render the output before delivery. The fresh FreeText xref can be
 used by the generic source-bound deletion operation. A recognized
 `fixed-helvetica-v1` record may also update its contents/author/subject through
 the complete-snapshot route below; style and geometry remain immutable.
+
+## Mark one visible page region
+
+Use `add_area_annotation` when an Agent must point at an image, chart, table
+region, or other content that cannot be selected as native text. Bind the exact
+source and `mupdfPage` snapshot, then provide one visible bbox in
+`mupdf-page-space`:
+
+```json
+[
+  {
+    "type": "add_area_annotation",
+    "page": 2,
+    "sourceSha256": "<inspect summary sourceSha256>",
+    "expectedPage": { "bbox": [0, 0, 612, 792], "rotation": 0 },
+    "shape": "rectangle",
+    "bbox": [72, 196, 260, 96],
+    "strokeColor": [0.85, 0.1, 0.1],
+    "borderWidth": 3,
+    "contents": "Confirm the assumptions in this region.",
+    "author": "Reviewer"
+  }
+]
+```
+
+The bounded profile accepts exactly `rectangle` or `ellipse`, an RGB outline,
+a 0.5–12 point solid border, and optional non-empty contents/author/subject. It
+never fills or hides the marked content and does not expose dash, cloud, opacity,
+or arbitrary appearance streams. Both the requested box and provider-reported
+`appearanceBbox` must stay inside the inspected visible page, so an edge-touching
+thick stroke fails closed and asks for an inset box. The operation is
+rewrite-only; re-inspect and render the output. Area annotations remain
+read-only except for generic source-bound deletion with their complete snapshot.
 
 ## Highlight one unique imported text selection
 

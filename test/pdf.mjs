@@ -1346,6 +1346,108 @@ await assert.rejects(PdfFile.editPdf(nonCanonicalFreeText, {
     patch: { contents: "Unsupported profile update" },
   }],
 }), /does not support native FreeText annotations.*explicit specialist provider/);
+const sourceBoundAreaRectangle = {
+  type: "add_area_annotation",
+  page: 1,
+  sourceSha256: mupdfInspect.summary.sourceSha256,
+  expectedPage: { bbox: mupdfAnnotationSourcePage.bbox, rotation: mupdfAnnotationSourcePage.rotation },
+  shape: "rectangle",
+  bbox: [72, 190, 220, 90],
+  strokeColor: [0.85, 0.1, 0.1],
+  borderWidth: 3,
+  contents: "Review this region",
+  author: "Agent",
+  subject: "Area review",
+};
+const sourceBoundAreaEllipse = {
+  ...sourceBoundAreaRectangle,
+  shape: "ellipse",
+  bbox: [320, 190, 180, 90],
+  strokeColor: [0.1, 0.35, 0.85],
+  borderWidth: 2,
+  contents: "Confirm this figure",
+};
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "incremental",
+  operations: [sourceBoundAreaRectangle],
+}), /source-bound operation add_area_annotation cannot save incrementally/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundAreaRectangle, expectedPage: { ...sourceBoundAreaRectangle.expectedPage, rotation: 90 } }],
+}), /precondition page rotation did not match.*stale coordinate evidence/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundAreaRectangle, shape: "Rectangle" }],
+}), /shape must be rectangle or ellipse/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundAreaRectangle, borderWidth: 20 }],
+}), /borderWidth must be between 0\.5 and 12/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundAreaRectangle, strokeColor: [1, 0, 2] }],
+}), /strokeColor must be an RGB/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundAreaRectangle, fillColor: [1, 1, 0] }],
+}), /contains unsupported field: fillColor/);
+await assert.rejects(PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [{ ...sourceBoundAreaRectangle, bbox: [0, 0, 50, 50], borderWidth: 12 }],
+}), /appearance outside the inspected visible CropBox.*inset the bbox or reduce the border width/);
+const areaAnnotationSourceBytes = Buffer.from(arbitraryPdf.bytes);
+const mupdfAreaAnnotations = await PdfFile.editPdf(arbitraryPdf, {
+  savePolicy: "rewrite",
+  operations: [sourceBoundAreaRectangle, sourceBoundAreaEllipse],
+});
+assert.equal(Buffer.from(arbitraryPdf.bytes).equals(areaAnnotationSourceBytes), true);
+assert.equal(mupdfAreaAnnotations.metadata.operations.every((operation) => operation.appearanceBboxVerified), true);
+assert.deepEqual(mupdfAreaAnnotations.metadata.operations.map((operation) => operation.shape), ["rectangle", "ellipse"]);
+const mupdfAreaInspection = await PdfFile.inspectPdf(mupdfAreaAnnotations);
+const areaAnnotationRecords = mupdfAreaInspection.records.filter((record) => record.kind === "mupdfAnnotation" && ["Square", "Circle"].includes(record.type));
+assert.equal(areaAnnotationRecords.length, 2);
+for (const [record, expected] of [[areaAnnotationRecords.find((item) => item.type === "Square"), sourceBoundAreaRectangle], [areaAnnotationRecords.find((item) => item.type === "Circle"), sourceBoundAreaEllipse]]) {
+  assert.deepEqual(record.rect, expected.bbox);
+  assert.ok(record.appearanceBbox[0] <= expected.bbox[0] && record.appearanceBbox[1] <= expected.bbox[1]);
+  assert.ok(record.appearanceBbox[0] + record.appearanceBbox[2] >= expected.bbox[0] + expected.bbox[2]);
+  assert.ok(record.appearanceBbox[1] + record.appearanceBbox[3] >= expected.bbox[1] + expected.bbox[3]);
+  assert.ok(record.color.every((component, index) => Math.abs(component - expected.strokeColor[index]) < 0.001));
+  assert.equal(record.borderWidth, expected.borderWidth);
+  assert.equal(record.borderStyle, "Solid");
+  assert.equal(record.interiorColor, undefined);
+  assert.equal(record.contents, expected.contents);
+  assert.equal(record.author, expected.author);
+  assert.equal(record.subject, expected.subject);
+  assert.equal(record.updateCapability.supported, false);
+  assert.equal(record.snapshot.borderWidth, expected.borderWidth);
+  assert.equal(record.snapshot.borderStyle, "Solid");
+}
+const mupdfAreaPng = await PdfFile.renderPdf(mupdfAreaAnnotations, { page: 1, dpi: 72 });
+assert.notEqual(Buffer.compare(Buffer.from(mupdfPng.bytes), Buffer.from(mupdfAreaPng.bytes)), 0, "native rectangle and ellipse annotations must change rendered pixels");
+const squareArea = areaAnnotationRecords.find((record) => record.type === "Square");
+await assert.rejects(PdfFile.editPdf(mupdfAreaAnnotations, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: squareArea.page,
+    sourceSha256: mupdfAreaInspection.summary.sourceSha256,
+    annotationId: squareArea.id,
+    expected: squareArea.snapshot,
+    patch: { contents: "Updated region review" },
+  }],
+}), /does not support native Square annotations.*explicit specialist provider/);
+const mupdfAreaAfterDelete = await PdfFile.editPdf(mupdfAreaAnnotations, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "delete_annotation",
+    page: squareArea.page,
+    sourceSha256: mupdfAreaInspection.summary.sourceSha256,
+    annotationId: squareArea.id,
+    expected: squareArea.snapshot,
+  }],
+});
+const mupdfAreaAfterDeleteInspection = await PdfFile.inspectPdf(mupdfAreaAfterDelete);
+assert.deepEqual(mupdfAreaAfterDeleteInspection.records.filter((record) => record.kind === "mupdfAnnotation" && ["Square", "Circle"].includes(record.type)).map((record) => record.type), ["Circle"]);
 const sourceBoundTextAnnotation = {
   type: "add_text_annotation",
   page: 1,

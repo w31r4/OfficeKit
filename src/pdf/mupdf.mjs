@@ -28,6 +28,7 @@ const DEFAULT_LIMITS = Object.freeze({
 const REWRITE_ONLY_OPERATIONS = new Set([
   "add_text_annotation",
   "add_free_text_annotation",
+  "add_area_annotation",
   "add_text_highlight",
   "add_text_markup",
   "delete_annotation",
@@ -45,7 +46,7 @@ const REWRITE_ONLY_OPERATIONS = new Set([
 
 const PAGE_ROTATIONS = new Set([0, 90, 180, 270]);
 const ANNOTATION_ID_PREFIX = "mupdf-annotation";
-const ANNOTATION_SNAPSHOT_FIELDS = Object.freeze(["type", "contents", "name", "author", "subject", "rect", "appearanceBbox", "quadPoints", "color", "defaultAppearance", "alignment", "flags"]);
+const ANNOTATION_SNAPSHOT_FIELDS = Object.freeze(["type", "contents", "name", "author", "subject", "rect", "appearanceBbox", "quadPoints", "color", "interiorColor", "borderWidth", "borderStyle", "defaultAppearance", "alignment", "flags"]);
 const ANNOTATION_EXPECTATION_FIELDS = new Set(ANNOTATION_SNAPSHOT_FIELDS);
 const ANNOTATION_PATCH_FIELDS = new Set(["contents", "author", "subject", "color"]);
 const WIDGET_ID_PREFIX = "mupdf-widget";
@@ -65,6 +66,11 @@ const FREE_TEXT_FONT_SIZE_MAX = 72;
 const FREE_TEXT_FONT_NAME = "Helv";
 const FREE_TEXT_ALIGNMENTS = Object.freeze({ left: 0, center: 1, right: 2 });
 const FREE_TEXT_OPERATION_FIELDS = new Set(["type", "page", "pageIndex", "sourceSha256", "expectedPage", "bbox", "contents", "fontSize", "textColor", "alignment", "author", "subject"]);
+const AREA_ANNOTATION_SHAPES = Object.freeze({ rectangle: "Square", ellipse: "Circle" });
+const AREA_ANNOTATION_TYPES = new Set(Object.values(AREA_ANNOTATION_SHAPES));
+const AREA_ANNOTATION_OPERATION_FIELDS = new Set(["type", "page", "pageIndex", "sourceSha256", "expectedPage", "shape", "bbox", "strokeColor", "borderWidth", "contents", "author", "subject"]);
+const AREA_ANNOTATION_BORDER_WIDTH_MIN = 0.5;
+const AREA_ANNOTATION_BORDER_WIDTH_MAX = 12;
 const TEXT_MARKUP_MAX_TEXT_LENGTH = 4_096;
 const TEXT_MARKUP_TYPES = Object.freeze({
   highlight: "Highlight",
@@ -323,6 +329,20 @@ function nativeFreeTextStyle(annotation) {
   }
 }
 
+function nativeAreaAnnotationStyle(annotation) {
+  if (!AREA_ANNOTATION_TYPES.has(annotation.getType())) return {};
+  try {
+    const interiorColor = annotation.getInteriorColor();
+    return {
+      borderWidth: Number(annotation.getBorderWidth()),
+      borderStyle: annotation.getBorderStyle(),
+      ...(Array.isArray(interiorColor) && interiorColor.length ? { interiorColor: interiorColor.map(Number) } : {}),
+    };
+  } catch {
+    return {};
+  }
+}
+
 function nativeAnnotation(annotation, pageNumber) {
   const xref = annotationXref(annotation);
   const quadPoints = annotation.hasQuadPoints()
@@ -342,6 +362,7 @@ function nativeAnnotation(annotation, pageNumber) {
     author: annotation.hasAuthor() ? annotation.getAuthor() || undefined : undefined,
     subject: annotation.hasSubject() ? annotation.getSubject() || undefined : undefined,
     ...nativeFreeTextStyle(annotation),
+    ...nativeAreaAnnotationStyle(annotation),
     flags: annotation.getFlags(),
   };
   return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
@@ -435,6 +456,19 @@ function annotationExpectation(value, operationName = "delete_annotation") {
   }
   if (value.quadPoints !== undefined) expected.quadPoints = nativeTextMarkupQuads(value.quadPoints, `${operationName} expected.quadPoints`);
   if (value.color !== undefined) expected.color = annotationRgb(value.color, `${operationName} expected.color`);
+  if (value.interiorColor !== undefined) expected.interiorColor = annotationRgb(value.interiorColor, `${operationName} expected.interiorColor`);
+  if (value.borderWidth !== undefined) {
+    if (!Number.isFinite(value.borderWidth) || value.borderWidth < 0) {
+      throw new Error(`${operationName} expected.borderWidth must be a non-negative finite number.`);
+    }
+    expected.borderWidth = Number(value.borderWidth);
+  }
+  if (value.borderStyle !== undefined) {
+    if (typeof value.borderStyle !== "string" || !value.borderStyle) {
+      throw new Error(`${operationName} expected.borderStyle must be a non-empty string.`);
+    }
+    expected.borderStyle = value.borderStyle;
+  }
   if (value.defaultAppearance !== undefined) {
     const appearance = value.defaultAppearance;
     if (!appearance || typeof appearance !== "object" || Array.isArray(appearance)) {
@@ -479,6 +513,9 @@ function annotationExpectationMismatch(actual, expected) {
   }
   if (expected.quadPoints !== undefined && !quadPointsEqual(actual.quadPoints, expected.quadPoints)) return "quadPoints";
   if (expected.color !== undefined && !numericVectorsEqual(actual.color, expected.color)) return "color";
+  if (expected.interiorColor !== undefined && !numericVectorsEqual(actual.interiorColor, expected.interiorColor)) return "interiorColor";
+  if (expected.borderWidth !== undefined && Math.abs(Number(actual.borderWidth) - expected.borderWidth) > 0.001) return "borderWidth";
+  if (expected.borderStyle !== undefined && actual.borderStyle !== expected.borderStyle) return "borderStyle";
   if (expected.defaultAppearance !== undefined) {
     if (!actual.defaultAppearance || actual.defaultAppearance.font !== expected.defaultAppearance.font) return "defaultAppearance.font";
     if (Math.abs(actual.defaultAppearance.size - expected.defaultAppearance.size) > 0.001) return "defaultAppearance.size";
@@ -1055,6 +1092,46 @@ function freeTextAdditionMismatch(annotation, actual, request) {
   if (!numericVectorsEqual(actual.defaultAppearance?.color, request.textColor)) return "textColor";
   if (actual.alignment !== request.alignment) return "alignment";
   if (normalizedVisibleAnnotationText(annotationAppearanceText(annotation)) !== normalizedVisibleAnnotationText(request.contents)) return "visible text fit";
+  return undefined;
+}
+
+function areaAnnotationRequest(operation) {
+  validateOperationFields(operation, "add_area_annotation", AREA_ANNOTATION_OPERATION_FIELDS);
+  if (!Object.hasOwn(AREA_ANNOTATION_SHAPES, operation.shape)) {
+    throw new Error("add_area_annotation shape must be rectangle or ellipse.");
+  }
+  const borderWidth = operation.borderWidth === undefined ? 2 : Number(operation.borderWidth);
+  if (!Number.isFinite(borderWidth) || borderWidth < AREA_ANNOTATION_BORDER_WIDTH_MIN || borderWidth > AREA_ANNOTATION_BORDER_WIDTH_MAX) {
+    throw new Error(`add_area_annotation borderWidth must be between ${AREA_ANNOTATION_BORDER_WIDTH_MIN} and ${AREA_ANNOTATION_BORDER_WIDTH_MAX} points.`);
+  }
+  const request = {
+    shape: operation.shape,
+    annotationType: AREA_ANNOTATION_SHAPES[operation.shape],
+    bbox: pdfRectToBbox(bboxToPdfRect(operation.bbox, "add_area_annotation bbox")),
+    strokeColor: operation.strokeColor === undefined ? [0.85, 0.1, 0.1] : annotationRgb(operation.strokeColor, "add_area_annotation strokeColor"),
+    borderWidth,
+  };
+  if (operation.contents !== undefined) request.contents = freeTextContents(operation.contents, "add_area_annotation contents");
+  for (const name of ["author", "subject"]) {
+    if (operation[name] === undefined) continue;
+    if (typeof operation[name] !== "string" || !operation[name].trim()) {
+      throw new Error(`add_area_annotation ${name} must be a non-empty string when supplied.`);
+    }
+    request[name] = operation[name];
+  }
+  return request;
+}
+
+function areaAnnotationAdditionMismatch(actual, request) {
+  if (actual.type !== request.annotationType) return "type";
+  for (const name of ["contents", "author", "subject"]) {
+    if (request[name] !== undefined && actual[name] !== request[name]) return name;
+  }
+  if (!actual.rect || !pdfRectsEqual(bboxToPdfRect(actual.rect), bboxToPdfRect(request.bbox))) return "bbox";
+  if (!numericVectorsEqual(actual.color, request.strokeColor)) return "strokeColor";
+  if (Math.abs(Number(actual.borderWidth) - request.borderWidth) > 0.001) return "borderWidth";
+  if (actual.borderStyle !== "Solid") return "borderStyle";
+  if (actual.interiorColor !== undefined) return "interiorColor";
   return undefined;
 }
 
@@ -2320,6 +2397,78 @@ function applyFreeTextAnnotationAddition(document, operation, context = {}) {
   }
 }
 
+function applyAreaAnnotationAddition(document, operation, context = {}) {
+  const { index, page } = pageFor(document, operation);
+  let annotations = [];
+  let retained = [];
+  let created;
+  try {
+    requireSourceSha256(operation, "add_area_annotation", context);
+    const expectedPage = pageExpectation(operation.expectedPage, "add_area_annotation");
+    const request = areaAnnotationRequest(operation);
+    const actualPage = nativePageSnapshot(page, "add_area_annotation");
+    const pageMismatch = pageExpectationMismatch(actualPage, expectedPage);
+    if (pageMismatch) {
+      throw new Error(`add_area_annotation precondition page ${pageMismatch} did not match page ${index + 1}; refusing stale coordinate evidence.`);
+    }
+    const visibleRect = bboxToPdfRect(actualPage.bbox, "add_area_annotation inspected CropBox");
+    const requestedRect = bboxToPdfRect(request.bbox, "add_area_annotation bbox");
+    if (!pdfRectContains(visibleRect, requestedRect)) {
+      throw new Error(`add_area_annotation bbox must fit fully inside the inspected visible CropBox on page ${index + 1}.`);
+    }
+    annotations = page.getAnnotations();
+    const beforeCount = annotations.length;
+    created = page.createAnnotation(request.annotationType);
+    created.setRect(requestedRect);
+    created.setColor(request.strokeColor);
+    created.setBorderWidth(request.borderWidth);
+    created.setBorderStyle("Solid");
+    if (request.contents !== undefined) created.setContents(request.contents);
+    if (request.author !== undefined) created.setAuthor(request.author);
+    if (request.subject !== undefined) created.setSubject(request.subject);
+    created.update();
+    page.update();
+    const immediate = nativeAnnotation(created, index + 1);
+    if (!immediate.id || !immediate.xref) {
+      throw new Error("MuPDF did not create a uniquely addressable area annotation; refusing to save an ambiguous addition.");
+    }
+    let mismatch = areaAnnotationAdditionMismatch(immediate, request);
+    if (mismatch) throw new Error(`MuPDF did not preserve add_area_annotation ${mismatch} before save; refusing an ambiguous addition.`);
+    if (!immediate.appearanceBbox || !pdfRectContains(visibleRect, bboxToPdfRect(immediate.appearanceBbox))) {
+      throw new Error("MuPDF placed the area annotation appearance outside the inspected visible CropBox; inset the bbox or reduce the border width.");
+    }
+    retained = page.getAnnotations();
+    const added = retained.filter((annotation) => annotationXref(annotation) === immediate.xref);
+    if (retained.length !== beforeCount + 1 || added.length !== 1) {
+      throw new Error(`MuPDF did not retain exactly one uniquely addressable area annotation on page ${index + 1}; refusing an ambiguous addition.`);
+    }
+    const addedRecord = nativeAnnotation(added[0], index + 1);
+    mismatch = areaAnnotationAdditionMismatch(addedRecord, request);
+    if (mismatch) throw new Error(`MuPDF did not retain add_area_annotation ${mismatch} on page ${index + 1}; refusing an ambiguous addition.`);
+    if (!addedRecord.appearanceBbox || !pdfRectContains(visibleRect, bboxToPdfRect(addedRecord.appearanceBbox))) {
+      throw new Error("MuPDF retained the area annotation appearance outside the inspected visible CropBox; refusing an ambiguous addition.");
+    }
+    return {
+      type: "add_area_annotation",
+      page: index + 1,
+      expectedPage,
+      coordinateSpace: MUPDF_PAGE_COORDINATE_SPACE,
+      pageRotation: actualPage.rotation,
+      shape: request.shape,
+      bbox: request.bbox,
+      strokeColor: request.strokeColor,
+      borderWidth: request.borderWidth,
+      appearanceBboxVerified: true,
+      added: addedRecord,
+      beforeCount,
+      afterCount: retained.length,
+    };
+  } finally {
+    for (const annotation of new Set([...annotations, ...retained, created].filter(Boolean))) annotation.destroy();
+    page.destroy();
+  }
+}
+
 function applyTextMarkupAddition(document, operation, context = {}) {
   const operationName = operation.type;
   const { index, page } = pageFor(document, operation);
@@ -2711,6 +2860,7 @@ function applyOperation(document, operation, context) {
   switch (operation.type) {
     case "add_text_annotation": return applyTextAnnotationAddition(document, operation, context);
     case "add_free_text_annotation": return applyFreeTextAnnotationAddition(document, operation, context);
+    case "add_area_annotation": return applyAreaAnnotationAddition(document, operation, context);
     case "add_text_highlight":
     case "add_text_markup": return applyTextMarkupAddition(document, operation, context);
     case "fill_form": {
@@ -2784,7 +2934,7 @@ export async function editPdfWithMuPdf(input, options = {}) {
     : undefined;
   if (rewriteOnlyOperation) {
     const pageTreeMutation = PAGE_TREE_OPERATION_TYPES.has(rewriteOnlyOperation.type);
-    const sourceBoundPlacement = ["add_link", "add_text_annotation", "add_free_text_annotation", "add_text_highlight", "add_text_markup"].includes(rewriteOnlyOperation.type);
+    const sourceBoundPlacement = ["add_link", "add_text_annotation", "add_free_text_annotation", "add_area_annotation", "add_text_highlight", "add_text_markup"].includes(rewriteOnlyOperation.type);
     const label = rewriteOnlyOperation.type.startsWith("redact_")
       ? "redaction"
       : pageTreeMutation

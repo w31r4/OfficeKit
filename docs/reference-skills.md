@@ -147,6 +147,17 @@ only contents/author/subject; the regenerated appearance is checked again.
 Arbitrary fonts, borders/fills, rich text, callouts, style/geometry updates,
 incremental save, and persistent xref identity remain outside the contract.
 
+### PDF source-bound non-text region review delta
+
+OfficeKit adds `add_area_annotation` for Agent review targets that have no
+unique native text selection. One exact source/page snapshot and visible
+`mupdf-page-space` bbox creates either an unfilled solid rectangle or ellipse
+with bounded RGB stroke width and optional review metadata. MuPDF must retain
+one native Square/Circle and report an `appearanceBbox` wholly inside the page;
+edge-clipped strokes fail before publication. Fill, dash/cloud, opacity,
+arbitrary appearance, style/geometry update, and persistent xref identity stay
+outside the profile. A fresh complete snapshot may use generic deletion.
+
 ### Documents canonical note bodies
 
 The runnable Documents profile now accepts a source-free or recognized

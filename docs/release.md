@@ -1,5 +1,29 @@
 # Release
 
+## Current 0.6.0 milestone (2026-08-14): Native non-text region review
+
+The built-in MuPDF.js route now exposes `add_area_annotation` for an Agent to
+mark an image, chart, table area, or other review target without pretending it
+is selectable text. The operation binds the exact source hash and inspected
+page bbox/rotation, accepts one rotation-aware visible bbox plus exactly a
+`rectangle` or `ellipse`, and writes one unfilled native Square/Circle with a
+solid RGB outline, 0.5–12 point width, and optional review metadata.
+
+Before publishing the rewrite, OfficeKit verifies native type, rectangle,
+stroke, solid/no-fill style, unique xref and annotation count, then requires the
+provider-reported appearance bounds to remain inside the visible page. Stale
+page evidence, edge-clipped thick strokes, unknown style fields, fill/dash/
+cloud/opacity/arbitrary appearance, update, and incremental save fail closed.
+Core and packaged-CLI tests cover rectangle/ellipse creation, invalid inputs,
+source immutability, second inspection, rendered pixel change, and deletion by
+complete source-bound snapshot. This is a review primitive, not redaction or a
+general PDF drawing layer, and remains in the targeted-plus-fast cooldown lane.
+
+Local evidence on the milestone tree: PDF core, Help, PDF Skill, real MuPDF CLI,
+338-file Skill portability, 333-file reference sync, package contents, and all
+31 fast-gate steps passed. No slow, pack, .NET/WASM, or hosted release-candidate
+lane was started.
+
 ## Current 0.6.0 milestone (2026-08-14): Bounded FreeText review revision
 
 Freshly inspected native FreeText annotations now advertise a source-bound

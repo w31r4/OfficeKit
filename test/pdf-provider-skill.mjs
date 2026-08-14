@@ -374,6 +374,7 @@ assert.match(skillText, /Source-bound outline edits.*\[edit existing\]\(tasks\/e
 assert.match(skillText, /delete_annotation.*update_annotation.*delete_link.*update_link.*update_form_field/is);
 assert.match(skillText, /add_text_annotation.*visible pin.*rewrite/is);
 assert.match(skillText, /add_free_text_annotation.*fixed-Helvetica visible text box.*appearance that omits text.*rewrite/is);
+assert.match(skillText, /add_area_annotation.*unfilled solid rectangle\/ellipse.*native appearance stays visible.*rewrite/is);
 assert.match(skillText, /add_text_highlight.*unique native text selection.*rewrite/is);
 assert.match(skillText, /add_text_markup.*Highlight\/Underline\/StrikeOut\/Squiggly.*unique native text selection.*rewrite/is);
 assert.match(skillText, /mupdf-page-space.*0\/90\/180\/270.*appearanceBbox/is);
@@ -462,6 +463,8 @@ assert.match(editExistingText, /Update one imported Text note, fixed FreeText, o
 assert.match(editExistingText, /add_free_text_annotation[\s\S]*mupdf-page-space[\s\S]*4–72[\s\S]*native annotation appearance[\s\S]*structured text[\s\S]*clipped or omitted/is);
 assert.match(editExistingText, /fixed-helvetica-v1[\s\S]*complete[\s\S]*snapshot[\s\S]*contents[\s\S]*author[\s\S]*subject[\s\S]*preserves[\s\S]*appearanceBbox[\s\S]*clipped or unencodable/is);
 assert.match(formsAnnotationsText, /visible FreeText review box[\s\S]*add_free_text_annotation[\s\S]*appearance text[\s\S]*fails closed[\s\S]*fixed-helvetica-v1[\s\S]*contents\/author\/subject[\s\S]*style and geometry/is);
+assert.match(editExistingText, /Mark one visible page region[\s\S]*add_area_annotation[\s\S]*rectangle[\s\S]*ellipse[\s\S]*0\.5–12 point solid border[\s\S]*appearanceBbox[\s\S]*edge-touching[\s\S]*read-only.*deletion/is);
+assert.match(formsAnnotationsText, /Mark a non-text region[\s\S]*add_area_annotation[\s\S]*rectangle[\s\S]*ellipse[\s\S]*No interior fill[\s\S]*appearanceBbox[\s\S]*Update is\s+unsupported/is);
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
 assert.match(pdfPluginReadme, /office-kit\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
@@ -495,6 +498,7 @@ assert.match(apiQuickStartText, /mupdfOutline[\s\S]*update_outline[\s\S]*outline
 assert.match(apiQuickStartText, /existing native Highlight, Underline, StrikeOut, or Squiggly[\s\S]*updateCapability\.supported[\s\S]*complete inspect-returned[\s\S]*annotation\.snapshot[\s\S]*patch[\s\S]*color[\s\S]*quadrilaterals[\s\S]*appearance\s+bounds[\s\S]*partial\/stale snapshot[\s\S]*fails closed/is);
 assert.match(apiQuickStartText, /bounded FreeText primitive[\s\S]*mupdf-page-space[\s\S]*appearance contains all\s+requested text/is);
 assert.match(apiQuickStartText, /add_free_text_annotation[\s\S]*4–72 point[\s\S]*clipped[\s\S]*fixed-helvetica-v1[\s\S]*update_annotation[\s\S]*expected: review\.snapshot[\s\S]*appearanceTextVerified/is);
+assert.match(apiQuickStartText, /add_area_annotation[\s\S]*shape: "ellipse"[\s\S]*0\.5–12 point RGB outline[\s\S]*no interior color[\s\S]*appearanceBbox[\s\S]*page edge[\s\S]*delete operation/is);
 assert.match(apiQuickStartText, /metadataId: metadata\.id/);
 assert.match(apiQuickStartText, /XMP stream[\s\S]*field-safe-v1[\s\S]*xmpMutableFields[\s\S]*xmpBlockedFields[\s\S]*updateCapability\.supported[\s\S]*same transaction/is);
 const redactTaskText = await fs.readFile(path.join(skillRoot, "tasks", "redact.md"), "utf8");
@@ -571,6 +575,8 @@ try {
   const mupdfMarkupOutput = path.join(tempRoot, "mupdf-markup-output.pdf");
   const mupdfFreeTextOperations = path.join(tempRoot, "mupdf-free-text-operations.json");
   const mupdfFreeTextOutput = path.join(tempRoot, "mupdf-free-text-output.pdf");
+  const mupdfAreaOperations = path.join(tempRoot, "mupdf-area-operations.json");
+  const mupdfAreaOutput = path.join(tempRoot, "mupdf-area-output.pdf");
   const mupdfCropOperations = path.join(tempRoot, "mupdf-crop-operations.json");
   const mupdfCropOutput = path.join(tempRoot, "mupdf-crop-output.pdf");
   const mupdfRotationOperations = path.join(tempRoot, "mupdf-rotation-operations.json");
@@ -831,6 +837,31 @@ try {
   assert.equal(mupdfFreeTextAnnotation.updateCapability.supported, true);
   assert.equal(mupdfFreeTextAnnotation.updateCapability.profile, "fixed-helvetica-v1");
   assert.deepEqual(mupdfFreeTextAnnotation.updateCapability.mutableFields, ["contents", "author", "subject"]);
+  await fs.writeFile(mupdfAreaOperations, JSON.stringify({
+    savePolicy: "rewrite",
+    operations: [{
+      type: "add_area_annotation",
+      page: mupdfAnnotationPage.page,
+      sourceSha256: mupdfInspection.summary.sourceSha256,
+      expectedPage: { bbox: mupdfAnnotationPage.bbox, rotation: mupdfAnnotationPage.rotation },
+      shape: "ellipse",
+      bbox: [320, 160, 200, 80],
+      strokeColor: [0.8, 0.15, 0.1],
+      borderWidth: 3,
+      contents: "CLI area review",
+      author: "CLI reviewer",
+    }],
+  }), "utf8");
+  const mupdfArea = parseResult(run(process.execPath, [mupdfCli, "edit", mupdfInput, mupdfAreaOperations, mupdfAreaOutput], { status: 0 }));
+  assert.equal(mupdfArea.operations[0].type, "add_area_annotation");
+  assert.equal(mupdfArea.operations[0].shape, "ellipse");
+  assert.equal(mupdfArea.operations[0].appearanceBboxVerified, true);
+  const mupdfAreaInspection = await PdfFile.inspectPdf(await fs.readFile(mupdfAreaOutput));
+  const mupdfCircleAnnotation = mupdfAreaInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "Circle");
+  assert.equal(mupdfCircleAnnotation.contents, "CLI area review");
+  assert.equal(mupdfCircleAnnotation.borderWidth, 3);
+  assert.equal(mupdfCircleAnnotation.borderStyle, "Solid");
+  assert.equal(mupdfCircleAnnotation.updateCapability.supported, false);
   await fs.writeFile(mupdfAnnotationUpdateOperations, JSON.stringify({
     savePolicy: "rewrite",
     operations: [{

@@ -164,6 +164,18 @@ contents/author/subject changes while preserving style and geometry, and the
 rebuilt appearance must still contain all requested text. Other FreeText
 profiles fail closed; the generic source-bound delete route remains available.
 
+## Mark a non-text region
+
+Use `add_area_annotation` for a visible outline around an image, chart, or page
+region where native text selection is unavailable. It requires the exact source
+hash and inspected page bbox/rotation, a `rectangle` or `ellipse`, and one
+`mupdf-page-space` bbox. The optional stroke is RGB, the solid border is bounded
+to 0.5–12 points, and optional contents/author/subject remain review metadata.
+No interior fill is created. The provider verifies one native Square/Circle,
+its style, and its complete `appearanceBbox`; requested or painted bounds that
+leave the visible page fail closed. Re-inspect and render the rewrite. Update is
+unsupported, while complete-snapshot source-bound deletion remains available.
+
 ## Mark one unique text selection
 
 For an Agent review mark, select the requested page text from the same native

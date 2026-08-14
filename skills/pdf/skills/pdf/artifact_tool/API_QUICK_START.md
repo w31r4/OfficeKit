@@ -435,6 +435,35 @@ Clipped or provider-unencodable contents fail closed. Font, color, alignment,
 geometry, border/fill, rich-text, and callout updates remain unsupported; the
 generic source-bound delete route remains available after a fresh inspection.
 
+For an image, chart, table area, or other non-text review target, add an unfilled
+native region outline instead of inventing text quadrilaterals:
+
+```js
+const areaReview = await PdfFile.editPdf(input, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "add_area_annotation",
+    page: notePage.page,
+    sourceSha256: inspection.summary.sourceSha256,
+    expectedPage: { bbox: notePage.bbox, rotation: notePage.rotation },
+    shape: "ellipse",
+    bbox: [72, 210, 260, 96],
+    strokeColor: [0.85, 0.1, 0.1],
+    borderWidth: 3,
+    contents: "Confirm this figure before approval.",
+    author: "Reviewer",
+  }],
+});
+```
+
+`shape` is exactly `rectangle` or `ellipse`; the native result is Square or
+Circle with a solid 0.5–12 point RGB outline and no interior color. Unknown
+fill/dash/cloud/opacity/appearance fields fail closed. The requested bbox and
+the provider-reported `appearanceBbox` must both fit inside the inspected
+rotation-aware page, so a thick stroke at the page edge is refused. Re-inspect
+and render the rewrite. Region style/geometry updates remain unsupported, but a
+fresh complete annotation snapshot may use the generic delete operation.
+
 For review markup, give the provider one requested text string instead of
 trying to calculate a rectangle or character quadrilaterals. It is accepted
 only if native search finds exactly one selection on the same inspected visible
