@@ -34,7 +34,8 @@ const TRANSITION_EFFECT_NAMES = new Map(Object.keys(TRANSITION_EFFECTS).map((nam
 const TRANSITION_DIRECTION_NAMES = new Map(EIGHT_DIRECTIONS.concat(IN_OUT_DIRECTIONS).map((name) => [name.toLowerCase(), name]));
 const TRANSITION_ORIENTATION_NAMES = new Map(ORIENTATIONS.map((name) => [name, name]));
 const TRANSITION_SPEEDS = new Set(["slow", "medium", "fast"]);
-const TRANSITION_KEYS = new Set(["effect", "direction", "orientation", "throughBlack", "spokes", "speed", "advanceOnClick", "advanceAfterMs"]);
+const TRANSITION_KEYS = new Set(["effect", "direction", "orientation", "throughBlack", "spokes", "speed", "durationMs", "advanceOnClick", "advanceAfterMs"]);
+const MAX_TRANSITION_DURATION_MS = 86_400_000;
 const MAX_ADVANCE_AFTER_MS = 86_400_000;
 
 export const PRESENTATION_TRANSITION_CAPABILITY = Symbol.for("office-kit.slide-transition-capability");
@@ -58,10 +59,10 @@ function normalizeSpeed(value) {
   return speed;
 }
 
-function normalizeAdvanceAfter(value) {
+function normalizeMilliseconds(value, field, maximum) {
   const milliseconds = Number(value);
-  if (!Number.isSafeInteger(milliseconds) || milliseconds < 0 || milliseconds > MAX_ADVANCE_AFTER_MS) {
-    throw new RangeError(`Presentation transition advanceAfterMs must be an integer from 0 through ${MAX_ADVANCE_AFTER_MS}.`);
+  if (!Number.isSafeInteger(milliseconds) || milliseconds < 0 || milliseconds > maximum) {
+    throw new RangeError(`Presentation transition ${field} must be an integer from 0 through ${maximum}.`);
   }
   return milliseconds;
 }
@@ -124,12 +125,15 @@ export function normalizePresentationTransition(config) {
     }
     transition.spokes = spokes;
   } else rejectUnused(config, "spokes");
+  if (own(config, "durationMs") && config.durationMs != null) {
+    transition.durationMs = normalizeMilliseconds(config.durationMs, "durationMs", MAX_TRANSITION_DURATION_MS);
+  }
   if (own(config, "advanceOnClick") && typeof config.advanceOnClick !== "boolean") {
     throw new TypeError("Presentation transition advanceOnClick must be a boolean.");
   }
   transition.advanceOnClick = config.advanceOnClick ?? true;
   if (own(config, "advanceAfterMs") && config.advanceAfterMs != null) {
-    transition.advanceAfterMs = normalizeAdvanceAfter(config.advanceAfterMs);
+    transition.advanceAfterMs = normalizeMilliseconds(config.advanceAfterMs, "advanceAfterMs", MAX_ADVANCE_AFTER_MS);
   }
   return transition;
 }
@@ -152,6 +156,7 @@ export class SlideTransition {
   get throughBlack() { return this._value?.throughBlack; }
   get spokes() { return this._value?.spokes; }
   get speed() { return this._value?.speed; }
+  get durationMs() { return this._value?.durationMs; }
   get advanceOnClick() { return this._value?.advanceOnClick; }
   get advanceAfterMs() { return this._value?.advanceAfterMs; }
   get capability() {

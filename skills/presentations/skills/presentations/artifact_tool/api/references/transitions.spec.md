@@ -14,6 +14,7 @@ const opening = presentation.slides.add({
     effect: "fade",
     throughBlack: true,
     speed: "medium",
+    durationMs: 750,
     advanceOnClick: true,
     advanceAfterMs: 4_000,
   },
@@ -48,12 +49,16 @@ Every profile also accepts:
 | Field | Supported values | Default |
 | --- | --- | --- |
 | `speed` | `"slow"`, `"medium"`, `"fast"` | `"medium"` |
+| `durationMs` | integer `0..86400000` | omitted |
 | `advanceOnClick` | boolean | `true` |
 | `advanceAfterMs` | integer `0..86400000` | omitted |
 
 Fields that do not belong to the chosen effect are rejected. The codec writes
 one direct `p:transition` with explicit `spd` and `advClick`, an optional
-numeric `advTm`, and exactly one canonical base effect child.
+Office 2010+ `p14:dur` in integer milliseconds, an optional numeric `advTm`,
+and exactly one canonical base effect child. `durationMs` is how long the
+transition plays; `advanceAfterMs` is when the slide advances. They are
+independent values and neither implies the other.
 `clearTransition()` removes that direct element.
 
 ## Inspect, Resolve, And Edit
@@ -90,12 +95,13 @@ leaf is then a one-SlidePart operation, not a general animation patch.
 ## Imported And Clone Boundary
 
 The C# Open XML SDK codec accepts one direct `p:transition` only when its
-attributes and single child exactly match one of the profiles above.
-`p:timing`, `p14:dur`, sound actions, extension lists, extra or unknown
-attributes, multiple children, Office-version effect extensions, malformed
-timers, and any broader timing/animation graph remain opaque. They are
-preserved byte-for-byte when unrelated supported edits occur, and
-`setTransition()` or `clearTransition()` rejects them.
+attributes and single child exactly match one of the profiles above. It maps a
+canonical integer-millisecond `p14:dur` to `durationMs`. Valid but non-integer
+unit spellings in `p14:dur`, such as `0.75s`, plus `p:timing`, sound actions, extension
+lists, extra or unknown attributes, multiple children, Office-version effect
+extensions, malformed timers, and any broader timing/animation graph remain
+opaque. They are preserved byte-for-byte when unrelated supported edits occur,
+and `setTransition()` or `clearTransition()` rejects them.
 
 The strict imported `slide.duplicate()` profile may copy one unchanged
 canonical direct base transition with its SlidePart. It does not copy or

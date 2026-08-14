@@ -618,6 +618,7 @@ slide.setTransition({
   orientation: "horizontal",
   direction: "in",
   speed: "medium",
+  durationMs: 750,
   advanceOnClick: true,
   advanceAfterMs: 4_000,
 });
@@ -625,8 +626,9 @@ slide.setTransition({
 
 The 21 effects have effect-specific direction, orientation, `throughBlack`, or
 `spokes` fields and defaults; the complete table is in the reference below.
-Speed defaults to `medium`, click advancement to `true`, and the optional timer
-is an integer from `0` through `86400000` milliseconds. Inspect
+Speed defaults to `medium`, click advancement to `true`, and optional
+`durationMs` and `advanceAfterMs` values are independent integers from `0`
+through `86400000` milliseconds. Inspect
 an imported deck with `kind: "transition"`, resolve `${slide.id}/transition`,
 then use `transition.set(...)` or `transition.clear()` when its capability
 reports `editable: true`. A transition-absent imported slide may use

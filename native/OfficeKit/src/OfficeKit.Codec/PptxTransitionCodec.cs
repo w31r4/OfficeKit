@@ -10,9 +10,12 @@ namespace OfficeKit.Codec;
 
 // Owns one direct p:transition leaf on one SlidePart. This covers the complete
 // ECMA-376 base-namespace effect vocabulary, but deliberately does not model
-// p:timing, sound actions, p14 duration, or Office-version extension effects.
+// p:timing, sound actions, or Office-version extension effects. The one
+// Office 2010+ p14:dur leaf is projected as canonical integer milliseconds.
 internal static class PptxTransitionCodec
 {
+    private const string PowerPoint2010Namespace = "http://schemas.microsoft.com/office/powerpoint/2010/main";
+    internal const uint MaxDurationMilliseconds = 86_400_000;
     internal const uint MaxAdvanceAfterMilliseconds = 86_400_000;
 
     private enum TransitionEffectShape
@@ -90,6 +93,8 @@ internal static class PptxTransitionCodec
         if (source is null) return;
         if (!source.HasAdvanceOnClick)
             throw Invalid("Presentation transition requires an explicit advance_on_click value.");
+        if (source.HasDurationMs && source.DurationMs > MaxDurationMilliseconds)
+            throw Invalid($"Presentation transition duration_ms must not exceed {MaxDurationMilliseconds}.");
         if (source.HasAdvanceAfterMs && source.AdvanceAfterMs > MaxAdvanceAfterMilliseconds)
             throw Invalid($"Presentation transition advance_after_ms must not exceed {MaxAdvanceAfterMilliseconds}.");
         if (!IsSpeed(source.Speed))
@@ -176,10 +181,14 @@ internal static class PptxTransitionCodec
             return false;
         semantic.Speed = speedName;
         semantic.AdvanceOnClick = advanceOnClick;
+        if (source.Duration?.Value is { } durationText)
+        {
+            if (!TryMilliseconds(durationText, MaxDurationMilliseconds, out var duration)) return false;
+            semantic.DurationMs = duration;
+        }
         if (source.AdvanceAfterTime?.Value is { } advanceAfterText)
         {
-            if (!uint.TryParse(advanceAfterText, NumberStyles.None, CultureInfo.InvariantCulture, out var advanceAfter)) return false;
-            if (advanceAfter > MaxAdvanceAfterMilliseconds) return false;
+            if (!TryMilliseconds(advanceAfterText, MaxAdvanceAfterMilliseconds, out var advanceAfter)) return false;
             semantic.AdvanceAfterMs = advanceAfter;
         }
         var child = source.FirstChild;
@@ -197,6 +206,7 @@ internal static class PptxTransitionCodec
             Speed = Speed(source.Speed),
             AdvanceOnClick = source.AdvanceOnClick,
         };
+        if (source.HasDurationMs) transition.Duration = source.DurationMs.ToString(CultureInfo.InvariantCulture);
         if (source.HasAdvanceAfterMs) transition.AdvanceAfterTime = source.AdvanceAfterMs.ToString(CultureInfo.InvariantCulture);
         transition.Append(BuildEffect(EffectProfilesByName[source.Effect], source));
         return transition;
@@ -313,11 +323,18 @@ internal static class PptxTransitionCodec
     private static bool HasTransitionAttributes(P.Transition source)
     {
         var attributes = source.GetAttributes();
-        if (attributes.Count is < 2 or > 3) return false;
+        if (attributes.Count is < 2 or > 4) return false;
         var allowed = new HashSet<string>(["spd", "advClick", "advTm"], StringComparer.Ordinal);
         var seen = new HashSet<string>(StringComparer.Ordinal);
+        var sawDuration = false;
         foreach (var attribute in attributes)
         {
+            if (attribute.NamespaceUri == PowerPoint2010Namespace && attribute.LocalName == "dur")
+            {
+                if (sawDuration) return false;
+                sawDuration = true;
+                continue;
+            }
             if (attribute.NamespaceUri.Length != 0 || !allowed.Contains(attribute.LocalName) || !seen.Add(attribute.LocalName)) return false;
         }
         return seen.Contains("spd") && seen.Contains("advClick");
@@ -433,6 +450,8 @@ internal static class PptxTransitionCodec
         target.SetAttribute(new OpenXmlAttribute(string.Empty, name, string.Empty, value));
 
     private static bool IsSpeed(string value) => value is "slow" or "medium" or "fast";
+    private static bool TryMilliseconds(string value, uint maximum, out uint milliseconds) =>
+        uint.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out milliseconds) && milliseconds <= maximum;
     private static CodecException Invalid(string message) => new("invalid_presentation_transition", message);
     private static string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 }

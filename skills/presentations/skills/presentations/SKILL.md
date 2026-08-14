@@ -567,8 +567,9 @@ the file form has a 32 MiB input budget.
 
 Use direct `p:transition` metadata only for an intentional between-slide
 movement. The public profile covers the complete ECMA-376 base transition vocabulary,
-plus `slow`/`medium`/`fast`, click advancement, and an optional
-bounded timer. It is not an animation/timing/sound authoring surface:
+plus `slow`/`medium`/`fast`, an optional bounded playback duration, click
+advancement, and an optional bounded advance timer. It is not an
+animation/timing/sound authoring surface:
 
 ```js
 slide.setTransition({
@@ -576,6 +577,7 @@ slide.setTransition({
   orientation: "horizontal",
   direction: "in",
   speed: "fast",
+  durationMs: 750,
   advanceOnClick: false,
   advanceAfterMs: 4_000,
 });
@@ -587,8 +589,10 @@ For an imported deck, inspect `slide,transition`, resolve
 is editable. A source-bound slide with no transition may be set only when
 `addable: true`, which proves the Slide root contains only `p:cSld` plus
 optional `p:clrMapOvr` and no transition, timing, or extension leaf. Unknown
-or extension effects, timing trees, sound actions, `p14` duration, or extension graphs stay
-opaque-preserved and fail closed on mutation. The strict slide
+or extension effects, timing trees, sound actions, non-integer-unit `p14:dur`,
+or extension graphs stay opaque-preserved and fail closed on mutation. A
+canonical integer-millisecond `p14:dur` is exposed as `durationMs`, distinct
+from `advanceAfterMs`. The strict slide
 clone profile may carry one unchanged canonical direct transition, but never a
 timing or sound graph.
 
@@ -599,8 +603,8 @@ rather than a raw SlidePart patch:
 officekit run examples/officekit-transition-edit-workflow.mjs \
   input.pptx output.pptx audit.json \
   "Decision slide" \
-  '{"effect":"fade","throughBlack":true,"speed":"medium","advanceOnClick":true,"advanceAfterMs":1200}' \
-  '{"effect":"split","orientation":"horizontal","direction":"in","speed":"slow","advanceOnClick":false}'
+  '{"effect":"fade","throughBlack":true,"speed":"medium","durationMs":700,"advanceOnClick":true,"advanceAfterMs":1200}' \
+  '{"effect":"split","orientation":"horizontal","direction":"in","speed":"slow","durationMs":1100,"advanceOnClick":false}'
 ```
 
 It binds a unique imported slide name and the complete expected transition

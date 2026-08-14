@@ -3553,6 +3553,10 @@ message PresentationTransition {
   optional bool through_black = 7;
   // Required 1-through-8 p:wheel spoke count.
   optional uint32 spokes = 8;
+  // Optional Office 2010+ p14:dur transition-playback duration in canonical
+  // integer milliseconds. This is distinct from advance_after_ms, which
+  // controls when the slide advances after the transition has played.
+  optional uint32 duration_ms = 9;
 }
 
 // Appended to preserve every pre-existing generated descriptor index. This is

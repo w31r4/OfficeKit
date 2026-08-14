@@ -1128,7 +1128,7 @@ assert.deepEqual(opaqueVisibilityPreserved.bytes, opaqueVisibilityBytes);
 const transitionDeck = Presentation.create({ slideSize: { width: 1280, height: 720 } });
 const transitionFade = transitionDeck.slides.add({ name: "Fade" });
 transitionFade.shapes.add({ name: "transition-fade-title", position: { left: 80, top: 80, width: 800, height: 80 }, text: "Fade" });
-transitionFade.setTransition({ effect: "fade", speed: "medium", advanceOnClick: true, advanceAfterMs: 1250 });
+transitionFade.setTransition({ effect: "fade", speed: "medium", durationMs: 750, advanceOnClick: true, advanceAfterMs: 1250 });
 const transitionPush = transitionDeck.slides.add({ name: "Push" });
 transitionPush.shapes.add({ name: "transition-push-title", position: { left: 80, top: 80, width: 800, height: 80 }, text: "Push" });
 transitionPush.setTransition({ effect: "push", direction: "right", speed: "fast", advanceOnClick: false, advanceAfterMs: 0 });
@@ -1136,7 +1136,7 @@ const transitionWipe = transitionDeck.slides.add({ name: "Wipe" });
 transitionWipe.shapes.add({ name: "transition-wipe-title", position: { left: 80, top: 80, width: 800, height: 80 }, text: "Wipe" });
 transitionWipe.setTransition({ effect: "wipe", speed: "slow", advanceOnClick: true });
 assert.equal(transitionDeck.resolve(`${transitionFade.id}/transition`), transitionFade.transition);
-assert.deepEqual(transitionFade.transition.toJSON(), { effect: "fade", speed: "medium", advanceOnClick: true, advanceAfterMs: 1250 });
+assert.deepEqual(transitionFade.transition.toJSON(), { effect: "fade", speed: "medium", durationMs: 750, advanceOnClick: true, advanceAfterMs: 1250 });
 assert.match(transitionDeck.inspect({ kind: "transition", maxChars: 4000 }).ndjson, /"effect":"push"/);
 assert.throws(() => transitionFade.setTransition({ effect: "fade", direction: "left" }), /does not accept direction/);
 assert.throws(() => transitionPush.setTransition({ effect: "push", direction: "diagonal" }), /left, up, right, or down/);
@@ -1147,11 +1147,12 @@ const transitionFirstZip = await JSZip.loadAsync(transitionFirstExport.bytes);
 const transitionFadeXml = await transitionFirstZip.file("ppt/slides/slide1.xml").async("string");
 const transitionPushXml = await transitionFirstZip.file("ppt/slides/slide2.xml").async("string");
 const transitionWipeXml = await transitionFirstZip.file("ppt/slides/slide3.xml").async("string");
-assert.match(transitionFadeXml, /<p:transition spd="med" advClick="1" advTm="1250"><p:fade \/><\/p:transition>/);
+assert.match(transitionFadeXml, /<p:transition\b[^>]*\bp14:dur="750"[^>]*>/);
+assert.match(transitionFadeXml, /<p:transition\b[^>]*\bspd="med"[^>]*\badvClick="1"[^>]*\badvTm="1250"[^>]*><p:fade \/><\/p:transition>/);
 assert.match(transitionPushXml, /<p:transition spd="fast" advClick="0" advTm="0"><p:push dir="r" \/><\/p:transition>/);
 assert.match(transitionWipeXml, /<p:transition spd="slow" advClick="1"><p:wipe dir="l" \/><\/p:transition>/);
 const transitionImported = await PresentationFile.importPptx(transitionFirstExport);
-assert.deepEqual(transitionImported.slides.items[0].transition.toJSON(), { effect: "fade", speed: "medium", advanceOnClick: true, advanceAfterMs: 1250 });
+assert.deepEqual(transitionImported.slides.items[0].transition.toJSON(), { effect: "fade", speed: "medium", durationMs: 750, advanceOnClick: true, advanceAfterMs: 1250 });
 assert.deepEqual(transitionImported.slides.items[1].transition.toJSON(), { effect: "push", direction: "right", speed: "fast", advanceOnClick: false, advanceAfterMs: 0 });
 assert.deepEqual(transitionImported.slides.items[2].transition.toJSON(), { effect: "wipe", direction: "left", speed: "slow", advanceOnClick: true });
 assert.deepEqual(transitionImported.slides.items[0].transition.capability, { sourceBound: true, partPresent: true, editable: true, addable: false });
@@ -1211,10 +1212,13 @@ assert.throws(() => transitionFade.setTransition({ effect: "wheel", spokes: 9 })
 assert.throws(() => transitionFade.setTransition({ effect: "wheel", direction: "in" }), /does not accept direction/);
 assert.throws(() => transitionFade.setTransition({ effect: "cover", direction: "diagonal" }), /leftUp.*rightDown/);
 assert.throws(() => transitionFade.setTransition({ effect: "split", orientation: "diagonal" }), /horizontal or vertical/);
-transitionImported.slides.items[0].setTransition({ effect: "wipe", direction: "down", speed: "slow", advanceOnClick: true });
+assert.throws(() => transitionFade.setTransition({ effect: "fade", durationMs: -1 }), /durationMs.*0 through 86400000/);
+assert.throws(() => transitionFade.setTransition({ effect: "fade", durationMs: 1.5 }), /durationMs.*integer/);
+assert.throws(() => transitionFade.setTransition({ effect: "fade", durationMs: 86_400_001 }), /durationMs.*86400000/);
+transitionImported.slides.items[0].setTransition({ effect: "wipe", direction: "down", speed: "slow", durationMs: 500, advanceOnClick: true });
 const transitionEditedExport = await PresentationFile.exportPptx(transitionImported);
 const transitionEdited = await PresentationFile.importPptx(transitionEditedExport);
-assert.deepEqual(transitionEdited.slides.items[0].transition.toJSON(), { effect: "wipe", direction: "down", speed: "slow", advanceOnClick: true });
+assert.deepEqual(transitionEdited.slides.items[0].transition.toJSON(), { effect: "wipe", direction: "down", speed: "slow", durationMs: 500, advanceOnClick: true });
 transitionEdited.slides.items[1].clearTransition();
 const transitionClearedExport = await PresentationFile.exportPptx(transitionEdited);
 const transitionCleared = await PresentationFile.importPptx(transitionClearedExport);
@@ -1235,7 +1239,7 @@ const transitionAbsentPptx = await PresentationFile.exportPptx(transitionAbsentD
 const transitionAbsentZip = await JSZip.loadAsync(transitionAbsentPptx.bytes);
 const transitionAbsentImported = await PresentationFile.importPptx(transitionAbsentPptx);
 assert.deepEqual(transitionAbsentImported.slides.items[0].transition.capability, { sourceBound: true, partPresent: false, editable: false, addable: true });
-transitionAbsentImported.slides.items[0].setTransition({ effect: "wipe", direction: "up", speed: "medium", advanceOnClick: true });
+transitionAbsentImported.slides.items[0].setTransition({ effect: "wipe", direction: "up", speed: "medium", durationMs: 900, advanceOnClick: true });
 const transitionAddedPptx = await PresentationFile.exportPptx(transitionAbsentImported);
 const transitionAddedZip = await JSZip.loadAsync(transitionAddedPptx.bytes);
 assert.deepEqual(Object.keys(transitionAddedZip.files).sort(), Object.keys(transitionAbsentZip.files).sort());
@@ -1247,9 +1251,9 @@ for (const [path, entry] of Object.entries(transitionAbsentZip.files)) {
     `adding an imported transition must preserve ${path} byte-for-byte`,
   );
 }
-assert.match(await transitionAddedZip.file("ppt/slides/slide1.xml").async("string"), /<p:transition\b[^>]*\bspd="med"[^>]*\badvClick="1"[^>]*><p:wipe\s+dir="u"\s*\/>/);
+assert.match(await transitionAddedZip.file("ppt/slides/slide1.xml").async("string"), /<p:transition\b[^>]*\bspd="med"[^>]*\bp14:dur="900"[^>]*\badvClick="1"[^>]*><p:wipe\s+dir="u"\s*\/>/);
 const transitionAddedImported = await PresentationFile.importPptx(transitionAddedPptx);
-assert.deepEqual(transitionAddedImported.slides.items[0].transition.toJSON(), { effect: "wipe", direction: "up", speed: "medium", advanceOnClick: true });
+assert.deepEqual(transitionAddedImported.slides.items[0].transition.toJSON(), { effect: "wipe", direction: "up", speed: "medium", durationMs: 900, advanceOnClick: true });
 assert.deepEqual(transitionAddedImported.slides.items[0].transition.capability, { sourceBound: true, partPresent: true, editable: true, addable: false });
 
 const timedTransitionZip = await JSZip.loadAsync(transitionAbsentPptx.bytes);
@@ -1278,6 +1282,17 @@ assert.throws(
 const opaqueTransitionPreserved = await PresentationFile.exportPptx(opaqueTransitionImported);
 const opaqueTransitionPreservedZip = await JSZip.loadAsync(opaqueTransitionPreserved.bytes);
 assert.match(await opaqueTransitionPreservedZip.file("ppt/slides/slide1.xml").async("string"), /<p:cut\s+xmlns:fixture="urn:office-kit:test"\s+fixture:opaque="kept"\s*\/>/);
+
+const nonCanonicalDurationZip = await JSZip.loadAsync(transitionFirstExport.bytes);
+nonCanonicalDurationZip.file("ppt/slides/slide1.xml", transitionFadeXml.replace('p14:dur="750"', 'p14:dur="0.75s"'));
+const nonCanonicalDurationBytes = await nonCanonicalDurationZip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+const nonCanonicalDurationImported = await PresentationFile.importPptx(new FileBlob(nonCanonicalDurationBytes, {
+  type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+}));
+assert.equal(nonCanonicalDurationImported.slides.items[0].transition.configured, false);
+assert.deepEqual(nonCanonicalDurationImported.slides.items[0].transition.capability, { sourceBound: true, partPresent: true, editable: false, addable: false });
+assert.throws(() => nonCanonicalDurationImported.slides.items[0].setTransition({ effect: "fade" }), /source-bound/);
+assert.deepEqual((await PresentationFile.exportPptx(nonCanonicalDurationImported)).bytes, nonCanonicalDurationBytes);
 // Negative DrawingML offsets are retained only for an imported opaque,
 // source-bound element. New authoring still rejects them instead of widening
 // the public source-free layout profile.

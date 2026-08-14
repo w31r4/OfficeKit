@@ -6781,6 +6781,31 @@ not a wire-version or public object-model change. Full release-candidate and
 hosted-slow evidence remains deferred until the 3–5-slice Presentation
 milestone is frozen and the rolling 12-hour window permits a new candidate.
 
+### PPTX canonical transition duration
+
+On 2026-08-14, the direct slide-transition profile added `durationMs` as the
+Office 2010+ `p14:dur` playback-duration leaf. It is independent from
+`advanceAfterMs`: the former controls how long the transition plays, while the
+latter controls when the slide advances. Both are optional bounded integer
+milliseconds in `0..86400000`; neither value is synthesized from the other.
+
+The public transition object, additive protocol-v2 field 9, JavaScript adapter,
+and C# Open XML SDK codec share that one representation. Source-free authoring,
+canonical import, source-bound replacement, capability-approved addition,
+inspect/resolve, strict slide clone, and second import retain it. Import accepts
+only the canonical integer-millisecond lexical form. Other standard time-unit
+spellings such as `0.75s` remain opaque and byte-preserved, so OfficeKit never
+normalizes an imported value it cannot reproduce exactly.
+
+Focused C# tests validate native `p14:dur`, Office 2021 conformance, add/edit
+round trips, range rejection, and opaque noncanonical preservation. Bundled-WASM
+JavaScript and the packaged no-overwrite Presentation workflow cover the same
+model/wire path and keep non-target parts plus static slide rendering stable.
+The deterministic runtime remains a 39-file audited build with 38 distributed
+files. Full release-candidate and hosted-slow evidence remains deferred until
+the Presentation milestone is frozen and the rolling 12-hour window permits a
+new candidate.
+
 ## Publishing
 
 Before publishing:

@@ -1237,7 +1237,7 @@ try {
     position: { left: 48, top: 72, width: 520, height: 72 },
     text: "Visible slide content must remain stable",
   });
-  transitionEditTarget.setTransition({ effect: "fade", throughBlack: true, speed: "medium", advanceOnClick: true, advanceAfterMs: 1_200 });
+  transitionEditTarget.setTransition({ effect: "fade", throughBlack: true, speed: "medium", durationMs: 700, advanceOnClick: true, advanceAfterMs: 1_200 });
   const transitionEditUntouched = transitionEditDeck.slides.add({ name: "Transition appendix" });
   transitionEditUntouched.shapes.add({
     name: "transition-appendix-title",
@@ -1256,8 +1256,8 @@ try {
     outputPath: transitionEditOutput,
     auditPath: transitionEditAudit,
     slideName: "Transition review target",
-    expectedTransition: { effect: "fade", throughBlack: true, speed: "medium", advanceOnClick: true, advanceAfterMs: 1_200 },
-    replacementTransition: { effect: "split", orientation: "horizontal", direction: "in", speed: "slow", advanceOnClick: false },
+    expectedTransition: { effect: "fade", throughBlack: true, speed: "medium", durationMs: 700, advanceOnClick: true, advanceAfterMs: 1_200 },
+    replacementTransition: { effect: "split", orientation: "horizontal", direction: "in", speed: "slow", durationMs: 1_100, advanceOnClick: false },
   });
   assert.equal(transitionEditResult.audit.operation.type, "source-bound-transition-edit");
   assert.equal(transitionEditResult.audit.operation.partPath, "ppt/slides/slide1.xml");
@@ -1286,6 +1286,7 @@ try {
     direction: "in",
     orientation: "horizontal",
     speed: "slow",
+    durationMs: 1_100,
     advanceOnClick: false,
   });
   assert.deepEqual(transitionEditRoundTrip.slides.getItem(1).transition.toJSON(), {
@@ -1322,8 +1323,8 @@ try {
       outputPath: transitionEditRejectedOutput,
       auditPath: transitionEditRejectedAudit,
       slideName: "Transition review target",
-      expectedTransition: { effect: "fade", throughBlack: true, speed: "medium", advanceOnClick: true, advanceAfterMs: 1_201 },
-      replacementTransition: { effect: "split", orientation: "horizontal", direction: "in", speed: "slow", advanceOnClick: false },
+      expectedTransition: { effect: "fade", throughBlack: true, speed: "medium", durationMs: 700, advanceOnClick: true, advanceAfterMs: 1_201 },
+      replacementTransition: { effect: "split", orientation: "horizontal", direction: "in", speed: "slow", durationMs: 1_100, advanceOnClick: false },
     }),
     /does not match expectedTransition/i,
   );
@@ -1339,8 +1340,8 @@ try {
       outputPath: transitionEditCollisionOutput,
       auditPath: transitionEditCollisionAudit,
       slideName: "Transition review target",
-      expectedTransition: { effect: "fade", throughBlack: true, speed: "medium", advanceOnClick: true, advanceAfterMs: 1_200 },
-      replacementTransition: { effect: "split", orientation: "horizontal", direction: "in", speed: "slow", advanceOnClick: false },
+      expectedTransition: { effect: "fade", throughBlack: true, speed: "medium", durationMs: 700, advanceOnClick: true, advanceAfterMs: 1_200 },
+      replacementTransition: { effect: "split", orientation: "horizontal", direction: "in", speed: "slow", durationMs: 1_100, advanceOnClick: false },
     }),
     /outputPath already exists; refusing to overwrite/i,
   );
@@ -1354,8 +1355,8 @@ try {
     transitionEditCliOutput,
     transitionEditCliAudit,
     "Transition review target",
-    JSON.stringify({ effect: "fade", throughBlack: true, speed: "medium", advanceOnClick: true, advanceAfterMs: 1_200 }),
-    JSON.stringify({ effect: "cover", direction: "rightUp", speed: "fast", advanceOnClick: true, advanceAfterMs: 2_000 }),
+    JSON.stringify({ effect: "fade", throughBlack: true, speed: "medium", durationMs: 700, advanceOnClick: true, advanceAfterMs: 1_200 }),
+    JSON.stringify({ effect: "cover", direction: "rightUp", speed: "fast", durationMs: 1_500, advanceOnClick: true, advanceAfterMs: 2_000 }),
   ], { encoding: "utf8" });
   assert.equal(transitionEditCli.status, 0, `transition-edit CLI failed\n${transitionEditCli.stdout}\n${transitionEditCli.stderr}`);
   assert.equal(JSON.parse(transitionEditCli.stdout).targetPart, "ppt/slides/slide1.xml");
@@ -3185,9 +3186,9 @@ try {
   assert.match(transitionReferenceText, /`p:transition` contract.*not a PowerPoint timing or\s+animation engine/is);
   assert.match(transitionReferenceText, /21 base effects.*`blinds`.*`wheel`.*`zoom`/is);
   assert.match(transitionReferenceText, /`orientation`.*horizontal.*vertical.*`throughBlack`.*`spokes`.*1\.\.8/is);
-  assert.match(transitionReferenceText, /advanceOnClick.*advanceAfterMs.*0\.\.86400000/is);
+  assert.match(transitionReferenceText, /durationMs.*advanceOnClick.*advanceAfterMs.*0\.\.86400000/is);
   assert.match(transitionReferenceText, /with no transition is addable only when.*capability\.addable.*`p:cSld`.*`p:clrMapOvr`.*`p:transition`, `p:timing`, or extension leaf/is);
-  assert.match(transitionReferenceText, /`p:timing`.*`p14:dur`.*sound.*extension.*opaque.*byte-for-byte/is);
+  assert.match(transitionReferenceText, /non-integer.*`p14:dur`.*`p:timing`.*sound.*extension.*opaque.*byte-for-byte/is);
   assert.match(transitionReferenceText, /static PNG\/PDF\s+render cannot prove slideshow playback/is);
   assert.match(transitionReferenceText, /officekit-transition-edit-workflow\.mjs.*unique imported slide name.*expected source state.*replacement state/is);
   assert.match(transitionReferenceText, /non-target parts.*Exactly the selected SlidePart must differ/is);

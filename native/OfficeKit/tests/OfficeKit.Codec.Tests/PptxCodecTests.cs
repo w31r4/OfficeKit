@@ -8331,6 +8331,7 @@ public sealed class PptxCodecTests
             Effect = "wipe",
             Direction = "left",
             Speed = "medium",
+            DurationMs = 750,
             AdvanceOnClick = true,
             AdvanceAfterMs = 1_250,
         };
@@ -8342,6 +8343,7 @@ public sealed class PptxCodecTests
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
             var transition = package.PresentationPart!.SlideParts.Single().Slide!.Transition!;
             Assert.Equal(P.TransitionSpeedValues.Medium, transition.Speed!.Value);
+            Assert.Equal("750", transition.Duration!.Value);
             Assert.True(transition.AdvanceOnClick!.Value);
             Assert.Equal("1250", transition.AdvanceAfterTime!.Value);
             var wipe = Assert.IsType<P.WipeTransition>(Assert.Single(transition.ChildElements));
@@ -8351,7 +8353,7 @@ public sealed class PptxCodecTests
         var imported = Import(authored.File.ToByteArray());
         Assert.True(imported.Ok, Diagnostics(imported));
         var slide = Assert.Single(imported.Artifact.Presentation.Slides);
-        Assert.Equal(("wipe", "left", "medium", true, 1_250U), (slide.Transition.Effect, slide.Transition.Direction, slide.Transition.Speed, slide.Transition.AdvanceOnClick, slide.Transition.AdvanceAfterMs));
+        Assert.Equal(("wipe", "left", "medium", 750U, true, 1_250U), (slide.Transition.Effect, slide.Transition.Direction, slide.Transition.Speed, slide.Transition.DurationMs, slide.Transition.AdvanceOnClick, slide.Transition.AdvanceAfterMs));
         Assert.True(slide.Source!.TransitionPresent);
         Assert.True(slide.Source.TransitionEditable);
 
@@ -8360,6 +8362,7 @@ public sealed class PptxCodecTests
             Effect = "push",
             Direction = "right",
             Speed = "fast",
+            DurationMs = 500,
             AdvanceOnClick = false,
             AdvanceAfterMs = 0,
         };
@@ -8368,7 +8371,7 @@ public sealed class PptxCodecTests
         var editedRoundTrip = Import(edited.File.ToByteArray());
         Assert.True(editedRoundTrip.Ok, Diagnostics(editedRoundTrip));
         var editedTransition = Assert.Single(editedRoundTrip.Artifact.Presentation.Slides).Transition;
-        Assert.Equal(("push", "right", "fast", false, 0U), (editedTransition.Effect, editedTransition.Direction, editedTransition.Speed, editedTransition.AdvanceOnClick, editedTransition.AdvanceAfterMs));
+        Assert.Equal(("push", "right", "fast", 500U, false, 0U), (editedTransition.Effect, editedTransition.Direction, editedTransition.Speed, editedTransition.DurationMs, editedTransition.AdvanceOnClick, editedTransition.AdvanceAfterMs));
 
         editedRoundTrip.Artifact.Presentation.Slides[0].Transition = null;
         var cleared = Export(editedRoundTrip.Artifact);
@@ -8389,6 +8392,7 @@ public sealed class PptxCodecTests
             Effect = "wipe",
             Direction = "up",
             Speed = "medium",
+            DurationMs = 900,
             AdvanceOnClick = true,
         };
         var added = Export(absent.Artifact);
@@ -8403,6 +8407,7 @@ public sealed class PptxCodecTests
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
             var transition = package.PresentationPart!.SlideParts.Single().Slide!.Transition!;
             Assert.Equal(P.TransitionSpeedValues.Medium, transition.Speed!.Value);
+            Assert.Equal("900", transition.Duration!.Value);
             Assert.True(transition.AdvanceOnClick!.Value);
             var wipe = Assert.IsType<P.WipeTransition>(Assert.Single(transition.ChildElements));
             Assert.Equal(P.TransitionSlideDirectionValues.Up, wipe.Direction!.Value);
@@ -8410,7 +8415,7 @@ public sealed class PptxCodecTests
         var addedRoundTrip = Import(addedBytes);
         Assert.True(addedRoundTrip.Ok, Diagnostics(addedRoundTrip));
         var addedRoundTripSlide = Assert.Single(addedRoundTrip.Artifact.Presentation.Slides);
-        Assert.Equal(("wipe", "up", "medium", true), (addedRoundTripSlide.Transition.Effect, addedRoundTripSlide.Transition.Direction, addedRoundTripSlide.Transition.Speed, addedRoundTripSlide.Transition.AdvanceOnClick));
+        Assert.Equal(("wipe", "up", "medium", 900U, true), (addedRoundTripSlide.Transition.Effect, addedRoundTripSlide.Transition.Direction, addedRoundTripSlide.Transition.Speed, addedRoundTripSlide.Transition.DurationMs, addedRoundTripSlide.Transition.AdvanceOnClick));
         Assert.True(addedRoundTripSlide.Source!.TransitionPresent);
         Assert.True(addedRoundTripSlide.Source.TransitionEditable);
         Assert.False(addedRoundTripSlide.Source.TransitionAddable);
@@ -8451,6 +8456,27 @@ public sealed class PptxCodecTests
             AdvanceOnClick = true,
         };
         Assert.Equal("unsupported_presentation_edit", Assert.Single(Export(timedExisting.Artifact).Diagnostics).Code);
+
+        var nonCanonicalDurationBytes = ReplaceZipText(
+            authored.File.ToByteArray(),
+            "ppt/slides/slide1.xml",
+            xml => xml.Replace("p14:dur=\"750\"", "p14:dur=\"0.75s\"", StringComparison.Ordinal));
+        var nonCanonicalDuration = Import(nonCanonicalDurationBytes);
+        Assert.True(nonCanonicalDuration.Ok, Diagnostics(nonCanonicalDuration));
+        var nonCanonicalDurationSlide = Assert.Single(nonCanonicalDuration.Artifact.Presentation.Slides);
+        Assert.Null(nonCanonicalDurationSlide.Transition);
+        Assert.True(nonCanonicalDurationSlide.Source!.TransitionPresent);
+        Assert.False(nonCanonicalDurationSlide.Source.TransitionEditable);
+        Assert.False(nonCanonicalDurationSlide.Source.TransitionAddable);
+        var nonCanonicalDurationPreserved = Export(nonCanonicalDuration.Artifact);
+        Assert.True(nonCanonicalDurationPreserved.Ok, Diagnostics(nonCanonicalDurationPreserved));
+        using (var sourceStream = new MemoryStream(nonCanonicalDurationBytes, writable: false))
+        using (var outputStream = new MemoryStream(nonCanonicalDurationPreserved.File.ToByteArray(), writable: false))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+        using (var outputPackage = PresentationDocument.Open(outputStream, false))
+            Assert.Equal(
+                sourcePackage.PresentationPart!.SlideParts.Single().Slide!.Transition!.OuterXml,
+                outputPackage.PresentationPart!.SlideParts.Single().Slide!.Transition!.OuterXml);
 
         byte[] opaqueBytes;
         using (var stream = new MemoryStream())
@@ -8499,6 +8525,15 @@ public sealed class PptxCodecTests
 
         var invalid = ExportRequest();
         invalid.Artifact.Presentation.Slides[0].Transition = new PresentationTransition { Effect = "fade", Speed = "medium" };
+        Assert.Equal("invalid_presentation_transition", Assert.Single(Invoke(invalid).Diagnostics).Code);
+        invalid = ExportRequest();
+        invalid.Artifact.Presentation.Slides[0].Transition = new PresentationTransition
+        {
+            Effect = "fade",
+            Speed = "medium",
+            DurationMs = 86_400_001,
+            AdvanceOnClick = true,
+        };
         Assert.Equal("invalid_presentation_transition", Assert.Single(Invoke(invalid).Diagnostics).Code);
         invalid = ExportRequest();
         invalid.Artifact.Presentation.Slides[0].Transition = new PresentationTransition

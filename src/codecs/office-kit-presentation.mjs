@@ -1360,6 +1360,7 @@ function wirePresentationTransition(transition) {
     ...(value.throughBlack === undefined ? {} : { throughBlack: value.throughBlack }),
     ...(value.spokes === undefined ? {} : { spokes: value.spokes }),
     speed: value.speed,
+    ...(value.durationMs === undefined ? {} : { durationMs: value.durationMs }),
     advanceOnClick: value.advanceOnClick,
     ...(value.advanceAfterMs === undefined ? {} : { advanceAfterMs: value.advanceAfterMs }),
   };
@@ -1378,6 +1379,7 @@ function modelPresentationTransition(source, slideIndex) {
       ...(source.throughBlack === undefined ? {} : { throughBlack: source.throughBlack }),
       ...(source.spokes === undefined ? {} : { spokes: Number(source.spokes) }),
       speed: source.speed,
+      ...(source.durationMs === undefined ? {} : { durationMs: Number(source.durationMs) }),
       advanceOnClick: source.advanceOnClick,
       ...(source.advanceAfterMs === undefined ? {} : { advanceAfterMs: Number(source.advanceAfterMs) }),
     });
