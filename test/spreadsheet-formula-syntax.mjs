@@ -42,6 +42,7 @@ assert.equal(xlsxFormulaFromModel("=NamedRange1#"), "=NamedRange1#");
 assert.equal(xlsxFormulaFromModel("=A1#suffix"), "=A1#suffix");
 assert.equal(xlsxFormulaFromModel("=XFE1#+A1048577#"), "=XFE1#+A1048577#");
 assert.equal(xlsxFormulaFromModel("=_xlfn.RANK.AVG(A1,A1:A3)"), "=_xlfn.RANK.AVG(A1,A1:A3)");
+assert.equal(xlsxFormulaFromModel("=ISOWEEKNUM(A1)+WEEKNUM(A1,21)"), "=_xlfn.ISOWEEKNUM(A1)+WEEKNUM(A1,21)");
 assert.equal(
   xlsxFormulaFromModel("=LET(rate,0.1,principal,1000,principal*(1+rate))"),
   "=_xlfn.LET(_xlpm.rate,0.1,_xlpm.principal,1000,_xlpm.principal*(1+_xlpm.rate))",
@@ -87,6 +88,7 @@ assert.equal(
   "=STDEV.S(A1:A3)+IFNA(XMATCH(4,A1:A3),0)",
 );
 assert.equal(modelFormulaFromXlsx("=SUM(_xlfn.ANCHORARRAY('Source Data'!$A$1))"), "=SUM('Source Data'!$A$1#)");
+assert.equal(modelFormulaFromXlsx("=_xlfn.ISOWEEKNUM(A1)+WEEKNUM(A1,21)"), "=ISOWEEKNUM(A1)+WEEKNUM(A1,21)");
 assert.equal(modelFormulaFromXlsx('="_xlfn.STDEV.S("&_xlfn.STDEV.S(A1:A3)'), '="_xlfn.STDEV.S("&STDEV.S(A1:A3)');
 assert.equal(
   modelFormulaFromXlsx("=_xlfn.LET(_xlpm.rate,0.1,_xlpm.principal,1000,_xlpm.principal*(1+_xlpm.rate))"),
@@ -136,6 +138,7 @@ sheet.getRange("E1").formulas = [["=SEQUENCE(3)"]];
 sheet.getRange("F1").formulas = [["=SUM(E1#)"]];
 sheet.getRange("H1").formulas = [["=FILTER(A1:A3,A1:A3>1)"]];
 sheet.getRange("I1").formulas = [["=LET(rate,0.1,principal,1000,principal*(1+rate))"]];
+sheet.getRange("M1").formulas = [["=ISOWEEKNUM(DATE(2021,1,1))"]];
 sheet.getRange("J1:L4").values = [["Value", "Rank", "Double"], [1, 1, 2], [2, 2, 4], [4, 3, 8]];
 sheet.tables.add({
   name: "FutureFormulaTable",
@@ -157,6 +160,7 @@ assert.match(sourceFreeXml, /_xlfn\.SEQUENCE\(3\)/);
 assert.match(sourceFreeXml, /SUM\(_xlfn\.ANCHORARRAY\(E1\)\)/);
 assert.match(sourceFreeXml, /_xlfn\._xlws\.FILTER\(A1:A3,A1:A3&gt;1\)/);
 assert.match(sourceFreeXml, /_xlfn\.LET\(_xlpm\.rate,0\.1,_xlpm\.principal,1000,_xlpm\.principal\*\(1\+_xlpm\.rate\)\)/);
+assert.match(sourceFreeXml, /_xlfn\.ISOWEEKNUM\(DATE\(2021,1,1\)\)/);
 const sourceFreeZip = await JSZip.loadAsync(new Uint8Array(await sourceFree.arrayBuffer()));
 const tableXml = await sourceFreeZip.file("xl/tables/table1.xml").async("text");
 assert.match(tableXml, /_xlfn\.RANK\.EQ\(\[@Value\],\[Value\]\)/);
@@ -173,6 +177,8 @@ assert.equal(importedSheet.getRange("E1").formulas[0][0], "=SEQUENCE(3)");
 assert.equal(importedSheet.getRange("F1").formulas[0][0], "=SUM(E1#)");
 assert.equal(importedSheet.getRange("H1").formulas[0][0], "=FILTER(A1:A3,A1:A3>1)");
 assert.equal(importedSheet.getRange("I1").formulas[0][0], "=LET(rate,0.1,principal,1000,principal*(1+rate))");
+assert.equal(importedSheet.getRange("M1").formulas[0][0], "=ISOWEEKNUM(DATE(2021,1,1))");
+assert.equal(importedSheet.getRange("M1").values[0][0], 53);
 assert.equal(importedSheet.tables.items.find((table) => table.name === "FutureFormulaTable").columnDefinitions[1].calculatedColumnFormula, "=RANK.EQ([@Value],[Value])");
 assert.equal(importedSheet.tables.items.find((table) => table.name === "FutureFormulaTable").columnDefinitions[2].calculatedColumnFormula, "=LET(value,[@Value],value*2)");
 

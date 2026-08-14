@@ -1636,6 +1636,43 @@ function excelWeekdayIndex(serial, dateSystem = "1900") {
   return ((adjusted % 7) + 7) % 7;
 }
 
+function excelWeekNumber(serialValue, returnTypeValue = 1, dateSystem = "1900") {
+  const serial = excelFormulaDateNumber(serialValue);
+  const returnTypeNumber = excelFormulaDateNumber(returnTypeValue);
+  if (formulaErrorCode(serial)) return serial;
+  if (formulaErrorCode(returnTypeNumber)) return returnTypeNumber;
+  const day = Math.floor(serial);
+  const returnType = Math.trunc(returnTypeNumber);
+  const parts = excelDateParts(day, dateSystem);
+  if (!parts) return "#NUM!";
+
+  if (returnType === 21) {
+    const date = new Date(0);
+    date.setUTCHours(0, 0, 0, 0);
+    date.setUTCFullYear(parts.year, parts.month - 1, parts.day);
+    const mondayIndex = (date.getUTCDay() + 6) % 7;
+    const currentMonday = Math.floor(date.getTime() / 86_400_000) - mondayIndex;
+    date.setUTCDate(date.getUTCDate() + 3 - mondayIndex);
+    const januaryFourth = new Date(0);
+    januaryFourth.setUTCHours(0, 0, 0, 0);
+    januaryFourth.setUTCFullYear(date.getUTCFullYear(), 0, 4);
+    const weekOneMonday = Math.floor(januaryFourth.getTime() / 86_400_000) - ((januaryFourth.getUTCDay() + 6) % 7);
+    return Math.floor((currentMonday - weekOneMonday) / 7) + 1;
+  }
+
+  const startWeekday = returnType === 1 || returnType === 17
+    ? 0
+    : returnType === 2 || returnType === 11
+      ? 1
+      : returnType >= 12 && returnType <= 16
+        ? returnType - 10
+        : undefined;
+  if (startWeekday === undefined) return "#NUM!";
+  const yearStart = excelGregorianSerial(parts.year, 1, 1, dateSystem);
+  const leadingDays = (excelWeekdayIndex(yearStart, dateSystem) - startWeekday + 7) % 7;
+  return Math.floor((day - yearStart + leadingDays) / 7) + 1;
+}
+
 function excelHolidaySet(values = [], dateSystem = "1900") {
   const error = values.map(formulaErrorCode).find(Boolean);
   if (error) return { error, holidays: new Set() };
@@ -2592,6 +2629,12 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
       if (returnType >= 12 && returnType <= 17) return (weekday - (returnType - 10) + 7) % 7 + 1;
       return "#NUM!";
     }
+    case "WEEKNUM": return args.length >= 1 && args.length <= 2 && String(args[0] ?? "").trim() !== ""
+      ? excelWeekNumber(scalar(0), scalar(1, 1), dateSystem)
+      : "#VALUE!";
+    case "ISOWEEKNUM": return args.length === 1 && String(args[0] ?? "").trim() !== ""
+      ? excelWeekNumber(scalar(0), 21, dateSystem)
+      : "#VALUE!";
     case "NETWORKDAYS": return excelNetworkDays(scalar(0, 0), scalar(1, 0), args[2] == null ? [] : values([args[2]]), dateSystem);
     case "WORKDAY": return excelWorkday(scalar(0, 0), scalar(1, 0), args[2] == null ? [] : values([args[2]]), dateSystem);
     case "NETWORKDAYS.INTL": return excelNetworkDays(scalar(0, 0), scalar(1, 0), args[3] == null ? [] : values([args[3]]), dateSystem, scalar(2, 1), true);

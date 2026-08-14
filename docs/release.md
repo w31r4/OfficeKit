@@ -6806,6 +6806,26 @@ files. Full release-candidate and hosted-slow evidence remains deferred until
 the Presentation milestone is frozen and the rolling 12-hour window permits a
 new candidate.
 
+### XLSX calendar week formulas
+
+On 2026-08-14, the bounded JavaScript formula evaluator added `WEEKNUM` and
+`ISOWEEKNUM`. `WEEKNUM` supports Excel system-1 return types `1`, `2`, and `11`
+through `17`, plus ISO system-2 return type `21`; `ISOWEEKNUM` is the explicit
+one-argument ISO form. They share the existing workbook-aware 1900/1904 date
+semantics, propagate formula errors, and fail closed for invalid dates,
+unsupported return types, missing inputs, and extra arguments.
+
+The public model stores the formula spelling Excel displays. The Spreadsheet
+Codec writes and reads the required `_xlfn.ISOWEEKNUM` package form without
+changing `WEEKNUM`. Focused tests cover Microsoft's 2012-03-09 example, ISO
+year boundaries, both workbook date systems, negative inputs, cached results,
+source-free XLSX export, and second import. Help and the native Spreadsheet
+guidance expose the same boundary. LibreOfficeDev 26.8 independently opened,
+recalculated, and resaved the five-case canonical fixture to the expected
+`10`, `11`, `10`, `53`, and `1` values. This is the first slice in the next
+Spreadsheet formula milestone; full release-candidate and hosted-slow evidence
+remains deferred under the rolling 12-hour policy.
+
 ## Publishing
 
 Before publishing:

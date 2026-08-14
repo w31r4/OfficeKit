@@ -20,6 +20,7 @@ const XLFN_FUNCTIONS = [
   "IFNA",
   "IFS",
   "ISFORMULA",
+  "ISOWEEKNUM",
   "MAXIFS",
   "MINIFS",
   "MODE.MULT",

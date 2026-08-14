@@ -1844,6 +1844,45 @@ const templateFormula1904Workbook = Workbook.create({ dateSystem: "1904" });
 const templateFormula1904Sheet = templateFormula1904Workbook.worksheets.add("Date system");
 templateFormula1904Sheet.getRange("A1").formulas = [["=TEXT(DATE(1904,1,1),\"yyyy-mm-dd\")"]];
 assert.deepEqual(templateFormula1904Sheet.getRange("A1").values, [["1904-01-01"]]);
+
+const weekNumberWorkbook = Workbook.create();
+const weekNumberSheet = weekNumberWorkbook.worksheets.add("Week numbers");
+weekNumberSheet.getRange("A1:A16").formulas = [
+  ["=WEEKNUM(DATE(2012,3,9))"],
+  ["=WEEKNUM(DATE(2012,3,9),2)"],
+  ["=WEEKNUM(DATE(2012,3,9),11)"],
+  ["=WEEKNUM(DATE(2012,3,9),12)"],
+  ["=WEEKNUM(DATE(2012,3,9),17)"],
+  ["=WEEKNUM(DATE(2012,3,9),21)"],
+  ["=ISOWEEKNUM(DATE(2012,3,9))"],
+  ["=ISOWEEKNUM(DATE(2021,1,1))"],
+  ["=ISOWEEKNUM(DATE(2021,1,4))"],
+  ["=WEEKNUM(DATE(2026,1,1),10)"],
+  ["=WEEKNUM(DATE(2026,1,1),2,1)"],
+  ["=WEEKNUM()"],
+  ["=ISOWEEKNUM()"],
+  ["=ISOWEEKNUM(DATE(2026,1,1),2)"],
+  ["=ISOWEEKNUM(-1)"],
+  ["=ISOWEEKNUM(#N/A)"],
+];
+assert.deepEqual(weekNumberSheet.getRange("A1:A16").values, [
+  [10], [11], [11], [11], [10], [10], [10], [53], [1],
+  ["#NUM!"], ["#VALUE!"], ["#VALUE!"], ["#VALUE!"], ["#VALUE!"], ["#NUM!"], ["#N/A"],
+]);
+const weekNumber1904Workbook = Workbook.create({ dateSystem: "1904" });
+const weekNumber1904Sheet = weekNumber1904Workbook.worksheets.add("Week numbers");
+weekNumber1904Sheet.getRange("A1:A5").formulas = [
+  ["=WEEKNUM(DATE(2012,3,9))"],
+  ["=WEEKNUM(DATE(2012,3,9),2)"],
+  ["=WEEKNUM(DATE(2012,3,9),21)"],
+  ["=ISOWEEKNUM(DATE(2021,1,1))"],
+  ["=ISOWEEKNUM(DATE(1904,1,1))"],
+];
+assert.deepEqual(weekNumber1904Sheet.getRange("A1:A5").values, [[10], [11], [10], [53], [53]]);
+const weekNumberXlsx = await SpreadsheetFile.exportXlsx(weekNumberWorkbook);
+const importedWeekNumberWorkbook = await SpreadsheetFile.importXlsx(weekNumberXlsx);
+assert.deepEqual(importedWeekNumberWorkbook.worksheets.getItem("Week numbers").getRange("A1:A16").formulas, weekNumberSheet.getRange("A1:A16").formulas);
+assert.deepEqual(importedWeekNumberWorkbook.worksheets.getItem("Week numbers").getRange("A1:A16").values, weekNumberSheet.getRange("A1:A16").values);
 const templateFormulaXlsx = await SpreadsheetFile.exportXlsx(templateFormulaWorkbook);
 const importedTemplateFormulaWorkbook = await SpreadsheetFile.importXlsx(templateFormulaXlsx);
 assert.deepEqual(importedTemplateFormulaWorkbook.worksheets.getItem("Template formulas").getRange("B1:B5").formulas, templateFormulaSheet.getRange("B1:B5").formulas);

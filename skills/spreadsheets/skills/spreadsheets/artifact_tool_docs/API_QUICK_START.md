@@ -90,6 +90,12 @@ that only one worksheet-drawing part changed.
 - For intent-based lookup, use a short natural query plus a narrow `search` term or pipe-separated list of likely functions.
 - Keep `maxChars` bounded; if results are noisy, narrow `search` rather than issuing many similar queries.
 
+### Calendar week profile
+
+- `WEEKNUM(serial_number, [return_type])` supports Excel system 1 with Sunday-first `1` (the default), Monday-first `2`/`11`, and Tuesday-through-Sunday starts `12` through `17`. Return type `21` uses ISO 8601 week numbering.
+- `ISOWEEKNUM(serial_number)` is the explicit ISO form and is equivalent to `WEEKNUM(serial_number,21)` in the bounded evaluator. Both honor the workbook's 1900 or 1904 date system and reject invalid dates or return types rather than guessing.
+- Write the public formula exactly as Excel displays it. OfficeKit Codec writes `_xlfn.ISOWEEKNUM(...)` only at the XLSX package boundary and removes that prefix on import; never put `_xlfn` in Agent-authored model formulas.
+
 ### Financial cash-flow profile
 
 - `PMT`, `IPMT`, `PPMT`, `CUMIPMT`, `CUMPRINC`, `PV`, `FV`, `NPER`, `RATE`, `SLN`, `DB`, `DDB`, `NPV`, `MIRR`, `XNPV`, `IRR`, and `XIRR` calculate in the JavaScript model as well as being written to XLSX. Put rates, loan terms, cost/salvage/life assumptions, cash-flow vectors, and dates in visible input cells; do not hide them as magic numbers in a long formula.

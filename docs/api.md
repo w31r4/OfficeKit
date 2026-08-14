@@ -3789,6 +3789,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.ISNA` | formula | Return TRUE only when a value is the #N/A error. |
 | `fx.ISNONTEXT` | formula | Return TRUE when a value is not text, including blank, logical, numeric, and error values. |
 | `fx.ISNUMBER` | formula | Return TRUE when a value is numeric. |
+| `fx.ISOWEEKNUM` | formula | Return the ISO 8601 week number for one valid Excel date serial in the workbook's 1900 or 1904 date system. OfficeKit Codec owns the required _xlfn.ISOWEEKNUM package spelling. |
 | `fx.ISREF` | formula | Return TRUE only for a direct A1, defined-name, or spill reference expression; computed values and functions return FALSE, while invalid arity fails closed as #VALUE!. |
 | `fx.ISTEXT` | formula | Return TRUE when a value is text and not a formula error. |
 | `fx.LARGE` | formula | Return the k-th largest numeric value in an array or range. |
@@ -3900,6 +3901,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.VLOOKUP` | formula | Look up one scalar in the first column of a nonempty rectangular range of at most 10,000 cells; FALSE/0 performs an exact, wildcard-aware lookup, while TRUE/1 or omission requires a proven ascending homogeneous numeric or text key column and returns the greatest matching-or-lower key. Invalid table/mode/index inputs and unproven ordering return #VALUE!, while an out-of-range return-column index returns #REF!. |
 | `fx.VSTACK` | formula | Append arrays vertically, padding narrower arrays with #N/A to the maximum column count. |
 | `fx.WEEKDAY` | formula | Return a weekday number for Excel return types 1, 2, 3, and 11 through 17. |
+| `fx.WEEKNUM` | formula | Return a calendar week number under Excel system 1 for return types 1, 2, and 11 through 17, or the ISO 8601 week number for return type 21; invalid dates and return types fail explicitly. |
 | `fx.WORKDAY` | formula | Move forward or backward by working days while skipping weekends and optional holidays. |
 | `fx.WORKDAY.INTL` | formula | Move by workdays using a numbered or Monday-first seven-character custom weekend and optional holidays. |
 | `fx.WRAPCOLS` | formula | Wrap a one-dimensional vector into columns of a requested height, padding the final column when needed. |
@@ -5398,6 +5400,23 @@ Return TRUE when a value is numeric.
 **Schema returns:**
 
 - `value` (boolean) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.ISOWEEKNUM`
+
+Return the ISO 8601 week number for one valid Excel date serial in the workbook's 1900 or 1904 date system. OfficeKit Codec owns the required _xlfn.ISOWEEKNUM package spelling.
+
+**Examples:**
+
+- =ISOWEEKNUM(A1)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =ISOWEEKNUM(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
 
 #### `fx.ISREF`
 
@@ -7327,6 +7346,24 @@ Return a weekday number for Excel return types 1, 2, 3, and 11 through 17.
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =WEEKDAY(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.WEEKNUM`
+
+Return a calendar week number under Excel system 1 for return types 1, 2, and 11 through 17, or the ISO 8601 week number for return type 21; invalid dates and return types fail explicitly.
+
+**Examples:**
+
+- =WEEKNUM(A1,2)
+- =WEEKNUM(A1,21)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =WEEKNUM(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**
