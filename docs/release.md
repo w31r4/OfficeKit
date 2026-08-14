@@ -6664,6 +6664,19 @@ remained explicit environment skips. `npm whoami` returned `ENEEDAUTH`; no
 publish, tag, or release operation was attempted. Windows Microsoft Office
 desktop acceptance remains a separate external lane.
 
+Commit `994e561f3ad6bfe8fef79bff2064549908ef4d81` is the immutable hosted
+candidate for this slice. Hosted [fast CI run
+31770821718](https://github.com/w31r4/OfficeKit/actions/runs/31770821718)
+completed successfully in 2m53s, and hosted [slow CI run
+31770821736](https://github.com/w31r4/OfficeKit/actions/runs/31770821736)
+completed successfully in 24m57s. The slow runner installed the isolated
+PyMuPDF, pikepdf, pyHanko, OCRmyPDF, and veraPDF environments, then passed every
+foundation, Presentation, template, OfficeKit, Documents, PDF provider,
+specialist, QA, and release segment, generated-API diff, clean-install pack,
+OfficeBridge, and OfficeKit Codec gate. This closes hosted evidence for the
+code candidate; npm authentication/publication, a release tag, and Windows
+Microsoft Office desktop acceptance remain external release work.
+
 ## Publishing
 
 Before publishing:
