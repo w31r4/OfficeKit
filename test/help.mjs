@@ -585,7 +585,7 @@ assert.equal(freeTextHelp?.schema?.parameters?.sourceSha256?.required, true);
 assert.equal(freeTextHelp?.schema?.parameters?.expectedPage?.required, true);
 assert.equal(freeTextHelp?.schema?.parameters?.bbox?.required, true);
 assert.match(freeTextHelp?.schema?.parameters?.contents?.description || "", /4,096.*clipped native appearance.*fail closed/i);
-assert.match(freeTextHelp?.schema?.returns?.operation?.description || "", /appearanceTextVerified=true.*FreeText updates remain unsupported/i);
+assert.match(freeTextHelp?.schema?.returns?.operation?.description || "", /appearanceTextVerified=true.*fixed-helvetica-v1.*contents\/author\/subject.*complete snapshot.*appearanceTextVerified=true/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "pdf.addText")?.schema?.parameters?.bbox?.type, "number[]");
 assert.equal(HELP_CATALOG.find((item) => item.name === "pdf.addText")?.schema?.parameters?.headingLevel?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "pdf.addText")?.schema?.parameters?.artifact?.type, "boolean");
@@ -618,6 +618,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schem
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.savePolicy?.description || "", /rearrange_pages, delete_embedded_file/);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /sourceSha256.*expectedPage.*mupdf-page-space.*add_text_annotation.*pin.*contents.*normalized rect.*appearanceBbox.*incremental/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /add_free_text_annotation.*visible \[x,y,width,height\].*4–72 point fixed Helvetica.*native appearance.*provider-unencodable.*incremental save/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /Fixed-helvetica-v1 FreeText update.*complete inspect-returned snapshot.*contents\/author\/subject.*appearance bounds.*default appearance.*alignment.*clipped or provider-unencodable/is);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.savePolicy?.description || "", /add_free_text_annotation.*add_text_markup/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /add_text_markup.*exactly once.*appearanceBbox.*right-angle rotated pages/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "PdfFile.editPdf")?.schema?.parameters?.operations?.description || "", /add_text_markup.*highlight\|underline\|strikeout\|squiggly.*quadrilaterals.*mis-cased/is);

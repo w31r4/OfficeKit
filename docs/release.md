@@ -1,5 +1,29 @@
 # Release
 
+## Current 0.6.0 milestone (2026-08-14): Bounded FreeText review revision
+
+Freshly inspected native FreeText annotations now advertise a source-bound
+`fixed-helvetica-v1` update profile when their complete appearance is within
+the OfficeKit-created boundary. `update_annotation` accepts that complete
+snapshot and changes only non-empty contents, author, or subject in a rewrite.
+It preserves rectangle, appearance bounds, Helvetica size/color, alignment,
+flags, page, and current-source locator, then reads the rebuilt MuPDF display
+list back as structured text. Partial/stale snapshots, no-op patches, style or
+geometry fields, overflow, provider-unencodable text, incremental save, and
+other imported FreeText profiles fail closed.
+
+The same public operation path now covers create → inspect → revise → inspect →
+render without adding another provider or annotation protocol. Core tests prove
+complete-snapshot enforcement, overflow refusal, source immutability, invariant
+style/geometry, second import, and pixel change; the packaged CLI fixture checks
+that the capability is discoverable. This slice remains under the rolling
+release-candidate cooldown and uses targeted plus fast gates only.
+
+Local evidence on the milestone tree: PDF core, Help, PDF Skill, real MuPDF CLI,
+338-file Skill portability, 333-file reference sync, package contents, and all
+31 fast-gate steps passed. No slow, pack, .NET/WASM, or hosted release-candidate
+lane was started.
+
 ## Current 0.6.0 milestone (2026-08-14): Source-bound visible PDF review text
 
 The built-in MuPDF.js route now adds one visible native FreeText review box to
@@ -16,11 +40,11 @@ and native appearance boxes must also remain inside the inspected CropBox.
 Source immutability, multiline contents, second inspection, provider-normalized
 style evidence, rendered pixel change, stale hashes/page snapshots, overflow,
 invalid appearance options, unknown fields, and incremental-save refusal are
-covered by the PDF and packaged-Skill gates. Imported FreeText is intentionally
-read-only except for the existing source-bound generic annotation deletion
-route; arbitrary fonts, borders/fills, rich text, callouts, and style/content
-updates remain unsupported. This atomic slice uses affected tests plus the fast
-gate under the rolling release-candidate throttle. The next full candidate may
+covered by the PDF and packaged-Skill gates. The subsequent bounded revision
+slice permits contents/author/subject changes only for a re-inspected
+`fixed-helvetica-v1` record; arbitrary fonts, borders/fills, rich text, callouts,
+and style/geometry updates remain unsupported. This atomic slice uses affected
+tests plus the fast gate under the rolling release-candidate throttle. The next full candidate may
 start no earlier than 2026-08-14 17:58:14 UTC (2026-08-15 01:58:14 Beijing),
 twelve hours after the previous candidate started.
 

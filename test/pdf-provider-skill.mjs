@@ -458,10 +458,10 @@ assert.match(editExistingText, /delete_embedded_file[\s\S]*mupdfEmbeddedFile[\s\
 assert.match(editExistingText, /Update standard Document Info and bounded field-safe XMP metadata/);
 assert.match(editExistingText, /mupdfDocumentMetadata[\s\S]*metadataId[\s\S]*complete inspect record snapshot[\s\S]*xmpMutableFields[\s\S]*xmpBlockedFields[\s\S]*exact XMP text or attribute slot[\s\S]*fail closed/is);
 assert.match(editExistingText, /mupdfOutline[\s\S]*path[\s\S]*complete `snapshot`[\s\S]*update_outline[\s\S]*title[\s\S]*open[\s\S]*URI\/page[\s\S]*non-target outline[\s\S]*does not add\/delete\/reparent[\s\S]*fail/is);
-assert.match(editExistingText, /Update one imported Text note or text markup[\s\S]*Highlight, Underline, StrikeOut, or Squiggly[\s\S]*complete[\s\S]*snapshot[\s\S]*updateCapability[\s\S]*RGB `color`[\s\S]*quadrilaterals[\s\S]*appearance bounds[\s\S]*flags[\s\S]*no-op[\s\S]*fail closed/is);
+assert.match(editExistingText, /Update one imported Text note, fixed FreeText, or text markup[\s\S]*Highlight, Underline, StrikeOut, or Squiggly[\s\S]*complete[\s\S]*snapshot[\s\S]*updateCapability[\s\S]*RGB `color`[\s\S]*quadrilaterals[\s\S]*appearance bounds[\s\S]*flags[\s\S]*no-op[\s\S]*fail closed/is);
 assert.match(editExistingText, /add_free_text_annotation[\s\S]*mupdf-page-space[\s\S]*4–72[\s\S]*native annotation appearance[\s\S]*structured text[\s\S]*clipped or omitted/is);
-assert.match(editExistingText, /rewrite-only[\s\S]*FreeText style\/content[\s\S]*updates remain unsupported/is);
-assert.match(formsAnnotationsText, /visible FreeText review box[\s\S]*add_free_text_annotation[\s\S]*appearance text[\s\S]*fails closed[\s\S]*read-only.*delete route/is);
+assert.match(editExistingText, /fixed-helvetica-v1[\s\S]*complete[\s\S]*snapshot[\s\S]*contents[\s\S]*author[\s\S]*subject[\s\S]*preserves[\s\S]*appearanceBbox[\s\S]*clipped or unencodable/is);
+assert.match(formsAnnotationsText, /visible FreeText review box[\s\S]*add_free_text_annotation[\s\S]*appearance text[\s\S]*fails closed[\s\S]*fixed-helvetica-v1[\s\S]*contents\/author\/subject[\s\S]*style and geometry/is);
 const pdfPluginReadme = await fs.readFile(path.join(repoRoot, "skills", "pdf", "README.md"), "utf8");
 assert.match(pdfPluginReadme, /office-kit\/pdf\/providers/);
 assert.match(pdfPluginReadme, /system-only.*hash-pinned managed pack/is);
@@ -494,7 +494,7 @@ assert.match(apiQuickStartText, /mupdfDocumentMetadata/);
 assert.match(apiQuickStartText, /mupdfOutline[\s\S]*update_outline[\s\S]*outlineId: outline\.id[\s\S]*expected: outline\.snapshot[\s\S]*URI\/page[\s\S]*topology edits fail closed/is);
 assert.match(apiQuickStartText, /existing native Highlight, Underline, StrikeOut, or Squiggly[\s\S]*updateCapability\.supported[\s\S]*complete inspect-returned[\s\S]*annotation\.snapshot[\s\S]*patch[\s\S]*color[\s\S]*quadrilaterals[\s\S]*appearance\s+bounds[\s\S]*partial\/stale snapshot[\s\S]*fails closed/is);
 assert.match(apiQuickStartText, /bounded FreeText primitive[\s\S]*mupdf-page-space[\s\S]*appearance contains all\s+requested text/is);
-assert.match(apiQuickStartText, /add_free_text_annotation[\s\S]*4–72 point[\s\S]*clipped[\s\S]*FreeText updates\s+remain unsupported/is);
+assert.match(apiQuickStartText, /add_free_text_annotation[\s\S]*4–72 point[\s\S]*clipped[\s\S]*fixed-helvetica-v1[\s\S]*update_annotation[\s\S]*expected: review\.snapshot[\s\S]*appearanceTextVerified/is);
 assert.match(apiQuickStartText, /metadataId: metadata\.id/);
 assert.match(apiQuickStartText, /XMP stream[\s\S]*field-safe-v1[\s\S]*xmpMutableFields[\s\S]*xmpBlockedFields[\s\S]*updateCapability\.supported[\s\S]*same transaction/is);
 const redactTaskText = await fs.readFile(path.join(skillRoot, "tasks", "redact.md"), "utf8");
@@ -828,7 +828,9 @@ try {
   assert.equal(mupdfFreeTextAnnotation.defaultAppearance.font, "Helv");
   assert.equal(mupdfFreeTextAnnotation.defaultAppearance.size, 13);
   assert.equal(mupdfFreeTextAnnotation.alignment, "right");
-  assert.equal(mupdfFreeTextAnnotation.updateCapability.supported, false);
+  assert.equal(mupdfFreeTextAnnotation.updateCapability.supported, true);
+  assert.equal(mupdfFreeTextAnnotation.updateCapability.profile, "fixed-helvetica-v1");
+  assert.deepEqual(mupdfFreeTextAnnotation.updateCapability.mutableFields, ["contents", "author", "subject"]);
   await fs.writeFile(mupdfAnnotationUpdateOperations, JSON.stringify({
     savePolicy: "rewrite",
     operations: [{

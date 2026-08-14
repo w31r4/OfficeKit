@@ -357,6 +357,32 @@ function annotationUpdateCapability(record) {
   if (record.type === "Text") {
     return { supported: true, annotationType: record.type, mutableFields: ["contents", "author", "subject"], geometryMutable: false, savePolicy: "rewrite", sourceBound: true };
   }
+  if (record.type === "FreeText") {
+    const appearance = record.defaultAppearance;
+    const profileSupported = record.contents
+      && Array.isArray(record.rect) && record.rect.length === 4
+      && Array.isArray(record.appearanceBbox) && record.appearanceBbox.length === 4
+      && appearance?.font === FREE_TEXT_FONT_NAME
+      && Number.isFinite(appearance.size)
+      && appearance.size >= FREE_TEXT_FONT_SIZE_MIN
+      && appearance.size <= FREE_TEXT_FONT_SIZE_MAX
+      && Array.isArray(appearance.color) && appearance.color.length === 3
+      && appearance.color.every((component) => Number.isFinite(component) && component >= 0 && component <= 1)
+      && Object.hasOwn(FREE_TEXT_ALIGNMENTS, record.alignment);
+    if (profileSupported) {
+      return { supported: true, annotationType: record.type, profile: "fixed-helvetica-v1", mutableFields: ["contents", "author", "subject"], geometryMutable: false, savePolicy: "rewrite", sourceBound: true };
+    }
+    return {
+      supported: false,
+      annotationType: record.type,
+      profile: "unsupported",
+      mutableFields: [],
+      geometryMutable: false,
+      savePolicy: "rewrite",
+      sourceBound: true,
+      reasons: ["free-text-profile-not-fixed-helvetica-v1"],
+    };
+  }
   if (TEXT_MARKUP_ANNOTATION_TYPES.has(record.type) && record.quadPoints?.length) {
     return { supported: true, annotationType: record.type, mutableFields: ["contents", "author", "subject", "color"], geometryMutable: false, savePolicy: "rewrite", sourceBound: true };
   }
@@ -482,6 +508,10 @@ function annotationPatch(value, capability) {
   const patch = {};
   for (const name of ["contents", "author", "subject"]) {
     if (value[name] === undefined) continue;
+    if (capability.annotationType === "FreeText" && name === "contents") {
+      patch[name] = freeTextContents(value[name], "update_annotation patch.contents");
+      continue;
+    }
     if (typeof value[name] !== "string" || !value[name].length) {
       throw new Error(`update_annotation patch.${name} must be a non-empty string.`);
     }
@@ -961,17 +991,17 @@ function annotationAddedAtPointMismatch(actual, request) {
   return undefined;
 }
 
+function freeTextContents(value, label) {
+  if (typeof value !== "string" || !value.trim()) throw new Error(`${label} must be a non-empty string.`);
+  if (value.length > FREE_TEXT_MAX_CONTENT_LENGTH) throw new Error(`${label} exceeds ${FREE_TEXT_MAX_CONTENT_LENGTH} characters.`);
+  if ([...value].some((character) => /\p{Cc}/u.test(character) && !["\n", "\r", "\t"].includes(character))) {
+    throw new Error(`${label} contains unsupported control characters.`);
+  }
+  return value;
+}
+
 function freeTextRequest(operation) {
   validateOperationFields(operation, "add_free_text_annotation", FREE_TEXT_OPERATION_FIELDS);
-  if (typeof operation.contents !== "string" || !operation.contents.trim()) {
-    throw new Error("add_free_text_annotation requires non-empty contents.");
-  }
-  if (operation.contents.length > FREE_TEXT_MAX_CONTENT_LENGTH) {
-    throw new Error(`add_free_text_annotation contents exceeds ${FREE_TEXT_MAX_CONTENT_LENGTH} characters.`);
-  }
-  if ([...operation.contents].some((character) => /\p{Cc}/u.test(character) && !["\n", "\r", "\t"].includes(character))) {
-    throw new Error("add_free_text_annotation contents contains unsupported control characters.");
-  }
   const fontSize = operation.fontSize === undefined ? 12 : Number(operation.fontSize);
   if (!Number.isFinite(fontSize) || fontSize < FREE_TEXT_FONT_SIZE_MIN || fontSize > FREE_TEXT_FONT_SIZE_MAX) {
     throw new Error(`add_free_text_annotation fontSize must be between ${FREE_TEXT_FONT_SIZE_MIN} and ${FREE_TEXT_FONT_SIZE_MAX} points.`);
@@ -982,7 +1012,7 @@ function freeTextRequest(operation) {
   }
   const request = {
     bbox: pdfRectToBbox(bboxToPdfRect(operation.bbox, "add_free_text_annotation bbox")),
-    contents: operation.contents,
+    contents: freeTextContents(operation.contents, "add_free_text_annotation contents"),
     fontSize,
     textColor: operation.textColor === undefined ? [0, 0, 0] : annotationRgb(operation.textColor, "add_free_text_annotation textColor"),
     alignment,
@@ -2455,7 +2485,7 @@ function applyAnnotationUpdate(document, operation, context = {}) {
       throw new Error(`update_annotation does not support native ${matched.type} annotations; preserve it unchanged or use an explicit specialist provider.`);
     }
     const matchedSnapshot = annotationSnapshot(matched);
-    if (TEXT_MARKUP_ANNOTATION_TYPES.has(matched.type)) {
+    if (TEXT_MARKUP_ANNOTATION_TYPES.has(matched.type) || matched.type === "FreeText") {
       const expectedShapeMismatch = annotationSnapshotShapeMismatch(matchedSnapshot, expected);
       if (expectedShapeMismatch) {
         throw new Error(`update_annotation expected must be the complete inspect-returned snapshot for native ${matched.type}; snapshot field ${expectedShapeMismatch} is missing or unexpected.`);
@@ -2489,6 +2519,17 @@ function applyAnnotationUpdate(document, operation, context = {}) {
     if (invariantMismatch) {
       throw new Error(`MuPDF changed update_annotation invariant ${invariantMismatch} for ${operation.annotationId}; refusing to save an ambiguous update.`);
     }
+    let appearanceTextVerified;
+    if (matched.type === "FreeText") {
+      if (normalizedVisibleAnnotationText(annotationAppearanceText(updatedTargets[0])) !== normalizedVisibleAnnotationText(updated.contents)) {
+        throw new Error(`MuPDF did not retain all update_annotation FreeText contents for ${operation.annotationId}; enlarge the existing bbox or shorten the text.`);
+      }
+      const visibleRect = bboxToPdfRect(nativePageSnapshot(page, "update_annotation FreeText").bbox, "update_annotation FreeText inspected CropBox");
+      if (!updated.appearanceBbox || !pdfRectContains(visibleRect, bboxToPdfRect(updated.appearanceBbox))) {
+        throw new Error(`MuPDF placed the updated FreeText appearance outside the visible page for ${operation.annotationId}; refusing to save.`);
+      }
+      appearanceTextVerified = true;
+    }
     return {
       type: "update_annotation",
       page: index + 1,
@@ -2498,6 +2539,7 @@ function applyAnnotationUpdate(document, operation, context = {}) {
       capability,
       patch,
       updated,
+      ...(appearanceTextVerified ? { appearanceTextVerified } : {}),
     };
   } finally {
     for (const annotation of new Set([...annotations, ...retained, target].filter(Boolean))) annotation.destroy();

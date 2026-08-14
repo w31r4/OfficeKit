@@ -403,8 +403,37 @@ This rewrite-only profile fixes the native font resource to Helvetica,
 supports 4–72 point text and left/center/right alignment, and rejects clipped
 text, off-page appearances, borders, fills, rich text, callouts, arbitrary
 fonts, and stale evidence. Re-inspect and render the output; FreeText updates
-remain unsupported, while the generic source-bound delete route can remove the
-freshly inspected annotation.
+are accepted only when the fresh record advertises
+`updateCapability.profile === "fixed-helvetica-v1"`. Pass its complete
+`snapshot` to `update_annotation` and patch only `contents`, `author`, or
+`subject`:
+
+```js
+const revisedInspection = await PdfFile.inspectPdf(withVisibleReview);
+const review = revisedInspection.records.find(
+  (record) => record.kind === "mupdfAnnotation" && record.type === "FreeText",
+);
+if (!review?.updateCapability.supported) throw new Error("FreeText update is not supported.");
+
+const revisedReview = await PdfFile.editPdf(withVisibleReview, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: review.page,
+    sourceSha256: revisedInspection.summary.sourceSha256,
+    annotationId: review.id,
+    expected: review.snapshot,
+    patch: { contents: "Updated review: ready for approval." },
+  }],
+});
+```
+
+The update preserves the rectangle, Helvetica size/color, alignment, flags,
+and locator within that source, then returns `appearanceTextVerified: true`
+after re-reading the native appearance text.
+Clipped or provider-unencodable contents fail closed. Font, color, alignment,
+geometry, border/fill, rich-text, and callout updates remain unsupported; the
+generic source-bound delete route remains available after a fresh inspection.
 
 For review markup, give the provider one requested text string instead of
 trying to calculate a rectangle or character quadrilaterals. It is accepted

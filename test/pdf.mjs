@@ -261,6 +261,28 @@ function rawXmpBytes(input) {
   }
 }
 
+function nonCanonicalFreeTextFixture() {
+  const document = new mupdf.PDFDocument(plainPdfBytes([{ text: "NONCANONICAL FREETEXT" }]));
+  const page = document.loadPage(0);
+  const annotation = page.createAnnotation("FreeText");
+  let saved;
+  try {
+    annotation.setRect([72, 72, 300, 130]);
+    annotation.setContents("Imported Times review");
+    annotation.setDefaultAppearance("TiRo", 12, [0, 0, 0]);
+    annotation.setQuadding(0);
+    annotation.update();
+    page.update();
+    saved = document.saveToBuffer("garbage=2,compress=yes");
+    return new FileBlob(new Uint8Array(saved.asUint8Array().slice()), { type: "application/pdf" });
+  } finally {
+    saved?.destroy();
+    annotation.destroy();
+    page.destroy();
+    document.destroy();
+  }
+}
+
 function rawDocumentInfoValue(input, key) {
   const document = new mupdf.PDFDocument(input.bytes || input);
   let reference;
@@ -1191,11 +1213,139 @@ assert.equal(freeTextAnnotation.defaultAppearance.size, 14);
 assert.ok(freeTextAnnotation.defaultAppearance.color.every((component, index) => Math.abs(component - sourceBoundFreeText.textColor[index]) < 0.001));
 assert.equal(freeTextAnnotation.alignment, "center");
 assert.deepEqual(freeTextAnnotation.snapshot.defaultAppearance, freeTextAnnotation.defaultAppearance);
-assert.equal(freeTextAnnotation.updateCapability.supported, false);
+assert.deepEqual(freeTextAnnotation.updateCapability, {
+  supported: true,
+  annotationType: "FreeText",
+  profile: "fixed-helvetica-v1",
+  mutableFields: ["contents", "author", "subject"],
+  geometryMutable: false,
+  savePolicy: "rewrite",
+  sourceBound: true,
+});
 const mupdfFreeTextParsed = await parsePdfWithMuPdf(mupdfFreeText.bytes);
 assert.equal(mupdfFreeTextParsed.pages[0].native.annotations.find((annotation) => annotation.type === "FreeText").contents, sourceBoundFreeText.contents);
 const mupdfFreeTextPng = await PdfFile.renderPdf(mupdfFreeText, { page: 1, dpi: 72 });
 assert.notEqual(Buffer.compare(Buffer.from(mupdfPng.bytes), Buffer.from(mupdfFreeTextPng.bytes)), 0, "the native FreeText annotation must change rendered pixels");
+await assert.rejects(PdfFile.editPdf(mupdfFreeText, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: freeTextAnnotation.page,
+    sourceSha256: mupdfFreeTextInspection.summary.sourceSha256,
+    annotationId: freeTextAnnotation.id,
+    expected: Object.fromEntries(Object.entries(freeTextAnnotation.snapshot).filter(([field]) => field !== "alignment")),
+    patch: { contents: "Short review" },
+  }],
+}), /complete inspect-returned snapshot for native FreeText.*alignment/);
+await assert.rejects(PdfFile.editPdf(mupdfFreeText, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: freeTextAnnotation.page,
+    sourceSha256: mupdfFreeTextInspection.summary.sourceSha256,
+    annotationId: freeTextAnnotation.id,
+    expected: freeTextAnnotation.snapshot,
+    patch: { contents: freeTextAnnotation.contents },
+  }],
+}), /patch is a no-op/);
+await assert.rejects(PdfFile.editPdf(mupdfFreeText, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: freeTextAnnotation.page,
+    sourceSha256: mupdfFreeTextInspection.summary.sourceSha256,
+    annotationId: freeTextAnnotation.id,
+    expected: freeTextAnnotation.snapshot,
+    patch: { contents: "X".repeat(4_097) },
+  }],
+}), /patch\.contents exceeds 4096 characters/);
+await assert.rejects(PdfFile.editPdf(mupdfFreeText, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: freeTextAnnotation.page,
+    sourceSha256: mupdfFreeTextInspection.summary.sourceSha256,
+    annotationId: freeTextAnnotation.id,
+    expected: freeTextAnnotation.snapshot,
+    patch: { contents: "X".repeat(1_000) },
+  }],
+}), /did not retain all update_annotation FreeText contents.*shorten the text/);
+await assert.rejects(PdfFile.editPdf(mupdfFreeText, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: freeTextAnnotation.page,
+    sourceSha256: mupdfFreeTextInspection.summary.sourceSha256,
+    annotationId: freeTextAnnotation.id,
+    expected: freeTextAnnotation.snapshot,
+    patch: { fontSize: 12 },
+  }],
+}), /patch contains unsupported field: fontSize/);
+const freeTextBeforeUpdate = Buffer.from(mupdfFreeText.bytes);
+const mupdfFreeTextUpdated = await PdfFile.editPdf(mupdfFreeText, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: freeTextAnnotation.page,
+    sourceSha256: mupdfFreeTextInspection.summary.sourceSha256,
+    annotationId: freeTextAnnotation.id,
+    expected: freeTextAnnotation.snapshot,
+    patch: { contents: "Updated review\nReady for approval", author: "Second reviewer", subject: "Final review" },
+  }],
+});
+assert.equal(Buffer.from(mupdfFreeText.bytes).equals(freeTextBeforeUpdate), true);
+assert.equal(mupdfFreeTextUpdated.metadata.operations[0].appearanceTextVerified, true);
+assert.equal(mupdfFreeTextUpdated.metadata.operations[0].capability.profile, "fixed-helvetica-v1");
+const mupdfFreeTextUpdatedInspection = await PdfFile.inspectPdf(mupdfFreeTextUpdated);
+const updatedFreeTextAnnotation = mupdfFreeTextUpdatedInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "FreeText");
+assert.equal(updatedFreeTextAnnotation.contents, "Updated review\nReady for approval");
+assert.equal(updatedFreeTextAnnotation.author, "Second reviewer");
+assert.equal(updatedFreeTextAnnotation.subject, "Final review");
+assert.deepEqual(updatedFreeTextAnnotation.rect, freeTextAnnotation.rect);
+assert.deepEqual(updatedFreeTextAnnotation.appearanceBbox, freeTextAnnotation.appearanceBbox);
+assert.deepEqual(updatedFreeTextAnnotation.defaultAppearance, freeTextAnnotation.defaultAppearance);
+assert.equal(updatedFreeTextAnnotation.alignment, freeTextAnnotation.alignment);
+const mupdfFreeTextUpdatedPng = await PdfFile.renderPdf(mupdfFreeTextUpdated, { page: 1, dpi: 72 });
+assert.notEqual(Buffer.compare(Buffer.from(mupdfFreeTextPng.bytes), Buffer.from(mupdfFreeTextUpdatedPng.bytes)), 0, "the updated FreeText contents must change rendered pixels");
+const updatedFreeTextSourceBytes = Buffer.from(mupdfFreeTextUpdated.bytes);
+const mupdfFreeTextDeleted = await PdfFile.editPdf(mupdfFreeTextUpdated, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "delete_annotation",
+    page: updatedFreeTextAnnotation.page,
+    sourceSha256: mupdfFreeTextUpdatedInspection.summary.sourceSha256,
+    annotationId: updatedFreeTextAnnotation.id,
+    expected: updatedFreeTextAnnotation.snapshot,
+  }],
+});
+assert.equal(Buffer.from(mupdfFreeTextUpdated.bytes).equals(updatedFreeTextSourceBytes), true);
+const mupdfFreeTextDeletedInspection = await PdfFile.inspectPdf(mupdfFreeTextDeleted);
+assert.equal(mupdfFreeTextDeletedInspection.records.some((record) => record.kind === "mupdfAnnotation" && record.type === "FreeText"), false);
+const nonCanonicalFreeText = nonCanonicalFreeTextFixture();
+const nonCanonicalFreeTextInspection = await PdfFile.inspectPdf(nonCanonicalFreeText);
+const importedTimesFreeText = nonCanonicalFreeTextInspection.records.find((record) => record.kind === "mupdfAnnotation" && record.type === "FreeText");
+assert.equal(importedTimesFreeText.defaultAppearance.font, "TiRo");
+assert.deepEqual(importedTimesFreeText.updateCapability, {
+  supported: false,
+  annotationType: "FreeText",
+  profile: "unsupported",
+  mutableFields: [],
+  geometryMutable: false,
+  savePolicy: "rewrite",
+  sourceBound: true,
+  reasons: ["free-text-profile-not-fixed-helvetica-v1"],
+});
+await assert.rejects(PdfFile.editPdf(nonCanonicalFreeText, {
+  savePolicy: "rewrite",
+  operations: [{
+    type: "update_annotation",
+    page: importedTimesFreeText.page,
+    sourceSha256: nonCanonicalFreeTextInspection.summary.sourceSha256,
+    annotationId: importedTimesFreeText.id,
+    expected: importedTimesFreeText.snapshot,
+    patch: { contents: "Unsupported profile update" },
+  }],
+}), /does not support native FreeText annotations.*explicit specialist provider/);
 const sourceBoundTextAnnotation = {
   type: "add_text_annotation",
   page: 1,

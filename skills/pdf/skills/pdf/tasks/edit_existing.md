@@ -405,8 +405,9 @@ if any requested text is clipped or omitted, the transaction fails and asks
 for a larger box or smaller type. The full appearance must remain inside the
 inspected visible page. This is rewrite-only, source-bound placement; re-open,
 inspect, and render the output before delivery. The fresh FreeText xref can be
-used by the generic source-bound deletion operation, but FreeText style/content
-updates remain unsupported rather than silently rebuilding the appearance.
+used by the generic source-bound deletion operation. A recognized
+`fixed-helvetica-v1` record may also update its contents/author/subject through
+the complete-snapshot route below; style and geometry remain immutable.
 
 ## Highlight one unique imported text selection
 
@@ -475,7 +476,7 @@ the inspected source bytes rather than a persistent document identity, so
 re-inspect the output before any later annotation operation. This prevents a
 rewritten PDF's xref reuse from silently targeting a different annotation.
 
-## Update one imported Text note or text markup
+## Update one imported Text note, fixed FreeText, or text markup
 
 Use the same inspect-first source binding to edit the semantic text fields of
 one native Text annotation without pretending to reflow or reposition it:
@@ -509,6 +510,16 @@ patched: MuPDF normalizes native Text annotation geometry. For a real move or
 resize, use an explicit delete-plus-add transaction with a fresh inspection, or
 route to a specialist provider. `update_annotation` is rewrite-only, and the
 output must be re-inspected before a subsequent annotation update or deletion.
+
+An inspected FreeText record is editable only when `updateCapability` reports
+`supported: true` and `profile: "fixed-helvetica-v1"`. Pass its complete
+inspect-returned `snapshot` as `expected`, then patch only non-empty
+`contents`, `author`, or `subject`. Updated contents keep the 4,096-character
+and control-character limits. The provider preserves rectangle,
+`appearanceBbox`, Helvetica size/color, alignment, flags, page, and locator,
+and reads the rebuilt native appearance as structured text. Partial snapshots,
+font/color/alignment/geometry changes, clipped or unencodable contents, no-op
+patches, and incremental output fail closed.
 
 An inspected native Highlight, Underline, StrikeOut, or Squiggly adds a complete
 `snapshot` and `updateCapability`. Require that capability, pass the snapshot

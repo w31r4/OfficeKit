@@ -158,7 +158,11 @@ text color, and left/center/right alignment. OfficeKit extracts the generated
 appearance text before publication and fails closed if the box clips or omits
 requested content. It does not expose a background, border, arbitrary font,
 rich-text payload, or callout. Re-inspect and render the rewrite; imported
-FreeText remains read-only except for the generic source-bound delete route.
+FreeText is editable only when the fresh record advertises the
+`fixed-helvetica-v1` update profile. Its complete snapshot permits
+contents/author/subject changes while preserving style and geometry, and the
+rebuilt appearance must still contain all requested text. Other FreeText
+profiles fail closed; the generic source-bound delete route remains available.
 
 ## Mark one unique text selection
 

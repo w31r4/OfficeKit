@@ -141,9 +141,11 @@ uses explicit `mupdf-page-space` geometry, and permits only a fixed Helvetica
 appearance with bounded size, RGB text color, alignment, and optional review
 metadata. Before publishing the rewrite, MuPDF's own annotation display list is
 read back as structured text; a box that clips or omits requested content fails
-closed. The resulting annotation is re-inspected and rendered, while arbitrary
-fonts, borders/fills, rich text, callouts, style/content updates, incremental
-save, and persistent xref identity remain outside the bounded contract.
+closed. A re-inspected `fixed-helvetica-v1` record can then use the existing
+source-bound `update_annotation` route with its complete snapshot to change
+only contents/author/subject; the regenerated appearance is checked again.
+Arbitrary fonts, borders/fills, rich text, callouts, style/geometry updates,
+incremental save, and persistent xref identity remain outside the contract.
 
 ### Documents canonical note bodies
 
