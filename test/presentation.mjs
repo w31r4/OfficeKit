@@ -2679,13 +2679,30 @@ const groupedDependentFillLeaf = groupedDependentEditImported.inspect({ includeN
   .map((line) => JSON.parse(line))
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fillRgb");
 assert.ok(groupedDependentFillLeaf);
-groupedDependentEditImported.editNativeLeaf(groupedDependentFillLeaf.targetId, groupedDependentFillLeaf.leafId, {
-  expectedHash: groupedDependentFillLeaf.expectedHash,
+groupedDependentShape.position.top += 1;
+assert.throws(
+  () => groupedDependentEditImported.editNativeLeaf(groupedDependentFillLeaf.targetId, groupedDependentFillLeaf.leafId, {
+    expectedHash: groupedDependentFillLeaf.expectedHash,
+    value: "#ABCDEF",
+  }),
+  (error) => error?.code === "presentation_native_leaf_concurrent_change",
+);
+const groupedPostIssueImported = await PresentationFile.importPptx(groupedFirstExport);
+const groupedPostIssueGroup = itemByName(groupedPostIssueImported.slides.getItem(0).groups.items, "Agent evidence group");
+const groupedPostIssueShape = itemByName(groupedPostIssueGroup.shapes.items, "grouped-before");
+const groupedPostIssueFillLeaf = groupedPostIssueImported.inspect({ includeNativeLeaves: true, target: groupedPostIssueShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fillRgb");
+assert.ok(groupedPostIssueFillLeaf);
+groupedPostIssueImported.editNativeLeaf(groupedPostIssueFillLeaf.targetId, groupedPostIssueFillLeaf.leafId, {
+  expectedHash: groupedPostIssueFillLeaf.expectedHash,
   value: "#ABCDEF",
 });
-groupedDependentShape.position.left += 1;
+groupedPostIssueShape.position.left += 1;
 await assert.rejects(
-  () => PresentationFile.exportPptx(groupedDependentEditImported),
+  () => PresentationFile.exportPptx(groupedPostIssueImported),
   (error) => error?.code === "unsupported_presentation_native_leaf_edit",
   "an explicit native-leaf edit must never fall back to full presentation serialization when a dependent change escapes its Edit Plan",
 );

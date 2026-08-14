@@ -1,0 +1,85 @@
+{
+  "schema": "office-kit/pptx-lossless-evidence/v1",
+  "generatedAt": "2026-08-14T23:10:21Z",
+  "manifestSha256": "1a0157c8ab7e811d94673e9ce13ad6783e5ba2e9507911ae278d3f9baddae5c4",
+  "repetitionsPerTarget": 3,
+  "runnerContract": {
+    "cleanSourcePerRun": true,
+    "exactNoOpBytes": true,
+    "deterministicOutputAndFootprint": true,
+    "nonTargetPartsByteIdentical": true,
+    "maskedTargetXmlByteIdentical": true,
+    "secondImportRequired": true
+  },
+  "sources": [
+    {
+      "id": "suanzhi-future-2026",
+      "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+      "noOpByteIdentical": true,
+      "targets": [
+        {
+          "id": "title",
+          "leafKind": "text",
+          "outputSha256": "f511a284c75b3b5fe459134e9f0c4f890d32e76207341da60fb2922179d67d4e",
+          "changedParts": ["ppt/slides/slide1.xml"]
+        },
+        {
+          "id": "vision",
+          "leafKind": "text",
+          "outputSha256": "3fb90354f24039c6f460dc5e425b1f9170ecd88edc6fc868fadbdeb11a0f7f6f",
+          "changedParts": ["ppt/slides/slide1.xml"]
+        },
+        {
+          "id": "partner",
+          "leafKind": "text",
+          "outputSha256": "77af7d57e4a0559ccd65129bd7b75e12f22d7f13a1802412a313ad7b0c6949ae",
+          "changedParts": ["ppt/slides/slide1.xml"]
+        },
+        {
+          "id": "group-storage",
+          "leafKind": "text",
+          "outputSha256": "46718e7045736b1cc1afac3b03f96d4fa7d057b79c34f83199036317a330ccc1",
+          "changedParts": ["ppt/slides/slide6.xml"]
+        }
+      ]
+    },
+    {
+      "id": "blue-gray-acid-template",
+      "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+      "noOpByteIdentical": true,
+      "targets": [
+        {
+          "id": "subtitle",
+          "leafKind": "text",
+          "outputSha256": "0475584106faa7343126793060a75032f728418703a7d37117964af5913bbe4c",
+          "changedParts": ["ppt/slides/slide1.xml"]
+        },
+        {
+          "id": "cover-title",
+          "leafKind": "text",
+          "outputSha256": "08cf9ce8398ed5faff265360b51028090464b7a56b604ac9f210e75eb7be2170",
+          "changedParts": ["ppt/slides/slide1.xml"]
+        },
+        {
+          "id": "presenter",
+          "leafKind": "text",
+          "outputSha256": "1803611bd2031cede611dca1f7095c26dcab6046d79166f2539b408abbb29712",
+          "changedParts": ["ppt/slides/slide1.xml"]
+        }
+      ]
+    },
+    {
+      "id": "mckinsey-customer-loyalty",
+      "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+      "noOpByteIdentical": true,
+      "targets": [
+        {
+          "id": "image-left",
+          "leafKind": "leftEmu",
+          "outputSha256": "c11fe0f1f12fa8245a8f3f2f854bf0ce4cd346d3273a0317f87e9fa81207eb6f",
+          "changedParts": ["ppt/slides/slide1.xml"]
+        }
+      ]
+    }
+  ]
+}

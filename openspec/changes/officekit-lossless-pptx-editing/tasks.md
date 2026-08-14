@@ -26,7 +26,7 @@
 
 ## 5. Complete the deterministic real edit matrix
 
-- [ ] 5.1 Run ordinary and grouped text replacement three times from clean sources with identical output and footprint hashes.
+- [x] 5.1 Run ordinary and grouped text replacement three times from clean sources with identical output and footprint hashes.
 - [ ] 5.2 Run textbox move/resize, image placement/crop or same-format replacement, and supported chart title/data edits three times from clean sources.
 - [ ] 5.3 Select and validate a real SmartArt text or equivalent native leaf without relationship or topology drift.
 - [ ] 5.4 Validate multi-round REPL edit, review, commit, resume, node-index rebuild, continued edit, and publication.

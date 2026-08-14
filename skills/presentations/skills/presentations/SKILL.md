@@ -195,7 +195,10 @@ target before mutation. If the ordinary typed facade would rebuild or reject
 unrelated native structure, request `includeNativeLeaves: true` and use only an
 issued revision-bound leaf through `presentation.editNativeLeaf(...)`.
 Supported leaves are existing text runs, shape RGB/local geometry, and picture
-local geometry. The resulting Edit Plan must identify one source revision and
+local geometry. This route can edit one text run inside a native group or a
+shape whose outer style remains source-owned. The issued operation binds the
+complete ownership-tree snapshot, so any concurrent unissued change in that
+tree must reject. The resulting Edit Plan must identify one source revision and
 one mutation footprint; reimport the output, prove every non-target OPC part is
 byte-identical, mask only the declared XML token change, and render the affected
 slide plus unchanged comparison pages. Never replace a multi-run phrase as one

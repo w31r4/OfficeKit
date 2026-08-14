@@ -3042,7 +3042,17 @@
           "id": "partner",
           "nodeId": "presentation/slide/1/element/3",
           "expected": "通往AGI顶峰的伙伴",
-          "value": "通往AGI顶峰的长期伙伴"
+          "search": "顶峰的伙伴",
+          "value": "顶峰的长期伙伴",
+          "result": "通往AGI顶峰的长期伙伴"
+        },
+        {
+          "id": "group-storage",
+          "nodeId": "presentation/slide/6/element/8/element/2",
+          "operation": "nativeLeaf",
+          "leafKind": "text",
+          "expectedValue": "快速存储",
+          "value": "高速存储验证"
         }
       ]
     },
@@ -4650,7 +4660,9 @@
           "id": "cover-title",
           "nodeId": "presentation/slide/1/element/7",
           "expected": "蓝灰酸性\n季度工作总结",
-          "value": "蓝灰酸性\n季度验证总结"
+          "search": "季度工作",
+          "value": "季度验证",
+          "result": "蓝灰酸性\n季度验证总结"
         },
         {
           "id": "presenter",
@@ -4748,7 +4760,16 @@
         }
       },
       "editableNodes": [],
-      "targets": []
+      "targets": [
+        {
+          "id": "image-left",
+          "nodeId": "presentation/slide/1/element/1",
+          "operation": "nativeLeaf",
+          "leafKind": "leftEmu",
+          "expectedValue": 0,
+          "value": 9525
+        }
+      ]
     }
   ]
 }

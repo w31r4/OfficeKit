@@ -134,6 +134,61 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void EditPlanChangesTextInsideASourceOwnedStyledShapeWithoutReserializingItsStyle()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddSourceOwnedShapeStyle(authored.File.ToByteArray());
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var element = Assert.Single(slide.Elements);
+        Assert.False(element.Source.Editable);
+        Assert.True(element.Source.TextEditable);
+        const string replacement = "Styled source proof";
+        var operation = new PresentationEditOperation
+        {
+            OperationId = "op-styled-shape-text",
+            SlideId = slide.Id,
+            SlidePartPath = slide.Source.PartPath,
+            ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+            TargetId = element.Id,
+            ShapeTreeIndex = element.Source.ShapeTreeIndex,
+            ExpectedElementSha256 = element.Source.ElementSha256,
+            ExpectedSemanticSha256 = element.Source.SemanticSha256,
+            TextLeafIndex = 0,
+            ExpectedValue = element.Shape.Text,
+            Value = replacement,
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(element.Shape.Text))).ToLowerInvariant(),
+        };
+        operation.ShapeTreePath.Add(element.Source.ShapeTreeIndex);
+
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+                Operations = { operation },
+            },
+        });
+
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal([operation.SlidePartPath], edited.PresentationEditPlan.ChangedParts);
+        var sourceXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, operation.SlidePartPath));
+        var outputXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), operation.SlidePartPath));
+        Assert.Contains("<p:style>", outputXml, StringComparison.Ordinal);
+        Assert.Equal(sourceXml, outputXml.Replace(replacement, operation.ExpectedValue, StringComparison.Ordinal));
+        var reopened = Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements);
+        Assert.Equal(replacement, reopened.Shape.Text);
+        Assert.False(reopened.Source.Editable);
+        Assert.True(reopened.Source.TextEditable);
+    }
+
+    [Fact]
     public void EditPlanChangesAGroupChildTextLeafWithoutReserializingItsGroup()
     {
         var export = ExportRequest();
@@ -9514,6 +9569,23 @@ public sealed class PptxCodecTests
                 .ParagraphProperties!.GetFirstChild<A.DefaultRunProperties>()!;
             style.Underline = A.TextUnderlineValues.Single;
             style.AddChild(new A.EastAsianFont { Typeface = "Noto Sans CJK SC" }, true);
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddSourceOwnedShapeStyle(byte[] bytes)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var presentation = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var shape = presentation.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.Shape>().Single();
+            shape.ShapeStyle = new P.ShapeStyle(
+                new A.LineReference(new A.SchemeColor { Val = A.SchemeColorValues.Accent1 }) { Index = 2U },
+                new A.FillReference(new A.SchemeColor { Val = A.SchemeColorValues.Accent1 }) { Index = 1U },
+                new A.EffectReference(new A.SchemeColor { Val = A.SchemeColorValues.Accent1 }) { Index = 0U },
+                new A.FontReference(new A.SchemeColor { Val = A.SchemeColorValues.Light1 }) { Index = A.FontCollectionIndexValues.Minor });
         }
         return stream.ToArray();
     }

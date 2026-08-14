@@ -24,7 +24,22 @@ const SOURCES = Object.freeze([
     targets: [
       { id: "title", nodeId: "presentation/slide/1/element/1", expected: "极致技术，长期主义", value: "极致技术，长期验证" },
       { id: "vision", nodeId: "presentation/slide/1/element/2", expected: "Vision and ambition", value: "Vision, proof and ambition" },
-      { id: "partner", nodeId: "presentation/slide/1/element/3", expected: "通往AGI顶峰的伙伴", value: "通往AGI顶峰的长期伙伴" },
+      {
+        id: "partner",
+        nodeId: "presentation/slide/1/element/3",
+        expected: "通往AGI顶峰的伙伴",
+        search: "顶峰的伙伴",
+        value: "顶峰的长期伙伴",
+        result: "通往AGI顶峰的长期伙伴",
+      },
+      {
+        id: "group-storage",
+        nodeId: "presentation/slide/6/element/8/element/2",
+        operation: "nativeLeaf",
+        leafKind: "text",
+        expectedValue: "快速存储",
+        value: "高速存储验证",
+      },
     ],
   },
   {
@@ -33,7 +48,14 @@ const SOURCES = Object.freeze([
     sha256: "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
     targets: [
       { id: "subtitle", nodeId: "presentation/slide/1/element/6", expected: "单击此处添加副标题内容", value: "OfficeKit 保真编辑评测" },
-      { id: "cover-title", nodeId: "presentation/slide/1/element/7", expected: "蓝灰酸性\n季度工作总结", value: "蓝灰酸性\n季度验证总结" },
+      {
+        id: "cover-title",
+        nodeId: "presentation/slide/1/element/7",
+        expected: "蓝灰酸性\n季度工作总结",
+        search: "季度工作",
+        value: "季度验证",
+        result: "蓝灰酸性\n季度验证总结",
+      },
       { id: "presenter", nodeId: "presentation/slide/1/element/8", expected: "汇报人：稻小壳", value: "汇报人：OfficeKit" },
     ],
   },
@@ -41,7 +63,16 @@ const SOURCES = Object.freeze([
     id: "mckinsey-customer-loyalty",
     fileName: "ppt169_麦肯锡风_kimsoong_customer_loyalty.pptx",
     sha256: "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
-    targets: [],
+    targets: [
+      {
+        id: "image-left",
+        nodeId: "presentation/slide/1/element/1",
+        operation: "nativeLeaf",
+        leafKind: "leftEmu",
+        expectedValue: 0,
+        value: 9_525,
+      },
+    ],
   },
 ]);
 
@@ -70,12 +101,16 @@ if (command === "freeze") {
   assertSeparateRoot(assetsDir, outputDir);
   await mkdir(outputDir, { recursive: true });
   const repetitions = positiveInteger(options.repetitions ?? 3, "repetitions", 1, 10);
-  const evidence = await runBenchmark(manifest, assetsDir, outputDir, repetitions);
+  if (options.target && !options.source) fail("--target requires --source so the benchmark selection is unambiguous.");
+  const evidence = await runBenchmark(manifest, assetsDir, outputDir, repetitions, {
+    sourceId: options.source,
+    targetId: options.target,
+  });
   const evidencePath = path.join(outputDir, "evidence.json");
   await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, { flag: options.force ? "w" : "wx" });
   print({ ok: true, command, evidence: evidencePath, sources: evidence.sources.length, repetitions });
 } else {
-  fail("Usage: pptx-lossless-benchmark.mjs freeze|verify|run --assets-dir <dir> [--manifest <path>] [--output-dir <dir>] [--repetitions 3] [--force]");
+  fail("Usage: pptx-lossless-benchmark.mjs freeze|verify|run --assets-dir <dir> [--manifest <path>] [--output-dir <dir>] [--repetitions 3] [--source <id> [--target <id>]] [--force]");
 }
 
 async function freezeManifest(root) {
@@ -87,10 +122,7 @@ async function freezeManifest(root) {
     if (digest !== definition.sha256) fail(`Source hash mismatch for ${definition.fileName}: ${digest}`);
     const inventory = await packageInventory(bytes);
     const nodes = await editableNodeIndex(bytes);
-    for (const target of definition.targets) {
-      const match = nodes.find((node) => node.id === target.nodeId);
-      if (!match || match.text !== target.expected) fail(`Declared target ${definition.id}/${target.id} does not match the imported node index.`);
-    }
+    for (const target of definition.targets) await proveDeclaredTarget(bytes, nodes, definition.id, target);
     sources.push({
       id: definition.id,
       fileName: definition.fileName,
@@ -104,26 +136,35 @@ async function freezeManifest(root) {
   return { schema: MANIFEST_SCHEMA, sources };
 }
 
-async function runBenchmark(manifest, root, outputRoot, repetitions) {
+async function runBenchmark(manifest, root, outputRoot, repetitions, selection = {}) {
   const sources = [];
-  for (const sourceManifest of manifest.sources) {
+  const selectedSources = selection.sourceId
+    ? manifest.sources.filter((source) => source.id === selection.sourceId)
+    : manifest.sources;
+  if (!selectedSources.length) fail(`Unknown benchmark source: ${selection.sourceId}`);
+  for (const sourceManifest of selectedSources) {
+    progress({ phase: "source", source: sourceManifest.id });
     const sourcePath = path.join(root, sourceManifest.fileName);
     const sourceBytes = await boundedRead(sourcePath);
     if (sha256(sourceBytes) !== sourceManifest.sha256) fail(`Source hash mismatch for ${sourceManifest.fileName}.`);
     const noOp = await PresentationFile.exportPptx(await importPresentation(sourceBytes));
     if (!Buffer.from(noOp.bytes).equals(sourceBytes)) fail(`No-op export changed ${sourceManifest.id}.`);
+    progress({ phase: "no-op", source: sourceManifest.id, ok: true });
     const edits = [];
-    for (const target of sourceManifest.targets) {
+    const selectedTargets = selection.targetId
+      ? sourceManifest.targets.filter((target) => target.id === selection.targetId)
+      : sourceManifest.targets;
+    if (selection.targetId && !selectedTargets.length) fail(`Unknown benchmark target: ${sourceManifest.id}/${selection.targetId}`);
+    for (const target of selectedTargets) {
       const runs = [];
       for (let repetition = 1; repetition <= repetitions; repetition += 1) {
+        progress({ phase: "edit", source: sourceManifest.id, target: target.id, repetition });
         const presentation = await importPresentation(sourceBytes);
-        const node = presentation.resolve(target.nodeId);
-        if (!node?.text || node.text.value !== target.expected) fail(`Target ${sourceManifest.id}/${target.id} is stale.`);
-        node.text.replace(target.expected, target.value);
+        applyBenchmarkTarget(presentation, sourceManifest.id, target);
         const output = await PresentationFile.exportPptx(presentation);
         if (output.metadata.editPlan?.schema !== "office-kit/pptx-edit-plan/v1") fail(`Target ${sourceManifest.id}/${target.id} did not compile to an Edit Plan.`);
         const reopened = await importPresentation(output.bytes);
-        if (reopened.resolve(target.nodeId)?.text?.value !== target.value) fail(`Target ${sourceManifest.id}/${target.id} failed second import.`);
+        verifyBenchmarkTarget(reopened, sourceManifest.id, target);
         const oracle = await packageOracle(sourceBytes, output.bytes, output.metadata.editPlan, target);
         const outputName = `${sourceManifest.id}-${target.id}-${repetition}.pptx`;
         await writeFile(path.join(outputRoot, outputName), output.bytes, { flag: options.force ? "w" : "wx" });
@@ -152,10 +193,11 @@ async function packageOracle(sourceBytes, outputBytes, editPlan, target) {
   for (const partPath of changedParts) {
     const sourceXml = source.get(partPath).toString("utf8");
     const outputXml = output.get(partPath).toString("utf8");
-    const encodedOld = escapeXmlText(target.expected);
-    const encodedNew = escapeXmlText(target.value);
-    if (occurrences(outputXml, encodedNew) !== 1) fail(`Changed XML does not contain one declared replacement in ${partPath}.`);
-    if (outputXml.replace(encodedNew, encodedOld) !== sourceXml) fail(`Masked target XML differs from source: ${partPath}`);
+    const operation = editPlan.operations.find((candidate) => candidate.slidePartPath === partPath);
+    if (!operation) fail(`Edit Plan has no operation for changed part ${partPath}.`);
+    const encodedOld = escapeXmlText(operation.expectedValue);
+    const encodedNew = escapeXmlText(operation.value);
+    if (singleTokenMaskMatches(sourceXml, outputXml, encodedOld, encodedNew) !== 1) fail(`Declared token cannot uniquely mask target XML back to source: ${partPath}`);
   }
   return { changedParts, nonTargetPartsByteIdentical: true, maskedTargetXmlByteIdentical: true };
 }
@@ -195,6 +237,52 @@ async function editableNodeIndex(bytes) {
   const nodes = [];
   for (const slide of presentation.slides.items) collectNodes(slide, slide.index + 1, nodes, 0);
   return nodes;
+}
+
+async function proveDeclaredTarget(bytes, nodes, sourceId, target) {
+  if ((target.operation ?? "text") === "text") {
+    const match = nodes.find((node) => node.id === target.nodeId);
+    if (!match || match.text !== target.expected) fail(`Declared target ${sourceId}/${target.id} does not match the imported node index.`);
+    return;
+  }
+  if (target.operation !== "nativeLeaf") fail(`Declared target ${sourceId}/${target.id} uses an unknown operation.`);
+  const presentation = await importPresentation(bytes);
+  const leaf = nativeLeafRecord(presentation, target);
+  if (leaf.value !== target.expectedValue) fail(`Declared native target ${sourceId}/${target.id} does not match its inspected leaf.`);
+}
+
+function applyBenchmarkTarget(presentation, sourceId, target) {
+  if ((target.operation ?? "text") === "text") {
+    const node = presentation.resolve(target.nodeId);
+    if (!node?.text || node.text.value !== target.expected) fail(`Target ${sourceId}/${target.id} is stale.`);
+    const search = target.search ?? target.expected;
+    const result = target.result ?? target.value;
+    node.text.replace(search, target.value);
+    if (node.text.value !== result) fail(`Target ${sourceId}/${target.id} did not produce its declared model result.`);
+    return;
+  }
+  const leaf = nativeLeafRecord(presentation, target);
+  if (leaf.value !== target.expectedValue) fail(`Target ${sourceId}/${target.id} is stale.`);
+  presentation.editNativeLeaf(leaf.targetId, leaf.leafId, { expectedHash: leaf.expectedHash, value: target.value });
+}
+
+function verifyBenchmarkTarget(presentation, sourceId, target) {
+  if ((target.operation ?? "text") === "text") {
+    const result = target.result ?? target.value;
+    if (presentation.resolve(target.nodeId)?.text?.value !== result) fail(`Target ${sourceId}/${target.id} failed second import.`);
+    return;
+  }
+  if (nativeLeafRecord(presentation, target).value !== target.value) fail(`Target ${sourceId}/${target.id} failed second import.`);
+}
+
+function nativeLeafRecord(presentation, target) {
+  const records = presentation.inspect({ includeNativeLeaves: true, target: target.nodeId }).ndjson
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  const leaves = records.filter((record) => record.kind === "nativeLeaf" && record.targetId === target.nodeId && record.leafKind === target.leafKind);
+  if (leaves.length !== 1) fail(`Native target ${target.id} resolved ${leaves.length} ${target.leafKind} leaves.`);
+  return leaves[0];
 }
 
 function collectNodes(container, slide, output, depth) {
@@ -245,11 +333,20 @@ function assertSeparateRoot(sourceRoot, outputRoot) {
 
 function countPaths(paths, pattern) { return paths.filter((value) => pattern.test(value)).length; }
 function occurrences(value, token) { return value.split(token).length - 1; }
+function singleTokenMaskMatches(source, output, expected, replacement) {
+  if (!replacement || expected === replacement) return 0;
+  let matches = 0;
+  for (let index = output.indexOf(replacement); index >= 0; index = output.indexOf(replacement, index + 1)) {
+    if (`${output.slice(0, index)}${expected}${output.slice(index + replacement.length)}` === source) matches += 1;
+  }
+  return matches;
+}
 function sha256(value) { return createHash("sha256").update(value).digest("hex"); }
 function escapeXmlText(value) { return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"); }
 function assertJsonEqual(actual, expected, message) { if (JSON.stringify(actual) !== JSON.stringify(expected)) fail(message); }
 function positiveInteger(value, label, minimum, maximum) { const number = Number(value); if (!Number.isSafeInteger(number) || number < minimum || number > maximum) fail(`${label} must be ${minimum}..${maximum}.`); return number; }
 function print(value) { process.stdout.write(`${JSON.stringify(value)}\n`); }
+function progress(value) { process.stderr.write(`${JSON.stringify(value)}\n`); }
 function fail(message) { const error = new Error(message); error.code = "pptx-lossless-benchmark-failed"; throw error; }
 
 function parseArgs(args) {
@@ -261,6 +358,8 @@ function parseArgs(args) {
     else if (token === "--manifest") parsed.manifest = args[++index];
     else if (token === "--output-dir") parsed.outputDir = args[++index];
     else if (token === "--repetitions") parsed.repetitions = args[++index];
+    else if (token === "--source") parsed.source = args[++index];
+    else if (token === "--target") parsed.target = args[++index];
     else fail(`Unknown argument: ${token}`);
   }
   return parsed;

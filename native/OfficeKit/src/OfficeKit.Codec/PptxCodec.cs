@@ -42,7 +42,7 @@ internal sealed class PptxTargetSlideEntry
 internal static class PptxCodec
 {
     internal static bool SupportsBoundTextLeaf(P.Shape shape) =>
-        IsSimpleShape(shape) || PptxPlaceholderCodec.SupportsSlideTextEditing(shape);
+        shape.TextBody is not null && PptxTextCodec.SupportsEditing(shape.TextBody);
 
     internal static int ValidateEditPlanOutput(
         byte[] sourceBytes,
@@ -1129,7 +1129,7 @@ internal static class PptxCodec
             ShapeTreeIndex = checked((uint)elementIndex),
             ElementSha256 = HashElement(source),
             Editable = editable,
-            TextEditable = source is P.Shape placeholderShape && PptxPlaceholderCodec.SupportsSlideTextEditing(placeholderShape),
+            TextEditable = source is P.Shape textShape && textShape.TextBody is not null && PptxTextCodec.SupportsEditing(textShape.TextBody),
             AccessibilityEditable = editable && (
                 (source is P.Picture accessibilityPicture && element.ContentCase == PresentationElement.ContentOneofCase.Image &&
                  PptxNonVisualAccessibilityCodec.SupportsResidual(accessibilityPicture.NonVisualPictureProperties?.NonVisualDrawingProperties)) ||

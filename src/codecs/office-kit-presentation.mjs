@@ -2923,7 +2923,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
     }
   };
   for (const slideState of state.slides) for (const entry of slideState.entries) collectConnectedTargets(entry.wire);
-  const registerLeaf = ({ wire, model, slideState, shapeTreePath, parentGroupId, leafKind, expectedValue, value, unit, details, normalize, isNoop, apply }) => {
+  const registerLeaf = ({ wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue, value, unit, details, normalize, isNoop, apply }) => {
     const expectedHash = createHash("sha256").update(expectedValue, "utf8").digest("hex");
     const seed = [revisionSha256, slideState.wire.id, wire.id, shapeTreePath.join("/"), wire.source.elementSha256, leafKind, details?.textLeafIndex ?? "", expectedHash].join("\0");
     const leafId = `nl_${createHash("sha256").update(seed).digest("hex").slice(0, 32)}`;
@@ -2941,10 +2941,21 @@ function createPresentationNativeLeafCapability(presentation, state) {
       expectedHash,
       revisionSha256,
     });
-    registry.set(leafId, Object.freeze({ ...record, expectedValue, normalize, isNoop, apply }));
+    registry.set(leafId, Object.freeze({
+      ...record,
+      expectedValue,
+      wire,
+      slideState,
+      shapeTreePath: [...shapeTreePath],
+      rootEntry,
+      rootSourceSnapshot: presentationNativeLeafModelSnapshot(rootEntry.model),
+      normalize,
+      isNoop,
+      apply,
+    }));
     records.push(record);
   };
-  const addElementLeaves = (wire, model, slideState, shapeTreePath, parentGroupId) => {
+  const addElementLeaves = (wire, model, slideState, shapeTreePath, parentGroupId, rootEntry) => {
     if (wire.content.case === "group") {
       const children = wire.content.value.children || [];
       if (!Array.isArray(model?.children) || model.children.length !== children.length) return;
@@ -2952,7 +2963,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
         const child = children[index];
         const childModel = model.children[index];
         if (childModel?.id !== child.id || !child.source) continue;
-        addElementLeaves(child, childModel, slideState, [...shapeTreePath, child.source.shapeTreeIndex], wire.id);
+        addElementLeaves(child, childModel, slideState, [...shapeTreePath, child.source.shapeTreeIndex], wire.id, rootEntry);
       }
       return;
     }
@@ -2965,7 +2976,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
       for (const leaf of presentationTextLeafRuns(wire.content.value)) {
         const value = leaf.run.content.value;
         registerLeaf({
-          wire, model, slideState, shapeTreePath, parentGroupId, leafKind: "text", expectedValue: value, value,
+          wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "text", expectedValue: value, value,
           details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
           normalize(next) { assertNativeLeafTextValue(next); return { raw: next, publicValue: next }; },
           apply(next) {
@@ -2987,7 +2998,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
       const raw = String(wire.content.value[field] ?? "");
       if ((leafKind === "fillRgb" || leafKind === "lineRgb") && /^[0-9A-F]{6}$/iu.test(raw)) {
         registerLeaf({
-          wire, model, slideState, shapeTreePath, parentGroupId, leafKind, expectedValue: raw, value: `#${raw.toLowerCase()}`,
+          wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue: raw, value: `#${raw.toLowerCase()}`,
           normalize(next) {
             const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
             if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a six-digit RGB color.`);
@@ -3003,7 +3014,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
       } else if (leafKind.endsWith("Emu") && /^-?[0-9]+$/u.test(raw)) {
         const frameField = ({ leftEmu: "left", topEmu: "top", widthEmu: "width", heightEmu: "height" })[leafKind];
         registerLeaf({
-          wire, model, slideState, shapeTreePath, parentGroupId, leafKind, expectedValue: raw, value: Number(raw), unit: "emu",
+          wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue: raw, value: Number(raw), unit: "emu",
           normalize(next) {
             if (typeof next !== "string" && typeof next !== "number") {
               throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires an integer EMU value.`);
@@ -3025,7 +3036,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
   for (const slideState of state.slides) {
     for (const entry of slideState.entries) {
       if (!entry.wire.source) continue;
-      addElementLeaves(entry.wire, entry.model, slideState, [entry.wire.source.shapeTreeIndex]);
+      addElementLeaves(entry.wire, entry.model, slideState, [entry.wire.source.shapeTreeIndex], undefined, entry);
     }
   }
   return Object.freeze({
@@ -3052,9 +3063,15 @@ function createPresentationNativeLeafCapability(presentation, state) {
       if (leaf.isNoop ? leaf.isNoop(normalized.raw) : normalized.raw === leaf.expectedValue) {
         throw presentationNativeLeafError("presentation_native_leaf_noop", "Presentation native-leaf edit must change its source value.");
       }
+      const authorizedBefore = state.authorizedNativeLeafSnapshots?.get(leaf.rootEntry.wire.id) ?? leaf.rootSourceSnapshot;
+      if (presentationNativeLeafModelSnapshot(leaf.rootEntry.model) !== authorizedBefore) {
+        throw presentationNativeLeafError("presentation_native_leaf_concurrent_change", "Presentation native-leaf editing requires the target ownership tree to remain unchanged outside previously authorized native leaves.");
+      }
       leaf.apply(normalized.raw);
-      state.pendingNativeLeafEdits ??= new Set();
-      state.pendingNativeLeafEdits.add(leaf.leafId);
+      state.authorizedNativeLeafSnapshots ??= new Map();
+      state.authorizedNativeLeafSnapshots.set(leaf.rootEntry.wire.id, presentationNativeLeafModelSnapshot(leaf.rootEntry.model));
+      state.pendingNativeLeafEdits ??= new Map();
+      state.pendingNativeLeafEdits.set(leaf.leafId, Object.freeze({ leaf, value: normalized.raw }));
       return Object.freeze({
         kind: "nativeLeafEdit",
         targetId,
@@ -3068,6 +3085,42 @@ function createPresentationNativeLeafCapability(presentation, state) {
       });
     },
   });
+}
+
+function presentationNativeLeafModelSnapshot(model) {
+  return JSON.stringify({
+    id: model.id,
+    nativeId: model.nativeId,
+    creationId: model.creationId,
+    layout: model.layoutJson(),
+  });
+}
+
+function compileIssuedPresentationNativeLeafOperation(pending, sourceSha256) {
+  const { leaf, value } = pending;
+  const source = leaf.wire.source;
+  const slideSource = leaf.slideState.wire.source;
+  if (!source || !slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
+  const textLeafIndex = leaf.textLeafIndex ?? 0;
+  const operationSeed = leaf.leafKind === "text"
+    ? [sourceSha256, slideSource.partPath, leaf.shapeTreePath.join("/"), textLeafIndex, leaf.expectedValue, value].join("\0")
+    : [sourceSha256, slideSource.partPath, leaf.shapeTreePath.join("/"), leaf.leafKind, leaf.expectedValue, value].join("\0");
+  return {
+    operationId: `pptx-${leaf.leafKind}-${createHash("sha256").update(operationSeed).digest("hex").slice(0, 20)}`,
+    slideId: leaf.slideState.wire.id,
+    slidePartPath: slideSource.partPath,
+    expectedSlideSha256: slideSource.slideXmlSha256,
+    targetId: leaf.wire.id,
+    shapeTreeIndex: leaf.shapeTreePath[0],
+    shapeTreePath: [...leaf.shapeTreePath],
+    leafKind: leaf.leafKind,
+    expectedElementSha256: source.elementSha256,
+    expectedSemanticSha256: source.semanticSha256,
+    textLeafIndex,
+    expectedTextSha256: createHash("sha256").update(leaf.expectedValue, "utf8").digest("hex"),
+    expectedValue: leaf.expectedValue,
+    value,
+  };
 }
 
 function compilePresentationTextLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
@@ -3231,6 +3284,12 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
   const restoredArtifact = clonePresentationWire(PresentationArtifactSchema, envelope.payload.value);
   const requestedSlides = restoredArtifact.slides;
   const operations = [];
+  const pendingByRootId = new Map();
+  for (const pending of state.pendingNativeLeafEdits?.values?.() || []) {
+    const rootId = pending.leaf.rootEntry.wire.id;
+    if (!pendingByRootId.has(rootId)) pendingByRootId.set(rootId, []);
+    pendingByRootId.get(rootId).push(pending);
+  }
   for (let slideIndex = 0; slideIndex < state.slides.length; slideIndex += 1) {
     const sourceSlide = state.slides[slideIndex];
     const requestedById = new Map(requestedSlides[slideIndex].elements.map((element, elementIndex) => [element.id, { element, elementIndex }]));
@@ -3238,6 +3297,15 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
       const requestedEntry = requestedById.get(entry.wire.id);
       if (!requestedEntry) return undefined;
       const { element: requested, elementIndex } = requestedEntry;
+      const issuedEdits = pendingByRootId.get(entry.wire.id);
+      if (issuedEdits?.length) {
+        if (presentationNativeLeafModelSnapshot(entry.model) !== state.authorizedNativeLeafSnapshots?.get(entry.wire.id)) return undefined;
+        const issuedOperations = issuedEdits.map((pending) => compileIssuedPresentationNativeLeafOperation(pending, sourceSha256));
+        if (issuedOperations.some((operation) => !operation)) return undefined;
+        operations.push(...issuedOperations);
+        restoredArtifact.slides[slideIndex].elements[elementIndex] = entry.wire;
+        continue;
+      }
       if (samePresentationWire(PresentationElementSchema, entry.wire, requested)) continue;
       const entryOperations = compilePresentationElementEditOperations(
         entry.wire,
@@ -3251,6 +3319,11 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
       restoredArtifact.slides[slideIndex].elements[elementIndex] = entry.wire;
     }
   }
+  operations.sort((left, right) =>
+    left.slidePartPath.localeCompare(right.slidePartPath) ||
+    left.shapeTreePath.join("/").localeCompare(right.shapeTreePath.join("/"), undefined, { numeric: true }) ||
+    left.leafKind.localeCompare(right.leafKind) ||
+    (left.textLeafIndex ?? 0) - (right.textLeafIndex ?? 0));
   const sourceArtifact = state.sourceArtifactBytes instanceof Uint8Array
     ? fromBinary(PresentationArtifactSchema, state.sourceArtifactBytes)
     : undefined;
