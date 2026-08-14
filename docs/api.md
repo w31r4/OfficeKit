@@ -3748,6 +3748,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.DATEVALUE` | formula | Convert deterministic ISO or English month-name date text to a serial in the workbook's 1900 or 1904 date system; ambiguous locale-numeric dates return #VALUE!. |
 | `fx.DAY` | formula | Return the day component of a serial in the workbook's date system, including 1900 compatibility serial 60. |
 | `fx.DAYS` | formula | Return the whole-day difference between two Excel date serials. |
+| `fx.DAYS360` | formula | Return the accounting day count between two valid Excel date serials using the U.S. NASD 30/360 method by default or the European 30E/360 method when the optional logical method is TRUE. Invalid dates, method text, and arity fail explicitly. |
 | `fx.DB` | formula | Calculate one fixed-declining-balance depreciation period with an optional first-year month count. |
 | `fx.DDB` | formula | Calculate one double-declining-balance depreciation period with an optional positive factor. |
 | `fx.DEGREES` | formula | Convert finite radians to degrees with an explicit non-finite-result guard. |
@@ -4673,6 +4674,24 @@ Return the whole-day difference between two Excel date serials.
 **Schema parameters:**
 
 - `formula` (string) required — Excel-style cell formula beginning with =DAYS(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.DAYS360`
+
+Return the accounting day count between two valid Excel date serials using the U.S. NASD 30/360 method by default or the European 30E/360 method when the optional logical method is TRUE. Invalid dates, method text, and arity fail explicitly.
+
+**Examples:**
+
+- =DAYS360(A1,B1)
+- =DAYS360(A1,B1,TRUE)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =DAYS360(...).
 - `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
 
 **Schema returns:**

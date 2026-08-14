@@ -6826,6 +6826,25 @@ recalculated, and resaved the five-case canonical fixture to the expected
 Spreadsheet formula milestone; full release-candidate and hosted-slow evidence
 remains deferred under the rolling 12-hour policy.
 
+### XLSX 360-day accounting formula
+
+On 2026-08-14, the same Spreadsheet milestone added `DAYS360` with the two
+documented conventions: U.S. NASD 30/360 by default and European 30E/360 when
+the optional logical method is true. The evaluator applies their distinct
+month-end and February rules, returns a signed count for reverse dates, honors
+both workbook date systems, propagates formula errors, and fails closed for
+invalid dates, text methods, missing inputs, or extra arguments.
+
+The source-free formula and cached value survive canonical XLSX export and
+second import. Focused tests include Microsoft's three public examples plus
+the February and day-31 cases where NASD and European results differ.
+LibreOfficeDev 26.8 independently opened, recalculated, and resaved the ten-case
+fixture with exactly the same `1`, `360`, `30`, `30`, `4`, `32`, `28`, `-1`,
+`30`, and `29` values. Help and the Spreadsheet guidance require Agents to
+keep the typed dates and selected accounting convention visible. Full
+release-candidate and hosted-slow evidence remains deferred under the rolling
+12-hour policy.
+
 ## Publishing
 
 Before publishing:

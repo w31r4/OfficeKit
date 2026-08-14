@@ -96,6 +96,11 @@ that only one worksheet-drawing part changed.
 - `ISOWEEKNUM(serial_number)` is the explicit ISO form and is equivalent to `WEEKNUM(serial_number,21)` in the bounded evaluator. Both honor the workbook's 1900 or 1904 date system and reject invalid dates or return types rather than guessing.
 - Write the public formula exactly as Excel displays it. OfficeKit Codec writes `_xlfn.ISOWEEKNUM(...)` only at the XLSX package boundary and removes that prefix on import; never put `_xlfn` in Agent-authored model formulas.
 
+### 360-day accounting profile
+
+- `DAYS360(start_date, end_date, [method])` returns a signed accounting day count under a twelve-month, 30-day calendar. Omit `method` or use `FALSE` for the U.S. NASD month-end rules; use `TRUE` for the European 30E/360 rule that changes only day 31 to day 30.
+- Keep the actual typed start/end dates visible next to the result and label the selected convention. The bounded evaluator honors the workbook's 1900/1904 date system and rejects invalid dates, text method selectors, missing/extra arguments, and formula errors instead of inferring an accounting convention.
+
 ### Financial cash-flow profile
 
 - `PMT`, `IPMT`, `PPMT`, `CUMIPMT`, `CUMPRINC`, `PV`, `FV`, `NPER`, `RATE`, `SLN`, `DB`, `DDB`, `NPV`, `MIRR`, `XNPV`, `IRR`, and `XIRR` calculate in the JavaScript model as well as being written to XLSX. Put rates, loan terms, cost/salvage/life assumptions, cash-flow vectors, and dates in visible input cells; do not hide them as magic numbers in a long formula.

@@ -1673,6 +1673,50 @@ function excelWeekNumber(serialValue, returnTypeValue = 1, dateSystem = "1900") 
   return Math.floor((day - yearStart + leadingDays) / 7) + 1;
 }
 
+function excelDays360(startValue, endValue, methodValue = false, dateSystem = "1900") {
+  const startNumber = excelFormulaDateNumber(startValue);
+  const endNumber = excelFormulaDateNumber(endValue);
+  const methodError = formulaErrorCode(methodValue);
+  if (formulaErrorCode(startNumber)) return startNumber;
+  if (formulaErrorCode(endNumber)) return endNumber;
+  if (methodError) return methodError;
+  const start = excelDateParts(startNumber, dateSystem);
+  const end = excelDateParts(endNumber, dateSystem);
+  if (!start || !end) return "#NUM!";
+  const european = typeof methodValue === "boolean"
+    ? methodValue
+    : typeof methodValue === "number" && Number.isFinite(methodValue)
+      ? methodValue !== 0
+      : methodValue == null || methodValue === ""
+        ? false
+        : undefined;
+  if (european === undefined) return "#VALUE!";
+
+  let startDay = start.day;
+  let endDay = end.day;
+  let endMonth = end.month;
+  let endYear = end.year;
+  if (european) {
+    if (startDay === 31) startDay = 30;
+    if (endDay === 31) endDay = 30;
+  } else {
+    if (startDay === excelDaysInMonth(start.year, start.month, dateSystem)) startDay = 30;
+    if (endDay === excelDaysInMonth(end.year, end.month, dateSystem)) {
+      if (startDay < 30) {
+        endDay = 1;
+        endMonth += 1;
+        if (endMonth === 13) {
+          endMonth = 1;
+          endYear += 1;
+        }
+      } else {
+        endDay = 30;
+      }
+    }
+  }
+  return (endYear - start.year) * 360 + (endMonth - start.month) * 30 + endDay - startDay;
+}
+
 function excelHolidaySet(values = [], dateSystem = "1900") {
   const error = values.map(formulaErrorCode).find(Boolean);
   if (error) return { error, holidays: new Set() };
@@ -2615,6 +2659,10 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
       if (formulaErrorCode(start)) return start;
       return excelDateParts(end, dateSystem) && excelDateParts(start, dateSystem) ? Math.floor(end) - Math.floor(start) : "#NUM!";
     }
+    case "DAYS360": return args.length >= 2 && args.length <= 3
+      && String(args[0] ?? "").trim() !== "" && String(args[1] ?? "").trim() !== ""
+      ? excelDays360(scalar(0), scalar(1), scalar(2, false), dateSystem)
+      : "#VALUE!";
     case "WEEKDAY": {
       const serial = excelFormulaDateNumber(scalar(0, 0));
       const returnTypeValue = excelFormulaDateNumber(scalar(1, 1));

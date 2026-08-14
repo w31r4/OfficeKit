@@ -1883,6 +1883,45 @@ const weekNumberXlsx = await SpreadsheetFile.exportXlsx(weekNumberWorkbook);
 const importedWeekNumberWorkbook = await SpreadsheetFile.importXlsx(weekNumberXlsx);
 assert.deepEqual(importedWeekNumberWorkbook.worksheets.getItem("Week numbers").getRange("A1:A16").formulas, weekNumberSheet.getRange("A1:A16").formulas);
 assert.deepEqual(importedWeekNumberWorkbook.worksheets.getItem("Week numbers").getRange("A1:A16").values, weekNumberSheet.getRange("A1:A16").values);
+
+const days360Workbook = Workbook.create();
+const days360Sheet = days360Workbook.worksheets.add("DAYS360");
+days360Sheet.getRange("A1:A17").formulas = [
+  ["=DAYS360(DATE(2011,1,30),DATE(2011,2,1))"],
+  ["=DAYS360(DATE(2011,1,1),DATE(2011,12,31))"],
+  ["=DAYS360(DATE(2011,1,1),DATE(2011,2,1))"],
+  ["=DAYS360(DATE(2021,2,28),DATE(2021,3,31))"],
+  ["=DAYS360(DATE(2021,2,27),DATE(2021,2,28))"],
+  ["=DAYS360(DATE(2021,2,28),DATE(2021,3,31),TRUE)"],
+  ["=DAYS360(DATE(2021,1,31),DATE(2021,2,28),TRUE)"],
+  ["=DAYS360(DATE(2011,2,1),DATE(2011,1,30))"],
+  ["=DAYS360(DATE(2021,1,1),DATE(2021,1,31),FALSE)"],
+  ["=DAYS360(DATE(2021,1,1),DATE(2021,1,31),TRUE)"],
+  ["=DAYS360(DATE(2021,1,1),DATE(2021,1,31),1)"],
+  ["=DAYS360(DATE(2021,1,1),DATE(2021,1,31),\"european\")"],
+  ["=DAYS360(-1,1)"],
+  ["=DAYS360()"],
+  ["=DAYS360(DATE(2021,1,1))"],
+  ["=DAYS360(DATE(2021,1,1),DATE(2021,1,31),FALSE,1)"],
+  ["=DAYS360(#N/A,DATE(2021,1,31))"],
+];
+assert.deepEqual(days360Sheet.getRange("A1:A17").values, [
+  [1], [360], [30], [30], [4], [32], [28], [-1], [30], [29], [29],
+  ["#VALUE!"], ["#NUM!"], ["#VALUE!"], ["#VALUE!"], ["#VALUE!"], ["#N/A"],
+]);
+const days360Xlsx = await SpreadsheetFile.exportXlsx(days360Workbook);
+const importedDays360Workbook = await SpreadsheetFile.importXlsx(days360Xlsx);
+assert.deepEqual(importedDays360Workbook.worksheets.getItem("DAYS360").getRange("A1:A17").formulas, days360Sheet.getRange("A1:A17").formulas);
+assert.deepEqual(importedDays360Workbook.worksheets.getItem("DAYS360").getRange("A1:A17").values, days360Sheet.getRange("A1:A17").values);
+const days3601904Workbook = Workbook.create({ dateSystem: "1904" });
+const days3601904Sheet = days3601904Workbook.worksheets.add("DAYS360");
+days3601904Sheet.getRange("A1:A4").formulas = [
+  ["=DAYS360(DATE(2011,1,30),DATE(2011,2,1))"],
+  ["=DAYS360(DATE(2011,1,1),DATE(2011,12,31))"],
+  ["=DAYS360(DATE(2021,2,28),DATE(2021,3,31),TRUE)"],
+  ["=DAYS360(DATE(1904,1,1),DATE(1904,1,31))"],
+];
+assert.deepEqual(days3601904Sheet.getRange("A1:A4").values, [[1], [360], [32], [30]]);
 const templateFormulaXlsx = await SpreadsheetFile.exportXlsx(templateFormulaWorkbook);
 const importedTemplateFormulaWorkbook = await SpreadsheetFile.importXlsx(templateFormulaXlsx);
 assert.deepEqual(importedTemplateFormulaWorkbook.worksheets.getItem("Template formulas").getRange("B1:B5").formulas, templateFormulaSheet.getRange("B1:B5").formulas);
