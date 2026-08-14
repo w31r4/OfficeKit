@@ -61,7 +61,8 @@ internal static partial class PptxEditPlanCodec
         ValidateRequest(sourceBytes, request, limits);
         var sourceHash = Hash(sourceBytes);
         _ = PackageGuards.ValidateAndCollectOpaque(sourceBytes, limits, OpcPackageProfile.Pptx, includeSourcePackage: false);
-        var proofs = ProveOperations(sourceBytes, request);
+        var sourceProjection = PptxCodec.Import(sourceBytes, limits).Artifact.Presentation;
+        var proofs = ProveOperations(sourceBytes, request, sourceProjection);
         var sourceParts = PackageParts(sourceBytes);
         var patchedParts = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         var results = new List<PresentationEditOperationResult>();
@@ -123,7 +124,7 @@ internal static partial class PptxEditPlanCodec
             throw new CodecException("presentation_item_budget_exceeded", $"PPTX edit plan has {request.Operations.Count} operations and exceeds max_cells ({limits.MaxCells}).");
         if (request.Operations.Select(operation => operation.OperationId).Distinct(StringComparer.Ordinal).Count() != request.Operations.Count)
             throw new CodecException("duplicate_presentation_edit_operation", "PPTX edit plan operation IDs must be unique.");
-        if (request.Operations.GroupBy(operation => (operation.SlidePartPath.ToLowerInvariant(), operation.ShapeTreeIndex, operation.TextLeafIndex)).Any(group => group.Count() > 1))
+        if (request.Operations.GroupBy(operation => (operation.SlidePartPath.ToLowerInvariant(), ShapeTreePathKey(operation), operation.TextLeafIndex)).Any(group => group.Count() > 1))
             throw new CodecException("duplicate_presentation_edit_target", "PPTX edit plan cannot edit the same text leaf twice.");
         ulong textBudget = 0;
         foreach (var operation in request.Operations)
@@ -134,6 +135,9 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("invalid_presentation_edit_operation", "PPTX edit operation IDs must be non-empty and bounded.");
             if (!SlidePathPattern().IsMatch(operation.SlidePartPath) || operation.SlidePartPath.Contains("..", StringComparison.Ordinal))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid slide part path.");
+            var shapeTreePath = ShapeTreePath(operation);
+            if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
+                throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
                 throw new CodecException("invalid_presentation_edit_precondition", $"PPTX edit operation {operation.OperationId} requires SHA-256 preconditions.");
@@ -147,26 +151,37 @@ internal static partial class PptxEditPlanCodec
         }
     }
 
-    private static IReadOnlyList<PptxEditPlanProof> ProveOperations(byte[] sourceBytes, PresentationEditPlanRequest request)
+    private static IReadOnlyList<PptxEditPlanProof> ProveOperations(
+        byte[] sourceBytes,
+        PresentationEditPlanRequest request,
+        PresentationArtifact sourceProjection)
     {
         using var stream = new MemoryStream(sourceBytes, writable: false);
         using var package = PresentationDocument.Open(stream, isEditable: false, new OpenSettings { AutoSave = false });
         var presentationPart = package.PresentationPart ??
             throw new CodecException("missing_presentation_part", "PPTX package has no Presentation part.");
         var slideByPath = presentationPart.SlideParts.ToDictionary(PartPath, StringComparer.OrdinalIgnoreCase);
+        var projectedSlideByPath = sourceProjection.Slides.ToDictionary(slide => slide.Source.PartPath, StringComparer.OrdinalIgnoreCase);
         var proofs = new List<PptxEditPlanProof>();
         foreach (var operation in request.Operations)
         {
             if (!slideByPath.TryGetValue(operation.SlidePartPath, out var slidePart))
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} slide part was not found.", operation.SlidePartPath);
+            if (!projectedSlideByPath.TryGetValue(operation.SlidePartPath, out var projectedSlide) || projectedSlide.Id != operation.SlideId)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} slide identity does not match the imported source projection.", operation.SlidePartPath);
             if (!HashElement(slidePart.Slide!).Equals(operation.ExpectedSlideSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("presentation_slide_hash_mismatch", $"PPTX edit operation {operation.OperationId} slide XML changed after planning.", operation.SlidePartPath);
             var tree = slidePart.Slide?.CommonSlideData?.ShapeTree ??
                 throw new CodecException("missing_presentation_shape_tree", "PPTX edit target slide has no shape tree.", operation.SlidePartPath);
-            var elements = ShapeElements(tree);
-            if (operation.ShapeTreeIndex >= (uint)elements.Length)
-                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} shape-tree index is out of range.", operation.SlidePartPath);
-            var element = elements[operation.ShapeTreeIndex];
+            var path = ShapeTreePath(operation);
+            var projectedElement = ResolveProjectedElement(projectedSlide.Elements, path, operation);
+            if (projectedElement.Id != operation.TargetId)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} semantic target binding does not match the imported source projection.", operation.SlidePartPath);
+            if (!projectedElement.Source.ElementSha256.Equals(operation.ExpectedElementSha256, StringComparison.OrdinalIgnoreCase))
+                throw new CodecException("presentation_element_binding_mismatch", $"PPTX edit operation {operation.OperationId} element hash does not match the imported source projection.", operation.SlidePartPath);
+            if (!projectedElement.Source.SemanticSha256.Equals(operation.ExpectedSemanticSha256, StringComparison.OrdinalIgnoreCase))
+                throw new CodecException("presentation_semantic_binding_mismatch", $"PPTX edit operation {operation.OperationId} semantic hash does not match the imported source projection.", operation.SlidePartPath);
+            var element = ResolveShapeTreeElement(tree, path, operation);
             var elementHash = HashElement(element);
             if (!elementHash.Equals(operation.ExpectedElementSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("presentation_element_binding_mismatch", $"PPTX edit operation {operation.OperationId} target element changed after planning.", operation.SlidePartPath);
@@ -191,14 +206,26 @@ internal static partial class PptxEditPlanCodec
             .ToHashSet(StringComparer.Ordinal);
         if (drawingPrefixes.Count == 0)
             throw new CodecException("presentation_edit_target_missing", "PPTX slide XML does not declare the DrawingML namespace.", proofs[0].Operation.SlidePartPath);
-        var elements = ShapeElementRanges(xml);
+        var elements = ShapeElementRanges(xml, "spTree");
         var patches = new List<PptxXmlPatch>();
         foreach (var proof in proofs)
         {
             var operation = proof.Operation;
-            if (operation.ShapeTreeIndex >= (uint)elements.Count)
+            var path = ShapeTreePath(operation);
+            if (path[0] >= (uint)elements.Count)
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} raw shape-tree index is out of range.", operation.SlidePartPath);
-            var range = elements[(int)operation.ShapeTreeIndex];
+            var range = elements[(int)path[0]];
+            for (var depth = 1; depth < path.Count; depth++)
+            {
+                if (range.LocalName != "grpSp")
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} shape-tree path crosses a non-group element.", operation.SlidePartPath);
+                var groupXml = xml[range.Start..range.End];
+                var children = ShapeElementRanges(groupXml, "grpSp");
+                if (path[depth] >= (uint)children.Count)
+                    throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} group-child index is out of range.", operation.SlidePartPath);
+                var child = children[(int)path[depth]];
+                range = new XmlRange(range.Start + child.Start, range.Start + child.End, child.LocalName);
+            }
             if (range.LocalName != "sp")
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp.", operation.SlidePartPath);
             var elementXml = xml[range.Start..range.End];
@@ -244,7 +271,7 @@ internal static partial class PptxEditPlanCodec
             var sourceEnd = checked((ulong)(bomBytes + StrictUtf8.GetByteCount(xml[..patch.End])));
             var outputEndCharacter = patch.Start + patch.Replacement.Length;
             var outputEnd = checked((ulong)(bomBytes + StrictUtf8.GetByteCount(output[..outputEndCharacter])));
-            results.Add(new PresentationEditOperationResult
+            var result = new PresentationEditOperationResult
             {
                 OperationId = patch.Operation.OperationId,
                 SlideId = patch.Operation.SlideId,
@@ -258,7 +285,9 @@ internal static partial class PptxEditPlanCodec
                 SourceStartOffset = sourceStart,
                 SourceEndOffset = sourceEnd,
                 OutputEndOffset = outputEnd,
-            });
+            };
+            result.ShapeTreePath.Add(ShapeTreePath(patch.Operation));
+            results.Add(result);
         }
         var encoded = StrictUtf8.GetBytes(output);
         if (bomBytes == 0) return encoded;
@@ -277,7 +306,7 @@ internal static partial class PptxEditPlanCodec
         foreach (var operation in request.Operations)
         {
             var tree = slideByPath[operation.SlidePartPath].Slide!.CommonSlideData!.ShapeTree!;
-            var element = ShapeElements(tree)[operation.ShapeTreeIndex];
+            var element = ResolveShapeTreeElement(tree, ShapeTreePath(operation), operation);
             var shape = element as P.Shape ?? throw new CodecException("presentation_edit_verification_failed", "PPTX edited target is no longer a shape.", operation.SlidePartPath);
             var leaves = shape.Descendants<A.Text>().ToArray();
             if (leaves[operation.TextLeafIndex].Text != operation.Value)
@@ -357,11 +386,11 @@ internal static partial class PptxEditPlanCodec
 
     private sealed record XmlRange(int Start, int End, string LocalName);
 
-    private static IReadOnlyList<XmlRange> ShapeElementRanges(string xml)
+    private static IReadOnlyList<XmlRange> ShapeElementRanges(string xml, string parentLocalName)
     {
         var tokens = XmlTokenPattern().Matches(xml).Cast<Match>().ToArray();
-        var treeTokenIndex = Array.FindIndex(tokens, token => !token.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(token.Value) == "spTree");
-        if (treeTokenIndex < 0) throw new CodecException("missing_presentation_shape_tree", "PPTX slide XML has no p:spTree.");
+        var treeTokenIndex = Array.FindIndex(tokens, token => !token.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(token.Value) == parentLocalName);
+        if (treeTokenIndex < 0) throw new CodecException("missing_presentation_shape_tree", $"PPTX XML has no {parentLocalName} element.");
         var children = new List<XmlRange>();
         var depth = 0;
         var childStart = -1;
@@ -374,7 +403,7 @@ internal static partial class PptxEditPlanCodec
             var closing = value.StartsWith("</", StringComparison.Ordinal);
             var selfClosing = value.EndsWith("/>", StringComparison.Ordinal);
             var name = LocalName(value);
-            if (closing && depth == 0 && name == "spTree") break;
+            if (closing && depth == 0 && name == parentLocalName) break;
             if (!closing && depth == 0)
             {
                 childStart = token.Index;
@@ -419,8 +448,66 @@ internal static partial class PptxEditPlanCodec
 
     private static string EscapeText(string value) => new XText(value).ToString(SaveOptions.DisableFormatting);
     private static bool NeedsPreserve(string value) => value.Length > 0 && (char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1]));
-    private static OpenXmlElement[] ShapeElements(P.ShapeTree shapeTree) =>
-        shapeTree.ChildElements.Where(child => child is not P.NonVisualGroupShapeProperties and not P.GroupShapeProperties).ToArray();
+    private static IReadOnlyList<uint> ShapeTreePath(PresentationEditOperation operation) =>
+        operation.ShapeTreePath.Count > 0 ? operation.ShapeTreePath : [operation.ShapeTreeIndex];
+    private static string ShapeTreePathKey(PresentationEditOperation operation) => string.Join("/", ShapeTreePath(operation));
+    private static PresentationElement ResolveProjectedElement(
+        IList<PresentationElement> elements,
+        IReadOnlyList<uint> path,
+        PresentationEditOperation operation)
+    {
+        PresentationElement? element = null;
+        var current = elements;
+        for (var depth = 0; depth < path.Count; depth++)
+        {
+            if (path[depth] >= (uint)current.Count)
+                throw new CodecException(
+                    "presentation_edit_target_missing",
+                    $"PPTX edit operation {operation.OperationId} projected shape-tree path is out of range at depth {depth}.",
+                    operation.SlidePartPath);
+            element = current[(int)path[depth]];
+            if (depth + 1 < path.Count)
+            {
+                if (element.ContentCase != PresentationElement.ContentOneofCase.Group)
+                    throw new CodecException(
+                        "presentation_edit_target_mismatch",
+                        $"PPTX edit operation {operation.OperationId} projected shape-tree path crosses a non-group element.",
+                        operation.SlidePartPath);
+                current = element.Group.Children;
+            }
+        }
+        return element ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} has an empty projected shape-tree path.", operation.SlidePartPath);
+    }
+    private static OpenXmlElement ResolveShapeTreeElement(
+        P.ShapeTree shapeTree,
+        IReadOnlyList<uint> path,
+        PresentationEditOperation operation)
+    {
+        OpenXmlCompositeElement parent = shapeTree;
+        OpenXmlElement? element = null;
+        for (var depth = 0; depth < path.Count; depth++)
+        {
+            var children = ShapeElements(parent);
+            if (path[depth] >= (uint)children.Length)
+                throw new CodecException(
+                    "presentation_edit_target_missing",
+                    $"PPTX edit operation {operation.OperationId} shape-tree path is out of range at depth {depth}.",
+                    operation.SlidePartPath);
+            element = children[path[depth]];
+            if (depth + 1 < path.Count)
+            {
+                if (element is not P.GroupShape group)
+                    throw new CodecException(
+                        "presentation_edit_target_mismatch",
+                        $"PPTX edit operation {operation.OperationId} shape-tree path crosses a non-group element.",
+                        operation.SlidePartPath);
+                parent = group;
+            }
+        }
+        return element ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} has an empty shape-tree path.", operation.SlidePartPath);
+    }
+    private static OpenXmlElement[] ShapeElements(OpenXmlCompositeElement owner) =>
+        owner.ChildElements.Where(child => child is not P.NonVisualGroupShapeProperties and not P.GroupShapeProperties).ToArray();
     private static string PartPath(OpenXmlPart part) => part.Uri.OriginalString.TrimStart('/');
     private static string HashElement(OpenXmlElement element) => Hash(Encoding.UTF8.GetBytes(element.OuterXml));
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();

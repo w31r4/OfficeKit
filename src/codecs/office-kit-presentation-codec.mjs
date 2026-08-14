@@ -26,6 +26,12 @@ function presentationEditPlanMetadata(editPlan, result) {
     operations: editPlan.operations.map((operation) => {
       const footprint = footprintById.get(operation.operationId);
       if (!footprint) throw new OfficeKitCodecError(`OfficeKit PPTX Edit Plan result omitted operation ${operation.operationId}.`, [], { code: "presentation_edit_plan_result_mismatch" });
+      if (footprint.slideId !== operation.slideId || footprint.slidePartPath !== operation.slidePartPath ||
+          footprint.targetId !== operation.targetId || footprint.shapeTreeIndex !== operation.shapeTreeIndex ||
+          footprint.textLeafIndex !== operation.textLeafIndex ||
+          JSON.stringify(footprint.shapeTreePath) !== JSON.stringify(operation.shapeTreePath)) {
+        throw new OfficeKitCodecError(`OfficeKit PPTX Edit Plan result changed the binding for operation ${operation.operationId}.`, [], { code: "presentation_edit_plan_result_mismatch" });
+      }
       return {
         operationId: operation.operationId,
         slideId: operation.slideId,
@@ -33,6 +39,7 @@ function presentationEditPlanMetadata(editPlan, result) {
         expectedSlideSha256: operation.expectedSlideSha256,
         targetId: operation.targetId,
         shapeTreeIndex: operation.shapeTreeIndex,
+        shapeTreePath: [...operation.shapeTreePath],
         expectedElementSha256: operation.expectedElementSha256,
         expectedSemanticSha256: operation.expectedSemanticSha256,
         textLeafIndex: operation.textLeafIndex,
@@ -47,6 +54,7 @@ function presentationEditPlanMetadata(editPlan, result) {
           sourceStartOffset: String(footprint.sourceStartOffset),
           sourceEndOffset: String(footprint.sourceEndOffset),
           outputEndOffset: String(footprint.outputEndOffset),
+          shapeTreePath: [...footprint.shapeTreePath],
         },
       };
     }),

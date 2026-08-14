@@ -2545,6 +2545,28 @@ assert.deepEqual(itemByName(importedGroup.connectors.items, "grouped-connector")
 assert.deepEqual(itemByName(importedGroup.groups.items, "nested-group").accessibility, nestedGroup.accessibility);
 const groupedNoOp = await PresentationFile.exportPptx(groupedImported);
 assert.deepEqual(groupedNoOp.bytes, groupedFirstExport.bytes, "unchanged imported group accessibility metadata must return the exact source package");
+const groupedNativeLeafImported = await PresentationFile.importPptx(groupedFirstExport);
+const groupedNativeGroup = itemByName(groupedNativeLeafImported.slides.getItem(0).groups.items, "Agent evidence group");
+const groupedNativeBefore = itemByName(groupedNativeGroup.shapes.items, "grouped-before");
+const groupedNativeLeafRecords = groupedNativeLeafImported.inspect({ includeNativeLeaves: true, target: groupedNativeBefore.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const groupedBeforeLeaf = groupedNativeLeafRecords.find((record) => record.value === "Before");
+assert.ok(groupedBeforeLeaf);
+assert.equal(groupedBeforeLeaf.parentGroupId, groupedNativeGroup.id);
+groupedNativeLeafImported.editNativeLeaf(groupedBeforeLeaf.targetId, groupedBeforeLeaf.leafId, {
+  expectedHash: groupedBeforeLeaf.expectedHash,
+  value: "After native leaf",
+});
+const groupedNativeLeafOutput = await PresentationFile.exportPptx(groupedNativeLeafImported);
+assert.deepEqual(groupedNativeLeafOutput.metadata.editPlan.operations[0].shapeTreePath.length, 2);
+assert.deepEqual(groupedNativeLeafOutput.metadata.editPlan.operations[0].footprint.shapeTreePath, groupedNativeLeafOutput.metadata.editPlan.operations[0].shapeTreePath);
+const groupedNativeLeafXml = await (await JSZip.loadAsync(groupedNativeLeafOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.equal(groupedNativeLeafXml.replace("After native leaf", "Before"), groupedFirstXml);
+const groupedNativeLeafRoundTrip = await PresentationFile.importPptx(groupedNativeLeafOutput);
+assert.equal(groupedNativeLeafRoundTrip.resolve(groupedBeforeLeaf.targetId).text.value, "After native leaf");
 const groupedAccessibilitySourceSvg = await groupedImported.slides.getItem(0).export({ format: "svg" });
 importedGroup.setAccessibilityMetadata({ title: "Reviewed agent evidence flow", description: null });
 itemByName(importedGroup.connectors.items, "grouped-connector").setAccessibilityMetadata({ title: null, description: "Reviewed arrow from before to target." });

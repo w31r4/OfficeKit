@@ -125,6 +125,86 @@ public sealed class PptxCodecTests
         var rejected = Invoke(stale);
         Assert.False(rejected.Ok);
         Assert.Equal("presentation_element_binding_mismatch", Assert.Single(rejected.Diagnostics).Code);
+
+        var staleSemantic = request.Clone();
+        staleSemantic.PresentationEditPlan.Operations[0].ExpectedSemanticSha256 = new string('0', 64);
+        var semanticRejected = Invoke(staleSemantic);
+        Assert.False(semanticRejected.Ok);
+        Assert.Equal("presentation_semantic_binding_mismatch", Assert.Single(semanticRejected.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void EditPlanChangesAGroupChildTextLeafWithoutReserializingItsGroup()
+    {
+        var export = ExportRequest();
+        var slideArtifact = Assert.Single(export.Artifact.Presentation.Slides);
+        var child = Assert.Single(slideArtifact.Elements).Clone();
+        child.Id = "presentation/slide/1/group/1/element/1";
+        child.Name = "Nested brief";
+        slideArtifact.Elements.Clear();
+        var group = new PresentationElement
+        {
+            Id = "presentation/slide/1/group/1",
+            Name = "Evidence group",
+            Group = new PresentationGroup
+            {
+                LeftEmu = 200_000,
+                TopEmu = 300_000,
+                WidthEmu = 4_000_000,
+                HeightEmu = 1_600_000,
+                ChildLeftEmu = 0,
+                ChildTopEmu = 0,
+                ChildWidthEmu = 4_000_000,
+                ChildHeightEmu = 1_600_000,
+            },
+        };
+        group.Group.Children.Add(child);
+        slideArtifact.Elements.Add(group);
+        var authored = Invoke(export);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = authored.File.ToByteArray();
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var importedSlide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var importedGroup = Assert.Single(importedSlide.Elements);
+        var importedChild = Assert.Single(importedGroup.Group.Children);
+        const string replacement = "Verified nested brief";
+        var operation = new PresentationEditOperation
+        {
+            OperationId = "op-group-child-0001",
+            SlideId = importedSlide.Id,
+            SlidePartPath = importedSlide.Source.PartPath,
+            ExpectedSlideSha256 = importedSlide.Source.SlideXmlSha256,
+            TargetId = importedChild.Id,
+            ShapeTreeIndex = importedGroup.Source.ShapeTreeIndex,
+            ExpectedElementSha256 = importedChild.Source.ElementSha256,
+            ExpectedSemanticSha256 = importedChild.Source.SemanticSha256,
+            TextLeafIndex = 0,
+            ExpectedValue = importedChild.Shape.Text,
+            Value = replacement,
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(importedChild.Shape.Text))).ToLowerInvariant(),
+        };
+        operation.ShapeTreePath.Add(importedGroup.Source.ShapeTreeIndex);
+        operation.ShapeTreePath.Add(importedChild.Source.ShapeTreeIndex);
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = authored.File,
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+                Operations = { operation },
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(operation.ShapeTreePath, Assert.Single(edited.PresentationEditPlan.Operations).ShapeTreePath);
+        var sourceXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, operation.SlidePartPath));
+        var outputXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), operation.SlidePartPath));
+        Assert.Equal(sourceXml, outputXml.Replace(replacement, operation.ExpectedValue, StringComparison.Ordinal));
+        var reopenedChild = Assert.Single(Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements).Group.Children);
+        Assert.Equal(replacement, reopenedChild.Shape.Text);
     }
 
     [Fact]

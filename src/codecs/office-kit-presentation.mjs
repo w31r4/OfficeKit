@@ -2912,38 +2912,54 @@ function createPresentationNativeLeafCapability(presentation, state) {
   if (!/^[0-9a-f]{64}$/u.test(revisionSha256)) return undefined;
   const registry = new Map();
   const records = [];
+  const addElementLeaves = (wire, model, slideState, shapeTreePath, parentGroupId) => {
+    if (wire.content.case === "group") {
+      const children = wire.content.value.children || [];
+      if (!Array.isArray(model?.children) || model.children.length !== children.length) return;
+      for (let index = 0; index < children.length; index += 1) {
+        const child = children[index];
+        const childModel = model.children[index];
+        if (childModel?.id !== child.id || !child.source) continue;
+        addElementLeaves(child, childModel, slideState, [...shapeTreePath, child.source.shapeTreeIndex], wire.id);
+      }
+      return;
+    }
+    if (wire.content.case !== "shape" || (wire.source?.editable !== true && wire.source?.textEditable !== true)) return;
+    for (const leaf of presentationTextLeafRuns(wire.content.value)) {
+      const value = leaf.run.content.value;
+      const expectedHash = createHash("sha256").update(value, "utf8").digest("hex");
+      const seed = [
+        revisionSha256,
+        slideState.wire.id,
+        wire.id,
+        shapeTreePath.join("/"),
+        wire.source.elementSha256,
+        leaf.textLeafIndex,
+        expectedHash,
+      ].join("\0");
+      const leafId = `nl_${createHash("sha256").update(seed).digest("hex").slice(0, 32)}`;
+      const record = Object.freeze({
+        kind: "nativeLeaf",
+        leafKind: "text",
+        id: leafId,
+        leafId,
+        targetId: wire.id,
+        ...(parentGroupId ? { parentGroupId } : {}),
+        slide: slideState.slide.index + 1,
+        paragraphIndex: leaf.paragraphIndex,
+        runIndex: leaf.runIndex,
+        value,
+        expectedHash,
+        revisionSha256,
+      });
+      registry.set(leafId, Object.freeze({ ...record, model }));
+      records.push(record);
+    }
+  };
   for (const slideState of state.slides) {
     for (const entry of slideState.entries) {
-      if (entry.wire.content.case !== "shape" || (entry.wire.source?.editable !== true && entry.wire.source?.textEditable !== true)) continue;
-      for (const leaf of presentationTextLeafRuns(entry.wire.content.value)) {
-        const value = leaf.run.content.value;
-        const expectedHash = createHash("sha256").update(value, "utf8").digest("hex");
-        const seed = [
-          revisionSha256,
-          slideState.wire.id,
-          entry.wire.id,
-          entry.wire.source.shapeTreeIndex,
-          entry.wire.source.elementSha256,
-          leaf.textLeafIndex,
-          expectedHash,
-        ].join("\0");
-        const leafId = `nl_${createHash("sha256").update(seed).digest("hex").slice(0, 32)}`;
-        const record = Object.freeze({
-          kind: "nativeLeaf",
-          leafKind: "text",
-          id: leafId,
-          leafId,
-          targetId: entry.wire.id,
-          slide: slideState.slide.index + 1,
-          paragraphIndex: leaf.paragraphIndex,
-          runIndex: leaf.runIndex,
-          value,
-          expectedHash,
-          revisionSha256,
-        });
-        registry.set(leafId, Object.freeze({ ...record, model: entry.model }));
-        records.push(record);
-      }
+      if (!entry.wire.source) continue;
+      addElementLeaves(entry.wire, entry.model, slideState, [entry.wire.source.shapeTreeIndex]);
     }
   }
   return Object.freeze({
@@ -2991,7 +3007,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
   });
 }
 
-function compilePresentationTextLeafOperation(original, requested, sourceSlide, sourceSha256) {
+function compilePresentationTextLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
   if (original.content.case !== "shape" || requested.content.case !== "shape") return undefined;
   const originalLeaves = presentationTextLeafRuns(original.content.value);
   const requestedLeaves = presentationTextLeafRuns(requested.content.value);
@@ -3016,14 +3032,15 @@ function compilePresentationTextLeafOperation(original, requested, sourceSlide, 
   const source = original.source;
   const slideSource = sourceSlide.source;
   if (!source || !slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
-  const operationSeed = [sourceSha256, slideSource.partPath, source.shapeTreeIndex, before.textLeafIndex, before.run.content.value, after.run.content.value].join("\0");
+  const operationSeed = [sourceSha256, slideSource.partPath, shapeTreePath.join("/"), before.textLeafIndex, before.run.content.value, after.run.content.value].join("\0");
   return {
     operationId: `pptx-text-${createHash("sha256").update(operationSeed).digest("hex").slice(0, 20)}`,
     slideId: sourceSlide.id,
     slidePartPath: slideSource.partPath,
     expectedSlideSha256: slideSource.slideXmlSha256,
     targetId: original.id,
-    shapeTreeIndex: source.shapeTreeIndex,
+    shapeTreeIndex: shapeTreePath[0],
+    shapeTreePath,
     expectedElementSha256: source.elementSha256,
     expectedSemanticSha256: source.semanticSha256,
     textLeafIndex: before.textLeafIndex,
@@ -3031,6 +3048,38 @@ function compilePresentationTextLeafOperation(original, requested, sourceSlide, 
     expectedValue: before.run.content.value,
     value: after.run.content.value,
   };
+}
+
+function compilePresentationElementEditOperations(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
+  if (samePresentationWire(PresentationElementSchema, original, requested)) return [];
+  if (original.content.case === "shape" && requested.content.case === "shape") {
+    const operation = compilePresentationTextLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
+    return operation ? [operation] : undefined;
+  }
+  if (original.content.case !== "group" || requested.content.case !== "group") return undefined;
+  const originalChildren = original.content.value.children || [];
+  const requestedChildren = requested.content.value.children || [];
+  if (originalChildren.length !== requestedChildren.length) return undefined;
+  const restored = clonePresentationWire(PresentationElementSchema, requested);
+  const operations = [];
+  for (let index = 0; index < originalChildren.length; index += 1) {
+    const originalChild = originalChildren[index];
+    const requestedChild = requestedChildren[index];
+    if (originalChild.id !== requestedChild.id || !requestedChild.source || requestedChild.source.shapeTreeIndex !== originalChild.source?.shapeTreeIndex) return undefined;
+    if (samePresentationWire(PresentationElementSchema, originalChild, requestedChild)) continue;
+    const childOperations = compilePresentationElementEditOperations(
+      originalChild,
+      requestedChild,
+      sourceSlide,
+      sourceSha256,
+      [...shapeTreePath, originalChild.source.shapeTreeIndex],
+    );
+    if (!childOperations?.length) return undefined;
+    operations.push(...childOperations);
+    restored.content.value.children[index] = originalChild;
+  }
+  if (!operations.length || !samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  return operations;
 }
 
 // Compile the bounded source graph delta into the first stable Edit Plan IR.
@@ -3058,10 +3107,15 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
       if (!requestedEntry) return undefined;
       const { element: requested, elementIndex } = requestedEntry;
       if (samePresentationWire(PresentationElementSchema, entry.wire, requested)) continue;
-      if (entry.wire.content.case !== "shape") return undefined;
-      const operation = compilePresentationTextLeafOperation(entry.wire, requested, sourceSlide.wire, sourceSha256);
-      if (!operation) return undefined;
-      operations.push(operation);
+      const entryOperations = compilePresentationElementEditOperations(
+        entry.wire,
+        requested,
+        sourceSlide.wire,
+        sourceSha256,
+        [entry.wire.source.shapeTreeIndex],
+      );
+      if (!entryOperations?.length) return undefined;
+      operations.push(...entryOperations);
       restoredArtifact.slides[slideIndex].elements[elementIndex] = entry.wire;
     }
   }

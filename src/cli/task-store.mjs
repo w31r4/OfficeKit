@@ -753,6 +753,7 @@ function validateTaskEditPlan(value, outputSha256) {
         typeof operation.operationId !== "string" || !operation.operationId || operation.operationId.length > 160 || operationIds.has(operation.operationId) ||
         typeof operation.slideId !== "string" || !operation.slideId || typeof operation.targetId !== "string" || !operation.targetId ||
         !safeOperationPartPath(operation.slidePartPath) || !Number.isSafeInteger(operation.shapeTreeIndex) || operation.shapeTreeIndex < 0 ||
+        !safeOperationShapeTreePath(operation.shapeTreePath, operation.shapeTreeIndex) ||
         !Number.isSafeInteger(operation.textLeafIndex) || operation.textLeafIndex < 0 ||
         !isSha(operation.expectedSlideSha256) || !isSha(operation.expectedElementSha256) ||
         !isSha(operation.expectedSemanticSha256) || !isSha(operation.expectedTextSha256) ||
@@ -762,6 +763,7 @@ function validateTaskEditPlan(value, outputSha256) {
     const footprint = operation.footprint;
     if (!footprint || !isSha(footprint.sourceElementSha256) || !isSha(footprint.outputElementSha256) ||
         !isSha(footprint.oldValueSha256) || !isSha(footprint.newValueSha256) ||
+        !safeOperationShapeTreePath(footprint.shapeTreePath, operation.shapeTreeIndex) ||
         !decimalOffset(footprint.sourceStartOffset) || !decimalOffset(footprint.sourceEndOffset) || !decimalOffset(footprint.outputEndOffset)) {
       throw taskError("invalid-edit-plan", "Artifact Edit Plan mutation footprint is invalid.");
     }
@@ -774,6 +776,12 @@ function validateTaskEditPlan(value, outputSha256) {
     throw taskError("edit-plan-too-large", `Artifact Edit Plan exceeds ${DEFAULT_MAX_TASK_OPERATION_BYTES} bytes.`);
   }
   return structuredClone(value);
+}
+
+function safeOperationShapeTreePath(value, rootIndex) {
+  if (value == null) return true;
+  return Array.isArray(value) && value.length > 0 && value.length <= 32 &&
+    value[0] === rootIndex && value.every((item) => Number.isSafeInteger(item) && item >= 0 && item <= 4_294_967_295);
 }
 
 function safeOperationPartPath(value) {

@@ -138,6 +138,10 @@ message PresentationEditOperation {
   string expected_text_sha256 = 10;
   string expected_value = 11;
   string value = 12;
+  // Local indexes from the slide p:spTree through zero or more nested p:grpSp
+  // child collections to the final p:sp. The first value must equal
+  // shape_tree_index; an empty path retains the original top-level profile.
+  repeated uint32 shape_tree_path = 13;
 }
 
 message PresentationEditPlanResult {
@@ -161,6 +165,7 @@ message PresentationEditOperationResult {
   uint64 source_start_offset = 11;
   uint64 source_end_offset = 12;
   uint64 output_end_offset = 13;
+  repeated uint32 shape_tree_path = 14;
 }
 
 message DocumentRevisionFinalizationRequest {
