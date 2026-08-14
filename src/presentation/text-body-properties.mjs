@@ -1,8 +1,9 @@
 const EMU_PER_PIXEL = 9525;
 const MAX_COORDINATE_EMU = 2_147_483_647;
-const BODY_PROPERTY_KEYS = new Set(["insets", "anchor", "wrap", "autoFit", "rotation", "verticalText", "verticalOverflow", "horizontalOverflow", "columns", "upright"]);
+const BODY_PROPERTY_KEYS = new Set(["insets", "anchor", "wrap", "autoFit", "normalAutoFit", "rotation", "verticalText", "verticalOverflow", "horizontalOverflow", "columns", "upright"]);
 const INSET_KEYS = new Set(["left", "top", "right", "bottom"]);
 const COLUMN_KEYS = new Set(["count", "spacing", "rightToLeft"]);
+const NORMAL_AUTO_FIT_KEYS = new Set(["fontScale", "lineSpacingReduction"]);
 const ANCHORS = new Set(["top", "center", "bottom"]);
 const WRAPS = new Set(["square", "none"]);
 const AUTO_FIT_MODES = new Set(["none", "shrinkText", "resizeShape"]);
@@ -10,6 +11,8 @@ const VERTICAL_TEXT_MODES = new Set(["horizontal", "vertical", "vertical270"]);
 const VERTICAL_OVERFLOW_MODES = new Set(["overflow", "ellipsis", "clip"]);
 const HORIZONTAL_OVERFLOW_MODES = new Set(["overflow", "clip"]);
 const MAX_ROTATION_DEGREES = 360;
+const PERCENT_UNITS = 1000;
+const MAX_LINE_SPACING_REDUCTION_PERCENT = 13_200;
 
 export const DEFAULT_PRESENTATION_TEXT_BODY_PROPERTIES = Object.freeze({
   insets: Object.freeze({ left: 0, top: 0, right: 0, bottom: 0 }),
@@ -49,6 +52,16 @@ export function normalizePresentationTextBodyProperties(value, { defaults = fals
     if (!AUTO_FIT_MODES.has(value.autoFit)) throw new RangeError(`Unsupported Presentation text body AutoFit mode ${value.autoFit}.`);
     result.autoFit = value.autoFit;
   }
+  if (value.normalAutoFit != null) {
+    if (typeof value.normalAutoFit !== "object" || Array.isArray(value.normalAutoFit)) throw new TypeError("Presentation normal AutoFit properties must be an object.");
+    const unknownNormalAutoFit = Object.keys(value.normalAutoFit).filter((key) => !NORMAL_AUTO_FIT_KEYS.has(key));
+    if (unknownNormalAutoFit.length) throw new TypeError(`Unsupported Presentation normal AutoFit properties: ${unknownNormalAutoFit.join(", ")}.`);
+    const normalAutoFit = {};
+    if (value.normalAutoFit.fontScale != null) normalAutoFit.fontScale = normalizePercent(value.normalAutoFit.fontScale, 1, 100, "font scale");
+    if (value.normalAutoFit.lineSpacingReduction != null) normalAutoFit.lineSpacingReduction = normalizePercent(value.normalAutoFit.lineSpacingReduction, 0, MAX_LINE_SPACING_REDUCTION_PERCENT, "line-spacing reduction");
+    if (Object.keys(normalAutoFit).length) result.normalAutoFit = normalAutoFit;
+  }
+  if (result.normalAutoFit && result.autoFit !== "shrinkText") throw new RangeError("Presentation normal AutoFit percentages require autoFit to be shrinkText.");
   if (value.rotation != null) {
     const rotation = Number(value.rotation);
     if (!Number.isFinite(rotation) || rotation < -MAX_ROTATION_DEGREES || rotation > MAX_ROTATION_DEGREES) throw new RangeError("Presentation text body rotation must be between -360 and 360 degrees.");
@@ -98,4 +111,12 @@ export function normalizePresentationTextBodyProperties(value, { defaults = fals
 
 function cloneDefaults() {
   return { ...DEFAULT_PRESENTATION_TEXT_BODY_PROPERTIES, insets: { ...DEFAULT_PRESENTATION_TEXT_BODY_PROPERTIES.insets } };
+}
+
+function normalizePercent(value, minimum, maximum, label) {
+  const percent = Number(value);
+  const raw = Math.round(percent * PERCENT_UNITS);
+  if (!Number.isFinite(percent) || percent < minimum || percent > maximum) throw new RangeError(`Presentation normal AutoFit ${label} must be between ${minimum}% and ${maximum}%.`);
+  if (Math.abs(percent * PERCENT_UNITS - raw) > 1e-7) throw new RangeError(`Presentation normal AutoFit ${label} supports at most three decimal places.`);
+  return raw / PERCENT_UNITS;
 }

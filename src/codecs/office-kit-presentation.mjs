@@ -1159,6 +1159,19 @@ function wireTextBodyProperties(value, original, shapeId) {
     : new Set(["autoFitMode", "noAutoFitMode"]).has(originalProperties?.autoFit?.case)
       ? { case: "noAutoFitMode", value: true }
       : undefined;
+  const normalAutoFitChoice = (key, wireName, noWireName) => {
+    if (properties.normalAutoFit?.[key] != null) return { case: wireName, value: Math.round(properties.normalAutoFit[key] * 1000) };
+    const originalCase = originalProperties?.normalAutoFit?.[key]?.case;
+    return new Set([wireName, noWireName]).has(originalCase) ? { case: noWireName, value: true } : undefined;
+  };
+  const normalAutoFitFontScale = properties.autoFit === "shrinkText" ? normalAutoFitChoice("fontScale", "fontScale1000", "noFontScale") : undefined;
+  const normalAutoFitLineSpacingReduction = properties.autoFit === "shrinkText" ? normalAutoFitChoice("lineSpacingReduction", "lineSpacingReduction1000", "noLineSpacingReduction") : undefined;
+  const normalAutoFit = normalAutoFitFontScale || normalAutoFitLineSpacingReduction
+    ? {
+        ...(normalAutoFitFontScale ? { fontScale: normalAutoFitFontScale } : {}),
+        ...(normalAutoFitLineSpacingReduction ? { lineSpacingReduction: normalAutoFitLineSpacingReduction } : {}),
+      }
+    : undefined;
   const rotation = properties.rotation != null
     ? { case: "rotationAngle60000", value: Math.round(properties.rotation * ROTATION_UNITS_PER_DEGREE) }
     : new Set(["rotationAngle60000", "noRotation"]).has(originalProperties?.rotation?.case)
@@ -1199,7 +1212,7 @@ function wireTextBodyProperties(value, original, shapeId) {
     : new Set(["upright", "noUpright"]).has(originalProperties?.uprightText?.case)
       ? { case: "noUpright", value: true }
       : undefined;
-  if (![leftInset, topInset, rightInset, bottomInset, anchor, wrapping, autoFit, rotation, verticalText, verticalOverflow, horizontalOverflow, columnCount, columnSpacing, columnDirection, uprightText].some(Boolean)) return undefined;
+  if (![leftInset, topInset, rightInset, bottomInset, anchor, wrapping, autoFit, normalAutoFit, rotation, verticalText, verticalOverflow, horizontalOverflow, columnCount, columnSpacing, columnDirection, uprightText].some(Boolean)) return undefined;
   return {
     ...(leftInset ? { leftInset } : {}),
     ...(topInset ? { topInset } : {}),
@@ -1208,6 +1221,7 @@ function wireTextBodyProperties(value, original, shapeId) {
     ...(anchor ? { anchor } : {}),
     ...(wrapping ? { wrapping } : {}),
     ...(autoFit ? { autoFit } : {}),
+    ...(normalAutoFit ? { normalAutoFit } : {}),
     ...(rotation ? { rotation } : {}),
     ...(verticalText ? { verticalText } : {}),
     ...(verticalOverflow ? { verticalOverflow } : {}),
@@ -2922,6 +2936,10 @@ function modelTextBodyProperties(shape) {
   if (source.anchor?.case === "verticalAnchor") properties.anchor = source.anchor.value;
   if (source.wrapping?.case === "wrap") properties.wrap = source.wrapping.value;
   if (source.autoFit?.case === "autoFitMode") properties.autoFit = source.autoFit.value;
+  const normalAutoFit = {};
+  if (source.normalAutoFit?.fontScale?.case === "fontScale1000") normalAutoFit.fontScale = source.normalAutoFit.fontScale.value / 1000;
+  if (source.normalAutoFit?.lineSpacingReduction?.case === "lineSpacingReduction1000") normalAutoFit.lineSpacingReduction = source.normalAutoFit.lineSpacingReduction.value / 1000;
+  if (Object.keys(normalAutoFit).length) properties.normalAutoFit = normalAutoFit;
   if (source.rotation?.case === "rotationAngle60000") properties.rotation = source.rotation.value / ROTATION_UNITS_PER_DEGREE;
   if (source.verticalText?.case === "verticalTextMode") properties.verticalText = source.verticalText.value;
   if (source.verticalOverflow?.case === "verticalOverflowMode") properties.verticalOverflow = source.verticalOverflow.value;

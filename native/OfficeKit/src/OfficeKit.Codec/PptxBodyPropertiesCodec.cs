@@ -1,4 +1,5 @@
 using DocumentFormat.OpenXml;
+using System.Globalization;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 using P = DocumentFormat.OpenXml.Presentation;
@@ -6,11 +7,15 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace OfficeKit.Codec;
 
 // Owns the bounded a:bodyPr layout subset. Unmodeled attributes and children
-// remain on the source element. Attributed AutoFit choices stay source-bound
-// because their scaling parameters are not yet part of the public wire model.
+// remain on the source element. Canonical normAutofit percentages are modeled
+// with exact attribute presence; other AutoFit markup stays source-bound.
 internal static class PptxBodyPropertiesCodec
 {
     private const int MaxRotationAngle60000 = 21_600_000;
+    private const int MinFontScale1000 = 1_000;
+    private const int MaxFontScale1000 = 100_000;
+    private const int MinLineSpacingReduction1000 = 0;
+    private const int MaxLineSpacingReduction1000 = 13_200_000;
 
     internal static void Read(PresentationTextBody target, P.TextBody source)
     {
@@ -24,7 +29,7 @@ internal static class PptxBodyPropertiesCodec
         if (AnchorName(native.Anchor?.Value) is { Length: > 0 } anchor) modeled.VerticalAnchor = anchor;
         if (WrapName(native.Wrap?.Value) is { Length: > 0 } wrap) modeled.Wrap = wrap;
         var autoFit = native.ChildElements.Where(IsAutoFitChoice).ToArray();
-        if (autoFit.Length == 1 && IsSimple(autoFit[0]) && AutoFitName(autoFit[0]) is { Length: > 0 } mode) modeled.AutoFitMode = mode;
+        if (autoFit.Length == 1 && SupportsAutoFitChoice(autoFit[0])) ReadAutoFit(modeled, autoFit[0]);
         if (native.Rotation?.Value is >= -MaxRotationAngle60000 and <= MaxRotationAngle60000) modeled.RotationAngle60000 = native.Rotation.Value;
         if (VerticalTextName(native.Vertical?.Value) is { Length: > 0 } verticalText) modeled.VerticalTextMode = verticalText;
         if (VerticalOverflowName(native.VerticalOverflow?.Value) is { Length: > 0 } verticalOverflow) modeled.VerticalOverflowMode = verticalOverflow;
@@ -57,6 +62,7 @@ internal static class PptxBodyPropertiesCodec
         else if (properties.WrappingCase == PresentationTextBodyProperties.WrappingOneofCase.NoWrap && !properties.NoWrap) throw Invalid("Presentation no_wrap must be true when selected.");
         if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode) _ = ParseAutoFit(properties.AutoFitMode);
         else if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.NoAutoFitMode && !properties.NoAutoFitMode) throw Invalid("Presentation no_auto_fit_mode must be true when selected.");
+        ValidateNormalAutoFit(properties);
         if (properties.RotationCase == PresentationTextBodyProperties.RotationOneofCase.RotationAngle60000 && Math.Abs((long)properties.RotationAngle60000) > MaxRotationAngle60000) throw Invalid("Presentation text body rotation must be between -360 and 360 degrees.");
         else if (properties.RotationCase == PresentationTextBodyProperties.RotationOneofCase.NoRotation && !properties.NoRotation) throw Invalid("Presentation no_rotation must be true when selected.");
         if (properties.VerticalTextCase == PresentationTextBodyProperties.VerticalTextOneofCase.VerticalTextMode) _ = ParseVerticalText(properties.VerticalTextMode);
@@ -104,7 +110,7 @@ internal static class PptxBodyPropertiesCodec
         if (properties.ColumnSpacingCase == PresentationTextBodyProperties.ColumnSpacingOneofCase.ColumnSpacingEmu) target.ColumnSpacing = checked((int)properties.ColumnSpacingEmu);
         if (properties.ColumnDirectionCase == PresentationTextBodyProperties.ColumnDirectionOneofCase.RightToLeftColumns) target.RightToLeftColumns = properties.RightToLeftColumns;
         if (properties.UprightTextCase == PresentationTextBodyProperties.UprightTextOneofCase.Upright) target.UpRight = properties.Upright;
-        if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode) target.AddChild(CreateAutoFit(properties.AutoFitMode), true);
+        if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode) target.AddChild(CreateAutoFit(properties.AutoFitMode, properties.NormalAutoFit), true);
     }
 
     internal static void Apply(P.TextBody target, PresentationTextBody source)
@@ -165,7 +171,7 @@ internal static class PptxBodyPropertiesCodec
             if (native.ColumnSpacing?.Value is >= 0) native.ColumnSpacing = null;
             if (native.RightToLeftColumns is not null) native.RightToLeftColumns = null;
             if (native.UpRight is not null) native.UpRight = null;
-            foreach (var autoFit in native.ChildElements.Where(child => IsAutoFitChoice(child) && IsSimple(child)).ToArray()) autoFit.Remove();
+            foreach (var autoFit in native.ChildElements.Where(child => IsAutoFitChoice(child) && SupportsAutoFitChoice(child)).ToArray()) autoFit.Remove();
         }
     }
 
@@ -200,20 +206,57 @@ internal static class PptxBodyPropertiesCodec
         var choices = target.ChildElements.Where(IsAutoFitChoice).ToArray();
         if (choices.Length > 1) throw Unsupported("Source-preserving PPTX export cannot replace duplicate AutoFit choices.");
         var current = choices.FirstOrDefault();
-        if (current is not null && !IsSimple(current)) throw Unsupported("Source-preserving PPTX export cannot replace an attributed AutoFit choice.");
+        if (current is not null && !SupportsAutoFitChoice(current)) throw Unsupported("Source-preserving PPTX export cannot replace noncanonical AutoFit markup.");
         if (source.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.NoAutoFitMode)
         {
             current?.Remove();
             return;
         }
         var mode = source.AutoFitMode;
+        if (current is A.NormalAutoFit normal && mode == "shrinkText")
+        {
+            ApplyNormalAutoFit(normal, source.NormalAutoFit);
+            return;
+        }
         if (current is not null && AutoFitName(current) == mode) return;
         current?.Remove();
-        target.AddChild(CreateAutoFit(mode), true);
+        target.AddChild(CreateAutoFit(mode, source.NormalAutoFit), true);
     }
 
     private static bool IsAutoFitChoice(OpenXmlElement child) => child is A.NoAutoFit or A.NormalAutoFit or A.ShapeAutoFit;
     private static bool IsSimple(OpenXmlElement child) => child.GetAttributes().Count == 0 && child.ChildElements.Count == 0;
+    private static bool SupportsAutoFitChoice(OpenXmlElement child) => child switch
+    {
+        A.NoAutoFit or A.ShapeAutoFit => IsSimple(child),
+        A.NormalAutoFit normal => TryReadNormalAutoFit(normal, out _, out _),
+        _ => false,
+    };
+
+    private static void ReadAutoFit(PresentationTextBodyProperties target, OpenXmlElement source)
+    {
+        target.AutoFitMode = AutoFitName(source);
+        if (source is not A.NormalAutoFit normal || !TryReadNormalAutoFit(normal, out var fontScale, out var lineSpacingReduction)) return;
+        if (fontScale is null && lineSpacingReduction is null) return;
+        target.NormalAutoFit = new PresentationNormalAutoFit();
+        if (fontScale is not null) target.NormalAutoFit.FontScale1000 = fontScale.Value;
+        if (lineSpacingReduction is not null) target.NormalAutoFit.LineSpacingReduction1000 = lineSpacingReduction.Value;
+    }
+
+    private static bool TryReadNormalAutoFit(A.NormalAutoFit source, out int? fontScale, out int? lineSpacingReduction)
+    {
+        fontScale = null;
+        lineSpacingReduction = null;
+        if (source.ChildElements.Count != 0) return false;
+        foreach (var attribute in source.GetAttributes())
+        {
+            if (attribute.NamespaceUri.Length != 0) return false;
+            if (!int.TryParse(attribute.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value)) return false;
+            if (attribute.LocalName == "fontScale" && value is >= MinFontScale1000 and <= MaxFontScale1000) fontScale = value;
+            else if (attribute.LocalName == "lnSpcReduction" && value is >= MinLineSpacingReduction1000 and <= MaxLineSpacingReduction1000) lineSpacingReduction = value;
+            else return false;
+        }
+        return true;
+    }
     private static string AutoFitName(OpenXmlElement child) => child switch
     {
         A.NoAutoFit => "none",
@@ -222,13 +265,44 @@ internal static class PptxBodyPropertiesCodec
         _ => string.Empty,
     };
 
-    private static OpenXmlElement CreateAutoFit(string value) => ParseAutoFit(value) switch
+    private static OpenXmlElement CreateAutoFit(string value, PresentationNormalAutoFit? profile) => ParseAutoFit(value) switch
     {
         "none" => new A.NoAutoFit(),
-        "shrinkText" => new A.NormalAutoFit(),
+        "shrinkText" => CreateNormalAutoFit(profile),
         "resizeShape" => new A.ShapeAutoFit(),
         _ => throw Invalid($"Unsupported Presentation AutoFit mode {value}."),
     };
+
+    private static A.NormalAutoFit CreateNormalAutoFit(PresentationNormalAutoFit? source)
+    {
+        var target = new A.NormalAutoFit();
+        ApplyNormalAutoFit(target, source);
+        return target;
+    }
+
+    private static void ApplyNormalAutoFit(A.NormalAutoFit target, PresentationNormalAutoFit? source)
+    {
+        if (source is null) return;
+        if (source.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.FontScale1000) target.FontScale = source.FontScale1000;
+        else if (source.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.NoFontScale) target.FontScale = null;
+        if (source.LineSpacingReductionCase == PresentationNormalAutoFit.LineSpacingReductionOneofCase.LineSpacingReduction1000) target.LineSpaceReduction = source.LineSpacingReduction1000;
+        else if (source.LineSpacingReductionCase == PresentationNormalAutoFit.LineSpacingReductionOneofCase.NoLineSpacingReduction) target.LineSpaceReduction = null;
+    }
+
+    private static void ValidateNormalAutoFit(PresentationTextBodyProperties source)
+    {
+        if (source.NormalAutoFit is not { } normal) return;
+        if (source.AutoFitCase != PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode || source.AutoFitMode != "shrinkText")
+            throw Invalid("Presentation normal AutoFit percentages require auto_fit_mode shrinkText.");
+        if (normal.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.FontScale1000 && normal.FontScale1000 is < MinFontScale1000 or > MaxFontScale1000)
+            throw Invalid("Presentation normal AutoFit font scale must be between 1% and 100%.");
+        if (normal.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.NoFontScale && !normal.NoFontScale)
+            throw Invalid("Presentation no_font_scale must be true when selected.");
+        if (normal.LineSpacingReductionCase == PresentationNormalAutoFit.LineSpacingReductionOneofCase.LineSpacingReduction1000 && normal.LineSpacingReduction1000 is < MinLineSpacingReduction1000 or > MaxLineSpacingReduction1000)
+            throw Invalid("Presentation normal AutoFit line-spacing reduction must be between 0% and 13200%.");
+        if (normal.LineSpacingReductionCase == PresentationNormalAutoFit.LineSpacingReductionOneofCase.NoLineSpacingReduction && !normal.NoLineSpacingReduction)
+            throw Invalid("Presentation no_line_spacing_reduction must be true when selected.");
+    }
 
     private static string ParseAutoFit(string value) => value switch
     {

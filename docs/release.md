@@ -1,5 +1,37 @@
 # Release
 
+## Current 0.6.0 candidate (2026-08-14): Canonical PowerPoint Normal AutoFit parameters
+
+OfficeKit now models canonical DrawingML `a:normAutofit` parameters as part of
+the existing text-frame body-properties boundary. The Agent-facing object uses
+percentages through `normalAutoFit.fontScale` and
+`normalAutoFit.lineSpacingReduction`; protocol v2 stores the exact native
+thousandths-of-a-percent integers and independent attribute presence. This
+supports source-free authoring, import, attribute-level edit/removal, AutoFit
+mode replacement, export, and second import without inventing schema defaults.
+
+The bounded profile accepts 1%–100% font scale and 0%–13200% line-spacing
+reduction with at most three decimal places. Percent-string lexical forms,
+unknown attributes or children, invalid ranges, and duplicate AutoFit choices
+remain source-owned: unrelated edits preserve them, while semantic replacement
+fails closed. The JavaScript layer does not claim to reproduce PowerPoint's
+text-fitting algorithm; it carries exact host parameters through the OfficeKit
+Codec. C# and JavaScript regressions cover exact XML values, one-attribute
+deletion, source-bound edits, mode changes, second import, Open XML SDK
+validation, and an opaque-extension negative. Skill, Help, coverage, generated
+API docs, public proto bindings, and bundled WASM are updated together.
+
+Candidate evidence: `npm test` passed 31/31 fast steps and `npm run test:slow`
+passed 82/82 slow steps, including the Presentation Skill, template/native
+round-trips, Playwright, renderer adapters, standalone distribution, and Help.
+`npm run proto:check`, deterministic `npm run verify:office-kit-build`, generated
+API-doc comparison, and `npm run test:pack` passed. OfficeKit Codec passed
+415/415 .NET tests and OfficeBridge passed 5/5. The staged package contains 744
+files at 36,352,586 compressed bytes and 53,623,729 unpacked bytes (`shasum
+5e66ae8f409b7c387e384390371bc0cba52c1f2d`). LibreOfficeDev 26.8 and Poppler
+26.08 were available to the native/render workflows. Hosted-CI identity and npm
+authentication status are recorded after the implementation commit.
+
 ## Current 0.6.0 candidate (2026-08-14): Scoped LET package syntax
 
 OfficeKit now separates the Agent-facing formula language from SpreadsheetML

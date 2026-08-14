@@ -216,7 +216,17 @@ internal static class PptxTextCodec
         if (properties.BottomInsetCase == PresentationTextBodyProperties.BottomInsetOneofCase.NoBottomInset) properties.ClearBottomInset();
         if (properties.AnchorCase == PresentationTextBodyProperties.AnchorOneofCase.NoVerticalAnchor) properties.ClearAnchor();
         if (properties.WrappingCase == PresentationTextBodyProperties.WrappingOneofCase.NoWrap) properties.ClearWrapping();
-        if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.NoAutoFitMode) properties.ClearAutoFit();
+        if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.NoAutoFitMode)
+        {
+            properties.ClearAutoFit();
+            properties.NormalAutoFit = null;
+        }
+        if (properties.NormalAutoFit is { } normalAutoFit)
+        {
+            if (normalAutoFit.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.NoFontScale) normalAutoFit.ClearFontScale();
+            if (normalAutoFit.LineSpacingReductionCase == PresentationNormalAutoFit.LineSpacingReductionOneofCase.NoLineSpacingReduction) normalAutoFit.ClearLineSpacingReduction();
+            if (normalAutoFit.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.None && normalAutoFit.LineSpacingReductionCase == PresentationNormalAutoFit.LineSpacingReductionOneofCase.None) properties.NormalAutoFit = null;
+        }
         if (properties.RotationCase == PresentationTextBodyProperties.RotationOneofCase.NoRotation) properties.ClearRotation();
         if (properties.VerticalTextCase == PresentationTextBodyProperties.VerticalTextOneofCase.NoVerticalTextMode) properties.ClearVerticalText();
         if (properties.VerticalOverflowCase == PresentationTextBodyProperties.VerticalOverflowOneofCase.NoVerticalOverflowMode) properties.ClearVerticalOverflow();

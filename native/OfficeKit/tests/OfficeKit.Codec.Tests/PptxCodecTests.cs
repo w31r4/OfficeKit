@@ -8000,6 +8000,11 @@ public sealed class PptxCodecTests
             VerticalAnchor = "center",
             Wrap = "none",
             AutoFitMode = "shrinkText",
+            NormalAutoFit = new PresentationNormalAutoFit
+            {
+                FontScale1000 = 87_500,
+                LineSpacingReduction1000 = 12_500,
+            },
             RotationAngle60000 = 900_000,
             VerticalTextMode = "vertical",
             VerticalOverflowMode = "ellipsis",
@@ -8029,7 +8034,10 @@ public sealed class PptxCodecTests
             Assert.Equal(171_450, properties.ColumnSpacing!.Value);
             Assert.True(properties.RightToLeftColumns!.Value);
             Assert.True(properties.UpRight!.Value);
-            Assert.NotNull(properties.GetFirstChild<A.NormalAutoFit>());
+            var normal = properties.GetFirstChild<A.NormalAutoFit>();
+            Assert.NotNull(normal);
+            Assert.Equal(87_500, normal.FontScale!.Value);
+            Assert.Equal(12_500, normal.LineSpaceReduction!.Value);
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
         }
 
@@ -8045,6 +8053,8 @@ public sealed class PptxCodecTests
         Assert.Equal("center", bodyProperties.VerticalAnchor);
         Assert.Equal("none", bodyProperties.Wrap);
         Assert.Equal("shrinkText", bodyProperties.AutoFitMode);
+        Assert.Equal(87_500, bodyProperties.NormalAutoFit.FontScale1000);
+        Assert.Equal(12_500, bodyProperties.NormalAutoFit.LineSpacingReduction1000);
         Assert.Equal(900_000, bodyProperties.RotationAngle60000);
         Assert.Equal("vertical", bodyProperties.VerticalTextMode);
         Assert.Equal("ellipsis", bodyProperties.VerticalOverflowMode);
@@ -8061,6 +8071,7 @@ public sealed class PptxCodecTests
         bodyProperties.VerticalAnchor = "bottom";
         bodyProperties.Wrap = "square";
         bodyProperties.AutoFitMode = "resizeShape";
+        bodyProperties.NormalAutoFit = null;
         bodyProperties.RotationAngle60000 = -1_800_000;
         bodyProperties.VerticalTextMode = "vertical270";
         bodyProperties.VerticalOverflowMode = "clip";
@@ -8142,21 +8153,60 @@ public sealed class PptxCodecTests
         var attributedImport = Import(attributedSource);
         Assert.True(attributedImport.Ok, Diagnostics(attributedImport));
         bodyProperties = attributedImport.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.BodyProperties;
-        Assert.Equal(PresentationTextBodyProperties.AutoFitOneofCase.None, bodyProperties.AutoFitCase);
+        Assert.Equal("shrinkText", bodyProperties.AutoFitMode);
+        Assert.Equal(90_000, bodyProperties.NormalAutoFit.FontScale1000);
+        Assert.Equal(10_000, bodyProperties.NormalAutoFit.LineSpacingReduction1000);
         bodyProperties.VerticalAnchor = "top";
+        bodyProperties.NormalAutoFit.FontScale1000 = 85_500;
+        bodyProperties.NormalAutoFit.NoLineSpacingReduction = true;
         var attributedPreserved = Export(attributedImport.Artifact);
         Assert.True(attributedPreserved.Ok, Diagnostics(attributedPreserved));
         using (var stream = new MemoryStream(attributedPreserved.File.ToByteArray()))
         using (var package = PresentationDocument.Open(stream, false))
         {
             var normal = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.NormalAutoFit>().Single();
+            Assert.Equal(85_500, normal.FontScale!.Value);
+            Assert.Null(normal.LineSpaceReduction);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+        var attributedReimport = Import(attributedPreserved.File.ToByteArray());
+        Assert.True(attributedReimport.Ok, Diagnostics(attributedReimport));
+        bodyProperties = attributedReimport.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.BodyProperties;
+        Assert.Equal(85_500, bodyProperties.NormalAutoFit.FontScale1000);
+        Assert.Equal(PresentationNormalAutoFit.LineSpacingReductionOneofCase.None, bodyProperties.NormalAutoFit.LineSpacingReductionCase);
+        bodyProperties.AutoFitMode = "resizeShape";
+        bodyProperties.NormalAutoFit = null;
+        var attributedReplaced = Export(attributedReimport.Artifact);
+        Assert.True(attributedReplaced.Ok, Diagnostics(attributedReplaced));
+        using (var stream = new MemoryStream(attributedReplaced.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var properties = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.BodyProperties>().Single();
+            Assert.NotNull(properties.GetFirstChild<A.ShapeAutoFit>());
+            Assert.Null(properties.GetFirstChild<A.NormalAutoFit>());
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var opaqueAutoFitSource = AddUnmodeledNormalAutoFit(attributedSource);
+        var opaqueAutoFitImport = Import(opaqueAutoFitSource);
+        Assert.True(opaqueAutoFitImport.Ok, Diagnostics(opaqueAutoFitImport));
+        bodyProperties = opaqueAutoFitImport.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.BodyProperties;
+        Assert.Equal(PresentationTextBodyProperties.AutoFitOneofCase.None, bodyProperties.AutoFitCase);
+        bodyProperties.VerticalAnchor = "top";
+        var opaquePreserved = Export(opaqueAutoFitImport.Artifact);
+        Assert.True(opaquePreserved.Ok, Diagnostics(opaquePreserved));
+        using (var stream = new MemoryStream(opaquePreserved.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var normal = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.NormalAutoFit>().Single();
+            Assert.Equal("1", normal.GetAttribute("opaque", "urn:officekit:test").Value);
             Assert.Equal(90_000, normal.FontScale!.Value);
             Assert.Equal(10_000, normal.LineSpaceReduction!.Value);
         }
         bodyProperties.AutoFitMode = "resizeShape";
-        var attributedRejected = Export(attributedImport.Artifact);
-        Assert.False(attributedRejected.Ok);
-        Assert.Equal("unsupported_presentation_edit", Assert.Single(attributedRejected.Diagnostics).Code);
+        var opaqueRejected = Export(opaqueAutoFitImport.Artifact);
+        Assert.False(opaqueRejected.Ok);
+        Assert.Equal("unsupported_presentation_edit", Assert.Single(opaqueRejected.Diagnostics).Code);
 
         request = RichTextExportRequest();
         request.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.BodyProperties = new PresentationTextBodyProperties { LeftInsetEmu = -1 };
@@ -8169,6 +8219,18 @@ public sealed class PptxCodecTests
         Assert.Equal("invalid_presentation_text", Assert.Single(Invoke(request).Diagnostics).Code);
         request = RichTextExportRequest();
         request.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.BodyProperties = new PresentationTextBodyProperties { AutoFitMode = "stretchText" };
+        Assert.Equal("invalid_presentation_text", Assert.Single(Invoke(request).Diagnostics).Code);
+        request = RichTextExportRequest();
+        request.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.BodyProperties = new PresentationTextBodyProperties { AutoFitMode = "resizeShape", NormalAutoFit = new PresentationNormalAutoFit { FontScale1000 = 90_000 } };
+        Assert.Equal("invalid_presentation_text", Assert.Single(Invoke(request).Diagnostics).Code);
+        request = RichTextExportRequest();
+        request.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.BodyProperties = new PresentationTextBodyProperties { AutoFitMode = "shrinkText", NormalAutoFit = new PresentationNormalAutoFit { FontScale1000 = 999 } };
+        Assert.Equal("invalid_presentation_text", Assert.Single(Invoke(request).Diagnostics).Code);
+        request = RichTextExportRequest();
+        request.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.BodyProperties = new PresentationTextBodyProperties { AutoFitMode = "shrinkText", NormalAutoFit = new PresentationNormalAutoFit { LineSpacingReduction1000 = 13_200_001 } };
+        Assert.Equal("invalid_presentation_text", Assert.Single(Invoke(request).Diagnostics).Code);
+        request = RichTextExportRequest();
+        request.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.BodyProperties = new PresentationTextBodyProperties { AutoFitMode = "shrinkText", NormalAutoFit = new PresentationNormalAutoFit { NoFontScale = false } };
         Assert.Equal("invalid_presentation_text", Assert.Single(Invoke(request).Diagnostics).Code);
         request = RichTextExportRequest();
         request.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.BodyProperties = new PresentationTextBodyProperties { RotationAngle60000 = 21_600_001 };
@@ -9055,6 +9117,19 @@ public sealed class PptxCodecTests
             var normal = presentation.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.NormalAutoFit>().Single();
             normal.FontScale = 90_000;
             normal.LineSpaceReduction = 10_000;
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddUnmodeledNormalAutoFit(byte[] bytes)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var presentation = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var normal = presentation.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.NormalAutoFit>().Single();
+            normal.SetAttribute(new OpenXmlAttribute("test", "opaque", "urn:officekit:test", "1"));
         }
         return stream.ToArray();
     }

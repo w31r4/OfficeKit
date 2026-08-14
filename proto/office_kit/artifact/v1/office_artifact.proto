@@ -2187,7 +2187,9 @@ message PresentationTextBody {
 // explicit no_* choice removes only the modeled attribute or AutoFit child.
 // Insets and column spacing use DrawingML EMUs; rotation retains native
 // 1/60000-degree units. WordArt vertical modes, paragraph compatibility flags,
-// warp/3D, and attributed normAutofit remain source-bound.
+// warp/3D and noncanonical AutoFit markup remain source-bound. Normal AutoFit
+// percentages retain native thousandths-of-a-percent units and attribute
+// presence so omitted schema defaults are not materialized accidentally.
 message PresentationTextBodyProperties {
   oneof left_inset {
     int64 left_inset_emu = 1;
@@ -2249,6 +2251,7 @@ message PresentationTextBodyProperties {
     bool upright = 29;
     bool no_upright = 30;
   }
+  PresentationNormalAutoFit normal_auto_fit = 31;
 }
 
 message PresentationTextStyle {
@@ -3802,4 +3805,18 @@ message PresentationNonVisualAccessibility {
   // distinct from an object that has not been classified. True is mutually
   // exclusive with title and description.
   optional bool decorative = 3;
+}
+
+// Appended after every existing descriptor so PresentationTextBodyProperties
+// field 31 can retain canonical a:normAutofit parameters without renumbering
+// older generated descriptor indexes.
+message PresentationNormalAutoFit {
+  oneof font_scale {
+    int32 font_scale_1000 = 1;
+    bool no_font_scale = 2;
+  }
+  oneof line_spacing_reduction {
+    int32 line_spacing_reduction_1000 = 3;
+    bool no_line_spacing_reduction = 4;
+  }
 }

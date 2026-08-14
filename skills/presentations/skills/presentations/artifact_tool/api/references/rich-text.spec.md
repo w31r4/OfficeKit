@@ -110,6 +110,30 @@ slide.compose(
 
 ## Shape Text Style
 
+For native text-frame layout that is separate from run/paragraph styling, use
+`shape.text.bodyProperties` (or `textBodyProperties` when creating a shape):
+
+```js
+shape.text.bodyProperties = {
+  ...shape.text.bodyProperties,
+  autoFit: "shrinkText",
+  normalAutoFit: {
+    fontScale: 87.5,
+    lineSpacingReduction: 12.5,
+  },
+};
+```
+
+`fontScale` is 1 through 100 percent and `lineSpacingReduction` is 0 through
+13200 percent; both retain at most three decimal places. Omitting either
+property preserves the DrawingML default (100% and 0%, respectively). Delete
+one property from an imported canonical profile to remove only that native
+attribute. Use this only with `autoFit: "shrinkText"`; it records exact host
+fit parameters and is not a JavaScript reimplementation of PowerPoint's text
+fitting algorithm. Unknown attributes, percent-string lexical forms, children,
+invalid ranges, and duplicate AutoFit choices remain source-bound and fail
+closed on semantic replacement.
+
 ```ts
 shape.text.style = {
   styleName,

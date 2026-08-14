@@ -90,6 +90,46 @@ assert.deepEqual(effectivePresentationImageCrop({
 }), { left: 0.25, top: 0, right: 0.25, bottom: 0 });
 assert.throws(() => effectivePresentationImageCrop({ fit: "cover", dataUrl: "data:image/png;base64,AA==", frame: { width: 100, height: 100 } }), /intrinsic dimensions/);
 
+const normalAutoFitDeck = Presentation.create({ slideSize: { width: 1280, height: 720 } });
+const normalAutoFitShape = normalAutoFitDeck.slides.add({ name: "Normal AutoFit" }).shapes.add({
+  name: "bounded-normal-autofit",
+  position: { left: 80, top: 80, width: 480, height: 120 },
+  text: "Keep this text within its fixed frame.",
+  textBodyProperties: {
+    autoFit: "shrinkText",
+    normalAutoFit: { fontScale: 87.5, lineSpacingReduction: 12.5 },
+  },
+});
+assert.deepEqual(normalAutoFitShape.text.bodyProperties.normalAutoFit, { fontScale: 87.5, lineSpacingReduction: 12.5 });
+assert.throws(
+  () => Presentation.create().slides.add().shapes.add({ text: "invalid", textBodyProperties: { autoFit: "resizeShape", normalAutoFit: { fontScale: 90 } } }),
+  /require autoFit to be shrinkText/,
+);
+assert.throws(
+  () => Presentation.create().slides.add().shapes.add({ text: "invalid", textBodyProperties: { autoFit: "shrinkText", normalAutoFit: { fontScale: 0.999 } } }),
+  /between 1% and 100%/,
+);
+assert.throws(
+  () => Presentation.create().slides.add().shapes.add({ text: "invalid", textBodyProperties: { autoFit: "shrinkText", normalAutoFit: { lineSpacingReduction: 1.0001 } } }),
+  /at most three decimal places/,
+);
+const normalAutoFitSource = await PresentationFile.exportPptx(normalAutoFitDeck);
+const normalAutoFitSourceZip = await JSZip.loadAsync(normalAutoFitSource.bytes);
+const normalAutoFitSourceXml = await normalAutoFitSourceZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(normalAutoFitSourceXml, /<a:normAutofit\b[^>]*\bfontScale="87500"[^>]*\blnSpcReduction="12500"/);
+const normalAutoFitImported = await PresentationFile.importPptx(normalAutoFitSource);
+const importedNormalAutoFitShape = normalAutoFitImported.slides.getItem(0).shapes.getItemAt(0);
+assert.deepEqual(importedNormalAutoFitShape.text.bodyProperties.normalAutoFit, { fontScale: 87.5, lineSpacingReduction: 12.5 });
+importedNormalAutoFitShape.text.bodyProperties.normalAutoFit.fontScale = 82.125;
+delete importedNormalAutoFitShape.text.bodyProperties.normalAutoFit.lineSpacingReduction;
+const normalAutoFitEdited = await PresentationFile.exportPptx(normalAutoFitImported);
+const normalAutoFitEditedZip = await JSZip.loadAsync(normalAutoFitEdited.bytes);
+const normalAutoFitEditedXml = await normalAutoFitEditedZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(normalAutoFitEditedXml, /<a:normAutofit\b[^>]*\bfontScale="82125"/);
+assert.doesNotMatch(normalAutoFitEditedXml, /\blnSpcReduction=/);
+const normalAutoFitReimported = await PresentationFile.importPptx(normalAutoFitEdited);
+assert.deepEqual(normalAutoFitReimported.slides.getItem(0).shapes.getItemAt(0).text.bodyProperties.normalAutoFit, { fontScale: 82.125 });
+
 // The JavaScript layer remains the object model, Compose, inspect, resolve,
 // semantic verification, and rendering surface.
 const modelPresentation = Presentation.create({ slideSize: { width: 1280, height: 720 } });

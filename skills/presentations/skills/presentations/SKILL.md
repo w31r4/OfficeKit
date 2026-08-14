@@ -28,6 +28,13 @@ After reopening the accepted final PPTX, follow
 `../office-kit/references/review.md` and report its path, SHA-256, and
 `visualReview` status.
 
+When a task asks to preserve or tune PowerPoint's shrink-to-fit state, use the
+typed `shape.text.bodyProperties.normalAutoFit` profile documented in
+`artifact_tool/api/references/rich-text.spec.md`. Do not estimate fitted values
+from rendered pixels or patch `a:normAutofit` XML directly; inspect the imported
+canonical values, apply the requested bounded percentages, export, reimport,
+and render/verify. Noncanonical AutoFit markup must fail closed.
+
 ## Important Instructions
 
 - [HARD REQUIREMENT] Use the public `office-kit` package for presentation

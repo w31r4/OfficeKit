@@ -829,6 +829,13 @@ ambiguous targets fail closed. Compare source and output through
 LibreOffice/Poppler before delivery because notes are nonvisual and every slide
 must remain pixel-identical.
 
+For a fixed text frame that uses native PowerPoint shrink-to-fit parameters,
+set `shape.text.bodyProperties.autoFit = "shrinkText"` and provide
+`normalAutoFit: { fontScale, lineSpacingReduction }`. Values are percentages
+with at most three decimal places; canonical imported attributes can be edited
+or deleted independently. Noncanonical AutoFit markup remains source-bound.
+See `api/references/rich-text.spec.md` for the exact ranges and boundary.
+
 ## Bounded Imported Title And Speaker-Notes Edit
 
 When the source deck has one uniquely named slide, one uniquely named title
