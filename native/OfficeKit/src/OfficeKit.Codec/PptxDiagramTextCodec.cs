@@ -12,6 +12,18 @@ namespace OfficeKit.Codec;
 
 internal sealed record PptxDiagramTextReplacement(string PartPath, string Sha256, byte[] Data);
 
+internal sealed record PptxDiagramTextEditLeaf(
+    uint TextLeafIndex,
+    uint RawTextOrdinal,
+    string ModelId,
+    uint RunIndex,
+    string Text);
+
+internal sealed record PptxDiagramTextEditResolution(
+    PresentationDiagramText Binding,
+    DiagramDataPart Part,
+    IReadOnlyList<PptxDiagramTextEditLeaf> Leaves);
+
 // Owns one deliberately small SmartArt edit boundary. It does not author a
 // diagram, change the graph, or reinterpret layout/style/colors. It exposes
 // text only where an imported top-level p:graphicFrame proves it owns the
@@ -58,6 +70,38 @@ internal static class PptxDiagramTextCodec
             return false;
         }
         binding = resolved.Binding;
+        return true;
+    }
+
+    internal static bool TryResolveForEditPlan(
+        OpenXmlElement source,
+        OpenXmlPart owner,
+        out PptxDiagramTextEditResolution resolved)
+    {
+        resolved = null!;
+        if (!TryResolve(source, owner, out var diagram)) return false;
+        var rawOrdinals = diagram.Document.Descendants()
+            .Where(element => IsDrawing(element, "t"))
+            .Select((element, index) => (Element: element, Ordinal: checked((uint)index)))
+            .ToDictionary(item => item.Element, item => item.Ordinal);
+        var leaves = new List<PptxDiagramTextEditLeaf>();
+        uint textLeafIndex = 0;
+        foreach (var node in diagram.Nodes)
+        {
+            for (var runIndex = 0; runIndex < node.Runs.Count; runIndex++)
+            {
+                var run = node.Runs[runIndex];
+                if (!rawOrdinals.TryGetValue(run.TextElement, out var rawTextOrdinal)) return false;
+                leaves.Add(new PptxDiagramTextEditLeaf(
+                    textLeafIndex++,
+                    rawTextOrdinal,
+                    node.ModelId,
+                    checked((uint)runIndex),
+                    run.Text));
+            }
+        }
+        if (leaves.Count == 0) return false;
+        resolved = new PptxDiagramTextEditResolution(diagram.Binding, diagram.Part, leaves);
         return true;
     }
 
@@ -368,6 +412,14 @@ internal static class PptxDiagramTextCodec
         result.RunTexts.Add(node.Runs.Select(run => run.Text));
         return result;
     }
+
+    internal static bool SameEditBinding(PresentationDiagramText expected, PresentationDiagramText actual) =>
+        SameBinding(expected, actual) &&
+        expected.Nodes.Count == actual.Nodes.Count &&
+        expected.Nodes.Select((node, index) =>
+            node.ModelId == actual.Nodes[index].ModelId &&
+            node.Text == actual.Nodes[index].Text &&
+            node.RunTexts.SequenceEqual(actual.Nodes[index].RunTexts)).All(match => match);
 
     private static bool SameBinding(PresentationDiagramText expected, PresentationDiagramText actual) =>
         expected.PartPath.Equals(actual.PartPath, StringComparison.OrdinalIgnoreCase) &&

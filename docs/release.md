@@ -7027,6 +7027,32 @@ LibreOfficeDev 26.8 independently recalculated the seven-case core fixture to
 evidence remains deferred until the rolling 12-hour window opens and the
 milestone remains frozen.
 
+### PPTX lossless SmartArt text leaf
+
+On 2026-08-15, the token-preserving PPTX Edit Plan added `diagramText` for one
+direct run in a canonical closed SmartArt DiagramDataPart with a unique inbound
+owner. Inspection issues only a revision-bound semantic leaf; callers cannot
+supply part paths, relationship IDs, model bindings, XPath, attributes, or raw
+XML. The C# codec re-proves the owning graphicFrame, four-part SmartArt graph,
+data-part hash, model ID, run index, old value, and ownership before replacing
+one UTF-8 `a:t` token. It then reopens the package and rejects target or scope
+drift. V1 rejects leading or trailing whitespace because that would require a
+second `xml:space` mutation.
+
+None of the three immutable external benchmark decks contains SmartArt, so the
+real `strategy-review.pptx` closed-diagram asset is recorded separately as a
+repository-owned supplemental canary. The edit `Scale candidate` → `Scale`
+passed three clean repetitions with deterministic output SHA-256
+`8186a9cc2256e9161e94cb2921380a647a36adeb1e94845262475ec9c96c6d0f`.
+No-op returned the exact source bytes; only
+`ppt/diagrams/strategy-data.xml` changed; masking the declared token recovered
+that part byte-for-byte; every other OPC part remained exact; and second import
+found the requested value. The focused C# test, Presentation smoke, benchmark
+smoke, and 3-run package oracle passed. This is a bounded SmartArt-run result,
+not general SmartArt authoring or final lossless-editing acceptance. Multi-round
+REPL, render, clean-install, Agent 3/3, Windows PowerPoint, complete suites,
+release candidate, and hosted CI remain open under the persistent Goal.
+
 ## Publishing
 
 Before publishing:

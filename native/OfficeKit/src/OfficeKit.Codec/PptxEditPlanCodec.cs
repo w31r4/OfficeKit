@@ -19,7 +19,8 @@ internal sealed record PptxEditPlanOutput(
 internal sealed record PptxEditPlanProof(
     PresentationEditOperation Operation,
     string SourceElementSha256,
-    string MutationPartPath);
+    string MutationPartPath,
+    uint? RawTextOrdinal = null);
 
 internal sealed record PptxXmlPatch(
     PresentationEditOperation Operation,
@@ -158,25 +159,36 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "chartTitleText" or "chartDataValue"))
+            if (leafKind is not ("text" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "chartTitleText" or "chartDataValue" or "diagramText"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
                 throw new CodecException("invalid_presentation_edit_precondition", $"PPTX edit operation {operation.OperationId} requires SHA-256 preconditions.");
             if (!Hash(Encoding.UTF8.GetBytes(operation.ExpectedValue)).Equals(operation.ExpectedTextSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("presentation_text_hash_mismatch", $"PPTX edit operation {operation.OperationId} expected text does not match expected_text_sha256.");
-            if (leafKind is "chartTitleText" or "chartDataValue")
+            if (leafKind is "chartTitleText" or "chartDataValue" or "diagramText")
             {
                 if (!DependentXmlPartPathPattern().IsMatch(operation.TargetPartPath) || operation.TargetPartPath.Contains("..", StringComparison.Ordinal) ||
                     !IsSha256(operation.ExpectedTargetPartSha256) || string.IsNullOrWhiteSpace(operation.RelationshipId) || operation.RelationshipId.Length > 255)
-                    throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid source-bound ChartPart binding.");
+                    throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid source-bound dependent-part binding.");
                 if (leafKind == "chartDataValue") ValidateEmbeddedWorkbookBinding(operation);
-                if (leafKind == "chartTitleText" && HasEmbeddedWorkbookBinding(operation))
-                    throw new CodecException("invalid_presentation_edit_target", $"PPTX chart-title operation {operation.OperationId} cannot attach an embedded-workbook data binding.");
+                if (leafKind is "chartTitleText" or "diagramText" && HasEmbeddedWorkbookBinding(operation))
+                    throw new CodecException("invalid_presentation_edit_target", $"PPTX {leafKind} operation {operation.OperationId} cannot attach an embedded-workbook data binding.");
             }
+            if (leafKind == "diagramText")
+            {
+                if (string.IsNullOrWhiteSpace(operation.DiagramModelId) || operation.DiagramModelId.Length > 1_024 || operation.DiagramModelId.Any(char.IsControl))
+                    throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid SmartArt model ID binding.");
+            }
+            else if (HasDiagramBinding(operation))
+            {
+                throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach a SmartArt run binding to {leafKind}.");
+            }
+            if (leafKind != "chartDataValue" && (operation.ChartSeriesIndex != 0 || operation.ChartPointIndex != 0))
+                throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach chart-data indices to {leafKind}.");
             if (leafKind == "chartDataValue" && (!ValidFiniteNumber(operation.ExpectedValue) || !ValidFiniteNumber(operation.Value)))
                 throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} chart data value must be a finite numeric token.");
-            if (leafKind is not ("chartTitleText" or "chartDataValue") &&
+            if (leafKind is not ("chartTitleText" or "chartDataValue" or "diagramText") &&
                 (!string.IsNullOrEmpty(operation.TargetPartPath) || !string.IsNullOrEmpty(operation.ExpectedTargetPartSha256) || !string.IsNullOrEmpty(operation.RelationshipId) || HasEmbeddedWorkbookBinding(operation)))
             {
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach a dependent-part binding to {leafKind}.");
@@ -238,12 +250,31 @@ internal static partial class PptxEditPlanCodec
             var elementHash = HashElement(element);
             if (!elementHash.Equals(operation.ExpectedElementSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("presentation_element_binding_mismatch", $"PPTX edit operation {operation.OperationId} target element changed after planning.", operation.SlidePartPath);
+            if (LeafKind(operation) == "diagramText")
+            {
+                if (element is not P.GraphicFrame || projectedElement.ContentCase != PresentationElement.ContentOneofCase.Opaque ||
+                    projectedElement.Opaque.DiagramText is null ||
+                    !PptxDiagramTextCodec.TryResolveForEditPlan(element, slidePart, out var diagram) ||
+                    !PptxNativeObjectCatalog.HasUniqueInboundRelationship(presentationPart, diagram.Part) ||
+                    !PptxDiagramTextCodec.SameEditBinding(projectedElement.Opaque.DiagramText, diagram.Binding) ||
+                    !operation.TargetPartPath.Equals(diagram.Binding.PartPath, StringComparison.OrdinalIgnoreCase) ||
+                    !operation.ExpectedTargetPartSha256.Equals(diagram.Binding.SourceSha256, StringComparison.OrdinalIgnoreCase) ||
+                    operation.RelationshipId != diagram.Binding.RelationshipId)
+                    throw new CodecException("presentation_diagram_text_binding_mismatch", $"PPTX edit operation {operation.OperationId} no longer resolves to its unique source-bound DiagramDataPart.", operation.SlidePartPath);
+                if (operation.TextLeafIndex >= (uint)diagram.Leaves.Count)
+                    throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} SmartArt text leaf index is out of range.", diagram.Binding.PartPath);
+                var leaf = diagram.Leaves[(int)operation.TextLeafIndex];
+                if (leaf.ModelId != operation.DiagramModelId || leaf.RunIndex != operation.DiagramRunIndex || leaf.Text != operation.ExpectedValue)
+                    throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} SmartArt run no longer matches its node/run binding.", diagram.Binding.PartPath);
+                proofs.Add(new PptxEditPlanProof(operation, elementHash, diagram.Binding.PartPath, leaf.RawTextOrdinal));
+                continue;
+            }
             if (LeafKind(operation) is "chartTitleText" or "chartDataValue")
             {
                 if (element is not P.GraphicFrame || projectedElement.ContentCase != PresentationElement.ContentOneofCase.Opaque ||
                     projectedElement.Opaque.NativeChart is null ||
                     !PptxNativeChartLeafCodec.TryResolve(element, slidePart, limits, out var chart) ||
-                    !PptxNativeChartLeafCodec.HasUniqueInboundRelationship(presentationPart, chart.Part) ||
+                    !PptxNativeObjectCatalog.HasUniqueInboundRelationship(presentationPart, chart.Part) ||
                     !operation.TargetPartPath.Equals(chart.Binding.PartPath, StringComparison.OrdinalIgnoreCase) ||
                     !operation.ExpectedTargetPartSha256.Equals(chart.Binding.SourceSha256, StringComparison.OrdinalIgnoreCase) ||
                     operation.RelationshipId != chart.Binding.RelationshipId)
@@ -251,7 +282,7 @@ internal static partial class PptxEditPlanCodec
                 if (LeafKind(operation) == "chartDataValue")
                 {
                     if (!PptxNativeChartLeafCodec.SameBinding(projectedElement.Opaque.NativeChart, chart.Binding) || chart.Data is null ||
-                        !PptxNativeChartLeafCodec.HasUniqueInboundRelationship(presentationPart, chart.Data.Part) ||
+                        !PptxNativeObjectCatalog.HasUniqueInboundRelationship(presentationPart, chart.Data.Part) ||
                         !operation.EmbeddedPackagePartPath.Equals(chart.Binding.EmbeddedPackagePartPath, StringComparison.OrdinalIgnoreCase) ||
                         !operation.ExpectedEmbeddedPackageSha256.Equals(chart.Binding.EmbeddedPackageSourceSha256, StringComparison.OrdinalIgnoreCase) ||
                         operation.EmbeddedPackageRelationshipId != chart.Binding.EmbeddedPackageRelationshipId)
@@ -299,6 +330,10 @@ internal static partial class PptxEditPlanCodec
 
     private static PptxXmlPatch[] CompileXmlPatches(byte[] partBytes, IReadOnlyList<PptxEditPlanProof> proofs)
     {
+        if (proofs.All(proof => LeafKind(proof.Operation) == "diagramText"))
+            return CompileDiagramTextXmlPatches(partBytes, proofs);
+        if (proofs.Any(proof => LeafKind(proof.Operation) == "diagramText"))
+            throw new CodecException("presentation_edit_plan_scope_violation", "PPTX edit plan mixed SmartArt and non-SmartArt leaves in one mutation part.", proofs[0].MutationPartPath);
         if (proofs.All(proof => LeafKind(proof.Operation) is "chartTitleText" or "chartDataValue"))
         {
             var chartPatches = new List<PptxXmlPatch>();
@@ -598,6 +633,20 @@ internal static partial class PptxEditPlanCodec
             var slidePart = slideByPath[operation.SlidePartPath];
             var tree = slidePart.Slide!.CommonSlideData!.ShapeTree!;
             var element = ResolveShapeTreeElement(tree, ShapeTreePath(operation), operation);
+            if (LeafKind(operation) == "diagramText")
+            {
+                if (!PptxDiagramTextCodec.TryResolveForEditPlan(element, slidePart, out var diagram) ||
+                    !PptxNativeObjectCatalog.HasUniqueInboundRelationship(package.PresentationPart!, diagram.Part) ||
+                    !diagram.Binding.PartPath.Equals(operation.TargetPartPath, StringComparison.OrdinalIgnoreCase) ||
+                    diagram.Binding.RelationshipId != operation.RelationshipId ||
+                    operation.TextLeafIndex >= (uint)diagram.Leaves.Count)
+                    throw new CodecException("presentation_edit_verification_failed", $"PPTX SmartArt operation {operation.OperationId} did not survive package reopen.", operation.TargetPartPath);
+                var leaf = diagram.Leaves[(int)operation.TextLeafIndex];
+                if (leaf.ModelId != operation.DiagramModelId || leaf.RunIndex != operation.DiagramRunIndex || leaf.Text != operation.Value)
+                    throw new CodecException("presentation_edit_verification_failed", $"PPTX SmartArt text operation {operation.OperationId} did not retain its node/run value.", operation.TargetPartPath);
+                resultById[operation.OperationId].OutputElementSha256 = HashElement(element);
+                continue;
+            }
             if (LeafKind(operation) is "chartTitleText" or "chartDataValue")
             {
                 if (!PptxNativeChartLeafCodec.TryResolve(element, slidePart, limits, out var chart) ||
@@ -775,7 +824,7 @@ internal static partial class PptxEditPlanCodec
     private static string LeafKind(PresentationEditOperation operation) =>
         string.IsNullOrEmpty(operation.LeafKind) ? "text" : operation.LeafKind;
     private static string MutationPartPath(PresentationEditOperation operation) =>
-        LeafKind(operation) == "chartTitleText" ? operation.TargetPartPath : operation.SlidePartPath;
+        LeafKind(operation) is "chartTitleText" or "chartDataValue" or "diagramText" ? operation.TargetPartPath : operation.SlidePartPath;
     private static bool IsGeometryLeaf(string leafKind) =>
         leafKind is "leftEmu" or "topEmu" or "widthEmu" or "heightEmu";
     private static bool LeafValuesEqual(string left, string right, string leafKind) =>

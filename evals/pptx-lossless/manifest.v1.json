@@ -3,6 +3,7 @@
   "sources": [
     {
       "id": "suanzhi-future-2026",
+      "sourceKind": "external",
       "fileName": "b34ddad8cf8b_012_算秩未来2026_0127_极致技术&长期主义.pptx",
       "bytes": 6114228,
       "sha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
@@ -3103,6 +3104,7 @@
     },
     {
       "id": "blue-gray-acid-template",
+      "sourceKind": "external",
       "fileName": "template.pptx",
       "bytes": 13951095,
       "sha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
@@ -4719,6 +4721,7 @@
     },
     {
       "id": "mckinsey-customer-loyalty",
+      "sourceKind": "external",
       "fileName": "ppt169_麦肯锡风_kimsoong_customer_loyalty.pptx",
       "bytes": 47589,
       "sha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
@@ -4813,6 +4816,148 @@
           "leafKind": "leftEmu",
           "expectedValue": 0,
           "value": 9525
+        }
+      ]
+    },
+    {
+      "id": "strategy-review-smartart-canary",
+      "sourceKind": "repository-supplemental",
+      "fileName": "evals/assets/presentations/strategy-review.pptx",
+      "bytes": 13258,
+      "sha256": "bcb469d5b586f4fd8f562b918c8d9f04ef500cd6289728683c10ee2ced7be367",
+      "inventory": {
+        "partCount": 27,
+        "relationshipCount": 24,
+        "slideCount": 4,
+        "masterCount": 1,
+        "layoutCount": 1,
+        "themeCount": 0,
+        "chartCount": 0,
+        "mediaCount": 0,
+        "embeddingCount": 0,
+        "notesCount": 1,
+        "commentPartCount": 1,
+        "diagramPartCount": 4,
+        "groupCount": 0,
+        "graphicFrameCount": 0,
+        "smartArtReferenceCount": 1,
+        "oleObjectCount": 0,
+        "timingCount": 0,
+        "transitionCount": 0,
+        "partHashes": {
+          "[Content_Types].xml": "d90fb077c2bfe65af5f9a3d6068c8d0b6e58874a030ca618c572d8c7f6d8d76d",
+          "_rels/.rels": "5c538db836c1556e98b4d0d7a260e1d1a7c0c2e23199895fb692a1c5993d066d",
+          "ppt/_rels/presentation.xml.rels": "7a0f5f9dd7413a54a89b2de88739fab63468f1d6354133f114167307a3c54473",
+          "ppt/authors.xml": "1442068e23b048075b50df999928708e199e23e0285188be5b619b5947f5eca0",
+          "ppt/comments/modernComment.xml": "632944255c5f43868f7b4be56b89a0c1599e39035bdd43c5b4994c810439d436",
+          "ppt/diagrams/strategy-colors.xml": "2d65e3f9034086e340e3fd838d7b7d623d637826ef95a6a8aea980f5acb1b769",
+          "ppt/diagrams/strategy-data.xml": "3cdf7c16b0950eb08841ab06cd784973f38332d922dd6251e424e61869f158e2",
+          "ppt/diagrams/strategy-layout.xml": "1c975cb126d57ffc39440794ebd4e1f609d53483eca017a3ae7b7739135dfaa6",
+          "ppt/diagrams/strategy-style.xml": "f906cb7ee29582e27daeb11056635906cb76de6372556cc448da68e908f64bcf",
+          "ppt/notesMasters/_rels/notesMaster1.xml.rels": "88731a2564feac372cd55678f69632a684e94b050d5f907956bc06f83ef3380f",
+          "ppt/notesMasters/notesMaster1.xml": "64b2a3ac5b2a85aa9cb8775c96f6d7bdb6561ced81321b732c438b8f4c02873a",
+          "ppt/notesSlides/_rels/notesSlide1.xml.rels": "c82aa68ac919d3dcf1f0bad5e2397b9d915b917f103c10e09cb7e21fcc1bcdf9",
+          "ppt/notesSlides/notesSlide1.xml": "4b65d4d32834dfe238695d3b083289691fe61b2996e483fc8481bc9df47cd0d7",
+          "ppt/presentation.xml": "41d9f62b74b8fa94a6e3ee8ffc955b99d06ac4e9a91bf5375ad987a7dbc52a78",
+          "ppt/slideLayouts/_rels/slideLayout1.xml.rels": "f76058ae5c746b388647ae970b2e7d25a32cc621894e902bb1b26d5e8023ad3d",
+          "ppt/slideLayouts/slideLayout1.xml": "b9fd1e7b5f36eadbf929cdb3776d3cbe7dfbd0bc468c777a0699b1aa22c212da",
+          "ppt/slideMasters/_rels/slideMaster1.xml.rels": "758be324e78770e4b2ab7d121e7876c1b13faeaaa63e3f7850424eeff50980dd",
+          "ppt/slideMasters/slideMaster1.xml": "2704ee4d5d336c997d7663d7a6e75bb65321cef9738944e7347813df44ccc662",
+          "ppt/slideMasters/theme/theme1.xml": "ac1b68efc0b5509709d3367a689b0635899db680f572920e33c951016a569f86",
+          "ppt/slides/_rels/slide1.xml.rels": "f1dd9e3b7b002d796eb0183692b0e398e8cf29897423189964508648122f4516",
+          "ppt/slides/_rels/slide2.xml.rels": "87603c8cfcea9ea1aa905f0a4011410f2ca3b8062c36396957cf4ca2df76edc3",
+          "ppt/slides/_rels/slide3.xml.rels": "87603c8cfcea9ea1aa905f0a4011410f2ca3b8062c36396957cf4ca2df76edc3",
+          "ppt/slides/_rels/slide4.xml.rels": "f9705122c9bcc925c4f8d0b92606883f6f0e9b7c2e53c8f7f5200991c9c6ac69",
+          "ppt/slides/slide1.xml": "bfd764ff8a5a34e2eca80cd1a6566f52cc5ec416c93ecc6d339e7e3d348f69c5",
+          "ppt/slides/slide2.xml": "aadbd371ab4f37d9333eb300f992f49acc20718b0ca422cbdadd318d2fce0fb5",
+          "ppt/slides/slide3.xml": "71788253382226749b7f101962bed647e4c27d483b01e1c8450b2737711ce73a",
+          "ppt/slides/slide4.xml": "63c45c0b20e4818b024c513a39138047bf33d1fdfd3a0ff54ad5835385829db3"
+        }
+      },
+      "editableNodes": [
+        {
+          "id": "presentation/slide/1/element/1",
+          "slide": 1,
+          "depth": 0,
+          "kind": "shape",
+          "name": "strategy-title-1",
+          "text": "Strategy overview"
+        },
+        {
+          "id": "presentation/slide/1/element/2",
+          "slide": 1,
+          "depth": 0,
+          "kind": "shape",
+          "name": "strategy-canary-1",
+          "text": "All non-target slide content and native package graphs must remain unchanged."
+        },
+        {
+          "id": "presentation/slide/2/element/1",
+          "slide": 2,
+          "depth": 0,
+          "kind": "shape",
+          "name": "strategy-title-2",
+          "text": "Strategy details"
+        },
+        {
+          "id": "presentation/slide/2/element/2",
+          "slide": 2,
+          "depth": 0,
+          "kind": "shape",
+          "name": "strategy-canary-2",
+          "text": "All non-target slide content and native package graphs must remain unchanged."
+        },
+        {
+          "id": "presentation/slide/3/element/1",
+          "slide": 3,
+          "depth": 0,
+          "kind": "shape",
+          "name": "strategy-title-3",
+          "text": "Strategy controls"
+        },
+        {
+          "id": "presentation/slide/3/element/2",
+          "slide": 3,
+          "depth": 0,
+          "kind": "shape",
+          "name": "strategy-canary-3",
+          "text": "All non-target slide content and native package graphs must remain unchanged."
+        },
+        {
+          "id": "presentation/slide/4/element/1",
+          "slide": 4,
+          "depth": 0,
+          "kind": "shape",
+          "name": "strategy-title-4",
+          "text": "Strategy review"
+        },
+        {
+          "id": "presentation/slide/4/element/2",
+          "slide": 4,
+          "depth": 0,
+          "kind": "shape",
+          "name": "strategy-canary-4",
+          "text": "All non-target slide content and native package graphs must remain unchanged."
+        },
+        {
+          "id": "presentation/slide/4/element/3",
+          "slide": 4,
+          "depth": 0,
+          "kind": "shape",
+          "name": "Strategy review anchor",
+          "text": "Review anchor"
+        }
+      ],
+      "targets": [
+        {
+          "id": "smartart-node-text",
+          "nodeId": "presentation/slide/1/element/3",
+          "operation": "nativeLeaf",
+          "leafKind": "diagramText",
+          "diagramNodeId": "{C3333333-3333-4333-8333-333333333333}",
+          "runIndex": 0,
+          "expectedValue": "Scale candidate",
+          "value": "Scale"
         }
       ]
     }

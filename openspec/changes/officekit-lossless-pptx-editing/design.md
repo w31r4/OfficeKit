@@ -36,13 +36,13 @@ An imported presentation may use the source package directly only after the comp
 
 ### 3. C# re-proves and token-splices every operation
 
-`APPLY_PPTX_EDIT_PLAN` receives the exact source SHA-256 and bounded operations. Each operation binds slide part, slide XML hash, native shape-tree index, element hash, semantic hash, leaf ordinal, and old text hash/value. A dependent native leaf additionally binds the unique internal relationship, target part path, and target part hash. A chart-data leaf also binds one unique embedded XLSX relationship, package hash, worksheet hash, formula, series/point indices, and direct numeric cell. Open XML SDK parsing is a read-only structural oracle. Mutation occurs in the original UTF-8 XML token stream: ordinary and chart-title operations change one selected token, while chart data changes one ChartPart cache token and one worksheet value token. Each nested mutation has its own compiler-reported footprint.
+`APPLY_PPTX_EDIT_PLAN` receives the exact source SHA-256 and bounded operations. Each operation binds slide part, slide XML hash, native shape-tree index, element hash, semantic hash, leaf ordinal, and old text hash/value. A dependent native leaf additionally binds the unique internal relationship, target part path, and target part hash. A chart-data leaf also binds one unique embedded XLSX relationship, package hash, worksheet hash, formula, series/point indices, and direct numeric cell. A SmartArt text leaf binds one exact diagram model ID and direct run index in a canonical closed DiagramDataPart with one inbound owner. Open XML SDK parsing is a read-only structural oracle. Mutation occurs in the original UTF-8 XML token stream: ordinary, chart-title, and SmartArt operations change one selected token, while chart data changes one ChartPart cache token and one worksheet value token. Each nested mutation has its own compiler-reported footprint.
 
 The codec rejects stale source, stale element, unsupported target kind, overlapping operations, duplicate targets, invalid paths, or output scope drift. It reopens the result and validates that only planned parts changed and that every new leaf is present.
 
 ### 4. Native leaves remain capability-issued
 
-`inspect({ includeNativeLeaves: true })` issues revision-bound leaf IDs only for codec-proven safe fields. `editNativeLeaf` accepts one such ID, expected hash, and value. It never accepts a part path, XPath, QName, arbitrary attribute, relationship ID, namespace, identity, or topology mutation. Initial leaf kinds are text, color, local geometry scalars, direct rich-title text runs from a uniquely bound internal ChartPart, and direct numeric bar-chart cache points whose matching cells are proven in one uniquely bound embedded XLSX. Dependent bindings stay internal to the compiler and codec; unsupported nodes remain inspectable only through summaries or opaque preservation.
+`inspect({ includeNativeLeaves: true })` issues revision-bound leaf IDs only for codec-proven safe fields. `editNativeLeaf` accepts one such ID, expected hash, and value. It never accepts a part path, XPath, QName, arbitrary attribute, relationship ID, namespace, identity, or topology mutation. Initial leaf kinds are text, color, local geometry scalars, direct rich-title text runs from a uniquely bound internal ChartPart, direct numeric bar-chart cache points whose matching cells are proven in one uniquely bound embedded XLSX, and direct SmartArt text runs in one canonical closed DiagramDataPart with a unique inbound owner. Dependent bindings stay internal to the compiler and codec; unsupported nodes remain inspectable only through summaries or opaque preservation.
 
 ### 5. Task operation records are immutable evidence
 
@@ -50,7 +50,7 @@ Applied plans are stored under `.office-kit/tasks/<task-id>/operations/` with pr
 
 ### 6. Benchmarks use independent oracles
 
-The three external PPTX files are identified by hash in a versioned manifest. Oracles compare uncompressed OPC entry bytes, relationship graphs, masked target XML, native structure counts, second import, render pixels for non-target pages, and PowerPoint behavior. Each edit runs three times from a clean source and must produce identical output and footprint hashes. Kimi, HTML, and PPTD results are context, not acceptance standards.
+The three external PPTX files are identified by hash in a versioned manifest. Because none contains SmartArt, one repository-owned, explicitly labeled supplemental canary supplies a real closed four-part diagram package without being presented as third-party coverage. Oracles compare uncompressed OPC entry bytes, relationship graphs, masked target XML, native structure counts, second import, render pixels for non-target pages, and PowerPoint behavior. Each edit runs three times from a clean source and must produce identical output and footprint hashes. Kimi, HTML, and PPTD results are context, not acceptance standards.
 
 ## Risks / Trade-offs
 
@@ -72,5 +72,4 @@ The three external PPTX files are identified by hash in a versioned manifest. Or
 
 ## Open Questions
 
-- Which SmartArt text leaf in the real benchmark has a stable package-local binding without relationship or topology mutation?
 - Which Windows runner and PowerPoint version will hold the signed final host-acceptance evidence?

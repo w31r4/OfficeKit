@@ -37,6 +37,10 @@ The PPTX codec SHALL mutate only declared leaves and required dependent content,
 - **WHEN** one issued direct numeric bar-chart cache point resolves to exactly one cell in a uniquely bound embedded XLSX
 - **THEN** only the ChartPart and embedded XLSX change, masking the cache token and nested worksheet token recovers both exact source parts, and every other outer and embedded OPC part remains byte-identical
 
+#### Scenario: Dependent SmartArt run edit
+- **WHEN** one issued direct SmartArt text run resolves to one model ID and run index in a canonical closed DiagramDataPart with a unique inbound owner
+- **THEN** only that DiagramDataPart changes, masking the new text token recovers its exact source bytes, and node identity, run topology, relationships, layout, quick-style, colors, and the owning graphicFrame remain unchanged
+
 #### Scenario: Unexpected scope expansion
 - **WHEN** execution changes any OPC part outside the compiled footprint
 - **THEN** the codec rejects the result as a scope violation

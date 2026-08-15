@@ -144,7 +144,7 @@ message PresentationEditOperation {
   repeated uint32 shape_tree_path = 13;
   // Bounded compiler-issued leaf vocabulary. Empty is the legacy text leaf.
   // v1 values: text, fillRgb, lineRgb, leftEmu, topEmu, widthEmu, heightEmu,
-  // chartTitleText, chartDataValue.
+  // chartTitleText, chartDataValue, diagramText.
   string leaf_kind = 14;
   // Compiler-issued dependent-part binding for a native leaf that is not
   // stored in the owner SlidePart. Callers cannot provide arbitrary paths:
@@ -164,6 +164,11 @@ message PresentationEditOperation {
   uint32 chart_series_index = 24;
   uint32 chart_point_index = 25;
   string chart_formula = 26;
+  // Additional source-bound identity for a diagramText operation. The model
+  // ID and run index are compiler-issued from one proven DiagramDataPart;
+  // callers still cannot provide XPath or raw XML locations.
+  string diagram_model_id = 27;
+  uint32 diagram_run_index = 28;
 }
 
 message PresentationEditPlanResult {

@@ -14,6 +14,10 @@ Each matrix operation SHALL run at least three times from a clean source copy an
 - **WHEN** a text, grouped text, geometry, image, chart, or native-leaf matrix edit is repeated three times
 - **THEN** all accepted runs have the same output hash, footprint, and independent package-oracle result
 
+#### Scenario: Supplemental SmartArt canary
+- **WHEN** the three immutable external decks contain no SmartArt
+- **THEN** a repository-owned real closed-diagram package may provide the SmartArt leaf target only when the manifest and evidence label it as supplemental rather than third-party coverage
+
 ### Requirement: Completion requires independent package, visual, host, and Agent evidence
 The capability SHALL remain incomplete until all benchmark no-ops, declared edits, second imports, package diffs, non-target renders, Windows PowerPoint checks, clean-install execution, full gates, hosted CI, and three independent Agent workflows pass.
 

@@ -2972,6 +2972,67 @@ function createPresentationNativeLeafCapability(presentation, state) {
       return;
     }
     if (wire.content.case === "opaque") {
+      const diagramBinding = wire.content.value.diagramText;
+      const modelDiagramBinding = model?._diagramTextSourceBinding?.();
+      const currentDiagramLeaves = model?._diagramTextRunRecords?.();
+      if (diagramBinding || modelDiagramBinding || currentDiagramLeaves) {
+        if (!diagramBinding || !modelDiagramBinding || !Array.isArray(currentDiagramLeaves) ||
+            diagramBinding.partPath !== modelDiagramBinding.partPath || diagramBinding.contentType !== modelDiagramBinding.contentType ||
+            diagramBinding.sourceSha256 !== modelDiagramBinding.sourceSha256 || diagramBinding.relationshipId !== modelDiagramBinding.relationshipId ||
+            diagramBinding.nodes.length !== modelDiagramBinding.nodes.length) return;
+        let textLeafIndex = 0;
+        const diagramCandidates = [];
+        for (let nodeIndex = 0; nodeIndex < diagramBinding.nodes.length; nodeIndex += 1) {
+          const node = diagramBinding.nodes[nodeIndex];
+          const modelNode = modelDiagramBinding.nodes[nodeIndex];
+          const runTexts = node.runTexts?.length ? node.runTexts : [node.text];
+          if (node.modelId !== modelNode.id || node.text !== modelNode.text || runTexts.length !== modelNode.runs.length ||
+              runTexts.some((text, runIndex) => text !== modelNode.runs[runIndex])) return;
+          for (let runIndex = 0; runIndex < runTexts.length; runIndex += 1) {
+            const current = currentDiagramLeaves[textLeafIndex];
+            if (!current || current.textLeafIndex !== textLeafIndex || current.nodeId !== modelNode.id ||
+                current.nodeIndex !== nodeIndex || current.runIndex !== runIndex || current.text !== runTexts[runIndex]) return;
+            diagramCandidates.push({
+              modelNode,
+              nodeIndex,
+              runIndex,
+              sourceText: runTexts[runIndex],
+              textLeafIndex,
+            });
+            textLeafIndex += 1;
+          }
+        }
+        if (textLeafIndex !== currentDiagramLeaves.length) return;
+        for (const candidate of diagramCandidates) {
+          registerLeaf({
+              wire,
+              model,
+              slideState,
+              shapeTreePath,
+              parentGroupId,
+              rootEntry,
+              leafKind: "diagramText",
+              expectedValue: candidate.sourceText,
+              value: candidate.sourceText,
+              details: { nodeId: candidate.modelNode.id, nodeIndex: candidate.nodeIndex, runIndex: candidate.runIndex, textLeafIndex: candidate.textLeafIndex },
+              compilerBinding: {
+                targetPartPath: diagramBinding.partPath,
+                expectedTargetPartSha256: diagramBinding.sourceSha256,
+                relationshipId: diagramBinding.relationshipId,
+                diagramModelId: candidate.modelNode.id,
+                diagramRunIndex: candidate.runIndex,
+              },
+              normalize(next) {
+                assertNativeLeafTextValue(next);
+                if (next.trim() !== next) {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation diagramText native leaf v1 cannot introduce leading or trailing whitespace.");
+                }
+                return { raw: next, publicValue: next };
+              },
+              apply(next) { model._setDiagramTextRun(candidate.modelNode.id, candidate.runIndex, next); },
+          });
+        }
+      }
       const binding = wire.content.value.nativeChart;
       const modelBinding = model?._nativeChartSourceBinding?.();
       const currentLeaves = model?._nativeChartTitleRecords?.();

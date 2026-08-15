@@ -1,7 +1,7 @@
 {
   "schema": "office-kit/pptx-lossless-evidence/v1",
-  "generatedAt": "2026-08-15T09:46:16Z",
-  "manifestSha256": "efb98ca6740896e3db17e8624fcec6cb34102622b6c85eafce0d0acb2340c819",
+  "generatedAt": "2026-08-15T14:09:45Z",
+  "manifestSha256": "7341e075e17993d88be7cc76f32fe524405b955e488c58d9e563c541f8ffe9d4",
   "repetitionsPerTarget": 3,
   "runnerContract": {
     "cleanSourcePerRun": true,
@@ -97,6 +97,20 @@
           "leafKind": "leftEmu",
           "outputSha256": "c11fe0f1f12fa8245a8f3f2f854bf0ce4cd346d3273a0317f87e9fa81207eb6f",
           "changedParts": ["ppt/slides/slide1.xml"]
+        }
+      ]
+    },
+    {
+      "id": "strategy-review-smartart-canary",
+      "sourceKind": "repository-supplemental",
+      "sourceSha256": "bcb469d5b586f4fd8f562b918c8d9f04ef500cd6289728683c10ee2ced7be367",
+      "noOpByteIdentical": true,
+      "targets": [
+        {
+          "id": "smartart-node-text",
+          "leafKind": "diagramText",
+          "outputSha256": "8186a9cc2256e9161e94cb2921380a647a36adeb1e94845262475ec9c96c6d0f",
+          "changedParts": ["ppt/diagrams/strategy-data.xml"]
         }
       ]
     }

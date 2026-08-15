@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import JSZip from "jszip";
 
@@ -632,6 +633,73 @@ const nativeChartDataRoundTripLeaf = nativeChartDataRoundTrip.inspect({ includeN
   .map((line) => JSON.parse(line))
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "chartDataValue" && record.seriesIndex === 0 && record.pointIndex === 0);
 assert.equal(nativeChartDataRoundTripLeaf.value, 9);
+
+// The repository-owned SmartArt canary proves the public native-leaf surface
+// against a real closed four-part diagram package. The source graph remains
+// opaque to the caller: inspect exposes only stable semantic coordinates, and
+// export token-splices one a:t in the bound DiagramDataPart.
+const nativeDiagramSourceBytes = await readFile(new URL("../evals/assets/presentations/strategy-review.pptx", import.meta.url));
+const nativeDiagramSource = new FileBlob(nativeDiagramSourceBytes, {
+  type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+});
+const nativeDiagramImported = await PresentationFile.importPptx(nativeDiagramSource);
+const nativeDiagramTargetId = "presentation/slide/1/element/3";
+const nativeDiagramLeaves = nativeDiagramImported.inspect({ includeNativeLeaves: true, target: nativeDiagramTargetId }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && record.leafKind === "diagramText");
+assert.deepEqual(nativeDiagramLeaves.map((leaf) => [leaf.nodeIndex, leaf.runIndex, leaf.value]), [
+  [0, 0, "Frame"],
+  [1, 0, "Focus"],
+  [2, 0, "Scale candidate"],
+]);
+const nativeDiagramLeaf = nativeDiagramLeaves.find((leaf) => leaf.nodeId === "{C3333333-3333-4333-8333-333333333333}");
+assert.ok(nativeDiagramLeaf);
+assert.equal("targetPartPath" in nativeDiagramLeaf, false);
+assert.equal("relationshipId" in nativeDiagramLeaf, false);
+assert.equal("diagramModelId" in nativeDiagramLeaf, false);
+nativeDiagramImported.editNativeLeaf(nativeDiagramTargetId, nativeDiagramLeaf.leafId, {
+  expectedHash: nativeDiagramLeaf.expectedHash,
+  value: "Scale",
+});
+const nativeDiagramOutput = await PresentationFile.exportPptx(nativeDiagramImported);
+assert.deepEqual(nativeDiagramOutput.metadata.editPlan.changedParts, ["ppt/diagrams/strategy-data.xml"]);
+const [nativeDiagramOperation] = nativeDiagramOutput.metadata.editPlan.operations;
+assert.equal(nativeDiagramOperation.leafKind, "diagramText");
+assert.equal(nativeDiagramOperation.diagramModelId, nativeDiagramLeaf.nodeId);
+assert.equal(nativeDiagramOperation.diagramRunIndex, 0);
+assert.equal(nativeDiagramOperation.footprint.mutationPartPath, "ppt/diagrams/strategy-data.xml");
+const nativeDiagramSourceZip = await JSZip.loadAsync(nativeDiagramSourceBytes, { checkCRC32: true });
+const nativeDiagramOutputZip = await JSZip.loadAsync(nativeDiagramOutput.bytes, { checkCRC32: true });
+const nativeDiagramSourceXml = Buffer.from(await nativeDiagramSourceZip.file("ppt/diagrams/strategy-data.xml").async("uint8array"));
+const nativeDiagramOutputXml = Buffer.from(await nativeDiagramOutputZip.file("ppt/diagrams/strategy-data.xml").async("uint8array"));
+const nativeDiagramSourceStart = Number(nativeDiagramOperation.footprint.sourceStartOffset);
+const nativeDiagramSourceEnd = Number(nativeDiagramOperation.footprint.sourceEndOffset);
+const nativeDiagramOutputEnd = Number(nativeDiagramOperation.footprint.outputEndOffset);
+const nativeDiagramOutputStart = nativeDiagramOutputEnd - Buffer.byteLength("Scale");
+assert.equal(nativeDiagramSourceXml.subarray(nativeDiagramSourceStart, nativeDiagramSourceEnd).toString("utf8"), "Scale candidate");
+assert.equal(nativeDiagramOutputXml.subarray(nativeDiagramOutputStart, nativeDiagramOutputEnd).toString("utf8"), "Scale");
+assert.deepEqual(Buffer.concat([
+  nativeDiagramOutputXml.subarray(0, nativeDiagramOutputStart),
+  Buffer.from("Scale candidate"),
+  nativeDiagramOutputXml.subarray(nativeDiagramOutputEnd),
+]), nativeDiagramSourceXml);
+for (const [partPath, entry] of Object.entries(nativeDiagramSourceZip.files)) {
+  if (entry.dir || partPath === "ppt/diagrams/strategy-data.xml") continue;
+  assert.deepEqual(
+    await nativeDiagramOutputZip.file(partPath).async("uint8array"),
+    await nativeDiagramSourceZip.file(partPath).async("uint8array"),
+    `native SmartArt edit changed non-target part ${partPath}`,
+  );
+}
+const nativeDiagramRoundTrip = await PresentationFile.importPptx(nativeDiagramOutput);
+const nativeDiagramRoundTripLeaf = nativeDiagramRoundTrip.inspect({ includeNativeLeaves: true, target: nativeDiagramTargetId }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "diagramText" && record.nodeId === nativeDiagramLeaf.nodeId);
+assert.equal(nativeDiagramRoundTripLeaf.value, "Scale");
 
 irregularAccessibilityShape.text.set("Decision: reviewed rollout");
 const irregularOtherEdit = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);

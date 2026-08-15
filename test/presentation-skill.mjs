@@ -31,7 +31,8 @@ const [packagedSlideRendererSource, packagedRasterHelperSource, presentationSkil
 assert.doesNotMatch(packagedSlideRendererSource, /pdf2image/i, "the packaged slide renderer must not require an undeclared Python package");
 assert.doesNotMatch(packagedRasterHelperSource, /pdf2image/i, "the packaged raster helper must not require an undeclared Python package");
 assert.match(presentationSkillSource, /chartDataValue[\s\S]*ChartPart cache[\s\S]*workbook cell/i);
-assert.match(presentationSkillSource, /does not authorize chart identity, relationships, formulas, series topology/i);
+assert.match(presentationSkillSource, /diagramText[\s\S]*token-splicing[\s\S]*a:t/i);
+assert.match(presentationSkillSource, /does not authorize chart or diagram identity, relationships,[\s\S]*series or SmartArt topology/i);
 
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-presentation-skill-test-"));
 const baselineDir = path.join(root, "baselines");

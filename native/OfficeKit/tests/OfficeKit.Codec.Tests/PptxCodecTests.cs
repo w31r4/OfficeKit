@@ -5904,6 +5904,102 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void EditPlanChangesOneSmartArtRunWithoutReserializingDiagramDataPart()
+    {
+        const string dataPath = "ppt/diagrams/clone-data.xml";
+        var source = ReplaceZipText(
+            AddCloneableDiagramGraph(Invoke(ExportRequest()).File.ToByteArray()),
+            dataPath,
+            _ => "<dgm:dataModel xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><dgm:ptLst><dgm:pt modelId=\"{B31B1833-2B65-4D6B-B3D4-9B3988427B21}\" type=\"doc\"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Frame</a:t></a:r></a:p></dgm:t></dgm:pt><dgm:pt modelId=\"1\" type=\"doc\"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Scale candidate</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst><dgm:cxnLst/><dgm:bg/><dgm:whole/></dgm:dataModel>");
+        var imported = Import(source);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var element = Assert.Single(slide.Elements, candidate => candidate.Opaque?.NativeKind == "diagram");
+        var binding = Assert.IsType<PresentationDiagramText>(element.Opaque.DiagramText);
+        var node = Assert.Single(binding.Nodes, candidate => candidate.ModelId == "1");
+        Assert.Equal("Scale candidate", Assert.Single(node.RunTexts));
+        const string replacement = "Scale";
+        var operation = new PresentationEditOperation
+        {
+            OperationId = "diagram-text-0001",
+            SlideId = slide.Id,
+            SlidePartPath = slide.Source.PartPath,
+            ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+            TargetId = element.Id,
+            ShapeTreeIndex = element.Source.ShapeTreeIndex,
+            ExpectedElementSha256 = element.Source.ElementSha256,
+            ExpectedSemanticSha256 = element.Source.SemanticSha256,
+            TextLeafIndex = 1,
+            LeafKind = "diagramText",
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(node.Text))).ToLowerInvariant(),
+            ExpectedValue = node.Text,
+            Value = replacement,
+            TargetPartPath = binding.PartPath,
+            ExpectedTargetPartSha256 = binding.SourceSha256,
+            RelationshipId = binding.RelationshipId,
+            DiagramModelId = node.ModelId,
+            DiagramRunIndex = 0,
+        };
+        var editRequest = new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+                Operations = { operation },
+            },
+        };
+
+        var edited = Invoke(editRequest);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal([dataPath], edited.PresentationEditPlan.ChangedParts);
+        var result = Assert.Single(edited.PresentationEditPlan.Operations);
+        Assert.Equal(dataPath, result.MutationPartPath);
+        Assert.Equal("diagramText", result.LeafKind);
+        Assert.Equal(result.SourceElementSha256, result.OutputElementSha256);
+        Assert.Empty(result.NestedFootprints);
+        var output = edited.File.ToByteArray();
+        var sourceData = ZipBytes(source, dataPath);
+        var outputData = ZipBytes(output, dataPath);
+        Assert.Equal(node.Text, Encoding.UTF8.GetString(sourceData[(int)result.SourceStartOffset..(int)result.SourceEndOffset]));
+        var outputStart = checked((int)result.OutputEndOffset - Encoding.UTF8.GetByteCount(replacement));
+        Assert.Equal(replacement, Encoding.UTF8.GetString(outputData[outputStart..(int)result.OutputEndOffset]));
+        Assert.Equal(sourceData, outputData[..outputStart]
+            .Concat(Encoding.UTF8.GetBytes(node.Text))
+            .Concat(outputData[(int)result.OutputEndOffset..])
+            .ToArray());
+        foreach (var path in ZipPartPaths(source).Where(path => !path.Equals(dataPath, StringComparison.OrdinalIgnoreCase)))
+            Assert.Equal(ZipBytes(source, path), ZipBytes(output, path));
+        var reopened = Import(output);
+        Assert.True(reopened.Ok, Diagnostics(reopened));
+        var reopenedBinding = Assert.IsType<PresentationDiagramText>(Assert.Single(
+            Assert.Single(reopened.Artifact.Presentation.Slides).Elements,
+            candidate => candidate.Id == element.Id).Opaque.DiagramText);
+        Assert.Equal(replacement, Assert.Single(reopenedBinding.Nodes, candidate => candidate.ModelId == node.ModelId).Text);
+
+        var stale = editRequest.Clone();
+        stale.PresentationEditPlan.Operations[0].DiagramModelId = "{00000000-0000-0000-0000-000000000000}";
+        var rejected = Invoke(stale);
+        Assert.False(rejected.Ok);
+        Assert.Equal("presentation_leaf_precondition_failed", Assert.Single(rejected.Diagnostics).Code);
+
+        var whitespace = editRequest.Clone();
+        whitespace.PresentationEditPlan.Operations[0].Value = " Scale ";
+        var whitespaceRejected = Invoke(whitespace);
+        Assert.False(whitespaceRejected.Ok);
+        Assert.Equal("invalid_presentation_edit_operation", Assert.Single(whitespaceRejected.Diagnostics).Code);
+
+        var foreignChartBinding = editRequest.Clone();
+        foreignChartBinding.PresentationEditPlan.Operations[0].ChartSeriesIndex = 1;
+        var foreignChartBindingRejected = Invoke(foreignChartBinding);
+        Assert.False(foreignChartBindingRejected.Ok);
+        Assert.Equal("invalid_presentation_edit_target", Assert.Single(foreignChartBindingRejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void SourceBoundSmartArtStyledRunsCanBeEditedWithoutFlatteningFormatting()
     {
         const string dataPath = "ppt/diagrams/clone-data.xml";

@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import JSZip from "jszip";
 
 import { FileBlob, PresentationFile } from "../src/index.mjs";
@@ -15,6 +16,7 @@ const MAX_PARTS = 10_000;
 const MAX_PART_BYTES = 128 * 1024 * 1024;
 const MAX_TOTAL_PART_BYTES = 2 * 1024 * 1024 * 1024;
 const DEFAULT_MANIFEST = path.resolve("evals/pptx-lossless/manifest.v1.json");
+const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const SOURCES = Object.freeze([
   {
@@ -103,6 +105,24 @@ const SOURCES = Object.freeze([
       },
     ],
   },
+  {
+    id: "strategy-review-smartart-canary",
+    sourceKind: "repository-supplemental",
+    fileName: "evals/assets/presentations/strategy-review.pptx",
+    sha256: "bcb469d5b586f4fd8f562b918c8d9f04ef500cd6289728683c10ee2ced7be367",
+    targets: [
+      {
+        id: "smartart-node-text",
+        nodeId: "presentation/slide/1/element/3",
+        operation: "nativeLeaf",
+        leafKind: "diagramText",
+        diagramNodeId: "{C3333333-3333-4333-8333-333333333333}",
+        runIndex: 0,
+        expectedValue: "Scale candidate",
+        value: "Scale",
+      },
+    ],
+  },
 ]);
 
 const [command = "verify", ...argv] = process.argv.slice(2);
@@ -145,7 +165,7 @@ if (command === "freeze") {
 async function freezeManifest(root) {
   const sources = [];
   for (const definition of SOURCES) {
-    const sourcePath = path.join(root, definition.fileName);
+    const sourcePath = sourceFilePath(root, definition);
     const bytes = await boundedRead(sourcePath);
     const digest = sha256(bytes);
     if (digest !== definition.sha256) fail(`Source hash mismatch for ${definition.fileName}: ${digest}`);
@@ -154,6 +174,7 @@ async function freezeManifest(root) {
     for (const target of definition.targets) await proveDeclaredTarget(bytes, nodes, definition.id, target);
     sources.push({
       id: definition.id,
+      sourceKind: definition.sourceKind ?? "external",
       fileName: definition.fileName,
       bytes: bytes.byteLength,
       sha256: digest,
@@ -173,7 +194,7 @@ async function runBenchmark(manifest, root, outputRoot, repetitions, selection =
   if (!selectedSources.length) fail(`Unknown benchmark source: ${selection.sourceId}`);
   for (const sourceManifest of selectedSources) {
     progress({ phase: "source", source: sourceManifest.id });
-    const sourcePath = path.join(root, sourceManifest.fileName);
+    const sourcePath = sourceFilePath(root, sourceManifest);
     const sourceBytes = await boundedRead(sourcePath);
     if (sha256(sourceBytes) !== sourceManifest.sha256) fail(`Source hash mismatch for ${sourceManifest.fileName}.`);
     const noOp = await PresentationFile.exportPptx(await importPresentation(sourceBytes));
@@ -356,7 +377,9 @@ function nativeLeafRecord(presentation, target, leafSpec = target) {
   const leaves = records.filter((record) => record.kind === "nativeLeaf" && record.targetId === target.nodeId && record.leafKind === leafSpec.leafKind &&
     (leafSpec.expectedValue === undefined || record.value === leafSpec.expectedValue) &&
     (leafSpec.seriesIndex === undefined || record.seriesIndex === leafSpec.seriesIndex) &&
-    (leafSpec.pointIndex === undefined || record.pointIndex === leafSpec.pointIndex));
+    (leafSpec.pointIndex === undefined || record.pointIndex === leafSpec.pointIndex) &&
+    (leafSpec.diagramNodeId === undefined || record.nodeId === leafSpec.diagramNodeId) &&
+    (leafSpec.runIndex === undefined || record.runIndex === leafSpec.runIndex));
   if (leaves.length !== 1) fail(`Native target ${target.id} resolved ${leaves.length} ${leafSpec.leafKind} leaves.`);
   return leaves[0];
 }
@@ -394,6 +417,12 @@ async function boundedRead(filePath) {
   const bytes = await readFile(filePath);
   if (bytes.byteLength <= 0 || bytes.byteLength > MAX_SOURCE_BYTES) fail(`PPTX source size is outside 1..${MAX_SOURCE_BYTES}: ${filePath}`);
   return bytes;
+}
+
+function sourceFilePath(externalRoot, source) {
+  return source.sourceKind === "repository-supplemental"
+    ? path.join(REPOSITORY_ROOT, source.fileName)
+    : path.join(externalRoot, source.fileName);
 }
 
 async function readManifest(filePath) {

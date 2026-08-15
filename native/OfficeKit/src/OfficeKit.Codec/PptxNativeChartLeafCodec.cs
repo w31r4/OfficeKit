@@ -172,25 +172,6 @@ internal static partial class PptxNativeChartLeafCodec
         expected.RelationshipId == actual.RelationshipId &&
         expected.TitleLeaves.SequenceEqual(actual.TitleLeaves);
 
-    internal static bool HasUniqueInboundRelationship(PresentationPart presentationPart, OpenXmlPart target)
-    {
-        var count = 0;
-        var visited = new HashSet<OpenXmlPart>();
-        var pending = new Queue<OpenXmlPart>();
-        pending.Enqueue(presentationPart);
-        while (pending.Count > 0)
-        {
-            var owner = pending.Dequeue();
-            if (!visited.Add(owner)) continue;
-            foreach (var relationship in owner.Parts)
-            {
-                if (ReferenceEquals(relationship.OpenXmlPart, target)) count++;
-                pending.Enqueue(relationship.OpenXmlPart);
-            }
-        }
-        return count == 1;
-    }
-
     private static bool TryResolveData(
         ChartPart chartPart,
         XDocument chartDocument,

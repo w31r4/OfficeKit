@@ -241,6 +241,9 @@ internal static partial class PptxEditPlanCodec
         !string.IsNullOrEmpty(operation.EmbeddedCellReference) ||
         !string.IsNullOrEmpty(operation.ChartFormula);
 
+    private static bool HasDiagramBinding(PresentationEditOperation operation) =>
+        !string.IsNullOrEmpty(operation.DiagramModelId) || operation.DiagramRunIndex != 0;
+
     private static void ValidateEmbeddedWorkbookBinding(PresentationEditOperation operation)
     {
         if (!EmbeddedPackagePartPathPattern().IsMatch(operation.EmbeddedPackagePartPath) || operation.EmbeddedPackagePartPath.Contains("..", StringComparison.Ordinal))
@@ -260,9 +263,12 @@ internal static partial class PptxEditPlanCodec
     }
 
     private static string LeafIndexKey(PresentationEditOperation operation) =>
-        LeafKind(operation) == "chartDataValue"
-            ? $"{operation.ChartSeriesIndex}:{operation.ChartPointIndex}"
-            : operation.TextLeafIndex.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        LeafKind(operation) switch
+        {
+            "chartDataValue" => $"{operation.ChartSeriesIndex}:{operation.ChartPointIndex}",
+            "diagramText" => $"{operation.DiagramModelId}:{operation.DiagramRunIndex}",
+            _ => operation.TextLeafIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
 
     private static bool ValidFiniteNumber(string value) =>
         value.Length is > 0 and <= 128 && FiniteNumberPattern().IsMatch(value) &&

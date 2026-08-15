@@ -197,12 +197,17 @@ issued revision-bound leaf through `presentation.editNativeLeaf(...)`.
 Supported leaves are existing text runs, shape RGB/local geometry, picture
 local geometry, direct rich-title runs from a uniquely bound internal
 ChartPart, and direct numeric bar-chart cache points proven against one exact
-cell in a uniquely bound embedded XLSX. This route can edit one text run inside
-a native group, a shape whose outer style remains source-owned, one issued
-`chartTitleText` run without rebuilding the chart, or one issued
-`chartDataValue` while changing both its ChartPart cache and workbook cell. It
-does not authorize chart identity, relationships, formulas, series topology,
-arbitrary workbook cells, or graphic-frame changes. The issued operation binds
+cell in a uniquely bound embedded XLSX, plus direct text runs in a canonical
+closed SmartArt DiagramDataPart with one proven inbound owner. This route can
+edit one text run inside a native group, a shape whose outer style remains
+source-owned, one issued `chartTitleText` run without rebuilding the chart, one
+issued `chartDataValue` while changing both its ChartPart cache and workbook
+cell, or one issued `diagramText` run while token-splicing only its existing
+`a:t`. It does not authorize chart or diagram identity, relationships,
+formulas, series or SmartArt topology, arbitrary workbook cells, layout,
+quick-style, colors, or graphic-frame changes. `diagramText` v1 also rejects a
+new value with leading or trailing whitespace because that would require an
+additional `xml:space` mutation. The issued operation binds
 the complete ownership-tree snapshot and every dependent part hash, so any
 concurrent unissued change must reject. A coordinated move/resize uses one
 issued call per geometry leaf and one export; the compiler sorts them into a

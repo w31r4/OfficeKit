@@ -73,6 +73,10 @@ function presentationEditPlanMetadata(editPlan, result) {
           chartPointIndex: operation.chartPointIndex,
           chartFormula: operation.chartFormula,
         } : {}),
+        ...(operation.leafKind === "diagramText" ? {
+          diagramModelId: operation.diagramModelId,
+          diagramRunIndex: operation.diagramRunIndex,
+        } : {}),
         footprint: {
           mutationPartPath: footprint.mutationPartPath,
           sourceElementSha256: footprint.sourceElementSha256,

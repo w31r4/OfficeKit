@@ -423,6 +423,23 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       return changed ? diagramTextRecord(this._diagramTextBinding, this._diagramTextNodes) : undefined;
     }
 
+    _diagramTextRunRecords() {
+      if (!this._diagramTextBinding || !this._diagramTextNodes) return undefined;
+      let textLeafIndex = 0;
+      return Object.freeze(this._diagramTextNodes.flatMap((node, nodeIndex) =>
+        node.runs.map((text, runIndex) => Object.freeze({
+          textLeafIndex: textLeafIndex++,
+          nodeId: node.id,
+          nodeIndex,
+          runIndex,
+          text,
+        }))));
+    }
+
+    _setDiagramTextRun(nodeId, runIndex, value) {
+      this.setDiagramNodeRunText(nodeId, runIndex, value);
+    }
+
     _nativeChartSourceBinding() {
       return nativeChartRecord(this._nativeChartBinding);
     }

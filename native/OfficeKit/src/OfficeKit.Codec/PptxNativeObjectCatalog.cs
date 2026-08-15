@@ -45,6 +45,25 @@ internal sealed class PptxNativeObjectCatalog
     internal static bool IsDiagramRelationshipIds(OpenXmlElement element) =>
         element.LocalName == "relIds" && DiagramNamespaces.Contains(element.NamespaceUri);
 
+    internal static bool HasUniqueInboundRelationship(PresentationPart presentationPart, OpenXmlPart target)
+    {
+        var count = 0;
+        var visited = new HashSet<OpenXmlPart>();
+        var pending = new Queue<OpenXmlPart>();
+        pending.Enqueue(presentationPart);
+        while (pending.Count > 0)
+        {
+            var owner = pending.Dequeue();
+            if (!visited.Add(owner)) continue;
+            foreach (var relationship in owner.Parts)
+            {
+                if (ReferenceEquals(relationship.OpenXmlPart, target)) count++;
+                pending.Enqueue(relationship.OpenXmlPart);
+            }
+        }
+        return count == 1;
+    }
+
     // A video picture can otherwise satisfy the bounded poster-image reader
     // and be exposed as an ordinary editable image. Detect any native media
     // marker before semantic picture projection; the stricter clone preflight
@@ -201,6 +220,10 @@ internal sealed class PptxNativeObjectCatalog
             !part.Sha256.Equals(diagram.SourceSha256, StringComparison.OrdinalIgnoreCase) ||
             !target.PreservedPartPaths.Contains(diagram.PartPath, StringComparer.OrdinalIgnoreCase))
             return;
+        var inboundCount = _relationships.Values.Count(candidate =>
+            !candidate.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
+            ResolveTarget(candidate.SourcePath, candidate.Target).Equals(diagram.PartPath, StringComparison.OrdinalIgnoreCase));
+        if (inboundCount != 1) return;
         target.DiagramText = diagram;
     }
 
