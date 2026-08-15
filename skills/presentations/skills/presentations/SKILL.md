@@ -198,10 +198,12 @@ Supported leaves are existing text runs, shape RGB/local geometry, and picture
 local geometry. This route can edit one text run inside a native group or a
 shape whose outer style remains source-owned. The issued operation binds the
 complete ownership-tree snapshot, so any concurrent unissued change in that
-tree must reject. The resulting Edit Plan must identify one source revision and
-one mutation footprint; reimport the output, prove every non-target OPC part is
-byte-identical, mask only the declared XML token change, and render the affected
-slide plus unchanged comparison pages. Never replace a multi-run phrase as one
+tree must reject. A coordinated move/resize uses one issued call per geometry
+leaf and one export; the compiler sorts them into a deterministic Edit Plan.
+The resulting plan must identify one source revision and every mutation
+footprint; reimport the output, prove every non-target OPC part is byte-identical,
+mask only the declared XML token changes, and render the affected slide plus
+unchanged comparison pages. Never replace a multi-run phrase as one
 text leaf: select an exact run, or use a whole-text setter only when replacing
 the complete text topology is intended.
 

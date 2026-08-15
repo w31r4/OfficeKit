@@ -40,6 +40,17 @@ const SOURCES = Object.freeze([
         expectedValue: "快速存储",
         value: "高速存储验证",
       },
+      {
+        id: "textbox-move-resize",
+        nodeId: "presentation/slide/1/element/3",
+        operation: "nativeLeaves",
+        leaves: [
+          { leafKind: "leftEmu", expectedValue: 544_103, value: 553_628 },
+          { leafKind: "topEmu", expectedValue: 3_244_600, value: 3_254_125 },
+          { leafKind: "widthEmu", expectedValue: 3_813_048, value: 3_822_573 },
+          { leafKind: "heightEmu", expectedValue: 3_305_082, value: 3_314_607 },
+        ],
+      },
     ],
   },
   {
@@ -193,11 +204,15 @@ async function packageOracle(sourceBytes, outputBytes, editPlan, target) {
   for (const partPath of changedParts) {
     const sourceXml = source.get(partPath).toString("utf8");
     const outputXml = output.get(partPath).toString("utf8");
-    const operation = editPlan.operations.find((candidate) => candidate.slidePartPath === partPath);
-    if (!operation) fail(`Edit Plan has no operation for changed part ${partPath}.`);
-    const encodedOld = escapeXmlText(operation.expectedValue);
-    const encodedNew = escapeXmlText(operation.value);
-    if (singleTokenMaskMatches(sourceXml, outputXml, encodedOld, encodedNew) !== 1) fail(`Declared token cannot uniquely mask target XML back to source: ${partPath}`);
+    const operations = editPlan.operations.filter((candidate) => candidate.slidePartPath === partPath);
+    if (!operations.length) fail(`Edit Plan has no operation for changed part ${partPath}.`);
+    if (operations.length === 1) {
+      const encodedOld = escapeXmlText(operations[0].expectedValue);
+      const encodedNew = escapeXmlText(operations[0].value);
+      if (singleTokenMaskMatches(sourceXml, outputXml, encodedOld, encodedNew) !== 1) fail(`Declared token cannot uniquely mask target XML back to source: ${partPath}`);
+    } else if (!maskScalarOperationFootprints(source.get(partPath), output.get(partPath), operations)) {
+      fail(`Declared scalar footprints cannot mask target XML back to source: ${partPath}`);
+    }
   }
   return { changedParts, nonTargetPartsByteIdentical: true, maskedTargetXmlByteIdentical: true };
 }
@@ -245,10 +260,12 @@ async function proveDeclaredTarget(bytes, nodes, sourceId, target) {
     if (!match || match.text !== target.expected) fail(`Declared target ${sourceId}/${target.id} does not match the imported node index.`);
     return;
   }
-  if (target.operation !== "nativeLeaf") fail(`Declared target ${sourceId}/${target.id} uses an unknown operation.`);
+  if (target.operation !== "nativeLeaf" && target.operation !== "nativeLeaves") fail(`Declared target ${sourceId}/${target.id} uses an unknown operation.`);
   const presentation = await importPresentation(bytes);
-  const leaf = nativeLeafRecord(presentation, target);
-  if (leaf.value !== target.expectedValue) fail(`Declared native target ${sourceId}/${target.id} does not match its inspected leaf.`);
+  for (const leafSpec of nativeLeafSpecs(target)) {
+    const leaf = nativeLeafRecord(presentation, target, leafSpec.leafKind);
+    if (leaf.value !== leafSpec.expectedValue) fail(`Declared native target ${sourceId}/${target.id}/${leafSpec.leafKind} does not match its inspected leaf.`);
+  }
 }
 
 function applyBenchmarkTarget(presentation, sourceId, target) {
@@ -261,9 +278,11 @@ function applyBenchmarkTarget(presentation, sourceId, target) {
     if (node.text.value !== result) fail(`Target ${sourceId}/${target.id} did not produce its declared model result.`);
     return;
   }
-  const leaf = nativeLeafRecord(presentation, target);
-  if (leaf.value !== target.expectedValue) fail(`Target ${sourceId}/${target.id} is stale.`);
-  presentation.editNativeLeaf(leaf.targetId, leaf.leafId, { expectedHash: leaf.expectedHash, value: target.value });
+  for (const leafSpec of nativeLeafSpecs(target)) {
+    const leaf = nativeLeafRecord(presentation, target, leafSpec.leafKind);
+    if (leaf.value !== leafSpec.expectedValue) fail(`Target ${sourceId}/${target.id}/${leafSpec.leafKind} is stale.`);
+    presentation.editNativeLeaf(leaf.targetId, leaf.leafId, { expectedHash: leaf.expectedHash, value: leafSpec.value });
+  }
 }
 
 function verifyBenchmarkTarget(presentation, sourceId, target) {
@@ -272,16 +291,24 @@ function verifyBenchmarkTarget(presentation, sourceId, target) {
     if (presentation.resolve(target.nodeId)?.text?.value !== result) fail(`Target ${sourceId}/${target.id} failed second import.`);
     return;
   }
-  if (nativeLeafRecord(presentation, target).value !== target.value) fail(`Target ${sourceId}/${target.id} failed second import.`);
+  for (const leafSpec of nativeLeafSpecs(target)) {
+    if (nativeLeafRecord(presentation, target, leafSpec.leafKind).value !== leafSpec.value) fail(`Target ${sourceId}/${target.id}/${leafSpec.leafKind} failed second import.`);
+  }
 }
 
-function nativeLeafRecord(presentation, target) {
+function nativeLeafSpecs(target) {
+  return target.operation === "nativeLeaves"
+    ? target.leaves
+    : [{ leafKind: target.leafKind, expectedValue: target.expectedValue, value: target.value }];
+}
+
+function nativeLeafRecord(presentation, target, leafKind = target.leafKind) {
   const records = presentation.inspect({ includeNativeLeaves: true, target: target.nodeId }).ndjson
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line));
-  const leaves = records.filter((record) => record.kind === "nativeLeaf" && record.targetId === target.nodeId && record.leafKind === target.leafKind);
-  if (leaves.length !== 1) fail(`Native target ${target.id} resolved ${leaves.length} ${target.leafKind} leaves.`);
+  const leaves = records.filter((record) => record.kind === "nativeLeaf" && record.targetId === target.nodeId && record.leafKind === leafKind);
+  if (leaves.length !== 1) fail(`Native target ${target.id} resolved ${leaves.length} ${leafKind} leaves.`);
   return leaves[0];
 }
 
@@ -340,6 +367,26 @@ function singleTokenMaskMatches(source, output, expected, replacement) {
     if (`${output.slice(0, index)}${expected}${output.slice(index + replacement.length)}` === source) matches += 1;
   }
   return matches;
+}
+function maskScalarOperationFootprints(source, output, operations) {
+  let masked = Buffer.from(output);
+  const masks = [];
+  for (const operation of operations) {
+    if (operation.leafKind === "text" || !operation.footprint) return false;
+    const expected = Buffer.from(escapeXmlText(operation.expectedValue), "utf8");
+    const replacement = Buffer.from(escapeXmlText(operation.value), "utf8");
+    const sourceStart = Number(operation.footprint.sourceStartOffset);
+    const sourceEnd = Number(operation.footprint.sourceEndOffset);
+    const outputEnd = Number(operation.footprint.outputEndOffset);
+    const outputStart = outputEnd - replacement.length;
+    if (!Number.isSafeInteger(sourceStart) || !Number.isSafeInteger(sourceEnd) || !Number.isSafeInteger(outputStart) || !Number.isSafeInteger(outputEnd)) return false;
+    if (!Buffer.from(source).subarray(sourceStart, sourceEnd).equals(expected) || !Buffer.from(output).subarray(outputStart, outputEnd).equals(replacement)) return false;
+    masks.push({ start: outputStart, end: outputEnd, bytes: expected });
+  }
+  masks.sort((left, right) => right.start - left.start);
+  for (let index = 1; index < masks.length; index += 1) if (masks[index - 1].start < masks[index].end) return false;
+  for (const mask of masks) masked = Buffer.concat([masked.subarray(0, mask.start), mask.bytes, masked.subarray(mask.end)]);
+  return masked.equals(Buffer.from(source));
 }
 function sha256(value) { return createHash("sha256").update(value).digest("hex"); }
 function escapeXmlText(value) { return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"); }

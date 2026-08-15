@@ -12,7 +12,7 @@ assert.equal(manifest.schema, "office-kit/pptx-lossless-benchmark/v1");
 assert.equal(manifest.sources.length, 3);
 assert.equal(new Set(manifest.sources.map((source) => source.id)).size, 3);
 assert.equal(new Set(manifest.sources.map((source) => source.sha256)).size, 3);
-assert.equal(manifest.sources.reduce((count, source) => count + source.targets.length, 0), 8);
+assert.equal(manifest.sources.reduce((count, source) => count + source.targets.length, 0), 9);
 
 for (const source of manifest.sources) {
   assert.match(source.id, /^[a-z0-9][a-z0-9-]+$/u);
@@ -38,16 +38,21 @@ for (const source of manifest.sources) {
       assert.notEqual(target.search ?? target.expected, target.value);
       assert.equal(source.editableNodes.some((node) => node.id === target.nodeId && node.text === target.expected), true);
     } else {
-      assert.equal(target.operation, "nativeLeaf");
-      assert.match(target.leafKind, /^(text|leftEmu|topEmu|widthEmu|heightEmu)$/u);
-      if (target.leafKind === "text") {
-        assert.equal(typeof target.expectedValue, "string");
-        assert.equal(typeof target.value, "string");
-      } else {
-        assert.equal(Number.isSafeInteger(target.expectedValue), true);
-        assert.equal(Number.isSafeInteger(target.value), true);
+      assert.match(target.operation, /^native(?:Leaf|Leaves)$/u);
+      const leaves = target.operation === "nativeLeaves" ? target.leaves : [target];
+      assert.equal(Array.isArray(leaves) && leaves.length > 0 && leaves.length <= 8, true);
+      assert.equal(new Set(leaves.map((leaf) => leaf.leafKind)).size, leaves.length);
+      for (const leaf of leaves) {
+        assert.match(leaf.leafKind, /^(text|leftEmu|topEmu|widthEmu|heightEmu)$/u);
+        if (leaf.leafKind === "text") {
+          assert.equal(typeof leaf.expectedValue, "string");
+          assert.equal(typeof leaf.value, "string");
+        } else {
+          assert.equal(Number.isSafeInteger(leaf.expectedValue), true);
+          assert.equal(Number.isSafeInteger(leaf.value), true);
+        }
+        assert.notEqual(leaf.expectedValue, leaf.value);
       }
-      assert.notEqual(target.expectedValue, target.value);
     }
   }
 }
@@ -63,7 +68,7 @@ assert.equal(evidence.manifestSha256, createHash("sha256").update(manifestBytes)
 assert.equal(evidence.repetitionsPerTarget, 3);
 assert.deepEqual(Object.values(evidence.runnerContract), [true, true, true, true, true, true]);
 assert.equal(evidence.sources.length, manifest.sources.length);
-assert.equal(evidence.sources.reduce((count, source) => count + source.targets.length, 0), 8);
+assert.equal(evidence.sources.reduce((count, source) => count + source.targets.length, 0), 9);
 for (const source of evidence.sources) {
   const declared = manifest.sources.find((candidate) => candidate.id === source.id);
   assert.ok(declared);

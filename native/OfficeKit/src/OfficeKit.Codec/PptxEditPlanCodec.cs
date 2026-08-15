@@ -418,7 +418,11 @@ internal static partial class PptxEditPlanCodec
         {
             var sourceStart = checked((ulong)(bomBytes + StrictUtf8.GetByteCount(xml[..patch.Start])));
             var sourceEnd = checked((ulong)(bomBytes + StrictUtf8.GetByteCount(xml[..patch.End])));
-            var outputEndCharacter = patch.Start + patch.Replacement.Length;
+            var priorDelta = patches
+                .Where(candidate => candidate.Start < patch.Start)
+                .Sum(candidate => candidate.Replacement.Length - (candidate.End - candidate.Start));
+            var outputStartCharacter = checked(patch.Start + priorDelta);
+            var outputEndCharacter = checked(outputStartCharacter + patch.Replacement.Length);
             var outputEnd = checked((ulong)(bomBytes + StrictUtf8.GetByteCount(output[..outputEndCharacter])));
             var result = new PresentationEditOperationResult
             {

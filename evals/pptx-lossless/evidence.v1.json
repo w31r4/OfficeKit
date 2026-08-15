@@ -1,7 +1,7 @@
 {
   "schema": "office-kit/pptx-lossless-evidence/v1",
-  "generatedAt": "2026-08-14T23:10:21Z",
-  "manifestSha256": "1a0157c8ab7e811d94673e9ce13ad6783e5ba2e9507911ae278d3f9baddae5c4",
+  "generatedAt": "2026-08-15T00:22:12Z",
+  "manifestSha256": "245fc2ee386dd89f3dff7ea75cdf8e66c017fc1f857d4c1c570122e2bba50b5c",
   "repetitionsPerTarget": 3,
   "runnerContract": {
     "cleanSourcePerRun": true,
@@ -40,6 +40,12 @@
           "leafKind": "text",
           "outputSha256": "46718e7045736b1cc1afac3b03f96d4fa7d057b79c34f83199036317a330ccc1",
           "changedParts": ["ppt/slides/slide6.xml"]
+        },
+        {
+          "id": "textbox-move-resize",
+          "leafKinds": ["heightEmu", "leftEmu", "topEmu", "widthEmu"],
+          "outputSha256": "8128f67fbc4ad9ad2f5380262980025b2b313b987c1a12e2d86507933b3dd36f",
+          "changedParts": ["ppt/slides/slide1.xml"]
         }
       ]
     },

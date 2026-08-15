@@ -412,6 +412,82 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void EditPlanChangesMultipleGeometryLeavesWithFinalOutputOffsets()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = authored.File.ToByteArray();
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var element = Assert.Single(slide.Elements);
+
+        PresentationEditOperation GeometryOperation(string id, string kind, string expected, string value)
+        {
+            var operation = new PresentationEditOperation
+            {
+                OperationId = id,
+                SlideId = slide.Id,
+                SlidePartPath = slide.Source.PartPath,
+                ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+                TargetId = element.Id,
+                ShapeTreeIndex = element.Source.ShapeTreeIndex,
+                LeafKind = kind,
+                ExpectedElementSha256 = element.Source.ElementSha256,
+                ExpectedSemanticSha256 = element.Source.SemanticSha256,
+                ExpectedValue = expected,
+                Value = value,
+                ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(expected))).ToLowerInvariant(),
+            };
+            operation.ShapeTreePath.Add(element.Source.ShapeTreeIndex);
+            return operation;
+        }
+
+        var left = GeometryOperation("op-multi-left", "leftEmu", element.Shape.LeftEmu.ToString(), "5");
+        var width = GeometryOperation("op-multi-width", "widthEmu", element.Shape.WidthEmu.ToString(), "123456789");
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = authored.File,
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+                Operations = { left, width },
+            },
+        });
+
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal([slide.Source.PartPath], edited.PresentationEditPlan.ChangedParts);
+        var sourcePart = ZipBytes(sourceBytes, slide.Source.PartPath);
+        var outputPart = ZipBytes(edited.File.ToByteArray(), slide.Source.PartPath);
+        var operationById = new[] { left, width }.ToDictionary(operation => operation.OperationId, StringComparer.Ordinal);
+        var masks = new List<(int Start, int End, byte[] Source)>();
+        foreach (var result in edited.PresentationEditPlan.Operations)
+        {
+            var operation = operationById[result.OperationId];
+            var sourceStart = checked((int)result.SourceStartOffset);
+            var sourceEnd = checked((int)result.SourceEndOffset);
+            var outputEnd = checked((int)result.OutputEndOffset);
+            var expected = Encoding.UTF8.GetBytes(operation.ExpectedValue);
+            var replacement = Encoding.UTF8.GetBytes(operation.Value);
+            var outputStart = outputEnd - replacement.Length;
+            Assert.Equal(expected, sourcePart[sourceStart..sourceEnd]);
+            Assert.Equal(replacement, outputPart[outputStart..outputEnd]);
+            masks.Add((outputStart, outputEnd, expected));
+        }
+        var masked = outputPart;
+        foreach (var mask in masks.OrderByDescending(mask => mask.Start))
+            masked = [.. masked[..mask.Start], .. mask.Source, .. masked[mask.End..]];
+        Assert.Equal(sourcePart, masked);
+
+        var reopened = Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements).Shape;
+        Assert.Equal(5L, reopened.LeftEmu);
+        Assert.Equal(123456789L, reopened.WidthEmu);
+    }
+
+    [Fact]
     public void EditPlanChangesOnePictureGeometryLeafWithoutReserializingTheSlide()
     {
         var authored = Invoke(ExportRequest());

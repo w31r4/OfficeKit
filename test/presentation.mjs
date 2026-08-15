@@ -78,18 +78,33 @@ function relationshipPartPath(partPath) {
 }
 
 async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation) {
+  const operations = Array.isArray(operation) ? operation : [operation];
+  assert.equal(operations.length > 0, true);
+  const partPaths = new Set(operations.map((item) => item.slidePartPath));
+  assert.equal(partPaths.size, 1, "one footprint assertion must stay within one declared part");
   const sourceZip = await JSZip.loadAsync(source.bytes);
   const outputZip = await JSZip.loadAsync(output.bytes);
-  const partPath = operation.slidePartPath;
+  const partPath = operations[0].slidePartPath;
   const sourcePart = Buffer.from(await sourceZip.file(partPath).async("uint8array"));
   const outputPart = Buffer.from(await outputZip.file(partPath).async("uint8array"));
-  const sourceStart = Number(operation.footprint.sourceStartOffset);
-  const sourceEnd = Number(operation.footprint.sourceEndOffset);
-  const outputEnd = Number(operation.footprint.outputEndOffset);
-  assert.deepEqual(outputPart.subarray(0, sourceStart), sourcePart.subarray(0, sourceStart));
-  assert.deepEqual(outputPart.subarray(outputEnd), sourcePart.subarray(sourceEnd));
-  assert.equal(sourcePart.subarray(sourceStart, sourceEnd).toString("utf8"), operation.expectedValue);
-  assert.equal(outputPart.subarray(sourceStart, outputEnd).toString("utf8"), operation.value);
+  const masks = [];
+  for (const item of operations) {
+    assert.notEqual(item.leafKind, "text", "byte-offset footprint assertions currently cover scalar tokens");
+    const sourceStart = Number(item.footprint.sourceStartOffset);
+    const sourceEnd = Number(item.footprint.sourceEndOffset);
+    const outputEnd = Number(item.footprint.outputEndOffset);
+    const expected = Buffer.from(String(item.expectedValue), "utf8");
+    const replacement = Buffer.from(String(item.value), "utf8");
+    const outputStart = outputEnd - replacement.length;
+    assert.deepEqual(sourcePart.subarray(sourceStart, sourceEnd), expected);
+    assert.deepEqual(outputPart.subarray(outputStart, outputEnd), replacement);
+    masks.push({ start: outputStart, end: outputEnd, bytes: expected });
+  }
+  let masked = outputPart;
+  for (const mask of masks.sort((left, right) => right.start - left.start)) {
+    masked = Buffer.concat([masked.subarray(0, mask.start), mask.bytes, masked.subarray(mask.end)]);
+  }
+  assert.deepEqual(masked, sourcePart, "masking all declared scalar tokens must recover the source part exactly");
   for (const [entryPath, entry] of Object.entries(sourceZip.files)) {
     if (entry.dir || entryPath === partPath) continue;
     assert.deepEqual(
@@ -419,6 +434,41 @@ assert.equal(nativeImageGeometryOperation.leafKind, "leftEmu");
 await assertOnlyDeclaredPptxFootprintChanged(irregularShapeAccessibilityFile, nativeImageGeometryOutput, nativeImageGeometryOperation);
 const nativeImageGeometryRoundTrip = await PresentationFile.importPptx(nativeImageGeometryOutput);
 assert.equal(nativeImageGeometryRoundTrip.resolve(nativeImageGeometry.id).position.left, nativeImageNextLeft / 9_525);
+
+const nativeShapeGeometryDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+nativeShapeGeometryDeck.slides.add().shapes.add({
+  name: "multi-geometry",
+  position: { left: 48, top: 72, width: 360, height: 88 },
+  fill: "#DBEAFE",
+  text: "Move and resize",
+});
+const nativeShapeGeometrySource = await PresentationFile.exportPptx(nativeShapeGeometryDeck);
+const nativeShapeGeometryImported = await PresentationFile.importPptx(nativeShapeGeometrySource);
+const nativeShapeGeometry = itemByName(nativeShapeGeometryImported.slides.getItem(0).shapes.items, "multi-geometry");
+const nativeShapeGeometryLeaves = nativeShapeGeometryImported.inspect({ includeNativeLeaves: true, target: nativeShapeGeometry.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const nativeShapeLeftLeaf = nativeShapeGeometryLeaves.find((record) => record.leafKind === "leftEmu");
+const nativeShapeWidthLeaf = nativeShapeGeometryLeaves.find((record) => record.leafKind === "widthEmu");
+assert.ok(nativeShapeLeftLeaf);
+assert.ok(nativeShapeWidthLeaf);
+nativeShapeGeometryImported.editNativeLeaf(nativeShapeLeftLeaf.targetId, nativeShapeLeftLeaf.leafId, {
+  expectedHash: nativeShapeLeftLeaf.expectedHash,
+  value: 5,
+});
+nativeShapeGeometryImported.editNativeLeaf(nativeShapeWidthLeaf.targetId, nativeShapeWidthLeaf.leafId, {
+  expectedHash: nativeShapeWidthLeaf.expectedHash,
+  value: 123_456_789,
+});
+const nativeShapeGeometryOutput = await PresentationFile.exportPptx(nativeShapeGeometryImported);
+const nativeShapeGeometryOperations = nativeShapeGeometryOutput.metadata.editPlan.operations;
+assert.deepEqual(nativeShapeGeometryOperations.map((operation) => operation.leafKind), ["leftEmu", "widthEmu"]);
+await assertOnlyDeclaredPptxFootprintChanged(nativeShapeGeometrySource, nativeShapeGeometryOutput, nativeShapeGeometryOperations);
+const nativeShapeGeometryRoundTrip = await PresentationFile.importPptx(nativeShapeGeometryOutput);
+assert.equal(nativeShapeGeometryRoundTrip.resolve(nativeShapeGeometry.id).position.left, 5 / 9_525);
+assert.equal(nativeShapeGeometryRoundTrip.resolve(nativeShapeGeometry.id).position.width, 123_456_789 / 9_525);
 
 irregularAccessibilityShape.text.set("Decision: reviewed rollout");
 const irregularOtherEdit = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);

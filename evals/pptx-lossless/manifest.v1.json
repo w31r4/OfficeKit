@@ -3053,6 +3053,33 @@
           "leafKind": "text",
           "expectedValue": "快速存储",
           "value": "高速存储验证"
+        },
+        {
+          "id": "textbox-move-resize",
+          "nodeId": "presentation/slide/1/element/3",
+          "operation": "nativeLeaves",
+          "leaves": [
+            {
+              "leafKind": "leftEmu",
+              "expectedValue": 544103,
+              "value": 553628
+            },
+            {
+              "leafKind": "topEmu",
+              "expectedValue": 3244600,
+              "value": 3254125
+            },
+            {
+              "leafKind": "widthEmu",
+              "expectedValue": 3813048,
+              "value": 3822573
+            },
+            {
+              "leafKind": "heightEmu",
+              "expectedValue": 3305082,
+              "value": 3314607
+            }
+          ]
         }
       ]
     },
