@@ -48,6 +48,13 @@ The codec rejects stale source, stale element, unsupported target kind, overlapp
 
 Applied plans are stored under `.office-kit/tasks/<task-id>/operations/` with private permissions and linked from the reviewed commit. The record includes source and output revisions, requested preconditions and values, generated footprint, changed parts, and hashes. Resume restores the latest reviewed artifact bytes and rebuilds its node index; source text in the REPL journal is audit evidence, not executable state replay.
 
+The journal validator accepts only the compiler's declared leaf-kind schema and
+requires the changed-part set to equal the primary and nested mutation
+footprints. Dependent ChartPart, embedded-XLSX, and DiagramDataPart bindings
+must match their leaf kind; undeclared fields, raw XML, escaping paths, foreign
+bindings, and extra changed parts reject before task HEAD advances. A resumed
+session must inspect the reviewed bytes again and use newly issued leaf IDs.
+
 ### 6. Benchmarks use independent oracles
 
 The three external PPTX files are identified by hash in a versioned manifest. Because none contains SmartArt, one repository-owned, explicitly labeled supplemental canary supplies a real closed four-part diagram package without being presented as third-party coverage. Oracles compare uncompressed OPC entry bytes, relationship graphs, masked target XML, native structure counts, second import, render pixels for non-target pages, and PowerPoint behavior. Each edit runs three times from a clean source and must produce identical output and footprint hashes. Kimi, HTML, and PPTD results are context, not acceptance standards.

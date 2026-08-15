@@ -7053,6 +7053,30 @@ not general SmartArt authoring or final lossless-editing acceptance. Multi-round
 REPL, render, clean-install, Agent 3/3, Windows PowerPoint, complete suites,
 release candidate, and hosted CI remain open under the persistent Goal.
 
+### PPTX lossless task resume
+
+On 2026-08-15, the durable task journal was extended from slide-only leaves to
+the complete current Edit Plan leaf set. It now accepts compiler-generated
+ChartPart, embedded-XLSX, and DiagramDataPart footprints only when every
+declared changed part is closed by a primary or nested footprint. Leaf-specific
+path classes, hashes, relationship bindings, numeric coordinates, and exact
+field sets are validated before task HEAD advances; raw XML, undeclared fields,
+escaping paths, foreign bindings, duplicate parts, and extra changed parts
+reject.
+
+The real repository SmartArt canary completed a three-session regression. The
+first session reopened the immutable staged source, changed `Scale candidate`
+to `Scale`, performed semantic/structural review, and committed the dependent
+DiagramDataPart operation. A fresh session restored the reviewed bytes with no
+JavaScript heap, rebuilt the native-leaf index by inspection, changed `Strategy
+details` to `Strategy evidence` in slide 2, reviewed, and committed again. A
+third session reopened both immutable operation records, reimported the current
+revision, resolved both values, and published a distinct output while the
+source bytes stayed exact. Focused task-artifact, REPL, Skill portability,
+reference-sync, and OpenSpec gates cover this milestone. Native rendering,
+packed clean-install, Agent 3/3, Windows PowerPoint, full suites, release
+candidate, and hosted CI remain open under the persistent Goal.
+
 ## Publishing
 
 Before publishing:

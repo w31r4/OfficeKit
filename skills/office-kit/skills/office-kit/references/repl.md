@@ -27,8 +27,8 @@ officekit repl --new "Create a promotion defense presentation"
 
 The first JSONL response is `session.ready`. Read its task brief, current
 publishable commit descriptor, restored artifact paths, pending failures,
-constraints, and next action before sending code. A missing task ID fails; it
-never creates a new task by typo.
+constraints, prior operation records, and next action before sending code. A
+missing task ID fails; it never creates a new task by typo.
 
 Use `officekit run task.mjs` instead for a genuinely one-shot script that does
 not need a durable editing context.
@@ -120,6 +120,14 @@ raw candidate bytes and never overwrites an input or existing output.
 `officekit repl <task-id>` creates a new session and returns absolute paths for
 the complete artifact snapshot in the latest reviewed commit. Pending failed
 candidates are diagnostic inputs, not current revisions.
+
+For an imported PPTX, reopen that reviewed revision and run `inspect` again
+before every continued edit. Native leaf IDs and expected hashes are bound to
+one revision; never reuse an ID from an earlier session. A successful lookup
+after resume is the proof that the Agent rebuilt the node index from reviewed
+bytes rather than relying on stale process state. Review and commit the new
+candidate again before publication. `session.ready.operations` is immutable
+audit evidence for prior Edit Plans, not a replacement for reinspection.
 
 Every cell still has a private atomic checkpoint and journal for crash
 diagnosis. These are implementation details, not recovery keys. If a prior

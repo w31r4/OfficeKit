@@ -109,4 +109,122 @@ await assert.rejects(
   (error) => error.code === "operation-corrupt",
 );
 
+// A fresh Agent context must be able to continue a source-bound PPTX edit from
+// reviewed bytes and immutable Edit Plan evidence, without restoring the old
+// JavaScript heap. Use the real SmartArt canary so the first commit mutates a
+// dependent DiagramDataPart and the second commit mutates a SlidePart.
+const strategyWorkspace = await mkdtemp(path.join(os.tmpdir(), "officekit-task-pptx-resume-"));
+const strategySourcePath = path.resolve("evals/assets/presentations/strategy-review.pptx");
+const strategySourceBytes = await readFile(strategySourcePath);
+const strategySession = await createReplSession({
+  workspaceRoot: strategyWorkspace,
+  newTaskGoal: "Edit and review the strategy presentation without rebuilding it",
+});
+const strategyTaskId = strategySession.ready.task.id;
+const strategyInput = await strategySession.handleLine(JSON.stringify({
+  id: "stage-strategy-source",
+  code: `return await ctx.input(${JSON.stringify(strategySourcePath)}, {artifactId:'strategy-source'});`,
+}));
+assert.equal(strategyInput.ok, true);
+assert.notEqual(strategyInput.result.path, strategySourcePath);
+
+const smartArtCommitCell = [
+  "const fs=await ctx.import('node:fs/promises');",
+  "const path=await ctx.import('node:path');",
+  "const {FileBlob,PresentationFile,reviewArtifact}=await ctx.import('office-kit');",
+  `const source=await fs.readFile(${JSON.stringify(strategyInput.result.path)});`,
+  "const presentation=await PresentationFile.importPptx(new FileBlob(source,{type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'}));",
+  "const targetId='presentation/slide/1/element/3';",
+  "const leaves=presentation.inspect({includeNativeLeaves:true,target:targetId}).ndjson.split('\\n').filter(Boolean).map(JSON.parse);",
+  "const leaf=leaves.find(item=>item.kind==='nativeLeaf'&&item.leafKind==='diagramText'&&item.value==='Scale candidate');",
+  "if(!leaf) throw new Error('SmartArt leaf was not resolved from the reopened source');",
+  "ctx.state.issuedLeafId=leaf.leafId;",
+  "presentation.editNativeLeaf(targetId,leaf.leafId,{expectedHash:leaf.expectedHash,value:'Scale'});",
+  "const output=await PresentationFile.exportPptx(presentation);",
+  "const review=await reviewArtifact(output,{outputPath:path.join(ctx.taskRoot,'candidates','strategy-smartart.pptx'),layout:false,visualReview:'unavailable',verifyOptions:{minOverlapArea:46081}});",
+  "const badPlan=structuredClone(output.metadata.editPlan);",
+  "badPlan.operations[0].targetPartPath='../escape.xml';",
+  "const badCandidate={metadata:{editPlan:badPlan},arrayBuffer:()=>output.arrayBuffer()};",
+  "const rawPlan=structuredClone(output.metadata.editPlan);",
+  "rawPlan.operations[0].rawXml='<a:t>unsafe</a:t>';",
+  "const rawCandidate={metadata:{editPlan:rawPlan},arrayBuffer:()=>output.arrayBuffer()};",
+  "const invalidCodes=[];",
+  "for(const candidate of [badCandidate,rawCandidate]){try{await ctx.commit(candidate,{artifactId:'strategy-deck',kind:'presentation',name:'strategy-reviewed.pptx',summary:'Unsafe dependent binding',review});}catch(error){invalidCodes.push(error.code);}}",
+  "const commit=await ctx.commit(output,{artifactId:'strategy-deck',kind:'presentation',name:'strategy-reviewed.pptx',summary:'Edit SmartArt scale label',review,next:'Reopen the reviewed revision and edit its detail title'});",
+  "return {invalidCodes,selectedLeafId:leaf.leafId,commit};",
+].join(" ");
+const smartArtCommit = await strategySession.handleLine(JSON.stringify({ id: "edit-smartart", code: smartArtCommitCell }));
+assert.equal(smartArtCommit.ok, true, JSON.stringify(smartArtCommit, null, 2));
+assert.deepEqual(smartArtCommit.result.invalidCodes, ["invalid-edit-plan", "invalid-edit-plan"]);
+assert.equal(smartArtCommit.result.commit.commitId, "c0001");
+assert.deepEqual(smartArtCommit.result.commit.operation?.changedParts, ["ppt/diagrams/strategy-data.xml"]);
+await strategySession.close();
+
+const resumedStrategy = await createReplSession({ workspaceRoot: strategyWorkspace, taskId: strategyTaskId });
+assert.equal(resumedStrategy.ready.resumedFrom.commitId, "c0001");
+assert.equal(resumedStrategy.ready.operations.length, 1);
+assert.equal(resumedStrategy.ready.operations[0].operationIds.length, 1);
+assert.equal(resumedStrategy.ready.artifacts.length, 1);
+const firstStrategyOperation = JSON.parse(await readFile(resumedStrategy.ready.operations[0].path, "utf8"));
+assert.equal(firstStrategyOperation.plan.operations[0].leafKind, "diagramText");
+assert.equal(firstStrategyOperation.plan.operations[0].targetPartPath, "ppt/diagrams/strategy-data.xml");
+const firstReviewedPath = resumedStrategy.ready.artifacts[0].path;
+const titleCommitCell = [
+  "const fs=await ctx.import('node:fs/promises');",
+  "const path=await ctx.import('node:path');",
+  "const {FileBlob,PresentationFile,reviewArtifact}=await ctx.import('office-kit');",
+  `const source=await fs.readFile(${JSON.stringify(firstReviewedPath)});`,
+  "const presentation=await PresentationFile.importPptx(new FileBlob(source,{type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'}));",
+  "const smartArtTarget='presentation/slide/1/element/3';",
+  "const smartArtLeaves=presentation.inspect({includeNativeLeaves:true,target:smartArtTarget}).ndjson.split('\\n').filter(Boolean).map(JSON.parse);",
+  "const scaleLeaf=smartArtLeaves.find(item=>item.kind==='nativeLeaf'&&item.leafKind==='diagramText'&&item.value==='Scale');",
+  "if(!scaleLeaf) throw new Error('Reviewed SmartArt edit was not restored');",
+  "const titleTarget='presentation/slide/2/element/1';",
+  "const titleLeaves=presentation.inspect({includeNativeLeaves:true,target:titleTarget}).ndjson.split('\\n').filter(Boolean).map(JSON.parse);",
+  "const titleLeaf=titleLeaves.find(item=>item.kind==='nativeLeaf'&&item.leafKind==='text'&&item.value==='Strategy details');",
+  "if(!titleLeaf) throw new Error('Title node index was not rebuilt from reviewed bytes');",
+  "presentation.editNativeLeaf(titleTarget,titleLeaf.leafId,{expectedHash:titleLeaf.expectedHash,value:'Strategy evidence'});",
+  "const output=await PresentationFile.exportPptx(presentation);",
+  "const review=await reviewArtifact(output,{outputPath:path.join(ctx.taskRoot,'candidates','strategy-title.pptx'),layout:false,visualReview:'unavailable',verifyOptions:{minOverlapArea:46081}});",
+  "const commit=await ctx.commit(output,{artifactId:'strategy-deck',kind:'presentation',name:'strategy-reviewed.pptx',summary:'Edit strategy detail title after resume',review,next:'Reopen, verify both edits, and publish'});",
+  "return {heapRestored:ctx.state.issuedLeafId??null,observedScale:scaleLeaf.value,selectedLeafId:titleLeaf.leafId,commit};",
+].join(" ");
+const titleCommit = await resumedStrategy.handleLine(JSON.stringify({ id: "edit-title-after-resume", code: titleCommitCell }));
+assert.equal(titleCommit.ok, true, JSON.stringify(titleCommit, null, 2));
+assert.equal(titleCommit.result.heapRestored, null);
+assert.equal(titleCommit.result.observedScale, "Scale");
+assert.equal(titleCommit.result.commit.commitId, "c0002");
+assert.notEqual(titleCommit.result.selectedLeafId, smartArtCommit.result.selectedLeafId);
+await resumedStrategy.close();
+
+const publishStrategy = await createReplSession({ workspaceRoot: strategyWorkspace, taskId: strategyTaskId });
+assert.equal(publishStrategy.ready.resumedFrom.commitId, "c0002");
+assert.equal(publishStrategy.ready.operations.length, 2);
+assert.deepEqual(publishStrategy.ready.operations.map((operation) => operation.commitId), ["c0001", "c0002"]);
+const secondStrategyOperation = JSON.parse(await readFile(publishStrategy.ready.operations[1].path, "utf8"));
+assert.equal(secondStrategyOperation.plan.operations[0].leafKind, "text");
+assert.deepEqual(secondStrategyOperation.plan.changedParts, ["ppt/slides/slide2.xml"]);
+const finalReviewedPath = publishStrategy.ready.artifacts[0].path;
+const finalVerification = await publishStrategy.handleLine(JSON.stringify({
+  id: "verify-rebuilt-index",
+  code: [
+    "const fs=await ctx.import('node:fs/promises');",
+    "const {FileBlob,PresentationFile}=await ctx.import('office-kit');",
+    `const source=await fs.readFile(${JSON.stringify(finalReviewedPath)});`,
+    "const presentation=await PresentationFile.importPptx(new FileBlob(source,{type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'}));",
+    "const records=['presentation/slide/1/element/3','presentation/slide/2/element/1'].flatMap(target=>presentation.inspect({includeNativeLeaves:true,target}).ndjson.split('\\n').filter(Boolean).map(JSON.parse));",
+    "return {scale:records.some(item=>item.kind==='nativeLeaf'&&item.leafKind==='diagramText'&&item.value==='Scale'),title:records.some(item=>item.kind==='nativeLeaf'&&item.leafKind==='text'&&item.value==='Strategy evidence')};",
+  ].join(" "),
+}));
+assert.deepEqual(finalVerification.result, { scale: true, title: true });
+const publishedStrategy = await publishStrategy.handleLine(JSON.stringify({
+  id: "publish-reviewed-strategy",
+  code: "return await ctx.publish(ctx.task.commit,{artifactId:'strategy-deck',name:'strategy-reviewed.pptx'});",
+}));
+assert.equal(publishedStrategy.ok, true, JSON.stringify(publishedStrategy, null, 2));
+assert.notEqual(publishedStrategy.result.path, strategySourcePath);
+assert.deepEqual(await readFile(strategySourcePath), strategySourceBytes, "task workflow must not modify the source PPTX");
+assert.deepEqual(await readFile(publishedStrategy.result.path), await readFile(finalReviewedPath));
+await publishStrategy.close();
+
 console.log("OfficeKit four-format task artifact smoke ok");
