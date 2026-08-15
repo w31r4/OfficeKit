@@ -33,6 +33,15 @@ function presentationEditPlanMetadata(editPlan, result) {
           JSON.stringify(footprint.shapeTreePath) !== JSON.stringify(operation.shapeTreePath)) {
         throw new OfficeKitCodecError(`OfficeKit PPTX Edit Plan result changed the binding for operation ${operation.operationId}.`, [], { code: "presentation_edit_plan_result_mismatch" });
       }
+      const nestedFootprints = footprint.nestedFootprints || [];
+      if (operation.leafKind === "chartDataValue") {
+        if (nestedFootprints.length !== 1 || nestedFootprints[0].containerPartPath !== operation.embeddedPackagePartPath ||
+            nestedFootprints[0].partPath !== operation.embeddedWorksheetPartPath) {
+          throw new OfficeKitCodecError(`OfficeKit PPTX Edit Plan result changed the embedded-workbook binding for operation ${operation.operationId}.`, [], { code: "presentation_edit_plan_result_mismatch" });
+        }
+      } else if (nestedFootprints.length !== 0) {
+        throw new OfficeKitCodecError(`OfficeKit PPTX Edit Plan result added an undeclared nested footprint to operation ${operation.operationId}.`, [], { code: "presentation_edit_plan_result_mismatch" });
+      }
       return {
         operationId: operation.operationId,
         slideId: operation.slideId,
@@ -53,6 +62,17 @@ function presentationEditPlanMetadata(editPlan, result) {
           expectedTargetPartSha256: operation.expectedTargetPartSha256,
           relationshipId: operation.relationshipId,
         } : {}),
+        ...(operation.embeddedPackagePartPath ? {
+          embeddedPackagePartPath: operation.embeddedPackagePartPath,
+          expectedEmbeddedPackageSha256: operation.expectedEmbeddedPackageSha256,
+          embeddedPackageRelationshipId: operation.embeddedPackageRelationshipId,
+          embeddedWorksheetPartPath: operation.embeddedWorksheetPartPath,
+          expectedEmbeddedWorksheetSha256: operation.expectedEmbeddedWorksheetSha256,
+          embeddedCellReference: operation.embeddedCellReference,
+          chartSeriesIndex: operation.chartSeriesIndex,
+          chartPointIndex: operation.chartPointIndex,
+          chartFormula: operation.chartFormula,
+        } : {}),
         footprint: {
           mutationPartPath: footprint.mutationPartPath,
           sourceElementSha256: footprint.sourceElementSha256,
@@ -64,6 +84,15 @@ function presentationEditPlanMetadata(editPlan, result) {
           outputEndOffset: String(footprint.outputEndOffset),
           shapeTreePath: [...footprint.shapeTreePath],
           leafKind: footprint.leafKind,
+          nestedFootprints: nestedFootprints.map((nested) => ({
+            containerPartPath: nested.containerPartPath,
+            partPath: nested.partPath,
+            oldValueSha256: nested.oldValueSha256,
+            newValueSha256: nested.newValueSha256,
+            sourceStartOffset: String(nested.sourceStartOffset),
+            sourceEndOffset: String(nested.sourceEndOffset),
+            outputEndOffset: String(nested.outputEndOffset),
+          })),
         },
       };
     }),

@@ -46,6 +46,7 @@ assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.r
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /includeNativeLeaves.*revision-bound.*without exposing part paths/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf")?.summary || "", /targetId.*leafId.*expectedHash.*raw XML.*reject/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf")?.summary || "", /chartDataValue.*ChartPart cache.*worksheet cell/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
 assert.match(HELP_CATALOG.find((item) => item.name === "workbook.setCalculation")?.schema?.parameters?.mode?.description || "", /automaticExceptTables/);
 assert.match(HELP_CATALOG.find((item) => item.name === "workbook.connections")?.schema?.returns?.connections?.description || "", /inspection.*provider strings.*refreshOnLoad=true.*source-bound.*disableConnectionRefreshOnLoad/i);

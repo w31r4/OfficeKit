@@ -59,6 +59,16 @@ const SOURCES = Object.freeze([
         expectedValue: "MegaDPP",
         value: "MegaDPP Pro",
       },
+      {
+        id: "chart-data-point",
+        nodeId: "presentation/slide/20/element/26",
+        operation: "nativeLeaf",
+        leafKind: "chartDataValue",
+        seriesIndex: 1,
+        pointIndex: 0,
+        expectedValue: 23,
+        value: 24,
+      },
     ],
   },
   {
@@ -209,7 +219,13 @@ async function packageOracle(sourceBytes, outputBytes, editPlan, target) {
   for (const partPath of source.keys()) {
     if (!changedParts.includes(partPath) && !source.get(partPath).equals(output.get(partPath))) fail(`Non-target OPC part changed: ${partPath}`);
   }
+  let nestedPackagePartsByteIdentical = true;
   for (const partPath of changedParts) {
+    const nestedOperations = editPlan.operations.filter((candidate) => candidate.embeddedPackagePartPath === partPath);
+    if (nestedOperations.length > 0) {
+      await nestedPackageOracle(source.get(partPath), output.get(partPath), nestedOperations, partPath);
+      continue;
+    }
     const sourceXml = source.get(partPath).toString("utf8");
     const outputXml = output.get(partPath).toString("utf8");
     const operations = editPlan.operations.filter((candidate) =>
@@ -223,7 +239,28 @@ async function packageOracle(sourceBytes, outputBytes, editPlan, target) {
       fail(`Declared scalar footprints cannot mask target XML back to source: ${partPath}`);
     }
   }
-  return { changedParts, nonTargetPartsByteIdentical: true, maskedTargetXmlByteIdentical: true };
+  return { changedParts, nonTargetPartsByteIdentical: true, maskedTargetXmlByteIdentical: true, nestedPackagePartsByteIdentical };
+}
+
+async function nestedPackageOracle(sourceBytes, outputBytes, operations, containerPartPath) {
+  const source = await zipParts(sourceBytes);
+  const output = await zipParts(outputBytes);
+  if (source.size !== output.size || [...source.keys()].some((partPath) => !output.has(partPath))) fail(`Embedded package ${containerPartPath} changed its entry set.`);
+  const changedParts = [...source.keys()].filter((partPath) => !source.get(partPath).equals(output.get(partPath))).sort();
+  const declared = [...new Set(operations.flatMap((operation) => (operation.footprint?.nestedFootprints || [])
+    .filter((footprint) => footprint.containerPartPath === containerPartPath)
+    .map((footprint) => footprint.partPath)))].sort();
+  assertJsonEqual(changedParts, declared, `Embedded package ${containerPartPath} changed undeclared parts`);
+  for (const partPath of source.keys()) {
+    if (!changedParts.includes(partPath) && !source.get(partPath).equals(output.get(partPath))) fail(`Non-target embedded package part changed: ${containerPartPath}!/${partPath}`);
+  }
+  for (const partPath of changedParts) {
+    const partOperations = operations.filter((operation) => (operation.footprint?.nestedFootprints || []).some((footprint) =>
+      footprint.containerPartPath === containerPartPath && footprint.partPath === partPath));
+    if (!partOperations.length || !maskNestedOperationFootprints(source.get(partPath), output.get(partPath), partOperations, containerPartPath, partPath)) {
+      fail(`Declared nested footprints cannot mask target XML back to source: ${containerPartPath}!/${partPath}`);
+    }
+  }
 }
 
 async function packageInventory(bytes) {
@@ -272,7 +309,7 @@ async function proveDeclaredTarget(bytes, nodes, sourceId, target) {
   if (target.operation !== "nativeLeaf" && target.operation !== "nativeLeaves") fail(`Declared target ${sourceId}/${target.id} uses an unknown operation.`);
   const presentation = await importPresentation(bytes);
   for (const leafSpec of nativeLeafSpecs(target)) {
-    const leaf = nativeLeafRecord(presentation, target, leafSpec.leafKind, leafSpec.expectedValue);
+    const leaf = nativeLeafRecord(presentation, target, leafSpec);
     if (leaf.value !== leafSpec.expectedValue) fail(`Declared native target ${sourceId}/${target.id}/${leafSpec.leafKind} does not match its inspected leaf.`);
   }
 }
@@ -288,7 +325,7 @@ function applyBenchmarkTarget(presentation, sourceId, target) {
     return;
   }
   for (const leafSpec of nativeLeafSpecs(target)) {
-    const leaf = nativeLeafRecord(presentation, target, leafSpec.leafKind, leafSpec.expectedValue);
+    const leaf = nativeLeafRecord(presentation, target, leafSpec);
     if (leaf.value !== leafSpec.expectedValue) fail(`Target ${sourceId}/${target.id}/${leafSpec.leafKind} is stale.`);
     presentation.editNativeLeaf(leaf.targetId, leaf.leafId, { expectedHash: leaf.expectedHash, value: leafSpec.value });
   }
@@ -301,24 +338,26 @@ function verifyBenchmarkTarget(presentation, sourceId, target) {
     return;
   }
   for (const leafSpec of nativeLeafSpecs(target)) {
-    if (nativeLeafRecord(presentation, target, leafSpec.leafKind, leafSpec.value).value !== leafSpec.value) fail(`Target ${sourceId}/${target.id}/${leafSpec.leafKind} failed second import.`);
+    if (nativeLeafRecord(presentation, target, { ...leafSpec, expectedValue: leafSpec.value }).value !== leafSpec.value) fail(`Target ${sourceId}/${target.id}/${leafSpec.leafKind} failed second import.`);
   }
 }
 
 function nativeLeafSpecs(target) {
   return target.operation === "nativeLeaves"
     ? target.leaves
-    : [{ leafKind: target.leafKind, expectedValue: target.expectedValue, value: target.value }];
+    : [target];
 }
 
-function nativeLeafRecord(presentation, target, leafKind = target.leafKind, expectedValue = target.expectedValue) {
+function nativeLeafRecord(presentation, target, leafSpec = target) {
   const records = presentation.inspect({ includeNativeLeaves: true, target: target.nodeId }).ndjson
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line));
-  const leaves = records.filter((record) => record.kind === "nativeLeaf" && record.targetId === target.nodeId && record.leafKind === leafKind &&
-    (expectedValue === undefined || record.value === expectedValue));
-  if (leaves.length !== 1) fail(`Native target ${target.id} resolved ${leaves.length} ${leafKind} leaves.`);
+  const leaves = records.filter((record) => record.kind === "nativeLeaf" && record.targetId === target.nodeId && record.leafKind === leafSpec.leafKind &&
+    (leafSpec.expectedValue === undefined || record.value === leafSpec.expectedValue) &&
+    (leafSpec.seriesIndex === undefined || record.seriesIndex === leafSpec.seriesIndex) &&
+    (leafSpec.pointIndex === undefined || record.pointIndex === leafSpec.pointIndex));
+  if (leaves.length !== 1) fail(`Native target ${target.id} resolved ${leaves.length} ${leafSpec.leafKind} leaves.`);
   return leaves[0];
 }
 
@@ -388,6 +427,28 @@ function maskScalarOperationFootprints(source, output, operations) {
     const sourceStart = Number(operation.footprint.sourceStartOffset);
     const sourceEnd = Number(operation.footprint.sourceEndOffset);
     const outputEnd = Number(operation.footprint.outputEndOffset);
+    const outputStart = outputEnd - replacement.length;
+    if (!Number.isSafeInteger(sourceStart) || !Number.isSafeInteger(sourceEnd) || !Number.isSafeInteger(outputStart) || !Number.isSafeInteger(outputEnd)) return false;
+    if (!Buffer.from(source).subarray(sourceStart, sourceEnd).equals(expected) || !Buffer.from(output).subarray(outputStart, outputEnd).equals(replacement)) return false;
+    masks.push({ start: outputStart, end: outputEnd, bytes: expected });
+  }
+  masks.sort((left, right) => right.start - left.start);
+  for (let index = 1; index < masks.length; index += 1) if (masks[index - 1].start < masks[index].end) return false;
+  for (const mask of masks) masked = Buffer.concat([masked.subarray(0, mask.start), mask.bytes, masked.subarray(mask.end)]);
+  return masked.equals(Buffer.from(source));
+}
+function maskNestedOperationFootprints(source, output, operations, containerPartPath, partPath) {
+  let masked = Buffer.from(output);
+  const masks = [];
+  for (const operation of operations) {
+    const footprint = (operation.footprint?.nestedFootprints || []).find((candidate) =>
+      candidate.containerPartPath === containerPartPath && candidate.partPath === partPath);
+    if (!footprint) return false;
+    const expected = Buffer.from(escapeXmlText(operation.expectedValue), "utf8");
+    const replacement = Buffer.from(escapeXmlText(operation.value), "utf8");
+    const sourceStart = Number(footprint.sourceStartOffset);
+    const sourceEnd = Number(footprint.sourceEndOffset);
+    const outputEnd = Number(footprint.outputEndOffset);
     const outputStart = outputEnd - replacement.length;
     if (!Number.isSafeInteger(sourceStart) || !Number.isSafeInteger(sourceEnd) || !Number.isSafeInteger(outputStart) || !Number.isSafeInteger(outputEnd)) return false;
     if (!Buffer.from(source).subarray(sourceStart, sourceEnd).equals(expected) || !Buffer.from(output).subarray(outputStart, outputEnd).equals(replacement)) return false;

@@ -12,7 +12,7 @@ assert.equal(manifest.schema, "office-kit/pptx-lossless-benchmark/v1");
 assert.equal(manifest.sources.length, 3);
 assert.equal(new Set(manifest.sources.map((source) => source.id)).size, 3);
 assert.equal(new Set(manifest.sources.map((source) => source.sha256)).size, 3);
-assert.equal(manifest.sources.reduce((count, source) => count + source.targets.length, 0), 10);
+assert.equal(manifest.sources.reduce((count, source) => count + source.targets.length, 0), 11);
 
 for (const source of manifest.sources) {
   assert.match(source.id, /^[a-z0-9][a-z0-9-]+$/u);
@@ -43,13 +43,17 @@ for (const source of manifest.sources) {
       assert.equal(Array.isArray(leaves) && leaves.length > 0 && leaves.length <= 8, true);
       assert.equal(new Set(leaves.map((leaf) => leaf.leafKind)).size, leaves.length);
       for (const leaf of leaves) {
-        assert.match(leaf.leafKind, /^(text|chartTitleText|leftEmu|topEmu|widthEmu|heightEmu)$/u);
+        assert.match(leaf.leafKind, /^(text|chartTitleText|chartDataValue|leftEmu|topEmu|widthEmu|heightEmu)$/u);
         if (leaf.leafKind === "text" || leaf.leafKind === "chartTitleText") {
           assert.equal(typeof leaf.expectedValue, "string");
           assert.equal(typeof leaf.value, "string");
         } else {
           assert.equal(Number.isSafeInteger(leaf.expectedValue), true);
           assert.equal(Number.isSafeInteger(leaf.value), true);
+        }
+        if (leaf.leafKind === "chartDataValue") {
+          assert.equal(Number.isSafeInteger(leaf.seriesIndex) && leaf.seriesIndex >= 0, true);
+          assert.equal(Number.isSafeInteger(leaf.pointIndex) && leaf.pointIndex >= 0, true);
         }
         assert.notEqual(leaf.expectedValue, leaf.value);
       }
@@ -66,9 +70,9 @@ assert.equal(
 assert.equal(evidence.schema, "office-kit/pptx-lossless-evidence/v1");
 assert.equal(evidence.manifestSha256, createHash("sha256").update(manifestBytes).digest("hex"));
 assert.equal(evidence.repetitionsPerTarget, 3);
-assert.deepEqual(Object.values(evidence.runnerContract), [true, true, true, true, true, true]);
+assert.deepEqual(Object.values(evidence.runnerContract), [true, true, true, true, true, true, true]);
 assert.equal(evidence.sources.length, manifest.sources.length);
-assert.equal(evidence.sources.reduce((count, source) => count + source.targets.length, 0), 10);
+assert.equal(evidence.sources.reduce((count, source) => count + source.targets.length, 0), 11);
 for (const source of evidence.sources) {
   const declared = manifest.sources.find((candidate) => candidate.id === source.id);
   assert.ok(declared);
@@ -78,8 +82,12 @@ for (const source of evidence.sources) {
   for (const target of source.targets) {
     assert.equal(declared.targets.some((candidate) => candidate.id === target.id), true);
     assert.match(target.outputSha256, /^[a-f0-9]{64}$/u);
-    assert.equal(target.changedParts.length, 1);
-    assert.match(target.changedParts[0], /^ppt\/(?:slides\/slide[1-9][0-9]*|charts\/chart[1-9][0-9]*)\.xml$/u);
+    if (target.leafKind === "chartDataValue") {
+      assert.deepEqual(target.changedParts, ["ppt/charts/chart4.xml", "ppt/embeddings/Microsoft_Excel____1.xlsx"]);
+    } else {
+      assert.equal(target.changedParts.length, 1);
+      assert.match(target.changedParts[0], /^ppt\/(?:slides\/slide[1-9][0-9]*|charts\/chart[1-9][0-9]*)\.xml$/u);
+    }
   }
 }
 

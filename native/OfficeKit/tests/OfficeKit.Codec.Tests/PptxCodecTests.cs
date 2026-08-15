@@ -645,6 +645,145 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void EditPlanChangesOneChartCacheAndItsEmbeddedWorkbookCellWithoutReserializingEitherPackage()
+    {
+        var request = ExportRequest();
+        var chart = new PresentationChart
+        {
+            LeftEmu = 4_000_000,
+            TopEmu = 1_500_000,
+            WidthEmu = 4_500_000,
+            HeightEmu = 2_500_000,
+            Type = SpreadsheetChartType.Bar,
+            Title = "Native chart data proof",
+            HasLegend = true,
+        };
+        chart.Categories.Add(["A", "B"]);
+        chart.Series.Add(new SpreadsheetChartSeriesArtifact { Name = "Evidence", Values = { 8, 13 } });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/chart/native-data",
+            Name = "Native source chart data",
+            Chart = chart,
+        });
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        string chartPath;
+        using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            chartPath = Assert.Single(package.PresentationPart!.SlideParts.Single().ChartParts).Uri.OriginalString.TrimStart('/');
+        const string workbookPath = "ppt/embeddings/native-chart-data.xlsx";
+        var sourceBytes = AddEmbeddedChartDataWorkbook(authored.File.ToByteArray(), chartPath, workbookPath);
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var element = Assert.Single(slide.Elements, candidate => candidate.Name == "Native source chart data");
+        var binding = Assert.IsType<PresentationNativeChart>(element.Opaque.NativeChart);
+        Assert.Equal(workbookPath, binding.EmbeddedPackagePartPath);
+        var point = Assert.Single(binding.DataPoints, candidate => candidate.SeriesIndex == 0 && candidate.PointIndex == 0);
+        Assert.Equal("8", point.Value);
+        Assert.Equal("Sheet1!$B$2:$B$3", point.Formula);
+        Assert.Equal("B2", point.CellReference);
+        const string replacement = "9";
+        var operation = new PresentationEditOperation
+        {
+            OperationId = "chart-data-0001",
+            SlideId = slide.Id,
+            SlidePartPath = slide.Source.PartPath,
+            ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+            TargetId = element.Id,
+            ShapeTreeIndex = element.Source.ShapeTreeIndex,
+            ExpectedElementSha256 = element.Source.ElementSha256,
+            ExpectedSemanticSha256 = element.Source.SemanticSha256,
+            LeafKind = "chartDataValue",
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(point.Value))).ToLowerInvariant(),
+            ExpectedValue = point.Value,
+            Value = replacement,
+            TargetPartPath = binding.PartPath,
+            ExpectedTargetPartSha256 = binding.SourceSha256,
+            RelationshipId = binding.RelationshipId,
+            EmbeddedPackagePartPath = binding.EmbeddedPackagePartPath,
+            ExpectedEmbeddedPackageSha256 = binding.EmbeddedPackageSourceSha256,
+            EmbeddedPackageRelationshipId = binding.EmbeddedPackageRelationshipId,
+            EmbeddedWorksheetPartPath = point.WorksheetPartPath,
+            ExpectedEmbeddedWorksheetSha256 = point.WorksheetSourceSha256,
+            EmbeddedCellReference = point.CellReference,
+            ChartSeriesIndex = point.SeriesIndex,
+            ChartPointIndex = point.PointIndex,
+            ChartFormula = point.Formula,
+        };
+        var editRequest = new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+                Operations = { operation },
+            },
+        };
+
+        var edited = Invoke(editRequest);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(new[] { binding.PartPath, binding.EmbeddedPackagePartPath }.OrderBy(value => value, StringComparer.Ordinal), edited.PresentationEditPlan.ChangedParts);
+        var result = Assert.Single(edited.PresentationEditPlan.Operations);
+        Assert.Equal(binding.PartPath, result.MutationPartPath);
+        var nested = Assert.Single(result.NestedFootprints);
+        Assert.Equal(binding.EmbeddedPackagePartPath, nested.ContainerPartPath);
+        Assert.Equal(point.WorksheetPartPath, nested.PartPath);
+        var outputBytes = edited.File.ToByteArray();
+        var sourceChartXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, binding.PartPath));
+        var outputChartXml = Encoding.UTF8.GetString(ZipBytes(outputBytes, binding.PartPath));
+        Assert.Equal(sourceChartXml, outputChartXml.Replace("<c:v>9</c:v>", "<c:v>8</c:v>", StringComparison.Ordinal));
+        foreach (var path in ZipPartPaths(sourceBytes).Where(path =>
+                     !path.Equals(binding.PartPath, StringComparison.OrdinalIgnoreCase) &&
+                     !path.Equals(binding.EmbeddedPackagePartPath, StringComparison.OrdinalIgnoreCase)))
+            Assert.Equal(ZipBytes(sourceBytes, path), ZipBytes(outputBytes, path));
+
+        var sourceWorkbook = ZipBytes(sourceBytes, binding.EmbeddedPackagePartPath);
+        var outputWorkbook = ZipBytes(outputBytes, binding.EmbeddedPackagePartPath);
+        var sourceWorksheet = ZipBytes(sourceWorkbook, point.WorksheetPartPath);
+        var outputWorksheet = ZipBytes(outputWorkbook, point.WorksheetPartPath);
+        Assert.Equal("8", Encoding.UTF8.GetString(sourceWorksheet[(int)nested.SourceStartOffset..(int)nested.SourceEndOffset]));
+        var outputStart = checked((int)nested.OutputEndOffset - Encoding.UTF8.GetByteCount(replacement));
+        Assert.Equal(replacement, Encoding.UTF8.GetString(outputWorksheet[outputStart..(int)nested.OutputEndOffset]));
+        var maskedWorksheet = outputWorksheet[..outputStart]
+            .Concat(Encoding.UTF8.GetBytes(point.Value))
+            .Concat(outputWorksheet[(int)nested.OutputEndOffset..])
+            .ToArray();
+        Assert.Equal(sourceWorksheet, maskedWorksheet);
+        foreach (var path in ZipPartPaths(sourceWorkbook).Where(path => !path.Equals(point.WorksheetPartPath, StringComparison.OrdinalIgnoreCase)))
+            Assert.Equal(ZipBytes(sourceWorkbook, path), ZipBytes(outputWorkbook, path));
+        var reopened = Import(outputBytes);
+        Assert.True(reopened.Ok, Diagnostics(reopened));
+        var reopenedChart = Assert.Single(Assert.Single(reopened.Artifact.Presentation.Slides).Elements, candidate => candidate.Id == element.Id);
+        Assert.Equal(replacement, Assert.Single(reopenedChart.Opaque.NativeChart.DataPoints, candidate => candidate.SeriesIndex == 0 && candidate.PointIndex == 0).Value);
+
+        var stale = editRequest.Clone();
+        stale.PresentationEditPlan.Operations[0].ExpectedEmbeddedWorksheetSha256 = new string('0', 64);
+        var rejected = Invoke(stale);
+        Assert.False(rejected.Ok);
+        Assert.Equal("presentation_leaf_precondition_failed", Assert.Single(rejected.Diagnostics).Code);
+
+        var ambiguousSource = ReplaceZipText(sourceBytes, chartPath, xml =>
+            new Regex(
+                    "(<c:numRef><c:f>Sheet1!\\$B\\$2:\\$B\\$3</c:f><c:numCache>.*?)(<c:pt idx=\"0\"><c:v>8</c:v></c:pt>)",
+                    RegexOptions.Singleline,
+                    TimeSpan.FromSeconds(1))
+                .Replace(xml, "$1$2$2", 1));
+        Assert.False(sourceBytes.SequenceEqual(ambiguousSource));
+        var ambiguousImport = Import(ambiguousSource);
+        Assert.True(ambiguousImport.Ok, Diagnostics(ambiguousImport));
+        var ambiguousChart = Assert.Single(
+            Assert.Single(ambiguousImport.Artifact.Presentation.Slides).Elements,
+            candidate => candidate.Name == "Native source chart data").Opaque.NativeChart;
+        Assert.Empty(ambiguousChart.DataPoints);
+        Assert.Empty(ambiguousChart.EmbeddedPackagePartPath);
+    }
+
+    [Fact]
     public void ShapeAccessibilityAuthorsImportsEditsAndKeepsIrregularMetadataSourceOwned()
     {
         var request = ExportRequest();
@@ -10214,6 +10353,60 @@ public sealed class PptxCodecTests
                 Id = workbookPart.GetIdOfPart(worksheetPart),
                 SheetId = 1,
                 Name = "Embedded",
+            }));
+            workbookPart.Workbook.Save();
+            worksheetPart.Worksheet.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddEmbeddedChartDataWorkbook(byte[] bytes, string chartPath, string workbookPath)
+    {
+        var workbook = CreateEmbeddedChartDataWorkbook();
+        var separator = chartPath.LastIndexOf('/');
+        var chartRelationshipsPath = $"{chartPath[..separator]}/_rels/{chartPath[(separator + 1)..]}.rels";
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            ReplaceZipText(archive, chartPath, xml => Regex.Replace(
+                    xml,
+                    "<c:numLit>(?<body>.*?)</c:numLit>",
+                    "<c:numRef><c:f>Sheet1!$B$2:$B$3</c:f><c:numCache>${body}</c:numCache></c:numRef>",
+                    RegexOptions.Singleline,
+                    TimeSpan.FromSeconds(1))
+                .Replace("<c:chartSpace", "<c:chartSpace xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"", StringComparison.Ordinal)
+                .Replace("</c:chartSpace>", "<c:externalData r:id=\"rIdChartWorkbook\"><c:autoUpdate val=\"0\"/></c:externalData></c:chartSpace>", StringComparison.Ordinal));
+            AddZipText(archive, chartRelationshipsPath,
+                $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rIdChartWorkbook\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/package\" Target=\"/{workbookPath}\"/></Relationships>");
+            ReplaceZipText(archive, "[Content_Types].xml", xml => xml.Replace(
+                "</Types>",
+                $"<Override PartName=\"/{workbookPath}\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\"/></Types>",
+                StringComparison.Ordinal));
+            AddZipBytes(archive, workbookPath, workbook);
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] CreateEmbeddedChartDataWorkbook()
+    {
+        using var stream = new MemoryStream();
+        using (var document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook, autoSave: true))
+        {
+            var workbookPart = document.AddWorkbookPart();
+            workbookPart.Workbook = new S.Workbook();
+            var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+            worksheetPart.Worksheet = new S.Worksheet(new S.SheetData(
+                new S.Row(
+                    new S.Cell { CellReference = "B2", CellValue = new S.CellValue("8") }) { RowIndex = 2 },
+                new S.Row(
+                    new S.Cell { CellReference = "B3", CellValue = new S.CellValue("13") }) { RowIndex = 3 }));
+            workbookPart.Workbook.AppendChild(new S.Sheets(new S.Sheet
+            {
+                Id = workbookPart.GetIdOfPart(worksheetPart),
+                SheetId = 1,
+                Name = "Sheet1",
             }));
             workbookPart.Workbook.Save();
             worksheetPart.Worksheet.Save();

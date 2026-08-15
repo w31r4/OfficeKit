@@ -23,12 +23,15 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const presentationSkillDir = path.join(repoRoot, "skills", "presentations", "skills", "presentations");
 const packagedSlideRenderer = path.join(presentationSkillDir, "container_tools", "render_slides.py");
 const packagedRasterHelper = path.join(presentationSkillDir, "container_tools", "ensure_raster_image.py");
-const [packagedSlideRendererSource, packagedRasterHelperSource] = await Promise.all([
+const [packagedSlideRendererSource, packagedRasterHelperSource, presentationSkillSource] = await Promise.all([
   fs.readFile(packagedSlideRenderer, "utf8"),
   fs.readFile(packagedRasterHelper, "utf8"),
+  fs.readFile(path.join(presentationSkillDir, "SKILL.md"), "utf8"),
 ]);
 assert.doesNotMatch(packagedSlideRendererSource, /pdf2image/i, "the packaged slide renderer must not require an undeclared Python package");
 assert.doesNotMatch(packagedRasterHelperSource, /pdf2image/i, "the packaged raster helper must not require an undeclared Python package");
+assert.match(presentationSkillSource, /chartDataValue[\s\S]*ChartPart cache[\s\S]*workbook cell/i);
+assert.match(presentationSkillSource, /does not authorize chart identity, relationships, formulas, series topology/i);
 
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-presentation-skill-test-"));
 const baselineDir = path.join(root, "baselines");

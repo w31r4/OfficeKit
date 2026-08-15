@@ -36,13 +36,13 @@ An imported presentation may use the source package directly only after the comp
 
 ### 3. C# re-proves and token-splices every operation
 
-`APPLY_PPTX_EDIT_PLAN` receives the exact source SHA-256 and bounded operations. Each operation binds slide part, slide XML hash, native shape-tree index, element hash, semantic hash, leaf ordinal, and old text hash/value. A dependent native leaf additionally binds the unique internal relationship, target part path, and target part hash. Open XML SDK parsing is a read-only structural oracle. Mutation occurs in the original UTF-8 XML token stream and changes only the selected token plus a necessary `xml:space` attribute.
+`APPLY_PPTX_EDIT_PLAN` receives the exact source SHA-256 and bounded operations. Each operation binds slide part, slide XML hash, native shape-tree index, element hash, semantic hash, leaf ordinal, and old text hash/value. A dependent native leaf additionally binds the unique internal relationship, target part path, and target part hash. A chart-data leaf also binds one unique embedded XLSX relationship, package hash, worksheet hash, formula, series/point indices, and direct numeric cell. Open XML SDK parsing is a read-only structural oracle. Mutation occurs in the original UTF-8 XML token stream: ordinary and chart-title operations change one selected token, while chart data changes one ChartPart cache token and one worksheet value token. Each nested mutation has its own compiler-reported footprint.
 
 The codec rejects stale source, stale element, unsupported target kind, overlapping operations, duplicate targets, invalid paths, or output scope drift. It reopens the result and validates that only planned parts changed and that every new leaf is present.
 
 ### 4. Native leaves remain capability-issued
 
-`inspect({ includeNativeLeaves: true })` issues revision-bound leaf IDs only for codec-proven safe fields. `editNativeLeaf` accepts one such ID, expected hash, and value. It never accepts a part path, XPath, QName, arbitrary attribute, relationship ID, namespace, identity, or topology mutation. Initial leaf kinds are text, color, local geometry scalars, and direct rich-title text runs from a uniquely bound internal ChartPart. Dependent bindings stay internal to the compiler and codec; unsupported nodes remain inspectable only through summaries or opaque preservation.
+`inspect({ includeNativeLeaves: true })` issues revision-bound leaf IDs only for codec-proven safe fields. `editNativeLeaf` accepts one such ID, expected hash, and value. It never accepts a part path, XPath, QName, arbitrary attribute, relationship ID, namespace, identity, or topology mutation. Initial leaf kinds are text, color, local geometry scalars, direct rich-title text runs from a uniquely bound internal ChartPart, and direct numeric bar-chart cache points whose matching cells are proven in one uniquely bound embedded XLSX. Dependent bindings stay internal to the compiler and codec; unsupported nodes remain inspectable only through summaries or opaque preservation.
 
 ### 5. Task operation records are immutable evidence
 
@@ -72,6 +72,5 @@ The three external PPTX files are identified by hash in a versioned manifest. Or
 
 ## Open Questions
 
-- Which chart data bindings can prove both ChartPart cache and embedded-workbook cell mutations without broad reserialization?
 - Which SmartArt text leaf in the real benchmark has a stable package-local binding without relationship or topology mutation?
 - Which Windows runner and PowerPoint version will hold the signed final host-acceptance evidence?

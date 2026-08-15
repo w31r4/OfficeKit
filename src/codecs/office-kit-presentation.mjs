@@ -2927,7 +2927,8 @@ function createPresentationNativeLeafCapability(presentation, state) {
   for (const slideState of state.slides) for (const entry of slideState.entries) collectConnectedTargets(entry.wire);
   const registerLeaf = ({ wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue, value, unit, details, compilerBinding, normalize, isNoop, apply }) => {
     const expectedHash = createHash("sha256").update(expectedValue, "utf8").digest("hex");
-    const seed = [revisionSha256, slideState.wire.id, wire.id, shapeTreePath.join("/"), wire.source.elementSha256, leafKind, details?.textLeafIndex ?? "", expectedHash].join("\0");
+    const seed = [revisionSha256, slideState.wire.id, wire.id, shapeTreePath.join("/"), wire.source.elementSha256, leafKind,
+      details?.textLeafIndex ?? "", details?.seriesIndex ?? "", details?.pointIndex ?? "", expectedHash].join("\0");
     const leafId = `nl_${createHash("sha256").update(seed).digest("hex").slice(0, 32)}`;
     const record = Object.freeze({
       kind: "nativeLeaf",
@@ -2974,10 +2975,14 @@ function createPresentationNativeLeafCapability(presentation, state) {
       const binding = wire.content.value.nativeChart;
       const modelBinding = model?._nativeChartSourceBinding?.();
       const currentLeaves = model?._nativeChartTitleRecords?.();
+      const currentDataPoints = model?._nativeChartDataPointRecords?.();
       if (!binding || !modelBinding || !Array.isArray(currentLeaves) ||
           binding.partPath !== modelBinding.partPath || binding.contentType !== modelBinding.contentType ||
           binding.sourceSha256 !== modelBinding.sourceSha256 || binding.relationshipId !== modelBinding.relationshipId ||
-          binding.titleLeaves.length !== currentLeaves.length) return;
+          binding.titleLeaves.length !== currentLeaves.length || binding.embeddedPackagePartPath !== modelBinding.embeddedPackagePartPath ||
+          binding.embeddedPackageSourceSha256 !== modelBinding.embeddedPackageSourceSha256 ||
+          binding.embeddedPackageRelationshipId !== modelBinding.embeddedPackageRelationshipId ||
+          binding.dataPoints.length !== currentDataPoints.length) return;
       for (let index = 0; index < binding.titleLeaves.length; index += 1) {
         const leaf = binding.titleLeaves[index];
         const current = currentLeaves[index];
@@ -3000,6 +3005,48 @@ function createPresentationNativeLeafCapability(presentation, state) {
           },
           normalize(next) { assertNativeLeafTextValue(next); return { raw: next, publicValue: next }; },
           apply(next) { model._setNativeChartTitleLeaf(index, next); },
+        });
+      }
+      for (let index = 0; index < binding.dataPoints.length; index += 1) {
+        const point = binding.dataPoints[index];
+        const current = currentDataPoints[index];
+        if (point.seriesIndex !== current.seriesIndex || point.pointIndex !== current.pointIndex || point.value !== current.value ||
+            point.formula !== current.formula || point.worksheetPartPath !== current.worksheetPartPath ||
+            point.worksheetSourceSha256 !== current.worksheetSourceSha256 || point.worksheetName !== current.worksheetName ||
+            point.cellReference !== current.cellReference) return;
+        registerLeaf({
+          wire,
+          model,
+          slideState,
+          shapeTreePath,
+          parentGroupId,
+          rootEntry,
+          leafKind: "chartDataValue",
+          expectedValue: point.value,
+          value: Number(point.value),
+          details: { seriesIndex: point.seriesIndex, pointIndex: point.pointIndex },
+          compilerBinding: {
+            targetPartPath: binding.partPath,
+            expectedTargetPartSha256: binding.sourceSha256,
+            relationshipId: binding.relationshipId,
+            embeddedPackagePartPath: binding.embeddedPackagePartPath,
+            expectedEmbeddedPackageSha256: binding.embeddedPackageSourceSha256,
+            embeddedPackageRelationshipId: binding.embeddedPackageRelationshipId,
+            embeddedWorksheetPartPath: point.worksheetPartPath,
+            expectedEmbeddedWorksheetSha256: point.worksheetSourceSha256,
+            embeddedCellReference: point.cellReference,
+            chartSeriesIndex: point.seriesIndex,
+            chartPointIndex: point.pointIndex,
+            chartFormula: point.formula,
+          },
+          normalize(next) {
+            const token = typeof next === "number" ? String(next) : String(next ?? "").trim();
+            if (!/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[Ee][+-]?[0-9]+)?$/u.test(token) || !Number.isFinite(Number(token)) || token.length > 128) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation chartDataValue native leaf requires a finite numeric value.");
+            }
+            return { raw: token, publicValue: Number(token) };
+          },
+          apply(next) { model._setNativeChartDataPoint(point.seriesIndex, point.pointIndex, next); },
         });
       }
       return;
@@ -3141,7 +3188,7 @@ function compileIssuedPresentationNativeLeafOperation(pending, sourceSha256) {
   const textLeafIndex = leaf.textLeafIndex ?? 0;
   const operationSeed = leaf.leafKind === "text"
     ? [sourceSha256, slideSource.partPath, leaf.shapeTreePath.join("/"), textLeafIndex, leaf.expectedValue, value].join("\0")
-    : [sourceSha256, slideSource.partPath, leaf.shapeTreePath.join("/"), leaf.leafKind, leaf.expectedValue, value].join("\0");
+    : [sourceSha256, slideSource.partPath, leaf.shapeTreePath.join("/"), leaf.leafKind, JSON.stringify(leaf.compilerBinding || {}), leaf.expectedValue, value].join("\0");
   return {
     operationId: `pptx-${leaf.leafKind}-${createHash("sha256").update(operationSeed).digest("hex").slice(0, 20)}`,
     slideId: leaf.slideState.wire.id,
@@ -4282,6 +4329,19 @@ export async function presentationFromEnvelope(envelope) {
             titleLeaves: (opaque.nativeChart.titleLeaves || []).map((leaf) => ({
               textLeafIndex: leaf.textLeafIndex,
               text: leaf.text,
+            })),
+            embeddedPackagePartPath: opaque.nativeChart.embeddedPackagePartPath,
+            embeddedPackageSourceSha256: opaque.nativeChart.embeddedPackageSourceSha256,
+            embeddedPackageRelationshipId: opaque.nativeChart.embeddedPackageRelationshipId,
+            dataPoints: (opaque.nativeChart.dataPoints || []).map((point) => ({
+              seriesIndex: point.seriesIndex,
+              pointIndex: point.pointIndex,
+              value: point.value,
+              formula: point.formula,
+              worksheetPartPath: point.worksheetPartPath,
+              worksheetSourceSha256: point.worksheetSourceSha256,
+              worksheetName: point.worksheetName,
+              cellReference: point.cellReference,
             })),
           } } : {}),
           ...nativeGraph(opaque, sourcePart),

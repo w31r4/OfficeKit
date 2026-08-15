@@ -144,7 +144,7 @@ message PresentationEditOperation {
   repeated uint32 shape_tree_path = 13;
   // Bounded compiler-issued leaf vocabulary. Empty is the legacy text leaf.
   // v1 values: text, fillRgb, lineRgb, leftEmu, topEmu, widthEmu, heightEmu,
-  // chartTitleText.
+  // chartTitleText, chartDataValue.
   string leaf_kind = 14;
   // Compiler-issued dependent-part binding for a native leaf that is not
   // stored in the owner SlidePart. Callers cannot provide arbitrary paths:
@@ -152,6 +152,18 @@ message PresentationEditOperation {
   string target_part_path = 15;
   string expected_target_part_sha256 = 16;
   string relationship_id = 17;
+  // Additional source-bound package binding for a chartDataValue operation.
+  // The codec resolves every field again through ChartPart externalData and
+  // the embedded workbook relationship graph before changing either cache.
+  string embedded_package_part_path = 18;
+  string expected_embedded_package_sha256 = 19;
+  string embedded_package_relationship_id = 20;
+  string embedded_worksheet_part_path = 21;
+  string expected_embedded_worksheet_sha256 = 22;
+  string embedded_cell_reference = 23;
+  uint32 chart_series_index = 24;
+  uint32 chart_point_index = 25;
+  string chart_formula = 26;
 }
 
 message PresentationEditPlanResult {
@@ -180,6 +192,19 @@ message PresentationEditOperationResult {
   // OPC part that owns the reported byte offsets. Empty retains the legacy
   // meaning of slide_part_path.
   string mutation_part_path = 16;
+  // Nested package footprints required by one semantic operation. The first
+  // use is an XLSX worksheet token inside a chart's embedded package.
+  repeated PresentationNestedMutationFootprint nested_footprints = 17;
+}
+
+message PresentationNestedMutationFootprint {
+  string container_part_path = 1;
+  string part_path = 2;
+  string old_value_sha256 = 3;
+  string new_value_sha256 = 4;
+  uint64 source_start_offset = 5;
+  uint64 source_end_offset = 6;
+  uint64 output_end_offset = 7;
 }
 
 message DocumentRevisionFinalizationRequest {
@@ -2529,11 +2554,26 @@ message PresentationNativeChart {
   string source_sha256 = 3;
   string relationship_id = 4;
   repeated PresentationNativeChartTitleLeaf title_leaves = 5;
+  string embedded_package_part_path = 6;
+  string embedded_package_source_sha256 = 7;
+  string embedded_package_relationship_id = 8;
+  repeated PresentationNativeChartDataPoint data_points = 9;
 }
 
 message PresentationNativeChartTitleLeaf {
   uint32 text_leaf_index = 1;
   string text = 2;
+}
+
+message PresentationNativeChartDataPoint {
+  uint32 series_index = 1;
+  uint32 point_index = 2;
+  string value = 3;
+  string formula = 4;
+  string worksheet_part_path = 5;
+  string worksheet_source_sha256 = 6;
+  string worksheet_name = 7;
+  string cell_reference = 8;
 }
 
 message PresentationOleWorkbook {

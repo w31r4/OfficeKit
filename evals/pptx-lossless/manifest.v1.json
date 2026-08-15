@@ -3088,6 +3088,16 @@
           "leafKind": "chartTitleText",
           "expectedValue": "MegaDPP",
           "value": "MegaDPP Pro"
+        },
+        {
+          "id": "chart-data-point",
+          "nodeId": "presentation/slide/20/element/26",
+          "operation": "nativeLeaf",
+          "leafKind": "chartDataValue",
+          "seriesIndex": 1,
+          "pointIndex": 0,
+          "expectedValue": 23,
+          "value": 24
         }
       ]
     },

@@ -483,12 +483,31 @@ const nativeChartSourceZip = await JSZip.loadAsync(nativeChartAuthored.bytes);
 const nativeChartPartPath = Object.keys(nativeChartSourceZip.files).find((name) => /(?:^|\/)charts\/chart[0-9]+[.]xml$/iu.test(name));
 assert.ok(nativeChartPartPath);
 const nativeChartLiteralXml = await nativeChartSourceZip.file(nativeChartPartPath).async("text");
+const nativeChartWorkbook = Workbook.create();
+nativeChartWorkbook.worksheets.add("Sheet1").getRange("B2:B3").values = [[8], [13]];
+const nativeChartWorkbookFile = await SpreadsheetFile.exportXlsx(nativeChartWorkbook);
+const nativeChartWorkbookPath = "ppt/embeddings/native-chart-data.xlsx";
+const nativeChartRelationshipPath = relationshipPartPath(nativeChartPartPath);
 const nativeChartFormulaXml = nativeChartLiteralXml.replace(
   /<c:numLit>(?<body>.*?)<\/c:numLit>/su,
   "<c:numRef><c:f>Sheet1!$B$2:$B$3</c:f><c:numCache>$<body></c:numCache></c:numRef>",
+).replace(
+  /<c:chartSpace\b/u,
+  '<c:chartSpace xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"',
+).replace(
+  "</c:chartSpace>",
+  '<c:externalData r:id="rIdChartWorkbook"><c:autoUpdate val="0"/></c:externalData></c:chartSpace>',
 );
 assert.notEqual(nativeChartFormulaXml, nativeChartLiteralXml);
 nativeChartSourceZip.file(nativeChartPartPath, nativeChartFormulaXml);
+const nativeChartWorkbookRelationshipTarget = path.posix.relative(path.posix.dirname(nativeChartPartPath), nativeChartWorkbookPath);
+nativeChartSourceZip.file(nativeChartRelationshipPath, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdChartWorkbook" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/package" Target="${nativeChartWorkbookRelationshipTarget}"/></Relationships>`);
+nativeChartSourceZip.file(nativeChartWorkbookPath, nativeChartWorkbookFile.bytes);
+const nativeChartContentTypes = await nativeChartSourceZip.file("[Content_Types].xml").async("text");
+nativeChartSourceZip.file("[Content_Types].xml", nativeChartContentTypes.replace(
+  "</Types>",
+  '<Override PartName="/ppt/embeddings/native-chart-data.xlsx" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/></Types>',
+));
 const nativeChartSource = new FileBlob(
   await nativeChartSourceZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
   { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
@@ -537,6 +556,82 @@ const nativeChartRoundTripLeaves = nativeChartRoundTrip.inspect({ includeNativeL
 assert.equal(nativeChartRoundTripLeaves.length, 1);
 const [nativeChartRoundTripLeaf] = nativeChartRoundTripLeaves;
 assert.equal(nativeChartRoundTripLeaf.value, "Native chart verified");
+
+// A chart-data native leaf is one semantic operation with two source-bound
+// byte footprints: the visible ChartPart cache and the corresponding numeric
+// cell in the uniquely bound embedded XLSX. Neither package is reserialized.
+const nativeChartDataImported = await PresentationFile.importPptx(nativeChartSource);
+const nativeChartDataObject = itemByName(nativeChartDataImported.slides.getItem(0).nativeObjects.items, "native-source-chart");
+const nativeChartDataLeaves = nativeChartDataImported.inspect({ includeNativeLeaves: true, target: nativeChartDataObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && record.leafKind === "chartDataValue");
+assert.deepEqual(nativeChartDataLeaves.map((leaf) => [leaf.seriesIndex, leaf.pointIndex, leaf.value]), [[0, 0, 8], [0, 1, 13]]);
+assert.equal(nativeChartDataLeaves.some((leaf) => "targetPartPath" in leaf || "embeddedPackagePartPath" in leaf || "cellReference" in leaf), false);
+const [nativeChartDataLeaf] = nativeChartDataLeaves;
+nativeChartDataImported.editNativeLeaf(nativeChartDataObject.id, nativeChartDataLeaf.leafId, {
+  expectedHash: nativeChartDataLeaf.expectedHash,
+  value: 9,
+});
+const nativeChartDataOutput = await PresentationFile.exportPptx(nativeChartDataImported);
+assert.deepEqual(nativeChartDataOutput.metadata.editPlan.changedParts, [nativeChartPartPath, nativeChartWorkbookPath].sort());
+const [nativeChartDataOperation] = nativeChartDataOutput.metadata.editPlan.operations;
+assert.equal(nativeChartDataOperation.leafKind, "chartDataValue");
+assert.equal(nativeChartDataOperation.targetPartPath, nativeChartPartPath);
+assert.equal(nativeChartDataOperation.embeddedPackagePartPath, nativeChartWorkbookPath);
+assert.equal(nativeChartDataOperation.embeddedCellReference, "B2");
+assert.equal(nativeChartDataOperation.chartSeriesIndex, 0);
+assert.equal(nativeChartDataOperation.chartPointIndex, 0);
+assert.equal(nativeChartDataOperation.chartFormula, "Sheet1!$B$2:$B$3");
+assert.equal(nativeChartDataOperation.footprint.mutationPartPath, nativeChartPartPath);
+const [nativeChartNestedFootprint] = nativeChartDataOperation.footprint.nestedFootprints;
+assert.equal(nativeChartNestedFootprint.containerPartPath, nativeChartWorkbookPath);
+assert.equal(nativeChartNestedFootprint.partPath, nativeChartDataOperation.embeddedWorksheetPartPath);
+
+const nativeChartDataOutputZip = await JSZip.loadAsync(nativeChartDataOutput.bytes);
+const nativeChartDataOutputXml = await nativeChartDataOutputZip.file(nativeChartPartPath).async("text");
+assert.equal(nativeChartDataOutputXml.replace("<c:v>9</c:v>", "<c:v>8</c:v>"), nativeChartFormulaXml);
+for (const [partPath, entry] of Object.entries(nativeChartSourceZip.files)) {
+  if (entry.dir || partPath === nativeChartPartPath || partPath === nativeChartWorkbookPath) continue;
+  assert.deepEqual(
+    await nativeChartDataOutputZip.file(partPath).async("uint8array"),
+    await nativeChartSourceZip.file(partPath).async("uint8array"),
+    `native chart-data edit changed non-target outer part ${partPath}`,
+  );
+}
+const nativeChartSourceWorkbookZip = await JSZip.loadAsync(await nativeChartSourceZip.file(nativeChartWorkbookPath).async("uint8array"));
+const nativeChartOutputWorkbookZip = await JSZip.loadAsync(await nativeChartDataOutputZip.file(nativeChartWorkbookPath).async("uint8array"));
+const nativeChartWorksheetPath = nativeChartDataOperation.embeddedWorksheetPartPath;
+const nativeChartSourceWorksheet = Buffer.from(await nativeChartSourceWorkbookZip.file(nativeChartWorksheetPath).async("uint8array"));
+const nativeChartOutputWorksheet = Buffer.from(await nativeChartOutputWorkbookZip.file(nativeChartWorksheetPath).async("uint8array"));
+const nativeChartNestedSourceStart = Number(nativeChartNestedFootprint.sourceStartOffset);
+const nativeChartNestedSourceEnd = Number(nativeChartNestedFootprint.sourceEndOffset);
+const nativeChartNestedOutputEnd = Number(nativeChartNestedFootprint.outputEndOffset);
+const nativeChartNestedOutputStart = nativeChartNestedOutputEnd - Buffer.byteLength(String(nativeChartDataOperation.value));
+assert.equal(nativeChartSourceWorksheet.subarray(nativeChartNestedSourceStart, nativeChartNestedSourceEnd).toString("utf8"), "8");
+assert.equal(nativeChartOutputWorksheet.subarray(nativeChartNestedOutputStart, nativeChartNestedOutputEnd).toString("utf8"), "9");
+assert.deepEqual(Buffer.concat([
+  nativeChartOutputWorksheet.subarray(0, nativeChartNestedOutputStart),
+  Buffer.from("8"),
+  nativeChartOutputWorksheet.subarray(nativeChartNestedOutputEnd),
+]), nativeChartSourceWorksheet);
+for (const [partPath, entry] of Object.entries(nativeChartSourceWorkbookZip.files)) {
+  if (entry.dir || partPath === nativeChartWorksheetPath) continue;
+  assert.deepEqual(
+    await nativeChartOutputWorkbookZip.file(partPath).async("uint8array"),
+    await nativeChartSourceWorkbookZip.file(partPath).async("uint8array"),
+    `native chart-data edit changed non-target embedded workbook part ${partPath}`,
+  );
+}
+const nativeChartDataRoundTrip = await PresentationFile.importPptx(nativeChartDataOutput);
+const nativeChartDataRoundTripObject = itemByName(nativeChartDataRoundTrip.slides.getItem(0).nativeObjects.items, "native-source-chart");
+const nativeChartDataRoundTripLeaf = nativeChartDataRoundTrip.inspect({ includeNativeLeaves: true, target: nativeChartDataRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "chartDataValue" && record.seriesIndex === 0 && record.pointIndex === 0);
+assert.equal(nativeChartDataRoundTripLeaf.value, 9);
 
 irregularAccessibilityShape.text.set("Decision: reviewed rollout");
 const irregularOtherEdit = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);

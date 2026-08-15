@@ -165,7 +165,7 @@ internal sealed class PptxNativeObjectCatalog
 
     private void TryPopulateNativeChart(PresentationOpaqueElement target, OpenXmlElement source, OpenXmlPart owner)
     {
-        if (!PptxNativeChartLeafCodec.TryDescribe(source, owner, out var chart) ||
+        if (!PptxNativeChartLeafCodec.TryDescribe(source, owner, _limits, out var chart) ||
             !_parts.TryGetValue(chart.PartPath, out var part) ||
             !part.ContentType.Equals(chart.ContentType, StringComparison.OrdinalIgnoreCase) ||
             !part.Sha256.Equals(chart.SourceSha256, StringComparison.OrdinalIgnoreCase) ||
@@ -174,7 +174,23 @@ internal sealed class PptxNativeObjectCatalog
         var inboundCount = _relationships.Values.Count(candidate =>
             !candidate.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
             ResolveTarget(candidate.SourcePath, candidate.Target).Equals(chart.PartPath, StringComparison.OrdinalIgnoreCase));
-        if (inboundCount == 1) target.NativeChart = chart;
+        if (inboundCount != 1) return;
+        if (!string.IsNullOrEmpty(chart.EmbeddedPackagePartPath))
+        {
+            var embeddedInboundCount = _relationships.Values.Count(candidate =>
+                !candidate.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
+                ResolveTarget(candidate.SourcePath, candidate.Target).Equals(chart.EmbeddedPackagePartPath, StringComparison.OrdinalIgnoreCase));
+            if (embeddedInboundCount != 1 || !_parts.TryGetValue(chart.EmbeddedPackagePartPath, out var embedded) ||
+                !embedded.Sha256.Equals(chart.EmbeddedPackageSourceSha256, StringComparison.OrdinalIgnoreCase) ||
+                !target.PreservedPartPaths.Contains(chart.EmbeddedPackagePartPath, StringComparer.OrdinalIgnoreCase))
+            {
+                chart.EmbeddedPackagePartPath = string.Empty;
+                chart.EmbeddedPackageSourceSha256 = string.Empty;
+                chart.EmbeddedPackageRelationshipId = string.Empty;
+                chart.DataPoints.Clear();
+            }
+        }
+        target.NativeChart = chart;
     }
 
     private void TryPopulateDiagramText(PresentationOpaqueElement target, OpenXmlElement source, OpenXmlPart owner)

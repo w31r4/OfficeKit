@@ -1,5 +1,31 @@
 # Release
 
+## Current 0.6.0 milestone (2026-08-15): Lossless native chart-data leaf
+
+Imported bar charts can now issue a bounded `chartDataValue` leaf when one
+numeric cache point resolves through the chart's `externalData` relationship to
+one direct numeric cell in a uniquely bound embedded XLSX. The Edit Plan binds
+the source package, graphicFrame, ChartPart, relationship, embedded package,
+worksheet, formula, series/point indices, cell, old value, and all relevant
+hashes. Execution token-splices the ChartPart cache and the worksheet cell and
+reports a primary plus nested mutation footprint; it does not rebuild the
+chart, workbook, slide, or presentation.
+
+The real “算秩未来” target changes `23` to `24` in
+`ppt/charts/chart4.xml` and `ppt/embeddings/Microsoft_Excel____1.xlsx`.
+Three clean-source runs produced the same output SHA-256
+`0937601f38115ee008089791668917ebb64b7256b352863933ed3545428d7f6d`.
+The independent oracle recovered both exact source XML parts by masking the two
+declared tokens, proved every other outer and embedded OPC entry byte-identical,
+and completed second import. The frozen corpus now records 33 deterministic
+runs over eleven targets. The complete C# and JavaScript suites, release lane,
+native rendering, SmartArt, clean-install, Agent, and Windows PowerPoint gates
+remain governed by the long-running lossless-editing Goal. Under the 24-hour
+full-test policy, this milestone used the chart-data C# test, Presentation and
+benchmark smoke tests, the real 3/3 package oracle, Help/Skill portability and
+reference-sync checks, and deterministic protobuf/WASM generation rather than
+repeating the complete repository and release suites.
+
 ## Current 0.6.0 milestone (2026-08-14): Bounded area-review revision
 
 Freshly inspected native Square and Circle annotations now advertise a

@@ -1,7 +1,7 @@
 {
   "schema": "office-kit/pptx-lossless-evidence/v1",
-  "generatedAt": "2026-08-15T05:45:00Z",
-  "manifestSha256": "bfc8443d31ae234c6ae476c9b918d592b08f9eb86372b0955b270a01025dd1f3",
+  "generatedAt": "2026-08-15T09:46:16Z",
+  "manifestSha256": "efb98ca6740896e3db17e8624fcec6cb34102622b6c85eafce0d0acb2340c819",
   "repetitionsPerTarget": 3,
   "runnerContract": {
     "cleanSourcePerRun": true,
@@ -9,6 +9,7 @@
     "deterministicOutputAndFootprint": true,
     "nonTargetPartsByteIdentical": true,
     "maskedTargetXmlByteIdentical": true,
+    "nestedPackagePartsByteIdentical": true,
     "secondImportRequired": true
   },
   "sources": [
@@ -52,6 +53,12 @@
           "leafKind": "chartTitleText",
           "outputSha256": "abe1d2baa290904976c86a8b2a0941f09944c13c3ab0ca86970ff22c17e9d664",
           "changedParts": ["ppt/charts/chart2.xml"]
+        },
+        {
+          "id": "chart-data-point",
+          "leafKind": "chartDataValue",
+          "outputSha256": "0937601f38115ee008089791668917ebb64b7256b352863933ed3545428d7f6d",
+          "changedParts": ["ppt/charts/chart4.xml", "ppt/embeddings/Microsoft_Excel____1.xlsx"]
         }
       ]
     },

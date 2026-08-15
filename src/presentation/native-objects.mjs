@@ -18,7 +18,7 @@ function normalizeNativeChart(config) {
   const relationshipId = String(config.relationshipId || "");
   const sourceLeaves = config.titleLeaves;
   if (!partPath || contentType !== CHART_CONTENT_TYPE || !/^[0-9a-f]{64}$/iu.test(sourceSha256) ||
-      !relationshipId || !Array.isArray(sourceLeaves) || sourceLeaves.length === 0 || sourceLeaves.length > 256) {
+      !relationshipId || !Array.isArray(sourceLeaves) || sourceLeaves.length > 256) {
     throw new TypeError("Native chart title binding is incomplete or outside the bounded profile.");
   }
   const titleLeaves = sourceLeaves.map((leaf, index) => {
@@ -29,16 +29,54 @@ function normalizeNativeChart(config) {
     }
     return Object.freeze({ textLeafIndex, text });
   });
+  const embeddedPackagePartPath = String(config.embeddedPackagePartPath || "");
+  const embeddedPackageSourceSha256 = String(config.embeddedPackageSourceSha256 || "").toLowerCase();
+  const embeddedPackageRelationshipId = String(config.embeddedPackageRelationshipId || "");
+  const sourceDataPoints = config.dataPoints || [];
+  if (!Array.isArray(sourceDataPoints) || sourceDataPoints.length > 256 ||
+      (sourceDataPoints.length > 0 && (!embeddedPackagePartPath || !/^[0-9a-f]{64}$/u.test(embeddedPackageSourceSha256) || !embeddedPackageRelationshipId))) {
+    throw new TypeError("Native chart data binding is incomplete or outside the bounded profile.");
+  }
+  const dataPoints = sourceDataPoints.map((point) => {
+    const seriesIndex = Number(point?.seriesIndex);
+    const pointIndex = Number(point?.pointIndex);
+    const value = String(point?.value ?? "");
+    const formula = String(point?.formula || "");
+    const worksheetPartPath = String(point?.worksheetPartPath || "");
+    const worksheetSourceSha256 = String(point?.worksheetSourceSha256 || "").toLowerCase();
+    const worksheetName = String(point?.worksheetName || "");
+    const cellReference = String(point?.cellReference || "");
+    if (!Number.isSafeInteger(seriesIndex) || seriesIndex < 0 || !Number.isSafeInteger(pointIndex) || pointIndex < 0 ||
+        !validNativeChartNumber(value) || !formula || !worksheetPartPath || !/^[0-9a-f]{64}$/u.test(worksheetSourceSha256) ||
+        !worksheetName || !/^[A-Z]{1,3}[1-9][0-9]*$/u.test(cellReference)) {
+      throw new TypeError("Native chart data binding contains an invalid point.");
+    }
+    return Object.freeze({ seriesIndex, pointIndex, value, formula, worksheetPartPath, worksheetSourceSha256, worksheetName, cellReference });
+  });
+  if (new Set(dataPoints.map((point) => `${point.seriesIndex}:${point.pointIndex}`)).size !== dataPoints.length) {
+    throw new TypeError("Native chart data binding contains duplicate points.");
+  }
+  if (titleLeaves.length === 0 && dataPoints.length === 0) {
+    throw new TypeError("Native chart binding contains no safe leaf.");
+  }
   return Object.freeze({
     partPath,
     contentType,
     sourceSha256,
     relationshipId,
     titleLeaves: Object.freeze(titleLeaves),
+    embeddedPackagePartPath,
+    embeddedPackageSourceSha256,
+    embeddedPackageRelationshipId,
+    dataPoints: Object.freeze(dataPoints),
   });
 }
 
-function nativeChartRecord(binding, leaves = binding?.titleLeaves) {
+function validNativeChartNumber(value) {
+  return value.length > 0 && value.length <= 128 && /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[Ee][+-]?[0-9]+)?$/u.test(value) && Number.isFinite(Number(value));
+}
+
+function nativeChartRecord(binding, leaves = binding?.titleLeaves, dataPoints = binding?.dataPoints) {
   if (!binding) return undefined;
   return Object.freeze({
     partPath: binding.partPath,
@@ -49,6 +87,10 @@ function nativeChartRecord(binding, leaves = binding?.titleLeaves) {
       textLeafIndex: leaf.textLeafIndex,
       text: leaf.text,
     }))),
+    embeddedPackagePartPath: binding.embeddedPackagePartPath,
+    embeddedPackageSourceSha256: binding.embeddedPackageSourceSha256,
+    embeddedPackageRelationshipId: binding.embeddedPackageRelationshipId,
+    dataPoints: Object.freeze(dataPoints.map((point) => Object.freeze({ ...point }))),
   });
 }
 
@@ -205,6 +247,12 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         enumerable: false,
         writable: false,
         value: nativeChart ? nativeChart.titleLeaves.map((leaf) => ({ ...leaf })) : undefined,
+      });
+      Object.defineProperty(this, "_nativeChartDataPoints", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: nativeChart ? nativeChart.dataPoints.map((point) => ({ ...point })) : undefined,
       });
       Object.defineProperty(this, "diagramText", {
         configurable: false,
@@ -383,11 +431,27 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       return this._nativeChartBinding ? nativeChartRecord(this._nativeChartBinding, this._nativeChartTitleLeaves).titleLeaves : undefined;
     }
 
+    _nativeChartDataPointRecords() {
+      return this._nativeChartBinding ? Object.freeze(this._nativeChartDataPoints.map((point) => Object.freeze({ ...point }))) : undefined;
+    }
+
+    _nativeChartCurrentRecord() {
+      return this._nativeChartBinding ? nativeChartRecord(this._nativeChartBinding, this._nativeChartTitleLeaves, this._nativeChartDataPoints) : undefined;
+    }
+
     _setNativeChartTitleLeaf(index, value) {
       if (!this._nativeChartBinding || !this._nativeChartTitleLeaves || !this._nativeChartTitleLeaves[index]) {
         throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded chart-title leaf ${index}.`);
       }
       this._nativeChartTitleLeaves[index].text = value;
+    }
+
+    _setNativeChartDataPoint(seriesIndex, pointIndex, value) {
+      const point = this._nativeChartDataPoints?.find((candidate) => candidate.seriesIndex === seriesIndex && candidate.pointIndex === pointIndex);
+      if (!this._nativeChartBinding || !point) {
+        throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded chart data point ${seriesIndex}:${pointIndex}.`);
+      }
+      point.value = value;
     }
 
     inspectRecord() {
@@ -396,7 +460,8 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         ...(this.oleWorkbook ? ["embeddedWorkbook"] : []),
         ...(this.oleOfficePackage ? ["embeddedOfficePackage"] : []),
         ...(this._diagramTextBinding ? ["diagramText"] : []),
-        ...(this._nativeChartBinding ? ["chartTitleText"] : []),
+        ...(this._nativeChartTitleLeaves?.length ? ["chartTitleText"] : []),
+        ...(this._nativeChartDataPoints?.length ? ["chartDataValue"] : []),
       ];
       return {
         kind: "nativeObject",
@@ -418,6 +483,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         nativeChart: this._nativeChartBinding ? {
           titleLeaves: this._nativeChartTitleLeaves.length,
           title: this._nativeChartTitleLeaves.map((leaf) => leaf.text).join(""),
+          dataPoints: this._nativeChartDataPoints.length,
         } : undefined,
         bbox: [frame.left, frame.top, frame.width, frame.height],
         bboxUnit: "px",
@@ -463,13 +529,14 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         embeddedWorkbook: this.oleWorkbook ? this._embeddedWorkbookRecord() : undefined,
         embeddedOfficePackage: this.oleOfficePackage ? this._embeddedOfficePackageRecord() : undefined,
         diagramText: this.diagramText,
-        nativeChart: this._nativeChartTitleRecords(),
+        nativeChart: this._nativeChartCurrentRecord(),
         editable: false,
         editableFields: [
           ...(this.oleWorkbook ? ["embeddedWorkbook"] : []),
           ...(this.oleOfficePackage ? ["embeddedOfficePackage"] : []),
           ...(this._diagramTextBinding ? ["diagramText"] : []),
-          ...(this._nativeChartBinding ? ["chartTitleText"] : []),
+          ...(this._nativeChartTitleLeaves?.length ? ["chartTitleText"] : []),
+          ...(this._nativeChartDataPoints?.length ? ["chartDataValue"] : []),
         ],
       };
     }

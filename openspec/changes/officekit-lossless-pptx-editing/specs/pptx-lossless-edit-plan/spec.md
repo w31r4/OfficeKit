@@ -33,6 +33,10 @@ The PPTX codec SHALL mutate only declared leaves and required dependent content,
 - **WHEN** one issued chart-title run belongs to a uniquely bound internal ChartPart
 - **THEN** only that ChartPart changes, replacing the new token recovers its exact source bytes, and the owning graphicFrame, relationship, chart data, and plot topology remain unchanged
 
+#### Scenario: Dependent chart-data edit
+- **WHEN** one issued direct numeric bar-chart cache point resolves to exactly one cell in a uniquely bound embedded XLSX
+- **THEN** only the ChartPart and embedded XLSX change, masking the cache token and nested worksheet token recovers both exact source parts, and every other outer and embedded OPC part remains byte-identical
+
 #### Scenario: Unexpected scope expansion
 - **WHEN** execution changes any OPC part outside the compiled footprint
 - **THEN** the codec rejects the result as a scope violation
