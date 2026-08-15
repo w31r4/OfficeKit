@@ -2358,7 +2358,7 @@ Change one native leaf issued by presentation.inspect({ includeNativeLeaves: tru
 
 **Schema returns:**
 
-- `receipt` (object) — Immutable nativeLeafEdit receipt. Repeated authorized calls may compile into one deterministic source-bound Edit Plan; the Codec independently re-proves every leaf, and concurrent changes outside issued leaves reject.
+- `receipt` (object) — Immutable nativeLeafEdit receipt. Repeated authorized calls may compile into one deterministic source-bound Edit Plan; the Codec independently re-proves every leaf and its owning part. A chartTitleText leaf changes only the issued a:t token in one uniquely bound internal ChartPart; chart identity, relationships, data, plot topology, and the owning graphicFrame remain fixed. Concurrent changes outside issued leaves reject.
 
 **Returns:**
 
@@ -2416,7 +2416,7 @@ Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide tr
 - `after` (number) — Context records after matches.
 - `include` (string) — Comma-separated fields to keep.
 - `exclude` (string) — Comma-separated fields to omit.
-- `includeNativeLeaves` (boolean) — On a trusted imported PPTX, include revision-bound safe text leaves, shape RGB/local-geometry leaves, and picture local-geometry leaves. Source-free presentations reject instead of inventing selectors.
+- `includeNativeLeaves` (boolean) — On a trusted imported PPTX, include revision-bound safe text leaves, shape RGB/local-geometry leaves, picture local-geometry leaves, and direct rich-title text leaves from a uniquely bound internal ChartPart. Source-free presentations reject instead of inventing selectors.
 - `maxChars` (number) — Maximum bounded NDJSON output size.
 
 **Schema returns:**

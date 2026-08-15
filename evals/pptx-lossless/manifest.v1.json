@@ -3080,6 +3080,14 @@
               "value": 3314607
             }
           ]
+        },
+        {
+          "id": "chart-title",
+          "nodeId": "presentation/slide/11/element/20",
+          "operation": "nativeLeaf",
+          "leafKind": "chartTitleText",
+          "expectedValue": "MegaDPP",
+          "value": "MegaDPP Pro"
         }
       ]
     },

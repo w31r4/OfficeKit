@@ -1815,14 +1815,14 @@ const PRESENTATION_HELP_SCHEMAS = {
     after: { type: "number", description: "Context records after matches." },
     include: { type: "string", description: "Comma-separated fields to keep." },
     exclude: { type: "string", description: "Comma-separated fields to omit." },
-    includeNativeLeaves: { type: "boolean", description: "On a trusted imported PPTX, include revision-bound safe text leaves, shape RGB/local-geometry leaves, and picture local-geometry leaves. Source-free presentations reject instead of inventing selectors." },
+    includeNativeLeaves: { type: "boolean", description: "On a trusted imported PPTX, include revision-bound safe text leaves, shape RGB/local-geometry leaves, picture local-geometry leaves, and direct rich-title text leaves from a uniquely bound internal ChartPart. Source-free presentations reject instead of inventing selectors." },
     maxChars: { type: "number", description: "Maximum bounded NDJSON output size." },
   }, "inspection", "object", "Bounded { ndjson, truncated } inspection result."),
   "presentation.editNativeLeaf": helpSchema({
     targetId: { type: "string", required: true, description: "Exact targetId from an issued nativeLeaf record." },
     leafId: { type: "string", required: true, description: "Opaque revision-bound leafId from the same inspect result." },
     update: { type: "object", required: true, description: "Exactly { expectedHash, value }; raw XML, selectors, part paths, attributes, and topology fields are rejected." },
-  }, "receipt", "object", "Immutable nativeLeafEdit receipt. Repeated authorized calls may compile into one deterministic source-bound Edit Plan; the Codec independently re-proves every leaf, and concurrent changes outside issued leaves reject."),
+  }, "receipt", "object", "Immutable nativeLeafEdit receipt. Repeated authorized calls may compile into one deterministic source-bound Edit Plan; the Codec independently re-proves every leaf and its owning part. A chartTitleText leaf changes only the issued a:t token in one uniquely bound internal ChartPart; chart identity, relationships, data, plot topology, and the owning graphicFrame remain fixed. Concurrent changes outside issued leaves reject."),
   "presentation.textRange": helpSchema({
     id: { type: "string", required: true, description: "Stable shape text-range ID ending in /text." },
   }, "textRange", "TextRange|undefined", "Editable slide text-range facade or undefined."),

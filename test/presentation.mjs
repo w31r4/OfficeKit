@@ -470,6 +470,74 @@ const nativeShapeGeometryRoundTrip = await PresentationFile.importPptx(nativeSha
 assert.equal(nativeShapeGeometryRoundTrip.resolve(nativeShapeGeometry.id).position.left, 5 / 9_525);
 assert.equal(nativeShapeGeometryRoundTrip.resolve(nativeShapeGeometry.id).position.width, 123_456_789 / 9_525);
 
+const nativeChartDeck = Presentation.create({ slideSize: { width: 960, height: 540 } });
+nativeChartDeck.slides.add({ name: "Native chart title" }).charts.add("bar", {
+  name: "native-source-chart",
+  title: "Native chart proof",
+  position: { left: 120, top: 90, width: 640, height: 340 },
+  categories: ["A", "B"],
+  series: [{ name: "Evidence", values: [8, 13] }],
+});
+const nativeChartAuthored = await PresentationFile.exportPptx(nativeChartDeck);
+const nativeChartSourceZip = await JSZip.loadAsync(nativeChartAuthored.bytes);
+const nativeChartPartPath = Object.keys(nativeChartSourceZip.files).find((name) => /(?:^|\/)charts\/chart[0-9]+[.]xml$/iu.test(name));
+assert.ok(nativeChartPartPath);
+const nativeChartLiteralXml = await nativeChartSourceZip.file(nativeChartPartPath).async("text");
+const nativeChartFormulaXml = nativeChartLiteralXml.replace(
+  /<c:numLit>(?<body>.*?)<\/c:numLit>/su,
+  "<c:numRef><c:f>Sheet1!$B$2:$B$3</c:f><c:numCache>$<body></c:numCache></c:numRef>",
+);
+assert.notEqual(nativeChartFormulaXml, nativeChartLiteralXml);
+nativeChartSourceZip.file(nativeChartPartPath, nativeChartFormulaXml);
+const nativeChartSource = new FileBlob(
+  await nativeChartSourceZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const nativeChartImported = await PresentationFile.importPptx(nativeChartSource);
+const nativeChartObject = itemByName(nativeChartImported.slides.getItem(0).nativeObjects.items, "native-source-chart");
+assert.equal(nativeChartObject.nativeKind, "graphicFrame");
+const nativeChartLeaves = nativeChartImported.inspect({ includeNativeLeaves: true, target: nativeChartObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && record.leafKind === "chartTitleText");
+assert.equal(nativeChartLeaves.length, 1);
+const [nativeChartTitleLeaf] = nativeChartLeaves;
+assert.equal(nativeChartTitleLeaf.value, "Native chart proof");
+assert.equal("targetPartPath" in nativeChartTitleLeaf, false);
+assert.equal("relationshipId" in nativeChartTitleLeaf, false);
+nativeChartImported.editNativeLeaf(nativeChartObject.id, nativeChartTitleLeaf.leafId, {
+  expectedHash: nativeChartTitleLeaf.expectedHash,
+  value: "Native chart verified",
+});
+const nativeChartOutput = await PresentationFile.exportPptx(nativeChartImported);
+assert.deepEqual(nativeChartOutput.metadata.editPlan.changedParts, [nativeChartPartPath]);
+assert.equal(nativeChartOutput.metadata.editPlan.operations.length, 1);
+const [nativeChartOperation] = nativeChartOutput.metadata.editPlan.operations;
+assert.equal(nativeChartOperation.leafKind, "chartTitleText");
+assert.equal(nativeChartOperation.footprint.mutationPartPath, nativeChartPartPath);
+const nativeChartOutputZip = await JSZip.loadAsync(nativeChartOutput.bytes);
+const nativeChartOutputXml = await nativeChartOutputZip.file(nativeChartPartPath).async("text");
+assert.equal(nativeChartOutputXml.replace("Native chart verified", "Native chart proof"), nativeChartFormulaXml);
+for (const [partPath, entry] of Object.entries(nativeChartSourceZip.files)) {
+  if (entry.dir || partPath === nativeChartPartPath) continue;
+  assert.deepEqual(
+    await nativeChartOutputZip.file(partPath).async("uint8array"),
+    await nativeChartSourceZip.file(partPath).async("uint8array"),
+    `native chart-title edit changed non-target part ${partPath}`,
+  );
+}
+const nativeChartRoundTrip = await PresentationFile.importPptx(nativeChartOutput);
+const nativeChartRoundTripObject = itemByName(nativeChartRoundTrip.slides.getItem(0).nativeObjects.items, "native-source-chart");
+const nativeChartRoundTripLeaves = nativeChartRoundTrip.inspect({ includeNativeLeaves: true, target: nativeChartRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && record.leafKind === "chartTitleText");
+assert.equal(nativeChartRoundTripLeaves.length, 1);
+const [nativeChartRoundTripLeaf] = nativeChartRoundTripLeaves;
+assert.equal(nativeChartRoundTripLeaf.value, "Native chart verified");
+
 irregularAccessibilityShape.text.set("Decision: reviewed rollout");
 const irregularOtherEdit = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);
 assert.equal(irregularOtherEdit.metadata.editPlan?.schema, "office-kit/pptx-edit-plan/v1");

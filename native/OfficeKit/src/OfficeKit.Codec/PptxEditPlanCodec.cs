@@ -18,14 +18,16 @@ internal sealed record PptxEditPlanOutput(
 
 internal sealed record PptxEditPlanProof(
     PresentationEditOperation Operation,
-    string SourceElementSha256);
+    string SourceElementSha256,
+    string MutationPartPath);
 
 internal sealed record PptxXmlPatch(
     PresentationEditOperation Operation,
     int Start,
     int End,
     string Replacement,
-    string SourceElementSha256);
+    string SourceElementSha256,
+    string MutationPartPath);
 
 // Applies a finite, source-bound edit plan directly to the original XML token
 // stream. The Open XML SDK is used only as an independent structural oracle;
@@ -33,10 +35,14 @@ internal sealed record PptxXmlPatch(
 internal static partial class PptxEditPlanCodec
 {
     private const string DrawingNamespace = "http://schemas.openxmlformats.org/drawingml/2006/main";
+    private const string ChartNamespace = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
     [GeneratedRegex("^ppt/slides/slide[1-9][0-9]*[.]xml$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex SlidePathPattern();
+
+    [GeneratedRegex("^ppt/(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+[.]xml$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex DependentXmlPartPathPattern();
 
     [GeneratedRegex("<!--.*?-->|<!\\[CDATA\\[.*?\\]\\]>|<\\?.*?\\?>|</?(?:[A-Za-z_][\\w.-]*:)?[A-Za-z_][\\w.-]*\\b[^>]*>", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex XmlTokenPattern();
@@ -70,7 +76,7 @@ internal static partial class PptxEditPlanCodec
         var patchedParts = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         var results = new List<PresentationEditOperationResult>();
 
-        foreach (var group in proofs.GroupBy(proof => proof.Operation.SlidePartPath, StringComparer.OrdinalIgnoreCase))
+        foreach (var group in proofs.GroupBy(proof => proof.MutationPartPath, StringComparer.OrdinalIgnoreCase))
         {
             var partPath = group.Key;
             var sourcePart = sourceParts[partPath];
@@ -127,7 +133,7 @@ internal static partial class PptxEditPlanCodec
             throw new CodecException("presentation_item_budget_exceeded", $"PPTX edit plan has {request.Operations.Count} operations and exceeds max_cells ({limits.MaxCells}).");
         if (request.Operations.Select(operation => operation.OperationId).Distinct(StringComparer.Ordinal).Count() != request.Operations.Count)
             throw new CodecException("duplicate_presentation_edit_operation", "PPTX edit plan operation IDs must be unique.");
-        if (request.Operations.GroupBy(operation => (operation.SlidePartPath.ToLowerInvariant(), ShapeTreePathKey(operation), LeafKind(operation), operation.TextLeafIndex)).Any(group => group.Count() > 1))
+        if (request.Operations.GroupBy(operation => (MutationPartPath(operation).ToLowerInvariant(), ShapeTreePathKey(operation), LeafKind(operation), operation.TextLeafIndex)).Any(group => group.Count() > 1))
             throw new CodecException("duplicate_presentation_edit_target", "PPTX edit plan cannot edit the same native leaf twice.");
         ulong textBudget = 0;
         foreach (var operation in request.Operations)
@@ -142,13 +148,23 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu"))
+            if (leafKind is not ("text" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "chartTitleText"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
                 throw new CodecException("invalid_presentation_edit_precondition", $"PPTX edit operation {operation.OperationId} requires SHA-256 preconditions.");
             if (!Hash(Encoding.UTF8.GetBytes(operation.ExpectedValue)).Equals(operation.ExpectedTextSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("presentation_text_hash_mismatch", $"PPTX edit operation {operation.OperationId} expected text does not match expected_text_sha256.");
+            if (leafKind == "chartTitleText")
+            {
+                if (!DependentXmlPartPathPattern().IsMatch(operation.TargetPartPath) || operation.TargetPartPath.Contains("..", StringComparison.Ordinal) ||
+                    !IsSha256(operation.ExpectedTargetPartSha256) || string.IsNullOrWhiteSpace(operation.RelationshipId) || operation.RelationshipId.Length > 255)
+                    throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid source-bound ChartPart binding.");
+            }
+            else if (!string.IsNullOrEmpty(operation.TargetPartPath) || !string.IsNullOrEmpty(operation.ExpectedTargetPartSha256) || !string.IsNullOrEmpty(operation.RelationshipId))
+            {
+                throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach a dependent-part binding to {leafKind}.");
+            }
             if (operation.ExpectedValue == operation.Value)
                 throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its target value.");
             if (leafKind is "fillRgb" or "lineRgb")
@@ -205,6 +221,24 @@ internal static partial class PptxEditPlanCodec
             var elementHash = HashElement(element);
             if (!elementHash.Equals(operation.ExpectedElementSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("presentation_element_binding_mismatch", $"PPTX edit operation {operation.OperationId} target element changed after planning.", operation.SlidePartPath);
+            if (LeafKind(operation) == "chartTitleText")
+            {
+                if (element is not P.GraphicFrame || projectedElement.ContentCase != PresentationElement.ContentOneofCase.Opaque ||
+                    projectedElement.Opaque.NativeChart is null ||
+                    !PptxNativeChartLeafCodec.TryResolve(element, slidePart, out var chart) ||
+                    !PptxNativeChartLeafCodec.HasUniqueInboundRelationship(presentationPart, chart.Part) ||
+                    !PptxNativeChartLeafCodec.SameBinding(projectedElement.Opaque.NativeChart, chart.Binding) ||
+                    !operation.TargetPartPath.Equals(chart.Binding.PartPath, StringComparison.OrdinalIgnoreCase) ||
+                    !operation.ExpectedTargetPartSha256.Equals(chart.Binding.SourceSha256, StringComparison.OrdinalIgnoreCase) ||
+                    operation.RelationshipId != chart.Binding.RelationshipId)
+                    throw new CodecException("presentation_chart_binding_mismatch", $"PPTX edit operation {operation.OperationId} no longer resolves to its unique source-bound ChartPart.", operation.SlidePartPath);
+                if (operation.TextLeafIndex >= (uint)chart.TitleLeaves.Count)
+                    throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} chart-title leaf index is out of range.", chart.Binding.PartPath);
+                if (chart.TitleLeaves[(int)operation.TextLeafIndex].Text != operation.ExpectedValue)
+                    throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} chart-title old value does not match the source leaf.", chart.Binding.PartPath);
+                proofs.Add(new PptxEditPlanProof(operation, elementHash, chart.Binding.PartPath));
+                continue;
+            }
             if (element is P.Shape shape &&
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                 PptxCodec.SupportsBoundTextLeaf(shape))
@@ -222,13 +256,17 @@ internal static partial class PptxEditPlanCodec
             {
                 throw new CodecException("unsupported_presentation_edit", $"PPTX edit operation {operation.OperationId} target is not a safely editable shape or picture leaf.", operation.SlidePartPath);
             }
-            proofs.Add(new PptxEditPlanProof(operation, elementHash));
+            proofs.Add(new PptxEditPlanProof(operation, elementHash, operation.SlidePartPath));
         }
         return proofs;
     }
 
     private static PptxXmlPatch[] CompileXmlPatches(byte[] partBytes, IReadOnlyList<PptxEditPlanProof> proofs)
     {
+        if (proofs.All(proof => LeafKind(proof.Operation) == "chartTitleText"))
+            return CompileChartTitleXmlPatches(partBytes, proofs);
+        if (proofs.Any(proof => LeafKind(proof.Operation) == "chartTitleText"))
+            throw new CodecException("presentation_edit_plan_scope_violation", "PPTX edit plan mixed slide and ChartPart leaves in one mutation part.", proofs[0].MutationPartPath);
         var (xml, bomBytes) = DecodeXml(partBytes);
         var drawingPrefixes = NamespacePattern().Matches(xml)
             .Where(match => match.Groups["uri"].Value == DrawingNamespace)
@@ -284,12 +322,65 @@ internal static partial class PptxEditPlanCodec
                 range.Start + leaf.Index,
                 range.Start + leaf.Index + leaf.Length,
                 replacement,
-                proof.SourceElementSha256));
+                proof.SourceElementSha256,
+                proof.MutationPartPath));
         }
         var ordered = patches.OrderBy(patch => patch.Start).ToArray();
         for (var index = 1; index < ordered.Length; index++)
             if (ordered[index - 1].End > ordered[index].Start)
                 throw new CodecException("overlapping_presentation_edit_operations", "PPTX edit plan operations overlap in the source XML.", ordered[index].Operation.SlidePartPath);
+        return ordered;
+    }
+
+    private static PptxXmlPatch[] CompileChartTitleXmlPatches(byte[] partBytes, IReadOnlyList<PptxEditPlanProof> proofs)
+    {
+        var (xml, _) = DecodeXml(partBytes);
+        var drawingPrefixes = NamespacePattern().Matches(xml)
+            .Where(match => match.Groups["uri"].Value == DrawingNamespace)
+            .Select(match => match.Groups["prefix"].Value)
+            .ToHashSet(StringComparer.Ordinal);
+        var chartPrefixes = NamespacePattern().Matches(xml)
+            .Where(match => match.Groups["uri"].Value == ChartNamespace)
+            .Select(match => match.Groups["prefix"].Value)
+            .ToHashSet(StringComparer.Ordinal);
+        if (drawingPrefixes.Count == 0 || chartPrefixes.Count == 0)
+            throw new CodecException("presentation_edit_target_missing", "PPTX ChartPart does not declare the required DrawingML chart namespaces.", proofs[0].MutationPartPath);
+        var chartChildren = ShapeElementRanges(xml, "chart");
+        var titles = chartChildren.Where(range => range.LocalName == "title").ToArray();
+        if (titles.Length != 1)
+            throw new CodecException("presentation_edit_target_mismatch", "PPTX native chart edit requires one direct chart title.", proofs[0].MutationPartPath);
+        var title = titles[0];
+        var tx = DirectChildRange(xml, title, "title", "tx", proofs[0].Operation);
+        var rich = DirectChildRange(xml, tx, "tx", "rich", proofs[0].Operation);
+        var richXml = xml[rich.Start..rich.End];
+        var leaves = TextLeafPattern().Matches(richXml)
+            .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
+            .ToArray();
+        var patches = new List<PptxXmlPatch>();
+        foreach (var proof in proofs)
+        {
+            var operation = proof.Operation;
+            if (operation.TextLeafIndex >= (uint)leaves.Length)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} raw chart-title leaf index is out of range.", proof.MutationPartPath);
+            var leaf = leaves[operation.TextLeafIndex];
+            var decoded = DecodeTextLeaf(leaf.Value, leaf.Groups["prefix"].Value);
+            if (decoded != operation.ExpectedValue)
+                throw new CodecException("presentation_text_precondition_failed", $"PPTX edit operation {operation.OperationId} raw chart-title leaf does not match the expected text.", proof.MutationPartPath);
+            var open = leaf.Groups["open"].Value;
+            if (NeedsPreserve(operation.Value) && !PreserveSpacePattern().IsMatch(open))
+                open = open.Insert(open.Length - 1, " xml:space=\"preserve\"");
+            patches.Add(new PptxXmlPatch(
+                operation,
+                rich.Start + leaf.Index,
+                rich.Start + leaf.Index + leaf.Length,
+                open + EscapeText(operation.Value) + leaf.Groups["close"].Value,
+                proof.SourceElementSha256,
+                proof.MutationPartPath));
+        }
+        var ordered = patches.OrderBy(patch => patch.Start).ToArray();
+        for (var index = 1; index < ordered.Length; index++)
+            if (ordered[index - 1].End > ordered[index].Start)
+                throw new CodecException("overlapping_presentation_edit_operations", "PPTX chart-title edit operations overlap in the source XML.", proofs[0].MutationPartPath);
         return ordered;
     }
 
@@ -387,7 +478,7 @@ internal static partial class PptxEditPlanCodec
         if (valueGroup.Value != operation.ExpectedValue)
             throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw scalar does not match the expected value.", operation.SlidePartPath);
         var start = leaf.Start + startTag.Index + valueGroup.Index;
-        return new PptxXmlPatch(operation, start, start + valueGroup.Length, operation.Value, proof.SourceElementSha256);
+        return new PptxXmlPatch(operation, start, start + valueGroup.Length, operation.Value, proof.SourceElementSha256, proof.MutationPartPath);
     }
 
     private static XmlRange DirectChildRange(
@@ -439,6 +530,7 @@ internal static partial class PptxEditPlanCodec
                 SourceStartOffset = sourceStart,
                 SourceEndOffset = sourceEnd,
                 OutputEndOffset = outputEnd,
+                MutationPartPath = patch.MutationPartPath,
             };
             result.ShapeTreePath.Add(ShapeTreePath(patch.Operation));
             results.Add(result);
@@ -459,8 +551,20 @@ internal static partial class PptxEditPlanCodec
         var resultById = results.ToDictionary(result => result.OperationId, StringComparer.Ordinal);
         foreach (var operation in request.Operations)
         {
-            var tree = slideByPath[operation.SlidePartPath].Slide!.CommonSlideData!.ShapeTree!;
+            var slidePart = slideByPath[operation.SlidePartPath];
+            var tree = slidePart.Slide!.CommonSlideData!.ShapeTree!;
             var element = ResolveShapeTreeElement(tree, ShapeTreePath(operation), operation);
+            if (LeafKind(operation) == "chartTitleText")
+            {
+                if (!PptxNativeChartLeafCodec.TryResolve(element, slidePart, out var chart) ||
+                    !chart.Binding.PartPath.Equals(operation.TargetPartPath, StringComparison.OrdinalIgnoreCase) ||
+                    chart.Binding.RelationshipId != operation.RelationshipId ||
+                    operation.TextLeafIndex >= (uint)chart.TitleLeaves.Count ||
+                    chart.TitleLeaves[(int)operation.TextLeafIndex].Text != operation.Value)
+                    throw new CodecException("presentation_edit_verification_failed", $"PPTX chart-title edit operation {operation.OperationId} did not survive package reopen.", operation.TargetPartPath);
+                resultById[operation.OperationId].OutputElementSha256 = HashElement(element);
+                continue;
+            }
             if (element is not P.Shape && element is not P.Picture)
                 throw new CodecException("presentation_edit_verification_failed", "PPTX edited target is no longer a shape or picture.", operation.SlidePartPath);
             if (!LeafValuesEqual(ReadLeafValue(element, operation), operation.Value, LeafKind(operation)))
@@ -612,6 +716,8 @@ internal static partial class PptxEditPlanCodec
         operation.ShapeTreePath.Count > 0 ? operation.ShapeTreePath : [operation.ShapeTreeIndex];
     private static string LeafKind(PresentationEditOperation operation) =>
         string.IsNullOrEmpty(operation.LeafKind) ? "text" : operation.LeafKind;
+    private static string MutationPartPath(PresentationEditOperation operation) =>
+        LeafKind(operation) == "chartTitleText" ? operation.TargetPartPath : operation.SlidePartPath;
     private static bool IsGeometryLeaf(string leafKind) =>
         leafKind is "leftEmu" or "topEmu" or "widthEmu" or "heightEmu";
     private static bool LeafValuesEqual(string left, string right, string leafKind) =>

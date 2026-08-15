@@ -29,6 +29,10 @@ The PPTX codec SHALL mutate only declared leaves and required dependent content,
 - **WHEN** one source-bound `a:t` leaf is edited
 - **THEN** only its SlidePart changes and replacing the new token with the original token recovers the exact source SlidePart bytes
 
+#### Scenario: Dependent ChartPart title edit
+- **WHEN** one issued chart-title run belongs to a uniquely bound internal ChartPart
+- **THEN** only that ChartPart changes, replacing the new token recovers its exact source bytes, and the owning graphicFrame, relationship, chart data, and plot topology remain unchanged
+
 #### Scenario: Unexpected scope expansion
 - **WHEN** execution changes any OPC part outside the compiled footprint
 - **THEN** the codec rejects the result as a scope violation

@@ -535,6 +535,7 @@ function cloneImportedPresentationNativeObject(container, source, context) {
     oleWorkbook: clonedPresentationValue(source.oleWorkbook),
     oleOfficePackage: clonedPresentationValue(source.oleOfficePackage),
     diagramText: clonedPresentationValue(source._diagramTextSourceBinding?.()),
+    nativeChart: clonedPresentationValue(source._nativeChartSourceBinding?.()),
   });
   return registerPresentationCloneElement(context, source, clone);
 }
@@ -2628,6 +2629,7 @@ function opaquePresentationSnapshot(object) {
     oleWorkbook,
     oleOfficePackage,
     diagramText: object._diagramTextSourceBinding?.(),
+    nativeChart: object._nativeChartSourceBinding?.(),
     ...presentationNativeGraphSnapshot(object),
   });
 }
@@ -2923,7 +2925,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
     }
   };
   for (const slideState of state.slides) for (const entry of slideState.entries) collectConnectedTargets(entry.wire);
-  const registerLeaf = ({ wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue, value, unit, details, normalize, isNoop, apply }) => {
+  const registerLeaf = ({ wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue, value, unit, details, compilerBinding, normalize, isNoop, apply }) => {
     const expectedHash = createHash("sha256").update(expectedValue, "utf8").digest("hex");
     const seed = [revisionSha256, slideState.wire.id, wire.id, shapeTreePath.join("/"), wire.source.elementSha256, leafKind, details?.textLeafIndex ?? "", expectedHash].join("\0");
     const leafId = `nl_${createHash("sha256").update(seed).digest("hex").slice(0, 32)}`;
@@ -2949,6 +2951,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
       shapeTreePath: [...shapeTreePath],
       rootEntry,
       rootSourceSnapshot: presentationNativeLeafModelSnapshot(rootEntry.model),
+      compilerBinding,
       normalize,
       isNoop,
       apply,
@@ -2964,6 +2967,40 @@ function createPresentationNativeLeafCapability(presentation, state) {
         const childModel = model.children[index];
         if (childModel?.id !== child.id || !child.source) continue;
         addElementLeaves(child, childModel, slideState, [...shapeTreePath, child.source.shapeTreeIndex], wire.id, rootEntry);
+      }
+      return;
+    }
+    if (wire.content.case === "opaque") {
+      const binding = wire.content.value.nativeChart;
+      const modelBinding = model?._nativeChartSourceBinding?.();
+      const currentLeaves = model?._nativeChartTitleRecords?.();
+      if (!binding || !modelBinding || !Array.isArray(currentLeaves) ||
+          binding.partPath !== modelBinding.partPath || binding.contentType !== modelBinding.contentType ||
+          binding.sourceSha256 !== modelBinding.sourceSha256 || binding.relationshipId !== modelBinding.relationshipId ||
+          binding.titleLeaves.length !== currentLeaves.length) return;
+      for (let index = 0; index < binding.titleLeaves.length; index += 1) {
+        const leaf = binding.titleLeaves[index];
+        const current = currentLeaves[index];
+        if (leaf.textLeafIndex !== index || current.textLeafIndex !== index || leaf.text !== current.text) return;
+        registerLeaf({
+          wire,
+          model,
+          slideState,
+          shapeTreePath,
+          parentGroupId,
+          rootEntry,
+          leafKind: "chartTitleText",
+          expectedValue: leaf.text,
+          value: leaf.text,
+          details: { textLeafIndex: index },
+          compilerBinding: {
+            targetPartPath: binding.partPath,
+            expectedTargetPartSha256: binding.sourceSha256,
+            relationshipId: binding.relationshipId,
+          },
+          normalize(next) { assertNativeLeafTextValue(next); return { raw: next, publicValue: next }; },
+          apply(next) { model._setNativeChartTitleLeaf(index, next); },
+        });
       }
       return;
     }
@@ -3120,6 +3157,7 @@ function compileIssuedPresentationNativeLeafOperation(pending, sourceSha256) {
     expectedTextSha256: createHash("sha256").update(leaf.expectedValue, "utf8").digest("hex"),
     expectedValue: leaf.expectedValue,
     value,
+    ...(leaf.compilerBinding || {}),
   };
 }
 
@@ -4234,6 +4272,16 @@ export async function presentationFromEnvelope(envelope) {
               id: node.modelId,
               text: node.text,
               runs: node.runTexts?.length ? [...node.runTexts] : [node.text],
+            })),
+          } } : {}),
+          ...(opaque.nativeChart ? { nativeChart: {
+            partPath: opaque.nativeChart.partPath,
+            contentType: opaque.nativeChart.contentType,
+            sourceSha256: opaque.nativeChart.sourceSha256,
+            relationshipId: opaque.nativeChart.relationshipId,
+            titleLeaves: (opaque.nativeChart.titleLeaves || []).map((leaf) => ({
+              textLeafIndex: leaf.textLeafIndex,
+              text: leaf.text,
             })),
           } } : {}),
           ...nativeGraph(opaque, sourcePart),

@@ -51,6 +51,14 @@ const SOURCES = Object.freeze([
           { leafKind: "heightEmu", expectedValue: 3_305_082, value: 3_314_607 },
         ],
       },
+      {
+        id: "chart-title",
+        nodeId: "presentation/slide/11/element/20",
+        operation: "nativeLeaf",
+        leafKind: "chartTitleText",
+        expectedValue: "MegaDPP",
+        value: "MegaDPP Pro",
+      },
     ],
   },
   {
@@ -204,7 +212,8 @@ async function packageOracle(sourceBytes, outputBytes, editPlan, target) {
   for (const partPath of changedParts) {
     const sourceXml = source.get(partPath).toString("utf8");
     const outputXml = output.get(partPath).toString("utf8");
-    const operations = editPlan.operations.filter((candidate) => candidate.slidePartPath === partPath);
+    const operations = editPlan.operations.filter((candidate) =>
+      (candidate.footprint?.mutationPartPath || candidate.targetPartPath || candidate.slidePartPath) === partPath);
     if (!operations.length) fail(`Edit Plan has no operation for changed part ${partPath}.`);
     if (operations.length === 1) {
       const encodedOld = escapeXmlText(operations[0].expectedValue);
@@ -263,7 +272,7 @@ async function proveDeclaredTarget(bytes, nodes, sourceId, target) {
   if (target.operation !== "nativeLeaf" && target.operation !== "nativeLeaves") fail(`Declared target ${sourceId}/${target.id} uses an unknown operation.`);
   const presentation = await importPresentation(bytes);
   for (const leafSpec of nativeLeafSpecs(target)) {
-    const leaf = nativeLeafRecord(presentation, target, leafSpec.leafKind);
+    const leaf = nativeLeafRecord(presentation, target, leafSpec.leafKind, leafSpec.expectedValue);
     if (leaf.value !== leafSpec.expectedValue) fail(`Declared native target ${sourceId}/${target.id}/${leafSpec.leafKind} does not match its inspected leaf.`);
   }
 }
@@ -279,7 +288,7 @@ function applyBenchmarkTarget(presentation, sourceId, target) {
     return;
   }
   for (const leafSpec of nativeLeafSpecs(target)) {
-    const leaf = nativeLeafRecord(presentation, target, leafSpec.leafKind);
+    const leaf = nativeLeafRecord(presentation, target, leafSpec.leafKind, leafSpec.expectedValue);
     if (leaf.value !== leafSpec.expectedValue) fail(`Target ${sourceId}/${target.id}/${leafSpec.leafKind} is stale.`);
     presentation.editNativeLeaf(leaf.targetId, leaf.leafId, { expectedHash: leaf.expectedHash, value: leafSpec.value });
   }
@@ -292,7 +301,7 @@ function verifyBenchmarkTarget(presentation, sourceId, target) {
     return;
   }
   for (const leafSpec of nativeLeafSpecs(target)) {
-    if (nativeLeafRecord(presentation, target, leafSpec.leafKind).value !== leafSpec.value) fail(`Target ${sourceId}/${target.id}/${leafSpec.leafKind} failed second import.`);
+    if (nativeLeafRecord(presentation, target, leafSpec.leafKind, leafSpec.value).value !== leafSpec.value) fail(`Target ${sourceId}/${target.id}/${leafSpec.leafKind} failed second import.`);
   }
 }
 
@@ -302,12 +311,13 @@ function nativeLeafSpecs(target) {
     : [{ leafKind: target.leafKind, expectedValue: target.expectedValue, value: target.value }];
 }
 
-function nativeLeafRecord(presentation, target, leafKind = target.leafKind) {
+function nativeLeafRecord(presentation, target, leafKind = target.leafKind, expectedValue = target.expectedValue) {
   const records = presentation.inspect({ includeNativeLeaves: true, target: target.nodeId }).ndjson
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line));
-  const leaves = records.filter((record) => record.kind === "nativeLeaf" && record.targetId === target.nodeId && record.leafKind === leafKind);
+  const leaves = records.filter((record) => record.kind === "nativeLeaf" && record.targetId === target.nodeId && record.leafKind === leafKind &&
+    (expectedValue === undefined || record.value === expectedValue));
   if (leaves.length !== 1) fail(`Native target ${target.id} resolved ${leaves.length} ${leafKind} leaves.`);
   return leaves[0];
 }

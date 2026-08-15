@@ -143,8 +143,15 @@ message PresentationEditOperation {
   // shape_tree_index; an empty path retains the original top-level profile.
   repeated uint32 shape_tree_path = 13;
   // Bounded compiler-issued leaf vocabulary. Empty is the legacy text leaf.
-  // v1 values: text, fillRgb, lineRgb, leftEmu, topEmu, widthEmu, heightEmu.
+  // v1 values: text, fillRgb, lineRgb, leftEmu, topEmu, widthEmu, heightEmu,
+  // chartTitleText.
   string leaf_kind = 14;
+  // Compiler-issued dependent-part binding for a native leaf that is not
+  // stored in the owner SlidePart. Callers cannot provide arbitrary paths:
+  // the codec resolves the relationship again from the bound owner element.
+  string target_part_path = 15;
+  string expected_target_part_sha256 = 16;
+  string relationship_id = 17;
 }
 
 message PresentationEditPlanResult {
@@ -170,6 +177,9 @@ message PresentationEditOperationResult {
   uint64 output_end_offset = 13;
   repeated uint32 shape_tree_path = 14;
   string leaf_kind = 15;
+  // OPC part that owns the reported byte offsets. Empty retains the legacy
+  // meaning of slide_part_path.
+  string mutation_part_path = 16;
 }
 
 message DocumentRevisionFinalizationRequest {
@@ -2506,6 +2516,24 @@ message PresentationOpaqueElement {
   // surrounding graph stay source-bound. An export request may set only a
   // replacement asset with the exact same declared package kind.
   PresentationOleOfficePackage ole_office_package = 13;
+  // Present only when an opaque top-level graphicFrame owns one canonical
+  // internal ChartPart whose rich title has stable DrawingML text leaves.
+  // Series, formulas, caches, embedded workbooks, styling, and topology stay
+  // source-owned; this binding grants no whole-chart edit capability.
+  PresentationNativeChart native_chart = 14;
+}
+
+message PresentationNativeChart {
+  string part_path = 1;
+  string content_type = 2;
+  string source_sha256 = 3;
+  string relationship_id = 4;
+  repeated PresentationNativeChartTitleLeaf title_leaves = 5;
+}
+
+message PresentationNativeChartTitleLeaf {
+  uint32 text_leaf_index = 1;
+  string text = 2;
 }
 
 message PresentationOleWorkbook {

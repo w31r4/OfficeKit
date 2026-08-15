@@ -542,6 +542,109 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void EditPlanChangesOneOpaqueChartTitleLeafWithoutReserializingTheChart()
+    {
+        var request = ExportRequest();
+        var chart = new PresentationChart
+        {
+            LeftEmu = 4_000_000,
+            TopEmu = 1_500_000,
+            WidthEmu = 4_500_000,
+            HeightEmu = 2_500_000,
+            Type = SpreadsheetChartType.Bar,
+            Title = "Native chart proof",
+            HasLegend = true,
+        };
+        chart.Categories.Add(["A", "B"]);
+        chart.Series.Add(new SpreadsheetChartSeriesArtifact { Name = "Evidence", Values = { 8, 13 } });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/chart/native-title",
+            Name = "Native source chart",
+            Chart = chart,
+        });
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        string chartPath;
+        using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            chartPath = Assert.Single(package.PresentationPart!.SlideParts.Single().ChartParts).Uri.OriginalString.TrimStart('/');
+        var sourceBytes = ReplaceZipText(authored.File.ToByteArray(), chartPath, xml =>
+            Regex.Replace(
+                xml,
+                "<c:numLit>(?<body>.*?)</c:numLit>",
+                "<c:numRef><c:f>Sheet1!$B$2:$B$3</c:f><c:numCache>${body}</c:numCache></c:numRef>",
+                RegexOptions.Singleline,
+                TimeSpan.FromSeconds(1)));
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var element = Assert.Single(slide.Elements, candidate => candidate.Name == "Native source chart");
+        Assert.Equal(PresentationElement.ContentOneofCase.Opaque, element.ContentCase);
+        var binding = Assert.IsType<PresentationNativeChart>(element.Opaque.NativeChart);
+        var leaf = Assert.Single(binding.TitleLeaves);
+        Assert.Equal("Native chart proof", leaf.Text);
+        Assert.Matches("^ppt/(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+[.]xml$", binding.PartPath);
+        Assert.Matches("^[0-9a-f]{64}$", binding.SourceSha256);
+        Assert.NotEmpty(binding.RelationshipId);
+        const string replacement = "Native chart verified";
+        var operation = new PresentationEditOperation
+        {
+            OperationId = "chart-title-0001",
+            SlideId = slide.Id,
+            SlidePartPath = slide.Source.PartPath,
+            ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+            TargetId = element.Id,
+            ShapeTreeIndex = element.Source.ShapeTreeIndex,
+            ExpectedElementSha256 = element.Source.ElementSha256,
+            ExpectedSemanticSha256 = element.Source.SemanticSha256,
+            TextLeafIndex = leaf.TextLeafIndex,
+            LeafKind = "chartTitleText",
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(leaf.Text))).ToLowerInvariant(),
+            ExpectedValue = leaf.Text,
+            Value = replacement,
+            TargetPartPath = binding.PartPath,
+            ExpectedTargetPartSha256 = binding.SourceSha256,
+            RelationshipId = binding.RelationshipId,
+        };
+        var editRequest = new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+                Operations = { operation },
+            },
+        };
+
+        var edited = Invoke(editRequest);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal([binding.PartPath], edited.PresentationEditPlan.ChangedParts);
+        var result = Assert.Single(edited.PresentationEditPlan.Operations);
+        Assert.Equal(binding.PartPath, result.MutationPartPath);
+        Assert.Equal(result.SourceElementSha256, result.OutputElementSha256);
+        var sourceChartXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, binding.PartPath));
+        var outputBytes = edited.File.ToByteArray();
+        var outputChartXml = Encoding.UTF8.GetString(ZipBytes(outputBytes, binding.PartPath));
+        Assert.Equal(sourceChartXml, outputChartXml.Replace(replacement, leaf.Text, StringComparison.Ordinal));
+        foreach (var path in ZipPartPaths(sourceBytes).Where(path => !path.Equals(binding.PartPath, StringComparison.OrdinalIgnoreCase)))
+            Assert.Equal(ZipBytes(sourceBytes, path), ZipBytes(outputBytes, path));
+        var reopened = Import(outputBytes);
+        Assert.True(reopened.Ok, Diagnostics(reopened));
+        var reopenedChart = Assert.Single(Assert.Single(reopened.Artifact.Presentation.Slides).Elements, candidate => candidate.Id == element.Id);
+        Assert.Equal(replacement, Assert.Single(reopenedChart.Opaque.NativeChart.TitleLeaves).Text);
+
+        var stale = editRequest.Clone();
+        stale.PresentationEditPlan.Operations[0].ExpectedTargetPartSha256 = new string('0', 64);
+        var rejected = Invoke(stale);
+        Assert.False(rejected.Ok);
+        Assert.Equal("presentation_chart_binding_mismatch", Assert.Single(rejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void ShapeAccessibilityAuthorsImportsEditsAndKeepsIrregularMetadataSourceOwned()
     {
         var request = ExportRequest();

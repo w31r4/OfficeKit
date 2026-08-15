@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "OfficeKit.Runtime.dll",
   "resources": {
-    "hash": "sha256-LnXGtOP1TP0Hn/q5uNw7d5iukd/8FZdJ4+YW6w7c9BM=",
+    "hash": "sha256-KDdZhw/kb+Y/KCmm6zT2W8yZr7lLZCir4Ge/LQpLOXo=",
     "jsModuleNative": {
       "dotnet.native.js": "sha256-3M5CDym93zeieNAd2KEOcVjqHuLUxjPt+6MeEvdx80A="
     },
@@ -16,8 +16,8 @@
       "DocumentFormat.OpenXml.wasm": "sha256-ApwpaYxSbGBbTimWspDkVZ9/F91AjZ1JSYMK1u4GbTU=",
       "DocumentFormat.OpenXml.Framework.wasm": "sha256-PWwypPsK0Tv7nHAJ+kGdM5aWNHBv1V/mngR7w77HfZ4=",
       "Google.Protobuf.wasm": "sha256-GQnORpWt1yyUH7zdmDeIvbqO3P+BuhOEN9J5NtAoQRU=",
-      "OfficeKit.Codec.wasm": "sha256-Z1osk35mH0Pxn2btfd5o3XxcgkuTwP1bq+fWAMg8RiM=",
-      "OfficeKit.Runtime.wasm": "sha256-HSDSaPKQHvwfRcldM7lfy/BBMTh0IMEVWmF3bKcl3aY=",
+      "OfficeKit.Codec.wasm": "sha256-NZPix9ys/WQQJE3ZR28q0QqZiWWqoyJZMCp16HvsIZk=",
+      "OfficeKit.Runtime.wasm": "sha256-bk5uOubPCL9GA855mPCXBwZbPM5xyJcGAnHk++ATMmQ=",
       "System.Collections.Concurrent.wasm": "sha256-y1kVTP5aXM301h7oRROcEW7OsZJxomy/J0pI83GXkXs=",
       "System.Collections.wasm": "sha256-WMuM90eY+3oRSmSkxqcUoTXLyYPasn2YWqNND9+iiUk=",
       "System.Collections.NonGeneric.wasm": "sha256-b/yvU1wtbcaFYB93+JgQ4mmHJ6HOFRe4TOlEl5ABtr8=",
@@ -34,7 +34,7 @@
       "System.Private.CoreLib.wasm": "sha256-M5lXcSQR2eepnqkW0Is8B+CpwPdCpmKQ05OrpixiVCg=",
       "System.Private.Uri.wasm": "sha256-qn0MelLc4ooWasVg6sM9spSHs3PRZAEz+h8YUUW9iEk=",
       "System.Private.Xml.wasm": "sha256-pOx34u/9lkIXg2N0cvbAHfrOYn9cboaY2nxVZTD4F4I=",
-      "System.Private.Xml.Linq.wasm": "sha256-pQBSVJ5OzAgXlTsLcet4cyZAFRKtE7ev1zpHsgWDCd8=",
+      "System.Private.Xml.Linq.wasm": "sha256-pJXouETRSPPy3j3gcIVwZPSFibwIN1kTwWe9+a07vfs=",
       "System.Runtime.InteropServices.JavaScript.wasm": "sha256-9wZsNOhRyG5cibDRNBWgelUGXl0Spv/k7z8UCmOgdbs=",
       "System.Security.Cryptography.wasm": "sha256-q0w+T1G8FCY6I+QoPs1+NCpk/JvqKNz5J+aj+9MyU90=",
       "System.Text.RegularExpressions.wasm": "sha256-6ZD3l8TpUeF2M8abC+MVZgnq6TISKz/5f7mStz1Lh/Y=",

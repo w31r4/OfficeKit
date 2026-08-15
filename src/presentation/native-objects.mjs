@@ -8,6 +8,49 @@ const MAX_EMBEDDED_OFFICE_PACKAGE_BYTES = 16 * 1024 * 1024;
 const MAX_DIAGRAM_NODE_TEXT_LENGTH = 32_767;
 const MAX_DIAGRAM_NODE_RUNS = 256;
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const CHART_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
+
+function normalizeNativeChart(config) {
+  if (!config) return undefined;
+  const partPath = String(config.partPath || "");
+  const contentType = String(config.contentType || "").toLowerCase();
+  const sourceSha256 = String(config.sourceSha256 || "").toLowerCase();
+  const relationshipId = String(config.relationshipId || "");
+  const sourceLeaves = config.titleLeaves;
+  if (!partPath || contentType !== CHART_CONTENT_TYPE || !/^[0-9a-f]{64}$/iu.test(sourceSha256) ||
+      !relationshipId || !Array.isArray(sourceLeaves) || sourceLeaves.length === 0 || sourceLeaves.length > 256) {
+    throw new TypeError("Native chart title binding is incomplete or outside the bounded profile.");
+  }
+  const titleLeaves = sourceLeaves.map((leaf, index) => {
+    const textLeafIndex = Number(leaf?.textLeafIndex);
+    const text = String(leaf?.text ?? "");
+    if (textLeafIndex !== index || text.length > 32_767 || !validDiagramNodeText(text)) {
+      throw new TypeError("Native chart title binding contains an invalid text leaf.");
+    }
+    return Object.freeze({ textLeafIndex, text });
+  });
+  return Object.freeze({
+    partPath,
+    contentType,
+    sourceSha256,
+    relationshipId,
+    titleLeaves: Object.freeze(titleLeaves),
+  });
+}
+
+function nativeChartRecord(binding, leaves = binding?.titleLeaves) {
+  if (!binding) return undefined;
+  return Object.freeze({
+    partPath: binding.partPath,
+    contentType: binding.contentType,
+    sourceSha256: binding.sourceSha256,
+    relationshipId: binding.relationshipId,
+    titleLeaves: Object.freeze(leaves.map((leaf) => Object.freeze({
+      textLeafIndex: leaf.textLeafIndex,
+      text: leaf.text,
+    }))),
+  });
+}
 
 function normalizeOleOfficePackage(config) {
   if (!config) return undefined;
@@ -149,6 +192,19 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         enumerable: false,
         writable: false,
         value: diagramText ? diagramText.nodes.map((node) => ({ ...node, runs: [...node.runs] })) : undefined,
+      });
+      const nativeChart = normalizeNativeChart(config.nativeChart);
+      Object.defineProperty(this, "_nativeChartBinding", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: nativeChart,
+      });
+      Object.defineProperty(this, "_nativeChartTitleLeaves", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: nativeChart ? nativeChart.titleLeaves.map((leaf) => ({ ...leaf })) : undefined,
       });
       Object.defineProperty(this, "diagramText", {
         configurable: false,
@@ -319,12 +375,28 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       return changed ? diagramTextRecord(this._diagramTextBinding, this._diagramTextNodes) : undefined;
     }
 
+    _nativeChartSourceBinding() {
+      return nativeChartRecord(this._nativeChartBinding);
+    }
+
+    _nativeChartTitleRecords() {
+      return this._nativeChartBinding ? nativeChartRecord(this._nativeChartBinding, this._nativeChartTitleLeaves).titleLeaves : undefined;
+    }
+
+    _setNativeChartTitleLeaf(index, value) {
+      if (!this._nativeChartBinding || !this._nativeChartTitleLeaves || !this._nativeChartTitleLeaves[index]) {
+        throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded chart-title leaf ${index}.`);
+      }
+      this._nativeChartTitleLeaves[index].text = value;
+    }
+
     inspectRecord() {
       const frame = this.parentGroup ? this.parentGroup.absoluteChildFrame(this) : this.position;
       const editableFields = [
         ...(this.oleWorkbook ? ["embeddedWorkbook"] : []),
         ...(this.oleOfficePackage ? ["embeddedOfficePackage"] : []),
         ...(this._diagramTextBinding ? ["diagramText"] : []),
+        ...(this._nativeChartBinding ? ["chartTitleText"] : []),
       ];
       return {
         kind: "nativeObject",
@@ -343,6 +415,10 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         embeddedWorkbook: this.oleWorkbook ? this._embeddedWorkbookRecord(true) : undefined,
         embeddedOfficePackage: this.oleOfficePackage ? this._embeddedOfficePackageRecord(true) : undefined,
         diagramText: this.diagramText,
+        nativeChart: this._nativeChartBinding ? {
+          titleLeaves: this._nativeChartTitleLeaves.length,
+          title: this._nativeChartTitleLeaves.map((leaf) => leaf.text).join(""),
+        } : undefined,
         bbox: [frame.left, frame.top, frame.width, frame.height],
         bboxUnit: "px",
         editable: false,
@@ -387,11 +463,13 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         embeddedWorkbook: this.oleWorkbook ? this._embeddedWorkbookRecord() : undefined,
         embeddedOfficePackage: this.oleOfficePackage ? this._embeddedOfficePackageRecord() : undefined,
         diagramText: this.diagramText,
+        nativeChart: this._nativeChartTitleRecords(),
         editable: false,
         editableFields: [
           ...(this.oleWorkbook ? ["embeddedWorkbook"] : []),
           ...(this.oleOfficePackage ? ["embeddedOfficePackage"] : []),
           ...(this._diagramTextBinding ? ["diagramText"] : []),
+          ...(this._nativeChartBinding ? ["chartTitleText"] : []),
         ],
       };
     }

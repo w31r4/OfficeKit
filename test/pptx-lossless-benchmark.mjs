@@ -12,7 +12,7 @@ assert.equal(manifest.schema, "office-kit/pptx-lossless-benchmark/v1");
 assert.equal(manifest.sources.length, 3);
 assert.equal(new Set(manifest.sources.map((source) => source.id)).size, 3);
 assert.equal(new Set(manifest.sources.map((source) => source.sha256)).size, 3);
-assert.equal(manifest.sources.reduce((count, source) => count + source.targets.length, 0), 9);
+assert.equal(manifest.sources.reduce((count, source) => count + source.targets.length, 0), 10);
 
 for (const source of manifest.sources) {
   assert.match(source.id, /^[a-z0-9][a-z0-9-]+$/u);
@@ -43,8 +43,8 @@ for (const source of manifest.sources) {
       assert.equal(Array.isArray(leaves) && leaves.length > 0 && leaves.length <= 8, true);
       assert.equal(new Set(leaves.map((leaf) => leaf.leafKind)).size, leaves.length);
       for (const leaf of leaves) {
-        assert.match(leaf.leafKind, /^(text|leftEmu|topEmu|widthEmu|heightEmu)$/u);
-        if (leaf.leafKind === "text") {
+        assert.match(leaf.leafKind, /^(text|chartTitleText|leftEmu|topEmu|widthEmu|heightEmu)$/u);
+        if (leaf.leafKind === "text" || leaf.leafKind === "chartTitleText") {
           assert.equal(typeof leaf.expectedValue, "string");
           assert.equal(typeof leaf.value, "string");
         } else {
@@ -68,7 +68,7 @@ assert.equal(evidence.manifestSha256, createHash("sha256").update(manifestBytes)
 assert.equal(evidence.repetitionsPerTarget, 3);
 assert.deepEqual(Object.values(evidence.runnerContract), [true, true, true, true, true, true]);
 assert.equal(evidence.sources.length, manifest.sources.length);
-assert.equal(evidence.sources.reduce((count, source) => count + source.targets.length, 0), 9);
+assert.equal(evidence.sources.reduce((count, source) => count + source.targets.length, 0), 10);
 for (const source of evidence.sources) {
   const declared = manifest.sources.find((candidate) => candidate.id === source.id);
   assert.ok(declared);
@@ -79,7 +79,7 @@ for (const source of evidence.sources) {
     assert.equal(declared.targets.some((candidate) => candidate.id === target.id), true);
     assert.match(target.outputSha256, /^[a-f0-9]{64}$/u);
     assert.equal(target.changedParts.length, 1);
-    assert.match(target.changedParts[0], /^ppt\/slides\/slide[1-9][0-9]*\.xml$/u);
+    assert.match(target.changedParts[0], /^ppt\/(?:slides\/slide[1-9][0-9]*|charts\/chart[1-9][0-9]*)\.xml$/u);
   }
 }
 

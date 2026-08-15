@@ -160,6 +160,21 @@ internal sealed class PptxNativeObjectCatalog
         TryPopulateOleWorkbook(target, source, sourcePart);
         TryPopulateOleOfficePackage(target, source, sourcePart);
         TryPopulateDiagramText(target, source, owner);
+        TryPopulateNativeChart(target, source, owner);
+    }
+
+    private void TryPopulateNativeChart(PresentationOpaqueElement target, OpenXmlElement source, OpenXmlPart owner)
+    {
+        if (!PptxNativeChartLeafCodec.TryDescribe(source, owner, out var chart) ||
+            !_parts.TryGetValue(chart.PartPath, out var part) ||
+            !part.ContentType.Equals(chart.ContentType, StringComparison.OrdinalIgnoreCase) ||
+            !part.Sha256.Equals(chart.SourceSha256, StringComparison.OrdinalIgnoreCase) ||
+            !target.PreservedPartPaths.Contains(chart.PartPath, StringComparer.OrdinalIgnoreCase))
+            return;
+        var inboundCount = _relationships.Values.Count(candidate =>
+            !candidate.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase) &&
+            ResolveTarget(candidate.SourcePath, candidate.Target).Equals(chart.PartPath, StringComparison.OrdinalIgnoreCase));
+        if (inboundCount == 1) target.NativeChart = chart;
     }
 
     private void TryPopulateDiagramText(PresentationOpaqueElement target, OpenXmlElement source, OpenXmlPart owner)

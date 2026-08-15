@@ -29,6 +29,7 @@ function presentationEditPlanMetadata(editPlan, result) {
       if (footprint.slideId !== operation.slideId || footprint.slidePartPath !== operation.slidePartPath ||
           footprint.targetId !== operation.targetId || footprint.shapeTreeIndex !== operation.shapeTreeIndex ||
           footprint.textLeafIndex !== operation.textLeafIndex || footprint.leafKind !== operation.leafKind ||
+          footprint.mutationPartPath !== (operation.targetPartPath || operation.slidePartPath) ||
           JSON.stringify(footprint.shapeTreePath) !== JSON.stringify(operation.shapeTreePath)) {
         throw new OfficeKitCodecError(`OfficeKit PPTX Edit Plan result changed the binding for operation ${operation.operationId}.`, [], { code: "presentation_edit_plan_result_mismatch" });
       }
@@ -47,7 +48,13 @@ function presentationEditPlanMetadata(editPlan, result) {
         expectedTextSha256: operation.expectedTextSha256,
         expectedValue: operation.expectedValue,
         value: operation.value,
+        ...(operation.targetPartPath ? {
+          targetPartPath: operation.targetPartPath,
+          expectedTargetPartSha256: operation.expectedTargetPartSha256,
+          relationshipId: operation.relationshipId,
+        } : {}),
         footprint: {
+          mutationPartPath: footprint.mutationPartPath,
           sourceElementSha256: footprint.sourceElementSha256,
           outputElementSha256: footprint.outputElementSha256,
           oldValueSha256: footprint.oldValueSha256,
