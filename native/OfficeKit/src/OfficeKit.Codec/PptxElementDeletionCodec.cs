@@ -56,11 +56,11 @@ internal static class PptxElementDeletionCodec
         return source switch
         {
             P.Shape when HasRelationshipReference(source) =>
-                Blocked("the shape owns one or more package relationship references", nativeId.Value),
+                AnalyzeRelationshipClosure(slidePart, source, nativeId.Value),
             P.Shape => Supported(nativeId.Value),
             P.Picture picture => AnalyzePicture(slidePart, picture, nativeId.Value),
             P.ConnectionShape when HasRelationshipReference(source) =>
-                Blocked("the connector owns one or more package relationship references", nativeId.Value),
+                AnalyzeRelationshipClosure(slidePart, source, nativeId.Value),
             P.ConnectionShape => Supported(nativeId.Value),
             P.GraphicFrame frame => AnalyzeGraphicFrame(slidePart, frame, nativeId.Value),
             P.GroupShape group => AnalyzeGroup(slidePart, group, nativeId.Value),
@@ -152,7 +152,17 @@ internal static class PptxElementDeletionCodec
         if (relationshipId.Length == 0)
             return Blocked("the picture is not one canonical embedded-image relationship", nativeId);
 
-        return AnalyzeOwnedPartRelationship<ImagePart>(slidePart, picture, nativeId, relationshipId, "picture", "embedded image part");
+        var canonical = AnalyzeOwnedPartRelationship<ImagePart>(slidePart, picture, nativeId, relationshipId, "picture", "embedded image part");
+        if (canonical.Supported) return canonical;
+
+        // Some Office producers retain a second, independently owned image
+        // relationship (for example a WDP/HD Photo fallback) on the same
+        // picture.  The canonical single-image profile above is intentionally
+        // strict, but a complete relationship-closure proof can still show
+        // that removing the picture owns every referenced part.  Do not
+        // infer this from content type or discard the fallback: only the
+        // generic closure proof may authorize the deletion.
+        return AnalyzeRelationshipClosure(slidePart, picture, nativeId);
     }
 
     private static PptxElementDeletionPlan AnalyzeGraphicFrame(SlidePart slidePart, P.GraphicFrame frame, uint nativeId)
@@ -169,11 +179,75 @@ internal static class PptxElementDeletionCodec
                 : Supported(nativeId);
         }
         if (!string.Equals(graphicData.Uri?.Value, "http://schemas.openxmlformats.org/drawingml/2006/chart", StringComparison.Ordinal))
-            return Blocked("the graphic frame is not a bounded DrawingML table or chart", nativeId);
+            return AnalyzeRelationshipClosure(slidePart, frame, nativeId);
         var references = graphicData.Elements<C.ChartReference>().ToArray();
         if (references.Length != 1 || references[0].Id?.Value is not { Length: > 0 } relationshipId)
             return Blocked("the chart is not one canonical internal ChartPart relationship", nativeId);
         return AnalyzeOwnedPartRelationship<ChartPart>(slidePart, frame, nativeId, relationshipId, "chart", "ChartPart");
+    }
+
+    // An unmodeled top-level object may still be safely removed from a cloned
+    // slide when its relationship closure is independently owned by that
+    // element. This is a deletion proof only: the object remains opaque and
+    // no semantic parser or serializer is introduced for its native graph.
+    private static PptxElementDeletionPlan AnalyzeRelationshipClosure(
+        SlidePart slidePart,
+        OpenXmlElement source,
+        uint nativeId)
+    {
+        var relationshipIds = RelationshipAttributes(source)
+            .Select(attribute => attribute.Value)
+            .Where(value => !string.IsNullOrEmpty(value))
+            .Select(value => value!)
+            .ToHashSet(StringComparer.Ordinal);
+        if (relationshipIds.Count == 0) return Supported(nativeId);
+        var slide = slidePart.Slide;
+        if (slide is null) return Blocked("the slide root is unavailable for relationship-closure proof", nativeId);
+        var rootParts = new HashSet<OpenXmlPart>();
+        var referenceRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var relationshipId in relationshipIds)
+        {
+            var ownedReferences = RelationshipAttributes(source).Count(attribute =>
+                string.Equals(attribute.Value, relationshipId, StringComparison.Ordinal));
+            var slideReferences = RelationshipAttributes(slide).Count(attribute =>
+                string.Equals(attribute.Value, relationshipId, StringComparison.Ordinal));
+            if (ownedReferences == 0 || ownedReferences != slideReferences)
+                return Blocked($"relationship {relationshipId} is referenced outside the element", nativeId);
+
+            var partEdges = slidePart.Parts.Where(pair => pair.RelationshipId.Equals(relationshipId, StringComparison.Ordinal)).ToArray();
+            var hyperlinks = slidePart.HyperlinkRelationships.Where(relationship => relationship.Id.Equals(relationshipId, StringComparison.Ordinal)).ToArray();
+            var externals = slidePart.ExternalRelationships.Where(relationship => relationship.Id.Equals(relationshipId, StringComparison.Ordinal)).ToArray();
+            var dataParts = slidePart.DataPartReferenceRelationships.Where(relationship => relationship.Id.Equals(relationshipId, StringComparison.Ordinal)).ToArray();
+            if (partEdges.Length + hyperlinks.Length + externals.Length + dataParts.Length != 1)
+                return Blocked($"relationship {relationshipId} does not resolve uniquely", nativeId);
+            if (dataParts.Length != 0)
+                return Blocked($"relationship {relationshipId} is an unsupported data-part reference", nativeId);
+            if (hyperlinks.Length != 0 || externals.Length != 0)
+            {
+                referenceRelationshipIds.Add(relationshipId);
+                continue;
+            }
+            rootParts.Add(partEdges[0].OpenXmlPart);
+        }
+
+        foreach (var rootPart in rootParts)
+        {
+            var ownerRelationshipIds = slidePart.Parts
+                .Where(pair => ReferenceEquals(pair.OpenXmlPart, rootPart))
+                .Select(pair => pair.RelationshipId)
+                .ToArray();
+            if (ownerRelationshipIds.Any(relationshipId => !relationshipIds.Contains(relationshipId)))
+                return Blocked("a relationship-owned package part has another relationship from the same slide", nativeId);
+        }
+
+        var removedParts = ExclusiveClosure(slidePart, rootParts);
+        return new PptxElementDeletionPlan(
+            true,
+            string.Empty,
+            nativeId,
+            relationshipIds,
+            referenceRelationshipIds,
+            RemovedPackagePaths(removedParts));
     }
 
     private static PptxElementDeletionPlan AnalyzeOwnedPartRelationship<TPart>(

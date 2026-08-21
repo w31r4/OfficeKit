@@ -2,6 +2,7 @@ import { toUint8Array } from "../shared/binary.mjs";
 import { FileBlob } from "../shared/file-blob.mjs";
 import { aid } from "../shared/ids.mjs";
 import { attrEscape, xmlEscape } from "../shared/xml.mjs";
+import { presentationElementDeletionCapability } from "./element-deletion.mjs";
 
 const MAX_EMBEDDED_WORKBOOK_BYTES = 16 * 1024 * 1024;
 const MAX_EMBEDDED_OFFICE_PACKAGE_BYTES = 16 * 1024 * 1024;
@@ -456,6 +457,10 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       return this._nativeChartBinding ? nativeChartRecord(this._nativeChartBinding, this._nativeChartTitleLeaves, this._nativeChartDataPoints) : undefined;
     }
 
+    get deletionCapability() {
+      return presentationElementDeletionCapability(this, "native object");
+    }
+
     _setNativeChartTitleLeaf(index, value) {
       if (!this._nativeChartBinding || !this._nativeChartTitleLeaves || !this._nativeChartTitleLeaves[index]) {
         throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded chart-title leaf ${index}.`);
@@ -502,6 +507,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
           title: this._nativeChartTitleLeaves.map((leaf) => leaf.text).join(""),
           dataPoints: this._nativeChartDataPoints.length,
         } : undefined,
+        deletionCapability: this.deletionCapability,
         bbox: [frame.left, frame.top, frame.width, frame.height],
         bboxUnit: "px",
         editable: false,

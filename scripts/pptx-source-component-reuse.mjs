@@ -82,6 +82,10 @@ async function compareNonTopologyParts(sourceBytes, outputBytes) {
   for (const name of Object.keys(sourceZip.files)) {
     if (TOPOLOGY_PARTS.has(name)) continue;
     const sourceFile = sourceZip.file(name);
+    // ZIP directory entries are packaging hints, not OPC parts.  JSZip may
+    // omit empty directory entries when the cloned package is rebuilt; that
+    // must not be reported as content drift.
+    if (!sourceFile || sourceFile.dir) continue;
     const outputFile = outputZip.file(name);
     if (!outputFile) {
       mismatches.push(`${name}:missing`);

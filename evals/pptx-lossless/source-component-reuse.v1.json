@@ -18,10 +18,19 @@
       "sourceSlideCount": 19,
       "candidateCount": 50,
       "inspectOnlyCandidateCount": 22,
-      "status": "blocked",
+      "status": "passed",
       "failures": {
-        "unsupported_presentation_component_reuse": 22
-      }
+        "unsupported_presentation_component_reuse": 8
+      },
+      "candidateId": "pc_5fe2b72b5a8b7dd6571db5ec26c0b8ca",
+      "occurrenceCount": 6,
+      "cloneSlideIndex": 12,
+      "cloneElementCount": 1,
+      "sourceBytes": 13951095,
+      "outputBytes": 13953760,
+      "reopenedSlideCount": 20,
+      "nonTargetPartMismatches": [],
+      "outputSha256": "5edd2eec0bfb18e78321d0e6c323b9d7ef88d94b7e5629a09eca52f9997b0513"
     },
     {
       "id": "mckinsey-customer-loyalty",
@@ -36,10 +45,10 @@
       "cloneSlideIndex": 1,
       "cloneElementCount": 1,
       "sourceBytes": 47589,
-      "outputBytes": 48563,
+      "outputBytes": 48562,
       "reopenedSlideCount": 9,
       "nonTargetPartMismatches": [],
-      "outputSha256": "6d1453ad9c7c17d17d6c9542775ccea6be46ef57168d191f17a3a3fcfaaa5e0d"
+      "outputSha256": "fcfa1a26f05b5d658802f701dc71cb3696f021d0ef7b939cb1a781501c88aa41"
     }
   ]
 }

@@ -31,9 +31,12 @@
   for both complete-slide and component reuse. Arbitrary partial component
   mutation, nested component extraction, and raw XML remain out of scope.
 - [x] 2.6 Run the component-reuse scan against all three external benchmark
-  decks and freeze the evidence. The McKinsey repeated-image candidate passes
-  with zero non-topology part drift; the 算秩未来 and blue-gray candidates
-  remain explicit blocked coverage gaps until sibling deletion proofs close.
+  decks and freeze the evidence. Repeated-image candidates in the blue-gray
+  and McKinsey decks pass with zero non-topology part drift, including the
+  blue-gray picture's independently owned fallback image relationship. The
+  算秩未来 candidates remain an explicit blocked coverage gap because duplicate
+  native IDs or timing/extension identity prevent a safe sibling-deletion
+  proof.
 
 ## 3. Same-style continuation
 

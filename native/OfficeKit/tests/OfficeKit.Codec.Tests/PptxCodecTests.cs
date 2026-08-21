@@ -6700,7 +6700,7 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
-    public void ImportedConnectorAndTableDeletionBlockRelationshipReferences()
+    public void ImportedConnectorDeletionAllowsOwnedExternalRelationshipReferenceWhileTableStaysBounded()
     {
         var request = ExportRequest();
         var slide = request.Artifact.Presentation.Slides[0];
@@ -6730,10 +6730,10 @@ public sealed class PptxCodecTests
             var slidePart = package.PresentationPart!.SlideParts.Single();
             var tableRelationship = slidePart.AddHyperlinkRelationship(new Uri("https://example.invalid/table"), true, "rIdDeleteTableLink");
             var connectorRelationship = slidePart.AddHyperlinkRelationship(new Uri("https://example.invalid/connector"), true, "rIdDeleteConnectorLink");
-            var table = slidePart.Slide!.CommonSlideData!.ShapeTree!.Elements<P.GraphicFrame>().Single();
-            table.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Append(new A.HyperlinkOnClick { Id = tableRelationship.Id });
-            var connector = slidePart.Slide.CommonSlideData.ShapeTree.Elements<P.ConnectionShape>().Single();
-            connector.NonVisualConnectionShapeProperties!.NonVisualDrawingProperties!.Append(new A.HyperlinkOnClick { Id = connectorRelationship.Id });
+            var tableElement = slidePart.Slide!.CommonSlideData!.ShapeTree!.Elements<P.GraphicFrame>().Single();
+            tableElement.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Append(new A.HyperlinkOnClick { Id = tableRelationship.Id });
+            var connectorElement = slidePart.Slide.CommonSlideData.ShapeTree.Elements<P.ConnectionShape>().Single();
+            connectorElement.NonVisualConnectionShapeProperties!.NonVisualDrawingProperties!.Append(new A.HyperlinkOnClick { Id = connectorRelationship.Id });
             slidePart.Slide.Save();
         }
 
@@ -6743,11 +6743,23 @@ public sealed class PptxCodecTests
             .Where(element => element.ContentCase is PresentationElement.ContentOneofCase.Table or PresentationElement.ContentOneofCase.Connector)
             .ToArray();
         Assert.Equal(2, relationshipOwners.Length);
-        Assert.All(relationshipOwners, element =>
+        var table = Assert.Single(relationshipOwners, element => element.ContentCase == PresentationElement.ContentOneofCase.Table);
+        Assert.False(table.Source.DeletionCapability.Supported);
+        Assert.Contains("relationship", table.Source.DeletionCapability.BlockedReason, StringComparison.Ordinal);
+        var connector = Assert.Single(relationshipOwners, element => element.ContentCase == PresentationElement.ContentOneofCase.Connector);
+        Assert.True(connector.Source.DeletionCapability.Supported);
+        imported.Artifact.Presentation.Slides[0].ElementDeletions.Add(new PresentationElementDeletion
         {
-            Assert.False(element.Source.DeletionCapability.Supported);
-            Assert.Contains("relationship", element.Source.DeletionCapability.BlockedReason, StringComparison.Ordinal);
+            Id = connector.Id,
+            Source = connector.Source.Clone(),
         });
+        imported.Artifact.Presentation.Slides[0].Elements.Remove(connector);
+        var deleted = Export(imported.Artifact);
+        Assert.True(deleted.Ok, Diagnostics(deleted));
+        using var outputStream = new MemoryStream(deleted.File.ToByteArray(), writable: false);
+        using var output = PresentationDocument.Open(outputStream, false);
+        Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(output));
+        Assert.Equal("rIdDeleteTableLink", Assert.Single(output.PresentationPart!.SlideParts.Single().HyperlinkRelationships).Id);
     }
 
     [Fact]
@@ -6781,7 +6793,36 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
-    public void ImportedElementDeletionCapabilityBlocksRelationshipOwningShapes()
+    public void SourcePreservingExportDeletesPictureWithOwnedFallbackRelationship()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddPictureWithOwnedFallbackRelationship(authored.File.ToByteArray());
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var picture = Assert.Single(slide.Elements, element => element.ContentCase == PresentationElement.ContentOneofCase.Opaque && element.Opaque.NativeKind == "picture");
+        Assert.True(picture.Source.DeletionCapability.Supported);
+
+        slide.ElementDeletions.Add(new PresentationElementDeletion
+        {
+            Id = picture.Id,
+            Source = picture.Source.Clone(),
+        });
+        slide.Elements.Remove(picture);
+        var deleted = Export(imported.Artifact);
+        Assert.True(deleted.Ok, Diagnostics(deleted));
+        using (var stream = new MemoryStream(deleted.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            Assert.Empty(package.PresentationPart!.SlideParts.Single().ImageParts);
+        }
+        Assert.True(Import(deleted.File.ToByteArray()).Ok);
+    }
+
+    [Fact]
+    public void ImportedElementDeletionCapabilityAllowsOwnedRelationshipShapes()
     {
         var authored = Invoke(HyperlinkExportRequest());
         Assert.True(authored.Ok, Diagnostics(authored));
@@ -6790,8 +6831,8 @@ public sealed class PptxCodecTests
         var relationshipShape = imported.Artifact.Presentation.Slides
             .SelectMany(slide => slide.Elements)
             .First(element => element.ContentCase == PresentationElement.ContentOneofCase.Shape &&
-                              element.Source.DeletionCapability.BlockedReason.Contains("relationship", StringComparison.Ordinal));
-        Assert.False(relationshipShape.Source.DeletionCapability.Supported);
+                              element.Source.DeletionCapability.Supported);
+        Assert.True(relationshipShape.Source.DeletionCapability.Supported);
 
         var slide = imported.Artifact.Presentation.Slides.Single(candidate => candidate.Elements.Contains(relationshipShape));
         slide.ElementDeletions.Add(new PresentationElementDeletion
@@ -6800,9 +6841,11 @@ public sealed class PptxCodecTests
             Source = relationshipShape.Source.Clone(),
         });
         slide.Elements.Remove(relationshipShape);
-        var rejected = Export(imported.Artifact);
-        Assert.False(rejected.Ok);
-        Assert.Equal("unsupported_presentation_element_delete", Assert.Single(rejected.Diagnostics).Code);
+        var deleted = Export(imported.Artifact);
+        Assert.True(deleted.Ok, Diagnostics(deleted));
+        using var outputStream = new MemoryStream(deleted.File.ToByteArray(), writable: false);
+        using var output = PresentationDocument.Open(outputStream, false);
+        Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(output));
     }
 
     [Fact]
@@ -10678,6 +10721,28 @@ public sealed class PptxCodecTests
             slidePart.Slide.Save();
         }
         return stream.ToArray();
+    }
+
+    private static byte[] AddPictureWithOwnedFallbackRelationship(byte[] bytes)
+    {
+        bytes = AddPicture(bytes);
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var presentation = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var slidePart = presentation.PresentationPart!.SlideParts.Single();
+            var fallbackPart = slidePart.AddImagePart(ImagePartType.Png, "rIdImageFallback");
+            using (var image = new MemoryStream(Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")))
+                fallbackPart.FeedData(image);
+        }
+        return ReplaceZipText(stream.ToArray(), "ppt/slides/slide1.xml", xml =>
+        {
+            const string replacement = "<a:blip r:embed=\"rIdImage1\"><a:extLst><a:ext uri=\"{BEBA8EAE-BF5A-486C-A8C5-ECC9F3942E4B}\"><a14:imgProps xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\"><a14:imgLayer r:embed=\"rIdImageFallback\"><a14:imgEffect><a14:brightnessContrast contrast=\"80000\"/></a14:imgEffect></a14:imgLayer></a14:imgProps></a:ext></a:extLst></a:blip>";
+            var updated = new Regex("<a:blip\\b[^>]*r:embed=\"rIdImage1\"[^>]*(?:/>|>.*?</a:blip>)", RegexOptions.Singleline).Replace(xml, replacement, 1);
+            if (updated == xml) throw new InvalidOperationException("Picture fallback fixture could not locate the canonical blip.");
+            return updated.Replace("<p:sld ", "<p:sld xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" ", StringComparison.Ordinal);
+        });
     }
 
     private static byte[] DuplicatePictureWithSharedRelationship(byte[] bytes)
