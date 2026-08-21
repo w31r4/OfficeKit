@@ -11,6 +11,7 @@ const controls = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/con
 const designProfiles = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/design-profiles.v1.json"), "utf8"));
 const sourceReuse = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/source-reuse.v1.json"), "utf8"));
 const sourceComponentReuse = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/source-component-reuse.v1.json"), "utf8"));
+const svgText = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/svg-text.v1.json"), "utf8"));
 
 assert.equal(manifest.schema, "office-kit/pptx-lossless-benchmark/v1");
 assert.equal(manifest.sources.length, 4);
@@ -205,6 +206,32 @@ for (const reuse of sourceComponentReuse.sources) {
     assert.equal(reuse.cloneElementCount >= 1, true);
     assert.match(reuse.outputPackageContentSha256, /^[a-f0-9]{64}$/u);
     assert.match(reuse.outputSha256, /^[a-f0-9]{64}$/u);
+  }
+}
+
+assert.equal(svgText.schema, "office-kit/pptx-svg-text-evidence/v1");
+assert.deepEqual(svgText.sources.map((source) => source.id), [
+  "suanzhi-future-2026",
+  "blue-gray-acid-template",
+  "mckinsey-customer-loyalty",
+]);
+for (const source of svgText.sources) {
+  const declared = manifest.sources.find((candidate) => candidate.id === source.id);
+  assert.ok(declared);
+  assert.equal(source.sourceSha256, declared.sha256);
+  assert.equal(source.sourceSlideCount, declared.inventory.slideCount);
+  assert.equal(Number.isSafeInteger(source.svgTextNodeCount) && source.svgTextNodeCount >= 0, true);
+  if (source.id === "mckinsey-customer-loyalty") {
+    assert.equal(source.status, "passed");
+    assert.equal(source.svgImageCount, 8);
+    assert.equal(source.svgTextNodeCount, 250);
+    assert.equal(source.reimported, true);
+    assert.deepEqual(source.changedExistingParts, ["ppt/slides/_rels/slide1.xml.rels", "ppt/slides/slide1.xml"]);
+    assert.equal(source.addedParts.length, 1);
+    assert.match(source.addedParts[0], /^ppt\/media\/image\d+\.svg$/u);
+  } else {
+    assert.equal(source.status, "not-applicable");
+    assert.equal(source.svgTextNodeCount, 0);
   }
 }
 

@@ -29,6 +29,8 @@ const PNG_ALT = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1H
 const JPEG = "data:image/jpeg;base64,/9j/2Q==";
 const WIDE_SVG = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200" viewBox="0 0 400 200"><rect width="200" height="200" fill="#2563eb"/><rect x="200" width="200" height="200" fill="#f97316"/></svg>').toString("base64")}`;
 const TALL_SVG = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 400"><rect width="200" height="200" fill="#2563eb"/><rect y="200" width="200" height="200" fill="#f97316"/></svg>').toString("base64")}`;
+const SVG_TEXT = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><text id="title" x="20" y="40">Hello &amp; OfficeKit</text><text id="rich" x="20" y="80"><tspan>Editable leaf</tspan></text></svg>').toString("base64")}`;
+const UNSAFE_SVG_TEXT = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><script>alert(1)</script><text>Do not edit</text></svg>').toString("base64")}`;
 
 const chartSemanticContentTypes = {
   defaults: new Map(),
@@ -159,6 +161,41 @@ assert.deepEqual(effectivePresentationImageCrop({
   frame: { width: 200, height: 200 },
 }), { left: 0.25, top: 0, right: 0.25, bottom: 0 });
 assert.throws(() => effectivePresentationImageCrop({ fit: "cover", dataUrl: "data:image/png;base64,AA==", frame: { width: 100, height: 100 } }), /intrinsic dimensions/);
+
+// Imported SVG artwork can expose only direct text/tspan leaves. The edit is
+// source-bound and replaces the text token without opening a raw XML escape
+// hatch or accepting active SVG content.
+const svgTextDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const svgTextImage = svgTextDeck.slides.add({ name: "SVG text" }).images.add({ dataUrl: SVG_TEXT, position: { left: 0, top: 0, width: 640, height: 360 } });
+assert.equal(svgTextImage.svgTextCapability.supported, true);
+assert.deepEqual(svgTextImage.getSvgTextNodes().map(({ id, tag, text }) => ({ id, tag, text })), [
+  { id: "svg-text-1", tag: "text", text: "Hello & OfficeKit" },
+  { id: "svg-text-2", tag: "tspan", text: "Editable leaf" },
+]);
+const svgTitleLeaf = svgTextImage.getSvgTextNodes()[0];
+const svgSourceSha256 = svgTextImage.svgTextCapability.sourceSha256;
+const svgTitleEdit = svgTextImage.editSvgText(svgTitleLeaf.id, { expectedHash: svgTitleLeaf.expectedHash, value: "Hello & OfficeKit users" });
+assert.deepEqual(svgTitleEdit, {
+  kind: "svgTextEdit",
+  imageId: svgTextImage.id,
+  nodeId: svgTitleLeaf.id,
+  oldValue: "Hello & OfficeKit",
+  value: "Hello & OfficeKit users",
+  expectedHash: svgTitleLeaf.expectedHash,
+  sourceSha256: svgSourceSha256,
+});
+assert.throws(
+  () => svgTextImage.editSvgText(svgTitleLeaf.id, { expectedHash: svgTitleLeaf.expectedHash, value: "stale" }),
+  (error) => error.code === "presentation_svg_text_stale",
+);
+const svgRichLeaf = svgTextImage.getSvgTextNodes()[1];
+assert.throws(
+  () => svgTextImage.editSvgText(svgRichLeaf.id, { expectedHash: svgRichLeaf.expectedHash, value: svgRichLeaf.text }),
+  (error) => error.code === "presentation_svg_text_noop",
+);
+const unsafeSvgImage = svgTextDeck.slides.add({ name: "Unsafe SVG" }).images.add({ dataUrl: UNSAFE_SVG_TEXT, position: { left: 0, top: 0, width: 100, height: 100 } });
+assert.equal(unsafeSvgImage.svgTextCapability.supported, false);
+assert.throws(() => unsafeSvgImage.editSvgText("svg-text-1", { expectedHash: "0".repeat(64), value: "blocked" }), (error) => error.code === "unsupported_presentation_svg_text");
 
 const normalAutoFitDeck = Presentation.create({ slideSize: { width: 1280, height: 720 } });
 const normalAutoFitShape = normalAutoFitDeck.slides.add({ name: "Normal AutoFit" }).shapes.add({

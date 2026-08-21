@@ -33,6 +33,7 @@ import { presentationFreeLineSvg, presentationShapeLineSvgAttributes } from "./l
 import { initializePresentationAccessibility, presentationAccessibilityCapability, setPresentationAccessibilityMetadata } from "./accessibility.mjs";
 import { auditPresentationAccessibility } from "./accessibility-audit.mjs";
 import { deletePresentationElement, PRESENTATION_ELEMENT_DELETED, presentationElementDeletionCapability } from "./element-deletion.mjs";
+import { editSvgText as replaceSvgTextNode, inspectSvgText } from "./svg-text.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const EMU_PER_PIXEL = 9_525;
@@ -2369,6 +2370,31 @@ export class ImageElement {
   setAccessibilityMetadata(update) {
     this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation image ${this.id}`);
   }
+  get svgTextCapability() { return inspectSvgText(this.dataUrl); }
+  getSvgTextNodes() {
+    const capability = this.svgTextCapability;
+    return capability.nodes ? capability.nodes.map((node) => ({ ...node })) : [];
+  }
+  editSvgText(nodeId, update = {}) {
+    const capability = this.svgTextCapability;
+    if (capability.supported !== true) {
+      const error = new Error(`Presentation image ${this.id} does not expose editable SVG text: ${capability.reason}.`);
+      error.code = "unsupported_presentation_svg_text";
+      throw error;
+    }
+    const dataUrl = replaceSvgTextNode(this.dataUrl, nodeId, update);
+    this.replace({ dataUrl });
+    const next = this.svgTextCapability.nodes?.find((node) => node.id === nodeId);
+    return Object.freeze({
+      kind: "svgTextEdit",
+      imageId: this.id,
+      nodeId,
+      oldValue: capability.nodes.find((node) => node.id === nodeId)?.text,
+      value: next?.text,
+      expectedHash: capability.nodes.find((node) => node.id === nodeId)?.expectedHash,
+      sourceSha256: capability.sourceSha256,
+    });
+  }
   replace(config = {}) {
     const { alt, accessibility, ...rest } = config;
     let nextAccessibility = this.accessibility;
@@ -2395,7 +2421,7 @@ export class ImageElement {
 
   inspectRecord() {
     const p = this.position;
-    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
+    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgTextCapability: this.svgTextCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
   }
 
   layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, dataUrl: this.dataUrl, fit: this.fit, crop: this.crop, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }

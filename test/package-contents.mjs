@@ -233,6 +233,7 @@ for (const required of [
   "src/ooxml/package.mjs",
   "src/presentation/chart-trendline-svg.mjs",
   "src/presentation/index.mjs",
+  "src/presentation/svg-text.mjs",
   "src/presentation/ooxml-chart-data.mjs",
   "src/presentation/ooxml-charts.mjs",
   "src/shared/chart-error-bars.mjs",
