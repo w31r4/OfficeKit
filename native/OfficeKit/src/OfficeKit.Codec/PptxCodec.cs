@@ -2785,7 +2785,10 @@ internal static class PptxCodec
             throw new CodecException("missing_shape_tree", "Presentation cloned slide has no shape tree.", PartPath(output)));
         if (sourceElements.Length != requested.Elements.Count + requested.ElementDeletions.Count || outputElements.Length != requested.Elements.Count)
             throw new CodecException("presentation_postwrite_topology_changed", "PPTX component clone output does not match its retained/deleted element projection.", PartPath(output));
-        var outputNativeIds = outputElements.SelectMany(PptxElementDeletionCodec.NativeIds).ToHashSet();
+        var outputNativeIdList = outputElements.SelectMany(PptxElementDeletionCodec.NativeIds).ToArray();
+        if (outputNativeIdList.GroupBy(id => id).Any(group => group.Count() > 1))
+            throw new CodecException("presentation_postwrite_element_delete_mismatch", "PPTX component clone retained duplicate native drawing IDs.", PartPath(output));
+        var outputNativeIds = outputNativeIdList.ToHashSet();
         foreach (var deletion in requested.ElementDeletions)
         {
             var binding = deletion.Source ??
@@ -2795,7 +2798,7 @@ internal static class PptxCodec
                 !binding.ElementSha256.Equals(HashElement(sourceElements[sourceIndex]), StringComparison.OrdinalIgnoreCase) ||
                 PptxElementDeletionCodec.NativeIds(sourceElements[sourceIndex]).Overlaps(outputNativeIds))
                 throw new CodecException("presentation_postwrite_element_delete_mismatch", "PPTX component clone retained a deleted source element or lost its source proof.", PartPath(output));
-            var plan = PptxElementDeletionCodec.Analyze(source.Part, sourceElements[sourceIndex], sourceElements);
+            var plan = PptxElementDeletionCodec.Analyze(source.Part, sourceElements[sourceIndex], sourceElements, allowDuplicateNativeIds: true);
             if (!plan.Supported)
                 throw new CodecException("presentation_postwrite_element_delete_mismatch", "PPTX component clone deletion no longer satisfies its source deletion proof.", PartPath(output));
         }
@@ -3270,7 +3273,12 @@ internal static class PptxCodec
         {
             AssertSourceSlideRequestUnchanged(presentationPart, target, layoutIdByPartPath, slideIdByPartPath, assetCatalog, customShowCatalog, nativeObjects);
             var sourcePart = target.Source.Part;
-            var result = PptxSlideCloneCodec.Clone(presentationPart, target.Source, retainedSlideParts);
+            var omittedShapeTreeIndices = target.Target.ElementDeletions
+                .Select(deletion => deletion.Source?.ShapeTreeIndex)
+                .Where(index => index is not null)
+                .Select(index => checked((int)index!.Value))
+                .ToHashSet();
+            var result = PptxSlideCloneCodec.Clone(presentationPart, target.Source, retainedSlideParts, omittedShapeTreeIndices);
             var clonePart = result.Part;
             // Validate the complete graph before applying any authorized
             // component projection. The clone codec proves that every
@@ -3325,8 +3333,8 @@ internal static class PptxCodec
                 throw PptxSlideCloneCodec.Unsupported(target.Source, "an authorized component deletion identifies an invalid source shape-tree index");
             var sourceElement = sourceElements[sourceIndex];
             var cloneElement = cloneElements[sourceIndex];
-            var sourcePlan = PptxElementDeletionCodec.Analyze(target.Source.Part, sourceElement, sourceElements);
-            var clonePlan = PptxElementDeletionCodec.Analyze(clonePart, cloneElement, cloneElements);
+            var sourcePlan = PptxElementDeletionCodec.Analyze(target.Source.Part, sourceElement, sourceElements, allowDuplicateNativeIds: true);
+            var clonePlan = PptxElementDeletionCodec.Analyze(clonePart, cloneElement, cloneElements, allowDuplicateNativeIds: true);
             if (!sourcePlan.Supported || !clonePlan.Supported)
                 throw new CodecException("unsupported_presentation_element_delete", $"Presentation cloned slide {target.TargetIndex + 1} component deletion {deletion.Id} is not supported by the source or clone deletion proof.", PartPath(clonePart));
             pending.Add((sourceIndex, sourceElement, cloneElement, clonePlan));
@@ -3445,26 +3453,37 @@ internal static class PptxCodec
             if (sourceIndex < 0 || sourceIndex >= sourceElements.Length || requestedBySourceIndex.ContainsKey(sourceIndex) || !deletionsBySourceIndex.TryAdd(sourceIndex, deletion))
                 throw PptxSlideCloneCodec.Unsupported(source, "component deletions do not identify unique omitted source elements");
         }
+        var retainedNativeIds = sourceElements
+            .Select((element, index) => (element, index))
+            .Where(item => !deletionsBySourceIndex.ContainsKey(item.index))
+            .SelectMany(item => PptxElementDeletionCodec.NativeIds(item.element))
+            .ToArray();
+        if (retainedNativeIds.GroupBy(id => id).Any(group => group.Count() > 1))
+            throw PptxSlideCloneCodec.Unsupported(source, "retained component elements contain duplicate native drawing IDs");
+        var retainedNativeIdSet = retainedNativeIds.ToHashSet();
         for (var elementIndex = 0; elementIndex < sourceElements.Length; elementIndex++)
         {
             var original = ReadElement(sourceElements[elementIndex], source.Index, elementIndex, context, nativeObjects, elementIdsByNativeId);
-            var deletionPlan = PptxElementDeletionCodec.Analyze(source.Part, sourceElements[elementIndex], sourceElements);
-            SetElementDeletionCapability(original, deletionPlan);
+            var strictDeletionPlan = PptxElementDeletionCodec.Analyze(source.Part, sourceElements[elementIndex], sourceElements);
+            SetElementDeletionCapability(original, strictDeletionPlan);
             if (requestedBySourceIndex.TryGetValue(elementIndex, out var requested))
             {
                 var binding = requested.Source!;
-                AssertElementBinding(requested.Id, binding, sourceElements[elementIndex], original, deletionPlan, target.TargetIndex, elementIndex, source.Part);
+                AssertElementBinding(requested.Id, binding, sourceElements[elementIndex], original, strictDeletionPlan, target.TargetIndex, elementIndex, source.Part);
                 if (!SemanticHash(requested).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} is not an unchanged source element.", PartPath(source.Part));
                 continue;
             }
             if (!deletionsBySourceIndex.TryGetValue(elementIndex, out var deletion))
                 throw PptxSlideCloneCodec.Unsupported(source, "a source element is neither retained nor explicitly deleted");
-            AssertElementBinding(deletion.Id, deletion.Source!, sourceElements[elementIndex], original, deletionPlan, target.TargetIndex, elementIndex, source.Part);
+            AssertElementBinding(deletion.Id, deletion.Source!, sourceElements[elementIndex], original, strictDeletionPlan, target.TargetIndex, elementIndex, source.Part);
             if (!deletion.Id.Equals(original.Id, StringComparison.Ordinal))
                 throw new CodecException("presentation_element_deletion_binding_mismatch", $"Presentation clone {target.TargetIndex + 1} deletion {elementIndex + 1} changed its source element identity.", PartPath(source.Part));
-            if (!deletionPlan.Supported)
-                throw new CodecException("unsupported_presentation_element_delete", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} cannot be safely deleted: {deletionPlan.BlockedReason}.", PartPath(source.Part));
+            var projectionDeletionPlan = PptxElementDeletionCodec.Analyze(source.Part, sourceElements[elementIndex], sourceElements, allowDuplicateNativeIds: true);
+            if (!projectionDeletionPlan.Supported)
+                throw new CodecException("unsupported_presentation_element_delete", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} cannot be safely deleted: {projectionDeletionPlan.BlockedReason}.", PartPath(source.Part));
+            if (PptxElementDeletionCodec.NativeIds(sourceElements[elementIndex]).Overlaps(retainedNativeIdSet))
+                throw PptxSlideCloneCodec.Unsupported(source, "a deleted element shares a native drawing ID with a retained component element");
         }
     }
 

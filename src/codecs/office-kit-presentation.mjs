@@ -3230,6 +3230,22 @@ function componentReusePreflight(state, occurrence) {
   if (!sourceEntry || sourceEntry.model?.parentGroup) {
     return { supported: false, reason: "candidate is not a direct top-level slide element" };
   }
+  if (sourceEntry.wire?.content?.case === "opaque") {
+    return { supported: false, reason: "candidate target is an opaque native object" };
+  }
+  const retainedNativeIds = presentationComponentNativeIds(sourceEntry.model);
+  if (new Set(retainedNativeIds).size !== retainedNativeIds.length) {
+    return { supported: false, reason: "candidate target contains duplicate native drawing IDs" };
+  }
+  const retainedNativeIdSet = new Set(retainedNativeIds);
+  const deletedNativeIds = sourceState.entries
+    .filter((entry) => entry !== sourceEntry)
+    .flatMap((entry) => presentationComponentNativeIds(entry.model));
+  if (deletedNativeIds.some((id) => retainedNativeIdSet.has(id))) {
+    return { supported: false, reason: "candidate target shares a native drawing ID with a deleted sibling" };
+  }
+  const duplicateIdOnly = (capability) => capability?.supported !== true &&
+    /native drawing ID .* ambiguous/u.test(String(capability?.blockedReason || capability?.reason || ""));
   const directElements = [
     ...sourceSlide.connectors.items,
     ...sourceSlide.shapes.items,
@@ -3243,7 +3259,10 @@ function componentReusePreflight(state, occurrence) {
     return { supported: false, reason: "candidate is not bound to a direct slide element" };
   }
   const cloneCapability = sourceSlide.cloneCapability;
-  if (!cloneCapability?.sourceBound || cloneCapability.known !== true || cloneCapability.supported !== true) {
+  const sharedOwnedPartsOnly = typeof cloneCapability?.blockedReason === "string" &&
+    /^owned part .* is also referenced from /u.test(cloneCapability.blockedReason);
+  if (!cloneCapability?.sourceBound || cloneCapability.known !== true ||
+      (cloneCapability.supported !== true && !sharedOwnedPartsOnly)) {
     return { supported: false, reason: cloneCapability?.blockedReason || "source slide cannot be cloned safely" };
   }
   const removedSourceIds = new Set(sourceState.entries
@@ -3254,6 +3273,7 @@ function componentReusePreflight(state, occurrence) {
     if (entry === sourceEntry) continue;
     const capability = entry.model?.deletionCapability;
     if (!capability?.sourceBound || capability.known !== true || capability.supported !== true) {
+      if (duplicateIdOnly(capability)) continue;
       return { supported: false, reason: `sibling ${entry.wire?.id || "<unknown>"} cannot be removed safely${capability?.blockedReason ? `: ${capability.blockedReason}` : ""}` };
     }
   }
@@ -3265,6 +3285,18 @@ function componentReusePreflight(state, occurrence) {
     }
   }
   return { supported: true };
+}
+
+function presentationComponentNativeIds(model) {
+  const ids = [];
+  const visit = (value) => {
+    if (!value || typeof value !== "object") return;
+    const nativeId = Number(value.nativeId);
+    if (Number.isInteger(nativeId) && nativeId > 0) ids.push(nativeId);
+    if (Array.isArray(value.children)) for (const child of value.children) visit(child);
+  };
+  visit(model);
+  return ids;
 }
 
 function createPresentationNativeLeafCapability(presentation, state) {

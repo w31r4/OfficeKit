@@ -5779,6 +5779,52 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void ComponentCloneCanDropAnExclusiveOleGraphWithoutChangingTheSource()
+    {
+        var source = AddCloneableOleWorkbookGraph(Invoke(ExportRequest()).File.ToByteArray());
+        var imported = Import(source);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var sourceSlideXml = ZipBytes(source, "ppt/slides/slide1.xml");
+        var sourceSlideRels = ZipBytes(source, "ppt/slides/_rels/slide1.xml.rels");
+
+        AddPendingClone(imported.Artifact.Presentation, 0, "presentation/clone/ole-workbook-delete");
+        var clone = imported.Artifact.Presentation.Slides[1];
+        var removed = Assert.Single(clone.Elements, element => element.Opaque?.NativeKind == "oleObject");
+        Assert.True(removed.Source.DeletionCapability.Supported);
+        clone.ElementDeletions.Add(new PresentationElementDeletion
+        {
+            Id = removed.Id,
+            Source = removed.Source.Clone(),
+        });
+        clone.Elements.Remove(removed);
+
+        var exported = Export(imported.Artifact);
+        Assert.True(exported.Ok, Diagnostics(exported));
+        var output = exported.File.ToByteArray();
+        Assert.Equal(sourceSlideXml, ZipBytes(output, "ppt/slides/slide1.xml"));
+        Assert.Equal(sourceSlideRels, ZipBytes(output, "ppt/slides/_rels/slide1.xml.rels"));
+
+        using (var stream = new MemoryStream(output, writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var slides = OrderedSlides(package);
+            Assert.Equal(2, slides.Length);
+            Assert.Single(slides[0].Parts, pair => pair.OpenXmlPart is EmbeddedPackagePart);
+            Assert.DoesNotContain(slides[1].Parts, pair => pair.OpenXmlPart is EmbeddedPackagePart);
+            Assert.DoesNotContain(slides[1].Slide!.Descendants<P.GraphicFrame>(),
+                frame => frame.Graphic?.GraphicData?.Uri?.ToString()?.Contains("/ole", StringComparison.OrdinalIgnoreCase) == true);
+        }
+
+        var roundTrip = Import(output);
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.Contains(roundTrip.Artifact.Presentation.Slides[0].Elements,
+            element => element.Opaque?.NativeKind == "oleObject");
+        Assert.DoesNotContain(roundTrip.Artifact.Presentation.Slides[1].Elements,
+            element => element.Opaque?.NativeKind == "oleObject");
+    }
+
+    [Fact]
     public void ClosedSmartArtCloneCopiesFourIndependentDiagramParts()
     {
         var source = AddCloneableDiagramGraph(Invoke(ExportRequest()).File.ToByteArray());

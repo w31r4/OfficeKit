@@ -23,7 +23,8 @@ internal static class PptxElementDeletionCodec
     internal static PptxElementDeletionPlan Analyze(
         SlidePart slidePart,
         OpenXmlElement source,
-        IReadOnlyList<OpenXmlElement> siblings)
+        IReadOnlyList<OpenXmlElement> siblings,
+        bool allowDuplicateNativeIds = false)
     {
         if (source is not (P.Shape or P.Picture or P.ConnectionShape or P.GraphicFrame or P.GroupShape))
             return Blocked("only a bounded top-level PresentationML shape, picture, connector, table, chart, or group is in the deletion profile");
@@ -39,7 +40,7 @@ internal static class PptxElementDeletionCodec
             return Blocked("the element has no unique native drawing ID");
         var ownedIds = NativeIds(source);
         var slideIds = NativeIdOccurrences(common.ShapeTree);
-        if (ownedIds.Any(id => slideIds.Count(candidate => candidate == id) != 1))
+        if (!allowDuplicateNativeIds && ownedIds.Any(id => slideIds.Count(candidate => candidate == id) != 1))
             return Blocked($"native drawing ID {nativeId} or one of its descendants is ambiguous", nativeId.Value);
         if (HasIdentitySensitiveSlideGraph(slide, common))
             return Blocked("slide timing or extension data may retain native element identity", nativeId.Value);

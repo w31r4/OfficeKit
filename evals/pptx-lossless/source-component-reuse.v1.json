@@ -11,31 +11,31 @@
       "preflightBlockedReasons": [
         {
           "candidateId": "pc_13ccc6f81b67c637884514b29c3623f0",
-          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+          "reason": "sibling presentation/slide/14/element/1 cannot be removed safely: slide timing or extension data may retain native element identity"
         },
         {
           "candidateId": "pc_23d5bf9e5939684a192d918d1f49ab55",
-          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+          "reason": "sibling presentation/slide/17/element/2 cannot be removed safely: slide timing or extension data may retain native element identity"
         },
         {
           "candidateId": "pc_583f58b8e0cedfec004d5c649a0d3a87",
-          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+          "reason": "sibling presentation/slide/20/element/2 cannot be removed safely: slide timing or extension data may retain native element identity"
         },
         {
           "candidateId": "pc_70fe8cfd27b2da7443f5f27d6a89b094",
-          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+          "reason": "sibling presentation/slide/13/element/2 cannot be removed safely: slide timing or extension data may retain native element identity"
         },
         {
           "candidateId": "pc_9af4e83afd6962336bf39a76d19f58c7",
-          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+          "reason": "sibling presentation/slide/10/element/1 cannot be removed safely: slide timing or extension data may retain native element identity"
         },
         {
           "candidateId": "pc_a6f36ac840bc15622a4afe68a882248a",
-          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+          "reason": "sibling presentation/slide/18/element/3 cannot be removed safely: slide timing or extension data may retain native element identity"
         },
         {
           "candidateId": "pc_daa3acf35625d498875f1143aa44c679",
-          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+          "reason": "sibling presentation/slide/17/element/2 cannot be removed safely: slide timing or extension data may retain native element identity"
         },
         {
           "candidateId": "pc_db3a65d963b2a03e7d1926594740dcba",
@@ -43,7 +43,7 @@
         },
         {
           "candidateId": "pc_e22bc0ef86170a077088a1e61a30bceb",
-          "reason": "owned part ppt/embeddings/oleObject22.bin is also referenced from ppt/slides/slide3.xml, ppt/slides/slide7.xml"
+          "reason": "sibling presentation/slide/16/element/2 cannot be removed safely: slide timing or extension data may retain native element identity"
         },
         {
           "candidateId": "pc_e31ff2af609beb182443ee73bce4e32f",
@@ -51,7 +51,7 @@
         },
         {
           "candidateId": "pc_f06c4baf31cd88b408bfb16e78a52695",
-          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+          "reason": "sibling presentation/slide/10/element/1 cannot be removed safely: slide timing or extension data may retain native element identity"
         }
       ],
       "status": "blocked",
@@ -128,7 +128,7 @@
       "reopenedSlideCount": 20,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "52c61c7a781e4f7c2ef592f44e4fdabe370dee24b0eb000571f22cad23e42c14",
-      "outputSha256": "e985f5d754923ac04b40dcf57e59a65c9390e15dbe91146fa17ae5b72755762b"
+      "outputSha256": "812276fa9a5a89fa8937769f0055546cdeb2ba035c1a02c03ce0e3b4da410600"
     },
     {
       "id": "mckinsey-customer-loyalty",
@@ -149,7 +149,7 @@
       "reopenedSlideCount": 9,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "6becb283a4a3f9638b6a18d09140d45aabb9b05fc48f8f122859bd784bd8920f",
-      "outputSha256": "e6d4c5908d723f0c6437411b66c925e813ad239caeb4855128412c1f0eb7b413"
+      "outputSha256": "3de7ce1ed113acbcbdf5bc5fa2e90f89909a99bf1c0d90c0e745d057454ee032"
     }
   ]
 }

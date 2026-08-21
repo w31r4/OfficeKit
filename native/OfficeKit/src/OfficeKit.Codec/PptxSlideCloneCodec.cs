@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
+using P = DocumentFormat.OpenXml.Presentation;
 
 namespace OfficeKit.Codec;
 
@@ -32,13 +33,15 @@ internal static class PptxSlideCloneCodec
     internal static PptxSlideClonePlan Analyze(
         PresentationPart presentationPart,
         PptxSourceSlideEntry source,
-        IReadOnlySet<SlidePart> retainedSlideParts)
+        IReadOnlySet<SlidePart> retainedSlideParts,
+        IReadOnlySet<int>? omittedShapeTreeIndices = null)
     {
         if (PptxSectionCodec.HasSectionGraph(presentationPart))
             return Blocked("the presentation contains a PowerPoint section graph whose slide identity cannot yet be extended safely");
         if (source.Part.Parts.Any(pair => pair.OpenXmlPart is PowerPointCommentPart))
             return Blocked("its modern comment part embeds native slide identity that requires a dedicated rewrite");
 
+        var cloneOnlyParts = CloneOnlyParts(source.Part, omittedShapeTreeIndices);
         var owned = new HashSet<OpenXmlPart> { source.Part };
         var shared = new HashSet<OpenXmlPart>();
         var queue = new Queue<OpenXmlPart>();
@@ -71,7 +74,7 @@ internal static class PptxSlideCloneCodec
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Take(4)
                 .ToArray();
-            if (outsideParents.Length > 0)
+            if (outsideParents.Length > 0 && !cloneOnlyParts.Contains(part))
                 return Blocked($"owned part {PartPath(part)} is also referenced from {string.Join(", ", outsideParents)}");
         }
 
@@ -93,9 +96,10 @@ internal static class PptxSlideCloneCodec
     internal static PptxSlideCloneResult Clone(
         PresentationPart presentationPart,
         PptxSourceSlideEntry source,
-        IReadOnlySet<SlidePart> retainedSlideParts)
+        IReadOnlySet<SlidePart> retainedSlideParts,
+        IReadOnlySet<int>? omittedShapeTreeIndices = null)
     {
-        var plan = Analyze(presentationPart, source, retainedSlideParts);
+        var plan = Analyze(presentationPart, source, retainedSlideParts, omittedShapeTreeIndices);
         if (!plan.Supported) throw Unsupported(source, plan.BlockedReason);
 
         using var scratchStream = new MemoryStream();
@@ -271,6 +275,74 @@ internal static class PptxSlideCloneCodec
         // incorrectly reject an otherwise closed slide graph merely because
         // the same asset is used by another slide.
         part.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+
+    // A component clone may copy a mutable package part that is shared by a
+    // sibling which will be removed from the clone immediately afterwards.
+    // Such a part is safe only when it is reachable exclusively through the
+    // omitted shape-tree elements; a part also reachable from a retained
+    // element remains blocked. The source package is never mutated by this
+    // path, and the clone-side deletion proof removes the temporary copy.
+    private static IReadOnlySet<OpenXmlPart> CloneOnlyParts(
+        SlidePart source,
+        IReadOnlySet<int>? omittedShapeTreeIndices)
+    {
+        if (omittedShapeTreeIndices is null || omittedShapeTreeIndices.Count == 0) return new HashSet<OpenXmlPart>();
+        var shapeTree = source.Slide?.CommonSlideData?.ShapeTree;
+        if (shapeTree is null) return new HashSet<OpenXmlPart>();
+        var elements = ShapeTreeElements(shapeTree);
+        var omittedRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
+        var retainedRelationshipIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < elements.Length; index++)
+        {
+            var relationshipIds = RelationshipIds(elements[index]);
+            if (omittedShapeTreeIndices.Contains(index)) omittedRelationshipIds.UnionWith(relationshipIds);
+            else retainedRelationshipIds.UnionWith(relationshipIds);
+        }
+        omittedRelationshipIds.ExceptWith(retainedRelationshipIds);
+        var omittedRoots = source.Parts
+            .Where(pair => omittedRelationshipIds.Contains(pair.RelationshipId))
+            .Select(pair => pair.OpenXmlPart)
+            .ToHashSet();
+        if (omittedRoots.Count == 0) return new HashSet<OpenXmlPart>();
+        var retainedRoots = source.Parts
+            .Where(pair => !omittedRelationshipIds.Contains(pair.RelationshipId))
+            .Select(pair => pair.OpenXmlPart)
+            .ToHashSet();
+        var omittedReachable = omittedRoots.SelectMany(ReachableParts).ToHashSet();
+        var retainedReachable = retainedRoots.SelectMany(ReachableParts).ToHashSet();
+        omittedReachable.ExceptWith(retainedReachable);
+        return omittedReachable;
+    }
+
+    private static OpenXmlElement[] ShapeTreeElements(P.ShapeTree shapeTree) =>
+        shapeTree.ChildElements
+            .Where(child => child is not P.NonVisualGroupShapeProperties and not P.GroupShapeProperties)
+            .ToArray();
+
+    private static IReadOnlySet<string> RelationshipIds(OpenXmlElement source) =>
+        new[] { source }
+            .Concat(source.Descendants())
+            .SelectMany(element => element.GetAttributes())
+            .Where(attribute => attribute.NamespaceUri is
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships" or
+                "http://purl.oclc.org/ooxml/officeDocument/relationships")
+            .Select(attribute => attribute.Value)
+            .Where(value => !string.IsNullOrEmpty(value))
+            .Select(value => value!)
+            .ToHashSet(StringComparer.Ordinal);
+
+    private static IReadOnlySet<OpenXmlPart> ReachableParts(OpenXmlPart root)
+    {
+        var reachable = new HashSet<OpenXmlPart> { root };
+        var queue = new Queue<OpenXmlPart>();
+        queue.Enqueue(root);
+        while (queue.TryDequeue(out var part))
+        {
+            foreach (var child in part.Parts.Select(pair => pair.OpenXmlPart))
+                if (reachable.Add(child)) queue.Enqueue(child);
+        }
+        return reachable;
+    }
 
     // Open XML SDK may materialize different wrapper instances for the same
     // package part after reopen. Package URI, not CLR object identity, is the
