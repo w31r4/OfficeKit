@@ -45,6 +45,7 @@ const PRESENTATION_SLIDE_DELETION_CAPABILITY = Symbol.for("office-kit.slide-dele
 const PRESENTATION_SLIDE_CLONE_CAPABILITY = Symbol.for("office-kit.slide-clone-capability");
 const PRESENTATION_STATE = Symbol.for("office-kit.presentation-state");
 const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
+const PRESENTATION_COMPONENT_CAPABILITY = Symbol.for("office-kit.presentation-component-capability");
 
 export { SlideTransition };
 
@@ -676,6 +677,15 @@ export class Presentation {
       }
       records.push(...capability.inspect());
     }
+    if (options.includeComponentCandidates === true || kinds.has("componentCandidate")) {
+      const capability = this[PRESENTATION_COMPONENT_CAPABILITY];
+      if (!capability) {
+        const error = new Error("Presentation component candidates are available only for a trusted imported PPTX source revision.");
+        error.code = "presentation_component_source_required";
+        throw error;
+      }
+      records.push(...capability.inspect());
+    }
     return ndjson(filterInspectRecords(records, options), options.maxChars ?? Infinity);
   }
 
@@ -687,6 +697,16 @@ export class Presentation {
       throw error;
     }
     return capability.edit(targetId, leafId, update);
+  }
+
+  resolveComponentCandidate(candidateId) {
+    const capability = this[PRESENTATION_COMPONENT_CAPABILITY];
+    if (!capability) {
+      const error = new Error("Presentation component candidates are available only for a trusted imported PPTX source revision.");
+      error.code = "presentation_component_source_required";
+      throw error;
+    }
+    return capability.resolve(candidateId);
   }
 
   validateLayout(options = {}) {

@@ -1863,7 +1863,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `presentation.editNativeLeaf` | api | Change one native leaf issued by presentation.inspect({ includeNativeLeaves: true }) using its targetId, leafId, expectedHash, and a typed value. Leaf IDs are bound to the exact imported revision and target. Repeat the call for a coordinated move/resize; one export sorts all issued leaves into one deterministic Edit Plan. The current profile changes existing text leaves, including group children and shapes with source-owned outer styling, shape RGB/local-geometry scalars, picture local-geometry scalars, direct rich chart-title runs, direct numeric bar-chart cache points proven against one exact cell in a uniquely bound embedded XLSX, or direct SmartArt text runs from one canonical closed DiagramDataPart with a unique inbound owner. A chartDataValue operation changes both the ChartPart cache and that worksheet cell. A diagramText operation token-splices only its issued a:t and does not reserialize the diagram part. The compiler binds the complete ownership tree and dependent parts. Stale hashes, concurrent non-leaf changes, foreign IDs, raw XML, XPath, part paths, arbitrary attributes or cells, relationship fields, formulas, namespaces, and topology changes reject. |
 | `presentation.export` | api | Export a slide SVG preview, deck SVG montage via { format: 'montage' }, or target/search-sliced layout JSON. |
 | `presentation.fontFamilies` | api | Return a fresh sorted, case-insensitively deduplicated list of explicitly used presentation text and bullet font families. |
-| `presentation.inspect` | api | Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, and eligible embedded Office-package summaries; narrow with search/target anchors and shape fields with include/exclude. On a trusted imported source, includeNativeLeaves: true also returns revision-bound safe text leaves, shape color and local-geometry leaves, and picture local-geometry leaves without exposing part paths or XML selectors. |
+| `presentation.inspect` | api | Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, and eligible embedded Office-package summaries; narrow with search/target anchors and shape fields with include/exclude. On a trusted imported source, includeNativeLeaves: true returns revision-bound safe leaves without exposing part paths or XML selectors, while includeComponentCandidates: true returns repeated visual primitives as inspect-only references with source hashes, occurrences, and explicit mutation limits. |
 | `presentation.layout.clearBackground` | api | Clear a direct background on a bounded source-free layout. Imported-layout mutation remains source-bound and fails closed. |
 | `presentation.layout.placeholders.add` | api | Append a direct-frame title/body/ctrTitle/subTitle text placeholder to a source-free layout. It becomes a native p:ph and must be materialized on each slide through applyLayout/setLayout; object/media/chart/table placeholders remain source-bound. |
 | `presentation.layout.placeholders.summary` | api | Return a defensive layout-placeholder discovery snapshot with stable IDs, names, native types/indexes, required flags, and direct-frame presence/geometry; editing the snapshot cannot mutate the model. |
@@ -1877,6 +1877,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `presentation.masters.add` | api | Append a model-level Slide Master. Source-free PPTX authoring requires exactly one master, so use Presentation.create({ master }) or presentation.master for the canonical profile; multiple masters and imported-master edits fail closed. |
 | `presentation.masters.getItem` | api | Resolve a model-level or imported Slide Master by stable ID or name. |
 | `presentation.resolve` | api | Map stable inspect anchor IDs back to facade objects, including custom shows, PowerPoint sections, and slide transitions; imported advanced package objects may be read-only. |
+| `presentation.resolveComponentCandidate` | api | Resolve one candidateId issued by presentation.inspect({ includeComponentCandidates: true }) to a defensive source-revision-bound reference. Candidates describe repeated visual structure without exposing raw XML or asset bytes; v1 is inspect-only, and ambiguous, opaque, or relationship-bound graphs carry an explicit blocked reason instead of mutation authority. |
 | `presentation.sections.add` | api | Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque. |
 | `presentation.sections.getItem` | api | Resolve a source-free or canonical imported PowerPoint section by zero-based index, stable facade ID, or exact name. |
 | `presentation.slides.add` | api | Append an editable core slide with optional hidden slideshow state, a bounded source-free layout, direct ECMA-376 base transition, solid/style-reference background, and plain-text speaker notes. A supplied layout is resolved and materialized transactionally; effective imported Layout/Master inheritance is never flattened. |
@@ -2390,11 +2391,12 @@ Return a fresh sorted, case-insensitively deduplicated list of explicitly used p
 
 #### `presentation.inspect`
 
-Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, and eligible embedded Office-package summaries; narrow with search/target anchors and shape fields with include/exclude. On a trusted imported source, includeNativeLeaves: true also returns revision-bound safe text leaves, shape color and local-geometry leaves, and picture local-geometry leaves without exposing part paths or XML selectors.
+Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, and eligible embedded Office-package summaries; narrow with search/target anchors and shape fields with include/exclude. On a trusted imported source, includeNativeLeaves: true returns revision-bound safe leaves without exposing part paths or XML selectors, while includeComponentCandidates: true returns repeated visual primitives as inspect-only references with source hashes, occurrences, and explicit mutation limits.
 
 **Examples:**
 
 - presentation.inspect({ includeNativeLeaves: true, target: shape.id })
+- presentation.inspect({ includeComponentCandidates: true, kind: 'componentCandidate' })
 
 **Options:**
 
@@ -2405,11 +2407,12 @@ Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide tr
 - include/fields
 - exclude/omit
 - includeNativeLeaves
+- includeComponentCandidates
 - maxChars
 
 **Schema parameters:**
 
-- `kind` (string) — Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/nativeObject/nativeLeaf/contentPart/oleObject/diagram/comment/notes/customShow/section kinds.
+- `kind` (string) — Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/nativeObject/nativeLeaf/componentCandidate/contentPart/oleObject/diagram/comment/notes/customShow/section kinds.
 - `search` (string) — Case-insensitive record filter.
 - `target` (string) — Stable target ID/anchor.
 - `before` (number) — Context records before matches.
@@ -2417,6 +2420,7 @@ Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide tr
 - `include` (string) — Comma-separated fields to keep.
 - `exclude` (string) — Comma-separated fields to omit.
 - `includeNativeLeaves` (boolean) — On a trusted imported PPTX, include revision-bound safe text leaves, shape RGB/local-geometry leaves, picture local-geometry leaves, direct rich-title text leaves from a uniquely bound internal ChartPart, direct numeric bar-chart cache points proven against exact cells in one uniquely bound embedded XLSX, and direct SmartArt text runs from one canonical closed DiagramDataPart with a unique inbound owner. Source-free presentations reject instead of inventing selectors.
+- `includeComponentCandidates` (boolean) — On a trusted imported PPTX, include repeated visual primitives as source-revision-bound componentCandidate records. These are inspect-only references; ambiguous, opaque, and relationship-bound graphs are blocked and no component mutation API is implied.
 - `maxChars` (number) — Maximum bounded NDJSON output size.
 
 **Schema returns:**
@@ -2591,6 +2595,26 @@ Map stable inspect anchor IDs back to facade objects, including custom shows, Po
 **Schema returns:**
 
 - `object` (object|undefined) — Resolved editable facade/record or undefined.
+
+#### `presentation.resolveComponentCandidate`
+
+Resolve one candidateId issued by presentation.inspect({ includeComponentCandidates: true }) to a defensive source-revision-bound reference. Candidates describe repeated visual structure without exposing raw XML or asset bytes; v1 is inspect-only, and ambiguous, opaque, or relationship-bound graphs carry an explicit blocked reason instead of mutation authority.
+
+**Examples:**
+
+- presentation.resolveComponentCandidate(candidate.candidateId)
+
+**Schema parameters:**
+
+- `candidateId` (string) required — Exact candidateId from a trusted imported presentation inspection.
+
+**Schema returns:**
+
+- `componentCandidate` (object|undefined) — Defensive repeated-visual reference bound to the imported source SHA-256. The v1 record is inspect-only and never exposes raw XML or grants partial-graph mutation authority.
+
+**Returns:**
+
+defensive componentCandidate record or undefined
 
 #### `presentation.sections.add`
 

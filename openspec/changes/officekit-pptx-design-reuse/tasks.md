@@ -15,10 +15,14 @@
   component ID, ownership proof, and expected revision.
 - [x] 2.2 Reuse one codec-proven complete slide graph without sharing mutable
   descendants or changing the original source slide.
-- [ ] 2.3 Expose recurring component candidates only as inspectable references;
-  reject ambiguous, shared, or opaque component graphs before mutation.
+- [x] 2.3 Expose recurring component candidates only as inspectable references;
+  `presentation.inspect({ includeComponentCandidates: true })` issues stable
+  source-revision-bound IDs and occurrence/ownership evidence. Ambiguous,
+  opaque, and relationship-bound graphs are reported as blocked; v1 exposes
+  no component mutation API.
 - [x] 2.4 Add review, second-import, package-footprint, and native-render checks
-  for the bounded reused-slide slice; component candidates remain gated by 2.3.
+  for the bounded reused-slide slice; component mutation remains a later
+  capability after the inspect-only candidate boundary.
 
 ## 3. Same-style continuation
 

@@ -334,8 +334,9 @@ export const HELP_CATALOG = [
   { artifactKind: "presentation", kind: "api", name: "presentation.customShows.getItem", summary: "Resolve a source-free or canonical imported custom show by zero-based index, stable facade ID, or exact name." },
   { artifactKind: "presentation", kind: "api", name: "presentation.sections.add", summary: "Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque." },
   { artifactKind: "presentation", kind: "api", name: "presentation.sections.getItem", summary: "Resolve a source-free or canonical imported PowerPoint section by zero-based index, stable facade ID, or exact name." },
-  { artifactKind: "presentation", kind: "api", name: "presentation.inspect", summary: "Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, and eligible embedded Office-package summaries; narrow with search/target anchors and shape fields with include/exclude. On a trusted imported source, includeNativeLeaves: true also returns revision-bound safe text leaves, shape color and local-geometry leaves, and picture local-geometry leaves without exposing part paths or XML selectors." },
+  { artifactKind: "presentation", kind: "api", name: "presentation.inspect", summary: "Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, and eligible embedded Office-package summaries; narrow with search/target anchors and shape fields with include/exclude. On a trusted imported source, includeNativeLeaves: true returns revision-bound safe leaves without exposing part paths or XML selectors, while includeComponentCandidates: true returns repeated visual primitives as inspect-only references with source hashes, occurrences, and explicit mutation limits." },
   { artifactKind: "presentation", kind: "api", name: "presentation.editNativeLeaf", summary: "Change one native leaf issued by presentation.inspect({ includeNativeLeaves: true }) using its targetId, leafId, expectedHash, and a typed value. Leaf IDs are bound to the exact imported revision and target. Repeat the call for a coordinated move/resize; one export sorts all issued leaves into one deterministic Edit Plan. The current profile changes existing text leaves, including group children and shapes with source-owned outer styling, shape RGB/local-geometry scalars, picture local-geometry scalars, direct rich chart-title runs, direct numeric bar-chart cache points proven against one exact cell in a uniquely bound embedded XLSX, or direct SmartArt text runs from one canonical closed DiagramDataPart with a unique inbound owner. A chartDataValue operation changes both the ChartPart cache and that worksheet cell. A diagramText operation token-splices only its issued a:t and does not reserialize the diagram part. The compiler binds the complete ownership tree and dependent parts. Stale hashes, concurrent non-leaf changes, foreign IDs, raw XML, XPath, part paths, arbitrary attributes or cells, relationship fields, formulas, namespaces, and topology changes reject." },
+  { artifactKind: "presentation", kind: "api", name: "presentation.resolveComponentCandidate", summary: "Resolve one candidateId issued by presentation.inspect({ includeComponentCandidates: true }) to a defensive source-revision-bound reference. Candidates describe repeated visual structure without exposing raw XML or asset bytes; v1 is inspect-only, and ambiguous, opaque, or relationship-bound graphs carry an explicit blocked reason instead of mutation authority." },
   { artifactKind: "presentation", kind: "api", name: "presentation.textRange", summary: "Inspect or resolve stable textRange anchors such as shapeId/text for editable slide text frames." },
   { artifactKind: "presentation", kind: "api", name: "presentation.resolve", summary: "Map stable inspect anchor IDs back to facade objects, including custom shows, PowerPoint sections, and slide transitions; imported advanced package objects may be read-only." },
   { artifactKind: "presentation", kind: "api", name: "presentation.export", summary: "Export a slide SVG preview, deck SVG montage via { format: 'montage' }, or target/search-sliced layout JSON." },
@@ -595,13 +596,17 @@ const HELP_DETAIL_OVERRIDES = {
     },
   },
   "presentation.inspect": {
-    examples: ["presentation.inspect({ includeNativeLeaves: true, target: shape.id })"],
-    options: ["kind", "search", "target/targetId/id/anchor", "before/after/context", "include/fields", "exclude/omit", "includeNativeLeaves", "maxChars"],
+    examples: ["presentation.inspect({ includeNativeLeaves: true, target: shape.id })", "presentation.inspect({ includeComponentCandidates: true, kind: 'componentCandidate' })"],
+    options: ["kind", "search", "target/targetId/id/anchor", "before/after/context", "include/fields", "exclude/omit", "includeNativeLeaves", "includeComponentCandidates", "maxChars"],
     returns: "{ ndjson, truncated } bounded NDJSON records",
   },
   "presentation.editNativeLeaf": {
     examples: ["presentation.editNativeLeaf(leaf.targetId, leaf.leafId, { expectedHash: leaf.expectedHash, value: 'Reviewed title' })"],
     returns: "immutable nativeLeafEdit receipt",
+  },
+  "presentation.resolveComponentCandidate": {
+    examples: ["presentation.resolveComponentCandidate(candidate.candidateId)"],
+    returns: "defensive componentCandidate record or undefined",
   },
   "slide.duplicate": {
     notes: [
@@ -1809,7 +1814,7 @@ const PRESENTATION_HELP_SCHEMAS = {
   }, "slide", "Slide", "The same slide with a normalized direct p:transition. Source-free slides may author it. An imported slide may replace exactly one canonical direct base transition, or add one only when transition.capability.addable proves the root contains only p:cSld plus optional p:clrMapOvr and has no transition, timing, or extension leaf. Opaque source graphs are not reconstructed."),
   "slide.clearTransition": helpSchema({}, "slide", "Slide", "The same slide with no direct p:transition. Removing an imported transition requires the same canonical editable source profile as replacement."),
   "presentation.inspect": helpSchema({
-    kind: { type: "string", description: "Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/nativeObject/nativeLeaf/contentPart/oleObject/diagram/comment/notes/customShow/section kinds." },
+    kind: { type: "string", description: "Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/nativeObject/nativeLeaf/componentCandidate/contentPart/oleObject/diagram/comment/notes/customShow/section kinds." },
     search: { type: "string", description: "Case-insensitive record filter." },
     target: { type: "string", description: "Stable target ID/anchor." },
     before: { type: "number", description: "Context records before matches." },
@@ -1817,6 +1822,7 @@ const PRESENTATION_HELP_SCHEMAS = {
     include: { type: "string", description: "Comma-separated fields to keep." },
     exclude: { type: "string", description: "Comma-separated fields to omit." },
     includeNativeLeaves: { type: "boolean", description: "On a trusted imported PPTX, include revision-bound safe text leaves, shape RGB/local-geometry leaves, picture local-geometry leaves, direct rich-title text leaves from a uniquely bound internal ChartPart, direct numeric bar-chart cache points proven against exact cells in one uniquely bound embedded XLSX, and direct SmartArt text runs from one canonical closed DiagramDataPart with a unique inbound owner. Source-free presentations reject instead of inventing selectors." },
+    includeComponentCandidates: { type: "boolean", description: "On a trusted imported PPTX, include repeated visual primitives as source-revision-bound componentCandidate records. These are inspect-only references; ambiguous, opaque, and relationship-bound graphs are blocked and no component mutation API is implied." },
     maxChars: { type: "number", description: "Maximum bounded NDJSON output size." },
   }, "inspection", "object", "Bounded { ndjson, truncated } inspection result."),
   "presentation.editNativeLeaf": helpSchema({
@@ -1830,6 +1836,9 @@ const PRESENTATION_HELP_SCHEMAS = {
   "presentation.resolve": helpSchema({
     id: { type: "string", required: true, description: "Stable deck, theme, layout, slide, transition, element, custom-show, section, comment, or text-range ID." },
   }, "object", "object|undefined", "Resolved editable facade/record or undefined."),
+  "presentation.resolveComponentCandidate": helpSchema({
+    candidateId: { type: "string", required: true, description: "Exact candidateId from a trusted imported presentation inspection." },
+  }, "componentCandidate", "object|undefined", "Defensive repeated-visual reference bound to the imported source SHA-256. The v1 record is inspect-only and never exposes raw XML or grants partial-graph mutation authority."),
   "presentation.export": helpSchema({
     format: { type: "string", description: "svg by default, montage, or layout." },
     slide: { type: "Slide", description: "Slide facade to export; defaults to the first slide." },

@@ -51,6 +51,7 @@ const PRESENTATION_SLIDE_CLONE_CAPABILITY = Symbol.for("office-kit.slide-clone-c
 const PRESENTATION_ELEMENT_DELETION_CAPABILITY = Symbol.for("office-kit.presentation-element-deletion-capability");
 const PRESENTATION_ELEMENT_DELETED = Symbol.for("office-kit.presentation-element-deleted");
 const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
+const PRESENTATION_COMPONENT_CAPABILITY = Symbol.for("office-kit.presentation-component-capability");
 const PRESENTATION_SCHEME_COLORS = new Set([
   "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
   "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink",
@@ -2966,6 +2967,230 @@ function hasUnpairedUtf16Surrogate(value) {
   return false;
 }
 
+// Component candidates are design evidence, not a second mutation surface.
+// Keep the descriptor semantic and deliberately omit source XML, relationship
+// IDs, asset bytes, and absolute package paths. A candidate can therefore tell
+// an Agent that a repeated visual primitive exists without granting permission
+// to synthesize an unsafe partial graph.
+function componentFrameSize(frame) {
+  return frame && Number.isFinite(Number(frame.width)) && Number.isFinite(Number(frame.height))
+    ? { width: Number(frame.width), height: Number(frame.height) }
+    : undefined;
+}
+
+function componentParagraphStyle(paragraph = {}) {
+  return {
+    level: paragraph.level,
+    alignment: paragraph.alignment,
+    style: paragraph.style,
+    bulletCharacter: paragraph.bulletCharacter,
+    autoNumber: paragraph.autoNumber,
+    bulletNone: paragraph.bulletNone,
+    tabStops: paragraph.tabStops,
+    marginLeft: paragraph.marginLeft,
+    indent: paragraph.indent,
+    lineSpacing: paragraph.lineSpacing,
+    spaceBefore: paragraph.spaceBefore,
+    spaceBeforePercent: paragraph.spaceBeforePercent,
+    spaceAfter: paragraph.spaceAfter,
+    spaceAfterPercent: paragraph.spaceAfterPercent,
+    runs: (paragraph.runs || []).map((run) => ({
+      style: run.style,
+      link: run.link,
+      field: run.field ? { type: run.field.type } : undefined,
+      break: run.break === true,
+    })),
+  };
+}
+
+function componentShapeDescriptor(shape) {
+  const layout = shape.layoutJson();
+  return {
+    kind: "shape",
+    geometry: layout.geometry,
+    frame: componentFrameSize(layout.frame),
+    transform: layout.transform,
+    customAdjustments: layout.customAdjustments,
+    customGuides: layout.customGuides,
+    customConnectionSites: layout.customConnectionSites,
+    customAdjustmentHandles: layout.customAdjustmentHandles,
+    customPaths: layout.customPaths,
+    textRectangle: layout.textRectangle,
+    bodyProperties: layout.bodyProperties,
+    style: layout.style ? { ...layout.style, text: layout.style.text } : undefined,
+    paragraphs: (layout.paragraphs || []).map(componentParagraphStyle),
+  };
+}
+
+function componentImageDescriptor(image) {
+  const layout = image.layoutJson();
+  return {
+    kind: "image",
+    frame: componentFrameSize(layout.frame),
+    fit: layout.fit,
+    crop: layout.crop,
+    geometry: layout.geometry,
+    borderRadius: layout.borderRadius,
+    transform: layout.transform,
+  };
+}
+
+function componentTableDescriptor(table) {
+  const layout = table.layoutJson();
+  return {
+    kind: "table",
+    frame: componentFrameSize(layout.frame),
+    rows: layout.rows,
+    columns: layout.columns,
+    mergeRanges: layout.mergeRanges,
+    style: layout.style,
+    styleOptions: layout.styleOptions,
+  };
+}
+
+function componentChartDescriptor(chart) {
+  const layout = chart.layoutJson();
+  return {
+    kind: "chart",
+    frame: componentFrameSize(layout.frame),
+    chartType: layout.chartType,
+    series: (layout.series || []).map((series) => ({
+      namePresent: Boolean(series.name),
+      axisGroup: series.axisGroup,
+      pointCount: Array.isArray(series.values) ? series.values.length : 0,
+      style: { color: series.color, line: series.line, marker: series.marker, points: series.points },
+    })),
+    axes: layout.axes,
+    legend: layout.legend,
+    dataLabels: layout.dataLabels,
+    styleId: layout.styleId,
+    varyColors: layout.varyColors,
+    barOptions: layout.barOptions,
+    lineOptions: layout.lineOptions,
+  };
+}
+
+function componentConnectorDescriptor(connector) {
+  if (connector.startTargetId || connector.endTargetId) {
+    return { supported: false, reason: "connector has attached endpoint identities" };
+  }
+  return {
+    kind: "connector",
+    frame: componentFrameSize(connector.position),
+    geometry: connector.geometry,
+    line: connector.line,
+    transform: connector.transform,
+  };
+}
+
+function componentDescriptor(element) {
+  try {
+    if (element instanceof Shape) return { supported: true, value: componentShapeDescriptor(element) };
+    if (element instanceof ImageElement) return { supported: true, value: componentImageDescriptor(element) };
+    if (element instanceof TableElement) return { supported: true, value: componentTableDescriptor(element) };
+    if (element instanceof ChartElement) return { supported: true, value: componentChartDescriptor(element) };
+    if (isPresentationConnectorElement(element)) {
+      const descriptor = componentConnectorDescriptor(element);
+      return descriptor.supported === false ? descriptor : { supported: true, value: descriptor };
+    }
+    if (element instanceof GroupShape) {
+      const children = [];
+      for (const child of element.children) {
+        const descriptor = componentDescriptor(child);
+        if (descriptor.supported !== true) return { supported: false, reason: descriptor.reason || "group contains an opaque or unsupported descendant" };
+        children.push(descriptor.value);
+      }
+      if (!children.length) return { supported: false, reason: "group has no inspectable descendants" };
+      return {
+        supported: true,
+        value: {
+          kind: "group",
+          frame: componentFrameSize(element.position),
+          childFrame: componentFrameSize(element.childFrame),
+          children,
+        },
+      };
+    }
+    if (element?.kind === "nativeObject") return { supported: false, reason: "opaque native object" };
+    return { supported: false, reason: "element kind is outside the inspect-only component profile" };
+  } catch (error) {
+    return { supported: false, reason: `descriptor could not be computed: ${error.message}` };
+  }
+}
+
+function canonicalComponentValue(value) {
+  if (Array.isArray(value)) return value.map(canonicalComponentValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value)
+    .filter(([, entry]) => entry !== undefined)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, entry]) => [key, canonicalComponentValue(entry)]));
+}
+
+function createPresentationComponentCapability(presentation, state) {
+  const revisionSha256 = String(state.opaqueOpc?.sourcePackage?.sha256 || state.source?.packageSha256 || "").toLowerCase();
+  if (!/^[0-9a-f]{64}$/u.test(revisionSha256)) return undefined;
+  const groups = new Map();
+  for (const slideState of state.slides || []) {
+    for (const entry of slideState.entries || []) {
+      const descriptor = componentDescriptor(entry.model);
+      const signatureValue = descriptor.supported
+        ? canonicalComponentValue(descriptor.value)
+        : { kind: entry.wire.content.case, blocked: descriptor.reason || "opaque or unsupported component graph" };
+      const signature = JSON.stringify(signatureValue);
+      const group = groups.get(signature) || { signatureValue, descriptor, occurrences: [] };
+      group.occurrences.push({
+        slide: slideState.slide.index + 1,
+        slideId: slideState.wire.id,
+        targetId: entry.wire.id,
+        elementKind: entry.wire.content.case,
+        sourceShapeTreeIndex: Number(entry.wire.source?.shapeTreeIndex),
+        expectedElementSha256: entry.wire.source?.elementSha256,
+        expectedSemanticSha256: entry.wire.source?.semanticSha256,
+      });
+      groups.set(signature, group);
+    }
+  }
+  const records = [];
+  for (const group of groups.values()) {
+    if (group.occurrences.length < 2) continue;
+    const sortedOccurrences = [...group.occurrences].sort((left, right) =>
+      left.slideId.localeCompare(right.slideId) || left.targetId.localeCompare(right.targetId));
+    const repeatedOnOneSlide = new Set(sortedOccurrences.map((occurrence) => occurrence.slideId)).size !== sortedOccurrences.length;
+    const blockedReason = group.descriptor.supported !== true
+      ? group.descriptor.reason || "opaque or unsupported component graph"
+      : repeatedOnOneSlide
+        ? "candidate occurs more than once on one slide and is ambiguous without an explicit selection"
+        : "";
+    const candidateId = `pc_${createHash("sha256").update(`${revisionSha256}\0${JSON.stringify(sortedOccurrences)}\0${JSON.stringify(group.signatureValue)}`).digest("hex").slice(0, 32)}`;
+    records.push(Object.freeze({
+      kind: "componentCandidate",
+      id: candidateId,
+      candidateId,
+      sourceRevisionSha256: revisionSha256,
+      signature: createHash("sha256").update(JSON.stringify(group.signatureValue), "utf8").digest("hex"),
+      descriptor: group.descriptor.supported ? group.signatureValue : { kind: group.signatureValue.kind },
+      status: blockedReason ? "blocked" : "inspect-only",
+      occurrences: sortedOccurrences.map((occurrence) => ({ ...occurrence, ownership: { sourceBound: true, closedGraph: !blockedReason, mutableDescendantsShared: false } })),
+      mutationCapability: {
+        supported: false,
+        reason: blockedReason || "Component candidates are inspect-only in v1; use a codec-proven slide clone or an issued typed/native-leaf operation for mutation.",
+      },
+      ...(blockedReason ? { blockedReason } : {}),
+    }));
+  }
+  records.sort((left, right) => left.candidateId.localeCompare(right.candidateId));
+  const byId = new Map(records.map((record) => [record.candidateId, record]));
+  return Object.freeze({
+    inspect: () => records.map((record) => structuredClone(record)),
+    resolve(candidateId) {
+      if (candidateId == null || candidateId === "") return undefined;
+      const record = byId.get(String(candidateId));
+      return record ? structuredClone(record) : undefined;
+    },
+  });
+}
+
 function createPresentationNativeLeafCapability(presentation, state) {
   const revisionSha256 = String(state.opaqueOpc?.sourcePackage?.sha256 || state.source?.packageSha256 || "").toLowerCase();
   if (!/^[0-9a-f]{64}$/u.test(revisionSha256)) return undefined;
@@ -4673,6 +4898,13 @@ export async function presentationFromEnvelope(envelope) {
     Object.defineProperty(presentation, PRESENTATION_NATIVE_LEAF_CAPABILITY, {
       configurable: true,
       value: nativeLeafCapability,
+    });
+  }
+  const componentCapability = createPresentationComponentCapability(presentation, presentationState);
+  if (componentCapability) {
+    Object.defineProperty(presentation, PRESENTATION_COMPONENT_CAPABILITY, {
+      configurable: true,
+      value: componentCapability,
     });
   }
   return presentation;

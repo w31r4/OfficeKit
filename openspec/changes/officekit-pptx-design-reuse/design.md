@@ -20,9 +20,11 @@ for another revision is stale and cannot authorize an edit.
 
 Palette and typeface frequencies, normalized geometry rhythm, slide archetypes,
 and repeated component signatures are descriptive evidence. They are not
-permissions. A repeated signature can be proposed to an Agent, but a reuse or
-edit operation must still pass the existing source graph ownership and native
-leaf checks.
+permissions. `Presentation.inspect({ includeComponentCandidates: true })` can
+issue defensive `componentCandidate` records with a source revision,
+occurrence IDs, and ownership evidence. V1 is deliberately inspect-only:
+ambiguous, opaque, and relationship-bound graphs are marked blocked instead of
+being lowered into an unsafe partial component operation.
 
 ### 3. Keep opaque content visible
 
@@ -46,8 +48,8 @@ blocking. A deterministic
 public-REPL rehearsal now runs three fresh task workspaces through two commits,
 two resumes, verification, and publish without changing the source. It is
 evidence for the task protocol, not a model black-box score. The change still
-keeps component-level reuse and native-host acceptance as later gates rather
-than turning visual similarity into an unproven mutation authority.
+keeps component mutation and native-host acceptance as later gates rather than
+turning visual similarity into an unproven mutation authority.
 
 ## Non-Goals
 
