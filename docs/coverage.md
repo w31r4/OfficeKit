@@ -2,7 +2,7 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
-Latest PPTX evidence: three independent Agent runs on the real 算秩未来 source completed the revision-bound title edit with one changed SlidePart and byte-identical non-target parts. The runs prove inherited-finding comparison and source protection; visual review was unavailable on macOS and Windows PowerPoint acceptance remains open.
+Latest PPTX evidence: one independent black-box Agent run on the real 算秩未来 source completed the revision-bound title edit with one changed SlidePart and byte-identical non-target parts. The run proves inherited-finding comparison and source protection; visual review was unavailable on macOS. The required three-run black-box matrix and Windows PowerPoint acceptance remain open.
 
 The source-derived reuse slice now also issues a bounded `presentation.reuseSourceComponent` operation: one exact top-level repeated candidate may become a new slide only when every removed sibling has an independent deletion proof and no retained connector would dangle. Nested, opaque, ambiguous, comment-bound, and relationship-bound candidates remain blocked.
 

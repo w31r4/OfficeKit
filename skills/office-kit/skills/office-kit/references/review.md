@@ -61,6 +61,12 @@ const review = await reviewArtifact(outputPath, {
 is `passed`, `passed-with-limitations`, or `failed` for the machine review. Read
 the summary and compare it with the request before delivery.
 
+When `source` is supplied, it is also the default source-bound review baseline
+unless an explicit `baseline` is provided. Unchanged semantic/layout findings
+from the source are marked pre-existing; new findings and any structural
+package failure still fail the review. This is required for imported Office
+files whose original layout already contains warnings.
+
 The AnyDoc parser loads only after `contentView: "anydoc"`. If the text reading
 view is unavailable or unsupported, record the reason and continue the native
 review; do not silently choose OCR, another parser, or another editing engine.

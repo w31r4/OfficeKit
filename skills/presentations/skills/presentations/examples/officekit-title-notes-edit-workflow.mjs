@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { FileBlob, PresentationFile } from "office-kit";
+import { FileBlob, PresentationFile, reviewArtifact } from "office-kit";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const require = createRequire(import.meta.url);
@@ -115,8 +115,17 @@ export async function editPptxTitleAndNotes({
     if (!sameSnapshot(identity, targetSnapshot(roundTrip.slide, roundTrip.title))) {
       throw new Error("PPTX export changed the target slide identity, title-shape identity/geometry, direct background, or speaker-notes identity.");
     }
-    const verification = reimported.verify({ visualQa: true });
-    if (!verification.ok) throw new Error("Presentation verification failed: " + verification.ndjson);
+    // Imported decks may already contain layout findings. Compare the
+    // reopened result with the immutable source so unchanged findings are
+    // marked pre-existing while any new finding still fails the review.
+    const review = await reviewArtifact(temporaryPath, {
+      format: "pptx",
+      outputPath: finalPath,
+      source: sourcePath,
+      visualReview: "unavailable",
+      contentView: "none",
+    });
+    if (review.verdict === "failed") throw new Error("Presentation source-bound review failed: " + review.summary.markdown);
     const modelRender = await renderModel(roundTrip.slide);
     const audit = {
       schema: "office-kit.pptx-audit.v1",
@@ -145,7 +154,14 @@ export async function editPptxTitleAndNotes({
           notesIdPreserved: roundTrip.slide.speakerNotes.id === identity.notesId,
           directBackgroundPreserved: JSON.stringify(roundTrip.slide.background) === JSON.stringify(identity.background),
         },
-        verify: { ok: verification.ok },
+        review: {
+          verdict: review.verdict,
+          baseline: review.baseline,
+          semantic: review.semantic.status,
+          structural: review.structural.status,
+          layout: review.layout.status,
+          visualReview: review.visualReview,
+        },
         modelRender: { ok: true, ...modelRender },
       },
     };

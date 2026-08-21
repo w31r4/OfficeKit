@@ -96,6 +96,18 @@ try {
   assert.ok(baselineCompared.baseline.matchedIssues > 0);
   assert.equal(baselineCompared.baseline.newIssues, 0);
   assert.ok(baselineCompared.semantic.issues.some((issue) => issue.preexisting === true));
+
+  const sourceBoundCompared = await reviewArtifact(new FileBlob(importedEdited.bytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }), {
+    format: "pptx",
+    outputPath: path.join(temporary, "source-bound-compared.pptx"),
+    source: new FileBlob(importedBaseline.bytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }),
+    layout: false,
+    visualReview: "unavailable",
+  });
+  assert.notEqual(sourceBoundCompared.verdict, "failed", JSON.stringify(sourceBoundCompared, null, 2));
+  assert.ok(sourceBoundCompared.baseline.matchedIssues > 0);
+  assert.equal(sourceBoundCompared.baseline.newIssues, 0);
+
   const introducedIssueModel = await PresentationFile.importPptx(importedBaseline);
   introducedIssueModel.slides.items[0].shapes.items[1].position = { ...introducedIssueModel.slides.items[0].shapes.items[1].position, width: 1_400 };
   const introducedIssue = await PresentationFile.exportPptx(introducedIssueModel);

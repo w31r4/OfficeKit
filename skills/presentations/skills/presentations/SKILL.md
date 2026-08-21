@@ -219,6 +219,15 @@ unchanged comparison pages. Never replace a multi-run phrase as one
 text leaf: select an exact run, or use a whole-text setter only when replacing
 the complete text topology is intended.
 
+For an imported source-bound edit, review the output against the immutable
+source: `reviewArtifact(outputPath, { source: inputPath, visualReview: ... })`.
+This source comparison preserves unchanged pre-existing layout findings while
+still failing on newly introduced findings. Do not use
+`reimported.verify({ visualQa: true }).ok` as the only gate for a complex
+imported deck; use it as raw diagnostic evidence alongside the source-bound
+review. A source-bound review does not waive structural package failures or
+the declared mutation-footprint checks.
+
 For native charts, read `artifact_tool/api/references/charts.spec.md` before
 authoring or editing. Canonical OfficeKit output covers literal bar, line,
 pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D

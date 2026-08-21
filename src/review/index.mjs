@@ -511,8 +511,12 @@ export async function reviewArtifact(input, options = {}) {
 
   let baseline;
   let baselineReview;
-  if (options.baseline != null) {
-    baselineReview = await reviewArtifact(options.baseline, {
+  // Source-bound work may inherit layout findings from the imported source.
+  // Treat an explicit baseline as authoritative, otherwise use `source` so
+  // unchanged findings are preserved as evidence rather than new failures.
+  const baselineInput = options.baseline ?? options.source;
+  if (baselineInput != null) {
+    baselineReview = await reviewArtifact(baselineInput, {
       ...options,
       baseline: undefined,
       source: undefined,
