@@ -14,8 +14,9 @@ const EVIDENCE_SCHEMA = "office-kit/pptx-source-agent-continuation-rehearsal/v1"
 
 // This is a deterministic rehearsal of the public Agent path, not a model
 // score. It deliberately uses only ctx.input/ctx.commit/ctx.publish and the
-// public office-kit package from fresh REPL sessions. The separate model
-// black-box 3/3 acceptance remains an external Goal gate.
+// public office-kit package from fresh REPL sessions. Model black-box results
+// are recorded separately and preserved when this deterministic evidence is
+// regenerated.
 export async function runSourceAgentContinuationRehearsal(assetsDir) {
   const results = [];
   for (const source of SOURCES) {
@@ -27,6 +28,18 @@ export async function runSourceAgentContinuationRehearsal(assetsDir) {
     modelBlackBox: { required: 3, completed: 0, status: "open" },
     sources: results,
   };
+}
+
+async function preservedModelBlackBox(output) {
+  try {
+    const existing = JSON.parse(await readFile(output, "utf8"));
+    if (existing.schema === EVIDENCE_SCHEMA && existing.modelBlackBox?.status === "passed") {
+      return existing.modelBlackBox;
+    }
+  } catch {
+    // A fresh evidence path has no prior model result to preserve.
+  }
+  return { required: 3, completed: 0, status: "open" };
 }
 
 async function runSourceCase(assetsDir, source) {
@@ -201,6 +214,7 @@ function parseArgs(argv) {
 async function main() {
   const { assetsDir, output, force } = parseArgs(process.argv.slice(2));
   const evidence = await runSourceAgentContinuationRehearsal(assetsDir);
+  evidence.modelBlackBox = await preservedModelBlackBox(output);
   await writeFile(output, `${JSON.stringify(evidence, null, 2)}\n`, { flag: force ? "w" : "wx" });
   process.stdout.write(`${JSON.stringify({ ok: true, output, sources: evidence.sources.length, modelBlackBox: evidence.modelBlackBox })}\n`);
 }
