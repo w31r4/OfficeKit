@@ -39,9 +39,14 @@ now copies complete ownership-checked graphs, appends the copy, reopens it, and
 permits a typed continuation edit before a second package review. The same
 three samples are rendered through LibreOffice and Poppler; every original
 page is pixel-identical after the appended continuation page, and the new page
-is required to render non-blank. It deliberately keeps component-level reuse
-and native-host acceptance as later gates rather than turning visual similarity
-into an unproven mutation authority.
+is required to render non-blank. Source-bound review can compare an edited
+artifact with its pre-edit baseline and downgrade only exact pre-existing
+semantic/structural/layout issues; new errors remain blocking. A deterministic
+public-REPL rehearsal now runs three fresh task workspaces through two commits,
+two resumes, verification, and publish without changing the source. It is
+evidence for the task protocol, not a model black-box score. The change still
+keeps component-level reuse and native-host acceptance as later gates rather
+than turning visual similarity into an unproven mutation authority.
 
 ## Non-Goals
 

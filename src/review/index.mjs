@@ -191,6 +191,45 @@ function hasHardIssue(issues = []) {
   return issues.some((issue) => issueSeverity(issue) === "error");
 }
 
+function reviewIssueFingerprint(issue) {
+  return JSON.stringify({
+    kind: issue?.kind,
+    type: issue?.type,
+    slide: issue?.slide,
+    id: issue?.id,
+    ids: issue?.ids,
+    name: issue?.name,
+    names: issue?.names,
+    message: issue?.message,
+  });
+}
+
+function applyBaselineReview(report, baselineReport) {
+  const sections = ["semantic", "structural", "layout"];
+  let matchedIssues = 0;
+  let newIssues = 0;
+  for (const sectionName of sections) {
+    const section = report[sectionName];
+    const baseline = baselineReport?.[sectionName];
+    if (!section || !baseline || !Array.isArray(section.issues) || !Array.isArray(baseline.issues)) continue;
+    const baselineIssues = new Set(baseline.issues.map(reviewIssueFingerprint));
+    section.issues = section.issues.map((issue) => {
+      if (issueSeverity(issue) === "error" && baselineIssues.has(reviewIssueFingerprint(issue))) {
+        matchedIssues += 1;
+        return { ...issue, severity: "warning", preexisting: true };
+      }
+      if (issueSeverity(issue) === "error") newIssues += 1;
+      return issue;
+    });
+    if (section.status === "skipped") continue;
+    section.ok = !hasHardIssue(section.issues);
+    section.status = section.ok
+      ? section.issues.length ? "passed-with-warnings" : "passed"
+      : "failed";
+  }
+  return { matchedIssues, newIssues };
+}
+
 function truncateMarkdown(value, maxChars) {
   const text = String(value || "").replace(/\r\n?/gu, "\n").trim();
   if (text.length <= maxChars) return { markdown: text, chars: text.length, originalChars: text.length, truncated: false };
@@ -467,6 +506,21 @@ export async function reviewArtifact(input, options = {}) {
       : { status: "blocked", requested: true, provider: "anydoc", providerVersion: ANYDOC_VERSION, format: materialized.format, reason: "structural-review-failed" };
   const delivery = await deliveryReview(materialized, options.source, options, maxBytes);
 
+  let baseline;
+  let baselineReview;
+  if (options.baseline != null) {
+    baselineReview = await reviewArtifact(options.baseline, {
+      ...options,
+      baseline: undefined,
+      source: undefined,
+      outputPath: undefined,
+      contentView: "none",
+    });
+    if (baselineReview.format !== materialized.format) {
+      throw new TypeError(`Review baseline format ${baselineReview.format} does not match output format ${materialized.format}.`);
+    }
+    baseline = applyBaselineReview({ semantic, structural, layout }, baselineReview);
+  }
   const hardFailure = !semantic.ok || !structural.ok || !layout.ok || !delivery.ok;
   const limitations = !hardFailure && (
     visualReview !== "complete"
@@ -487,6 +541,15 @@ export async function reviewArtifact(input, options = {}) {
     contentView,
     visualReview,
     delivery,
+    ...(baselineReview ? {
+      baseline: {
+        sourceSha256: baselineReview.delivery.sha256,
+        verdict: baselineReview.verdict,
+        matchedIssues: baseline.matchedIssues,
+        newIssues: baseline.newIssues,
+        policy: "unchanged-issues-only",
+      },
+    } : {}),
   };
   report.summary = createReviewMarkdown(report, maxSummaryChars);
   return report;

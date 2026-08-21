@@ -7,8 +7,10 @@ import path from "node:path";
 import {
   DocumentFile,
   DocumentModel,
+  FileBlob,
   PdfArtifact,
   Presentation,
+  PresentationFile,
   reviewArtifact,
   Workbook,
 } from "../src/index.mjs";
@@ -64,6 +66,48 @@ try {
   });
   assert.equal(unavailableVisualReview.verdict, "passed-with-limitations");
   assert.equal(unavailableVisualReview.visualReview, "unavailable");
+
+  // Imported source-bound work often contains pre-existing geometry warnings.
+  // A baseline may downgrade only the exact same issues; a newly introduced
+  // issue must remain a hard review failure.
+  const importedBaselineModel = Presentation.create();
+  const importedBaselineSlide = importedBaselineModel.slides.add({ name: "Existing layout" });
+  importedBaselineSlide.shapes.add({ geometry: "rect", text: "Existing background shape", position: { left: 200, top: 20, width: 220, height: 80 } });
+  importedBaselineSlide.shapes.add({ geometry: "textbox", text: "Edit me", position: { left: 200, top: 20, width: 220, height: 80 } });
+  const importedBaseline = await PresentationFile.exportPptx(importedBaselineModel);
+  const importedEditedModel = await PresentationFile.importPptx(importedBaseline);
+  importedEditedModel.slides.items[0].shapes.items[1].text.set("Edited without rebuilding");
+  const importedEdited = await PresentationFile.exportPptx(importedEditedModel);
+  const baselineReview = await reviewArtifact(new FileBlob(importedBaseline.bytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }), {
+    format: "pptx",
+    outputPath: path.join(temporary, "baseline.pptx"),
+    layout: false,
+    visualReview: "unavailable",
+  });
+  assert.equal(baselineReview.verdict, "failed");
+  const baselineCompared = await reviewArtifact(new FileBlob(importedEdited.bytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }), {
+    format: "pptx",
+    outputPath: path.join(temporary, "baseline-compared.pptx"),
+    baseline: new FileBlob(importedBaseline.bytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }),
+    layout: false,
+    visualReview: "unavailable",
+  });
+  assert.notEqual(baselineCompared.verdict, "failed", JSON.stringify(baselineCompared, null, 2));
+  assert.ok(baselineCompared.baseline.matchedIssues > 0);
+  assert.equal(baselineCompared.baseline.newIssues, 0);
+  assert.ok(baselineCompared.semantic.issues.some((issue) => issue.preexisting === true));
+  const introducedIssueModel = await PresentationFile.importPptx(importedBaseline);
+  introducedIssueModel.slides.items[0].shapes.items[1].position = { ...introducedIssueModel.slides.items[0].shapes.items[1].position, width: 1_400 };
+  const introducedIssue = await PresentationFile.exportPptx(introducedIssueModel);
+  const newIssueReview = await reviewArtifact(new FileBlob(introducedIssue.bytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }), {
+    format: "pptx",
+    outputPath: path.join(temporary, "baseline-new-issue.pptx"),
+    baseline: new FileBlob(importedBaseline.bytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }),
+    layout: false,
+    visualReview: "unavailable",
+  });
+  assert.equal(newIssueReview.verdict, "failed");
+  assert.ok(newIssueReview.baseline.newIssues > 0);
 
   const disabledContentView = await reviewArtifact(document, {
     outputPath: path.join(temporary, "disabled-content.docx"),

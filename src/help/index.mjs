@@ -672,8 +672,8 @@ const HELP_DETAIL_OVERRIDES = {
   },
   reviewArtifact: {
     examples: ["await reviewArtifact('/absolute/path/output.pptx', { source: '/absolute/path/input.pptx', contentView: 'anydoc', visualReview: 'unavailable' })"],
-    options: ["format/kind", "outputPath", "source", "contentView", "visualReview", "layout", "renderOptions", "maxBytes", "maxContentChars", "maxInspectChars", "maxSummaryChars"],
-    returns: "{ verdict, semantic, structural, layout, contentView, visualReview, delivery, summary }",
+    options: ["format/kind", "outputPath", "source", "baseline", "contentView", "visualReview", "layout", "renderOptions", "maxBytes", "maxContentChars", "maxInspectChars", "maxSummaryChars"],
+    returns: "{ verdict, semantic, structural, layout, contentView, visualReview, delivery, baseline, summary }",
     notes: [
       "The text reading view is runtime-lazy and optional; AnyDoc is its parser backend. It is not a structural authority, render validator, OCR route, or substitute for direct pixel/aesthetic review.",
       "Do not request the text reading view routinely. Use contentView='anydoc' only when it can close an identified text or table content-coverage gap; it does not resolve OCR, layout, image, formula, or metadata-provenance gaps.",
@@ -683,6 +683,7 @@ const HELP_DETAIL_OVERRIDES = {
         input: { type: "string|FileBlob|Uint8Array|Blob|Workbook|Presentation|DocumentModel|PdfArtifact", required: true, description: "Final artifact path, bytes, or model. Modeled input is exported and reopened before review." },
         format: { type: "string", description: "Required only when raw bytes do not carry a supported MIME type; docx, xlsx, pptx, or pdf." },
         source: { type: "string|FileBlob|Uint8Array|Blob", description: "Optional read-only source used for SHA-256 and canonical input/output collision evidence." },
+        baseline: { type: "string|FileBlob|Uint8Array|Blob|Workbook|Presentation|DocumentModel|PdfArtifact", description: "Optional pre-edit artifact. Exact matching semantic/structural/layout issues are marked preexisting warnings; new errors still fail the review." },
         outputPath: { type: "string", description: "Absolute or working-directory-relative final path when reviewing an in-memory model." },
         contentView: { type: "string|boolean", description: "Set to anydoc or true to request the bounded text reading view. Omitted, none, or false does not initialize its AnyDoc parser." },
         visualReview: { type: "string", description: "Caller-attested complete, unavailable, or requires-human. Text reading/OCR output never qualifies as complete." },

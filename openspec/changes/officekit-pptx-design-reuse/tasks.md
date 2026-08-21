@@ -26,5 +26,7 @@
   evidence and approved source-derived assets.
 - [x] 3.2 Verify that the new page does not modify non-target source parts and
   that the original deck's opaque structures remain intact.
-- [ ] 3.3 Run three fresh Agent tasks through inspect → plan → reuse → review →
-  resume, then add Windows PowerPoint evidence before marking this change done.
+- [ ] 3.3 Run three fresh model Agent tasks through inspect → plan → reuse →
+  review → resume, then add Windows PowerPoint evidence before marking this
+  change done. A deterministic public-REPL rehearsal covers the protocol slice;
+  it is not a substitute for this model/host gate.

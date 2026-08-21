@@ -3648,6 +3648,7 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 - format/kind
 - outputPath
 - source
+- baseline
 - contentView
 - visualReview
 - layout
@@ -3662,6 +3663,7 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 - `input` (string|FileBlob|Uint8Array|Blob|Workbook|Presentation|DocumentModel|PdfArtifact) required — Final artifact path, bytes, or model. Modeled input is exported and reopened before review.
 - `format` (string) — Required only when raw bytes do not carry a supported MIME type; docx, xlsx, pptx, or pdf.
 - `source` (string|FileBlob|Uint8Array|Blob) — Optional read-only source used for SHA-256 and canonical input/output collision evidence.
+- `baseline` (string|FileBlob|Uint8Array|Blob|Workbook|Presentation|DocumentModel|PdfArtifact) — Optional pre-edit artifact. Exact matching semantic/structural/layout issues are marked preexisting warnings; new errors still fail the review.
 - `outputPath` (string) — Absolute or working-directory-relative final path when reviewing an in-memory model.
 - `contentView` (string|boolean) — Set to anydoc or true to request the bounded text reading view. Omitted, none, or false does not initialize its AnyDoc parser.
 - `visualReview` (string) — Caller-attested complete, unavailable, or requires-human. Text reading/OCR output never qualifies as complete.
@@ -3678,7 +3680,7 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 
 **Returns:**
 
-{ verdict, semantic, structural, layout, contentView, visualReview, delivery, summary }
+{ verdict, semantic, structural, layout, contentView, visualReview, delivery, baseline, summary }
 
 **Notes:**
 
