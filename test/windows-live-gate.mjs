@@ -14,8 +14,41 @@ const evidence = {
     },
   },
   workflows: [
-    { name: "excel-live", result: "passed", observedAt: "2026-08-04T12:01:00Z", automationSource: "windows-office" },
-    { name: "powerpoint-live", result: "passed", observedAt: "2026-08-04T12:02:00Z", automationSource: "windows-office" },
+    {
+      name: "excel-live",
+      result: "passed",
+      observedAt: "2026-08-04T12:01:00Z",
+      automationSource: "windows-office",
+      checks: {
+        manifestUploaded: true,
+        paired: true,
+        twoWorkbooksIsolated: true,
+        unsavedReadWrite: true,
+        explicitSave: true,
+        disconnectReconnect: true,
+        sourceProtected: true,
+        bridgeIdleExit: true,
+      },
+    },
+    {
+      name: "powerpoint-live",
+      result: "passed",
+      observedAt: "2026-08-04T12:02:00Z",
+      automationSource: "windows-office",
+      checks: {
+        manifestUploaded: true,
+        paired: true,
+        twoPresentationsIsolated: true,
+        unsavedReadWrite: true,
+        selectionRead: true,
+        slideImageReviewed: true,
+        explicitSave: true,
+        disconnectReconnect: true,
+        unsupportedCapabilityFailClosed: true,
+        sourceProtected: true,
+        bridgeIdleExit: true,
+      },
+    },
   ],
 };
 
@@ -40,6 +73,7 @@ for (const mutation of [
   (value) => { value.host.office.excel.installed = false; },
   (value) => { value.workflows[0].automationSource = "mock"; },
   (value) => { value.workflows[1].result = "skipped"; },
+  (value) => { value.workflows[1].checks.slideImageReviewed = false; },
 ]) {
   const invalid = structuredClone(evidence);
   mutation(invalid);

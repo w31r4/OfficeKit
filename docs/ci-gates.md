@@ -53,7 +53,7 @@ gh workflow run windows-office-live.yml \
   -f evidence_path='C:\OfficeKit\evidence\windows-office-live.json'
 ```
 
-`scripts/validate-windows-live-evidence.mjs` 会 fail closed 检查 Windows 平台、Excel/PowerPoint 安装与版本、观察日期、提交 SHA、两个 live workflow 的 `passed` 结果，并拒绝 `mock`/`macos` 来源。证据必须由人工在 Windows Office 主机观察产生；签名、截图、录屏和详细操作日志仍由发布负责人按组织流程保存。
+`scripts/validate-windows-live-evidence.mjs` 会 fail closed 检查 Windows 平台、Excel/PowerPoint 安装与版本、观察日期、提交 SHA、两个 live workflow 的 `passed` 结果，以及每个应用的 manifest 上传、配对、未保存读写、显式保存、断开重连、源保护和 bridge 空闲退出；PowerPoint 还必须提供双演示文稿隔离、当前选区读取、单页图像复核和不支持能力拒绝。它拒绝 `mock`/`macos` 来源。证据必须由人工在 Windows Office 主机观察产生；签名、截图、录屏和详细操作日志仍由发布负责人按组织流程保存。
 
 ## 记录格式
 
