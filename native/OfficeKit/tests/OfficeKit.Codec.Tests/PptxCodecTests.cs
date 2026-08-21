@@ -6332,6 +6332,45 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void ImportedElementDeletionAllowsPowerPointSlideCreationIdExtension()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddSlideCreationIdExtension(authored.File.ToByteArray());
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var removed = Assert.Single(slide.Elements);
+        Assert.True(removed.Source.DeletionCapability.Supported);
+        Assert.Equal(string.Empty, removed.Source.DeletionCapability.BlockedReason);
+        slide.ElementDeletions.Add(new PresentationElementDeletion { Id = removed.Id, Source = removed.Source.Clone() });
+        slide.Elements.Remove(removed);
+
+        var deleted = Export(imported.Artifact);
+        Assert.True(deleted.Ok, Diagnostics(deleted));
+        Assert.Equal(ZipPartPaths(sourceBytes), ZipPartPaths(deleted.File.ToByteArray()));
+        foreach (var path in ZipPartPaths(sourceBytes).Where(path => !path.Equals("ppt/slides/slide1.xml", StringComparison.OrdinalIgnoreCase)))
+            Assert.Equal(ZipBytes(sourceBytes, path), ZipBytes(deleted.File.ToByteArray(), path));
+        using var stream = new MemoryStream(deleted.File.ToByteArray(), writable: false);
+        using var package = PresentationDocument.Open(stream, false);
+        Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        Assert.Contains("creationId", package.PresentationPart!.SlideParts.Single().Slide!.CommonSlideData!.OuterXml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ImportedElementDeletionStillBlocksUnknownSlideExtension()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var imported = Import(AddSlideCreationIdExtension(authored.File.ToByteArray(), unknown: true));
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var removed = Assert.Single(slide.Elements);
+        Assert.False(removed.Source.DeletionCapability.Supported);
+        Assert.Contains("extension data", removed.Source.DeletionCapability.BlockedReason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SourcePreservingExportDeletesOneCapabilityProvenTopLevelPictureAndItsExclusiveMedia()
     {
         var authored = Invoke(ExportRequest());
@@ -10296,6 +10335,26 @@ public sealed class PptxCodecTests
                 .Single(shape => shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.GetFirstChild<P.PlaceholderShape>() is not null);
             placeholder.TextBody!.Descendants<A.Run>().Single().Append(
                 new OpenXmlUnknownElement("a", "opaqueTextRunExtension", "http://schemas.openxmlformats.org/drawingml/2006/main"));
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddSlideCreationIdExtension(byte[] bytes, bool unknown = false)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var package = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var common = package.PresentationPart!.SlideParts.Single().Slide!.CommonSlideData!;
+            var extensionList = new P.ExtensionList();
+            var extension = new P.Extension { Uri = unknown ? "{office-kit-unknown-extension}" : "{BB962C8B-B14F-4D97-AF65-F5344CB8AC3E}" };
+            var child = new OpenXmlUnknownElement("p14", unknown ? "opaqueIdentity" : "creationId", "http://schemas.microsoft.com/office/powerpoint/2010/main");
+            child.SetAttribute(new OpenXmlAttribute("val", string.Empty, unknown ? "shape-identity" : "2080852834"));
+            extension.Append(child);
+            extensionList.Append(extension);
+            common.Append(extensionList);
+            package.PresentationPart.SlideParts.Single().Slide!.Save();
         }
         return stream.ToArray();
     }

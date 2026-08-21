@@ -184,7 +184,7 @@ assert.deepEqual(sourceComponentReuse.sources.map((source) => source.id), [
 ]);
 assert.equal(sourceComponentReuse.sources.find((source) => source.id === "blue-gray-acid-template")?.status, "passed");
 assert.equal(sourceComponentReuse.sources.find((source) => source.id === "mckinsey-customer-loyalty")?.status, "passed");
-assert.equal(sourceComponentReuse.sources.find((source) => source.id === "suanzhi-future-2026")?.status, "blocked");
+assert.equal(sourceComponentReuse.sources.find((source) => source.id === "suanzhi-future-2026")?.status, "passed");
 for (const reuse of sourceComponentReuse.sources) {
   const declared = manifest.sources.find((source) => source.id === reuse.id);
   assert.ok(declared);

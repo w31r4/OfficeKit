@@ -7,56 +7,22 @@
       "sourceSlideCount": 21,
       "candidateCount": 48,
       "inspectOnlyCandidateCount": 11,
-      "preflightBlockedCandidateCount": 11,
-      "preflightBlockedReasons": [
-        {
-          "candidateId": "pc_13ccc6f81b67c637884514b29c3623f0",
-          "reason": "sibling presentation/slide/14/element/1 cannot be removed safely: slide timing or extension data may retain native element identity"
-        },
-        {
-          "candidateId": "pc_23d5bf9e5939684a192d918d1f49ab55",
-          "reason": "sibling presentation/slide/17/element/2 cannot be removed safely: slide timing or extension data may retain native element identity"
-        },
-        {
-          "candidateId": "pc_583f58b8e0cedfec004d5c649a0d3a87",
-          "reason": "sibling presentation/slide/20/element/2 cannot be removed safely: slide timing or extension data may retain native element identity"
-        },
-        {
-          "candidateId": "pc_70fe8cfd27b2da7443f5f27d6a89b094",
-          "reason": "sibling presentation/slide/13/element/2 cannot be removed safely: slide timing or extension data may retain native element identity"
-        },
-        {
-          "candidateId": "pc_9af4e83afd6962336bf39a76d19f58c7",
-          "reason": "sibling presentation/slide/10/element/1 cannot be removed safely: slide timing or extension data may retain native element identity"
-        },
-        {
-          "candidateId": "pc_a6f36ac840bc15622a4afe68a882248a",
-          "reason": "sibling presentation/slide/18/element/3 cannot be removed safely: slide timing or extension data may retain native element identity"
-        },
-        {
-          "candidateId": "pc_daa3acf35625d498875f1143aa44c679",
-          "reason": "sibling presentation/slide/17/element/2 cannot be removed safely: slide timing or extension data may retain native element identity"
-        },
-        {
-          "candidateId": "pc_db3a65d963b2a03e7d1926594740dcba",
-          "reason": "sibling presentation/slide/1/element/1 cannot be removed safely: slide timing or extension data may retain native element identity"
-        },
-        {
-          "candidateId": "pc_e22bc0ef86170a077088a1e61a30bceb",
-          "reason": "sibling presentation/slide/16/element/2 cannot be removed safely: slide timing or extension data may retain native element identity"
-        },
-        {
-          "candidateId": "pc_e31ff2af609beb182443ee73bce4e32f",
-          "reason": "sibling presentation/slide/1/element/1 cannot be removed safely: slide timing or extension data may retain native element identity"
-        },
-        {
-          "candidateId": "pc_f06c4baf31cd88b408bfb16e78a52695",
-          "reason": "sibling presentation/slide/10/element/1 cannot be removed safely: slide timing or extension data may retain native element identity"
-        }
-      ],
-      "status": "blocked",
-      "blockedReason": "Every inspect-only candidate failed the occurrence-level reuse preflight.",
-      "failures": {}
+      "preflightBlockedCandidateCount": 0,
+      "preflightBlockedReasons": [],
+      "status": "passed",
+      "failures": {
+        "unsupported_presentation_component_reuse": 7
+      },
+      "candidateId": "pc_db3a65d963b2a03e7d1926594740dcba",
+      "occurrenceCount": 5,
+      "cloneSlideIndex": 1,
+      "cloneElementCount": 1,
+      "sourceBytes": 6114228,
+      "outputBytes": 6104508,
+      "reopenedSlideCount": 22,
+      "nonTargetPartMismatches": [],
+      "outputPackageContentSha256": "671d69fedd97e07430983b4fd7b0a66dcf56ec70e3e6c75099d75fc173a1f763",
+      "outputSha256": "bdd66b41457c70db581cd88ff6330d60197e930086ce2faa659c236d483ea0db"
     },
     {
       "id": "blue-gray-acid-template",
@@ -128,7 +94,7 @@
       "reopenedSlideCount": 20,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "52c61c7a781e4f7c2ef592f44e4fdabe370dee24b0eb000571f22cad23e42c14",
-      "outputSha256": "812276fa9a5a89fa8937769f0055546cdeb2ba035c1a02c03ce0e3b4da410600"
+      "outputSha256": "1d2dd98e29cf0fc75f131f24157ec6222d1680b3014448dcf141e3c85ba701ef"
     },
     {
       "id": "mckinsey-customer-loyalty",
@@ -149,7 +115,7 @@
       "reopenedSlideCount": 9,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "6becb283a4a3f9638b6a18d09140d45aabb9b05fc48f8f122859bd784bd8920f",
-      "outputSha256": "3de7ce1ed113acbcbdf5bc5fa2e90f89909a99bf1c0d90c0e745d057454ee032"
+      "outputSha256": "9992ef8620d86492e9859193f50fa8c4aa8ce7e0baeadc733582561aa99d5269"
     }
   ]
 }

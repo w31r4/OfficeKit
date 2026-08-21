@@ -20,6 +20,9 @@ internal sealed record PptxElementDeletionPlan(
 // element only after this module proves the concrete source graph again.
 internal static class PptxElementDeletionCodec
 {
+    private const string SlideCreationIdExtensionUri = "{BB962C8B-B14F-4D97-AF65-F5344CB8AC3E}";
+    private const string PowerPoint2010MainNamespace = "http://schemas.microsoft.com/office/powerpoint/2010/main";
+
     internal static PptxElementDeletionPlan Analyze(
         SlidePart slidePart,
         OpenXmlElement source,
@@ -358,7 +361,33 @@ internal static class PptxElementDeletionCodec
 
     private static bool HasIdentitySensitiveSlideGraph(P.Slide slide, P.CommonSlideData common) =>
         slide.ChildElements.Any(element => element.LocalName is "timing" or "extLst") ||
-        common.ChildElements.Any(element => element.LocalName is "extLst");
+        common.ChildElements.Any(element => element.LocalName == "extLst" && !IsSafeSlideCreationIdExtensionList(element));
+
+    // PowerPoint writes this slide-level creationId extension on otherwise
+    // ordinary slides. It identifies the slide itself, not a shape-tree
+    // child, so deleting a proven sibling leaves the extension byte-for-byte
+    // intact and cannot create a dangling object reference. Every other
+    // extension remains identity-sensitive until its schema is understood.
+    private static bool IsSafeSlideCreationIdExtensionList(OpenXmlElement extensionList)
+    {
+        if (extensionList.NamespaceUri != "http://schemas.openxmlformats.org/presentationml/2006/main" ||
+            extensionList.ChildElements.Count != 1 ||
+            extensionList.ChildElements[0].LocalName != "ext" ||
+            extensionList.ChildElements[0].NamespaceUri != "http://schemas.openxmlformats.org/presentationml/2006/main")
+            return false;
+        var extension = extensionList.ChildElements[0];
+        var extensionAttributes = extension.GetAttributes().ToArray();
+        if (extensionAttributes.Length != 1 || extensionAttributes[0].LocalName != "uri" || extensionAttributes[0].NamespaceUri.Length != 0 ||
+            !string.Equals(extensionAttributes[0].Value, SlideCreationIdExtensionUri, StringComparison.OrdinalIgnoreCase) ||
+            extension.ChildElements.Count != 1)
+            return false;
+        var creationId = extension.ChildElements[0];
+        if (creationId.LocalName != "creationId" || creationId.NamespaceUri != PowerPoint2010MainNamespace || creationId.ChildElements.Count != 0)
+            return false;
+        var creationAttributes = creationId.GetAttributes().ToArray();
+        return creationAttributes.Length == 1 && creationAttributes[0].LocalName == "val" && creationAttributes[0].NamespaceUri.Length == 0 &&
+            uint.TryParse(creationAttributes[0].Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out _);
+    }
 
     private static IEnumerable<OpenXmlAttribute> Attributes(OpenXmlElement source)
     {
