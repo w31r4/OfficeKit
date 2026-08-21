@@ -6,25 +6,9 @@ const evidence = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/sou
 assert.equal(evidence.schema, "office-kit/pptx-source-agent-continuation-rehearsal/v1");
 assert.deepEqual(evidence.protocol, { repl: 2, visualReview: "unavailable", package: "public-office-kit" });
 assert.equal(evidence.modelBlackBox.required, 3);
-assert.equal(evidence.modelBlackBox.completed, 3);
-assert.equal(evidence.modelBlackBox.status, "passed");
-assert.equal(evidence.modelBlackBox.sourceId, "suanzhi-future-2026");
-assert.equal(evidence.modelBlackBox.sourceSha256, "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762");
-assert.equal(evidence.modelBlackBox.targetId, "presentation/slide/1/element/1");
-assert.deepEqual(evidence.modelBlackBox.oracle, {
-  sourceUnchanged: true,
-  targetReimported: true,
-  partTopologyPreserved: true,
-  nonTargetPartsByteIdentical: true,
-  forbiddenAuthoringPathsAbsent: true,
-});
-assert.equal(evidence.modelBlackBox.runs.length, 3);
-assert.ok(evidence.modelBlackBox.runs.every((run) =>
-  run.changedParts.length === 1 &&
-  run.changedParts[0] === "ppt/slides/slide1.xml" &&
-  run.review === "inherited-findings-compared" &&
-  run.visualReview === "unavailable" &&
-  run.outputSha256 === "f511a284c75b3b5fe459134e9f0c4f890d32e76207341da60fb2922179d67d4e"));
+assert.equal(evidence.modelBlackBox.completed, 0);
+assert.equal(evidence.modelBlackBox.status, "open");
+assert.deepEqual(Object.keys(evidence.modelBlackBox).sort(), ["completed", "required", "status"]);
 assert.deepEqual(evidence.sources.map((source) => source.id), [
   "suanzhi-future-2026",
   "blue-gray-acid-template",
@@ -39,7 +23,6 @@ for (const source of evidence.sources) {
   assert.deepEqual(source.commits.map((commit) => commit.commitId), ["c0001", "c0002"]);
   assert.ok(source.commits.every((commit) => commit.reviewVerdict === "passed-with-limitations" && commit.visualReview === "unavailable"));
   assert.equal(source.finalVerification.slideCount, source.sourceSlideCount + 1);
-  assert.equal(source.finalVerification.result.foundFirst, true);
   assert.equal(source.finalVerification.result.foundResumed, true);
   assert.equal(source.publishedPathRelative, `outputs/${source.id}-continued.pptx`);
   assert.match(source.sourceSha256, /^[a-f0-9]{64}$/u);

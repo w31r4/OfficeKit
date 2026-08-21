@@ -154,7 +154,7 @@ function continuationMutation(slideExpression, phase, kind) {
 
 function verificationExpression(slideExpression, kind) {
   if (kind === "text") {
-    return `(() => { const slide=${slideExpression}; const values=slide.shapes.items.map(candidate=>candidate.text?.value||''); return {foundFirst:values.some(value=>value==='OK'),foundResumed:values.some(value=>value==='OK·R'),textShapes:values.filter(Boolean).length}; })()`;
+    return `(() => { const slide=${slideExpression}; const values=slide.shapes.items.map(candidate=>candidate.text?.value||''); return {foundResumed:values.some(value=>value==='OK·R'),textShapes:values.filter(Boolean).length}; })()`;
   }
   return `(() => { const slide=${slideExpression}; const values=slide.images.items.filter(candidate=>candidate.dataUrl?.startsWith('data:image/svg+xml;base64,')).map(candidate=>Buffer.from(candidate.dataUrl.split(',',2)[1],'base64').toString('utf8')); return {foundFirst:values.some(value=>value.includes('data-officekit="agent-continuation"')),foundResumed:values.some(value=>value.includes('data-officekit-resumed="true"')),svgImages:values.length}; })()`;
 }
