@@ -151,6 +151,22 @@ assert.equal(await componentExportZip.file("ppt/slides/slide1.xml").async("text"
 const componentRoundTrip = await PresentationFile.importPptx(componentExport);
 assert.equal(componentRoundTrip.slides.count, 3);
 assert.equal(componentRoundTrip.slides.items[1].shapes.items.length, 1);
+const continuedComponent = componentRoundTrip.slides.items[1].shapes.items[0];
+const continuedText = continuedComponent.text.value;
+continuedComponent.text.value = `${continuedText} (continued)`;
+const continuedExport = await PresentationFile.exportPptx(componentRoundTrip);
+const continuedZip = await JSZip.loadAsync(continuedExport.bytes);
+const changedContinuedParts = [];
+for (const name of Object.keys(componentExportZip.files).filter((entry) => !componentExportZip.files[entry].dir)) {
+  const before = await componentExportZip.file(name).async("uint8array");
+  const after = await continuedZip.file(name).async("uint8array");
+  if (before.length !== after.length || before.some((value, index) => value !== after[index])) changedContinuedParts.push(name);
+}
+assert.equal(changedContinuedParts.length, 1);
+assert.match(changedContinuedParts[0], /^ppt\/slides\/slide\d+\.xml$/u);
+assert.equal(await continuedZip.file("ppt/slides/slide1.xml").async("text"), componentSourceSlideXml);
+const continuedReimport = await PresentationFile.importPptx(continuedExport);
+assert.equal(continuedReimport.slides.items[1].shapes.items[0].text.value, `${continuedText} (continued)`);
 assert.throws(
   () => componentImported.reuseSourceComponent({ candidateId: reusableComponent.candidateId, occurrenceIndex: 99 }),
   (error) => error instanceof RangeError,
