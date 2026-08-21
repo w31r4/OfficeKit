@@ -22,9 +22,9 @@
 
 ## 3. Same-style continuation
 
-- [ ] 3.1 From each benchmark deck, create one new page using only profiled
+- [x] 3.1 From each benchmark deck, create one new page using only profiled
   evidence and approved source-derived assets.
-- [ ] 3.2 Verify that the new page does not modify non-target source parts and
+- [x] 3.2 Verify that the new page does not modify non-target source parts and
   that the original deck's opaque structures remain intact.
 - [ ] 3.3 Run three fresh Agent tasks through inspect → plan → reuse → review →
   resume, then add Windows PowerPoint evidence before marking this change done.

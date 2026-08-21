@@ -11,12 +11,21 @@ slide or component ID, expected revision, and a codec-proven ownership graph.
   or sharing mutable descendants
 
 ### Requirement: Ambiguous or opaque graphs fail closed
-The reuse operation MUST reject shared descendants, unresolved relationships,
-unsupported native topology, stale profiles, and any request that would expose
-raw XML or arbitrary relationship edits.
+The reuse operation MUST reject shared mutable descendants, unresolved
+relationships, unsupported native topology, stale profiles, and any request
+that would expose raw XML or arbitrary relationship edits. Immutable media
+parts with an explicit image content type MAY be rebound and shared when the
+ownership proof records that boundary.
 
-#### Scenario: Template slide shares a media part
-- **WHEN** the selected slide references media also owned by another slide
+#### Scenario: Template slide shares immutable media
+- **WHEN** the selected slide references an image part also used by another
+  slide and the part has an explicit image content type
+- **THEN** the reuse operation rebinds the clone to that immutable source part,
+  records it as shared, and leaves the source bytes unchanged
+
+#### Scenario: Template slide shares mutable descendants
+- **WHEN** the selected slide references a mutable descendant also owned by
+  another slide
 - **THEN** the reuse operation returns a structured unsupported-capability error
   before mutating the presentation
 

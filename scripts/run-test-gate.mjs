@@ -51,6 +51,7 @@ const fastSteps = [
   nodeStep("test/presentation.mjs"),
   nodeStep("test/pptx-lossless-benchmark.mjs"),
   nodeStep("test/pptx-design-profile.mjs"),
+  nodeStep("test/pptx-source-continuation.mjs"),
   nodeStep("test/presentation-jsx.mjs"),
   nodeStep("test/document.mjs"),
   nodeStep("test/pdf.mjs"),

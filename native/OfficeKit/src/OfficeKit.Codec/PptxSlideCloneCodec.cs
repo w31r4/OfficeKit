@@ -256,7 +256,14 @@ internal static class PptxSlideCloneCodec
     }
 
     private static bool ShouldShare(OpenXmlPart part) =>
-        part is SlideLayoutPart or NotesMasterPart or ImagePart or SlidePart;
+        part is SlideLayoutPart or NotesMasterPart or ImagePart or SlidePart ||
+        // Some producers emit legacy/extended raster assets (for example WDP)
+        // through an OpenXmlPart type that is not ImagePart.  The payload is
+        // immutable presentation media, so sharing it is safe when its
+        // content type is explicitly image/*; treating it as owned would
+        // incorrectly reject an otherwise closed slide graph merely because
+        // the same asset is used by another slide.
+        part.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
 
     // Open XML SDK may materialize different wrapper instances for the same
     // package part after reopen. Package URI, not CLR object identity, is the

@@ -11,7 +11,7 @@ import { FileBlob, PresentationFile } from "../src/index.mjs";
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const EVIDENCE_SCHEMA = "office-kit/pptx-source-reuse-evidence/v1";
 const TOPOLOGY_PARTS = new Set(["[Content_Types].xml", "ppt/_rels/presentation.xml.rels", "ppt/presentation.xml"]);
-const SOURCES = Object.freeze([
+export const SOURCES = Object.freeze([
   {
     id: "suanzhi-future-2026",
     fileName: "b34ddad8cf8b_012_算秩未来2026_0127_极致技术&长期主义.pptx",
@@ -22,7 +22,7 @@ const SOURCES = Object.freeze([
     id: "blue-gray-acid-template",
     fileName: "template.pptx",
     slide: 1,
-    expected: "blocked",
+    expected: "passed",
   },
   {
     id: "mckinsey-customer-loyalty",

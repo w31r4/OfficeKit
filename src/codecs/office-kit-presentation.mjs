@@ -720,9 +720,11 @@ function duplicateImportedPresentationSlide(presentation, state, slide) {
           : entry.wire.content.case === "opaque"
             ? opaquePresentationSnapshot(model)
             : undefined,
+      cloneModelSnapshot: presentationCloneElementSnapshot(model),
     };
   });
   bindPresentationCloneConnectorTargets(cloneContext);
+  for (const entry of entries) entry.cloneModelSnapshot = presentationCloneElementSnapshot(entry.model);
   const cloneState = {
     source,
     slide: clone,
@@ -2634,6 +2636,42 @@ function opaquePresentationSnapshot(object) {
   });
 }
 
+function presentationCloneElementSnapshot(element) {
+  if (element?.nativeKind || typeof element?._embeddedWorkbookReplacementBytes === "function") {
+    return opaquePresentationSnapshot(element);
+  }
+  if (typeof element?.layoutJson === "function") {
+    const layout = element.layoutJson();
+    // Image data can be large; the clone guard needs identity, not a second
+    // copy of the payload in every pending-clone entry.
+    if (typeof layout?.dataUrl === "string") {
+      layout.dataUrl = createHash("sha256").update(layout.dataUrl).digest("hex");
+    }
+    return JSON.stringify(layout);
+  }
+  return JSON.stringify(element);
+}
+
+function presentationCloneHasPendingNativeReplacement(element) {
+  return Boolean(
+    element?._embeddedWorkbookReplacementBytes?.() ||
+    element?._embeddedOfficePackageReplacementBytes?.() ||
+    element?._diagramTextReplacement?.(),
+  );
+}
+
+function registerPresentationCloneAssets(element, assetCatalog) {
+  if (element instanceof ImageElement && element.dataUrl) assetCatalog.addDataUrl(element.dataUrl);
+  if (element instanceof Shape) {
+    for (const paragraph of element.text?.paragraphs || []) {
+      if (paragraph.bulletImage?.dataUrl) assetCatalog.addDataUrl(paragraph.bulletImage.dataUrl);
+    }
+  }
+  if (element instanceof GroupShape) {
+    for (const child of element.children) registerPresentationCloneAssets(child, assetCatalog);
+  }
+}
+
 function presentationOpaque(object, original, snapshot, assetCatalog) {
   if (opaquePresentationSnapshot(object) !== snapshot) {
     const message = object.oleWorkbook || object.oleOfficePackage
@@ -2752,14 +2790,32 @@ export function presentationEnvelope(presentation, protocolVersion) {
       if (!bindingState.wire.speakerNotes && slide.speakerNotes?.text && !bindingState.wire.source?.speakerNotesAddable) {
         throw new OfficeKitCodecError(`Source-preserving PPTX export cannot add speaker notes to slide ${slideIndex + 1} because its presentation notes graph is not safely extensible.`, [], { code: "unsupported_presentation_edit" });
       }
+      if (cloneState) {
+        for (const entry of cloneState.entries) {
+          if (presentationCloneHasPendingNativeReplacement(entry.model) ||
+              presentationCloneElementSnapshot(entry.model) !== entry.cloneModelSnapshot) {
+            throw new OfficeKitCodecError(`Imported presentation clone ${slideIndex + 1} must remain untouched until it has been exported and imported again.`, [], { code: "unsupported_presentation_slide_clone" });
+          }
+        }
+      }
     }
     const legacyComments = presentation.commentFormat === "legacy"
       ? presentationLegacyComments(slide, Number(bindingState?.wire.source?.slideIndex ?? slideIndex))
       : [];
     const elements = bindingState
       ? retainedEntries.map((entry) => {
+        // A pending source-bound clone is deliberately immutable until its
+        // first export/reimport boundary.  Reuse the exact source wire for
+        // every element instead of reserializing the semantic projection;
+        // this keeps unsupported geometry and opaque descendants byte-for-
+        // byte eligible for the native OPC graph copy.  The C# clone codec
+        // performs the ownership proof and copies the original SlidePart.
+        if (cloneState) {
+          registerPresentationCloneAssets(entry.model, assetCatalog);
+          return entry.wire;
+        }
         if (entry.wire.content.case === "shape") {
-          if (!cloneState && presentationImportedShapeSnapshot(entry.model) === entry.modelSnapshot) {
+          if (presentationImportedShapeSnapshot(entry.model) === entry.modelSnapshot) {
             return entry.wire;
           }
           if (entry.wire.content.value.placeholder) {
@@ -2782,7 +2838,7 @@ export function presentationEnvelope(presentation, protocolVersion) {
         if (entry.wire.content.case === "connector") return presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId);
         if (entry.wire.content.case === "chart") return presentationChart(entry.model, entry.wire);
         if (entry.wire.content.case === "group") {
-          if (!cloneState && presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot) {
+          if (presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot) {
             return entry.wire;
           }
           return presentationGroup(entry.model, entry.wire, assetCatalog, cloneState?.sourceIdByCloneId, customShowLinks);

@@ -34,9 +34,11 @@ them into shapes or images to make generation easier.
 ### 4. Start with evidence, then add reuse
 
 The first implementation is the deterministic `pptx-design-profile` evaluator
-and three-sample evidence file. A later change will add a bounded
-source-derived slide/component reuse primitive, starting with complete
-ownership-checked slide graphs and explicit review before export.
+and three-sample evidence file. The bounded source-derived slide reuse slice
+now copies complete ownership-checked graphs, reopens the copy, and permits a
+typed continuation edit before a second package review. It deliberately keeps
+component-level reuse and native-host acceptance as later gates rather than
+turning visual similarity into an unproven mutation authority.
 
 ## Non-Goals
 
