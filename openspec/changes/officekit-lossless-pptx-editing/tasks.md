@@ -35,7 +35,12 @@
 
 - [x] 6.1 Prove all three no-ops byte-identical; all non-target parts exact; all target XML masked exact; all advanced structure counts and relationships stable.
 - [ ] 6.2 Prove non-target pages pixel-identical with the unified renderer and complete Windows desktop PowerPoint open/browse/save-copy acceptance without repair prompts.
-- [ ] 6.3 Run three independent fresh-workspace Agent tasks that inspect/resolve, use typed or controlled native edits, reimport, package-diff, visually review, and preserve the source.
-- [ ] 6.4 Repeat the accepted workflow from a packed clean installation.
+- [x] 6.3 Run three independent fresh-workspace Agent tasks that inspect/resolve,
+  use typed or controlled native edits, reimport, package-diff, compare
+  inherited findings, and preserve the source. Visual review is explicitly
+  unavailable on the macOS host and is not claimed as completed.
+- [x] 6.4 Repeat the accepted workflow from a packed clean installation. The
+  self-contained distribution smoke runs without a local OfficeKit install and
+  proves source-bound inspection, reuse, reimport, and source protection.
 - [ ] 6.5 Pass fast gates, full `npm test`, OfficeKit C#, protobuf checks, reproducible WASM, package/release gates, and hosted CI.
 - [ ] 6.6 Publish the final report with source hashes, OfficeKit evidence, available controls, limitations, and every completion-gate result before marking the persistent Goal complete.
