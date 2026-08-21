@@ -68,6 +68,8 @@ assert.equal(componentRecords.length > 0, true);
 assert.equal(componentRecords.every((record) => /^pc_[0-9a-f]{32}$/u.test(record.candidateId)), true);
 assert.equal(componentRecords.every((record) => /^[0-9a-f]{64}$/u.test(record.sourceRevisionSha256)), true);
 assert.equal(componentRecords.every((record) => record.mutationCapability?.supported === false), true);
+assert.equal(componentRecords.every((record) => typeof record.reuseCapability?.supported === "boolean"), true);
+assert.equal(componentRecords.every((record) => record.occurrences.every((occurrence) => typeof occurrence.reuseCapability?.supported === "boolean")), true);
 assert.equal(componentRecords.every((record) => !JSON.stringify(record).includes("rawXml") && !JSON.stringify(record).includes("<p:")), true);
 const safeCandidate = componentRecords.find((record) => record.status === "inspect-only");
 assert.ok(safeCandidate, "fixture should expose at least one unambiguous inspect-only component candidate");
@@ -134,6 +136,7 @@ const componentCandidates = componentImported.inspect({ includeComponentCandidat
   .split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((record) => record.kind === "componentCandidate");
 const reusableComponent = componentCandidates.find((record) => record.status === "inspect-only" && record.occurrences.length === 2);
 assert.ok(reusableComponent, "the controlled fixture should expose one repeated top-level component");
+assert.equal(reusableComponent.occurrences.every((occurrence) => occurrence.reuseCapability?.supported === true), true);
 const componentSourceSlideXml = await (await JSZip.loadAsync(componentSource.bytes)).file("ppt/slides/slide1.xml").async("text");
 const componentClone = componentImported.reuseSourceComponent({
   candidateId: reusableComponent.candidateId,

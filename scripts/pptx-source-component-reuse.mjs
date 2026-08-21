@@ -21,7 +21,11 @@ export async function runSourceComponentReuse(assetsDir) {
     const sourceSlideCount = presentation.slides.count;
     const records = presentation.inspect({ includeComponentCandidates: true, maxChars: Infinity }).ndjson
       .split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((record) => record.kind === "componentCandidate");
-    const candidates = records.filter((record) => record.status === "inspect-only");
+    const inspectOnlyCandidates = records.filter((record) => record.status === "inspect-only");
+    const candidates = inspectOnlyCandidates.filter((record) =>
+      record.occurrences?.some((occurrence) => occurrence.reuseCapability?.supported === true),
+    );
+    const preflightBlockedCandidates = inspectOnlyCandidates.filter((record) => !candidates.includes(record));
     const failures = {};
     let passed;
     for (const candidate of candidates) {
@@ -65,8 +69,14 @@ export async function runSourceComponentReuse(assetsDir) {
       sourceSha256,
       sourceSlideCount,
       candidateCount: records.length,
-      inspectOnlyCandidateCount: candidates.length,
+      inspectOnlyCandidateCount: inspectOnlyCandidates.length,
+      preflightBlockedCandidateCount: preflightBlockedCandidates.length,
+      preflightBlockedReasons: preflightBlockedCandidates.map((candidate) => ({
+        candidateId: candidate.candidateId,
+        reason: candidate.reuseCapability?.reason || "no occurrence has a supported reuse preflight",
+      })),
       status: passed?.status || (passed ? "failed" : "blocked"),
+      ...(passed || candidates.length ? {} : { blockedReason: "Every inspect-only candidate failed the occurrence-level reuse preflight." }),
       failures,
       ...(passed || {}),
     });

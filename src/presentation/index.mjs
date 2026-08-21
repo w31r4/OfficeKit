@@ -808,6 +808,11 @@ export class Presentation {
       error.code = "unsupported_presentation_component_reuse";
       throw error;
     }
+    if (occurrence.reuseCapability && occurrence.reuseCapability.supported !== true) {
+      const error = new Error(`Presentation component candidate ${candidateId} occurrence ${occurrenceIndex} cannot be reused safely${occurrence.reuseCapability.reason ? `: ${occurrence.reuseCapability.reason}` : "."}`);
+      error.code = "unsupported_presentation_component_reuse";
+      throw error;
+    }
     if (occurrence.ownership?.sourceBound !== true || occurrence.ownership?.closedGraph !== true || occurrence.ownership?.mutableDescendantsShared === true) {
       const error = new Error(`Presentation component candidate ${candidateId} is not backed by a closed source graph.`);
       error.code = "unsupported_presentation_component_reuse";

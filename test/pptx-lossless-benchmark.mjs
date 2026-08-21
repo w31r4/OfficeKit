@@ -190,9 +190,13 @@ for (const reuse of sourceComponentReuse.sources) {
   assert.equal(reuse.sourceSha256, declared.sha256);
   assert.equal(reuse.sourceSlideCount, declared.inventory.slideCount);
   assert.equal(reuse.candidateCount >= reuse.inspectOnlyCandidateCount, true);
+  assert.equal(reuse.preflightBlockedCandidateCount <= reuse.inspectOnlyCandidateCount, true);
+  assert.equal(reuse.preflightBlockedReasons.length, reuse.preflightBlockedCandidateCount);
   if (reuse.status === "blocked") {
     assert.equal(reuse.inspectOnlyCandidateCount > 0, true);
-    assert.equal(reuse.failures.unsupported_presentation_component_reuse, reuse.inspectOnlyCandidateCount);
+    assert.equal(reuse.preflightBlockedCandidateCount, reuse.inspectOnlyCandidateCount);
+    assert.equal(reuse.failures.unsupported_presentation_component_reuse || 0, 0);
+    assert.match(reuse.blockedReason, /preflight/i);
   } else {
     assert.equal(reuse.status, "passed");
     assert.match(reuse.candidateId, /^pc_[0-9a-f]{32}$/u);

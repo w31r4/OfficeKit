@@ -7,10 +7,56 @@
       "sourceSlideCount": 21,
       "candidateCount": 48,
       "inspectOnlyCandidateCount": 11,
+      "preflightBlockedCandidateCount": 11,
+      "preflightBlockedReasons": [
+        {
+          "candidateId": "pc_13ccc6f81b67c637884514b29c3623f0",
+          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+        },
+        {
+          "candidateId": "pc_23d5bf9e5939684a192d918d1f49ab55",
+          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+        },
+        {
+          "candidateId": "pc_583f58b8e0cedfec004d5c649a0d3a87",
+          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+        },
+        {
+          "candidateId": "pc_70fe8cfd27b2da7443f5f27d6a89b094",
+          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+        },
+        {
+          "candidateId": "pc_9af4e83afd6962336bf39a76d19f58c7",
+          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+        },
+        {
+          "candidateId": "pc_a6f36ac840bc15622a4afe68a882248a",
+          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+        },
+        {
+          "candidateId": "pc_daa3acf35625d498875f1143aa44c679",
+          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+        },
+        {
+          "candidateId": "pc_db3a65d963b2a03e7d1926594740dcba",
+          "reason": "sibling presentation/slide/1/element/1 cannot be removed safely: slide timing or extension data may retain native element identity"
+        },
+        {
+          "candidateId": "pc_e22bc0ef86170a077088a1e61a30bceb",
+          "reason": "owned part ppt/embeddings/oleObject22.bin is also referenced from ppt/slides/slide3.xml, ppt/slides/slide7.xml"
+        },
+        {
+          "candidateId": "pc_e31ff2af609beb182443ee73bce4e32f",
+          "reason": "sibling presentation/slide/1/element/1 cannot be removed safely: slide timing or extension data may retain native element identity"
+        },
+        {
+          "candidateId": "pc_f06c4baf31cd88b408bfb16e78a52695",
+          "reason": "owned part ppt/embeddings/oleObject23.bin is also referenced from ppt/slides/slide6.xml, ppt/slides/slide11.xml, ppt/slides/slide19.xml, ppt/slides/slide5.xml"
+        }
+      ],
       "status": "blocked",
-      "failures": {
-        "unsupported_presentation_component_reuse": 11
-      }
+      "blockedReason": "Every inspect-only candidate failed the occurrence-level reuse preflight.",
+      "failures": {}
     },
     {
       "id": "blue-gray-acid-template",
@@ -18,9 +64,60 @@
       "sourceSlideCount": 19,
       "candidateCount": 50,
       "inspectOnlyCandidateCount": 22,
+      "preflightBlockedCandidateCount": 12,
+      "preflightBlockedReasons": [
+        {
+          "candidateId": "pc_0e7a2b0341428a3172d82926d668196f",
+          "reason": "sibling presentation/slide/11/element/15 cannot be removed safely: relationship rId7 is referenced outside the element"
+        },
+        {
+          "candidateId": "pc_1353e868b8f71ff5aad54395cdd3b3fe",
+          "reason": "sibling presentation/slide/11/element/15 cannot be removed safely: relationship rId7 is referenced outside the element"
+        },
+        {
+          "candidateId": "pc_32fe7074569c4ff919332f30fb503775",
+          "reason": "sibling presentation/slide/11/element/16 cannot be removed safely: relationship rId7 is referenced outside the element"
+        },
+        {
+          "candidateId": "pc_528ac0568bf5da4a34badb34f710ff0b",
+          "reason": "sibling presentation/slide/11/element/15 cannot be removed safely: relationship rId7 is referenced outside the element"
+        },
+        {
+          "candidateId": "pc_5be3102ddf06700c4d08f92a2d7fb9f5",
+          "reason": "sibling presentation/slide/11/element/15 cannot be removed safely: relationship rId7 is referenced outside the element"
+        },
+        {
+          "candidateId": "pc_6ab61e10024ec2c4b135c8785bc5df10",
+          "reason": "sibling presentation/slide/11/element/15 cannot be removed safely: relationship rId7 is referenced outside the element"
+        },
+        {
+          "candidateId": "pc_878bada90f9bae9f5e5af71ce2c4245a",
+          "reason": "sibling presentation/slide/11/element/15 cannot be removed safely: relationship rId7 is referenced outside the element"
+        },
+        {
+          "candidateId": "pc_919c8c7bfd8aee99297fc77f1aeae3b3",
+          "reason": "sibling presentation/slide/11/element/15 cannot be removed safely: relationship rId7 is referenced outside the element"
+        },
+        {
+          "candidateId": "pc_c06258893c1927e4010d88ac7fbd89cd",
+          "reason": "sibling presentation/slide/11/element/15 cannot be removed safely: relationship rId7 is referenced outside the element"
+        },
+        {
+          "candidateId": "pc_c17d3d19b559a31a3161ccc205891694",
+          "reason": "sibling presentation/slide/11/element/15 cannot be removed safely: relationship rId7 is referenced outside the element"
+        },
+        {
+          "candidateId": "pc_d8ad5d860b7dc7a4b6ed41b3de38e28f",
+          "reason": "sibling presentation/slide/3/element/15 cannot be removed safely: relationship rId7 is referenced outside the element"
+        },
+        {
+          "candidateId": "pc_f3e7255ab9dcc9f3536338671ef32001",
+          "reason": "sibling presentation/slide/11/element/15 cannot be removed safely: relationship rId7 is referenced outside the element"
+        }
+      ],
       "status": "passed",
       "failures": {
-        "unsupported_presentation_component_reuse": 8
+        "unsupported_presentation_component_reuse": 3
       },
       "candidateId": "pc_5fe2b72b5a8b7dd6571db5ec26c0b8ca",
       "occurrenceCount": 6,
@@ -31,7 +128,7 @@
       "reopenedSlideCount": 20,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "52c61c7a781e4f7c2ef592f44e4fdabe370dee24b0eb000571f22cad23e42c14",
-      "outputSha256": "e19b40eadab8cff1d3ceb83ace6d327fc8c88e54469f5e744a32ad629e07956d"
+      "outputSha256": "e985f5d754923ac04b40dcf57e59a65c9390e15dbe91146fa17ae5b72755762b"
     },
     {
       "id": "mckinsey-customer-loyalty",
@@ -39,6 +136,8 @@
       "sourceSlideCount": 8,
       "candidateCount": 1,
       "inspectOnlyCandidateCount": 1,
+      "preflightBlockedCandidateCount": 0,
+      "preflightBlockedReasons": [],
       "status": "passed",
       "failures": {},
       "candidateId": "pc_b74445550ca49d445821036a8ba61daf",
@@ -50,7 +149,7 @@
       "reopenedSlideCount": 9,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "6becb283a4a3f9638b6a18d09140d45aabb9b05fc48f8f122859bd784bd8920f",
-      "outputSha256": "31e04d9b5ecd60a1639a4dc61136dd6208873558fca82782af27ed5a746b4ffb"
+      "outputSha256": "e6d4c5908d723f0c6437411b66c925e813ad239caeb4855128412c1f0eb7b413"
     }
   ]
 }

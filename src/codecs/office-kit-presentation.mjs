@@ -3175,6 +3175,19 @@ function createPresentationComponentCapability(presentation, state) {
       : repeatedOnOneSlide
         ? "candidate occurs more than once on one slide and is ambiguous without an explicit selection"
         : "";
+    const inspectedOccurrences = sortedOccurrences.map((occurrence) => ({
+      ...occurrence,
+      ownership: { sourceBound: true, closedGraph: !blockedReason, mutableDescendantsShared: false },
+      reuseCapability: blockedReason
+        ? { supported: false, reason: blockedReason }
+        : componentReusePreflight(state, occurrence),
+    }));
+    const reusableOccurrenceCount = inspectedOccurrences.filter((occurrence) => occurrence.reuseCapability.supported === true).length;
+    const reuseCapability = blockedReason
+      ? { supported: false, reason: blockedReason }
+      : reusableOccurrenceCount > 0
+        ? { supported: true, occurrenceCount: reusableOccurrenceCount }
+        : { supported: false, reason: inspectedOccurrences[0]?.reuseCapability.reason || "no occurrence has an independently deletable source graph" };
     const candidateId = `pc_${createHash("sha256").update(`${revisionSha256}\0${JSON.stringify(sortedOccurrences)}\0${JSON.stringify(group.signatureValue)}`).digest("hex").slice(0, 32)}`;
     records.push(Object.freeze({
       kind: "componentCandidate",
@@ -3184,10 +3197,13 @@ function createPresentationComponentCapability(presentation, state) {
       signature: createHash("sha256").update(JSON.stringify(group.signatureValue), "utf8").digest("hex"),
       descriptor: group.descriptor.supported ? group.signatureValue : { kind: group.signatureValue.kind },
       status: blockedReason ? "blocked" : "inspect-only",
-      occurrences: sortedOccurrences.map((occurrence) => ({ ...occurrence, ownership: { sourceBound: true, closedGraph: !blockedReason, mutableDescendantsShared: false } })),
+      occurrences: inspectedOccurrences,
+      reuseCapability,
       mutationCapability: {
         supported: false,
-        reason: blockedReason || "Component candidates are not directly mutable; a closed top-level candidate may be passed to presentation.reuseSourceComponent, while arbitrary partial mutation requires a typed/native-leaf operation.",
+        reason: blockedReason || reusableOccurrenceCount > 0
+          ? "Component candidates are not directly mutable; choose an occurrence whose reuseCapability is supported and pass it to presentation.reuseSourceComponent, while arbitrary partial mutation requires a typed/native-leaf operation."
+          : reuseCapability.reason,
       },
       ...(blockedReason ? { blockedReason } : {}),
     }));
@@ -3202,6 +3218,53 @@ function createPresentationComponentCapability(presentation, state) {
       return record ? structuredClone(record) : undefined;
     },
   });
+}
+
+function componentReusePreflight(state, occurrence) {
+  const sourceState = (state.slides || []).find((entry) => entry.wire?.id === occurrence.slideId);
+  const sourceSlide = sourceState?.slide;
+  if (!sourceState || !sourceSlide || !Array.isArray(sourceState.entries)) {
+    return { supported: false, reason: "source slide is not available in this revision" };
+  }
+  const sourceEntry = sourceState.entries.find((entry) => entry.wire?.id === occurrence.targetId);
+  if (!sourceEntry || sourceEntry.model?.parentGroup) {
+    return { supported: false, reason: "candidate is not a direct top-level slide element" };
+  }
+  const directElements = [
+    ...sourceSlide.connectors.items,
+    ...sourceSlide.shapes.items,
+    ...sourceSlide.tables.items,
+    ...sourceSlide.charts.items,
+    ...sourceSlide.images.items,
+    ...sourceSlide.groups.items,
+    ...sourceSlide.nativeObjects.items,
+  ];
+  if (!directElements.includes(sourceEntry.model)) {
+    return { supported: false, reason: "candidate is not bound to a direct slide element" };
+  }
+  const cloneCapability = sourceSlide.cloneCapability;
+  if (!cloneCapability?.sourceBound || cloneCapability.known !== true || cloneCapability.supported !== true) {
+    return { supported: false, reason: cloneCapability?.blockedReason || "source slide cannot be cloned safely" };
+  }
+  const removedSourceIds = new Set(sourceState.entries
+    .filter((entry) => entry !== sourceEntry)
+    .map((entry) => entry.wire?.id)
+    .filter(Boolean));
+  for (const entry of sourceState.entries) {
+    if (entry === sourceEntry) continue;
+    const capability = entry.model?.deletionCapability;
+    if (!capability?.sourceBound || capability.known !== true || capability.supported !== true) {
+      return { supported: false, reason: `sibling ${entry.wire?.id || "<unknown>"} cannot be removed safely${capability?.blockedReason ? `: ${capability.blockedReason}` : ""}` };
+    }
+  }
+  for (const entry of sourceState.entries) {
+    if (entry === sourceEntry || entry.wire?.content?.case !== "connector" || removedSourceIds.has(entry.wire.id)) continue;
+    const connector = entry.model;
+    if ([connector.startTargetId, connector.endTargetId].some((targetId) => targetId && removedSourceIds.has(targetId))) {
+      return { supported: false, reason: "retained connector would point at a removed sibling" };
+    }
+  }
+  return { supported: true };
 }
 
 function createPresentationNativeLeafCapability(presentation, state) {
