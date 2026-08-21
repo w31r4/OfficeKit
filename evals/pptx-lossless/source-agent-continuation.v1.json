@@ -23,13 +23,13 @@
       "commits": [
         {
           "commitId": "c0001",
-          "revisionSha256": "f26e59db07ddcebc51055a0c9054b653c96cc62c2b7c47335b238b88257eb88c",
+          "revisionSha256": "642055706b9942dfe09f290a49bff5ee1eaa31168407d38a9567aa607dae656a",
           "reviewVerdict": "passed-with-limitations",
           "visualReview": "unavailable"
         },
         {
           "commitId": "c0002",
-          "revisionSha256": "94f04303a3b99471659a14dd13b5591286fa6994568c7a87d3cd07efe68a53bc",
+          "revisionSha256": "d592451ab0cee11ea5bc924adbe2a5f0bcdb26c9d9fa7292e3635ec67fa3dbb6",
           "reviewVerdict": "passed-with-limitations",
           "visualReview": "unavailable"
         }
@@ -43,7 +43,7 @@
           "textShapes": 3
         }
       },
-      "publishedSha256": "94f04303a3b99471659a14dd13b5591286fa6994568c7a87d3cd07efe68a53bc",
+      "publishedSha256": "d592451ab0cee11ea5bc924adbe2a5f0bcdb26c9d9fa7292e3635ec67fa3dbb6",
       "publishedPathRelative": "outputs/suanzhi-future-2026-continued.pptx",
       "sourceUnchanged": true,
       "freshSessions": 3,
@@ -108,13 +108,13 @@
       "commits": [
         {
           "commitId": "c0001",
-          "revisionSha256": "a817fb5dd3da1f174760bc82c449c038b78bc17a5d9e6d68380708cb9f40163f",
+          "revisionSha256": "8af24aca1640d7622016d3557f479098e3dc0ec4ee63a9da809fd80f587daf1b",
           "reviewVerdict": "passed-with-limitations",
           "visualReview": "unavailable"
         },
         {
           "commitId": "c0002",
-          "revisionSha256": "3e0d512541345a91a04caea374fa968a5075693b8bf9e7fa1f743c6b4e647615",
+          "revisionSha256": "b53f883327fcccce5b1d706b124359e907a9100310d02229e2c98a3c3909c9a0",
           "reviewVerdict": "passed-with-limitations",
           "visualReview": "unavailable"
         }
@@ -128,7 +128,7 @@
           "textShapes": 3
         }
       },
-      "publishedSha256": "3e0d512541345a91a04caea374fa968a5075693b8bf9e7fa1f743c6b4e647615",
+      "publishedSha256": "b53f883327fcccce5b1d706b124359e907a9100310d02229e2c98a3c3909c9a0",
       "publishedPathRelative": "outputs/blue-gray-acid-template-continued.pptx",
       "sourceUnchanged": true,
       "freshSessions": 3,
@@ -189,17 +189,17 @@
       "taskIdValidated": true,
       "sourceSlide": 1,
       "sourceSlideCount": 8,
-      "continuationKind": "svg-image",
+      "continuationKind": "svg-text",
       "commits": [
         {
           "commitId": "c0001",
-          "revisionSha256": "1d3505e54624b4ab81a5b2c07da9bf1eaf40e97549b16e5ae8c6fb4b714eb986",
+          "revisionSha256": "cd8a496aaf23d153fdc77aa0a20f7d7235f9747e74157a2f8411bb2a1644e3a8",
           "reviewVerdict": "passed-with-limitations",
           "visualReview": "unavailable"
         },
         {
           "commitId": "c0002",
-          "revisionSha256": "4910ff4be4737abbdedca574954d5dc3cecf8eadee333ec72f4a552bcd331a21",
+          "revisionSha256": "922bcaf7d0c05cfa4e7002b6ddd6cfc3a1410eef6062bf99723e89953affea78",
           "reviewVerdict": "passed-with-limitations",
           "visualReview": "unavailable"
         }
@@ -207,14 +207,13 @@
       "finalVerification": {
         "slideCount": 9,
         "sourceSlideCount": 8,
-        "kind": "svg-image",
+        "kind": "svg-text",
         "result": {
-          "foundFirst": true,
           "foundResumed": true,
           "svgImages": 1
         }
       },
-      "publishedSha256": "4910ff4be4737abbdedca574954d5dc3cecf8eadee333ec72f4a552bcd331a21",
+      "publishedSha256": "922bcaf7d0c05cfa4e7002b6ddd6cfc3a1410eef6062bf99723e89953affea78",
       "publishedPathRelative": "outputs/mckinsey-customer-loyalty-continued.pptx",
       "sourceUnchanged": true,
       "freshSessions": 3,
