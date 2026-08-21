@@ -413,7 +413,17 @@ if (candidate.mutationCapability?.supported !== false) process.exit(18);
 if (imported.resolveComponentCandidate(candidate.candidateId)?.candidateId !== candidate.candidateId) process.exit(19);
 const roundTrip = await PresentationFile.exportPptx(imported);
 if (roundTrip.bytes.length !== sourceBlob.bytes.length || roundTrip.bytes.some((value, index) => value !== sourceBlob.bytes[index])) process.exit(20);
-console.log(JSON.stringify({ candidateCount: records.length, status: candidate.status, sourceRevisionSha256: candidate.sourceRevisionSha256 }));
+const sourceSlide = imported.slides.items[0];
+const cloneCapability = sourceSlide.cloneCapability;
+if (cloneCapability.sourceRevisionSha256 !== candidate.sourceRevisionSha256) process.exit(21);
+const reusedSlide = imported.reuseSourceSlide({
+  slideId: sourceSlide.id,
+  sourceRevisionSha256: candidate.sourceRevisionSha256,
+  expectedCloneCapability: cloneCapability,
+});
+const reused = await PresentationFile.exportPptx(imported);
+if (reusedSlide.index !== 1 || (await PresentationFile.importPptx(reused)).slides.count !== 3) process.exit(22);
+console.log(JSON.stringify({ candidateCount: records.length, status: candidate.status, sourceRevisionSha256: candidate.sourceRevisionSha256, reusedSlideCount: 3 }));
 `, "utf8");
   const componentResult = JSON.parse(
     runOfficeKit(["run", "component-candidates.mjs"], project).stdout,
@@ -421,6 +431,7 @@ console.log(JSON.stringify({ candidateCount: records.length, status: candidate.s
   assert.ok(componentResult.candidateCount >= 1);
   assert.equal(componentResult.status, "inspect-only");
   assert.match(componentResult.sourceRevisionSha256, /^[0-9a-f]{64}$/u);
+  assert.equal(componentResult.reusedSlideCount, 3);
 
   const dependencyProject = path.join(temporary, "task-local-dependency");
   const dependencyRoot = path.join(

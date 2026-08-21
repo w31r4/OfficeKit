@@ -41,13 +41,15 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 534);
+assert.equal(HELP_CATALOG.length, 535);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /includeNativeLeaves.*revision-bound.*without exposing part paths/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /includeComponentCandidates.*repeated visual primitives.*inspect-only/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf")?.summary || "", /targetId.*leafId.*expectedHash.*raw XML.*reject/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "presentation.resolveComponentCandidate"));
+assert.ok(HELP_CATALOG.some((item) => item.name === "presentation.reuseSourceSlide"));
+assert.match(HELP_CATALOG.find((item) => item.name === "presentation.reuseSourceSlide")?.summary || "", /sourceRevisionSha256.*ownership evidence.*fail closed/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf")?.summary || "", /chartDataValue.*ChartPart cache.*worksheet cell/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf")?.summary || "", /diagramText.*token-splices.*a:t.*does not reserialize/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "workbook.setDateSystem"));
@@ -745,7 +747,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.setDateContentC
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.schema?.parameters?.dryRun?.type, "boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.summary || "", /SEQ counters.*REF cached results.*PAGEREF.*pagination host/i);
 const presentationCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
-assert.equal(presentationCatalog.length, 115);
+assert.equal(presentationCatalog.length, 116);
 assert.ok(presentationCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slides.insert")?.schema?.parameters?.after?.type, "Slide|number|null");

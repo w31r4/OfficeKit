@@ -4448,6 +4448,7 @@ export async function presentationFromEnvelope(envelope) {
       }),
     });
     const cloneCapability = sourceSlide.source?.cloneCapability;
+    const sourceRevisionSha256 = String(envelope.source?.packageSha256 || envelope.opaqueOpc?.sourcePackage?.sha256 || "").toLowerCase();
     Object.defineProperty(slide, PRESENTATION_SLIDE_CLONE_CAPABILITY, {
       value: Object.freeze({
         sourceBound: true,
@@ -4456,6 +4457,7 @@ export async function presentationFromEnvelope(envelope) {
         blockedReason: cloneCapability?.blockedReason || "",
         clonedPartCount: Number(cloneCapability?.clonedPartCount || 0),
         sharedPartCount: Number(cloneCapability?.sharedPartCount || 0),
+        ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
       }),
     });
     slide.id = sourceSlide.id || slide.id;

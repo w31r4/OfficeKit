@@ -709,6 +709,55 @@ export class Presentation {
     return capability.resolve(candidateId);
   }
 
+  reuseSourceSlide(request = {}) {
+    if (!request || typeof request !== "object" || Array.isArray(request)) {
+      throw new TypeError("Presentation source-slide reuse request must be an object.");
+    }
+    const unsupported = Object.keys(request).filter((key) =>
+      !new Set(["slideId", "sourceRevisionSha256", "expectedCloneCapability"]).has(key));
+    if (unsupported.length) {
+      throw new TypeError(`Presentation source-slide reuse request has unsupported fields: ${unsupported.join(", ")}.`);
+    }
+    const slideId = typeof request.slideId === "string" ? request.slideId.trim() : "";
+    if (!slideId) throw new TypeError("Presentation source-slide reuse requires the exact inspected slideId.");
+    const sourceRevisionSha256 = typeof request.sourceRevisionSha256 === "string"
+      ? request.sourceRevisionSha256.trim().toLowerCase()
+      : "";
+    if (!/^[0-9a-f]{64}$/u.test(sourceRevisionSha256)) {
+      throw new TypeError("Presentation source-slide reuse requires a 64-character sourceRevisionSha256 from inspection.");
+    }
+    const slide = this.slides.items.find((candidate) => candidate.id === slideId);
+    if (!slide) {
+      const error = new Error(`Presentation source slide ${slideId} was not found in this revision.`);
+      error.code = "presentation_source_slide_not_found";
+      throw error;
+    }
+    const capability = slide.cloneCapability;
+    if (!capability.sourceBound || !capability.known || !capability.supported) {
+      const error = new Error(`Presentation source slide ${slideId} cannot be reused safely${capability.blockedReason ? `: ${capability.blockedReason}` : "."}`);
+      error.code = "unsupported_presentation_slide_clone";
+      throw error;
+    }
+    if (capability.sourceRevisionSha256 !== sourceRevisionSha256) {
+      const error = new Error(`Presentation source slide ${slideId} belongs to a different source revision.`);
+      error.code = "stale_presentation_source_revision";
+      throw error;
+    }
+    if (request.expectedCloneCapability !== undefined) {
+      if (!request.expectedCloneCapability || typeof request.expectedCloneCapability !== "object" || Array.isArray(request.expectedCloneCapability)) {
+        throw new TypeError("Presentation source-slide reuse expectedCloneCapability must be an inspection object.");
+      }
+      const expected = JSON.stringify(request.expectedCloneCapability);
+      const actual = JSON.stringify(capability);
+      if (expected !== actual) {
+        const error = new Error(`Presentation source slide ${slideId} clone ownership evidence is stale.`);
+        error.code = "stale_presentation_clone_capability";
+        throw error;
+      }
+    }
+    return slide.duplicate();
+  }
+
   validateLayout(options = {}) {
     const issues = this.slides.items.flatMap((slide) => slide.validateLayout(options).issues);
     return { ok: issues.length === 0, issues, ...ndjson(issues, options.maxChars ?? Infinity) };

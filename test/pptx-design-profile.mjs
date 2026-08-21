@@ -70,6 +70,34 @@ assert.deepEqual(candidatePresentation.resolveComponentCandidate(safeCandidate.c
 assert.equal(candidatePresentation.resolveComponentCandidate("pc_ffffffffffffffffffffffffffffffff"), undefined);
 const noOpCandidateExport = await PresentationFile.exportPptx(candidatePresentation);
 assert.deepEqual([...noOpCandidateExport.bytes], [...sourceBytes], "candidate inspection must not change source bytes");
+
+// A source-bound reuse request carries the exact inspected revision and
+// ownership evidence instead of allowing an Agent to clone by visual guess or
+// array index. The pending clone remains a complete graph until export.
+const reusePresentation = await PresentationFile.importPptx(new FileBlob(sourceBytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }));
+const reusableSlide = reusePresentation.slides.items[0];
+const reuseCapability = reusableSlide.cloneCapability;
+assert.match(reuseCapability.sourceRevisionSha256, /^[0-9a-f]{64}$/u);
+const reusedSlide = reusePresentation.reuseSourceSlide({
+  slideId: reusableSlide.id,
+  sourceRevisionSha256: reuseCapability.sourceRevisionSha256,
+  expectedCloneCapability: reuseCapability,
+});
+assert.equal(reusedSlide.index, 1);
+assert.equal(reusePresentation.slides.count, 5);
+const reusedExport = await PresentationFile.exportPptx(reusePresentation);
+const reusedZip = await JSZip.loadAsync(reusedExport.bytes);
+assert.equal(
+  await reusedZip.file("ppt/slides/slide1.xml").async("text"),
+  slideXml,
+  "source-bound slide reuse must preserve the original SlidePart bytes",
+);
+assert.equal((await PresentationFile.importPptx(reusedExport)).slides.count, 5);
+const staleReusePresentation = await PresentationFile.importPptx(new FileBlob(sourceBytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }));
+assert.throws(
+  () => staleReusePresentation.reuseSourceSlide({ slideId: staleReusePresentation.slides.items[0].id, sourceRevisionSha256: "0".repeat(64) }),
+  (error) => error?.code === "stale_presentation_source_revision",
+);
 const sourceFreeCandidateError = (() => {
   try {
     Presentation.create().inspect({ includeComponentCandidates: true });

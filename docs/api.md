@@ -1878,6 +1878,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `presentation.masters.getItem` | api | Resolve a model-level or imported Slide Master by stable ID or name. |
 | `presentation.resolve` | api | Map stable inspect anchor IDs back to facade objects, including custom shows, PowerPoint sections, and slide transitions; imported advanced package objects may be read-only. |
 | `presentation.resolveComponentCandidate` | api | Resolve one candidateId issued by presentation.inspect({ includeComponentCandidates: true }) to a defensive source-revision-bound reference. Candidates describe repeated visual structure without exposing raw XML or asset bytes; v1 is inspect-only, and ambiguous, opaque, or relationship-bound graphs carry an explicit blocked reason instead of mutation authority. |
+| `presentation.reuseSourceSlide` | api | Reuse one inspected imported slide as a source-bound complete graph after matching its exact slideId, sourceRevisionSha256, and optional clone-capability ownership evidence. The operation delegates to the codec-proven slide clone profile; stale revisions, unsupported graphs, and mismatched ownership evidence fail closed before the pending clone is created. |
 | `presentation.sections.add` | api | Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque. |
 | `presentation.sections.getItem` | api | Resolve a source-free or canonical imported PowerPoint section by zero-based index, stable facade ID, or exact name. |
 | `presentation.slides.add` | api | Append an editable core slide with optional hidden slideshow state, a bounded source-free layout, direct ECMA-376 base transition, solid/style-reference background, and plain-text speaker notes. A supplied layout is resolved and materialized transactionally; effective imported Layout/Master inheritance is never flattened. |
@@ -2616,6 +2617,20 @@ Resolve one candidateId issued by presentation.inspect({ includeComponentCandida
 
 defensive componentCandidate record or undefined
 
+#### `presentation.reuseSourceSlide`
+
+Reuse one inspected imported slide as a source-bound complete graph after matching its exact slideId, sourceRevisionSha256, and optional clone-capability ownership evidence. The operation delegates to the codec-proven slide clone profile; stale revisions, unsupported graphs, and mismatched ownership evidence fail closed before the pending clone is created.
+
+**Schema parameters:**
+
+- `slideId` (string) required — Exact slideId from trusted presentation inspection.
+- `sourceRevisionSha256` (string) required — Exact 64-character source revision SHA-256 from the same inspection.
+- `expectedCloneCapability` (object) — Optional complete cloneCapability record from the same inspection; it is compared to the current source-bound ownership evidence before reuse.
+
+**Schema returns:**
+
+- `slide` (Slide) — Pending source-bound slide clone inserted after the selected slide. The clone must remain unchanged until export/reimport; unsupported graphs and stale source or capability evidence fail closed.
+
 #### `presentation.sections.add`
 
 Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque.
@@ -3002,7 +3017,7 @@ Report whether an imported SlidePart can be copied as one ownership-checked OPC 
 
 **Schema returns:**
 
-- `capability` (object) — Defensive { sourceBound, known, supported, blockedReason, clonedPartCount, sharedPartCount } preflight. clonedPartCount includes the SlidePart and uniquely owned OpenXmlPart descendants; sharedPartCount reports recognized resources rebound to the source package. Export ignores caller claims and re-analyzes the hash-bound package graph.
+- `capability` (object) — Defensive { sourceBound, known, supported, blockedReason, clonedPartCount, sharedPartCount, sourceRevisionSha256 } preflight. clonedPartCount includes the SlidePart and uniquely owned OpenXmlPart descendants; sharedPartCount reports recognized resources rebound to the source package; sourceRevisionSha256 binds a reuse request to the exact imported package. Export ignores caller claims and re-analyzes the hash-bound package graph.
 
 #### `slide.comments.addThread`
 

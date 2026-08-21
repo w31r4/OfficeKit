@@ -11,8 +11,11 @@
 
 ## 2. Source-derived reuse
 
-- [ ] 2.1 Define a source-bound reuse request with source SHA, selected slide or
-  component ID, ownership proof, and expected revision.
+- [x] 2.1 Define a source-bound reuse request with source SHA, selected slide ID,
+  ownership proof, and expected revision. `presentation.reuseSourceSlide` accepts
+  only the exact inspected slideId, sourceRevisionSha256, and optional complete
+  cloneCapability evidence; it delegates to the existing codec-proven complete
+  slide graph clone and rejects stale or mismatched evidence.
 - [x] 2.2 Reuse one codec-proven complete slide graph without sharing mutable
   descendants or changing the original source slide.
 - [x] 2.3 Expose recurring component candidates only as inspectable references;

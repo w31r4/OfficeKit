@@ -22,7 +22,11 @@ Palette and typeface frequencies, normalized geometry rhythm, slide archetypes,
 and repeated component signatures are descriptive evidence. They are not
 permissions. `Presentation.inspect({ includeComponentCandidates: true })` can
 issue defensive `componentCandidate` records with a source revision,
-occurrence IDs, and ownership evidence. V1 is deliberately inspect-only:
+occurrence IDs, and ownership evidence. A complete slide reuse request is
+separately available through `presentation.reuseSourceSlide`, which requires
+the exact inspected slide ID, source SHA, and optional complete clone
+capability evidence before delegating to the codec-proven graph clone. V1 is
+deliberately inspect-only for partial components:
 ambiguous, opaque, and relationship-bound graphs are marked blocked instead of
 being lowered into an unsafe partial component operation.
 

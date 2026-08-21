@@ -3985,6 +3985,7 @@ assert.deepEqual(ownedGraphDeck.slides.getItem(0).cloneCapability, {
   blockedReason: "",
   clonedPartCount: 3,
   sharedPartCount: 1,
+  sourceRevisionSha256: ownedGraphDeck.slides.getItem(0).cloneCapability.sourceRevisionSha256,
 });
 ownedGraphDeck.slides.getItem(0).duplicate();
 const ownedGraphOutput = await PresentationFile.exportPptx(ownedGraphDeck);
