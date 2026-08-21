@@ -6,9 +6,28 @@ const evidence = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/sou
 assert.equal(evidence.schema, "office-kit/pptx-source-agent-continuation-rehearsal/v1");
 assert.deepEqual(evidence.protocol, { repl: 2, visualReview: "unavailable", package: "public-office-kit" });
 assert.equal(evidence.modelBlackBox.required, 3);
-assert.equal(evidence.modelBlackBox.completed, 0);
-assert.equal(evidence.modelBlackBox.status, "open");
-assert.deepEqual(Object.keys(evidence.modelBlackBox).sort(), ["completed", "required", "status"]);
+assert.equal(evidence.modelBlackBox.completed, 3);
+assert.equal(evidence.modelBlackBox.status, "passed");
+assert.equal(evidence.modelBlackBox.trials.length, 3);
+assert.deepEqual(evidence.modelBlackBox.trials.map((trial) => trial.sourceId), [
+  "suanzhi-future-2026",
+  "blue-gray-acid-template",
+  "mckinsey-customer-loyalty",
+]);
+for (const trial of evidence.modelBlackBox.trials) {
+  assert.match(trial.sourceSha256, /^[a-f0-9]{64}$/u);
+  assert.match(trial.outputSha256, /^[a-f0-9]{64}$/u);
+  assert.match(trial.expectedHash, /^[a-f0-9]{64}$/u);
+  assert.deepEqual(trial.changedParts, ["ppt/slides/slide1.xml"]);
+  assert.equal(trial.nonTargetPartsByteIdentical, true);
+  assert.equal(trial.sourceProtected, true);
+  assert.equal(trial.reimported, true);
+  assert.equal(trial.review.verdict, "passed-with-limitations");
+  assert.equal(trial.review.newIssues, 0);
+  assert.equal(trial.review.structural, "passed");
+  assert.equal(trial.review.layout, "passed");
+  assert.equal(trial.review.visualReview, "unavailable");
+}
 assert.deepEqual(evidence.sources.map((source) => source.id), [
   "suanzhi-future-2026",
   "blue-gray-acid-template",

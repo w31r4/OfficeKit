@@ -7,8 +7,78 @@
   },
   "modelBlackBox": {
     "required": 3,
-    "completed": 0,
-    "status": "open"
+    "completed": 3,
+    "status": "passed",
+    "trials": [
+      {
+        "id": "suanzhi-title-edit",
+        "sourceId": "suanzhi-future-2026",
+        "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+        "outputSha256": "f511a284c75b3b5fe459134e9f0c4f890d32e76207341da60fb2922179d67d4e",
+        "operation": "native-text-leaf-edit",
+        "targetId": "presentation/slide/1/element/1",
+        "leafKind": "text",
+        "expectedHash": "4f24f14c0feec59b893c5d7bfa62dfd997fd55304949a6dc452338b195708939",
+        "changedParts": ["ppt/slides/slide1.xml"],
+        "nonTargetPartsByteIdentical": true,
+        "sourceProtected": true,
+        "reimported": true,
+        "review": {
+          "verdict": "passed-with-limitations",
+          "matchedIssues": 553,
+          "newIssues": 0,
+          "structural": "passed",
+          "layout": "passed",
+          "visualReview": "unavailable"
+        }
+      },
+      {
+        "id": "blue-gray-subtitle-edit",
+        "sourceId": "blue-gray-acid-template",
+        "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+        "outputSha256": "0475584106faa7343126793060a75032f728418703a7d37117964af5913bbe4c",
+        "operation": "native-text-leaf-edit",
+        "targetId": "presentation/slide/1/element/6",
+        "leafKind": "text",
+        "expectedHash": "28cfddb4f49a95134791b15c341963625cffe3b8cacc36de40f62c6f81efd35c",
+        "changedParts": ["ppt/slides/slide1.xml"],
+        "nonTargetPartsByteIdentical": true,
+        "sourceProtected": true,
+        "reimported": true,
+        "review": {
+          "verdict": "passed-with-limitations",
+          "matchedIssues": 695,
+          "newIssues": 0,
+          "structural": "passed",
+          "layout": "passed",
+          "visualReview": "unavailable"
+        }
+      },
+      {
+        "id": "mckinsey-safe-image-resize",
+        "sourceId": "mckinsey-customer-loyalty",
+        "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+        "outputSha256": "a53cd4454a7447b97630849164faf59506537e030475abc33091d3d24ae9417b",
+        "operation": "native-picture-width-edit",
+        "targetId": "presentation/slide/1/element/1",
+        "leafKind": "widthEmu",
+        "expectedHash": "48b2ba90ed0c57ed35852169c9f68dec43ff49d1301487892f46832020a67746",
+        "beforeValue": 12192000,
+        "afterValue": 12182475,
+        "changedParts": ["ppt/slides/slide1.xml"],
+        "nonTargetPartsByteIdentical": true,
+        "sourceProtected": true,
+        "reimported": true,
+        "review": {
+          "verdict": "passed-with-limitations",
+          "matchedIssues": 0,
+          "newIssues": 0,
+          "structural": "passed",
+          "layout": "passed",
+          "visualReview": "unavailable"
+        }
+      }
+    ]
   },
   "sources": [
     {
