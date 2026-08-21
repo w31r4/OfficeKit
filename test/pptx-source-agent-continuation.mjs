@@ -5,7 +5,26 @@ import path from "node:path";
 const evidence = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/source-agent-continuation.v1.json"), "utf8"));
 assert.equal(evidence.schema, "office-kit/pptx-source-agent-continuation-rehearsal/v1");
 assert.deepEqual(evidence.protocol, { repl: 2, visualReview: "unavailable", package: "public-office-kit" });
-assert.deepEqual(evidence.modelBlackBox, { required: 3, completed: 0, status: "open" });
+assert.equal(evidence.modelBlackBox.required, 3);
+assert.equal(evidence.modelBlackBox.completed, 3);
+assert.equal(evidence.modelBlackBox.status, "passed");
+assert.equal(evidence.modelBlackBox.sourceId, "suanzhi-future-2026");
+assert.equal(evidence.modelBlackBox.sourceSha256, "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762");
+assert.equal(evidence.modelBlackBox.targetId, "presentation/slide/1/element/1");
+assert.deepEqual(evidence.modelBlackBox.oracle, {
+  sourceUnchanged: true,
+  targetReimported: true,
+  partTopologyPreserved: true,
+  nonTargetPartsByteIdentical: true,
+  forbiddenAuthoringPathsAbsent: true,
+});
+assert.equal(evidence.modelBlackBox.runs.length, 3);
+assert.ok(evidence.modelBlackBox.runs.every((run) =>
+  run.changedParts.length === 1 &&
+  run.changedParts[0] === "ppt/slides/slide1.xml" &&
+  run.review === "inherited-findings-compared" &&
+  run.visualReview === "unavailable" &&
+  run.outputSha256 === "f511a284c75b3b5fe459134e9f0c4f890d32e76207341da60fb2922179d67d4e"));
 assert.deepEqual(evidence.sources.map((source) => source.id), [
   "suanzhi-future-2026",
   "blue-gray-acid-template",

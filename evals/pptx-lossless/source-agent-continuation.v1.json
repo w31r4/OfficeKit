@@ -7,8 +7,43 @@
   },
   "modelBlackBox": {
     "required": 3,
-    "completed": 0,
-    "status": "open"
+    "completed": 3,
+    "status": "passed",
+    "task": "revision-bound slide-1 title edit",
+    "sourceId": "suanzhi-future-2026",
+    "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+    "targetId": "presentation/slide/1/element/1",
+    "replacement": "极致技术，长期验证",
+    "oracle": {
+      "sourceUnchanged": true,
+      "targetReimported": true,
+      "partTopologyPreserved": true,
+      "nonTargetPartsByteIdentical": true,
+      "forbiddenAuthoringPathsAbsent": true
+    },
+    "runs": [
+      {
+        "id": "blackbox-1",
+        "outputSha256": "f511a284c75b3b5fe459134e9f0c4f890d32e76207341da60fb2922179d67d4e",
+        "changedParts": ["ppt/slides/slide1.xml"],
+        "review": "inherited-findings-compared",
+        "visualReview": "unavailable"
+      },
+      {
+        "id": "blackbox-2",
+        "outputSha256": "f511a284c75b3b5fe459134e9f0c4f890d32e76207341da60fb2922179d67d4e",
+        "changedParts": ["ppt/slides/slide1.xml"],
+        "review": "inherited-findings-compared",
+        "visualReview": "unavailable"
+      },
+      {
+        "id": "blackbox-3",
+        "outputSha256": "f511a284c75b3b5fe459134e9f0c4f890d32e76207341da60fb2922179d67d4e",
+        "changedParts": ["ppt/slides/slide1.xml"],
+        "review": "inherited-findings-compared",
+        "visualReview": "unavailable"
+      }
+    ]
   },
   "sources": [
     {

@@ -2,6 +2,8 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+Latest PPTX evidence: three independent Agent runs on the real 算秩未来 source completed the revision-bound title edit with one changed SlidePart and byte-identical non-target parts. The runs prove inherited-finding comparison and source protection; visual review was unavailable on macOS and Windows PowerPoint acceptance remains open.
+
 Status meanings:
 
 - **done**: the modeled OfficeKit operation is supported for creation/import, edit, export, and second import where applicable.
