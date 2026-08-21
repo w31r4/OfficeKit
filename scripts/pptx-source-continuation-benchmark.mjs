@@ -32,17 +32,23 @@ export async function runSourceContinuationBenchmark(assetsDir) {
     const sourceSlidePath = `ppt/slides/slide${source.slide}.xml`;
     const sourceSlideBytes = await sourceZip.file(sourceSlidePath).async("uint8array");
     const presentation = await PresentationFile.importPptx(new FileBlob(sourceBytes, { type: PPTX_MIME }));
+    const sourceSlideCount = presentation.slides.count;
     const origin = presentation.slides.items[source.slide - 1];
     if (!origin.cloneCapability.supported) throw new Error(`${source.id} cannot run continuation: ${origin.cloneCapability.blockedReason}`);
-    origin.duplicate();
+    const pendingClone = origin.duplicate();
+    // Append the derived page rather than inserting it next to the source. This
+    // keeps dynamic slide-number fields on every original page unchanged, so
+    // the native render oracle measures actual collateral drift instead of the
+    // intentional renumbering caused by an insertion in the middle.
+    pendingClone.moveTo(sourceSlideCount);
     const clonedOutput = await PresentationFile.exportPptx(presentation);
     const reopenedClone = await PresentationFile.importPptx(clonedOutput.bytes);
-    const clone = reopenedClone.slides.items[source.slide];
+    const clone = reopenedClone.slides.items[sourceSlideCount];
     const kind = CONTINUATION_KIND[source.id];
     const target = applyContinuation(clone, kind);
     const output = await PresentationFile.exportPptx(reopenedClone);
     const verified = await PresentationFile.importPptx(output.bytes);
-    const verifiedClone = verified.slides.items[source.slide];
+    const verifiedClone = verified.slides.items[sourceSlideCount];
     const verifiedTarget = verifyContinuation(verifiedClone, target);
     const outputZip = await JSZip.loadAsync(output.bytes);
     const sourcePartNames = Object.keys(sourceZip.files).filter((name) => !sourceZip.files[name].dir).sort();
@@ -64,7 +70,7 @@ export async function runSourceContinuationBenchmark(assetsDir) {
       sourceSha256: sha256(sourceBytes),
       sourceSlideSha256: sha256(sourceSlideBytes),
       sourceSlidePart: sourceSlidePath,
-      sourceSlideCount: presentation.slides.count - 1,
+      sourceSlideCount,
       outputSlideCount: verified.slides.count,
       kind,
       cloneOutputSha256: sha256(clonedOutput.bytes),
@@ -85,7 +91,7 @@ export async function runSourceContinuationBenchmark(assetsDir) {
   return { schema: EVIDENCE_SCHEMA, sources: results };
 }
 
-function applyContinuation(slide, kind) {
+export function applyContinuation(slide, kind) {
   if (kind === "text") {
     const shape = slide.shapes.items.find((candidate) => candidate.text?.value);
     if (!shape) throw new Error(`No editable text leaf found on cloned slide ${slide.index + 1}.`);
@@ -106,7 +112,7 @@ function applyContinuation(slide, kind) {
   throw new Error(`Unknown continuation kind ${kind}.`);
 }
 
-function verifyContinuation(slide, target) {
+export function verifyContinuation(slide, target) {
   if (target.kind === "text") {
     const shape = slide.shapes.getItem(target.id) || slide.shapes.items.find((candidate) => candidate.text?.value === target.after);
     if (!shape || shape.text.value !== target.after) throw new Error(`Continuation text ${target.id} did not survive reimport.`);

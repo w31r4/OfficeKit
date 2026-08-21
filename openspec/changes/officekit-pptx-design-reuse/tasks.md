@@ -17,8 +17,8 @@
   descendants or changing the original source slide.
 - [ ] 2.3 Expose recurring component candidates only as inspectable references;
   reject ambiguous, shared, or opaque component graphs before mutation.
-- [ ] 2.4 Add review, second-import, package-footprint, and native-render checks
-  for reused slides and components.
+- [x] 2.4 Add review, second-import, package-footprint, and native-render checks
+  for the bounded reused-slide slice; component candidates remain gated by 2.3.
 
 ## 3. Same-style continuation
 

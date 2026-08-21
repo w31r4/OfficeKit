@@ -10,8 +10,8 @@
       "sourceSlideCount": 21,
       "outputSlideCount": 22,
       "kind": "text",
-      "cloneOutputSha256": "0ce355f62584f6f42db0780100153796793a639b460ba75969cb2c5489bbec05",
-      "outputSha256": "cbd9f0867d552024865ed86e09797adf58764335daac0e843d95f6595f6c9e4a",
+      "cloneOutputSha256": "b06434cd2e41d3348f947cd5c93cbc44194f3312171f8d47b011177db0204963",
+      "outputSha256": "482681e3f5e851cc01d4b05c66597da90a5b72d591806e90fff94ae7e658b49a",
       "sourceSlideUnchanged": true,
       "changedExistingParts": [
         "[Content_Types].xml",
@@ -30,12 +30,12 @@
       ],
       "target": {
         "kind": "text",
-        "id": "presentation/slide/2/element/1",
+        "id": "presentation/slide/22/element/1",
         "before": "极致技术，长期主义",
         "after": "极致技术，长期主义 · OfficeKit continuation"
       },
       "verifiedTarget": {
-        "id": "presentation/slide/2/element/1",
+        "id": "presentation/slide/22/element/1",
         "value": "极致技术，长期主义 · OfficeKit continuation"
       }
     },
@@ -48,8 +48,8 @@
       "sourceSlideCount": 19,
       "outputSlideCount": 20,
       "kind": "text",
-      "cloneOutputSha256": "b0a02b35594e4a693e3782fed6b508e31633f4d1129a80447868b5393ec7a9a5",
-      "outputSha256": "e0a1e20f1ba8b4fbabd38e36f59e67566b67a1928912fc3eeac142d921c605d7",
+      "cloneOutputSha256": "b9c903e7077d2b4fea38fabd045da8354c0b213d14273f90a8baef815afe9178",
+      "outputSha256": "20963f6833b3e50f4a01d189bb3cee208e4f8456d9a91d694ada854d9d8a1937",
       "sourceSlideUnchanged": true,
       "changedExistingParts": [
         "[Content_Types].xml",
@@ -71,12 +71,12 @@
       ],
       "target": {
         "kind": "text",
-        "id": "presentation/slide/2/element/6",
+        "id": "presentation/slide/20/element/6",
         "before": "单击此处添加副标题内容",
         "after": "单击此处添加副标题内容 · OfficeKit continuation"
       },
       "verifiedTarget": {
-        "id": "presentation/slide/2/element/6",
+        "id": "presentation/slide/20/element/6",
         "value": "单击此处添加副标题内容 · OfficeKit continuation"
       }
     },
@@ -89,8 +89,8 @@
       "sourceSlideCount": 8,
       "outputSlideCount": 9,
       "kind": "svg-image",
-      "cloneOutputSha256": "fb90146691dba0e07a7090c44465c2443d8322aee1661ae0cb463c28b88d661f",
-      "outputSha256": "1daa8bbf140e3766e636a10dc9da73c9d71f6930f0195db644dcbe5abf51b3bd",
+      "cloneOutputSha256": "291303ad493cc0f9aeb75d419e7261ef7b8afa0eeb8e5c9b56c9cd2e590972fa",
+      "outputSha256": "86780bad850b2cc205c9d295978ca04e382113f6be7d8225875a2085316aa96f",
       "sourceSlideUnchanged": true,
       "changedExistingParts": [
         "[Content_Types].xml",
@@ -110,11 +110,11 @@
       ],
       "target": {
         "kind": "svg-image",
-        "id": "presentation/slide/2/element/1",
+        "id": "presentation/slide/9/element/1",
         "marker": "data-officekit=\"continuation\""
       },
       "verifiedTarget": {
-        "id": "presentation/slide/2/element/1",
+        "id": "presentation/slide/9/element/1",
         "marker": "data-officekit=\"continuation\""
       }
     }
