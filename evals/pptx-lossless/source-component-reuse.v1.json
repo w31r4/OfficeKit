@@ -1,0 +1,45 @@
+{
+  "schema": "office-kit/pptx-source-component-reuse-evidence/v1",
+  "sources": [
+    {
+      "id": "suanzhi-future-2026",
+      "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+      "sourceSlideCount": 21,
+      "candidateCount": 48,
+      "inspectOnlyCandidateCount": 11,
+      "status": "blocked",
+      "failures": {
+        "unsupported_presentation_component_reuse": 11
+      }
+    },
+    {
+      "id": "blue-gray-acid-template",
+      "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+      "sourceSlideCount": 19,
+      "candidateCount": 50,
+      "inspectOnlyCandidateCount": 22,
+      "status": "blocked",
+      "failures": {
+        "unsupported_presentation_component_reuse": 22
+      }
+    },
+    {
+      "id": "mckinsey-customer-loyalty",
+      "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+      "sourceSlideCount": 8,
+      "candidateCount": 1,
+      "inspectOnlyCandidateCount": 1,
+      "status": "passed",
+      "failures": {},
+      "candidateId": "pc_b74445550ca49d445821036a8ba61daf",
+      "occurrenceCount": 8,
+      "cloneSlideIndex": 1,
+      "cloneElementCount": 1,
+      "sourceBytes": 47589,
+      "outputBytes": 48563,
+      "reopenedSlideCount": 9,
+      "nonTargetPartMismatches": [],
+      "outputSha256": "6d1453ad9c7c17d17d6c9542775ccea6be46ef57168d191f17a3a3fcfaaa5e0d"
+    }
+  ]
+}

@@ -30,6 +30,10 @@
 - [x] 2.5 Add review, second-import, package-footprint, and native-render checks
   for both complete-slide and component reuse. Arbitrary partial component
   mutation, nested component extraction, and raw XML remain out of scope.
+- [x] 2.6 Run the component-reuse scan against all three external benchmark
+  decks and freeze the evidence. The McKinsey repeated-image candidate passes
+  with zero non-topology part drift; the 算秩未来 and blue-gray candidates
+  remain explicit blocked coverage gaps until sibling deletion proofs close.
 
 ## 3. Same-style continuation
 

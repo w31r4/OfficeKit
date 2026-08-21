@@ -10,6 +10,7 @@ const evidence = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/evi
 const controls = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/controls.v1.json"), "utf8"));
 const designProfiles = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/design-profiles.v1.json"), "utf8"));
 const sourceReuse = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/source-reuse.v1.json"), "utf8"));
+const sourceComponentReuse = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/source-component-reuse.v1.json"), "utf8"));
 
 assert.equal(manifest.schema, "office-kit/pptx-lossless-benchmark/v1");
 assert.equal(manifest.sources.length, 4);
@@ -164,6 +165,31 @@ for (const reuse of sourceReuse.sources) {
     assert.equal(reuse.addedParts.some((part) => /^ppt\/slides\/slide\d+\.xml$/u.test(part)), true);
   } else {
     assert.match(reuse.blockedReason, /shared|referenced|unsupported/i);
+  }
+}
+
+assert.equal(sourceComponentReuse.schema, "office-kit/pptx-source-component-reuse-evidence/v1");
+assert.deepEqual(sourceComponentReuse.sources.map((source) => source.id), [
+  "suanzhi-future-2026",
+  "blue-gray-acid-template",
+  "mckinsey-customer-loyalty",
+]);
+for (const reuse of sourceComponentReuse.sources) {
+  const declared = manifest.sources.find((source) => source.id === reuse.id);
+  assert.ok(declared);
+  assert.equal(reuse.sourceSha256, declared.sha256);
+  assert.equal(reuse.sourceSlideCount, declared.inventory.slideCount);
+  assert.equal(reuse.candidateCount >= reuse.inspectOnlyCandidateCount, true);
+  if (reuse.status === "blocked") {
+    assert.equal(reuse.inspectOnlyCandidateCount > 0, true);
+    assert.equal(reuse.failures.unsupported_presentation_component_reuse, reuse.inspectOnlyCandidateCount);
+  } else {
+    assert.equal(reuse.status, "passed");
+    assert.match(reuse.candidateId, /^pc_[0-9a-f]{32}$/u);
+    assert.equal(reuse.nonTargetPartMismatches.length, 0);
+    assert.equal(reuse.reopenedSlideCount, reuse.sourceSlideCount + 1);
+    assert.equal(reuse.cloneElementCount >= 1, true);
+    assert.match(reuse.outputSha256, /^[a-f0-9]{64}$/u);
   }
 }
 

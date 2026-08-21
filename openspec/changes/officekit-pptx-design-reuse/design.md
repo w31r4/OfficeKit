@@ -57,6 +57,9 @@ evidence for the task protocol, not a model black-box score. The change now
 includes a bounded top-level component reuse operation with sibling deletion
 proofs; arbitrary component mutation and native-host acceptance remain later
 gates rather than turning visual similarity into an unproven mutation authority.
+The three-sample scan records one passing McKinsey repeated-image candidate and
+keeps all currently blocked 算秩未来/blue-gray candidates visible as coverage
+gaps.
 
 ## Non-Goals
 

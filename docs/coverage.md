@@ -6,6 +6,8 @@ Latest PPTX evidence: three independent Agent runs on the real 算秩未来 sour
 
 The source-derived reuse slice now also issues a bounded `presentation.reuseSourceComponent` operation: one exact top-level repeated candidate may become a new slide only when every removed sibling has an independent deletion proof and no retained connector would dangle. Nested, opaque, ambiguous, comment-bound, and relationship-bound candidates remain blocked.
 
+The three-sample component scan records the boundary honestly: the McKinsey sample has one passed repeated-image reuse with zero non-topology part drift; the 算秩未来 and blue-gray samples currently reject all inspect-only candidates because their sibling deletion proofs do not close. This is an open coverage gap, not a mutation claim.
+
 Status meanings:
 
 - **done**: the modeled OfficeKit operation is supported for creation/import, edit, export, and second import where applicable.
