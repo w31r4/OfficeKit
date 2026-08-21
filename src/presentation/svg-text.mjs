@@ -22,7 +22,12 @@ function decodeSvgDataUrl(dataUrl) {
   const base64 = match[1].replace(/\s+/gu, "");
   const bytes = Buffer.from(base64, "base64");
   if (!bytes.length || bytes.length > MAX_SVG_TEXT_BYTES) return undefined;
-  const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  let source;
+  try {
+    source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return undefined;
+  }
   if (!/^\s*<svg\b[^>]*>/iu.test(source) || !/<\/svg>\s*$/iu.test(source)) return undefined;
   return { bytes, source };
 }

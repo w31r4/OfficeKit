@@ -31,6 +31,7 @@ const WIDE_SVG = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://ww
 const TALL_SVG = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 400"><rect width="200" height="200" fill="#2563eb"/><rect y="200" width="200" height="200" fill="#f97316"/></svg>').toString("base64")}`;
 const SVG_TEXT = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><text id="title" x="20" y="40">Hello &amp; OfficeKit</text><text id="rich" x="20" y="80"><tspan>Editable leaf</tspan></text></svg>').toString("base64")}`;
 const UNSAFE_SVG_TEXT = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><script>alert(1)</script><text>Do not edit</text></svg>').toString("base64")}`;
+const INVALID_UTF8_SVG = `data:image/svg+xml;base64,${Buffer.from([0x3c, 0x73, 0x76, 0x67, 0x3e, 0xc3, 0x28, 0x3c, 0x2f, 0x73, 0x76, 0x67, 0x3e]).toString("base64")}`;
 
 const chartSemanticContentTypes = {
   defaults: new Map(),
@@ -196,6 +197,9 @@ assert.throws(
 const unsafeSvgImage = svgTextDeck.slides.add({ name: "Unsafe SVG" }).images.add({ dataUrl: UNSAFE_SVG_TEXT, position: { left: 0, top: 0, width: 100, height: 100 } });
 assert.equal(unsafeSvgImage.svgTextCapability.supported, false);
 assert.throws(() => unsafeSvgImage.editSvgText("svg-text-1", { expectedHash: "0".repeat(64), value: "blocked" }), (error) => error.code === "unsupported_presentation_svg_text");
+const invalidUtf8SvgImage = svgTextDeck.slides.add({ name: "Invalid UTF-8 SVG" }).images.add({ dataUrl: INVALID_UTF8_SVG, position: { left: 0, top: 0, width: 100, height: 100 } });
+assert.equal(invalidUtf8SvgImage.svgTextCapability.supported, false);
+assert.match(invalidUtf8SvgImage.svgTextCapability.reason, /bounded base64 SVG/);
 
 const normalAutoFitDeck = Presentation.create({ slideSize: { width: 1280, height: 720 } });
 const normalAutoFitShape = normalAutoFitDeck.slides.add({ name: "Normal AutoFit" }).shapes.add({
