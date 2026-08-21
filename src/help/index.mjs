@@ -683,7 +683,7 @@ const HELP_DETAIL_OVERRIDES = {
         input: { type: "string|FileBlob|Uint8Array|Blob|Workbook|Presentation|DocumentModel|PdfArtifact", required: true, description: "Final artifact path, bytes, or model. Modeled input is exported and reopened before review." },
         format: { type: "string", description: "Required only when raw bytes do not carry a supported MIME type; docx, xlsx, pptx, or pdf." },
         source: { type: "string|FileBlob|Uint8Array|Blob", description: "Optional read-only source used for SHA-256 and canonical input/output collision evidence." },
-        baseline: { type: "string|FileBlob|Uint8Array|Blob|Workbook|Presentation|DocumentModel|PdfArtifact", description: "Optional pre-edit artifact. Exact matching semantic/structural/layout issues are marked preexisting warnings; new errors still fail the review." },
+        baseline: { type: "string|FileBlob|Uint8Array|Blob|Workbook|Presentation|DocumentModel|PdfArtifact", description: "Optional pre-edit artifact. Exact matching semantic/layout issues are marked preexisting warnings; structural package failures and new errors still fail the review." },
         outputPath: { type: "string", description: "Absolute or working-directory-relative final path when reviewing an in-memory model." },
         contentView: { type: "string|boolean", description: "Set to anydoc or true to request the bounded text reading view. Omitted, none, or false does not initialize its AnyDoc parser." },
         visualReview: { type: "string", description: "Caller-attested complete, unavailable, or requires-human. Text reading/OCR output never qualifies as complete." },

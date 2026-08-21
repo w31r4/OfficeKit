@@ -41,7 +41,8 @@ three samples are rendered through LibreOffice and Poppler; every original
 page is pixel-identical after the appended continuation page, and the new page
 is required to render non-blank. Source-bound review can compare an edited
 artifact with its pre-edit baseline and downgrade only exact pre-existing
-semantic/structural/layout issues; new errors remain blocking. A deterministic
+semantic/layout issues; structural package failures and new errors remain
+blocking. A deterministic
 public-REPL rehearsal now runs three fresh task workspaces through two commits,
 two resumes, verification, and publish without changing the source. It is
 evidence for the task protocol, not a model black-box score. The change still

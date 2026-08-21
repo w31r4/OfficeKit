@@ -205,7 +205,10 @@ function reviewIssueFingerprint(issue) {
 }
 
 function applyBaselineReview(report, baselineReport) {
-  const sections = ["semantic", "structural", "layout"];
+  // A source-bound baseline may explain unchanged modeled/layout findings,
+  // but it never masks a structural package failure. The package itself must
+  // still reopen and pass the independent OPC inspection.
+  const sections = ["semantic", "layout"];
   let matchedIssues = 0;
   let newIssues = 0;
   for (const sectionName of sections) {
