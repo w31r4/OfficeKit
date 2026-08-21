@@ -33,6 +33,18 @@ missing task ID fails; it never creates a new task by typo.
 Use `officekit run task.mjs` instead for a genuinely one-shot script that does
 not need a durable editing context.
 
+`officekit repl` is a long-lived JSONL process: a bare invocation waits for
+JSONL on standard input and is not a one-shot command. Do not launch it without
+an input stream. For a quick probe, pipe one or more cells explicitly:
+
+```bash
+printf '%s\n' '{"id":"probe","code":"return 1;"}' | officekit repl --new "Probe"
+```
+
+For a resumed task, capture the `session.ready` response first, then send the
+cells through the same process (or a new process with a JSONL input stream).
+Use `officekit run` when no interactive or durable session is required.
+
 ## Execute JSONL cells
 
 The REPL reads `{id, code}` JSON objects from standard input and writes one JSON
