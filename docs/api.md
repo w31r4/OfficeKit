@@ -1846,7 +1846,10 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `image.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for picture p:cNvPr title/description/decorative metadata; export re-proves the residual-protected picture profile. |
 | `image.delete` | api | Explicitly remove a source-free image or one capability-proven imported top-level embedded picture. The source-bound transaction removes the p:pic subtree and exact relationship, garbage-collects only exclusively owned media descendants, preserves shared media, and rejects external/ambiguous/identity-sensitive graphs or raw array mutation. |
 | `image.deletionCapability` | api | Report whether one imported top-level embedded picture can be deleted with its exact SlidePart relationship and exclusively owned media closure. Shared media survives; export re-proves relationship use, native identity, comments, connectors, timing, and extensions from source bytes. |
+| `image.editSvgText` | api | Replace one issued direct SVG text/tspan leaf after expectedHash verification with an escaped value. The bounded image-byte transaction preserves the rest of the SVG, rejects active/external content and stale/no-op edits, and remains verifiable after PPTX export/reimport. |
+| `image.getSvgTextNodes` | api | Return defensive source-issued SVG text/tspan leaves for an image. Each leaf has a stable image-local ID, text, tag, and expectedHash; the returned records cannot mutate the image. |
 | `image.setAccessibilityMetadata` | api | Transactionally add, change, or clear a picture's non-visible title/description/decorative metadata. The legacy image.alt property reads and writes the same description state rather than creating a second metadata source. |
+| `image.svgTextCapability` | api | Report bounded direct SVG text/tspan leaves for a base64 SVG image, including the image-byte SHA-256 and exact replacement hashes. Active content, external references, oversized SVGs, and nested/non-text leaves remain unsupported. |
 | `importPptxWithOfficeKit` | api | Import PPTX bytes with editable bounded direct slide backgrounds, shapes, free-positioned p:sp lines including bounded line ends/caps/joins, rich text, recognized owner-local SlidePart placeholder text, rectangular pictures and native source rectangles, tables, target-bound p:cxnSp connectors, recursive canonical p:grpSp groups, bar/line/pie charts, the canonical literal clustered bar+line combo profile with either shared primary axes or a secondary line pair, legacy text-only speaker notes plus fixed-topology relationship-free rich notes and a re-proven addable capability for eligible notes-absent slides, unchanged-only legacy comments, fixed-topology modern comment text/status edits, defensive payload access for eligible OLE XLSX workbooks plus one uniquely bound DOCX Office-package profile, and a source-bound SmartArt text capability only for a canonical closed four-part DiagramDataPart whose nodes use fixed direct paragraphs with optional empty paragraphs, between one and 256 total direct plain runs, and canonical fixed a:br leaves. Compound/theme/custom-dash/effect/extension outlines and all other unsupported content remain source-bound and read-only rather than being flattened. |
 | `nativeObject.getEmbeddedOfficePackage` | api | Read a defensive FileBlob copy from an eligible source-bound top-level OLE package. It is compatible with the legacy XLSX workbook profile and currently adds one uniquely bound DOCX profile; it never exposes arbitrary OLE or native-part mutation. |
 | `nativeObject.getEmbeddedWorkbook` | api | Read a defensive FileBlob copy of the XLSX payload from an eligible source-bound top-level OLE object without exposing arbitrary native-part mutation. |
@@ -2174,6 +2177,27 @@ Report whether one imported top-level embedded picture can be deleted with its e
 
 - `capability` (object) — Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. nativeId is package-local p:cNvPr evidence. Export ignores caller claims and re-proves one direct p:pic, one uniquely used embedded-image relationship, media-part ownership, and absence of connector/comment/timing/extension identity consumers.
 
+#### `image.editSvgText`
+
+Replace one issued direct SVG text/tspan leaf after expectedHash verification with an escaped value. The bounded image-byte transaction preserves the rest of the SVG, rejects active/external content and stale/no-op edits, and remains verifiable after PPTX export/reimport.
+
+**Schema parameters:**
+
+- `nodeId` (string) required — Exact image-local SVG leaf ID returned by getSvgTextNodes().
+- `update` (object) required — Exactly { expectedHash, value }; value is escaped as SVG text and is bounded to 32767 characters without XML controls.
+
+**Schema returns:**
+
+- `image` (ImageElement) — Same image after one image-byte-bound direct SVG text/tspan replacement. The expected hash must match the current image bytes; active/external SVG, stale, missing, and no-op edits fail closed.
+
+#### `image.getSvgTextNodes`
+
+Return defensive source-issued SVG text/tspan leaves for an image. Each leaf has a stable image-local ID, text, tag, and expectedHash; the returned records cannot mutate the image.
+
+**Schema returns:**
+
+- `image text nodes` (object[]) — Defensive copies of the currently issued direct SVG text/tspan leaves. Reinspect after every image replacement or edit; this is not a raw XML selector API.
+
 #### `image.setAccessibilityMetadata`
 
 Transactionally add, change, or clear a picture's non-visible title/description/decorative metadata. The legacy image.alt property reads and writes the same description state rather than creating a second metadata source.
@@ -2185,6 +2209,14 @@ Transactionally add, change, or clear a picture's non-visible title/description/
 **Schema returns:**
 
 - `image` (ImageElement) — Same image. The legacy alt property is the description alias; residual-protected unknown cNvPr children are preserved across a bounded metadata edit.
+
+#### `image.svgTextCapability`
+
+Report bounded direct SVG text/tspan leaves for a base64 SVG image, including the image-byte SHA-256 and exact replacement hashes. Active content, external references, oversized SVGs, and nested/non-text leaves remain unsupported.
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { supported, reason, sourceSha256, nodes[] } evidence for a bounded base64 SVG image. Nodes are direct text/tspan leaves with image-local IDs and expectedHash values.
 
 #### `importPptxWithOfficeKit`
 
