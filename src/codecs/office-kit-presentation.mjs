@@ -2680,6 +2680,16 @@ function registerPresentationCloneAssets(element, assetCatalog) {
 
 function presentationOpaque(object, original, snapshot, assetCatalog) {
   if (opaquePresentationSnapshot(object) !== snapshot) {
+    // A semantically opaque picture may still expose only its direct frame as
+    // a source-issued native leaf. Keep the opaque payload byte-bound while
+    // allowing the Edit Plan compiler to consume that geometry change.
+    if (original?.content?.case === "opaque" &&
+        original.content.value.nativeKind === "picture" &&
+        original.source?.editable === true &&
+        hasPendingPresentationNativeLeafEdit(object) &&
+        opaquePresentationSnapshotWithoutPosition(object) === opaquePresentationSnapshotWithoutPosition(snapshot)) {
+      return original;
+    }
     const message = object.oleWorkbook || object.oleOfficePackage
       ? `Presentation native element ${object.id} changed outside its bounded embedded Office package replacement boundary.`
       : `Presentation native element ${object.id} is source-bound and read-only in OfficeKit 0.2.`;
@@ -2727,6 +2737,18 @@ function presentationOpaque(object, original, snapshot, assetCatalog) {
       },
     },
   };
+}
+
+function hasPendingPresentationNativeLeafEdit(object) {
+  const pending = object?.slide?.presentation?.[PRESENTATION_STATE]?.pendingNativeLeafEdits;
+  return Boolean([...pending?.values?.() || []].some((entry) => entry?.leaf?.rootEntry?.model === object));
+}
+
+function opaquePresentationSnapshotWithoutPosition(value) {
+  const snapshot = JSON.parse(typeof value === "string" ? value : opaquePresentationSnapshot(value));
+  const copy = { ...snapshot };
+  delete copy.position;
+  return JSON.stringify(copy);
 }
 
 export function presentationEnvelope(presentation, protocolVersion) {
@@ -3426,14 +3448,16 @@ function createPresentationNativeLeafCapability(presentation, state) {
       const modelBinding = model?._nativeChartSourceBinding?.();
       const currentLeaves = model?._nativeChartTitleRecords?.();
       const currentDataPoints = model?._nativeChartDataPointRecords?.();
-      if (!binding || !modelBinding || !Array.isArray(currentLeaves) ||
-          binding.partPath !== modelBinding.partPath || binding.contentType !== modelBinding.contentType ||
-          binding.sourceSha256 !== modelBinding.sourceSha256 || binding.relationshipId !== modelBinding.relationshipId ||
-          binding.titleLeaves.length !== currentLeaves.length || binding.embeddedPackagePartPath !== modelBinding.embeddedPackagePartPath ||
-          binding.embeddedPackageSourceSha256 !== modelBinding.embeddedPackageSourceSha256 ||
-          binding.embeddedPackageRelationshipId !== modelBinding.embeddedPackageRelationshipId ||
-          binding.dataPoints.length !== currentDataPoints.length) return;
-      for (let index = 0; index < binding.titleLeaves.length; index += 1) {
+      if (binding || modelBinding || Array.isArray(currentLeaves) || Array.isArray(currentDataPoints)) {
+        if (!binding || !modelBinding || !Array.isArray(currentLeaves) ||
+            !Array.isArray(currentDataPoints) ||
+            binding.partPath !== modelBinding.partPath || binding.contentType !== modelBinding.contentType ||
+            binding.sourceSha256 !== modelBinding.sourceSha256 || binding.relationshipId !== modelBinding.relationshipId ||
+            binding.titleLeaves.length !== currentLeaves.length || binding.embeddedPackagePartPath !== modelBinding.embeddedPackagePartPath ||
+            binding.embeddedPackageSourceSha256 !== modelBinding.embeddedPackageSourceSha256 ||
+            binding.embeddedPackageRelationshipId !== modelBinding.embeddedPackageRelationshipId ||
+            binding.dataPoints.length !== currentDataPoints.length) return;
+        for (let index = 0; index < binding.titleLeaves.length; index += 1) {
         const leaf = binding.titleLeaves[index];
         const current = currentLeaves[index];
         if (leaf.textLeafIndex !== index || current.textLeafIndex !== index || leaf.text !== current.text) return;
@@ -3456,8 +3480,8 @@ function createPresentationNativeLeafCapability(presentation, state) {
           normalize(next) { assertNativeLeafTextValue(next); return { raw: next, publicValue: next }; },
           apply(next) { model._setNativeChartTitleLeaf(index, next); },
         });
-      }
-      for (let index = 0; index < binding.dataPoints.length; index += 1) {
+        }
+        for (let index = 0; index < binding.dataPoints.length; index += 1) {
         const point = binding.dataPoints[index];
         const current = currentDataPoints[index];
         if (point.seriesIndex !== current.seriesIndex || point.pointIndex !== current.pointIndex || point.value !== current.value ||
@@ -3498,8 +3522,37 @@ function createPresentationNativeLeafCapability(presentation, state) {
           },
           apply(next) { model._setNativeChartDataPoint(point.seriesIndex, point.pointIndex, next); },
         });
+        }
+        return;
       }
-      return;
+      if (wire.content.value.nativeKind === "picture" && wire.source?.editable === true) {
+        for (const [field, leafKind] of PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, candidate]) => candidate.endsWith("Emu"))) {
+          const raw = String(wire.content.value[field] ?? "");
+          if (!/^-?[0-9]+$/u.test(raw)) continue;
+          const frameField = ({ leftEmu: "left", topEmu: "top", widthEmu: "width", heightEmu: "height" })[leafKind];
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind,
+            expectedValue: raw,
+            value: Number(raw),
+            unit: "emu",
+            normalize(next) {
+              if (typeof next !== "string" && typeof next !== "number") {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires an integer EMU value.`);
+              }
+              const token = String(next).trim();
+              let integer;
+              try { integer = BigInt(token); }
+              catch { throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires an integer EMU value.`); }
+              if (String(integer) !== token || integer < BigInt(Number.MIN_SAFE_INTEGER) || integer > BigInt(Number.MAX_SAFE_INTEGER) || ((leafKind === "widthEmu" || leafKind === "heightEmu") && integer <= 0n)) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf is outside the safe integer geometry range.`);
+              }
+              return { raw: String(integer), publicValue: Number(integer) };
+            },
+            apply(next) { model.position = { ...model.position, [frameField]: Number(next) / EMU_PER_PIXEL }; },
+          });
+        }
+        return;
+      }
     }
     const isShape = wire.content.case === "shape";
     const isImage = wire.content.case === "image";

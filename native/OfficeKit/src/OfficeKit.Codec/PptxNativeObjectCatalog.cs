@@ -293,12 +293,35 @@ internal sealed class PptxNativeObjectCatalog
     }
 
     // Placement editing is intentionally narrower than native-object graph
-    // discovery. Only the three recognized top-level roots with complete
-    // owner transforms and non-visual names are editable; every relationship,
-    // part, descendant and other attribute remains source-bound.
+    // discovery. Only roots with a complete owner transform and non-visual
+    // identity are editable; every relationship, part, descendant and other
+    // attribute remains source-bound. A picture may be opaque when its
+    // payload/effects fall outside the semantic image reader, but its direct
+    // frame is still an independently provable geometry leaf.
     internal static bool SupportsPlacementEditing(OpenXmlElement source)
     {
         var kind = Classify(source);
+        if (kind == "picture" && source is P.Picture picture)
+        {
+            var properties = picture.ShapeProperties;
+            var transform = properties?.GetFirstChild<A.Transform2D>();
+            var blip = picture.BlipFill?.GetFirstChild<A.Blip>();
+            var blipAttributes = blip?.GetAttributes().ToArray() ?? [];
+            var crop = picture.BlipFill?.GetFirstChild<A.SourceRectangle>();
+            var cropAttributes = crop?.GetAttributes().ToArray() ?? [];
+            var cropSafe = crop is null || (!crop.HasChildren &&
+                cropAttributes.All(attribute => attribute.LocalName is "l" or "t" or "r" or "b"));
+            return picture.NonVisualPictureProperties?.NonVisualDrawingProperties is not null &&
+                   properties is not null &&
+                   properties.ChildElements.OfType<A.Transform2D>().Count() == 1 &&
+                   transform?.Offset is not null &&
+                   transform.Extents is not null &&
+                   blipAttributes.Length == 1 &&
+                   RelationshipNamespaces.Contains(blipAttributes[0].NamespaceUri) &&
+                   blipAttributes[0].LocalName is "embed" or "link" &&
+                   !string.IsNullOrWhiteSpace(blipAttributes[0].Value) &&
+                   cropSafe;
+        }
         if (kind is "oleObject" or "diagram" && source is P.GraphicFrame frame)
         {
             return frame.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties is not null &&

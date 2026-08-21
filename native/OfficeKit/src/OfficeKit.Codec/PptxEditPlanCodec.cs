@@ -313,8 +313,9 @@ internal static partial class PptxEditPlanCodec
                 ProveLeafValue(shape, operation);
             }
             else if (element is P.Picture picture &&
-                     projectedElement.ContentCase == PresentationElement.ContentOneofCase.Image &&
+                     (projectedElement.ContentCase is PresentationElement.ContentOneofCase.Image or PresentationElement.ContentOneofCase.Opaque) &&
                      projectedElement.Source.Editable &&
+                     PptxNativeObjectCatalog.SupportsPlacementEditing(picture) &&
                      IsGeometryLeaf(LeafKind(operation)))
             {
                 ProveLeafValue(picture, operation);

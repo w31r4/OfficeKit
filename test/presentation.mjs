@@ -508,6 +508,48 @@ await assertOnlyDeclaredPptxFootprintChanged(irregularShapeAccessibilityFile, na
 const nativeImageGeometryRoundTrip = await PresentationFile.importPptx(nativeImageGeometryOutput);
 assert.equal(nativeImageGeometryRoundTrip.resolve(nativeImageGeometry.id).position.left, nativeImageNextLeft / 9_525);
 
+// A picture whose visual payload is outside the semantic image profile must
+// remain opaque, but its direct frame is still a safe native-leaf boundary.
+// Add an unrelated non-visual attribute to force opaque projection, then move
+// only the proven a:xfrm token and require the residual picture XML to survive.
+const opaquePictureZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const opaquePictureXml = (await opaquePictureZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(/(<p:cNvPr\b[^>]*\bname="decision-evidence")/, '$1 xmlns:fixture="urn:office-kit:opaque-picture" fixture:opaque="kept"')
+  .replace(/(<p:pic\b[\s\S]*?<\/p:spPr>)/, (match) => match.replace("</p:spPr>", '<a:extLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:ext uri="{office-kit-opaque-picture}" /></a:extLst></p:spPr>'));
+opaquePictureZip.file("ppt/slides/slide1.xml", opaquePictureXml);
+const opaquePictureFile = new FileBlob(
+  await opaquePictureZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const opaquePictureImported = await PresentationFile.importPptx(opaquePictureFile);
+const opaquePicture = itemByName(opaquePictureImported.slides.getItem(0).nativeObjects.items, "decision-evidence");
+assert.equal(opaquePicture.nativeKind, "picture");
+const opaquePictureDirectMutation = await PresentationFile.importPptx(opaquePictureFile);
+const opaquePictureDirectObject = itemByName(opaquePictureDirectMutation.slides.getItem(0).nativeObjects.items, "decision-evidence");
+opaquePictureDirectObject.position = { ...opaquePictureDirectObject.position, left: opaquePictureDirectObject.position.left + 1 };
+await assert.rejects(() => PresentationFile.exportPptx(opaquePictureDirectMutation), /source-bound.*read-only/i);
+const opaquePictureLeaves = opaquePictureImported.inspect({ includeNativeLeaves: true, target: opaquePicture.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.deepEqual(new Set(opaquePictureLeaves.map((record) => record.leafKind)), new Set(["leftEmu", "topEmu", "widthEmu", "heightEmu"]));
+const opaquePictureLeftLeaf = opaquePictureLeaves.find((record) => record.leafKind === "leftEmu");
+assert.ok(opaquePictureLeftLeaf);
+const opaquePictureNextLeft = opaquePictureLeftLeaf.value + 12_700;
+opaquePictureImported.editNativeLeaf(opaquePictureLeftLeaf.targetId, opaquePictureLeftLeaf.leafId, {
+  expectedHash: opaquePictureLeftLeaf.expectedHash,
+  value: opaquePictureNextLeft,
+});
+const opaquePictureOutput = await PresentationFile.exportPptx(opaquePictureImported);
+assert.equal(opaquePictureOutput.metadata.editPlan.operations[0].leafKind, "leftEmu");
+await assertOnlyDeclaredPptxFootprintChanged(opaquePictureFile, opaquePictureOutput, opaquePictureOutput.metadata.editPlan.operations[0]);
+const opaquePictureOutputZip = await JSZip.loadAsync(opaquePictureOutput.bytes);
+const opaquePictureOutputXml = await opaquePictureOutputZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(opaquePictureOutputXml, /fixture:opaque="kept"/);
+const opaquePictureRoundTrip = await PresentationFile.importPptx(opaquePictureOutput);
+assert.equal(opaquePictureRoundTrip.resolve(opaquePicture.id).position.left, opaquePictureNextLeft / 9_525);
+
 const nativeShapeGeometryDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
 nativeShapeGeometryDeck.slides.add().shapes.add({
   name: "multi-geometry",
