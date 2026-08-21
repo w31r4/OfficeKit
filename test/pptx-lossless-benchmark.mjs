@@ -120,5 +120,11 @@ assert.equal(controls.historicalHtmlRebuildControl.status, "available-historical
 assert.match(controls.historicalHtmlRebuildControl.reportSha256, /^[a-f0-9]{64}$/u);
 assert.equal(controls.kimiPptdControl.status, "not-available");
 assert.equal(controls.kimiPptdControl.affectsOfficeKitAcceptance, false);
+assert.equal(controls.quickLookTargetSpotCheck.status, "passed-limited");
+assert.equal(controls.quickLookTargetSpotCheck.source, "suanzhi-future-2026");
+assert.equal(controls.quickLookTargetSpotCheck.target, "title");
+assert.match(controls.quickLookTargetSpotCheck.sourceThumbnailSha256, /^[a-f0-9]{64}$/u);
+assert.match(controls.quickLookTargetSpotCheck.outputThumbnailSha256, /^[a-f0-9]{64}$/u);
+assert.equal(controls.quickLookTargetSpotCheck.differentPixels > 0, true);
 
 console.log("PPTX lossless benchmark manifest smoke ok");

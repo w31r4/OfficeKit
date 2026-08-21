@@ -49,6 +49,18 @@
       ]
     }
   ],
+  "quickLookTargetSpotCheck": {
+    "status": "passed-limited",
+    "renderer": "macOS Quick Look",
+    "source": "suanzhi-future-2026",
+    "target": "title",
+    "sourceThumbnailSha256": "b0171b737a44174c310d3df8a8b4078820d68238f86c9ac2bc7aeb4cd57f104b",
+    "outputThumbnailSha256": "641888b22ea614a4fe6f766489f7b38e8976875d28ec27c6302f7e1c379085ac",
+    "differentPixels": 3099,
+    "mismatchRatio": 0.0014903624192059094,
+    "finding": "The source cover shows 极致技术，长期主义 and the edited cover shows 极致技术，长期验证.",
+    "limitation": "Quick Look produces one deck thumbnail only. This is target-visibility corroboration, not page-complete review or Windows PowerPoint acceptance."
+  },
   "historicalHtmlRebuildControl": {
     "status": "available-historical",
     "reportDate": "2026-08-14",
