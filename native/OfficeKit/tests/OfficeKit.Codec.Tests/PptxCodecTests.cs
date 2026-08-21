@@ -7224,6 +7224,33 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void SourcePreservingSlideCloneAllocatesDeterministicPresentationRelationshipId()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = authored.File.ToByteArray();
+
+        static byte[] CloneOnce(byte[] sourceBytes)
+        {
+            var imported = Import(sourceBytes);
+            Assert.True(imported.Ok, Diagnostics(imported));
+            AddPendingClone(imported.Artifact.Presentation, 0, "presentation/clone/deterministic-id");
+            var exported = Export(imported.Artifact);
+            Assert.True(exported.Ok, Diagnostics(exported));
+            return exported.File.ToByteArray();
+        }
+
+        var first = CloneOnce(sourceBytes);
+        var second = CloneOnce(sourceBytes);
+        Assert.Equal(ZipBytes(first, "ppt/presentation.xml"), ZipBytes(second, "ppt/presentation.xml"));
+        Assert.Equal(ZipBytes(first, "ppt/_rels/presentation.xml.rels"), ZipBytes(second, "ppt/_rels/presentation.xml.rels"));
+        using var stream = new MemoryStream(first, writable: false);
+        using var package = PresentationDocument.Open(stream, false);
+        var clone = OrderedSlides(package).Last();
+        Assert.StartsWith("rIdOfficeKitClone", package.PresentationPart!.GetIdOfPart(clone), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SourcePreservingExportClonesAnUnchangedLayoutAndEmbeddedImageLeaf()
     {
         var authored = Invoke(ExportRequest());

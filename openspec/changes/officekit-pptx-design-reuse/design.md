@@ -61,7 +61,9 @@ The three-sample scan records passing repeated-image candidates from the
 blue-gray and McKinsey decks, including a blue-gray picture with an
 independently owned fallback image relationship. The 算秩未来 candidates remain
 visible as explicit coverage gaps because duplicate native IDs or timing/
-extension identity prevent a safe sibling-deletion proof.
+Clone presentation relationship IDs are derived from the source slide and
+stable slide ordinal, so repeated runs have stable OPC content evidence even
+when the ZIP container itself carries runtime metadata.
 
 ## Non-Goals
 

@@ -192,6 +192,7 @@ for (const reuse of sourceComponentReuse.sources) {
     assert.equal(reuse.nonTargetPartMismatches.length, 0);
     assert.equal(reuse.reopenedSlideCount, reuse.sourceSlideCount + 1);
     assert.equal(reuse.cloneElementCount >= 1, true);
+    assert.match(reuse.outputPackageContentSha256, /^[a-f0-9]{64}$/u);
     assert.match(reuse.outputSha256, /^[a-f0-9]{64}$/u);
   }
 }

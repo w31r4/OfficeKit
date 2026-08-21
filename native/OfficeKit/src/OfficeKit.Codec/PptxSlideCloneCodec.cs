@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 
@@ -107,7 +109,12 @@ internal static class PptxSlideCloneCodec
         // The second cross-package AddPart is the single graph-copy primitive.
         // Reconciliation below replaces copied identity/immutable boundaries
         // with the corresponding original-package resource.
-        var clone = presentationPart.AddPart(scratchSlide);
+        // Open XML SDK's parameterless AddPart allocates a process-random
+        // relationship ID.  A clone is a source-bound operation, so derive
+        // the presentation relationship from the source part and the stable
+        // current slide ordinal instead; this keeps repeated exports
+        // byte-stable at the OPC content level without changing source IDs.
+        var clone = presentationPart.AddPart(scratchSlide, CloneRelationshipId(presentationPart, source));
         var sourceToClone = new Dictionary<OpenXmlPart, OpenXmlPart>
         {
             [source.Part] = clone,
@@ -350,6 +357,23 @@ internal static class PptxSlideCloneCodec
     private static CodecException Mismatch(SlidePart source, string reason) =>
         new("presentation_slide_clone_graph_mismatch", reason, PartPath(source));
     private static string PartPath(OpenXmlPart part) => part.Uri.OriginalString.TrimStart('/');
+
+    private static string CloneRelationshipId(PresentationPart presentationPart, PptxSourceSlideEntry source)
+    {
+        var used = presentationPart.Parts
+            .Select(pair => pair.RelationshipId)
+            .ToHashSet(StringComparer.Ordinal);
+        var slideOrdinal = presentationPart.Parts.Count(pair => pair.OpenXmlPart is SlidePart);
+        var seed = $"{PartPath(source.Part)}\0{slideOrdinal}";
+        var suffix = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(seed)))
+            .ToLowerInvariant()[..16];
+        var baseId = $"rIdOfficeKitClone{suffix}";
+        var candidate = baseId;
+        var collision = 0;
+        while (!used.Add(candidate)) candidate = $"{baseId}_{++collision}";
+        return candidate;
+    }
+
     private static string DataPartPath(DataPart part) => part.Uri.OriginalString.TrimStart('/');
     private static string RelationshipPartPath(OpenXmlPart part)
     {

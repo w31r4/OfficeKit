@@ -42,6 +42,10 @@ export async function runSourceComponentReuse(assetsDir) {
           outputBytes: output.bytes.length,
           reopenedSlideCount: reopened.slides.count,
           nonTargetPartMismatches,
+          // ZIP containers may carry producer/runtime timestamps. Keep the
+          // raw output hash for diagnostics, but use a canonical hash of
+          // sorted OPC file names and bytes for repeatable evidence.
+          outputPackageContentSha256: await canonicalPackageContentSha256(output.bytes),
           outputSha256: sha256(output.bytes),
         };
         if (nonTargetPartMismatches.length > 0) {
@@ -98,6 +102,24 @@ async function compareNonTopologyParts(sourceBytes, outputBytes) {
     }
   }
   return mismatches;
+}
+
+async function canonicalPackageContentSha256(bytes) {
+  const zip = await JSZip.loadAsync(bytes);
+  const entries = Object.values(zip.files)
+    .filter((file) => !file.dir)
+    .sort((left, right) => left.name.localeCompare(right.name));
+  const hash = createHash("sha256");
+  for (const entry of entries) {
+    const content = await entry.async("uint8array");
+    hash.update(entry.name, "utf8");
+    hash.update("\0", "utf8");
+    hash.update(String(content.length), "ascii");
+    hash.update("\0", "utf8");
+    hash.update(content);
+    hash.update("\0", "utf8");
+  }
+  return hash.digest("hex");
 }
 
 function sha256(bytes) {
