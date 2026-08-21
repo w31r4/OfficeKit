@@ -22,12 +22,43 @@ import {
   presentationImageDataUrlDimensions,
 } from "../src/presentation/image-crop.mjs";
 import { materializePresentationNativeGraphs } from "../src/codecs/office-kit-presentation-native.mjs";
+import { validatePresentationChartExternalDataPackageSemantics } from "../src/presentation/ooxml-chart-data.mjs";
 
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 const PNG_ALT = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nGQAAAAASUVORK5CYII=";
 const JPEG = "data:image/jpeg;base64,/9j/2Q==";
 const WIDE_SVG = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200" viewBox="0 0 400 200"><rect width="200" height="200" fill="#2563eb"/><rect x="200" width="200" height="200" fill="#f97316"/></svg>').toString("base64")}`;
 const TALL_SVG = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 400"><rect width="200" height="200" fill="#2563eb"/><rect y="200" width="200" height="200" fill="#f97316"/></svg>').toString("base64")}`;
+
+const chartSemanticContentTypes = {
+  defaults: new Map(),
+  overrides: new Map([["ppt/charts/chart1.xml", "application/vnd.openxmlformats-officedocument.drawingml.chart+xml"]]),
+};
+const externallyLinkedChartXml = '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><c:externalData r:id="rId4"/></c:chartSpace>';
+const externallyLinkedChartRels = '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/oleObject" Target="file:///C:/source/linked.xlsx" TargetMode="External"/></Relationships>';
+assert.deepEqual(
+  validatePresentationChartExternalDataPackageSemantics({
+    bytesByPath: new Map([
+      ["ppt/charts/chart1.xml", new TextEncoder().encode(externallyLinkedChartXml)],
+      ["ppt/charts/_rels/chart1.xml.rels", new TextEncoder().encode(externallyLinkedChartRels)],
+    ]),
+    contentTypes: chartSemanticContentTypes,
+  }),
+  [],
+  "an externally linked chart workbook must remain a valid opaque source relationship",
+);
+const invalidChartRels = externallyLinkedChartRels.replace(' TargetMode="External"', '');
+assert.equal(
+  validatePresentationChartExternalDataPackageSemantics({
+    bytesByPath: new Map([
+      ["ppt/charts/chart1.xml", new TextEncoder().encode(externallyLinkedChartXml)],
+      ["ppt/charts/_rels/chart1.xml.rels", new TextEncoder().encode(invalidChartRels)],
+    ]),
+    contentTypes: chartSemanticContentTypes,
+  }).some((issue) => issue.type === "pptxChartExternalDataRelationshipTypeInvalid"),
+  true,
+  "an oleObject chart relationship without external target mode must still fail closed",
+);
 
 // Native-object materialization must share the bounded OOXML ZIP loader. A
 // selected opaque part is enough to force source-package extraction, while a

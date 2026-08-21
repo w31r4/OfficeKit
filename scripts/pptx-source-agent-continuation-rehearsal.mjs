@@ -146,12 +146,15 @@ function verifyCell({ revisionPath, sourceSlideCount, kind }) {
 }
 
 function continuationMutation(slideExpression, phase, kind) {
-  return `(() => { const slide=${slideExpression}; const kind=${JSON.stringify(kind)}; const textShape=slide.shapes.items.find(candidate=>candidate.text?.value); const image=slide.images.items.find(candidate=>candidate.dataUrl?.startsWith('data:image/svg+xml;base64,')); if(kind==='text' && textShape) { const before=textShape.text.value; const suffix=${JSON.stringify(phase === "first" ? " · OfficeKit agent continuation" : " · resumed" )}; textShape.text.set(before+suffix); return {kind:'text',value:textShape.text.value}; } if(kind==='svg-image' && image) { const before=Buffer.from(image.dataUrl.split(',',2)[1],'base64').toString('utf8'); const attr=${JSON.stringify(phase === "first" ? 'data-officekit="agent-continuation"' : 'data-officekit-resumed="true"')}; const after=before.replace(/^<svg\\b/iu,'<svg '+attr); image.replace({dataUrl:'data:image/svg+xml;base64,'+Buffer.from(after).toString('base64')}); return {kind:'svg-image',marker:attr}; } throw new Error('No supported continuation leaf found.'); })()`;
+  // The rehearsal must exercise a semantic text edit without inventing a
+  // longer title that creates a new overflow finding.  Real tasks still use
+  // the review gate to reject content that does not fit.
+  return `(() => { const slide=${slideExpression}; const kind=${JSON.stringify(kind)}; const textShape=slide.shapes.items.find(candidate=>candidate.text?.value); const image=slide.images.items.find(candidate=>candidate.dataUrl?.startsWith('data:image/svg+xml;base64,')); if(kind==='text' && textShape) { const before=textShape.text.value; const value=${JSON.stringify(phase === "first" ? "OK" : "OK·R")}; textShape.text.set(value); return {kind:'text',before,value}; } if(kind==='svg-image' && image) { const before=Buffer.from(image.dataUrl.split(',',2)[1],'base64').toString('utf8'); const attr=${JSON.stringify(phase === "first" ? 'data-officekit="agent-continuation"' : 'data-officekit-resumed="true"')}; const after=before.replace(/^<svg\\b/iu,'<svg '+attr); image.replace({dataUrl:'data:image/svg+xml;base64,'+Buffer.from(after).toString('base64')}); return {kind:'svg-image',marker:attr}; } throw new Error('No supported continuation leaf found.'); })()`;
 }
 
 function verificationExpression(slideExpression, kind) {
   if (kind === "text") {
-    return `(() => { const slide=${slideExpression}; const values=slide.shapes.items.map(candidate=>candidate.text?.value||''); return {foundFirst:values.some(value=>value.includes('OfficeKit agent continuation')),foundResumed:values.some(value=>value.endsWith(' · resumed')),textShapes:values.filter(Boolean).length}; })()`;
+    return `(() => { const slide=${slideExpression}; const values=slide.shapes.items.map(candidate=>candidate.text?.value||''); return {foundFirst:values.some(value=>value==='OK'),foundResumed:values.some(value=>value==='OK·R'),textShapes:values.filter(Boolean).length}; })()`;
   }
   return `(() => { const slide=${slideExpression}; const values=slide.images.items.filter(candidate=>candidate.dataUrl?.startsWith('data:image/svg+xml;base64,')).map(candidate=>Buffer.from(candidate.dataUrl.split(',',2)[1],'base64').toString('utf8')); return {foundFirst:values.some(value=>value.includes('data-officekit="agent-continuation"')),foundResumed:values.some(value=>value.includes('data-officekit-resumed="true"')),svgImages:values.length}; })()`;
 }

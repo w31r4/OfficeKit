@@ -4,6 +4,11 @@ export const PRESENTATION_CHART_EXTERNAL_DATA_CONTENT_TYPE = "application/vnd.op
 
 const CHART_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
 const MAX_WORKBOOK_BYTES = 64 * 1024 * 1024;
+const PACKAGE_RELATIONSHIP_SUFFIX = "/package";
+const ALLOWED_EXTERNAL_DATA_RELATIONSHIP_SUFFIXES = new Set([
+  "/externalLink",
+  "/oleObject",
+]);
 const decoder = new TextDecoder();
 
 function issue(type, message, detail = {}) {
@@ -117,8 +122,14 @@ export function validatePresentationChartExternalDataPackageSemantics({ bytesByP
     if (tag) {
       const entry = entries.find((candidate) => candidate.id === id);
       if (!id || !entry) issues.push(issue("pptxChartExternalDataRelationshipMissing", `PPTX chart ${chartPath} externalData references a missing relationship.`, { path: chartPath, relationshipId: id }));
-      else if (!String(entry.type || "").endsWith("/package")) issues.push(issue("pptxChartExternalDataRelationshipTypeInvalid", `PPTX chart ${chartPath} externalData relationship ${id} must use the package relationship type.`, { path: entry.path, source: chartPath, relationshipId: id, relationshipType: entry.type }));
-      else if (String(entry.targetMode || "").toLowerCase() !== "external") {
+      else if (!String(entry.type || "").endsWith(PACKAGE_RELATIONSHIP_SUFFIX)) {
+        const externalType = String(entry.type || "").split("/").pop();
+        const externalTarget = String(entry.targetMode || "").toLowerCase() === "external";
+        if (!externalTarget || !ALLOWED_EXTERNAL_DATA_RELATIONSHIP_SUFFIXES.has(`/${externalType}`)) {
+          issues.push(issue("pptxChartExternalDataRelationshipTypeInvalid", `PPTX chart ${chartPath} externalData relationship ${id} must use the package relationship type or a declared external workbook relationship.`, { path: entry.path, source: chartPath, relationshipId: id, relationshipType: entry.type, targetMode: entry.targetMode }));
+        }
+      }
+      else if (String(entry.type || "").endsWith(PACKAGE_RELATIONSHIP_SUFFIX) && String(entry.targetMode || "").toLowerCase() !== "external") {
         const target = resolveTarget(chartPath, entry.target);
         if (bytesByPath.has(target)) {
           const contentType = declaredContentType(contentTypes, target);
