@@ -7,6 +7,7 @@ const manifestPath = path.resolve("evals/pptx-lossless/manifest.v1.json");
 const manifestBytes = await readFile(manifestPath);
 const manifest = JSON.parse(manifestBytes.toString("utf8"));
 const evidence = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/evidence.v1.json"), "utf8"));
+const controls = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/controls.v1.json"), "utf8"));
 
 assert.equal(manifest.schema, "office-kit/pptx-lossless-benchmark/v1");
 assert.equal(manifest.sources.length, 4);
@@ -98,5 +99,26 @@ for (const source of evidence.sources) {
     }
   }
 }
+
+assert.equal(controls.schema, "office-kit/pptx-lossless-controls/v1");
+assert.equal(controls.nativeRenderer.office, "LibreOffice");
+assert.equal(controls.nativeRenderer.raster, "Poppler");
+assert.equal(controls.nativeRenderer.dpi, 144);
+assert.equal(controls.nativeVisualEvidence.length, manifest.sources.length);
+for (const source of controls.nativeVisualEvidence) {
+  const declared = manifest.sources.find((candidate) => candidate.id === source.id);
+  assert.ok(declared);
+  assert.equal(source.nonTargetPagesPixelIdentical, true);
+  assert.equal(source.targets.length, declared.targets.length);
+  for (const target of source.targets) {
+    assert.equal(declared.targets.some((candidate) => candidate.id === target.id), true);
+    assert.match(target.targetPageVisualState, /^(changed|unchanged-in-libreoffice)$/u);
+    assert.equal(Number.isSafeInteger(target.differentPixels) && target.differentPixels >= 0, true);
+  }
+}
+assert.equal(controls.historicalHtmlRebuildControl.status, "available-historical");
+assert.match(controls.historicalHtmlRebuildControl.reportSha256, /^[a-f0-9]{64}$/u);
+assert.equal(controls.kimiPptdControl.status, "not-available");
+assert.equal(controls.kimiPptdControl.affectsOfficeKitAcceptance, false);
 
 console.log("PPTX lossless benchmark manifest smoke ok");

@@ -1,0 +1,90 @@
+{
+  "schema": "office-kit/pptx-lossless-controls/v1",
+  "capturedAt": "2026-08-21T04:06:21Z",
+  "nativeRenderer": {
+    "office": "LibreOffice",
+    "raster": "Poppler",
+    "dpi": 144,
+    "reproduction": "node scripts/pptx-lossless-native-render.mjs --assets-dir <external-assets> --edits-dir <benchmark-outputs> --output-dir <ephemeral-output>"
+  },
+  "nativeVisualEvidence": [
+    {
+      "id": "suanzhi-future-2026",
+      "pages": 21,
+      "nonTargetPagesPixelIdentical": true,
+      "targets": [
+        { "id": "title", "targetPageVisualState": "unchanged-in-libreoffice", "differentPixels": 0 },
+        { "id": "vision", "targetPageVisualState": "changed", "differentPixels": 786 },
+        { "id": "partner", "targetPageVisualState": "unchanged-in-libreoffice", "differentPixels": 0 },
+        { "id": "group-storage", "targetPageVisualState": "unchanged-in-libreoffice", "differentPixels": 0 },
+        { "id": "textbox-move-resize", "targetPageVisualState": "changed", "differentPixels": 624 },
+        { "id": "chart-title", "targetPageVisualState": "changed", "differentPixels": 1848 },
+        { "id": "chart-data-point", "targetPageVisualState": "changed", "differentPixels": 171 }
+      ]
+    },
+    {
+      "id": "blue-gray-acid-template",
+      "pages": 19,
+      "nonTargetPagesPixelIdentical": true,
+      "targets": [
+        { "id": "subtitle", "targetPageVisualState": "changed", "differentPixels": 1648 },
+        { "id": "cover-title", "targetPageVisualState": "unchanged-in-libreoffice", "differentPixels": 0 },
+        { "id": "presenter", "targetPageVisualState": "changed", "differentPixels": 1568 }
+      ]
+    },
+    {
+      "id": "mckinsey-customer-loyalty",
+      "pages": 8,
+      "nonTargetPagesPixelIdentical": true,
+      "targets": [
+        { "id": "image-left", "targetPageVisualState": "changed", "differentPixels": 7373 }
+      ]
+    },
+    {
+      "id": "strategy-review-smartart-canary",
+      "pages": 4,
+      "nonTargetPagesPixelIdentical": true,
+      "targets": [
+        { "id": "smartart-node-text", "targetPageVisualState": "unchanged-in-libreoffice", "differentPixels": 0 }
+      ]
+    }
+  ],
+  "historicalHtmlRebuildControl": {
+    "status": "available-historical",
+    "reportDate": "2026-08-14",
+    "reportSha256": "1a9ad2b9d063076c7a10f244bbb26d23e42e268734103f7ccb3cfc15ff72ecf7",
+    "scope": "A separately frozen HTML/PptxGenJS rebuild evaluation, retained as a historical control and not a claim about the current OfficeKit branch.",
+    "findings": [
+      {
+        "id": "suanzhi-future-2026",
+        "parts": "595-to-160",
+        "structuralChanges": ["masters-2-to-1", "layouts-34-to-1", "themes-8-to-1", "groups-40-to-0", "chart-parts-37-to-8"],
+        "averagePixelChange": 0.0141,
+        "worstPagePixelChange": 0.06
+      },
+      {
+        "id": "blue-gray-acid-template",
+        "parts": "548-to-216",
+        "structuralChanges": ["layouts-11-to-1", "themes-3-to-1", "groups-132-to-0", "custom-geometry-about-12-percent", "vertical-alignment-about-8-percent"],
+        "averagePixelChange": 0.0184,
+        "worstPagePixelChange": 0.0667
+      },
+      {
+        "id": "mckinsey-customer-loyalty",
+        "parts": "60-to-64",
+        "structuralChanges": ["layouts-11-to-1", "notes-0-to-8"],
+        "averagePixelChange": 0,
+        "worstPagePixelChange": 0
+      }
+    ]
+  },
+  "kimiPptdControl": {
+    "status": "not-available",
+    "reason": "No executable artifact or reproducible task trace was supplied with the frozen benchmark.",
+    "affectsOfficeKitAcceptance": false
+  },
+  "limitations": [
+    "A target leaf can pass source-bound XML and second-import checks while LibreOffice shows no target-page pixel difference; target visibility therefore remains a Windows PowerPoint and human-review requirement.",
+    "The native visual evidence proves exact non-target pages for the listed runs only. It does not replace Windows desktop PowerPoint open, browse, save-copy, or repair-prompt acceptance."
+  ]
+}
