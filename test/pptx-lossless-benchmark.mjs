@@ -76,7 +76,7 @@ assert.equal(
 assert.equal(evidence.schema, "office-kit/pptx-lossless-evidence/v1");
 assert.equal(evidence.manifestSha256, createHash("sha256").update(manifestBytes).digest("hex"));
 assert.equal(evidence.repetitionsPerTarget, 3);
-assert.deepEqual(Object.values(evidence.runnerContract), [true, true, true, true, true, true, true]);
+assert.deepEqual(Object.values(evidence.runnerContract), [true, true, true, true, true, true, true, true, true, true]);
 assert.equal(evidence.sources.length, manifest.sources.length);
 assert.equal(evidence.sources.reduce((count, source) => count + source.targets.length, 0), 12);
 for (const source of evidence.sources) {

@@ -33,7 +33,7 @@
 
 ## 6. Independent acceptance and release gates
 
-- [ ] 6.1 Prove all three no-ops byte-identical; all non-target parts exact; all target XML masked exact; all advanced structure counts and relationships stable.
+- [x] 6.1 Prove all three no-ops byte-identical; all non-target parts exact; all target XML masked exact; all advanced structure counts and relationships stable.
 - [ ] 6.2 Prove non-target pages pixel-identical with the unified renderer and complete Windows desktop PowerPoint open/browse/save-copy acceptance without repair prompts.
 - [ ] 6.3 Run three independent fresh-workspace Agent tasks that inspect/resolve, use typed or controlled native edits, reimport, package-diff, visually review, and preserve the source.
 - [ ] 6.4 Repeat the accepted workflow from a packed clean installation.

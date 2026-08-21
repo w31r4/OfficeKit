@@ -234,6 +234,13 @@ async function packageOracle(sourceBytes, outputBytes, editPlan, target) {
   const source = await zipParts(sourceBytes);
   const output = await zipParts(outputBytes);
   if (source.size !== output.size || [...source.keys()].some((partPath) => !output.has(partPath))) fail("Edit changed the OPC entry set.");
+  const sourceStructure = packageStructureInventory(source);
+  const outputStructure = packageStructureInventory(output);
+  assertJsonEqual(outputStructure, sourceStructure, "Edit changed advanced PPTX structure counts");
+  const relationshipParts = [...source.keys()].filter((partPath) => /[.]rels$/iu.test(partPath));
+  if (relationshipParts.some((partPath) => !source.get(partPath).equals(output.get(partPath)))) {
+    fail("Edit changed an OPC relationship part.");
+  }
   const changedParts = [...source.keys()].filter((partPath) => !source.get(partPath).equals(output.get(partPath))).sort();
   const declared = [...editPlan.changedParts].sort();
   assertJsonEqual(changedParts, declared, "Mutation footprint does not match the actual changed OPC parts");
@@ -244,7 +251,8 @@ async function packageOracle(sourceBytes, outputBytes, editPlan, target) {
   for (const partPath of changedParts) {
     const nestedOperations = editPlan.operations.filter((candidate) => candidate.embeddedPackagePartPath === partPath);
     if (nestedOperations.length > 0) {
-      await nestedPackageOracle(source.get(partPath), output.get(partPath), nestedOperations, partPath);
+      const nestedOracle = await nestedPackageOracle(source.get(partPath), output.get(partPath), nestedOperations, partPath);
+      nestedPackagePartsByteIdentical &&= nestedOracle.nonTargetPartsByteIdentical && nestedOracle.relationshipPartsByteIdentical;
       continue;
     }
     const sourceXml = source.get(partPath).toString("utf8");
@@ -260,7 +268,16 @@ async function packageOracle(sourceBytes, outputBytes, editPlan, target) {
       fail(`Declared scalar footprints cannot mask target XML back to source: ${partPath}`);
     }
   }
-  return { changedParts, nonTargetPartsByteIdentical: true, maskedTargetXmlByteIdentical: true, nestedPackagePartsByteIdentical };
+  return {
+    changedParts,
+    partSetStable: true,
+    relationshipPartsByteIdentical: true,
+    advancedStructureCountsStable: true,
+    structure: sourceStructure,
+    nonTargetPartsByteIdentical: true,
+    maskedTargetXmlByteIdentical: true,
+    nestedPackagePartsByteIdentical,
+  };
 }
 
 async function nestedPackageOracle(sourceBytes, outputBytes, operations, containerPartPath) {
@@ -268,6 +285,10 @@ async function nestedPackageOracle(sourceBytes, outputBytes, operations, contain
   const output = await zipParts(outputBytes);
   if (source.size !== output.size || [...source.keys()].some((partPath) => !output.has(partPath))) fail(`Embedded package ${containerPartPath} changed its entry set.`);
   const changedParts = [...source.keys()].filter((partPath) => !source.get(partPath).equals(output.get(partPath))).sort();
+  const relationshipParts = [...source.keys()].filter((partPath) => /[.]rels$/iu.test(partPath));
+  if (relationshipParts.some((partPath) => !source.get(partPath).equals(output.get(partPath)))) {
+    fail(`Embedded package ${containerPartPath} changed a relationship part.`);
+  }
   const declared = [...new Set(operations.flatMap((operation) => (operation.footprint?.nestedFootprints || [])
     .filter((footprint) => footprint.containerPartPath === containerPartPath)
     .map((footprint) => footprint.partPath)))].sort();
@@ -282,11 +303,16 @@ async function nestedPackageOracle(sourceBytes, outputBytes, operations, contain
       fail(`Declared nested footprints cannot mask target XML back to source: ${containerPartPath}!/${partPath}`);
     }
   }
+  return { nonTargetPartsByteIdentical: true, relationshipPartsByteIdentical: true };
 }
 
 async function packageInventory(bytes) {
   const parts = await zipParts(bytes);
   const partHashes = Object.fromEntries([...parts.entries()].map(([partPath, value]) => [partPath, sha256(value)]));
+  return { ...packageStructureInventory(parts), partHashes };
+}
+
+function packageStructureInventory(parts) {
   const xml = [...parts.entries()].filter(([partPath]) => /[.]xml$/iu.test(partPath)).map(([, value]) => value.toString("utf8")).join("\n");
   const paths = [...parts.keys()];
   const relationshipCount = [...parts.entries()].filter(([partPath]) => /[.]rels$/iu.test(partPath))
@@ -310,7 +336,6 @@ async function packageInventory(bytes) {
     oleObjectCount: occurrences(xml, "<p:oleObj"),
     timingCount: occurrences(xml, "<p:timing"),
     transitionCount: occurrences(xml, "<p:transition"),
-    partHashes,
   };
 }
 
