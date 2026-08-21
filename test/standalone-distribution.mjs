@@ -386,6 +386,42 @@ try {
     assert.ok((await fs.stat(path.join(project, `standalone.${extension}`))).size > 100);
   }
 
+  // A clean-installed task must be able to inspect imported presentation
+  // components without reaching into source files or a local node_modules.
+  // Keep this deliberately small: the real design-profile fixtures exercise
+  // richer graphs, while this assertion proves the public source-bound API is
+  // present in the installed runtime and remains no-op byte stable.
+  const componentTask = path.join(project, "component-candidates.mjs");
+  await fs.writeFile(componentTask, `
+import { Presentation, PresentationFile } from "office-kit";
+
+const source = Presentation.create();
+for (const index of [1, 2]) {
+  source.slides.add({ name: "Component " + index }).shapes.add({
+    geometry: "textbox",
+    text: "reusable component",
+    position: { left: 40, top: 40, width: 400, height: 80 },
+  });
+}
+const sourceBlob = await PresentationFile.exportPptx(source);
+const imported = await PresentationFile.importPptx(sourceBlob);
+const records = imported.inspect({ kind: "componentCandidate", maxChars: Infinity }).ndjson
+  .split("\\n").filter(Boolean).map((line) => JSON.parse(line));
+const candidate = records.find((record) => record.status === "inspect-only");
+if (!candidate || !/^pc_[0-9a-f]{32}$/.test(candidate.candidateId)) process.exit(17);
+if (candidate.mutationCapability?.supported !== false) process.exit(18);
+if (imported.resolveComponentCandidate(candidate.candidateId)?.candidateId !== candidate.candidateId) process.exit(19);
+const roundTrip = await PresentationFile.exportPptx(imported);
+if (roundTrip.bytes.length !== sourceBlob.bytes.length || roundTrip.bytes.some((value, index) => value !== sourceBlob.bytes[index])) process.exit(20);
+console.log(JSON.stringify({ candidateCount: records.length, status: candidate.status, sourceRevisionSha256: candidate.sourceRevisionSha256 }));
+`, "utf8");
+  const componentResult = JSON.parse(
+    runOfficeKit(["run", "component-candidates.mjs"], project).stdout,
+  );
+  assert.ok(componentResult.candidateCount >= 1);
+  assert.equal(componentResult.status, "inspect-only");
+  assert.match(componentResult.sourceRevisionSha256, /^[0-9a-f]{64}$/u);
+
   const dependencyProject = path.join(temporary, "task-local-dependency");
   const dependencyRoot = path.join(
     dependencyProject,
