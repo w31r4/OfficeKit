@@ -143,6 +143,9 @@ for (const profile of designProfiles.profiles) {
   assert.equal(profile.slideArchetypes.length, profile.evidence.package.slideCount);
   assert.equal(profile.nativeOpaque.count >= 0, true);
   assert.equal(Object.keys(profile.evidence.structuralPartHashes).length > 0, true);
+  assert.ok(profile.componentCandidates.total >= 0);
+  assert.equal(profile.componentCandidates.total, Object.values(profile.componentCandidates.statuses).reduce((sum, count) => sum + count, 0));
+  assert.ok(profile.componentCandidates.inspectOnlyCandidateIds.every((id) => /^pc_[0-9a-f]{32}$/u.test(id)));
 }
 
 assert.equal(sourceReuse.schema, "office-kit/pptx-source-reuse-evidence/v1");

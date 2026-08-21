@@ -32,6 +32,10 @@ assert.equal(first.designLanguage.typography.fontSizePt.samples > 0, true);
 assert.equal(first.designLanguage.density.slides, 4);
 assert.equal(first.designLanguage.rhythm.normalizedUnits, "slide fraction rounded to 0.001");
 assert.equal(first.reusableComponents.every((component) => component.count >= 2), true);
+assert.ok(first.componentCandidates.total > 0);
+assert.ok(first.componentCandidates.statuses["inspect-only"] > 0);
+assert.ok(first.componentCandidates.kinds.shape >= 1);
+assert.ok(first.componentCandidates.inspectOnlyCandidateIds.every((id) => /^pc_[0-9a-f]{32}$/u.test(id)));
 assert.equal(JSON.stringify(first).includes(fixture), false, "profile must not leak an absolute source path");
 
 // A real imported slide may omit p:cSld/@name. The codec must preserve that

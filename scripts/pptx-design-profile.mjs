@@ -31,6 +31,10 @@ export async function buildPptxDesignProfile(inputPath, { id } = {}) {
     kind: ["deck", "theme", "layout", "slide", "shape", "textbox", "image", "table", "chart", "connector", "groupShape", "nativeObject"],
     maxChars: Infinity,
   }).ndjson);
+  const componentCandidates = parseNdjson(presentation.inspect({
+    kind: "componentCandidate",
+    maxChars: Infinity,
+  }).ndjson);
   const elements = inspection.filter((record) => isElementRecord(record));
   const slides = inspection.filter((record) => record.kind === "slide").sort((a, b) => a.slide - b.slide);
   const layouts = inspection.filter((record) => record.kind === "layoutTemplate" || record.kind === "layout");
@@ -64,6 +68,7 @@ export async function buildPptxDesignProfile(inputPath, { id } = {}) {
     layoutFamilies: layoutFamilies(layouts),
     slideArchetypes: slideArchetypes(slides, elements),
     reusableComponents: reusableComponents(elements, presentation.slideSize),
+    componentCandidates: componentCandidateEvidence(componentCandidates),
     nativeOpaque: nativeOpaqueEvidence(elements),
   };
 
@@ -247,6 +252,23 @@ function nativeOpaqueEvidence(elements) {
     count: records.length,
     kinds: Object.fromEntries(Object.entries(kinds).sort(([a], [b]) => a.localeCompare(b))),
     examples: records.slice(0, 24).map((record) => ({ id: record.id, slide: record.slide, nativeKind: record.nativeKind || "unknown", name: record.name || undefined })),
+  };
+}
+
+function componentCandidateEvidence(records) {
+  const statuses = countValues(records.map((record) => record.status || "unknown"));
+  const kinds = countValues(records.map((record) => record.descriptor?.kind || "unknown"));
+  const blockedReasons = countValues(records
+    .filter((record) => record.status === "blocked")
+    .map((record) => record.blockedReason || "unspecified"));
+  const occurrenceCounts = records.map((record) => record.occurrences?.length || 0);
+  return {
+    total: records.length,
+    statuses: Object.fromEntries(Object.entries(statuses).sort(([a], [b]) => a.localeCompare(b))),
+    kinds: Object.fromEntries(Object.entries(kinds).sort(([a], [b]) => a.localeCompare(b))),
+    occurrenceCount: summaryStats(occurrenceCounts),
+    blockedReasons: topCounts(blockedReasons, 12),
+    inspectOnlyCandidateIds: records.filter((record) => record.status === "inspect-only").slice(0, 24).map((record) => record.candidateId),
   };
 }
 

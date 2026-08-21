@@ -1685,6 +1685,46 @@
           "count": 3
         }
       ],
+      "componentCandidates": {
+        "total": 48,
+        "statuses": {
+          "blocked": 37,
+          "inspect-only": 11
+        },
+        "kinds": {
+          "image": 1,
+          "opaque": 1,
+          "shape": 46
+        },
+        "occurrenceCount": {
+          "min": 2,
+          "median": 2.5,
+          "max": 105
+        },
+        "blockedReasons": [
+          {
+            "value": "candidate occurs more than once on one slide and is ambiguous without an explicit selection",
+            "count": 36
+          },
+          {
+            "value": "opaque native object",
+            "count": 1
+          }
+        ],
+        "inspectOnlyCandidateIds": [
+          "pc_13ccc6f81b67c637884514b29c3623f0",
+          "pc_23d5bf9e5939684a192d918d1f49ab55",
+          "pc_583f58b8e0cedfec004d5c649a0d3a87",
+          "pc_70fe8cfd27b2da7443f5f27d6a89b094",
+          "pc_9af4e83afd6962336bf39a76d19f58c7",
+          "pc_a6f36ac840bc15622a4afe68a882248a",
+          "pc_daa3acf35625d498875f1143aa44c679",
+          "pc_db3a65d963b2a03e7d1926594740dcba",
+          "pc_e22bc0ef86170a077088a1e61a30bceb",
+          "pc_e31ff2af609beb182443ee73bce4e32f",
+          "pc_f06c4baf31cd88b408bfb16e78a52695"
+        ]
+      },
       "nativeOpaque": {
         "count": 105,
         "kinds": {
@@ -3705,6 +3745,59 @@
           "count": 2
         }
       ],
+      "componentCandidates": {
+        "total": 50,
+        "statuses": {
+          "blocked": 28,
+          "inspect-only": 22
+        },
+        "kinds": {
+          "connector": 1,
+          "group": 4,
+          "image": 5,
+          "opaque": 1,
+          "shape": 39
+        },
+        "occurrenceCount": {
+          "min": 2,
+          "median": 3,
+          "max": 134
+        },
+        "blockedReasons": [
+          {
+            "value": "candidate occurs more than once on one slide and is ambiguous without an explicit selection",
+            "count": 27
+          },
+          {
+            "value": "opaque native object",
+            "count": 1
+          }
+        ],
+        "inspectOnlyCandidateIds": [
+          "pc_0a55217d150c5c4ab507570ded2b9e6c",
+          "pc_0e7a2b0341428a3172d82926d668196f",
+          "pc_1353e868b8f71ff5aad54395cdd3b3fe",
+          "pc_20476059c182d3409f0a0294aed7bb80",
+          "pc_32fe7074569c4ff919332f30fb503775",
+          "pc_385d61e57d80ce57d54f8e8ca8d80f60",
+          "pc_528ac0568bf5da4a34badb34f710ff0b",
+          "pc_5be3102ddf06700c4d08f92a2d7fb9f5",
+          "pc_5fe2b72b5a8b7dd6571db5ec26c0b8ca",
+          "pc_6ab61e10024ec2c4b135c8785bc5df10",
+          "pc_6b1bda79139898ba8364daa76225bcae",
+          "pc_724c61263e5cd83458f57227a8de898d",
+          "pc_7d6cb1fb1158aca101840d3b8ebe91f6",
+          "pc_7f051e4419dcadaeed3a4195393e143c",
+          "pc_878bada90f9bae9f5e5af71ce2c4245a",
+          "pc_919c8c7bfd8aee99297fc77f1aeae3b3",
+          "pc_b03ed65666ea482d0ee8dd72cb8a9f71",
+          "pc_c06258893c1927e4010d88ac7fbd89cd",
+          "pc_c17d3d19b559a31a3161ccc205891694",
+          "pc_d787e5295b7ee34b5afbbc52384c5f7a",
+          "pc_d8ad5d860b7dc7a4b6ed41b3de38e28f",
+          "pc_f3e7255ab9dcc9f3536338671ef32001"
+        ]
+      },
       "nativeOpaque": {
         "count": 134,
         "kinds": {
@@ -4333,6 +4426,24 @@
         }
       ],
       "reusableComponents": [],
+      "componentCandidates": {
+        "total": 1,
+        "statuses": {
+          "inspect-only": 1
+        },
+        "kinds": {
+          "image": 1
+        },
+        "occurrenceCount": {
+          "min": 8,
+          "median": 8,
+          "max": 8
+        },
+        "blockedReasons": [],
+        "inspectOnlyCandidateIds": [
+          "pc_b74445550ca49d445821036a8ba61daf"
+        ]
+      },
       "nativeOpaque": {
         "count": 0,
         "kinds": {},
