@@ -733,23 +733,28 @@ function duplicateImportedPresentationSlide(presentation, state, slide) {
     commentSnapshot: presentationSlideCommentSnapshot(clone),
     entries,
     sourceIdByCloneId: cloneContext.sourceIdByCloneId,
+    allowedDeletedIds: undefined,
+    componentReuse: undefined,
   };
   state.clones.push(cloneState);
   return clone;
 }
 
-function presentationCloneMessage(slide) {
-  const { id: _id, source: _source, cloneSource: _cloneSource, $typeName: _typeName, ...comparable } = slide;
+function presentationCloneMessage(slide, omittedElementIds = undefined) {
+  const { id: _id, source: _source, cloneSource: _cloneSource, $typeName: _typeName, elementDeletions: _elementDeletions, ...comparable } = slide;
+  if (omittedElementIds?.size) {
+    comparable.elements = (comparable.elements || []).filter((element) => !omittedElementIds.has(element.id));
+  }
   return create(PresentationSlideSchema, comparable);
 }
 
-function presentationCloneMatches(requested, source) {
+function presentationCloneMatches(requested, source, omittedElementIds = undefined) {
   // Compare the full typed protobuf projection, not its byte encoding. Buf
   // preserves unknown fields in their original wire order, while a bounded
   // clone reconstructs the same known fields in canonical order; byte equality
   // would therefore reject semantically identical clones after schema growth.
-  return toJsonString(PresentationSlideSchema, presentationCloneMessage(requested)) ===
-    toJsonString(PresentationSlideSchema, presentationCloneMessage(source));
+  return toJsonString(PresentationSlideSchema, presentationCloneMessage(requested, omittedElementIds)) ===
+    toJsonString(PresentationSlideSchema, presentationCloneMessage(source, omittedElementIds));
 }
 
 function emuFromPixels(value, name, { allowNegative = false } = {}) {
@@ -2780,12 +2785,19 @@ export function presentationEnvelope(presentation, protocolVersion) {
       const entries = cloneState?.entries || bindingState.entries;
       retainedEntries = entries.filter((entry) => current.includes(entry.model));
       deletedEntries = entries.filter((entry) => !current.includes(entry.model));
+      const allowedCloneDeletionIds = cloneState?.allowedDeletedIds instanceof Set
+        ? cloneState.allowedDeletedIds
+        : undefined;
       const typedDeletions = !cloneState && deletedEntries.every((entry) =>
         entry.model[PRESENTATION_ELEMENT_DELETED] === true);
+      const authorizedCloneDeletions = Boolean(cloneState && allowedCloneDeletionIds &&
+        deletedEntries.length === allowedCloneDeletionIds.size &&
+        deletedEntries.every((entry) => allowedCloneDeletionIds.has(entry.wire.id)));
       if (current.length !== retainedEntries.length ||
           current.some((element) => !retainedEntries.some((entry) => entry.model === element)) ||
           (!cloneState && !typedDeletions) ||
-          (cloneState && deletedEntries.length > 0)) {
+          (cloneState && deletedEntries.length > 0 && !authorizedCloneDeletions) ||
+          (cloneState && allowedCloneDeletionIds && !authorizedCloneDeletions)) {
         throw new OfficeKitCodecError(`Source-preserving PPTX export requires slide ${slideIndex + 1}'s original ${entries.length}-element topology.`, [], { code: cloneState ? "unsupported_presentation_slide_clone" : "presentation_element_topology_changed" });
       }
       if (!bindingState.wire.speakerNotes && slide.speakerNotes?.text && !bindingState.wire.source?.speakerNotesAddable) {
@@ -2878,7 +2890,8 @@ export function presentationEnvelope(presentation, protocolVersion) {
       } : {}),
     };
     if (!cloneState) return requested;
-    if (!presentationCloneMatches(requested, cloneState.source.wire)) {
+    const omittedElementIds = cloneState.allowedDeletedIds instanceof Set ? cloneState.allowedDeletedIds : undefined;
+    if (!presentationCloneMatches(requested, cloneState.source.wire, omittedElementIds)) {
       throw new OfficeKitCodecError(`Imported presentation clone ${slideIndex + 1} must remain untouched until it has been exported and imported again.`, [], { code: "unsupported_presentation_slide_clone" });
     }
     delete requested.source;
@@ -3174,7 +3187,7 @@ function createPresentationComponentCapability(presentation, state) {
       occurrences: sortedOccurrences.map((occurrence) => ({ ...occurrence, ownership: { sourceBound: true, closedGraph: !blockedReason, mutableDescendantsShared: false } })),
       mutationCapability: {
         supported: false,
-        reason: blockedReason || "Component candidates are inspect-only in v1; use a codec-proven slide clone or an issued typed/native-leaf operation for mutation.",
+        reason: blockedReason || "Component candidates are not directly mutable; a closed top-level candidate may be passed to presentation.reuseSourceComponent, while arbitrary partial mutation requires a typed/native-leaf operation.",
       },
       ...(blockedReason ? { blockedReason } : {}),
     }));

@@ -26,9 +26,11 @@ occurrence IDs, and ownership evidence. A complete slide reuse request is
 separately available through `presentation.reuseSourceSlide`, which requires
 the exact inspected slide ID, source SHA, and optional complete clone
 capability evidence before delegating to the codec-proven graph clone. V1 is
-deliberately inspect-only for partial components:
-ambiguous, opaque, and relationship-bound graphs are marked blocked instead of
-being lowered into an unsafe partial component operation.
+deliberately bounded for partial components: `presentation.reuseSourceComponent`
+can clone one repeated, top-level, closed candidate and remove only sibling
+elements with independent deletion proofs. Nested, opaque, ambiguous,
+relationship-bound, comment-bound, or dangling-connector graphs remain blocked
+instead of being lowered into an unsafe partial component operation.
 
 ### 3. Keep opaque content visible
 
@@ -51,9 +53,10 @@ semantic/layout issues; structural package failures and new errors remain
 blocking. A deterministic
 public-REPL rehearsal now runs three fresh task workspaces through two commits,
 two resumes, verification, and publish without changing the source. It is
-evidence for the task protocol, not a model black-box score. The change still
-keeps component mutation and native-host acceptance as later gates rather than
-turning visual similarity into an unproven mutation authority.
+evidence for the task protocol, not a model black-box score. The change now
+includes a bounded top-level component reuse operation with sibling deletion
+proofs; arbitrary component mutation and native-host acceptance remain later
+gates rather than turning visual similarity into an unproven mutation authority.
 
 ## Non-Goals
 

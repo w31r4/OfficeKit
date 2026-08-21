@@ -14,7 +14,8 @@ a reusable component from an opaque object.
   layout families, slide archetypes, recurring geometry candidates, and opaque
   native-object summaries without copying the source deck into the repository.
 - Keep the profile descriptive and source-bound: it may recommend a layout or
-  component, but it does not grant edit capability or flatten unknown OOXML.
+  component, while only a closed top-level candidate can authorize the narrow
+  source-component-to-new-slide operation. It never flattens unknown OOXML.
 - Define a follow-up source-derived reuse operation separately from profiling;
   the first implementation may reuse only a codec-proven slide/component graph.
 
@@ -37,5 +38,6 @@ a reusable component from an opaque object.
 - Adds a bounded profile generator and benchmark evidence for the three real
   PPTX samples.
 - Does not add a universal AST, HTML conversion path, raw OOXML editor, or
-  automatic claim that a repeated geometry is safe to clone.
+  automatic claim that a repeated geometry is safe to clone. Component reuse
+  requires explicit candidate evidence and independent sibling deletion proofs.
 - Windows PowerPoint and black-box Agent acceptance remain separate gates.

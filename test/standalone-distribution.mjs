@@ -397,10 +397,16 @@ import { Presentation, PresentationFile } from "office-kit";
 
 const source = Presentation.create();
 for (const index of [1, 2]) {
-  source.slides.add({ name: "Component " + index }).shapes.add({
+  const slide = source.slides.add({ name: "Component " + index });
+  slide.shapes.add({
     geometry: "textbox",
     text: "reusable component",
     position: { left: 40, top: 40, width: 400, height: 80 },
+  });
+  slide.shapes.add({
+    geometry: "rect",
+    text: "sibling " + index,
+    position: { left: 520, top: 40, width: 240, height: 80 },
   });
 }
 const sourceBlob = await PresentationFile.exportPptx(source);
@@ -423,7 +429,12 @@ const reusedSlide = imported.reuseSourceSlide({
 });
 const reused = await PresentationFile.exportPptx(imported);
 if (reusedSlide.index !== 1 || (await PresentationFile.importPptx(reused)).slides.count !== 3) process.exit(22);
-console.log(JSON.stringify({ candidateCount: records.length, status: candidate.status, sourceRevisionSha256: candidate.sourceRevisionSha256, reusedSlideCount: 3 }));
+const componentImported = await PresentationFile.importPptx(sourceBlob);
+const componentSlide = componentImported.reuseSourceComponent({ candidateId: candidate.candidateId, expectedCandidate: candidate });
+if (componentSlide.shapes.items.length !== 1) process.exit(23);
+const component = await PresentationFile.exportPptx(componentImported);
+if ((await PresentationFile.importPptx(component)).slides.items[1].shapes.items.length !== 1) process.exit(24);
+console.log(JSON.stringify({ candidateCount: records.length, status: candidate.status, sourceRevisionSha256: candidate.sourceRevisionSha256, reusedSlideCount: 3, componentSlideShapeCount: 1 }));
 `, "utf8");
   const componentResult = JSON.parse(
     runOfficeKit(["run", "component-candidates.mjs"], project).stdout,
@@ -432,6 +443,7 @@ console.log(JSON.stringify({ candidateCount: records.length, status: candidate.s
   assert.equal(componentResult.status, "inspect-only");
   assert.match(componentResult.sourceRevisionSha256, /^[0-9a-f]{64}$/u);
   assert.equal(componentResult.reusedSlideCount, 3);
+  assert.equal(componentResult.componentSlideShapeCount, 1);
 
   const dependencyProject = path.join(temporary, "task-local-dependency");
   const dependencyRoot = path.join(

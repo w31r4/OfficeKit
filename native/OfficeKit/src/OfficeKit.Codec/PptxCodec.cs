@@ -2536,10 +2536,18 @@ internal static class PptxCodec
                 throw new CodecException("presentation_postwrite_topology_changed", "PPTX slide order does not match the requested source-bound order.", "ppt/presentation.xml");
             if (target.IsClone)
             {
-                if (PartPath(outputSlide).Equals(PartPath(target.Source.Part), StringComparison.OrdinalIgnoreCase) ||
-                    !HashElement(target.Source.Part.Slide!).Equals(HashElement(outputSlide.Slide!), StringComparison.OrdinalIgnoreCase))
+                if (PartPath(outputSlide).Equals(PartPath(target.Source.Part), StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_postwrite_clone_mismatch", $"PPTX clone {targetIndex + 1} is not an independent exact source slide copy.", PartPath(outputSlide));
-                PptxSlideCloneCodec.Validate(target.Source, outputSlide, retainedSourceSlideParts);
+                if (target.Target.ElementDeletions.Count == 0)
+                {
+                    if (!HashElement(target.Source.Part.Slide!).Equals(HashElement(outputSlide.Slide!), StringComparison.OrdinalIgnoreCase))
+                        throw new CodecException("presentation_postwrite_clone_mismatch", $"PPTX clone {targetIndex + 1} is not an independent exact source slide copy.", PartPath(outputSlide));
+                    PptxSlideCloneCodec.Validate(target.Source, outputSlide, retainedSourceSlideParts);
+                }
+                else
+                {
+                    ValidateCloneElementProjection(target.Source, outputSlide, target.Target);
+                }
             }
             else
             {
@@ -2759,6 +2767,47 @@ internal static class PptxCodec
                         $"PPTX slide {slideIndex + 1} edited shape {elementIndex + 1} does not match requested semantics after export.",
                         PartPath(outputSlides[slideIndex]));
             }
+        }
+    }
+
+    private static void ValidateCloneElementProjection(
+        PptxSourceSlideEntry source,
+        SlidePart output,
+        PresentationSlide requested)
+    {
+        var sourceRoot = source.Part.Slide ??
+            throw new CodecException("missing_slide_root", $"Presentation source slide {source.Index + 1} has no slide root.", PartPath(source.Part));
+        var outputRoot = output.Slide ??
+            throw new CodecException("missing_slide_root", "Presentation cloned slide has no slide root.", PartPath(output));
+        var sourceElements = ShapeElements(sourceRoot.CommonSlideData?.ShapeTree ??
+            throw new CodecException("missing_shape_tree", $"Presentation source slide {source.Index + 1} has no shape tree.", PartPath(source.Part)));
+        var outputElements = ShapeElements(outputRoot.CommonSlideData?.ShapeTree ??
+            throw new CodecException("missing_shape_tree", "Presentation cloned slide has no shape tree.", PartPath(output)));
+        if (sourceElements.Length != requested.Elements.Count + requested.ElementDeletions.Count || outputElements.Length != requested.Elements.Count)
+            throw new CodecException("presentation_postwrite_topology_changed", "PPTX component clone output does not match its retained/deleted element projection.", PartPath(output));
+        var outputNativeIds = outputElements.SelectMany(PptxElementDeletionCodec.NativeIds).ToHashSet();
+        foreach (var deletion in requested.ElementDeletions)
+        {
+            var binding = deletion.Source ??
+                throw new CodecException("missing_presentation_element_deletion_binding", "PPTX component clone deletion lost its source binding.", PartPath(output));
+            var sourceIndex = checked((int)binding.ShapeTreeIndex);
+            if (sourceIndex < 0 || sourceIndex >= sourceElements.Length ||
+                !binding.ElementSha256.Equals(HashElement(sourceElements[sourceIndex]), StringComparison.OrdinalIgnoreCase) ||
+                PptxElementDeletionCodec.NativeIds(sourceElements[sourceIndex]).Overlaps(outputNativeIds))
+                throw new CodecException("presentation_postwrite_element_delete_mismatch", "PPTX component clone retained a deleted source element or lost its source proof.", PartPath(output));
+            var plan = PptxElementDeletionCodec.Analyze(source.Part, sourceElements[sourceIndex], sourceElements);
+            if (!plan.Supported)
+                throw new CodecException("presentation_postwrite_element_delete_mismatch", "PPTX component clone deletion no longer satisfies its source deletion proof.", PartPath(output));
+        }
+        for (var retainedIndex = 0; retainedIndex < requested.Elements.Count; retainedIndex++)
+        {
+            var binding = requested.Elements[retainedIndex].Source ??
+                throw new CodecException("missing_presentation_element_binding", "PPTX component clone retained element lost its source binding.", PartPath(output));
+            var sourceIndex = checked((int)binding.ShapeTreeIndex);
+            if (sourceIndex < 0 || sourceIndex >= sourceElements.Length ||
+                !binding.ElementSha256.Equals(HashElement(sourceElements[sourceIndex]), StringComparison.OrdinalIgnoreCase) ||
+                !HashElement(sourceElements[sourceIndex]).Equals(HashElement(outputElements[retainedIndex]), StringComparison.OrdinalIgnoreCase))
+                throw new CodecException("presentation_postwrite_clone_mismatch", "PPTX component clone changed an element that was not selected for reuse.", PartPath(output));
         }
     }
 
@@ -3223,6 +3272,11 @@ internal static class PptxCodec
             var sourcePart = target.Source.Part;
             var result = PptxSlideCloneCodec.Clone(presentationPart, target.Source, retainedSlideParts);
             var clonePart = result.Part;
+            // Validate the complete graph before applying any authorized
+            // component projection. The clone codec proves that every
+            // relationship and descendant is an exact source copy; the
+            // bounded deletion pass below is the only permitted difference.
+            PptxSlideCloneCodec.Validate(target.Source, clonePart, retainedSlideParts);
             changedParts.UnionWith(result.ChangedPackagePaths);
             addedPartPaths.UnionWith(result.AddedOpaquePartPaths);
             addedRelationshipIds.UnionWith(result.AddedOpaqueRelationshipKeys);
@@ -3235,10 +3289,66 @@ internal static class PptxCodec
                 Id = nextSlideId,
                 RelationshipId = presentationPart.GetIdOfPart(clonePart),
             };
+            ApplyCloneElementDeletions(target, clonePart, changedParts, addedRelationshipIds, addedPartPaths);
         }
         changedParts.Add(PartPath(presentationPart));
         changedParts.Add(RelationshipPartPath(presentationPart));
         changedParts.Add("[Content_Types].xml");
+    }
+
+    private static void ApplyCloneElementDeletions(
+        PptxTargetSlideEntry target,
+        SlidePart clonePart,
+        ISet<string> changedParts,
+        ISet<string> addedRelationshipIds,
+        ISet<string> addedPartPaths)
+    {
+        if (target.Target.ElementDeletions.Count == 0) return;
+        var sourceRoot = target.Source.Part.Slide ??
+            throw new CodecException("missing_slide_root", $"Presentation source slide {target.Source.Index + 1} has no slide root.", PartPath(target.Source.Part));
+        var cloneRoot = clonePart.Slide ??
+            throw new CodecException("missing_slide_root", $"Presentation cloned slide {target.TargetIndex + 1} has no slide root.", PartPath(clonePart));
+        var sourceElements = ShapeElements(sourceRoot.CommonSlideData?.ShapeTree ??
+            throw new CodecException("missing_shape_tree", $"Presentation source slide {target.Source.Index + 1} has no shape tree.", PartPath(target.Source.Part)));
+        var cloneElements = ShapeElements(cloneRoot.CommonSlideData?.ShapeTree ??
+            throw new CodecException("missing_shape_tree", $"Presentation cloned slide {target.TargetIndex + 1} has no shape tree.", PartPath(clonePart)));
+        if (sourceElements.Length != cloneElements.Length)
+            throw PptxSlideCloneCodec.Unsupported(target.Source, "the cloned shape tree changed before the authorized component projection");
+
+        var pending = new List<(int Index, OpenXmlElement Source, OpenXmlElement Clone, PptxElementDeletionPlan Plan)>();
+        foreach (var deletion in target.Target.ElementDeletions)
+        {
+            var binding = deletion.Source ??
+                throw new CodecException("missing_presentation_element_deletion_binding", $"Presentation cloned slide {target.TargetIndex + 1} deletion {deletion.Id} is missing its source binding.", PartPath(target.Source.Part));
+            var sourceIndex = checked((int)binding.ShapeTreeIndex);
+            if (sourceIndex < 0 || sourceIndex >= sourceElements.Length)
+                throw PptxSlideCloneCodec.Unsupported(target.Source, "an authorized component deletion identifies an invalid source shape-tree index");
+            var sourceElement = sourceElements[sourceIndex];
+            var cloneElement = cloneElements[sourceIndex];
+            var sourcePlan = PptxElementDeletionCodec.Analyze(target.Source.Part, sourceElement, sourceElements);
+            var clonePlan = PptxElementDeletionCodec.Analyze(clonePart, cloneElement, cloneElements);
+            if (!sourcePlan.Supported || !clonePlan.Supported)
+                throw new CodecException("unsupported_presentation_element_delete", $"Presentation cloned slide {target.TargetIndex + 1} component deletion {deletion.Id} is not supported by the source or clone deletion proof.", PartPath(clonePart));
+            pending.Add((sourceIndex, sourceElement, cloneElement, clonePlan));
+        }
+        foreach (var deletion in pending.OrderByDescending(item => item.Index))
+        {
+            PptxElementDeletionCodec.Apply(clonePart, deletion.Clone, deletion.Plan);
+            changedParts.Add(PartPath(clonePart));
+            if (deletion.Plan.RelationshipIds.Count > 0)
+            {
+                changedParts.Add(RelationshipPartPath(clonePart));
+                foreach (var relationshipId in deletion.Plan.RelationshipIds)
+                    addedRelationshipIds.Remove($"{PartPath(clonePart)}\0{relationshipId}");
+            }
+            if (deletion.Plan.RemovedPackagePartPaths.Count > 0)
+            {
+                changedParts.UnionWith(deletion.Plan.RemovedPackagePartPaths);
+                addedPartPaths.ExceptWith(deletion.Plan.RemovedPackagePartPaths);
+                changedParts.Add("[Content_Types].xml");
+            }
+        }
+        cloneRoot.Save();
     }
 
     // The first clone profile preserves the origin SlidePart byte-for-byte.
@@ -3311,21 +3421,50 @@ internal static class PptxCodec
             throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} legacy comments are not unchanged source comments.", PartPath(source.Part));
 
         var sourceElements = ShapeElements(tree);
-        if (sourceElements.Length != target.Target.Elements.Count || target.Target.ElementDeletions.Count > 0)
-            throw PptxSlideCloneCodec.Unsupported(source, "the requested clone changes source element topology");
+        if (sourceElements.Length != target.Target.Elements.Count + target.Target.ElementDeletions.Count)
+            throw PptxSlideCloneCodec.Unsupported(source, "the requested clone does not account for every source element");
         var context = new PptxPartContext(source.Part, slideIdByPartPath, assets: assetCatalog, customShows: customShowCatalog);
         var elementIdsByNativeId = NativeElementIds(sourceElements, $"presentation/slide/{source.Index + 1}");
+        var requestedBySourceIndex = new Dictionary<int, PresentationElement>();
+        var previousSourceIndex = -1;
+        foreach (var requested in target.Target.Elements)
+        {
+            var binding = requested.Source ??
+                throw new CodecException("missing_presentation_element_binding", $"Presentation clone {target.TargetIndex + 1} element {requested.Id} is missing its source binding.", PartPath(source.Part));
+            var sourceIndex = checked((int)binding.ShapeTreeIndex);
+            if (sourceIndex < 0 || sourceIndex >= sourceElements.Length || sourceIndex <= previousSourceIndex || !requestedBySourceIndex.TryAdd(sourceIndex, requested))
+                throw PptxSlideCloneCodec.Unsupported(source, "retained clone elements do not preserve unique source shape-tree order");
+            previousSourceIndex = sourceIndex;
+        }
+        var deletionsBySourceIndex = new Dictionary<int, PresentationElementDeletion>();
+        foreach (var deletion in target.Target.ElementDeletions)
+        {
+            var binding = deletion.Source ??
+                throw new CodecException("missing_presentation_element_deletion_binding", $"Presentation clone {target.TargetIndex + 1} deletion {deletion.Id} is missing its source binding.", PartPath(source.Part));
+            var sourceIndex = checked((int)binding.ShapeTreeIndex);
+            if (sourceIndex < 0 || sourceIndex >= sourceElements.Length || requestedBySourceIndex.ContainsKey(sourceIndex) || !deletionsBySourceIndex.TryAdd(sourceIndex, deletion))
+                throw PptxSlideCloneCodec.Unsupported(source, "component deletions do not identify unique omitted source elements");
+        }
         for (var elementIndex = 0; elementIndex < sourceElements.Length; elementIndex++)
         {
-            var requested = target.Target.Elements[elementIndex];
-            var binding = requested.Source ??
-                throw new CodecException("missing_presentation_element_binding", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} is missing its source binding.", PartPath(source.Part));
             var original = ReadElement(sourceElements[elementIndex], source.Index, elementIndex, context, nativeObjects, elementIdsByNativeId);
             var deletionPlan = PptxElementDeletionCodec.Analyze(source.Part, sourceElements[elementIndex], sourceElements);
             SetElementDeletionCapability(original, deletionPlan);
-            AssertElementBinding(requested.Id, binding, sourceElements[elementIndex], original, deletionPlan, target.TargetIndex, elementIndex, source.Part);
-            if (!SemanticHash(requested).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
-                throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} is not an unchanged source element.", PartPath(source.Part));
+            if (requestedBySourceIndex.TryGetValue(elementIndex, out var requested))
+            {
+                var binding = requested.Source!;
+                AssertElementBinding(requested.Id, binding, sourceElements[elementIndex], original, deletionPlan, target.TargetIndex, elementIndex, source.Part);
+                if (!SemanticHash(requested).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
+                    throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} is not an unchanged source element.", PartPath(source.Part));
+                continue;
+            }
+            if (!deletionsBySourceIndex.TryGetValue(elementIndex, out var deletion))
+                throw PptxSlideCloneCodec.Unsupported(source, "a source element is neither retained nor explicitly deleted");
+            AssertElementBinding(deletion.Id, deletion.Source!, sourceElements[elementIndex], original, deletionPlan, target.TargetIndex, elementIndex, source.Part);
+            if (!deletion.Id.Equals(original.Id, StringComparison.Ordinal))
+                throw new CodecException("presentation_element_deletion_binding_mismatch", $"Presentation clone {target.TargetIndex + 1} deletion {elementIndex + 1} changed its source element identity.", PartPath(source.Part));
+            if (!deletionPlan.Supported)
+                throw new CodecException("unsupported_presentation_element_delete", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} cannot be safely deleted: {deletionPlan.BlockedReason}.", PartPath(source.Part));
         }
     }
 

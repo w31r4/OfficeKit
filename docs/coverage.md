@@ -4,6 +4,8 @@ This document describes the supported OfficeKit boundary. It is not a promise th
 
 Latest PPTX evidence: three independent Agent runs on the real 算秩未来 source completed the revision-bound title edit with one changed SlidePart and byte-identical non-target parts. The runs prove inherited-finding comparison and source protection; visual review was unavailable on macOS and Windows PowerPoint acceptance remains open.
 
+The source-derived reuse slice now also issues a bounded `presentation.reuseSourceComponent` operation: one exact top-level repeated candidate may become a new slide only when every removed sibling has an independent deletion proof and no retained connector would dangle. Nested, opaque, ambiguous, comment-bound, and relationship-bound candidates remain blocked.
+
 Status meanings:
 
 - **done**: the modeled OfficeKit operation is supported for creation/import, edit, export, and second import where applicable.

@@ -758,6 +758,132 @@ export class Presentation {
     return slide.duplicate();
   }
 
+  reuseSourceComponent(request = {}) {
+    if (!request || typeof request !== "object" || Array.isArray(request)) {
+      throw new TypeError("Presentation source-component reuse request must be an object.");
+    }
+    const unsupported = Object.keys(request).filter((key) =>
+      !new Set(["candidateId", "occurrenceIndex", "expectedCandidate"]).has(key));
+    if (unsupported.length) {
+      throw new TypeError(`Presentation source-component reuse request has unsupported fields: ${unsupported.join(", ")}.`);
+    }
+    const candidateId = typeof request.candidateId === "string" ? request.candidateId.trim() : "";
+    if (!candidateId) throw new TypeError("Presentation source-component reuse requires the exact inspected candidateId.");
+    const candidate = this.resolveComponentCandidate(candidateId);
+    if (!candidate) {
+      const error = new Error(`Presentation component candidate ${candidateId} was not found in this revision.`);
+      error.code = "presentation_component_candidate_not_found";
+      throw error;
+    }
+    if (candidate.status !== "inspect-only" || candidate.mutationCapability?.supported !== false) {
+      const error = new Error(`Presentation component candidate ${candidateId} is not available for bounded source reuse.`);
+      error.code = "unsupported_presentation_component_reuse";
+      throw error;
+    }
+    if (request.expectedCandidate !== undefined) {
+      if (!request.expectedCandidate || typeof request.expectedCandidate !== "object" || Array.isArray(request.expectedCandidate)) {
+        throw new TypeError("Presentation source-component reuse expectedCandidate must be an inspection object.");
+      }
+      if (JSON.stringify(request.expectedCandidate) !== JSON.stringify(candidate)) {
+        const error = new Error(`Presentation component candidate ${candidateId} ownership evidence is stale.`);
+        error.code = "stale_presentation_component_candidate";
+        throw error;
+      }
+    }
+    const state = this[PRESENTATION_STATE];
+    const sourceRevisionSha256 = String(state?.opaqueOpc?.sourcePackage?.sha256 || state?.source?.packageSha256 || "").toLowerCase();
+    if (!sourceRevisionSha256 || sourceRevisionSha256 !== String(candidate.sourceRevisionSha256 || "").toLowerCase()) {
+      const error = new Error(`Presentation component candidate ${candidateId} belongs to a different source revision.`);
+      error.code = "stale_presentation_source_revision";
+      throw error;
+    }
+    const occurrences = Array.isArray(candidate.occurrences) ? candidate.occurrences : [];
+    const occurrenceIndex = request.occurrenceIndex === undefined ? 0 : Number(request.occurrenceIndex);
+    if (!Number.isInteger(occurrenceIndex) || occurrenceIndex < 0 || occurrenceIndex >= occurrences.length) {
+      throw new RangeError(`Presentation component candidate ${candidateId} occurrenceIndex must identify one inspected occurrence.`);
+    }
+    const occurrence = occurrences[occurrenceIndex];
+    if (!occurrence?.slideId || !occurrence.targetId || !Number.isInteger(Number(occurrence.sourceShapeTreeIndex))) {
+      const error = new Error(`Presentation component candidate ${candidateId} has no safe top-level source locator.`);
+      error.code = "unsupported_presentation_component_reuse";
+      throw error;
+    }
+    if (occurrence.ownership?.sourceBound !== true || occurrence.ownership?.closedGraph !== true || occurrence.ownership?.mutableDescendantsShared === true) {
+      const error = new Error(`Presentation component candidate ${candidateId} is not backed by a closed source graph.`);
+      error.code = "unsupported_presentation_component_reuse";
+      throw error;
+    }
+    const sourceState = (state.slides || []).find((entry) => entry.wire?.id === occurrence.slideId);
+    const sourceSlide = sourceState?.slide;
+    if (!sourceState || !sourceSlide || sourceSlide.presentation !== this) {
+      const error = new Error(`Presentation component candidate ${candidateId} source slide is not available in this revision.`);
+      error.code = "presentation_component_source_not_found";
+      throw error;
+    }
+    const sourceEntry = sourceState.entries.find((entry) => entry.wire?.id === occurrence.targetId);
+    if (!sourceEntry || sourceEntry.model?.parentGroup) {
+      const error = new Error(`Presentation component candidate ${candidateId} must identify a direct top-level element.`);
+      error.code = "unsupported_presentation_component_reuse";
+      throw error;
+    }
+    const directElements = directSlideModelElements(sourceSlide);
+    if (!directElements.includes(sourceEntry.model)) {
+      const error = new Error(`Presentation component candidate ${candidateId} does not identify a direct slide element.`);
+      error.code = "unsupported_presentation_component_reuse";
+      throw error;
+    }
+    const sourceIds = new Set(sourceState.entries.map((entry) => entry.wire?.id).filter(Boolean));
+    const removedSourceIds = new Set(sourceState.entries
+      .filter((entry) => entry !== sourceEntry)
+      .map((entry) => entry.wire?.id)
+      .filter(Boolean));
+    for (const entry of sourceState.entries) {
+      if (entry === sourceEntry) continue;
+      const capability = entry.model?.deletionCapability;
+      if (!capability?.sourceBound || capability.known !== true || capability.supported !== true) {
+        const error = new Error(`Presentation component candidate ${candidateId} cannot remove source element ${entry.wire?.id || "<unknown>"} safely${capability?.blockedReason ? `: ${capability.blockedReason}` : "."}`);
+        error.code = "unsupported_presentation_component_reuse";
+        throw error;
+      }
+    }
+    for (const entry of sourceState.entries) {
+      if (entry.wire?.content?.case !== "connector" || removedSourceIds.has(entry.wire.id)) continue;
+      const connector = entry.model;
+      if ([connector.startTargetId, connector.endTargetId].some((targetId) => targetId && removedSourceIds.has(targetId))) {
+        const error = new Error(`Presentation component candidate ${candidateId} would leave a retained connector pointing at a removed element.`);
+        error.code = "unsupported_presentation_component_reuse";
+        throw error;
+      }
+    }
+    const clone = sourceSlide.duplicate();
+    const cloneState = (state.clones || []).find((entry) => entry.slide === clone);
+    if (!cloneState) {
+      throw new Error("Presentation source-component reuse could not establish a clone binding.");
+    }
+    const cloneTarget = directSlideModelElements(clone).find((element) => cloneState.sourceIdByCloneId?.get(element.id) === occurrence.targetId);
+    if (!cloneTarget) {
+      const error = new Error(`Presentation component candidate ${candidateId} could not resolve its cloned top-level element.`);
+      error.code = "unsupported_presentation_component_reuse";
+      throw error;
+    }
+    const cloneElements = directSlideModelElements(clone);
+    cloneState.allowedDeletedIds = new Set();
+    cloneState.componentReuse = Object.freeze({ candidateId, occurrenceIndex });
+    for (const element of cloneElements) {
+      if (element === cloneTarget) continue;
+      const sourceId = cloneState.sourceIdByCloneId?.get(element.id);
+      if (!sourceId || !sourceIds.has(sourceId)) {
+        throw new Error("Presentation source-component reuse encountered an unbound clone element.");
+      }
+      cloneState.allowedDeletedIds.add(sourceId);
+      removePendingCloneDirectElement(clone, element);
+    }
+    if (cloneState.allowedDeletedIds.size !== sourceState.entries.length - 1) {
+      throw new Error("Presentation source-component reuse did not account for every removed source element.");
+    }
+    return clone;
+  }
+
   validateLayout(options = {}) {
     const issues = this.slides.items.flatMap((slide) => slide.validateLayout(options).issues);
     return { ok: issues.length === 0, issues, ...ndjson(issues, options.maxChars ?? Infinity) };
@@ -2330,4 +2456,35 @@ function presentationElementKind(element) {
 function presentationSlideElements(slide) {
   const direct = [...slide.connectors.items, ...slide.shapes.items, ...slide.tables.items, ...slide.charts.items, ...slide.images.items, ...slide.groups.items, ...slide.nativeObjects.items];
   return direct.flatMap((element) => element instanceof GroupShape ? element.allElements() : [element]);
+}
+
+function directSlideModelElements(slide) {
+  return [
+    ...slide.connectors.items,
+    ...slide.shapes.items,
+    ...slide.tables.items,
+    ...slide.charts.items,
+    ...slide.images.items,
+    ...slide.groups.items,
+    ...slide.nativeObjects.items,
+  ];
+}
+
+function removePendingCloneDirectElement(slide, element) {
+  const collections = [
+    slide.connectors,
+    slide.shapes,
+    slide.tables,
+    slide.charts,
+    slide.images,
+    slide.groups,
+    slide.nativeObjects,
+  ];
+  for (const collection of collections) {
+    const index = collection.items.indexOf(element);
+    if (index < 0) continue;
+    collection.items.splice(index, 1);
+    return;
+  }
+  throw new Error(`Presentation clone element ${element?.id || "<unknown>"} does not belong to its slide.`);
 }

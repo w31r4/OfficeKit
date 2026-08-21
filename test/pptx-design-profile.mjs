@@ -58,8 +58,9 @@ assert.equal(await clonedZip.file("ppt/slides/slide1.xml").async("text"), unname
 assert.equal(importedUnnamed.slides.count, 5);
 
 // Imported design evidence exposes repeated visual primitives as stable,
-// source-bound references. The v1 surface is deliberately inspect-only: it
-// never turns a geometry match into permission to synthesize a partial graph.
+// source-bound references. Only a closed top-level candidate can authorize the
+// bounded component-to-slide projection below; inspection never turns a
+// geometry match into arbitrary partial-graph mutation.
 const candidatePresentation = await PresentationFile.importPptx(new FileBlob(sourceBytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }));
 const componentRecords = candidatePresentation.inspect({ includeComponentCandidates: true, maxChars: Infinity }).ndjson
   .split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((record) => record.kind === "componentCandidate");
@@ -101,6 +102,62 @@ const staleReusePresentation = await PresentationFile.importPptx(new FileBlob(so
 assert.throws(
   () => staleReusePresentation.reuseSourceSlide({ slideId: staleReusePresentation.slides.items[0].id, sourceRevisionSha256: "0".repeat(64) }),
   (error) => error?.code === "stale_presentation_source_revision",
+);
+
+// A repeated top-level component can be issued as a new source-bound slide
+// only when every sibling has a codec-proven deletion boundary. The resulting
+// slide keeps the selected component's exact source bytes and does not invent
+// a second semantic model for the imported package.
+const componentAuthoring = Presentation.create({ slideSize: { width: 1280, height: 720 } });
+for (let slideIndex = 0; slideIndex < 2; slideIndex += 1) {
+  const slide = componentAuthoring.slides.add({ name: `Component ${slideIndex + 1}` });
+  slide.shapes.add({
+    name: "Reusable card",
+    geometry: "roundRect",
+    position: { left: 100, top: 120, width: 360, height: 180 },
+    fill: "#e2e8f0",
+    line: { fill: "#334155", width: 1 },
+    text: "Reusable card",
+  });
+  slide.shapes.add({
+    name: `Sibling ${slideIndex + 1}`,
+    geometry: "rect",
+    position: { left: 620, top: 120, width: 360, height: 180 },
+    fill: "#ffffff",
+    line: { fill: "#64748b", width: 1 },
+    text: `Sibling ${slideIndex + 1}`,
+  });
+}
+const componentSource = await PresentationFile.exportPptx(componentAuthoring);
+const componentImported = await PresentationFile.importPptx(componentSource);
+const componentCandidates = componentImported.inspect({ includeComponentCandidates: true, maxChars: Infinity }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((record) => record.kind === "componentCandidate");
+const reusableComponent = componentCandidates.find((record) => record.status === "inspect-only" && record.occurrences.length === 2);
+assert.ok(reusableComponent, "the controlled fixture should expose one repeated top-level component");
+const componentSourceSlideXml = await (await JSZip.loadAsync(componentSource.bytes)).file("ppt/slides/slide1.xml").async("text");
+const componentClone = componentImported.reuseSourceComponent({
+  candidateId: reusableComponent.candidateId,
+  occurrenceIndex: 0,
+  expectedCandidate: reusableComponent,
+});
+assert.equal(componentClone.index, 1);
+assert.equal(componentClone.shapes.items.length, 1);
+const componentExport = await PresentationFile.exportPptx(componentImported);
+const componentExportZip = await JSZip.loadAsync(componentExport.bytes);
+assert.equal(await componentExportZip.file("ppt/slides/slide1.xml").async("text"), componentSourceSlideXml);
+const componentRoundTrip = await PresentationFile.importPptx(componentExport);
+assert.equal(componentRoundTrip.slides.count, 3);
+assert.equal(componentRoundTrip.slides.items[1].shapes.items.length, 1);
+assert.throws(
+  () => componentImported.reuseSourceComponent({ candidateId: reusableComponent.candidateId, occurrenceIndex: 99 }),
+  (error) => error instanceof RangeError,
+);
+assert.throws(
+  () => componentImported.reuseSourceComponent({
+    candidateId: reusableComponent.candidateId,
+    expectedCandidate: { ...reusableComponent, sourceRevisionSha256: "0".repeat(64) },
+  }),
+  (error) => error?.code === "stale_presentation_component_candidate",
 );
 const sourceFreeCandidateError = (() => {
   try {

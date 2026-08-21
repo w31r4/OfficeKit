@@ -18,14 +18,18 @@
   slide graph clone and rejects stale or mismatched evidence.
 - [x] 2.2 Reuse one codec-proven complete slide graph without sharing mutable
   descendants or changing the original source slide.
-- [x] 2.3 Expose recurring component candidates only as inspectable references;
+- [x] 2.3 Expose recurring component candidates as inspectable references;
   `presentation.inspect({ includeComponentCandidates: true })` issues stable
   source-revision-bound IDs and occurrence/ownership evidence. Ambiguous,
-  opaque, and relationship-bound graphs are reported as blocked; v1 exposes
-  no component mutation API.
-- [x] 2.4 Add review, second-import, package-footprint, and native-render checks
-  for the bounded reused-slide slice; component mutation remains a later
-  capability after the inspect-only candidate boundary.
+  opaque, nested, and relationship-bound graphs remain blocked.
+- [x] 2.4 Add a bounded `presentation.reuseSourceComponent` primitive for one
+  closed top-level candidate occurrence. It duplicates the complete source
+  slide, removes only sibling elements with codec-proven deletion boundaries,
+  rejects retained connectors that would dangle, and keeps the original slide
+  and non-target package parts intact.
+- [x] 2.5 Add review, second-import, package-footprint, and native-render checks
+  for both complete-slide and component reuse. Arbitrary partial component
+  mutation, nested component extraction, and raw XML remain out of scope.
 
 ## 3. Same-style continuation
 
