@@ -6907,6 +6907,24 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void OpaquePictureWithNegativeFrameRemainsReadOnly()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = ReplaceZipText(
+            AddPictureWithOwnedFallbackRelationship(authored.File.ToByteArray()),
+            "ppt/slides/slide1.xml",
+            xml => xml.Replace("<a:off x=\"571500\" y=\"1524000\"", "<a:off x=\"-571500\" y=\"1524000\"", StringComparison.Ordinal));
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var picture = Assert.Single(Assert.Single(imported.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
+                       element.Opaque.NativeKind == "picture");
+        Assert.False(picture.Source.Editable);
+        Assert.False(picture.Source.DirectFramePresenceEditable);
+    }
+
+    [Fact]
     public void ImportedElementDeletionCapabilityAllowsOwnedRelationshipShapes()
     {
         var authored = Invoke(HyperlinkExportRequest());

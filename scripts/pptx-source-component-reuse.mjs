@@ -29,9 +29,14 @@ export async function runSourceComponentReuse(assetsDir) {
     const failures = {};
     let passed;
     for (const candidate of candidates) {
+      const occurrenceIndex = candidate.occurrences.findIndex((occurrence) =>
+        occurrence.reuseCapability?.supported === true,
+      );
+      if (occurrenceIndex < 0) continue;
       try {
         const clone = presentation.reuseSourceComponent({
           candidateId: candidate.candidateId,
+          occurrenceIndex,
           expectedCandidate: candidate,
         });
         const output = await PresentationFile.exportPptx(presentation);
@@ -39,6 +44,7 @@ export async function runSourceComponentReuse(assetsDir) {
         const nonTargetPartMismatches = await compareNonTopologyParts(sourceBytes, output.bytes);
         passed = {
           candidateId: candidate.candidateId,
+          occurrenceIndex,
           occurrenceCount: candidate.occurrences.length,
           cloneSlideIndex: clone.index,
           cloneElementCount: directElementCount(clone),

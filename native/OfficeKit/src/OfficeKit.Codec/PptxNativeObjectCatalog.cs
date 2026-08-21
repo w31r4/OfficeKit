@@ -311,11 +311,16 @@ internal sealed class PptxNativeObjectCatalog
             var cropAttributes = crop?.GetAttributes().ToArray() ?? [];
             var cropSafe = crop is null || (!crop.HasChildren &&
                 cropAttributes.All(attribute => attribute.LocalName is "l" or "t" or "r" or "b"));
+            var frameSafe = transform?.Offset?.X?.Value is >= 0 &&
+                            transform.Offset.Y?.Value is >= 0 &&
+                            transform.Extents?.Cx?.Value is > 0 &&
+                            transform.Extents.Cy?.Value is > 0;
             return picture.NonVisualPictureProperties?.NonVisualDrawingProperties is not null &&
                    properties is not null &&
                    properties.ChildElements.OfType<A.Transform2D>().Count() == 1 &&
                    transform?.Offset is not null &&
                    transform.Extents is not null &&
+                   frameSafe &&
                    blipAttributes.Length == 1 &&
                    RelationshipNamespaces.Contains(blipAttributes[0].NamespaceUri) &&
                    blipAttributes[0].LocalName is "embed" or "link" &&

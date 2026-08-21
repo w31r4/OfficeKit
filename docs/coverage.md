@@ -6,7 +6,7 @@ Latest PPTX evidence: three independent black-box Agent runs on the real 算秩�
 
 The source-derived reuse slice now also issues a bounded `presentation.reuseSourceComponent` operation: one exact top-level repeated candidate may become a new slide only when every removed sibling has an independent deletion proof and no retained connector would dangle. Nested, opaque, ambiguous, comment-bound, and relationship-bound candidates remain blocked.
 
-The three-sample component scan records the boundary honestly: the blue-gray and McKinsey samples each have a passed repeated-image reuse with zero non-topology part drift; the 算秩未来 sample still rejects all inspect-only candidates because duplicate native IDs or timing/extension identity prevent a closed sibling-deletion proof. The evidence records both a raw output SHA for diagnostics and a canonical OPC-content SHA so ZIP container timestamps cannot masquerade as nondeterministic mutation. This remains an explicit coverage gap, not a mutation claim.
+The three-sample component scan records the boundary honestly: each sample now has one passed repeated-component reuse with zero non-topology part drift, and the evidence records the selected occurrence index. Duplicate native IDs, timing/extension identity, and relationship-bound siblings still block the affected candidates. Opaque pictures with negative or otherwise unsafe direct frames remain read-only rather than blocking unrelated source-preserving reuse. The evidence records both a raw output SHA for diagnostics and a canonical OPC-content SHA so ZIP container timestamps cannot masquerade as nondeterministic mutation. Component mutation after clone/reimport and Windows acceptance remain explicit gaps, not mutation claims.
 
 Status meanings:
 

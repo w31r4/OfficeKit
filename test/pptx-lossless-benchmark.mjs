@@ -201,6 +201,9 @@ for (const reuse of sourceComponentReuse.sources) {
   } else {
     assert.equal(reuse.status, "passed");
     assert.match(reuse.candidateId, /^pc_[0-9a-f]{32}$/u);
+    assert.equal(Number.isInteger(reuse.occurrenceIndex), true);
+    assert.equal(reuse.occurrenceIndex >= 0, true);
+    assert.equal(reuse.occurrenceCount > reuse.occurrenceIndex, true);
     assert.equal(reuse.nonTargetPartMismatches.length, 0);
     assert.equal(reuse.reopenedSlideCount, reuse.sourceSlideCount + 1);
     assert.equal(reuse.cloneElementCount >= 1, true);

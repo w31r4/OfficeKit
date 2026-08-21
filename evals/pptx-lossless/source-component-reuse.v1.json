@@ -14,6 +14,7 @@
         "unsupported_presentation_component_reuse": 7
       },
       "candidateId": "pc_db3a65d963b2a03e7d1926594740dcba",
+      "occurrenceIndex": 0,
       "occurrenceCount": 5,
       "cloneSlideIndex": 1,
       "cloneElementCount": 1,
@@ -22,7 +23,7 @@
       "reopenedSlideCount": 22,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "671d69fedd97e07430983b4fd7b0a66dcf56ec70e3e6c75099d75fc173a1f763",
-      "outputSha256": "bdd66b41457c70db581cd88ff6330d60197e930086ce2faa659c236d483ea0db"
+      "outputSha256": "da85aa6243b954454fd78244b20469892dd2a2f22ee6f34d6f038af913047799"
     },
     {
       "id": "blue-gray-acid-template",
@@ -82,19 +83,18 @@
         }
       ],
       "status": "passed",
-      "failures": {
-        "unsupported_presentation_component_reuse": 3
-      },
-      "candidateId": "pc_5fe2b72b5a8b7dd6571db5ec26c0b8ca",
-      "occurrenceCount": 6,
-      "cloneSlideIndex": 12,
+      "failures": {},
+      "candidateId": "pc_0a55217d150c5c4ab507570ded2b9e6c",
+      "occurrenceIndex": 1,
+      "occurrenceCount": 3,
+      "cloneSlideIndex": 4,
       "cloneElementCount": 1,
       "sourceBytes": 13951095,
-      "outputBytes": 13953779,
+      "outputBytes": 13953117,
       "reopenedSlideCount": 20,
       "nonTargetPartMismatches": [],
-      "outputPackageContentSha256": "52c61c7a781e4f7c2ef592f44e4fdabe370dee24b0eb000571f22cad23e42c14",
-      "outputSha256": "1d2dd98e29cf0fc75f131f24157ec6222d1680b3014448dcf141e3c85ba701ef"
+      "outputPackageContentSha256": "9c4e3189d8d18058379344056c9b5046e996aac05fb2411d359b4174863e3170",
+      "outputSha256": "081846c90822706ab08d7a057e9f2a77b6bac9a356a15e37ada2d3589eeea121"
     },
     {
       "id": "mckinsey-customer-loyalty",
@@ -107,6 +107,7 @@
       "status": "passed",
       "failures": {},
       "candidateId": "pc_b74445550ca49d445821036a8ba61daf",
+      "occurrenceIndex": 0,
       "occurrenceCount": 8,
       "cloneSlideIndex": 1,
       "cloneElementCount": 1,
@@ -115,7 +116,7 @@
       "reopenedSlideCount": 9,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "6becb283a4a3f9638b6a18d09140d45aabb9b05fc48f8f122859bd784bd8920f",
-      "outputSha256": "9992ef8620d86492e9859193f50fa8c4aa8ce7e0baeadc733582561aa99d5269"
+      "outputSha256": "a8f23812ba964687d4159415ce485c2e234b219e16ea49487b2788284fd9d7dd"
     }
   ]
 }
