@@ -92,6 +92,13 @@ for (const source of evidence.sources) {
   for (const target of source.targets) {
     assert.equal(declared.targets.some((candidate) => candidate.id === target.id), true);
     assert.match(target.outputSha256, /^[a-f0-9]{64}$/u);
+    assert.equal(Array.isArray(target.repetitionOutputSha256), true);
+    assert.equal(target.repetitionOutputSha256.length, evidence.repetitionsPerTarget);
+    assert.equal(new Set(target.repetitionOutputSha256).size, 1);
+    assert.deepEqual(target.repetitionOutputSha256, [target.outputSha256, target.outputSha256, target.outputSha256]);
+    assert.equal(Array.isArray(target.repetitionEditPlanSha256), true);
+    assert.equal(target.repetitionEditPlanSha256.length, evidence.repetitionsPerTarget);
+    assert.equal(new Set(target.repetitionEditPlanSha256).size, 1);
     if (target.leafKind === "chartDataValue") {
       assert.deepEqual(target.changedParts, ["ppt/charts/chart4.xml", "ppt/embeddings/Microsoft_Excel____1.xlsx"]);
     } else if (target.leafKind === "diagramText") {

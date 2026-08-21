@@ -200,7 +200,7 @@ async function runBenchmark(manifest, root, outputRoot, repetitions, selection =
     const noOp = await PresentationFile.exportPptx(await importPresentation(sourceBytes));
     if (!Buffer.from(noOp.bytes).equals(sourceBytes)) fail(`No-op export changed ${sourceManifest.id}.`);
     progress({ phase: "no-op", source: sourceManifest.id, ok: true });
-    const edits = [];
+    const targets = [];
     const selectedTargets = selection.targetId
       ? sourceManifest.targets.filter((target) => target.id === selection.targetId)
       : sourceManifest.targets;
@@ -223,11 +223,39 @@ async function runBenchmark(manifest, root, outputRoot, repetitions, selection =
       const hashes = new Set(runs.map((run) => run.sha256));
       const footprints = new Set(runs.map((run) => sha256(Buffer.from(JSON.stringify(run.editPlan)))));
       if (hashes.size !== 1 || footprints.size !== 1) fail(`Target ${sourceManifest.id}/${target.id} is not deterministic across ${repetitions} clean runs.`);
-      edits.push({ targetId: target.id, deterministic: true, runs });
+      const firstRun = runs[0];
+      const nativeLeaves = nativeLeafSpecs(target);
+      targets.push({
+        id: target.id,
+        ...(nativeLeaves.length > 1
+          ? { leafKinds: nativeLeaves.map((leaf) => leaf.leafKind).sort() }
+          : { leafKind: nativeLeaves[0]?.leafKind || "text" }),
+        outputSha256: firstRun.sha256,
+        repetitionOutputSha256: runs.map((run) => run.sha256),
+        repetitionEditPlanSha256: runs.map((run) => sha256(Buffer.from(JSON.stringify(run.editPlan)))),
+        changedParts: firstRun.editPlan.changedParts,
+      });
     }
-    sources.push({ id: sourceManifest.id, sourceSha256: sourceManifest.sha256, noOpByteIdentical: true, edits });
+    sources.push({ id: sourceManifest.id, sourceSha256: sourceManifest.sha256, noOpByteIdentical: true, targets });
   }
-  return { schema: "office-kit/pptx-lossless-evidence/v1", manifestSha256: sha256(await readFile(manifestPath)), repetitions, sources };
+  return {
+    schema: "office-kit/pptx-lossless-evidence/v1",
+    manifestSha256: sha256(await readFile(manifestPath)),
+    repetitionsPerTarget: repetitions,
+    runnerContract: {
+      cleanSourcePerRun: true,
+      exactNoOpBytes: true,
+      deterministicOutputAndFootprint: true,
+      partSetStable: true,
+      relationshipPartsByteIdentical: true,
+      advancedStructureCountsStable: true,
+      nonTargetPartsByteIdentical: true,
+      maskedTargetXmlByteIdentical: true,
+      nestedPackagePartsByteIdentical: true,
+      secondImportRequired: true,
+    },
+    sources,
+  };
 }
 
 async function packageOracle(sourceBytes, outputBytes, editPlan, target) {

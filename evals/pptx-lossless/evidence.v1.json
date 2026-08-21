@@ -1,6 +1,5 @@
 {
   "schema": "office-kit/pptx-lossless-evidence/v1",
-  "generatedAt": "2026-08-15T14:09:45Z",
   "manifestSha256": "7341e075e17993d88be7cc76f32fe524405b955e488c58d9e563c541f8ffe9d4",
   "repetitionsPerTarget": 3,
   "runnerContract": {
@@ -25,43 +24,133 @@
           "id": "title",
           "leafKind": "text",
           "outputSha256": "f511a284c75b3b5fe459134e9f0c4f890d32e76207341da60fb2922179d67d4e",
-          "changedParts": ["ppt/slides/slide1.xml"]
+          "repetitionOutputSha256": [
+            "f511a284c75b3b5fe459134e9f0c4f890d32e76207341da60fb2922179d67d4e",
+            "f511a284c75b3b5fe459134e9f0c4f890d32e76207341da60fb2922179d67d4e",
+            "f511a284c75b3b5fe459134e9f0c4f890d32e76207341da60fb2922179d67d4e"
+          ],
+          "repetitionEditPlanSha256": [
+            "74b4a53c484817927a75ca8b8c9a6e739823d5f3072974f2fe2c76385e1a67c3",
+            "74b4a53c484817927a75ca8b8c9a6e739823d5f3072974f2fe2c76385e1a67c3",
+            "74b4a53c484817927a75ca8b8c9a6e739823d5f3072974f2fe2c76385e1a67c3"
+          ],
+          "changedParts": [
+            "ppt/slides/slide1.xml"
+          ]
         },
         {
           "id": "vision",
           "leafKind": "text",
           "outputSha256": "3fb90354f24039c6f460dc5e425b1f9170ecd88edc6fc868fadbdeb11a0f7f6f",
-          "changedParts": ["ppt/slides/slide1.xml"]
+          "repetitionOutputSha256": [
+            "3fb90354f24039c6f460dc5e425b1f9170ecd88edc6fc868fadbdeb11a0f7f6f",
+            "3fb90354f24039c6f460dc5e425b1f9170ecd88edc6fc868fadbdeb11a0f7f6f",
+            "3fb90354f24039c6f460dc5e425b1f9170ecd88edc6fc868fadbdeb11a0f7f6f"
+          ],
+          "repetitionEditPlanSha256": [
+            "51b17bc944bdc05610d90afc96a6657efbbef3d4ba52f1f49d32940d1e30abf1",
+            "51b17bc944bdc05610d90afc96a6657efbbef3d4ba52f1f49d32940d1e30abf1",
+            "51b17bc944bdc05610d90afc96a6657efbbef3d4ba52f1f49d32940d1e30abf1"
+          ],
+          "changedParts": [
+            "ppt/slides/slide1.xml"
+          ]
         },
         {
           "id": "partner",
           "leafKind": "text",
           "outputSha256": "77af7d57e4a0559ccd65129bd7b75e12f22d7f13a1802412a313ad7b0c6949ae",
-          "changedParts": ["ppt/slides/slide1.xml"]
+          "repetitionOutputSha256": [
+            "77af7d57e4a0559ccd65129bd7b75e12f22d7f13a1802412a313ad7b0c6949ae",
+            "77af7d57e4a0559ccd65129bd7b75e12f22d7f13a1802412a313ad7b0c6949ae",
+            "77af7d57e4a0559ccd65129bd7b75e12f22d7f13a1802412a313ad7b0c6949ae"
+          ],
+          "repetitionEditPlanSha256": [
+            "260045150ecde2d5604f7a183d36b3dbd9f60831bd40db6473f8e5804fe9a4d0",
+            "260045150ecde2d5604f7a183d36b3dbd9f60831bd40db6473f8e5804fe9a4d0",
+            "260045150ecde2d5604f7a183d36b3dbd9f60831bd40db6473f8e5804fe9a4d0"
+          ],
+          "changedParts": [
+            "ppt/slides/slide1.xml"
+          ]
         },
         {
           "id": "group-storage",
           "leafKind": "text",
           "outputSha256": "46718e7045736b1cc1afac3b03f96d4fa7d057b79c34f83199036317a330ccc1",
-          "changedParts": ["ppt/slides/slide6.xml"]
+          "repetitionOutputSha256": [
+            "46718e7045736b1cc1afac3b03f96d4fa7d057b79c34f83199036317a330ccc1",
+            "46718e7045736b1cc1afac3b03f96d4fa7d057b79c34f83199036317a330ccc1",
+            "46718e7045736b1cc1afac3b03f96d4fa7d057b79c34f83199036317a330ccc1"
+          ],
+          "repetitionEditPlanSha256": [
+            "7a44fa3c8492394d3af40c5b87b7e4dc4c0621ecee88d676381a2e54a6c81ca8",
+            "7a44fa3c8492394d3af40c5b87b7e4dc4c0621ecee88d676381a2e54a6c81ca8",
+            "7a44fa3c8492394d3af40c5b87b7e4dc4c0621ecee88d676381a2e54a6c81ca8"
+          ],
+          "changedParts": [
+            "ppt/slides/slide6.xml"
+          ]
         },
         {
           "id": "textbox-move-resize",
-          "leafKinds": ["heightEmu", "leftEmu", "topEmu", "widthEmu"],
+          "leafKinds": [
+            "heightEmu",
+            "leftEmu",
+            "topEmu",
+            "widthEmu"
+          ],
           "outputSha256": "8128f67fbc4ad9ad2f5380262980025b2b313b987c1a12e2d86507933b3dd36f",
-          "changedParts": ["ppt/slides/slide1.xml"]
+          "repetitionOutputSha256": [
+            "8128f67fbc4ad9ad2f5380262980025b2b313b987c1a12e2d86507933b3dd36f",
+            "8128f67fbc4ad9ad2f5380262980025b2b313b987c1a12e2d86507933b3dd36f",
+            "8128f67fbc4ad9ad2f5380262980025b2b313b987c1a12e2d86507933b3dd36f"
+          ],
+          "repetitionEditPlanSha256": [
+            "ae9973966657c2356243dc7a153cf3e82cc34d32662e8e90cf81f41d1681991d",
+            "ae9973966657c2356243dc7a153cf3e82cc34d32662e8e90cf81f41d1681991d",
+            "ae9973966657c2356243dc7a153cf3e82cc34d32662e8e90cf81f41d1681991d"
+          ],
+          "changedParts": [
+            "ppt/slides/slide1.xml"
+          ]
         },
         {
           "id": "chart-title",
           "leafKind": "chartTitleText",
           "outputSha256": "abe1d2baa290904976c86a8b2a0941f09944c13c3ab0ca86970ff22c17e9d664",
-          "changedParts": ["ppt/charts/chart2.xml"]
+          "repetitionOutputSha256": [
+            "abe1d2baa290904976c86a8b2a0941f09944c13c3ab0ca86970ff22c17e9d664",
+            "abe1d2baa290904976c86a8b2a0941f09944c13c3ab0ca86970ff22c17e9d664",
+            "abe1d2baa290904976c86a8b2a0941f09944c13c3ab0ca86970ff22c17e9d664"
+          ],
+          "repetitionEditPlanSha256": [
+            "16f9fdc06928dcf3912b70f47afeaf2beafeca9217e4f3530669e21ea9b99bb3",
+            "16f9fdc06928dcf3912b70f47afeaf2beafeca9217e4f3530669e21ea9b99bb3",
+            "16f9fdc06928dcf3912b70f47afeaf2beafeca9217e4f3530669e21ea9b99bb3"
+          ],
+          "changedParts": [
+            "ppt/charts/chart2.xml"
+          ]
         },
         {
           "id": "chart-data-point",
           "leafKind": "chartDataValue",
           "outputSha256": "0937601f38115ee008089791668917ebb64b7256b352863933ed3545428d7f6d",
-          "changedParts": ["ppt/charts/chart4.xml", "ppt/embeddings/Microsoft_Excel____1.xlsx"]
+          "repetitionOutputSha256": [
+            "0937601f38115ee008089791668917ebb64b7256b352863933ed3545428d7f6d",
+            "0937601f38115ee008089791668917ebb64b7256b352863933ed3545428d7f6d",
+            "0937601f38115ee008089791668917ebb64b7256b352863933ed3545428d7f6d"
+          ],
+          "repetitionEditPlanSha256": [
+            "b38badaa93cb1855bf9b7d860178c0807123e390192ccaafa2421f9d400d156a",
+            "b38badaa93cb1855bf9b7d860178c0807123e390192ccaafa2421f9d400d156a",
+            "b38badaa93cb1855bf9b7d860178c0807123e390192ccaafa2421f9d400d156a"
+          ],
+          "changedParts": [
+            "ppt/charts/chart4.xml",
+            "ppt/embeddings/Microsoft_Excel____1.xlsx"
+          ]
         }
       ]
     },
@@ -74,19 +163,55 @@
           "id": "subtitle",
           "leafKind": "text",
           "outputSha256": "0475584106faa7343126793060a75032f728418703a7d37117964af5913bbe4c",
-          "changedParts": ["ppt/slides/slide1.xml"]
+          "repetitionOutputSha256": [
+            "0475584106faa7343126793060a75032f728418703a7d37117964af5913bbe4c",
+            "0475584106faa7343126793060a75032f728418703a7d37117964af5913bbe4c",
+            "0475584106faa7343126793060a75032f728418703a7d37117964af5913bbe4c"
+          ],
+          "repetitionEditPlanSha256": [
+            "9f0edc26bbc95116648454f1132a351dae40328c1bacda239ce0ca10500eb0ed",
+            "9f0edc26bbc95116648454f1132a351dae40328c1bacda239ce0ca10500eb0ed",
+            "9f0edc26bbc95116648454f1132a351dae40328c1bacda239ce0ca10500eb0ed"
+          ],
+          "changedParts": [
+            "ppt/slides/slide1.xml"
+          ]
         },
         {
           "id": "cover-title",
           "leafKind": "text",
           "outputSha256": "08cf9ce8398ed5faff265360b51028090464b7a56b604ac9f210e75eb7be2170",
-          "changedParts": ["ppt/slides/slide1.xml"]
+          "repetitionOutputSha256": [
+            "08cf9ce8398ed5faff265360b51028090464b7a56b604ac9f210e75eb7be2170",
+            "08cf9ce8398ed5faff265360b51028090464b7a56b604ac9f210e75eb7be2170",
+            "08cf9ce8398ed5faff265360b51028090464b7a56b604ac9f210e75eb7be2170"
+          ],
+          "repetitionEditPlanSha256": [
+            "36938f4341ab15687a1a55d5d9e63587f5d359c4ac674e938823b74847d9d0b5",
+            "36938f4341ab15687a1a55d5d9e63587f5d359c4ac674e938823b74847d9d0b5",
+            "36938f4341ab15687a1a55d5d9e63587f5d359c4ac674e938823b74847d9d0b5"
+          ],
+          "changedParts": [
+            "ppt/slides/slide1.xml"
+          ]
         },
         {
           "id": "presenter",
           "leafKind": "text",
           "outputSha256": "1803611bd2031cede611dca1f7095c26dcab6046d79166f2539b408abbb29712",
-          "changedParts": ["ppt/slides/slide1.xml"]
+          "repetitionOutputSha256": [
+            "1803611bd2031cede611dca1f7095c26dcab6046d79166f2539b408abbb29712",
+            "1803611bd2031cede611dca1f7095c26dcab6046d79166f2539b408abbb29712",
+            "1803611bd2031cede611dca1f7095c26dcab6046d79166f2539b408abbb29712"
+          ],
+          "repetitionEditPlanSha256": [
+            "4bf9104855a54bf83799fcd990348f3c0d6efacdd1ddf644821c5b6b9cca2a5e",
+            "4bf9104855a54bf83799fcd990348f3c0d6efacdd1ddf644821c5b6b9cca2a5e",
+            "4bf9104855a54bf83799fcd990348f3c0d6efacdd1ddf644821c5b6b9cca2a5e"
+          ],
+          "changedParts": [
+            "ppt/slides/slide1.xml"
+          ]
         }
       ]
     },
@@ -99,13 +224,24 @@
           "id": "image-left",
           "leafKind": "leftEmu",
           "outputSha256": "c11fe0f1f12fa8245a8f3f2f854bf0ce4cd346d3273a0317f87e9fa81207eb6f",
-          "changedParts": ["ppt/slides/slide1.xml"]
+          "repetitionOutputSha256": [
+            "c11fe0f1f12fa8245a8f3f2f854bf0ce4cd346d3273a0317f87e9fa81207eb6f",
+            "c11fe0f1f12fa8245a8f3f2f854bf0ce4cd346d3273a0317f87e9fa81207eb6f",
+            "c11fe0f1f12fa8245a8f3f2f854bf0ce4cd346d3273a0317f87e9fa81207eb6f"
+          ],
+          "repetitionEditPlanSha256": [
+            "314c8f9bfa081312b5553db2b9bf0e787bedab87317b2e1b33b08bd247ad0aa1",
+            "314c8f9bfa081312b5553db2b9bf0e787bedab87317b2e1b33b08bd247ad0aa1",
+            "314c8f9bfa081312b5553db2b9bf0e787bedab87317b2e1b33b08bd247ad0aa1"
+          ],
+          "changedParts": [
+            "ppt/slides/slide1.xml"
+          ]
         }
       ]
     },
     {
       "id": "strategy-review-smartart-canary",
-      "sourceKind": "repository-supplemental",
       "sourceSha256": "bcb469d5b586f4fd8f562b918c8d9f04ef500cd6289728683c10ee2ced7be367",
       "noOpByteIdentical": true,
       "targets": [
@@ -113,7 +249,19 @@
           "id": "smartart-node-text",
           "leafKind": "diagramText",
           "outputSha256": "8186a9cc2256e9161e94cb2921380a647a36adeb1e94845262475ec9c96c6d0f",
-          "changedParts": ["ppt/diagrams/strategy-data.xml"]
+          "repetitionOutputSha256": [
+            "8186a9cc2256e9161e94cb2921380a647a36adeb1e94845262475ec9c96c6d0f",
+            "8186a9cc2256e9161e94cb2921380a647a36adeb1e94845262475ec9c96c6d0f",
+            "8186a9cc2256e9161e94cb2921380a647a36adeb1e94845262475ec9c96c6d0f"
+          ],
+          "repetitionEditPlanSha256": [
+            "82ee8785ad307ea68f497560b41486b7cc2ab53e81305981ee7c9e76ee1431ab",
+            "82ee8785ad307ea68f497560b41486b7cc2ab53e81305981ee7c9e76ee1431ab",
+            "82ee8785ad307ea68f497560b41486b7cc2ab53e81305981ee7c9e76ee1431ab"
+          ],
+          "changedParts": [
+            "ppt/diagrams/strategy-data.xml"
+          ]
         }
       ]
     }
