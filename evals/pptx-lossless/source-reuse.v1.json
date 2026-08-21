@@ -1,0 +1,99 @@
+{
+  "schema": "office-kit/pptx-source-reuse-evidence/v1",
+  "sources": [
+    {
+      "id": "suanzhi-future-2026",
+      "fileName": "b34ddad8cf8b_012_算秩未来2026_0127_极致技术&长期主义.pptx",
+      "slide": 1,
+      "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+      "sourceSlideSha256": "676698fbf97b0c45688a54d4828e07c572880f22935e83b20c524f773268a242",
+      "sourceSlidePart": "ppt/slides/slide1.xml",
+      "cloneCapability": {
+        "sourceBound": true,
+        "known": true,
+        "supported": true,
+        "blockedReason": "",
+        "clonedPartCount": 1,
+        "sharedPartCount": 3
+      },
+      "expected": "passed",
+      "sourceSlideCount": 21,
+      "status": "passed",
+      "outputSha256": "e7dbcb1ff67ad05f1431ca1cf953448423936cbcba3e682052154bae4a5b89e8",
+      "outputSlideCount": 22,
+      "sourceSlideUnchanged": true,
+      "changedExistingParts": [
+        "[Content_Types].xml",
+        "ppt/_rels/presentation.xml.rels",
+        "ppt/presentation.xml"
+      ],
+      "topologyChangedParts": [
+        "[Content_Types].xml",
+        "ppt/_rels/presentation.xml.rels",
+        "ppt/presentation.xml"
+      ],
+      "nonTopologyChangedParts": [],
+      "addedParts": [
+        "ppt/slides/_rels/slide1122.xml.rels",
+        "ppt/slides/slide1122.xml"
+      ]
+    },
+    {
+      "id": "blue-gray-acid-template",
+      "fileName": "template.pptx",
+      "slide": 1,
+      "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+      "sourceSlideSha256": "4a15df7692d943a65019a60ecf4d7721715062be2c4168bfd5929deedee0fe33",
+      "sourceSlidePart": "ppt/slides/slide1.xml",
+      "cloneCapability": {
+        "sourceBound": true,
+        "known": true,
+        "supported": false,
+        "blockedReason": "owned part ppt/media/image2.wdp is also referenced from ppt/slides/slide6.xml, ppt/slides/slide5.xml, ppt/slides/slide4.xml, ppt/slides/slide3.xml",
+        "clonedPartCount": 0,
+        "sharedPartCount": 0
+      },
+      "expected": "blocked",
+      "sourceSlideCount": 19,
+      "status": "blocked",
+      "blockedReason": "owned part ppt/media/image2.wdp is also referenced from ppt/slides/slide6.xml, ppt/slides/slide5.xml, ppt/slides/slide4.xml, ppt/slides/slide3.xml"
+    },
+    {
+      "id": "mckinsey-customer-loyalty",
+      "fileName": "ppt169_麦肯锡风_kimsoong_customer_loyalty.pptx",
+      "slide": 1,
+      "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+      "sourceSlideSha256": "22c0389e57b629c060f89bfe7bdd0d7894c0c6c322a9df1d6a7bf7ee7f44e6b8",
+      "sourceSlidePart": "ppt/slides/slide1.xml",
+      "cloneCapability": {
+        "sourceBound": true,
+        "known": true,
+        "supported": true,
+        "blockedReason": "",
+        "clonedPartCount": 1,
+        "sharedPartCount": 2
+      },
+      "expected": "passed",
+      "sourceSlideCount": 8,
+      "status": "passed",
+      "outputSha256": "19450ebb6998567766391484a4313389604ac8a94cb2f8f6e715e43a5966260e",
+      "outputSlideCount": 9,
+      "sourceSlideUnchanged": true,
+      "changedExistingParts": [
+        "[Content_Types].xml",
+        "ppt/_rels/presentation.xml.rels",
+        "ppt/presentation.xml"
+      ],
+      "topologyChangedParts": [
+        "[Content_Types].xml",
+        "ppt/_rels/presentation.xml.rels",
+        "ppt/presentation.xml"
+      ],
+      "nonTopologyChangedParts": [],
+      "addedParts": [
+        "ppt/slides/_rels/slide119.xml.rels",
+        "ppt/slides/slide119.xml"
+      ]
+    }
+  ]
+}

@@ -212,7 +212,10 @@ internal static class PptxCodec
             var target = new PresentationSlide
             {
                 Id = slideArtifactId,
-                Name = slideRoot.CommonSlideData?.Name?.Value ?? $"Slide {slideIndex + 1}",
+                // An absent p:cSld/@name is a real source value. Do not invent
+                // a display name here: source-preserving slide clone and edit
+                // checks must be able to distinguish absent from authored text.
+                Name = slideRoot.CommonSlideData?.Name?.Value ?? string.Empty,
                 LayoutId = slidePart.SlideLayoutPart is { } layoutPart
                     ? layoutIdByPartPath.GetValueOrDefault(PartPath(layoutPart)) ??
                       throw new CodecException("unresolved_slide_layout_binding", $"Presentation slide {slideIndex + 1} references a layout outside the master graph.", PartPath(slidePart))
@@ -668,7 +671,7 @@ internal static class PptxCodec
                         PartPath(slidePart));
                 if (target.HasHidden && target.Hidden != sourceVisibility.Hidden && PptxSlideVisibilityCodec.ApplySourceBound(slideRoot, target))
                     changed = true;
-                var sourceName = slideCommon.Name?.Value ?? $"Slide {targetSlide.Source.Index + 1}";
+                var sourceName = slideCommon.Name?.Value ?? string.Empty;
                 if (!string.Equals(target.Name, sourceName, StringComparison.Ordinal))
                 {
                     // This is deliberately the only source-bound slide metadata
@@ -2575,7 +2578,7 @@ internal static class PptxCodec
             var outputRoot = outputSlide.Slide ??
                 throw new CodecException("missing_slide_root", $"PPTX output slide {slideIndex + 1} has no slide root.", PartPath(outputSlide));
             var sourceRoot = sourceSlide.Slide!;
-            var outputName = outputRoot.CommonSlideData?.Name?.Value ?? $"Slide {sourceTargets[slideIndex].Source.Index + 1}";
+            var outputName = outputRoot.CommonSlideData?.Name?.Value ?? string.Empty;
             if (!string.Equals(outputName, requested.Slides[slideIndex].Name, StringComparison.Ordinal))
                 throw new CodecException(
                     "presentation_postwrite_slide_name_mismatch",

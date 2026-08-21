@@ -1,0 +1,4343 @@
+{
+  "schema": "office-kit/pptx-design-profile/v1",
+  "profiles": [
+    {
+      "schema": "office-kit/pptx-design-profile/v1",
+      "source": {
+        "id": "suanzhi-future-2026",
+        "fileName": "b34ddad8cf8b_012_算秩未来2026_0127_极致技术&长期主义.pptx",
+        "bytes": 6114228,
+        "sha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762"
+      },
+      "evidence": {
+        "package": {
+          "partCount": 595,
+          "slideCount": 21,
+          "layoutCount": 34,
+          "masterCount": 2,
+          "themeCount": 4,
+          "mediaCount": 50,
+          "svgCount": 6,
+          "chartCount": 4,
+          "diagramCount": 0,
+          "embeddingCount": 25,
+          "oleCount": 23,
+          "notesCount": 17,
+          "commentCount": 0,
+          "textParts": 525,
+          "sourceHeaderSha256": "f8a60c16851fa577d0e02939ead33755bfad3810c319e3b73130f18fc115dfd3"
+        },
+        "inspectedRecordCount": 638,
+        "inspectedElementCount": 560,
+        "structuralPartHashes": {
+          "ppt/presentation.xml": "98611281ee0b96b2e17abeda18d37ef65fd99e7a6488dd91f9ecd2a66d91d7bb",
+          "ppt/slideLayouts/slideLayout1.xml": "149b73020d6f7fe84d5763e90c0c0dfcd88eaed39474e82c77b5bf31f92b075a",
+          "ppt/slideLayouts/slideLayout10.xml": "3613c4e439f7d68ca3bfe013a7ab6a07e08ffb4c9577fec795db5d5f78b1e730",
+          "ppt/slideLayouts/slideLayout11.xml": "617c72bfd0f1f27c00edfdd943b654d9185002ba14c664bd977062324ae5f26c",
+          "ppt/slideLayouts/slideLayout12.xml": "473b05d2835fb71cb6b4246573c00b97284ceeafd0e72ca4edd59ca2007cb800",
+          "ppt/slideLayouts/slideLayout13.xml": "7628ef5df5392ab680b9477839b1f27fd39becfe7767933688ef9d2c8c8fa628",
+          "ppt/slideLayouts/slideLayout14.xml": "378e18c9139ecc6b830d88b8bb6eefdc9e7f148233ce1f4e709e6e0f738b630d",
+          "ppt/slideLayouts/slideLayout15.xml": "47a88419a7e5bd53aa836ef3b7196653e89155930faf1829986c093d69e1a30a",
+          "ppt/slideLayouts/slideLayout16.xml": "bd028f108408c9ed7a8aaefed67a330aefc973bcc117d9ccd24e3e895e28eeb5",
+          "ppt/slideLayouts/slideLayout17.xml": "c68ca0fe6c8af5e73adba3eeb6b81c47a40cdd0ac2a9daa7aa643360c6ca411e",
+          "ppt/slideLayouts/slideLayout18.xml": "8a65c113c8aefc1f746526c72b2e3cea5665385db4c49ce9c123cde145114cec",
+          "ppt/slideLayouts/slideLayout19.xml": "2cebddbf454a59f44af0202edf61b36e26be7505dbb94dfc5b4b36fe6b7c7938",
+          "ppt/slideLayouts/slideLayout2.xml": "812696fd779b85fa84cb244c2127b952099cc1c408d65e5df3cf07557575f06e",
+          "ppt/slideLayouts/slideLayout20.xml": "b5714431a14fef92a0b75fa3c80211771bc600eee3a208efde50a4876c9b2ecc",
+          "ppt/slideLayouts/slideLayout21.xml": "9933253a5ed0352fa7f3dd0f90d1ab1528fcb1a14f1d7fd8dc8dcadc0812414c",
+          "ppt/slideLayouts/slideLayout22.xml": "9ade97ba404d1db4c12a3dc142642a013a28a579a13c8aa9e0adbbf8425a8982",
+          "ppt/slideLayouts/slideLayout23.xml": "55e74998731f33d8eed77ee4ac56f44c9b2b37b565017cf02e642f483267eeb0",
+          "ppt/slideLayouts/slideLayout24.xml": "fafb2896afff64b7ddd2b59d2f05720a5559536e0c719d73cacbe76d1d73191d",
+          "ppt/slideLayouts/slideLayout25.xml": "61d44627295586d4d08888c361558a5451694fe3cf4ae20a1e8f7fd31efa8199",
+          "ppt/slideLayouts/slideLayout26.xml": "782479e8b6c2b339dacdf3573d4b199ceab82fe607b178de5054571b5bef0fb5",
+          "ppt/slideLayouts/slideLayout27.xml": "df72d0c067fbbca1ad520bf4eb2f59f5746d142a4873004ba2f266a246e1439b",
+          "ppt/slideLayouts/slideLayout28.xml": "55cd59b516d40643d7b0a045245687a8de873a90f19c3f6b5ec79d8208058623",
+          "ppt/slideLayouts/slideLayout29.xml": "ba0a13424e56c50dfd9f0903e2b70455ba168922e8cedebabbf7ea7baffdc0e5",
+          "ppt/slideLayouts/slideLayout3.xml": "e2c08cd6dde2b4da9e274073f11ae740feb494494c486037876a0e79066e3585",
+          "ppt/slideLayouts/slideLayout30.xml": "acd35c402bedaf56671fb808173cb11518cdf751f3b01a5439e8c9e368b11018",
+          "ppt/slideLayouts/slideLayout31.xml": "cb0cb1564845460415d00356c73d36f60466a5f2624885d90a49dd94c50fbecb",
+          "ppt/slideLayouts/slideLayout32.xml": "1a30d6487783cf6a2107ace0c269b0f0e2edcac32e3d0e7033fd62e247c191d5",
+          "ppt/slideLayouts/slideLayout33.xml": "11b0955df2b828e65f6ce7fbfcb8f4d06e6689355a43465c82f7e7ea897759d2",
+          "ppt/slideLayouts/slideLayout34.xml": "8fe9f95be41d93f285a07c9a291dda0a5592f0bf01498a217e7aded69a54c14a",
+          "ppt/slideLayouts/slideLayout4.xml": "b45a4755336c10469eb09fda4f57c415bf9b22218d30b91880910e556cff088b",
+          "ppt/slideLayouts/slideLayout5.xml": "c9a1266b909bbcc8c574e73d74067382a6d7b670c5102bd8647bfb425442cba1",
+          "ppt/slideLayouts/slideLayout6.xml": "c833213bccdfefecea9d61d9f5756c4adef0ab584dc0cd403e508e199c64daa8",
+          "ppt/slideLayouts/slideLayout7.xml": "8414b371fb27c1d35b0f2a78479639e73a868413a2742c46754352f0dc4c85e4",
+          "ppt/slideLayouts/slideLayout8.xml": "82c54db18f9482d592dfbd303a38932add78047e1494bdc5fd160b5adc1e056f",
+          "ppt/slideLayouts/slideLayout9.xml": "f38a1e8a89bd659d6bb90ab0924fb1531b7d1db444ced5b1afb88cb196ebaf39",
+          "ppt/slideMasters/slideMaster1.xml": "a1f7ea027ccbc5eafa5bd529a169948ff5963c9c08877f46b14877547d219710",
+          "ppt/slideMasters/slideMaster2.xml": "71c8de7ac16e0ba9edfaf2be62804ba23b6914ffadea562b4eb1e4bbef478e68",
+          "ppt/theme/theme1.xml": "4cb6c86fc55ad534f84eb22ec7bf8db2857bda322d0f50ab23b66f91d7a6c008",
+          "ppt/theme/theme2.xml": "4c8e6fea1322e7e4926c022659d1935f1a04cc4b1bd83a55c2f9507552c30f8a",
+          "ppt/theme/theme3.xml": "d37627ed1a5bda40fa339cc2115c70db5e019f1b128736b92b267180531434c6",
+          "ppt/theme/theme4.xml": "d37627ed1a5bda40fa339cc2115c70db5e019f1b128736b92b267180531434c6",
+          "ppt/theme/themeOverride1.xml": "a942feb13bd912d05d10938c9171ac7894ffec4317f1730d98b1d0d23677fe33",
+          "ppt/theme/themeOverride2.xml": "7dfc76b9356c986a3ce3dfe158ace999d3a20c9075f9bf7c73f99e0a26dbc304",
+          "ppt/theme/themeOverride3.xml": "7dfc76b9356c986a3ce3dfe158ace999d3a20c9075f9bf7c73f99e0a26dbc304",
+          "ppt/theme/themeOverride4.xml": "6d64d0a9d550dfe3cd01aa3afdeae5bc6fe67159b63e52511fb4eb552d273653"
+        }
+      },
+      "canvas": {
+        "width": 1280,
+        "height": 720,
+        "aspectRatio": 1.77778
+      },
+      "designLanguage": {
+        "palette": {
+          "direct": [
+            {
+              "value": "#061F32",
+              "count": 249
+            },
+            {
+              "value": "#000000",
+              "count": 234
+            },
+            {
+              "value": "#FFFFFF",
+              "count": 129
+            },
+            {
+              "value": "#19D3C5",
+              "count": 118
+            },
+            {
+              "value": "#E7E6E6",
+              "count": 82
+            },
+            {
+              "value": "#062032",
+              "count": 57
+            },
+            {
+              "value": "#171616",
+              "count": 51
+            },
+            {
+              "value": "#FF0000",
+              "count": 30
+            },
+            {
+              "value": "#6189FF",
+              "count": 24
+            },
+            {
+              "value": "#44546A",
+              "count": 13
+            },
+            {
+              "value": "#D0D0D0",
+              "count": 12
+            },
+            {
+              "value": "#00A9F4",
+              "count": 9
+            }
+          ],
+          "scheme": [
+            {
+              "value": "accent1",
+              "count": 1302
+            },
+            {
+              "value": "tx1",
+              "count": 994
+            },
+            {
+              "value": "bg1",
+              "count": 743
+            },
+            {
+              "value": "lt1",
+              "count": 261
+            },
+            {
+              "value": "bg2",
+              "count": 168
+            },
+            {
+              "value": "accent3",
+              "count": 131
+            },
+            {
+              "value": "phClr",
+              "count": 130
+            },
+            {
+              "value": "dk1",
+              "count": 62
+            },
+            {
+              "value": "accent6",
+              "count": 61
+            },
+            {
+              "value": "tx2",
+              "count": 44
+            },
+            {
+              "value": "accent2",
+              "count": 36
+            },
+            {
+              "value": "accent4",
+              "count": 16
+            }
+          ],
+          "note": "Counts are source XML occurrences, not a promise that every token is visually dominant."
+        },
+        "typography": {
+          "fonts": [
+            {
+              "value": "Microsoft YaHei",
+              "count": 2286
+            },
+            {
+              "value": "Verdana",
+              "count": 156
+            },
+            {
+              "value": "微软雅黑",
+              "count": 154
+            },
+            {
+              "value": "宋体",
+              "count": 54
+            },
+            {
+              "value": "Georgia",
+              "count": 21
+            },
+            {
+              "value": "Times New Roman",
+              "count": 19
+            },
+            {
+              "value": "OPPOSans R",
+              "count": 12
+            },
+            {
+              "value": "Josefin Sans",
+              "count": 5
+            },
+            {
+              "value": "Helvetica Neue",
+              "count": 4
+            },
+            {
+              "value": "Helvetica Neue Medium",
+              "count": 3
+            },
+            {
+              "value": "Calibri",
+              "count": 2
+            },
+            {
+              "value": "Calibri Light",
+              "count": 2
+            }
+          ],
+          "fontSizePt": {
+            "min": 8,
+            "median": 13.23,
+            "max": 48,
+            "samples": 2673
+          }
+        },
+        "density": {
+          "slides": 21,
+          "elementsPerSlide": {
+            "min": 5,
+            "median": 20,
+            "max": 79
+          },
+          "textCharsPerSlide": {
+            "min": 6,
+            "median": 200,
+            "max": 750
+          },
+          "nativeOpaquePerSlide": {
+            "min": 1,
+            "median": 3,
+            "max": 16
+          }
+        },
+        "rhythm": {
+          "normalizedUnits": "slide fraction rounded to 0.001",
+          "x": [
+            {
+              "value": "0.046",
+              "count": 37
+            },
+            {
+              "value": "0.626",
+              "count": 19
+            },
+            {
+              "value": "0",
+              "count": 18
+            },
+            {
+              "value": "0.709",
+              "count": 17
+            },
+            {
+              "value": "0.445",
+              "count": 15
+            },
+            {
+              "value": "0.038",
+              "count": 11
+            },
+            {
+              "value": "0.714",
+              "count": 9
+            },
+            {
+              "value": "0.189",
+              "count": 7
+            },
+            {
+              "value": "0.296",
+              "count": 7
+            },
+            {
+              "value": "0.045",
+              "count": 6
+            },
+            {
+              "value": "0.047",
+              "count": 6
+            },
+            {
+              "value": "0.74",
+              "count": 6
+            }
+          ],
+          "y": [
+            {
+              "value": "0.015",
+              "count": 24
+            },
+            {
+              "value": "0",
+              "count": 18
+            },
+            {
+              "value": "1.035",
+              "count": 15
+            },
+            {
+              "value": "1.085",
+              "count": 15
+            },
+            {
+              "value": "0.052",
+              "count": 14
+            },
+            {
+              "value": "0.329",
+              "count": 10
+            },
+            {
+              "value": "0.249",
+              "count": 8
+            },
+            {
+              "value": "0.317",
+              "count": 7
+            },
+            {
+              "value": "0.326",
+              "count": 7
+            },
+            {
+              "value": "0.277",
+              "count": 6
+            },
+            {
+              "value": "0.557",
+              "count": 6
+            },
+            {
+              "value": "0.245",
+              "count": 5
+            }
+          ],
+          "widths": [
+            {
+              "value": "0",
+              "count": 88
+            },
+            {
+              "value": "0.909",
+              "count": 28
+            },
+            {
+              "value": "0.192",
+              "count": 20
+            },
+            {
+              "value": "0.329",
+              "count": 19
+            },
+            {
+              "value": "0.096",
+              "count": 14
+            },
+            {
+              "value": "0.068",
+              "count": 12
+            },
+            {
+              "value": "0.062",
+              "count": 10
+            },
+            {
+              "value": "0.109",
+              "count": 10
+            },
+            {
+              "value": "0.207",
+              "count": 10
+            },
+            {
+              "value": "0.148",
+              "count": 8
+            },
+            {
+              "value": "0.012",
+              "count": 7
+            },
+            {
+              "value": "0.027",
+              "count": 7
+            }
+          ],
+          "heights": [
+            {
+              "value": "0",
+              "count": 92
+            },
+            {
+              "value": "0.04",
+              "count": 27
+            },
+            {
+              "value": "0.018",
+              "count": 25
+            },
+            {
+              "value": "0.107",
+              "count": 15
+            },
+            {
+              "value": "0.058",
+              "count": 13
+            },
+            {
+              "value": "0.034",
+              "count": 11
+            },
+            {
+              "value": "0.053",
+              "count": 11
+            },
+            {
+              "value": "0.025",
+              "count": 10
+            },
+            {
+              "value": "0.056",
+              "count": 10
+            },
+            {
+              "value": "0.084",
+              "count": 10
+            },
+            {
+              "value": "0.021",
+              "count": 9
+            },
+            {
+              "value": "0.036",
+              "count": 9
+            }
+          ]
+        }
+      },
+      "layoutFamilies": [
+        {
+          "id": "presentation/master/1/layout/1",
+          "name": "Frontpage",
+          "type": "custom",
+          "placeholders": 6,
+          "placeholderTypes": [
+            "body",
+            "pic",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/10",
+          "name": "2/3 grey",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/11",
+          "name": "3/4 grey",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/12",
+          "name": "End",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "pic",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/13",
+          "name": "Section breaker blue",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/14",
+          "name": "Title and Content",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/15",
+          "name": "Title Only",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/16",
+          "name": "1_Title and Content",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": [
+            "body",
+            "ftr",
+            "obj",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/17",
+          "name": "Agenda",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/18",
+          "name": "1_Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/2",
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/3",
+          "name": "Top left title",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/4",
+          "name": "Mid left title",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/5",
+          "name": "Section breaker",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/6",
+          "name": "1/4 grey",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/7",
+          "name": "1/3 grey",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/8",
+          "name": "1/2 grey",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/9",
+          "name": "1_1/2 grey",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/1",
+          "name": "Frontpage dark",
+          "type": "custom",
+          "placeholders": 5,
+          "placeholderTypes": [
+            "body",
+            "pic",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/10",
+          "name": "3/4 dark",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/11",
+          "name": "Blank dark",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/12",
+          "name": "Number Breaker Slide",
+          "type": "custom",
+          "placeholders": 5,
+          "placeholderTypes": [
+            "body",
+            "ctrTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/13",
+          "name": "Section slide",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/14",
+          "name": "Title and Content",
+          "type": "obj",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/15",
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/16",
+          "name": "空白",
+          "type": "blank",
+          "placeholders": 5,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/2",
+          "name": "Default dark",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/3",
+          "name": "Top left dark",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/4",
+          "name": "Mid Left dark",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/5",
+          "name": "Section breaker dark",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": [
+            "body",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/6",
+          "name": "1/4 dark",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/7",
+          "name": "1/3 dark",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/8",
+          "name": "1/2 dark",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/2/layout/9",
+          "name": "2/3 dark",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": [
+            "body",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "name": "Top left title",
+          "type": "custom",
+          "placeholders": 2,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Agenda",
+          "type": "custom",
+          "placeholders": 4,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Top left title",
+          "type": "custom",
+          "placeholders": 2,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Top left title",
+          "type": "custom",
+          "placeholders": 2,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "1_Default",
+          "type": "custom",
+          "placeholders": 1,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Top left title",
+          "type": "custom",
+          "placeholders": 2,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Default",
+          "type": "custom",
+          "placeholders": 3,
+          "placeholderTypes": []
+        }
+      ],
+      "slideArchetypes": [
+        {
+          "slide": 1,
+          "title": "极致技术，长期主义",
+          "layoutId": null,
+          "signature": "no-layout|image:1|nativeObject:1|textbox:3|text:yes",
+          "elementCounts": {
+            "image": 1,
+            "nativeObject": 1,
+            "textbox": 3
+          },
+          "textChars": 38,
+          "familySize": 4
+        },
+        {
+          "slide": 2,
+          "title": "a",
+          "layoutId": null,
+          "signature": "no-layout|image:1|nativeObject:1|shape:1|textbox:5|text:yes",
+          "elementCounts": {
+            "image": 1,
+            "nativeObject": 1,
+            "shape": 1,
+            "textbox": 5
+          },
+          "textChars": 6,
+          "familySize": 1
+        },
+        {
+          "slide": 3,
+          "title": "公司简介",
+          "layoutId": null,
+          "signature": "no-layout|image:1|nativeObject:1|textbox:3|text:yes",
+          "elementCounts": {
+            "image": 1,
+            "nativeObject": 1,
+            "textbox": 3
+          },
+          "textChars": 8,
+          "familySize": 4
+        },
+        {
+          "slide": 4,
+          "title": "应运而生：算秩未来的愿景与担当",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:3|shape:6|textbox:8|text:yes",
+          "elementCounts": {
+            "nativeObject": 3,
+            "shape": 6,
+            "textbox": 8
+          },
+          "textChars": 190,
+          "familySize": 1
+        },
+        {
+          "slide": 5,
+          "title": "核心基石：全球领先的AI算力基础设施",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:10|shape:46|textbox:23|text:yes",
+          "elementCounts": {
+            "nativeObject": 10,
+            "shape": 46,
+            "textbox": 23
+          },
+          "textChars": 200,
+          "familySize": 1
+        },
+        {
+          "slide": 6,
+          "title": "公司介绍",
+          "layoutId": null,
+          "signature": "no-layout|groupShape:3|nativeObject:3|shape:24|textbox:39|text:yes",
+          "elementCounts": {
+            "groupShape": 3,
+            "nativeObject": 3,
+            "shape": 24,
+            "textbox": 39
+          },
+          "textChars": 364,
+          "familySize": 1
+        },
+        {
+          "slide": 7,
+          "title": "产品技术介绍",
+          "layoutId": null,
+          "signature": "no-layout|image:1|nativeObject:1|textbox:3|text:yes",
+          "elementCounts": {
+            "image": 1,
+            "nativeObject": 1,
+            "textbox": 3
+          },
+          "textChars": 12,
+          "familySize": 4
+        },
+        {
+          "slide": 8,
+          "title": "精准赋能：丰富的产品及功能",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:2|shape:2|textbox:3|text:yes",
+          "elementCounts": {
+            "nativeObject": 2,
+            "shape": 2,
+            "textbox": 3
+          },
+          "textChars": 103,
+          "familySize": 1
+        },
+        {
+          "slide": 9,
+          "title": "算力丰富：多种资源类型满足不同场景需求",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:2|shape:2|textbox:2|text:yes",
+          "elementCounts": {
+            "nativeObject": 2,
+            "shape": 2,
+            "textbox": 2
+          },
+          "textChars": 25,
+          "familySize": 1
+        },
+        {
+          "slide": 10,
+          "title": "双轮驱动：深研训练与推理关键技术",
+          "layoutId": null,
+          "signature": "no-layout|image:4|nativeObject:7|shape:3|textbox:27|text:yes",
+          "elementCounts": {
+            "image": 4,
+            "nativeObject": 7,
+            "shape": 3,
+            "textbox": 27
+          },
+          "textChars": 216,
+          "familySize": 1
+        },
+        {
+          "slide": 11,
+          "title": "核心技术：高效模型训练",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:10|shape:5|textbox:26|text:yes",
+          "elementCounts": {
+            "nativeObject": 10,
+            "shape": 5,
+            "textbox": 26
+          },
+          "textChars": 750,
+          "familySize": 1
+        },
+        {
+          "slide": 12,
+          "title": "核心技术：极致推理性能",
+          "layoutId": null,
+          "signature": "no-layout|image:1|nativeObject:1|shape:6|textbox:10|text:yes",
+          "elementCounts": {
+            "image": 1,
+            "nativeObject": 1,
+            "shape": 6,
+            "textbox": 10
+          },
+          "textChars": 561,
+          "familySize": 1
+        },
+        {
+          "slide": 13,
+          "title": "核心技术：大规模集群稳定可靠的高效运维能力",
+          "layoutId": null,
+          "signature": "no-layout|image:1|nativeObject:5|shape:4|textbox:14|text:yes",
+          "elementCounts": {
+            "image": 1,
+            "nativeObject": 5,
+            "shape": 4,
+            "textbox": 14
+          },
+          "textChars": 274,
+          "familySize": 1
+        },
+        {
+          "slide": 14,
+          "title": "极致体验：以客户为中心的灵活商业模式",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:7|shape:6|textbox:18|text:yes",
+          "elementCounts": {
+            "nativeObject": 7,
+            "shape": 6,
+            "textbox": 18
+          },
+          "textChars": 157,
+          "familySize": 1
+        },
+        {
+          "slide": 15,
+          "title": "我们拥有真正能够解决问题的技术支持体系",
+          "layoutId": null,
+          "signature": "no-layout|image:2|nativeObject:12|shape:7|textbox:53|text:yes",
+          "elementCounts": {
+            "image": 2,
+            "nativeObject": 12,
+            "shape": 7,
+            "textbox": 53
+          },
+          "textChars": 397,
+          "familySize": 1
+        },
+        {
+          "slide": 16,
+          "title": "客户案例",
+          "layoutId": null,
+          "signature": "no-layout|image:1|nativeObject:1|textbox:3|text:yes",
+          "elementCounts": {
+            "image": 1,
+            "nativeObject": 1,
+            "textbox": 3
+          },
+          "textChars": 10,
+          "familySize": 4
+        },
+        {
+          "slide": 17,
+          "title": "金融服务： 助力客户的量化策略研发实现分钟级迭代",
+          "layoutId": null,
+          "signature": "no-layout|image:1|nativeObject:5|shape:6|textbox:19|text:yes",
+          "elementCounts": {
+            "image": 1,
+            "nativeObject": 5,
+            "shape": 6,
+            "textbox": 19
+          },
+          "textChars": 308,
+          "familySize": 1
+        },
+        {
+          "slide": 18,
+          "title": "生命科学：MassAI生信平台重新定义基因组解析与蛋白质设计的边界",
+          "layoutId": null,
+          "signature": "no-layout|image:1|nativeObject:7|shape:2|textbox:10|text:yes",
+          "elementCounts": {
+            "image": 1,
+            "nativeObject": 7,
+            "shape": 2,
+            "textbox": 10
+          },
+          "textChars": 306,
+          "familySize": 1
+        },
+        {
+          "slide": 19,
+          "title": "\n",
+          "layoutId": null,
+          "signature": "no-layout|groupShape:1|image:3|nativeObject:8|shape:5|textbox:18|text:yes",
+          "elementCounts": {
+            "groupShape": 1,
+            "image": 3,
+            "nativeObject": 8,
+            "shape": 5,
+            "textbox": 18
+          },
+          "textChars": 210,
+          "familySize": 1
+        },
+        {
+          "slide": 20,
+          "title": "客户案例",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:16|shape:6|textbox:8|text:yes",
+          "elementCounts": {
+            "nativeObject": 16,
+            "shape": 6,
+            "textbox": 8
+          },
+          "textChars": 236,
+          "familySize": 1
+        },
+        {
+          "slide": 21,
+          "title": "AI已不再是趋势，而是企业日常的运营和思维方式",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:2|shape:2|textbox:5|text:yes",
+          "elementCounts": {
+            "nativeObject": 2,
+            "shape": 2,
+            "textbox": 5
+          },
+          "textChars": 111,
+          "familySize": 1
+        }
+      ],
+      "reusableComponents": [
+        {
+          "signature": "shape|0.709|1.085|0|0|TextBox 54",
+          "occurrences": [
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/11"
+            },
+            {
+              "slide": 6,
+              "id": "presentation/slide/6/element/3"
+            },
+            {
+              "slide": 8,
+              "id": "presentation/slide/8/element/5"
+            },
+            {
+              "slide": 9,
+              "id": "presentation/slide/9/element/4"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/5"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/5"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/5"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/5"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/6"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/4"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/5"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/5"
+            }
+          ],
+          "count": 15
+        },
+        {
+          "signature": "shape|0.445|1.035|0|0|TextBox 621",
+          "occurrences": [
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/12"
+            },
+            {
+              "slide": 6,
+              "id": "presentation/slide/6/element/4"
+            },
+            {
+              "slide": 8,
+              "id": "presentation/slide/8/element/6"
+            },
+            {
+              "slide": 9,
+              "id": "presentation/slide/9/element/5"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/6"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/6"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/6"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/6"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/7"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/5"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/6"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/6"
+            }
+          ],
+          "count": 15
+        },
+        {
+          "signature": "nativeObject|0|0|0|0|Object 4",
+          "occurrences": [
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/2"
+            },
+            {
+              "slide": 6,
+              "id": "presentation/slide/6/element/1"
+            },
+            {
+              "slide": 8,
+              "id": "presentation/slide/8/element/1"
+            },
+            {
+              "slide": 9,
+              "id": "presentation/slide/9/element/1"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/2"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/1"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/1"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/1"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/2"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/1"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/1"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/1"
+            }
+          ],
+          "count": 15
+        },
+        {
+          "signature": "textbox|0.626|0.015|0.329|0.018|Text Placeholder 57",
+          "occurrences": [
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/5"
+            },
+            {
+              "slide": 6,
+              "id": "presentation/slide/6/element/2"
+            },
+            {
+              "slide": 8,
+              "id": "presentation/slide/8/element/4"
+            },
+            {
+              "slide": 9,
+              "id": "presentation/slide/9/element/3"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/4"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/4"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/4"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/4"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/5"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/4"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/4"
+            },
+            {
+              "slide": 19,
+              "id": "presentation/slide/19/element/6"
+            }
+          ],
+          "count": 14
+        },
+        {
+          "signature": "textbox|0.046|0.052|0.909|0.107|Title 1",
+          "occurrences": [
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/3"
+            },
+            {
+              "slide": 8,
+              "id": "presentation/slide/8/element/2"
+            },
+            {
+              "slide": 9,
+              "id": "presentation/slide/9/element/2"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/3"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/2"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/2"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/2"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/3"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/2"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/2"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/2"
+            },
+            {
+              "slide": 19,
+              "id": "presentation/slide/19/element/4"
+            }
+          ],
+          "count": 13
+        },
+        {
+          "signature": "textbox|0.046|0.317|0.909|0.368|Subtitle 56",
+          "occurrences": [
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/4"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/3"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/4"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/3"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/3"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/3"
+            }
+          ],
+          "count": 6
+        },
+        {
+          "signature": "shape|0.028|0.277|0.23|0.056|标题 1",
+          "occurrences": [
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/7"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/7"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/11"
+            },
+            {
+              "slide": 19,
+              "id": "presentation/slide/19/element/10"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "shape|0.665|0.294|0.288|0.056|标题 1",
+          "occurrences": [
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/8"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/8"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/13"
+            },
+            {
+              "slide": 19,
+              "id": "presentation/slide/19/element/12"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "nativeObject|0|0|0|0|Object 6",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/1"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/1"
+            },
+            {
+              "slide": 16,
+              "id": "presentation/slide/16/element/1"
+            }
+          ],
+          "count": 3
+        },
+        {
+          "signature": "textbox|0.626|0.015|0.329|0.018|Text Placeholder 1",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/3"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/3"
+            },
+            {
+              "slide": 16,
+              "id": "presentation/slide/16/element/3"
+            }
+          ],
+          "count": 3
+        },
+        {
+          "signature": "textbox|0.441|0.245|0.544|0.601|Text Placeholder 2",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/4"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/4"
+            },
+            {
+              "slide": 16,
+              "id": "presentation/slide/16/element/4"
+            }
+          ],
+          "count": 3
+        },
+        {
+          "signature": "image|0.021|0.015|0.186|0.184|图片 3",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/5"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/5"
+            },
+            {
+              "slide": 16,
+              "id": "presentation/slide/16/element/5"
+            }
+          ],
+          "count": 3
+        },
+        {
+          "signature": "textbox|0.038|0.932|0.598|0.053|Google Shape;507;p14",
+          "occurrences": [
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/15"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/7"
+            },
+            {
+              "slide": 21,
+              "id": "presentation/slide/21/element/7"
+            }
+          ],
+          "count": 3
+        }
+      ],
+      "nativeOpaque": {
+        "count": 105,
+        "kinds": {
+          "connector": 38,
+          "graphicFrame": 4,
+          "group": 31,
+          "oleObject": 18,
+          "picture": 14
+        },
+        "examples": [
+          {
+            "id": "presentation/slide/1/element/4",
+            "slide": 1,
+            "nativeKind": "picture",
+            "name": "Picture 2"
+          },
+          {
+            "id": "presentation/slide/2/element/1",
+            "slide": 2,
+            "nativeKind": "group",
+            "name": "组合 24"
+          },
+          {
+            "id": "presentation/slide/3/element/1",
+            "slide": 3,
+            "nativeKind": "oleObject",
+            "name": "Object 6"
+          },
+          {
+            "id": "presentation/slide/4/element/14",
+            "slide": 4,
+            "nativeKind": "picture",
+            "name": "Picture 44"
+          },
+          {
+            "id": "presentation/slide/4/element/15",
+            "slide": 4,
+            "nativeKind": "picture",
+            "name": "Picture 64"
+          },
+          {
+            "id": "presentation/slide/4/element/17",
+            "slide": 4,
+            "nativeKind": "picture",
+            "name": "Picture 38"
+          },
+          {
+            "id": "presentation/slide/5/element/1",
+            "slide": 5,
+            "nativeKind": "connector",
+            "name": "直线连接符 584"
+          },
+          {
+            "id": "presentation/slide/5/element/2",
+            "slide": 5,
+            "nativeKind": "oleObject",
+            "name": "Object 4"
+          },
+          {
+            "id": "presentation/slide/5/element/18",
+            "slide": 5,
+            "nativeKind": "connector",
+            "name": "直线连接符 20"
+          },
+          {
+            "id": "presentation/slide/5/element/22",
+            "slide": 5,
+            "nativeKind": "connector",
+            "name": "直线连接符 20"
+          },
+          {
+            "id": "presentation/slide/5/element/25",
+            "slide": 5,
+            "nativeKind": "connector",
+            "name": "直线连接符 20"
+          },
+          {
+            "id": "presentation/slide/5/element/28",
+            "slide": 5,
+            "nativeKind": "connector",
+            "name": "直线连接符 20"
+          },
+          {
+            "id": "presentation/slide/5/element/35",
+            "slide": 5,
+            "nativeKind": "connector",
+            "name": "直线连接符 606"
+          },
+          {
+            "id": "presentation/slide/5/element/37",
+            "slide": 5,
+            "nativeKind": "connector",
+            "name": "直线连接符 609"
+          },
+          {
+            "id": "presentation/slide/5/element/38",
+            "slide": 5,
+            "nativeKind": "connector",
+            "name": "直线连接符 617"
+          },
+          {
+            "id": "presentation/slide/5/element/41",
+            "slide": 5,
+            "nativeKind": "connector",
+            "name": "直线连接符 625"
+          },
+          {
+            "id": "presentation/slide/6/element/1",
+            "slide": 6,
+            "nativeKind": "oleObject",
+            "name": "Object 4"
+          },
+          {
+            "id": "presentation/slide/6/element/6",
+            "slide": 6,
+            "nativeKind": "group",
+            "name": "Group 9"
+          },
+          {
+            "id": "presentation/slide/6/element/48",
+            "slide": 6,
+            "nativeKind": "connector",
+            "name": "Straight Connector 60"
+          },
+          {
+            "id": "presentation/slide/7/element/1",
+            "slide": 7,
+            "nativeKind": "oleObject",
+            "name": "Object 6"
+          },
+          {
+            "id": "presentation/slide/8/element/1",
+            "slide": 8,
+            "nativeKind": "oleObject",
+            "name": "Object 4"
+          },
+          {
+            "id": "presentation/slide/8/element/7",
+            "slide": 8,
+            "nativeKind": "group",
+            "name": "组合 5"
+          },
+          {
+            "id": "presentation/slide/9/element/1",
+            "slide": 9,
+            "nativeKind": "oleObject",
+            "name": "Object 4"
+          },
+          {
+            "id": "presentation/slide/9/element/6",
+            "slide": 9,
+            "nativeKind": "graphicFrame",
+            "name": "表格 7"
+          }
+        ]
+      }
+    },
+    {
+      "schema": "office-kit/pptx-design-profile/v1",
+      "source": {
+        "id": "blue-gray-acid-template",
+        "fileName": "template.pptx",
+        "bytes": 13951095,
+        "sha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d"
+      },
+      "evidence": {
+        "package": {
+          "partCount": 548,
+          "slideCount": 19,
+          "layoutCount": 11,
+          "masterCount": 1,
+          "themeCount": 3,
+          "mediaCount": 44,
+          "svgCount": 16,
+          "chartCount": 0,
+          "diagramCount": 0,
+          "embeddingCount": 0,
+          "oleCount": 0,
+          "notesCount": 18,
+          "commentCount": 0,
+          "textParts": 519,
+          "sourceHeaderSha256": "3ab81b48444b1029f0fb5c5e031e04a830aa2a401d4c5c9ef33a89725cc1584a"
+        },
+        "inspectedRecordCount": 463,
+        "inspectedElementCount": 412,
+        "structuralPartHashes": {
+          "ppt/presentation.xml": "26a570a1c01c663cf89e4e7ed409d5d9a8e099fb5da2eabba2040a092ca5c5e7",
+          "ppt/slideLayouts/slideLayout1.xml": "ff451d58c4365a5cedb466e46371237679c62f50348f7b75c468008f809d2dea",
+          "ppt/slideLayouts/slideLayout10.xml": "8114f1860d6dc8307a3f7d2761b2a5522cd07a3a0707a13bcb6408899f791f7b",
+          "ppt/slideLayouts/slideLayout11.xml": "1b581689b3e1c81ffa57ae7b74ad35a564788bd43f5d2e7af6d844dbedeaebfc",
+          "ppt/slideLayouts/slideLayout2.xml": "2d60d1c62021c8661049c03bc98dc8bbd032e48acf0b6c37176dc02c3c40f606",
+          "ppt/slideLayouts/slideLayout3.xml": "c67b9d0d2bd20278d1856185e3e71f307ad846b278fa8095fb370da30a389196",
+          "ppt/slideLayouts/slideLayout4.xml": "3d0c5b7706731eb4cbf716b7a9b6d9b859e9687600cab3c773a29e420e1e47d8",
+          "ppt/slideLayouts/slideLayout5.xml": "26be3db448aa9a0887e74b19fd04faa83c691c210030ea7d57163091573b8939",
+          "ppt/slideLayouts/slideLayout6.xml": "6065c9d5bb8910a3100fb0e221f9e495c7f956bc889c521042e25a8fd32191a6",
+          "ppt/slideLayouts/slideLayout7.xml": "91ad8ae781d4470baf40b78ae2c6c442a94833572414d37bfa6ea684bec50eb0",
+          "ppt/slideLayouts/slideLayout8.xml": "467993b95f44c4b3294cc22e158619142f4b48326b212b19263379b146378288",
+          "ppt/slideLayouts/slideLayout9.xml": "bb0452a434a90ab0f1b0571e442792012dcf693cd3131f162d964d2532e2af2a",
+          "ppt/slideMasters/slideMaster1.xml": "3accea0979393cf506a79a3d15fd31e7d123e38cf55d4a37a66195ee04fcedd5",
+          "ppt/theme/theme1.xml": "6ab17a8a8367de978111cc55b54e915f4650a5269c4fd9e722d680422ed4314c",
+          "ppt/theme/theme2.xml": "5617305257efbf17485a29a1da459e1c2936e0da290c5a8dda8b80d03874c7e6",
+          "ppt/theme/theme3.xml": "5617305257efbf17485a29a1da459e1c2936e0da290c5a8dda8b80d03874c7e6"
+        }
+      },
+      "canvas": {
+        "width": 1280,
+        "height": 720,
+        "aspectRatio": 1.77778
+      },
+      "designLanguage": {
+        "palette": {
+          "direct": [
+            {
+              "value": "#000000",
+              "count": 361
+            },
+            {
+              "value": "#435BE1",
+              "count": 69
+            },
+            {
+              "value": "#FFFFFF",
+              "count": 37
+            },
+            {
+              "value": "#222221",
+              "count": 10
+            },
+            {
+              "value": "#A4A3A4",
+              "count": 7
+            },
+            {
+              "value": "#4C5BDD",
+              "count": 6
+            },
+            {
+              "value": "#32384D",
+              "count": 5
+            },
+            {
+              "value": "#0563C1",
+              "count": 3
+            },
+            {
+              "value": "#44546A",
+              "count": 3
+            },
+            {
+              "value": "#4472C4",
+              "count": 3
+            },
+            {
+              "value": "#5B9BD5",
+              "count": 3
+            },
+            {
+              "value": "#70AD47",
+              "count": 3
+            }
+          ],
+          "scheme": [
+            {
+              "value": "tx1",
+              "count": 944
+            },
+            {
+              "value": "accent1",
+              "count": 858
+            },
+            {
+              "value": "lt1",
+              "count": 209
+            },
+            {
+              "value": "bg1",
+              "count": 185
+            },
+            {
+              "value": "phClr",
+              "count": 45
+            }
+          ],
+          "note": "Counts are source XML occurrences, not a promise that every token is visually dominant."
+        },
+        "typography": {
+          "fonts": [
+            {
+              "value": "思源黑体 CN Heavy",
+              "count": 800
+            },
+            {
+              "value": "思源黑体 CN Medium",
+              "count": 255
+            },
+            {
+              "value": "思源黑体 CN Bold",
+              "count": 54
+            },
+            {
+              "value": "Calibri Light",
+              "count": 2
+            }
+          ],
+          "fontSizePt": {
+            "min": 10,
+            "median": 18,
+            "max": 80,
+            "samples": 730
+          }
+        },
+        "density": {
+          "slides": 19,
+          "elementsPerSlide": {
+            "min": 10,
+            "median": 21,
+            "max": 31
+          },
+          "textCharsPerSlide": {
+            "min": 13,
+            "median": 163,
+            "max": 289
+          },
+          "nativeOpaquePerSlide": {
+            "min": 4,
+            "median": 7,
+            "max": 11
+          }
+        },
+        "rhythm": {
+          "normalizedUnits": "slide fraction rounded to 0.001",
+          "x": [
+            {
+              "value": "0.049",
+              "count": 19
+            },
+            {
+              "value": "0.93",
+              "count": 18
+            },
+            {
+              "value": "0.098",
+              "count": 15
+            },
+            {
+              "value": "0.019",
+              "count": 12
+            },
+            {
+              "value": "0.269",
+              "count": 12
+            },
+            {
+              "value": "0.872",
+              "count": 12
+            },
+            {
+              "value": "0.937",
+              "count": 12
+            },
+            {
+              "value": "0.462",
+              "count": 10
+            },
+            {
+              "value": "0.815",
+              "count": 10
+            },
+            {
+              "value": "0.112",
+              "count": 9
+            },
+            {
+              "value": "0.461",
+              "count": 9
+            },
+            {
+              "value": "0.541",
+              "count": 9
+            }
+          ],
+          "y": [
+            {
+              "value": "-0.229",
+              "count": 12
+            },
+            {
+              "value": "0.062",
+              "count": 12
+            },
+            {
+              "value": "0.073",
+              "count": 12
+            },
+            {
+              "value": "0.097",
+              "count": 12
+            },
+            {
+              "value": "0.102",
+              "count": 12
+            },
+            {
+              "value": "0.789",
+              "count": 11
+            },
+            {
+              "value": "-0.724",
+              "count": 10
+            },
+            {
+              "value": "0.199",
+              "count": 10
+            },
+            {
+              "value": "0.041",
+              "count": 9
+            },
+            {
+              "value": "0.83",
+              "count": 8
+            },
+            {
+              "value": "0.682",
+              "count": 7
+            },
+            {
+              "value": "-0.332",
+              "count": 6
+            }
+          ],
+          "widths": [
+            {
+              "value": "0.027",
+              "count": 27
+            },
+            {
+              "value": "0.075",
+              "count": 24
+            },
+            {
+              "value": "0.016",
+              "count": 16
+            },
+            {
+              "value": "0.023",
+              "count": 12
+            },
+            {
+              "value": "0.098",
+              "count": 12
+            },
+            {
+              "value": "0.427",
+              "count": 12
+            },
+            {
+              "value": "0.793",
+              "count": 12
+            },
+            {
+              "value": "0.156",
+              "count": 10
+            },
+            {
+              "value": "0.295",
+              "count": 10
+            },
+            {
+              "value": "0.034",
+              "count": 8
+            },
+            {
+              "value": "0.255",
+              "count": 8
+            },
+            {
+              "value": "0.383",
+              "count": 8
+            }
+          ],
+          "heights": [
+            {
+              "value": "0.157",
+              "count": 21
+            },
+            {
+              "value": "0.019",
+              "count": 20
+            },
+            {
+              "value": "0.097",
+              "count": 19
+            },
+            {
+              "value": "0.101",
+              "count": 19
+            },
+            {
+              "value": "0.064",
+              "count": 16
+            },
+            {
+              "value": "0.134",
+              "count": 14
+            },
+            {
+              "value": "0.034",
+              "count": 12
+            },
+            {
+              "value": "0.759",
+              "count": 12
+            },
+            {
+              "value": "1.613",
+              "count": 12
+            },
+            {
+              "value": "1.672",
+              "count": 12
+            },
+            {
+              "value": "0.17",
+              "count": 11
+            },
+            {
+              "value": "0.04",
+              "count": 8
+            }
+          ]
+        }
+      },
+      "layoutFamilies": [
+        {
+          "id": "presentation/master/1/layout/1",
+          "name": "标题幻灯片",
+          "type": "title",
+          "placeholders": 10,
+          "placeholderTypes": [
+            "body",
+            "ctrTitle",
+            "dt",
+            "ftr",
+            "sldNum",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/10",
+          "name": "标题和竖排文字",
+          "type": "vertTx",
+          "placeholders": 8,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/11",
+          "name": "垂直排列标题与\n文本",
+          "type": "vertTitleAndTx",
+          "placeholders": 8,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/2",
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 9,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "obj",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/3",
+          "name": "节标题",
+          "type": "secHead",
+          "placeholders": 8,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/4",
+          "name": "两栏内容",
+          "type": "twoObj",
+          "placeholders": 10,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "obj",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/5",
+          "name": "比较",
+          "type": "twoTxTwoObj",
+          "placeholders": 11,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "obj",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/6",
+          "name": "仅标题",
+          "type": "titleOnly",
+          "placeholders": 8,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/7",
+          "name": "空白",
+          "type": "blank",
+          "placeholders": 8,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/8",
+          "name": "内容与标题",
+          "type": "objTx",
+          "placeholders": 10,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "obj",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/9",
+          "name": "图片与标题",
+          "type": "picTx",
+          "placeholders": 10,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "pic",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "name": "标题幻灯片",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题幻灯片",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题幻灯片",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题幻灯片",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题幻灯片",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "标题和内容",
+          "type": "obj",
+          "placeholders": 5,
+          "placeholderTypes": []
+        }
+      ],
+      "slideArchetypes": [
+        {
+          "slide": 1,
+          "title": "单击此处添加副标题内容",
+          "layoutId": null,
+          "signature": "no-layout|connector:1|image:2|nativeObject:5|shape:4|textbox:3|text:yes",
+          "elementCounts": {
+            "connector": 1,
+            "image": 2,
+            "nativeObject": 5,
+            "shape": 4,
+            "textbox": 3
+          },
+          "textChars": 29,
+          "familySize": 1
+        },
+        {
+          "slide": 2,
+          "title": "本季度工作概述",
+          "layoutId": null,
+          "signature": "no-layout|connector:1|image:1|nativeObject:6|shape:7|textbox:10|text:yes",
+          "elementCounts": {
+            "connector": 1,
+            "image": 1,
+            "nativeObject": 6,
+            "shape": 7,
+            "textbox": 10
+          },
+          "textChars": 44,
+          "familySize": 1
+        },
+        {
+          "slide": 3,
+          "title": "本季度工作概述",
+          "layoutId": null,
+          "signature": "no-layout|image:2|nativeObject:11|shape:5|textbox:3|text:yes",
+          "elementCounts": {
+            "image": 2,
+            "nativeObject": 11,
+            "shape": 5,
+            "textbox": 3
+          },
+          "textChars": 18,
+          "familySize": 2
+        },
+        {
+          "slide": 4,
+          "title": "本季度工作概述",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:7|shape:6|textbox:3|text:yes",
+          "elementCounts": {
+            "nativeObject": 7,
+            "shape": 6,
+            "textbox": 3
+          },
+          "textChars": 163,
+          "familySize": 1
+        },
+        {
+          "slide": 5,
+          "title": "本季度工作概述",
+          "layoutId": null,
+          "signature": "no-layout|image:1|nativeObject:4|shape:7|textbox:4|text:yes",
+          "elementCounts": {
+            "image": 1,
+            "nativeObject": 4,
+            "shape": 7,
+            "textbox": 4
+          },
+          "textChars": 217,
+          "familySize": 1
+        },
+        {
+          "slide": 6,
+          "title": "本季度工作概述",
+          "layoutId": null,
+          "signature": "no-layout|groupShape:7|image:2|nativeObject:5|shape:5|textbox:12|text:yes",
+          "elementCounts": {
+            "groupShape": 7,
+            "image": 2,
+            "nativeObject": 5,
+            "shape": 5,
+            "textbox": 12
+          },
+          "textChars": 255,
+          "familySize": 1
+        },
+        {
+          "slide": 7,
+          "title": "重点工作介绍",
+          "layoutId": null,
+          "signature": "no-layout|image:2|nativeObject:11|shape:5|textbox:3|text:yes",
+          "elementCounts": {
+            "image": 2,
+            "nativeObject": 11,
+            "shape": 5,
+            "textbox": 3
+          },
+          "textChars": 17,
+          "familySize": 2
+        },
+        {
+          "slide": 8,
+          "title": "重点工作介绍",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:6|shape:7|textbox:6|text:yes",
+          "elementCounts": {
+            "nativeObject": 6,
+            "shape": 7,
+            "textbox": 6
+          },
+          "textChars": 187,
+          "familySize": 1
+        },
+        {
+          "slide": 9,
+          "title": "重点工作介绍",
+          "layoutId": null,
+          "signature": "no-layout|groupShape:3|nativeObject:5|shape:4|textbox:11|text:yes",
+          "elementCounts": {
+            "groupShape": 3,
+            "nativeObject": 5,
+            "shape": 4,
+            "textbox": 11
+          },
+          "textChars": 192,
+          "familySize": 1
+        },
+        {
+          "slide": 10,
+          "title": "重点工作介绍",
+          "layoutId": null,
+          "signature": "no-layout|groupShape:1|nativeObject:7|shape:7|textbox:7|text:yes",
+          "elementCounts": {
+            "groupShape": 1,
+            "nativeObject": 7,
+            "shape": 7,
+            "textbox": 7
+          },
+          "textChars": 101,
+          "familySize": 1
+        },
+        {
+          "slide": 11,
+          "title": "工作中不足之处",
+          "layoutId": null,
+          "signature": "no-layout|image:5|nativeObject:8|shape:5|textbox:3|text:yes",
+          "elementCounts": {
+            "image": 5,
+            "nativeObject": 8,
+            "shape": 5,
+            "textbox": 3
+          },
+          "textChars": 18,
+          "familySize": 2
+        },
+        {
+          "slide": 12,
+          "title": "工作中不足之处",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:7|shape:9|textbox:10|text:yes",
+          "elementCounts": {
+            "nativeObject": 7,
+            "shape": 9,
+            "textbox": 10
+          },
+          "textChars": 178,
+          "familySize": 1
+        },
+        {
+          "slide": 13,
+          "title": "工作中不足之处",
+          "layoutId": null,
+          "signature": "no-layout|groupShape:3|image:1|nativeObject:7|shape:10|textbox:7|text:yes",
+          "elementCounts": {
+            "groupShape": 3,
+            "image": 1,
+            "nativeObject": 7,
+            "shape": 10,
+            "textbox": 7
+          },
+          "textChars": 163,
+          "familySize": 1
+        },
+        {
+          "slide": 14,
+          "title": "工作中不足之处",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:10|shape:3|textbox:7|text:yes",
+          "elementCounts": {
+            "nativeObject": 10,
+            "shape": 3,
+            "textbox": 7
+          },
+          "textChars": 289,
+          "familySize": 1
+        },
+        {
+          "slide": 15,
+          "title": "后期工作规划",
+          "layoutId": null,
+          "signature": "no-layout|image:5|nativeObject:8|shape:5|textbox:3|text:yes",
+          "elementCounts": {
+            "image": 5,
+            "nativeObject": 8,
+            "shape": 5,
+            "textbox": 3
+          },
+          "textChars": 17,
+          "familySize": 2
+        },
+        {
+          "slide": 16,
+          "title": "后期工作规划",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:8|shape:5|textbox:11|text:yes",
+          "elementCounts": {
+            "nativeObject": 8,
+            "shape": 5,
+            "textbox": 11
+          },
+          "textChars": 198,
+          "familySize": 1
+        },
+        {
+          "slide": 17,
+          "title": "后期工作规划",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:6|shape:11|textbox:13|text:yes",
+          "elementCounts": {
+            "nativeObject": 6,
+            "shape": 11,
+            "textbox": 13
+          },
+          "textChars": 224,
+          "familySize": 1
+        },
+        {
+          "slide": 18,
+          "title": "后期工作规划",
+          "layoutId": null,
+          "signature": "no-layout|groupShape:2|nativeObject:8|shape:4|textbox:9|text:yes",
+          "elementCounts": {
+            "groupShape": 2,
+            "nativeObject": 8,
+            "shape": 4,
+            "textbox": 9
+          },
+          "textChars": 198,
+          "familySize": 1
+        },
+        {
+          "slide": 19,
+          "title": "感谢观看",
+          "layoutId": null,
+          "signature": "no-layout|nativeObject:5|shape:3|textbox:2|text:yes",
+          "elementCounts": {
+            "nativeObject": 5,
+            "shape": 3,
+            "textbox": 2
+          },
+          "textChars": 13,
+          "familySize": 1
+        }
+      ],
+      "reusableComponents": [
+        {
+          "signature": "nativeObject|0.269|-0.229|0.427|1.613|图片 3",
+          "occurrences": [
+            {
+              "slide": 4,
+              "id": "presentation/slide/4/element/2"
+            },
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/2"
+            },
+            {
+              "slide": 6,
+              "id": "presentation/slide/6/element/2"
+            },
+            {
+              "slide": 8,
+              "id": "presentation/slide/8/element/2"
+            },
+            {
+              "slide": 9,
+              "id": "presentation/slide/9/element/2"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/2"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/2"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/2"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/2"
+            },
+            {
+              "slide": 16,
+              "id": "presentation/slide/16/element/2"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/2"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/2"
+            }
+          ],
+          "count": 12
+        },
+        {
+          "signature": "shape|0.019|0.062|0.075|0.101|矩形 16",
+          "occurrences": [
+            {
+              "slide": 4,
+              "id": "presentation/slide/4/element/4"
+            },
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/4"
+            },
+            {
+              "slide": 6,
+              "id": "presentation/slide/6/element/4"
+            },
+            {
+              "slide": 8,
+              "id": "presentation/slide/8/element/4"
+            },
+            {
+              "slide": 9,
+              "id": "presentation/slide/9/element/5"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/6"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/4"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/4"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/4"
+            },
+            {
+              "slide": 16,
+              "id": "presentation/slide/16/element/4"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/6"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/4"
+            }
+          ],
+          "count": 12
+        },
+        {
+          "signature": "textbox|0.098|0.073|0.793|0.097|标题",
+          "occurrences": [
+            {
+              "slide": 4,
+              "id": "presentation/slide/4/element/5"
+            },
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/5"
+            },
+            {
+              "slide": 6,
+              "id": "presentation/slide/6/element/5"
+            },
+            {
+              "slide": 8,
+              "id": "presentation/slide/8/element/5"
+            },
+            {
+              "slide": 9,
+              "id": "presentation/slide/9/element/6"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/7"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/5"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/5"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/5"
+            },
+            {
+              "slide": 16,
+              "id": "presentation/slide/16/element/5"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/7"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/5"
+            }
+          ],
+          "count": 12
+        },
+        {
+          "signature": "nativeObject|0.937|0.102|0.016|0.019|组合 20",
+          "occurrences": [
+            {
+              "slide": 4,
+              "id": "presentation/slide/4/element/7"
+            },
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/7"
+            },
+            {
+              "slide": 6,
+              "id": "presentation/slide/6/element/6"
+            },
+            {
+              "slide": 8,
+              "id": "presentation/slide/8/element/7"
+            },
+            {
+              "slide": 9,
+              "id": "presentation/slide/9/element/7"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/8"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/6"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/6"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/6"
+            },
+            {
+              "slide": 16,
+              "id": "presentation/slide/16/element/6"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/8"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/6"
+            }
+          ],
+          "count": 12
+        },
+        {
+          "signature": "shape|0.872|0.199|0.098|0.759|矩形 4",
+          "occurrences": [
+            {
+              "slide": 4,
+              "id": "presentation/slide/4/element/1"
+            },
+            {
+              "slide": 8,
+              "id": "presentation/slide/8/element/1"
+            },
+            {
+              "slide": 9,
+              "id": "presentation/slide/9/element/1"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/1"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/1"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/1"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/1"
+            },
+            {
+              "slide": 16,
+              "id": "presentation/slide/16/element/1"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/1"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/1"
+            }
+          ],
+          "count": 10
+        },
+        {
+          "signature": "shape|0.462|-0.724|0.075|1.672|矩形 6",
+          "occurrences": [
+            {
+              "slide": 4,
+              "id": "presentation/slide/4/element/3"
+            },
+            {
+              "slide": 8,
+              "id": "presentation/slide/8/element/3"
+            },
+            {
+              "slide": 9,
+              "id": "presentation/slide/9/element/4"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/5"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/3"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/3"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/3"
+            },
+            {
+              "slide": 16,
+              "id": "presentation/slide/16/element/3"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/5"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/3"
+            }
+          ],
+          "count": 10
+        },
+        {
+          "signature": "nativeObject|0.049|0.097|0.023|0.034|组合 2",
+          "occurrences": [
+            {
+              "slide": 4,
+              "id": "presentation/slide/4/element/8"
+            },
+            {
+              "slide": 8,
+              "id": "presentation/slide/8/element/8"
+            },
+            {
+              "slide": 9,
+              "id": "presentation/slide/9/element/8"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/9"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/7"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/7"
+            },
+            {
+              "slide": 14,
+              "id": "presentation/slide/14/element/7"
+            },
+            {
+              "slide": 16,
+              "id": "presentation/slide/16/element/7"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/9"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/7"
+            }
+          ],
+          "count": 10
+        },
+        {
+          "signature": "shape|0.04|0.09|0.933|0.869|矩形 22",
+          "occurrences": [
+            {
+              "slide": 1,
+              "id": "presentation/slide/1/element/1"
+            },
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/1"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/1"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/1"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/1"
+            }
+          ],
+          "count": 5
+        },
+        {
+          "signature": "nativeObject|0.242|-0.332|0.497|1.637|图片 3",
+          "occurrences": [
+            {
+              "slide": 1,
+              "id": "presentation/slide/1/element/2"
+            },
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/2"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/2"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/2"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/2"
+            }
+          ],
+          "count": 5
+        },
+        {
+          "signature": "shape|0.049|0.83|0.034|0.064|任意多边形: 形状 1",
+          "occurrences": [
+            {
+              "slide": 1,
+              "id": "presentation/slide/1/element/3"
+            },
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/7"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/7"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/7"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/7"
+            }
+          ],
+          "count": 5
+        },
+        {
+          "signature": "nativeObject|0.047|0.076|0.027|0.049|组合 48",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/10"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/10"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/10"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/10"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "nativeObject|0.099|0.1|0.707|0|直接箭头连接符 49",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/11"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/11"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/11"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/11"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "nativeObject|0.935|0.178|0.016|0.019|组合 55",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/12"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/12"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/12"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/12"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "image|0.794|0.206|0.071|0.104|图片 14",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/13"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/13"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/13"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/13"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "shape|0.585|0.779|0.282|0.101|椭圆 15",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/14"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/14"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/14"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/14"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "image|0.548|0.202|0.308|0.677|图片 6",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/17"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/20"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/17"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/17"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "textbox|0.816|0.081|0.088|0.04|文本框 29",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/20"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/19"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/20"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/20"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "shape|0.93|0.041|0.027|0.887|矩形 5",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/3"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/3"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/3"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/3"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "shape|0.93|0.157|0.027|0.408|矩形 8",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/4"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/4"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/4"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/4"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "nativeObject|0.93|0.041|0.027|0.064|组合 10",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/5"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/5"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/5"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/5"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "nativeObject|0.93|0.865|0.027|0.064|组合 11",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/6"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/6"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/6"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/6"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "nativeObject|0.815|0.789|0.156|0.17|组合 57",
+          "occurrences": [
+            {
+              "slide": 4,
+              "id": "presentation/slide/4/element/13"
+            },
+            {
+              "slide": 10,
+              "id": "presentation/slide/10/element/14"
+            },
+            {
+              "slide": 12,
+              "id": "presentation/slide/12/element/11"
+            },
+            {
+              "slide": 13,
+              "id": "presentation/slide/13/element/22"
+            }
+          ],
+          "count": 4
+        },
+        {
+          "signature": "nativeObject|0.815|0.789|0.156|0.17|组合 38",
+          "occurrences": [
+            {
+              "slide": 16,
+              "id": "presentation/slide/16/element/13"
+            },
+            {
+              "slide": 17,
+              "id": "presentation/slide/17/element/10"
+            },
+            {
+              "slide": 18,
+              "id": "presentation/slide/18/element/8"
+            }
+          ],
+          "count": 3
+        },
+        {
+          "signature": "nativeObject|0.304|0.296|0.027|0.025|组合 79",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/19"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/18"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/19"
+            }
+          ],
+          "count": 3
+        },
+        {
+          "signature": "nativeObject|0.112|0.565|0.438|0.16|组合 27",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/21"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/21"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/21"
+            }
+          ],
+          "count": 3
+        },
+        {
+          "signature": "textbox|0.112|0.413|0.44|0.134|文本框 4",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/8"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/8"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/8"
+            }
+          ],
+          "count": 3
+        },
+        {
+          "signature": "textbox|0.118|0.249|0.119|0.157|序号",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/9"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/9"
+            },
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/9"
+            }
+          ],
+          "count": 3
+        },
+        {
+          "signature": "nativeObject|0.837|0.766|0.021|0.187|组合 51",
+          "occurrences": [
+            {
+              "slide": 1,
+              "id": "presentation/slide/1/element/12"
+            },
+            {
+              "slide": 2,
+              "id": "presentation/slide/2/element/24"
+            }
+          ],
+          "count": 2
+        },
+        {
+          "signature": "nativeObject|0.071|0.092|0.797|0.078|组合 21",
+          "occurrences": [
+            {
+              "slide": 1,
+              "id": "presentation/slide/1/element/5"
+            },
+            {
+              "slide": 19,
+              "id": "presentation/slide/19/element/8"
+            }
+          ],
+          "count": 2
+        },
+        {
+          "signature": "image|0.781|0.522|0.078|0.15|图形 8",
+          "occurrences": [
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/15"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/15"
+            }
+          ],
+          "count": 2
+        },
+        {
+          "signature": "image|0.595|0.425|0.139|0.267|图形 8",
+          "occurrences": [
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/16"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/16"
+            }
+          ],
+          "count": 2
+        },
+        {
+          "signature": "image|0.826|0.374|0.056|0.095|图形 10",
+          "occurrences": [
+            {
+              "slide": 11,
+              "id": "presentation/slide/11/element/18"
+            },
+            {
+              "slide": 15,
+              "id": "presentation/slide/15/element/18"
+            }
+          ],
+          "count": 2
+        },
+        {
+          "signature": "nativeObject|0.781|0.522|0.078|0.15|图形 8",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/15"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/15"
+            }
+          ],
+          "count": 2
+        },
+        {
+          "signature": "nativeObject|0.595|0.425|0.139|0.267|图形 8",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/16"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/16"
+            }
+          ],
+          "count": 2
+        },
+        {
+          "signature": "nativeObject|0.826|0.374|0.056|0.095|图形 10",
+          "occurrences": [
+            {
+              "slide": 3,
+              "id": "presentation/slide/3/element/18"
+            },
+            {
+              "slide": 7,
+              "id": "presentation/slide/7/element/17"
+            }
+          ],
+          "count": 2
+        },
+        {
+          "signature": "shape|0.872|0.198|0.098|0.759|矩形 4",
+          "occurrences": [
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/1"
+            },
+            {
+              "slide": 6,
+              "id": "presentation/slide/6/element/1"
+            }
+          ],
+          "count": 2
+        },
+        {
+          "signature": "nativeObject|0.815|0.789|0.156|0.17|组合 182",
+          "occurrences": [
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/14"
+            },
+            {
+              "slide": 6,
+              "id": "presentation/slide/6/element/8"
+            }
+          ],
+          "count": 2
+        },
+        {
+          "signature": "shape|0.465|-0.726|0.075|1.672|矩形 6",
+          "occurrences": [
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/3"
+            },
+            {
+              "slide": 6,
+              "id": "presentation/slide/6/element/3"
+            }
+          ],
+          "count": 2
+        },
+        {
+          "signature": "nativeObject|0.049|0.097|0.023|0.034|组合 5",
+          "occurrences": [
+            {
+              "slide": 5,
+              "id": "presentation/slide/5/element/8"
+            },
+            {
+              "slide": 6,
+              "id": "presentation/slide/6/element/7"
+            }
+          ],
+          "count": 2
+        }
+      ],
+      "nativeOpaque": {
+        "count": 134,
+        "kinds": {
+          "connector": 8,
+          "group": 86,
+          "picture": 40
+        },
+        "examples": [
+          {
+            "id": "presentation/slide/1/element/2",
+            "slide": 1,
+            "nativeKind": "picture",
+            "name": "图片 3"
+          },
+          {
+            "id": "presentation/slide/1/element/4",
+            "slide": 1,
+            "nativeKind": "group",
+            "name": "组合 49"
+          },
+          {
+            "id": "presentation/slide/1/element/5",
+            "slide": 1,
+            "nativeKind": "group",
+            "name": "组合 21"
+          },
+          {
+            "id": "presentation/slide/1/element/12",
+            "slide": 1,
+            "nativeKind": "group",
+            "name": "组合 51"
+          },
+          {
+            "id": "presentation/slide/1/element/14",
+            "slide": 1,
+            "nativeKind": "picture",
+            "name": "图形 8"
+          },
+          {
+            "id": "presentation/slide/2/element/2",
+            "slide": 2,
+            "nativeKind": "picture",
+            "name": "图片 43"
+          },
+          {
+            "id": "presentation/slide/2/element/3",
+            "slide": 2,
+            "nativeKind": "group",
+            "name": "组合 105"
+          },
+          {
+            "id": "presentation/slide/2/element/17",
+            "slide": 2,
+            "nativeKind": "picture",
+            "name": "图形 8"
+          },
+          {
+            "id": "presentation/slide/2/element/23",
+            "slide": 2,
+            "nativeKind": "group",
+            "name": "组合 35"
+          },
+          {
+            "id": "presentation/slide/2/element/24",
+            "slide": 2,
+            "nativeKind": "group",
+            "name": "组合 51"
+          },
+          {
+            "id": "presentation/slide/2/element/25",
+            "slide": 2,
+            "nativeKind": "picture",
+            "name": "图形 10"
+          },
+          {
+            "id": "presentation/slide/3/element/2",
+            "slide": 3,
+            "nativeKind": "picture",
+            "name": "图片 3"
+          },
+          {
+            "id": "presentation/slide/3/element/5",
+            "slide": 3,
+            "nativeKind": "group",
+            "name": "组合 10"
+          },
+          {
+            "id": "presentation/slide/3/element/6",
+            "slide": 3,
+            "nativeKind": "group",
+            "name": "组合 11"
+          },
+          {
+            "id": "presentation/slide/3/element/10",
+            "slide": 3,
+            "nativeKind": "group",
+            "name": "组合 48"
+          },
+          {
+            "id": "presentation/slide/3/element/11",
+            "slide": 3,
+            "nativeKind": "connector",
+            "name": "直接箭头连接符 49"
+          },
+          {
+            "id": "presentation/slide/3/element/12",
+            "slide": 3,
+            "nativeKind": "group",
+            "name": "组合 55"
+          },
+          {
+            "id": "presentation/slide/3/element/15",
+            "slide": 3,
+            "nativeKind": "picture",
+            "name": "图形 8"
+          },
+          {
+            "id": "presentation/slide/3/element/16",
+            "slide": 3,
+            "nativeKind": "picture",
+            "name": "图形 8"
+          },
+          {
+            "id": "presentation/slide/3/element/18",
+            "slide": 3,
+            "nativeKind": "picture",
+            "name": "图形 10"
+          },
+          {
+            "id": "presentation/slide/3/element/19",
+            "slide": 3,
+            "nativeKind": "group",
+            "name": "组合 79"
+          },
+          {
+            "id": "presentation/slide/3/element/21",
+            "slide": 3,
+            "nativeKind": "group",
+            "name": "组合 27"
+          },
+          {
+            "id": "presentation/slide/4/element/2",
+            "slide": 4,
+            "nativeKind": "picture",
+            "name": "图片 3"
+          },
+          {
+            "id": "presentation/slide/4/element/7",
+            "slide": 4,
+            "nativeKind": "group",
+            "name": "组合 20"
+          }
+        ]
+      }
+    },
+    {
+      "schema": "office-kit/pptx-design-profile/v1",
+      "source": {
+        "id": "mckinsey-customer-loyalty",
+        "fileName": "ppt169_麦肯锡风_kimsoong_customer_loyalty.pptx",
+        "bytes": 47589,
+        "sha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5"
+      },
+      "evidence": {
+        "package": {
+          "partCount": 60,
+          "slideCount": 8,
+          "layoutCount": 11,
+          "masterCount": 1,
+          "themeCount": 1,
+          "mediaCount": 8,
+          "svgCount": 8,
+          "chartCount": 0,
+          "diagramCount": 0,
+          "embeddingCount": 0,
+          "oleCount": 0,
+          "notesCount": 0,
+          "commentCount": 0,
+          "textParts": 58,
+          "sourceHeaderSha256": "c36b05eae156d0eb1c1bb2b5de0b4ecddc79fe6cc9694fbd83fb53189b54958f"
+        },
+        "inspectedRecordCount": 37,
+        "inspectedElementCount": 8,
+        "structuralPartHashes": {
+          "ppt/presentation.xml": "f38a30c4e7d1bf22c579f8f96ab2ac8e96b6d3bab9de7b366e1e099e36d79d11",
+          "ppt/slideLayouts/slideLayout1.xml": "25c93a2f186df69897585729d52fc610349e29dcf0b5b6080160df6490698709",
+          "ppt/slideLayouts/slideLayout10.xml": "1f8304c9d6c08ff9bd41b639d0c7e866b6515f61e6081c9ccc89ed8d0f8b4194",
+          "ppt/slideLayouts/slideLayout11.xml": "355ac266c2671b83b662759afb0ee0ecfb7cdd6ec936019ecef60dbc95c14dac",
+          "ppt/slideLayouts/slideLayout2.xml": "5f800acd9e43b9b438c987bd71cf0966b27ad02ce8df14df80708510cbd700be",
+          "ppt/slideLayouts/slideLayout3.xml": "e83a85b737e1447051ac7fd9bbaaba4ac1b4210cfc630cdcfcdbc191fdb141d1",
+          "ppt/slideLayouts/slideLayout4.xml": "1ebe316051a0caaac0e972989a7591e66d1fbb4a0764fe984c31a4ab5b6554bf",
+          "ppt/slideLayouts/slideLayout5.xml": "3df8e6f498622ef440f5568a2c967c97f47c74b46b47a976304c7b7c9ab54c74",
+          "ppt/slideLayouts/slideLayout6.xml": "18e5b26c6f7c30dabe0b294faf38b2d2ef60ae778fbba9c3fe71f6560143a402",
+          "ppt/slideLayouts/slideLayout7.xml": "e4d86b009a8ca6ca9ecfadc97c68b7123b60544df09a7ea42864a4f5f74ce09c",
+          "ppt/slideLayouts/slideLayout8.xml": "950b9d16468d58fe59a8c0aeb17a03b7d18a9f5bbeac438e38a2248462a72cbe",
+          "ppt/slideLayouts/slideLayout9.xml": "4e9439878755a7faea188d684939b2fb7d26b7e09086e792789f9137ca353e15",
+          "ppt/slideMasters/slideMaster1.xml": "44cc65956f47c1cf689803dcc7a1d9225c93d3fd90754a9f85e2bdcea27565bc",
+          "ppt/theme/theme1.xml": "4c3412087e8fa20cf5642f42e69f1e733881c28611a2bdd4622654ee313d214e"
+        }
+      },
+      "canvas": {
+        "width": 1280,
+        "height": 720,
+        "aspectRatio": 1.77778
+      },
+      "designLanguage": {
+        "palette": {
+          "direct": [
+            {
+              "value": "#000000",
+              "count": 3
+            },
+            {
+              "value": "#0000FF",
+              "count": 1
+            },
+            {
+              "value": "#1F497D",
+              "count": 1
+            },
+            {
+              "value": "#4BACC6",
+              "count": 1
+            },
+            {
+              "value": "#4F81BD",
+              "count": 1
+            },
+            {
+              "value": "#800080",
+              "count": 1
+            },
+            {
+              "value": "#8064A2",
+              "count": 1
+            },
+            {
+              "value": "#9BBB59",
+              "count": 1
+            },
+            {
+              "value": "#C0504D",
+              "count": 1
+            },
+            {
+              "value": "#EEECE1",
+              "count": 1
+            },
+            {
+              "value": "#F79646",
+              "count": 1
+            }
+          ],
+          "scheme": [
+            {
+              "value": "tx1",
+              "count": 50
+            },
+            {
+              "value": "phClr",
+              "count": 15
+            },
+            {
+              "value": "accent1",
+              "count": 6
+            },
+            {
+              "value": "bg1",
+              "count": 1
+            },
+            {
+              "value": "lt1",
+              "count": 1
+            }
+          ],
+          "note": "Counts are source XML occurrences, not a promise that every token is visually dominant."
+        },
+        "typography": {
+          "fonts": [
+            {
+              "value": "Calibri",
+              "count": 2
+            }
+          ],
+          "fontSizePt": {
+            "min": 9,
+            "median": 18,
+            "max": 44,
+            "samples": 133
+          }
+        },
+        "density": {
+          "slides": 8,
+          "elementsPerSlide": {
+            "min": 1,
+            "median": 1,
+            "max": 1
+          },
+          "textCharsPerSlide": {
+            "min": 0,
+            "median": 0,
+            "max": 0
+          },
+          "nativeOpaquePerSlide": {
+            "min": 0,
+            "median": 0,
+            "max": 0
+          }
+        },
+        "rhythm": {
+          "normalizedUnits": "slide fraction rounded to 0.001",
+          "x": [
+            {
+              "value": "0",
+              "count": 8
+            }
+          ],
+          "y": [
+            {
+              "value": "0",
+              "count": 8
+            }
+          ],
+          "widths": [
+            {
+              "value": "1",
+              "count": 8
+            }
+          ],
+          "heights": [
+            {
+              "value": "1",
+              "count": 8
+            }
+          ]
+        }
+      },
+      "layoutFamilies": [
+        {
+          "id": "presentation/master/1/layout/1",
+          "name": "Title Slide",
+          "type": "title",
+          "placeholders": 10,
+          "placeholderTypes": [
+            "body",
+            "ctrTitle",
+            "dt",
+            "ftr",
+            "sldNum",
+            "subTitle",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/10",
+          "name": "Title and Vertical Text",
+          "type": "vertTx",
+          "placeholders": 8,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/11",
+          "name": "Vertical Title and Text",
+          "type": "vertTitleAndTx",
+          "placeholders": 8,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/2",
+          "name": "Title and Content",
+          "type": "obj",
+          "placeholders": 9,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "obj",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/3",
+          "name": "Section Header",
+          "type": "secHead",
+          "placeholders": 8,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/4",
+          "name": "Two Content",
+          "type": "twoObj",
+          "placeholders": 10,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "obj",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/5",
+          "name": "Comparison",
+          "type": "twoTxTwoObj",
+          "placeholders": 11,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "obj",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/6",
+          "name": "Title Only",
+          "type": "titleOnly",
+          "placeholders": 8,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/7",
+          "name": "Blank",
+          "type": "blank",
+          "placeholders": 8,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/8",
+          "name": "Content with Caption",
+          "type": "objTx",
+          "placeholders": 10,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "obj",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "id": "presentation/master/1/layout/9",
+          "name": "Picture with Caption",
+          "type": "picTx",
+          "placeholders": 10,
+          "placeholderTypes": [
+            "body",
+            "dt",
+            "ftr",
+            "pic",
+            "sldNum",
+            "title"
+          ]
+        },
+        {
+          "name": "Title Slide",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Title Slide",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Title Slide",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Title Slide",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Title Slide",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Title Slide",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Title Slide",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        },
+        {
+          "name": "Title Slide",
+          "type": "title",
+          "placeholders": 5,
+          "placeholderTypes": []
+        }
+      ],
+      "slideArchetypes": [
+        {
+          "slide": 1,
+          "title": "",
+          "layoutId": null,
+          "signature": "no-layout|image:1|text:no",
+          "elementCounts": {
+            "image": 1
+          },
+          "textChars": 0,
+          "familySize": 8
+        },
+        {
+          "slide": 2,
+          "title": "",
+          "layoutId": null,
+          "signature": "no-layout|image:1|text:no",
+          "elementCounts": {
+            "image": 1
+          },
+          "textChars": 0,
+          "familySize": 8
+        },
+        {
+          "slide": 3,
+          "title": "",
+          "layoutId": null,
+          "signature": "no-layout|image:1|text:no",
+          "elementCounts": {
+            "image": 1
+          },
+          "textChars": 0,
+          "familySize": 8
+        },
+        {
+          "slide": 4,
+          "title": "",
+          "layoutId": null,
+          "signature": "no-layout|image:1|text:no",
+          "elementCounts": {
+            "image": 1
+          },
+          "textChars": 0,
+          "familySize": 8
+        },
+        {
+          "slide": 5,
+          "title": "",
+          "layoutId": null,
+          "signature": "no-layout|image:1|text:no",
+          "elementCounts": {
+            "image": 1
+          },
+          "textChars": 0,
+          "familySize": 8
+        },
+        {
+          "slide": 6,
+          "title": "",
+          "layoutId": null,
+          "signature": "no-layout|image:1|text:no",
+          "elementCounts": {
+            "image": 1
+          },
+          "textChars": 0,
+          "familySize": 8
+        },
+        {
+          "slide": 7,
+          "title": "",
+          "layoutId": null,
+          "signature": "no-layout|image:1|text:no",
+          "elementCounts": {
+            "image": 1
+          },
+          "textChars": 0,
+          "familySize": 8
+        },
+        {
+          "slide": 8,
+          "title": "",
+          "layoutId": null,
+          "signature": "no-layout|image:1|text:no",
+          "elementCounts": {
+            "image": 1
+          },
+          "textChars": 0,
+          "familySize": 8
+        }
+      ],
+      "reusableComponents": [],
+      "nativeOpaque": {
+        "count": 0,
+        "kinds": {},
+        "examples": []
+      }
+    }
+  ]
+}

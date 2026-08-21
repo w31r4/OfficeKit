@@ -1,0 +1,47 @@
+## Context
+
+An imported PPTX has two different kinds of information: exact package bytes
+that must survive unrelated edits, and semantic clues that help an Agent decide
+how to continue the deck. Treating those clues as a new universal object model
+would recreate the fidelity problem. The profile therefore reports evidence,
+while the existing Presentation projection and capability-issued Edit Plan
+remain the only mutation paths.
+
+## Decisions
+
+### 1. Source evidence first
+
+The profile binds to the source SHA-256 and records structural part hashes for
+the presentation, masters, layouts, and themes. It counts package features and
+inspected semantic elements without embedding source bytes. A profile generated
+for another revision is stale and cannot authorize an edit.
+
+### 2. Separate design language from edit capability
+
+Palette and typeface frequencies, normalized geometry rhythm, slide archetypes,
+and repeated component signatures are descriptive evidence. They are not
+permissions. A repeated signature can be proposed to an Agent, but a reuse or
+edit operation must still pass the existing source graph ownership and native
+leaf checks.
+
+### 3. Keep opaque content visible
+
+Native objects are summarized by kind, slide, and stable IDs. OLE, SmartArt,
+WPS extensions, animations, and other unknown graphs remain opaque unless a
+codec capability specifically proves an operation. The profile never flattens
+them into shapes or images to make generation easier.
+
+### 4. Start with evidence, then add reuse
+
+The first implementation is the deterministic `pptx-design-profile` evaluator
+and three-sample evidence file. A later change will add a bounded
+source-derived slide/component reuse primitive, starting with complete
+ownership-checked slide graphs and explicit review before export.
+
+## Non-Goals
+
+- No universal PPTX JSON/AST or conversion to HTML/PPTD.
+- No semantic inference that depends on a model, image-generation tool, or
+  visual host.
+- No automatic cloning based only on visual similarity.
+- No Windows acceptance claim from LibreOffice or a static profile.

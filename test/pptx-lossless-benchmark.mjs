@@ -8,6 +8,8 @@ const manifestBytes = await readFile(manifestPath);
 const manifest = JSON.parse(manifestBytes.toString("utf8"));
 const evidence = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/evidence.v1.json"), "utf8"));
 const controls = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/controls.v1.json"), "utf8"));
+const designProfiles = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/design-profiles.v1.json"), "utf8"));
+const sourceReuse = JSON.parse(await readFile(path.resolve("evals/pptx-lossless/source-reuse.v1.json"), "utf8"));
 
 assert.equal(manifest.schema, "office-kit/pptx-lossless-benchmark/v1");
 assert.equal(manifest.sources.length, 4);
@@ -126,5 +128,40 @@ assert.equal(controls.quickLookTargetSpotCheck.target, "title");
 assert.match(controls.quickLookTargetSpotCheck.sourceThumbnailSha256, /^[a-f0-9]{64}$/u);
 assert.match(controls.quickLookTargetSpotCheck.outputThumbnailSha256, /^[a-f0-9]{64}$/u);
 assert.equal(controls.quickLookTargetSpotCheck.differentPixels > 0, true);
+
+assert.equal(designProfiles.schema, "office-kit/pptx-design-profile/v1");
+assert.equal(designProfiles.profiles.length, 3);
+for (const profile of designProfiles.profiles) {
+  const declared = manifest.sources.find((source) => source.id === profile.source.id);
+  assert.ok(declared, `Missing benchmark manifest entry for design profile ${profile.source.id}`);
+  assert.equal(declared.sha256, profile.source.sha256);
+  assert.equal(declared.inventory.slideCount, profile.evidence.package.slideCount);
+  assert.equal(profile.canvas.aspectRatio > 0, true);
+  assert.equal(profile.designLanguage.density.slides, profile.evidence.package.slideCount);
+  assert.equal(Array.isArray(profile.layoutFamilies), true);
+  assert.equal(Array.isArray(profile.slideArchetypes), true);
+  assert.equal(profile.slideArchetypes.length, profile.evidence.package.slideCount);
+  assert.equal(profile.nativeOpaque.count >= 0, true);
+  assert.equal(Object.keys(profile.evidence.structuralPartHashes).length > 0, true);
+}
+
+assert.equal(sourceReuse.schema, "office-kit/pptx-source-reuse-evidence/v1");
+assert.equal(sourceReuse.sources.length, 3);
+for (const reuse of sourceReuse.sources) {
+  const declared = manifest.sources.find((source) => source.id === reuse.id);
+  assert.ok(declared, `Missing benchmark manifest entry for source reuse ${reuse.id}`);
+  assert.equal(declared.sha256, reuse.sourceSha256);
+  assert.match(reuse.sourceSlidePart, /^ppt\/slides\/slide[1-9][0-9]*\.xml$/u);
+  assert.equal(reuse.status, reuse.expected);
+  if (reuse.status === "passed") {
+    assert.equal(reuse.sourceSlideUnchanged, true);
+    assert.equal(reuse.outputSlideCount, reuse.sourceSlideCount + 1);
+    assert.deepEqual(reuse.nonTopologyChangedParts, []);
+    assert.deepEqual(reuse.topologyChangedParts, ["[Content_Types].xml", "ppt/_rels/presentation.xml.rels", "ppt/presentation.xml"]);
+    assert.equal(reuse.addedParts.some((part) => /^ppt\/slides\/slide\d+\.xml$/u.test(part)), true);
+  } else {
+    assert.match(reuse.blockedReason, /shared|referenced|unsupported/i);
+  }
+}
 
 console.log("PPTX lossless benchmark manifest smoke ok");
