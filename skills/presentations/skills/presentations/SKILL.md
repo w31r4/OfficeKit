@@ -919,9 +919,10 @@ layout, style, or template. Read `references/template-following.md`, use
 
 If the user asks for new pages or a new deck in the same visual system, read
 `references/template-conditioned-generation.md` as well. Import the source,
-derive its bounded `designProfile`, select source archetypes with a supported
-clone capability, and edit only inherited bounded leaves. This is a source-
-conditioned generation path, not a generic preset and not permission to
+derive its bounded `designProfile`, call `presentation.planTemplateGeneration`
+for a source-bound multi-page frame map, select source archetypes with a
+supported clone capability, and edit only inherited bounded leaves. This is a
+source-conditioned generation path, not a generic preset and not permission to
 rebuild or flatten the source deck.
 
 The checked-in starter command executes a validated multi-slide frame map. It

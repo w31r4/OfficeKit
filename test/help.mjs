@@ -41,12 +41,14 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 541);
+assert.equal(HELP_CATALOG.length, 542);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /includeNativeLeaves.*revision-bound.*without exposing part paths/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /includeComponentCandidates.*repeated visual primitives.*reuse limits/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.designProfile")?.summary || "", /read-only design-language profile.*source revision.*no XML selectors/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "presentation.planTemplateGeneration")?.summary || "", /source-bound.*multi-page frame map.*clone-safe.*fit.*blocked/i);
+assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.planTemplateGeneration")?.schema?.parameters?.slides?.required, true);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf")?.summary || "", /targetId.*leafId.*expectedHash.*raw XML.*reject/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editComponentOccurrence")?.summary || "", /atomic.*native-leaf.*expectedHash.*fail closed/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.editComponentOccurrence")?.schema?.parameters?.edits?.required, true);
@@ -756,7 +758,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.setDateContentC
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.schema?.parameters?.dryRun?.type, "boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.summary || "", /SEQ counters.*REF cached results.*PAGEREF.*pagination host/i);
 const presentationCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
-assert.equal(presentationCatalog.length, 122);
+assert.equal(presentationCatalog.length, 123);
 assert.ok(presentationCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slides.insert")?.schema?.parameters?.after?.type, "Slide|number|null");

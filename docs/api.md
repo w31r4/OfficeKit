@@ -1881,6 +1881,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `presentation.master.setTheme` | api | Set a model-level master theme override for preview only. Canonical PPTX export rejects that source-free override; imported-master mutation remains source-bound and fails closed. |
 | `presentation.masters.add` | api | Append a model-level Slide Master. Source-free PPTX authoring requires exactly one master, so use Presentation.create({ master }) or presentation.master for the canonical profile; multiple masters and imported-master edits fail closed. |
 | `presentation.masters.getItem` | api | Resolve a model-level or imported Slide Master by stable ID or name. |
+| `presentation.planTemplateGeneration` | api | Build a source-bound, read-only multi-page frame map from a trusted imported PPTX: choose clone-safe source slides by role, archetype, content density, and preferred visual kinds; issue bounded text-run targets and reusable-component candidates; report heuristic text-fit warnings, alternatives, opaque-object limits, and blocked requests without mutating the deck. |
 | `presentation.resolve` | api | Map stable inspect anchor IDs back to facade objects, including custom shows, PowerPoint sections, and slide transitions; imported advanced package objects may be read-only. |
 | `presentation.resolveComponentCandidate` | api | Resolve one candidateId issued by presentation.inspect({ includeComponentCandidates: true }) to a defensive source-revision-bound reference. Candidates describe repeated visual structure without exposing raw XML or asset bytes; only an inspect-only candidate with a closed top-level graph can be passed to presentation.reuseSourceComponent, while ambiguous, opaque, or relationship-bound graphs carry an explicit blocked reason. |
 | `presentation.reuseSourceComponent` | api | Create a new source-bound slide containing one exact top-level repeated component occurrence from presentation.inspect({ includeComponentCandidates: true }). The candidateId, occurrenceIndex, source revision, closed-graph ownership, sibling deletion proofs, and retained connector targets are checked before a complete source slide clone is projected by deleting only codec-proven sibling elements. Nested, opaque, ambiguous, comment-bound, relationship-bound, or stale candidates fail closed; the original slide and all non-target source parts remain untouched. |
@@ -2647,6 +2648,19 @@ Resolve a model-level or imported Slide Master by stable ID or name.
 **Schema returns:**
 
 - `master` (PresentationSlideMaster|undefined) — Matching Slide Master or undefined.
+
+#### `presentation.planTemplateGeneration`
+
+Build a source-bound, read-only multi-page frame map from a trusted imported PPTX: choose clone-safe source slides by role, archetype, content density, and preferred visual kinds; issue bounded text-run targets and reusable-component candidates; report heuristic text-fit warnings, alternatives, opaque-object limits, and blocked requests without mutating the deck.
+
+**Schema parameters:**
+
+- `slides` (object[]) required — One through 64 page requests. Each request accepts role, title/body, optional sourceSlideOrdinal or archetypeSignature, preferredKinds, and assetIntent; unknown fields are rejected.
+- `maxItems` (number) — Maximum bounded asset candidates per planned page; defaults to 64.
+
+**Schema returns:**
+
+- `templatePlan` (object) — Deterministic office-kit/pptx-template-plan/v1 frame map. It is source-revision-bound read-only evidence: pages include clone-safe source slide locators, bounded text targets, reusable visual candidates, heuristic fit status, alternatives, and explicit rejected requests. Export/reimport must re-resolve locators; the plan never grants raw XML or mutation authority.
 
 #### `presentation.resolve`
 

@@ -35,6 +35,7 @@ import { auditPresentationAccessibility } from "./accessibility-audit.mjs";
 import { deletePresentationElement, PRESENTATION_ELEMENT_DELETED, presentationElementDeletionCapability } from "./element-deletion.mjs";
 import { editSvgText as replaceSvgTextNode, inspectSvgText } from "./svg-text.mjs";
 import { buildPresentationDesignProfile } from "./design-profile.mjs";
+import { buildTemplateGenerationPlan } from "./template-plan.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const EMU_PER_PIXEL = 9_525;
@@ -700,6 +701,20 @@ export class Presentation {
     return buildPresentationDesignProfile(this, {
       ...options,
       ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
+    });
+  }
+
+  planTemplateGeneration(request = {}) {
+    if (!request || typeof request !== "object" || Array.isArray(request)) {
+      throw new TypeError("Template generation plan request must be an object.");
+    }
+    const unsupported = Object.keys(request).filter((key) => !new Set(["slides", "maxItems"]).has(key));
+    if (unsupported.length) throw new TypeError(`Template generation plan request has unsupported fields: ${unsupported.join(", ")}.`);
+    const profile = this.designProfile({ maxItems: request.maxItems === undefined ? 64 : request.maxItems });
+    return buildTemplateGenerationPlan(this, {
+      profile,
+      slides: request.slides,
+      maxItems: request.maxItems === undefined ? 64 : request.maxItems,
     });
   }
 

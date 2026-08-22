@@ -12,6 +12,10 @@ source package or pretending that every imported object is editable.
 - Use the bounded `Presentation.designProfile()` as descriptive evidence for
   canvas, typography, palette, density, archetypes, components, and opaque
   content.
+- Use the read-only `Presentation.planTemplateGeneration()` primitive to turn
+  page roles/content briefs into a source-bound multi-page frame map with
+  clone-safe source slides, bounded text targets, reusable asset candidates,
+  alternatives, and explicit blocked requests.
 - Select codec-proven source slides, duplicate them through explicit
   export/reimport boundaries, and apply only inherited run/SVG-text edits.
 - Reimport, verify, render when supported, and compare output issue categories

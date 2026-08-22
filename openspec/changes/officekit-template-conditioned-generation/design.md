@@ -23,6 +23,16 @@ clone capability decide whether a source slide may be copied. Blocked or
 inspect-only components remain available for inspection but are never flattened
 to make generation succeed.
 
+### 2a. Plan pages before cloning
+
+`planTemplateGeneration()` turns a list of page roles and content briefs into
+one source-revision-bound frame map. It scores clone-safe archetypes using
+declared preferences, text density, and role hints, then reports bounded text
+targets, reusable component candidates, alternatives, and heuristic fit
+warnings. The plan is read-only evidence; it does not authorize arbitrary
+mutation and it returns `blocked` entries instead of silently selecting an
+unsupported graph.
+
 ### 3. Clone across boundaries and locate by source ordinal
 
 The codec allows one pending clone per source origin. Each round crosses an
@@ -50,9 +60,10 @@ rather than replaced by a fake preview.
 The frozen external samples are 算秩未来 (21 slides), 蓝灰酸性模板 (19 slides),
 and 麦肯锡风客户忠诚度 (8 slides). The deterministic benchmark generates 10
 new slides per sample. The independent black-box lane runs a fresh three-phase
-Agent task per sample (profile/plan, one bounded clone edit, and separate
-review), then checks the packed install, second import, source protection, and
-non-target package parts. Its compact evidence lives in
-`evals/pptx-generation/agent-blackbox.v1.json`; visual review is reported as
-unavailable when the portable renderer cannot consume a source's geometry.
+Agent task per sample (profile/plan, ten-page authoring, and separate review),
+then checks the packed install, second import, source protection, and
+non-target package parts. Its compact multi-page evidence lives in
+`evals/pptx-generation/agent-multipage.v2.json`; the one-page baseline remains
+in `evals/pptx-generation/agent-blackbox.v1.json`. Visual review is reported
+as unavailable when the portable renderer cannot consume a source's geometry.
 Native Windows PowerPoint remains a separately scoped host gate.

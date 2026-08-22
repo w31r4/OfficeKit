@@ -1,5 +1,21 @@
 # Release
 
+## Current 0.6.0 milestone (2026-08-22): Multi-page template-conditioned Agent evidence
+
+The v2 portable lane extends the bounded template planner from one cloned
+slide to a ten-page content plan. Three fresh packed Agent runs used only the
+public OfficeKit package and Presentations Skill against the frozen external
+samples: 算秩未来 (21→31 slides), the blue-gray acid template (19→29), and the
+McKinsey customer-loyalty deck (8→18). Shape-run and safe SVG-text leaves were
+both exercised.
+
+Each run completed planning, authoring, and separate review; the output was
+reimported, the input stayed unchanged, and every non-target OPC part was byte
+identical. The compact evidence is in
+`evals/pptx-generation/agent-multipage.v2.json`. Portable visual review is
+explicitly unavailable, and inherited layout findings remain review evidence;
+this milestone makes no native PowerPoint or aesthetic-equivalence claim.
+
 ## Current 0.6.0 milestone (2026-08-22): Portable template-conditioned Agent evidence
 
 The template-conditioned PPTX route now has three independent, fresh Agent
