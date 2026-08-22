@@ -22,7 +22,7 @@
 - [ ] 3.1 Run three fresh black-box Agent tasks using only the portable Skill,
   public package, and each external source; store frame map, profile, plan,
   output, reimport, and review evidence.
-- [ ] 3.2 Add a conversational local edit after generation and verify that the
+- [x] 3.2 Add a conversational local edit after generation and verify that the
   generated output can be reopened and safely changed without source drift.
 - [ ] 3.3 Run the packed clean-install route and the available native renderer
   checks for all three sources.
