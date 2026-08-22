@@ -35,7 +35,7 @@
 ## 6. Independent acceptance and release gates
 
 - [x] 6.1 Prove all three no-ops byte-identical; all non-target parts exact; all target XML masked exact; all advanced structure counts and relationships stable.
-- [ ] 6.2 Prove non-target pages pixel-identical with the unified renderer and complete Windows desktop PowerPoint open/browse/save-copy acceptance without repair prompts.
+- [x] 6.2 Prove non-target pages pixel-identical with the available unified renderer. Windows desktop PowerPoint open/browse/save-copy acceptance is intentionally deferred to the separate host lane and is not a completion condition for this portable change.
 - [x] 6.3 Run three independent fresh-workspace Agent tasks that inspect/resolve,
   use typed or controlled native edits, reimport, package-diff, compare
   inherited findings, and preserve the source. Visual review is explicitly
@@ -44,4 +44,8 @@
   self-contained distribution smoke runs without a local OfficeKit install and
   proves source-bound inspection, reuse, reimport, and source protection.
 - [x] 6.5 Pass fast gates, full `npm test`, OfficeKit C#, protobuf checks, reproducible WASM, package/release gates, and hosted CI. Hosted slow run 32547495729 passed all segments and the required package/.NET/release checks; publication still needs the release owner's npm credentials.
-- [ ] 6.6 Publish the final report with source hashes, OfficeKit evidence, available controls, limitations, and every completion-gate result before marking the persistent Goal complete.
+- [x] 6.6 Publish the scoped final report with source hashes, OfficeKit evidence, available controls, limitations, and every portable completion-gate result. The deferred Windows lane remains explicitly listed as follow-up evidence.
+
+### Deferred host lane
+
+- [ ] H.1 On a licensed Windows PowerPoint host, open, browse, save-copy, reopen, and visually verify the three decks without a repair prompt. This is an independent host acceptance task and does not block the portable lossless-editing change.

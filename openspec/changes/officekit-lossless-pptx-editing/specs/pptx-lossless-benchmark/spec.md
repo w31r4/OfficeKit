@@ -18,14 +18,14 @@ Each matrix operation SHALL run at least three times from a clean source copy an
 - **WHEN** the three immutable external decks contain no SmartArt
 - **THEN** a repository-owned real closed-diagram package may provide the SmartArt leaf target only when the manifest and evidence label it as supplemental rather than third-party coverage
 
-### Requirement: Completion requires independent package, visual, host, and Agent evidence
-The capability SHALL remain incomplete until all benchmark no-ops, declared edits, second imports, package diffs, non-target renders, Windows PowerPoint checks, clean-install execution, full gates, hosted CI, and three independent Agent workflows pass.
+### Requirement: Portable completion requires independent package, render, and Agent evidence
+The portable capability SHALL remain incomplete until all benchmark no-ops, declared edits, second imports, package diffs, non-target renders, clean-install execution, full gates, hosted CI, and three independent Agent workflows pass. Windows PowerPoint checks are a separately reported host lane and are not required for the portable capability claim.
 
 #### Scenario: Code and unit tests pass but host evidence is missing
-- **WHEN** implementation and automated tests pass but Windows PowerPoint or Agent 3/3 evidence is absent
-- **THEN** the benchmark remains incomplete and reports the missing acceptance evidence
+- **WHEN** implementation and automated tests pass but the portable corpus, package/render oracles, or Agent 3/3 evidence is absent
+- **THEN** the benchmark remains incomplete and reports the missing portable acceptance evidence
 
-#### Scenario: Final acceptance
+#### Scenario: Portable final acceptance
 - **WHEN** every completion gate passes on the immutable sources and published package candidate
 - **THEN** the benchmark report can mark the lossless-editing goal complete
 

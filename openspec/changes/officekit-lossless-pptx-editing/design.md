@@ -12,7 +12,7 @@ The first implementation milestone has already established the critical feasibil
 - Make every accepted edit source-bound, finite, deterministic, auditable, and independently re-proved by the C# codec.
 - Preserve unknown Office structures without requiring their full semantic modeling.
 - Let a fresh Agent resume from reviewed artifact bytes and durable operation evidence.
-- Define completion through real packages, renderers, PowerPoint, clean installation, and independent Agent runs.
+- Define completion for the portable file-editing slice through real packages, available renderers, clean installation, and independent Agent runs. PowerPoint desktop behavior is a separate host acceptance lane and is not used to block this portable change.
 
 **Non-Goals:**
 
@@ -20,7 +20,7 @@ The first implementation milestone has already established the critical feasibil
 - No public XPath, arbitrary XML/attribute editing, relationship rewriting, or raw OOXML fallback.
 - No claim that every PresentationML construct becomes typed or editable.
 - No automatic restoration of JavaScript heaps across task sessions.
-- No completion claim from unit tests or a single successful sample.
+- No completion claim from unit tests or a single successful sample. The scoped completion claim still requires the frozen corpus, deterministic repetitions, package oracles, second import, portable render evidence, clean-install execution, and independent Agent runs.
 
 ## Decisions
 
@@ -68,7 +68,7 @@ The three external PPTX files are identified by hash in a versioned manifest. Be
 - [A safe operation needs extra dependent parts] → The compiler declares the footprint before execution; the codec rejects any undeclared changed part.
 - [ZIP container metadata changes after a real edit] → Require exact no-op package bytes and exact uncompressed non-target OPC contents; report container-level differences separately.
 - [Real assets cannot ship in the repository] → Store hashes, inventories, target selectors, and evidence; require local assets for the slow benchmark lane.
-- [Renderer equality misses Office-specific repair behavior] → Keep Windows desktop PowerPoint open/browse/save-copy acceptance mandatory before completion.
+- [Renderer equality misses Office-specific repair behavior] → Keep Windows desktop PowerPoint open/browse/save-copy acceptance as a separately reported host lane; do not present portable renderer evidence as PowerPoint evidence.
 - [Controlled native editing becomes raw XML by another name] → Capability-issued leaf IDs and a fixed leaf-kind registry prevent arbitrary paths and topology edits.
 
 ## Migration Plan
@@ -76,9 +76,9 @@ The three external PPTX files are identified by hash in a versioned manifest. Be
 1. Land exact no-op return, text-leaf Edit Plan, C# token executor, generated bindings, regression tests, and first benchmark evidence.
 2. Add durable task operation records and controlled native-leaf inspection/editing.
 3. Expand the deterministic real edit matrix without weakening preconditions or falling back to whole-part reconstruction.
-4. Run clean-install, full repository, reproducible WASM, hosted CI, renderer, Windows PowerPoint, and Agent 3/3 gates.
+4. Run clean-install, full repository, reproducible WASM, hosted CI, portable renderer, and Agent 3/3 gates. Schedule the Windows PowerPoint lane independently when a licensed host is available.
 5. If the new path must be rolled back, remove its compiler dispatch; the existing typed exporter remains independently available and the wire version remains 2.
 
 ## Open Questions
 
-- Which Windows runner and PowerPoint version will hold the signed final host-acceptance evidence?
+- Which Windows runner and PowerPoint version will hold the optional follow-up host-acceptance evidence?

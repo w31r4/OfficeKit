@@ -1,9 +1,9 @@
 # OfficeKit PPTX lossless-editing evidence
 
-Status: implementation candidate, not the final completion report. This report
-records the evidence at commit `3d7e447eb5d2d9c84dcf0655e525429f678a9dc4`.
-The persistent lossless-editing Goal remains open until the Windows PowerPoint
-host lane and the remaining release conditions are complete.
+Status: scoped portable completion report. This report records the evidence at
+commit `85712fd5a56fcff193fc912f574e613396ddf13b`. The user has explicitly
+moved Windows PowerPoint out of this Goal; it remains a separately scheduled
+host lane and is not claimed here.
 
 ## Corpus
 
@@ -85,8 +85,9 @@ credential. That is a publication prerequisite, not a codec result.
 ## Boundaries that remain open
 
 - Real Microsoft PowerPoint desktop acceptance has not been performed. The
-  Windows lane must still open, browse, save a copy, and reconnect the edited
-  decks without a repair prompt. macOS rendering and mocks are not substitutes.
+  future Windows lane must still open, browse, save a copy, and reconnect the
+  edited decks without a repair prompt. macOS rendering and mocks are not
+  substitutes, and this report makes no such claim.
 - The native-leaf and component-batch APIs are bounded. Opaque or topology-
   bearing groups, arbitrary Master/Layout/theme rewrites, animation, complex
   SmartArt authoring, OLE internals, and unsupported relationship graphs remain
@@ -97,13 +98,21 @@ credential. That is a publication prerequisite, not a codec result.
 - A public npm publication still needs configured npm authentication and the
   release owner's tag/publication action.
 
-## Next acceptance step
+## Deferred host lane
 
 Run the self-hosted `.github/workflows/windows-pptx-lossless.yml` lane against
-this SHA with the three external decks and record PowerPoint open/browse, target
-edit visibility, non-target page pixel comparison, explicit save-copy,
-reopen-without-repair, source protection, and unsupported-capability refusal.
-The separate `windows-office-live.yml` lane remains for Add-in sessions. Only
-after the lossless evidence is attached, the current hosted slow run is green,
-and the release/report records are updated should the OpenSpec 6.2/6.5/6.6
-items be closed and the persistent Goal be marked complete.
+this SHA when a licensed Windows host is available. Record PowerPoint
+open/browse, target edit visibility, non-target page pixel comparison, explicit
+save-copy, reopen-without-repair, source protection, and unsupported-capability
+refusal. The separate `windows-office-live.yml` lane remains for Add-in
+sessions. This host evidence is intentionally outside the portable completion
+claim above.
+
+## Portable completion decision
+
+The frozen corpus, 36 deterministic edit runs, design profiles, source-derived
+slide/component reuse, multi-session task recovery, three independent
+black-box Agent runs, clean-install rehearsal, package oracles, portable native
+render evidence, full local/hosted gates, and source-protection checks are all
+recorded above. The only unperformed item is the explicitly deferred Windows
+desktop host lane.

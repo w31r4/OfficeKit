@@ -10,14 +10,14 @@ OfficeKit can preserve many imported PowerPoint structures, but a small semantic
 - Preserve all non-target OPC part contents byte-for-byte and require masked equality for each changed XML part.
 - Add controlled native-leaf inspection and editing without exposing XPath, raw XML, relationship IDs, part paths, or arbitrary attributes.
 - Persist applied plans and mutation footprints with durable OfficeKit tasks so resume reopens the latest reviewed revision and rebuilds its node index instead of restoring a JavaScript heap.
-- Establish an immutable three-sample benchmark, deterministic edit matrix, clean-install checks, native rendering, Windows PowerPoint validation, and three independent Agent runs as completion gates.
+- Establish an immutable three-sample benchmark, deterministic edit matrix, clean-install checks, available native rendering, and three independent Agent runs as the completion gates for the portable file-editing slice. Windows PowerPoint remains a separately scheduled host lane rather than a blocker for this change.
 
 ## Capabilities
 
 ### New Capabilities
 
 - `pptx-lossless-edit-plan`: Source-bound inspection, finite Edit Plan compilation, token-preserving execution, mutation-footprint evidence, and fail-closed preconditions for imported PPTX.
-- `pptx-lossless-benchmark`: Reproducible real-asset manifests, package and visual oracles, deterministic repetitions, native-host validation, and black-box Agent acceptance.
+- `pptx-lossless-benchmark`: Reproducible real-asset manifests, package and portable-render oracles, deterministic repetitions, and black-box Agent acceptance. Native PowerPoint validation is tracked separately by the Windows host lane.
 - `officekit-task-edit-plan-journal`: Durable task storage for compiler operations and reviewed revisions without serializing live JavaScript objects.
 
 ### Modified Capabilities
