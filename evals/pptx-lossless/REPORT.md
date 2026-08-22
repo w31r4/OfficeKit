@@ -61,7 +61,7 @@ The machine-readable source of truth is kept in
 
 | gate | result | evidence |
 | --- | --- | --- |
-| Fast gate | passed, 34/34 | local `npm test` |
+| Fast gate | passed, 35/35 | local `npm test` |
 | Slow gate | passed, 85/85 | local `npm run test:slow` |
 | OfficeKit C# | passed, 431/431 | `npm run test:office-kit-dotnet` |
 | OfficeBridge | passed, 5/5 | `npm run test:office-bridge-dotnet` |
