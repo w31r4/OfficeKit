@@ -1,7 +1,7 @@
 # OfficeKit PPTX lossless-editing evidence
 
 Status: implementation candidate, not the final completion report. This report
-records the evidence at commit `894a8091a6888de42903c32f35651b43ef9e7e61`.
+records the evidence at commit `3d7e447eb5d2d9c84dcf0655e525429f678a9dc4`.
 The persistent lossless-editing Goal remains open until the Windows PowerPoint
 host lane and the remaining release conditions are complete.
 
@@ -71,7 +71,7 @@ The machine-readable source of truth is kept in
 | WASM reproducibility | passed, 39 audited files; 38 runtime files; 15,615,723 bytes | `npm run verify:office-kit-build` |
 | Package | passed, 745 files; 36.5 MB tarball; 54.0 MB unpacked | `npm run test:pack` |
 | API / offline release metadata | passed | `docs:api`; `release:check --skip-network --skip-commands` in hosted lane |
-| Hosted slow CI | passed | [run 32542799424](https://github.com/w31r4/OfficeKit/actions/runs/32542799424), SHA `894a8091` |
+| Hosted slow CI | passed | [run 32547495729](https://github.com/w31r4/OfficeKit/actions/runs/32547495729), SHA `3d7e447e` |
 
 The local full `release:check` reached every code, package, .NET, and metadata
 check but could not run `npm whoami`: this machine has no npm publishing

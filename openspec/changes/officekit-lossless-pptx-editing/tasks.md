@@ -43,5 +43,5 @@
 - [x] 6.4 Repeat the accepted workflow from a packed clean installation. The
   self-contained distribution smoke runs without a local OfficeKit install and
   proves source-bound inspection, reuse, reimport, and source protection.
-- [ ] 6.5 Pass fast gates, full `npm test`, OfficeKit C#, protobuf checks, reproducible WASM, package/release gates, and hosted CI.
+- [x] 6.5 Pass fast gates, full `npm test`, OfficeKit C#, protobuf checks, reproducible WASM, package/release gates, and hosted CI. Hosted slow run 32547495729 passed all segments and the required package/.NET/release checks; publication still needs the release owner's npm credentials.
 - [ ] 6.6 Publish the final report with source hashes, OfficeKit evidence, available controls, limitations, and every completion-gate result before marking the persistent Goal complete.
