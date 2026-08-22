@@ -222,6 +222,13 @@ for (const reuse of sourceComponentReuse.sources) {
       assert.equal(reuse.continuedMutation.changedParts.length, 1);
       assert.match(reuse.continuedMutation.changedParts[0], /^ppt\/slides\/slide\d+\.xml$/u);
     }
+    assert.equal(reuse.componentBatchMutation?.status, "passed");
+    assert.equal(reuse.componentBatchMutation.sourceProtected, true);
+    assert.equal(reuse.componentBatchMutation.reimported, true);
+    assert.equal(reuse.componentBatchMutation.leafKinds.length, 2);
+    assert.deepEqual(reuse.componentBatchMutation.receiptKinds, reuse.componentBatchMutation.leafKinds);
+    assert.deepEqual(reuse.componentBatchMutation.changedParts, [reuse.componentBatchMutation.sourceSlidePart]);
+    assert.match(reuse.componentBatchMutation.sourceSlidePart, /^ppt\/slides\/slide\d+\.xml$/u);
   }
 }
 

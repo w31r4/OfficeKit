@@ -11,6 +11,26 @@
       "preflightBlockedReasons": [],
       "status": "passed",
       "failures": {},
+      "componentBatchMutation": {
+        "status": "passed",
+        "candidateId": "pc_db3a65d963b2a03e7d1926594740dcba",
+        "occurrenceIndex": 0,
+        "targetId": "presentation/slide/1/element/5",
+        "sourceSlidePart": "ppt/slides/slide1.xml",
+        "leafKinds": [
+          "widthEmu",
+          "heightEmu"
+        ],
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ],
+        "receiptKinds": [
+          "widthEmu",
+          "heightEmu"
+        ],
+        "reimported": true,
+        "sourceProtected": true
+      },
       "candidateId": "pc_db3a65d963b2a03e7d1926594740dcba",
       "occurrenceIndex": 0,
       "occurrenceCount": 5,
@@ -21,7 +41,7 @@
       "reopenedSlideCount": 22,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "671d69fedd97e07430983b4fd7b0a66dcf56ec70e3e6c75099d75fc173a1f763",
-      "outputSha256": "c9558a16fee491c46990b43337ceb04e838d5c5a69d9b2be8f33293f8f98136c",
+      "outputSha256": "618796724b568355d8fd3f26dc6458f213424c7f83fa02d699fee42c74503454",
       "continuedMutation": {
         "status": "passed",
         "mode": "imageFrame",
@@ -96,6 +116,26 @@
       "failures": {
         "presentation_text_topology_changed": 1
       },
+      "componentBatchMutation": {
+        "status": "passed",
+        "candidateId": "pc_5fe2b72b5a8b7dd6571db5ec26c0b8ca",
+        "occurrenceIndex": 0,
+        "targetId": "presentation/slide/12/element/5",
+        "sourceSlidePart": "ppt/slides/slide12.xml",
+        "leafKinds": [
+          "text",
+          "text"
+        ],
+        "changedParts": [
+          "ppt/slides/slide12.xml"
+        ],
+        "receiptKinds": [
+          "text",
+          "text"
+        ],
+        "reimported": true,
+        "sourceProtected": true
+      },
       "candidateId": "pc_6b1bda79139898ba8364daa76225bcae",
       "occurrenceIndex": 0,
       "occurrenceCount": 5,
@@ -106,7 +146,7 @@
       "reopenedSlideCount": 20,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "f4ba3af085d7a6090851bec3c209a9aceb3c5e6b780a48f6bf78a51e719ecfc1",
-      "outputSha256": "39977880d857677d0f7e18a9c4c31e9761f396bee7686f9f80314d997a97744e",
+      "outputSha256": "e6ec181dfd8dceedd3da91f0f24750421e0e30bb5fa2fbc7b27e9d5256be8431",
       "continuedMutation": {
         "status": "passed",
         "mode": "shapeText",
@@ -130,6 +170,26 @@
       "preflightBlockedReasons": [],
       "status": "passed",
       "failures": {},
+      "componentBatchMutation": {
+        "status": "passed",
+        "candidateId": "pc_b74445550ca49d445821036a8ba61daf",
+        "occurrenceIndex": 0,
+        "targetId": "presentation/slide/1/element/1",
+        "sourceSlidePart": "ppt/slides/slide1.xml",
+        "leafKinds": [
+          "leftEmu",
+          "topEmu"
+        ],
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ],
+        "receiptKinds": [
+          "leftEmu",
+          "topEmu"
+        ],
+        "reimported": true,
+        "sourceProtected": true
+      },
       "candidateId": "pc_b74445550ca49d445821036a8ba61daf",
       "occurrenceIndex": 0,
       "occurrenceCount": 8,
@@ -140,7 +200,7 @@
       "reopenedSlideCount": 9,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "6becb283a4a3f9638b6a18d09140d45aabb9b05fc48f8f122859bd784bd8920f",
-      "outputSha256": "5a7f0cc1b4ad1bd25725a56b4e5102752b7b39acb1ecfbab779b0df5ad3e5c72",
+      "outputSha256": "a906fa61c93d95df1d11e5870cc194bdd6aa1eef1472c0e3d1c03a5143fbaf8e",
       "continuedMutation": {
         "status": "passed",
         "mode": "svgText",

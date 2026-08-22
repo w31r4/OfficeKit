@@ -26,6 +26,12 @@ export async function runSourceComponentReuse(assetsDir) {
       record.occurrences?.some((occurrence) => occurrence.reuseCapability?.supported === true),
     );
     candidates.sort((left, right) => continuationScore(sourcePresentation, right, source.id) - continuationScore(sourcePresentation, left, source.id));
+    const batchCandidate = candidates.find((candidate) => candidate.occurrences?.some((occurrence) =>
+      occurrence.editCapability?.supported === true && Number(occurrence.editCapability.leafCount) >= 2,
+    ));
+    const batchOccurrenceIndex = batchCandidate?.occurrences?.findIndex((occurrence) =>
+      occurrence.editCapability?.supported === true && Number(occurrence.editCapability.leafCount) >= 2,
+    ) ?? -1;
     const preflightBlockedCandidates = inspectOnlyCandidates.filter((record) => !candidates.includes(record));
     const failures = {};
     let passed;
@@ -97,6 +103,9 @@ export async function runSourceComponentReuse(assetsDir) {
       status: passed?.status || (passed ? "failed" : "blocked"),
       ...(passed || candidates.length ? {} : { blockedReason: "Every inspect-only candidate failed the occurrence-level reuse preflight." }),
       failures,
+      componentBatchMutation: batchCandidate && batchOccurrenceIndex >= 0
+        ? await runComponentBatchMutation({ sourceBytes, candidate: batchCandidate, occurrenceIndex: batchOccurrenceIndex })
+        : { status: "blocked", reason: "No occurrence exposed two or more codec-issued native leaves." },
       ...(passed || {}),
     });
   }
@@ -213,6 +222,88 @@ async function continueClonedComponent({ sourceBytes, componentBytes, reopened, 
     : mode === "shapeText" ? verifiedElement.text.value : verifiedElement.position.left;
   if (verifiedValue !== value) return { status: "failed", mode, targetId, expectedValue, value, verifiedValue, changedParts, reason: "continuation did not survive second import" };
   return { status: "passed", mode, targetId, expectedValue, value, verifiedValue, changedParts, sourceSlidePartUnchanged: true };
+}
+
+async function runComponentBatchMutation({ sourceBytes, candidate, occurrenceIndex }) {
+  try {
+    const presentation = await PresentationFile.importPptx(new FileBlob(sourceBytes, { type: PPTX_MIME }));
+    const currentCandidate = presentation.resolveComponentCandidate(candidate.candidateId);
+    const occurrence = currentCandidate?.occurrences?.[occurrenceIndex];
+    if (!occurrence?.editCapability?.supported || Number(occurrence.editCapability.leafCount) < 2) {
+      return { status: "blocked", reason: "The selected occurrence did not retain two issued leaves after clean import." };
+    }
+    const records = presentation.inspect({ includeNativeLeaves: true, maxChars: Infinity }).ndjson
+      .split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((record) =>
+        record.kind === "nativeLeaf" && occurrence.editCapability.leafIds.includes(record.leafId),
+      );
+    const selected = selectBatchLeaves(records);
+    if (selected.length < 2) return { status: "blocked", reason: "The selected occurrence did not expose two valid typed leaf values." };
+    const edits = selected.map((record) => ({
+      targetId: record.targetId,
+      leafId: record.leafId,
+      expectedHash: record.expectedHash,
+      value: nextBatchLeafValue(record),
+    }));
+    const receipt = presentation.editComponentOccurrence({
+      candidateId: currentCandidate.candidateId,
+      occurrenceIndex,
+      expectedCandidate: currentCandidate,
+      edits,
+    });
+    const output = await PresentationFile.exportPptx(presentation);
+    const changedParts = await changedPackageParts(sourceBytes, output.bytes);
+    const sourceSlidePart = sourceSlidePartForOccurrence(occurrence);
+    const sourceSlideBefore = await packagePart(sourceBytes, sourceSlidePart);
+    const outputSlide = await packagePart(output.bytes, sourceSlidePart);
+    const nonTargetChangedParts = changedParts.filter((part) => part !== sourceSlidePart);
+    if (!sourceSlideBefore || !outputSlide || nonTargetChangedParts.length || changedParts.length !== 1 || changedParts[0] !== sourceSlidePart) {
+      return { status: "failed", changedParts, sourceSlidePart, reason: "component batch changed an unexpected package footprint" };
+    }
+    const reopened = await PresentationFile.importPptx(output.bytes);
+    const verifiedRecords = reopened.inspect({ includeNativeLeaves: true, maxChars: Infinity }).ndjson
+      .split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((record) => record.kind === "nativeLeaf");
+    for (const record of selected) {
+      const value = nextBatchLeafValue(record);
+      const verified = verifiedRecords.find((candidateRecord) =>
+        candidateRecord.targetId === record.targetId && candidateRecord.leafKind === record.leafKind &&
+        candidateRecord.textLeafIndex === record.textLeafIndex && candidateRecord.seriesIndex === record.seriesIndex &&
+        candidateRecord.pointIndex === record.pointIndex && candidateRecord.nodeId === record.nodeId,
+      );
+      if (!verified || verified.value !== value) {
+        return { status: "failed", changedParts, sourceSlidePart, reason: "component batch value did not survive second import", leafKind: record.leafKind };
+      }
+    }
+    return {
+      status: "passed",
+      candidateId: currentCandidate.candidateId,
+      occurrenceIndex,
+      targetId: occurrence.targetId,
+      sourceSlidePart,
+      leafKinds: selected.map((record) => record.leafKind),
+      changedParts,
+      receiptKinds: receipt.edits.map((edit) => edit.leafKind),
+      reimported: true,
+      sourceProtected: true,
+    };
+  } catch (error) {
+    return { status: "failed", reason: error?.message || String(error), code: error?.code || error?.name || "unknown" };
+  }
+}
+
+function selectBatchLeaves(records) {
+  const ordered = [...records].sort((left, right) => left.leafId.localeCompare(right.leafId));
+  const text = ordered.find((record) => record.leafKind === "text" || record.leafKind === "chartTitleText" || record.leafKind === "diagramText");
+  const scalar = ordered.find((record) => record !== text && ["leftEmu", "topEmu", "widthEmu", "heightEmu", "fillRgb", "lineRgb", "chartDataValue"].includes(record.leafKind));
+  if (text && scalar) return [text, scalar];
+  return ordered.slice(0, 2);
+}
+
+function nextBatchLeafValue(record) {
+  if (["text", "chartTitleText", "diagramText"].includes(record.leafKind)) return `${record.value || "OfficeKit leaf"} (batch)`;
+  if (record.leafKind === "fillRgb") return String(record.value).toLowerCase() === "#ffffff" ? "#f1f5f9" : "#ffffff";
+  if (record.leafKind === "lineRgb") return String(record.value).toLowerCase() === "#000000" ? "#334155" : "#000000";
+  if (record.leafKind === "chartDataValue") return Number(record.value) + 1;
+  return Number(record.value) + 9_525;
 }
 
 function directElements(slide) {
