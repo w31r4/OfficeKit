@@ -182,5 +182,7 @@ $evidence = [ordered]@{
   sources = $results
 }
 
-$evidence | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $EvidencePath -Encoding UTF8
+$json = $evidence | ConvertTo-Json -Depth 20
+$utf8NoBom = New-Object -TypeName System.Text.UTF8Encoding -ArgumentList $false
+[IO.File]::WriteAllText($EvidencePath, $json, $utf8NoBom)
 Write-Output ("Wrote Windows PPTX lossless evidence: {0}" -f $EvidencePath)

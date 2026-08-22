@@ -11,6 +11,7 @@ assert.match(collector, /SaveCopyAs/u, "Windows collector must save a distinct P
 assert.match(collector, /Slide.*Export|\.Export\(/u, "Windows collector must export PowerPoint slide images");
 assert.match(collector, /Get-FileHash/u, "Windows collector must hash rendered evidence");
 assert.match(collector, /human-observed-windows-powerpoint/u, "Windows collector must emit the human-observed evidence method");
+assert.match(collector, /UTF8Encoding[\s\S]*WriteAllText/u, "Windows collector must emit BOM-free JSON for the Node validator");
 const checkedAt = "2026-08-22T12:00:00Z";
 const commit = "0123456789abcdef0123456789abcdef01234567";
 const sourceIds = ["suanzhi-future-2026", "blue-gray-acid-template", "mckinsey-customer-loyalty"];
