@@ -50,6 +50,11 @@ The machine-readable source of truth is kept in
   | 蓝灰酸性模板 | `text`, `text` | `ppt/slides/slide12.xml` | yes | yes |
   | 麦肯锡风 customer loyalty | `leftEmu`, `topEmu` | `ppt/slides/slide1.xml` | yes | yes |
 
+- On 2026-08-22, the external-asset benchmark was rerun from clean source
+  copies with three repetitions per target. All four frozen sources, 12
+  declared targets, and 36 edit runs passed exact no-op, second import,
+  deterministic output/footprint, and package-oracle checks.
+
 - Three independent fresh-workspace Agent runs pass the bounded native-leaf
   slice: one title edit, one subtitle edit, and one safe image-frame edit.
   Each changes one SlidePart, preserves every non-target OPC part, reimports,
