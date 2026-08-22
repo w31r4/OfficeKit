@@ -635,7 +635,12 @@ not a mutation or universal AST surface.
 
 ### PPTX template-conditioned generation
 
-Status: **partial, portable evidence complete**. The benchmark runner uses the
+Status: **partial, portable evidence complete**. The public
+`presentation.planTemplateGeneration()` primitive now converts page roles and
+content briefs into a source-revision-bound frame map with clone-safe source
+slides, bounded text targets, reusable asset candidates, alternatives, and
+fit warnings; it returns blocked entries instead of silently selecting an
+unsupported graph. The benchmark runner uses the
 public OfficeKit import/profile/clone/edit/export path to generate ten new pages
 from each of three frozen external samples (算秩未来 21→31 slides, blue-gray
 19→29, McKinsey 8→18). All 30 target leaves round-trip after a second import;
@@ -645,10 +650,15 @@ issue categories against each source baseline, so inherited source defects are
 reported rather than misclassified as regressions. The McKinsey and 算秩未来
 outputs have generated montages; the blue-gray output is structurally valid but
 the bounded renderer refuses its custom-geometry path budget and therefore
-records `visualReview: "unavailable"`. This is not a native PowerPoint or
-three-run black-box Agent claim. The evidence and frozen source hashes are in
-`evals/pptx-generation/`; the remaining gates are conversational Agent runs,
-packed clean-install execution, and broader review/host acceptance.
+records `visualReview: "unavailable"`. The previous one-page black-box Agent
+lane remains recorded in `evals/pptx-generation/agent-blackbox.v1.json`. The
+v2 multi-page lane is now recorded in
+`evals/pptx-generation/agent-multipage.v2.json`: three clean packed runs plan
+and generate ten pages each (算秩未来 21→31, blue-gray 19→29, McKinsey 8→18),
+reimport successfully, preserve the source and every non-target OPC part, and
+record structural review separately from `visualReview: "unavailable"`.
+Native PowerPoint and aesthetic equivalence remain outside this portable
+status.
 
 ## Reference Skills
 
