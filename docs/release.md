@@ -1,5 +1,23 @@
 # Release
 
+## Current 0.6.0 milestone (2026-08-22): Portable template-conditioned Agent evidence
+
+The template-conditioned PPTX route now has three independent, fresh Agent
+black-box runs over the frozen external samples 算秩未来, 蓝灰酸性模板, and
+麦肯锡风客户忠诚度. Each run installs the packed OfficeKit package in a
+clean task workspace, initializes only the portable OfficeKit and Presentations
+Skills, derives a bounded design profile and frame map, clones one supported
+source slide across an export/reimport boundary, edits one inherited leaf, and
+performs a separate structural/layout review.
+
+The compact evidence at
+`evals/pptx-generation/agent-blackbox.v1.json` records source hashes, one new
+slide per run, second import, source protection, byte-identical non-target OPC
+parts, and zero missing/changed non-target entries. Visual review is reported
+as unavailable on this portable lane; inherited layout warnings remain
+evidence rather than being silently repaired. No Windows PowerPoint or aesthetic
+equivalence claim is included in this milestone.
+
 ## Current 0.6.0 milestone (2026-08-15): Lossless native chart-data leaf
 
 Imported bar charts can now issue a bounded `chartDataValue` leaf when one

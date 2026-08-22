@@ -19,18 +19,25 @@
 
 ## 3. Independent acceptance
 
-- [ ] 3.1 Run three fresh black-box Agent tasks using only the portable Skill,
+- [x] 3.1 Run three fresh black-box Agent tasks using only the portable Skill,
   public package, and each external source; store frame map, profile, plan,
-  output, reimport, and review evidence.
+  output, reimport, and review evidence in
+  `evals/pptx-generation/agent-blackbox.v1.json`. The portable lane records
+  structural/layout review separately from unavailable visual review.
 - [x] 3.2 Add a conversational local edit after generation and verify that the
   generated output can be reopened and safely changed without source drift.
-- [ ] 3.3 Run the packed clean-install route and the available native renderer
-  checks for all three sources.
+- [x] 3.3 Run the packed clean-install route for all three sources and record
+  available renderer evidence. The blue-gray sample has no portable renderer
+  because its custom geometry exceeds the renderer's bounded path profile;
+  this remains `visualReview: "unavailable"`, not a visual pass.
 
 ## 4. Release gates
 
-- [ ] 4.1 Add the generation smoke to the appropriate fast/slow gate after the
-  benchmark evidence format is stable.
-- [ ] 4.2 Update coverage, API/help, package inventory, and release evidence.
+- [x] 4.1 Add the generation evidence smoke to the Presentation slow-gate
+  segment after the benchmark evidence format is stable.
+- [x] 4.2 Update coverage, OpenSpec evidence, release notes, and the slow-gate
+  inventory. No public API or Help surface changed in this evidence-only
+  slice, so generated API/help files remain unchanged; package contents are
+  checked by the existing pack gate.
 - [ ] 4.3 Run full npm, package, deterministic WASM, and hosted CI gates, then
   deliver one atomic ordinary push.

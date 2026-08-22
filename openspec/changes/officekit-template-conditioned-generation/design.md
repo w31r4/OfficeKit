@@ -48,6 +48,11 @@ rather than replaced by a fake preview.
 ## Evidence Matrix
 
 The frozen external samples are 算秩未来 (21 slides), 蓝灰酸性模板 (19 slides),
-and 麦肯锡风客户忠诚度 (8 slides). Each run generates 10 new slides, edits
-bounded inherited targets, reimports the output, and checks non-target package
-parts. Native Windows PowerPoint remains a separately scoped host gate.
+and 麦肯锡风客户忠诚度 (8 slides). The deterministic benchmark generates 10
+new slides per sample. The independent black-box lane runs a fresh three-phase
+Agent task per sample (profile/plan, one bounded clone edit, and separate
+review), then checks the packed install, second import, source protection, and
+non-target package parts. Its compact evidence lives in
+`evals/pptx-generation/agent-blackbox.v1.json`; visual review is reported as
+unavailable when the portable renderer cannot consume a source's geometry.
+Native Windows PowerPoint remains a separately scoped host gate.

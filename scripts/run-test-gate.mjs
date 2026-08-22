@@ -93,6 +93,7 @@ const slowSteps = [
   nodeStep("test/pptx-lossless-benchmark.mjs"),
   nodeStep("test/pptx-source-continuation-native.mjs"),
   nodeStep("test/pptx-source-agent-continuation.mjs"),
+  nodeStep("test/pptx-template-generation-agent-blackbox.mjs"),
   nodeStep("test/presentation-custom-geometry-render.mjs"),
   nodeStep("test/presentation-jsx.mjs"),
   npmStep("test:skill:presentations"),
@@ -162,15 +163,15 @@ const slowSteps = [
 
 const slowSegments = Object.freeze({
   foundation: Object.freeze({ start: 0, end: 16 }),
-  presentation: Object.freeze({ start: 16, end: 23 }),
-  templates: Object.freeze({ start: 23, end: 30 }),
-  officekit: Object.freeze({ start: 30, end: 37 }),
-  documents: Object.freeze({ start: 37, end: 46 }),
-  "pdf-packs": Object.freeze({ start: 46, end: 55 }),
-  "pdf-providers": Object.freeze({ start: 55, end: 64 }),
-  "pdf-specialists": Object.freeze({ start: 64, end: 73 }),
-  qa: Object.freeze({ start: 73, end: 80 }),
-  release: Object.freeze({ start: 80, end: 85 }),
+  presentation: Object.freeze({ start: 16, end: 24 }),
+  templates: Object.freeze({ start: 24, end: 31 }),
+  officekit: Object.freeze({ start: 31, end: 38 }),
+  documents: Object.freeze({ start: 38, end: 47 }),
+  "pdf-packs": Object.freeze({ start: 47, end: 56 }),
+  "pdf-providers": Object.freeze({ start: 56, end: 65 }),
+  "pdf-specialists": Object.freeze({ start: 65, end: 74 }),
+  qa: Object.freeze({ start: 74, end: 81 }),
+  release: Object.freeze({ start: 81, end: 86 }),
 });
 
 const segmentRanges = Object.values(slowSegments);
