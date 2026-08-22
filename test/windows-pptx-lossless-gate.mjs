@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -73,7 +74,7 @@ const evidence = {
   }),
 };
 
-assert.deepEqual(validateWindowsPptxLosslessEvidence(evidence, { expectedCommit: commit, manifest }), {
+assert.deepEqual(await validateWindowsPptxLosslessEvidence(evidence, { expectedCommit: commit, manifest }), {
   schema: "office-kit.windows-pptx-lossless-evidence.v1",
   checkedAt,
   commit,
@@ -82,6 +83,53 @@ assert.deepEqual(validateWindowsPptxLosslessEvidence(evidence, { expectedCommit:
   sources: sourceIds,
   pagesCompared: 48,
 });
+
+const pixelFiles = new Map();
+const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const fileVerifiedEvidence = structuredClone(evidence);
+fileVerifiedEvidence.visualReview.pageComparisons = fileVerifiedEvidence.visualReview.pageComparisons.map((page) => {
+  const sourceImagePath = `C:\\OfficeKit\\evidence\\${page.sourceId}-${page.page}-source.png`;
+  const outputImagePath = `C:\\OfficeKit\\evidence\\${page.sourceId}-${page.page}-output.png`;
+  const sourceBytes = Buffer.from(`source:${page.sourceId}:${page.page}`);
+  const outputBytes = page.target ? Buffer.from(`output:${page.sourceId}:${page.page}`) : sourceBytes;
+  pixelFiles.set(sourceImagePath, sourceBytes);
+  pixelFiles.set(outputImagePath, outputBytes);
+  return {
+    ...page,
+    sourcePixelSha256: sha256(sourceBytes),
+    outputPixelSha256: sha256(outputBytes),
+    sourceImagePath,
+    outputImagePath,
+  };
+});
+assert.deepEqual(
+  await validateWindowsPptxLosslessEvidence(fileVerifiedEvidence, {
+    expectedCommit: commit,
+    manifest,
+    verifyPixelFiles: true,
+    readFileImpl: async (filePath) => pixelFiles.get(filePath) || (() => { throw new Error(`missing test pixel file: ${filePath}`); })(),
+  }),
+  {
+    schema: "office-kit.windows-pptx-lossless-evidence.v1",
+    checkedAt,
+    commit,
+    platform: "win32-x64",
+    powerpointVersion: "Microsoft PowerPoint 16.0 (Build 18025)",
+    sources: sourceIds,
+    pagesCompared: 48,
+  },
+);
+const wrongPixelFileEvidence = structuredClone(fileVerifiedEvidence);
+wrongPixelFileEvidence.visualReview.pageComparisons[0].sourcePixelSha256 = "0".repeat(64);
+await assert.rejects(
+  () => validateWindowsPptxLosslessEvidence(wrongPixelFileEvidence, {
+    expectedCommit: commit,
+    manifest,
+    verifyPixelFiles: true,
+    readFileImpl: async (filePath) => pixelFiles.get(filePath),
+  }),
+  /pixel SHA-256/u,
+);
 
 for (const mutation of [
   (value) => { value.method = "mock"; },
@@ -100,10 +148,10 @@ for (const mutation of [
 ]) {
   const invalid = structuredClone(evidence);
   mutation(invalid);
-  assert.throws(() => validateWindowsPptxLosslessEvidence(invalid, { expectedCommit: commit, manifest }), /evidence|Windows|PowerPoint|renderer|SHA|source|true|three|platform|output|pages|frozen|records|comparison|target/i);
+  await assert.rejects(() => validateWindowsPptxLosslessEvidence(invalid, { expectedCommit: commit, manifest }), /evidence|Windows|PowerPoint|renderer|SHA|source|true|three|platform|output|pages|frozen|records|comparison|target/i);
 }
 
-assert.throws(
+await assert.rejects(
   () => validateWindowsPptxLosslessEvidence(evidence, { expectedCommit: "fedcba9876543210fedcba9876543210fedcba98", manifest }),
   /checked-out commit/,
 );

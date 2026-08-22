@@ -43,7 +43,10 @@ function Export-SlideHashes($Presentation, [string]$Directory, [string]$Prefix) 
     if (-not (Test-Path -LiteralPath $imagePath -PathType Leaf)) {
       Fail "PowerPoint did not export slide $page for $Prefix"
     }
-    $hashes[$page] = Get-Sha256 $imagePath
+    $hashes[$page] = [ordered]@{
+      sha256 = Get-Sha256 $imagePath
+      path = [IO.Path]::GetFullPath($imagePath)
+    }
   }
   return $hashes
 }
@@ -112,14 +115,16 @@ try {
       $outputHashes = Export-SlideHashes $savedCopyPresentation $outputImages "output"
       for ($page = 1; $page -le $source.slides; $page++) {
         $target = $page -eq $source.targetPage
-        $identical = $sourceHashes[$page] -eq $outputHashes[$page]
+        $identical = $sourceHashes[$page].sha256 -eq $outputHashes[$page].sha256
         $pageComparisons += [ordered]@{
           sourceId = $source.id
           page = $page
           target = $target
           pixelIdentical = $identical
-          sourcePixelSha256 = $sourceHashes[$page]
-          outputPixelSha256 = $outputHashes[$page]
+          sourcePixelSha256 = $sourceHashes[$page].sha256
+          outputPixelSha256 = $outputHashes[$page].sha256
+          sourceImagePath = $sourceHashes[$page].path
+          outputImagePath = $outputHashes[$page].path
         }
       }
       if (($pageComparisons | Where-Object { $_.sourceId -eq $source.id -and $_.target -and $_.pixelIdentical }).Count -gt 0) {

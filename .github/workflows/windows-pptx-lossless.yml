@@ -42,7 +42,7 @@ jobs:
           "OFFICEKIT_CHECKED_OUT_SHA=$checkedOut" >> $env:GITHUB_ENV
       - name: Validate human-observed PowerPoint evidence
         shell: pwsh
-        run: node scripts/validate-windows-pptx-lossless-evidence.mjs "${{ inputs.evidence_path }}" "$env:OFFICEKIT_CHECKED_OUT_SHA"
+        run: node scripts/validate-windows-pptx-lossless-evidence.mjs "${{ inputs.evidence_path }}" "$env:OFFICEKIT_CHECKED_OUT_SHA" --verify-pixel-files
       - name: Upload the accepted evidence
         uses: actions/upload-artifact@v4
         with:

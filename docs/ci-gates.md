@@ -59,7 +59,7 @@ gh workflow run windows-office-live.yml \
 ## Windows PPTX 无损编辑证据
 
 三份复杂样本的独立验收使用 `.github/workflows/windows-pptx-lossless.yml`，而不是上面的 Live Add-in lane。操作员先在真实 Windows x64 PowerPoint 中按 `evals/pptx-lossless/manifest.v1.json` 的源 SHA 打开每份文件，完成声明的局部编辑，保存到不同路径并重新打开；随后用 PowerPoint 产生非目标页像素比较、修复提示和高级对象保全记录，再写入 `office-kit.windows-pptx-lossless-evidence.v1` JSON。`visualReview.pageComparisons` 必须覆盖三份样本的全部 48 页，逐页绑定源/输出像素 SHA-256；目标页必须有像素变化，非目标页必须是相同指纹。校验器
-`scripts/validate-windows-pptx-lossless-evidence.mjs` 会绑定当前 checkout SHA、三份冻结源 SHA、目标节点、保存副本、重新打开、源保护、非目标页像素一致和不支持能力拒绝；它拒绝 macOS、mock、LibreOffice-only 或缺少任一源的证据。
+`scripts/validate-windows-pptx-lossless-evidence.mjs` 会绑定当前 checkout SHA、三份冻结源 SHA、目标节点、保存副本、重新打开、源保护、非目标页像素一致和不支持能力拒绝；Windows lane 还会用 `--verify-pixel-files` 重新读取每个导出的 PNG，核对其实际字节 SHA-256。它拒绝 macOS、mock、LibreOffice-only 或缺少任一源的证据。
 
 ```bash
 gh workflow run windows-pptx-lossless.yml \

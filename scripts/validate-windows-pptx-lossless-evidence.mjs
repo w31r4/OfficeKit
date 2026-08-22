@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -22,9 +23,11 @@ const REQUIRED_CHECKS = [
   "unsupportedCapabilityFailClosed",
 ];
 
-export function validateWindowsPptxLosslessEvidence(value, {
+export async function validateWindowsPptxLosslessEvidence(value, {
   expectedCommit = undefined,
   manifest = undefined,
+  verifyPixelFiles = false,
+  readFileImpl = fs.readFile,
 } = {}) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("evidence must be a JSON object");
   if (value.schema !== "office-kit.windows-pptx-lossless-evidence.v1") throw new Error("unsupported Windows PPTX lossless evidence schema");
@@ -66,6 +69,22 @@ export function validateWindowsPptxLosslessEvidence(value, {
     comparedPages.add(pageKey);
     if (!/^[0-9a-f]{64}$/u.test(String(page.sourcePixelSha256 || "")) || !/^[0-9a-f]{64}$/u.test(String(page.outputPixelSha256 || ""))) {
       throw new Error(`${pageKey} must include source and output pixel SHA-256 values`);
+    }
+    if (verifyPixelFiles) {
+      const sourceImagePath = String(page.sourceImagePath || "");
+      const outputImagePath = String(page.outputImagePath || "");
+      if (!/^[A-Za-z]:[\\/].+/u.test(sourceImagePath) || !/^[A-Za-z]:[\\/].+/u.test(outputImagePath)) {
+        throw new Error(`${pageKey} sourceImagePath and outputImagePath must be absolute Windows paths`);
+      }
+      const [sourceImage, outputImage] = await Promise.all([
+        readFileImpl(sourceImagePath),
+        readFileImpl(outputImagePath),
+      ]);
+      const sourceImageSha256 = createHash("sha256").update(sourceImage).digest("hex");
+      const outputImageSha256 = createHash("sha256").update(outputImage).digest("hex");
+      if (sourceImageSha256 !== page.sourcePixelSha256 || outputImageSha256 !== page.outputPixelSha256) {
+        throw new Error(`${pageKey} pixel SHA-256 does not match the exported image bytes`);
+      }
     }
     const sourceEvidence = value.sources.find((candidate) => candidate?.id === sourceId);
     const targetNodeId = String(sourceEvidence?.target?.nodeId || "");
@@ -122,9 +141,11 @@ const entry = process.argv[1] ? path.resolve(process.argv[1]) : "";
 if (entry === path.resolve(fileURLToPath(import.meta.url))) {
   const evidencePath = process.argv[2];
   const expectedCommit = process.argv[3];
-  const manifestPath = process.argv[4] ? path.resolve(process.argv[4]) : DEFAULT_MANIFEST;
+  const verifyPixelFiles = process.argv.includes("--verify-pixel-files");
+  const manifestArgument = process.argv.slice(4).find((argument) => argument !== "--verify-pixel-files");
+  const manifestPath = manifestArgument ? path.resolve(manifestArgument) : DEFAULT_MANIFEST;
   if (!evidencePath) {
-    console.error("usage: node scripts/validate-windows-pptx-lossless-evidence.mjs <evidence.json> [expected-commit] [manifest.json]");
+    console.error("usage: node scripts/validate-windows-pptx-lossless-evidence.mjs <evidence.json> [expected-commit] [manifest.json] [--verify-pixel-files]");
     process.exit(2);
   }
   try {
@@ -132,7 +153,7 @@ if (entry === path.resolve(fileURLToPath(import.meta.url))) {
       fs.readFile(path.resolve(evidencePath), "utf8").then(JSON.parse),
       fs.readFile(manifestPath, "utf8").then(JSON.parse),
     ]);
-    console.log(JSON.stringify(validateWindowsPptxLosslessEvidence(value, { expectedCommit, manifest }), null, 2));
+    console.log(JSON.stringify(await validateWindowsPptxLosslessEvidence(value, { expectedCommit, manifest, verifyPixelFiles }), null, 2));
   } catch (error) {
     console.error(`Windows PPTX lossless evidence rejected: ${error.message}`);
     process.exit(1);
