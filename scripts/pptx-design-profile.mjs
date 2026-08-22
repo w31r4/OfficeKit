@@ -156,21 +156,52 @@ function inspectSvgAsset(part, bytes) {
   const fonts = new Map();
   const fontSizes = [];
   const colors = new Map();
-  const pattern = /<(?:(?:[A-Za-z_][\w.-]*):)?(?<tag>text|tspan)\b(?<attributes>[^>]*)>(?<value>[\s\S]*?)<\/(?:(?:[A-Za-z_][\w.-]*):)?\k<tag>\s*>/giu;
-  for (const match of source.matchAll(pattern)) {
+  const textPattern = /<(?:(?:[A-Za-z_][\w.-]*):)?text\b(?<attributes>[^>]*)>(?<value>[\s\S]*?)<\/(?:(?:[A-Za-z_][\w.-]*):)?text\s*>/giu;
+  const tspanPattern = /<(?:(?:[A-Za-z_][\w.-]*):)?tspan\b(?<attributes>[^>]*)>(?<value>[\s\S]*?)<\/(?:(?:[A-Za-z_][\w.-]*):)?tspan\s*>/giu;
+  const parentRanges = [];
+  const candidates = [];
+  for (const match of source.matchAll(textPattern)) {
     const value = match.groups?.value || "";
-    if (/<[A-Za-z_][\w:.-]*\b/iu.test(value)) continue;
+    const start = match.index ?? -1;
+    const openEnd = start + (match[0].indexOf(">") + 1);
+    const parentAttributes = svgAttributes(match.groups?.attributes || "");
+    const children = [...value.matchAll(tspanPattern)];
+    parentRanges.push({ start, end: start + match[0].length });
+    if (children.length) {
+      for (const child of children) {
+        const text = svgTextValue(child.groups?.value || "");
+        if (!text) continue;
+        candidates.push({
+          start: openEnd + (child.index ?? 0),
+          tag: "tspan",
+          attributes: mergeSvgAttributes(parentAttributes, svgAttributes(child.groups?.attributes || "")),
+          text,
+        });
+      }
+      continue;
+    }
+    const text = svgTextValue(value);
+    if (text) candidates.push({ start, tag: "text", attributes: parentAttributes, text });
+  }
+  // Keep bounded standalone tspans while avoiding duplicates already issued
+  // from a surrounding text element.
+  for (const match of source.matchAll(tspanPattern)) {
+    const start = match.index ?? -1;
+    if (parentRanges.some((range) => start > range.start && start < range.end)) continue;
+    const text = svgTextValue(match.groups?.value || "");
+    if (text) candidates.push({ start, tag: "tspan", attributes: svgAttributes(match.groups?.attributes || ""), text });
+  }
+  candidates.sort((left, right) => left.start - right.start || left.tag.localeCompare(right.tag));
+  for (const candidate of candidates) {
     if (nodes.length >= MAX_SVG_PROFILE_NODES) {
       return { part, bytes: bytes.byteLength, sourceSha256, supported: false, blockedReason: "SVG text node budget exceeded", textNodeCount: 0, textChars: 0, textSamples: [], fonts: [], fontSizesPt: [], colors: [] };
     }
-    const attributes = svgAttributes(match.groups?.attributes || "");
-    const text = decodeXml(value).replace(/\s+/gu, " ").trim();
-    if (!text) continue;
+    const { attributes, text } = candidate;
     const fontFamily = attributes["font-family"] || styleValue(attributes.style, "font-family");
     if (fontFamily) fonts.set(fontFamily, (fonts.get(fontFamily) || 0) + 1);
     const fontSize = parseSvgFontSize(attributes["font-size"] || styleValue(attributes.style, "font-size"));
     if (fontSize !== undefined) fontSizes.push(fontSize);
-    nodes.push({ index: nodes.length, tag: match.groups?.tag || "text", text: text.slice(0, 240), textSha256: sha256(text) });
+    nodes.push({ index: nodes.length, tag: candidate.tag, text: text.slice(0, 240), textSha256: sha256(text) });
   }
   for (const match of source.matchAll(/\b(?:fill|stroke)\s*=\s*(["'])(#[0-9A-Fa-f]{3,8}|rgb\([^"']+\)|[A-Za-z]+)\1/giu)) {
     const value = match[2].toUpperCase();
@@ -202,6 +233,16 @@ function svgProfileSafety(source) {
 
 function svgAttributes(value) {
   return Object.fromEntries([...String(value).matchAll(/([A-Za-z_:][\w:.-]*)\s*=\s*(["'])(.*?)\2/gu)].map((match) => [match[1].toLowerCase(), decodeXml(match[3])]));
+}
+
+function mergeSvgAttributes(parent, child) {
+  const merged = { ...parent, ...child };
+  if (parent.style && child.style) merged.style = `${parent.style};${child.style}`;
+  return merged;
+}
+
+function svgTextValue(value) {
+  return decodeXml(String(value).replace(/<[^>]*>/gu, "")).replace(/\s+/gu, " ").trim();
 }
 
 function styleValue(style, key) {

@@ -49,8 +49,8 @@ const mckinseyProfile = committedProfiles.profiles.find((profile) => profile.sou
 assert.ok(mckinseyProfile);
 assert.equal(mckinseyProfile.designLanguage.vectorAssets.assetCount, 8);
 assert.equal(mckinseyProfile.designLanguage.vectorAssets.supportedCount, 8);
-assert.equal(mckinseyProfile.designLanguage.vectorAssets.textNodeCount, 22);
-assert.equal(mckinseyProfile.designLanguage.vectorAssets.textChars > 500, true);
+assert.equal(mckinseyProfile.designLanguage.vectorAssets.textNodeCount, 250);
+assert.equal(mckinseyProfile.designLanguage.vectorAssets.textChars > 4000, true);
 assert.equal(mckinseyProfile.designLanguage.vectorAssets.assets.every((asset) => /^[a-f0-9]{64}$/u.test(asset.sourceSha256)), true);
 assert.equal(mckinseyProfile.designLanguage.vectorAssets.assets.some((asset) => asset.fonts.some((font) => /Arial/u.test(font.value))), true);
 
@@ -59,6 +59,7 @@ assert.equal(mckinseyProfile.designLanguage.vectorAssets.assets.some((asset) => 
 // the bounded scanner without changing the imported presentation graph.
 const unsafeProfileZip = await JSZip.loadAsync(sourceBytes);
 unsafeProfileZip.file("ppt/media/unsafe-profile.svg", '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><image href="https://example.invalid/x.png"/></svg>');
+unsafeProfileZip.file("ppt/media/nested-profile.svg", '<svg xmlns="http://www.w3.org/2000/svg"><text font-family="Arial" font-size="18"><tspan>Nested title</tspan><tspan font-size="12">Nested detail</tspan></text></svg>');
 const unsafeContentTypes = await unsafeProfileZip.file("[Content_Types].xml").async("text");
 unsafeProfileZip.file("[Content_Types].xml", unsafeContentTypes.replace("</Types>", '<Default Extension="svg" ContentType="image/svg+xml"/></Types>'));
 const unsafeProfileBytes = await unsafeProfileZip.generateAsync({ type: "uint8array", compression: "STORE" });
@@ -71,6 +72,12 @@ try {
   assert.ok(unsafeAsset);
   assert.equal(unsafeAsset.supported, false);
   assert.match(unsafeAsset.blockedReason, /active content|external reference/iu);
+  const nestedAsset = unsafeProfile.designLanguage.vectorAssets.assets.find((asset) => asset.part === "ppt/media/nested-profile.svg");
+  assert.ok(nestedAsset);
+  assert.equal(nestedAsset.supported, true);
+  assert.equal(nestedAsset.textNodeCount, 2);
+  assert.equal(nestedAsset.textChars, "Nested titleNested detail".length);
+  assert.deepEqual(nestedAsset.fonts, [{ value: "Arial", count: 2 }]);
 } finally {
   await rm(unsafeProfileDirectory, { recursive: true, force: true });
 }

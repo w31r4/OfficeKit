@@ -4557,16 +4557,16 @@
           "assetCount": 8,
           "supportedCount": 8,
           "blockedCount": 0,
-          "textNodeCount": 22,
-          "textChars": 568,
+          "textNodeCount": 250,
+          "textChars": 4225,
           "assets": [
             {
               "part": "ppt/media/image1.svg",
               "bytes": 1538,
               "sourceSha256": "d6e0a1ff2b2c5eb578c1c230d78eb63096e178e47c10ece27a73bce750baffde",
               "supported": true,
-              "textNodeCount": 4,
-              "textChars": 82,
+              "textNodeCount": 7,
+              "textChars": 137,
               "textSamples": [
                 {
                   "index": 0,
@@ -4582,24 +4582,46 @@
                 },
                 {
                   "index": 2,
+                  "tag": "tspan",
+                  "text": "Strategic Framework for Customer Retention",
+                  "textSha256": "91884532c09430f7195be170c26d4f5790c4c820cf4984fc9ea4f57da3711551"
+                },
+                {
+                  "index": 3,
                   "tag": "text",
                   "text": "Project Code: KIMEU-2025-CL01",
                   "textSha256": "b8f73f43448b61517ec2ae34ac17cd1291338ba1226224670637d10d63669dc5"
                 },
                 {
-                  "index": 3,
+                  "index": 4,
                   "tag": "text",
                   "text": "Date: November 2025",
                   "textSha256": "aa989355d2e186963e58ae3229e527aa4aebca7b4c4d7b249cebe91285b4d462"
+                },
+                {
+                  "index": 5,
+                  "tag": "tspan",
+                  "text": "CONFIDENTIAL",
+                  "textSha256": "41f0c9c802bd8c3b29e5e62b4cc4e606bfc943d8109c8005c67f6e438314d09c"
+                },
+                {
+                  "index": 6,
+                  "tag": "tspan",
+                  "text": "1",
+                  "textSha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
                 }
               ],
               "fonts": [
                 {
                   "value": "Arial, sans-serif",
-                  "count": 4
+                  "count": 7
                 }
               ],
               "fontSizesPt": [
+                {
+                  "value": 14,
+                  "count": 2
+                },
                 {
                   "value": 16,
                   "count": 2
@@ -4607,6 +4629,10 @@
                 {
                   "value": 52,
                   "count": 2
+                },
+                {
+                  "value": 28,
+                  "count": 1
                 }
               ],
               "colors": [
@@ -4637,11 +4663,126 @@
               "bytes": 7170,
               "sourceSha256": "7875b4f4b910128e6d59eb64e53c116b2457ae9500396caffd2d1830ca1c4566",
               "supported": true,
-              "textNodeCount": 0,
-              "textChars": 0,
-              "textSamples": [],
-              "fonts": [],
-              "fontSizesPt": [],
+              "textNodeCount": 24,
+              "textChars": 574,
+              "textSamples": [
+                {
+                  "index": 0,
+                  "tag": "tspan",
+                  "text": "Critical Challenges in Customer Retention",
+                  "textSha256": "53b93934b731bdf53674a2800affe4c5e757e2caf34e86dc1e8fa0c3c9cdc86b"
+                },
+                {
+                  "index": 1,
+                  "tag": "tspan",
+                  "text": "Key Challenges",
+                  "textSha256": "2f684881bd3ae53afb5ca192e91759409f435ccb2a13a857bea23fc8ac1fd374"
+                },
+                {
+                  "index": 2,
+                  "tag": "tspan",
+                  "text": "Low Repeat Purchase Rate",
+                  "textSha256": "c3820aeb634a1b8e9f9fa1e3dbec7e8713fefea9caeb9196c65f985bee7e9c36"
+                },
+                {
+                  "index": 3,
+                  "tag": "tspan",
+                  "text": "15%",
+                  "textSha256": "b5f6dbae04bd764b0c2f3cb796e404ffdf77fb4cac171d72ec7fa6a2077da252"
+                },
+                {
+                  "index": 4,
+                  "tag": "tspan",
+                  "text": "Only 1 in 7 customers return",
+                  "textSha256": "3dd0f8c216ce2c5541e80b7ac00f08589371c01777af349b907bce23bd038c15"
+                },
+                {
+                  "index": 5,
+                  "tag": "tspan",
+                  "text": "High Customer Loss to Competitors",
+                  "textSha256": "8882893b94e0bef0f8b33aa9da2162f8aec8db87fbb044a1a9e40cd828bdfb47"
+                },
+                {
+                  "index": 6,
+                  "tag": "tspan",
+                  "text": "52%",
+                  "textSha256": "8a059dba6109533a5eb2c22d459b400657b0e831e15d4509706e4bd3ed5d62dc"
+                },
+                {
+                  "index": 7,
+                  "tag": "tspan",
+                  "text": "Bought competitor's model",
+                  "textSha256": "bd50b23f301839a14c05492160323b60735b37f2258cc0c0fadbd36dd668620c"
+                },
+                {
+                  "index": 8,
+                  "tag": "tspan",
+                  "text": "Poor After-Sales Satisfaction",
+                  "textSha256": "65e7cf21e705d6f723c63288b86805e9011d09686ae2253cbfa0631dcebf425e"
+                },
+                {
+                  "index": 9,
+                  "tag": "tspan",
+                  "text": "67%",
+                  "textSha256": "147ee7a2086de2af862b9643ebde7beac163a278d9367194d536a7c2ec08eea5"
+                },
+                {
+                  "index": 10,
+                  "tag": "tspan",
+                  "text": "Rated service as Fair or Poor",
+                  "textSha256": "ebfbe00b6822afd3a45a4f239c8d4c47b930c809c971f1b3bff5a6240d6210f4"
+                },
+                {
+                  "index": 11,
+                  "tag": "tspan",
+                  "text": "Critical priority: Address service quality and competitive",
+                  "textSha256": "6884a925ac4f032b248eb452ba5b64ab84c8a2fb733d1b748d1d87f17bf5b976"
+                }
+              ],
+              "fonts": [
+                {
+                  "value": "Arial, sans-serif",
+                  "count": 24
+                }
+              ],
+              "fontSizesPt": [
+                {
+                  "value": 15,
+                  "count": 5
+                },
+                {
+                  "value": 18,
+                  "count": 5
+                },
+                {
+                  "value": 17,
+                  "count": 3
+                },
+                {
+                  "value": 44,
+                  "count": 3
+                },
+                {
+                  "value": 13,
+                  "count": 2
+                },
+                {
+                  "value": 14,
+                  "count": 2
+                },
+                {
+                  "value": 22,
+                  "count": 2
+                },
+                {
+                  "value": 16,
+                  "count": 1
+                },
+                {
+                  "value": 36,
+                  "count": 1
+                }
+              ],
               "colors": [
                 {
                   "value": "#E74C3C",
@@ -4686,11 +4827,114 @@
               "bytes": 10518,
               "sourceSha256": "4c8ca5ad52f261b7f1b1466232a29e793c6cdee98631d5b231f75582308241ed",
               "supported": true,
-              "textNodeCount": 0,
-              "textChars": 0,
-              "textSamples": [],
-              "fonts": [],
-              "fontSizesPt": [],
+              "textNodeCount": 37,
+              "textChars": 448,
+              "textSamples": [
+                {
+                  "index": 0,
+                  "tag": "tspan",
+                  "text": "Understanding Our Customer Base",
+                  "textSha256": "10d64402677a6f310ccd3c4121a3893e25f27a5a3899bab0ffe0c3496bde0e33"
+                },
+                {
+                  "index": 1,
+                  "tag": "tspan",
+                  "text": "Age Distribution",
+                  "textSha256": "4d16da5af88b209fe73399c96043ae24e61ce1e9a48bd5e1a92cf8d9befad827"
+                },
+                {
+                  "index": 2,
+                  "tag": "tspan",
+                  "text": "Total",
+                  "textSha256": "c9b3c38247f744e17dd26fda097d6a9ba9332586b6bdaa038bf8f313a863f2b8"
+                },
+                {
+                  "index": 3,
+                  "tag": "tspan",
+                  "text": "100%",
+                  "textSha256": "32e48995f98ce3b76f2d3f5e2d2acddfeff6650b7b18628cfa739bfef4a03312"
+                },
+                {
+                  "index": 4,
+                  "tag": "tspan",
+                  "text": "Under 30:",
+                  "textSha256": "6ab4104e79e342f937cf2eae67311357391d1cf935e7527fea8bd2296670efc4"
+                },
+                {
+                  "index": 5,
+                  "tag": "tspan",
+                  "text": "48%",
+                  "textSha256": "03a42de5c75c8c0a66c095cc1f057fb500dbe7a6f1107503fb347c4802fddfdf"
+                },
+                {
+                  "index": 6,
+                  "tag": "tspan",
+                  "text": "31-40:",
+                  "textSha256": "d46c190bc0965db3c2a17b93cf1b7195b7d466b0f3c84aea82b89a59ddbe3781"
+                },
+                {
+                  "index": 7,
+                  "tag": "tspan",
+                  "text": "27%",
+                  "textSha256": "80e973f5b5e509f178b3ba75f1076b753f4af0d64dfd98072c105ca25a258423"
+                },
+                {
+                  "index": 8,
+                  "tag": "tspan",
+                  "text": "41-50:",
+                  "textSha256": "9316f433f960e5c644dd9b3903648f6f3d8036961658fa99504c6a8edcfa4d71"
+                },
+                {
+                  "index": 9,
+                  "tag": "tspan",
+                  "text": "15%",
+                  "textSha256": "b5f6dbae04bd764b0c2f3cb796e404ffdf77fb4cac171d72ec7fa6a2077da252"
+                },
+                {
+                  "index": 10,
+                  "tag": "tspan",
+                  "text": "Over 50:",
+                  "textSha256": "c514104549d7c42004df398972e3227542ae05dc7c3fa89f161259e08bbf185d"
+                },
+                {
+                  "index": 11,
+                  "tag": "tspan",
+                  "text": "10%",
+                  "textSha256": "3ccce1f4da948035fd36a399576a50a5248ddc02dd008f3c3668df57c0aa75b5"
+                }
+              ],
+              "fonts": [
+                {
+                  "value": "Arial, sans-serif",
+                  "count": 37
+                }
+              ],
+              "fontSizesPt": [
+                {
+                  "value": 16,
+                  "count": 23
+                },
+                {
+                  "value": 18,
+                  "count": 5
+                },
+                {
+                  "value": 20,
+                  "count": 4
+                },
+                {
+                  "value": 13,
+                  "count": 2
+                },
+                {
+                  "value": 14,
+                  "count": 2
+                },
+                {
+                  "value": 36,
+                  "count": 1
+                }
+              ],
               "colors": [
                 {
                   "value": "#005587",
@@ -4743,11 +4987,118 @@
               "bytes": 8395,
               "sourceSha256": "b8ccf70b60205c4f151bfabf95b8db50f0faaddd80d8e7d36635c7dbb9ba8cf8",
               "supported": true,
-              "textNodeCount": 0,
-              "textChars": 0,
-              "textSamples": [],
-              "fonts": [],
-              "fontSizesPt": [],
+              "textNodeCount": 31,
+              "textChars": 367,
+              "textSamples": [
+                {
+                  "index": 0,
+                  "tag": "tspan",
+                  "text": "Customer Priorities vs. Current Performance",
+                  "textSha256": "0bafbe1ad8b77eae97945dfdc26d78c4cbde618b2af6f102ca959bc68fc7e5cd"
+                },
+                {
+                  "index": 1,
+                  "tag": "tspan",
+                  "text": "Importance to Customer →",
+                  "textSha256": "aaab21e7a0d30b2504454a216ffd840dcee4424d45447cd5270ebb429468605f"
+                },
+                {
+                  "index": 2,
+                  "tag": "tspan",
+                  "text": "Low",
+                  "textSha256": "f793de205ead5ac302c4a1627829dea41f176b1068b993a32373fc869918374b"
+                },
+                {
+                  "index": 3,
+                  "tag": "tspan",
+                  "text": "High",
+                  "textSha256": "c4ebc6d4a5832cd9415f906ad03661110c705a72381c8b8b145761d02e2dd23a"
+                },
+                {
+                  "index": 4,
+                  "tag": "tspan",
+                  "text": "Current Satisfaction →",
+                  "textSha256": "9413e0dd746402f88eea4e8b4ade86ddb1dc0ab19ea7efa65f178c4b5ec09f6f"
+                },
+                {
+                  "index": 5,
+                  "tag": "tspan",
+                  "text": "Low",
+                  "textSha256": "f793de205ead5ac302c4a1627829dea41f176b1068b993a32373fc869918374b"
+                },
+                {
+                  "index": 6,
+                  "tag": "tspan",
+                  "text": "High",
+                  "textSha256": "c4ebc6d4a5832cd9415f906ad03661110c705a72381c8b8b145761d02e2dd23a"
+                },
+                {
+                  "index": 7,
+                  "tag": "tspan",
+                  "text": "Maintain",
+                  "textSha256": "0f011be4a5ebbfffd16918dd9ab3e4cf243983933a5c3c30635434e32d67bc46"
+                },
+                {
+                  "index": 8,
+                  "tag": "tspan",
+                  "text": "Leverage Strengths",
+                  "textSha256": "0d61dfade519b8c6251e036c07d5c2ca6235dd4d773e69e813ae348007f9ce8c"
+                },
+                {
+                  "index": 9,
+                  "tag": "tspan",
+                  "text": "Low Priority",
+                  "textSha256": "372dd4889ddd7daaead88135a364430fce543bbda02db4e2dbd82c5879daf6fc"
+                },
+                {
+                  "index": 10,
+                  "tag": "tspan",
+                  "text": "CRITICAL GAP",
+                  "textSha256": "9e7b29e1e27c9600c179f97dec7c6e9c9b694efb6eb672426099718d664040e7"
+                },
+                {
+                  "index": 11,
+                  "tag": "tspan",
+                  "text": "Comfort",
+                  "textSha256": "040d4645676f60263590e3ab16aee921bdcda42e1e49816792f1d3ecaf693d0e"
+                }
+              ],
+              "fonts": [
+                {
+                  "value": "Arial, sans-serif",
+                  "count": 31
+                }
+              ],
+              "fontSizesPt": [
+                {
+                  "value": 14,
+                  "count": 10
+                },
+                {
+                  "value": 11,
+                  "count": 8
+                },
+                {
+                  "value": 15,
+                  "count": 6
+                },
+                {
+                  "value": 13,
+                  "count": 3
+                },
+                {
+                  "value": 16,
+                  "count": 2
+                },
+                {
+                  "value": 12,
+                  "count": 1
+                },
+                {
+                  "value": 36,
+                  "count": 1
+                }
+              ],
               "colors": [
                 {
                   "value": "#FFFFFF",
@@ -4804,32 +5155,120 @@
               "bytes": 5562,
               "sourceSha256": "b353f6969d6a6a623b83bf891bccd444fb5416c05fa86bbbcad2d6834e015858",
               "supported": true,
-              "textNodeCount": 2,
-              "textChars": 116,
+              "textNodeCount": 26,
+              "textChars": 484,
               "textSamples": [
                 {
                   "index": 0,
-                  "tag": "text",
-                  "text": "Competitive switching (52%) and service dissatisfaction (26%) represent the",
-                  "textSha256": "126792b267cc631a144ac9bdc6a45660e5fb2c0f4561f463ddce68096c6196ae"
+                  "tag": "tspan",
+                  "text": "Why Customers Leave: Root Cause Analysis",
+                  "textSha256": "dc69a4f36bf27c91a9971201d8ee4c19bd561799e285682b6c90065a761d6f6a"
                 },
                 {
                   "index": 1,
-                  "tag": "text",
-                  "text": "primary levers for retention improvement.",
-                  "textSha256": "a2e9174a23e6609703df8583a2ad9e697e6153f53591c06786bc4ec3239922af"
+                  "tag": "tspan",
+                  "text": "Reasons for not repurchasing Kimsoong vehicles",
+                  "textSha256": "2c35a1ff00dec14884bc2a97b06c7849b626ab9bfa2d7235118e4250b10bdf0f"
+                },
+                {
+                  "index": 2,
+                  "tag": "tspan",
+                  "text": "Bought competitor's model",
+                  "textSha256": "bd50b23f301839a14c05492160323b60735b37f2258cc0c0fadbd36dd668620c"
+                },
+                {
+                  "index": 3,
+                  "tag": "tspan",
+                  "text": "52%",
+                  "textSha256": "8a059dba6109533a5eb2c22d459b400657b0e831e15d4509706e4bd3ed5d62dc"
+                },
+                {
+                  "index": 4,
+                  "tag": "tspan",
+                  "text": "Disappointed with service",
+                  "textSha256": "3d7b33d980bfa9bfcfc4e41f7a7a228b5d1e6dca99614673ca9dc9d2d7562d36"
+                },
+                {
+                  "index": 5,
+                  "tag": "tspan",
+                  "text": "26%",
+                  "textSha256": "09fdb4b2ab3f57cd9deb00c6ede0cd3d8fe28f9f2e0b2163af427f2981ec34a1"
+                },
+                {
+                  "index": 6,
+                  "tag": "tspan",
+                  "text": "Relocated",
+                  "textSha256": "2e71c840b0438a95a8aabec3c81b4c2567f630a96d13bb58f6cdb0bbfd1c9aed"
+                },
+                {
+                  "index": 7,
+                  "tag": "tspan",
+                  "text": "8%",
+                  "textSha256": "23ec5e7f20a2bcc3fca42ac6f74643066b90a0458cf4f309bc2dc517869c7f39"
+                },
+                {
+                  "index": 8,
+                  "tag": "tspan",
+                  "text": "No longer drive",
+                  "textSha256": "3a88f4d14a5fc2bc965646c2b0643cbe8da0eebb48b60cd36edfab1e86797846"
+                },
+                {
+                  "index": 9,
+                  "tag": "tspan",
+                  "text": "5%",
+                  "textSha256": "d1ce334b6a7f364b1e97ebb9e661f6d4cf6e20aa741aba4b8f198417aea18326"
+                },
+                {
+                  "index": 10,
+                  "tag": "tspan",
+                  "text": "Don't know / Other",
+                  "textSha256": "9288e8eb0a6dec7f0acfe1c264976de3bf2cf87ae8e75f310310a016e0ec2951"
+                },
+                {
+                  "index": 11,
+                  "tag": "tspan",
+                  "text": "9%",
+                  "textSha256": "f9c014befb62299934be76baa550e42d4421c01053675813b0b94802320b91ef"
                 }
               ],
               "fonts": [
                 {
                   "value": "Arial, sans-serif",
-                  "count": 2
+                  "count": 26
                 }
               ],
               "fontSizesPt": [
                 {
+                  "value": 14,
+                  "count": 9
+                },
+                {
+                  "value": 18,
+                  "count": 6
+                },
+                {
+                  "value": 22,
+                  "count": 5
+                },
+                {
                   "value": 15,
                   "count": 2
+                },
+                {
+                  "value": 12,
+                  "count": 1
+                },
+                {
+                  "value": 17,
+                  "count": 1
+                },
+                {
+                  "value": 20,
+                  "count": 1
+                },
+                {
+                  "value": 36,
+                  "count": 1
                 }
               ],
               "colors": [
@@ -4888,68 +5327,112 @@
               "bytes": 9955,
               "sourceSha256": "93a61a223ea063aafd79d5bd8d388b7470c178ae6fddd6ef78035e09a16647f0",
               "supported": true,
-              "textNodeCount": 8,
-              "textChars": 232,
+              "textNodeCount": 33,
+              "textChars": 623,
               "textSamples": [
                 {
                   "index": 0,
+                  "tag": "tspan",
+                  "text": "Four Pillars of Customer Loyalty Strategy",
+                  "textSha256": "82cf35a00848740c058e6c0c693e1585fd6d0249fd2ca9a77c61d5b65a517c2a"
+                },
+                {
+                  "index": 1,
+                  "tag": "tspan",
+                  "text": "STRATEGIC",
+                  "textSha256": "3ab339fbdbe280fcf207bae383bfe0a98ef5201767f9101ab4cd96d0da1d2e22"
+                },
+                {
+                  "index": 2,
+                  "tag": "tspan",
+                  "text": "OBJECTIVE",
+                  "textSha256": "77a8599f65aab98cebab9a1432031409f49e12a37c57d5bfe65057ac3611bf57"
+                },
+                {
+                  "index": 3,
+                  "tag": "tspan",
+                  "text": "Retain & Grow",
+                  "textSha256": "fd5bed676eae41d1e8bafb0d6c5183a5436381379f69e9e78dbf47dd7b8e0e97"
+                },
+                {
+                  "index": 4,
+                  "tag": "tspan",
+                  "text": "Customer Base",
+                  "textSha256": "f79c8a326bd6c150255c73cd1bb6c93286cab2e3a827a313b878665cd13cdc66"
+                },
+                {
+                  "index": 5,
+                  "tag": "tspan",
+                  "text": "01",
+                  "textSha256": "938db8c9f82c8cb58d3f3ef4fd250036a48d26a712753d2fde5abd03a85cabf4"
+                },
+                {
+                  "index": 6,
+                  "tag": "tspan",
+                  "text": "Build Long-term Relationships",
+                  "textSha256": "4c4fe44d9f92ad1653b37698fb43b173877d2b5a363399897e256ff5e7a353e9"
+                },
+                {
+                  "index": 7,
+                  "tag": "tspan",
+                  "text": "Goal:",
+                  "textSha256": "9a61529ef7cbd322216f1faf00f0b1f5cfe0aadcec500535c6e5dc78b441813e"
+                },
+                {
+                  "index": 8,
                   "tag": "text",
                   "text": "Transform transactional buyers into",
                   "textSha256": "b208f21e414e9aa5468108668faf62acbcbac656706cec544c66452297158805"
                 },
                 {
-                  "index": 1,
+                  "index": 9,
                   "tag": "text",
                   "text": "lifetime customers",
                   "textSha256": "b4dfac4cafe05c5fb7816a40554de23be2eb97e33a1ae31620b989abebf8ca90"
                 },
                 {
-                  "index": 2,
-                  "tag": "text",
-                  "text": "Boost repeat purchase rate from",
-                  "textSha256": "6cc94cd3be46861d4689a1aff919fef1b2b4f539eae0696fc53c59a0c0d1b67f"
+                  "index": 10,
+                  "tag": "tspan",
+                  "text": "→ Increase customer lifetime value",
+                  "textSha256": "3b9d5d49227909c9067ad256d36eb0533d371fb51cf386b5dad2415f8aa284b4"
                 },
                 {
-                  "index": 3,
-                  "tag": "text",
-                  "text": "15% to 30%+ within 2 years",
-                  "textSha256": "a9e7d730f0106cc0e9f836034c7bae17eba61ab6b85cb2b1edb1e3c9a319341b"
-                },
-                {
-                  "index": 4,
-                  "tag": "text",
-                  "text": "Improve questionnaire response from",
-                  "textSha256": "5b433ac89f0fedb641fc79829f2b401ad2a27113760b8f78058b9170c0eb3fb7"
-                },
-                {
-                  "index": 5,
-                  "tag": "text",
-                  "text": "40% to 70%+; enable data insights",
-                  "textSha256": "2e9229e269fa0b977e384a20c8f9eb937f24e2d064158734e7cb16ea70da4b75"
-                },
-                {
-                  "index": 6,
-                  "tag": "text",
-                  "text": "Empower staff to build authentic",
-                  "textSha256": "b54ef90f8dba450cfe028c9e91788b1b545fcbed75596b90f2b56d67dda03765"
-                },
-                {
-                  "index": 7,
-                  "tag": "text",
-                  "text": "customer relationships",
-                  "textSha256": "a392b901cd77ecb5aa1b1b041a0a8f793f8ca2f9054327ee342f388fe27b93ec"
+                  "index": 11,
+                  "tag": "tspan",
+                  "text": "02",
+                  "textSha256": "a953f09a1b6b6725b81956e9ad0b1eb49e3ad40004c04307ef8af6246a054116"
                 }
               ],
               "fonts": [
                 {
                   "value": "Arial, sans-serif",
-                  "count": 8
+                  "count": 33
                 }
               ],
               "fontSizesPt": [
                 {
+                  "value": 14,
+                  "count": 11
+                },
+                {
+                  "value": 16,
+                  "count": 10
+                },
+                {
                   "value": 13,
-                  "count": 8
+                  "count": 9
+                },
+                {
+                  "value": 12,
+                  "count": 1
+                },
+                {
+                  "value": 15,
+                  "count": 1
+                },
+                {
+                  "value": 36,
+                  "count": 1
                 }
               ],
               "colors": [
@@ -4992,11 +5475,122 @@
               "bytes": 10550,
               "sourceSha256": "e5ebcc12e18edb33cb806c79ccf6d2794dd2ff8f8b55bcd6bed637d4e5805d2a",
               "supported": true,
-              "textNodeCount": 0,
-              "textChars": 0,
-              "textSamples": [],
-              "fonts": [],
-              "fontSizesPt": [],
+              "textNodeCount": 47,
+              "textChars": 890,
+              "textSamples": [
+                {
+                  "index": 0,
+                  "tag": "tspan",
+                  "text": "Five Key Initiatives for Loyalty Programme",
+                  "textSha256": "96f6abf0c1af9de497d338c0a75881cb55f10b16ecbf2c3107734d7d68d624ca"
+                },
+                {
+                  "index": 1,
+                  "tag": "tspan",
+                  "text": "Prioritized recommendations based on impact and feasibility analysis",
+                  "textSha256": "ed44de7474a41490ac4e9c703ca3a54f60b1e2b0019e424c1c24b89de0b64270"
+                },
+                {
+                  "index": 2,
+                  "tag": "tspan",
+                  "text": "★ PRIORITY 1",
+                  "textSha256": "04647e7f9b9d9e604d7541eafe2ba5028c50255c5bbbdb9d1d4d40685b36184a"
+                },
+                {
+                  "index": 3,
+                  "tag": "tspan",
+                  "text": "3-Year Free After-Sales Service",
+                  "textSha256": "9eecd88f3facbd63a705ebcbe391d874769ad85b1dfa8124fb3efe71082ffda1"
+                },
+                {
+                  "index": 4,
+                  "tag": "tspan",
+                  "text": "Direct response to #1 pain point",
+                  "textSha256": "5cd34b6402d41853e85203c07c934032354c26cc8eab961139947e00a9f086e5"
+                },
+                {
+                  "index": 5,
+                  "tag": "tspan",
+                  "text": "HIGH IMPACT",
+                  "textSha256": "9893a81c65d1475af1b3dbd9a8b8652b40a1033b42617c6059fa9fbee639b831"
+                },
+                {
+                  "index": 6,
+                  "tag": "tspan",
+                  "text": "Cost: Medium-High",
+                  "textSha256": "67bbf6cf6ee88db5907e82e83949b4bfd2294e2998062d2a193d24ae5b42e4fa"
+                },
+                {
+                  "index": 7,
+                  "tag": "tspan",
+                  "text": "PRIORITY 2",
+                  "textSha256": "39e572cde7020935faf294b03563985a96bc321e3f4424afe85025f418be230b"
+                },
+                {
+                  "index": 8,
+                  "tag": "tspan",
+                  "text": "20% Loyalty Discount",
+                  "textSha256": "37b45d9cd9101ca9f94a31067ceb86191cf51fe8717a9c61da1a39bc4a934551"
+                },
+                {
+                  "index": 9,
+                  "tag": "tspan",
+                  "text": "Direct financial incentive for repeat purchase",
+                  "textSha256": "6487ec56dd331600db622a70a11058df0b06b31e11ad81cbfdd72ebcca7d9509"
+                },
+                {
+                  "index": 10,
+                  "tag": "tspan",
+                  "text": "HIGH ROI",
+                  "textSha256": "03e887d1ee9c4fa13cd5b7999551618ac3a62988824214369b20dcdc7cba92be"
+                },
+                {
+                  "index": 11,
+                  "tag": "tspan",
+                  "text": "Cost: Medium",
+                  "textSha256": "99d97c5bc65180d06ae9994fe2e075ff5951760b4de39e04ebf31a853e8f96fb"
+                }
+              ],
+              "fonts": [
+                {
+                  "value": "Arial, sans-serif",
+                  "count": 47
+                }
+              ],
+              "fontSizesPt": [
+                {
+                  "value": 13,
+                  "count": 14
+                },
+                {
+                  "value": 16,
+                  "count": 10
+                },
+                {
+                  "value": 14,
+                  "count": 9
+                },
+                {
+                  "value": 19,
+                  "count": 6
+                },
+                {
+                  "value": 12,
+                  "count": 5
+                },
+                {
+                  "value": 17,
+                  "count": 1
+                },
+                {
+                  "value": 18,
+                  "count": 1
+                },
+                {
+                  "value": 36,
+                  "count": 1
+                }
+              ],
               "colors": [
                 {
                   "value": "#5D6D7E",
@@ -5053,68 +5647,116 @@
               "bytes": 8595,
               "sourceSha256": "3cc997fdb7ef016fac77bf5fa3d3dfa049da2a38ffda634ccb616222e861dafe",
               "supported": true,
-              "textNodeCount": 8,
-              "textChars": 138,
+              "textNodeCount": 45,
+              "textChars": 702,
               "textSamples": [
                 {
                   "index": 0,
+                  "tag": "tspan",
+                  "text": "Phased Implementation & Success Metrics",
+                  "textSha256": "446d5ebafa1bef90aa8fdc5e971f8c1932d49f976749d94078cdc6a753572fd1"
+                },
+                {
+                  "index": 1,
+                  "tag": "tspan",
+                  "text": "18-Month Rollout Timeline",
+                  "textSha256": "68f4f35c4082e37a16c60246f5c71950f43d431ab87450ff722f7d47517799ef"
+                },
+                {
+                  "index": 2,
+                  "tag": "tspan",
+                  "text": "Q1 2025",
+                  "textSha256": "b8c4d5a9d8ddfcdc1f4ad3d50cb9e911d21a3e16bcab453083fa7693bfb690fa"
+                },
+                {
+                  "index": 3,
+                  "tag": "tspan",
+                  "text": "Q2 2025",
+                  "textSha256": "4996bc175bc65064259799eeb5e8b003b5f1cbefd4e666e8221fcfd44f9fdd4f"
+                },
+                {
+                  "index": 4,
+                  "tag": "tspan",
+                  "text": "Q3 2025",
+                  "textSha256": "72f681fa335952f9584616abcde389d96f8f7dc8ceb9eff26e691958e8626cbf"
+                },
+                {
+                  "index": 5,
+                  "tag": "tspan",
+                  "text": "Q4 2025",
+                  "textSha256": "8ae7f424542eb7cc69ad00c9db95cbbf3a2e3f9f169e2f454914d3df087a60a7"
+                },
+                {
+                  "index": 6,
+                  "tag": "tspan",
+                  "text": "Q1 2026",
+                  "textSha256": "3c1313bac562f96ebad356132d5e506adc09d9b35f1bb01a5d3fc38be789bc74"
+                },
+                {
+                  "index": 7,
+                  "tag": "tspan",
+                  "text": "PHASE 1: Quick Wins",
+                  "textSha256": "66ab89b8061158b3fbd7e771411d32f411aa9f6debdd9bcdc327a058cdcfb7c8"
+                },
+                {
+                  "index": 8,
                   "tag": "text",
                   "text": "• Launch Magazine",
                   "textSha256": "0d457314f4a1988a3ce89927177a8959bac3f42cef47087fec4625c5389dfb44"
                 },
                 {
-                  "index": 1,
+                  "index": 9,
                   "tag": "text",
                   "text": "• Questionnaire + Pen",
                   "textSha256": "eb0102dd6c34969080940177d055c28a47606058b8e3e31249f50b9b02f275ab"
                 },
                 {
-                  "index": 2,
+                  "index": 10,
+                  "tag": "tspan",
+                  "text": "PHASE 2: Service",
+                  "textSha256": "2597f1ba373acb69ce42177b61a2ce55d3ec3e5d40b82e905b196d007c2911a0"
+                },
+                {
+                  "index": 11,
                   "tag": "text",
                   "text": "• 3-Yr Free Service",
                   "textSha256": "91c02a8df295bdd4578ad82cd3c242afb45672cc4ad7733af62158c952a33b18"
-                },
-                {
-                  "index": 3,
-                  "tag": "text",
-                  "text": "• Staff Training",
-                  "textSha256": "81a173d2778dff57a2452275c09f97cf23a1e2cc7d8fb715efc2724e5b1b85ad"
-                },
-                {
-                  "index": 4,
-                  "tag": "text",
-                  "text": "• 20% Discount",
-                  "textSha256": "8278c17d81f0ec9c0779ae4bbc76d83801f13d074a10149f21e2ec52a7c72510"
-                },
-                {
-                  "index": 5,
-                  "tag": "text",
-                  "text": "• Trade-in Program",
-                  "textSha256": "f03ffcec810bdec24f4a02bee8e0ba15f7e8a536250777769b355d6bb9c2dfd7"
-                },
-                {
-                  "index": 6,
-                  "tag": "text",
-                  "text": "• Review Metrics",
-                  "textSha256": "b4bb949eb7abc020d294e6ef3385afcc7c2b82bd63134229d97aeebdd67e9ee0"
-                },
-                {
-                  "index": 7,
-                  "tag": "text",
-                  "text": "• Adjust Strategy",
-                  "textSha256": "1bd8b5296ed148fed5c302ef86e0b629746e2f2d1797055119e16b3bf277752d"
                 }
               ],
               "fonts": [
                 {
                   "value": "Arial, sans-serif",
-                  "count": 8
+                  "count": 45
                 }
               ],
               "fontSizesPt": [
                 {
                   "value": 13,
+                  "count": 17
+                },
+                {
+                  "value": 22,
+                  "count": 9
+                },
+                {
+                  "value": 14,
                   "count": 8
+                },
+                {
+                  "value": 15,
+                  "count": 5
+                },
+                {
+                  "value": 16,
+                  "count": 3
+                },
+                {
+                  "value": 20,
+                  "count": 2
+                },
+                {
+                  "value": 36,
+                  "count": 1
                 }
               ],
               "colors": [

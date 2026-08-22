@@ -31,8 +31,10 @@ The machine-readable source of truth is kept in
   targets, repeated three times with deterministic plans, exact non-target
   package parts, masked target XML, and successful second import.
 - Design-profile extraction covers visible SVG content as well as DrawingML:
-  the McKinsey deck records all 8 bounded SVG assets, 22 text nodes, font and
-  size evidence, direct colors, per-asset hashes, and text samples. SVG with
+  the McKinsey deck records all 8 bounded SVG assets and all 250 visible text
+  nodes, inheriting parent `<text>` typography into nested `<tspan>` leaves;
+  font and size evidence, direct colors, per-asset hashes, and text samples are
+  retained. SVG with
   active content or external references is reported as blocked rather than
   interpreted as safe editable content.
 - Each external deck has source-derived slide reuse followed by typed
