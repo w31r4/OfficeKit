@@ -67,7 +67,10 @@ export function validateWindowsPptxLosslessEvidence(value, {
     if (!/^[0-9a-f]{64}$/u.test(String(page.sourcePixelSha256 || "")) || !/^[0-9a-f]{64}$/u.test(String(page.outputPixelSha256 || ""))) {
       throw new Error(`${pageKey} must include source and output pixel SHA-256 values`);
     }
-    const targetPage = expected.targets.some((target) => Number(String(target.nodeId).match(/^presentation\/slide\/(\d+)/u)?.[1]) === pageNumber);
+    const sourceEvidence = value.sources.find((candidate) => candidate?.id === sourceId);
+    const targetNodeId = String(sourceEvidence?.target?.nodeId || "");
+    if (!expected.targets.some((target) => target.nodeId === targetNodeId)) throw new Error(`${sourceId}.target.nodeId must match a frozen edit target`);
+    const targetPage = Number(targetNodeId.match(/^presentation\/slide\/(\d+)/u)?.[1]) === pageNumber;
     if (page.target !== targetPage) throw new Error(`${pageKey}.target does not match the frozen edit targets`);
     if (typeof page.pixelIdentical !== "boolean") throw new Error(`${pageKey}.pixelIdentical must be boolean`);
     if (targetPage) {

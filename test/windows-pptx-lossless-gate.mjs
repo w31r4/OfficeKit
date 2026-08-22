@@ -10,10 +10,10 @@ const commit = "0123456789abcdef0123456789abcdef01234567";
 const sourceIds = ["suanzhi-future-2026", "blue-gray-acid-template", "mckinsey-customer-loyalty"];
 const pageComparisons = sourceIds.flatMap((id, sourceIndex) => {
   const source = manifest.sources.find((candidate) => candidate.id === id);
-  const targetPages = new Set(source.targets.map((target) => Number(String(target.nodeId).match(/^presentation\/slide\/(\d+)/u)?.[1])));
+  const targetPage = Number(String(source.targets[0].nodeId).match(/^presentation\/slide\/(\d+)/u)?.[1]);
   return Array.from({ length: source.inventory.slideCount }, (_, index) => {
     const page = index + 1;
-    const target = targetPages.has(page);
+    const target = targetPage === page;
     const pageHex = page.toString(16).padStart(2, "0");
     const sourcePixelSha256 = `${String.fromCharCode(97 + sourceIndex).repeat(62)}${pageHex}`;
     const outputPixelSha256 = target ? `${String.fromCharCode(100 + sourceIndex).repeat(62)}${pageHex}` : sourcePixelSha256;
