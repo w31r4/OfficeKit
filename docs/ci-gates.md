@@ -63,7 +63,7 @@ gh workflow run windows-office-live.yml \
 
 ```bash
 gh workflow run windows-pptx-lossless.yml \
-  -f ref=ea76f3b587e3f616e35edef8cefe08875ba887c9 \
+  -f ref=31618517f1a33e219c3ac7c55f7c1cbda5329ed7 \
   -f evidence_path='C:\\OfficeKit\\evidence\\windows-pptx-lossless.json' \
   -f evidence_dir='C:\\OfficeKit\\evidence'
 ```
@@ -80,7 +80,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
   -SourceRoot C:\OfficeKit\assets `
   -OutputRoot C:\OfficeKit\outputs `
   -EvidencePath C:\OfficeKit\evidence\windows-pptx-lossless.json `
-  -Commit ea76f3b587e3f616e35edef8cefe08875ba887c9
+  -Commit 31618517f1a33e219c3ac7c55f7c1cbda5329ed7
 ```
 
 脚本不会把人工确认项默认填成通过；任一确认失败都会拒绝写出完整证据。
