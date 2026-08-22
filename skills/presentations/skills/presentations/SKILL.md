@@ -212,6 +212,15 @@ the complete ownership-tree snapshot and every dependent part hash, so any
 concurrent unissued change must reject. A coordinated move/resize uses one
 issued call per geometry leaf and one export; the compiler sorts them into a
 deterministic Edit Plan.
+When `presentation.inspect({ includeComponentCandidates: true })` reports a
+repeated component occurrence with `editCapability.supported: true`, you may
+batch several of its issued leaves with
+`presentation.editComponentOccurrence({ candidateId, occurrenceIndex, expectedCandidate, edits })`.
+Every edit still carries the inspected `targetId`, `leafId`, `expectedHash`,
+and typed `value`; the batch is validated before any mutation. This is a
+convenience for changing a bounded component (for example its text and local
+geometry together), not permission to edit the component's XML, relationships,
+or topology. Reinspect after export and keep the same source/footprint review.
 The resulting plan must identify one source revision and every mutation
 footprint; reimport the output, prove every non-target OPC part is byte-identical,
 mask only the declared XML token changes, and render the affected slide plus

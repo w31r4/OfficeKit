@@ -1863,6 +1863,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `Presentation.create` | api | Create a deck model whose canonical OfficeKit export supports ordinary slides, the complete ECMA-376 base slide-transition vocabulary, direct solid/style-reference slide backgrounds, shapes, rich text, tables, images, connectors, recursive native p:grpSp groups, plain-text speaker notes, native custom shows with canonical run links, literal bar/line/pie/standard-area/fixed-doughnut/marker-scatter/2D-bubble charts, and a bounded literal clustered bar+line combo profile. Combo bars stay on the primary pair; all lines share either that pair or the canonical secondary top/right pair. Formula/external chart data, custom themes, Master/Layout authoring, comments, custom-show topology mutation, advanced plot geometry, mixed line groups, secondary bars, irregular combo graphs, and other package-level features remain outside the source-free PPTX boundary. |
 | `presentation.customShows.add` | api | Define an ordered native p:custShowLst playback route for source-free OfficeKit export. Text runs may target a show by exact name with optional returnToSlide. Canonical imported shows may change only their name and ordered retained-slide membership; fixed native identity keeps existing run links bound across a rename, while irregular graphs stay opaque. |
 | `presentation.customShows.getItem` | api | Resolve a source-free or canonical imported custom show by zero-based index, stable facade ID, or exact name. |
+| `presentation.editComponentOccurrence` | api | Apply one atomic batch of typed native-leaf edits to a repeated component occurrence issued by presentation.inspect({ includeComponentCandidates: true }). The occurrence editCapability and each leafId, targetId, and expectedHash are source-revision-bound; all values are validated before any leaf is changed. Only codec-issued text, color, geometry, chart, SmartArt, or other bounded leaf kinds are accepted. Raw XML, selectors, part paths, foreign leaves, duplicate leaves, stale hashes, and edits outside the selected component fail closed. |
 | `presentation.editNativeLeaf` | api | Change one native leaf issued by presentation.inspect({ includeNativeLeaves: true }) using its targetId, leafId, expectedHash, and a typed value. Leaf IDs are bound to the exact imported revision and target. Repeat the call for a coordinated move/resize; one export sorts all issued leaves into one deterministic Edit Plan. The current profile changes existing text leaves, including group children and shapes with source-owned outer styling, shape RGB/local-geometry scalars, picture local-geometry scalars (including opaque pictures whose payload and effects remain source-owned), direct rich chart-title runs, direct numeric bar-chart cache points proven against one exact cell in a uniquely bound embedded XLSX, or direct SmartArt text runs from one canonical closed DiagramDataPart with a unique inbound owner. A chartDataValue operation changes both the ChartPart cache and that worksheet cell. A diagramText operation token-splices only its issued a:t and does not reserialize the diagram part. The compiler binds the complete ownership tree and dependent parts. Stale hashes, concurrent non-leaf changes, foreign IDs, raw XML, XPath, part paths, arbitrary attributes or cells, relationship fields, formulas, namespaces, and topology changes reject. |
 | `presentation.export` | api | Export a slide SVG preview, deck SVG montage via { format: 'montage' }, or target/search-sliced layout JSON. |
 | `presentation.fontFamilies` | api | Return a fresh sorted, case-insensitively deduplicated list of explicitly used presentation text and bullet font families. |
@@ -2376,6 +2377,21 @@ Resolve a source-free or canonical imported custom show by zero-based index, sta
 **Schema returns:**
 
 - `customShow` (PresentationCustomShow|undefined) — Matching custom-show facade or undefined.
+
+#### `presentation.editComponentOccurrence`
+
+Apply one atomic batch of typed native-leaf edits to a repeated component occurrence issued by presentation.inspect({ includeComponentCandidates: true }). The occurrence editCapability and each leafId, targetId, and expectedHash are source-revision-bound; all values are validated before any leaf is changed. Only codec-issued text, color, geometry, chart, SmartArt, or other bounded leaf kinds are accepted. Raw XML, selectors, part paths, foreign leaves, duplicate leaves, stale hashes, and edits outside the selected component fail closed.
+
+**Schema parameters:**
+
+- `candidateId` (string) required — Exact candidateId from a trusted componentCandidate inspection.
+- `occurrenceIndex` (number) — Zero-based occurrence index from the candidate record; defaults to 0.
+- `expectedCandidate` (object) — Optional complete candidate record from the same inspection; it is compared to current source-bound evidence.
+- `edits` (object[]) required — One through 256 records with targetId, leafId, expectedHash, and value; every leafId must belong to the selected occurrence editCapability.
+
+**Schema returns:**
+
+- `receipt` (object) — Atomic componentEdit receipt containing immutable nativeLeafEdit receipts. All issued leaves are validated before mutation, then compiled into one deterministic source-bound Edit Plan at export. This batches only bounded leaves already issued by inspection; it does not add a group schema, raw XML surface, relationship access, or topology editing.
 
 #### `presentation.editNativeLeaf`
 

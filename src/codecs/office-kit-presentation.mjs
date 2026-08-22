@@ -3162,9 +3162,45 @@ function canonicalComponentValue(value) {
     .map(([key, entry]) => [key, canonicalComponentValue(entry)]));
 }
 
+function presentationComponentDescendantIds(entry) {
+  const ids = new Set();
+  const visit = (wire) => {
+    if (!wire?.id || ids.has(wire.id)) return;
+    ids.add(wire.id);
+    if (wire.content?.case === "group") {
+      for (const child of wire.content.value.children || []) visit(child);
+    }
+  };
+  visit(entry?.wire);
+  return ids;
+}
+
+function presentationComponentEditCapability(state, occurrence, nativeLeafRecords) {
+  const sourceState = (state.slides || []).find((entry) => entry.wire?.id === occurrence.slideId);
+  const sourceEntry = sourceState?.entries?.find((entry) => entry.wire?.id === occurrence.targetId);
+  if (!sourceEntry || !Array.isArray(nativeLeafRecords)) {
+    return { supported: false, reason: "component occurrence has no source-bound native-leaf index" };
+  }
+  const ids = presentationComponentDescendantIds(sourceEntry);
+  const leaves = nativeLeafRecords
+    .filter((leaf) => ids.has(leaf.targetId) || (leaf.parentGroupId && ids.has(leaf.parentGroupId)))
+    .sort((left, right) => left.leafId.localeCompare(right.leafId));
+  if (!leaves.length) {
+    return { supported: false, reason: "component occurrence has no codec-issued editable leaves" };
+  }
+  return {
+    supported: true,
+    mode: "nativeLeaves",
+    leafCount: leaves.length,
+    leafIds: leaves.map((leaf) => leaf.leafId),
+    leafKinds: [...new Set(leaves.map((leaf) => leaf.leafKind))].sort(),
+  };
+}
+
 function createPresentationComponentCapability(presentation, state) {
   const revisionSha256 = String(state.opaqueOpc?.sourcePackage?.sha256 || state.source?.packageSha256 || "").toLowerCase();
   if (!/^[0-9a-f]{64}$/u.test(revisionSha256)) return undefined;
+  const nativeLeafRecords = presentation[PRESENTATION_NATIVE_LEAF_CAPABILITY]?.inspect?.() || [];
   const groups = new Map();
   for (const slideState of state.slides || []) {
     for (const entry of slideState.entries || []) {
@@ -3203,8 +3239,12 @@ function createPresentationComponentCapability(presentation, state) {
       reuseCapability: blockedReason
         ? { supported: false, reason: blockedReason }
         : componentReusePreflight(state, occurrence),
+      editCapability: blockedReason
+        ? { supported: false, reason: blockedReason }
+        : presentationComponentEditCapability(state, occurrence, nativeLeafRecords),
     }));
     const reusableOccurrenceCount = inspectedOccurrences.filter((occurrence) => occurrence.reuseCapability.supported === true).length;
+    const editableOccurrenceCount = inspectedOccurrences.filter((occurrence) => occurrence.editCapability.supported === true).length;
     const reuseCapability = blockedReason
       ? { supported: false, reason: blockedReason }
       : reusableOccurrenceCount > 0
@@ -3224,9 +3264,14 @@ function createPresentationComponentCapability(presentation, state) {
       mutationCapability: {
         supported: false,
         reason: blockedReason || reusableOccurrenceCount > 0
-          ? "Component candidates are not directly mutable; choose an occurrence whose reuseCapability is supported and pass it to presentation.reuseSourceComponent, while arbitrary partial mutation requires a typed/native-leaf operation."
+          ? "Component candidates are not directly mutable as a whole; choose an occurrence whose editCapability is supported and pass its issued leaves to presentation.editComponentOccurrence, or use presentation.reuseSourceComponent for a new source-bound slide."
           : reuseCapability.reason,
       },
+      editCapability: blockedReason
+        ? { supported: false, reason: blockedReason }
+        : editableOccurrenceCount > 0
+          ? { supported: true, mode: "nativeLeaves", occurrenceCount: editableOccurrenceCount }
+          : { supported: false, reason: inspectedOccurrences[0]?.editCapability.reason || "no occurrence has codec-issued editable leaves" },
       ...(blockedReason ? { blockedReason } : {}),
     }));
   }
@@ -3626,9 +3671,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
       addElementLeaves(entry.wire, entry.model, slideState, [entry.wire.source.shapeTreeIndex], undefined, entry);
     }
   }
-  return Object.freeze({
-    inspect: () => records.map((record) => ({ ...record })),
-    edit(targetId, leafId, update) {
+  const prepare = (targetId, leafId, update) => {
       if (typeof targetId !== "string" || !targetId || typeof leafId !== "string" || !leafId) {
         throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native-leaf editing requires non-empty targetId and leafId strings.");
       }
@@ -3654,6 +3697,9 @@ function createPresentationNativeLeafCapability(presentation, state) {
       if (presentationNativeLeafModelSnapshot(leaf.rootEntry.model) !== authorizedBefore) {
         throw presentationNativeLeafError("presentation_native_leaf_concurrent_change", "Presentation native-leaf editing requires the target ownership tree to remain unchanged outside previously authorized native leaves.");
       }
+      return { leaf, normalized };
+  };
+  const applyPrepared = ({ leaf, normalized }) => {
       leaf.apply(normalized.raw);
       state.authorizedNativeLeafSnapshots ??= new Map();
       state.authorizedNativeLeafSnapshots.set(leaf.rootEntry.wire.id, presentationNativeLeafModelSnapshot(leaf.rootEntry.model));
@@ -3661,8 +3707,8 @@ function createPresentationNativeLeafCapability(presentation, state) {
       state.pendingNativeLeafEdits.set(leaf.leafId, Object.freeze({ leaf, value: normalized.raw }));
       return Object.freeze({
         kind: "nativeLeafEdit",
-        targetId,
-        leafId,
+        targetId: leaf.targetId,
+        leafId: leaf.leafId,
         leafKind: leaf.leafKind,
         expectedHash: leaf.expectedHash,
         revisionSha256,
@@ -3670,6 +3716,32 @@ function createPresentationNativeLeafCapability(presentation, state) {
         value: normalized.publicValue,
         ...(leaf.unit ? { unit: leaf.unit } : {}),
       });
+  };
+  return Object.freeze({
+    inspect: () => records.map((record) => ({ ...record })),
+    edit(targetId, leafId, update) {
+      return applyPrepared(prepare(targetId, leafId, update));
+    },
+    editMany(edits) {
+      if (!Array.isArray(edits) || edits.length === 0 || edits.length > 256) {
+        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native-leaf batch requires one through 256 edits.");
+      }
+      const leafIds = new Set();
+      const prepared = edits.map((edit) => {
+        if (!edit || typeof edit !== "object" || Array.isArray(edit)) {
+          throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native-leaf batch entries must be objects.");
+        }
+        const item = prepare(edit.targetId, edit.leafId, {
+          expectedHash: edit.expectedHash,
+          value: edit.value,
+        });
+        if (leafIds.has(item.leaf.leafId)) {
+          throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native-leaf batch cannot edit the same leaf twice.");
+        }
+        leafIds.add(item.leaf.leafId);
+        return item;
+      });
+      return Object.freeze(prepared.map(applyPrepared));
     },
   });
 }

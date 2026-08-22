@@ -167,6 +167,114 @@ assert.match(changedContinuedParts[0], /^ppt\/slides\/slide\d+\.xml$/u);
 assert.equal(await continuedZip.file("ppt/slides/slide1.xml").async("text"), componentSourceSlideXml);
 const continuedReimport = await PresentationFile.importPptx(continuedExport);
 assert.equal(continuedReimport.slides.items[1].shapes.items[0].text.value, `${continuedText} (continued)`);
+
+// A repeated group is a higher-value authoring primitive than a single shape:
+// the Agent should be able to change several issued leaves together without
+// receiving permission to rebuild the group's XML or relationships. The batch
+// validates every leaf first, so a stale second edit leaves the package exact.
+const groupedComponentAuthoring = Presentation.create({ slideSize: { width: 1280, height: 720 } });
+for (let slideIndex = 0; slideIndex < 2; slideIndex += 1) {
+  const slide = groupedComponentAuthoring.slides.add({ name: `Grouped component ${slideIndex + 1}` });
+  const group = slide.groups.add({
+    name: "Reusable two-line card",
+    position: { left: 120, top: 140, width: 640, height: 260 },
+    childFrame: { left: 0, top: 0, width: 640, height: 260 },
+  });
+  group.shapes.add({
+    name: "Card title",
+    geometry: "roundRect",
+    position: { left: 0, top: 0, width: 640, height: 100 },
+    fill: "#DBEAFE",
+    line: { fill: "#2563EB", width: 1 },
+    text: "Card title",
+  });
+  group.shapes.add({
+    name: "Card body",
+    geometry: "rect",
+    position: { left: 0, top: 120, width: 640, height: 140 },
+    fill: "#FFFFFF",
+    line: { fill: "#CBD5E1", width: 1 },
+    text: "Card body",
+  });
+}
+const groupedComponentSource = await PresentationFile.exportPptx(groupedComponentAuthoring);
+const groupedComponentSourceBytes = new Uint8Array(await groupedComponentSource.arrayBuffer());
+const groupedComponentImported = await PresentationFile.importPptx(groupedComponentSource);
+const groupedComponentCandidates = groupedComponentImported.inspect({ includeComponentCandidates: true, maxChars: Infinity }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((record) => record.kind === "componentCandidate");
+const groupedComponentCandidate = groupedComponentCandidates.find((record) =>
+  record.descriptor?.kind === "group" && record.editCapability?.supported === true,
+);
+assert.ok(groupedComponentCandidate, "the controlled fixture should expose a repeated editable group");
+const groupedComponentOccurrence = groupedComponentCandidate.occurrences[0];
+assert.equal(groupedComponentOccurrence.editCapability.mode, "nativeLeaves");
+assert.ok(groupedComponentOccurrence.editCapability.leafCount >= 2);
+const groupedComponentLeaves = groupedComponentImported.inspect({ includeNativeLeaves: true, maxChars: Infinity }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((record) =>
+    record.kind === "nativeLeaf" && groupedComponentOccurrence.editCapability.leafIds.includes(record.leafId) && record.leafKind === "text",
+  );
+assert.equal(groupedComponentLeaves.length, 2);
+const invalidBatchPresentation = await PresentationFile.importPptx(groupedComponentSource);
+assert.throws(
+  () => invalidBatchPresentation.editComponentOccurrence({
+    candidateId: groupedComponentCandidate.candidateId,
+    occurrenceIndex: 0,
+    expectedCandidate: groupedComponentCandidate,
+    edits: groupedComponentLeaves.map((leaf, index) => ({
+      targetId: leaf.targetId,
+      leafId: leaf.leafId,
+      expectedHash: index === 0 ? leaf.expectedHash : "0".repeat(64),
+      value: index === 0 ? "Edited card title" : "Edited card body",
+    })),
+  }),
+  (error) => error?.code === "presentation_native_leaf_stale",
+);
+assert.deepEqual(
+  (await PresentationFile.exportPptx(invalidBatchPresentation)).bytes,
+  groupedComponentSourceBytes,
+  "a rejected component batch must not leave a partial in-memory edit",
+);
+const rawComponentBatchPresentation = await PresentationFile.importPptx(groupedComponentSource);
+const rawComponentCandidate = rawComponentBatchPresentation.resolveComponentCandidate(groupedComponentCandidate.candidateId);
+const rawComponentLeaf = rawComponentBatchPresentation.inspect({ includeNativeLeaves: true, maxChars: Infinity }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line)).find((record) =>
+    record.kind === "nativeLeaf" && rawComponentCandidate.occurrences[0].editCapability.leafIds.includes(record.leafId) && record.leafKind === "text",
+  );
+assert.ok(rawComponentLeaf);
+assert.throws(
+  () => rawComponentBatchPresentation.editComponentOccurrence({
+    candidateId: rawComponentCandidate.candidateId,
+    edits: [{ targetId: rawComponentLeaf.targetId, leafId: rawComponentLeaf.leafId, expectedHash: rawComponentLeaf.expectedHash, value: "No raw XML", rawXml: "<a:t>unsafe</a:t>" }],
+  }),
+  (error) => error?.code === "invalid_presentation_native_leaf_edit",
+);
+assert.deepEqual((await PresentationFile.exportPptx(rawComponentBatchPresentation)).bytes, groupedComponentSourceBytes);
+const validBatchPresentation = await PresentationFile.importPptx(groupedComponentSource);
+const validBatchCandidate = validBatchPresentation.resolveComponentCandidate(groupedComponentCandidate.candidateId);
+const validBatchLeaves = validBatchPresentation.inspect({ includeNativeLeaves: true, maxChars: Infinity }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((record) =>
+    record.kind === "nativeLeaf" && validBatchCandidate.occurrences[0].editCapability.leafIds.includes(record.leafId) && record.leafKind === "text",
+  );
+const componentBatchReceipt = validBatchPresentation.editComponentOccurrence({
+  candidateId: validBatchCandidate.candidateId,
+  occurrenceIndex: 0,
+  expectedCandidate: validBatchCandidate,
+  edits: validBatchLeaves.map((leaf, index) => ({
+    targetId: leaf.targetId,
+    leafId: leaf.leafId,
+    expectedHash: leaf.expectedHash,
+    value: index === 0 ? "Edited card title" : "Edited card body",
+  })),
+});
+assert.equal(componentBatchReceipt.kind, "componentEdit");
+assert.equal(componentBatchReceipt.edits.length, 2);
+const validBatchOutput = await PresentationFile.exportPptx(validBatchPresentation);
+assert.equal(validBatchOutput.metadata.editPlan.operations.length, 2);
+assert.deepEqual(validBatchOutput.metadata.editPlan.changedParts, ["ppt/slides/slide1.xml"]);
+const validBatchRoundTrip = await PresentationFile.importPptx(validBatchOutput);
+const validBatchGroup = validBatchRoundTrip.slides.items[0].groups.items[0];
+assert.deepEqual(validBatchGroup.shapes.items.map((shape) => shape.text.value), ["Edited card title", "Edited card body"]);
+assert.deepEqual(validBatchRoundTrip.slides.items[1].groups.items[0].shapes.items.map((shape) => shape.text.value), ["Card title", "Card body"]);
 assert.throws(
   () => componentImported.reuseSourceComponent({ candidateId: reusableComponent.candidateId, occurrenceIndex: 99 }),
   (error) => error instanceof RangeError,

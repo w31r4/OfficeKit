@@ -700,6 +700,89 @@ export class Presentation {
     return capability.edit(targetId, leafId, update);
   }
 
+  editComponentOccurrence(request = {}) {
+    if (!request || typeof request !== "object" || Array.isArray(request)) {
+      throw new TypeError("Presentation component edit request must be an object.");
+    }
+    const unsupported = Object.keys(request).filter((key) =>
+      !new Set(["candidateId", "occurrenceIndex", "expectedCandidate", "edits"]).has(key));
+    if (unsupported.length) {
+      throw new TypeError(`Presentation component edit request has unsupported fields: ${unsupported.join(", ")}.`);
+    }
+    const candidateId = typeof request.candidateId === "string" ? request.candidateId.trim() : "";
+    if (!candidateId) throw new TypeError("Presentation component editing requires the exact inspected candidateId.");
+    const candidate = this.resolveComponentCandidate(candidateId);
+    if (!candidate) {
+      const error = new Error(`Presentation component candidate ${candidateId} was not found in this revision.`);
+      error.code = "presentation_component_candidate_not_found";
+      throw error;
+    }
+    if (candidate.status !== "inspect-only" || candidate.editCapability?.supported !== true) {
+      const error = new Error(`Presentation component candidate ${candidateId} has no bounded native-leaf edit capability.`);
+      error.code = "unsupported_presentation_component_edit";
+      throw error;
+    }
+    if (request.expectedCandidate !== undefined) {
+      if (!request.expectedCandidate || typeof request.expectedCandidate !== "object" || Array.isArray(request.expectedCandidate)) {
+        throw new TypeError("Presentation component edit expectedCandidate must be an inspection object.");
+      }
+      if (JSON.stringify(request.expectedCandidate) !== JSON.stringify(candidate)) {
+        const error = new Error(`Presentation component candidate ${candidateId} ownership evidence is stale.`);
+        error.code = "stale_presentation_component_candidate";
+        throw error;
+      }
+    }
+    const state = this[PRESENTATION_STATE];
+    const sourceRevisionSha256 = String(state?.opaqueOpc?.sourcePackage?.sha256 || state?.source?.packageSha256 || "").toLowerCase();
+    if (!sourceRevisionSha256 || sourceRevisionSha256 !== String(candidate.sourceRevisionSha256 || "").toLowerCase()) {
+      const error = new Error(`Presentation component candidate ${candidateId} belongs to a different source revision.`);
+      error.code = "stale_presentation_source_revision";
+      throw error;
+    }
+    const occurrences = Array.isArray(candidate.occurrences) ? candidate.occurrences : [];
+    const occurrenceIndex = request.occurrenceIndex === undefined ? 0 : Number(request.occurrenceIndex);
+    if (!Number.isInteger(occurrenceIndex) || occurrenceIndex < 0 || occurrenceIndex >= occurrences.length) {
+      throw new RangeError(`Presentation component candidate ${candidateId} occurrenceIndex must identify one inspected occurrence.`);
+    }
+    const occurrence = occurrences[occurrenceIndex];
+    if (occurrence?.editCapability?.supported !== true) {
+      const error = new Error(`Presentation component candidate ${candidateId} occurrence ${occurrenceIndex} has no bounded native-leaf edit capability${occurrence?.editCapability?.reason ? `: ${occurrence.editCapability.reason}` : "."}`);
+      error.code = "unsupported_presentation_component_edit";
+      throw error;
+    }
+    if (!Array.isArray(request.edits) || request.edits.length === 0 || request.edits.length > 256) {
+      throw new TypeError("Presentation component editing requires one through 256 issued leaf edits.");
+    }
+    const issuedLeafIds = new Set(occurrence.editCapability.leafIds || []);
+    for (const edit of request.edits) {
+      if (!edit || typeof edit !== "object" || Array.isArray(edit) || !issuedLeafIds.has(edit.leafId)) {
+        const error = new Error(`Presentation component edit contains a leaf that was not issued for occurrence ${occurrenceIndex}.`);
+        error.code = "presentation_native_leaf_not_issued";
+        throw error;
+      }
+      const editKeys = Object.keys(edit).sort();
+      if (editKeys.length !== 4 || editKeys[0] !== "expectedHash" || editKeys[1] !== "leafId" || editKeys[2] !== "targetId" || editKeys[3] !== "value") {
+        const error = new Error("Presentation component edits accept exactly targetId, leafId, expectedHash, and value.");
+        error.code = "invalid_presentation_native_leaf_edit";
+        throw error;
+      }
+    }
+    const nativeCapability = this[PRESENTATION_NATIVE_LEAF_CAPABILITY];
+    if (!nativeCapability?.editMany) {
+      const error = new Error("Presentation component editing requires the native-leaf compiler.");
+      error.code = "presentation_native_leaf_source_required";
+      throw error;
+    }
+    const receipts = nativeCapability.editMany(request.edits.map(({ targetId, leafId, expectedHash, value }) => ({ targetId, leafId, expectedHash, value })));
+    return Object.freeze({
+      kind: "componentEdit",
+      candidateId,
+      occurrenceIndex,
+      revisionSha256: sourceRevisionSha256,
+      edits: receipts,
+    });
+  }
+
   resolveComponentCandidate(candidateId) {
     const capability = this[PRESENTATION_COMPONENT_CAPABILITY];
     if (!capability) {
