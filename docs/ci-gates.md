@@ -64,7 +64,8 @@ gh workflow run windows-office-live.yml \
 ```bash
 gh workflow run windows-pptx-lossless.yml \
   -f ref=ea76f3b587e3f616e35edef8cefe08875ba887c9 \
-  -f evidence_path='C:\\OfficeKit\\evidence\\windows-pptx-lossless.json'
+  -f evidence_path='C:\\OfficeKit\\evidence\\windows-pptx-lossless.json' \
+  -f evidence_dir='C:\\OfficeKit\\evidence'
 ```
 
 为减少手工拼接证据，Windows 操作员可以先把三份 OfficeKit 输出按

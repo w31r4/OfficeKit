@@ -74,5 +74,7 @@ assert.doesNotMatch(windows, /test:excel-live|test:powerpoint-live/);
 assert.match(windowsPptxLossless, /workflow_dispatch:/);
 assert.match(windowsPptxLossless, /self-hosted/);
 assert.match(windowsPptxLossless, /validate-windows-pptx-lossless-evidence/);
+assert.match(windowsPptxLossless, /evidence_dir:/, "Windows PPTX lane must accept the complete evidence directory");
+assert.match(windowsPptxLossless, /path: \$\{\{ inputs\.evidence_dir \}\}/, "Windows PPTX lane must upload rendered page evidence");
 
 console.log("gate policy contract ok");
