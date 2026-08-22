@@ -24,7 +24,12 @@ Store every template-following intermediate named in this reference under
 ## Exact Clone/Edit Contract
 
 1. Copy/import the source PPTX.
-2. Inspect every source slide render and layout.
+2. Inspect every source slide render and layout. Also call
+   `presentation.designProfile({ maxItems: 64 })` and record its output as
+   descriptive evidence: use the reported typography, palette, density,
+   layout families, slide archetypes, and opaque-object summary to choose
+   source slides and plan content. A profile is not permission to edit raw XML
+   or to infer that a repeated visual is safe to clone.
 3. Create `template-frame-map.json` mapping every output slide to a source
    slide.
 4. Build `template-starter.pptx` by duplicating mapped source slides.
