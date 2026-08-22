@@ -1,0 +1,34 @@
+{
+  "schema": "office-kit/pptx-template-conditioned-generation/v1",
+  "generatedSlides": 10,
+  "sourcePolicy": "external-hash-only",
+  "sources": [
+    {
+      "id": "suanzhi-future-2026",
+      "fileName": "b34ddad8cf8b_012_算秩未来2026_0127_极致技术&长期主义.pptx",
+      "sha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+      "sourceSlides": 21
+    },
+    {
+      "id": "blue-gray-acid-template",
+      "fileName": "template.pptx",
+      "sha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+      "sourceSlides": 19
+    },
+    {
+      "id": "mckinsey-customer-loyalty",
+      "fileName": "ppt169_麦肯锡风_kimsoong_customer_loyalty.pptx",
+      "sha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+      "sourceSlides": 8
+    }
+  ],
+  "acceptance": {
+    "allTargetsRoundTrip": true,
+    "sourceProtected": true,
+    "nonTargetPartsPreserved": true,
+    "logicalSourceSlidesPreserved": true,
+    "noNewReviewIssueCategory": true,
+    "visualReview": "record-available-or-unavailable",
+    "windowsPowerPoint": "separate-host-lane"
+  }
+}

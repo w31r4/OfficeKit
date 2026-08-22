@@ -49,15 +49,17 @@ Store every template-following intermediate named in this reference under
 8. Export PNGs, layout JSON, and PPTX for QA.
 9. Deliver the edited copy and mention the sources cited or used.
 
-The production load/export path is artifact-tool:
+The production load/export path is OfficeKit:
 
 ```js
+import { FileBlob, PresentationFile } from "office-kit";
+
 const presentation = await PresentationFile.importPptx(await FileBlob.load(sourcePptx));
 const pptx = await PresentationFile.exportPptx(presentation);
 await pptx.save(outputPptx);
 ```
 
-Use artifact-tool and headless package tooling only. If artifact-tool cannot
+Use OfficeKit and headless package tooling only. If OfficeKit cannot
 inspect, duplicate, render, or export the source deck, report the blocker. Do
 not fall back to a theme-matched rebuild.
 
@@ -315,7 +317,7 @@ images, fake evidence, or generated approximations of real entities.
 
 ## QA
 
-1. Export slide PNGs, layout JSON, PPTX, and the montage with artifact-tool. The
+1. Export slide PNGs, layout JSON, PPTX, and the montage with OfficeKit. The
    canonical presentation artifact export writes per-slide renders and a montage
    by default. Set `montage: false` only if a montage is not useful for this
    run.
