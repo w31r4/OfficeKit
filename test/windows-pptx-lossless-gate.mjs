@@ -5,6 +5,12 @@ import path from "node:path";
 import { validateWindowsPptxLosslessEvidence } from "../scripts/validate-windows-pptx-lossless-evidence.mjs";
 
 const manifest = JSON.parse(await readFile(path.resolve(import.meta.dirname, "../evals/pptx-lossless/manifest.v1.json"), "utf8"));
+const collector = await readFile(path.resolve(import.meta.dirname, "../scripts/collect-windows-pptx-lossless-evidence.ps1"), "utf8");
+assert.match(collector, /PowerPoint\.Application/u, "Windows collector must use the real PowerPoint COM host");
+assert.match(collector, /SaveCopyAs/u, "Windows collector must save a distinct PowerPoint copy");
+assert.match(collector, /Slide.*Export|\.Export\(/u, "Windows collector must export PowerPoint slide images");
+assert.match(collector, /Get-FileHash/u, "Windows collector must hash rendered evidence");
+assert.match(collector, /human-observed-windows-powerpoint/u, "Windows collector must emit the human-observed evidence method");
 const checkedAt = "2026-08-22T12:00:00Z";
 const commit = "0123456789abcdef0123456789abcdef01234567";
 const sourceIds = ["suanzhi-future-2026", "blue-gray-acid-template", "mckinsey-customer-loyalty"];

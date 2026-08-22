@@ -67,6 +67,25 @@ gh workflow run windows-pptx-lossless.yml \
   -f evidence_path='C:\\OfficeKit\\evidence\\windows-pptx-lossless.json'
 ```
 
+为减少手工拼接证据，Windows 操作员可以先把三份 OfficeKit 输出按
+`<source-id>.pptx` 放入输出目录，再运行
+`scripts/collect-windows-pptx-lossless-evidence.ps1`。该脚本通过真实
+PowerPoint COM 打开源文件和输出，保存并重新打开独立副本，导出全部页面
+PNG、计算逐页 SHA-256，并逐项询问无法由 COM 自动证明的人工观察结果：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+  scripts/collect-windows-pptx-lossless-evidence.ps1 `
+  -SourceRoot C:\OfficeKit\assets `
+  -OutputRoot C:\OfficeKit\outputs `
+  -EvidencePath C:\OfficeKit\evidence\windows-pptx-lossless.json `
+  -Commit 09cd0723ae9d150af08f34b5bafdad20776f1b42
+```
+
+脚本不会把人工确认项默认填成通过；任一确认失败都会拒绝写出完整证据。
+输出目录中的三个文件名必须是 `suanzhi-future-2026.pptx`、
+`blue-gray-acid-template.pptx` 和 `mckinsey-customer-loyalty.pptx`。
+
 这条 lane 只验证人工已经观察并记录的结果，不会把“workflow 通过”误写成 PowerPoint 已验收；没有可用的 self-hosted Windows Office runner 时应保持未完成。
 
 ## 记录格式
