@@ -23,6 +23,7 @@ const releaseWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/r
 const ciWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8");
 const slowWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/ci-slow.yml"), "utf8");
 const windowsLiveWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/windows-office-live.yml"), "utf8");
+const windowsPptxLosslessWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/windows-pptx-lossless.yml"), "utf8");
 const standaloneWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/standalone-release.yml"), "utf8");
 const dotnetToolchain = JSON.parse(fs.readFileSync(path.join(repoRoot, "global.json"), "utf8"));
 assert.equal(dotnetToolchain.sdk.version, "8.0.128");
@@ -61,6 +62,10 @@ assert.doesNotMatch(releaseWorkflow, /OFFICE_TEMPLATE_SOURCE_ROOT:/);
 assert.match(releaseWorkflow, /submodules:\s*true/);
 assert.match(windowsLiveWorkflow, /self-hosted/);
 assert.match(windowsLiveWorkflow, /validate-windows-live-evidence/);
+assert.match(windowsPptxLosslessWorkflow, /workflow_dispatch/);
+assert.match(windowsPptxLosslessWorkflow, /self-hosted/);
+assert.match(windowsPptxLosslessWorkflow, /validate-windows-pptx-lossless-evidence/);
+assert.match(windowsPptxLosslessWorkflow, /OFFICEKIT_CHECKED_OUT_SHA/);
 assert.match(standaloneWorkflow, /node-version:\s*24\.18\.0/);
 assert.match(standaloneWorkflow, /darwin-arm64/);
 assert.match(standaloneWorkflow, /linux-x64/);

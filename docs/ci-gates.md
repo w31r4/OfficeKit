@@ -9,6 +9,7 @@ OfficeKit 把“开发反馈速度”和“发布可信度”分开。小改动�
 | Fast | `npm test`（等同 `npm run test:fast`） | `.github/workflows/ci.yml` | 每次 push/PR | JS syntax/import、核心四格式模型、OfficeKit 路由/参考插件路径同步/可移植性 validator、Help、包内容 smoke。不会下载 Python/PyMuPDF/qpdf/OCR/veraPDF，不运行完整域 Skill 或 reference Skill render/matrix、PromptBench、clean-install 或 20 套默认模板的全量原生回归。 |
 | Slow | `npm run test:slow` | `.github/workflows/ci-slow.yml` | 每日定时或人工冻结 milestone；不随普通 push/PR 自动触发 | 原完整测试链、provider/pack、Playwright/LibreOffice/Poppler、PromptBench candidate/reference、默认模板全量 import/export/recalc/render、examples、release/package、OfficeBridge 与 OfficeKit WASM。Hosted workflow 将同一条步骤表按十个职责段顺序执行，避免单个长命令被 runner 取消。 |
 | Windows Office live | 见下文 | `.github/workflows/windows-office-live.yml` | 手动排队；Live host 变更或 release candidate | 真实 Windows + Microsoft Office 人工观察证据。GitHub-hosted Windows、macOS mock、Add-in build smoke 和 CLI/package smoke 都不能替代这条证据。 |
+| Windows PPTX lossless | 见下文 | `.github/workflows/windows-pptx-lossless.yml` | 三份复杂 PPTX 的无损 Goal 验收 | 真实 Windows PowerPoint 对三份冻结样本执行打开、浏览、局部编辑、保存副本、重新打开、非目标页像素比较和不支持能力拒绝；只接受人工证据，不把 Live Add-in 或 macOS 结果代替它。 |
 
 `npm run test:slow:templates` 和 `npm run test:slow:promptbench` 是 slow gate 中可单独复跑的两个窄入口。它们不改变正式 slow gate 的完整范围，也不应被记录成完整发布证据。
 
@@ -54,6 +55,19 @@ gh workflow run windows-office-live.yml \
 ```
 
 `scripts/validate-windows-live-evidence.mjs` 会 fail closed 检查 Windows 平台、Excel/PowerPoint 安装与版本、观察日期、提交 SHA、两个 live workflow 的 `passed` 结果，以及每个应用的 manifest 上传、配对、未保存读写、显式保存、断开重连、源保护和 bridge 空闲退出；PowerPoint 还必须提供双演示文稿隔离、当前选区读取、单页图像复核和不支持能力拒绝。它拒绝 `mock`/`macos` 来源。证据必须由人工在 Windows Office 主机观察产生；签名、截图、录屏和详细操作日志仍由发布负责人按组织流程保存。
+
+## Windows PPTX 无损编辑证据
+
+三份复杂样本的独立验收使用 `.github/workflows/windows-pptx-lossless.yml`，而不是上面的 Live Add-in lane。操作员先在真实 Windows x64 PowerPoint 中按 `evals/pptx-lossless/manifest.v1.json` 的源 SHA 打开每份文件，完成声明的局部编辑，保存到不同路径并重新打开；随后用 PowerPoint 产生非目标页像素比较、修复提示和高级对象保全记录，再写入 `office-kit.windows-pptx-lossless-evidence.v1` JSON。校验器
+`scripts/validate-windows-pptx-lossless-evidence.mjs` 会绑定当前 checkout SHA、三份冻结源 SHA、目标节点、保存副本、重新打开、源保护、非目标页像素一致和不支持能力拒绝；它拒绝 macOS、mock、LibreOffice-only 或缺少任一源的证据。
+
+```bash
+gh workflow run windows-pptx-lossless.yml \
+  -f ref=09cd0723ae9d150af08f34b5bafdad20776f1b42 \
+  -f evidence_path='C:\\OfficeKit\\evidence\\windows-pptx-lossless.json'
+```
+
+这条 lane 只验证人工已经观察并记录的结果，不会把“workflow 通过”误写成 PowerPoint 已验收；没有可用的 self-hosted Windows Office runner 时应保持未完成。
 
 ## 记录格式
 

@@ -1,0 +1,48 @@
+name: Windows PPTX lossless acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      evidence_path:
+        description: "Path on the self-hosted Office runner to the human-observed three-deck evidence JSON"
+        required: true
+        type: string
+      ref:
+        description: "OfficeKit commit or tag to observe"
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  windows-pptx-lossless:
+    name: Windows PPTX lossless acceptance
+    runs-on: [self-hosted, windows, office]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify the checked-out revision
+        shell: pwsh
+        run: |
+          $checkedOut = (git rev-parse HEAD).Trim()
+          "OFFICEKIT_CHECKED_OUT_SHA=$checkedOut" >> $env:GITHUB_ENV
+      - name: Validate human-observed PowerPoint evidence
+        shell: pwsh
+        run: node scripts/validate-windows-pptx-lossless-evidence.mjs "${{ inputs.evidence_path }}" "$env:OFFICEKIT_CHECKED_OUT_SHA"
+      - name: Upload the accepted evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-pptx-lossless-evidence
+          path: ${{ inputs.evidence_path }}
+          if-no-files-found: error
+          retention-days: 30

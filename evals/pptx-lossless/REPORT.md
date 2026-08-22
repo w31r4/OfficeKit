@@ -92,9 +92,11 @@ credential. That is a publication prerequisite, not a codec result.
 
 ## Next acceptance step
 
-Run the self-hosted Windows Office lane against this SHA with the three external
-decks and record manifest upload, two-deck isolation, unsaved edit, selection,
-single-page image review, explicit save, reconnect/disconnect, source protection,
-and unsupported-capability refusal. Only after that evidence is attached should
-the OpenSpec 6.2/6.5/6.6 items be closed and the persistent Goal be marked
-complete.
+Run the self-hosted `.github/workflows/windows-pptx-lossless.yml` lane against
+this SHA with the three external decks and record PowerPoint open/browse, target
+edit visibility, non-target page pixel comparison, explicit save-copy,
+reopen-without-repair, source protection, and unsupported-capability refusal.
+The separate `windows-office-live.yml` lane remains for Add-in sessions. Only
+after the lossless evidence is attached, the current hosted slow run is green,
+and the release/report records are updated should the OpenSpec 6.2/6.5/6.6
+items be closed and the persistent Goal be marked complete.

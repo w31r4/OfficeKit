@@ -62,6 +62,7 @@ const fastSteps = [
   nodeStep("test/claude-plugin.mjs"),
   nodeStep("test/gate-policy.mjs"),
   nodeStep("test/windows-live-gate.mjs"),
+  nodeStep("test/windows-pptx-lossless-gate.mjs"),
   nodeStep("test/verify.mjs"),
   nodeStep("test/review.mjs"),
   nodeStep("test/help.mjs"),

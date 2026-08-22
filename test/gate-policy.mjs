@@ -9,6 +9,7 @@ const ci = await fs.readFile(path.join(repoRoot, ".github", "workflows", "ci.yml
 const slow = await fs.readFile(path.join(repoRoot, ".github", "workflows", "ci-slow.yml"), "utf8");
 const release = await fs.readFile(path.join(repoRoot, ".github", "workflows", "release.yml"), "utf8");
 const windows = await fs.readFile(path.join(repoRoot, ".github", "workflows", "windows-office-live.yml"), "utf8");
+const windowsPptxLossless = await fs.readFile(path.join(repoRoot, ".github", "workflows", "windows-pptx-lossless.yml"), "utf8");
 
 assert.equal(packageJson.scripts.test, "node scripts/run-test-gate.mjs fast");
 assert.equal(packageJson.scripts["test:fast"], packageJson.scripts.test);
@@ -24,6 +25,7 @@ assert.match(fastSource, /check-js-syntax/);
 assert.match(fastSource, /compact-skill-jsons/);
 assert.match(fastSource, /skill-json-assets/);
 assert.match(fastSource, /windows-live-gate/);
+assert.match(fastSource, /windows-pptx-lossless-gate/);
 assert.doesNotMatch(fastSource, /default-template-library|agent-evals|pdf-provider-pack-build|pdf-pyhanko-provider|presentation-skill|document-skill|pdf-skill|reference-skills|office-kit-package/);
 assert.match(slowSource, /default-template-library/);
 assert.match(slowSource, /compact-skill-jsons/);
@@ -69,5 +71,8 @@ assert.match(windows, /workflow_dispatch:/);
 assert.match(windows, /self-hosted/);
 assert.match(windows, /validate-windows-live-evidence/);
 assert.doesNotMatch(windows, /test:excel-live|test:powerpoint-live/);
+assert.match(windowsPptxLossless, /workflow_dispatch:/);
+assert.match(windowsPptxLossless, /self-hosted/);
+assert.match(windowsPptxLossless, /validate-windows-pptx-lossless-evidence/);
 
 console.log("gate policy contract ok");
