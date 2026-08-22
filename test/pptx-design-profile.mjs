@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
-import { readFile } from "node:fs/promises";
 import JSZip from "jszip";
 
 import { buildPptxDesignProfile } from "../scripts/pptx-design-profile.mjs";
 import { FileBlob, Presentation, PresentationFile } from "../src/index.mjs";
 
 const fixture = path.resolve(import.meta.dirname, "../evals/assets/presentations/strategy-review.pptx");
+const sourceBytes = await readFile(fixture);
 const first = await buildPptxDesignProfile(fixture, { id: "smartart-canary" });
 const second = await buildPptxDesignProfile(fixture, { id: "smartart-canary" });
 
@@ -52,10 +54,30 @@ assert.equal(mckinseyProfile.designLanguage.vectorAssets.textChars > 500, true);
 assert.equal(mckinseyProfile.designLanguage.vectorAssets.assets.every((asset) => /^[a-f0-9]{64}$/u.test(asset.sourceSha256)), true);
 assert.equal(mckinseyProfile.designLanguage.vectorAssets.assets.some((asset) => asset.fonts.some((font) => /Arial/u.test(font.value))), true);
 
+// Profile extraction must not interpret active or externally linked SVG as a
+// safe design-language source. An unreferenced media part is enough to exercise
+// the bounded scanner without changing the imported presentation graph.
+const unsafeProfileZip = await JSZip.loadAsync(sourceBytes);
+unsafeProfileZip.file("ppt/media/unsafe-profile.svg", '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><image href="https://example.invalid/x.png"/></svg>');
+const unsafeContentTypes = await unsafeProfileZip.file("[Content_Types].xml").async("text");
+unsafeProfileZip.file("[Content_Types].xml", unsafeContentTypes.replace("</Types>", '<Default Extension="svg" ContentType="image/svg+xml"/></Types>'));
+const unsafeProfileBytes = await unsafeProfileZip.generateAsync({ type: "uint8array", compression: "STORE" });
+const unsafeProfileDirectory = await mkdtemp(path.join(tmpdir(), "officekit-svg-profile-"));
+const unsafeProfilePath = path.join(unsafeProfileDirectory, "unsafe.pptx");
+try {
+  await writeFile(unsafeProfilePath, unsafeProfileBytes);
+  const unsafeProfile = await buildPptxDesignProfile(unsafeProfilePath, { id: "unsafe-svg-profile" });
+  const unsafeAsset = unsafeProfile.designLanguage.vectorAssets.assets.find((asset) => asset.part === "ppt/media/unsafe-profile.svg");
+  assert.ok(unsafeAsset);
+  assert.equal(unsafeAsset.supported, false);
+  assert.match(unsafeAsset.blockedReason, /active content|external reference/iu);
+} finally {
+  await rm(unsafeProfileDirectory, { recursive: true, force: true });
+}
+
 // A real imported slide may omit p:cSld/@name. The codec must preserve that
 // absence instead of inventing "Slide N", otherwise a safe source-derived
 // clone is rejected as a metadata mutation.
-const sourceBytes = await readFile(fixture);
 const sourceZip = await JSZip.loadAsync(sourceBytes);
 const slideXml = await sourceZip.file("ppt/slides/slide1.xml").async("text");
 const unnamedSlideXml = slideXml.replace(/(<p:cSld\b[^>]*?)\sname="[^"]*"/u, "$1");
