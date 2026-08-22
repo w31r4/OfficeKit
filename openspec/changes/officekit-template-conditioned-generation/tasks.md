@@ -17,6 +17,17 @@
 - [x] 2.5 Compare output review issues with the source baseline and report
   renderer limitations explicitly.
 
+## 2a. Multi-page planning
+
+- [x] 2a.1 Add `presentation.planTemplateGeneration()` as a read-only,
+  source-bound page/frame planner with role, density, preferred-kind, and
+  archetype selection plus explicit blocked entries.
+- [x] 2a.2 Add fixture coverage for ready plans, fit warnings, asset
+  candidates, stale/unsupported source ordinals, and source-free refusal.
+- [x] 2a.3 Use the plan to generate ten pages per frozen external sample;
+  shape-run and safe SVG-text leaves are both bounded targets, and a blocked
+  target never falls back to raw package editing.
+
 ## 3. Independent acceptance
 
 - [x] 3.1 Run three fresh black-box Agent tasks using only the portable Skill,
@@ -30,16 +41,21 @@
   available renderer evidence. The blue-gray sample has no portable renderer
   because its custom geometry exceeds the renderer's bounded path profile;
   this remains `visualReview: "unavailable"`, not a visual pass.
+- [x] 3.4 Record three independent packed multi-page Agent runs in
+  `evals/pptx-generation/agent-multipage.v2.json`: each plans and generates
+  ten new pages, reimports the output, preserves the source and non-target
+  OPC parts, and records structural review separately from unavailable visual
+  review.
 
 ## 4. Release gates
 
-- [x] 4.1 Add the generation evidence smoke to the Presentation slow-gate
-  segment after the benchmark evidence format is stable.
-- [x] 4.2 Update coverage, OpenSpec evidence, release notes, and the slow-gate
-  inventory. No public API or Help surface changed in this evidence-only
-  slice, so generated API/help files remain unchanged; package contents are
-  checked by the existing pack gate.
+- [x] 4.1 Add the one-page and multi-page generation evidence smokes to the
+  Presentation slow-gate segment after the benchmark evidence format is
+  stable.
+- [x] 4.2 Update coverage, OpenSpec evidence, release notes, the Presentation
+  Skill, Help/API docs, and the slow-gate inventory; regenerate the derived API
+  surface and check package contents.
 - [x] 4.3 Run full npm, package, deterministic WASM, and hosted CI gates, then
-  deliver one atomic ordinary push. Local fast (38/38), Presentation slow
-  (8/8), release slow (5/5), proto/WASM reproducibility, and hosted slow run
-  32567677699 are green; the evidence commit is pushed on the isolated branch.
+  deliver one atomic ordinary push for the multi-page v2 evidence. Local fast
+  (38/38), full slow (87/87), Presentation slow (9/9), proto/WASM
+  reproducibility, pack/release checks, and hosted run 32572960575 are green.
