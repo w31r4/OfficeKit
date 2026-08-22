@@ -209,6 +209,19 @@ for (const reuse of sourceComponentReuse.sources) {
     assert.equal(reuse.cloneElementCount >= 1, true);
     assert.match(reuse.outputPackageContentSha256, /^[a-f0-9]{64}$/u);
     assert.match(reuse.outputSha256, /^[a-f0-9]{64}$/u);
+    assert.equal(reuse.continuedMutation?.status, "passed");
+    assert.match(reuse.continuedMutation.mode, /^(?:imageFrame|shapeFrame|shapeText|svgText)$/u);
+    assert.equal(reuse.continuedMutation.sourceSlidePartUnchanged, true);
+    assert.equal(Array.isArray(reuse.continuedMutation.changedParts), true);
+    if (reuse.continuedMutation.mode === "svgText") {
+      assert.equal(reuse.continuedMutation.changedParts.length, 3);
+      assert.equal(reuse.continuedMutation.changedParts.filter((part) => /^ppt\/slides\/slide\d+\.xml$/u.test(part)).length, 1);
+      assert.equal(reuse.continuedMutation.changedParts.filter((part) => /^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/u.test(part)).length, 1);
+      assert.equal(reuse.continuedMutation.changedParts.filter((part) => /^ppt\/media\/[^/]+$/u.test(part)).length, 1);
+    } else {
+      assert.equal(reuse.continuedMutation.changedParts.length, 1);
+      assert.match(reuse.continuedMutation.changedParts[0], /^ppt\/slides\/slide\d+\.xml$/u);
+    }
   }
 }
 

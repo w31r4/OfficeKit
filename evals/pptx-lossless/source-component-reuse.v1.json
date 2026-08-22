@@ -10,9 +10,7 @@
       "preflightBlockedCandidateCount": 0,
       "preflightBlockedReasons": [],
       "status": "passed",
-      "failures": {
-        "unsupported_presentation_component_reuse": 7
-      },
+      "failures": {},
       "candidateId": "pc_db3a65d963b2a03e7d1926594740dcba",
       "occurrenceIndex": 0,
       "occurrenceCount": 5,
@@ -23,7 +21,19 @@
       "reopenedSlideCount": 22,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "671d69fedd97e07430983b4fd7b0a66dcf56ec70e3e6c75099d75fc173a1f763",
-      "outputSha256": "da85aa6243b954454fd78244b20469892dd2a2f22ee6f34d6f038af913047799"
+      "outputSha256": "c9558a16fee491c46990b43337ceb04e838d5c5a69d9b2be8f33293f8f98136c",
+      "continuedMutation": {
+        "status": "passed",
+        "mode": "imageFrame",
+        "targetId": "presentation/slide/2/element/1",
+        "expectedValue": 26.962939632545933,
+        "value": 27.962939632545933,
+        "verifiedValue": 27.962939632545933,
+        "changedParts": [
+          "ppt/slides/slide1122.xml"
+        ],
+        "sourceSlidePartUnchanged": true
+      }
     },
     {
       "id": "blue-gray-acid-template",
@@ -83,18 +93,32 @@
         }
       ],
       "status": "passed",
-      "failures": {},
-      "candidateId": "pc_0a55217d150c5c4ab507570ded2b9e6c",
-      "occurrenceIndex": 1,
-      "occurrenceCount": 3,
-      "cloneSlideIndex": 4,
+      "failures": {
+        "presentation_text_topology_changed": 1
+      },
+      "candidateId": "pc_6b1bda79139898ba8364daa76225bcae",
+      "occurrenceIndex": 0,
+      "occurrenceCount": 5,
+      "cloneSlideIndex": 10,
       "cloneElementCount": 1,
       "sourceBytes": 13951095,
-      "outputBytes": 13953117,
+      "outputBytes": 13953760,
       "reopenedSlideCount": 20,
       "nonTargetPartMismatches": [],
-      "outputPackageContentSha256": "9c4e3189d8d18058379344056c9b5046e996aac05fb2411d359b4174863e3170",
-      "outputSha256": "081846c90822706ab08d7a057e9f2a77b6bac9a356a15e37ada2d3589eeea121"
+      "outputPackageContentSha256": "f4ba3af085d7a6090851bec3c209a9aceb3c5e6b780a48f6bf78a51e719ecfc1",
+      "outputSha256": "39977880d857677d0f7e18a9c4c31e9761f396bee7686f9f80314d997a97744e",
+      "continuedMutation": {
+        "status": "passed",
+        "mode": "shapeText",
+        "targetId": "presentation/slide/11/element/1",
+        "expectedValue": "重点工作介绍",
+        "value": "重点工作介绍 (continued)",
+        "verifiedValue": "重点工作介绍 (continued)",
+        "changedParts": [
+          "ppt/slides/slide10120.xml"
+        ],
+        "sourceSlidePartUnchanged": true
+      }
     },
     {
       "id": "mckinsey-customer-loyalty",
@@ -116,7 +140,21 @@
       "reopenedSlideCount": 9,
       "nonTargetPartMismatches": [],
       "outputPackageContentSha256": "6becb283a4a3f9638b6a18d09140d45aabb9b05fc48f8f122859bd784bd8920f",
-      "outputSha256": "a8f23812ba964687d4159415ce485c2e234b219e16ea49487b2788284fd9d7dd"
+      "outputSha256": "5a7f0cc1b4ad1bd25725a56b4e5102752b7b39acb1ecfbab779b0df5ad3e5c72",
+      "continuedMutation": {
+        "status": "passed",
+        "mode": "svgText",
+        "targetId": "presentation/slide/2/element/1",
+        "expectedValue": "Kimsoong",
+        "value": "Kimsoong (continued)",
+        "verifiedValue": "Kimsoong (continued)",
+        "changedParts": [
+          "ppt/media/image9.svg",
+          "ppt/slides/_rels/slide119.xml.rels",
+          "ppt/slides/slide119.xml"
+        ],
+        "sourceSlidePartUnchanged": true
+      }
     }
   ]
 }
