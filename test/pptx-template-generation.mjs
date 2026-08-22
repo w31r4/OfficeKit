@@ -25,6 +25,26 @@ await writeFile(sourcePath, source.bytes);
 const sourceBytes = await readFile(sourcePath);
 const sourceSha256 = crypto.createHash("sha256").update(sourceBytes).digest("hex");
 const outputDir = path.join(workspace, "output");
+const importedFixture = await PresentationFile.importPptx(new FileBlob(sourceBytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation", name: "fixture.pptx" }));
+const templatePlan = importedFixture.planTemplateGeneration({
+  slides: [
+    { role: "title", title: "New opening", body: "Context" },
+    { role: "data", title: "Evidence", body: ["Signal", "Decision"], preferredKinds: ["textbox"] },
+    { role: "decision", title: "Next action" },
+  ],
+});
+assert.equal(templatePlan.schema, "office-kit/pptx-template-plan/v1");
+assert.equal(templatePlan.status, "ready");
+assert.equal(templatePlan.source.revisionSha256, sourceSha256);
+assert.equal(templatePlan.pages.length, 3);
+assert.ok(templatePlan.pages.every((page) => page.source.cloneCapability.supported === true));
+assert.ok(templatePlan.pages.every((page) => page.frame.target.targetId && page.frame.target.sampleText));
+assert.ok(templatePlan.pages.some((page) => page.frame.fit.status === "review-required"));
+const blockedPlan = importedFixture.planTemplateGeneration({ slides: [{ role: "content", title: "Blocked", sourceSlideOrdinal: 999 }] });
+assert.equal(blockedPlan.status, "blocked");
+assert.equal(blockedPlan.pages.length, 0);
+assert.equal(blockedPlan.rejected[0].reason, "no clone-safe source slide with a bounded text target");
+assert.throws(() => fixture.planTemplateGeneration({ slides: [{ role: "title", title: "Source-free" }] }), (error) => error?.code === "presentation_template_plan_source_required");
 
 try {
   const evidence = await runTemplateConditionedGeneration({
