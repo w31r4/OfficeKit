@@ -8,6 +8,18 @@ const manifest = JSON.parse(await readFile(path.resolve(import.meta.dirname, "..
 const checkedAt = "2026-08-22T12:00:00Z";
 const commit = "0123456789abcdef0123456789abcdef01234567";
 const sourceIds = ["suanzhi-future-2026", "blue-gray-acid-template", "mckinsey-customer-loyalty"];
+const pageComparisons = sourceIds.flatMap((id, sourceIndex) => {
+  const source = manifest.sources.find((candidate) => candidate.id === id);
+  const targetPages = new Set(source.targets.map((target) => Number(String(target.nodeId).match(/^presentation\/slide\/(\d+)/u)?.[1])));
+  return Array.from({ length: source.inventory.slideCount }, (_, index) => {
+    const page = index + 1;
+    const target = targetPages.has(page);
+    const pageHex = page.toString(16).padStart(2, "0");
+    const sourcePixelSha256 = `${String.fromCharCode(97 + sourceIndex).repeat(62)}${pageHex}`;
+    const outputPixelSha256 = target ? `${String.fromCharCode(100 + sourceIndex).repeat(62)}${pageHex}` : sourcePixelSha256;
+    return { sourceId: id, page, target, pixelIdentical: !target, sourcePixelSha256, outputPixelSha256 };
+  });
+});
 const checks = {
   opened: true,
   noRepairPrompt: true,
@@ -35,6 +47,7 @@ const evidence = {
     renderer: "Microsoft PowerPoint",
     pagesCompared: 48,
     evidencePath: "evidence/windows-pptx-lossless/pages.json",
+    pageComparisons,
   },
   sources: sourceIds.map((id, index) => {
     const source = manifest.sources.find((candidate) => candidate.id === id);
@@ -69,6 +82,9 @@ for (const mutation of [
   (value) => { value.host.observedAt = "2026-08-23T12:00:00Z"; },
   (value) => { value.visualReview.renderer = "LibreOffice"; },
   (value) => { value.visualReview.pagesCompared = 47; },
+  (value) => { value.visualReview.pageComparisons.pop(); },
+  (value) => { value.visualReview.pageComparisons[0].outputPixelSha256 = value.visualReview.pageComparisons[0].sourcePixelSha256; },
+  (value) => { value.visualReview.pageComparisons[1].pixelIdentical = false; },
   (value) => { value.sources[0].sourceSha256 = "0".repeat(64); },
   (value) => { value.sources[1].checks.nonTargetPagesPixelIdentical = false; },
   (value) => { value.sources.pop(); },
@@ -77,7 +93,7 @@ for (const mutation of [
 ]) {
   const invalid = structuredClone(evidence);
   mutation(invalid);
-  assert.throws(() => validateWindowsPptxLosslessEvidence(invalid, { expectedCommit: commit, manifest }), /evidence|Windows|PowerPoint|renderer|SHA|source|true|three|platform|output|pages|frozen/i);
+  assert.throws(() => validateWindowsPptxLosslessEvidence(invalid, { expectedCommit: commit, manifest }), /evidence|Windows|PowerPoint|renderer|SHA|source|true|three|platform|output|pages|frozen|records|comparison|target/i);
 }
 
 assert.throws(

@@ -42,12 +42,47 @@ export function validateWindowsPptxLosslessEvidence(value, {
   if (value.visualReview.renderer !== "Microsoft PowerPoint") throw new Error("visualReview.renderer must be Microsoft PowerPoint");
   if (value.visualReview.pagesCompared !== EXPECTED_TOTAL_PAGES) throw new Error(`visualReview.pagesCompared must cover all ${EXPECTED_TOTAL_PAGES} frozen sample pages`);
   if (!String(value.visualReview.evidencePath || "")) throw new Error("visualReview.evidencePath is required");
+  if (!Array.isArray(value.visualReview.pageComparisons) || value.visualReview.pageComparisons.length !== EXPECTED_TOTAL_PAGES) {
+    throw new Error(`visualReview.pageComparisons must contain exactly ${EXPECTED_TOTAL_PAGES} page records`);
+  }
   if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(String(value.commit || ""))) throw new Error("commit must be a 40-character SHA-1 or 64-character SHA-256");
   if (expectedCommit && value.commit !== expectedCommit) throw new Error("evidence commit does not match the checked-out commit");
   if (!Array.isArray(value.sources) || value.sources.length !== REQUIRED_SOURCES.length) throw new Error("evidence must contain exactly the three lossless PPTX sources");
 
   const expectedSources = new Map((manifest?.sources || []).map((source) => [source.id, source]));
   const seen = new Set();
+  const comparedPages = new Set();
+  for (const page of value.visualReview.pageComparisons) {
+    if (!page || typeof page !== "object" || Array.isArray(page)) throw new Error("visualReview.pageComparisons entries must be objects");
+    const sourceId = String(page.sourceId || "");
+    const pageNumber = page.page;
+    const expected = expectedSources.get(sourceId);
+    if (!REQUIRED_SOURCES.includes(sourceId) || !expected) throw new Error("visualReview.pageComparisons contains an unknown source");
+    if (!Number.isSafeInteger(pageNumber) || pageNumber < 1 || pageNumber > expected.inventory.slideCount) {
+      throw new Error(`${sourceId} page comparison has an invalid page number`);
+    }
+    const pageKey = `${sourceId}:${pageNumber}`;
+    if (comparedPages.has(pageKey)) throw new Error(`duplicate page comparison for ${pageKey}`);
+    comparedPages.add(pageKey);
+    if (!/^[0-9a-f]{64}$/u.test(String(page.sourcePixelSha256 || "")) || !/^[0-9a-f]{64}$/u.test(String(page.outputPixelSha256 || ""))) {
+      throw new Error(`${pageKey} must include source and output pixel SHA-256 values`);
+    }
+    const targetPage = expected.targets.some((target) => Number(String(target.nodeId).match(/^presentation\/slide\/(\d+)/u)?.[1]) === pageNumber);
+    if (page.target !== targetPage) throw new Error(`${pageKey}.target does not match the frozen edit targets`);
+    if (typeof page.pixelIdentical !== "boolean") throw new Error(`${pageKey}.pixelIdentical must be boolean`);
+    if (targetPage) {
+      if (page.pixelIdentical || page.sourcePixelSha256 === page.outputPixelSha256) throw new Error(`${pageKey} target page must show a pixel delta`);
+    } else if (!page.pixelIdentical || page.sourcePixelSha256 !== page.outputPixelSha256) {
+      throw new Error(`${pageKey} non-target page must have identical pixel hashes`);
+    }
+  }
+  const expectedPageKeys = new Set(REQUIRED_SOURCES.flatMap((id) => {
+    const source = expectedSources.get(id);
+    return Array.from({ length: source?.inventory.slideCount || 0 }, (_, index) => `${id}:${index + 1}`);
+  }));
+  if (comparedPages.size !== expectedPageKeys.size || [...expectedPageKeys].some((key) => !comparedPages.has(key))) {
+    throw new Error("visualReview.pageComparisons must cover every frozen sample page exactly once");
+  }
   for (const id of REQUIRED_SOURCES) {
     const source = value.sources.find((candidate) => candidate?.id === id);
     if (!source) throw new Error(`missing evidence for ${id}`);
