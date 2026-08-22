@@ -16,7 +16,11 @@ slide per run, second import, source protection, byte-identical non-target OPC
 parts, and zero missing/changed non-target entries. Visual review is reported
 as unavailable on this portable lane; inherited layout warnings remain
 evidence rather than being silently repaired. No Windows PowerPoint or aesthetic
-equivalence claim is included in this milestone.
+equivalence claim is included in this milestone. The full hosted slow gate for
+the evidence commit passed in run
+`32567677699 <https://github.com/w31r4/OfficeKit/actions/runs/32567677699>`>,
+including the deterministic WASM, package, OfficeBridge, and .NET release
+checks.
 
 ## Current 0.6.0 milestone (2026-08-15): Lossless native chart-data leaf
 

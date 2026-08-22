@@ -39,5 +39,7 @@
   inventory. No public API or Help surface changed in this evidence-only
   slice, so generated API/help files remain unchanged; package contents are
   checked by the existing pack gate.
-- [ ] 4.3 Run full npm, package, deterministic WASM, and hosted CI gates, then
-  deliver one atomic ordinary push.
+- [x] 4.3 Run full npm, package, deterministic WASM, and hosted CI gates, then
+  deliver one atomic ordinary push. Local fast (38/38), Presentation slow
+  (8/8), release slow (5/5), proto/WASM reproducibility, and hosted slow run
+  32567677699 are green; the evidence commit is pushed on the isolated branch.
