@@ -622,6 +622,17 @@ produce no final or partial artifact. This closes the normal starter-to-edit
 Agent transaction for the bounded catalog; it is not general PowerPoint object
 editing or a license to bypass the public model when a typed operation refuses.
 
+### PPTX runtime design profile
+
+`Presentation.designProfile()` is now the public read-only counterpart to the
+repository benchmark profile. It binds imported output to the exact source
+revision, reports canvas/palette/typography/density/rhythm/layout/archetype and
+opaque-object evidence, and summarizes repeated visual candidates without
+exposing XML selectors, package paths, or source bytes. Source-free decks can
+still produce descriptive profiles, but never receive source-bound candidate
+authority. This profile is evidence for template-conditioned generation; it is
+not a mutation or universal AST surface.
+
 ## Reference Skills
 
 The source and npm layouts contain seven native plugin bundles and twenty-seven

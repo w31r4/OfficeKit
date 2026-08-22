@@ -34,6 +34,7 @@ import { initializePresentationAccessibility, presentationAccessibilityCapabilit
 import { auditPresentationAccessibility } from "./accessibility-audit.mjs";
 import { deletePresentationElement, PRESENTATION_ELEMENT_DELETED, presentationElementDeletionCapability } from "./element-deletion.mjs";
 import { editSvgText as replaceSvgTextNode, inspectSvgText } from "./svg-text.mjs";
+import { buildPresentationDesignProfile } from "./design-profile.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const EMU_PER_PIXEL = 9_525;
@@ -688,6 +689,18 @@ export class Presentation {
       records.push(...capability.inspect());
     }
     return ndjson(filterInspectRecords(records, options), options.maxChars ?? Infinity);
+  }
+
+  designProfile(options = {}) {
+    if (!options || typeof options !== "object" || Array.isArray(options)) {
+      throw new TypeError("Presentation design profile options must be an object.");
+    }
+    const state = this[PRESENTATION_STATE];
+    const sourceRevisionSha256 = String(state?.opaqueOpc?.sourcePackage?.sha256 || state?.source?.packageSha256 || "").toLowerCase();
+    return buildPresentationDesignProfile(this, {
+      ...options,
+      ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
+    });
   }
 
   editNativeLeaf(targetId, leafId, update) {
