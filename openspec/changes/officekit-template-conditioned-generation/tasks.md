@@ -55,5 +55,7 @@
 - [x] 4.2 Update coverage, OpenSpec evidence, release notes, the Presentation
   Skill, Help/API docs, and the slow-gate inventory; regenerate the derived API
   surface and check package contents.
-- [ ] 4.3 Run full npm, package, deterministic WASM, and hosted CI gates, then
-  deliver one atomic ordinary push for the multi-page v2 evidence.
+- [x] 4.3 Run full npm, package, deterministic WASM, and hosted CI gates, then
+  deliver one atomic ordinary push for the multi-page v2 evidence. Local fast
+  (38/38), full slow (87/87), Presentation slow (9/9), proto/WASM
+  reproducibility, pack/release checks, and hosted run 32572960575 are green.
