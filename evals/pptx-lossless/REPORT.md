@@ -30,6 +30,11 @@ The machine-readable source of truth is kept in
 - The frozen Edit Plan corpus contains 36 clean-source runs over 12 bounded
   targets, repeated three times with deterministic plans, exact non-target
   package parts, masked target XML, and successful second import.
+- Design-profile extraction covers visible SVG content as well as DrawingML:
+  the McKinsey deck records all 8 bounded SVG assets, 22 text nodes, font and
+  size evidence, direct colors, per-asset hashes, and text samples. SVG with
+  active content or external references is reported as blocked rather than
+  interpreted as safe editable content.
 - Each external deck has source-derived slide reuse followed by typed
   continuation. Original pages remain pixel-identical in the available
   LibreOffice/Poppler renderer, the appended page is non-blank, and the source

@@ -11,6 +11,8 @@ const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.
 const PROFILE_SCHEMA = "office-kit/pptx-design-profile/v1";
 const MAX_SOURCE_BYTES = 128 * 1024 * 1024;
 const MAX_PROFILE_ITEMS = 256;
+const MAX_SVG_PROFILE_BYTES = 16 * 1024 * 1024;
+const MAX_SVG_PROFILE_NODES = 4_096;
 
 export async function buildPptxDesignProfile(inputPath, { id } = {}) {
   const absolute = path.resolve(inputPath);
@@ -39,6 +41,7 @@ export async function buildPptxDesignProfile(inputPath, { id } = {}) {
   const slides = inspection.filter((record) => record.kind === "slide").sort((a, b) => a.slide - b.slide);
   const layouts = inspection.filter((record) => record.kind === "layoutTemplate" || record.kind === "layout");
   const xml = [...partTexts.values()].join("\n");
+  const vectorAssets = await svgAssetEvidence(zip, partNames);
 
   const profile = {
     schema: PROFILE_SCHEMA,
@@ -64,6 +67,7 @@ export async function buildPptxDesignProfile(inputPath, { id } = {}) {
       typography: typographyEvidence(xml),
       density: densityEvidence(slides, elements),
       rhythm: rhythmEvidence(elements, presentation.slideSize),
+      vectorAssets,
     },
     layoutFamilies: layoutFamilies(layouts),
     slideArchetypes: slideArchetypes(slides, elements),
@@ -111,6 +115,106 @@ async function structuralPartHashes(zip, partNames) {
   const result = {};
   for (const name of selected) result[name] = sha256(await zip.file(name).async("uint8array"));
   return result;
+}
+
+async function svgAssetEvidence(zip, partNames) {
+  const assets = [];
+  for (const name of partNames.filter((candidate) => /^ppt\/media\/.*\.svg$/i.test(candidate))) {
+    const bytes = await zip.file(name).async("uint8array");
+    assets.push(inspectSvgAsset(name, bytes));
+  }
+  assets.sort((left, right) => left.part.localeCompare(right.part));
+  return {
+    assetCount: assets.length,
+    supportedCount: assets.filter((asset) => asset.supported).length,
+    blockedCount: assets.filter((asset) => !asset.supported).length,
+    textNodeCount: assets.reduce((sum, asset) => sum + asset.textNodeCount, 0),
+    textChars: assets.reduce((sum, asset) => sum + asset.textChars, 0),
+    assets,
+  };
+}
+
+function inspectSvgAsset(part, bytes) {
+  const sourceSha256 = sha256(bytes);
+  if (bytes.byteLength === 0 || bytes.byteLength > MAX_SVG_PROFILE_BYTES) {
+    return { part, bytes: bytes.byteLength, sourceSha256, supported: false, blockedReason: "SVG exceeds the profile byte budget", textNodeCount: 0, textChars: 0, textSamples: [], fonts: [], fontSizesPt: [], colors: [] };
+  }
+  let source;
+  try {
+    source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return { part, bytes: bytes.byteLength, sourceSha256, supported: false, blockedReason: "SVG is not valid UTF-8", textNodeCount: 0, textChars: 0, textSamples: [], fonts: [], fontSizesPt: [], colors: [] };
+  }
+  if (!/^\s*<svg\b[^>]*>/iu.test(source) || !/<\/svg>\s*$/iu.test(source)) {
+    return { part, bytes: bytes.byteLength, sourceSha256, supported: false, blockedReason: "SVG root is not bounded", textNodeCount: 0, textChars: 0, textSamples: [], fonts: [], fontSizesPt: [], colors: [] };
+  }
+  const blockedReason = svgProfileSafety(source);
+  if (blockedReason) {
+    return { part, bytes: bytes.byteLength, sourceSha256, supported: false, blockedReason, textNodeCount: 0, textChars: 0, textSamples: [], fonts: [], fontSizesPt: [], colors: [] };
+  }
+  const nodes = [];
+  const fonts = new Map();
+  const fontSizes = [];
+  const colors = new Map();
+  const pattern = /<(?:(?:[A-Za-z_][\w.-]*):)?(?<tag>text|tspan)\b(?<attributes>[^>]*)>(?<value>[\s\S]*?)<\/(?:(?:[A-Za-z_][\w.-]*):)?\k<tag>\s*>/giu;
+  for (const match of source.matchAll(pattern)) {
+    const value = match.groups?.value || "";
+    if (/<[A-Za-z_][\w:.-]*\b/iu.test(value)) continue;
+    if (nodes.length >= MAX_SVG_PROFILE_NODES) {
+      return { part, bytes: bytes.byteLength, sourceSha256, supported: false, blockedReason: "SVG text node budget exceeded", textNodeCount: 0, textChars: 0, textSamples: [], fonts: [], fontSizesPt: [], colors: [] };
+    }
+    const attributes = svgAttributes(match.groups?.attributes || "");
+    const text = decodeXml(value).replace(/\s+/gu, " ").trim();
+    if (!text) continue;
+    const fontFamily = attributes["font-family"] || styleValue(attributes.style, "font-family");
+    if (fontFamily) fonts.set(fontFamily, (fonts.get(fontFamily) || 0) + 1);
+    const fontSize = parseSvgFontSize(attributes["font-size"] || styleValue(attributes.style, "font-size"));
+    if (fontSize !== undefined) fontSizes.push(fontSize);
+    nodes.push({ index: nodes.length, tag: match.groups?.tag || "text", text: text.slice(0, 240), textSha256: sha256(text) });
+  }
+  for (const match of source.matchAll(/\b(?:fill|stroke)\s*=\s*(["'])(#[0-9A-Fa-f]{3,8}|rgb\([^"']+\)|[A-Za-z]+)\1/giu)) {
+    const value = match[2].toUpperCase();
+    colors.set(value, (colors.get(value) || 0) + 1);
+  }
+  return {
+    part,
+    bytes: bytes.byteLength,
+    sourceSha256,
+    supported: true,
+    textNodeCount: nodes.length,
+    textChars: nodes.reduce((sum, node) => sum + node.text.length, 0),
+    textSamples: nodes.slice(0, 12),
+    fonts: topCounts(fonts, 12),
+    fontSizesPt: topCounts(countValues(fontSizes.map((value) => String(value))), 12).map(({ value, count }) => ({ value: Number(value), count })),
+    colors: topCounts(colors, 12),
+  };
+}
+
+function svgProfileSafety(source) {
+  if (/<\s*(?:script|foreignObject|iframe|object|embed)\b/iu.test(source) ||
+      /<!\s*(?:DOCTYPE|ENTITY)\b/iu.test(source) ||
+      /\bon[A-Za-z][\w.-]*\s*=/u.test(source) ||
+      /(?:href|xlink:href)\s*=\s*(["'])(?!#|data:image\/)[^"']+\1/iu.test(source)) {
+    return "SVG contains active content or an external reference";
+  }
+  return "";
+}
+
+function svgAttributes(value) {
+  return Object.fromEntries([...String(value).matchAll(/([A-Za-z_:][\w:.-]*)\s*=\s*(["'])(.*?)\2/gu)].map((match) => [match[1].toLowerCase(), decodeXml(match[3])]));
+}
+
+function styleValue(style, key) {
+  const match = String(style || "").match(new RegExp(`(?:^|;)\\s*${key}\\s*:\\s*([^;]+)`, "iu"));
+  return match?.[1]?.trim() || "";
+}
+
+function parseSvgFontSize(value) {
+  const match = String(value || "").trim().match(/^([0-9]+(?:\.[0-9]+)?)\s*(pt|px)?$/iu);
+  if (!match) return undefined;
+  const number = Number(match[1]);
+  if (!Number.isFinite(number) || number <= 0 || number > 400) return undefined;
+  return round(match[2]?.toLowerCase() === "px" ? number * 0.75 : number, 2);
 }
 
 export function paletteEvidence(xml) {

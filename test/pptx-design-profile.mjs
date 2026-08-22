@@ -38,6 +38,20 @@ assert.ok(first.componentCandidates.kinds.shape >= 1);
 assert.ok(first.componentCandidates.inspectOnlyCandidateIds.every((id) => /^pc_[0-9a-f]{32}$/u.test(id)));
 assert.equal(JSON.stringify(first).includes(fixture), false, "profile must not leak an absolute source path");
 
+// The real McKinsey sample carries its visible page content inside SVG media,
+// not in the surrounding DrawingML text runs. The checked-in three-sample
+// profile must account for those vector assets instead of reporting an empty
+// text surface or pretending that the OOXML-only typography is complete.
+const committedProfiles = JSON.parse(await readFile(path.resolve(import.meta.dirname, "../evals/pptx-lossless/design-profiles.v1.json"), "utf8"));
+const mckinseyProfile = committedProfiles.profiles.find((profile) => profile.source.id === "mckinsey-customer-loyalty");
+assert.ok(mckinseyProfile);
+assert.equal(mckinseyProfile.designLanguage.vectorAssets.assetCount, 8);
+assert.equal(mckinseyProfile.designLanguage.vectorAssets.supportedCount, 8);
+assert.equal(mckinseyProfile.designLanguage.vectorAssets.textNodeCount, 22);
+assert.equal(mckinseyProfile.designLanguage.vectorAssets.textChars > 500, true);
+assert.equal(mckinseyProfile.designLanguage.vectorAssets.assets.every((asset) => /^[a-f0-9]{64}$/u.test(asset.sourceSha256)), true);
+assert.equal(mckinseyProfile.designLanguage.vectorAssets.assets.some((asset) => asset.fonts.some((font) => /Arial/u.test(font.value))), true);
+
 // A real imported slide may omit p:cSld/@name. The codec must preserve that
 // absence instead of inventing "Slide N", otherwise a safe source-derived
 // clone is rejected as a metadata mutation.

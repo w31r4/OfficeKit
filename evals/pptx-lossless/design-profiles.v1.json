@@ -464,6 +464,145 @@
               "count": 9
             }
           ]
+        },
+        "vectorAssets": {
+          "assetCount": 6,
+          "supportedCount": 6,
+          "blockedCount": 0,
+          "textNodeCount": 0,
+          "textChars": 0,
+          "assets": [
+            {
+              "part": "ppt/media/image33.svg",
+              "bytes": 1627,
+              "sourceSha256": "5b52b5e728a5235db0f71aa024a7770fcfbc2441372f271884de8ac2ccc6e518",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#FFFFFF",
+                  "count": 5
+                },
+                {
+                  "value": "#1D4769",
+                  "count": 4
+                },
+                {
+                  "value": "NONE",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image35.svg",
+              "bytes": 1884,
+              "sourceSha256": "262edab0d4594ef7f5c10946281eb898446853c6ee68e02f73e2684087037528",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#FFFFFF",
+                  "count": 7
+                },
+                {
+                  "value": "NONE",
+                  "count": 7
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image37.svg",
+              "bytes": 1830,
+              "sourceSha256": "b4c626849bfb70250ba7f8006bd0212fb4b22a17644521a91303a8e8550e7744",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#1D4769",
+                  "count": 6
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 6
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image39.svg",
+              "bytes": 1965,
+              "sourceSha256": "17660b0bc7bca755b50cb8e813850888003785ed5f316c56997d5703e8ab9762",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#FFFFFF",
+                  "count": 7
+                },
+                {
+                  "value": "NONE",
+                  "count": 6
+                },
+                {
+                  "value": "#1D4769",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image41.svg",
+              "bytes": 2205,
+              "sourceSha256": "1e9a6c00dd2f9916c170465513b59123b6414cef8f56c616b46275b18c257e36",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#1D4769",
+                  "count": 7
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 7
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image47.svg",
+              "bytes": 1107,
+              "sourceSha256": "315ed361dae085785f98c6ce9f5a74de4c1fea0906e98cc742b311740811e533",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#0070C0",
+                  "count": 1
+                }
+              ]
+            }
+          ]
         }
       },
       "layoutFamilies": [
@@ -2254,6 +2393,286 @@
             {
               "value": "0.04",
               "count": 8
+            }
+          ]
+        },
+        "vectorAssets": {
+          "assetCount": 16,
+          "supportedCount": 7,
+          "blockedCount": 9,
+          "textNodeCount": 0,
+          "textChars": 0,
+          "assets": [
+            {
+              "part": "ppt/media/image11.svg",
+              "bytes": 1528,
+              "sourceSha256": "1f6cf13802913944508264a32dc199a9be5429770519bff07946007f38394256",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#000000",
+                  "count": 8
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 6
+                },
+                {
+                  "value": "#435BE1",
+                  "count": 2
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image14.svg",
+              "bytes": 2678,
+              "sourceSha256": "d2d8b1afb838027ca9835fce918effdc44325b6d12265a6f4c7469bfd5356a1f",
+              "supported": false,
+              "blockedReason": "SVG root is not bounded",
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": []
+            },
+            {
+              "part": "ppt/media/image16.svg",
+              "bytes": 6327,
+              "sourceSha256": "b04aae14694a4a6090193bde51f40f938bea62eae50f4e24b0cd9196255d27be",
+              "supported": false,
+              "blockedReason": "SVG root is not bounded",
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": []
+            },
+            {
+              "part": "ppt/media/image18.svg",
+              "bytes": 2695,
+              "sourceSha256": "abb18a72fb55ee8645995752bddef7b09b608b363897c34f9e615508f3e9bfae",
+              "supported": false,
+              "blockedReason": "SVG root is not bounded",
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": []
+            },
+            {
+              "part": "ppt/media/image20.svg",
+              "bytes": 5788,
+              "sourceSha256": "07fdfd0502ebb1b4c2c2d2e903f946cf30d6e9529e0289184a62a2555d1ed779",
+              "supported": false,
+              "blockedReason": "SVG root is not bounded",
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": []
+            },
+            {
+              "part": "ppt/media/image22.svg",
+              "bytes": 462,
+              "sourceSha256": "8f492243a3f468cf1f0358786fb0eed9236a2d4e4096f4925ca83026d1772597",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#071020",
+                  "count": 3
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image25.svg",
+              "bytes": 4262,
+              "sourceSha256": "8e037d5d46c2d14ba8e6eddc4bc805c869b2658935af8298c28d286aae801dce",
+              "supported": false,
+              "blockedReason": "SVG root is not bounded",
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": []
+            },
+            {
+              "part": "ppt/media/image29.svg",
+              "bytes": 5517,
+              "sourceSha256": "56b90b0fdf19c9b50941d1058b4ec0d78c015a92c57075c3da5673625944e5c5",
+              "supported": false,
+              "blockedReason": "SVG root is not bounded",
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": []
+            },
+            {
+              "part": "ppt/media/image31.svg",
+              "bytes": 18609,
+              "sourceSha256": "fe8b41005a0a7d5055387ed41f83e8dc4e2bfca7e453f603b77aa9db01ecb996",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#1C1C1B",
+                  "count": 44
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 22
+                },
+                {
+                  "value": "NONE",
+                  "count": 21
+                },
+                {
+                  "value": "#000100",
+                  "count": 14
+                },
+                {
+                  "value": "#1A1A1A",
+                  "count": 8
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image38.svg",
+              "bytes": 914,
+              "sourceSha256": "edd1b0527425ea22d4249882cffc21f932ca4e422246481d36134880137a1065",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#040504",
+                  "count": 3
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 2
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image4.svg",
+              "bytes": 406,
+              "sourceSha256": "3c5469272d45d68f88be7ba737cd7a4b93798d50a66fead53eae861d71ddada1",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": []
+            },
+            {
+              "part": "ppt/media/image40.svg",
+              "bytes": 546,
+              "sourceSha256": "896521860547ba446de69aabd48f5fba2c9b9ea731891fe215c07d2e143f76f2",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#040504",
+                  "count": 1
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image42.svg",
+              "bytes": 753,
+              "sourceSha256": "1f4c457000829b3f9f55fba2abcc5f1391db1cd99f0a0f8702d1fa6f19b7e232",
+              "supported": false,
+              "blockedReason": "SVG root is not bounded",
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": []
+            },
+            {
+              "part": "ppt/media/image44.svg",
+              "bytes": 759,
+              "sourceSha256": "4a191974f09a7d4c194c13a25e07d2c8967bb0b543c49a38bd08b08604dbbe8e",
+              "supported": false,
+              "blockedReason": "SVG root is not bounded",
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": []
+            },
+            {
+              "part": "ppt/media/image7.svg",
+              "bytes": 566,
+              "sourceSha256": "c3b94f238426add332840b09e9048229a74829133800147c022acfc0229223db",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#222221",
+                  "count": 1
+                },
+                {
+                  "value": "#CCCCCC",
+                  "count": 1
+                },
+                {
+                  "value": "NONE",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image9.svg",
+              "bytes": 753,
+              "sourceSha256": "db77ec5828effd579ac3ed41dd25ffc9ee3fb669c0a934e005fb29863e9acad5",
+              "supported": false,
+              "blockedReason": "SVG root is not bounded",
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": []
             }
           ]
         }
@@ -4131,6 +4550,619 @@
             {
               "value": "1",
               "count": 8
+            }
+          ]
+        },
+        "vectorAssets": {
+          "assetCount": 8,
+          "supportedCount": 8,
+          "blockedCount": 0,
+          "textNodeCount": 22,
+          "textChars": 568,
+          "assets": [
+            {
+              "part": "ppt/media/image1.svg",
+              "bytes": 1538,
+              "sourceSha256": "d6e0a1ff2b2c5eb578c1c230d78eb63096e178e47c10ece27a73bce750baffde",
+              "supported": true,
+              "textNodeCount": 4,
+              "textChars": 82,
+              "textSamples": [
+                {
+                  "index": 0,
+                  "tag": "text",
+                  "text": "Kimsoong",
+                  "textSha256": "5f72b7271851303283ea9a18ffb557d140333517303f153b12e899b180fe3496"
+                },
+                {
+                  "index": 1,
+                  "tag": "text",
+                  "text": "Customer Loyalty Programme",
+                  "textSha256": "f35ca09c60ad6efde3ba1a052108764c3009652e9e107f483f74c7d89b321ffd"
+                },
+                {
+                  "index": 2,
+                  "tag": "text",
+                  "text": "Project Code: KIMEU-2025-CL01",
+                  "textSha256": "b8f73f43448b61517ec2ae34ac17cd1291338ba1226224670637d10d63669dc5"
+                },
+                {
+                  "index": 3,
+                  "tag": "text",
+                  "text": "Date: November 2025",
+                  "textSha256": "aa989355d2e186963e58ae3229e527aa4aebca7b4c4d7b249cebe91285b4d462"
+                }
+              ],
+              "fonts": [
+                {
+                  "value": "Arial, sans-serif",
+                  "count": 4
+                }
+              ],
+              "fontSizesPt": [
+                {
+                  "value": 16,
+                  "count": 2
+                },
+                {
+                  "value": 52,
+                  "count": 2
+                }
+              ],
+              "colors": [
+                {
+                  "value": "#5D6D7E",
+                  "count": 5
+                },
+                {
+                  "value": "#005587",
+                  "count": 4
+                },
+                {
+                  "value": "#2C3E50",
+                  "count": 2
+                },
+                {
+                  "value": "#ECF0F1",
+                  "count": 1
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image2.svg",
+              "bytes": 7170,
+              "sourceSha256": "7875b4f4b910128e6d59eb64e53c116b2457ae9500396caffd2d1830ca1c4566",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#E74C3C",
+                  "count": 9
+                },
+                {
+                  "value": "#5D6D7E",
+                  "count": 7
+                },
+                {
+                  "value": "#2C3E50",
+                  "count": 6
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 5
+                },
+                {
+                  "value": "#005587",
+                  "count": 3
+                },
+                {
+                  "value": "#7F8C8D",
+                  "count": 2
+                },
+                {
+                  "value": "#ECF0F1",
+                  "count": 1
+                },
+                {
+                  "value": "#F5A623",
+                  "count": 1
+                },
+                {
+                  "value": "#FFF3E0",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image3.svg",
+              "bytes": 10518,
+              "sourceSha256": "4c8ca5ad52f261b7f1b1466232a29e793c6cdee98631d5b231f75582308241ed",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#005587",
+                  "count": 15
+                },
+                {
+                  "value": "#5D6D7E",
+                  "count": 12
+                },
+                {
+                  "value": "#2C3E50",
+                  "count": 8
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 6
+                },
+                {
+                  "value": "#4A90A4",
+                  "count": 5
+                },
+                {
+                  "value": "#0076A8",
+                  "count": 4
+                },
+                {
+                  "value": "NONE",
+                  "count": 4
+                },
+                {
+                  "value": "#7FB3C7",
+                  "count": 3
+                },
+                {
+                  "value": "#ECF0F1",
+                  "count": 3
+                },
+                {
+                  "value": "#F5A623",
+                  "count": 3
+                },
+                {
+                  "value": "#F8F9FA",
+                  "count": 2
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image4.svg",
+              "bytes": 8395,
+              "sourceSha256": "b8ccf70b60205c4f151bfabf95b8db50f0faaddd80d8e7d36635c7dbb9ba8cf8",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#FFFFFF",
+                  "count": 20
+                },
+                {
+                  "value": "#E74C3C",
+                  "count": 9
+                },
+                {
+                  "value": "#005587",
+                  "count": 8
+                },
+                {
+                  "value": "#5D6D7E",
+                  "count": 7
+                },
+                {
+                  "value": "#0076A8",
+                  "count": 3
+                },
+                {
+                  "value": "#2C3E50",
+                  "count": 3
+                },
+                {
+                  "value": "#94A3B8",
+                  "count": 3
+                },
+                {
+                  "value": "#FEE2E2",
+                  "count": 2
+                },
+                {
+                  "value": "#4A90A4",
+                  "count": 1
+                },
+                {
+                  "value": "#64748B",
+                  "count": 1
+                },
+                {
+                  "value": "#7FB3C7",
+                  "count": 1
+                },
+                {
+                  "value": "#DBEAFE",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image5.svg",
+              "bytes": 5562,
+              "sourceSha256": "b353f6969d6a6a623b83bf891bccd444fb5416c05fa86bbbcad2d6834e015858",
+              "supported": true,
+              "textNodeCount": 2,
+              "textChars": 116,
+              "textSamples": [
+                {
+                  "index": 0,
+                  "tag": "text",
+                  "text": "Competitive switching (52%) and service dissatisfaction (26%) represent the",
+                  "textSha256": "126792b267cc631a144ac9bdc6a45660e5fb2c0f4561f463ddce68096c6196ae"
+                },
+                {
+                  "index": 1,
+                  "tag": "text",
+                  "text": "primary levers for retention improvement.",
+                  "textSha256": "a2e9174a23e6609703df8583a2ad9e697e6153f53591c06786bc4ec3239922af"
+                }
+              ],
+              "fonts": [
+                {
+                  "value": "Arial, sans-serif",
+                  "count": 2
+                }
+              ],
+              "fontSizesPt": [
+                {
+                  "value": 15,
+                  "count": 2
+                }
+              ],
+              "colors": [
+                {
+                  "value": "#005587",
+                  "count": 12
+                },
+                {
+                  "value": "#2C3E50",
+                  "count": 7
+                },
+                {
+                  "value": "#5D6D7E",
+                  "count": 6
+                },
+                {
+                  "value": "#E74C3C",
+                  "count": 6
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 6
+                },
+                {
+                  "value": "#F5A623",
+                  "count": 3
+                },
+                {
+                  "value": "#4A90A4",
+                  "count": 1
+                },
+                {
+                  "value": "#7FB3C7",
+                  "count": 1
+                },
+                {
+                  "value": "#B0B0B0",
+                  "count": 1
+                },
+                {
+                  "value": "#FFEBEE",
+                  "count": 1
+                },
+                {
+                  "value": "#FFF9E6",
+                  "count": 1
+                },
+                {
+                  "value": "NONE",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image6.svg",
+              "bytes": 9955,
+              "sourceSha256": "93a61a223ea063aafd79d5bd8d388b7470c178ae6fddd6ef78035e09a16647f0",
+              "supported": true,
+              "textNodeCount": 8,
+              "textChars": 232,
+              "textSamples": [
+                {
+                  "index": 0,
+                  "tag": "text",
+                  "text": "Transform transactional buyers into",
+                  "textSha256": "b208f21e414e9aa5468108668faf62acbcbac656706cec544c66452297158805"
+                },
+                {
+                  "index": 1,
+                  "tag": "text",
+                  "text": "lifetime customers",
+                  "textSha256": "b4dfac4cafe05c5fb7816a40554de23be2eb97e33a1ae31620b989abebf8ca90"
+                },
+                {
+                  "index": 2,
+                  "tag": "text",
+                  "text": "Boost repeat purchase rate from",
+                  "textSha256": "6cc94cd3be46861d4689a1aff919fef1b2b4f539eae0696fc53c59a0c0d1b67f"
+                },
+                {
+                  "index": 3,
+                  "tag": "text",
+                  "text": "15% to 30%+ within 2 years",
+                  "textSha256": "a9e7d730f0106cc0e9f836034c7bae17eba61ab6b85cb2b1edb1e3c9a319341b"
+                },
+                {
+                  "index": 4,
+                  "tag": "text",
+                  "text": "Improve questionnaire response from",
+                  "textSha256": "5b433ac89f0fedb641fc79829f2b401ad2a27113760b8f78058b9170c0eb3fb7"
+                },
+                {
+                  "index": 5,
+                  "tag": "text",
+                  "text": "40% to 70%+; enable data insights",
+                  "textSha256": "2e9229e269fa0b977e384a20c8f9eb937f24e2d064158734e7cb16ea70da4b75"
+                },
+                {
+                  "index": 6,
+                  "tag": "text",
+                  "text": "Empower staff to build authentic",
+                  "textSha256": "b54ef90f8dba450cfe028c9e91788b1b545fcbed75596b90f2b56d67dda03765"
+                },
+                {
+                  "index": 7,
+                  "tag": "text",
+                  "text": "customer relationships",
+                  "textSha256": "a392b901cd77ecb5aa1b1b041a0a8f793f8ca2f9054327ee342f388fe27b93ec"
+                }
+              ],
+              "fonts": [
+                {
+                  "value": "Arial, sans-serif",
+                  "count": 8
+                }
+              ],
+              "fontSizesPt": [
+                {
+                  "value": 13,
+                  "count": 8
+                }
+              ],
+              "colors": [
+                {
+                  "value": "#005587",
+                  "count": 17
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 13
+                },
+                {
+                  "value": "#5D6D7E",
+                  "count": 12
+                },
+                {
+                  "value": "#2C3E50",
+                  "count": 7
+                },
+                {
+                  "value": "#94A3B8",
+                  "count": 5
+                },
+                {
+                  "value": "#E5E7EB",
+                  "count": 5
+                },
+                {
+                  "value": "#F8F9FA",
+                  "count": 2
+                },
+                {
+                  "value": "NONE",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image7.svg",
+              "bytes": 10550,
+              "sourceSha256": "e5ebcc12e18edb33cb806c79ccf6d2794dd2ff8f8b55bcd6bed637d4e5805d2a",
+              "supported": true,
+              "textNodeCount": 0,
+              "textChars": 0,
+              "textSamples": [],
+              "fonts": [],
+              "fontSizesPt": [],
+              "colors": [
+                {
+                  "value": "#5D6D7E",
+                  "count": 20
+                },
+                {
+                  "value": "#005587",
+                  "count": 18
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 10
+                },
+                {
+                  "value": "#2C3E50",
+                  "count": 8
+                },
+                {
+                  "value": "#4A90A4",
+                  "count": 5
+                },
+                {
+                  "value": "#7FB3C7",
+                  "count": 5
+                },
+                {
+                  "value": "#B0BEC5",
+                  "count": 5
+                },
+                {
+                  "value": "#E74C3C",
+                  "count": 5
+                },
+                {
+                  "value": "#0076A8",
+                  "count": 3
+                },
+                {
+                  "value": "#F5A623",
+                  "count": 2
+                },
+                {
+                  "value": "#E8F4F8",
+                  "count": 1
+                },
+                {
+                  "value": "#F8F9FA",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "part": "ppt/media/image8.svg",
+              "bytes": 8595,
+              "sourceSha256": "3cc997fdb7ef016fac77bf5fa3d3dfa049da2a38ffda634ccb616222e861dafe",
+              "supported": true,
+              "textNodeCount": 8,
+              "textChars": 138,
+              "textSamples": [
+                {
+                  "index": 0,
+                  "tag": "text",
+                  "text": "• Launch Magazine",
+                  "textSha256": "0d457314f4a1988a3ce89927177a8959bac3f42cef47087fec4625c5389dfb44"
+                },
+                {
+                  "index": 1,
+                  "tag": "text",
+                  "text": "• Questionnaire + Pen",
+                  "textSha256": "eb0102dd6c34969080940177d055c28a47606058b8e3e31249f50b9b02f275ab"
+                },
+                {
+                  "index": 2,
+                  "tag": "text",
+                  "text": "• 3-Yr Free Service",
+                  "textSha256": "91c02a8df295bdd4578ad82cd3c242afb45672cc4ad7733af62158c952a33b18"
+                },
+                {
+                  "index": 3,
+                  "tag": "text",
+                  "text": "• Staff Training",
+                  "textSha256": "81a173d2778dff57a2452275c09f97cf23a1e2cc7d8fb715efc2724e5b1b85ad"
+                },
+                {
+                  "index": 4,
+                  "tag": "text",
+                  "text": "• 20% Discount",
+                  "textSha256": "8278c17d81f0ec9c0779ae4bbc76d83801f13d074a10149f21e2ec52a7c72510"
+                },
+                {
+                  "index": 5,
+                  "tag": "text",
+                  "text": "• Trade-in Program",
+                  "textSha256": "f03ffcec810bdec24f4a02bee8e0ba15f7e8a536250777769b355d6bb9c2dfd7"
+                },
+                {
+                  "index": 6,
+                  "tag": "text",
+                  "text": "• Review Metrics",
+                  "textSha256": "b4bb949eb7abc020d294e6ef3385afcc7c2b82bd63134229d97aeebdd67e9ee0"
+                },
+                {
+                  "index": 7,
+                  "tag": "text",
+                  "text": "• Adjust Strategy",
+                  "textSha256": "1bd8b5296ed148fed5c302ef86e0b629746e2f2d1797055119e16b3bf277752d"
+                }
+              ],
+              "fonts": [
+                {
+                  "value": "Arial, sans-serif",
+                  "count": 8
+                }
+              ],
+              "fontSizesPt": [
+                {
+                  "value": 13,
+                  "count": 8
+                }
+              ],
+              "colors": [
+                {
+                  "value": "#005587",
+                  "count": 26
+                },
+                {
+                  "value": "#2C3E50",
+                  "count": 14
+                },
+                {
+                  "value": "#5D6D7E",
+                  "count": 11
+                },
+                {
+                  "value": "#F5A623",
+                  "count": 5
+                },
+                {
+                  "value": "#FFFFFF",
+                  "count": 4
+                },
+                {
+                  "value": "#E74C3C",
+                  "count": 3
+                },
+                {
+                  "value": "#0076A8",
+                  "count": 2
+                },
+                {
+                  "value": "#7FB3C7",
+                  "count": 2
+                },
+                {
+                  "value": "#E8F4F8",
+                  "count": 1
+                },
+                {
+                  "value": "#ECF0F1",
+                  "count": 1
+                },
+                {
+                  "value": "#F8F9FA",
+                  "count": 1
+                }
+              ]
             }
           ]
         }
