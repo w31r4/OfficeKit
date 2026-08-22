@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_MANIFEST = path.join(REPOSITORY_ROOT, "evals/pptx-lossless/manifest.v1.json");
 const REQUIRED_SOURCES = ["suanzhi-future-2026", "blue-gray-acid-template", "mckinsey-customer-loyalty"];
+const EXPECTED_TOTAL_PAGES = 48;
 const REQUIRED_CHECKS = [
   "opened",
   "noRepairPrompt",
@@ -36,9 +37,10 @@ export function validateWindowsPptxLosslessEvidence(value, {
   if (!/^20\d\d-\d\d-\d\dT/.test(String(value.host?.observedAt || ""))) throw new Error("host.observedAt must be an ISO timestamp");
   if (!value.visualReview || typeof value.visualReview !== "object") throw new Error("visualReview is required");
   if (!/^20\d\d-\d\d-\d\dT/.test(String(value.visualReview.observedAt || ""))) throw new Error("visualReview.observedAt must be an ISO timestamp");
+  if (value.host.observedAt.slice(0, 10) !== value.checkedAt.slice(0, 10)) throw new Error("host.observedAt must be on the evidence date");
   if (value.visualReview.observedAt.slice(0, 10) !== value.checkedAt.slice(0, 10)) throw new Error("visualReview must be on the evidence date");
   if (value.visualReview.renderer !== "Microsoft PowerPoint") throw new Error("visualReview.renderer must be Microsoft PowerPoint");
-  if (!Number.isInteger(value.visualReview.pagesCompared) || value.visualReview.pagesCompared < 1) throw new Error("visualReview.pagesCompared must be a positive integer");
+  if (value.visualReview.pagesCompared !== EXPECTED_TOTAL_PAGES) throw new Error(`visualReview.pagesCompared must cover all ${EXPECTED_TOTAL_PAGES} frozen sample pages`);
   if (!String(value.visualReview.evidencePath || "")) throw new Error("visualReview.evidencePath is required");
   if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(String(value.commit || ""))) throw new Error("commit must be a 40-character SHA-1 or 64-character SHA-256");
   if (expectedCommit && value.commit !== expectedCommit) throw new Error("evidence commit does not match the checked-out commit");
@@ -54,7 +56,9 @@ export function validateWindowsPptxLosslessEvidence(value, {
     if (!/^[0-9a-f]{64}$/u.test(String(source.sourceSha256 || ""))) throw new Error(`${id}.sourceSha256 must be a SHA-256`);
     const expected = expectedSources.get(id);
     if (expected && source.sourceSha256 !== expected.sha256) throw new Error(`${id}.sourceSha256 does not match the frozen benchmark manifest`);
-    if (!String(source.sourcePath || "") || !String(source.outputPath || "")) throw new Error(`${id} sourcePath and outputPath are required`);
+    if (!/^[A-Za-z]:[\\/].+/u.test(String(source.sourcePath || "")) || !/^[A-Za-z]:[\\/].+/u.test(String(source.outputPath || ""))) {
+      throw new Error(`${id} sourcePath and outputPath must be absolute Windows paths`);
+    }
     if (source.outputPath === source.sourcePath) throw new Error(`${id} outputPath must differ from sourcePath`);
     if (!source.checks || typeof source.checks !== "object") throw new Error(`${id}.checks is required`);
     for (const check of REQUIRED_CHECKS) {

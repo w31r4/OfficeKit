@@ -66,15 +66,18 @@ assert.deepEqual(validateWindowsPptxLosslessEvidence(evidence, { expectedCommit:
 for (const mutation of [
   (value) => { value.method = "mock"; },
   (value) => { value.host.platform = "darwin-arm64"; },
+  (value) => { value.host.observedAt = "2026-08-23T12:00:00Z"; },
   (value) => { value.visualReview.renderer = "LibreOffice"; },
+  (value) => { value.visualReview.pagesCompared = 47; },
   (value) => { value.sources[0].sourceSha256 = "0".repeat(64); },
   (value) => { value.sources[1].checks.nonTargetPagesPixelIdentical = false; },
   (value) => { value.sources.pop(); },
+  (value) => { value.sources[0].sourcePath = "relative\\source.pptx"; },
   (value) => { value.sources[2].outputPath = value.sources[2].sourcePath; },
 ]) {
   const invalid = structuredClone(evidence);
   mutation(invalid);
-  assert.throws(() => validateWindowsPptxLosslessEvidence(invalid, { expectedCommit: commit, manifest }), /evidence|Windows|PowerPoint|renderer|SHA|source|true|three|platform|output/i);
+  assert.throws(() => validateWindowsPptxLosslessEvidence(invalid, { expectedCommit: commit, manifest }), /evidence|Windows|PowerPoint|renderer|SHA|source|true|three|platform|output|pages|frozen/i);
 }
 
 assert.throws(
