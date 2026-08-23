@@ -123,7 +123,9 @@ then let the PDF Skill inspect and verify the final PDF.
 - For durable work, follow `tasks → repl → input → edit → review → commit →
   publish`. Every `ctx.commit(candidate, options)` requires a concise non-empty
   `options.summary`. A failed review remains attention and cannot replace task
-  HEAD.
+  HEAD. Put a multi-line Agent-authored cell in a regular `.mjs` file and run
+  it with `officekit repl ... --file <cell.mjs>`; use raw JSONL only when one
+  live process genuinely needs several cells.
 - Complete each artifact under its owner's workflow.
 - For a conversational PPT draft, run the draft checks defined by the
   Presentations Skill and return the working path plus draft guide. Do not call

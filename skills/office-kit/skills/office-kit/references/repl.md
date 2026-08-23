@@ -21,11 +21,14 @@ selected workspace.
 Open a matching task or explicitly create a new one:
 
 ```bash
-officekit repl t_7f2c9a31b804
-officekit repl --new "Create a promotion defense presentation"
+officekit repl t_7f2c9a31b804 --file phase-2.mjs
+officekit repl --new "Create a promotion defense presentation" --file phase-1.mjs
 ```
 
-The first JSONL response is `session.ready`. Read its task brief, current
+With `--file`, write one ordinary UTF-8 JavaScript cell with top-level `await`;
+do not hand-escape that code into JSONL. The command emits `session.ready`,
+executes the file as one cell, emits its terminal response, and exits. Read the
+ready record's task ID, brief, current
 publishable commit descriptor, restored artifact paths, pending failures,
 constraints, prior operation records, and next action before sending code. A
 missing task ID fails; it never creates a new task by typo.
@@ -33,23 +36,23 @@ missing task ID fails; it never creates a new task by typo.
 Use `officekit run task.mjs` instead for a genuinely one-shot script that does
 not need a durable editing context.
 
-`officekit repl` is a long-lived JSONL process: a bare invocation waits for
-JSONL on standard input and is not a one-shot command. Do not launch it without
-an input stream. For a quick probe, pipe one or more cells explicitly:
+Without `--file`, `officekit repl` is a long-lived JSONL process: a bare
+invocation waits for JSONL on standard input and is not a one-shot command. Use
+that form only when several cells must share `ctx.state` in one process. For a
+quick probe, pipe one or more cells explicitly:
 
 ```bash
 printf '%s\n' '{"id":"probe","code":"return 1;"}' | officekit repl --new "Probe"
 ```
 
-For a resumed task, capture the `session.ready` response first, then send the
-cells through the same process (or a new process with a JSONL input stream).
-Use `officekit run` when no interactive or durable session is required.
+For a resumed task, use a new `--file` invocation and reimport the restored
+reviewed revision. Use `officekit run` when no durable task is required.
 
-## Execute JSONL cells
+## Execute cells
 
-The REPL reads `{id, code}` JSON objects from standard input and writes one JSON
-response per cell. Code supports top-level `await`, `ctx`, and a scoped
-`console`.
+Both `--file` and JSONL cells support top-level `await`, `ctx`, and a scoped
+`console`. The low-level stream reads `{id, code}` JSON objects from standard
+input and writes one JSON response per cell.
 
 Use `ctx.state` for process-local functions and live OfficeKit objects reused
 by later cells in the same process. A new session does not restore the JavaScript heap or
