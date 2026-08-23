@@ -34,6 +34,7 @@ import { initializePresentationAccessibility, presentationAccessibilityCapabilit
 import { auditPresentationAccessibility } from "./accessibility-audit.mjs";
 import { deletePresentationElement, PRESENTATION_ELEMENT_DELETED, presentationElementDeletionCapability } from "./element-deletion.mjs";
 import { editSvgText as replaceSvgTextNode, inspectSvgText } from "./svg-text.mjs";
+import { editSvgLeaf as replaceSvgLeaf, inspectSvgLeaves } from "./svg-leaves.mjs";
 import { buildPresentationDesignProfile } from "./design-profile.mjs";
 import { buildTemplateGenerationPlan } from "./template-plan.mjs";
 import { classifyImportedPresentationObjects } from "./import-object-classification.mjs";
@@ -2432,6 +2433,16 @@ export class ChartElement {
 
 }
 
+function presentationSvgLeafScope(image) {
+  const presentation = image.slide?.presentation;
+  const state = presentation?.[PRESENTATION_STATE];
+  const sourceRevisionSha256 = String(state?.opaqueOpc?.sourcePackage?.sha256 || state?.source?.packageSha256 || "").toLowerCase();
+  return {
+    scopeId: `${sourceRevisionSha256 || "authored"}\0${presentation?.id || ""}\0${image.slide?.id || ""}\0${image.id}`,
+    ...(/^[0-9a-f]{64}$/u.test(sourceRevisionSha256) ? { sourceRevisionSha256 } : {}),
+  };
+}
+
 export class ImageElement {
   constructor(slide, config = {}) {
     this.slide = slide;
@@ -2495,6 +2506,7 @@ export class ImageElement {
     this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation image ${this.id}`);
   }
   get svgTextCapability() { return inspectSvgText(this.dataUrl); }
+  get svgEditCapability() { return inspectSvgLeaves(this.dataUrl, presentationSvgLeafScope(this)); }
   getSvgTextNodes() {
     const capability = this.svgTextCapability;
     return capability.nodes ? capability.nodes.map((node) => ({ ...node })) : [];
@@ -2516,6 +2528,33 @@ export class ImageElement {
       oldValue: capability.nodes.find((node) => node.id === nodeId)?.text,
       value: next?.text,
       expectedHash: capability.nodes.find((node) => node.id === nodeId)?.expectedHash,
+      sourceSha256: capability.sourceSha256,
+    });
+  }
+  getSvgEditLeaves() {
+    const capability = this.svgEditCapability;
+    return capability.leaves ? capability.leaves.map((leaf) => ({ ...leaf })) : [];
+  }
+  editSvgLeaf(leafId, update = {}) {
+    const capability = this.svgEditCapability;
+    if (capability.supported !== true) {
+      const error = new Error(`Presentation image ${this.id} does not expose editable SVG leaves: ${capability.reason}.`);
+      error.code = "unsupported_presentation_svg_leaf";
+      throw error;
+    }
+    const leaf = capability.leaves.find((candidate) => candidate.id === leafId);
+    const leafIndex = capability.leaves.findIndex((candidate) => candidate.id === leafId);
+    const dataUrl = replaceSvgLeaf(this.dataUrl, leafId, update, presentationSvgLeafScope(this));
+    this.replace({ dataUrl });
+    const next = leafIndex >= 0 ? this.svgEditCapability.leaves?.[leafIndex] : undefined;
+    return Object.freeze({
+      kind: "svgLeafEdit",
+      imageId: this.id,
+      leafId,
+      leafKind: leaf?.leafKind,
+      oldValue: leaf?.value,
+      value: next?.value,
+      expectedHash: leaf?.expectedHash,
       sourceSha256: capability.sourceSha256,
     });
   }
@@ -2545,7 +2584,7 @@ export class ImageElement {
 
   inspectRecord() {
     const p = this.position;
-    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgTextCapability: this.svgTextCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
+    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgTextCapability: this.svgTextCapability, svgEditCapability: this.svgEditCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
   }
 
   layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, dataUrl: this.dataUrl, fit: this.fit, crop: this.crop, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }

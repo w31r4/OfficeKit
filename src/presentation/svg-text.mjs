@@ -16,7 +16,7 @@ function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function decodeSvgDataUrl(dataUrl) {
+export function decodeSvgDataUrl(dataUrl) {
   const match = SVG_DATA_URL.exec(String(dataUrl || ""));
   if (!match) return undefined;
   const base64 = match[1].replace(/\s+/gu, "");
@@ -32,10 +32,10 @@ function decodeSvgDataUrl(dataUrl) {
   return { bytes, source };
 }
 
-function svgTextSafety(source) {
+export function svgSourceSafety(source) {
   if (/<\s*(?:script|foreignObject|iframe|object|embed)\b/iu.test(source) ||
       /<!\s*(?:DOCTYPE|ENTITY)\b/iu.test(source) ||
-      /\bon[A-Za-z][\w.-]*\s*=/u.test(source) ||
+      /\bon[A-Za-z][\w.-]*\s*=/iu.test(source) ||
       /(?:href|xlink:href)\s*=\s*(['"])(?!#|data:image\/)[^'"]+\1/iu.test(source)) {
     return "SVG contains active content or an external reference";
   }
@@ -82,7 +82,7 @@ function parseSvgTextNodes(source) {
 export function inspectSvgText(dataUrl) {
   const decoded = decodeSvgDataUrl(dataUrl);
   if (!decoded) return Object.freeze({ supported: false, reason: "image is not a bounded base64 SVG" });
-  const blockedReason = svgTextSafety(decoded.source);
+  const blockedReason = svgSourceSafety(decoded.source);
   if (blockedReason) return Object.freeze({ supported: false, reason: blockedReason, sourceSha256: sha256(decoded.bytes) });
   const parsed = parseSvgTextNodes(decoded.source);
   if (parsed.reason) return Object.freeze({ supported: false, reason: parsed.reason, sourceSha256: sha256(decoded.bytes) });
@@ -97,7 +97,7 @@ export function inspectSvgText(dataUrl) {
 export function editSvgText(dataUrl, nodeId, update = {}) {
   const decoded = decodeSvgDataUrl(dataUrl);
   if (!decoded) throw new TypeError("SVG text editing requires a bounded base64 SVG image.");
-  const blockedReason = svgTextSafety(decoded.source);
+  const blockedReason = svgSourceSafety(decoded.source);
   if (blockedReason) {
     const error = new Error(`SVG text editing is blocked: ${blockedReason}.`);
     error.code = "unsupported_presentation_svg_text";
