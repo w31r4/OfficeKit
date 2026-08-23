@@ -268,6 +268,7 @@ internal static class PptxSlideCloneCodec
 
     private static bool ShouldShare(OpenXmlPart part) =>
         part is SlideLayoutPart or NotesMasterPart or ImagePart or SlidePart ||
+        IsSharedReadOnlyOleObjectPart(part) ||
         // Some producers emit legacy/extended raster assets (for example WDP)
         // through an OpenXmlPart type that is not ImagePart.  The payload is
         // immutable presentation media, so sharing it is safe when its
@@ -275,6 +276,20 @@ internal static class PptxSlideCloneCodec
         // incorrectly reject an otherwise closed slide graph merely because
         // the same asset is used by another slide.
         part.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+
+    // Some real producers bind the same legacy OLE binary to many slides. The
+    // binary is not an editable Office package: OfficeKit exposes payload
+    // replacement only for a uniquely inbound EmbeddedPackagePart. Sharing is
+    // therefore safe only for a closed EmbeddedObjectPart leaf whose complete
+    // inbound set consists of at least two SlideParts. A package part, a part
+    // with descendants or external/data relationships, or a non-slide parent
+    // remains mutable/ambiguous and continues to fail closed.
+    private static bool IsSharedReadOnlyOleObjectPart(OpenXmlPart part)
+    {
+        if (part is not EmbeddedObjectPart || HasRelationships(part)) return false;
+        var parents = part.GetParentParts().ToArray();
+        return parents.Length >= 2 && parents.All(parent => parent is SlidePart);
+    }
 
     // A component clone may copy a mutable package part that is shared by a
     // sibling which will be removed from the clone immediately afterwards.
