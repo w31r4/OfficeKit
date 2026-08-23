@@ -3336,6 +3336,7 @@ internal static class PptxCodec
         changedParts.Add(PartPath(presentationPart));
         changedParts.Add(RelationshipPartPath(presentationPart));
         changedParts.Add("[Content_Types].xml");
+        clonedPackageEntryPaths.Add("[Content_Types].xml");
     }
 
     private static void ApplyCloneElementDeletions(
