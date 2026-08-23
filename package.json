@@ -104,6 +104,7 @@
     "test:skill:spreadsheets": "node test/spreadsheet-skill.mjs",
     "test:presentation": "node test/presentation.mjs && node test/presentation-svg-leaves.mjs",
     "test:pptx-lossless-benchmark": "node test/pptx-lossless-benchmark.mjs",
+    "test:pptx-svg-leaf-benchmark": "node test/pptx-svg-leaf-benchmark.mjs",
     "test:pptx-import-object-classification": "node test/pptx-import-object-classification.mjs",
     "test:pptx-import-object-classification-evidence": "node test/pptx-import-object-classification-evidence.mjs",
     "test:pptx-design-profile": "node test/pptx-design-profile.mjs",

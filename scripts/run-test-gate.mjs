@@ -50,6 +50,7 @@ const fastSteps = [
   nodeStep("test/spreadsheet-sparkline.mjs"),
   nodeStep("test/presentation.mjs"),
   nodeStep("test/presentation-svg-leaves.mjs"),
+  nodeStep("test/pptx-svg-leaf-benchmark.mjs"),
   nodeStep("test/pptx-lossless-benchmark.mjs"),
   nodeStep("test/pptx-import-object-classification.mjs"),
   nodeStep("test/pptx-import-object-classification-evidence.mjs"),
@@ -94,6 +95,7 @@ const slowSteps = [
   npmStep("test:skill:spreadsheets"),
   nodeStep("test/presentation.mjs"),
   nodeStep("test/presentation-svg-leaves.mjs"),
+  nodeStep("test/pptx-svg-leaf-benchmark.mjs"),
   nodeStep("test/pptx-lossless-benchmark.mjs"),
   nodeStep("test/pptx-import-object-classification.mjs"),
   nodeStep("test/pptx-import-object-classification-evidence.mjs"),
@@ -170,15 +172,15 @@ const slowSteps = [
 
 const slowSegments = Object.freeze({
   foundation: Object.freeze({ start: 0, end: 16 }),
-  presentation: Object.freeze({ start: 16, end: 28 }),
-  templates: Object.freeze({ start: 28, end: 35 }),
-  officekit: Object.freeze({ start: 35, end: 42 }),
-  documents: Object.freeze({ start: 42, end: 51 }),
-  "pdf-packs": Object.freeze({ start: 51, end: 60 }),
-  "pdf-providers": Object.freeze({ start: 60, end: 69 }),
-  "pdf-specialists": Object.freeze({ start: 69, end: 78 }),
-  qa: Object.freeze({ start: 78, end: 85 }),
-  release: Object.freeze({ start: 85, end: 90 }),
+  presentation: Object.freeze({ start: 16, end: 29 }),
+  templates: Object.freeze({ start: 29, end: 36 }),
+  officekit: Object.freeze({ start: 36, end: 43 }),
+  documents: Object.freeze({ start: 43, end: 52 }),
+  "pdf-packs": Object.freeze({ start: 52, end: 61 }),
+  "pdf-providers": Object.freeze({ start: 61, end: 70 }),
+  "pdf-specialists": Object.freeze({ start: 70, end: 79 }),
+  qa: Object.freeze({ start: 79, end: 86 }),
+  release: Object.freeze({ start: 86, end: 91 }),
 });
 
 const segmentRanges = Object.values(slowSegments);

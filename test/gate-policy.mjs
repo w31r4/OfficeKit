@@ -17,6 +17,7 @@ assert.equal(packageJson.scripts["test:slow"], "node scripts/run-test-gate.mjs s
 assert.equal(packageJson.scripts["test:slow:templates"], "node test/default-template-library.mjs");
 assert.equal(packageJson.scripts["test:slow:promptbench"], "node test/agent-evals.mjs");
 assert.match(packageJson.scripts["test:presentation"], /presentation-svg-leaves\.mjs/);
+assert.equal(packageJson.scripts["test:pptx-svg-leaf-benchmark"], "node test/pptx-svg-leaf-benchmark.mjs");
 
 const fastStart = gateRunner.indexOf("const fastSteps");
 const slowStart = gateRunner.indexOf("const slowSteps");
@@ -28,6 +29,7 @@ assert.match(fastSource, /skill-json-assets/);
 assert.match(fastSource, /windows-live-gate/);
 assert.match(fastSource, /windows-pptx-lossless-gate/);
 assert.match(fastSource, /presentation-svg-leaves/);
+assert.match(fastSource, /pptx-svg-leaf-benchmark/);
 assert.doesNotMatch(fastSource, /default-template-library|agent-evals|pdf-provider-pack-build|pdf-pyhanko-provider|presentation-skill|document-skill|pdf-skill|reference-skills|office-kit-package/);
 assert.match(slowSource, /default-template-library/);
 assert.match(slowSource, /compact-skill-jsons/);
@@ -35,6 +37,7 @@ assert.match(slowSource, /skill-json-assets/);
 assert.match(slowSource, /agent-evals/);
 assert.match(slowSource, /pdf-provider-pack-build/);
 assert.match(slowSource, /presentation-svg-leaves/);
+assert.match(slowSource, /pptx-svg-leaf-benchmark/);
 const slowSegments = [
   "foundation",
   "presentation",
