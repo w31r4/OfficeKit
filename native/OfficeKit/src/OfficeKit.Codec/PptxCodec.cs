@@ -375,6 +375,7 @@ internal static class PptxCodec
         var removedElementRelationshipKeys = new HashSet<string>(StringComparer.Ordinal);
         var clonedPartSourcePaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var clonedPackageEntryPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var authoredOverlayXmlByPartPath = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         using (var package = PresentationDocument.Open(stream, isEditable: true, new OpenSettings { AutoSave = false }))
         {
             var presentationPart = package.PresentationPart ??
@@ -931,16 +932,23 @@ internal static class PptxCodec
                 }
                 if (authoredElements.Length > 0)
                 {
+                    if (changed)
+                        throw new CodecException(
+                            "unsupported_presentation_authored_overlay",
+                            $"Presentation slide {slideIndex + 1} cannot combine an authored overlay with another SlidePart mutation in one export; commit and reopen between bounded edits.",
+                            PartPath(slidePart));
                     var relationshipCount = slideContext.AddedRelationshipIds.Count;
                     var partCount = slideContext.AddedPartPaths.Count;
-                    foreach (var authored in authoredElements)
-                        shapeTree.Append(BuildElement(authored, nativeIdsByElementId, slideContext, slidePart));
+                    var authoredXml = authoredElements
+                        .Select(authored => BuildElement(authored, nativeIdsByElementId, slideContext, slidePart).OuterXml)
+                        .ToArray();
                     if (slideContext.AddedRelationshipIds.Count != relationshipCount || slideContext.AddedPartPaths.Count != partCount)
                         throw new CodecException(
                             "unsupported_presentation_authored_overlay",
                             $"Presentation slide {slideIndex + 1} authored overlay attempted to change package relationships.",
                             PartPath(slidePart));
-                    changed = true;
+                    authoredOverlayXmlByPartPath.Add(PartPath(slidePart), authoredXml);
+                    changedParts.Add(PartPath(slidePart));
                 }
                 if (changed)
                 {
@@ -1009,6 +1017,17 @@ internal static class PptxCodec
             : NormalizeAddedPartTimestamps(
                 stream.ToArray(),
                 addedPartPaths.Concat(clonedPackageEntryPaths).ToHashSet(StringComparer.OrdinalIgnoreCase));
+        if (authoredOverlayXmlByPartPath.Count > 0)
+        {
+            var replacements = authoredOverlayXmlByPartPath.ToDictionary(
+                entry => entry.Key,
+                entry => PptxEditPlanCodec.AppendShapeTreeChildren(
+                    PptxEditPlanCodec.ReadPart(bytes, entry.Key),
+                    entry.Value,
+                    entry.Key),
+                StringComparer.OrdinalIgnoreCase);
+            bytes = PptxEditPlanCodec.ReplaceParts(bytes, replacements);
+        }
         ValidateOutputBudget(bytes, limits);
         AssertPlannedPartsRemoved(sourceBytes, bytes, removedSourcePartPaths);
         var retainedValidationErrorCount = ValidateOffice2021AgainstSource(sourceBytes, bytes, clonedPartSourcePaths);

@@ -681,7 +681,53 @@ internal static partial class PptxEditPlanCodec
         }
     }
 
-    private static byte[] ReplaceParts(byte[] sourceBytes, IReadOnlyDictionary<string, byte[]> replacements)
+    internal static byte[] AppendShapeTreeChildren(
+        byte[] sourcePart,
+        IReadOnlyList<string> childXml,
+        string partPath)
+    {
+        if (childXml.Count == 0) return sourcePart;
+        var (xml, bomBytes) = DecodeXml(sourcePart);
+        var tokens = XmlTokenPattern().Matches(xml).Cast<Match>().ToArray();
+        var treeTokenIndex = Array.FindIndex(tokens, token =>
+            !token.Value.StartsWith("</", StringComparison.Ordinal) &&
+            !token.Value.EndsWith("/>", StringComparison.Ordinal) &&
+            LocalName(token.Value) == "spTree");
+        if (treeTokenIndex < 0)
+            throw new CodecException("missing_presentation_shape_tree", "PPTX SlidePart XML has no non-empty spTree element.", partPath);
+
+        var depth = 1;
+        var insertionIndex = -1;
+        for (var index = treeTokenIndex + 1; index < tokens.Length; index++)
+        {
+            var token = tokens[index];
+            var value = token.Value;
+            if (value.StartsWith("<!--", StringComparison.Ordinal) ||
+                value.StartsWith("<![CDATA[", StringComparison.Ordinal) ||
+                value.StartsWith("<?", StringComparison.Ordinal))
+                continue;
+            var closing = value.StartsWith("</", StringComparison.Ordinal);
+            var selfClosing = value.EndsWith("/>", StringComparison.Ordinal);
+            if (closing) depth--;
+            else if (!selfClosing) depth++;
+            if (depth == 0)
+            {
+                if (!closing || LocalName(value) != "spTree")
+                    throw new CodecException("invalid_presentation_shape_tree", "PPTX SlidePart spTree token topology is not safely appendable.", partPath);
+                insertionIndex = token.Index;
+                break;
+            }
+        }
+        if (insertionIndex < 0)
+            throw new CodecException("invalid_presentation_shape_tree", "PPTX SlidePart spTree has no matching closing token.", partPath);
+
+        var output = xml.Insert(insertionIndex, string.Concat(childXml));
+        var encoded = StrictUtf8.GetBytes(output);
+        if (bomBytes == 0) return encoded;
+        return StrictUtf8.GetPreamble().Concat(encoded).ToArray();
+    }
+
+    internal static byte[] ReplaceParts(byte[] sourceBytes, IReadOnlyDictionary<string, byte[]> replacements)
     {
         using var stream = new MemoryStream();
         stream.Write(sourceBytes);
@@ -714,7 +760,7 @@ internal static partial class PptxEditPlanCodec
             StringComparer.OrdinalIgnoreCase);
     }
 
-    private static byte[] ReadPart(byte[] bytes, string path)
+    internal static byte[] ReadPart(byte[] bytes, string path)
     {
         using var stream = new MemoryStream(bytes, writable: false);
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
