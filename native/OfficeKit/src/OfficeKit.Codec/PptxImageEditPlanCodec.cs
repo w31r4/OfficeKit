@@ -116,8 +116,15 @@ internal static partial class PptxEditPlanCodec
         var image = proof.Image ?? throw new CodecException("presentation_edit_target_mismatch", $"PPTX image operation {operation.OperationId} lost its package proof.", operation.SlidePartPath);
         if (elementRange.LocalName != "pic")
             throw new CodecException("presentation_edit_target_mismatch", $"PPTX image operation {operation.OperationId} raw target is not p:pic.", operation.SlidePartPath);
-        var namespaceByPrefix = NamespacePattern().Matches(xml).Cast<Match>()
-            .ToDictionary(match => match.Groups["prefix"].Value, match => match.Groups["uri"].Value, StringComparer.Ordinal);
+        var namespaceByPrefix = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var declaration in NamespacePattern().Matches(xml).Cast<Match>())
+        {
+            var prefix = declaration.Groups["prefix"].Value;
+            var uri = declaration.Groups["uri"].Value;
+            if (namespaceByPrefix.TryGetValue(prefix, out var existingUri) && existingUri != uri)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX image operation {operation.OperationId} has an ambiguously rebound XML namespace prefix.", operation.SlidePartPath);
+            namespaceByPrefix[prefix] = uri;
+        }
         var elementXml = xml[elementRange.Start..elementRange.End];
         var tokens = XmlTokenPattern().Matches(elementXml).Cast<Match>().ToArray();
         var blips = tokens.Where(token => !token.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(token.Value) == "blip" &&
@@ -145,10 +152,18 @@ internal static partial class PptxEditPlanCodec
             throw new CodecException("presentation_edit_target_mismatch", $"PPTX image operation {operation.OperationId} has ambiguous source rectangles.", operation.SlidePartPath);
         if (operation.ImageReplacement.Crop is { } crop)
         {
-            var prefix = crops.Length == 1 ? QualifiedPrefix(crops[0].Value) : QualifiedPrefix(blip.Value);
-            var replacement = BuildCropToken(prefix, crop);
-            if (crops.Length == 1) localPatches.Add((crops[0].Index, crops[0].Index + crops[0].Length, replacement));
-            else localPatches.Add((blip.Index + blip.Length, blip.Index + blip.Length, replacement));
+            if (crops.Length == 1)
+            {
+                var replacement = UpdateCropToken(crops[0].Value, crop, operation);
+                localPatches.Add((crops[0].Index, crops[0].Index + crops[0].Length, replacement));
+            }
+            else
+            {
+                var prefix = QualifiedPrefix(blip.Value);
+                var replacement = BuildCropToken(prefix, crop);
+                var insertion = XmlElementEnd(tokens, blip, operation);
+                localPatches.Add((insertion, insertion, replacement));
+            }
         }
         else if (crops.Length == 1)
         {
@@ -282,7 +297,57 @@ internal static partial class PptxEditPlanCodec
     private static string BuildCropToken(string prefix, PresentationImageCrop crop)
     {
         var name = prefix.Length == 0 ? "srcRect" : $"{prefix}:srcRect";
-        return $"<{name} l=\"{crop.LeftThousandthPercent}\" t=\"{crop.TopThousandthPercent}\" r=\"{crop.RightThousandthPercent}\" b=\"{crop.BottomThousandthPercent}\"/>";
+        var declaration = prefix.Length == 0
+            ? $" xmlns=\"{DrawingNamespace}\""
+            : $" xmlns:{prefix}=\"{DrawingNamespace}\"";
+        return $"<{name}{declaration} l=\"{crop.LeftThousandthPercent}\" t=\"{crop.TopThousandthPercent}\" r=\"{crop.RightThousandthPercent}\" b=\"{crop.BottomThousandthPercent}\"/>";
+    }
+
+    private static string UpdateCropToken(string token, PresentationImageCrop crop, PresentationEditOperation operation)
+    {
+        if (!token.TrimEnd().EndsWith("/>", StringComparison.Ordinal))
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX image operation {operation.OperationId} source rectangle is not an empty element.", operation.SlidePartPath);
+        var values = new Dictionary<string, long>(StringComparer.Ordinal)
+        {
+            ["l"] = crop.LeftThousandthPercent,
+            ["t"] = crop.TopThousandthPercent,
+            ["r"] = crop.RightThousandthPercent,
+            ["b"] = crop.BottomThousandthPercent,
+        };
+        var patches = new List<(int Start, int End, string Replacement)>();
+        var present = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match attribute in XmlAttributePattern().Matches(token))
+        {
+            var name = attribute.Groups["name"].Value;
+            if (!values.TryGetValue(name, out var value)) continue;
+            if (!present.Add(name))
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX image operation {operation.OperationId} source rectangle contains duplicate {name} attributes.", operation.SlidePartPath);
+            var group = attribute.Groups["value"];
+            patches.Add((group.Index, group.Index + group.Length, value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        var output = token;
+        foreach (var patch in patches.OrderByDescending(item => item.Start))
+            output = output[..patch.Start] + patch.Replacement + output[patch.End..];
+        var missing = values.Where(pair => !present.Contains(pair.Key)).Select(pair => $" {pair.Key}=\"{pair.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}\"");
+        return output.Insert(output.LastIndexOf("/>", StringComparison.Ordinal), string.Concat(missing));
+    }
+
+    private static int XmlElementEnd(
+        IReadOnlyList<Match> tokens,
+        Match opening,
+        PresentationEditOperation operation)
+    {
+        if (opening.Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal)) return opening.Index + opening.Length;
+        var qualifiedName = QualifiedName(opening.Value);
+        var depth = 1;
+        foreach (var token in tokens.Where(token => token.Index >= opening.Index + opening.Length))
+        {
+            if (QualifiedName(token.Value) != qualifiedName) continue;
+            if (token.Value.StartsWith("</", StringComparison.Ordinal)) depth--;
+            else if (!token.Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal)) depth++;
+            if (depth == 0) return token.Index + token.Length;
+        }
+        throw new CodecException("presentation_edit_target_mismatch", $"PPTX image operation {operation.OperationId} DrawingML blip is unbalanced.", operation.SlidePartPath);
     }
 
     private static byte[] ReadOpenXmlPart(OpenXmlPart part)
