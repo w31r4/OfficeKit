@@ -110,6 +110,7 @@
     "test:pptx-design-profile": "node test/pptx-design-profile.mjs",
     "test:pptx-source-continuation": "node test/pptx-source-continuation.mjs",
     "test:pptx-source-continuation-native": "node test/pptx-source-continuation-native.mjs",
+    "test:pptx-source-derived-companion": "node test/pptx-source-derived-companion.mjs",
     "test:pptx-source-agent-continuation": "node test/pptx-source-agent-continuation.mjs",
     "test:presentation-jsx": "node test/presentation-jsx.mjs",
     "test:skill:presentations": "node test/presentation-skill.mjs && node test/presentation-template-edit.mjs",
