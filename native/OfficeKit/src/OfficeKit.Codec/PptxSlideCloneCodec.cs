@@ -16,7 +16,8 @@ internal sealed record PptxSlideCloneResult(
     SlidePart Part,
     IReadOnlySet<string> ChangedPackagePaths,
     IReadOnlySet<string> AddedOpaquePartPaths,
-    IReadOnlySet<string> AddedOpaqueRelationshipKeys);
+    IReadOnlySet<string> AddedOpaqueRelationshipKeys,
+    IReadOnlyDictionary<string, string> CopiedPartSourcePaths);
 
 // Slide cloning is an OPC graph-copy operation. Open XML SDK already owns the
 // difficult cross-package copy algorithm: it preserves relationship IDs,
@@ -153,7 +154,14 @@ internal static class PptxSlideCloneCodec
             if (!OpcPackageProfile.Pptx.OwnsPath(dataPath)) opaquePartPaths.Add(dataPath);
         }
 
-        return new PptxSlideCloneResult(clone, changedPaths, opaquePartPaths, opaqueRelationshipKeys);
+        var copiedPartSourcePaths = sourceToClone
+            .Where(pair => !SamePart(pair.Key, pair.Value))
+            .ToDictionary(
+                pair => PartPath(pair.Value),
+                pair => PartPath(pair.Key),
+                StringComparer.OrdinalIgnoreCase);
+
+        return new PptxSlideCloneResult(clone, changedPaths, opaquePartPaths, opaqueRelationshipKeys, copiedPartSourcePaths);
     }
 
     internal static void Validate(

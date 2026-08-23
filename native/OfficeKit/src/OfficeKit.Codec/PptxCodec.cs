@@ -373,6 +373,7 @@ internal static class PptxCodec
         var removedSourceRelationshipKeys = new HashSet<string>(StringComparer.Ordinal);
         var removedElementPartPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var removedElementRelationshipKeys = new HashSet<string>(StringComparer.Ordinal);
+        var clonedPartSourcePaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         using (var package = PresentationDocument.Open(stream, isEditable: true, new OpenSettings { AutoSave = false }))
         {
             var presentationPart = package.PresentationPart ??
@@ -445,7 +446,8 @@ internal static class PptxCodec
                 nativeObjects,
                 changedParts,
                 addedRelationshipIds,
-                addedPartPaths);
+                addedPartPaths,
+                clonedPartSourcePaths);
             DeleteUnrequestedSourceSlides(
                 presentationPart,
                 slideIds,
@@ -990,7 +992,7 @@ internal static class PptxCodec
             : NormalizeAddedPartTimestamps(stream.ToArray(), addedPartPaths);
         ValidateOutputBudget(bytes, limits);
         AssertPlannedPartsRemoved(sourceBytes, bytes, removedSourcePartPaths);
-        var retainedValidationErrorCount = ValidateOffice2021AgainstSource(sourceBytes, bytes);
+        var retainedValidationErrorCount = ValidateOffice2021AgainstSource(sourceBytes, bytes, clonedPartSourcePaths);
         AssertPackagePartsUnchangedExcept(sourceBytes, bytes, changedParts);
         ValidatePreservedSlideElements(sourceBytes, bytes, envelope.Presentation, limits);
         ValidatePreservedMasterAndLayoutContent(sourceBytes, bytes, envelope.Presentation, limits);
@@ -3275,7 +3277,8 @@ internal static class PptxCodec
         PptxNativeObjectCatalog nativeObjects,
         ISet<string> changedParts,
         ISet<string> addedRelationshipIds,
-        ISet<string> addedPartPaths)
+        ISet<string> addedPartPaths,
+        IDictionary<string, string> clonedPartSourcePaths)
     {
         var cloneTargets = targets.Where(target => target.IsClone).ToArray();
         if (cloneTargets.Length == 0) return;
@@ -3311,6 +3314,8 @@ internal static class PptxCodec
             changedParts.UnionWith(result.ChangedPackagePaths);
             addedPartPaths.UnionWith(result.AddedOpaquePartPaths);
             addedRelationshipIds.UnionWith(result.AddedOpaqueRelationshipKeys);
+            foreach (var (clonePath, sourcePath) in result.CopiedPartSourcePaths)
+                clonedPartSourcePaths.Add(clonePath, sourcePath);
             if (nextSlideId == uint.MaxValue)
                 throw new CodecException("presentation_slide_id_exhausted", "PPTX cannot allocate another 32-bit slide identifier.", "ppt/presentation.xml");
             nextSlideId++;
@@ -3784,14 +3789,21 @@ internal static class PptxCodec
     // Open XML SDK's Office 2021 validator does not recognize. Source-bound
     // export may retain such diagnostics, but must never introduce a new one.
     // This comparison is intentionally unavailable to source-free export.
-    private static int ValidateOffice2021AgainstSource(byte[] sourceBytes, byte[] outputBytes)
+    private static int ValidateOffice2021AgainstSource(
+        byte[] sourceBytes,
+        byte[] outputBytes,
+        IReadOnlyDictionary<string, string>? clonedPartSourcePaths = null)
     {
         var sourceErrors = Office2021ValidationErrors(sourceBytes);
         var sourceSignatures = sourceErrors
             .Select(error => error.Signature)
             .ToHashSet(StringComparer.Ordinal);
+        var exactCopiedPartSources = ExactCopiedPartSources(sourceBytes, outputBytes, clonedPartSourcePaths);
         var introduced = Office2021ValidationErrors(outputBytes)
-            .Where(error => !sourceSignatures.Contains(error.Signature))
+            .Where(error =>
+                !sourceSignatures.Contains(error.Signature) &&
+                (!exactCopiedPartSources.TryGetValue(error.Part, out var sourcePart) ||
+                 !sourceSignatures.Contains(error.SignatureForPart(sourcePart))))
             .Take(8)
             .ToArray();
         if (introduced.Length == 0) return sourceErrors.Length;
@@ -3799,7 +3811,16 @@ internal static class PptxCodec
         throw new CodecException("openxml_validation_failed", $"Source-preserving PPTX export introduced Office 2021 Open XML validation error(s): {detail}");
     }
 
-    private sealed record Office2021ValidationError(string Signature, string Detail);
+    private sealed record Office2021ValidationError(
+        string Part,
+        string Path,
+        string Id,
+        string Description)
+    {
+        internal string Signature => SignatureForPart(Part);
+        internal string Detail => $"{(Path.Length == 0 ? Part : Path)}: {Description}";
+        internal string SignatureForPart(string part) => string.Join("\u001f", part, Path, Id, Description);
+    }
 
     private static Office2021ValidationError[] Office2021ValidationErrors(byte[] bytes)
     {
@@ -3810,17 +3831,32 @@ internal static class PptxCodec
             .Take(MaxOffice2021ValidationErrors + 1)
             .Select(error =>
             {
-                var part = error.Part?.Uri.ToString() ?? "package";
+                var part = error.Part?.Uri.ToString().TrimStart('/') ?? "package";
                 var path = error.Path?.XPath ?? string.Empty;
-                var detail = $"{(path.Length == 0 ? part : path)}: {error.Description}";
-                var signature = string.Join("\u001f", part, path, error.Id ?? string.Empty, error.Description ?? string.Empty);
-                return new Office2021ValidationError(signature, detail);
+                return new Office2021ValidationError(part, path, error.Id ?? string.Empty, error.Description ?? string.Empty);
             })
             .ToArray();
         if (errors.Length <= MaxOffice2021ValidationErrors) return errors;
         throw new CodecException(
             "openxml_validation_budget_exceeded",
             $"PPTX validation produced more than {MaxOffice2021ValidationErrors} errors; refusing an unbounded validation result.");
+    }
+
+    private static IReadOnlyDictionary<string, string> ExactCopiedPartSources(
+        byte[] sourceBytes,
+        byte[] outputBytes,
+        IReadOnlyDictionary<string, string>? clonedPartSourcePaths)
+    {
+        if (clonedPartSourcePaths is null || clonedPartSourcePaths.Count == 0)
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var sourceHashes = PackagePartHashes(sourceBytes);
+        var outputHashes = PackagePartHashes(outputBytes);
+        return clonedPartSourcePaths
+            .Where(pair =>
+                sourceHashes.TryGetValue(pair.Value, out var sourceHash) &&
+                outputHashes.TryGetValue(pair.Key, out var outputHash) &&
+                sourceHash.Equals(outputHash, StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
     }
 
 }
