@@ -681,7 +681,7 @@ export function compareRenderedPages(sourceRender, outputRender, targetPage) {
   };
 }
 
-export function compareContinuationRenderedPages(sourceRender, outputRender, targetPage) {
+export function compareContinuationRenderedPages(sourceRender, outputRender, targetPage, sourcePage) {
   if (outputRender.pages.length !== sourceRender.pages.length + 1) {
     throw new Error(`Rendered continuation page count must increase by one: ${sourceRender.pages.length} -> ${outputRender.pages.length}`);
   }
@@ -695,12 +695,18 @@ export function compareContinuationRenderedPages(sourceRender, outputRender, tar
   if (nonTargetMismatches.length) throw new Error(`Non-target rendered pages changed: ${nonTargetMismatches.join(", ")}`);
   const target = outputRender.pages.find(({ page }) => page === targetPage);
   if (!target) throw new Error(`Appended rendered page ${targetPage} is missing`);
+  const sourceTarget = sourcePage == null ? null : sourceRender.pages.find(({ page }) => page === sourcePage);
+  if (sourcePage != null && !sourceTarget) throw new Error(`Cloned source page ${sourcePage} is missing`);
+  if (sourceTarget && sourceTarget.sha256 === target.sha256) {
+    throw new Error(`Appended rendered page ${targetPage} did not change from cloned source page ${sourcePage}`);
+  }
   return {
     passed: true,
     sourcePageCount: sourceRender.pages.length,
     outputPageCount: outputRender.pages.length,
     targetPage,
     appendedTargetPresent: true,
+    ...(sourceTarget ? { clonedSourcePage: sourcePage, appendedTargetChangedFromSource: true } : {}),
     nonTargetPagesPixelIdentical: true,
     nonTargetMismatches: [],
     sourcePageHashes: sourceRender.pages,
