@@ -985,7 +985,9 @@ internal static class PptxCodec
             replacedOpaquePartHashes.Count == 0 &&
             removedSourcePartPaths.Count == 0 &&
             removedSourceRelationshipKeys.Count == 0;
-        var bytes = noModeledChanges ? sourceBytes : stream.ToArray();
+        var bytes = noModeledChanges
+            ? sourceBytes
+            : NormalizeAddedPartTimestamps(stream.ToArray(), addedPartPaths);
         ValidateOutputBudget(bytes, limits);
         AssertPlannedPartsRemoved(sourceBytes, bytes, removedSourcePartPaths);
         var retainedValidationErrorCount = ValidateOffice2021AgainstSource(sourceBytes, bytes);
@@ -1029,6 +1031,27 @@ internal static class PptxCodec
                 "source_openxml_validation_warnings_preserved",
                 $"Preserved {retainedValidationErrorCount} pre-existing Office 2021 validation warning(s) from the source package; export introduced none."));
         return new PptxExportResult(bytes, diagnostics);
+    }
+
+    private static byte[] NormalizeAddedPartTimestamps(byte[] bytes, IReadOnlyCollection<string> addedPartPaths)
+    {
+        if (addedPartPaths.Count == 0) return bytes;
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            var timestamp = new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            foreach (var path in addedPartPaths.Order(StringComparer.OrdinalIgnoreCase))
+            {
+                var entry = archive.GetEntry(path) ?? throw new CodecException(
+                    "presentation_added_part_missing",
+                    $"PPTX declared added part {path} is missing from the output package.",
+                    path);
+                entry.LastWriteTime = timestamp;
+            }
+        }
+        return stream.ToArray();
     }
 
     // This is deliberately a canvas-only mutation. PresentationML leaves all
