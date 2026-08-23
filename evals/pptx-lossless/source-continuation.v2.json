@@ -1,0 +1,533 @@
+{
+  "schema": "office-kit/pptx-source-continuation-evidence/v2",
+  "sources": [
+    {
+      "id": "suanzhi-future-2026",
+      "fileName": "b34ddad8cf8b_012_算秩未来2026_0127_极致技术&长期主义.pptx",
+      "repetition": 1,
+      "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+      "sourceSlideSha256": "676698fbf97b0c45688a54d4828e07c572880f22935e83b20c524f773268a242",
+      "sourceSlidePart": "ppt/slides/slide1.xml",
+      "sourceSlideCount": 21,
+      "outputSlideCount": 22,
+      "kind": "bounded-overlay",
+      "cloneOutputSha256": "c57df294af29c90288c130384e025d5bc651fa20bfc35d222000cf9f042be1b9",
+      "outputSha256": "ac9d20c64edf5fae2a1166d27e59fa898d81b0725e05e200012e533e250ce7df",
+      "canonicalOpcSha256": "f24bd50b72488cdc2ac9935c5d1a7fc1ab0ccb5be2e05dc8acd6cad9a375672f",
+      "sourceSlideUnchanged": true,
+      "changedExistingParts": [
+        "[Content_Types].xml",
+        "ppt/_rels/presentation.xml.rels",
+        "ppt/presentation.xml"
+      ],
+      "topologyChangedParts": [
+        "[Content_Types].xml",
+        "ppt/_rels/presentation.xml.rels",
+        "ppt/presentation.xml"
+      ],
+      "nonTopologyChangedParts": [],
+      "addedParts": [
+        "ppt/media/image33.png",
+        "ppt/slides/_rels/slide1122.xml.rels",
+        "ppt/slides/slide1122.xml"
+      ],
+      "clonedSlidePart": "ppt/slides/slide1122.xml",
+      "targetXmlMaskedEqual": true,
+      "overlayChangedExistingParts": [
+        "ppt/slides/_rels/slide1122.xml.rels",
+        "ppt/slides/slide1122.xml"
+      ],
+      "overlayAddedParts": [
+        "ppt/media/image33.png"
+      ],
+      "overlayRemovedParts": [],
+      "unexpectedOverlayChanges": [],
+      "addedMediaParts": [
+        "ppt/media/image33.png"
+      ],
+      "zipEntryMetadata": {
+        "ppt/media/image33.png": {
+          "date": "1980-01-01T00:00:00.000Z",
+          "unixPermissions": 33188,
+          "dosPermissions": null
+        },
+        "ppt/slides/_rels/slide1122.xml.rels": {
+          "date": "1980-01-01T00:00:00.000Z",
+          "unixPermissions": 33188,
+          "dosPermissions": null
+        },
+        "ppt/slides/slide1122.xml": {
+          "date": "1980-01-01T00:00:00.000Z",
+          "unixPermissions": 33188,
+          "dosPermissions": null
+        }
+      },
+      "target": {
+        "kind": "bounded-overlay",
+        "capability": {
+          "sourceBound": true,
+          "ready": true,
+          "profile": "bounded-overlay",
+          "requiresExportReopen": false,
+          "oneSlideMutationPerExport": true,
+          "shapeGeometries": [
+            "textbox",
+            "rect",
+            "roundRect",
+            "ellipse"
+          ],
+          "embeddedImage": true,
+          "sourceRevisionSha256": "c57df294af29c90288c130384e025d5bc651fa20bfc35d222000cf9f042be1b9"
+        },
+        "text": {
+          "id": "sh/001g",
+          "name": "officekit-source-derived-text",
+          "value": "OfficeKit continuation · slide 22",
+          "position": {
+            "left": 56,
+            "top": 28,
+            "width": 360,
+            "height": 52
+          }
+        },
+        "accent": {
+          "id": "sh/001h",
+          "name": "officekit-source-derived-accent",
+          "geometry": "ellipse",
+          "position": {
+            "left": 424,
+            "top": 36,
+            "width": 36,
+            "height": 36
+          }
+        },
+        "image": {
+          "id": "im/001i",
+          "name": "officekit-source-derived-image",
+          "alt": "Source-derived continuation image",
+          "position": {
+            "left": 468,
+            "top": 36,
+            "width": 36,
+            "height": 36
+          },
+          "sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460"
+        }
+      },
+      "verifiedTarget": {
+        "kind": "bounded-overlay",
+        "text": {
+          "id": "presentation/slide/22/element/6",
+          "name": "officekit-source-derived-text",
+          "value": "OfficeKit continuation · slide 22",
+          "position": {
+            "left": 56,
+            "top": 28,
+            "width": 360,
+            "height": 52
+          }
+        },
+        "accent": {
+          "id": "presentation/slide/22/element/7",
+          "name": "officekit-source-derived-accent",
+          "geometry": "ellipse",
+          "position": {
+            "left": 424,
+            "top": 36,
+            "width": 36,
+            "height": 36
+          }
+        },
+        "image": {
+          "id": "presentation/slide/22/element/8",
+          "name": "officekit-source-derived-image",
+          "alt": "Source-derived continuation image",
+          "position": {
+            "left": 468,
+            "top": 36,
+            "width": 36,
+            "height": 36
+          },
+          "sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460"
+        }
+      },
+      "repetitions": 3,
+      "deterministic": true,
+      "repeatOutputSha256s": [
+        "ac9d20c64edf5fae2a1166d27e59fa898d81b0725e05e200012e533e250ce7df",
+        "ac9d20c64edf5fae2a1166d27e59fa898d81b0725e05e200012e533e250ce7df",
+        "ac9d20c64edf5fae2a1166d27e59fa898d81b0725e05e200012e533e250ce7df"
+      ],
+      "repeatCanonicalOpcSha256s": [
+        "f24bd50b72488cdc2ac9935c5d1a7fc1ab0ccb5be2e05dc8acd6cad9a375672f",
+        "f24bd50b72488cdc2ac9935c5d1a7fc1ab0ccb5be2e05dc8acd6cad9a375672f",
+        "f24bd50b72488cdc2ac9935c5d1a7fc1ab0ccb5be2e05dc8acd6cad9a375672f"
+      ],
+      "repeatCloneOutputSha256s": [
+        "c57df294af29c90288c130384e025d5bc651fa20bfc35d222000cf9f042be1b9",
+        "c57df294af29c90288c130384e025d5bc651fa20bfc35d222000cf9f042be1b9",
+        "c57df294af29c90288c130384e025d5bc651fa20bfc35d222000cf9f042be1b9"
+      ],
+      "repeatMutationFootprints": [
+        "{\"overlayChangedExistingParts\":[\"ppt/slides/_rels/slide1122.xml.rels\",\"ppt/slides/slide1122.xml\"],\"overlayAddedParts\":[\"ppt/media/image33.png\"],\"overlayRemovedParts\":[]}",
+        "{\"overlayChangedExistingParts\":[\"ppt/slides/_rels/slide1122.xml.rels\",\"ppt/slides/slide1122.xml\"],\"overlayAddedParts\":[\"ppt/media/image33.png\"],\"overlayRemovedParts\":[]}",
+        "{\"overlayChangedExistingParts\":[\"ppt/slides/_rels/slide1122.xml.rels\",\"ppt/slides/slide1122.xml\"],\"overlayAddedParts\":[\"ppt/media/image33.png\"],\"overlayRemovedParts\":[]}"
+      ]
+    },
+    {
+      "id": "blue-gray-acid-template",
+      "fileName": "template.pptx",
+      "repetition": 1,
+      "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+      "sourceSlideSha256": "4a15df7692d943a65019a60ecf4d7721715062be2c4168bfd5929deedee0fe33",
+      "sourceSlidePart": "ppt/slides/slide1.xml",
+      "sourceSlideCount": 19,
+      "outputSlideCount": 20,
+      "kind": "bounded-overlay",
+      "cloneOutputSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+      "outputSha256": "b9a8d3b8849e4666aed23a920058436036fe811313933f68c8d449f2c0163295",
+      "canonicalOpcSha256": "262a78fe7de4204db3755cbbf4fb1ac8149507d440159d8cbaf1b5a9a833aaf3",
+      "sourceSlideUnchanged": true,
+      "changedExistingParts": [
+        "[Content_Types].xml",
+        "ppt/_rels/presentation.xml.rels",
+        "ppt/presentation.xml"
+      ],
+      "topologyChangedParts": [
+        "[Content_Types].xml",
+        "ppt/_rels/presentation.xml.rels",
+        "ppt/presentation.xml"
+      ],
+      "nonTopologyChangedParts": [],
+      "addedParts": [
+        "ppt/media/image20.png",
+        "ppt/notesSlides/_rels/notesSlide1119.xml.rels",
+        "ppt/notesSlides/notesSlide1119.xml",
+        "ppt/slides/_rels/slide1120.xml.rels",
+        "ppt/slides/slide1120.xml",
+        "ppt/tags/tag11389.xml"
+      ],
+      "clonedSlidePart": "ppt/slides/slide1120.xml",
+      "targetXmlMaskedEqual": true,
+      "overlayChangedExistingParts": [
+        "ppt/slides/_rels/slide1120.xml.rels",
+        "ppt/slides/slide1120.xml"
+      ],
+      "overlayAddedParts": [
+        "ppt/media/image20.png"
+      ],
+      "overlayRemovedParts": [],
+      "unexpectedOverlayChanges": [],
+      "addedMediaParts": [
+        "ppt/media/image20.png"
+      ],
+      "zipEntryMetadata": {
+        "ppt/media/image20.png": {
+          "date": "1980-01-01T00:00:00.000Z",
+          "unixPermissions": 33188,
+          "dosPermissions": null
+        },
+        "ppt/slides/_rels/slide1120.xml.rels": {
+          "date": "1980-01-01T00:00:00.000Z",
+          "unixPermissions": 33188,
+          "dosPermissions": null
+        },
+        "ppt/slides/slide1120.xml": {
+          "date": "1980-01-01T00:00:00.000Z",
+          "unixPermissions": 33188,
+          "dosPermissions": null
+        }
+      },
+      "target": {
+        "kind": "bounded-overlay",
+        "capability": {
+          "sourceBound": true,
+          "ready": true,
+          "profile": "bounded-overlay",
+          "requiresExportReopen": false,
+          "oneSlideMutationPerExport": true,
+          "shapeGeometries": [
+            "textbox",
+            "rect",
+            "roundRect",
+            "ellipse"
+          ],
+          "embeddedImage": true,
+          "sourceRevisionSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0"
+        },
+        "text": {
+          "id": "sh/0081",
+          "name": "officekit-source-derived-text",
+          "value": "OfficeKit continuation · slide 20",
+          "position": {
+            "left": 56,
+            "top": 28,
+            "width": 360,
+            "height": 52
+          }
+        },
+        "accent": {
+          "id": "sh/0082",
+          "name": "officekit-source-derived-accent",
+          "geometry": "ellipse",
+          "position": {
+            "left": 424,
+            "top": 36,
+            "width": 36,
+            "height": 36
+          }
+        },
+        "image": {
+          "id": "im/0083",
+          "name": "officekit-source-derived-image",
+          "alt": "Source-derived continuation image",
+          "position": {
+            "left": 468,
+            "top": 36,
+            "width": 36,
+            "height": 36
+          },
+          "sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460"
+        }
+      },
+      "verifiedTarget": {
+        "kind": "bounded-overlay",
+        "text": {
+          "id": "presentation/slide/20/element/16",
+          "name": "officekit-source-derived-text",
+          "value": "OfficeKit continuation · slide 20",
+          "position": {
+            "left": 56,
+            "top": 28,
+            "width": 360,
+            "height": 52
+          }
+        },
+        "accent": {
+          "id": "presentation/slide/20/element/17",
+          "name": "officekit-source-derived-accent",
+          "geometry": "ellipse",
+          "position": {
+            "left": 424,
+            "top": 36,
+            "width": 36,
+            "height": 36
+          }
+        },
+        "image": {
+          "id": "presentation/slide/20/element/18",
+          "name": "officekit-source-derived-image",
+          "alt": "Source-derived continuation image",
+          "position": {
+            "left": 468,
+            "top": 36,
+            "width": 36,
+            "height": 36
+          },
+          "sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460"
+        }
+      },
+      "repetitions": 3,
+      "deterministic": true,
+      "repeatOutputSha256s": [
+        "b9a8d3b8849e4666aed23a920058436036fe811313933f68c8d449f2c0163295",
+        "b9a8d3b8849e4666aed23a920058436036fe811313933f68c8d449f2c0163295",
+        "b9a8d3b8849e4666aed23a920058436036fe811313933f68c8d449f2c0163295"
+      ],
+      "repeatCanonicalOpcSha256s": [
+        "262a78fe7de4204db3755cbbf4fb1ac8149507d440159d8cbaf1b5a9a833aaf3",
+        "262a78fe7de4204db3755cbbf4fb1ac8149507d440159d8cbaf1b5a9a833aaf3",
+        "262a78fe7de4204db3755cbbf4fb1ac8149507d440159d8cbaf1b5a9a833aaf3"
+      ],
+      "repeatCloneOutputSha256s": [
+        "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+        "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+        "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0"
+      ],
+      "repeatMutationFootprints": [
+        "{\"overlayChangedExistingParts\":[\"ppt/slides/_rels/slide1120.xml.rels\",\"ppt/slides/slide1120.xml\"],\"overlayAddedParts\":[\"ppt/media/image20.png\"],\"overlayRemovedParts\":[]}",
+        "{\"overlayChangedExistingParts\":[\"ppt/slides/_rels/slide1120.xml.rels\",\"ppt/slides/slide1120.xml\"],\"overlayAddedParts\":[\"ppt/media/image20.png\"],\"overlayRemovedParts\":[]}",
+        "{\"overlayChangedExistingParts\":[\"ppt/slides/_rels/slide1120.xml.rels\",\"ppt/slides/slide1120.xml\"],\"overlayAddedParts\":[\"ppt/media/image20.png\"],\"overlayRemovedParts\":[]}"
+      ]
+    },
+    {
+      "id": "mckinsey-customer-loyalty",
+      "fileName": "ppt169_麦肯锡风_kimsoong_customer_loyalty.pptx",
+      "repetition": 1,
+      "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+      "sourceSlideSha256": "22c0389e57b629c060f89bfe7bdd0d7894c0c6c322a9df1d6a7bf7ee7f44e6b8",
+      "sourceSlidePart": "ppt/slides/slide1.xml",
+      "sourceSlideCount": 8,
+      "outputSlideCount": 9,
+      "kind": "bounded-overlay",
+      "cloneOutputSha256": "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8",
+      "outputSha256": "e815be3652eedaa61c754828fb1e6dedef5cee05bbd425435c141d0c668f0be0",
+      "canonicalOpcSha256": "c5250aebd6aba16ba5f877da4977cd0ad81873f17d50b47d8cdf463284913f63",
+      "sourceSlideUnchanged": true,
+      "changedExistingParts": [
+        "[Content_Types].xml",
+        "ppt/_rels/presentation.xml.rels",
+        "ppt/presentation.xml"
+      ],
+      "topologyChangedParts": [
+        "[Content_Types].xml",
+        "ppt/_rels/presentation.xml.rels",
+        "ppt/presentation.xml"
+      ],
+      "nonTopologyChangedParts": [],
+      "addedParts": [
+        "ppt/media/image.png",
+        "ppt/slides/_rels/slide119.xml.rels",
+        "ppt/slides/slide119.xml"
+      ],
+      "clonedSlidePart": "ppt/slides/slide119.xml",
+      "targetXmlMaskedEqual": true,
+      "overlayChangedExistingParts": [
+        "[Content_Types].xml",
+        "ppt/slides/_rels/slide119.xml.rels",
+        "ppt/slides/slide119.xml"
+      ],
+      "overlayAddedParts": [
+        "ppt/media/image.png"
+      ],
+      "overlayRemovedParts": [],
+      "unexpectedOverlayChanges": [],
+      "addedMediaParts": [
+        "ppt/media/image.png"
+      ],
+      "zipEntryMetadata": {
+        "[Content_Types].xml": {
+          "date": "1980-01-01T00:00:00.000Z",
+          "unixPermissions": 33188,
+          "dosPermissions": null
+        },
+        "ppt/media/image.png": {
+          "date": "1980-01-01T00:00:00.000Z",
+          "unixPermissions": 33188,
+          "dosPermissions": null
+        },
+        "ppt/slides/_rels/slide119.xml.rels": {
+          "date": "1980-01-01T00:00:00.000Z",
+          "unixPermissions": 33188,
+          "dosPermissions": null
+        },
+        "ppt/slides/slide119.xml": {
+          "date": "1980-01-01T00:00:00.000Z",
+          "unixPermissions": 33188,
+          "dosPermissions": null
+        }
+      },
+      "target": {
+        "kind": "bounded-overlay",
+        "capability": {
+          "sourceBound": true,
+          "ready": true,
+          "profile": "bounded-overlay",
+          "requiresExportReopen": false,
+          "oneSlideMutationPerExport": true,
+          "shapeGeometries": [
+            "textbox",
+            "rect",
+            "roundRect",
+            "ellipse"
+          ],
+          "embeddedImage": true,
+          "sourceRevisionSha256": "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8"
+        },
+        "text": {
+          "id": "sh/00ds",
+          "name": "officekit-source-derived-text",
+          "value": "OfficeKit continuation · slide 9",
+          "position": {
+            "left": 56,
+            "top": 28,
+            "width": 360,
+            "height": 52
+          }
+        },
+        "accent": {
+          "id": "sh/00dt",
+          "name": "officekit-source-derived-accent",
+          "geometry": "ellipse",
+          "position": {
+            "left": 424,
+            "top": 36,
+            "width": 36,
+            "height": 36
+          }
+        },
+        "image": {
+          "id": "im/00du",
+          "name": "officekit-source-derived-image",
+          "alt": "Source-derived continuation image",
+          "position": {
+            "left": 468,
+            "top": 36,
+            "width": 36,
+            "height": 36
+          },
+          "sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460"
+        }
+      },
+      "verifiedTarget": {
+        "kind": "bounded-overlay",
+        "text": {
+          "id": "presentation/slide/9/element/2",
+          "name": "officekit-source-derived-text",
+          "value": "OfficeKit continuation · slide 9",
+          "position": {
+            "left": 56,
+            "top": 28,
+            "width": 360,
+            "height": 52
+          }
+        },
+        "accent": {
+          "id": "presentation/slide/9/element/3",
+          "name": "officekit-source-derived-accent",
+          "geometry": "ellipse",
+          "position": {
+            "left": 424,
+            "top": 36,
+            "width": 36,
+            "height": 36
+          }
+        },
+        "image": {
+          "id": "presentation/slide/9/element/4",
+          "name": "officekit-source-derived-image",
+          "alt": "Source-derived continuation image",
+          "position": {
+            "left": 468,
+            "top": 36,
+            "width": 36,
+            "height": 36
+          },
+          "sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460"
+        }
+      },
+      "repetitions": 3,
+      "deterministic": true,
+      "repeatOutputSha256s": [
+        "e815be3652eedaa61c754828fb1e6dedef5cee05bbd425435c141d0c668f0be0",
+        "e815be3652eedaa61c754828fb1e6dedef5cee05bbd425435c141d0c668f0be0",
+        "e815be3652eedaa61c754828fb1e6dedef5cee05bbd425435c141d0c668f0be0"
+      ],
+      "repeatCanonicalOpcSha256s": [
+        "c5250aebd6aba16ba5f877da4977cd0ad81873f17d50b47d8cdf463284913f63",
+        "c5250aebd6aba16ba5f877da4977cd0ad81873f17d50b47d8cdf463284913f63",
+        "c5250aebd6aba16ba5f877da4977cd0ad81873f17d50b47d8cdf463284913f63"
+      ],
+      "repeatCloneOutputSha256s": [
+        "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8",
+        "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8",
+        "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8"
+      ],
+      "repeatMutationFootprints": [
+        "{\"overlayChangedExistingParts\":[\"[Content_Types].xml\",\"ppt/slides/_rels/slide119.xml.rels\",\"ppt/slides/slide119.xml\"],\"overlayAddedParts\":[\"ppt/media/image.png\"],\"overlayRemovedParts\":[]}",
+        "{\"overlayChangedExistingParts\":[\"[Content_Types].xml\",\"ppt/slides/_rels/slide119.xml.rels\",\"ppt/slides/slide119.xml\"],\"overlayAddedParts\":[\"ppt/media/image.png\"],\"overlayRemovedParts\":[]}",
+        "{\"overlayChangedExistingParts\":[\"[Content_Types].xml\",\"ppt/slides/_rels/slide119.xml.rels\",\"ppt/slides/slide119.xml\"],\"overlayAddedParts\":[\"ppt/media/image.png\"],\"overlayRemovedParts\":[]}"
+      ]
+    }
+  ]
+}
