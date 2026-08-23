@@ -58,6 +58,7 @@ assert.match(reviewText, /does not resolve OCR, layout, image, formula, or metad
 assert.match(replText, /Every commit requires a concise non-empty `options\.summary`/i);
 assert.match(replText, /ctx\.input[\s\S]*does not retrieve an artifact already committed/i);
 assert.match(replText, /ctx\.task\.artifacts\.find[\s\S]*headRevision[\s\S]*path\.resolve\(ctx\.taskRoot[\s\S]*FileBlob\.load/is);
+assert.match(replText, /reviewArtifact[\s\S]*baseline: reviewedPath[\s\S]*application\/octet-stream/is);
 assert.match(replText, /ctx\.publish\(ctx\.task\.commit[\s\S]*artifact ID or file path is not a publishable commit/is);
 assert.match(replText, /continuationCapability[\s\S]*export\/reimport[\s\S]*pending-clone[\s\S]*bounded-overlay[\s\S]*clean export[\s\S]*Commit with[\s\S]*summary[\s\S]*reinspect/i);
 assert.match(presentationConversationText, /Ask at most\s+three\s+questions in one turn/i);
