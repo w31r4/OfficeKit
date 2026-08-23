@@ -13,13 +13,14 @@ const skillRoot = path.join(pluginRoot, "skills", "office-kit");
 const templateRoot = path.join(repoRoot, "skills", "default-template-library", "skills");
 const officeKitCli = path.join(repoRoot, "bin", "officekit.mjs");
 
-const [plugin, skillText, agentText, routingText, templateSelectionText, reviewText, presentationConversationText] = await Promise.all([
+const [plugin, skillText, agentText, routingText, templateSelectionText, reviewText, replText, presentationConversationText] = await Promise.all([
   readJson(path.join(pluginRoot, ".codex-plugin", "plugin.json")),
   fs.readFile(path.join(skillRoot, "SKILL.md"), "utf8"),
   fs.readFile(path.join(skillRoot, "agents", "openai.yaml"), "utf8"),
   fs.readFile(path.join(skillRoot, "references", "routing.md"), "utf8"),
   fs.readFile(path.join(skillRoot, "references", "template-selection.md"), "utf8"),
   fs.readFile(path.join(skillRoot, "references", "review.md"), "utf8"),
+  fs.readFile(path.join(skillRoot, "references", "repl.md"), "utf8"),
   fs.readFile(path.join(repoRoot, "skills", "presentations", "skills", "presentations", "references", "conversation-workflow.md"), "utf8"),
 ]);
 
@@ -53,6 +54,8 @@ assert.match(reviewText, /Delivery review/);
 assert.match(reviewText, /text reading view is not OCR/i);
 assert.match(reviewText, /only when it can close an identified text or table content-coverage gap/i);
 assert.match(reviewText, /does not resolve OCR, layout, image, formula, or metadata-provenance gaps/i);
+assert.match(replText, /Every commit requires a concise non-empty `options\.summary`/i);
+assert.match(replText, /continuationCapability[\s\S]*pending-clone[\s\S]*export and reimport[\s\S]*bounded-overlay[\s\S]*one clean[\s\S]*Commit that candidate with a summary[\s\S]*reinspect/i);
 assert.match(presentationConversationText, /Ask at most\s+three\s+questions in one turn/i);
 assert.match(presentationConversationText, /one-screen draft guide/i);
 assert.match(presentationConversationText, /three to six short section beats/i);

@@ -29,6 +29,7 @@ const [packagedSlideRendererSource, packagedRasterHelperSource, presentationSkil
   fs.readFile(path.join(presentationSkillDir, "SKILL.md"), "utf8"),
 ]);
 const templateFollowingSource = await fs.readFile(path.join(presentationSkillDir, "references", "template-following.md"), "utf8");
+const templateConditionedSource = await fs.readFile(path.join(presentationSkillDir, "references", "template-conditioned-generation.md"), "utf8");
 assert.doesNotMatch(packagedSlideRendererSource, /pdf2image/i, "the packaged slide renderer must not require an undeclared Python package");
 assert.doesNotMatch(packagedRasterHelperSource, /pdf2image/i, "the packaged raster helper must not require an undeclared Python package");
 assert.match(presentationSkillSource, /chartDataValue[\s\S]*ChartPart cache[\s\S]*workbook cell/i);
@@ -40,6 +41,11 @@ assert.match(presentationSkillSource, /reinspect before another edit[\s\S]*bound
 assert.match(presentationSkillSource, /Stylesheets[\s\S]*external references[\s\S]*foreignObject[\s\S]*XML selectors[\s\S]*outside\s+this\s+capability/i);
 assert.match(presentationSkillSource, /reimport and verify[\s\S]*new-media footprint[\s\S]*byte-identical non-target parts[\s\S]*affected slide render/i);
 assert.match(templateFollowingSource, /presentation\.designProfile\(\{ maxItems: 64 \}\)[\s\S]*descriptive evidence[\s\S]*not permission to edit raw XML/i);
+assert.match(presentationSkillSource, /getSvgTextNodes\(\)[\s\S]*node\.text[\s\S]*there is no `node\.value`[\s\S]*editSvgText[\s\S]*value/i);
+assert.match(presentationSkillSource, /slide\.continuationCapability[\s\S]*pending-clone[\s\S]*export and reimport[\s\S]*bounded-overlay[\s\S]*textbox[\s\S]*embedded rectangular images[\s\S]*only SlidePart mutation class/i);
+assert.match(templateConditionedSource, /pending clone's[\s\S]*continuationCapability[\s\S]*requires export\/reimport/i);
+assert.match(templateConditionedSource, /continuationCapability[\s\S]*bounded-overlay[\s\S]*clean[\s\S]*SlidePart transaction[\s\S]*Commit\/reopen/i);
+assert.match(templateFollowingSource, /continuationCapability[\s\S]*pending clone[\s\S]*export\/reimport[\s\S]*bounded-overlay[\s\S]*separate reviewed revision[\s\S]*arbitrary tables, charts, connectors, groups, or native nodes/i);
 
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-presentation-skill-test-"));
 const baselineDir = path.join(root, "baselines");

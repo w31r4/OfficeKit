@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 545);
+assert.equal(HELP_CATALOG.length, 546);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /includeNativeLeaves.*revision-bound.*without exposing part paths/i);
@@ -149,6 +149,11 @@ assert.match(HELP_CATALOG.find((item) => item.name === "image.setAccessibilityMe
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.master")?.schema?.parameters?.placeholders?.description || "", /Source-free direct-frame.*title\/body.*imported placeholders.*read-only/i);
 const shapeAddHelp = HELP_CATALOG.find((item) => item.name === "slide.shapes.add");
 assert.match(shapeAddHelp?.summary || "", /ordered adjustment\/guide formulas.*XY\/polar adjustment handles.*connection sites/i);
+assert.match(shapeAddHelp?.summary || "", /source-derived slide.*append only textbox, rect, roundRect, or ellipse.*continuationCapability.*bounded-overlay.*only SlidePart mutation class/is);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.summary || "", /source-derived slide.*embedded rectangular images.*continuationCapability.*bounded-overlay.*only SlidePart mutation class/is);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.continuationCapability")?.summary || "", /full-authoring.*pending-clone.*exported and reimported.*bounded-overlay.*textbox.*embedded rectangular image.*native-leaf/is);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.continuationCapability")?.schema?.returns?.capability?.description || "", /sourceBound.*ready.*profile.*requiresExportReopen.*oneSlideMutationPerExport.*shapeGeometries.*embeddedImage.*does not authorize connector.*table.*chart.*Native-leaf/is);
+assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /continuationCapability/i);
 assert.match(shapeAddHelp?.schema?.parameters?.geometry?.description || "", /connector.*from.*to.*fromIdx.*toIdx/i);
 assert.match(shapeAddHelp?.schema?.parameters?.customAdjustments?.description || "", /256.*17 ECMA-376 operators.*built-ins.*Forward references.*fail closed/i);
 assert.match(shapeAddHelp?.schema?.parameters?.customGuides?.description || "", /1,024.*earlier adjustment\/guide.*built-in-plus-declared reference namespace/i);
@@ -763,7 +768,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.setDateContentC
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.schema?.parameters?.dryRun?.type, "boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.summary || "", /SEQ counters.*REF cached results.*PAGEREF.*pagination host/i);
 const presentationCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
-assert.equal(presentationCatalog.length, 126);
+assert.equal(presentationCatalog.length, 127);
 assert.ok(presentationCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slides.insert")?.schema?.parameters?.after?.type, "Slide|number|null");
