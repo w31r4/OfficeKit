@@ -1,0 +1,3215 @@
+{
+  "schema": "office-kit/pptx-codex-continuation-evidence/v1",
+  "baseline": "d5df8df94727dccd4412e6be874d1c5407b57f64",
+  "definitions": {
+    "continuationSha256": "9ca08cab364b047d4a3a2d3246a82ab68c62b1db81e40dccb6e7559f61d51044",
+    "intentSha256": "49bcf6245d6a44484d3b14d56ab0c2b51b8f767982bcd52503d578520f89d6a9"
+  },
+  "package": {
+    "name": "office-kit",
+    "version": "0.6.0",
+    "baselineCandidate": true,
+    "tarballFile": "office-kit-0.6.0.tgz",
+    "tarballSha256": "0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9",
+    "packedBytes": 36498040,
+    "unpackedBytes": 54190087,
+    "totalFiles": 750,
+    "cleanInstallPerTrial": true,
+    "lifecycleScripts": "ignored"
+  },
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v26.7.0",
+    "npm": "11.19.0",
+    "codex": "codex-cli 0.144.5",
+    "render": true,
+    "targetRenderer": "task-defined",
+    "targetRenderers": {
+      "suanzhi-acceptance-appendix": "keynote",
+      "blue-gray-acceptance-summary": "keynote",
+      "mckinsey-acceptance-close": "libreoffice"
+    }
+  },
+  "protocol": {
+    "freshCodexContextPerTrial": true,
+    "replSessionsPerTrial": 3,
+    "publicPackageOnly": true,
+    "createOnlyOutputs": true
+  },
+  "trials": [
+    {
+      "taskId": "suanzhi-acceptance-appendix",
+      "sourceId": "suanzhi-future-2026",
+      "repetition": 1,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9"
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "be4654829612b80a064f39c5cc1ba4d75501b823c0af2c87084fb6b0caef5ac1",
+          "stderrSha256": "9d0b24dc6d6404cd3f44e89e39faf34e5326c04e6abe26f1676e2cf66781717f",
+          "finalSha256": "967b5154f9de667e5657c43d448b47b2f2f3476b7da49ee884499f8fd1a18488",
+          "agentFinal": "已按三次独立 OfficeKit REPL 会话完成并发布：\n\n- 输出：[suanzhi-acceptance-appendix.pptx](/private$WORKSPACE/outputs/suanzhi-acceptance-appendix.pptx)\n- 最终提交：`c0002`\n- SHA-256：`7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9`\n- 审阅：`passed-with-limitations`\n- 视觉审阅：`unavailable`\n\n第三阶段已验证：共 22 页，源封面文字保持不变，附录页两项修改均存在。",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 8,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "afterSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": true,
+          "path": "outputs/suanzhi-acceptance-appendix.pptx",
+          "createOnly": true,
+          "outputCount": 1
+        },
+        "durableTask": {
+          "passed": true,
+          "taskId": "t_63a88d4968e4",
+          "schemaVersion": 1,
+          "sessions": 3,
+          "commits": [
+            {
+              "commitId": "c0001",
+              "path": "$WORKSPACE/.office-kit/tasks/t_63a88d4968e4/revisions/continued-deck/36791a4a0bb54edb1e0ffbb3647b5d1e6da2ab2853640052ec9488cd221afd08.pptx",
+              "sha256": "36791a4a0bb54edb1e0ffbb3647b5d1e6da2ab2853640052ec9488cd221afd08",
+              "bytes": 6105831,
+              "reviewVerdict": "passed-with-limitations"
+            },
+            {
+              "commitId": "c0002",
+              "path": "$WORKSPACE/.office-kit/tasks/t_63a88d4968e4/revisions/continued-deck/7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9.pptx",
+              "sha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9",
+              "bytes": 6105852,
+              "reviewVerdict": "passed-with-limitations"
+            }
+          ],
+          "head": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "revisionSha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9",
+            "committedAt": "2026-08-23T22:58:09.589Z"
+          },
+          "pending": [],
+          "publication": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "path": "outputs/suanzhi-acceptance-appendix.pptx",
+            "sha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9"
+          },
+          "sourceProvenance": {
+            "artifactId": "a_0f808be14ebf",
+            "sha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+            "storedPath": "inputs/a_0f808be14ebf/b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762.pptx"
+          }
+        },
+        "packageOracle": {
+          "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "outputSha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9",
+          "sourcePartCount": 595,
+          "outputPartCount": 597,
+          "sourceSlideCount": 21,
+          "outputSlideCount": 22,
+          "sourceSlidePart": "ppt/slides/slide1.xml",
+          "appendedSlidePart": "ppt/slides/slide1122.xml",
+          "partSet": {
+            "removed": [],
+            "added": [
+              "ppt/slides/_rels/slide1122.xml.rels",
+              "ppt/slides/slide1122.xml"
+            ],
+            "passed": true
+          },
+          "changedExistingParts": [
+            "[Content_Types].xml",
+            "ppt/_rels/presentation.xml.rels",
+            "ppt/presentation.xml"
+          ],
+          "nonTargetExistingPartsByteIdentical": true,
+          "relationships": {
+            "passed": true,
+            "sourceRelationshipPartsByteIdentical": true,
+            "addedPresentationRelationship": {
+              "id": "rIdOfficeKitClone047c0555af2f5b3a",
+              "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide",
+              "target": "/ppt/slides/slide1122.xml",
+              "targetMode": null
+            }
+          },
+          "targetMask": {
+            "passed": true,
+            "sourceSlidePart": "ppt/slides/slide1.xml",
+            "appendedSlidePart": "ppt/slides/slide1122.xml",
+            "nativeMasks": [
+              {
+                "method": "single-issued-token",
+                "before": "极致技术，长期主义",
+                "after": "可编程导入验收",
+                "matches": 1
+              },
+              {
+                "method": "single-issued-token",
+                "before": "Vision and ambition",
+                "after": "Public API · source protected · auditable",
+                "matches": 1
+              }
+            ],
+            "svgMask": null,
+            "relationshipIdMappings": [
+              {
+                "sourceId": "rId2",
+                "outputId": "rId2",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId3",
+                "outputId": "rId3",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              }
+            ]
+          },
+          "addedGraph": {
+            "passed": true,
+            "addedParts": [
+              "ppt/slides/_rels/slide1122.xml.rels",
+              "ppt/slides/slide1122.xml"
+            ],
+            "orphaned": [],
+            "inboundReferenced": true
+          }
+        },
+        "secondImport": {
+          "schema": "office-kit/pptx-programmable-import-continuation-verify/v1",
+          "taskId": "suanzhi-acceptance-appendix",
+          "inputSha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9",
+          "slideCount": 22,
+          "targetPage": 22,
+          "observed": [
+            {
+              "operation": "native-leaf",
+              "targetId": "presentation/slide/22/element/1",
+              "leafId": "nl_fddb1493a9192c7d38a8a3f83998386b",
+              "value": "可编程导入验收"
+            },
+            {
+              "operation": "native-leaf",
+              "targetId": "presentation/slide/22/element/2",
+              "leafId": "nl_48da9e2cb238101003d6441b2acbe0b4",
+              "value": "Public API · source protected · auditable"
+            }
+          ],
+          "secondImport": true,
+          "publicApi": true,
+          "passed": true
+        },
+        "pixelOracle": {
+          "passed": true,
+          "sourcePageCount": 21,
+          "outputPageCount": 22,
+          "targetPage": 22,
+          "appendedTargetPresent": true,
+          "clonedSourcePage": 1,
+          "appendedTargetChangedFromSource": true,
+          "nonTargetPagesPixelIdentical": true,
+          "nonTargetMismatches": [],
+          "sourcePageHashes": [
+            {
+              "page": 1,
+              "sha256": "e5bada601ee3fda3d02cbb8e8da51cbf4843ceeb53f1f992f76369897cc6372d"
+            },
+            {
+              "page": 2,
+              "sha256": "352aa835d298a1b5e7fab4eaf5329b83b7a48190b4448365937dafa6671d2545"
+            },
+            {
+              "page": 3,
+              "sha256": "40d302c7ba491d5121db9d5a1abca9ac2dea64aa367d13f5c9d376ec22cb6ae2"
+            },
+            {
+              "page": 4,
+              "sha256": "196a25bf00f8da7b6acbb03ce72e53a6c01a1224455ca29f9e1cc1ea139eacc5"
+            },
+            {
+              "page": 5,
+              "sha256": "9c19fae825cef543ad1f7df69429b2fab5719a902afcefadbfe8beef9f22b7b1"
+            },
+            {
+              "page": 6,
+              "sha256": "dcf458e2a55f56e47a15ff21db329e9f6404a1557b6960d4f2e1a8b0da5a0782"
+            },
+            {
+              "page": 7,
+              "sha256": "aaefcc6fc0cc285298513a7600580b176c03dbf5a4545d8f750f8c250055470c"
+            },
+            {
+              "page": 8,
+              "sha256": "d1c78b4cd7c5c03cb232401ce12e5de7170495182ed218a37db551137088313c"
+            },
+            {
+              "page": 9,
+              "sha256": "61b74a48a84b94abf63f4f1b7b48cde6871e190cc38f9ad66c709db7362c659d"
+            },
+            {
+              "page": 10,
+              "sha256": "05b837f7b5353c7997bbb0ec10dcedf17ca0e35999f73336ed6d0e2900c2f6e7"
+            },
+            {
+              "page": 11,
+              "sha256": "5b2ad8831a03ee1acadddd43afd3a3d2e548ca7e599812a5dd1180446d081dd0"
+            },
+            {
+              "page": 12,
+              "sha256": "5cd0cfb2648c052b91ab897cd3e11a590b3ec96630f7519537b85d029f42a8d2"
+            },
+            {
+              "page": 13,
+              "sha256": "83f0ddd386ba7879cae07fd1a3a733a22d8e6c71f2feaf13c642c90ad2812206"
+            },
+            {
+              "page": 14,
+              "sha256": "862523fef3f2793fd801d0bae5e43e3b6d357a43884ebdb72a0a614157d1ab1f"
+            },
+            {
+              "page": 15,
+              "sha256": "d12354cb5212bb251a5aa3bbfa018d609238a502c32bb8b8396378226d7c1dc5"
+            },
+            {
+              "page": 16,
+              "sha256": "83a35893cd25a8bdc9bff512c23b3816f89a8ba546a5e4b9506538978d7e922d"
+            },
+            {
+              "page": 17,
+              "sha256": "573c76d0f91efc464c6ce4df358d05ffc84955e058e21e1a0abcfd4dbc00aeb3"
+            },
+            {
+              "page": 18,
+              "sha256": "8815c8ff666458be9f9243b43b80a953a775500267f0d57015cb763e2eb4c841"
+            },
+            {
+              "page": 19,
+              "sha256": "92190ecb2c5d74f559817095e8ed0fdb5c5ab8836a0dc45b46285be082715430"
+            },
+            {
+              "page": 20,
+              "sha256": "8af0f0688d0d261f73f4f82d47bf885ceadbc11f4d4ee8f6ebc4c10c5168b987"
+            },
+            {
+              "page": 21,
+              "sha256": "d943adbf0bc0ec5355ce616fc66883b603d09cef77d3bb37ea169642459c23ce"
+            }
+          ],
+          "outputPageHashes": [
+            {
+              "page": 1,
+              "sha256": "e5bada601ee3fda3d02cbb8e8da51cbf4843ceeb53f1f992f76369897cc6372d"
+            },
+            {
+              "page": 2,
+              "sha256": "352aa835d298a1b5e7fab4eaf5329b83b7a48190b4448365937dafa6671d2545"
+            },
+            {
+              "page": 3,
+              "sha256": "40d302c7ba491d5121db9d5a1abca9ac2dea64aa367d13f5c9d376ec22cb6ae2"
+            },
+            {
+              "page": 4,
+              "sha256": "196a25bf00f8da7b6acbb03ce72e53a6c01a1224455ca29f9e1cc1ea139eacc5"
+            },
+            {
+              "page": 5,
+              "sha256": "9c19fae825cef543ad1f7df69429b2fab5719a902afcefadbfe8beef9f22b7b1"
+            },
+            {
+              "page": 6,
+              "sha256": "dcf458e2a55f56e47a15ff21db329e9f6404a1557b6960d4f2e1a8b0da5a0782"
+            },
+            {
+              "page": 7,
+              "sha256": "aaefcc6fc0cc285298513a7600580b176c03dbf5a4545d8f750f8c250055470c"
+            },
+            {
+              "page": 8,
+              "sha256": "d1c78b4cd7c5c03cb232401ce12e5de7170495182ed218a37db551137088313c"
+            },
+            {
+              "page": 9,
+              "sha256": "61b74a48a84b94abf63f4f1b7b48cde6871e190cc38f9ad66c709db7362c659d"
+            },
+            {
+              "page": 10,
+              "sha256": "05b837f7b5353c7997bbb0ec10dcedf17ca0e35999f73336ed6d0e2900c2f6e7"
+            },
+            {
+              "page": 11,
+              "sha256": "5b2ad8831a03ee1acadddd43afd3a3d2e548ca7e599812a5dd1180446d081dd0"
+            },
+            {
+              "page": 12,
+              "sha256": "5cd0cfb2648c052b91ab897cd3e11a590b3ec96630f7519537b85d029f42a8d2"
+            },
+            {
+              "page": 13,
+              "sha256": "83f0ddd386ba7879cae07fd1a3a733a22d8e6c71f2feaf13c642c90ad2812206"
+            },
+            {
+              "page": 14,
+              "sha256": "862523fef3f2793fd801d0bae5e43e3b6d357a43884ebdb72a0a614157d1ab1f"
+            },
+            {
+              "page": 15,
+              "sha256": "d12354cb5212bb251a5aa3bbfa018d609238a502c32bb8b8396378226d7c1dc5"
+            },
+            {
+              "page": 16,
+              "sha256": "83a35893cd25a8bdc9bff512c23b3816f89a8ba546a5e4b9506538978d7e922d"
+            },
+            {
+              "page": 17,
+              "sha256": "573c76d0f91efc464c6ce4df358d05ffc84955e058e21e1a0abcfd4dbc00aeb3"
+            },
+            {
+              "page": 18,
+              "sha256": "8815c8ff666458be9f9243b43b80a953a775500267f0d57015cb763e2eb4c841"
+            },
+            {
+              "page": 19,
+              "sha256": "92190ecb2c5d74f559817095e8ed0fdb5c5ab8836a0dc45b46285be082715430"
+            },
+            {
+              "page": 20,
+              "sha256": "8af0f0688d0d261f73f4f82d47bf885ceadbc11f4d4ee8f6ebc4c10c5168b987"
+            },
+            {
+              "page": 21,
+              "sha256": "d943adbf0bc0ec5355ce616fc66883b603d09cef77d3bb37ea169642459c23ce"
+            },
+            {
+              "page": 22,
+              "sha256": "5c3fd31565ceb0d5e8fc4b950bbd1fd25f58115725cbfdc1bfdfd209d734a3d6"
+            }
+          ],
+          "outputCacheHit": false,
+          "renderer": "keynote"
+        }
+      },
+      "evidenceDirectory": "trials/suanzhi-acceptance-appendix/1/evaluator"
+    },
+    {
+      "taskId": "suanzhi-acceptance-appendix",
+      "sourceId": "suanzhi-future-2026",
+      "repetition": 2,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9"
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "1b588e3be220381149ee4dd9666de54754a72c38503afc961733dea51755b9c3",
+          "stderrSha256": "a49f77cf8b86782d11d73b0edbfc8aaa9b62b72777237bfa100ff359af421bce",
+          "finalSha256": "e6de1fb9fc007d4cec4c275f197c4a2a87e571729adabbdd5a5dd4bc292f98ae",
+          "agentFinal": "已按三次独立 OfficeKit REPL 会话完成并发布：\n\n- 输出：[suanzhi-acceptance-appendix.pptx]($WORKSPACE/outputs/suanzhi-acceptance-appendix.pptx)\n- 页数：22\n- 最终提交：`c0002`\n- SHA-256：`7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9`\n- 审阅：`passed-with-limitations`\n- `visualReview`：`unavailable`\n\n已在第三阶段验证源页仍在，附录页的中文主标题和英文副标题均保持目标值。",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 10,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "afterSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": true,
+          "path": "outputs/suanzhi-acceptance-appendix.pptx",
+          "createOnly": true,
+          "outputCount": 1
+        },
+        "durableTask": {
+          "passed": true,
+          "taskId": "t_7f1601935928",
+          "schemaVersion": 1,
+          "sessions": 3,
+          "commits": [
+            {
+              "commitId": "c0001",
+              "path": "$WORKSPACE/.office-kit/tasks/t_7f1601935928/revisions/continued-deck/36791a4a0bb54edb1e0ffbb3647b5d1e6da2ab2853640052ec9488cd221afd08.pptx",
+              "sha256": "36791a4a0bb54edb1e0ffbb3647b5d1e6da2ab2853640052ec9488cd221afd08",
+              "bytes": 6105831,
+              "reviewVerdict": "passed-with-limitations"
+            },
+            {
+              "commitId": "c0002",
+              "path": "$WORKSPACE/.office-kit/tasks/t_7f1601935928/revisions/continued-deck/7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9.pptx",
+              "sha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9",
+              "bytes": 6105852,
+              "reviewVerdict": "passed-with-limitations"
+            }
+          ],
+          "head": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "revisionSha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9",
+            "committedAt": "2026-08-23T23:02:01.642Z"
+          },
+          "pending": [],
+          "publication": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "path": "outputs/suanzhi-acceptance-appendix.pptx",
+            "sha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9"
+          },
+          "sourceProvenance": {
+            "artifactId": "a_4fdb43995de4",
+            "sha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+            "storedPath": "inputs/a_4fdb43995de4/b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762.pptx"
+          }
+        },
+        "packageOracle": {
+          "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "outputSha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9",
+          "sourcePartCount": 595,
+          "outputPartCount": 597,
+          "sourceSlideCount": 21,
+          "outputSlideCount": 22,
+          "sourceSlidePart": "ppt/slides/slide1.xml",
+          "appendedSlidePart": "ppt/slides/slide1122.xml",
+          "partSet": {
+            "removed": [],
+            "added": [
+              "ppt/slides/_rels/slide1122.xml.rels",
+              "ppt/slides/slide1122.xml"
+            ],
+            "passed": true
+          },
+          "changedExistingParts": [
+            "[Content_Types].xml",
+            "ppt/_rels/presentation.xml.rels",
+            "ppt/presentation.xml"
+          ],
+          "nonTargetExistingPartsByteIdentical": true,
+          "relationships": {
+            "passed": true,
+            "sourceRelationshipPartsByteIdentical": true,
+            "addedPresentationRelationship": {
+              "id": "rIdOfficeKitClone047c0555af2f5b3a",
+              "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide",
+              "target": "/ppt/slides/slide1122.xml",
+              "targetMode": null
+            }
+          },
+          "targetMask": {
+            "passed": true,
+            "sourceSlidePart": "ppt/slides/slide1.xml",
+            "appendedSlidePart": "ppt/slides/slide1122.xml",
+            "nativeMasks": [
+              {
+                "method": "single-issued-token",
+                "before": "极致技术，长期主义",
+                "after": "可编程导入验收",
+                "matches": 1
+              },
+              {
+                "method": "single-issued-token",
+                "before": "Vision and ambition",
+                "after": "Public API · source protected · auditable",
+                "matches": 1
+              }
+            ],
+            "svgMask": null,
+            "relationshipIdMappings": [
+              {
+                "sourceId": "rId2",
+                "outputId": "rId2",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId3",
+                "outputId": "rId3",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              }
+            ]
+          },
+          "addedGraph": {
+            "passed": true,
+            "addedParts": [
+              "ppt/slides/_rels/slide1122.xml.rels",
+              "ppt/slides/slide1122.xml"
+            ],
+            "orphaned": [],
+            "inboundReferenced": true
+          }
+        },
+        "secondImport": {
+          "schema": "office-kit/pptx-programmable-import-continuation-verify/v1",
+          "taskId": "suanzhi-acceptance-appendix",
+          "inputSha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9",
+          "slideCount": 22,
+          "targetPage": 22,
+          "observed": [
+            {
+              "operation": "native-leaf",
+              "targetId": "presentation/slide/22/element/1",
+              "leafId": "nl_fddb1493a9192c7d38a8a3f83998386b",
+              "value": "可编程导入验收"
+            },
+            {
+              "operation": "native-leaf",
+              "targetId": "presentation/slide/22/element/2",
+              "leafId": "nl_48da9e2cb238101003d6441b2acbe0b4",
+              "value": "Public API · source protected · auditable"
+            }
+          ],
+          "secondImport": true,
+          "publicApi": true,
+          "passed": true
+        },
+        "pixelOracle": {
+          "passed": true,
+          "sourcePageCount": 21,
+          "outputPageCount": 22,
+          "targetPage": 22,
+          "appendedTargetPresent": true,
+          "clonedSourcePage": 1,
+          "appendedTargetChangedFromSource": true,
+          "nonTargetPagesPixelIdentical": true,
+          "nonTargetMismatches": [],
+          "sourcePageHashes": [
+            {
+              "page": 1,
+              "sha256": "e5bada601ee3fda3d02cbb8e8da51cbf4843ceeb53f1f992f76369897cc6372d"
+            },
+            {
+              "page": 2,
+              "sha256": "352aa835d298a1b5e7fab4eaf5329b83b7a48190b4448365937dafa6671d2545"
+            },
+            {
+              "page": 3,
+              "sha256": "40d302c7ba491d5121db9d5a1abca9ac2dea64aa367d13f5c9d376ec22cb6ae2"
+            },
+            {
+              "page": 4,
+              "sha256": "196a25bf00f8da7b6acbb03ce72e53a6c01a1224455ca29f9e1cc1ea139eacc5"
+            },
+            {
+              "page": 5,
+              "sha256": "9c19fae825cef543ad1f7df69429b2fab5719a902afcefadbfe8beef9f22b7b1"
+            },
+            {
+              "page": 6,
+              "sha256": "dcf458e2a55f56e47a15ff21db329e9f6404a1557b6960d4f2e1a8b0da5a0782"
+            },
+            {
+              "page": 7,
+              "sha256": "aaefcc6fc0cc285298513a7600580b176c03dbf5a4545d8f750f8c250055470c"
+            },
+            {
+              "page": 8,
+              "sha256": "d1c78b4cd7c5c03cb232401ce12e5de7170495182ed218a37db551137088313c"
+            },
+            {
+              "page": 9,
+              "sha256": "61b74a48a84b94abf63f4f1b7b48cde6871e190cc38f9ad66c709db7362c659d"
+            },
+            {
+              "page": 10,
+              "sha256": "05b837f7b5353c7997bbb0ec10dcedf17ca0e35999f73336ed6d0e2900c2f6e7"
+            },
+            {
+              "page": 11,
+              "sha256": "5b2ad8831a03ee1acadddd43afd3a3d2e548ca7e599812a5dd1180446d081dd0"
+            },
+            {
+              "page": 12,
+              "sha256": "5cd0cfb2648c052b91ab897cd3e11a590b3ec96630f7519537b85d029f42a8d2"
+            },
+            {
+              "page": 13,
+              "sha256": "83f0ddd386ba7879cae07fd1a3a733a22d8e6c71f2feaf13c642c90ad2812206"
+            },
+            {
+              "page": 14,
+              "sha256": "862523fef3f2793fd801d0bae5e43e3b6d357a43884ebdb72a0a614157d1ab1f"
+            },
+            {
+              "page": 15,
+              "sha256": "d12354cb5212bb251a5aa3bbfa018d609238a502c32bb8b8396378226d7c1dc5"
+            },
+            {
+              "page": 16,
+              "sha256": "83a35893cd25a8bdc9bff512c23b3816f89a8ba546a5e4b9506538978d7e922d"
+            },
+            {
+              "page": 17,
+              "sha256": "573c76d0f91efc464c6ce4df358d05ffc84955e058e21e1a0abcfd4dbc00aeb3"
+            },
+            {
+              "page": 18,
+              "sha256": "8815c8ff666458be9f9243b43b80a953a775500267f0d57015cb763e2eb4c841"
+            },
+            {
+              "page": 19,
+              "sha256": "92190ecb2c5d74f559817095e8ed0fdb5c5ab8836a0dc45b46285be082715430"
+            },
+            {
+              "page": 20,
+              "sha256": "8af0f0688d0d261f73f4f82d47bf885ceadbc11f4d4ee8f6ebc4c10c5168b987"
+            },
+            {
+              "page": 21,
+              "sha256": "d943adbf0bc0ec5355ce616fc66883b603d09cef77d3bb37ea169642459c23ce"
+            }
+          ],
+          "outputPageHashes": [
+            {
+              "page": 1,
+              "sha256": "e5bada601ee3fda3d02cbb8e8da51cbf4843ceeb53f1f992f76369897cc6372d"
+            },
+            {
+              "page": 2,
+              "sha256": "352aa835d298a1b5e7fab4eaf5329b83b7a48190b4448365937dafa6671d2545"
+            },
+            {
+              "page": 3,
+              "sha256": "40d302c7ba491d5121db9d5a1abca9ac2dea64aa367d13f5c9d376ec22cb6ae2"
+            },
+            {
+              "page": 4,
+              "sha256": "196a25bf00f8da7b6acbb03ce72e53a6c01a1224455ca29f9e1cc1ea139eacc5"
+            },
+            {
+              "page": 5,
+              "sha256": "9c19fae825cef543ad1f7df69429b2fab5719a902afcefadbfe8beef9f22b7b1"
+            },
+            {
+              "page": 6,
+              "sha256": "dcf458e2a55f56e47a15ff21db329e9f6404a1557b6960d4f2e1a8b0da5a0782"
+            },
+            {
+              "page": 7,
+              "sha256": "aaefcc6fc0cc285298513a7600580b176c03dbf5a4545d8f750f8c250055470c"
+            },
+            {
+              "page": 8,
+              "sha256": "d1c78b4cd7c5c03cb232401ce12e5de7170495182ed218a37db551137088313c"
+            },
+            {
+              "page": 9,
+              "sha256": "61b74a48a84b94abf63f4f1b7b48cde6871e190cc38f9ad66c709db7362c659d"
+            },
+            {
+              "page": 10,
+              "sha256": "05b837f7b5353c7997bbb0ec10dcedf17ca0e35999f73336ed6d0e2900c2f6e7"
+            },
+            {
+              "page": 11,
+              "sha256": "5b2ad8831a03ee1acadddd43afd3a3d2e548ca7e599812a5dd1180446d081dd0"
+            },
+            {
+              "page": 12,
+              "sha256": "5cd0cfb2648c052b91ab897cd3e11a590b3ec96630f7519537b85d029f42a8d2"
+            },
+            {
+              "page": 13,
+              "sha256": "83f0ddd386ba7879cae07fd1a3a733a22d8e6c71f2feaf13c642c90ad2812206"
+            },
+            {
+              "page": 14,
+              "sha256": "862523fef3f2793fd801d0bae5e43e3b6d357a43884ebdb72a0a614157d1ab1f"
+            },
+            {
+              "page": 15,
+              "sha256": "d12354cb5212bb251a5aa3bbfa018d609238a502c32bb8b8396378226d7c1dc5"
+            },
+            {
+              "page": 16,
+              "sha256": "83a35893cd25a8bdc9bff512c23b3816f89a8ba546a5e4b9506538978d7e922d"
+            },
+            {
+              "page": 17,
+              "sha256": "573c76d0f91efc464c6ce4df358d05ffc84955e058e21e1a0abcfd4dbc00aeb3"
+            },
+            {
+              "page": 18,
+              "sha256": "8815c8ff666458be9f9243b43b80a953a775500267f0d57015cb763e2eb4c841"
+            },
+            {
+              "page": 19,
+              "sha256": "92190ecb2c5d74f559817095e8ed0fdb5c5ab8836a0dc45b46285be082715430"
+            },
+            {
+              "page": 20,
+              "sha256": "8af0f0688d0d261f73f4f82d47bf885ceadbc11f4d4ee8f6ebc4c10c5168b987"
+            },
+            {
+              "page": 21,
+              "sha256": "d943adbf0bc0ec5355ce616fc66883b603d09cef77d3bb37ea169642459c23ce"
+            },
+            {
+              "page": 22,
+              "sha256": "5c3fd31565ceb0d5e8fc4b950bbd1fd25f58115725cbfdc1bfdfd209d734a3d6"
+            }
+          ],
+          "outputCacheHit": true,
+          "renderer": "keynote"
+        }
+      },
+      "evidenceDirectory": "trials/suanzhi-acceptance-appendix/2/evaluator"
+    },
+    {
+      "taskId": "suanzhi-acceptance-appendix",
+      "sourceId": "suanzhi-future-2026",
+      "repetition": 3,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9"
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "3e4e968f060783d539de1c1ddb926a75c70662de5194f322d04cc964645d16ea",
+          "stderrSha256": "e00c794b5795802ee76cac6a5c547760522f02b82bcc30bbdf693f5d34af336e",
+          "finalSha256": "b94203dcffed8fc6eabed7493ec4492303d932ec13eb5c8a7d69232492a6e721",
+          "agentFinal": "已完成三阶段恢复、复核与发布。\n\n- 文件：[suanzhi-acceptance-appendix.pptx]($WORKSPACE/outputs/suanzhi-acceptance-appendix.pptx)\n- 共 22 页，原封面内容保持不变\n- 附录标题：`可编程导入验收`\n- 英文副标题：`Public API · source protected · auditable`\n- SHA-256：`7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9`\n- Review：`passed-with-limitations`（`visualReview: unavailable`）",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 8,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "afterSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": true,
+          "path": "outputs/suanzhi-acceptance-appendix.pptx",
+          "createOnly": true,
+          "outputCount": 1
+        },
+        "durableTask": {
+          "passed": true,
+          "taskId": "t_d621e367281f",
+          "schemaVersion": 1,
+          "sessions": 3,
+          "commits": [
+            {
+              "commitId": "c0001",
+              "path": "$WORKSPACE/.office-kit/tasks/t_d621e367281f/revisions/continued-deck/36791a4a0bb54edb1e0ffbb3647b5d1e6da2ab2853640052ec9488cd221afd08.pptx",
+              "sha256": "36791a4a0bb54edb1e0ffbb3647b5d1e6da2ab2853640052ec9488cd221afd08",
+              "bytes": 6105831,
+              "reviewVerdict": "passed-with-limitations"
+            },
+            {
+              "commitId": "c0002",
+              "path": "$WORKSPACE/.office-kit/tasks/t_d621e367281f/revisions/continued-deck/7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9.pptx",
+              "sha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9",
+              "bytes": 6105852,
+              "reviewVerdict": "passed-with-limitations"
+            }
+          ],
+          "head": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "revisionSha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9",
+            "committedAt": "2026-08-23T23:05:47.885Z"
+          },
+          "pending": [],
+          "publication": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "path": "outputs/suanzhi-acceptance-appendix.pptx",
+            "sha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9"
+          },
+          "sourceProvenance": {
+            "artifactId": "a_3842d4de132f",
+            "sha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+            "storedPath": "inputs/a_3842d4de132f/b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762.pptx"
+          }
+        },
+        "packageOracle": {
+          "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "outputSha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9",
+          "sourcePartCount": 595,
+          "outputPartCount": 597,
+          "sourceSlideCount": 21,
+          "outputSlideCount": 22,
+          "sourceSlidePart": "ppt/slides/slide1.xml",
+          "appendedSlidePart": "ppt/slides/slide1122.xml",
+          "partSet": {
+            "removed": [],
+            "added": [
+              "ppt/slides/_rels/slide1122.xml.rels",
+              "ppt/slides/slide1122.xml"
+            ],
+            "passed": true
+          },
+          "changedExistingParts": [
+            "[Content_Types].xml",
+            "ppt/_rels/presentation.xml.rels",
+            "ppt/presentation.xml"
+          ],
+          "nonTargetExistingPartsByteIdentical": true,
+          "relationships": {
+            "passed": true,
+            "sourceRelationshipPartsByteIdentical": true,
+            "addedPresentationRelationship": {
+              "id": "rIdOfficeKitClone047c0555af2f5b3a",
+              "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide",
+              "target": "/ppt/slides/slide1122.xml",
+              "targetMode": null
+            }
+          },
+          "targetMask": {
+            "passed": true,
+            "sourceSlidePart": "ppt/slides/slide1.xml",
+            "appendedSlidePart": "ppt/slides/slide1122.xml",
+            "nativeMasks": [
+              {
+                "method": "single-issued-token",
+                "before": "极致技术，长期主义",
+                "after": "可编程导入验收",
+                "matches": 1
+              },
+              {
+                "method": "single-issued-token",
+                "before": "Vision and ambition",
+                "after": "Public API · source protected · auditable",
+                "matches": 1
+              }
+            ],
+            "svgMask": null,
+            "relationshipIdMappings": [
+              {
+                "sourceId": "rId2",
+                "outputId": "rId2",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId3",
+                "outputId": "rId3",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              }
+            ]
+          },
+          "addedGraph": {
+            "passed": true,
+            "addedParts": [
+              "ppt/slides/_rels/slide1122.xml.rels",
+              "ppt/slides/slide1122.xml"
+            ],
+            "orphaned": [],
+            "inboundReferenced": true
+          }
+        },
+        "secondImport": {
+          "schema": "office-kit/pptx-programmable-import-continuation-verify/v1",
+          "taskId": "suanzhi-acceptance-appendix",
+          "inputSha256": "7088bcb4b76b4799116314e393f69adb06ddd5fc2fa2be73cef5b117d2ffe2e9",
+          "slideCount": 22,
+          "targetPage": 22,
+          "observed": [
+            {
+              "operation": "native-leaf",
+              "targetId": "presentation/slide/22/element/1",
+              "leafId": "nl_fddb1493a9192c7d38a8a3f83998386b",
+              "value": "可编程导入验收"
+            },
+            {
+              "operation": "native-leaf",
+              "targetId": "presentation/slide/22/element/2",
+              "leafId": "nl_48da9e2cb238101003d6441b2acbe0b4",
+              "value": "Public API · source protected · auditable"
+            }
+          ],
+          "secondImport": true,
+          "publicApi": true,
+          "passed": true
+        },
+        "pixelOracle": {
+          "passed": true,
+          "sourcePageCount": 21,
+          "outputPageCount": 22,
+          "targetPage": 22,
+          "appendedTargetPresent": true,
+          "clonedSourcePage": 1,
+          "appendedTargetChangedFromSource": true,
+          "nonTargetPagesPixelIdentical": true,
+          "nonTargetMismatches": [],
+          "sourcePageHashes": [
+            {
+              "page": 1,
+              "sha256": "e5bada601ee3fda3d02cbb8e8da51cbf4843ceeb53f1f992f76369897cc6372d"
+            },
+            {
+              "page": 2,
+              "sha256": "352aa835d298a1b5e7fab4eaf5329b83b7a48190b4448365937dafa6671d2545"
+            },
+            {
+              "page": 3,
+              "sha256": "40d302c7ba491d5121db9d5a1abca9ac2dea64aa367d13f5c9d376ec22cb6ae2"
+            },
+            {
+              "page": 4,
+              "sha256": "196a25bf00f8da7b6acbb03ce72e53a6c01a1224455ca29f9e1cc1ea139eacc5"
+            },
+            {
+              "page": 5,
+              "sha256": "9c19fae825cef543ad1f7df69429b2fab5719a902afcefadbfe8beef9f22b7b1"
+            },
+            {
+              "page": 6,
+              "sha256": "dcf458e2a55f56e47a15ff21db329e9f6404a1557b6960d4f2e1a8b0da5a0782"
+            },
+            {
+              "page": 7,
+              "sha256": "aaefcc6fc0cc285298513a7600580b176c03dbf5a4545d8f750f8c250055470c"
+            },
+            {
+              "page": 8,
+              "sha256": "d1c78b4cd7c5c03cb232401ce12e5de7170495182ed218a37db551137088313c"
+            },
+            {
+              "page": 9,
+              "sha256": "61b74a48a84b94abf63f4f1b7b48cde6871e190cc38f9ad66c709db7362c659d"
+            },
+            {
+              "page": 10,
+              "sha256": "05b837f7b5353c7997bbb0ec10dcedf17ca0e35999f73336ed6d0e2900c2f6e7"
+            },
+            {
+              "page": 11,
+              "sha256": "5b2ad8831a03ee1acadddd43afd3a3d2e548ca7e599812a5dd1180446d081dd0"
+            },
+            {
+              "page": 12,
+              "sha256": "5cd0cfb2648c052b91ab897cd3e11a590b3ec96630f7519537b85d029f42a8d2"
+            },
+            {
+              "page": 13,
+              "sha256": "83f0ddd386ba7879cae07fd1a3a733a22d8e6c71f2feaf13c642c90ad2812206"
+            },
+            {
+              "page": 14,
+              "sha256": "862523fef3f2793fd801d0bae5e43e3b6d357a43884ebdb72a0a614157d1ab1f"
+            },
+            {
+              "page": 15,
+              "sha256": "d12354cb5212bb251a5aa3bbfa018d609238a502c32bb8b8396378226d7c1dc5"
+            },
+            {
+              "page": 16,
+              "sha256": "83a35893cd25a8bdc9bff512c23b3816f89a8ba546a5e4b9506538978d7e922d"
+            },
+            {
+              "page": 17,
+              "sha256": "573c76d0f91efc464c6ce4df358d05ffc84955e058e21e1a0abcfd4dbc00aeb3"
+            },
+            {
+              "page": 18,
+              "sha256": "8815c8ff666458be9f9243b43b80a953a775500267f0d57015cb763e2eb4c841"
+            },
+            {
+              "page": 19,
+              "sha256": "92190ecb2c5d74f559817095e8ed0fdb5c5ab8836a0dc45b46285be082715430"
+            },
+            {
+              "page": 20,
+              "sha256": "8af0f0688d0d261f73f4f82d47bf885ceadbc11f4d4ee8f6ebc4c10c5168b987"
+            },
+            {
+              "page": 21,
+              "sha256": "d943adbf0bc0ec5355ce616fc66883b603d09cef77d3bb37ea169642459c23ce"
+            }
+          ],
+          "outputPageHashes": [
+            {
+              "page": 1,
+              "sha256": "e5bada601ee3fda3d02cbb8e8da51cbf4843ceeb53f1f992f76369897cc6372d"
+            },
+            {
+              "page": 2,
+              "sha256": "352aa835d298a1b5e7fab4eaf5329b83b7a48190b4448365937dafa6671d2545"
+            },
+            {
+              "page": 3,
+              "sha256": "40d302c7ba491d5121db9d5a1abca9ac2dea64aa367d13f5c9d376ec22cb6ae2"
+            },
+            {
+              "page": 4,
+              "sha256": "196a25bf00f8da7b6acbb03ce72e53a6c01a1224455ca29f9e1cc1ea139eacc5"
+            },
+            {
+              "page": 5,
+              "sha256": "9c19fae825cef543ad1f7df69429b2fab5719a902afcefadbfe8beef9f22b7b1"
+            },
+            {
+              "page": 6,
+              "sha256": "dcf458e2a55f56e47a15ff21db329e9f6404a1557b6960d4f2e1a8b0da5a0782"
+            },
+            {
+              "page": 7,
+              "sha256": "aaefcc6fc0cc285298513a7600580b176c03dbf5a4545d8f750f8c250055470c"
+            },
+            {
+              "page": 8,
+              "sha256": "d1c78b4cd7c5c03cb232401ce12e5de7170495182ed218a37db551137088313c"
+            },
+            {
+              "page": 9,
+              "sha256": "61b74a48a84b94abf63f4f1b7b48cde6871e190cc38f9ad66c709db7362c659d"
+            },
+            {
+              "page": 10,
+              "sha256": "05b837f7b5353c7997bbb0ec10dcedf17ca0e35999f73336ed6d0e2900c2f6e7"
+            },
+            {
+              "page": 11,
+              "sha256": "5b2ad8831a03ee1acadddd43afd3a3d2e548ca7e599812a5dd1180446d081dd0"
+            },
+            {
+              "page": 12,
+              "sha256": "5cd0cfb2648c052b91ab897cd3e11a590b3ec96630f7519537b85d029f42a8d2"
+            },
+            {
+              "page": 13,
+              "sha256": "83f0ddd386ba7879cae07fd1a3a733a22d8e6c71f2feaf13c642c90ad2812206"
+            },
+            {
+              "page": 14,
+              "sha256": "862523fef3f2793fd801d0bae5e43e3b6d357a43884ebdb72a0a614157d1ab1f"
+            },
+            {
+              "page": 15,
+              "sha256": "d12354cb5212bb251a5aa3bbfa018d609238a502c32bb8b8396378226d7c1dc5"
+            },
+            {
+              "page": 16,
+              "sha256": "83a35893cd25a8bdc9bff512c23b3816f89a8ba546a5e4b9506538978d7e922d"
+            },
+            {
+              "page": 17,
+              "sha256": "573c76d0f91efc464c6ce4df358d05ffc84955e058e21e1a0abcfd4dbc00aeb3"
+            },
+            {
+              "page": 18,
+              "sha256": "8815c8ff666458be9f9243b43b80a953a775500267f0d57015cb763e2eb4c841"
+            },
+            {
+              "page": 19,
+              "sha256": "92190ecb2c5d74f559817095e8ed0fdb5c5ab8836a0dc45b46285be082715430"
+            },
+            {
+              "page": 20,
+              "sha256": "8af0f0688d0d261f73f4f82d47bf885ceadbc11f4d4ee8f6ebc4c10c5168b987"
+            },
+            {
+              "page": 21,
+              "sha256": "d943adbf0bc0ec5355ce616fc66883b603d09cef77d3bb37ea169642459c23ce"
+            },
+            {
+              "page": 22,
+              "sha256": "5c3fd31565ceb0d5e8fc4b950bbd1fd25f58115725cbfdc1bfdfd209d734a3d6"
+            }
+          ],
+          "outputCacheHit": true,
+          "renderer": "keynote"
+        }
+      },
+      "evidenceDirectory": "trials/suanzhi-acceptance-appendix/3/evaluator"
+    },
+    {
+      "taskId": "blue-gray-acceptance-summary",
+      "sourceId": "blue-gray-acid-template",
+      "repetition": 1,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9"
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "b0d92d22a22608103d06aa48fbc3bc09bd353c46ffc8a62b120e943dc4565053",
+          "stderrSha256": "010cea986c991fa57183c210e11bccaa4f24180417b3cbf3a5ab0487216f71aa",
+          "finalSha256": "c95c8f3a70031086fd326e3eb7f29906f5112df587e68dc7cb3bc4f6ded22716",
+          "agentFinal": "已完成三阶段 OfficeKit 验收流程并发布：\n\n- 文件：[blue-gray-acceptance-summary.pptx](/private$WORKSPACE/outputs/blue-gray-acceptance-summary.pptx)\n- 共 20 页，原始 19 页保留\n- 第 20 页副标题：`可编程导入验收`\n- 第 20 页汇报人：`汇报人：Agent Acceptance`\n- SHA-256：`0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87`\n- 审阅：`passed-with-limitations`\n- 视觉审阅：`unavailable`（按任务约定）",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 8,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "afterSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": true,
+          "path": "outputs/blue-gray-acceptance-summary.pptx",
+          "createOnly": true,
+          "outputCount": 1
+        },
+        "durableTask": {
+          "passed": true,
+          "taskId": "t_a01e583c5738",
+          "schemaVersion": 1,
+          "sessions": 3,
+          "commits": [
+            {
+              "commitId": "c0001",
+              "path": "$WORKSPACE/.office-kit/tasks/t_a01e583c5738/revisions/continued-deck/77ea563774c937ce546762aee60039912f1ad13b176e1fafabc47a631d4d4e28.pptx",
+              "sha256": "77ea563774c937ce546762aee60039912f1ad13b176e1fafabc47a631d4d4e28",
+              "bytes": 13957085,
+              "reviewVerdict": "passed-with-limitations"
+            },
+            {
+              "commitId": "c0002",
+              "path": "$WORKSPACE/.office-kit/tasks/t_a01e583c5738/revisions/continued-deck/0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87.pptx",
+              "sha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87",
+              "bytes": 13957086,
+              "reviewVerdict": "passed-with-limitations"
+            }
+          ],
+          "head": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "revisionSha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87",
+            "committedAt": "2026-08-23T23:10:01.383Z"
+          },
+          "pending": [],
+          "publication": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "path": "outputs/blue-gray-acceptance-summary.pptx",
+            "sha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87"
+          },
+          "sourceProvenance": {
+            "artifactId": "a_462fe7d7c778",
+            "sha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "storedPath": "inputs/a_462fe7d7c778/558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d.pptx"
+          }
+        },
+        "packageOracle": {
+          "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "outputSha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87",
+          "sourcePartCount": 548,
+          "outputPartCount": 553,
+          "sourceSlideCount": 19,
+          "outputSlideCount": 20,
+          "sourceSlidePart": "ppt/slides/slide1.xml",
+          "appendedSlidePart": "ppt/slides/slide1120.xml",
+          "partSet": {
+            "removed": [],
+            "added": [
+              "ppt/notesSlides/_rels/notesSlide1119.xml.rels",
+              "ppt/notesSlides/notesSlide1119.xml",
+              "ppt/slides/_rels/slide1120.xml.rels",
+              "ppt/slides/slide1120.xml",
+              "ppt/tags/tag11389.xml"
+            ],
+            "passed": true
+          },
+          "changedExistingParts": [
+            "[Content_Types].xml",
+            "ppt/_rels/presentation.xml.rels",
+            "ppt/presentation.xml"
+          ],
+          "nonTargetExistingPartsByteIdentical": true,
+          "relationships": {
+            "passed": true,
+            "sourceRelationshipPartsByteIdentical": true,
+            "addedPresentationRelationship": {
+              "id": "rIdOfficeKitClone1ad217c823023706",
+              "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide",
+              "target": "/ppt/slides/slide1120.xml",
+              "targetMode": null
+            }
+          },
+          "targetMask": {
+            "passed": true,
+            "sourceSlidePart": "ppt/slides/slide1.xml",
+            "appendedSlidePart": "ppt/slides/slide1120.xml",
+            "nativeMasks": [
+              {
+                "method": "single-issued-token",
+                "before": "单击此处添加副标题内容",
+                "after": "可编程导入验收",
+                "matches": 1
+              },
+              {
+                "method": "single-issued-token",
+                "before": "汇报人：稻小壳",
+                "after": "汇报人：Agent Acceptance",
+                "matches": 1
+              }
+            ],
+            "svgMask": null,
+            "relationshipIdMappings": [
+              {
+                "sourceId": "rId1",
+                "outputId": "rId1",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId2",
+                "outputId": "rId2",
+                "type": "http://schemas.microsoft.com/office/2007/relationships/hdphoto"
+              },
+              {
+                "sourceId": "rId3",
+                "outputId": "rId3",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId4",
+                "outputId": "rId4",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId5",
+                "outputId": "rId5",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId6",
+                "outputId": "rId6",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/tags"
+              },
+              {
+                "sourceId": "rId7",
+                "outputId": "rId7",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId8",
+                "outputId": "rId8",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              }
+            ]
+          },
+          "addedGraph": {
+            "passed": true,
+            "addedParts": [
+              "ppt/notesSlides/_rels/notesSlide1119.xml.rels",
+              "ppt/notesSlides/notesSlide1119.xml",
+              "ppt/slides/_rels/slide1120.xml.rels",
+              "ppt/slides/slide1120.xml",
+              "ppt/tags/tag11389.xml"
+            ],
+            "orphaned": [],
+            "inboundReferenced": true
+          }
+        },
+        "secondImport": {
+          "schema": "office-kit/pptx-programmable-import-continuation-verify/v1",
+          "taskId": "blue-gray-acceptance-summary",
+          "inputSha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87",
+          "slideCount": 20,
+          "targetPage": 20,
+          "observed": [
+            {
+              "operation": "native-leaf",
+              "targetId": "presentation/slide/20/element/6",
+              "leafId": "nl_636798adb90245af6a7894b60a1c9aa2",
+              "value": "可编程导入验收"
+            },
+            {
+              "operation": "native-leaf",
+              "targetId": "presentation/slide/20/element/8",
+              "leafId": "nl_4da771f77c31b8577ee22772059e0332",
+              "value": "汇报人：Agent Acceptance"
+            }
+          ],
+          "secondImport": true,
+          "publicApi": true,
+          "passed": true
+        },
+        "pixelOracle": {
+          "passed": true,
+          "sourcePageCount": 19,
+          "outputPageCount": 20,
+          "targetPage": 20,
+          "appendedTargetPresent": true,
+          "clonedSourcePage": 1,
+          "appendedTargetChangedFromSource": true,
+          "nonTargetPagesPixelIdentical": true,
+          "nonTargetMismatches": [],
+          "sourcePageHashes": [
+            {
+              "page": 1,
+              "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+            },
+            {
+              "page": 2,
+              "sha256": "729be22aff5335adc087fe022499b25abe90c1d66618060d0d90078f17b2a346"
+            },
+            {
+              "page": 3,
+              "sha256": "fda8244366e3ba1579140eec90153d1a3c6f9de4f44a004672962489b46c1708"
+            },
+            {
+              "page": 4,
+              "sha256": "fada9474ef5a5009271d54b33421ce72b4919474d1ff7eb887ad5fe3626e5a48"
+            },
+            {
+              "page": 5,
+              "sha256": "f938529ef86cbcb489c1773fd19ea508249dd93aa006210de5bc853976063347"
+            },
+            {
+              "page": 6,
+              "sha256": "0b980e3d31153e7f60d954ab07d3299e3e9a8e82a450311304acacdb074e55cd"
+            },
+            {
+              "page": 7,
+              "sha256": "7b9dd0535b0c3c507dcf0e2b2b4badf6253d9185b938e39622f622ae730b5607"
+            },
+            {
+              "page": 8,
+              "sha256": "e89e93278c3c162239f49bc1e69570264e53d5bb031aac81a06c2598347806c1"
+            },
+            {
+              "page": 9,
+              "sha256": "33d928b19938847a41fe32633b1a5cdb9ef8b7ecce6f6447b4ad3fccdc6480b7"
+            },
+            {
+              "page": 10,
+              "sha256": "cc2144bbb55cfc5d13df1b942dcac2c41b2bcc851ec417731ddd7420f7ee6b31"
+            },
+            {
+              "page": 11,
+              "sha256": "3ce4792a7c6ec0c29a7c1cd585a5296716ed7bd3d4eebbe63108bf82e660c079"
+            },
+            {
+              "page": 12,
+              "sha256": "55241e6c9ed7a54db2f0fa64b3d162b845b4eae58765edde40c7e1f3c4d1b176"
+            },
+            {
+              "page": 13,
+              "sha256": "b683bfd04ceb133aa030d961631d00dfbc027482671ed042125729c8cb9f386a"
+            },
+            {
+              "page": 14,
+              "sha256": "5a4e6f3b20aa8a7e42d81087954f5471280bdd8b75d1b60e0d57e995507fc504"
+            },
+            {
+              "page": 15,
+              "sha256": "3df541cd0ee451163374741ce315d3b746e218c5980e9f6871b37d27786c0bc5"
+            },
+            {
+              "page": 16,
+              "sha256": "1692ef93b1d2091f81f6f6ce63fc7de0f9c8a978d7c174880b41a7a42069d096"
+            },
+            {
+              "page": 17,
+              "sha256": "d4b8c59453ee7dea2d57aff8e5467e360b6dfbead6f8bf44d0e3003f629fbdc9"
+            },
+            {
+              "page": 18,
+              "sha256": "dbf5ce590245192de635586964debf052a869664b4bf7501dd70728a551eb892"
+            },
+            {
+              "page": 19,
+              "sha256": "a7118c3e35c84794470de4d3366ba92fd2a1a16952718fc9b24cf5c020c96647"
+            }
+          ],
+          "outputPageHashes": [
+            {
+              "page": 1,
+              "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+            },
+            {
+              "page": 2,
+              "sha256": "729be22aff5335adc087fe022499b25abe90c1d66618060d0d90078f17b2a346"
+            },
+            {
+              "page": 3,
+              "sha256": "fda8244366e3ba1579140eec90153d1a3c6f9de4f44a004672962489b46c1708"
+            },
+            {
+              "page": 4,
+              "sha256": "fada9474ef5a5009271d54b33421ce72b4919474d1ff7eb887ad5fe3626e5a48"
+            },
+            {
+              "page": 5,
+              "sha256": "f938529ef86cbcb489c1773fd19ea508249dd93aa006210de5bc853976063347"
+            },
+            {
+              "page": 6,
+              "sha256": "0b980e3d31153e7f60d954ab07d3299e3e9a8e82a450311304acacdb074e55cd"
+            },
+            {
+              "page": 7,
+              "sha256": "7b9dd0535b0c3c507dcf0e2b2b4badf6253d9185b938e39622f622ae730b5607"
+            },
+            {
+              "page": 8,
+              "sha256": "e89e93278c3c162239f49bc1e69570264e53d5bb031aac81a06c2598347806c1"
+            },
+            {
+              "page": 9,
+              "sha256": "33d928b19938847a41fe32633b1a5cdb9ef8b7ecce6f6447b4ad3fccdc6480b7"
+            },
+            {
+              "page": 10,
+              "sha256": "cc2144bbb55cfc5d13df1b942dcac2c41b2bcc851ec417731ddd7420f7ee6b31"
+            },
+            {
+              "page": 11,
+              "sha256": "3ce4792a7c6ec0c29a7c1cd585a5296716ed7bd3d4eebbe63108bf82e660c079"
+            },
+            {
+              "page": 12,
+              "sha256": "55241e6c9ed7a54db2f0fa64b3d162b845b4eae58765edde40c7e1f3c4d1b176"
+            },
+            {
+              "page": 13,
+              "sha256": "b683bfd04ceb133aa030d961631d00dfbc027482671ed042125729c8cb9f386a"
+            },
+            {
+              "page": 14,
+              "sha256": "5a4e6f3b20aa8a7e42d81087954f5471280bdd8b75d1b60e0d57e995507fc504"
+            },
+            {
+              "page": 15,
+              "sha256": "3df541cd0ee451163374741ce315d3b746e218c5980e9f6871b37d27786c0bc5"
+            },
+            {
+              "page": 16,
+              "sha256": "1692ef93b1d2091f81f6f6ce63fc7de0f9c8a978d7c174880b41a7a42069d096"
+            },
+            {
+              "page": 17,
+              "sha256": "d4b8c59453ee7dea2d57aff8e5467e360b6dfbead6f8bf44d0e3003f629fbdc9"
+            },
+            {
+              "page": 18,
+              "sha256": "dbf5ce590245192de635586964debf052a869664b4bf7501dd70728a551eb892"
+            },
+            {
+              "page": 19,
+              "sha256": "a7118c3e35c84794470de4d3366ba92fd2a1a16952718fc9b24cf5c020c96647"
+            },
+            {
+              "page": 20,
+              "sha256": "55dc570b94427ad8f18d51f56a0778fccb01b0b64728356ead5f97ff485bd9b9"
+            }
+          ],
+          "outputCacheHit": false,
+          "renderer": "keynote"
+        }
+      },
+      "evidenceDirectory": "trials/blue-gray-acceptance-summary/1/evaluator"
+    },
+    {
+      "taskId": "blue-gray-acceptance-summary",
+      "sourceId": "blue-gray-acid-template",
+      "repetition": 2,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9"
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "3621caa4708fef0a0eb54def2757c4d53382f164b1a2406782b37934a7cbf117",
+          "stderrSha256": "8bea96c1d49778452270203268b80a048ce22b70fbb35e5b1f4c2e5ddb290acc",
+          "finalSha256": "620b79b44c0ba62bc68e75a3bc6b87fae75759162ad1db2808c63c9262dca81d",
+          "agentFinal": "已完成三阶段 OfficeKit 工作流并发布：\n\n- 原始 19 页保留，封面副本追加为第 20 页\n- 副标题：`可编程导入验收`\n- 汇报人：`汇报人：Agent Acceptance`\n- 两轮审阅均通过（`passed-with-limitations`，视觉审阅不可用）\n- 最终提交：`c0002`\n- SHA-256：`0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87`\n\n[打开最终演示文稿](/private$WORKSPACE/outputs/blue-gray-acceptance-summary.pptx)",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 8,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "afterSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": true,
+          "path": "outputs/blue-gray-acceptance-summary.pptx",
+          "createOnly": true,
+          "outputCount": 1
+        },
+        "durableTask": {
+          "passed": true,
+          "taskId": "t_e566a0d571de",
+          "schemaVersion": 1,
+          "sessions": 3,
+          "commits": [
+            {
+              "commitId": "c0001",
+              "path": "$WORKSPACE/.office-kit/tasks/t_e566a0d571de/revisions/continued-deck/77ea563774c937ce546762aee60039912f1ad13b176e1fafabc47a631d4d4e28.pptx",
+              "sha256": "77ea563774c937ce546762aee60039912f1ad13b176e1fafabc47a631d4d4e28",
+              "bytes": 13957085,
+              "reviewVerdict": "passed-with-limitations"
+            },
+            {
+              "commitId": "c0002",
+              "path": "$WORKSPACE/.office-kit/tasks/t_e566a0d571de/revisions/continued-deck/0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87.pptx",
+              "sha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87",
+              "bytes": 13957086,
+              "reviewVerdict": "passed-with-limitations"
+            }
+          ],
+          "head": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "revisionSha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87",
+            "committedAt": "2026-08-23T23:14:10.668Z"
+          },
+          "pending": [],
+          "publication": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "path": "outputs/blue-gray-acceptance-summary.pptx",
+            "sha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87"
+          },
+          "sourceProvenance": {
+            "artifactId": "a_ad98bbd842f4",
+            "sha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "storedPath": "inputs/a_ad98bbd842f4/558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d.pptx"
+          }
+        },
+        "packageOracle": {
+          "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "outputSha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87",
+          "sourcePartCount": 548,
+          "outputPartCount": 553,
+          "sourceSlideCount": 19,
+          "outputSlideCount": 20,
+          "sourceSlidePart": "ppt/slides/slide1.xml",
+          "appendedSlidePart": "ppt/slides/slide1120.xml",
+          "partSet": {
+            "removed": [],
+            "added": [
+              "ppt/notesSlides/_rels/notesSlide1119.xml.rels",
+              "ppt/notesSlides/notesSlide1119.xml",
+              "ppt/slides/_rels/slide1120.xml.rels",
+              "ppt/slides/slide1120.xml",
+              "ppt/tags/tag11389.xml"
+            ],
+            "passed": true
+          },
+          "changedExistingParts": [
+            "[Content_Types].xml",
+            "ppt/_rels/presentation.xml.rels",
+            "ppt/presentation.xml"
+          ],
+          "nonTargetExistingPartsByteIdentical": true,
+          "relationships": {
+            "passed": true,
+            "sourceRelationshipPartsByteIdentical": true,
+            "addedPresentationRelationship": {
+              "id": "rIdOfficeKitClone1ad217c823023706",
+              "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide",
+              "target": "/ppt/slides/slide1120.xml",
+              "targetMode": null
+            }
+          },
+          "targetMask": {
+            "passed": true,
+            "sourceSlidePart": "ppt/slides/slide1.xml",
+            "appendedSlidePart": "ppt/slides/slide1120.xml",
+            "nativeMasks": [
+              {
+                "method": "single-issued-token",
+                "before": "单击此处添加副标题内容",
+                "after": "可编程导入验收",
+                "matches": 1
+              },
+              {
+                "method": "single-issued-token",
+                "before": "汇报人：稻小壳",
+                "after": "汇报人：Agent Acceptance",
+                "matches": 1
+              }
+            ],
+            "svgMask": null,
+            "relationshipIdMappings": [
+              {
+                "sourceId": "rId1",
+                "outputId": "rId1",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId2",
+                "outputId": "rId2",
+                "type": "http://schemas.microsoft.com/office/2007/relationships/hdphoto"
+              },
+              {
+                "sourceId": "rId3",
+                "outputId": "rId3",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId4",
+                "outputId": "rId4",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId5",
+                "outputId": "rId5",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId6",
+                "outputId": "rId6",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/tags"
+              },
+              {
+                "sourceId": "rId7",
+                "outputId": "rId7",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId8",
+                "outputId": "rId8",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              }
+            ]
+          },
+          "addedGraph": {
+            "passed": true,
+            "addedParts": [
+              "ppt/notesSlides/_rels/notesSlide1119.xml.rels",
+              "ppt/notesSlides/notesSlide1119.xml",
+              "ppt/slides/_rels/slide1120.xml.rels",
+              "ppt/slides/slide1120.xml",
+              "ppt/tags/tag11389.xml"
+            ],
+            "orphaned": [],
+            "inboundReferenced": true
+          }
+        },
+        "secondImport": {
+          "schema": "office-kit/pptx-programmable-import-continuation-verify/v1",
+          "taskId": "blue-gray-acceptance-summary",
+          "inputSha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87",
+          "slideCount": 20,
+          "targetPage": 20,
+          "observed": [
+            {
+              "operation": "native-leaf",
+              "targetId": "presentation/slide/20/element/6",
+              "leafId": "nl_636798adb90245af6a7894b60a1c9aa2",
+              "value": "可编程导入验收"
+            },
+            {
+              "operation": "native-leaf",
+              "targetId": "presentation/slide/20/element/8",
+              "leafId": "nl_4da771f77c31b8577ee22772059e0332",
+              "value": "汇报人：Agent Acceptance"
+            }
+          ],
+          "secondImport": true,
+          "publicApi": true,
+          "passed": true
+        },
+        "pixelOracle": {
+          "passed": true,
+          "sourcePageCount": 19,
+          "outputPageCount": 20,
+          "targetPage": 20,
+          "appendedTargetPresent": true,
+          "clonedSourcePage": 1,
+          "appendedTargetChangedFromSource": true,
+          "nonTargetPagesPixelIdentical": true,
+          "nonTargetMismatches": [],
+          "sourcePageHashes": [
+            {
+              "page": 1,
+              "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+            },
+            {
+              "page": 2,
+              "sha256": "729be22aff5335adc087fe022499b25abe90c1d66618060d0d90078f17b2a346"
+            },
+            {
+              "page": 3,
+              "sha256": "fda8244366e3ba1579140eec90153d1a3c6f9de4f44a004672962489b46c1708"
+            },
+            {
+              "page": 4,
+              "sha256": "fada9474ef5a5009271d54b33421ce72b4919474d1ff7eb887ad5fe3626e5a48"
+            },
+            {
+              "page": 5,
+              "sha256": "f938529ef86cbcb489c1773fd19ea508249dd93aa006210de5bc853976063347"
+            },
+            {
+              "page": 6,
+              "sha256": "0b980e3d31153e7f60d954ab07d3299e3e9a8e82a450311304acacdb074e55cd"
+            },
+            {
+              "page": 7,
+              "sha256": "7b9dd0535b0c3c507dcf0e2b2b4badf6253d9185b938e39622f622ae730b5607"
+            },
+            {
+              "page": 8,
+              "sha256": "e89e93278c3c162239f49bc1e69570264e53d5bb031aac81a06c2598347806c1"
+            },
+            {
+              "page": 9,
+              "sha256": "33d928b19938847a41fe32633b1a5cdb9ef8b7ecce6f6447b4ad3fccdc6480b7"
+            },
+            {
+              "page": 10,
+              "sha256": "cc2144bbb55cfc5d13df1b942dcac2c41b2bcc851ec417731ddd7420f7ee6b31"
+            },
+            {
+              "page": 11,
+              "sha256": "3ce4792a7c6ec0c29a7c1cd585a5296716ed7bd3d4eebbe63108bf82e660c079"
+            },
+            {
+              "page": 12,
+              "sha256": "55241e6c9ed7a54db2f0fa64b3d162b845b4eae58765edde40c7e1f3c4d1b176"
+            },
+            {
+              "page": 13,
+              "sha256": "b683bfd04ceb133aa030d961631d00dfbc027482671ed042125729c8cb9f386a"
+            },
+            {
+              "page": 14,
+              "sha256": "5a4e6f3b20aa8a7e42d81087954f5471280bdd8b75d1b60e0d57e995507fc504"
+            },
+            {
+              "page": 15,
+              "sha256": "3df541cd0ee451163374741ce315d3b746e218c5980e9f6871b37d27786c0bc5"
+            },
+            {
+              "page": 16,
+              "sha256": "1692ef93b1d2091f81f6f6ce63fc7de0f9c8a978d7c174880b41a7a42069d096"
+            },
+            {
+              "page": 17,
+              "sha256": "d4b8c59453ee7dea2d57aff8e5467e360b6dfbead6f8bf44d0e3003f629fbdc9"
+            },
+            {
+              "page": 18,
+              "sha256": "dbf5ce590245192de635586964debf052a869664b4bf7501dd70728a551eb892"
+            },
+            {
+              "page": 19,
+              "sha256": "a7118c3e35c84794470de4d3366ba92fd2a1a16952718fc9b24cf5c020c96647"
+            }
+          ],
+          "outputPageHashes": [
+            {
+              "page": 1,
+              "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+            },
+            {
+              "page": 2,
+              "sha256": "729be22aff5335adc087fe022499b25abe90c1d66618060d0d90078f17b2a346"
+            },
+            {
+              "page": 3,
+              "sha256": "fda8244366e3ba1579140eec90153d1a3c6f9de4f44a004672962489b46c1708"
+            },
+            {
+              "page": 4,
+              "sha256": "fada9474ef5a5009271d54b33421ce72b4919474d1ff7eb887ad5fe3626e5a48"
+            },
+            {
+              "page": 5,
+              "sha256": "f938529ef86cbcb489c1773fd19ea508249dd93aa006210de5bc853976063347"
+            },
+            {
+              "page": 6,
+              "sha256": "0b980e3d31153e7f60d954ab07d3299e3e9a8e82a450311304acacdb074e55cd"
+            },
+            {
+              "page": 7,
+              "sha256": "7b9dd0535b0c3c507dcf0e2b2b4badf6253d9185b938e39622f622ae730b5607"
+            },
+            {
+              "page": 8,
+              "sha256": "e89e93278c3c162239f49bc1e69570264e53d5bb031aac81a06c2598347806c1"
+            },
+            {
+              "page": 9,
+              "sha256": "33d928b19938847a41fe32633b1a5cdb9ef8b7ecce6f6447b4ad3fccdc6480b7"
+            },
+            {
+              "page": 10,
+              "sha256": "cc2144bbb55cfc5d13df1b942dcac2c41b2bcc851ec417731ddd7420f7ee6b31"
+            },
+            {
+              "page": 11,
+              "sha256": "3ce4792a7c6ec0c29a7c1cd585a5296716ed7bd3d4eebbe63108bf82e660c079"
+            },
+            {
+              "page": 12,
+              "sha256": "55241e6c9ed7a54db2f0fa64b3d162b845b4eae58765edde40c7e1f3c4d1b176"
+            },
+            {
+              "page": 13,
+              "sha256": "b683bfd04ceb133aa030d961631d00dfbc027482671ed042125729c8cb9f386a"
+            },
+            {
+              "page": 14,
+              "sha256": "5a4e6f3b20aa8a7e42d81087954f5471280bdd8b75d1b60e0d57e995507fc504"
+            },
+            {
+              "page": 15,
+              "sha256": "3df541cd0ee451163374741ce315d3b746e218c5980e9f6871b37d27786c0bc5"
+            },
+            {
+              "page": 16,
+              "sha256": "1692ef93b1d2091f81f6f6ce63fc7de0f9c8a978d7c174880b41a7a42069d096"
+            },
+            {
+              "page": 17,
+              "sha256": "d4b8c59453ee7dea2d57aff8e5467e360b6dfbead6f8bf44d0e3003f629fbdc9"
+            },
+            {
+              "page": 18,
+              "sha256": "dbf5ce590245192de635586964debf052a869664b4bf7501dd70728a551eb892"
+            },
+            {
+              "page": 19,
+              "sha256": "a7118c3e35c84794470de4d3366ba92fd2a1a16952718fc9b24cf5c020c96647"
+            },
+            {
+              "page": 20,
+              "sha256": "55dc570b94427ad8f18d51f56a0778fccb01b0b64728356ead5f97ff485bd9b9"
+            }
+          ],
+          "outputCacheHit": true,
+          "renderer": "keynote"
+        }
+      },
+      "evidenceDirectory": "trials/blue-gray-acceptance-summary/2/evaluator"
+    },
+    {
+      "taskId": "blue-gray-acceptance-summary",
+      "sourceId": "blue-gray-acid-template",
+      "repetition": 3,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9"
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "8781d2ca51e0df834c2a7391b2dcad2cb57024000779f1930f92a4353cce288e",
+          "stderrSha256": "73834432ef15aa1db62b6d25f126176827c28b0e9867f9a1835204ea0fe4eafc",
+          "finalSha256": "6b8fc66b5a628afa2edaa211814803b7a803c2585fe5e6dd4a58e427739618e2",
+          "agentFinal": "已完成三阶段 OfficeKit 工作流并发布：\n\n- 保留原始 19 页，复制封面为第 20 页\n- 副标题：`可编程导入验收`\n- 汇报人：`汇报人：Agent Acceptance`\n- 两次审阅均为 `passed-with-limitations`，`visualReview: unavailable`\n- 最终提交：`c0002`\n\n文件：[blue-gray-acceptance-summary.pptx](/private$WORKSPACE/outputs/blue-gray-acceptance-summary.pptx)\n\nSHA-256：`0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87`",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 10,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "afterSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": true,
+          "path": "outputs/blue-gray-acceptance-summary.pptx",
+          "createOnly": true,
+          "outputCount": 1
+        },
+        "durableTask": {
+          "passed": true,
+          "taskId": "t_2f811fb0c5ba",
+          "schemaVersion": 1,
+          "sessions": 3,
+          "commits": [
+            {
+              "commitId": "c0001",
+              "path": "$WORKSPACE/.office-kit/tasks/t_2f811fb0c5ba/revisions/continued-deck/77ea563774c937ce546762aee60039912f1ad13b176e1fafabc47a631d4d4e28.pptx",
+              "sha256": "77ea563774c937ce546762aee60039912f1ad13b176e1fafabc47a631d4d4e28",
+              "bytes": 13957085,
+              "reviewVerdict": "passed-with-limitations"
+            },
+            {
+              "commitId": "c0002",
+              "path": "$WORKSPACE/.office-kit/tasks/t_2f811fb0c5ba/revisions/continued-deck/0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87.pptx",
+              "sha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87",
+              "bytes": 13957086,
+              "reviewVerdict": "passed-with-limitations"
+            }
+          ],
+          "head": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "revisionSha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87",
+            "committedAt": "2026-08-23T23:18:03.189Z"
+          },
+          "pending": [],
+          "publication": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "path": "outputs/blue-gray-acceptance-summary.pptx",
+            "sha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87"
+          },
+          "sourceProvenance": {
+            "artifactId": "a_2bf8d76a74f5",
+            "sha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "storedPath": "inputs/a_2bf8d76a74f5/558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d.pptx"
+          }
+        },
+        "packageOracle": {
+          "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "outputSha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87",
+          "sourcePartCount": 548,
+          "outputPartCount": 553,
+          "sourceSlideCount": 19,
+          "outputSlideCount": 20,
+          "sourceSlidePart": "ppt/slides/slide1.xml",
+          "appendedSlidePart": "ppt/slides/slide1120.xml",
+          "partSet": {
+            "removed": [],
+            "added": [
+              "ppt/notesSlides/_rels/notesSlide1119.xml.rels",
+              "ppt/notesSlides/notesSlide1119.xml",
+              "ppt/slides/_rels/slide1120.xml.rels",
+              "ppt/slides/slide1120.xml",
+              "ppt/tags/tag11389.xml"
+            ],
+            "passed": true
+          },
+          "changedExistingParts": [
+            "[Content_Types].xml",
+            "ppt/_rels/presentation.xml.rels",
+            "ppt/presentation.xml"
+          ],
+          "nonTargetExistingPartsByteIdentical": true,
+          "relationships": {
+            "passed": true,
+            "sourceRelationshipPartsByteIdentical": true,
+            "addedPresentationRelationship": {
+              "id": "rIdOfficeKitClone1ad217c823023706",
+              "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide",
+              "target": "/ppt/slides/slide1120.xml",
+              "targetMode": null
+            }
+          },
+          "targetMask": {
+            "passed": true,
+            "sourceSlidePart": "ppt/slides/slide1.xml",
+            "appendedSlidePart": "ppt/slides/slide1120.xml",
+            "nativeMasks": [
+              {
+                "method": "single-issued-token",
+                "before": "单击此处添加副标题内容",
+                "after": "可编程导入验收",
+                "matches": 1
+              },
+              {
+                "method": "single-issued-token",
+                "before": "汇报人：稻小壳",
+                "after": "汇报人：Agent Acceptance",
+                "matches": 1
+              }
+            ],
+            "svgMask": null,
+            "relationshipIdMappings": [
+              {
+                "sourceId": "rId1",
+                "outputId": "rId1",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId2",
+                "outputId": "rId2",
+                "type": "http://schemas.microsoft.com/office/2007/relationships/hdphoto"
+              },
+              {
+                "sourceId": "rId3",
+                "outputId": "rId3",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId4",
+                "outputId": "rId4",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId5",
+                "outputId": "rId5",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId6",
+                "outputId": "rId6",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/tags"
+              },
+              {
+                "sourceId": "rId7",
+                "outputId": "rId7",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              },
+              {
+                "sourceId": "rId8",
+                "outputId": "rId8",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              }
+            ]
+          },
+          "addedGraph": {
+            "passed": true,
+            "addedParts": [
+              "ppt/notesSlides/_rels/notesSlide1119.xml.rels",
+              "ppt/notesSlides/notesSlide1119.xml",
+              "ppt/slides/_rels/slide1120.xml.rels",
+              "ppt/slides/slide1120.xml",
+              "ppt/tags/tag11389.xml"
+            ],
+            "orphaned": [],
+            "inboundReferenced": true
+          }
+        },
+        "secondImport": {
+          "schema": "office-kit/pptx-programmable-import-continuation-verify/v1",
+          "taskId": "blue-gray-acceptance-summary",
+          "inputSha256": "0b28fa6ea6ab860b7742a697c1bca6b2548ba604567ebe50875d6499dafcff87",
+          "slideCount": 20,
+          "targetPage": 20,
+          "observed": [
+            {
+              "operation": "native-leaf",
+              "targetId": "presentation/slide/20/element/6",
+              "leafId": "nl_636798adb90245af6a7894b60a1c9aa2",
+              "value": "可编程导入验收"
+            },
+            {
+              "operation": "native-leaf",
+              "targetId": "presentation/slide/20/element/8",
+              "leafId": "nl_4da771f77c31b8577ee22772059e0332",
+              "value": "汇报人：Agent Acceptance"
+            }
+          ],
+          "secondImport": true,
+          "publicApi": true,
+          "passed": true
+        },
+        "pixelOracle": {
+          "passed": true,
+          "sourcePageCount": 19,
+          "outputPageCount": 20,
+          "targetPage": 20,
+          "appendedTargetPresent": true,
+          "clonedSourcePage": 1,
+          "appendedTargetChangedFromSource": true,
+          "nonTargetPagesPixelIdentical": true,
+          "nonTargetMismatches": [],
+          "sourcePageHashes": [
+            {
+              "page": 1,
+              "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+            },
+            {
+              "page": 2,
+              "sha256": "729be22aff5335adc087fe022499b25abe90c1d66618060d0d90078f17b2a346"
+            },
+            {
+              "page": 3,
+              "sha256": "fda8244366e3ba1579140eec90153d1a3c6f9de4f44a004672962489b46c1708"
+            },
+            {
+              "page": 4,
+              "sha256": "fada9474ef5a5009271d54b33421ce72b4919474d1ff7eb887ad5fe3626e5a48"
+            },
+            {
+              "page": 5,
+              "sha256": "f938529ef86cbcb489c1773fd19ea508249dd93aa006210de5bc853976063347"
+            },
+            {
+              "page": 6,
+              "sha256": "0b980e3d31153e7f60d954ab07d3299e3e9a8e82a450311304acacdb074e55cd"
+            },
+            {
+              "page": 7,
+              "sha256": "7b9dd0535b0c3c507dcf0e2b2b4badf6253d9185b938e39622f622ae730b5607"
+            },
+            {
+              "page": 8,
+              "sha256": "e89e93278c3c162239f49bc1e69570264e53d5bb031aac81a06c2598347806c1"
+            },
+            {
+              "page": 9,
+              "sha256": "33d928b19938847a41fe32633b1a5cdb9ef8b7ecce6f6447b4ad3fccdc6480b7"
+            },
+            {
+              "page": 10,
+              "sha256": "cc2144bbb55cfc5d13df1b942dcac2c41b2bcc851ec417731ddd7420f7ee6b31"
+            },
+            {
+              "page": 11,
+              "sha256": "3ce4792a7c6ec0c29a7c1cd585a5296716ed7bd3d4eebbe63108bf82e660c079"
+            },
+            {
+              "page": 12,
+              "sha256": "55241e6c9ed7a54db2f0fa64b3d162b845b4eae58765edde40c7e1f3c4d1b176"
+            },
+            {
+              "page": 13,
+              "sha256": "b683bfd04ceb133aa030d961631d00dfbc027482671ed042125729c8cb9f386a"
+            },
+            {
+              "page": 14,
+              "sha256": "5a4e6f3b20aa8a7e42d81087954f5471280bdd8b75d1b60e0d57e995507fc504"
+            },
+            {
+              "page": 15,
+              "sha256": "3df541cd0ee451163374741ce315d3b746e218c5980e9f6871b37d27786c0bc5"
+            },
+            {
+              "page": 16,
+              "sha256": "1692ef93b1d2091f81f6f6ce63fc7de0f9c8a978d7c174880b41a7a42069d096"
+            },
+            {
+              "page": 17,
+              "sha256": "d4b8c59453ee7dea2d57aff8e5467e360b6dfbead6f8bf44d0e3003f629fbdc9"
+            },
+            {
+              "page": 18,
+              "sha256": "dbf5ce590245192de635586964debf052a869664b4bf7501dd70728a551eb892"
+            },
+            {
+              "page": 19,
+              "sha256": "a7118c3e35c84794470de4d3366ba92fd2a1a16952718fc9b24cf5c020c96647"
+            }
+          ],
+          "outputPageHashes": [
+            {
+              "page": 1,
+              "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+            },
+            {
+              "page": 2,
+              "sha256": "729be22aff5335adc087fe022499b25abe90c1d66618060d0d90078f17b2a346"
+            },
+            {
+              "page": 3,
+              "sha256": "fda8244366e3ba1579140eec90153d1a3c6f9de4f44a004672962489b46c1708"
+            },
+            {
+              "page": 4,
+              "sha256": "fada9474ef5a5009271d54b33421ce72b4919474d1ff7eb887ad5fe3626e5a48"
+            },
+            {
+              "page": 5,
+              "sha256": "f938529ef86cbcb489c1773fd19ea508249dd93aa006210de5bc853976063347"
+            },
+            {
+              "page": 6,
+              "sha256": "0b980e3d31153e7f60d954ab07d3299e3e9a8e82a450311304acacdb074e55cd"
+            },
+            {
+              "page": 7,
+              "sha256": "7b9dd0535b0c3c507dcf0e2b2b4badf6253d9185b938e39622f622ae730b5607"
+            },
+            {
+              "page": 8,
+              "sha256": "e89e93278c3c162239f49bc1e69570264e53d5bb031aac81a06c2598347806c1"
+            },
+            {
+              "page": 9,
+              "sha256": "33d928b19938847a41fe32633b1a5cdb9ef8b7ecce6f6447b4ad3fccdc6480b7"
+            },
+            {
+              "page": 10,
+              "sha256": "cc2144bbb55cfc5d13df1b942dcac2c41b2bcc851ec417731ddd7420f7ee6b31"
+            },
+            {
+              "page": 11,
+              "sha256": "3ce4792a7c6ec0c29a7c1cd585a5296716ed7bd3d4eebbe63108bf82e660c079"
+            },
+            {
+              "page": 12,
+              "sha256": "55241e6c9ed7a54db2f0fa64b3d162b845b4eae58765edde40c7e1f3c4d1b176"
+            },
+            {
+              "page": 13,
+              "sha256": "b683bfd04ceb133aa030d961631d00dfbc027482671ed042125729c8cb9f386a"
+            },
+            {
+              "page": 14,
+              "sha256": "5a4e6f3b20aa8a7e42d81087954f5471280bdd8b75d1b60e0d57e995507fc504"
+            },
+            {
+              "page": 15,
+              "sha256": "3df541cd0ee451163374741ce315d3b746e218c5980e9f6871b37d27786c0bc5"
+            },
+            {
+              "page": 16,
+              "sha256": "1692ef93b1d2091f81f6f6ce63fc7de0f9c8a978d7c174880b41a7a42069d096"
+            },
+            {
+              "page": 17,
+              "sha256": "d4b8c59453ee7dea2d57aff8e5467e360b6dfbead6f8bf44d0e3003f629fbdc9"
+            },
+            {
+              "page": 18,
+              "sha256": "dbf5ce590245192de635586964debf052a869664b4bf7501dd70728a551eb892"
+            },
+            {
+              "page": 19,
+              "sha256": "a7118c3e35c84794470de4d3366ba92fd2a1a16952718fc9b24cf5c020c96647"
+            },
+            {
+              "page": 20,
+              "sha256": "55dc570b94427ad8f18d51f56a0778fccb01b0b64728356ead5f97ff485bd9b9"
+            }
+          ],
+          "outputCacheHit": true,
+          "renderer": "keynote"
+        }
+      },
+      "evidenceDirectory": "trials/blue-gray-acceptance-summary/3/evaluator"
+    },
+    {
+      "taskId": "mckinsey-acceptance-close",
+      "sourceId": "mckinsey-customer-loyalty",
+      "repetition": 1,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9"
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "52ab73acf87549ebacec50d8b353d59fc8ca52b6ded33b40eac10509cf227db4",
+          "stderrSha256": "0a75c4a0e61283ddad33310f5abd2f84ac53c70b4f5a776cf1e55140955d18a1",
+          "finalSha256": "3015a4f8753f09ccce6b592713bbc8235c2771cca49d682f316af060b7a36c40",
+          "agentFinal": "已完成三阶段 OfficeKit 流程并发布：\n\n- [mckinsey-acceptance-close.pptx]($WORKSPACE/outputs/mckinsey-acceptance-close.pptx)\n- 9 页：原始 8 页保持，并追加封面副本\n- SVG 标题：`OfficeKit Acceptance`\n- SVG 副标题：`Programmable import verified`\n- 两轮审阅：`passed-with-limitations`（`visualReview: unavailable`）\n- SHA-256：`3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94`",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 8,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "afterSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": true,
+          "path": "outputs/mckinsey-acceptance-close.pptx",
+          "createOnly": true,
+          "outputCount": 1
+        },
+        "durableTask": {
+          "passed": true,
+          "taskId": "t_bcc202cfcee2",
+          "schemaVersion": 1,
+          "sessions": 3,
+          "commits": [
+            {
+              "commitId": "c0001",
+              "path": "$WORKSPACE/.office-kit/tasks/t_bcc202cfcee2/revisions/continued-deck/6ac16a934f037c5ba6d5c2952e8a9482e7e812bf368aa18066cfc7c0bf43dd7d.pptx",
+              "sha256": "6ac16a934f037c5ba6d5c2952e8a9482e7e812bf368aa18066cfc7c0bf43dd7d",
+              "bytes": 49368,
+              "reviewVerdict": "passed-with-limitations"
+            },
+            {
+              "commitId": "c0002",
+              "path": "$WORKSPACE/.office-kit/tasks/t_bcc202cfcee2/revisions/continued-deck/3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94.pptx",
+              "sha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94",
+              "bytes": 50109,
+              "reviewVerdict": "passed-with-limitations"
+            }
+          ],
+          "head": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "revisionSha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94",
+            "committedAt": "2026-08-23T23:19:57.606Z"
+          },
+          "pending": [],
+          "publication": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "path": "outputs/mckinsey-acceptance-close.pptx",
+            "sha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94"
+          },
+          "sourceProvenance": {
+            "artifactId": "a_00e321c5b243",
+            "sha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+            "storedPath": "inputs/a_00e321c5b243/e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5.pptx"
+          }
+        },
+        "packageOracle": {
+          "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "outputSha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94",
+          "sourcePartCount": 60,
+          "outputPartCount": 64,
+          "sourceSlideCount": 8,
+          "outputSlideCount": 9,
+          "sourceSlidePart": "ppt/slides/slide1.xml",
+          "appendedSlidePart": "ppt/slides/slide119.xml",
+          "partSet": {
+            "removed": [],
+            "added": [
+              "ppt/media/office-kit-32a0cb0d62ac44732902e4b0.svg",
+              "ppt/media/office-kit-db780b21a38a9e174de90722.svg",
+              "ppt/slides/_rels/slide119.xml.rels",
+              "ppt/slides/slide119.xml"
+            ],
+            "passed": true
+          },
+          "changedExistingParts": [
+            "[Content_Types].xml",
+            "ppt/_rels/presentation.xml.rels",
+            "ppt/presentation.xml"
+          ],
+          "nonTargetExistingPartsByteIdentical": true,
+          "relationships": {
+            "passed": true,
+            "sourceRelationshipPartsByteIdentical": true,
+            "addedPresentationRelationship": {
+              "id": "rIdOfficeKitClone81c911cd599ede93",
+              "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide",
+              "target": "/ppt/slides/slide119.xml",
+              "targetMode": null
+            }
+          },
+          "targetMask": {
+            "passed": true,
+            "sourceSlidePart": "ppt/slides/slide1.xml",
+            "appendedSlidePart": "ppt/slides/slide119.xml",
+            "nativeMasks": [],
+            "svgMask": {
+              "passed": true,
+              "method": "exact-svg-text",
+              "masks": [
+                {
+                  "nodeId": "svg-text-1",
+                  "before": "Kimsoong",
+                  "after": "OfficeKit Acceptance",
+                  "matches": 1
+                },
+                {
+                  "nodeId": "svg-text-2",
+                  "before": "Customer Loyalty Programme",
+                  "after": "Programmable import verified",
+                  "matches": 1
+                }
+              ],
+              "sourcePart": "ppt/media/image1.svg",
+              "outputPart": "ppt/media/office-kit-db780b21a38a9e174de90722.svg"
+            },
+            "relationshipIdMappings": [
+              {
+                "sourceId": "rId2",
+                "outputId": "rIdOfficeKitImagedb780b21a38a9e17_1",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              }
+            ]
+          },
+          "addedGraph": {
+            "passed": true,
+            "addedParts": [
+              "ppt/media/office-kit-32a0cb0d62ac44732902e4b0.svg",
+              "ppt/media/office-kit-db780b21a38a9e174de90722.svg",
+              "ppt/slides/_rels/slide119.xml.rels",
+              "ppt/slides/slide119.xml"
+            ],
+            "orphaned": [],
+            "inboundReferenced": true
+          }
+        },
+        "secondImport": {
+          "schema": "office-kit/pptx-programmable-import-continuation-verify/v1",
+          "taskId": "mckinsey-acceptance-close",
+          "inputSha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94",
+          "slideCount": 9,
+          "targetPage": 9,
+          "observed": [
+            {
+              "operation": "svg-text",
+              "targetId": "presentation/slide/9/element/1",
+              "nodeId": "svg-text-1",
+              "value": "OfficeKit Acceptance"
+            },
+            {
+              "operation": "svg-text",
+              "targetId": "presentation/slide/9/element/1",
+              "nodeId": "svg-text-2",
+              "value": "Programmable import verified"
+            }
+          ],
+          "secondImport": true,
+          "publicApi": true,
+          "passed": true
+        },
+        "pixelOracle": {
+          "passed": true,
+          "sourcePageCount": 8,
+          "outputPageCount": 9,
+          "targetPage": 9,
+          "appendedTargetPresent": true,
+          "clonedSourcePage": 1,
+          "appendedTargetChangedFromSource": true,
+          "nonTargetPagesPixelIdentical": true,
+          "nonTargetMismatches": [],
+          "sourcePageHashes": [
+            {
+              "page": 1,
+              "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+            },
+            {
+              "page": 2,
+              "sha256": "064155360149748f4356ed00c0e06f3e425b6b3b5db38a8e9e94b1cf64027d64"
+            },
+            {
+              "page": 3,
+              "sha256": "9621e6f694c239614be806d2ca74d920e40deb2582f903932b33955d82dd896f"
+            },
+            {
+              "page": 4,
+              "sha256": "5b3d8b8fd173a864bd8703275ec207970a201f07813eb84677e935ba77cc1492"
+            },
+            {
+              "page": 5,
+              "sha256": "da5160a1b6742f4cdc8504b6774f4e9580aae472fe2886da5febb186047b5bfe"
+            },
+            {
+              "page": 6,
+              "sha256": "ffc49e069c861b405c09be534003489b56d53245d758a26452a3bdfbaff308bd"
+            },
+            {
+              "page": 7,
+              "sha256": "e531eb9cff3f75636aa07403cff54b3e91ca43d2b07fa9c9c1829a034d32cfbd"
+            },
+            {
+              "page": 8,
+              "sha256": "14cf5ef1e86ead6935580fecf845324c096c824b4dcc1db58aa56a9c5edde3db"
+            }
+          ],
+          "outputPageHashes": [
+            {
+              "page": 1,
+              "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+            },
+            {
+              "page": 2,
+              "sha256": "064155360149748f4356ed00c0e06f3e425b6b3b5db38a8e9e94b1cf64027d64"
+            },
+            {
+              "page": 3,
+              "sha256": "9621e6f694c239614be806d2ca74d920e40deb2582f903932b33955d82dd896f"
+            },
+            {
+              "page": 4,
+              "sha256": "5b3d8b8fd173a864bd8703275ec207970a201f07813eb84677e935ba77cc1492"
+            },
+            {
+              "page": 5,
+              "sha256": "da5160a1b6742f4cdc8504b6774f4e9580aae472fe2886da5febb186047b5bfe"
+            },
+            {
+              "page": 6,
+              "sha256": "ffc49e069c861b405c09be534003489b56d53245d758a26452a3bdfbaff308bd"
+            },
+            {
+              "page": 7,
+              "sha256": "e531eb9cff3f75636aa07403cff54b3e91ca43d2b07fa9c9c1829a034d32cfbd"
+            },
+            {
+              "page": 8,
+              "sha256": "14cf5ef1e86ead6935580fecf845324c096c824b4dcc1db58aa56a9c5edde3db"
+            },
+            {
+              "page": 9,
+              "sha256": "4047151eccf618f17e4466266486b0b8446182c165be4fd263eaff7b55947364"
+            }
+          ],
+          "outputCacheHit": false,
+          "renderer": "libreoffice"
+        }
+      },
+      "evidenceDirectory": "trials/mckinsey-acceptance-close/1/evaluator"
+    },
+    {
+      "taskId": "mckinsey-acceptance-close",
+      "sourceId": "mckinsey-customer-loyalty",
+      "repetition": 2,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9"
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "526c37052bdf27bb5d843bfdc8be5ca156dc39af080ba4a7b6446052ba5ef93d",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "finalSha256": "7d25df54992043162aefa1a993093ea9fd16f86715f41235f28ebdcd8bf7488c",
+          "agentFinal": "已完成三阶段 OfficeKit 工作流并发布：\n\n- 文件：[mckinsey-acceptance-close.pptx](/private$WORKSPACE/outputs/mckinsey-acceptance-close.pptx)\n- 幻灯片：原始 8 页保留，新增复制页为第 9 页\n- 第 9 页标题：`OfficeKit Acceptance`\n- 第 9 页副标题：`Programmable import verified`\n- SHA-256：`3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94`\n- 审阅：`passed-with-limitations`\n- `visualReview`：`unavailable`",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 8,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "afterSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": true,
+          "path": "outputs/mckinsey-acceptance-close.pptx",
+          "createOnly": true,
+          "outputCount": 1
+        },
+        "durableTask": {
+          "passed": true,
+          "taskId": "t_3395286c2a5d",
+          "schemaVersion": 1,
+          "sessions": 3,
+          "commits": [
+            {
+              "commitId": "c0001",
+              "path": "$WORKSPACE/.office-kit/tasks/t_3395286c2a5d/revisions/continued-deck/6ac16a934f037c5ba6d5c2952e8a9482e7e812bf368aa18066cfc7c0bf43dd7d.pptx",
+              "sha256": "6ac16a934f037c5ba6d5c2952e8a9482e7e812bf368aa18066cfc7c0bf43dd7d",
+              "bytes": 49368,
+              "reviewVerdict": "passed-with-limitations"
+            },
+            {
+              "commitId": "c0002",
+              "path": "$WORKSPACE/.office-kit/tasks/t_3395286c2a5d/revisions/continued-deck/3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94.pptx",
+              "sha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94",
+              "bytes": 50109,
+              "reviewVerdict": "passed-with-limitations"
+            }
+          ],
+          "head": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "revisionSha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94",
+            "committedAt": "2026-08-23T23:21:17.836Z"
+          },
+          "pending": [],
+          "publication": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "path": "outputs/mckinsey-acceptance-close.pptx",
+            "sha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94"
+          },
+          "sourceProvenance": {
+            "artifactId": "a_dc5b03326b88",
+            "sha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+            "storedPath": "inputs/a_dc5b03326b88/e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5.pptx"
+          }
+        },
+        "packageOracle": {
+          "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "outputSha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94",
+          "sourcePartCount": 60,
+          "outputPartCount": 64,
+          "sourceSlideCount": 8,
+          "outputSlideCount": 9,
+          "sourceSlidePart": "ppt/slides/slide1.xml",
+          "appendedSlidePart": "ppt/slides/slide119.xml",
+          "partSet": {
+            "removed": [],
+            "added": [
+              "ppt/media/office-kit-32a0cb0d62ac44732902e4b0.svg",
+              "ppt/media/office-kit-db780b21a38a9e174de90722.svg",
+              "ppt/slides/_rels/slide119.xml.rels",
+              "ppt/slides/slide119.xml"
+            ],
+            "passed": true
+          },
+          "changedExistingParts": [
+            "[Content_Types].xml",
+            "ppt/_rels/presentation.xml.rels",
+            "ppt/presentation.xml"
+          ],
+          "nonTargetExistingPartsByteIdentical": true,
+          "relationships": {
+            "passed": true,
+            "sourceRelationshipPartsByteIdentical": true,
+            "addedPresentationRelationship": {
+              "id": "rIdOfficeKitClone81c911cd599ede93",
+              "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide",
+              "target": "/ppt/slides/slide119.xml",
+              "targetMode": null
+            }
+          },
+          "targetMask": {
+            "passed": true,
+            "sourceSlidePart": "ppt/slides/slide1.xml",
+            "appendedSlidePart": "ppt/slides/slide119.xml",
+            "nativeMasks": [],
+            "svgMask": {
+              "passed": true,
+              "method": "exact-svg-text",
+              "masks": [
+                {
+                  "nodeId": "svg-text-1",
+                  "before": "Kimsoong",
+                  "after": "OfficeKit Acceptance",
+                  "matches": 1
+                },
+                {
+                  "nodeId": "svg-text-2",
+                  "before": "Customer Loyalty Programme",
+                  "after": "Programmable import verified",
+                  "matches": 1
+                }
+              ],
+              "sourcePart": "ppt/media/image1.svg",
+              "outputPart": "ppt/media/office-kit-db780b21a38a9e174de90722.svg"
+            },
+            "relationshipIdMappings": [
+              {
+                "sourceId": "rId2",
+                "outputId": "rIdOfficeKitImagedb780b21a38a9e17_1",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              }
+            ]
+          },
+          "addedGraph": {
+            "passed": true,
+            "addedParts": [
+              "ppt/media/office-kit-32a0cb0d62ac44732902e4b0.svg",
+              "ppt/media/office-kit-db780b21a38a9e174de90722.svg",
+              "ppt/slides/_rels/slide119.xml.rels",
+              "ppt/slides/slide119.xml"
+            ],
+            "orphaned": [],
+            "inboundReferenced": true
+          }
+        },
+        "secondImport": {
+          "schema": "office-kit/pptx-programmable-import-continuation-verify/v1",
+          "taskId": "mckinsey-acceptance-close",
+          "inputSha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94",
+          "slideCount": 9,
+          "targetPage": 9,
+          "observed": [
+            {
+              "operation": "svg-text",
+              "targetId": "presentation/slide/9/element/1",
+              "nodeId": "svg-text-1",
+              "value": "OfficeKit Acceptance"
+            },
+            {
+              "operation": "svg-text",
+              "targetId": "presentation/slide/9/element/1",
+              "nodeId": "svg-text-2",
+              "value": "Programmable import verified"
+            }
+          ],
+          "secondImport": true,
+          "publicApi": true,
+          "passed": true
+        },
+        "pixelOracle": {
+          "passed": true,
+          "sourcePageCount": 8,
+          "outputPageCount": 9,
+          "targetPage": 9,
+          "appendedTargetPresent": true,
+          "clonedSourcePage": 1,
+          "appendedTargetChangedFromSource": true,
+          "nonTargetPagesPixelIdentical": true,
+          "nonTargetMismatches": [],
+          "sourcePageHashes": [
+            {
+              "page": 1,
+              "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+            },
+            {
+              "page": 2,
+              "sha256": "064155360149748f4356ed00c0e06f3e425b6b3b5db38a8e9e94b1cf64027d64"
+            },
+            {
+              "page": 3,
+              "sha256": "9621e6f694c239614be806d2ca74d920e40deb2582f903932b33955d82dd896f"
+            },
+            {
+              "page": 4,
+              "sha256": "5b3d8b8fd173a864bd8703275ec207970a201f07813eb84677e935ba77cc1492"
+            },
+            {
+              "page": 5,
+              "sha256": "da5160a1b6742f4cdc8504b6774f4e9580aae472fe2886da5febb186047b5bfe"
+            },
+            {
+              "page": 6,
+              "sha256": "ffc49e069c861b405c09be534003489b56d53245d758a26452a3bdfbaff308bd"
+            },
+            {
+              "page": 7,
+              "sha256": "e531eb9cff3f75636aa07403cff54b3e91ca43d2b07fa9c9c1829a034d32cfbd"
+            },
+            {
+              "page": 8,
+              "sha256": "14cf5ef1e86ead6935580fecf845324c096c824b4dcc1db58aa56a9c5edde3db"
+            }
+          ],
+          "outputPageHashes": [
+            {
+              "page": 1,
+              "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+            },
+            {
+              "page": 2,
+              "sha256": "064155360149748f4356ed00c0e06f3e425b6b3b5db38a8e9e94b1cf64027d64"
+            },
+            {
+              "page": 3,
+              "sha256": "9621e6f694c239614be806d2ca74d920e40deb2582f903932b33955d82dd896f"
+            },
+            {
+              "page": 4,
+              "sha256": "5b3d8b8fd173a864bd8703275ec207970a201f07813eb84677e935ba77cc1492"
+            },
+            {
+              "page": 5,
+              "sha256": "da5160a1b6742f4cdc8504b6774f4e9580aae472fe2886da5febb186047b5bfe"
+            },
+            {
+              "page": 6,
+              "sha256": "ffc49e069c861b405c09be534003489b56d53245d758a26452a3bdfbaff308bd"
+            },
+            {
+              "page": 7,
+              "sha256": "e531eb9cff3f75636aa07403cff54b3e91ca43d2b07fa9c9c1829a034d32cfbd"
+            },
+            {
+              "page": 8,
+              "sha256": "14cf5ef1e86ead6935580fecf845324c096c824b4dcc1db58aa56a9c5edde3db"
+            },
+            {
+              "page": 9,
+              "sha256": "4047151eccf618f17e4466266486b0b8446182c165be4fd263eaff7b55947364"
+            }
+          ],
+          "outputCacheHit": true,
+          "renderer": "libreoffice"
+        }
+      },
+      "evidenceDirectory": "trials/mckinsey-acceptance-close/2/evaluator"
+    },
+    {
+      "taskId": "mckinsey-acceptance-close",
+      "sourceId": "mckinsey-customer-loyalty",
+      "repetition": 3,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9"
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "7cc052bac8571c936ea548e49fdf0ab52e57e4d36af39210f90ad60b4a9f5520",
+          "stderrSha256": "4fe983150a90d295bbbba946563b71e72207b3f09fd3979fe07febf16915e83b",
+          "finalSha256": "440bab909ab721cb792a676775fd3465d2768b53cd78692e862992ae2a773927",
+          "agentFinal": "已完成三阶段 OfficeKit 工作流并发布。\n\n- 输出：[mckinsey-acceptance-close.pptx](/private$WORKSPACE/outputs/mckinsey-acceptance-close.pptx)\n- 幻灯片：9 页（原始 8 页保持，封面克隆为第 9 页）\n- 标题：`OfficeKit Acceptance`\n- 副标题：`Programmable import verified`\n- 最终提交：`c0002`\n- SHA-256：`3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94`\n- 审阅：`passed-with-limitations`；`visualReview: unavailable`（按要求由外部评估器负责视觉验证）",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 8,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "afterSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": true,
+          "path": "outputs/mckinsey-acceptance-close.pptx",
+          "createOnly": true,
+          "outputCount": 1
+        },
+        "durableTask": {
+          "passed": true,
+          "taskId": "t_bbf29b054e31",
+          "schemaVersion": 1,
+          "sessions": 3,
+          "commits": [
+            {
+              "commitId": "c0001",
+              "path": "$WORKSPACE/.office-kit/tasks/t_bbf29b054e31/revisions/continued-deck/6ac16a934f037c5ba6d5c2952e8a9482e7e812bf368aa18066cfc7c0bf43dd7d.pptx",
+              "sha256": "6ac16a934f037c5ba6d5c2952e8a9482e7e812bf368aa18066cfc7c0bf43dd7d",
+              "bytes": 49368,
+              "reviewVerdict": "passed-with-limitations"
+            },
+            {
+              "commitId": "c0002",
+              "path": "$WORKSPACE/.office-kit/tasks/t_bbf29b054e31/revisions/continued-deck/3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94.pptx",
+              "sha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94",
+              "bytes": 50109,
+              "reviewVerdict": "passed-with-limitations"
+            }
+          ],
+          "head": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "revisionSha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94",
+            "committedAt": "2026-08-23T23:22:36.861Z"
+          },
+          "pending": [],
+          "publication": {
+            "commitId": "c0002",
+            "artifactId": "continued-deck",
+            "path": "outputs/mckinsey-acceptance-close.pptx",
+            "sha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94"
+          },
+          "sourceProvenance": {
+            "artifactId": "a_9cc7fa984070",
+            "sha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+            "storedPath": "inputs/a_9cc7fa984070/e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5.pptx"
+          }
+        },
+        "packageOracle": {
+          "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "outputSha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94",
+          "sourcePartCount": 60,
+          "outputPartCount": 64,
+          "sourceSlideCount": 8,
+          "outputSlideCount": 9,
+          "sourceSlidePart": "ppt/slides/slide1.xml",
+          "appendedSlidePart": "ppt/slides/slide119.xml",
+          "partSet": {
+            "removed": [],
+            "added": [
+              "ppt/media/office-kit-32a0cb0d62ac44732902e4b0.svg",
+              "ppt/media/office-kit-db780b21a38a9e174de90722.svg",
+              "ppt/slides/_rels/slide119.xml.rels",
+              "ppt/slides/slide119.xml"
+            ],
+            "passed": true
+          },
+          "changedExistingParts": [
+            "[Content_Types].xml",
+            "ppt/_rels/presentation.xml.rels",
+            "ppt/presentation.xml"
+          ],
+          "nonTargetExistingPartsByteIdentical": true,
+          "relationships": {
+            "passed": true,
+            "sourceRelationshipPartsByteIdentical": true,
+            "addedPresentationRelationship": {
+              "id": "rIdOfficeKitClone81c911cd599ede93",
+              "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide",
+              "target": "/ppt/slides/slide119.xml",
+              "targetMode": null
+            }
+          },
+          "targetMask": {
+            "passed": true,
+            "sourceSlidePart": "ppt/slides/slide1.xml",
+            "appendedSlidePart": "ppt/slides/slide119.xml",
+            "nativeMasks": [],
+            "svgMask": {
+              "passed": true,
+              "method": "exact-svg-text",
+              "masks": [
+                {
+                  "nodeId": "svg-text-1",
+                  "before": "Kimsoong",
+                  "after": "OfficeKit Acceptance",
+                  "matches": 1
+                },
+                {
+                  "nodeId": "svg-text-2",
+                  "before": "Customer Loyalty Programme",
+                  "after": "Programmable import verified",
+                  "matches": 1
+                }
+              ],
+              "sourcePart": "ppt/media/image1.svg",
+              "outputPart": "ppt/media/office-kit-db780b21a38a9e174de90722.svg"
+            },
+            "relationshipIdMappings": [
+              {
+                "sourceId": "rId2",
+                "outputId": "rIdOfficeKitImagedb780b21a38a9e17_1",
+                "type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+              }
+            ]
+          },
+          "addedGraph": {
+            "passed": true,
+            "addedParts": [
+              "ppt/media/office-kit-32a0cb0d62ac44732902e4b0.svg",
+              "ppt/media/office-kit-db780b21a38a9e174de90722.svg",
+              "ppt/slides/_rels/slide119.xml.rels",
+              "ppt/slides/slide119.xml"
+            ],
+            "orphaned": [],
+            "inboundReferenced": true
+          }
+        },
+        "secondImport": {
+          "schema": "office-kit/pptx-programmable-import-continuation-verify/v1",
+          "taskId": "mckinsey-acceptance-close",
+          "inputSha256": "3d3b121462f6d6d56b73cd1a8fd86a8c14f4ead9ffb533324970785466100c94",
+          "slideCount": 9,
+          "targetPage": 9,
+          "observed": [
+            {
+              "operation": "svg-text",
+              "targetId": "presentation/slide/9/element/1",
+              "nodeId": "svg-text-1",
+              "value": "OfficeKit Acceptance"
+            },
+            {
+              "operation": "svg-text",
+              "targetId": "presentation/slide/9/element/1",
+              "nodeId": "svg-text-2",
+              "value": "Programmable import verified"
+            }
+          ],
+          "secondImport": true,
+          "publicApi": true,
+          "passed": true
+        },
+        "pixelOracle": {
+          "passed": true,
+          "sourcePageCount": 8,
+          "outputPageCount": 9,
+          "targetPage": 9,
+          "appendedTargetPresent": true,
+          "clonedSourcePage": 1,
+          "appendedTargetChangedFromSource": true,
+          "nonTargetPagesPixelIdentical": true,
+          "nonTargetMismatches": [],
+          "sourcePageHashes": [
+            {
+              "page": 1,
+              "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+            },
+            {
+              "page": 2,
+              "sha256": "064155360149748f4356ed00c0e06f3e425b6b3b5db38a8e9e94b1cf64027d64"
+            },
+            {
+              "page": 3,
+              "sha256": "9621e6f694c239614be806d2ca74d920e40deb2582f903932b33955d82dd896f"
+            },
+            {
+              "page": 4,
+              "sha256": "5b3d8b8fd173a864bd8703275ec207970a201f07813eb84677e935ba77cc1492"
+            },
+            {
+              "page": 5,
+              "sha256": "da5160a1b6742f4cdc8504b6774f4e9580aae472fe2886da5febb186047b5bfe"
+            },
+            {
+              "page": 6,
+              "sha256": "ffc49e069c861b405c09be534003489b56d53245d758a26452a3bdfbaff308bd"
+            },
+            {
+              "page": 7,
+              "sha256": "e531eb9cff3f75636aa07403cff54b3e91ca43d2b07fa9c9c1829a034d32cfbd"
+            },
+            {
+              "page": 8,
+              "sha256": "14cf5ef1e86ead6935580fecf845324c096c824b4dcc1db58aa56a9c5edde3db"
+            }
+          ],
+          "outputPageHashes": [
+            {
+              "page": 1,
+              "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+            },
+            {
+              "page": 2,
+              "sha256": "064155360149748f4356ed00c0e06f3e425b6b3b5db38a8e9e94b1cf64027d64"
+            },
+            {
+              "page": 3,
+              "sha256": "9621e6f694c239614be806d2ca74d920e40deb2582f903932b33955d82dd896f"
+            },
+            {
+              "page": 4,
+              "sha256": "5b3d8b8fd173a864bd8703275ec207970a201f07813eb84677e935ba77cc1492"
+            },
+            {
+              "page": 5,
+              "sha256": "da5160a1b6742f4cdc8504b6774f4e9580aae472fe2886da5febb186047b5bfe"
+            },
+            {
+              "page": 6,
+              "sha256": "ffc49e069c861b405c09be534003489b56d53245d758a26452a3bdfbaff308bd"
+            },
+            {
+              "page": 7,
+              "sha256": "e531eb9cff3f75636aa07403cff54b3e91ca43d2b07fa9c9c1829a034d32cfbd"
+            },
+            {
+              "page": 8,
+              "sha256": "14cf5ef1e86ead6935580fecf845324c096c824b4dcc1db58aa56a9c5edde3db"
+            },
+            {
+              "page": 9,
+              "sha256": "4047151eccf618f17e4466266486b0b8446182c165be4fd263eaff7b55947364"
+            }
+          ],
+          "outputCacheHit": true,
+          "renderer": "libreoffice"
+        }
+      },
+      "evidenceDirectory": "trials/mckinsey-acceptance-close/3/evaluator"
+    }
+  ],
+  "acceptance": {
+    "requiredTasks": 3,
+    "trialsPerTask": 3,
+    "requiredTrials": 9,
+    "completedTrials": 9,
+    "passedTrials": 9,
+    "status": "passed"
+  }
+}
