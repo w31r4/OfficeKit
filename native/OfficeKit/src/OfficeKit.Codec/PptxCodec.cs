@@ -1018,9 +1018,11 @@ internal static class PptxCodec
             removedSourceRelationshipKeys.Count == 0;
         var bytes = noModeledChanges
             ? sourceBytes
-            : NormalizeAddedPartTimestamps(
+            : NormalizeChangedPartTimestamps(
                 stream.ToArray(),
-                addedPartPaths.Concat(clonedPackageEntryPaths).ToHashSet(StringComparer.OrdinalIgnoreCase));
+                sourceBytes,
+                addedPartPaths.Concat(clonedPackageEntryPaths).ToHashSet(StringComparer.OrdinalIgnoreCase),
+                changedParts);
         if (authoredOverlayXmlByPartPath.Count > 0)
         {
             var replacements = authoredOverlayXmlByPartPath.ToDictionary(
@@ -1077,22 +1079,36 @@ internal static class PptxCodec
         return new PptxExportResult(bytes, diagnostics);
     }
 
-    private static byte[] NormalizeAddedPartTimestamps(byte[] bytes, IReadOnlyCollection<string> addedPartPaths)
+    private static byte[] NormalizeChangedPartTimestamps(
+        byte[] bytes,
+        byte[] sourceBytes,
+        IReadOnlyCollection<string> addedPartPaths,
+        IReadOnlyCollection<string> changedPartPaths)
     {
-        if (addedPartPaths.Count == 0) return bytes;
+        if (addedPartPaths.Count == 0 && changedPartPaths.Count == 0) return bytes;
+        using var sourceStream = new MemoryStream(sourceBytes, writable: false);
+        using var sourceArchive = new ZipArchive(sourceStream, ZipArchiveMode.Read, leaveOpen: false);
         using var stream = new MemoryStream();
         stream.Write(bytes);
         stream.Position = 0;
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
         {
             var timestamp = new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
-            foreach (var path in addedPartPaths.Order(StringComparer.OrdinalIgnoreCase))
+            var added = addedPartPaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var path in added.Order(StringComparer.OrdinalIgnoreCase))
             {
                 var entry = archive.GetEntry(path) ?? throw new CodecException(
                     "presentation_added_part_missing",
                     $"PPTX declared added part {path} is missing from the output package.",
                     path);
                 entry.LastWriteTime = timestamp;
+            }
+            foreach (var path in changedPartPaths.Where(path => !added.Contains(path)).Order(StringComparer.OrdinalIgnoreCase))
+            {
+                var outputEntry = archive.GetEntry(path);
+                var sourceEntry = sourceArchive.GetEntry(path);
+                if (outputEntry is not null && sourceEntry is not null)
+                    outputEntry.LastWriteTime = sourceEntry.LastWriteTime;
             }
         }
         return stream.ToArray();
