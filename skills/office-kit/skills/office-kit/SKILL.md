@@ -121,7 +121,9 @@ then let the PDF Skill inspect and verify the final PDF.
 
 - Protect every input and retained template from overwrite.
 - For durable work, follow `tasks → repl → input → edit → review → commit →
-  publish`. A failed review remains attention and cannot replace task HEAD.
+  publish`. Every `ctx.commit(candidate, options)` requires a concise non-empty
+  `options.summary`. A failed review remains attention and cannot replace task
+  HEAD.
 - Complete each artifact under its owner's workflow.
 - For a conversational PPT draft, run the draft checks defined by the
   Presentations Skill and return the working path plus draft guide. Do not call
