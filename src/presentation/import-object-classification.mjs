@@ -49,6 +49,9 @@ function typedOperations(entry) {
   if (source.textEditable === true) operations.push("text");
   if (source.accessibilityEditable === true) operations.push("accessibility");
   if (model?.svgTextCapability?.supported === true) operations.push("svg-text");
+  const svgLeafKinds = new Set((model?.svgEditCapability?.leaves || []).map((leaf) => leaf.leafKind));
+  if (["svgFillRgb", "svgStrokeRgb", "svgOpacity"].some((kind) => svgLeafKinds.has(kind))) operations.push("svg-style");
+  if (svgLeafKinds.has("svgTransformScalar")) operations.push("svg-transform");
   if (model?.oleWorkbook) operations.push("embedded-workbook");
   if (model?.oleOfficePackage) operations.push("embedded-office-package");
   if (model?.deletionCapability?.supported === true) operations.push("delete");
