@@ -123,6 +123,10 @@ message CodecResponse {
 message PresentationEditPlanRequest {
   string expected_source_sha256 = 1;
   repeated PresentationEditOperation operations = 2;
+  // Content-addressed assets referenced by bounded imageAsset operations.
+  // Unreferenced assets are rejected; the codec independently validates type,
+  // size, hash, and same-content-type replacement against the source picture.
+  repeated Asset assets = 3;
 }
 
 message PresentationEditOperation {
@@ -144,7 +148,8 @@ message PresentationEditOperation {
   repeated uint32 shape_tree_path = 13;
   // Bounded compiler-issued leaf vocabulary. Empty is the legacy text leaf.
   // v1 values: text, tableCellText, fillRgb, lineRgb, leftEmu, topEmu,
-  // widthEmu, heightEmu, chartTitleText, chartDataValue, diagramText.
+  // widthEmu, heightEmu, imageAsset, chartTitleText, chartDataValue,
+  // diagramText.
   string leaf_kind = 14;
   // Compiler-issued dependent-part binding for a native leaf that is not
   // stored in the owner SlidePart. Callers cannot provide arbitrary paths:
@@ -169,6 +174,10 @@ message PresentationEditOperation {
   // callers still cannot provide XPath or raw XML locations.
   string diagram_model_id = 27;
   uint32 diagram_run_index = 28;
+  // Requested embedded image and bounded source rectangle for imageAsset.
+  // The replacement asset must be present in the parent request and retain
+  // the source picture's content type. Absence of crop removes a:srcRect.
+  PresentationImageReplacement image_replacement = 29;
 }
 
 message PresentationEditPlanResult {
@@ -177,6 +186,7 @@ message PresentationEditPlanResult {
   repeated string changed_parts = 3;
   repeated PresentationEditOperationResult operations = 4;
 }
+
 
 message PresentationEditOperationResult {
   string operation_id = 1;
@@ -3962,4 +3972,11 @@ message PresentationNormalAutoFit {
     int32 line_spacing_reduction_1000 = 3;
     bool no_line_spacing_reduction = 4;
   }
+}
+
+// Appended so the internal edit-plan operation can carry one bounded image
+// replacement without renumbering the established descriptor sequence.
+message PresentationImageReplacement {
+  string asset_id = 1;
+  PresentationImageCrop crop = 2;
 }
