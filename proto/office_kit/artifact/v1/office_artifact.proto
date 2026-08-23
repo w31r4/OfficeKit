@@ -149,7 +149,7 @@ message PresentationEditOperation {
   // Bounded compiler-issued leaf vocabulary. Empty is the legacy text leaf.
   // v1 values: text, tableCellText, fillRgb, lineRgb, leftEmu, topEmu,
   // widthEmu, heightEmu, imageAsset, chartTitleText, chartDataValue,
-  // diagramText.
+  // diagramText, deleteElement.
   string leaf_kind = 14;
   // Compiler-issued dependent-part binding for a native leaf that is not
   // stored in the owner SlidePart. Callers cannot provide arbitrary paths:
@@ -178,6 +178,10 @@ message PresentationEditOperation {
   // The replacement asset must be present in the parent request and retain
   // the source picture's content type. Absence of crop removes a:srcRect.
   PresentationImageReplacement image_replacement = 29;
+  // Explicit source-bound top-level element deletion. The native drawing ID
+  // comes from the codec-issued deletion capability and is re-proved against
+  // the exact source revision; it is not an arbitrary package selector.
+  PresentationEditElementDeletion element_deletion = 30;
 }
 
 message PresentationEditPlanResult {
@@ -3979,4 +3983,11 @@ message PresentationNormalAutoFit {
 message PresentationImageReplacement {
   string asset_id = 1;
   PresentationImageCrop crop = 2;
+}
+
+// Appended so the internal edit-plan operation can remove one codec-proven
+// top-level shape-tree element without renumbering the established descriptor
+// sequence or exposing raw XML/package selectors.
+message PresentationEditElementDeletion {
+  uint32 expected_native_id = 1;
 }
